@@ -406,6 +406,26 @@ class DryRunEnvTest(unittest.TestCase):
         self.assertIn("fleetd.mobileconfig", ch.results["reconcile"][0]["message"])
         self.assertNotIn("12345678", repr(ch.results))
 
+    def test_api_source_and_leaked_values(self):
+        class FakeAPI:
+            def json(self, path, params=None):
+                assert path == "/api/latest/fleet/software/titles/7" and params == {"fleet_id": 2}
+                return {"software_title": {"software_package": {"url": "https://x.test/app.pkg?token=abcdef123456"}}}
+
+        plan = {"env": [{"name": "FLEET_APP_URL", "used_in": ["platforms/macos/software/app.package.yml"],
+                         "source": {"type": "api", "path": "/api/latest/fleet/software/titles/7", "params": {"fleet_id": 2},
+                                    "pointer": ["software_title", "software_package", "url"]}}]}
+        ch = Checker(self.tmp, plan)
+        env, _ = ch.dry_run_env(FakeAPI(), None)
+        self.assertEqual(env["FLEET_APP_URL"], "https://x.test/app.pkg?token=abcdef123456")
+        (self.tmp / "notes.md").write_text("see https://x.test/app.pkg?token=abcdef123456\n")
+        (self.tmp / ".env").write_text("FLEET_APP_URL=https://x.test/app.pkg?token=abcdef123456\n")
+        ch.check_leaks()
+        messages = [r["message"] for r in ch.results["reconcile"] if r["level"] == "FAIL"]
+        self.assertEqual(len(messages), 1)
+        self.assertIn("notes.md holds the value of $FLEET_APP_URL", messages[0])
+        self.assertNotIn("abcdef123456", repr(ch.results))
+
     def test_mask_stays_a_yaml_string(self):
         backend = yaml_backend()
         if not backend:
@@ -451,6 +471,27 @@ class SecretSpansTest(unittest.TestCase):
         self.assertEqual(setup["short_secret_refs"], [short_src])
         self.assertEqual(title["plain_secret_refs"], [long_src])
         self.assertNotIn("wk-s3cr3t-value", repr([profile["plain_secret_refs"], script["plain_secret_refs"], title["plain_secret_refs"]]))
+
+    def test_marks_encoded_secrets_and_yaml_items(self):
+        import base64 as b64
+        c = Collector(api=None)
+        secret = "wk+s3cr3t/value=="
+        src = {"type": "enroll_secret", "team": 1, "index": 0}
+        c._secret_values = [(secret, src)]
+        json_escaped = {"name": "decl", "content": b'{"Secret": "wk+s3cr3t\\/value=="}'}
+        url = {"name": "url", "content": b"<string>https://x.test/?s=wk%2Bs3cr3t%2Fvalue%3D%3D</string>"}
+        data = {"name": "data", "content": b"<data>" + b64.b64encode(b"prefix " + secret.encode() + b" suffix") + b"</data>"}
+        plain = {"name": "plain", "content": ("<string>" + secret + "</string>").encode(), "description": "uses " + secret}
+        policy = {"name": "p", "query": f"SELECT 1 WHERE value = '{secret}'"}
+        report, label = {"name": "r", "query": "SELECT 1", "description": secret}, {"name": "l", "query": secret}
+        rule, eula = {"name": "r.yar", "contents": secret}, {"name": "terms.md", "content": secret.encode()}
+        snap = {"config": {"agent_options": {"config": {"options": {"x": "a " + secret}}}, "yara_rules": [rule]},
+                "eula": {"windows": eula}}
+        scopes = [{"key": "global", "profiles": [json_escaped, url, data, plain], "policies": [policy], "reports": [report], "labels": [label]}]
+        c._mark_secrets(scopes, snap)
+        for item in (json_escaped, url, data, plain, policy, report, label, rule, eula):
+            self.assertEqual(item.get("plain_secret_refs"), [src], item["name"])
+        self.assertEqual(snap["setting_secret_paths"], {"global": [["agent_options", "config", "options", "x"]]})
 
     def test_marks_secrets_in_configurations_and_undecodable_bodies(self):
         c = Collector(api=None)
@@ -818,7 +859,8 @@ class EndToEndTest(unittest.TestCase):
         self.assertNotIn("macos_script", self.read("fleets/workstations.yml"))
         messages = "\n".join(r["message"] for r in self.reconcile(plan))
         self.assertIn("profile 'Passcode' is in Fleet but not in the repo", messages)
-        self.assertIn("software 'package:https://x.test/1.0/acme.pkg' is in Fleet but not in the repo", messages)
+        self.assertIn("software 'package:" + "c" * 64 + "' is in Fleet but not in the repo", messages)
+        self.assertNotIn(SECRET, json.dumps(plan))
 
     def test_enroll_secret_in_app_configuration_asset_or_ade_profile_isnt_exported(self):
         snap = snapshot()
@@ -871,6 +913,38 @@ class EndToEndTest(unittest.TestCase):
         self.assertNotRegex(self.read("default.yml"), r"(?m)^controls:")
         self.assertIn("run_script:\n    path: ../scripts/hello.sh", self.read("platforms/macos/policies/unassigned-check.yml"))
         self.assertEqual([r for r in self.reconcile(plan) if r["level"] == "FAIL"], [])
+
+    def test_credentials_in_settings_and_urls_become_variables(self):
+        snap = snapshot()
+        snap["config"]["agent_options"]["config"]["options"]["aws_secret_access_key"] = "AKIAEXAMPLESECRET0"
+        snap["config"]["agent_options"]["config"]["options"]["enroll_secret_path"] = "/etc/secret"
+        srv = next(s for s in snap["scopes"] if s["key"] == "2")
+        token_url = "https://cdn.example.test/prod/7.1.5.4332/zoom_amd64.deb?token=tok-123456789"
+        srv["software"]["titles"][0]["software_package"]["url"] = token_url
+        ws = next(s for s in snap["scopes"] if s["key"] == "1")
+        ws["profiles"].append({"profile_uuid": "w", "name": "Wi-Fi", "platform": "darwin",
+                               "content": b"<plist><dict><key>PayloadDisplayName</key><string>Wi-Fi</string>"
+                                          b"<key>Password</key><string>hunter22</string></dict></plist>\n"})
+        ws["policies"].append({"id": 8, "name": "Secret check", "query": f"SELECT 1 WHERE s = '{SECRET}';", "platform": "darwin"})
+        c = Collector(api=None)
+        c._secret_values = [(SECRET, {"type": "enroll_secret", "team": 1, "index": 0})]
+        c._mark_secrets(snap["scopes"], snap)
+        plan = self.replan(snap)
+        default = self.read("default.yml")
+        self.assertIn("aws_secret_access_key: $FLEET_AGENT_OPTIONS_AWS_SECRET_ACCESS_KEY", default)
+        self.assertIn("enroll_secret_path: /etc/secret", default)
+        self.assertIn("url: $FLEET_ZOOM_URL", self.read("platforms/linux/software/zoom-deb.package.yml"))
+        env = {e["name"]: e["source"] for e in plan["env"]}
+        self.assertEqual(env["FLEET_AGENT_OPTIONS_AWS_SECRET_ACCESS_KEY"],
+                         {"type": "config", "pointer": ["agent_options", "config", "options", "aws_secret_access_key"]})
+        self.assertEqual(env["FLEET_ZOOM_URL"]["pointer"], ["software_title", "software_package", "url"])
+        dump_ = json.dumps(plan)
+        for needle in ("AKIAEXAMPLESECRET0", "tok-123456789", SECRET):
+            self.assertNotIn(needle, dump_)
+        self.assertTrue(any(n["level"] == "gap" and n["item"] == "Secret check" for n in plan["notes"]))
+        self.assertTrue(any(n["level"] == "warn" and n["item"] == "Wi-Fi" and "Password" in n["message"] for n in plan["notes"]))
+        messages = "\n".join(r["message"] for r in self.reconcile(plan) if r["level"] == "FAIL")
+        self.assertEqual(messages, "fleets/workstations.yml: policy 'Secret check' is in Fleet but not in the repo (applying would delete it)")
 
     def test_names_fleetctl_rejects_arent_exported(self):
         snap = snapshot()
@@ -930,7 +1004,7 @@ class EndToEndTest(unittest.TestCase):
         self.assertIn("points at platforms/macos/scripts/hello.sh, which isn't a file", refs)
         self.assertIn("points at platforms/macos/configuration-profiles/firewall-on.mobileconfig, which doesn't exist", refs)
         messages = "\n".join(r["message"] for r in ch.results["reconcile"])
-        self.assertIn("script 'hello.sh': sha256 is \"(missing file)\" in the repo", messages)
+        self.assertIn("script 'hello.sh': its file is missing from the repo", messages)
         self.assertIn("profile 'Firewall on' is in Fleet but not in the repo", messages)
 
     def test_report_lists_exported_warnings_apart_from_gaps(self):
@@ -954,7 +1028,7 @@ class EndToEndTest(unittest.TestCase):
         ch.load_repo()
         ch.env_values = {"FLEET_WORKSTATIONS_ENROLL_SECRET": "a-different-secret"}
         ch.reconcile()
-        self.assertIn("profile 'Fleetd config': sha256", "\n".join(r["message"] for r in ch.results["reconcile"]))
+        self.assertIn("profile 'Fleetd config': content differs", "\n".join(r["message"] for r in ch.results["reconcile"]))
 
     def test_older_fma_scripts_left_out_and_flagged(self):
         self.assertNotIn("rectangle-uninstall.sh", self.read("fleets/workstations.yml"))
@@ -1006,7 +1080,7 @@ class EndToEndTest(unittest.TestCase):
         ch.reconcile()
         messages = "\n".join(r["message"] for r in ch.results["reconcile"])
         self.assertIn("policy 'Collect logs': query", messages)
-        self.assertIn("profile 'Min password': sha256", messages)
+        self.assertIn("profile 'Min password': content differs", messages)
         self.assertIn("software 'fma:maccy/darwin' is in Fleet but not in the repo", messages)
 
     def test_malformed_yaml_fails_without_stopping_the_check(self):

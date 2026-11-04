@@ -25,6 +25,7 @@ import sys
 from pathlib import Path
 
 from fleet_api import API, FleetctlError
+from collect import MIN_SECRET_LEN
 from planner import ANY_OF, TOP_LEVEL, VARIABLE
 
 F = "/api/latest/fleet"
@@ -197,6 +198,7 @@ class Checker:
         self.env_values: dict | None = None
         self.env_notes: list = []
         self.compared = False  # set once reconcile or the dry run compares the repo with Fleet
+        self.secret_values: dict = {}
 
     def fail(self, section, message):
         self.results[section].append({"level": "FAIL", "message": message})
@@ -356,16 +358,20 @@ class Checker:
         if isinstance(v, dict):
             out = {}
             for k, x in v.items():
-                m = re.fullmatch(r"\$\{?(\w+)\}?", x) if isinstance(x, str) else None
-                src = self.env_sources.get(m.group(1)) if m else None
+                src = self._ref_source(x) if isinstance(x, str) else None
                 if src is None:
                     out[k] = self._strip_env(x)
                 elif "kind" in src:
                     out[k] = {VARIABLE: f"{src['kind']}[{src['index']}].{src['field']}"}
             return out
         if isinstance(v, list):
-            return [self._strip_env(x) for x in v]
+            return [self._strip_env(x) for x in v if not (isinstance(x, str) and self._ref_source(x))]
         return v
+
+    def _ref_source(self, x: str):
+        """The planned source of a value that's just a $VARIABLE reference, else None."""
+        m = re.fullmatch(r"\$\{?(\w+)\}?", x)
+        return self.env_sources.get(m.group(1)) if m else None
 
     def _ref(self, base: str, ref) -> str | None:
         """The repo path a `{path: ...}` value points at."""
@@ -588,6 +594,15 @@ class Checker:
                                                "whose values validate only fetches when it runs the dry run")
                         continue
                     if not _same(fleet_value, got[n].get(field)):
+                        if field.endswith("sha256"):
+                            # The hashes aren't printed: Fleet's is of content that may hold an enroll secret.
+                            part = field[:-len("sha256")].replace("_", " ")
+                            if got[n].get(field) == MISSING:
+                                self.fail("reconcile", f"{top}: {what} {n!r}: its {part}file is missing from the repo")
+                            else:
+                                self.fail("reconcile", f"{top}: {what} {n!r}: {part or 'content '}differs between the repo and Fleet "
+                                                       "(applying would change it)")
+                            continue
                         self.fail("reconcile", f"{top}: {what} {n!r}: {field} is {_short(got[n].get(field))} in the repo "
                                                f"but {_short(fleet_value)} in Fleet (applying would change it)")
 
@@ -638,6 +653,8 @@ class Checker:
                 elif t == "team_config":
                     d = get(f"{F}/fleets/{src['team']}")
                     val = walk(d.get("fleet") or d.get("team"), src["pointer"])
+                elif t == "api":
+                    val = walk(get(src["path"], src.get("params")), src["pointer"])
                 elif t == "ca":
                     cas = get(f"{F}/spec/certificate_authorities", {"include_secrets": "true"})["certificate_authorities"]
                     item = cas[src["kind"]]
@@ -659,6 +676,8 @@ class Checker:
             except (KeyError, IndexError, TypeError, ValueError, OSError, subprocess.SubprocessError, FleetctlError) as ex:
                 val = PLACEHOLDER
                 notes.append(f"{name}: couldn't read it from Fleet ({ex}); the dry run used a placeholder")
+            if t != "fleet_url" and isinstance(val, str) and val not in (PLACEHOLDER, f'"{MASK}"', MASK):
+                self.secret_values[name] = val  # in memory only, for check_leaks
             # fleetctl substitutes values into YAML as-is (bare `key: $NAME`), so one with YAML syntax in it
             # reads back as something else. Multi-line metadata, JSON objects, and FLEET_SECRET_ values
             # (which fleetctl leaves for the server) are meant to go in raw.
@@ -688,6 +707,35 @@ class Checker:
                 val = "\n".join([lines[0]] + [" " * src["indent"] + ln for ln in lines[1:]])
             env[name] = "" if val is None else str(val)
         return env, notes
+
+    def check_leaks(self, work: Path | None = None, env_file: Path | None = None):
+        """Fail when a repo file holds a value the export keeps in a variable (warn for the work folder).
+
+        The export never writes these, so a hit means an edit or an export bug. Needs the values the dry run fetched.
+        """
+        needles = [(n, v.encode(e)) for n, v in self.secret_values.items() if len(v) >= MIN_SECRET_LEN for e in ("utf-8", "utf-16-le")]
+        if not needles:
+            return
+        skip = {(self.root / ".env").resolve()} | ({Path(env_file).resolve()} if env_file else set())
+
+        def held(p: Path) -> list:
+            try:
+                data = p.read_bytes()
+            except OSError:
+                return []
+            return sorted({n for n, b in needles if b in data})
+
+        for p in sorted(self.root.rglob("*")):
+            rel = str(p.relative_to(self.root)).replace(os.sep, "/")
+            if p.is_file() and not rel.startswith(".git/") and p.resolve() not in skip:
+                for n in held(p):
+                    self.fail("reconcile", f"{rel} holds the value of ${n} in plain text; don't commit it. The export writes it as "
+                                           "a variable, so remove it from that file (or from Fleet, then export again)")
+        if work:
+            for p in [work / "plan.json"] + sorted((work / "blobs").rglob("*") if (work / "blobs").is_dir() else []):
+                if p.is_file():
+                    for n in held(p):
+                        self.warn("reconcile", f"the work folder's {p.relative_to(work)} holds the value of ${n}; run `clean` when you're done")
 
     def _survives_yaml(self, val: str) -> bool:
         """Does `key: <val>` parse back to the string val? Assumed so without a YAML parser."""

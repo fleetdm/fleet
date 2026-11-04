@@ -18,7 +18,7 @@ import plistlib
 import re
 import unicodedata
 from pathlib import Path
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qsl, unquote, urlparse
 
 from collect import MIN_SECRET_LEN
 from fleet_defaults import is_default_script
@@ -60,6 +60,14 @@ UNSAFE_CHARS = set('/\\:*?"<>|')
 CA_SECRETS = {"digicert": ["api_token"], "ndes_scep_proxy": ["password"], "custom_scep_proxy": ["challenge"],
               "hydrant": ["client_secret"], "custom_est_proxy": ["password"], "smallstep": ["username", "password"],
               "google_cas": ["api_key_json"], "ejbca": ["client_p12", "password"]}
+
+# Keys whose string values are credentials, in settings written key by key (agent options, features).
+CREDENTIAL_KEY = re.compile(r"secret|password|passwd|passphrase|token|api_?key|access_?key|credential|private_?key", re.I)
+NOT_CREDENTIAL = re.compile(r"_(path|file|env|name|url|enabled|interval)$", re.I)
+# Profile keys that hold a credential, written in plain text unless they're a $VARIABLE.
+PROFILE_CREDENTIAL = re.compile(
+    rb"<key>(Password|SharedSecret|PreSharedKey|PSK|Passphrase|Challenge|KeyPassword|AuthPassword|Secret|Token)</key>\s*<string>(?!\$)[^<]"
+    rb'|"(password|passphrase|psk|sharedSecret|preSharedKey|challenge|secret|token)"\s*:\s*"(?!\$)[^"]', re.I)
 
 # Setup experience booleans GitOps resets to false when they're left out.
 SETUP_FLAGS = ("enable_end_user_authentication", "require_all_software_macos", "require_all_software_windows",
@@ -245,6 +253,27 @@ class Planner:
                   f"In Fleet, {fix}, then export again. Until then, applying this repo would delete it")
         return True
 
+    def _settings_vars(self, value, pointer: list, sc: dict | None, where: str, label: str):
+        """Settings written key by key (agent options, features), with credentials and enroll secrets as variables.
+
+        A string under a credential-named key, or one the collector found an enroll secret in, becomes a variable
+        the dry run reads back from Fleet, which returns these settings unmasked.
+        """
+        hits = (self.snap.get("setting_secret_paths") or {}).get(sc["key"] if sc else "global") or []
+
+        def walk(v, ptr):
+            if isinstance(v, dict):
+                return {k: walk(x, ptr + [k]) for k, x in v.items()}
+            if isinstance(v, list):
+                return [walk(x, ptr + [i]) for i, x in enumerate(v)]
+            if not _setting_secret(v, ptr, hits):
+                return v
+            source = {"type": "config", "pointer": ptr} if sc is None else {"type": "team_config", "team": sc["id"], "pointer": ptr}
+            prefix = "FLEET_" if sc is None else f"FLEET_{_envslug(label)}_"
+            return self.add_env(prefix + _envslug("_".join(str(p) for p in (ptr[0], ptr[-1]))), where,
+                                f"{'.'.join(map(str, ptr))} in {label}'s settings", source)
+        return walk(value, pointer)
+
     def _name_ok(self, item: dict, scope: str, kind: str) -> bool:
         """A label or report GitOps can define: fleetctl requires ASCII names, and it can't hold an enroll secret."""
         if not item["name"].isascii():
@@ -321,7 +350,7 @@ class Planner:
         default = self._fleet_entry("global")
         default["sections"]["org_settings"] = self._org_settings(cfg)
         if cfg.get("agent_options"):
-            default["sections"]["agent_options"] = cfg["agent_options"]
+            default["sections"]["agent_options"] = self._settings_vars(cfg["agent_options"], ["agent_options"], None, "default.yml", "Global")
             self.count("Global", "agent options")
         vitals = [{"name": v["name"]} for v in snap.get("custom_host_vitals") or []]
         if vitals:
@@ -461,7 +490,7 @@ class Planner:
         scope = sc["name"]
         settings = {}
         if team.get("features"):
-            settings["features"] = team["features"]
+            settings["features"] = self._settings_vars(team["features"], ["features"], sc, fleet["file"], scope)
         if team.get("host_expiry_settings"):
             settings["host_expiry_settings"] = team["host_expiry_settings"]
         wh = team.get("webhook_settings") or {}
@@ -492,7 +521,7 @@ class Planner:
                                    for i in range(sc.get("enroll_secret_count", 0))]
         fleet["sections"]["settings"] = settings
         if team.get("agent_options"):
-            fleet["sections"]["agent_options"] = team["agent_options"]
+            fleet["sections"]["agent_options"] = self._settings_vars(team["agent_options"], ["agent_options"], sc, fleet["file"], scope)
             self.count(scope, "agent options")
         fleet["sections"]["controls"] = self._fleet_controls(team.get("mdm") or {}, sc, fleet)
         self._labels(sc, fleet)
@@ -540,7 +569,7 @@ class Planner:
         o["server_settings"] = ss
         for k in ("features", "fleet_desktop", "host_expiry_settings", "activity_expiry_settings"):
             if cfg.get(k) is not None:
-                o[k] = cfg[k]
+                o[k] = self._settings_vars(cfg[k], [k], None, "default.yml", "Global") if k == "features" else cfg[k]
 
         wh = {}
         for k, v in (cfg.get("webhook_settings") or {}).items():
@@ -579,6 +608,8 @@ class Planner:
         if rules:
             entries = []
             for r in rules:
+                if self._plain_secret_gap(r, "Global", f"yara_rules ({r['name']})"):
+                    continue
                 fid = self.add_file("yara_rule", "all", r["name"], content=r.get("contents", "").encode(), exact=exact_name_ok(r["name"]),
                                     ext=".yar")
                 entries.append({"path": {"$file": fid}})
@@ -650,7 +681,7 @@ class Planner:
                 out["volume_purchasing_program"] = vpp
             for platform, key in (("macos", "end_user_license_agreement"), ("windows", "windows_eula")):
                 e = (self.snap.get("eula") or {}).get(platform)
-                if e:
+                if e and not self._plain_secret_gap(e, "Global", key):
                     name = os.path.basename(e["name"] or "")
                     exact = exact_name_ok(name)
                     fid = self.add_file("eula", platform, name if exact else ("eula.pdf" if platform == "macos" else "terms.md"),
@@ -902,6 +933,10 @@ class Planner:
                 opts["name"] = name
             if text is None:
                 self.note("warn", scope, name, "profile isn't UTF-8 text; written as-is without $ escaping")
+            cred = PROFILE_CREDENTIAL.search(content)
+            if cred:
+                self.note("warn", scope, name, f"holds what looks like a credential ({(cred.group(1) or cred.group(2)).decode()}) in plain text, "
+                                               "exported as Fleet has it; before committing, move it into a $FLEET_SECRET_ variable in Fleet, then export again")
             body, escape, refs = self._content_with_env_refs(p)
             fid = self.add_file(kind, folder_platform, filename, content=body, exact=exact, fleet=scope,
                                 escape=escape, review=review, label=name)
@@ -1277,6 +1312,14 @@ class Planner:
             item = {}
             if p.get("url"):
                 item["url"] = p["url"]
+                if _url_has_credentials(p["url"]):
+                    # fleetctl expands variables in package YAML, so the URL Fleet stores may hold a token.
+                    p["url_var"] = self.add_env(f"FLEET_{_envslug(title)}_URL" + (f"_{i + 1}" if multi else ""), None,
+                                                f"Download URL for {title}, with its credentials",
+                                                {"type": "api", "path": f"/api/latest/fleet/software/titles/{t['id']}",
+                                                 "params": {"fleet_id": 0 if fleet["key"] == "unassigned" else int(fleet["key"])},
+                                                 "pointer": ["software_title"] + (["packages", i] if multi else ["software_package"]) + ["url"]})["$env"]
+                    item["url"] = {"$env": p["url_var"]}
             named = p.get("installer_id") in wanted or (None in wanted and p.get("installer_id") == pkg.get("installer_id"))
             versioned = not p.get("url") or _url_names_version(p["url"], p.get("version") or pkg.get("version"))
             if not versioned and not named:
@@ -1307,6 +1350,9 @@ class Planner:
             items.append(item)
         fid = self.add_file("package", platform, f"{files_prefix}.package.yml", data=items, exact=True, fleet=scope, escape=True,
                             directory=pkg_dir, label=title)
+        for p in pkgs:
+            if p.get("url_var") and self.files[fid]["path"] not in self.env[p["url_var"]]["used_in"]:
+                self.env[p["url_var"]]["used_in"].append(self.files[fid]["path"])
         if unpinned and not multi:
             # Without a pinned hash, a policy can't name the package by hash once it updates; package_path finds it by URL.
             index[t["id"]] = {"kind": "package", "hash": pkg.get("hash_sha256"), "file": fid}
@@ -1404,8 +1450,9 @@ class Planner:
         """
         inv: dict = {}
 
-        def add(target, kind, key, fields):
-            inv.setdefault(target, {}).setdefault(kind, []).append([key, fields])
+        def add(target, kind, key, fields, item=None):
+            # An item left out for holding an enroll secret is only listed, so plan.json holds none of its values.
+            inv.setdefault(target, {}).setdefault(kind, []).append([key, {} if item is not None and _secret_held(item) else fields])
 
         premium = self.flags["premium"]
         cfg = self.snap["config"]
@@ -1445,13 +1492,13 @@ class Planner:
                     # A title this fleet doesn't have can't be named in the repo, so it can't match.
                     f["install_software"] = inst and (_install_target(titles.get(inst.get("software_title_id")) or {}, inst)
                                                       or f"software title {inst.get('name')!r}")
-                add(target, "policies", p["name"], f)
+                add(target, "policies", p["name"], f, p)
             for r in sc.get("reports") or []:
                 f = {k: r.get(k) for k in ("query", "platform", "description", "interval", "observer_can_run", "automations_enabled",
                                            "logging", "discard_data", "min_osquery_version")}
                 keys = ("labels_include_any",) + (("labels_include_all",) if premium else ())
                 f.update(every_label(scope_labels(r, keys), keys))
-                add(target, "reports", r["name"], f)
+                add(target, "reports", r["name"], f, r)
             if key != "unassigned" and not self.exceptions.get("labels"):
                 for lbl in sc.get("labels") or []:
                     mtype = lbl.get("label_membership_type") or "dynamic"
@@ -1462,9 +1509,9 @@ class Planner:
                         f["hosts"] = [str(h) for h in lbl.get("hosts") or []]
                     else:
                         f["criteria"] = lbl.get("criteria")
-                    add(target, "labels", lbl["name"], f)
+                    add(target, "labels", lbl["name"], f, lbl)
             for sc_script in sc.get("scripts") or []:
-                add(controls, "scripts", sc_script["name"], {"sha256": hashlib.sha256(sc_script["content"]).hexdigest()})
+                add(controls, "scripts", sc_script["name"], {"sha256": hashlib.sha256(sc_script["content"]).hexdigest()}, sc_script)
             for prof in sc.get("profiles") or []:
                 if prof.get("platform") not in ("darwin", "windows", "android"):
                     continue
@@ -1473,16 +1520,16 @@ class Planner:
                 f.update(every_label(scope_labels(prof, POLICY_LABELS), POLICY_LABELS))
                 if prof.get("activation"):
                     f["activation_sha256"] = hashlib.sha256(prof["activation"]).hexdigest()
-                add(controls, "profiles", prof.get("name"), f)
+                add(controls, "profiles", prof.get("name"), f, prof)
             for asset in sc.get("assets") or []:
-                add(controls, "assets", asset["name"], {"sha256": hashlib.sha256(asset["content"]).hexdigest()})
+                add(controls, "assets", asset["name"], {"sha256": hashlib.sha256(asset["content"]).hexdigest()}, asset)
             if not self.exceptions.get("software") and key != "global":
                 seen = set()
                 for t in titles.values():
                     for ident, f in _software_identities(t, self.keep_fma_scripts):
                         if ident not in seen:
                             seen.add(ident)
-                            add(target, "software", ident, f)
+                            add(target, "software", ident, f, t)
         return inv
 
 
@@ -1509,14 +1556,15 @@ def _api_settings(key: str, sc: dict, snap: dict, premium: bool):
 
     team, cfg = sc.get("team") or {}, snap["config"]
     if key == "global":
-        yield TOP_LEVEL, {"agent_options": cfg.get("agent_options")}
+        hits = (snap.get("setting_secret_paths") or {}).get("global") or []
+        yield TOP_LEVEL, {"agent_options": _without_setting_secrets(cfg.get("agent_options"), ["agent_options"], hits)}
         info = drop_aliases("org_info", cfg.get("org_info") or {})
         yield "org_settings.org_info", {"org_name": info.get("org_name"), "contact_url": info.get("contact_url")}
         ss = drop_aliases("server_settings", cfg.get("server_settings") or {})
         yield "org_settings.server_settings", {k: v for k, v in ss.items() if k != "server_url"}
         for k in ("features", "fleet_desktop", "host_expiry_settings", "activity_expiry_settings"):
             if isinstance(cfg.get(k), dict):
-                yield f"org_settings.{k}", cfg[k]
+                yield f"org_settings.{k}", _without_setting_secrets(cfg[k], [k], hits) if k == "features" else cfg[k]
         yield from webhooks(cfg.get("webhook_settings"), "org_settings.webhook_settings")
         # Empty kinds are left out of these two, so the check reports a kind only the repo has as an addition.
         integ = cfg.get("integrations") or {}
@@ -1541,10 +1589,11 @@ def _api_settings(key: str, sc: dict, snap: dict, premium: bool):
     elif key == "unassigned":
         yield from webhooks(team.get("webhook_settings"), "settings.webhook_settings", ("failing_policies_webhook", "host_activities_webhook"))
     else:
-        yield TOP_LEVEL, {"agent_options": team.get("agent_options")}
+        hits = (snap.get("setting_secret_paths") or {}).get(key) or []
+        yield TOP_LEVEL, {"agent_options": _without_setting_secrets(team.get("agent_options"), ["agent_options"], hits)}
         for k in ("features", "host_expiry_settings"):
             if isinstance(team.get(k), dict):
-                yield f"settings.{k}", team[k]
+                yield f"settings.{k}", _without_setting_secrets(team[k], [k], hits) if k == "features" else team[k]
         yield from webhooks(team.get("webhook_settings"), "settings.webhook_settings")
         integ = team.get("integrations") or {}
         yield "settings.integrations", {"conditional_access_enabled": integ.get("conditional_access_enabled")}
@@ -1603,9 +1652,11 @@ def _install_target(t: dict, inst: dict | None = None):
     if pkg and pkg.get("fleet_maintained_app_id"):
         return f"fma:{(t.get('fma') or {}).get('slug')}"
     if pkg:
+        if _secret_held(t):
+            return f"software title {t.get('name')!r}"  # left out, so no policy can name it
         chosen = _policy_package_id(inst or {})
         pkg = next((p for p in t.get("packages") or [] if chosen and p.get("installer_id") == chosen), pkg)
-        return {ANY_OF: [f"package:{v}" for v in (pkg.get("url"), pkg.get("hash_sha256")) if v]}
+        return {ANY_OF: [f"package:{v}" for v in (_package_url(pkg), pkg.get("hash_sha256")) if v]}
     if app:
         return f"app:{app.get('app_store_id')}"
     return None
@@ -1647,7 +1698,8 @@ def _software_identities(t: dict, keep_fma_scripts=()):
                 if not (is_script and key == "install_script"):
                     f[key] = _script_field(p.get(key), is_default_script(key, ext, p.get(key), _package_ids(t, ext)))
             # Keyed by URL when there is one: packages whose URL names no version don't pin a hash.
-            yield f"package:{(not is_script and p.get('url')) or p.get('hash_sha256') or pkg.get('hash_sha256')}", f
+            url = None if is_script or _secret_held(t) else _package_url(p)
+            yield f"package:{url or p.get('hash_sha256') or pkg.get('hash_sha256')}", f
     elif app:
         versions = t.get("app_store_apps") or []
         multi = len(versions) > 1 or (len(versions) == 1 and versions[0].get("name") not in (None, "", "Default version"))
@@ -1727,6 +1779,37 @@ def _fma_script_state(pkg: dict, fma: dict, key: str) -> str:
         return "default"
     ratio = difflib.SequenceMatcher(None, stored.splitlines(), catalog.splitlines(), autojunk=False).ratio()
     return "older" if ratio >= FMA_DRIFT_RATIO else "custom"
+
+
+def _setting_secret(v, ptr: list, hits: list) -> bool:
+    key = ptr[-1] if ptr else ""
+    return isinstance(v, str) and bool(v) and (ptr in hits or (isinstance(key, str) and bool(CREDENTIAL_KEY.search(key))
+                                                                 and not NOT_CREDENTIAL.search(key)))
+
+
+def _without_setting_secrets(value, ptr: list, hits: list):
+    """Fleet's settings without the values the planner writes as variables (see Planner._settings_vars)."""
+    if isinstance(value, dict):
+        return {k: _without_setting_secrets(x, ptr + [k], hits) for k, x in value.items() if not _setting_secret(x, ptr + [k], hits)}
+    if isinstance(value, list):
+        return [_without_setting_secrets(x, ptr + [i], hits) for i, x in enumerate(value) if not _setting_secret(x, ptr + [i], hits)]
+    return value
+
+
+def _url_has_credentials(url: str) -> bool:
+    u = urlparse(url)
+    return bool(u.username or u.password) or any(re.search(r"token|key|secret|pass|sig|auth|cred", k, re.I)
+                                                 for k, _ in parse_qsl(u.query, keep_blank_values=True))
+
+
+def _secret_held(item: dict) -> bool:
+    """Did collect find an enroll secret in the item (so the planner leaves it out)?"""
+    return bool(item.get("plain_secret_refs") or item.get("short_secret_refs"))
+
+
+def _package_url(p: dict):
+    """A package's URL as the repo holds it: its variable when the URL carries credentials."""
+    return "$" + p["url_var"] if p.get("url_var") else p.get("url")
 
 
 def _policy_package_id(inst: dict):

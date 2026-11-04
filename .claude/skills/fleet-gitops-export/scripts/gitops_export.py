@@ -305,6 +305,7 @@ def cmd_validate(args) -> int:
             ch.reconcile()
         if not args.no_dry_run:
             ch.dry_run(API(fc), fc, env_file)
+            ch.check_leaks(work, env_file)
     except Exception as e:  # noqa: BLE001 - whatever stopped it, the results so far are still written
         ch.fail("reconcile", f"validate stopped before it finished: {type(e).__name__}: {e}")
     res = ch.summary()

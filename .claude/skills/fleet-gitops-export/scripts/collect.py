@@ -10,14 +10,19 @@ item records the span or which secret it is, never the value.
 from __future__ import annotations
 
 import base64
+import binascii
+import json
 import re
-from urllib.parse import urlparse
+from urllib.parse import quote, quote_plus, urlparse
+from xml.sax.saxutils import escape as xml_escape
 
 from fleet_api import API, FleetctlError
 
 F = "/api/latest/fleet"
 SETUP_PLATFORMS = "macos,windows,linux,ios,ipados,android"
 MIN_SECRET_LEN = 8  # shorter values match ordinary text too often to be replaced safely
+# Settings the planner writes key by key from Fleet's data, where a secret value can become a variable.
+SETTINGS_PASSED_THROUGH = ("agent_options", "features")
 
 
 def _items(d: dict | None, *keys):
@@ -32,6 +37,22 @@ def _items(d: dict | None, *keys):
 def _team_id(obj):
     v = obj.get("fleet_id", obj.get("team_id"))
     return v
+
+
+def _variants(secret: str) -> list:
+    """The forms a secret takes escaped in JSON, a URL, or XML. fleetctl would expand a variable to the plain
+    value, so a file holding one of these can't use a variable there."""
+    forms = {json.dumps(secret)[1:-1], json.dumps(secret)[1:-1].replace("/", "\\/"), quote(secret, safe=""), quote_plus(secret),
+             xml_escape(secret, {'"': "&quot;", "'": "&apos;"})}
+    forms.discard(secret)
+    return sorted(forms)
+
+
+def _b64(text: str) -> bytes:
+    try:
+        return base64.b64decode("".join(text.split()), validate=True)
+    except (binascii.Error, ValueError):
+        return b""
 
 
 def _word(secret: str, raw: bool):
@@ -97,22 +118,42 @@ class Collector:
         for sc in scopes:
             self.log(f"reading {sc['name']}")
             snap["scopes"].append(self._scope(sc, flags))
-        self._mark_secrets(snap["scopes"])
+        self._mark_secrets(snap["scopes"], snap)
         self._secret_values = []
         snap["warnings"] = self.warnings
         return snap
 
-    def _mark_secrets(self, scopes):
+    def _mark_secrets(self, scopes, snap: dict | None = None):
         """Mark items holding an enroll secret.
 
-        Profiles and DDM assets get the spans (`env_refs`), which become variables. Anything fleetctl
-        sends as-is (scripts, setup scripts, ADE profiles, activations, every value of a software title),
-        and any body that isn't UTF-8, only gets which secrets (`plain_secret_refs`), and the item is left out.
-        A short secret as a whole word does the same (`short_secret_refs`); inside a word it's flagged
-        (`short_secret_in_word`) for the planner to warn about if it writes the item.
+        Profiles and DDM assets get the spans (`env_refs`) of each plain occurrence, which become variables.
+        Anything fleetctl sends as-is (scripts, setup scripts, ADE profiles, activations, software, EULAs, YARA
+        rules), YAML items (policies, reports, labels, profile metadata), bodies that aren't UTF-8, and encoded
+        occurrences (JSON, URL, XML escaping; base64 <data>) only get which secrets (`plain_secret_refs`), and
+        the item is left out. A short secret as a whole word does the same (`short_secret_refs`); inside a word
+        it's flagged (`short_secret_in_word`) for the planner to warn about if it writes the item. In agent
+        options and features, which are written key by key, the paths holding one are listed instead
+        (`snap["setting_secret_paths"]`) so the planner can write those values as variables.
         """
-        values = [(v, src) for v, src in self._secret_values if v and len(v) >= MIN_SECRET_LEN]
+        values = [(v, src, _variants(v)) for v, src in self._secret_values if v and len(v) >= MIN_SECRET_LEN]
         short = [(v, src) for v, src in self._secret_values if v and len(v) < MIN_SECRET_LEN]
+
+        def match(text):
+            """(plain occurrences' secrets, other occurrences' secrets, short whole-word secrets, short inside a word)."""
+            raw = isinstance(text, bytes)
+            plain, other = [], []
+            blobs = [] if raw else [b for b in (_b64(m) for m in re.findall(r"<data>([A-Za-z0-9+/=\s]+)</data>", text)) if b]
+            for v, src, forms in values:
+                if raw:
+                    if any(v.encode(e) in text for e in ("utf-8", "utf-16-le", "utf-16-be")):
+                        other.append(src)
+                elif v in text:
+                    plain.append(src)
+                if not raw and (any(f in text for f in forms) or any(v.encode(e) in b for b in blobs for e in ("utf-8", "utf-16-le"))):
+                    other.append(src)
+            whole = [src for v, src in short if re.search(_word(v, raw), text)]
+            in_word = not whole and any((v.encode() if raw else v) in text for v, _ in short)
+            return plain, other, whole, in_word
 
         def add(owner, key, found):
             if found:
@@ -131,20 +172,16 @@ class Collector:
                 try:
                     text = body.decode("utf-8")
                 except UnicodeDecodeError:
-                    # Matched as bytes, in the encodings a profile can use; it can't take a variable.
-                    spans_key = "plain_secret_refs"
-            raw = isinstance(text, bytes)
-            whole = [src for v, src in short if re.search(_word(v, raw), text)]
-            if whole:
-                add(owner, "short_secret_refs", whole)
-            elif any((v.encode() if raw else v) in text for v, _ in short):
+                    spans_key = "plain_secret_refs"  # matched as bytes; it can't take a variable
+            plain, other, whole, in_word = match(text)
+            add(owner, "short_secret_refs", whole)
+            if in_word:
                 owner["short_secret_in_word"] = True
-            if spans_key == "plain_secret_refs":
-                add(owner, spans_key, [src for v, src in values
-                                       if any(f in text for f in ([v.encode(e) for e in ("utf-8", "utf-16-le", "utf-16-be")] if raw else [v]))])
+            add(owner, "plain_secret_refs", other + (plain if spans_key == "plain_secret_refs" else []))
+            if spans_key == "plain_secret_refs" or not plain:
                 return
             spans = []
-            for v, src in values:
+            for v, src, _ in values:
                 start = text.find(v)
                 while start != -1:
                     spans.append({"start": start, "end": start + len(v), "source": src})
@@ -154,21 +191,45 @@ class Collector:
                 if s["start"] >= end:
                     refs.append(s)
                     end = s["end"]
-            if refs:
-                owner[spans_key] = refs
+            owner[spans_key] = refs
+
+        def setting_paths(value, pointer, out):
+            if isinstance(value, dict):
+                for k, v in value.items():
+                    setting_paths(v, pointer + [k], out)
+            elif isinstance(value, list):
+                for i, v in enumerate(value):
+                    setting_paths(v, pointer + [i], out)
+            elif isinstance(value, str) and any(match(value)[:3]):
+                out.append(pointer)
+            return out
 
         for sc in scopes:
             for item in (sc.get("profiles") or []) + (sc.get("assets") or []):
                 scan(item, item["content"], "env_refs")
-                scan(item, item.get("activation"))
-            for item in sc.get("scripts") or []:
-                scan(item, item["content"])
+                scan(item, {k: v for k, v in item.items() if k not in ("content", "env_refs")})
+            for item in (sc.get("scripts") or []) + (sc.get("policies") or []) + (sc.get("reports") or []) + (sc.get("labels") or []):
+                scan(item, item)
             setup = sc.get("setup") or {}
             for key in ("script", "enrollment_profile"):
                 if isinstance(setup.get(key), dict):
                     scan(setup[key], setup[key])
             for t in (sc.get("software") or {}).get("titles") or []:
                 scan(t, {k: v for k, v in t.items() if k != "icon"})
+        if snap is not None:
+            cfg = snap.get("config") or {}
+            for rule in cfg.get("yara_rules") or []:
+                if isinstance(rule, dict):
+                    scan(rule, rule)
+            windows_eula = (snap.get("eula") or {}).get("windows")
+            if windows_eula:
+                scan(windows_eula, windows_eula)
+            paths = {"global": [p for k in SETTINGS_PASSED_THROUGH for p in setting_paths(cfg.get(k), [k], [])]}
+            for sc in scopes:
+                team = sc.get("team") or {}
+                if sc.get("id"):
+                    paths[sc["key"]] = [p for k in SETTINGS_PASSED_THROUGH for p in setting_paths(team.get(k), [k], [])]
+            snap["setting_secret_paths"] = {k: v for k, v in paths.items() if v}
 
     def _paged_if_present(self, path: str, key: str) -> list:
         """A list endpoint that older servers don't have (custom host vitals arrived in 4.90): empty there."""
