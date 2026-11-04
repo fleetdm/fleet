@@ -449,6 +449,73 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	assert.Equal(t, uint(0), delBatchResp.Deleted)
 }
 
+func (s *integrationTestSuite) TestDeleteReportURLs() {
+	t := s.T()
+	prefix := strings.ReplaceAll(t.Name(), "/", "_")
+
+	createReport := func(name string) *fleet.Query {
+		var resp fleet.CreateQueryResponse
+		s.DoJSON("POST", "/api/latest/fleet/reports", &fleet.QueryPayload{Name: new(name), Query: new("select 1")}, http.StatusOK, &resp)
+		return resp.Query
+	}
+	requireReportExists := func(id uint, exists bool) {
+		status := http.StatusNotFound
+		if exists {
+			status = http.StatusOK
+		}
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/reports/%d", id), nil, status)
+	}
+	byNamePath := func(name string) string { return "/api/latest/fleet/reports/name/" + url.PathEscape(name) }
+	byIDPath := func(id uint) string { return fmt.Sprintf("/api/latest/fleet/reports/%d", id) }
+
+	t.Run("by name", func(t *testing.T) {
+		r := createReport(prefix + " by name")
+		s.Do("DELETE", byNamePath(r.Name), nil, http.StatusOK)
+		requireReportExists(r.ID, false)
+		s.Do("DELETE", byNamePath(r.Name), nil, http.StatusNotFound)
+	})
+
+	t.Run("by ID", func(t *testing.T) {
+		r := createReport(prefix + " by ID")
+		s.Do("DELETE", byIDPath(r.ID), nil, http.StatusOK)
+		requireReportExists(r.ID, false)
+		s.Do("DELETE", byIDPath(r.ID), nil, http.StatusNotFound)
+	})
+
+	t.Run("numeric name is deleted by name, not mistaken for an ID", func(t *testing.T) {
+		target := createReport(prefix + " target")
+		numeric := createReport(fmt.Sprint(target.ID))
+
+		s.Do("DELETE", byNamePath(numeric.Name), nil, http.StatusOK)
+		requireReportExists(numeric.ID, false)
+		requireReportExists(target.ID, true)
+
+		s.Do("DELETE", byIDPath(target.ID), nil, http.StatusOK)
+		requireReportExists(target.ID, false)
+	})
+
+	t.Run("old by-name URL no longer matches a route", func(t *testing.T) {
+		r := createReport(prefix + "_old_by_name")
+		s.Do("DELETE", "/api/latest/fleet/reports/"+url.PathEscape(r.Name), nil, http.StatusNotFound)
+		requireReportExists(r.ID, true)
+		s.Do("DELETE", byIDPath(r.ID), nil, http.StatusOK)
+	})
+
+	t.Run("deprecated aliases", func(t *testing.T) {
+		r := createReport(prefix + " reports id alias")
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/reports/id/%d", r.ID), nil, http.StatusOK)
+		requireReportExists(r.ID, false)
+
+		r = createReport(prefix + " queries id alias")
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", r.ID), nil, http.StatusOK)
+		requireReportExists(r.ID, false)
+
+		r = createReport(prefix + " queries name alias")
+		s.Do("DELETE", "/api/latest/fleet/queries/"+url.PathEscape(r.Name), nil, http.StatusOK)
+		requireReportExists(r.ID, false)
+	})
+}
+
 func (s *integrationTestSuite) TestScheduledQueriesInPackOrderKey() {
 	t := s.T()
 
