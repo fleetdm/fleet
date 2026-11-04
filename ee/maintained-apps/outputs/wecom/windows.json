@@ -1,0 +1,23 @@
+{
+  "versions": [
+    {
+      "version": "5.0.13.6005",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name IN ('WeCom', '企业微信');",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name IN ('WeCom', '企业微信') AND version_compare(version, '5.0.13.6005') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'wxwork.exe');"
+      },
+      "installer_url": "https://dldir1v6.qq.com/wework/work_weixin/WeCom_5.0.13.6005.exe",
+      "install_script_ref": "434549f4",
+      "uninstall_script_ref": "c4a46901",
+      "sha256": "5df50a240038a2de7c3b17e4f25f4747e74d97f9028be9baec6f7379fc97e1be",
+      "default_categories": [
+        "Communication"
+      ]
+    }
+  ],
+  "refs": {
+    "434549f4": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# WeCom ships a Tencent NSIS installer that requires administrator rights, so it\n# always installs machine-wide (Program Files\\WXWork, HKLM). /S runs it silently.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/S\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "c4a46901": "# Locates WeCom from the registry and runs its uninstaller silently.\n#\n# WeCom is a Tencent NSIS app. Its machine-wide ARP entry is keyed by the product\n# name and is localized: \"WeCom\" on English Windows, \"企业微信\" on Chinese. The\n# UninstallString points at Uninstall.exe in the install directory (WXWork); /S\n# runs it silently. The running app is stopped first so the uninstaller doesn't\n# block on it.\n\n$displayNames = @('WeCom', '企业微信')\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\ntry {\n\n$uninstall = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $displayNames -contains $_.DisplayName\n  }\n  if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or (-not $uninstall.UninstallString -and -not $uninstall.QuietUninstallString)) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\nStop-Process -Name \"WXWork\" -Force -ErrorAction SilentlyContinue\n\n$uninstallCommand = if ($uninstall.QuietUninstallString) {\n    $uninstall.QuietUninstallString\n} else {\n    $uninstall.UninstallString\n}\n\n$exePath = \"\"\n$existingArgs = \"\"\nif ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '^\\s*(\\S+)\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} else {\n    Throw \"Could not parse uninstall string: $uninstallCommand\"\n}\n\nif ($existingArgs -notmatch '(?i)(^|\\s)/S($|\\s)') {\n    $existingArgs = (\"$existingArgs /S\").Trim()\n}\n\nWrite-Host \"Uninstall command: $exePath\"\nWrite-Host \"Uninstall args: $existingArgs\"\n\n$startArgs = @{\n    FilePath = $exePath\n    NoNewWindow = $true\n    PassThru = $true\n    Wait = $true\n}\nif ($existingArgs) { $startArgs.ArgumentList = $existingArgs }\n\n$process = Start-Process @startArgs\n$exitCode = $process.ExitCode\nWrite-Host \"Uninstall exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n"
+  }
+}

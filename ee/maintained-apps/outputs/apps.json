@@ -1661,6 +1661,13 @@
       "description": "Citrix Workspace is a managed desktop virtualization solution that delivers secure access to information, apps, and content."
     },
     {
+      "name": "Citrix Workspace",
+      "slug": "citrix-workspace/windows",
+      "platform": "windows",
+      "unique_identifier": "Citrix Workspace",
+      "description": "Citrix Workspace is a managed desktop virtualization solution that delivers secure access to information, apps, and content."
+    },
+    {
       "name": "Claude DevTools",
       "slug": "claude-devtools/darwin",
       "platform": "darwin",
@@ -6498,6 +6505,13 @@
       "description": "Opera is a web browser."
     },
     {
+      "name": "Opera",
+      "slug": "opera/windows",
+      "platform": "windows",
+      "unique_identifier": "Opera Stable",
+      "description": "Opera is a web browser."
+    },
+    {
       "name": "Optimus Player",
       "slug": "optimus-player/darwin",
       "platform": "darwin",
@@ -7573,6 +7587,13 @@
       "slug": "rocket-chat/darwin",
       "platform": "darwin",
       "unique_identifier": "chat.rocket",
+      "description": "Rocket.Chat is an official desktop client for Rocket.Chat."
+    },
+    {
+      "name": "Rocket.Chat",
+      "slug": "rocket-chat/windows",
+      "platform": "windows",
+      "unique_identifier": "Rocket.Chat",
       "description": "Rocket.Chat is an official desktop client for Rocket.Chat."
     },
     {
@@ -9548,6 +9569,13 @@
       "platform": "windows",
       "unique_identifier": "WeChat",
       "description": "WeChat is a free messaging and calling application."
+    },
+    {
+      "name": "WeCom",
+      "slug": "wecom/windows",
+      "platform": "windows",
+      "unique_identifier": "WeCom",
+      "description": "WeCom is a business communication and collaboration app from Tencent."
     },
     {
       "name": "WeekToDo",
