@@ -88,7 +88,7 @@ func TestIngestValidations(t *testing.T) {
 				Version: "1.0",
 			}
 
-		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "logitech-g-hub", "wezterm", "swiftdialog", "teleport-suite", "r-app", "qgis", "qgis@ltr", "kicad", "mindmanager", "chatgpt", "tableau", "tableau-prep", "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "jasp", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
+		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "logitech-g-hub", "wezterm", "swiftdialog", "teleport-suite", "r-app", "qgis", "qgis@ltr", "kicad", "mindmanager", "chatgpt", "tableau", "tableau-prep", "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "jasp", "malwarebytes", "macvim-app", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
 			cask = brewCask{
 				Token:   appToken,
 				Name:    []string{appToken},
@@ -220,6 +220,8 @@ func TestIngestValidations(t *testing.T) {
 		{"", inputApp{Token: "4k-video-to-mp3", UniqueIdentifier: "com.openmedia.4kvideotomp3", InstallerFormat: "dmg", Name: "4K Video to MP3", Slug: "4k-video-to-mp3/darwin"}},                  //nolint:gosec // G101: cask token, not a credential
 		{"", inputApp{Token: "4k-youtube-to-mp3", UniqueIdentifier: "com.openmedia.4kyoutubetomp3", InstallerFormat: "dmg", Name: "4K YouTube to MP3", Slug: "4k-youtube-to-mp3/darwin"}},          //nolint:gosec // G101: cask token, not a credential
 		{"", inputApp{Token: "jasp", UniqueIdentifier: "org.jaspstats.jasp", InstallerFormat: "dmg", Name: "JASP", Slug: "jasp/darwin"}},
+		{"", inputApp{Token: "malwarebytes", UniqueIdentifier: "com.malwarebytes.mbam.frontend.application", InstallerFormat: "pkg", Name: "Malwarebytes", Slug: "malwarebytes/darwin"}}, //nolint:gosec // G101: cask token, not a credential
+		{"", inputApp{Token: "macvim-app", UniqueIdentifier: "org.vim.MacVim", InstallerFormat: "dmg", Name: "MacVim", Slug: "macvim-app/darwin"}},                                       //nolint:gosec // G101: cask token, not a credential
 		{"", inputApp{Token: "install_script_path", UniqueIdentifier: "abc", InstallerFormat: "pkg", InstallScriptPath: path.Join(tempDir, "install_script.sh")}},
 		{"", inputApp{Token: "uninstall_script_path", UniqueIdentifier: "abc", InstallerFormat: "pkg", UninstallScriptPath: path.Join(tempDir, "uninstall_script.sh")}},
 		{"", inputApp{Token: "open-query", UniqueIdentifier: "com.example.app", InstallerFormat: "pkg", Name: "Example App"}},
@@ -394,8 +396,8 @@ func TestIngestValidations(t *testing.T) {
 					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE (bundle_identifier = 'com.openai.chat' OR (bundle_identifier = 'com.openai.codex' AND bundle_name = 'ChatGPT')) AND version_compare(bundle_short_version, '1.0') < 0);",
 					out.Queries.Patched,
 				)
-			case "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "jasp":
-				// CFBundleShortVersionString is major.minor only; CFBundleVersion tracks the cask.
+			case "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "jasp", "malwarebytes", "macvim-app":
+				// CFBundleShortVersionString drops part of the cask version or isn't it; CFBundleVersion tracks the cask.
 				require.Equal(t, fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s';", c.inputApp.UniqueIdentifier), out.Queries.Exists)
 				require.Equal(t,
 					fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '1.0') < 0);", c.inputApp.UniqueIdentifier),

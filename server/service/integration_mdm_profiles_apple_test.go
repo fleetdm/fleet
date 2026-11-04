@@ -1232,7 +1232,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 			},
 		},
 	}}}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 
 	// retrieving the team returns the custom macos settings
 	var teamResp getTeamResponse
@@ -1249,7 +1249,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 			MacOSSettings: map[string]any{"foo_bar": 123},
 		},
 	}}}
-	res := s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
+	res := s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusBadRequest)
 	errMsg := extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, `unsupported key provided: "foo_bar"`)
 
@@ -1260,7 +1260,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 			MacOSSettings: map[string]any{"custom_settings": []any{"A", true}},
 		},
 	}}}
-	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
+	res = s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, `invalid value type at 'macos_settings.custom_settings': expected array of MDMProfileSpecs but got bool`)
 
@@ -1272,7 +1272,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 			EnableDiskEncryption: optjson.SetBool(false),
 		},
 	}}}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Equal(t, []fleet.MDMProfileSpec{
@@ -1288,7 +1288,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 			MacOSSettings: map[string]any{"custom_settings": []map[string]any{}},
 		},
 	}}}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, "dry_run", "true")
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Equal(t, []fleet.MDMProfileSpec{
@@ -1303,7 +1303,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 			MacOSSettings: map[string]any{"custom_settings": []map[string]any{}},
 		},
 	}}}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Equal(t, []fleet.MDMProfileSpec{}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
@@ -1320,7 +1320,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 			},
 		},
 	}}}
-	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity)
+	res = s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, `For each profile, only one of "labels_include_all", "labels_include_any" or "labels" can be included.`)
 }
@@ -3038,7 +3038,7 @@ func (s *integrationMDMTestSuite) TestIPadOSUpdateDeclarationAfterMDMReset() {
 	require.ElementsMatch(t, []string{fleet.BuiltinLabelNameAllHosts, fleet.BuiltinLabelIPadOS}, labelNames)
 
 	var applyResp applyTeamSpecsResponse
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
 			IPadOSUpdates: fleet.AppleOSUpdateSettings{

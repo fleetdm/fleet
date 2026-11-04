@@ -9,7 +9,7 @@ import (
 // the deprecated path(s) to serve the same handler as the primary path.
 //
 // These are organized by category:
-//   - teams → fleets: team CRUD, secrets, agent_options, users, spec
+//   - teams → fleets: team CRUD, secrets, agent_options, users
 //   - team/teams → fleets: policies, schedule (both singular and plural deprecated)
 //   - queries → reports: query CRUD, spec, report data
 //   - host queries → reports
@@ -17,10 +17,6 @@ import (
 //   - ABM/VPP token teams → fleets
 var deprecatedPathAliases = []eu.DeprecatedPathAlias{
 	// ---- teams → fleets ----
-	{
-		Method: "POST", PrimaryPath: "/api/_version_/fleet/spec/fleets",
-		DeprecatedPaths: []string{"/api/_version_/fleet/spec/teams"},
-	},
 	{
 		Method: "PATCH", PrimaryPath: "/api/_version_/fleet/fleets/{fleet_id:[0-9]+}/secrets",
 		DeprecatedPaths: []string{"/api/_version_/fleet/teams/{fleet_id:[0-9]+}/secrets"},

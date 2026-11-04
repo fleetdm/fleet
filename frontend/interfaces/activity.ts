@@ -455,9 +455,7 @@ export interface IActivityDetails {
   stats?: ISchedulableQueryStats;
   status?: string;
   targets_count?: number;
-  team_id?: number | null;
-  team_name?: string | null;
-  teams?: ITeamSummary[];
+  fleets?: ITeamSummary[];
   /** Seconds before the patch install (drives "1 hour" vs "5 minutes" copy). */
   time_before?: number;
   triggered_by?: string;
@@ -518,6 +516,7 @@ export interface IActivityDetails {
 export type IActivityDetailsWithActor = IActivityDetails & {
   actor_full_name?: string;
   fleet_initiated?: boolean;
+  activity_created_at?: string;
 };
 
 // maps activity types to their corresponding label to use when filtering activites via the dropdown

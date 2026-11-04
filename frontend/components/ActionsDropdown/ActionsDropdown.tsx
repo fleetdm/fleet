@@ -292,7 +292,7 @@ const ActionsDropdown = ({
           color: COLORS["ui-fleet-black-75-over"],
         },
         ".actions-dropdown-select__indicator path": {
-          stroke: COLORS["ui-fleet-black-75-over"],
+          fill: COLORS["ui-fleet-black-75-over"],
         },
       },
       "&:active": {
@@ -301,7 +301,7 @@ const ActionsDropdown = ({
             ? COLORS["ui-fleet-black-10"] // Match secondary button active — see #35329
             : COLORS["ui-fleet-black-5"], // Match button hover
         ".actions-dropdown-select__indicator path": {
-          stroke: COLORS["ui-fleet-black-75-down"],
+          fill: COLORS["ui-fleet-black-75-down"],
         },
       },
       ...(state.menuIsOpen && {

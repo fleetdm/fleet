@@ -1111,7 +1111,7 @@
       "name": "Biscuit",
       "slug": "biscuit/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.eatbiscuit.biscuit",
+      "unique_identifier": "com.eatbiscult.biscult",
       "description": "Biscuit is a browser to organise apps."
     },
     {
@@ -3162,7 +3162,7 @@
       "name": "ExpressVPN",
       "slug": "expressvpn/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.expressvpn.ExpressVPN",
+      "unique_identifier": "com.express.vpn",
       "description": "ExpressVPN is a VPN client for secure internet access and private browsing."
     },
     {
@@ -3687,7 +3687,7 @@
       "name": "GIMP",
       "slug": "gimp/darwin",
       "platform": "darwin",
-      "unique_identifier": "org.gimp.gimp-3.0",
+      "unique_identifier": "org.gimp.gimp",
       "description": "GIMP is a free and open-source image editor."
     },
     {
@@ -4396,13 +4396,6 @@
       "platform": "windows",
       "unique_identifier": "iMazing",
       "description": "iMazing is an iPhone management application."
-    },
-    {
-      "name": "ImHex",
-      "slug": "imhex/darwin",
-      "platform": "darwin",
-      "unique_identifier": "net.WerWolv.ImHex",
-      "description": "ImHex is a hex editor for reverse engineers."
     },
     {
       "name": "ImHex",
@@ -5546,6 +5539,13 @@
       "description": "Microsoft Office is a suite of productivity applications including Word, Excel, PowerPoint, and Outlook."
     },
     {
+      "name": "Microsoft OLE DB Driver 18 for SQL Server",
+      "slug": "microsoft-ole-db-driver-18/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft OLE DB Driver for SQL Server",
+      "description": "Microsoft OLE DB Driver 18 for SQL Server lets applications connect to SQL Server and Azure SQL Database through the OLE DB interface."
+    },
+    {
       "name": "Microsoft OLE DB Driver 19 for SQL Server",
       "slug": "microsoft-ole-db-driver-19/windows",
       "platform": "windows",
@@ -5759,7 +5759,7 @@
       "name": "MonitorControl",
       "slug": "monitorcontrol/darwin",
       "platform": "darwin",
-      "unique_identifier": "me.guillaumeb.MonitorControl",
+      "unique_identifier": "app.monitorcontrol.MonitorControl",
       "description": "MonitorControl is a tool to control external monitor brightness & volume."
     },
     {
@@ -6592,7 +6592,7 @@
       "name": "Pastebot",
       "slug": "pastebot/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.tapbots.Pastebot2Mac",
+      "unique_identifier": "com.tapbots.Pastebot3Mac",
       "description": "Pastebot is a workflow application to improve productivity."
     },
     {

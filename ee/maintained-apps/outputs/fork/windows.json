@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.21.0",
+      "version": "2.23.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Fork' AND publisher = 'Fork';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Fork' AND publisher = 'Fork' AND version_compare(version, '2.21.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Fork' AND publisher = 'Fork' AND version_compare(version, '2.23.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'fork.exe');"
       },
-      "installer_url": "https://cdn.fork.dev/win/Fork-2.21.0.exe",
+      "installer_url": "https://cdn.fork.dev/win/Fork-2.23.2.exe",
       "install_script_ref": "cfce9f03",
       "uninstall_script_ref": "e7ff507e",
-      "sha256": "52af961c93c856a92e78e75beac50a744ac5a551ac227a3a672798cbd0041596",
+      "sha256": "fee9b2bf84aca6297d7b7e10b29a09c624ac16a82486f2c04136f5ebaf8f079e",
       "default_categories": [
         "Developer tools"
       ]

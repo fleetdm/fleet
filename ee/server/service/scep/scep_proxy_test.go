@@ -1310,32 +1310,45 @@ func TestRecordWindowsSCEPProxyFailure(t *testing.T) {
 	t.Run("records a real upstream error for a Windows profile", func(t *testing.T) {
 		ds := new(mock.DataStore)
 		var gotDetail string
-		ds.SetMDMWindowsHostProfileFailedOrRetryFunc = func(_ context.Context, hostUUID, profileUUID, detail string) (bool, error) {
+		ds.SetMDMWindowsHostProfileFailedOrRetryFunc = func(_ context.Context, hostUUID, profileUUID, detail string, _ bool) (bool, bool, error) {
 			assert.Equal(t, "host-uuid", hostUUID)
 			assert.Equal(t, "w-profile-uuid", profileUUID)
 			gotDetail = detail
-			return false, nil
+			return false, false, nil
 		}
-		newSvc(ds).recordWindowsSCEPProxyFailure(context.Background(), winID, "PKIOperation", upstreamErr)
+		newSvc(ds).recordWindowsSCEPProxyFailure(context.Background(), winID, "PKIOperation", false, upstreamErr)
 		require.True(t, ds.SetMDMWindowsHostProfileFailedOrRetryFuncInvoked)
 		assert.Equal(t, "SCEP PKIOperation failed: HTTP 500", gotDetail)
 	})
 
 	t.Run("records with a live context even when the request deadline is exceeded", func(t *testing.T) {
 		ds := new(mock.DataStore)
-		ds.SetMDMWindowsHostProfileFailedOrRetryFunc = func(ctx context.Context, _, _, _ string) (bool, error) {
+		ds.SetMDMWindowsHostProfileFailedOrRetryFunc = func(ctx context.Context, _, _, _ string, _ bool) (bool, bool, error) {
 			// The write must be detached from the expired request context (WithoutCancel), or it would fail to persist
 			// the failure we just observed. This assertion is what actually guards that detach.
 			assert.NoError(t, ctx.Err())
-			return false, nil
+			return false, false, nil
 		}
 		// Deadline already in the past (as after an upstream timeout): ctx.Err() is DeadlineExceeded, which must NOT
 		// skip recording - only true cancellation does.
 		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Hour))
 		defer cancel()
-		newSvc(ds).recordWindowsSCEPProxyFailure(ctx, winID, "PKIOperation", upstreamErr)
+		newSvc(ds).recordWindowsSCEPProxyFailure(ctx, winID, "PKIOperation", false, upstreamErr)
 		require.True(t, ds.SetMDMWindowsHostProfileFailedOrRetryFuncInvoked)
 	})
+
+	for _, changed := range []bool{true, false} {
+		t.Run(fmt.Sprintf("logs the failure as recorded only if the profile changed (changed=%t)", changed), func(t *testing.T) {
+			ds := new(mock.DataStore)
+			ds.SetMDMWindowsHostProfileFailedOrRetryFunc = func(context.Context, string, string, string, bool) (bool, bool, error) {
+				return changed, false, nil
+			}
+			var logs bytes.Buffer
+			svc := &scepProxyService{ds: ds, debugLogger: slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))}
+			svc.recordWindowsSCEPProxyFailure(t.Context(), winID, "PKIOperation", false, upstreamErr)
+			assert.Equal(t, changed, strings.Contains(logs.String(), "recorded Windows SCEP proxy failure"), logs.String())
+		})
+	}
 
 	// Cases where the failure must NOT be recorded. t.Fatal in the mock is the assertion.
 	canceledCtx, cancelFn := context.WithCancel(context.Background())
@@ -1353,11 +1366,11 @@ func TestRecordWindowsSCEPProxyFailure(t *testing.T) {
 	} {
 		t.Run("skips "+tc.name, func(t *testing.T) {
 			ds := new(mock.DataStore)
-			ds.SetMDMWindowsHostProfileFailedOrRetryFunc = func(context.Context, string, string, string) (bool, error) {
+			ds.SetMDMWindowsHostProfileFailedOrRetryFunc = func(context.Context, string, string, string, bool) (bool, bool, error) {
 				t.Fatalf("must not record a failure for %s", tc.name)
-				return false, nil
+				return false, false, nil
 			}
-			newSvc(ds).recordWindowsSCEPProxyFailure(tc.ctx, tc.id, "PKIOperation", tc.err)
+			newSvc(ds).recordWindowsSCEPProxyFailure(tc.ctx, tc.id, "PKIOperation", false, tc.err)
 		})
 	}
 }
@@ -1401,6 +1414,98 @@ func TestGetCACert(t *testing.T) {
 		_, _, err := svc.GetCACert(t.Context(), "MyCA", "host-uuid,a-profile-uuid,ca")
 		require.NoError(t, err)
 		assert.Equal(t, "MyCA", gotQuery.Get("message"))
+	})
+}
+
+func TestSCEPProxyRecordsWindowsFailure(t *testing.T) {
+	failingCA := httptest.NewServer(http.NotFoundHandler())
+	t.Cleanup(failingCA.Close)
+	workingCA := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("ca-cert"))
+	}))
+	t.Cleanup(workingCA.Close)
+
+	newDS := func(caURL string) *mock.DataStore {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(context.Context, bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{
+				CustomScepProxy: []fleet.CustomSCEPProxyCA{{Name: "my-custom-ca", URL: caURL}},
+			}, nil
+		}
+		profile := func(hostUUID, profileUUID string, status fleet.MDMDeliveryStatus) *fleet.HostMDMCertificateProfile {
+			return &fleet.HostMDMCertificateProfile{
+				HostUUID:    hostUUID,
+				ProfileUUID: profileUUID,
+				Status:      &status,
+				Type:        fleet.CAConfigCustomSCEPProxy,
+				CAName:      "my-custom-ca",
+			}
+		}
+		ds.GetWindowsHostMDMCertificateProfileFunc = func(_ context.Context, hostUUID, profileUUID, _ string) (*fleet.HostMDMCertificateProfile, error) {
+			return profile(hostUUID, profileUUID, fleet.MDMDeliveryVerifying), nil
+		}
+		ds.GetAppleHostMDMCertificateProfileFunc = func(_ context.Context, hostUUID, profileUUID, _ string) (*fleet.HostMDMCertificateProfile, error) {
+			return profile(hostUUID, profileUUID, fleet.MDMDeliveryPending), nil
+		}
+		return ds
+	}
+	logger := slog.New(slog.DiscardHandler)
+
+	t.Run("GetCACert on a Windows profile records the failure", func(t *testing.T) {
+		ds := newDS(failingCA.URL)
+		var gotHost, gotProfile, gotDetail string
+		var gotOnlyIfVerifying bool
+		ds.SetMDMWindowsHostProfileFailedOrRetryFunc = func(_ context.Context, hostUUID, profileUUID, detail string, onlyIfVerifying bool) (bool, bool, error) {
+			gotHost, gotProfile, gotDetail, gotOnlyIfVerifying = hostUUID, profileUUID, detail, onlyIfVerifying
+			return true, true, nil
+		}
+
+		_, _, err := NewSCEPProxyService(ds, logger, nil).GetCACert(t.Context(), "", "host-uuid,w-profile-uuid,my-custom-ca,challenge")
+		require.ErrorContains(t, err, "Could not GetCACert from SCEP server")
+		assert.Equal(t, "SCEP GetCACert failed: HTTP 404", gotDetail)
+		assert.Equal(t, "host-uuid", gotHost)
+		assert.Equal(t, "w-profile-uuid", gotProfile)
+		assert.True(t, gotOnlyIfVerifying, "GetCACert can't tell a replayed delivery from the current one")
+	})
+
+	t.Run("PKIOperation on a Windows profile records the failure", func(t *testing.T) {
+		ds := newDS(failingCA.URL)
+		ds.ConsumeChallengeFunc = func(context.Context, string) error { return nil }
+		var gotDetail string
+		gotOnlyIfVerifying := true
+		ds.SetMDMWindowsHostProfileFailedOrRetryFunc = func(_ context.Context, _, _, detail string, onlyIfVerifying bool) (bool, bool, error) {
+			gotDetail, gotOnlyIfVerifying = detail, onlyIfVerifying
+			return true, true, nil
+		}
+
+		_, err := NewSCEPProxyService(ds, logger, nil).PKIOperation(t.Context(), []byte("pki-message"),
+			"host-uuid,w-profile-uuid,my-custom-ca,challenge")
+		require.ErrorContains(t, err, "Could not do PKIOperation on SCEP server")
+		assert.Equal(t, "SCEP PKIOperation failed: HTTP 404", gotDetail)
+		assert.False(t, gotOnlyIfVerifying, "a PKIOperation that passed the challenge belongs to the current delivery")
+	})
+
+	t.Run("GetCACert on an Apple profile records nothing", func(t *testing.T) {
+		ds := newDS(failingCA.URL)
+		ds.SetMDMWindowsHostProfileFailedOrRetryFunc = func(context.Context, string, string, string, bool) (bool, bool, error) {
+			t.Fatal("must not record a Windows failure for an Apple profile")
+			return false, false, nil
+		}
+
+		_, _, err := NewSCEPProxyService(ds, logger, nil).GetCACert(t.Context(), "", "host-uuid,a-profile-uuid,my-custom-ca,challenge")
+		require.ErrorContains(t, err, "Could not GetCACert from SCEP server")
+	})
+
+	t.Run("successful GetCACert records nothing", func(t *testing.T) {
+		ds := newDS(workingCA.URL)
+		ds.SetMDMWindowsHostProfileFailedOrRetryFunc = func(context.Context, string, string, string, bool) (bool, bool, error) {
+			t.Fatal("must not record a failure when the CA answered")
+			return false, false, nil
+		}
+
+		res, _, err := NewSCEPProxyService(ds, logger, nil).GetCACert(t.Context(), "", "host-uuid,w-profile-uuid,my-custom-ca,challenge")
+		require.NoError(t, err)
+		assert.Equal(t, "ca-cert", string(res))
 	})
 }
 
