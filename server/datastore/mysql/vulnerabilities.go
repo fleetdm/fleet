@@ -205,6 +205,7 @@ func (ds *Datastore) SoftwareByCVE(ctx context.Context, cve string, teamID *uint
 			s.name,
 			s.version,
 			s.source,
+			s.title_id,
 			s.extension_for,
 			s.release,
 			COALESCE(scpe.cpe, '') as generated_cpe,

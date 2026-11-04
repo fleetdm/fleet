@@ -145,8 +145,8 @@ type Software struct {
 	LastOpenedAt *time.Time `json:"last_opened_at,omitempty" db:"last_opened_at"`
 
 	// TitleID is the ID of the associated software title, representing a unique combination of name
-	// and source.
-	TitleID *uint `json:"-" db:"title_id"`
+	// and source. Omitted from JSON while nil (title not reconciled yet).
+	TitleID *uint `json:"title_id,omitempty" db:"title_id"`
 	// NameSource indicates whether the name for this Software was changed during the migration to
 	// Fleet 4.67.0
 	NameSource string `json:"-" db:"name_source"`
@@ -295,10 +295,13 @@ type SoftwareLite struct {
 }
 
 type VulnerableSoftware struct {
-	ID                uint    `json:"id" db:"id"`
-	Name              string  `json:"name" db:"name"`
-	Version           string  `json:"version" db:"version"`
-	Source            string  `json:"source" db:"source"`
+	ID      uint   `json:"id" db:"id"`
+	Name    string `json:"name" db:"name"`
+	Version string `json:"version" db:"version"`
+	Source  string `json:"source" db:"source"`
+	// TitleID is the ID of the associated software title; nil when the title
+	// has not been reconciled yet.
+	TitleID           *uint   `json:"title_id" db:"title_id"`
 	Release           string  `json:"release,omitempty" db:"release"`
 	ExtensionFor      string  `json:"extension_for" db:"extension_for"`
 	GenerateCPE       string  `json:"generated_cpe" db:"generated_cpe"`
