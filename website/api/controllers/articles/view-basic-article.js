@@ -100,7 +100,6 @@ module.exports = {
       pageImageForMeta: thisPage.meta.articleImageUrl || undefined,
       articleCategorySlug,
       categoryFriendlyName,
-      docsNavSection: (this.req.options.locals || {}).docsNavSection,
       currentSection: 'more',
       algoliaPublicKey: sails.config.custom.algoliaPublicKey,
     };
