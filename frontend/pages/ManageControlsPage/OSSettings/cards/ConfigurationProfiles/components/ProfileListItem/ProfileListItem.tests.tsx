@@ -18,7 +18,7 @@ const render = createCustomRenderer();
 
 const baseProfile: IMdmProfile = {
   profile_uuid: "d123",
-  team_id: 0,
+  fleet_id: 0,
   name: "My DDM profile",
   platform: "darwin",
   identifier: "com.example.test",

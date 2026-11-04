@@ -203,7 +203,7 @@ const Controls = ({
   };
 
   const onAddControls = useCallback(() => {
-    // A no-team host reports `team_id: null`, but the Controls page reads "No
+    // A no-team host reports `fleet_id: null`, but the Controls page reads "No
     // team" as fleet_id=0 — an absent param means "keep whatever fleet you were
     // on", which lands the user somewhere else entirely.
     router.push(

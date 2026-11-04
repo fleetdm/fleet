@@ -1211,10 +1211,8 @@ func (r listMDMCommandsResponse) Error() error { return r.Err }
 
 // We the DecodeBody method to perform custom validation before hitting the service layer.
 func (req listMDMCommandsRequest) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
-	if req.CommandStatus != "" && req.HostIdentifier == "" {
-		return &fleet.BadRequestError{
-			Message: `"host_identifier" must be specified when filtering by "command_status".`,
-		}
+	if strings.TrimSpace(req.HostIdentifier) == "" {
+		return fleet.NewParamRequiredDeprecationError("host_identifier")
 	}
 
 	if req.CommandStatus != "" {
@@ -3176,7 +3174,8 @@ func (svc *Service) BatchSetMDMProfiles(
 	var seenAppleDeclOSUpdate, seenWindowsProfileOSUpdate bool
 	var rawAppleDecl, rawWindowsProfile []byte
 	for _, p := range appleDeclsSlice {
-		if !bytes.Contains(p.RawJSON, []byte(apple_mdm.DeclarationTypeSoftwareUpdate)) {
+		// Match the parsed Type, not the raw JSON: the type string can be \u-escaped or appear in another declaration's payload.
+		if p.Type != apple_mdm.DeclarationTypeSoftwareUpdate {
 			continue
 		}
 

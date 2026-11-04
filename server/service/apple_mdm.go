@@ -5741,29 +5741,22 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		managedAppleID = idp.Email
 	}
 
-	// User (Device) enrollments, also known as Account Driven enrollments or BYOD enrollments,
-	// are a special case where the bearer token is used to link the enrollment to the IDP account and it's default team.
-	if r.Type == mdm.UserEnrollmentDevice && idp == nil && strings.HasPrefix(r.Authorization, "Bearer ") {
-		// Split enrollment challenge off the Bearer prefix
-		challenge := strings.TrimPrefix(r.Authorization, "Bearer ")
-
-		enrollChallenge, err := svc.ds.GetADUEEnrollmentChallenge(r.Context, challenge)
-		if err != nil && !fleet.IsNotFound(err) {
-			return ctxerr.Wrap(r.Context, err, "getting adue enrollment challenge")
-		}
-		if fleet.IsNotFound(err) || enrollChallenge == nil {
-			// This should never happen, but we skip IDP assocation.
-			svc.logger.ErrorContext(r.Context, "no enrollment challenge found for User (Device) enrollment",
-				"host_uuid", r.ID, "challenge", challenge)
+	// User (Device) enrollments, also known as Account Driven enrollments or BYOD enrollments, are linked to the
+	// IdP account their enrollment certificate was issued for, which Authenticate checked against the challenge.
+	if r.Type == mdm.UserEnrollmentDevice && idp == nil {
+		boundAcctUUID, reason := adueCertIdPAccountUUID(r.Certificate)
+		if reason != "" {
+			svc.logger.ErrorContext(r.Context, "skipping IdP association for User (Device) enrollment",
+				"host_uuid", r.ID, "reason", reason)
 		} else {
-			idpAccount, err := svc.ds.GetMDMIdPAccountByUUID(r.Context, enrollChallenge.IdPAccountUUID)
+			idpAccount, err := svc.ds.GetMDMIdPAccountByUUID(r.Context, boundAcctUUID)
 			if err != nil && !fleet.IsNotFound(err) {
 				return ctxerr.Wrap(r.Context, err, "getting idp account by UUID")
 			}
 			if fleet.IsNotFound(err) || idpAccount == nil {
 				// This should never happen but we still want to process the token update
 				svc.logger.ErrorContext(r.Context, "no IDP account found for User (Device) enrollment",
-					"host_uuid", r.ID, "account_uuid", enrollChallenge.IdPAccountUUID)
+					"host_uuid", r.ID, "account_uuid", boundAcctUUID)
 			} else {
 				acctUUID = idpAccount.UUID
 				managedAppleID = idpAccount.Email
@@ -5774,7 +5767,6 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 				shared_mdm.LogHostIdPAccountLinkChange(r.Context, svc.ds, svc.newActivityFn, svc.logger, r.ID, previousAcctUUID, acctUUID)
 			}
 		}
-
 	}
 
 	// For Account-Driven User Enrollment (BYOD iOS/iPadOS), keep host_mdm's
