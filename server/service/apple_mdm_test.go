@@ -282,7 +282,9 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo, tweakCfg ...
 }
 
 func TestAppleMDMAuthorization(t *testing.T) {
-	svc, ctx, ds, opts := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	svc, ctx, ds, opts := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium}, func(fc *config.FleetConfig) {
+		fc.MDM.AppleSCEPStaticChallengeEnabled = true
+	})
 
 	ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
 		return []*fleet.EnrollSecret{
@@ -2915,15 +2917,15 @@ func TestMDMAuthenticateSCEPRenewalWithNewEnrollmentCert(t *testing.T) {
 func TestGetMDMManualEnrollmentProfileStaticChallenge(t *testing.T) {
 	premium := &fleet.LicenseInfo{Tier: fleet.TierPremium}
 
-	svc, ctx, _, _ := setupAppleMDMService(t, premium, func(cfg *config.FleetConfig) {
-		cfg.MDM.AppleSCEPStaticChallengeEnabled = false
-	})
+	svc, ctx, _, _ := setupAppleMDMService(t, premium)
 	_, err := svc.GetMDMManualEnrollmentProfile(test.UserContext(ctx, test.UserAdmin), false)
 	var notAllowed *fleet.NotAllowedByDefaultDeprecationError
 	require.ErrorAs(t, err, &notAllowed)
 	require.ErrorContains(t, err, fleet.Fleet5MigrationGuide)
 
-	svc, ctx, _, _ = setupAppleMDMService(t, premium)
+	svc, ctx, _, _ = setupAppleMDMService(t, premium, func(cfg *config.FleetConfig) {
+		cfg.MDM.AppleSCEPStaticChallengeEnabled = true
+	})
 	profile, err := svc.GetMDMManualEnrollmentProfile(test.UserContext(ctx, test.UserAdmin), false)
 	require.NoError(t, err)
 	require.NotEmpty(t, profile)
