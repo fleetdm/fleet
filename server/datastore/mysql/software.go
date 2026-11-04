@@ -1353,12 +1353,25 @@ func (p windowsFMAPrefix) acceptsProgram(name, upgradeCode string) bool {
 
 // startsWithVersionWord reports whether s, what a program name has after its matched
 // prefix, is empty or starts with a word of digits and dots, optionally led by "v":
-// " 25.38.109 (25.0.5.0.3), 64-bit" or " v23.5.1040", but not " 7-preview-x64".
+// " 25.38.109 (25.0.5.0.3), 64-bit" or " v23.5.1040", but not " 7-preview-x64". A bare
+// major must end the name or be followed by another version word, since one can lead a
+// product's name: " 7 Preview" is PowerShell Preview.
 func startsWithVersionWord(s string) bool {
 	if s == "" {
 		return true
 	}
-	word, _, _ := strings.Cut(strings.TrimPrefix(s, " "), " ")
+	word, rest, _ := strings.Cut(strings.TrimPrefix(s, " "), " ")
+	if !isVersionWord(word) {
+		return false
+	}
+	if strings.Contains(word, ".") || rest == "" {
+		return true
+	}
+	next, _, _ := strings.Cut(rest, " ")
+	return isVersionWord(next)
+}
+
+func isVersionWord(word string) bool {
 	word = strings.TrimPrefix(word, "v")
 	return word != "" && word[0] >= '0' && word[0] <= '9' && strings.Trim(word, "0123456789.") == ""
 }

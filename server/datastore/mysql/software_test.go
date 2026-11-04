@@ -13301,6 +13301,13 @@ func TestWindowsFMAPrefixAcceptsProgram(t *testing.T) {
 	require.False(t, msiNoCode.acceptsProgram("Azul Zulu JRE FX 25.38.109", code), "a word after the name that isn't a version names another product")
 	require.False(t, msiNoCode.acceptsProgram("Azul Zulu JRE 25-preview", code))
 	require.True(t, msiNoCode.acceptsProgram("Azul Zulu JRE FX 25.38.109", ""), "the version word only narrows the upgrade-code fallback")
+	require.True(t, msiNoCode.acceptsProgram("Azul Zulu JRE 25", code))
+	require.True(t, msiNoCode.acceptsProgram("Azul Zulu JRE 25 25.0.5.0.3", code))
+
+	powerShell := windowsFMAPrefix{prefix: "powershell", titleName: "PowerShell", titleID: 2, msiInstaller: true}
+	require.False(t, powerShell.acceptsProgram("PowerShell 7 Preview", code), "a bare major followed by a word names another product")
+	require.True(t, powerShell.acceptsProgram("PowerShell 7 Preview", ""))
+	require.True(t, powerShell.acceptsProgram("PowerShell 7", code))
 
 	msiWithCode := prefixFor("Azul Zulu JRE", code, true, false)
 	require.True(t, msiWithCode.acceptsProgram(jre25, ""))
