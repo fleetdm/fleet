@@ -14766,7 +14766,8 @@ Get a list of all software.
               "version": "4.50.128",
               "platform": "darwin",
               "self_service": false,
-              "package_url": ""
+              "package_url": "",
+              "fleet_maintained_app_id": null
           },
           {
               "name": "Slack-4.51.133-macOS.pkg",
@@ -14774,7 +14775,8 @@ Get a list of all software.
               "version": "4.51.133",
               "platform": "darwin",
               "self_service": true,
-              "package_url": ""
+              "package_url": "",
+              "fleet_maintained_app_id": null
           }
       ],
       "bundle_identifier": "com.tinyspeck.slackmacgap",
