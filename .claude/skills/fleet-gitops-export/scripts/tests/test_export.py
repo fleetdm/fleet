@@ -614,6 +614,13 @@ class HelpersTest(unittest.TestCase):
             for old, new in re.findall(r'\{"org_settings\.' + parent + r'\.(\w+)", "org_settings\.' + parent + r'\.(\w+)"\}', text):
                 self.assertEqual(ALIASES[parent].get(old), new, f"{parent}.{old}")
 
+    @unittest.skipUnless(DEPRECATIONS.exists(), "not inside the Fleet repository")
+    def test_reconcile_knows_deprecated_paths(self):
+        from checks import DEPRECATED_PATHS
+        pairs = re.findall(r'\{"([\w.]+)", "([\w.]+)"\}', DEPRECATIONS.read_text())
+        paths = {old: new for old, new in pairs if "." in old or old in ("team_settings", "queries")}
+        self.assertEqual(DEPRECATED_PATHS, paths)
+
     @unittest.skipUnless(POINTER.exists(), "not inside the Fleet repository")
     def test_agents_pointer_matches_skill(self):
         def frontmatter(path):
@@ -733,6 +740,49 @@ def snapshot():
                           "setup": [], "setup_macos": []}},
         ],
     }
+
+
+def rich_snapshot():
+    """The test snapshot with most of what an export can carry turned on."""
+    PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 20
+    snap = snapshot()
+    cfg = snap["config"]
+    cfg["org_info"].update({"org_logo_url_dark_mode": "https://fleet.example.test/api/latest/fleet/logo?mode=dark", "org_logo_url_light_mode": "https://cdn.test/l.png"})
+    snap["logos"] = {"dark": PNG}
+    cfg["features"] = {"enable_host_users": True, "enable_software_inventory": False, "additional_queries": {"q": "SELECT 1"},
+                       "historical_data": {"uptime": True, "vulnerabilities": False}}
+    cfg["fleet_desktop"] = {"transparency_url": "https://t.test"}
+    cfg["host_expiry_settings"] = {"host_expiry_enabled": True, "host_expiry_window": 30}
+    cfg["webhook_settings"] = {"interval": "24h", "host_status_webhook": {"enable_host_status_webhook": True, "destination_url": "https://hook.test/x",
+                                                                           "host_percentage": 5, "days_count": 2}}
+    cfg["sso_settings"] = {"enable_sso": True, "entity_id": "fleet", "idp_name": "Okta", "metadata": "<xml/>", "enable_jit_provisioning": True}
+    cfg["yara_rules"] = [{"name": "r1.yar", "contents": "rule x { condition: true }"}]
+    cfg["mdm"].update({"apple_server_url": "https://mdm.test", "end_user_authentication": {"entity_id": "e", "idp_name": "Okta", "metadata_url": "https://m.test"},
+                       "apple_business": [{"organization_name": "Org", "macos_fleet": "💻 Workstations", "ios_fleet": "", "ipados_fleet": ""}],
+                       "windows_automatic_enrollment": {"default_team": "Servers"},
+                       "windows_migration_enabled": True, "macos_migration": {"enable": True, "mode": "voluntary", "webhook_url": "https://mig.test"},
+                       "apple_account_provisioning": {"oauth_idp_token_url": "https://idp.test/token", "oauth_idp_client_id": "cid", "oauth_idp_client_secret": "********"},
+                       "macos_updates": {"minimum_version": "", "update_new_hosts": True}, "windows_updates": {"deadline_days": 0, "grace_period_days": 2},
+                       "setup_experience": {"enable_end_user_authentication": True, "require_all_software_macos": True},
+                       "enable_recovery_lock_password": True, "name_template": "mac-$FLEET_VAR_HOST_HARDWARE_SERIAL"})
+    snap["vpp_tokens"] = [{"location": "Loc", "fleets": []}]
+    snap["eula"] = {"macos": {"name": "eula.pdf", "content": b"%PDF-1.4"}}
+    snap["graph_credentials"] = [{"tenant_id": "t", "client_id": "c"}]
+    snap["custom_host_vitals"] = [{"name": "Asset tag"}]
+    un = next(s for s in snap["scopes"] if s["key"] == "unassigned")
+    un["setup"] = {"script": {"name": "setup.sh", "content": b"#!/bin/sh\necho hi\n"},
+                   "enrollment_profile": {"name": "ade.json", "enrollment_profile": {"profile_name": "ADE", "skip_setup_items": ["Location"]}}}
+    un["android_certificates"] = [{"name": "wifi", "certificate_authority_name": "WIFI", "subject_name": "CN=x"}]
+    ws = next(s for s in snap["scopes"] if s["key"] == "1")
+    ws["team"]["webhook_settings"] = {"failing_policies_webhook": {"enable_failing_policies_webhook": False, "destination_url": "", "policy_ids": [], "host_batch_size": 0}}
+    ws["team"]["integrations"] = {"google_calendar": {"enable_calendar_events": True, "webhook_url": "https://cal.test"}}
+    ws["team"]["features"] = {"enable_host_users": False, "enable_software_inventory": True}
+    ws["software"]["titles"].append({"id": 12, "name": "Slack", "icon": PNG, "app_store_app": {"app_store_id": "803453959", "platform": "ios",
+                                     "self_service": True, "auto_update_enabled": True, "auto_update_window_start": "02:00", "auto_update_window_end": "04:00"}})
+    ws["software"]["setup"] = [{"id": 10, "software_package": {"install_during_setup": True, "name": "Maccy.zip"}}]
+    ws["profiles"].append({"profile_uuid": "d", "name": "Passcode", "platform": "darwin", "content": b'{"Type": "com.apple.configuration.passcode.settings"}',
+                           "activation": b'{"Type": "com.apple.activation.simple"}'})
+    return snap
 
 
 @unittest.skipUnless(TEMPLATES.exists(), "not inside the Fleet repository")
@@ -1127,6 +1177,76 @@ class EndToEndTest(unittest.TestCase):
         placed = json.loads((self.work / "placed.json").read_text())
         self.assertIn("platforms/macos/scripts/logs.sh", placed)
         self.assertIn("fleets/workstations.yml", placed)
+
+    def test_rich_export_reconciles_cleanly(self):
+        plan = self.replan(rich_snapshot())
+        self.assertEqual([r["message"] for r in self.reconcile(plan) if r["level"] != "WARN"], [])
+
+    def test_reconcile_fails_on_keys_it_cant_compare(self):
+        default = self.root / "default.yml"
+        default.write_text(default.read_text().replace("org_settings:\n", "org_settings:\n  smtp_settings:\n    enable_smtp: false\n"
+                                                                              "  gitops:\n    gitops_mode_enabled: true\n", 1))
+        servers = self.root / "fleets/servers.yml"
+        servers.write_text(servers.read_text() + "queries:\n  - name: Extra\n    query: SELECT 1;\n")
+        messages = "\n".join(r["message"] for r in self.reconcile())
+        self.assertIn("default.yml: org_settings.smtp_settings is in the repo but isn't compared with Fleet", messages)
+        self.assertIn("default.yml: org_settings.gitops is in the repo but isn't compared", messages)
+        self.assertIn("fleets/servers.yml: queries is in the repo but isn't compared with Fleet (applying may change Fleet); "
+                      "it's the old name of reports", messages)
+
+    def test_variables_must_sit_where_planned(self):
+        servers = self.root / "fleets/servers.yml"
+        servers.write_text(servers.read_text().replace("secret: $FLEET_SERVERS_ENROLL_SECRET", "secret: $FLEET_WORKSTATIONS_ENROLL_SECRET"))
+        default = self.root / "default.yml"
+        default.write_text(default.read_text().replace("api_token: $FLEET_CA_WIFI_API_TOKEN", "api_token: written-out-token"))
+        messages = "\n".join(r["message"] for r in self.reconcile())
+        self.assertIn("fleets/servers.yml: settings.secrets[0].secret should be $FLEET_SERVERS_ENROLL_SECRET, "
+                      "but the repo has $FLEET_WORKSTATIONS_ENROLL_SECRET there", messages)
+        self.assertIn("default.yml: org_settings.certificate_authorities.digicert[0].api_token should be $FLEET_CA_WIFI_API_TOKEN, "
+                      "but the repo has no variable there", messages)
+        self.assertNotIn("written-out-token", messages)
+
+    def test_strict_settings_and_omitted_defaults(self):
+        plan = self.replan(rich_snapshot())
+        default = self.root / "default.yml"
+        text = default.read_text()
+        self.assertIn("deadline_days: 0", text)
+        default.write_text(text.replace("distributed_interval: 10", "distributed_interval: 10\n      utc: false")
+                           .replace("    enable_software_inventory: false\n", "").replace("      vulnerabilities: false\n", "")
+                           .replace("deadline_days: 0", "deadline_days:"))
+        messages = "\n".join(r["message"] for r in self.reconcile(plan))
+        self.assertIn("settings '(top level)': agent_options", messages)
+        self.assertIn("settings 'org_settings.features': enable_software_inventory is true in the repo but false in Fleet", messages)
+        self.assertIn("settings 'org_settings.features': historical_data", messages)
+        self.assertIn("settings 'controls.windows_updates': deadline_days is null in the repo but 0 in Fleet", messages)
+
+    def test_reconcile_compares_mdm_setup_and_certificates(self):
+        plan = self.replan(rich_snapshot())
+        default = self.root / "default.yml"
+        default.write_text(default.read_text().replace('macos_fleet: "💻 Workstations"', "macos_fleet: Servers")
+                           .replace("  setup_experience:\n", "  setup_experience:\n    macos_bootstrap_package: https://x.test/b.pkg\n", 1)
+                           .replace("client_id: c\n", "client_id: d\n"))
+        next(self.root.rglob("setup.sh")).write_text("#!/bin/sh\necho changed\n")
+        (self.root / "platforms/all/org-logos/dark.png").write_bytes(b"changed")
+        messages = "\n".join(r["message"] for r in self.reconcile(plan))
+        for expected in ("settings 'org_settings.mdm': apple_business", "settings 'controls.setup_experience': macos_bootstrap_package",
+                         "settings 'controls.setup_experience': macos_script", "settings 'org_settings': microsoft_graph_credentials",
+                         "settings 'org_settings.org_info': org_logo_path_dark_mode"):
+            self.assertIn(expected, messages)
+
+    def test_reconcile_compares_item_fields_the_repo_adds(self):
+        policy = self.root / "platforms/macos/policies/collect-logs.yml"
+        policy.write_text(policy.read_text() + "  resend_configuration_profile: Firewall on\n")
+        ws = self.root / "fleets/workstations.yml"
+        ws.write_text(ws.read_text().replace("      - path: ../platforms/macos/configuration-profiles/firewall-on.mobileconfig\n",
+                                             "      - path: ../platforms/macos/configuration-profiles/firewall-on.mobileconfig\n"
+                                             "        activation: ../platforms/macos/scripts/logs.sh\n", 1)
+                      .replace("controls:\n", "controls:\n  android_settings:\n    certificates:\n      - name: extra\n"
+                                              "        certificate_authority_name: WIFI\n        subject_name: CN=x\n", 1))
+        messages = "\n".join(r["message"] for r in self.reconcile())
+        self.assertIn("policy 'Collect logs': resend_configuration_profile", messages)
+        self.assertIn("profile 'Firewall on': activation differs", messages)
+        self.assertIn("Android certificate 'extra' is in the repo but not in Fleet", messages)
 
     def test_place_is_repeatable(self):
         before = {p: p.read_bytes() for p in self.root.rglob("*") if p.is_file()}

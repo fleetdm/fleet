@@ -26,7 +26,7 @@ from pathlib import Path
 
 from fleet_api import API, FleetctlError
 from collect import MIN_SECRET_LEN
-from planner import ANY_OF, TOP_LEVEL, VARIABLE
+from planner import ANY_OF, CATALOG_CATEGORIES, TOP_LEVEL, VARIABLE
 
 F = "/api/latest/fleet"
 PLACEHOLDER = "fleet-gitops-export-dry-run-placeholder"
@@ -65,12 +65,73 @@ def load_yaml(text: str, backend: str):
 
 
 KIND_NAMES = {"policies": "policy", "reports": "report", "labels": "label", "scripts": "script",
-              "profiles": "profile", "assets": "DDM asset", "software": "software", "settings": "settings"}
+              "profiles": "profile", "assets": "DDM asset", "software": "software", "settings": "settings",
+              "certificates": "Android certificate"}
 LABEL_KEYS = ("labels_include_any", "labels_exclude_any", "labels_include_all")
-# Settings whose omitted value isn't false.
-OMITTED = {("controls", "enable_profile_validation"): True}
+APP_FIELDS = ("auto_update_enabled", "auto_update_window_start", "auto_update_window_end")
+CERT_FIELDS = ("certificate_authority_name", "subject_name", "subject_alternative_name")
+# Settings whose omitted value isn't false (fleetctl fills these in on apply).
+OMITTED = {("controls", "enable_profile_validation"): True,
+           **{(s, k): True for s in ("org_settings.features", "settings.features") for k in ("enable_host_users", "enable_software_inventory")},
+           **{(s, "historical_data"): {"uptime": True, "vulnerabilities": True} for s in ("org_settings.features", "settings.features")}}
+# Compared exactly: an empty or false value here means something different from a missing one.
+STRICT = {(TOP_LEVEL, "agent_options"), ("controls.windows_updates", "deadline_days"), ("controls.windows_updates", "grace_period_days")}
+# Repo sections compared item by item (kinds), so their keys are covered.
+ITEM_SECTIONS = {("policies",), ("reports",), ("labels",), ("controls", "scripts"), ("controls", "apple_settings", "assets"),
+                 ("controls", "apple_settings", "configuration_profiles"), ("controls", "windows_settings", "configuration_profiles"),
+                 ("controls", "android_settings", "configuration_profiles"), ("controls", "android_settings", "certificates"),
+                 ("software", "packages"), ("software", "fleet_maintained_apps"), ("software", "app_store_apps")}
+# Old names fleetctl still maps (pkg/spec/gitops_deprecations.go); the export writes the new ones.
+DEPRECATED_PATHS = {"team_settings": "settings", "queries": "reports", "controls.macos_settings": "controls.apple_settings",
+                    "controls.macos_setup": "controls.setup_experience",
+                    "controls.apple_settings.custom_settings": "controls.apple_settings.configuration_profiles",
+                    "controls.windows_settings.custom_settings": "controls.windows_settings.configuration_profiles",
+                    "controls.android_settings.custom_settings": "controls.android_settings.configuration_profiles",
+                    "controls.setup_experience.bootstrap_package": "controls.setup_experience.macos_bootstrap_package",
+                    "controls.setup_experience.macos_setup_assistant": "controls.setup_experience.apple_setup_assistant",
+                    "controls.setup_experience.enable_release_device_manually": "controls.setup_experience.apple_enable_release_device_manually",
+                    "controls.setup_experience.script": "controls.setup_experience.macos_script",
+                    "controls.setup_experience.manual_agent_install": "controls.setup_experience.macos_manual_agent_install",
+                    "controls.setup_experience.enable_managed_local_account": "controls.setup_experience.enable_create_local_admin_account",
+                    "org_settings.server_settings.live_query_disabled": "org_settings.server_settings.live_reporting_disabled",
+                    "org_settings.server_settings.query_reports_disabled": "org_settings.server_settings.discard_reports_data",
+                    "org_settings.server_settings.query_report_cap": "org_settings.server_settings.report_cap",
+                    "org_settings.org_info.org_logo_url": "org_settings.org_info.org_logo_url_dark_mode",
+                    "org_settings.org_info.org_logo_url_light_background": "org_settings.org_info.org_logo_url_light_mode",
+                    "org_settings.mdm.apple_business_manager": "org_settings.mdm.apple_business"}
 # Settings where the repo's other keys are read too, so a key only the repo has (a kind, a Premium-only flag) is an addition.
 KEYED_SECTIONS = ("org_settings.integrations", "org_settings.certificate_authorities", "org_settings.sso_settings")
+
+
+def _with_defaults(default, v):
+    """A repo value with what fleetctl fills in when it's left out (nested for historical_data)."""
+    if default is None:
+        return v
+    if isinstance(default, dict):
+        return {**default, **{k: x for k, x in (v if isinstance(v, dict) else {}).items() if x is not None}}
+    return default if v is None else v
+
+
+def _strict(v):
+    """Comparable form for STRICT settings: only None counts as absent; false, 0, and empty values stay."""
+    if isinstance(v, dict):
+        return {k: _strict(x) for k, x in v.items() if x is not None} or None
+    if isinstance(v, list):
+        return sorted((_strict(x) for x in v), key=lambda x: json.dumps(x, sort_keys=True))
+    return v
+
+
+def _has_value(v) -> bool:
+    """Would applying this set something? false and 0 do; None, "", and empty containers don't."""
+    if isinstance(v, dict):
+        return any(_has_value(x) for x in v.values())
+    if isinstance(v, list):
+        return bool(v)
+    return v is not None and v != ""
+
+
+def _dotted(path) -> str:
+    return "".join(f"[{p}]" if isinstance(p, int) else ("." if i else "") + str(p) for i, p in enumerate(path))
 
 
 def _hashable(v):
@@ -410,6 +471,11 @@ class Checker:
         for key in ("install_script", "uninstall_script", "post_install_script"):
             f[key] = self._script_sha(base, scripts.get(key))
         f["pre_install_query"] = self._query(base, scripts.get("pre_install_query"))
+        for key in ("setup_experience", "setup_experience_platform"):
+            f[key] = scripts.get(key) or entry.get(key)
+        f["icon"] = self._script_sha(base, scripts.get("icon") or entry.get("icon"))
+        if entry.get("configuration"):
+            f["configuration"] = self._app_config(base, entry["configuration"], "ios")
         return f
 
     def _install_software(self, base: str, inst):
@@ -484,7 +550,12 @@ class Checker:
             values = {}
             for k in fields:
                 v = _walk(node, [k])
-                values[k] = OMITTED.get((section, k)) if v is None and (section, k) in OMITTED else self._strip_env(v)
+                if k == "secrets" and section in ("org_settings", "settings"):
+                    values[k] = len(v) if isinstance(v, list) else 0  # which variable each holds is checked by placement
+                elif k in PATH_KEYS and isinstance(v, str):
+                    values[k] = self._file_value(k, os.path.normpath(os.path.join(base, v)).replace(os.sep, "/"))
+                else:
+                    values[k] = _with_defaults(OMITTED.get((section, k)), self._files_in(self._strip_env(v), base))
             if section in KEYED_SECTIONS and isinstance(node, dict):
                 values.update({k: v for k, v in self._strip_env(node).items() if k not in fields})
             found["settings"].append([section, values])
@@ -502,8 +573,8 @@ class Checker:
                 name = name or os.path.splitext(os.path.basename(path))[0]
                 f = {k: entry.get(k) for k in ("self_service", "hidden", "description", "labels_include_all", "labels_include_any", "labels_exclude_any")}
                 f["sha256"] = self._hash(path, expanded=True)
-                if entry.get("activation"):
-                    f["activation_sha256"] = self._hash(os.path.normpath(os.path.join(base, entry["activation"])).replace(os.sep, "/"))
+                act = entry.get("activation")
+                f["activation_sha256"] = self._hash(os.path.normpath(os.path.join(base, act)).replace(os.sep, "/")) if isinstance(act, str) else None
                 found["profiles"].append([name, f])
         for path, _ in self._items(top, ["controls", "apple_settings", "assets"]):
             if path:
@@ -525,6 +596,8 @@ class Checker:
             if isinstance(item, dict):
                 f = self._software_fields(item, base, item)
                 f["version"] = item.get("version")
+                if "categories" not in item:
+                    f["categories"] = CATALOG_CATEGORIES  # left out, the FMA gets the catalog's categories
                 found["software"].append([f"fma:{item.get('slug')}", f])
         for item in _as_list(sw.get("app_store_apps")):
             if not isinstance(item, dict):
@@ -534,10 +607,33 @@ class Checker:
                 found["software"].append([ident, {"display_name": item.get("display_name")}])
             versions = [(f"{ident}:{v.get('name')}", v) for v in item.get("versions") or [] if isinstance(v, dict)] or [(ident, item)]
             for key, v in versions:
-                f = {k: v.get(k) for k in ("self_service", "categories", "display_name") + LABEL_KEYS}
+                f = {k: v.get(k) for k in ("self_service", "categories", "display_name") + LABEL_KEYS + APP_FIELDS}
                 f["configuration"] = self._app_config(base, v.get("configuration"), platform)
+                if v is item:
+                    f["setup_experience"] = item.get("setup_experience")
+                    f["icon"] = self._script_sha(base, item.get("icon"))
                 found["software"].append([key, f])
+        for item in _as_list(_walk(doc, ["controls", "android_settings", "certificates"])):
+            if isinstance(item, dict):
+                found["certificates"].append([item.get("name"), {k: item.get(k) for k in CERT_FIELDS}])
         return found
+
+    def _file_value(self, key: str, path: str):
+        """A file a setting points at, as the inventory has it: the ADE profile parsed, anything else hashed."""
+        if key != "apple_setup_assistant" or not (self.root / path).is_file():
+            return self._hash(path)
+        try:
+            return json.loads(self._bytes(path, False))
+        except ValueError:
+            return self._hash(path)
+
+    def _files_in(self, v, base: str):
+        """A setting with each `{path: ...}` it holds (YARA rules) replaced by that file's hash."""
+        if isinstance(v, dict) and set(v) == {"path"} and isinstance(v["path"], str):
+            return self._hash(os.path.normpath(os.path.join(base, v["path"])).replace(os.sep, "/"))
+        if isinstance(v, list):
+            return [self._files_in(x, base) for x in v]
+        return v
 
     def reconcile(self):
         """Compare the repo with Fleet item by item: presence, then each field Fleet reported.
@@ -563,6 +659,7 @@ class Checker:
                 self._reconcile_file(top, inventory.get(top) or {}, exceptions)
             except Exception as e:  # noqa: BLE001 - YAML of an unexpected shape; the other files are still compared
                 self.fail("reconcile", f"{top}: couldn't be compared ({type(e).__name__}: {e}); check its YAML")
+        self.check_placements()
 
     def _reconcile_file(self, top: str, kinds: dict, exceptions: dict):
         found = self._found(top, kinds.get("settings") or [])
@@ -584,14 +681,21 @@ class Checker:
             for n in sorted({k for k in keys if keys.count(k) > 1}, key=str):
                 self.fail("reconcile", f"{top}: {what} {n!r} is defined more than once")
             for n in sorted(set(want) & set(got), key=str):
-                extra = sorted(set(got[n]) - set(want[n])) if kind == "settings" else []
+                # Settings and YAML items hold whatever keys the repo gives them; anything Fleet has no value for is an addition.
+                # (An item Fleet lists without fields was left out for holding a secret; it isn't compared field by field.)
+                extra = sorted(set(got[n]) - set(want[n]) - {"name"}) if kind == "settings" or (kind in ("policies", "reports", "labels") and want[n]) else []
                 for field in extra:
-                    if _norm(got[n][field]) is not None:
+                    if _has_value(got[n][field]) and _norm(got[n][field]) is not None:
                         self.fail("reconcile", f"{top}: {what} {n!r}: {field} is in the repo but not in Fleet (applying would create it)")
                 for field, fleet_value in want[n].items():
                     if got[n].get(field) == UNCHECKED:
                         self.warn("reconcile", f"{top}: {what} {n!r}: {field} not compared; the file holds variables "
                                                "whose values validate only fetches when it runs the dry run")
+                        continue
+                    if kind == "settings" and (n, field) in STRICT:
+                        if _strict(fleet_value) != _strict(got[n].get(field)):
+                            self.fail("reconcile", f"{top}: {what} {n!r}: {field} is {_short(got[n].get(field))} in the repo "
+                                                   f"but {_short(fleet_value)} in Fleet (applying would change it)")
                         continue
                     if not _same(fleet_value, got[n].get(field)):
                         if field.endswith("sha256"):
@@ -605,6 +709,85 @@ class Checker:
                             continue
                         self.fail("reconcile", f"{top}: {what} {n!r}: {field} is {_short(got[n].get(field))} in the repo "
                                                f"but {_short(fleet_value)} in Fleet (applying would change it)")
+
+        self._coverage(top, kinds.get("settings") or [])
+
+    def _coverage(self, top: str, settings: list):
+        """Fail on repo keys no comparison reads: applying would set them, and nothing here checks them."""
+        covered = set(ITEM_SECTIONS)
+        for section, fields in settings:
+            base = () if section == TOP_LEVEL else tuple(section.split("."))
+            if section in KEYED_SECTIONS:
+                covered.add(base)
+            else:
+                covered.update(base + (f,) for f in fields)
+        covered.update(self._placements().get(top, {}))
+        if top != "default.yml":
+            covered.add(("name",))
+        containers = {p[:i] for p in covered for i in range(1, len(p))}
+
+        def walk(node, path):
+            for k, v in (node.items() if isinstance(node, dict) else []):
+                p = path + (k,)
+                if p in covered:
+                    continue
+                if p in containers and (isinstance(v, dict) or v is None):
+                    walk(v, p)
+                elif _has_value(v):
+                    old = DEPRECATED_PATHS.get(_dotted(p))
+                    hint = f"; it's the old name of {old}, which the export writes" if old else ""
+                    self.fail("reconcile", f"{top}: {_dotted(p)} is in the repo but isn't compared with Fleet (applying may change Fleet){hint}")
+        walk(self.docs.get(top), ())
+
+    def _placements(self) -> dict:
+        """{file: {key path: variable}} for each $VARIABLE the plan put in a YAML file."""
+        if getattr(self, "_placed", None) is None:
+            self._placed = {}
+
+            def walk(node, path, into):
+                if isinstance(node, dict):
+                    if set(node) == {"$env"}:
+                        into[path] = node["$env"]
+                        return
+                    for k, v in node.items():
+                        walk(v, path + (k,), into)
+                elif isinstance(node, list):
+                    for i, v in enumerate(node):
+                        walk(v, path + (i,), into)
+            for f in self.plan.get("fleets") or []:
+                walk(f.get("sections") or {}, (), self._placed.setdefault(f["file"], {}))
+            for f in (self.plan.get("files") or {}).values():
+                if "data" in f:
+                    walk(f["data"], (), self._placed.setdefault(f["path"], {}))
+        return self._placed
+
+    def check_placements(self):
+        """Each variable is where the plan put it, and nowhere else: a value written out in its place, or another
+        variable, would apply something other than what Fleet has (or what the variable holds)."""
+        planned = self._placements()
+        for rel in sorted(set(planned) & set(self.docs)):
+            got: dict = {}
+
+            def walk(node, path):
+                if isinstance(node, dict):
+                    for k, v in node.items():
+                        walk(v, path + (k,))
+                elif isinstance(node, list):
+                    for i, v in enumerate(node):
+                        walk(v, path + (i,))
+                elif isinstance(node, str):
+                    m = re.fullmatch(r"\$\{?(\w+)\}?", node)
+                    if m and m.group(1) in self.env_sources:
+                        got[path] = m.group(1)
+            walk(self.docs[rel], ())
+            want = planned[rel]
+            for p, name in sorted(want.items(), key=lambda kv: _dotted(kv[0])):
+                if got.get(p) != name:
+                    now = f"${got[p]}" if p in got else "no variable"
+                    self.fail("reconcile", f"{rel}: {_dotted(p)} should be ${name}, but the repo has {now} there (applying would set something else)")
+            for p, name in sorted(got.items(), key=lambda kv: _dotted(kv[0])):
+                if p not in want:
+                    self.fail("reconcile", f"{rel}: {_dotted(p)} uses ${name}, which the export didn't put there (applying would set that value)")
 
     # ------------------------------------------------------------ dry run
 
