@@ -41,8 +41,6 @@
 //   - report (query) schedules or their label scoping, global or team (the
 //     query CRUD methods, which feed ListScheduledQueriesForAgents; these
 //     also reset the cached label-scope mode state),
-//   - 2017 "legacy" packs and their scheduled queries (the pack methods;
-//     these also reset the cached legacy-packs gate flag),
 //   - labels: deletion (cascades query_labels away, instantly UNSCOPING
 //     reports with no query CRUD and no membership persistence — a
 //     systematic gap unless hooked), spec application (platform changes
