@@ -1603,6 +1603,7 @@ func TestAddScriptPackageMetadata(t *testing.T) {
 		var badReq *fleet.BadRequestError
 		require.ErrorAs(t, err, &badReq)
 		require.ErrorIs(t, err, file.ErrInvalidInstaller)
+		require.Equal(t, "Uploaded file is not a valid installer package.", badReq.Message)
 	})
 
 	t.Run("valid powershell script", func(t *testing.T) {
