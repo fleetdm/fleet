@@ -165,7 +165,9 @@ func TestEntriesWellFormed(t *testing.T) {
 		case nil:
 		case ReplacedFormat:
 			assert.NotEqual(t, KindPath, e.Kind, "a removed path uses the endpoint message: %s", e.Old)
-		case ParameterFormat, KeyFormat, NounFormat:
+		case ParameterFormat, KeyFormat:
+		case NounFormat:
+			assert.NotEqual(t, KindPath, e.Kind, "a removed path uses the endpoint message: %s", e.Old)
 		case EndpointFormat:
 			assert.Equal(t, KindPath, e.Kind, "an endpoint message is for a path: %s", e.Old)
 		default:
