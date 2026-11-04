@@ -1376,6 +1376,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// Register all deprecated URL path aliases from the declarative table.
 	endpointer.RegisterDeprecatedPathAliases(r, apiVersions, registry, deprecatedPathAliases)
+	endpointer.RegisterRemovedPaths(r, apiVersions, logger, removedPaths())
 }
 
 // WithSetup is an http middleware that checks if setup procedures have been completed.
