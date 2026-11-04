@@ -5,6 +5,8 @@ Fleet 5 removes deprecated features such as API endpoints, API parameters, and Y
 Update to Fleet 4.95 first, then work through the list. Fleet will support Fleet 4.95 with security fixes through June 30, 2027.
 
 > Upgrade fleetctl to Fleet 5 at the same time you upgrade your Fleet server to Fleet 5, both in CI and on your computer.
+>
+> Update your GitOps files with the [YAML (GitOps)](#yaml-gitops) changes before you use them with a Fleet 5 server.
 
 Breaking changes are grouped by where you use Fleet. Read the sections that apply to you:
 
