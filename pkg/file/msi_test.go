@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -48,6 +49,15 @@ func TestDecodeStringsMemoryAmplification(t *testing.T) {
 	const maxAllowed = 1024 * 1024 // 1 MB
 	require.Less(t, allocated, uint64(maxAllowed),
 		"decodeStrings allocated %d bytes; expected less than %d (memory amplification detected)", allocated, maxAllowed)
+}
+
+func TestExtractMSIMetadataMalformedIsInvalidInstaller(t *testing.T) {
+	tfr, err := fleet.NewTempFileReader(bytes.NewReader([]byte("not an msi")), t.TempDir)
+	require.NoError(t, err)
+	defer tfr.Close()
+
+	_, err = ExtractMSIMetadata(tfr)
+	require.ErrorIs(t, err, ErrInvalidInstaller)
 }
 
 func TestDecodeMSITablesRejectOutOfRangeStringIDs(t *testing.T) {

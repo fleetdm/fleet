@@ -14,7 +14,7 @@ import (
 	"golang.org/x/text/encoding/charmap"
 )
 
-func ExtractMSIMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
+func ExtractMSIMetadata(tfr *fleet.TempFileReader) (_ *InstallerMetadata, err error) {
 	// compute its hash
 	h := sha256.New()
 	_, _ = io.Copy(h, tfr) // writes to a hash cannot fail
@@ -22,6 +22,13 @@ func ExtractMSIMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 	if err := tfr.Rewind(); err != nil {
 		return nil, err
 	}
+
+	// Past this point every error comes from parsing the uploaded file.
+	defer func() {
+		if err != nil && !errors.Is(err, ErrInvalidInstaller) {
+			err = fmt.Errorf("%w: %w", ErrInvalidInstaller, err)
+		}
+	}()
 
 	c, err := comdoc.ReadFile(tfr)
 	if err != nil {
