@@ -4770,11 +4770,11 @@ func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 	t.Run("blank identifiers match nothing", func(t *testing.T) {
 		_, err := ds.NewHost(t.Context(), &fleet.Host{
 			DetailUpdatedAt: now, LabelUpdatedAt: now, PolicyUpdatedAt: now, SeenTime: now,
-			OsqueryHostID: new("blank_osquery"), NodeKey: new("blank_node_key"), UUID: "blank_uuid", Hostname: "blank_hostname",
+			OsqueryHostID: new(""), NodeKey: new(""),
 		})
 		require.NoError(t, err)
 
-		for _, blank := range []string{"", " ", "   "} {
+		for _, blank := range []string{"", " ", "   ", "\u200b", "\ufeff", "\x00", "\u200b "} {
 			_, err := ds.HostByIdentifier(t.Context(), blank)
 			require.True(t, fleet.IsNotFound(err), "HostByIdentifier(%q): %v", blank, err)
 			_, err = ds.HostLiteByIdentifier(t.Context(), blank)

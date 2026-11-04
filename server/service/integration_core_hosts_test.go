@@ -1580,7 +1580,7 @@ func (s *integrationTestSuite) TestGetHostByIDOrIdentifier() {
 	target := newHost("target", nil)
 	// Another host whose serial is the target's ID: the ID has to win.
 	newHost("numeric-serial", func(h *fleet.Host) { h.HardwareSerial = fmt.Sprint(target.ID) })
-	// A blank identifier must not match this host's empty serial.
+	// A blank or zero width identifier must not match this host's empty serial.
 	newHost("empty-serial", func(h *fleet.Host) { h.HardwareSerial = "" })
 	// A numeric hostname that no host ID uses resolves as a hostname.
 	const unusedHostID = "4294967295"
@@ -1614,6 +1614,7 @@ func (s *integrationTestSuite) TestGetHostByIDOrIdentifier() {
 		s.Do("GET", "/api/latest/fleet/hosts/no-such-host", nil, http.StatusNotFound)
 		s.Do("GET", "/api/latest/fleet/hosts/4294967294", nil, http.StatusNotFound)
 		s.Do("GET", "/api/latest/fleet/hosts/%20", nil, http.StatusNotFound)
+		s.Do("GET", "/api/latest/fleet/hosts/%E2%80%8B", nil, http.StatusNotFound)
 		s.Do("GET", "/api/latest/fleet/hosts/99999999999999999999", nil, http.StatusNotFound)
 	})
 }

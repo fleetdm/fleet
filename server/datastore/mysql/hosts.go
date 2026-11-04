@@ -3975,19 +3975,20 @@ WHERE id IN (?)`
 	return hosts, nil
 }
 
-// hostByIdentifierWhere picks the host matching an identifier using one index per column.
+// hostByIdentifierWhere picks the host matching an identifier using one index per column. Each subselect excludes empty values because
+// the collations ignore trailing spaces and characters like a zero width space, so an identifier made of those equals an empty value.
 const hostByIdentifierWhere = `
     WHERE h.id = (
       SELECT candidates.id FROM (
-        (SELECT id, 0 AS priority FROM hosts WHERE hardware_serial = ? ORDER BY id LIMIT 1)
+        (SELECT id, 0 AS priority FROM hosts WHERE hardware_serial = ? AND hardware_serial <> '' ORDER BY id LIMIT 1)
         UNION ALL
-        (SELECT id, 1 FROM hosts WHERE uuid = ? ORDER BY id LIMIT 1)
+        (SELECT id, 1 FROM hosts WHERE uuid = ? AND uuid <> '' ORDER BY id LIMIT 1)
         UNION ALL
-        (SELECT id, 2 FROM hosts WHERE hostname = ? ORDER BY id LIMIT 1)
+        (SELECT id, 2 FROM hosts WHERE hostname = ? AND hostname <> '' ORDER BY id LIMIT 1)
         UNION ALL
-        (SELECT id, 3 FROM hosts WHERE osquery_host_id = ?)
+        (SELECT id, 3 FROM hosts WHERE osquery_host_id = ? AND osquery_host_id <> '')
         UNION ALL
-        (SELECT id, 4 FROM hosts WHERE node_key = ?)
+        (SELECT id, 4 FROM hosts WHERE node_key = ? AND node_key <> '')
       ) candidates
       ORDER BY candidates.priority
       LIMIT 1
@@ -3997,16 +3998,7 @@ func hostByIdentifierArgs(identifier string) []any {
 	return []any{identifier, identifier, identifier, identifier, identifier}
 }
 
-// isBlankHostIdentifier reports an identifier that must not reach hostByIdentifierWhere: PAD SPACE collations ignore trailing
-// spaces, so it would match any host with an empty value in one of those columns.
-func isBlankHostIdentifier(identifier string) bool {
-	return strings.TrimSpace(identifier) == ""
-}
-
 func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*fleet.Host, error) {
-	if isBlankHostIdentifier(identifier) {
-		return nil, ctxerr.Wrap(ctx, notFound("Host").WithName(identifier))
-	}
 	stmt := `
     SELECT
       h.id,
@@ -7568,9 +7560,6 @@ func (ds *Datastore) loadHostLite(ctx context.Context, id *uint, identifier *str
 		whereClause string
 	)
 	if identifier != nil {
-		if isBlankHostIdentifier(*identifier) {
-			return nil, ctxerr.Wrap(ctx, notFound("Host").WithName(*identifier))
-		}
 		whereClause = hostByIdentifierWhere
 		args = hostByIdentifierArgs(*identifier)
 	} else {
