@@ -3015,7 +3015,8 @@ type Datastore interface {
 	// GetMDMWindowsBitLockerStatus returns the disk encryption status for a given host
 	//
 	// Note that the returned status will be nil if the host is reported to be a Windows
-	// server or if disk encryption is disabled for the host's team (or no team, as applicable).
+	// server, if disk encryption is disabled for the host's team (or no team, as applicable), or if
+	// the host has no Fleet MDM enrollment.
 	GetMDMWindowsBitLockerStatus(ctx context.Context, host *Host) (*HostMDMDiskEncryption, error)
 
 	// GetMDMWindowsProfilesSummary summarizes the current state of Windows profiles on

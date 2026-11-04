@@ -2786,7 +2786,7 @@ _Available in Fleet Premium._
 | enable_failing_policies           | boolean | Whether or not Jira integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
 | url                               | string  | The URL of the Jira server to integrate with. |
 | username                          | string  | The Jira username to use for this Jira integration. |
-| api_token                         | string  | The API token of the Jira username to use for this Jira integration. |
+| api_token                         | string  | The API token of the Jira username to use for this Jira integration. Atlassian API tokens [expire after one year at most](https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/), so you'll have to create a new token and update this integration every year. |
 | project_key                       | string  | The Jira project key to use for this integration. Jira tickets will be created in this project. |
 
 <br/>
@@ -2901,7 +2901,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | windows_enabled_and_configured    | boolean | Enables Windows MDM support. |
-| windows_entra_tenant_ids          | array | _Available in Fleet Premium._ IDs of Microsoft Entra tenants to connect to Fleet, to enable automatic (Autopilot) and manual enrollment by end users (**Settings** > **Accounts** > **Access work or school** on Windows). Find your **Tenant ID**, on [**Microsoft Entra ID** > **Home**](https://entra.microsoft.com/#home). |
+| windows_entra_tenant_ids          | array | _Available in Fleet Premium._ IDs of Microsoft Entra tenants to connect to Fleet, to enable automatic (Autopilot) and manual enrollment by end users (**Settings** > **Accounts** > **Access work or school** on Windows). Not needed to enroll hosts with Fleet's agent (fleetd). Find your **Tenant ID**, on [**Microsoft Entra ID** > **Home**](https://entra.microsoft.com/#home). |
 | windows_entra_client_ids          | array | _Available in Fleet Premium._ Microsoft Entra application (client) IDs for the applications used to enroll Windows hosts via Microsoft Entra. Set this when you set up Entra enrollment: Microsoft Entra issues v2 access tokens whose audience is the application's client ID, so Fleet needs the client ID to authorize enrollment. Find your **Application (client) ID** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Overview**. |
 | microsoft_graph_credential_invalid | boolean | _Available in Fleet Premium._ Read-only. `true` when at least one Microsoft Graph credential has been rejected by Microsoft Entra or denied by Microsoft Graph, so Windows Autopilot devices are no longer syncing. Resolve it by supplying a new client secret, or granting admin consent, with [Modify Microsoft Graph credentials](#modify-microsoft-graph-credentials). Fleet computes this field, so it's ignored if you try to set it. |
 | enable_turn_on_windows_mdm_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
@@ -4452,7 +4452,7 @@ Returns the information of the specified host.
 
 A profile with `"status": null` is a self-service profile the host can install but hasn't yet. Once the end user or an IT admin installs it, `status` follows the same values as any other profile.
 
-#### Example (iOS/iPadOS)
+#### Example (company-owned iOS/iPadOS)
 `GET /api/v1/fleet/hosts/121`
 
 ##### Default response
@@ -4477,10 +4477,10 @@ A profile with `"status": null` is a self-service profile the host can install b
     "seen_time": "2021-08-19T21:14:58Z",
     "refetch_requested": false,
     "hostname": "Annas-iPhone",
-    "uuid": "309a4b7d-0000-0000-8e7f-26ae0815ede8",
+    "uuid": "00008110-001A2B3C4D5E6F78",
     "udid": "00008110-001A2B3C4D5E6F78",
     "platform": "ios",
-    "osquery_version": "5.15.0",
+    "osquery_version": "",
     "orbit_version": "1.22.0",
     "fleet_desktop_version": null,
     "scripts_enabled": false,
@@ -4791,7 +4791,7 @@ A profile with `"status": null` is a self-service profile the host can install b
 }
 ```
 
-#### Example (Android)
+#### Example (company-owned Android)
 `GET /api/v1/fleet/hosts/121`
 
 ##### Default response
@@ -4816,7 +4816,7 @@ A profile with `"status": null` is a self-service profile the host can install b
     "seen_time": "2021-08-19T21:14:58Z",
     "refetch_requested": false,
     "hostname": "Anna Chao's Google Pixel 9",
-    "uuid": "309a4b7d-0000-0000-8e7f-26ae0815ede8",
+    "uuid": "9ec4265a507780e710ce2a1f66587a35ac95796e9e8835112f98f7dd3265ba67",
     "platform": "android",
     "osquery_version": "",
     "orbit_version": null,
@@ -5287,7 +5287,7 @@ If `hostname` is specified when there is more than one host with the same hostna
   }
 }
 ```
-#### Example (iOS/iPadOS)
+#### Example (company-owned iOS/iPadOS)
 
 `GET /api/v1/fleet/hosts/identifier/392547dc-0000-0000-a87a-d701ff75bc65`
 
@@ -5312,10 +5312,10 @@ If `hostname` is specified when there is more than one host with the same hostna
     "seen_time": "2022-10-14T17:45:41Z",
     "refetch_requested": false,
     "hostname": "Johns-iPhone",
-    "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
+    "uuid": "00008110-001A2B3C4D5E6F78",
     "platform": "ios",
     "google_device_id": "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12",
-    "osquery_version": "5.5.1",
+    "osquery_version": "",
     "os_version": "iOS 17.4.1",
     "build": "21E236",
     "platform_like": "darwin",
@@ -5572,7 +5572,7 @@ If `hostname` is specified when there is more than one host with the same hostna
 }
 ```
 
-#### Example (Android)
+#### Example (company-owned Android)
 `GET /api/v1/fleet/hosts/identifier/392547dc-0000-0000-a87a-d701ff75bc65`
 
 ##### Default response
@@ -5597,7 +5597,7 @@ If `hostname` is specified when there is more than one host with the same hostna
     "seen_time": "2021-08-19T21:14:58Z",
     "refetch_requested": false,
     "hostname": "Anna Chao's Google Pixel 9",
-    "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
+    "uuid": "9ec4265a507780e710ce2a1f66587a35ac95796e9e8835112f98f7dd3265ba67",
     "platform": "android",
     "osquery_version": "",
     "orbit_version": null,
@@ -15921,7 +15921,7 @@ Icon will be displayed in Fleet and on **Fleet Desktop > Self-service**. In the 
 | ----        | ------- | ---- | --------------------------------------------     |
 | id          | integer | path | ID of the software title being updated. |
 | fleet_id     | integer | query | **Required**. The fleet ID. Updates a software icon in the specified fleet. |
-| icon        | file    | body | Must be PNG format. It must be square with dimensions between 120x120 px and 1024x1024 px. |
+| icon        | file    | body | Must be PNG format. It must be square with dimensions between 120x120 px and 1024x1024 px, and 100 KB or smaller. |
 | hash_sha256 | string  | body | SHA256 hash of an already-uploaded icon to use. If provided, `filename` is required and `icon` should be omitted. |
 | filename    | string  | body | Filename to record for the icon image, if `hash_sha256` was supplied. |
 
