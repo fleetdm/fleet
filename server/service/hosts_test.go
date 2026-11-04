@@ -3646,8 +3646,10 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 			}, nil
 		}
 		userCtx := test.UserContext(ctx, test.UserAdmin)
+		ds.BulkSetPendingMDMHostProfilesFuncInvoked = false
 		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10})
 		require.NoError(t, err)
+		require.True(t, ds.BulkSetPendingMDMHostProfilesFuncInvoked)
 	})
 
 	t.Run("global maintainer can transfer host across teams", func(t *testing.T) {
