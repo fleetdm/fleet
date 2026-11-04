@@ -16747,7 +16747,7 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
 | query | string | query | Search query keywords. Searchable fields include `cve`. |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Otherwise, includes vulnerabilities with any `cisa_known_exploit` value.  |
 | after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
-| hidden | boolean | query | Show dismissed vulnerabilities or not.
+| hidden | boolean | query | Show dismissed vulnerabilities or not. |
 
 
 ##### Default response
