@@ -4,25 +4,28 @@
 # Publisher "Opera Software") whose UninstallString points at its own
 # installer.exe. QuietUninstallString already carries the silent switches; when
 # only UninstallString is present we add --uninstall --silent ourselves.
+#
+# Opera's uninstaller relaunches itself from a versioned/temp copy and returns
+# before removal is finished, so after launching it we poll until the ARP
+# registration is gone rather than trusting the immediate exit.
 
 $displayNameLike = "Opera Stable*"
 $publisherLike = "Opera Software*"
 
-$paths = @(
-  'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
-  'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
+$registryUninstallPaths = @(
+  'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+  'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
 )
+
+function Get-OperaEntry {
+    Get-ItemProperty -Path $registryUninstallPaths -ErrorAction SilentlyContinue |
+        Where-Object { $_.DisplayName -like $displayNameLike -and $_.Publisher -like $publisherLike } |
+        Select-Object -First 1
+}
 
 try {
 
-$uninstall = $null
-foreach ($p in $paths) {
-  $items = Get-ItemProperty "$p\*" -ErrorAction SilentlyContinue | Where-Object {
-    $_.DisplayName -like $displayNameLike -and $_.Publisher -like $publisherLike
-  }
-  if ($items) { $uninstall = $items | Select-Object -First 1; break }
-}
-
+$uninstall = Get-OperaEntry
 if (-not $uninstall -or (-not $uninstall.UninstallString -and -not $uninstall.QuietUninstallString)) {
   Write-Host "Uninstall entry not found"
   Exit 0
@@ -70,7 +73,19 @@ $processOptions = @{
 $process = Start-Process @processOptions
 $exitCode = $process.ExitCode
 Write-Host "Uninstall exit code: $exitCode"
-if ($exitCode -eq 3010 -or $exitCode -eq 1641) { $exitCode = 0 }
+
+# The uninstaller returns before it finishes removing the app, so wait for the
+# registration to actually disappear.
+for ($waited = 0; $waited -lt 120; $waited++) {
+    if (-not (Get-OperaEntry)) {
+        Write-Host "Opera removed after ${waited}s"
+        Exit 0
+    }
+    Start-Sleep -Seconds 3
+}
+
+Write-Host "Opera still registered after waiting; uninstall did not complete"
+if ($exitCode -eq 0) { $exitCode = 1 }
 Exit $exitCode
 
 } catch {
