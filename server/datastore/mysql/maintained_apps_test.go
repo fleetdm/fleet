@@ -903,7 +903,7 @@ func testListAvailableAppsSearchIgnoresPlatformSuffix(t *testing.T, ds *Datastor
 	mkApp("Google Credential Provider for Windows", "gcpw/windows", "windows", "GCPW")
 
 	search := func(q string) []string {
-		apps, _, err := ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{MatchQuery: q, IncludeMetadata: true}})
+		apps, _, err := ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, fleet.MaintainedAppListOptions{MatchQuery: q, IncludeMetadata: true})
 		require.NoError(t, err)
 		var slugs []string
 		for _, a := range apps {
