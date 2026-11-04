@@ -235,8 +235,21 @@ func TestFastPathMatchesGorillaForEdgeCases(t *testing.T) {
 			path: "/api/latest/fleet/scripts/batch/summary/host_results", wantServedBy: byGorilla,
 		},
 		{
-			name: "both spellings of profile resend", method: "POST",
-			path: "/api/latest/fleet/hosts/1/configuration_profiles/resend/resend", wantServedBy: byGorilla,
+			name: "live resend wins the overlap", method: "POST",
+			path: "/api/latest/fleet/hosts/1/configuration_profiles/resend/resend", wantServedBy: byFastPath,
+		},
+		{
+			name: "removed resend spelling", method: "POST",
+			path: "/api/latest/fleet/hosts/1/configuration_profiles/resend/abc", wantServedBy: byFastPath,
+		},
+		{
+			name: "removed resend spelling on another method", method: "GET",
+			path: "/api/latest/fleet/hosts/1/configuration_profiles/resend/abc", wantServedBy: byFastPath,
+		},
+		{name: "wrong method on the live resend", method: "PUT", path: "/api/latest/fleet/hosts/1/configuration_profiles/abc/resend"},
+		{
+			name: "live resend declining a non-numeric host id", method: "POST",
+			path: "/api/latest/fleet/hosts/abc/configuration_profiles/foo/resend", wantServedBy: byGorilla,
 		},
 		{name: "encoded separator in a path variable", method: "GET", path: "/api/latest/fleet/device/abc%2Fdef"},
 		{
@@ -353,19 +366,21 @@ func TestFastPathExclusionsCoverEveryAmbiguousRoute(t *testing.T) {
 			return nil
 		}
 		methods, err := route.GetMethods()
-		if err != nil || len(methods) != 1 {
+		if err != nil {
 			return nil
 		}
 		if _, supported := supportedVarMatchers(tpl); !supported {
 			return nil
 		}
-		key := unversionedKey(methods[0], tpl)
-		registered[key] = struct{}{}
-		for _, pattern := range expandToStdlibPatterns(tpl) {
-			if conflictErr := tryRegister(fast, methods[0]+" "+pattern, noopHandler); conflictErr != nil {
-				assert.Containsf(t, fastPathExcluded, key,
-					"route %q is ambiguous on a stdlib ServeMux; add it and the route it collides with to fastPathExcluded (%v)",
-					key, conflictErr)
+		for _, method := range methods {
+			key := unversionedKey(method, tpl)
+			registered[key] = struct{}{}
+			for _, pattern := range expandToStdlibPatterns(tpl) {
+				if conflictErr := tryRegister(fast, method+" "+pattern, noopHandler); conflictErr != nil {
+					assert.Containsf(t, fastPathExcluded, key,
+						"route %q is ambiguous on a stdlib ServeMux; add it and the route it collides with to fastPathExcluded (%v)",
+						key, conflictErr)
+				}
 			}
 		}
 		return nil

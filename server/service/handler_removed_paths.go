@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"net/http"
 
 	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -13,6 +14,15 @@ var removedPathTemplates = []string{
 	"/api/_version_/fleet/spec/teams",
 	"/api/_version_/fleet/mdm/apple/profiles/preassign",
 	"/api/_version_/fleet/mdm/apple/profiles/match",
+	"/api/_version_/fleet/hosts/{host_id}/configuration_profiles/resend/{profile_uuid}",
+}
+
+// removedPathOverlaps has the removed paths that a stdlib ServeMux cannot register next to a live route.
+var removedPathOverlaps = map[string]endpointer.RemovedPathOverlap{
+	"/api/_version_/fleet/hosts/{host_id}/configuration_profiles/resend/{profile_uuid}": {
+		Method:        http.MethodPost,
+		RouteTemplate: "/api/_version_/fleet/hosts/{host_id}/configuration_profiles/{resend_segment}/{profile_uuid}",
+	},
 }
 
 func removedPaths() []endpointer.RemovedPath {
@@ -22,7 +32,7 @@ func removedPaths() []endpointer.RemovedPath {
 		if !ok {
 			panic(fmt.Sprintf("removed path %s has no entry in pkg/removednames", template))
 		}
-		paths = append(paths, endpointer.RemovedPath{Path: template, Message: func(method string) string {
+		paths = append(paths, endpointer.RemovedPath{Path: template, Overlap: removedPathOverlaps[template], Message: func(method string) string {
 			// The entry is for every method, and the message names the one that was used. Requests share the closure, so set it on a copy.
 			withMethod := entry
 			withMethod.Context = method
