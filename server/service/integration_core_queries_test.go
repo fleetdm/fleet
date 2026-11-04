@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -494,11 +495,30 @@ func (s *integrationTestSuite) TestDeleteReportURLs() {
 		requireReportExists(target.ID, false)
 	})
 
-	t.Run("old by-name URL no longer matches a route", func(t *testing.T) {
+	t.Run("old by-name URL is gone", func(t *testing.T) {
 		r := createReport(prefix + "_old_by_name")
-		s.Do("DELETE", "/api/latest/fleet/reports/"+url.PathEscape(r.Name), nil, http.StatusNotFound)
+		res := s.Do("DELETE", "/api/latest/fleet/reports/"+url.PathEscape(r.Name), nil, http.StatusGone)
+		var body struct {
+			Message string              `json:"message"`
+			Errors  []map[string]string `json:"errors"`
+		}
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&body))
+		assert.Equal(t, "Gone", body.Message)
+		require.Len(t, body.Errors, 1)
+		assert.Equal(t, `The "DELETE /reports/{name}" endpoint is not available anymore. What to use instead: `+removednames.GuideURL,
+			body.Errors[0]["reason"])
 		requireReportExists(r.ID, true)
+
 		s.Do("DELETE", byIDPath(r.ID), nil, http.StatusOK)
+	})
+
+	t.Run("routes sharing the removed path's shape still work", func(t *testing.T) {
+		r := createReport(prefix + " shared shape")
+		s.Do("PATCH", byIDPath(r.ID), fleet.QueryPayload{Description: new("updated")}, http.StatusOK)
+		s.Do("GET", byIDPath(r.ID), nil, http.StatusOK)
+		var delResp fleet.DeleteQueriesResponse
+		s.DoJSON("POST", "/api/latest/fleet/reports/delete", map[string]any{"ids": []uint{r.ID}}, http.StatusOK, &delResp)
+		assert.Equal(t, uint(1), delResp.Deleted)
 	})
 
 	t.Run("deprecated aliases", func(t *testing.T) {
