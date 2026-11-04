@@ -3971,7 +3971,7 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
 		return nil
 	}
-	ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+	ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, labels []fleet.LabelToMove, user fleet.User) error {
 		return nil
 	}
 	ds.ListAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) {
@@ -7978,7 +7978,8 @@ func TestComputeLabelMoves(t *testing.T) {
 	})
 
 	t.Run("conflict: global label added with a name a fleet uses", func(t *testing.T) {
-		for _, fleetOp := range []string{"+", "="} {
+		// "~" is a fleet label kept outside GitOps (labels exception).
+		for _, fleetOp := range []string{"+", "=", "~"} {
 			allChanges := map[string][]spec.LabelChange{
 				spec.LabelAPIGlobalTeamName: {{Name: "conflict", Op: "+", FileName: "default.yml"}},
 				"team1":                     {{Name: "conflict", Op: fleetOp, FileName: "t1.yml"}},

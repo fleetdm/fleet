@@ -95,6 +95,15 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabelsShareNames() {
 	}, http.StatusConflict)
 	require.Contains(t, extractServerErrorText(res.Body), "More than one fleet has a label named")
 
+	// Moving the name to global from one fleet doesn't set aside another fleet's label.
+	res = s.Do("POST", "/api/latest/fleet/spec/labels", fleet.ApplyLabelSpecsRequest{
+		Specs:        []*fleet.LabelSpec{{Name: shared, Query: "select 1", LabelMembershipType: fleet.LabelMembershipTypeDynamic}},
+		LabelsToMove: []fleet.LabelToMove{{Name: shared, FromFleetID: &team1.ID}},
+	}, http.StatusConflict)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.LabelNameInUseByFleetsErrMsg)
+	require.Equal(t, team1Label.ID, teamLabel(team1.ID).ID)
+	require.Equal(t, team2Label.ID, teamLabel(team2.ID).ID)
+
 	var delResp fleet.DeleteLabelResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(shared)), nil, http.StatusNotFound, &delResp)
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(globalName)), nil, http.StatusNotFound, &delResp, "fleet_id", fmt.Sprint(team1.ID))

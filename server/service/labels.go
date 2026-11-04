@@ -682,14 +682,14 @@ func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
 
 func applyLabelSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.ApplyLabelSpecsRequest)
-	err := svc.ApplyLabelSpecs(ctx, req.Specs, req.TeamID, req.NamesToMove)
+	err := svc.ApplyLabelSpecs(ctx, req.Specs, req.TeamID, req.LabelsToMove)
 	if err != nil {
 		return fleet.ApplyLabelSpecsResponse{Err: err}, nil
 	}
 	return fleet.ApplyLabelSpecsResponse{}, nil
 }
 
-func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec, teamID *uint, namesToMove []string) error {
+func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec, teamID *uint, labelsToMove []fleet.LabelToMove) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Label{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -705,6 +705,13 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 	var builtInSpecs []*fleet.LabelSpec
 	var builtInSpecNames []string
 
+	// A name moving from several fleets appears once per fleet.
+	var namesToMove []string
+	for _, l := range labelsToMove {
+		if !slices.Contains(namesToMove, l.Name) {
+			namesToMove = append(namesToMove, l.Name)
+		}
+	}
 	var specLabelNamesNeedingMoving []string // should match namesToMove once specs have been checked
 
 	for _, spec := range specs {
@@ -864,7 +871,7 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 		beforeHostIDs[spec.Name] = ids
 	}
 
-	if err := svc.ds.SetAsideLabels(ctx, teamID, namesToMove, *user.User); err != nil {
+	if err := svc.ds.SetAsideLabels(ctx, teamID, labelsToMove, *user.User); err != nil {
 		return ctxerr.Wrap(ctx, err, "cleaning up conflicting other team labels")
 	}
 

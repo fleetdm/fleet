@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -42,9 +43,17 @@ func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSp
 	return ds.ApplyLabelSpecsWithAuthor(ctx, specs, nil)
 }
 
-func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
-	if len(names) == 0 {
+func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, labelsToMove []fleet.LabelToMove, user fleet.User) error {
+	if len(labelsToMove) == 0 {
 		return nil
+	}
+	names := make([]string, 0, len(labelsToMove))
+	fromFleetIDs := make(map[string][]uint, len(labelsToMove))
+	for _, l := range labelsToMove {
+		if _, ok := fromFleetIDs[l.Name]; !ok {
+			names = append(names, l.Name)
+		}
+		fromFleetIDs[l.Name] = append(fromFleetIDs[l.Name], ptr.ValOrZero(l.FromFleetID))
 	}
 
 	// Helper function to check if user has a write role on a specific team
@@ -101,6 +110,15 @@ func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, name
 
 	// Names with nothing to set aside are skipped rather than rejected, since an earlier apply may already have set
 	// the label aside.
+
+	if notOnTeamID == nil {
+		for _, label := range labels {
+			// A fleet that isn't moving the name keeps its label, and a global label can't share its name.
+			if !slices.Contains(fromFleetIDs[label.Name], ptr.ValOrZero(label.TeamID)) {
+				return ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fleet.LabelNameInUseByFleetsErrMsg})
+			}
+		}
+	}
 
 	errCannotSetAside := ctxerr.New(ctx, "one or more specified labels to set aside do not exist or cannot be set aside")
 
@@ -165,22 +183,21 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 		TeamID    *uint           `db:"team_id"`
 		LabelType fleet.LabelType `db:"label_type"`
 	}
-	existingLabels := make(map[labelScopeKey]existingLabel, len(specs))
-	fleetLabelNames := make(map[string]struct{}, len(specs))
-
 	// NOTE: Thie assumes the caller has verified that label specs are all writable by the user, either for authorship
 	// or team affiliation. We'll catch cases where a user is attempting to move a label's name between the global level
 	// and a fleet (which should've been cleaned up by SetAsideLabels).
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Built per attempt, so a retry doesn't reuse rows read by the failed one.
+		existingLabels := make(map[labelScopeKey]existingLabel, len(specs))
+
 		// TODO: do we want to allow on duplicate updating label_membership_type
 		// or should that always be immutable?
 		// are we ok depending solely on the caller to ensure that field
 		// is not changed?
 
 		if len(labelNames) > 0 {
-			// Locking the names keeps a concurrent global and fleet apply from both passing the boundary check below.
-			stmt := `SELECT id, name, platform, team_id, label_type FROM labels WHERE name IN (?) FOR UPDATE`
+			stmt := `SELECT id, name, platform, team_id, label_type FROM labels WHERE name IN (?)`
 			stmt, args, err := sqlx.In(stmt, labelNames)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build existing labels query")
@@ -193,9 +210,6 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 
 			for _, label := range labels {
 				existingLabels[newLabelScopeKey(label.Name, label.TeamID)] = label
-				if label.TeamID != nil {
-					fleetLabelNames[strings.ToLower(label.Name)] = struct{}{}
-				}
 			}
 
 			for _, spec := range specs {
@@ -209,12 +223,10 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 				if hasGlobal && globalLabel.LabelType == fleet.LabelTypeBuiltIn {
 					return ctxerr.Errorf(ctx, "cannot modify built-in label '%s'", globalLabel.Name)
 				}
-				if spec.TeamID == nil {
-					if _, ok := fleetLabelNames[strings.ToLower(spec.Name)]; ok {
-						return ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fleet.LabelNameInUseByFleetsErrMsg})
-					}
-				} else if hasGlobal {
-					return ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fleet.LabelNameInUseGloballyErrMsg})
+				// Checked in SQL rather than against the rows above: the column's collation also ignores trailing
+				// spaces and accents, which Go map keys can't reproduce.
+				if err := checkLabelNameAcrossScopesTx(ctx, tx, spec.Name, spec.TeamID); err != nil {
+					return err
 				}
 			}
 		}

@@ -3562,16 +3562,17 @@ func (c *Client) doGitOpsLabels(
 	for _, l := range toDelete {
 		logFn("[-] deleting label '%s'\n", l)
 	}
-	namesToMove := make([]string, 0, len(toMove))
+	labelsToMove := make([]fleet.LabelToMove, 0, len(toMove))
 	for _, l := range toMove {
-		// A global label's name can be taken over from several fleets at once, but the server expects each name once.
-		if !slices.Contains(namesToMove, l.Name) {
-			namesToMove = append(namesToMove, l.Name)
+		move := fleet.LabelToMove{Name: l.Name}
+		if l.FromTeamID != nil && *l.FromTeamID > 0 {
+			move.FromFleetID = l.FromTeamID
 		}
+		labelsToMove = append(labelsToMove, move)
 		logFn("[-] moving label %q from fleet %q to fleet %q\n", l.Name, l.FromTeamName, l.ToTeamName)
 	}
 	logFn("[+] applying %s (%d new and %d updated)\n", numberWithPluralization(len(config.Labels), "label", "labels"), nToAdd, nToUpdate)
-	return c.ApplyLabels(config.Labels, config.TeamID, namesToMove)
+	return c.ApplyLabels(config.Labels, config.TeamID, labelsToMove)
 }
 
 // doGitOpsCustomHostVitals reconciles custom host vital definitions against

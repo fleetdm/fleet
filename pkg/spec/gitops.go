@@ -74,6 +74,7 @@ func NewLabelChangesSummary(changes []LabelChange, moves []LabelMovement) LabelC
 // to a fleet, or the reverse
 type LabelMovement struct {
 	FromTeamName string // Source team name
+	FromTeamID   *uint  // Source team ID, so the server only sets aside that fleet's label
 	ToTeamName   string // Dest. team name
 	Name         string // The label name
 }

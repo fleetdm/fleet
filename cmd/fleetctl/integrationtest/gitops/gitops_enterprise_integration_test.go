@@ -1118,6 +1118,88 @@ settings:
 	require.Len(t, profs[0].LabelsIncludeAll, 0)
 }
 
+// A label moved between the global level and a fleet takes the fleet's profile references with it in the same run,
+// so the label left behind can be deleted at the end of that run.
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsLabelMoveWithProfileReference() {
+	t := s.T()
+	ctx := t.Context()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	dir := t.TempDir()
+	profilePath := filepath.Join(dir, "moving.mobileconfig")
+	require.NoError(t, os.WriteFile(profilePath, []byte(test.GenerateMDMAppleProfile("moving", "moving", uuid.NewString())), 0o644))
+
+	labelName := "moving-" + uuid.NewString()
+	teamName := "moving-" + uuid.NewString()
+	label := fmt.Sprintf("labels:\n  - name: %s\n    query: select 1\n", labelName)
+	const noLabels = "labels:\n"
+	const globalTemplate = `
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+reports:
+%s`
+	const teamTemplate = `
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+controls:
+  apple_settings:
+    configuration_profiles:
+      - path: %s
+        labels_include_any:
+          - %s
+software:
+reports:
+policies:
+agent_options:
+%s`
+	globalFile := filepath.Join(dir, "default.yml")
+	teamFile := filepath.Join(dir, "team.yml")
+	run := func(globalLabels, teamLabels string) {
+		require.NoError(t, os.WriteFile(globalFile, fmt.Appendf(nil, globalTemplate, globalLabels), 0o644))
+		require.NoError(t, os.WriteFile(teamFile, fmt.Appendf(nil, teamTemplate, teamName, profilePath, labelName, teamLabels), 0o644))
+		s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile}))
+	}
+	profileLabelFleet := func(teamID uint) *uint {
+		profs, _, err := s.DS.ListMDMConfigProfiles(ctx, &teamID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, profs, 1)
+		require.Len(t, profs[0].LabelsIncludeAny, 1)
+		lbl, _, err := s.DS.Label(ctx, profs[0].LabelsIncludeAny[0].LabelID, fleet.TeamFilter{User: test.UserAdmin})
+		require.NoError(t, err)
+		require.Equal(t, labelName, lbl.Name)
+		return lbl.TeamID
+	}
+	requireNoSetAsideLabels := func() {
+		for name := range labelTeamIDResult(t, s, ctx) {
+			require.False(t, strings.HasPrefix(name, labelName+"__team_"), name)
+		}
+	}
+
+	run(label, noLabels)
+	team, err := s.DS.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+	require.Nil(t, profileLabelFleet(team.ID))
+
+	run(noLabels, label)
+	require.Equal(t, &team.ID, profileLabelFleet(team.ID))
+	requireNoSetAsideLabels()
+
+	run(label, noLabels)
+	require.Nil(t, profileLabelFleet(team.ID))
+	requireNoSetAsideLabels()
+}
+
 func (s *enterpriseIntegrationGitopsTestSuite) TestConfigurationProfileSelfServiceHidden() {
 	t := s.T()
 	ctx := t.Context()

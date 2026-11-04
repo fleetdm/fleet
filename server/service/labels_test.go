@@ -54,7 +54,7 @@ func TestWhenCreatingNewLabelsPlatformIsValidated(t *testing.T) {
 	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
 		return map[string]*fleet.Label{}, nil
 	}
-	ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+	ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, labels []fleet.LabelToMove, user fleet.User) error {
 		return nil
 	}
 	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorId *uint) error {
@@ -1126,6 +1126,9 @@ func TestTranslateSharedLabelName(t *testing.T) {
 			return map[string][]uint{"shared": {1, 2}}, nil
 		case "unique":
 			return map[string][]uint{"unique": {3}}, nil
+		case "unique-case":
+			// The database matches names case-insensitively, so the stored spelling can differ.
+			return map[string][]uint{"Unique-Case": {4}}, nil
 		}
 		return map[string][]uint{}, nil
 	}
@@ -1136,6 +1139,9 @@ func TestTranslateSharedLabelName(t *testing.T) {
 	id, err := translateLabelToID(ctx, ds, "unique")
 	require.NoError(t, err)
 	require.Equal(t, uint(3), id)
+	id, err = translateLabelToID(ctx, ds, "unique-case")
+	require.NoError(t, err)
+	require.Equal(t, uint(4), id)
 	id, err = translateLabelToID(ctx, ds, "missing")
 	require.NoError(t, err)
 	require.Zero(t, id)
@@ -1156,7 +1162,7 @@ func TestApplyLabelSpecsManualLabelNilHosts(t *testing.T) {
 	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
 		return map[string]*fleet.Label{}, nil
 	}
-	ds.SetAsideLabelsFunc = func(ctx context.Context, teamID *uint, namesToMove []string, user fleet.User) error {
+	ds.SetAsideLabelsFunc = func(ctx context.Context, teamID *uint, labels []fleet.LabelToMove, user fleet.User) error {
 		return nil
 	}
 	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error {
@@ -1792,7 +1798,7 @@ func TestLabelActivities(t *testing.T) {
 			}
 			return result, nil
 		}
-		ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+		ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, labels []fleet.LabelToMove, user fleet.User) error {
 			return nil
 		}
 		ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error {
@@ -1838,7 +1844,7 @@ func TestLabelActivities(t *testing.T) {
 				"platform-spec": {ID: 410, Name: "platform-spec", Platform: "darwin", LabelMembershipType: fleet.LabelMembershipTypeDynamic, Query: "SELECT 1"},
 			}, nil
 		}
-		ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+		ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, labels []fleet.LabelToMove, user fleet.User) error {
 			return nil
 		}
 		ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error {
@@ -1874,7 +1880,7 @@ func TestLabelActivities(t *testing.T) {
 			}
 			return []uint{1, 3}, nil // after apply
 		}
-		ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+		ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, labels []fleet.LabelToMove, user fleet.User) error {
 			return nil
 		}
 		ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error {
@@ -1902,7 +1908,7 @@ func TestLabelActivities(t *testing.T) {
 		ds.LabelMembershipHostIDsFunc = func(ctx context.Context, labelID uint) ([]uint, error) {
 			return []uint{1, 2}, nil
 		}
-		ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+		ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, labels []fleet.LabelToMove, user fleet.User) error {
 			return nil
 		}
 		ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error {

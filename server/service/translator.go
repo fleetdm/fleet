@@ -53,8 +53,8 @@ func translateLabelToID(ctx context.Context, ds fleet.Datastore, identifier stri
 	if len(matches) > 1 {
 		return 0, ctxerr.Wrap(ctx, fleet.NewAmbiguousLabelNameError(identifier))
 	}
-	if ids := labelIDsByName[identifier]; len(ids) == 1 {
-		return ids[0], nil
+	if len(matches) == 1 {
+		return matches[0], nil
 	}
 	return 0, nil
 }

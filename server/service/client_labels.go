@@ -12,9 +12,9 @@ import (
 func (c *Client) ApplyLabels(
 	specs []*fleet.LabelSpec,
 	teamID *uint,
-	moves []string,
+	moves []fleet.LabelToMove,
 ) error {
-	req := fleet.ApplyLabelSpecsRequest{TeamID: teamID, Specs: specs, NamesToMove: moves}
+	req := fleet.ApplyLabelSpecsRequest{TeamID: teamID, Specs: specs, LabelsToMove: moves}
 	verb, path := "POST", "/api/latest/fleet/spec/labels"
 	var responseBody fleet.ApplyLabelSpecsResponse
 

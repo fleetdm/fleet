@@ -376,6 +376,11 @@ func gitopsCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
+			for _, teamMoves := range labelMoves {
+				for i := range teamMoves {
+					teamMoves[i].FromTeamID = teamIDLookup[teamMoves[i].FromTeamName]
+				}
+			}
 
 			for _, configFile := range configs {
 				config := configFile.Config
@@ -973,7 +978,8 @@ func computeLabelMoves(allChanges map[string][]spec.LabelChange) (map[string][]s
 					FromTeamName: spec.LabelAPIGlobalTeamName,
 					ToTeamName:   teamName,
 				})
-			case globalChange.Op == "+" && (change.Op == "+" || change.Op == "="):
+			// "~" is a label kept outside GitOps (labels exception), so it blocks the name like "=" does.
+			case globalChange.Op == "+" && (change.Op == "+" || change.Op == "=" || change.Op == "~"):
 				return nil, fmt.Errorf("can't add label %q to %q: %s", change.Name, globalChange.FileName, fleet.LabelNameInUseByFleetsErrMsg)
 			case change.Op == "+" && globalChange.Op == "=":
 				return nil, fmt.Errorf("can't add label %q to %q: %s", change.Name, change.FileName, fleet.LabelNameInUseGloballyErrMsg)

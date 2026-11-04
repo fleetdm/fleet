@@ -3668,6 +3668,7 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 		notOnTeamID *uint       // team ID being applied to
 		labelNames  []string    // names to pass to SetAsideLabels (if nil, uses labels[*].name)
 		user        *fleet.User
+		fromFleets  map[string][]uint // fleets a global apply moves each name from
 		expectError bool
 		keep        []string // names expected to stay as they are, since only the other side of the global/fleet boundary is set aside
 	}
@@ -3854,7 +3855,7 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 			keep:        []string{"multi-setaside-2"},
 		},
 		{
-			name: "applying to global sets aside the name on every fleet",
+			name: "applying to global sets aside the name on every fleet it moves from",
 			labels: []labelSpec{
 				{name: "shared-setaside", teamID: &team1.ID, authorID: nil},
 				{name: "shared-setaside", teamID: &team2.ID, authorID: nil},
@@ -3862,7 +3863,44 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 			notOnTeamID: nil,
 			labelNames:  []string{"shared-setaside"},
 			user:        globalAdmin,
+			fromFleets:  map[string][]uint{"shared-setaside": {team1.ID, team2.ID}},
 			expectError: false,
+		},
+		{
+			name: "applying to global fails if a fleet that keeps the name has it",
+			labels: []labelSpec{
+				{name: "partial-setaside", teamID: &team1.ID, authorID: nil},
+				{name: "partial-setaside", teamID: &team2.ID, authorID: nil},
+			},
+			notOnTeamID: nil,
+			labelNames:  []string{"partial-setaside"},
+			user:        globalAdmin,
+			fromFleets:  map[string][]uint{"partial-setaside": {team1.ID}},
+			expectError: true,
+		},
+		{
+			name: "applying to global sets aside names moving from different fleets",
+			labels: []labelSpec{
+				{name: "pair-setaside-a", teamID: &team1.ID, authorID: nil},
+				{name: "pair-setaside-b", teamID: &team2.ID, authorID: nil},
+			},
+			notOnTeamID: nil,
+			labelNames:  []string{"pair-setaside-a", "pair-setaside-b"},
+			user:        globalAdmin,
+			fromFleets:  map[string][]uint{"pair-setaside-a": {team1.ID}, "pair-setaside-b": {team2.ID}},
+		},
+		{
+			name: "applying to global fails if a moving fleet keeps another moving name",
+			labels: []labelSpec{
+				{name: "keep-setaside-a", teamID: &team1.ID, authorID: nil},
+				{name: "keep-setaside-a", teamID: &team2.ID, authorID: nil},
+				{name: "keep-setaside-b", teamID: &team2.ID, authorID: nil},
+			},
+			notOnTeamID: nil,
+			labelNames:  []string{"keep-setaside-a", "keep-setaside-b"},
+			user:        globalAdmin,
+			fromFleets:  map[string][]uint{"keep-setaside-a": {team1.ID}, "keep-setaside-b": {team2.ID}},
+			expectError: true,
 		},
 	}
 
@@ -3900,10 +3938,22 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 				}
 			}
 
-			err := ds.SetAsideLabels(ctx, tc.notOnTeamID, labelNames, *tc.user)
+			var labelsToMove []fleet.LabelToMove
+			for _, name := range labelNames {
+				if len(tc.fromFleets[name]) == 0 {
+					labelsToMove = append(labelsToMove, fleet.LabelToMove{Name: name})
+				}
+				for _, fleetID := range tc.fromFleets[name] {
+					labelsToMove = append(labelsToMove, fleet.LabelToMove{Name: name, FromFleetID: &fleetID})
+				}
+			}
+			err := ds.SetAsideLabels(ctx, tc.notOnTeamID, labelsToMove, *tc.user)
 
 			if tc.expectError {
 				require.Error(t, err)
+				renamed, err := ds.LabelsByName(ctx, expectedLabelNames, fleet.TeamFilter{User: globalAdmin})
+				require.NoError(t, err)
+				require.Empty(t, renamed)
 				return
 			}
 			require.NoError(t, err)
@@ -3965,6 +4015,22 @@ func testApplyLabelSpecsNamesAcrossFleets(t *testing.T, ds *Datastore) {
 	})
 	require.ErrorAs(t, err, &conflictErr)
 	require.ErrorContains(t, err, fleet.LabelNameInUseGloballyErrMsg)
+
+	// Names compare with the column's collation, which also ignores trailing spaces and accents.
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{Name: "global-label ", Query: "SELECT 5", TeamID: &team2.ID},
+	})
+	require.ErrorAs(t, err, &conflictErr)
+	require.ErrorContains(t, err, fleet.LabelNameInUseGloballyErrMsg)
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{Name: "ingeniería", Query: "SELECT 6", TeamID: &team2.ID},
+	})
+	require.NoError(t, err)
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{Name: "Ingenieria", Query: "SELECT 7"},
+	})
+	require.ErrorAs(t, err, &conflictErr)
+	require.ErrorContains(t, err, fleet.LabelNameInUseByFleetsErrMsg)
 
 	// Updating a fleet's label only touches that fleet's label.
 	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
