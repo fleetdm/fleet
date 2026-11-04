@@ -228,14 +228,15 @@ What to do: Search for these keys and rename them.
 
 GitHub issue: [#53873](https://github.com/fleetdm/fleet/issues/53873)
 
-### Managed local account keys moved to apple_settings
+### Managed local account keys renamed
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `enable_managed_local_account` and `enable_create_local_admin_account` under `mdm.macos_setup` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration), [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration), and fleet settings | `mdm.apple_settings.enable_managed_local_account` |
+| `mdm.windows_settings.enable_managed_local_account` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration), [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration), and fleet settings | `mdm.windows_settings.managed_local_account_enabled` |
+| `enable_managed_local_account` and `enable_create_local_admin_account` under `mdm.macos_setup` in the same endpoints | `mdm.apple_settings.managed_local_account_enabled` |
 | `end_user_local_account_type` under `mdm.macos_setup` in the same endpoints | `mdm.apple_settings.end_user_local_account_type` |
 
-What to do: Search for these keys and move them to `mdm.apple_settings`.
+What to do: Search for these keys and rename them.
 
 GitHub issue: [#50084](https://github.com/fleetdm/fleet/issues/50084)
 
@@ -474,14 +475,15 @@ What to do: Rename these keys.
 
 GitHub issue: [#53873](https://github.com/fleetdm/fleet/issues/53873)
 
-### Managed local account keys moved to apple_settings in YAML
+### Managed local account keys renamed in YAML
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `enable_managed_local_account` and `enable_create_local_admin_account` under `controls.setup_experience` (or `controls.macos_setup`) | `controls.apple_settings.enable_managed_local_account` |
+| `controls.windows_settings.enable_managed_local_account` | `controls.windows_settings.managed_local_account_enabled` |
+| `enable_managed_local_account` and `enable_create_local_admin_account` under `controls.setup_experience` (or `controls.macos_setup`) | `controls.apple_settings.managed_local_account_enabled` |
 | `end_user_local_account_type` under `controls.setup_experience` (or `controls.macos_setup`) | `controls.apple_settings.end_user_local_account_type` |
 
-What to do: Move these keys to `controls.apple_settings`.
+What to do: Rename these keys.
 
 GitHub issue: [#50084](https://github.com/fleetdm/fleet/issues/50084)
 
@@ -625,13 +627,13 @@ What to do: Update scripts that read `macos_setup` from `fleetctl get config` ou
 
 GitHub issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 
-### get config prints managed local account keys under apple_settings
+### get config prints renamed managed local account keys
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `fleetctl get config` and `fleetctl get fleets` print `enable_create_local_admin_account` under `macos_setup` | `fleetctl get config` and `fleetctl get fleets` print `enable_managed_local_account` and `end_user_local_account_type` under `apple_settings` |
+| `fleetctl get config` and `fleetctl get fleets` print `windows_settings.enable_managed_local_account` and `macos_setup.enable_create_local_admin_account` | `fleetctl get config` and `fleetctl get fleets` print `windows_settings.managed_local_account_enabled` and `apple_settings.managed_local_account_enabled` |
 
-What to do: Update scripts that read `enable_create_local_admin_account` from `fleetctl get config` or `fleetctl get fleets` output.
+What to do: Update scripts that read `enable_managed_local_account` or `enable_create_local_admin_account` from `fleetctl get config` or `fleetctl get fleets` output.
 
 GitHub issue: [#50084](https://github.com/fleetdm/fleet/issues/50084)
 
