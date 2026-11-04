@@ -7,6 +7,8 @@ import helpers, {
   willExpireWithinXDays,
   humanLastSeen,
   internationalTimeOnlyFormat,
+  formatSelectedTargetsForApi,
+  formatPackTargetsForApi,
 } from "./helpers";
 
 describe("helpers utilities", () => {
@@ -119,6 +121,32 @@ describe("helpers utilities", () => {
       const result = helpers.setupData(formData);
 
       expect(result.org_info).toEqual({ org_name: "Fleet" });
+    });
+  });
+
+  describe("formatSelectedTargetsForApi function", () => {
+    // Pack targets are tagged "teams" internally; only the API key is `fleets`.
+    const targets = [
+      { id: 2, target_type: "hosts" },
+      { id: 3, target_type: "labels" },
+      { id: 9, target_type: "teams" },
+      { id: 4, target_type: "teams" },
+    ] as Parameters<typeof formatSelectedTargetsForApi>[0];
+
+    it("sends fleet targets under `fleets`", () => {
+      expect(formatSelectedTargetsForApi(targets)).toEqual({
+        hosts: [2],
+        labels: [3],
+        fleets: [4, 9],
+      });
+    });
+
+    it("sends fleet targets of a pack as `fleet_ids`", () => {
+      expect(formatPackTargetsForApi(targets)).toEqual({
+        host_ids: [2],
+        label_ids: [3],
+        fleet_ids: [4, 9],
+      });
     });
   });
 

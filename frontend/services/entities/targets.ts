@@ -97,7 +97,7 @@ export default {
         targets: [
           ...appendTargetTypeToTargets(targets.hosts, "hosts"),
           ...appendTargetTypeToTargets(targets.labels, "labels"),
-          ...appendTargetTypeToTargets(targets.fleets, "fleets"),
+          ...appendTargetTypeToTargets(targets.fleets, "teams"),
         ],
       };
     });

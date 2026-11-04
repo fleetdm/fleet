@@ -50,6 +50,11 @@ describe("UsersPageTableConfig - API endpoint restrictions", () => {
     expect(column?.Header).toBe("Permissions");
   });
 
+  it("keeps the user's fleets on the row, where the permission helpers read them", () => {
+    const row = createTeamUser();
+    expect(row.fleets.map((fleet) => fleet.id)).toEqual([TEAM_ID]);
+  });
+
   it("counts the endpoints a user is restricted to", () => {
     const row = createTeamUser({
       api_only: true,

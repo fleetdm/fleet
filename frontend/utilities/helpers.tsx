@@ -147,7 +147,7 @@ const filterTarget = (targetType: string) => {
         return isHost(target) && !isNaN(id) ? [id] : [];
       case "labels":
         return isLabel(target) && !isNaN(id) ? [id] : [];
-      case "fleets":
+      case "teams":
         return !isHost(target) && !isLabel(target) && !isNaN(id) ? [id] : [];
       default:
         return [];
@@ -192,7 +192,7 @@ export const formatSelectedTargetsForApi = (
   // TODO: can flatMap be removed?
   const hostIds = flatMap(targets, filterTarget("hosts"));
   const labelIds = flatMap(targets, filterTarget("labels"));
-  const fleetIds = flatMap(targets, filterTarget("fleets"));
+  const fleetIds = flatMap(targets, filterTarget("teams"));
 
   return {
     hosts: hostIds.sort(),

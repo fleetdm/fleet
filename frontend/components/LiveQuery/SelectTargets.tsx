@@ -372,7 +372,7 @@ const SelectTargets = ({
     entityList: ISelectLabel[] | ISelectTeam[],
     disabledIds?: Set<number>
   ): JSX.Element => {
-    const isTeamsSection = entityType === "fleets";
+    const isTeamsSection = entityType === "teams";
     const displayType = isTeamsSection ? "fleets" : entityType;
     const isSearchEnabled = isTeamsSection || entityType === "labels";
     const searchTerm = (
@@ -601,11 +601,11 @@ const SelectTargets = ({
         {!!teams?.length &&
           (isOnGlobalTeam
             ? renderTargetEntitySection(
-                "fleets",
+                "teams",
                 [{ id: 0, name: "Unassigned" }, ...teams],
                 disabledTeamIds
               )
-            : renderTargetEntitySection("fleets", teams, disabledTeamIds))}
+            : renderTargetEntitySection("teams", teams, disabledTeamIds))}
         {!!labels?.other?.length &&
           renderTargetEntitySection("labels", labels.other)}
       </div>

@@ -66,7 +66,7 @@ export interface ITeamUsersTableData {
   name: string;
   email: string;
   role: UserRole;
-  teams: ITeam[];
+  fleets: ITeam[];
   actions: IDropdownOption[];
   id: number;
   api_only?: boolean;
@@ -232,7 +232,7 @@ const enhanceUsersData = (
       name: user.name,
       email: user.email,
       role: generateRole(teamId, user.fleets),
-      teams: user.fleets,
+      fleets: user.fleets,
       sso_enabled: user.sso_enabled,
       mfa_enabled: user.mfa_enabled,
       global_role: user.global_role,

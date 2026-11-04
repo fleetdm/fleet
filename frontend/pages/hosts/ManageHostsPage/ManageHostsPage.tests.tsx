@@ -10,6 +10,7 @@ import { notify } from "components/ToastNotification";
 import mockServer from "test/mock-server";
 import { createCustomRenderer, baseUrl } from "test/test-utils";
 
+import { defaultHiddenColumns } from "./HostTableConfig";
 import ManageHostsPage from "./ManageHostsPage";
 
 // Exporting hosts wraps the CSV response in a File and hands it to
@@ -579,6 +580,101 @@ describe("ManageHostsPage", () => {
       screen.getByRole("button", { name: /edit columns/i })
     ).not.toBeDisabled();
   });
+
+  it("sorts by fleet_name when the URL still has the legacy team_name sort key", async () => {
+    let listedOrderKey: string | null = null;
+    setupHandlers(0);
+    mockServer.use(
+      http.get(baseUrl("/hosts"), ({ request }) => {
+        listedOrderKey = new URL(request.url).searchParams.get("order_key");
+        return HttpResponse.json({ hosts: [] });
+      })
+    );
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: mockAppContext },
+    });
+
+    render(
+      <ManageHostsPage
+        {...(createMockProps({
+          location: {
+            pathname: "/hosts/manage",
+            search: "?order_key=team_name&order_direction=asc",
+            hash: "",
+            query: { order_key: "team_name", order_direction: "asc" },
+          },
+        }) as any)}
+      />
+    );
+
+    await waitFor(() => expect(listedOrderKey).toBe("fleet_name"));
+  });
+
+  it.each([
+    { saved: "team_name", fleetColumnShown: false },
+    { saved: "fleet_name", fleetColumnShown: false },
+    { saved: "uuid", fleetColumnShown: true },
+  ])(
+    "shows the Fleet column: $fleetColumnShown when the saved hidden columns are [$saved]",
+    async ({ saved, fleetColumnShown }) => {
+      setupHandlers(1, [
+        {
+          id: 1,
+          hostname: "test-host",
+          display_name: "test-host",
+          status: "online",
+          platform: "darwin",
+          fleet_id: 1,
+          fleet_name: "Workstations",
+          issues: { total_issues_count: 0, failing_policies_count: 0 },
+        },
+      ]);
+      mockServer.use(
+        http.get(baseUrl("/fleets"), () => {
+          return HttpResponse.json({
+            fleets: [{ id: 1, name: "Team 1", description: "" }],
+          });
+        })
+      );
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            ...mockAppContext,
+            isPremiumTier: true,
+            isFreeTier: false,
+            availableTeams: [createMockTeamSummary({ id: 1, name: "Team 1" })],
+            setCurrentTeam: jest.fn(),
+            userSettings: {
+              hidden_host_columns: [...defaultHiddenColumns, saved],
+            } as any,
+          },
+        },
+      });
+
+      render(
+        <ManageHostsPage
+          {...(createMockProps({
+            location: {
+              pathname: "/hosts/manage",
+              search: "?fleet_id=1",
+              hash: "",
+              query: { fleet_id: "1" },
+            },
+          }) as any)}
+        />
+      );
+
+      expect(await screen.findByText("1 host")).toBeInTheDocument();
+      // The table re-renders when the fleets load, so retry.
+      await waitFor(() => {
+        expect(screen.queryByText("Workstations") !== null).toBe(
+          fleetColumnShown
+        );
+      });
+    }
+  );
 
   it.each([
     { tier: "Free", isPremiumTier: false, hasSelection: false },
