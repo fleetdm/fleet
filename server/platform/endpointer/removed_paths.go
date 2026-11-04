@@ -40,7 +40,7 @@ func RegisterRemovedPaths(r *mux.Router, versions []string, logger *slog.Logger,
 func removedPathHandler(removed RemovedPath, logger *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger.WarnContext(r.Context(), "request to a removed path", "method", r.Method, "uri", r.URL.Path, "removed_path", removed.Path,
-			"user_agent", r.UserAgent())
+			"user_agent", r.UserAgent(), "ip_addr", r.RemoteAddr, "x_for_ip_addr", r.Header.Get("X-Forwarded-For"))
 		reason := removed.Message(r.Method)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusGone)

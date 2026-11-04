@@ -32,13 +32,18 @@ func TestMessage(t *testing.T) {
 		{KindQueryParam, "team_id", "", `The "team_id" parameter is not available anymore. What to use instead: ` + GuideURL},
 		{KindJSONKey, "team_id", "", `The "team_id" parameter is not available anymore. What to use instead: ` + GuideURL},
 		{KindYAMLKey, "team_settings", "", `The "team_settings" key is not available anymore. What to use instead: ` + GuideURL},
-		// The kinds the spec does not cover name the replacement.
-		{KindSortKey, "team_id", "", "team_id was removed in Fleet 5. Use fleet_id instead." + suffix},
+		{KindSortKey, "team_id", "", `The "team_id" parameter is not available anymore. What to use instead: ` + GuideURL},
+		{KindTargetType, "team", "", `The "team" parameter is not available anymore. What to use instead: ` + GuideURL},
+		{KindCommand, "fleetctl get teams", "", `The "fleetctl get teams" command is not available anymore. What to use instead: ` + GuideURL},
+		{KindEnvVar, "DELETE_OTHER_TEAMS", "fleetctl gitops",
+			`The "DELETE_OTHER_TEAMS" environment variable is not available anymore. What to use instead: ` + GuideURL},
+		{KindFlagValue, "--fleet no-team", "fleetctl generate-gitops",
+			`The "--fleet no-team" value is not available anymore. What to use instead: ` + GuideURL},
 		// Only flags are displayed differently: they get their leading dashes.
-		{KindFlag, "team", "fleetctl get hosts", "--team was removed in Fleet 5. Use --fleet instead." + suffix},
+		{KindFlag, "team", "fleetctl get hosts", `The "--team" flag is not available anymore. What to use instead: ` + GuideURL},
 		// A removed endpoint leaves the replacement to the guide. The request's method is added when a handler answers it.
 		{KindPath, pathPrefix + "/spec/teams", "", `The "/spec/teams" endpoint is not available anymore. What to use instead: ` + GuideURL},
-		{KindFlag, "t", "fleetctl user create", "-t was removed in Fleet 5. Use --fleet instead." + suffix},
+		{KindFlag, "t", "fleetctl user create", `The "-t" flag is not available anymore. What to use instead: ` + GuideURL},
 	} {
 		e, ok := Find(c.kind, c.old, c.context)
 		require.True(t, ok)
@@ -58,7 +63,8 @@ func TestEntryMessageFormats(t *testing.T) {
 		entry Entry
 		want  string
 	}{
-		{"nil format is ReplacedFormat for a sort key", Entry{Kind: KindSortKey, Old: "a", New: "b"}, "a was removed in Fleet 5. Use b instead." + suffix},
+		{"nil format is ReplacedFormat for a CSV column", Entry{Kind: KindCSVColumn, Old: "a", New: "b"},
+			"a was removed in Fleet 5. Use b instead." + suffix},
 		{"nil format is ParameterFormat for a JSON key", Entry{Kind: KindJSONKey, Old: "a", New: "b"},
 			`The "a" parameter is not available anymore. What to use instead: ` + GuideURL},
 		{"nil format is KeyFormat for a YAML key", Entry{Kind: KindYAMLKey, Old: "a.b", New: "a.c"},
@@ -66,8 +72,10 @@ func TestEntryMessageFormats(t *testing.T) {
 		{"nil format is EndpointFormat for a path", Entry{Kind: KindPath, Old: pathPrefix + "/a", Context: "GET"},
 			`The "GET /a" endpoint is not available anymore. What to use instead: ` + GuideURL},
 		{"replaced without a replacement", Entry{Kind: KindJSONKey, Old: "a", Format: ReplacedFormat{}}, "a was removed in Fleet 5." + suffix},
-		{"flag without a replacement has no dangling dashes", Entry{Kind: KindFlag, Old: "abc"}, "--abc was removed in Fleet 5." + suffix},
-		{"single-letter flag", Entry{Kind: KindFlag, Old: "a"}, "-a was removed in Fleet 5." + suffix},
+		{"a flag with a replacement is not shown with it", Entry{Kind: KindFlag, Old: "abc", New: "def"},
+			`The "--abc" flag is not available anymore. What to use instead: ` + GuideURL},
+		{"replaced flag has dashes and no dangling replacement", Entry{Kind: KindFlag, Old: "a", Format: ReplacedFormat{}},
+			"-a was removed in Fleet 5." + suffix},
 		{
 			"endpoint without a method",
 			Entry{Kind: KindPath, Old: pathPrefix + "/x/{id}", Format: EndpointFormat{}},
@@ -157,7 +165,7 @@ func TestEntriesWellFormed(t *testing.T) {
 		case nil:
 		case ReplacedFormat:
 			assert.NotEqual(t, KindPath, e.Kind, "a removed path uses the endpoint message: %s", e.Old)
-		case ParameterFormat, KeyFormat:
+		case ParameterFormat, KeyFormat, NounFormat:
 		case EndpointFormat:
 			assert.Equal(t, KindPath, e.Kind, "an endpoint message is for a path: %s", e.Old)
 		default:
