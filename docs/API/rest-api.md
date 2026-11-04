@@ -16408,19 +16408,20 @@ icon="app-icon-512x512.png"
 
 _Available in Fleet Premium._
 
-`GET /api/v1/fleet/software/titles/:id/package?alt=media`
+`GET /api/v1/fleet/software/titles/:software_title_id/packages/:package_id?alt=media`
 
 #### Parameters
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| id   | integer | path | **Required**. The ID of the software title to download software package.|
+| software_title_id   | integer | path | **Required**. The ID of the software title. |
+| package_id | integer | path | **Required**. The ID of the package to download. This is the `id` of the package in the `packages` array returned by [Get software title](#get-software-title). |
 | fleet_id | integer | query | **Required**. The fleet ID. Downloads a software package added to the specified fleet. |
 | alt             | string | query | **Required**. If specified and set to `"media"`, downloads the specified software package. |
 
 #### Example
 
-`GET /api/v1/fleet/software/titles/123/package?alt=media&fleet_id=2`
+`GET /api/v1/fleet/software/titles/123/packages/36818?alt=media&fleet_id=2`
 
 ##### Default response
 
