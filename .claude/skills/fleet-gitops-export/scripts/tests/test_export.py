@@ -368,6 +368,13 @@ class FleetDefaultsTest(unittest.TestCase):
         self.assertTrue(is_default_script("uninstall_script", "msi", upgrade, {"UPGRADE_CODE": ["{ABC-123}"]}))
         self.assertFalse(is_default_script("uninstall_script", "msi", upgrade, {"UPGRADE_CODE": ["{DEF-456}"]}))
 
+    def test_fleetd_script_is_default_only_for_fleetd(self):
+        fleetd = default_script("install_pkg_fleetd.sh")
+        self.assertTrue(is_default_script("install_script", "pkg", fleetd, fleetd=True))
+        self.assertFalse(is_default_script("install_script", "pkg", fleetd))
+        self.assertFalse(is_default_script("install_script", "pkg", default_script("install_pkg.sh"), fleetd=True))
+        self.assertTrue(is_default_script("uninstall_script", "pkg", default_script("uninstall_pkg.sh"), fleetd=True))
+
     def test_custom_scripts_are_not_defaults(self):
         self.assertFalse(is_default_script("install_script", "deb", default_script("install_deb.sh") + "systemctl restart x\n"))
         self.assertFalse(is_default_script("install_script", "exe", "Start-Process setup.exe"))
@@ -683,6 +690,38 @@ class EndToEndTest(unittest.TestCase):
         messages = "\n".join(r["message"] for r in self.reconcile(plan))
         self.assertIn("profile 'Passcode' is in Fleet but not in the repo", messages)
         self.assertIn("software 'package:https://x.test/1.0/acme.pkg' is in Fleet but not in the repo", messages)
+
+    def test_fleetd_install_script_kept_on_other_packages(self):
+        snap = snapshot()
+        ws = next(s for s in snap["scopes"] if s["key"] == "1")
+        fleetd = default_script("install_pkg_fleetd.sh")
+        for tid, name, bundle in ((13, "Acme", "com.acme.app"), (14, "Fleet osquery", "com.fleetdm.orbit")):
+            slug = slugify(name)
+            ws["software"]["titles"].append({"id": tid, "name": name, "bundle_identifier": bundle, "software_package": {
+                "name": f"{slug}.pkg", "platform": "darwin", "version": "1.0", "url": f"https://x.test/1.0/{slug}.pkg",
+                "hash_sha256": str(tid) * 32, "install_script": fleetd}})
+        plan = self.replan(snap)
+        self.assertTrue(list(self.root.rglob("acme-install.sh")))
+        self.assertFalse(list(self.root.rglob("fleet-osquery-install.sh")))
+        self.assertEqual([r for r in self.reconcile(plan) if r["level"] == "FAIL"], [])
+
+    def test_missing_referenced_files_fail_without_stopping_the_check(self):
+        hello = self.root / "platforms/macos/scripts/hello.sh"
+        hello.unlink()
+        hello.mkdir()
+        (self.root / "platforms/macos/configuration-profiles/firewall-on.mobileconfig").unlink()
+        ch = Checker(self.root, self.plan)
+        if not ch.load_repo():
+            self.skipTest("no YAML parser")
+        ch.env_values = {"FLEET_WORKSTATIONS_ENROLL_SECRET": SECRET}
+        ch.references()
+        ch.reconcile()
+        refs = "\n".join(r["message"] for r in ch.results["references"])
+        self.assertIn("points at platforms/macos/scripts/hello.sh, which isn't a file", refs)
+        self.assertIn("points at platforms/macos/configuration-profiles/firewall-on.mobileconfig, which doesn't exist", refs)
+        messages = "\n".join(r["message"] for r in ch.results["reconcile"])
+        self.assertIn("script 'hello.sh': sha256 is \"(missing file)\" in the repo", messages)
+        self.assertIn("profile 'Firewall on' is in Fleet but not in the repo", messages)
 
     def test_report_lists_exported_warnings_apart_from_gaps(self):
         notes = [{"level": "warn", "scope": "Servers", "item": "enroll.sh", "message": "check it"},

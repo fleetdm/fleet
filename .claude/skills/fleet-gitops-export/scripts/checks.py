@@ -30,6 +30,7 @@ F = "/api/latest/fleet"
 PLACEHOLDER = "fleet-gitops-export-dry-run-placeholder"
 MASK = "********"
 UNCHECKED = "(not compared)"
+MISSING = "(missing file)"
 
 PATH_KEYS = {"path", "paths", "package_path", "activation", "apple_setup_assistant", "macos_script",
              "end_user_license_agreement", "windows_eula", "org_logo_path_light_mode", "org_logo_path_dark_mode"}
@@ -235,8 +236,9 @@ class Checker:
                         if m.endswith((".yml", ".yaml")):
                             queue.append(m)
                     continue
-                if not (self.root / target).exists():
-                    missing.append(f"{rel}: {'.'.join(map(str, kp))} points at {target}, which doesn't exist")
+                if not (self.root / target).is_file():
+                    what = "isn't a file" if (self.root / target).exists() else "doesn't exist"
+                    missing.append(f"{rel}: {'.'.join(map(str, kp))} points at {target}, which {what}")
                     continue
                 referenced.add(target)
                 if target.endswith((".yml", ".yaml")):
@@ -313,7 +315,7 @@ class Checker:
 
     def _script_sha(self, base: str, ref):
         path = self._ref(base, ref)
-        return _sha(self._bytes(path, False)) if path and (self.root / path).is_file() else None
+        return self._hash(path) if path else None
 
     def _query(self, base: str, ref):
         items = self.docs.get(self._ref(base, ref) or "") or []
@@ -321,8 +323,10 @@ class Checker:
 
     def _app_config(self, base: str, ref, platform: str):
         path = self._ref(base, ref)
-        if not path or not (self.root / path).is_file():
+        if not path:
             return None
+        if not (self.root / path).is_file():
+            return MISSING
         if platform in ("ios", "ipados"):
             return _sha(self._bytes(path, False))
         body = self._bytes(path, False)
@@ -365,6 +369,16 @@ class Checker:
             except UnicodeDecodeError:
                 return b
         return b
+
+    def _hash(self, path: str, expanded: bool = False) -> str:
+        """A file's hash as fleetctl sends it (`expanded` for profiles and DDM assets).
+
+        MISSING when the path isn't a file, which references() already fails, so the check still finishes.
+        """
+        if not (self.root / path).is_file():
+            return MISSING
+        body = self._expanded_bytes(path) if expanded else self._bytes(path, False)
+        return UNCHECKED if body is None else _sha(body)
 
     def _expanded_bytes(self, path: str) -> bytes | None:
         """A profile or asset as fleetctl sends it, with the variables the export wrote filled in.
@@ -410,26 +424,24 @@ class Checker:
             found["settings"].append([section, values])
         for path, _ in self._items(top, ["controls", "scripts"]):
             if path:
-                found["scripts"].append([os.path.basename(path), {"sha256": _sha(self._bytes(path, False))}])
+                found["scripts"].append([os.path.basename(path), {"sha256": self._hash(path)}])
         for section in (["controls", "apple_settings", "configuration_profiles"], ["controls", "windows_settings", "configuration_profiles"],
                         ["controls", "android_settings", "configuration_profiles"]):
             for path, entry in self._items(top, section):
                 if not path:
                     continue
-                body = self._expanded_bytes(path)
                 name = entry.get("name")
-                if not name and path.endswith(".mobileconfig"):
+                if not name and path.endswith(".mobileconfig") and (self.root / path).is_file():
                     name = _payload_display_name(self._bytes(path, True))
                 name = name or os.path.splitext(os.path.basename(path))[0]
                 f = {k: entry.get(k) for k in ("self_service", "hidden", "description", "labels_include_all", "labels_include_any", "labels_exclude_any")}
-                f["sha256"] = UNCHECKED if body is None else _sha(body)
+                f["sha256"] = self._hash(path, expanded=True)
                 if entry.get("activation"):
-                    f["activation_sha256"] = _sha(self._bytes(os.path.normpath(os.path.join(base, entry["activation"])), False))
+                    f["activation_sha256"] = self._hash(os.path.normpath(os.path.join(base, entry["activation"])).replace(os.sep, "/"))
                 found["profiles"].append([name, f])
         for path, _ in self._items(top, ["controls", "apple_settings", "assets"]):
             if path:
-                body = self._expanded_bytes(path)
-                found["assets"].append([os.path.splitext(os.path.basename(path))[0], {"sha256": UNCHECKED if body is None else _sha(body)}])
+                found["assets"].append([os.path.splitext(os.path.basename(path))[0], {"sha256": self._hash(path, expanded=True)}])
         sw = doc.get("software") or {}
         for entry in sw.get("packages") or []:
             if not isinstance(entry, dict):
@@ -440,7 +452,7 @@ class Checker:
                     found["software"].append([f"package:{item.get('url') or item.get('hash_sha256')}",
                                               self._software_fields(item, os.path.dirname(path), entry)])
             elif path:
-                found["software"].append([f"package:{_sha(self._bytes(path, False))}", self._software_fields(entry, base, entry)])
+                found["software"].append([f"package:{self._hash(path)}", self._software_fields(entry, base, entry)])
             else:
                 found["software"].append([f"package:{entry.get('hash_sha256')}", self._software_fields(entry, base, entry)])
         for item in sw.get("fleet_maintained_apps") or []:

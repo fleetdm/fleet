@@ -1233,7 +1233,7 @@ class Planner:
             p_ext = os.path.splitext(p.get("name") or fname)[1]
             ids = _package_ids(t, p_ext)
             for key, suffix in (("install_script", "install"), ("uninstall_script", "uninstall"), ("post_install_script", "post-install")):
-                if p.get(key) and not is_default_script(key, p_ext, p[key], ids):
+                if p.get(key) and not is_default_script(key, p_ext, p[key], ids, fleetd=_is_fleetd(t)):
                     item[key] = {"path": {"$file": self.add_file("software_file", platform, f"{prefix}-{suffix}{script_ext}",
                                                                  content=p[key].encode(), exact=True, fleet=scope)}}
             if p.get("pre_install_query"):
@@ -1581,7 +1581,7 @@ def _software_identities(t: dict, keep_fma_scripts=()):
             ext = os.path.splitext(p.get("name") or pkg.get("name", ""))[1]
             for key in ("install_script", "uninstall_script", "post_install_script"):
                 if not (is_script and key == "install_script"):
-                    f[key] = _script_field(p.get(key), is_default_script(key, ext, p.get(key), _package_ids(t, ext)))
+                    f[key] = _script_field(p.get(key), is_default_script(key, ext, p.get(key), _package_ids(t, ext), fleetd=_is_fleetd(t)))
             # Keyed by URL when there is one: packages whose URL names no version don't pin a hash.
             yield f"package:{(not is_script and p.get('url')) or p.get('hash_sha256') or pkg.get('hash_sha256')}", f
     elif app:
@@ -1677,6 +1677,11 @@ def _package_ids(t: dict, ext: str) -> dict:
     if ext == "msi" and t.get("upgrade_code"):
         return {"UPGRADE_CODE": [t["upgrade_code"]]}
     return {}
+
+
+def _is_fleetd(t: dict) -> bool:
+    """Is the title fleetd's .pkg? Fleet checks the package IDs for this prefix (file.IsFleetdPkg); the API returns the bundle ID."""
+    return (t.get("bundle_identifier") or "").startswith("com.fleetdm.orbit")
 
 
 def _url_names_version(url: str, version: str | None) -> bool:

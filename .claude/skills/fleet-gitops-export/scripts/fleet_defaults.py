@@ -17,7 +17,7 @@ from pathlib import Path
 _DIR = Path(__file__).resolve().parent / "fleet_default_scripts"
 
 DEFAULTS = {
-    "install_script": {"pkg": ["install_pkg.sh", "install_pkg_fleetd.sh"], "msi": ["install_msi.ps1"],
+    "install_script": {"pkg": ["install_pkg.sh"], "msi": ["install_msi.ps1"],
                        "deb": ["install_deb.sh"], "rpm": ["install_rpm.sh"]},
     "uninstall_script": {"pkg": ["uninstall_pkg.sh"], "msi": ["uninstall_msi.ps1", "uninstall_msi_with_upgrade_code.ps1"],
                          "deb": ["uninstall_deb.sh"], "rpm": ["uninstall_rpm.sh"]},
@@ -49,15 +49,18 @@ def _pattern(filename: str):
     return _patterns[filename]
 
 
-def is_default_script(key: str, extension: str, script: str, ids: dict | None = None) -> bool:
+def is_default_script(key: str, extension: str, script: str, ids: dict | None = None, fleetd: bool = False) -> bool:
     """Is `script` Fleet's default `key` ("install_script" or "uninstall_script") for this package type?
 
     `ids` maps a placeholder ("PACKAGE_ID", "UPGRADE_CODE") to the values Fleet would fill in for this
     package. A filled-in value that isn't one of them means an admin retargeted the script, so it isn't
     the default. Placeholders missing from `ids` (the API doesn't return every identifier) accept any value.
+    Fleet installs a fleetd .pkg with its own script, whatever was uploaded, and no other package with it.
     """
     text = _norm(script or "")
-    for filename in DEFAULTS.get(key, {}).get(extension.lower().lstrip("."), []):
+    ext = extension.lower().lstrip(".")
+    names = ["install_pkg_fleetd.sh"] if fleetd and key == "install_script" and ext == "pkg" else DEFAULTS.get(key, {}).get(ext, [])
+    for filename in names:
         template, pattern, kinds = _pattern(filename)
         if text == template:
             return True
