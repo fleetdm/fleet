@@ -26,7 +26,7 @@ func TestFleetNameForPackage(t *testing.T) {
 	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
 		return []*fleet.Team{
 			{ID: 1, Name: "Servers", Secrets: []*fleet.EnrollSecret{{Secret: "servers-secret"}}},
-			{ID: 2, Name: "💻 Workstations", Secrets: []*fleet.EnrollSecret{{Secret: "old-secret"}, {Secret: "workstations-secret"}}},
+			{ID: 2, Name: "\U0001F4BB Workstations", Secrets: []*fleet.EnrollSecret{{Secret: "old-secret"}, {Secret: "workstations-secret"}}},
 			{ID: 3, Name: "Workstations", Secrets: []*fleet.EnrollSecret{{Secret: "other-workstations-secret"}}},
 		}, nil
 	}
@@ -56,7 +56,7 @@ func TestFleetNameForPackage(t *testing.T) {
 	hung := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { <-stuck }))
 	t.Cleanup(func() { close(stuck); hung.Close() })
 
-	servers := packageFleet{Name: "Servers", ID: 1, OtherNames: []string{"💻 Workstations", "Workstations"}}
+	servers := packageFleet{Name: "Servers", ID: 1, OtherNames: []string{"\U0001F4BB Workstations", "Workstations"}}
 	type fleetctlContext struct{ name, address, token string }
 	for _, tc := range []struct {
 		name     string
@@ -70,7 +70,7 @@ func TestFleetNameForPackage(t *testing.T) {
 			name:     "fleet secret",
 			contexts: []fleetctlContext{{"default", premium.URL, "admin-token"}},
 			fleetURL: premium.URL, secret: "workstations-secret",
-			want: packageFleet{Name: "💻 Workstations", ID: 2, OtherNames: []string{"Servers", "Workstations"}},
+			want: packageFleet{Name: "\U0001F4BB Workstations", ID: 2, OtherNames: []string{"Servers", "Workstations"}},
 		},
 		{
 			name:     "URL spelled differently from the context address",

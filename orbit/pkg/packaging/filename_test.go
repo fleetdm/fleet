@@ -27,10 +27,10 @@ func TestOutputFilename(t *testing.T) {
 		assert.Equal(t, tc.withFleet, outputFilename(tc.platform, tc.arch, tc.ext, Options{FleetName: "Workstations"}))
 		// A name that cleans up to nothing never leaves a trailing dash (fleet-windows-amd64-.msi), even when another
 		// fleet's name is just as blank.
-		for _, blank := range []string{"", "🚀 🚀", "$$$ ---", "\u202e\u200d"} {
+		for _, blank := range []string{"", "\U0001F680 \U0001F680", "$$$ ---", "\u202e\u200d"} {
 			assert.Equal(t, tc.noFleet, outputFilename(tc.platform, tc.arch, tc.ext, Options{FleetName: blank}), blank)
 			assert.Equal(t, tc.noFleet, outputFilename(tc.platform, tc.arch, tc.ext,
-				Options{FleetName: blank, FleetID: 7, OtherFleetNames: []string{"🛸"}}), blank)
+				Options{FleetName: blank, FleetID: 7, OtherFleetNames: []string{"\U0001F6F8"}}), blank)
 		}
 	}
 
@@ -65,13 +65,13 @@ func TestFleetFilenamePart(t *testing.T) {
 	}{
 		{"no other fleets", "Workstations", 12, nil, "workstations"},
 		{"other fleets with different names", "Workstations", 12, []string{"Servers", "Workstations 2"}, "workstations"},
-		{"other fleet differs only in case and emojis", "Workstations", 12, []string{"💻 WORKSTATIONS"}, "workstations-12"},
+		{"other fleet differs only in case and emojis", "Workstations", 12, []string{"\U0001F4BB WORKSTATIONS"}, "workstations-12"},
 		{"other fleet differs only in punctuation", "Workstations (Canary)", 7, []string{"workstations-canary"}, "workstations-canary-7"},
 		{"other fleet differs only by a long s", "Workstations", 4, []string{"Work\u017ftations"}, "workstations-4"},
 		{"invisible joiner doesn't dodge the ID", "Workstations\u034f!", 6, []string{"Workstations"}, "workstations-6"},
 		{"names that match only after the cut", long + "x", 3, []string{long + "y"}, strings.Repeat("a", 28) + "-3"},
 		{"no ID to add", "Workstations", 0, []string{"workstations"}, "workstations"},
-		{"emoji-only names stay without a fleet name", "🚀", 5, []string{"🛸"}, ""},
+		{"emoji-only names stay without a fleet name", "\U0001F680", 5, []string{"\U0001F6F8"}, ""},
 		// U+043E is a Cyrillic "о": it looks like the Latin "o" but is a different letter, so no collision.
 		{"lookalike Cyrillic letter", "Wоrkstations", 9, []string{"Workstations"}, "wоrkstations"},
 	} {
@@ -96,10 +96,10 @@ func TestFleetNameForFilename(t *testing.T) {
 		{"path separators and dots", `../../tmp/x\y`, "tmp-x-y"},
 		{"windows-reserved characters", `a:b*c?d"e<f>g|h`, "a-b-c-d-e-f-g-h"},
 		{"control characters", "a\tb\nc\x00d", "a-b-c-d"},
-		{"emojis between words", "Mac💻Laptops", "mac-laptops"},
-		{"emoji with variation selector and joiner", "❤️ Team 👩‍💻", "team"},
-		{"keycap digit", "Floor 1️⃣", "floor-1"},
-		{"only emojis", "🚀🚀", ""},
+		{"emojis between words", "Mac\U0001F4BBLaptops", "mac-laptops"},
+		{"emoji with variation selector and joiner", "\u2764\ufe0f Team \U0001F469\u200d\U0001F4BB", "team"},
+		{"keycap digit", "Floor 1\ufe0f\u20e3", "floor-1"},
+		{"only emojis", "\U0001F680\U0001F680", ""},
 		{"only symbols", "$$$ ---", ""},
 		{"empty", "", ""},
 		{"accents", "Équipe Été", "équipe-été"},
