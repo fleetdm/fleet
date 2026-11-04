@@ -6,6 +6,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"golang.org/x/text/cases"
 	"golang.org/x/text/unicode/norm"
 )
 
@@ -39,23 +40,21 @@ func outputFilename(platform, arch, ext string, opt Options) string {
 // never match, and each round is decided from the same parts, so a fleet gets the same part whichever package is built.
 func fleetFilenamePart(fleet Fleet, others []Fleet, budget int) string {
 	all := append([]Fleet{fleet}, others...)
-	parts := make([]string, len(all))
+	parts, keys := make([]string, len(all)), make([]string, len(all))
 	for i, f := range all {
 		parts[i] = truncateUTF8(fleetNameForFilename(f.Name), budget)
+		keys[i] = sameFileKey(parts[i])
 	}
 	withID := make([]bool, len(all))
 	for {
+		count := make(map[string]int, len(all))
+		for _, key := range keys {
+			count[key]++
+		}
 		var round []int
 		for i := range all {
-			if withID[i] || parts[i] == "" || all[i].ID == 0 {
-				continue
-			}
-			for j := range all {
-				// Case-insensitive, like macOS and Windows file systems ("ſ" and "s" name the same file there).
-				if i != j && strings.EqualFold(parts[i], parts[j]) {
-					round = append(round, i)
-					break
-				}
+			if !withID[i] && parts[i] != "" && all[i].ID != 0 && count[keys[i]] > 1 {
+				round = append(round, i)
 			}
 		}
 		if len(round) == 0 {
@@ -63,8 +62,15 @@ func fleetFilenamePart(fleet Fleet, others []Fleet, budget int) string {
 		}
 		for _, i := range round {
 			parts[i], withID[i] = nameWithID(all[i], budget), true
+			keys[i] = sameFileKey(parts[i])
 		}
 	}
+}
+
+// sameFileKey is the same for parts that name the same file on a case-insensitive file system. macOS folds case fully
+// ("ß" and "ss", "ﬁ" and "fi" are one file), so lowercasing isn't enough.
+func sameFileKey(part string) string {
+	return norm.NFC.String(cases.Fold().String(part))
 }
 
 // nameWithID returns the fleet's cleaned name followed by its ID, cut to fit in budget bytes when the ID does.

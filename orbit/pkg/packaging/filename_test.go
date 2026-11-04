@@ -69,6 +69,8 @@ func TestFleetFilenamePart(t *testing.T) {
 		{"other fleet differs only in case and emojis", "Workstations", 12, []Fleet{{1, "\U0001F4BB WORKSTATIONS"}}, "workstations-12"},
 		{"other fleet differs only in punctuation", "Workstations (Canary)", 7, []Fleet{{1, "workstations-canary"}}, "workstations-canary-7"},
 		{"other fleet differs only by a long s", "Workstations", 4, []Fleet{{1, "Work\u017ftations"}}, "workstations-4"},
+		{"other fleet differs only by full case folding", "Stra\u00dfe", 4, []Fleet{{5, "Strasse"}}, "stra\u00dfe-4"},
+		{"other fleet differs only by a ligature", "\ufb01nance", 6, []Fleet{{1, "Finance"}}, "\ufb01nance-6"},
 		{"invisible joiner doesn't dodge the ID", "Workstations\u034f!", 6, []Fleet{{1, "Workstations"}}, "workstations-6"},
 		{"names that match only after the cut", long + "x", 3, []Fleet{{1, long + "y"}}, strings.Repeat("a", 28) + "-3"},
 		{"name equal to another fleet's name with its ID", "foo-1", 3, []Fleet{{1, "foo"}, {2, "FOO"}}, "foo-1-3"},
