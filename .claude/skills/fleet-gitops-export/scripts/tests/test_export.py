@@ -223,6 +223,93 @@ class CommandTest(unittest.TestCase):
             gitops_export.say = saved
             shutil.rmtree(tmp)
 
+    def test_validation_results_are_tied_to_their_plan(self):
+        tmp, saved = Path(tempfile.mkdtemp()), gitops_export.say
+        gitops_export.say = lambda *a: None
+        try:
+            args = argparse.Namespace(dir=str(tmp / "repo"), work=str(tmp / "work"), fleetctl=None, config=None, context=None)
+            work = gitops_export.work_dir(tmp / "repo", args.work)
+            plan = {"server": {"version": "4.99.0", "premium": True, "user": {}}, "fleets": [], "counts": {}, "notes": [], "files": {}, "env": []}
+            (work / "plan.json").write_text(json.dumps(plan))
+            (work / "validation.json").write_text(json.dumps({"passed": True, "plan_sha256": "0" * 64, "static": [], "references": [], "reconcile": []}))
+            gitops_export.cmd_report(args)
+            report = (work / "report.md").read_text()
+            self.assertIn("Not run for this plan", report)
+            self.assertNotIn("PASS", report)
+        finally:
+            gitops_export.say = saved
+            shutil.rmtree(tmp)
+
+    def test_validate_writes_results_when_a_step_raises(self):
+        tmp, saved = Path(tempfile.mkdtemp()), (gitops_export.Checker, gitops_export.say)
+
+        class Stops(Checker):
+            def run_validator(self, offline):
+                pass
+
+            def reconcile(self):
+                raise RuntimeError("boom")
+
+        gitops_export.Checker, gitops_export.say = Stops, lambda *a: None
+        try:
+            (tmp / "repo").mkdir()
+            args = argparse.Namespace(dir=str(tmp / "repo"), work=str(tmp / "work"), fleetctl=None, config=None, context=None,
+                                      no_dry_run=True, offline=False, env_file=None)
+            work = gitops_export.work_dir(tmp / "repo", args.work)
+            (work / "plan.json").write_text(json.dumps({"fleets": [], "env": [], "files": {}}))
+            self.assertEqual(gitops_export.cmd_validate(args), 1)
+            res = json.loads((work / "validation.json").read_text())
+            self.assertIn("validate stopped before it finished: RuntimeError: boom", [r["message"] for r in res["reconcile"]])
+        finally:
+            gitops_export.Checker, gitops_export.say = saved
+            shutil.rmtree(tmp)
+
+    def test_nothing_compared_fails(self):
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            ch = Checker(tmp, {"env": [], "files": {}})
+            ch.backend = None
+            self.assertFalse(ch.load_repo())
+            self.assertFalse(ch.summary()["passed"])
+        finally:
+            shutil.rmtree(tmp)
+
+    @unittest.skipUnless(TEMPLATES.exists(), "not inside the Fleet repository")
+    def test_scaffold_rerun_keeps_pristine_clean(self):
+        tmp, saved = Path(tempfile.mkdtemp()), (gitops_export.session, gitops_export.say)
+
+        class FakeFleetctl:
+            def new(self, directory, org_name, force=False):
+                if Path(directory).exists():
+                    raise AssertionError("scaffold should run fleetctl new into an empty folder")
+                render_templates(Path(directory))
+                return f"Created new Fleet GitOps repository at {directory}\nNext steps"
+
+        target, work = tmp / "repo", tmp / "work"
+        work.mkdir(mode=0o700)
+        gitops_export.session = lambda args: (FakeFleetctl(), target, work)
+        gitops_export.say = lambda *a: None
+        try:
+            args = argparse.Namespace(org_name="Test Org", force=True)
+            self.assertEqual(gitops_export.cmd_scaffold(args), 0)
+            (target / "fleets/servers.yml").write_text("name: Servers\n")
+            (target / ".env").write_text("FLEET_X=secret\n")
+            self.assertEqual(gitops_export.cmd_scaffold(args), 0)
+            self.assertFalse((work / "pristine/fleets/servers.yml").exists())
+            self.assertFalse((work / "pristine/.env").exists())
+            self.assertTrue((work / "pristine/default.yml").exists())
+            self.assertFalse((work / "new").exists())
+        finally:
+            gitops_export.session, gitops_export.say = saved
+            shutil.rmtree(tmp)
+
+    def test_collector_tolerates_endpoints_older_servers_lack(self):
+        class API:
+            def paged(self, path, key, params=None):
+                raise FleetctlError("not found", status=404)
+
+        self.assertEqual(Collector(api=API())._paged_if_present("/api/latest/fleet/custom_host_vitals", "custom_host_vitals"), [])
+
     def test_setup_step(self):
         # Error text as fleetctl 4.94 prints it.
         cases = {
@@ -329,8 +416,8 @@ class SecretSpansTest(unittest.TestCase):
         self.assertNotIn("wk-s3cr3t-value", repr(refs))
         self.assertEqual(scopes[0]["scripts"][0]["short_secret_refs"], [{"type": "enroll_secret", "team": None, "index": 0}])
         self.assertNotIn("short_secret_refs", scopes[0]["profiles"][1])
-        self.assertEqual(len(c.warnings), 1)
-        self.assertIn("inside a longer word", c.warnings[0]["message"])
+        self.assertTrue(scopes[0]["profiles"][1]["short_secret_in_word"])
+        self.assertEqual(c.warnings, [])
         self.assertNotIn("short", repr(scopes[0]["scripts"][0]["short_secret_refs"]))
 
     def test_marks_secrets_where_fleetctl_sends_files_as_is(self):
@@ -350,6 +437,23 @@ class SecretSpansTest(unittest.TestCase):
         self.assertEqual(title["plain_secret_refs"], [long_src])
         self.assertNotIn("wk-s3cr3t-value", repr([profile["plain_secret_refs"], script["plain_secret_refs"], title["plain_secret_refs"]]))
 
+    def test_marks_secrets_in_configurations_and_undecodable_bodies(self):
+        c = Collector(api=None)
+        src = {"type": "enroll_secret", "team": 1, "index": 0}
+        c._secret_values = [("wk-s3cr3t-value", src)]
+        utf16 = {"name": "UTF-16", "content": "\ufeff<string>wk-s3cr3t-value</string>".encode("utf-16-le")}
+        binary = {"name": "Signed", "content": b"\x30\x82\xff<string>wk-s3cr3t-value</string>"}
+        app = {"name": "Slack", "app_store_app": {"configuration": "<string>wk-s3cr3t-value</string>"}}
+        ipa = {"name": "App", "software_package": {"name": "app.ipa", "configuration": "<string>wk-s3cr3t-value</string>"},
+               "icon": b"wk-s3cr3t-value"}
+        icon_only = {"name": "Icon", "software_package": {"name": "x.pkg"}, "icon": b"wk-s3cr3t-value"}
+        dep = {"name": "ade.json", "enrollment_profile": {"configuration_web_url": "https://x.test/?s=wk-s3cr3t-value"}}
+        c._mark_secrets([{"profiles": [utf16, binary], "software": {"titles": [app, ipa, icon_only]}, "setup": {"enrollment_profile": dep}}])
+        for item in (utf16, binary, app, ipa, dep):
+            self.assertEqual(item.get("plain_secret_refs"), [src], item["name"])
+            self.assertNotIn("env_refs", item)
+        self.assertNotIn("plain_secret_refs", icon_only)
+
 
 class FleetDefaultsTest(unittest.TestCase):
     def test_recognizes_defaults_with_ids_filled_in(self):
@@ -368,12 +472,9 @@ class FleetDefaultsTest(unittest.TestCase):
         self.assertTrue(is_default_script("uninstall_script", "msi", upgrade, {"UPGRADE_CODE": ["{ABC-123}"]}))
         self.assertFalse(is_default_script("uninstall_script", "msi", upgrade, {"UPGRADE_CODE": ["{DEF-456}"]}))
 
-    def test_fleetd_script_is_default_only_for_fleetd(self):
-        fleetd = default_script("install_pkg_fleetd.sh")
-        self.assertTrue(is_default_script("install_script", "pkg", fleetd, fleetd=True))
-        self.assertFalse(is_default_script("install_script", "pkg", fleetd))
-        self.assertFalse(is_default_script("install_script", "pkg", default_script("install_pkg.sh"), fleetd=True))
-        self.assertTrue(is_default_script("uninstall_script", "pkg", default_script("uninstall_pkg.sh"), fleetd=True))
+    def test_fleetd_script_is_never_a_default(self):
+        self.assertFalse(is_default_script("install_script", "pkg", default_script("install_pkg_fleetd.sh")))
+        self.assertTrue(is_default_script("install_script", "pkg", default_script("install_pkg.sh")))
 
     def test_custom_scripts_are_not_defaults(self):
         self.assertFalse(is_default_script("install_script", "deb", default_script("install_deb.sh") + "systemctl restart x\n"))
@@ -412,7 +513,8 @@ class HelpersTest(unittest.TestCase):
         self.assertFalse(_url_names_version("https://x.test/app-8.1.2.deb", "8.1"))
         self.assertFalse(_url_names_version("https://x.test/8.1/latest.rpm", "8.1"))
         self.assertFalse(_url_names_version("https://x.test/app-current.pkg", None))
-        self.assertTrue(_url_names_version("https://x.test/anything.pkg", None))
+        self.assertFalse(_url_names_version("https://x.test/anything.pkg", None))
+        self.assertFalse(_url_names_version("https://x.test/1.0/anything.pkg", ""))
         self.assertFalse(_url_names_version("https://vendor.example/latest/app.rpm", None))
         self.assertFalse(_url_names_version("https://x.test/stable/app.deb", "8.11.16"))
         self.assertTrue(_url_names_version("https://x.test/linux/stable/1password-8.11.16.deb", "8.11.16"))
@@ -691,7 +793,46 @@ class EndToEndTest(unittest.TestCase):
         self.assertIn("profile 'Passcode' is in Fleet but not in the repo", messages)
         self.assertIn("software 'package:https://x.test/1.0/acme.pkg' is in Fleet but not in the repo", messages)
 
-    def test_fleetd_install_script_kept_on_other_packages(self):
+    def test_enroll_secret_in_app_configuration_asset_or_ade_profile_isnt_exported(self):
+        snap = snapshot()
+        ws = next(s for s in snap["scopes"] if s["key"] == "1")
+        config = f"<dict><key>secret</key><string>{SECRET}</string></dict>"
+        ws["software"]["titles"].append({"id": 12, "name": "Slack", "app_store_app": {
+            "app_store_id": "803453959", "platform": "ios", "configuration": config}})
+        ws["assets"] = [{"name": "enroll", "content": b"\xff\xfe" + SECRET.encode("utf-16-le")}]
+        ws["setup"] = {"enrollment_profile": {"name": "ade.json", "enrollment_profile": {"configuration_web_url": f"https://x.test/?s={SECRET}"}}}
+        ws["profiles"][0]["content"] += b"<!-- abc12345x -->"
+        c = Collector(api=None)
+        c._secret_values = [(SECRET, {"type": "enroll_secret", "team": 1, "index": 0}), ("abc12", {"type": "enroll_secret", "team": 1, "index": 1})]
+        c._mark_secrets(snap["scopes"])
+        plan = self.replan(snap)
+        gaps = {n["item"] for n in plan["notes"] if n["level"] == "gap" and "FLEET_WORKSTATIONS_ENROLL_SECRET" in n["message"]}
+        self.assertEqual(gaps, {"Slack", "enroll", "setup_experience.apple_setup_assistant (ade.json)"})
+        warns = [n for n in plan["notes"] if n["level"] == "warn"]
+        self.assertEqual([n["item"] for n in warns], ["Firewall on"])
+        written = [p for p in list(self.root.rglob("*")) + list((self.work / "blobs").iterdir()) if p.is_file()]
+        for needle in (SECRET.encode(), SECRET.encode("utf-16-le")):
+            self.assertFalse([p for p in written if needle in p.read_bytes()])
+        messages = "\n".join(r["message"] for r in self.reconcile(plan))
+        self.assertIn("software 'app:803453959:ios' is in Fleet but not in the repo", messages)
+        self.assertIn("DDM asset 'enroll' is in Fleet but not in the repo", messages)
+
+    def test_reconcile_reads_sso_keys_fleet_leaves_out(self):
+        snap = snapshot()
+        snap["flags"]["premium"] = False
+        snap["scopes"] = [snap["scopes"][0]]
+        snap["config"]["sso_settings"] = {"enable_sso": True, "entity_id": "fleet", "idp_name": "Okta",
+                                          "metadata_url": "https://idp.example.test/metadata", "enable_jit_provisioning": False}
+        plan = self.replan(snap)
+        default = self.root / "default.yml"
+        text = default.read_text()
+        self.assertNotIn("enable_jit_provisioning", text)
+        self.assertEqual([r for r in self.reconcile(plan) if r["level"] == "FAIL"], [])
+        default.write_text(text.replace("    enable_sso: true\n", "    enable_sso: true\n    enable_jit_provisioning: true\n", 1))
+        self.assertIn("settings 'org_settings.sso_settings': enable_jit_provisioning is in the repo but not in Fleet",
+                      "\n".join(r["message"] for r in self.reconcile(plan)))
+
+    def test_fleetd_install_script_is_kept(self):
         snap = snapshot()
         ws = next(s for s in snap["scopes"] if s["key"] == "1")
         fleetd = default_script("install_pkg_fleetd.sh")
@@ -702,7 +843,7 @@ class EndToEndTest(unittest.TestCase):
                 "hash_sha256": str(tid) * 32, "install_script": fleetd}})
         plan = self.replan(snap)
         self.assertTrue(list(self.root.rglob("acme-install.sh")))
-        self.assertFalse(list(self.root.rglob("fleet-osquery-install.sh")))
+        self.assertTrue(list(self.root.rglob("fleet-osquery-install.sh")))
         self.assertEqual([r for r in self.reconcile(plan) if r["level"] == "FAIL"], [])
 
     def test_missing_referenced_files_fail_without_stopping_the_check(self):
@@ -725,6 +866,7 @@ class EndToEndTest(unittest.TestCase):
 
     def test_report_lists_exported_warnings_apart_from_gaps(self):
         notes = [{"level": "warn", "scope": "Servers", "item": "enroll.sh", "message": "check it"},
+                 {"level": "warn", "scope": "Servers", "item": "Acme", "message": "check that too"},
                  {"level": "gap", "scope": "Servers", "item": "Acme", "message": "left out"}]
         report = gitops_export.render_report(self.root, dict(self.plan, notes=notes), None)
         exported, missing = report.split("## Exported, check before committing")[1].split("## Not represented in GitOps")
@@ -797,6 +939,51 @@ class EndToEndTest(unittest.TestCase):
         self.assertIn("policy 'Collect logs': query", messages)
         self.assertIn("profile 'Min password': sha256", messages)
         self.assertIn("software 'fma:maccy/darwin' is in Fleet but not in the repo", messages)
+
+    def test_malformed_yaml_fails_without_stopping_the_check(self):
+        servers = self.root / "fleets/servers.yml"
+        servers.write_text(servers.read_text().replace("software:\n", "software: []\nx_software:\n", 1))
+        ws = self.root / "fleets/workstations.yml"
+        ws.write_text(ws.read_text().replace("    - path: ../platforms/macos/scripts/logs.sh\n",
+                                             "    - path: ../platforms/macos/scripts/logs.sh\n    - paths: /etc/*.conf\n    - path: null\n", 1))
+        deb = self.root / "platforms/linux/software/zoom-deb.package.yml"
+        deb.write_text(deb.read_text().replace("- url:", "url:", 1).replace("\n  ", "\n"))
+        (self.root / ".DS_Store").write_bytes(b"\x00")
+        (self.root / ".gitignore").write_text((self.root / ".gitignore").read_text() + "local-notes.txt\n")
+        (self.root / "local-notes.txt").write_text("mine")
+        ch = Checker(self.root, self.plan)
+        if not ch.load_repo():
+            self.skipTest("no YAML parser")
+        ch.env_values = {"FLEET_WORKSTATIONS_ENROLL_SECRET": SECRET}
+        ch.references()
+        ch.reconcile()
+        refs = "\n".join(r["message"] for r in ch.results["references"])
+        self.assertIn("points at /etc/*.conf, which is outside the repo", refs)
+        self.assertNotIn(".DS_Store", refs)
+        self.assertNotIn("local-notes.txt", refs)
+        messages = "\n".join(r["message"] for r in ch.results["reconcile"])
+        self.assertNotIn("couldn't be compared", messages)
+        self.assertIn("fleets/servers.yml: software 'package:https://cdn.example.test/prod/7.1.5.4332/zoom_amd64.deb' is in Fleet", messages)
+
+    def test_example_left_behind_by_a_plan_edit_is_removed(self):
+        plan = json.loads(json.dumps(self.plan))
+        label = next(f for f in plan["files"].values() if f["path"] == "labels/apple-silicon-macos-hosts.yml")
+        label["path"] = "labels/apple-silicon.yml"
+        Placer(plan, self.layout, self.work).place()
+        self.assertFalse((self.root / "labels/apple-silicon-macos-hosts.yml").exists())
+        self.assertTrue((self.root / "labels/apple-silicon.yml").exists())
+
+    def test_failed_place_still_records_what_it_wrote(self):
+        placer = Placer(self.plan, self.layout, self.work)
+
+        def boom(fleet):
+            raise OSError("disk full")
+        placer._write_fleet = boom
+        with self.assertRaises(OSError):
+            placer.place()
+        placed = json.loads((self.work / "placed.json").read_text())
+        self.assertIn("platforms/macos/scripts/logs.sh", placed)
+        self.assertIn("fleets/workstations.yml", placed)
 
     def test_place_is_repeatable(self):
         before = {p: p.read_bytes() for p in self.root.rglob("*") if p.is_file()}

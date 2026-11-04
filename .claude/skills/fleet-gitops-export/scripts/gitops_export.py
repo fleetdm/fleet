@@ -86,6 +86,16 @@ def session(args) -> tuple[Fleetctl, Path, Path]:
     return Fleetctl(conn["fleetctl"] or "fleetctl", conn["config"], conn["context"]), target, work
 
 
+def file_sha(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def plan_edited(work: Path) -> bool:
+    """Was plan.json changed since `export` wrote it (placement edits a rerun would lose)?"""
+    plan, recorded = work / "plan.json", work / "plan.sha256"
+    return plan.exists() and recorded.exists() and recorded.read_text(encoding="utf-8").strip() != file_sha(plan)
+
+
 def need(work: Path, name: str, step: str) -> Path:
     p = work / name
     if not p.exists():
@@ -211,16 +221,25 @@ def cmd_scaffold(args) -> int:
     if target.exists() and any(target.iterdir()) and not args.force:
         say(f"FAIL {target} isn't empty; pass --force only if the user agreed to write into it")
         return 1
-    force = target.exists()
-    out = fc.new(str(target), args.org_name, force=force)
+    # `fleetctl new --force` deletes nothing, so scaffolding over an earlier export would keep its files
+    # (and the user's .env) in the pristine copy. Scaffold into an empty folder and copy that over.
+    fresh = work / "new"
+    if fresh.exists():
+        shutil.rmtree(fresh)
+    try:
+        out = fc.new(str(fresh), args.org_name)
+    except (FleetctlError, OSError) as e:
+        say(f"FAIL fleetctl new: {e}")
+        return 1
+    target.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(fresh, target, dirs_exist_ok=True)
     pristine = work / "pristine"
     if pristine.exists():
         shutil.rmtree(pristine)
-    shutil.copytree(target, pristine, ignore=shutil.ignore_patterns(".git"))
-    (work / "placed.json").unlink(missing_ok=True)
+    fresh.rename(pristine)
     layout = Layout.scan(str(target))
     layout.save(work / "layout.json")
-    say(out.split("\nNext steps")[0].strip())
+    say(out.replace(str(fresh), str(target)).split("\nNext steps")[0].strip())
     say(f"layout: {len(layout.fleet_templates)} fleet templates, {len(layout.globs)} globs, platform folders under {layout.platform_root}/")
     return 0
 
@@ -229,7 +248,9 @@ def cmd_export(args) -> int:
     fc, target, work = session(args)
     layout = Layout.load(need(work, "layout.json", "scaffold"))
     # A failed export leaves no plan, so `place` can't write an earlier snapshot (or point at deleted blobs).
+    edited = plan_edited(work)
     (work / "plan.json").unlink(missing_ok=True)
+    (work / "validation.json").unlink(missing_ok=True)
     snap = Collector(API(fc), log=lambda m: say(f"  {m}")).collect()
     blobs = work / "blobs"
     if blobs.exists():
@@ -237,6 +258,9 @@ def cmd_export(args) -> int:
     keep = [s.strip() for s in (args.keep_fma_scripts or "").split(",") if s.strip()]
     plan = Planner(snap, layout, work, keep_fma_scripts=keep).build()
     (work / "plan.json").write_text(json.dumps(plan, indent=2, ensure_ascii=False), encoding="utf-8")
+    (work / "plan.sha256").write_text(file_sha(work / "plan.json"), encoding="utf-8")
+    if edited:
+        say("WARN plan.json had been edited since the last export; this export replaced it, so make those edits again")
     say(f"plan: {len(plan['files'])} files, {len(plan['fleets'])} fleet files, {len(plan['env'])} environment variables")
     for level in ("review", "gap", "warn"):
         for n in plan["notes"]:
@@ -250,9 +274,10 @@ def cmd_place(args) -> int:
     fc, target, work = session(args)
     layout = Layout.load(need(work, "layout.json", "scaffold"))
     plan = json.loads(need(work, "plan.json", "export").read_text(encoding="utf-8"))
+    (work / "validation.json").unlink(missing_ok=True)
     try:
         Placer(plan, layout, work).place()
-    except ValueError as e:
+    except (ValueError, OSError) as e:
         say(f"FAIL {e}")
         return 1
     new_dirs = sorted({os.path.dirname(f["path"]) for f in plan["files"].values() if f.get("origin") == "new"})
@@ -264,20 +289,26 @@ def cmd_place(args) -> int:
 
 def cmd_validate(args) -> int:
     fc, target, work = session(args)
-    plan = json.loads(need(work, "plan.json", "export").read_text(encoding="utf-8"))
+    plan_path = need(work, "plan.json", "export")
+    plan = json.loads(plan_path.read_text(encoding="utf-8"))
+    (work / "validation.json").unlink(missing_ok=True)
     env_file = None if args.no_dry_run else dry_run_env_file(args, target)
     ch = Checker(target, plan)
-    ch.run_validator(offline=args.offline)
-    if not args.no_dry_run:
-        say(f"dry-run variables from {env_file} and the environment" if env_file else "dry-run variables from the environment (no .env in the repo)")
-        # Fetched before reconcile, which needs them to compare profiles that hold enroll secrets as variables.
-        ch.env_values, ch.env_notes = ch.dry_run_env(API(fc), env_file)
-    if ch.load_repo():
-        ch.references()
-        ch.reconcile()
-    if not args.no_dry_run:
-        ch.dry_run(API(fc), fc, env_file)
+    try:
+        ch.run_validator(offline=args.offline)
+        if not args.no_dry_run:
+            say(f"dry-run variables from {env_file} and the environment" if env_file else "dry-run variables from the environment (no .env in the repo)")
+            # Fetched before reconcile, which needs them to compare profiles that hold enroll secrets as variables.
+            ch.env_values, ch.env_notes = ch.dry_run_env(API(fc), env_file)
+        if ch.load_repo():
+            ch.references()
+            ch.reconcile()
+        if not args.no_dry_run:
+            ch.dry_run(API(fc), fc, env_file)
+    except Exception as e:  # noqa: BLE001 - whatever stopped it, the results so far are still written
+        ch.fail("reconcile", f"validate stopped before it finished: {type(e).__name__}: {e}")
     res = ch.summary()
+    res["plan_sha256"] = file_sha(plan_path)
     (work / "validation.json").write_text(json.dumps(res, indent=2, ensure_ascii=False), encoding="utf-8")
     for section in ("static", "references", "reconcile"):
         for r in res[section]:
@@ -296,6 +327,8 @@ def cmd_report(args) -> int:
     plan = json.loads(need(work, "plan.json", "export").read_text(encoding="utf-8"))
     val_path = work / "validation.json"
     val = json.loads(val_path.read_text(encoding="utf-8")) if val_path.exists() else None
+    if val and val.get("plan_sha256") != file_sha(work / "plan.json"):
+        val = None  # from another plan
     text = render_report(target, plan, val)
     (work / "report.md").write_text(text, encoding="utf-8")
     say(text)
@@ -340,7 +373,8 @@ def render_report(target: Path, plan: dict, val: dict | None) -> str:
         lines.append(f"| `{file}` | {scope} | {summary} |")
     review = [n for n in plan["notes"] if n["level"] == "review"]
     gaps = [n for n in plan["notes"] if n["level"] == "gap"]
-    warns = [n for n in plan["notes"] if n["level"] == "warn"]
+    left_out = {(n["scope"], n["item"]) for n in gaps}
+    warns = [n for n in plan["notes"] if n["level"] == "warn" and (n["scope"], n["item"]) not in left_out]
     info = [n for n in plan["notes"] if n["level"] == "info"]
     new_dirs = sorted({os.path.dirname(f["path"]) for f in plan["files"].values() if f.get("origin") == "new"})
     if new_dirs:
@@ -380,10 +414,18 @@ def render_report(target: Path, plan: dict, val: dict | None) -> str:
             lines.append(f"- Dry run: exit code {dr['exit_code']}, {len(dr['changes'])} change line(s)")
             lines += [f"  - {c}" for c in dr["changes"]]
             lines += [f"  - note: {n}" for n in dr["notes"]]
+        else:
+            lines.append("- Dry run: not run (`validate --no-dry-run`)")
         lines.append(f"- Overall: **{'PASS' if val['passed'] else 'FAIL'}**")
+    else:
+        lines += ["", "## Validation", "", "Not run for this plan and placement. Run `validate` before committing."]
     files = ["default.yml"] + sorted(f["file"] for f in plan["fleets"] if f["file"] != "default.yml")
+    script = Path(__file__).resolve()
     lines += ["", "## Rerun the dry run", "",
-              "Export the variables above with their real values (for example from a local `.env` that's never committed), then:", "",
+              "Put the variables above in the repo's `.env` (never committed), then run the same checks again:", "",
+              "```bash", f"python3 {script} validate --dir {target}", "```", "",
+              "Or run fleetctl yourself with the variables exported. A shell reads `.env` with its own quoting rules, and "
+              "multi-line values (SSO metadata) need the indentation `.github/fleet-gitops/gitops.sh` describes:", "",
               "```bash", f"cd {target}", "set -a; . ./.env; set +a",
               "fleetctl gitops " + " ".join(f"-f {f}" for f in files) + " --delete-other-fleets --dry-run", "```", ""]
     return "\n".join(lines)

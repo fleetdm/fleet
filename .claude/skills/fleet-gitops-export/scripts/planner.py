@@ -161,7 +161,9 @@ class Planner:
     # ------------------------------------------------------------ bookkeeping
 
     def note(self, level, scope, item, message):
-        self.notes.append({"level": level, "scope": scope, "item": item, "message": message})
+        n = {"level": level, "scope": scope, "item": item, "message": message}
+        if n not in self.notes:  # multi-package titles reach the same note once per package
+            self.notes.append(n)
 
     def count(self, scope, kind, n=1):
         self.counts.setdefault(scope, {}).setdefault(kind, 0)
@@ -224,11 +226,17 @@ class Planner:
         return True
 
     def _plain_secret_gap(self, item: dict, scope: str, name: str, fix: str = "take the secret out of it") -> bool:
-        """Leave out an item that holds an enroll secret where fleetctl doesn't fill in variables (scripts, activations)."""
+        """Leave out an item that holds an enroll secret where it can't be a variable (see collect._mark_secrets).
+
+        An item that's kept but has a short secret's characters inside a longer word gets a warning.
+        """
         if self._short_secret_gap(item, scope, name):
             return True
         refs = item.get("plain_secret_refs")
         if not refs:
+            if item.get("short_secret_in_word"):
+                self.note("warn", scope, name, f"contains the characters of an enroll secret shorter than {MIN_SECRET_LEN} "
+                                               "characters inside a longer word; check it before committing")
             return False
         names = sorted({self._enroll_secret_name(src["team"], src["index"])[0] for src in refs})
         self.note("gap", scope, name,
@@ -746,10 +754,10 @@ class Planner:
         self._profiles(sc, fleet, scope)
         assets = []
         for asset in sc.get("assets") or []:
-            if self._short_secret_gap(asset, scope, asset["name"]):
-                continue
             if not exact_name_ok(asset["name"] + ".json"):
                 self.note("gap", scope, asset["name"], "Fleet names a DDM asset after its file, and this name can't be a file name; rename the asset in Fleet, then export again")
+                continue
+            if self._plain_secret_gap(asset, scope, asset["name"]):
                 continue
             body, escape, refs = self._content_with_env_refs(asset)
             fid = self.add_file("asset", "macos", asset["name"] + ".json", content=body, exact=True, fleet=scope, escape=escape)
@@ -787,7 +795,7 @@ class Planner:
             se["end_user_local_account_type"] = api_se["end_user_local_account_type"]
         setup = sc.get("setup") or {}
         dep = setup.get("enrollment_profile")
-        if dep:
+        if dep and not self._plain_secret_gap(dep, scope, f"setup_experience.apple_setup_assistant ({dep.get('name') or 'ADE profile'})"):
             body = dep.get("enrollment_profile") or dep.get("profile")
             name = dep.get("name") or f"{slugify(scope)}.dep.json"
             content = (json.dumps(body, indent=2, ensure_ascii=False) + "\n").encode() if not isinstance(body, str) else body.encode()
@@ -835,7 +843,7 @@ class Planner:
         mobile = fleet.get("template") and fleet["template"] == self._mobile_template()
         for p in sc.get("profiles") or []:
             content, name, plat = p["content"], p.get("name", ""), p.get("platform")
-            if self._plain_secret_gap(p, scope, name, "take the secret out of its activation"):
+            if self._plain_secret_gap(p, scope, name):
                 continue
             text = text_of(content)
             opts = {}
@@ -1070,9 +1078,9 @@ class Planner:
         for t in sw.get("titles", []):
             pkg, app = t.get("software_package"), t.get("app_store_app")
             title = t.get("name", "")
+            if (pkg or app) and self._plain_secret_gap(t, scope, title):
+                continue
             if pkg:
-                if self._plain_secret_gap(t, scope, title, "take the secret out of its scripts and pre-install query"):
-                    continue
                 if pkg.get("name", "").lower().endswith(".ipa"):
                     if pkg["name"] in seen_ipa:
                         continue
@@ -1199,7 +1207,13 @@ class Planner:
                 entry["path"] = {"$file": fid}
             else:
                 entry["hash_sha256"] = pkg.get("hash_sha256")
-                self.note("warn", scope, title, "script package contents don't match its hash; referenced by hash_sha256 instead of a file")
+                if not pkg.get("hash_sha256"):
+                    why = "Fleet returned no hash for it"
+                elif hashlib.sha256(content).hexdigest() != pkg["hash_sha256"]:
+                    why = "Fleet's copy doesn't match its hash"
+                else:
+                    why = "its file name can't be referenced with `path:`"
+                self.note("warn", scope, title, f"script package referenced by hash_sha256 instead of a file: {why}")
             common(entry, pkg)
             if pkg.get("post_install_script"):
                 entry["post_install_script"] = {"path": {"$file": side("post-install", pkg["post_install_script"], script_ext)}}
@@ -1233,7 +1247,7 @@ class Planner:
             p_ext = os.path.splitext(p.get("name") or fname)[1]
             ids = _package_ids(t, p_ext)
             for key, suffix in (("install_script", "install"), ("uninstall_script", "uninstall"), ("post_install_script", "post-install")):
-                if p.get(key) and not is_default_script(key, p_ext, p[key], ids, fleetd=_is_fleetd(t)):
+                if p.get(key) and not is_default_script(key, p_ext, p[key], ids):
                     item[key] = {"path": {"$file": self.add_file("software_file", platform, f"{prefix}-{suffix}{script_ext}",
                                                                  content=p[key].encode(), exact=True, fleet=scope)}}
             if p.get("pre_install_query"):
@@ -1581,7 +1595,7 @@ def _software_identities(t: dict, keep_fma_scripts=()):
             ext = os.path.splitext(p.get("name") or pkg.get("name", ""))[1]
             for key in ("install_script", "uninstall_script", "post_install_script"):
                 if not (is_script and key == "install_script"):
-                    f[key] = _script_field(p.get(key), is_default_script(key, ext, p.get(key), _package_ids(t, ext), fleetd=_is_fleetd(t)))
+                    f[key] = _script_field(p.get(key), is_default_script(key, ext, p.get(key), _package_ids(t, ext)))
             # Keyed by URL when there is one: packages whose URL names no version don't pin a hash.
             yield f"package:{(not is_script and p.get('url')) or p.get('hash_sha256') or pkg.get('hash_sha256')}", f
     elif app:
@@ -1679,25 +1693,17 @@ def _package_ids(t: dict, ext: str) -> dict:
     return {}
 
 
-def _is_fleetd(t: dict) -> bool:
-    """Is the title fleetd's .pkg? Fleet checks the package IDs for this prefix (file.IsFleetdPkg); the API returns the bundle ID."""
-    return (t.get("bundle_identifier") or "").startswith("com.fleetdm.orbit")
-
 
 def _url_names_version(url: str, version: str | None) -> bool:
     """Does the download URL's path name the package's version (so the bytes behind it shouldn't change)?
 
     Only a whole version counts: "8.1" doesn't match "18.1" or "8.1.2", and the host and query are ignored.
-    A file named for a channel ("latest.rpm" under "/8.1/", say) can still be replaced, so it never counts,
-    and a file under a channel folder ("/latest/app.rpm") counts only when the path names the version.
+    A file named for a channel ("latest.rpm" under "/8.1/", say) can still be replaced, so it never counts.
+    Without a version there's nothing to look for, so the URL doesn't count either.
     """
     path = unquote(urlparse(url).path)
-    channel = r"(?<![A-Za-z])(?:latest|current|stable|nightly)(?![A-Za-z])"
-    folder, _, filename = path.rpartition("/")
-    if re.search(channel, filename, re.I):
+    if not version or re.search(r"(?<![A-Za-z])(?:latest|current|stable|nightly)(?![A-Za-z])", path.rpartition("/")[2], re.I):
         return False
-    if not version:
-        return not re.search(channel, folder, re.I)
     v = version.split(":")[-1]  # Debian epoch
     return any(c and re.search(r"(?<![0-9A-Za-z])(?<![0-9]\.)[vV]?" + re.escape(c) + r"(?![0-9A-Za-z])(?!\.[0-9])", path)
                for c in (v, re.split(r"[-+~]", v)[0]))

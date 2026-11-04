@@ -109,20 +109,28 @@ class Placer:
     def place(self):
         pristine = self.work / "pristine"
         restored = [str(p.relative_to(pristine)) for p in pristine.rglob("*") if p.is_file()]
-        for rel in [f["path"] for f in self.files.values()] + [f["file"] for f in self.plan["fleets"]] + self.plan["remove"] + restored:
+        for rel in [f["path"] for f in self.files.values()] + [f["file"] for f in self.plan["fleets"]] + self._removals() + restored:
             self.target(rel)
-        self._restore()
-        for f in self.files.values():
-            self._write_file(f)
-        for fleet in self.plan["fleets"]:
-            self._write_fleet(fleet)
-        self._remove()
-        if self.plan["exceptions"].get("labels"):
-            doc = Doc((self.root / "default.yml").read_text(encoding="utf-8"))
-            doc.comment_out(["labels"])
-            (self.root / "default.yml").write_text(doc.text(), encoding="utf-8")
-        self._env_docs()
-        (self.work / "placed.json").write_text(json.dumps(sorted(set(self.written)), indent=2), encoding="utf-8")
+        placed = self.work / "placed.json"
+        earlier = json.loads(placed.read_text()) if placed.exists() else []
+        done = False
+        try:
+            self._restore()
+            for f in self.files.values():
+                self._write_file(f)
+            for fleet in self.plan["fleets"]:
+                self._write_fleet(fleet)
+            self._remove()
+            if self.plan["exceptions"].get("labels"):
+                doc = Doc((self.root / "default.yml").read_text(encoding="utf-8"))
+                doc.comment_out(["labels"])
+                (self.root / "default.yml").write_text(doc.text(), encoding="utf-8")
+            self._env_docs()
+            done = True
+        finally:
+            # After a failure, the next place still removes what this one and the last one wrote.
+            paths = set(self.written) if done else set(self.written) | set(earlier)
+            placed.write_text(json.dumps(sorted(paths), indent=2), encoding="utf-8")
 
     def _restore(self):
         """Put the scaffold back the way fleetctl new left it, so placing twice gives the same result."""
@@ -263,9 +271,13 @@ class Placer:
 
     # ------------------------------------------------------------ cleanup and docs
 
+    def _removals(self) -> list:
+        """The plan's removals, plus every scaffold example no file occupies now (plan.json paths may have been edited)."""
+        return sorted(set(self.plan["remove"]) | set(self.layout.data.get("examples") or []))
+
     def _remove(self):
         written = set(self.written)
-        for rel in self.plan["remove"]:
+        for rel in self._removals():
             if rel in written:
                 continue
             p = self.target(rel)

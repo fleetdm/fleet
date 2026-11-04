@@ -34,6 +34,12 @@ def _team_id(obj):
     return v
 
 
+def _word(secret: str, raw: bool):
+    """A short secret as a whole word, for text or (raw) UTF-8 bytes."""
+    p = r"(?<![A-Za-z0-9])" + re.escape(secret) + r"(?![A-Za-z0-9])"
+    return p.encode() if raw else p
+
+
 class Collector:
     def __init__(self, api: API, log=print):
         self.api = api
@@ -73,9 +79,10 @@ class Collector:
         secrets = (api.json(f"{F}/spec/enroll_secret").get("spec") or {}).get("secrets") or []
         snap["enroll_secret_count"] = len(secrets)
         self._secret_values = [(s.get("secret"), {"type": "enroll_secret", "team": None, "index": i}) for i, s in enumerate(secrets)]
-        snap["custom_host_vitals"] = api.paged(f"{F}/custom_host_vitals", "custom_host_vitals")
+        snap["custom_host_vitals"] = self._paged_if_present(f"{F}/custom_host_vitals", "custom_host_vitals")
         snap["certificate_authorities"] = api.json(f"{F}/spec/certificate_authorities").get("certificate_authorities") or {}
-        snap["graph_credentials"] = api.json(f"{F}/microsoft_graph_credentials").get("microsoft_graph_credentials") or [] if premium else []
+        graph = api.maybe_json(f"{F}/microsoft_graph_credentials") if premium else None
+        snap["graph_credentials"] = (graph or {}).get("microsoft_graph_credentials") or []
         snap["vpp_tokens"] = api.json(f"{F}/vpp_tokens").get("vpp_tokens") or [] if premium else []
         snap["eula"] = self._eulas(flags) if premium else {}
         snap["logos"] = self._logos(cfg.get("org_info") or {})
@@ -98,30 +105,43 @@ class Collector:
     def _mark_secrets(self, scopes):
         """Mark items holding an enroll secret.
 
-        Profiles and DDM assets get the spans (`env_refs`), which become variables. fleetctl sends
-        scripts, setup scripts, software scripts, and activations as-is, so those only get which
-        secrets (`plain_secret_refs`), and the item is left out.
+        Profiles and DDM assets get the spans (`env_refs`), which become variables. Anything fleetctl
+        sends as-is (scripts, setup scripts, ADE profiles, activations, every value of a software title),
+        and any body that isn't UTF-8, only gets which secrets (`plain_secret_refs`), and the item is left out.
+        A short secret as a whole word does the same (`short_secret_refs`); inside a word it's flagged
+        (`short_secret_in_word`) for the planner to warn about if it writes the item.
         """
         values = [(v, src) for v, src in self._secret_values if v and len(v) >= MIN_SECRET_LEN]
-        # Too short to replace safely: a whole-token match keeps the item out of the repo, any other match is a warning.
-        short = [(v, re.compile(r"(?<![A-Za-z0-9])" + re.escape(v) + r"(?![A-Za-z0-9])"), src)
-                 for v, src in self._secret_values if v and len(v) < MIN_SECRET_LEN]
+        short = [(v, src) for v, src in self._secret_values if v and len(v) < MIN_SECRET_LEN]
 
-        def scan(sc, owner, name, body, spans_key):
-            try:
-                text = body.decode("utf-8") if isinstance(body, bytes) else body or ""
-            except UnicodeDecodeError:
+        def add(owner, key, found):
+            if found:
+                refs = owner.setdefault(key, [])
+                refs.extend(s for s in found if s not in refs)
+
+        def scan(owner, body, spans_key="plain_secret_refs"):
+            if isinstance(body, (dict, list)):
+                for v in list(body.values() if isinstance(body, dict) else body):
+                    scan(owner, v, spans_key)
                 return
-            whole = [src for _, p, src in short if p.search(text)]
+            if not body or not isinstance(body, (str, bytes)):
+                return
+            text = body
+            if isinstance(body, bytes):
+                try:
+                    text = body.decode("utf-8")
+                except UnicodeDecodeError:
+                    # Matched as bytes, in the encodings a profile can use; it can't take a variable.
+                    spans_key = "plain_secret_refs"
+            raw = isinstance(text, bytes)
+            whole = [src for v, src in short if re.search(_word(v, raw), text)]
             if whole:
-                owner.setdefault("short_secret_refs", []).extend(s for s in whole if s not in owner["short_secret_refs"])
-            elif any(v in text for v, _, _ in short):
-                self.warn(sc.get("name"), name, f"contains the characters of an enroll secret shorter than {MIN_SECRET_LEN} "
-                                                "characters inside a longer word; check it before committing")
+                add(owner, "short_secret_refs", whole)
+            elif any((v.encode() if raw else v) in text for v, _ in short):
+                owner["short_secret_in_word"] = True
             if spans_key == "plain_secret_refs":
-                found = [src for v, src in values if v in text]
-                if found:
-                    owner.setdefault(spans_key, []).extend(s for s in found if s not in owner[spans_key])
+                add(owner, spans_key, [src for v, src in values
+                                       if any(f in text for f in ([v.encode(e) for e in ("utf-8", "utf-16-le", "utf-16-be")] if raw else [v]))])
                 return
             spans = []
             for v, src in values:
@@ -139,19 +159,25 @@ class Collector:
 
         for sc in scopes:
             for item in (sc.get("profiles") or []) + (sc.get("assets") or []):
-                scan(sc, item, item.get("name"), item["content"], "env_refs")
-                if item.get("activation"):
-                    scan(sc, item, item.get("name"), item["activation"], "plain_secret_refs")
+                scan(item, item["content"], "env_refs")
+                scan(item, item.get("activation"))
             for item in sc.get("scripts") or []:
-                scan(sc, item, item.get("name"), item["content"], "plain_secret_refs")
-            setup_script = (sc.get("setup") or {}).get("script")
-            if setup_script:
-                scan(sc, setup_script, setup_script.get("name"), setup_script["content"], "plain_secret_refs")
+                scan(item, item["content"])
+            setup = sc.get("setup") or {}
+            for key in ("script", "enrollment_profile"):
+                if isinstance(setup.get(key), dict):
+                    scan(setup[key], setup[key])
             for t in (sc.get("software") or {}).get("titles") or []:
-                for pkg in [t.get("software_package") or {}] + (t.get("packages") or []):
-                    for key in ("install_script", "uninstall_script", "post_install_script", "pre_install_query"):
-                        if pkg.get(key):
-                            scan(sc, t, t.get("name"), pkg[key], "plain_secret_refs")
+                scan(t, {k: v for k, v in t.items() if k != "icon"})
+
+    def _paged_if_present(self, path: str, key: str) -> list:
+        """A list endpoint that older servers don't have (custom host vitals arrived in 4.90): empty there."""
+        try:
+            return self.api.paged(path, key)
+        except FleetctlError as e:
+            if e.status == 404:
+                return []
+            raise
 
     # ------------------------------------------------------------ global
 
@@ -177,7 +203,7 @@ class Collector:
                 if body:
                     out[mode] = body
                 else:
-                    self.warn("global", f"org logo ({mode})", "the org logo URL points at Fleet but Fleet has no logo stored; the URL is exported as-is")
+                    self.warn("Global", f"org logo ({mode})", "the org logo URL points at Fleet but Fleet has no logo stored; the URL is exported as-is")
         return out
 
     # ------------------------------------------------------------ per scope

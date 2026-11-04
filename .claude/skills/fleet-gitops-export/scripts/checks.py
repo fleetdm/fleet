@@ -12,6 +12,7 @@ the settings and controls Fleet reports that aren't held in variables.
 
 from __future__ import annotations
 
+import fnmatch
 import glob as globlib
 import hashlib
 import importlib.util
@@ -35,6 +36,7 @@ MISSING = "(missing file)"
 PATH_KEYS = {"path", "paths", "package_path", "activation", "apple_setup_assistant", "macos_script",
              "end_user_license_agreement", "windows_eula", "org_logo_path_light_mode", "org_logo_path_dark_mode"}
 IGNORED_ROOTS = (".github/", ".agents/", ".claude/", ".git/")
+JUNK_FILES = {".gitkeep", ".DS_Store", "Thumbs.db", "desktop.ini"}  # never referenced, and that's fine
 IGNORED_FILES = {"README.md", "AGENTS.md", "CLAUDE.md", "GEMINI.md", ".gitignore", ".gitlab-ci.yml", ".env.example", ".env"}
 
 
@@ -66,8 +68,39 @@ KIND_NAMES = {"policies": "policy", "reports": "report", "labels": "label", "scr
 LABEL_KEYS = ("labels_include_any", "labels_exclude_any", "labels_include_all")
 # Settings whose omitted value isn't false.
 OMITTED = {("controls", "enable_profile_validation"): True}
-# Settings keyed by kind, where the repo's other keys are read too: a kind only the repo has is an addition.
-KEYED_SECTIONS = ("org_settings.integrations", "org_settings.certificate_authorities")
+# Settings where the repo's other keys are read too, so a key only the repo has (a kind, a Premium-only flag) is an addition.
+KEYED_SECTIONS = ("org_settings.integrations", "org_settings.certificate_authorities", "org_settings.sso_settings")
+
+
+def _hashable(v):
+    """An item key as reconcile indexes it; a YAML list or mapping where a name belongs still gets compared."""
+    return v if isinstance(v, (str, int, float, bool, type(None))) else json.dumps(v, sort_keys=True, default=str)
+
+
+def _as_list(v) -> list:
+    """A YAML item file's entries: fleetctl also accepts a single mapping."""
+    return v if isinstance(v, list) else [v] if isinstance(v, dict) else []
+
+
+def _gitignore(root: Path):
+    """A matcher for the repo's .gitignore (plain patterns; enough for what the scaffold and users add)."""
+    try:
+        lines = (root / ".gitignore").read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeDecodeError):
+        lines = []
+    pats = [ln.strip() for ln in lines if ln.strip() and not ln.lstrip().startswith(("#", "!"))]
+
+    def ignored(rel: str) -> bool:
+        parts = rel.split("/")
+        for p in pats:
+            p = p.rstrip("/")
+            if "/" in p.lstrip("/"):
+                if fnmatch.fnmatch(rel, p.lstrip("/")) or fnmatch.fnmatch(rel, p.lstrip("/") + "/*"):
+                    return True
+            elif any(fnmatch.fnmatch(part, p) for part in parts):
+                return True
+        return False
+    return ignored
 
 
 def _sha(b: bytes) -> str:
@@ -163,6 +196,7 @@ class Checker:
         self.env_sources = {e["name"]: e["source"] for e in plan.get("env") or []}
         self.env_values: dict | None = None
         self.env_notes: list = []
+        self.compared = False  # set once reconcile or the dry run compares the repo with Fleet
 
     def fail(self, section, message):
         self.results[section].append({"level": "FAIL", "message": message})
@@ -178,12 +212,19 @@ class Checker:
             self.warn("static", "the scaffold has no fleet-gitops validator; skipped")
             return
         args = [sys.executable, str(script), str(self.root)] + (["--offline"] if offline else [])
-        r = subprocess.run(args, capture_output=True, text=True, timeout=900)
+        try:
+            r = subprocess.run(args, capture_output=True, text=True, timeout=900)
+        except (OSError, subprocess.SubprocessError) as e:
+            self.warn("static", f"the fleet-gitops validator didn't finish ({e}); its checks were skipped")
+            return
         for ln in r.stdout.splitlines():
             m = re.match(r"\s*(FAIL|WARN)\b[:\s]*(.*)", ln)
             if m:
                 self.results["static"].append({"level": m.group(1), "message": m.group(2)})
         self.results["validator_exit"] = r.returncode
+        if r.returncode and not self.results["static"]:
+            last = (r.stderr.strip().splitlines() or ["no output"])[-1]
+            self.warn("static", f"the fleet-gitops validator exited {r.returncode} without reporting findings ({last}); its checks didn't run")
 
     def load_repo(self):
         """Parse every YAML file fleetctl would read, starting from default.yml and fleets/*.yml."""
@@ -199,6 +240,10 @@ class Checker:
                 self.docs[rel] = load_yaml(unescape_env((self.root / rel).read_text(encoding="utf-8")), self.backend)
             except Exception as e:  # noqa: BLE001 - either parser's error
                 self.fail("references", f"{rel}: YAML doesn't parse: {e}")
+        for t in tops:
+            if t in self.docs and not isinstance(self.docs[t], dict):
+                self.fail("references", f"{t} isn't a YAML mapping, so fleetctl can't read it")
+                self.docs[t] = {}
         self.tops = [t for t in tops if t in self.docs]
         return True
 
@@ -228,10 +273,11 @@ class Checker:
             self._refs(rel, self.docs.get(rel), refs)
             self.edges[rel] = refs
             for key, target, kp in refs:
+                if not self._inside(target):
+                    missing.append(f"{rel}: {'.'.join(map(str, kp))} points at {target}, which is outside the repo")
+                    continue
                 if key == "paths":
-                    matches = [str(Path(m).relative_to(self.root)).replace(os.sep, "/")
-                               for m in globlib.glob(str(self.root / target)) if Path(m).is_file()]
-                    for m in matches:
+                    for m in self._glob(target):
                         referenced.add(m)
                         if m.endswith((".yml", ".yaml")):
                             queue.append(m)
@@ -246,10 +292,11 @@ class Checker:
         for m in missing:
             self.fail("references", m)
         orphans = []
+        ignored = _gitignore(self.root)
         for p in self.root.rglob("*"):
             rel = str(p.relative_to(self.root)).replace(os.sep, "/")
-            if not p.is_file() or rel.startswith(IGNORED_ROOTS) or rel in IGNORED_FILES or p.name == ".gitkeep" \
-                    or rel in self.tops or rel in referenced:
+            if not p.is_file() or rel.startswith(IGNORED_ROOTS) or rel in IGNORED_FILES or p.name in JUNK_FILES \
+                    or rel in self.tops or rel in referenced or ignored(rel):
                 continue
             orphans.append(rel)
         for o in orphans:
@@ -264,17 +311,30 @@ class Checker:
             node = (node or {}).get(k) if isinstance(node, dict) else None
         out = []
         base = os.path.dirname(top)
-        for entry in node or []:
+        for entry in node if isinstance(node, list) else []:
             if not isinstance(entry, dict):
                 continue
-            if "paths" in entry:
-                pattern = os.path.normpath(os.path.join(base, entry["paths"]))
-                for m in sorted(globlib.glob(str(self.root / pattern))):
-                    out.append((str(Path(m).relative_to(self.root)).replace(os.sep, "/"), entry))
-            elif "path" in entry:
-                out.append((os.path.normpath(os.path.join(base, entry["path"])).replace(os.sep, "/"), entry))
+            if isinstance(entry.get("paths"), str):
+                pattern = os.path.normpath(os.path.join(base, entry["paths"])).replace(os.sep, "/")
+                out.extend((m, entry) for m in (self._glob(pattern) if self._inside(pattern) else []))
+            elif isinstance(entry.get("path"), str):
+                p = os.path.normpath(os.path.join(base, entry["path"])).replace(os.sep, "/")
+                out.append((p if self._inside(p) else MISSING, entry))
             else:
                 out.append((None, entry))
+        return out
+
+    def _inside(self, rel: str) -> bool:
+        return not (os.path.isabs(rel) or rel == ".." or rel.startswith("../"))
+
+    def _glob(self, pattern: str) -> list:
+        """Repo files a `paths` glob matches, as repo-relative paths."""
+        root = self.root.resolve()
+        out = []
+        for m in sorted(globlib.glob(str(self.root / pattern))):
+            p = Path(m)
+            if p.is_file() and p.resolve().is_relative_to(root):
+                out.append(str(p.relative_to(self.root)).replace(os.sep, "/"))
         return out
 
     def _yaml_items(self, top: str, section: list):
@@ -283,7 +343,7 @@ class Checker:
         out = []
         for path, entry in self._items(top, section):
             if path and path.endswith((".yml", ".yaml")):
-                out.extend((os.path.dirname(path), item) for item in self.docs.get(path) or [] if isinstance(item, dict))
+                out.extend((os.path.dirname(path), item) for item in _as_list(self.docs.get(path)) if isinstance(item, dict))
             elif path is None:
                 out.append((os.path.dirname(top), entry))
         return out
@@ -318,7 +378,7 @@ class Checker:
         return self._hash(path) if path else None
 
     def _query(self, base: str, ref):
-        items = self.docs.get(self._ref(base, ref) or "") or []
+        items = _as_list(self.docs.get(self._ref(base, ref) or ""))
         return items[0].get("query") if items and isinstance(items[0], dict) else None
 
     def _app_config(self, base: str, ref, platform: str):
@@ -355,7 +415,7 @@ class Checker:
         if inst.get("app_store_id"):
             return f"app:{inst['app_store_id']}"
         if inst.get("package_path"):
-            items = self.docs.get(self._ref(base, {"path": inst["package_path"]})) or []
+            items = _as_list(self.docs.get(self._ref(base, {"path": inst["package_path"]})))
             first = items[0] if items and isinstance(items[0], dict) else {}
             return f"package:{first.get('url') or first.get('hash_sha256')}"
         return f"package:{inst.get('hash_sha256')}"
@@ -420,7 +480,7 @@ class Checker:
                 v = _walk(node, [k])
                 values[k] = OMITTED.get((section, k)) if v is None and (section, k) in OMITTED else self._strip_env(v)
             if section in KEYED_SECTIONS and isinstance(node, dict):
-                values.update({k: self._strip_env(v) for k, v in node.items() if k not in fields})
+                values.update({k: v for k, v in self._strip_env(node).items() if k not in fields})
             found["settings"].append([section, values])
         for path, _ in self._items(top, ["controls", "scripts"]):
             if path:
@@ -442,25 +502,25 @@ class Checker:
         for path, _ in self._items(top, ["controls", "apple_settings", "assets"]):
             if path:
                 found["assets"].append([os.path.splitext(os.path.basename(path))[0], {"sha256": self._hash(path, expanded=True)}])
-        sw = doc.get("software") or {}
-        for entry in sw.get("packages") or []:
+        sw = doc.get("software") if isinstance(doc.get("software"), dict) else {}
+        for entry in _as_list(sw.get("packages")):
             if not isinstance(entry, dict):
                 continue
             path = self._ref(base, entry)
             if path and path.endswith((".yml", ".yaml")):
-                for item in self.docs.get(path) or []:
+                for item in (i for i in _as_list(self.docs.get(path)) if isinstance(i, dict)):
                     found["software"].append([f"package:{item.get('url') or item.get('hash_sha256')}",
                                               self._software_fields(item, os.path.dirname(path), entry)])
             elif path:
                 found["software"].append([f"package:{self._hash(path)}", self._software_fields(entry, base, entry)])
             else:
                 found["software"].append([f"package:{entry.get('hash_sha256')}", self._software_fields(entry, base, entry)])
-        for item in sw.get("fleet_maintained_apps") or []:
+        for item in _as_list(sw.get("fleet_maintained_apps")):
             if isinstance(item, dict):
                 f = self._software_fields(item, base, item)
                 f["version"] = item.get("version")
                 found["software"].append([f"fma:{item.get('slug')}", f])
-        for item in sw.get("app_store_apps") or []:
+        for item in _as_list(sw.get("app_store_apps")):
             if not isinstance(item, dict):
                 continue
             ident, platform = f"app:{item.get('app_store_id')}:{item.get('platform', '')}", item.get("platform", "")
@@ -485,42 +545,51 @@ class Checker:
         for top in self.tops:
             if planned and top not in planned:
                 self.fail("reconcile", f"{top} isn't a fleet in Fleet (applying would create it)")
+        self.compared = True
         for top in planned + [t for t in inventory if t not in planned]:
-            kinds = inventory.get(top) or {}
             if top not in self.docs:
-                self.fail("reconcile", f"{top} is missing (applying would remove what Fleet has for it)")
+                if (self.root / top).exists():
+                    self.fail("reconcile", f"{top} doesn't parse, so it wasn't compared (applying would fail)")
+                else:
+                    self.fail("reconcile", f"{top} is missing (applying would remove what Fleet has for it)")
                 continue
-            found = self._found(top, kinds.get("settings") or [])
-            managed = [k for k in KIND_NAMES if not exceptions.get(k)]
-            for kind in managed + [k for k in kinds if k not in managed]:
-                want_list = kinds.get(kind) or []
-                if kind not in found:
-                    self.fail("reconcile", f"{top}: the check doesn't know how to compare {kind!r}; treat it as unverified")
-                    continue
-                what = KIND_NAMES[kind]
-                want = dict(map(tuple, want_list))
-                got_list = found[kind]
-                got = dict(map(tuple, got_list))
-                keys = [k for k, _ in got_list]
-                for n in sorted(set(want) - set(got), key=str):
-                    self.fail("reconcile", f"{top}: {what} {n!r} is in Fleet but not in the repo (applying would delete it)")
-                for n in sorted(set(got) - set(want), key=str):
-                    self.fail("reconcile", f"{top}: {what} {n!r} is in the repo but not in Fleet (applying would create it)")
-                for n in sorted({k for k in keys if keys.count(k) > 1}, key=str):
-                    self.fail("reconcile", f"{top}: {what} {n!r} is defined more than once")
-                for n in sorted(set(want) & set(got), key=str):
-                    extra = sorted(set(got[n]) - set(want[n])) if kind == "settings" else []
-                    for field in extra:
-                        if _norm(got[n][field]) is not None:
-                            self.fail("reconcile", f"{top}: {what} {n!r}: {field} is in the repo but not in Fleet (applying would create it)")
-                    for field, fleet_value in want[n].items():
-                        if got[n].get(field) == UNCHECKED:
-                            self.warn("reconcile", f"{top}: {what} {n!r}: {field} not compared; the file holds variables "
-                                                   "whose values validate only fetches when it runs the dry run")
-                            continue
-                        if not _same(fleet_value, got[n].get(field)):
-                            self.fail("reconcile", f"{top}: {what} {n!r}: {field} is {_short(got[n].get(field))} in the repo "
-                                                   f"but {_short(fleet_value)} in Fleet (applying would change it)")
+            try:
+                self._reconcile_file(top, inventory.get(top) or {}, exceptions)
+            except Exception as e:  # noqa: BLE001 - YAML of an unexpected shape; the other files are still compared
+                self.fail("reconcile", f"{top}: couldn't be compared ({type(e).__name__}: {e}); check its YAML")
+
+    def _reconcile_file(self, top: str, kinds: dict, exceptions: dict):
+        found = self._found(top, kinds.get("settings") or [])
+        managed = [k for k in KIND_NAMES if not exceptions.get(k)]
+        for kind in managed + [k for k in kinds if k not in managed]:
+            want_list = kinds.get(kind) or []
+            if kind not in found:
+                self.fail("reconcile", f"{top}: the check doesn't know how to compare {kind!r}; treat it as unverified")
+                continue
+            what = KIND_NAMES[kind]
+            want = dict(map(tuple, want_list))
+            got_list = [[_hashable(k), v] for k, v in found[kind]]
+            got = dict(map(tuple, got_list))
+            keys = [k for k, _ in got_list]
+            for n in sorted(set(want) - set(got), key=str):
+                self.fail("reconcile", f"{top}: {what} {n!r} is in Fleet but not in the repo (applying would delete it)")
+            for n in sorted(set(got) - set(want), key=str):
+                self.fail("reconcile", f"{top}: {what} {n!r} is in the repo but not in Fleet (applying would create it)")
+            for n in sorted({k for k in keys if keys.count(k) > 1}, key=str):
+                self.fail("reconcile", f"{top}: {what} {n!r} is defined more than once")
+            for n in sorted(set(want) & set(got), key=str):
+                extra = sorted(set(got[n]) - set(want[n])) if kind == "settings" else []
+                for field in extra:
+                    if _norm(got[n][field]) is not None:
+                        self.fail("reconcile", f"{top}: {what} {n!r}: {field} is in the repo but not in Fleet (applying would create it)")
+                for field, fleet_value in want[n].items():
+                    if got[n].get(field) == UNCHECKED:
+                        self.warn("reconcile", f"{top}: {what} {n!r}: {field} not compared; the file holds variables "
+                                               "whose values validate only fetches when it runs the dry run")
+                        continue
+                    if not _same(fleet_value, got[n].get(field)):
+                        self.fail("reconcile", f"{top}: {what} {n!r}: {field} is {_short(got[n].get(field))} in the repo "
+                                               f"but {_short(fleet_value)} in Fleet (applying would change it)")
 
     # ------------------------------------------------------------ dry run
 
@@ -530,7 +599,11 @@ class Checker:
         cache: dict = {}
         # Agents often run commands in a shell the user can't export into, so values only the
         # user has come from the repo's gitignored .env first.
-        local = read_env_file(env_file) if env_file else {}
+        try:
+            local = read_env_file(env_file) if env_file else {}
+        except (OSError, UnicodeDecodeError) as ex:
+            local = {}
+            notes.append(f"{env_file}: couldn't read it ({ex}); the dry run used the environment only")
 
         def given(name):
             return local.get(name) or os.environ.get(name)
@@ -583,7 +656,7 @@ class Checker:
                     if not val:
                         val = PLACEHOLDER
                         notes.append(f"{name}: not set in .env or the environment; the dry run used a placeholder, so files using it weren't checked with the real value")
-            except (KeyError, IndexError, TypeError, FleetctlError) as ex:
+            except (KeyError, IndexError, TypeError, ValueError, OSError, subprocess.SubprocessError, FleetctlError) as ex:
                 val = PLACEHOLDER
                 notes.append(f"{name}: couldn't read it from Fleet ({ex}); the dry run used a placeholder")
             # fleetctl substitutes values into YAML as-is (bare `key: $NAME`), so one with YAML syntax in it
@@ -630,7 +703,12 @@ class Checker:
             self.env_values, self.env_notes = self.dry_run_env(api, env_file)
         env, notes = self.env_values, self.env_notes
         files = ["default.yml"] + sorted("fleets/" + p.name for p in (self.root / "fleets").glob("*.yml"))
-        r = fleetctl.gitops_dry_run(files, cwd=str(self.root), env=env)
+        try:
+            r = fleetctl.gitops_dry_run(files, cwd=str(self.root), env=env)
+        except (OSError, subprocess.SubprocessError, FleetctlError) as e:
+            self.fail("reconcile", f"fleetctl gitops --dry-run couldn't run: {e}")
+            return
+        self.compared = True
         out = (r.stdout.decode(errors="replace") + r.stderr.decode(errors="replace"))
         changes = [ln for ln in out.splitlines()
                    if ln.startswith("[-]") or "would've deleted" in ln or "would've created" in ln or "would've moved" in ln]
@@ -649,6 +727,8 @@ class Checker:
     def summary(self) -> dict:
         # The fleet-gitops validator also flags content problems that came from Fleet as-is
         # (an unknown osquery table, say); they're reported but don't fail the export.
+        if not self.compared:
+            self.fail("reconcile", "nothing was compared with Fleet: the reconcile check needs PyYAML or Ruby, and the dry run was skipped")
         levels = [r["level"] for k in ("references", "reconcile") for r in self.results[k]]
         self.results["passed"] = "FAIL" not in levels
         self.results["yaml_backend"] = self.backend
