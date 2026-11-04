@@ -118,6 +118,7 @@ func TestMDMApple(t *testing.T) {
 		{"MDMAppleSetPendingDeclarationsAs", testMDMAppleSetPendingDeclarationsAs},
 		{"SetOrUpdateMDMAppleDeclaration", testSetOrUpdateMDMAppleDDMDeclaration},
 		{"DEPAssignmentUpdates", testMDMAppleDEPAssignmentUpdates},
+		{"MDMMigrationCompletedIsSticky", testMDMMigrationCompletedIsSticky},
 		{"GetHostDEPAssignmentsByHostIDs", testGetHostDEPAssignmentsByHostIDs},
 		{"TestMDMConfigAsset", testMDMConfigAsset},
 		{"ListIOSAndIPadOSToRefetch", testListIOSAndIPadOSToRefetch},
@@ -8433,6 +8434,89 @@ func testMDMAppleDEPAssignmentUpdates(t *testing.T, ds *Datastore) {
 	require.Equal(t, profileUUID2, *assignment.ProfileUUID)
 	require.NotNil(t, assignment.AssignProfileResponse)
 	require.Equal(t, fleet.DEPAssignProfileResponseFailed, *assignment.AssignProfileResponse)
+}
+
+func testMDMMigrationCompletedIsSticky(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(uuid.NewString()), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
+	require.NoError(t, err)
+
+	newHost := func(name string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:       name,
+			OsqueryHostID:  new("osquery-" + name),
+			NodeKey:        new("nodekey-" + name),
+			UUID:           "uuid-" + name,
+			Platform:       "darwin",
+			HardwareSerial: "serial-" + name,
+		})
+		require.NoError(t, err)
+		return h
+	}
+	firstDeadline := time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC)
+	secondDeadline := time.Date(2026, 11, 30, 0, 0, 0, 0, time.UTC)
+
+	upsertWithDeadline := func(h *fleet.Host, deadline time.Time) {
+		err := ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmToken.ID, map[uint]time.Time{h.ID: deadline})
+		require.NoError(t, err)
+	}
+	checkinInfo := func(h *fleet.Host) *fleet.HostMDMCheckinInfo {
+		info, err := ds.GetHostMDMCheckinInfo(ctx, h.UUID)
+		require.NoError(t, err)
+		return info
+	}
+	requireTime := func(want time.Time, got *time.Time) {
+		require.NotNil(t, got)
+		require.True(t, want.Equal(*got), "want %s, got %s", want, *got)
+	}
+
+	migrated := newHost("migrated")
+	upsertWithDeadline(migrated, firstDeadline)
+	info := checkinInfo(migrated)
+	require.True(t, info.MigrationInProgress)
+	requireTime(firstDeadline, info.MDMMigrationDeadline)
+	require.Nil(t, info.MDMMigrationCompleted)
+
+	require.NoError(t, ds.SetHostMDMMigrationCompleted(ctx, migrated.ID))
+	info = checkinInfo(migrated)
+	require.False(t, info.MigrationInProgress)
+	requireTime(firstDeadline, info.MDMMigrationCompleted)
+
+	// ABM reports a new deadline for an already-migrated host
+	upsertWithDeadline(migrated, secondDeadline)
+	info = checkinInfo(migrated)
+	require.False(t, info.MigrationInProgress)
+	requireTime(secondDeadline, info.MDMMigrationDeadline)
+	requireTime(firstDeadline, info.MDMMigrationCompleted)
+
+	// removing the ABM assignment clears the marker: ABM drops the deadline when a device leaves this
+	// server, so a deadline it comes back with is a new migration
+	removals := map[string]func() error{
+		"DeleteHostDEPAssignments": func() error {
+			return ds.DeleteHostDEPAssignments(ctx, abmToken.ID, []string{migrated.HardwareSerial})
+		},
+		"MarkHostDEPAssignmentDeleted": func() error { return ds.MarkHostDEPAssignmentDeleted(ctx, migrated.ID) },
+		"MarkHostDEPAssignmentsDeleted": func() error {
+			return ds.MarkHostDEPAssignmentsDeleted(ctx, []uint{migrated.ID})
+		},
+	}
+	for name, remove := range removals {
+		upsertWithDeadline(migrated, firstDeadline)
+		require.NoError(t, ds.SetHostMDMMigrationCompleted(ctx, migrated.ID), name)
+		require.False(t, checkinInfo(migrated).MigrationInProgress, name)
+
+		require.NoError(t, remove(), name)
+		info = checkinInfo(migrated)
+		require.False(t, info.DEPAssignedToFleet, name)
+		require.Nil(t, info.MDMMigrationDeadline, name)
+		require.Nil(t, info.MDMMigrationCompleted, name)
+
+		upsertWithDeadline(migrated, secondDeadline)
+		info = checkinInfo(migrated)
+		require.True(t, info.DEPAssignedToFleet, name)
+		require.True(t, info.MigrationInProgress, name)
+	}
 }
 
 func testGetHostDEPAssignmentsByHostIDs(t *testing.T, ds *Datastore) {
