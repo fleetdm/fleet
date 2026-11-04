@@ -1152,6 +1152,12 @@ def config_files(root):
 
 
 
+def check_removed_keys(ctx, src, data):
+    for removed in REMOVED_KEYS:
+        if has_key_path(data, removed.split(".")):
+            ctx.fail(src, f'The "{removed}" key is not available anymore. What to use instead: {MIGRATION_GUIDE}')
+
+
 def has_key_path(data, parts):
     """True if the dot-separated path exists in data; a trailing [] on a part means every element of that list."""
     name, is_list = (parts[0][:-2], True) if parts[0].endswith("[]") else (parts[0], False)
@@ -1186,9 +1192,13 @@ def run_checks(ctx):
         if not isinstance(data, dict):
             ctx.fail(src, "top level must be a mapping")
             continue
-        for removed in REMOVED_KEYS:
-            if has_key_path(data, removed.split(".")):
-                ctx.fail(src, f'The "{removed}" key is not available anymore. What to use instead: {MIGRATION_GUIDE}')
+        check_removed_keys(ctx, src, data)
+        org_ref = data.get("org_settings")
+        if isinstance(org_ref, dict) and isinstance(org_ref.get("path"), str) and not org_ref["path"].startswith("$"):
+            org_file = Path(src).parent / org_ref["path"]
+            org_data = load_yaml_file(ctx, org_file) if org_file.is_file() else None
+            if isinstance(org_data, dict):
+                check_removed_keys(ctx, org_file, {"org_settings": org_data})
         for k in list(data):
             if k in DEPRECATED_TOP_LEVEL:
                 ctx.warn(src, f"'{k}' is deprecated; use '{DEPRECATED_TOP_LEVEL[k]}'")

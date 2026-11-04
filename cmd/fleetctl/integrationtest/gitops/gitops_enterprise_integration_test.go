@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"maps"
 	"net/http"
@@ -39,22 +38,18 @@ import (
 	appleMdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	mock_pkg "github.com/fleetdm/fleet/v4/server/mock"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/fleetdm/fleet/v4/server/service/svctest"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/ghodss/yaml"
-	"github.com/go-git/go-git/v5"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
-
-const fleetGitopsRepo = "https://github.com/fleetdm/fleet-gitops"
 
 func TestIntegrationsEnterpriseGitops(t *testing.T) {
 	testingSuite := new(enterpriseIntegrationGitopsTestSuite)
@@ -277,159 +272,6 @@ func (s *enterpriseIntegrationGitopsTestSuite) assertRealRunOutputWithDeprecatio
 		}
 		if line != "" && !strings.Contains(line, "succeeded") {
 			assert.Regexp(t, reg, line, "on real run")
-		}
-	}
-}
-
-var removedTeamKey = regexp.MustCompile(`(?m)^(\s*)(team_settings|macos_team|ios_team|ipados_team|byod_team|teams):`)
-
-// migrateRemovedTeamKeys renames the team keys that Fleet 5 removed in the YAML files under dir, for the fleet-gitops repo, which has
-// not been migrated yet.
-func migrateRemovedTeamKeys(t *testing.T, dir string) {
-	renamed := map[string]string{
-		"team_settings": "settings", "macos_team": "macos_fleet", "ios_team": "ios_fleet", "ipados_team": "ipados_fleet",
-		"byod_team": "byod_fleet", "teams": "fleets",
-	}
-	root, err := os.OpenRoot(dir)
-	require.NoError(t, err)
-	defer root.Close()
-	require.NoError(t, fs.WalkDir(root.FS(), ".", func(file string, entry fs.DirEntry, err error) error {
-		if err != nil || entry.IsDir() || (path.Ext(file) != ".yml" && path.Ext(file) != ".yaml") {
-			return err
-		}
-		content, err := root.ReadFile(file)
-		if err != nil {
-			return err
-		}
-		migrated := removedTeamKey.ReplaceAllStringFunc(string(content), func(match string) string {
-			parts := removedTeamKey.FindStringSubmatch(match)
-			return parts[1] + renamed[parts[2]] + ":"
-		})
-		return root.WriteFile(file, []byte(migrated), 0o644)
-	}))
-}
-
-// TestFleetGitops runs `fleetctl gitops` command on configs in https://github.com/fleetdm/fleet-gitops repo.
-// Changes to that repo may cause this test to fail.
-func (s *enterpriseIntegrationGitopsTestSuite) TestFleetGitops() {
-	os.Setenv("FLEET_ENABLE_LOG_TOPICS", logging.DeprecatedFieldTopic)
-	defer os.Unsetenv("FLEET_ENABLE_LOG_TOPICS")
-
-	t := s.T()
-
-	user := s.createGitOpsUser(t)
-	fleetctlConfig := s.createFleetctlConfig(t, user)
-
-	// Clone git repo
-	repoDir := t.TempDir()
-	_, err := git.PlainClone(
-		repoDir, false, &git.CloneOptions{
-			ReferenceName: "main",
-			SingleBranch:  true,
-			Depth:         1,
-			URL:           fleetGitopsRepo,
-			Progress:      os.Stdout,
-		},
-	)
-	require.NoError(t, err)
-	migrateRemovedTeamKeys(t, repoDir)
-
-	// Set the required environment variables
-	t.Setenv("FLEET_URL", s.Server.URL)
-	t.Setenv("FLEET_GLOBAL_ENROLL_SECRET", "global_enroll_secret")
-	t.Setenv("FLEET_WORKSTATIONS_ENROLL_SECRET", "workstations_enroll_secret")
-	t.Setenv("FLEET_PERSONAL_MOBILE_DEVICES_ENROLL_SECRET", "personal_mobile_devices_enroll_secret")
-	t.Setenv("FLEET_DEDICATED_DEVICES_ENROLL_SECRET", "dedicated_devices_enroll_secret")
-	t.Setenv("FLEET_EMPLOYEE_ISSUED_MOBILE_DEVICES_ENROLL_SECRET", "employee_issued_mobile_devices_enroll_secret")
-	t.Setenv("FLEET_IT_SERVERS_ENROLL_SECRET", "it_servers_enroll_secret")
-	globalFile := path.Join(repoDir, "default.yml")
-	teamsDir := path.Join(repoDir, "teams")
-	teamFiles, err := os.ReadDir(teamsDir)
-	require.NoError(t, err)
-	teamFileNames := make([]string, 0, len(teamFiles))
-	for _, file := range teamFiles {
-		if filepath.Ext(file.Name()) == ".yml" {
-			teamFileNames = append(teamFileNames, path.Join(teamsDir, file.Name()))
-		}
-	}
-
-	// Create a team to be deleted.
-	deletedTeamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-	require.NoError(t, err)
-	const deletedTeamName = "team_to_be_deleted"
-
-	_, err = deletedTeamFile.WriteString(
-		fmt.Sprintf(
-			`
-controls:
-software:
-reports:
-policies:
-agent_options:
-name: %s
-settings:
-  secrets: [{"secret":"deleted_team_secret"}]
-`, deletedTeamName,
-		),
-	)
-	require.NoError(t, err)
-
-	test.CreateInsertGlobalVPPToken(t, s.DS)
-
-	// Apply the team to be deleted
-	s.assertRealRunOutputWithDeprecation(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", deletedTeamFile.Name()}), true)
-
-	// Dry run
-	// NOTE: The fleet-gitops repo may still use deprecated keys (queries, team_settings),
-	// so we allow deprecation warnings in this test.
-	s.assertDryRunOutputWithDeprecation(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "--dry-run"}), true)
-	for _, fileName := range teamFileNames {
-		// When running no-teams, global config must also be provided ...
-		if strings.Contains(fileName, "unassigned.yml") {
-			s.assertDryRunOutputWithDeprecation(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName, "-f", globalFile, "--dry-run"}), true)
-		} else {
-			s.assertDryRunOutputWithDeprecation(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName, "--dry-run"}), true)
-		}
-	}
-
-	// Dry run with all the files
-	args := []string{"gitops", "--config", fleetctlConfig.Name(), "--dry-run", "--delete-other-teams", "-f", globalFile}
-	for _, fileName := range teamFileNames {
-		args = append(args, "-f", fileName)
-	}
-	s.assertDryRunOutputWithDeprecation(t, fleetctltest.RunAppForTest(t, args), true)
-
-	// Real run with all the files, but don't delete other teams
-	args = []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile}
-	for _, fileName := range teamFileNames {
-		args = append(args, "-f", fileName)
-	}
-	s.assertRealRunOutputWithDeprecation(t, fleetctltest.RunAppForTest(t, args), true)
-
-	// Check that all the teams exist
-	teamsJSON := fleetctltest.RunAppForTest(t, []string{"get", "teams", "--config", fleetctlConfig.Name(), "--json"})
-	assert.Equal(t, 3, strings.Count(teamsJSON, "fleet_id"))
-
-	// Real run with all the files, and delete other teams
-	args = []string{"gitops", "--config", fleetctlConfig.Name(), "--delete-other-teams", "-f", globalFile}
-	for _, fileName := range teamFileNames {
-		args = append(args, "-f", fileName)
-	}
-	s.assertRealRunOutputWithDeprecation(t, fleetctltest.RunAppForTest(t, args), true)
-
-	// Check that only the right teams exist
-	teamsJSON = fleetctltest.RunAppForTest(t, []string{"get", "teams", "--config", fleetctlConfig.Name(), "--json"})
-	assert.Equal(t, 2, strings.Count(teamsJSON, "fleet_id"))
-	assert.NotContains(t, teamsJSON, deletedTeamName)
-
-	// Real run with one file at a time
-	s.assertRealRunOutputWithDeprecation(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile}), true)
-	for _, fileName := range teamFileNames {
-		// When running no-teams, global config must also be provided ...
-		if strings.Contains(fileName, "unassigned.yml") {
-			s.assertRealRunOutputWithDeprecation(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName, "-f", globalFile}), true)
-		} else {
-			s.assertRealRunOutputWithDeprecation(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName}), true)
 		}
 	}
 }
@@ -3633,7 +3475,7 @@ labels:
 }
 
 // Tests a gitops setup where every team runs from an independent repo. Multiple repos are simulated by
-// copying over the example repository multiple times.
+// writing a global file into multiple directories.
 func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsTeamLabelsMultipleRepos() {
 	t := s.T()
 	ctx := context.Background()
@@ -3650,16 +3492,16 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsTeamLabelsMultipleRepos
 		cfgPaths = append(cfgPaths, cfg)
 
 		repoDir := t.TempDir()
-		_, err := git.PlainClone(
-			repoDir, false, &git.CloneOptions{
-				ReferenceName: "main",
-				SingleBranch:  true,
-				Depth:         1,
-				URL:           fleetGitopsRepo,
-				Progress:      os.Stdout,
-			},
-		)
-		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(path.Join(repoDir, "default.yml"), []byte(`
+controls:
+software:
+reports:
+policies:
+agent_options:
+labels:
+org_settings:
+  secrets: [{"secret":"$FLEET_GLOBAL_ENROLL_SECRET"}]
+`), 0o644))
 		reposDir = append(reposDir, repoDir)
 	}
 

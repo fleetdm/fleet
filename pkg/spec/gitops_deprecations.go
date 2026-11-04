@@ -114,8 +114,11 @@ var RemovedGitOpsKeys = []DeprecatedKeyMapping{
 	{"org_settings.mdm.volume_purchasing_program[].teams", "org_settings.mdm.volume_purchasing_program[].fleets"},
 }
 
+// removedKeyParents are the old spellings of a parent key in RemovedGitOpsKeys that ApplyDeprecatedKeyMappings renames, so a removed key
+// is found under either spelling, including in a file that ApplyDeprecatedKeyMappings never sees (a file-backed org_settings).
+var removedKeyParents = map[string][]string{"apple_business": {"apple_business", "apple_business_manager"}}
+
 // RejectRemovedKeys returns an error naming the file and the removed key for every key of RemovedGitOpsKeys found in the YAML data map.
-// Call it after ApplyDeprecatedKeyMappings, so a key under a renamed parent (apple_business_manager) is found under its new name.
 func RejectRemovedKeys(data map[string]any, filePath string) error {
 	var errs []error
 	for _, removed := range RemovedGitOpsKeys {
@@ -132,25 +135,33 @@ func RejectRemovedKeys(data map[string]any, filePath string) error {
 
 // hasKeyPath reports whether the dot-separated path, with [] for every element of an array, exists in data.
 func hasKeyPath(data map[string]any, parts []string) bool {
-	key, isArray := strings.CutSuffix(parts[0], "[]")
-	value, ok := data[key]
+	name, isArray := strings.CutSuffix(parts[0], "[]")
+	spellings, ok := removedKeyParents[name]
 	if !ok {
-		return false
+		spellings = []string{name}
 	}
-	if len(parts) == 1 && !isArray {
-		return true
-	}
-	if isArray {
-		elements, _ := value.([]any)
-		for _, element := range elements {
-			if elementMap, ok := element.(map[string]any); ok && len(parts) > 1 && hasKeyPath(elementMap, parts[1:]) {
+	for _, key := range spellings {
+		value, ok := data[key]
+		if !ok {
+			continue
+		}
+		switch {
+		case len(parts) == 1 && !isArray:
+			return true
+		case isArray:
+			elements, _ := value.([]any)
+			for _, element := range elements {
+				if elementMap, ok := element.(map[string]any); ok && len(parts) > 1 && hasKeyPath(elementMap, parts[1:]) {
+					return true
+				}
+			}
+		default:
+			if nested, ok := value.(map[string]any); ok && hasKeyPath(nested, parts[1:]) {
 				return true
 			}
 		}
-		return false
 	}
-	nested, ok := value.(map[string]any)
-	return ok && hasKeyPath(nested, parts[1:])
+	return false
 }
 
 // ApplyDeprecatedKeyMappings walks the YAML data map and migrates deprecated keys to their new names.

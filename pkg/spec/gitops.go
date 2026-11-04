@@ -765,6 +765,13 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 						)
 					} else {
 						raw = fileBytes
+						var fileOrgSettings map[string]any
+						if err := YamlUnmarshal(fileBytes, &fileOrgSettings); err == nil {
+							if err := RejectRemovedKeys(map[string]any{"org_settings": fileOrgSettings}, *orgSettingsTop.Path); err != nil {
+								noError = false
+								multiError = multierror.Append(multiError, err)
+							}
+						}
 					}
 				}
 			}

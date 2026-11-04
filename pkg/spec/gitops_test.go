@@ -5304,6 +5304,35 @@ org_settings:
 			}
 		})
 	}
+
+	// The file that org_settings references is parsed on its own, so it is checked on its own and the error names it.
+	t.Run("keys in a file-backed org_settings", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte("controls:\nreports:\npolicies:\nagent_options:\norg_settings:\n  path: org.yml\n"), 0o644))
+		orgFile := `
+server_settings:
+  server_url: https://fleet.example.com
+org_info:
+  contact_url: https://example.com/contact
+  org_name: Test Org
+secrets:
+mdm:
+  apple_business_manager:
+    - organization_name: Test Org
+      macos_team: Workstations
+  volume_purchasing_program:
+    - location: Earth
+      teams: [Workstations]
+`
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "org.yml"), []byte(orgFile), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "org.yml: "+removed(abmPath+"macos_team"))
+		require.ErrorContains(t, err, "org.yml: "+removed("org_settings.mdm.volume_purchasing_program[].teams"))
+	})
 }
 
 // TestSetupExperienceSoftwareDeprecation verifies that supplying a list of
