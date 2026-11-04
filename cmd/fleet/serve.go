@@ -436,7 +436,9 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	}
 
 	if config.MDM.AppleSCEPStaticChallengeEnabled {
-		logger.WarnContext(cmd.Context(), "Using static SCEP challenges for Apple enrollments is deprecated and will be removed in a future release.")
+		logger.WarnContext(cmd.Context(), "Apple MDM static SCEP challenges are enabled via mdm.apple_scep_static_challenge_enabled. "+
+			"Anyone with the static SCEP challenge can turn on MDM for any Apple host. "+
+			"Static SCEP challenges are deprecated and will be removed in a future release.")
 	}
 
 	mdmStorage, depStorage, scepStorage := initAppleMDMStorages(mds, initFatal)
