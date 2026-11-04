@@ -20,6 +20,7 @@ type OSVData struct {
 	ID            string     `json:"id"`
 	Published     string     `json:"published"`
 	Modified      string     `json:"modified"`
+	Withdrawn     string     `json:"withdrawn,omitempty"`
 	Details       string     `json:"details"`
 	Affected      []Affected `json:"affected"`
 	Upstream      []string   `json:"upstream,omitempty"`
@@ -227,6 +228,10 @@ func run(cfg Config) error {
 		osvData, err := parseOSVFile(path)
 		if err != nil {
 			log.Printf("Failed to parse %s: %v", path, err)
+			filesSkipped++
+			return nil
+		}
+		if osvData.Withdrawn != "" {
 			filesSkipped++
 			return nil
 		}
@@ -656,6 +661,10 @@ func runRHEL(cfg Config) error {
 			filesSkipped++
 			return nil
 		}
+		if osvData.Withdrawn != "" {
+			filesSkipped++
+			return nil
+		}
 
 		// Extract all CVE IDs from this advisory
 		cveIDs := extractCVEIDs(osvData)
@@ -930,6 +939,10 @@ func runAndroid(cfg Config) error {
 		osvData, err := parseOSVFile(path)
 		if err != nil {
 			log.Printf("Failed to parse %s: %v", path, err)
+			filesSkipped++
+			return nil
+		}
+		if osvData.Withdrawn != "" {
 			filesSkipped++
 			return nil
 		}
