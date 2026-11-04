@@ -36,7 +36,7 @@ const ConfigProfileHostCountCell = ({
         variant="secondary"
         size="small"
       >
-        <Icon name="refresh" color="ui-fleet-black-75" size="small" />
+        <Icon name="retry" color="ui-fleet-black-75" size="small" />
         <span>Resend</span>
       </Button>
     );

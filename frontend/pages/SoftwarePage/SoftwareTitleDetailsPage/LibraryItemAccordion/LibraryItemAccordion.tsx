@@ -387,7 +387,7 @@ const LibraryItemAccordion = ({
             construction (only FMA exposes version pinning). */}
         {isFma &&
           badgeState === "latest" &&
-          renderStatusBadge("refresh", "Latest")}
+          renderStatusBadge("update", "Latest")}
         {(canActivateMultiplePackages || canActivateMultipleVersions) &&
           isSelfService &&
           renderSelfServiceIcon()}
