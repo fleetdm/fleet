@@ -60,7 +60,7 @@ func TestApplePushTopic(t *testing.T) {
 	}
 	// sendCheckins sends a sample of check-in and command-report messages and
 	// returns the topics the server received.
-	sendCheckins := func(c *TestAppleMDMClient) []string {
+	sendCheckins := func(t *testing.T, c *TestAppleMDMClient) []string {
 		mu.Lock()
 		topics = nil
 		mu.Unlock()
@@ -82,7 +82,7 @@ func TestApplePushTopic(t *testing.T) {
 	t.Run("default topic is unique per device", func(t *testing.T) {
 		a, b := newDevice(), newDevice()
 		require.NotEqual(t, a.PushTopic(), b.PushTopic())
-		for _, got := range sendCheckins(a) {
+		for _, got := range sendCheckins(t, a) {
 			require.Equal(t, "com.apple.mgmt.External."+a.UUID, got)
 		}
 	})
@@ -92,7 +92,7 @@ func TestApplePushTopic(t *testing.T) {
 		for range 2 {
 			c := newDevice(WithPushTopic(topic))
 			require.Equal(t, topic, c.PushTopic())
-			for _, got := range sendCheckins(c) {
+			for _, got := range sendCheckins(t, c) {
 				require.Equal(t, topic, got)
 			}
 		}
