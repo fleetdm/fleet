@@ -368,6 +368,26 @@ What to do: If an integration uses a GitOps user's API token to look up hosts by
 
 GitHub issue: [#57406](https://github.com/fleetdm/fleet/issues/57406)
 
+### GitOps users can't delete hosts
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| GitOps users can delete hosts | GitOps users get a 403 from [Delete host](https://fleetdm.com/docs/rest-api/rest-api#delete-host) and [Batch-delete hosts](https://fleetdm.com/docs/rest-api/rest-api#batch-delete-hosts) |
+
+What to do: Delete hosts with a different [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user).
+
+GitHub issue: [#57406](https://github.com/fleetdm/fleet/issues/57406)
+
+### GitOps users can't transfer hosts between fleets
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| GitOps users can transfer hosts between fleets | GitOps users get a 403 from [Update hosts' fleet](https://fleetdm.com/docs/rest-api/rest-api#update-hosts-fleet) and [Update hosts' fleet by filter](https://fleetdm.com/docs/rest-api/rest-api#update-hosts-fleet-by-filter) |
+
+What to do: Transfer hosts between fleets with a different [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user).
+
+GitHub issue: [#57406](https://github.com/fleetdm/fleet/issues/57406)
+
 ### Certificate authority names must be unique
 
 | Fleet 4 | Fleet 5 |
