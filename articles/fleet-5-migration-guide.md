@@ -18,6 +18,11 @@ Breaking changes are grouped by where you use Fleet. Read the sections that appl
 
 ## REST API
 
+When an endpoint moves to a new URL, Fleet doesn't carry over anything tied to the old URL:
+
+- **API-only user permissions:** If an API-only user has permission for the old URL, give them permission for the new one in **Settings > Users**.
+- **Request size overrides:** If you set `server.endpoint_request_size_overrides` for the old URL, add the same entry for the new URL. The new URL has the same default size limit as the old one.
+
 ### Farewell, teams
 
 You'll be missed, and we'll keep saying "teams" out of muscle memory.
