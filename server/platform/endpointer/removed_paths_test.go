@@ -19,11 +19,21 @@ func TestRegisterRemovedPaths(t *testing.T) {
 
 	r := mux.NewRouter()
 	r.HandleFunc("/api/v1/fleet/kept", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	// A live route with the same shape as the method-limited removed path below, registered first as in the API.
+	r.HandleFunc("/api/v1/fleet/partly/{id:[0-9]+}", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }).
+		Methods(http.MethodGet)
 	var logs bytes.Buffer
-	RegisterRemovedPaths(r, []string{"v1", "2022-04"}, slog.New(slog.NewJSONHandler(&logs, nil)), []RemovedPath{{
-		Path:    "/api/_version_/fleet/gone/{id}",
-		Message: func(method string) string { return "gone via " + method },
-	}})
+	RegisterRemovedPaths(r, []string{"v1", "2022-04"}, slog.New(slog.NewJSONHandler(&logs, nil)), []RemovedPath{
+		{
+			Path:    "/api/_version_/fleet/gone/{id}",
+			Message: func(method string) string { return "gone via " + method },
+		},
+		{
+			Path:    "/api/_version_/fleet/partly/{name}",
+			Methods: []string{http.MethodDelete},
+			Message: func(method string) string { return "partly gone via " + method },
+		},
+	})
 
 	removedRequests := 0
 	for _, c := range []struct {
@@ -37,6 +47,11 @@ func TestRegisterRemovedPaths(t *testing.T) {
 		{"latest", http.MethodDelete, "/api/latest/fleet/gone/1", http.StatusGone, "gone via DELETE"},
 		{"unknown version", http.MethodGet, "/api/v9/fleet/gone/1", http.StatusNotFound, ""},
 		{"other path", http.MethodGet, "/api/v1/fleet/kept", http.StatusOK, ""},
+		{"limited to its method", http.MethodDelete, "/api/latest/fleet/partly/abc", http.StatusGone, "partly gone via DELETE"},
+		{"limited, live route with the same shape", http.MethodGet, "/api/v1/fleet/partly/1", http.StatusOK, ""},
+		{"limited, other method", http.MethodGet, "/api/v1/fleet/partly/abc", http.StatusMethodNotAllowed, ""},
+		{"limited, other method on a live route's value", http.MethodPut, "/api/v1/fleet/partly/1", http.StatusMethodNotAllowed, ""},
+		{"limited, head", http.MethodHead, "/api/v1/fleet/partly/abc", http.StatusMethodNotAllowed, ""},
 	} {
 		if c.wantStatus == http.StatusGone {
 			removedRequests++
@@ -120,6 +135,45 @@ func TestLiteralSegmentsMatch(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			assert.Equal(t, c.want, literalSegmentsMatch(template, c.requestPath))
+		})
+	}
+}
+
+func TestRegisterRemovedPathsWithMethodsAndOverlap(t *testing.T) {
+	t.Parallel()
+
+	r := mux.NewRouter()
+	RegisterRemovedPaths(r, []string{"v1"}, slog.New(slog.DiscardHandler), []RemovedPath{
+		{
+			// The overlap route takes the only removed method.
+			Path:    "/api/_version_/fleet/items/{id}/old/{name}",
+			Methods: []string{http.MethodPost},
+			Overlap: RemovedPathOverlap{Methods: []string{http.MethodPost}, RouteTemplate: "/api/_version_/fleet/items/{id}/{old_segment}/{name}"},
+			Message: func(method string) string { return "gone via " + method },
+		},
+		{
+			// The overlap is for a method that wasn't removed, so it isn't registered.
+			Path:    "/api/_version_/fleet/things/{id}/old/{name}",
+			Methods: []string{http.MethodDelete},
+			Overlap: RemovedPathOverlap{Methods: []string{http.MethodPost}, RouteTemplate: "/api/_version_/fleet/things/{id}/{old_segment}/{name}"},
+			Message: func(method string) string { return "gone via " + method },
+		},
+	})
+
+	for _, c := range []struct {
+		name, method, path string
+		wantStatus         int
+	}{
+		{"overlap method", http.MethodPost, "/api/v1/fleet/items/1/old/abc", http.StatusGone},
+		{"overlap method, other literal", http.MethodPost, "/api/v1/fleet/items/1/other/abc", http.StatusNotFound},
+		{"method that wasn't removed", http.MethodGet, "/api/v1/fleet/items/1/old/abc", http.StatusMethodNotAllowed},
+		{"removed method without its overlap", http.MethodDelete, "/api/v1/fleet/things/1/old/abc", http.StatusGone},
+		{"overlap for a method that wasn't removed", http.MethodPost, "/api/v1/fleet/things/1/old/abc", http.StatusMethodNotAllowed},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			r.ServeHTTP(rec, httptest.NewRequest(c.method, c.path, nil))
+			assert.Equal(t, c.wantStatus, rec.Code)
 		})
 	}
 }

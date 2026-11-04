@@ -11,11 +11,14 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// RemovedPath is a URL path that no longer exists. A request to it with any usual method gets 410 Gone and Message, without authentication,
-// because the path is gone for everyone and the response says nothing about the caller's data.
+// RemovedPath is a URL path that no longer exists. A request to it with any usual method (or one of Methods, when set) gets 410 Gone and
+// Message, without authentication, because the path is gone for everyone and the response says nothing about the caller's data.
 type RemovedPath struct {
 	// Path may contain the _version_ placeholder and mux variables, like the paths of a DeprecatedPathAlias.
 	Path string
+	// Methods limits the 410 to these methods, for a path that shares its shape with routes that are still served: a 410 on every method
+	// would answer wrong-method requests to those routes, which should get 405. Empty means every method in removedPathMethods.
+	Methods []string
 	// Overlap is for a Path that a stdlib ServeMux cannot register next to a live route.
 	Overlap RemovedPathOverlap
 	// Message is the response message for a request that used the given HTTP method.
@@ -50,13 +53,26 @@ func RegisterRemovedPaths(r *mux.Router, versions []string, logger *slog.Logger,
 		}
 		handler := removedPathHandler(removed, logger)
 		methods := slices.Clone(removedPathMethods)
-		if overlap := removed.Overlap; overlap.RouteTemplate != "" {
-			methods = slices.DeleteFunc(methods, func(method string) bool { return slices.Contains(overlap.Methods, method) })
+		if len(removed.Methods) > 0 {
+			methods = slices.Clone(removed.Methods)
+		}
+		// The overlap only applies to the methods that were removed.
+		overlap := removed.Overlap
+		overlapMethods := slices.DeleteFunc(slices.Clone(overlap.Methods), func(method string) bool { return !slices.Contains(methods, method) })
+		if len(overlapMethods) > 0 {
+			methods = slices.DeleteFunc(methods, func(method string) bool { return slices.Contains(overlapMethods, method) })
 			// Register a more generic path template so it doesn't conflict with the still supported path template
-			r.Handle(versioned(overlap.RouteTemplate), handler).Methods(overlap.Methods...).
+			r.Handle(versioned(overlap.RouteTemplate), handler).Methods(overlapMethods...).
 				Name(getNameFromPathAndVerb("overlap", removed.Path, ""))
 		}
-		r.Handle(versioned(removed.Path), handler).Methods(methods...).Name(getNameFromPathAndVerb("any", removed.Path, ""))
+		if len(methods) == 0 {
+			continue // the overlap route took the only removed method
+		}
+		verb := "any"
+		if len(removed.Methods) > 0 {
+			verb = strings.Join(methods, "_")
+		}
+		r.Handle(versioned(removed.Path), handler).Methods(methods...).Name(getNameFromPathAndVerb(verb, removed.Path, ""))
 	}
 }
 
