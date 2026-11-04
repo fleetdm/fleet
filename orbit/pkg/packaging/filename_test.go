@@ -110,9 +110,9 @@ func TestFleetNameForFilename(t *testing.T) {
 		{"combining marks in Devanagari", "हिन्दी टीम", "हिन्दी-टीम"},
 		{"combining mark after a separator", "a ́b", "a-b"},
 		{"only combining marks", "́̂", ""},
-		{"zero-width non-joiner inside a word", "می‌خواهم", "میخواهم"},
-		{"soft hyphen", "Work­stations", "workstations"},
-		{"right-to-left override", "abc‮gpj.exe", "abcgpj-exe"},
+		{"zero-width non-joiner inside a word", "می\u200cخواهم", "میخواهم"},
+		{"soft hyphen", "Work\u00adstations", "workstations"},
+		{"right-to-left override", "abc\u202egpj.exe", "abcgpj-exe"},
 		{"invisible letters and marks", "Work\u034fstations\u3164\u17b4", "workstations"},
 		{"accent split from its letter by a zero-width character", "Cafe\u200c\u0301", "caf\u00e9"},
 	} {
