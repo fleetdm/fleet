@@ -14,6 +14,7 @@ import { IApiError } from "interfaces/errors";
 import {
   IJiraIntegration,
   IZendeskIntegration,
+  ILinearIntegration,
   IIntegration,
   IIntegrationTableData,
   IGlobalIntegrations,
@@ -57,6 +58,9 @@ const TicketDestinations = (): JSX.Element => {
   const [zendeskIntegrations, setZendeskIntegrations] = useState<
     IZendeskIntegration[]
   >();
+  const [linearIntegrations, setLinearIntegrations] = useState<
+    ILinearIntegration[]
+  >();
   const [testingConnection, setTestingConnection] = useState(false);
 
   const {
@@ -75,6 +79,7 @@ const TicketDestinations = (): JSX.Element => {
         if (data) {
           setJiraIntegrations(data.jira);
           setZendeskIntegrations(data.zendesk);
+          setLinearIntegrations(data.linear);
         }
       },
     }
@@ -103,9 +108,28 @@ const TicketDestinations = (): JSX.Element => {
   );
 
   const onAddSubmit = useCallback(
-    (integrationSubmitData: IIntegration[], integrationDestination: string) => {
-      // Updates either integrations.jira or integrations.zendesk
+    (
+      submitData: IIntegration[] | ILinearIntegration[],
+      integrationDestination: string
+    ) => {
+      const isLinear = integrationDestination === "linear";
+      const integrationSubmitData = submitData as IIntegration[];
+      const lastLinear = isLinear
+        ? (submitData as ILinearIntegration[])[submitData.length - 1]
+        : undefined;
+      const lastJiraZendesk =
+        integrationSubmitData[integrationSubmitData.length - 1];
+      const addedName = lastLinear
+        ? `Linear - ${lastLinear.team_id}`
+        : `${lastJiraZendesk.url} - ${
+            lastJiraZendesk.project_key || lastJiraZendesk.group_id
+          }`;
+
+      // Updates integrations.jira, integrations.zendesk or integrations.linear
       const destination = () => {
+        if (isLinear) {
+          return { linear: submitData as ILinearIntegration[] };
+        }
         if (integrationDestination === "jira") {
           return {
             jira: integrationSubmitData,
@@ -124,14 +148,7 @@ const TicketDestinations = (): JSX.Element => {
         .then(() => {
           notify.success(
             <>
-              Successfully added{" "}
-              <b>
-                {integrationSubmitData[integrationSubmitData.length - 1].url} -{" "}
-                {integrationSubmitData[integrationSubmitData.length - 1]
-                  .project_key ||
-                  integrationSubmitData[integrationSubmitData.length - 1]
-                    .group_id}
-              </b>
+              Successfully added <b>{addedName}</b>
             </>
           );
           toggleAddTicketDestinationModal();
@@ -142,23 +159,15 @@ const TicketDestinations = (): JSX.Element => {
             if (
               addError.data?.errors[0].reason.includes(
                 "duplicate Jira integration"
+              ) ||
+              addError.data?.errors[0].reason.includes(
+                "duplicate Linear integration"
               )
             ) {
               notify.error(
                 <>
-                  Could not add{" "}
-                  <b>
-                    {
-                      integrationSubmitData[integrationSubmitData.length - 1]
-                        .url
-                    }{" "}
-                    -{" "}
-                    {integrationSubmitData[integrationSubmitData.length - 1]
-                      .project_key ||
-                      integrationSubmitData[integrationSubmitData.length - 1]
-                        .group_id}
-                  </b>
-                  . This integration already exists
+                  Could not add <b>{addedName}</b>. This integration already
+                  exists
                 </>,
                 { response: addError }
               );
@@ -172,10 +181,7 @@ const TicketDestinations = (): JSX.Element => {
           } else {
             notify.error(
               <>
-                Could not add{" "}
-                <b>
-                  {integrationSubmitData[integrationSubmitData.length - 1].url}
-                </b>
+                Could not add <b>{isLinear ? "Linear" : lastJiraZendesk.url}</b>
                 . Please try again.
               </>,
               { response: addError }
@@ -191,7 +197,23 @@ const TicketDestinations = (): JSX.Element => {
 
   const onDeleteSubmit = useCallback(() => {
     if (integrationEditing) {
+      const deletedName =
+        integrationEditing.type === "linear"
+          ? `Linear - ${integrationEditing.teamId}`
+          : `${integrationEditing.url} - ${
+              integrationEditing.projectKey ||
+              integrationEditing.groupId?.toString()
+            }`;
       const deleteIntegrationDestination = () => {
+        if (integrationEditing.type === "linear") {
+          return configAPI.update({
+            integrations: {
+              linear: (integrations?.linear || []).filter(
+                (_, index) => index !== integrationEditing.originalIndex
+              ),
+            },
+          });
+        }
         if (integrationEditing.type === "jira") {
           integrations?.jira.splice(integrationEditing.originalIndex, 1);
           return configAPI.update({
@@ -214,12 +236,7 @@ const TicketDestinations = (): JSX.Element => {
         .then(() => {
           notify.success(
             <>
-              Successfully deleted{" "}
-              <b>
-                {integrationEditing.url} -{" "}
-                {integrationEditing.projectKey ||
-                  integrationEditing.groupId?.toString()}
-              </b>
+              Successfully deleted <b>{deletedName}</b>
             </>
           );
           refetchIntegrations();
@@ -227,13 +244,7 @@ const TicketDestinations = (): JSX.Element => {
         .catch((deleteError: unknown) => {
           notify.error(
             <>
-              Could not delete{" "}
-              <b>
-                {integrationEditing.url} -{" "}
-                {integrationEditing.projectKey ||
-                  integrationEditing.groupId?.toString()}
-              </b>
-              . Please try again.
+              Could not delete <b>{deletedName}</b>. Please try again.
             </>,
             { response: deleteError }
           );
@@ -263,8 +274,13 @@ const TicketDestinations = (): JSX.Element => {
   ]);
 
   const tableData = useMemo(
-    () => combineDataSets(jiraIntegrations || [], zendeskIntegrations || []),
-    [jiraIntegrations, zendeskIntegrations]
+    () =>
+      combineDataSets(
+        jiraIntegrations || [],
+        zendeskIntegrations || [],
+        linearIntegrations || []
+      ),
+    [jiraIntegrations, zendeskIntegrations, linearIntegrations]
   );
 
   const renderTable = () => {
@@ -328,7 +344,7 @@ const TicketDestinations = (): JSX.Element => {
         <AddTicketDestinationModal
           onCancel={toggleAddTicketDestinationModal}
           onSubmit={onAddSubmit}
-          integrations={integrations || { jira: [], zendesk: [] }}
+          integrations={integrations || { jira: [], zendesk: [], linear: [] }}
           testingConnection={testingConnection}
         />
       )}
@@ -336,10 +352,15 @@ const TicketDestinations = (): JSX.Element => {
         <DeleteIntegrationModal
           onCancel={toggleDeleteIntegrationModal}
           onSubmit={onDeleteSubmit}
-          url={integrationEditing?.url || ""}
+          url={
+            integrationEditing?.type === "linear"
+              ? "Linear"
+              : integrationEditing?.url || ""
+          }
           projectKey={
             integrationEditing?.projectKey ||
             integrationEditing?.groupId?.toString() ||
+            integrationEditing?.teamId ||
             ""
           }
           isUpdatingIntegration={isUpdatingIntegration}
