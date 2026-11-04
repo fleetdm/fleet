@@ -75,15 +75,15 @@ Fleet's `end_user_local_account_type` setting lets you enforce either `admin`, `
 
 How to enforce account types on macOS hosts:
 
-1. Head to **Controls > Setup experience**.
+1. Head to **Controls > Setup experience > Users** under the **macOS** tab.
 
-2. Under the managed local account options, choose **Admin**, **Standard**, or **Skip (no account)** for the end user account type.
+2. Under the **End user account**, choose **Admin**, **Standard**, or **Skip (no account)** for the end user account type.
 
-To configure via GitOps, set the `end_user_local_account_type` field under `mdm.setup_experience` in your YAML configuration:
+To configure via GitOps, set the `end_user_local_account_type` field under `mdm.apple_settings` in your YAML configuration:
 
 ```yaml
 mdm:
-  setup_experience:
+  apple_settings:
     end_user_local_account_type: "standard"
 ```
 
