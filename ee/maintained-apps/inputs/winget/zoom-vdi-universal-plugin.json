@@ -1,0 +1,12 @@
+{
+  "name": "Zoom VDI Universal Plugin",
+  "slug": "zoom-vdi-universal-plugin/windows",
+  "package_identifier": "Zoom.ZoomVDIUniversalPlugin",
+  "unique_identifier": "Zoom VDI Universal Plugin(64bit)",
+  "fuzzy_match_name": "Zoom VDI Universal Plugin%",
+  "program_publisher": "Zoom Communications, Inc.",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Communication"]
+}
