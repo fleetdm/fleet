@@ -25,8 +25,13 @@ func TestOutputFilename(t *testing.T) {
 		{"linux", "arm64", "pkg.tar.zst", "fleet-linux-arm64-workstations.pkg.tar.zst", "fleet-linux-arm64.pkg.tar.zst"},
 	} {
 		assert.Equal(t, tc.withFleet, outputFilename(tc.platform, tc.arch, tc.ext, Options{FleetName: "Workstations"}))
-		assert.Equal(t, tc.noFleet, outputFilename(tc.platform, tc.arch, tc.ext, Options{}))
-		assert.Equal(t, tc.noFleet, outputFilename(tc.platform, tc.arch, tc.ext, Options{FleetName: "🚀 🚀"}))
+		// A name that cleans up to nothing never leaves a trailing dash (fleet-windows-amd64-.msi), even when another
+		// fleet's name is just as blank.
+		for _, blank := range []string{"", "🚀 🚀", "$$$ ---", "\u202e\u200d"} {
+			assert.Equal(t, tc.noFleet, outputFilename(tc.platform, tc.arch, tc.ext, Options{FleetName: blank}), blank)
+			assert.Equal(t, tc.noFleet, outputFilename(tc.platform, tc.arch, tc.ext,
+				Options{FleetName: blank, FleetID: 7, OtherFleetNames: []string{"🛸"}}), blank)
+		}
 	}
 
 	t.Run("long names are cut at a character boundary", func(t *testing.T) {
@@ -72,6 +77,12 @@ func TestFleetFilenamePart(t *testing.T) {
 			require.Equal(t, tc.want, fleetFilenamePart(tc.fleet, tc.id, tc.others, 30))
 		})
 	}
+
+	t.Run("no room left after the cut", func(t *testing.T) {
+		require.Empty(t, fleetFilenamePart("Workstations", 0, nil, 0))
+		// Too little room for the name next to the ID: only the ID, with no dash in front.
+		require.Equal(t, "12", fleetFilenamePart("Workstations", 12, []string{"workstations"}, 3))
+	})
 }
 
 func TestFleetNameForFilename(t *testing.T) {
