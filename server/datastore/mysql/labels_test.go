@@ -3975,6 +3975,24 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 			}
 		})
 	}
+
+	t.Run("set-aside name taken on the other side of the global/fleet boundary", func(t *testing.T) {
+		fleetLabel, err := ds.NewLabel(ctx, &fleet.Label{
+			Name: "collide-setaside", Query: "SELECT 1", TeamID: &team1.ID, LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		})
+		require.NoError(t, err)
+		_, err = ds.NewLabel(ctx, &fleet.Label{
+			Name: fleet.SetAsideLabelName("collide-setaside", &team1.ID), Query: "SELECT 1", LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		})
+		require.NoError(t, err)
+
+		err = ds.SetAsideLabels(ctx, nil, []fleet.LabelToMove{{Name: "collide-setaside", FromFleetID: &team1.ID}}, *globalAdmin)
+		var conflictErr *fleet.ConflictError
+		require.ErrorAs(t, err, &conflictErr)
+		lbl, _, err := ds.Label(ctx, fleetLabel.ID, fleet.TeamFilter{User: globalAdmin})
+		require.NoError(t, err)
+		require.Equal(t, "collide-setaside", lbl.Name)
+	})
 }
 
 func testApplyLabelSpecsNamesAcrossFleets(t *testing.T, ds *Datastore) {
@@ -4126,6 +4144,8 @@ func testLabelNamesSharedAcrossFleets(t *testing.T, ds *Datastore) {
 
 		_, err = ds.GetLabelSpec(ctx, adminFilter, "Engineering")
 		requireConflict(t, err, `More than one fleet has a label named "Engineering".`)
+		_, err = ds.LabelByName(ctx, "Engineering", adminFilter)
+		requireConflict(t, err, `More than one fleet has a label named "Engineering".`)
 		spec, err := ds.GetLabelSpec(ctx, scoped(team2.ID), "Engineering")
 		require.NoError(t, err)
 		require.Equal(t, eng2.ID, spec.ID)
@@ -4139,6 +4159,16 @@ func testLabelNamesSharedAcrossFleets(t *testing.T, ds *Datastore) {
 		policy, err = ds.Policy(ctx, policy.ID)
 		require.NoError(t, err)
 		require.ElementsMatch(t, []uint{eng2.ID, ops.ID}, []uint{policy.LabelsIncludeAny[0].LabelID, policy.LabelsIncludeAny[1].LabelID})
+
+		// A name repeated in the request is stored once.
+		policy, err = ds.NewTeamPolicy(ctx, team2.ID, nil, fleet.PolicyPayload{
+			Name: "shared-names-repeated-policy", Query: "SELECT 1", LabelsIncludeAny: []string{"Engineering", "Engineering"},
+		})
+		require.NoError(t, err)
+		policy, err = ds.Policy(ctx, policy.ID)
+		require.NoError(t, err)
+		require.Len(t, policy.LabelsIncludeAny, 1)
+		require.Equal(t, eng2.ID, policy.LabelsIncludeAny[0].LabelID)
 
 		// A global policy still resolves among all labels, so a shared name is rejected rather than matching every fleet.
 		_, err = ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{
@@ -4161,6 +4191,45 @@ func testLabelNamesSharedAcrossFleets(t *testing.T, ds *Datastore) {
 			LabelsIncludeAny: []fleet.LabelIdent{{LabelName: "Engineering"}},
 		})
 		requireConflict(t, err, `More than one fleet has a label named "Engineering".`)
+
+		// Repeated or case-variant names in a global policy are still one name that several fleets use.
+		for _, names := range [][]string{{"Engineering", "Engineering"}, {"Engineering", "engineering"}} {
+			_, err = ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{
+				Name: "shared-names-global-policy-" + strings.Join(names, "-"), Query: "SELECT 1", LabelsIncludeAny: names,
+			})
+			requireConflict(t, err, "More than one fleet has a label named")
+		}
+	})
+
+	t.Run("reports match names the way the database does", func(t *testing.T) {
+		_, err := newLabel("CaseShared", &team1.ID)
+		require.NoError(t, err)
+		caseShared2, err := newLabel("caseshared", &team2.ID)
+		require.NoError(t, err)
+
+		_, err = ds.NewQuery(ctx, &fleet.Query{
+			Name: "case-shared-global-report", Query: "SELECT 1", Logging: fleet.LoggingSnapshot,
+			LabelsIncludeAny: []fleet.LabelIdent{{LabelName: "CaseShared"}},
+		})
+		requireConflict(t, err, "More than one fleet has a label named")
+
+		query, err := ds.NewQuery(ctx, &fleet.Query{
+			Name: "case-shared-team2-report", Query: "SELECT 1", TeamID: &team2.ID, Logging: fleet.LoggingSnapshot,
+			LabelsIncludeAny: []fleet.LabelIdent{{LabelName: "CaseShared"}},
+		})
+		require.NoError(t, err)
+		query, err = ds.Query(ctx, query.ID)
+		require.NoError(t, err)
+		require.Len(t, query.LabelsIncludeAny, 1)
+		require.Equal(t, caseShared2.ID, query.LabelsIncludeAny[0].LabelID)
+
+		// A name that only another fleet has fails rather than leaving the report without its label scope.
+		err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+			return ds.updateQueryLabelsInTx(ctx, []*fleet.Query{{
+				ID: query.ID, TeamID: &team2.ID, LabelsIncludeAny: []fleet.LabelIdent{{LabelName: "Other"}},
+			}}, tx)
+		})
+		require.True(t, fleet.IsNotFound(err), err)
 	})
 
 	t.Run("delete", func(t *testing.T) {

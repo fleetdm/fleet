@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"maps"
 	"slices"
 	"strings"
 	"time"
@@ -17,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -501,98 +501,67 @@ func (ds *Datastore) updateQueryLabelsInTx(ctx context.Context, queries []*fleet
 		return ctxerr.Wrap(ctx, err, "deleting old query labels")
 	}
 
-	lblNamesMap := make(map[string]struct{})
+	// Names are resolved once per fleet, since a fleet's report sees global labels plus its own fleet's, and a global
+	// report sees all labels.
+	type labelScope struct {
+		fleetID uint
+		global  bool
+	}
+	scopeOf := func(q *fleet.Query) labelScope {
+		return labelScope{fleetID: ptr.ValOrZero(q.TeamID), global: q.TeamID == nil}
+	}
+	namesByScope := make(map[labelScope][]string)
+	numLabels := 0
 	for _, q := range queries {
-		for _, lbl := range q.LabelsIncludeAny {
-			lblNamesMap[lbl.LabelName] = struct{}{}
-		}
-		for _, lbl := range q.LabelsIncludeAll {
-			lblNamesMap[lbl.LabelName] = struct{}{}
+		for _, lbl := range slices.Concat(q.LabelsIncludeAny, q.LabelsIncludeAll) {
+			namesByScope[scopeOf(q)] = append(namesByScope[scopeOf(q)], lbl.LabelName)
+			numLabels++
 		}
 	}
-	numLabelNames := len(lblNamesMap)
-	if numLabelNames == 0 {
+	if numLabels == 0 {
 		return nil
 	}
-
-	// We need to figure out the label IDs for the labels we're going to add.
-	stm, args, err := sqlx.In(`SELECT id, name, team_id FROM labels WHERE name IN (?)`, slices.Collect(maps.Keys(lblNamesMap)))
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching label IDs")
-	}
-
-	var lbls []struct {
-		ID     uint   `db:"id"`
-		Name   string `db:"name"`
-		TeamID *uint  `db:"team_id"`
-	}
-	if err := sqlx.SelectContext(ctx, tx, &lbls, stm, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching label IDs")
-	}
-
-	lblsByName := make(map[string][]int, len(lbls))
-	for i, lbl := range lbls {
-		lblsByName[lbl.Name] = append(lblsByName[lbl.Name], i)
-	}
-
-	if len(lblsByName) < numLabelNames {
-		return ctxerr.New(ctx, "not all labels found for query")
-	}
-
-	// Fleets can share label names, so a fleet's report resolves names among global labels and its own fleet's
-	// labels. A global report still resolves among all labels, as long as the name picks out a single one.
-	resolveID := func(name string, teamID *uint) (uint, bool, error) {
-		var matches []uint
-		for _, i := range lblsByName[name] {
-			if teamID == nil || lbls[i].TeamID == nil || *lbls[i].TeamID == *teamID {
-				matches = append(matches, lbls[i].ID)
-			}
+	idsByScope := make(map[labelScope]map[string]uint, len(namesByScope))
+	for scope, names := range namesByScope {
+		var fleetID *uint
+		if !scope.global {
+			fleetID = &scope.fleetID
 		}
-		switch len(matches) {
-		case 0:
-			return 0, false, nil
-		case 1:
-			return matches[0], true, nil
-		default:
-			return 0, false, ctxerr.Wrap(ctx, fleet.NewAmbiguousLabelNameError(name))
+		ids, err := resolveLabelNamesTx(ctx, tx, names, fleetID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "resolving report labels")
 		}
+		idsByScope[scope] = ids
 	}
 
 	// Each query has at most one non-empty scope (mutex enforced above).
 	// Populate IDs back onto the query struct for each bucket.
-	params := make([]string, 0, numLabelNames)
-	insertArgs := make([]any, 0, numLabelNames*3)
+	params := make([]string, 0, numLabels)
+	insertArgs := make([]any, 0, numLabels*3)
 
-	resolve := func(q *fleet.Query, src []fleet.LabelIdent, requireAll bool) ([]fleet.LabelIdent, error) {
+	resolve := func(q *fleet.Query, src []fleet.LabelIdent, requireAll bool) []fleet.LabelIdent {
 		if len(src) == 0 {
-			return src, nil
+			return src
 		}
+		ids := idsByScope[scopeOf(q)]
+		inserted := make(map[uint]struct{}, len(src))
 		out := make([]fleet.LabelIdent, 0, len(src))
 		for _, lbl := range src {
-			lblID, ok, err := resolveID(lbl.LabelName, q.TeamID)
-			if err != nil {
-				return nil, err
-			}
-			if !ok {
+			lblID := ids[lbl.LabelName]
+			if _, ok := inserted[lblID]; ok {
 				continue
 			}
+			inserted[lblID] = struct{}{}
 			params = append(params, "(?, ?, ?)")
 			insertArgs = append(insertArgs, q.ID, lblID, requireAll)
 			out = append(out, fleet.LabelIdent{LabelID: lblID, LabelName: lbl.LabelName})
 		}
-		if len(out) == 0 {
-			return src, nil
-		}
-		return out, nil
+		return out
 	}
 
 	for _, q := range queries {
-		if q.LabelsIncludeAny, err = resolve(q, q.LabelsIncludeAny, false); err != nil {
-			return err
-		}
-		if q.LabelsIncludeAll, err = resolve(q, q.LabelsIncludeAll, true); err != nil {
-			return err
-		}
+		q.LabelsIncludeAny = resolve(q, q.LabelsIncludeAny, false)
+		q.LabelsIncludeAll = resolve(q, q.LabelsIncludeAll, true)
 	}
 
 	if len(params) == 0 {

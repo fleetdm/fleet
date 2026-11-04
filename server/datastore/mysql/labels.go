@@ -159,7 +159,12 @@ func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, labe
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		for _, label := range labels {
-			if _, err := tx.ExecContext(ctx, `UPDATE labels SET name = ? WHERE id = ?`, fleet.SetAsideLabelName(label.Name, label.TeamID), label.ID); err != nil {
+			setAsideName := fleet.SetAsideLabelName(label.Name, label.TeamID)
+			// The unique index only covers the label's own scope.
+			if err := checkLabelNameAcrossScopesTx(ctx, tx, setAsideName, label.TeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "set aside label")
+			}
+			if _, err := tx.ExecContext(ctx, `UPDATE labels SET name = ? WHERE id = ?`, setAsideName, label.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "rename labels to set aside")
 			}
 		}
@@ -854,15 +859,18 @@ func (ds *Datastore) LabelByName(ctx context.Context, name string, teamFilter fl
 		return nil, ctxerr.Wrap(ctx, err, "building label select query")
 	}
 
-	var label fleet.Label
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &label, stmt, params...); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("Label").WithName(name))
-		}
+	var labels []*fleet.Label
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, stmt, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting label")
 	}
-
-	return &label, nil
+	switch len(labels) {
+	case 0:
+		return nil, ctxerr.Wrap(ctx, notFound("Label").WithName(name))
+	case 1:
+		return labels[0], nil
+	default:
+		return nil, ctxerr.Wrap(ctx, fleet.NewAmbiguousLabelNameError(name))
+	}
 }
 
 // Label returns a fleet.LabelWithTeamName identified by lid if one exists and is accessible to the specified user.
@@ -1002,6 +1010,36 @@ func checkLabelNameAcrossScopesTx(ctx context.Context, tx sqlx.ExtContext, name 
 		return ctxerr.Wrap(ctx, &fleet.ConflictError{Message: msg})
 	}
 	return nil
+}
+
+// resolveLabelNamesTx resolves each name to the one label an entity can see under it: global labels plus the fleet's
+// labels, or every label for a global entity (nil fleetID). Names are matched in MySQL, so they compare with the
+// column's collation, which also ignores case, accents, and trailing spaces.
+func resolveLabelNamesTx(ctx context.Context, q sqlx.QueryerContext, names []string, fleetID *uint) (map[string]uint, error) {
+	ids := make(map[string]uint, len(names))
+	for _, name := range names {
+		if _, ok := ids[name]; ok {
+			continue
+		}
+		stmt, args := `SELECT id FROM labels WHERE name = ?`, []any{name}
+		if fleetID != nil {
+			stmt += ` AND (team_id IS NULL OR team_id = ?)`
+			args = append(args, *fleetID)
+		}
+		var matches []uint
+		if err := sqlx.SelectContext(ctx, q, &matches, stmt, args...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "resolve label names")
+		}
+		switch len(matches) {
+		case 0:
+			return nil, ctxerr.Wrap(ctx, notFound("Label").WithName(name))
+		case 1:
+			ids[name] = matches[0]
+		default:
+			return nil, ctxerr.Wrap(ctx, fleet.NewAmbiguousLabelNameError(name))
+		}
+	}
+	return ids, nil
 }
 
 // applyLabelTeamFilter requires the labels table to be aliased as "l" to work
