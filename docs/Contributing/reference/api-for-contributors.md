@@ -4880,7 +4880,7 @@ _Available in Fleet Premium._
 
 _Available in Fleet Premium._
 
-`POST /api/v1/fleet/software/titles/:software_title_id/package/token?alt=media`
+`POST /api/v1/fleet/software/titles/:software_title_id/packages/:package_id/token?alt=media`
 
 The returned token is a one-time use token that expires after 10 minutes.
 
@@ -4889,12 +4889,13 @@ The returned token is a one-time use token that expires after 10 minutes.
 | Name              | Type    | In    | Description                                                      |
 |-------------------|---------|-------|------------------------------------------------------------------|
 | software_title_id | integer | path  | **Required**. The ID of the software title for software package. |
+| package_id        | integer | path  | **Required**. The ID of the package to download. This is the `id` of the package in the `packages` array returned by Get software title. |
 | fleet_id           | integer | query | **Required**. The fleet ID containing the software package.      |
 | alt               | integer | query | **Required**. Must be specified and set to "media".              |
 
 #### Example
 
-`POST /api/v1/fleet/software/titles/123/package/token?alt=media&fleet_id=2`
+`POST /api/v1/fleet/software/titles/123/packages/36818/token?alt=media&fleet_id=2`
 
 ##### Default response
 
