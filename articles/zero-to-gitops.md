@@ -339,6 +339,33 @@ To pick up a pull request later, for example to address review comments, start a
 
 Using a different agent? The steps are the same: start the change on a fresh branch or worktree, describe what you want, and have the agent open a draft pull request. To use Claude without a GitOps repository, see [Use Claude Code with Fleet](https://fleetdm.com/guides/use-claude-code-with-fleet).
 
+## Ask your assistant about your devices
+
+The repository tells an agent how Fleet is configured. It doesn't tell it what's on your devices. For questions like "Which Macs are failing the FileVault policy?" or "Which hosts have this CVE?", connect your AI assistant to Fleet's [MCP server](https://fleetdm.com/guides/fleet-mcp).
+
+Starting in Fleet 4.95.0, Fleet Premium includes a built-in MCP server at `/api/v1/fleet/mcp`. It's on by default, and an admin can turn it off with `server_settings.mcp_disabled`. On earlier versions, or on Fleet Free, run the [standalone server](https://github.com/fleetdm/fleet/tree/main/cmd/fleet-mcp) instead.
+
+This connection is for reading, not changing. Changes still go through pull requests.
+
+1. Create a second API-only user, like "AI assistant", with the global **Observer** role. Choose **Observer+** if you want the assistant to run live queries. Don't reuse the GitOps user's token. Only API-only users can connect to the MCP server.
+
+   ```sh
+   fleetctl user create --name "AI assistant" --api-only --global-role observer
+   ```
+
+2. Add the server to Claude Code, with your Fleet URL and the new user's token:
+
+   ```sh
+   claude mcp add --scope user --transport http fleet https://fleet.example.com/api/v1/fleet/mcp \
+     --header "Authorization: Bearer <token>"
+   ```
+
+3. Ask a question in a new session: "How many hosts are failing each policy in Workstations?"
+
+Inventory answers, like software, users, and policy results, come from what each host last reported to Fleet. They include hosts that are offline right now, so an offline host's data is only as fresh as its last check-in. Live queries only reach hosts that are online.
+
+`--scope user` adds the server to your user configuration, not the GitOps repository's `.mcp.json`. That keeps the token out of Git and keeps the agent that edits your repository working only with files and pull requests.
+
 ## Review and merge with care
 
 The ruleset makes sure a person merges every change. These habits make sure that person merges the right ones. For profile-specific questions, like overlapping settings or Windows build applicability, see step 6 of [Build and validate configuration profiles with AI](https://fleetdm.com/guides/build-configuration-profiles-with-ai).
@@ -403,6 +430,7 @@ Add `.claude/worktrees/` to `.gitignore`, as described in [Tell your agent how y
 
 - [GitOps YAML reference](https://fleetdm.com/docs/configuration/yaml-files)
 - [Use Claude Code with Fleet](https://fleetdm.com/guides/use-claude-code-with-fleet)
+- [Fleet MCP server](https://fleetdm.com/guides/fleet-mcp)
 - [Build and validate configuration profiles with AI](https://fleetdm.com/guides/build-configuration-profiles-with-ai)
 - [Migrating to GitOps using fleetctl](https://fleetdm.com/guides/migrating-to-gitops-using-fleetctl)
 - [Set up GitOps for staging and production](https://fleetdm.com/guides/set-up-gitops-for-staging-and-production)
