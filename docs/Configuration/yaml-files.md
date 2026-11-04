@@ -471,7 +471,7 @@ controls:
         activation: ../lib/macos/activations/activation.json
     assets:
       - path: ../lib/macos/assets/my-asset.json
-    enable_managed_local_account: true
+    managed_local_account_enabled: true
     end_user_local_account_type: "admin"
   windows_settings:
     configuration_profiles:
@@ -480,9 +480,9 @@ controls:
           - Engineering
     enable_disk_encryption: true # Available in Fleet Premium
     require_bitlocker_pin: true # Available in Fleet Premium
+    managed_local_account_enabled: true 
   linux_settings:
     enable_escrow_disk_encryption_key: true # Available in Fleet Premium
-    enable_managed_local_account: true   
   android_settings:
     configuration_profiles:
       - path: ../lib/android-profile.json
@@ -537,14 +537,14 @@ controls:
   - In addition to configuration profiles, you can upload **assets** which are `.json` files containing an Apple asset declaration (`com.apple.asset`). Assets follow the same `path:` / `paths:` syntax as profiles but should be stored in a separate `assets/` folder (e.g. `../lib/macos/assets/my-asset.json`).
 - `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS hosts (default: `false`).
 - `enable_escrow_disk_encryption_key` specifies whether Fleet escrows the Filevault recovery key for macOS hosts (default: `false`). When set to `true`, for keys to be escrowed, `enable_disk_encryption` must be set to `true` or Filevault must be enabled by another means(such as a custom Filevault profile, or manually by users).
-- `enable_managed_local_account` specifies whether to create the managed local account on that platform (default: `false`).
-- `end_user_local_account_type` specifies the end user account type for macOS hosts. Requires `apple_settings.enable_managed_local_account` to be `true`. Only supported on macOS (`apple_settings`). Default: `"admin"`. To force a standard user account on Windows, use the [Autopilot profile](https://fleetdm.com/guides/windows-mdm-setup#force-a-standard-user-account).
+- `managed_local_account_enabled` specifies whether to create the managed local account on that platform (default: `false`).
+- `end_user_local_account_type` specifies the end user account type for macOS hosts. Requires `apple_settings.managed_local_account_enabled` to be `true`. Only supported on macOS (`apple_settings`). Default: `"admin"`. To force a standard user account on Windows, use the [Autopilot profile](https://fleetdm.com/guides/windows-mdm-setup#force-a-standard-user-account).
 
 ### windows_settings
 - `configuration_profiles` is a list of Windows configuration profiles (.xml). See notes on [referencing and targeting confguration profiles](#referencing-and-targeting-configuration-profiles).
 - `enable_disk_encryption` specifies whether or not to enforce disk encryption on Windows hosts (default: `false`).
 - `require_bitlocker_pin` specifies whether or not to require end users on Windows hosts to set a BitLocker PIN. When set, this PIN is required to unlock Windows hosts during startup. `windows_settings.enable_disk_encryption` must be set to `true`. (default: `false`).
-- `enable_managed_local_account` specifies whether to create the managed local account on that platform (default: `false`).
+- `managed_local_account_enabled` specifies whether to create the managed local account on that platform (default: `false`).
 
 
 ### linux_settings
@@ -603,7 +603,7 @@ The `setup_experience` section lets you control the out-of-the-box [setup experi
 - `macos_script` is the path to a custom setup script to run after the host is first set up. Applies to macOS only.
 
 `enable_managed_local_account` and `end_user_local_account_type` at this level are deprecated. 
-Please use the platform-specific `apple_settings.enable_managed_local_account`, `apple_settings.end_user_local_account_type`, or `windows_settings.enable_managed_local_account` instead.
+Please use the platform-specific `apple_settings.managed_local_account_enabled`, `apple_settings.end_user_local_account_type`, or `windows_settings.managed_local_account_enabled` instead.
 
 #### Example
 
