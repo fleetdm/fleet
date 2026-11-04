@@ -109,7 +109,7 @@ func testConditionalAccessHosts(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
 
-	changed, err := ds.CreateHostConditionalAccessStatus(ctx, noTeamHost.ID, "entraDeviceID", "foobar@example.onmicrosoft.com")
+	changed, err := ds.CreateHostConditionalAccessStatus(ctx, noTeamHost.ID, "entraDeviceID", "foobar@example.onmicrosoft.com", true)
 	require.NoError(t, err)
 	require.True(t, changed)
 
@@ -128,7 +128,7 @@ func testConditionalAccessHosts(t *testing.T, ds *Datastore) {
 	require.Nil(t, s.Compliant)
 
 	// Execute with same values should do nothing.
-	changed, err = ds.CreateHostConditionalAccessStatus(ctx, noTeamHost.ID, "entraDeviceID", "foobar@example.onmicrosoft.com")
+	changed, err = ds.CreateHostConditionalAccessStatus(ctx, noTeamHost.ID, "entraDeviceID", "foobar@example.onmicrosoft.com", true)
 	require.NoError(t, err)
 	require.False(t, changed)
 	s, err = ds.LoadHostConditionalAccessStatus(ctx, noTeamHost.ID)
@@ -174,7 +174,7 @@ func testConditionalAccessHosts(t *testing.T, ds *Datastore) {
 	// Simulate a device changing its device ID and user principal name
 	// (e.g. log out from Entra on device and log in again).
 	// We should update its data and clear its statuses.
-	changed, err = ds.CreateHostConditionalAccessStatus(ctx, noTeamHost.ID, "entraDeviceID2", "foobar2@example.onmicrosoft.com")
+	changed, err = ds.CreateHostConditionalAccessStatus(ctx, noTeamHost.ID, "entraDeviceID2", "foobar2@example.onmicrosoft.com", true)
 	require.NoError(t, err)
 	require.True(t, changed)
 	s, err = ds.LoadHostConditionalAccessStatus(ctx, noTeamHost.ID)
@@ -194,7 +194,7 @@ func testConditionalAccessHosts(t *testing.T, ds *Datastore) {
 
 	// Simulate a device with same device ID but empty username.
 	// This can happen on workstations with two user macOS accounts where one is registered and another one is not.
-	changed, err = ds.CreateHostConditionalAccessStatus(ctx, noTeamHost.ID, "entraDeviceID2", "")
+	changed, err = ds.CreateHostConditionalAccessStatus(ctx, noTeamHost.ID, "entraDeviceID2", "", true)
 	require.NoError(t, err)
 	require.True(t, changed)
 	s, err = ds.LoadHostConditionalAccessStatus(ctx, noTeamHost.ID)
@@ -213,7 +213,7 @@ func testConditionalAccessHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Simulate now that the second user has logged in to Entra.
-	changed, err = ds.CreateHostConditionalAccessStatus(ctx, noTeamHost.ID, "entraDeviceID2", "foobar3@example.onmicrosoft.com")
+	changed, err = ds.CreateHostConditionalAccessStatus(ctx, noTeamHost.ID, "entraDeviceID2", "foobar3@example.onmicrosoft.com", true)
 	require.NoError(t, err)
 	require.True(t, changed)
 	s, err = ds.LoadHostConditionalAccessStatus(ctx, noTeamHost.ID)
@@ -232,7 +232,7 @@ func testConditionalAccessHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Simulate that the first user has logged in again to the workstation.
-	changed, err = ds.CreateHostConditionalAccessStatus(ctx, noTeamHost.ID, "entraDeviceID2", "foobar@example.onmicrosoft.com")
+	changed, err = ds.CreateHostConditionalAccessStatus(ctx, noTeamHost.ID, "entraDeviceID2", "foobar@example.onmicrosoft.com", true)
 	require.NoError(t, err)
 	require.True(t, changed)
 	s, err = ds.LoadHostConditionalAccessStatus(ctx, noTeamHost.ID)
@@ -301,31 +301,57 @@ func TestExtractWindowsBuildVersion(t *testing.T) {
 func testConditionalAccessDeviceIDOneHost(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	host1 := newTestHostWithPlatform(t, ds, "host1", "darwin", nil)
-	host2 := newTestHostWithPlatform(t, ds, "host2", "windows", nil)
+	mac1 := newTestHostWithPlatform(t, ds, "mac1", "darwin", nil)
+	mac2 := newTestHostWithPlatform(t, ds, "mac2", "darwin", nil)
+	win1 := newTestHostWithPlatform(t, ds, "win1", "windows", nil)
+	win2 := newTestHostWithPlatform(t, ds, "win2", "windows", nil)
+	var conflictErr *fleet.ConflictError
+	assertDeviceID := func(hostID uint, deviceID string) {
+		status, err := ds.LoadHostConditionalAccessStatus(ctx, hostID)
+		if deviceID == "" {
+			require.True(t, fleet.IsNotFound(err), err)
+			return
+		}
+		require.NoError(t, err)
+		require.Equal(t, deviceID, status.DeviceID)
+	}
 
-	changed, err := ds.CreateHostConditionalAccessStatus(ctx, host1.ID, "entraDeviceID", "user1@example.com")
+	changed, err := ds.CreateHostConditionalAccessStatus(ctx, mac1.ID, "macDeviceID", "user1@example.com", true)
 	require.NoError(t, err)
 	require.True(t, changed)
 
-	// Another host can't take the device ID.
-	_, err = ds.CreateHostConditionalAccessStatus(ctx, host2.ID, "entraDeviceID", "")
-	var conflictErr *fleet.ConflictError
+	// Another host can't take a verified device ID, verified or not.
+	_, err = ds.CreateHostConditionalAccessStatus(ctx, win1.ID, "macDeviceID", "", false)
 	require.ErrorAs(t, err, &conflictErr)
-	_, err = ds.LoadHostConditionalAccessStatus(ctx, host2.ID)
-	require.True(t, fleet.IsNotFound(err))
+	_, err = ds.CreateHostConditionalAccessStatus(ctx, mac2.ID, "macDeviceID", "user2@example.com", true)
+	require.ErrorAs(t, err, &conflictErr)
+	assertDeviceID(win1.ID, "")
+	assertDeviceID(mac2.ID, "")
 
 	// The host that has it can still change its user.
-	changed, err = ds.CreateHostConditionalAccessStatus(ctx, host1.ID, "entraDeviceID", "user2@example.com")
+	changed, err = ds.CreateHostConditionalAccessStatus(ctx, mac1.ID, "macDeviceID", "user2@example.com", true)
 	require.NoError(t, err)
 	require.True(t, changed)
 
-	// After the host is deleted, the device ID can move to another host.
-	require.NoError(t, ds.DeleteHost(ctx, host1.ID))
-	changed, err = ds.CreateHostConditionalAccessStatus(ctx, host2.ID, "entraDeviceID", "")
+	// An unverified device ID can't be taken by another unverified claim.
+	changed, err = ds.CreateHostConditionalAccessStatus(ctx, win1.ID, "winDeviceID", "", false)
 	require.NoError(t, err)
 	require.True(t, changed)
-	status, err := ds.LoadHostConditionalAccessStatus(ctx, host2.ID)
+	_, err = ds.CreateHostConditionalAccessStatus(ctx, win2.ID, "winDeviceID", "", false)
+	require.ErrorAs(t, err, &conflictErr)
+	assertDeviceID(win2.ID, "")
+
+	// A verified claim takes it from the unverified one.
+	changed, err = ds.CreateHostConditionalAccessStatus(ctx, mac2.ID, "winDeviceID", "user3@example.com", true)
 	require.NoError(t, err)
-	require.Equal(t, "entraDeviceID", status.DeviceID)
+	require.True(t, changed)
+	assertDeviceID(mac2.ID, "winDeviceID")
+	assertDeviceID(win1.ID, "")
+
+	// After the host is deleted, the device ID can move to another host.
+	require.NoError(t, ds.DeleteHost(ctx, mac1.ID))
+	changed, err = ds.CreateHostConditionalAccessStatus(ctx, win2.ID, "macDeviceID", "", false)
+	require.NoError(t, err)
+	require.True(t, changed)
+	assertDeviceID(win2.ID, "macDeviceID")
 }

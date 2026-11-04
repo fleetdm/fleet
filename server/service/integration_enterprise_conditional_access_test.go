@@ -2164,10 +2164,20 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessMicrosoftEntraDevi
 		return slices.Contains(sentDeviceIDs, testEntraDeviceID2)
 	}, time.Second, 50*time.Millisecond)
 
+	// If a Windows host reports a device ID before the macOS host it belongs to, the macOS host's
+	// verified token takes it over.
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithEntraIDDetailsForWindows(winB, testEntraDeviceID3), http.StatusOK, &distributedResp)
+	assertDeviceID(winB, testEntraDeviceID3)
+	require.NotNil(t, s.reportEntraDeviceToken(signer, mac2, testEntraDeviceID3, "user3@example.com", http.StatusOK))
+	assertDeviceID(mac2, testEntraDeviceID3)
+	assertDeviceID(winB, "")
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithEntraIDDetailsForWindows(winB, testEntraDeviceID3), http.StatusOK, &distributedResp)
+	assertDeviceID(winB, "")
+
 	// Disabling the feature stops the request and the ingestion.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
 		"integrations": map[string]any{"conditional_access_enabled": false},
 	}, http.StatusOK, &tmResp)
 	require.Nil(t, s.reportEntraDeviceToken(signer, mac2, testEntraDeviceID2, "user2@example.com", http.StatusBadRequest))
-	assertDeviceID(mac2, "")
+	assertDeviceID(mac2, testEntraDeviceID3)
 }

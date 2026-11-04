@@ -114,7 +114,7 @@ func extractWindowsBuildVersion(osVersion string) string {
 	return osVersion[lastSpace+1:]
 }
 
-func (ds *Datastore) CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string, userPrincipalName string) (bool, error) {
+func (ds *Datastore) CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string, userPrincipalName string, verified bool) (bool, error) {
 	// Most of the time this information won't change, so use the reader first.
 	var hostConditionalAccessStatus fleet.HostConditionalAccessStatus
 	err := sqlx.GetContext(ctx,
@@ -139,16 +139,39 @@ func (ds *Datastore) CreateHostConditionalAccessStatus(ctx context.Context, host
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// A device ID belongs to one host; it moves to another host only after the old host is
 		// deleted. The locking read keeps a concurrent claim from assigning it twice.
-		var otherHostID uint
-		err := sqlx.GetContext(ctx, tx, &otherHostID,
-			`SELECT host_id FROM microsoft_compliance_partner_host_statuses WHERE device_id = ? AND host_id <> ? LIMIT 1 FOR UPDATE`,
+		var otherHostIDs []uint
+		if err := sqlx.SelectContext(ctx, tx, &otherHostIDs,
+			`SELECT host_id FROM microsoft_compliance_partner_host_statuses WHERE device_id = ? AND host_id <> ? FOR UPDATE`,
 			deviceID, hostID,
-		)
-		switch {
-		case err == nil:
-			return ctxerr.Wrap(ctx, &fleet.ConflictError{Message: "Entra device ID is already assigned to another host"})
-		case !errors.Is(err, sql.ErrNoRows):
+		); err != nil {
 			return ctxerr.Wrap(ctx, err, "check Entra device ID assignment")
+		}
+		if len(otherHostIDs) > 0 {
+			if !verified {
+				return ctxerr.Wrap(ctx, &fleet.ConflictError{Message: "Entra device ID is already assigned to another host"})
+			}
+			// A verified claim proves the device ID is this host's, so it replaces claims from hosts
+			// that report it unverified (any platform but macOS), but not another verified one.
+			stmt, args, err := sqlx.In(`SELECT COUNT(*) FROM hosts WHERE id IN (?) AND platform = 'darwin'`, otherHostIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build verified hosts query")
+			}
+			var verifiedHolders int
+			if err := sqlx.GetContext(ctx, tx, &verifiedHolders, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "count verified Entra device ID holders")
+			}
+			if verifiedHolders > 0 {
+				return ctxerr.Wrap(ctx, &fleet.ConflictError{Message: "Entra device ID is already assigned to another host"})
+			}
+			stmt, args, err = sqlx.In(`DELETE FROM microsoft_compliance_partner_host_statuses WHERE host_id IN (?)`, otherHostIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build delete unverified holders query")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete unverified Entra device ID holders")
+			}
+			ds.logger.InfoContext(ctx, "moved Entra device ID from hosts with an unverified claim",
+				"host_id", hostID, "previous_host_ids", otherHostIDs)
 		}
 
 		// Create or override existing row for the host.

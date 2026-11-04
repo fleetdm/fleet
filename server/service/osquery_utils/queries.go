@@ -2487,7 +2487,7 @@ func directIngestEntraIDDetails(
 	}
 
 	// The user principal name isn't reported on Windows.
-	if _, err := ds.CreateHostConditionalAccessStatus(ctx, host.ID, deviceID, ""); err != nil {
+	if _, err := ds.CreateHostConditionalAccessStatus(ctx, host.ID, deviceID, "", false); err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to create host conditional access status")
 	}
 	return nil

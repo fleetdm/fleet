@@ -93,7 +93,7 @@ func (svc *Service) SetHostEntraDeviceToken(ctx context.Context, idToken string)
 		return badRequest("invalid Entra device token: nonce mismatch")
 	}
 
-	changed, err := svc.ds.CreateHostConditionalAccessStatus(ctx, host.ID, claims.DeviceID, claims.PreferredUsername)
+	changed, err := svc.ds.CreateHostConditionalAccessStatus(ctx, host.ID, claims.DeviceID, claims.PreferredUsername, true)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "create host conditional access status")
 	}
