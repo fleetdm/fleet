@@ -14695,8 +14695,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Install self-service software by Fleet Desktop token](#install-self-service-software-by-fleet-desktop-token)
 - [Get software install result](#get-software-install-result)
 - [Download software](#download-package)
-- [Delete package](#delete-package)
-- [Delete app store app](#delete-app-store-app)
+- [Delete software](#delete-software)
 
 ### List software
 
@@ -15532,14 +15531,13 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 
 > This endpoint accepts a maximum request body size of 10GB.
 
-`PATCH /api/v1/fleet/software/titles/:software_title_id/packages/:package_id`
+`PATCH /api/v1/fleet/software/titles/:id/package`
 
 #### Parameters
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software_title_id | integer | path | **Required**. The ID of the software title. |
-| package_id | integer | path | **Required**. The ID of the package. This is the `id` of the package in the `packages` array returned by [Get software title](#get-software-title). |
+| id | integer | path | ID of the software title being updated. |
 | software        | file    | body | Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, `.py`, and `.ps1`.   |
 | fleet_id         | integer | body | **Required**. The fleet ID. Updates a software package in the specified fleet. |
 | categories        | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**. |
@@ -15568,7 +15566,7 @@ Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`,
 
 #### Example
 
-`PATCH /api/v1/fleet/software/titles/1/packages/36818`
+`PATCH /api/v1/fleet/software/titles/1/package`
 
 ##### Request body
 
@@ -15847,17 +15845,16 @@ _Available in Fleet Premium._
 
 Modify an Apple App Store (VPP) or a Google Play app's options.
 
-A software title can have more than one version of the same App Store app on a fleet. The `version_id` in the URL selects which version to update — the version's `name` is a mutable field, not its identifier.
+A software title can have more than one version of the same App Store app on a fleet. Use `version_id` to select which version to update — the version's `name` is a mutable field, not its identifier.
 
-`PATCH /api/v1/fleet/software/titles/:software_title_id/app_store_apps/:version_id`
+`PATCH /api/v1/fleet/software/titles/:title_id/app_store_app`
 
 #### Parameters
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| software_title_id | integer | path | **Required**. The ID of the software title. |
-| version_id | integer | path | **Required**. The ID of the App Store app version. This is the `id` of the app in the `app_store_apps` array returned by [Get software title](#get-software-title). |
 | fleet_id       | integer | body | **Required**. The fleet ID. Edits Apple App Store or Android Play store app from the specified fleet.  |
+| version_id | integer | body | ID of the version of the app to update. **Required when the title has more than one version** on the fleet. |
 | name | string | body | The version's name (e.g. `"Production"`). Must be unique for the software title on the fleet. |
 | self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, and for Android in **Play Store** app in end user's work profile.  |
 | categories | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**. |
@@ -15879,7 +15876,7 @@ If a host is in scope for more than one version, Fleet installs the one that was
 
 #### Example
 
-`PATCH /api/v1/fleet/software/titles/3467/app_store_apps/12`
+`PATCH /api/v1/fleet/software/titles/3467/app_store_app`
 
 ##### Request body
 
@@ -15897,11 +15894,10 @@ If a host is in scope for more than one version, Fleet installs the one that was
 
 ##### Request body updating a specific version
 
-`PATCH /api/v1/fleet/software/titles/3467/app_store_apps/42`
-
 ```json
 {
   "fleet_id": 2,
+  "version_id": 42,
   "name": "Test",
   "labels_include_any": ["Test"],
   "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Test config -->"
@@ -16287,49 +16283,25 @@ When an install attempt was skipped because a patch policy has `patch_when_close
 }
 ```
 
-### Delete package
+### Delete software
 
 _Available in Fleet Premium._
 
-Deletes one package from a software title. The software isn't uninstalled from hosts.
+Deletes software that's available for install. For Android hosts, the software is also uninstalled. For all other hosts, the software isn't uninstalled.
 
-`DELETE /api/v1/fleet/software/titles/:software_title_id/packages/:package_id`
+`DELETE /api/v1/fleet/software/titles/:software_title_id/available_for_install`
 
 #### Parameters
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software_title_id | integer | path | **Required**. The ID of the software title. |
-| package_id | integer | path | **Required**. The ID of the package. This is the `id` of the package in the `packages` array returned by [Get software title](#get-software-title). |
-| fleet_id | integer | query | **Required**. The fleet ID. |
+| software_title_id              | integer | path | **Required**. The ID of the software title to delete software available for install. |
+| fleet_id | integer | query | **Required**. The fleet ID. Deletes a software package added to the specified fleet. |
+| version_id | integer | query | Deletes only the specified version of an App Store app. If omitted, all of the title's App Store app versions on the fleet are deleted. |
 
 #### Example
 
-`DELETE /api/v1/fleet/software/titles/24/packages/36818?fleet_id=2`
-
-##### Default response
-
-`Status: 204`
-
-### Delete app store app
-
-_Available in Fleet Premium._
-
-Deletes one Apple App Store (VPP) or Google Play app version from a software title. For Android hosts, the app is also uninstalled. For all other hosts, the app isn't uninstalled.
-
-`DELETE /api/v1/fleet/software/titles/:software_title_id/app_store_apps/:version_id`
-
-#### Parameters
-
-| Name            | Type    | In   | Description                                      |
-| ----            | ------- | ---- | --------------------------------------------     |
-| software_title_id | integer | path | **Required**. The ID of the software title. |
-| version_id | integer | path | **Required**. The ID of the App Store app version. This is the `id` of the app in the `app_store_apps` array returned by [Get software title](#get-software-title). |
-| fleet_id | integer | query | **Required**. The fleet ID. |
-
-#### Example
-
-`DELETE /api/v1/fleet/software/titles/3467/app_store_apps/12?fleet_id=2`
+`DELETE /api/v1/fleet/software/titles/24/available_for_install?fleet_id=2`
 
 ##### Default response
 
