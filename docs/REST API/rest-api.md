@@ -1840,7 +1840,7 @@ None.
           "path": "path/to/assets/asset.json"
         }
       ],
-      "enable_managed_local_account": true,
+      "managed_local_account_enabled": true,
       "end_user_local_account_type": "admin"
     },
     "windows_settings": {
@@ -1858,7 +1858,7 @@ None.
       ],
       "enable_disk_encryption": true,
       "require_bitlocker_pin": true,
-      "enable_managed_local_account": true
+      "managed_local_account_enabled": true
     },
     "linux_settings": {
       "enable_escrow_disk_encryption_key": true
@@ -2244,7 +2244,7 @@ Modifies the Fleet's configuration with the supplied information.
           "path": "path/to/assets/asset.json"
         }
       ],
-      "enable_managed_local_account": true,
+      "managed_local_account_enabled": true,
       "end_user_local_account_type": "admin"
     },
     "windows_settings": {
@@ -2262,7 +2262,7 @@ Modifies the Fleet's configuration with the supplied information.
       ],
       "enable_disk_encryption": true,
       "require_bitlocker_pin": true,
-      "enable_managed_local_account": true
+      "managed_local_account_enabled": true
     },
     "linux_settings": {
       "enable_escrow_disk_encryption_key": true
@@ -2970,7 +2970,7 @@ _Available in Fleet Premium._
 | enable_end_user_authentication       | boolean | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#end-user-authentication). |
 | lock_end_user_info                   | boolean | If set to true, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`) |
 
-> `enable_managed_local_account` and `end_user_local_account_type` are not available anymore as of Fleet 5.0. Please use the platform based `enable_managed_local_account` and `apple_settings.end_user_local_account_type` instead.
+> `enable_managed_local_account` and `end_user_local_account_type` are not available anymore as of Fleet 5.0. Please use the platform based `managed_local_account_enabled` and `apple_settings.end_user_local_account_type` instead.
 
 <br/>
 
@@ -2993,8 +2993,8 @@ _Available in Fleet Premium._
 | custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
 | enable_disk_encryption             | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true. |
 | enable_escrow_disk_encryption_key  | boolean | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. Supported for macOS and Linux hosts. |
-| enable_managed_local_account           | boolean | _Available in Fleet Premium_. Whether to create the managed local account (default: `false`). |
-| end_user_local_account_type            | string  | _Available in Fleet Premium_. The end user account type. Requires `enable_managed_local_account` to be `true`. Options: `"admin"`, `"standard"`, `"none"` (default: `"admin"`). |
+| managed_local_account_enabled           | boolean | _Available in Fleet Premium_. Whether to create the managed local account (default: `false`). |
+| end_user_local_account_type            | string  | _Available in Fleet Premium_. The end user account type. Requires `managed_local_account_enabled` to be `true`. Options: `"admin"`, `"standard"`, `"none"` (default: `"admin"`). |
 
 <br/>
 
@@ -3005,7 +3005,7 @@ _Available in Fleet Premium._
 | Name                                   | Type    | Description   |
 | -------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
-| enable_managed_local_account           | boolean | _Available in Fleet Premium_. Whether to create the managed local account (default: `false`). |
+| managed_local_account_enabled           | boolean | _Available in Fleet Premium_. Whether to create the managed local account (default: `false`). |
 
 <br/>
 
@@ -3078,7 +3078,7 @@ _Available in Fleet Premium._
           "path": "path/to/assets/asset.json"
         }
       ],
-      "enable_managed_local_account": true
+      "managed_local_account_enabled": true
     },
     "windows_settings": {
       "configuration_profiles": [
@@ -3089,7 +3089,7 @@ _Available in Fleet Premium._
       ],
       "enable_disk_encryption": true,
       "require_bitlocker_pin": true,
-      "enable_managed_local_account": true
+      "managed_local_account_enabled": true
     },
     "linux_settings": {
       "enable_escrow_disk_encryption_key": true,
@@ -16298,7 +16298,7 @@ _Available in Fleet Premium_
             "path": "path/to/assets/asset.json"
           }
         ],
-        "enable_managed_local_account": true
+        "managed_local_account_enabled": true
       },
       "windows_settings": {
         "custom_settings": [
@@ -16315,7 +16315,7 @@ _Available in Fleet Premium_
         ],
         "enable_disk_encryption": true,
         "require_bitlocker_pin": true,
-        "enable_managed_local_account": true
+        "managed_local_account_enabled": true
       },
       "linux_settings": {
         "enable_escrow_disk_encryption_key": true
@@ -16753,8 +16753,8 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 | Name                                   | Type    | Description   |
 | -------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
-| enable_managed_local_account           | boolean | _Available in Fleet Premium_. Whether to create the managed local account (default: `false`). |
-| end_user_local_account_type            | string  | _Available in Fleet Premium_. The end user account type. Requires `enable_managed_local_account` to be `true`. Options: `"admin"`, `"standard"`, `"none"` (default: `"admin"`). |
+| managed_local_account_enabled           | boolean | _Available in Fleet Premium_. Whether to create the managed local account (default: `false`). |
+| end_user_local_account_type            | string  | _Available in Fleet Premium_. The end user account type. Requires `managed_local_account_enabled` to be `true`. Options: `"admin"`, `"standard"`, `"none"` (default: `"admin"`). |
 | enable_disk_encryption             | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true. |
 | enable_escrow_disk_encryption_key  | boolean | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. Supported for macOS and Linux hosts. |
 
@@ -16768,7 +16768,7 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 | Name                                    | Type    | Description   |
 | ---------------------                   | ------- | -------------------------------------------------------------------------------------------------------|
 | custom_settings                         | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead.                                                                                                                             |
-| enable_managed_local_account           | boolean  | _Available in Fleet Premium_. Whether to create the managed local account (default: `false`). |
+| managed_local_account_enabled           | boolean  | _Available in Fleet Premium_. Whether to create the managed local account (default: `false`). |
 | enable_disk_encryption                  | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true. |
 | require_bitlocker_pin                   | boolean | End users on Windows hosts that are "Unassigned" will be required to set a BitLocker PIN if set to true. `windows_settings.enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 <br/>
@@ -16795,7 +16795,7 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 | enable_end_user_authentication        | boolean | If set to true, IdP authentication will be required during automatic MDM enrollment of new macOS hosts. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#require-idp-authentication).
 | lock_end_user_info                    | boolean | If set to true, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`) |
 
-> `enable_managed_local_account` and `end_user_local_account_type` are not available anymore as of Fleet 5.0. Please use the platform based `enable_managed_local_account` and `apple_settings.end_user_local_account_type` instead.
+> `enable_managed_local_account` and `end_user_local_account_type` are not available anymore as of Fleet 5.0. Please use the platform based `managed_local_account_enabled` and `apple_settings.end_user_local_account_type` instead.
 
 ##### Example request body
 
@@ -16833,7 +16833,7 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
           "path": "path/to/assets/asset.json"
         }
       ],
-      "enable_managed_local_account": true
+      "managed_local_account_enabled": true
     },
     "windows_settings": {
       "custom_settings": [
@@ -16850,7 +16850,7 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
       ],
       "enable_disk_encryption": true,
       "require_bitlocker_pin": true,
-      "enable_managed_local_account": true
+      "managed_local_account_enabled": true
     },
     "linux_settings": {
       "enable_escrow_disk_encryption_key": true
@@ -17047,7 +17047,7 @@ This also applies to `DELETE /api/v1/fleet/fleets/:id/users` (remove users from 
             "path": "path/to/assets/asset.json"
           }
         ],
-        "enable_managed_local_account": true
+        "managed_local_account_enabled": true
       },
       "windows_settings": {
         "custom_settings": [
@@ -17064,7 +17064,7 @@ This also applies to `DELETE /api/v1/fleet/fleets/:id/users` (remove users from 
         ],
         "enable_disk_encryption": true,
         "require_bitlocker_pin": false,
-        "enable_managed_local_account": true
+        "managed_local_account_enabled": true
       },
       "linux_settings": {
         "enable_escrow_disk_encryption_key": true
