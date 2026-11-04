@@ -1194,8 +1194,11 @@ def run_checks(ctx):
             continue
         check_removed_keys(ctx, src, data)
         org_ref = data.get("org_settings")
-        if isinstance(org_ref, dict) and isinstance(org_ref.get("path"), str) and not org_ref["path"].startswith("$"):
-            org_file = Path(src).parent / org_ref["path"]
+        org_path = org_ref.get("path") if isinstance(org_ref, dict) else None
+        if isinstance(org_path, str) and org_path.startswith("$"):
+            ctx.info(src, f"org_settings: path {org_path} is an environment variable; not resolved, removed-key checks skipped")
+        elif isinstance(org_path, str):
+            org_file = Path(src).parent / org_path
             org_data = load_yaml_file(ctx, org_file) if org_file.is_file() else None
             if isinstance(org_data, dict):
                 check_removed_keys(ctx, org_file, {"org_settings": org_data})
