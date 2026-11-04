@@ -1878,7 +1878,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsScriptsConfig() {
 		Description: "desc team1",
 	}
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", team, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
 	team = createTeamResp.Team
 
@@ -1897,7 +1897,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsScriptsConfig() {
 
 	// retrieving the team returns the scripts
 	var teamResp getTeamResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.Scripts.Value)
 
 	// apply without custom scripts specified, should not replace existing scripts
@@ -1910,7 +1910,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsScriptsConfig() {
 	}
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.Scripts.Value)
 
 	// apply with explicitly empty custom scripts would clear the existing
@@ -1925,7 +1925,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsScriptsConfig() {
 	}
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, "dry_run", "true")
 	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.Scripts.Value)
 
 	// apply with explicitly empty scripts clears the existing scripts
@@ -1939,7 +1939,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsScriptsConfig() {
 	}
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Empty(t, teamResp.Team.Config.Scripts.Value)
 
 	// patch with an invalid array returns an error
@@ -1953,7 +1953,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsScriptsConfig() {
 	}
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusBadRequest)
 	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Empty(t, teamResp.Team.Config.Scripts.Value)
 }
 

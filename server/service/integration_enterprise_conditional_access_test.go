@@ -152,7 +152,7 @@ KSCy+VfKBn4=
 
 	// Enable conditional access on the team
 	var tmResp teamResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), map[string]any{
 		"integrations": map[string]any{
 			"conditional_access_enabled": true,
 		},
@@ -200,7 +200,7 @@ KSCy+VfKBn4=
 	})
 
 	// Disable conditional access on the team
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), map[string]any{
 		"integrations": map[string]any{
 			"conditional_access_enabled": false,
 		},
@@ -501,7 +501,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 
 	// Enable feature on team.
 	var tmResp teamResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), map[string]any{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", t1.ID), map[string]any{
 		"integrations": map[string]any{
 			"conditional_access_enabled": true,
 		},
@@ -976,7 +976,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPoliciesEntraResul
 
 	// Enable feature on team.
 	var tmResp teamResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), map[string]any{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", t1.ID), map[string]any{
 		"integrations": map[string]any{
 			"conditional_access_enabled": true,
 		},
