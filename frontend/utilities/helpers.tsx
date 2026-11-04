@@ -147,7 +147,7 @@ const filterTarget = (targetType: string) => {
         return isHost(target) && !isNaN(id) ? [id] : [];
       case "labels":
         return isLabel(target) && !isNaN(id) ? [id] : [];
-      case "teams":
+      case "fleets":
         return !isHost(target) && !isLabel(target) && !isNaN(id) ? [id] : [];
       default:
         return [];
@@ -192,20 +192,20 @@ export const formatSelectedTargetsForApi = (
   // TODO: can flatMap be removed?
   const hostIds = flatMap(targets, filterTarget("hosts"));
   const labelIds = flatMap(targets, filterTarget("labels"));
-  const teamIds = flatMap(targets, filterTarget("teams"));
+  const fleetIds = flatMap(targets, filterTarget("fleets"));
 
   return {
     hosts: hostIds.sort(),
     labels: labelIds.sort(),
-    teams: teamIds.sort(),
+    fleets: fleetIds.sort(),
   };
 };
 
 export const formatPackTargetsForApi = (
   targets: ISelectTargetsEntity[]
 ): IPackTargets => {
-  const { hosts, labels, teams } = formatSelectedTargetsForApi(targets);
-  return { host_ids: hosts, label_ids: labels, fleet_ids: teams };
+  const { hosts, labels, fleets } = formatSelectedTargetsForApi(targets);
+  return { host_ids: hosts, label_ids: labels, fleet_ids: fleets };
 };
 
 export const formatScheduledQueryForServer = (

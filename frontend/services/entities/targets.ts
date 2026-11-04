@@ -15,7 +15,7 @@ interface ITargetsProps {
 const defaultSelected = {
   hosts: [],
   labels: [],
-  teams: [],
+  fleets: [],
 };
 
 export interface ITargetsSearchParams {
@@ -97,7 +97,7 @@ export default {
         targets: [
           ...appendTargetTypeToTargets(targets.hosts, "hosts"),
           ...appendTargetTypeToTargets(targets.labels, "labels"),
-          ...appendTargetTypeToTargets(targets.teams, "teams"),
+          ...appendTargetTypeToTargets(targets.fleets, "fleets"),
         ],
       };
     });

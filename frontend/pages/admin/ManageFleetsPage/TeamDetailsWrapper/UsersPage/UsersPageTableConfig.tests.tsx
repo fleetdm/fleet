@@ -24,7 +24,7 @@ const createTeamUser = (
 ): ITeamUsersTableData => {
   const user = createMockUser({
     global_role: null,
-    teams: [createMockTeam({ id: TEAM_ID, role: "observer" })],
+    fleets: [createMockTeam({ id: TEAM_ID, role: "observer" })],
     ...overrides,
   });
   const [row] = generateDataSet(TEAM_ID, [user]);

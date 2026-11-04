@@ -154,7 +154,7 @@ const SelectTargets = ({
     ["teams"],
     () => teamsAPI.loadAll(),
     {
-      select: (data) => data.teams,
+      select: (data) => data.fleets,
       enabled: isPremiumTier,
       staleTime: STALE_TIME, // TODO: confirm
     }
@@ -372,7 +372,7 @@ const SelectTargets = ({
     entityList: ISelectLabel[] | ISelectTeam[],
     disabledIds?: Set<number>
   ): JSX.Element => {
-    const isTeamsSection = entityType === "teams";
+    const isTeamsSection = entityType === "fleets";
     const displayType = isTeamsSection ? "fleets" : entityType;
     const isSearchEnabled = isTeamsSection || entityType === "labels";
     const searchTerm = (
@@ -601,11 +601,11 @@ const SelectTargets = ({
         {!!teams?.length &&
           (isOnGlobalTeam
             ? renderTargetEntitySection(
-                "teams",
+                "fleets",
                 [{ id: 0, name: "Unassigned" }, ...teams],
                 disabledTeamIds
               )
-            : renderTargetEntitySection("teams", teams, disabledTeamIds))}
+            : renderTargetEntitySection("fleets", teams, disabledTeamIds))}
         {!!labels?.other?.length &&
           renderTargetEntitySection("labels", labels.other)}
       </div>
