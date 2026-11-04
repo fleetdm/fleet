@@ -76,12 +76,6 @@ If you are using Fleet's Terraform modules to manage your Fleet deployment to AW
 
 Run `terraform apply` to apply the changes.
 
-## Upgrading to Fleet 5
-
-Fleet 5 includes breaking changes. Before you upgrade, check these steps:
-
-+ **GitOps:** Upgrade `fleetctl` to version 5 along with the Fleet server. Older versions of `fleetctl` can't delete fleet labels or move a label between `default.yml` and a fleet's YAML file, so `fleetctl gitops` fails.
-
 ## Compatibility
 
 Fleet follows [Semantic Versioning (semver)](https://semver.org/). This means that breaking changes are never introduced in a new minor or patch version, except in these rare cases:
