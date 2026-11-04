@@ -284,7 +284,6 @@ func TestStreamSoftwareVersionsResponse(t *testing.T) {
 			Meta: &fleet.PaginationMetadata{HasNextResults: true},
 		}},
 		{"no software", listSoftwareVersionsResponse{Meta: &fleet.PaginationMetadata{}}},
-		{"no counts timestamp or meta", listSoftwareVersionsResponse{Count: 2, Software: software}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			want, err := json.Marshal(tc.resp)

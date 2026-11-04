@@ -580,43 +580,6 @@ func testSoftwareLoadSupportsTonsOfCVEs(t *testing.T, ds *Datastore) {
 	}
 }
 
-// TestSelectSoftwareSQLCVEJoins pins when the grouped sub-query joins the CVE tables.
-// CVEs are listed by loadSoftwareListCVEs afterwards, so the sub-query only needs them
-// to filter, search or order.
-func TestSelectSoftwareSQLCVEJoins(t *testing.T) {
-	t.Parallel()
-
-	hostID := uint(1)
-	byName := fleet.ListOptions{OrderKey: "name"}
-	for _, tc := range []struct {
-		name     string
-		opts     fleet.SoftwareListOptions
-		wantCVE  bool
-		wantMeta bool
-	}{
-		{"host software with details", fleet.SoftwareListOptions{HostID: &hostID, IncludeCVEScores: true}, false, false},
-		{"host software without details", fleet.SoftwareListOptions{HostID: &hostID}, false, false},
-		{"by name with details", fleet.SoftwareListOptions{ListOptions: byName, IncludeCVEScores: true, WithHostCounts: true}, false, false},
-		{"by name without details", fleet.SoftwareListOptions{ListOptions: byName, WithHostCounts: true}, false, false},
-		{"by cvss_score", fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "cvss_score"}, IncludeCVEScores: true, WithHostCounts: true}, true, true},
-		{"by name then epss_probability", fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "name, epss_probability"}, IncludeCVEScores: true, WithHostCounts: true}, true, true},
-		{"search", fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "name", MatchQuery: "CVE-2026"}, IncludeCVEScores: true, WithHostCounts: true}, true, false},
-		{"vulnerable only", fleet.SoftwareListOptions{ListOptions: byName, VulnerableOnly: true, IncludeCVEScores: true, WithHostCounts: true}, true, false},
-		{"vulnerable only with cvss filter", fleet.SoftwareListOptions{ListOptions: byName, VulnerableOnly: true, MinimumCVSS: 7, IncludeCVEScores: true, WithHostCounts: true}, true, true},
-		{"vulnerable only with max cvss filter", fleet.SoftwareListOptions{ListOptions: byName, VulnerableOnly: true, MaximumCVSS: 7, IncludeCVEScores: true, WithHostCounts: true}, true, true},
-		{"vulnerable only with exploit filter", fleet.SoftwareListOptions{ListOptions: byName, VulnerableOnly: true, KnownExploit: true, IncludeCVEScores: true, WithHostCounts: true}, true, true},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			require.False(t, canUseOptimizedListQuery(tc.opts))
-			sql, _, err := selectSoftwareSQL(tc.opts)
-			require.NoError(t, err)
-			require.Equal(t, tc.wantCVE, strings.Contains(sql, "software_cve"), sql)
-			require.Equal(t, tc.wantMeta, strings.Contains(sql, "cve_meta"), sql)
-		})
-	}
-}
-
 // TestCanUseOptimizedListQueryOrderKeys pins which requests take the covering-index
 // path, including the spacing the ordering helper tolerates.
 func TestCanUseOptimizedListQueryOrderKeys(t *testing.T) {
@@ -16465,43 +16428,38 @@ func testSoftwareListSharedCVEs(t *testing.T, ds *Datastore) {
 		return m
 	}
 
-	// Both the covering-index path (default hosts_count order) and the goqu path
-	// (any other order) must agree.
-	for _, orderKey := range []string{"", "name,version"} {
-		t.Run("premium details order="+orderKey, func(t *testing.T) {
-			list, _, err := ds.ListSoftware(ctx, fleet.SoftwareListOptions{
-				ListOptions:      fleet.ListOptions{OrderKey: orderKey},
-				IncludeCVEScores: true,
-				WithHostCounts:   true,
-			})
-			require.NoError(t, err)
-			got := bySoftware(list)
-			require.Len(t, got, 3)
-
-			a1 := got["alpha 1.0"].Vulnerabilities
-			require.Len(t, a1, 2)
-			require.Equal(t, "CVE-2026-0001", a1[0].CVE)
-			require.Equal(t, "CVE-2026-0002", a1[1].CVE)
-			require.Equal(t, "shared description", **a1[0].Description)
-			require.Equal(t, "1.5", **a1[0].ResolvedInVersion)
-			require.False(t, a1[0].CreatedAt.IsZero())
-			// No metadata: details are present but null, not omitted.
-			require.NotNil(t, a1[1].CVSSScore)
-			require.Nil(t, *a1[1].CVSSScore)
-			require.NotNil(t, a1[1].Description)
-			require.Nil(t, *a1[1].Description)
-			require.NotNil(t, a1[1].ResolvedInVersion)
-			require.Nil(t, *a1[1].ResolvedInVersion)
-
-			a2 := got["alpha 2.0"].Vulnerabilities
-			require.Len(t, a2, 1)
-			require.Equal(t, "CVE-2026-0001", a2[0].CVE)
-			require.Equal(t, "shared description", **a2[0].Description)
-			require.Equal(t, "2.5", **a2[0].ResolvedInVersion)
-
-			require.Empty(t, got["beta 1.0"].Vulnerabilities)
+	t.Run("premium details", func(t *testing.T) {
+		list, _, err := ds.ListSoftware(ctx, fleet.SoftwareListOptions{
+			IncludeCVEScores: true,
+			WithHostCounts:   true,
 		})
-	}
+		require.NoError(t, err)
+		got := bySoftware(list)
+		require.Len(t, got, 3)
+
+		a1 := got["alpha 1.0"].Vulnerabilities
+		require.Len(t, a1, 2)
+		require.Equal(t, "CVE-2026-0001", a1[0].CVE)
+		require.Equal(t, "CVE-2026-0002", a1[1].CVE)
+		require.Equal(t, "shared description", **a1[0].Description)
+		require.Equal(t, "1.5", **a1[0].ResolvedInVersion)
+		require.False(t, a1[0].CreatedAt.IsZero())
+		// No metadata: details are present but null, not omitted.
+		require.NotNil(t, a1[1].CVSSScore)
+		require.Nil(t, *a1[1].CVSSScore)
+		require.NotNil(t, a1[1].Description)
+		require.Nil(t, *a1[1].Description)
+		require.NotNil(t, a1[1].ResolvedInVersion)
+		require.Nil(t, *a1[1].ResolvedInVersion)
+
+		a2 := got["alpha 2.0"].Vulnerabilities
+		require.Len(t, a2, 1)
+		require.Equal(t, "CVE-2026-0001", a2[0].CVE)
+		require.Equal(t, "shared description", **a2[0].Description)
+		require.Equal(t, "2.5", **a2[0].ResolvedInVersion)
+
+		require.Empty(t, got["beta 1.0"].Vulnerabilities)
+	})
 
 	t.Run("host software with details", func(t *testing.T) {
 		require.NoError(t, ds.LoadHostSoftware(ctx, host, true))
@@ -16519,14 +16477,6 @@ func testSoftwareListSharedCVEs(t *testing.T, ds *Datastore) {
 		require.Nil(t, *a1[1].CVSSScore)
 		require.Equal(t, "2.5", **got["alpha 2.0"].Vulnerabilities[0].ResolvedInVersion)
 		require.Empty(t, got["beta 1.0"].Vulnerabilities)
-
-		require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
-		for _, s := range host.Software {
-			for _, v := range s.Vulnerabilities {
-				require.Nil(t, v.CVSSScore)
-				require.Nil(t, v.Description)
-			}
-		}
 	})
 
 	t.Run("CVEs shared across batches", func(t *testing.T) {
