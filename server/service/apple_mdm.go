@@ -3900,13 +3900,13 @@ func (r batchSetMDMAppleProfilesResponse) Status() int { return http.StatusNoCon
 
 func batchSetMDMAppleProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchSetMDMAppleProfilesRequest)
-	if err := svc.BatchSetMDMAppleProfiles(ctx, req.TeamID, req.TeamName, req.Profiles, req.DryRun, false); err != nil {
+	if err := svc.BatchSetMDMAppleProfiles(ctx, req.TeamID, req.TeamName, req.Profiles, req.DryRun); err != nil {
 		return batchSetMDMAppleProfilesResponse{Err: err}, nil
 	}
 	return batchSetMDMAppleProfilesResponse{}, nil
 }
 
-func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tmName *string, profiles [][]byte, dryRun, skipBulkPending bool) error {
+func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tmName *string, profiles [][]byte, dryRun bool) error {
 	var err error
 	tmID, tmName, err = svc.authorizeBatchProfiles(ctx, tmID, tmName)
 	if err != nil {
@@ -4037,34 +4037,31 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		profs = append(profs, mdmProf)
 	}
 
-	if !skipBulkPending {
-		// check for duplicates with existing profiles, skipBulkPending signals that the caller
-		// is responsible for ensuring that the profiles names are unique (e.g., MDMAppleMatchPreassignment)
-		allProfs, _, err := svc.ds.ListMDMConfigProfiles(ctx, tmID, fleet.ListOptions{PerPage: 0})
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "list mdm config profiles")
-		}
-		for _, p := range allProfs {
-			if byName[p.Name] {
-				switch {
-				case strings.HasPrefix(p.ProfileUUID, "a"):
-					// do nothing, all existing mobileconfigs will be replaced and we've already checked
-					// the new mobileconfigs for duplicates
-					continue
-				case strings.HasPrefix(p.ProfileUUID, "w"):
-					err := fleet.NewInvalidArgumentError("PayloadDisplayName", fmt.Sprintf(
-						"Couldn't edit configuration_profiles. A Windows configuration profile shares the same name as a macOS configuration profile (PayloadDisplayName): %q", p.Name,
-					))
-					return ctxerr.Wrap(ctx, err, "duplicate xml and mobileconfig by name")
-				default:
-					err := fleet.NewInvalidArgumentError("PayloadDisplayName", fmt.Sprintf(
-						"Couldn't edit configuration_profiles. More than one configuration profile have the same name (PayloadDisplayName): %q", p.Name,
-					))
-					return ctxerr.Wrap(ctx, err, "duplicate json and mobileconfig by name")
-				}
+	// check for duplicates with existing profiles
+	allProfs, _, err := svc.ds.ListMDMConfigProfiles(ctx, tmID, fleet.ListOptions{PerPage: 0})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list mdm config profiles")
+	}
+	for _, p := range allProfs {
+		if byName[p.Name] {
+			switch {
+			case strings.HasPrefix(p.ProfileUUID, "a"):
+				// do nothing, all existing mobileconfigs will be replaced and we've already checked
+				// the new mobileconfigs for duplicates
+				continue
+			case strings.HasPrefix(p.ProfileUUID, "w"):
+				err := fleet.NewInvalidArgumentError("PayloadDisplayName", fmt.Sprintf(
+					"Couldn't edit configuration_profiles. A Windows configuration profile shares the same name as a macOS configuration profile (PayloadDisplayName): %q", p.Name,
+				))
+				return ctxerr.Wrap(ctx, err, "duplicate xml and mobileconfig by name")
+			default:
+				err := fleet.NewInvalidArgumentError("PayloadDisplayName", fmt.Sprintf(
+					"Couldn't edit configuration_profiles. More than one configuration profile have the same name (PayloadDisplayName): %q", p.Name,
+				))
+				return ctxerr.Wrap(ctx, err, "duplicate json and mobileconfig by name")
 			}
-			byName[p.Name] = true
 		}
+		byName[p.Name] = true
 	}
 
 	// Verify profile scopes conflict before stopping dry-run, but also before entering the transaction in BatchSetMDMAppleProfiles
@@ -4090,70 +4087,6 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		return ctxerr.Wrap(ctx, err, "logging activity for edited macos profile")
 	}
 	return nil
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Preassign a profile to a host
-////////////////////////////////////////////////////////////////////////////////
-
-type preassignMDMAppleProfileRequest struct {
-	fleet.MDMApplePreassignProfilePayload
-}
-
-type preassignMDMAppleProfileResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r preassignMDMAppleProfileResponse) Error() error { return r.Err }
-
-func (r preassignMDMAppleProfileResponse) Status() int { return http.StatusNoContent }
-
-func preassignMDMAppleProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*preassignMDMAppleProfileRequest)
-	if err := svc.MDMApplePreassignProfile(ctx, req.MDMApplePreassignProfilePayload); err != nil {
-		return preassignMDMAppleProfileResponse{Err: err}, nil
-	}
-	return preassignMDMAppleProfileResponse{}, nil
-}
-
-func (svc *Service) MDMApplePreassignProfile(ctx context.Context, payload fleet.MDMApplePreassignProfilePayload) error {
-	// skipauth: No authorization check needed due to implementation returning
-	// only license error.
-	svc.authz.SkipAuthorization(ctx)
-
-	return fleet.ErrMissingLicense
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Match a set of pre-assigned profiles with a team
-////////////////////////////////////////////////////////////////////////////////
-
-type matchMDMApplePreassignmentRequest struct {
-	ExternalHostIdentifier string `json:"external_host_identifier"`
-}
-
-type matchMDMApplePreassignmentResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r matchMDMApplePreassignmentResponse) Error() error { return r.Err }
-
-func (r matchMDMApplePreassignmentResponse) Status() int { return http.StatusNoContent }
-
-func matchMDMApplePreassignmentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*matchMDMApplePreassignmentRequest)
-	if err := svc.MDMAppleMatchPreassignment(ctx, req.ExternalHostIdentifier); err != nil {
-		return matchMDMApplePreassignmentResponse{Err: err}, nil
-	}
-	return matchMDMApplePreassignmentResponse{}, nil
-}
-
-func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, ref string) error {
-	// skipauth: No authorization check needed due to implementation returning
-	// only license error.
-	svc.authz.SkipAuthorization(ctx)
-
-	return fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////

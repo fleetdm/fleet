@@ -516,6 +516,7 @@ export interface IActivityDetails {
 export type IActivityDetailsWithActor = IActivityDetails & {
   actor_full_name?: string;
   fleet_initiated?: boolean;
+  activity_created_at?: string;
 };
 
 // maps activity types to their corresponding label to use when filtering activites via the dropdown

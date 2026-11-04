@@ -1235,7 +1235,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 							Name: tm.Name,
 							MDM:  fleet.TeamSpecMDM{MacOSSetup: macSetup},
 						}}}
-						s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+						s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 					}
 				} else {
 					// no setup assistant, use the PATCH /setup_experience endpoint
