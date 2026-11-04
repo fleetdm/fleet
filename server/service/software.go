@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -67,6 +69,63 @@ type listSoftwareVersionsResponse struct {
 
 func (r listSoftwareVersionsResponse) Error() error { return r.Err }
 
+// streamSoftwareVersionsResponse writes the software one version at a time. Encoding the whole
+// response at once holds several copies of it in memory, which runs to gigabytes for pages of
+// versions with thousands of CVEs each.
+//
+// Rendering here bypasses EncodeCommonResponse, so renameto key aliasing does not apply: a
+// renameto tag added to the types in this response must be handled here.
+type streamSoftwareVersionsResponse struct {
+	listSoftwareVersionsResponse
+}
+
+func (r streamSoftwareVersionsResponse) HijackRender(_ context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	// From here on the response is a 200, so errors are reported in the body's "error" key.
+	w.WriteHeader(http.StatusOK)
+
+	// No flushing per version: the writer sends its buffer as it fills, and with gzip_responses
+	// every flush ends a deflate block, which made pages of small versions 50% larger.
+	writeError := func(msg string) {
+		data, err := json.Marshal(msg)
+		if err != nil {
+			data = []byte(`"unknown error"`)
+		}
+		fmt.Fprintf(w, `"error":%s}`, data)
+	}
+
+	// The other fields, from the response struct itself so they keep its tags.
+	head := r.listSoftwareVersionsResponse
+	head.Software = nil
+	data, err := json.Marshal(head)
+	if err != nil {
+		_, _ = io.WriteString(w, `{`)
+		writeError(fmt.Sprintf("marshaling software versions response: %s", err))
+		return
+	}
+	if len(r.Software) == 0 {
+		_, _ = w.Write(data)
+		return
+	}
+
+	_, _ = w.Write(data[:len(data)-1]) // without the closing brace
+	_, _ = io.WriteString(w, `,"software":[`)
+	for i := range r.Software {
+		// By pointer, so that fleet.Software's MarshalJSON is used.
+		sw, err := json.Marshal(&r.Software[i])
+		if err != nil {
+			_, _ = io.WriteString(w, `],`)
+			writeError(fmt.Sprintf("marshaling software %d: %s", r.Software[i].ID, err))
+			return
+		}
+		if i > 0 {
+			_, _ = io.WriteString(w, `,`)
+		}
+		_, _ = w.Write(sw)
+	}
+	_, _ = io.WriteString(w, `]}`)
+}
+
 func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listSoftwareRequest)
 
@@ -104,7 +163,7 @@ func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc 
 	}
 	listResp.Count = c
 
-	return listResp, nil
+	return streamSoftwareVersionsResponse{listSoftwareVersionsResponse: listResp}, nil
 }
 
 func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, *fleet.PaginationMetadata, error) {

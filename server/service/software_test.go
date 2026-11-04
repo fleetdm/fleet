@@ -2,7 +2,11 @@ package service
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -246,6 +250,52 @@ func TestServiceSoftwareInventoryAuth(t *testing.T) {
 
 			_, err = svc.SoftwareByID(ctx, 1, ptr.Uint(1), false)
 			checkAuthErr(t, tc.shouldFailGetByID, err)
+		})
+	}
+}
+
+func TestStreamSoftwareVersionsResponse(t *testing.T) {
+	updatedAt := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+	lastOpened := time.Date(2026, 9, 30, 8, 0, 0, 0, time.UTC)
+	software := []fleet.Software{
+		{
+			ID: 1, Name: "Google Chrome", Version: "120.0", Source: "apps", LastOpenedAt: &lastOpened,
+			Vulnerabilities: fleet.Vulnerabilities{
+				{
+					CVE:               "CVE-2026-0001",
+					DetailsLink:       "https://nvd.nist.gov/vuln/detail/CVE-2026-0001",
+					CVSSScore:         new(new(7.5)),
+					Description:       new(new("a \"quoted\" description")),
+					ResolvedInVersion: new(new("121.0")),
+				},
+				{CVE: "CVE-2026-0002", DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2026-0002"},
+			},
+		},
+		// MarshalJSON fills browser from extension_for, so it must still be used.
+		{ID: 2, Name: "ext", Version: "1.0", Source: "chrome_extensions", ExtensionFor: "edge", ExtensionID: "abc"},
+	}
+
+	for _, tc := range []struct {
+		name string
+		resp listSoftwareVersionsResponse
+	}{
+		{"software with CVEs", listSoftwareVersionsResponse{
+			Count: 12345, CountsUpdatedAt: &updatedAt, Software: software,
+			Meta: &fleet.PaginationMetadata{HasNextResults: true},
+		}},
+		{"no software", listSoftwareVersionsResponse{Meta: &fleet.PaginationMetadata{}}},
+		{"no counts timestamp or meta", listSoftwareVersionsResponse{Count: 2, Software: software}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			want, err := json.Marshal(tc.resp)
+			require.NoError(t, err)
+
+			rr := httptest.NewRecorder()
+			streamSoftwareVersionsResponse{listSoftwareVersionsResponse: tc.resp}.HijackRender(t.Context(), rr)
+
+			require.Equal(t, http.StatusOK, rr.Code)
+			require.Equal(t, "application/json", rr.Header().Get("Content-Type"))
+			require.JSONEq(t, string(want), rr.Body.String())
 		})
 	}
 }

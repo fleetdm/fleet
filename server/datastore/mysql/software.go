@@ -2224,8 +2224,8 @@ func loadSoftwareListCVEs(ctx context.Context, q sqlx.QueryerContext, softwares 
 	noMeta := &cveMetaRow{}
 	if withDetails {
 		metaByCVE = make(map[string]*cveMetaRow, len(detailsLinks))
-		// Selecting by software ID and letting MySQL deduplicate is several times faster than
-		// sending back thousands of CVE IDs in an IN list.
+		// The CVEs are already loaded, but MySQL takes longer to plan an IN list of thousands of
+		// CVE strings than to re-read software_cve by software ID and deduplicate.
 		if err := common_mysql.BatchProcessSimple(ids, listSoftwareCVEsBatchSize, func(batch []uint) error {
 			stmt, args, err := sqlx.In(`
 				SELECT c.cve, c.cvss_score, c.epss_probability, c.cisa_known_exploit, c.published, c.description

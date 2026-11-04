@@ -4184,6 +4184,8 @@ func TestGetSoftwareVersionsTruncated(t *testing.T) {
 		out, err := runWithErrWriter(args, &stderr)
 		require.NoError(t, err)
 		require.Contains(t, out.String(), "0.0.2")
+		// On stderr only, so --json and --yaml output stays parseable.
+		require.NotContains(t, out.String(), "Showing")
 		require.Contains(t, stderr.String(), "Showing 2 of 12345 software versions")
 		require.Contains(t, stderr.String(), "per_page")
 	}
