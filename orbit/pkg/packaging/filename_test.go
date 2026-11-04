@@ -67,6 +67,8 @@ func TestFleetFilenamePart(t *testing.T) {
 		{"other fleets with different names", "Workstations", 12, []string{"Servers", "Workstations 2"}, "workstations"},
 		{"other fleet differs only in case and emojis", "Workstations", 12, []string{"💻 WORKSTATIONS"}, "workstations-12"},
 		{"other fleet differs only in punctuation", "Workstations (Canary)", 7, []string{"workstations-canary"}, "workstations-canary-7"},
+		{"other fleet differs only by a long s", "Workstations", 4, []string{"Work\u017ftations"}, "workstations-4"},
+		{"invisible joiner doesn't dodge the ID", "Workstations\u034f!", 6, []string{"Workstations"}, "workstations-6"},
 		{"names that match only after the cut", long + "x", 3, []string{long + "y"}, strings.Repeat("a", 28) + "-3"},
 		{"no ID to add", "Workstations", 0, []string{"workstations"}, "workstations"},
 		{"emoji-only names stay without a fleet name", "🚀", 5, []string{"🛸"}, ""},
@@ -109,6 +111,8 @@ func TestFleetNameForFilename(t *testing.T) {
 		{"zero-width non-joiner inside a word", "می‌خواهم", "میخواهم"},
 		{"soft hyphen", "Work­stations", "workstations"},
 		{"right-to-left override", "abc‮gpj.exe", "abcgpj-exe"},
+		{"invisible letters and marks", "Work\u034fstations\u3164\u17b4", "workstations"},
+		{"accent split from its letter by a zero-width character", "Cafe\u200c\u0301", "caf\u00e9"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			require.Equal(t, tc.want, fleetNameForFilename(tc.in))
