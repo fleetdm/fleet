@@ -752,6 +752,7 @@ func (e *AutomaticEnrollmentRefusedError) IsClientError() bool { return true }
 
 const AdminOnlyEnrollmentForbiddenErrMsg = "Manual enrollment is not available because only Apple Business enrollment is allowed for this organization."
 
+// This is a unique deprecation notice only used very few places, where a default was changed and thereby blocked, therefore not part of the pkg/removednames
 type NotAllowedByDefaultDeprecationError struct {
 	Method   string
 	Endpoint string
@@ -762,3 +763,5 @@ func (e *NotAllowedByDefaultDeprecationError) Error() string {
 }
 
 func (e *NotAllowedByDefaultDeprecationError) StatusCode() int { return http.StatusGone }
+
+func (e *NotAllowedByDefaultDeprecationError) IsClientError() bool { return true }
