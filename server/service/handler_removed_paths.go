@@ -52,6 +52,14 @@ var removedPathTemplates = []string{
 	"/api/_version_/fleet/software/{id:[0-9]+}",
 	"/api/_version_/fleet/hosts/identifier/{identifier}",
 	"/api/_version_/fleet/queries/{name}",
+	"/api/_version_/fleet/packs",
+	"/api/_version_/fleet/packs/schedule",
+	"/api/_version_/fleet/packs/schedule/{id}",
+	"/api/_version_/fleet/packs/id/{id}",
+	"/api/_version_/fleet/packs/{id}",
+	"/api/_version_/fleet/packs/{id}/scheduled",
+	"/api/_version_/fleet/spec/packs",
+	"/api/_version_/fleet/spec/packs/{name}",
 
 	"/api/_version_/fleet/mdm/commands",
 	"/api/_version_/fleet/mdm/apple/commands",
@@ -97,6 +105,10 @@ var removedPathTemplates = []string{
 
 // removedPathOverlaps has the removed paths that a stdlib ServeMux cannot register next to a live route.
 var removedPathOverlaps = map[string]endpointer.RemovedPathOverlap{
+	"/api/_version_/fleet/packs/{id}/scheduled": {
+		Method:        http.MethodGet,
+		RouteTemplate: "/api/_version_/fleet/packs/{pack_id}/{scheduled_segment}",
+	},
 	"/api/_version_/fleet/hosts/{host_id}/configuration_profiles/resend/{profile_uuid}": {
 		Method:        http.MethodPost,
 		RouteTemplate: "/api/_version_/fleet/hosts/{host_id}/configuration_profiles/{resend_segment}/{profile_uuid}",
