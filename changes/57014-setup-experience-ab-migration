@@ -1,0 +1,1 @@
+- Fixed macOS hosts that had already completed an Apple Business MDM migration skipping setup experience on a later Automated Device Enrollment after Apple Business reported a new migration deadline for them and improved logging of Enrollment flows

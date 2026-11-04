@@ -5545,9 +5545,53 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 // This method is executed after the request has been handled by nanomdm.
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/token_update
-func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.TokenUpdate) error {
+func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.TokenUpdate) (err error) {
 	svc.logger.InfoContext(r.Context, "received token update", "host_uuid", r.ID)
-	info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, r.ID)
+
+	var (
+		info                        *fleet.HostMDMCheckinInfo
+		nanoEnroll                  *fleet.NanoEnrollment
+		enqueueSetupExperienceItems bool
+		hasSetupExpItems            bool
+		acctUUID, managedAppleID    string
+	)
+	// Logged on every return path, so that whether (and why) a host got setup experience can be
+	// reconstructed from this one line rather than trying to piece it together from several sources
+	// particularly the DB which has often changed by the time we get a report from a customer
+	defer func() {
+		attrs := []any{
+			"host_uuid", r.ID,
+			"enrollment_type", r.Type.String(),
+			"awaiting_configuration", m.AwaitingConfiguration,
+			"enqueued_setup_experience", enqueueSetupExperienceItems,
+			"has_setup_experience_items", hasSetupExpItems,
+			"enroll_reference_found", acctUUID != "",
+		}
+		if nanoEnroll != nil {
+			attrs = append(attrs, "token_update_tally", nanoEnroll.TokenUpdateTally)
+		}
+		if info != nil {
+			attrs = append(attrs,
+				"host_id", info.HostID,
+				"platform", info.Platform,
+				"team_id", info.TeamID,
+				"dep_assigned_to_fleet", info.DEPAssignedToFleet,
+				"installed_from_dep", info.InstalledFromDEP,
+				"scep_renewal_in_progress", info.SCEPRenewalInProgress,
+				"migration_in_progress", info.MigrationInProgress,
+				"mdm_migration_deadline", info.MDMMigrationDeadline,
+				"mdm_migration_completed", info.MDMMigrationCompleted,
+			)
+		}
+		level := slog.LevelInfo
+		if err != nil {
+			level = slog.LevelError
+			attrs = append(attrs, "err", err)
+		}
+		svc.logger.Log(r.Context, level, "token update processed", attrs...)
+	}()
+
+	info, err = svc.ds.GetHostMDMCheckinInfo(r.Context, r.ID)
 	if err != nil {
 		return ctxerr.Wrap(r.Context, err, "getting checkin info")
 	}
@@ -5585,19 +5629,16 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		svc.logger.InfoContext(r.Context, "continuing with token update, due to awaiting configuration from new enrollment", "host_uuid", r.ID)
 	}
 
-	var hasSetupExpItems bool
-	enqueueSetupExperienceItems := false
+	nanoEnroll, err = svc.ds.GetNanoMDMEnrollment(r.Context, r.ID)
+	if err != nil {
+		return ctxerr.Wrap(r.Context, err, "getting nanomdm enrollment")
+	}
 
 	if m.AwaitingConfiguration {
 		// We are sure that the device is going through a new enrollment here, so we want to
 		// remove the enrolled from migration flag as it is no longer true.
 		if err := svc.ds.ClearHostEnrolledFromMigration(r.Context, r.ID); err != nil {
 			return ctxerr.Wrap(r.Context, err, "resetting enrolled from migration flag", "host_uuid", r.ID)
-		}
-
-		nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(r.Context, r.ID)
-		if err != nil {
-			return ctxerr.Wrap(r.Context, err, "getting nanomdm enrollment")
 		}
 
 		skipDarwinMigration := info.MigrationInProgress && info.Platform == "darwin"
@@ -5623,7 +5664,8 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 
 		// Note that Setup Experience is only skipped for macOS during DEP migration. iOS and iPadOS will still get VPP apps
 		if skipDarwinMigration {
-			svc.logger.InfoContext(r.Context, "skipping setup experience enqueueing because DEP migration is in progress", "host_uuid", r.ID)
+			svc.logger.InfoContext(r.Context, "skipping setup experience enqueueing because DEP migration is in progress",
+				"host_uuid", r.ID, "mdm_migration_deadline", info.MDMMigrationDeadline)
 		} else {
 			enqueueSetupExperienceItems = true
 		}
@@ -5633,10 +5675,6 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		// setup experience enqueueing once per device. The downstream install
 		// flow (via InstallVPPAppPostValidation) handles user-scoped licensing
 		// for User Enrollments.
-		nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(r.Context, r.ID)
-		if err != nil {
-			return ctxerr.Wrap(r.Context, err, "getting nanomdm enrollment")
-		}
 		if nanoEnroll != nil && nanoEnroll.TokenUpdateTally == 1 {
 			enqueueSetupExperienceItems = true
 		}
@@ -5664,7 +5702,6 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		}
 	}
 
-	var acctUUID, managedAppleID string
 	idp, err := svc.ds.GetMDMIdPAccountByHostUUID(r.Context, r.ID)
 	if err != nil {
 		return ctxerr.Wrap(r.Context, err, "getting idp account")

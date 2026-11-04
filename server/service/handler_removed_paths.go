@@ -11,6 +11,8 @@ import (
 // message of its table entry. A path moves here from deprecatedPathAliases in the change that stops serving it.
 var removedPathTemplates = []string{
 	"/api/_version_/fleet/spec/teams",
+	"/api/_version_/fleet/mdm/apple/profiles/preassign",
+	"/api/_version_/fleet/mdm/apple/profiles/match",
 	// Same shape as the live /reports/{id:[0-9]+} routes, which are registered first, so this only answers non-numeric values.
 	"/api/_version_/fleet/reports/{name}",
 }

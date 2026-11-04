@@ -1111,7 +1111,7 @@
       "name": "Biscuit",
       "slug": "biscuit/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.eatbiscuit.biscuit",
+      "unique_identifier": "com.eatbiscult.biscult",
       "description": "Biscuit is a browser to organise apps."
     },
     {
@@ -6627,7 +6627,7 @@
       "name": "PDFsam Basic",
       "slug": "pdfsam-basic/darwin",
       "platform": "darwin",
-      "unique_identifier": "org.pdfsam.modules",
+      "unique_identifier": "org.pdfsam.basic",
       "description": "PDFsam Basic is an extracts pages, splits, merges, mixes and rotates PDF files."
     },
     {
