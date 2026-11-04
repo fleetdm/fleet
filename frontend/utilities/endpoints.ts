@@ -37,7 +37,6 @@ export default {
   POLICY_AUTOMATION_ACTIVITIES: (id: number) =>
     `/${API_VERSION}/fleet/policies/${id}/automation_activities`,
   POLICY_RESET: (id: number) => `/${API_VERSION}/fleet/policies/${id}/reset`,
-  GLOBAL_SCHEDULE: `/${API_VERSION}/fleet/schedule`,
 
   // Device endpoints
   DEVICE_USER_DETAILS: `/${API_VERSION}/fleet/device`,
@@ -272,17 +271,12 @@ export default {
   OS_VERSION: (id: number) => `/${API_VERSION}/fleet/os_versions/${id}`,
 
   OSQUERY_OPTIONS: `/${API_VERSION}/fleet/spec/osquery_options`,
-  PACKS: `/${API_VERSION}/fleet/packs`,
   PERFORM_REQUIRED_PASSWORD_RESET: `/${API_VERSION}/fleet/perform_required_password_reset`,
   QUERIES: `/${API_VERSION}/fleet/reports`,
   QUERY_REPORT: (id: number) => `/${API_VERSION}/fleet/reports/${id}/report`,
   RESET_PASSWORD: `/${API_VERSION}/fleet/reset_password`,
   REST_API_ENDPOINTS: `/${API_VERSION}/fleet/rest_api`,
   LIVE_QUERY: `/${API_VERSION}/fleet/reports/run`,
-  SCHEDULE_QUERY: `/${API_VERSION}/fleet/packs/schedule`,
-  SCHEDULED_QUERIES: (packId: number): string => {
-    return `/${API_VERSION}/fleet/packs/${packId}/scheduled`;
-  },
   SETUP: `/v1/setup`, // not a typo - hasn't been updated yet
 
   // Software endpoints
@@ -325,9 +319,6 @@ export default {
   TARGETS: `/${API_VERSION}/fleet/targets`,
   TEAM_POLICIES: (teamId: number): string => {
     return `/${API_VERSION}/fleet/fleets/${teamId}/policies`;
-  },
-  TEAM_SCHEDULE: (teamId: number): string => {
-    return `/${API_VERSION}/fleet/fleets/${teamId}/schedule`;
   },
   TEAMS: `/${API_VERSION}/fleet/fleets`,
   TEAMS_AGENT_OPTIONS: (teamId: number): string => {

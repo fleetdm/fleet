@@ -389,7 +389,6 @@ const globalQueries = {
       author_name: "Test User",
       author_email: "test@example.com",
       observer_can_run: false,
-      packs: [],
       stats: {
         system_time_p50: null,
         system_time_p95: null,
@@ -417,7 +416,6 @@ const globalQueries = {
       author_name: "Test User 2",
       author_email: "test2@example.com",
       observer_can_run: true,
-      packs: [],
       stats: {
         system_time_p50: null,
         system_time_p95: null,
@@ -444,7 +442,6 @@ const globalQueries = {
       author_name: "Test User 2",
       author_email: "test2@example.com",
       observer_can_run: true,
-      packs: [],
       stats: {
         system_time_p50: null,
         system_time_p95: null,
@@ -471,7 +468,6 @@ const globalQueries = {
       author_name: "Test User 2",
       author_email: "test2@example.com",
       observer_can_run: true,
-      packs: [],
       stats: {
         system_time_p50: null,
         system_time_p95: null,
@@ -498,7 +494,6 @@ const globalQueries = {
       author_name: "Test User 2",
       author_email: "test2@example.com",
       observer_can_run: true,
-      packs: [],
       stats: {
         system_time_p50: null,
         system_time_p95: null,
@@ -525,7 +520,6 @@ const globalQueries = {
       author_name: "Test User",
       author_email: "test@example.com",
       observer_can_run: true,
-      packs: [],
       stats: {
         system_time_p50: null,
         system_time_p95: null,
@@ -557,7 +551,6 @@ const teamQueries = {
       author_id: 1,
       author_name: "Jacob",
       author_email: "jacob@fleetdm.com",
-      packs: [],
       stats: {
         system_time_p50: 1,
         // system_time_p95: null,
@@ -587,7 +580,6 @@ const teamQueries = {
       author_id: 1,
       author_name: "Jacob",
       author_email: "jacob@fleetdm.com",
-      packs: [],
       stats: {
         system_time_p50: 4,
         // system_time_p95: null,

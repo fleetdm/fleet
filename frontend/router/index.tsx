@@ -48,7 +48,6 @@ import AuthAnyMaintainerAdminObserverPlusRoutes from "./components/AuthAnyMainta
 import AuthAnyMaintainerAdminTechnicianRoutes from "./components/AuthAnyMaintainerAdminTechnicianRoutes/AuthAnyMaintainerAdminTechnicianRoutes";
 import AuthAnyMaintainerAnyAdminRoutes from "./components/AuthAnyMaintainerAnyAdminRoutes";
 import AuthenticatedRoutes from "./components/AuthenticatedRoutes";
-import AuthGlobalAdminMaintainerRoutes from "./components/AuthGlobalAdminMaintainerRoutes";
 import AuthGlobalAdminRoutes from "./components/AuthGlobalAdminRoutes";
 import ExcludeInSandboxRoutes from "./components/ExcludeInSandboxRoutes";
 import PremiumRoutes from "./components/PremiumRoutes";
@@ -432,15 +431,6 @@ const LazyVppPage = lazyPage(
       /* webpackChunkName: "admin" */ "pages/admin/IntegrationsPage/cards/MdmSettings/VppPage"
     )
 );
-const LazyManagePacksPage = lazyPage(
-  () => import(/* webpackChunkName: "packs" */ "pages/packs/ManagePacksPage")
-);
-const LazyPackComposerPage = lazyPage(
-  () => import(/* webpackChunkName: "packs" */ "pages/packs/PackComposerPage")
-);
-const LazyEditPackPage = lazyPage(
-  () => import(/* webpackChunkName: "packs" */ "pages/packs/EditPackPage")
-);
 const LazyDeviceUserPage = lazyPage(
   () =>
     import(
@@ -814,17 +804,6 @@ const routes = (
               path="vulnerabilities/:cve"
               component={LazySoftwareVulnerabilityDetailsPage}
             />
-          </Route>
-          <Route component={AuthGlobalAdminMaintainerRoutes}>
-            <Route path="packs">
-              <IndexRedirect to="manage" />
-              <Route path="manage" component={LazyManagePacksPage} />
-              <Route path="new" component={LazyPackComposerPage} />
-              <Route path=":id">
-                <IndexRoute component={LazyEditPackPage} />
-                <Route path="edit" component={LazyEditPackPage} />
-              </Route>
-            </Route>
           </Route>
           <Redirect from="queries" to="reports" />
           <Redirect from="queries/manage" to="reports/manage" />
