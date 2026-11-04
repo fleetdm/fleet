@@ -1815,7 +1815,7 @@ None.
   },
   "mdm": {
     "android_enabled_and_configured": true,
-    "enable_windows_mdm": true,
+    "windows_mdm_enabled": true,
     "windows_entra_tenant_ids": [
       "fec37e96-3615-4e37-8fac-445d5328af3c"
     ],
@@ -1824,7 +1824,7 @@ None.
     ],
     "microsoft_graph_credential_invalid": false,
     "enable_turn_on_windows_mdm_manually": false,
-    "enable_windows_mdm_migration": false,
+    "windows_mdm_migration_enabled": false,
     "apple_require_hardware_attestation": false,
     "only_allow_apple_business_enrollment": false,
     "enable_profile_validation": true,
@@ -2221,7 +2221,7 @@ Modifies the Fleet's configuration with the supplied information.
   "mdm": {
     "enabled_and_configured": false,
     "android_enabled_and_configured": false,
-    "enable_windows_mdm": false,
+    "windows_mdm_enabled": false,
     "windows_entra_tenant_ids": [
       "26ac824d-0d5e-4f0c-a202-1c29d5a48e43"
     ],
@@ -2230,7 +2230,7 @@ Modifies the Fleet's configuration with the supplied information.
     ],
     "microsoft_graph_credential_invalid": false,
     "enable_turn_on_windows_mdm_manually": false,
-    "enable_windows_mdm_migration": false,
+    "windows_mdm_migration_enabled": false,
     "apple_require_hardware_attestation": false,
     "only_allow_apple_business_enrollment": false,
     "enable_profile_validation": true,
@@ -2914,12 +2914,12 @@ When updating conditional access config, all `conditional_access` fields must ei
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_windows_mdm                | boolean | Enables Windows MDM support. |
+| windows_mdm_enabled               | boolean | Enables Windows MDM support. |
 | windows_entra_tenant_ids          | array | _Available in Fleet Premium._ IDs of Microsoft Entra tenants to connect to Fleet, to enable automatic (Autopilot) and manual enrollment by end users (**Settings** > **Accounts** > **Access work or school** on Windows). Find your **Tenant ID**, on [**Microsoft Entra ID** > **Home**](https://entra.microsoft.com/#home). |
 | windows_entra_client_ids          | array | _Available in Fleet Premium._ Microsoft Entra application (client) IDs for the applications used to enroll Windows hosts via Microsoft Entra. Set this when you set up Entra enrollment: Microsoft Entra issues v2 access tokens whose audience is the application's client ID, so Fleet needs the client ID to authorize enrollment. Find your **Application (client) ID** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Overview**. |
 | microsoft_graph_credential_invalid | boolean | _Available in Fleet Premium._ Read-only. `true` when at least one Microsoft Graph credential has been rejected by Microsoft Entra or denied by Microsoft Graph, so Windows Autopilot devices are no longer syncing. Resolve it by supplying a new client secret, or granting admin consent, with [Modify Microsoft Graph credentials](#modify-microsoft-graph-credentials). Fleet computes this field, so it's ignored if you try to set it. |
 | enable_turn_on_windows_mdm_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
-| enable_windows_mdm_migration      | boolean | _Available in Fleet Premium._ Specifies whether or not to automatically migrate Windows hosts connected to another MDM solution. If `false`, MDM is only turned on after hosts are unenrolled from your old MDM solution. `enable_turn_on_windows_mdm_manually` must be set to `false`. |
+| windows_mdm_migration_enabled     | boolean | _Available in Fleet Premium._ Specifies whether or not to automatically migrate Windows hosts connected to another MDM solution. If `false`, MDM is only turned on after hosts are unenrolled from your old MDM solution. `enable_turn_on_windows_mdm_manually` must be set to `false`. |
 | windows_require_bitlocker_pin           | boolean | _Deprecated at this level._ Use `windows_settings.require_bitlocker_pin` instead. |
 | windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that are "Unassigned" will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 | apple_require_hardware_attestation | boolean | _Available in Fleet Premium._ Specifies whether or not to require Apple hosts with supported hardware (Apple Silicon Macs, and iPhones and iPads with an A11 Bionic or later chip running iOS/iPadOS 16 or later) to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment. Hosts without supported hardware (for example, Intel Macs) enroll with SCEP and aren't attested, unless `only_allow_apple_business_enrollment` is also enabled. In that case, they can't enroll. |
@@ -3110,9 +3110,9 @@ _Available in Fleet Premium._
 ```json
 {
   "mdm": {
-    "enable_windows_mdm": false,
+    "windows_mdm_enabled": false,
     "enable_turn_on_windows_mdm_manually": false,
-    "enable_windows_mdm_migration": false,
+    "windows_mdm_migration_enabled": false,
     "apple_require_hardware_attestation": false,
     "only_allow_apple_business_enrollment": false,
     "enable_recovery_lock_password": true,
