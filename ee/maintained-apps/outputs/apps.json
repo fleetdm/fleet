@@ -12,7 +12,7 @@
       "name": "010 Editor",
       "slug": "010-editor/windows",
       "platform": "windows",
-      "unique_identifier": "010 Editor 16.0.2 (64-bit)",
+      "unique_identifier": "010 Editor",
       "description": "010 Editor is a toolkit for working with text and binary data."
     },
     {
@@ -82,7 +82,7 @@
       "name": "7-zip",
       "slug": "7-zip/windows",
       "platform": "windows",
-      "unique_identifier": "7-Zip 25.01 (x64)",
+      "unique_identifier": "7-Zip",
       "description": "7-zip is a file archiver."
     },
     {
@@ -376,7 +376,7 @@
       "name": "Airtame",
       "slug": "airtame/windows",
       "platform": "windows",
-      "unique_identifier": "Airtame 4.15.0",
+      "unique_identifier": "Airtame",
       "description": "Airtame is an app that makes shared screens easy to use - for screen sharing, conferencing, digital signage, and alerts."
     },
     {
@@ -1192,7 +1192,7 @@
       "description": "BLEUnlock is a tool to lock and unlock your Mac using the proximity of a Bluetooth Low Energy device."
     },
     {
-      "name": "blip",
+      "name": "Blip",
       "slug": "blip/darwin",
       "platform": "darwin",
       "unique_identifier": "net.blip.macos",
@@ -1356,7 +1356,7 @@
       "name": "Burp Suite Community Edition",
       "slug": "burp-suite-community/windows",
       "platform": "windows",
-      "unique_identifier": "Burp Suite Community Edition 2026.3.3",
+      "unique_identifier": "Burp Suite Community Edition",
       "description": "Burp Suite is a web security testing toolkit."
     },
     {
@@ -3057,7 +3057,7 @@
       "name": "Elmedia Player",
       "slug": "elmedia-player/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.Eltima.ElmediaPlayer.LSSharedFileList",
+      "unique_identifier": "com.Eltima.ElmediaPlayer",
       "description": "Elmedia Player is a video and audio player."
     },
     {
@@ -3358,7 +3358,7 @@
       "name": "Mozilla Firefox ESR",
       "slug": "firefox@esr/windows",
       "platform": "windows",
-      "unique_identifier": "Mozilla Firefox 140.7.1 ESR (x64 en-US)",
+      "unique_identifier": "Mozilla Firefox ESR",
       "description": "Mozilla Firefox ESR is the Extended Support Release version of the popular web browser Firefox."
     },
     {
@@ -3694,7 +3694,7 @@
       "name": "GIMP",
       "slug": "gimp/windows",
       "platform": "windows",
-      "unique_identifier": "GIMP 3.0.8-2",
+      "unique_identifier": "GIMP",
       "description": "GIMP is a free and open-source image editor."
     },
     {
@@ -6144,7 +6144,7 @@
       "name": "Notion",
       "slug": "notion/windows",
       "platform": "windows",
-      "unique_identifier": "Notion 6.1.0",
+      "unique_identifier": "Notion",
       "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
     },
     {
@@ -6886,7 +6886,7 @@
       "name": "Postman",
       "slug": "postman/windows",
       "platform": "windows",
-      "unique_identifier": "Postman x64 11.75.4",
+      "unique_identifier": "Postman x64",
       "description": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs."
     },
     {
@@ -7145,7 +7145,7 @@
       "name": "PuTTY",
       "slug": "putty/windows",
       "platform": "windows",
-      "unique_identifier": "PuTTY release 0.83 (x64)",
+      "unique_identifier": "PuTTY release",
       "description": "PuTTY is a free, open-source SSH and Telnet client for Windows."
     },
     {
@@ -8503,7 +8503,7 @@
       "name": "Suspicious Package",
       "slug": "suspicious-package/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.mothersruin.SuspiciousPackage",
+      "unique_identifier": "com.mothersruin.SuspiciousPackageApp",
       "description": "Suspicious Package is an application for inspecting installer packages."
     },
     {
@@ -8958,7 +8958,7 @@
       "name": "Transmission",
       "slug": "transmission/darwin",
       "platform": "darwin",
-      "unique_identifier": "org.m0k.transmission.LSSharedFileList",
+      "unique_identifier": "org.m0k.transmission",
       "description": "Transmission is an open-source BitTorrent client."
     },
     {
