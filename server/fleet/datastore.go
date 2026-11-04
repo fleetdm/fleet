@@ -1855,8 +1855,8 @@ type Datastore interface {
 	IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device, abmTokenID uint, macOSTeam, iosTeam, ipadTeam *Team) (int64, error)
 
 	// SetHostMDMMigrationCompleted sets a host's DEP record's migration as having completed by setting the
-	// completed migration timestamp equal to the migration deadline timestamp. This is so that if we sync
-	// the device from ABM again we know not to skip the migration.
+	// completed migration timestamp equal to the migration deadline timestamp. Once set, the host is no
+	// longer considered to be migrating, even if ABM later reports a different deadline.
 	SetHostMDMMigrationCompleted(ctx context.Context, hostID uint) error
 
 	// IngestMDMAppleDeviceFromOTAEnrollment creates new host records for

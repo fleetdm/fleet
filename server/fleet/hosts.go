@@ -2103,9 +2103,11 @@ type HostMDMCheckinInfo struct {
 	DEPAssignedToFleet bool   `json:"dep_assigned_to_fleet" db:"dep_assigned_to_fleet"`
 	OsqueryEnrolled    bool   `json:"osquery_enrolled" db:"osquery_enrolled"`
 
-	SCEPRenewalInProgress bool   `json:"-" db:"scep_renewal_in_progress"`
-	MigrationInProgress   bool   `json:"-" db:"migration_in_progress"`
-	Platform              string `json:"-" db:"platform"`
+	SCEPRenewalInProgress bool       `json:"-" db:"scep_renewal_in_progress"`
+	MigrationInProgress   bool       `json:"-" db:"migration_in_progress"`
+	MDMMigrationDeadline  *time.Time `json:"-" db:"mdm_migration_deadline"`
+	MDMMigrationCompleted *time.Time `json:"-" db:"mdm_migration_completed"`
+	Platform              string     `json:"-" db:"platform"`
 }
 
 // HostEscrowState is where a Linux host's LUKS escrow request stands.
