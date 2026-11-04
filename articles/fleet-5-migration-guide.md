@@ -90,7 +90,7 @@ GitHub issue: [#52900](https://github.com/fleetdm/fleet/issues/52900)
 | `GET /api/v1/fleet/global/schedule` and `GET /api/v1/fleet/fleets/:id/schedule` | [`GET /api/v1/fleet/reports`](https://fleetdm.com/docs/rest-api/rest-api#list-reports), with `fleet_id` for a fleet. Scheduled reports have an `interval` greater than `0`. |
 | `POST /api/v1/fleet/global/schedule` and `POST /api/v1/fleet/fleets/:id/schedule`, which copied the report and scheduled the copy | [`POST /api/v1/fleet/reports`](https://fleetdm.com/docs/rest-api/rest-api#create-report) with `interval`, `platform`, `min_osquery_version`, and `logging` (and `fleet_id` for a fleet). No copy. |
 | `PATCH /api/v1/fleet/global/schedule/:id` and `PATCH /api/v1/fleet/fleets/:id/schedule/:report_id` | [`PATCH /api/v1/fleet/reports/:id`](https://fleetdm.com/docs/rest-api/rest-api#update-report) |
-| `DELETE /api/v1/fleet/global/schedule/:id` and `DELETE /api/v1/fleet/fleets/:id/schedule/:report_id` | [`DELETE /api/v1/fleet/reports/id/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-report-by-id) |
+| `DELETE /api/v1/fleet/global/schedule/:id` and `DELETE /api/v1/fleet/fleets/:id/schedule/:report_id` | [`DELETE /api/v1/fleet/reports/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-report-by-id) |
 
 The `/api/latest/fleet/schedule`, `/team/:id/schedule`, and `/teams/:id/schedule` paths are also removed.
 
@@ -172,6 +172,19 @@ GitHub issue: [#53146](https://github.com/fleetdm/fleet/issues/53146)
 What to do: Search for `hosts/identifier/`, `scripts/batch/summary/`, and `configuration_profiles/resend/`, and replace each path. For `hosts/identifier/`, put the identifier where `:id` goes in `GET /api/v1/fleet/hosts/:id`. `POST /api/v1/fleet/hosts/identifier/:identifier/query` doesn't change.
 
 GitHub issue: [#53080](https://github.com/fleetdm/fleet/issues/53080)
+
+### Delete report endpoints moved
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `DELETE /api/v1/fleet/reports/:name` | [`DELETE /api/v1/fleet/reports/name/:name`](https://fleetdm.com/docs/rest-api/rest-api#delete-report-by-name) |
+| `DELETE /api/v1/fleet/reports/id/:id` | [`DELETE /api/v1/fleet/reports/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-report-by-id). The old path still works but is deprecated. |
+
+`DELETE /api/v1/fleet/reports/:name` no longer deletes by name, and returns a `410` error. For a report whose name is only digits (for example `42`), it deletes the report with that ID instead. This includes `fleetctl delete` from Fleet 4.
+
+What to do: Before you upgrade, replace `DELETE /api/v1/fleet/reports/:name` with `DELETE /api/v1/fleet/reports/name/:name` in your scripts, and upgrade `fleetctl`. API-only users keep their delete report permissions. Fleet moves them to the new paths during the upgrade.
+
+GitHub issue: [#53799](https://github.com/fleetdm/fleet/issues/53799)
 
 ### Apple Business Manager endpoints and keys renamed
 
