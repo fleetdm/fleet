@@ -16,14 +16,14 @@ const Columns = ({
     <svg
       width={ICON_SIZES[size]}
       height={ICON_SIZES[size]}
+      viewBox="0 0 16 16"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 16 16"
     >
       <path
         fillRule="evenodd"
         clipRule="evenodd"
-        d="M3 2a1 1 0 0 0 0 2h3a1 1 0 0 0 0-2H3Zm0 5a1 1 0 0 0 0 2h3a1 1 0 0 0 0-2H3Zm-1 6a1 1 0 0 1 1-1h3a1 1 0 1 1 0 2H3a1 1 0 0 1-1-1Zm8-11a1 1 0 0 0 0 2h3a1 1 0 1 0 0-2h-3ZM9 8a1 1 0 0 1 1-1h3a1 1 0 1 1 0 2h-3a1 1 0 0 1-1-1Zm1 4a1 1 0 1 0 0 2h3a1 1 0 1 0 0-2h-3Z"
+        d="M13 1C14.381 1 15.5 2.119 15.5 3.5V12.5C15.5 13.881 14.381 15 13 15H3C1.619 15 0.5 13.881 0.5 12.5V3.5C0.5 2.119 1.619 1 3 1H13ZM11 13.5H13C13.552 13.5 14 13.052 14 12.5V3.5C14 2.948 13.552 2.5 13 2.5H11V13.5ZM6.5 13.5H9.5V2.5H6.5V13.5ZM3 2.5C2.448 2.5 2 2.948 2 3.5V12.5C2 13.052 2.448 13.5 3 13.5H5V2.5H3Z"
         fill={COLORS[color]}
       />
     </svg>
