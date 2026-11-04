@@ -7,6 +7,7 @@ import (
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDeleteLabel(t *testing.T) {
@@ -36,42 +37,25 @@ spec:
 	assert.Equal(t, "pending_updates", deletedLabel)
 }
 
-func TestDeletePack(t *testing.T) {
+func TestDeletePackRemoved(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t)
 
-	var deletedPack string
-	ds.DeletePackFunc = func(ctx context.Context, name string) error {
-		deletedPack = name
-		return nil
-	}
-	ds.PackByNameFunc = func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Pack, bool, error) {
-		if name != "pack1" {
-			return nil, false, nil
-		}
-		return &fleet.Pack{
-			ID:          7,
-			Name:        "pack1",
-			Description: "some desc",
-			Platform:    "darwin",
-			Disabled:    false,
-		}, true, nil
-	}
 	name := writeTmpYml(t, `---
+apiVersion: v1
+kind: report
+spec:
+  name: query1
+  query: SELECT 1
+---
 apiVersion: v1
 kind: pack
 spec:
-  description: some desc
-  disabled: false
-  id: 7
   name: pack1
-  platform: darwin
-  targets:
-    labels: null
 `)
 
-	assert.Empty(t, runAppForTest(t, []string{"delete", "-f", name}))
-	assert.True(t, ds.DeletePackFuncInvoked)
-	assert.Equal(t, "pack1", deletedPack)
+	_, err := runAppNoChecks([]string{"delete", "-f", name})
+	require.ErrorContains(t, err, `kind "pack" is no longer supported`)
+	require.False(t, ds.DeleteQueryFuncInvoked)
 }
 
 func TestDeleteQuery(t *testing.T) {

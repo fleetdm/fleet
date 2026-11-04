@@ -60,7 +60,6 @@ func lookupEnv(key string) (string, bool) {
 type Group struct {
 	Queries  []*fleet.QuerySpec
 	Teams    []json.RawMessage
-	Packs    []*fleet.PackSpec
 	Labels   []*fleet.LabelSpec
 	Policies []*fleet.PolicySpec
 	Software []*fleet.SoftwarePackageSpec
@@ -142,17 +141,10 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 			}
 			specs.Queries = append(specs.Queries, querySpec)
 
-		case fleet.PackKind:
-			var err error
-			s.Spec, deprecatedKeysMap, err = rewriteNewToOldKeys(s.Spec, fleet.PackSpec{})
-			if err != nil {
-				return nil, fmt.Errorf("in %s spec: %w", kind, err)
-			}
-			var packSpec *fleet.PackSpec
-			if err := yaml.Unmarshal(s.Spec, &packSpec); err != nil {
-				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
-			}
-			specs.Packs = append(specs.Packs, packSpec)
+		case "pack":
+			// Reject the whole file so a pack is never silently dropped from an apply or delete.
+			return nil, errors.New(`kind "pack" is no longer supported: 2017 packs were removed in Fleet 5. ` +
+				`To convert them to reports, run "fleetctl upgrade-packs" with fleetctl 4 against your Fleet 4 server before upgrading, then apply the output.`)
 
 		case fleet.LabelKind:
 			var err error
