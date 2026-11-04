@@ -51,7 +51,7 @@ func (s *OrgLogoStore) Delete(ctx context.Context, mode fleet.OrgLogoMode) error
 		if bloberror.HasCode(err, bloberror.BlobNotFound, bloberror.ContainerNotFound) {
 			return nil
 		}
-		return ctxerr.Wrap(ctx, err, "deleting org logo from Azure Blob store")
+		return ctxerr.Wrap(ctx, newAPIError(err), "deleting org logo from Azure Blob store")
 	}
 	return nil
 }
