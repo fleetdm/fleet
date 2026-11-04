@@ -2083,12 +2083,29 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessMicrosoftEntraDevi
 	postToken(mac1, testEntraDeviceTokenClaims(testEntraTenantID, testEntraClientID, testEntraDeviceID, "user@example.com", mac1Nonce, time.Now().Add(-2*time.Hour)), http.StatusBadRequest)
 	assertDeviceID(mac1, "")
 
-	// A valid token is stored.
+	assertRefetchRequested := func(h *fleet.Host, want bool) {
+		hl, err := s.ds.HostLite(ctx, h.ID)
+		require.NoError(t, err)
+		require.Equal(t, want, hl.RefetchRequested)
+	}
+	require.NoError(t, s.ds.UpdateHostRefetchRequested(ctx, mac1.ID, false))
+
+	// A valid token is stored, and a refetch is requested so policy results send compliance to Intune.
 	require.NotNil(t, s.reportEntraDeviceToken(signer, mac1, testEntraDeviceID, "user@example.com", http.StatusOK))
 	status, err := s.ds.LoadHostConditionalAccessStatus(ctx, mac1.ID)
 	require.NoError(t, err)
 	require.Equal(t, testEntraDeviceID, status.DeviceID)
 	require.Equal(t, "user@example.com", status.UserPrincipalName)
+	assertRefetchRequested(mac1, true)
+
+	// Reporting the same device ID and user again doesn't request another refetch.
+	require.NoError(t, s.ds.UpdateHostRefetchRequested(ctx, mac1.ID, false))
+	require.NotNil(t, s.reportEntraDeviceToken(signer, mac1, testEntraDeviceID, "user@example.com", http.StatusOK))
+	assertRefetchRequested(mac1, false)
+
+	// A different user on the device does.
+	require.NotNil(t, s.reportEntraDeviceToken(signer, mac1, testEntraDeviceID, "user2@example.com", http.StatusOK))
+	assertRefetchRequested(mac1, true)
 
 	// Disabling the feature stops the request and the ingestion.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{

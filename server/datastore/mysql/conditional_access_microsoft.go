@@ -114,7 +114,7 @@ func extractWindowsBuildVersion(osVersion string) string {
 	return osVersion[lastSpace+1:]
 }
 
-func (ds *Datastore) CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string, userPrincipalName string) error {
+func (ds *Datastore) CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string, userPrincipalName string) (bool, error) {
 	// Most of the time this information won't change, so use the reader first.
 	var hostConditionalAccessStatus fleet.HostConditionalAccessStatus
 	err := sqlx.GetContext(ctx,
@@ -127,13 +127,13 @@ func (ds *Datastore) CreateHostConditionalAccessStatus(ctx context.Context, host
 	case err == nil:
 		if deviceID == hostConditionalAccessStatus.DeviceID && userPrincipalName == hostConditionalAccessStatus.UserPrincipalName {
 			// Nothing to do, the Entra account on the device is still the same.
-			return nil
+			return false, nil
 		}
 		// If we got here it means the host's Entra data has changed, so we will override the host's status row.
 	case errors.Is(err, sql.ErrNoRows):
 		// OK, let's create one.
 	default:
-		return ctxerr.Wrap(ctx, err, "failed to get microsoft_compliance_partner_host_statuses")
+		return false, ctxerr.Wrap(ctx, err, "failed to get microsoft_compliance_partner_host_statuses")
 	}
 
 	// Create or override existing row for the host.
@@ -148,9 +148,9 @@ func (ds *Datastore) CreateHostConditionalAccessStatus(ctx context.Context, host
 		compliant = NULL`,
 		hostID, deviceID, userPrincipalName,
 	); err != nil {
-		return ctxerr.Wrap(ctx, err, "create host conditional access status")
+		return false, ctxerr.Wrap(ctx, err, "create host conditional access status")
 	}
-	return nil
+	return true, nil
 }
 
 func (ds *Datastore) SetHostConditionalAccessStatus(ctx context.Context, hostID uint, managed, compliant bool) error {

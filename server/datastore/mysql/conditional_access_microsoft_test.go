@@ -108,8 +108,9 @@ func testConditionalAccessHosts(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
 
-	err = ds.CreateHostConditionalAccessStatus(ctx, noTeamHost.ID, "entraDeviceID", "foobar@example.onmicrosoft.com")
+	changed, err := ds.CreateHostConditionalAccessStatus(ctx, noTeamHost.ID, "entraDeviceID", "foobar@example.onmicrosoft.com")
 	require.NoError(t, err)
+	require.True(t, changed)
 
 	s, err := ds.LoadHostConditionalAccessStatus(ctx, noTeamHost.ID)
 	require.NoError(t, err)
@@ -126,8 +127,9 @@ func testConditionalAccessHosts(t *testing.T, ds *Datastore) {
 	require.Nil(t, s.Compliant)
 
 	// Execute with same values should do nothing.
-	err = ds.CreateHostConditionalAccessStatus(ctx, noTeamHost.ID, "entraDeviceID", "foobar@example.onmicrosoft.com")
+	changed, err = ds.CreateHostConditionalAccessStatus(ctx, noTeamHost.ID, "entraDeviceID", "foobar@example.onmicrosoft.com")
 	require.NoError(t, err)
+	require.False(t, changed)
 	s, err = ds.LoadHostConditionalAccessStatus(ctx, noTeamHost.ID)
 	require.NoError(t, err)
 	require.Equal(t, noTeamHost.ID, s.HostID)
@@ -171,8 +173,9 @@ func testConditionalAccessHosts(t *testing.T, ds *Datastore) {
 	// Simulate a device changing its device ID and user principal name
 	// (e.g. log out from Entra on device and log in again).
 	// We should update its data and clear its statuses.
-	err = ds.CreateHostConditionalAccessStatus(ctx, noTeamHost.ID, "entraDeviceID2", "foobar2@example.onmicrosoft.com")
+	changed, err = ds.CreateHostConditionalAccessStatus(ctx, noTeamHost.ID, "entraDeviceID2", "foobar2@example.onmicrosoft.com")
 	require.NoError(t, err)
+	require.True(t, changed)
 	s, err = ds.LoadHostConditionalAccessStatus(ctx, noTeamHost.ID)
 	require.NoError(t, err)
 	require.Equal(t, noTeamHost.ID, s.HostID)
@@ -190,8 +193,9 @@ func testConditionalAccessHosts(t *testing.T, ds *Datastore) {
 
 	// Simulate a device with same device ID but empty username.
 	// This can happen on workstations with two user macOS accounts where one is registered and another one is not.
-	err = ds.CreateHostConditionalAccessStatus(ctx, noTeamHost.ID, "entraDeviceID2", "")
+	changed, err = ds.CreateHostConditionalAccessStatus(ctx, noTeamHost.ID, "entraDeviceID2", "")
 	require.NoError(t, err)
+	require.True(t, changed)
 	s, err = ds.LoadHostConditionalAccessStatus(ctx, noTeamHost.ID)
 	require.NoError(t, err)
 	require.Equal(t, noTeamHost.ID, s.HostID)
@@ -208,8 +212,9 @@ func testConditionalAccessHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Simulate now that the second user has logged in to Entra.
-	err = ds.CreateHostConditionalAccessStatus(ctx, noTeamHost.ID, "entraDeviceID2", "foobar3@example.onmicrosoft.com")
+	changed, err = ds.CreateHostConditionalAccessStatus(ctx, noTeamHost.ID, "entraDeviceID2", "foobar3@example.onmicrosoft.com")
 	require.NoError(t, err)
+	require.True(t, changed)
 	s, err = ds.LoadHostConditionalAccessStatus(ctx, noTeamHost.ID)
 	require.NoError(t, err)
 	require.Equal(t, noTeamHost.ID, s.HostID)
@@ -226,8 +231,9 @@ func testConditionalAccessHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Simulate that the first user has logged in again to the workstation.
-	err = ds.CreateHostConditionalAccessStatus(ctx, noTeamHost.ID, "entraDeviceID2", "foobar@example.onmicrosoft.com")
+	changed, err = ds.CreateHostConditionalAccessStatus(ctx, noTeamHost.ID, "entraDeviceID2", "foobar@example.onmicrosoft.com")
 	require.NoError(t, err)
+	require.True(t, changed)
 	s, err = ds.LoadHostConditionalAccessStatus(ctx, noTeamHost.ID)
 	require.NoError(t, err)
 	require.Equal(t, noTeamHost.ID, s.HostID)

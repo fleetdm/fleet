@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -175,17 +176,78 @@ func TestRunner(t *testing.T) {
 		assert.Empty(t, sender.sent())
 	})
 
-	t.Run("failure is retried sooner", func(t *testing.T) {
+	t.Run("failure is retried with backoff without a new config", func(t *testing.T) {
 		sender := &fakeSender{}
+		var mu sync.Mutex
+		var attempts []time.Time
 		r := newTestRunner(sender, func(context.Context, Request) (string, error) {
-			return "", errors.New("AADSTS50058")
+			mu.Lock()
+			defer mu.Unlock()
+			attempts = append(attempts, time.Now())
+			if len(attempts) < 4 {
+				return "", errors.New("AADSTS50058")
+			}
+			return "h.p.s", nil
 		})
-		start := time.Now()
+		r.minRetry = 20 * time.Millisecond
+		r.maxRetry = 50 * time.Millisecond
 		require.NoError(t, r.Run(&fleet.OrbitConfig{EntraDeviceTokenRequest: req}))
+		require.Eventually(t, func() bool { return len(sender.sent()) == 1 }, 5*time.Second, 5*time.Millisecond)
 		r.waitIdle(t)
-		assert.Empty(t, sender.sent())
+
+		mu.Lock()
+		require.Len(t, attempts, 4)
+		// 20ms, 40ms, then capped at 50ms.
+		for i, want := range []time.Duration{20 * time.Millisecond, 40 * time.Millisecond, 50 * time.Millisecond} {
+			assert.GreaterOrEqual(t, attempts[i+1].Sub(attempts[i]), want, "retry %d", i+1)
+		}
+		mu.Unlock()
+
 		r.mu.Lock()
 		defer r.mu.Unlock()
-		assert.WithinDuration(t, start.Add(retryInterval), r.nextRun, 5*time.Second)
+		assert.Zero(t, r.failures)
+		assert.WithinDuration(t, time.Now().Add(refreshInterval), r.nextRun, 5*time.Second)
+	})
+
+	t.Run("retry stops when Fleet stops requesting the token", func(t *testing.T) {
+		sender := &fakeSender{}
+		var calls atomic.Int32
+		r := newTestRunner(sender, func(context.Context, Request) (string, error) {
+			calls.Add(1)
+			return "", errors.New("AADSTS50058")
+		})
+		r.minRetry = 50 * time.Millisecond
+		require.NoError(t, r.Run(&fleet.OrbitConfig{EntraDeviceTokenRequest: req}))
+		r.waitIdle(t)
+		require.NoError(t, r.Run(&fleet.OrbitConfig{}))
+		time.Sleep(150 * time.Millisecond)
+		assert.EqualValues(t, 1, calls.Load())
+	})
+
+	t.Run("request change during a report is reported next", func(t *testing.T) {
+		sender := &fakeSender{}
+		release := make(chan struct{})
+		var mu sync.Mutex
+		var tenants []string
+		r := newTestRunner(sender, func(_ context.Context, rr Request) (string, error) {
+			mu.Lock()
+			tenants = append(tenants, rr.TenantID)
+			first := len(tenants) == 1
+			mu.Unlock()
+			if first {
+				<-release
+			}
+			return "h.p.s", nil
+		})
+		require.NoError(t, r.Run(&fleet.OrbitConfig{EntraDeviceTokenRequest: req}))
+		changed := *req
+		changed.TenantID = "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
+		require.NoError(t, r.Run(&fleet.OrbitConfig{EntraDeviceTokenRequest: &changed}))
+		close(release)
+		require.Eventually(t, func() bool { return len(sender.sent()) == 2 }, 5*time.Second, 5*time.Millisecond)
+		r.waitIdle(t)
+		mu.Lock()
+		defer mu.Unlock()
+		assert.Equal(t, []string{testTenantID, changed.TenantID}, tenants)
 	})
 }

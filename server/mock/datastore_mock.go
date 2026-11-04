@@ -2470,7 +2470,7 @@ type ConditionalAccessMicrosoftDeleteFunc func(ctx context.Context) error
 
 type LoadHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint) (*fleet.HostConditionalAccessStatus, error)
 
-type CreateHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint, deviceID string, userPrincipalName string) error
+type CreateHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint, deviceID string, userPrincipalName string) (bool, error)
 
 type SetHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint, managed bool, compliant bool) error
 
@@ -15214,7 +15214,7 @@ func (s *DataStore) LoadHostConditionalAccessStatus(ctx context.Context, hostID 
 	return s.LoadHostConditionalAccessStatusFunc(ctx, hostID)
 }
 
-func (s *DataStore) CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string, userPrincipalName string) error {
+func (s *DataStore) CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string, userPrincipalName string) (bool, error) {
 	s.mu.Lock()
 	s.CreateHostConditionalAccessStatusFuncInvoked = true
 	s.mu.Unlock()

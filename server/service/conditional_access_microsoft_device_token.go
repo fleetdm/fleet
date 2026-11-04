@@ -93,8 +93,16 @@ func (svc *Service) SetHostEntraDeviceToken(ctx context.Context, idToken string)
 		return badRequest("invalid Entra device token: nonce mismatch")
 	}
 
-	if err := svc.ds.CreateHostConditionalAccessStatus(ctx, host.ID, claims.DeviceID, claims.PreferredUsername); err != nil {
+	changed, err := svc.ds.CreateHostConditionalAccessStatus(ctx, host.ID, claims.DeviceID, claims.PreferredUsername)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "create host conditional access status")
+	}
+	if changed {
+		// Compliance is only sent to Intune with policy results; a refetch sends them now instead
+		// of at the next policy interval, so the user doesn't have to refetch from Fleet Desktop.
+		if err := svc.ds.UpdateHostRefetchRequested(ctx, host.ID, true); err != nil {
+			return ctxerr.Wrap(ctx, err, "request host refetch")
+		}
 	}
 	return nil
 }
