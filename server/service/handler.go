@@ -913,9 +913,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// Batch needs to allow being called without any MDM enabled, to support deleting profiles, but will fail later if trying to add
 	ue.WithRequestBodySizeLimit(fleet.MaxBatchProfileSize).POST("/api/_version_/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesEndpoint, batchModifyMDMConfigProfilesRequest{})
 
-	// Deprecated: POST /hosts/{host_id:[0-9]+}/configuration_profiles/resend/{profile_uuid} is now deprecated, replaced by the
-	// POST /hosts/{host_id:[0-9]+}/configuration_profiles/{profile_uuid}/resend endpoint.
-	mdmAnyMW.POST("/api/_version_/fleet/hosts/{host_id:[0-9]+}/configuration_profiles/resend/{profile_uuid}", resendHostMDMProfileEndpoint, resendHostMDMProfileRequest{})
 	mdmAnyMW.POST("/api/_version_/fleet/hosts/{host_id:[0-9]+}/configuration_profiles/{profile_uuid}/resend", resendHostMDMProfileEndpoint, resendHostMDMProfileRequest{})
 	mdmAnyMW.POST("/api/_version_/fleet/hosts/{host_id:[0-9]+}/name_template/resend", resendHostNameTemplateEndpoint, resendHostNameTemplateRequest{})
 	mdmAnyMW.POST("/api/_version_/fleet/configuration_profiles/resend/batch", batchResendMDMProfileToHostsEndpoint, batchResendMDMProfileToHostsRequest{})
