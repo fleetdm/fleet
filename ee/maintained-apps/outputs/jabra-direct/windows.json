@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "8.3.26701",
+      "version": "8.4.30601",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Jabra Direct' AND publisher = 'GN Audio A/S';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Jabra Direct' AND publisher = 'GN Audio A/S' AND version_compare(version, '8.3.26701') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Jabra Direct' AND publisher = 'GN Audio A/S' AND version_compare(version, '8.4.30601') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'jabra direct.exe');"
       },
       "installer_url": "https://jabraxpressonlineprdstor.blob.core.windows.net/jdo/JabraDirectSetup.exe",
       "install_script_ref": "66727e5a",
       "uninstall_script_ref": "036b08d5",
-      "sha256": "bb940fd3eb545323515ea6abd251c707e4ad372b92b7b1ed6807b09cba00ad54",
+      "sha256": "f63d1e2a3503ed771100bfb106de2113817ebcf1fedae7ff40a5aa7fcf932787",
       "default_categories": [
         "Productivity"
       ]
