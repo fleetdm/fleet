@@ -104,11 +104,6 @@ Upload the following configuration profile:
         <dict>
             <key>AuthenticationMethod</key>
             <string>UserSecureEnclaveKey</string>
-            <key>ExtensionData</key>
-            <dict>
-                <key>AppAllowList</key>
-                <string>com.fleetdm.orbit</string>
-            </dict>
             <key>ExtensionIdentifier</key>
             <string>com.microsoft.CompanyPortalMac.ssoextension</string>
             <key>PayloadDisplayName</key>
@@ -168,8 +163,6 @@ Upload the following configuration profile:
 ```
 
 If you're using another MDM solution, add the same configuration profile and target only macOS hosts with Company Portal installed.
-
-The `AppAllowList` entry lets fleetd ask Entra for a token that proves the host's Entra device ID. Without it, Fleet doesn't report the host's compliance to Intune. If your profile already has an `AppAllowList`, add `com.fleetdm.orbit` to it, separated by a comma.
 
 > `UserSecureEnclaveKey` will be mandatory starting in Q3 2025. See [Microsoft's documentation](https://learn.microsoft.com/en-us/entra/identity-platform/apple-sso-plugin#upcoming-changes-to-device-identity-key-storage)
 
