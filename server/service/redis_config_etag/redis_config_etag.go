@@ -29,10 +29,9 @@ const (
 	// the per-instance in-memory caches that feed the config build:
 	//
 	//	  packConfigCache TTL (1m, service.PackConfigCacheTTL)
-	//	+ max cached_mysql TTL feeding the build (1m: defaultPacksExpiration,
-	//	  defaultScheduledQueriesExpiration and
-	//	  defaultTeamAgentOptionsExpiration — AgentOptionsForHost reads the
-	//	  last of these; see cached_mysql.MaxConfigInputTTL)
+	//	+ max cached_mysql TTL feeding the build (1m:
+	//	  defaultTeamAgentOptionsExpiration, read by AgentOptionsForHost; see
+	//	  cached_mysql.MaxConfigInputTTL)
 	//	+ slack for in-flight requests and clock slop (1m)
 	//	= 3m
 	//

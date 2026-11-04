@@ -11,7 +11,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
-	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_config_etag"
@@ -635,81 +634,6 @@ func TestConfigETagGateLoaders(t *testing.T) {
 			assert.Equal(t, tc.wantHostGet, store.hostGetCalls)
 		})
 	}
-}
-
-// TestConfigETagPublishesDespite2017PackRows: 2017 pack rows left in the
-// database aren't part of the config, so they don't stop the ETag from being
-// published.
-func TestConfigETagPublishesDespite2017PackRows(t *testing.T) {
-	for _, tc := range []struct {
-		name         string
-		scopes       fleet.ConfigETagLabelScopes
-		wantSet      int
-		wantHostSets int
-	}{
-		{"shared mode", fleet.ConfigETagLabelScopes{}, 1, 0},
-		{"per-host mode", fleet.ConfigETagLabelScopes{Global: true}, 0, 1},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			ds := newETagTestDS()
-			ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
-				return []*fleet.Pack{{ID: 1, Name: "legacy"}}, nil
-			}
-			ds.ListPacksFunc = func(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
-				return []*fleet.Pack{{ID: 1, Name: "legacy"}}, nil
-			}
-			ds.ListScheduledQueriesInPackFunc = func(ctx context.Context, pid uint) (fleet.ScheduledQueryList, error) {
-				return fleet.ScheduledQueryList{{Name: "q", Query: "SELECT 1", Interval: 10}}, nil
-			}
-
-			svc, ctx := newTestService(t, ds, nil, nil)
-			store := &stubConfigETagStore{scopes: tc.scopes}
-			svc.SetConfigETagStore(store)
-
-			ctx = hostctx.NewContext(ctx, &fleet.Host{ID: 1, Platform: "darwin"})
-			result, err := svc.GetClientConfigWithETag(ctx, new(`"anything"`))
-			require.NoError(t, err)
-
-			require.NotContains(t, string(result.Body), "legacy")
-			require.Equal(t, tc.wantSet, store.setCalls)
-			require.Equal(t, tc.wantHostSets, store.hostSetCalls)
-			require.False(t, ds.ListPacksForHostFuncInvoked)
-			require.False(t, ds.ListPacksFuncInvoked)
-		})
-	}
-}
-
-// TestConfigETagRedisShortCircuitWith2017PackRows runs the short circuit
-// against the real Redis store: 2017 pack rows in the database no longer
-// disable it.
-func TestConfigETagRedisShortCircuitWith2017PackRows(t *testing.T) {
-	pool := redistest.SetupRedis(t, "{cfgetag}", false, false, false)
-
-	ds := newETagTestDS()
-	ds.ListPacksFunc = func(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
-		return []*fleet.Pack{{ID: 1, Name: "legacy"}}, nil
-	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
-		return []*fleet.Pack{{ID: 1, Name: "legacy"}}, nil
-	}
-
-	svc, ctx := newTestService(t, ds, nil, nil)
-	svc.SetConfigETagStore(redis_config_etag.New(pool, slog.New(slog.DiscardHandler)))
-	ctx = hostctx.NewContext(ctx, &fleet.Host{ID: 1, Platform: "darwin"})
-
-	first, err := svc.GetClientConfigWithETag(ctx, new(""))
-	require.NoError(t, err)
-	require.Equal(t, fleet.ConfigETagModeShared, first.Mode)
-	require.NotContains(t, string(first.Body), "legacy")
-
-	ds.AppConfigFuncInvoked = false
-	second, err := svc.GetClientConfigWithETag(ctx, new(first.ETag))
-	require.NoError(t, err)
-	require.True(t, second.NotModified)
-	require.Equal(t, fleet.ConfigETagStatusRedisNotModified, second.CacheStatus)
-	require.False(t, ds.AppConfigFuncInvoked, "short circuit must not build the config")
-	require.False(t, ds.ListPacksFuncInvoked)
-	require.False(t, ds.ListPacksForHostFuncInvoked)
 }
 
 // TestConfigETagFailsOpen: Redis errors on read or write, in either mode,

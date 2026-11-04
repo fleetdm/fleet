@@ -248,15 +248,6 @@ func TestGetClientConfig(t *testing.T) {
 	ds.TeamAgentOptionsFunc = func(ctx context.Context, teamID uint) (*json.RawMessage, error) {
 		return nil, nil
 	}
-	// 2017 pack rows can still exist in the database; they must never reach hosts.
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
-		return []*fleet.Pack{{ID: 1, Name: "pack_by_label"}}, nil
-	}
-	ds.ListScheduledQueriesInPackFunc = func(ctx context.Context, pid uint) (fleet.ScheduledQueryList, error) {
-		return []*fleet.ScheduledQuery{
-			{Name: "time", Query: "select * from time", Interval: 30},
-		}, nil
-	}
 	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
 		if teamID == nil {
 			return nil, nil
@@ -329,9 +320,6 @@ func TestGetClientConfig(t *testing.T) {
 	}`,
 		string(conf["packs"].(json.RawMessage)),
 	)
-
-	assert.False(t, ds.ListPacksForHostFuncInvoked)
-	assert.False(t, ds.ListScheduledQueriesInPackFuncInvoked)
 }
 
 // TestGetClientConfigNullConfig is a regression test for a panic

@@ -158,26 +158,6 @@ type GetCompletedCampaignsFunc func(ctx context.Context, filter []uint) ([]uint,
 
 type DistributedQueryCampaignsForQueryFunc func(ctx context.Context, queryID uint) ([]*fleet.DistributedQueryCampaign, error)
 
-type ApplyPackSpecsFunc func(ctx context.Context, specs []*fleet.PackSpec) error
-
-type GetPackSpecsFunc func(ctx context.Context) ([]*fleet.PackSpec, error)
-
-type GetPackSpecFunc func(ctx context.Context, name string) (*fleet.PackSpec, error)
-
-type NewPackFunc func(ctx context.Context, pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error)
-
-type SavePackFunc func(ctx context.Context, pack *fleet.Pack) error
-
-type DeletePackFunc func(ctx context.Context, name string) error
-
-type PackFunc func(ctx context.Context, pid uint) (*fleet.Pack, error)
-
-type ListPacksFunc func(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error)
-
-type PackByNameFunc func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Pack, bool, error)
-
-type ListPacksForHostFunc func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error)
-
 type ApplyLabelSpecsFunc func(ctx context.Context, specs []*fleet.LabelSpec) error
 
 type ApplyLabelSpecsWithAuthorFunc func(ctx context.Context, specs []*fleet.LabelSpec, authorId *uint) error
@@ -481,16 +461,6 @@ type InviteByTokenFunc func(ctx context.Context, token string) (*fleet.Invite, e
 type DeleteInviteFunc func(ctx context.Context, id uint) error
 
 type UpdateInviteFunc func(ctx context.Context, id uint, i *fleet.Invite) (*fleet.Invite, error)
-
-type ListScheduledQueriesInPackWithStatsFunc func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error)
-
-type NewScheduledQueryFunc func(ctx context.Context, sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error)
-
-type SaveScheduledQueryFunc func(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error)
-
-type DeleteScheduledQueryFunc func(ctx context.Context, id uint) error
-
-type ScheduledQueryFunc func(ctx context.Context, id uint) (*fleet.ScheduledQuery, error)
 
 type CleanupExpiredHostsBatchFunc func(ctx context.Context, batchSize int) ([]fleet.DeletedHostDetails, error)
 
@@ -929,8 +899,6 @@ type MarkSoftwareAsAIToolFunc func(ctx context.Context, software []fleet.Softwar
 type UpdateHostSoftwareInstalledPathsFunc func(ctx context.Context, hostID uint, reported map[string]fleet.ExecutableHashes, mutationResults *fleet.UpdateHostSoftwareDBResult) error
 
 type UpdateHostFunc func(ctx context.Context, host *fleet.Host) error
-
-type ListScheduledQueriesInPackFunc func(ctx context.Context, packID uint) (fleet.ScheduledQueryList, error)
 
 type UpdateHostRefetchRequestedFunc func(ctx context.Context, hostID uint, value bool) error
 
@@ -2838,36 +2806,6 @@ type DataStore struct {
 	DistributedQueryCampaignsForQueryFunc        DistributedQueryCampaignsForQueryFunc
 	DistributedQueryCampaignsForQueryFuncInvoked bool
 
-	ApplyPackSpecsFunc        ApplyPackSpecsFunc
-	ApplyPackSpecsFuncInvoked bool
-
-	GetPackSpecsFunc        GetPackSpecsFunc
-	GetPackSpecsFuncInvoked bool
-
-	GetPackSpecFunc        GetPackSpecFunc
-	GetPackSpecFuncInvoked bool
-
-	NewPackFunc        NewPackFunc
-	NewPackFuncInvoked bool
-
-	SavePackFunc        SavePackFunc
-	SavePackFuncInvoked bool
-
-	DeletePackFunc        DeletePackFunc
-	DeletePackFuncInvoked bool
-
-	PackFunc        PackFunc
-	PackFuncInvoked bool
-
-	ListPacksFunc        ListPacksFunc
-	ListPacksFuncInvoked bool
-
-	PackByNameFunc        PackByNameFunc
-	PackByNameFuncInvoked bool
-
-	ListPacksForHostFunc        ListPacksForHostFunc
-	ListPacksForHostFuncInvoked bool
-
 	ApplyLabelSpecsFunc        ApplyLabelSpecsFunc
 	ApplyLabelSpecsFuncInvoked bool
 
@@ -3323,21 +3261,6 @@ type DataStore struct {
 
 	UpdateInviteFunc        UpdateInviteFunc
 	UpdateInviteFuncInvoked bool
-
-	ListScheduledQueriesInPackWithStatsFunc        ListScheduledQueriesInPackWithStatsFunc
-	ListScheduledQueriesInPackWithStatsFuncInvoked bool
-
-	NewScheduledQueryFunc        NewScheduledQueryFunc
-	NewScheduledQueryFuncInvoked bool
-
-	SaveScheduledQueryFunc        SaveScheduledQueryFunc
-	SaveScheduledQueryFuncInvoked bool
-
-	DeleteScheduledQueryFunc        DeleteScheduledQueryFunc
-	DeleteScheduledQueryFuncInvoked bool
-
-	ScheduledQueryFunc        ScheduledQueryFunc
-	ScheduledQueryFuncInvoked bool
 
 	CleanupExpiredHostsBatchFunc        CleanupExpiredHostsBatchFunc
 	CleanupExpiredHostsBatchFuncInvoked bool
@@ -3995,9 +3918,6 @@ type DataStore struct {
 
 	UpdateHostFunc        UpdateHostFunc
 	UpdateHostFuncInvoked bool
-
-	ListScheduledQueriesInPackFunc        ListScheduledQueriesInPackFunc
-	ListScheduledQueriesInPackFuncInvoked bool
 
 	UpdateHostRefetchRequestedFunc        UpdateHostRefetchRequestedFunc
 	UpdateHostRefetchRequestedFuncInvoked bool
@@ -7027,76 +6947,6 @@ func (s *DataStore) DistributedQueryCampaignsForQuery(ctx context.Context, query
 	return s.DistributedQueryCampaignsForQueryFunc(ctx, queryID)
 }
 
-func (s *DataStore) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec) error {
-	s.mu.Lock()
-	s.ApplyPackSpecsFuncInvoked = true
-	s.mu.Unlock()
-	return s.ApplyPackSpecsFunc(ctx, specs)
-}
-
-func (s *DataStore) GetPackSpecs(ctx context.Context) ([]*fleet.PackSpec, error) {
-	s.mu.Lock()
-	s.GetPackSpecsFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetPackSpecsFunc(ctx)
-}
-
-func (s *DataStore) GetPackSpec(ctx context.Context, name string) (*fleet.PackSpec, error) {
-	s.mu.Lock()
-	s.GetPackSpecFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetPackSpecFunc(ctx, name)
-}
-
-func (s *DataStore) NewPack(ctx context.Context, pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error) {
-	s.mu.Lock()
-	s.NewPackFuncInvoked = true
-	s.mu.Unlock()
-	return s.NewPackFunc(ctx, pack, opts...)
-}
-
-func (s *DataStore) SavePack(ctx context.Context, pack *fleet.Pack) error {
-	s.mu.Lock()
-	s.SavePackFuncInvoked = true
-	s.mu.Unlock()
-	return s.SavePackFunc(ctx, pack)
-}
-
-func (s *DataStore) DeletePack(ctx context.Context, name string) error {
-	s.mu.Lock()
-	s.DeletePackFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeletePackFunc(ctx, name)
-}
-
-func (s *DataStore) Pack(ctx context.Context, pid uint) (*fleet.Pack, error) {
-	s.mu.Lock()
-	s.PackFuncInvoked = true
-	s.mu.Unlock()
-	return s.PackFunc(ctx, pid)
-}
-
-func (s *DataStore) ListPacks(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
-	s.mu.Lock()
-	s.ListPacksFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListPacksFunc(ctx, opt)
-}
-
-func (s *DataStore) PackByName(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Pack, bool, error) {
-	s.mu.Lock()
-	s.PackByNameFuncInvoked = true
-	s.mu.Unlock()
-	return s.PackByNameFunc(ctx, name, opts...)
-}
-
-func (s *DataStore) ListPacksForHost(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
-	s.mu.Lock()
-	s.ListPacksForHostFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListPacksForHostFunc(ctx, hid)
-}
-
 func (s *DataStore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec) error {
 	s.mu.Lock()
 	s.ApplyLabelSpecsFuncInvoked = true
@@ -8159,41 +8009,6 @@ func (s *DataStore) UpdateInvite(ctx context.Context, id uint, i *fleet.Invite) 
 	s.UpdateInviteFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateInviteFunc(ctx, id, i)
-}
-
-func (s *DataStore) ListScheduledQueriesInPackWithStats(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
-	s.mu.Lock()
-	s.ListScheduledQueriesInPackWithStatsFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListScheduledQueriesInPackWithStatsFunc(ctx, id, opts)
-}
-
-func (s *DataStore) NewScheduledQuery(ctx context.Context, sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
-	s.mu.Lock()
-	s.NewScheduledQueryFuncInvoked = true
-	s.mu.Unlock()
-	return s.NewScheduledQueryFunc(ctx, sq, opts...)
-}
-
-func (s *DataStore) SaveScheduledQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
-	s.mu.Lock()
-	s.SaveScheduledQueryFuncInvoked = true
-	s.mu.Unlock()
-	return s.SaveScheduledQueryFunc(ctx, sq)
-}
-
-func (s *DataStore) DeleteScheduledQuery(ctx context.Context, id uint) error {
-	s.mu.Lock()
-	s.DeleteScheduledQueryFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteScheduledQueryFunc(ctx, id)
-}
-
-func (s *DataStore) ScheduledQuery(ctx context.Context, id uint) (*fleet.ScheduledQuery, error) {
-	s.mu.Lock()
-	s.ScheduledQueryFuncInvoked = true
-	s.mu.Unlock()
-	return s.ScheduledQueryFunc(ctx, id)
 }
 
 func (s *DataStore) CleanupExpiredHostsBatch(ctx context.Context, batchSize int) ([]fleet.DeletedHostDetails, error) {
@@ -9727,13 +9542,6 @@ func (s *DataStore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 	s.UpdateHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateHostFunc(ctx, host)
-}
-
-func (s *DataStore) ListScheduledQueriesInPack(ctx context.Context, packID uint) (fleet.ScheduledQueryList, error) {
-	s.mu.Lock()
-	s.ListScheduledQueriesInPackFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListScheduledQueriesInPackFunc(ctx, packID)
 }
 
 func (s *DataStore) UpdateHostRefetchRequested(ctx context.Context, hostID uint, value bool) error {

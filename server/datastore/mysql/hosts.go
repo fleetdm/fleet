@@ -568,15 +568,6 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 		}
 	}
 
-	stmt, args, err = sqlx.In(`DELETE FROM pack_targets WHERE type = ? AND target_id IN (?)`, fleet.TargetHost, hostIDs)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "building delete statement for pack_targets for hosts %v", hostIDs)
-	}
-	_, err = tx.ExecContext(ctx, stmt, args...)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "deleting pack_targets for hosts %v", hostIDs)
-	}
-
 	// no point trying the uuid-based tables if the host's uuid is missing
 	if len(hostUUIDs) != 0 {
 		for table, col := range additionalHostRefsByUUID {
