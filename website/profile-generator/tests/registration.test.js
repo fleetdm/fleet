@@ -101,9 +101,19 @@ describe('registering a Fleet server for the profile generator', function() {
     );
   });
 
-  it('is a 400 and stores nothing for a URL that is not https://', async function() {
+  it('accepts an http:// URL, as Fleet does for its own server URL', async function() {
+    for (let fleetServerUrl of [`http://fleet-${crypto.randomBytes(6).toString('hex')}.example.com`, 'http://localhost:8080']) {
+      let response = await register({ fleetServerUrl });
+      assert.strictEqual(response.status, 200, `expected a 200 for ${fleetServerUrl}`);
+      let registration = await ProfileGeneratorRegistration.findOne({ fleetServerSecretHash: hashOf(response.body.fleetServerSecret) });
+      createdRegistrationIds.push(registration.id);
+      assert.strictEqual(registration.fleetServerUrl, fleetServerUrl);
+    }
+  });
+
+  it('is a 400 and stores nothing for a URL that is not http:// or https:// with a host', async function() {
     let countBefore = await ProfileGeneratorRegistration.count();
-    for (let fleetServerUrl of ['not a url', 'fleet.example.com', 'http://fleet.example.com', 'ftp://fleet.example.com', 'foo:bar', '']) {
+    for (let fleetServerUrl of ['not a url', 'fleet.example.com', 'ftp://fleet.example.com', 'foo:bar', 'http://', 'https://', '']) {
       let response = await register({ fleetServerUrl });
       assert.strictEqual(response.status, 400, `expected a 400 for ${JSON.stringify(fleetServerUrl)}`);
     }

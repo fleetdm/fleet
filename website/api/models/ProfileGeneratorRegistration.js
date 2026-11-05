@@ -15,7 +15,7 @@ module.exports = {
     fleetServerUrl: {
       type: 'string',
       description: 'The URL of the Fleet server that registered to use the configuration profile generator.',
-      extendedDescription: 'Not unique: Fleet servers in development share URLs like https://localhost:8080, and a Fleet server restored from a backup registers again.',
+      extendedDescription: 'Not unique: Fleet servers in development share URLs like http://localhost:8080, and a Fleet server restored from a backup registers again.',
       required: true,
     },
 

@@ -32,7 +32,7 @@ module.exports = {
     },
 
     invalidFleetServerUrl: {
-      description: 'The provided Fleet server URL is not an https:// URL.',
+      description: 'The provided Fleet server URL is not an http:// or https:// URL with a host.',
       responseType: 'badRequest',
     },
 
@@ -50,7 +50,8 @@ module.exports = {
     } catch(unusedErr) {
       throw 'invalidFleetServerUrl';
     }
-    if(parsedUrl.protocol !== 'https:') {
+    // The same check Fleet makes on its own server URL.  It is only recorded, so http:// is accepted too.
+    if(!_.contains(['http:', 'https:'], parsedUrl.protocol) || !parsedUrl.host) {
       throw 'invalidFleetServerUrl';
     }
 
