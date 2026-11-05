@@ -2161,6 +2161,24 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			cpe: "cpe:2.3:a:snyk:snyk_security:2.4.9:*:*:*:*:intellij:*:*",
 		},
 		{
+			// The Homebrew "go" formula is the Go toolchain. Without a translation it matched
+			// ecies:go, a Go ECIES library, and inherited its CVEs (CVE-2023-49292).
+			software: fleet.Software{
+				Name:    "go",
+				Source:  "homebrew_packages",
+				Version: "1.27.2",
+			},
+			cpe: "cpe:2.3:a:golang:go:1.27.2:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "go@1.24",
+				Source:  "homebrew_packages",
+				Version: "1.24.9",
+			},
+			cpe: "cpe:2.3:a:golang:go:1.24.9:*:*:*:*:macos:*:*",
+		},
+		{
 			// teamcity-cli installs as "teamcity" via the JetBrains Homebrew tap, but it is a
 			// separate product from the TeamCity CI server and has no CPE of its own, so it must
 			// not inherit the server's vulnerabilities.
