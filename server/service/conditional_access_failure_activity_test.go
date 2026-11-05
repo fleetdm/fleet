@@ -7,10 +7,12 @@ import (
 	"log/slog"
 	"os"
 	"testing"
+	"time"
 
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/stretchr/testify/require"
 )
 
@@ -125,5 +127,69 @@ func TestRecordSingleSignOnBlockedActivity(t *testing.T) {
 		require.NotPanics(t, func() {
 			recordSingleSignOnBlockedActivity(ctx, nil, 104, []uint{30}, logger)
 		})
+	})
+}
+
+type fakeComplianceProxy struct {
+	ConditionalAccessMicrosoftProxy
+	messageID            string
+	getMessageStatusCall bool
+}
+
+func (f *fakeComplianceProxy) SetComplianceStatus(
+	context.Context, string, string, string, string, bool, string, string, string, bool, time.Time,
+) (*conditional_access_microsoft_proxy.SetComplianceStatusResponse, error) {
+	return &conditional_access_microsoft_proxy.SetComplianceStatusResponse{MessageID: f.messageID}, nil
+}
+
+func (f *fakeComplianceProxy) GetMessageStatus(
+	context.Context, string, string, string,
+) (*conditional_access_microsoft_proxy.GetMessageStatusResponse, error) {
+	f.getMessageStatusCall = true
+	return &conditional_access_microsoft_proxy.GetMessageStatusResponse{Status: conditional_access_microsoft_proxy.MessageStatusCompleted}, nil
+}
+
+func TestSetHostConditionalAccessEmptyMessageID(t *testing.T) {
+	newSvc := func(proxy *fakeComplianceProxy, acts *[]fleet.ActivityTypeFailedAutomationConditionalAccess) (*Service, *mock.Store) {
+		ds := new(mock.Store)
+		ds.ConditionalAccessMicrosoftGetFunc = func(context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+			return &fleet.ConditionalAccessMicrosoftIntegration{TenantID: "tid", ProxyServerSecret: "s", SetupDone: true}, nil
+		}
+		ds.SetHostConditionalAccessStatusFunc = func(context.Context, uint, bool, bool) error { return nil }
+		return &Service{
+			ds:                              ds,
+			logger:                          slog.New(slog.DiscardHandler),
+			conditionalAccessMicrosoftProxy: proxy,
+			activitySvc: &mock.MockActivityService{NewActivityFunc: func(_ context.Context, _ *activity_api.User, a fleet.ActivityDetails) error {
+				if act, ok := a.(fleet.ActivityTypeFailedAutomationConditionalAccess); ok {
+					*acts = append(*acts, act)
+				}
+				return nil
+			}},
+		}, ds
+	}
+	status := &fleet.HostConditionalAccessStatus{DeviceID: "dev", UserPrincipalName: "upn"}
+
+	t.Run("macOS fails without polling", func(t *testing.T) {
+		var acts []fleet.ActivityTypeFailedAutomationConditionalAccess
+		proxy := &fakeComplianceProxy{}
+		svc, ds := newSvc(proxy, &acts)
+
+		err := svc.setHostConditionalAccess(7, "darwin", status, true, false, []uint{30})
+		require.ErrorContains(t, err, "missing message ID")
+		require.False(t, proxy.getMessageStatusCall)
+		require.False(t, ds.SetHostConditionalAccessStatusFuncInvoked)
+		require.Len(t, acts, 1)
+		require.Equal(t, uint(30), acts[0].PolicyID)
+		require.Equal(t, []uint{7}, acts[0].HostIDList)
+	})
+
+	t.Run("Windows doesn't use the message ID", func(t *testing.T) {
+		var acts []fleet.ActivityTypeFailedAutomationConditionalAccess
+		svc, ds := newSvc(&fakeComplianceProxy{}, &acts)
+
+		require.NoError(t, svc.setHostConditionalAccess(7, "windows", status, true, true, []uint{30}))
+		require.True(t, ds.SetHostConditionalAccessStatusFuncInvoked)
+		require.Empty(t, acts)
 	})
 }

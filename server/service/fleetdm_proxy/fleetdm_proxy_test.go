@@ -155,11 +155,14 @@ func TestEmptySuccessBody(t *testing.T) {
 	c := newTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
-	resp := struct {
+	require.NoError(t, c.Delete(t.Context(), "/x", nil, nil))
+
+	// A caller that expects a response must not get a zero value it can't tell
+	// apart from a real one.
+	var resp struct {
 		Answer string `json:"answer"`
-	}{Answer: "untouched"}
-	require.NoError(t, c.Delete(t.Context(), "/x", nil, &resp))
-	require.Equal(t, "untouched", resp.Answer)
+	}
+	require.ErrorContains(t, c.Delete(t.Context(), "/x", nil, &resp), "empty response body")
 }
 
 func TestResponseBodyTooLarge(t *testing.T) {

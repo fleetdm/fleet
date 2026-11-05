@@ -86,3 +86,24 @@ func TestProxyQueryParametersAreEncoded(t *testing.T) {
 		})
 	}
 }
+
+func TestProxyCreateRequiresCredentials(t *testing.T) {
+	for name, body := range map[string]string{
+		"empty object":   `{}`,
+		"missing secret": `{"entra_tenant_id":"tid"}`,
+		"missing tenant": `{"fleet_server_secret":"s"}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = w.Write([]byte(body))
+			}))
+			defer srv.Close()
+			p, err := New(srv.URL, func() (string, error) { return "https://fleet.example.com", nil })
+			require.NoError(t, err)
+
+			resp, err := p.Create(t.Context(), "tid")
+			require.ErrorContains(t, err, "missing tenant ID or secret")
+			require.Nil(t, resp)
+		})
+	}
+}

@@ -65,7 +65,7 @@ func (c *Client) Delete(ctx context.Context, path string, query url.Values, resp
 }
 
 // do sends the request and decodes a 2xx JSON response into response. An empty 2xx body
-// leaves response untouched. Any other status returns a *StatusError.
+// is only accepted when response is nil. Any other status returns a *StatusError.
 func (c *Client) do(ctx context.Context, method, path string, query url.Values, body, response any) error {
 	reqURL := c.uri + path
 	if len(query) > 0 {
@@ -115,8 +115,11 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 	if len(respBody) > maxResponseBytes {
 		return fmt.Errorf("response body exceeds %d bytes", maxResponseBytes)
 	}
-	if response == nil || len(respBody) == 0 {
+	if response == nil {
 		return nil
+	}
+	if len(respBody) == 0 {
+		return errors.New("decode response: empty response body")
 	}
 	if err := json.Unmarshal(respBody, response); err != nil {
 		return fmt.Errorf("decode response: %w", err)

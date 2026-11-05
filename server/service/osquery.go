@@ -3884,6 +3884,11 @@ func (svc *Service) setHostConditionalAccess(
 	//
 
 	if hostPlatform == "darwin" {
+		if response.MessageID == "" {
+			err := ctxerr.New(ctx, "set compliance status: missing message ID in response")
+			recordConditionalAccessFailureActivity(ctx, svc.activitySvc, hostID, failingPolicyIDs, err, logger)
+			return err
+		}
 		const (
 			timeout = 1 * time.Minute
 		)

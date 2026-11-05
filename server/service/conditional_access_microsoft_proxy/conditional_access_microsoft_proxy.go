@@ -3,6 +3,7 @@ package conditional_access_microsoft_proxy
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"time"
@@ -45,6 +46,10 @@ func (p *Proxy) Create(ctx context.Context, tenantID string) (*CreateResponse, e
 		&createResponse,
 	); err != nil {
 		return nil, fmt.Errorf("create integration failed: %w", err)
+	}
+	// Callers store these credentials over any existing integration.
+	if createResponse.TenantID == "" || createResponse.Secret == "" {
+		return nil, errors.New("create integration failed: missing tenant ID or secret in response")
 	}
 	return &createResponse, nil
 }
