@@ -1022,7 +1022,7 @@ const DeviceUserPage = ({
                     isMyDevicePage
                     isPremiumTier={isPremiumTier}
                     platform={host.platform}
-                    hostTeamId={host.team_id || 0}
+                    hostTeamId={host.fleet_id || 0}
                     isSoftwareEnabled={isSoftwareEnabled}
                     onShowInventoryVersions={setHostSWForInventoryVersions}
                   />

@@ -113,7 +113,7 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 			RequestType:    "AccountConfiguration",
 		},
 	})
-	if err != nil {
+	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "list AccountConfiguration commands")
 	}
 

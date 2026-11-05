@@ -16,14 +16,16 @@ func Up_20261104165437(tx *sql.Tx) error {
 	// of scanning all of the user's session rows.
 	// See https://github.com/fleetdm/fleet/issues/55579.
 
-	if indexExistsTx(tx, "sessions", "idx_sessions_user_id") {
-		if _, err := tx.Exec(`ALTER TABLE sessions DROP INDEX idx_sessions_user_id`); err != nil {
+	// Create the composite index first so the old one remains as a
+	// fallback if this step fails or is interrupted.
+	if !indexExistsTx(tx, "sessions", "idx_sessions_user_id_accessed_at") {
+		if _, err := tx.Exec(`ALTER TABLE sessions ADD INDEX idx_sessions_user_id_accessed_at (user_id, accessed_at)`); err != nil {
 			return err
 		}
 	}
 
-	if !indexExistsTx(tx, "sessions", "idx_sessions_user_id_accessed_at") {
-		if _, err := tx.Exec(`ALTER TABLE sessions ADD INDEX idx_sessions_user_id_accessed_at (user_id, accessed_at)`); err != nil {
+	if indexExistsTx(tx, "sessions", "idx_sessions_user_id") {
+		if _, err := tx.Exec(`ALTER TABLE sessions DROP INDEX idx_sessions_user_id`); err != nil {
 			return err
 		}
 	}

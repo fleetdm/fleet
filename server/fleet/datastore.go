@@ -391,8 +391,8 @@ type Datastore interface {
 	// TODO JUAN: Refactor this to use the Operating System type instead.
 	// HostIDsByOSVersion retrieves the IDs of all host matching osVersion
 	HostIDsByOSVersion(ctx context.Context, osVersion OSVersion, offset int, limit int) ([]uint, error)
-	// HostByIdentifier returns one host matching the provided identifier. Possible matches can be on
-	// osquery_host_id, node_key, UUID, hardware_serial or hostname.
+	// HostByIdentifier returns one host matching the provided identifier. Possible matches are, in priority order,
+	// hardware_serial, UUID, hostname, osquery_host_id and node_key. The lowest host ID wins among hosts matching on the same column.
 	HostByIdentifier(ctx context.Context, identifier string) (*Host, error)
 	// HostByUUID returns one host whose uuid column matches exactly. Unlike
 	// HostByIdentifier, it does not fall back to other identifier columns.
@@ -1916,14 +1916,14 @@ type Datastore interface {
 	IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device, abmTokenID uint, macOSTeam, iosTeam, ipadTeam *Team) (int64, error)
 
 	// SetHostMDMMigrationCompleted sets a host's DEP record's migration as having completed by setting the
-	// completed migration timestamp equal to the migration deadline timestamp. This is so that if we sync
-	// the device from ABM again we know not to skip the migration.
+	// completed migration timestamp equal to the migration deadline timestamp. Once set, the host is no
+	// longer considered to be migrating, even if ABM later reports a different deadline.
 	SetHostMDMMigrationCompleted(ctx context.Context, hostID uint) error
 
 	// IngestMDMAppleDeviceFromOTAEnrollment creates new host records for
 	// MDM-enrolled devices via OTA that are not already enrolled in Fleet. It
 	// returns the IdP account the host was linked to before, empty if none.
-	IngestMDMAppleDeviceFromOTAEnrollment(ctx context.Context, teamID *uint, idpUUID string, deviceInfo MDMAppleMachineInfo) (previousAcctUUID string, err error)
+	IngestMDMAppleDeviceFromOTAEnrollment(ctx context.Context, teamID *uint, idpUUID string, deviceInfo MDMAppleMachineInfo, personalType PersonalEnrollmentType) (previousAcctUUID string, err error)
 
 	// MDMAppleUpsertHost creates or matches a Fleet host record for an
 	// MDM-enrolled device.
@@ -2382,9 +2382,6 @@ type Datastore interface {
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the
 	// database (or S3 if configured).
 	InsertMDMAppleBootstrapPackage(ctx context.Context, bp *MDMAppleBootstrapPackage, pkgStore MDMBootstrapPackageStore) error
-	// CopyMDMAppleBootstrapPackage copies the bootstrap package specified in the app config (if any)
-	// specified team (and a new token is assigned). It also updates the team config with the default bootstrap package URL.
-	CopyDefaultMDMAppleBootstrapPackage(ctx context.Context, ac *AppConfig, toTeamID uint) error
 	// DeleteMDMAppleBootstrapPackage deletes the bootstrap package for the given team id.
 	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error
 	// GetMDMAppleBootstrapPackageMeta returns metadata about the bootstrap
@@ -3006,6 +3003,7 @@ type Datastore interface {
 	// ListMDMCommands returns a list of MDM Apple commands that have been
 	// executed, based on the provided options.
 	// returns a non-nil count if filtering by command_status = pending
+	// It returns a NotFoundError when filtering by a host identifier that matches no host visible to tmFilter.
 	ListMDMCommands(ctx context.Context, tmFilter TeamFilter, listOpts *MDMCommandListOptions) ([]*MDMCommand, *int64, *PaginationMetadata, error)
 
 	// GetMDMWindowsBitLockerSummary summarizes the current state of Windows disk encryption on
@@ -3015,7 +3013,8 @@ type Datastore interface {
 	// GetMDMWindowsBitLockerStatus returns the disk encryption status for a given host
 	//
 	// Note that the returned status will be nil if the host is reported to be a Windows
-	// server or if disk encryption is disabled for the host's team (or no team, as applicable).
+	// server, if disk encryption is disabled for the host's team (or no team, as applicable), or if
+	// the host has no Fleet MDM enrollment.
 	GetMDMWindowsBitLockerStatus(ctx context.Context, host *Host) (*HostMDMDiskEncryption, error)
 
 	// GetMDMWindowsProfilesSummary summarizes the current state of Windows profiles on

@@ -28,6 +28,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -290,17 +291,93 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommandWithSecret() {
 	assert.NotContains(t, string(cmd.Raw), "FLEET_SECRET_VALUE")
 }
 
+func (s *integrationMDMTestSuite) TestListMDMCommandsHostOutsideUsersTeams() {
+	t := s.T()
+	ctx := t.Context()
+
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team1"})
+	require.NoError(t, err)
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team2"})
+	require.NoError(t, err)
+	newHost := func(name string, teamID uint) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			Hostname:       name,
+			OsqueryHostID:  new(name),
+			NodeKey:        new(name),
+			UUID:           name + "-uuid",
+			HardwareSerial: name + "-serial",
+			Platform:       "darwin",
+			TeamID:         &teamID,
+		})
+		require.NoError(t, err)
+		return h
+	}
+	ownHost := newHost(t.Name()+"-own", team1.ID)
+	otherHost := newHost(t.Name()+"-other", team2.ID)
+
+	observer := &fleet.User{
+		Name:  t.Name() + "_observer",
+		Email: t.Name() + "_observer@example.com",
+		Teams: []fleet.UserTeam{{Team: *team1, Role: fleet.RoleObserver}},
+	}
+	require.NoError(t, observer.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(ctx, observer)
+	require.NoError(t, err)
+	s.token = s.getTestToken(observer.Email, test.GoodPassword)
+	t.Cleanup(func() { s.token = s.getTestAdminToken() })
+
+	notFoundBody := func(identifier string) string {
+		res := s.DoRaw("GET", "/api/latest/fleet/commands", nil, http.StatusNotFound, "host_identifier", identifier)
+		return extractServerErrorText(res.Body)
+	}
+	// A host in another team looks exactly like one that doesn't exist.
+	unknown := notFoundBody("no-such-host")
+	for _, identifier := range []string{otherHost.UUID, otherHost.HardwareSerial, otherHost.Hostname} {
+		require.Equal(t, unknown, notFoundBody(identifier), identifier)
+	}
+
+	var listResp listMDMCommandsResponse
+	s.DoJSON("GET", "/api/latest/fleet/commands", nil, http.StatusOK, &listResp, "host_identifier", ownHost.UUID)
+	require.Empty(t, listResp.Results)
+
+	// A hostname shared with a host in another team resolves to the user's own host.
+	shared, err := s.ds.NewHost(ctx, &fleet.Host{
+		Hostname:       ownHost.Hostname,
+		OsqueryHostID:  new(t.Name() + "-shared"),
+		NodeKey:        new(t.Name() + "-shared"),
+		UUID:           t.Name() + "-shared-uuid",
+		HardwareSerial: t.Name() + "-shared-serial",
+		Platform:       "darwin",
+		TeamID:         &team2.ID,
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, ownHost.ID, shared.ID)
+	s.DoJSON("GET", "/api/latest/fleet/commands", nil, http.StatusOK, &listResp, "host_identifier", ownHost.Hostname)
+	require.Empty(t, listResp.Results)
+}
+
 func (s *integrationMDMTestSuite) TestListMDMCommands() {
 	t := s.T()
 
-	// No host identifier when using command status
-	res := s.DoRaw("GET", "/api/latest/fleet/mdm/commands?command_status=ran", nil, http.StatusBadRequest)
-	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `"host_identifier" must be specified when filtering by "command_status".`)
+	// host_identifier is required on both routes, also when other filters are set.
+	const hostRequiredMsg = `The "host_identifier" parameter is now required. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration`
+	for _, path := range []string{"/api/latest/fleet/commands", "/api/latest/fleet/mdm/commands"} {
+		for _, query := range []string{
+			"",
+			"?host_identifier=",
+			"?host_identifier=%20%20",
+			"?command_status=ran",
+			"?request_type=ProfileList",
+			"?per_page=10",
+		} {
+			res := s.DoRaw("GET", path+query, nil, http.StatusBadRequest)
+			require.Contains(t, extractServerErrorText(res.Body), hostRequiredMsg, path+query)
+		}
+	}
 
 	// Invalid command_status
-	res = s.DoRaw("GET", "/api/latest/fleet/mdm/commands?host_identifier=some-uuid&command_status=invalid-status", nil, http.StatusBadRequest)
-	errMsg = extractServerErrorText(res.Body)
+	res := s.DoRaw("GET", "/api/latest/fleet/mdm/commands?host_identifier=some-uuid&command_status=invalid-status", nil, http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `command_status only accepts the following values:`)
 
 	// Command status when host identifier resolves to Windows host
@@ -318,38 +395,36 @@ func (s *integrationMDMTestSuite) TestListMDMCommands() {
 	require.Contains(t, errMsg, `"command_status" filter is only available for macOS, iOS, iPadOS, and Android hosts`)
 
 	// per_page above the documented maximum is rejected with a clear message.
-	res = s.DoRaw("GET", "/api/latest/fleet/mdm/commands?per_page=1001", nil, http.StatusBadRequest)
+	res = s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/mdm/commands?host_identifier=%s&per_page=1001", h.UUID), nil, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Please set a per_page limit of 1000 or less")
 
 	// per_page at the cap is accepted.
-	s.DoRaw("GET", "/api/latest/fleet/mdm/commands?per_page=1000", nil, http.StatusOK)
+	s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/mdm/commands?host_identifier=%s&per_page=1000", h.UUID), nil, http.StatusOK)
 
 	// page above the cap is rejected so the inner LIMIT (page*per_page+per_page+1)
 	// stays bounded.
-	res = s.DoRaw("GET", "/api/latest/fleet/mdm/commands?page=101", nil, http.StatusBadRequest)
+	res = s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/mdm/commands?host_identifier=%s&page=101", h.UUID), nil, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Please set page to 100 or less")
 
 	// page at the cap is accepted.
-	s.DoRaw("GET", "/api/latest/fleet/mdm/commands?page=100", nil, http.StatusOK)
+	s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/mdm/commands?host_identifier=%s&page=100", h.UUID), nil, http.StatusOK)
 
 	// order_key not in the allowlist is rejected by the secure list-options
 	// helper (defense against SQL injection via crafted ORDER BY). The
 	// helper's InvalidOrderKeyError implements the validation-error
-	// interface, so the response is a 422. Both the unscoped path and
-	// the host-scoped path enforce the same allowlist.
-	res = s.DoRaw("GET", "/api/latest/fleet/mdm/commands?order_key=team_id", nil, http.StatusUnprocessableEntity)
-	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "team_id")
-
+	// interface, so the response is a 422.
 	res = s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/mdm/commands?host_identifier=%s&order_key=team_id", h.UUID), nil, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "team_id")
 
-	// order_key=hostname is supported on both paths.
-	s.DoRaw("GET", "/api/latest/fleet/mdm/commands?order_key=hostname", nil, http.StatusOK)
 	s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/mdm/commands?host_identifier=%s&order_key=hostname", h.UUID), nil, http.StatusOK)
+
+	// A host-scoped request works on the current route too.
+	var listResp listMDMCommandsResponse
+	s.DoJSON("GET", "/api/latest/fleet/commands", nil, http.StatusOK, &listResp, "host_identifier", h.UUID)
+	require.Empty(t, listResp.Results)
 }
 
 func (s *integrationMDMTestSuite) TestMDMWindowsCommandResults() {

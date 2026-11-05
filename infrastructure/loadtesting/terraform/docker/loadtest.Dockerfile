@@ -24,7 +24,7 @@ RUN cd /go/fleet/cmd/osquery-perf/software-library && \
     sqlite3 software.db "SELECT COUNT(*) FROM software;" && \
     echo "Successfully generated software.db ($(du -h software.db | cut -f1))"
 
-FROM alpine:3.23.4@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11
+FROM alpine:3.23.7@sha256:ff7f0c727dd796aa36787bfcd9a64bf35a6ce72a73451b3359fde849b6703d63
 LABEL maintainer="Fleet Developers"
 
 # Create FleetDM group and user

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "12.6.1",
+      "version": "12.6.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.axosoft.gitkraken';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.axosoft.gitkraken' AND version_compare(bundle_short_version, '12.6.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.axosoft.gitkraken' AND version_compare(bundle_short_version, '12.6.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.axosoft.gitkraken' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://api.gitkraken.dev/releases/production/darwin/arm64/12.6.1/GitKraken-v12.6.1.zip",
+      "installer_url": "https://api.gitkraken.dev/releases/production/darwin/arm64/12.6.2/GitKraken-v12.6.2.zip",
       "install_script_ref": "1bc9dc0e",
       "uninstall_script_ref": "19895e54",
-      "sha256": "f0b3d5d7e2752f70f667ecdd77ff05bc25bc29f6bcd85182dc16371861414a35",
+      "sha256": "fad7d051a035ba02258be711635b3f4d38c6ad26306a2cc2f709345f47c428fd",
       "default_categories": [
         "Developer tools"
       ]

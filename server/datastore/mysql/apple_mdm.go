@@ -2003,6 +2003,7 @@ func createHostFromMDMDB(
 	logger *slog.Logger,
 	devices []hostToCreateFromMDM,
 	source appleMDMInfoSource,
+	personalType fleet.PersonalEnrollmentType,
 	macOSTeam, iosTeam, ipadTeam *uint,
 ) (int64, []fleet.Host, error) {
 	// NOTE: order of arguments for teams is important, see statement.
@@ -2144,7 +2145,7 @@ func createHostFromMDMDB(
 		tx,
 		appCfg,
 		source,
-		fleet.PersonalEnrollmentTypeNone,
+		personalType,
 		unmanagedHostIDs...,
 	); err != nil {
 		return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
@@ -2158,6 +2159,7 @@ func (ds *Datastore) IngestMDMAppleDeviceFromOTAEnrollment(
 	teamID *uint,
 	idpUUID string,
 	deviceInfo fleet.MDMAppleMachineInfo,
+	personalType fleet.PersonalEnrollmentType,
 ) (string, error) {
 	var previousAcctUUID string
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -2183,7 +2185,7 @@ func (ds *Datastore) IngestMDMAppleDeviceFromOTAEnrollment(
 				UUID:           &deviceInfo.UDID,
 			},
 		}
-		_, hosts, err := createHostFromMDMDB(ctx, tx, ds.logger, toInsert, appleMDMInfoFromOTAEnrollment, teamID, teamID, teamID)
+		_, hosts, err := createHostFromMDMDB(ctx, tx, ds.logger, toInsert, appleMDMInfoFromOTAEnrollment, personalType, teamID, teamID, teamID)
 		if idpUUID != "" && len(hosts) > 0 {
 			host := hosts[0]
 			ds.logger.InfoContext(ctx, fmt.Sprintf("associating host %s with idp account %s", host.UUID, idpUUID))
@@ -2292,6 +2294,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(
 			ds.logger,
 			htc,
 			appleMDMInfoFromDEPSync,
+			fleet.PersonalEnrollmentTypeNone,
 			teamIDs[0], teamIDs[1], teamIDs[2],
 		)
 		if err != nil {
@@ -3315,12 +3318,6 @@ ON DUPLICATE KEY UPDATE
 		rows, _ := result.RowsAffected()
 		updatedDB = rows > 0
 	}
-	if len(deletedProfileUUIDs) > 0 {
-		// cancel installs of the deleted profiles immediately
-		if err := cancelAppleHostInstallsForDeletedMDMProfiles(ctx, tx, deletedProfileUUIDs); err != nil {
-			return false, ctxerr.Wrap(ctx, err, "cancel installs of deleted profiles")
-		}
-	}
 
 	// The upserts below run one at a time in map order and (team_id, name) is
 	// unique, so a chain or swap of names would fail unless each profile
@@ -3614,8 +3611,8 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
               detail = VALUES(detail),
               checksum = VALUES(checksum),
               secrets_updated_at = VALUES(secrets_updated_at),
-              -- keep ignore error flag if the operation is still a remove
-              ignore_error = IF(VALUES(operation_type) = '%s', ignore_error, VALUES(ignore_error)),
+              -- on a remove, only ever raise the ignore error flag
+              ignore_error = IF(VALUES(operation_type) = '%s', ignore_error OR VALUES(ignore_error), VALUES(ignore_error)),
               profile_identifier = VALUES(profile_identifier),
               profile_name = VALUES(profile_name),
               command_uuid = VALUES(command_uuid),
@@ -4340,60 +4337,6 @@ ON DUPLICATE KEY UPDATE
 	return execUpsert(bp.TeamID, bp.Name, bp.Sha256, nil, bp.Token)
 }
 
-func (ds *Datastore) CopyDefaultMDMAppleBootstrapPackage(ctx context.Context, ac *fleet.AppConfig, toTeamID uint) error {
-	if ac == nil {
-		return ctxerr.New(ctx, "app config must not be nil")
-	}
-	if toTeamID == 0 {
-		return ctxerr.New(ctx, "team id must not be zero")
-	}
-
-	// NOTE: if the bootstrap package is stored in S3, nothing needs to happen on
-	// S3 for a copy of it since the bytes are the same and the stored contents
-	// is the same (the sha256 is copied, so it points to the same file on S3).
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// Copy the bytes for the default bootstrap package to the specified team
-		insertStmt := `
-INSERT INTO mdm_apple_bootstrap_packages (team_id, name, sha256, bytes, token)
-SELECT ?, name, sha256, bytes, ?
-FROM mdm_apple_bootstrap_packages
-WHERE team_id = 0
-`
-		_, err := tx.ExecContext(ctx, insertStmt, toTeamID, uuid.New().String())
-		if err != nil {
-			if IsDuplicate(err) {
-				return ctxerr.Wrap(ctx, &existsError{
-					ResourceType: "BootstrapPackage",
-					TeamID:       &toTeamID,
-				})
-			}
-			return ctxerr.Wrap(ctx, err, fmt.Sprintf("copy default bootstrap package to team %d", toTeamID))
-		}
-
-		// Update the team config json with the default bootstrap package url
-		//
-		// NOTE: The bytes copied above may not match the bytes at the url because it is possible to
-		// upload a new bootrap pacakge via the UI, which replaces the bytes but does not change
-		// the configured URL. This was a deliberate product design choice and it is intended that
-		// the bytes would be replaced again the next time the team config is applied (i.e. via
-		// fleetctl in a gitops workflow).
-		url := ac.MDM.MacOSSetup.BootstrapPackage.Value
-		if url != "" {
-			updateConfigStmt := `
-UPDATE teams
-SET config = JSON_SET(config, '$.mdm.macos_setup.bootstrap_package', ?)
-WHERE id = ?
-`
-			_, err = tx.ExecContext(ctx, updateConfigStmt, url, toTeamID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, fmt.Sprintf("update bootstrap package config for team %d", toTeamID))
-			}
-		}
-
-		return nil
-	})
-}
-
 func (ds *Datastore) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error {
 	// NOTE: if S3 storage is used for the bootstrap package, we don't delete it
 	// here. The reason for this is that other teams may be using the same
@@ -4458,7 +4401,7 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, tea
           SELECT
               COUNT(IF(ncr.status = 'Acknowledged', 1, NULL)) AS installed,
               COUNT(IF(ncr.status = 'Error', 1, NULL)) AS failed,
-              COUNT(IF((hmabp.skipped = 0 OR hmabp.skipped IS NULL) AND (? OR hda.mdm_migration_deadline IS NULL OR (hda.mdm_migration_deadline = hda.mdm_migration_completed)) AND (ncr.status IS NULL OR (ncr.status != 'Acknowledged' AND ncr.status != 'Error')), 1, NULL)) AS pending
+              COUNT(IF((hmabp.skipped = 0 OR hmabp.skipped IS NULL) AND (? OR hda.mdm_migration_deadline IS NULL OR hda.mdm_migration_completed IS NOT NULL) AND (ncr.status IS NULL OR (ncr.status != 'Acknowledged' AND ncr.status != 'Error')), 1, NULL)) AS pending
           FROM
               hosts h
           LEFT JOIN host_mdm_apple_bootstrap_packages hmabp ON

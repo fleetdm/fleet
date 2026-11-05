@@ -34,7 +34,7 @@ interface IFormData {
   [OKTA_CERTIFICATE]: string;
 }
 
-const validate = (data: IFormData): IFormErrors => {
+export const validate = (data: IFormData): IFormErrors => {
   const errors: IFormErrors = {};
 
   if (!data[OKTA_IDP_ID].trim()) {
@@ -52,7 +52,10 @@ const validate = (data: IFormData): IFormErrors => {
       OKTA_ACS_URL
     ] = `Assertion consumer service URL must be ${MAX_URL_LENGTH} characters or fewer`;
   } else if (
-    !isValidURL({ url: data[OKTA_ACS_URL], protocols: ["http", "https"] })
+    !isValidURL({
+      url: data[OKTA_ACS_URL].trim(),
+      protocols: ["http", "https"],
+    })
   ) {
     errors[OKTA_ACS_URL] = "Enter a valid URL with http or https scheme";
   }
