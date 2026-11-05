@@ -981,7 +981,6 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		deviceAuthenticated bool
 		premiumOnly         bool
 	}{
-		{"POST", "/api/latest/fleet/mdm/apple/enqueue", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/installers/1", false, false},
 		{"DELETE", "/api/latest/fleet/mdm/apple/installers/1", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/installers", false, false},

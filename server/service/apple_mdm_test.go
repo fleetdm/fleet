@@ -448,7 +448,15 @@ func TestAppleMDMAuthorization(t *testing.T) {
 </dict>
 </plist>`))
 
-	t.Run("EnqueueMDMAppleCommand", func(t *testing.T) {
+	t.Run("RunMDMCommand", func(t *testing.T) {
+		// Every host of this test has MDM on.
+		ds.AreHostsConnectedToFleetMDMFunc = func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
+			connected := make(map[string]bool, len(hosts))
+			for _, h := range hosts {
+				connected[h.UUID] = hostUUIDToID[h.UUID] != 0
+			}
+			return connected, nil
+		}
 		mdmStore := opts.MDMStorage.(*mdmmock.MDMAppleStore)
 		var enqueuedIDs []string
 		mdmStore.EnqueueCommandFunc = func(ctx context.Context, ids []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
@@ -488,7 +496,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 			t.Run(c.desc, func(t *testing.T) {
 				enqueuedIDs, activityHostUUIDs = nil, nil
 				ctx = test.UserContext(ctx, c.user)
-				_, err = svc.EnqueueMDMAppleCommand(ctx, rawB64FreeCmd, c.uuids)
+				_, err = svc.RunMDMCommand(ctx, rawB64FreeCmd, c.uuids)
 				checkAuthErr(t, err, c.shouldFailWithAuth)
 				require.ElementsMatch(t, c.wantEnqueued, enqueuedIDs)
 				require.ElementsMatch(t, c.wantEnqueued, activityHostUUIDs)
@@ -511,11 +519,11 @@ func TestAppleMDMAuthorization(t *testing.T) {
     <string>uuid</string>
 </dict>
 </plist>`, "DeviceLock")))
-		_, err = svc.EnqueueMDMAppleCommand(ctx, rawB64PremiumCmd, []string{"host1"})
+		_, err = svc.RunMDMCommand(ctx, rawB64PremiumCmd, []string{"host1"})
 		require.Error(t, err)
 		require.ErrorContains(t, err, fleet.ErrMissingLicense.Error())
 
-		rawB64PremiumCmd = base64.RawStdEncoding.EncodeToString(fmt.Appendf([]byte{}, `<?xml version="1.0" encoding="UTF-8"?>
+		rawB64PremiumCmd =base64.RawStdEncoding.EncodeToString(fmt.Appendf([]byte{}, `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -528,7 +536,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
     <string>uuid</string>
 </dict>
 </plist>`, "ClearPasscode"))
-		_, err = svc.EnqueueMDMAppleCommand(ctx, rawB64PremiumCmd, []string{"host1"})
+		_, err = svc.RunMDMCommand(ctx, rawB64PremiumCmd, []string{"host1"})
 		require.Error(t, err)
 		require.ErrorContains(t, err, fleet.ErrMissingLicense.Error())
 	})

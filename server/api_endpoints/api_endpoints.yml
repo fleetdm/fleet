@@ -327,10 +327,6 @@
 - method: "POST"
   path: "/api/v1/fleet/commands/run"
   display_name: "Run MDM command"
-- method: "POST"
-  path: "/api/v1/fleet/mdm/apple/enqueue"
-  display_name: "Run custom MDM command"
-  deprecated: true
 - method: "GET"
   path: "/api/v1/fleet/commands/results"
   display_name: "Get MDM command results"

@@ -1144,10 +1144,6 @@ type Service interface {
 	// RenewABMToken replaces the contents of the given ABM token with the given bytes.
 	RenewABMToken(ctx context.Context, token io.Reader, tokenID uint) (*ABMToken, error)
 
-	// EnqueueMDMAppleCommand enqueues a command for execution on the given
-	// devices. Note that a deviceID is the same as a host's UUID.
-	EnqueueMDMAppleCommand(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *CommandEnqueueResult, err error)
-
 	// MDMListHostConfigurationProfiles returns configuration profiles for a given host
 	MDMListHostConfigurationProfiles(ctx context.Context, hostID uint) ([]*MDMAppleConfigProfile, error)
 

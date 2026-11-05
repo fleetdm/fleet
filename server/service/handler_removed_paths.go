@@ -31,6 +31,7 @@ var removedPathTemplates = []string{
 	"/api/_version_/fleet/mdm/apple/commands",
 	"/api/_version_/fleet/mdm/commandresults",
 	"/api/_version_/fleet/mdm/commands/run",
+	"/api/_version_/fleet/mdm/apple/enqueue",
 	"/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/lock",
 	"/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/wipe",
 	"/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/unenroll",

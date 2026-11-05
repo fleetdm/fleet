@@ -2,7 +2,7 @@ package removednames
 
 func init() { register(mdmEntries...) }
 
-// mdmEntries are the endpoints that moved out of /mdm. Each is removed for one HTTP method, because some of these paths stay for other
+// mdmEntries are the deprecated /mdm endpoints. Each is removed for one HTTP method, because some of these paths stay for other
 // methods: GET /mdm/bootstrap serves hosts that were sent its URL before the upgrade, and GET /mdm/apple/request_csr is the current APNs
 // setup flow.
 var mdmEntries = []Entry{
@@ -10,6 +10,7 @@ var mdmEntries = []Entry{
 	removedEndpoint("GET", "/mdm/apple/commands"),
 	removedEndpoint("GET", "/mdm/commandresults"),
 	removedEndpoint("POST", "/mdm/commands/run"),
+	removedEndpoint("POST", "/mdm/apple/enqueue"),
 
 	removedEndpoint("POST", "/mdm/hosts/{id}/lock"),
 	removedEndpoint("POST", "/mdm/hosts/{id}/wipe"),

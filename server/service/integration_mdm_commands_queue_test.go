@@ -81,12 +81,12 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 
 	// call with unknown host UUID
 	uuid1 := uuid.New().String()
-	s.Do("POST", "/api/latest/fleet/mdm/apple/enqueue",
-		enqueueMDMAppleCommandRequest{
+	s.Do("POST", "/api/latest/fleet/commands/run",
+		runMDMCommandRequest{
 			// explicitly use standard encoding to make sure it also works
 			// see #11384
 			Command:   base64.StdEncoding.EncodeToString([]byte(newRawCmd(uuid1))),
-			DeviceIDs: []string{"no-such-host"},
+			HostUUIDs: []string{"no-such-host"},
 		}, http.StatusNotFound)
 
 	// get command results returns 404, that command does not exist
@@ -100,31 +100,31 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	require.Empty(t, listCmdResp.Results)
 
 	// call with unenrolled host UUID
-	res := s.Do("POST", "/api/latest/fleet/mdm/apple/enqueue",
-		enqueueMDMAppleCommandRequest{
+	res := s.Do("POST", "/api/latest/fleet/commands/run",
+		runMDMCommandRequest{
 			Command:   base64Cmd(newRawCmd(uuid.New().String())),
-			DeviceIDs: []string{unenrolledHost.UUID},
-		}, http.StatusBadRequest)
+			HostUUIDs: []string{unenrolledHost.UUID},
+		}, http.StatusPreconditionFailed)
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "at least one of the hosts is not enrolled in MDM")
+	require.Contains(t, errMsg, "one or more hosts have MDM turned off")
 
 	// create a new Host to get the UUID on the DB
 	linuxHost := createOrbitEnrolledHost(t, "linux", "h1", s.ds)
 	windowsHost := createOrbitEnrolledHost(t, "windows", "h2", s.ds)
 	// call with unenrolled host UUID
-	res = s.Do("POST", "/api/latest/fleet/mdm/apple/enqueue",
-		enqueueMDMAppleCommandRequest{
+	res = s.Do("POST", "/api/latest/fleet/commands/run",
+		runMDMCommandRequest{
 			Command:   base64Cmd(newRawCmd(uuid.New().String())),
-			DeviceIDs: []string{linuxHost.UUID, windowsHost.UUID},
-		}, http.StatusBadRequest)
+			HostUUIDs: []string{linuxHost.UUID, windowsHost.UUID},
+		}, http.StatusPreconditionFailed)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "at least one of the hosts is not enrolled in MDM or is not an elegible device")
+	require.Contains(t, errMsg, "one or more hosts have MDM turned off")
 
 	// call with payload that is not a valid, plist-encoded MDM command
-	res = s.Do("POST", "/api/latest/fleet/mdm/apple/enqueue",
-		enqueueMDMAppleCommandRequest{
+	res = s.Do("POST", "/api/latest/fleet/commands/run",
+		runMDMCommandRequest{
 			Command:   base64Cmd(string(mobileconfigForTest("test config profile", uuid.New().String()))),
-			DeviceIDs: []string{mdmDevice.UUID},
+			HostUUIDs: []string{mdmDevice.UUID},
 		}, http.StatusUnsupportedMediaType)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "unable to decode plist command")
@@ -132,11 +132,11 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	// call with enrolled host UUID
 	uuid2 := uuid.New().String()
 	rawCmd := newRawCmd(uuid2)
-	var resp enqueueMDMAppleCommandResponse
-	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enqueue",
-		enqueueMDMAppleCommandRequest{
+	var resp runMDMCommandResponse
+	s.DoJSON("POST", "/api/latest/fleet/commands/run",
+		runMDMCommandRequest{
 			Command:   base64Cmd(rawCmd),
-			DeviceIDs: []string{mdmDevice.UUID},
+			HostUUIDs: []string{mdmDevice.UUID},
 		}, http.StatusOK, &resp)
 	require.NotEmpty(t, resp.CommandUUID)
 	require.Contains(t, rawCmd, resp.CommandUUID)
@@ -251,11 +251,11 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommandWithSecret() {
 	// call with enrolled host UUID
 	uuid2 := uuid.New().String()
 	rawCmd := newRawCmd(uuid2)
-	var resp enqueueMDMAppleCommandResponse
-	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enqueue",
-		enqueueMDMAppleCommandRequest{
+	var resp runMDMCommandResponse
+	s.DoJSON("POST", "/api/latest/fleet/commands/run",
+		runMDMCommandRequest{
 			Command:   base64Cmd(rawCmd),
-			DeviceIDs: []string{mdmClient.UUID},
+			HostUUIDs: []string{mdmClient.UUID},
 		}, http.StatusOK, &resp)
 	require.NotEmpty(t, resp.CommandUUID)
 	require.Contains(t, rawCmd, resp.CommandUUID)
@@ -809,23 +809,18 @@ func (s *integrationMDMTestSuite) TestAppleCustomCommandRejectsHostSecretVariabl
 	}
 
 	for name, command := range commands {
-		for _, endpoint := range []string{"/api/latest/fleet/commands/run", "/api/latest/fleet/mdm/apple/enqueue"} {
-			t.Run(name+" "+endpoint, func(t *testing.T) {
-				cmdUUID := uuid.NewString()
-				encoded := base64.StdEncoding.EncodeToString([]byte(rawCmd(cmdUUID, command)))
-				var body any = &runMDMCommandRequest{Command: encoded, HostUUIDs: []string{mdmDevice.UUID}}
-				if endpoint == "/api/latest/fleet/mdm/apple/enqueue" {
-					body = enqueueMDMAppleCommandRequest{Command: encoded, DeviceIDs: []string{mdmDevice.UUID}}
-				}
-				res := s.Do("POST", endpoint, body, http.StatusBadRequest)
-				assert.Contains(t, extractServerErrorText(res.Body), "is reserved")
+		t.Run(name, func(t *testing.T) {
+			cmdUUID := uuid.NewString()
+			encoded := base64.StdEncoding.EncodeToString([]byte(rawCmd(cmdUUID, command)))
+			res := s.Do("POST", "/api/latest/fleet/commands/run",
+				&runMDMCommandRequest{Command: encoded, HostUUIDs: []string{mdmDevice.UUID}}, http.StatusBadRequest)
+			assert.Contains(t, extractServerErrorText(res.Body), "is reserved")
 
-				s.DoJSON("GET", "/api/latest/fleet/commands/results", nil, http.StatusNotFound, &getMDMCommandResultsResponse{}, "command_uuid", cmdUUID)
-				cmd, err := mdmDevice.Idle()
-				require.NoError(t, err)
-				require.Nil(t, cmd)
-			})
-		}
+			s.DoJSON("GET", "/api/latest/fleet/commands/results", nil, http.StatusNotFound, &getMDMCommandResultsResponse{}, "command_uuid", cmdUUID)
+			cmd, err := mdmDevice.Idle()
+			require.NoError(t, err)
+			require.Nil(t, cmd)
+		})
 	}
 }
 

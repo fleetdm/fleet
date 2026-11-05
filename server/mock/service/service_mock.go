@@ -667,8 +667,6 @@ type DeleteABMTokenFunc func(ctx context.Context, tokenID uint) error
 
 type RenewABMTokenFunc func(ctx context.Context, token io.Reader, tokenID uint) (*fleet.ABMToken, error)
 
-type EnqueueMDMAppleCommandFunc func(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error)
-
 type MDMListHostConfigurationProfilesFunc func(ctx context.Context, hostID uint) ([]*fleet.MDMAppleConfigProfile, error)
 
 type MDMAppleReconcileFileVaultProfileFunc func(ctx context.Context, teamID *uint) error
@@ -2010,9 +2008,6 @@ type Service struct {
 
 	RenewABMTokenFunc        RenewABMTokenFunc
 	RenewABMTokenFuncInvoked bool
-
-	EnqueueMDMAppleCommandFunc        EnqueueMDMAppleCommandFunc
-	EnqueueMDMAppleCommandFuncInvoked bool
 
 	MDMListHostConfigurationProfilesFunc        MDMListHostConfigurationProfilesFunc
 	MDMListHostConfigurationProfilesFuncInvoked bool
@@ -4834,13 +4829,6 @@ func (s *Service) RenewABMToken(ctx context.Context, token io.Reader, tokenID ui
 	s.RenewABMTokenFuncInvoked = true
 	s.mu.Unlock()
 	return s.RenewABMTokenFunc(ctx, token, tokenID)
-}
-
-func (s *Service) EnqueueMDMAppleCommand(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error) {
-	s.mu.Lock()
-	s.EnqueueMDMAppleCommandFuncInvoked = true
-	s.mu.Unlock()
-	return s.EnqueueMDMAppleCommandFunc(ctx, rawBase64Cmd, deviceIDs)
 }
 
 func (s *Service) MDMListHostConfigurationProfiles(ctx context.Context, hostID uint) ([]*fleet.MDMAppleConfigProfile, error) {

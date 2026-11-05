@@ -51,6 +51,7 @@ func (s *integrationMDMTestSuite) TestRemovedMDMPaths() {
 		{"GET", "/api/latest/fleet/mdm/apple/bootstrap?token=x", "GET /mdm/apple/bootstrap"},
 		{"GET", "/api/latest/fleet/mdm/setup/eula/x", "GET /mdm/setup/eula/{token}"},
 		{"POST", "/api/latest/fleet/mdm/apple/request_csr", "POST /mdm/apple/request_csr"},
+		{"POST", "/api/v1/fleet/mdm/apple/enqueue", "POST /mdm/apple/enqueue"},
 	}
 	for _, caller := range callers {
 		for _, c := range removed {
