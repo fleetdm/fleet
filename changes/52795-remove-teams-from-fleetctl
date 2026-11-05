@@ -1,0 +1,1 @@
+- Removed the deprecated "team" names from `fleetctl`: use `fleetctl get fleets`, `--delete-other-fleets`, `--policies-fleet`, and `--fleet` instead. `fleetctl generate-gitops` also no longer accepts the deprecated `no-team` value for `--fleet` or `--key` (use `unassigned`), and its error messages now say "fleets" instead of "teams".

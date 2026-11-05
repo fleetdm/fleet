@@ -51,8 +51,7 @@ func gitopsCommand() *cli.Command {
 			},
 			&cli.BoolFlag{
 				Name:        "delete-other-fleets",
-				Aliases:     []string{"delete-other-teams"},
-				EnvVars:     []string{"DELETE_OTHER_FLEETS", "DELETE_OTHER_TEAMS"},
+				EnvVars:     []string{"DELETE_OTHER_FLEETS"},
 				Destination: &flDeleteOtherTeams,
 				Usage:       "Delete other fleets not present in the GitOps configuration",
 			},
@@ -93,9 +92,6 @@ func gitopsCommand() *cli.Command {
 		Action: func(c *cli.Context) error {
 			// Apply log topic overrides from CLI flags.
 			applyLogTopicFlags(c)
-
-			logDeprecatedFlagName(c, "delete-other-teams", "delete-other-fleets")
-			logDeprecatedEnvVar(c, "DELETE_OTHER_TEAMS", "DELETE_OTHER_FLEETS")
 
 			gitOpsOpts := spec.GitOpsOptions{AllowUnknownKeys: flAllowUnknownKeys}
 
