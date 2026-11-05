@@ -146,8 +146,7 @@ func TestNewAPIErrorAllMisconfiguredCodes(t *testing.T) {
 			err = ctxerr.Wrap(t.Context(), newAPIError(runtime.NewResponseError(resp), "my-container"), "uploading")
 			require.Equal(t, fmt.Sprintf("Cloud storage is misconfigured. Azure: api error %s: %s (container: my-container)", c.code, c.message), ctxerr.Cause(err).Error())
 			require.True(t, bloberror.HasCode(err, c.code), "the SDK error must stay reachable")
-			var mis *cloudstorage.MisconfiguredError
-			require.ErrorAs(t, err, &mis)
+			require.True(t, cloudstorage.IsMisconfigured(err))
 		})
 	}
 }
@@ -164,8 +163,7 @@ func TestNewAPIErrorOtherCodesAreNotMisconfigured(t *testing.T) {
 				Request:    req,
 			}
 			err = newAPIError(runtime.NewResponseError(resp), "my-container")
-			var mis *cloudstorage.MisconfiguredError
-			require.NotErrorAs(t, err, &mis)
+			require.False(t, cloudstorage.IsMisconfigured(err))
 			require.Equal(t, fmt.Sprintf("api error %s: something", code), ctxerr.Cause(err).Error())
 		})
 	}
@@ -224,8 +222,7 @@ func TestStoreOperationsMisconfiguredErrors(t *testing.T) {
 				t.Helper()
 				require.Error(t, err)
 				require.Equal(t, wantMsg, ctxerr.Cause(err).Error())
-				var mis *cloudstorage.MisconfiguredError
-				require.ErrorAs(t, err, &mis)
+				require.True(t, cloudstorage.IsMisconfigured(err))
 				require.True(t, bloberror.HasCode(err, c.code), "the SDK error must stay reachable")
 			}
 
@@ -278,15 +275,14 @@ func TestStoreOperationsOtherErrorsAreNotMisconfigured(t *testing.T) {
 	store, err := NewSoftwareInstallerStore(newErrorTestConfig(srv.URL))
 	require.NoError(t, err)
 
-	var mis *cloudstorage.MisconfiguredError
 	err = store.Put(t.Context(), "installer", bytes.NewReader([]byte("content")))
 	require.Error(t, err)
-	require.NotErrorAs(t, err, &mis)
+	require.False(t, cloudstorage.IsMisconfigured(err))
 	require.Equal(t, "api error InvalidInput: Bad input", ctxerr.Cause(err).Error())
 
 	_, err = store.Cleanup(t.Context(), nil, time.Now())
 	require.Error(t, err)
-	require.NotErrorAs(t, err, &mis)
+	require.False(t, cloudstorage.IsMisconfigured(err))
 }
 
 func TestAPIErrorMisconfigured(t *testing.T) {

@@ -83,8 +83,7 @@ func TestWrapAPIError(t *testing.T) {
 
 			wrapped := ctxerr.Wrap(t.Context(), got, "uploading")
 			require.Equal(t, c.wantMsg, ctxerr.Cause(wrapped).Error())
-			var mis *cloudstorage.MisconfiguredError
-			require.ErrorAs(t, wrapped, &mis)
+			require.True(t, cloudstorage.IsMisconfigured(wrapped))
 			var apiErr smithy.APIError
 			require.ErrorAs(t, wrapped, &apiErr)
 		})
@@ -215,8 +214,7 @@ func TestStoreOperationsMisconfiguredErrors(t *testing.T) {
 				t.Helper()
 				require.Error(t, err)
 				require.Equal(t, wantMsg, ctxerr.Cause(err).Error())
-				var mis *cloudstorage.MisconfiguredError
-				require.ErrorAs(t, err, &mis)
+				require.True(t, cloudstorage.IsMisconfigured(err))
 			}
 
 			t.Run("put", func(t *testing.T) {
@@ -258,11 +256,10 @@ func TestStoreOperationsOtherErrorsAreNotMisconfigured(t *testing.T) {
 
 	err = store.Put(t.Context(), "installer", bytes.NewReader([]byte("content")))
 	require.Error(t, err)
-	var mis *cloudstorage.MisconfiguredError
-	require.NotErrorAs(t, err, &mis)
+	require.False(t, cloudstorage.IsMisconfigured(err))
 	require.NotContains(t, ctxerr.Cause(err).Error(), cloudstorage.MisconfiguredPrefix)
 
 	_, err = store.Cleanup(t.Context(), nil, time.Now())
 	require.Error(t, err)
-	require.NotErrorAs(t, err, &mis)
+	require.False(t, cloudstorage.IsMisconfigured(err))
 }

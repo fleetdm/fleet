@@ -11,7 +11,7 @@ type vendorErr struct{}
 
 func (vendorErr) Error() string { return "vendor failure" }
 
-func TestMisconfiguredError(t *testing.T) {
+func TestAPIErrorMisconfigured(t *testing.T) {
 	vendor := &vendorErr{}
 
 	cases := []struct {
@@ -47,7 +47,7 @@ func TestMisconfiguredError(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			err := ctxerr.Wrap(t.Context(), NewMisconfigured(vendor, c.vendor, c.code, c.message, c.resource), "uploading")
+			err := ctxerr.Wrap(t.Context(), NewAPIError(vendor, c.vendor, c.code, c.message, c.resource, true), "uploading")
 			require.Equal(t, c.want, ctxerr.Cause(err).Error())
 
 			// The vendor error must stay reachable.
@@ -55,8 +55,22 @@ func TestMisconfiguredError(t *testing.T) {
 			require.ErrorAs(t, err, &got)
 			require.Same(t, vendor, got)
 
-			var mis *MisconfiguredError
-			require.ErrorAs(t, err, &mis)
+			require.True(t, IsMisconfigured(err))
 		})
 	}
+}
+
+func TestAPIErrorOther(t *testing.T) {
+	vendor := &vendorErr{}
+	err := ctxerr.Wrap(t.Context(), NewAPIError(vendor, "Azure", "ServerBusy", "The server is busy.\nRequestId:abc", "container: c", false), "uploading")
+
+	// Not a misconfiguration: no prefix, vendor or resource.
+	require.Equal(t, "api error ServerBusy: The server is busy.", ctxerr.Cause(err).Error())
+	require.False(t, IsMisconfigured(err))
+
+	var got *vendorErr
+	require.ErrorAs(t, err, &got)
+	require.Same(t, vendor, got)
+
+	require.False(t, IsMisconfigured(vendor))
 }
