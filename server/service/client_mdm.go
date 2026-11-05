@@ -50,7 +50,7 @@ func (c *Client) CountABMTokens() (int, error) {
 }
 
 // ListABMTokens retrieves the ABM tokens with their default fleet assignments.
-func (c *Client) ListABMTokens() ([]*fleet.ABMToken, error) {
+func (c *Client) ListABTokens() ([]*fleet.ABMToken, error) {
 	verb, path := "GET", "/api/latest/fleet/ab_tokens"
 	var responseBody listABMTokensResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, "")
