@@ -249,6 +249,11 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 			return ctxerr.Wrap(ctx, err, "entra conditional access configured")
 		}
 
+		stats.GoogleConditionalAccessConfigured, err = ds.googleConditionalAccessConfigured(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "google conditional access configured")
+		}
+
 		stats.ResultLogDestination = config.Osquery.ResultLogPlugin
 		stats.StatusLogDestination = config.Osquery.StatusLogPlugin
 		stats.AuditLogDestination = config.Activity.AuditLogPlugin
@@ -439,6 +444,22 @@ func (ds *Datastore) entraConditionalAccessConfigured(ctx context.Context) (bool
 		return false, ctxerr.Wrap(ctx, err, "failed to load the integration")
 	}
 	return integration.SetupDone, nil
+}
+
+func (ds *Datastore) googleConditionalAccessConfigured(ctx context.Context) (bool, error) {
+	// Gated on the current license tier, like the Entra integration, so a row left over
+	// from a previous Premium license isn't reported as configured.
+	if !license.IsPremium(ctx) {
+		return false, nil
+	}
+	integration, err := ds.GetGoogleConditionalAccessIntegration(ctx)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return false, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "failed to load the integration")
+	}
+	return integration.State == fleet.ConditionalAccessGoogleStateConnected, nil
 }
 
 // gitOpsExceptionsList returns the names of enabled GitOps mode exceptions, in a stable order.
