@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -229,6 +230,10 @@ func TestListActivitiesTranslatesStoredDetails(t *testing.T) {
 			`{"fleets": [{"id": 1, "fleet_id": 2}], "x": {"fleet_name": "n"}}`},
 		{"icon URL", `{"software_icon_url": "/api/latest/fleet/software/titles/1/icon?team_id=3", "team_id": 3}`,
 			`{"software_icon_url": "/api/latest/fleet/software/titles/1/icon?fleet_id=3", "fleet_id": 3}`},
+		{"external icon URL", `{"software_icon_url": "https://example.com/i.png?team_id=3&other_team_id=4"}`,
+			`{"software_icon_url": "https://example.com/i.png?team_id=3&other_team_id=4"}`},
+		{"app-owned configuration", `{"team_id": 1, "configuration": {"managedConfiguration": {"team_id": 5, "teams": [1]}}}`,
+			`{"fleet_id": 1, "configuration": {"managedConfiguration": {"team_id": 5, "teams": [1]}}}`},
 		{"large ids", `{"team_id": 9007199254740993}`, `{"fleet_id": 9007199254740993}`},
 	}
 	for _, c := range cases {
@@ -238,6 +243,8 @@ func TestListActivitiesTranslatesStoredDetails(t *testing.T) {
 			activities, _, err := ts.svc.ListActivities(t.Context(), api.ListOptions{PerPage: 10})
 			require.NoError(t, err)
 			assert.JSONEq(t, c.want, string(*activities[0].Details))
+			// JSONEq compares numbers as float64, so it cannot see a precision loss.
+			assert.Equal(t, strings.Contains(c.want, "9007199254740993"), strings.Contains(string(*activities[0].Details), "9007199254740993"))
 			assert.Nil(t, activities[1].Details)
 		})
 	}

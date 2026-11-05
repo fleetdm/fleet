@@ -20,8 +20,8 @@ var removedDetailsKeys = sync.OnceValue(func() map[string]string {
 })
 
 // translateStoredDetails renames the removed keys in the details of activities stored before Fleet 5, at any depth, and rewrites the
-// removed team_id= query parameter of stored icon URLs. A row written while both names were stored keeps the new key's value. Details
-// that cannot be decoded are returned unchanged.
+// removed team_id= query parameter of stored Fleet icon URLs. The app-owned configuration is left as stored. A row written while both
+// names were stored keeps the new key's value. Details that cannot be decoded are returned unchanged.
 func translateStoredDetails(activities []*api.Activity) {
 	for _, a := range activities {
 		if a.Details == nil || !bytes.Contains(*a.Details, []byte("team")) {
@@ -54,11 +54,14 @@ func renameRemovedKeys(v any) any {
 			}
 		}
 		for key, value := range v {
-			if s, ok := value.(string); ok && key == "software_icon_url" {
-				v[key] = strings.ReplaceAll(s, "team_id=", "fleet_id=")
-				continue
+			switch s, isString := value.(string); {
+			case key == "configuration":
+				// App-owned managed configuration, not Fleet activity metadata.
+			case key == "software_icon_url" && isString && strings.HasPrefix(s, "/api/"):
+				v[key] = strings.NewReplacer("?team_id=", "?fleet_id=", "&team_id=", "&fleet_id=").Replace(s)
+			default:
+				v[key] = renameRemovedKeys(value)
 			}
-			v[key] = renameRemovedKeys(value)
 		}
 	case []any:
 		for i, value := range v {
