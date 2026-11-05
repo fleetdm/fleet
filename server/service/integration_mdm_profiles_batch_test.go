@@ -1074,10 +1074,10 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 
 	// create a team
 	var tmResp teamResponse
-	s.DoJSON("POST", "/api/v1/fleet/teams", map[string]string{"Name": t.Name()}, http.StatusOK, &tmResp)
+	s.DoJSON("POST", "/api/v1/fleet/fleets", map[string]string{"Name": t.Name()}, http.StatusOK, &tmResp)
 
 	// edit team mdm config to turn on disk encryption and os updates
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tmResp.Team.ID), modifyTeamRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", tmResp.Team.ID), modifyTeamRequest{
 		Name: new(t.Name()),
 		MDM: &fleet.TeamPayloadMDM{
 			EnableDiskEncryption: optjson.SetBool(true),
@@ -1093,7 +1093,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 		},
 	}, http.StatusOK, &teamResponse{})
 
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/teams/%d", tmResp.Team.ID), nil, http.StatusOK, &tmResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/fleets/%d", tmResp.Team.ID), nil, http.StatusOK, &tmResp)
 	require.True(t, tmResp.Team.Config.MDM.EnableDiskEncryption)
 	require.Equal(t, 4, tmResp.Team.Config.MDM.WindowsUpdates.DeadlineDays.Value)
 	require.Equal(t, 1, tmResp.Team.Config.MDM.WindowsUpdates.GracePeriodDays.Value)
@@ -1361,7 +1361,7 @@ func (s *integrationMDMTestSuite) TestSpecTeamsOSUpdatesDeployToHosts() {
 	// Create a team via the API so agent ops are initialized.
 	teamName := t.Name() + "team1"
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: teamName}, http.StatusOK, &createTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{Name: teamName}, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
 	teamID := createTeamResp.Team.ID
 
