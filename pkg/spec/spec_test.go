@@ -511,6 +511,19 @@ spec:
 			removedMessage(removednames.KindYAMLKey, "spec.team"),
 		},
 		{
+			"kind: fleet with both fleet: and team: keys, as older get fleets exports have",
+			[]byte(`
+apiVersion: v1
+kind: fleet
+spec:
+  fleet:
+    name: macOS
+  team:
+    name: macOS
+`),
+			removedMessage(removednames.KindYAMLKey, "spec.team"),
+		},
+		{
 			"kind: team with fleet: key",
 			[]byte(`
 apiVersion: v1
