@@ -1240,8 +1240,6 @@ type Datastore interface {
 
 	// MigrateTables creates and migrates the table schemas
 	MigrateTables(ctx context.Context) error
-	// MigrateData populates built-in data
-	MigrateData(ctx context.Context) error
 	// MigrationStatus returns nil if migrations are complete, and an error if migrations need to be run.
 	MigrationStatus(ctx context.Context) (*MigrationStatus, error)
 
@@ -4926,19 +4924,15 @@ type MigrationStatus struct {
 	// then all other fields are empty.
 	//
 	// If StatusCode is SomeMigrationsCompleted, then missing migrations
-	// are available in MissingTable and MissingData.
+	// are available in MissingTable.
 	//
 	// If StatusCode is UnknownMigrations, then unknown migrations
-	// are available in UnknownTable and UnknownData.
+	// are available in UnknownTable.
 	StatusCode MigrationStatusCode `json:"status_code"`
 	// MissingTable holds the missing table migrations.
 	MissingTable []int64 `json:"missing_table"`
-	// MissingTable holds the missing data migrations.
-	MissingData []int64 `json:"missing_data"`
 	// UnknownTable holds unknown applied table migrations.
 	UnknownTable []int64 `json:"unknown_table"`
-	// UnknownTable holds unknown applied data migrations.
-	UnknownData []int64 `json:"unknown_data"`
 }
 
 type MigrationStatusCode int
@@ -4952,11 +4946,6 @@ const (
 	AllMigrationsCompleted
 	// UnknownMigrations means some unidentified migrations were detected on the database.
 	UnknownMigrations
-	// NeedsFleetv4732Fix means the database needs the special fix migration for fleet v4.73.2
-	NeedsFleetv4732Fix
-	// UnknownFleetv4732State means the database has the broken migrations from fleet v4.73.2 however
-	// it is not in the expected state and needs manual intervention.
-	UnknownFleetv4732State
 )
 
 // TODO: we have a similar but different interface in the service package,
