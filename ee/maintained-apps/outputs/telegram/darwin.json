@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "13.1.0",
+      "version": "13.2.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'ru.keepcoder.Telegram';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ru.keepcoder.Telegram' AND version_compare(bundle_short_version, '13.1.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ru.keepcoder.Telegram' AND version_compare(bundle_short_version, '13.2.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'ru.keepcoder.Telegram' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://osx.telegram.org/updates/Telegram-13.1.0.283357.app.zip",
+      "installer_url": "https://osx.telegram.org/updates/Telegram-13.2.0.283458.app.zip",
       "install_script_ref": "51c2b694",
       "uninstall_script_ref": "fb4cb63b",
-      "sha256": "79ebcfe5e9f19371e83410f9678e7f3de13fa22535f2d84f84316543405be722",
+      "sha256": "cefb613a7c54a63a35bdaec0c639e49b7ccadd6f033e43dba1c5f4c085aaafe4",
       "default_categories": [
         "Communication"
       ]
