@@ -391,8 +391,8 @@ type Datastore interface {
 	// TODO JUAN: Refactor this to use the Operating System type instead.
 	// HostIDsByOSVersion retrieves the IDs of all host matching osVersion
 	HostIDsByOSVersion(ctx context.Context, osVersion OSVersion, offset int, limit int) ([]uint, error)
-	// HostByIdentifier returns one host matching the provided identifier. Possible matches can be on
-	// osquery_host_id, node_key, UUID, hardware_serial or hostname.
+	// HostByIdentifier returns one host matching the provided identifier. Possible matches are, in priority order,
+	// hardware_serial, UUID, hostname, osquery_host_id and node_key. The lowest host ID wins among hosts matching on the same column.
 	HostByIdentifier(ctx context.Context, identifier string) (*Host, error)
 	// HostByUUID returns one host whose uuid column matches exactly. Unlike
 	// HostByIdentifier, it does not fall back to other identifier columns.
