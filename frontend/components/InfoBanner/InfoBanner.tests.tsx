@@ -39,7 +39,7 @@ describe("InfoBanner - component", () => {
   });
 
   it("uses the icon's default color when iconColor is omitted", () => {
-    // `info` defaults to ui-fleet-black-75 per InfoOutline.tsx.
+    // `info` defaults to ui-fleet-black-75 per Info.tsx.
     const { container } = render(<InfoBanner icon="info" />);
     const path = container.querySelector(".info-banner__leading-icon path");
     expect(path?.getAttribute("fill")).toMatch(/ui-fleet-black-75/);
