@@ -1694,6 +1694,11 @@ func runGetMDMAB(c *cli.Context) error {
 		return fmt.Errorf("could not list ABM tokens: %w", err)
 	}
 
+	if len(tokens) == 0 {
+		log(c, "Error: No Apple Business (AB) server token found. Use `fleetctl generate mdm-ab` and then `fleet serve` with `mdm` configuration to automatically enroll Apple hosts to Fleet.\n")
+		return nil
+	}
+
 	for _, token := range tokens {
 		printKeyValueTable(c, [][]string{
 			{"Organization name:", token.OrganizationName},
