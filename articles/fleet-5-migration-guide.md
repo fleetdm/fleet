@@ -2,6 +2,8 @@
 
 Fleet 5 removes deprecated features such as API endpoints and parameters, YAML (GitOps) keys, and more. This guide lists [every breaking change](#breaking-changes), what changed, and what you need to do.
 
+> **Note:** Fleet 4.95 is [coming soon](https://github.com/fleetdm/fleet/milestone/238) and Fleet 5 is [coming soon](https://github.com/fleetdm/fleet/milestone/295). This guide is published early so you can plan your upgrade.
+
 Fleet will support Fleet 4.95 with security fixes through June 30, 2027.
 
 How to migrate?
