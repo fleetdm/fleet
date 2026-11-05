@@ -215,7 +215,7 @@ GitHub issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 | Fleet 4 | Fleet 5 |
 |:--|:--|
 | `require_all_software_macos` and `require_all_software_windows` in [Update setup experience](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience) | `macos_require_all_software` and `windows_require_all_software` |
-| `mdm.enable_recovery_lock_password` in [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | `mdm.macos_enable_recovery_lock_password` |
+| `mdm.enable_recovery_lock_password` in [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | `mdm.macos_recovery_lock_password_enabled` |
 
 What to do: Search for these keys and rename them.
 
@@ -482,7 +482,7 @@ GitHub issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 | Fleet 4 | Fleet 5 |
 |:--|:--|
 | `require_all_software_macos` and `require_all_software_windows` under `controls.setup_experience` | `macos_require_all_software` and `windows_require_all_software` ([docs](https://fleetdm.com/docs/configuration/yaml-files#setup-experience)) |
-| `controls.enable_recovery_lock_password` | `controls.macos_enable_recovery_lock_password` ([docs](https://fleetdm.com/docs/configuration/yaml-files#controls)) |
+| `controls.enable_recovery_lock_password` | `controls.macos_recovery_lock_password_enabled` ([docs](https://fleetdm.com/docs/configuration/yaml-files#controls)) |
 
 What to do: Rename these keys.
 
