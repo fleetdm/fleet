@@ -746,6 +746,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-07-17 18:43:57
 
+### [CVE-2026-102554](https://nvd.nist.gov/vuln/detail/CVE-2026-102554)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Only affects Java/JVM services that deserialize attacker-controlled input with Guava. guava is bundled by Apple Transporter (itms), a local CLI upload tool included for macOS package notarization (fleetctl notarizes with rcodesign), which never deserializes untrusted data.
+- **Products:** `fleetctl`,`pkg:maven/com.google.guava/guava`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-11-05 14:16:41
+
 ### [CVE-2026-0968](https://nvd.nist.gov/vuln/detail/CVE-2026-0968)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
