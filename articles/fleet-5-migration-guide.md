@@ -846,7 +846,7 @@ GitHub issue: [#52800](https://github.com/fleetdm/fleet/issues/52800)
 GitHub issues: [#53274](https://github.com/fleetdm/fleet/issues/53274), [#53897](https://github.com/fleetdm/fleet/issues/53897)
 
 
-<meta name="articleTitle" value="Migrate from Fleet 4 to Fleet 5">
+<meta name="articleTitle" value="Migrate to Fleet 5">
 <meta name="authorFullName" value="Steven Palmesano">
 <meta name="authorGitHubUsername" value="spalmesano0">
 <meta name="publishedOn" value="2026-11-09">
