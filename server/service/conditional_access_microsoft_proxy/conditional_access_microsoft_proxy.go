@@ -4,7 +4,6 @@ package conditional_access_microsoft_proxy
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"net/url"
 	"time"
 
@@ -40,8 +39,8 @@ type CreateResponse struct {
 // Create creates the integration on the MS proxy and returns the consent URL.
 func (p *Proxy) Create(ctx context.Context, tenantID string) (*CreateResponse, error) {
 	var createResponse CreateResponse
-	if err := p.client.Do(ctx, http.MethodPost,
-		"/api/v1/microsoft-compliance-partner", nil,
+	if err := p.client.Post(ctx,
+		"/api/v1/microsoft-compliance-partner",
 		createRequest{TenantID: tenantID},
 		&createResponse,
 	); err != nil {
@@ -61,10 +60,10 @@ type GetResponse struct {
 // Get returns the integration settings.
 func (p *Proxy) Get(ctx context.Context, tenantID string, secret string) (*GetResponse, error) {
 	var getResponse GetResponse
-	if err := p.client.Do(ctx, http.MethodGet,
+	if err := p.client.Get(ctx,
 		"/api/v1/microsoft-compliance-partner/settings",
 		url.Values{"entraTenantId": {tenantID}, "fleetServerSecret": {secret}},
-		nil, &getResponse,
+		&getResponse,
 	); err != nil {
 		return nil, fmt.Errorf("get integration settings failed: %w", err)
 	}
@@ -80,10 +79,10 @@ type DeleteResponse struct {
 // Returns a fleet.IsNotFound error if the integration doesn't exist.
 func (p *Proxy) Delete(ctx context.Context, tenantID string, secret string) (*DeleteResponse, error) {
 	var deleteResponse DeleteResponse
-	if err := p.client.Do(ctx, http.MethodDelete,
+	if err := p.client.Delete(ctx,
 		"/api/v1/microsoft-compliance-partner",
 		url.Values{"entraTenantId": {tenantID}, "fleetServerSecret": {secret}},
-		nil, &deleteResponse,
+		&deleteResponse,
 	); err != nil {
 		return nil, fmt.Errorf("delete integration failed: %w", fleetdm_proxy.NotFoundOn404(err))
 	}
@@ -124,8 +123,8 @@ func (p *Proxy) SetComplianceStatus(
 	lastCheckInTime time.Time,
 ) (*SetComplianceStatusResponse, error) {
 	var setComplianceStatusResponse SetComplianceStatusResponse
-	if err := p.client.Do(ctx, http.MethodPost,
-		"/api/v1/microsoft-compliance-partner/device", nil,
+	if err := p.client.Post(ctx,
+		"/api/v1/microsoft-compliance-partner/device",
 		setComplianceStatusRequest{
 			TenantID: tenantID,
 			Secret:   secret,
@@ -167,10 +166,10 @@ func (p *Proxy) GetMessageStatus(
 	messageID string,
 ) (*GetMessageStatusResponse, error) {
 	var getMessageStatusResponse GetMessageStatusResponse
-	if err := p.client.Do(ctx, http.MethodGet,
+	if err := p.client.Get(ctx,
 		"/api/v1/microsoft-compliance-partner/device/message",
 		url.Values{"entraTenantId": {tenantID}, "fleetServerSecret": {secret}, "messageId": {messageID}},
-		nil, &getMessageStatusResponse,
+		&getMessageStatusResponse,
 	); err != nil {
 		return nil, fmt.Errorf("get message status response failed: %w", err)
 	}

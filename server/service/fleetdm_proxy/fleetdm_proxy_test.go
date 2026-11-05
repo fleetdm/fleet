@@ -23,7 +23,7 @@ func newTestClient(t *testing.T, handler http.HandlerFunc) *Client {
 	return c
 }
 
-func TestDoSendsRequest(t *testing.T) {
+func TestRequests(t *testing.T) {
 	var got struct {
 		method, path, origin, contentType, body string
 		query                                   url.Values
@@ -34,35 +34,51 @@ func TestDoSendsRequest(t *testing.T) {
 		got.query = r.URL.Query()
 		_, _ = w.Write([]byte(`{"answer":"42"}`))
 	})
-
+	// Values that would smuggle extra parameters if not encoded.
+	query := url.Values{"id": {"a&secret=smuggled"}, "secret": {"s=1&b"}}
 	var resp struct {
 		Answer string `json:"answer"`
 	}
-	// Values that would smuggle extra parameters if not encoded.
-	query := url.Values{"id": {"a&secret=smuggled"}, "secret": {"s=1&b"}}
-	require.NoError(t, c.Do(t.Context(), http.MethodPost, "/api/v1/thing", query, map[string]string{"k": "v"}, &resp))
-	require.Equal(t, "42", resp.Answer)
-	require.Equal(t, http.MethodPost, got.method)
-	require.Equal(t, "/api/v1/thing", got.path)
-	require.Equal(t, origin, got.origin)
-	require.Equal(t, "application/json", got.contentType)
-	require.JSONEq(t, `{"k":"v"}`, got.body)
-	require.Equal(t, query, got.query)
 
-	// No body and no response.
-	require.NoError(t, c.Do(t.Context(), http.MethodDelete, "/api/v1/thing", nil, nil, nil))
-	require.Equal(t, http.MethodDelete, got.method)
-	require.Empty(t, got.contentType)
-	require.Empty(t, got.body)
+	t.Run("post", func(t *testing.T) {
+		resp.Answer = ""
+		require.NoError(t, c.Post(t.Context(), "/api/v1/thing", map[string]string{"k": "v"}, &resp))
+		require.Equal(t, "42", resp.Answer)
+		require.Equal(t, http.MethodPost, got.method)
+		require.Equal(t, "/api/v1/thing", got.path)
+		require.Equal(t, origin, got.origin)
+		require.Equal(t, "application/json", got.contentType)
+		require.JSONEq(t, `{"k":"v"}`, got.body)
+		require.Empty(t, got.query)
+	})
+
+	t.Run("get", func(t *testing.T) {
+		resp.Answer = ""
+		require.NoError(t, c.Get(t.Context(), "/api/v1/thing", query, &resp))
+		require.Equal(t, "42", resp.Answer)
+		require.Equal(t, http.MethodGet, got.method)
+		require.Equal(t, origin, got.origin)
+		require.Empty(t, got.contentType)
+		require.Empty(t, got.body)
+		require.Equal(t, query, got.query)
+	})
+
+	t.Run("delete ignoring the response", func(t *testing.T) {
+		require.NoError(t, c.Delete(t.Context(), "/api/v1/thing", query, nil))
+		require.Equal(t, http.MethodDelete, got.method)
+		require.Empty(t, got.contentType)
+		require.Empty(t, got.body)
+		require.Equal(t, query, got.query)
+	})
 }
 
-func TestDoStatusError(t *testing.T) {
+func TestStatusError(t *testing.T) {
 	t.Run("captures status code and body", func(t *testing.T) {
 		c := newTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(`{"error":"upstream boom"}`))
 		})
-		err := c.Do(t.Context(), http.MethodGet, "/x", nil, nil, nil)
+		err := c.Get(t.Context(), "/x", nil, nil)
 
 		se, ok := errors.AsType[interface {
 			error
@@ -81,7 +97,7 @@ func TestDoStatusError(t *testing.T) {
 			w.WriteHeader(http.StatusBadGateway)
 			_, _ = w.Write([]byte(strings.Repeat("x", bodyLen)))
 		})
-		err := c.Do(t.Context(), http.MethodGet, "/x", nil, nil, nil)
+		err := c.Get(t.Context(), "/x", nil, nil)
 		se, ok := errors.AsType[*StatusError](err)
 		require.True(t, ok)
 		require.Len(t, se.Body(), bodyLen)
@@ -93,7 +109,7 @@ func TestNotFoundOn404(t *testing.T) {
 		w.WriteHeader(http.StatusNotFound)
 		_, _ = w.Write([]byte(`{"error":"no such record"}`))
 	})
-	err := c.Do(t.Context(), http.MethodDelete, "/x", nil, nil, nil)
+	err := c.Delete(t.Context(), "/x", nil, nil)
 
 	// A 404 is a plain status error unless the caller says it means "no such record".
 	require.False(t, fleet.IsNotFound(err))
@@ -107,14 +123,62 @@ func TestNotFoundOn404(t *testing.T) {
 	require.Equal(t, error(other), NotFoundOn404(other))
 }
 
-func TestDoMissingOrigin(t *testing.T) {
+func TestMissingOrigin(t *testing.T) {
 	called := false
 	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { called = true }))
 	t.Cleanup(srv.Close)
 	c, err := New(srv.URL, func() (string, error) { return "", nil })
 	require.NoError(t, err)
 
-	err = c.Do(t.Context(), http.MethodGet, "/x", nil, nil, nil)
+	err = c.Get(t.Context(), "/x", nil, nil)
 	require.ErrorContains(t, err, "missing origin")
 	require.False(t, called)
+}
+
+func TestTransportErrorMasksSecretQueryParams(t *testing.T) {
+	// Close the server so the request fails at the transport layer, where Go's
+	// url.Error would otherwise print the full URL, query string included.
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	srv.Close()
+	c, err := New(srv.URL, func() (string, error) { return origin, nil })
+	require.NoError(t, err)
+
+	const secret = "s3cr3t-value"
+	err = c.Get(t.Context(), "/x", url.Values{"entraTenantId": {"tid"}, "fleetServerSecret": {secret}}, nil)
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), secret)
+	require.Contains(t, err.Error(), "fleetServerSecret=MASKED")
+	require.Contains(t, err.Error(), "entraTenantId=tid")
+}
+
+func TestEmptySuccessBody(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+	resp := struct {
+		Answer string `json:"answer"`
+	}{Answer: "untouched"}
+	require.NoError(t, c.Delete(t.Context(), "/x", nil, &resp))
+	require.Equal(t, "untouched", resp.Answer)
+}
+
+func TestResponseBodyTooLarge(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"answer":"` + strings.Repeat("x", maxResponseBytes) + `"}`))
+	})
+	var resp struct {
+		Answer string `json:"answer"`
+	}
+	err := c.Get(t.Context(), "/x", nil, &resp)
+	require.ErrorContains(t, err, "response body exceeds")
+}
+
+func TestNewRequiresSchemeAndHost(t *testing.T) {
+	getter := func() (string, error) { return origin, nil }
+	for _, uri := range []string{"", "fleetdm.com", "/api", "https://"} {
+		_, err := New(uri, getter)
+		require.Error(t, err, uri)
+	}
+	_, err := New("https://fleetdm.com", getter)
+	require.NoError(t, err)
 }

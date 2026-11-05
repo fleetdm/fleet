@@ -16,6 +16,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/str"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 )
 
 // maxResponseBytes bounds a successful response body.
@@ -31,8 +32,12 @@ type Client struct {
 // New creates a Client for the service at uri. originGetter returns this Fleet server's
 // URL.
 func New(uri string, originGetter func() (string, error), opts ...fleethttp.ClientOpt) (*Client, error) {
-	if _, err := url.Parse(uri); err != nil {
+	u, err := url.Parse(uri)
+	if err != nil {
 		return nil, fmt.Errorf("parse uri: %w", err)
+	}
+	if u.Scheme == "" || u.Host == "" {
+		return nil, fmt.Errorf("invalid uri %q: scheme and host are required", uri)
 	}
 	return &Client{
 		uri:          uri,
@@ -41,10 +46,27 @@ func New(uri string, originGetter func() (string, error), opts ...fleethttp.Clie
 	}, nil
 }
 
-// Do sends a request to path with the given query (may be nil) and JSON body (nil for
-// none), and decodes a 2xx JSON response into response (nil to ignore it). Any other
-// status returns a *StatusError.
-func (c *Client) Do(ctx context.Context, method, path string, query url.Values, body, response any) error {
+// Get sends a GET to path with the given query (may be nil) and decodes the JSON
+// response into response (nil to ignore it).
+func (c *Client) Get(ctx context.Context, path string, query url.Values, response any) error {
+	return c.do(ctx, http.MethodGet, path, query, nil, response)
+}
+
+// Post sends body as JSON to path and decodes the JSON response into response (nil to
+// ignore it).
+func (c *Client) Post(ctx context.Context, path string, body, response any) error {
+	return c.do(ctx, http.MethodPost, path, nil, body, response)
+}
+
+// Delete sends a DELETE to path with the given query (may be nil) and decodes the JSON
+// response into response (nil to ignore it).
+func (c *Client) Delete(ctx context.Context, path string, query url.Values, response any) error {
+	return c.do(ctx, http.MethodDelete, path, query, nil, response)
+}
+
+// do sends the request and decodes a 2xx JSON response into response. An empty 2xx body
+// leaves response untouched. Any other status returns a *StatusError.
+func (c *Client) do(ctx context.Context, method, path string, query url.Values, body, response any) error {
 	reqURL := c.uri + path
 	if len(query) > 0 {
 		reqURL += "?" + query.Encode()
@@ -75,17 +97,28 @@ func (c *Client) Do(ctx context.Context, method, path string, query url.Values, 
 
 	resp, err := c.c.Do(req)
 	if err != nil {
-		return fmt.Errorf("send request: %w", err)
+		// The query carries the server secret and a transport error would print
+		// the full URL.
+		return fmt.Errorf("send request: %w", platform_http.MaskURLError(err))
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		return newStatusError(resp)
 	}
-	if response == nil {
+	// Read the whole body even when the caller ignores it so the connection can
+	// be reused.
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes+1))
+	if err != nil {
+		return fmt.Errorf("read response: %w", err)
+	}
+	if len(respBody) > maxResponseBytes {
+		return fmt.Errorf("response body exceeds %d bytes", maxResponseBytes)
+	}
+	if response == nil || len(respBody) == 0 {
 		return nil
 	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, maxResponseBytes)).Decode(response); err != nil {
+	if err := json.Unmarshal(respBody, response); err != nil {
 		return fmt.Errorf("decode response: %w", err)
 	}
 	return nil
