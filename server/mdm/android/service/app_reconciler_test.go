@@ -217,6 +217,9 @@ func TestReconcileAndroidApps(t *testing.T) {
 		}
 		return &androidmanagement.Policy{Version: 5}, nil
 	}
+	client.EnterprisesPoliciesRemovePolicyApplicationsFunc = func(ctx context.Context, policyName string, packageNames []string) (*androidmanagement.Policy, error) {
+		return &androidmanagement.Policy{Version: 6}, nil
+	}
 	logger := slog.New(slog.DiscardHandler)
 	retryCounter := &appReconcilerRetryCounter{state: state}
 	reconcile := func(batchSize int) error {
@@ -326,7 +329,7 @@ func TestReconcileAndroidApps(t *testing.T) {
 		require.Empty(t, state.removed)
 	})
 
-	t.Run("previously sent policy had an app that's now out of scope, send a policy without it", func(t *testing.T) {
+	t.Run("previously sent policy had an app that's now out of scope, send a policy with it before removing it", func(t *testing.T) {
 		*state = androidAppReconcileState{
 			hosts: []*fleet.Host{hostA},
 			installs: []*fleet.HostAndroidSoftwareInstall{
@@ -334,10 +337,10 @@ func TestReconcileAndroidApps(t *testing.T) {
 			},
 		}
 
-		// run the cron, host A should get a list with only the Fleet agent and its install of the app should be removed
+		// run the cron, the patch should still list the app and its install should be removed
 		err := reconcile(0)
 		require.NoError(t, err)
-		require.Equal(t, []androidAppReconcileSentList{{hostUUID: "host-a", packages: []string{"com.fleetdm.agent"}}}, state.sent)
+		require.Equal(t, []androidAppReconcileSentList{{hostUUID: "host-a", packages: []string{"com.example.one", "com.fleetdm.agent"}}}, state.sent)
 		require.Len(t, state.upserted, 1)
 		require.Equal(t, "com.fleetdm.agent", state.upserted[0].AdamID)
 		require.Len(t, state.removed, 1)
@@ -858,5 +861,245 @@ func TestReconcileAndroidApps(t *testing.T) {
 		err = reconcile(1)
 		require.NoError(t, err)
 		require.Equal(t, []androidAppReconcileSentList{{hostUUID: "host-c", packages: []string{"com.example.one", "com.fleetdm.agent"}}}, state.sent)
+	})
+}
+
+func TestReconcileAndroidAppsRemoval(t *testing.T) {
+	hostA := &fleet.Host{ID: 1, UUID: "host-a", Platform: "android"}
+	hostB := &fleet.Host{ID: 2, UUID: "host-b", Platform: "android"}
+	appOne := fleet.VPPAppTeam{AdamID: "com.example.one", AppTeamID: 10}
+	agentInstall := func(hostID uint) *fleet.HostAndroidSoftwareInstall {
+		return &fleet.HostAndroidSoftwareInstall{HostID: hostID, AdamID: "com.fleetdm.agent", InstallType: android.AppStatusForceInstalled, Status: fleet.AndroidSoftwareInstallStatusVerified}
+	}
+	appOneInstall := func(hostID uint) *fleet.HostAndroidSoftwareInstall {
+		return &fleet.HostAndroidSoftwareInstall{HostID: hostID, AdamID: "com.example.one", InstallType: android.AppStatusAvailable, VPPAppTeamID: new(uint(10)), Status: fleet.AndroidSoftwareInstallStatusVerified}
+	}
+	setupAppInstall := func(hostID uint) *fleet.HostAndroidSoftwareInstall {
+		return &fleet.HostAndroidSoftwareInstall{HostID: hostID, AdamID: "com.example.setup", InstallType: android.AppStatusPreinstalled, VPPAppTeamID: new(uint(11)), Status: fleet.AndroidSoftwareInstallStatusVerified}
+	}
+
+	type removalTestState struct {
+		hosts               []*fleet.Host
+		installs            []*fleet.HostAndroidSoftwareInstall
+		appsInScopeByHostID map[uint][]fleet.VPPAppTeam
+		profilesToSend      []*fleet.MDMAndroidProfilePayload
+		patchErr            error
+		removeErr           error
+
+		patchOpts           []androidmgmt.PoliciesPatchOpts
+		patchedInstallTypes map[string]string
+		removedPackages     []string
+		upserted            []fleet.HostAndroidSoftwareInstall
+		removed             []fleet.HostAndroidSoftwareInstall
+	}
+	state := &removalTestState{}
+
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
+	}
+	ds.GetEnterpriseFunc = func(ctx context.Context) (*android.Enterprise, error) {
+		return &android.Enterprise{EnterpriseID: "test"}, nil
+	}
+	ds.ListAndroidHostsOnHostPolicyFunc = func(ctx context.Context) ([]*fleet.Host, error) {
+		return state.hosts, nil
+	}
+	ds.ListAndroidAppsInScopeForHostsFunc = func(ctx context.Context, hostIDs []uint) (map[uint][]fleet.VPPAppTeam, error) {
+		return state.appsInScopeByHostID, nil
+	}
+	ds.ListHostMDMAndroidVPPAppsFromSetupExperienceFunc = func(ctx context.Context, hostIDs []uint) (map[uint][]*fleet.HostAndroidVPPSoftwareInstall, error) {
+		return nil, nil
+	}
+	ds.ListHostAndroidSoftwareInstallsFunc = func(ctx context.Context, hostIDs []uint) (map[uint]map[string]*fleet.HostAndroidSoftwareInstall, error) {
+		installsByHostID := make(map[uint]map[string]*fleet.HostAndroidSoftwareInstall)
+		for _, install := range state.installs {
+			if installsByHostID[install.HostID] == nil {
+				installsByHostID[install.HostID] = make(map[string]*fleet.HostAndroidSoftwareInstall)
+			}
+			installsByHostID[install.HostID][install.AdamID] = install
+		}
+		return installsByHostID, nil
+	}
+	ds.GetAndroidAppStoreAppVersionsByIDFunc = func(ctx context.Context) (map[uint]*fleet.VPPAppStoreApp, error) {
+		return map[uint]*fleet.VPPAppStoreApp{10: {VPPAppsTeamsID: 10}, 11: {VPPAppsTeamsID: 11}}, nil
+	}
+	ds.BulkUpsertHostAndroidSoftwareInstallsFunc = func(ctx context.Context, installs []fleet.HostAndroidSoftwareInstall, removedInstalls []fleet.HostAndroidSoftwareInstall) error {
+		state.upserted = append(state.upserted, installs...)
+		state.removed = append(state.removed, removedInstalls...)
+		return nil
+	}
+	ds.NewAndroidPolicyRequestFunc = func(ctx context.Context, req *android.MDMAndroidPolicyRequest) error {
+		return nil
+	}
+	ds.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
+		return &fleet.AndroidHost{Host: &fleet.Host{UUID: hostUUID}, Device: &android.Device{AppliedPolicyID: new(hostUUID)}}, nil
+	}
+	ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
+		return []*fleet.EnrollSecret{{Secret: "secret"}}, nil
+	}
+	ds.ListCertificateTemplatesForHostsFunc = func(ctx context.Context, hostUUIDs []string) ([]fleet.CertificateTemplateForHost, error) {
+		return nil, nil
+	}
+	ds.SetHostAndroidSoftwareInstallsNeedsResendFunc = func(ctx context.Context, hostIDs []uint, builtAfter *time.Time, adamID *string) error {
+		return nil
+	}
+	ds.ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc = func(ctx context.Context, afterHostUUID string, limit int) ([]string, error) {
+		return nil, nil
+	}
+	ds.GetMDMAndroidReconcileCursorFunc = func(ctx context.Context) (string, error) {
+		return "", nil
+	}
+	ds.SetMDMAndroidReconcileCursorFunc = func(ctx context.Context, cursor string) error {
+		return nil
+	}
+	ds.GetMDMAndroidProfilesWriteTimeFunc = func(ctx context.Context) (time.Time, error) {
+		return time.Now(), nil
+	}
+	ds.ListMDMAndroidProfilesToSendFunc = func(ctx context.Context, cursor string, batchSize int) ([]*fleet.MDMAndroidProfilePayload, []*fleet.MDMAndroidProfilePayload, error) {
+		return state.profilesToSend, nil, nil
+	}
+	ds.GetMDMAndroidProfilesContentsFunc = func(ctx context.Context, uuids []string) (map[string]json.RawMessage, error) {
+		contents := make(map[string]json.RawMessage, len(uuids))
+		for _, profileUUID := range uuids {
+			contents[profileUUID] = json.RawMessage(`{"cameraDisabled": true}`)
+		}
+		return contents, nil
+	}
+	ds.BulkUpsertMDMAndroidHostProfilesUnlessResetSinceFunc = func(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload, since time.Time) error {
+		return nil
+	}
+
+	client := &android_mock.Client{}
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		state.patchOpts = append(state.patchOpts, opts)
+		if state.patchedInstallTypes == nil {
+			state.patchedInstallTypes = make(map[string]string)
+		}
+		for _, app := range policy.Applications {
+			state.patchedInstallTypes[app.PackageName] = app.InstallType
+		}
+		if state.patchErr != nil {
+			return nil, state.patchErr
+		}
+		return &androidmanagement.Policy{Version: 5}, nil
+	}
+	client.EnterprisesPoliciesRemovePolicyApplicationsFunc = func(ctx context.Context, policyName string, packageNames []string) (*androidmanagement.Policy, error) {
+		// fail the test if apps are removed before the patch, because the patch would then drop them without an uninstall
+		require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
+		state.removedPackages = append(state.removedPackages, packageNames...)
+		if state.removeErr != nil {
+			return nil, state.removeErr
+		}
+		return &androidmanagement.Policy{Version: 6}, nil
+	}
+	reconcile := func() error {
+		client.EnterprisesPoliciesPatchFuncInvoked = false
+		client.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked = false
+		return ReconcileProfilesWithClient(t.Context(), ds, slog.New(slog.DiscardHandler), "", client, config.AndroidAgentConfig{Package: "com.fleetdm.agent", SigningSHA256: "abc123def456"}, 0, nil)
+	}
+
+	t.Run("a deleted setup experience app and a new app go in one patch before the setup experience app is removed", func(t *testing.T) {
+		*state = removalTestState{
+			hosts:               []*fleet.Host{hostA},
+			installs:            []*fleet.HostAndroidSoftwareInstall{setupAppInstall(hostA.ID), agentInstall(hostA.ID)},
+			appsInScopeByHostID: map[uint][]fleet.VPPAppTeam{hostA.ID: {appOne}},
+		}
+
+		// run the cron, the setup experience app should be patched as preinstalled and then removed
+		err := reconcile()
+		require.NoError(t, err)
+		require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
+		require.True(t, client.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
+		require.Equal(t, map[string]string{
+			"com.example.one":   android.AppStatusAvailable,
+			"com.example.setup": android.AppStatusPreinstalled,
+			"com.fleetdm.agent": android.AppStatusForceInstalled,
+		}, state.patchedInstallTypes)
+		require.Equal(t, []string{"com.example.setup"}, state.removedPackages)
+		require.Len(t, state.upserted, 2)
+		require.Equal(t, "com.example.one", state.upserted[0].AdamID)
+		require.Equal(t, fleet.AndroidSoftwareInstallStatusPending, state.upserted[0].Status)
+		require.Equal(t, "com.fleetdm.agent", state.upserted[1].AdamID)
+		require.Len(t, state.removed, 1)
+		require.Equal(t, "com.example.setup", state.removed[0].AdamID)
+	})
+
+	t.Run("profile changes and an app out of scope go in one patch before the app is removed", func(t *testing.T) {
+		*state = removalTestState{
+			hosts:          []*fleet.Host{hostA},
+			installs:       []*fleet.HostAndroidSoftwareInstall{appOneInstall(hostA.ID), agentInstall(hostA.ID)},
+			profilesToSend: []*fleet.MDMAndroidProfilePayload{{HostUUID: "host-a", ProfileUUID: "profile-1", ProfileName: "Profile 1"}},
+		}
+
+		// run the cron, the profiles and apps should go in one full patch before the removal
+		err := reconcile()
+		require.NoError(t, err)
+		require.True(t, client.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
+		require.Equal(t, []androidmgmt.PoliciesPatchOpts{{}}, state.patchOpts)
+		require.Equal(t, android.AppStatusAvailable, state.patchedInstallTypes["com.example.one"])
+		require.Equal(t, []string{"com.example.one"}, state.removedPackages)
+		require.Len(t, state.removed, 1)
+		require.Equal(t, "com.example.one", state.removed[0].AdamID)
+	})
+
+	t.Run("a rejected patch sends no removal and sets the app out of scope to request failed", func(t *testing.T) {
+		*state = removalTestState{
+			hosts:    []*fleet.Host{hostA},
+			installs: []*fleet.HostAndroidSoftwareInstall{appOneInstall(hostA.ID), agentInstall(hostA.ID)},
+			patchErr: &googleapi.Error{Code: http.StatusBadRequest},
+		}
+
+		// reject the patch, no removal should be sent
+		err := reconcile()
+		require.NoError(t, err)
+		require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
+		require.False(t, client.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
+		require.Empty(t, state.removed)
+		require.Len(t, state.upserted, 2)
+		require.Equal(t, "com.fleetdm.agent", state.upserted[0].AdamID)
+		require.Equal(t, fleet.AndroidSoftwareInstallStatusRequestFailed, state.upserted[0].Status)
+		require.Equal(t, "com.example.one", state.upserted[1].AdamID)
+		require.Equal(t, fleet.AndroidSoftwareInstallStatusRequestFailed, state.upserted[1].Status)
+	})
+
+	t.Run("a rejected removal sets only the removed app to request failed", func(t *testing.T) {
+		*state = removalTestState{
+			hosts:     []*fleet.Host{hostA},
+			installs:  []*fleet.HostAndroidSoftwareInstall{appOneInstall(hostA.ID), agentInstall(hostA.ID)},
+			removeErr: &googleapi.Error{Code: http.StatusBadRequest},
+		}
+
+		// reject the removal, the patched Fleet agent should still be saved as pending
+		err := reconcile()
+		require.NoError(t, err)
+		require.True(t, client.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
+		require.Equal(t, []string{"com.example.one"}, state.removedPackages)
+		require.Empty(t, state.removed)
+		require.Len(t, state.upserted, 2)
+		require.Equal(t, "com.fleetdm.agent", state.upserted[0].AdamID)
+		require.Equal(t, fleet.AndroidSoftwareInstallStatusPending, state.upserted[0].Status)
+		require.Equal(t, new(int64(5)), state.upserted[0].InPolicyVersion)
+		require.Equal(t, "com.example.one", state.upserted[1].AdamID)
+		require.Equal(t, fleet.AndroidSoftwareInstallStatusRequestFailed, state.upserted[1].Status)
+		require.Nil(t, state.upserted[1].InPolicyVersion)
+	})
+
+	t.Run("a quota error on the removal stops the run and leaves the removed app unsaved", func(t *testing.T) {
+		*state = removalTestState{
+			hosts:               []*fleet.Host{hostA, hostB},
+			installs:            []*fleet.HostAndroidSoftwareInstall{appOneInstall(hostA.ID), agentInstall(hostA.ID)},
+			appsInScopeByHostID: map[uint][]fleet.VPPAppTeam{hostB.ID: {appOne}},
+			removeErr:           &googleapi.Error{Code: http.StatusTooManyRequests},
+		}
+
+		// return a quota error on host A's removal, host B should get no patch
+		err := reconcile()
+		require.NoError(t, err)
+		require.True(t, client.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
+		require.Len(t, state.patchOpts, 1)
+		require.Len(t, state.upserted, 1)
+		require.Equal(t, "com.fleetdm.agent", state.upserted[0].AdamID)
+		require.Equal(t, fleet.AndroidSoftwareInstallStatusPending, state.upserted[0].Status)
+		require.Empty(t, state.removed)
 	})
 }

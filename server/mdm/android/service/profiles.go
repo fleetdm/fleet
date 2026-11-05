@@ -502,7 +502,7 @@ func (r *profileReconciler) sendHostProfiles(
 	}
 
 	if appList != nil {
-		err = r.recordAppListRequest(ctx, appList, policyReq, skip)
+		err = r.removeAppsAndRecordAppListRequest(ctx, appList, policyReq, skip)
 		if err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "record app list for host %s", hostUUID)
 		}

@@ -286,6 +286,11 @@ func (r *profileReconciler) prepareHostAppList(
 		}
 	}
 
+	// Add the removed apps back to the patch, so the removal sent after it will uninstall them
+	for _, install := range installsToRemove {
+		appPolicies = append(appPolicies, &androidmanagement.ApplicationPolicy{PackageName: install.AdamID, InstallType: install.InstallType})
+	}
+
 	return &androidAppList{
 		host:                         host,
 		applicationsWithoutAgent:     append(appPolicies, preinstalledAppPolicies...),
@@ -317,7 +322,7 @@ func (r *profileReconciler) sendHostApps(ctx context.Context, appListsByHostUUID
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "patch app list for host %s", hostUUID)
 		}
-		err = r.recordAppListRequest(ctx, appList, policyReq, skip)
+		err = r.removeAppsAndRecordAppListRequest(ctx, appList, policyReq, skip)
 		if err != nil {
 			return err
 		}
@@ -348,13 +353,45 @@ func (r *profileReconciler) buildApplicationsWithAgent(
 	return applications, nil
 }
 
-func (r *profileReconciler) recordAppListRequest(
+func (r *profileReconciler) removeAppsAndRecordAppListRequest(
 	ctx context.Context,
 	appList *androidAppList,
 	policyRequest *android.MDMAndroidPolicyRequest,
 	skip bool,
 ) error {
 	host := appList.host
+
+	if (skip || policyRequest.StatusCode == http.StatusOK) && len(appList.installsToRemove) > 0 {
+		policyName := policyRequest.RequestName
+		removedPackageNames := make([]string, 0, len(appList.installsToRemove))
+		for _, install := range appList.installsToRemove {
+			removedPackageNames = append(removedPackageNames, install.AdamID)
+		}
+
+		removeRequest, err := newAndroidPolicyRemoveApplicationsRequest(host.UUID, policyName, removedPackageNames)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare remove policy applications request")
+		}
+
+		removeResponse, removeErr := r.Client.EnterprisesPoliciesRemovePolicyApplications(ctx, policyName, removedPackageNames)
+		removeNotModified, err := recordAndroidRequestResult(ctx, r.DS, removeRequest, removeResponse, nil, removeErr)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "record remove policy applications request")
+		}
+
+		switch {
+		case removeRequest.StatusCode == http.StatusTooManyRequests:
+			r.appSendsStoppedByQuota = true
+			appList.installsToRemove = nil
+		case !removeNotModified && removeRequest.StatusCode != http.StatusOK:
+			// Set the removed apps to request failed instead of deleting them, so the retry will send their removal again
+			for _, install := range appList.installsToRemove {
+				install.Status = fleet.AndroidSoftwareInstallStatusRequestFailed
+				appList.installsToUpsert = append(appList.installsToUpsert, install)
+			}
+			appList.installsToRemove = nil
+		}
+	}
 
 	// Stop sending app lists on a quota error and don't save this list, so the
 	// next run will send it again without waiting to retry
