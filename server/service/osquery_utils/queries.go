@@ -1063,16 +1063,6 @@ func withCachedUsers(query string) string {
 	return fmt.Sprintf(query, usersQueryStr)
 }
 
-// macOSEntraIDDetails holds the query and ingestion function for macOS for Microsoft "Conditional access" feature.
-var macOSEntraIDDetails = DetailQuery{
-	// The query ingests Entra's Device ID and User Principal Name of the account
-	// that logged in to the device (using Company Portal.app with the Platform SSO extension).
-	Query:            "SELECT * FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM';",
-	Discovery:        discoveryTable("app_sso_platform"),
-	Platforms:        []string{"darwin"},
-	DirectIngestFunc: directIngestEntraIDDetails,
-}
-
 // entraDeviceCertIssuerLike matches the issuer of the certificate Windows stores for
 // an Entra-joined or Entra-registered device; its subject is the Entra device ID.
 const entraDeviceCertIssuerLike = "net + windows + MS-Organization-Access%"
@@ -2484,6 +2474,11 @@ func directIngestEntraIDDetails(
 		// Device maybe hasn't logged in to Entra ID yet.
 		return nil
 	}
+	// Results are matched to detail queries by name only, and macOS hosts must prove their device ID
+	// with an Entra-signed token instead.
+	if host.Platform != "windows" {
+		return ctxerr.New(ctx, "Entra ID device_id is only accepted from Windows hosts")
+	}
 	row := rows[0]
 
 	deviceID := row["device_id"]
@@ -2491,14 +2486,8 @@ func directIngestEntraIDDetails(
 		return ctxerr.New(ctx, "empty Entra ID device_id")
 	}
 
-	// userPrincipalName can be empty on macOS workstations with e.g. two accounts:
-	// One logged in to Entra and the other one not logged in. While the second one is
-	// logged in, it would report the same Device ID but empty user principal name.
-	//
-	// userPrincipalName is empty on Windows devices.
-	userPrincipalName := row["user_principal_name"]
-
-	if err := ds.CreateHostConditionalAccessStatus(ctx, host.ID, deviceID, userPrincipalName); err != nil {
+	// The user principal name isn't reported on Windows.
+	if _, err := ds.CreateHostConditionalAccessStatus(ctx, host.ID, deviceID, "", false); err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to create host conditional access status")
 	}
 	return nil
@@ -4461,7 +4450,6 @@ func GetDetailQueries(
 	}
 
 	if integrations.ConditionalAccessMicrosoft {
-		generatedMap["conditional_access_microsoft_device_id"] = macOSEntraIDDetails
 		generatedMap["conditional_access_microsoft_device_id_windows"] = windowsEntraIDDetails
 	}
 
