@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"errors"
 	"flag"
 	"net/http"
 	"sync/atomic"
@@ -22,6 +21,7 @@ import (
 type LiveQueryResultsHandler struct {
 	errors  chan error
 	results chan fleet.DistributedQueryResult
+	done    chan struct{}
 	totals  atomic.Value // real type: targetTotals
 	status  atomic.Value // real type: campaignStatus
 }
@@ -30,7 +30,13 @@ func NewLiveQueryResultsHandler() *LiveQueryResultsHandler {
 	return &LiveQueryResultsHandler{
 		errors:  make(chan error),
 		results: make(chan fleet.DistributedQueryResult),
+		done:    make(chan struct{}),
 	}
+}
+
+// Done returns a read channel that is closed when the live query websocket stream terminates.
+func (h *LiveQueryResultsHandler) Done() <-chan struct{} {
+	return h.done
 }
 
 // Errors returns a read channel that includes any errors returned by the
@@ -127,6 +133,7 @@ func (c *Client) LiveQueryWithContext(
 
 	resHandler := NewLiveQueryResultsHandler()
 	go func() {
+		defer close(resHandler.done)
 		defer conn.Close()
 		for {
 			msg := struct {
@@ -134,7 +141,7 @@ func (c *Client) LiveQueryWithContext(
 				Data json.RawMessage `json:"data"`
 			}{}
 
-			doneReadingChan := make(chan error)
+			doneReadingChan := make(chan error, 1)
 
 			go func() {
 				doneReadingChan <- conn.ReadJSON(&msg)
@@ -145,13 +152,13 @@ func (c *Client) LiveQueryWithContext(
 				return
 			case err := <-doneReadingChan:
 				if err != nil {
-					resHandler.errors <- ctxerr.Wrap(ctx, err, "receive ws message")
-					if errors.Is(err, websocket.ErrCloseSent) {
-						return
+					select {
+					case resHandler.errors <- ctxerr.Wrap(ctx, err, "receive ws message"):
+					case <-ctx.Done():
 					}
+					return
 				}
 			}
-			close(doneReadingChan)
 
 			switch msg.Type {
 			case "result":

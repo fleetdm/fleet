@@ -203,6 +203,11 @@ be run on the union of the hosts and hosts with matching labels.
 				case err := <-res.Errors():
 					fmt.Fprintf(os.Stderr, "Error talking to server: %s\n", err.Error())
 
+				// Exit gracefully if the live query stream closed unexpectedly
+				case <-res.Done():
+					s.Stop()
+					return nil
+
 				// Update status message on interval
 				case <-tick.C:
 					status := res.Status()
