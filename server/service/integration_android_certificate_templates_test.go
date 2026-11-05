@@ -265,9 +265,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeAddedCertificate{}.ActivityName(),
 		fmt.Sprintf(
-			`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q, "name": %q}`,
-			teamID,
-			teamName,
+			`{"fleet_id": %d, "fleet_name": %q, "name": %q}`,
 			teamID,
 			teamName,
 			certTemplateName,
@@ -335,9 +333,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeDeletedCertificate{}.ActivityName(),
 		fmt.Sprintf(
-			`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q, "name": %q}`,
-			teamID,
-			teamName,
+			`{"fleet_id": %d, "fleet_name": %q, "name": %q}`,
 			teamID,
 			teamName,
 			certTemplateName,

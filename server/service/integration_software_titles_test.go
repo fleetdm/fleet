@@ -106,15 +106,13 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		"software_package": "ruby.deb",
 		"software_icon_url": null,
 		"fleet_name": "%s",
-		"team_name": "%s",
 	    "fleet_id": %d,
-	    "team_id": %d,
 		"self_service": false,
 		"software_title_id": %d,
 		"software_display_name": "%s",
 		"pinned_version": null
 	}`,
-		team.Name, team.Name, team.ID, team.ID, titleID, "RubyUpdate1")
+		team.Name, team.ID, titleID, "RubyUpdate1")
 	s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 
 	// Entity has display name
@@ -163,15 +161,13 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		"software_package": "ruby.deb",
 		"software_icon_url": null,
 		"fleet_name": "%s",
-		"team_name": "%s",
 	    "fleet_id": %d,
-	    "team_id": %d,
 		"self_service": true,
 		"software_title_id": %d,
 		"software_display_name": "%s",
 		"pinned_version": null
 	}`,
-		team.Name, team.Name, team.ID, team.ID, titleID, "RubyUpdate1")
+		team.Name, team.ID, titleID, "RubyUpdate1")
 	s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 
 	// My device self service has display name
@@ -325,14 +321,12 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		"software_icon_url": "%s",
 		"platform": "%s",
 		"fleet_name": "%s",
-		"team_name": "%s",
 	    "fleet_id": %d,
-	    "team_id": %d,
 		"self_service": false,
 		"software_title_id": %d,
 		"software_display_name": "%s"
 	}`,
-		macOSApp.AdamID, stResp.SoftwareTitle.Name, macOSApp.IconURL, string(macOSApp.Platform), team.Name, team.Name, team.ID, team.ID, stResp.SoftwareTitle.ID, *updateAppReq.DisplayName)
+		macOSApp.AdamID, stResp.SoftwareTitle.Name, macOSApp.IconURL, string(macOSApp.Platform), team.Name, team.ID, stResp.SoftwareTitle.ID, *updateAppReq.DisplayName)
 	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), withVPPToken(t, activityData, tok), 0)
 
 	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), DisplayName: ptr.String("MacOSAppStoreAppUpdated2")}
@@ -472,15 +466,13 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 			"software_package": "ipa_test.ipa",
 			"software_icon_url": null,
 			"fleet_name": "%s",
-			"team_name": "%s",
 		    "fleet_id": %d,
-		    "team_id": %d,
 			"self_service": true,
 			"software_title_id": %d,
 			"software_display_name": "%s",
 			"pinned_version": null
 		}`,
-		team.Name, team.Name, team.ID, team.ID, titleID, "InHouseAppUpdate2")
+		team.Name, team.ID, titleID, "InHouseAppUpdate2")
 	s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 
 	// Omitting the field is a no-op

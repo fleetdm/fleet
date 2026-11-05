@@ -216,6 +216,33 @@ func TestListActivitiesBasic(t *testing.T) {
 	assert.Equal(t, uint(0), ts.ds.lastOpt.Page)
 }
 
+func TestListActivitiesTranslatesStoredDetails(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name, stored, want string
+	}{
+		{"old keys", `{"team_id": 7, "team_name": "Old", "n": 1}`, `{"fleet_id": 7, "fleet_name": "Old", "n": 1}`},
+		{"old and new keys keep the new ones", `{"team_id": 7, "fleet_id": 8, "team_name": null, "fleet_name": "New"}`,
+			`{"fleet_id": 8, "fleet_name": "New"}`},
+		{"new keys", `{"fleet_id": 7, "fleet_name": "New"}`, `{"fleet_id": 7, "fleet_name": "New"}`},
+		{"nested", `{"teams": [{"id": 1, "team_id": 2}], "x": {"team_name": "n"}}`,
+			`{"fleets": [{"id": 1, "fleet_id": 2}], "x": {"fleet_name": "n"}}`},
+		{"icon URL", `{"software_icon_url": "/api/latest/fleet/software/titles/1/icon?team_id=3", "team_id": 3}`,
+			`{"software_icon_url": "/api/latest/fleet/software/titles/1/icon?fleet_id=3", "fleet_id": 3}`},
+		{"large ids", `{"team_id": 9007199254740993}`, `{"fleet_id": 9007199254740993}`},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			stored := json.RawMessage(c.stored)
+			ts := setupTest(withActivities([]*api.Activity{{ID: 1, Type: "test_activity", Details: &stored}, {ID: 2, Type: "no_details"}}))
+			activities, _, err := ts.svc.ListActivities(t.Context(), api.ListOptions{PerPage: 10})
+			require.NoError(t, err)
+			assert.JSONEq(t, c.want, string(*activities[0].Details))
+			assert.Nil(t, activities[1].Details)
+		})
+	}
+}
+
 func TestListActivitiesWithUserEnrichment(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()

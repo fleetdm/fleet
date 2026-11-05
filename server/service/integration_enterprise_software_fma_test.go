@@ -368,7 +368,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	// Check activity
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeAddedSoftware{}.ActivityName(),
-		fmt.Sprintf(`{"software_title": "%[1]s", "software_package": "installer.zip", "team_name": "%s", "team_id": %d, "fleet_name": "%s", "fleet_id": %d, "self_service": true, "software_title_id": %d}`, mapp.Name, team.Name, team.ID, team.Name, team.ID, title.ID),
+		fmt.Sprintf(`{"software_title": "%[1]s", "software_package": "installer.zip", "fleet_name": "%s", "fleet_id": %d, "self_service": true, "software_title_id": %d}`, mapp.Name, team.Name, team.ID, title.ID),
 		0,
 	)
 
@@ -530,7 +530,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		TeamID:   &noTeamID,
 		TeamName: nil,
 	}
-	s.lastActivityMatches(wantAct.ActivityName(), fmt.Sprintf(`{"fleet_id":0, "policy_id":%d, "policy_name":"[Install software]", "team_id":0}`, gotPolicy.ID), 0)
+	s.lastActivityMatches(wantAct.ActivityName(), fmt.Sprintf(`{"fleet_id":0, "policy_id":%d, "policy_name":"[Install software]"}`, gotPolicy.ID), 0)
 
 	// First FMA added doesn't have automatic install policies
 	st = resp.SoftwareTitles[1] // sorted by ID above
@@ -3556,10 +3556,10 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 		pinnedVersion, err := json.Marshal(want)
 		require.NoError(t, err)
 		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), fmt.Sprintf(
-			`{"team_id": %d, "fleet_id": %d, "team_name": %q, "fleet_name": %q, "self_service": false, `+
+			`{"fleet_id": %d, "fleet_name": %q, "self_service": false, `+
 				`"software_title": "Zoom Workplace (X64)", "software_package": "zoom.msi", "software_icon_url": null, `+
 				`"software_title_id": %d, "software_display_name": "", "pinned_version": %s}`,
-			team.ID, team.ID, team.Name, team.Name, titleID, pinnedVersion), 0)
+			team.ID, team.Name, titleID, pinnedVersion), 0)
 	}
 
 	// --- UI (PATCH) pins, on the static 1.0/2.0 cache ---
