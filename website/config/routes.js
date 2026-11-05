@@ -1010,7 +1010,6 @@ module.exports.routes = {
   'GET /docs/using-fleet/mdm-macos-setup-experience': (req, res) => { return res.redirect(301, '/guides/macos-setup-experience'); },
   'GET /docs/using-fleet/scripts': (req, res) => { return res.redirect(301, '/guides/scripts'); },
   'GET /docs/using-fleet/automations': (req, res) => { return res.redirect(301, '/guides/automations'); },
-  'GET /docs/using-fleet/puppet-module': (req, res) => { return res.redirect(301, '/guides/puppet-module'); },
   'GET /docs/using-fleet/vulnerability-processing': (req, res) => { return res.redirect(301, '/guides/vulnerability-processing'); },
   'GET /docs/using-fleet/cis-benchmarks': (req, res) => { return res.redirect(301, '/guides/cis-benchmarks'); },
   'GET /docs/using-fleet/osquery-process': (req, res) => { return res.redirect(301, '/guides/osquery-watchdog'); },

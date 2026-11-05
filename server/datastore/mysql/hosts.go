@@ -68,7 +68,9 @@ var hostAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"hardware_model":        "h.hardware_model",
 	"hardware_serial":       "h.hardware_serial",
 	"team_id":               "h.team_id",
+	"fleet_id":              "h.team_id",
 	"team_name":             "t.name",
+	"fleet_name":            "t.name",
 	"primary_ip":            "h.primary_ip",
 	"primary_mac":           "h.primary_mac",
 	"public_ip":             "h.public_ip",
@@ -2242,7 +2244,7 @@ func (ds *Datastore) filterHostsByMDMBootstrapPackageStatus(ctx context.Context,
 		if err != nil {
 			return "", nil, err
 		}
-		subquery += ` AND (hmabp.skipped = 0 OR hmabp.skipped IS NULL) AND (? OR hda.mdm_migration_deadline IS NULL OR (hda.mdm_migration_deadline = hda.mdm_migration_completed)) AND (ncr.status IS NULL OR (ncr.status != 'Acknowledged' AND ncr.status != 'Error'))`
+		subquery += ` AND (hmabp.skipped = 0 OR hmabp.skipped IS NULL) AND (? OR hda.mdm_migration_deadline IS NULL OR hda.mdm_migration_completed IS NOT NULL) AND (ncr.status IS NULL OR (ncr.status != 'Acknowledged' AND ncr.status != 'Error'))`
 		params = append(params, allowedDuringMigration)
 	case fleet.MDMBootstrapPackageInstalled:
 		subquery += ` AND ncr.status = 'Acknowledged'`
@@ -6116,23 +6118,27 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 			COALESCE(h.team_id, 0) as team_id,
 			hda.host_id IS NOT NULL AND hda.deleted_at IS NULL as dep_assigned_to_fleet,
 			h.node_key IS NOT NULL as osquery_enrolled,
+			COALESCE(hm.enrolled = 1 AND hm.is_personal_enrollment = 0 AND mdms.name = ?, false) AS fleet_enrolled_corporate,
 			EXISTS (SELECT 1 FROM nano_cert_auth_associations WHERE id = h.uuid AND renew_command_uuid IS NOT NULL) AS scep_renewal_in_progress,
 			h.platform,
-			hda.mdm_migration_deadline IS NOT NULL AND
-				(hda.mdm_migration_completed IS NULL OR
-				(hda.mdm_migration_deadline > hda.mdm_migration_completed)) AS migration_in_progress
+			hda.mdm_migration_deadline,
+			hda.mdm_migration_completed,
+			hda.mdm_migration_deadline IS NOT NULL AND hda.mdm_migration_completed IS NULL AS migration_in_progress
 		FROM
 			hosts h
 		LEFT JOIN
 			host_mdm hm
 		ON h.id = hm.host_id
 		LEFT JOIN
+			mobile_device_management_solutions mdms
+		ON hm.mdm_id = mdms.id
+		LEFT JOIN
 			host_display_names hd
 		ON h.id = hd.host_id
 		LEFT JOIN
 			host_dep_assignments hda
 		ON h.id = hda.host_id
-		WHERE h.uuid = ? LIMIT 1`, hostUUID)
+		WHERE h.uuid = ? LIMIT 1`, fleet.WellKnownMDMFleet, hostUUID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("Host").WithMessage(fmt.Sprintf("with UUID: %s", hostUUID)))

@@ -1,6 +1,6 @@
 {
   "name": "PDFsam Basic",
-  "unique_identifier": "org.pdfsam.modules",
+  "unique_identifier": "org.pdfsam.basic",
   "token": "pdfsam-basic",
   "installer_format": "dmg",
   "slug": "pdfsam-basic/darwin",

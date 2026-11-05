@@ -57,7 +57,8 @@ type Entry struct {
 	// Empty means it applies everywhere.
 	Context string
 	// Format builds the error message. Nil means the default for the Kind: EndpointFormat for a path, ParameterFormat for a query
-	// parameter, form field, or JSON key, KeyFormat for a YAML key, and ReplacedFormat for the rest.
+	// parameter, form field, JSON key, sort key, or target type, KeyFormat for a YAML key, NounFormat for a flag, command, environment
+	// variable, or flag value, and ReplacedFormat for the rest.
 	Format Format
 }
 
