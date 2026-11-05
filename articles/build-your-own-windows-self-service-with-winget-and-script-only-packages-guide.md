@@ -248,12 +248,6 @@ Run it with the two identifiers from Step 1, then paste the printed block into y
 ./New-StoreAppTile.ps1 -StoreId 9WZDNCRFJ3PZ -DisplayName "Company Portal" -PackageName Microsoft.CompanyPortal
 ```
 
-## Deploy a Store app machine-wide
-
-Currently, Fleet only deploys Microsoft Store apps for the currently logged-in user. Deploying an app for every user requires `.zip` files as custom packages. Support for `.zip` packages is [coming soon](https://github.com/fleetdm/fleet/issues/38800). Until then, use the per-user self-service install in this guide.
-
-> **Note:** Do not reach for `winget install --scope machine` as a shortcut here. For a Store package it [installs under the SYSTEM account](https://github.com/microsoft/winget-cli/issues/4748) rather than provisioning the app, which looks like success and leaves no app for your users.
-
 ## Troubleshoot
 
 **The install fails with "Device wide install for msstore type is not supported under admin context."** The script is running winget as SYSTEM. Store apps are per-user, so wrap the call in the scheduled task from Step 3.
@@ -267,6 +261,12 @@ Currently, Fleet only deploys Microsoft Store apps for the currently logged-in u
 **The script fails because `winget` is not recognized.** The host has no App Installer package, which is common on Windows Server and LTSC images. Exclude those hosts with a label, or install App Installer first.
 
 **The tile does not appear on a host's self-service page.** Confirm the host matches the package's label, and that the label query returns the host in the Fleet UI under the label's host list.
+
+## Deploy a Store app machine-wide
+
+Currently, Fleet only deploys Microsoft Store apps for the currently logged-in user. Deploying an app for every user requires `.zip` files as custom packages. Support for `.zip` packages is [coming soon](https://github.com/fleetdm/fleet/issues/38800). Until then, use the per-user self-service install in this guide.
+
+> **Note:** Do not reach for `winget install --scope machine` as a shortcut here. For a Store package it [installs under the SYSTEM account](https://github.com/microsoft/winget-cli/issues/4748) rather than provisioning the app, which looks like success and leaves no app for your users.
 
 ## Further reading
 
