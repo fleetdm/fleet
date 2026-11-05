@@ -60,7 +60,7 @@ Some EDRs flag Fleet based on behavior rather than on the binary itself. For exa
 Orbit launches PowerShell on Windows as a child process in two cases:
 
 - **Running scripts**, such as software install, post-install, and custom scripts.
-- **Checking BitLocker key protectors.** On Fleet 4.92 and later, this runs on every Windows host in a fleet with disk encryption enabled, each time the host's details refresh.
+- **Checking BitLocker key protectors** On Fleet 4.92 and later, this runs on every Windows host in a fleet with disk encryption enabled, each time the host's details refresh.
 
 If your EDR flags that child process, the detection is on `powershell.exe`, not on Orbit. Publisher and path exclusions for Fleet won't apply, so you need a behavioral exclusion instead.
 
