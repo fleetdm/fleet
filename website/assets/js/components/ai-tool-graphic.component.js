@@ -1,8 +1,8 @@
 /**
  * <ai-tool-graphic>
  * -----------------------------------------------------------------------------
- * Animated mockups of Claude Code, Cursor, GitHub Copilot, and Codex working
- * with Fleet, with buttons to switch between them.
+ * Animated mockups of Claude Code, Cursor, GitHub Copilot, Codex, and Slack
+ * working with Fleet, with buttons to switch between them.
  *
  * @type {Component}
  * -----------------------------------------------------------------------------
@@ -33,6 +33,13 @@ parasails.registerComponent('aiToolGraphic', {
       // Each entry is [step to reveal (or text to type into the composer), ms to wait afterwards].
       // Every timeline has the admin's "Yes", which lines them up when the visitor switches tools.
       demoTimelines: {
+        slack: [
+          [null, 1200],
+          [2, 3000],
+          ['Yes', 400],
+          [3, 1600],
+          [4, 4500],
+        ],
         codex: [
           [null, 1200],
           [2, 1000],
@@ -108,6 +115,7 @@ parasails.registerComponent('aiToolGraphic', {
       <button type="button" purpose="ai-tool-button" :class="{selected: selectedAiTool === 'cursor'}" :aria-pressed="selectedAiTool === 'cursor' ? 'true' : 'false'" @click="clickSelectAiTool('cursor')"><img alt="" src="/images/ai-demo/icon-cursor-logo-16x16.svg">Cursor</button>
       <button type="button" purpose="ai-tool-button" :class="{selected: selectedAiTool === 'github-copilot'}" :aria-pressed="selectedAiTool === 'github-copilot' ? 'true' : 'false'" @click="clickSelectAiTool('github-copilot')"><img alt="" src="/images/ai-demo/icon-github-copilot-logo-16x16.svg">GitHub Copilot</button>
       <button type="button" purpose="ai-tool-button" :class="{selected: selectedAiTool === 'codex'}" :aria-pressed="selectedAiTool === 'codex' ? 'true' : 'false'" @click="clickSelectAiTool('codex')"><img alt="" src="/images/ai-demo/icon-codex-logo-16x16.svg">Codex</button>
+      <button type="button" purpose="ai-tool-button" :class="{selected: selectedAiTool === 'slack'}" :aria-pressed="selectedAiTool === 'slack' ? 'true' : 'false'" @click="clickSelectAiTool('slack')"><img alt="" src="/images/ai-demo/icon-slack-logo-16x16.svg">Slack</button>
     </div>
     <div purpose="cursor-animation" role="img" aria-label="A Cursor agent connected to Fleet. An admin asks which Macs in Engineering have an MCP server with shell access, and whether any of them are behind on macOS. Cursor checks with Fleet and reports that 14 of 1,120 Engineering Macs have one and 5 of those are still on macOS 15.7, then offers to propose a fix. The admin says yes, and Cursor writes the policy and opens a pull request for their review." :class="{'reduced-motion': demoReducedMotion}" v-if="selectedAiTool === 'cursor'">
       <div purpose="cursor-window" aria-hidden="true">
@@ -383,6 +391,92 @@ parasails.registerComponent('aiToolGraphic', {
                     <span purpose="codex-model"><span>6 Luna <span>Medium</span></span><img alt="" src="/images/ai-demo/icon-codex-chevron-down-12x12.svg"></span>
                     <img alt="" src="/images/ai-demo/icon-codex-mic-16x16.svg">
                     <span purpose="codex-send"><img alt="" src="/images/ai-demo/icon-codex-arrow-up-16x16.svg"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div purpose="slack-animation" role="img" aria-label="A Slack thread in the #ask-fleet channel. An admin asks Fleet which Macs in Engineering have an MCP server with shell access, and whether any of them are behind on macOS. Fleet replies that 14 of 1,120 Engineering Macs have one and 5 of those are still on macOS 15.7, then offers to propose a fix. The admin says yes, and Fleet proposes a policy and a macOS update deadline for their review." :class="{'reduced-motion': demoReducedMotion}" v-else-if="selectedAiTool === 'slack'">
+      <div purpose="slack-window" aria-hidden="true">
+        <img purpose="ai-demo-window-controls" alt="" src="/images/ai-demo/icon-macos-window-controls-47x11.svg">
+        <div purpose="slack-title-bar">
+          <img alt="" src="/images/ai-demo/icon-slack-back-20x20.svg">
+          <img alt="" src="/images/ai-demo/icon-slack-forward-20x20.svg">
+          <img alt="" src="/images/ai-demo/icon-slack-history-20x20.svg">
+          <span purpose="slack-search"><img alt="" src="/images/ai-demo/icon-slack-search-14x14.svg"></span>
+        </div>
+        <div purpose="slack-body">
+          <div purpose="slack-rail">
+            <span purpose="slack-rail-item" class="selected"><img alt="" src="/images/ai-demo/icon-slack-home-20x20.svg"></span>
+            <span purpose="slack-rail-item"><img alt="" src="/images/ai-demo/icon-slack-messages-20x20.svg"></span>
+            <span purpose="slack-rail-item"><img alt="" src="/images/ai-demo/icon-slack-activity-20x20.svg"></span>
+            <span purpose="slack-rail-item"><img alt="" src="/images/ai-demo/icon-slack-bookmark-20x20.svg"></span>
+            <span purpose="slack-rail-item"><img alt="" src="/images/ai-demo/icon-slack-more-20x20.svg"></span>
+          </div>
+          <div purpose="slack-workspace">
+            <div purpose="slack-sidebar">
+              <div purpose="slack-sidebar-header">
+                <span purpose="slack-workspace-name"><span purpose="slack-sidebar-bar"></span><img alt="" src="/images/ai-demo/icon-slack-chevron-down-12x12.svg"></span>
+                <span purpose="slack-new-message"><img alt="" src="/images/ai-demo/icon-slack-new-message-12x12.svg"></span>
+              </div>
+              <div purpose="slack-sidebar-group">
+                <div purpose="slack-sidebar-item"><img alt="" src="/images/ai-demo/icon-slack-unread-14x14.svg"><span purpose="slack-sidebar-bar"></span></div>
+                <div purpose="slack-sidebar-item"><img alt="" src="/images/ai-demo/icon-slack-thread-14x14.svg"><span purpose="slack-sidebar-bar"></span></div>
+                <div purpose="slack-sidebar-item"><img alt="" src="/images/ai-demo/icon-slack-send-14x14.svg"><span purpose="slack-sidebar-bar"></span></div>
+              </div>
+              <div purpose="slack-sidebar-section"><img alt="" src="/images/ai-demo/icon-slack-caret-18x18.svg"><span>Channels</span></div>
+              <div purpose="slack-sidebar-channels">
+                <div purpose="slack-sidebar-item" class="selected"><img alt="" src="/images/ai-demo/icon-slack-hashtag-selected-14x14.svg"><span>ask fleet</span></div>
+                <div purpose="slack-sidebar-item"><img alt="" src="/images/ai-demo/icon-slack-hashtag-14x14.svg"><span purpose="slack-sidebar-bar"></span></div>
+                <div purpose="slack-sidebar-item"><img alt="" src="/images/ai-demo/icon-slack-hashtag-14x14.svg"><span purpose="slack-sidebar-bar"></span></div>
+                <div purpose="slack-sidebar-item"><img alt="" src="/images/ai-demo/icon-slack-lock-14x14.svg"><span purpose="slack-sidebar-bar"></span></div>
+              </div>
+              <div purpose="slack-sidebar-item" class="direct-messages"><img alt="" src="/images/ai-demo/icon-slack-message-14x14.svg"><span purpose="slack-sidebar-bar"></span></div>
+            </div>
+            <div purpose="slack-channel">
+              <div purpose="slack-pane-header">
+                <span purpose="slack-channel-name"><img alt="" src="/images/ai-demo/icon-slack-hashtag-thick-13x13.svg"><span>ask fleet</span><img alt="" src="/images/ai-demo/icon-slack-channel-chevron-13x13.svg"></span>
+              </div>
+              <div purpose="slack-channel-message"><img alt="" src="/images/ai-demo/avatar-slack-allen-28x28@2x.png"><div><span style="width: 162em;"></span><span style="width: 135em;"></span><span style="width: 99em;"></span><span style="width: 135em;"></span></div></div>
+              <div purpose="slack-channel-message"><img alt="" src="/images/ai-demo/avatar-slack-zay-28x28@2x.png"><div><span style="width: 162em;"></span><span style="width: 135em;"></span><span style="width: 99em;"></span><span style="width: 135em;"></span></div></div>
+              <div purpose="slack-channel-message"><img alt="" src="/images/ai-demo/avatar-slack-mike-m-28x28@2x.png"><div><span style="width: 162em;"></span><span style="width: 135em;"></span><span style="width: 99em;"></span><span style="width: 135em;"></span></div></div>
+            </div>
+            <div purpose="slack-thread-pane">
+              <div purpose="slack-pane-header"><span purpose="slack-thread-title">Thread</span></div>
+              <div purpose="slack-conversation" ref="demoConversation">
+                <div purpose="slack-thread" ref="demoThread" :class="{resetting: demoResetting, 'fading-out': demoFadingOut}" :style="{transform: 'translateY(-' + demoScrollOffset + 'px)'}">
+                  <div purpose="slack-message">
+                    <img purpose="slack-avatar" alt="" src="/images/ai-demo/avatar-slack-mike-32x32@2x.png">
+                    <div purpose="slack-message-content">
+                      <span purpose="slack-sender">Mike</span>
+                      <p><span purpose="slack-mention">@fleet</span> which Macs in Engineering have an MCP server with shell access, and are any of them behind on macOS?</p>
+                      <div purpose="slack-reactions"><span purpose="slack-reaction"><span>✅</span><span>1</span></span><span purpose="slack-reaction"><img alt="" src="/images/ai-demo/icon-slack-add-reaction-14x14.svg"></span></div>
+                    </div>
+                  </div>
+                  <div purpose="slack-message" v-show="demoStep >= 2">
+                    <img purpose="slack-avatar" alt="" src="/images/ai-demo/icon-slack-fleet-avatar-32x32.svg">
+                    <div purpose="slack-message-content">
+                      <span purpose="slack-sender">Fleet <span purpose="slack-app-badge">APP</span></span>
+                      <p>14 of 1,120 Engineering Macs have an MCP server with shell access. 5 of those are also behind on macOS, still on 15.7. Want me to propose a fix?</p>
+                    </div>
+                  </div>
+                  <div purpose="slack-message" v-show="demoStep >= 3">
+                    <img purpose="slack-avatar" alt="" src="/images/ai-demo/avatar-slack-mike-32x32@2x.png">
+                    <div purpose="slack-message-content">
+                      <span purpose="slack-sender">Mike</span>
+                      <p>Yes</p>
+                      <div purpose="slack-reactions"><span purpose="slack-reaction"><span>✅</span><span>1</span></span><span purpose="slack-reaction"><img alt="" src="/images/ai-demo/icon-slack-add-reaction-14x14.svg"></span></div>
+                    </div>
+                  </div>
+                  <div purpose="slack-message" v-show="demoStep >= 4">
+                    <img purpose="slack-avatar" alt="" src="/images/ai-demo/icon-slack-fleet-avatar-32x32.svg">
+                    <div purpose="slack-message-content">
+                      <span purpose="slack-sender">Fleet <span purpose="slack-app-badge">APP</span></span>
+                      <p>Done. I’ve proposed a policy that flags MCP shell access and a macOS update deadline for those 5 Macs, <span purpose="slack-link">for your review</span>.</p>
+                    </div>
                   </div>
                 </div>
               </div>

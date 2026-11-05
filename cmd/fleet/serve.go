@@ -634,7 +634,6 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if license.IsPremium() {
 		hydrantService := est.NewService(est.WithLogger(logger))
 		googleCASService := googlecas.NewService(googlecas.WithLogger(logger))
-		profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
 		var stores softwareInstallerStores
 		switch softwareInstallersBackend {
 		case configpkg.StorageBackendAzure:
@@ -660,7 +659,6 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			depStorage,
 			apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
 			ssoSessionStore,
-			profileMatcher,
 			softwareInstallStore,
 			bootstrapPackageStore,
 			softwareTitleIconStore,

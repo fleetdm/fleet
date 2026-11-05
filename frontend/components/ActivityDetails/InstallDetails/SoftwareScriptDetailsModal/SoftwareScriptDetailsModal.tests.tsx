@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import React from "react";
 
 import { createMockSoftwareInstallResult } from "__mocks__/softwareMock";
@@ -8,6 +9,8 @@ import { renderWithSetup } from "test/test-utils";
 import { StatusMessage, ModalButtons } from "./SoftwareScriptDetailsModal";
 
 describe("SoftwareScriptDetailsModal - StatusMessage component", () => {
+  afterEach(() => jest.useRealTimers());
+
   it("on software library page/pending activity, renders pending install message with host and package name", () => {
     render(
       <StatusMessage
@@ -112,6 +115,61 @@ describe("SoftwareScriptDetailsModal - StatusMessage component", () => {
     expect(screen.getByText(/Test Host/)).toBeInTheDocument();
     expect(screen.getByText(/\(com\.cool\.app\)/)).toBeInTheDocument();
     expect(screen.getByText(/\d+.*ago/)).toBeInTheDocument();
+  });
+
+  it("on activity feed, renders ran message with the activity's timestamp instead of the install's", async () => {
+    jest.useFakeTimers();
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    render(
+      <StatusMessage
+        installResult={
+          createMockSoftwareInstallResult({
+            status: "installed",
+          }) as ISoftwareScriptResult
+        }
+        isMyDevicePage={false}
+        activityCreatedAt={fiveMinutesAgo}
+      />
+    );
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+
+    expect(screen.getByText(/5 minutes ago/)).toBeInTheDocument();
+
+    await user.hover(screen.getByText(/5 minutes ago/));
+    act(() => {
+      jest.advanceTimersByTime(300);
+    });
+    expect(
+      screen.queryByText(/Time when Fleet sent command to run script/)
+    ).not.toBeInTheDocument();
+  });
+
+  it("on host software page, renders ran message with the install's created_at instead of a newer updated_at", async () => {
+    const threeDaysAgo = new Date(
+      Date.now() - 3 * 24 * 60 * 60 * 1000
+    ).toISOString();
+    const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString();
+    const { user } = renderWithSetup(
+      <StatusMessage
+        installResult={
+          createMockSoftwareInstallResult({
+            status: "installed",
+            created_at: threeDaysAgo,
+            updated_at: oneMinuteAgo,
+          }) as ISoftwareScriptResult
+        }
+        isMyDevicePage={false}
+      />
+    );
+
+    expect(screen.getByText(/3 days ago/)).toBeInTheDocument();
+
+    await user.hover(screen.getByText(/3 days ago/));
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Time when Fleet sent command to run script/)
+      ).toBeInTheDocument();
+    });
   });
 });
 

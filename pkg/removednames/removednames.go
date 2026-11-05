@@ -3,6 +3,7 @@ package removednames
 import (
 	"fmt"
 	"slices"
+	"strings"
 )
 
 // GuideURL is the Fleet 5 migration guide that every removal message links to.
@@ -28,6 +29,8 @@ const (
 	KindCommand      Kind = "command"       // fleetctl command, verbatim
 	KindYAMLKey      Kind = "yaml_key"      // GitOps or apply YAML key path, dot notation, [] for array elements
 	KindSpecKind     Kind = "spec_kind"     // kind of a fleetctl apply spec
+	KindFileName     Kind = "file_name"     // name of a GitOps file, without its directory
+	KindYAMLValue    Kind = "yaml_value"    // value of a YAML key, written "key: value" and compared without regard to case
 	KindActivityType Kind = "activity_type" // activity type name
 )
 
@@ -53,15 +56,17 @@ type Entry struct {
 	// Context narrows the entry to one fleetctl command (for example "fleetctl get hosts") or, for a path, to one HTTP method.
 	// Empty means it applies everywhere.
 	Context string
-	// Format builds the error message. Nil means ReplacedFormat.
+	// Format builds the error message. Nil means the default for the Kind: EndpointFormat for a path, ParameterFormat for a query
+	// parameter, form field, JSON key, sort key, or target type, KeyFormat for a YAML key, NounFormat for a flag, command, environment
+	// variable, or flag value, and ReplacedFormat for the rest.
 	Format Format
 }
 
 // Message returns the error message for the removed name, for example
-// "team_id was removed in Fleet 5. Use fleet_id instead. See https://fleetdm.com/learn-more-about/fleet-5-migration".
+// `The "team_id" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`.
 func (e Entry) Message() string {
 	if e.Format == nil {
-		return ReplacedFormat{}.Message(e)
+		return defaultFormat(e.Kind).Message(e)
 	}
 	return e.Format.Message(e)
 }
@@ -95,9 +100,20 @@ func Find(kind Kind, oldName, context string) (Entry, bool) {
 	return findIn(entries, kind, oldName, context)
 }
 
+// sameName reports whether name is the old name of e. A KindYAMLValue entry is written "key: value": its value is compared without
+// regard to case and its key exactly, because YAML keys are case-sensitive.
+func sameName(e Entry, name string) bool {
+	if e.Kind != KindYAMLValue {
+		return e.Old == name
+	}
+	key, value, ok := strings.Cut(e.Old, ": ")
+	nameKey, nameValue, nameOk := strings.Cut(name, ": ")
+	return ok && nameOk && key == nameKey && strings.EqualFold(value, nameValue)
+}
+
 func findIn(list []Entry, kind Kind, oldName, context string) (Entry, bool) {
 	for _, e := range list {
-		if e.Kind == kind && e.Old == oldName && (e.Context == "" || e.Context == context) {
+		if e.Kind == kind && sameName(e, oldName) && (e.Context == "" || e.Context == context) {
 			return e, true
 		}
 	}
