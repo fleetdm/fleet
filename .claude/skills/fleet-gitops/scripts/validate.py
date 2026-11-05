@@ -1227,7 +1227,9 @@ def run_checks(ctx):
             if role == "fleet" and base in ("unassigned.yml", "no-team.yml"):
                 ctx.fail(src, f"{base} must have name: Unassigned")
             if base == "no-team.yml":
-                ctx.warn(src, "no-team.yml is deprecated; rename to unassigned.yml with name: Unassigned")
+                ctx.fail(src, f"no-team.yml was removed in Fleet 5. Use unassigned.yml instead. See {MIGRATION_GUIDE}")
+            if name.strip().lower() == "no team":
+                ctx.fail(src, f"name: No team was removed in Fleet 5. Use name: Unassigned instead. See {MIGRATION_GUIDE}")
             if role == "fleet":
                 if name in fleet_names:
                     ctx.fail(src, f"fleet name {name!r} is also used by {fleet_names[name]}")
