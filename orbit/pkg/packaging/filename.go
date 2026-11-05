@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
-	"unicode/utf8"
 
+	"github.com/fleetdm/fleet/v4/pkg/str"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/unicode/norm"
 )
@@ -42,7 +42,7 @@ func fleetFilenamePart(fleet Fleet, others []Fleet, budget int) string {
 	all := append([]Fleet{fleet}, others...)
 	parts, keys := make([]string, len(all)), make([]string, len(all))
 	for i, f := range all {
-		parts[i] = truncateUTF8(fleetNameForFilename(f.Name), budget)
+		parts[i] = cutName(fleetNameForFilename(f.Name), budget)
 		keys[i] = sameFileKey(parts[i])
 	}
 	withID := make([]bool, len(all))
@@ -76,7 +76,7 @@ func sameFileKey(part string) string {
 // nameWithID returns the fleet's cleaned name followed by its ID, cut to fit in budget bytes when the ID does.
 func nameWithID(f Fleet, budget int) string {
 	suffix := strconv.FormatUint(uint64(f.ID), 10)
-	if short := truncateUTF8(fleetNameForFilename(f.Name), budget-len(suffix)-len("-")); short != "" {
+	if short := cutName(fleetNameForFilename(f.Name), budget-len(suffix)-len("-")); short != "" {
 		return short + "-" + suffix
 	}
 	return suffix
@@ -116,16 +116,10 @@ func fleetNameForFilename(name string) string {
 	return norm.NFC.String(b.String())
 }
 
-// truncateUTF8 cuts s to at most n bytes without splitting a character, and trims the dash a cut can leave at the end.
-func truncateUTF8(s string, n int) string {
-	if n <= 0 {
-		return ""
+// cutName cuts s to at most n bytes without splitting a character, and trims the dash a cut can leave at the end.
+func cutName(s string, n int) string {
+	if cut := str.TruncateBytes(s, n, ""); len(cut) < len(s) {
+		return strings.TrimRight(cut, "-")
 	}
-	if len(s) <= n {
-		return s
-	}
-	for n > 0 && !utf8.RuneStart(s[n]) {
-		n--
-	}
-	return strings.TrimRight(s[:n], "-")
+	return s
 }
