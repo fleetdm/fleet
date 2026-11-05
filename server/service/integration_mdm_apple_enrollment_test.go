@@ -359,7 +359,7 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	require.NotZero(t, mdmResp.RenewDate)
 
 	var countTokensResp countABMTokensResponse
-	s.DoJSON("GET", "/api/latest/fleet/abm_tokens/count", nil, http.StatusOK, &countTokensResp)
+	s.DoJSON("GET", "/api/latest/fleet/ab_tokens/count", nil, http.StatusOK, &countTokensResp)
 	assert.Equal(t, 0, countTokensResp.Count)
 
 	// set up multiple ABM tokens with different org names
@@ -369,7 +369,7 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	s.enableABM(tmOrgName)
 
 	var tokensResp listABMTokensResponse
-	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &tokensResp)
+	s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &tokensResp)
 
 	// for t.Name()
 	tok := s.getABMTokenByName(defaultOrgName, tokensResp.Tokens)
@@ -393,7 +393,7 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	require.Equal(t, fleet.TeamNameNoTeam, tok.IOSTeam.Name)
 	require.Equal(t, fleet.TeamNameNoTeam, tok.IPadOSTeam.Name)
 
-	s.DoJSON("GET", "/api/latest/fleet/abm_tokens/count", nil, http.StatusOK, &countTokensResp)
+	s.DoJSON("GET", "/api/latest/fleet/ab_tokens/count", nil, http.StatusOK, &countTokensResp)
 	assert.Equal(t, 2, countTokensResp.Count)
 
 	// create a new team
@@ -424,7 +424,7 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 
 	// try again, this time we get team assignments in the response
 	tokensResp = listABMTokensResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &tokensResp)
+	s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &tokensResp)
 
 	tok = s.getABMTokenByName(tmOrgName, tokensResp.Tokens)
 	require.NotNil(t, tok)
@@ -445,7 +445,7 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 		}`), http.StatusOK, &acResp)
 
 	tokensResp = listABMTokensResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &tokensResp)
+	s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &tokensResp)
 	tok = s.getABMTokenByName(tmOrgName, tokensResp.Tokens)
 	require.NotNil(t, tok)
 	require.False(t, tok.TermsExpired)
@@ -480,7 +480,7 @@ func (s *integrationMDMTestSuite) TestABMTeamPersistsOnConfigChange() {
 	require.NoError(t, err)
 
 	tokensResp := listABMTokensResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &tokensResp)
+	s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &tokensResp)
 	tok := s.getABMTokenByName(t.Name(), tokensResp.Tokens)
 	require.NotNil(t, tok)
 
@@ -492,7 +492,7 @@ func (s *integrationMDMTestSuite) TestABMTeamPersistsOnConfigChange() {
     "org_info": {"org_name": "New name"}
 	}`), http.StatusOK, &appConfigResponse{})
 
-	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &tokensResp)
+	s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &tokensResp)
 
 	require.Len(t, tokensResp.Tokens, 1)
 	assert.Equal(t, team.Name, tokensResp.Tokens[0].IOSTeam.Name)
@@ -715,7 +715,7 @@ func (s *integrationMDMTestSuite) TestABMExpiredToken() {
 	err := fleetSyncer.RunAssigner(ctx)
 	require.ErrorContains(t, err, "T_C_NOT_SIGNED")
 	var tokensResp listABMTokensResponse
-	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &tokensResp)
+	s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &tokensResp)
 	tok := s.getABMTokenByName(t.Name(), tokensResp.Tokens)
 	require.NotNil(t, tok)
 	require.True(t, tok.TermsExpired)
@@ -727,7 +727,7 @@ func (s *integrationMDMTestSuite) TestABMExpiredToken() {
 	err = fleetSyncer.RunAssigner(ctx)
 	require.NoError(t, err)
 	tokensResp = listABMTokensResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &tokensResp)
+	s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &tokensResp)
 	tok = s.getABMTokenByName(t.Name(), tokensResp.Tokens)
 	require.NotNil(t, tok)
 	require.False(t, tok.TermsExpired)
@@ -740,7 +740,7 @@ func (s *integrationMDMTestSuite) TestABMExpiredToken() {
 	err = fleetSyncer.RunAssigner(ctx)
 	require.ErrorContains(t, err, "DEP auth error")
 	tokensResp = listABMTokensResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &tokensResp)
+	s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &tokensResp)
 	tok = s.getABMTokenByName(t.Name(), tokensResp.Tokens)
 	require.NotNil(t, tok)
 	require.False(t, tok.TermsExpired)
@@ -1380,19 +1380,15 @@ func (s *integrationMDMTestSuite) TestABMAssetManagement() {
 	require.NoError(t, abmResp.Err)
 	require.NotEmpty(t, abmResp.PublicKey)
 
-	// the deprecated abm_public_key path still resolves to the same endpoint
-	var deprecatedResp generateABMKeyPairResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/abm_public_key", nil, http.StatusOK, &deprecatedResp)
-	require.NoError(t, deprecatedResp.Err)
-	require.NotEmpty(t, deprecatedResp.PublicKey)
+	s.Do("GET", "/api/latest/fleet/mdm/apple/abm_public_key", nil, http.StatusGone)
 
 	var tokensResp listABMTokensResponse
-	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &tokensResp)
+	s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &tokensResp)
 	tok := s.getABMTokenByName(t.Name(), tokensResp.Tokens)
 	require.NotNil(t, tok)
 
 	// disable ABM
-	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/abm_tokens/%d", tok.ID), nil, http.StatusNoContent)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/ab_tokens/%d", tok.ID), nil, http.StatusNoContent)
 	tok, err := s.ds.GetABMTokenByOrgName(ctx, t.Name())
 	var nfe fleet.NotFoundError
 	require.ErrorAs(t, err, &nfe)

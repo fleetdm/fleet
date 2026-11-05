@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/urfave/cli/v2"
 )
 
@@ -25,7 +24,6 @@ func generateCommand() *cli.Command {
 		Subcommands: []*cli.Command{
 			generateMDMAppleCommand(),
 			generateMDMABCommand(),
-			generateMDMAppleBMCommand(),
 		},
 	}
 }
@@ -99,21 +97,6 @@ func generateMDMABCommand() *cli.Command {
 	}
 }
 
-func generateMDMAppleBMCommand() *cli.Command {
-	return &cli.Command{
-		Name:    "mdm-apple-bm",
-		Aliases: []string{"mdm_apple_bm"},
-		Usage:   "Deprecated. Use mdm-ab instead.",
-		Flags:   generateMDMABFlags(),
-		Action: func(c *cli.Context) error {
-			if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
-				fmt.Fprintf(c.App.ErrWriter, "[!] 'fleetctl generate mdm-apple-bm' is deprecated; use 'fleetctl generate mdm-ab' instead\n")
-			}
-			return runGenerateMDMAB(c)
-		},
-	}
-}
-
 func generateMDMABFlags() []cli.Flag {
 	return []cli.Flag{
 		contextFlag(),
@@ -137,7 +120,7 @@ func runGenerateMDMAB(c *cli.Context) error {
 		return ErrGeneric
 	}
 
-	publicKey, err := client.RequestAppleABM()
+	publicKey, err := client.RequestAppleAB()
 	if err != nil {
 		fmt.Fprintf(c.App.ErrWriter, "requesting Apple Business public key: %s", err)
 		return ErrGeneric

@@ -2536,7 +2536,7 @@ func (s *integrationMDMTestSuite) uploadABMToken(encryptedToken []byte, expected
 		"Authorization": fmt.Sprintf("Bearer %s", s.token),
 	}
 
-	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/abm_tokens", b.Bytes(), expectedStatus, headers)
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/ab_tokens", b.Bytes(), expectedStatus, headers)
 	if wantErr != "" {
 		errMsg := extractServerErrorText(res.Body)
 		assert.Contains(t, errMsg, wantErr)

@@ -237,11 +237,6 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	s.DoJSON("PATCH", "/api/latest/fleet/fleets/123/secrets", modifyTeamEnrollSecretsRequest{Secrets: []fleet.EnrollSecret{{Secret: "DEF"}}}, http.StatusPaymentRequired, &secResp)
 	assert.Empty(t, secResp.Secrets)
 
-	// get apple BM configuration
-	var appleBMResp getAppleBMResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusPaymentRequired, &appleBMResp)
-	assert.Nil(t, appleBMResp.AppleBM)
-
 	// batch-apply an empty set of MDM profiles succeeds even though MDM is not
 	// enabled, because it wouldn't change anything (and it needs to support the
 	// case where `fleetctl get config`'s output is used as input to `fleetctl

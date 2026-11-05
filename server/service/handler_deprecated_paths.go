@@ -173,30 +173,4 @@ var deprecatedPathAliases = []eu.DeprecatedPathAlias{
 		Method: "PATCH", PrimaryPath: "/api/_version_/fleet/vpp_tokens/{id}/fleets",
 		DeprecatedPaths: []string{"/api/_version_/fleet/vpp_tokens/{id}/teams"},
 	},
-
-	// ---- abm_tokens → ab_tokens ----
-	{
-		Method: "POST", PrimaryPath: "/api/_version_/fleet/ab_tokens",
-		DeprecatedPaths: []string{"/api/_version_/fleet/abm_tokens"},
-	},
-	{
-		Method: "DELETE", PrimaryPath: "/api/_version_/fleet/ab_tokens/{id:[0-9]+}",
-		DeprecatedPaths: []string{"/api/_version_/fleet/abm_tokens/{id:[0-9]+}"},
-	},
-	{
-		Method: "GET", PrimaryPath: "/api/_version_/fleet/ab_tokens",
-		DeprecatedPaths: []string{"/api/_version_/fleet/abm_tokens"},
-	},
-	{
-		Method: "GET", PrimaryPath: "/api/_version_/fleet/ab_tokens/count",
-		DeprecatedPaths: []string{"/api/_version_/fleet/abm_tokens/count"},
-	},
-	{
-		Method: "PATCH", PrimaryPath: "/api/_version_/fleet/ab_tokens/{id:[0-9]+}/renew",
-		DeprecatedPaths: []string{"/api/_version_/fleet/abm_tokens/{id:[0-9]+}/renew"},
-	},
-	{
-		Method: "GET", PrimaryPath: "/api/_version_/fleet/mdm/apple/ab_public_key",
-		DeprecatedPaths: []string{"/api/_version_/fleet/mdm/apple/abm_public_key"},
-	},
 }
