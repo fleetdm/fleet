@@ -377,7 +377,7 @@ When saving the configuration, Fleet will attempt to connect to the SCEP server 
 
 1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use `$FLEET_VAR_NDES_SCEP_CHALLENGE`. For `URL`, use `$FLEET_VAR_NDES_SCEP_PROXY_URL`, and make sure to add `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` to `OU`.
 
-2. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can use [Fleet's host variables](https://fleetdm.com/guides/fleet-variables) such as `$FLEET_VAR_HOST_HARDWARE_SERIAL`. For Apple hosts, you can also use any of the [supported variables](https://fleetdm.com/docs/configuration/yaml-files#variables)..
+2. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`. You can use [Fleet's host variables](https://fleetdm.com/guides/fleet-variables) such as `$FLEET_VAR_HOST_HARDWARE_SERIAL`. For Apple hosts, you can also use any of the [supported variables](https://fleetdm.com/docs/configuration/yaml-files#variables)..
 
 3. For Windows profiles, you also need to set `CAThumbprint` to the SHA1 fingerprint of your **root CA certificate** (not the RA signing certificate). See [How to get the CAThumbprint for Windows SCEP profiles](#how-to-get-the-cathumbprint-for-windows-scep-profiles).
 
@@ -613,7 +613,7 @@ Currently, using the Smallstep-Jamf connector is the best practice. Fleet is tes
 
 2. Replace the `{CA_NAME}` with the name you created in step 2. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like this: `$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_WIFI_AUTHENTICATION` and `$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_WIFI_AUTHENTICATION`.
 
-3. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can also use any of the [supported variables](https://fleetdm.com/guides/fleet-variables).
+3. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`. You can also use any of the [supported variables](https://fleetdm.com/guides/fleet-variables).
 
 4. In Fleet, head to **Controls > OS settings > Configuration profiles** and add the configuration profile to deploy certificates to your hosts.
 
@@ -775,7 +775,7 @@ For Android hosts, we use a configuration profile and a certificate template. Fo
 
 2. Replace the `{CA_NAME}` with the name you created in step 1. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like this: `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_WIFI_AUTHENTICATION` and `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_WIFI_AUTHENTICATION`.
 
-3. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can also use any of the [supported variables](https://fleetdm.com/guides/fleet-variables).
+3. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`. You can also use any of the [supported variables](https://fleetdm.com/guides/fleet-variables).
 
 4. In Fleet, head to **Controls > OS settings > Configuration profiles** and add the configuration profile to deploy certificates to your hosts.
 
@@ -970,7 +970,7 @@ You can add any other options listed under Device/SCEP in the [Microsoft documen
 
 2. Replace the `{CA_NAME}` with the name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like this: `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_WIFI_AUTHENTICATION` and `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_WIFI_AUTHENTICATION`.
 
-3. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can also use any of the [supported variables](https://fleetdm.com/guides/fleet-variables).
+3. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`. You can also use any of the [supported variables](https://fleetdm.com/guides/fleet-variables).
 
 4. In Fleet, head to **Controls > OS settings > Configuration profiles** and add the configuration profile to deploy certificates to your hosts.
 
