@@ -214,7 +214,7 @@ const TicketDestinations = (): JSX.Element => {
           return configAPI.update({
             integrations: {
               linear: (integrations?.linear || []).filter(
-                (_, index) => index !== integrationEditing.originalIndex
+                (intg) => intg.team_id !== integrationEditing.teamId
               ),
             },
           });

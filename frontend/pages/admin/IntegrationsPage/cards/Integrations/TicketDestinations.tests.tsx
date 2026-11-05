@@ -318,4 +318,45 @@ describe("TicketDestinations", () => {
       });
     });
   });
+
+  it("deletes the selected Linear destination when the list order changes", async () => {
+    const patchSpy = jest.fn();
+    const getSpy = jest.fn();
+    const linearB = { api_key: "********", team_id: "team-b" };
+    let reordered = false;
+    mockServer.use(
+      http.get(configUrl, () => {
+        getSpy();
+        const config = createConfig();
+        config.integrations.linear = reordered
+          ? [linearB, linearIntegration]
+          : [linearIntegration, linearB];
+        return HttpResponse.json(config);
+      }),
+      createPatchConfigHandler(patchSpy)
+    );
+    const { user } = render(<TicketDestinations />);
+
+    const linearRow = await getRow("Linear - team-b");
+    await user.click(
+      within(linearRow).getByRole("button", { name: "Delete integration" })
+    );
+    expect(await screen.findByText("Delete integration")).toBeInTheDocument();
+
+    // Reorder the list while the delete modal is open.
+    reordered = true;
+    window.dispatchEvent(new Event("focus"));
+    await waitFor(() => {
+      expect(getSpy).toHaveBeenCalledTimes(2);
+    });
+
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+
+    // An index filter would remove `team-a` here.
+    await waitFor(() => {
+      expect(patchSpy).toHaveBeenCalledWith({
+        integrations: { linear: [linearIntegration] },
+      });
+    });
+  });
 });
