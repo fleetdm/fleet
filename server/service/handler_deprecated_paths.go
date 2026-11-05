@@ -162,14 +162,6 @@ var deprecatedPathAliases = []eu.DeprecatedPathAlias{
 
 	// ---- ABM/VPP token teams → fleets ----
 	{
-		Method: "PATCH", PrimaryPath: "/api/_version_/fleet/ab_tokens/{id:[0-9]+}/fleets",
-		DeprecatedPaths: []string{
-			"/api/_version_/fleet/ab_tokens/{id:[0-9]+}/teams",
-			"/api/_version_/fleet/abm_tokens/{id:[0-9]+}/fleets",
-			"/api/_version_/fleet/abm_tokens/{id:[0-9]+}/teams",
-		},
-	},
-	{
 		Method: "PATCH", PrimaryPath: "/api/_version_/fleet/vpp_tokens/{id}/fleets",
 		DeprecatedPaths: []string{"/api/_version_/fleet/vpp_tokens/{id}/teams"},
 	},

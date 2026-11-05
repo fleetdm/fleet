@@ -484,7 +484,7 @@ func (s *integrationMDMTestSuite) TestABMTeamPersistsOnConfigChange() {
 	tok := s.getABMTokenByName(t.Name(), tokensResp.Tokens)
 	require.NotNil(t, tok)
 
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/abm_tokens/%d/teams", tok.ID), json.RawMessage(fmt.Sprintf(`{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/ab_tokens/%d/fleets", tok.ID), json.RawMessage(fmt.Sprintf(`{
     "ios_team_id": %d
 	}`, team.ID)), http.StatusOK, &updateABMTokenTeamsResponse{})
 
@@ -2235,7 +2235,8 @@ func (s *integrationMDMTestSuite) TestManualEnrollmentOfAppleBusinessAssignedMac
 
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(), fmt.Sprintf(
 		`{"host_id": %d, "host_serial": %q, "enrollment_id": null, "host_display_name": %q, "installed_from_dep": false, "mdm_platform": "apple", "platform": "darwin"}`,
-		host.ID, host.HardwareSerial, host.Hostname), 0)
+		host.ID, host.HardwareSerial, host.Hostname,
+	), 0)
 
 	var tasks []string
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
