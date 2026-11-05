@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestNewAPIError checks the message built from Azure response errors.
 func TestNewAPIError(t *testing.T) {
 	ctx := t.Context()
 
@@ -122,10 +123,12 @@ var misconfiguredCases = []struct {
 	{bloberror.InvalidAuthenticationInfo, http.StatusUnauthorized, "Server failed to authenticate the request. Please refer to the information in the www-authenticate header."},
 }
 
+// azureErrorBody returns the XML body Azure sends with an error.
 func azureErrorBody(code bloberror.Code, message string) string {
 	return fmt.Sprintf(`<?xml version="1.0" encoding="utf-8"?><Error><Code>%s</Code><Message>%s`+"\nRequestId:abc\nTime:2026-01-01T00:00:00.000Z</Message></Error>", code, message)
 }
 
+// TestNewAPIErrorAllMisconfiguredCodes checks the message for every misconfigured code.
 func TestNewAPIErrorAllMisconfiguredCodes(t *testing.T) {
 	require.Len(t, misconfiguredCases, len(misconfiguredCodes), "every misconfigured code needs a test case")
 
@@ -151,6 +154,7 @@ func TestNewAPIErrorAllMisconfiguredCodes(t *testing.T) {
 	}
 }
 
+// TestNewAPIErrorOtherCodesAreNotMisconfigured checks that other codes get no prefix.
 func TestNewAPIErrorOtherCodesAreNotMisconfigured(t *testing.T) {
 	for _, code := range []bloberror.Code{bloberror.ServerBusy, bloberror.InternalError, bloberror.BlobNotFound, bloberror.InvalidInput, bloberror.OperationTimedOut} {
 		t.Run(string(code), func(t *testing.T) {
@@ -191,6 +195,7 @@ func newErrorServer(t *testing.T, code bloberror.Code, message string, status in
 	return srv
 }
 
+// newErrorTestConfig returns an Azure config that points at the test server.
 func newErrorTestConfig(endpoint string) config.AzureConfig {
 	return config.AzureConfig{
 		SoftwareInstallersAccountName:  "acct",
@@ -270,6 +275,7 @@ func TestStoreOperationsMisconfiguredErrors(t *testing.T) {
 	}
 }
 
+// TestStoreOperationsOtherErrorsAreNotMisconfigured checks that other Azure errors get no prefix.
 func TestStoreOperationsOtherErrorsAreNotMisconfigured(t *testing.T) {
 	srv := newErrorServer(t, bloberror.InvalidInput, "Bad input", http.StatusBadRequest, false)
 	store, err := NewSoftwareInstallerStore(newErrorTestConfig(srv.URL))
@@ -285,6 +291,7 @@ func TestStoreOperationsOtherErrorsAreNotMisconfigured(t *testing.T) {
 	require.False(t, cloudstorage.IsMisconfigured(err))
 }
 
+// TestAPIErrorMisconfigured checks the message against Azurite when AZURE_STORAGE_TEST is set.
 func TestAPIErrorMisconfigured(t *testing.T) {
 	checkTestEnv(t)
 	ctx := t.Context()

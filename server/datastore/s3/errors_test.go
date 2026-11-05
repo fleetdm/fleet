@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestWrapAPIError checks which S3 errors are reported as misconfigured.
 func TestWrapAPIError(t *testing.T) {
 	store := &s3store{bucket: "my-bucket"}
 
@@ -116,6 +117,7 @@ var misconfiguredCases = []struct {
 	{"SignatureDoesNotMatch", http.StatusForbidden, "The request signature we calculated does not match the signature you provided. Check your key and signing method."},
 }
 
+// TestWrapAPIErrorAllMisconfiguredCodes checks the message for every misconfigured code.
 func TestWrapAPIErrorAllMisconfiguredCodes(t *testing.T) {
 	store := &s3store{bucket: "my-bucket"}
 
@@ -180,6 +182,7 @@ func newErrorServer(t *testing.T, code, message string, status int) *httptest.Se
 	return srv
 }
 
+// newErrorTestConfig returns an S3 config that points at the test server.
 func newErrorTestConfig(endpoint string) config.S3Config {
 	return config.S3Config{
 		SoftwareInstallersBucket:           "my-bucket",
@@ -249,6 +252,7 @@ func TestStoreOperationsMisconfiguredErrors(t *testing.T) {
 	}
 }
 
+// TestStoreOperationsOtherErrorsAreNotMisconfigured checks that other S3 errors get no prefix.
 func TestStoreOperationsOtherErrorsAreNotMisconfigured(t *testing.T) {
 	srv := newErrorServer(t, "InvalidArgument", "Bad argument", http.StatusBadRequest)
 	store, err := NewSoftwareInstallerStore(newErrorTestConfig(srv.URL))
