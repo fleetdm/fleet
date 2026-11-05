@@ -140,13 +140,16 @@ func TestInstallScriptStopsWhenAppWontQuit(t *testing.T) {
 	}
 
 	// mode is how the app responds: "not-running", "quits", "ignores" (accepts
-	// the quit event but keeps running), or "cancels" (the user cancels a save
-	// prompt, so the quit event fails). sleep advances SECONDS so the timeout
-	// loop doesn't take real time.
+	// the quit event but keeps running), "cancels" (the user cancels a save
+	// prompt, so the quit event fails), "gone" ('is running' reports an app
+	// with no process, so every quit fails with -600), or "exits" (accepts the
+	// first quit, then fails later ones with -600 while it exits). sleep
+	// advances SECONDS so the timeout loop doesn't take real time. The helper
+	// runs the quit in a command substitution, so the stub counts quits in a
+	// file rather than a variable.
 	run := func(t *testing.T, script, mode string) (string, error) {
 		stubs := `mode=` + mode + `
-running=true
-[[ "$mode" == not-running ]] && running=false
+quit_file=` + shellSingleQuote(filepath.Join(t.TempDir(), "quits")) + `
 stat() { echo alice; }
 realpath() { echo /tmp/fleet-test/installer; }
 ditto() { :; }
@@ -154,14 +157,20 @@ sleep() { SECONDS=$((SECONDS + $1)); }
 sudo() { echo "sudo $*"; }
 open() { :; }
 osascript() {
+  local quits=0
+  [[ -e "$quit_file" ]] && quits=$(grep -c . "$quit_file")
   case "$4" in
     *" to quit")
-      [[ "$mode" == quits ]] && running=false
+      echo quit >> "$quit_file"
       [[ "$mode" == cancels ]] && return 1
+      if [[ "$mode" == gone || ( "$mode" == exits && $quits -gt 0 ) ]]; then
+        echo "36:76: execution error: Application isn’t running. (-600)" >&2
+        return 1
+      fi
       return 0
       ;;
     *" is running")
-      echo "$running"
+      if [[ "$mode" == not-running || ( "$mode" == quits && $quits -gt 0 ) ]]; then echo false; else echo true; fi
       ;;
   esac
 }
@@ -185,11 +194,20 @@ osascript() {
 			require.NotContains(t, out, "Quitting application")
 			require.NotContains(t, out, "Relaunching application")
 
-			out, err = run(t, script, "quits")
+			for _, mode := range []string{"quits", "exits"} {
+				out, err = run(t, script, mode)
+				require.NoError(t, err, out)
+				require.Contains(t, out, "Application 'com.example.Foo' quit successfully.")
+				require.Contains(t, out, installer.replace)
+				require.Contains(t, out, "Relaunching application 'com.example.Foo'...")
+			}
+
+			out, err = run(t, script, "gone")
 			require.NoError(t, err, out)
-			require.Contains(t, out, "Application 'com.example.Foo' quit successfully.")
+			require.Contains(t, out, "Application 'com.example.Foo' isn't running; it won't be relaunched.")
+			require.NotContains(t, out, "did not quit")
 			require.Contains(t, out, installer.replace)
-			require.Contains(t, out, "Relaunching application 'com.example.Foo'...")
+			require.NotContains(t, out, "Relaunching application")
 
 			for _, mode := range []string{"ignores", "cancels"} {
 				out, err = run(t, script, mode)
@@ -1000,9 +1018,10 @@ func TestQuitMatchingApplicationsRunsMatches(t *testing.T) {
 		// Shell functions take precedence over the real commands. The running
 		// list includes a duplicate, a differently-cased match, IDs that only
 		// match as a substring or not at all, and a matching ID that carries
-		// AppleScript (a running app can report any bundle ID).
+		// AppleScript (a running app can report any bundle ID). The quit runs
+		// in a command substitution, so the stub records it in a file.
 		stubs := `list_fails=` + strconv.FormatBool(listFails) + `
-quit=" "
+quit_file=` + shellSingleQuote(filepath.Join(t.TempDir(), "quit")) + `
 stat() { echo ` + consoleUser + `; }
 sleep() { :; }
 osascript() {
@@ -1016,8 +1035,8 @@ osascript() {
   fi
   local id=$8
   case "$4" in
-    *" to quit") quit+="$id " ;;
-    *" is running") if [[ "$quit" == *" $id "* ]]; then echo false; else echo true; fi ;;
+    *" to quit") printf '%s\n' "$id" >> "$quit_file" ;;
+    *" is running") if grep -qxF -- "$id" "$quit_file" 2>/dev/null; then echo false; else echo true; fi ;;
   esac
 }
 `
@@ -1161,13 +1180,20 @@ func runStubbedUninstallScript(t *testing.T, script, running, stuck, canceled st
 		t.Skip("bash not found")
 	}
 
+	// The quit runs in a command substitution, so the stub records quit apps in
+	// quit_file and drops them from running on each call.
 	stubs := `running=" ` + running + ` "
 stuck=" ` + stuck + ` "
 canceled=" ` + canceled + ` "
+quit_file=` + shellSingleQuote(filepath.Join(t.TempDir(), "quit")) + `
 stat() { echo alice; }
 sleep() { SECONDS=$((SECONDS + $1)); }
 sudo() { echo "sudo $*"; }
 osascript() {
+  if [[ -e "$quit_file" ]]; then
+    local q
+    while IFS= read -r q; do running=${running/ $q / }; done < "$quit_file"
+  fi
   if [[ "$1" == "-l" ]]; then
     printf '%s\n' $running
     return
@@ -1176,7 +1202,7 @@ osascript() {
   case "$4" in
     *" to quit")
       [[ "$canceled" == *" $id "* ]] && return 1
-      [[ "$stuck" == *" $id "* ]] || running=${running/ $id / }
+      [[ "$stuck" == *" $id "* ]] || printf '%s\n' "$id" >> "$quit_file"
       return 0
       ;;
     *" is running")
@@ -1249,6 +1275,36 @@ func TestUninstallScriptStopsWhenAppWontQuit(t *testing.T) {
 	require.Zero(t, code, out)
 	require.Contains(t, out, "Application 'com.example.Updater' did not quit.")
 	require.Contains(t, out, remove)
+}
+
+// TestUninstallScriptCountsNoProcessAsQuit covers an app that 'is running'
+// keeps reporting after its process is gone, so every quit fails with -600.
+// The uninstall carries on instead of timing out.
+func TestUninstallScriptCountsNoProcessAsQuit(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("as root the wildcard helper lists apps through /bin/launchctl asuser, which can't be stubbed")
+	}
+	const remove = "sudo rm -rf /Applications//Foo.app"
+	gone := `eval "orig_$(declare -f osascript)"
+osascript() {
+  if [[ "$4" == *" to quit" && "$8" == com.example.Foo ]]; then
+    echo "36:76: execution error: Application isn’t running. (-600)" >&2
+    return 1
+  fi
+  orig_osascript "$@"
+}
+`
+	for _, quitIDs := range [][]string{{"com.example.Foo"}, {"com.example.Foo*"}} {
+		script := uninstallScriptForApp(inputApp{UniqueIdentifier: "com.example.Foo"}, &brewCask{Artifacts: []*brewArtifact{
+			{Uninstall: []*brewUninstall{{Quit: optjson.StringOr[[]string]{IsOther: true, Other: quitIDs}}}},
+			{App: []optjson.StringOr[*brewAppTarget]{{String: "Foo.app"}}},
+		}})
+		out, code := runStubbedUninstallScript(t, gone+script, "com.example.Foo", "", "")
+		require.Zero(t, code, out)
+		require.Contains(t, out, "Application 'com.example.Foo' isn't running.")
+		require.NotContains(t, out, "did not quit")
+		require.Contains(t, out, remove)
+	}
 }
 
 // TestUninstallScriptQuitsAppCaskDoesNotName covers casks whose uninstall quit
