@@ -274,6 +274,27 @@ func TestServiceAccountKeyNotJSON(t *testing.T) {
 	require.EqualError(t, err, "read the service account key: not a JSON object")
 }
 
+// Keys aren't validated on upload, so an unusable one must fail before reaching Google.
+func TestUnusableServiceAccountKey(t *testing.T) {
+	for name, edit := range map[string]func(map[string]string){
+		"private key not PEM": func(k map[string]string) { k["private_key"] = "not a key" },
+		"no private key":      func(k map[string]string) { delete(k, "private_key") },
+	} {
+		t.Run(name, func(t *testing.T) {
+			fake, creds := newTestGoogle(t)
+			key := keyFields(t, creds)
+			edit(key)
+			creds.ServiceAccountKey = marshalKey(t, key)
+			client, err := NewCloudIdentityFactory(discardLogger)(t.Context(), creds)
+			require.NoError(t, err)
+			err = client.CheckDelegation(t.Context())
+			require.ErrorContains(t, err, "private key should be a PEM")
+			require.Empty(t, fake.assertions)
+			require.Empty(t, fake.requests)
+		})
+	}
+}
+
 func TestCloudIdentityCallStopsOnCancel(t *testing.T) {
 	client, fake := newTestCloudIdentity(t)
 	release := make(chan struct{})

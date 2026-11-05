@@ -1525,6 +1525,13 @@ allow {
   action == write
 }
 
+# Global admins can configure Google conditional access.
+allow {
+  object.type == "conditional_access_google"
+  subject.global_role == admin
+  action == write
+}
+
 ##
 # Microsoft Graph credentials
 ##
