@@ -2844,6 +2844,11 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 					return err
 				}
 			}
+			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForAndroidMDMHosts {
+				if err := rejectSharedSecretForMDMManagedAndroidHost(ctx, enrolledHostInfo.ID, enrolledHostInfo.Platform); err != nil {
+					return err
+				}
+			}
 			if !enrolledHostInfo.HasUUID {
 				if err := rejectUUIDOfAnotherMDMHost(ctx, tx, hostInfo.HardwareUUID, enrolledHostInfo.ID); err != nil {
 					return err
@@ -2910,6 +2915,11 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 			}
 			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForWindowsMDMHosts {
 				if err := rejectSharedSecretForMDMLinkedWindowsUUID(ctx, tx, hostInfo.HardwareUUID); err != nil {
+					return err
+				}
+			}
+			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForAndroidMDMHosts {
+				if err := rejectSharedSecretForAndroidDeviceUUID(ctx, tx, hostInfo.HardwareUUID); err != nil {
 					return err
 				}
 			}
@@ -3090,6 +3100,11 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 					return err
 				}
 			}
+			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForAndroidMDMHosts {
+				if err := rejectSharedSecretForAndroidDeviceUUID(ctx, tx, hardwareUUID); err != nil {
+					return err
+				}
+			}
 			if err := rejectUUIDOfAnotherMDMHost(ctx, tx, hardwareUUID, 0); err != nil {
 				return err
 			}
@@ -3161,6 +3176,11 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 			}
 			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForWindowsMDMHosts {
 				if err := rejectSharedSecretForMDMManagedWindowsHost(ctx, tx, enrolledHostInfo.ID, enrolledHostInfo.Platform, fleet.EnrollmentPlaneOsquery); err != nil {
+					return err
+				}
+			}
+			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForAndroidMDMHosts {
+				if err := rejectSharedSecretForMDMManagedAndroidHost(ctx, enrolledHostInfo.ID, enrolledHostInfo.Platform); err != nil {
 					return err
 				}
 			}

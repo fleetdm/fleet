@@ -203,6 +203,8 @@ type DatastoreEnrollOrbitConfig struct {
 	RejectSharedSecretForAppleMDMHosts bool
 	// RejectSharedSecretForWindowsMDMHosts refuses a shared enroll secret that would claim a Windows host enrolled in Fleet MDM.
 	RejectSharedSecretForWindowsMDMHosts bool
+	// RejectSharedSecretForAndroidMDMHosts refuses a shared enroll secret that would claim an Android host enrolled in Fleet MDM.
+	RejectSharedSecretForAndroidMDMHosts bool
 
 	// Created, when non-nil, is set to true if enrollment inserted a new hosts row.
 	Created *bool
@@ -268,6 +270,12 @@ func WithEnrollOrbitRejectSharedSecretForAppleMDMHosts(reject bool) DatastoreEnr
 func WithEnrollOrbitRejectSharedSecretForWindowsMDMHosts(reject bool) DatastoreEnrollOrbitOption {
 	return func(c *DatastoreEnrollOrbitConfig) {
 		c.RejectSharedSecretForWindowsMDMHosts = reject
+	}
+}
+
+func WithEnrollOrbitRejectSharedSecretForAndroidMDMHosts(reject bool) DatastoreEnrollOrbitOption {
+	return func(c *DatastoreEnrollOrbitConfig) {
+		c.RejectSharedSecretForAndroidMDMHosts = reject
 	}
 }
 

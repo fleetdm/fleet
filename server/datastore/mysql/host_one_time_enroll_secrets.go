@@ -758,3 +758,89 @@ func rejectSharedSecretForMDMManagedWindowsHost(
 	}
 	return nil
 }
+
+// MintAndroidOneTimeEnrollSecret returns the one-time enroll secret to put in the Fleet Android agent's managed configuration.
+// The configuration is rebuilt whenever the host's apps or certificate templates change, so an unconsumed secret is returned
+// again rather than churned. Once the agent has used it, the next build mints a fresh one, which is what lets the agent enroll
+// again later.
+func (ds *Datastore) MintAndroidOneTimeEnrollSecret(ctx context.Context, hostID uint) (string, error) {
+	var secret string
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var hosts []struct {
+			UUID           string `db:"uuid"`
+			TeamID         *uint  `db:"team_id"`
+			HardwareSerial string `db:"hardware_serial"`
+		}
+		// FOR UPDATE on the hosts row serializes concurrent mints for the same host, as in mintHostOneTimeEnrollSecret.
+		if err := sqlx.SelectContext(ctx, tx, &hosts,
+			`SELECT uuid, team_id, hardware_serial FROM hosts WHERE id = ? AND platform = 'android' FOR UPDATE`, hostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "load android host for one-time enroll secret")
+		}
+		if len(hosts) == 0 {
+			return ctxerr.Wrap(ctx, notFound("Host").WithID(hostID), "minting android one-time enroll secret")
+		}
+		host := hosts[0]
+		if host.UUID == "" {
+			return ctxerr.Errorf(ctx, "android host %d has no uuid to bind a one-time enroll secret to", hostID)
+		}
+
+		var existing []string
+		if err := sqlx.SelectContext(ctx, tx, &existing,
+			`SELECT secret FROM host_one_time_enroll_secrets WHERE host_id = ? AND consumed_at IS NULL ORDER BY id DESC LIMIT 1`,
+			hostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "load unconsumed android one-time enroll secret")
+		}
+		if len(existing) == 1 {
+			secret = existing[0]
+			return nil
+		}
+
+		tok, err := fleet.GenerateRandom32ByteEntropyURLSafeToken()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "generate android one-time enroll secret")
+		}
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO host_one_time_enroll_secrets
+				(secret, host_id, team_id, platform, hardware_uuid, hardware_serial)
+			VALUES (?, ?, ?, 'android', ?, ?)`,
+			string(tok), hostID, host.TeamID, host.UUID, host.HardwareSerial); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert android one-time enroll secret")
+		}
+		secret = string(tok)
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return secret, nil
+}
+
+// rejectSharedSecretForMDMManagedAndroidHost refuses a shared enroll secret for a matched Android host. Android hosts are only
+// created by Android MDM enrollment, and the Fleet Android agent gets a one-time secret through its managed configuration, so a
+// shared secret landing on one can only be another device presenting the host's identifiers. platform is the matched row's.
+func rejectSharedSecretForMDMManagedAndroidHost(ctx context.Context, hostID uint, platform string) error {
+	if platform != "android" {
+		return nil
+	}
+	return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, HostID: &hostID},
+		"shared enroll secret presented for android host")
+}
+
+// rejectSharedSecretForAndroidDeviceUUID refuses a shared enroll secret that would insert a host with the enterprise-specific ID
+// of an Android device Fleet manages. The device record outlives a deleted host, and Android enrollment would later adopt the
+// inserted row, keeping the orbit node key of whoever inserted it.
+func rejectSharedSecretForAndroidDeviceUUID(ctx context.Context, tx sqlx.QueryerContext, hardwareUUID string) error {
+	if hardwareUUID == "" {
+		return nil
+	}
+	var managed bool
+	if err := sqlx.GetContext(ctx, tx, &managed,
+		`SELECT EXISTS (SELECT 1 FROM android_devices WHERE enterprise_specific_id = ?)`, hardwareUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "check android device with enrolling uuid")
+	}
+	if managed {
+		return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedSharedSecretForMDMManagedHost},
+			"shared enroll secret presented for the uuid of an android device")
+	}
+	return nil
+}

@@ -2428,6 +2428,8 @@ type AuthSettings struct {
 	MDMAppleOneTimeEnrollSecrets bool `json:"mdm_apple_one_time_enroll_secrets,omitempty"`
 	// MDMWindowsOneTimeEnrollSecrets mirrors the mdm.windows_one_time_enroll_secrets server configuration.
 	MDMWindowsOneTimeEnrollSecrets bool `json:"mdm_windows_one_time_enroll_secrets,omitempty"`
+	// MDMAndroidOneTimeEnrollSecrets mirrors the mdm.android_one_time_enroll_secrets server configuration.
+	MDMAndroidOneTimeEnrollSecrets bool `json:"mdm_android_one_time_enroll_secrets,omitempty"`
 }
 
 // LicenseInfo contains information about the Fleet license.

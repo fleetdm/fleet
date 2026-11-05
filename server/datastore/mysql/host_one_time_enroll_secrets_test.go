@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -38,6 +39,8 @@ func TestHostOneTimeEnrollSecrets(t *testing.T) {
 		{"WindowsDeletedHostFleet", testOneTimeEnrollSecretWindowsDeletedHostFleet},
 		{"WindowsDeleteUnusedSecrets", testOneTimeEnrollSecretWindowsDeleteUnusedSecrets},
 		{"FleetdProfileByTeamAndIdentifier", testFleetdProfileByTeamAndIdentifier},
+		{"AndroidMint", testOneTimeEnrollSecretAndroidMint},
+		{"AndroidRejectShared", testOneTimeEnrollSecretAndroidRejectShared},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1408,4 +1411,191 @@ func testOneTimeEnrollSecretWindowsDeleteUnusedSecrets(t *testing.T, ds *Datasto
 		require.NoError(t, ds.DeleteUnusedWindowsMDMOneTimeEnrollSecrets(ctx, enrollmentID))
 		require.Equal(t, 1, countWindowsOneTimeEnrollSecrets(t, ds, enrollmentID))
 	}
+}
+
+func newOneTimeSecretAndroidHost(t *testing.T, ds *Datastore, teamID *uint) *fleet.Host {
+	androidHost := createAndroidHost(strings.ToLower(uuid.NewString()))
+	androidHost.Host.TeamID = teamID
+	created, err := ds.NewAndroidHost(t.Context(), androidHost, false)
+	require.NoError(t, err)
+	return created.Host
+}
+
+// androidAgentEnrollOpts enrolls orbit the way the Fleet Android agent does: it presents its enterprise-specific ID as both the
+// hardware UUID and the serial.
+func androidAgentEnrollOpts(esid, platform string, extra ...fleet.DatastoreEnrollOrbitOption) []fleet.DatastoreEnrollOrbitOption {
+	return append([]fleet.DatastoreEnrollOrbitOption{
+		fleet.WithEnrollOrbitMDMEnabled(true),
+		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+			HardwareUUID:   esid,
+			HardwareSerial: esid,
+			Platform:       platform,
+		}),
+		fleet.WithEnrollOrbitNodeKey(uuid.NewString()),
+	}, extra...)
+}
+
+func androidOrbitNodeKey(t *testing.T, ds *Datastore, hostID uint) *string {
+	var key *string
+	require.NoError(t, sqlx.GetContext(t.Context(), ds.writer(t.Context()), &key, `SELECT orbit_node_key FROM hosts WHERE id = ?`, hostID))
+	return key
+}
+
+func testOneTimeEnrollSecretAndroidMint(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "android fleet"})
+	require.NoError(t, err)
+	h := newOneTimeSecretAndroidHost(t, ds, &team.ID)
+
+	secret, err := ds.MintAndroidOneTimeEnrollSecret(ctx, h.ID)
+	require.NoError(t, err)
+	row, err := ds.GetHostOneTimeEnrollSecret(ctx, secret)
+	require.NoError(t, err)
+	require.Equal(t, h.ID, *row.HostID)
+	require.Equal(t, team.ID, *row.TeamID)
+	require.Equal(t, "android", row.Platform)
+	require.Equal(t, h.UUID, row.HardwareUUID)
+	require.Nil(t, row.MDMWindowsEnrollmentID)
+	require.Nil(t, row.ConsumedAt)
+
+	// Rebuilding the managed configuration must not churn an unconsumed secret.
+	again, err := ds.MintAndroidOneTimeEnrollSecret(ctx, h.ID)
+	require.NoError(t, err)
+	require.Equal(t, secret, again)
+
+	_, err = ds.EnrollOrbit(ctx, androidAgentEnrollOpts(h.UUID, "android", fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
+	require.NoError(t, err)
+
+	// Once used, the next build mints a fresh secret so the agent can enroll again later.
+	fresh, err := ds.MintAndroidOneTimeEnrollSecret(ctx, h.ID)
+	require.NoError(t, err)
+	require.NotEqual(t, secret, fresh)
+
+	t.Run("concurrent mints share one secret", func(t *testing.T) {
+		other := newOneTimeSecretAndroidHost(t, ds, nil)
+		const workers = 8
+		secrets := make([]string, workers)
+		var wg sync.WaitGroup
+		for i := range workers {
+			wg.Go(func() {
+				s, err := ds.MintAndroidOneTimeEnrollSecret(ctx, other.ID)
+				assert.NoError(t, err)
+				secrets[i] = s
+			})
+		}
+		wg.Wait()
+		for _, s := range secrets {
+			require.Equal(t, secrets[0], s)
+		}
+	})
+
+	t.Run("only android hosts", func(t *testing.T) {
+		mac := newOneTimeSecretTestHost(t, ds, "darwin", nil)
+		_, err := ds.MintAndroidOneTimeEnrollSecret(ctx, mac.ID)
+		require.True(t, fleet.IsNotFound(err), err)
+		_, err = ds.MintAndroidOneTimeEnrollSecret(ctx, mac.ID+1000)
+		require.True(t, fleet.IsNotFound(err), err)
+	})
+}
+
+func testOneTimeEnrollSecretAndroidRejectShared(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	victimFleet, err := ds.NewTeam(ctx, &fleet.Team{Name: "victim fleet"})
+	require.NoError(t, err)
+	attackerFleet, err := ds.NewTeam(ctx, &fleet.Team{Name: "attacker fleet"})
+	require.NoError(t, err)
+	reject := fleet.WithEnrollOrbitRejectSharedSecretForAndroidMDMHosts(true)
+	rejectOsquery := fleet.WithEnrollOsqueryRejectSharedSecretForAndroidMDMHosts(true)
+	attackerTeam := fleet.WithEnrollOrbitTeamID(&attackerFleet.ID)
+
+	t.Run("before the agent enrolled", func(t *testing.T) {
+		h := newOneTimeSecretAndroidHost(t, ds, &victimFleet.ID)
+
+		_, err := ds.EnrollOrbit(ctx, androidAgentEnrollOpts(h.UUID, "android", attackerTeam, reject)...)
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, &h.ID)
+		require.Nil(t, androidOrbitNodeKey(t, ds, h.ID))
+
+		// The host's own one-time secret is accepted.
+		secret, err := ds.MintAndroidOneTimeEnrollSecret(ctx, h.ID)
+		require.NoError(t, err)
+		row, err := ds.GetHostOneTimeEnrollSecret(ctx, secret)
+		require.NoError(t, err)
+		enrolled, err := ds.EnrollOrbit(ctx, androidAgentEnrollOpts(h.UUID, "android", reject, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
+		require.NoError(t, err)
+		require.Equal(t, h.ID, enrolled.ID)
+
+		// Used once by orbit, it can't be replayed.
+		_, err = ds.EnrollOrbit(ctx, androidAgentEnrollOpts(h.UUID, "android", reject, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedOneTimeSecretSpent, &h.ID)
+	})
+
+	t.Run("after the agent enrolled", func(t *testing.T) {
+		h := newOneTimeSecretAndroidHost(t, ds, &victimFleet.ID)
+		secret, err := ds.MintAndroidOneTimeEnrollSecret(ctx, h.ID)
+		require.NoError(t, err)
+		row, err := ds.GetHostOneTimeEnrollSecret(ctx, secret)
+		require.NoError(t, err)
+		_, err = ds.EnrollOrbit(ctx, androidAgentEnrollOpts(h.UUID, "android", fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
+		require.NoError(t, err)
+		agentKey := androidOrbitNodeKey(t, ds, h.ID)
+		require.NotNil(t, agentKey)
+
+		// The agent's enrollment set osquery_host_id to the ID, so any presented platform matches the row.
+		for _, platform := range []string{"android", "", "darwin", "windows"} {
+			_, err = ds.EnrollOrbit(ctx, androidAgentEnrollOpts(h.UUID, platform, attackerTeam, reject)...)
+			requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, &h.ID)
+		}
+		_, err = ds.EnrollOsquery(ctx, osqueryEnrollOpts(h, &attackerFleet.ID, rejectOsquery)...)
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, &h.ID)
+		require.Equal(t, agentKey, androidOrbitNodeKey(t, ds, h.ID))
+
+		// Switch off: shared secrets keep working as before.
+		_, err = ds.EnrollOrbit(ctx, androidAgentEnrollOpts(h.UUID, "android", attackerTeam)...)
+		require.NoError(t, err)
+	})
+
+	t.Run("other platforms are unaffected", func(t *testing.T) {
+		for _, platform := range []string{"darwin", "windows", "ubuntu"} {
+			h := newOneTimeSecretTestHost(t, ds, platform, nil)
+			_, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, reject)...)
+			require.NoError(t, err, platform)
+			_, err = ds.EnrollOsquery(ctx, osqueryEnrollOpts(h, nil, rejectOsquery)...)
+			require.NoError(t, err, platform)
+		}
+	})
+
+	t.Run("deleted host", func(t *testing.T) {
+		h := newOneTimeSecretAndroidHost(t, ds, &victimFleet.ID)
+		secret, err := ds.MintAndroidOneTimeEnrollSecret(ctx, h.ID)
+		require.NoError(t, err)
+		row, err := ds.GetHostOneTimeEnrollSecret(ctx, secret)
+		require.NoError(t, err)
+		require.NoError(t, ds.DeleteHost(ctx, h.ID))
+
+		// The device record outlives the host, so a shared secret can't insert a row for its ID on either plane, whatever the
+		// presented platform.
+		for _, platform := range []string{"android", ""} {
+			_, err = ds.EnrollOrbit(ctx, androidAgentEnrollOpts(h.UUID, platform, attackerTeam, reject)...)
+			requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, nil)
+		}
+		_, err = ds.EnrollOsquery(ctx, osqueryEnrollOpts(h, &attackerFleet.ID, rejectOsquery)...)
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, nil)
+
+		// Deleting the host deleted its secret too.
+		_, err = ds.GetHostOneTimeEnrollSecret(ctx, secret)
+		require.True(t, fleet.IsNotFound(err), err)
+
+		// Android enrollment brings the host back on the device's next status report, and the agent configuration it sends
+		// then carries a new secret.
+		recreated, err := ds.NewAndroidHost(ctx, createAndroidHost(h.UUID), false)
+		require.NoError(t, err)
+		require.NotEqual(t, h.ID, recreated.Host.ID)
+		secret, err = ds.MintAndroidOneTimeEnrollSecret(ctx, recreated.Host.ID)
+		require.NoError(t, err)
+		row, err = ds.GetHostOneTimeEnrollSecret(ctx, secret)
+		require.NoError(t, err)
+		enrolled, err := ds.EnrollOrbit(ctx, androidAgentEnrollOpts(h.UUID, "android", reject, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
+		require.NoError(t, err)
+		require.Equal(t, recreated.Host.ID, enrolled.ID)
+	})
 }
