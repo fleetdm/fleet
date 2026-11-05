@@ -3903,7 +3903,7 @@ Response payload for a Windows host (other host fields not shown):
   "hosts": [
     {
       "platform": "windows",
-      "os_name": "Microsoft Windows 11 Home Single Language 23H2",
+      "os_name": "Windows 11 Home Single Language 23H2",
       "os_version": "10.0.22631.5335"
     }
   ]
@@ -15113,8 +15113,8 @@ Returns a list of all operating systems.
     {
       "os_version_id": 123,
       "hosts_count": 21,
-      "name": "Microsoft Windows 11 Pro 23H2 10.0.22621.1234",
-      "name_only": "Microsoft Windows 11 Pro 23H2",
+      "name": "Windows 11 Pro 23H2 10.0.22621.1234",
+      "name_only": "Windows 11 Pro 23H2",
       "version": "10.0.22621.1234",
       "platform": "windows",
       "generated_cpes": [],
@@ -15483,8 +15483,8 @@ Retrieves information about the specified operating system (OS) version.
   "os_version": {
     "os_version_id": 123,
     "hosts_count": 21,
-    "name": "Microsoft Windows 11 Pro 23H2 10.0.22621.1234",
-    "name_only": "Microsoft Windows 11 Pro 23H2",
+    "name": "Windows 11 Pro 23H2 10.0.22621.1234",
+    "name_only": "Windows 11 Pro 23H2",
     "version": "10.0.22621.1234",
     "platform": "windows",
     "generated_cpes": [],
