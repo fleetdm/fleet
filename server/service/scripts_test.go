@@ -1437,3 +1437,57 @@ func TestScriptFleetVariablesValidation(t *testing.T) {
 		})
 	})
 }
+
+func TestUpdateScriptValidatesFileType(t *testing.T) {
+	ds := new(mock.Store)
+	lic := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: lic, SkipCreateTestUsers: true})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) {
+		return &fleet.Script{ID: id, Name: map[uint]string{1: "fix.py", 2: "fix.ps1", 3: "fix.sh"}[id]}, nil
+	}
+	ds.UpdateScriptContentsFunc = func(ctx context.Context, scriptID uint, contents string) (*fleet.Script, error) {
+		return &fleet.Script{ID: scriptID, ScriptContents: contents}, nil
+	}
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+		return nil
+	}
+
+	const (
+		pyErr  = `Python scripts must start with a python shebang (for example, "#!/usr/bin/env python3").`
+		ps1Err = `PowerShell scripts must not start with a shebang ("#!").`
+		shErr  = `Shell scripts must use a shell shebang (for example, "#!/bin/sh") or no shebang. For Python, use a ".py" script.`
+	)
+	for _, tc := range []struct {
+		name     string
+		id       uint
+		contents string
+		wantErr  string // empty means the contents are saved
+	}{
+		{"py without shebang", 1, `print("no shebang")`, pyErr},
+		{"ps1 with shell shebang", 2, "#!/bin/bash\necho hi", ps1Err},
+		{"ps1 with pwsh shebang", 2, "#!/usr/bin/pwsh\nWrite-Host hi", ps1Err},
+		{"sh with python shebang", 3, "#!/usr/bin/env python3\nprint(1)", shErr},
+		{"py with python shebang", 1, "#!/usr/bin/env python3\nprint(\"ok\")", ""},
+		{"ps1 without shebang", 2, "Write-Host hi", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds.UpdateScriptContentsFuncInvoked = false
+			saved, err := svc.UpdateScript(ctx, tc.id, strings.NewReader(tc.contents))
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+				require.True(t, ds.UpdateScriptContentsFuncInvoked)
+				require.Equal(t, tc.contents, saved.ScriptContents)
+				return
+			}
+			require.ErrorContains(t, err, tc.wantErr)
+			var invalidArgErr *fleet.InvalidArgumentError
+			require.ErrorAs(t, err, &invalidArgErr)
+			require.False(t, ds.UpdateScriptContentsFuncInvoked)
+		})
+	}
+}

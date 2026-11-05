@@ -64,10 +64,13 @@ func TestMigrationStatusFleet4Upgrade(t *testing.T) {
 	status, err := ds.MigrationStatus(ctx)
 	require.NoError(t, err)
 	assert.EqualValues(t, fleet.SomeMigrationsCompleted, status.StatusCode)
-	assert.Equal(t, []int64{tables.Fleet5BaselineVersion}, status.MissingTable)
+	fleet5Versions := getVersionsFromMigrations(tables.MigrationClient.Migrations)
+	assert.ElementsMatch(t, fleet5Versions, status.MissingTable)
 
-	_, err = ds.writer(ctx).Exec(`INSERT INTO `+tables.MigrationClient.TableName+` (version_id, is_applied) VALUES (?, 1)`, tables.Fleet5BaselineVersion)
-	require.NoError(t, err)
+	for _, v := range fleet5Versions {
+		_, err = ds.writer(ctx).Exec(`INSERT INTO `+tables.MigrationClient.TableName+` (version_id, is_applied) VALUES (?, 1)`, v)
+		require.NoError(t, err)
+	}
 	status, err = ds.MigrationStatus(ctx)
 	require.NoError(t, err)
 	assert.EqualValues(t, fleet.AllMigrationsCompleted, status.StatusCode)

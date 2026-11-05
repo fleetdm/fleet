@@ -1147,7 +1147,7 @@ func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *
 				RequestType:    "AccountConfiguration",
 			},
 		})
-		if err != nil {
+		if err != nil && !fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx, err, "list AccountConfiguration commands")
 		}
 		var acctConfigCmdUUID string

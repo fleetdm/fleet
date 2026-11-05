@@ -321,13 +321,17 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 
 	// Attempt to retrieve a host by identifier should succeed, but return the host id
 	// and nothing else: GitOps is denied on every other host read endpoint, and only
-	// needs the id here to resolve an identifier for the Puppet module's
-	// profile pre-assignment. Asserting on the raw body since decoding into a
-	// response struct wouldn't catch extra fields.
+	// gets the id here, a documented permission kept for compatibility. Asserting on
+	// the raw body since decoding into a response struct wouldn't catch extra fields.
 	resp := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", h1.Hostname), hostByIdentifierRequest{}, http.StatusOK)
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	require.JSONEq(t, fmt.Sprintf(`{"host":{"id":%d}}`, h1.ID), string(body))
+
+	// GET /hosts/:id is denied for an identifier and for an id, and doesn't reveal which values match a host.
+	for _, identifier := range []string{h1.Hostname, fmt.Sprint(h1.ID), "no-such-host"} {
+		s.Do("GET", "/api/latest/fleet/hosts/"+identifier, nil, http.StatusForbidden)
+	}
 
 	// Attempt to filter hosts using labels, should fail (label ID 6 is the builtin label "All Hosts")
 	s.DoJSON("GET", "/api/latest/fleet/labels/6/hosts", nil, http.StatusOK, &listHostsResponse{})
