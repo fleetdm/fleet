@@ -135,7 +135,7 @@ jobs:
         test "$(yq eval-all "${CRON} | .nodeSelector.\"example.com/node-pool\"" "${FILE}")" = "batch"
         test "$(yq eval-all "${CRON} | .tolerations[0].key" "${FILE}")" = "example.com/batch"
         # An empty vulnProcessing.affinity falls back to the top-level affinity.
-        test "$(yq eval-all "${CRON} | .affinity.podAntiAffinity | length" "${FILE}")" != "0"
+        test "$(yq eval-all "${CRON} | .affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].podAffinityTerm.topologyKey" "${FILE}")" = "kubernetes.io/hostname"
         # The Deployment keeps the top-level values.
         test "$(yq eval-all "${DEPLOY} | .nodeSelector" "${FILE}")" = "null"
         test "$(yq eval-all "${DEPLOY} | .tolerations" "${FILE}")" = "null"
