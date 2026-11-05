@@ -33,7 +33,7 @@ reports:
   - path: ../platforms/macos/reports/macos-patch-history.reports.yml
 ```
 
-To use the Fleet UI instead, go to **Reports**, select the fleet, and select **Add report**. Paste the query below, select **Save report**, and set **Interval** to **Every day**.
+To use the Fleet UI instead, go to **Reports**, select the fleet, and select **Add report**. Paste the query below, select **Save report**, and set **Interval** to **Every 6 hours**.
 
 ```sql
 SELECT
@@ -56,12 +56,24 @@ The report returns three columns:
 
 The filter keeps only macOS updates. Background updates, like XProtect, Gatekeeper data, and Rosetta, also come from `softwareupdated`, but they have a package ID, so they're left out.
 
-Running the report once a day is enough. The install times come from the Mac's log, not from when the report ran. Because the report returns one row per host, Fleet never clips it, even with more hosts than the [report cap](https://fleetdm.com/docs/configuration/yaml-files#server-settings).
+The install times come from the Mac's log, not from when the report ran, so the report doesn't need to run often. Every 6 hours gets results from laptops that sleep part of the day without running the query more than needed. Because the report returns one row per host, Fleet never clips it, even with more hosts than the [report cap](https://fleetdm.com/docs/configuration/yaml-files#server-settings).
 
 
 ## Step 2: Wait for results
 
-Each Mac runs the report on its own schedule, so it can take up to a day for every Mac to send results. Macs that are offline send results the next time they check in.
+A report's interval counts how long fleetd has been running on the Mac, not time on the clock. While a Mac is asleep or turned off, the count stops. A Mac that's awake all day sends results within about 6 hours. A laptop that sleeps for much of the day can take a day or more.
+
+If you need numbers sooner, run the report live on Macs that are online with the [Run live report](https://fleetdm.com/docs/rest-api/rest-api#run-live-report) API, then pass the saved response to the script with `--report-file`:
+
+```bash
+curl -X POST "$FLEET_URL/api/v1/fleet/reports/123/run" \
+  -H "Authorization: Bearer $FLEET_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"host_ids": [1, 4, 34]}' > live.json
+python3 macos_time_to_patch.py --report-file live.json --out-dir out
+```
+
+Macs that don't respond within the live report timeout are left out, so use stored results for your regular numbers.
 
 To check, open the report in the Fleet UI and look at the number of hosts with results. Note the report's ID from the URL. If you added the report to several fleets, each fleet has its own report and ID.
 
@@ -149,7 +161,7 @@ Each row in the CSV has a `status`:
 | Problem | What to check |
 |---|---|
 | The script finds 0 hosts. | The report doesn't have results yet. Wait for Macs to run it, and check that the report targets macOS and that **Interval** isn't set to **Never**. |
-| A Mac is missing from the results. | The Mac hasn't run the report since you added it. Confirm it's online in Fleet. |
+| A Mac is missing from the results. | The Mac hasn't run the report since you added it. Report intervals only count time when the Mac is awake, so a Mac that's often asleep or turned off reports later. |
 | Every release for a Mac shows `no_history`. | The Mac's install log is newer than the releases, or the log is empty. Check `history_start` in the report. |
 
 
@@ -164,5 +176,5 @@ Each row in the CSV has a `status`:
 <meta name="authorFullName" value="Kitzy">
 <meta name="authorGitHubUsername" value="kitzy">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2026-11-03">
+<meta name="publishedOn" value="2026-11-05">
 <meta name="description" value="Measure how many days your Macs take to install Apple security updates, with a Fleet report and Apple release dates from SOFA.">

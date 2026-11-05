@@ -10,7 +10,7 @@
     updates (XProtect, Gatekeeper data, Rosetta) are excluded.
     Use with macos_time_to_patch.py to compare install times with Apple's release dates.
   discard_data: false
-  interval: 86400
+  interval: 21600 # 6 hours of fleetd running time; see the guide
   logging: snapshot
   observer_can_run: true
   platform: darwin
