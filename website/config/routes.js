@@ -1612,6 +1612,15 @@ module.exports.routes = {
   'GET /api/v1/microsoft-compliance-partner/device/message': { action: 'microsoft-proxy/get-one-compliance-status-result', },
   'GET /api/v1/microsoft-compliance-partner/adminconsent': { action: 'microsoft-proxy/receive-redirect-from-microsoft', },
 
+  //  ╔═╗╔═╗╔═╗╔═╗╦  ╔═╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
+  //  ║ ╦║ ║║ ║║ ╦║  ║╣   ╠═╝╠╦╝║ ║╔╩╦╝╚╦╝  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗
+  //  ╚═╝╚═╝╚═╝╚═╝╩═╝╚═╝  ╩  ╩╚═╚═╝╩ ╚═ ╩   ╚═╝╝╚╝═╩╝╩  ╚═╝╩╝╚╝ ╩ ╚═╝
+  'POST /api/v1/google-conditional-access': { action: 'google-proxy/create-google-conditional-access-customer', csrf: false },
+  'DELETE /api/v1/google-conditional-access': { action: 'google-proxy/remove-one-google-conditional-access-customer', csrf: false },
+  'POST /api/v1/google-conditional-access/android-device': { action: 'google-proxy/register-one-android-device', csrf: false },
+  'GET /api/v1/google-conditional-access/sign-in': { action: 'google-proxy/redirect-to-google-sign-in' },
+  'GET /api/v1/google-conditional-access/callback': { action: 'google-proxy/receive-redirect-from-google' },
+
   //
   //  ╦  ╦╔═╗╔═╗  ╔╦╗╔═╗╔╦╗╔═╗╔╦╗╔═╗╔╦╗╔═╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
   //  ╚╗╔╝╠═╝╠═╝  ║║║║╣  ║ ╠═╣ ║║╠═╣ ║ ╠═╣  ╠═╝╠╦╝║ ║╔╩╦╝╚╦╝  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗
