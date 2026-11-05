@@ -3562,7 +3562,7 @@ func (s *integrationEnterpriseTestSuite) TestNonPolicySoftwareInstallRetries() {
 
 // A PATCH that doesn't touch display_name on an installer with a stored
 // per-fleet display name override must still carry that override in the
-// edited_software activity — a prior regression emitted an empty string in
+// edited_software activity. A prior regression emitted an empty string in
 // that case, which reads as "cleared" to downstream consumers.
 func (s *integrationEnterpriseTestSuite) TestEditInstallerCarriesStoredDisplayName() {
 	t := s.T()
@@ -3577,6 +3577,7 @@ func (s *integrationEnterpriseTestSuite) TestEditInstallerCarriesStoredDisplayNa
 		Title:         "ruby",
 		Version:       "1:2.5.1",
 		Source:        "deb_packages",
+		StorageID:     "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
 		Platform:      "linux",
 		TeamID:        &team.ID,
 	}
