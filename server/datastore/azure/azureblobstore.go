@@ -42,25 +42,6 @@ func (fileNotFoundError) IsNotFound() bool {
 	return true
 }
 
-// apiError replaces the verbose *azcore.ResponseError message (request URL,
-// raw XML body, RequestId) with a short one, like S3's "api error <code>:
-// <message>". Unwrap returns a slice so that ctxerr.Cause stops here and the
-// API response shows this message, while errors.As and bloberror.HasCode can
-// still reach the SDK error.
-type apiError struct {
-	code    string
-	message string
-	err     error
-}
-
-func (e *apiError) Error() string {
-	return fmt.Sprintf("api error %s: %s", e.code, e.message)
-}
-
-func (e *apiError) Unwrap() []error {
-	return []error{e.err}
-}
-
 // misconfiguredCodes are the Azure error codes that mean the store is
 // misconfigured (credentials, permissions, network rules or container).
 var misconfiguredCodes = map[bloberror.Code]struct{}{
@@ -78,10 +59,9 @@ var misconfiguredCodes = map[bloberror.Code]struct{}{
 	bloberror.InvalidAuthenticationInfo:         {},
 }
 
-// newAPIError returns err as a *cloudstorage.MisconfiguredError if it is an
-// Azure response error caused by the store's configuration, as an *apiError
-// if it is any other Azure response error, otherwise it returns err
-// unchanged.
+// newAPIError returns err as a *cloudstorage.APIError if it is an Azure
+// response error, otherwise it returns err unchanged. The APIError is flagged
+// as misconfigured if the store's configuration caused the error.
 func newAPIError(err error, container string) error {
 	var respErr *azcore.ResponseError
 	if !errors.As(err, &respErr) {
@@ -99,21 +79,15 @@ func newAPIError(err error, container string) error {
 			var xmlErr struct {
 				Message string `xml:"Message"`
 			}
-			if xml.Unmarshal(body, &xmlErr) == nil {
-				// Azure appends RequestId and Time on separate lines.
-				firstLine, _, _ := strings.Cut(xmlErr.Message, "\n")
-				if firstLine = strings.TrimSpace(firstLine); firstLine != "" {
-					msg = firstLine
-				}
+			if xml.Unmarshal(body, &xmlErr) == nil && strings.TrimSpace(xmlErr.Message) != "" {
+				msg = xmlErr.Message
 			}
 		}
 	}
 
 	_, knownCode := misconfiguredCodes[bloberror.Code(code)]
-	if knownCode || respErr.StatusCode == http.StatusUnauthorized || respErr.StatusCode == http.StatusForbidden {
-		return cloudstorage.NewMisconfigured(err, "Azure", code, msg, "container: "+container)
-	}
-	return &apiError{code: code, message: msg, err: err}
+	misconfigured := knownCode || respErr.StatusCode == http.StatusUnauthorized || respErr.StatusCode == http.StatusForbidden
+	return cloudstorage.NewAPIError(err, "Azure", code, msg, "container: "+container, misconfigured)
 }
 
 // newAzureBlobStore initializes an Azure Blob Storage-backed store using
