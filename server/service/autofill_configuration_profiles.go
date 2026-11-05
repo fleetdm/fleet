@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -14,10 +15,12 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/profilevalidation"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	platform_errors "github.com/fleetdm/fleet/v4/server/platform/errors"
+	"golang.org/x/sync/singleflight"
 )
 
 const (
@@ -25,8 +28,9 @@ const (
 	// Lets developers and QA point Fleet at a local or preview website.
 	autofillConfigProfileBaseURLEnvVar = "FLEET_DEV_AI_AUTOFILL_BASE_URL"
 
-	autofillConfigProfileNameDescriptionPath = "/api/v1/get-llm-generated-configuration-profile-name-and-description"
-	autofillConfigProfileContentPath         = "/api/v1/get-llm-generated-configuration-profile"
+	autofillConfigProfileRegisterPath        = "/api/profile-generator/v1/register"
+	autofillConfigProfileNameDescriptionPath = "/api/profile-generator/v1/name-and-description"
+	autofillConfigProfileContentPath         = "/api/profile-generator/v1/profile"
 
 	// Generated profiles carry ADMX templates of several hundred KB, so this is well above any real response.
 	autofillConfigProfileMaxResponseBytes = 10 << 20
@@ -35,8 +39,11 @@ const (
 	autofillWindowsProfileCheckName = "AI generated profile"
 )
 
-// Just inside the UI's 10-second cap.  A var so tests can shorten it.
+// Just inside the UI's 10-second cap, for registering and generating together.  A var so tests can shorten it.
 var autofillConfigProfileTimeout = 9500 * time.Millisecond
+
+// Registering is a database write on fleetdm.com, so it gets a small part of the budget.
+const autofillConfigProfileRegistrationTimeout = 3 * time.Second
 
 ////////////////////////////////////////////////////////////////////////////////
 // Autofill configuration profile name and description
@@ -74,9 +81,19 @@ func (svc *Service) AutofillConfigProfileNameDescription(ctx context.Context, in
 		return "", "", err
 	}
 
-	status, body, err := postToConfigProfileGenerator(ctx, autofillConfigProfileNameDescriptionPath, instructions, platform)
+	callCtx, cancel := context.WithTimeout(ctx, autofillConfigProfileTimeout)
+	defer cancel()
+	credential, err := svc.profileGeneratorCredential(callCtx, fleet.AutofillConfigProfileNameDescriptionErrorMessage)
+	if err != nil {
+		return "", "", err
+	}
+
+	status, body, err := postToConfigProfileGenerator(callCtx, autofillConfigProfileNameDescriptionPath, instructions, platform, credential)
 	if err != nil {
 		return "", "", autofillUpstreamError(ctx, fleet.AutofillConfigProfileNameDescriptionErrorMessage, err)
+	}
+	if limitErr := autofillLimitError(ctx, fleet.AutofillConfigProfileNameDescriptionErrorMessage, status, body, time.Now()); limitErr != nil {
+		return "", "", limitErr
 	}
 	if status != http.StatusOK {
 		return "", "", autofillUnavailableError(ctx, fleet.AutofillConfigProfileNameDescriptionErrorMessage, status)
@@ -145,9 +162,20 @@ func (svc *Service) AutofillConfigProfileContent(ctx context.Context, instructio
 		}
 	}
 
-	status, body, err := postToConfigProfileGenerator(ctx, autofillConfigProfileContentPath, instructions, platform)
+	// Only the calls to fleetdm.com share the budget, not the checks that run on the profile afterward.
+	callCtx, cancel := context.WithTimeout(ctx, autofillConfigProfileTimeout)
+	defer cancel()
+	credential, err := svc.profileGeneratorCredential(callCtx, fleet.AutofillConfigProfileContentErrorMessage)
+	if err != nil {
+		return nil, err
+	}
+
+	status, body, err := postToConfigProfileGenerator(callCtx, autofillConfigProfileContentPath, instructions, platform, credential)
 	if err != nil {
 		return nil, autofillUpstreamError(ctx, fleet.AutofillConfigProfileContentErrorMessage, err)
+	}
+	if limitErr := autofillLimitError(ctx, fleet.AutofillConfigProfileContentErrorMessage, status, body, time.Now()); limitErr != nil {
+		return nil, limitErr
 	}
 
 	if status == http.StatusBadRequest {
@@ -317,23 +345,33 @@ func autofillConfigProfileBaseURL() string {
 
 // postToConfigProfileGenerator sends the instructions to fleetdm.com and returns the status and body.  It uses
 // the request's context, so a client that disconnects cancels the call.
-func postToConfigProfileGenerator(ctx context.Context, path, instructions, platform string) (int, []byte, error) {
-	reqBody, err := json.Marshal(map[string]any{
+func postToConfigProfileGenerator(ctx context.Context, path, instructions, platform string, credential profileGeneratorCredential) (int, []byte, error) {
+	reqBody := map[string]any{
 		"naturalLanguageInstructions": instructions,
 		"platform":                    platform,
-		"forFleet":                    true,
-	})
+	}
+	if credential.licenseKey != "" {
+		reqBody["fleetLicenseKey"] = credential.licenseKey
+	}
+	return postJSONToConfigProfileGenerator(ctx, path, reqBody, credential.secret)
+}
+
+func postJSONToConfigProfileGenerator(ctx context.Context, path string, reqBody map[string]any, bearerToken string) (int, []byte, error) {
+	encodedBody, err := json.Marshal(reqBody)
 	if err != nil {
 		return 0, nil, err
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, autofillConfigProfileTimeout)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, autofillConfigProfileBaseURL()+path, bytes.NewReader(reqBody))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, autofillConfigProfileBaseURL()+path, bytes.NewReader(encodedBody))
 	if err != nil {
 		return 0, nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if bearerToken != "" {
+		req.Header.Set("Authorization", "Bearer "+bearerToken)
+	}
 
 	resp, err := fleethttp.NewClient().Do(req)
 	if err != nil {
@@ -346,6 +384,161 @@ func postToConfigProfileGenerator(ctx context.Context, path, instructions, platf
 		return 0, nil, err
 	}
 	return resp.StatusCode, body, nil
+}
+
+// profileGeneratorCredential is what Fleet authenticates to the fleetdm.com configuration profile generator with:
+// its license key, or the secret it got by registering.
+type profileGeneratorCredential struct {
+	licenseKey string
+	secret     string
+}
+
+// Concurrent first requests in one process share a registration: the UI asks for a name and a profile at once.
+var profileGeneratorRegistrations singleflight.Group
+
+// profileGeneratorCredential returns the license key for an unexpired Premium license, and otherwise the stored
+// registration secret, registering first if there is none.
+func (svc *Service) profileGeneratorCredential(ctx context.Context, errMessage string) (profileGeneratorCredential, error) {
+	// fleetdm.com treats an expired license as Fleet Free, but IsPremium is still true for one.
+	if lic, ok := license.FromContext(ctx); ok {
+		if licInfo, ok := lic.(*fleet.LicenseInfo); ok && licInfo.IsPremium() && !licInfo.IsExpired() && svc.config.License.Key != "" {
+			return profileGeneratorCredential{licenseKey: svc.config.License.Key}, nil
+		}
+	}
+
+	// The secret is stored encrypted with the server private key.
+	privateKey := svc.config.Server.PrivateKey
+	if testSetEmptyPrivateKey {
+		privateKey = ""
+	}
+	if privateKey == "" {
+		return profileGeneratorCredential{}, ctxerr.Wrap(ctx, &fleet.AutofillConfigProfileError{
+			Message: errMessage,
+			Field:   "base",
+			Reason:  fleet.AutofillConfigProfileMissingPrivateKeyReason,
+		}, "no server private key to store the profile generator secret")
+	}
+
+	secret, err := svc.storedProfileGeneratorSecret(ctx)
+	if err != nil {
+		return profileGeneratorCredential{}, err
+	}
+	if secret != "" {
+		return profileGeneratorCredential{secret: secret}, nil
+	}
+
+	// Not tied to one request's cancellation, since the requests sharing it would all fail with it.
+	result, err, _ := profileGeneratorRegistrations.Do("register", func() (any, error) {
+		registerCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), autofillConfigProfileRegistrationTimeout)
+		defer cancel()
+		return svc.registerWithProfileGenerator(registerCtx)
+	})
+	if err != nil {
+		if regErr, ok := errors.AsType[*profileGeneratorRegistrationError](err); ok {
+			switch {
+			case regErr.status != 0:
+				return profileGeneratorCredential{}, autofillUnavailableError(ctx, errMessage, regErr.status)
+			case regErr.unreadable:
+				return profileGeneratorCredential{}, autofillUnreadableError(ctx, errMessage, regErr.err)
+			default:
+				return profileGeneratorCredential{}, autofillUpstreamError(ctx, errMessage, regErr.err)
+			}
+		}
+		return profileGeneratorCredential{}, err
+	}
+	return profileGeneratorCredential{secret: result.(string)}, nil
+}
+
+func (svc *Service) storedProfileGeneratorSecret(ctx context.Context) (string, error) {
+	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetProfileGeneratorFleetServerSecret}, nil)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return "", nil
+		}
+		return "", ctxerr.Wrap(ctx, err, "get profile generator secret")
+	}
+	return string(assets[fleet.MDMAssetProfileGeneratorFleetServerSecret].Value), nil
+}
+
+// profileGeneratorRegistrationError is a failed registration, mapped to an autofill error by each request that
+// shared it, since each reports it under its own message.
+type profileGeneratorRegistrationError struct {
+	status     int
+	unreadable bool
+	err        error
+}
+
+func (e *profileGeneratorRegistrationError) Error() string {
+	if e.status != 0 {
+		return "fleetdm.com returned " + http.StatusText(e.status) + " to registration"
+	}
+	return "registering with fleetdm.com: " + e.err.Error()
+}
+
+// registerWithProfileGenerator registers this Fleet server with the fleetdm.com configuration profile generator
+// and stores the secret it returns.  A rejected secret isn't registered again.
+func (svc *Service) registerWithProfileGenerator(ctx context.Context) (string, error) {
+	// Another request may have stored a secret since this one looked.
+	secret, err := svc.storedProfileGeneratorSecret(ctx)
+	if err != nil || secret != "" {
+		return secret, err
+	}
+
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "get app config")
+	}
+	status, body, err := postJSONToConfigProfileGenerator(ctx, autofillConfigProfileRegisterPath,
+		map[string]any{"fleetServerUrl": appConfig.ServerSettings.ServerURL}, "")
+	if err != nil {
+		return "", &profileGeneratorRegistrationError{err: err}
+	}
+	if status != http.StatusOK {
+		return "", &profileGeneratorRegistrationError{status: status}
+	}
+	var registration struct {
+		FleetServerSecret string `json:"fleetServerSecret"`
+	}
+	if err := json.Unmarshal(body, &registration); err != nil || registration.FleetServerSecret == "" {
+		return "", &profileGeneratorRegistrationError{unreadable: true, err: err}
+	}
+
+	if err := svc.ds.InsertOrReplaceMDMConfigAsset(ctx, fleet.MDMConfigAsset{
+		Name:  fleet.MDMAssetProfileGeneratorFleetServerSecret,
+		Value: []byte(registration.FleetServerSecret),
+	}); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "store profile generator secret")
+	}
+	svc.logger.InfoContext(ctx, "registered with the fleetdm.com configuration profile generator")
+	return registration.FleetServerSecret, nil
+}
+
+// autofillLimitError reports fleetdm.com's Fleet Free limit as the endpoint's own 429, or returns nil for any
+// other response.
+func autofillLimitError(ctx context.Context, message string, status int, body []byte, now time.Time) error {
+	if status != http.StatusTooManyRequests {
+		return nil
+	}
+	var limit struct {
+		Error    string    `json:"error"`
+		ResetsAt time.Time `json:"resetsAt"`
+	}
+	if json.Unmarshal(body, &limit) != nil || limit.Error != "generationLimitReached" {
+		return nil
+	}
+	// The limit resets on the 1st of the month (UTC), which is also the fallback if fleetdm.com sends no date.
+	resetsAt := limit.ResetsAt
+	if !resetsAt.After(now) {
+		nowUTC := now.UTC()
+		resetsAt = time.Date(nowUTC.Year(), nowUTC.Month()+1, 1, 0, 0, 0, 0, time.UTC)
+	}
+	return ctxerr.Wrap(ctx, &fleet.AutofillConfigProfileError{
+		Message:           message,
+		Field:             "base",
+		Reason:            fleet.AutofillConfigProfileLimitReachedReason,
+		Status:            http.StatusTooManyRequests,
+		RetryAfterSeconds: int(math.Ceil(resetsAt.Sub(now).Seconds())),
+	}, "profile generator limit reached")
 }
 
 func autofillUpstreamError(ctx context.Context, message string, err error) error {
