@@ -6118,6 +6118,7 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 			COALESCE(h.team_id, 0) as team_id,
 			hda.host_id IS NOT NULL AND hda.deleted_at IS NULL as dep_assigned_to_fleet,
 			h.node_key IS NOT NULL as osquery_enrolled,
+			COALESCE(hm.enrolled = 1 AND hm.is_personal_enrollment = 0 AND mdms.name = ?, false) AS fleet_enrolled_corporate,
 			EXISTS (SELECT 1 FROM nano_cert_auth_associations WHERE id = h.uuid AND renew_command_uuid IS NOT NULL) AS scep_renewal_in_progress,
 			h.platform,
 			hda.mdm_migration_deadline,
@@ -6129,12 +6130,15 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 			host_mdm hm
 		ON h.id = hm.host_id
 		LEFT JOIN
+			mobile_device_management_solutions mdms
+		ON hm.mdm_id = mdms.id
+		LEFT JOIN
 			host_display_names hd
 		ON h.id = hd.host_id
 		LEFT JOIN
 			host_dep_assignments hda
 		ON h.id = hda.host_id
-		WHERE h.uuid = ? LIMIT 1`, hostUUID)
+		WHERE h.uuid = ? LIMIT 1`, fleet.WellKnownMDMFleet, hostUUID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("Host").WithMessage(fmt.Sprintf("with UUID: %s", hostUUID)))

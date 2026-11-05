@@ -1923,7 +1923,7 @@ type Datastore interface {
 	// IngestMDMAppleDeviceFromOTAEnrollment creates new host records for
 	// MDM-enrolled devices via OTA that are not already enrolled in Fleet. It
 	// returns the IdP account the host was linked to before, empty if none.
-	IngestMDMAppleDeviceFromOTAEnrollment(ctx context.Context, teamID *uint, idpUUID string, deviceInfo MDMAppleMachineInfo) (previousAcctUUID string, err error)
+	IngestMDMAppleDeviceFromOTAEnrollment(ctx context.Context, teamID *uint, idpUUID string, deviceInfo MDMAppleMachineInfo, personalType PersonalEnrollmentType) (previousAcctUUID string, err error)
 
 	// MDMAppleUpsertHost creates or matches a Fleet host record for an
 	// MDM-enrolled device.
@@ -3003,6 +3003,7 @@ type Datastore interface {
 	// ListMDMCommands returns a list of MDM Apple commands that have been
 	// executed, based on the provided options.
 	// returns a non-nil count if filtering by command_status = pending
+	// It returns a NotFoundError when filtering by a host identifier that matches no host visible to tmFilter.
 	ListMDMCommands(ctx context.Context, tmFilter TeamFilter, listOpts *MDMCommandListOptions) ([]*MDMCommand, *int64, *PaginationMetadata, error)
 
 	// GetMDMWindowsBitLockerSummary summarizes the current state of Windows disk encryption on
