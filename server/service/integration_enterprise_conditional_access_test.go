@@ -2023,7 +2023,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessMicrosoftEntraDevi
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
 	require.NoError(t, err)
 	var tmResp teamResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), map[string]any{
 		"integrations": map[string]any{"conditional_access_enabled": true},
 	}, http.StatusOK, &tmResp)
 
@@ -2129,7 +2129,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessMicrosoftEntraDevi
 	// update mac1's device in Entra.
 	teamB, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-b"})
 	require.NoError(t, err)
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", teamB.ID), map[string]any{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamB.ID), map[string]any{
 		"integrations": map[string]any{"conditional_access_enabled": true},
 	}, http.StatusOK, &tmResp)
 	var pr fleet.TeamPolicyResponse
@@ -2175,7 +2175,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessMicrosoftEntraDevi
 	assertDeviceID(winB, "")
 
 	// Disabling the feature stops the request and the ingestion.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), map[string]any{
 		"integrations": map[string]any{"conditional_access_enabled": false},
 	}, http.StatusOK, &tmResp)
 	require.Nil(t, s.reportEntraDeviceToken(signer, mac2, testEntraDeviceID2, "user2@example.com", http.StatusBadRequest))
