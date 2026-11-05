@@ -182,7 +182,7 @@ GitHub issue: [#53080](https://github.com/fleetdm/fleet/issues/53080)
 
 `DELETE /api/v1/fleet/reports/:name` no longer deletes by name, and returns a `410` error. For a report whose name is only digits (for example `42`), it deletes the report with that ID instead. This includes `fleetctl delete` from Fleet 4.
 
-What to do: Before you upgrade, replace `DELETE /api/v1/fleet/reports/:name` with `DELETE /api/v1/fleet/reports/name/:name` in your scripts, and upgrade `fleetctl`. API-only users keep their delete report permissions. Fleet moves them to the new paths during the upgrade.
+What to do: After you upgrade to Fleet 5, upgrade `fleetctl` and switch scripts to `DELETE /api/v1/fleet/reports/name/:name`. API-only users keep their delete report permissions. Fleet moves them to the new paths during the upgrade.
 
 GitHub issue: [#53799](https://github.com/fleetdm/fleet/issues/53799)
 
