@@ -1,13 +1,17 @@
 package service
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
@@ -24,16 +28,42 @@ func (s *integrationMDMTestSuite) TestAutofillConfigProfiles() {
 
 	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"server_settings": {"ai_features_disabled": false}}`), http.StatusOK)
 
-	// A stand-in for fleetdm.com that answers the profile route with whatever the subtest set.
+	// The suite's license has no expiration, so it counts as expired and Fleet authenticates with a registration
+	// secret, which starts out unregistered and is cleaned up afterward.
+	deleteSecret := func(ctx context.Context) {
+		require.NoError(t, s.ds.HardDeleteMDMConfigAsset(ctx, fleet.MDMAssetProfileGeneratorFleetServerSecret))
+	}
+	deleteSecret(ctx)
+	// t.Context() is already canceled when cleanups run.
+	t.Cleanup(func() { deleteSecret(context.Background()) })
+
+	// A stand-in for fleetdm.com that registers Fleet and answers the profile route with whatever the subtest set.
+	// A generation status other than 0 replaces the answer on both generation routes.
 	var mu sync.Mutex
 	var contentBody string
-	var calls int
-	var lastRequest map[string]any
+	var calls, registrations int
+	var lastRequest, lastRegistration map[string]any
+	var lastAuthorization string
+	var generationStatus int
+	var generationBody string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		defer mu.Unlock()
 		calls++
+		if r.URL.Path == autofillConfigProfileRegisterPath {
+			registrations++
+			_ = json.NewDecoder(r.Body).Decode(&lastRegistration)
+			_, _ = w.Write([]byte(`{"fleetServerSecret": "integration-secret"}`))
+			return
+		}
+		lastRequest = nil
 		_ = json.NewDecoder(r.Body).Decode(&lastRequest)
+		lastAuthorization = r.Header.Get("Authorization")
+		if generationStatus != 0 {
+			w.WriteHeader(generationStatus)
+			_, _ = w.Write([]byte(generationBody))
+			return
+		}
 		if r.URL.Path == autofillConfigProfileNameDescriptionPath {
 			_, _ = w.Write([]byte(`{"name": "Disable AirDrop (macOS)", "description": "Sets allowAirDrop to false."}`))
 			return
@@ -54,6 +84,21 @@ func (s *integrationMDMTestSuite) TestAutofillConfigProfiles() {
 		mu.Lock()
 		defer mu.Unlock()
 		return calls
+	}
+	registrationCount := func() int {
+		mu.Lock()
+		defer mu.Unlock()
+		return registrations
+	}
+	setGenerationResponse := func(t *testing.T, status int, body string) {
+		mu.Lock()
+		generationStatus, generationBody = status, body
+		mu.Unlock()
+		t.Cleanup(func() {
+			mu.Lock()
+			generationStatus, generationBody = 0, ""
+			mu.Unlock()
+		})
 	}
 
 	type autofillErrorBody struct {
@@ -133,6 +178,55 @@ func (s *integrationMDMTestSuite) TestAutofillConfigProfiles() {
 </dict>
 </plist>`
 
+	t.Run("Fleet Free registers once with the server URL and reuses the secret", func(t *testing.T) {
+		appConfig, err := s.ds.AppConfig(ctx)
+		require.NoError(t, err)
+		for range 2 {
+			s.Do("POST", "/api/latest/fleet/autofill/configuration_profile/name_description", map[string]any{
+				"natural_language_instructions": "Turn off AirDrop", "platform": "apple",
+			}, http.StatusOK)
+		}
+		assert.Equal(t, 1, registrationCount())
+		mu.Lock()
+		assert.Equal(t, map[string]any{"fleetServerUrl": appConfig.ServerSettings.ServerURL}, lastRegistration)
+		assert.Equal(t, "Bearer integration-secret", lastAuthorization)
+		mu.Unlock()
+
+		assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetProfileGeneratorFleetServerSecret}, nil)
+		require.NoError(t, err)
+		assert.Equal(t, "integration-secret", string(assets[fleet.MDMAssetProfileGeneratorFleetServerSecret].Value))
+	})
+
+	t.Run("an unexpired Premium license sends its key and never registers", func(t *testing.T) {
+		// A second server on the same database, since the suite's license can't change while its server runs.
+		premiumConfig := s.fleetCfg
+		premiumConfig.License.Key = "integration-license-key"
+		_, premiumServer := RunServerForTestsWithDS(t, s.ds, &TestServerOpts{
+			License:             &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(time.Hour)},
+			FleetConfig:         &premiumConfig,
+			SkipCreateTestUsers: true,
+		})
+		testSetEmptyPrivateKey = true
+		t.Cleanup(func() { testSetEmptyPrivateKey = false })
+		registrationsBefore := registrationCount()
+
+		reqBody, err := json.Marshal(map[string]any{"natural_language_instructions": "Turn off AirDrop", "platform": "apple"})
+		require.NoError(t, err)
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, premiumServer.URL+"/api/latest/fleet/autofill/configuration_profile/name_description", bytes.NewReader(reqBody))
+		require.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer "+s.token)
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.Equal(t, http.StatusOK, resp.StatusCode, "works without a private key")
+
+		assert.Equal(t, registrationsBefore, registrationCount())
+		mu.Lock()
+		assert.Equal(t, map[string]any{"naturalLanguageInstructions": "Turn off AirDrop", "platform": "apple", "fleetLicenseKey": "integration-license-key"}, lastRequest)
+		assert.Empty(t, lastAuthorization)
+		mu.Unlock()
+	})
+
 	t.Run("mobileconfig named after its root PayloadDisplayName", func(t *testing.T) {
 		generate("mobileconfig", mobileconfigWithNestedName)
 		var resp autofillConfigProfileContentResponse
@@ -147,7 +241,8 @@ func (s *integrationMDMTestSuite) TestAutofillConfigProfiles() {
 		assert.Equal(t, "A note.", resp.DeliveryNotes)
 
 		mu.Lock()
-		assert.Equal(t, map[string]any{"naturalLanguageInstructions": "Turn off AirDrop", "platform": "apple", "forFleet": true}, lastRequest)
+		assert.Equal(t, map[string]any{"naturalLanguageInstructions": "Turn off AirDrop", "platform": "apple"}, lastRequest)
+		assert.Equal(t, "Bearer integration-secret", lastAuthorization)
 		mu.Unlock()
 	})
 
@@ -412,6 +507,49 @@ func (s *integrationMDMTestSuite) TestAutofillConfigProfiles() {
 		s.Do("POST", "/api/latest/fleet/autofill/configuration_profile/name_description", map[string]any{
 			"natural_language_instructions": "Turn off AirDrop", "platform": "apple",
 		}, http.StatusOK)
+	})
+
+	t.Run("fleetdm.com's limit is a 429 with Retry-After on both endpoints", func(t *testing.T) {
+		resetsAt := time.Now().Add(72 * time.Hour).UTC().Truncate(time.Second)
+		setGenerationResponse(t, http.StatusTooManyRequests, `{"error": "generationLimitReached", "resetsAt": "`+resetsAt.Format(time.RFC3339)+`"}`)
+
+		for path, message := range map[string]string{
+			"/api/latest/fleet/autofill/configuration_profile/content":          fleet.AutofillConfigProfileContentErrorMessage,
+			"/api/latest/fleet/autofill/configuration_profile/name_description": fleet.AutofillConfigProfileNameDescriptionErrorMessage,
+		} {
+			resp := s.Do("POST", path, map[string]any{"natural_language_instructions": "Turn off AirDrop", "platform": "apple"}, http.StatusTooManyRequests)
+			retryAfter, err := strconv.Atoi(resp.Header.Get("Retry-After"))
+			require.NoError(t, err, "Retry-After is a number of seconds")
+			assert.InDelta(t, 72*60*60, retryAfter, 10)
+			var body autofillErrorBody
+			require.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
+			assert.Equal(t, message, body.Message)
+			assert.Equal(t, []map[string]string{{"name": "base", "reason": fleet.AutofillConfigProfileLimitReachedReason}}, body.Errors)
+		}
+	})
+
+	t.Run("a rejected secret is unavailable and doesn't register again", func(t *testing.T) {
+		before := registrationCount()
+		setGenerationResponse(t, http.StatusUnauthorized, `Unauthorized`)
+		requireContentError(t, map[string]any{"natural_language_instructions": "Turn off AirDrop", "platform": "apple"}, "base", "The AI service is unavailable.")
+		assert.Equal(t, before, registrationCount())
+	})
+
+	t.Run("without a private key, Fleet Free is a 422 with no outbound call", func(t *testing.T) {
+		testSetEmptyPrivateKey = true
+		t.Cleanup(func() { testSetEmptyPrivateKey = false })
+		before := callCount()
+
+		requireContentError(t, map[string]any{"natural_language_instructions": "Turn off AirDrop", "platform": "apple"}, "base", fleet.AutofillConfigProfileMissingPrivateKeyReason)
+		resp := s.Do("POST", "/api/latest/fleet/autofill/configuration_profile/name_description", map[string]any{
+			"natural_language_instructions": "Turn off AirDrop", "platform": "apple",
+		}, http.StatusUnprocessableEntity)
+		var body autofillErrorBody
+		require.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
+		assert.Equal(t, fleet.AutofillConfigProfileNameDescriptionErrorMessage, body.Message)
+		assert.Equal(t, []map[string]string{{"name": "base", "reason": fleet.AutofillConfigProfileMissingPrivateKeyReason}}, body.Errors)
+
+		assert.Equal(t, before, callCount())
 	})
 
 	t.Run("nothing is saved and no activity is created", func(t *testing.T) {
