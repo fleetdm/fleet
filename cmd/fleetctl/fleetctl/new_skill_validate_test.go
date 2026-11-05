@@ -51,6 +51,14 @@ func TestNewFleetGitopsSkillValidatorQueries(t *testing.T) {
     source(name, idx) AS (VALUES ('ac', 'acsettingindex'), ('dc', 'dcsettingindex'))
     SELECT st.name || '_' || so.name AS k, (SELECT data FROM vals WHERE p = sc.guid || st.guid || so.idx) AS v
     FROM setting st, source so, scheme sc;
+- name: Materialized CTEs
+  platform: windows
+  interval: 3600
+  query: WITH m AS MATERIALIZED (SELECT data FROM registry WHERE path = 'a'), n AS NOT MATERIALIZED (SELECT data FROM registry WHERE path = 'b') SELECT * FROM m, n;
+- name: Function argument after an unaliased source
+  platform: darwin
+  interval: 3600
+  query: SELECT (SELECT COUNT(*) FROM pmset s, json_each(s.json_result)) AS nodes FROM users
 - name: Subquery aliases
   platform: darwin
   interval: 3600
@@ -67,6 +75,10 @@ func TestNewFleetGitopsSkillValidatorQueries(t *testing.T) {
   platform: darwin
   interval: 3600
   query: SELECT * FROM json_each(json_extract('[]', '$')) AS j, no_such_table AS n;
+- name: Unknown table in a function argument
+  platform: darwin
+  interval: 3600
+  query: SELECT * FROM json_each((SELECT value FROM no_such_table)) AS j;
 - name: Unknown table
   platform: darwin
   interval: 3600
@@ -101,6 +113,7 @@ func TestNewFleetGitopsSkillValidatorQueries(t *testing.T) {
 		"report 'Joins without aliases': table 'no_such_table_2' isn't in Fleet's osquery schema",
 		"report 'Named window': column 'no_such_column' isn't in table 'users'",
 		"report 'Unknown table after a function': table 'no_such_table' isn't in Fleet's osquery schema",
+		"report 'Unknown table in a function argument': table 'no_such_table' isn't in Fleet's osquery schema",
 		"report 'Unknown table': table 'no_such_table' isn't in Fleet's osquery schema",
 	}
 	require.Len(t, fails, len(want), string(out))

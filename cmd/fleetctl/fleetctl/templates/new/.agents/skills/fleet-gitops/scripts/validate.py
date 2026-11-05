@@ -441,13 +441,14 @@ def move_table_function_args(s):
     """Move SQLite table-valued function arguments to the end of s.
 
     A call's parentheses would end the comma-separated source list, hiding the sources after it. Keeping the
-    arguments means a subquery inside them is still checked."""
+    arguments means a subquery inside them is still checked. The ";" separators keep an argument from reading as an
+    alias of the query's last source."""
     call = re.compile(r"(?i)\b(?:" + "|".join(SQLITE_TABLE_FUNCTIONS) + r")\s*\(")
     args = []
     while True:
         m = call.search(s)
         if not m:
-            return s + " " + " ".join(args)
+            return s + "".join(" ; " + a for a in args)
         depth = 0
         for end in range(m.end() - 1, len(s)):
             depth += {"(": 1, ")": -1}.get(s[end], 0)
