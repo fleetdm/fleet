@@ -427,12 +427,20 @@ func (svc *Service) profileGeneratorCredential(ctx context.Context, errMessage s
 		return profileGeneratorCredential{secret: secret}, nil
 	}
 
-	// Not tied to one request's cancellation, since the requests sharing it would all fail with it.
-	result, err, _ := profileGeneratorRegistrations.Do("register", func() (any, error) {
+	// Not tied to one request's cancellation, since the requests sharing it would all fail with it, but each
+	// request stops waiting when its own context ends.
+	registration := profileGeneratorRegistrations.DoChan("register", func() (any, error) {
 		registerCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), autofillConfigProfileRegistrationTimeout)
 		defer cancel()
 		return svc.registerWithProfileGenerator(registerCtx)
 	})
+	var result any
+	select {
+	case res := <-registration:
+		result, err = res.Val, res.Err
+	case <-ctx.Done():
+		return profileGeneratorCredential{}, autofillUpstreamError(ctx, errMessage, ctx.Err())
+	}
 	if err != nil {
 		if regErr, ok := errors.AsType[*profileGeneratorRegistrationError](err); ok {
 			switch {
@@ -526,18 +534,20 @@ func autofillLimitError(ctx context.Context, message string, status int, body []
 	if json.Unmarshal(body, &limit) != nil || limit.Error != "generationLimitReached" {
 		return nil
 	}
-	// The limit resets on the 1st of the month (UTC), which is also the fallback if fleetdm.com sends no date.
+	// The limit resets on the 1st of the month (UTC), the fallback when fleetdm.com sends no date.
 	resetsAt := limit.ResetsAt
-	if !resetsAt.After(now) {
+	if resetsAt.IsZero() {
 		nowUTC := now.UTC()
 		resetsAt = time.Date(nowUTC.Year(), nowUTC.Month()+1, 1, 0, 0, 0, 0, time.UTC)
 	}
+	// A reset that has already passed, from clock skew or a response that arrived late, means try again now.
+	retryAfter := max(int(math.Ceil(resetsAt.Sub(now).Seconds())), 1)
 	return ctxerr.Wrap(ctx, &fleet.AutofillConfigProfileError{
 		Message:           message,
 		Field:             "base",
 		Reason:            fleet.AutofillConfigProfileLimitReachedReason,
 		Status:            http.StatusTooManyRequests,
-		RetryAfterSeconds: int(math.Ceil(resetsAt.Sub(now).Seconds())),
+		RetryAfterSeconds: retryAfter,
 	}, "profile generator limit reached")
 }
 
