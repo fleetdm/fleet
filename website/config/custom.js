@@ -252,6 +252,8 @@ module.exports.custom = {
     'website/views': ['eashaw', 'mike-j-thomas'],
     'website/generators': 'eashaw',
     'website/assets': 'eashaw',
+    'website/assets/js/pages': ['eashaw','mike-j-thomas'],
+    'website/assets/js/components': ['eashaw','mike-j-thomas'],
     'website/assets/styles': ['eashaw','mike-j-thomas'],
     'website/assets/images': ['eashaw','mike-j-thomas','allenhouchins'],
     'website/assets/videos': ['eashaw','mike-j-thomas'],
@@ -259,6 +261,8 @@ module.exports.custom = {
     'website/package.json': 'eashaw',
     'website/config/routes.js': ['eashaw', 'mike-j-thomas'],// (for managing website URLs)
     'website/config/policies.js': ['eashaw', 'mikermcneil'],// (for adding new pages and managing permissions)
+    'website/api/controllers/view-*': ['eashaw', 'mike-j-thomas'],// (page view actions; `*` matches within one folder only)
+    'website/api/controllers/landing-pages/view-*': ['eashaw', 'mike-j-thomas'],
     'website/api/controllers/webhooks/receive-from-clay.js': ['sampfluger88'],
     'website/api/helpers/salesforce': ['sampfluger88'],
 
