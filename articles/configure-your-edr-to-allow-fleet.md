@@ -57,13 +57,19 @@ See the [agent configuration docs](https://fleetdm.com/docs/configuration/agent-
 
 Some EDRs flag Fleet based on behavior rather than on the binary itself. For example, CrowdStrike Falcon uses indicators of attack (IOAs) to detect process chains that resemble an attacker using a software deployment tool to run code.
 
-When Fleet runs a script (such as a software install, post-install, or custom script), Orbit launches PowerShell on Windows as a child process. If your EDR flags that child process, the detection is on `powershell.exe`, not on Orbit. Publisher and path exclusions for Fleet won't apply, so you need a behavioral exclusion instead.
+Orbit launches PowerShell on Windows as a child process in two cases:
+
+- **Running scripts**, such as software install, post-install, and custom scripts.
+- **Checking BitLocker key protectors.** On Fleet 4.92 and later, this runs on every Windows host in a fleet with disk encryption enabled, each time the host's details refresh.
+
+If your EDR flags that child process, the detection is on `powershell.exe`, not on Orbit. Publisher and path exclusions for Fleet won't apply, so you need a behavioral exclusion instead.
 
 You may need a behavioral exclusion if:
 
 - Detections continue after you allowlist Fleet by publisher or path.
 - The flagged process is `powershell.exe` and its parent process is `orbit.exe`.
 - Alerts spike when Fleet installs software or when running scripts.
+- Alerts start on Windows hosts in a fleet with disk encryption enabled, for example after upgrading Fleet or after a host turns on MDM.
 
 Other EDRs offer similar behavioral exclusions under different names. Ask your EDR vendor where to configure them.
 
@@ -90,6 +96,21 @@ Tips:
 - Copy the script path from your own detection's command line. On Windows, processes running as SYSTEM may use `C:\Windows\SystemTemp` for temporary files.
 - Before saving, review the list of recent detections that Falcon shows the exclusion would have covered. Exclusions can take up to 40 minutes to take effect.
 - Scope the exclusion to a small host group first, then expand once detections stop.
+
+### Example: CrowdStrike Falcon IOA exclusion for the BitLocker check (Windows)
+
+In one CrowdStrike deployment, Falcon flagged Orbit's BitLocker key protector check with the `BundledMalware` IOA shortly after a Windows host turned on MDM. This was resolved with an IOA exclusion scoped to the BitLocker command launched by Orbit:
+
+```
+IOA name:              BundledMalware  (use the IOA name from your detection)
+Image filename:        .*\\Windows\\System32\\WindowsPowerShell\\v1\.0\\powershell\.exe
+Command line:          powershell\.exe\s+-NoProfile\s+-Command\s+.*Get-Bit[Ll]ockerVolume.*
+Parent image filename: .*\\Program\s+Files\\Orbit\\bin\\orbit\\orbit\.exe
+```
+
+While this check is blocked, the host's details may stop updating in Fleet, a refetch may stay pending, and your EDR may log a new detection every few seconds as Fleet asks again. In one deployment, disk encryption key escrow and configuration profiles also didn't complete until the exclusion was in place.
+
+If your fleet runs scripts, add the script exclusion above as well. The two exclusions match different command lines, so one doesn't cover the other.
 
 ## Contact Fleet and your EDR vendor
 
