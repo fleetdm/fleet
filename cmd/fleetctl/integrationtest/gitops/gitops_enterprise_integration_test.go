@@ -377,7 +377,7 @@ settings:
 	s.assertRealRunOutputWithDeprecation(t, fleetctltest.RunAppForTest(t, args), true)
 
 	// Check that all the teams exist
-	teamsJSON := fleetctltest.RunAppForTest(t, []string{"get", "teams", "--config", fleetctlConfig.Name(), "--json"})
+	teamsJSON := fleetctltest.RunAppForTest(t, []string{"get", "fleets", "--config", fleetctlConfig.Name(), "--json"})
 	assert.Equal(t, 3, strings.Count(teamsJSON, "fleet_id"))
 
 	// Real run with all the files, and delete other teams
@@ -388,7 +388,7 @@ settings:
 	s.assertRealRunOutputWithDeprecation(t, fleetctltest.RunAppForTest(t, args), true)
 
 	// Check that only the right teams exist
-	teamsJSON = fleetctltest.RunAppForTest(t, []string{"get", "teams", "--config", fleetctlConfig.Name(), "--json"})
+	teamsJSON = fleetctltest.RunAppForTest(t, []string{"get", "fleets", "--config", fleetctlConfig.Name(), "--json"})
 	assert.Equal(t, 2, strings.Count(teamsJSON, "fleet_id"))
 	assert.NotContains(t, teamsJSON, deletedTeamName)
 
