@@ -2,7 +2,7 @@
 
 Fleet 4.89.0 gave script-only packages an uninstall script, a pre-install query, and a post-install script. That is enough to put Microsoft Store apps on your end users' self-service page using winget, with no packages to host. This guide builds one Store app tile end to end, then generates the rest from a Store ID. It covers per-user Store installs driven through self-service, which is the only scope the Store supports through winget.
 
-> **Warning:** `winget install --source msstore` cannot run as SYSTEM, and Fleet runs Windows scripts as SYSTEM. The Store rejects device-wide installs with "Device wide install for msstore type is not supported under admin context." Step 3 works around this by running winget in the logged-on user's session. Fleet can't install Store apps machine-wide for every user yet. See [Deploy a Store app machine-wide](#deploy-a-store-app-machine-wide).
+> **Warning:** `winget install --source msstore` cannot run as SYSTEM, and Fleet runs Windows scripts as SYSTEM. The Store rejects device-wide installs with "Device wide install for msstore type is not supported under admin context." Step 3 works around this by running winget in the logged-on user's session. If you need a Store app installed machine-wide for every user, see [Deploy a Store app machine-wide](#deploy-a-store-app-machine-wide) instead.
 
 ## Prerequisites
 
@@ -250,7 +250,7 @@ Run it with the two identifiers from Step 1, then paste the printed block into y
 
 ## Troubleshoot
 
-**The install fails with "Device wide install for msstore type is not supported under admin context."** The script is running winget as SYSTEM. Store apps are per-user, so wrap the call in the scheduled task from Step 3.
+**The install fails with "Device wide install for msstore type is not supported under admin context."** The script is running winget as SYSTEM. Store apps are per-user, so wrap the call in the scheduled task from Step 3, or provision the app machine-wide instead.
 
 **The install reports success but the app is not there.** The scheduled task ran and winget failed inside it. The task's exit code never reaches your script, so add the verification script from Step 5, which fails the install and triggers the uninstall.
 
@@ -266,7 +266,54 @@ Run it with the two identifiers from Step 1, then paste the printed block into y
 
 ### Deploy a Store app machine-wide
 
-Currently, Fleet only deploys Microsoft Store apps for the currently logged-in user. Deploying an app for every user requires `.zip` files as custom packages. Support for `.zip` packages is [coming soon](https://github.com/fleetdm/fleet/issues/38800). Until then, use the per-user self-service install in this guide.
+Self-service installs are per-user. If an app has to be present for every user on a host, provision it instead of installing it, which does work as SYSTEM. Because you now have files to deliver, this uses a Fleet custom package rather than a script-only one.
+
+1. On an admin workstation, download the package, its dependencies, and its license.
+
+   ```powershell
+   winget download --id 9WZDNCRFJ3PZ --source msstore --download-directory C:\staging
+   ```
+
+2. Zip the downloaded files. Fleet doesn't accept `.msix` or `.msixbundle` files as custom packages, but it does accept a `.zip` for Windows.
+
+   ```powershell
+   Compress-Archive -Path C:\staging\* -DestinationPath C:\company-portal.zip
+   ```
+
+3. In Fleet, go to **Software > Add software > Custom package**, upload `company-portal.zip`, and open **Advanced options**. Fleet requires both an install and an uninstall script for `.zip` packages, and passes the uploaded file to the install script as `$env:INSTALLER_PATH`.
+
+   Set the install script to extract the zip and provision the package:
+
+   ```powershell
+   $staging = Join-Path $env:TEMP "fleet-store-9WZDNCRFJ3PZ"
+   Expand-Archive -Path $env:INSTALLER_PATH -DestinationPath $staging -Force
+
+   try {
+       $package = Get-ChildItem -Path "$staging\*" -File -Include *.msixbundle, *.appxbundle, *.msix, *.appx | Select-Object -First 1
+       $license = Get-ChildItem $staging -Recurse -Filter *_License.xml | Select-Object -First 1
+       $dependencies = Get-ChildItem $staging -Recurse -File -Include *.msix, *.appx |
+           Where-Object { $_.DirectoryName -ne $staging } | Select-Object -ExpandProperty FullName
+
+       $params = @{ Online = $true; PackagePath = $package.FullName; LicensePath = $license.FullName }
+       if ($dependencies) { $params.DependencyPackagePath = $dependencies }
+       Add-AppxProvisionedPackage @params
+   } catch {
+       Write-Host "Error: $_"
+       exit 1
+   } finally {
+       Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue
+   }
+   ```
+
+   Set the uninstall script to remove the provisioned package and any per-user copies, using the MSIX package name from Step 1:
+
+   ```powershell
+   $PackageName = "Microsoft.CompanyPortal"
+   Get-AppxProvisionedPackage -Online | Where-Object DisplayName -eq $PackageName | Remove-AppxProvisionedPackage -Online
+   Get-AppxPackage -AllUsers -Name $PackageName | Remove-AppxPackage -AllUsers
+   ```
+
+> **Warning:** Downloading a Store package's license file [requires Entra ID authentication](https://learn.microsoft.com/en-us/windows/package-manager/winget/download) by an account with the Global Administrator, User Administrator, or License Administrator role.
 
 > **Note:** Do not reach for `winget install --scope machine` as a shortcut here. For a Store package it [installs under the SYSTEM account](https://github.com/microsoft/winget-cli/issues/4748) rather than provisioning the app, which looks like success and leaves no app for your users.
 
@@ -282,4 +329,4 @@ Currently, Fleet only deploys Microsoft Store apps for the currently logged-in u
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-08-07">
-<meta name="description" value="Use Fleet script-only .ps1 packages and winget to add Microsoft Store apps to Windows self-service.">
+<meta name="description" value="Use Fleet script-only .ps1 packages and winget to add Microsoft Store apps to Windows self-service, per-user or machine-wide.">
