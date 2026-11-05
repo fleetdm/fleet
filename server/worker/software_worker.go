@@ -43,6 +43,7 @@ const (
 	bulkSetAndroidAppsAvailableForHostsTask SoftwareWorkerTask = "bulk_set_android_apps_available_for_hosts"
 	resendVPPAppConfigurationTask           SoftwareWorkerTask = "resend_vpp_app_configuration"       // deprecated
 	resendVPPAppConfigurationBatchTask      SoftwareWorkerTask = "resend_vpp_app_configuration_batch" // deprecated
+	sendAndroidFleetAgentConfigTask         SoftwareWorkerTask = "send_android_fleet_agent_config"
 )
 
 type softwareWorkerArgs struct {
@@ -113,6 +114,10 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 
 	case bulkSetAndroidAppsAvailableForHostsTask:
 		return ctxerr.Wrapf(ctx, v.updateAndroidHostsAfterFleetTransfer(ctx, args.UUIDsToIDs), "running %s task", bulkSetAndroidAppsAvailableForHostsTask)
+
+	case sendAndroidFleetAgentConfigTask:
+		return ctxerr.Wrapf(ctx, v.AndroidModule.BuildAndSendFleetAgentConfig(ctx, args.EnterpriseName, []string{args.HostUUID}, false),
+			"running %s task", sendAndroidFleetAgentConfigTask)
 
 	case resendVPPAppConfigurationTask, resendVPPAppConfigurationBatchTask:
 		// these tasks are deprecated, the App Store app configurations cron sends configurations, but they must be
@@ -456,6 +461,22 @@ func QueueRunAndroidSetupExperience(ctx context.Context, ds fleet.Datastore, log
 	}
 
 	logger.DebugContext(ctx, "queued android setup experience job", "job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
+	return nil
+}
+
+// QueueSendAndroidFleetAgentConfig queues a rebuild and resend of the Fleet agent's managed configuration for the host, which
+// carries a fresh enroll secret.
+func QueueSendAndroidFleetAgentConfig(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, hostUUID, enterpriseName string) error {
+	args := &softwareWorkerArgs{
+		Task:           sendAndroidFleetAgentConfigTask,
+		HostUUID:       hostUUID,
+		EnterpriseName: enterpriseName,
+	}
+	job, err := QueueJob(ctx, ds, softwareWorkerJobName, args)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "queueing job")
+	}
+	logger.DebugContext(ctx, "queued android fleet agent config job", "job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
 	return nil
 }
 

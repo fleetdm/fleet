@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
+	"github.com/fleetdm/fleet/v4/server/worker"
 )
 
 // enrollmentRejectedActivityTTL bounds how often a host_enrollment_rejected
@@ -151,6 +152,63 @@ func deliversOneTimeEnrollSecret(mdmConfig config.MDMConfig, profileUUID, profil
 // rejectSharedSecretForWindowsMDMHosts reports whether a shared enroll secret must be refused for a Windows host enrolled in Fleet MDM.
 func rejectSharedSecretForWindowsMDMHosts(mdmConfig config.MDMConfig, appConfig *fleet.AppConfig) bool {
 	return mdmConfig.WindowsOneTimeEnrollSecrets && appConfig.MDM.WindowsEnabledAndConfigured
+}
+
+// rejectSharedSecretForAndroidMDMHosts reports whether a shared enroll secret must be refused for an Android host.
+func rejectSharedSecretForAndroidMDMHosts(mdmConfig config.MDMConfig, appConfig *fleet.AppConfig) bool {
+	return mdmConfig.AndroidOneTimeEnrollSecrets && appConfig.MDM.AndroidEnabledAndConfigured
+}
+
+// maybeResendAndroidAgentEnrollSecret queues a resend of the Fleet agent's managed configuration, with a fresh one-time enroll
+// secret, after a shared or spent secret was refused for an Android host. A device that enrolled before the setting was turned on, or
+// whose secret is spent, still has an unusable secret in its configuration and would otherwise keep being refused. The resend
+// goes only to the real device through Android management, so a refused impersonator gains nothing from triggering it. It is
+// rate limited like the rejection activity, and never fails the caller.
+func (svc *Service) maybeResendAndroidAgentEnrollSecret(ctx context.Context, rejected *fleet.EnrollmentRejectedError) {
+	if !svc.config.MDM.AndroidOneTimeEnrollSecrets || rejected.HostID == nil {
+		return
+	}
+	switch rejected.Reason {
+	case fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, fleet.EnrollmentRejectedOneTimeSecretSpent:
+	default:
+		return
+	}
+	host, err := svc.ds.HostLite(ctx, *rejected.HostID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "load host to resend android agent enroll secret", "err", err, "host_id", *rejected.HostID)
+		return
+	}
+	if host.Platform != "android" {
+		return
+	}
+
+	var rateLimitKey string
+	if svc.keyValueStore != nil {
+		rateLimitKey = fmt.Sprintf("%s:host:%d:android_agent_config", enrollmentRejectedKeyPrefix, host.ID)
+		existing, err := svc.keyValueStore.Get(ctx, rateLimitKey)
+		switch {
+		case err != nil:
+			svc.logger.ErrorContext(ctx, "checking android agent enroll secret resend rate limit", "err", err)
+		case existing != nil:
+			return
+		}
+	}
+
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "load android enterprise to resend agent enroll secret", "err", err, "host_id", host.ID)
+		return
+	}
+	if err := worker.QueueSendAndroidFleetAgentConfig(ctx, svc.ds, svc.logger, host.UUID, enterprise.Name()); err != nil {
+		svc.logger.ErrorContext(ctx, "queue android agent enroll secret resend", "err", err, "host_id", host.ID)
+		return
+	}
+
+	if rateLimitKey != "" {
+		if err := svc.keyValueStore.Set(ctx, rateLimitKey, "1", enrollmentRejectedActivityTTL); err != nil {
+			svc.logger.ErrorContext(ctx, "setting android agent enroll secret resend rate limit", "err", err)
+		}
+	}
 }
 
 // errWindowsEnrollSecretProfileOff refuses a resend of the Fleetd enroll secret profile while mdm.windows_one_time_enroll_secrets is off.

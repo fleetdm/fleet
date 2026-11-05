@@ -39,6 +39,7 @@ type mockAndroidModule struct {
 	removeAppsFromAndroidPolicyFunc      func(ctx context.Context, enterpriseName string, packageNames []string, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error)
 	patchPolicyFunc                      func(ctx context.Context, policyID, policyName string, policy *androidmanagement.Policy, metadata map[string]string) (bool, error)
 	patchDeviceFunc                      func(ctx context.Context, policyID, deviceName string, device *androidmanagement.Device) (bool, error)
+	buildAndSendFleetAgentConfigFunc     func(ctx context.Context, enterpriseName string, hostUUIDs []string, skipHostsWithoutNewCerts bool) error
 }
 
 func (m *mockAndroidModule) PatchPolicy(ctx context.Context, policyID, policyName string, policy *androidmanagement.Policy, metadata map[string]string) (bool, error) {
@@ -50,6 +51,9 @@ func (m *mockAndroidModule) PatchDevice(ctx context.Context, policyID, deviceNam
 }
 
 func (m *mockAndroidModule) BuildAndSendFleetAgentConfig(ctx context.Context, enterpriseName string, hostUUIDs []string, skipHostsWithoutNewCerts bool) error {
+	if m.buildAndSendFleetAgentConfigFunc != nil {
+		return m.buildAndSendFleetAgentConfigFunc(ctx, enterpriseName, hostUUIDs, skipHostsWithoutNewCerts)
+	}
 	return nil
 }
 
@@ -117,6 +121,40 @@ func TestUpdateAndroidHostsAfterFleetTransferMovesCertificateTemplates(t *testin
 	require.True(t, ds.SetHostCertificateTemplatesToPendingRemoveForHostFuncInvoked)
 	require.Equal(t, teamID, newTeamID)
 	require.False(t, ds.SetHostAndroidSoftwareInstallsNeedsResendFuncInvoked)
+}
+
+func TestSoftwareWorkerSendAndroidFleetAgentConfig(t *testing.T) {
+	ds := new(mock.Store)
+	var queued *fleet.Job
+	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+		queued = job
+		return job, nil
+	}
+	require.NoError(t, QueueSendAndroidFleetAgentConfig(t.Context(), ds, slog.New(slog.DiscardHandler), "host-1", "enterprises/test"))
+	require.NotNil(t, queued)
+	require.Equal(t, softwareWorkerJobName, queued.Name)
+
+	var (
+		calls      int
+		gotEnt     string
+		gotHosts   []string
+		gotSkipped bool
+	)
+	androidModule := &mockAndroidModule{
+		buildAndSendFleetAgentConfigFunc: func(ctx context.Context, enterpriseName string, hostUUIDs []string, skipHostsWithoutNewCerts bool) error {
+			calls++
+			gotEnt, gotHosts, gotSkipped = enterpriseName, hostUUIDs, skipHostsWithoutNewCerts
+			return nil
+		},
+	}
+	w := &SoftwareWorker{Datastore: ds, AndroidModule: androidModule, Log: slog.New(slog.DiscardHandler)}
+
+	// the queued job sends the host's configuration even without new certificate templates, since it carries a new secret
+	require.NoError(t, w.Run(t.Context(), *queued.Args))
+	require.Equal(t, 1, calls)
+	require.Equal(t, "enterprises/test", gotEnt)
+	require.Equal(t, []string{"host-1"}, gotHosts)
+	require.False(t, gotSkipped)
 }
 
 func TestSoftwareWorkerRunSkipsDeprecatedAndroidAppTasks(t *testing.T) {

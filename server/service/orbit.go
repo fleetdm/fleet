@@ -510,11 +510,13 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		fleet.WithEnrollOrbitIdentityCert(identityCert),
 		fleet.WithEnrollOrbitCreated(&hostCreated),
 		fleet.WithEnrollOrbitRejectSharedSecretForWindowsMDMHosts(rejectSharedSecretForWindowsMDMHosts(svc.config.MDM, appConfig)),
+		fleet.WithEnrollOrbitRejectSharedSecretForAndroidMDMHosts(rejectSharedSecretForAndroidMDMHosts(svc.config.MDM, appConfig)),
 	}, secretOpts...)
 	host, err := svc.ds.EnrollOrbit(ctx, enrollOpts...)
 	if err != nil {
 		if rejected, ok := errors.AsType[*fleet.EnrollmentRejectedError](err); ok {
 			svc.recordEnrollmentRejected(ctx, rejected.Reason, rejectedHostID(rejected, oneTime), attempt)
+			svc.maybeResendAndroidAgentEnrollSecret(ctx, rejected)
 			return "", fleet.NewAuthFailedError("invalid secret")
 		}
 		recordErrorDetail(ctx, err)

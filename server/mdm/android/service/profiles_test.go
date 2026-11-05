@@ -87,6 +87,7 @@ func TestReconcileProfiles(t *testing.T) {
 		{"CertificateTemplates", testCertificateTemplates},
 		{"BuildAndSendFleetAgentConfigForEnrollment", testBuildAndSendFleetAgentConfigForEnrollment},
 		{"BuildAndSendFleetAgentConfigSavesTheAgentInstall", testBuildAndSendFleetAgentConfigSavesTheAgentInstall},
+		{"BuildFleetAgentConfigWithOneTimeEnrollSecrets", testBuildFleetAgentConfigWithOneTimeEnrollSecrets},
 		{"CertificateTemplatesIncludesExistingVerified", testCertificateTemplatesIncludesExistingVerified},
 		{"CertificateTemplatesHeldUntilHostPolicyApplied", testCertificateTemplatesHeldUntilHostPolicyApplied},
 		{"ONCWithheldUntilCertVerified", testONCWithheldUntilCertVerified},
@@ -1444,6 +1445,69 @@ func testBuildAndSendFleetAgentConfigSavesTheAgentInstall(t *testing.T, ds fleet
 	require.Equal(t, android.AppStatusForceInstalled, agentInstall.InstallType)
 	require.Equal(t, fleet.AndroidSoftwareInstallStatusPending, agentInstall.Status)
 	require.Equal(t, new(int64(7)), agentInstall.InPolicyVersion)
+}
+
+func testBuildFleetAgentConfigWithOneTimeEnrollSecrets(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "one-time-secret-team"})
+	require.NoError(t, err)
+	require.NoError(t, ds.ApplyEnrollSecrets(ctx, &team.ID, []*fleet.EnrollSecret{{Secret: "shared-team-secret", TeamID: &team.ID}})) // nolint:gosec // test value
+	host := createAndroidHostInTeam(t, ds, 500, &team.ID)
+
+	var sentSecrets []string
+	client.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, policies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		require.Len(t, policies, 1)
+		var managedConfig android.AgentManagedConfiguration
+		require.NoError(t, json.Unmarshal(policies[0].ManagedConfiguration, &managedConfig))
+		sentSecrets = append(sentSecrets, managedConfig.EnrollSecret)
+		return &androidmanagement.Policy{}, nil
+	}
+	newSvc := func(oneTimeEnrollSecrets bool) *Service {
+		return &Service{
+			logger:           slog.New(slog.DiscardHandler),
+			fleetDS:          ds,
+			ds:               ds.(fleet.AndroidDatastore),
+			androidAPIClient: client,
+			androidAgentConfig: config.AndroidAgentConfig{
+				Package:       "com.fleetdm.agent",
+				SigningSHA256: "abc123def456",
+			},
+			oneTimeEnrollSecrets: oneTimeEnrollSecrets,
+		}
+	}
+	policySecret := func(svc *Service) string {
+		policy, err := svc.BuildFleetAgentApplicationPolicy(ctx, host.Host.UUID)
+		require.NoError(t, err)
+		var managedConfig android.AgentManagedConfiguration
+		require.NoError(t, json.Unmarshal(policy.ManagedConfiguration, &managedConfig))
+		return managedConfig.EnrollSecret
+	}
+
+	svc := newSvc(true)
+	require.NoError(t, svc.BuildAndSendFleetAgentConfig(ctx, reconciler.Enterprise.Name(), []string{host.Host.UUID}, false))
+	require.Len(t, sentSecrets, 1)
+	secret := sentSecrets[0]
+	require.NotEqual(t, "shared-team-secret", secret)
+	row, err := ds.GetHostOneTimeEnrollSecret(ctx, secret)
+	require.NoError(t, err)
+	require.Equal(t, host.Host.ID, *row.HostID)
+	require.Equal(t, "android", row.Platform)
+
+	// Every path that builds the configuration carries the same secret until the agent uses it.
+	require.Equal(t, secret, policySecret(svc))
+
+	_, err = ds.EnrollOrbit(ctx,
+		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{HardwareUUID: host.Host.UUID, HardwareSerial: host.Host.UUID, Platform: "android"}),
+		fleet.WithEnrollOrbitNodeKey(uuid.NewString()),
+		fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID),
+	)
+	require.NoError(t, err)
+	fresh := policySecret(svc)
+	require.NotEqual(t, secret, fresh)
+	require.NotEqual(t, "shared-team-secret", fresh)
+
+	// Switch off: the fleet's shared secret, as before.
+	require.Equal(t, "shared-team-secret", policySecret(newSvc(false)))
 }
 
 // testCertificateTemplatesIncludesExistingVerified tests that when a host has existing
