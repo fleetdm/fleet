@@ -1112,6 +1112,35 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 	})
 }
 
+func TestModifyGlobalPolicyScriptID(t *testing.T) {
+	const policyID = uint(42)
+
+	ds := new(mock.Store)
+	ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
+		return &fleet.Policy{PolicyData: fleet.PolicyData{ID: policyID, Name: "global", Query: "SELECT 1;"}}, nil
+	}
+	ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy, _ bool, _ bool) error { return nil }
+	opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+		return nil
+	}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+
+	_, err := svc.ModifyGlobalPolicy(ctx, policyID, fleet.ModifyPolicyPayload{ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: 1}})
+	var bre *fleet.BadRequestError
+	require.ErrorAs(t, err, &bre)
+	require.Contains(t, bre.Message, errPolicyAllFleetsForScripts)
+	require.False(t, ds.SavePolicyFuncInvoked)
+
+	// Clients such as the UI send the full payload, so unsetting must keep working.
+	for _, unset := range []optjson.Any[uint]{{Set: true, Valid: true}, {Set: true}} {
+		_, err = svc.ModifyGlobalPolicy(ctx, policyID, fleet.ModifyPolicyPayload{ScriptID: unset})
+		require.NoError(t, err)
+	}
+	require.True(t, ds.SavePolicyFuncInvoked)
+}
+
 func TestTeamPolicyResendConfigProfile(t *testing.T) {
 	const (
 		teamID     = uint(1)

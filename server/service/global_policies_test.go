@@ -1025,6 +1025,29 @@ func TestApplyPolicySpecsScriptID(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, ds.ApplyPolicySpecsFuncInvoked)
 	})
+
+	t.Run("global spec rejects software_title_id", func(t *testing.T) {
+		ds := setupDS()
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{
+			License: &fleet.LicenseInfo{Tier: fleet.TierPremium},
+		})
+
+		s := spec("", nil)
+		s.SoftwareTitleID = new(uint(1))
+		err := svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{s})
+		var bre *fleet.BadRequestError
+		require.ErrorAs(t, err, &bre)
+		require.Contains(t, bre.Message, errPolicyAllFleetsForSoftware)
+		require.False(t, ds.ApplyPolicySpecsFuncInvoked)
+
+		s.SoftwareTitleID = new(uint(0))
+		require.NoError(t, svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{s}))
+
+		// "No team" is not "All fleets", so it keeps its automations.
+		noTeam := spec("No team", new(uint(1)))
+		noTeam.SoftwareTitleID = new(uint(1))
+		require.NoError(t, svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{noTeam}))
+	})
 }
 
 func TestApplyPolicySpecsResendConfigProfile(t *testing.T) {
