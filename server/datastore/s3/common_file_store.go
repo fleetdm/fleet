@@ -63,7 +63,7 @@ func (s *commonFileStore) Get(ctx context.Context, fileID string) (io.ReadCloser
 		if errors.As(err, &noSuchBucket) || errors.As(err, &noSuchKey) || errors.As(err, &notFound) {
 			return nil, int64(0), installerNotFoundError{}
 		}
-		return nil, int64(0), ctxerr.Wrapf(ctx, err, "retrieving %s from S3 store", s.fileLabel)
+		return nil, int64(0), ctxerr.Wrapf(ctx, s.wrapAPIError(err), "retrieving %s from S3 store", s.fileLabel)
 	}
 	return req.Body, *req.ContentLength, nil
 }
@@ -96,7 +96,7 @@ func (s *commonFileStore) Put(ctx context.Context, fileID string, content io.Rea
 		ChecksumAlgorithm: checksumAlgorithm,
 	})
 
-	return err
+	return s.wrapAPIError(err)
 }
 
 // Exists checks if a file exists in the S3 bucket for the ID.
@@ -116,7 +116,7 @@ func (s *commonFileStore) Exists(ctx context.Context, fileID string) (bool, erro
 		if errors.As(err, &noSuchBucket) || errors.As(err, &noSuchKey) || errors.As(err, &notFound) {
 			return false, nil
 		}
-		return false, ctxerr.Wrapf(ctx, err, "checking existence of %s in S3 store", s.fileLabel)
+		return false, ctxerr.Wrapf(ctx, s.wrapAPIError(err), "checking existence of %s in S3 store", s.fileLabel)
 	}
 	return true, nil
 }
@@ -143,7 +143,7 @@ func (s *commonFileStore) Cleanup(ctx context.Context, usedFileIDs []string, rem
 		Prefix: &prefix,
 	})
 	if err != nil {
-		return 0, ctxerr.Wrapf(ctx, err, "listing %s in S3 store", s.fileLabel)
+		return 0, ctxerr.Wrapf(ctx, s.wrapAPIError(err), "listing %s in S3 store", s.fileLabel)
 	}
 
 	// NOTE: there is an inherent risk that we could delete files that were added
@@ -179,7 +179,7 @@ func (s *commonFileStore) Cleanup(ctx context.Context, usedFileIDs []string, rem
 				Key:    obj.Key,
 			})
 			if err != nil {
-				return ctxerr.Wrapf(ctx, err, "deleting %s in S3 store", s.fileLabel)
+				return ctxerr.Wrapf(ctx, s.wrapAPIError(err), "deleting %s in S3 store", s.fileLabel)
 			}
 			deleted.Add(1)
 			return nil
@@ -239,7 +239,7 @@ func (s *commonFileStore) PresignPut(ctx context.Context, fileID string, size in
 		ContentLength: &size,
 	}, s3.WithPresignExpires(expiresIn))
 	if err != nil {
-		return "", ctxerr.Wrapf(ctx, err, "presigning %s upload URL in S3 store", s.fileLabel)
+		return "", ctxerr.Wrapf(ctx, s.wrapAPIError(err), "presigning %s upload URL in S3 store", s.fileLabel)
 	}
 	return req.URL, nil
 }
@@ -251,7 +251,7 @@ func (s *commonFileStore) Delete(ctx context.Context, fileID string) error {
 		Bucket: &s.bucket,
 		Key:    &key,
 	}); err != nil {
-		return ctxerr.Wrapf(ctx, err, "deleting %s in S3 store", s.fileLabel)
+		return ctxerr.Wrapf(ctx, s.wrapAPIError(err), "deleting %s in S3 store", s.fileLabel)
 	}
 	return nil
 }
