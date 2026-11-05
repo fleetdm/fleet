@@ -456,7 +456,7 @@ GitHub issue: [#54190](https://github.com/fleetdm/fleet/issues/54190)
 | `team_settings` in a fleet's YAML file | `settings` |
 | `teams` under `org_settings.mdm.volume_purchasing_program` | `fleets` |
 
-What to do: Rename these keys. Fleet 4.95 already accepts the new names.
+What to do: Before you upgrade, rename these keys. Fleet 4.95 already accepts the new names.
 
 GitHub issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
 
@@ -467,7 +467,7 @@ GitHub issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
 | `org_settings.mdm.apple_business_manager` | [`org_settings.mdm.apple_business`](https://fleetdm.com/docs/configuration/yaml-files#apple-business) |
 | `default_team`, `macos_team`, `ios_team`, `ipados_team`, and `byod_team` under `apple_business` | `default_fleet`, `macos_fleet`, `ios_fleet`, `ipados_fleet`, and `byod_fleet` |
 
-What to do: Rename these keys. Fleet 4.95 already accepts the new names.
+What to do: Before you upgrade, rename these keys. Fleet 4.95 already accepts the new names.
 
 GitHub issues: [#53272](https://github.com/fleetdm/fleet/issues/53272), [#52795](https://github.com/fleetdm/fleet/issues/52795)
 
@@ -477,7 +477,7 @@ GitHub issues: [#53272](https://github.com/fleetdm/fleet/issues/53272), [#52795]
 |:--|:--|
 | `controls.macos_setup` | [`controls.setup_experience`](https://fleetdm.com/docs/configuration/yaml-files#setup-experience) |
 
-What to do: Rename `macos_setup` to `setup_experience`.
+What to do: Before you upgrade, rename `macos_setup` to `setup_experience`. Fleet 4.95 already accepts the new name.
 
 GitHub issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 
@@ -488,7 +488,7 @@ GitHub issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 | `require_all_software_macos` and `require_all_software_windows` under `controls.setup_experience` | `macos_require_all_software` and `windows_require_all_software` ([docs](https://fleetdm.com/docs/configuration/yaml-files#setup-experience)) |
 | `controls.enable_recovery_lock_password` | `controls.macos_recovery_lock_password_enabled` ([docs](https://fleetdm.com/docs/configuration/yaml-files#controls)) |
 
-What to do: Rename these keys.
+What to do: After you upgrade, rename these keys before you run `fleetctl gitops`. Fleet 4.95 doesn't accept the new names.
 
 GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 
@@ -499,7 +499,7 @@ GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 | `controls.windows_enabled_and_configured` | `controls.windows_mdm_enabled` ([docs](https://fleetdm.com/docs/configuration/yaml-files#controls)) |
 | `controls.windows_migration_enabled` | `controls.windows_mdm_migration_enabled` ([docs](https://fleetdm.com/docs/configuration/yaml-files#controls)) |
 
-What to do: Rename these keys.
+What to do: After you upgrade, rename these keys before you run `fleetctl gitops`. Fleet 4.95 doesn't accept the new names.
 
 GitHub issue: [#53873](https://github.com/fleetdm/fleet/issues/53873)
 
@@ -511,7 +511,7 @@ GitHub issue: [#53873](https://github.com/fleetdm/fleet/issues/53873)
 | `enable_managed_local_account` and `enable_create_local_admin_account` under `controls.setup_experience` (or `controls.macos_setup`) | `controls.apple_settings.managed_local_account_enabled` |
 | `end_user_local_account_type` under `controls.setup_experience` (or `controls.macos_setup`) | `controls.apple_settings.end_user_local_account_type` |
 
-What to do: Rename these keys.
+What to do: After you upgrade, rename these keys before you run `fleetctl gitops`. Fleet 4.95 doesn't accept the new names.
 
 GitHub issue: [#50084](https://github.com/fleetdm/fleet/issues/50084)
 
@@ -522,7 +522,7 @@ GitHub issue: [#50084](https://github.com/fleetdm/fleet/issues/50084)
 | `org_info.org_logo_url` | [`org_info.org_logo_url_dark_mode`](https://fleetdm.com/docs/configuration/yaml-files#org-info) |
 | `org_info.org_logo_url_light_background` | [`org_info.org_logo_url_light_mode`](https://fleetdm.com/docs/configuration/yaml-files#org-info) |
 
-What to do: Rename both keys. Fleet 4.95 already accepts the new names.
+What to do: Before you upgrade, rename both keys. Fleet 4.95 already accepts the new names.
 
 GitHub issue: [#52800](https://github.com/fleetdm/fleet/issues/52800)
 
