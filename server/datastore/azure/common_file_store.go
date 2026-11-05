@@ -36,7 +36,7 @@ func (s *commonFileStore) Get(ctx context.Context, fileID string) (io.ReadCloser
 
 	resp, err := s.client.DownloadStream(ctx, s.container, key, nil)
 	if err != nil {
-		if bloberror.HasCode(err, bloberror.BlobNotFound) {
+		if bloberror.HasCode(err, bloberror.BlobNotFound, bloberror.ContainerNotFound) {
 			return nil, int64(0), fileNotFoundError{}
 		}
 		return nil, int64(0), ctxerr.Wrapf(ctx, newAPIError(err, s.container), "retrieving %s from Azure Blob store", s.fileLabel)
@@ -71,7 +71,7 @@ func (s *commonFileStore) Exists(ctx context.Context, fileID string) (bool, erro
 	blobClient := s.client.ServiceClient().NewContainerClient(s.container).NewBlobClient(key)
 	_, err := blobClient.GetProperties(ctx, nil)
 	if err != nil {
-		if bloberror.HasCode(err, bloberror.BlobNotFound) {
+		if bloberror.HasCode(err, bloberror.BlobNotFound, bloberror.ContainerNotFound) {
 			return false, nil
 		}
 		return false, ctxerr.Wrapf(ctx, newAPIError(err, s.container), "checking existence of %s in Azure Blob store", s.fileLabel)
