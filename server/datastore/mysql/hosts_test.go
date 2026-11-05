@@ -12225,6 +12225,26 @@ func testHostsGetHostMDMCheckinInfo(t *testing.T, ds *Datastore) {
 	info, err = ds.GetHostMDMCheckinInfo(ctx, host.UUID)
 	require.NoError(t, err)
 	require.False(t, info.OsqueryEnrolled)
+
+	// company-owned only while enrolled in Fleet and not personal
+	require.True(t, info.FleetEnrolledCorporate)
+	for _, tc := range []struct {
+		enrolled     bool
+		mdmName      string
+		personalType fleet.PersonalEnrollmentType
+		want         bool
+	}{
+		{true, fleet.WellKnownMDMFleet, fleet.PersonalEnrollmentTypeManualProfile, false},
+		{false, fleet.WellKnownMDMFleet, fleet.PersonalEnrollmentTypeNone, false},
+		{true, "Other MDM", fleet.PersonalEnrollmentTypeNone, false},
+		{true, fleet.WellKnownMDMFleet, fleet.PersonalEnrollmentTypeNone, true},
+	} {
+		err = ds.SetOrUpdateMDMData(ctx, host.ID, false, tc.enrolled, "https://"+strings.ReplaceAll(tc.mdmName, " ", "")+".example.com", false, tc.mdmName, "", tc.personalType)
+		require.NoError(t, err)
+		info, err = ds.GetHostMDMCheckinInfo(ctx, host.UUID)
+		require.NoError(t, err)
+		require.Equal(t, tc.want, info.FleetEnrolledCorporate, "%+v", tc)
+	}
 }
 
 func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {

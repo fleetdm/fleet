@@ -69,6 +69,78 @@ func (s *integrationMDMTestSuite) TestUserAuthenticate() {
 	require.ErrorContains(t, err, "410 Gone")
 }
 
+func (s *integrationMDMTestSuite) TestPersonalEnrollmentFlagFromDevice() {
+	t := s.T()
+	ctx := t.Context()
+
+	enrollMac := func(mdmURL string) (*fleet.Host, *mdmtest.TestAppleMDMClient) {
+		device := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
+			SCEPChallenge: s.scepChallenge,
+			SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+			MDMURL:        mdmURL,
+		}, "MacBookPro16,1")
+		require.NoError(t, device.Enroll())
+		host, err := s.ds.HostByIdentifier(ctx, device.UUID)
+		require.NoError(t, err)
+		return host, device
+	}
+	isPersonal := func(host *fleet.Host) bool {
+		hostMDM, err := s.ds.GetHostMDM(ctx, host.ID)
+		require.NoError(t, err)
+		return hostMDM.IsPersonalEnrollment
+	}
+
+	t.Run("a company-owned host stays company-owned", func(t *testing.T) {
+		host, device := enrollMac(s.server.URL + apple_mdm.MDMPath)
+		require.False(t, isPersonal(host))
+
+		// The device repeats Authenticate and TokenUpdate, with its own identity, to the URL a personal profile has.
+		device.EnrollInfo.MDMURL = s.server.URL + apple_mdm.MDMPath + "?" + apple_mdm.FleetPersonalEnrollmentKey + "=1"
+		require.NoError(t, device.Authenticate())
+		require.NoError(t, device.TokenUpdate(false))
+
+		require.False(t, isPersonal(host))
+		var permissions int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &permissions, `SELECT access_rights FROM host_mdm_apple_enrollment_permissions WHERE host_uuid = ?`, host.UUID)
+		})
+		require.Equal(t, apple_mdm.MDMAccessRightAll, permissions)
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusOK)
+	})
+
+	t.Run("a new host enrolls as personal", func(t *testing.T) {
+		host, _ := enrollMac(s.server.URL + apple_mdm.MDMPath + "?" + apple_mdm.FleetPersonalEnrollmentKey + "=1")
+		require.True(t, isPersonal(host))
+	})
+
+	secret := "personal-flag-ota-secret"
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: secret}}},
+	}, http.StatusOK, &applyEnrollSecretSpecResponse{})
+	enrollOTA := func(device *mdmtest.TestAppleMDMClient) *fleet.Host {
+		require.NoError(t, device.Enroll())
+		host, err := s.ds.HostByIdentifier(ctx, device.UUID)
+		require.NoError(t, err)
+		return host
+	}
+
+	t.Run("a new host enrolls as personal over the air", func(t *testing.T) {
+		host := enrollOTA(mdmtest.NewTestMDMClientAppleOTA(s.server.URL, secret, "MacBookPro16,1", mdmtest.WithOTAPersonal()))
+		require.True(t, isPersonal(host))
+	})
+
+	t.Run("a company-owned host stays company-owned over the air", func(t *testing.T) {
+		corporate := mdmtest.NewTestMDMClientAppleOTA(s.server.URL, secret, "MacBookPro16,1")
+		host := enrollOTA(corporate)
+		require.False(t, isPersonal(host))
+
+		personal := mdmtest.NewTestMDMClientAppleOTA(s.server.URL, secret, "MacBookPro16,1", mdmtest.WithOTAPersonal())
+		personal.UUID, personal.SerialNumber = corporate.UUID, corporate.SerialNumber
+		host = enrollOTA(personal)
+		require.False(t, isPersonal(host))
+	})
+}
+
 func (s *integrationMDMTestSuite) TestGetBootstrapToken() {
 	// see https://developer.apple.com/documentation/devicemanagement/get_bootstrap_token
 	t := s.T()
