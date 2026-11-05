@@ -45,8 +45,19 @@ It can be useful to start the "same" hosts. This can be achieved with the
 go run agent.go --enroll_secret hgh4hk3434l2jjf --seed 0
 ```
 
-By using the same seed, along with other values, we usually get hosts that look
-the same to the server. This is not guaranteed, but it is a useful technique.
+With the same seed and `--host_count`, a restarted agent comes back as the same hosts: each
+host's UUID, serial, hostname, OS template, MDM device IDs and once-per-host choices (orbit,
+MDM, software versions) come from the seed and the host's index. Fleet sees them check in
+again instead of enrolling new hosts. Two things don't survive a restart:
+
+- Apple and Windows MDM hosts re-enroll, so Fleet resends their profiles.
+- Hosts using HTTP message signatures can't re-enroll, because Fleet won't issue a second
+  host identity certificate for the same host. Use `--http_message_signature_prob 0` for
+  hosts you plan to restart.
+
+Every container needs its own seed, or two containers simulate the same hosts. In the load
+test infrastructure, the `stable_host_identities` input of the osquery-perf workflow runs each
+container as its own service with its own seed.
 
 By default, all hosts will simulate macOS hosts (specifically, macOS 10.14). To simulate hosts using other operating systems, use the `--os_templates` flag. This flag takes a comma-separated list of host template names and will start hosts by alternating in the list of OS templates when multiple templates are specified. For example:
 
@@ -59,6 +70,21 @@ would start 3 Ubuntu hosts and 3 Windows hosts.
 Supported Linux templates: `ubuntu_22.04`, `rhel_8`, `rhel_9`, `rhel_10`. RHEL templates report `platform=rhel`, RPM-style kernels (e.g., `kernel-core 5.14.0-503.26.1.el9_5`), and (when `--software_db_path` points at a populated database) additional RPM packages from the software library. See the `os_templates` flag description in `go run agent.go --help` for the full list of supported template names.
 
 The software database (`cmd/osquery-perf/software-library/software.db`) is optional — macOS, Windows, and Ubuntu have embedded fallback fixtures, and RHEL kernels are embedded too. The DB only adds non-kernel software variety. If the DB isn't present at `--software_db_path`, osquery-perf logs a warning and falls back to the embedded fixtures.
+
+### Software churn
+
+By default, part of each host's software inventory is redrawn on every report: each report
+picks the software DB (80%) or the embedded fixtures (20%), which swaps the host's whole
+DB-sourced inventory about a third of the time, and the `*_uninstall_prob` flags hide an item
+for a single report. A restarted agent also reports a new inventory.
+
+`--software_churn_per_day` replaces this with a stable inventory that changes at a steady rate,
+like a real host's updates, installs and uninstalls. With `--software_churn_per_day 0.03`, about
+3% of each host's DB-sourced inventory is replaced every day. Each host's inventory size, its
+DB-or-fixtures choice and its items come from the seed and the clock, so a restarted agent with
+the same `--seed` reports what it would have reported anyway. `0` keeps the inventory fixed. The
+`*_uninstall_prob` flags are ignored in this mode. The embedded fixtures, the template software
+and the common and unique software don't churn.
 
 ### Homebrew executable hashes
 
@@ -93,6 +119,10 @@ In the Policy SQL:
 
 - `select 1` will instruct agents to send back only passing responses
 - `select 0` will instruct agents to send back only failing responses
+
+Any other policy passes with probability `--policy_pass_prob`, re-rolled on every report. With
+`--policy_sticky`, each host decides once per policy (from its UUID and the policy) and keeps that
+result, like a real fleet, instead of a share of hosts flipping every interval.
 
 ## Running Locally (Development Environment)
 
@@ -255,3 +285,16 @@ The agent can install software for "macos", "ubuntu", and "windows" OSs when run
 - `--software_installer_pre_install_fail_prob`: default 0.05, `select 1` always passes and `select 0` always fails
 - `--software_installer_install_fail_prob`: default 0.05, `exit 0` always passes and `exit 1` always fails
 - `--software_installer_post_install_fail_prob`: default 0.05, `exit 0` always passes and `exit 1` always fails
+- `--software_installer_permafail_prob`: default 0, the share of hosts whose installs always fail
+  (decided once per host from its UUID). The per-attempt probabilities above let a retry succeed;
+  this group never does, so it exercises Fleet's install retry limits.
+
+Script executions exit with code 1 with probability `--script_exec_fail_prob` (default 0.5).
+
+## FileVault key escrow
+
+macOS MDM hosts that install Fleet's FileVault profile encrypt a recovery key with the
+certificate in the profile, report their disk as encrypted, and report the key through the
+`mdm_disk_encryption_key_file_darwin` detail query, as fleetd's `filevault_prk` table does.
+Fleet can decrypt these keys, so key verification and FileVault status work as they do for
+real Macs.

@@ -41,6 +41,10 @@ on:
         type: string
         default: "[\"--orbit_prob\", \"0.0\", \"--host_count\", \"2000\", \"--start_period\", \"20m\"]"
         required: false
+      stable_host_identities:
+        description: "Give each container its own seed, so a restarted container comes back as the same hosts. Switching it on or off on a running load test replaces every container once."
+        type: boolean
+        default: false
       terraform_action:
         description: Dry run only? No "terraform apply"
         type: choice
@@ -69,6 +73,7 @@ env:
   TF_VAR_loadtest_containers: "${{ inputs.loadtest_containers }}"
   TF_VAR_git_tag_branch: "${{ inputs.git_tag_branch }}"
   TF_VAR_task_size: "${{ inputs.task_size }}"
+  TF_VAR_stable_host_identities: "${{ inputs.stable_host_identities }}"
 
 permissions:
   id-token: write

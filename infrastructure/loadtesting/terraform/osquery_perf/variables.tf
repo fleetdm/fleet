@@ -15,6 +15,12 @@ variable "extra_flags" {
   default     = ["--orbit_prob", "0.0"]
 }
 
+variable "stable_host_identities" {
+  description = "Run each container as its own service with its own --seed, so a restarted or replaced container comes back as the same hosts instead of enrolling new ones"
+  type        = bool
+  default     = false
+}
+
 variable "task_size" {
   type = object({
     cpu    = optional(number, 4096)

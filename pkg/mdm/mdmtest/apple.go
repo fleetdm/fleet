@@ -212,6 +212,15 @@ func WithPushTopic(topic string) TestMDMAppleClientOption {
 	}
 }
 
+// WithDeviceIdentity sets the device's UUID and serial number instead of random ones, so a
+// simulator can bring the same device back after a restart.
+func WithDeviceIdentity(uuid, serialNumber string) TestMDMAppleClientOption {
+	return func(c *TestAppleMDMClient) {
+		c.UUID = uuid
+		c.SerialNumber = serialNumber
+	}
+}
+
 // AppleEnrollInfo contains the necessary information to enroll to an MDM server.
 type AppleEnrollInfo struct {
 	// SCEPChallenge is the SCEP challenge to present to the SCEP server when enrolling.

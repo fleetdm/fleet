@@ -112,6 +112,15 @@ func TestWindowsMDMClientWithSigningKeyAndTenantID(signingKey *rsa.PrivateKey, s
 	}
 }
 
+// TestWindowsMDMClientWithDeviceIDs sets the device and hardware IDs instead of random ones, so a
+// simulator can bring the same device back after a restart.
+func TestWindowsMDMClientWithDeviceIDs(deviceID, hardwareID string) TestWindowsMDMClientOption {
+	return func(c *TestWindowsMDMClient) {
+		c.DeviceID = deviceID
+		c.HardwareID = hardwareID
+	}
+}
+
 func NewTestMDMClientWindowsProgramatic(serverURL string, orbitNodeKey string, opts ...TestWindowsMDMClientOption) *TestWindowsMDMClient {
 	return newTestMDMClient(serverURL, fleet.WindowsMDMProgrammaticEnrollmentType, orbitNodeKey, opts...)
 }

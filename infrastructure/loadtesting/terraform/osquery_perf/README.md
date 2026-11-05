@@ -40,6 +40,31 @@ Although deployments through the github action should be prioritized, for manual
     - `Apply` will deploy changes to the environment
     - `Destroy` will destroy your environment
 
+# Stable hosts and realistic host behavior
+
+These options make simulated hosts behave more like a real fleet. All of them are off by default, so existing load tests behave as before. The flags need an osquery-perf build that has them: osquery-perf exits on flags it doesn't know.
+
+**Stable host identities.** Set the workflow's `stable_host_identities` input (or `-var=stable_host_identities=true`) to run each container as its own ECS service with its own `--seed`. A container that ECS replaces, or that you redeploy with a new osquery-perf build or new flags, comes back as the same hosts instead of enrolling new ones. Pass `--http_message_signature_prob 0` with it: hosts that sign their requests can't re-enroll after a restart. MDM hosts re-enroll after a restart, so Fleet resends their profiles.
+
+**Host behavior flags.** Add these to `extra_flags`. The suggested values are on the heavy side of a real fleet on purpose.
+
+| Flag | Default | Suggested | What it does |
+|---|---|---|---|
+| `--policy_sticky` | off | on | Each host decides once per policy (passing with `--policy_pass_prob`) instead of re-rolling on every report. |
+| `--software_churn_per_day` | off (`-1`) | `0.03` | Keeps each host's software inventory stable and replaces about 3% of it a day, across restarts too. Off, about a third of Windows and Ubuntu reports replace the whole inventory. |
+| `--software_query_fail_prob` | `0.5` | `0.05` | Share of software reports that fail. Fleet skips failed reports, so the default halves software ingestion. |
+| `--last_opened_change_prob` | `0.5` | `0.03` | Chance that each of a Mac's 50 tracked apps was opened since its last report. `0.03` is about 35 apps a day. |
+| `--software_installer_permafail_prob` | `0` | `0.02` | Share of hosts whose software installs always fail, to exercise Fleet's install retry limit. |
+| `--script_exec_fail_prob` | `0.5` | default | Share of script runs that exit with code 1. |
+
+Example `extra_flags`:
+
+```
+["--orbit_prob", "0.0", "--http_message_signature_prob", "0", "--policy_sticky", "--software_churn_per_day", "0.03", "--software_query_fail_prob", "0.05", "--last_opened_change_prob", "0.03", "--software_installer_permafail_prob", "0.02"]
+```
+
+MDM Macs also report declaration (DDM) status and escrow FileVault keys that Fleet can decrypt. These don't need a flag.
+
 # Deploy osquery perf manually
 
 1. Clone the repository
@@ -169,6 +194,8 @@ terraform workspace delete <workspace_name>
 | Name | Type |
 |------|------|
 | [aws_ecr_repository.loadtest](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ecr_repository) | resource |
+| [aws_ecs_service.osquery_perf_stable](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ecs_service) | resource |
+| [aws_ecs_task_definition.osquery_perf_stable](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ecs_task_definition) | resource |
 | [aws_kms_key.main](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kms_key) | resource |
 | [docker_image.loadtest](https://registry.terraform.io/providers/kreuzwerker/docker/latest/docs/resources/image) | resource |
 | [docker_registry_image.loadtest](https://registry.terraform.io/providers/kreuzwerker/docker/latest/docs/resources/registry_image) | resource |
@@ -177,6 +204,7 @@ terraform workspace delete <workspace_name>
 | [aws_ecr_authorization_token.token](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/ecr_authorization_token) | data source |
 | [aws_ecr_repository.fleet](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/ecr_repository) | data source |
 | [aws_region.current](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/region) | data source |
+| [aws_secretsmanager_secret_version.enroll_secret](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/secretsmanager_secret_version) | data source |
 | [git_repository.tf](https://registry.terraform.io/providers/metio/git/2025.10.10/docs/data-sources/repository) | data source |
 | [terraform_remote_state.infra](https://registry.terraform.io/providers/hashicorp/terraform/latest/docs/data-sources/remote_state) | data source |
 | [terraform_remote_state.shared](https://registry.terraform.io/providers/hashicorp/terraform/latest/docs/data-sources/remote_state) | data source |
@@ -188,6 +216,7 @@ terraform workspace delete <workspace_name>
 | <a name="input_extra_flags"></a> [extra\_flags](#input\_extra\_flags) | Comma delimited list (string) for passing extra flags to osquery-perf containers | `list(string)` | <pre>[<br/>  "--orbit_prob",<br/>  "0.0"<br/>]</pre> | no |
 | <a name="input_git_tag_branch"></a> [git\_tag\_branch](#input\_git\_tag\_branch) | The tag or git branch to use to build loadtest containers. | `string` | n/a | yes |
 | <a name="input_loadtest_containers"></a> [loadtest\_containers](#input\_loadtest\_containers) | Number of loadtest containers to deploy | `number` | `1` | no |
+| <a name="input_stable_host_identities"></a> [stable\_host\_identities](#input\_stable\_host\_identities) | Run each container as its own service with its own --seed, so a restarted or replaced container comes back as the same hosts instead of enrolling new ones | `bool` | `false` | no |
 | <a name="input_task_size"></a> [task\_size](#input\_task\_size) | n/a | <pre>object({<br/>    cpu    = optional(number, 256)<br/>    memory = optional(number, 1024)<br/>  })</pre> | <pre>{<br/>  "cpu": 256,<br/>  "memory": 1024<br/>}</pre> | no |
 
 ## Outputs

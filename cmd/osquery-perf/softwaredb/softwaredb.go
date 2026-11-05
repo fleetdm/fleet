@@ -75,6 +75,13 @@ func ptrString(s string) *string {
 	return &s
 }
 
+// CountRange returns the smallest and largest number of software items a host of the given
+// platform reports.
+func CountRange(platform string) (lo, hi int) {
+	config := platformCounts[platform]
+	return config.min, config.max
+}
+
 // RandomSoftwareCount returns a random count between min and max for the given platform
 func RandomSoftwareCount(platform string) int {
 	config, ok := platformCounts[platform]
@@ -295,7 +302,8 @@ var platformCounts = map[string]struct {
 
 // LoadFromDatabase loads software from the SQLite database with platform-specific counts.
 // If the database doesn't exist, it attempts to auto-generate it from software.sql.
-func LoadFromDatabase(dbPath string) (*DB, error) {
+// Each platform's pool is drawn with seed, so the same seed loads the same pool.
+func LoadFromDatabase(dbPath string, seed int64) (*DB, error) {
 	// Check if database file exists
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		// Database doesn't exist, try to generate it from software.sql
@@ -331,7 +339,7 @@ func LoadFromDatabase(dbPath string) (*DB, error) {
 
 	// Load Darwin software
 	darwinConfig := platformCounts["darwin"]
-	darwinSoftware, err := loadDarwinSoftware(db, darwinConfig.sources)
+	darwinSoftware, err := loadDarwinSoftware(db, darwinConfig.sources, seed)
 	if err != nil {
 		return nil, err
 	}
@@ -340,7 +348,7 @@ func LoadFromDatabase(dbPath string) (*DB, error) {
 
 	// Load Windows software
 	windowsConfig := platformCounts["windows"]
-	windowsSoftware, err := loadWindowsSoftware(db, windowsConfig.sources)
+	windowsSoftware, err := loadWindowsSoftware(db, windowsConfig.sources, seed)
 	if err != nil {
 		return nil, err
 	}
@@ -349,7 +357,7 @@ func LoadFromDatabase(dbPath string) (*DB, error) {
 
 	// Load Ubuntu software
 	ubuntuConfig := platformCounts["ubuntu"]
-	ubuntuSoftware, err := loadUbuntuSoftware(db, ubuntuConfig.sources)
+	ubuntuSoftware, err := loadUbuntuSoftware(db, ubuntuConfig.sources, seed)
 	if err != nil {
 		return nil, err
 	}
@@ -357,6 +365,38 @@ func LoadFromDatabase(dbPath string) (*DB, error) {
 	log.Printf("Loaded %d ubuntu software items from database", len(ubuntuSoftware))
 
 	return softwareDB, nil
+}
+
+// pickIDs draws the ids of up to MaxSoftwarePerPlatform rows for the given sources. The draw
+// depends only on seed, so an osquery-perf restarted with the same --seed builds the same pool
+// and its hosts report the same software as before.
+func pickIDs(db *sql.DB, sourceList string, seed int64) (map[int64]struct{}, error) {
+	// nolint:gosec // sources are hardcoded, not user input
+	rows, err := db.Query(fmt.Sprintf(`SELECT id FROM software WHERE source IN (%s) ORDER BY id`, sourceList))
+	if err != nil {
+		return nil, fmt.Errorf("querying software ids: %w", err)
+	}
+	defer rows.Close()
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scanning software id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating software ids: %w", err)
+	}
+
+	r := rand.New(rand.NewPCG(uint64(seed), 0)) //nolint:gosec // G404, G115: load testing, not security-sensitive
+	r.Shuffle(len(ids), func(i, j int) { ids[i], ids[j] = ids[j], ids[i] })
+	ids = ids[:min(len(ids), MaxSoftwarePerPlatform)]
+	picked := make(map[int64]struct{}, len(ids))
+	for _, id := range ids {
+		picked[id] = struct{}{}
+	}
+	return picked, nil
 }
 
 // generateDatabaseFromSQL creates a SQLite database from a SQL file
@@ -387,16 +427,19 @@ func generateDatabaseFromSQL(dbPath, sqlPath string) error {
 }
 
 // loadDarwinSoftware loads all macOS/iOS software from the database for the given sources
-func loadDarwinSoftware(db *sql.DB, sources []string) ([]DarwinSoftware, error) {
+func loadDarwinSoftware(db *sql.DB, sources []string, seed int64) ([]DarwinSoftware, error) {
 	sourceList := "'" + strings.Join(sources, "', '") + "'"
+	picked, err := pickIDs(db, sourceList, seed)
+	if err != nil {
+		return nil, err
+	}
 	// nolint:gosec // sources are hardcoded, not user input
 	query := fmt.Sprintf(`
-		SELECT name, version, source, bundle_identifier, vendor, extension_id, extension_for
+		SELECT id, name, version, source, bundle_identifier, vendor, extension_id, extension_for
 		FROM software
 		WHERE source IN (%s)
-		ORDER BY RANDOM()
-		LIMIT %d
-	`, sourceList, MaxSoftwarePerPlatform)
+		ORDER BY id
+	`, sourceList)
 
 	rows, err := db.Query(query)
 	if err != nil {
@@ -408,11 +451,16 @@ func loadDarwinSoftware(db *sql.DB, sources []string) ([]DarwinSoftware, error) 
 	for rows.Next() {
 		var sw DarwinSoftware
 		var source string
+		var id int64
 		var bundleID, vendor, extensionID, extensionFor sql.NullString
 
-		err := rows.Scan(&sw.Name, &sw.Version, &source, &bundleID, &vendor, &extensionID, &extensionFor)
+		err := rows.Scan(&id, &sw.Name, &sw.Version, &source, &bundleID, &vendor, &extensionID, &extensionFor)
 		if err != nil {
 			return nil, fmt.Errorf("scanning darwin software row: %w", err)
+		}
+
+		if _, ok := picked[id]; !ok {
+			continue
 		}
 
 		// Use interned source string
@@ -443,16 +491,19 @@ func loadDarwinSoftware(db *sql.DB, sources []string) ([]DarwinSoftware, error) 
 }
 
 // loadWindowsSoftware loads all Windows software from the database for the given sources
-func loadWindowsSoftware(db *sql.DB, sources []string) ([]WindowsSoftware, error) {
+func loadWindowsSoftware(db *sql.DB, sources []string, seed int64) ([]WindowsSoftware, error) {
 	sourceList := "'" + strings.Join(sources, "', '") + "'"
+	picked, err := pickIDs(db, sourceList, seed)
+	if err != nil {
+		return nil, err
+	}
 	// nolint:gosec // sources are hardcoded, not user input
 	query := fmt.Sprintf(`
-		SELECT name, version, source, vendor, upgrade_code, extension_id, extension_for
+		SELECT id, name, version, source, vendor, upgrade_code, extension_id, extension_for
 		FROM software
 		WHERE source IN (%s)
-		ORDER BY RANDOM()
-		LIMIT %d
-	`, sourceList, MaxSoftwarePerPlatform)
+		ORDER BY id
+	`, sourceList)
 
 	rows, err := db.Query(query)
 	if err != nil {
@@ -464,11 +515,16 @@ func loadWindowsSoftware(db *sql.DB, sources []string) ([]WindowsSoftware, error
 	for rows.Next() {
 		var sw WindowsSoftware
 		var source string
+		var id int64
 		var vendor, upgradeCode, extensionID, extensionFor sql.NullString
 
-		err := rows.Scan(&sw.Name, &sw.Version, &source, &vendor, &upgradeCode, &extensionID, &extensionFor)
+		err := rows.Scan(&id, &sw.Name, &sw.Version, &source, &vendor, &upgradeCode, &extensionID, &extensionFor)
 		if err != nil {
 			return nil, fmt.Errorf("scanning windows software row: %w", err)
+		}
+
+		if _, ok := picked[id]; !ok {
+			continue
 		}
 
 		// Use interned source string
@@ -499,16 +555,19 @@ func loadWindowsSoftware(db *sql.DB, sources []string) ([]WindowsSoftware, error
 }
 
 // loadUbuntuSoftware loads all Ubuntu/Linux software from the database for the given sources
-func loadUbuntuSoftware(db *sql.DB, sources []string) ([]UbuntuSoftware, error) {
+func loadUbuntuSoftware(db *sql.DB, sources []string, seed int64) ([]UbuntuSoftware, error) {
 	sourceList := "'" + strings.Join(sources, "', '") + "'"
+	picked, err := pickIDs(db, sourceList, seed)
+	if err != nil {
+		return nil, err
+	}
 	// nolint:gosec // sources are hardcoded, not user input
 	query := fmt.Sprintf(`
-		SELECT name, version, source, vendor, arch, release, extension_id, extension_for
+		SELECT id, name, version, source, vendor, arch, release, extension_id, extension_for
 		FROM software
 		WHERE source IN (%s)
-		ORDER BY RANDOM()
-		LIMIT %d
-	`, sourceList, MaxSoftwarePerPlatform)
+		ORDER BY id
+	`, sourceList)
 
 	rows, err := db.Query(query)
 	if err != nil {
@@ -520,11 +579,16 @@ func loadUbuntuSoftware(db *sql.DB, sources []string) ([]UbuntuSoftware, error) 
 	for rows.Next() {
 		var sw UbuntuSoftware
 		var source string
+		var id int64
 		var vendor, arch, release, extensionID, extensionFor sql.NullString
 
-		err := rows.Scan(&sw.Name, &sw.Version, &source, &vendor, &arch, &release, &extensionID, &extensionFor)
+		err := rows.Scan(&id, &sw.Name, &sw.Version, &source, &vendor, &arch, &release, &extensionID, &extensionFor)
 		if err != nil {
 			return nil, fmt.Errorf("scanning ubuntu software row: %w", err)
+		}
+
+		if _, ok := picked[id]; !ok {
+			continue
 		}
 
 		// Use interned source string

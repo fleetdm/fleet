@@ -10,6 +10,7 @@ import (
 	"crypto/tls"
 	"embed"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"encoding/xml"
@@ -391,6 +392,7 @@ type mdmAgent struct {
 	isPersonalEnrollment       bool
 	apnsPushURL                string
 	apnsTopic                  string
+	id                         hostSeed
 }
 
 // defaultMDMAPNSTopic is what simulated Apple devices send as their APNs topic when
@@ -422,7 +424,7 @@ func (a *mdmAgent) CachedString(key string) string {
 	if val, ok := a.strings[key]; ok {
 		return val
 	}
-	val := randomString(12)
+	val := a.id.str("cached:"+key, stringVals, 12)
 	a.strings[key] = val
 	return val
 }
@@ -437,15 +439,7 @@ func (a *mdmAgent) selectSoftwareVersion(softwareName, baseVersion, alternateVer
 	firstChar := rune(softwareName[0])
 	versionOption, exists := a.softwareVersionMap[firstChar]
 	if !exists {
-		r := rand.Float64()
-		switch {
-		case r < 0.99:
-			versionOption = 0
-		case r < 0.999:
-			versionOption = 1
-		default:
-			versionOption = 2 + rand.Intn(30)
-		}
+		versionOption = softwareVersionOption(a.id, firstChar)
 		a.softwareVersionMap[firstChar] = versionOption
 	}
 
@@ -500,6 +494,11 @@ type agent struct {
 	softwareAIToolsCount          softwareAIToolsCount
 	userCount                     entityCount
 	policyPassProb                float64
+	stickyPolicies                bool
+	scriptExecFailProb            float64
+	softwareChurnPerDay           float64
+	installPermafail              bool
+	id                            hostSeed
 	munkiIssueProb                float64
 	munkiIssueCount               int
 	liveQueryFailProb             float64
@@ -531,6 +530,9 @@ type agent struct {
 	// WindowsMDMSyncRequest notification), mirroring real fleetd waking the device. Buffered with capacity 1, sent
 	// non-blocking, so coalesced wakes never block the orbit config loop. Non-nil only for Windows MDM agents.
 	winMDMWake chan struct{}
+	// The Windows MDM client is created after orbit enrollment, so its stable IDs wait here.
+	winMDMDeviceID   string
+	winMDMHardwareID string
 
 	// ws simulates orbit's WebSocket notification transport; non-nil only
 	// while the server's orbit-config directive has it enabled (see
@@ -579,6 +581,11 @@ type agent struct {
 	// pssoTokenCaptured short-circuits token extraction once it has succeeded.
 	// Only the (single) MDM loop goroutine touches it.
 	pssoTokenCaptured atomic.Bool
+
+	// fileVaultKey is the base64 CMS-encrypted recovery key the Mac escrowed after
+	// installing Fleet's FileVault profile; nil until then. Set by the MDM loop, read by
+	// the osquery loop.
+	fileVaultKey atomic.Pointer[string]
 
 	// Note that the following ddm variables do not need a mutex because they are only
 	// accessed in the MDM goroutine (and then only in the DDM handling function), and never
@@ -754,7 +761,116 @@ type softwareInstaller struct {
 	preInstallFailureProb  float64
 	installFailureProb     float64
 	postInstallFailureProb float64
-	mu                     *sync.Mutex
+	// permafailProb is the share of hosts whose installs always fail. The per-attempt
+	// probabilities above let a retry eventually succeed, so they can't produce an
+	// endless retry loop like fleetdm/fleet#51086.
+	permafailProb float64
+	mu            *sync.Mutex
+}
+
+// stableFraction maps a host and a key to a value in [0, 1) that doesn't change between
+// calls or runs, so a host can decide something once (fail this policy, always fail
+// installs) instead of re-rolling it on every report.
+func stableFraction(hostUUID, key string) float64 {
+	sum := sha256.Sum256([]byte(hostUUID + "\x00" + key))
+	return float64(binary.BigEndian.Uint64(sum[:8])>>11) / (1 << 53)
+}
+
+func inInstallPermafailCohort(hostUUID string, prob float64) bool {
+	return prob > 0 && stableFraction(hostUUID, "install-permafail") < prob
+}
+
+// hostSeed derives a host's identity (UUID, serial, hostname, MDM device IDs) and its
+// once-per-host choices from the container's --seed and the host's index, so a container
+// restarted with the same seed comes back as the same hosts instead of enrolling new ones.
+// Each value has its own stream, so changing one flag between runs doesn't reshuffle the rest.
+type hostSeed struct {
+	seed  int64
+	index int
+}
+
+func (h hostSeed) rng(purpose string) *rand.Rand {
+	sum := sha256.Sum256(fmt.Appendf(nil, "%d/%d/%s", h.seed, h.index, purpose))
+	return rand.New(rand.NewSource(int64(binary.BigEndian.Uint64(sum[:8])))) //nolint:gosec // G115, G404: any bit pattern is a valid seed; not for crypto
+}
+
+func (h hostSeed) fraction(purpose string) float64 {
+	return h.rng(purpose).Float64()
+}
+
+func (h hostSeed) uuid(purpose string) string {
+	return uuid.Must(uuid.NewRandomFromReader(h.rng(purpose))).String()
+}
+
+func (h hostSeed) str(purpose, charset string, n int) string {
+	r := h.rng(purpose)
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = charset[r.Intn(len(charset))]
+	}
+	return string(b)
+}
+
+// Same alphabet as mdmtest's random serials.
+const serialCharset = "0123456789ABCDEFGHJKMNPQRSTUVWXYZ"
+
+// softwareVersionOption picks which version a host reports for software whose name starts
+// with firstChar: 99% base (0), 0.9% alternate (1), 0.1% a patch version (2-31 => patch
+// 0-29). Seed-derived, so a restarted host doesn't report new versions.
+func softwareVersionOption(id hostSeed, firstChar rune) int {
+	r := id.rng("software-version:" + string(firstChar))
+	switch f := r.Float64(); {
+	case f < 0.99:
+		return 0
+	case f < 0.999:
+		return 1
+	default:
+		return 2 + r.Intn(30)
+	}
+}
+
+func splitmix64(x uint64) uint64 {
+	x += 0x9e3779b97f4a7c15
+	x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9
+	x = (x ^ (x >> 27)) * 0x94d049bb133111eb
+	return x ^ (x >> 31)
+}
+
+// stableSoftwareIndices returns a host's software inventory as up to count distinct indices
+// into a pool of poolSize items. Each slot keeps its item for 1/churnPerDay days and is then
+// replaced, at its own seed-derived phase, so churnPerDay of the inventory changes a day. The
+// result depends only on the seed and the clock, so a restarted host reports what it did before.
+func stableSoftwareIndices(id hostSeed, count, poolSize int, churnPerDay float64, now time.Time) []uint32 {
+	count = min(count, poolSize)
+	if count <= 0 {
+		return nil
+	}
+	var period float64 // seconds a slot keeps its item
+	if churnPerDay > 0 {
+		period = 24 * time.Hour.Seconds() / churnPerDay
+	}
+	base := id.rng("software-slots").Uint64()
+	pool := uint64(poolSize) //nolint:gosec // G115: poolSize > 0
+	taken := make(map[uint64]struct{}, count)
+	indices := make([]uint32, 0, count)
+	for slot := range uint64(count) { //nolint:gosec // G115: count > 0
+		h := splitmix64(base + slot)
+		var generation uint64
+		if period > 0 {
+			phase := float64(h>>11) / (1 << 53) * period
+			generation = uint64((float64(now.Unix()) + phase) / period)
+		}
+		idx := splitmix64(h^generation) % pool
+		for {
+			if _, ok := taken[idx]; !ok {
+				break
+			}
+			idx = (idx + 1) % pool
+		}
+		taken[idx] = struct{}{}
+		indices = append(indices, uint32(idx)) //nolint:gosec // G115: idx < poolSize
+	}
+	return indices
 }
 
 // pssoParams configures the Apple Platform SSO (PSSO) simulation for macOS MDM
@@ -825,16 +941,20 @@ func newAgent(
 	psso pssoParams,
 	mdmAPNSPushURL string,
 	websocketProb float64,
+	stickyPolicies bool,
+	scriptExecFailProb float64,
+	softwareChurnPerDay float64,
+	id hostSeed,
 ) *agent {
 	var deviceAuthToken *string
-	if rand.Float64() <= orbitProb {
-		deviceAuthToken = ptr.String(uuid.NewString())
+	if id.fraction("orbit") <= orbitProb {
+		deviceAuthToken = new(id.uuid("device-auth-token"))
 	}
-	serialNumber := mdmtest.RandSerialNumber()
-	if rand.Float64() <= emptySerialProb {
+	serialNumber := id.str("serial", serialCharset, 12)
+	if id.fraction("empty-serial") <= emptySerialProb {
 		serialNumber = ""
 	}
-	hostUUID := strings.ToUpper(uuid.New().String())
+	hostUUID := strings.ToUpper(id.uuid("host-uuid"))
 
 	// determine the simulated host's OS based on the template name (see
 	// validTemplateNames below for the list of possible names, the OS is always
@@ -849,22 +969,23 @@ func newAgent(
 		macMDMClient *mdmtest.TestAppleMDMClient
 		winMDMClient *mdmtest.TestWindowsMDMClient
 	)
-	mdmRoll := rand.Float64() // nolint:gosec // ignore weak randomizer
+	mdmRoll := id.fraction("mdm")
 	switch {
 	case agentOS == "macos" && mdmRoll < mdmProbMacOS:
+		// An MDM-enrolled Mac always has a serial number.
+		if serialNumber == "" {
+			serialNumber = id.str("mdm-serial", serialCharset, 12)
+		}
 		macMDMClient = mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
 			SCEPChallenge: mdmSCEPChallenge,
 			SCEPURL:       serverAddress + apple_mdm.SCEPPath,
 			MDMURL:        serverAddress + apple_mdm.MDMPath,
-		}, "MacBookPro16,1", mdmtest.WithPushTopic(mdmAPNSTopic))
-		// Have the osquery agent match the MDM device serial number and UUID.
-		serialNumber = macMDMClient.SerialNumber
-		hostUUID = macMDMClient.UUID
+		}, "MacBookPro16,1", mdmtest.WithPushTopic(mdmAPNSTopic), mdmtest.WithDeviceIdentity(hostUUID, serialNumber))
 
 	case agentOS == "windows" && mdmRoll < mdmProbWindows:
 		// windows MDM enrollment requires orbit enrollment
 		if deviceAuthToken == nil {
-			deviceAuthToken = new(uuid.NewString())
+			deviceAuthToken = new(id.uuid("device-auth-token"))
 		}
 		// creating the Windows MDM client requires the orbit node key, but we
 		// only get it after orbit enrollment. So here we just set the value to a
@@ -875,7 +996,7 @@ func newAgent(
 	}
 
 	// Determine if this agent should use HTTP message signatures
-	useHTTPSig := rand.Float64() < httpMessageSignatureProb // nolint:gosec // ignore weak randomizer
+	useHTTPSig := id.fraction("http-signature") < httpMessageSignatureProb
 
 	agent := &agent{
 		agentIndex:                    agentIndex,
@@ -891,6 +1012,11 @@ func newAgent(
 		userCount:                     userCount,
 		strings:                       make(map[string]string),
 		policyPassProb:                policyPassProb,
+		stickyPolicies:                stickyPolicies,
+		scriptExecFailProb:            scriptExecFailProb,
+		softwareChurnPerDay:           softwareChurnPerDay,
+		installPermafail:              inInstallPermafailCohort(hostUUID, softwareInstaller.permafailProb),
+		id:                            id,
 		munkiIssueProb:                munkiIssueProb,
 		munkiIssueCount:               munkiIssueCount,
 		liveQueryFailProb:             liveQueryFailProb,
@@ -906,7 +1032,7 @@ func newAgent(
 		UUID:                          hostUUID,
 		SerialNumber:                  serialNumber,
 		defaultSerialProb:             defaultSerialProb,
-		OSPatchLevel:                  rand.Intn(25), // Random patch level 0-24
+		OSPatchLevel:                  id.rng("os-patch-level").Intn(25),
 
 		softwareQueryFailureProb:         softwareQueryFailureProb,
 		softwareVSCodeExtensionsFailProb: softwareVSCodeExtensionsQueryFailureProb,
@@ -921,7 +1047,7 @@ func newAgent(
 		macMDMClient:   macMDMClient,
 		winMDMClient:   winMDMClient,
 		mdmUserProb:    mdmUserProb,
-		wsSupported:    rand.Float64() < websocketProb, // nolint:gosec // ignore weak randomizer
+		wsSupported:    id.fraction("websocket") < websocketProb,
 		mdmAPNSPushURL: mdmAPNSPushURL,
 		ddmDeclTokens:  make(map[string]string),
 
@@ -943,21 +1069,23 @@ func newAgent(
 		// Every 20th host (5%) withholds its issued SCEP certs to exercise the server's verification backstop (test-only failure).
 		withholdSCEPCert: agentIndex%20 == 0,
 
-		entraIDDeviceID:          uuid.NewString(),
-		entraIDUserPrincipalName: fmt.Sprintf("fake-%s@example.com", randomString(5)),
+		entraIDDeviceID:          id.uuid("entra-device-id"),
+		entraIDUserPrincipalName: fmt.Sprintf("fake-%s@example.com", id.str("entra-upn", stringVals, 5)),
 		configTLSETag:            configTLSETag,
 	}
 
 	// Windows MDM agents can be woken on demand by the server, so give them a wake channel for the MDM loop.
 	if winMDMClient != nil {
 		agent.winMDMWake = make(chan struct{}, 1)
+		agent.winMDMDeviceID = id.uuid("windows-mdm-device-id")
+		agent.winMDMHardwareID = id.uuid("windows-mdm-hardware-id")
 	}
 
 	// A subset of macOS MDM agents also simulate Platform SSO. The PSSO device
 	// rides on the MDM client (it reuses its UUID and reads the registration
 	// token out of an MDM-delivered profile), so it only makes sense when the
 	// agent is an enrolled Mac.
-	if macMDMClient != nil && psso.clientID != "" && rand.Float64() < psso.prob {
+	if macMDMClient != nil && psso.clientID != "" && id.fraction("psso") < psso.prob {
 		pssoDevice, err := mdmtest.NewApplePSSODevice(macMDMClient, serverAddress, psso.clientID)
 		if err != nil {
 			log.Printf("agent %d: creating PSSO device: %s", agentIndex, err)
@@ -977,17 +1105,18 @@ func newAgent(
 	}, useHTTPSig, httpMessageSignatureP384Prob)
 
 	// Pre-select kernels for Linux agents to ensure consistency across queries
+	kernelRNG := id.rng("kernels")
 	switch agentOS {
 	case "ubuntu":
-		agent.linuxKernels = selectKernels(ubuntuKernels)
+		agent.linuxKernels = selectKernels(kernelRNG, ubuntuKernels)
 	case "rhel":
 		switch osVariant {
 		case "8":
-			agent.linuxKernels = selectKernels(rhel8Kernels)
+			agent.linuxKernels = selectKernels(kernelRNG, rhel8Kernels)
 		case "9":
-			agent.linuxKernels = selectKernels(rhel9Kernels)
+			agent.linuxKernels = selectKernels(kernelRNG, rhel9Kernels)
 		case "10":
-			agent.linuxKernels = selectKernels(rhel10Kernels)
+			agent.linuxKernels = selectKernels(kernelRNG, rhel10Kernels)
 		}
 	}
 
@@ -1037,7 +1166,8 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 			return
 		}
 		if a.winMDMClient != nil {
-			a.winMDMClient = mdmtest.NewTestMDMClientWindowsProgramatic(a.serverAddress, *a.orbitNodeKey)
+			a.winMDMClient = mdmtest.NewTestMDMClientWindowsProgramatic(a.serverAddress, *a.orbitNodeKey,
+				mdmtest.TestWindowsMDMClientWithDeviceIDs(a.winMDMDeviceID, a.winMDMHardwareID))
 		}
 	}
 
@@ -1747,6 +1877,7 @@ func (a *agent) runMacosMDMLoop() {
 					}
 
 					a.recordInstalledProfile("device", mdmCommandPayload)
+					a.escrowFileVaultKey(mdmCommandPayload)
 
 					mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
 					if err != nil {
@@ -2305,7 +2436,7 @@ func (a *agent) execScripts(execIDs []string, orbitClient *fleetclient.OrbitClie
 		outputLen := rand.Intn(11000) // base64 encoding will make the actual output a bit bigger
 		buf := make([]byte, outputLen)
 		n, _ := io.ReadFull(cryptorand.Reader, buf)
-		exitCode := rand.Intn(2)
+		exitCode := a.scriptExitCode()
 		runtime := rand.Intn(5)
 		time.Sleep(time.Duration(runtime) * time.Second)
 
@@ -2322,6 +2453,13 @@ func (a *agent) execScripts(execIDs []string, orbitClient *fleetclient.OrbitClie
 		}
 		log.Printf("did exec and save host script result: id=%s, output size=%d, runtime=%d, exit code=%d", execID, base64.StdEncoding.EncodedLen(n), runtime, exitCode)
 	}
+}
+
+func (a *agent) scriptExitCode() int {
+	if rand.Float64() < a.scriptExecFailProb {
+		return 1
+	}
+	return 0
 }
 
 func (a *agent) installSoftware(installerIDs []string, orbitClient *fleetclient.OrbitClient) {
@@ -2390,6 +2528,10 @@ func (a *agent) installSoftwareItem(installerID string, orbitClient *fleetclient
 		} else if installer.InstallScript == "exit 1" {
 			payload.InstallScriptExitCode = ptr.Int(1)
 			payload.InstallScriptOutput = ptr.String("Installed on osquery-perf (always fail)")
+			failed = true
+		} else if a.installPermafail {
+			payload.InstallScriptExitCode = ptr.Int(1)
+			payload.InstallScriptOutput = ptr.String("Installed on osquery-perf (this host always fails)")
 			failed = true
 		} else if a.softwareInstaller.installFailureProb > 0.0 && rand.Float64() <= a.softwareInstaller.installFailureProb {
 			payload.InstallScriptExitCode = ptr.Int(1)
@@ -2821,17 +2963,7 @@ func (a *agent) selectSoftwareVersion(softwareName, baseVersion, alternateVersio
 	// Check if we've already assigned a version option for this character
 	versionOption, exists := a.softwareVersionMap[firstChar]
 	if !exists {
-		// Randomly assign option with distribution matching original randomizeVersion:
-		// 99% base (0), 0.9% alternate (1), 0.1% patch versions (2-31)
-		r := rand.Float64()
-		switch {
-		case r < 0.99:
-			versionOption = 0 // base version
-		case r < 0.999:
-			versionOption = 1 // alternate version
-		default:
-			versionOption = 2 + rand.Intn(30) // patch version: 2-31 maps to patch 0-29
-		}
+		versionOption = softwareVersionOption(a.id, firstChar)
 		a.softwareVersionMap[firstChar] = versionOption
 	}
 
@@ -2851,7 +2983,9 @@ func (a *agent) CachedString(key string) string {
 	if val, ok := a.strings[key]; ok {
 		return val
 	}
-	val := randomString(12)
+	// Seed-derived: unique software names are built from the hostname, so a restarted host
+	// must report the same one or it adds new software titles.
+	val := a.id.str("cached:"+key, stringVals, 12)
 	a.strings[key] = val
 	return val
 }
@@ -2885,6 +3019,42 @@ func (a *agent) hostUsers() []map[string]string {
 		users[i], users[j] = users[j], users[i]
 	})
 	return users
+}
+
+// stableSoftware reports whether the host keeps a stable software inventory that changes only
+// by softwareChurnPerDay, instead of the legacy one redrawn in part on every report.
+func (a *agent) stableSoftware() bool {
+	return a.softwareChurnPerDay >= 0
+}
+
+// useSoftwareDB decides whether the host reports software from the software DB (80%) or from
+// the embedded fixtures. A stable inventory decides once per host instead of on every report.
+func (a *agent) useSoftwareDB() bool {
+	if a.stableSoftware() {
+		return a.id.fraction("software-db") < 0.8
+	}
+	return rand.Float64() < 0.8 //nolint:gosec // G404: load testing, not security-sensitive
+}
+
+// dbSoftwareIndices returns the host's software as indices into a software DB pool of
+// poolSize items, for the platform's range of inventory sizes.
+func (a *agent) dbSoftwareIndices(platform string, poolSize int) []uint32 {
+	if a.stableSoftware() {
+		lo, hi := softwaredb.CountRange(platform)
+		count := lo + a.id.rng("software-count").Intn(hi-lo+1)
+		return stableSoftwareIndices(a.id, count, poolSize, a.softwareChurnPerDay, time.Now())
+	}
+	if a.cachedSoftwareIndices == nil {
+		count := min(softwaredb.RandomSoftwareCount(platform), poolSize)
+		perm := rand.Perm(poolSize)
+		a.cachedSoftwareIndices = make([]uint32, count)
+		for i := range count {
+			a.cachedSoftwareIndices[i] = uint32(perm[i]) //nolint:gosec // perm[i] is bounded by poolSize
+		}
+	} else {
+		a.cachedSoftwareIndices = softwaredb.MaybeMutateSoftware(a.cachedSoftwareIndices, poolSize)
+	}
+	return a.cachedSoftwareIndices
 }
 
 func (a *agent) softwareMacOS() []map[string]string {
@@ -3015,20 +3185,8 @@ func (a *agent) softwareMacOS() []map[string]string {
 
 	// Use database software 80% of the time if available; otherwise use legacy vulnerable software.
 	var realSoftware []map[string]string
-	if softwareDB != nil && len(softwareDB.Darwin) > 0 && rand.Float64() < 0.8 { //nolint:gosec // G404: load testing, not security-sensitive
-		// Initialize cached indices on first call, then mutate on subsequent calls
-		if a.cachedSoftwareIndices == nil {
-			// Select a random count between min-max, then pick that many random indices
-			count := softwaredb.RandomSoftwareCount("darwin")
-			perm := rand.Perm(len(softwareDB.Darwin))
-			a.cachedSoftwareIndices = make([]uint32, count)
-			for i := 0; i < count; i++ {
-				a.cachedSoftwareIndices[i] = uint32(perm[i])
-			}
-		} else {
-			a.cachedSoftwareIndices = softwaredb.MaybeMutateSoftware(a.cachedSoftwareIndices, len(softwareDB.Darwin))
-		}
-		realSoftware = softwareDB.DarwinToMaps(a.cachedSoftwareIndices)
+	if softwareDB != nil && len(softwareDB.Darwin) > 0 && a.useSoftwareDB() {
+		realSoftware = softwareDB.DarwinToMaps(a.dbSoftwareIndices("darwin", len(softwareDB.Darwin)))
 	} else {
 		// Vulnerable Software
 		var vCount int
@@ -3039,7 +3197,11 @@ func (a *agent) softwareMacOS() []map[string]string {
 		}
 
 		realSoftware = make([]map[string]string, 0, vCount)
-		randomIndices := rand.Perm(len(macosVulnerableSoftware)) // Randomize software selection
+		perm := rand.Perm
+		if a.stableSoftware() {
+			perm = a.id.rng("vulnerable-software").Perm
+		}
+		randomIndices := perm(len(macosVulnerableSoftware)) // Randomize software selection
 		var softwareLimit int
 
 		switch {
@@ -3464,9 +3626,9 @@ func (a *agent) softwareAITools() []map[string]string {
 	return rows
 }
 
-func selectKernels(kernelList []map[string]string) []map[string]string {
+func selectKernels(rng *rand.Rand, kernelList []map[string]string) []map[string]string {
 	// Determine number of kernels based on probability distribution
-	r := rand.Float64()
+	r := rng.Float64()
 	var numKernels int
 	switch {
 	case r < 0.05:
@@ -3490,7 +3652,7 @@ func selectKernels(kernelList []map[string]string) []map[string]string {
 	}
 
 	// Randomly select unique kernels
-	indices := rand.Perm(len(kernelList))
+	indices := rng.Perm(len(kernelList))
 	kernels := make([]map[string]string, 0, numKernels)
 
 	for i := 0; i < numKernels && i < len(indices); i++ {
@@ -3585,7 +3747,7 @@ func (a *agent) genLastOpenedAt(softwareName string) *time.Time {
 	return &now
 }
 
-func (a *agent) runPolicy(query string) []map[string]string {
+func (a *agent) runPolicy(name, query string) []map[string]string {
 	// Used to control the pass or fail of a policy
 	// in the UI by setting the query to "select 1"(pass)
 	// or "select 0"(fail)
@@ -3601,7 +3763,13 @@ func (a *agent) runPolicy(query string) []map[string]string {
 		return []map[string]string{}
 	}
 
-	if rand.Float64() <= a.policyPassProb {
+	// Sticky results key on the policy (its query name carries the ID), not the SQL, so
+	// editing a policy's query doesn't re-roll every host.
+	roll := rand.Float64()
+	if a.stickyPolicies {
+		roll = stableFraction(a.UUID, name)
+	}
+	if roll < a.policyPassProb {
 		return []map[string]string{
 			{"1": "1"},
 		}
@@ -3823,8 +3991,9 @@ func (a *agent) diskSpace() []map[string]string {
 }
 
 func (a *agent) diskEncryption() []map[string]string {
-	// 50% of results have encryption enabled
-	a.DiskEncryptionEnabled = rand.Intn(2) == 1
+	// A Mac that escrowed a FileVault key is encrypted; otherwise 50% of results have
+	// encryption enabled.
+	a.DiskEncryptionEnabled = a.fileVaultKey.Load() != nil || rand.Intn(2) == 1
 	if a.DiskEncryptionEnabled {
 		return []map[string]string{{"1": "1"}}
 	}
@@ -4017,7 +4186,7 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 		results, status, message, stats = a.runLiveQuery(query)
 		return true, results, status, message, stats
 	case strings.HasPrefix(name, hostPolicyQueryPrefix):
-		return true, a.runPolicy(query), &statusOK, nil, nil
+		return true, a.runPolicy(name, query), &statusOK, nil, nil
 	case strings.HasPrefix(name, hostLabelQueryPrefix) &&
 		strings.ToLower(strings.TrimRight(strings.TrimSpace(query), ";")) == "select 1":
 		// "select 1;" is the "All hosts" builtin label query. Its label ID varies
@@ -4034,6 +4203,15 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			ss = statusNotOK
 		}
 		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"mdm_disk_encryption_key_file_darwin":
+		if key := a.fileVaultKey.Load(); key != nil {
+			return true, []map[string]string{{"encrypted": "1", "filevault_key": *key}}, &statusOK, nil, nil
+		}
+		return true, []map[string]string{{"encrypted": "0", "filevault_key": ""}}, &statusOK, nil, nil
+	case name == hostDetailQueryPrefix+"mdm_disk_encryption_key_file_lines_darwin":
+		// Simulated fleetd has the filevault_prk table, so this query's discovery fails
+		// (it requires the table to NOT exist): no results and no status, as in osquery.
+		return true, nil, nil, nil, nil
 	case name == hostDetailQueryPrefix+"mdm_config_profiles_darwin":
 		// Simulated fleetd has the macos_user_profiles table, so this legacy
 		// query's discovery fails (it requires the table to NOT exist) and
@@ -4174,20 +4352,8 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 		}
 		if ss == fleet.StatusOK {
 			// Use database software 80% of the time if available, otherwise use embedded data
-			if softwareDB != nil && len(softwareDB.Windows) > 0 && rand.Float64() < 0.8 { //nolint:gosec // G404: load testing, not security-sensitive
-				// Initialize cached indices on first call, then mutate on subsequent calls
-				if a.cachedSoftwareIndices == nil {
-					// Select a random count between min-max, then pick that many random indices
-					count := softwaredb.RandomSoftwareCount("windows")
-					perm := rand.Perm(len(softwareDB.Windows))
-					a.cachedSoftwareIndices = make([]uint32, count)
-					for i := 0; i < count; i++ {
-						a.cachedSoftwareIndices[i] = uint32(perm[i])
-					}
-				} else {
-					a.cachedSoftwareIndices = softwaredb.MaybeMutateSoftware(a.cachedSoftwareIndices, len(softwareDB.Windows))
-				}
-				results = softwareDB.WindowsToMaps(a.cachedSoftwareIndices)
+			if softwareDB != nil && len(softwareDB.Windows) > 0 && a.useSoftwareDB() {
+				results = softwareDB.WindowsToMaps(a.dbSoftwareIndices("windows", len(softwareDB.Windows)))
 			} else {
 				results = make([]map[string]string, 0, len(windowsSoftware))
 				for _, s := range windowsSoftware {
@@ -4279,20 +4445,8 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			switch a.os {
 			case "ubuntu":
 				// Use database software 80% of the time if available, otherwise use embedded data
-				if softwareDB != nil && len(softwareDB.Ubuntu) > 0 && rand.Float64() < 0.8 { //nolint:gosec // G404: load testing, not security-sensitive
-					// Initialize cached indices on first call, then mutate on subsequent calls
-					if a.cachedSoftwareIndices == nil {
-						// Select a random count between min-max, then pick that many random indices
-						count := softwaredb.RandomSoftwareCount("ubuntu")
-						perm := rand.Perm(len(softwareDB.Ubuntu))
-						a.cachedSoftwareIndices = make([]uint32, count)
-						for i := 0; i < count; i++ {
-							a.cachedSoftwareIndices[i] = uint32(perm[i])
-						}
-					} else {
-						a.cachedSoftwareIndices = softwaredb.MaybeMutateSoftware(a.cachedSoftwareIndices, len(softwareDB.Ubuntu))
-					}
-					results = softwareDB.UbuntuToMaps(a.cachedSoftwareIndices)
+				if softwareDB != nil && len(softwareDB.Ubuntu) > 0 && a.useSoftwareDB() {
+					results = softwareDB.UbuntuToMaps(a.dbSoftwareIndices("ubuntu", len(softwareDB.Ubuntu)))
 				} else {
 					results = make([]map[string]string, 0, len(ubuntuSoftware))
 					for _, s := range ubuntuSoftware {
@@ -4333,17 +4487,7 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 				// sufficient for kernel-CVE load testing.
 				rpmPool := loadSoftwareDBRPM()
 				if len(rpmPool) > 0 {
-					if a.cachedSoftwareIndices == nil {
-						count := min(softwaredb.RandomSoftwareCount("ubuntu"), len(rpmPool))
-						perm := rand.Perm(len(rpmPool))
-						a.cachedSoftwareIndices = make([]uint32, count)
-						for i := range count {
-							a.cachedSoftwareIndices[i] = uint32(perm[i]) //nolint:gosec // perm[i] is bounded by len(rpmPool)
-						}
-					} else {
-						a.cachedSoftwareIndices = softwaredb.MaybeMutateSoftware(a.cachedSoftwareIndices, len(rpmPool))
-					}
-					results = rpmSliceToMaps(rpmPool, a.cachedSoftwareIndices, a.softwareCount.rpmEpochPercent)
+					results = rpmSliceToMaps(rpmPool, a.dbSoftwareIndices("ubuntu", len(rpmPool)), a.softwareCount.rpmEpochPercent)
 				}
 
 				// Add pre-selected kernels for this agent
@@ -4613,15 +4757,15 @@ func (a *agent) submitLogs(results []resultLog) error {
 }
 
 func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
-	udid := mdmtest.RandUDID()
+	// Same shape as mdmtest.RandUDID, but stable for a given seed and index.
+	udid := a.id.str("udid", serialCharset, 24)
+	udid = udid[:8] + "-" + udid[8:]
 
 	mdmClient := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
 		SCEPChallenge: mdmSCEPChallenge,
 		SCEPURL:       a.serverAddress + apple_mdm.SCEPPath,
 		MDMURL:        a.serverAddress + apple_mdm.MDMPath,
-	}, a.model, mdmtest.WithPushTopic(a.apnsTopic))
-	mdmClient.UUID = udid
-	mdmClient.SerialNumber = mdmtest.RandSerialNumber()
+	}, a.model, mdmtest.WithPushTopic(a.apnsTopic), mdmtest.WithDeviceIdentity(udid, a.id.str("serial", serialCharset, 12)))
 	deviceName := fmt.Sprintf("%s-%d", a.model, a.agentIndex)
 	productName := a.model
 	softwareSource := "ios_apps"
@@ -4806,6 +4950,8 @@ func main() {
 			"Probability of the install script failing")
 		softwareInstallerPostInstallFailureProb = flag.Float64("software_installer_post_install_fail_prob", 0.05,
 			"Probability of the post-install script failing")
+		softwareInstallerPermafailProb = flag.Float64("software_installer_permafail_prob", 0.0,
+			"Share of hosts whose installs always fail, decided once per host from its UUID [0, 1]")
 
 		commonSoftwareCount                          = flag.Int("common_software_count", 10, "Number of common installed applications reported to fleet")
 		commonVSCodeExtensionsSoftwareCount          = flag.Int("common_vscode_extensions_software_count", 5, "Number of common vscode_extensions installed applications reported to fleet")
@@ -4862,6 +5008,7 @@ func main() {
 		commonUserCount             = flag.Int("common_user_count", 10, "Number of common host users reported to fleet")
 		uniqueUserCount             = flag.Int("unique_user_count", 10, "Number of unique host users reported to fleet")
 		policyPassProb              = flag.Float64("policy_pass_prob", 1.0, "Probability of policies to pass [0, 1]")
+		policySticky                = flag.Bool("policy_sticky", false, "Decide each policy's result once per host (from the host UUID and the policy) instead of re-rolling policy_pass_prob on every report")
 		orbitProb                   = flag.Float64("orbit_prob", 0.5, "Probability of a host being identified as orbit install [0, 1]")
 		munkiIssueProb              = flag.Float64("munki_issue_prob", 0.5, "Probability of a host having munki issues (note that ~50% of hosts have munki installed) [0, 1]")
 		munkiIssueCount             = flag.Int("munki_issue_count", 10, "Number of munki issues reported by hosts identified to have munki issues")
@@ -4894,7 +5041,11 @@ func main() {
 		liveQueryFailProb      = flag.Float64("live_query_fail_prob", 0.0, "Probability of a live query failing execution in the host")
 		liveQueryNoResultsProb = flag.Float64("live_query_no_results_prob", 0.2, "Probability of a live query returning no results")
 
-		disableScriptExec = flag.Bool("disable_script_exec", false, "Disable script execution support")
+		disableScriptExec  = flag.Bool("disable_script_exec", false, "Disable script execution support")
+		scriptExecFailProb = flag.Float64("script_exec_fail_prob", 0.5, "Probability of a script execution exiting with code 1 [0, 1]")
+
+		softwareChurnPerDay = flag.Float64("software_churn_per_day", -1,
+			"Share of each host's software inventory replaced per day, as updates, installs and uninstalls would [0, 1]. Any value from 0 also keeps the inventory stable between reports and across restarts with the same --seed. Negative keeps the legacy inventory, part of which is redrawn on every report")
 
 		disableFleetDesktop = flag.Bool("disable_fleet_desktop", false, "Disable Fleet Desktop")
 		// logger_tls_max_lines is simulating the osquery setting with the same name.
@@ -4920,13 +5071,39 @@ func main() {
 	flag.Parse()
 	rand.Seed(*randSeed)
 
+	seedSet := false
+	flag.Visit(func(f *flag.Flag) { seedSet = seedSet || f.Name == "seed" })
+	if seedSet && *httpMessageSignatureProb > 0 {
+		// The host identity key lives only in memory, and Fleet won't issue a second
+		// certificate for the same host, so these hosts can't come back after a restart.
+		log.Printf("WARNING: with a fixed --seed, hosts using HTTP message signatures (--http_message_signature_prob %v) can't re-enroll after a restart; set it to 0 for restartable hosts", *httpMessageSignatureProb)
+	}
+
+	if *softwareChurnPerDay >= 0 {
+		// The uninstall probabilities hide software for a single report, redrawing the inventory
+		// on every report; a stable inventory changes only by --software_churn_per_day.
+		uninstallProbs := []*float64{
+			commonSoftwareUninstallProb, uniqueSoftwareUninstallProb,
+			commonVSCodeExtensionsSoftwareUninstallProb, uniqueVSCodeExtensionsSoftwareUninstallProb,
+			commonAdobePluginsSoftwareUninstallProb, uniqueAdobePluginsSoftwareUninstallProb,
+		}
+		flag.Visit(func(f *flag.Flag) {
+			if strings.HasSuffix(f.Name, "_uninstall_prob") {
+				log.Printf("WARNING: --%s is ignored with --software_churn_per_day", f.Name)
+			}
+		})
+		for _, p := range uninstallProbs {
+			*p = 0
+		}
+	}
+
 	// Load software from database if path provided. macOS / Windows / Ubuntu
 	// have embedded fallback fixtures, and RHEL kernels are embedded too — the
 	// DB only adds non-kernel RPM/DEB variety. Treat load failure as a warning
 	// rather than fatal so running from the repo root (where the default
 	// relative path doesn't resolve) still works.
 	if *softwareDatabasePath != "" {
-		db, err := softwaredb.LoadFromDatabase(*softwareDatabasePath)
+		db, err := softwaredb.LoadFromDatabase(*softwareDatabasePath, *randSeed)
 		if err != nil {
 			log.Printf("WARNING: failed to load software database (%v); falling back to embedded software data", err)
 		} else {
@@ -5007,7 +5184,11 @@ func main() {
 		log.Fatalf("Argument mdm_apns_url must be specified when mdm_prob or mdm_prob_macos is greater than 0 for macOS hosts")
 	}
 
-	tmplsm := make(map[*template.Template]int)
+	type requestedTemplate struct {
+		tmpl  *template.Template
+		hosts int
+	}
+	var tmpls []requestedTemplate
 	requestedTemplates := strings.Split(*osTemplates, ",")
 	tmplsTotalHostCount := 0
 	for _, nm := range requestedTemplates {
@@ -5032,7 +5213,7 @@ func main() {
 		if err != nil {
 			log.Fatal("parse templates: ", err)
 		}
-		tmplsm[tmpl] = numberOfHosts
+		tmpls = append(tmpls, requestedTemplate{tmpl: tmpl, hosts: numberOfHosts})
 		tmplsTotalHostCount += numberOfHosts
 	}
 	if tmplsTotalHostCount != 0 && tmplsTotalHostCount != *hostCount {
@@ -5054,27 +5235,27 @@ func main() {
 		nodeKeyManager.LoadKeys()
 	}
 
-	var tmplss []*template.Template
-	for tmpl := range tmplsm {
-		tmplss = append(tmplss, tmpl)
+	// Each host's OS comes from the seed, so a container restarted with the same seed gives
+	// every host the same OS as before. With counts, the OSes are shuffled together so hosts
+	// of each OS spread across the start period.
+	hostTemplates := make([]*template.Template, 0, *hostCount)
+	if tmplsTotalHostCount > 0 {
+		for _, t := range tmpls {
+			for range t.hosts {
+				hostTemplates = append(hostTemplates, t.tmpl)
+			}
+		}
+		hostSeed{seed: *randSeed}.rng("templates").Shuffle(len(hostTemplates), func(i, j int) {
+			hostTemplates[i], hostTemplates[j] = hostTemplates[j], hostTemplates[i]
+		})
+	} else {
+		for i := range *hostCount {
+			hostTemplates = append(hostTemplates, tmpls[i%len(tmpls)].tmpl)
+		}
 	}
 
 	for i := 0; i < *hostCount; i++ {
-		var tmpl *template.Template
-		if tmplsTotalHostCount > 0 {
-			for tmpl_, hostCount := range tmplsm {
-				if hostCount > 0 {
-					tmpl = tmpl_
-					tmplsm[tmpl_]--
-					break
-				}
-			}
-			if tmpl == nil {
-				log.Fatalf("Failed to determine template for host: %d", i)
-			}
-		} else {
-			tmpl = tmplss[i%len(tmplss)]
-		}
+		tmpl := hostTemplates[i]
 
 		if tmpl.Name() == "iphone_14.6.tmpl" || tmpl.Name() == "ipad_13.18.tmpl" || tmpl.Name() == "iphone_17.tmpl" {
 			if *mdmAPNSURL == "" {
@@ -5098,7 +5279,8 @@ func main() {
 				serverAddress:              *serverURL,
 				osVersion:                  osVersion,
 				supplementalOSVersionExtra: supplementalOSVersionExtra,
-				isPersonalEnrollment:       rand.Float64() < *mdmIOSBYODProb, //nolint:gosec // G404: load testing, not security-sensitive
+				isPersonalEnrollment:       hostSeed{seed: *randSeed, index: i + 1}.fraction("ios-byod") < *mdmIOSBYODProb,
+				id:                         hostSeed{seed: *randSeed, index: i + 1},
 				softwareCount: softwareEntityCount{
 					entityCount: entityCount{
 						common: *commonSoftwareCount,
@@ -5165,6 +5347,7 @@ func main() {
 				preInstallFailureProb:  *softwareInstallerPreInstallFailureProb,
 				installFailureProb:     *softwareInstallerInstallFailureProb,
 				postInstallFailureProb: *softwareInstallerPostInstallFailureProb,
+				permafailProb:          *softwareInstallerPermafailProb,
 				mu:                     new(sync.Mutex),
 			},
 			softwareEntityCount{
@@ -5254,6 +5437,10 @@ func main() {
 			},
 			*mdmAPNSURL,
 			*websocketProb,
+			*policySticky,
+			*scriptExecFailProb,
+			*softwareChurnPerDay,
+			hostSeed{seed: *randSeed, index: i + 1},
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager
