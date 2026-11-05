@@ -20,7 +20,6 @@ func (s *integrationMDMTestSuite) TestRemovedMDMPaths() {
 		require.NoError(t, user.SetPassword(test.GoodPassword, 10, 10))
 		user, err := s.ds.NewUser(ctx, user)
 		require.NoError(t, err)
-		t.Cleanup(func() { _ = s.ds.DeleteUser(ctx, user.ID) })
 		session, err := s.ds.NewSession(ctx, user.ID, 64)
 		require.NoError(t, err)
 		return session.Key

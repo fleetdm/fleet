@@ -14,8 +14,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -577,19 +579,25 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 		assert.Contains(t, errMsg, expectedErr.Error(), "%s %s", route.method, path)
 	}
 
-	// The routes that set up Apple MDM work before it's configured. They store the keys they generate, so remove the new ones.
+	// The routes that set up Apple MDM work before it's configured, and they store the keys they generate. Run them with no keys, as
+	// on a new server, and put back the assets that other tests left.
 	setupAssets := []fleet.MDMAssetName{
 		fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey, fleet.MDMAssetABMCert, fleet.MDMAssetABMKey,
 	}
-	existingAssets, err := s.ds.GetAllMDMConfigAssetsByName(t.Context(), setupAssets, nil)
-	if !fleet.IsNotFound(err) {
+	savedAssets, err := s.ds.GetAllMDMConfigAssetsByName(t.Context(), setupAssets, nil)
+	if !fleet.IsNotFound(err) && !errors.Is(err, mysql.ErrPartialResult) {
 		require.NoError(t, err)
 	}
-	t.Cleanup(func() {
+	removeSetupAssets := func(ctx context.Context) {
 		for _, name := range setupAssets {
-			if _, ok := existingAssets[name]; !ok {
-				require.NoError(t, s.ds.HardDeleteMDMConfigAsset(context.Background(), name))
-			}
+			require.NoError(t, s.ds.HardDeleteMDMConfigAsset(ctx, name))
+		}
+	}
+	removeSetupAssets(t.Context())
+	t.Cleanup(func() {
+		removeSetupAssets(context.Background())
+		if len(savedAssets) > 0 {
+			require.NoError(t, s.ds.InsertMDMConfigAssets(context.Background(), slices.Collect(maps.Values(savedAssets)), nil))
 		}
 	})
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
