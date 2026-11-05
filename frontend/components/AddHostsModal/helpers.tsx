@@ -7,7 +7,8 @@ export const renderAppleManualEnrollmentDisabled = (
 ) => {
   return (
     <p>
-      Only {type} hosts in Apple Business can enroll.{" "}
+      Only {type} hosts in Apple Business can enroll.
+      <br />
       {isGlobalAdmin ? (
         <>
           To allow manual enrollment, turn off the &ldquo;Only allow Apple
