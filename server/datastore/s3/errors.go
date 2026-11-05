@@ -31,7 +31,7 @@ var misconfiguredCodes = map[string]struct{}{
 	"SignatureDoesNotMatch":        {},
 }
 
-// wrapAPIError returns a *cloudstorage.MisconfiguredError if err is an S3 API
+// wrapAPIError returns a *cloudstorage.APIError if err is an S3 API
 // error caused by the store's configuration, otherwise it returns err
 // unchanged.
 func (s *s3store) wrapAPIError(err error) error {
@@ -61,5 +61,5 @@ func (s *s3store) wrapAPIError(err error) error {
 	if msg == "" || msg == "UnknownError" {
 		msg = http.StatusText(status)
 	}
-	return cloudstorage.NewMisconfigured(err, "S3", apiErr.ErrorCode(), msg, "bucket: "+s.bucket)
+	return cloudstorage.NewAPIError(err, "S3", apiErr.ErrorCode(), msg, "bucket: "+s.bucket, true)
 }
