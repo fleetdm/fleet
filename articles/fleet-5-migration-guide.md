@@ -443,7 +443,7 @@ GitHub issue: [#28334](https://github.com/fleetdm/fleet/issues/28334)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `GET /enrollment_profiles/manual` works | [Get manual enrollment profile](https://fleetdm.com/docs/rest-api/rest-api#get-manual-enrollment-profile) returns a `400` unless `mdm.apple_scep_static_challenge_enabled` is `true` |
+| `GET /enrollment_profiles/manual` works | [Get manual enrollment profile](https://fleetdm.com/docs/rest-api/rest-api#get-manual-enrollment-profile) returns a `410` unless `mdm.apple_scep_static_challenge_enabled` is `true` |
 
 What to do: Before you upgrade, see [Static SCEP challenge off by default](#static-scep-challenge-off-by-default).
 
