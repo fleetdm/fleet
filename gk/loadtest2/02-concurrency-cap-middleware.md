@@ -17,6 +17,7 @@ A semaphore middleware at the top of the handler chain (`server/service/handler.
 - When N requests are already executing, immediately return `503` with a jittered `Retry-After` — do not queue.
 - N configurable (`FLEET_SERVER_MAX_INFLIGHT` or similar), default derived from `max_open_conns` plus headroom, since DB-bound work dominates.
 - Exempt a small always-on allowlist: health checks, version, login — an operator must be able to get in while agents are shed (full tiering comes in issue 05; hardcode the minimal list for now).
+- Long-lived connections (WebSocket notification transport, live query result streams) must not hold semaphore slots for their lifetime — count them only during upgrade/handshake, or cap them under a separate budget, so established sockets can't starve request capacity.
 - Increment `shed_requests_total{reason="inflight_cap"}` (names from issue 01).
 - On osquery endpoints the rejection MUST be a plain HTTP error — see issue 03.
 

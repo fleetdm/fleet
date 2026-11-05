@@ -1,6 +1,6 @@
-# v5.0: Uniform overload semantics and endpoint priority tiers (breaking)
+# Uniform overload semantics and endpoint priority tiers
 
-> **Template:** 🎟 Story · **Labels:** `story`, `reliability` · **Effort:** L · **Wave:** 2–3 · **Milestone:** v5.0.0 · **Depends on:** 02, 04
+> **Template:** 🎟 Story · **Labels:** `story`, `reliability` · **Effort:** L · **Wave:** 2–3 · **Depends on:** 02, 04 · **Not targeting v5.0** (per PR review: v5.0 is full; 09 pagination is the prioritized breaking change)
 
 ## Goal
 
@@ -10,9 +10,9 @@
 | I want the server to shed low-priority work predictably and keep critical flows alive under any load, |
 | so that an overload degrades gracefully instead of taking down enrollment, live queries, and the UI together. |
 
-## Why v5.0
+## Rollout (additive-first)
 
-Today's API has no overload contract: clients can't know which status codes mean "back off," whether `Retry-After` will be present, or which operations may be deferred. Defining one properly is a behavioral breaking change (new 503s on endpoints that never returned them, enforced client backoff expectations), so the major release is the window to make it **uniform across the whole API** instead of endpoint-by-endpoint special cases.
+Today's API has no overload contract: clients can't know which status codes mean "back off," whether `Retry-After` will be present, or which operations may be deferred. v5.0 is already loaded, so this ships **additively, not as a v5.0 breaking change**: servers may legitimately return 503 + `Retry-After` under overload today without a contract change, and tiered shedding rolls out behind configuration. What waits for the next major (or a later formalization): making tier declaration mandatory at route registration as a hard check, and codifying the client backoff obligation as a contract requirement. Design the tier registry now so the enforcement flip later is mechanical.
 
 ## Changes
 
@@ -30,13 +30,14 @@ Today's API has no overload contract: clients can't know which status codes mean
 | 2 — deferrable agent | early | detail/inventory refresh, scheduled query log submission, vitals |
 | 3 — batch/expensive | first | report exports, large list endpoints, non-urgent sync |
 
-- Tier assignment lives in the route registration so new endpoints MUST declare a tier (compile-time or startup check — the uniform-by-construction part this breaking window buys us).
+- Tier assignment lives in the route registration so new endpoints declare a tier (soft default now; hard compile-time/startup enforcement flips on at the next major — see Rollout above).
+- Known limitation to document: tiering is route-level. Mixed-content batches (e.g. a distributed write carrying both critical and deferrable results) inherit the route's tier; splitting by content is explicitly out of scope for the first pass.
 
 **Product checklist (story template items):**
 - UI changes: No changes (UI keeps working — that's the point).
 - REST API changes: new "Overload behavior" reference section; PR to reference docs release branch.
 - fleetd changes: see issue 06 (Retry-After compliance).
-- Compatibility: breaking in v5.0.0 — notify CS per handbook; release notes entry required.
+- Compatibility: additive (new 503 behavior under overload, config-gated) — release notes entry; no major-release dependency. Enforcement portions deferred to next major.
 
 ## Engineering notes
 

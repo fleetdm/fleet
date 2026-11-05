@@ -12,6 +12,8 @@
 
 ## Why v5.0
 
+**This is the one load-protection breaking change targeting v5.0** — per review, the release is already loaded, and pagination was ranked the highest-priority breaking item (the other two drafts, overload semantics and payload caps, ship additively instead).
+
 Several list endpoints return everything when no paging params are passed, and clients (including our own UI, fleetctl, and GitOps flows) depend on that. Changing the default from "all" to "first page" breaks those clients — exactly the kind of change the major release exists for. Doing it uniformly also lets us enforce it structurally instead of endpoint-by-endpoint.
 
 ## Changes

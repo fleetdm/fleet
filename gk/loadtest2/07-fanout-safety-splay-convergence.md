@@ -19,6 +19,7 @@ High — these are triggered by routine admin actions, not edge cases. Herd spik
 - Inventory every all-hosts fan-out initiation point (MDM push fan-out, profile/declaration delivery scheduling, config-change notifications, script/software mass deployment).
 - Each gets either rate-limited batched rollout (N pushes/sec, configurable) or client-side splay (deliver "act within [0, window)" rather than "act now") — choose per mechanism.
 - Default windows sized so a full-fleet push at 400k hosts stays within one container's measured capacity.
+- **Make fan-out paths fleet-size-aware:** most hot paths don't know how many active hosts an operation targets, so they can't pick sensible batch/splay levels. Expose a cheap host-count signal (cached count per team/fleet target) to fan-out initiation points so rollout windows and batch sizes scale with the actual target size instead of fixed constants (PR review, JordanMontgomery).
 
 **Convergence:**
 - For each MDM/profile/declaration reconcile loop: document the terminating condition, and add a test that a steady-state host completes a full cycle with zero resulting writes and zero follow-up pushes.

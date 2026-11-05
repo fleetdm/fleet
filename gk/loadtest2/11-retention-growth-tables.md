@@ -1,6 +1,7 @@
 # Retention story for every activity-growth table
 
 > **Template:** 🔧 Reliability · **Labels:** `reliability`, `:help-engineering` · **Effort:** M–L · **Wave:** 3
+> **Related:** #54349 "Retro AI: Audit unbounded database tables" (#g-auto-patching) covers the audit step of this issue. Kept separate deliberately: cross-link on filing and coordinate with #g-auto-patching so the audit happens once (in #54349, using the inventory format below) and this issue consumes its output for the retention/retrofit work.
 
 ## Problem
 
@@ -12,7 +13,7 @@ Slow-burn but compounding — the failure arrives months after the feature shipp
 
 ## Proposed fix
 
-- **Inventory:** every table, classified entity-growth vs. activity-growth; for activity tables, current retention mechanism or NONE. Table goes in this issue.
+- **Inventory:** every table, classified entity-growth vs. activity-growth; for activity tables, current retention mechanism or NONE. Coordinate with #54349 — the audit lands there in this format; the table gets mirrored here.
 - **Retrofit:** each NONE gets a retention policy (TTL, per-host row cap, or both — product sign-off where data is user-visible) and a cleanup job meeting issue 08's four requirements (paged deletes with limits — never one giant DELETE).
 - **Verify the existing** cleanups actually keep up at scale: measured delete throughput vs. 400k-host insert rate on the seeded snapshot (issue 16).
 - **Policy going forward:** a PR creating an activity-growth table ships retention in the same PR — enforced via the scale checklist (issue 19) and migration review.

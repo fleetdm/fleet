@@ -15,6 +15,8 @@ Directly sets baseline DB load per host — the multiplier on everything. Cuttin
 
 ## Proposed fix
 
+Note on scope: async host processing (`osquery_enable_async_host_processing` and the `osquery_async_host_*` options) is being removed in v5.0 (#54009), so don't invest in auditing those code paths — run the audit against the post-removal synchronous paths, and treat the removal as raising the stakes: the batched/cached-write patterns this issue enforces become the only mitigation layer left.
+
 - **Measure first:** on the local rig with steady-state (nothing changing) simulated hosts, capture per-check-in statement logs. The ideal steady-state check-in is ~0 writes; every observed write is a finding.
 - For each finding: route through the batched/cached update pattern, add a changed-check before writing, or justify in writing why the write must be unconditional.
 - **Reads:** rank check-in-path queries by frequency; any whose result is host-independent (per-team config, schedules, policy definitions) gets cached (in-memory with TTL/invalidation, or Redis where cross-container consistency matters).

@@ -12,7 +12,7 @@ A single large customer onboarding, config push, or incident-triggered retry sto
 
 ## Goal
 
-No matter how high the load gets, the server keeps functioning: it sheds low-priority work gracefully, protects the UI and critical agent flows, signals backoff that agents honor, and recovers without operator intervention. v5.0.0 (≈6 weeks out) is the window to make the breaking API changes that make this uniform across the product.
+No matter how high the load gets, the server keeps functioning: it sheds low-priority work gracefully, protects the UI and critical agent flows, signals backoff that agents honor, and recovers without operator intervention. v5.0.0 carries the one breaking change this plan needs most (mandatory pagination, issue 09); everything else ships additively so it isn't gated on a major release.
 
 ## Child issues
 
@@ -24,16 +24,16 @@ No matter how high the load gets, the server keeps functioning: it sheds low-pri
 
 **Wave 2 — shed and smooth**
 - 04 DB-pressure adaptive load shedding
-- 05 v5.0: uniform overload semantics + endpoint priority tiers (breaking)
-- 06 fleetd honors Retry-After
+- 05 Uniform overload semantics + endpoint priority tiers (additive now; enforcement next major)
+- 06 fleetd honors Retry-After (cross-link #45553)
 - 07 Fan-out safety: splay + reconcile convergence
 - 08 Background job chunking audit
 - 12 Chunk bulk ops & IN lists
 
-**Wave 3 — harden the base (v5.0-aligned breaking changes land here)**
-- 09 v5.0: mandatory pagination on all list endpoints (breaking)
-- 10 v5.0: payload size caps on agent-submitted data (breaking)
-- 11 Retention for activity-growth tables
+**Wave 3 — harden the base**
+- 09 v5.0: mandatory pagination on all list endpoints (the one v5.0 breaking change)
+- 10 Payload size caps on agent-submitted data (additive; includes osquery 413 retry-loop verification)
+- 11 Retention for activity-growth tables (cross-link #54349)
 - 13 Hot-table transaction/lock discipline
 - 14 Check-in path cost audit (write-on-change + shared-read caching)
 - 15 Circuit breakers on external dependencies

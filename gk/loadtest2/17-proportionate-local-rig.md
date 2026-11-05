@@ -29,5 +29,6 @@ Document what the rig can and cannot conclude: relative regressions, saturation 
 ## Condition of satisfaction
 
 - `make loadtest-local SCENARIO=overload` (or equivalent) runs end-to-end on a MacBook against the 100k snapshot in under 30 minutes.
+- **Calibrated against AWS:** run the same code at both scales — the rig's steady-state and overload scenarios compared against a terraform load test of the same commit — and document where the rig's signals match, under-report, or over-report the full-scale run (PR review, JordanMontgomery: the constrained rig may surface issues AWS doesn't, and vice versa; we need to know which differences are signal and which are artifacts).
 - Rig reproduces a known past scale incident class (e.g. a reverted hot-path regression) that plain local testing misses — proof it has teeth.
 - README documents scenarios, knobs, and the interpretation limits above.

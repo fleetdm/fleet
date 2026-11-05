@@ -1,4 +1,4 @@
-# osquery endpoints must never signal node_invalid on server errors
+# Agent endpoints must never signal re-enrollment on server errors (osquery node_invalid + orbit equivalents)
 
 > **Template:** 🔧 Reliability · **Labels:** `reliability`, `:help-engineering` · **Effort:** S · **Wave:** 1
 
@@ -13,13 +13,14 @@ Catastrophic amplification exactly when the server is least able to absorb it. A
 ## Proposed fix
 
 - Audit every error path in the osquery service endpoints (`server/service/osquery.go` and the handler/transport layer error encoding): enumerate which responses can carry `node_invalid: true` and prove it is only set on genuine authentication failure of the node key — never on datastore errors, timeouts, or 5xx/429/503 conversions.
-- Add a regression test that drives each osquery endpoint with an injected datastore failure and asserts the response is a plain HTTP error without node_invalid semantics.
+- Same audit for orbit endpoints (orbit node key auth paths): any response orbit interprets as "credentials invalid, re-enroll" must be reachable only from genuine auth failure, never from server errors or shedding.
+- Add a regression test that drives each osquery and orbit endpoint with an injected datastore failure and asserts the response is a plain HTTP error without re-enrollment semantics.
 - Document the invariant in the endpoint code so future error-handling refactors keep it.
 
 ## Condition of satisfaction
 
-- Written audit result in the issue (list of paths checked).
-- Regression tests merged covering enroll, config, distributed read/write, and log endpoints under injected server failure.
+- Written audit result in the issue (list of paths checked, osquery and orbit).
+- Regression tests merged covering enroll, config, distributed read/write, log, and orbit config/token endpoints under injected server failure.
 
 ## Evidence
 
