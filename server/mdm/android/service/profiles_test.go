@@ -88,6 +88,7 @@ func TestReconcileProfiles(t *testing.T) {
 		{"BuildAndSendFleetAgentConfigForEnrollment", testBuildAndSendFleetAgentConfigForEnrollment},
 		{"BuildAndSendFleetAgentConfigSavesTheAgentInstall", testBuildAndSendFleetAgentConfigSavesTheAgentInstall},
 		{"BuildFleetAgentConfigWithOneTimeEnrollSecrets", testBuildFleetAgentConfigWithOneTimeEnrollSecrets},
+		{"ReconcilerSendsOneTimeEnrollSecrets", testReconcilerSendsOneTimeEnrollSecrets},
 		{"CertificateTemplatesIncludesExistingVerified", testCertificateTemplatesIncludesExistingVerified},
 		{"CertificateTemplatesHeldUntilHostPolicyApplied", testCertificateTemplatesHeldUntilHostPolicyApplied},
 		{"ONCWithheldUntilCertVerified", testONCWithheldUntilCertVerified},
@@ -1478,6 +1479,7 @@ func testBuildFleetAgentConfigWithOneTimeEnrollSecrets(t *testing.T, ds fleet.Da
 	policySecret := func(svc *Service) string {
 		policy, err := svc.BuildFleetAgentApplicationPolicy(ctx, host.Host.UUID)
 		require.NoError(t, err)
+		require.NotNil(t, policy)
 		var managedConfig android.AgentManagedConfiguration
 		require.NoError(t, json.Unmarshal(policy.ManagedConfiguration, &managedConfig))
 		return managedConfig.EnrollSecret
@@ -1508,6 +1510,56 @@ func testBuildFleetAgentConfigWithOneTimeEnrollSecrets(t *testing.T, ds fleet.Da
 
 	// Switch off: the fleet's shared secret, as before.
 	require.Equal(t, "shared-team-secret", policySecret(newSvc(false)))
+}
+
+// testReconcilerSendsOneTimeEnrollSecrets covers the reconciler's own paths that build the Fleet agent configuration, which
+// must not put the fleet's shared secret back after the Android service sent a one-time one.
+func testReconcilerSendsOneTimeEnrollSecrets(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "reconciler-one-time-team"})
+	require.NoError(t, err)
+	require.NoError(t, ds.ApplyEnrollSecrets(ctx, &team.ID, []*fleet.EnrollSecret{{Secret: "shared-team-secret", TeamID: &team.ID}})) // nolint:gosec // test value
+	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      new("Test SCEP CA"),
+		URL:       new("http://localhost:8080/scep"),
+		Challenge: new("test-challenge"),
+	})
+	require.NoError(t, err)
+	template, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+		Name: "cert-template", TeamID: team.ID, CertificateAuthorityID: ca.ID, SubjectName: "CN=Test",
+	})
+	require.NoError(t, err)
+	host := createAndroidHostInTeam(t, ds, 600, &team.ID)
+	applyHostSpecificPolicy(t, ds, host)
+	_, err = ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, template.ID, team.ID)
+	require.NoError(t, err)
+
+	var sentSecret string
+	client.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, policies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		require.Len(t, policies, 1)
+		var managedConfig android.AgentManagedConfiguration
+		require.NoError(t, json.Unmarshal(policies[0].ManagedConfiguration, &managedConfig))
+		sentSecret = managedConfig.EnrollSecret
+		return &androidmanagement.Policy{}, nil
+	}
+
+	WithReconcileOneTimeEnrollSecrets(true)(reconciler)
+	require.NoError(t, reconciler.reconcileCertificateTemplates(ctx))
+	require.True(t, client.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+	require.NotEmpty(t, sentSecret)
+	require.NotEqual(t, "shared-team-secret", sentSecret)
+	row, err := ds.GetHostOneTimeEnrollSecret(ctx, sentSecret)
+	require.NoError(t, err)
+	require.Equal(t, host.Host.ID, *row.HostID)
+
+	// The app list the reconciler sends includes the agent built the same way, with the same secret.
+	policy, err := reconciler.agentService().BuildFleetAgentApplicationPolicy(ctx, host.Host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, policy)
+	var managedConfig android.AgentManagedConfiguration
+	require.NoError(t, json.Unmarshal(policy.ManagedConfiguration, &managedConfig))
+	require.Equal(t, sentSecret, managedConfig.EnrollSecret)
 }
 
 // testCertificateTemplatesIncludesExistingVerified tests that when a host has existing

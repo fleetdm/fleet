@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -140,6 +141,15 @@ func TestEnrollOrbitAndroidOneTimeSecret(t *testing.T) {
 		}
 		require.Equal(t, []softwareWorkerJobArgs{wantResend}, *jobs)
 		require.Len(t, *f.rejections, 1)
+	})
+
+	t.Run("no resend when the rate limit can't be checked", func(t *testing.T) {
+		f, jobs := newFixture(t, true)
+		rejectWith(f, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, &androidHostID)
+		f.kv.GetFunc = func(ctx context.Context, key string) (*string, error) { return nil, errors.New("redis down") }
+		_, err := f.svc.EnrollOrbit(f.ctx, androidInfo, "shared-secret", "")
+		require.Error(t, err)
+		require.Empty(t, *jobs)
 	})
 
 	t.Run("a spent secret resends the agent configuration", func(t *testing.T) {

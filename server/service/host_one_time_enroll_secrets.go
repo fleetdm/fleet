@@ -27,6 +27,10 @@ const enrollmentRejectedActivityTTL = 12 * time.Hour
 // other Fleet key prefixes.
 const enrollmentRejectedKeyPrefix = "{enrollment_rejected}"
 
+// androidAgentEnrollSecretResendTTL bounds how often a refused enrollment resends an Android host's agent configuration. It is
+// shorter than the activity limit because a resend that fails at Android management is not retried.
+const androidAgentEnrollSecretResendTTL = time.Hour
+
 // enrollmentAttempt carries the identifiers an enrolling agent or device
 // presented, for logging and the rejection activity.
 type enrollmentAttempt struct {
@@ -163,7 +167,7 @@ func rejectSharedSecretForAndroidMDMHosts(mdmConfig config.MDMConfig, appConfig 
 // secret, after a shared or spent secret was refused for an Android host. A device that enrolled before the setting was turned on, or
 // whose secret is spent, still has an unusable secret in its configuration and would otherwise keep being refused. The resend
 // goes only to the real device through Android management, so a refused impersonator gains nothing from triggering it. It is
-// rate limited like the rejection activity, and never fails the caller.
+// rate limited per host, is skipped when the rate limit can't be checked, and never fails the caller.
 func (svc *Service) maybeResendAndroidAgentEnrollSecret(ctx context.Context, rejected *fleet.EnrollmentRejectedError) {
 	if !svc.config.MDM.AndroidOneTimeEnrollSecrets || rejected.HostID == nil {
 		return
@@ -182,16 +186,17 @@ func (svc *Service) maybeResendAndroidAgentEnrollSecret(ctx context.Context, rej
 		return
 	}
 
-	var rateLimitKey string
-	if svc.keyValueStore != nil {
-		rateLimitKey = fmt.Sprintf("%s:host:%d:android_agent_config", enrollmentRejectedKeyPrefix, host.ID)
-		existing, err := svc.keyValueStore.Get(ctx, rateLimitKey)
-		switch {
-		case err != nil:
-			svc.logger.ErrorContext(ctx, "checking android agent enroll secret resend rate limit", "err", err)
-		case existing != nil:
-			return
-		}
+	if svc.keyValueStore == nil {
+		return
+	}
+	rateLimitKey := fmt.Sprintf("%s:host:%d:android_agent_config", enrollmentRejectedKeyPrefix, host.ID)
+	existing, err := svc.keyValueStore.Get(ctx, rateLimitKey)
+	switch {
+	case err != nil:
+		svc.logger.ErrorContext(ctx, "checking android agent enroll secret resend rate limit", "err", err)
+		return
+	case existing != nil:
+		return
 	}
 
 	enterprise, err := svc.ds.GetEnterprise(ctx)
@@ -204,10 +209,8 @@ func (svc *Service) maybeResendAndroidAgentEnrollSecret(ctx context.Context, rej
 		return
 	}
 
-	if rateLimitKey != "" {
-		if err := svc.keyValueStore.Set(ctx, rateLimitKey, "1", enrollmentRejectedActivityTTL); err != nil {
-			svc.logger.ErrorContext(ctx, "setting android agent enroll secret resend rate limit", "err", err)
-		}
+	if err := svc.keyValueStore.Set(ctx, rateLimitKey, "1", androidAgentEnrollSecretResendTTL); err != nil {
+		svc.logger.ErrorContext(ctx, "setting android agent enroll secret resend rate limit", "err", err)
 	}
 }
 

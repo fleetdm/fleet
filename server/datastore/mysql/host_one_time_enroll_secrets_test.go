@@ -1463,6 +1463,17 @@ func testOneTimeEnrollSecretAndroidMint(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, secret, again)
 
+	// A fleet transfer keeps the secret but moves it to the host's new fleet.
+	otherTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "android other fleet"})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&otherTeam.ID, []uint{h.ID})))
+	again, err = ds.MintAndroidOneTimeEnrollSecret(ctx, h.ID)
+	require.NoError(t, err)
+	require.Equal(t, secret, again)
+	row, err = ds.GetHostOneTimeEnrollSecret(ctx, secret)
+	require.NoError(t, err)
+	require.Equal(t, otherTeam.ID, *row.TeamID)
+
 	_, err = ds.EnrollOrbit(ctx, androidAgentEnrollOpts(h.UUID, "android", fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
 	require.NoError(t, err)
 
@@ -1527,6 +1538,29 @@ func testOneTimeEnrollSecretAndroidRejectShared(t *testing.T, ds *Datastore) {
 		// Used once by orbit, it can't be replayed.
 		_, err = ds.EnrollOrbit(ctx, androidAgentEnrollOpts(h.UUID, "android", reject, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
 		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedOneTimeSecretSpent, &h.ID)
+	})
+
+	t.Run("the device's ID as osquery identifier before the agent enrolled", func(t *testing.T) {
+		// Android enrollment leaves osquery_host_id unset, so nothing matches and these would insert a row that the agent's own
+		// enrollment then lands on.
+		h := newOneTimeSecretAndroidHost(t, ds, &victimFleet.ID)
+		_, err := ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{HardwareUUID: uuid.NewString(), OsqueryIdentifier: h.UUID, Platform: "android"}),
+			fleet.WithEnrollOrbitNodeKey(uuid.NewString()), attackerTeam, reject)
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, nil)
+		_, err = ds.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryHostID(h.UUID), fleet.WithEnrollOsqueryNodeKey(uuid.NewString()),
+			fleet.WithEnrollOsqueryTeamID(&attackerFleet.ID), rejectOsquery)
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, nil)
+
+		var rows int
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &rows, `SELECT COUNT(*) FROM hosts WHERE osquery_host_id = ?`, h.UUID))
+		require.Zero(t, rows)
+
+		// An unrelated identifier still enrolls with a shared secret.
+		_, err = ds.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryHostID(uuid.NewString()), fleet.WithEnrollOsqueryNodeKey(uuid.NewString()), rejectOsquery)
+		require.NoError(t, err)
 	})
 
 	t.Run("after the agent enrolled", func(t *testing.T) {

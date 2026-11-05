@@ -2919,7 +2919,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 				}
 			}
 			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForAndroidMDMHosts {
-				if err := rejectSharedSecretForAndroidDeviceUUID(ctx, tx, hostInfo.HardwareUUID); err != nil {
+				if err := rejectSharedSecretForAndroidDeviceID(ctx, tx, hostInfo.HardwareUUID, osqueryIdentifier); err != nil {
 					return err
 				}
 			}
@@ -3101,7 +3101,7 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 				}
 			}
 			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForAndroidMDMHosts {
-				if err := rejectSharedSecretForAndroidDeviceUUID(ctx, tx, hardwareUUID); err != nil {
+				if err := rejectSharedSecretForAndroidDeviceID(ctx, tx, hardwareUUID, osqueryHostID); err != nil {
 					return err
 				}
 			}

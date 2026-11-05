@@ -764,6 +764,20 @@ func rejectSharedSecretForMDMManagedWindowsHost(
 // again rather than churned. Once the agent has used it, the next build mints a fresh one, which is what lets the agent enroll
 // again later.
 func (ds *Datastore) MintAndroidOneTimeEnrollSecret(ctx context.Context, hostID uint) (string, error) {
+	// Most builds find a live secret, so check without locking the host row first. The primary, because a replica could still
+	// show a secret the agent just used.
+	var live []string
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &live, `
+		SELECT s.secret FROM host_one_time_enroll_secrets s
+		JOIN hosts h ON h.id = s.host_id AND h.platform = 'android' AND h.team_id <=> s.team_id
+		WHERE s.host_id = ? AND s.consumed_at IS NULL
+		ORDER BY s.id DESC LIMIT 1`, hostID); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "load live android one-time enroll secret")
+	}
+	if len(live) == 1 {
+		return live[0], nil
+	}
+
 	var secret string
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var hosts []struct {
@@ -784,14 +798,22 @@ func (ds *Datastore) MintAndroidOneTimeEnrollSecret(ctx context.Context, hostID 
 			return ctxerr.Errorf(ctx, "android host %d has no uuid to bind a one-time enroll secret to", hostID)
 		}
 
-		var existing []string
+		var existing []struct {
+			ID     uint   `db:"id"`
+			Secret string `db:"secret"`
+		}
 		if err := sqlx.SelectContext(ctx, tx, &existing,
-			`SELECT secret FROM host_one_time_enroll_secrets WHERE host_id = ? AND consumed_at IS NULL ORDER BY id DESC LIMIT 1`,
+			`SELECT id, secret FROM host_one_time_enroll_secrets WHERE host_id = ? AND consumed_at IS NULL ORDER BY id DESC LIMIT 1`,
 			hostID); err != nil {
 			return ctxerr.Wrap(ctx, err, "load unconsumed android one-time enroll secret")
 		}
 		if len(existing) == 1 {
-			secret = existing[0]
+			// The host may have moved fleets since the secret was minted, and the secret's fleet is the one enrollment uses.
+			if _, err := tx.ExecContext(ctx, `UPDATE host_one_time_enroll_secrets SET team_id = ? WHERE id = ?`,
+				host.TeamID, existing[0].ID); err != nil {
+				return ctxerr.Wrap(ctx, err, "update fleet of android one-time enroll secret")
+			}
+			secret = existing[0].Secret
 			return nil
 		}
 
@@ -826,21 +848,31 @@ func rejectSharedSecretForMDMManagedAndroidHost(ctx context.Context, hostID uint
 		"shared enroll secret presented for android host")
 }
 
-// rejectSharedSecretForAndroidDeviceUUID refuses a shared enroll secret that would insert a host with the enterprise-specific ID
-// of an Android device Fleet manages. The device record outlives a deleted host, and Android enrollment would later adopt the
-// inserted row, keeping the orbit node key of whoever inserted it.
-func rejectSharedSecretForAndroidDeviceUUID(ctx context.Context, tx sqlx.QueryerContext, hardwareUUID string) error {
-	if hardwareUUID == "" {
+// rejectSharedSecretForAndroidDeviceID refuses a shared enroll secret that would insert a host whose hardware UUID or osquery
+// identifier is the enterprise-specific ID of an Android device Fleet manages. The device record outlives a deleted host, and
+// a row holding the ID would be matched by the Fleet Android agent's own enrollment (by osquery identifier) or adopted by Android
+// enrollment (by UUID), keeping the node key of whoever inserted it.
+func rejectSharedSecretForAndroidDeviceID(ctx context.Context, tx sqlx.QueryerContext, identifiers ...string) error {
+	var ids []string
+	for _, id := range identifiers {
+		if id != "" {
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) == 0 {
 		return nil
 	}
+	stmt, args, err := sqlx.In(`SELECT EXISTS (SELECT 1 FROM android_devices WHERE enterprise_specific_id IN (?))`, ids)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build android device lookup for enrolling identifiers")
+	}
 	var managed bool
-	if err := sqlx.GetContext(ctx, tx, &managed,
-		`SELECT EXISTS (SELECT 1 FROM android_devices WHERE enterprise_specific_id = ?)`, hardwareUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "check android device with enrolling uuid")
+	if err := sqlx.GetContext(ctx, tx, &managed, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "check android device with enrolling identifiers")
 	}
 	if managed {
 		return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedSharedSecretForMDMManagedHost},
-			"shared enroll secret presented for the uuid of an android device")
+			"shared enroll secret presented for the identifier of an android device")
 	}
 	return nil
 }
