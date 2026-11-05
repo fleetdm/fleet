@@ -137,7 +137,7 @@ const InstallSoftware = ({
   );
 
   const isAndroidMdmEnabled = globalConfig?.mdm.android_enabled_and_configured;
-  const isWindowsMdmEnabled = globalConfig?.mdm.windows_enabled_and_configured;
+  const isWindowsMdmEnabled = globalConfig?.mdm.windows_mdm_enabled;
 
   const isLoadingConfig = isLoadingGlobalConfig || isLoadingTeamConfig;
 

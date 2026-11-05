@@ -97,7 +97,7 @@ const existingProfile: IMdmProfile = {
 const mdmConfig = {
   ...createMockConfig().mdm,
   enabled_and_configured: true,
-  windows_enabled_and_configured: true,
+  windows_mdm_enabled: true,
   android_enabled_and_configured: true,
 };
 
@@ -397,7 +397,7 @@ describe("ProfileFormPage", () => {
     const noMDM = {
       ...mdmConfig,
       enabled_and_configured: false,
-      windows_enabled_and_configured: false,
+      windows_mdm_enabled: false,
       android_enabled_and_configured: false,
     };
 
@@ -571,7 +571,7 @@ describe("ProfileFormPage", () => {
         existingProfile.profile_uuid,
         makeRenderer({ isPremiumTier: true }, false, {
           ...mdmConfig,
-          windows_enabled_and_configured: false,
+          windows_mdm_enabled: false,
         }),
         { fleet_id: "1" }
       );
@@ -644,7 +644,7 @@ describe("ProfileFormPage", () => {
       makeRenderer({}, false, {
         ...mdmConfig,
         enabled_and_configured: true,
-        windows_enabled_and_configured: false,
+        windows_mdm_enabled: false,
         android_enabled_and_configured: false,
       })
     );
@@ -670,7 +670,7 @@ describe("ProfileFormPage", () => {
       makeRenderer({}, false, {
         ...mdmConfig,
         enabled_and_configured: true,
-        windows_enabled_and_configured: false,
+        windows_mdm_enabled: false,
         android_enabled_and_configured: false,
       })
     );
@@ -688,7 +688,7 @@ describe("ProfileFormPage", () => {
       makeRenderer({}, false, {
         ...mdmConfig,
         enabled_and_configured: false,
-        windows_enabled_and_configured: true,
+        windows_mdm_enabled: true,
         android_enabled_and_configured: false,
       })
     );
@@ -1257,7 +1257,7 @@ describe("ProfileFormPage", () => {
         makeRenderer({}, false, {
           ...mdmConfig,
           enabled_and_configured: false,
-          windows_enabled_and_configured: false,
+          windows_mdm_enabled: false,
         })
       );
       expect(isAIView()).toBe(false);

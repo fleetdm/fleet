@@ -2361,7 +2361,7 @@ func (svc *Service) validateMDM(
 		invalid.Append("windows_settings.enable_managed_local_account", ErrMissingLicense.Error())
 	}
 	if mdm.WindowsMigrationEnabled && !lic.IsPremium() {
-		invalid.Append("windows_migration_enabled", ErrMissingLicense.Error())
+		invalid.Append("windows_mdm_migration_enabled", ErrMissingLicense.Error())
 	}
 	if mdm.EnableTurnOnWindowsMDMManually && !lic.IsPremium() {
 		invalid.Append("enable_turn_on_windows_mdm_manually", ErrMissingLicense.Error())
@@ -2666,12 +2666,12 @@ func (svc *Service) validateMDM(
 	// Windows validation
 	if !svc.config.MDM.IsMicrosoftWSTEPSet() {
 		if mdm.WindowsEnabledAndConfigured {
-			invalid.Append("mdm.windows_enabled_and_configured", "Couldn't turn on Windows MDM. Please configure Fleet with a certificate and key pair first.")
+			invalid.Append("mdm.windows_mdm_enabled", "Couldn't turn on Windows MDM. Please configure Fleet with a certificate and key pair first.")
 			return nil
 		}
 	}
 	if !mdm.WindowsEnabledAndConfigured && mdm.WindowsMigrationEnabled {
-		invalid.Append("mdm.windows_migration_enabled", "Couldn't enable Windows MDM migration, Windows MDM is not enabled.")
+		invalid.Append("mdm.windows_mdm_migration_enabled", "Couldn't enable Windows MDM migration, Windows MDM is not enabled.")
 	}
 
 	if !mdm.WindowsEnabledAndConfigured && mdm.EnableTurnOnWindowsMDMManually {

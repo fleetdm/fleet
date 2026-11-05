@@ -371,9 +371,9 @@ func (s *integrationMDMTestSuite) TestAutofillConfigProfiles() {
 			"natural_language_instructions": "Turn off the camera", "platform": "android",
 		}, http.StatusBadRequest)
 
-		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": {"windows_enabled_and_configured": false}}`), http.StatusOK)
+		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": {"windows_mdm_enabled": false}}`), http.StatusOK)
 		t.Cleanup(func() {
-			s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": {"windows_enabled_and_configured": true}}`), http.StatusOK)
+			s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": {"windows_mdm_enabled": true}}`), http.StatusOK)
 		})
 		requireContentError(t, map[string]any{"natural_language_instructions": "Require a password", "platform": "windows"}, "base", fleet.WindowsMDMNotConfiguredMessage)
 
