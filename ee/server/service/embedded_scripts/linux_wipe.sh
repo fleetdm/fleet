@@ -190,14 +190,45 @@ wipe_non_essential_data() {
     done
 }
 
+prepare_nix_store() {
+    # Only remount /nix/store itself, never its containing filesystem.
+    if ! _nix_store_options=$(awk '$2 == "/nix/store" { options = $4 } END { print options }' /proc/mounts); then
+        echo "Error: could not inspect /nix/store mount options; skipping Nix store deletion" >&2
+        return 1
+    fi
+
+    case ",$_nix_store_options," in
+        *,ro,*)
+            echo "Remounting /nix/store read-write"
+            if ! mount -o remount,bind,rw /nix/store; then
+                echo "Error: could not remount /nix/store read-write; skipping Nix store deletion" >&2
+                return 1
+            fi
+            if ! awk '$2 == "/nix/store" { options = $4 } END { exit options !~ /(^|,)rw(,|$)/ }' /proc/mounts; then
+                echo "Error: /nix/store mount is not confirmed writable; skipping Nix store deletion" >&2
+                return 1
+            fi
+            ;;
+    esac
+    return 0
+}
+
 # Function to wipe system files - Warning: This will render the system inoperable
 wipe_system_files() {
     essential_system_paths="/bin /sbin /usr /lib /opt /etc /var /srv"
+
+    # Keep the Nix store last in the system-directory wipe list, if present.
+    if [ -d /nix/store ]; then
+        essential_system_paths="$essential_system_paths /nix/store"
+    fi
 
     for path in $essential_system_paths
     do
         if is_network_mount "$path"; then
             echo "Skipping $path (network filesystem)"
+            continue
+        fi
+        if [ "$path" = "/nix/store" ] && ! prepare_nix_store; then
             continue
         fi
         echo "Wiping $path"

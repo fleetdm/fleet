@@ -18,6 +18,19 @@ const emptyProfilesHandler = http.get(baseUrl("/mdm/profiles"), () =>
   })
 );
 
+const emptyAssetsHandler = http.get(baseUrl("/assets"), () =>
+  HttpResponse.json({ assets: [] })
+);
+
+const asset = {
+  asset_uuid: "a-123",
+  name: "Wi-Fi certificate",
+  identifier: "com.example.asset1",
+  created_at: "2024-01-01T00:00:00Z",
+  uploaded_at: "2024-01-01T00:00:00Z",
+  checksum: "abc",
+};
+
 const mdmEnabledConfig = {
   mdm: { enabled_and_configured: true },
 } as any;
@@ -36,7 +49,7 @@ const baseProps = {
   onMutation: jest.fn(),
 };
 
-describe("ConfigurationProfiles Profiles-tab header", () => {
+describe("ConfigurationProfiles header", () => {
   it("renders the description and Add profile button when MDM is enabled", async () => {
     mockServer.use(emptyProfilesHandler);
 
@@ -165,7 +178,7 @@ describe("ConfigurationProfiles add and edit", () => {
   };
 
   it("opens the add page for the current fleet", async () => {
-    mockServer.use(emptyProfilesHandler);
+    mockServer.use(emptyProfilesHandler, emptyAssetsHandler);
     const { user, router } = renderList();
 
     await user.click(
@@ -185,7 +198,8 @@ describe("ConfigurationProfiles add and edit", () => {
           profiles: [profile],
           meta: { has_next_results: false, has_previous_results: false },
         })
-      )
+      ),
+      emptyAssetsHandler
     );
     const { user, router } = renderList();
 
@@ -195,5 +209,90 @@ describe("ConfigurationProfiles add and edit", () => {
     expect(router.push).toHaveBeenCalledWith(
       "/controls/os-settings/configuration-profiles/w-123?fleet_id=2"
     );
+  });
+});
+
+describe("ConfigurationProfiles assets", () => {
+  const renderPremium = (app: Record<string, unknown> = {}) => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPremiumTier: true,
+          isGlobalAdmin: true,
+          config: mdmEnabledConfig,
+          ...app,
+        },
+      },
+    });
+    return render(<ConfigurationProfiles {...baseProps} />);
+  };
+
+  it("lists assets alongside profiles in a single list", async () => {
+    mockServer.use(
+      http.get(baseUrl("/mdm/profiles"), () =>
+        HttpResponse.json({
+          profiles: [
+            {
+              profile_uuid: "p-1",
+              team_id: 0,
+              name: "Firewall",
+              platform: "windows",
+              identifier: null,
+              created_at: "2024-01-01T00:00:00Z",
+              updated_at: "2024-01-01T00:00:00Z",
+              checksum: null,
+            },
+          ],
+          meta: { has_next_results: false, has_previous_results: false },
+        })
+      ),
+      http.get(baseUrl("/assets"), () => HttpResponse.json({ assets: [asset] }))
+    );
+
+    renderPremium();
+
+    expect(await screen.findByText("com.example.asset1")).toBeInTheDocument();
+    expect(screen.getByText("Asset")).toBeInTheDocument();
+    expect(screen.getByText("Firewall")).toBeInTheDocument();
+    expect(screen.queryByRole("tab")).not.toBeInTheDocument();
+  });
+
+  it("opens the Add asset modal from the Advanced button", async () => {
+    mockServer.use(emptyProfilesHandler, emptyAssetsHandler);
+
+    const { user } = renderPremium();
+
+    await user.click(await screen.findByRole("button", { name: "Advanced" }));
+
+    expect(
+      screen.getByText(/Assets are reusable data or credentials/i)
+    ).toBeInTheDocument();
+  });
+
+  it("hides the Advanced button on Fleet Free", async () => {
+    mockServer.use(emptyProfilesHandler);
+
+    renderPremium({ isPremiumTier: false });
+
+    expect(
+      await screen.findByRole("button", { name: /Add profile$/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Advanced" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides the Advanced button for technicians", async () => {
+    mockServer.use(emptyProfilesHandler, emptyAssetsHandler);
+
+    renderPremium({ isGlobalAdmin: false, isGlobalTechnician: true });
+
+    expect(
+      await screen.findByText(/View configuration profiles\./i)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Advanced" })
+    ).not.toBeInTheDocument();
   });
 });

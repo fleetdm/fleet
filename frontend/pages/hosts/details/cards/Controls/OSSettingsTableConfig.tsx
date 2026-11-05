@@ -216,7 +216,11 @@ const generateTableConfig = ({
       },
     },
     {
-      Header: <span className="sr-only">Actions</span>,
+      Header: isDeviceUser ? (
+        "Actions"
+      ) : (
+        <span className="sr-only">Actions</span>
+      ),
       id: "actions",
       disableSortBy: true,
       Cell: (cellProps: ITableStringCellProps) => {

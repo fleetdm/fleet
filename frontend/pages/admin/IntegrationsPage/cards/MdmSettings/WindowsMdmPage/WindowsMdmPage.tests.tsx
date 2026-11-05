@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import React from "react";
 
 import { createMockConfig, createMockMdmConfig } from "__mocks__/configMock";
@@ -93,6 +93,26 @@ describe("WindowsMdmPage", () => {
     });
 
     expect(screen.getByRole("combobox")).toBeEnabled();
+  });
+
+  it("neither toggles Windows MDM nor navigates when Enter is pressed in the default fleet dropdown", async () => {
+    const { user } = renderPage({
+      windows_enabled_and_configured: true,
+      windows_entra_tenant_ids: ["tenant-1"],
+    });
+    const dropdownInput = screen.getByRole("combobox");
+
+    // Focus without clicking so the menu stays closed and Enter reaches the form.
+    dropdownInput.focus();
+    await user.keyboard("{Enter}");
+
+    expect(screen.getAllByRole("switch")[0]).toBeChecked();
+    // Browsers submit a form with no submit button from its only text-type
+    // field (here the dropdown's input). user-event only does so for a form
+    // with a single <input>, so dispatch the submit event directly and check
+    // the form cancels it.
+    const form = dropdownInput.closest("form") as HTMLFormElement;
+    expect(fireEvent.submit(form)).toBe(false);
   });
 
   it("saves the toggle states and the default fleet through the config API", async () => {

@@ -541,6 +541,11 @@ type LambdaConfig struct {
 	AuditFunction    string `yaml:"audit_function"`
 }
 
+// CloudStorageConfig groups the configs of cloud object stores.
+type CloudStorageConfig struct {
+	Azure AzureConfig `yaml:"azure"`
+}
+
 // S3Config defines config to enable file carving storage to an S3 bucket
 type S3Config struct {
 	Bucket           string `yaml:"bucket"`
@@ -771,6 +776,133 @@ type S3CloudFrontConfig struct {
 	Signer             crypto.Signer
 }
 
+// AzureConfig defines config to enable Azure Blob Storage as an alternative
+// object store to S3 for the software installers group (installers,
+// bootstrap packages, software title icons, org logos). It is purely
+// additive: when unset, storage selection and behavior for S3/GCS deployments
+// are unchanged.
+type AzureConfig struct {
+	SoftwareInstallersAccountName string `yaml:"files_account_name"`
+	SoftwareInstallersAccountKey  string `yaml:"files_account_key"`
+	SoftwareInstallersContainer   string `yaml:"files_container"`
+	// SoftwareInstallersContainerURL overrides the default
+	// https://<account>.blob.core.windows.net endpoint, for Azurite or other
+	// Azure-compatible emulators in tests.
+	SoftwareInstallersContainerURL string `yaml:"files_container_url"`
+	// SoftwareInstallersSignedURL, when true, makes Fleet hand out a SAS-signed
+	// GET URL (instead of proxying the bytes) for software installer, in-house
+	// app and bootstrap package downloads. This is the Azure counterpart to the
+	// S3 CloudFront/GCS signed URL configs.
+	SoftwareInstallersSignedURL bool `yaml:"files_signed_url"`
+}
+
+// SoftwareInstallersToInternalCfg creates an internal Azure config struct from
+// the ingested Azure config for the software installers group (installers,
+// bootstrap packages, icons, org logos).
+func (a AzureConfig) SoftwareInstallersToInternalCfg() AzureConfigInternal {
+	return AzureConfigInternal{
+		AccountName:  a.SoftwareInstallersAccountName,
+		AccountKey:   a.SoftwareInstallersAccountKey,
+		Container:    a.SoftwareInstallersContainer,
+		ContainerURL: a.SoftwareInstallersContainerURL,
+		SignedURL:    a.SoftwareInstallersSignedURL,
+	}
+}
+
+// AzureConfigInternal is used internally to configure an Azure Blob Storage
+// client for a given purpose (e.g. software installers).
+type AzureConfigInternal struct {
+	AccountName  string
+	AccountKey   string
+	Container    string
+	ContainerURL string
+	SignedURL    bool
+}
+
+// StorageBackend identifies the object store backing the software installers
+// group (installers, bootstrap packages, software title icons, org logos).
+type StorageBackend string
+
+const (
+	// StorageBackendLocal means no object store is configured; Fleet falls back
+	// to the local filesystem/database stores.
+	StorageBackendLocal StorageBackend = ""
+	StorageBackendS3    StorageBackend = "s3"
+	StorageBackendAzure StorageBackend = "azure"
+)
+
+type storageBackendCandidate struct {
+	backend    StorageBackend
+	configured bool
+	// key is the name of the config key that selects this backend, used in
+	// error messages.
+	key string
+}
+
+// softwareInstallersBackendCandidates is the single place that knows where
+// each backend's selecting config lives. To add a backend (or to move S3 under
+// CloudStorage), only this list needs to change.
+func (f FleetConfig) softwareInstallersBackendCandidates() []storageBackendCandidate {
+	return []storageBackendCandidate{
+		{StorageBackendS3, f.S3.SoftwareInstallersBucket != "", "s3_software_installers_bucket"},
+		{StorageBackendAzure, f.CloudStorage.Azure.SoftwareInstallersContainer != "", "cloud_storage.azure.files_container"},
+	}
+}
+
+// SoftwareInstallersBackend returns the object store configured for the
+// software installers group, or an error if more than one is configured since
+// only one backend can be selected.
+func (f FleetConfig) SoftwareInstallersBackend() (StorageBackend, error) {
+	var keys []string
+	backend := StorageBackendLocal
+	for _, cand := range f.softwareInstallersBackendCandidates() {
+		if cand.configured {
+			backend = cand.backend
+			keys = append(keys, "`"+cand.key+"`")
+		}
+	}
+	switch {
+	case len(keys) > 2:
+		return StorageBackendLocal, fmt.Errorf("Couldn't configure. %s cannot all be set; choose one storage backend for software installers.", strings.Join(keys, ", "))
+	case len(keys) == 2:
+		return StorageBackendLocal, fmt.Errorf("Couldn't configure. %s and %s cannot both be set; choose one storage backend for software installers.", keys[0], keys[1])
+	}
+	return backend, nil
+}
+
+// ValidateSoftwareInstallersBackend fails initialization if more than one
+// object store is configured for the software installers group.
+func (f FleetConfig) ValidateSoftwareInstallersBackend(initFatal func(err error, msg string)) {
+	if _, err := f.SoftwareInstallersBackend(); err != nil {
+		initFatal(err, "software installers storage")
+	}
+}
+
+// SoftwareInstallersSignedURLEnabled reports whether downloads of software
+// installers and in-house apps should be handed out as signed URLs (pointing
+// directly at the object store) instead of proxying the bytes through Fleet.
+// Only the signing settings of the selected storage backend are considered.
+func (f FleetConfig) SoftwareInstallersSignedURLEnabled() bool {
+	backend, err := f.SoftwareInstallersBackend()
+	if err != nil {
+		return false
+	}
+	switch backend {
+	case StorageBackendS3:
+		return f.S3.SoftwareInstallersCloudFrontSigner != nil || f.S3.SoftwareInstallersSignedURL
+	case StorageBackendAzure:
+		return f.CloudStorage.Azure.SoftwareInstallersSignedURL
+	default:
+		return false
+	}
+}
+
+// StagedUploadAvailable reports whether clients can upload packages straight
+// to object storage. Only supported with S3-compatible storage for now.
+func (f FleetConfig) StagedUploadAvailable() bool {
+	return f.S3.SoftwareInstallersSignedURL && f.S3.SoftwareInstallersBucket != ""
+}
+
 // PubSubConfig defines configs the for Google PubSub logging plugin
 type PubSubConfig struct {
 	Project       string `json:"project"`
@@ -922,6 +1054,7 @@ type FleetConfig struct {
 	Kinesis                    KinesisConfig
 	Lambda                     LambdaConfig
 	S3                         S3Config
+	CloudStorage               CloudStorageConfig `yaml:"cloud_storage"`
 	Email                      EmailConfig
 	SES                        SESConfig
 	PubSub                     PubSubConfig
@@ -993,13 +1126,36 @@ type WebSocketConfig struct {
 	PongTimeout      time.Duration `yaml:"pong_timeout"`
 	CheckInterval    time.Duration `yaml:"check_interval"`
 	CheckBatchSize   int           `yaml:"check_batch_size"`
+	// OrbitConfigEnabled turns on orbit/config nudges: connected agents are
+	// notified when their orbit config changes and poll it every
+	// OrbitConfigPollInterval as a fallback, instead of every 30s.
+	OrbitConfigEnabled      bool          `yaml:"orbit_config_enabled"`
+	OrbitConfigPollInterval time.Duration `yaml:"orbit_config_poll_interval"`
+	// OrbitConfigSpread is the window over which an instance paces the
+	// nudges of a fleet-wide or global change across the agents it holds.
+	OrbitConfigSpread time.Duration `yaml:"orbit_config_spread"`
 }
+
+// minOrbitConfigPollInterval is orbit's default poll interval: a slower
+// fallback is the point of the setting.
+const minOrbitConfigPollInterval = 30 * time.Second
 
 // Validate checks that the WebSocketConfig has valid values. The values feed
 // tickers and batch loops, so zero or negative values would panic or spin.
 func (w WebSocketConfig) Validate(initFatal func(err error, msg string)) {
 	if !w.TransportEnabled {
+		if w.OrbitConfigEnabled {
+			initFatal(errors.New("requires websocket.transport_enabled"), "websocket.orbit_config_enabled")
+		}
 		return
+	}
+	if w.OrbitConfigEnabled {
+		if w.OrbitConfigPollInterval < minOrbitConfigPollInterval {
+			initFatal(fmt.Errorf("must be at least %s", minOrbitConfigPollInterval), "websocket.orbit_config_poll_interval")
+		}
+		if w.OrbitConfigSpread < 0 {
+			initFatal(errors.New("must not be negative"), "websocket.orbit_config_spread")
+		}
 	}
 	for name, ok := range map[string]bool{
 		"websocket.ping_interval":    w.PingInterval > 0,
@@ -1979,6 +2135,13 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("s3.software_installers_gcs_signed_url", false, "Hand out presigned GCS URLs for installer/in-house app/bootstrap uploads and downloads instead of proxying bytes (requires a storage.googleapis.com endpoint)")
 	man.addConfigBool("s3.software_installers_signed_url", false, "Deprecated: use s3.software_installers_gcs_signed_url")
 
+	// Azure Blob Storage for software installers
+	man.addConfigString("cloud_storage.azure.files_account_name", "", "Azure Storage account name")
+	man.addConfigString("cloud_storage.azure.files_account_key", "", "Azure Storage account shared key")
+	man.addConfigString("cloud_storage.azure.files_container", "", "Azure Storage container where to store uploaded software installers")
+	man.addConfigString("cloud_storage.azure.files_container_url", "", "Azure Blob Storage endpoint override (leave blank for the default https://<account>.blob.core.windows.net; used for Azurite/testing)")
+	man.addConfigBool("cloud_storage.azure.files_signed_url", false, "Hand out SAS-signed URLs for installer/in-house app/bootstrap downloads instead of proxying bytes")
+
 	// PubSub
 	man.addConfigString("pubsub.project", "", "Google Cloud Project to use")
 	man.addConfigString("pubsub.status_topic", "", "PubSub topic for status logs")
@@ -2205,6 +2368,12 @@ func (man Manager) addConfigs() {
 		"Interval of the per-instance job that notifies connected agents with due interval work")
 	man.addConfigInt("websocket.check_batch_size", 500,
 		"Number of connected agents checked per batch by the interval notification job")
+	man.addConfigBool("websocket.orbit_config_enabled", false,
+		"Notify connected agents of orbit config changes so they can poll it less often (requires websocket.transport_enabled)")
+	man.addConfigDuration("websocket.orbit_config_poll_interval", 5*time.Minute,
+		"Fallback orbit config poll interval of connected agents with no pending work, when websocket.orbit_config_enabled is set")
+	man.addConfigDuration("websocket.orbit_config_spread", 30*time.Second,
+		"Window over which each instance spreads the orbit config notifications of a fleet-wide or global change")
 }
 
 func (man Manager) hideConfig(name string) {
@@ -2410,6 +2579,13 @@ func (man Manager) LoadConfig() FleetConfig {
 			StsExternalID:    man.getConfigString("lambda.sts_external_id"),
 		},
 		S3: man.loadS3Config(),
+		CloudStorage: CloudStorageConfig{Azure: AzureConfig{
+			SoftwareInstallersAccountName:  man.getConfigString("cloud_storage.azure.files_account_name"),
+			SoftwareInstallersAccountKey:   man.getConfigString("cloud_storage.azure.files_account_key"),
+			SoftwareInstallersContainer:    man.getConfigString("cloud_storage.azure.files_container"),
+			SoftwareInstallersContainerURL: man.getConfigString("cloud_storage.azure.files_container_url"),
+			SoftwareInstallersSignedURL:    man.getConfigBool("cloud_storage.azure.files_signed_url"),
+		}},
 		Email: EmailConfig{
 			EmailBackend: man.getConfigString("email.backend"),
 		},
@@ -2584,6 +2760,10 @@ func (man Manager) LoadConfig() FleetConfig {
 			PongTimeout:      man.getConfigDuration("websocket.pong_timeout"),
 			CheckInterval:    man.getConfigDuration("websocket.check_interval"),
 			CheckBatchSize:   man.getConfigInt("websocket.check_batch_size"),
+
+			OrbitConfigEnabled:      man.getConfigBool("websocket.orbit_config_enabled"),
+			OrbitConfigPollInterval: man.getConfigDuration("websocket.orbit_config_poll_interval"),
+			OrbitConfigSpread:       man.getConfigDuration("websocket.orbit_config_spread"),
 		},
 	}
 
@@ -3064,6 +3244,9 @@ func TestConfig() FleetConfig {
 			PongTimeout:      30 * time.Second,
 			CheckInterval:    30 * time.Second,
 			CheckBatchSize:   500,
+
+			OrbitConfigPollInterval: 5 * time.Minute,
+			OrbitConfigSpread:       30 * time.Second,
 		},
 	}
 }

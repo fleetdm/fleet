@@ -229,7 +229,7 @@ const Controls = ({
 
   const tableCustomFilters = (): JSX.Element | null => {
     if (isDeviceUser) {
-      if (!isPremiumTier) {
+      if (!isPremiumTier || !controls.some((control) => control.hidden)) {
         return null;
       }
 
@@ -288,6 +288,7 @@ const Controls = ({
     <div
       className={classnames(baseClass, className, {
         [`${baseClass}--self-service`]: canManageSelfServiceProfiles,
+        [`${baseClass}--device-user`]: isDeviceUser,
       })}
     >
       <TableContainer

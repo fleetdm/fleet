@@ -39,6 +39,7 @@ func TestMaybeExpandScriptFleetVariables(t *testing.T) {
 		GivenName:  new("Ada"),
 		FamilyName: new("Lovelace"),
 		Department: new("Engineering"),
+		ExternalID: new("00u1abcd2EFGH3ijk4x7"),
 		Groups:     []fleet.ScimUserGroup{{DisplayName: "g1"}, {DisplayName: "g2"}},
 	}
 	mockScimUser := func(ds *mock.Store, user *fleet.ScimUser) {
@@ -98,7 +99,8 @@ func TestMaybeExpandScriptFleetVariables(t *testing.T) {
 			"email: user_${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}@corp.example.com\n" +
 			"name: $FLEET_VAR_HOST_END_USER_IDP_FULL_NAME\n" +
 			"groups: $FLEET_VAR_HOST_END_USER_IDP_GROUPS\n" +
-			"dept: $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT\n"
+			"dept: $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT\n" +
+			"external id: $FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID\n"
 		expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host, body)
 		require.NoError(t, err)
 		require.Empty(t, failMsg)
@@ -108,6 +110,7 @@ func TestMaybeExpandScriptFleetVariables(t *testing.T) {
 			"HOST_END_USER_IDP_FULL_NAME":           "Ada Lovelace",
 			"HOST_END_USER_IDP_GROUPS":              "g1,g2",
 			"HOST_END_USER_IDP_DEPARTMENT":          "Engineering",
+			"HOST_END_USER_IDP_EXTERNAL_ID":         "00u1abcd2EFGH3ijk4x7",
 		})
 	})
 
@@ -285,6 +288,18 @@ func TestMaybeExpandScriptFleetVariables(t *testing.T) {
 		require.NoError(t, err)
 		require.Empty(t, expanded)
 		require.Contains(t, failMsg, "There is no IdP username for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_USERNAME.")
+	})
+
+	t.Run("missing IdP external ID is a resolution failure", func(t *testing.T) {
+		svc, ctx, ds := newSvcAndCtx(fleet.TierPremium)
+		u := *scimUser
+		u.ExternalID = nil
+		mockScimUser(ds, &u)
+		expanded, failMsg, err := svc.maybeExpandScriptFleetVariables(ctx, host,
+			"echo $FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID")
+		require.NoError(t, err)
+		require.Empty(t, expanded)
+		require.Contains(t, failMsg, "There is no IdP external ID for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID.")
 	})
 
 	t.Run("multiple failures accumulate", func(t *testing.T) {

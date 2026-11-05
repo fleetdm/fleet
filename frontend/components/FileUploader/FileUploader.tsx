@@ -12,6 +12,18 @@ import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "file-uploader";
 
+// The native picker resolves a MIME spec against the browser's own
+// MIME-to-extension table, so e.g. `application/gzip` matches a picked
+// `.tar.gz`. Dropped files only expose `file.type` from the OS, which varies
+// (`application/x-gzip`, empty) and often won't exact-match that spec. Mirror
+// the picker by allowing a dropped file whose filename matches a known
+// extension for the MIME spec. Bare `.gz` is intentionally omitted; the
+// package flow only supports `.tar.gz` archives, and callers that need bare
+// `.gz` would have to opt in explicitly.
+const MIME_EXTENSION_ALIASES: Record<string, readonly string[]> = {
+  "application/gzip": [".tar.gz", ".tgz"],
+};
+
 // The HTML `accept` attribute only filters the native file picker; dropped
 // files are not pre-filtered by the browser. Mirror the picker's behavior
 // for drops so a FileUploader with `accept=".pem"` doesn't accept a dropped
@@ -28,8 +40,31 @@ const isFileAccepted = (file: File, accept?: string): boolean => {
   return specs.some((spec) => {
     if (spec.startsWith(".")) return name.endsWith(spec);
     if (spec.endsWith("/*")) return type.startsWith(spec.slice(0, -1));
-    return type === spec;
+    if (type === spec) return true;
+    const aliases = MIME_EXTENSION_ALIASES[spec];
+    return aliases ? aliases.some((ext) => name.endsWith(ext)) : false;
   });
+};
+
+const INVALID_DROP_FALLBACK = "File type isn't supported";
+
+// Falls back to a generic message when accept contains unspellable MIME types.
+const invalidDropMessage = (accept?: string): string => {
+  if (!accept) return INVALID_DROP_FALLBACK;
+  const specs = accept
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (specs.length === 0 || specs.some((s) => !s.startsWith("."))) {
+    return INVALID_DROP_FALLBACK;
+  }
+  if (specs.length === 1) return `File type must be ${specs[0]}`;
+  if (specs.length === 2) {
+    return `File type must be ${specs[0]} or ${specs[1]}`;
+  }
+  return `File type must be ${specs.slice(0, -1).join(", ")}, or ${
+    specs[specs.length - 1]
+  }`;
 };
 
 export type ISupportedGraphicNames = Extract<
@@ -44,6 +79,7 @@ export type ISupportedGraphicNames = Extract<
   | "file-pkg"
   | "file-p7m"
   | "file-pem"
+  | "file-certificate"
   | "file-vpp"
   | "file-png"
   | "file-json"
@@ -136,7 +172,11 @@ export const FileUploader = ({
 }: IFileUploaderProps) => {
   const [isFileSelected, setIsFileSelected] = useState(!!fileDetails);
   const [isDragActive, setIsDragActive] = useState(false);
+  const [dropError, setDropError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Server error wins over stale drop-rejection error.
+  const errorText = internalError || dropError;
 
   // When onButtonClick is set, the uploader renders no file input (file
   // selection happens elsewhere, e.g. in a modal), so drops have nowhere
@@ -151,8 +191,9 @@ export const FileUploader = ({
 
   const classes = classnames(baseClass, className, {
     [`${baseClass}__file-preview`]: isFileSelected,
-    [`${baseClass}__error`]: !!internalError,
+    [`${baseClass}__error`]: !!errorText,
     [`${baseClass}__drag-active`]: isDragActive && canAcceptDrop,
+    [`${baseClass}--disabled`]: disabled,
   });
   const buttonVariant = buttonType === "button" ? "default" : "secondary";
 
@@ -167,6 +208,7 @@ export const FileUploader = ({
       const files = target.files;
       onFileUpload(files);
       setIsFileSelected(true);
+      setDropError(null);
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -179,7 +221,10 @@ export const FileUploader = ({
   // the Card's padding or a FileDetails preview.
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    if (canAcceptDrop && !isDragActive) setIsDragActive(true);
+    if (canAcceptDrop && !isDragActive) {
+      setIsDragActive(true);
+      if (dropError) setDropError(null);
+    }
   };
 
   const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
@@ -203,7 +248,11 @@ export const FileUploader = ({
     const hasInvalid = Array.from(files).some(
       (file) => !isFileAccepted(file, accept)
     );
-    if (hasInvalid) return;
+    if (hasInvalid) {
+      setDropError(invalidDropMessage(accept));
+      return;
+    }
+    setDropError(null);
     onFileUpload(files);
     setIsFileSelected(true);
   };
@@ -303,10 +352,8 @@ export const FileUploader = ({
   };
 
   const renderTitle = () => {
-    if (internalError) {
-      return (
-        <div className={`${baseClass}__internal-error`}>{internalError}</div>
-      );
+    if (errorText) {
+      return <div className={`${baseClass}__internal-error`}>{errorText}</div>;
     }
     if (title) {
       return <div className={`${baseClass}__title`}>{title}</div>;
@@ -348,7 +395,9 @@ export const FileUploader = ({
 
   return (
     <div
-      className={`${baseClass}__wrapper form-field`}
+      className={classnames(`${baseClass}__wrapper form-field`, {
+        [`${baseClass}__wrapper--disabled`]: disabled,
+      })}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}

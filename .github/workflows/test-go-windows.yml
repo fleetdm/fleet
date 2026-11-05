@@ -65,6 +65,7 @@ jobs:
             "./orbit/pkg/platform/..."
             "./orbit/pkg/profiles/..."
             "./orbit/pkg/table/ai_tools/..."
+            "./orbit/pkg/table/amcache/..."
             "./orbit/pkg/table/bitlocker_key_protectors/..."
             "./orbit/pkg/table/cis_audit/..."
             "./orbit/pkg/table/windowsupdatetable/..."

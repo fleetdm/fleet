@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"crypto/md5" //nolint:gosec // content comparison, not security
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"database/sql"
@@ -49,6 +50,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestListMDMCommandsRequiresPerPage", testListMDMCommandsRequiresPerPage},
 		{"TestListMDMCommandsPagination", testListMDMCommandsPagination},
 		{"TestBatchSetMDMProfiles", testBatchSetMDMProfiles},
+		{"TestGetMDMProfileChecksums", testGetMDMProfileChecksums},
 		{"TestBatchSetMDMProfilesSoftwareUpdateTracking", testBatchSetMDMProfilesSoftwareUpdateTracking},
 		{"TestListMDMConfigProfiles", testListMDMConfigProfiles},
 		{"TestMDMConfigProfilesDescription", testMDMConfigProfilesDescription},
@@ -66,6 +68,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestAreHostsConnectedToFleetMDM", testAreHostsConnectedToFleetMDM},
 		{"TestBulkSetPendingMDMHostProfilesExcludeAny", testBulkSetPendingMDMHostProfilesExcludeAny},
 		{"TestBatchResendProfileToHosts", testBatchResendProfileToHosts},
+		{"TestAppleProfileResendResetsRetries", testAppleProfileResendResetsRetries},
 		{"TestGetMDMConfigProfileStatus", testGetMDMConfigProfileStatus},
 		{"TestDeleteMDMProfilesCancelsInstalls", testDeleteMDMProfilesCancelsInstalls},
 		{"TestDeleteTeamCancelsWindowsProfileInstalls", testDeleteTeamCancelsWindowsProfileInstalls},
@@ -3561,6 +3564,16 @@ func testMDMEULA(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, terms.Bytes, gotTerms.Bytes)
 
+		// The token alone tells the agreements apart.
+		platform, err := ds.MDMGetEULAPlatform(ctx, terms.Token)
+		require.NoError(t, err)
+		require.Equal(t, windows, platform)
+		platform, err = ds.MDMGetEULAPlatform(ctx, eula.Token)
+		require.NoError(t, err)
+		require.Equal(t, darwin, platform)
+		_, err = ds.MDMGetEULAPlatform(ctx, uuid.New().String())
+		require.ErrorAs(t, err, &nfe)
+
 		// A token only reaches the file of the platform asked for.
 		_, err = ds.MDMGetEULABytes(ctx, windows, eula.Token)
 		require.ErrorAs(t, err, &nfe)
@@ -5027,6 +5040,84 @@ func testBulkSetPendingDefersWindowsReconciliation(t *testing.T, ds *Datastore) 
 
 	// The batched reconciler walks all enrolled Windows hosts each pass, so no
 	// per-host pending signal is needed for the deferred work to be picked up.
+}
+
+func testAppleProfileResendResetsRetries(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+
+	ca := newDigiCertCA(t, ds, "ca", fleet.FleetVarHostEndUserIDPUsername.WithPrefix(), "seat", nil)
+	caProf := newDigiCertProfile(t, ds, "ca_prof", "ca", 0)
+	idpProf, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("idp_prof", "idp_prof", 0),
+		[]fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername})
+	require.NoError(t, err)
+	plainProf, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("plain_prof", "plain_prof", 0), nil)
+	require.NoError(t, err)
+
+	// failAfterRetries leaves the profile failed on the host with its retries used up.
+	failAfterRetries := func(p *fleet.MDMAppleConfigProfile) {
+		forceSetAppleHostProfileStatus(t, ds, host.UUID, p, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryFailed)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_profiles SET retries = 3 WHERE host_uuid = ? AND profile_uuid = ?`,
+				host.UUID, p.ProfileUUID)
+			return err
+		})
+	}
+	retries := func(p *fleet.MDMAppleConfigProfile) uint {
+		var n uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, `SELECT retries FROM host_mdm_apple_profiles WHERE host_uuid = ? AND profile_uuid = ?`,
+				host.UUID, p.ProfileUUID)
+		})
+		return n
+	}
+
+	t.Run("manual resend", func(t *testing.T) {
+		failAfterRetries(plainProf)
+		require.NoError(t, ds.ResendHostMDMProfile(ctx, host.UUID, plainProf.ProfileUUID))
+		require.Zero(t, retries(plainProf))
+	})
+
+	t.Run("batch resend", func(t *testing.T) {
+		failAfterRetries(plainProf)
+		n, err := ds.BatchResendMDMProfileToHosts(ctx, plainProf.ProfileUUID, fleet.BatchResendMDMProfileFilters{ProfileStatus: fleet.MDMDeliveryFailed})
+		require.NoError(t, err)
+		require.EqualValues(t, 1, n)
+		require.Zero(t, retries(plainProf))
+	})
+
+	t.Run("IdP user change", func(t *testing.T) {
+		failAfterRetries(idpProf)
+		failAfterRetries(caProf)
+		failAfterRetries(plainProf)
+		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+			return triggerResendProfilesUsingVariables(ctx, tx, []uint{host.ID}, []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername})
+		})
+		require.Zero(t, retries(idpProf))
+		require.Zero(t, retries(caProf))
+		// not resent, so its retries stay
+		require.EqualValues(t, 3, retries(plainProf))
+	})
+
+	t.Run("custom host vital change", func(t *testing.T) {
+		vitalID := createCustomHostVital(t, ds, "DEPARTMENT")
+		vitalProf, err := ds.NewMDMAppleConfigProfile(ctx,
+			*generateAppleCP("vital_prof", fmt.Sprintf("$%s%d", fleet.CustomHostVitalPrefix, vitalID), 0), nil)
+		require.NoError(t, err)
+		failAfterRetries(vitalProf)
+		failAfterRetries(plainProf)
+		require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, host.ID, vitalID, "Engineering"))
+		require.Zero(t, retries(vitalProf))
+		require.EqualValues(t, 3, retries(plainProf))
+	})
+
+	t.Run("certificate authority edit", func(t *testing.T) {
+		failAfterRetries(caProf)
+		require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, ca.ID, &fleet.CertificateAuthority{
+			Type: string(fleet.CATypeDigiCert), CertificateCommonName: new("new-cn"),
+		}))
+		require.Zero(t, retries(caProf))
+	})
 }
 
 func testBatchResendProfileToHosts(t *testing.T, ds *Datastore) {
@@ -6996,4 +7087,48 @@ func testMDMConfigProfileRenameThenDeleteShowsOnHosts(t *testing.T, ds *Datastor
 	setup("team", &deletedTeam.ID)
 	require.NoError(t, ds.DeleteTeam(ctx, deletedTeam.ID))
 	requireHostNames("team")
+}
+
+func testGetMDMProfileChecksums(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	md5Of := func(b []byte) []byte {
+		sum := md5.Sum(b) //nolint:gosec // content comparison, not security
+		return sum[:]
+	}
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "checksums-team"})
+	require.NoError(t, err)
+
+	empty, err := ds.GetMDMProfileChecksums(ctx, team.ID)
+	require.NoError(t, err)
+	require.Empty(t, empty.AppleByIdentifier)
+	require.Empty(t, empty.DeclarationsByName)
+	require.Empty(t, empty.WindowsByName)
+
+	noTeamApple := configProfileForTest(t, "N1", "checksums.noteam", "a")
+	noTeamDecl := declForTest("Decl-NoTeam", "checksums.noteam", "a")
+	noTeamWin := windowsConfigProfileForTest(t, "W-NoTeam", "./Device/NoTeam")
+	_, err = ds.BatchSetMDMProfiles(ctx, nil, []*fleet.MDMAppleConfigProfile{noTeamApple}, []*fleet.MDMWindowsConfigProfile{noTeamWin},
+		[]*fleet.MDMAppleDeclaration{noTeamDecl}, nil, nil)
+	require.NoError(t, err)
+
+	teamApple := configProfileForTest(t, "T1", "checksums.team", "b")
+	teamDecl := declForTest("Decl-Team", "checksums.team", "b")
+	teamWin := windowsConfigProfileForTest(t, "W-Team", "./Device/Team")
+	_, err = ds.BatchSetMDMProfiles(ctx, &team.ID, []*fleet.MDMAppleConfigProfile{teamApple}, []*fleet.MDMWindowsConfigProfile{teamWin},
+		[]*fleet.MDMAppleDeclaration{teamDecl}, nil, nil)
+	require.NoError(t, err)
+
+	noTeam, err := ds.GetMDMProfileChecksums(ctx, 0)
+	require.NoError(t, err)
+	require.Equal(t, map[string][]byte{"checksums.noteam": md5Of(noTeamApple.Mobileconfig)}, noTeam.AppleByIdentifier)
+	// keys are lowercased, matching the columns' case-insensitive unique keys
+	require.Equal(t, map[string][]byte{"decl-noteam": md5Of(noTeamDecl.RawJSON)}, noTeam.DeclarationsByName)
+	require.Equal(t, map[string][]byte{"w-noteam": md5Of(noTeamWin.SyncML)}, noTeam.WindowsByName)
+
+	forTeam, err := ds.GetMDMProfileChecksums(ctx, team.ID)
+	require.NoError(t, err)
+	require.Equal(t, map[string][]byte{"checksums.team": md5Of(teamApple.Mobileconfig)}, forTeam.AppleByIdentifier)
+	require.Equal(t, map[string][]byte{"decl-team": md5Of(teamDecl.RawJSON)}, forTeam.DeclarationsByName)
+	require.Equal(t, map[string][]byte{"w-team": md5Of(teamWin.SyncML)}, forTeam.WindowsByName)
 }

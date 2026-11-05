@@ -420,10 +420,159 @@ describe("routeVersionNameError", () => {
 
     expect(setServerErrors).not.toHaveBeenCalled();
     expect(notifyError).toHaveBeenCalledWith(
+      "Unsupported variable $FLEET_VAR_HOST_END_USER_EMAIL_IDP_USERNAME",
+      {
+        response: err,
+      }
+    );
+  });
+
+  // Regression guard: when the backend refuses a configuration (e.g. unknown
+  // top-level key in an Android managed config), the toast must name the
+  // reason instead of the generic "Please try again."
+  it("surfaces the server reason in the toast when present", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "base",
+              reason:
+                'Couldn\'t update configuration. Unknown top-level key "pwUnsupportedKey".',
+            },
+          ],
+        },
+      },
+    };
+
+    routeVersionNameError(
+      err,
+      setServerErrors,
+      "Couldn't update. Please try again."
+    );
+
+    expect(setServerErrors).not.toHaveBeenCalled();
+    expect(
+      notifyError
+    ).toHaveBeenCalledWith(
+      'Couldn\'t update configuration. Unknown top-level key "pwUnsupportedKey".',
+      { response: err }
+    );
+  });
+
+  // Falls back to the generic message when the server returned no reason
+  // (e.g. a network error with no error body).
+  it("falls back to the generic message when no reason is returned", () => {
+    const err = { response: undefined };
+
+    routeVersionNameError(
+      err,
+      setServerErrors,
+      "Couldn't update. Please try again."
+    );
+
+    expect(setServerErrors).not.toHaveBeenCalled();
+    expect(notifyError).toHaveBeenCalledWith(
       "Couldn't update. Please try again.",
       {
         response: err,
       }
+    );
+  });
+
+  // iOS/iPadOS BE phrases the error as lowercase "unsupported variable ...".
+  // Must be rewritten so the admin sees the same copy Edit configuration uses
+  // ("Couldn't edit. Variable \"...\" doesn't exist.") instead of the raw BE
+  // reason.
+  it("rewrites an unknown $FLEET_VAR_ reason to the Edit configuration copy", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "base",
+              reason: "unsupported variable $FLEET_VAR_PW_BOGUS",
+            },
+          ],
+        },
+      },
+    };
+
+    routeVersionNameError(
+      err,
+      setServerErrors,
+      "Couldn't update. Please try again."
+    );
+
+    expect(setServerErrors).not.toHaveBeenCalled();
+    expect(
+      notifyError
+    ).toHaveBeenCalledWith(
+      `Couldn't edit. Variable "$FLEET_VAR_PW_BOGUS" doesn't exist.`,
+      { response: err }
+    );
+  });
+
+  // A profile-only variable (e.g. NDES_SCEP_CHALLENGE) in a managed
+  // configuration gets the profile-only explanation, matching Edit
+  // configuration.
+  it("rewrites a profile-only $FLEET_VAR_ reason with the profile-only copy", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "base",
+              reason: "unsupported variable $FLEET_VAR_NDES_SCEP_CHALLENGE",
+            },
+          ],
+        },
+      },
+    };
+
+    routeVersionNameError(
+      err,
+      setServerErrors,
+      "Couldn't update. Please try again."
+    );
+
+    expect(setServerErrors).not.toHaveBeenCalled();
+    expect(
+      notifyError
+    ).toHaveBeenCalledWith(
+      `Couldn't edit. Variable "$FLEET_VAR_NDES_SCEP_CHALLENGE" isn't supported in managed configuration. It can only be used in configuration profiles.`,
+      { response: err }
+    );
+  });
+
+  // Missing $FLEET_SECRET_ reasons also get the Edit configuration rewrite.
+  it("rewrites a missing $FLEET_SECRET_ reason to the Edit configuration copy", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "base",
+              reason:
+                'Couldn\'t add. Secret variable "$FLEET_SECRET_BLA" missing from database',
+            },
+          ],
+        },
+      },
+    };
+
+    routeVersionNameError(
+      err,
+      setServerErrors,
+      "Couldn't update. Please try again."
+    );
+
+    expect(setServerErrors).not.toHaveBeenCalled();
+    expect(
+      notifyError
+    ).toHaveBeenCalledWith(
+      `Couldn't edit. Variable "$FLEET_SECRET_BLA" doesn't exist.`,
+      { response: err }
     );
   });
 });

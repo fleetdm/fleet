@@ -256,6 +256,58 @@ describe("ModalContent", () => {
     expect(payload).toHaveValue(APPLE_PLIST);
     expect(result).toHaveValue(resultPlist);
   });
+
+  it("shows the profile in an InstallProfile payload instead of base64", () => {
+    const profile = APPLE_PLIST.replace(
+      "<string>DeviceInformation</string>",
+      "<string>com.example.bookmarks</string>"
+    );
+    const signedProfile = Buffer.concat([
+      Buffer.from([0x30, 0x82, 0x01, 0x1c]),
+      Buffer.from(profile, "utf-8"),
+      Buffer.from([0xa0, 0x82, 0x03, 0x9b]),
+    ]).toString("base64");
+    const installProfile = APPLE_PLIST.replace(
+      "<string>DeviceInformation</string>",
+      `<string>InstallProfile</string>
+	<key>Payload</key>
+	<data>${signedProfile}</data>`
+    );
+
+    const { container } = render(
+      <ModalContent
+        data={decodeCommandResults({
+          results: [
+            createMockAppleMdmCommandResult({
+              request_type: "InstallProfile",
+              payload: btoa(installProfile),
+            }),
+          ],
+        })}
+        isLoading={false}
+        error={null}
+      />
+    );
+
+    const [payload] = container.querySelectorAll("textarea");
+    expect(payload).toHaveValue(`<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0">
+<dict>
+	<key>RequestType</key>
+	<string>InstallProfile</string>
+	<key>Payload</key>
+	<data>
+		<?xml version="1.0" encoding="UTF-8"?>
+		<plist version="1.0">
+		<dict>
+			<key>RequestType</key>
+			<string>com.example.bookmarks</string>
+		</dict>
+		</plist>
+	</data>
+</dict>
+</plist>`);
+  });
 });
 
 describe("CommandResultsModal", () => {

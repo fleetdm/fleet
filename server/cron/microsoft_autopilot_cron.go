@@ -120,7 +120,7 @@ func reconcileMicrosoftAutopilotTenant(
 
 	incoming, skipped := autopilotDevicesToIngest(devices, cred.TenantID)
 	if skipped > 0 {
-		logger.InfoContext(ctx, "skipped autopilot devices missing a usable device id or serial",
+		logger.InfoContext(ctx, "skipped autopilot devices missing an autopilot device id",
 			"tenant_id", cred.TenantID, "skipped", skipped)
 	}
 
@@ -153,9 +153,9 @@ func reconcileMicrosoftAutopilotTenant(
 func autopilotDevicesToIngest(devices []msgraph.WindowsAutopilotDevice, tenantID string) (out []*fleet.HostAutopilotDevice, skipped int) {
 	out = make([]*fleet.HostAutopilotDevice, 0, len(devices))
 	for _, dev := range devices {
-		// Both fields are load-bearing. The Autopilot device ID is what every downstream lookup resolves on, and the
-		// serial is the only identity a pending host has until the device boots.
-		if dev.ID == "" || dev.SerialNumber == "" || fleet.IsPlaceholderHardwareSerial(dev.SerialNumber) {
+		// The Autopilot device ID is what every downstream lookup resolves on. The serial is not required: devices with
+		// an empty or placeholder serial still become pending hosts, and are matched by the device ID when they enroll.
+		if dev.ID == "" {
 			skipped++
 			continue
 		}

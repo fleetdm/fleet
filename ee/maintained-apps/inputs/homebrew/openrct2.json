@@ -3,6 +3,7 @@
   "unique_identifier": "io.openrct2.OpenRCT2",
   "token": "openrct2",
   "installer_format": "zip",
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/openrct2-install.sh",
   "slug": "openrct2/darwin",
   "default_categories": [
     "Productivity"

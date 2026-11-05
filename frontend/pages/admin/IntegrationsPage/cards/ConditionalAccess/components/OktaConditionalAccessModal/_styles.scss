@@ -18,17 +18,8 @@
     }
   }
 
-  // User scope profile read-only textarea
-  .input-field--read-only {
-    .input-field__textarea {
-      background-color: $ui-off-white;
-    }
-  }
-
   // Certificate file uploader wrapper
   &__file-uploader-wrapper {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-small; // 0.5rem gap between error and FileUploader
+    @include flex-column-8px-gap;
   }
 }

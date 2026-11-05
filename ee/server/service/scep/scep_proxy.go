@@ -18,6 +18,7 @@ import (
 
 	"github.com/Azure/go-ntlmssp"
 	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/ee/server/service/certissue"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -250,11 +251,18 @@ func sanitizeUpstreamError(ctx context.Context, err error, message string) error
 }
 
 // GetCACert returns the CA certificate(s) from SCEP server.
-// It is a pass-through call to the SCEP server.
+// It is a pass-through call to the SCEP server, except that Windows requests drop the message.
 func (svc *scepProxyService) GetCACert(ctx context.Context, message string, identifier string) ([]byte, int, error) {
 	scepURL, err := svc.validateIdentifier(ctx, identifier, false)
 	if err != nil {
 		return nil, 0, err
+	}
+
+	// Windows hard-codes message=default, which CAs that pick the CA by name (e.g. EJBCA) reject. Without it the CA answers
+	// with its default CA, the same request ValidateSCEPURL makes when the CA is added.
+	if _, profileUUID, ok := parseHostAndProfileFromSCEPIdentifier(identifier); ok &&
+		strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix) {
+		message = ""
 	}
 
 	client, err := scepclient.New(scepURL, svc.debugLogger, scepclient.WithTimeout(svc.Timeout))
@@ -655,7 +663,7 @@ func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy flee
 		)
 		// A 5xx means NDES answered but could not serve the request, which is the shape an IIS restart or an
 		// overloaded NDES takes; that clears on its own and must not be reported as bad credentials.
-		if ndesRetryableStatus(resp.StatusCode) {
+		if certissue.IsTransientStatus(resp.StatusCode) {
 			return "", ctxerr.Wrap(ctx, NewNDESTransientError(fmt.Sprintf(
 				"NDES admin URL returned status %d; could not retrieve the enrollment challenge password",
 				resp.StatusCode)))
@@ -787,14 +795,6 @@ func (e NDESTransientError) Error() string {
 
 func NewNDESTransientError(msg string) NDESTransientError {
 	return NDESTransientError{msg: msg}
-}
-
-// ndesRetryableStatus reports whether an NDES admin-URL HTTP status is one that clears on its own: any 5xx, plus the
-// request-timeout and rate-limit codes.
-func ndesRetryableStatus(code int) bool {
-	return code >= http.StatusInternalServerError ||
-		code == http.StatusRequestTimeout ||
-		code == http.StatusTooManyRequests
 }
 
 type NDESInvalidError struct {

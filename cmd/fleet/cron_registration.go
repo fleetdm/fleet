@@ -215,7 +215,7 @@ func registerWorkerCrons(ctx context.Context, deps cronSchedulesDeps) {
 	})
 
 	deps.register("failed to register worker integrations schedule", func() (fleet.CronSchedule, error) {
-		return newWorkerIntegrationsSchedule(ctx, deps.instanceID, deps.ds, deps.logger, deps.depStorage, deps.commander, deps.androidSvc, deps.chartSvc, deps.config.MDM.AndroidBatchSize, deps.activitySvc, deps.svc)
+		return newWorkerIntegrationsSchedule(ctx, deps.instanceID, deps.ds, deps.logger, deps.depStorage, deps.commander, deps.androidSvc, deps.chartSvc, deps.config.MDM.AndroidBatchSize, deps.activitySvc)
 	})
 }
 
@@ -304,6 +304,10 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 		return cronMigrateToPerHostPolicy(ctx, deps.instanceID, deps.ds, deps.logger, deps.androidSvc)
 	})
 
+	deps.register("failed to register reencrypt_windows_disk_encryption_keys cron", func() (fleet.CronSchedule, error) {
+		return newReencryptWindowsDiskEncryptionKeysSchedule(ctx, deps.instanceID, deps.ds, deps.config, deps.logger)
+	})
+
 	// The APNs sweep replaces the legacy per-minute pending-commands pusher;
 	// the env var runs the legacy cron instead, as a rollback lever. Not
 	// both: the legacy cron's pushes keep last_seen_at fresh, which would
@@ -350,6 +354,10 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 
 	deps.register("failed to register Apple MDM OS updates schedule", func() (fleet.CronSchedule, error) {
 		return newAppleMDMOSUpdatesSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
+	})
+
+	deps.register("failed to register app store app configuration reconciler schedule", func() (fleet.CronSchedule, error) {
+		return newAppStoreAppConfigurationReconcilerSchedule(ctx, deps.instanceID, deps.ds, deps.svc.(fleet.AppleMDMVPPInstaller), deps.redisPool, deps.logger)
 	})
 }
 

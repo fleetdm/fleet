@@ -26,11 +26,18 @@
 // are about the profile rather than about a document the profile transports.  A CSP profile must not
 // carry an XML declaration; the WLANProfile inside its CDATA may.
 //
+// `deliveryNotesMustContain` / `deliveryNotesMustNotContain` are compared case-insensitively against
+// "deliveryNotes" rather than the profile.
+//
+// `forFleet: true` on a case generates it the way a Fleet server asks, with Fleet's own rules on.
+//
 // Assertions are substring-only by design.  Anything cleverer would be a validator, and the design
 // decision for this generator was that there isn't one -- the CANARY cases are written as exact
 // substrings so this can stay dumb.  Properties that genuinely can't be checked this way (one dict
 // per payload domain, distinct PayloadUUIDs, single-line CDATA, a DDM Identifier's relationship to
-// its Type) are noted on the case in `readByEye` and stay a human read.
+// its Type) are noted on the case in `readByEye` and stay a human read.  `mustStartWith` and
+// `mustMatch` are the two exceptions, for a property of where the profile starts and for values
+// that are random per generation.  Both are compared against the whitespace-stripped profile too.
 const TEST_CASES = [
 
   //  ╔═╗╔═╗╔═╗
@@ -444,10 +451,13 @@ const TEST_CASES = [
     id: 'csp-cis-admx-include-cmdline',
     profileType: 'csp',
     instructions: 'Record the full command line in process creation events.',
+    // IncludeCmdLine only applies while process creation auditing is on, so a profile may also set
+    // Audit/DetailedTracking_AuditProcessCreation, an int node; an int IncludeCmdLine still fails on the chr
+    // and <enabled/> checks.
     expect: {
       mustContain: ['Policy/Config/ADMX_AuditSettings/IncludeCmdLine', '<![CDATA[', '<enabled/>'],
       mustContainElement: [['Format', 'chr']],
-      mustNotContainElement: [['Format', 'int'], ['Format', 'bool'], ['Data', '1']],
+      mustNotContainElement: [['Format', 'bool']],
       mustNotContain: ['&lt;enabled/&gt;', '<data id='],
     }
   },
@@ -528,7 +538,9 @@ const TEST_CASES = [
   {
     id: 'csp-wifi-hex-ssid',
     profileType: 'csp',
-    instructions: 'Add a wifi profile for the network "CorpNet" using WPA2 Enterprise.',
+    // The EAP method is named because an enterprise network cannot be configured without one, and declining
+    // to guess it is right; what this case tests is the SSID's hex encoding.
+    instructions: 'Add a wifi profile for the network "CorpNet" using WPA2 Enterprise with PEAP.',
     readByEye: 'The embedded <WLANProfile> must be on ONE line inside the CDATA.',
     expect: {
       mustContain: ['WiFi/Profile/CorpNet/WlanXml', '<![CDATA[', '<SSID><hex>436F72704E6574</hex><name>CorpNet</name></SSID>'],
@@ -649,6 +661,104 @@ const TEST_CASES = [
       mustContainElement: [['Format', 'int'], ['Format', 'chr'], ['Data', '0']],
     }
   },
+  // Exec runs a one-time command rather than setting a value, so a profile cannot satisfy these.  Defender/Scan
+  // and Reboot/RebootNow are real Exec nodes, which is what makes generating one tempting.
+  {
+    id: 'negative-csp-defender-quick-scan',
+    profileType: 'csp',
+    instructions: 'Run a Microsoft Defender quick scan on every computer.',
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'negative-csp-restart-now',
+    profileType: 'csp',
+    instructions: 'Restart these computers now.',
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'negative-csp-defender-signature-update-now',
+    profileType: 'csp',
+    instructions: 'Update Microsoft Defender security intelligence right now.',
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'csp-defender-daily-quick-scan-time',
+    profileType: 'csp',
+    instructions: 'Schedule a daily Microsoft Defender quick scan at 2:00 AM.',
+    // Minutes after midnight.
+    expect: {
+      mustContain: ['./Device/Vendor/MSFT/Policy/Config/Defender/ScheduleQuickScanTime'],
+      mustContainElement: [['Data', '120']],
+      mustNotContain: ['<Exec>', 'MSFT/Defender/Scan<'],
+    }
+  },
+  {
+    id: 'csp-xml-escaping-in-value',
+    profileType: 'csp',
+    instructions: 'Show "Research & Development <internal use only>" as the title of the message on the sign-in screen.',
+    // A CDATA-wrapped value is as valid as an entity-escaped one, so only the raw characters outside CDATA are forbidden.
+    expect: {
+      mustContain: ['LocalPoliciesSecurityOptions/InteractiveLogon_MessageTitleForUsersAttemptingToLogOn'],
+      mustNotContainOutsideCdata: ['Research & Development', '<internal use only>'],
+    }
+  },
+  {
+    id: 'csp-edge-homepage',
+    profileType: 'csp',
+    instructions: 'Set the Microsoft Edge homepage to intranet.acme.example.',
+    // The Browser area is Edge Legacy, so a profile written from it installs and does nothing.
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'csp-mdm-check-in-interval',
+    profileType: 'csp',
+    instructions: 'Make Windows devices check in with the MDM server every 5 minutes.',
+    // Check-in timing lives in DMClient, which the MDM itself manages.
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'csp-fleet-reboot',
+    profileType: 'csp',
+    forFleet: true,
+    instructions: 'Reboot the device.',
+    // Reboot/Schedule is Replace-able, so it is still offered: the refusal rests on the no-commands rule, not the filter.
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'csp-fleet-install-office',
+    profileType: 'csp',
+    forFleet: true,
+    instructions: 'Install Microsoft Office.',
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'csp-fleet-defer-feature-updates',
+    profileType: 'csp',
+    forFleet: true,
+    instructions: 'Defer Windows feature updates by 90 days.',
+    expect: {
+      mustContain: ['Policy/Config/Update/DeferFeatureUpdatesPeriodInDays'],
+      mustContainElement: [['Format', 'int'], ['Data', '90']],
+      deliveryNotesMustContain: ['OS updates'],
+    }
+  },
+  {
+    id: 'csp-fleet-bitlocker',
+    profileType: 'csp',
+    forFleet: true,
+    instructions: 'Require BitLocker encryption on Windows devices.',
+    expect: {
+      mustContain: ['RequireDeviceEncryption'],
+      deliveryNotesMustContain: ['Disk encryption'],
+    }
+  },
+  {
+    id: 'csp-public-reboot',
+    profileType: 'csp',
+    instructions: 'Reboot the device.',
+    // A restart is a one-time command, which no request may use as a profile.
+    expect: { expectFailure: true }
+  },
 
   //  ╔╦╗╔═╗╔╗ ╦╦  ╔═╗╔═╗╔╗╔╔═╗╦╔═╗
   //  ║║║║ ║╠╩╗║║  ║╣ ║  ║║║╠╣ ║║ ╦
@@ -666,8 +776,9 @@ const TEST_CASES = [
     readByEye: 'Two payload dicts should be present, each with its own PayloadUUID and an identifier suffix.',
     expect: {
       mustContainElement: [['key', 'minLength'], ['key', 'allowSimple'], ['key', 'AutomaticCheckEnabled']],
-      mustNotContainElement: [['key', 'ForcePIN'], ['key', 'MinLength'], ['key', 'AllowSimple'], ['key', 'automaticCheckEnabled']]
-    }
+      mustNotContainElement: [['key', 'ForcePIN'], ['key', 'MinLength'], ['key', 'AllowSimple'], ['key', 'automaticCheckEnabled']],
+      deliveryNotesMustMatch: /macOS 27\.0/,
+    },
   },
   {
     id: 'mobileconfig-showfullname',
@@ -804,7 +915,11 @@ const TEST_CASES = [
     expect: {
       mustContain: ['com.apple.applicationaccess', '<key>allowContentCaching</key><false/>'],
       mustNotContainElement: [['key', 'AllowContentCaching']]
-    }
+    },
+    fleet: {
+      routesTo: 'ddm',
+      expect: { mustContain: ['com.apple.configuration.content-cache.settings', '"DenyActivation":true'] },
+    },
   },
   {
     id: 'mobileconfig-automatic-date-time',
@@ -819,8 +934,11 @@ const TEST_CASES = [
     profileType: 'mobileconfig',
     instructions: 'Automatically install App Store app updates.',
     expect: {
+      deliveryNotesMustContain: ['macOS 27'],
       mustContain: ['com.apple.SoftwareUpdate', '<key>AutomaticallyInstallAppUpdates</key><true/>'],
-      mustNotContain: ['AutomaticallyInstallMacOSUpdates']
+      mustNotContain: ['AutomaticallyInstallMacOSUpdates'],
+      // No declaration covers App Store apps, so the removed payload is the only way, and says so.
+      deliveryNotesMustMatch: /com\.apple\.SoftwareUpdate stops working in macOS 27\.0/,
     }
   },
   {
@@ -851,20 +969,32 @@ const TEST_CASES = [
     profileType: 'mobileconfig',
     instructions: 'Download macOS updates automatically as soon as they are available.',
     expect: {
+      deliveryNotesMustContain: ['macOS 27'],
       mustContain: ['com.apple.SoftwareUpdate', '<key>AutomaticDownload</key><true/>'],
       mustNotContain: ['AutomaticallyInstallMacOSUpdates'],
       mustNotContainElement: [['string', 'true']],
-    }
+      deliveryNotesMustMatch: /macOS 27\.0/,
+    },
+    fleet: {
+      routesTo: 'ddm',
+      expect: { mustContain: ['com.apple.configuration.softwareupdate.settings', '"Download":"AlwaysOn"'] },
+    },
   },
   {
     id: 'mobileconfig-cis-install-macos-updates',
     profileType: 'mobileconfig',
     instructions: 'Install macOS updates automatically.',
     expect: {
+      deliveryNotesMustContain: ['macOS 27'],
       mustContain: ['com.apple.SoftwareUpdate', '<key>AutomaticallyInstallMacOSUpdates</key><true/>'],
       mustNotContain: ['AutomaticallyInstallMacOSupdates', 'AutomaticallyInstallAppUpdates'],
       mustNotContainElement: [['string', 'true']],
-    }
+      deliveryNotesMustMatch: /macOS 27\.0/,
+    },
+    fleet: {
+      routesTo: 'ddm',
+      expect: { mustContain: ['com.apple.configuration.softwareupdate.settings', '"InstallOSUpdates":"AlwaysOn"'] },
+    },
   },
   {
     id: 'mobileconfig-cis-security-responses',
@@ -872,9 +1002,15 @@ const TEST_CASES = [
     instructions: 'Install security responses and system data files automatically.',
     readByEye: 'Both keys must sit in ONE com.apple.SoftwareUpdate dict.',
     expect: {
+      deliveryNotesMustContain: ['macOS 27'],
       mustContain: ['com.apple.SoftwareUpdate', '<key>ConfigDataInstall</key><true/>', '<key>CriticalUpdateInstall</key><true/>'],
       mustNotContainElement: [['string', 'true']],
-    }
+      deliveryNotesMustMatch: /macOS 27\.0/,
+    },
+    // As a Fleet request it cannot be one profile: the software update declaration installs security responses,
+    // whose .mobileconfig key Apple removed in macOS 27, but no declaration installs system data files, so that
+    // part can only be the .mobileconfig key, which works up to macOS 26.
+    fleet: { routesTo: 'decline' },
   },
   {
     id: 'mobileconfig-cis-update-deferral',
@@ -885,10 +1021,16 @@ const TEST_CASES = [
     // com.apple.SoftwareUpdate.  Apple removes them in macOS 27 in favour of DDM.
     readByEye: 'If a delay key (enforcedSoftwareUpdateDelay or enforcedSoftwareUpdateMinorOSDeferredInstallDelay) is present, its value must be 30.',
     expect: {
+      deliveryNotesMustContain: ['macOS 27'],
       mustContain: ['com.apple.applicationaccess', '<key>forceDelayedSoftwareUpdates</key><true/>'],
       mustNotContain: ['EnforcedSoftwareUpdateDelay', 'ForceDelayedSoftwareUpdates', 'com.apple.SoftwareUpdate', 'com.apple.configuration.softwareupdate'],
       mustNotContainElement: [['string', 'true'], ['string', '30']],
-    }
+      deliveryNotesMustMatch: /macOS 27\.0/,
+    },
+    fleet: {
+      routesTo: 'ddm',
+      expect: { mustContain: ['com.apple.configuration.softwareupdate.settings', '"Deferrals"', 'PeriodInDays":30'] },
+    },
   },
   {
     id: 'mobileconfig-cis-media-sharing-modification',
@@ -920,7 +1062,12 @@ const TEST_CASES = [
       mustContain: ['com.apple.applicationaccess', '<key>allowWritingTools</key><false/>'],
       mustNotContain: ['AllowWritingTools', 'com.apple.configuration.intelligence'],
       mustNotContainElement: [['string', 'false']],
-    }
+      deliveryNotesMustMatch: /deprecated allowWritingTools/,
+    },
+    fleet: {
+      routesTo: 'ddm',
+      expect: { mustContain: ['com.apple.configuration.intelligence.settings', '"AllowWritingTools":false'] },
+    },
   },
   {
     id: 'mobileconfig-cis-prevent-filevault-disable',
@@ -1015,7 +1162,17 @@ const TEST_CASES = [
         '<key>pinHistory</key><integer>24</integer>'
       ],
       mustNotContain: ['MaxFailedAttempts', 'MinLength', 'maxPinAgeInDays', 'PinHistory'],
-    }
+      deliveryNotesMustMatch: /deprecated com\.apple\.mobiledevice\.passwordpolicy/,
+    },
+    fleet: {
+      routesTo: 'ddm',
+      expect: {
+        mustContain: [
+          'com.apple.configuration.passcode.settings', '"MinimumLength":15', '"MaximumFailedAttempts":5',
+          '"MaximumPasscodeAgeInDays":365', '"PasscodeReuseLimit":24'
+        ],
+      },
+    },
   },
   // Grouping: N settings across M payload domains must be M dicts inside PayloadContent -- not N,
   // and not 1.  Dict counts are beyond a substring check, so each of these carries a readByEye.
@@ -1106,68 +1263,134 @@ const TEST_CASES = [
     // The delay key only sets the length; forceDelayedMajorSoftwareUpdates is what turns it on.  Both
     // live in com.apple.applicationaccess.  The observed failure was the delay key alone, inside a
     // com.apple.SoftwareUpdate dict.
-    readByEye: 'Apple deprecated both keys in macOS 26 and removed them in macOS 27, so "deliveryNotes" should say so and point to the DDM softwareupdate.settings Deferrals.',
     expect: {
+      deliveryNotesMustContain: ['macOS 27'],
       mustContain: [
         'com.apple.applicationaccess', '<key>forceDelayedMajorSoftwareUpdates</key><true/>',
         '<key>enforcedSoftwareUpdateMajorOSDeferredInstallDelay</key><integer>73</integer>'
       ],
       mustNotContain: ['com.apple.SoftwareUpdate', 'ForceDelayedMajorSoftwareUpdates', 'EnforcedSoftwareUpdateMajorOSDeferredInstallDelay'],
       mustNotContainElement: [['string', 'true'], ['string', '73']],
+      deliveryNotesMustMatch: /stop working in macOS 27\.0/,
+    },
+    fleet: {
+      routesTo: 'ddm',
+      expect: { mustContain: ['com.apple.configuration.softwareupdate.settings', '"MajorPeriodInDays":73'] },
+    },
+  },
+  // The identifier token is random per generation, so these match its shape: a final segment of 8 lowercase hex characters.
+  {
+    id: 'mobileconfig-identifier-token-camera-screenshots',
+    profileType: 'mobileconfig',
+    instructions: 'Disable the camera and screenshots.',
+    expect: {
+      mustMatch: ['<key>PayloadIdentifier</key><string>[^<]*\\.[0-9a-f]{8}</string>'],
+      mustContain: ['com.apple.applicationaccess'],
     }
   },
-  // 2026-10-02: JordanMontgomery: I commented out the two Platform SSO cases below because they fail every run: the model does not know the vendor-specific extension values and URLs.
-  // FUTURE: uncomment these cases once the prompt carries step-by-step Platform SSO instructions, the way it does for WLAN XML.
-  // {
-  //   id: 'mobileconfig-psso-entra-setup-assistant',
-  //   profileType: 'mobileconfig',
-  //   instructions: 'Set up Microsoft Entra Platform SSO with password authentication, and let users register during Setup Assistant.',
-  //   // Values from Microsoft's Platform SSO guide, which it says apply to any MDM.  The observed failure
-  //   // listed only login.microsoftonline.com and left out UseSharedDeviceKeys.  The four sovereign-cloud
-  //   // URLs are only needed in those clouds, so they are neither required nor forbidden.
-  //   readByEye: 'AuthenticationMethod, UseSharedDeviceKeys and EnableRegistrationDuringSetup must sit INSIDE the PlatformSSO dict, not at the top level of the payload.',
-  //   expect: {
-  //     mustContain: [
-  //       'com.apple.extensiblesso',
-  //       '<key>ExtensionIdentifier</key><string>com.microsoft.CompanyPortalMac.ssoextension</string>',
-  //       '<key>TeamIdentifier</key><string>UBF8T346G9</string>',
-  //       '<key>Type</key><string>Redirect</string>',
-  //       '<key>PlatformSSO</key><dict>', '<key>AuthenticationMethod</key><string>Password</string>',
-  //       '<key>UseSharedDeviceKeys</key><true/>', '<key>EnableRegistrationDuringSetup</key><true/>',
-  //       '<string>https://login.microsoftonline.com</string>', '<string>https://login.microsoft.com</string>',
-  //       '<string>https://sts.windows.net</string>'
-  //     ],
-  //     mustNotContain: ['<key>Type</key><string>Credential</string>'],
-  //     mustNotContainElement: [['string', 'true']],
-  //   }
-  // },
-  // {
-  //   id: 'mobileconfig-psso-okta-password',
-  //   profileType: 'mobileconfig',
-  //   instructions: 'Set up Okta Platform SSO with password authentication for our Okta org at acme.okta.com, including the associated domains Okta Verify needs.',
-  //   // Values from Okta's generic-MDM Platform SSO guide.  The observed failure was Okta's older
-  //   // non-Platform SSO extension: com.okta.mobile.sso with Type Credential and no PlatformSSO dict,
-  //   // which installs and does no Platform SSO.  The org is supplied so the model has no reason to
-  //   // fall back to placeholders.
-  //   readByEye: 'The associated domains belong in their own com.apple.associated-domains dict, with one Configuration entry per ApplicationIdentifier.',
-  //   expect: {
-  //     mustContain: [
-  //       'com.apple.extensiblesso', 'com.apple.associated-domains',
-  //       '<key>ExtensionIdentifier</key><string>com.okta.mobile.auth-service-extension</string>',
-  //       '<key>TeamIdentifier</key><string>B7F62B65BN</string>',
-  //       '<key>Type</key><string>Redirect</string>',
-  //       '<key>PlatformSSO</key><dict>', '<key>AuthenticationMethod</key><string>Password</string>',
-  //       '<key>UseSharedDeviceKeys</key><true/>',
-  //       '<string>https://acme.okta.com/device-access/api/v1/nonce</string>',
-  //       '<string>https://acme.okta.com/oauth2/v1/token</string>',
-  //       '<string>https://acme.okta.com/v1/auth/device-sign</string>',
-  //       '<string>B7F62B65BN.com.okta.mobile</string>', '<string>B7F62B65BN.com.okta.mobile.auth-service-extension</string>',
-  //       '<string>authsrv:acme.okta.com</string>'
-  //     ],
-  //     mustNotContain: ['com.okta.mobile.sso', '<key>Type</key><string>Credential</string>', 'OKTA_'],
-  //     mustNotContainElement: [['string', 'true']],
-  //   }
-  // },
+  {
+    id: 'mobileconfig-identifier-token-two-domains',
+    profileType: 'mobileconfig',
+    instructions: 'Disable content caching and start the screen saver after 5 minutes.',
+    expect: {
+      mustMatch: ['<key>PayloadIdentifier</key><string>[^<]*\\.[0-9a-f]{8}</string>'],
+      mustContain: ['com.apple.applicationaccess', 'com.apple.screensaver'],
+    }
+  },
+  {
+    id: 'mobileconfig-identifier-token-login-window-buttons',
+    profileType: 'mobileconfig',
+    instructions: 'Hide the Sleep, Restart, and Shut Down buttons on the login window.',
+    expect: {
+      mustMatch: ['<key>PayloadIdentifier</key><string>[^<]*\\.[0-9a-f]{8}</string>'],
+      mustContain: ['com.apple.loginwindow'],
+    }
+  },
+  // Each case below runs twice: as written, the way the public page asks, and as Fleet asks, by platform, with
+  // Fleet's own rules on.  `fleet.expect` is what the Fleet request must do instead.  A Fleet decline happens at
+  // generation, after the request is routed to the case's own profile type.
+  //
+  // Platform SSO declines for Fleet: the model does not know the vendors' extension values and URLs.  Asked by Fleet,
+  // Entra requests route to the extensible SSO declaration, and Okta's to a .mobileconfig.  The generating
+  // versions of these two cases, with Microsoft's and Okta's expected values, are in this file's git history.
+  {
+    id: 'mobileconfig-psso-entra-setup-assistant',
+    profileType: 'mobileconfig',
+    instructions: 'Set up Microsoft Entra Platform SSO with password authentication, and let users register during Setup Assistant.',
+    expect: { mustContain: ['com.apple.extensiblesso'] },
+    fleet: { routesTo: 'ddm', expect: { expectFailure: true } },
+  },
+  {
+    id: 'mobileconfig-psso-okta-password',
+    profileType: 'mobileconfig',
+    instructions: 'Set up Okta Platform SSO with password authentication for our Okta org at acme.okta.com, including the associated domains Okta Verify needs.',
+    expect: { mustContain: ['com.apple.extensiblesso'] },
+    fleet: { expect: { expectFailure: true } },
+  },
+  {
+    id: 'mobileconfig-psso-entra-password',
+    profileType: 'mobileconfig',
+    instructions: 'Set up Platform SSO with Microsoft Entra ID using password authentication.',
+    expect: {
+      mustContain: ['com.apple.extensiblesso'],
+      deliveryNotesMustNotContain: ['Fleet'],
+    },
+    fleet: { routesTo: 'ddm', expect: { expectFailure: true } },
+  },
+  // Other single sign-on extensions still generate for Fleet, which routes this one to the extensible SSO declaration.
+  {
+    id: 'mobileconfig-kerberos-sso',
+    profileType: 'mobileconfig',
+    instructions: 'Set up the Kerberos SSO extension for the ACME.EXAMPLE realm.',
+    expect: {
+      mustContain: ['com.apple.extensiblesso', 'com.apple.AppSSOKerberos.KerberosExtension', 'ACME.EXAMPLE'],
+    },
+    fleet: {
+      routesTo: 'ddm',
+      expect: { mustContain: ['com.apple.configuration.extensible-sso', 'com.apple.AppSSOKerberos.KerberosExtension', 'ACME.EXAMPLE'] },
+    },
+  },
+  // Fleet configures certificate identities with its own certificate authority integrations.
+  {
+    id: 'mobileconfig-scep',
+    profileType: 'mobileconfig',
+    instructions: 'Request a certificate from our SCEP server at scep.acme.example with the challenge "abc123".',
+    expect: {
+      mustContain: ['com.apple.security.scep'],
+      deliveryNotesMustNotContain: ['Fleet'],
+    },
+    fleet: { expect: { expectFailure: true } },
+  },
+  {
+    id: 'mobileconfig-filevault',
+    profileType: 'mobileconfig',
+    instructions: 'Turn on FileVault and escrow the recovery key.',
+    expect: {
+      mustContain: ['com.apple.MCX.FileVault2'],
+      deliveryNotesMustNotContain: ['Fleet'],
+    },
+    fleet: {
+      expect: {
+        mustContain: ['com.apple.MCX.FileVault2'],
+        deliveryNotesMustContain: ['Disk encryption'],
+      },
+    },
+  },
+  {
+    id: 'mobileconfig-wifi-password',
+    profileType: 'mobileconfig',
+    instructions: 'Connect to the WPA2 Wi-Fi network "CorpNet" with the password "Sup3r-Secret!".',
+    expect: {
+      mustContain: ['com.apple.wifi.managed', '<key>Password</key><string>Sup3r-Secret!</string>'],
+      deliveryNotesMustNotContain: ['Fleet'],
+    },
+    fleet: {
+      expect: {
+        mustContain: ['com.apple.wifi.managed', '<key>SSID_STR</key><string>CorpNet</string>', '<key>Password</key><string>Sup3r-Secret!</string>'],
+        deliveryNotesMustContain: ['FLEET_SECRET'],
+      },
+    },
+  },
 
   //  ╔╦╗╔╦╗╔╦╗
   //   ║║ ║║║║║
@@ -1211,6 +1434,61 @@ const TEST_CASES = [
     }
   },
   {
+    id: 'ddm-defer-major-updates',
+    profileType: 'ddm',
+    instructions: 'Defer macOS major updates by 90 days.',
+    expect: {
+      mustContain: ['softwareupdate.settings', 'Deferrals', '"MajorPeriodInDays":90'],
+      mustNotContain: ['forceDelayedMajorSoftwareUpdates', 'enforcedSoftwareUpdateMajorOSDeferredInstallDelay'],
+    }
+  },
+  {
+    id: 'ddm-root-ca',
+    profileType: 'ddm',
+    instructions: 'Install our root CA certificate.',
+    expect: { mustContain: ['com.apple.configuration.security.certificate'] },
+    // The certificate declaration needs an asset, so Fleet's request routes to a .mobileconfig, which cannot be written
+    // without the certificate itself.
+    fleet: { routesTo: 'mobileconfig', expect: { expectFailure: true } },
+  },
+  {
+    id: 'ddm-safari-new-tab-macos',
+    profileType: 'ddm',
+    instructions: 'Set my new Safari tabs to open reddit.com on macOS.',
+    expect: {
+      mustContain: ['com.apple.configuration.safari.settings'],
+    },
+    // Safari settings only apply on the macOS user channel, and Fleet delivers to the device channel unless scoped.
+    fleet: {
+      expect: {
+        mustContain: ['com.apple.configuration.safari.settings', '"PayloadScope":"User"'],
+        deliveryNotesMustContain: ['label'],
+      },
+    },
+  },
+  {
+    id: 'ddm-safari-new-tab-any-platform',
+    profileType: 'ddm',
+    instructions: 'Set new Safari tabs to open reddit.com.',
+    expect: {
+      mustContain: ['com.apple.configuration.safari.settings'],
+    },
+    fleet: {
+      expect: {
+        mustContain: ['com.apple.configuration.safari.settings', '"PayloadScope":"User"'],
+        deliveryNotesMustContain: ['label'],
+      },
+    },
+  },
+  {
+    id: 'ddm-google-account',
+    profileType: 'ddm',
+    instructions: 'Add a Google account for jane@acme.example.',
+    expect: { mustContain: ['com.apple.configuration.account.google'] },
+    // Fleet rejects com.apple.configuration.account.google, so its request routes to the .mobileconfig payload instead.
+    fleet: { routesTo: 'mobileconfig', expect: { mustContain: ['com.apple.google-oauth', 'jane@acme.example'] } },
+  },
+  {
     id: 'ddm-auto-install-security-updates',
     profileType: 'ddm',
     instructions: 'Automatically download and install security updates.',
@@ -1236,7 +1514,19 @@ const TEST_CASES = [
         '"AllowImageWand":false', '"AllowAppleIntelligenceReport":false', '"AllowPersonalizedHandwritingResults":false',
         '"AllowVisualIntelligenceSummary":false'
       ]
-    }
+    },
+    // Asked for by platform, "every Apple Intelligence feature" also takes in Siri's AI features and the
+    // ChatGPT integration, which are other declaration types, so one declaration cannot do it all and a
+    // .mobileconfig, which has a restriction for each of them, can.
+    fleet: {
+      routesTo: 'mobileconfig',
+      expect: {
+        mustContain: [
+          'com.apple.applicationaccess', '<key>allowWritingTools</key><false/>', '<key>allowGenmoji</key><false/>',
+          '<key>allowImagePlayground</key><false/>'
+        ],
+      },
+    },
   },
   {
     id: 'ddm-intelligence-partial',
@@ -1300,7 +1590,9 @@ const TEST_CASES = [
   {
     id: 'ddm-rapid-security-response',
     profileType: 'ddm',
-    instructions: 'Automatically download updates, always install security updates, let users choose when to install OS updates, and turn on Rapid Security Responses.',
+    instructions: 'Automatically download updates, always install security updates, let users turn automatic installation of OS updates on or off themselves, and turn on Rapid Security Responses.',
+    // Worded so that only Allowed fits: "let users choose when to install OS updates" also reads as AlwaysOff, with
+    // automatic installation off so that users install when they choose.
     // The sub-key is "Enable", not "Enabled" -- the latter is an easy slip and is silently ignored.
     expect: {
       mustContain: [
@@ -1486,22 +1778,413 @@ const TEST_CASES = [
     readByEye: 'Another state-not-setting.  ConfigDataInstall (CIS 1.5) keeps XProtect definitions current but does not make XProtect run, so a profile carrying only that key answers a different request.',
     expect: { expectFailure: true }
   },
-
+  //  ╔═╗╔╗╔╔╦╗╦═╗╔═╗╦╔╦╗
+  //  ╠═╣║║║ ║║╠╦╝║ ║║ ║║
+  //  ╩ ╩╝╚╝═╩╝╩╚═╚═╝╩═╩╝
+  {
+    id: 'android-disable-adding-google-accounts',
+    profileType: 'android',
+    instructions: 'Prevent users from managing google accounts on a device, but allow other accounts.',
+    expect: {
+      mustContain: ['"accountTypesWithManagementDisabled":["com.google"]']
+    }
+  },
+  {
+    id: 'android-disable-adding-accounts',
+    profileType: 'android',
+    instructions: 'Prevent users from adding new accounts to the device',
+    expect: {
+      mustContain: ['"modifyAccountsDisabled":true']
+    }
+  },
+  {
+    id: 'android-developer-settings',
+    profileType: 'android',
+    instructions: 'Block developer options.',
+    readByEye: 'developerSettings must be nested inside advancedSecurityOverrides; the exact nested substring below verifies that shape.',
+    // CANARY.  Nested enum -- the exact shape where a typo one level down is silently discarded
+    // rather than rejected.
+    expect: {
+      mustContain: [
+        'advancedSecurityOverrides',
+        'developerSettings',
+        'DEVELOPER_SETTINGS_DISABLED',
+        '"advancedSecurityOverrides": {"developerSettings": "DEVELOPER_SETTINGS_DISABLED"}'
+      ]
+    }
+  },
+  {
+    id: 'android-camera',
+    profileType: 'android',
+    instructions: 'Disable the camera.',
+    expect: {
+      mustContain: ['cameraAccess', 'CAMERA_ACCESS_DISABLED'],
+      mustNotContain: ['cameraDisabled', 'camera_access_disabled'],
+    }
+  },
+  {
+    id: 'android-screenshots',
+    profileType: 'android',
+    instructions: 'Block screenshots.',
+    expect: {
+      mustContain: ['screenCaptureDisabled'],
+    }
+  },
+  {
+    id: 'android-factory-reset',
+    profileType: 'android',
+    instructions: 'Prevent users from factory resetting the device.',
+    expect: {
+      mustContain: ['"factoryResetDisabled":true'],
+    }
+  },
+  {
+    id: 'android-password-length',
+    profileType: 'android',
+    instructions: 'Require a 10-character password.',
+    expect: {
+      mustContain: ['passwordPolicies', 'passwordMinimumLength', '10'],
+      mustNotContain: ['passwordRequirements']
+    }
+  },
+  {
+    id: 'android-failed-attempts',
+    profileType: 'android',
+    instructions: 'Wipe the device after 10 failed password attempts.',
+    expect: {
+      mustContain: ['passwordPolicies', 'maximumFailedPasswordsForWipe'],
+      mustNotContain: ['passwordRequirements']
+    }
+  },
+  {
+    id: 'android-bluetooth-contact-sharing',
+    profileType: 'android',
+    instructions: 'Turn off Bluetooth contact sharing.',
+    expect: {
+      mustContain: ['bluetoothContactSharingDisabled']
+    }
+  },
+  {
+    id: 'android-copy-paste-between-profiles',
+    profileType: 'android',
+    instructions: 'Prevent users from copying content from managed applications into unmanaged personal applications',
+    expect: {
+      mustContain: [
+        '"crossProfilePolicies"',
+        '"crossProfileCopyPaste": "COPY_FROM_WORK_TO_PERSONAL_DISALLOWED"'
+      ]
+    }
+  },
+  {
+    id: 'android-untrusted-apps-with-play-protect',
+    profileType: 'android',
+    instructions: 'Allow users to download and install APK files, but enforce Google Play protect',
+    expect: {
+      mustContain: [
+        '"googlePlayProtectVerifyApps": "VERIFY_APPS_ENFORCED"',
+        '"untrustedAppsPolicy": "ALLOW_INSTALL_DEVICE_WIDE"',
+        '"advancedSecurityOverrides"'
+      ]
+    }
+  },
+  {
+    id: 'android-untrusted-apps',
+    profileType: 'android',
+    instructions: 'Prevent users from installing downloaded apk files',
+    expect: {
+      mustContain: [
+        '"advancedSecurityOverrides"',
+        '"untrustedAppsPolicy": "DISALLOW_INSTALL"',
+      ]
+    }
+  },
+  {
+    id: 'android-disable-biometric-auth',
+    profileType: 'android',
+    instructions: 'Prevent users from using biometric authetication to unlock the device',
+    expect: {
+      mustContain: [
+        '"keyguardDisabledFeatures"',
+        '"BIOMETRICS"',
+      ]
+    }
+  },
+  {
+    id: 'android-iris-auth',
+    profileType: 'android',
+    instructions: 'Prevent users from using iris scanners to unlock the device',
+    expect: {
+      mustContain: [
+        '"keyguardDisabledFeatures"',
+        '"IRIS"',
+      ]
+    }
+  },
+  {
+    id: 'android-os-update-window',
+    profileType: 'android',
+    instructions: 'Set devices to automatically install OS updates at 2:00 am nightly',
+    expect: {
+      mustContain: [
+        '"systemUpdate"',
+        '"type": "WINDOWED"',
+        '"startMinutes": 120',
+        '"endMinutes": 180',
+      ]
+    }
+  },
+  {
+    id: 'android-wifi-security-restriction',
+    profileType: 'android',
+    instructions: 'Prevent devices from connecting to open wifi networks.',
+    expect: {
+      mustContain: [
+        '"deviceRadioState": {"minimumWifiSecurityLevel": "PERSONAL_NETWORK_SECURITY"}',
+      ]
+    }
+  },
+  {
+    id: 'android-disable-fun',
+    profileType: 'android',
+    instructions: 'Disable Android easter eggs.',
+    expect: {
+      mustContain: [
+        '"funDisabled": true',
+      ]
+    }
+  },
+  {
+    id: 'android-lock-screen-message',
+    profileType: 'android',
+    instructions: 'Show "Property of Acme Corp. If found, call 555-0100." on the lock screen.',
+    // Nested UserFacingMessage, and the message must be reproduced exactly.
+    expect: {
+      mustContain: ['"deviceOwnerLockScreenInfo":{"defaultMessage":"Property of Acme Corp. If found, call 555-0100."']
+    }
+  },
+  {
+    id: 'android-screen-timeout',
+    profileType: 'android',
+    canary: true,
+    instructions: 'Turn the screen off after 2 minutes of inactivity and do not let users change it.',
+    readByEye: 'screenTimeoutSettings must be nested inside displaySettings, not at the top level.',
+    // Two levels of nesting, a google-duration string, and a mode that must accompany the duration.
+    expect: {
+      mustContain: ['"displaySettings":{', '"screenTimeoutSettings":{', '"screenTimeout":"120s"', 'SCREEN_TIMEOUT_ENFORCED'],
+      mustNotContain: ['"screenTimeout":120']
+    }
+  },
+  {
+    id: 'android-usb-file-transfer',
+    profileType: 'android',
+    instructions: 'Block file transfers over USB.',
+    // usbFileTransferDisabled is deprecated in favour of deviceConnectivityManagement.usbDataAccess.
+    expect: {
+      mustContain: ['"deviceConnectivityManagement":{', 'DISALLOW_USB_FILE_TRANSFER'],
+      mustNotContain: ['usbFileTransferDisabled']
+    }
+  },
+  {
+    id: 'android-wifi-config',
+    profileType: 'android',
+    instructions: 'Do not let users add or change Wi-Fi networks.',
+    expect: {
+      mustContain: ['"deviceConnectivityManagement":{', 'DISALLOW_CONFIGURING_WIFI'],
+      mustNotContain: ['wifiConfigDisabled']
+    }
+  },
+  {
+    id: 'android-wifi-hotspot-only',
+    profileType: 'android',
+    instructions: 'Block the Wi-Fi hotspot, but still allow USB tethering.',
+    // Picks the narrower of two enum values, and avoids deprecated tetheringConfigDisabled.
+    expect: {
+      mustContain: ['DISALLOW_WIFI_TETHERING'],
+      mustNotContain: ['DISALLOW_ALL_TETHERING', 'tetheringConfigDisabled']
+    }
+  },
+  {
+    id: 'android-microphone',
+    profileType: 'android',
+    instructions: 'Disable the microphone.',
+    expect: {
+      mustContain: ['"microphoneAccess":"MICROPHONE_ACCESS_DISABLED"'],
+      mustNotContain: ['unmuteMicrophoneDisabled']
+    }
+  },
+  {
+    id: 'android-unknown-sources',
+    profileType: 'android',
+    instructions: 'Block installing apps from unknown sources.',
+    expect: {
+      mustContain: ['"advancedSecurityOverrides":{', '"untrustedAppsPolicy":"DISALLOW_INSTALL"'],
+      mustNotContain: ['installUnknownSourcesAllowed']
+    }
+  },
+  {
+    id: 'android-play-protect',
+    profileType: 'android',
+    instructions: 'Force Google Play Protect app verification on.',
+    expect: {
+      mustContain: ['"advancedSecurityOverrides":{', '"googlePlayProtectVerifyApps":"VERIFY_APPS_ENFORCED"'],
+      mustNotContain: ['ensureVerifyAppsEnabled']
+    }
+  },
+  {
+    id: 'android-auto-time',
+    profileType: 'android',
+    instructions: 'Require automatic date and time.',
+    expect: {
+      mustContain: ['"autoDateAndTimeZone":"AUTO_DATE_AND_TIME_ZONE_ENFORCED"'],
+      mustNotContain: ['autoTimeRequired']
+    }
+  },
+  {
+    id: 'android-location-off',
+    profileType: 'android',
+    instructions: 'Turn off location services.',
+    // OFF is a deprecated value of locationMode; LOCATION_DISABLED replaces it.
+    expect: {
+      mustContain: ['"locationMode":"LOCATION_DISABLED"'],
+      mustNotContain: ['"OFF"', 'shareLocationDisabled']
+    }
+  },
+  {
+    id: 'android-keyguard-features',
+    profileType: 'android',
+    instructions: 'Hide the camera shortcut and notifications on the lock screen.',
+    // Array of enums, and only the two asked for.
+    expect: {
+      mustContain: ['keyguardDisabledFeatures', '"CAMERA"', '"NOTIFICATIONS"'],
+      mustNotContain: ['ALL_FEATURES', 'cameraAccess']
+    }
+  },
+  {
+    id: 'android-printing',
+    profileType: 'android',
+    instructions: 'Disable printing.',
+    // Google's description for this field starts with "Optional.", which the pruning once kept as the whole description.
+    expect: {
+      mustContain: ['"printingPolicy":"PRINTING_DISALLOWED"']
+    }
+  },
+  {
+    id: 'android-frp-admin',
+    profileType: 'android',
+    instructions: 'After a factory reset, only it-admin@example.com should be able to unlock the device.',
+    expect: {
+      mustContain: ['"frpAdminEmails":["it-admin@example.com"]']
+    }
+  },
+  {
+    id: 'android-deny-permissions',
+    profileType: 'android',
+    instructions: 'Automatically deny app permission requests.',
+    expect: {
+      mustContain: ['"defaultPermissionPolicy":"DENY"']
+    }
+  },
+  {
+    id: 'android-work-profile-password',
+    profileType: 'android',
+    instructions: 'Require an alphanumeric password with at least 8 characters for the work profile.',
+    expect: {
+      mustContain: ['"passwordPolicies":[{', 'ALPHANUMERIC', '"passwordMinimumLength":8', 'SCOPE_PROFILE'],
+      mustNotContain: ['passwordRequirements', 'SCOPE_DEVICE']
+    }
+  },
+  {
+    id: 'android-stay-on-while-charging',
+    profileType: 'android',
+    instructions: 'Keep the screen on while the device is charging from AC or USB.',
+    expect: {
+      mustContain: ['stayOnPluggedModes', '"AC"', '"USB"'],
+      mustNotContain: ['"WIRELESS"']
+    }
+  },
+  {
+    id: 'android-multiple-restrictions',
+    profileType: 'android',
+    instructions: 'Disable the camera, block screenshots, and prevent factory reset.',
+    expect: {
+      mustContain: ['CAMERA_ACCESS_DISABLED', '"screenCaptureDisabled":true', '"factoryResetDisabled":true'],
+      mustNotContain: ['cameraDisabled']
+    }
+  },
+  {
+    id: 'negative-android-nonexistent-hostname',
+    profileType: 'android',
+    instructions: 'Set the device hostname to ACME-1234.',
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'negative-android-geofence-alert',
+    profileType: 'android',
+    instructions: 'Email IT when the device leaves the office.',
+    expect: { expectFailure: true }
+  },
 
 ];
 
 /**
- * Compare a generated profile against a case's `expect` block.
+ * Compare a generated profile against a case's `expect` block, and against the rules every profile of
+ * its type must follow.
  *
  * @param  {Dictionary} expectations
  * @param  {Dictionary} generatedProfile
+ * @param  {String} profileType
+ * @param  {Boolean} forFleet
  * @returns {Array} human-readable descriptions of what failed
  */
-function checkExpectations(expectations, generatedProfile) {
+function checkExpectations(expectations, generatedProfile, profileType, forFleet) {
   let failures = [];
 
   if(expectations.expectFailure) {
     return ['expected this request to be refused, but a profile was generated'];
+  }
+
+  // MDMs treat a .mobileconfig without an XML declaration as signed, and reject it.
+  if(profileType === 'mobileconfig' && !_.startsWith(_.trim(generatedProfile.profile), '<?xml')) {
+    failures.push('does not start with an XML declaration');
+  }
+  if(profileType === 'csp') {
+    let outsideCdata = String(generatedProfile.profile).replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, '<![CDATA[]]>');
+    if(_.contains(outsideCdata, '<?xml')) {
+      failures.push('contains an XML declaration outside CDATA');
+    }
+    if(/<SyncML|<SyncBody/.test(outsideCdata)) {
+      failures.push('contains a SyncML envelope');
+    }
+    let managementPlaneNode = String(generatedProfile.profile).match(/(?:\/MSFT|\.\/SyncML)\/(DMClient|DMAcc|EnrollmentStatusTracking)\b/i);
+    if(managementPlaneNode) {
+      failures.push(`writes to the ${managementPlaneNode[1]} CSP, which the MDM uses to manage the device`);
+    }
+    if(forFleet && /<Exec\b/.test(outsideCdata)) {
+      failures.push('contains an <Exec> command, which Fleet rejects');
+    }
+  }
+  if(profileType === 'ddm' && forFleet && _.contains(String(generatedProfile.profile), 'AssetReference')) {
+    failures.push('references an asset declaration, which Fleet cannot deliver');
+  }
+  // PayloadScope is Fleet's own key, so other MDMs would deliver it to the device as-is.
+  if(profileType === 'ddm' && !forFleet && _.contains(String(generatedProfile.profile), 'PayloadScope')) {
+    failures.push('contains PayloadScope, which only Fleet understands');
+  }
+  if(!forFleet && /FLEET_SECRET/i.test(String(generatedProfile.deliveryNotes || ''))) {
+    failures.push(`deliveryNotes name a Fleet secret outside Fleet: ${JSON.stringify(generatedProfile.deliveryNotes)}`);
+  }
+
+  // Case-insensitive, since these are prose.
+  let deliveryNotes = String(generatedProfile.deliveryNotes || '').toLowerCase();
+  for (let needle of expectations.deliveryNotesMustContain || []) {
+    if(!_.contains(deliveryNotes, needle.toLowerCase())) {
+      failures.push(`deliveryNotes missing expected text: ${JSON.stringify(needle)} -- deliveryNotes were ${JSON.stringify(generatedProfile.deliveryNotes || '')}`);
+    }
+  }
+  for (let needle of expectations.deliveryNotesMustNotContain || []) {
+    if(_.contains(deliveryNotes, needle.toLowerCase())) {
+      failures.push(`deliveryNotes contain forbidden text: ${JSON.stringify(needle)} -- deliveryNotes were ${JSON.stringify(generatedProfile.deliveryNotes)}`);
+    }
   }
 
   // Whitespace is stripped from both sides so an assertion doesn't fail on JSON indentation.
@@ -1553,6 +2236,13 @@ function checkExpectations(expectations, generatedProfile) {
     }
   }
 
+  // For values that are random per generation, where no fixed substring can stand in.
+  for (let pattern of expectations.mustMatch || []) {
+    if(!new RegExp(pattern).test(profileWithoutWhitespace)) {
+      failures.push(`does not match pattern: ${pattern}`);
+    }
+  }
+
   // Same check, but blind to anything inside a CDATA section.  A CSP profile can carry a whole other
   // document as a node's value -- a WLANProfile, an ADMX fragment -- and a rule about the profile is not
   // a rule about what it transports.  Replaced with an empty CDATA rather than deleted so a needle
@@ -1566,11 +2256,79 @@ function checkExpectations(expectations, generatedProfile) {
     }
   }
 
+  if(expectations.deliveryNotesMustMatch && !expectations.deliveryNotesMustMatch.test(String(generatedProfile.deliveryNotes || ''))) {
+    failures.push(`delivery notes do not match ${expectations.deliveryNotesMustMatch} -- they were ${JSON.stringify(generatedProfile.deliveryNotes || '')}`);
+  }
+
   return failures;
+}
+
+/**
+ * Check the reason given for a refusal the case expected.
+ *
+ * @param  {String} reason
+ * @returns {Array} human-readable descriptions of what failed
+ */
+function checkDeclineReason(reason) {
+  // The UI already links every refusal to the OS settings page, so a reason links nowhere else.
+  if(/https?:\/\/|www\./i.test(String(reason || ''))) {
+    return [`reason contains a link: ${JSON.stringify(reason)}`];
+  }
+  return [];
+}
+
+
+/**
+ * How a case runs as a request from Fleet, which sends a platform rather than a profile type, or undefined
+ * when it does not run as one.
+ *
+ * Apple cases run as Fleet requests unless they say `fleet: false`.  The format a case routes to defaults to
+ * its own profile type, with its own expectations; a case that should route elsewhere says so with
+ * `fleet: {routesTo, expect}`, and must bring expectations for the format it routes to.  `routesTo: 'decline'`
+ * expects the request to be declined.  A case that expects to be declined anyway leaves the route unchecked.
+ *
+ * @param  {Dictionary} testCase
+ * @returns {Dictionary|undefined}  {routesTo, expect}
+ */
+function fleetRequestFor(testCase) {
+  if(testCase.fleet === false || !['mobileconfig', 'ddm'].includes(testCase.profileType)) {
+    return undefined;
+  }
+  let fleet = testCase.fleet || {};
+  let expectsFailure = !!(testCase.expect && testCase.expect.expectFailure);
+  let routesTo = fleet.routesTo || (expectsFailure ? undefined : testCase.profileType);
+  return {
+    routesTo,
+    expect: fleet.expect || (routesTo === 'decline' ? { expectFailure: true } : testCase.expect),
+  };
+}
+
+
+// Checked as soon as the cases load, so a case that routes elsewhere without saying what to expect there
+// fails the run before anything is spent on it.
+for (let testCase of TEST_CASES) {
+  if(testCase.fleet && testCase.fleet.routesTo && testCase.fleet.routesTo !== testCase.profileType && testCase.fleet.routesTo !== 'decline' && !testCase.fleet.expect) {
+    throw new Error(`The case ${testCase.id} routes to ${testCase.fleet.routesTo} as a Fleet request, so it needs a fleet.expect for that format.`);
+  }
+}
+
+
+/**
+ * Whether a generation failed because of the API rather than the prompt -- a rate limit (429) or an API that is
+ * overloaded (529) or erroring (5xx) -- and so deserves a retry after a pause before it counts against a case.
+ *
+ * @param  {Ref} err
+ * @returns {Boolean}
+ */
+function isWorthRetryingAfterAPause(err) {
+  return !!err && (err.statusCode === 429 || err.statusCode >= 500);
 }
 
 
 module.exports = {
   TEST_CASES,
   checkExpectations,
+  fleetRequestFor,
+  isWorthRetryingAfterAPause,
+  checkDeclineReason,
 };

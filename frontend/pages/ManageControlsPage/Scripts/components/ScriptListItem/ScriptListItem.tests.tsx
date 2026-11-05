@@ -192,5 +192,65 @@ describe("ScriptListItem", () => {
       expect(scriptAPI.downloadScript).toHaveBeenCalledWith(MAC_SCRIPT.id);
       expect(onClickScript).not.toHaveBeenCalled();
     });
+
+    it("exposes the row as a keyboard-focusable button so Enter opens the Edit modal", async () => {
+      const { user, container } = renderWithGitOps();
+
+      const row = container.querySelector(".list-item") as HTMLElement;
+      expect(row).toHaveAttribute("role", "button");
+      expect(row).toHaveAttribute("tabindex", "0");
+
+      row.focus();
+      await user.keyboard("{Enter}");
+      expect(onClickScript).toHaveBeenCalledWith(MAC_SCRIPT);
+    });
+
+    it("does not open the Edit modal when Enter is pressed on the Download button", async () => {
+      (scriptAPI.downloadScript as jest.Mock).mockResolvedValue("script body");
+      const { user } = renderWithGitOps();
+
+      screen.getByTestId("download-icon").closest("button")?.focus();
+      await user.keyboard("{Enter}");
+
+      expect(scriptAPI.downloadScript).toHaveBeenCalledWith(MAC_SCRIPT.id);
+      expect(onClickScript).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("as a technician", () => {
+    it("exposes the row as a keyboard-focusable button so Enter opens the Edit modal", async () => {
+      const { user, container } = renderWithSetup(
+        <ScriptListItem
+          script={MAC_SCRIPT}
+          onDelete={onDelete}
+          onEdit={onEdit}
+          onClickScript={onClickScript}
+          isTechnician
+        />
+      );
+
+      const row = container.querySelector(".list-item") as HTMLElement;
+      expect(row).toHaveAttribute("role", "button");
+      expect(row).toHaveAttribute("tabindex", "0");
+
+      row.focus();
+      await user.keyboard("{Enter}");
+      expect(onClickScript).toHaveBeenCalledWith(MAC_SCRIPT);
+    });
+  });
+
+  it("does not expose the row as a button when action buttons are keyboard-reachable", () => {
+    const { container } = render(
+      <ScriptListItem
+        script={MAC_SCRIPT}
+        onDelete={onDelete}
+        onEdit={onEdit}
+        onClickScript={onClickScript}
+      />
+    );
+
+    const row = container.querySelector(".list-item");
+    expect(row).not.toHaveAttribute("role", "button");
+    expect(row).not.toHaveAttribute("tabindex");
   });
 });

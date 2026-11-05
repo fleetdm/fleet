@@ -210,7 +210,7 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, tok
 		appConfig.MDMUrl(), titleID, token,
 	)
 
-	if svc.config.S3.SoftwareInstallersCloudFrontSigner != nil || svc.config.S3.SoftwareInstallersSignedURL {
+	if svc.config.SoftwareInstallersSignedURLEnabled() {
 		signedURL, err := svc.softwareInstallStore.Sign(ctx, meta.StorageID, fleet.InHouseAppSignedURLExpiry)
 		if err != nil {
 			// We log the error and continue to send the Fleet server URL for the in-house app

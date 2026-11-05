@@ -115,26 +115,14 @@ const OS_UPDATE_REQUIREMENT_PENDING = "Pending";
 
 const DISK_ENCRYPTION_MESSAGES = {
   darwin: {
-    enabled: (
-      <>
-        The disk is encrypted. The user must enter their
-        <br /> password when they start their computer.
-      </>
-    ),
-    disabled: (
-      <>
-        The disk might be encrypted, but FileVault is off. The
-        <br /> disk can be accessed without entering a password.
-      </>
-    ),
+    enabled:
+      "The disk is encrypted. The user must enter their password when they start their computer.",
+    disabled:
+      "The disk might be encrypted, but FileVault is off. The disk can be accessed without entering a password.",
   },
   windows: {
-    enabled: (
-      <>
-        The disk is encrypted. If recently turned on,
-        <br /> encryption could take awhile.
-      </>
-    ),
+    enabled:
+      "The disk is encrypted. If recently turned on, encryption could take awhile.",
     disabled: "The disk is unencrypted.",
   },
   linux: {
@@ -399,6 +387,27 @@ export const buildHostVitals = ({
           key="serial-number"
           title="Serial number"
           value={<TooltipTruncatedText value={vitalsData.hardware_serial} />}
+        />
+      ),
+    });
+  }
+
+  if (
+    (isIosOrIpadosHost || isAndroidHost) &&
+    vitalsData.google_device_id &&
+    vitalsData.google_device_id !== DEFAULT_EMPTY_CELL_VALUE
+  ) {
+    vitals.push({
+      sortKey: "Google device ID",
+      element: (
+        <DataSet
+          key="google-device-id"
+          title={
+            <TooltipWrapper tipContent="The host's device ID in Google, used for conditional access.">
+              Google device ID
+            </TooltipWrapper>
+          }
+          value={<TooltipTruncatedText value={vitalsData.google_device_id} />}
         />
       ),
     });

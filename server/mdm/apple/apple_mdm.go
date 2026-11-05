@@ -31,6 +31,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
+	"github.com/micromdm/plist"
+	"github.com/smallstep/pkcs7"
 
 	depclient "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
@@ -2049,6 +2051,8 @@ type RecoveryLockCommander interface {
 	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	ClearRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	RotateRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+	VerifyRecoveryLock(ctx context.Context, hostUUID, cmdUUID string) error
+	VerifyClearRecoveryLock(ctx context.Context, hostUUID, cmdUUID string) error
 }
 
 // SendRecoveryLockCommands is the cron job function that sends SetRecoveryLock MDM commands
@@ -2056,6 +2060,7 @@ type RecoveryLockCommander interface {
 //
 // Note: SetRecoveryLock command results are handled in the MDM results handler
 // (server/service/apple_mdm.go), which sends VerifyRecoveryLock immediately upon acknowledgment.
+// sendRecoveryLockVerifyCommands covers acknowledgments that handler never matched.
 func SendRecoveryLockCommands(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -2095,6 +2100,10 @@ func sendRecoveryLockCommandsWithCommander(
 		logger.InfoContext(ctx, "soft-deleted recovery lock passwords for unenrolled hosts", "count", swept)
 	}
 
+	if err := sendRecoveryLockVerifyCommands(ctx, ds, commander, logger); err != nil {
+		result = multierror.Append(result, err)
+	}
+
 	// Handle SET password operations (hosts that need a recovery lock password)
 	if err := sendSetRecoveryLockCommands(ctx, ds, commander, logger); err != nil {
 		result = multierror.Append(result, err)
@@ -2110,6 +2119,47 @@ func sendRecoveryLockCommandsWithCommander(
 		result = multierror.Append(result, err)
 	}
 
+	return result.ErrorOrNil()
+}
+
+// sendRecoveryLockVerifyCommands sends the verify step for hosts whose SetRecoveryLock was
+// acknowledged without the result handler sending it, which the upgrade repair in migration
+// 20261029055700 leaves behind.
+func sendRecoveryLockVerifyCommands(
+	ctx context.Context,
+	ds fleet.Datastore,
+	commander RecoveryLockCommander,
+	logger *slog.Logger,
+) error {
+	claims, err := ds.ClaimHostsForRecoveryLockVerify(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "claim hosts for recovery lock verify")
+	}
+
+	var result *multierror.Error
+	for _, c := range claims {
+		send := commander.VerifyRecoveryLock
+		if c.OperationType == fleet.MDMOperationTypeRemove {
+			send = commander.VerifyClearRecoveryLock
+		}
+		err := send(ctx, c.HostUUID, c.VerifyCommandUUID)
+		if err == nil {
+			logger.InfoContext(ctx, "sent VerifyRecoveryLock for acknowledged SetRecoveryLock",
+				"host_uuid", c.HostUUID, "command_uuid", c.VerifyCommandUUID)
+			continue
+		}
+		if notifErr, ok := errors.AsType[*NotificationFailedError](err); ok {
+			logger.WarnContext(ctx, "VerifyRecoveryLock enqueued but APNs push failed",
+				"host_uuid", c.HostUUID, "command_uuid", c.VerifyCommandUUID, "error", notifErr)
+			continue
+		}
+		logger.ErrorContext(ctx, "failed to enqueue VerifyRecoveryLock",
+			"host_uuid", c.HostUUID, "command_uuid", c.VerifyCommandUUID, "error", err)
+		if err := ds.UnclaimHostForRecoveryLockVerify(ctx, c.HostUUID, c.VerifyCommandUUID); err != nil {
+			result = multierror.Append(result, ctxerr.Wrap(ctx, err, "unclaim host for recovery lock verify"))
+		}
+		result = multierror.Append(result, ctxerr.Wrap(ctx, err, "send VerifyRecoveryLock"))
+	}
 	return result.ErrorOrNil()
 }
 
@@ -2910,6 +2960,47 @@ func ParseAppleMDMCertificateBindingExtension(cert *x509.Certificate) (*AppleMDM
 		return nil, fmt.Errorf("unsupported certificate binding version %d", binding.Version)
 	}
 	return &binding, nil
+}
+
+// SilentMigrationRenewalProfile prepares the FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE env profile for a renewal: it
+// unwraps a signed profile, since Fleet signs it at delivery, and sets the Challenge of its SCEP payload to the
+// per-host challenge placeholder. That Challenge must be $FLEET_VAR_SILENT_MIGRATION_SCEP_CHALLENGE, or for profiles
+// set up before that variable existed, the static challenge. The profile is returned as an XML plist.
+func SilentMigrationRenewalProfile(profile []byte, staticChallenge string) ([]byte, error) {
+	if p7, err := pkcs7.Parse(profile); err == nil {
+		profile = p7.Content
+	}
+
+	var root map[string]any
+	if err := plist.Unmarshal(profile, &root); err != nil {
+		return nil, fmt.Errorf("parsing silent migration enrollment profile: %w", err)
+	}
+	payloads, _ := root["PayloadContent"].([]any)
+	var replaced bool
+	for _, p := range payloads {
+		payload, _ := p.(map[string]any)
+		if payload["PayloadType"] != "com.apple.security.scep" {
+			continue
+		}
+		content, _ := payload["PayloadContent"].(map[string]any)
+		switch challenge, _ := content["Challenge"].(string); {
+		case challenge == fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix(),
+			challenge == fleet.FleetVarSilentMigrationSCEPChallenge.WithBraces(),
+			staticChallenge != "" && challenge == staticChallenge:
+			content["Challenge"] = fleet.HostSecretPlaceholder(fleet.HostSecretSCEPChallenge)
+			replaced = true
+		}
+	}
+	if !replaced {
+		return nil, fmt.Errorf("silent migration enrollment profile has no SCEP payload whose Challenge is %s or the static SCEP challenge",
+			fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix())
+	}
+
+	out, err := plist.Marshal(root)
+	if err != nil {
+		return nil, fmt.Errorf("encoding silent migration enrollment profile: %w", err)
+	}
+	return out, nil
 }
 
 func AppleMDMSCEPCertificateSubject(newEnrollment bool) pkix.Name {

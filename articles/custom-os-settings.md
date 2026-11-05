@@ -10,6 +10,9 @@ For Windows hosts, copy this [Windows configuration profile template](https://fl
 
 For Android hosts, copy this [Android configuration profile template](https://fleetdm.com/learn-more-about/example-android-profile) and update the profile using the options available in [Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#resource:-policy). To learn how, watch [this video](https://youtu.be/Jk4Zcb2sR1w). To learn more about the different settings availabe for fully managed vs. BYOD Android devices, see [Google's documentation](https://support.google.com/work/android/topic/9621435?hl=en&ref_topic=6151012,6090502,6090491,&sjid=13375704519136380831-NA).
 
+> When you add or edit a configuration profile, Fleet checks that each setting it recognizes has a value of the expected type. For example, a setting Apple or Microsoft documents as a number must be a number. Settings and payload types Fleet doesn't recognize are allowed.
+> To skip this check, turn off **Profile validation** in **Organization settings > Advanced options**.
+
 ### Apple declaration (DDM) profiles
 
 For Apple hosts, Fleet supports uploading declaration (DDM) profiles as `.json` files. Fleet supports the following types:
@@ -210,6 +213,54 @@ Edit user-scoped configuration profiles that are already installed on hosts:
 In versions older than 4.71.0, Fleet always delivered configuration profiles to the device scope (even when the profile's `PayloadScope` was set to `User`)
 
 If you want to make sure the profile stays device-scoped, update `PayloadScope` to `System` or remove `PayloadScope` entirely. The default scope in Fleet is `System`. 
+
+### Self-service
+
+_Available in Fleet Premium_
+
+By default, configuration profiles are enforced when Fleet automatically installs and removes them on targeted hosts. You can instead make a profile self-service (opt-in), so it appears on the end user's **My device > Controls** tab and is only installed when the user chooses to install it.
+
+Self-service profiles are available for macOS `.mobileconfig` profiles. Support for iOS and iPadOS is [coming soon](https://github.com/fleetdm/fleet/issues/52841). They are not supported for Windows (`.xml`), Android (`.json`), or DDM declaration (`.json`) profiles.
+
+When a profile is self-service:
+- Fleet does **not** automatically install it on targeted hosts.
+- The end user sees the profile on the **My device > Controls** tab and can install or uninstall it on demand.
+- Label scoping still controls which hosts *see* the profile in self-service, but does not force-install it.
+- When the user uninstalls a self-service profile, Fleet sends the appropriate removal command (e.g., `RemoveProfile` on Apple platforms).
+
+Fleet UI: 
+
+1. In the Fleet UI, head to the **Controls > OS settings > Configuration profiles** page.
+
+2. Click **Add profile**, and upload a `.mobileconfig` configuration profile.
+
+3. Select **End user initiated (manual)** in the **Deploy** dropdown.
+
+4. Click **Add profile**.
+
+GitOps: 
+
+Set `self_service: true` on the profile:
+
+```yaml
+controls:
+  macos_settings:
+    configuration_profiles:
+      - paths: ../lib/macos/profiles/*.mobileconfig
+        self_service: true
+```
+
+Fleet API:
+
+Pass `"self_service": true` to the Create configuration profile endpoint.
+
+#### Hidden profiles
+
+You can also mark an enforced (`self_service: false`) profile as hidden. Hidden profiles are installed automatically but are hidden from the end user on the **My device > Controls** tab by default. End users can toggle "Show hidden profiles" to view them, but these profiles do not require the end user to take any action.
+
+`self_service` must be `false` to use hidden.
+
+GitOps: set `hidden: true` on the profile. Fleet API: pass `"hidden": true`.
 
 ## See status
 

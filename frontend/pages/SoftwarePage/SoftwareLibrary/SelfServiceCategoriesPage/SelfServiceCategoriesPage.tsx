@@ -9,6 +9,7 @@ import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
 import FleetsDropdown from "components/FleetsDropdown";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import MainContent from "components/MainContent";
 import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
@@ -17,6 +18,7 @@ import { notify } from "components/ToastNotification";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import UploadList from "components/UploadList";
 import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { ISelfServiceCategory } from "interfaces/self_service_category";
 import PATHS from "router/paths";
@@ -52,6 +54,7 @@ const SelfServiceCategoriesPage = ({
     isGlobalMaintainer,
   } = useContext(AppContext);
   const isPrimoMode = config?.partnerships?.enable_primo || false;
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
   const queryClient = useQueryClient();
 
   const {
@@ -83,17 +86,17 @@ const SelfServiceCategoriesPage = ({
   const [showAddModal, setShowAddModal] = useState(false);
 
   // Open the Add category modal via deep-link (e.g. from the command
-  // palette). Gate on the same predicate the in-page button uses so the
-  // param can't bypass admin/maintainer-only authoring. Strip the param
-  // either way so refreshes don't keep reopening the modal.
+  // palette). Gate on the same predicates the in-page button uses so the
+  // param can't bypass admin/maintainer-only authoring or GitOps mode.
+  // Strip the param either way so refreshes don't keep reopening the modal.
   useEffect(() => {
     if (location.query.add_category !== "1") return;
-    if (canManage) {
+    if (canManage && !gitOpsModeEnabled) {
       setShowAddModal(true);
     }
     const { add_category, ...rest } = location.query;
     router.replace({ pathname: location.pathname, query: rest });
-  }, [location.query, location.pathname, router, canManage]);
+  }, [location.query, location.pathname, router, canManage, gitOpsModeEnabled]);
   const [
     categoryToEdit,
     setCategoryToEdit,
@@ -204,9 +207,19 @@ const SelfServiceCategoriesPage = ({
           }
           primaryButton={
             canManage ? (
-              <Button onClick={() => setShowAddModal(true)}>
-                Add category
-              </Button>
+              <GitOpsModeTooltipWrapper
+                entityType="software"
+                position="top"
+                tipOffset={8}
+                renderChildren={(disableChildren) => (
+                  <Button
+                    onClick={() => setShowAddModal(true)}
+                    disabled={disableChildren}
+                  >
+                    Add category
+                  </Button>
+                )}
+              />
             ) : undefined
           }
         />
@@ -224,13 +237,21 @@ const SelfServiceCategoriesPage = ({
               Self-service categories
             </span>
             {canManage && (
-              <Button
-                variant="secondary"
-                onClick={() => setShowAddModal(true)}
-                icon="plus"
-              >
-                Add category
-              </Button>
+              <GitOpsModeTooltipWrapper
+                entityType="software"
+                position="top"
+                tipOffset={8}
+                renderChildren={(disableChildren) => (
+                  <Button
+                    variant="secondary"
+                    onClick={() => setShowAddModal(true)}
+                    icon="plus"
+                    disabled={disableChildren}
+                  >
+                    Add category
+                  </Button>
+                )}
+              />
             )}
           </div>
         )}
@@ -241,19 +262,35 @@ const SelfServiceCategoriesPage = ({
             </div>
             {canManage && (
               <div className={`${baseClass}__row-actions`}>
-                <Button
-                  variant="secondary"
-                  onClick={() => setCategoryToEdit(listItem)}
-                  ariaLabel={`Edit ${listItem.name}`}
-                  title="Edit"
-                  icon="pencil"
+                <GitOpsModeTooltipWrapper
+                  entityType="software"
+                  position="top"
+                  tipOffset={8}
+                  renderChildren={(disableChildren) => (
+                    <Button
+                      variant="secondary"
+                      onClick={() => setCategoryToEdit(listItem)}
+                      ariaLabel={`Edit ${listItem.name}`}
+                      title="Edit"
+                      icon="pencil"
+                      disabled={disableChildren}
+                    />
+                  )}
                 />
-                <Button
-                  variant="secondary"
-                  onClick={() => setCategoryToDelete(listItem)}
-                  ariaLabel={`Delete ${listItem.name}`}
-                  title="Delete"
-                  icon="trash"
+                <GitOpsModeTooltipWrapper
+                  entityType="software"
+                  position="top"
+                  tipOffset={8}
+                  renderChildren={(disableChildren) => (
+                    <Button
+                      variant="secondary"
+                      onClick={() => setCategoryToDelete(listItem)}
+                      ariaLabel={`Delete ${listItem.name}`}
+                      title="Delete"
+                      icon="trash"
+                      disabled={disableChildren}
+                    />
+                  )}
                 />
               </div>
             )}

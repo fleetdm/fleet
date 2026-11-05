@@ -156,7 +156,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		// if error is because the host does not exist, check first if the user
 		// had access to run a script (to prevent leaking valid host ids).
 		if fleet.IsNotFound(err) {
-			if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{}, fleet.ActionWrite); err != nil {
+			if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{ScriptID: request.ScriptID}, fleet.ActionWrite); err != nil {
 				return nil, err
 			}
 		}
@@ -180,8 +180,9 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 
 	maxPending := maxPendingScripts
 
-	// authorize with the host's team
-	if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+	// authorize with the host's team; script_id matters because some roles can
+	// only run saved scripts, not ad hoc ones.
+	if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{TeamID: host.TeamID, ScriptID: request.ScriptID}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -749,9 +750,8 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	// any duplicate name in the provided set results in an error
 	scripts := make([]*fleet.Script, 0, len(payloads))
-	byName := make(map[string]bool, len(payloads))
+	scriptNames := make([]string, 0, len(payloads))
 	scriptContents := []string{}
 	for i, p := range payloads {
 		script := &fleet.Script{
@@ -780,14 +780,21 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 			return nil, ctxerr.Wrap(ctx, err, "validate fleet variables in script")
 		}
 
-		if byName[script.Name] {
-			return nil, ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(fmt.Sprintf("scripts[%d]", i), fmt.Sprintf("Couldn’t edit scripts. More than one script has the same file name: %q", script.Name)),
-				"duplicate script by name")
-		}
-		byName[script.Name] = true
+		scriptNames = append(scriptNames, script.Name)
 		scriptContents = append(scriptContents, script.ScriptContents)
 		scripts = append(scripts, script)
+	}
+
+	// any duplicate name in the provided set results in an error
+	duplicateIndex, found, err := findDuplicateNameUnderCollation(ctx, svc.ds, scriptNames)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking for duplicate script names")
+	}
+	if found {
+		return nil, ctxerr.Wrap(ctx,
+			fleet.NewInvalidArgumentError(fmt.Sprintf("scripts[%d]", duplicateIndex),
+				fmt.Sprintf("Couldn’t edit scripts. More than one script has the same file name: %q", scriptNames[duplicateIndex])),
+			"duplicate script by name")
 	}
 
 	if dryRun {
@@ -1010,7 +1017,11 @@ func (svc *Service) BatchScriptExecutionHostResults(ctx context.Context, batchEx
 	// Get the batch activity.
 	batchActivity, err := svc.ds.GetBatchActivity(ctx, batchExecutionID)
 	if err != nil {
-		svc.authz.SkipAuthorization(ctx)
+		if !fleet.IsNotFound(err) {
+			svc.authz.SkipAuthorization(ctx)
+		} else if authErr := svc.authz.Authorize(ctx, &fleet.Script{}, fleet.ActionRead); authErr != nil {
+			return nil, nil, 0, authErr
+		}
 		return nil, nil, 0, ctxerr.Wrap(ctx, err, "getting batch activity")
 	}
 	if batchActivity.ScriptID == nil {

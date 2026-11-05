@@ -78,6 +78,7 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 #### UI
 - [ ] Verify that all UI changes specified in the Figma wireframes are correctly implemented
 - [ ] Verify expected UI states (loading, empty, error states if applicable)
+- [ ] Verify the UI at Fleet's breakpoints (480, 768, 1024, 1280, 1440px) — no clipped controls, no horizontal scroll, no overlapping text
 
 #### API
 - [ ] Test all API endpoints added or modified in the **API changes** section of this issue
@@ -108,6 +109,17 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 #### Feature in isolation (MDM / platform independence)
 - [ ] Verify the feature works on a fully configured server (all MDM platforms enabled)
 - [ ] Verify the feature works in isolation — e.g. Apple MDM **off**, Windows-only, Linux-only, or Android-only deployments as applicable
+
+#### Identity provider (IdP)
+- [ ] Verify behavior when the end user is deprovisioned or removed from the IdP
+- [ ] Verify behavior when the end user's IdP group membership changes
+- [ ] Verify identities that differ only by capitalization are treated as one (no duplicate user or host record)
+- [ ] Verify the feature still works after a certificate or token renewal
+- [ ] Verify the feature on a host that re-enrolls with an IdP identity already attached
+
+#### Host re-enrollment
+- [ ] Verify the feature on a host that enrolls, is wiped, and enrolls again
+- [ ] Verify whether host state (identity, labels, encryption key, setup experience status) is correctly kept or reset
 
 -->
 

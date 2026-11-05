@@ -53,8 +53,10 @@ const (
 		SET attempt_number = 0
 		WHERE host_id = ? AND policy_id IN (?) AND (attempt_number > 0 OR attempt_number IS NULL)
 	`
+	// The (host_id, policy_id) index, so this never locks entries of the (host_id, software_installer_id) index,
+	// which deleting an installer rewrites through its SET NULL cascade after locking the rows.
 	resetInstallAttemptsStmt = `
-		UPDATE host_software_installs
+		UPDATE host_software_installs FORCE INDEX (idx_host_software_installs_host_policy)
 		SET attempt_number = 0
 		WHERE host_id = ? AND policy_id IN (?) AND (attempt_number > 0 OR attempt_number IS NULL)
 	`
@@ -3246,7 +3248,6 @@ func (ds *Datastore) GetCalendarPolicies(ctx context.Context, teamID uint) ([]fl
 }
 
 func (ds *Datastore) GetPoliciesForConditionalAccess(ctx context.Context, teamID uint, platform string) ([]uint, error) {
-	// Currently, the "Conditional access" feature is for macOS hosts only.
 	query := `SELECT id FROM policies WHERE team_id = ? AND conditional_access_enabled AND (platforms LIKE CONCAT('%', ?, '%') OR platforms = '');`
 	var policyIDs []uint
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &policyIDs, query, teamID, platform)

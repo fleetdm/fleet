@@ -40,7 +40,7 @@
   "author": "eashaw",
   "license": "",
   "engines": {
-    "node": "^20.18"
+    "node": "^22.23.4"
   },
   "overrides": {
     "grunt": {
@@ -63,7 +63,9 @@
     "@okta/oidc-middleware": {
       "uuid": "11.1.1"
     },
-    "body-parser": "1.20.6",
-    "qs": "6.16.0"
+    "body-parser": "1.20.9",
+    "qs": "6.16.0",
+    "proxy-addr": "2.0.8",
+    "compression": "1.8.2"
   }
 }

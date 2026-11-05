@@ -1,0 +1,1 @@
+- Fixed `fleetctl` printing "unknown msg type error" instead of the server's error message when a live report fails.

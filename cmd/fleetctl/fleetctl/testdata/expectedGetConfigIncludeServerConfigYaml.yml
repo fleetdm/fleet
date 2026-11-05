@@ -57,6 +57,7 @@ spec:
     enable_turn_on_windows_mdm_manually: false
     apple_require_hardware_attestation: false
     only_allow_apple_business_enrollment: false
+    enable_profile_validation: false
     windows_entra_tenant_ids: null
     windows_entra_client_ids: null
     microsoft_graph_credential_invalid: false
@@ -97,6 +98,8 @@ spec:
       enable_release_device_manually: false
       end_user_local_account_type: admin
       lock_end_user_info: false
+      macos_enable_bootstrap_package_during_manual_enrollment: false
+      macos_enable_bootstrap_package_during_migration: false
       macos_setup_assistant:
       manual_agent_install:
       require_all_software_macos: false
@@ -111,6 +114,8 @@ spec:
       end_user_local_account_type: admin
       lock_end_user_info: false
       apple_setup_assistant:
+      macos_enable_bootstrap_package_during_manual_enrollment: false
+      macos_enable_bootstrap_package_during_migration: false
       macos_manual_agent_install:
       require_all_software_macos: false
       require_all_software_windows: false
@@ -195,6 +200,7 @@ spec:
     server_url: ""
     scripts_disabled: false
     ai_features_disabled: false
+    mcp_disabled: false
   smtp_settings:
     authentication_method: ""
     authentication_type: ""

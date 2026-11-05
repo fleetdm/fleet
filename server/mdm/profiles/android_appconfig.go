@@ -105,7 +105,8 @@ func SubstituteFleetVarsAndVitalsInAndroidAppConfig(
 			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
 			fleet.FleetVarHostEndUserIDPGroups,
 			fleet.FleetVarHostEndUserIDPDepartment,
-			fleet.FleetVarHostEndUserIDPFullname:
+			fleet.FleetVarHostEndUserIDPFullname,
+			fleet.FleetVarHostEndUserIDPExternalID:
 			var detail string
 			value, _, ok, err := ResolveHostEndUserIDPValue(
 				ctx, ds, name, host.UUID, idpUUIDCache,

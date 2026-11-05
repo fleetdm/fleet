@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -22,6 +23,7 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/platform/logging/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -432,6 +434,55 @@ func TestWindowsTOSRedirectURIAllowed(t *testing.T) {
 			require.Equal(t, tc.want, windowsTOSRedirectURIAllowed(tc.redirectURI))
 		})
 	}
+}
+
+func TestGetMDMWindowsTOSContent(t *testing.T) {
+	if !hasBuildTag("full") {
+		t.Skip("This test requires running with -tags full")
+	}
+
+	svc, _ := newTestService(t, new(mock.DataStore), nil, nil)
+	render := func(t *testing.T, serveCSP bool, redirectURI string) (string, http.Header) {
+		var content string
+		var err error
+		h := endpointer.BrowserSecurityHeadersHandler(serveCSP, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			content, err = svc.GetMDMWindowsTOSContent(r.Context(), redirectURI, "req-id")
+		}))
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+		require.NoError(t, err)
+		return content, rec.Header()
+	}
+
+	for _, tc := range []struct {
+		name        string
+		redirectURI string
+	}{
+		{"ms-appx-web", "ms-appx-web://Microsoft.AAD.BrokerPlugin"},
+		{"ms-aadj-redir", "ms-aadj-redir://auth/mdm"},
+		{"https", "https://enroll.example.com/continue"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			content, _ := render(t, true, tc.redirectURI)
+			require.Contains(t, content, `href="`+tc.redirectURI+`?IsAccepted=true&amp;OpaqueBlob=req-id"`)
+			// CSP blocks inline scripts and event handlers, so accepting must not rely on them.
+			require.NotContains(t, content, "<script")
+			require.NotContains(t, strings.ToLower(content), "onclick")
+		})
+	}
+
+	t.Run("CSP enabled", func(t *testing.T) {
+		content, header := render(t, true, "ms-aadj-redir://auth/mdm")
+		nonce := regexp.MustCompile(`style-src 'self' 'nonce-([^']+)'`).FindStringSubmatch(header.Get("Content-Security-Policy"))
+		require.Len(t, nonce, 2)
+		require.Contains(t, content, `<style nonce="`+nonce[1]+`">`)
+	})
+
+	t.Run("CSP disabled", func(t *testing.T) {
+		content, header := render(t, false, "ms-aadj-redir://auth/mdm")
+		require.Empty(t, header.Get("Content-Security-Policy"))
+		require.Contains(t, content, `<style nonce="disabled">`)
+	})
 }
 
 func TestValidSyncMLCmdXml(t *testing.T) {
@@ -1362,9 +1413,16 @@ func TestReconcileWindowsProfilesWithFleetVariableError(t *testing.T) {
 		return nil
 	}
 
+	var rollupHosts []string
+	ds.RefreshMDMWindowsProfilesStatusRollupFunc = func(ctx context.Context, hostUUIDs []string) error {
+		rollupHosts = append(rollupHosts, hostUUIDs...)
+		return nil
+	}
+
 	// Run ReconcileWindowsProfiles
 	err := ReconcileWindowsProfiles(ctx, ds, logger, false)
 	require.NoError(t, err) // The function should not return an error even if insert fails
+	require.Equal(t, []string{testHostUUID}, rollupHosts, "the rollup is refreshed once for the hosts the window had work for")
 
 	// Verify the command was preprocessed (UUID should be substituted)
 	require.NotNil(t, receivedCommand, "Command should have been created")
@@ -1388,6 +1446,30 @@ func TestReconcileWindowsProfilesWithFleetVariableError(t *testing.T) {
 		}
 	}
 	require.True(t, foundError, "Should have found a failed status update")
+}
+
+func TestReconcileWindowsProfilesRefreshesRollupWhenBatchFails(t *testing.T) {
+	ds := new(mock.Store)
+	testProfile := &fleet.MDMWindowsConfigProfile{
+		ProfileUUID: "test-profile-uuid",
+		Name:        "Test Profile",
+		SyncML:      []byte(`<Replace><Item><Target><LocURI>./Test</LocURI></Target><Data>1</Data></Item></Replace>`),
+	}
+	setupReconcilerTest(ds, map[string]*fleet.MDMWindowsConfigProfile{"host-a": testProfile, "host-b": testProfile})
+
+	// The commands are enqueued (committed) before the final host profile upsert fails.
+	ds.BulkUpsertMDMWindowsHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+		return errors.New("upsert failed")
+	}
+	var rollupHosts []string
+	ds.RefreshMDMWindowsProfilesStatusRollupFunc = func(ctx context.Context, hostUUIDs []string) error {
+		rollupHosts = append(rollupHosts, hostUUIDs...)
+		return nil
+	}
+
+	err := ReconcileWindowsProfiles(t.Context(), ds, slog.New(slog.DiscardHandler), false)
+	require.ErrorContains(t, err, "upsert failed")
+	require.ElementsMatch(t, []string{"host-a", "host-b"}, rollupHosts)
 }
 
 func TestReconcileWindowsProfileWithCertificateFailureDoesNotAddManagedCertificate(t *testing.T) {
@@ -1541,6 +1623,53 @@ func TestReconcileWindowsProfilesWithOneHostFailingStillAddsManagedCertificate(t
 		}
 	}
 	require.EqualValues(t, 1, foundErrors, "Should have found one failed status update")
+}
+
+// TestReconcileWindowsProfilesConditionalAccessTracksCertificate covers a profile pointed at Fleet's conditional access
+// SCEP server: the URL is filled in, the admin's challenge passes through, and the certificate is tracked by type.
+func TestReconcileWindowsProfilesConditionalAccessTracksCertificate(t *testing.T) {
+	ctx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	ds := new(mock.Store)
+
+	profile := &fleet.MDMWindowsConfigProfile{
+		ProfileUUID: "conditional-access-profile",
+		Name:        "Conditional access",
+		SyncML: []byte(`<Add><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/ca/Install/ServerURL</LocURI></Target><Data>$FLEET_VAR_` +
+			string(fleet.FleetVarConditionalAccessSCEPURL) + `</Data></Item></Add>` +
+			`<Add><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/ca/Install/Challenge</LocURI></Target><Data>aB3+/= secret</Data></Item></Add>`),
+	}
+	hostUUIDs := []string{"host-1", "host-2"}
+	_, managedCerts := setupReconcilerTest(ds, map[string]*fleet.MDMWindowsConfigProfile{
+		hostUUIDs[0]: profile,
+		hostUUIDs[1]: profile,
+	})
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://fleet.example.com"},
+			MDM:            fleet.MDM{WindowsEnabledAndConfigured: true},
+		}, nil
+	}
+	commandsByHost := map[string]string{}
+	ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, updates []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+		for _, hostUUID := range hostUUIDs {
+			commandsByHost[hostUUID] = string(cmd.RawCommand)
+		}
+		return nil
+	}
+
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, slog.New(slog.DiscardHandler), false))
+
+	require.Len(t, commandsByHost, len(hostUUIDs))
+	for _, hostUUID := range hostUUIDs {
+		require.Contains(t, commandsByHost[hostUUID], "https://fleet.example.com"+fleet.ConditionalAccessSCEPPath)
+		require.Contains(t, commandsByHost[hostUUID], "<Data>aB3+/= secret</Data>")
+	}
+	require.Len(t, *managedCerts, len(hostUUIDs))
+	for _, cert := range *managedCerts {
+		require.Equal(t, fleet.CAConfigConditionalAccess, cert.Type)
+		require.Equal(t, fleet.ConditionalAccessManagedCertificateCAName, cert.CAName)
+	}
 }
 
 // TestReconcileWindowsProfilesSkipsDeletedProfile covers the race where an
@@ -2469,11 +2598,12 @@ func TestRekeyWindowsDevice(t *testing.T) {
 	// Captured before the local `syncml` string variable below shadows the syncml package.
 	pollScheduleLocURI := syncml.DMClientPollIntervalLocURI
 	invalidCredentialsStatus := syncml.CmdStatusInvalidCredentials
+	enrollmentHostUUID := "host-uuid-123"
 	ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 		return &fleet.MDMWindowsEnrolledDevice{
 			ID:              testEnrollmentID,
 			MDMDeviceID:     "device",
-			HostUUID:        "host-uuid-123",
+			HostUUID:        enrollmentHostUUID,
 			CredentialsHash: credsHash,
 			// Loaded as 1 so the per-session refresh fires when the pending fetch returns empty (asserted at the end of
 			// the test); a device loaded with the flag at 0 skips the refresh entirely.
@@ -2481,6 +2611,12 @@ func TestRekeyWindowsDevice(t *testing.T) {
 			// Already announced, so the deferred mdm_enrolled path short-circuits: this test is about rekeying.
 			EnrolledActivityAt: new(time.Now()),
 		}, nil
+	}
+
+	hostSeenAt := time.Now()
+	var hostLookupErr error
+	ds.WindowsHostLiteByUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.HostLite, error) {
+		return &fleet.HostLite{ID: 1, UUID: hostUUID, SeenTime: hostSeenAt}, hostLookupErr
 	}
 
 	ds.MDMWindowsUpdateEnrolledDeviceCredentialsFunc = func(ctx context.Context, deviceId string, credentialsHash []byte) error {
@@ -2560,6 +2696,29 @@ func TestRekeyWindowsDevice(t *testing.T) {
 	err := xml.Unmarshal([]byte(syncml), &req)
 	require.NoError(t, err)
 
+	// A legacy enrollment is not rekeyed when it has no linked host, its host is missing, or the host was not seen past the cutoff.
+	for _, tc := range []struct {
+		hostUUID  string
+		lookupErr error
+		seenAt    time.Time
+	}{
+		{hostUUID: "", seenAt: time.Now()},
+		{hostUUID: "host-uuid-123", lookupErr: &notFoundError{}},
+		{hostUUID: "host-uuid-123", seenAt: time.Now().Add(-windowsMDMRekeyMaxOffline - time.Hour)},
+	} {
+		enrollmentHostUUID, hostLookupErr, hostSeenAt = tc.hostUUID, tc.lookupErr, tc.seenAt
+		_, err = svc.GetMDMWindowsManagementResponse(ctx, req)
+		require.ErrorContains(t, err, "device was not MDM enrolled")
+		require.Nil(t, credsHash)
+	}
+
+	// Any other lookup failure also refuses the rekey, but surfaces the error instead of posing as an unknown device.
+	enrollmentHostUUID, hostLookupErr = "host-uuid-123", errors.New("boom")
+	_, err = svc.GetMDMWindowsManagementResponse(ctx, req)
+	require.ErrorContains(t, err, "check windows rekey eligibility")
+	require.Nil(t, credsHash)
+
+	hostLookupErr, hostSeenAt = nil, time.Now()
 	res, err := svc.GetMDMWindowsManagementResponse(ctx, req)
 	require.NoError(t, err)
 	require.NotNil(t, res)
@@ -4083,4 +4242,30 @@ func TestGetPendingMDMCmdsHoldsBackRecentSCEPStatusProbes(t *testing.T) {
 			require.False(t, onlyPollCmdsPending)
 		})
 	}
+}
+
+func TestGetPendingMDMCmdsSkipsHostSecretFromCustomVariable(t *testing.T) {
+	ds := new(mock.Store)
+	ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
+		return []*fleet.MDMWindowsCommand{
+			{CommandUUID: "aliased", RawCommand: []byte(
+				`<Replace><CmdID>aliased</CmdID><Item><Target><LocURI>./Device/A</LocURI></Target><Data>$FLEET_SECRET_ALIAS</Data></Item></Replace>`)},
+			{CommandUUID: "good", RawCommand: []byte(
+				`<Replace><CmdID>good</CmdID><Item><Target><LocURI>./Device/B</LocURI></Target></Item></Replace>`)},
+		}, nil
+	}
+	// a custom variable whose value is a host-secret placeholder
+	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
+		return strings.ReplaceAll(document, "$FLEET_SECRET_ALIAS", fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret)), nil
+	}
+	ds.GetLiveWindowsMDMOneTimeEnrollSecretFunc = func(ctx context.Context, enrollmentID uint) (string, error) {
+		return "one-time-secret", nil
+	}
+	svc, _ := newTestService(t, ds, nil, nil)
+
+	cmds, _, err := svc.(validationMiddleware).Service.(*Service).getPendingMDMCmds(t.Context(), 1)
+	require.NoError(t, err)
+	require.Len(t, cmds, 1)
+	require.Equal(t, "good", cmds[0].CmdID.Value)
+	require.False(t, ds.GetLiveWindowsMDMOneTimeEnrollSecretFuncInvoked)
 }

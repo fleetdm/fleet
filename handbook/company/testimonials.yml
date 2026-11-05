@@ -343,6 +343,12 @@
   quoteAuthorProfileImageFilename: testimonial-author-jonathan-keyes-48x48@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/jonathan-keyes-7350212aa
   productCategories: [Device management, Software management, Observability]
+- quote: Endpoints are where AI risk actually shows up. You can't govern what you can't see. You need to know which AI tools and packages are running on your devices, what people are feeding them, and whether you can trust them. Device visibility plus risk intelligence is how you get there.
+  quoteAuthorName: Viktor Filipsson
+  quoteAuthorJobTitle: Senior IT System Engineer, Sonos
+  quoteAuthorProfileImageFilename: articles/virtual-summit-headshot-viktor-filipsson-100x100@2x.jpeg
+  quoteLinkUrl: https://www.linkedin.com/in/viktoralexfilipsson/
+  productCategories: [Observability, Software management]
 
 
 # -

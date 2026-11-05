@@ -256,7 +256,7 @@ type Identifier struct {
 
 // Datastore is the datastore interface for the ACME service module.
 type Datastore interface {
-	NewEnrollment(ctx context.Context, hostIdentifier string) (string, error)
+	NewEnrollment(ctx context.Context, hostIdentifier, purpose string, enrollmentID *string) (string, error)
 	GetACMEEnrollment(ctx context.Context, pathIdentifier string) (*Enrollment, error)
 	GetAccountByID(ctx context.Context, enrollmentID uint, accountID uint) (*Account, error)
 	CreateAccount(ctx context.Context, account *Account, onlyReturnExisting bool) (*Account, bool, error)

@@ -295,6 +295,30 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		didUpdate = true
 	}
 
+	requireBootstrapPackage := svc.bootstrapPackageRequirement(ctx, 0)
+
+	if payload.MacOSEnableBootstrapPackageDuringManualEnrollment != nil &&
+		ac.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment != *payload.MacOSEnableBootstrapPackageDuringManualEnrollment {
+		if *payload.MacOSEnableBootstrapPackageDuringManualEnrollment {
+			if err := requireBootstrapPackage("Couldn't enable macos_enable_bootstrap_package_during_manual_enrollment. To use this option, first specify a macos_bootstrap_package."); err != nil {
+				return err
+			}
+		}
+		ac.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment = *payload.MacOSEnableBootstrapPackageDuringManualEnrollment
+		didUpdate = true
+	}
+
+	if payload.MacOSEnableBootstrapPackageDuringMigration != nil &&
+		ac.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration != *payload.MacOSEnableBootstrapPackageDuringMigration {
+		if *payload.MacOSEnableBootstrapPackageDuringMigration {
+			if err := requireBootstrapPackage("Couldn't enable macos_enable_bootstrap_package_during_migration. To use this option, first specify a macos_bootstrap_package."); err != nil {
+				return err
+			}
+		}
+		ac.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration = *payload.MacOSEnableBootstrapPackageDuringMigration
+		didUpdate = true
+	}
+
 	if payload.EnableReleaseDeviceManually != nil {
 		if ac.MDM.MacOSSetup.EnableReleaseDeviceManually.Value != *payload.EnableReleaseDeviceManually {
 			ac.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(*payload.EnableReleaseDeviceManually)
@@ -304,15 +328,10 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 
 	if payload.ManualAgentInstall != nil {
 		if ac.MDM.MacOSSetup.ManualAgentInstall.Value != *payload.ManualAgentInstall {
-			// Try to load the bootstrap package to verify it exists.
-			_, err := svc.GetMDMAppleBootstrapPackageMetadata(ctx, 0, false)
-			// If we got an error other than not found, return it.
-			if err != nil && !fleet.IsNotFound(err) {
-				return ctxerr.Wrap(ctx, err, "checking bootstrap package")
-			}
-			// Otherwise if we got a not found error, we can't enable manual agent install.
-			if *payload.ManualAgentInstall && err != nil {
-				return fleet.NewUserMessageError(errors.New("Couldn’t enable macos_manual_agent_install. To use this option, first specify a macos_bootstrap_package."), http.StatusUnprocessableEntity)
+			if *payload.ManualAgentInstall {
+				if err := requireBootstrapPackage("Couldn’t enable macos_manual_agent_install. To use this option, first specify a macos_bootstrap_package."); err != nil {
+					return err
+				}
 			}
 			sec, err := svc.ds.GetSetupExperienceCount(ctx, string(fleet.MacOSPlatform), nil)
 			if err != nil {
@@ -392,6 +411,27 @@ func (svc *Service) logEnableManagedLocalAccountActivity(ctx context.Context, en
 	return nil
 }
 
+// bootstrapPackageRequirement returns a func that fails with msg when the team
+// has no bootstrap package. The package is read at most once, on first use. It
+// reads the datastore directly since the caller is already authorized and the
+// gitops role can't read bootstrap packages.
+func (svc *Service) bootstrapPackageRequirement(ctx context.Context, teamID uint) func(msg string) error {
+	var checked, exists bool
+	return func(msg string) error {
+		if !checked {
+			_, err := svc.ds.GetMDMAppleBootstrapPackageMeta(ctx, teamID)
+			if err != nil && !fleet.IsNotFound(err) {
+				return ctxerr.Wrap(ctx, err, "checking bootstrap package")
+			}
+			checked, exists = true, err == nil
+		}
+		if !exists {
+			return fleet.NewUserMessageError(errors.New(msg), http.StatusUnprocessableEntity)
+		}
+		return nil
+	}
+}
+
 func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fleet.MDMAppleSetupPayload) error {
 	// appconfig is only used internally, it's fine to read it unobfuscated
 	// (svc.AppConfigObfuscated must not be used because the write-only users
@@ -403,6 +443,7 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 
 	// If anything besides enable_end_user_authentication is being updated, ensure MDM is on.
 	if (payload.RequireAllSoftware != nil || payload.EnableReleaseDeviceManually != nil || payload.ManualAgentInstall != nil ||
+		payload.MacOSEnableBootstrapPackageDuringManualEnrollment != nil || payload.MacOSEnableBootstrapPackageDuringMigration != nil ||
 		payload.EnableManagedLocalAccount != nil || payload.EndUserLocalAccountType != nil) && !ac.MDM.EnabledAndConfigured {
 		return fleet.ErrMDMNotConfigured
 	}
@@ -517,6 +558,11 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 			return err
 		}
 	}
+	// The insert replaces an existing package, which is logged as a delete followed by the add.
+	replaced, err := svc.ds.GetMDMAppleBootstrapPackageMeta(ctx, teamID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "get existing bootstrap package")
+	}
 	if err := svc.ds.InsertMDMAppleBootstrapPackage(ctx, bp, svc.bootstrapPackageStore); err != nil {
 		return err
 	}
@@ -524,6 +570,14 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 		svc.deleteStagedUpload(ctx, stagedUploadID)
 	}
 
+	if replaced != nil {
+		if err := svc.NewActivity(
+			ctx, authz.UserFromContext(ctx),
+			fleet.ActivityTypeDeletedBootstrapPackage{BootstrapPackageName: replaced.Name, TeamID: ptrTeamId, TeamName: ptrTeamName},
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for replaced bootstrap package")
+		}
+	}
 	if err := svc.NewActivity(
 		ctx, authz.UserFromContext(ctx),
 		fleet.ActivityTypeAddedBootstrapPackage{BootstrapPackageName: name, TeamID: ptrTeamId, TeamName: ptrTeamName},
@@ -631,125 +685,35 @@ func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, team
 	return summary, nil
 }
 
-func (svc *Service) MDMCreateEULA(ctx context.Context, name string, f io.ReadSeeker, dryRun bool) error {
+func (svc *Service) MDMCreateEULA(ctx context.Context, platform fleet.MDMEULAPlatform, name string, f io.ReadSeeker, dryRun bool) error {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{}, fleet.ActionWrite); err != nil {
 		return err
 	}
-	if name = fleet.SanitizeEULAFileName(name); name == "" {
-		name = fleet.MDMEULADefaultDarwinFileName
-	}
-	if utf8.RuneCountInString(name) > fleet.MaxEULAFileNameLength {
-		return &fleet.BadRequestError{Message: "The file name must be 255 characters or fewer."}
-	}
-
-	if err := file.CheckPDF(f); err != nil {
-		if errors.Is(err, file.ErrInvalidType) {
-			return &fleet.BadRequestError{
-				Message:     "The file must be a PDF (.pdf).",
-				InternalErr: err,
-			}
-		}
-
-		return ctxerr.Wrap(ctx, err, "checking pdf")
-	}
-
-	// ensure we read the file from the start
-	_, err := f.Seek(0, io.SeekStart)
+	platform, err := fleet.ValidateEULAPlatform(ctx, svc, platform)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "seeking start of PDF file")
-	}
-
-	bytes, err := io.ReadAll(f)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "reading EULA bytes")
-	}
-
-	if dryRun {
-		return nil
-	}
-
-	hash := sha256.New()
-	_, _ = hash.Write(bytes)
-
-	eula := &fleet.MDMEULA{
-		Name:     name,
-		Token:    uuid.New().String(),
-		Sha256:   hash.Sum(nil),
-		Bytes:    bytes,
-		Platform: fleet.MDMEULAPlatformDarwin,
-	}
-
-	if err := svc.ds.MDMInsertEULA(ctx, eula); err != nil {
-		return ctxerr.Wrap(ctx, err, "inserting EULA")
-	}
-
-	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx),
-		fleet.ActivityTypeAddedEndUserAgreement{Platform: fleet.MDMEULAPlatformDarwin}); err != nil {
-		return ctxerr.Wrap(ctx, err, "create activity for added end user agreement")
-	}
-
-	return nil
-}
-
-func (svc *Service) MDMGetEULABytes(ctx context.Context, token string) (*fleet.MDMEULA, error) {
-	// skipauth: this resource is authorized using the token provided in the
-	// request.
-	svc.authz.SkipAuthorization(ctx)
-
-	return svc.ds.MDMGetEULABytes(ctx, fleet.MDMEULAPlatformDarwin, token)
-}
-
-func (svc *Service) MDMDeleteEULA(ctx context.Context, token string, dryRun bool) error {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{}, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	if dryRun {
-		return nil
-	}
-
-	if err := svc.ds.MDMDeleteEULA(ctx, fleet.MDMEULAPlatformDarwin, token); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting EULA")
-	}
-
-	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx),
-		fleet.ActivityTypeDeletedEndUserAgreement{Platform: fleet.MDMEULAPlatformDarwin}); err != nil {
-		return ctxerr.Wrap(ctx, err, "create activity for deleted end user agreement")
-	}
-
-	return nil
-}
-
-func (svc *Service) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	// The per-instance cache is for the enrollment pages, which read this on
-	// every request; admin and GitOps reads are rare and skip it.
-	ctx = ctxdb.BypassCachedMysql(ctx, true)
-	eula, err := svc.ds.MDMGetEULAMetadata(ctx, fleet.MDMEULAPlatformDarwin)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting EULA metadata")
-	}
-
-	return eula, nil
-}
-
-func (svc *Service) MDMCreateWindowsEULA(ctx context.Context, name string, f io.ReadSeeker, dryRun bool) error {
-	windowsEULA := &fleet.MDMEULA{Platform: fleet.MDMEULAPlatformWindows}
-	if err := svc.authz.Authorize(ctx, windowsEULA, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	content, err := io.ReadAll(f)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "reading Windows EULA bytes")
+		return ctxerr.Wrap(ctx, err)
 	}
 
 	name = fleet.SanitizeEULAFileName(name)
-	if err := validateMarkdownEULA(name, content); err != nil {
-		return err
+	var content []byte
+	switch platform {
+	case fleet.MDMEULAPlatformWindows:
+		if content, err = readMarkdownEULA(ctx, f); err != nil {
+			return err
+		}
+		if err := validateMarkdownEULA(name, content); err != nil {
+			return err
+		}
+	default:
+		if name == "" {
+			name = fleet.MDMEULADefaultDarwinFileName
+		}
+		if utf8.RuneCountInString(name) > fleet.MaxEULAFileNameLength {
+			return &fleet.BadRequestError{Message: "The file name must be 255 characters or fewer."}
+		}
+		if content, err = readPDFEULA(ctx, f); err != nil {
+			return err
+		}
 	}
 
 	if dryRun {
@@ -759,21 +723,140 @@ func (svc *Service) MDMCreateWindowsEULA(ctx context.Context, name string, f io.
 	hash := sha256.New()
 	_, _ = hash.Write(content)
 
-	windowsEULA.Name = name
-	windowsEULA.Token = uuid.New().String()
-	windowsEULA.Sha256 = hash.Sum(nil)
-	windowsEULA.Bytes = content
+	eula := &fleet.MDMEULA{
+		Name:     name,
+		Token:    uuid.New().String(),
+		Sha256:   hash.Sum(nil),
+		Bytes:    content,
+		Platform: platform,
+	}
 
-	if err := svc.ds.MDMInsertEULA(ctx, windowsEULA); err != nil {
-		return ctxerr.Wrap(ctx, err, "inserting Windows EULA")
+	if err := svc.ds.MDMInsertEULA(ctx, eula); err != nil {
+		return ctxerr.Wrap(ctx, err, "inserting EULA")
 	}
 
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx),
-		fleet.ActivityTypeAddedEndUserAgreement{Platform: fleet.MDMEULAPlatformWindows}); err != nil {
+		fleet.ActivityTypeAddedEndUserAgreement{Platform: platform}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for added end user agreement")
 	}
 
 	return nil
+}
+
+func readPDFEULA(ctx context.Context, f io.ReadSeeker) ([]byte, error) {
+	if err := file.CheckPDF(f); err != nil {
+		if errors.Is(err, file.ErrInvalidType) {
+			return nil, &fleet.BadRequestError{
+				Message:     "The file must be a PDF (.pdf).",
+				InternalErr: err,
+			}
+		}
+		return nil, ctxerr.Wrap(ctx, err, "checking pdf")
+	}
+
+	// ensure we read the file from the start
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "seeking start of PDF file")
+	}
+	content, err := io.ReadAll(f)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "reading EULA bytes")
+	}
+	return content, nil
+}
+
+// readMarkdownEULA refuses an oversized file before reading it.
+func readMarkdownEULA(ctx context.Context, f io.ReadSeeker) ([]byte, error) {
+	size, err := f.Seek(0, io.SeekEnd)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "seeking end of Windows EULA file")
+	}
+	if size > markdown.MaxTermsSize {
+		return nil, &fleet.BadRequestError{Message: markdown.ErrTooLarge.Message}
+	}
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "seeking start of Windows EULA file")
+	}
+	content, err := io.ReadAll(f)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "reading Windows EULA bytes")
+	}
+	return content, nil
+}
+
+func (svc *Service) MDMGetEULABytes(ctx context.Context, token string) (*fleet.MDMEULA, error) {
+	// skipauth: this resource is authorized using the token provided in the
+	// request.
+	svc.authz.SkipAuthorization(ctx)
+
+	platform, err := svc.eulaPlatformForToken(ctx, token)
+	if err != nil {
+		return nil, err
+	}
+	eula, err := svc.ds.MDMGetEULABytes(ctx, platform, token)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting EULA")
+	}
+	return eula, nil
+}
+
+func (svc *Service) MDMDeleteEULA(ctx context.Context, token string, dryRun bool) error {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	platform, err := svc.eulaPlatformForToken(ctx, token)
+	if err != nil {
+		return err
+	}
+
+	if dryRun {
+		return nil
+	}
+
+	if err := svc.ds.MDMDeleteEULA(ctx, platform, token); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting EULA")
+	}
+
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx),
+		fleet.ActivityTypeDeletedEndUserAgreement{Platform: platform}); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for deleted end user agreement")
+	}
+
+	return nil
+}
+
+// eulaPlatformForToken returns the platform of the EULA the token belongs to,
+// once that platform's MDM is turned on. The token alone identifies the EULA.
+func (svc *Service) eulaPlatformForToken(ctx context.Context, token string) (fleet.MDMEULAPlatform, error) {
+	platform, err := svc.ds.MDMGetEULAPlatform(ctx, token)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "getting EULA platform")
+	}
+	if platform, err = fleet.ValidateEULAPlatform(ctx, svc, platform); err != nil {
+		return "", ctxerr.Wrap(ctx, err)
+	}
+	return platform, nil
+}
+
+func (svc *Service) MDMGetEULAMetadata(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+	platform, err := fleet.ValidateEULAPlatform(ctx, svc, platform)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	// The per-instance cache is for the enrollment pages, which read this on
+	// every request; admin and GitOps reads are rare and skip it.
+	ctx = ctxdb.BypassCachedMysql(ctx, true)
+	eula, err := svc.ds.MDMGetEULAMetadata(ctx, platform)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting EULA metadata")
+	}
+
+	return eula, nil
 }
 
 // validateMarkdownEULA accepts what the Windows terms page can show in full.
@@ -799,55 +882,6 @@ func validateMarkdownEULA(name string, content []byte) error {
 	default:
 		return &fleet.BadRequestError{Message: "The file couldn't be read as markdown.", InternalErr: err}
 	}
-}
-
-func (svc *Service) MDMGetWindowsEULABytes(ctx context.Context, token string) (*fleet.MDMEULA, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{Platform: fleet.MDMEULAPlatformWindows}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	eula, err := svc.ds.MDMGetEULABytes(ctx, fleet.MDMEULAPlatformWindows, token)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting Windows EULA")
-	}
-	return eula, nil
-}
-
-func (svc *Service) MDMDeleteWindowsEULA(ctx context.Context, token string, dryRun bool) error {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{Platform: fleet.MDMEULAPlatformWindows}, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	if dryRun {
-		return nil
-	}
-
-	if err := svc.ds.MDMDeleteEULA(ctx, fleet.MDMEULAPlatformWindows, token); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting Windows EULA")
-	}
-
-	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx),
-		fleet.ActivityTypeDeletedEndUserAgreement{Platform: fleet.MDMEULAPlatformWindows}); err != nil {
-		return ctxerr.Wrap(ctx, err, "create activity for deleted end user agreement")
-	}
-
-	return nil
-}
-
-func (svc *Service) MDMGetWindowsEULAMetadata(ctx context.Context) (*fleet.MDMEULA, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{Platform: fleet.MDMEULAPlatformWindows}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	// The per-instance cache is for the terms page, which reads this on every
-	// request; admin and GitOps reads are rare and skip it.
-	ctx = ctxdb.BypassCachedMysql(ctx, true)
-	eula, err := svc.ds.MDMGetEULAMetadata(ctx, fleet.MDMEULAPlatformWindows)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting Windows EULA metadata")
-	}
-
-	return eula, nil
 }
 
 func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
@@ -2529,6 +2563,17 @@ func (svc *Service) clearPasscodeApple(ctx context.Context, host *fleet.Host, ap
 		})
 	}
 
+	// The unlock token survives unenrollment, so it can't stand in for this check.
+	connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
+	}
+	if !connected {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "Can't clear passcode for the host because it doesn't have MDM turned on.",
+		})
+	}
+
 	mdmData, err := svc.ds.GetHostMDM(ctx, host.ID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host MDM data")
@@ -2543,8 +2588,7 @@ func (svc *Service) clearPasscodeApple(ctx context.Context, host *fleet.Host, ap
 	// The enrollment profile can restrict the Device Lock & Passcode Removal
 	// access right (BYOD manual enrollments); enforce it here rather than
 	// relying on the UI hiding the action, since the API can be called
-	// directly. Missing permissions rows fall back to unrestricted rights,
-	// matching the host details response.
+	// directly.
 	perms, err := svc.ds.GetHostMDMAppleEnrollmentPermissions(ctx, host.UUID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "get host mdm apple enrollment permissions")

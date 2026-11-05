@@ -18,7 +18,7 @@ In the next 3 months, Fleet will ship...
 - 📋 Windows configuration profiles: Upload profiles exported from Intune, see the XML applied to each host, use IdP user variables, and resend profiles when variables change ([#48198](https://github.com/fleetdm/fleet/issues/48198), [#54471](https://github.com/fleetdm/fleet/issues/54471), [#50144](https://github.com/fleetdm/fleet/issues/50144), [#44852](https://github.com/fleetdm/fleet/issues/44852))
 - 🔗 Asset management: Sync host data and software inventory with ServiceNow and Oomnitza ([#38864](https://github.com/fleetdm/fleet/issues/38864), [#38866](https://github.com/fleetdm/fleet/issues/38866))
 - 🍏 Enroll and manage tvOS ([#38791](https://github.com/fleetdm/fleet/issues/38791))
-- 🔐 Conditional access: Okta on Windows and require Fleet-managed hosts in Google ([#53284](https://github.com/fleetdm/fleet/issues/53284), [#53286](https://github.com/fleetdm/fleet/issues/53286), [#54888](https://github.com/fleetdm/fleet/issues/54888))
+- 🔐 Conditional access: Okta on Windows and require Fleet-managed mobile devices in Google ([#53284](https://github.com/fleetdm/fleet/issues/53284), [#53286](https://github.com/fleetdm/fleet/issues/53286), [#54888](https://github.com/fleetdm/fleet/issues/54888))
 - 📱 Android: App patching, OS updates, and zero-touch enrollment into the right fleet ([#54356](https://github.com/fleetdm/fleet/issues/54356), [#54359](https://github.com/fleetdm/fleet/issues/54359), [#51479](https://github.com/fleetdm/fleet/issues/51479))
 - 🩹 Patch policies: Set a deadline for macOS apps ([#39176](https://github.com/fleetdm/fleet/issues/39176))
 - ⏰ macOS updates: Update to the latest version within a major version ([#45511](https://github.com/fleetdm/fleet/issues/45511))

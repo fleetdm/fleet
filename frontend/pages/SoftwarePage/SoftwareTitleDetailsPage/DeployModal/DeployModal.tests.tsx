@@ -234,6 +234,32 @@ describe("DeployModal", () => {
     expect(onExit).not.toHaveBeenCalled();
   });
 
+  it("shows the server's message and skips the create when Fleet can't fetch the FMA manifest on save", async () => {
+    const reason =
+      "Fleet couldn't fetch the manifest for Firefox. Please try again.";
+    const manifestError = {
+      status: 502,
+      data: { message: reason, errors: [{ name: "base", reason }] },
+    };
+    jest
+      .spyOn(softwareAPI, "getFleetMaintainedApp")
+      .mockRejectedValue(manifestError);
+    const errorSpy = jest.spyOn(notify, "error");
+    const onExit = jest.fn();
+    const { user } = renderModal({ onExit });
+
+    await user.click(screen.getByRole("checkbox", { name: "force-install" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(errorSpy).toHaveBeenCalledWith(reason, {
+        response: manifestError,
+      })
+    );
+    expect(teamPoliciesAPI.create).not.toHaveBeenCalled();
+    expect(onExit).not.toHaveBeenCalled();
+  });
+
   it("attaches install automation when a manual patch policy changes to Force patch", async () => {
     const { user } = renderModal({
       softwarePackage: createMockSoftwarePackage({

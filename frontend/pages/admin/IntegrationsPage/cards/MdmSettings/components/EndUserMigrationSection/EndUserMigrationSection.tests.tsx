@@ -114,6 +114,70 @@ describe("EndUserMigrationSection", () => {
     await waitFor(() => expect(saveButton).not.toBeDisabled());
   });
 
+  it("saves without toggling migration when Enter is pressed in the webhook URL", async () => {
+    const updateSpy = jest
+      .mocked(configAPI.update)
+      .mockResolvedValue(createMockConfig());
+    const render = createCustomRenderer(
+      createTestMockData({
+        mdm: createMockMdmConfig({
+          macos_migration: {
+            enable: true,
+            mode: "voluntary",
+            webhook_url: "https://example.com/webhook",
+          },
+        }),
+      })
+    );
+
+    const { user } = render(<EndUserMigrationSection router={mockRouter} />);
+
+    await user.type(
+      screen.getByRole("textbox", { name: "Webhook URL" }),
+      "{Enter}"
+    );
+
+    await waitFor(() =>
+      expect(updateSpy).toHaveBeenCalledWith({
+        mdm: {
+          macos_migration: {
+            enable: true,
+            mode: "voluntary",
+            webhook_url: "https://example.com/webhook",
+          },
+        },
+      })
+    );
+    expect(screen.getByRole("switch")).toBeChecked();
+  });
+
+  it("doesn't save an invalid webhook URL when Enter is pressed", async () => {
+    const updateSpy = jest
+      .mocked(configAPI.update)
+      .mockResolvedValue(createMockConfig());
+    const render = createCustomRenderer(
+      createTestMockData({
+        mdm: createMockMdmConfig({
+          macos_migration: {
+            enable: true,
+            mode: "voluntary",
+            webhook_url: "",
+          },
+        }),
+      })
+    );
+
+    const { user } = render(<EndUserMigrationSection router={mockRouter} />);
+
+    await user.type(
+      screen.getByRole("textbox", { name: "Webhook URL" }),
+      "not-a-url{Enter}"
+    );
+
+    expect(updateSpy).not.toHaveBeenCalled();
+    expect(screen.getByText("Must be a valid URL.")).toBeInTheDocument();
+  });
+
   it("toggles form elements disabled state when slider is clicked", async () => {
     const render = createCustomRenderer(
       createTestMockData({

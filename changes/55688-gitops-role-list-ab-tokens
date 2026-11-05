@@ -1,0 +1,1 @@
+- Users with the GitOps role can now list Apple Business (AB) tokens, so `fleetctl gitops` no longer warns that it's "skipping setup assistant ABM coverage check" and can warn about setup assistants that won't take effect.

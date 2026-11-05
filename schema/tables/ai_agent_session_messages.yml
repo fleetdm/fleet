@@ -1,0 +1,114 @@
+name: ai_agent_session_messages
+notes: |-
+  This table is a fleetd table. Fleetd tables are built into Fleet's agent (fleetd).
+
+  - One row per content block of an AI coding agent session (a prompt, a response, the model's reasoning, a tool call, or its result), for the sessions in `ai_agent_sessions`.
+  - This table returns conversation content: prompts, code, command output, and tool arguments, which can include secrets. That content leaves the host when queried. Query it on demand, constrained to a `session_id`; don't schedule it unconstrained.
+  - A result is capped at about 1 MiB, counting every column, so it stays within what Fleet ingests from a host. When the cap is reached, the result stops and fleetd logs a warning. The cap can fall inside a message. To read further, ask for the rows after the last one returned, with M and B its `message_index` and `block_index`: `session_id = … AND ((message_index = M AND block_index > B) OR message_index > M)`. Calls made for an `IN` list share the cap; each still returns its first row until the shared total reaches twice the cap.
+  - Each `content` value is cut to 8 KB, or to just under 1 MiB when the query names a `session_id`. `content_length` is the length before cutting.
+  - A `transcript_path` constraint selects the session whose main transcript that is, with its sub-agent transcripts; the `tool_use` rows it returns are the session's `tool_calls`. It keeps the 8 KB `content` cap, unlike naming the `session_id`.
+  - One query reads at most 4 GiB of transcripts in total; past that, the result is partial and fleetd logs a warning.
+  - `LIMIT` and `OFFSET` are applied by osquery after the cap, so they don't page through a session; use `message_index` instead.
+  - Sessions written in the last 30 days are read by default. A `>` or `>=` constraint on `timestamp` replaces that window, a `<` or `<=` constraint alone reads all history, and naming a `session_id` reads that session whatever its age.
+  - Coverage differs per agent: Cursor records no tool call ids or results, so `decision` and `tool_use_id` are empty, and `timestamp` comes from the prompt, to the minute (0 when it can't be read). Gemini CLI sessions only kept in `logs.json` have prompts only.
+description: The content of AI coding agent sessions, one row per block, with each tool call's action, target, and outcome.
+platforms:
+  - darwin
+  - windows
+  - linux
+evented: false
+examples: |-
+  List the tool calls of a session, with what each did and whether it was allowed.
+
+  ```
+  SELECT message_index, tool_name, action, target, decision FROM ai_agent_session_messages WHERE session_id = '5d1f26db-…' AND block_type = 'tool_use';
+  ```
+
+  Read a long session in pages: continue after the last row's `message_index` (here 12) and `block_index` (here 3).
+
+  ```
+  SELECT message_index, block_index, role, block_type, content FROM ai_agent_session_messages WHERE session_id = '5d1f26db-…' AND ((message_index = 12 AND block_index > 3) OR message_index > 12);
+  ```
+
+  Find tool calls to MCP servers in the last day.
+
+  ```
+  SELECT agent, session_id, username, target FROM ai_agent_session_messages WHERE block_type = 'tool_use' AND action = 'mcp' AND timestamp > (strftime('%s', 'now') - 86400);
+  ```
+columns:
+  - name: agent
+    description: "The agent: `claude_code`, `copilot_cli`, `cursor`, `codex_cli`, or `gemini_cli`."
+    type: text
+    required: false
+  - name: session_id
+    description: The session, as in `ai_agent_sessions`.
+    type: text
+    required: false
+  - name: username
+    description: The local account whose home directory holds the session.
+    type: text
+    required: false
+  - name: message_index
+    description: Position of the message in the session, from 0. Constrain it with `>`, `>=`, `<`, `<=`, or `=` to page through a session.
+    type: bigint
+    required: false
+  - name: block_index
+    description: Position of the block within its message, from 0. Constrain it with `>` or `>=` together with `message_index =` to resume inside a message the size cap cut.
+    type: bigint
+    required: false
+  - name: role
+    description: "`user` for what the user typed, `assistant` for the model, `system` for everything else (tool results, sub-agent instructions, agent notices)."
+    type: text
+    required: false
+  - name: block_type
+    description: "`text`, `thinking`, `tool_use`, or `tool_result`."
+    type: text
+    required: false
+  - name: tool_name
+    description: The tool called, as the agent names it (e.g. `Bash`, `exec_command`, `mcp__github__create_issue`).
+    type: text
+    required: false
+  - name: tool_use_id
+    description: The agent's identifier for a tool call, linking a `tool_use` row to its `tool_result`.
+    type: text
+    required: false
+  - name: action
+    description: "On `tool_use` rows, what kind of thing the call does: `read`, `write`, `execute`, `search`, `network`, `mcp` (a call to an MCP server), or `other`. Shell commands are always `execute`."
+    type: text
+    required: false
+  - name: target
+    description: "On `tool_use` rows, what the call was asked to do, e.g. the file read, the command's first line, the search pattern, or `<server>: <tool>` for MCP calls. Up to 256 bytes."
+    type: text
+    required: false
+  - name: decision
+    description: "On `tool_use` rows, the call's outcome: `allowed`, `denied` (the user, a permission rule, or a hook refused it), `error` (it failed or was interrupted), or empty when the agent recorded no result."
+    type: text
+    required: false
+  - name: cwd
+    description: The working directory the agent recorded for the message.
+    type: text
+    required: false
+  - name: timestamp
+    description: When the message was written, as a Unix timestamp. 0 when unknown.
+    type: bigint
+    required: false
+  - name: model
+    description: The model that wrote the message, on assistant rows.
+    type: text
+    required: false
+  - name: content
+    description: The block's text. For `tool_use` rows, the call's arguments as the agent recorded them (usually JSON). When JSON arguments are cut, their longest string values are shortened so they stay valid JSON.
+    type: text
+    required: false
+  - name: content_length
+    description: Length of the content in bytes, before it was cut.
+    type: bigint
+    required: false
+  - name: truncated
+    description: 1 if `content` was cut, 0 otherwise.
+    type: integer
+    required: false
+  - name: transcript_path
+    description: The session's transcript, as in `ai_agent_sessions`. Constraining it selects the whole session, sub-agent transcripts included; every row reports the main transcript's path.
+    type: text
+    required: false
