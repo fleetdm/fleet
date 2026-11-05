@@ -18,6 +18,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/bloberror"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/datastore/cloudstorage"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -60,9 +61,28 @@ func (e *apiError) Unwrap() []error {
 	return []error{e.err}
 }
 
-// newAPIError returns err as an *apiError if it is an Azure response error,
-// otherwise it returns err unchanged.
-func newAPIError(err error) error {
+// misconfiguredCodes are the Azure error codes that mean the store is
+// misconfigured (credentials, permissions, network rules or container).
+var misconfiguredCodes = map[bloberror.Code]struct{}{
+	bloberror.AccountIsDisabled:                 {},
+	bloberror.AuthenticationFailed:              {},
+	bloberror.AuthorizationFailure:              {},
+	bloberror.AuthorizationPermissionMismatch:   {},
+	bloberror.AuthorizationProtocolMismatch:     {},
+	bloberror.AuthorizationResourceTypeMismatch: {},
+	bloberror.AuthorizationServiceMismatch:      {},
+	bloberror.AuthorizationSourceIPMismatch:     {},
+	bloberror.ContainerDisabled:                 {},
+	bloberror.ContainerNotFound:                 {},
+	bloberror.InsufficientAccountPermissions:    {},
+	bloberror.InvalidAuthenticationInfo:         {},
+}
+
+// newAPIError returns err as a *cloudstorage.MisconfiguredError if it is an
+// Azure response error caused by the store's configuration, as an *apiError
+// if it is any other Azure response error, otherwise it returns err
+// unchanged.
+func newAPIError(err error, container string) error {
 	var respErr *azcore.ResponseError
 	if !errors.As(err, &respErr) {
 		return err
@@ -89,6 +109,10 @@ func newAPIError(err error) error {
 		}
 	}
 
+	_, knownCode := misconfiguredCodes[bloberror.Code(code)]
+	if knownCode || respErr.StatusCode == http.StatusUnauthorized || respErr.StatusCode == http.StatusForbidden {
+		return cloudstorage.NewMisconfigured(err, "Azure", code, msg, "container: "+container)
+	}
 	return &apiError{code: code, message: msg, err: err}
 }
 
