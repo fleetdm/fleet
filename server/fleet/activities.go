@@ -260,7 +260,7 @@ type ActivityTypeCreatedTeam struct {
 }
 
 func (a ActivityTypeCreatedTeam) ActivityName() string {
-	return "created_team"
+	return "created_fleet"
 }
 
 type ActivityTypeDeletedTeam struct {
@@ -269,7 +269,7 @@ type ActivityTypeDeletedTeam struct {
 }
 
 func (a ActivityTypeDeletedTeam) ActivityName() string {
-	return "deleted_team"
+	return "deleted_fleet"
 }
 
 type TeamActivityDetail struct {
@@ -282,7 +282,7 @@ type ActivityTypeAppliedSpecTeam struct {
 }
 
 func (a ActivityTypeAppliedSpecTeam) ActivityName() string {
-	return "applied_spec_team"
+	return "applied_spec_fleet"
 }
 
 type ActivityTypeTransferredHostsToTeam struct {
@@ -449,7 +449,7 @@ type ActivityTypeChangedUserTeamRole struct {
 }
 
 func (a ActivityTypeChangedUserTeamRole) ActivityName() string {
-	return "changed_user_team_role"
+	return "changed_user_fleet_role"
 }
 
 type ActivityTypeDeletedUserTeamRole struct {
@@ -463,7 +463,7 @@ type ActivityTypeDeletedUserTeamRole struct {
 }
 
 func (a ActivityTypeDeletedUserTeamRole) ActivityName() string {
-	return "deleted_user_team_role"
+	return "deleted_user_fleet_role"
 }
 
 type ActivityTypeFleetEnrolled struct {

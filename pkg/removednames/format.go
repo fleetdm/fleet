@@ -30,8 +30,22 @@ func (KeyFormat) Message(e Entry) string {
 	return fmt.Sprintf(`The "%s" key is not available anymore. What to use instead: %s`, e.Old, GuideURL)
 }
 
+// NounFormat is for a removed fleetctl flag, command, environment variable, or flag value. Noun says which one it is. A flag is shown
+// with its leading dashes. The replacement is left to the guide.
+//
+//	The "--team" flag is not available anymore. What to use instead: <guide>
+//	The "fleetctl get teams" command is not available anymore. What to use instead: <guide>
+type NounFormat struct {
+	Noun string
+}
+
+// Message implements Format.
+func (f NounFormat) Message(e Entry) string {
+	return fmt.Sprintf(`The "%s" %s is not available anymore. What to use instead: %s`, displayName(e.Kind, e.Old), f.Noun, GuideURL)
+}
+
 // ReplacedFormat names the replacement, or just the removal when the entry has no replacement. It is the default for the kinds that
-// the error spec does not cover yet (sort keys, CSV columns, target types, flags, commands, and so on).
+// the error spec does not cover yet (CSV columns, spec kinds, file names, YAML values, and activity types).
 //
 //	team_id was removed in Fleet 5. Use fleet_id instead. See <guide>
 //	team_id was removed in Fleet 5. See <guide>
@@ -65,15 +79,23 @@ func (f EndpointFormat) Message(e Entry) string {
 }
 
 // defaultFormat is the format of an entry that does not set one, which follows the Fleet 5 error spec: one wording for endpoints,
-// parameters, and YAML keys.
+// parameters, YAML keys, and fleetctl flags, commands, environment variables, and values.
 func defaultFormat(kind Kind) Format {
 	switch kind {
 	case KindPath:
 		return EndpointFormat{}
-	case KindQueryParam, KindFormField, KindJSONKey:
+	case KindQueryParam, KindFormField, KindJSONKey, KindSortKey, KindTargetType:
 		return ParameterFormat{}
 	case KindYAMLKey:
 		return KeyFormat{}
+	case KindFlag:
+		return NounFormat{Noun: "flag"}
+	case KindCommand:
+		return NounFormat{Noun: "command"}
+	case KindEnvVar:
+		return NounFormat{Noun: "environment variable"}
+	case KindFlagValue:
+		return NounFormat{Noun: "value"}
 	default:
 		return ReplacedFormat{}
 	}

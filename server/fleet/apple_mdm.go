@@ -830,9 +830,9 @@ type HostDEPAssignment struct {
 	// MDMMigrationDeadline is the deadline for the MDM migration received from ABM on the host's
 	// most recent sync.
 	MDMMigrationDeadline *time.Time `db:"mdm_migration_deadline" json:"mdm_migration_deadline,omitempty"`
-	// MDMMigrationCompleted is the value of MDMMigrationDeadline when the host completed its last
-	// Migration. Not a timestamp but a marker that the host completed the Migration for a given
-	// date.
+	// MDMMigrationCompleted is the value of MDMMigrationDeadline when the host completed its
+	// Migration. Not a timestamp but a marker that the host completed a Migration; once set, the
+	// host is not considered to be migrating again until its ABM assignment is removed.
 	MDMMigrationCompleted *time.Time `db:"mdm_migration_completed" json:"mdm_migration_completed,omitempty"`
 	// ProfileUUID is the UUID of the enrollment profile last assigned by Fleet via ABM.
 	ProfileUUID *string `db:"profile_uuid" json:"profile_uuid,omitempty"`

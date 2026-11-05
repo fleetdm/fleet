@@ -2003,6 +2003,7 @@ func createHostFromMDMDB(
 	logger *slog.Logger,
 	devices []hostToCreateFromMDM,
 	source appleMDMInfoSource,
+	personalType fleet.PersonalEnrollmentType,
 	macOSTeam, iosTeam, ipadTeam *uint,
 ) (int64, []fleet.Host, error) {
 	// NOTE: order of arguments for teams is important, see statement.
@@ -2144,7 +2145,7 @@ func createHostFromMDMDB(
 		tx,
 		appCfg,
 		source,
-		fleet.PersonalEnrollmentTypeNone,
+		personalType,
 		unmanagedHostIDs...,
 	); err != nil {
 		return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
@@ -2158,6 +2159,7 @@ func (ds *Datastore) IngestMDMAppleDeviceFromOTAEnrollment(
 	teamID *uint,
 	idpUUID string,
 	deviceInfo fleet.MDMAppleMachineInfo,
+	personalType fleet.PersonalEnrollmentType,
 ) (string, error) {
 	var previousAcctUUID string
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -2183,7 +2185,7 @@ func (ds *Datastore) IngestMDMAppleDeviceFromOTAEnrollment(
 				UUID:           &deviceInfo.UDID,
 			},
 		}
-		_, hosts, err := createHostFromMDMDB(ctx, tx, ds.logger, toInsert, appleMDMInfoFromOTAEnrollment, teamID, teamID, teamID)
+		_, hosts, err := createHostFromMDMDB(ctx, tx, ds.logger, toInsert, appleMDMInfoFromOTAEnrollment, personalType, teamID, teamID, teamID)
 		if idpUUID != "" && len(hosts) > 0 {
 			host := hosts[0]
 			ds.logger.InfoContext(ctx, fmt.Sprintf("associating host %s with idp account %s", host.UUID, idpUUID))
@@ -2292,6 +2294,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(
 			ds.logger,
 			htc,
 			appleMDMInfoFromDEPSync,
+			fleet.PersonalEnrollmentTypeNone,
 			teamIDs[0], teamIDs[1], teamIDs[2],
 		)
 		if err != nil {
@@ -4398,7 +4401,7 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageSummary(ctx context.Context, tea
           SELECT
               COUNT(IF(ncr.status = 'Acknowledged', 1, NULL)) AS installed,
               COUNT(IF(ncr.status = 'Error', 1, NULL)) AS failed,
-              COUNT(IF((hmabp.skipped = 0 OR hmabp.skipped IS NULL) AND (? OR hda.mdm_migration_deadline IS NULL OR (hda.mdm_migration_deadline = hda.mdm_migration_completed)) AND (ncr.status IS NULL OR (ncr.status != 'Acknowledged' AND ncr.status != 'Error')), 1, NULL)) AS pending
+              COUNT(IF((hmabp.skipped = 0 OR hmabp.skipped IS NULL) AND (? OR hda.mdm_migration_deadline IS NULL OR hda.mdm_migration_completed IS NOT NULL) AND (ncr.status IS NULL OR (ncr.status != 'Acknowledged' AND ncr.status != 'Error')), 1, NULL)) AS pending
           FROM
               hosts h
           LEFT JOIN host_mdm_apple_bootstrap_packages hmabp ON

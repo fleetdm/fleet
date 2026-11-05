@@ -5405,6 +5405,31 @@ func certIsFromNewEnrollment(cert *x509.Certificate) bool {
 	}
 }
 
+// personalEnrollmentRefusal returns why a host can't enroll as personal, or "" when it can. A Mac assigned to
+// Fleet in Apple Business is company-owned, and a host already enrolled in Fleet as company-owned has to
+// unenroll first: personal enrollment removes lock and wipe.
+func (svc *MDMAppleCheckinAndCommandService) personalEnrollmentRefusal(ctx context.Context, info *fleet.HostMDMCheckinInfo, serial string) (string, error) {
+	if info != nil {
+		if info.DEPAssignedToFleet {
+			return "host is assigned to Fleet in Apple Business", nil
+		}
+		if info.FleetEnrolledCorporate {
+			return "host is enrolled in Fleet as company-owned", nil
+		}
+	}
+	if serial == "" {
+		return "", nil
+	}
+	assignments, err := svc.ds.GetHostDEPAssignmentsBySerial(ctx, serial)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "getting DEP assignments for personal enrollment")
+	}
+	if len(assignments) > 0 {
+		return "serial is assigned to Fleet in Apple Business", nil
+	}
+	return "", nil
+}
+
 // Authenticate handles MDM [Authenticate][1] requests.
 //
 // This method is executed after the request has been handled by nanomdm, note
@@ -5493,6 +5518,18 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 	// AddPersonalEnrollmentToFleetURL bakes "byod=1" into the ServerURL when
 	// the end user chose "Personal (BYOD)" on the /enroll page; nanomdm surfaces it here.
 	isPersonal := r.Params != nil && r.Params[apple_mdm.FleetPersonalEnrollmentKey] == "1"
+	if isPersonal && !scepRenewalInProgress {
+		// The query params come from the URL the device sends, so byod=1 is only the device's claim. A renewal
+		// doesn't write the host's personal state.
+		reason, err := svc.personalEnrollmentRefusal(r.Context, existingDeviceInfo, m.SerialNumber)
+		if err != nil {
+			return err
+		}
+		if reason != "" {
+			svc.logger.WarnContext(r.Context, "ignoring personal enrollment flag", "host_uuid", r.ID, "reason", reason)
+			isPersonal = false
+		}
+	}
 	personalType := fleet.PersonalEnrollmentTypeNone
 	if isPersonal {
 		personalType = fleet.PersonalEnrollmentTypeManualProfile
@@ -5545,9 +5582,53 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 // This method is executed after the request has been handled by nanomdm.
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/token_update
-func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.TokenUpdate) error {
+func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.TokenUpdate) (err error) {
 	svc.logger.InfoContext(r.Context, "received token update", "host_uuid", r.ID)
-	info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, r.ID)
+
+	var (
+		info                        *fleet.HostMDMCheckinInfo
+		nanoEnroll                  *fleet.NanoEnrollment
+		enqueueSetupExperienceItems bool
+		hasSetupExpItems            bool
+		acctUUID, managedAppleID    string
+	)
+	// Logged on every return path, so that whether (and why) a host got setup experience can be
+	// reconstructed from this one line rather than trying to piece it together from several sources
+	// particularly the DB which has often changed by the time we get a report from a customer
+	defer func() {
+		attrs := []any{
+			"host_uuid", r.ID,
+			"enrollment_type", r.Type.String(),
+			"awaiting_configuration", m.AwaitingConfiguration,
+			"enqueued_setup_experience", enqueueSetupExperienceItems,
+			"has_setup_experience_items", hasSetupExpItems,
+			"enroll_reference_found", acctUUID != "",
+		}
+		if nanoEnroll != nil {
+			attrs = append(attrs, "token_update_tally", nanoEnroll.TokenUpdateTally)
+		}
+		if info != nil {
+			attrs = append(attrs,
+				"host_id", info.HostID,
+				"platform", info.Platform,
+				"team_id", info.TeamID,
+				"dep_assigned_to_fleet", info.DEPAssignedToFleet,
+				"installed_from_dep", info.InstalledFromDEP,
+				"scep_renewal_in_progress", info.SCEPRenewalInProgress,
+				"migration_in_progress", info.MigrationInProgress,
+				"mdm_migration_deadline", info.MDMMigrationDeadline,
+				"mdm_migration_completed", info.MDMMigrationCompleted,
+			)
+		}
+		level := slog.LevelInfo
+		if err != nil {
+			level = slog.LevelError
+			attrs = append(attrs, "err", err)
+		}
+		svc.logger.Log(r.Context, level, "token update processed", attrs...)
+	}()
+
+	info, err = svc.ds.GetHostMDMCheckinInfo(r.Context, r.ID)
 	if err != nil {
 		return ctxerr.Wrap(r.Context, err, "getting checkin info")
 	}
@@ -5585,19 +5666,16 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		svc.logger.InfoContext(r.Context, "continuing with token update, due to awaiting configuration from new enrollment", "host_uuid", r.ID)
 	}
 
-	var hasSetupExpItems bool
-	enqueueSetupExperienceItems := false
+	nanoEnroll, err = svc.ds.GetNanoMDMEnrollment(r.Context, r.ID)
+	if err != nil {
+		return ctxerr.Wrap(r.Context, err, "getting nanomdm enrollment")
+	}
 
 	if m.AwaitingConfiguration {
 		// We are sure that the device is going through a new enrollment here, so we want to
 		// remove the enrolled from migration flag as it is no longer true.
 		if err := svc.ds.ClearHostEnrolledFromMigration(r.Context, r.ID); err != nil {
 			return ctxerr.Wrap(r.Context, err, "resetting enrolled from migration flag", "host_uuid", r.ID)
-		}
-
-		nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(r.Context, r.ID)
-		if err != nil {
-			return ctxerr.Wrap(r.Context, err, "getting nanomdm enrollment")
 		}
 
 		skipDarwinMigration := info.MigrationInProgress && info.Platform == "darwin"
@@ -5623,7 +5701,8 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 
 		// Note that Setup Experience is only skipped for macOS during DEP migration. iOS and iPadOS will still get VPP apps
 		if skipDarwinMigration {
-			svc.logger.InfoContext(r.Context, "skipping setup experience enqueueing because DEP migration is in progress", "host_uuid", r.ID)
+			svc.logger.InfoContext(r.Context, "skipping setup experience enqueueing because DEP migration is in progress",
+				"host_uuid", r.ID, "mdm_migration_deadline", info.MDMMigrationDeadline)
 		} else {
 			enqueueSetupExperienceItems = true
 		}
@@ -5633,10 +5712,6 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		// setup experience enqueueing once per device. The downstream install
 		// flow (via InstallVPPAppPostValidation) handles user-scoped licensing
 		// for User Enrollments.
-		nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(r.Context, r.ID)
-		if err != nil {
-			return ctxerr.Wrap(r.Context, err, "getting nanomdm enrollment")
-		}
 		if nanoEnroll != nil && nanoEnroll.TokenUpdateTally == 1 {
 			enqueueSetupExperienceItems = true
 		}
@@ -5664,7 +5739,6 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		}
 	}
 
-	var acctUUID, managedAppleID string
 	idp, err := svc.ds.GetMDMIdPAccountByHostUUID(r.Context, r.ID)
 	if err != nil {
 		return ctxerr.Wrap(r.Context, err, "getting idp account")
@@ -9783,7 +9857,12 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 
 	// before responding, create a host record, and assign the host to the
 	// team that matches the enroll secret provided.
-	previousAcctUUID, err := svc.ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, enrollSecretInfo.TeamID, idpUUID, deviceInfo)
+	// Recorded on a new host until its Authenticate arrives, so that check-in sees a personal host.
+	otaPersonalType := fleet.PersonalEnrollmentTypeNone
+	if personal {
+		otaPersonalType = fleet.PersonalEnrollmentTypeManualProfile
+	}
+	previousAcctUUID, err := svc.ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, enrollSecretInfo.TeamID, idpUUID, deviceInfo, otaPersonalType)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating new host record")
 	}

@@ -28,6 +28,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -288,6 +289,71 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommandWithSecret() {
 	require.NotNil(t, cmd)
 	assert.Contains(t, string(cmd.Raw), secretValue)
 	assert.NotContains(t, string(cmd.Raw), "FLEET_SECRET_VALUE")
+}
+
+func (s *integrationMDMTestSuite) TestListMDMCommandsHostOutsideUsersTeams() {
+	t := s.T()
+	ctx := t.Context()
+
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team1"})
+	require.NoError(t, err)
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team2"})
+	require.NoError(t, err)
+	newHost := func(name string, teamID uint) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			Hostname:       name,
+			OsqueryHostID:  new(name),
+			NodeKey:        new(name),
+			UUID:           name + "-uuid",
+			HardwareSerial: name + "-serial",
+			Platform:       "darwin",
+			TeamID:         &teamID,
+		})
+		require.NoError(t, err)
+		return h
+	}
+	ownHost := newHost(t.Name()+"-own", team1.ID)
+	otherHost := newHost(t.Name()+"-other", team2.ID)
+
+	observer := &fleet.User{
+		Name:  t.Name() + "_observer",
+		Email: t.Name() + "_observer@example.com",
+		Teams: []fleet.UserTeam{{Team: *team1, Role: fleet.RoleObserver}},
+	}
+	require.NoError(t, observer.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(ctx, observer)
+	require.NoError(t, err)
+	s.token = s.getTestToken(observer.Email, test.GoodPassword)
+	t.Cleanup(func() { s.token = s.getTestAdminToken() })
+
+	notFoundBody := func(identifier string) string {
+		res := s.DoRaw("GET", "/api/latest/fleet/commands", nil, http.StatusNotFound, "host_identifier", identifier)
+		return extractServerErrorText(res.Body)
+	}
+	// A host in another team looks exactly like one that doesn't exist.
+	unknown := notFoundBody("no-such-host")
+	for _, identifier := range []string{otherHost.UUID, otherHost.HardwareSerial, otherHost.Hostname} {
+		require.Equal(t, unknown, notFoundBody(identifier), identifier)
+	}
+
+	var listResp listMDMCommandsResponse
+	s.DoJSON("GET", "/api/latest/fleet/commands", nil, http.StatusOK, &listResp, "host_identifier", ownHost.UUID)
+	require.Empty(t, listResp.Results)
+
+	// A hostname shared with a host in another team resolves to the user's own host.
+	shared, err := s.ds.NewHost(ctx, &fleet.Host{
+		Hostname:       ownHost.Hostname,
+		OsqueryHostID:  new(t.Name() + "-shared"),
+		NodeKey:        new(t.Name() + "-shared"),
+		UUID:           t.Name() + "-shared-uuid",
+		HardwareSerial: t.Name() + "-shared-serial",
+		Platform:       "darwin",
+		TeamID:         &team2.ID,
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, ownHost.ID, shared.ID)
+	s.DoJSON("GET", "/api/latest/fleet/commands", nil, http.StatusOK, &listResp, "host_identifier", ownHost.Hostname)
+	require.Empty(t, listResp.Results)
 }
 
 func (s *integrationMDMTestSuite) TestListMDMCommands() {

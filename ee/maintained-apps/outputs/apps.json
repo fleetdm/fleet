@@ -1951,7 +1951,7 @@
       "name": "Bitfocus Companion",
       "slug": "companion/darwin",
       "platform": "darwin",
-      "unique_identifier": "companion.bitfocus.no",
+      "unique_identifier": "test-companion.bitfocus.no",
       "description": "Bitfocus Companion is a streamdeck extension and emulation software."
     },
     {
@@ -6627,7 +6627,7 @@
       "name": "PDFsam Basic",
       "slug": "pdfsam-basic/darwin",
       "platform": "darwin",
-      "unique_identifier": "org.pdfsam.modules",
+      "unique_identifier": "org.pdfsam.basic",
       "description": "PDFsam Basic is an extracts pages, splits, merges, mixes and rotates PDF files."
     },
     {
@@ -9098,7 +9098,7 @@
       "name": "UltiMaker Cura",
       "slug": "ultimaker-cura/darwin",
       "platform": "darwin",
-      "unique_identifier": "nl.ultimaker.cura.dmg",
+      "unique_identifier": "nl.ultimaker.cura_UltiMaker_Cura",
       "description": "UltiMaker Cura is a 3D printer and slicing GUI."
     },
     {
