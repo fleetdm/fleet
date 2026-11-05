@@ -82,6 +82,8 @@ locals {
 
       # Skip backfilling S3 config with dev values for load testing
       FLEET_DEV_SKIP_S3_CONFIG = "1"
+
+      FLEET_MDM_APPLE_SCEP_STATIC_CHALLENGE_ENABLED = "true"
     },
     local.otel_environment_variables,
     local.mdm_apple_environment_variables,

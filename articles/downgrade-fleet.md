@@ -2,7 +2,7 @@
 
 Follow these steps to downgrade your Fleet instance from Fleet Premium.
 
-> If you'd like to renew your Fleet Premium license key, please [contact us](https://fleetdm.com/company/contact).
+> If you'd like to renew your Fleet Premium license key, ensure your payment details and host count is up-to-date on your [self-service dashboard](https://fleetdm.com/customers/dashboard). If it has expired, please [contact us](https://fleetdm.com/company/contact).
 
 ## Back up your users and update all fleet-level users to global users
 

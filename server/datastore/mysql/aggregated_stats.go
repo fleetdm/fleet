@@ -89,7 +89,7 @@ func (ds *Datastore) UpdateQueryAggregatedStats(ctx context.Context) error {
 	// running 5 expensive percentile queries per query that would all
 	// return no rows.
 	rows, err := ds.reader(ctx).QueryxContext(ctx,
-		`SELECT DISTINCT scheduled_query_id FROM scheduled_query_stats WHERE executions > 0`)
+		`SELECT q.id FROM queries q WHERE EXISTS (SELECT 1 FROM scheduled_query_stats sqs WHERE sqs.scheduled_query_id = q.id AND sqs.executions > 0)`)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "querying query ids with execution data")
 	}
