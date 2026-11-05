@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.13.0",
+      "version": "5.14.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'nl.ultimaker.cura.dmg';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'nl.ultimaker.cura.dmg' AND version_compare(bundle_short_version, '5.13.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'nl.ultimaker.cura.dmg' AND version_compare(bundle_short_version, '5.14.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'nl.ultimaker.cura.dmg' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/Ultimaker/Cura/releases/download/5.13.0/UltiMaker-Cura-5.13.0-macos-ARM64.dmg",
+      "installer_url": "https://github.com/Ultimaker/Cura/releases/download/5.14.0/UltiMaker-Cura-5.14.0-macos-ARM64.dmg",
       "install_script_ref": "1efd8079",
       "uninstall_script_ref": "b76ee8f9",
-      "sha256": "1483806486a19728bc0f363f847d75be3f179ea43c7f074bfc327f5b5c6e05ad",
+      "sha256": "b517488218c134ef36a7845540dd0778205ffedb24f83f0ee41f67423ffcbf21",
       "default_categories": [
         "Productivity"
       ]
