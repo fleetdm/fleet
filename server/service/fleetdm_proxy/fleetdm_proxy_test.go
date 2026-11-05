@@ -1,6 +1,7 @@
 package fleetdm_proxy
 
 import (
+	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
@@ -176,12 +178,66 @@ func TestResponseBodyTooLarge(t *testing.T) {
 	require.ErrorContains(t, err, "response body exceeds")
 }
 
-func TestNewRequiresSchemeAndHost(t *testing.T) {
+func TestInvalidURIFailsAtRequestTime(t *testing.T) {
 	getter := func() (string, error) { return origin, nil }
-	for _, uri := range []string{"", "fleetdm.com", "/api", "https://"} {
-		_, err := New(uri, getter)
-		require.Error(t, err, uri)
+	// An unused integration with a bad URI must not stop the server from starting,
+	// so New accepts it and requests fail instead.
+	for _, uri := range []string{"", "fleetdm.com", "/api", "https://", "https://fleetdm.com?x=1", "https://fleetdm.com#frag"} {
+		c, err := New(uri, getter)
+		require.NoError(t, err, uri)
+		require.ErrorContains(t, c.Get(t.Context(), "/x", nil, nil), "invalid uri", uri)
 	}
 	_, err := New("https://fleetdm.com", getter)
 	require.NoError(t, err)
+}
+
+func TestAny2xxIsSuccess(t *testing.T) {
+	for _, code := range []int{http.StatusCreated, http.StatusAccepted} {
+		t.Run(http.StatusText(code), func(t *testing.T) {
+			c := newTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(code)
+				_, _ = w.Write([]byte(`{"answer":"42"}`))
+			})
+			var resp struct {
+				Answer string `json:"answer"`
+			}
+			require.NoError(t, c.Post(t.Context(), "/x", map[string]string{"k": "v"}, &resp))
+			require.Equal(t, "42", resp.Answer)
+		})
+	}
+}
+
+func TestCallerCancellationPropagates(t *testing.T) {
+	started, observed, release := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	t.Cleanup(func() { close(release) })
+	c := newTestClient(t, func(_ http.ResponseWriter, r *http.Request) {
+		close(started)
+		select {
+		case <-r.Context().Done():
+			close(observed)
+		case <-release:
+		}
+	})
+
+	ctx, cancel := context.WithCancel(t.Context())
+	errCh := make(chan error, 1)
+	go func() { errCh <- c.Get(ctx, "/x", nil, nil) }()
+
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("handler never started")
+	}
+	cancel()
+	select {
+	case err := <-errCh:
+		require.ErrorIs(t, err, context.Canceled)
+	case <-time.After(5 * time.Second):
+		t.Fatal("client call did not return after cancellation")
+	}
+	select {
+	case <-observed:
+	case <-time.After(5 * time.Second):
+		t.Fatal("handler did not observe cancellation")
+	}
 }

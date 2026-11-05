@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
@@ -30,6 +31,27 @@ func TestProxyDeleteNotFound(t *testing.T) {
 	}](err)
 	require.True(t, ok)
 	require.Equal(t, http.StatusNotFound, se.StatusCode())
+}
+
+func TestProxySetComplianceStatusError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = w.Write([]byte(`{"error":"upstream boom"}`))
+	}))
+	defer srv.Close()
+	p, err := New(srv.URL, func() (string, error) { return "https://fleet.example.com", nil })
+	require.NoError(t, err)
+
+	_, err = p.SetComplianceStatus(t.Context(), "tenant", "secret", "device", "upn", true, "name", "macOS", "14.0", false, time.Now())
+	// The failure activity reads these through the wrapped error.
+	se, ok := errors.AsType[interface {
+		error
+		StatusCode() int
+		Body() string
+	}](err)
+	require.True(t, ok)
+	require.Equal(t, http.StatusBadGateway, se.StatusCode())
+	require.JSONEq(t, `{"error":"upstream boom"}`, se.Body())
 }
 
 func TestProxyQueryParametersAreEncoded(t *testing.T) {
@@ -88,14 +110,17 @@ func TestProxyQueryParametersAreEncoded(t *testing.T) {
 }
 
 func TestProxyCreateRequiresCredentials(t *testing.T) {
-	for name, body := range map[string]string{
-		"empty object":   `{}`,
-		"missing secret": `{"entra_tenant_id":"tid"}`,
-		"missing tenant": `{"fleet_server_secret":"s"}`,
+	for _, tc := range []struct {
+		name string
+		body string
+	}{
+		{name: "empty object", body: `{}`},
+		{name: "no server key", body: `{"entra_tenant_id":"tid"}`},
+		{name: "no tenant ID", body: `{"fleet_server_secret":"s"}`},
 	} {
-		t.Run(name, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-				_, _ = w.Write([]byte(body))
+				_, _ = w.Write([]byte(tc.body))
 			}))
 			defer srv.Close()
 			p, err := New(srv.URL, func() (string, error) { return "https://fleet.example.com", nil })

@@ -16,6 +16,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/str"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 )
 
@@ -25,22 +26,26 @@ const maxResponseBytes = 1 << 20
 // Client sends JSON requests to a fleetdm.com service.
 type Client struct {
 	uri          string
+	uriErr       error
 	originGetter func() (string, error)
 	c            *http.Client
 }
 
 // New creates a Client for the service at uri. originGetter returns this Fleet server's
-// URL.
+// URL. A uri that parses but can't be used as a base fails each request instead, so an
+// unused integration with a bad URI doesn't stop the server from starting.
 func New(uri string, originGetter func() (string, error), opts ...fleethttp.ClientOpt) (*Client, error) {
 	u, err := url.Parse(uri)
 	if err != nil {
 		return nil, fmt.Errorf("parse uri: %w", err)
 	}
-	if u.Scheme == "" || u.Host == "" {
-		return nil, fmt.Errorf("invalid uri %q: scheme and host are required", uri)
+	var uriErr error
+	if u.Scheme == "" || u.Host == "" || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" {
+		uriErr = fmt.Errorf("invalid uri %q: a scheme and host are required, with no query or fragment", uri)
 	}
 	return &Client{
 		uri:          uri,
+		uriErr:       uriErr,
 		originGetter: originGetter,
 		c:            fleethttp.NewClient(opts...),
 	}, nil
@@ -67,6 +72,9 @@ func (c *Client) Delete(ctx context.Context, path string, query url.Values, resp
 // do sends the request and decodes a 2xx JSON response into response. An empty 2xx body
 // is only accepted when response is nil. Any other status returns a *StatusError.
 func (c *Client) do(ctx context.Context, method, path string, query url.Values, body, response any) error {
+	if c.uriErr != nil {
+		return ctxerr.Wrap(ctx, c.uriErr, "build request")
+	}
 	reqURL := c.uri + path
 	if len(query) > 0 {
 		reqURL += "?" + query.Encode()
@@ -75,17 +83,17 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 	if body != nil {
 		b, err := json.Marshal(body)
 		if err != nil {
-			return fmt.Errorf("marshal request: %w", err)
+			return ctxerr.Wrap(ctx, err, "marshal request")
 		}
 		reqBody = bytes.NewReader(b)
 	}
 	req, err := http.NewRequestWithContext(ctx, method, reqURL, reqBody)
 	if err != nil {
-		return fmt.Errorf("create request: %w", err)
+		return ctxerr.Wrap(ctx, err, "create request")
 	}
 	origin, err := c.originGetter()
 	if err != nil {
-		return fmt.Errorf("get origin: %w", err)
+		return ctxerr.Wrap(ctx, err, "get origin")
 	}
 	if origin == "" {
 		return errors.New("missing origin: server URL is not set")
@@ -99,7 +107,7 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 	if err != nil {
 		// The query carries the server secret and a transport error would print
 		// the full URL.
-		return fmt.Errorf("send request: %w", platform_http.MaskURLError(err))
+		return ctxerr.Wrap(ctx, platform_http.MaskURLError(err), "send request")
 	}
 	defer resp.Body.Close()
 
@@ -110,7 +118,7 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 	// be reused.
 	respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes+1))
 	if err != nil {
-		return fmt.Errorf("read response: %w", err)
+		return ctxerr.Wrap(ctx, err, "read response")
 	}
 	if len(respBody) > maxResponseBytes {
 		return fmt.Errorf("response body exceeds %d bytes", maxResponseBytes)
@@ -122,7 +130,7 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 		return errors.New("decode response: empty response body")
 	}
 	if err := json.Unmarshal(respBody, response); err != nil {
-		return fmt.Errorf("decode response: %w", err)
+		return ctxerr.Wrap(ctx, err, "decode response")
 	}
 	return nil
 }
