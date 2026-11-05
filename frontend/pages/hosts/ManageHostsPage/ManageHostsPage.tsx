@@ -172,6 +172,7 @@ const ManageHostsPage = ({
     isPremiumTier,
     isFreeTier,
     userSettings,
+    setUserSettings,
     setFilteredHostsPath,
     setFilteredPoliciesPath,
     setFilteredQueriesPath,
@@ -781,9 +782,13 @@ const ManageHostsPage = ({
       const parsed = JSON.parse(locallyHiddenCols) as string[];
       try {
         await usersAPI.update(currentUser.id, {
-          settings: { ...userSettings, hidden_host_columns: parsed },
+          settings: { hidden_host_columns: parsed },
         });
         localStorage.removeItem("hostHiddenColumns");
+        setUserSettings((previous) => ({
+          ...previous,
+          hidden_host_columns: parsed,
+        }));
       } catch {
         // don't remove local storage, proceed with setting context with local storage value
       }
@@ -1163,18 +1168,23 @@ const ManageHostsPage = ({
     router.push(`${PATHS.EDIT_LABEL(parseInt(labelID, 10))}`);
   };
 
+  /** Saves hidden host columns before updating local and shared settings and closing the modal. */
   const onSaveColumns = async (newHiddenColumns: string[]) => {
     if (!currentUser) {
       return;
     }
     try {
       await usersAPI.update(currentUser.id, {
-        settings: { ...userSettings, hidden_host_columns: newHiddenColumns },
+        settings: { hidden_host_columns: newHiddenColumns },
       });
       // No success toast, to make column setting more seamless
       // only set state and close modal if server persist succeeds, keeping UI and server state in
       // sync.
       // Can also add local storage fallback behavior in next iteration if we want.
+      setUserSettings((previous) => ({
+        ...previous,
+        hidden_host_columns: newHiddenColumns,
+      }));
       setHiddenColumns(newHiddenColumns);
       setShowEditColumnsModal(false);
     } catch (response) {

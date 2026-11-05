@@ -7,6 +7,7 @@ import createMockConfig from "__mocks__/configMock";
 import { createMockTeamSummary } from "__mocks__/teamMock";
 import createMockUser from "__mocks__/userMock";
 import { notify } from "components/ToastNotification";
+import usersAPI from "services/entities/users";
 import mockServer from "test/mock-server";
 import { createCustomRenderer, baseUrl } from "test/test-utils";
 
@@ -407,6 +408,55 @@ describe("ManageHostsPage", () => {
     } finally {
       errorSpy.mockRestore();
     }
+  });
+
+  it("updates shared settings after saving host columns", async () => {
+    setupHandlers(0);
+    const update = jest
+      .spyOn(usersAPI, "update")
+      .mockResolvedValue(createMockUser());
+    const setUserSettings = jest.fn();
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          ...mockAppContext,
+          setUserSettings,
+          userSettings: {
+            hidden_host_columns: [],
+            report_column_order: { "6": ["name", "Host"] },
+          },
+        },
+      },
+    });
+    const { user } = render(
+      <ManageHostsPage
+        {...(createMockProps({
+          location: {
+            pathname: "/hosts/manage",
+            search: "?query=nonexistent",
+            hash: "",
+            query: { query: "nonexistent" },
+          },
+        }) as any)}
+      />
+    );
+    await screen.findByText("No hosts match your filters");
+    await user.click(screen.getByRole("button", { name: /edit columns/i }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(setUserSettings).toHaveBeenCalled());
+    const latest = {
+      hidden_host_columns: [],
+      report_column_order: { "7": ["version", "Host"] },
+    };
+    const savedSettings = setUserSettings.mock.calls[0][0](latest);
+    expect(update.mock.calls[0][1].settings).toEqual({
+      hidden_host_columns: savedSettings.hidden_host_columns,
+    });
+    expect(savedSettings.report_column_order).toEqual(
+      latest.report_column_order
+    );
+    update.mockRestore();
   });
 
   it("sends the App Store app version filter from the URL with the host list and count requests", async () => {

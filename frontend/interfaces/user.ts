@@ -116,7 +116,7 @@ export interface IUpdateUserFormData {
   sso_enabled?: boolean;
   mfa_enabled?: boolean;
   teams?: ITeam[];
-  settings?: IUserSettings;
+  settings?: Partial<IUserSettings>;
 }
 
 export interface ICreateUserWithInvitationFormData {

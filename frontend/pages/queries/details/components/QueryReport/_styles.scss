@@ -9,8 +9,37 @@
     }
   }
 
+  &__column-preferences {
+    max-height: 50vh;
+    overflow-y: auto;
+    padding-left: $pad-large;
+    li {
+      padding: $pad-small 0;
+      display: flex;
+      gap: $pad-small;
+      align-items: center;
+      span {
+        flex: 1;
+        overflow-wrap: anywhere;
+      }
+    }
+  }
+
+  &__column-moved {
+    animation: column-moved 800ms ease-out;
+  }
+
   &__results-cta {
     display: flex;
-    gap: $pad-medium;
+    gap: $gap-table-elements;
+  }
+}
+
+@keyframes column-moved {
+  from {
+    background-color: $ui-vibrant-blue-50;
+  }
+  to {
+    background-color: transparent;
   }
 }
