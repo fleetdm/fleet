@@ -30,7 +30,7 @@ var windowsProfileTmpl string
 type mdmConfigSubset struct {
 	MDM struct {
 		EnabledAndConfigured        bool `json:"enabled_and_configured"`         // Apple
-		WindowsEnabledAndConfigured bool `json:"windows_enabled_and_configured"` // Windows
+		WindowsEnabledAndConfigured bool `json:"windows_mdm_enabled"` // Windows
 	} `json:"mdm"`
 }
 

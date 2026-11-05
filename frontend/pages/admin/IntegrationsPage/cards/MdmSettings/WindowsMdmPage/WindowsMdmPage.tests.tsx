@@ -43,7 +43,7 @@ describe("WindowsMdmPage", () => {
   });
 
   it("renders the programmatic enrollment toggle as disabled when MDM is off", () => {
-    renderPage({ windows_enabled_and_configured: false });
+    renderPage({ windows_mdm_enabled: false });
 
     expect(screen.getByText("Turn on MDM programmatically")).toBeVisible();
     expect(screen.getAllByRole("switch")[1]).toBeDisabled();
@@ -52,7 +52,7 @@ describe("WindowsMdmPage", () => {
   it("renders the Migration checkbox when MDM is on programmatically", () => {
     renderPage({
       enable_turn_on_windows_mdm_manually: false,
-      windows_enabled_and_configured: true,
+      windows_mdm_enabled: true,
     });
 
     expect(screen.getByText(MIGRATION_CHECKBOX_LABEL)).toBeVisible();
@@ -66,7 +66,7 @@ describe("WindowsMdmPage", () => {
   it("disables the Migration checkbox when programmatic enrollment is off", () => {
     renderPage({
       enable_turn_on_windows_mdm_manually: true,
-      windows_enabled_and_configured: true,
+      windows_mdm_enabled: true,
     });
 
     expect(screen.getByText(MIGRATION_CHECKBOX_LABEL)).toBeVisible();
@@ -78,7 +78,7 @@ describe("WindowsMdmPage", () => {
 
   it("disables the default fleet dropdown when Fleet is not connected to Entra", () => {
     renderPage({
-      windows_enabled_and_configured: true,
+      windows_mdm_enabled: true,
       windows_entra_tenant_ids: [],
     });
 
@@ -88,7 +88,7 @@ describe("WindowsMdmPage", () => {
 
   it("enables the default fleet dropdown when Fleet is connected to Entra", () => {
     renderPage({
-      windows_enabled_and_configured: true,
+      windows_mdm_enabled: true,
       windows_entra_tenant_ids: ["tenant-1"],
     });
 
@@ -97,7 +97,7 @@ describe("WindowsMdmPage", () => {
 
   it("neither toggles Windows MDM nor navigates when Enter is pressed in the default fleet dropdown", async () => {
     const { user } = renderPage({
-      windows_enabled_and_configured: true,
+      windows_mdm_enabled: true,
       windows_entra_tenant_ids: ["tenant-1"],
     });
     const dropdownInput = screen.getByRole("combobox");
@@ -118,7 +118,7 @@ describe("WindowsMdmPage", () => {
   it("saves the toggle states and the default fleet through the config API", async () => {
     (configAPI.updateMDMConfig as jest.Mock).mockResolvedValue({});
     const { user } = renderPage({
-      windows_enabled_and_configured: true,
+      windows_mdm_enabled: true,
       enable_turn_on_windows_mdm_manually: false,
       windows_entra_tenant_ids: ["tenant-1"],
       windows_automatic_enrollment: { default_fleet: "Workstations" },
@@ -130,9 +130,9 @@ describe("WindowsMdmPage", () => {
 
     expect(configAPI.updateMDMConfig).toHaveBeenCalledWith(
       {
-        windows_enabled_and_configured: true,
+        windows_mdm_enabled: true,
         enable_turn_on_windows_mdm_manually: true,
-        windows_migration_enabled: false,
+        windows_mdm_migration_enabled: false,
         windows_automatic_enrollment: { default_fleet: "Workstations" },
       },
       true
@@ -144,9 +144,9 @@ describe("WindowsMdmPage", () => {
     // Inconsistent server state (settable via the API or GitOps): migration
     // enabled while enrollment is manual, so the Migration checkbox is disabled.
     const { user } = renderPage({
-      windows_enabled_and_configured: true,
+      windows_mdm_enabled: true,
       enable_turn_on_windows_mdm_manually: true,
-      windows_migration_enabled: true,
+      windows_mdm_migration_enabled: true,
       windows_entra_tenant_ids: ["tenant-1"],
     });
 
@@ -158,7 +158,7 @@ describe("WindowsMdmPage", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(configAPI.updateMDMConfig).toHaveBeenCalledWith(
-      expect.objectContaining({ windows_migration_enabled: false }),
+      expect.objectContaining({ windows_mdm_migration_enabled: false }),
       true
     );
   });

@@ -6,7 +6,7 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   macos_recovery_lock_password_enabled: false,
   windows_require_bitlocker_pin: false,
   enable_turn_on_windows_mdm_manually: false,
-  windows_enabled_and_configured: true,
+  windows_mdm_enabled: true,
   windows_entra_tenant_ids: [],
   windows_entra_client_ids: [],
   microsoft_graph_credential_invalid: false,
@@ -65,7 +65,7 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
     deadline_days: null,
     grace_period_days: null,
   },
-  windows_migration_enabled: false,
+  windows_mdm_migration_enabled: false,
   end_user_authentication: {
     entity_id: "",
     issuer_uri: "",

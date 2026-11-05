@@ -90,7 +90,7 @@ const apiError = (name: string, reason: string) => ({
 const appleOnly = {
   ...createMockConfig().mdm,
   enabled_and_configured: true,
-  windows_enabled_and_configured: false,
+  windows_mdm_enabled: false,
 };
 
 const MANUAL_LOCATION = {

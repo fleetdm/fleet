@@ -597,7 +597,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	require.Equal(t, fleet.WindowsProfileDeletedWarning, deleteResp.Warning)
 	// Now disabling windows MDM
 	filler := struct{}{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": { "windows_enabled_and_configured": false}}`), http.StatusOK, &filler)
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": { "windows_mdm_enabled": false}}`), http.StatusOK, &filler)
 	deleteResp = deleteMDMConfigProfileResponse{}
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", teamWinProfUUID), nil, http.StatusOK, &deleteResp)
 	require.Equal(t, fleet.WindowsProfileDeletedWarning, deleteResp.Warning)
