@@ -960,6 +960,11 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 	}
 
+	entraDeviceTokenReq, err := svc.entraDeviceTokenRequest(ctx, host)
+	if err != nil {
+		return fleet.OrbitConfig{}, err
+	}
+
 	// team ID is not nil, get team specific flags and options
 	if host.TeamID != nil {
 		teamAgentOptions, err := svc.ds.TeamAgentOptions(ctx, *host.TeamID)
@@ -1028,13 +1033,14 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 
 		return fleet.OrbitConfig{
-			ScriptExeTimeout:   opts.ScriptExecutionTimeout,
-			Flags:              mergedFlags,
-			Extensions:         extensionsFiltered,
-			Notifications:      notifs,
-			UpdateChannels:     updateChannels,
-			DebugLogging:       debugLogging,
-			WebSocketTransport: wsTransport,
+			ScriptExeTimeout:        opts.ScriptExecutionTimeout,
+			Flags:                   mergedFlags,
+			Extensions:              extensionsFiltered,
+			Notifications:           notifs,
+			UpdateChannels:          updateChannels,
+			DebugLogging:            debugLogging,
+			WebSocketTransport:      wsTransport,
+			EntraDeviceTokenRequest: entraDeviceTokenReq,
 		}, nil
 	}
 
@@ -1084,13 +1090,14 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	return fleet.OrbitConfig{
-		ScriptExeTimeout:   opts.ScriptExecutionTimeout,
-		Flags:              mergedFlags,
-		Extensions:         extensionsFiltered,
-		Notifications:      notifs,
-		UpdateChannels:     updateChannels,
-		DebugLogging:       debugLogging,
-		WebSocketTransport: wsTransport,
+		ScriptExeTimeout:        opts.ScriptExecutionTimeout,
+		Flags:                   mergedFlags,
+		Extensions:              extensionsFiltered,
+		Notifications:           notifs,
+		UpdateChannels:          updateChannels,
+		DebugLogging:            debugLogging,
+		WebSocketTransport:      wsTransport,
+		EntraDeviceTokenRequest: entraDeviceTokenReq,
 	}, nil
 }
 
