@@ -1502,6 +1502,8 @@ func testOneTimeEnrollSecretAndroidMint(t *testing.T, ds *Datastore) {
 
 	t.Run("only android hosts", func(t *testing.T) {
 		mac := newOneTimeSecretTestHost(t, ds, "darwin", nil)
+		// Even when the host has a live secret of its own platform.
+		mintOneTimeSecret(t, ds, mac.UUID)
 		_, err := ds.MintAndroidOneTimeEnrollSecret(ctx, mac.ID)
 		require.True(t, fleet.IsNotFound(err), err)
 		_, err = ds.MintAndroidOneTimeEnrollSecret(ctx, mac.ID+1000)
