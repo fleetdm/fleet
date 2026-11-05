@@ -75,11 +75,11 @@ func applyPackSpecDB(ctx context.Context, tx sqlx.ExtContext, spec *fleet.PackSp
 	query = `
 		INSERT INTO scheduled_queries (
 			pack_id, query_name, name, description, ` + "`interval`" + `,
-			snapshot, removed, shard, platform, version, denylist
+			snapshot, removed, shard, platform, version, denylist, startup_priority
 		)
 		VALUES (
 			?, ?, ?, ?, ?,
-			?, ?, ?, ?, ?, ?
+			?, ?, ?, ?, ?, ?, ?
 		)
 	`
 	for _, q := range spec.Queries {
@@ -99,6 +99,7 @@ func applyPackSpecDB(ctx context.Context, tx sqlx.ExtContext, spec *fleet.PackSp
 			q.Platform,
 			q.Version,
 			q.Denylist,
+			q.StartupPriority,
 		)
 		switch {
 		case isChildForeignKeyError(err):
@@ -177,7 +178,7 @@ WHERE pack_id = ? AND pt.type = ? AND pt.target_id = t.id
 			query = `
 SELECT
 query_name, name, description, ` + "`interval`" + `,
-snapshot, removed, shard, platform, version, denylist
+snapshot, removed, shard, platform, version, denylist, startup_priority
 FROM scheduled_queries
 WHERE pack_id = ?
 `
@@ -231,7 +232,7 @@ WHERE pack_id = ? AND pt.type = ? AND pt.target_id = t.id
 		query = `
 SELECT
 query_name, name, description, ` + "`interval`" + `,
-snapshot, removed, shard, platform, version, denylist
+snapshot, removed, shard, platform, version, denylist, startup_priority
 FROM scheduled_queries
 WHERE pack_id = ?
 `

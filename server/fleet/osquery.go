@@ -32,15 +32,16 @@ const (
 
 // QueryContent is the format of a query stanza in an osquery configuration.
 type QueryContent struct {
-	Query       string  `json:"query"`
-	Description string  `json:"description,omitempty"`
-	Interval    uint    `json:"interval"`
-	Platform    *string `json:"platform,omitempty"`
-	Version     *string `json:"version,omitempty"`
-	Snapshot    *bool   `json:"snapshot,omitempty"`
-	Removed     *bool   `json:"removed,omitempty"`
-	Shard       *uint   `json:"shard,omitempty"`
-	Denylist    *bool   `json:"denylist,omitempty"`
+	Query           string  `json:"query"`
+	Description     string  `json:"description,omitempty"`
+	Interval        uint    `json:"interval"`
+	Platform        *string `json:"platform,omitempty"`
+	Version         *string `json:"version,omitempty"`
+	Snapshot        *bool   `json:"snapshot,omitempty"`
+	Removed         *bool   `json:"removed,omitempty"`
+	Shard           *uint   `json:"shard,omitempty"`
+	Denylist        *bool   `json:"denylist,omitempty"`
+	StartupPriority *uint64 `json:"startup_priority,omitempty"`
 }
 
 type PermissiveQueryContent struct {

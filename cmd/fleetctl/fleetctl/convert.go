@@ -122,6 +122,7 @@ func specGroupFromPack(name string, inputPack fleet.PermissivePackContent) (*spe
 			Description:       query.Description,
 			Query:             query.Query,
 			Interval:          interval,
+			StartupPriority:   query.StartupPriority,
 			Platform:          convertedPlatforms,
 			MinOsqueryVersion: minOsqueryVersion,
 		}

@@ -53,13 +53,14 @@ func (svc *Service) GetGlobalScheduledQueries(ctx context.Context, opts fleet.Li
 ////////////////////////////////////////////////////////////////////////////////
 
 type globalScheduleQueryRequest struct {
-	QueryID  uint    `json:"query_id" renameto:"report_id"`
-	Interval uint    `json:"interval"`
-	Snapshot *bool   `json:"snapshot"`
-	Removed  *bool   `json:"removed"`
-	Platform *string `json:"platform"`
-	Version  *string `json:"version"`
-	Shard    *uint   `json:"shard"`
+	QueryID         uint    `json:"query_id" renameto:"report_id"`
+	Interval        uint    `json:"interval"`
+	Snapshot        *bool   `json:"snapshot"`
+	Removed         *bool   `json:"removed"`
+	Platform        *string `json:"platform"`
+	Version         *string `json:"version"`
+	Shard           *uint   `json:"shard"`
+	StartupPriority *uint64 `json:"startup_priority"`
 }
 
 type globalScheduleQueryResponse struct {
@@ -73,13 +74,14 @@ func globalScheduleQueryEndpoint(ctx context.Context, request interface{}, svc f
 	req := request.(*globalScheduleQueryRequest)
 
 	scheduled, err := svc.GlobalScheduleQuery(ctx, &fleet.ScheduledQuery{
-		QueryID:  req.QueryID,
-		Interval: req.Interval,
-		Snapshot: req.Snapshot,
-		Removed:  req.Removed,
-		Platform: req.Platform,
-		Version:  req.Version,
-		Shard:    req.Shard,
+		QueryID:         req.QueryID,
+		Interval:        req.Interval,
+		Snapshot:        req.Snapshot,
+		Removed:         req.Removed,
+		Platform:        req.Platform,
+		Version:         req.Version,
+		Shard:           req.Shard,
+		StartupPriority: req.StartupPriority,
 	})
 	if err != nil {
 		return globalScheduleQueryResponse{Err: err}, nil

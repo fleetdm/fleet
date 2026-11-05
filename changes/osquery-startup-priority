@@ -1,0 +1,1 @@
+- Added `startup_priority` support to reports and packs, including the REST API, GitOps, and osquery configuration.

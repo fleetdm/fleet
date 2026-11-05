@@ -238,6 +238,7 @@ func upgradePackToQueriesSpecs(packSpec *fleet.PackSpec, packDB *fleet.Pack, pac
 				Query:              pq.Query,
 				TeamName:           tm,
 				Interval:           sched.Interval,
+				StartupPriority:    sched.StartupPriority,
 				ObserverCanRun:     pq.ObserverCanRun,
 				Platform:           schedPlatform,
 				MinOsqueryVersion:  schedVersion,

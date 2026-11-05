@@ -13352,6 +13352,7 @@ Creates a global report or fleet report.
 | observer_can_run                | boolean | body | Whether or not users with the `observer` role can run the report as a live report. This field is only relevant for the `observer` role. The `observer_plus` role can run any report and is not limited by this flag. |
 | fleet_id                        | integer | body | _Available in Fleet Premium_. The fleet to which the new report should be added. If omitted, the report will be global.                                           |
 | interval                        | integer | body | The amount of time, in seconds, the report waits before running. Can be set to `0` to never run. Default: 0.       |
+| startup_priority                | integer | body | Optional osquery startup execution priority. Lower values run first. Omit to use osquery's default, which does not run the report at startup. |
 | platform                        | string  | body | The OS platforms where this report will run (other platforms ignored). Comma-separated string. If omitted, runs on all compatible platforms.                        |
 | labels_include_any              | array   | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this report. If specified, the report will run on hosts that match **any of these** labels. |
 | labels_include_all              | array   | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this report. If specified, the report will run on hosts that match **all of these** labels. |
@@ -13375,6 +13376,7 @@ Only one of  `labels_include_any` or `labels_include_all` can be specified. If n
   "description": "This is a new report.",
   "query": "SELECT * FROM osquery_info",
   "interval": 3600, // Once per hour
+  "startup_priority": 1,
   "platform": "darwin,windows,linux",
   "min_osquery_version": "",
   "automations_enabled": true,
@@ -13401,6 +13403,7 @@ Only one of  `labels_include_any` or `labels_include_all` can be specified. If n
     "description": "This is a new query.",
     "team_id": null,
     "interval": 3600,
+    "startup_priority": 1,
     "platform": "darwin,windows,linux",
     "min_osquery_version": "",
     "automations_enabled": true,
@@ -13425,6 +13428,7 @@ Only one of  `labels_include_any` or `labels_include_all` can be specified. If n
     "description": "This is a new query.",
     "team_id": null,
     "interval": 3600,
+    "startup_priority": 1,
     "platform": "darwin,windows,linux",
     "min_osquery_version": "",
     "automations_enabled": true,
@@ -13459,6 +13463,7 @@ Modifies the report specified by ID.
 | description                 | string  | body | The report's description.                                                                                                                               |
 | observer_can_run            | boolean | body | Whether or not users with the `observer` role can run the report as a live report. This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag. |
 | interval                    | integer | body | The amount of time, in seconds, the report waits before running. Can be set to `0` to never run. Default: 0.       |
+| startup_priority            | integer | body | Optional osquery startup execution priority. Lower values run first. Omit to use osquery's default, which does not run the report at startup. |
 | platform                    | string  | body | The OS platforms where this report will run (other platforms ignored). Comma-separated string. If set to "", runs on all compatible platforms.                    |
 | labels_include_any          | list    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this report. If specified, the report will run on hosts that match **any of these** labels. |
 | labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this report. If specified, the report will run on hosts that match **all of these** labels. |
@@ -13485,6 +13490,7 @@ Only one of  `labels_include_any` or `labels_include_all` can be specified. If n
 {
   "name": "new_title_for_my_report",
   "interval": 3600, // Once per hour,
+  "startup_priority": 1,
   "platform": "",
   "min_osquery_version": "",
   "automations_enabled": false,

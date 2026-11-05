@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -62,6 +63,38 @@ func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
 		}
 	}
 	require.True(t, found)
+}
+
+func (s *integrationTestSuite) TestReportStartupPriority() {
+	t := s.T()
+	startupPriority := uint64(3)
+	var createResp fleet.CreateQueryResponse
+	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.QueryPayload{
+		Name:            new(strings.ReplaceAll(t.Name(), "/", "_")),
+		Query:           new("SELECT 1"),
+		StartupPriority: optjson.Any[uint64]{Set: true, Valid: true, Value: startupPriority},
+	}, http.StatusOK, &createResp)
+	require.NotNil(t, createResp.Query)
+	defer s.cleanupQuery(createResp.Query.ID)
+	assert.Equal(t, &startupPriority, createResp.Query.StartupPriority)
+
+	updatedStartupPriority := uint64(1)
+	var modifyResp fleet.ModifyQueryResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", createResp.Query.ID), fleet.QueryPayload{
+		StartupPriority: optjson.Any[uint64]{Set: true, Valid: true, Value: updatedStartupPriority},
+	}, http.StatusOK, &modifyResp)
+	require.NotNil(t, modifyResp.Query)
+	assert.Equal(t, &updatedStartupPriority, modifyResp.Query.StartupPriority)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", createResp.Query.ID), map[string]any{}, http.StatusOK, &modifyResp)
+	assert.Equal(t, &updatedStartupPriority, modifyResp.Query.StartupPriority)
+	modifyResp = fleet.ModifyQueryResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", createResp.Query.ID), map[string]any{"startup_priority": nil}, http.StatusOK, &modifyResp)
+	assert.Nil(t, modifyResp.Query.StartupPriority)
+
+	var getResp fleet.GetQueryResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d", createResp.Query.ID), nil, http.StatusOK, &getResp)
+	require.NotNil(t, getResp.Query)
+	assert.Nil(t, getResp.Query.StartupPriority)
 }
 
 func (s *integrationTestSuite) TestQueryLabelsIncludeAnyRequiresPremium() {
@@ -116,7 +149,8 @@ func (s *integrationTestSuite) TestGlobalSchedule() {
 	require.NoError(t, err)
 
 	// schedule that query
-	gsParams := fleet.ScheduledQueryPayload{QueryID: &qr.ID, Interval: new(uint(42))}
+	startupPriority := uint64(5)
+	gsParams := fleet.ScheduledQueryPayload{QueryID: &qr.ID, Interval: new(uint(42)), StartupPriority: optjson.Any[uint64]{Set: true, Valid: true, Value: startupPriority}}
 	r := globalScheduleQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/schedule", gsParams, http.StatusOK, &r)
 
@@ -125,6 +159,7 @@ func (s *integrationTestSuite) TestGlobalSchedule() {
 	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &gs)
 	require.Len(t, gs.GlobalSchedule, 1)
 	assert.Equal(t, uint(42), gs.GlobalSchedule[0].Interval)
+	assert.Equal(t, &startupPriority, gs.GlobalSchedule[0].StartupPriority)
 	assert.Contains(t, gs.GlobalSchedule[0].Name, "Copy of TestQuery1 (")
 	id := gs.GlobalSchedule[0].ID
 
@@ -134,7 +169,8 @@ func (s *integrationTestSuite) TestGlobalSchedule() {
 
 	// update the scheduled query
 	gs = fleet.GlobalSchedulePayload{}
-	gsParams = fleet.ScheduledQueryPayload{Interval: new(uint(55))}
+	updatedStartupPriority := uint64(2)
+	gsParams = fleet.ScheduledQueryPayload{Interval: new(uint(55)), StartupPriority: optjson.Any[uint64]{Set: true, Valid: true, Value: updatedStartupPriority}}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/schedule/%d", id), gsParams, http.StatusOK, &gs)
 
 	// update a non-existing schedule
@@ -147,6 +183,12 @@ func (s *integrationTestSuite) TestGlobalSchedule() {
 	require.Len(t, gs.GlobalSchedule, 1)
 	assert.Equal(t, id, gs.GlobalSchedule[0].ID)
 	assert.Equal(t, uint(55), gs.GlobalSchedule[0].Interval)
+	assert.Equal(t, &updatedStartupPriority, gs.GlobalSchedule[0].StartupPriority)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/schedule/%d", id), map[string]any{"startup_priority": nil}, http.StatusOK, &gs)
+	gs = fleet.GlobalSchedulePayload{}
+	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &gs)
+	require.Len(t, gs.GlobalSchedule, 1)
+	assert.Nil(t, gs.GlobalSchedule[0].StartupPriority)
 
 	// delete the scheduled query
 	r = globalScheduleQueryResponse{}
@@ -321,15 +363,18 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 
 	// create scheduled query
 	var createResp fleet.ScheduleQueryResponse
+	packStartupPriority := uint64(7)
 	reqSQ := &fleet.ScheduleQueryRequest{
-		PackID:   pack.ID,
-		QueryID:  query.ID,
-		Interval: 1,
+		PackID:          pack.ID,
+		QueryID:         query.ID,
+		Interval:        1,
+		StartupPriority: &packStartupPriority,
 	}
 	s.DoJSON("POST", "/api/latest/fleet/packs/schedule", reqSQ, http.StatusOK, &createResp)
 	sq1 := createResp.Scheduled.ScheduledQuery
 	assert.NotZero(t, sq1.ID)
 	assert.Equal(t, uint(1), sq1.Interval)
+	assert.Equal(t, &packStartupPriority, sq1.StartupPriority)
 
 	// create scheduled query with invalid pack
 	reqSQ = &fleet.ScheduleQueryRequest{
@@ -351,6 +396,7 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/packs/%d/scheduled", pack.ID), nil, http.StatusOK, &getInPackResp)
 	require.Len(t, getInPackResp.Scheduled, 1)
 	assert.Equal(t, sq1.ID, getInPackResp.Scheduled[0].ID)
+	assert.Equal(t, &packStartupPriority, getInPackResp.Scheduled[0].StartupPriority)
 
 	// list scheduled queries in pack, next page
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/packs/%d/scheduled", pack.ID), nil, http.StatusOK, &getInPackResp, "page", "1", "per_page", "2")
@@ -373,6 +419,10 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/packs/schedule/%d", sq1.ID), reqMod, http.StatusOK, &modResp)
 	assert.Equal(t, sq1.ID, modResp.Scheduled.ID)
 	assert.Equal(t, uint(4), modResp.Scheduled.Interval)
+	assert.Equal(t, &packStartupPriority, modResp.Scheduled.StartupPriority)
+	modResp = fleet.ModifyScheduledQueryResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/packs/schedule/%d", sq1.ID), map[string]any{"startup_priority": nil}, http.StatusOK, &modResp)
+	assert.Nil(t, modResp.Scheduled.StartupPriority)
 
 	// modify non-existing scheduled query
 	reqMod = fleet.ScheduledQueryPayload{
@@ -835,6 +885,7 @@ func (s *integrationTestSuite) TestPacksBadRequests() {
 
 func (s *integrationTestSuite) TestQuerySpecs() {
 	t := s.T()
+	startupPriority := uint64(3)
 
 	s.lq.On("SetQueryResultsCount", mock.Anything, mock.Anything).Return(nil)
 
@@ -853,7 +904,7 @@ func (s *integrationTestSuite) TestQuerySpecs() {
 	var applyResp fleet.ApplyQuerySpecsResponse
 	s.DoJSON("POST", "/api/latest/fleet/spec/queries", fleet.ApplyQuerySpecsRequest{
 		Specs: []*fleet.QuerySpec{
-			{Name: q1, Query: "SELECT 1"},
+			{Name: q1, Query: "SELECT 1", StartupPriority: &startupPriority},
 			{Name: q2, Query: "SELECT 2"},
 		},
 	}, http.StatusOK, &applyResp)
@@ -875,6 +926,7 @@ func (s *integrationTestSuite) TestQuerySpecs() {
 	// get specific spec
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/spec/queries/%s", q1), nil, http.StatusOK, &getSpecResp)
 	assert.Equal(t, "SELECT 1", getSpecResp.Spec.Query)
+	assert.Equal(t, &startupPriority, getSpecResp.Spec.StartupPriority)
 
 	// apply specs again - create q3 and update q2
 	q3 := q1 + "_3"

@@ -87,6 +87,7 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 	zwass := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 	groob := test.NewUser(t, ds, "Victor", "victor@fleet.co", true)
 
+	startupPriority := uint64(3)
 	expectedQueries := []*fleet.Query{
 		{
 			Name:               "foo",
@@ -99,6 +100,7 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 			AutomationsEnabled: true,
 			Logging:            fleet.LoggingDifferential,
 			DiscardData:        true,
+			StartupPriority:    &startupPriority,
 			LabelsIncludeAny:   []fleet.LabelIdent{{LabelID: fooLabel.ID, LabelName: fooLabel.Name}},
 		},
 		{
@@ -474,12 +476,14 @@ func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
 
 func testQueriesSave(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
+	startupPriority := uint64(5)
 
 	query := &fleet.Query{
-		Name:     "foo",
-		Query:    "bar",
-		AuthorID: &user.ID,
-		Logging:  fleet.LoggingSnapshot,
+		Name:            "foo",
+		Query:           "bar",
+		AuthorID:        &user.ID,
+		Logging:         fleet.LoggingSnapshot,
+		StartupPriority: &startupPriority,
 	}
 	query, err := ds.NewQuery(context.Background(), query)
 	require.NoError(t, err)
@@ -501,6 +505,8 @@ func testQueriesSave(t *testing.T, ds *Datastore) {
 	query.AutomationsEnabled = true
 	query.Logging = fleet.LoggingDifferential
 	query.DiscardData = true
+	updatedStartupPriority := uint64(8)
+	query.StartupPriority = &updatedStartupPriority
 
 	err = ds.SaveQuery(context.Background(), query, true, false)
 	require.NoError(t, err)
@@ -510,6 +516,7 @@ func testQueriesSave(t *testing.T, ds *Datastore) {
 	require.NotNil(t, actual)
 
 	test.QueriesMatch(t, actual, query)
+	require.Equal(t, &updatedStartupPriority, actual.StartupPriority)
 
 	require.Equal(t, "baz", actual.Query)
 	require.Equal(t, "Zach", actual.AuthorName)
@@ -1084,6 +1091,7 @@ func testListQueriesFiltersByIsScheduled(t *testing.T, ds *Datastore) {
 
 func testListScheduledQueriesForAgents(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+	startupPriority := uint64(2)
 
 	team, err := ds.NewTeam(context.Background(), &fleet.Team{
 		Name:        "Team 1",
@@ -1289,6 +1297,7 @@ func testListScheduledQueriesForAgents(t *testing.T, ds *Datastore) {
 			TeamID:             teamID,
 			DiscardData:        false,
 			Logging:            fleet.LoggingSnapshot,
+			StartupPriority:    &startupPriority,
 		})
 		require.NoError(t, err)
 
@@ -1768,6 +1777,12 @@ func testScheduledQueriesDigest(t *testing.T, ds *Datastore) {
 	assert.NotEqual(t, global, changed)
 
 	q.Query = "SELECT 3"
+	require.NoError(t, ds.SaveQuery(ctx, q, false, false))
+	assert.NotEqual(t, changed, digest(nil))
+	changed = digest(nil)
+
+	startupPriority := uint64(1)
+	q.StartupPriority = &startupPriority
 	require.NoError(t, ds.SaveQuery(ctx, q, false, false))
 	assert.NotEqual(t, changed, digest(nil))
 	changed = digest(nil)

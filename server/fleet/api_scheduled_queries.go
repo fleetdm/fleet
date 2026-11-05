@@ -25,14 +25,15 @@ func (r GetScheduledQueriesInPackResponse) Error() error { return r.Err }
 ////////////////////////////////////////////////////////////////////////////////
 
 type ScheduleQueryRequest struct {
-	PackID   uint    `json:"pack_id"`
-	QueryID  uint    `json:"query_id" renameto:"report_id"`
-	Interval uint    `json:"interval"`
-	Snapshot *bool   `json:"snapshot"`
-	Removed  *bool   `json:"removed"`
-	Platform *string `json:"platform"`
-	Version  *string `json:"version"`
-	Shard    *uint   `json:"shard"`
+	PackID          uint    `json:"pack_id"`
+	QueryID         uint    `json:"query_id" renameto:"report_id"`
+	Interval        uint    `json:"interval"`
+	Snapshot        *bool   `json:"snapshot"`
+	Removed         *bool   `json:"removed"`
+	Platform        *string `json:"platform"`
+	Version         *string `json:"version"`
+	Shard           *uint   `json:"shard"`
+	StartupPriority *uint64 `json:"startup_priority"`
 }
 
 type ScheduleQueryResponse struct {

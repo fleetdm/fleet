@@ -56,6 +56,7 @@ func (ds *Datastore) ListScheduledQueriesInPackWithStats(ctx context.Context, id
 			sq.version,
 			sq.shard,
 			sq.denylist,
+			sq.startup_priority,
 			q.query,
 			q.id AS query_id,
 			JSON_EXTRACT(ag.json_value, '$.user_time_p50') as user_time_p50,
@@ -98,6 +99,7 @@ func (ds *Datastore) ListScheduledQueriesInPack(ctx context.Context, id uint) (f
 			sq.version,
 			sq.shard,
 			sq.denylist,
+			sq.startup_priority,
 			q.query,
 			q.id AS query_id
 		FROM scheduled_queries sq
@@ -131,13 +133,14 @@ func insertScheduledQueryDB(ctx context.Context, q sqlx.ExtContext, sq *fleet.Sc
 			platform,
 			version,
 			shard,
-			denylist
+			denylist,
+			startup_priority
 		)
-		SELECT name, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+		SELECT name, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 		FROM queries
 		WHERE id = ?
 		`
-	result, err := q.ExecContext(ctx, query, sq.QueryID, sq.Name, sq.PackID, sq.Snapshot, sq.Removed, sq.Interval, sq.Platform, sq.Version, sq.Shard, sq.Denylist, sq.QueryID)
+	result, err := q.ExecContext(ctx, query, sq.QueryID, sq.Name, sq.PackID, sq.Snapshot, sq.Removed, sq.Interval, sq.Platform, sq.Version, sq.Shard, sq.Denylist, sq.StartupPriority, sq.QueryID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "insert scheduled query")
 	}
@@ -175,10 +178,10 @@ func (ds *Datastore) SaveScheduledQuery(ctx context.Context, sq *fleet.Scheduled
 func saveScheduledQueryDB(ctx context.Context, exec sqlx.ExecerContext, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
 	query := `
 		UPDATE scheduled_queries
-			SET pack_id = ?, query_id = ?, ` + "`interval`" + ` = ?, snapshot = ?, removed = ?, platform = ?, version = ?, shard = ?, denylist = ?
+			SET pack_id = ?, query_id = ?, ` + "`interval`" + ` = ?, snapshot = ?, removed = ?, platform = ?, version = ?, shard = ?, denylist = ?, startup_priority = ?
 			WHERE id = ?
 	`
-	result, err := exec.ExecContext(ctx, query, sq.PackID, sq.QueryID, sq.Interval, sq.Snapshot, sq.Removed, sq.Platform, sq.Version, sq.Shard, sq.Denylist, sq.ID)
+	result, err := exec.ExecContext(ctx, query, sq.PackID, sq.QueryID, sq.Interval, sq.Snapshot, sq.Removed, sq.Platform, sq.Version, sq.Shard, sq.Denylist, sq.StartupPriority, sq.ID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "saving a scheduled query")
 	}
@@ -229,6 +232,7 @@ func (ds *Datastore) ScheduledQuery(ctx context.Context, id uint) (*fleet.Schedu
 			sq.query_name,
 			sq.description,
 			sq.denylist,
+			sq.startup_priority,
 			q.query,
 			q.name,
 			q.id AS query_id

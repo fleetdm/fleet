@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"gopkg.in/guregu/null.v3"
 )
@@ -50,6 +51,8 @@ type ScheduledQuery struct {
 	// (when stopped by the Watchdog for excessive resource consumption),
 	// default is true.
 	Denylist *bool `json:"denylist"`
+	// StartupPriority sets the query's execution order during osquery startup.
+	StartupPriority *uint64 `json:"startup_priority,omitempty" db:"startup_priority"`
 
 	AggregatedStats `json:"stats,omitempty"`
 
@@ -90,6 +93,10 @@ func (q *ScheduledQuery) Copy() *ScheduledQuery {
 	if q.Denylist != nil {
 		clone.Denylist = ptr.Bool(*q.Denylist)
 	}
+	if q.StartupPriority != nil {
+		startupPriority := *q.StartupPriority
+		clone.StartupPriority = &startupPriority
+	}
 
 	if q.AggregatedStats.SystemTimeP50 != nil {
 		clone.AggregatedStats.SystemTimeP50 = ptr.Float64(*q.AggregatedStats.SystemTimeP50)
@@ -128,15 +135,16 @@ type AggregatedStats struct {
 }
 
 type ScheduledQueryPayload struct {
-	PackID   *uint     `json:"pack_id"`
-	QueryID  *uint     `json:"query_id" renameto:"report_id"`
-	Interval *uint     `json:"interval"`
-	Snapshot *bool     `json:"snapshot"`
-	Removed  *bool     `json:"removed"`
-	Platform *string   `json:"platform"`
-	Version  *string   `json:"version"`
-	Shard    *null.Int `json:"shard"`
-	Denylist *bool     `json:"denylist"`
+	PackID          *uint               `json:"pack_id"`
+	QueryID         *uint               `json:"query_id" renameto:"report_id"`
+	Interval        *uint               `json:"interval"`
+	Snapshot        *bool               `json:"snapshot"`
+	Removed         *bool               `json:"removed"`
+	Platform        *string             `json:"platform"`
+	Version         *string             `json:"version"`
+	Shard           *null.Int           `json:"shard"`
+	Denylist        *bool               `json:"denylist"`
+	StartupPriority optjson.Any[uint64] `json:"startup_priority,omitzero"`
 }
 
 type ScheduledQueryStats struct {
@@ -213,6 +221,7 @@ func ScheduledQueryFromQuery(query *Query) *ScheduledQuery {
 		Removed:         removed,
 		Platform:        &query.Platform,
 		Version:         &query.MinOsqueryVersion,
+		StartupPriority: query.StartupPriority,
 		AggregatedStats: query.AggregatedStats,
 	}
 }
@@ -229,14 +238,19 @@ func ScheduledQueryToQueryPayloadForNewQuery(originalQuery *Query, scheduledQuer
 		}
 	}
 	return QueryPayload{
-		Name:               &originalQuery.Name,
-		Description:        &originalQuery.Description,
-		Query:              &originalQuery.Query,
-		ObserverCanRun:     &originalQuery.ObserverCanRun,
-		TeamID:             originalQuery.TeamID,
-		Interval:           &scheduledQuery.Interval,
-		Platform:           scheduledQuery.Platform,
-		MinOsqueryVersion:  scheduledQuery.Version,
+		Name:              &originalQuery.Name,
+		Description:       &originalQuery.Description,
+		Query:             &originalQuery.Query,
+		ObserverCanRun:    &originalQuery.ObserverCanRun,
+		TeamID:            originalQuery.TeamID,
+		Interval:          &scheduledQuery.Interval,
+		Platform:          scheduledQuery.Platform,
+		MinOsqueryVersion: scheduledQuery.Version,
+		StartupPriority: optjson.Any[uint64]{
+			Set:   scheduledQuery.StartupPriority != nil,
+			Valid: scheduledQuery.StartupPriority != nil,
+			Value: ptr.ValOrZero(scheduledQuery.StartupPriority),
+		},
 		AutomationsEnabled: ptr.Bool(true),
 		Logging:            logging,
 	}
@@ -260,6 +274,7 @@ func ScheduledQueryPayloadToQueryPayloadForModifyQuery(payload ScheduledQueryPay
 		Interval:          payload.Interval,
 		Platform:          payload.Platform,
 		MinOsqueryVersion: payload.Version,
+		StartupPriority:   payload.StartupPriority,
 		Logging:           logging,
 	}
 }

@@ -158,6 +158,7 @@ func testPacksList(t *testing.T, ds *Datastore) {
 
 func setupPackSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.PackSpec {
 	zwass := test.NewUser(t, ds, "Zach", "zwass@example.com", true)
+	startupPriority := uint64(4)
 	queries := []*fleet.Query{
 		{Name: "foo", Description: "get the foos", Query: "select * from foo", Logging: fleet.LoggingSnapshot},
 		{Name: "bar", Description: "do some bars", Query: "select baz from bar", Logging: fleet.LoggingSnapshot},
@@ -217,10 +218,11 @@ func setupPackSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.PackSpec {
 			},
 			Queries: []fleet.PackSpecQuery{
 				{
-					QueryName:   queries[0].Name,
-					Name:        "q0",
-					Description: "test_foo",
-					Interval:    42,
+					QueryName:       queries[0].Name,
+					Name:            "q0",
+					Description:     "test_foo",
+					Interval:        42,
+					StartupPriority: &startupPriority,
 				},
 				{
 					QueryName: queries[0].Name,

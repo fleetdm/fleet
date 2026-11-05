@@ -95,14 +95,19 @@ func nullIntToPtrUint(v *null.Int) *uint {
 
 func teamScheduleQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*teamScheduleQueryRequest)
+	var startupPriority *uint64
+	if req.StartupPriority.Set && req.StartupPriority.Valid {
+		startupPriority = &req.StartupPriority.Value
+	}
 	resp, err := svc.TeamScheduleQuery(ctx, req.TeamID, &fleet.ScheduledQuery{
-		QueryID:  uintValueOrZero(req.QueryID),
-		Interval: uintValueOrZero(req.Interval),
-		Snapshot: req.Snapshot,
-		Removed:  req.Removed,
-		Platform: req.Platform,
-		Version:  req.Version,
-		Shard:    nullIntToPtrUint(req.Shard),
+		QueryID:         uintValueOrZero(req.QueryID),
+		Interval:        uintValueOrZero(req.Interval),
+		Snapshot:        req.Snapshot,
+		Removed:         req.Removed,
+		Platform:        req.Platform,
+		Version:         req.Version,
+		Shard:           nullIntToPtrUint(req.Shard),
+		StartupPriority: startupPriority,
 	})
 	if err != nil {
 		return teamScheduleQueryResponse{Err: err}, nil

@@ -354,6 +354,12 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 	if p.Interval != nil {
 		query.Interval = *p.Interval
 	}
+	if p.StartupPriority.Set {
+		query.StartupPriority = nil
+		if p.StartupPriority.Valid {
+			query.StartupPriority = &p.StartupPriority.Value
+		}
+	}
 	if p.Platform != nil {
 		query.Platform = *p.Platform
 	}
@@ -486,6 +492,12 @@ func (svc *Service) modifyLoadedQuery(ctx context.Context, query *fleet.Query, p
 	}
 	if p.Interval != nil {
 		query.Interval = *p.Interval
+	}
+	if p.StartupPriority.Set {
+		query.StartupPriority = nil
+		if p.StartupPriority.Valid {
+			query.StartupPriority = &p.StartupPriority.Value
+		}
 	}
 	if p.Platform != nil {
 		if !comparePlatforms(query.Platform, *p.Platform) {
@@ -945,6 +957,7 @@ func (svc *Service) queryFromSpec(ctx context.Context, spec *fleet.QuerySpec) (*
 
 		TeamID:             teamID,
 		Interval:           spec.Interval,
+		StartupPriority:    spec.StartupPriority,
 		ObserverCanRun:     spec.ObserverCanRun,
 		Platform:           spec.Platform,
 		MinOsqueryVersion:  spec.MinOsqueryVersion,
@@ -1007,6 +1020,7 @@ func (svc *Service) specFromQuery(ctx context.Context, query *fleet.Query) (*fle
 
 		TeamName:           teamName,
 		Interval:           query.Interval,
+		StartupPriority:    query.StartupPriority,
 		ObserverCanRun:     query.ObserverCanRun,
 		Platform:           query.Platform,
 		MinOsqueryVersion:  query.MinOsqueryVersion,

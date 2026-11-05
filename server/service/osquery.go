@@ -707,13 +707,14 @@ func (svc *Service) getPackConfig(ctx context.Context, host *fleet.Host, packs [
 		configQueries := fleet.Queries{}
 		for _, query := range queries {
 			queryContent := fleet.QueryContent{
-				Query:    query.Query,
-				Interval: query.Interval,
-				Platform: query.Platform,
-				Version:  query.Version,
-				Removed:  query.Removed,
-				Shard:    query.Shard,
-				Denylist: query.Denylist,
+				Query:           query.Query,
+				Interval:        query.Interval,
+				Platform:        query.Platform,
+				Version:         query.Version,
+				Removed:         query.Removed,
+				Shard:           query.Shard,
+				Denylist:        query.Denylist,
+				StartupPriority: query.StartupPriority,
 			}
 
 			if query.Removed != nil {
