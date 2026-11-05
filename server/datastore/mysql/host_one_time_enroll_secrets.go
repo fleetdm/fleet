@@ -848,11 +848,68 @@ func rejectSharedSecretForMDMManagedAndroidHost(ctx context.Context, hostID uint
 		"shared enroll secret presented for android host")
 }
 
-// rejectSharedSecretForAndroidDeviceID refuses a shared enroll secret that would insert a host whose hardware UUID or osquery
-// identifier is the enterprise-specific ID of an Android device Fleet manages. The device record outlives a deleted host, and
-// a row holding the ID would be matched by the Fleet Android agent's own enrollment (by osquery identifier) or adopted by Android
-// enrollment (by UUID), keeping the node key of whoever inserted it.
-func rejectSharedSecretForAndroidDeviceID(ctx context.Context, tx sqlx.QueryerContext, identifiers ...string) error {
+// isAndroidOneTimeEnrollSecret reports whether the one-time enroll secret was minted for an Android host.
+func isAndroidOneTimeEnrollSecret(ctx context.Context, tx sqlx.QueryerContext, secretID uint) (bool, error) {
+	var platforms []string
+	if err := sqlx.SelectContext(ctx, tx, &platforms, `SELECT platform FROM host_one_time_enroll_secrets WHERE id = ?`, secretID); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "load one-time enroll secret platform")
+	}
+	return len(platforms) == 1 && platforms[0] == "android", nil
+}
+
+// androidOneTimeSecretHost returns the Android host an Android one-time enroll secret is bound to, which the orbit enrollment
+// lands on whatever other row shares the device's identifiers, and whether the secret is an Android one at all. The host is
+// nil when the secret isn't an Android one or its host no longer exists. Matching by identifier would otherwise land on any
+// row already holding the device's ID as its osquery identifier (a legacy duplicate of the device, or a row another machine
+// enrolled with that ID), and the secret's host binding would refuse the real agent there for good. That row's osquery
+// identifier is cleared, since the identifier is unique and the bound host takes it.
+func (ds *Datastore) androidOneTimeSecretHost(
+	ctx context.Context, tx sqlx.ExtContext, secretID uint, osqueryIdentifier string,
+) (*enrolledHostInfo, bool, error) {
+	var rows []struct {
+		SecretPlatform string     `db:"secret_platform"`
+		ID             *uint      `db:"id"`
+		LastEnrolledAt *time.Time `db:"last_enrolled_at"`
+		NodeKeySet     bool       `db:"node_key_set"`
+		HasUUID        bool       `db:"has_uuid"`
+	}
+	if err := sqlx.SelectContext(ctx, tx, &rows, `
+		SELECT s.platform AS secret_platform, h.id, h.last_enrolled_at,
+			COALESCE(h.orbit_node_key IS NOT NULL, FALSE) AS node_key_set, COALESCE(h.uuid <> '', FALSE) AS has_uuid
+		FROM host_one_time_enroll_secrets s
+		LEFT JOIN hosts h ON h.id = s.host_id AND h.platform = 'android'
+		WHERE s.id = ?`, secretID); err != nil {
+		return nil, false, ctxerr.Wrap(ctx, err, "load host of android one-time enroll secret")
+	}
+	if len(rows) == 0 || rows[0].SecretPlatform != "android" {
+		return nil, false, nil
+	}
+	row := rows[0]
+	if row.ID == nil {
+		return nil, true, nil
+	}
+
+	res, err := tx.ExecContext(ctx, `UPDATE hosts SET osquery_host_id = NULL WHERE osquery_host_id = ? AND id <> ?`, osqueryIdentifier, *row.ID)
+	if err != nil {
+		return nil, true, ctxerr.Wrap(ctx, err, "detach osquery identifier from another host for android one-time enroll secret")
+	}
+	if n, _ := res.RowsAffected(); n > 0 {
+		ds.logger.WarnContext(ctx, "android one-time enroll secret: cleared the osquery identifier of another host holding the device's ID",
+			"host_id", *row.ID, "identifier", osqueryIdentifier)
+	}
+
+	info := &enrolledHostInfo{ID: *row.ID, NodeKeySet: row.NodeKeySet, Platform: "android", HasUUID: row.HasUUID}
+	if row.LastEnrolledAt != nil {
+		info.LastEnrolledAt = *row.LastEnrolledAt
+	}
+	return info, true, nil
+}
+
+// rejectAndroidDeviceIdentifiers refuses an enrollment whose hardware UUID or osquery identifier is the enterprise-specific ID
+// of an Android device Fleet manages, unless it presented that device's own one-time secret. The device record outlives a
+// deleted host, and a row holding the ID would be matched by the Fleet Android agent's own enrollment (by osquery identifier)
+// or adopted by Android enrollment (by UUID), keeping the node key of whoever enrolled it.
+func rejectAndroidDeviceIdentifiers(ctx context.Context, tx sqlx.QueryerContext, reason string, identifiers ...string) error {
 	var ids []string
 	for _, id := range identifiers {
 		if id != "" {
@@ -876,8 +933,8 @@ func rejectSharedSecretForAndroidDeviceID(ctx context.Context, tx sqlx.QueryerCo
 		return ctxerr.Wrap(ctx, err, "check android device with enrolling identifiers")
 	}
 	if len(devices) == 1 {
-		return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, HostID: devices[0].HostID},
-			"shared enroll secret presented for the identifier of an android device")
+		return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: reason, HostID: devices[0].HostID},
+			"enrollment presented the identifier of an android device")
 	}
 	return nil
 }

@@ -153,6 +153,24 @@ func TestOrbitEnrollUsesAgentEnrollSecret(t *testing.T) {
 	assert.Equal(t, "node-key", agent.orbitNodeKey)
 }
 
+func TestShouldOrbitEnroll(t *testing.T) {
+	agent := newTestAndroidAgent("http://proxy.invalid")
+	var fallbackTicks []int
+	for tick := 1; tick <= 30; tick++ {
+		if agent.shouldOrbitEnroll(tick) {
+			fallbackTicks = append(fallbackTicks, tick)
+		}
+	}
+	// Without the managed configuration's secret: once after the wait, then every sharedSecretFallbackEvery ticks.
+	assert.Equal(t, []int{4, 14, 24}, fallbackTicks)
+
+	agent.agentEnrollSecret = "one-time"
+	assert.True(t, agent.shouldOrbitEnroll(1))
+
+	agent.orbitNodeKey = "node-key"
+	assert.False(t, agent.shouldOrbitEnroll(1))
+}
+
 // TestCurrentStateRecoversLostRegistration covers the load-testing bug where a proxy that
 // lost its in-memory device state left the agent polling a 404 forever. The agent stopped
 // sending status reports, so Fleet's hourly reconciler marked the host unenrolled and MDM

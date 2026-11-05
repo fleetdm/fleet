@@ -516,7 +516,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 	if err != nil {
 		if rejected, ok := errors.AsType[*fleet.EnrollmentRejectedError](err); ok {
 			svc.recordEnrollmentRejected(ctx, rejected.Reason, rejectedHostID(rejected, oneTime), attempt)
-			svc.maybeResendAndroidAgentEnrollSecret(ctx, rejected)
+			svc.maybeResendAndroidAgentEnrollSecret(ctx, appConfig, rejected)
 			return "", fleet.NewAuthFailedError("invalid secret")
 		}
 		recordErrorDetail(ctx, err)

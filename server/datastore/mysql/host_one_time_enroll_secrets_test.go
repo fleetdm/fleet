@@ -41,6 +41,7 @@ func TestHostOneTimeEnrollSecrets(t *testing.T) {
 		{"FleetdProfileByTeamAndIdentifier", testFleetdProfileByTeamAndIdentifier},
 		{"AndroidMint", testOneTimeEnrollSecretAndroidMint},
 		{"AndroidRejectShared", testOneTimeEnrollSecretAndroidRejectShared},
+		{"AndroidOtherRowsHoldingTheDeviceID", testOneTimeEnrollSecretAndroidOtherRowsHoldingTheDeviceID},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1633,5 +1634,80 @@ func testOneTimeEnrollSecretAndroidRejectShared(t *testing.T, ds *Datastore) {
 		enrolled, err := ds.EnrollOrbit(ctx, androidAgentEnrollOpts(h.UUID, "android", reject, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
 		require.NoError(t, err)
 		require.Equal(t, recreated.Host.ID, enrolled.ID)
+	})
+}
+
+// testOneTimeEnrollSecretAndroidOtherRowsHoldingTheDeviceID covers rows other than the Android host that hold the device's ID:
+// a legacy duplicate of the device, or a row another machine enrolled with that ID.
+func testOneTimeEnrollSecretAndroidOtherRowsHoldingTheDeviceID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	reject := fleet.WithEnrollOrbitRejectSharedSecretForAndroidMDMHosts(true)
+	rejectOsquery := fleet.WithEnrollOsqueryRejectSharedSecretForAndroidMDMHosts(true)
+
+	// strayRow inserts a row holding the device's ID as its UUID and osquery identifier, the way orbit enrolls one.
+	strayRow := func(t *testing.T, esid, platform string) uint {
+		res, err := ds.writer(ctx).ExecContext(ctx, `
+			INSERT INTO hosts (osquery_host_id, uuid, node_key, orbit_node_key, platform, hostname)
+			VALUES (?, ?, ?, ?, ?, 'stray')`, esid, esid, uuid.NewString(), uuid.NewString(), platform)
+		require.NoError(t, err)
+		id, err := res.LastInsertId()
+		require.NoError(t, err)
+		return uint(id) //nolint:gosec // dismiss G115
+	}
+	osqueryHostIDOf := func(t *testing.T, hostID uint) *string {
+		var v *string
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &v, `SELECT osquery_host_id FROM hosts WHERE id = ?`, hostID))
+		return v
+	}
+
+	for _, strayPlatform := range []string{"android", "darwin"} {
+		t.Run("the agent's secret lands on its host past a "+strayPlatform+" row", func(t *testing.T) {
+			h := newOneTimeSecretAndroidHost(t, ds, nil)
+			stray := strayRow(t, h.UUID, strayPlatform)
+
+			secret, err := ds.MintAndroidOneTimeEnrollSecret(ctx, h.ID)
+			require.NoError(t, err)
+			row, err := ds.GetHostOneTimeEnrollSecret(ctx, secret)
+			require.NoError(t, err)
+			enrolled, err := ds.EnrollOrbit(ctx, androidAgentEnrollOpts(h.UUID, "android", reject, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
+			require.NoError(t, err)
+			require.Equal(t, h.ID, enrolled.ID)
+			require.NotNil(t, androidOrbitNodeKey(t, ds, h.ID))
+			require.Equal(t, &h.UUID, osqueryHostIDOf(t, h.ID))
+			require.Nil(t, osqueryHostIDOf(t, stray))
+		})
+	}
+
+	t.Run("a shared secret can't refresh a non-Android row holding the device's ID", func(t *testing.T) {
+		h := newOneTimeSecretAndroidHost(t, ds, nil)
+		stray := strayRow(t, h.UUID, "darwin")
+		_, err := ds.EnrollOrbit(ctx, androidAgentEnrollOpts(h.UUID, "darwin", reject)...)
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, &h.ID)
+		_, err = ds.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryHostID(h.UUID), fleet.WithEnrollOsqueryHardwareUUID(h.UUID), fleet.WithEnrollOsqueryNodeKey(uuid.NewString()), rejectOsquery)
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, &h.ID)
+		require.Equal(t, &h.UUID, osqueryHostIDOf(t, stray))
+
+		// Switch off: as before.
+		_, err = ds.EnrollOrbit(ctx, androidAgentEnrollOpts(h.UUID, "darwin")...)
+		require.NoError(t, err)
+	})
+
+	t.Run("another platform's one-time secret can't take the device's ID", func(t *testing.T) {
+		h := newOneTimeSecretAndroidHost(t, ds, nil)
+		device := insertWindowsEnrollment(t, ds, "hw-"+uuid.NewString(), "")
+		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
+		row := liveWindowsSecret(t, ds, device.ID)
+
+		_, err := ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{HardwareUUID: h.UUID, Platform: "windows"}),
+			fleet.WithEnrollOrbitNodeKey(uuid.NewString()), reject, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedUUIDOfAnotherMDMHost, &h.ID)
+
+		// The same secret with the Windows device's own ID still enrolls.
+		_, err = ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{HardwareUUID: uuid.NewString(), Platform: "windows"}),
+			fleet.WithEnrollOrbitNodeKey(uuid.NewString()), reject, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))
+		require.NoError(t, err)
 	})
 }

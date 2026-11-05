@@ -1554,11 +1554,11 @@ func testReconcilerSendsOneTimeEnrollSecrets(t *testing.T, ds fleet.Datastore, c
 	require.Equal(t, host.Host.ID, *row.HostID)
 
 	// The app list the reconciler sends includes the agent built the same way, with the same secret.
-	policy, err := reconciler.agentService().BuildFleetAgentApplicationPolicy(ctx, host.Host.UUID)
+	applications, err := reconciler.buildApplicationsWithAgent(ctx, &androidAppList{host: host.Host})
 	require.NoError(t, err)
-	require.NotNil(t, policy)
+	require.Len(t, applications, 1)
 	var managedConfig android.AgentManagedConfiguration
-	require.NoError(t, json.Unmarshal(policy.ManagedConfiguration, &managedConfig))
+	require.NoError(t, json.Unmarshal(applications[0].ManagedConfiguration, &managedConfig))
 	require.Equal(t, sentSecret, managedConfig.EnrollSecret)
 }
 

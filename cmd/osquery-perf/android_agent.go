@@ -673,8 +673,7 @@ func (a *androidAgent) runLoop() {
 		}
 		if a.orbitNodeKey == "" {
 			ticksWithoutAgentSecret++
-			// The shared secret is a fallback for a proxy too old to report the managed configuration's secret.
-			if a.agentEnrollSecret != "" || ticksWithoutAgentSecret > maxTicksWithoutAgentSecret {
+			if a.shouldOrbitEnroll(ticksWithoutAgentSecret) {
 				if err := a.orbitEnroll(); err != nil {
 					log.Printf("Android agent %d: orbit enrollment failed: %v", a.agentIndex, err)
 					a.stats.IncrementAndroidErrors()
@@ -807,6 +806,24 @@ var errProxyDeviceDeleted = errors.New("device was deleted from the proxy")
 // maxTicksWithoutAgentSecret is how many status reports an agent that hasn't enrolled orbit waits for the proxy to report the
 // enroll secret in its managed configuration before enrolling with the shared one.
 const maxTicksWithoutAgentSecret = 3
+
+// sharedSecretFallbackEvery spaces out later attempts with the shared secret, which Fleet refuses when one-time enroll secrets
+// are on, so a configuration that never arrives doesn't turn every status report into a refused enrollment.
+const sharedSecretFallbackEvery = 10
+
+// shouldOrbitEnroll reports whether a status report tick of an agent without an orbit node key should try to enroll orbit:
+// on every tick once the proxy reports the managed configuration's enroll secret, otherwise with the shared secret after
+// maxTicksWithoutAgentSecret ticks and then every sharedSecretFallbackEvery ticks, for a proxy too old to report it.
+func (a *androidAgent) shouldOrbitEnroll(ticksWithoutNodeKey int) bool {
+	if a.orbitNodeKey != "" {
+		return false
+	}
+	if a.agentEnrollSecret != "" {
+		return true
+	}
+	past := ticksWithoutNodeKey - maxTicksWithoutAgentSecret
+	return past > 0 && (past-1)%sharedSecretFallbackEvery == 0
+}
 
 // maxStaleStateReports bounds how many consecutive status reports may be sent from a stale
 // cached state, so a permanently broken agent stops looking healthy.

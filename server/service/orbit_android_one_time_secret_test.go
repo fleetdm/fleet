@@ -152,6 +152,42 @@ func TestEnrollOrbitAndroidOneTimeSecret(t *testing.T) {
 		require.Empty(t, *jobs)
 	})
 
+	t.Run("no resend while Android MDM is off", func(t *testing.T) {
+		f, jobs := newFixture(t, true)
+		f.ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+		rejectWith(f, fleet.EnrollmentRejectedOneTimeSecretSpent, &androidHostID)
+		_, err := f.svc.EnrollOrbit(f.ctx, androidInfo, f.row.Secret, "")
+		require.Error(t, err)
+		require.Empty(t, *jobs)
+		require.False(t, f.ds.GetEnterpriseFuncInvoked)
+	})
+
+	t.Run("a failed resend still waits out the window", func(t *testing.T) {
+		f, jobs := newFixture(t, true)
+		rejectWith(f, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, &androidHostID)
+		var enterpriseLookups int
+		f.ds.GetEnterpriseFunc = func(ctx context.Context) (*android.Enterprise, error) {
+			enterpriseLookups++
+			return nil, errors.New("database unavailable")
+		}
+		for range 3 {
+			_, err := f.svc.EnrollOrbit(f.ctx, androidInfo, "shared-secret", "")
+			require.Error(t, err)
+		}
+		require.Equal(t, 1, enterpriseLookups)
+		require.Empty(t, *jobs)
+	})
+
+	t.Run("the host's secret is refused while the Android switch is off", func(t *testing.T) {
+		// Another platform's switch is on, so the one-time lookup runs and finds the Android secret, but doesn't honor it.
+		f, jobs := newFixture(t, false)
+		_, err := f.svc.EnrollOrbit(f.ctx, androidInfo, f.row.Secret, "")
+		var authErr *fleet.AuthFailedError
+		require.ErrorAs(t, err, &authErr)
+		require.False(t, f.ds.EnrollOrbitFuncInvoked)
+		require.Empty(t, *jobs)
+	})
+
 	t.Run("a spent secret resends the agent configuration", func(t *testing.T) {
 		f, jobs := newFixture(t, true)
 		rejectWith(f, fleet.EnrollmentRejectedOneTimeSecretSpent, &androidHostID)

@@ -167,9 +167,10 @@ func rejectSharedSecretForAndroidMDMHosts(mdmConfig config.MDMConfig, appConfig 
 // secret, after a shared or spent secret was refused for an Android host. A device that enrolled before the setting was turned on, or
 // whose secret is spent, still has an unusable secret in its configuration and would otherwise keep being refused. The resend
 // goes only to the real device through Android management, so a refused impersonator gains nothing from triggering it. It is
-// rate limited per host, is skipped when the rate limit can't be checked, and never fails the caller.
-func (svc *Service) maybeResendAndroidAgentEnrollSecret(ctx context.Context, rejected *fleet.EnrollmentRejectedError) {
-	if !svc.config.MDM.AndroidOneTimeEnrollSecrets || rejected.HostID == nil {
+// rate limited per host, whether or not queueing succeeds, is skipped when the rate limit can't be checked, and never fails
+// the caller.
+func (svc *Service) maybeResendAndroidAgentEnrollSecret(ctx context.Context, appConfig *fleet.AppConfig, rejected *fleet.EnrollmentRejectedError) {
+	if !rejectSharedSecretForAndroidMDMHosts(svc.config.MDM, appConfig) || rejected.HostID == nil {
 		return
 	}
 	switch rejected.Reason {
@@ -198,6 +199,11 @@ func (svc *Service) maybeResendAndroidAgentEnrollSecret(ctx context.Context, rej
 	case existing != nil:
 		return
 	}
+	// Reserved before queueing, so a failure is logged at most once per window rather than on every refused attempt.
+	if err := svc.keyValueStore.Set(ctx, rateLimitKey, "1", androidAgentEnrollSecretResendTTL); err != nil {
+		svc.logger.ErrorContext(ctx, "setting android agent enroll secret resend rate limit", "err", err)
+		return
+	}
 
 	enterprise, err := svc.ds.GetEnterprise(ctx)
 	if err != nil {
@@ -206,11 +212,6 @@ func (svc *Service) maybeResendAndroidAgentEnrollSecret(ctx context.Context, rej
 	}
 	if err := worker.QueueSendAndroidFleetAgentConfig(ctx, svc.ds, svc.logger, host.UUID, enterprise.Name()); err != nil {
 		svc.logger.ErrorContext(ctx, "queue android agent enroll secret resend", "err", err, "host_id", host.ID)
-		return
-	}
-
-	if err := svc.keyValueStore.Set(ctx, rateLimitKey, "1", androidAgentEnrollSecretResendTTL); err != nil {
-		svc.logger.ErrorContext(ctx, "setting android agent enroll secret resend rate limit", "err", err)
 	}
 }
 
