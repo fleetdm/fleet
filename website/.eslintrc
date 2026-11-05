@@ -54,6 +54,7 @@
     "MicrosoftComplianceTenant": true,
     "AndroidEnterprise": true,
     "RenderProofOfValue": true,
+    "GoogleConditionalAccessServer": true,
     // …and any others.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   },
