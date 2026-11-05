@@ -16,18 +16,27 @@ $paths = @(
 )
 
 function Get-PerUserExitCode {
-  $entries = @()
+  $found = @()
   foreach ($hive in (Get-ChildItem 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue)) {
     if ($hive.PSChildName -notmatch '^(S-1-5-18|S-1-5-21-[\d-]+|S-1-12-1-[\d-]+)$') { continue }
     foreach ($view in @('SOFTWARE\Microsoft', 'SOFTWARE\WOW6432Node\Microsoft')) {
-      $entries += @(Get-ItemProperty "Registry::$($hive.Name)\$view\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue | Where-Object {
+      $found += @(Get-ItemProperty "Registry::$($hive.Name)\$view\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue | Where-Object {
         $_.DisplayName -like $displayNameLike -and $_.Publisher -like $publisherLike
-      })
+      } | ForEach-Object { "$($_.DisplayName) [$($_.PSPath -replace '^.*::', '')]" })
     }
   }
-  if ($entries.Count -eq 0) { return 0 }
+  # Signed-out users' hives aren't loaded, so look for the uninstaller in the default per-user folder.
+  foreach ($profileKey in (Get-ChildItem 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList' -ErrorAction SilentlyContinue)) {
+    $sid = $profileKey.PSChildName
+    if ($sid -notmatch '^S-1-(5-21|12-1)-[\d-]+$' -or (Test-Path "Registry::HKEY_USERS\$sid")) { continue }
+    $profilePath = (Get-ItemProperty $profileKey.PSPath -ErrorAction SilentlyContinue).ProfileImagePath
+    if (-not $profilePath) { continue }
+    $installDir = Join-Path $profilePath 'AppData\Local\Programs\Rocket.Chat'
+    if (Test-Path -LiteralPath (Join-Path $installDir 'Uninstall Rocket.Chat.exe')) { $found += "$installDir (user not signed in)" }
+  }
+  if ($found.Count -eq 0) { return 0 }
   Write-Host "Rocket.Chat is still installed per user. Uninstall it as that user:"
-  foreach ($e in $entries) { Write-Host "  - $($e.DisplayName) [$($e.PSPath -replace '^.*::', '')]" }
+  foreach ($f in $found) { Write-Host "  - $f" }
   return 1
 }
 
