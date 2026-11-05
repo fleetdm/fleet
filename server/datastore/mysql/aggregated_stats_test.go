@@ -205,8 +205,13 @@ func TestDeleteOrphanedQueryStats(t *testing.T) {
 	_, err := ds.writer(ctx).ExecContext(ctx, `INSERT INTO aggregated_stats (id, type, global_stats, json_value) VALUES (?, ?, 0, '{}')`,
 		deleted.ID, aggregatedStatsTypeMunkiVersions)
 	require.NoError(t, err)
-	// Delete only the report row, leaving its stats behind like a failed deleteQueryStats.
-	_, err = ds.writer(ctx).ExecContext(ctx, `DELETE FROM queries WHERE id = ?`, deleted.ID)
+	// A deleted report with an aggregated row but no stats rows left.
+	aggOnly := test.NewQuery(t, ds, nil, "aggregated only", "select 3", 0, true)
+	_, err = ds.writer(ctx).ExecContext(ctx, `INSERT INTO aggregated_stats (id, type, global_stats, json_value) VALUES (?, ?, 0, '{}')`,
+		aggOnly.ID, fleet.AggregatedStatsTypeScheduledQuery)
+	require.NoError(t, err)
+	// Delete only the report rows, leaving their stats behind like a failed deleteQueryStats.
+	_, err = ds.writer(ctx).ExecContext(ctx, `DELETE FROM queries WHERE id IN (?, ?)`, deleted.ID, aggOnly.ID)
 	require.NoError(t, err)
 
 	require.NoError(t, ds.DeleteOrphanedQueryStats(ctx))
