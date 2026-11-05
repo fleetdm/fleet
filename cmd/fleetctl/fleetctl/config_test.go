@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/urfave/cli/v2"
 )
 
 func TestConfigCommand(t *testing.T) {
@@ -248,11 +249,16 @@ func TestConfigGetShowsHelp(t *testing.T) {
 	})
 }
 
-func TestConfigPathFromEnv(t *testing.T) {
-	t.Setenv("CONFIG", "")
-	require.Equal(t, defaultConfigPath(), configPathFromEnv())
-
-	custom := filepath.Join(t.TempDir(), "fleetctl-config")
-	t.Setenv("CONFIG", custom)
-	require.Equal(t, custom, configPathFromEnv())
+// package reads the fleet name from the same config file
+// as other commands: --config, CONFIG, or the default.
+func TestPackageConfigFlag(t *testing.T) {
+	var flag *cli.StringFlag
+	for _, f := range packageCommand().Flags {
+		if sf, ok := f.(*cli.StringFlag); ok && sf.Name == "config" {
+			flag = sf
+		}
+	}
+	require.NotNil(t, flag)
+	require.Equal(t, []string{"CONFIG"}, flag.EnvVars)
+	require.Equal(t, defaultConfigPath(), flag.Value)
 }

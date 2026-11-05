@@ -26,7 +26,7 @@ func TestPackage(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("USERPROFILE", home)
-	t.Setenv("CONFIG", "") // fleetctl reads it before the default config path
+	t.Setenv("CONFIG", "") // empty: only an explicit --config gives the lookup a config, never the developer's own
 
 	updateOpt := update.DefaultOptions
 	updateOpt.RootDirectory = t.TempDir()
@@ -83,7 +83,7 @@ func TestPackage(t *testing.T) {
 		t.Cleanup(func() { os.Remove("fleet-linux-arm64-workstations-canary-1.deb") })
 		fleetctltest.RunAppForTest(t, []string{
 			"package", "--type=deb", "--arch=arm64", "--insecure", "--disable-open-folder",
-			"--fleet-url=" + server.URL, "--enroll-secret=canary-secret",
+			"--fleet-url=" + server.URL, "--enroll-secret=canary-secret", "--config=" + filepath.Join(home, ".fleet", "config"),
 		})
 		info, err := os.Stat("fleet-linux-arm64-workstations-canary-1.deb")
 		require.NoError(t, err)

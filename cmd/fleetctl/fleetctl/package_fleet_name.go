@@ -19,8 +19,8 @@ import (
 	zlog "github.com/rs/zerolog/log"
 )
 
-// fleetNameLookupTimeout bounds the whole lookup: the API client has no timeout of its own, and a wrong --fleet-url
-// must not stall the package build.
+// fleetNameLookupTimeout bounds the whole lookup: fleetctl's API client opts out of the default HTTP timeout, and a
+// wrong --fleet-url must not stall the package build.
 var fleetNameLookupTimeout = 10 * time.Second
 
 // packageFleet is what the package file name needs about the fleet an enroll secret belongs to: its name, and its ID
@@ -77,10 +77,10 @@ func fleetForPackage(configPath, fleetURL, enrollSecret string, errWriter io.Wri
 		if timeout <= 0 {
 			break
 		}
-		fleet, err := fleetFromServer(config.Contexts[name], enrollSecret, timeout)
+		found, err := fleetFromServer(config.Contexts[name], enrollSecret, timeout)
 		switch {
-		case err == nil && fleet.Name != "":
-			return fleet
+		case err == nil && found.Name != "":
+			return found
 		case err == nil:
 			listed = true
 			zlog.Debug().Str("context", name).Msg("fleet name lookup: no fleet visible to this user has the enroll secret")
