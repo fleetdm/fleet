@@ -57,6 +57,12 @@ var policyAutomationActivityAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"activity_type": "t.activity_type",
 }
 
+var policyAutomationActivityBranchOrderKeys = map[string]string{
+	"id":            "ap.id",
+	"created_at":    "ap.created_at",
+	"activity_type": "ap.activity_type",
+}
+
 // ListHostUpcomingActivities returns the list of activities pending execution
 // or processing for the specific host. It is the "unified queue" of work to be
 // done on the host. That queue is "virtual" in the sense that it pulls from a
@@ -245,7 +251,12 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'command_uuid', ua.execution_id,
 				'self_service', ua.payload->'$.self_service' IS TRUE,
 				'status', 'pending_install',
-				'host_platform', h.platform
+				'host_platform', h.platform,
+				'vpp_token', IF(vt.id IS NULL, NULL, JSON_OBJECT(
+					'id', vt.id,
+					'location', vt.location,
+					'country_code', COALESCE(vt.country_code, '')
+				))
 			) AS details,
 			IF(ua.activated_at IS NULL, 0, 1) as topmost,
 			ua.priority as priority,
@@ -254,6 +265,8 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			upcoming_activities ua
 		INNER JOIN
 			vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
+		LEFT JOIN
+			vpp_tokens vt ON vt.id = vaua.vpp_token_id
 		LEFT OUTER JOIN
 			users u ON ua.user_id = u.id
 		LEFT OUTER JOIN
@@ -1285,6 +1298,12 @@ WHERE command_uuid = ?
 				act.FromAutoUpdate = inst.FromAutoUpdate
 				act.FromConfigurationResend = inst.FromConfigurationResend
 				entry.User, entry.AppStoreActivity = user, act
+				if act.PolicyID != nil {
+					err = incrementHostPolicyAutomationRunCountDB(ctx, tx, *act.PolicyID, act.HostID, act, false)
+					if err != nil {
+						return err
+					}
+				}
 			case softwareTypeInHouseApp:
 				user, act, err := ds.getPastActivityDataForInHouseAppInstallDB(ctx, tx, cmdResults)
 				if err != nil {
@@ -1756,7 +1775,7 @@ func (ds *Datastore) activateNextVPPAppInstallActivity(ctx context.Context, tx s
 INSERT INTO
 	host_vpp_software_installs
 (host_id, adam_id, platform, command_uuid,
-	user_id, associated_event_id, self_service, policy_id, vpp_app_team_id)
+	user_id, associated_event_id, self_service, policy_id, vpp_app_team_id, vpp_token_id)
 SELECT
 	ua.host_id,
 	vaua.adam_id,
@@ -1766,7 +1785,8 @@ SELECT
 	ua.payload->>'$.associated_event_id',
 	COALESCE(ua.payload->'$.self_service', 0),
 	vaua.policy_id,
-	vaua.vpp_app_team_id
+	vaua.vpp_app_team_id,
+	vaua.vpp_token_id
 FROM
 	upcoming_activities ua
 	INNER JOIN vpp_app_upcoming_activities vaua
@@ -2099,6 +2119,11 @@ type policyAutomationTaskBranch struct {
 	// statusOutputCols type guarantees the columns and their order stay in sync
 	// with every other branch.
 	statusCols statusOutputCols
+	// policyCond is the WHERE fragment matching the policy, with one placeholder for the policy ID.
+	policyCond string
+	// countedInRunCounts is set for activity types whose total comes from host_policy_automation_run_counts instead of
+	// counting the branch's rows.
+	countedInRunCounts bool
 }
 
 // policyAutomationTaskBranches are the non-named-automation sources of policy
@@ -2106,7 +2131,9 @@ type policyAutomationTaskBranch struct {
 // policy_id column rather than through activity_past.details.policy_id.
 var policyAutomationTaskBranches = []policyAutomationTaskBranch{
 	{
-		activityType: "ran_script",
+		activityType:       "ran_script",
+		policyCond:         "ap.policy_id = ?",
+		countedInRunCounts: true,
 		joins: `
             INNER JOIN host_script_results hsr
                 ON  hsr.host_id      = ahp.host_id
@@ -2120,7 +2147,9 @@ var policyAutomationTaskBranches = []policyAutomationTaskBranch{
 		},
 	},
 	{
-		activityType: "installed_software",
+		activityType:       "installed_software",
+		policyCond:         "ap.policy_id = ?",
+		countedInRunCounts: true,
 		joins: `
             INNER JOIN host_software_installs hsi
                 ON  hsi.host_id      = ahp.host_id
@@ -2148,7 +2177,9 @@ var policyAutomationTaskBranches = []policyAutomationTaskBranch{
 		},
 	},
 	{
-		activityType: "installed_app_store_app",
+		activityType:       "installed_app_store_app",
+		policyCond:         "ap.policy_id = ?",
+		countedInRunCounts: true,
 		joins: `
             INNER JOIN host_vpp_software_installs hvsi
                 ON  hvsi.host_id      = ahp.host_id
@@ -2178,6 +2209,9 @@ var policyAutomationTaskBranches = []policyAutomationTaskBranch{
             INNER JOIN patch_notification_apps pna
                 ON  pna.notification_uuid = ap.details->>'$.patch_notification_uuid'
                 AND pna.policy_id         = ?`,
+		// Skip reading the patch notification activities of every policy when this policy has no patch notifications.
+		// NO_SEMIJOIN keeps MySQL from joining it per activity row, so the check runs once before any row is read.
+		policyCond:  "EXISTS (SELECT /*+ NO_SEMIJOIN() */ 1 FROM patch_notification_apps WHERE policy_id = ?)",
 		errorCond:   "ap.details->>'$.status' = 'failed'",
 		successCond: "NOT (ap.details->>'$.status' <=> 'failed')",
 		statusCols: statusOutputCols{
@@ -2187,11 +2221,19 @@ var policyAutomationTaskBranches = []policyAutomationTaskBranch{
 	},
 }
 
+// policyAutomationRunCountsSQL sums a policy's script, software install and VPP install runs from
+// host_policy_automation_run_counts. The first %s picks the summed columns and the second is the team filter on h.
+const policyAutomationRunCountsSQL = `SELECT COALESCE(SUM(%s), 0) FROM host_policy_automation_run_counts c
+    JOIN hosts h ON h.id = c.host_id
+    WHERE c.policy_id = ? AND %s`
+
 // policyAutomationBranch is a single UNION ALL branch: a complete SELECT (minus
 // the optional host-name filter) together with its bound arguments.
 type policyAutomationBranch struct {
 	sql  string
 	args []any
+	// countRows is set when the total counts the branch's rows.
+	countRows bool
 }
 
 // buildPolicyAutomationBranches assembles every UNION branch contributing to
@@ -2200,7 +2242,7 @@ type policyAutomationBranch struct {
 func buildPolicyAutomationBranches(ds *Datastore, policyID uint, filter fleet.TeamFilter, status string) ([]policyAutomationBranch, error) {
 	teamFilterSQL := ds.whereFilterHostsByTeams(filter, "h")
 	// Named automation activities (webhook/ticket/calendar/CA) are selected by
-	// activity_type and linked to the policy through activity_past.details.policy_id. The
+	// activity_type and linked to the policy through activity_past.policy_id. The
 	// status filter chooses which set of types to match.
 	namedTypes := policyAutomationActivityTypes
 	switch status {
@@ -2211,12 +2253,12 @@ func buildPolicyAutomationBranches(ds *Datastore, policyID uint, filter fleet.Te
 	}
 	namedSQL, namedArgs, err := sqlx.In(fmt.Sprintf(`SELECT %s, %s FROM activity_past ap %s
         WHERE ap.activity_type IN (?)
-          AND ap.details->>'$.policy_id' = ?
+          AND ap.policy_id = ?
           AND %s`, policyAutomationCols, policyAutomationNamedStatusCols.sql(), policyAutomationHostJoin, teamFilterSQL), namedTypes, policyID)
 	if err != nil {
 		return nil, err
 	}
-	branches := []policyAutomationBranch{{sql: namedSQL, args: namedArgs}}
+	branches := []policyAutomationBranch{{sql: namedSQL, args: namedArgs, countRows: true}}
 
 	// Task activities are linked to the policy through a result table; their
 	// success/failure condition is appended based on the requested status.
@@ -2225,14 +2267,15 @@ func buildPolicyAutomationBranches(ds *Datastore, policyID uint, filter fleet.Te
 		// bound before the activity_type placeholder.
 		sql := fmt.Sprintf("SELECT %s, %s FROM activity_past ap %s %s WHERE ap.activity_type = ? AND %s",
 			policyAutomationCols, b.statusCols.sql(), policyAutomationHostJoin, b.joins, teamFilterSQL)
-		args := []any{policyID, b.activityType}
+		sql += " AND " + b.policyCond
+		args := []any{policyID, b.activityType, policyID}
 		switch status {
 		case "error":
 			sql += " AND (" + b.errorCond + ")"
 		case "success":
 			sql += " AND (" + b.successCond + ")"
 		}
-		branches = append(branches, policyAutomationBranch{sql: sql, args: args})
+		branches = append(branches, policyAutomationBranch{sql: sql, args: args, countRows: !b.countedInRunCounts})
 	}
 	return branches, nil
 }
@@ -2257,6 +2300,8 @@ func (ds *Datastore) ListPolicyAutomationActivities(ctx context.Context, policyI
 	// each branch's SQL and args in order.
 	parts := make([]string, 0, len(branches))
 	var allArgs []any
+	var countParts []string
+	var countArgs []any
 	var likeArg string
 	if opts.MatchQuery != "" {
 		// Escape LIKE wildcards so host names containing '_' or '%' match literally.
@@ -2264,21 +2309,74 @@ func (ds *Datastore) ListPolicyAutomationActivities(ctx context.Context, policyI
 		escaped = strings.ReplaceAll(escaped, "%", "\\%")
 		likeArg = escaped + "%"
 	}
+	// Break activity type ties by created_at in the opposite direction, which the policy_id, activity_type, created_at DESC
+	// index reads in order both ways.
+	if opts.OrderKey == "activity_type" {
+		opts.TestSecondaryOrderKey = "created_at"
+		opts.TestSecondaryOrderDirection = fleet.OrderDescending
+		if opts.OrderDirection == fleet.OrderDescending {
+			opts.TestSecondaryOrderDirection = fleet.OrderAscending
+		}
+	}
+	// Sort and cut each branch to the rows up to the end of the requested page, so a branch reads only those rows from the
+	// index instead of the policy's whole history. Skip it for cursor pagination, which filters after the cut.
+	var branchOrderAndLimit string
+	branchOrderColumn, orderKeyAllowed := policyAutomationActivityBranchOrderKeys[opts.OrderKey]
+	if orderKeyAllowed && opts.After == "" {
+		perPage := opts.PerPage
+		if perPage == 0 {
+			perPage = fleet.DefaultPerPage
+		}
+		direction := "ASC"
+		if opts.OrderDirection == fleet.OrderDescending {
+			direction = "DESC"
+		}
+		branchOrder := branchOrderColumn + " " + direction
+		secondaryOrderColumn, secondaryOrderKeyAllowed := policyAutomationActivityBranchOrderKeys[opts.TestSecondaryOrderKey]
+		if secondaryOrderKeyAllowed {
+			secondaryDirection := "ASC"
+			if opts.TestSecondaryOrderDirection == fleet.OrderDescending {
+				secondaryDirection = "DESC"
+			}
+			branchOrder += ", " + secondaryOrderColumn + " " + secondaryDirection
+		}
+		branchOrderAndLimit = fmt.Sprintf(" ORDER BY %s LIMIT %d", branchOrder, (opts.Page+1)*perPage+1)
+	}
+
 	for _, b := range branches {
 		sql, args := b.sql, b.args
 		if opts.MatchQuery != "" {
 			sql += " AND hdn.display_name LIKE ?"
 			args = append(args, likeArg)
 		}
-		parts = append(parts, "("+sql+")")
+		parts = append(parts, "("+sql+branchOrderAndLimit+")")
 		allArgs = append(allArgs, args...)
+
+		if b.countRows {
+			countParts = append(countParts, "("+sql+")")
+			countArgs = append(countArgs, args...)
+		}
+	}
+
+	runCountColumns := "c.success_count + c.fail_count"
+	switch status {
+	case "error":
+		runCountColumns = "c.fail_count"
+	case "success":
+		runCountColumns = "c.success_count"
+	}
+	runCountSQL := fmt.Sprintf(policyAutomationRunCountsSQL, runCountColumns, ds.whereFilterHostsByTeams(filter, "h"))
+	countArgs = append(countArgs, policyID)
+	if opts.MatchQuery != "" {
+		runCountSQL += " AND c.host_id IN (SELECT host_id FROM host_display_names WHERE display_name LIKE ?)"
+		countArgs = append(countArgs, likeArg)
 	}
 
 	// Wrap the UNION in a subquery so ORDER BY / cursor pagination apply to the
 	// combined result set rather than to any single branch.
 	unionCore := strings.Join(parts, " UNION ALL ")
 	listSQL := fmt.Sprintf("SELECT * FROM (%s) AS t", unionCore)
-	countSQL := fmt.Sprintf("SELECT COUNT(*) FROM (%s) AS t_cnt", unionCore)
+	countSQL := fmt.Sprintf("SELECT (SELECT COUNT(*) FROM (%s) AS t_cnt) + (%s)", strings.Join(countParts, " UNION ALL "), runCountSQL)
 
 	listSQL, listArgs, err := appendListOptionsWithCursorToSQLSecure(listSQL, allArgs, &opts, policyAutomationActivityAllowedOrderKeys)
 	if err != nil {
@@ -2293,7 +2391,7 @@ func (ds *Datastore) ListPolicyAutomationActivities(ctx context.Context, policyI
 	var meta *fleet.PaginationMetadata
 	if opts.IncludeMetadata {
 		var count uint
-		if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, countSQL, allArgs...); err != nil {
+		if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, countSQL, countArgs...); err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "count policy automation activities")
 		}
 		meta = &fleet.PaginationMetadata{
@@ -2307,4 +2405,22 @@ func (ds *Datastore) ListPolicyAutomationActivities(ctx context.Context, policyI
 	}
 
 	return activities, meta, nil
+}
+
+func (ds *Datastore) IncrementHostPolicyAutomationRunCount(ctx context.Context, policyID uint, hostID uint, activity fleet.ActivityDetails, succeeded bool) error {
+	return incrementHostPolicyAutomationRunCountDB(ctx, ds.writer(ctx), policyID, hostID, activity, succeeded)
+}
+
+func incrementHostPolicyAutomationRunCountDB(ctx context.Context, tx sqlx.ExecerContext, policyID uint, hostID uint, activity fleet.ActivityDetails, succeeded bool) error {
+	const stmt = `
+		INSERT INTO host_policy_automation_run_counts (policy_id, activity_type, host_id, success_count, fail_count)
+		VALUES (?, ?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE
+			success_count = success_count + VALUES(success_count),
+			fail_count = fail_count + VALUES(fail_count)`
+	_, err := tx.ExecContext(ctx, stmt, policyID, activity.ActivityName(), hostID, succeeded, !succeeded)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "increment host policy automation run count")
+	}
+	return nil
 }

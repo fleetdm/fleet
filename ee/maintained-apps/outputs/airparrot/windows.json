@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.1.8.0",
+      "version": "3.1.11",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'AirParrot 3' AND publisher = 'Squirrels';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'AirParrot 3' AND publisher = 'Squirrels' AND version_compare(version, '3.1.8.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'AirParrot 3' AND publisher = 'Squirrels' AND version_compare(version, '3.1.11') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'airparrot.exe');"
       },
-      "installer_url": "https://download.airsquirrels.com/AirParrot3/Windows/AirParrot-3.1.8-64.msi?hsLang=de",
+      "installer_url": "https://download.airsquirrels.com/AirParrot3/Windows/AirParrot-3.1.11-64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "1ea2e3e7",
-      "sha256": "d83e6f6781a85514741c6bb8f3ded0ce3db9c8b9c2f3568b4269f1ba4fe122ad",
+      "sha256": "268dece0de90ecae9402ba2ddccd0b1a95365d64b9ff90b3270b76c999fb7c24",
       "default_categories": [
         "Productivity"
       ],

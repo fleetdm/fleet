@@ -15,6 +15,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -193,8 +194,8 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 			http.StatusOK, &addedMacOSApp)
 		s.lastActivityMatches(
 			fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-			fmt.Sprintf(`{"version_name": "Default version", "team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "fleet_id": %d, "platform": "%s", "self_service": false}`, team.Name, team.Name,
-				app.Name, getSoftwareTitleIDFromApp(app), app.AdamID, team.ID, team.ID, app.Platform),
+			withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "fleet_id": %d, "platform": "%s", "self_service": false}`, team.Name, team.Name,
+				app.Name, getSoftwareTitleIDFromApp(app), app.AdamID, team.ID, team.ID, app.Platform), validToken.Token),
 			0,
 		)
 		listSw = listSoftwareTitlesResponse{}
@@ -551,7 +552,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	assert.EqualValues(t, 1, hostActivitiesResp.Count)
 	assert.JSONEq(
 		t,
-		fmt.Sprintf(
+		withVPPToken(t, fmt.Sprintf(
 			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "software_display_name": null, "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "host_platform": "%s"}`,
 			mdmHost.ID,
 			mdmHost.DisplayName(),
@@ -561,7 +562,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 			fleet.SoftwareInstallPending,
 			false,
 			mdmHost.Platform,
-		),
+		), validToken.Token),
 		string(*hostActivitiesResp.Activities[0].Details),
 	)
 
@@ -597,7 +598,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 
 	s.lastActivityMatchesExtended(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(
+		withVPPToken(t, fmt.Sprintf(
 			`{"version_name": "Default version", "host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "policy_id": %d, "policy_name": "%s", "host_platform": "%s", "from_setup_experience": false, "from_auto_update": false, "from_configuration_resend": false}`,
 			mdmHost.ID,
 			mdmHost.DisplayName(),
@@ -609,7 +610,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 			policy1Team1.ID,
 			policy1Team1.Name,
 			mdmHost.Platform,
-		),
+		), validToken.Token),
 		0,
 		new(true),
 	)
@@ -672,7 +673,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	assert.EqualValues(t, 1, hostActivitiesResp.Count)
 	assert.JSONEq(
 		t,
-		fmt.Sprintf(
+		withVPPToken(t, fmt.Sprintf(
 			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "software_display_name": null, "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "host_platform": "%s"}`,
 			mdmHost2.ID,
 			mdmHost2.DisplayName(),
@@ -682,7 +683,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 			fleet.SoftwareInstallPending,
 			false,
 			mdmHost2.Platform,
-		),
+		), validToken.Token),
 		string(*hostActivitiesResp.Activities[0].Details),
 	)
 
@@ -715,7 +716,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 
 	s.lastActivityMatchesExtended(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(
+		withVPPToken(t, fmt.Sprintf(
 			`{"version_name": "Default version", "host_id": %d, "host_display_name": "%s", "host_platform": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "policy_id": %d, "policy_name": "%s", "from_setup_experience": false, "from_auto_update": false, "from_configuration_resend": false}`,
 			mdmHost2.ID,
 			mdmHost2.DisplayName(),
@@ -727,7 +728,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 			false,
 			policy3Team1.ID,
 			policy3Team1.Name,
-		),
+		), validToken.Token),
 		0,
 		new(true),
 	)
@@ -1372,6 +1373,23 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationsContinuousVPPAppRetryRese
 		"retry_count incremented on each RetryVPPInstall until it reaches MaxSoftwareInstallAttempts")
 	firstRowID := rows[0].ID
 
+	// read the policy's VPP run count for the host, only the final error after the retries should be counted as one failed run
+	var failCount uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &failCount, `
+			SELECT fail_count FROM host_policy_automation_run_counts
+			WHERE policy_id = ? AND activity_type = 'installed_app_store_app' AND host_id = ?
+		`, policy.ID, mdmHost.ID)
+	})
+	require.Equal(t, uint(1), failCount)
+
+	// read the install row after the final error, it should be failed so no later step treats it as pending
+	var verificationFailed bool
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &verificationFailed, `SELECT verification_failed_at IS NOT NULL FROM host_vpp_software_installs WHERE id = ?`, firstRowID)
+	})
+	require.True(t, verificationFailed)
+
 	// No more retries should fire once the cap is reached, even though the
 	// install never succeeded.
 	require.Never(t, func() bool {
@@ -1560,4 +1578,71 @@ func (s *integrationMDMTestSuite) TestVPPAutomationsOnAppConfigApply() {
 	require.Len(t, tokensResp.Tokens, 1)
 	require.NotNil(t, tokensResp.Tokens[0].Teams)
 	require.Empty(t, tokensResp.Tokens[0].Teams)
+}
+
+// applyVPPTokenAssignments saves each token in its own transaction while iterating a map, so a
+// swap between All fleets and a specific fleet has to work in either order.
+func (s *integrationMDMTestSuite) TestVPPTokenSwapOnAppConfigApply() {
+	t := s.T()
+
+	origLocation := s.appleVPPConfigSrvConfig.Location
+	t.Cleanup(func() { s.appleVPPConfigSrvConfig.Location = origLocation })
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL, t)
+
+	var fleetResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("Swap fleet")}, http.StatusOK, &fleetResp)
+	fleetF1 := fleetResp.Team
+
+	const locA, locB = "Swap token A", "Swap token B"
+	tokA, _ := s.uploadVPPToken("swap-a-secret", locA, "Fleet Device Management Inc.")
+	tokB, _ := s.uploadVPPToken("swap-b-secret", locB, "Fleet Device Management Inc.")
+
+	// A starts on All fleets and B on F1, with one of A's apps in F1.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", tokA.ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &patchVPPTokensTeamsResponse{})
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", tokB.ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{fleetF1.ID}}, http.StatusOK, &patchVPPTokensTeamsResponse{})
+	var addedApp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &fleetF1.ID, Platform: fleet.MacOSPlatform, AppStoreID: "1", VPPTokenID: new(tokA.ID)}, http.StatusOK, &addedApp)
+
+	allFleets := fleet.DisplayNameAllTeams
+	apply := func(teamsA, teamsB string) {
+		t.Helper()
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+			"mdm": { "volume_purchasing_program": [
+				{"location": %q, "teams": [%q]},
+				{"location": %q, "teams": [%q]}
+			] }
+		}`, locA, teamsA, locB, teamsB)), http.StatusOK, &appConfigResponse{})
+
+		var tokensResp getVPPTokensResponse
+		s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &tokensResp)
+		require.Len(t, tokensResp.Tokens, 2)
+		for _, tok := range tokensResp.Tokens {
+			want := map[uint]string{tokA.ID: teamsA, tokB.ID: teamsB}[tok.ID]
+			if want == allFleets {
+				require.NotNil(t, tok.Teams, tok.Location)
+				require.Empty(t, tok.Teams, tok.Location)
+			} else {
+				require.Len(t, tok.Teams, 1, tok.Location)
+				require.Equal(t, fleetF1.ID, tok.Teams[0].ID, tok.Location)
+			}
+		}
+
+		var titleResp getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", addedApp.TitleID), nil, http.StatusOK, &titleResp, "fleet_id", fmt.Sprint(fleetF1.ID))
+		require.NotNil(t, titleResp.SoftwareTitle.AppStoreApp)
+		require.NotNil(t, titleResp.SoftwareTitle.AppStoreApp.VPPToken)
+		require.Equal(t, tokA.ID, titleResp.SoftwareTitle.AppStoreApp.VPPToken.ID)
+	}
+
+	for range 10 {
+		apply(fleetF1.Name, allFleets)
+		apply(allFleets, fleetF1.Name)
+	}
+
+	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"mdm": { "volume_purchasing_program": [{"location": %q, "teams": [%q, %q]}] }
+	}`, locA, allFleets, fleetF1.Name)), http.StatusUnprocessableEntity)
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), fmt.Sprintf(`Couldn't apply. VPP token \"%s\" can't be assigned to All fleets and specific fleets at the same time.`, locA))
 }

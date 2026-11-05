@@ -61,6 +61,7 @@ const SoftwareInventory = ({
   const filterParams = {
     ...omit(filters, "types"),
     ...softwareTypesToApiParams(filters.types ?? []),
+    aiTool: filters.aiTool || undefined,
   };
 
   // for Titles view, request to get software data
@@ -161,6 +162,8 @@ const SoftwareInventory = ({
         teamId,
         availableForInstall: true,
         ...filterParams,
+        // The answer only picks empty-state copy, which ai_tool doesn't change.
+        aiTool: undefined,
       },
     ],
     ({ queryKey: [queryKey] }) =>

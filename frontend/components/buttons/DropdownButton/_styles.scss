@@ -31,6 +31,13 @@
   &__option {
     display: block;
 
+    // A GitOps-wrapped option renders a wrapper span around its button. Stretch
+    // it to the full item width so the row hover highlight is unchanged.
+    .gitops-mode-tooltip-wrapper {
+      display: block;
+      width: 100%;
+    }
+
     .button {
       color: $core-fleet-black;
       text-transform: none;
@@ -60,7 +67,7 @@
 
 .downcaret {
   &::after {
-    content: url("../assets/images/icon-chevron-white-16x16@2x.png");
+    content: url("./assets/images/icon-chevron-white-16x16@2x.png");
     transform: scale(0.5);
     width: 16px;
     border-radius: 0px;

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.2.1",
+      "version": "2026.2.3.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'JetBrains Rider %' AND publisher = 'JetBrains s.r.o.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'JetBrains Rider %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '262.9437.287') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'JetBrains Rider %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '262.10968.170') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('rider.exe','rider64.exe'));"
       },
-      "installer_url": "https://download.jetbrains.com/rider/JetBrains.Rider-2026.2.1.exe",
+      "installer_url": "https://download.jetbrains.com/rider/JetBrains.Rider-2026.2.3.1.exe",
       "install_script_ref": "d65fe1de",
       "uninstall_script_ref": "c5bf08c9",
-      "sha256": "5726b642fddc5b98aab88218344d53c489493cf6f8990c7d5379eee5e05f767b",
+      "sha256": "d781d4492dcb3c5642d78e9e5489871b76e3eaaf29dd8b4cb7afb9b66ae2960e",
       "default_categories": [
         "Developer tools"
       ]

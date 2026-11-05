@@ -138,6 +138,7 @@ services:
   # use http://localhost:4566 as the `--endpoint-url` argument in awscli
   localstack:
     image: localstack/localstack:4.5
+    profiles: ["localstack"]
     ports:
       - "127.0.0.1:${FLEET_LOCALSTACK_PORT:-4566}:4566"
       - "127.0.0.1:${FLEET_LOCALSTACK_LEGACY_PORT:-4571}:4571"
@@ -162,6 +163,7 @@ services:
   # Azurite emulator for Azure Blob Storage (software installers/bootstrap packages/icons/org logos)
   azurite:
     image: mcr.microsoft.com/azure-storage/azurite:3.35.0
+    profiles: ["azurite"]
     command: ["azurite-blob", "--blobHost", "0.0.0.0", "--blobPort", "10000", "--skipApiVersionCheck"]
     ports:
       - "127.0.0.1:${FLEET_AZURITE_PORT:-10000}:10000"

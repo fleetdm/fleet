@@ -890,6 +890,52 @@ describe("Disk encryption data", () => {
     expect(screen.getByText("Always on")).toBeInTheDocument();
   });
 
+  it.each<{
+    platform: HostPlatform;
+    enabled: boolean;
+    status: string;
+    message: string;
+  }>([
+    {
+      platform: "darwin",
+      enabled: true,
+      status: "On",
+      message:
+        "The disk is encrypted. The user must enter their password when they start their computer.",
+    },
+    {
+      platform: "darwin",
+      enabled: false,
+      status: "Off",
+      message:
+        "The disk might be encrypted, but FileVault is off. The disk can be accessed without entering a password.",
+    },
+    {
+      platform: "windows",
+      enabled: true,
+      status: "On",
+      message:
+        "The disk is encrypted. If recently turned on, encryption could take awhile.",
+    },
+  ])(
+    "renders the $platform '$status' tooltip without forced line breaks",
+    async ({ platform, enabled, status, message }) => {
+      const customRender = createCustomRenderer({});
+      const mockHost = createMockHost({
+        platform,
+        disk_encryption_enabled: enabled,
+      });
+
+      const { user } = customRender(<Vitals vitalsData={mockHost} />);
+
+      await user.hover(screen.getByText(status));
+
+      const tooltip = await screen.findByRole("tooltip");
+      expect(tooltip).toHaveTextContent(message);
+      expect(tooltip.querySelector("br")).toBeNull();
+    }
+  );
+
   it("does not render disk encryption for unsupported platforms", () => {
     const mockHost = createMockHost({
       platform: "android",
@@ -1683,5 +1729,51 @@ describe("Android vitals", () => {
         )
       ).toBeInTheDocument();
     });
+  });
+});
+
+describe("Google device ID vital", () => {
+  // Built the way HostDetailsPage builds it, so a field missing from
+  // HOST_VITALS_DATA or an empty value normalized to "---" is caught.
+  const renderWithHost = (mockHost: IHost) =>
+    render(
+      <Vitals
+        vitalsData={normalizeEmptyValues(pick(mockHost, HOST_VITALS_DATA))}
+        mdm={mockHost.mdm}
+      />
+    );
+
+  it.each(["ios", "ipados", "android"])(
+    "renders the Google device ID for %s hosts once it is set",
+    (platform) => {
+      renderWithHost(
+        createMockHost({
+          platform: platform as HostPlatform,
+          google_device_id: "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12",
+        })
+      );
+
+      expect(screen.getByText("Google device ID")).toBeInTheDocument();
+      expect(
+        screen.getByText("c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12")
+      ).toBeInTheDocument();
+    }
+  );
+
+  it("hides the Google device ID until it is set", () => {
+    renderWithHost(createMockHost({ platform: "ios", google_device_id: "" }));
+
+    expect(screen.queryByText("Google device ID")).not.toBeInTheDocument();
+  });
+
+  it("hides the Google device ID on other platforms", () => {
+    renderWithHost(
+      createMockHost({
+        platform: "darwin",
+        google_device_id: "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12",
+      })
+    );
+
+    expect(screen.queryByText("Google device ID")).not.toBeInTheDocument();
   });
 });

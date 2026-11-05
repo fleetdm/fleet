@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/evidence"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/fsutil"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/proc"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/internal/fsutil"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/internal/homes"
 	"github.com/stretchr/testify/require"
 )
 

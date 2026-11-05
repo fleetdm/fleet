@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"slices"
 	"strings"
 	"time"
 
@@ -469,6 +468,25 @@ func initiateSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	}, nil
 }
 
+// validateSSORelayURL accepts only a path on the Fleet origin. The relay URL is
+// stored and then sent to the browser after the IdP callback, so a scheme, a
+// host, or a protocol-relative prefix (`//` or `/\`) would redirect the
+// just-signed-in user off-site.
+func validateSSORelayURL(relayURL string) error {
+	if relayURL == "" {
+		return nil
+	}
+	u, err := url.Parse(relayURL)
+	if err != nil {
+		return badRequest("invalid sso redirect url")
+	}
+	if u.Scheme != "" || u.Host != "" || u.User != nil ||
+		!strings.HasPrefix(relayURL, "/") || strings.HasPrefix(relayURL, "//") || strings.HasPrefix(relayURL, `/\`) {
+		return badRequest("sso redirect url must be a relative path")
+	}
+	return nil
+}
+
 // InitiateSSO initiates a Single Sign-On flow for a request to visit the
 // protected URL identified by redirectURL. It returns the URL of the identity
 // provider to make a request to to proceed with the authentication via that
@@ -491,12 +509,8 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (sessio
 		return "", 0, "", ctxerr.Wrap(ctx, newSSOError(err, ssoOrgDisabled), "initiate sso")
 	}
 
-	parsedUrl, err := url.Parse(redirectURL)
-	if err != nil {
-		return "", 0, "", ctxerr.Wrap(ctx, badRequest("invalid sso redirect url"))
-	}
-	if slices.Contains([]string{"javascript", "vbscript", "data"}, parsedUrl.Scheme) {
-		return "", 0, "", ctxerr.Wrap(ctx, badRequest("invalid sso redirect url scheme: "+parsedUrl.Scheme))
+	if err := validateSSORelayURL(redirectURL); err != nil {
+		return "", 0, "", ctxerr.Wrap(ctx, err)
 	}
 
 	serverURL := appConfig.ServerSettings.ServerURL
@@ -681,11 +695,11 @@ func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 			}
 			resp.Err = err
 		}
+		// Meta refresh rather than an inline script so the redirect isn't blocked when CSP is enabled.
 		relayStateLoadPage := ` <html>
-     <script type='text/javascript'>
-     var redirectURL = {{ .RedirectURL }};
-     window.location = redirectURL;
-     </script>
+     <head>
+     <meta http-equiv="refresh" content="0;url={{ .RedirectURL }}">
+     </head>
      <body>
      Redirecting to Fleet at {{ .RedirectURL }} ...
      </body>
@@ -940,6 +954,10 @@ func (svc *Service) GetSessionByKey(ctx context.Context, key string) (*fleet.Ses
 		return nil, err
 	}
 
+	if err := svc.ds.MarkSessionAccessed(ctx, session); err != nil {
+		return nil, err
+	}
+
 	return session, nil
 }
 
@@ -962,5 +980,5 @@ func (svc *Service) validateSession(ctx context.Context, session *fleet.Session)
 		return fleet.NewAuthRequiredError("expired session")
 	}
 
-	return svc.ds.MarkSessionAccessed(ctx, session)
+	return nil
 }

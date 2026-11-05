@@ -694,6 +694,94 @@ describe("VPP Install Details Modal", () => {
     });
   });
 
+  describe("license sentence", () => {
+    const licenseRe = /Fleet assigned license from/i;
+
+    const renderLicenseCase = (
+      platform: "ios" | "ipados" | "darwin",
+      fleetInstallStatus: "installed" | "pending_install" | "failed_install",
+      withTokenLocation = true
+    ) => {
+      mockServer.use(
+        http.get(baseUrl("/commands/results"), ({ request }) => {
+          const url = new URL(request.url);
+          return HttpResponse.json({
+            results: [
+              {
+                host_uuid: "11111111-2222-3333-4444-555555555555",
+                command_uuid: url.searchParams.get("command_uuid"),
+                status: "Acknowledged",
+                updated_at: "2025-08-10T12:05:00Z",
+                request_type: "InstallApplication",
+                hostname: "Mock Host",
+                payload: btoa("<Command />"),
+                result: btoa("<Result />"),
+              },
+            ],
+          });
+        })
+      );
+
+      // Activity feed entry point: no hostSoftware.
+      renderWithBackend(
+        <VppInstallDetailsModal
+          details={{
+            fleetInstallStatus,
+            hostDisplayName: "Marko's iPhone",
+            appName: "Zoom Workplace",
+            commandUuid: "mock-uuid",
+            platform,
+            vppTokenLocation: withTokenLocation ? "Acme Inc." : undefined,
+          }}
+          onCancel={jest.fn()}
+        />
+      );
+    };
+
+    it.each(["ios", "ipados"] as const)(
+      "names the token for %s installed",
+      async (platform) => {
+        renderLicenseCase(platform, "installed");
+        expect(await screen.findByText("Acme Inc.")).toBeInTheDocument();
+        expect(screen.getByText(licenseRe)).toHaveTextContent(
+          /Fleet assigned license from Acme Inc\. VPP token\./
+        );
+      }
+    );
+
+    it.each(["ios", "ipados"] as const)(
+      "names the token for %s pending_install",
+      async (platform) => {
+        renderLicenseCase(platform, "pending_install");
+        expect(await screen.findByText("Acme Inc.")).toBeInTheDocument();
+      }
+    );
+
+    it("omits the sentence on macOS", async () => {
+      renderLicenseCase("darwin", "installed");
+      await waitFor(() => {
+        expect(screen.getByText(/Zoom Workplace/)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(licenseRe)).not.toBeInTheDocument();
+    });
+
+    it("omits the sentence on failed installs", async () => {
+      renderLicenseCase("ios", "failed_install");
+      await waitFor(() => {
+        expect(screen.getByText(/Zoom Workplace/)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(licenseRe)).not.toBeInTheDocument();
+    });
+
+    it("omits the sentence when the token location is missing", async () => {
+      renderLicenseCase("ios", "installed", false);
+      await waitFor(() => {
+        expect(screen.getByText(/Zoom Workplace/)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(licenseRe)).not.toBeInTheDocument();
+    });
+  });
+
   it("renders timeout follow-up copy on host details", async () => {
     mockServer.use(
       http.get(baseUrl("/commands/results"), ({ request }) => {

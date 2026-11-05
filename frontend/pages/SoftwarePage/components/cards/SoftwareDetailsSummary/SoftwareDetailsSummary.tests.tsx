@@ -1,6 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import React from "react";
 
+import { renderWithSetup } from "test/test-utils";
+
 import SoftwareDetailsSummary, {
   buildActionOptions,
   ACTION_EDIT_APPEARANCE,
@@ -20,8 +22,6 @@ jest.mock("../../icons/SoftwareIcon", () => ({
 describe("buildActionOptions", () => {
   it("returns only Edit appearance when user cannot edit software or configuration and cannot patch or configure auto updates", () => {
     const result = buildActionOptions({
-      gitOpsModeEnabled: false,
-      repoURL: undefined,
       canEditSoftware: false,
       canEditConfiguration: false,
       canDeploySoftware: false,
@@ -33,16 +33,12 @@ describe("buildActionOptions", () => {
       {
         label: "Edit appearance",
         value: ACTION_EDIT_APPEARANCE,
-        disabled: false,
-        tooltipContent: undefined,
       },
     ]);
   });
 
   it("adds Edit software when canEditSoftware", () => {
     const result = buildActionOptions({
-      gitOpsModeEnabled: false,
-      repoURL: undefined,
       canEditSoftware: true,
       canEditConfiguration: false,
       canDeploySoftware: false,
@@ -59,15 +55,11 @@ describe("buildActionOptions", () => {
     expect(editSoftware).toEqual({
       label: "Edit software",
       value: ACTION_EDIT_SOFTWARE,
-      disabled: false,
-      tooltipContent: undefined,
     });
   });
 
   it("adds Edit configuration when canEditConfiguration", () => {
     const result = buildActionOptions({
-      gitOpsModeEnabled: false,
-      repoURL: undefined,
       canEditSoftware: false,
       canEditConfiguration: true,
       canDeploySoftware: false,
@@ -84,16 +76,11 @@ describe("buildActionOptions", () => {
     expect(editConfig).toEqual({
       label: "Edit configuration",
       value: ACTION_EDIT_CONFIGURATION,
-      disabled: false,
-      tooltipContent: undefined,
     });
   });
 
-  it("applies gitops tooltip to Edit appearance and Edit configuration, and to Edit software for Apple VPP", () => {
+  it("leaves Edit appearance, Edit software, and Edit configuration all clickable in gitops mode (modals disable fields and Save themselves)", () => {
     const result = buildActionOptions({
-      gitOpsModeEnabled: true,
-      repoURL: "https://repo.git",
-      isAppleVpp: true,
       canEditSoftware: true,
       canEditConfiguration: true,
       canDeploySoftware: false,
@@ -111,27 +98,25 @@ describe("buildActionOptions", () => {
       (opt) => opt.value === ACTION_EDIT_SOFTWARE
     );
 
-    expect(editAppearance).toMatchObject({
-      disabled: true,
-      tooltipContent: expect.anything(),
+    expect(editAppearance).toEqual({
+      label: "Edit appearance",
+      value: ACTION_EDIT_APPEARANCE,
     });
 
-    expect(editConfig).toMatchObject({
-      disabled: true,
-      tooltipContent: expect.anything(),
+    // Edit configuration stays clickable in gitops mode; the modal gates Save.
+    expect(editConfig).toEqual({
+      label: "Edit configuration",
+      value: ACTION_EDIT_CONFIGURATION,
     });
 
-    // For Apple VPP, Edit software also gets the gitops tooltip if present.
-    expect(editSoftware).toMatchObject({
-      disabled: true,
-      tooltipContent: expect.anything(),
+    expect(editSoftware).toEqual({
+      label: "Edit software",
+      value: ACTION_EDIT_SOFTWARE,
     });
   });
 
   it("adds Deploy when software can be deployed", () => {
     const result = buildActionOptions({
-      gitOpsModeEnabled: false,
-      repoURL: undefined,
       canEditSoftware: false,
       canEditConfiguration: false,
       canDeploySoftware: true,
@@ -149,8 +134,6 @@ describe("buildActionOptions", () => {
 
   it("adds Versions option after Deploy when canManageVersions", () => {
     const result = buildActionOptions({
-      gitOpsModeEnabled: false,
-      repoURL: undefined,
       canEditSoftware: true,
       canEditConfiguration: false,
       canDeploySoftware: true,
@@ -175,8 +158,6 @@ describe("buildActionOptions", () => {
 
   it("does not add Versions option when canManageVersions is false", () => {
     const result = buildActionOptions({
-      gitOpsModeEnabled: false,
-      repoURL: undefined,
       canEditSoftware: false,
       canEditConfiguration: false,
       canDeploySoftware: false,
@@ -189,8 +170,6 @@ describe("buildActionOptions", () => {
 
   it("keeps Versions option enabled in GitOps mode (modal disables Save itself)", () => {
     const result = buildActionOptions({
-      gitOpsModeEnabled: true,
-      repoURL: "https://repo.git",
       canEditSoftware: false,
       canEditConfiguration: false,
       canDeploySoftware: false,
@@ -207,8 +186,6 @@ describe("buildActionOptions", () => {
 
   it("adds Schedule auto updates option when canConfigureAutoUpdate", () => {
     const result = buildActionOptions({
-      gitOpsModeEnabled: false,
-      repoURL: undefined,
       canEditSoftware: false,
       canEditConfiguration: false,
       canDeploySoftware: false,
@@ -277,5 +254,82 @@ describe("SoftwareDetailsSummary IDs", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByText("App Store ID")).not.toBeInTheDocument();
     expect(screen.queryByText("Google Play ID")).not.toBeInTheDocument();
+  });
+});
+
+describe("SoftwareDetailsSummary VPP token", () => {
+  const vppToken = {
+    id: 2,
+    org_name: "Acme K.K.",
+    location: "Acme K.K.",
+    country_code: "JP",
+  };
+
+  it("links the App Store ID to the token's storefront", () => {
+    render(
+      <SoftwareDetailsSummary
+        displayName="PayPay"
+        appStoreId="1435783608"
+        vppToken={vppToken}
+      />
+    );
+
+    expect(screen.getByRole("link", { name: /1435783608/ })).toHaveAttribute(
+      "href",
+      "https://apps.apple.com/jp/app/id1435783608"
+    );
+  });
+
+  it("links the App Store ID without a country segment when there's no token", () => {
+    render(
+      <SoftwareDetailsSummary displayName="PayPay" appStoreId="1435783608" />
+    );
+
+    expect(screen.getByRole("link", { name: /1435783608/ })).toHaveAttribute(
+      "href",
+      "https://apps.apple.com/app/id1435783608"
+    );
+    expect(screen.queryByText("VPP token")).not.toBeInTheDocument();
+  });
+
+  it("links the App Store ID without a country segment when the token's country is empty", () => {
+    render(
+      <SoftwareDetailsSummary
+        displayName="PayPay"
+        appStoreId="1435783608"
+        vppToken={{ ...vppToken, country_code: "" }}
+      />
+    );
+
+    expect(screen.getByRole("link", { name: /1435783608/ })).toHaveAttribute(
+      "href",
+      "https://apps.apple.com/app/id1435783608"
+    );
+  });
+
+  it("renders the VPP token label and its tooltip copy", async () => {
+    const { user } = renderWithSetup(
+      <SoftwareDetailsSummary
+        displayName="PayPay"
+        appStoreId="1435783608"
+        vppToken={vppToken}
+      />
+    );
+
+    expect(screen.getByText("Acme K.K. • 🇯🇵 Japan")).toBeInTheDocument();
+
+    await user.hover(screen.getByText("VPP token"));
+    expect(
+      await screen.findByText(
+        "This is an organization unit in your Apple Business account, and licenses will be assigned from it."
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("renders neither field for a title without an App Store ID or token", () => {
+    render(<SoftwareDetailsSummary displayName="Chrome" />);
+
+    expect(screen.queryByText("App Store ID")).not.toBeInTheDocument();
+    expect(screen.queryByText("VPP token")).not.toBeInTheDocument();
   });
 });

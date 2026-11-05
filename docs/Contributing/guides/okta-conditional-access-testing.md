@@ -40,7 +40,7 @@ When a user authenticates through Okta, Okta redirects the browser to the Fleet 
 - A domain you control (for DNS records)
 - Access to a cloud provider (e.g., DigitalOcean) for a VM
 - An [Okta developer account](https://developer.okta.com/signup/) (free)
-- A macOS host enrolled in your Fleet server (for end-to-end testing)
+- A macOS host enrolled in your Fleet server, or a Windows 11 Pro, Enterprise, or Education host enrolled in Fleet's Windows MDM (for end-to-end testing)
 
 ## Step 1: Expose your local Fleet server via ngrok
 
@@ -148,11 +148,20 @@ Follow the [Okta conditional access integration guide](https://fleetdm.com/guide
 
 ## Step 7: Deploy the SCEP profile to a test host
 
-The user scope profile from Step 1 of the public guide contains a SCEP payload that provisions client certificates on hosts. Deploy this profile to a macOS host enrolled in your Fleet server.
+The profiles from the "Deploy the profiles" step of the public guide provision client certificates on hosts. Once Okta is connected, find them in **Settings > Integrations > Conditional access** by clicking **Edit** on the **Okta** card.
+
+- **macOS:** deploy the macOS profile to a macOS host enrolled in your Fleet server.
+- **Windows:** deploy the certificate profile (with the placeholder replaced by a global enroll secret) and the browser profile to a Windows host enrolled in Fleet's Windows MDM.
 
 Once the profile is installed, the host will obtain a client certificate signed by Fleet's SCEP CA. This is the certificate that the mTLS proxy validates.
 
-You can verify the certificate was installed by checking **System Settings > Profiles** on the macOS host.
+You can verify the certificate was installed by checking **System Settings > Profiles** on the macOS host. On a Windows host, run this as the signed-in user:
+
+```powershell
+Get-ChildItem Cert:\CurrentUser\My | Where-Object { $_.Subject -like "*Fleet conditional access for Okta*" }
+```
+
+On Windows, `chrome://policy` and `edge://policy` should list `AutoSelectCertificateForUrls` once the browser profile is installed.
 
 ## End-to-end testing
 
@@ -165,6 +174,8 @@ Once everything is configured:
 5. Fleet should detect the host is failing the policy and block the authentication
 6. Fix the issue on the host and click **Refetch** on the **My device** page
 7. Try logging in again, and it should succeed
+
+Test with each browser. Safari and Chrome on macOS, and Chrome and Edge on Windows, present the certificate automatically once the profile is installed. Firefox asks you to pick the certificate.
 
 ## Troubleshooting
 

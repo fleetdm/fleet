@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	"html/template"
 	"io"
 	"log/slog"
 	"maps"
@@ -33,6 +34,7 @@ import (
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
@@ -1269,8 +1271,8 @@ func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSync
 
 // allowedWindowsTOSRedirectSchemes is the set of URL schemes permitted for the Windows MDM enrollment Terms of Use
 // redirect_uri. Per Microsoft's "Terms of Use protocol semantics", the Windows enrollment client (not Fleet) chooses
-// this redirect_uri and Fleet only reflects it into a window.location assignment in the TOS page. We restrict it to the
-// schemes Windows enrollment clients use:
+// this redirect_uri and Fleet only reflects it into the TOS page's accept link. We restrict it to the schemes Windows
+// enrollment clients use:
 //   - ms-appx-web: the scheme in Microsoft's documented example, redirect_uri=ms-appx-web://<app>/ToUResponse, used by
 //     the native broker-hosted flows (Entra join from Settings > "Access work or school", and BYOD work-account add).
 //     https://learn.microsoft.com/en-us/windows/client-management/azure-active-directory-integration-with-mdm
@@ -1297,8 +1299,8 @@ func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri str
 	// skipauth: This endpoint does not use authentication
 	svc.authz.SkipAuthorization(ctx)
 
-	// redirectUri is reflected into a window.location assignment in the TOS page template, so validate its scheme to
-	// prevent reflected XSS via javascript:/data:/vbscript: URLs.
+	// redirectUri is reflected into the TOS page's accept link, so validate its scheme to prevent reflected XSS via
+	// javascript:/data:/vbscript: URLs.
 	if !windowsTOSRedirectURIAllowed(redirectUri) {
 		return "", &fleet.BadRequestError{Message: "invalid redirect_uri"}
 	}
@@ -1308,7 +1310,16 @@ func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri str
 		return "", ctxerr.Wrap(ctx, err, "issue generating TOS content")
 	}
 
-	data := windowsTOSTemplateData{RedirectURL: redirectUri, ClientData: reqID}
+	cspNonce, err := endpointer.CSPNonce(ctx)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "generating CSP nonce for TOS content")
+	}
+
+	data := windowsTOSTemplateData{
+		RedirectURL: template.URL(redirectUri), //nolint:gosec // G203: scheme allowlisted by windowsTOSRedirectURIAllowed
+		ClientData:  reqID,
+		CSPNonce:    cspNonce,
+	}
 	data.Content = svc.customWindowsTOSContent(ctx)
 
 	var htmlBuf bytes.Buffer
@@ -2256,6 +2267,13 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, enrollmentID uint) ([
 		if err != nil {
 			// This error should never happen since we validate the presence of needed secrets on profile upload.
 			return nil, false, ctxerr.Wrap(ctx, err, "expanding embedded secrets for Windows pending commands")
+		}
+		if err := fleet.ValidateNoHostSecretVariablesAdded(string(pendingCmd.RawCommand), rawCommandWithSecret); err != nil {
+			// Skipped like a command whose host secrets can't be expanded, below.
+			err = ctxerr.Wrapf(ctx, err, "refusing Windows pending command %s", pendingCmd.CommandUUID)
+			logging.WithErr(ctx, err)
+			ctxerr.Handle(ctx, err)
+			continue
 		}
 		// Host-scoped secrets ($FLEET_HOST_SECRET_*) are resolved here rather than at enqueue, for security.
 		rawCommandWithSecret, err = svc.expandWindowsHostSecrets(ctx, rawCommandWithSecret, enrollmentID)
@@ -4769,6 +4787,18 @@ func executeWindowsProfileReconcileBatch(
 	// currentByHost is the host_mdm_windows_profiles rows as of the reconcile snapshot.
 	currentByHost map[string][]*fleet.MDMWindowsProfilePayload,
 ) error {
+	// The enqueues below leave the status rollup to us. Refresh it once for the batch's hosts, also after a partial failure since the
+	// earlier commands are already committed. A miss is healed by the hourly windows_profiles_status_reconcile cron.
+	defer func() {
+		hostUUIDs := make([]string, 0, len(toInstall)+len(toRemove))
+		for _, p := range slices.Concat(toInstall, toRemove) {
+			hostUUIDs = append(hostUUIDs, p.HostUUID)
+		}
+		if err := ds.RefreshMDMWindowsProfilesStatusRollup(ctx, hostUUIDs); err != nil {
+			logger.ErrorContext(ctx, "refreshing windows profiles status rollup after reconcile", "hosts", len(hostUUIDs), "err", err)
+		}
+	}()
+
 	// toGetContents contains the IDs of all the profiles from which we
 	// need to retrieve contents. Since the previous query returns one row
 	// per host, it would be too expensive to retrieve the profile contents

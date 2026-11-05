@@ -1,0 +1,6 @@
+name: gpu_info
+# osquery's published schema only lists the posix spec, but gpu_info is also implemented on Windows.
+platforms:
+  - darwin
+  - linux
+  - windows

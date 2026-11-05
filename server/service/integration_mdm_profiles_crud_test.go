@@ -18,6 +18,7 @@ import (
 	"io"
 	"maps"
 	"net/http"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -568,6 +569,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	var deleteResp deleteMDMConfigProfileResponse
 	// delete existing Apple profiles
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", noTeamAppleProfUUID), nil, http.StatusOK, &deleteResp)
+	require.Empty(t, deleteResp.Warning)
 
 	// turn off apple MDM
 	appCfg, err := s.ds.AppConfig(ctx)
@@ -581,6 +583,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 
 	// delete existing Apple declaration
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", uuidAppleDDMWithLabel), nil, http.StatusOK, &deleteResp)
+	require.Empty(t, deleteResp.Warning)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeDeletedDeclarationProfile{}.ActivityName(),
 		`{"profile_name": "apple-decl-with-labels", "identifier": "ident-decl-with-labels", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`,
@@ -588,14 +591,24 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	)
 	// delete non-existing Apple declaration
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", fmt.Sprintf("%sno-such-profile", fleet.MDMAppleDeclarationUUIDPrefix)), nil, http.StatusNotFound, &deleteResp)
-	// delete existing Windows profiles
+	// delete existing Windows profiles; DoJSON leaves fields the body lacks untouched, so reset deleteResp before each check
+	deleteResp = deleteMDMConfigProfileResponse{}
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", noTeamWinProfUUID), nil, http.StatusOK, &deleteResp)
+	require.Equal(t, fleet.WindowsProfileDeletedWarning, deleteResp.Warning)
 	// Now disabling windows MDM
 	filler := struct{}{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": { "windows_enabled_and_configured": false}}`), http.StatusOK, &filler)
+	deleteResp = deleteMDMConfigProfileResponse{}
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", teamWinProfUUID), nil, http.StatusOK, &deleteResp)
+	require.Equal(t, fleet.WindowsProfileDeletedWarning, deleteResp.Warning)
+	// the deprecated route, which the UI uses, shares the handler
+	deleteResp = deleteMDMConfigProfileResponse{}
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%s", uuidWindowsWithLabel), nil, http.StatusOK, &deleteResp)
+	require.Equal(t, fleet.WindowsProfileDeletedWarning, deleteResp.Warning)
 	// delete non-existing Windows profile
+	deleteResp = deleteMDMConfigProfileResponse{}
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", "wno-such-profile"), nil, http.StatusNotFound, &deleteResp)
+	require.Empty(t, deleteResp.Warning)
 
 	// delete existing Android profiles
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", noTeamAndroidProfUUID), nil, http.StatusOK, &deleteResp)
@@ -722,7 +735,9 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	profUUID := checkWindowsOSUpdatesProfile(t, s.ds, nil, &fleet.WindowsUpdates{DeadlineDays: optjson.SetInt(1), GracePeriodDays: optjson.SetInt(1)})
 
 	// try to delete the profile
+	deleteResp = deleteMDMConfigProfileResponse{}
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", profUUID), nil, http.StatusBadRequest, &deleteResp)
+	require.Empty(t, deleteResp.Warning)
 
 	// TODO: Add tests for OS updates declaration when implemented.
 }
@@ -1826,16 +1841,232 @@ func (s *integrationMDMTestSuite) TestAppleConfigSecretVariablesUpload() {
 	s.testSecretVariablesUpload(newProfileBytes, getProfileContents, "mobileconfig", "darwin", true)
 }
 
+func (s *integrationMDMTestSuite) TestAppleProfileNameCantHoldSecretValue() {
+	t := s.T()
+	ctx := t.Context()
+
+	const value, crlfValue, xmlValue = "name-secret-value", "name-secret-line1\r\nname-secret-line2", "name-secret-a&b<c"
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", fleet.CreateSecretVariablesRequest{
+		SecretVariables: []fleet.SecretVariable{
+			{Name: "FLEET_SECRET_PROFILE_NAME", Value: value},
+			{Name: "FLEET_SECRET_PROFILE_NAME_CRLF", Value: crlfValue},
+			{Name: "FLEET_SECRET_PROFILE_NAME_XML", Value: xmlValue},
+		},
+	}, http.StatusOK, &fleet.CreateSecretVariablesResponse{})
+
+	profile := func(identifier, displayName string) []byte {
+		return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>%s
+	<key>PayloadIdentifier</key>
+	<string>%s</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>%s</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>`, displayName, identifier, uuid.NewString()))
+	}
+
+	for _, c := range []struct {
+		name        string
+		displayName string
+	}{
+		{"plain", `<string>$FLEET_SECRET_PROFILE_NAME</string>`},
+		{"comment", `<!-- x --><string>$FLEET_SECRET_PROFILE_NAME</string>`},
+		{"cdata", `<string><![CDATA[Name $FLEET_SECRET_PROFILE_NAME]]></string>`},
+		{"line breaks", `<!-- x --><string>${FLEET_SECRET_PROFILE_NAME_CRLF}</string>`},
+		// expansion XML-escapes the value, and CDATA keeps the escaped form as is
+		{"cdata with XML characters", `<string><![CDATA[$FLEET_SECRET_PROFILE_NAME_XML]]></string>`},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			const wantErr = "PayloadDisplayName cannot contain FLEET_SECRET variables"
+			checkRejected := func(res *http.Response) {
+				t.Helper()
+				errMsg := extractServerErrorText(res.Body)
+				assert.Contains(t, errMsg, wantErr)
+				assert.NotContains(t, errMsg, "name-secret")
+			}
+
+			body, headers := generateNewProfileMultipartRequest(t, "name.mobileconfig",
+				profile("com.example.name-secret."+c.name+".single", c.displayName), s.token, nil)
+			checkRejected(s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(),
+				http.StatusUnprocessableEntity, headers))
+
+			checkRejected(s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+				{Contents: profile("com.example.name-secret."+c.name+".batch", c.displayName)},
+			}}, http.StatusUnprocessableEntity))
+
+			checkRejected(s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
+				profile("com.example.name-secret."+c.name+".apple-batch", c.displayName),
+			}}, http.StatusUnprocessableEntity))
+		})
+	}
+
+	var leaked int
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &leaked,
+			`SELECT COUNT(*) FROM mdm_apple_configuration_profiles WHERE name LIKE '%name-secret-%'`)
+	})
+	require.Zero(t, leaked)
+}
+
+func (s *integrationMDMTestSuite) TestAppleProfileIdentifierCantHoldSecretValue() {
+	t := s.T()
+	ctx := t.Context()
+
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", fleet.CreateSecretVariablesRequest{
+		SecretVariables: []fleet.SecretVariable{{Name: "FLEET_SECRET_PROFILE_IDENTIFIER", Value: "identifier-secret-value"}},
+	}, http.StatusOK, &fleet.CreateSecretVariablesResponse{})
+
+	profile := func(name, identifier string) []byte {
+		return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>%s</string>
+	<key>PayloadIdentifier</key>%s
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>%s</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>`, name, identifier, uuid.NewString()))
+	}
+
+	for _, c := range []struct {
+		name       string
+		identifier string
+	}{
+		{"plain", `<string>com.example.$FLEET_SECRET_PROFILE_IDENTIFIER</string>`},
+		{"comment", `<!-- x --><string>$FLEET_SECRET_PROFILE_IDENTIFIER</string>`},
+		{"cdata", `<string><![CDATA[$FLEET_SECRET_PROFILE_IDENTIFIER]]></string>`},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			checkRejected := func(res *http.Response) {
+				t.Helper()
+				errMsg := extractServerErrorText(res.Body)
+				assert.Contains(t, errMsg, "PayloadIdentifier cannot contain FLEET_SECRET variables")
+				assert.NotContains(t, errMsg, "identifier-secret")
+			}
+
+			body, headers := generateNewProfileMultipartRequest(t, "identifier.mobileconfig",
+				profile("Identifier secret "+c.name+" single", c.identifier), s.token, nil)
+			checkRejected(s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(),
+				http.StatusUnprocessableEntity, headers))
+
+			batch := batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+				{Contents: profile("Identifier secret "+c.name+" batch", c.identifier)},
+			}}
+			checkRejected(s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batch, http.StatusUnprocessableEntity))
+			checkRejected(s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batch, http.StatusUnprocessableEntity, "dry_run", "true"))
+
+			checkRejected(s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
+				profile("Identifier secret "+c.name+" apple-batch", c.identifier),
+			}}, http.StatusUnprocessableEntity))
+		})
+	}
+
+	var leaked int
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &leaked,
+			`SELECT COUNT(*) FROM mdm_apple_configuration_profiles WHERE identifier LIKE '%identifier-secret-%'`)
+	})
+	require.Zero(t, leaked)
+}
+
+func (s *integrationMDMTestSuite) TestAppleDeclarationIdentifierCantHoldSecretValue() {
+	t := s.T()
+	ctx := t.Context()
+
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", fleet.CreateSecretVariablesRequest{
+		SecretVariables: []fleet.SecretVariable{
+			{Name: "FLEET_SECRET_DECL_IDENTIFIER", Value: "decl-identifier-secret-value"},
+			{Name: "FLEET_SECRET_DECL_PORT", Value: "443"},
+		},
+	}, http.StatusOK, &fleet.CreateSecretVariablesResponse{})
+
+	declaration := func(identifier, payload string) []byte {
+		return []byte(fmt.Sprintf(`{"Type": "com.apple.configuration.management.test", "Identifier": %q, "Payload": %s}`, identifier, payload))
+	}
+	activation := func(identifier, configIdentifier string) []byte {
+		return []byte(fmt.Sprintf(`{"Type": "com.apple.activation.simple", "Identifier": %q, "Payload": {"StandardConfigurations": [%q]}}`,
+			identifier, configIdentifier))
+	}
+	uploadProfile := func(content, act []byte) *http.Response {
+		var extraFiles map[string]multipartFile
+		if act != nil {
+			extraFiles = map[string]multipartFile{"activation": {fileName: "activation.json", content: act}}
+		}
+		body, headers := generateMultipartRequestWithFiles(t, "profile", "decl.json", content, s.token, nil, extraFiles)
+		return s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusUnprocessableEntity, headers)
+	}
+	checkRejected := func(t *testing.T, res *http.Response) {
+		t.Helper()
+		errMsg := extractServerErrorText(res.Body)
+		assert.Contains(t, errMsg, "Identifier cannot contain FLEET_SECRET variables")
+		assert.NotContains(t, errMsg, "decl-identifier-secret")
+	}
+
+	for _, c := range []struct {
+		name    string
+		payload string
+	}{
+		{"plain", `{"Echo": "foo"}`},
+		// raw JSON that only parses once its secrets are expanded
+		{"secret used as a number", `{"Echo": $FLEET_SECRET_DECL_PORT}`},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			decl := declaration("com.example.$FLEET_SECRET_DECL_IDENTIFIER", c.payload)
+			checkRejected(t, uploadProfile(decl, nil))
+			batch := batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{{Name: "decl-identifier-" + c.name, Contents: decl}}}
+			checkRejected(t, s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batch, http.StatusUnprocessableEntity))
+			if c.name == "plain" {
+				// the dry run checks it too, unless the raw JSON only parses once its secrets are expanded
+				checkRejected(t, s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batch, http.StatusUnprocessableEntity, "dry_run", "true"))
+			}
+		})
+	}
+
+	t.Run("activation", func(t *testing.T) {
+		const declIdent = "com.example.decl-identifier.activated"
+		act := activation("com.example.$FLEET_SECRET_DECL_IDENTIFIER", declIdent)
+		checkRejected(t, uploadProfile(declaration(declIdent, `{"Echo": "foo"}`), act))
+		checkRejected(t, s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+			{Name: "decl-identifier-activated", Contents: declaration(declIdent, `{"Echo": "foo"}`), Activation: act},
+		}}, http.StatusUnprocessableEntity))
+	})
+
+	var leaked int
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &leaked,
+			`SELECT COUNT(*) FROM mdm_apple_declarations WHERE identifier LIKE '%decl-identifier-secret%' OR raw_json LIKE '%decl-identifier-secret%'`)
+	})
+	require.Zero(t, leaked)
+}
+
 // TestWindowsConfigSecretVariablesUpload tests uploading Windows profiles with secrets via the /configuration_profiles endpoint
 func (s *integrationMDMTestSuite) TestWindowsConfigSecretVariablesUpload() {
+	// A string setting: schema validation checks the expanded secret value.
 	tmpl := `
 <Replace>
     <Item>
         <Meta>
-            <Format xmlns="syncml:metinf">int</Format>
+            <Format xmlns="syncml:metinf">chr</Format>
         </Meta>
         <Target>
-            <LocURI>./Device/Vendor/MSFT/Policy/Config/System/DisableOneDriveFileSync</LocURI>
+            <LocURI>./Device/Vendor/MSFT/Policy/Config/Browser/HomePages</LocURI>
         </Target>
         <Data>$FLEET_SECRET_BASH</Data>
     </Item>
@@ -1843,7 +2074,7 @@ func (s *integrationMDMTestSuite) TestWindowsConfigSecretVariablesUpload() {
 `
 
 	newProfileBytes := func(i int) []byte {
-		return []byte(fmt.Sprintf(tmpl, i, i, i))
+		return []byte(tmpl)
 	}
 
 	getProfileContents := func(profileUUID string) string {
@@ -2255,4 +2486,343 @@ func (s *integrationMDMTestSuite) TestConfigProfileSelfServiceAndHidden() {
 		require.Equal(t, p.Name == "W" || p.Name == "A", p.Hidden, p.Name)
 	}
 	batch([]fleet.MDMProfileBatchPayload{{Name: "W", Contents: syncMLForTest("./Device/Vendor/MSFT/Policy/Config/W/Test"), SelfService: true}}, http.StatusUnprocessableEntity)
+}
+
+func (s *integrationMDMTestSuite) TestConfigProfileSchemaValidation() {
+	t := s.T()
+	ctx := context.Background()
+
+	setValidation := func(on bool) {
+		appConfig, err := s.ds.AppConfig(ctx)
+		require.NoError(t, err)
+		appConfig.MDM.EnabledAndConfigured = true
+		appConfig.MDM.WindowsEnabledAndConfigured = true
+		appConfig.MDM.EnableProfileValidation = on
+		require.NoError(t, s.ds.SaveAppConfig(ctx, appConfig))
+	}
+	t.Cleanup(func() { setValidation(true) })
+
+	mkMobileconfig := func(name, ident, payloadType, keys string) []byte {
+		return fmt.Appendf(nil, `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadType</key>
+			<string>%[3]s</string>
+			<key>PayloadIdentifier</key>
+			<string>%[2]s.payload</string>
+			<key>PayloadUUID</key>
+			<string>%[5]s</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			%[4]s
+		</dict>
+	</array>
+	<key>PayloadDisplayName</key>
+	<string>%[1]s</string>
+	<key>PayloadIdentifier</key>
+	<string>%[2]s</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>%[6]s</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>`, name, ident, payloadType, keys, uuid.NewString(), uuid.NewString())
+	}
+	// two wrong-type keys: only the first is reported
+	const badRestrictions = `<key>allowAirDrop</key><string>no</string><key>allowCamera</key><string>no</string>`
+	badApple := func(name, ident string) []byte {
+		return mkMobileconfig(name, ident, "com.apple.applicationaccess", badRestrictions)
+	}
+	declaration := func(ident, payload string) []byte {
+		return fmt.Appendf(nil, `{"Type": "com.apple.configuration.passcode.settings", "Identifier": %q, "Payload": %s}`, ident, payload)
+	}
+	badDecl := func(ident string) []byte { return declaration(ident, `{"MinimumLength": "six"}`) }
+	mkSyncML := func(locURI, data string) []byte {
+		return fmt.Appendf(nil, `<Replace><Item><Target><LocURI>%s</LocURI></Target><Meta><Format xmlns="syncml:metinf">int</Format></Meta><Data>%s</Data></Item></Replace>`, locURI, data)
+	}
+	const pinLengthLocURI = "./Device/Vendor/MSFT/Policy/Config/DeviceLock/MinDevicePasswordLength"
+	badWin := func() []byte { return mkSyncML(pinLengthLocURI, "six") }
+
+	const hint = " To skip validation, an admin can turn it off in Organization settings > Advanced options."
+	const appleMsg = `"allowAirDrop" expects a boolean.` + hint
+	const declMsg = `"MinimumLength" expects a number.` + hint
+	const winMsg = `"` + pinLengthLocURI + `" expects a number.` + hint
+
+	upload := func(path, fileName string, content []byte, wantStatus int) string {
+		body, headers := generateNewProfileMultipartRequest(t, fileName, content, s.token, nil)
+		res := s.DoRawWithHeaders("POST", path, body.Bytes(), wantStatus, headers)
+		if wantStatus != http.StatusOK {
+			return extractServerErrorText(res.Body)
+		}
+		var resp newMDMConfigProfileResponse
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&resp))
+		return resp.ProfileUUID
+	}
+	add := func(fileName string, content []byte, wantStatus int) string {
+		return upload("/api/latest/fleet/configuration_profiles", fileName, content, wantStatus)
+	}
+	edit := func(profileUUID, fileName string, content []byte, wantStatus int) string {
+		body, headers := generateNewProfileMultipartRequest(t, fileName, content, s.token, nil)
+		res := s.DoRawWithHeaders("PATCH", "/api/latest/fleet/configuration_profiles/"+profileUUID, body.Bytes(), wantStatus, headers)
+		if wantStatus != http.StatusOK {
+			return extractServerErrorText(res.Body)
+		}
+		return ""
+	}
+
+	t.Run("setting on rejects wrong types on every add path", func(t *testing.T) {
+		setValidation(true)
+
+		errMsg := add("bad-apple.mobileconfig", badApple("pv bad apple", "com.example.pv.bad"), http.StatusUnprocessableEntity)
+		require.Contains(t, errMsg, "Couldn't add profile. "+appleMsg)
+		require.NotContains(t, errMsg, "allowCamera")
+
+		errMsg = upload("/api/latest/fleet/mdm/apple/profiles", "bad-apple.mobileconfig", badApple("pv bad apple", "com.example.pv.bad"), http.StatusUnprocessableEntity)
+		require.Contains(t, errMsg, "Couldn't add profile. "+appleMsg)
+
+		errMsg = add("pv-bad-decl.json", badDecl("com.example.pv.baddecl"), http.StatusUnprocessableEntity)
+		require.Contains(t, errMsg, "Couldn't add profile. "+declMsg)
+
+		errMsg = add("pv-bad-win.xml", badWin(), http.StatusUnprocessableEntity)
+		require.Contains(t, errMsg, "Couldn't add profile. "+winMsg)
+	})
+
+	t.Run("setting on accepts unknown types, keys, and LocURIs", func(t *testing.T) {
+		setValidation(true)
+
+		add("pv-unknown-key.mobileconfig", mkMobileconfig("pv unknown key", "com.example.pv.unknownkey",
+			"com.apple.applicationaccess", `<key>allowSomethingMadeUp</key><true/>`), http.StatusOK)
+		add("pv-unknown-type.mobileconfig", mkMobileconfig("pv unknown type", "com.example.pv.unknowntype",
+			"com.example.not.a.real.type", `<key>anything</key><string>x</string>`), http.StatusOK)
+		add("pv-unknown-decl-key.json", declaration("com.example.pv.unknowndeclkey", `{"MadeUpKey": true}`), http.StatusOK)
+		add("pv-unknown-locuri.xml", mkSyncML("./Device/Vendor/MSFT/Policy/Config/MadeUpArea/MadeUpSetting", "1"), http.StatusOK)
+	})
+
+	t.Run("edit skips unchanged content and validates changed content", func(t *testing.T) {
+		// invalid profiles saved while validation was off
+		setValidation(false)
+		appleUUID := add("pv-edit-apple.mobileconfig", badApple("pv edit apple", "com.example.pv.edit"), http.StatusOK)
+		declUUID := add("pv-edit-decl.json", badDecl("com.example.pv.editdecl"), http.StatusOK)
+		winUUID := add("pv-edit-win.xml", badWin(), http.StatusOK)
+		setValidation(true)
+
+		appleProfile, err := s.ds.GetMDMAppleConfigProfile(ctx, appleUUID)
+		require.NoError(t, err)
+		edit(appleUUID, "pv-edit-apple.mobileconfig", appleProfile.Mobileconfig, http.StatusOK)
+		changed := badApple("pv edit apple", "com.example.pv.edit")
+		require.NotEqual(t, appleProfile.Mobileconfig, changed) // fresh PayloadUUIDs
+		require.Contains(t, edit(appleUUID, "pv-edit-apple.mobileconfig", changed, http.StatusUnprocessableEntity),
+			"Couldn't edit profile. "+appleMsg)
+
+		edit(declUUID, "pv-edit-decl.json", badDecl("com.example.pv.editdecl"), http.StatusOK)
+		require.Contains(t, edit(declUUID, "pv-edit-decl.json", declaration("com.example.pv.editdecl", `{"MinimumLength": "seven"}`), http.StatusUnprocessableEntity),
+			"Couldn't edit profile. "+declMsg)
+
+		edit(winUUID, "pv-edit-win.xml", badWin(), http.StatusOK)
+		require.Contains(t, edit(winUUID, "pv-edit-win.xml", mkSyncML(pinLengthLocURI, "seven"), http.StatusUnprocessableEntity),
+			"Couldn't edit profile. "+winMsg)
+	})
+
+	t.Run("setting off saves invalid profiles but keeps structural checks", func(t *testing.T) {
+		setValidation(false)
+
+		add("pv-off-apple.mobileconfig", badApple("pv off apple", "com.example.pv.off"), http.StatusOK)
+		add("pv-off-decl.json", badDecl("com.example.pv.offdecl"), http.StatusOK)
+		add("pv-off-win.xml", badWin(), http.StatusOK)
+
+		errMsg := add("pv-off-filevault.mobileconfig", mkMobileconfig("pv off filevault", "com.example.pv.filevault",
+			mobileconfig.FleetFileVaultPayloadType, ""), http.StatusBadRequest)
+		require.Contains(t, errMsg, "can't include FileVault settings")
+		errMsg = add("pv-off-bitlocker.xml", syncMLForTest(syncml.FleetBitLockerTargetLocURI), http.StatusBadRequest)
+		require.Contains(t, errMsg, syncml.DiskEncryptionProfileRestrictionErrMsg)
+	})
+
+	batchTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "pv-batch-team"})
+	require.NoError(t, err)
+	batch := func(profiles []fleet.MDMProfileBatchPayload, wantStatus int, query ...string) string {
+		res := s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: profiles}, wantStatus,
+			append([]string{"fleet_id", fmt.Sprint(batchTeam.ID)}, query...)...)
+		if wantStatus != http.StatusNoContent {
+			return extractServerErrorText(res.Body)
+		}
+		return ""
+	}
+	const gitopsHint = " To skip validation, set `enable_profile_validation` to false in your GitOps configuration."
+	goodApple := mkMobileconfig("pv batch good", "com.example.pv.batchgood", "com.apple.applicationaccess", `<key>allowAirDrop</key><false/>`)
+
+	t.Run("batch rejects a wrong type and names the profile", func(t *testing.T) {
+		setValidation(true)
+
+		errMsg := batch([]fleet.MDMProfileBatchPayload{
+			{Name: "pv batch good", Contents: goodApple},
+			{Name: "Disable AirDrop", Contents: badApple("Disable AirDrop", "com.example.pv.batchbad")},
+			{Name: "pv-batch-bad-win", Contents: badWin()},
+		}, http.StatusUnprocessableEntity)
+		require.Contains(t, errMsg, `Couldn't edit configuration_profiles. "Disable AirDrop": "allowAirDrop" expects a boolean.`+gitopsHint)
+		require.NotContains(t, errMsg, "allowCamera")
+		require.NotContains(t, errMsg, "pv-batch-bad-win")
+
+		errMsg = batch([]fleet.MDMProfileBatchPayload{{Name: "pv-batch-bad-decl", Contents: badDecl("com.example.pv.batchdecl")}}, http.StatusUnprocessableEntity)
+		require.Contains(t, errMsg, `Couldn't edit configuration_profiles. "pv-batch-bad-decl": "MinimumLength" expects a number.`+gitopsHint)
+
+		errMsg = batch([]fleet.MDMProfileBatchPayload{{Name: "pv-batch-bad-win", Contents: badWin()}}, http.StatusUnprocessableEntity)
+		require.Contains(t, errMsg, `Couldn't edit configuration_profiles. "pv-batch-bad-win": "`+pinLengthLocURI+`" expects a number.`+gitopsHint)
+
+		// unknown content is accepted
+		batch([]fleet.MDMProfileBatchPayload{
+			{Name: "pv batch unknown", Contents: mkMobileconfig("pv batch unknown", "com.example.pv.batchunknown",
+				"com.example.not.a.real.type", `<key>anything</key><string>x</string>`)},
+			{Name: "pv-batch-unknown-locuri", Contents: mkSyncML("./Device/Vendor/MSFT/Policy/Config/MadeUpArea/MadeUpSetting", "1")},
+		}, http.StatusNoContent)
+	})
+
+	t.Run("batch saves invalid profiles with the setting off", func(t *testing.T) {
+		setValidation(false)
+		batch([]fleet.MDMProfileBatchPayload{
+			{Name: "Disable AirDrop", Contents: badApple("Disable AirDrop", "com.example.pv.batchbad")},
+			{Name: "pv-batch-bad-decl", Contents: badDecl("com.example.pv.batchdecl")},
+			{Name: "pv-batch-bad-win", Contents: badWin()},
+		}, http.StatusNoContent)
+	})
+
+	t.Run("batch dry run honors assume_profile_validation", func(t *testing.T) {
+		bad := []fleet.MDMProfileBatchPayload{{Name: "Disable AirDrop", Contents: badApple("Disable AirDrop", "com.example.pv.batchbad")}}
+
+		setValidation(true)
+		batch(bad, http.StatusNoContent, "dry_run", "true", "assume_profile_validation", "false")
+		// only honored on dry run
+		batch(bad, http.StatusUnprocessableEntity, "assume_profile_validation", "false")
+
+		setValidation(false)
+		batch(bad, http.StatusUnprocessableEntity, "dry_run", "true", "assume_profile_validation", "true")
+		batch(bad, http.StatusNoContent, "dry_run", "true")
+	})
+
+	t.Run("batch dry run skips profiles with secrets", func(t *testing.T) {
+		setValidation(true)
+		withSecret := mkMobileconfig("pv batch secret", "com.example.pv.batchsecret", "com.apple.applicationaccess",
+			`<key>allowAirDrop</key><string>$FLEET_SECRET_PV_NOT_STORED</string><key>allowCamera</key><string>no</string>`)
+		batch([]fleet.MDMProfileBatchPayload{{Name: "pv batch secret", Contents: withSecret}}, http.StatusNoContent, "dry_run", "true")
+	})
+
+	t.Run("deprecated Apple batch validates", func(t *testing.T) {
+		appleBatch := func(profiles [][]byte, wantStatus int) string {
+			res := s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: profiles}, wantStatus,
+				"fleet_id", fmt.Sprint(batchTeam.ID))
+			if wantStatus != http.StatusNoContent {
+				return extractServerErrorText(res.Body)
+			}
+			return ""
+		}
+		bad := badApple("Disable AirDrop", "com.example.pv.deprbad")
+
+		setValidation(true)
+		errMsg := appleBatch([][]byte{goodApple, bad}, http.StatusUnprocessableEntity)
+		require.Contains(t, errMsg, `Couldn't edit configuration_profiles. "Disable AirDrop": "allowAirDrop" expects a boolean.`+gitopsHint)
+		require.NotContains(t, errMsg, "allowCamera")
+
+		appleBatch([][]byte{
+			mkMobileconfig("pv depr unknown key", "com.example.pv.deprunknownkey", "com.apple.applicationaccess", `<key>allowSomethingMadeUp</key><true/>`),
+			mkMobileconfig("pv depr unknown type", "com.example.pv.deprunknowntype", "com.example.not.a.real.type", `<key>anything</key><string>x</string>`),
+		}, http.StatusNoContent)
+
+		setValidation(false)
+		appleBatch([][]byte{bad}, http.StatusNoContent)
+	})
+
+	t.Run("batch validates only new or changed profiles", func(t *testing.T) {
+		otherTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "pv-batch-team-2"})
+		require.NoError(t, err)
+		apple := badApple("pv nn apple", "com.example.pv.netnew")
+		decl := badDecl("com.example.pv.netnewdecl")
+		win := badWin()
+		stored := []fleet.MDMProfileBatchPayload{
+			{Name: "pv nn apple", Contents: apple},
+			{Name: "pv-nn-decl", Contents: decl},
+			{Name: "pv-nn-win", Contents: win},
+		}
+		setValidation(false)
+		batch(stored, http.StatusNoContent)
+		setValidation(true)
+
+		// unchanged invalid profiles are accepted
+		batch(stored, http.StatusNoContent)
+
+		// one byte changed is validated
+		changed := slices.Clone(stored)
+		changed[0].Contents = append(slices.Clone(apple), '\n')
+		errMsg := batch(changed, http.StatusUnprocessableEntity)
+		require.Contains(t, errMsg, `"pv nn apple": "allowAirDrop" expects a boolean.`)
+
+		// a match in another fleet doesn't count
+		res := s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: stored}, http.StatusUnprocessableEntity,
+			"fleet_id", fmt.Sprint(otherTeam.ID))
+		require.Contains(t, extractServerErrorText(res.Body), `"pv nn apple": "allowAirDrop" expects a boolean.`)
+
+		// a renamed declaration is new
+		renamedDecl := slices.Clone(stored)
+		renamedDecl[1].Name = "pv-nn-decl-renamed"
+		errMsg = batch(renamedDecl, http.StatusUnprocessableEntity)
+		require.Contains(t, errMsg, `"pv-nn-decl-renamed": "MinimumLength" expects a number.`)
+
+		// a renamed Apple profile with the same identifier isn't
+		renamedApple := slices.Clone(stored)
+		renamedApple[0].Name = "pv nn apple renamed"
+		batch(renamedApple, http.StatusNoContent)
+
+		// a case-only Windows rename is the same profile (the name's unique key is case-insensitive)
+		caseRenamed := slices.Clone(stored)
+		caseRenamed[2].Name = "PV-NN-WIN"
+		batch(caseRenamed, http.StatusNoContent)
+	})
+
+	t.Run("deprecated Apple batch validates only new or changed profiles", func(t *testing.T) {
+		teamA, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "pv-depr-netnew-a"})
+		require.NoError(t, err)
+		teamB, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "pv-depr-netnew-b"})
+		require.NoError(t, err)
+		appleBatch := func(teamID uint, profiles [][]byte, wantStatus int) string {
+			res := s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: profiles}, wantStatus,
+				"fleet_id", fmt.Sprint(teamID))
+			if wantStatus != http.StatusNoContent {
+				return extractServerErrorText(res.Body)
+			}
+			return ""
+		}
+		bad := badApple("pv depr netnew", "com.example.pv.deprnetnew")
+		setValidation(false)
+		appleBatch(teamA.ID, [][]byte{bad}, http.StatusNoContent)
+		setValidation(true)
+
+		// unchanged is accepted
+		appleBatch(teamA.ID, [][]byte{bad}, http.StatusNoContent)
+		// one byte changed is validated
+		errMsg := appleBatch(teamA.ID, [][]byte{append(slices.Clone(bad), '\n')}, http.StatusUnprocessableEntity)
+		require.Contains(t, errMsg, `"pv depr netnew": "allowAirDrop" expects a boolean.`)
+		// a match in another fleet doesn't count
+		errMsg = appleBatch(teamB.ID, [][]byte{bad}, http.StatusUnprocessableEntity)
+		require.Contains(t, errMsg, `"pv depr netnew": "allowAirDrop" expects a boolean.`)
+	})
+
+	t.Run("Windows secrets are validated expanded", func(t *testing.T) {
+		setValidation(true)
+		s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", fleet.CreateSecretVariablesRequest{
+			SecretVariables: []fleet.SecretVariable{{Name: "FLEET_SECRET_PV_LENGTH", Value: "six"}},
+		}, http.StatusOK, &fleet.CreateSecretVariablesResponse{})
+		withSecret := mkSyncML(pinLengthLocURI, "$FLEET_SECRET_PV_LENGTH")
+
+		errMsg := add("pv-secret-win.xml", withSecret, http.StatusUnprocessableEntity)
+		require.Contains(t, errMsg, "Couldn't add profile. "+winMsg)
+		require.NotContains(t, errMsg, "six")
+
+		errMsg = batch([]fleet.MDMProfileBatchPayload{{Name: "pv-secret-win", Contents: withSecret}}, http.StatusUnprocessableEntity)
+		require.Contains(t, errMsg, `"pv-secret-win": "`+pinLengthLocURI+`" expects a number.`)
+		require.NotContains(t, errMsg, "six")
+	})
 }

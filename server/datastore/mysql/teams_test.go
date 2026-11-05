@@ -769,6 +769,11 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 	defaultMDM := fleet.TeamMDM{}
 	ctx := context.Background()
 
+	t.Run("missing team", func(t *testing.T) {
+		_, err := ds.TeamMDMConfig(ctx, 999999)
+		require.True(t, fleet.IsNotFound(err))
+	})
+
 	t.Run("NULL config in the database", func(t *testing.T) {
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team_null_config"})
 		require.NoError(t, err)

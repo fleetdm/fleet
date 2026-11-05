@@ -8,6 +8,18 @@ import URL_PREFIX from "router/url_prefix";
 import authToken from "utilities/auth_token";
 import endpoints from "utilities/endpoints";
 
+let onUnauthorized: (() => void) | undefined;
+
+export const setUnauthorizedHandler = (handler?: () => void) => {
+  onUnauthorized = handler;
+};
+
+const handleUnauthorized = (error: unknown) => {
+  if (isAxiosError(error) && error.response?.status === 401) {
+    onUnauthorized?.();
+  }
+};
+
 export const sendRequestWithProgress = async ({
   method,
   path,
@@ -55,6 +67,7 @@ export const sendRequestWithProgress = async ({
     }
     return response.data;
   } catch (error) {
+    handleUnauthorized(error);
     if (skipParseError) {
       return Promise.reject(error);
     }
@@ -98,6 +111,7 @@ export const sendRequest = async (
     }
     return response.data;
   } catch (error) {
+    handleUnauthorized(error);
     if (skipParseError) {
       return Promise.reject(error);
     }
@@ -147,6 +161,7 @@ export const sendRequestWithHeaders = async (
     }
     return response.data;
   } catch (error) {
+    handleUnauthorized(error);
     if (skipParseError) {
       return Promise.reject(error);
     }
@@ -214,6 +229,7 @@ export const sendRequestWithProgressAndHeaders = async ({
     }
     return response.data;
   } catch (error) {
+    handleUnauthorized(error);
     if (skipParseError) {
       return Promise.reject(error);
     }
