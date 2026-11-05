@@ -1924,13 +1924,11 @@ None.
       "webhook_url": "https://webhook.example.com"
     },
     "setup_experience": {
-      "bootstrap_package": "",
+      "macos_bootstrap_package": "",
       "enable_end_user_authentication": false,
       "apple_setup_assistant": "path/to/config.json",
-      "enable_release_device_manually": false,
-      "manual_agent_install": false,
-      "enable_managed_local_account": false,
-      "end_user_local_account_type": "admin"
+      "apple_enable_release_device_manually": false,
+      "macos_manual_agent_install": false
     },
     "client_url": "https://instance.fleet.com",
     "apple_account_provisioning": {
@@ -2331,10 +2329,8 @@ Modifies the Fleet's configuration with the supplied information.
       "webhook_url": "https://webhook.example.com"
     },
     "setup_experience": {
-      "bootstrap_package": "",
+      "macos_bootstrap_package": "",
       "enable_end_user_authentication": false,
-      "enable_managed_local_account": false,
-      "end_user_local_account_type": "admin",
       "lock_end_user_info": true,
       "apple_setup_assistant": "path/to/config.json"
     },
@@ -3164,7 +3160,7 @@ _Available in Fleet Premium._
       "webhook_url": "https://webhook.example.com"
     },
     "setup_experience": {
-      "bootstrap_package": "",
+      "macos_bootstrap_package": "",
       "enable_end_user_authentication": false,
       "lock_end_user_info": true,
       "apple_setup_assistant": "path/to/config.json"
@@ -5482,7 +5478,8 @@ If `hostname` is specified when there is more than one host with the same hostna
       },
       "setup_experience": {
         "bootstrap_package_status": "installed",
-        "detail": ""
+        "detail": "",
+        "bootstrap_package_name": "test.pkg"
       },
       "os_settings": {
         "disk_encryption": {
@@ -9784,17 +9781,17 @@ _Available in Fleet Premium_
 
 #### Parameters
 
-| Name                           | Type    | In    | Description                                                                                 |
-| -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
-| fleet_id                        | integer | body  | The fleet ID to apply the settings to. Settings are applied to "Unassigned" hosts if absent.       |
-| enable_end_user_authentication | boolean | body  | When enabled, require end users to authenticate with your identity provider (IdP) when they set up their new macOS hosts. |
-| lock_end_user_info | boolean | body  | When enabled, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`)  |
-| require_all_software_macos | boolean | body | If set to `true`, setup will be canceled on macOS hosts if any software installs fail. |
-| require_all_software_windows | boolean | body | If set to `true`, setup will be canceled on Windows hosts if any software installs fail (the host is blocked at the Windows Enrollment Status Page until the device is reset). If `false`, the Enrollment Status Page lists the failed software and the end user can continue to the desktop and install it later via self-service. |
-| enable_release_device_manually | boolean | body  | When enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. |
-| manual_agent_install | boolean | body  | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
-| enable_managed_local_account     | boolean | body | _Available in Fleet Premium._ During the Setup experience, a managed local account will be created on macOS hosts if set to true. |
-| end_user_local_account_type     | string | body | Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
+| Name                                 | Type    | In    | Description                                                                                 |
+| -------------                        | ------  | ----  | --------------------------------------------------------------------------------------      |
+| fleet_id                             | integer | body  | The fleet ID to apply the settings to. Settings are applied to "Unassigned" hosts if absent.       |
+| enable_end_user_authentication       | boolean | body  | When enabled, require end users to authenticate with your identity provider (IdP) when they set up their new macOS hosts. |
+| lock_end_user_info                   | boolean | body  | When enabled, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`)  |
+| require_all_software_macos           | boolean | body  | If set to `true`, setup will be canceled on macOS hosts if any software installs fail. |
+| require_all_software_windows         | boolean | body  | If set to `true`, setup will be canceled on Windows hosts if any software installs fail (the host is blocked at the Windows Enrollment Status Page until the device is reset). If `false`, the Enrollment Status Page lists the failed software and the end user can continue to the desktop and install it later via self-service. |
+| apple_enable_release_device_manually | boolean | body  | When enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. |
+| macos_manual_agent_install           | boolean | body  | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
+| enable_managed_local_account         | boolean | body  | _Available in Fleet Premium._ During the Setup experience, a managed local account will be created on macOS hosts if set to true. |
+| end_user_local_account_type          | string  | body  | Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
 
 #### Example
 
@@ -9807,7 +9804,7 @@ _Available in Fleet Premium_
   "team_id": 1,
   "fleet_id": 1,
   "enable_end_user_authentication": true,
-  "enable_release_device_manually": true
+  "apple_enable_release_device_manually": true
 }
 ```
 
@@ -10056,10 +10053,10 @@ Add a script that will automatically run during macOS setup.
 
 `POST /api/v1/fleet/setup_experience/script`
 
-| Name  | Type   | In    | Description                              |
-| ----- | ------ | ----- | ---------------------------------------- |
-| fleet_id | integer | body | _Available in Fleet Premium_. The ID of the fleet to add the script to. If not specified, a script will be added for "Unassigned" hosts. |
-| script | file | body | The contents of the script to run during setup. |
+| Name     | Type    | In    | Description                              |
+| -----    | ------  | ----- | ---------------------------------------- |
+| fleet_id | integer | body  | _Available in Fleet Premium_. The ID of the fleet to add the script to. If not specified, a script will be added for "Unassigned" hosts. |
+| script   | file    | body  | The contents of the script to run during setup. |
 
 #### Example
 
@@ -10084,10 +10081,10 @@ Get a script that will automatically run during macOS setup.
 
 `GET /api/v1/fleet/setup_experience/script`
 
-| Name  | Type   | In    | Description                              |
-| ----- | ------ | ----- | ---------------------------------------- |
+| Name     | Type    | In    | Description                              |
+| -----    | ------  | ----- | ---------------------------------------- |
 | fleet_id | integer | query | _Available in Fleet Premium_. The ID of the fleet to get the script for. If not specified, script will be returned for "Unassigned" hosts. |
-| alt  | string | query | If specified and set to "media", downloads the script's contents. |
+| alt      | string  | query | If specified and set to "media", downloads the script's contents. |
 
 
 #### Example (get script)
@@ -17151,13 +17148,11 @@ _Available in Fleet Premium_
         "enable_escrow_disk_encryption_key": true
       },
       "setup_experience": {
-        "bootstrap_package": "",
+        "macos_bootstrap_package": "",
         "enable_end_user_authentication": false,
-        "enable_managed_local_account": false,
-        "end_user_local_account_type": "admin",
         "apple_setup_assistant": "path/to/config.json",
-        "enable_release_device_manually": false,
-        "manual_agent_install": false
+        "apple_enable_release_device_manually": false,
+        "macos_manual_agent_install": false
       }
     }
   }
@@ -17580,13 +17575,13 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 `mdm.apple_settings` is an object with the following structure:
 
 | Name                                   | Type    | Description   |
-| -------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| -------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
 | managed_local_account_settings         | object  | Settings for the managed local account. |
 | managed_local_account_settings.enabled | boolean | Whether to create the managed local account (default: `false`). |
 | end_user_local_account_type            | string  | The end user account type. Requires `managed_local_account_settings.enabled` to be `true`. Options: `"admin"`, `"standard"`, `"none"` (default: `"admin"`). |
-| enable_disk_encryption             | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true. |
-| enable_escrow_disk_encryption_key  | boolean | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. Supported for macOS and Linux hosts. |
+| enable_disk_encryption                 | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true. |
+| enable_escrow_disk_encryption_key      | boolean | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. Supported for macOS and Linux hosts. |
 
 <br/>
 
@@ -17621,11 +17616,11 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 `mdm.setup_experience` is an object with the following structure:
 
 | Name                                  | Type    | Description   |
-| ------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | enable_end_user_authentication        | boolean | If set to true, IdP authentication will be required during automatic MDM enrollment of new macOS hosts. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#require-idp-authentication).
 | lock_end_user_info                    | boolean | If set to true, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`) |
 | enable_managed_local_account          | boolean | _Available in Fleet Premium._ During Setup experience, a managed local account will be created on eligible hosts if set to true. |
-| end_user_local_account_type          | string  | body  | Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
+| end_user_local_account_type           | string  | Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
 
 
 ##### Example request body
@@ -17689,6 +17684,7 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
       "enable_escrow_disk_encryption_key": true
     },
     "setup_experience": {
+      "macos_bootstrap_package": "",
       "enable_end_user_authentication": false
     }
   }
@@ -17697,11 +17693,10 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 
 #### host_expiry_settings
 
-| Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| host_expiry_enabled                         | boolean | When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days. When disabled, defaults to the global setting.                                               |
-| host_expiry_window                          | integer | If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                                                             |
-
+| Name                         | Type    | Description   |
+| ---------------------        | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| host_expiry_enabled          | boolean | When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days. When disabled, defaults to the global setting.   |
+| host_expiry_window           | integer | If a host has not communicated with Fleet in the specified number of days, it will be removed.    |
 
 <br/>
 
@@ -17955,12 +17950,12 @@ _Available in Fleet Premium_
 
 #### Parameters
 
-| Name                             | Type    | In    | Description                                                                                                                                                  |
-| ---                              | ---     | ---   | ---                                                                                                                                                          |
-| id                               | integer | path  | **Required.** The desired fleet's ID.                                                                                                                         |
-| force                            | boolean | query | Force apply the options even if there are validation errors.                                                                                                 |
-| dry_run                          | boolean | query | Validate the options and return any validation errors, but do not apply the changes.                                                                         |
-| _JSON data_                      | object  | body  | The JSON to use as agent options for this fleet. See [Agent options](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options) for details.                              |
+| Name                        | Type    | In    | Description                                                                                                                                                  |
+| ---                         | ---     | ---   | ---                                                                                                                                                          |
+| id                          | integer | path  | **Required.** The desired fleet's ID.                                                                                                                         |
+| force                       | boolean | query | Force apply the options even if there are validation errors.                                                                                                 |
+| dry_run                     | boolean | query | Validate the options and return any validation errors, but do not apply the changes.                                                                         |
+| _JSON data_                 | object  | body  | The JSON to use as agent options for this fleet. See [Agent options](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options) for details.  |
 
 #### Example
 
