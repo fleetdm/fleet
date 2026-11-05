@@ -13,6 +13,7 @@ import {
 
 import JiraIcon from "../../../../../assets/images/icon-jira-24x24@2x.png";
 import ZendeskIcon from "../../../../../assets/images/icon-zendesk-32x24@2x.png";
+import LinearIcon from "../../../../../assets/images/icon-linear-24x24@2x.png";
 
 interface IHeaderProps {
   column: {
@@ -72,7 +73,15 @@ const generateTableHeaders = (
       accessor: "type",
       Cell: (cellProps: ICellProps) => {
         if (cellProps.cell.value === "linear") {
-          return <div className="logo-cell">Linear</div>;
+          return (
+            <div className="logo-cell">
+              <img
+                src={LinearIcon}
+                alt="integration-icon"
+                className="linear-icon"
+              />
+            </div>
+          );
         }
         return (
           <div className="logo-cell">
