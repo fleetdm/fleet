@@ -13,13 +13,14 @@ export const endpointKey = (ep: IApiEndpointRef) => `${ep.method} ${ep.path}`;
 
 /**
  * Mirrors the server's endpoint fingerprint, which grants are matched by: the
- * method's case, the path's case, and the names of path parameters don't make
- * two endpoints different.
+ * method's case, the path's case, how the API version is written, and the
+ * names of path parameters don't make two endpoints different.
  */
 export const endpointFingerprint = (ep: IApiEndpointRef) => {
   let placeholders = 0;
   const path = ep.path
-    .replace("/_version_/", "/v1/")
+    .replace(/\/\{fleetversion:[^}]+\}\//g, "/v1/")
+    .replace(/\/_version_\//g, "/v1/")
     .split("/")
     .map((segment) => {
       if (

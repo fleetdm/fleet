@@ -245,4 +245,23 @@ describe("ApiEndpointSelectorTable", () => {
 
     expect(onSelectionChange).toHaveBeenCalledWith([]);
   });
+
+  it("excludes a selected endpoint spelled differently from the catalog from the search results", async () => {
+    const { user } = render(
+      <ApiEndpointSelectorTable
+        selectedEndpoints={[
+          { method: "get", path: "/api/v1/fleet/hosts/:host_id/software" },
+        ]}
+        onSelectionChange={jest.fn()}
+      />
+    );
+
+    await user.type(
+      screen.getByPlaceholderText("Search by name or path"),
+      "software"
+    );
+
+    await screen.findByText("Uninstall software");
+    expect(screen.getAllByText("List host's software")).toHaveLength(1);
+  });
 });

@@ -39,6 +39,20 @@ describe("useApiEndpoints", () => {
     await waitFor(() => expect(result.current.data).toEqual([LIST_HOSTS]));
   });
 
+  it("shares one request between consumers", async () => {
+    (apiEndpointsAPI.loadAll as jest.Mock).mockResolvedValue([LIST_HOSTS]);
+    const { result } = renderHook(
+      () => ({ first: useApiEndpoints(), second: useApiEndpoints() }),
+      { wrapper: buildWrapper() }
+    );
+
+    await waitFor(() =>
+      expect(result.current.first.data).toEqual([LIST_HOSTS])
+    );
+    expect(result.current.second.data).toEqual([LIST_HOSTS]);
+    expect(apiEndpointsAPI.loadAll).toHaveBeenCalledTimes(1);
+  });
+
   it("stays idle when disabled", () => {
     const { result } = renderHook(() => useApiEndpoints({ enabled: false }), {
       wrapper: buildWrapper(),

@@ -45,6 +45,11 @@ describe("dropUnlistedEndpoints", () => {
       { method: "get", path: LIST_HOSTS.path },
       { method: "GET", path: "/api/v1/fleet/hosts/:host_id" },
       { method: "GET", path: "/api/v1/fleet/hosts/{id}" },
+      { method: "GET", path: "/api/_version_/fleet/hosts" },
+      {
+        method: "GET",
+        path: "/api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts",
+      },
     ];
 
     expect(
