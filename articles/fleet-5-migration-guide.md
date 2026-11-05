@@ -1,12 +1,16 @@
-# Migrate from Fleet 4 to Fleet 5
+# Migrate to Fleet 5
 
-Fleet 5 removes deprecated features such as API endpoints, API parameters, and YAML (GitOps) keys. This guide lists every breaking change, what changed, and what you need to do.
+Fleet 5 removes deprecated features such as API endpoints and parameters, YAML (GitOps) keys, and more. This guide lists [every breaking change](#breaking-changes), what changed, and what you need to do.
 
-Update to Fleet 4.95 first, then work through the list. Fleet will support Fleet 4.95 with security fixes through June 30, 2027.
+Fleet will support Fleet 4.95 with security fixes through June 30, 2027.
 
-> Upgrade fleetctl to Fleet 5 at the same time you upgrade your Fleet server to Fleet 5, both in CI and on your computer.
->
-> Update your GitOps files with the [YAML (GitOps)](#yaml-gitops) changes before you use them with a Fleet 5 server.
+How to migrate?
+
+1. Update to Fleet 4.95.
+2. Work through the list of [breaking changes](#breaking-changes).
+3. Upgrade you Fleet server and [fleetctl CLI](https://fleetdm.com/guides/fleetctl) (both in CI and on your computer).
+
+## Breaking changes
 
 Breaking changes are grouped by where you use Fleet. Read the sections that apply to you:
 
@@ -24,8 +28,8 @@ Breaking changes are grouped by where you use Fleet. Read the sections that appl
 
 When you switch your scripts and integrations to the new endpoints, don't forget to update what's tied to the old ones, so your automation keeps running without interruption:
 
-- **API-only user permissions:** Give your API-only users permission for the new endpoints in **Settings > Users**. Permission for an old endpoint doesn't cover its replacement.
-- **Request size overrides:** If you set `server.endpoint_request_size_overrides` for an old endpoint, add the same entry for its replacement.
+- API-only user permissions: Give your [API-only users](https://fleetdm.com/guides/fleetctl#create-api-only-user) permission for the new endpoints in **Settings > Users**. Permissions for an old endpoint don't automatically cover the new endpoint.
+- Request size overrides: If you set [`server.endpoint_request_size_overrides`](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-endpoint-request-size-overrides) for an old endpoint, add the same entry for its replacement.
 
 ### Farewell, teams
 
@@ -33,7 +37,7 @@ You'll be missed, and we'll keep saying "teams" out of muscle memory.
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `GET /api/v1/fleet/teams` | [`GET /api/v1/fleet/fleets`](https://fleetdm.com/docs/rest-api/rest-api#list-fleets) |
+| `GET /teams` | [`GET /fleets`](https://fleetdm.com/docs/rest-api/rest-api#list-fleets) |
 | `GET /api/v1/fleet/teams/:id` | [`GET /api/v1/fleet/fleets/:id`](https://fleetdm.com/docs/rest-api/rest-api#get-fleet) |
 | `POST /api/v1/fleet/teams` | [`POST /api/v1/fleet/fleets`](https://fleetdm.com/docs/rest-api/rest-api#create-fleet) |
 | `PATCH /api/v1/fleet/teams/:id` | [`PATCH /api/v1/fleet/fleets/:id`](https://fleetdm.com/docs/rest-api/rest-api#update-fleet) |
