@@ -136,9 +136,15 @@ jobs:
         test "$(yq eval-all "${CRON} | .tolerations[0].key" "${FILE}")" = "example.com/batch"
         # An empty vulnProcessing.affinity falls back to the top-level affinity.
         test "$(yq eval-all "${CRON} | .affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].podAffinityTerm.topologyKey" "${FILE}")" = "kubernetes.io/hostname"
-        # The Deployment keeps the top-level values.
+        # The Deployment does not get the vulnProcessing values.
         test "$(yq eval-all "${DEPLOY} | .nodeSelector" "${FILE}")" = "null"
         test "$(yq eval-all "${DEPLOY} | .tolerations" "${FILE}")" = "null"
+        # Empty vulnProcessing values fall back to non-empty top-level values.
+        FILE=helm-temp/vulnprocessing-fallback.yaml
+        for SPEC in "${CRON}" "${DEPLOY}"; do
+          test "$(yq eval-all "${SPEC} | .nodeSelector.\"example.com/node-pool\"" "${FILE}")" = "general"
+          test "$(yq eval-all "${SPEC} | .tolerations[0].key" "${FILE}")" = "example.com/general"
+        done
         FILE=helm-temp/vulnprocessing-affinity.yaml
         test "$(yq eval-all "${CRON} | .affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].values[0]" "${FILE}")" = "batch"
         test "$(yq eval-all "${CRON} | .affinity.podAntiAffinity" "${FILE}")" = "null"
