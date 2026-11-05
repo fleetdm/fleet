@@ -48,7 +48,7 @@ func (s *OrgLogoStore) Delete(ctx context.Context, mode fleet.OrgLogoMode) error
 	key := s.keyForFile(string(mode))
 	_, err := s.client.DeleteBlob(ctx, s.container, key, nil)
 	if err != nil {
-		if bloberror.HasCode(err, bloberror.BlobNotFound, bloberror.ContainerNotFound) {
+		if bloberror.HasCode(err, bloberror.BlobNotFound) {
 			return nil
 		}
 		return ctxerr.Wrap(ctx, newAPIError(err, s.container), "deleting org logo from Azure Blob store")
