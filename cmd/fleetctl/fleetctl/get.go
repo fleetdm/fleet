@@ -1700,16 +1700,22 @@ func runGetMDMAB(c *cli.Context) error {
 	}
 
 	for _, token := range tokens {
+		fleetName := func(assignment fleet.ABMTokenTeam) string {
+			if assignment.ID == 0 {
+				return fleet.DisplayNameNoTeam
+			}
+			return assignment.Name
+		}
 		printKeyValueTable(c, [][]string{
 			{"Organization name:", token.OrganizationName},
 			{"Apple ID:", token.AppleID},
 			{"MDM server URL:", token.MDMServerURL},
 			{"Renew date:", token.RenewAt.Format("January 2, 2006")},
 			{"Default token:", fmt.Sprintf("%t", token.IsDefault)},
-			{"macOS fleet:", token.MacOSTeam.Name},
-			{"iOS fleet:", token.IOSTeam.Name},
-			{"iPadOS fleet:", token.IPadOSTeam.Name},
-			{"BYOD fleet:", token.BYODTeam.Name},
+			{"macOS fleet:", fleetName(token.MacOSTeam)},
+			{"iOS fleet:", fleetName(token.IOSTeam)},
+			{"iPadOS fleet:", fleetName(token.IPadOSTeam)},
+			{"BYOD fleet:", fleetName(token.BYODTeam)},
 		})
 
 		warnDate := time.Now().Add(expirationWarning)
