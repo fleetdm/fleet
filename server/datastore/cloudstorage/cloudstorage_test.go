@@ -1,8 +1,6 @@
 package cloudstorage
 
 import (
-	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -54,7 +52,7 @@ func TestMisconfiguredError(t *testing.T) {
 
 			// The vendor error must stay reachable.
 			var got *vendorErr
-			require.True(t, errors.As(fmt.Errorf("wrapped: %w", err), &got))
+			require.ErrorAs(t, err, &got)
 			require.Same(t, vendor, got)
 
 			var mis *MisconfiguredError
