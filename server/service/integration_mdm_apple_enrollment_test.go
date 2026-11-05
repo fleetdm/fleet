@@ -141,6 +141,49 @@ func (s *integrationMDMTestSuite) TestPersonalEnrollmentFlagFromDevice() {
 	})
 }
 
+func (s *integrationMDMTestSuite) TestDeviceChannelIDCannotTakeUserChannelID() {
+	t := s.T()
+	ctx := t.Context()
+	enrollInfo := mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.scepChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	}
+
+	victim := mdmtest.NewTestMDMClientAppleDirect(enrollInfo, "MacBookPro16,1")
+	require.NoError(t, victim.Enroll())
+	require.NoError(t, victim.UserEnroll())
+	userChannelID := victim.UUID + ":" + victim.UserUUID
+
+	type enrollment struct {
+		Type     string `db:"type"`
+		TokenHex string `db:"token_hex"`
+	}
+	readUserChannel := func() enrollment {
+		var e enrollment
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &e, `SELECT type, token_hex FROM nano_enrollments WHERE id = ?`, userChannelID)
+		})
+		return e
+	}
+	before := readUserChannel()
+	require.Equal(t, "User", before.Type)
+
+	// A device claims the user channel's ID as its UDID.
+	device := mdmtest.NewTestMDMClientAppleDirect(enrollInfo, "MacBookPro16,1")
+	device.UUID = userChannelID
+	require.ErrorContains(t, device.Enroll(), "400")
+
+	require.Equal(t, before, readUserChannel())
+	for _, table := range []string{"nano_devices", "nano_cert_auth_associations"} {
+		var n int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, `SELECT COUNT(*) FROM `+table+` WHERE id = ?`, userChannelID)
+		})
+		require.Zero(t, n, table)
+	}
+}
+
 func (s *integrationMDMTestSuite) TestGetBootstrapToken() {
 	// see https://developer.apple.com/documentation/devicemanagement/get_bootstrap_token
 	t := s.T()
