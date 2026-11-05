@@ -408,29 +408,57 @@ func IndexLinearIntegrations(linearIntgs []*LinearIntegration) (map[string]Linea
 	return indexed, nil
 }
 
-// ValidateLinearIntegrations validates that the merge of the original and new
-// Linear integrations does not result in any duplicate configuration, and that
-// each modified or added integration can successfully connect to the external
-// Linear service. It returns the list of integrations that were deleted, if
-// any.
+// ValidateLinearIntegrationFields checks the new Linear integrations
+// without any network request: no null entry, no duplicate team id,
+// no empty team id, and no empty or masked API key for a team that is
+// not in the original integrations. It does not change its input.
+func ValidateLinearIntegrationFields(oriLinearIntgsIndexed map[string]LinearIntegration, newLinearIntgs []*LinearIntegration) error {
+	seen := make(map[string]struct{}, len(newLinearIntgs))
+	for i, intg := range newLinearIntgs {
+		if intg == nil {
+			return fmt.Errorf("Linear integration at index %d: entry is null", i)
+		}
+		if _, ok := seen[intg.TeamID]; ok {
+			return fmt.Errorf("duplicate Linear integration for team id %s", intg.TeamID)
+		}
+		seen[intg.TeamID] = struct{}{}
+
+		if intg.TeamID == "" {
+			return fmt.Errorf("Linear integration at index %d: %w", i,
+				IntegrationTestError{Err: errors.New("Linear integration request failed: missing team id")})
+		}
+		if _, ok := oriLinearIntgsIndexed[intg.TeamID]; !ok && (intg.APIKey == "" || intg.APIKey == MaskedPassword) {
+			return fmt.Errorf("Linear integration at index %d: %w", i,
+				IntegrationTestError{Err: errors.New("Linear integration request failed: missing or invalid API key")})
+		}
+	}
+	return nil
+}
+
+// ValidateLinearIntegrations validates the fields of the new Linear
+// integrations (see ValidateLinearIntegrationFields), and that each
+// modified or added integration can successfully connect to the external
+// Linear service. It returns the list of integrations that were deleted,
+// if any.
 //
 // On successful return, the newLinearIntgs slice is ready to be saved - it may
 // have been updated using the original integrations if the API key was missing.
 func ValidateLinearIntegrations(ctx context.Context, oriLinearIntgsIndexed map[string]LinearIntegration, newLinearIntgs []*LinearIntegration) (deleted []*LinearIntegration, err error) {
+	if err := ValidateLinearIntegrationFields(oriLinearIntgsIndexed, newLinearIntgs); err != nil {
+		return nil, err
+	}
+
 	newIndexed := make(map[string]*LinearIntegration, len(newLinearIntgs))
 	for i, new := range newLinearIntgs {
-		if _, ok := newIndexed[new.TeamID]; ok {
-			return nil, fmt.Errorf("duplicate Linear integration for team id %s", new.TeamID)
-		}
 		newIndexed[new.TeamID] = new
 
 		if old, ok := oriLinearIntgsIndexed[new.TeamID]; ok {
-			if old == *new {
-				continue
-			}
 			// the frontend gets a masked key, so keep the stored key unless a new one is sent
 			if new.APIKey == "" || new.APIKey == MaskedPassword {
 				new.APIKey = old.APIKey
+			}
+			if old == *new {
+				continue
 			}
 		}
 

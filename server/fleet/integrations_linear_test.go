@@ -67,6 +67,86 @@ func TestValidateLinearIntegrations(t *testing.T) {
 		require.ErrorAs(t, err, &testErr)
 		require.ErrorContains(t, err, "missing team id")
 	})
+
+	t.Run("null entry returns an error", func(t *testing.T) {
+		require.NotPanics(t, func() {
+			_, err := ValidateLinearIntegrations(ctx, ori,
+				[]*LinearIntegration{nil})
+			require.ErrorContains(t, err,
+				"Linear integration at index 0: entry is null")
+		})
+	})
+
+	t.Run("masked key on an unchanged entry makes no request", func(t *testing.T) {
+		// before the fix, this compared the masked key to the
+		// stored key, saw a change, and tried a real request
+		for _, key := range []string{"", MaskedPassword} {
+			intgs := []*LinearIntegration{{APIKey: key, TeamID: "team-a"}}
+			deleted, err := ValidateLinearIntegrations(ctx, ori, intgs)
+			require.NoError(t, err)
+			require.Equal(t, "k1", intgs[0].APIKey)
+			require.Len(t, deleted, 1)
+			require.Equal(t, "team-b", deleted[0].TeamID)
+		}
+	})
+}
+
+func TestValidateLinearIntegrationFields(t *testing.T) {
+	ori := map[string]LinearIntegration{
+		"team-a": {APIKey: "k1", TeamID: "team-a"},
+	}
+
+	t.Run("valid lists pass", func(t *testing.T) {
+		require.NoError(t, ValidateLinearIntegrationFields(ori, nil))
+		require.NoError(t, ValidateLinearIntegrationFields(ori,
+			[]*LinearIntegration{}))
+		require.NoError(t, ValidateLinearIntegrationFields(ori,
+			[]*LinearIntegration{
+				{APIKey: "k9", TeamID: "team-new"},
+			}))
+	})
+
+	t.Run("masked key on a known team passes and is not changed", func(t *testing.T) {
+		intgs := []*LinearIntegration{
+			{APIKey: MaskedPassword, TeamID: "team-a"},
+		}
+		require.NoError(t, ValidateLinearIntegrationFields(ori, intgs))
+		require.Equal(t, MaskedPassword, intgs[0].APIKey)
+	})
+
+	t.Run("null entry", func(t *testing.T) {
+		err := ValidateLinearIntegrationFields(ori,
+			[]*LinearIntegration{{APIKey: "k1", TeamID: "team-a"}, nil})
+		require.ErrorContains(t, err,
+			"Linear integration at index 1: entry is null")
+	})
+
+	t.Run("duplicate team id", func(t *testing.T) {
+		err := ValidateLinearIntegrationFields(ori, []*LinearIntegration{
+			{APIKey: "k1", TeamID: "team-a"},
+			{APIKey: "k1", TeamID: "team-a"},
+		})
+		require.ErrorContains(t, err,
+			"duplicate Linear integration for team id team-a")
+	})
+
+	t.Run("empty team id", func(t *testing.T) {
+		err := ValidateLinearIntegrationFields(ori,
+			[]*LinearIntegration{{APIKey: "k1", TeamID: ""}})
+		var testErr IntegrationTestError
+		require.ErrorAs(t, err, &testErr)
+		require.ErrorContains(t, err, "missing team id")
+	})
+
+	t.Run("empty or masked key on a new team", func(t *testing.T) {
+		for _, key := range []string{"", MaskedPassword} {
+			err := ValidateLinearIntegrationFields(ori,
+				[]*LinearIntegration{{APIKey: key, TeamID: "team-new"}})
+			var testErr IntegrationTestError
+			require.ErrorAs(t, err, &testErr)
+			require.ErrorContains(t, err, "missing or invalid API key")
+		}
+	})
 }
 
 func TestLinearObfuscateAndClone(t *testing.T) {
