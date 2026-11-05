@@ -230,8 +230,8 @@ github.com/rs/zerolog v1.32.0/go.mod h1:/7mN4D5sKwJLZQ2b/znpjC3/GQWY/xaDXUM0kKWR
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/sagikazarmark/locafero v0.11.0 h1:1iurJgmM9G3PA/I+wWYIOw/5SyBtxapeHDcg+AAIFXc=
 github.com/sagikazarmark/locafero v0.11.0/go.mod h1:nVIGvgyzw595SUSUE6tvCp3YYTeHs15MvlmU87WwIik=
-github.com/smallstep/pkcs7 v0.0.0-20240723090913-5e2c6a136dfa h1:FtxzVccOwaK+bK4bnWBPGua0FpCOhrVyeo6Fy9nxdlo=
-github.com/smallstep/pkcs7 v0.0.0-20240723090913-5e2c6a136dfa/go.mod h1:SoUAr/4M46rZ3WaLstHxGhLEgoYIDRqxQEXLOmOEB0Y=
+github.com/smallstep/pkcs7 v0.2.3 h1:bhoQ3TeZmdoXTatcwxCbk+FMcdsyr0gYrrW2Xq2qr+s=
+github.com/smallstep/pkcs7 v0.2.3/go.mod h1:7STkdKhZaZe4xNEXTtY4j1NGeST1gYM4GA40kC5iqr8=
 github.com/smallstep/scep v0.0.0-20240214080410-892e41795b99 h1:e85HuLX5/MW15yJ7yWb/PMNFW1Kx1N+DeQtpQnlMUbw=
 github.com/smallstep/scep v0.0.0-20240214080410-892e41795b99/go.mod h1:4d0ub42ut1mMtvGyMensjuHYEUpRrASvkzLEJvoRQcU=
 github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8 h1:+jumHNA0Wrelhe64i8F6HNlS8pkoyMv5sreGx2Ry5Rw=
