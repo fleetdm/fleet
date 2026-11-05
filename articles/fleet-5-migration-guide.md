@@ -38,18 +38,18 @@ You'll be missed, and we'll keep saying "teams" out of muscle memory.
 | Fleet 4 | Fleet 5 |
 |:--|:--|
 | `GET /teams` | [`GET /fleets`](https://fleetdm.com/docs/rest-api/rest-api#list-fleets) |
-| `GET /api/v1/fleet/teams/:id` | [`GET /api/v1/fleet/fleets/:id`](https://fleetdm.com/docs/rest-api/rest-api#get-fleet) |
-| `POST /api/v1/fleet/teams` | [`POST /api/v1/fleet/fleets`](https://fleetdm.com/docs/rest-api/rest-api#create-fleet) |
-| `PATCH /api/v1/fleet/teams/:id` | [`PATCH /api/v1/fleet/fleets/:id`](https://fleetdm.com/docs/rest-api/rest-api#update-fleet) |
-| `DELETE /api/v1/fleet/teams/:id` | [`DELETE /api/v1/fleet/fleets/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-fleet) |
-| `GET /api/v1/fleet/teams/:id/secrets` | [`GET /api/v1/fleet/fleets/:id/secrets`](https://fleetdm.com/docs/rest-api/rest-api#get-fleet-level-enroll-secrets) |
-| `PATCH /api/v1/fleet/teams/:id/secrets` | [`PATCH /api/v1/fleet/fleets/:id/secrets`](https://fleetdm.com/docs/rest-api/rest-api#update-fleet-level-enroll-secrets) |
-| `POST /api/v1/fleet/teams/:id/agent_options` | [`POST /api/v1/fleet/fleets/:id/agent_options`](https://fleetdm.com/docs/rest-api/rest-api#update-fleet-level-agent-options) |
-| `PATCH /api/v1/fleet/teams/:id/users` | [`PATCH /api/v1/fleet/fleets/:id/users`](https://fleetdm.com/docs/rest-api/rest-api#add-users-to-fleet) |
-| `GET` and `DELETE /api/v1/fleet/teams/:id/users` | `GET` and `DELETE /api/v1/fleet/fleets/:id/users` |
-| `POST /api/v1/fleet/spec/teams` | `POST /api/v1/fleet/spec/fleets` |
-| `PATCH /api/v1/fleet/vpp_tokens/:id/teams` | `PATCH /api/v1/fleet/vpp_tokens/:id/fleets` |
-| `PATCH /api/v1/fleet/ab_tokens/:id/teams` (and `/abm_tokens/:id/teams` and `/abm_tokens/:id/fleets`) | `PATCH /api/v1/fleet/ab_tokens/:id/fleets` |
+| `GET /teams/:id` | [`GET /fleets/:id`](https://fleetdm.com/docs/rest-api/rest-api#get-fleet) |
+| `POST /teams` | [`POST /fleets`](https://fleetdm.com/docs/rest-api/rest-api#create-fleet) |
+| `PATCH /teams/:id` | [`PATCH /fleets/:id`](https://fleetdm.com/docs/rest-api/rest-api#update-fleet) |
+| `DELETE /teams/:id` | [`DELETE /fleets/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-fleet) |
+| `GET /teams/:id/secrets` | [`GET /fleets/:id/secrets`](https://fleetdm.com/docs/rest-api/rest-api#get-fleet-level-enroll-secrets) |
+| `PATCH /teams/:id/secrets` | [`PATCH /fleets/:id/secrets`](https://fleetdm.com/docs/rest-api/rest-api#update-fleet-level-enroll-secrets) |
+| `POST /teams/:id/agent_options` | [`POST /fleets/:id/agent_options`](https://fleetdm.com/docs/rest-api/rest-api#update-fleet-level-agent-options) |
+| `PATCH /teams/:id/users` | [`PATCH /fleets/:id/users`](https://fleetdm.com/docs/rest-api/rest-api#add-users-to-fleet) |
+| `GET` and `DELETE /teams/:id/users` | `GET` and `DELETE /fleets/:id/users` |
+| `POST /spec/teams` | `POST /spec/fleets` |
+| `PATCH /vpp_tokens/:id/teams` | `PATCH /vpp_tokens/:id/fleets` |
+| `PATCH /ab_tokens/:id/teams` (and `/abm_tokens/:id/teams` and `/abm_tokens/:id/fleets`) | `PATCH /ab_tokens/:id/fleets` |
 | `team_id`, `team_name`, `team`, `teams`, `team_ids`, `team_ids_by_name`, and `available_teams` in requests, responses, and query parameters | `fleet_id`, `fleet_name`, `fleet`, `fleets`, `fleet_ids`, `fleet_ids_by_name`, and `available_fleets` |
 | `team_id` and `team_name` as `order_key` values | `fleet_id` and `fleet_name` |
 | `team_id` and `team_name` columns in the hosts CSV | `fleet_id` and `fleet_name` columns in [Get hosts report in CSV](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-report-in-csv) |
@@ -69,11 +69,11 @@ GitHub issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `GET /api/v1/fleet/global/policies` and `GET /api/v1/fleet/fleets/:id/policies` | [`GET /api/v1/fleet/policies`](https://fleetdm.com/docs/rest-api/rest-api#list-policies), with `fleet_id` for a fleet's policies |
-| `GET /api/v1/fleet/global/policies/:id` and `GET /api/v1/fleet/fleets/:fleet_id/policies/:policy_id` | [`GET /api/v1/fleet/policies/:id`](https://fleetdm.com/docs/rest-api/rest-api#get-policy) |
-| `POST /api/v1/fleet/global/policies` and `POST /api/v1/fleet/fleets/:id/policies` | [`POST /api/v1/fleet/policies`](https://fleetdm.com/docs/rest-api/rest-api#create-policy), with `fleet_id` in the request body for a fleet policy |
-| `PATCH /api/v1/fleet/global/policies/:id` and `PATCH /api/v1/fleet/fleets/:fleet_id/policies/:policy_id` | [`PATCH /api/v1/fleet/policies/:id`](https://fleetdm.com/docs/rest-api/rest-api#update-policy) |
-| `POST /api/v1/fleet/global/policies/delete` and `POST /api/v1/fleet/fleets/:fleet_id/policies/delete` | [`POST /api/v1/fleet/policies/delete`](https://fleetdm.com/docs/rest-api/rest-api#delete-policies) |
+| `GET /global/policies` and `GET /fleets/:id/policies` | [`GET /policies`](https://fleetdm.com/docs/rest-api/rest-api#list-policies), with `fleet_id` for a fleet's policies |
+| `GET /global/policies/:id` and `GET /fleets/:fleet_id/policies/:policy_id` | [`GET /policies/:id`](https://fleetdm.com/docs/rest-api/rest-api#get-policy) |
+| `POST /global/policies` and `POST /fleets/:id/policies` | [`POST /policies`](https://fleetdm.com/docs/rest-api/rest-api#create-policy), with `fleet_id` in the request body for a fleet policy |
+| `PATCH /global/policies/:id` and `PATCH /fleets/:fleet_id/policies/:policy_id` | [`PATCH /policies/:id`](https://fleetdm.com/docs/rest-api/rest-api#update-policy) |
+| `POST /global/policies/delete` and `POST /fleets/:fleet_id/policies/delete` | [`POST /policies/delete`](https://fleetdm.com/docs/rest-api/rest-api#delete-policies) |
 | `failing_policies_webhook.policy_ids` in [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | `webhooks_and_tickets_enabled` on each policy |
 
 The `/team/...` and `/teams/...` policy paths are also removed.
@@ -81,7 +81,7 @@ The `/team/...` and `/teams/...` policy paths are also removed.
 What to do:
 
 1. Search for the old paths: `grep -rnE '/fleet/global/policies|/(teams?|fleets)/[^/]+/policies' .`
-2. Use `/api/v1/fleet/policies`. To work with a fleet's policies, pass `fleet_id`. Without it, you get global policies.
+2. Use `/policies`. To work with a fleet's policies, pass `fleet_id`. Without it, you get global policies.
 3. Move the IDs in `failing_policies_webhook.policy_ids` to `webhooks_and_tickets_enabled: true` on each policy.
 
 GitHub issue: [#52900](https://github.com/fleetdm/fleet/issues/52900)
@@ -100,12 +100,12 @@ GitHub issue: [#52900](https://github.com/fleetdm/fleet/issues/52900)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `GET /api/v1/fleet/global/schedule` and `GET /api/v1/fleet/fleets/:id/schedule` | [`GET /api/v1/fleet/reports`](https://fleetdm.com/docs/rest-api/rest-api#list-reports), with `fleet_id` for a fleet. Scheduled reports have an `interval` greater than `0`. |
-| `POST /api/v1/fleet/global/schedule` and `POST /api/v1/fleet/fleets/:id/schedule`, which copied the report and scheduled the copy | [`POST /api/v1/fleet/reports`](https://fleetdm.com/docs/rest-api/rest-api#create-report) with `interval`, `platform`, `min_osquery_version`, and `logging` (and `fleet_id` for a fleet). No copy. |
-| `PATCH /api/v1/fleet/global/schedule/:id` and `PATCH /api/v1/fleet/fleets/:id/schedule/:report_id` | [`PATCH /api/v1/fleet/reports/:id`](https://fleetdm.com/docs/rest-api/rest-api#update-report) |
-| `DELETE /api/v1/fleet/global/schedule/:id` and `DELETE /api/v1/fleet/fleets/:id/schedule/:report_id` | [`DELETE /api/v1/fleet/reports/id/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-report-by-id) |
+| `GET /global/schedule` and `GET /fleets/:id/schedule` | [`GET /reports`](https://fleetdm.com/docs/rest-api/rest-api#list-reports), with `fleet_id` for a fleet. Scheduled reports have an `interval` greater than `0`. |
+| `POST /global/schedule` and `POST /fleets/:id/schedule`, which copied the report and scheduled the copy | [`POST /reports`](https://fleetdm.com/docs/rest-api/rest-api#create-report) with `interval`, `platform`, `min_osquery_version`, and `logging` (and `fleet_id` for a fleet). No copy. |
+| `PATCH /global/schedule/:id` and `PATCH /fleets/:id/schedule/:report_id` | [`PATCH /reports/:id`](https://fleetdm.com/docs/rest-api/rest-api#update-report) |
+| `DELETE /global/schedule/:id` and `DELETE /fleets/:id/schedule/:report_id` | [`DELETE /reports/id/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-report-by-id) |
 
-The `/api/latest/fleet/schedule`, `/team/:id/schedule`, and `/teams/:id/schedule` paths are also removed.
+The `/schedule`, `/team/:id/schedule`, and `/teams/:id/schedule` paths are also removed.
 
 What to do:
 
@@ -118,7 +118,7 @@ GitHub issue: [#54461](https://github.com/fleetdm/fleet/issues/54461)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| [`POST /api/v1/fleet/reports`](https://fleetdm.com/docs/rest-api/rest-api#create-report) accepts built-in labels in `labels_include_any` or `labels_include_all` | Returns an error |
+| [`POST /reports`](https://fleetdm.com/docs/rest-api/rest-api#create-report) accepts built-in labels in `labels_include_any` or `labels_include_all` | Returns an error |
 
 What to do: Target the report by `platform` instead.
 
@@ -128,37 +128,37 @@ GitHub issue: [#53800](https://github.com/fleetdm/fleet/issues/53800)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `GET /api/v1/fleet/mdm/commands` and `GET /api/v1/fleet/mdm/apple/commands` | [`GET /api/v1/fleet/commands`](https://fleetdm.com/docs/rest-api/rest-api#list-mdm-commands) |
-| `GET /api/v1/fleet/mdm/commandresults` | [`GET /api/v1/fleet/commands/results`](https://fleetdm.com/docs/rest-api/rest-api#get-mdm-command-results) |
-| `POST /api/v1/fleet/mdm/commands/run` | [`POST /api/v1/fleet/commands/run`](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) |
-| `PATCH /api/v1/fleet/mdm/hosts/:id/unenroll` | [`DELETE /api/v1/fleet/hosts/:id/mdm`](https://fleetdm.com/docs/rest-api/rest-api#turn-off-hosts-mdm) |
-| `POST /api/v1/fleet/mdm/hosts/:id/lock` | [`POST /api/v1/fleet/hosts/:id/lock`](https://fleetdm.com/docs/rest-api/rest-api#lock-host) |
-| `POST /api/v1/fleet/mdm/hosts/:id/wipe` | [`POST /api/v1/fleet/hosts/:id/wipe`](https://fleetdm.com/docs/rest-api/rest-api#wipe-host) |
-| `GET /api/v1/fleet/mdm/hosts/:id/profiles` | [`GET /api/v1/fleet/hosts/:id/configuration_profiles`](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-os-settings-configuration-profile) |
-| `GET /api/v1/fleet/mdm/hosts/:id/encryption_key` | [`GET /api/v1/fleet/hosts/:id/encryption_key`](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-disk-encryption-key) |
-| `GET /api/v1/fleet/mdm/disk_encryption/summary` (and `/mdm/apple/filevault/summary`) | [`GET /api/v1/fleet/disk_encryption`](https://fleetdm.com/docs/rest-api/rest-api#get-disk-encryption-status) |
-| `PATCH /api/v1/fleet/mdm/apple/settings` | [`POST /api/v1/fleet/disk_encryption`](https://fleetdm.com/docs/rest-api/rest-api#update-disk-encryption) |
-| `GET /api/v1/fleet/mdm/profiles` (and `/mdm/apple/profiles`) | [`GET /api/v1/fleet/configuration_profiles`](https://fleetdm.com/docs/rest-api/rest-api#list-configuration-profiles) |
-| `POST /api/v1/fleet/mdm/profiles` (and `/mdm/apple/profiles`) | [`POST /api/v1/fleet/configuration_profiles`](https://fleetdm.com/docs/rest-api/rest-api#create-configuration-profile) |
-| `GET /api/v1/fleet/mdm/profiles/:profile_uuid` (and `/mdm/apple/profiles/:profile_id`) | [`GET /api/v1/fleet/configuration_profiles/:profile_uuid`](https://fleetdm.com/docs/rest-api/rest-api#get-or-download-configuration-profile) |
-| `DELETE /api/v1/fleet/mdm/profiles/:profile_uuid` (and `/mdm/apple/profiles/:profile_id`) | [`DELETE /api/v1/fleet/configuration_profiles/:profile_uuid`](https://fleetdm.com/docs/rest-api/rest-api#delete-configuration-profile) |
-| `GET /api/v1/fleet/mdm/profiles/summary` (and `/mdm/apple/profiles/summary`) | [`GET /api/v1/fleet/configuration_profiles/summary`](https://fleetdm.com/docs/rest-api/rest-api#get-os-settings-configuration-profiles-status) |
-| `POST /api/v1/fleet/mdm/apple/profiles/batch` | [`POST /api/v1/fleet/configuration_profiles/batch`](https://fleetdm.com/docs/rest-api/rest-api#batch-update-configuration-profiles) |
-| `PATCH /api/v1/fleet/mdm/apple/setup` | [`PATCH /api/v1/fleet/setup_experience`](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience) |
-| `GET /api/v1/fleet/mdm/apple` | [`GET /api/v1/fleet/apns`](https://fleetdm.com/docs/rest-api/rest-api#get-apple-push-notification-service-apns) |
-| `POST /api/v1/fleet/mdm/apple/enrollment_profile` | [`POST /api/v1/fleet/enrollment_profiles/automatic`](https://fleetdm.com/docs/rest-api/rest-api#update-custom-mdm-setup-enrollment-profile) |
-| `GET /api/v1/fleet/mdm/apple/enrollment_profile` | [`GET /api/v1/fleet/enrollment_profiles/automatic`](https://fleetdm.com/docs/rest-api/rest-api#get-custom-mdm-setup-enrollment-profile) |
-| `DELETE /api/v1/fleet/mdm/apple/enrollment_profile` | [`DELETE /api/v1/fleet/enrollment_profiles/automatic`](https://fleetdm.com/docs/rest-api/rest-api#delete-custom-mdm-setup-enrollment-profile) |
-| `GET /api/v1/fleet/mdm/manual_enrollment_profile` | [`GET /api/v1/fleet/enrollment_profiles/manual`](https://fleetdm.com/docs/rest-api/rest-api#get-manual-enrollment-profile) |
-| `POST /api/v1/fleet/mdm/bootstrap` (and `/mdm/apple/bootstrap`) | [`POST /api/v1/fleet/bootstrap`](https://fleetdm.com/docs/rest-api/rest-api#create-bootstrap-package) |
-| `GET /api/v1/fleet/mdm/bootstrap/:fleet_id/metadata` (and `/mdm/apple/bootstrap/:fleet_id/metadata`) | [`GET /api/v1/fleet/bootstrap/:fleet_id/metadata`](https://fleetdm.com/docs/rest-api/rest-api#get-bootstrap-package-metadata) |
-| `DELETE /api/v1/fleet/mdm/bootstrap/:fleet_id` (and `/mdm/apple/bootstrap/:fleet_id`) | [`DELETE /api/v1/fleet/bootstrap/:fleet_id`](https://fleetdm.com/docs/rest-api/rest-api#delete-bootstrap-package) |
-| `GET /api/v1/fleet/mdm/bootstrap/summary` (and `/mdm/apple/bootstrap/summary`) | [`GET /api/v1/fleet/bootstrap/summary`](https://fleetdm.com/docs/rest-api/rest-api#get-bootstrap-package-status) |
-| `GET /api/v1/fleet/mdm/bootstrap?token=` (and `/mdm/apple/bootstrap?token=`) | [`GET /api/v1/fleet/bootstrap?token=`](https://fleetdm.com/docs/rest-api/rest-api#download-bootstrap-package) |
-| `POST /api/v1/fleet/mdm/setup/eula` (and `/mdm/apple/setup/eula`) | [`POST /api/v1/fleet/setup_experience/eula`](https://fleetdm.com/docs/rest-api/rest-api#create-eula) |
-| `GET /api/v1/fleet/mdm/setup/eula/metadata` (and `/mdm/apple/setup/eula/metadata`) | [`GET /api/v1/fleet/setup_experience/eula/metadata`](https://fleetdm.com/docs/rest-api/rest-api#get-eula-metadata) |
-| `GET /api/v1/fleet/mdm/setup/eula/:token` (and `/mdm/apple/setup/eula/:token`) | [`GET /api/v1/fleet/setup_experience/eula/:token`](https://fleetdm.com/docs/rest-api/rest-api#download-eula) |
-| `DELETE /api/v1/fleet/mdm/setup/eula/:token` (and `/mdm/apple/setup/eula/:token`) | [`DELETE /api/v1/fleet/setup_experience/eula/:token`](https://fleetdm.com/docs/rest-api/rest-api#delete-eula) |
+| `GET /mdm/commands` and `GET /mdm/apple/commands` | [`GET /commands`](https://fleetdm.com/docs/rest-api/rest-api#list-mdm-commands) |
+| `GET /mdm/commandresults` | [`GET /commands/results`](https://fleetdm.com/docs/rest-api/rest-api#get-mdm-command-results) |
+| `POST /mdm/commands/run` | [`POST /commands/run`](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) |
+| `PATCH /mdm/hosts/:id/unenroll` | [`DELETE /hosts/:id/mdm`](https://fleetdm.com/docs/rest-api/rest-api#turn-off-hosts-mdm) |
+| `POST /mdm/hosts/:id/lock` | [`POST /hosts/:id/lock`](https://fleetdm.com/docs/rest-api/rest-api#lock-host) |
+| `POST /mdm/hosts/:id/wipe` | [`POST /hosts/:id/wipe`](https://fleetdm.com/docs/rest-api/rest-api#wipe-host) |
+| `GET /mdm/hosts/:id/profiles` | [`GET /hosts/:id/configuration_profiles`](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-os-settings-configuration-profile) |
+| `GET /mdm/hosts/:id/encryption_key` | [`GET /hosts/:id/encryption_key`](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-disk-encryption-key) |
+| `GET /mdm/disk_encryption/summary` (and `/mdm/apple/filevault/summary`) | [`GET /disk_encryption`](https://fleetdm.com/docs/rest-api/rest-api#get-disk-encryption-status) |
+| `PATCH /mdm/apple/settings` | [`POST /disk_encryption`](https://fleetdm.com/docs/rest-api/rest-api#update-disk-encryption) |
+| `GET /mdm/profiles` (and `/mdm/apple/profiles`) | [`GET /configuration_profiles`](https://fleetdm.com/docs/rest-api/rest-api#list-configuration-profiles) |
+| `POST /mdm/profiles` (and `/mdm/apple/profiles`) | [`POST /configuration_profiles`](https://fleetdm.com/docs/rest-api/rest-api#create-configuration-profile) |
+| `GET /mdm/profiles/:profile_uuid` (and `/mdm/apple/profiles/:profile_id`) | [`GET /configuration_profiles/:profile_uuid`](https://fleetdm.com/docs/rest-api/rest-api#get-or-download-configuration-profile) |
+| `DELETE /mdm/profiles/:profile_uuid` (and `/mdm/apple/profiles/:profile_id`) | [`DELETE /configuration_profiles/:profile_uuid`](https://fleetdm.com/docs/rest-api/rest-api#delete-configuration-profile) |
+| `GET /mdm/profiles/summary` (and `/mdm/apple/profiles/summary`) | [`GET /configuration_profiles/summary`](https://fleetdm.com/docs/rest-api/rest-api#get-os-settings-configuration-profiles-status) |
+| `POST /mdm/apple/profiles/batch` | [`POST /configuration_profiles/batch`](https://fleetdm.com/docs/rest-api/rest-api#batch-update-configuration-profiles) |
+| `PATCH /mdm/apple/setup` | [`PATCH /setup_experience`](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience) |
+| `GET /mdm/apple` | [`GET /apns`](https://fleetdm.com/docs/rest-api/rest-api#get-apple-push-notification-service-apns) |
+| `POST /mdm/apple/enrollment_profile` | [`POST /enrollment_profiles/automatic`](https://fleetdm.com/docs/rest-api/rest-api#update-custom-mdm-setup-enrollment-profile) |
+| `GET /mdm/apple/enrollment_profile` | [`GET /enrollment_profiles/automatic`](https://fleetdm.com/docs/rest-api/rest-api#get-custom-mdm-setup-enrollment-profile) |
+| `DELETE /mdm/apple/enrollment_profile` | [`DELETE /enrollment_profiles/automatic`](https://fleetdm.com/docs/rest-api/rest-api#delete-custom-mdm-setup-enrollment-profile) |
+| `GET /mdm/manual_enrollment_profile` | [`GET /enrollment_profiles/manual`](https://fleetdm.com/docs/rest-api/rest-api#get-manual-enrollment-profile) |
+| `POST /mdm/bootstrap` (and `/mdm/apple/bootstrap`) | [`POST /bootstrap`](https://fleetdm.com/docs/rest-api/rest-api#create-bootstrap-package) |
+| `GET /mdm/bootstrap/:fleet_id/metadata` (and `/mdm/apple/bootstrap/:fleet_id/metadata`) | [`GET /bootstrap/:fleet_id/metadata`](https://fleetdm.com/docs/rest-api/rest-api#get-bootstrap-package-metadata) |
+| `DELETE /mdm/bootstrap/:fleet_id` (and `/mdm/apple/bootstrap/:fleet_id`) | [`DELETE /bootstrap/:fleet_id`](https://fleetdm.com/docs/rest-api/rest-api#delete-bootstrap-package) |
+| `GET /mdm/bootstrap/summary` (and `/mdm/apple/bootstrap/summary`) | [`GET /bootstrap/summary`](https://fleetdm.com/docs/rest-api/rest-api#get-bootstrap-package-status) |
+| `GET /mdm/bootstrap?token=` (and `/mdm/apple/bootstrap?token=`) | [`GET /bootstrap?token=`](https://fleetdm.com/docs/rest-api/rest-api#download-bootstrap-package) |
+| `POST /mdm/setup/eula` (and `/mdm/apple/setup/eula`) | [`POST /setup_experience/eula`](https://fleetdm.com/docs/rest-api/rest-api#create-eula) |
+| `GET /mdm/setup/eula/metadata` (and `/mdm/apple/setup/eula/metadata`) | [`GET /setup_experience/eula/metadata`](https://fleetdm.com/docs/rest-api/rest-api#get-eula-metadata) |
+| `GET /mdm/setup/eula/:token` (and `/mdm/apple/setup/eula/:token`) | [`GET /setup_experience/eula/:token`](https://fleetdm.com/docs/rest-api/rest-api#download-eula) |
+| `DELETE /mdm/setup/eula/:token` (and `/mdm/apple/setup/eula/:token`) | [`DELETE /setup_experience/eula/:token`](https://fleetdm.com/docs/rest-api/rest-api#delete-eula) |
 
 What to do: Search for `/fleet/mdm/` in your scripts and integrations, and replace each path with its Fleet 5 path.
 
@@ -168,7 +168,7 @@ GitHub issue: [#53563](https://github.com/fleetdm/fleet/issues/53563)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `GET /api/v1/fleet/commands` without `host_identifier` | [`GET /api/v1/fleet/commands?host_identifier=<host>`](https://fleetdm.com/docs/rest-api/rest-api#list-mdm-commands). `host_identifier` is required. |
+| `GET /commands` without `host_identifier` | [`GET /commands?host_identifier=<host>`](https://fleetdm.com/docs/rest-api/rest-api#list-mdm-commands). `host_identifier` is required. |
 
 What to do: Pass `host_identifier` on every call.
 
@@ -178,11 +178,11 @@ GitHub issue: [#53146](https://github.com/fleetdm/fleet/issues/53146)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `GET /api/v1/fleet/hosts/identifier/:identifier` | [`GET /api/v1/fleet/hosts/:id`](https://fleetdm.com/docs/rest-api/rest-api#get-host). `:id` also accepts a host identifier (`hostname`, `uuid`, or `hardware_serial`). |
-| `GET /api/v1/fleet/scripts/batch/summary/:batch_execution_id` | [`GET /api/v1/fleet/scripts/batch/:batch_execution_id`](https://fleetdm.com/docs/rest-api/rest-api#get-batch-script) |
-| `POST /api/v1/fleet/hosts/:host_id/configuration_profiles/resend/:profile_uuid` | [`POST /api/v1/fleet/hosts/:id/configuration_profiles/:profile_uuid/resend`](https://fleetdm.com/docs/rest-api/rest-api#resend-configuration-profile) |
+| `GET /hosts/identifier/:identifier` | [`GET /hosts/:id`](https://fleetdm.com/docs/rest-api/rest-api#get-host). `:id` also accepts a host identifier (`hostname`, `uuid`, or `hardware_serial`). |
+| `GET /scripts/batch/summary/:batch_execution_id` | [`GET /scripts/batch/:batch_execution_id`](https://fleetdm.com/docs/rest-api/rest-api#get-batch-script) |
+| `POST /hosts/:host_id/configuration_profiles/resend/:profile_uuid` | [`POST /hosts/:id/configuration_profiles/:profile_uuid/resend`](https://fleetdm.com/docs/rest-api/rest-api#resend-configuration-profile) |
 
-What to do: Search for `hosts/identifier/`, `scripts/batch/summary/`, and `configuration_profiles/resend/`, and replace each path. For `hosts/identifier/`, put the identifier where `:id` goes in `GET /api/v1/fleet/hosts/:id`. `POST /api/v1/fleet/hosts/identifier/:identifier/query` doesn't change.
+What to do: Search for `hosts/identifier/`, `scripts/batch/summary/`, and `configuration_profiles/resend/`, and replace each path. For `hosts/identifier/`, put the identifier where `:id` goes in `GET /hosts/:id`. `POST /hosts/identifier/:identifier/query` doesn't change.
 
 GitHub issue: [#53080](https://github.com/fleetdm/fleet/issues/53080)
 
@@ -190,12 +190,12 @@ GitHub issue: [#53080](https://github.com/fleetdm/fleet/issues/53080)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `GET /api/v1/fleet/abm_tokens`, `GET /api/v1/fleet/abm`, and `GET /api/v1/fleet/mdm/apple_bm` | [`GET /api/v1/fleet/ab_tokens`](https://fleetdm.com/docs/rest-api/rest-api#list-apple-business-ab-tokens) |
-| `POST /api/v1/fleet/abm_tokens` | `POST /api/v1/fleet/ab_tokens` |
-| `DELETE /api/v1/fleet/abm_tokens/:id` | `DELETE /api/v1/fleet/ab_tokens/:id` |
-| `GET /api/v1/fleet/abm_tokens/count` | `GET /api/v1/fleet/ab_tokens/count` |
-| `PATCH /api/v1/fleet/abm_tokens/:id/renew` | `PATCH /api/v1/fleet/ab_tokens/:id/renew` |
-| `GET /api/v1/fleet/mdm/apple/abm_public_key` | `GET /api/v1/fleet/mdm/apple/ab_public_key` |
+| `GET /abm_tokens`, `GET /abm`, and `GET /mdm/apple_bm` | [`GET /ab_tokens`](https://fleetdm.com/docs/rest-api/rest-api#list-apple-business-ab-tokens) |
+| `POST /abm_tokens` | `POST /ab_tokens` |
+| `DELETE /abm_tokens/:id` | `DELETE /ab_tokens/:id` |
+| `GET /abm_tokens/count` | `GET /ab_tokens/count` |
+| `PATCH /abm_tokens/:id/renew` | `PATCH /ab_tokens/:id/renew` |
+| `GET /mdm/apple/abm_public_key` | `GET /mdm/apple/ab_public_key` |
 | `abm_token`, `abm_tokens`, and `host_dep_assignment.abm_token_id` in responses | `ab_token`, `ab_tokens`, and `ab_token_id` |
 | `mdm.apple_business_manager`, `mdm.apple_bm_enabled_and_configured`, and `mdm.apple_bm_terms_expired` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration) | `mdm.apple_business`, `mdm.apple_business_enabled_and_configured`, and `mdm.apple_business_terms_expired` |
 | `mdm.apple_bm_default_team` in [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | Removed |
@@ -263,7 +263,7 @@ GitHub issue: [#52800](https://github.com/fleetdm/fleet/issues/52800)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `all_linux_count` in [Get hosts summary](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-summary) | [`GET /api/v1/fleet/hosts/count`](https://fleetdm.com/docs/rest-api/rest-api#count-hosts) with `label_id` set to the ID of the built-in "All Linux" label |
+| `all_linux_count` in [Get hosts summary](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-summary) | [`GET /hosts/count`](https://fleetdm.com/docs/rest-api/rest-api#count-hosts) with `label_id` set to the ID of the built-in "All Linux" label |
 
 What to do: Get the "All Linux" label's ID from `builtin_labels` in the Get hosts summary response, then call Count hosts with it.
 
@@ -284,9 +284,9 @@ GitHub issue: [#53877](https://github.com/fleetdm/fleet/issues/53877)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `windows` object with `wipe_type` in `POST /api/v1/fleet/hosts/:id/wipe` | `POST /api/v1/fleet/hosts/:id/reset`. [Wipe host](https://fleetdm.com/docs/rest-api/rest-api#wipe-host) no longer takes a `windows` object. |
+| `windows` object with `wipe_type` in `POST /hosts/:id/wipe` | `POST /hosts/:id/reset`. [Wipe host](https://fleetdm.com/docs/rest-api/rest-api#wipe-host) no longer takes a `windows` object. |
 
-What to do: Use `POST /api/v1/fleet/hosts/:id/reset` instead.
+What to do: Use `POST /hosts/:id/reset` instead.
 
 GitHub issue: [#55003](https://github.com/fleetdm/fleet/issues/55003)
 
@@ -314,9 +314,9 @@ GitHub issue: [#33769](https://github.com/fleetdm/fleet/issues/33769)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `GET /api/v1/fleet/software` and `GET /api/v1/fleet/software/count` | [`GET /api/v1/fleet/software/versions`](https://fleetdm.com/docs/rest-api/rest-api#list-software-versions) |
-| `GET /api/v1/fleet/software/:id` | [`GET /api/v1/fleet/software/versions/:id`](https://fleetdm.com/docs/rest-api/rest-api#get-software-version) |
-| `software_id` filter on `GET /api/v1/fleet/hosts` | `software_version_id` or `software_title_id` on [List hosts](https://fleetdm.com/docs/rest-api/rest-api#list-hosts) |
+| `GET /software` and `GET /software/count` | [`GET /software/versions`](https://fleetdm.com/docs/rest-api/rest-api#list-software-versions) |
+| `GET /software/:id` | [`GET /software/versions/:id`](https://fleetdm.com/docs/rest-api/rest-api#get-software-version) |
+| `software_id` filter on `GET /hosts` | `software_version_id` or `software_title_id` on [List hosts](https://fleetdm.com/docs/rest-api/rest-api#list-hosts) |
 | `software_package` object in software title responses | `packages` array in [Get software](https://fleetdm.com/docs/rest-api/rest-api#get-software) |
 | `app_store_app` object in software title responses | `app_store_apps` array in [Get software](https://fleetdm.com/docs/rest-api/rest-api#get-software) |
 | `browser` in host, software title, and software version responses | `extension_for` |
@@ -340,7 +340,7 @@ GitHub issues: [#52905](https://github.com/fleetdm/fleet/issues/52905), [#53924]
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `POST /api/v1/fleet/hosts/:id/lock` locks the screen of an Android host | [Lock host](https://fleetdm.com/docs/rest-api/rest-api#lock-host) resets the PIN to a random six-digit PIN and locks the host |
+| `POST /hosts/:id/lock` locks the screen of an Android host | [Lock host](https://fleetdm.com/docs/rest-api/rest-api#lock-host) resets the PIN to a random six-digit PIN and locks the host |
 
 What to do: To get the PIN, use [Unlock host](https://fleetdm.com/docs/rest-api/rest-api#unlock-host).
 
@@ -350,7 +350,7 @@ GitHub issue: [#49909](https://github.com/fleetdm/fleet/issues/49909)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `DELETE /api/v1/fleet/scim/Users/:id` works with a maintainer's API token | [Delete SCIM user](https://fleetdm.com/docs/rest-api/rest-api#delete-scim-user) requires an admin's API token |
+| `DELETE /scim/Users/:id` works with a maintainer's API token | [Delete SCIM user](https://fleetdm.com/docs/rest-api/rest-api#delete-scim-user) requires an admin's API token |
 
 What to do: Use an admin's API token for your SCIM integration.
 
@@ -370,7 +370,7 @@ GitHub issue: [#53145](https://github.com/fleetdm/fleet/issues/53145)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| GitOps users can get a host's `id` from `GET /api/v1/fleet/hosts/identifier/:identifier` | GitOps users get a 403 from [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) when `:id` is an identifier |
+| GitOps users can get a host's `id` from `GET /hosts/identifier/:identifier` | GitOps users get a 403 from [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) when `:id` is an identifier |
 
 What to do: If an integration uses a GitOps user's API token to look up hosts by identifier, switch it to a different [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) that can view hosts.
 
@@ -420,7 +420,7 @@ GitHub issue: [#53790](https://github.com/fleetdm/fleet/issues/53790)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `/api/v1/fleet/packs` endpoints, including the packs spec endpoints | Removed. Use [reports](https://fleetdm.com/docs/rest-api/rest-api#create-report). |
+| `/packs` endpoints, including the packs spec endpoints | Removed. Use [reports](https://fleetdm.com/docs/rest-api/rest-api#create-report). |
 
 What to do: Before you upgrade, convert 2017 packs into reports. See [fleetctl upgrade-packs](#packs-commands-removed). 2017 packs stop running on hosts after the upgrade.
 
@@ -430,7 +430,7 @@ GitHub issue: [#53470](https://github.com/fleetdm/fleet/issues/53470)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| Fleet's Puppet module (`fleetdm-fleetdm` on the Puppet Forge), and the `POST /api/v1/fleet/mdm/apple/profiles/preassign` and `POST /api/v1/fleet/mdm/apple/profiles/match` endpoints it calls | Removed. |
+| Fleet's Puppet module (`fleetdm-fleetdm` on the Puppet Forge), and the `POST /mdm/apple/profiles/preassign` and `POST /mdm/apple/profiles/match` endpoints it calls | Removed. |
 
 What to do: If you use the Puppet module, assign configuration profiles to fleets in the UI, API, or GitOps instead, and move hosts between fleets the same way. Fleets the module created stay as regular fleets.
 
@@ -440,7 +440,7 @@ GitHub issue: [#28334](https://github.com/fleetdm/fleet/issues/28334)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `GET /api/v1/fleet/enrollment_profiles/manual` works | [Get manual enrollment profile](https://fleetdm.com/docs/rest-api/rest-api#get-manual-enrollment-profile) returns a `400` unless `mdm.apple_scep_static_challenge_enabled` is `true` |
+| `GET /enrollment_profiles/manual` works | [Get manual enrollment profile](https://fleetdm.com/docs/rest-api/rest-api#get-manual-enrollment-profile) returns a `400` unless `mdm.apple_scep_static_challenge_enabled` is `true` |
 
 What to do: See [Static SCEP challenge off by default](#static-scep-challenge-off-by-default).
 
