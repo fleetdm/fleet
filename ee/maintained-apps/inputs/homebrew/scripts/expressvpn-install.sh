@@ -27,10 +27,15 @@ quit_application() {
   echo "Quitting application '$bundle_id'..."
 
   # try to quit the application within the timeout period
-  local quit_success=false still_running
+  local quit_success=false still_running quit_error
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" >/dev/null 2>&1
+    quit_error=$(osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" 2>&1 >/dev/null)
+    if [[ "$quit_error" == *"(-600)" ]]; then
+      echo "Application '$bundle_id' isn't running."
+      quit_success=true
+      break
+    fi
     sleep 1
     if still_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
       echo "Application '$bundle_id' quit successfully."

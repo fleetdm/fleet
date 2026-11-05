@@ -260,6 +260,29 @@ func TestCustomInstallScriptsStopWhenAppWontQuit(t *testing.T) {
 	}
 }
 
+// TestCustomScriptsCountNoProcessAsQuit checks that custom scripts with a quit
+// loop count a -600 quit as quit, like the generated helpers. Without it, an
+// app that 'is running' keeps reporting after its process is gone blocks the
+// install or uninstall.
+func TestCustomScriptsCountNoProcessAsQuit(t *testing.T) {
+	bestEffort := map[string]string{
+		"adobe-cc-uninstall.sh": "quit_app never fails; kill_app_at_path stops what's left",
+	}
+	paths, err := filepath.Glob("../../inputs/homebrew/scripts/*.sh")
+	require.NoError(t, err)
+	require.NotEmpty(t, paths)
+	for _, path := range paths {
+		name := filepath.Base(path)
+		b, err := os.ReadFile(path)
+		require.NoError(t, err)
+		script := string(b)
+		if _, ok := bestEffort[name]; ok || !strings.Contains(script, "tell application id (item 1 of argv) to quit") {
+			continue
+		}
+		require.Contains(t, script, `== *"(-600)" ]]`, "%s doesn't count a -600 quit as quit", name)
+	}
+}
+
 func TestShellDoubleQuoteEscape(t *testing.T) {
 	// Values without shell metacharacters (the common case) must pass through
 	// unchanged so the generated scripts stay byte-identical to before.
