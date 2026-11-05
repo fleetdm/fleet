@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.7.1.1",
+      "version": "3.7.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.safeexambrowser.SafeExamBrowser';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.safeexambrowser.SafeExamBrowser' AND version_compare(bundle_short_version, '3.7.1.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.safeexambrowser.SafeExamBrowser' AND version_compare(bundle_short_version, '3.7.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.safeexambrowser.SafeExamBrowser' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/SafeExamBrowser/seb-mac/releases/download/3.7.1.1/SafeExamBrowser-3.7.1.1.dmg",
+      "installer_url": "https://github.com/SafeExamBrowser/seb-mac/releases/download/3.7.2/SafeExamBrowser-3.7.2.dmg",
       "install_script_ref": "a1edb269",
       "uninstall_script_ref": "d675ef57",
-      "sha256": "85e774fdc27bba02f0233e5f9ca5b07c43d92058cac44ce666dcca4f68f192ab",
+      "sha256": "a3e1936174a3e75bbe013f5aaf8a9af9d66c3a6d6ddaced608d0223837f0a8ab",
       "default_categories": [
         "Browsers"
       ]
