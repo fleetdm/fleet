@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -110,6 +112,95 @@ func TestWithdrawnAdvisories(t *testing.T) {
 			// Only withdrawn changes: retained affected data and modified time must not keep the CVE alive.
 			write(ids[0], "2026-11-01T00:00:00Z")
 			check(ids[1:])
+		})
+	}
+}
+
+func TestSameDateRerunRemovesStaleArtifacts(t *testing.T) {
+	type release struct{ ecosystem, fixed, version string }
+	for _, tc := range []struct {
+		platform string
+		kept     release
+		dropped  release
+		filtered string // outside --versions, so its earlier file is not this run's to remove
+		run      func(Config) error
+	}{
+		{"ubuntu", release{"Ubuntu:24.04:LTS", "1.2.3", "24.04"}, release{"Ubuntu:22.04:LTS", "1.2.3", "22.04"}, "20.04", run},
+		{"rhel", release{"Red Hat:enterprise_linux:9::baseos", "1.2.3", "9"}, release{"Red Hat:enterprise_linux:8::baseos", "1.2.3", "8"}, "7", runRHEL},
+		{"android", release{"Android", "16:2026-10-01", "16"}, release{"Android", "15:2026-10-01", "15"}, "14", runAndroid},
+	} {
+		t.Run(tc.platform, func(t *testing.T) {
+			input, output := t.TempDir(), t.TempDir()
+			cfg := Config{
+				Platform: tc.platform, InputDir: input, OutputDir: output,
+				Versions: tc.kept.version + "," + tc.dropped.version,
+				DateStr:  "2026-11-03", YesterdayStr: "2026-11-02",
+				GeneratedTimestamp: "2026-11-03T00:00:00Z",
+				RunTime:            time.Date(2026, 11, 3, 0, 0, 0, 0, time.UTC),
+			}
+			write := func(id string, r release, withdrawn string) {
+				t.Helper()
+				entry := map[string]any{
+					"id": id, "schema_version": "1.7.5",
+					"published": "2026-10-01T00:00:00Z", "modified": "2026-10-01T00:00:00Z",
+					"upstream": []string{id}, "aliases": []string{id},
+					"affected": []any{map[string]any{
+						"package": map[string]string{"name": "test-package", "ecosystem": r.ecosystem},
+						"ranges": []any{map[string]any{
+							"type":   "ECOSYSTEM",
+							"events": []any{map[string]string{"introduced": "0"}, map[string]string{"fixed": r.fixed}},
+						}},
+					}},
+				}
+				if withdrawn != "" {
+					entry["withdrawn"] = withdrawn
+				}
+				data, err := json.Marshal(entry)
+				require.NoError(t, err)
+				require.NoError(t, os.WriteFile(filepath.Join(input, id+".json"), data, 0o600))
+			}
+			name := func(version, kind, date string) string {
+				return "osv-" + tc.platform + "-" + strings.ReplaceAll(version, ".", "") + kind + "-" + date + ".json.gz"
+			}
+			kept := []string{name(tc.kept.version, "", cfg.DateStr)}
+			dropped := []string{name(tc.dropped.version, "", cfg.DateStr)}
+			if tc.platform == "ubuntu" {
+				changed := filepath.Join(t.TempDir(), "changed.txt")
+				require.NoError(t, os.WriteFile(changed, []byte("osv/cve/CVE-2026-1.json\nosv/cve/CVE-2026-2.json\n"), 0o600))
+				cfg.ChangedFilesToday, cfg.ChangedFilesYesterday = changed, changed
+				for _, date := range []string{cfg.DateStr, cfg.YesterdayStr} {
+					kept = append(kept, name(tc.kept.version, "-delta", date))
+					dropped = append(dropped, name(tc.dropped.version, "-delta", date))
+				}
+			}
+			// Earlier files this run does not own: another platform's, another date's and a filtered-out version's.
+			untouched := []string{
+				"osv-other-" + tc.dropped.version + "-" + cfg.DateStr + ".json.gz",
+				name(tc.dropped.version, "", "2026-11-01"),
+				name(tc.filtered, "", cfg.DateStr),
+			}
+			for _, f := range untouched {
+				require.NoError(t, os.WriteFile(filepath.Join(output, f), []byte("earlier run"), 0o600))
+			}
+			requireFiles := func(present, absent []string) {
+				t.Helper()
+				for _, f := range present {
+					require.FileExists(t, filepath.Join(output, f))
+				}
+				for _, f := range absent {
+					require.NoFileExists(t, filepath.Join(output, f))
+				}
+			}
+
+			write("CVE-2026-1", tc.kept, "")
+			write("CVE-2026-2", tc.dropped, "")
+			require.NoError(t, tc.run(cfg))
+			requireFiles(slices.Concat(kept, dropped, untouched), nil)
+
+			// Every advisory of the dropped version is now withdrawn: a same-date rerun removes its files.
+			write("CVE-2026-2", tc.dropped, "2026-11-02T00:00:00Z")
+			require.NoError(t, tc.run(cfg))
+			requireFiles(slices.Concat(kept, untouched), dropped)
 		})
 	}
 }
