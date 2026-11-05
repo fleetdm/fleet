@@ -88,6 +88,9 @@ func TestRelayStatusError(t *testing.T) {
 	require.Equal(t, http.StatusConflict, se.StatusCode())
 	require.Equal(t, "registered from another origin", se.Body())
 	require.False(t, fleet.IsNotFound(err))
+	// The caller names the operation, so the error carries only fleetdm.com's answer.
+	require.EqualError(t, err, "409: registered from another origin")
+	require.EqualError(t, p.Deregister(t.Context(), origin, "C02cajzvg", "s3cret"), "409: registered from another origin")
 
 	// Only Deregister treats a 404 as "no such registration".
 	p, _ = newTestRelay(t, http.StatusNotFound, `{"error":"not found"}`)

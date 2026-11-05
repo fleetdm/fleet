@@ -1,18 +1,65 @@
 package fleet
 
 import (
+	"bytes"
+	"encoding/json"
+	"errors"
 	"net/mail"
 	"regexp"
 	"strings"
 )
 
-// GoogleConditionalAccessIntegration is the app config part of the integration. The
-// service account key is stored encrypted in mdm_config_assets instead.
+// GoogleConditionalAccessIntegration is the app config part of the integration.
 type GoogleConditionalAccessIntegration struct {
 	// CustomerID includes the leading "C".
 	CustomerID string `json:"customer_id"`
 	// AdminEmail is the Workspace admin the service account impersonates.
 	AdminEmail string `json:"admin_email"`
+	// APIKeyJSON is only ever an input: ModifyAppConfig stores the key encrypted in
+	// mdm_config_assets and clears it before saving the app config.
+	APIKeyJSON GoogleServiceAccountKey `json:"api_key_json,omitempty"`
+}
+
+// GoogleServiceAccountKey is a service account key JSON object, or MaskedPassword. It is a
+// string so the settings stay comparable.
+type GoogleServiceAccountKey string
+
+// Provided reports whether it holds a key rather than nothing or the masked value.
+func (k GoogleServiceAccountKey) Provided() bool {
+	return k != "" && k != MaskedPassword
+}
+
+func (k GoogleServiceAccountKey) MarshalJSON() ([]byte, error) {
+	switch k {
+	case "":
+		return []byte("null"), nil
+	case MaskedPassword:
+		return json.Marshal(MaskedPassword)
+	}
+	return []byte(k), nil
+}
+
+func (k *GoogleServiceAccountKey) UnmarshalJSON(data []byte) error {
+	data = bytes.TrimSpace(data)
+	switch {
+	case string(data) == "null":
+		*k = ""
+	case len(data) > 0 && data[0] == '"':
+		var s string
+		if err := json.Unmarshal(data, &s); err != nil || s != MaskedPassword {
+			return errors.New("api_key_json must be a JSON object or the masked value")
+		}
+		*k = MaskedPassword
+	case len(data) > 0 && data[0] == '{':
+		var compacted bytes.Buffer
+		if err := json.Compact(&compacted, data); err != nil {
+			return err
+		}
+		*k = GoogleServiceAccountKey(compacted.String())
+	default:
+		return errors.New("api_key_json must be a JSON object or the masked value")
+	}
+	return nil
 }
 
 // ConditionalAccessGoogleStatus is the integration's connection state.
@@ -42,7 +89,6 @@ type ConditionalAccessGoogleState string
 const (
 	// ConditionalAccessGoogleStatePending is saved before registering with fleetdm.com.
 	ConditionalAccessGoogleStatePending            ConditionalAccessGoogleState = "pending"
-	ConditionalAccessGoogleStateKeyRequired        ConditionalAccessGoogleState = "key_required"
 	ConditionalAccessGoogleStateDelegationFailed   ConditionalAccessGoogleState = "delegation_failed"
 	ConditionalAccessGoogleStateRegistrationFailed ConditionalAccessGoogleState = "registration_failed"
 	ConditionalAccessGoogleStateConnected          ConditionalAccessGoogleState = "connected"
@@ -79,5 +125,15 @@ func (g *GoogleConditionalAccessIntegration) Validate(invalid *InvalidArgumentEr
 		invalid.Append("admin_email", "admin_email is required")
 	} else if addr, err := mail.ParseAddress(g.AdminEmail); err != nil || addr.Address != g.AdminEmail {
 		invalid.Append("admin_email", "must be a valid email address")
+	}
+
+	if g.APIKeyJSON.Provided() {
+		var key struct {
+			ClientEmail string `json:"client_email"`
+			PrivateKey  string `json:"private_key"`
+		}
+		if err := json.Unmarshal([]byte(g.APIKeyJSON), &key); err != nil || key.ClientEmail == "" || key.PrivateKey == "" {
+			invalid.Append("api_key_json", "api_key_json must include client_email and private_key")
+		}
 	}
 }

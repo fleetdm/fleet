@@ -129,6 +129,10 @@ org_settings:
     google_calendar:
     - api_key_json: # TODO: Add your Google Calendar API key JSON here
       domain: fleetdm.com
+    google_conditional_access:
+      admin_email: admin@fleetdm.com
+      api_key_json: # TODO: Add your Google service account key JSON here
+      customer_id: C02cajzvg
     google_workspace:
     - api_key_json: # TODO: Add your Google Workspace API key JSON here
       domain: fleetdm.com

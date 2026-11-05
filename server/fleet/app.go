@@ -103,6 +103,10 @@ type ConditionalAccessSettings struct {
 	OktaAudienceURI                 optjson.String `json:"okta_audience_uri"`
 	OktaCertificate                 optjson.String `json:"okta_certificate"`
 	BypassDisabled                  optjson.Bool   `json:"bypass_disabled"`
+
+	// Google is the read-only Google connection state, filled from the integration
+	// table and the stored key on GET and never persisted.
+	Google *ConditionalAccessGoogleStatus `json:"google,omitempty"`
 }
 
 // OktaConfigured returns true if all Okta conditional access fields are configured.
@@ -1501,6 +1505,13 @@ func (c *AppConfig) Copy() *AppConfig {
 	// ConditionalAccess: deep copy the pointer to avoid shared state
 	if c.ConditionalAccess != nil {
 		conditionalAccess := *c.ConditionalAccess
+		if c.ConditionalAccess.Google != nil {
+			google := *c.ConditionalAccess.Google
+			if google.ErrorMessage != nil {
+				google.ErrorMessage = new(*google.ErrorMessage)
+			}
+			conditionalAccess.Google = &google
+		}
 		clone.ConditionalAccess = &conditionalAccess
 	}
 
