@@ -10,6 +10,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/activity/api"
 )
 
+// Note: Drop this translation in Fleet 6.
+
 // removedDetailsKeys maps the removed keys of stored activity details to their replacements.
 var removedDetailsKeys = sync.OnceValue(func() map[string]string {
 	keys := make(map[string]string)
