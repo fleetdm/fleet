@@ -43,7 +43,9 @@ func deleteHostOneTimeEnrollSecrets(ctx context.Context, tx sqlx.ExtContext, hos
 // CleanupHostOneTimeEnrollSecrets deletes, in batches, spent secrets that a
 // newer secret for the same host has superseded (once past the second-plane
 // window, so a late osquery enrollment is not orphaned) and secrets whose host
-// no longer exists. Unconsumed secrets whose host records still exist are never
+// no longer exists. A spent Android secret is kept until a newer one is used:
+// until then the device may still hold it, and presenting it is what gets the
+// device's agent configuration resent. Unconsumed secrets whose host records still exist are never
 // removed here: a host holds at most one and it stays valid until used.
 func (ds *Datastore) CleanupHostOneTimeEnrollSecrets(ctx context.Context) (int64, error) {
 	const batchSize = 1000
@@ -59,6 +61,7 @@ func (ds *Datastore) CleanupHostOneTimeEnrollSecrets(ctx context.Context) (int64
 					FROM host_one_time_enroll_secrets s
 					JOIN host_one_time_enroll_secrets newer ON newer.host_id = s.host_id AND newer.id > s.id
 					WHERE s.consumed_at IS NOT NULL AND s.consumed_at < NOW(6) - INTERVAL ? SECOND
+						AND (s.platform <> 'android' OR newer.consumed_at IS NOT NULL)
 					LIMIT ?
 				) AS superseded
 			)`,

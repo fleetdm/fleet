@@ -1847,6 +1847,18 @@ func (svc *Service) MigrateToPerDevicePolicy(ctx context.Context) error {
 // - delivering: Cron is actively sending to AMAPI
 // - delivered: AMAPI confirmed receipt
 func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterpriseName string, hostUUIDs []string, skipHostsWithoutNewCerts bool) error {
+	return svc.buildAndSendFleetAgentConfig(ctx, enterpriseName, hostUUIDs, skipHostsWithoutNewCerts, false)
+}
+
+// SendFleetAgentConfig builds and sends the host's Fleet agent configuration like BuildAndSendFleetAgentConfig, but returns
+// the error when the Android Management API call fails, so the caller can retry.
+func (svc *Service) SendFleetAgentConfig(ctx context.Context, enterpriseName string, hostUUID string) error {
+	return svc.buildAndSendFleetAgentConfig(ctx, enterpriseName, []string{hostUUID}, false, true)
+}
+
+func (svc *Service) buildAndSendFleetAgentConfig(
+	ctx context.Context, enterpriseName string, hostUUIDs []string, skipHostsWithoutNewCerts, failOnSendError bool,
+) error {
 	if len(hostUUIDs) == 0 {
 		return nil
 	}
@@ -1933,6 +1945,9 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 			hostConfigs := map[string]android.AgentManagedConfiguration{hostUUID: *config}
 			if err := svc.AddFleetAgentToAndroidPolicy(ctx, enterpriseName, hostConfigs); err != nil {
 				svc.logger.ErrorContext(ctx, "failed to send AMAPI config without certs", "host_uuid", hostUUID, "err", err)
+				if failOnSendError {
+					return ctxerr.Wrapf(ctx, err, "send fleet agent config for host %s", hostUUID)
+				}
 				// Not a critical failure. We will retry installing Fleet Agent when certificates are added to the host's team
 			}
 			continue
@@ -1942,6 +1957,10 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 		config, err := buildHostConfig(hostUUID, certTemplates.Templates)
 		if err != nil {
 			svc.logger.ErrorContext(ctx, "failed to build host config", "host_uuid", hostUUID, "err", err)
+			// Put the templates back, or they wait in delivering for the stale revert.
+			if revertErr := svc.fleetDS.RevertHostCertificateTemplatesToPending(ctx, hostUUID, certTemplates.DeliveringTemplateIDs); revertErr != nil {
+				svc.logger.ErrorContext(ctx, "failed to revert to pending after host config failure", "host_uuid", hostUUID, "err", revertErr)
+			}
 			return ctxerr.Wrapf(ctx, err, "build host config for %s", hostUUID)
 		}
 

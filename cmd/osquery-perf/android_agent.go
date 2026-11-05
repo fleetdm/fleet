@@ -52,6 +52,9 @@ type androidAgent struct {
 	// agentEnrollSecret is the enroll secret in the Fleet agent's managed configuration, as the proxy last reported it. Orbit
 	// enrolls with it when set, like the real agent; with one-time enroll secrets on, Fleet refuses the shared one.
 	agentEnrollSecret string
+	// proxyReportsAgentSecret is set once the proxy is known to report the managed configuration's enroll secret. An older
+	// proxy doesn't, and then orbit enrolls with the shared secret.
+	proxyReportsAgentSecret bool
 
 	// Hardware details
 	brand        string
@@ -626,7 +629,7 @@ func (a *androidAgent) runLoop() {
 	for attempt := 1; ; attempt++ {
 		a.refreshAgentEnrollSecret()
 		err := errors.New("no enroll secret in the agent's managed configuration yet")
-		if a.agentEnrollSecret != "" {
+		if a.shouldOrbitEnroll() {
 			err = a.orbitEnroll()
 		}
 		if err != nil {
@@ -647,7 +650,6 @@ func (a *androidAgent) runLoop() {
 
 	// Track which certificate templates we've already verified so we don't re-verify
 	verifiedCerts := make(map[uint]struct{})
-	ticksWithoutAgentSecret := 0
 
 	for range statusTicker.C {
 		// Poll proxy for current state (policy version, pending commands)
@@ -668,16 +670,13 @@ func (a *androidAgent) runLoop() {
 			a.stats.IncrementAndroidErrors()
 		}
 
-		if state.AgentEnrollSecret != "" {
-			a.agentEnrollSecret = state.AgentEnrollSecret
+		if !stale {
+			a.noteAgentEnrollSecret(state)
 		}
-		if a.orbitNodeKey == "" {
-			ticksWithoutAgentSecret++
-			if a.shouldOrbitEnroll(ticksWithoutAgentSecret) {
-				if err := a.orbitEnroll(); err != nil {
-					log.Printf("Android agent %d: orbit enrollment failed: %v", a.agentIndex, err)
-					a.stats.IncrementAndroidErrors()
-				}
+		if a.shouldOrbitEnroll() {
+			if err := a.orbitEnroll(); err != nil {
+				log.Printf("Android agent %d: orbit enrollment failed: %v", a.agentIndex, err)
+				a.stats.IncrementAndroidErrors()
 			}
 		}
 
@@ -741,7 +740,8 @@ type proxyDeviceState struct {
 	PolicyName          string   `json:"policy_name"`
 	PendingCommands     []string `json:"pending_commands"`
 	PendingCertificates []uint   `json:"pending_certificates"`
-	AgentEnrollSecret   string   `json:"agent_enroll_secret"`
+	// AgentEnrollSecret is nil when the proxy is too old to report the managed configuration's enroll secret.
+	AgentEnrollSecret *string `json:"agent_enroll_secret"`
 }
 
 // certTemplateResponse is the response from GET /api/fleetd/certificates/{id}
@@ -803,26 +803,25 @@ var errProxyDeviceUnknown = errors.New("device not registered with proxy")
 // and must not register again.
 var errProxyDeviceDeleted = errors.New("device was deleted from the proxy")
 
-// maxTicksWithoutAgentSecret is how many status reports an agent that hasn't enrolled orbit waits for the proxy to report the
-// enroll secret in its managed configuration before enrolling with the shared one.
-const maxTicksWithoutAgentSecret = 3
-
-// sharedSecretFallbackEvery spaces out later attempts with the shared secret, which Fleet refuses when one-time enroll secrets
-// are on, so a configuration that never arrives doesn't turn every status report into a refused enrollment.
-const sharedSecretFallbackEvery = 10
-
-// shouldOrbitEnroll reports whether a status report tick of an agent without an orbit node key should try to enroll orbit:
-// on every tick once the proxy reports the managed configuration's enroll secret, otherwise with the shared secret after
-// maxTicksWithoutAgentSecret ticks and then every sharedSecretFallbackEvery ticks, for a proxy too old to report it.
-func (a *androidAgent) shouldOrbitEnroll(ticksWithoutNodeKey int) bool {
+// shouldOrbitEnroll reports whether an agent should try to enroll orbit now: not once it has a node key, and otherwise with
+// the managed configuration's enroll secret, waiting for it, unless the proxy is too old to report one, in which case the
+// shared secret is all there is.
+func (a *androidAgent) shouldOrbitEnroll() bool {
 	if a.orbitNodeKey != "" {
 		return false
 	}
-	if a.agentEnrollSecret != "" {
-		return true
+	return a.agentEnrollSecret != "" || !a.proxyReportsAgentSecret
+}
+
+// noteAgentEnrollSecret records what a freshly polled proxy state says about the managed configuration's enroll secret.
+func (a *androidAgent) noteAgentEnrollSecret(state *proxyDeviceState) {
+	if state.AgentEnrollSecret == nil {
+		return
 	}
-	past := ticksWithoutNodeKey - maxTicksWithoutAgentSecret
-	return past > 0 && (past-1)%sharedSecretFallbackEvery == 0
+	a.proxyReportsAgentSecret = true
+	if *state.AgentEnrollSecret != "" {
+		a.agentEnrollSecret = *state.AgentEnrollSecret
+	}
 }
 
 // maxStaleStateReports bounds how many consecutive status reports may be sent from a stale
@@ -1037,8 +1036,8 @@ func (a *androidAgent) sendCommandAck(operationName string) error {
 // refreshAgentEnrollSecret picks up the enroll secret from the agent's managed configuration, if the proxy has one yet.
 func (a *androidAgent) refreshAgentEnrollSecret() {
 	state, err := a.pollProxyState()
-	if err == nil && state.AgentEnrollSecret != "" {
-		a.agentEnrollSecret = state.AgentEnrollSecret
+	if err == nil {
+		a.noteAgentEnrollSecret(state)
 	}
 }
 

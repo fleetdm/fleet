@@ -4,11 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -143,6 +147,33 @@ func TestEnrollOrbitAndroidOneTimeSecret(t *testing.T) {
 		require.Len(t, *f.rejections, 1)
 	})
 
+	t.Run("concurrent refusals queue one resend", func(t *testing.T) {
+		f, jobs := newFixture(t, true)
+		rejectWith(f, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, &androidHostID)
+		var jobsMu sync.Mutex
+		newJob := f.ds.NewJobFunc
+		f.ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+			jobsMu.Lock()
+			defer jobsMu.Unlock()
+			return newJob(ctx, job)
+		}
+		svc := f.svc.(validationMiddleware).Service.(*Service)
+		atomicKV := &atomicKeyValueStore{
+			values: map[string]string{}, barrierSuffix: ":android_agent_config", barrierReaders: 20, allArrived: make(chan struct{}),
+		}
+		svc.keyValueStore = atomicKV
+
+		var wg sync.WaitGroup
+		for range 20 {
+			wg.Go(func() {
+				_, err := f.svc.EnrollOrbit(f.ctx, androidInfo, "shared-secret", "")
+				assert.Error(t, err)
+			})
+		}
+		wg.Wait()
+		require.Equal(t, []softwareWorkerJobArgs{wantResend}, *jobs)
+	})
+
 	t.Run("no resend when the rate limit can't be checked", func(t *testing.T) {
 		f, jobs := newFixture(t, true)
 		rejectWith(f, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, &androidHostID)
@@ -221,6 +252,58 @@ func TestEnrollOrbitAndroidOneTimeSecret(t *testing.T) {
 			})
 		}
 	})
+}
+
+// atomicKeyValueStore is an in-memory key-value store with an atomic set-if-not-exists, like the Redis one. Reads of keys
+// with barrierSuffix return only once barrierReaders callers have read (or after a timeout), so concurrent callers that read
+// before writing all read before anyone writes.
+type atomicKeyValueStore struct {
+	mu             sync.Mutex
+	values         map[string]string
+	barrierSuffix  string
+	barrierReaders int
+	arrived        int
+	allArrived     chan struct{}
+}
+
+func (s *atomicKeyValueStore) Set(_ context.Context, key, value string, _ time.Duration) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.values[key] = value
+	return nil
+}
+
+func (s *atomicKeyValueStore) Get(_ context.Context, key string) (*string, error) {
+	s.mu.Lock()
+	var value *string
+	if v, ok := s.values[key]; ok {
+		value = &v
+	}
+	barrier := s.barrierSuffix != "" && strings.HasSuffix(key, s.barrierSuffix)
+	if barrier {
+		s.arrived++
+		if s.arrived == s.barrierReaders {
+			close(s.allArrived)
+		}
+	}
+	s.mu.Unlock()
+	if barrier {
+		select {
+		case <-s.allArrived:
+		case <-time.After(2 * time.Second):
+		}
+	}
+	return value, nil
+}
+
+func (s *atomicKeyValueStore) SetIfNotExists(_ context.Context, key, value string, _ time.Duration) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.values[key]; ok {
+		return false, nil
+	}
+	s.values[key] = value
+	return true, nil
 }
 
 // softwareWorkerJobArgs mirrors the fields of the worker's job arguments that these tests check.

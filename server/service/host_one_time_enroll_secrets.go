@@ -190,18 +190,14 @@ func (svc *Service) maybeResendAndroidAgentEnrollSecret(ctx context.Context, app
 	if svc.keyValueStore == nil {
 		return
 	}
+	// Reserved before queueing, so a failure is logged at most once per window rather than on every refused attempt.
 	rateLimitKey := fmt.Sprintf("%s:host:%d:android_agent_config", enrollmentRejectedKeyPrefix, host.ID)
-	existing, err := svc.keyValueStore.Get(ctx, rateLimitKey)
-	switch {
-	case err != nil:
-		svc.logger.ErrorContext(ctx, "checking android agent enroll secret resend rate limit", "err", err)
-		return
-	case existing != nil:
+	reserved, err := reserveKey(ctx, svc.keyValueStore, rateLimitKey, androidAgentEnrollSecretResendTTL)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "reserving android agent enroll secret resend rate limit", "err", err)
 		return
 	}
-	// Reserved before queueing, so a failure is logged at most once per window rather than on every refused attempt.
-	if err := svc.keyValueStore.Set(ctx, rateLimitKey, "1", androidAgentEnrollSecretResendTTL); err != nil {
-		svc.logger.ErrorContext(ctx, "setting android agent enroll secret resend rate limit", "err", err)
+	if !reserved {
 		return
 	}
 
@@ -213,6 +209,24 @@ func (svc *Service) maybeResendAndroidAgentEnrollSecret(ctx context.Context, app
 	if err := worker.QueueSendAndroidFleetAgentConfig(ctx, svc.ds, svc.logger, host.UUID, enterprise.Name()); err != nil {
 		svc.logger.ErrorContext(ctx, "queue android agent enroll secret resend", "err", err, "host_id", host.ID)
 	}
+}
+
+// setIfNotExistsStore is a key-value store that can set a key only if it doesn't exist, atomically across Fleet servers.
+type setIfNotExistsStore interface {
+	SetIfNotExists(ctx context.Context, key string, value string, expireTime time.Duration) (bool, error)
+}
+
+// reserveKey sets the key for the given time and reports whether this call set it, so that concurrent callers, on this
+// server or another, reserve it only once. A store without an atomic set falls back to get then set.
+func reserveKey(ctx context.Context, kv fleet.KeyValueStore, key string, ttl time.Duration) (bool, error) {
+	if atomic, ok := kv.(setIfNotExistsStore); ok {
+		return atomic.SetIfNotExists(ctx, key, "1", ttl)
+	}
+	existing, err := kv.Get(ctx, key)
+	if err != nil || existing != nil {
+		return false, err
+	}
+	return true, kv.Set(ctx, key, "1", ttl)
 }
 
 // errWindowsEnrollSecretProfileOff refuses a resend of the Fleetd enroll secret profile while mdm.windows_one_time_enroll_secrets is off.

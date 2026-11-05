@@ -1483,6 +1483,35 @@ func testOneTimeEnrollSecretAndroidMint(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotEqual(t, secret, fresh)
 
+	t.Run("cleanup keeps a spent secret until its successor is used", func(t *testing.T) {
+		other := newOneTimeSecretAndroidHost(t, ds, nil)
+		spent, err := ds.MintAndroidOneTimeEnrollSecret(ctx, other.ID)
+		require.NoError(t, err)
+		spentRow, err := ds.GetHostOneTimeEnrollSecret(ctx, spent)
+		require.NoError(t, err)
+		_, err = ds.EnrollOrbit(ctx, androidAgentEnrollOpts(other.UUID, "android", fleet.WithEnrollOrbitOneTimeEnrollSecret(spentRow.ID))...)
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE host_one_time_enroll_secrets SET consumed_at = NOW(6) - INTERVAL 2 HOUR WHERE id = ?`, spentRow.ID)
+		require.NoError(t, err)
+		successor, err := ds.MintAndroidOneTimeEnrollSecret(ctx, other.ID)
+		require.NoError(t, err)
+
+		// The successor may not have reached the device, which still presents the spent secret.
+		_, err = ds.CleanupHostOneTimeEnrollSecrets(ctx)
+		require.NoError(t, err)
+		_, err = ds.GetHostOneTimeEnrollSecret(ctx, spent)
+		require.NoError(t, err)
+
+		successorRow, err := ds.GetHostOneTimeEnrollSecret(ctx, successor)
+		require.NoError(t, err)
+		_, err = ds.EnrollOrbit(ctx, androidAgentEnrollOpts(other.UUID, "android", fleet.WithEnrollOrbitOneTimeEnrollSecret(successorRow.ID))...)
+		require.NoError(t, err)
+		_, err = ds.CleanupHostOneTimeEnrollSecrets(ctx)
+		require.NoError(t, err)
+		_, err = ds.GetHostOneTimeEnrollSecret(ctx, spent)
+		require.True(t, fleet.IsNotFound(err), err)
+	})
+
 	t.Run("concurrent mints share one secret", func(t *testing.T) {
 		other := newOneTimeSecretAndroidHost(t, ds, nil)
 		const workers = 8
@@ -1691,6 +1720,28 @@ func testOneTimeEnrollSecretAndroidOtherRowsHoldingTheDeviceID(t *testing.T, ds 
 		// Switch off: as before.
 		_, err = ds.EnrollOrbit(ctx, androidAgentEnrollOpts(h.UUID, "darwin")...)
 		require.NoError(t, err)
+	})
+
+	t.Run("a shared secret can't give a row it created the device's ID", func(t *testing.T) {
+		// A row created with no UUID, then re-enrolled under its own identifier presenting the device's ID as its UUID, which
+		// would fill the empty UUID and let Android enrollment adopt the row.
+		h := newOneTimeSecretAndroidHost(t, ds, nil)
+		ownIdentifier := uuid.NewString()
+		_, err := ds.EnrollOsquery(ctx, fleet.WithEnrollOsqueryHostID(ownIdentifier), fleet.WithEnrollOsqueryNodeKey(uuid.NewString()), rejectOsquery)
+		require.NoError(t, err)
+
+		_, err = ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{HardwareUUID: h.UUID, OsqueryIdentifier: ownIdentifier}),
+			fleet.WithEnrollOrbitNodeKey(uuid.NewString()), reject)
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, &h.ID)
+		_, err = ds.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryHostID(ownIdentifier), fleet.WithEnrollOsqueryHardwareUUID(h.UUID),
+			fleet.WithEnrollOsqueryNodeKey(uuid.NewString()), rejectOsquery)
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, &h.ID)
+
+		var uuids []string
+		require.NoError(t, sqlx.SelectContext(ctx, ds.writer(ctx), &uuids, `SELECT uuid FROM hosts WHERE osquery_host_id = ?`, ownIdentifier))
+		require.Equal(t, []string{""}, uuids)
 	})
 
 	t.Run("another platform's one-time secret can't take the device's ID", func(t *testing.T) {

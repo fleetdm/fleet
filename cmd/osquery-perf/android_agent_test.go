@@ -145,7 +145,7 @@ func TestOrbitEnrollUsesAgentEnrollSecret(t *testing.T) {
 	agent.refreshAgentEnrollSecret()
 	require.NoError(t, agent.orbitEnroll())
 
-	proxy.set(func(p *fakeProxy) { p.state.AgentEnrollSecret = "one-time-secret" })
+	proxy.set(func(p *fakeProxy) { p.state.AgentEnrollSecret = new("one-time-secret") })
 	agent.refreshAgentEnrollSecret()
 	require.NoError(t, agent.orbitEnroll())
 
@@ -154,21 +154,28 @@ func TestOrbitEnrollUsesAgentEnrollSecret(t *testing.T) {
 }
 
 func TestShouldOrbitEnroll(t *testing.T) {
-	agent := newTestAndroidAgent("http://proxy.invalid")
-	var fallbackTicks []int
-	for tick := 1; tick <= 30; tick++ {
-		if agent.shouldOrbitEnroll(tick) {
-			fallbackTicks = append(fallbackTicks, tick)
-		}
-	}
-	// Without the managed configuration's secret: once after the wait, then every sharedSecretFallbackEvery ticks.
-	assert.Equal(t, []int{4, 14, 24}, fallbackTicks)
+	secret := func(v string) *proxyDeviceState { return &proxyDeviceState{AgentEnrollSecret: &v} }
 
-	agent.agentEnrollSecret = "one-time"
-	assert.True(t, agent.shouldOrbitEnroll(1))
+	t.Run("proxy reporting the secret", func(t *testing.T) {
+		agent := newTestAndroidAgent("http://proxy.invalid")
+		agent.noteAgentEnrollSecret(secret(""))
+		// Waits for the managed configuration's secret instead of presenting the shared one.
+		assert.False(t, agent.shouldOrbitEnroll())
+		agent.noteAgentEnrollSecret(secret("one-time"))
+		assert.True(t, agent.shouldOrbitEnroll())
+		assert.Equal(t, "one-time", agent.agentEnrollSecret)
+		// A later state without one keeps the last secret.
+		agent.noteAgentEnrollSecret(secret(""))
+		assert.Equal(t, "one-time", agent.agentEnrollSecret)
+		agent.orbitNodeKey = "node-key"
+		assert.False(t, agent.shouldOrbitEnroll())
+	})
 
-	agent.orbitNodeKey = "node-key"
-	assert.False(t, agent.shouldOrbitEnroll(1))
+	t.Run("proxy too old to report it", func(t *testing.T) {
+		agent := newTestAndroidAgent("http://proxy.invalid")
+		agent.noteAgentEnrollSecret(&proxyDeviceState{})
+		assert.True(t, agent.shouldOrbitEnroll())
+	})
 }
 
 // TestCurrentStateRecoversLostRegistration covers the load-testing bug where a proxy that

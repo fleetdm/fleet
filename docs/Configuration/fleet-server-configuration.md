@@ -4165,7 +4165,7 @@ When enabled, Fleet delivers a one-time enroll secret for each Android host to t
 
 - Recovery: after the agent uses its secret, the next managed configuration Fleet sends the host carries a new one. If the agent has to enroll again before that, for example because its node key was deleted, Fleet refuses it and sends the host a new secret. The agent picks the new secret up the next time the app starts.
 - Deleted hosts: a deleted Android host comes back when the device next reports to Fleet, and Fleet then sends the agent a new secret.
-- Shared enroll secrets: Fleet doesn't let a global or fleet-level enroll secret enroll as an Android host, including a deleted host whose device Fleet still manages. Refused attempts are recorded as `host_enrollment_rejected` activities.
+- Shared enroll secrets: Fleet doesn't let a global or fleet-level enroll secret enroll as an existing Android host, or with the ID of an Android device Fleet manages, including a device whose host was deleted. Refused attempts are recorded as `host_enrollment_rejected` activities.
 
 When you turn this setting off, Fleet stops accepting the one-time enroll secrets it delivered, and sends the fleet's enroll secret the next time it updates a host's agent configuration (when the host's apps or certificates change). Until then, an Android host whose agent has to enroll again, for example because its node key was deleted, can't enroll.
 

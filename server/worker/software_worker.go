@@ -116,7 +116,8 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 		return ctxerr.Wrapf(ctx, v.updateAndroidHostsAfterFleetTransfer(ctx, args.UUIDsToIDs), "running %s task", bulkSetAndroidAppsAvailableForHostsTask)
 
 	case sendAndroidFleetAgentConfigTask:
-		return ctxerr.Wrapf(ctx, v.AndroidModule.BuildAndSendFleetAgentConfig(ctx, args.EnterpriseName, []string{args.HostUUID}, false),
+		// A failed send is returned so the job is retried: the configuration carries the enroll secret the host is waiting for.
+		return ctxerr.Wrapf(ctx, v.AndroidModule.SendFleetAgentConfig(ctx, args.EnterpriseName, args.HostUUID),
 			"running %s task", sendAndroidFleetAgentConfigTask)
 
 	case resendVPPAppConfigurationTask, resendVPPAppConfigurationBatchTask:

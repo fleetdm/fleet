@@ -40,6 +40,11 @@ type mockAndroidModule struct {
 	patchPolicyFunc                      func(ctx context.Context, policyID, policyName string, policy *androidmanagement.Policy, metadata map[string]string) (bool, error)
 	patchDeviceFunc                      func(ctx context.Context, policyID, deviceName string, device *androidmanagement.Device) (bool, error)
 	buildAndSendFleetAgentConfigFunc     func(ctx context.Context, enterpriseName string, hostUUIDs []string, skipHostsWithoutNewCerts bool) error
+	sendFleetAgentConfigFunc             func(ctx context.Context, enterpriseName string, hostUUID string) error
+}
+
+func (m *mockAndroidModule) SendFleetAgentConfig(ctx context.Context, enterpriseName string, hostUUID string) error {
+	return m.sendFleetAgentConfigFunc(ctx, enterpriseName, hostUUID)
 }
 
 func (m *mockAndroidModule) PatchPolicy(ctx context.Context, policyID, policyName string, policy *androidmanagement.Policy, metadata map[string]string) (bool, error) {
@@ -135,26 +140,29 @@ func TestSoftwareWorkerSendAndroidFleetAgentConfig(t *testing.T) {
 	require.Equal(t, softwareWorkerJobName, queued.Name)
 
 	var (
-		calls      int
-		gotEnt     string
-		gotHosts   []string
-		gotSkipped bool
+		calls   int
+		gotEnt  string
+		gotHost string
+		sendErr error
 	)
 	androidModule := &mockAndroidModule{
-		buildAndSendFleetAgentConfigFunc: func(ctx context.Context, enterpriseName string, hostUUIDs []string, skipHostsWithoutNewCerts bool) error {
+		sendFleetAgentConfigFunc: func(ctx context.Context, enterpriseName string, hostUUID string) error {
 			calls++
-			gotEnt, gotHosts, gotSkipped = enterpriseName, hostUUIDs, skipHostsWithoutNewCerts
-			return nil
+			gotEnt, gotHost = enterpriseName, hostUUID
+			return sendErr
 		},
 	}
 	w := &SoftwareWorker{Datastore: ds, AndroidModule: androidModule, Log: slog.New(slog.DiscardHandler)}
 
-	// the queued job sends the host's configuration even without new certificate templates, since it carries a new secret
+	// the queued job sends the host's configuration, which carries its new enroll secret
 	require.NoError(t, w.Run(t.Context(), *queued.Args))
 	require.Equal(t, 1, calls)
 	require.Equal(t, "enterprises/test", gotEnt)
-	require.Equal(t, []string{"host-1"}, gotHosts)
-	require.False(t, gotSkipped)
+	require.Equal(t, "host-1", gotHost)
+
+	// a failed send fails the job, so the worker retries it
+	sendErr = errors.New("amapi unavailable")
+	require.ErrorIs(t, w.Run(t.Context(), *queued.Args), sendErr)
 }
 
 func TestSoftwareWorkerRunSkipsDeprecatedAndroidAppTasks(t *testing.T) {
