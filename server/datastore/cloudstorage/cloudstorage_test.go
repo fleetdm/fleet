@@ -7,10 +7,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// vendorErr stands in for a vendor SDK error.
 type vendorErr struct{}
 
+// Error implements error.
 func (vendorErr) Error() string { return "vendor failure" }
 
+// TestAPIErrorMisconfigured checks the message and unwrapping of a misconfiguration error.
 func TestAPIErrorMisconfigured(t *testing.T) {
 	vendor := &vendorErr{}
 
@@ -60,6 +63,7 @@ func TestAPIErrorMisconfigured(t *testing.T) {
 	}
 }
 
+// TestAPIErrorOther checks that other API errors get no prefix, vendor or resource.
 func TestAPIErrorOther(t *testing.T) {
 	vendor := &vendorErr{}
 	err := ctxerr.Wrap(t.Context(), NewAPIError(vendor, "Azure", "ServerBusy", "The server is busy.\nRequestId:abc", "container: c", false), "uploading")
