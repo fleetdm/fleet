@@ -226,6 +226,7 @@ func TestListActivitiesTranslatesStoredDetails(t *testing.T) {
 		{"old and new keys keep the new ones", `{"team_id": 7, "fleet_id": 8, "team_name": null, "fleet_name": "New"}`,
 			`{"fleet_id": 8, "fleet_name": "New"}`},
 		{"new keys", `{"fleet_id": 7, "fleet_name": "New"}`, `{"fleet_id": 7, "fleet_name": "New"}`},
+		{"removed key names as values", `{"fleet_name": "team_id", "other": "teams"}`, `{"fleet_name": "team_id", "other": "teams"}`},
 		{"nested keys are left alone", `{"teams": [{"id": 1, "team_id": 2}], "x": {"team_name": "n"}}`,
 			`{"fleets": [{"id": 1, "team_id": 2}], "x": {"team_name": "n"}}`},
 		{"app-owned configuration", `{"team_id": 1, "configuration": {"managedConfiguration": {"team_id": 5, "teams": [1]}}}`,
