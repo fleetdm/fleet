@@ -187,6 +187,8 @@ describe("SoftwareNameCell icon rendering", () => {
     expect(
       await screen.findByText(/2 policies trigger install./i)
     ).toBeInTheDocument();
+    expect(screen.queryByText(/End users can install/i)).toBeNull();
+    await userEvent.hover(screen.getByTestId("self-service-icon"));
     expect(
       await screen.findByText(/End users can install/i)
     ).toBeInTheDocument();
@@ -209,6 +211,8 @@ describe("SoftwareNameCell icon rendering", () => {
     expect(
       await screen.findByText(/2 policies trigger install./i)
     ).toBeInTheDocument();
+    expect(screen.queryByText(/End users can install/i)).toBeNull();
+    await userEvent.hover(screen.getByTestId("self-service-icon"));
     expect(
       await screen.findByText(/End users can install/i)
     ).toBeInTheDocument();
@@ -231,6 +235,8 @@ describe("SoftwareNameCell icon rendering", () => {
     expect(
       await screen.findByText(/2 policies trigger install./i)
     ).toBeInTheDocument();
+    expect(screen.queryByText(/End users can install/i)).toBeNull();
+    await userEvent.hover(screen.getByTestId("self-service-icon"));
     expect(
       await screen.findByText(/End users can install/i)
     ).toBeInTheDocument();
@@ -267,7 +273,7 @@ describe("SoftwareNameCell icon rendering", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows install-auto and self-service icons with a double-barrel tooltip when self-service + auto-update", async () => {
+  it("shows install-auto and self-service icons with separate tooltips when self-service + auto-update", async () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(
       <SoftwareNameCell
@@ -296,12 +302,14 @@ describe("SoftwareNameCell icon rendering", () => {
         )
       )
     ).toBeInTheDocument();
+    expect(screen.queryByText(/End users can install/i)).toBeNull();
+    await userEvent.hover(screen.getByTestId("self-service-icon"));
     expect(
       await screen.findByText(/End users can install/i)
     ).toBeInTheDocument();
   });
 
-  it("stacks all three tooltip lines when policies + self-service + auto-update all apply", async () => {
+  it("shows policy and auto-update on install-auto and self-service on its own icon when all apply", async () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(
       <SoftwareNameCell
@@ -334,6 +342,8 @@ describe("SoftwareNameCell icon rendering", () => {
         )
       )
     ).toBeInTheDocument();
+    expect(screen.queryByText(/End users can install/i)).toBeNull();
+    await userEvent.hover(screen.getByTestId("self-service-icon"));
     expect(
       await screen.findByText(/End users can install/i)
     ).toBeInTheDocument();
