@@ -36,6 +36,8 @@ const VALIDATION_FAILED_ERROR =
   "There was a problem with the information you provided.";
 const BAD_REQUEST_ERROR =
   "Invalid login credentials or URL. Please correct and try again.";
+const LINEAR_BAD_REQUEST_ERROR =
+  "Invalid API key or team ID. Please correct and try again.";
 const UNKNOWN_ERROR =
   "We experienced an error when attempting to connect. Please try again later.";
 
@@ -175,7 +177,10 @@ const TicketDestinations = (): JSX.Element => {
               notify.error(VALIDATION_FAILED_ERROR, { response: addError });
             }
           } else if (addError.data?.message.includes("Bad request")) {
-            notify.error(BAD_REQUEST_ERROR, { response: addError });
+            notify.error(
+              isLinear ? LINEAR_BAD_REQUEST_ERROR : BAD_REQUEST_ERROR,
+              { response: addError }
+            );
           } else if (addError.data?.message.includes("Unknown Error")) {
             notify.error(UNKNOWN_ERROR, { response: addError });
           } else {
@@ -254,7 +259,13 @@ const TicketDestinations = (): JSX.Element => {
           toggleDeleteIntegrationModal();
         });
     }
-  }, [integrationEditing, toggleDeleteIntegrationModal]);
+  }, [
+    integrationEditing,
+    integrations,
+    jiraIntegrations,
+    zendeskIntegrations,
+    toggleDeleteIntegrationModal,
+  ]);
 
   const onActionSelection = useCallback(
     (action: string, integration: IIntegrationTableData): void => {

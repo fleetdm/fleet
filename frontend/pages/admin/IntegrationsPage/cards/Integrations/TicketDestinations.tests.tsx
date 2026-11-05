@@ -114,14 +114,18 @@ describe("TicketDestinations", () => {
     const jiraRow = await getRow("https://example.atlassian.net - PROJ");
     const zendeskRow = await getRow("https://example.zendesk.com - 123");
 
-    expect(within(linearRow).getByAltText("integration-icon")).toHaveClass(
-      "linear-icon"
+    // The Jest image transform returns the file name as the src.
+    expect(within(linearRow).getByAltText("integration-icon")).toHaveAttribute(
+      "src",
+      "icon-linear-24x24@2x.png"
     );
-    expect(within(jiraRow).getByAltText("integration-icon")).toHaveClass(
-      "jira-icon"
+    expect(within(jiraRow).getByAltText("integration-icon")).toHaveAttribute(
+      "src",
+      "icon-jira-24x24@2x.png"
     );
-    expect(within(zendeskRow).getByAltText("integration-icon")).toHaveClass(
-      "zendesk-icon"
+    expect(within(zendeskRow).getByAltText("integration-icon")).toHaveAttribute(
+      "src",
+      "icon-zendesk-32x24@2x.png"
     );
   });
 
@@ -201,6 +205,28 @@ describe("TicketDestinations", () => {
     expect(notify.success).not.toHaveBeenCalled();
   });
 
+  it("shows an API key error when Linear rejects the credentials", async () => {
+    mockServer.use(
+      createGetConfigHandler(),
+      createPatchConfigHandler(jest.fn(), {
+        status: 400,
+        body: { message: "Bad request: invalid key", errors: [] },
+      })
+    );
+    const { user } = render(<TicketDestinations />);
+
+    await openAddModalWithLinear(user);
+    await submitLinearForm(user);
+
+    await waitFor(() => {
+      expect(notify.error).toHaveBeenCalledTimes(1);
+    });
+    expect(toastText(notify.error as jest.Mock)).toBe(
+      "Invalid API key or team ID. Please correct and try again."
+    );
+    expect(notify.success).not.toHaveBeenCalled();
+  });
+
   it("deletes a Linear destination and leaves Jira and Zendesk alone", async () => {
     const patchSpy = jest.fn();
     mockServer.use(
@@ -248,6 +274,47 @@ describe("TicketDestinations", () => {
     await waitFor(() => {
       expect(patchSpy).toHaveBeenCalledWith({
         integrations: { jira: [], zendesk: [zendeskIntegration] },
+      });
+    });
+  });
+
+  it("deletes from the latest list when the config reloads", async () => {
+    const patchSpy = jest.fn();
+    let reloaded = false;
+    mockServer.use(
+      http.get(configUrl, () => {
+        const config = createConfig();
+        if (reloaded) {
+          config.integrations.linear = [
+            linearIntegration,
+            { api_key: "********", team_id: "team-c" },
+          ];
+        }
+        return HttpResponse.json(config);
+      }),
+      createPatchConfigHandler(patchSpy)
+    );
+    const { user } = render(<TicketDestinations />);
+
+    const linearRow = await getRow("Linear - team-a");
+    await user.click(
+      within(linearRow).getByRole("button", { name: "Delete integration" })
+    );
+    expect(await screen.findByText("Delete integration")).toBeInTheDocument();
+
+    // Reload the config while the delete modal is open.
+    reloaded = true;
+    window.dispatchEvent(new Event("focus"));
+    expect(await screen.findByText("Linear - team-c")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+
+    // A stale list would send `linear: []`.
+    await waitFor(() => {
+      expect(patchSpy).toHaveBeenCalledWith({
+        integrations: {
+          linear: [{ api_key: "********", team_id: "team-c" }],
+        },
       });
     });
   });
