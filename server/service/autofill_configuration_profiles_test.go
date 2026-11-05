@@ -579,10 +579,13 @@ func TestAutofillConfigProfileCredentials(t *testing.T) {
 		// has checked again, so they all overlap the first registration.
 		lookups = make(chan struct{}, 2*requests)
 		gate := make(chan struct{})
+		openGate := sync.OnceFunc(func() { close(gate) })
 		gen.mu.Lock()
 		gen.registerGate = gate
 		gen.mu.Unlock()
 		t.Cleanup(func() {
+			// Opened even when an assertion fails, so the fake server can shut down.
+			openGate()
 			lookups = nil
 			gen.mu.Lock()
 			gen.registerGate = nil
@@ -592,7 +595,7 @@ func TestAutofillConfigProfileCredentials(t *testing.T) {
 			for range requests + 1 {
 				<-lookups
 			}
-			close(gate)
+			openGate()
 		}()
 
 		var wg sync.WaitGroup
