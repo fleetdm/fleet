@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 
@@ -41,12 +42,31 @@ func IsNotFound(err error) bool {
 	}
 }
 
+// enrollmentResolver is implemented by every check-in message, through the Enrollment they embed.
+type enrollmentResolver interface {
+	Resolved() *mdm.ResolvedEnrollment
+}
+
+// checkDeviceChannelID refuses a device channel ID containing the separator of user channel IDs, which would let a
+// device enrollment take a user channel's ID. It runs before any service, so nothing is stored for the request.
+func checkDeviceChannelID(r *mdm.ResolvedEnrollment) error {
+	if r != nil && strings.Contains(r.DeviceChannelID, ":") {
+		return NewHTTPStatusError(http.StatusBadRequest, fmt.Errorf("device channel ID contains ':': %q", r.DeviceChannelID))
+	}
+	return nil
+}
+
 // CheckinRequest is a simple adapter that takes the raw check-in bodyBytes
 // and dispatches to the respective check-in method on svc.
 func CheckinRequest(svc Checkin, r *mdm.Request, bodyBytes []byte) ([]byte, error) {
 	msg, err := mdm.DecodeCheckin(bodyBytes)
 	if err != nil {
 		return nil, NewHTTPStatusError(http.StatusBadRequest, fmt.Errorf("decoding check-in: %w", err))
+	}
+	if e, ok := msg.(enrollmentResolver); ok {
+		if err := checkDeviceChannelID(e.Resolved()); err != nil {
+			return nil, err
+		}
 	}
 	var respBytes []byte
 	switch m := msg.(type) {
@@ -122,6 +142,9 @@ func CommandAndReportResultsRequest(svc CommandAndReportResults, r *mdm.Request,
 	report, err := mdm.DecodeCommandResults(bodyBytes)
 	if err != nil {
 		return nil, NewHTTPStatusError(http.StatusBadRequest, fmt.Errorf("decoding command results: %w", err))
+	}
+	if err := checkDeviceChannelID(report.Resolved()); err != nil {
+		return nil, err
 	}
 	cmd, err := svc.CommandAndReportResults(r, report)
 	if err != nil {

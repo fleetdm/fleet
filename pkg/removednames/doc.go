@@ -38,9 +38,10 @@
 //     same flag name can be removed from one command and stay on another. For a path it is an HTTP method, so GET can be removed while
 //     POST stays. Empty means it applies everywhere.
 //   - Format picks the message. Nil means the default for the kind, which follows the Fleet 5 error spec: [EndpointFormat] for a path
-//     ("The "POST /software" endpoint is not available anymore..."), [ParameterFormat] for a query parameter, form field, or JSON key,
-//     [KeyFormat] for a YAML key, and [ReplacedFormat] ("x was removed in Fleet 5. Use y instead.") for the kinds the spec does not cover
-//     yet. Setting EndpointFormat.ByDefault says "by default" for an endpoint that a setting can turn back on, and it is up to the
+//     ("The "POST /software" endpoint is not available anymore..."), [ParameterFormat] for a query parameter, form field, JSON key,
+//     sort key, or target type, [KeyFormat] for a YAML key, [NounFormat] for a flag, command, environment variable, or flag value, and
+//     [ReplacedFormat] ("x was removed in Fleet 5. Use y instead.") for the kinds the spec does not cover yet. Setting
+//     EndpointFormat.ByDefault says "by default" for an endpoint that a setting can turn back on, and it is up to the
 //     caller to reject the request only while that setting is off.
 //
 // To support a message that none of the formats fit, add a type that implements [Format] to format.go and a case for it in

@@ -118,6 +118,7 @@ func TestMDMApple(t *testing.T) {
 		{"MDMAppleSetPendingDeclarationsAs", testMDMAppleSetPendingDeclarationsAs},
 		{"SetOrUpdateMDMAppleDeclaration", testSetOrUpdateMDMAppleDDMDeclaration},
 		{"DEPAssignmentUpdates", testMDMAppleDEPAssignmentUpdates},
+		{"MDMMigrationCompletedIsSticky", testMDMMigrationCompletedIsSticky},
 		{"GetHostDEPAssignmentsByHostIDs", testGetHostDEPAssignmentsByHostIDs},
 		{"TestMDMConfigAsset", testMDMConfigAsset},
 		{"ListIOSAndIPadOSToRefetch", testListIOSAndIPadOSToRefetch},
@@ -145,6 +146,7 @@ func TestMDMApple(t *testing.T) {
 		{"CleanupHostMDMCommandsQueueAware", testCleanupHostMDMCommandsQueueAware},
 		{"IngestMDMAppleDeviceFromOTAEnrollment", testIngestMDMAppleDeviceFromOTAEnrollment},
 		{"IngestMDMAppleDeviceFromOTAEnrollmentEnrolledSerial", testIngestMDMAppleDeviceFromOTAEnrollmentEnrolledSerial},
+		{"IngestMDMAppleDeviceFromOTAEnrollmentPersonal", testIngestMDMAppleDeviceFromOTAEnrollmentPersonal},
 		{"IngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping", testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping},
 		{"MDMManagedSCEPCertificates", testMDMManagedSCEPCertificates},
 		{"MDMManagedDigicertCertificates", testMDMManagedDigicertCertificates},
@@ -1781,7 +1783,7 @@ func testPreserveDisplayNameAfterFleetdEnroll(t *testing.T, ds *Datastore) {
 
 	// Repeat for the OTA enrollment path which goes through createHostFromMDMDB.
 	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "",
-		fleet.MDMAppleMachineInfo{Serial: testSerial, UDID: testUUID, Product: "MacBookPro18,1"})
+		fleet.MDMAppleMachineInfo{Serial: testSerial, UDID: testUUID, Product: "MacBookPro18,1"}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &displayName,
@@ -3561,13 +3563,13 @@ func testHostMDMIdPAccountWritesReturnPrevious(t *testing.T, ds *Datastore) {
 
 	t.Run("ota", func(t *testing.T) {
 		mi := fleet.MDMAppleMachineInfo{UDID: uuid.NewString(), Serial: "OTA-PREV-1", Product: "MacBookPro16,1"}
-		previous, err := ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, acc1.UUID, mi)
+		previous, err := ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, acc1.UUID, mi, fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 		require.Empty(t, previous)
-		previous, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, acc2.UUID, mi)
+		previous, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, acc2.UUID, mi, fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 		require.Equal(t, acc1.UUID, previous)
-		previous, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", mi)
+		previous, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", mi, fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 		require.Equal(t, acc2.UUID, previous)
 		requireLinked(mi.UDID, "")
@@ -8435,6 +8437,89 @@ func testMDMAppleDEPAssignmentUpdates(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.DEPAssignProfileResponseFailed, *assignment.AssignProfileResponse)
 }
 
+func testMDMMigrationCompletedIsSticky(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(uuid.NewString()), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
+	require.NoError(t, err)
+
+	newHost := func(name string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:       name,
+			OsqueryHostID:  new("osquery-" + name),
+			NodeKey:        new("nodekey-" + name),
+			UUID:           "uuid-" + name,
+			Platform:       "darwin",
+			HardwareSerial: "serial-" + name,
+		})
+		require.NoError(t, err)
+		return h
+	}
+	firstDeadline := time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC)
+	secondDeadline := time.Date(2026, 11, 30, 0, 0, 0, 0, time.UTC)
+
+	upsertWithDeadline := func(h *fleet.Host, deadline time.Time) {
+		err := ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmToken.ID, map[uint]time.Time{h.ID: deadline})
+		require.NoError(t, err)
+	}
+	checkinInfo := func(h *fleet.Host) *fleet.HostMDMCheckinInfo {
+		info, err := ds.GetHostMDMCheckinInfo(ctx, h.UUID)
+		require.NoError(t, err)
+		return info
+	}
+	requireTime := func(want time.Time, got *time.Time) {
+		require.NotNil(t, got)
+		require.True(t, want.Equal(*got), "want %s, got %s", want, *got)
+	}
+
+	migrated := newHost("migrated")
+	upsertWithDeadline(migrated, firstDeadline)
+	info := checkinInfo(migrated)
+	require.True(t, info.MigrationInProgress)
+	requireTime(firstDeadline, info.MDMMigrationDeadline)
+	require.Nil(t, info.MDMMigrationCompleted)
+
+	require.NoError(t, ds.SetHostMDMMigrationCompleted(ctx, migrated.ID))
+	info = checkinInfo(migrated)
+	require.False(t, info.MigrationInProgress)
+	requireTime(firstDeadline, info.MDMMigrationCompleted)
+
+	// ABM reports a new deadline for an already-migrated host
+	upsertWithDeadline(migrated, secondDeadline)
+	info = checkinInfo(migrated)
+	require.False(t, info.MigrationInProgress)
+	requireTime(secondDeadline, info.MDMMigrationDeadline)
+	requireTime(firstDeadline, info.MDMMigrationCompleted)
+
+	// removing the ABM assignment clears the marker: ABM drops the deadline when a device leaves this
+	// server, so a deadline it comes back with is a new migration
+	removals := map[string]func() error{
+		"DeleteHostDEPAssignments": func() error {
+			return ds.DeleteHostDEPAssignments(ctx, abmToken.ID, []string{migrated.HardwareSerial})
+		},
+		"MarkHostDEPAssignmentDeleted": func() error { return ds.MarkHostDEPAssignmentDeleted(ctx, migrated.ID) },
+		"MarkHostDEPAssignmentsDeleted": func() error {
+			return ds.MarkHostDEPAssignmentsDeleted(ctx, []uint{migrated.ID})
+		},
+	}
+	for name, remove := range removals {
+		upsertWithDeadline(migrated, firstDeadline)
+		require.NoError(t, ds.SetHostMDMMigrationCompleted(ctx, migrated.ID), name)
+		require.False(t, checkinInfo(migrated).MigrationInProgress, name)
+
+		require.NoError(t, remove(), name)
+		info = checkinInfo(migrated)
+		require.False(t, info.DEPAssignedToFleet, name)
+		require.Nil(t, info.MDMMigrationDeadline, name)
+		require.Nil(t, info.MDMMigrationCompleted, name)
+
+		upsertWithDeadline(migrated, secondDeadline)
+		info = checkinInfo(migrated)
+		require.True(t, info.DEPAssignedToFleet, name)
+		require.True(t, info.MigrationInProgress, name)
+	}
+}
+
 func testGetHostDEPAssignmentsByHostIDs(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	n := t.Name()
@@ -10696,7 +10781,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollment(t *testing.T, ds *Datastore) {
 	wantSerials = append(wantSerials, "abc", "xyz", "ijk", "tuv")
 
 	for _, d := range otaDevices {
-		_, err := ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", d)
+		_, err := ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", d, fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 	}
 
@@ -10718,6 +10803,32 @@ func testIngestMDMAppleDeviceFromOTAEnrollment(t *testing.T, ds *Datastore) {
 	require.ElementsMatch(t, wantSerials, gotSerials)
 }
 
+func testIngestMDMAppleDeviceFromOTAEnrollmentPersonal(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	createBuiltinLabels(t, ds)
+
+	ingest := func(serial, udid string, personalType fleet.PersonalEnrollmentType) *fleet.HostMDMCheckinInfo {
+		_, err := ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{Serial: serial, UDID: udid, Product: "MacBook Pro"}, personalType)
+		require.NoError(t, err)
+		info, err := ds.GetHostMDMCheckinInfo(ctx, udid)
+		require.NoError(t, err)
+		return info
+	}
+
+	// a new host records the enrollment's ownership until its Authenticate arrives
+	info := ingest("personal-serial", "personal-uuid", fleet.PersonalEnrollmentTypeManualProfile)
+	require.False(t, info.FleetEnrolledCorporate)
+	hostMDM, err := ds.GetHostMDM(ctx, info.HostID)
+	require.NoError(t, err)
+	require.True(t, hostMDM.IsPersonalEnrollment)
+	require.Equal(t, fleet.PersonalEnrollmentTypeManualProfile, hostMDM.PersonalEnrollmentType)
+
+	require.True(t, ingest("corporate-serial", "corporate-uuid", fleet.PersonalEnrollmentTypeNone).FleetEnrolledCorporate)
+
+	// an enrolled host keeps its ownership
+	require.True(t, ingest("corporate-serial", "corporate-uuid", fleet.PersonalEnrollmentTypeManualProfile).FleetEnrolledCorporate)
+}
+
 func testIngestMDMAppleDeviceFromOTAEnrollmentEnrolledSerial(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	createBuiltinLabels(t, ds)
@@ -10736,7 +10847,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollmentEnrolledSerial(t *testing.T, ds *D
 	// a different UUID claiming the enrolled host's serial is refused, and the host keeps its UUID
 	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
 		Serial: enrolled.HardwareSerial, UDID: "new-uuid", Product: "MacBook Pro",
-	})
+	}, fleet.PersonalEnrollmentTypeNone)
 	var conflict *fleet.ConflictError
 	require.ErrorAs(t, err, &conflict)
 	host, err := ds.HostLite(ctx, enrolled.ID)
@@ -10746,7 +10857,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollmentEnrolledSerial(t *testing.T, ds *D
 	// the enrolled device itself can re-enroll
 	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
 		Serial: enrolled.HardwareSerial, UDID: enrolled.UUID, Product: "MacBook Pro",
-	})
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	// once MDM is turned off, the serial can be claimed by a new UUID
@@ -10756,7 +10867,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollmentEnrolledSerial(t *testing.T, ds *D
 	})
 	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
 		Serial: enrolled.HardwareSerial, UDID: "new-uuid", Product: "MacBook Pro",
-	})
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 	host, err = ds.HostLite(ctx, enrolled.ID)
 	require.NoError(t, err)
@@ -10776,13 +10887,13 @@ func testIngestMDMAppleDeviceFromOTAEnrollmentEnrolledSerial(t *testing.T, ds *D
 	require.NoError(t, ds.DeleteHost(ctx, deleted.ID))
 	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
 		Serial: deleted.HardwareSerial, UDID: "replacement-uuid", Product: "MacBook Pro",
-	})
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	// and a device that was never enrolled
 	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
 		Serial: "never-enrolled-serial", UDID: "never-enrolled-uuid", Product: "MacBook Pro",
-	})
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 }
 
@@ -10837,7 +10948,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping(t *testing.T, ds *Data
 		Product: "MacBook Pro",
 		UDID:    hostUDID,
 	}
-	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, idpUUID, deviceInfo)
+	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, idpUUID, deviceInfo, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	host, err := ds.HostByIdentifier(ctx, hostSerial)
@@ -10871,7 +10982,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping(t *testing.T, ds *Data
 	// Re-enrollment of the same hardware must be idempotent: no duplicate
 	// key error, exactly one mapping row, no stale change. host_scim_user
 	// has host_id as the PK, so a raw re-INSERT would fail.
-	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, idpUUID, deviceInfo)
+	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, idpUUID, deviceInfo, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 	var hostCount int
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -10907,7 +11018,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping(t *testing.T, ds *Data
 		Serial:  unmatchedHostSerial,
 		Product: "MacBook Pro",
 		UDID:    unmatchedHostUDID,
-	})
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 	unmatchedHost, err := ds.HostByIdentifier(ctx, unmatchedHostSerial)
 	require.NoError(t, err)
@@ -10923,7 +11034,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping(t *testing.T, ds *Data
 		Serial:  emptyIdpHostSerial,
 		Product: "MacBook Pro",
 		UDID:    "TAHOE-MIGRATED-UDID-EMPTY",
-	})
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 	emptyIdpHost, err := ds.HostByIdentifier(ctx, emptyIdpHostSerial)
 	require.NoError(t, err)

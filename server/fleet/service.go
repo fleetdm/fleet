@@ -489,13 +489,16 @@ type Service interface {
 	// A caller allowed to resolve the identifier but not to read the host
 	// (GitOps) gets a result with HostDetail.IDOnly set, see that field.
 	HostByIdentifier(ctx context.Context, identifier string, opts HostDetailOptions) (*HostDetail, error)
+	// GetHostByIDOrIdentifier returns one host matching the provided value. A value that is a host id matches on id first, then
+	// any value matches as described on Datastore.HostByIdentifier.
+	GetHostByIDOrIdentifier(ctx context.Context, identifier string, opts HostDetailOptions) (*HostDetail, error)
 	// RefetchHost requests a refetch of host details for the provided host.
 	RefetchHost(ctx context.Context, id uint) (err error)
 	// CleanupExpiredHostsBatch deletes up to batchSize hosts that have exceeded the expiry window and
 	// creates an activity for each deletion. Callers loop until it returns no hosts.
 	CleanupExpiredHostsBatch(ctx context.Context, batchSize int) ([]DeletedHostDetails, error)
 	// AddHostsToTeam adds hosts to an existing team, clearing their team settings if teamID is nil.
-	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error
+	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error
 	// AddHostsToTeamByFilter adds hosts to an existing team, clearing their team settings if teamID is nil. Hosts are
 	// selected by the label and HostListOptions provided.
 	AddHostsToTeamByFilter(ctx context.Context, teamID *uint, filter *map[string]interface{}) error
