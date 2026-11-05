@@ -1393,12 +1393,8 @@ func getTeamsYAMLFlag() cli.Flag {
 func getFleetsCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "fleets",
-		Aliases: []string{"fleet", "f", "teams", "team", "t"},
+		Aliases: []string{"fleet", "f"},
 		Usage:   "List fleets",
-		Before: func(c *cli.Context) error {
-			logDeprecatedCommandName(c, []string{"teams", "team", "t"}, "fleets")
-			return nil
-		},
 		Flags: []cli.Flag{
 			getTeamsJSONFlag(),
 			getTeamsYAMLFlag(),
