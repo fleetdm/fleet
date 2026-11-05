@@ -266,7 +266,7 @@ const SoftwareSummaryCard = ({
         )}
         {showAutoUpdateChip && (
           <Chip
-            icon="update"
+            icon="install-auto"
             text="Auto updates"
             onClick={
               canEditAutoUpdateConfig

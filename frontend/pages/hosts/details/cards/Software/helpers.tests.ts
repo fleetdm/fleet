@@ -769,4 +769,14 @@ describe("getInstallerActionButtonConfig", () => {
       getInstallerActionButtonConfig("install", "skipped_install")
     ).toEqual({ text: "Update", icon: "update" });
   });
+
+  it.each([
+    { status: "failed_script" as const, text: "Retry" },
+    { status: "ran_script" as const, text: "Rerun" },
+  ])("returns the retry icon for $status", ({ status, text }) => {
+    expect(getInstallerActionButtonConfig("install", status)).toEqual({
+      text,
+      icon: "retry",
+    });
+  });
 });

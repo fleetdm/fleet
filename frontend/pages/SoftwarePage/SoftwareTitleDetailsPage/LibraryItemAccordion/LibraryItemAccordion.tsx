@@ -354,7 +354,7 @@ const LibraryItemAccordion = ({
         ? getAutoUpdateTooltip(autoUpdateWindowStart, autoUpdateWindowEnd)
         : "Auto updates on.";
     return renderRowActionIcon({
-      iconName: "update",
+      iconName: "install-auto",
       tooltipContent,
       ariaLabel: "Edit version",
       onClick: onAutoUpdateClick,
