@@ -436,7 +436,7 @@ func run(cfg Config) error {
 // prefix+<version>+suffix whose version is in this run's scope and absent from
 // produced are removed; other platforms, dates, artifact kinds and versions
 // excluded by the version filters are left alone.
-func removeStaleArtifacts(dir, prefix, suffix string, produced map[string]bool, inScope func(string) bool) error {
+func removeStaleArtifacts(dir, prefix, suffix string, produced map[string]struct{}, inScope func(string) bool) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return fmt.Errorf("failed to read output directory: %w", err)
@@ -450,7 +450,7 @@ func removeStaleArtifacts(dir, prefix, suffix string, produced map[string]bool, 
 		// Versions never contain "-", so this also keeps a full artifact's
 		// suffix from matching a delta ("2404-delta") of the same date.
 		ver := name[len(prefix) : len(name)-len(suffix)]
-		if strings.Contains(ver, "-") || produced[ver] || !inScope(ver) {
+		if _, ok := produced[ver]; ok || strings.Contains(ver, "-") || !inScope(ver) {
 			continue
 		}
 		if err := os.Remove(filepath.Join(dir, name)); err != nil {
@@ -463,13 +463,13 @@ func removeStaleArtifacts(dir, prefix, suffix string, produced map[string]bool, 
 
 // fileVersions returns the versions of artifacts as they appear in output file
 // names, mapped through fileVersion when it is not nil.
-func fileVersions[V any](artifacts map[string]V, fileVersion func(string) string) map[string]bool {
-	versions := make(map[string]bool, len(artifacts))
+func fileVersions[V any](artifacts map[string]V, fileVersion func(string) string) map[string]struct{} {
+	versions := make(map[string]struct{}, len(artifacts))
 	for ver := range artifacts {
 		if fileVersion != nil {
 			ver = fileVersion(ver)
 		}
-		versions[ver] = true
+		versions[ver] = struct{}{}
 	}
 	return versions
 }
