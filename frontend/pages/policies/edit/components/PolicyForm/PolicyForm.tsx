@@ -878,7 +878,7 @@ const PolicyForm = ({
                   showArrow
                   tipOffset={12}
                 >
-                  <Icon name="info" />
+                  <Icon name="info" size="medium" />
                 </TooltipWrapper>
               ) : (
                 renderLabelComponent()
