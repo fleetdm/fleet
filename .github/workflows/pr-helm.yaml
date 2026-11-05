@@ -127,3 +127,18 @@ jobs:
           test "${TEST_ZERO}" = "0"
           test "${TEST_FALSE}" = "false"
         done
+    - name: check vulnprocessing scheduling values
+      run: |
+        CRON='select(.kind == "CronJob") | .spec.jobTemplate.spec.template.spec'
+        DEPLOY='select(.kind == "Deployment" and .metadata.labels.app == "fleet") | .spec.template.spec'
+        FILE=helm-temp/vulnprocessing-scheduling.yaml
+        test "$(yq eval-all "${CRON} | .nodeSelector.\"example.com/node-pool\"" "${FILE}")" = "batch"
+        test "$(yq eval-all "${CRON} | .tolerations[0].key" "${FILE}")" = "example.com/batch"
+        # An empty vulnProcessing.affinity falls back to the top-level affinity.
+        test "$(yq eval-all "${CRON} | .affinity.podAntiAffinity | length" "${FILE}")" != "0"
+        # The Deployment keeps the top-level values.
+        test "$(yq eval-all "${DEPLOY} | .nodeSelector" "${FILE}")" = "null"
+        test "$(yq eval-all "${DEPLOY} | .tolerations" "${FILE}")" = "null"
+        FILE=helm-temp/vulnprocessing-affinity.yaml
+        test "$(yq eval-all "${CRON} | .affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].values[0]" "${FILE}")" = "batch"
+        test "$(yq eval-all "${CRON} | .affinity.podAntiAffinity" "${FILE}")" = "null"
