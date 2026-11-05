@@ -63,7 +63,7 @@ func TestMigrationStatusFleet4Upgrade(t *testing.T) {
 	}
 	status, err := ds.MigrationStatus(ctx)
 	require.NoError(t, err)
-	assert.EqualValues(t, fleet.SomeMigrationsCompleted, status.StatusCode)
+	assert.Equal(t, fleet.SomeMigrationsCompleted, status.StatusCode)
 	fleet5Versions := getVersionsFromMigrations(tables.MigrationClient.Migrations)
 	assert.ElementsMatch(t, fleet5Versions, status.MissingTable)
 
@@ -73,7 +73,7 @@ func TestMigrationStatusFleet4Upgrade(t *testing.T) {
 	}
 	status, err = ds.MigrationStatus(ctx)
 	require.NoError(t, err)
-	assert.EqualValues(t, fleet.AllMigrationsCompleted, status.StatusCode)
+	assert.Equal(t, fleet.AllMigrationsCompleted, status.StatusCode)
 }
 
 func TestMigrations(t *testing.T) {
