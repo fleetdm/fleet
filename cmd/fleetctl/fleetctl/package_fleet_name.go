@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
 	zlog "github.com/rs/zerolog/log"
@@ -119,7 +120,8 @@ func fleetFromServer(cc Context, enrollSecret string, timeout time.Duration) (pa
 	}
 	for _, f := range fleets {
 		for _, s := range f.Secrets {
-			if s != nil && s.Secret == enrollSecret {
+			// Fleet masks the secrets the user can't read, so a masked one never identifies the fleet.
+			if s != nil && s.Secret != fleet.MaskedPassword && s.Secret == enrollSecret {
 				match := packageFleet{Name: f.Name, ID: f.ID}
 				for _, other := range fleets {
 					if other.ID != f.ID {

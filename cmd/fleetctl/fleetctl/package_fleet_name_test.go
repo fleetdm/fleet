@@ -89,6 +89,11 @@ func TestFleetNameForPackage(t *testing.T) {
 			fleetURL: premium.URL, secret: "servers-secret",
 		},
 		{
+			name:     "masked secret doesn't match a fleet",
+			contexts: []fleetctlContext{{"default", premium.URL, "observer-token"}},
+			fleetURL: premium.URL, secret: fleet.MaskedPassword,
+		},
+		{
 			name:     "expired token prints a note",
 			contexts: []fleetctlContext{{"default", premium.URL, "expired-token"}},
 			fleetURL: premium.URL, secret: "servers-secret", wantNote: true,
