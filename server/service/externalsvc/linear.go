@@ -53,7 +53,7 @@ func NewLinearClient(opts *LinearOptions) *Linear {
 func (l *Linear) GetTeam(ctx context.Context) (*LinearTeam, error) {
 	var resp struct {
 		Data struct {
-			Team *LinearTeam `json:"team"`
+			Team *LinearTeam `json:"team"` //nolint:apiparamcheck // Linear API response field, not a Fleet team
 		} `json:"data"`
 	}
 	err := l.do(ctx, `query($id: String!) { team(id: $id) { id } }`, map[string]any{"id": l.opts.TeamID}, &resp)

@@ -388,7 +388,7 @@ func makeTestZendeskRequest(ctx context.Context, intg *ZendeskIntegration) error
 // LinearIntegration configures an instance of an integration with the external Linear service.
 type LinearIntegration struct {
 	APIKey string `json:"api_key"`
-	TeamID string `json:"team_id"`
+	TeamID string `json:"team_id"` //nolint:apiparamcheck // a Linear team, not a Fleet team
 }
 
 // IndexLinearIntegrations indexes the provided Linear integrations in a map
@@ -440,7 +440,6 @@ func ValidateLinearIntegrations(ctx context.Context, oriLinearIntgsIndexed map[s
 	}
 
 	for key, intg := range oriLinearIntgsIndexed {
-		intg := intg // do not take address of iteration variable
 		if _, ok := newIndexed[key]; !ok {
 			deleted = append(deleted, &intg)
 		}

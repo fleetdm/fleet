@@ -3,7 +3,6 @@ package fleet
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -65,7 +64,7 @@ func TestValidateLinearIntegrations(t *testing.T) {
 	t.Run("missing team id fails before any request", func(t *testing.T) {
 		_, err := ValidateLinearIntegrations(ctx, ori, []*LinearIntegration{{APIKey: "k1", TeamID: ""}})
 		var testErr IntegrationTestError
-		require.True(t, errors.As(err, &testErr))
+		require.ErrorAs(t, err, &testErr)
 		require.ErrorContains(t, err, "missing team id")
 	})
 }

@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,28 +20,28 @@ func TestLinearGetTeam(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotAuth = r.Header.Get("Authorization")
-		require.Equal(t, http.MethodPost, r.Method)
-		require.NoError(t, json.NewDecoder(r.Body).Decode(&gotBody))
+		assert.Equal(t, http.MethodPost, r.Method)
+		assert.NoError(t, json.NewDecoder(r.Body).Decode(&gotBody))
 
 		switch gotAuth {
 		case "bad-key":
 			w.WriteHeader(http.StatusUnauthorized)
 			_, err := w.Write([]byte(`{"errors":[{"message":"Authentication required"}]}`))
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		case "gql-error":
 			_, err := w.Write([]byte(`{"errors":[{"message":"Entity not found"},{"message":"second"}]}`))
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		case "no-team":
 			_, err := w.Write([]byte(`{"data":{"team":null}}`))
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		case "server-error":
 			w.WriteHeader(http.StatusInternalServerError)
 		case "bad-json":
 			_, err := w.Write([]byte(`not json`))
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		default:
 			_, err := w.Write([]byte(`{"data":{"team":{"id":"team-123"}}}`))
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		}
 	}))
 	defer srv.Close()
