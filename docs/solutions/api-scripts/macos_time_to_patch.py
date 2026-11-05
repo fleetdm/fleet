@@ -12,9 +12,6 @@ Live:    FLEET_URL=https://fleet.example.com FLEET_API_TOKEN=... \
            ./macos_time_to_patch.py --report-id 123
 Offline: ./macos_time_to_patch.py --report-file report.json --hosts-file hosts.json
 
---report-file accepts the response of "Get report data" (stored results) or
-"Run live report" (POST /api/v1/fleet/reports/:id/run).
-
 Standard library only (Python 3.9+).
 """
 
@@ -210,7 +207,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--report-id", type=int, action="append",
                     help="Fleet report ID; repeat for the same report in several fleets")
-    ap.add_argument("--report-file", help="Saved JSON from GET /api/v1/fleet/reports/:id/report or POST /api/v1/fleet/reports/:id/run")
+    ap.add_argument("--report-file", help="Saved JSON from GET /api/v1/fleet/reports/:id/report")
     ap.add_argument("--hosts-file", help="Saved JSON from GET /api/v1/fleet/hosts")
     ap.add_argument("--sofa-file", help="Saved SOFA macOS feed (default: download)")
     ap.add_argument("--days", type=int, default=365, help="Look-back window for releases (default 365)")
@@ -257,16 +254,12 @@ def main():
     recs = []
     for row in report.get("results", []):
         hid = row["host_id"]
-        # Stored report data has "columns"; a live run has "rows" (empty on error)
-        columns = row.get("columns") or next(iter(row.get("rows") or []), None)
-        if not columns:
-            continue
         host = hosts.get(hid, {})
         fleet = host.get("fleet_name") or host.get("team_name")
         if args.fleet and fleet != args.fleet:
             continue
         cutover = global_cutover or parse_ts(host.get("last_enrolled_at"))
-        for rec in evaluate_host(columns, releases, window, now, cutover):
+        for rec in evaluate_host(row.get("columns", {}), releases, window, now, cutover):
             rec.update(host_id=hid, host_name=host.get("display_name") or row.get("host_name"),
                        fleet=fleet)
             recs.append(rec)

@@ -63,17 +63,7 @@ The install times come from the Mac's log, not from when the report ran, so the 
 
 A report's interval counts how long fleetd has been running on the Mac, not time on the clock. While a Mac is asleep or turned off, the count stops. A Mac that's awake all day sends results within about 6 hours. A laptop that sleeps for much of the day can take a day or more.
 
-If you need numbers sooner, run the report live on Macs that are online with the [Run live report](https://fleetdm.com/docs/rest-api/rest-api#run-live-report) API, then pass the saved response to the script with `--report-file`:
-
-```bash
-curl -X POST "$FLEET_URL/api/v1/fleet/reports/123/run" \
-  -H "Authorization: Bearer $FLEET_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"host_ids": [1, 4, 34]}' > live.json
-python3 macos_time_to_patch.py --report-file live.json --out-dir out
-```
-
-Macs that don't respond within the live report timeout are left out, so use stored results for your regular numbers.
+Fleet keeps each Mac's latest results, so once a Mac has reported, it stays in your numbers even while it's asleep or offline.
 
 To check, open the report in the Fleet UI and look at the number of hosts with results. Note the report's ID from the URL. If you added the report to several fleets, each fleet has its own report and ID.
 
