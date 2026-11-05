@@ -4,6 +4,8 @@
 # registers DisplayName "Rocket.Chat <version>" and Publisher "Rocket.Chat
 # Support". The UninstallString points at the NSIS uninstaller; /S runs it
 # silently and /allusers removes the per-machine (HKLM) registration.
+# Per-user copies are not removed: their uninstallers sit in user-writable
+# folders and are never run as SYSTEM. The script reports them and exits 1.
 
 $displayNameLike = "Rocket.Chat*"
 $publisherLike = "Rocket.Chat Support*"
@@ -12,6 +14,22 @@ $paths = @(
   'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
   'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
 )
+
+function Get-PerUserExitCode {
+  $entries = @()
+  foreach ($hive in (Get-ChildItem 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue)) {
+    if ($hive.PSChildName -notmatch '^(S-1-5-18|S-1-5-21-[\d-]+|S-1-12-1-[\d-]+)$') { continue }
+    foreach ($view in @('SOFTWARE\Microsoft', 'SOFTWARE\WOW6432Node\Microsoft')) {
+      $entries += @(Get-ItemProperty "Registry::$($hive.Name)\$view\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue | Where-Object {
+        $_.DisplayName -like $displayNameLike -and $_.Publisher -like $publisherLike
+      })
+    }
+  }
+  if ($entries.Count -eq 0) { return 0 }
+  Write-Host "Rocket.Chat is still installed per user. Uninstall it as that user:"
+  foreach ($e in $entries) { Write-Host "  - $($e.DisplayName) [$($e.PSPath -replace '^.*::', '')]" }
+  return 1
+}
 
 try {
 
@@ -25,7 +43,7 @@ foreach ($p in $paths) {
 
 if (-not $uninstall -or (-not $uninstall.UninstallString -and -not $uninstall.QuietUninstallString)) {
   Write-Host "Uninstall entry not found"
-  Exit 0
+  Exit (Get-PerUserExitCode)
 }
 
 $uninstallCommand = if ($uninstall.QuietUninstallString) {
@@ -70,6 +88,8 @@ $processOptions = @{
 $process = Start-Process @processOptions
 $exitCode = $process.ExitCode
 Write-Host "Uninstall exit code: $exitCode"
+$perUserExitCode = Get-PerUserExitCode
+if ($exitCode -eq 0) { $exitCode = $perUserExitCode }
 Exit $exitCode
 
 } catch {

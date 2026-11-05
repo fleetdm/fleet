@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Zoom VDI Universal Plugin%' AND publisher = 'Zoom Communications, Inc.';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Zoom VDI Universal Plugin%' AND publisher = 'Zoom Communications, Inc.' AND version_compare(version, '6.6.27150') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'zoom vdi universal plugin.exe');"
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('zoom.exe','cpthost.exe','airhost.exe','aomhost64.exe') AND LOWER(path) LIKE '%\\zoomvdiuniversalplugin\\%');"
       },
       "installer_url": "https://zoom.us/download/vdi/6.6.18.27150/ZoomVDIUniversalPluginx64.msi?archType=x64",
       "install_script_ref": "22e48c46",
