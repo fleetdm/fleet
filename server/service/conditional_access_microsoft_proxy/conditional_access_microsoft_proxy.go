@@ -2,39 +2,28 @@
 package conditional_access_microsoft_proxy
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
-	"github.com/fleetdm/fleet/v4/pkg/str"
+	"github.com/fleetdm/fleet/v4/server/service/fleetdm_proxy"
 )
 
 // Proxy holds functionality to send requests to Entra via Fleet's MS proxy.
 type Proxy struct {
-	uri          string
-	originGetter func() (string, error)
-
-	c *http.Client
+	client *fleetdm_proxy.Client
 }
 
 // New creates a Proxy that will use the given URI.
 func New(uri string, originGetter func() (string, error)) (*Proxy, error) {
-	if _, err := url.Parse(uri); err != nil {
-		return nil, fmt.Errorf("parse uri: %w", err)
+	client, err := fleetdm_proxy.New(uri, originGetter, fleethttp.WithNoTimeout())
+	if err != nil {
+		return nil, err
 	}
-	return &Proxy{
-		uri: uri,
-
-		originGetter: originGetter,
-
-		c: fleethttp.NewClient(fleethttp.WithNoTimeout()),
-	}, nil
+	return &Proxy{client: client}, nil
 }
 
 type createRequest struct {
@@ -51,8 +40,8 @@ type CreateResponse struct {
 // Create creates the integration on the MS proxy and returns the consent URL.
 func (p *Proxy) Create(ctx context.Context, tenantID string) (*CreateResponse, error) {
 	var createResponse CreateResponse
-	if err := p.post(
-		"/api/v1/microsoft-compliance-partner",
+	if err := p.client.Do(ctx, http.MethodPost,
+		"/api/v1/microsoft-compliance-partner", nil,
 		createRequest{TenantID: tenantID},
 		&createResponse,
 	); err != nil {
@@ -72,10 +61,10 @@ type GetResponse struct {
 // Get returns the integration settings.
 func (p *Proxy) Get(ctx context.Context, tenantID string, secret string) (*GetResponse, error) {
 	var getResponse GetResponse
-	if err := p.get(
+	if err := p.client.Do(ctx, http.MethodGet,
 		"/api/v1/microsoft-compliance-partner/settings",
 		url.Values{"entraTenantId": {tenantID}, "fleetServerSecret": {secret}},
-		&getResponse,
+		nil, &getResponse,
 	); err != nil {
 		return nil, fmt.Errorf("get integration settings failed: %w", err)
 	}
@@ -91,12 +80,12 @@ type DeleteResponse struct {
 // Returns a fleet.IsNotFound error if the integration doesn't exist.
 func (p *Proxy) Delete(ctx context.Context, tenantID string, secret string) (*DeleteResponse, error) {
 	var deleteResponse DeleteResponse
-	if err := p.delete(
+	if err := p.client.Do(ctx, http.MethodDelete,
 		"/api/v1/microsoft-compliance-partner",
 		url.Values{"entraTenantId": {tenantID}, "fleetServerSecret": {secret}},
-		&deleteResponse,
+		nil, &deleteResponse,
 	); err != nil {
-		return nil, fmt.Errorf("delete integration failed: %w", err)
+		return nil, fmt.Errorf("delete integration failed: %w", fleetdm_proxy.NotFoundOn404(err))
 	}
 	return &deleteResponse, nil
 }
@@ -135,8 +124,8 @@ func (p *Proxy) SetComplianceStatus(
 	lastCheckInTime time.Time,
 ) (*SetComplianceStatusResponse, error) {
 	var setComplianceStatusResponse SetComplianceStatusResponse
-	if err := p.post(
-		"/api/v1/microsoft-compliance-partner/device",
+	if err := p.client.Do(ctx, http.MethodPost,
+		"/api/v1/microsoft-compliance-partner/device", nil,
 		setComplianceStatusRequest{
 			TenantID: tenantID,
 			Secret:   secret,
@@ -178,165 +167,12 @@ func (p *Proxy) GetMessageStatus(
 	messageID string,
 ) (*GetMessageStatusResponse, error) {
 	var getMessageStatusResponse GetMessageStatusResponse
-	if err := p.get(
+	if err := p.client.Do(ctx, http.MethodGet,
 		"/api/v1/microsoft-compliance-partner/device/message",
 		url.Values{"entraTenantId": {tenantID}, "fleetServerSecret": {secret}, "messageId": {messageID}},
-		&getMessageStatusResponse,
+		nil, &getMessageStatusResponse,
 	); err != nil {
 		return nil, fmt.Errorf("get message status response failed: %w", err)
 	}
 	return &getMessageStatusResponse, nil
-}
-
-func (p *Proxy) post(path string, request interface{}, response interface{}) error {
-	b, err := json.Marshal(request)
-	if err != nil {
-		return fmt.Errorf("marshal request: %w", err)
-	}
-	postRequest, err := http.NewRequest("POST", p.uri+path, nil)
-	if err != nil {
-		return fmt.Errorf("post create request: %w", err)
-	}
-	if err := p.setHeaders(postRequest); err != nil {
-		return fmt.Errorf("post set headers: %w", err)
-	}
-	postRequest.Header.Add("Content-Type", "application/json")
-	postRequest.Body = io.NopCloser(bytes.NewBuffer(b))
-	resp, err := p.c.Do(postRequest)
-	if err != nil {
-		return fmt.Errorf("post request: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return newStatusError(resp)
-	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("post read response body: %w", err)
-	}
-	if err := json.Unmarshal(body, response); err != nil {
-		return fmt.Errorf("post unmarshal response: %w", err)
-	}
-	return nil
-}
-
-func (p *Proxy) get(path string, query url.Values, response any) error {
-	getURL := p.uri + path
-	if len(query) > 0 {
-		getURL += "?" + query.Encode()
-	}
-	getRequest, err := http.NewRequest("GET", getURL, nil)
-	if err != nil {
-		return fmt.Errorf("get create request: %w", err)
-	}
-	if err := p.setHeaders(getRequest); err != nil {
-		return fmt.Errorf("get set headers: %w", err)
-	}
-	resp, err := p.c.Do(getRequest)
-	if err != nil {
-		return fmt.Errorf("get request: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return newStatusError(resp)
-	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("get read response body: %w", err)
-	}
-	if err := json.Unmarshal(body, response); err != nil {
-		return fmt.Errorf("get unmarshal response: %w", err)
-	}
-	return nil
-}
-
-func (p *Proxy) delete(path string, query url.Values, response any) error {
-	deleteURL := p.uri + path
-	if len(query) > 0 {
-		deleteURL += "?" + query.Encode()
-	}
-	deleteRequest, err := http.NewRequest("DELETE", deleteURL, nil)
-	if err != nil {
-		return fmt.Errorf("delete create request: %w", err)
-	}
-	if err := p.setHeaders(deleteRequest); err != nil {
-		return fmt.Errorf("delete set headers: %w", err)
-	}
-	resp, err := p.c.Do(deleteRequest)
-	if err != nil {
-		return fmt.Errorf("delete request: %w", err)
-	}
-	defer resp.Body.Close()
-	switch resp.StatusCode {
-	case http.StatusOK:
-		// OK
-	case http.StatusNotFound:
-		return &notFoundError{}
-	default:
-		return fmt.Errorf("delete request failed: %s", resp.Status)
-	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("delete read response body: %w", err)
-	}
-	if err := json.Unmarshal(body, response); err != nil {
-		return fmt.Errorf("delete unmarshal response: %w", err)
-	}
-	return nil
-}
-
-type notFoundError struct{}
-
-func (e *notFoundError) Error() string {
-	return "not found"
-}
-
-// StatusError is returned for a non-2xx response from the MS proxy. It carries
-// the HTTP status code and response body so callers can surface the remote
-// error response.
-type StatusError struct {
-	Code    int
-	RespErr string
-}
-
-func (e *StatusError) Error() string {
-	if e.RespErr == "" {
-		return fmt.Sprintf("%d", e.Code)
-	}
-	return fmt.Sprintf("%d: %s", e.Code, e.RespErr)
-}
-
-// StatusCode returns the remote HTTP status code.
-func (e *StatusError) StatusCode() int { return e.Code }
-
-// Body returns the remote response body.
-func (e *StatusError) Body() string { return e.RespErr }
-
-// newStatusError reads up to str.MaxErrorResponseBytes of the response body
-// and returns a StatusError. When the body is larger the stored string ends
-// with " [truncated]".
-func newStatusError(resp *http.Response) *StatusError {
-	lr := io.LimitReader(resp.Body, str.MaxErrorResponseBytes+1)
-	bodyBytes, _ := io.ReadAll(lr)
-	return &StatusError{Code: resp.StatusCode, RespErr: str.TruncateErrorResponse(string(bodyBytes))}
-}
-
-func (e *notFoundError) IsNotFound() bool {
-	return true
-}
-
-func (e *notFoundError) IsClientError() bool {
-	return true
-}
-
-func (p *Proxy) setHeaders(r *http.Request) error {
-	origin, err := p.originGetter()
-	if err != nil {
-		return fmt.Errorf("get origin: %w", err)
-	}
-	if origin == "" {
-		return fmt.Errorf("missing origin: %w", err)
-	}
-	r.Header.Add("Origin", origin)
-	return nil
 }
