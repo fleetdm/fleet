@@ -6,7 +6,6 @@ import (
 	"errors"
 	"log/slog"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -219,19 +218,22 @@ func TestListActivitiesBasic(t *testing.T) {
 
 func TestListActivitiesTranslatesStoredDetails(t *testing.T) {
 	t.Parallel()
+	// The output is compared as exact text, which also keeps numbers from losing precision.
 	cases := []struct {
 		name, stored, want string
 	}{
-		{"old keys", `{"team_id": 7, "team_name": "Old", "n": 1}`, `{"fleet_id": 7, "fleet_name": "Old", "n": 1}`},
+		{"old keys", `{"team_id": 7, "team_name": "Old", "n": 1}`, `{"fleet_id":7,"fleet_name":"Old","n":1}`},
 		{"old and new keys keep the new ones", `{"team_id": 7, "fleet_id": 8, "team_name": null, "fleet_name": "New"}`,
-			`{"fleet_id": 8, "fleet_name": "New"}`},
+			`{"fleet_id":8,"fleet_name":"New"}`},
 		{"new keys", `{"fleet_id": 7, "fleet_name": "New"}`, `{"fleet_id": 7, "fleet_name": "New"}`},
-		{"removed key names as values", `{"fleet_name": "team_id", "other": "teams"}`, `{"fleet_name": "team_id", "other": "teams"}`},
+		{"removed key names as values", `{"fleet_name": "team_id", "other": "teams"}`, `{"fleet_name":"team_id","other":"teams"}`},
 		{"nested keys are left alone", `{"teams": [{"id": 1, "team_id": 2}], "x": {"team_name": "n"}}`,
-			`{"fleets": [{"id": 1, "team_id": 2}], "x": {"team_name": "n"}}`},
+			`{"fleets":[{"id":1,"team_id":2}],"x":{"team_name":"n"}}`},
 		{"app-owned configuration", `{"team_id": 1, "configuration": {"managedConfiguration": {"team_id": 5, "teams": [1]}}}`,
-			`{"fleet_id": 1, "configuration": {"managedConfiguration": {"team_id": 5, "teams": [1]}}}`},
-		{"large ids", `{"team_id": 9007199254740993}`, `{"fleet_id": 9007199254740993}`},
+			`{"configuration":{"managedConfiguration":{"team_id":5,"teams":[1]}},"fleet_id":1}`},
+		{"large ids", `{"team_id": 9007199254740993}`, `{"fleet_id":9007199254740993}`},
+		{"malformed details", `{"team_id": `, `{"team_id": `},
+		{"details that are not an object", `[{"team_id": 1}]`, `[{"team_id": 1}]`},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -239,9 +241,7 @@ func TestListActivitiesTranslatesStoredDetails(t *testing.T) {
 			ts := setupTest(withActivities([]*api.Activity{{ID: 1, Type: "test_activity", Details: &stored}, {ID: 2, Type: "no_details"}}))
 			activities, _, err := ts.svc.ListActivities(t.Context(), api.ListOptions{PerPage: 10})
 			require.NoError(t, err)
-			assert.JSONEq(t, c.want, string(*activities[0].Details))
-			// JSONEq compares numbers as float64, so it cannot see a precision loss.
-			assert.Equal(t, strings.Contains(c.want, "9007199254740993"), strings.Contains(string(*activities[0].Details), "9007199254740993"))
+			assert.Equal(t, c.want, string(*activities[0].Details))
 			assert.Nil(t, activities[1].Details)
 		})
 	}
