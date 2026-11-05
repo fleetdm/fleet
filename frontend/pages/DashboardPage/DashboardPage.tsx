@@ -37,6 +37,7 @@ import {
   IMdmSummaryResponse,
   IMdmSummaryMdmSolution,
 } from "interfaces/mdm";
+import { isLinuxLike } from "interfaces/platform";
 import { ISoftwareResponse, ISoftwareCountResponse } from "interfaces/software";
 import { API_ALL_TEAMS_ID, ITeam } from "interfaces/team";
 import paths from "router/paths";
@@ -277,9 +278,11 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     if (!hostSummaryTotals?.platforms) {
       return base;
     }
-    const counts = hostSummaryTotals.platforms.reduce<IHostPlatformCounts>(
+    return hostSummaryTotals.platforms.reduce<IHostPlatformCounts>(
       (acc, item) => {
-        if (item.platform !== "linux" && item.platform in acc) {
+        if (isLinuxLike(item.platform)) {
+          acc.linux += item.hosts_count || 0;
+        } else if (item.platform in acc) {
           acc[item.platform as keyof IHostPlatformCounts] =
             item.hosts_count || 0;
         }
@@ -287,10 +290,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       },
       { ...base }
     );
-    return {
-      ...counts,
-      linux: hostSummaryTotals.all_linux_count || 0,
-    };
   }, [hostSummaryTotals]);
 
   const { isLoading: isGlobalSecretsLoading, data: globalSecrets } = useQuery<

@@ -2639,9 +2639,9 @@ func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet
 // handleESPRelease handles awaiting_configuration=Active. It waits for all profiles and setup experience items to reach
 // a terminal state, then finalizes the device down one of three paths:
 //
-//   - hard block (require_all_software_windows=true and any item failed, or the 3-hour timeout was hit): the ESP
+//   - hard block (windows_require_all_software=true and any item failed, or the 3-hour timeout was hit): the ESP
 //     failure screen is shown with only the "Reset device" recovery option, and remaining items are canceled.
-//   - soft block (require_all_software_windows=false and an item failed, or the 3-hour timeout was hit): the ESP
+//   - soft block (windows_require_all_software=false and an item failed, or the 3-hour timeout was hit): the ESP
 //     failure screen is shown with a "Continue anyway" option so the user can proceed to the desktop and install the
 //     missing software via self-service. It lists the failed software by name when any failed, otherwise (a timeout
 //     with nothing failed) shows the timeout message. Still-pending items are cancelled only on the timeout path.
@@ -2694,7 +2694,7 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	// loadHost lazily fetches the host (writer-routed) and memoizes for the rest of this checkin. Writer routing guards
 	// two replica-lag races: (1) spurious notFound during the brief gap between orbit's host registration and the next
 	// management session, and (2) stale team_id if a host transferred teams mid-enrollment, which could let
-	// require_all_software_windows be read from the wrong team and bypass the gate.
+	// windows_require_all_software be read from the wrong team and bypass the gate.
 	//
 	// We cache the full HostLite (not just team_id) because Stage 3 also needs OsqueryHostID: setup_experience_status_results
 	// is keyed by fleet.HostUUIDForSetupExperience, which on Windows resolves to OsqueryHostID -- not the Fleet host UUID
@@ -2761,7 +2761,7 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		return results, nil
 	}
 
-	// loadRequireAll memoizes the host -> team's require_all_software_windows lookup. It is consulted at most twice
+	// loadRequireAll memoizes the host -> team's windows_require_all_software lookup. It is consulted at most twice
 	// per checkin: once inside Stage 3 (to decide whether to short-circuit on a software failure) and once below
 	// (to drive the block/release decision).
 	var (
@@ -2904,7 +2904,7 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		}
 	}
 
-	// We're past the wait gate or timed out. Look up require_all_software_windows (memoized via loadRequireAll if
+	// We're past the wait gate or timed out. Look up windows_require_all_software (memoized via loadRequireAll if
 	// Stage 3 already consulted it) to decide between block and release. Return the error on lookup failure so the
 	// device stays Active and retries on the next management session: failing open here would permanently bypass
 	// the policy after the Active->None transition below.

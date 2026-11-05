@@ -333,7 +333,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 				_, ok = gitops.Controls.EnableDiskEncryption.(bool)
 				assert.True(t, ok, "enable_disk_encryption not found")
 				_, ok = gitops.Controls.EnableRecoveryLockPassword.(bool)
-				assert.True(t, ok, "enable_recovery_lock_password not found")
+				assert.True(t, ok, "macos_recovery_lock_password_enabled not found")
 				_, ok = gitops.Controls.MacOSMigration.(map[string]interface{})
 				assert.True(t, ok, "macos_migration not found")
 				assert.NotNil(t, gitops.Controls.MacOSSetup, "macos_setup not found")
@@ -482,7 +482,7 @@ func TestGitOpsHostNameTemplate(t *testing.T) {
 func TestGitOpsControlsBooleanKeys(t *testing.T) {
 	t.Parallel()
 
-	for _, key := range []string{"enable_disk_encryption", "enable_recovery_lock_password", "windows_require_bitlocker_pin"} {
+	for _, key := range []string{"enable_disk_encryption", "macos_recovery_lock_password_enabled", "windows_require_bitlocker_pin"} {
 		t.Run(key, func(t *testing.T) {
 			t.Parallel()
 
@@ -4453,6 +4453,98 @@ software:
 		// Should have logged a warning about the unknown key
 		require.NotEmpty(t, logMessages)
 		assert.True(t, sawExpectErrorMsg, "expected warning about unknown_control_field in log messages: %v", logMessages)
+	})
+
+	t.Run("removed keys fail even when unknown keys are allowed", func(t *testing.T) {
+		t.Parallel()
+		fleetFile := func(controls, settings string) string {
+			return "name: TeamName\nsettings:\n  secrets:\n" + settings + "agent_options:\ncontrols:\n" + controls + "reports:\npolicies:\nsoftware:\n"
+		}
+		for _, tc := range []struct {
+			name, file, config string
+			// other files next to it, by name
+			extra map[string]string
+			want  []string
+			// a differently cased parent is also reported as unknown
+			alsoUnknown bool
+		}{
+			{
+				name: "fleet controls", file: "workstations.yml",
+				config: fleetFile("  enable_recovery_lock_password: true\n"+
+					"  macos_setup:\n    require_all_software_macos: true\n    require_all_software_windows: false\n", ""),
+				want: []string{
+					`The "controls.enable_recovery_lock_password" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+					// the path names the parent by its current name, not the file's alias
+					`The "controls.setup_experience.require_all_software_macos" key is not available anymore.`,
+					`The "controls.setup_experience.require_all_software_windows" key is not available anymore.`,
+				},
+			},
+			{
+				// GitOps used to match keys in any letter case, so these once set the setting.
+				// The message names the registered key.
+				name: "fleet controls in another letter case", file: "workstations.yml",
+				config: fleetFile("  Enable_Recovery_Lock_Password: true\n  setup_experience:\n    REQUIRE_ALL_SOFTWARE_MACOS: true\n", ""),
+				want: []string{
+					`The "controls.enable_recovery_lock_password" key is not available anymore.`,
+					`The "controls.setup_experience.require_all_software_macos" key is not available anymore.`,
+				},
+			},
+			{
+				// the block under a differently cased parent still decodes, so its old keys must not slip through
+				name: "fleet controls parent in another letter case", file: "workstations.yml",
+				config: fleetFile("  Macos_Setup:\n    require_all_software_macos: true\n    require_all_software_windows: true\n", ""),
+				want: []string{
+					`The "controls.setup_experience.require_all_software_macos" key is not available anymore.`,
+					`The "controls.setup_experience.require_all_software_windows" key is not available anymore.`,
+				},
+				alsoUnknown: true,
+			},
+			{
+				name: "controls file parent in another letter case", file: "workstations.yml",
+				config:      fleetFile("  path: ./controls.yml\n", ""),
+				extra:       map[string]string{"controls.yml": "Macos_Setup:\n  require_all_software_macos: true\n"},
+				want:        []string{`The "controls.setup_experience.require_all_software_macos" key is not available anymore.`},
+				alsoUnknown: true,
+			},
+			{
+				name: "unassigned parent with a Unicode case variant", file: "unassigned.yml",
+				config:      "name: Unassigned\ncontrols:\n  macoſ_setup:\n    require_all_software_windows: true\npolicies:\nsoftware:\n",
+				want:        []string{`The "controls.setup_experience.require_all_software_windows" key is not available anymore.`},
+				alsoUnknown: true,
+			},
+			{
+				name: "fleet settings in another letter case", file: "workstations.yml",
+				config: fleetFile("", "  mdm:\n    Enable_Recovery_Lock_Password: true\n"),
+				want:   []string{`The "settings.mdm.enable_recovery_lock_password" key is not available anymore.`},
+			},
+			{
+				name: "org_settings in another letter case", file: "default.yml",
+				config: "org_settings:\n  server_settings:\n    server_url: https://fleet.example.com\n  org_info:\n    org_name: Test Org\n" +
+					"  secrets:\n  mdm:\n    ENABLE_RECOVERY_LOCK_PASSWORD: true\ncontrols:\nagent_options:\nreports:\npolicies:\n",
+				want: []string{`The "org_settings.mdm.enable_recovery_lock_password" key is not available anymore.`},
+			},
+		} {
+			for _, allowUnknown := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s allow unknown keys %t", tc.name, allowUnknown), func(t *testing.T) {
+					t.Parallel()
+					path, basePath := createNamedFileOnTempDir(t, tc.file, tc.config)
+					for name, contents := range tc.extra {
+						require.NoError(t, os.WriteFile(filepath.Join(basePath, name), []byte(contents), 0o644))
+					}
+					_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf, GitOpsOptions{AllowUnknownKeys: allowUnknown})
+					require.Error(t, err)
+					for _, want := range tc.want {
+						if tc.extra == nil {
+							want = `in "` + path + `": ` + want
+						}
+						assert.Contains(t, err.Error(), want)
+					}
+					if !tc.alsoUnknown {
+						assert.NotContains(t, err.Error(), "unknown key")
+					}
+				})
+			}
+		}
 	})
 
 	t.Run("unknown key in controls on no-team path", func(t *testing.T) {

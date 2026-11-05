@@ -2084,7 +2084,7 @@ type Datastore interface {
 	GetHostRecoveryLockPasswordStatus(ctx context.Context, hostUUID string) (*HostMDMRecoveryLockPassword, error)
 
 	// GetHostsForRecoveryLockAction returns host UUIDs that need recovery lock password action mapped to a bool if a password is already saved:
-	// - Teams with enable_recovery_lock_password = true
+	// - Teams with macos_recovery_lock_password_enabled = true
 	// - macOS Apple Silicon hosts that are MDM enrolled
 	// - No password saved or status is NULL (ready for command)
 	GetHostsForRecoveryLockAction(ctx context.Context) (map[string]bool, error)
@@ -2128,7 +2128,7 @@ type Datastore interface {
 
 	// ClaimHostsForRecoveryLockClear returns host UUIDs that need their recovery lock
 	// cleared and marks them as pending. Returns hosts where the team/appconfig has
-	// enable_recovery_lock_password=false and either:
+	// macos_recovery_lock_password_enabled=false and either:
 	// - operation_type='install' and status='verified' (new clears), or
 	// - operation_type='remove' and status=NULL (retries after failed enqueue)
 	ClaimHostsForRecoveryLockClear(ctx context.Context, clearCommandUUID string) ([]string, error)

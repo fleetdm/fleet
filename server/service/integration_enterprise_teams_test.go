@@ -504,6 +504,23 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Couldn't update setup_experience because MDM features aren't turned on in Fleet.")
 
+	// dry-run with macos require all software set to true
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+				"mdm": map[string]any{
+					"macos_setup": map[string]any{
+						"macos_require_all_software": true,
+					},
+				},
+			},
+		},
+	}
+	res = s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn't update setup_experience.macos_require_all_software because MDM features aren't turned on in Fleet.")
+
 	// dry-run with invalid host_expiry_settings.host_expiry_window
 	teamSpecs = map[string]any{
 		"specs": []map[string]any{

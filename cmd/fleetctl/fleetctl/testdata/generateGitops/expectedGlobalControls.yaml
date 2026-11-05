@@ -58,7 +58,7 @@ apple_require_hardware_attestation: false
 only_allow_apple_business_enrollment: false
 enable_profile_validation: true
 android_enabled_and_configured: true
-enable_recovery_lock_password: false
+macos_recovery_lock_password_enabled: false
 name_template: ""
 macos_migration: # Available in Fleet Premium
   enable: true
