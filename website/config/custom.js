@@ -42,6 +42,16 @@ module.exports.custom = {
 
   /**************************************************************************
   *                                                                         *
+  * How many requests each Fleet Free registration can make to the          *
+  * configuration profile generator in a UTC calendar month.  Fleet         *
+  * Premium is not limited.                                                 *
+  *                                                                         *
+  **************************************************************************/
+  profileGeneratorMonthlyProfileLimit: 15,
+  profileGeneratorMonthlyNameAndDescriptionLimit: 45,
+
+  /**************************************************************************
+  *                                                                         *
   * Automated email configuration                                           *
   *                                                                         *
   * Sandbox Sendgrid credentials for use during development, as well as any *
