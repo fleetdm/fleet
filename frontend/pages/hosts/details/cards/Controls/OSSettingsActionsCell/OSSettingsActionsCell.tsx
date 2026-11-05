@@ -271,7 +271,7 @@ const OSSettingsActionsCell = ({
           })}
           text="Resend"
           pendingText="Resending..."
-          icon="refresh"
+          icon="retry"
           isPending={isResending}
           onClick={
             showResendButton ? onResendProfile : onResendHostNameTemplate
@@ -300,7 +300,7 @@ const OSSettingsActionsCell = ({
           size={buttonSize}
           className={`${baseClass}__resend-button`}
           text="Resend"
-          icon="refresh"
+          icon="retry"
           disabled
           tooltip={NO_RESEND_PERMISSION_TOOLTIP_MESSAGE}
         />
@@ -312,7 +312,7 @@ const OSSettingsActionsCell = ({
           size={buttonSize}
           className={`${baseClass}__resend-button`}
           text="Resend"
-          icon="refresh"
+          icon="retry"
           disabled
           tooltip={
             showDisabledResendForAndroidProfile

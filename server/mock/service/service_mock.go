@@ -61,6 +61,8 @@ type EnrollOrbitFunc func(ctx context.Context, hostInfo fleet.OrbitHostInfo, enr
 
 type GetOrbitConfigFunc func(ctx context.Context) (fleet.OrbitConfig, error)
 
+type SetHostEntraDeviceTokenFunc func(ctx context.Context, idToken string) error
+
 type LogFleetdErrorFunc func(ctx context.Context, errData fleet.FleetdError) error
 
 type SetOrUpdateDeviceAuthTokenFunc func(ctx context.Context, authToken string) error
@@ -1117,6 +1119,9 @@ type Service struct {
 
 	GetOrbitConfigFunc        GetOrbitConfigFunc
 	GetOrbitConfigFuncInvoked bool
+
+	SetHostEntraDeviceTokenFunc        SetHostEntraDeviceTokenFunc
+	SetHostEntraDeviceTokenFuncInvoked bool
 
 	LogFleetdErrorFunc        LogFleetdErrorFunc
 	LogFleetdErrorFuncInvoked bool
@@ -2753,6 +2758,13 @@ func (s *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, error)
 	s.GetOrbitConfigFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetOrbitConfigFunc(ctx)
+}
+
+func (s *Service) SetHostEntraDeviceToken(ctx context.Context, idToken string) error {
+	s.mu.Lock()
+	s.SetHostEntraDeviceTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetHostEntraDeviceTokenFunc(ctx, idToken)
 }
 
 func (s *Service) LogFleetdError(ctx context.Context, errData fleet.FleetdError) error {

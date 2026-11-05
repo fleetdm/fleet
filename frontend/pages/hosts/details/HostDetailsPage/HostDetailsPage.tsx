@@ -2333,8 +2333,7 @@ const HostDetailsPage = ({
             <CommandResultsModal
               command={activityCommandDetails}
               contentBody={(cls, result) => {
-                const isPending =
-                  getIconName(result.status) === "pending-outline";
+                const isPending = getIconName(result.status) === "pending";
                 const cmdDisplayName = getMdmCommandDisplayName(
                   result.request_type
                 );
