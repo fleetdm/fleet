@@ -90,9 +90,9 @@ func TestRegisterRemovedPathsWithOverlap(t *testing.T) {
 	RegisterRemovedPaths(r, []string{"v1"}, slog.New(slog.NewJSONHandler(&logs, nil)), []RemovedPath{{
 		Path: "/api/_version_/fleet/items/{id}/old/{name}",
 		Overlap: RemovedPathOverlap{
-			Method:        http.MethodPost,
-			RouteTemplate: "/api/_version_/fleet/items/{id}/{old_segment}/{name}",
-			LivePaths:     map[string]string{"/api/_version_/fleet/items/{id}/live/{name}": http.MethodGet},
+			Method:            http.MethodPost,
+			RouteTemplate:     "/api/_version_/fleet/items/{id}/{old_segment}/{name}",
+			WrongMethodRoutes: map[string]string{"/api/_version_/fleet/items/{id}/live/{name}": http.MethodGet},
 		},
 		Message: func(method string) string { return "gone via " + method },
 	}})
