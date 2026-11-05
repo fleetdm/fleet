@@ -1414,7 +1414,13 @@ func orbitAction(c *cli.Context) error {
 	// Set the function that will be called to open the SSO window if an enroll
 	// request returns an "end user authentication required" error.
 	orbitClient.SetOpenSSOWindowFunc(func() error {
-		err = openBrowserWindow(fleetURL + "/mdm/sso?initiator=" + fleet.SSOInitiatorOrbitSetupExperience + "&host_uuid=" + orbitHostInfo.HardwareUUID)
+		ssoURL := fleetURL + "/mdm/sso?initiator=" + fleet.SSOInitiatorOrbitSetupExperience + "&host_uuid=" + orbitHostInfo.HardwareUUID
+		if runtime.GOOS == "windows" && setupexperience.WindowsZeroTouchActive(c.String("root-dir")) {
+			// The sign-in page then waits for the setup page instead of saying
+			// the window can be closed, which the kiosk doesn't allow.
+			ssoURL += "&setup_only=1"
+		}
+		err = openBrowserWindow(ssoURL)
 		if err != nil {
 			return fmt.Errorf("opening browser: %w", err)
 		}
@@ -2953,16 +2959,14 @@ func openBrowserWindow(browserURL string) error {
 		}
 	case "windows":
 		// During OOBE there is no interactive desktop to paint on (the active
-		// session belongs to the defaultuser0 placeholder). Skip opening until a
-		// real user is logged in (e.g. the zero-touch provisioning account
-		// auto-logon); callers retry, so the window lands on that desktop.
-		user, _, present, err := execuser.InteractiveSession()
+		// session belongs to the defaultuser0 placeholder). Fail until a real
+		// user is logged in (e.g. the zero-touch provisioning account auto-logon),
+		// so callers that retry on error land the window on that desktop.
+		user, sessionID, present, err := execuser.InteractiveSession()
 		if err != nil {
-			log.Debug().Err(err).Msg("checking interactive session before opening browser")
-			return nil
+			return fmt.Errorf("checking interactive session: %w", err)
 		} else if !present {
-			log.Debug().Msg("no interactive session yet, deferring browser open")
-			return nil
+			return errors.New("no interactive session yet")
 		}
 		unescapedAmpsRegex := regexp.MustCompile(`([^\\^])&`)
 		browserURL = unescapedAmpsRegex.ReplaceAllString(browserURL, "${1}^&")
@@ -2971,6 +2975,11 @@ func openBrowserWindow(browserURL string) error {
 			// On the zero-touch provisioning desktop, use a full-screen Edge kiosk
 			// so the setup experience (and IdP sign-in) has no browser chrome,
 			// matching the Autopilot ESP look. Edge resolves via its App Paths entry.
+			// The IdP sign-in opens before orbit enrolls, so hide the taskbar and
+			// desktop here rather than waiting for the setup experience receiver.
+			if err := setupexperience.HideDesktop(sessionID); err != nil {
+				log.Debug().Err(err).Msg("hiding provisioning desktop")
+			}
 			cmdLine = fmt.Sprintf("/c start msedge --kiosk %s --edge-kiosk-type=fullscreen --no-first-run --no-default-browser-check", browserURL)
 		}
 		opts := []execuser.Option{

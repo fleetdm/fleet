@@ -54,8 +54,17 @@ describe("MDMAppleSSOCallbackPage", () => {
     expect(screen.queryByText(/timed out/)).not.toBeInTheDocument();
   });
 
-  it("asks the user to wait after a setup experience sign-in", () => {
+  it("confirms a one-shot setup experience sign-in", () => {
+    sessionStorage.removeItem("setup_only");
     renderWithQuery({ initiator: "setup_experience" });
+
+    expect(screen.getByText(/You.{0,3}re done/)).toBeInTheDocument();
+  });
+
+  it("asks the user to wait after a zero-touch kiosk sign-in", () => {
+    sessionStorage.setItem("setup_only", "1");
+    renderWithQuery({ initiator: "setup_experience" });
+    sessionStorage.removeItem("setup_only");
 
     expect(screen.getByText("Setting up your device")).toBeInTheDocument();
     expect(screen.getByText(/Please wait/)).toBeInTheDocument();

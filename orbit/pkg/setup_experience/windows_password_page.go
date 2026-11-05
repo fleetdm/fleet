@@ -59,7 +59,7 @@ func newPasswordPage(minLength int, create func(string) error) (*passwordPage, e
 		listener:  ln,
 		done:      make(chan struct{}),
 	}
-	p.server = &http.Server{Handler: p, ReadHeaderTimeout: 10 * time.Second}
+	p.server = &http.Server{Handler: p, ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 30 * time.Second}
 	go func() {
 		if err := p.server.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Error().Err(err).Msg("windows setup experience: password page server")

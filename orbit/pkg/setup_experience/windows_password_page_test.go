@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
@@ -90,5 +89,5 @@ func TestPasswordPage(t *testing.T) {
 	require.Contains(t, post("another-password", "another-password"), "Setting up your device")
 	require.Len(t, created, 1)
 	_, body = get(p.URL())
-	require.True(t, strings.Contains(body, "Setting up your device"))
+	require.Contains(t, body, "Setting up your device")
 }

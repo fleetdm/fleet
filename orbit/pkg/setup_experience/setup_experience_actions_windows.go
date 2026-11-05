@@ -103,6 +103,9 @@ func minPasswordLength() int {
 		log.Warn().Err(windows.Errno(ret)).Msg("reading minimum password length")
 		return 0
 	}
+	if buf == nil {
+		return 0
+	}
 	n := int(*buf)
 	procNetAPIBufferFree.Call(uintptr(unsafe.Pointer(buf))) //nolint:errcheck
 	return n
@@ -150,10 +153,14 @@ func openPINEnrollment() error {
 	return nil
 }
 
-// hideDesktop stops Explorer in the given session, removing the desktop icons
-// and taskbar behind the setup experience kiosk. Winlogon doesn't restart a
-// shell that was terminated this way.
-func hideDesktop(sessionID uint32) error {
+// HideDesktop stops Explorer in the provisioning session, removing the desktop
+// icons and taskbar behind the setup experience kiosk, and turns off Task
+// Manager for the provisioning account, which is an administrator. Winlogon
+// doesn't restart a shell that was terminated this way.
+func HideDesktop(sessionID uint32) error {
+	if err := disableTaskManager(ProvisioningAccountName); err != nil {
+		log.Warn().Err(err).Msg("turning off Task Manager for the provisioning account")
+	}
 	filter := fmt.Sprintf("SESSION eq %d", sessionID)
 	if out, err := exec.Command(systemTool("taskkill.exe"), "/F", "/FI", filter, "/IM", "explorer.exe").CombinedOutput(); err != nil { //nolint:gosec
 		return fmt.Errorf("taskkill explorer.exe (%s): %w: %s", filter, err, strings.TrimSpace(string(out)))
@@ -161,18 +168,24 @@ func hideDesktop(sessionID uint32) error {
 	return nil
 }
 
-// showDesktop starts Explorer again in the interactive session.
-func showDesktop() error {
-	if _, err := execuser.Run("explorer.exe"); err != nil {
-		return fmt.Errorf("starting explorer.exe: %w", err)
+// disableTaskManager sets the DisableTaskMgr user policy in username's loaded
+// registry hive. Teardown deletes the profile, so it's never cleared.
+func disableTaskManager(username string) error {
+	sid, _, _, err := windows.LookupSID("", username)
+	if err != nil {
+		return fmt.Errorf("looking up SID for %s: %w", username, err)
 	}
-	return nil
+	k, _, err := registry.CreateKey(registry.USERS, sid.String()+`\Software\Microsoft\Windows\CurrentVersion\Policies\System`, registry.SET_VALUE)
+	if err != nil {
+		return fmt.Errorf("open user policies key: %w", err)
+	}
+	defer k.Close()
+	return k.SetDWordValue("DisableTaskMgr", 1)
 }
 
-// provisioningAccountExists reports whether the image created the zero-touch
-// provisioning account.
-func provisioningAccountExists() bool {
-	_, _, _, err := windows.LookupSID("", ProvisioningAccountName)
+// localAccountExists reports whether a local account named username exists.
+func localAccountExists(username string) bool {
+	_, _, _, err := windows.LookupSID("", username)
 	return err == nil
 }
 
@@ -205,8 +218,9 @@ func teardownProvisioningAccount(username string, newUser string) error {
 	if err := hideFromSignInScreen(username, true); err != nil {
 		log.Warn().Err(err).Msg("hiding provisioning account from the sign-in screen")
 	}
+	// Keep the account if this fails, so a retry clears its stored password first.
 	if err := clearAutoLogon(username); err != nil {
-		log.Warn().Err(err).Msg("clearing provisioning auto-logon")
+		return fmt.Errorf("clearing provisioning auto-logon: %w", err)
 	}
 
 	// Log off the provisioning session so the account isn't in use when deleted.

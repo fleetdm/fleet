@@ -14,15 +14,12 @@ func openPINEnrollment() error {
 	return errors.New("Windows Hello PIN enrollment is only supported on Windows")
 }
 
-func hideDesktop(_ uint32) error {
+// HideDesktop is only supported on Windows.
+func HideDesktop(_ uint32) error {
 	return errors.New("hiding the desktop is only supported on Windows")
 }
 
-func showDesktop() error {
-	return errors.New("showing the desktop is only supported on Windows")
-}
-
-func provisioningAccountExists() bool { return false }
+func localAccountExists(_ string) bool { return false }
 
 func teardownProvisioningAccount(_ string, _ string) error {
 	return errors.New("provisioning account teardown is only supported on Windows")

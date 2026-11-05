@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -67,26 +68,25 @@ type WindowsSetupExperiencer struct {
 	// openURL opens a URL in the setup experience kiosk.
 	openURL func(string) error
 	rootDir string
+	// interactiveSession reports the active desktop session; replaced in tests.
+	interactiveSession func() (username string, sessionID uint32, present bool, err error)
 
 	// mu guards the fields below; account creation completes on the password
 	// page's goroutine, outside Run.
 	mu sync.Mutex
 
-	// provisioningUser is the interactive account the setup experience launched
-	// on, captured so teardown deletes the right account.
-	provisioningUser string
 	// desktopHidden is set once Explorer is stopped on the provisioning desktop.
 	desktopHidden bool
 	// cachedIdP holds the IdP identity once the server delivers it, so account
 	// creation still works if later config polls stop sending it.
 	cachedIdP *fleet.OrbitEndUserIdPAccount
 
-	// firstSessionAt is when an interactive session first appeared, used to bound
-	// how long we wait for the setup experience to become enabled.
-	firstSessionAt time.Time
-	enabled        bool
+	enabled bool
 	// enabledAt is when the setup experience reported enabled.
 	enabledAt time.Time
+	// reopenBrowser is set when a setup started before this orbit process, so
+	// the setup page is opened again (e.g. after a reboot).
+	reopenBrowser bool
 	// watchingSoftware is set once watchSoftware is polling setup status.
 	watchingSoftware   bool
 	statusPollInterval time.Duration
@@ -95,6 +95,8 @@ type WindowsSetupExperiencer struct {
 	// createdUser is the account created from the IdP identity.
 	createdUser string
 	finished    bool
+	// tearingDown is set while a retried provisioning account teardown runs.
+	tearingDown bool
 
 	// pinPendingUser is the created account still awaiting its first login, when
 	// fleetd opens Windows Hello PIN setup.
@@ -102,13 +104,6 @@ type WindowsSetupExperiencer struct {
 	// pinSessionSeenAt is when pinPendingUser's session first appeared.
 	pinSessionSeenAt time.Time
 }
-
-// setupExperienceEnableTimeout bounds how long the receiver retries
-// InitiateSetupExperience waiting for it to report enabled. On a first
-// enrollment the setup experience only becomes enabled once Windows MDM
-// enrollment completes (shortly after orbit enrolls); if it never does, the
-// host simply has no setup experience configured.
-const setupExperienceEnableTimeout = 10 * time.Minute
 
 // NewWindowsSetupExperiencer creates the Windows setup experience config receiver.
 func NewWindowsSetupExperiencer(client WindowsSetupExperienceInitiator, rootDir string, openBrowser func() error, openURL func(string) error) *WindowsSetupExperiencer {
@@ -118,6 +113,7 @@ func NewWindowsSetupExperiencer(client WindowsSetupExperienceInitiator, rootDir 
 		openURL:     openURL,
 		rootDir:     rootDir,
 
+		interactiveSession: execuser.InteractiveSession,
 		statusPollInterval: softwareStatusPollInterval,
 	}
 	// The setup experience runs once per host; don't rerun it on later orbit starts.
@@ -125,8 +121,14 @@ func NewWindowsSetupExperiencer(client WindowsSetupExperienceInitiator, rootDir 
 	if err != nil {
 		log.Error().Err(err).Msg("windows setup experience: reading status file")
 	}
-	if info != nil && info.TimeFinished != nil {
+	switch {
+	case info != nil && info.TimeFinished != nil:
 		s.finished = true
+	case info != nil && info.Enabled:
+		// Initiating again would reset the server-side progress of an in-progress setup.
+		s.enabled = true
+		s.enabledAt = info.TimeInitiated
+		s.reopenBrowser = true
 	}
 	if b, err := os.ReadFile(s.pinPendingPath()); err == nil {
 		s.pinPendingUser = strings.TrimSpace(string(b))
@@ -143,11 +145,19 @@ func (s *WindowsSetupExperiencer) pinPendingPath() string {
 // from the IdP identity is still waiting for its PIN prompt. Other hosts keep
 // the one-shot setup experience.
 func WindowsZeroTouchActive(rootDir string) bool {
-	if provisioningAccountExists() {
+	if localAccountExists(ProvisioningAccountName) {
 		return true
 	}
 	_, err := os.Stat(filepath.Join(rootDir, pinEnrollmentPendingFilename))
 	return err == nil
+}
+
+// NeedsFrequentPolling implements fleetclient.FrequentPoller: Run is the clock
+// for every step until the PIN prompt opens.
+func (s *WindowsSetupExperiencer) NeedsFrequentPolling() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return !s.finished || s.pinPendingUser != ""
 }
 
 // Run implements fleet.OrbitConfigReceiver.
@@ -156,6 +166,12 @@ func (s *WindowsSetupExperiencer) Run(cfg *fleet.OrbitConfig) error {
 	defer s.mu.Unlock()
 
 	if s.pinPendingUser != "" {
+		// The account was created; the provisioning account must be gone before
+		// the end user's first login.
+		if localAccountExists(ProvisioningAccountName) {
+			s.retryTeardown()
+			return nil
+		}
 		s.offerPINEnrollment()
 		return nil
 	}
@@ -177,7 +193,7 @@ func (s *WindowsSetupExperiencer) Run(cfg *fleet.OrbitConfig) error {
 	// Wait for the provisioning account to be logged in before doing anything
 	// that needs a desktop. During OOBE the active session belongs to
 	// defaultuser0, which interactiveSession filters out.
-	user, sessionID, present, err := execuser.InteractiveSession()
+	user, sessionID, present, err := s.interactiveSession()
 	if err != nil {
 		log.Error().Err(err).Msg("windows setup experience: checking interactive session")
 		return nil
@@ -196,7 +212,7 @@ func (s *WindowsSetupExperiencer) Run(cfg *fleet.OrbitConfig) error {
 	// The provisioning desktop is only a backdrop for the kiosk, so hide its icons
 	// and taskbar.
 	if !s.desktopHidden {
-		if err := hideDesktop(sessionID); err != nil {
+		if err := HideDesktop(sessionID); err != nil {
 			log.Error().Err(err).Msg("windows setup experience: hiding provisioning desktop")
 		} else {
 			s.desktopHidden = true
@@ -206,18 +222,13 @@ func (s *WindowsSetupExperiencer) Run(cfg *fleet.OrbitConfig) error {
 	// Kick off the server-side setup experience once a session exists. Retry on
 	// each poll until it reports enabled: on a first enrollment the setup
 	// experience only becomes enabled after Windows MDM enrollment completes,
-	// which happens shortly after orbit enrolls. Bounded by a timeout so a host
-	// with no setup experience configured doesn't loop forever.
+	// which happens shortly after orbit enrolls. There's no timeout: giving up
+	// would hand the end user the provisioning administrator's desktop, so the
+	// device waits until the fleet's setup experience is configured.
 	if !s.enabled {
-		if s.firstSessionAt.IsZero() {
-			s.firstSessionAt = time.Now()
-			s.provisioningUser = user
-		}
 		res, err := s.OrbitClient.InitiateSetupExperience()
 		if errors.Is(err, fleetclient.ErrMissingLicense) {
-			// Setup experience is a premium feature; nothing to do on this host.
-			log.Debug().Msg("windows setup experience: premium feature, skipping")
-			s.finish()
+			log.Debug().Msg("windows setup experience: premium feature, waiting for a license")
 			return nil
 		}
 		if err != nil {
@@ -225,17 +236,19 @@ func (s *WindowsSetupExperiencer) Run(cfg *fleet.OrbitConfig) error {
 			return nil
 		}
 		if !res.Enabled {
-			if time.Since(s.firstSessionAt) > setupExperienceEnableTimeout {
-				log.Info().Msg("windows setup experience: not enabled within timeout, nothing to do")
-				s.finish()
-				return nil
-			}
 			log.Debug().Msg("windows setup experience: not enabled yet, waiting (MDM enrollment may still be completing)")
 			return nil
 		}
 		s.enabled = true
 		s.enabledAt = time.Now()
+		s.reopenBrowser = true
+		if err := WriteSetupExperienceStatusFile(s.rootDir, &SetupExperienceInfo{TimeInitiated: s.enabledAt, Enabled: true}); err != nil {
+			log.Error().Err(err).Msg("windows setup experience: writing status file")
+		}
 		log.Info().Str("user", user).Msg("windows setup experience: initiated")
+	}
+	if s.reopenBrowser && s.passwordPage == nil {
+		s.reopenBrowser = false
 		if s.openBrowser != nil {
 			if err := s.openBrowser(); err != nil {
 				log.Error().Err(err).Msg("windows setup experience: opening setup page")
@@ -279,8 +292,14 @@ func (s *WindowsSetupExperiencer) watchSoftware() {
 			continue
 		}
 		s.mu.Lock()
-		if !s.finished {
-			s.startPasswordPage()
+		// Only open the password page on the provisioning desktop; if that session
+		// is gone, Run picks the flow up again once it's back.
+		if user, _, present, err := s.interactiveSession(); err == nil && present && strings.EqualFold(user, ProvisioningAccountName) {
+			if !s.finished {
+				s.startPasswordPage()
+			}
+		} else {
+			s.watchingSoftware = false
 		}
 		s.mu.Unlock()
 		return
@@ -288,7 +307,8 @@ func (s *WindowsSetupExperiencer) watchSoftware() {
 }
 
 // setupDone reports whether every setup experience software install and script
-// reached a final state. s.mu must be held.
+// reached a final state, and none failed when all software is required. s.mu
+// must be held.
 func (s *WindowsSetupExperiencer) setupDone(payload *fleet.SetupExperienceStatusPayload) bool {
 	steps := append([]*fleet.SetupExperienceStatusResult{}, payload.Software...)
 	if payload.Script != nil {
@@ -298,8 +318,17 @@ func (s *WindowsSetupExperiencer) setupDone(payload *fleet.SetupExperienceStatus
 		return time.Since(s.enabledAt) >= emptyStatusGrace
 	}
 	for _, step := range steps {
-		if step != nil && (step.Status == fleet.SetupExperienceStatusPending || step.Status == fleet.SetupExperienceStatusRunning) {
+		if step == nil {
+			continue
+		}
+		switch step.Status {
+		case fleet.SetupExperienceStatusPending, fleet.SetupExperienceStatusRunning:
 			return false
+		case fleet.SetupExperienceStatusFailure, fleet.SetupExperienceStatusCancelled:
+			// The setup page shows the failure and keeps the end user there.
+			if payload.RequireAllSoftware {
+				return false
+			}
 		}
 	}
 	return true
@@ -316,9 +345,9 @@ func (s *WindowsSetupExperiencer) startPasswordPage() {
 		log.Info().Msg("windows setup experience: software done, waiting for IdP identity")
 		return
 	}
-	username := windowsUsernameFromIdP(s.cachedIdP)
+	username := uniqueUsername(windowsUsernameFromIdP(s.cachedIdP), localAccountExists)
 	if username == "" {
-		log.Error().Str("email", s.cachedIdP.Email).Msg("windows setup experience: could not derive a Windows username from IdP identity")
+		log.Error().Str("email", s.cachedIdP.Email).Msg("windows setup experience: could not derive an available Windows username from IdP identity")
 		return
 	}
 	// The sign-in screen shows the full name, so don't fall back to the email.
@@ -327,7 +356,15 @@ func (s *WindowsSetupExperiencer) startPasswordPage() {
 		fullname = username
 	}
 	page, err := newPasswordPage(minPasswordLength(), func(password string) error {
-		return createLocalAccount(username, fullname, password)
+		if err := createLocalAccount(username, fullname, password); err != nil {
+			return err
+		}
+		// Record the account right away so a restart resumes at teardown instead
+		// of offering the password page again.
+		if err := os.WriteFile(s.pinPendingPath(), []byte(username), constant.DefaultFileMode); err != nil {
+			log.Error().Err(err).Msg("windows setup experience: recording created account")
+		}
+		return nil
 	})
 	if err != nil {
 		log.Error().Err(err).Msg("windows setup experience: starting password page")
@@ -354,30 +391,41 @@ func (s *WindowsSetupExperiencer) completeSetup(page *passwordPage, username str
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.createdUser = username
-	if s.provisioningUser == ProvisioningAccountName {
-		// The account exists now, so finish even if teardown fails: the end user
-		// can still sign in with it.
-		if err := teardownProvisioningAccount(s.provisioningUser, s.createdUser); err != nil {
-			log.Error().Err(err).Msg("windows setup experience: tearing down provisioning account")
-		}
-	} else {
-		log.Info().Str("user", s.provisioningUser).Msg("windows setup experience: not deleting non-provisioning account")
+	// If teardown fails, Run retries it on later polls before the PIN prompt.
+	if err := teardownProvisioningAccount(ProvisioningAccountName, s.createdUser); err != nil {
+		log.Error().Err(err).Msg("windows setup experience: tearing down provisioning account")
 	}
-
-	if err := os.WriteFile(s.pinPendingPath(), []byte(s.createdUser), constant.DefaultFileMode); err != nil {
-		log.Error().Err(err).Msg("windows setup experience: recording pending PIN enrollment")
-	} else {
-		s.pinPendingUser = s.createdUser
-	}
-
+	s.pinPendingUser = s.createdUser
 	s.finish()
 	log.Info().Msg("windows setup experience: complete")
+}
+
+// retryTeardown removes a provisioning account left behind by a failed or
+// interrupted teardown, outside Run since it waits on logoff. s.mu must be held.
+func (s *WindowsSetupExperiencer) retryTeardown() {
+	if s.tearingDown {
+		return
+	}
+	s.tearingDown = true
+	user := s.pinPendingUser
+	go func() {
+		err := teardownProvisioningAccount(ProvisioningAccountName, user)
+		if err != nil {
+			log.Error().Err(err).Msg("windows setup experience: retrying provisioning account teardown")
+		}
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		s.tearingDown = false
+		if err == nil && !s.finished {
+			s.finish()
+		}
+	}()
 }
 
 // offerPINEnrollment opens Windows Hello PIN setup once on the created
 // account's first login.
 func (s *WindowsSetupExperiencer) offerPINEnrollment() {
-	user, _, present, err := execuser.InteractiveSession()
+	user, _, present, err := s.interactiveSession()
 	if err != nil || !present || !strings.EqualFold(user, s.pinPendingUser) {
 		s.pinSessionSeenAt = time.Time{}
 		return
@@ -401,20 +449,39 @@ func (s *WindowsSetupExperiencer) offerPINEnrollment() {
 
 func (s *WindowsSetupExperiencer) finish() {
 	s.finished = true
-	// Give the desktop back if the setup experience ended without tearing down
-	// the provisioning session (for example, it was never enabled).
-	if s.desktopHidden && s.createdUser == "" {
-		if err := showDesktop(); err != nil {
-			log.Error().Err(err).Msg("windows setup experience: restoring provisioning desktop")
-		}
-	}
-	info := &SetupExperienceInfo{TimeInitiated: time.Now(), Enabled: s.enabled, TimeFinished: ptrTime(time.Now())}
+	info := &SetupExperienceInfo{TimeInitiated: time.Now(), Enabled: s.enabled, TimeFinished: new(time.Now())}
 	if err := WriteSetupExperienceStatusFile(s.rootDir, info); err != nil {
 		log.Error().Err(err).Msg("windows setup experience: writing status file")
 	}
 }
 
-func ptrTime(t time.Time) *time.Time { return &t }
+// uniqueUsername returns name, or name with a numeric suffix if an account by
+// that name already exists (e.g. "administrator"), within Windows' 20-character
+// limit. It returns "" if no candidate is available.
+func uniqueUsername(name string, exists func(string) bool) string {
+	if name == "" || !exists(name) {
+		return name
+	}
+	for i := 2; i <= 99; i++ {
+		suffix := strconv.Itoa(i)
+		base := []rune(name)
+		for utf16Len(base)+len(suffix) > 20 {
+			base = base[:len(base)-1]
+		}
+		if candidate := string(base) + suffix; !exists(candidate) {
+			return candidate
+		}
+	}
+	return ""
+}
+
+func utf16Len(rs []rune) int {
+	n := 0
+	for _, r := range rs {
+		n += utf16.RuneLen(r)
+	}
+	return n
+}
 
 // windowsUsernameFromIdP derives a valid local Windows username (<=20 chars, no
 // reserved characters) from the IdP identity, preferring the IdP username and

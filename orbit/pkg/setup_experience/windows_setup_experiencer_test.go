@@ -29,11 +29,23 @@ func TestNewWindowsSetupExperiencerLoadsState(t *testing.T) {
 		require.Empty(t, s.pinPendingUser)
 	})
 
-	t.Run("in progress is not finished", func(t *testing.T) {
+	t.Run("in progress resumes without initiating again", func(t *testing.T) {
 		dir := t.TempDir()
-		require.NoError(t, WriteSetupExperienceStatusFile(dir, &SetupExperienceInfo{TimeInitiated: time.Now(), Enabled: true}))
-		s := NewWindowsSetupExperiencer(&noopWindowsInitiator{}, dir, nil, nil)
+		started := time.Now().Add(-time.Hour)
+		require.NoError(t, WriteSetupExperienceStatusFile(dir, &SetupExperienceInfo{TimeInitiated: started, Enabled: true}))
+		client := &noopWindowsInitiator{}
+		opened := 0
+		s := NewWindowsSetupExperiencer(client, dir, func() error { opened++; return nil }, nil)
+		s.interactiveSession = func() (string, uint32, bool, error) { return "Fleet-Provision", 1, true, nil }
 		require.False(t, s.finished)
+		require.True(t, s.enabled)
+		require.True(t, s.enabledAt.Equal(started))
+
+		require.NoError(t, s.Run(&fleet.OrbitConfig{}))
+		require.False(t, client.initiated)
+		require.Equal(t, 1, opened, "setup page reopens after a restart")
+		require.NoError(t, s.Run(&fleet.OrbitConfig{}))
+		require.Equal(t, 1, opened)
 	})
 
 	t.Run("finished does not rerun", func(t *testing.T) {
@@ -86,6 +98,7 @@ func TestWatchSoftwareOpensPasswordPage(t *testing.T) {
 		opened = u
 		return nil
 	})
+	s.interactiveSession = func() (string, uint32, bool, error) { return ProvisioningAccountName, 1, true, nil }
 	s.statusPollInterval = time.Millisecond
 	s.cachedIdP = &fleet.OrbitEndUserIdPAccount{Email: "luke@example.com"}
 
@@ -96,6 +109,23 @@ func TestWatchSoftwareOpensPasswordPage(t *testing.T) {
 	t.Cleanup(func() { _ = s.passwordPage.Close() })
 	require.True(t, strings.HasPrefix(opened, "http://127.0.0.1:"), opened)
 	require.Equal(t, s.passwordPage.URL(), opened)
+}
+
+func TestWatchSoftwareWaitsForProvisioningSession(t *testing.T) {
+	client := &scriptedStatusInitiator{statuses: []fleet.SetupExperienceStatusResultStatus{fleet.SetupExperienceStatusSuccess}}
+	s := NewWindowsSetupExperiencer(client, t.TempDir(), nil, func(string) error {
+		t.Fatal("password page opened outside the provisioning session")
+		return nil
+	})
+	s.interactiveSession = func() (string, uint32, bool, error) { return "someone", 2, true, nil }
+	s.statusPollInterval = time.Millisecond
+	s.cachedIdP = &fleet.OrbitEndUserIdPAccount{Email: "luke@example.com"}
+	s.watchingSoftware = true
+
+	s.watchSoftware()
+
+	require.Nil(t, s.passwordPage)
+	require.False(t, s.watchingSoftware, "Run takes over again")
 }
 
 func TestWindowsSetupDone(t *testing.T) {
@@ -115,6 +145,25 @@ func TestWindowsSetupDone(t *testing.T) {
 		Software: []*fleet.SetupExperienceStatusResult{sw(fleet.SetupExperienceStatusSuccess), sw(fleet.SetupExperienceStatusFailure)},
 		Script:   sw(fleet.SetupExperienceStatusSuccess),
 	}))
+	require.False(t, s.setupDone(&fleet.SetupExperienceStatusPayload{
+		Software:           []*fleet.SetupExperienceStatusResult{sw(fleet.SetupExperienceStatusSuccess), sw(fleet.SetupExperienceStatusFailure)},
+		RequireAllSoftware: true,
+	}), "a failed install holds setup when all software is required")
+	require.False(t, s.setupDone(&fleet.SetupExperienceStatusPayload{
+		Software:           []*fleet.SetupExperienceStatusResult{sw(fleet.SetupExperienceStatusCancelled)},
+		RequireAllSoftware: true,
+	}))
+}
+
+func TestUniqueUsername(t *testing.T) {
+	taken := map[string]struct{}{"administrator": {}, "luke": {}, "luke2": {}, "abcdefghijklmnopqrst": {}}
+	exists := func(n string) bool { _, ok := taken[n]; return ok }
+	require.Equal(t, "jdoe", uniqueUsername("jdoe", exists))
+	require.Equal(t, "luke3", uniqueUsername("luke", exists))
+	require.Equal(t, "administrator2", uniqueUsername("administrator", exists))
+	require.Equal(t, "abcdefghijklmnopqrs2", uniqueUsername("abcdefghijklmnopqrst", exists), "suffix stays within 20 characters")
+	require.Empty(t, uniqueUsername("", exists))
+	require.Empty(t, uniqueUsername("x", func(string) bool { return true }))
 }
 
 func TestWindowsUsernameFromIdP(t *testing.T) {

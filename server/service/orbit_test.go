@@ -1676,6 +1676,20 @@ func TestGetOrbitConfigWindowsSetupExperience(t *testing.T) {
 		require.Nil(t, cfg.EndUserIdPAccount)
 	})
 
+	t.Run("IdP account lookup failure doesn't fail the config", func(t *testing.T) {
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationNone}, nil
+		}
+		ds.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+			return nil, errors.New("db down")
+		}
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Nil(t, cfg.EndUserIdPAccount)
+	})
+
 	t.Run("Windows host not connected to Fleet MDM gets no IdP account", func(t *testing.T) {
 		ds, svc, ctx, _ := setupSvc(t)
 		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) {

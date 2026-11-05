@@ -191,6 +191,11 @@ func wtsSessionUserName(sessionID windows.Handle) (string, error) {
 // the session ID of the user currently active on
 // the system.
 func getCurrentUserSessionId() (windows.Handle, error) {
+	// Prefer the session InteractiveSession reports, so callers that checked it
+	// launch on that same desktop.
+	if _, id, present, err := interactiveSession(); err == nil && present {
+		return windows.Handle(id), nil
+	}
 	sessionList, err := wtsEnumerateSessions()
 	if err != nil {
 		return 0xFFFFFFFF, fmt.Errorf("get current user session token: %s", err)
@@ -212,7 +217,8 @@ func getCurrentUserSessionId() (windows.Handle, error) {
 
 // wtsEnumerateSession will call the native
 // version for Windows and parse the result
-// to a Golang friendly version
+// to a Golang friendly version. WinStationName
+// isn't copied, since the native buffer is freed.
 func wtsEnumerateSessions() ([]*WTS_SESSION_INFO, error) {
 	var (
 		sessionInformation windows.Handle = windows.Handle(0)
@@ -223,11 +229,13 @@ func wtsEnumerateSessions() ([]*WTS_SESSION_INFO, error) {
 	if returnCode, _, err := procWTSEnumerateSessionsW.Call(WTS_CURRENT_SERVER_HANDLE, 0, 1, uintptr(unsafe.Pointer(&sessionInformation)), uintptr(unsafe.Pointer(&sessionCount))); returnCode == 0 {
 		return nil, fmt.Errorf("call native WTSEnumerateSessionsW: %s", err)
 	}
+	defer windows.WTSFreeMemory(uintptr(sessionInformation))
 
 	structSize := unsafe.Sizeof(WTS_SESSION_INFO{})
 	current := uintptr(sessionInformation)
 	for i := 0; i < sessionCount; i++ {
-		sessionList = append(sessionList, (*WTS_SESSION_INFO)(unsafe.Pointer(current)))
+		info := (*WTS_SESSION_INFO)(unsafe.Pointer(current))
+		sessionList = append(sessionList, &WTS_SESSION_INFO{SessionID: info.SessionID, State: info.State})
 		current += structSize
 	}
 

@@ -38,11 +38,21 @@ const EnrollmentGate = ({
   }
 
   if (initiator === "setup_experience") {
+    // In the zero-touch kiosk, fleetd replaces this page with the setup page.
+    if (sessionStorage.getItem("setup_only")) {
+      return (
+        <AuthenticationFormWrapper header="Setting up your device">
+          <div className={`${baseClass} form`}>
+            <p>Please wait. This can take a few minutes.</p>
+            <Spinner delay={0} verticalPadding="small" />
+          </div>
+        </AuthenticationFormWrapper>
+      );
+    }
     return (
-      <AuthenticationFormWrapper header="Setting up your device">
+      <AuthenticationFormWrapper header="Authentication complete">
         <div className={`${baseClass} form`}>
-          <p>Please wait. This can take a few minutes.</p>
-          <Spinner delay={0} verticalPadding="small" />
+          <p>You’re done! You may now close this window.</p>
         </div>
       </AuthenticationFormWrapper>
     );
