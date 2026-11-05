@@ -84,50 +84,6 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 	return &appleBM, nil
 }
 
-func (svc *Service) MDMAppleDeviceLock(ctx context.Context, hostID uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return err
-	}
-
-	host, err := svc.ds.HostLite(ctx, hostID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "host lite")
-	}
-
-	// TODO: define and use right permissions according to the spec.
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	_, err = svc.mdmAppleCommander.DeviceLock(ctx, host, uuid.New().String())
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (svc *Service) MDMAppleEraseDevice(ctx context.Context, hostID uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return err
-	}
-
-	host, err := svc.ds.HostLite(ctx, hostID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "host lite")
-	}
-
-	// TODO: define and use right permissions according to the spec.
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	err = svc.mdmAppleCommander.EraseDevice(ctx, host, uuid.New().String())
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func (svc *Service) MDMListHostConfigurationProfiles(ctx context.Context, hostID uint) ([]*fleet.MDMAppleConfigProfile, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
 		return nil, err

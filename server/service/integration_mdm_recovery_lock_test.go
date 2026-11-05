@@ -1205,8 +1205,8 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		require.NotNil(t, rlpStatus.Status)
 		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
 
-		// PATCH /mdm/hosts/:id/unenroll → UnenrollMDM → MDMTurnOff.
-		s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/unenroll", host.ID), nil, http.StatusNoContent)
+		// DELETE /hosts/:id/mdm → UnenrollMDM → MDMTurnOff.
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", host.ID), nil, http.StatusNoContent)
 
 		// Host detail API now reports no recovery lock; view-password endpoint 404s.
 		rlpStatus = getHostRecoveryLockStatus(host.ID)

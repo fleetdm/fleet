@@ -1747,7 +1747,7 @@ func (s *integrationMDMTestSuite) assertWindowsConfigProfilesByName(teamID *uint
 }
 
 // generates the body and headers part of a multipart request ready to be
-// used via s.DoRawWithHeaders to POST /api/_version_/fleet/mdm/apple/profiles.
+// used via s.DoRawWithHeaders to POST /api/_version_/fleet/configuration_profiles.
 func generateNewProfileMultipartRequest(t *testing.T,
 	fileName string, fileContent []byte, token string, extraFields map[string][]string,
 ) (*bytes.Buffer, map[string]string) {
@@ -2329,7 +2329,7 @@ func (s *integrationMDMTestSuite) newSecurityTokenMsg(encodedBinToken string, de
 	return requestBytes, nil
 }
 
-func (s *integrationMDMTestSuite) checkMDMProfilesSummaries(t *testing.T, teamID *uint, expectedSummary fleet.MDMProfilesSummary, expectedAppleSummary *fleet.MDMProfilesSummary) {
+func (s *integrationMDMTestSuite) checkMDMProfilesSummaries(t *testing.T, teamID *uint, expectedSummary fleet.MDMProfilesSummary) {
 	// The Windows profiles summary reads the maintained host_mdm_windows_profiles_status rollup. Some tests simulate device reports
 	// by writing host_mdm_windows_profiles directly, bypassing the write paths that maintain the rollup, so reconcile it before
 	// reading.
@@ -2338,15 +2338,6 @@ func (s *integrationMDMTestSuite) checkMDMProfilesSummaries(t *testing.T, teamID
 	var queryParams []string
 	if teamID != nil {
 		queryParams = append(queryParams, "team_id", fmt.Sprintf("%d", *teamID))
-	}
-
-	if expectedAppleSummary != nil {
-		var apple getMDMAppleProfilesSummaryResponse
-		s.DoJSON("GET", "/api/v1/fleet/mdm/apple/profiles/summary", getMDMAppleProfilesSummaryRequest{}, http.StatusOK, &apple, queryParams...)
-		require.Equal(t, expectedSummary.Failed, apple.Failed, "failed summary count doesn't match")
-		require.Equal(t, expectedSummary.Pending, apple.Pending, "pending summary count doesn't match")
-		require.Equal(t, expectedSummary.Verifying, apple.Verifying, "verifying summary count doesn't match")
-		require.Equal(t, expectedSummary.Verified, apple.Verified, "verified summary count doesn't match")
 	}
 
 	var combined getMDMProfilesSummaryResponse

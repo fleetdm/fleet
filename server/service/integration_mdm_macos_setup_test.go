@@ -113,6 +113,12 @@ func (s *integrationMDMTestSuite) TestBootstrapPackage() {
 	require.NoError(t, err)
 	require.Equal(t, signedPkg, respBytes)
 
+	// hosts that were sent the old URL before an upgrade can still download the package
+	resp = s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/mdm/bootstrap?token=%s", metadataResp.MDMAppleBootstrapPackage.Token), nil, http.StatusOK)
+	respBytes, err = io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Equal(t, signedPkg, respBytes)
+
 	// missing package
 	metadataResp = bootstrapPackageMetadataResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/bootstrap/1/metadata", nil, http.StatusNotFound, &metadataResp)
