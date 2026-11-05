@@ -971,6 +971,8 @@ func TestReconcileAndroidAppsRemoval(t *testing.T) {
 
 	client := &android_mock.Client{}
 	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		// fail the test if a patch is sent after a removal, because the device would then keep the removed apps
+		require.False(t, client.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
 		state.patchOpts = append(state.patchOpts, opts)
 		if state.patchedInstallTypes == nil {
 			state.patchedInstallTypes = make(map[string]string)
@@ -984,8 +986,6 @@ func TestReconcileAndroidAppsRemoval(t *testing.T) {
 		return &androidmanagement.Policy{Version: 5}, nil
 	}
 	client.EnterprisesPoliciesRemovePolicyApplicationsFunc = func(ctx context.Context, policyName string, packageNames []string) (*androidmanagement.Policy, error) {
-		// fail the test if apps are removed before the patch, because the patch would then drop them without an uninstall
-		require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 		state.removedPackages = append(state.removedPackages, packageNames...)
 		if state.removeErr != nil {
 			return nil, state.removeErr
@@ -1024,19 +1024,36 @@ func TestReconcileAndroidAppsRemoval(t *testing.T) {
 		require.Equal(t, "com.example.setup", state.removed[0].AdamID)
 	})
 
-	t.Run("profile changes and an app out of scope go in one patch before the app is removed", func(t *testing.T) {
+	t.Run("an app out of scope with no other app changes sends only the removal", func(t *testing.T) {
+		*state = removalTestState{
+			hosts:    []*fleet.Host{hostA},
+			installs: []*fleet.HostAndroidSoftwareInstall{appOneInstall(hostA.ID), agentInstall(hostA.ID)},
+		}
+
+		// run the cron, the app should be removed without a patch
+		err := reconcile()
+		require.NoError(t, err)
+		require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
+		require.True(t, client.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
+		require.Equal(t, []string{"com.example.one"}, state.removedPackages)
+		require.Empty(t, state.upserted)
+		require.Len(t, state.removed, 1)
+		require.Equal(t, "com.example.one", state.removed[0].AdamID)
+	})
+
+	t.Run("profile changes and an app out of scope with no other app changes patch only the profiles before the app is removed", func(t *testing.T) {
 		*state = removalTestState{
 			hosts:          []*fleet.Host{hostA},
 			installs:       []*fleet.HostAndroidSoftwareInstall{appOneInstall(hostA.ID), agentInstall(hostA.ID)},
 			profilesToSend: []*fleet.MDMAndroidProfilePayload{{HostUUID: "host-a", ProfileUUID: "profile-1", ProfileName: "Profile 1"}},
 		}
 
-		// run the cron, the profiles and apps should go in one full patch before the removal
+		// run the cron, the profiles patch should leave the policy's apps unchanged and the app should be removed after it
 		err := reconcile()
 		require.NoError(t, err)
 		require.True(t, client.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
-		require.Equal(t, []androidmgmt.PoliciesPatchOpts{{}}, state.patchOpts)
-		require.Equal(t, android.AppStatusAvailable, state.patchedInstallTypes["com.example.one"])
+		require.Equal(t, []androidmgmt.PoliciesPatchOpts{{ExcludeApps: true}}, state.patchOpts)
+		require.Empty(t, state.patchedInstallTypes)
 		require.Equal(t, []string{"com.example.one"}, state.removedPackages)
 		require.Len(t, state.removed, 1)
 		require.Equal(t, "com.example.one", state.removed[0].AdamID)
@@ -1044,9 +1061,10 @@ func TestReconcileAndroidAppsRemoval(t *testing.T) {
 
 	t.Run("a rejected patch sends no removal and sets the app out of scope to request failed", func(t *testing.T) {
 		*state = removalTestState{
-			hosts:    []*fleet.Host{hostA},
-			installs: []*fleet.HostAndroidSoftwareInstall{appOneInstall(hostA.ID), agentInstall(hostA.ID)},
-			patchErr: &googleapi.Error{Code: http.StatusBadRequest},
+			hosts:               []*fleet.Host{hostA},
+			installs:            []*fleet.HostAndroidSoftwareInstall{setupAppInstall(hostA.ID), agentInstall(hostA.ID)},
+			appsInScopeByHostID: map[uint][]fleet.VPPAppTeam{hostA.ID: {appOne}},
+			patchErr:            &googleapi.Error{Code: http.StatusBadRequest},
 		}
 
 		// reject the patch, no removal should be sent
@@ -1055,33 +1073,38 @@ func TestReconcileAndroidAppsRemoval(t *testing.T) {
 		require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 		require.False(t, client.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
 		require.Empty(t, state.removed)
-		require.Len(t, state.upserted, 2)
-		require.Equal(t, "com.fleetdm.agent", state.upserted[0].AdamID)
+		require.Len(t, state.upserted, 3)
+		require.Equal(t, "com.example.one", state.upserted[0].AdamID)
 		require.Equal(t, fleet.AndroidSoftwareInstallStatusRequestFailed, state.upserted[0].Status)
-		require.Equal(t, "com.example.one", state.upserted[1].AdamID)
+		require.Equal(t, "com.fleetdm.agent", state.upserted[1].AdamID)
 		require.Equal(t, fleet.AndroidSoftwareInstallStatusRequestFailed, state.upserted[1].Status)
+		require.Equal(t, "com.example.setup", state.upserted[2].AdamID)
+		require.Equal(t, fleet.AndroidSoftwareInstallStatusRequestFailed, state.upserted[2].Status)
 	})
 
 	t.Run("a rejected removal sets only the removed app to request failed", func(t *testing.T) {
 		*state = removalTestState{
-			hosts:     []*fleet.Host{hostA},
-			installs:  []*fleet.HostAndroidSoftwareInstall{appOneInstall(hostA.ID), agentInstall(hostA.ID)},
-			removeErr: &googleapi.Error{Code: http.StatusBadRequest},
+			hosts:               []*fleet.Host{hostA},
+			installs:            []*fleet.HostAndroidSoftwareInstall{setupAppInstall(hostA.ID), agentInstall(hostA.ID)},
+			appsInScopeByHostID: map[uint][]fleet.VPPAppTeam{hostA.ID: {appOne}},
+			removeErr:           &googleapi.Error{Code: http.StatusBadRequest},
 		}
 
-		// reject the removal, the patched Fleet agent should still be saved as pending
+		// reject the removal, the patched apps should still be saved as pending
 		err := reconcile()
 		require.NoError(t, err)
 		require.True(t, client.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
-		require.Equal(t, []string{"com.example.one"}, state.removedPackages)
+		require.Equal(t, []string{"com.example.setup"}, state.removedPackages)
 		require.Empty(t, state.removed)
-		require.Len(t, state.upserted, 2)
-		require.Equal(t, "com.fleetdm.agent", state.upserted[0].AdamID)
+		require.Len(t, state.upserted, 3)
+		require.Equal(t, "com.example.one", state.upserted[0].AdamID)
 		require.Equal(t, fleet.AndroidSoftwareInstallStatusPending, state.upserted[0].Status)
 		require.Equal(t, new(int64(5)), state.upserted[0].InPolicyVersion)
-		require.Equal(t, "com.example.one", state.upserted[1].AdamID)
-		require.Equal(t, fleet.AndroidSoftwareInstallStatusRequestFailed, state.upserted[1].Status)
-		require.Nil(t, state.upserted[1].InPolicyVersion)
+		require.Equal(t, "com.fleetdm.agent", state.upserted[1].AdamID)
+		require.Equal(t, fleet.AndroidSoftwareInstallStatusPending, state.upserted[1].Status)
+		require.Equal(t, "com.example.setup", state.upserted[2].AdamID)
+		require.Equal(t, fleet.AndroidSoftwareInstallStatusRequestFailed, state.upserted[2].Status)
+		require.Nil(t, state.upserted[2].InPolicyVersion)
 	})
 
 	t.Run("a quota error on the removal stops the run and leaves the removed app unsaved", func(t *testing.T) {
@@ -1096,10 +1119,8 @@ func TestReconcileAndroidAppsRemoval(t *testing.T) {
 		err := reconcile()
 		require.NoError(t, err)
 		require.True(t, client.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
-		require.Len(t, state.patchOpts, 1)
-		require.Len(t, state.upserted, 1)
-		require.Equal(t, "com.fleetdm.agent", state.upserted[0].AdamID)
-		require.Equal(t, fleet.AndroidSoftwareInstallStatusPending, state.upserted[0].Status)
+		require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
+		require.Empty(t, state.upserted)
 		require.Empty(t, state.removed)
 	})
 }

@@ -123,6 +123,7 @@ func (r *profileReconciler) prepareHostAppList(
 
 	var err error
 	var needsSend bool
+	var needsRemoval bool
 	var needsRetry bool
 	var lastFailedAt time.Time
 	var installsToRemove []fleet.HostAndroidSoftwareInstall
@@ -140,7 +141,7 @@ func (r *profileReconciler) prepareHostAppList(
 		installsToRemove = append(installsToRemove, *install)
 		// Send the removal in this run, unless its last request failed and the retry below will send it
 		if install.Status != fleet.AndroidSoftwareInstallStatusRequestFailed {
-			needsSend = true
+			needsRemoval = true
 		}
 	}
 	var installsWithNewVersion []fleet.HostAndroidSoftwareInstall
@@ -216,6 +217,9 @@ func (r *profileReconciler) prepareHostAppList(
 	}
 	if !needsSend {
 		r.appInstallsToUpsert = append(r.appInstallsToUpsert, installsWithNewVersion...)
+		if needsRemoval {
+			return &androidAppList{host: host, installsToRemove: installsToRemove}, nil
+		}
 		return nil, nil
 	}
 
@@ -310,13 +314,21 @@ func (r *profileReconciler) sendHostApps(ctx context.Context, appListsByHostUUID
 			return nil
 		}
 
+		hostUUID := appList.host.UUID
+		policyName := fmt.Sprintf("%s/policies/%s", r.Enterprise.Name(), hostUUID)
+		if len(appList.installsToUpsert) == 0 {
+			err := r.removeAppsAndRecordAppListRequest(ctx, appList, &android.MDMAndroidPolicyRequest{RequestName: policyName, PolicyID: hostUUID}, true)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
 		applications, err := r.buildApplicationsWithAgent(ctx, appList)
 		if err != nil {
 			r.Logger.ErrorContext(ctx, "failed to build android app list for host", "host_id", appList.host.ID, "err", err)
 			continue
 		}
-		hostUUID := appList.host.UUID
-		policyName := fmt.Sprintf("%s/policies/%s", r.Enterprise.Name(), hostUUID)
 		policy := &androidmanagement.Policy{Applications: applications}
 		policyReq, skip, err := r.patchPolicy(ctx, hostUUID, policyName, policy, nil, androidmgmt.PoliciesPatchOpts{OnlyUpdateApps: true})
 		if err != nil {

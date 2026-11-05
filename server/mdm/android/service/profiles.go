@@ -469,7 +469,7 @@ func (r *profileReconciler) sendHostProfiles(
 	appList := appListsByHostUUID[hostUUID]
 	// Remove the host's app list so it won't be sent again in a second patch after the profiles
 	delete(appListsByHostUUID, hostUUID)
-	if appList != nil {
+	if appList != nil && len(appList.installsToUpsert) > 0 {
 		applications, err := r.buildApplicationsWithAgent(ctx, appList)
 		if err != nil {
 			r.Logger.ErrorContext(ctx, "failed to build android app list, sending the profiles without it", "host_uuid", hostUUID, "err", err)
