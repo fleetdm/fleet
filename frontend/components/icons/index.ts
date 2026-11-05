@@ -4,7 +4,6 @@ import Apple from "./Apple";
 import Arrow from "./Arrow";
 import ArrowInternalLink from "./ArrowInternalLink";
 import ArrowLeft from "./ArrowLeft";
-import AutomaticSelfService from "./AutomaticSelfService";
 import Calendar from "./Calendar";
 import CalendarCheck from "./CalendarCheck";
 import Centos from "./Centos";
@@ -158,7 +157,6 @@ export const ICON_MAP = {
   "install-self-service": InstallSelfService,
   "install-auto": InstallAuto,
   settings: Settings,
-  "automatic-self-service": AutomaticSelfService,
   "self-service": SelfService,
   user: User,
   "gitops-mode": GitOpsMode,

@@ -264,7 +264,7 @@ const AIProfileGenerator = ({
     >
       <Button
         variant="secondary"
-        icon="refresh"
+        icon="retry"
         ariaLabel="Retry"
         className={`${baseClass}__action-button`}
         // a save in flight would redirect away from the new generation

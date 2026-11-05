@@ -104,7 +104,7 @@ const ActivityFeedFilters = ({
           ariaLabel="Filter by activity age"
           className={`${baseClass}__sort-created-at-dropdown`}
           name="created-at-filter"
-          iconName="filter"
+          iconName="sort"
           options={SORT_OPTIONS}
           value={createdAtDirection}
           onChange={(value) => {
