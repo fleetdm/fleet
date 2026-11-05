@@ -16,7 +16,7 @@ var removedPathTemplates = []string{
 	"/api/_version_/fleet/mdm/apple/profiles/preassign",
 	"/api/_version_/fleet/mdm/apple/profiles/match",
 	"/api/_version_/fleet/hosts/{host_id}/configuration_profiles/resend/{profile_uuid}",
-	// Same shape as the live /reports/{id:[0-9]+} routes, which are registered first, so this only answers non-numeric values.
+	// DELETE /reports/{id:[0-9]+} is registered first, so this only answers non-numeric names.
 	"/api/_version_/fleet/reports/{name}",
 }
 

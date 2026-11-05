@@ -516,6 +516,13 @@ func (s *integrationTestSuite) TestDeleteReportURLs() {
 		r := createReport(prefix + " shared shape")
 		s.Do("PATCH", byIDPath(r.ID), fleet.QueryPayload{Description: new("updated")}, http.StatusOK)
 		s.Do("GET", byIDPath(r.ID), nil, http.StatusOK)
+
+		// The removed path is DELETE-only, so other methods on its shape get the router's 405, not a 410 naming an endpoint that
+		// never existed.
+		s.Do("GET", "/api/latest/fleet/reports/"+url.PathEscape(r.Name), nil, http.StatusMethodNotAllowed)
+		s.Do("PUT", byIDPath(r.ID), nil, http.StatusMethodNotAllowed)
+		s.Do("GET", "/api/latest/fleet/reports/delete", nil, http.StatusMethodNotAllowed)
+
 		var delResp fleet.DeleteQueriesResponse
 		s.DoJSON("POST", "/api/latest/fleet/reports/delete", map[string]any{"ids": []uint{r.ID}}, http.StatusOK, &delResp)
 		assert.Equal(t, uint(1), delResp.Deleted)
