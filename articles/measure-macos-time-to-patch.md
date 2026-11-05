@@ -166,5 +166,5 @@ Each row in the CSV has a `status`:
 <meta name="authorFullName" value="Kitzy">
 <meta name="authorGitHubUsername" value="kitzy">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2026-11-05">
+<meta name="publishedOn" value="2026-11-06">
 <meta name="description" value="Measure how many days your Macs take to install Apple security updates, with a Fleet report and Apple release dates from SOFA.">
