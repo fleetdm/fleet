@@ -116,7 +116,7 @@ var deleteQueryStatsBatchSize = 5000
 // wait timeout during a bulk report delete.
 func (ds *Datastore) DeleteOrphanedQueryStats(ctx context.Context) error {
 	var queryIDs []uint
-	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &queryIDs,
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &queryIDs,
 		`SELECT DISTINCT scheduled_query_id FROM scheduled_query_stats WHERE scheduled_query_id NOT IN (SELECT id FROM queries)`); err != nil {
 		return ctxerr.Wrap(ctx, err, "selecting stats of deleted queries")
 	}
