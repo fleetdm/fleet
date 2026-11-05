@@ -3183,13 +3183,13 @@ The previous name, `s3_software_installers_signed_url` (`FLEET_S3_SOFTWARE_INSTA
     software_installers_gcs_signed_url: true
   ```
 
-### azure_software_installers_account_name
+### cloud_storage_azure_files_account_name
 
 *Available in Fleet Premium.*
 
-Azure Storage account name. Setting `azure_software_installers_container` enables Azure Blob Storage
+Azure Storage account name. Setting `cloud_storage_azure_files_container` enables Azure Blob Storage
 as the backend for software installers, bootstrap packages, software title icons, and org logos,
-in place of S3. Only one of `s3_software_installers_bucket` and `azure_software_installers_container`
+in place of S3. Only one of `s3_software_installers_bucket` and `cloud_storage_azure_files_container`
 may be set.
 
 - Default value: none
