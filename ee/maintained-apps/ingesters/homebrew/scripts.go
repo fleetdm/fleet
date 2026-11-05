@@ -933,18 +933,15 @@ const removeLaunchctlServiceFunc = `remove_launchctl_service() {
 // https://github.com/Homebrew/brew/blob/e1ff668957dd8a66304c0290dfa66083e6c7444e/Library/Homebrew/cask/artifact/abstract_uninstall.rb#L192
 // Returns 1 if the application is still running after the timeout. As in
 // quitAndTrackApplicationFunc, the quit is confirmed with 'is running' because
-// 'pgrep -f <bundle_id>' never matches. 'is running' can also keep reporting an
-// app that has no process left: the quit then fails with -600 (no such
-// process) on every try, so both helpers count -600 as quit. A quit sent to an
-// app that really isn't running succeeds without an error. Both helpers pass
-// the bundle ID to osascript as a run handler argument, never in the
+// 'pgrep -f <bundle_id>' never matches. Both helpers count a -600 quit as quit:
+// 'is running' can keep reporting an app that has no process left. Both helpers
+// pass the bundle ID to osascript as a run handler argument, never in the
 // AppleScript source, so it can't inject AppleScript. The '--' stops osascript
 // from parsing an ID that starts with '-' as an option such as -e.
 const quitApplicationFunc = `quit_application() {
   local bundle_id="$1"
   local timeout_duration=10
 
-  # check if the application is running
   local app_running
   app_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null)
   if [[ "$app_running" != "true" ]]; then
@@ -960,12 +957,10 @@ const quitApplicationFunc = `quit_application() {
 
   echo "Quitting application '$bundle_id'..."
 
-  # try to quit the application within the timeout period
   local quit_success=false still_running quit_error
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
     quit_error=$(osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" 2>&1 >/dev/null)
-    # -600: no process is left to take the quit, though 'is running' says so
     if [[ "$quit_error" == *"(-600)" ]]; then
       echo "Application '$bundle_id' isn't running."
       quit_success=true
@@ -1060,15 +1055,13 @@ ids.join("\n")'
 // so it can be relaunched after installation. Sets APP_WAS_RUNNING_<bundle_id> environment variable.
 // Returns 1 if the application is still running after the timeout. The quit is
 // confirmed with 'is running' because a macOS app's command line is its
-// executable path, so 'pgrep -f <bundle_id>' never matches. A -600 on the first
-// quit means it wasn't running at all (see quitApplicationFunc), so it isn't
-// relaunched; after a quit has gone through, -600 means it's exiting.
+// executable path, so 'pgrep -f <bundle_id>' never matches. An app whose first
+// quit gets -600 wasn't running, so it isn't relaunched.
 const quitAndTrackApplicationFunc = `quit_and_track_application() {
   local bundle_id="$1"
   local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local timeout_duration=10
 
-  # check if the application is running
   local app_running
   app_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null)
   if [[ "$app_running" != "true" ]]; then
@@ -1084,18 +1077,15 @@ const quitAndTrackApplicationFunc = `quit_and_track_application() {
     return
   fi
 
-  # App was running, mark it for relaunch
   eval "export $var_name=1"
   echo "Application '$bundle_id' was running; will relaunch after installation."
 
   echo "Quitting application '$bundle_id'..."
 
-  # try to quit the application within the timeout period
   local quit_success=false quit_sent=false still_running quit_error
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
     quit_error=$(osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" 2>&1 >/dev/null)
-    # -600: no process is left to take the quit, though 'is running' says so
     if [[ "$quit_error" == *"(-600)" ]]; then
       if [[ "$quit_sent" == false ]]; then
         eval "export $var_name=0"

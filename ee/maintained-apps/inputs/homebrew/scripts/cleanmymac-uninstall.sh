@@ -10,7 +10,6 @@ quit_application() {
   local bundle_id="$1"
   local timeout_duration=10
 
-  # check if the application is running
   local app_running
   app_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null)
   if [[ "$app_running" != "true" ]]; then
@@ -26,12 +25,10 @@ quit_application() {
 
   echo "Quitting application '$bundle_id'..."
 
-  # try to quit the application within the timeout period
   local quit_success=false still_running quit_error
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
     quit_error=$(osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" 2>&1 >/dev/null)
-    # -600: no process is left to take the quit, though 'is running' says so
     if [[ "$quit_error" == *"(-600)" ]]; then
       echo "Application '$bundle_id' isn't running."
       quit_success=true

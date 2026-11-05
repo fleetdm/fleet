@@ -5,7 +5,6 @@ quit_and_track_application() {
   local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local timeout_duration=10
 
-  # check if the application is running
   local app_running
   app_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null)
   if [[ "$app_running" != "true" ]]; then
@@ -21,18 +20,15 @@ quit_and_track_application() {
     return
   fi
 
-  # App was running, mark it for relaunch
   eval "export $var_name=1"
   echo "Application '$bundle_id' was running; will relaunch after installation."
 
   echo "Quitting application '$bundle_id'..."
 
-  # try to quit the application within the timeout period
   local quit_success=false quit_sent=false still_running quit_error
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
     quit_error=$(osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" 2>&1 >/dev/null)
-    # -600: no process is left to take the quit, though 'is running' says so
     if [[ "$quit_error" == *"(-600)" ]]; then
       if [[ "$quit_sent" == false ]]; then
         eval "export $var_name=0"

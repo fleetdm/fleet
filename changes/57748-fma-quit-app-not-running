@@ -1,1 +1,0 @@
-- Fixed macOS Fleet-maintained app installs and uninstalls failing with "did not quit" when macOS kept reporting an app as running after its process was gone, as happened with Snagit after it had been opened once.
