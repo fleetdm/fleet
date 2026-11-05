@@ -14,8 +14,9 @@ func init() {
 //     prove them. Hosts report a verified one on their next orbit config fetch.
 //   - It deletes device IDs that more than one host reported, since Fleet can't tell which one owns
 //     it. The owner reports it again on its next check-in.
-//   - It adds a verified column, set when the device ID comes from an Entra-signed token, and indexes
-//     the device ID so Fleet can reject one already assigned to another host.
+//   - It adds a verified column, set when the device ID comes from an Entra-signed token, and a
+//     non-unique index on the device ID to look up the hosts that have one. The one-host rule itself
+//     is enforced by CreateHostConditionalAccessStatus, not by the index.
 func Up_20261104211402(tx *sql.Tx) error {
 	// The statuses table has at most one row per host; the join is on hosts' primary key.
 	if _, err := tx.Exec(`
