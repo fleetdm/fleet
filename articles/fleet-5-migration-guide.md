@@ -419,6 +419,16 @@ What to do: Before you upgrade, call [List fleets](https://fleetdm.com/docs/rest
 
 GitHub issue: [#53790](https://github.com/fleetdm/fleet/issues/53790)
 
+### $FLEET_VAR_HOST_END_USER_EMAIL_IDP removed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` works in configuration profiles, managed app configurations, and the DigiCert CA fields in [Connect certificate authority](https://fleetdm.com/docs/rest-api/rest-api#connect-certificate-authority-ca) and [Update certificate authority](https://fleetdm.com/docs/rest-api/rest-api#update-certificate-authority-ca) | Removed. Use `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` |
+
+What to do: Before you upgrade, replace `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` with `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` in your configuration profiles, managed app configurations, and the DigiCert CA fields `certificate_common_name`, `certificate_user_principal_names`, and `certificate_seat_id`. Editing the DigiCert CA fields reissues certificates to every host that uses the CA. See [Fleet variables](https://fleetdm.com/guides/fleet-variables).
+
+GitHub issue: [#57603](https://github.com/fleetdm/fleet/issues/57603)
+
 ### Packs endpoints removed
 
 | Fleet 4 | Fleet 5 |
@@ -610,6 +620,16 @@ What to do: Before you upgrade, rename CAs that share a name, and update the con
 
 GitHub issue: [#56271](https://github.com/fleetdm/fleet/issues/56271)
 
+
+### $FLEET_VAR_HOST_END_USER_EMAIL_IDP removed in YAML
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` works in configuration profiles and in the `certificate_common_name`, `certificate_user_principal_names`, and `certificate_seat_id` keys of `org_settings.certificate_authorities.digicert` ([docs](https://fleetdm.com/docs/configuration/yaml-files#certificate-authorities)) | Removed. Use `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` |
+
+What to do: Before you upgrade, replace `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` with `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` in your configuration profiles and in the DigiCert keys. Editing the DigiCert keys reissues certificates to every host that uses the CA. See [Fleet variables](https://fleetdm.com/guides/fleet-variables).
+
+GitHub issue: [#57603](https://github.com/fleetdm/fleet/issues/57603)
 
 ## fleetctl
 
