@@ -2424,3 +2424,58 @@ func incrementHostPolicyAutomationRunCountDB(ctx context.Context, tx sqlx.Execer
 	}
 	return nil
 }
+
+func decrementHostPolicyAutomationRunCountsDB(ctx context.Context, tx sqlx.ExecerContext, activity fleet.ActivityDetails, ids []uint) error {
+	const scriptRunCountsStmt = `
+SELECT
+	policy_id,
+	host_id,
+	SUM(exit_code = 0) AS success_count,
+	SUM(exit_code != 0) AS fail_count
+FROM host_script_results
+WHERE id IN (?)
+	AND policy_id IS NOT NULL
+	AND exit_code IS NOT NULL
+GROUP BY policy_id, host_id`
+
+	const installRunCountsStmt = `
+SELECT
+	policy_id,
+	host_id,
+	SUM(execution_status = 'installed') AS success_count,
+	SUM(execution_status = 'failed_install') AS fail_count
+FROM host_software_installs
+WHERE id IN (?)
+	AND policy_id IS NOT NULL
+	AND execution_status IN ('installed', 'failed_install')
+GROUP BY policy_id, host_id`
+
+	var runCountsStmt string
+	switch activity.(type) {
+	case fleet.ActivityTypeRanScript:
+		runCountsStmt = scriptRunCountsStmt
+	case fleet.ActivityTypeInstalledSoftware:
+		runCountsStmt = installRunCountsStmt
+	default:
+		return ctxerr.Errorf(ctx, "decrement host policy automation run counts: unsupported activity %s", activity.ActivityName())
+	}
+
+	decrementStmt := `
+UPDATE host_policy_automation_run_counts c
+JOIN (` + runCountsStmt + `) d
+	ON c.policy_id = d.policy_id
+	AND c.host_id = d.host_id
+	AND c.activity_type = ?
+SET
+	c.success_count = c.success_count - LEAST(c.success_count, d.success_count),
+	c.fail_count = c.fail_count - LEAST(c.fail_count, d.fail_count)`
+	stmt, args, err := sqlx.In(decrementStmt, ids, activity.ActivityName())
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build decrement host policy automation run counts")
+	}
+	_, err = tx.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "decrement host policy automation run counts")
+	}
+	return nil
+}

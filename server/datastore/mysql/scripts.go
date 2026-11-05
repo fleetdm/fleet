@@ -2729,6 +2729,13 @@ func cleanupHostScriptResultsDB(ctx context.Context, ds *Datastore, olderThan ti
 		for i, row := range rows {
 			ids[i] = row.ID
 		}
+
+		// Decrement from the automation runs so it lines up with the number of rows in the table
+		err := decrementHostPolicyAutomationRunCountsDB(ctx, ds.writer(ctx), fleet.ActivityTypeRanScript{}, ids)
+		if err != nil {
+			return deleted, err
+		}
+
 		n, err := deleteHostScriptResultsByIDs(ctx, ds.writer(ctx), ids, olderThan)
 		if err != nil {
 			return deleted, err

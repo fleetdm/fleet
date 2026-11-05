@@ -3034,6 +3034,13 @@ LIMIT ?`
 		for i, row := range rows {
 			ids[i] = row.ID
 		}
+
+		// Decrement from the automation runs so it lines up with the number of rows in the table
+		err := decrementHostPolicyAutomationRunCountsDB(ctx, ds.writer(ctx), fleet.ActivityTypeInstalledSoftware{}, ids)
+		if err != nil {
+			return deleted, err
+		}
+
 		n, err := deleteHostSoftwareInstallsByIDs(ctx, ds.writer(ctx), ids, olderThan)
 		if err != nil {
 			return deleted, err
