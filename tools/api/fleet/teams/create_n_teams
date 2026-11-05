@@ -20,7 +20,7 @@ def main(n: int, use_emoji: bool):
     raise Exception("Make sure you have set TOKEN and SERVER_URL as environment variables.")
   for i in range(n):
     if use_emoji:
-      fleetname_suffix = ''.join(map(lambda code: chr(code), random.choices(EMOJI_UNICODE_RANGE, k=5)))
+      fleetname_suffix = ''.join(map(chr, random.choices(EMOJI_UNICODE_RANGE, k=5)))
     else:
       fleetname_suffix = ''.join(random.choices(string.ascii_lowercase, k=5)).capitalize()
     data = f'{{"name": "Fleet {fleetname_suffix}"}}'
