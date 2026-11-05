@@ -219,6 +219,8 @@ func TestStoreOperationsMisconfiguredErrors(t *testing.T) {
 			require.NoError(t, err)
 
 			want := fmt.Sprintf("Cloud storage is misconfigured. Azure: api error %s: %s (container: my-container)", c.code, c.message)
+			// A missing container reads as "not found" on Get, Exists and Delete.
+			containerNotFound := c.code == bloberror.ContainerNotFound
 			// HEAD responses carry no body, so only the status text is known.
 			wantHead := fmt.Sprintf("Cloud storage is misconfigured. Azure: api error %s: %s (container: my-container)", c.code, http.StatusText(c.status))
 
@@ -236,10 +238,19 @@ func TestStoreOperationsMisconfiguredErrors(t *testing.T) {
 			})
 			t.Run("get", func(t *testing.T) {
 				_, _, err := installers.Get(t.Context(), "installer")
+				if containerNotFound {
+					require.True(t, fleet.IsNotFound(err))
+					return
+				}
 				check(t, err, want)
 			})
 			t.Run("exists", func(t *testing.T) {
-				_, err := installers.Exists(t.Context(), "installer")
+				exists, err := installers.Exists(t.Context(), "installer")
+				if containerNotFound {
+					require.NoError(t, err)
+					require.False(t, exists)
+					return
+				}
 				check(t, err, wantHead)
 			})
 			t.Run("cleanup list", func(t *testing.T) {
@@ -254,13 +265,18 @@ func TestStoreOperationsMisconfiguredErrors(t *testing.T) {
 				check(t, err, want)
 			})
 			t.Run("org logo delete", func(t *testing.T) {
-				check(t, logos.Delete(t.Context(), fleet.OrgLogoModeLight), want)
+				err := logos.Delete(t.Context(), fleet.OrgLogoModeLight)
+				if containerNotFound {
+					require.NoError(t, err)
+					return
+				}
+				check(t, err, want)
 			})
 		})
 	}
 }
 
-// TestStoreOperationsBlobNotFound checks that a missing blob is not an error.
+// TestStoreOperationsBlobNotFound checks that a missing blob is not an error on Get, Exists and Delete.
 func TestStoreOperationsBlobNotFound(t *testing.T) {
 	srv := newErrorServer(t, bloberror.BlobNotFound, "The specified blob does not exist.", http.StatusNotFound, false)
 	cfg := newErrorTestConfig(srv.URL)
