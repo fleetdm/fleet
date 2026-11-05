@@ -62,3 +62,8 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err error) {
 	return nil, 0, errors.New("not implemented")
 }
+
+// interactiveSession is only implemented on Windows.
+func interactiveSession() (username string, sessionID uint32, present bool, err error) {
+	return "", 0, false, nil
+}

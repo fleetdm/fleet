@@ -1639,10 +1639,71 @@ func TestGetOrbitConfigWindowsSetupExperience(t *testing.T) {
 		ds.SetMDMWindowsEnrollmentFleetdSyncCapableFunc = func(ctx context.Context, hostUUID string, capable bool) error {
 			return nil
 		}
+		ds.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+			return nil, nil
+		}
 
 		ctx = test.HostContext(ctx, host)
 		return ds, svc, ctx, host
 	}
+
+	t.Run("MDM-connected Windows host gets its IdP account", func(t *testing.T) {
+		ds, svc, ctx, host := setupSvc(t)
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationNone}, nil
+		}
+		ds.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+			require.Equal(t, host.UUID, hostUUID)
+			return &fleet.MDMIdPAccount{Username: "jdoe", Fullname: "Jane Doe", Email: "jdoe@example.com"}, nil
+		}
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Equal(t, &fleet.OrbitEndUserIdPAccount{Username: "jdoe", Fullname: "Jane Doe", Email: "jdoe@example.com"}, cfg.EndUserIdPAccount)
+	})
+
+	t.Run("Windows host without an IdP account gets none", func(t *testing.T) {
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationNone}, nil
+		}
+		ds.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+			return nil, newNotFoundError()
+		}
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Nil(t, cfg.EndUserIdPAccount)
+	})
+
+	t.Run("IdP account lookup failure doesn't fail the config", func(t *testing.T) {
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationNone}, nil
+		}
+		ds.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+			return nil, errors.New("db down")
+		}
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Nil(t, cfg.EndUserIdPAccount)
+	})
+
+	t.Run("Windows host not connected to Fleet MDM gets no IdP account", func(t *testing.T) {
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) {
+			return false, nil
+		}
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return &fleet.HostMDM{}, nil
+		}
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Nil(t, cfg.EndUserIdPAccount)
+		require.False(t, ds.GetMDMIdPAccountByHostUUIDFuncInvoked)
+	})
 
 	// withWindowsMDMSyncCapability returns a context whose X-Fleet-Capabilities advertise CapabilityWindowsMDMSync, as a Windows fleetd that
 	// supports on-demand sync would send on its orbit config request.
@@ -2088,6 +2149,7 @@ func TestGetOrbitConfigWindowsManagedLocalAccount(t *testing.T) {
 			return &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet, ConnectedToFleet: true}, nil
 		}
 		ds.SetMDMWindowsEnrollmentFleetdSyncCapableFunc = func(ctx context.Context, hostUUID string, capable bool) error { return nil }
+		ds.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) { return nil, nil }
 		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
 			return &fleet.MDMWindowsHostConfigState{
 				AwaitingConfiguration:       awaiting,
