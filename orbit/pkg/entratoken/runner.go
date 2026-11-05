@@ -3,7 +3,6 @@ package entratoken
 import (
 	"context"
 	"errors"
-	"strings"
 	"sync"
 	"time"
 
@@ -140,9 +139,8 @@ func (r *Runner) retry(req fleet.OrbitEntraDeviceTokenRequest) {
 }
 
 func (r *Runner) reportOnce(req fleet.OrbitEntraDeviceTokenRequest) error {
-	nonceHost, _, _ := strings.Cut(req.Nonce, ".")
-	if r.hardwareUUID == "" || !strings.EqualFold(nonceHost, r.hardwareUUID) {
-		return errors.New("nonce was not generated for this host")
+	if !nonceIsForHost(req.Nonce, r.hardwareUUID) {
+		return errNonceForAnotherHost
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), reportTimeout)
 	defer cancel()

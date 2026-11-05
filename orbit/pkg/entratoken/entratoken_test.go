@@ -3,12 +3,15 @@ package entratoken
 import (
 	"context"
 	"errors"
+	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -250,4 +253,27 @@ func TestRunner(t *testing.T) {
 		defer mu.Unlock()
 		assert.Equal(t, []string{testTenantID, changed.TenantID}, tenants)
 	})
+}
+
+func TestNonceIsForHost(t *testing.T) {
+	assert.True(t, nonceIsForHost(testHostUUID+".mac", testHostUUID))
+	assert.True(t, nonceIsForHost(strings.ToLower(testHostUUID)+".mac", testHostUUID))
+	assert.False(t, nonceIsForHost("11111111-2222-3333-4444-555555555555.mac", testHostUUID))
+	assert.False(t, nonceIsForHost(testHostUUID+"0.mac", testHostUUID))
+	assert.False(t, nonceIsForHost(testHostUUID+".mac", ""))
+}
+
+func TestGetIDTokenRefusesAnotherHostsNonce(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("host UUID is only available on macOS")
+	}
+	hostID, err := hostUUID()
+	require.NoError(t, err)
+	_, err = uuid.Parse(hostID)
+	require.NoError(t, err)
+
+	other := "11111111-2222-3333-4444-555555555555"
+	require.NotEqual(t, other, hostID)
+	_, err = GetIDToken(t.Context(), Request{TenantID: testTenantID, ClientID: testClientID, RedirectURI: DefaultRedirectURI, Nonce: other + ".mac"})
+	require.ErrorIs(t, err, errNonceForAnotherHost)
 }

@@ -45,6 +45,15 @@ type Request struct {
 
 var nonceRe = regexp.MustCompile(`^[A-Za-z0-9._-]{1,256}$`)
 
+var errNonceForAnotherHost = errors.New("nonce was not generated for this host")
+
+// nonceIsForHost reports whether Fleet generated the nonce for the host with the given hardware
+// UUID; Fleet prefixes each host's nonce with its UUID.
+func nonceIsForHost(nonce, hardwareUUID string) bool {
+	nonceHost, _, _ := strings.Cut(nonce, ".")
+	return hardwareUUID != "" && strings.EqualFold(nonceHost, hardwareUUID)
+}
+
 // Validate checks the request parameters.
 func (r Request) Validate() error {
 	if _, err := uuid.Parse(r.TenantID); err != nil {
@@ -66,6 +75,15 @@ func (r Request) Validate() error {
 func GetIDToken(ctx context.Context, r Request) (string, error) {
 	if err := r.Validate(); err != nil {
 		return "", err
+	}
+	// Refuse other hosts' nonces, so this command can't be used on this device to mint a token
+	// that another host then reports as its own.
+	hostID, err := hostUUID()
+	if err != nil {
+		return "", err
+	}
+	if !nonceIsForHost(r.Nonce, hostID) {
+		return "", errNonceForAnotherHost
 	}
 
 	q := url.Values{}
