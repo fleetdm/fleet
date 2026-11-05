@@ -862,16 +862,21 @@ func rejectSharedSecretForAndroidDeviceID(ctx context.Context, tx sqlx.QueryerCo
 	if len(ids) == 0 {
 		return nil
 	}
-	stmt, args, err := sqlx.In(`SELECT EXISTS (SELECT 1 FROM android_devices WHERE enterprise_specific_id IN (?))`, ids)
+	// The device's host, when it still exists, is named in the rejection so the attempt is attributed to it.
+	stmt, args, err := sqlx.In(`
+		SELECT h.id FROM android_devices ad LEFT JOIN hosts h ON h.id = ad.host_id
+		WHERE ad.enterprise_specific_id IN (?) LIMIT 1`, ids)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "build android device lookup for enrolling identifiers")
 	}
-	var managed bool
-	if err := sqlx.GetContext(ctx, tx, &managed, stmt, args...); err != nil {
+	var devices []struct {
+		HostID *uint `db:"id"`
+	}
+	if err := sqlx.SelectContext(ctx, tx, &devices, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "check android device with enrolling identifiers")
 	}
-	if managed {
-		return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedSharedSecretForMDMManagedHost},
+	if len(devices) == 1 {
+		return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, HostID: devices[0].HostID},
 			"shared enroll secret presented for the identifier of an android device")
 	}
 	return nil

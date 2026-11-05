@@ -1549,11 +1549,11 @@ func testOneTimeEnrollSecretAndroidRejectShared(t *testing.T, ds *Datastore) {
 		_, err := ds.EnrollOrbit(ctx,
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{HardwareUUID: uuid.NewString(), OsqueryIdentifier: h.UUID, Platform: "android"}),
 			fleet.WithEnrollOrbitNodeKey(uuid.NewString()), attackerTeam, reject)
-		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, nil)
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, &h.ID)
 		_, err = ds.EnrollOsquery(ctx,
 			fleet.WithEnrollOsqueryHostID(h.UUID), fleet.WithEnrollOsqueryNodeKey(uuid.NewString()),
 			fleet.WithEnrollOsqueryTeamID(&attackerFleet.ID), rejectOsquery)
-		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, nil)
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, &h.ID)
 
 		var rows int
 		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &rows, `SELECT COUNT(*) FROM hosts WHERE osquery_host_id = ?`, h.UUID))
