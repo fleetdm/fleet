@@ -1037,16 +1037,19 @@ func TestApplyPolicySpecsScriptID(t *testing.T) {
 		err := svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{s})
 		var bre *fleet.BadRequestError
 		require.ErrorAs(t, err, &bre)
-		require.Contains(t, bre.Message, errPolicyAllFleetsForSoftware)
+		require.ErrorContains(t, err, errPolicyAllFleetsForSoftware)
 		require.False(t, ds.ApplyPolicySpecsFuncInvoked)
 
 		s.SoftwareTitleID = new(uint(0))
 		require.NoError(t, svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{s}))
+		require.True(t, ds.ApplyPolicySpecsFuncInvoked)
 
 		// "No team" is not "All fleets", so it keeps its automations.
 		noTeam := spec("No team", new(uint(1)))
 		noTeam.SoftwareTitleID = new(uint(1))
+		ds.ApplyPolicySpecsFuncInvoked = false
 		require.NoError(t, svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{noTeam}))
+		require.True(t, ds.ApplyPolicySpecsFuncInvoked)
 	})
 }
 

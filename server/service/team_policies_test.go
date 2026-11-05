@@ -1117,7 +1117,7 @@ func TestModifyGlobalPolicyScriptID(t *testing.T) {
 
 	ds := new(mock.Store)
 	ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
-		return &fleet.Policy{PolicyData: fleet.PolicyData{ID: policyID, Name: "global", Query: "SELECT 1;"}}, nil
+		return &fleet.Policy{ID: policyID, Name: "global", Query: "SELECT 1;"}, nil
 	}
 	ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy, _ bool, _ bool) error { return nil }
 	opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
@@ -1130,7 +1130,7 @@ func TestModifyGlobalPolicyScriptID(t *testing.T) {
 	_, err := svc.ModifyGlobalPolicy(ctx, policyID, fleet.ModifyPolicyPayload{ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: 1}})
 	var bre *fleet.BadRequestError
 	require.ErrorAs(t, err, &bre)
-	require.Contains(t, bre.Message, errPolicyAllFleetsForScripts)
+	require.ErrorContains(t, err, errPolicyAllFleetsForScripts)
 	require.False(t, ds.SavePolicyFuncInvoked)
 
 	// Clients such as the UI send the full payload, so unsetting must keep working.
