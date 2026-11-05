@@ -197,7 +197,7 @@ func (svc *Service) handlePubSubCommand(ctx context.Context, token string, rawDa
 	// failures on the original delivery recover on this retry.
 	if cmd.Status != string(android.MDMAndroidCommandStatusPending) {
 		if cmd.CommandType == string(android.MDMAndroidCommandTypeWipe) && cmd.Status == string(android.MDMAndroidCommandStatusAcknowledged) {
-			rerun, err := svc.shouldRerunWipeUnenroll(ctx, cmd)
+			rerun, err := isWipeOfGoneCurrentDevice(ctx, svc.fleetDS, svc.getAMAPIDevice, cmd)
 			if err != nil {
 				return err
 			}

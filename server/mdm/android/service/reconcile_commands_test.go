@@ -150,20 +150,63 @@ func TestReconcileAndroidCommands(t *testing.T) {
 		require.Contains(t, *gotRawResult, "RESET_PASSWORD", "other metadata fields should be preserved")
 	})
 
-	t.Run("operation still running is left pending", func(t *testing.T) {
-		cmd := pendingCommandForReconcile("cmd-running", string(android.MDMAndroidCommandTypeWipe), 48*time.Hour)
-		mockDS, client, logger := newReconcileFixture(t, cmd)
-		client.EnterprisesDevicesOperationsGetFunc = func(ctx context.Context, operationName string) (*androidmanagement.Operation, error) {
-			return &androidmanagement.Operation{Name: operationName, Done: false}, nil
-		}
-		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
-			t.Fatalf("a command AMAPI is still working on must not be transitioned")
-			return nil
-		}
+	// AMAPI never marks a WIPE operation done, because the device is erased before it can report
+	// back, so a wipe whose device is gone counts as finished.
+	for _, tc := range []struct {
+		name            string
+		commandType     android.MDMAndroidCommandType
+		currentDeviceID string
+		deviceErr       error
+		deviceActive    bool
+		wantAcked       bool
+	}{
+		{"operation still running is left pending", android.MDMAndroidCommandTypeLock, "D", nil, false, false},
+		{"wipe still running while its device is active is left pending", android.MDMAndroidCommandTypeWipe, "D", nil, true, false},
+		{"wipe not done whose device is gone is acknowledged", android.MDMAndroidCommandTypeWipe, "D", nil, false, true},
+		{"wipe not done of a gone device that is not the host's current one is left pending", android.MDMAndroidCommandTypeWipe, "new-device", nil, false, false},
+		{"wipe not done whose device lookup fails is left pending", android.MDMAndroidCommandTypeWipe, "D", errors.New("network down"), false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			const hostID uint = 42
+			cmd := pendingCommandForReconcile("cmd-running", string(tc.commandType), 48*time.Hour)
+			mockDS, client, logger := newReconcileFixture(t, cmd)
+			client.EnterprisesDevicesOperationsGetFunc = func(ctx context.Context, operationName string) (*androidmanagement.Operation, error) {
+				return &androidmanagement.Operation{Name: operationName, Done: false}, nil
+			}
+			client.EnterprisesDevicesGetFunc = func(ctx context.Context, name string) (*androidmanagement.Device, error) {
+				require.Equal(t, "enterprises/E/devices/D", name)
+				switch {
+				case tc.deviceErr != nil:
+					return nil, tc.deviceErr
+				case tc.deviceActive:
+					return &androidmanagement.Device{Name: name, State: "ACTIVE"}, nil
+				}
+				return nil, googleAPIError(http.StatusNotFound, "Device is no longer being managed")
+			}
+			mockDS.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
+				return &fleet.AndroidHost{Host: &fleet.Host{ID: hostID, UUID: hostUUID}, Device: &android.Device{DeviceID: tc.currentDeviceID}}, nil
+			}
+			mockDS.GetHostMDMFunc = func(ctx context.Context, id uint) (*fleet.HostMDM, error) {
+				return &fleet.HostMDM{}, nil
+			}
+			mockDS.SetAndroidHostUnenrolledFunc = func(ctx context.Context, id uint) (bool, error) { return true, nil }
+			mockDS.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+				return []*fleet.Host{{ID: hostID}}, nil
+			}
+			var gotStatus string
+			mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
+				gotStatus = status
+				return nil
+			}
 
-		require.NoError(t, reconcileAndroidCommands(t.Context(), &mockDS.DataStore, client, logger, noopNewActivity, reconcileNow, reconcileTestCallInterval))
-		require.False(t, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked)
-	})
+			require.NoError(t, reconcileAndroidCommands(t.Context(), &mockDS.DataStore, client, logger, noopNewActivity, reconcileNow, reconcileTestCallInterval))
+			require.Equal(t, tc.wantAcked, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked)
+			require.Equal(t, tc.wantAcked, mockDS.SetAndroidHostUnenrolledFuncInvoked)
+			if tc.wantAcked {
+				require.Equal(t, string(android.MDMAndroidCommandStatusAcknowledged), gotStatus)
+			}
+		})
+	}
 
 	t.Run("unknown operation inside the grace period is left pending", func(t *testing.T) {
 		// AMAPI 404s for an operation it has already discarded, but a notification can still arrive while

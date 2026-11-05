@@ -181,13 +181,16 @@ func (svc *Service) rejectPubSub(ctx context.Context, device *androidmanagement.
 	return errUnverifiedPubSub()
 }
 
+// amapiDeviceGetter returns the device as AMAPI knows it, or nil if AMAPI has no such device.
+type amapiDeviceGetter func(ctx context.Context, deviceName string) (*androidmanagement.Device, error)
+
 // isCommandForCurrentDevice reports whether a command was issued to the host's current AMAPI
 // device. Acknowledged commands survive a re-enrollment, so a redelivered notification for one
 // issued to an earlier enrollment must not act on the re-enrolled host.
-func (svc *Service) isCommandForCurrentDevice(ctx context.Context, cmd *android.MDMAndroidCommand) (bool, error) {
+func isCommandForCurrentDevice(ctx context.Context, ds fleet.Datastore, cmd *android.MDMAndroidCommand) (bool, error) {
 	// Read from the primary: a replica that hasn't caught up with a re-enrollment would still
 	// return the previous device ID.
-	host, err := svc.fleetDS.AndroidHostLiteByHostUUID(ctxdb.RequirePrimary(ctx, true), cmd.HostUUID)
+	host, err := ds.AndroidHostLiteByHostUUID(ctxdb.RequirePrimary(ctx, true), cmd.HostUUID)
 	switch {
 	case fleet.IsNotFound(err):
 		return false, nil
@@ -200,29 +203,34 @@ func (svc *Service) isCommandForCurrentDevice(ctx context.Context, cmd *android.
 }
 
 // isCommandDeviceGone reports whether AMAPI no longer has the command's device as an active one.
-func (svc *Service) isCommandDeviceGone(ctx context.Context, cmd *android.MDMAndroidCommand) (bool, error) {
+func isCommandDeviceGone(ctx context.Context, getDevice amapiDeviceGetter, cmd *android.MDMAndroidCommand) (bool, error) {
 	deviceName, _, _ := strings.Cut(cmd.OperationName, "/operations/")
-	amapiDevice, err := svc.getAMAPIDevice(ctx, deviceName)
+	amapiDevice, err := getDevice(ctx, deviceName)
 	if err != nil {
 		return false, err
 	}
 	return amapiDevice == nil || strings.EqualFold(amapiDevice.State, string(android.DeviceStateDeleted)), nil
 }
 
-// shouldRerunWipeUnenroll reports whether a redelivered result for an acknowledged WIPE may re-run
-// the host's unenroll: the wipe must be for the host's current device, and that device must be
-// gone from AMAPI.
-func (svc *Service) shouldRerunWipeUnenroll(ctx context.Context, cmd *android.MDMAndroidCommand) (bool, error) {
-	current, err := svc.isCommandForCurrentDevice(ctx, cmd)
+// isWipeOfGoneCurrentDevice reports whether cmd is a WIPE of the host's current device and AMAPI no
+// longer has that device. It is what shows a wipe finished: AMAPI never marks a WIPE operation done,
+// because the device is erased before it can report back. A wipe of an earlier device doesn't count,
+// so it can't unenroll the host from the device it has moved to.
+func isWipeOfGoneCurrentDevice(ctx context.Context, ds fleet.Datastore, getDevice amapiDeviceGetter, cmd *android.MDMAndroidCommand) (bool, error) {
+	if cmd.CommandType != string(android.MDMAndroidCommandTypeWipe) {
+		return false, nil
+	}
+	current, err := isCommandForCurrentDevice(ctx, ds, cmd)
 	if err != nil || !current {
 		return false, err
 	}
-	return svc.isCommandDeviceGone(ctx, cmd)
+	return isCommandDeviceGone(ctx, getDevice, cmd)
 }
 
 // verifiedOperation returns AMAPI's record of a finished command operation, to be used in place of
 // the notification's copy. It returns nil (and the caller acks without changing the command) when
-// AMAPI reports the operation is not done.
+// AMAPI reports the operation is not done, unless it is a WIPE whose device is gone, which is
+// returned as done.
 //
 // AMAPI drops operations it has finished with, and has none once the device is gone, so a missing
 // operation can't be checked and the notification's copy is used, with two exceptions:
@@ -237,12 +245,12 @@ func (svc *Service) verifiedOperation(ctx context.Context, cmd *android.MDMAndro
 	amapiOp, err := svc.androidAPIClient.EnterprisesDevicesOperationsGet(ctx, op.Name)
 	switch {
 	case androidmgmt.IsNotFoundError(err):
-		gone, err := svc.isCommandDeviceGone(ctx, cmd)
+		gone, err := isCommandDeviceGone(ctx, svc.getAMAPIDevice, cmd)
 		if err != nil {
 			return nil, err
 		}
 		if gone {
-			current, err := svc.isCommandForCurrentDevice(ctx, cmd)
+			current, err := isCommandForCurrentDevice(ctx, svc.fleetDS, cmd)
 			if err != nil {
 				return nil, err
 			}
@@ -260,6 +268,13 @@ func (svc *Service) verifiedOperation(ctx context.Context, cmd *android.MDMAndro
 	case err != nil:
 		return nil, ctxerr.Wrap(ctx, err, "get android command operation from AMAPI")
 	case !amapiOp.Done:
+		wiped, err := isWipeOfGoneCurrentDevice(ctx, svc.fleetDS, svc.getAMAPIDevice, cmd)
+		if err != nil {
+			return nil, err
+		}
+		if wiped {
+			return &androidmanagement.Operation{Name: op.Name, Done: true, Metadata: amapiOp.Metadata}, nil
+		}
 		svc.logger.WarnContext(ctx, "dropping Android PubSub COMMAND for an operation AMAPI reports as not done",
 			"operation_name", op.Name)
 		return nil, nil

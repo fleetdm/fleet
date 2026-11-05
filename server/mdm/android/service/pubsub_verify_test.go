@@ -568,13 +568,52 @@ func TestPubSubCommandVerifiedWithAMAPI(t *testing.T) {
 		require.Equal(t, string(android.MDMAndroidCommandStatusError), *status)
 	})
 
-	t.Run("operation not done in AMAPI leaves the command pending", func(t *testing.T) {
-		svc, mockDS, client, _ := newCommand(t, android.MDMAndroidCommandTypeLock, "D")
+	// AMAPI never marks a WIPE operation done, because the device is erased before it can report
+	// back, so a wipe whose device is gone counts as finished.
+	for _, tc := range []struct {
+		name            string
+		commandType     android.MDMAndroidCommandType
+		currentDeviceID string
+		deviceActive    bool
+		wantAcked       bool
+	}{
+		{"operation not done in AMAPI leaves the command pending", android.MDMAndroidCommandTypeLock, "D", false, false},
+		{"wipe not done in AMAPI while its device is active is left pending", android.MDMAndroidCommandTypeWipe, "D", true, false},
+		{"wipe not done in AMAPI whose device is gone is acknowledged", android.MDMAndroidCommandTypeWipe, "D", false, true},
+		{"wipe not done in AMAPI of a gone device that is not the host's current one is left pending", android.MDMAndroidCommandTypeWipe, "new-device", false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, mockDS, client, status := newCommand(t, tc.commandType, tc.currentDeviceID)
+			client.EnterprisesDevicesOperationsGetFunc = func(ctx context.Context, name string) (*androidmanagement.Operation, error) {
+				return &androidmanagement.Operation{Name: name, Done: false}, nil
+			}
+			client.EnterprisesDevicesGetFunc = func(ctx context.Context, name string) (*androidmanagement.Device, error) {
+				require.Equal(t, deviceName, name)
+				if !tc.deviceActive {
+					return nil, amapiNotFound()
+				}
+				return &androidmanagement.Device{Name: name, State: "ACTIVE"}, nil
+			}
+			require.NoError(t, svc.ProcessPubSubPush(t.Context(), "value", commandMsg(t, notifiedSuccess)))
+			require.Equal(t, tc.wantAcked, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked)
+			require.Equal(t, tc.wantAcked, mockDS.SetAndroidHostUnenrolledFuncInvoked)
+			if tc.wantAcked {
+				require.Equal(t, string(android.MDMAndroidCommandStatusAcknowledged), *status)
+			}
+		})
+	}
+
+	t.Run("notification error is not used for a wipe AMAPI reports as not done", func(t *testing.T) {
+		svc, _, client, status := newCommand(t, android.MDMAndroidCommandTypeWipe, "D")
 		client.EnterprisesDevicesOperationsGetFunc = func(ctx context.Context, name string) (*androidmanagement.Operation, error) {
 			return &androidmanagement.Operation{Name: name, Done: false}, nil
 		}
-		require.NoError(t, svc.ProcessPubSubPush(t.Context(), "value", commandMsg(t, notifiedSuccess)))
-		require.False(t, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked)
+		client.EnterprisesDevicesGetFunc = func(ctx context.Context, name string) (*androidmanagement.Device, error) {
+			return nil, amapiNotFound()
+		}
+		notifiedFailure := androidmanagement.Operation{Name: opName, Done: true, Error: &androidmanagement.Status{Code: 9, Message: "failed"}}
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), "value", commandMsg(t, notifiedFailure)))
+		require.Equal(t, string(android.MDMAndroidCommandStatusAcknowledged), *status)
 	})
 
 	// AMAPI drops operations it has finished with, so a missing operation is not checked unless
