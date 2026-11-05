@@ -58,3 +58,16 @@ func TestGoogleConditionalAccessIntegrationValidate(t *testing.T) {
 		}
 	})
 }
+
+func TestValidateGoogleConditionalAccessIntegration(t *testing.T) {
+	invalid := &InvalidArgumentError{}
+	ValidateGoogleConditionalAccessIntegration(nil, invalid)
+	require.False(t, invalid.HasErrors())
+
+	intg := &GoogleConditionalAccessIntegration{CustomerID: " C02cajzvg ", AdminEmail: "nope"}
+	ValidateGoogleConditionalAccessIntegration(intg, invalid)
+	require.Equal(t, []map[string]string{
+		{"name": "integrations.google_conditional_access.admin_email", "reason": "must be a valid email address"},
+	}, invalid.Invalid())
+	require.Equal(t, "C02cajzvg", intg.CustomerID)
+}

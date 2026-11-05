@@ -1023,10 +1023,11 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 	if result["global_integrations"] != nil {
 		result = result["global_integrations"].(map[string]interface{})
 
-		// Google Workspace IdP is a premium-only integration, so omit it from the
-		// generated free-tier GitOps so the example stays valid on reapply.
+		// Google Workspace IdP and Google conditional access are premium-only integrations,
+		// so omit them from the generated free-tier GitOps so the example stays valid on reapply.
 		if !cmd.AppConfig.License.IsPremium() {
 			delete(result, "google_workspace")
+			delete(result, "google_conditional_access")
 		}
 	} else {
 		result = result["team_integrations"].(map[string]interface{})

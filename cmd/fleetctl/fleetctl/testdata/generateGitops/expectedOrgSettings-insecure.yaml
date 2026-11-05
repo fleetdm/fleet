@@ -88,6 +88,9 @@ integrations:
     - api_key_json:
         owl: hoot
       domain: fleetdm.com
+  google_conditional_access:
+    admin_email: admin@fleetdm.com
+    customer_id: C02cajzvg
   google_workspace:
     - api_key_json:
         owl: hoot

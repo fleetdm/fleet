@@ -274,5 +274,9 @@ github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	OktaAssertion
 github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	OktaAudienceURI	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	OktaCertificate	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	BypassDisabled	optjson.Bool
+github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	Google	*fleet.ConditionalAccessGoogleStatus
+github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessGoogleStatus	ServiceAccountKeyConfigured	bool
+github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessGoogleStatus	State	fleet.ConditionalAccessGoogleState	string
+github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessGoogleStatus	ErrorMessage	*string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	strictDecoding	bool
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	didUnmarshalLegacySettings	[]string

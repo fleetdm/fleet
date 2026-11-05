@@ -87,6 +87,9 @@ integrations:
   google_calendar:
     - api_key_json: ___GITOPS_COMMENT_0___
       domain: fleetdm.com
+  google_conditional_access:
+    admin_email: admin@fleetdm.com
+    customer_id: C02cajzvg
   google_workspace:
     - api_key_json: ___GITOPS_COMMENT_3___
       domain: fleetdm.com
