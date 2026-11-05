@@ -257,7 +257,7 @@ Check these in order:
 3. Check whether another script or policy automation also writes to the file, which would overwrite your settings.
 4. Admin users can edit or delete the blocking files. The [blocklist policy](#run-automatically-with-policies) puts deleted files back the next time the host checks in. To restore edited files, run `homebrew-forbidden-packages.sh` again.
 
-**A host doesn't block a package you just added**
+**A host doesn't block a package you added**
 
 Changing a variable doesn't update hosts that already have `/etc/homebrew/brew.env`. Run `homebrew-forbidden-packages.sh` again on those hosts.
 
