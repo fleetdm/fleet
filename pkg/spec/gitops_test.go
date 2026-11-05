@@ -1129,6 +1129,11 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					_, err = GitOpsFromFile(noTeamPath7, noTeamBasePath7, nil, nopLogf)
 					require.ErrorContains(t, err, removedNoTeamFileMessage(t))
 
+					// ... and whether the file defines org settings instead of a fleet.
+					noTeamPath7Org, noTeamBasePath7Org := createNamedFileOnTempDir(t, "no-team.yml", "org_settings: {}\n")
+					_, err = GitOpsFromFile(noTeamPath7Org, noTeamBasePath7Org, nil, nopLogf)
+					require.ErrorContains(t, err, removedNoTeamFileMessage(t))
+
 					// unassigned.yml with a non-"Unassigned" name should fail.
 					config = getConfig([]string{"name", "settings"})
 					config += "name: SomeOtherTeam\nsettings:\n  secrets:\n"

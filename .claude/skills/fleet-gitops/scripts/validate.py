@@ -1210,6 +1210,8 @@ def run_checks(ctx):
         if unknown:
             ctx.fail(src, f"unknown top-level key(s) {sorted(unknown)}; allowed: {sorted(TOP_LEVEL_KEYS)}")
         base = src.name
+        if base == "no-team.yml":
+            ctx.fail(src, f"no-team.yml was removed in Fleet 5. Use unassigned.yml instead. See {MIGRATION_GUIDE}")
         if "org_settings" in data:
             role, name = "global", "(global)"
             if "name" in data or "settings" in data:
@@ -1226,8 +1228,6 @@ def run_checks(ctx):
                 ctx.fail(src, "a fleet named 'Unassigned' must live in fleets/unassigned.yml")
             if role == "fleet" and base in ("unassigned.yml", "no-team.yml"):
                 ctx.fail(src, f"{base} must have name: Unassigned")
-            if base == "no-team.yml":
-                ctx.fail(src, f"no-team.yml was removed in Fleet 5. Use unassigned.yml instead. See {MIGRATION_GUIDE}")
             if name.strip().lower() == "no team":
                 ctx.fail(src, f"name: No team was removed in Fleet 5. Use name: Unassigned instead. See {MIGRATION_GUIDE}")
             if role == "fleet":

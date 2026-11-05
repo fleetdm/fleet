@@ -571,6 +571,12 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		}
 	}
 
+	// The removed file name fails whatever the file contains.
+	removedFile := filepath.Base(filePath) == "no-team.yml"
+	if removedFile {
+		multiError = multierror.Append(multiError, removedNameError(removednames.KindFileName, "no-team.yml"))
+	}
+
 	// Figure out if this is an org or fleet settings file
 	teamRaw, teamOk := top["name"]
 	settingsRaw, settingsOk := top["settings"]
@@ -585,17 +591,11 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	case teamOk:
 		multiError = parseName(teamRaw, result, filePath, multiError)
 		// Report both removed names in one run.
-		removedNoTeam := false
-		if filepath.Base(filePath) == "no-team.yml" {
-			multiError = multierror.Append(multiError, removedNameError(removednames.KindFileName, "no-team.yml"))
-			removedNoTeam = true
-		}
 		if result.IsNoTeam() {
 			multiError = multierror.Append(multiError, removedNameError(removednames.KindYAMLValue, "name: No team"))
-			removedNoTeam = true
 		}
 		switch {
-		case removedNoTeam:
+		case removedFile || result.IsNoTeam():
 			return result, multiError.ErrorOrNil()
 		case filepath.Base(filePath) == "unassigned.yml" && !result.IsUnassignedTeam():
 			multiError = multierror.Append(multiError, errors.New("`name` must be `Unassigned` for `unassigned.yml`"))
@@ -620,7 +620,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	default:
 		switch filepath.Base(filePath) {
 		case "no-team.yml":
-			multiError = multierror.Append(multiError, removedNameError(removednames.KindFileName, "no-team.yml"))
+			// Reported above.
 		case "unassigned.yml":
 			multiError = multierror.Append(multiError, errors.New("`name` must be `Unassigned` for `unassigned.yml`"))
 		default:
