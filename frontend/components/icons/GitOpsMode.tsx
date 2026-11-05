@@ -10,7 +10,7 @@ interface IGitOpsModeIconProps {
 
 const GitOpsMode = ({
   color = "ui-fleet-black-75",
-  size = "small",
+  size = "medium",
 }: IGitOpsModeIconProps) => {
   return (
     <svg
