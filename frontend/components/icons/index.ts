@@ -18,13 +18,11 @@ import ChevronUp from "./ChevronUp";
 import Chrome from "./Chrome";
 import Clock from "./Clock";
 import Close from "./Close";
-import CloseFilled from "./CloseFilled";
 import Columns from "./Columns";
 import Copy from "./Copy";
 import Disable from "./Disable";
 import Download from "./Download";
 import Error from "./Error";
-import ErrorOutline from "./ErrorOutline";
 import ExternalLink from "./ExternalLink";
 import Eye from "./Eye";
 import EyeSlash from "./EyeSlash";
@@ -33,7 +31,6 @@ import FilterAlt from "./FilterAlt";
 import FilterFunnel from "./FilterFunnel";
 import GitOpsMode from "./GitOpsMode";
 import Info from "./Info";
-import InfoOutline from "./InfoOutline";
 import Install from "./Install";
 import InstallAuto from "./InstallAuto";
 import InstallSelfService from "./InstallSelfService";
@@ -47,7 +44,6 @@ import MissingHosts from "./MissingHosts";
 import More from "./More";
 import Pencil from "./Pencil";
 import Pending from "./Pending";
-import PendingOutline from "./PendingOutline";
 import Pin from "./Pin";
 import Plus from "./Plus";
 import Policy from "./Policy";
@@ -64,7 +60,7 @@ import Sort from "./Sort";
 import Sparkles from "./Sparkles";
 // Status Icons
 import Success from "./Success";
-import SuccessOutline from "./SuccessOutline";
+import SuccessFilled from "./SuccessFilled";
 import Tag from "./Tag";
 import Text from "./Text";
 import TotalHosts from "./TotalHosts";
@@ -95,7 +91,6 @@ export const ICON_MAP = {
   columns: Columns,
   disable: Disable,
   close: Close,
-  "close-filled": CloseFilled,
   "external-link": ExternalLink,
   filter: Filter,
   "filter-alt": FilterAlt,
@@ -107,7 +102,6 @@ export const ICON_MAP = {
   "abm-issue-hosts": ABMIssueHosts,
   lightbulb: Lightbulb,
   info: Info,
-  "info-outline": InfoOutline,
   more: More,
   plus: Plus,
   policy: Policy,
@@ -122,11 +116,9 @@ export const ICON_MAP = {
   transfer: Transfer,
   trash: TrashCan,
   success: Success,
-  "success-outline": SuccessOutline,
+  "success-filled": SuccessFilled,
   pending: Pending,
-  "pending-outline": PendingOutline,
   error: Error,
-  "error-outline": ErrorOutline,
   warning: Warning,
   clock: Clock,
   darwin: Apple,

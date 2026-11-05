@@ -50,7 +50,7 @@ describe("SoftwareInstallDetailsModal", () => {
         />
       );
 
-      expect(screen.queryByTestId("pending-outline-icon")).toBeInTheDocument();
+      expect(screen.queryByTestId("pending-icon")).toBeInTheDocument();
       expect(
         screen.getByText(/is installing or will install/)
       ).toBeInTheDocument();
@@ -170,9 +170,13 @@ describe("SoftwareInstallDetailsModal", () => {
         screen.queryByText(/Fleet notifies the end user/)
       ).not.toBeInTheDocument();
       expect(screen.queryByText(/failed to install/)).not.toBeInTheDocument();
-      // Grey "!" (error-outline), not the red failure icon.
-      expect(screen.getByTestId("error-outline-icon")).toBeInTheDocument();
-      expect(screen.queryByTestId("error-icon")).not.toBeInTheDocument();
+      // Grey "!" (error), not the red failure icon.
+      expect(
+        screen
+          .getByTestId("error-icon")
+          .querySelector("path")
+          ?.getAttribute("fill")
+      ).toContain("ui-fleet-black-50");
     });
 
     it("renders the notify-variant trailing sentence when pre-install output carries the notify marker", () => {
@@ -261,9 +265,13 @@ describe("SoftwareInstallDetailsModal", () => {
         screen.queryByText(/update via self service/)
       ).not.toBeInTheDocument();
       expect(screen.queryByText(/failed to install/)).not.toBeInTheDocument();
-      // Grey "!" (error-outline), not the red failure icon.
-      expect(screen.getByTestId("error-outline-icon")).toBeInTheDocument();
-      expect(screen.queryByTestId("error-icon")).not.toBeInTheDocument();
+      // Grey "!" (error), not the red failure icon.
+      expect(
+        screen
+          .getByTestId("error-icon")
+          .querySelector("path")
+          ?.getAttribute("fill")
+      ).toContain("ui-fleet-black-50");
     });
 
     it("renders skipped copy as plain text (no policy-automations link) on the My device page", () => {

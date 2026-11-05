@@ -41,7 +41,7 @@ const LiveQueryIssueCell = ({
       >
         <span className="host-issue tooltip tooltip__tooltip-icon">
           <Icon
-            name="error-outline"
+            name="error"
             color={status === "offline" ? "status-error" : "status-warning"}
           />
         </span>

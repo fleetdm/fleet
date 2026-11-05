@@ -81,7 +81,7 @@ const getSendTooltip = (instructions: string) => {
 
 const ErrorBanner = ({ error }: { error: IGenerationError }) => (
   <div className={`${baseClass}__error`} role="alert">
-    <Icon name="error-outline" color="ui-error" />
+    <Icon name="error" color="ui-error" />
     {error.kind === "decline" ? (
       <div className={`${baseClass}__error-message`}>
         Your request could not be processed. {error.reason}{" "}
