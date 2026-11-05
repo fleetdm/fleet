@@ -55,13 +55,13 @@ You'll be missed, and we'll keep saying "teams" out of muscle memory.
 | `team_id` and `team_name` columns in the hosts CSV | `fleet_id` and `fleet_name` columns in [Get hosts report in CSV](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-report-in-csv) |
 | `macos_team_id`, `ios_team_id`, `ipados_team_id`, and `byod_team_id` when you assign fleets to an Apple Business token | `macos_fleet_id`, `ios_fleet_id`, `ipados_fleet_id`, and `byod_fleet_id` |
 
-What to do:
+What to do before you upgrade:
 
 1. Search your scripts and integrations for the old names:
    ```sh
    grep -rnE '/fleet/teams|/teams\b|team_ids?\b|team_name|available_teams|(macos|ios|ipados|byod)_team_id' .
    ```
-2. Replace each match with its Fleet 5 name. The `/fleets` endpoints and `fleet_id` already work in Fleet 4.95, so you can do this before you upgrade.
+2. Replace each match with its Fleet 5 name. Fleet 4.95 already supports the `/fleets` endpoints and `fleet_id`.
 
 GitHub issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
 
@@ -78,10 +78,10 @@ GitHub issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
 
 The `/team/...` and `/teams/...` policy paths are also removed.
 
-What to do:
+What to do before you upgrade:
 
 1. Search for the old paths: `grep -rnE '/fleet/global/policies|/(teams?|fleets)/[^/]+/policies' .`
-2. Use `/policies`. To work with a fleet's policies, pass `fleet_id`. Without it, you get global policies.
+2. Use `/policies`. To work with a fleet's policies, pass `fleet_id`. Without it, you get global policies. Fleet 4.95 already supports `/policies`.
 3. Move the IDs in `failing_policies_webhook.policy_ids` to `webhooks_and_tickets_enabled: true` on each policy.
 
 GitHub issue: [#52900](https://github.com/fleetdm/fleet/issues/52900)
@@ -107,7 +107,7 @@ GitHub issue: [#52900](https://github.com/fleetdm/fleet/issues/52900)
 
 The `/schedule`, `/team/:id/schedule`, and `/teams/:id/schedule` paths are also removed.
 
-What to do:
+What to do before you upgrade:
 
 1. Search for the old paths: `grep -rnE '/schedule\b' .`
 2. Create or update reports with an `interval` instead. To unschedule a report and keep it, [update the report](https://fleetdm.com/docs/rest-api/rest-api#update-report) with `interval` set to `0`.
@@ -120,7 +120,7 @@ GitHub issue: [#54461](https://github.com/fleetdm/fleet/issues/54461)
 |:--|:--|
 | [`POST /reports`](https://fleetdm.com/docs/rest-api/rest-api#create-report) accepts built-in labels in `labels_include_any` or `labels_include_all` | Returns an error |
 
-What to do: Target the report by `platform` instead.
+What to do: Before you upgrade, target the report by `platform` instead.
 
 GitHub issue: [#53800](https://github.com/fleetdm/fleet/issues/53800)
 
@@ -160,7 +160,7 @@ GitHub issue: [#53800](https://github.com/fleetdm/fleet/issues/53800)
 | `GET /mdm/setup/eula/:token` (and `/mdm/apple/setup/eula/:token`) | [`GET /setup_experience/eula/:token`](https://fleetdm.com/docs/rest-api/rest-api#download-eula) |
 | `DELETE /mdm/setup/eula/:token` (and `/mdm/apple/setup/eula/:token`) | [`DELETE /setup_experience/eula/:token`](https://fleetdm.com/docs/rest-api/rest-api#delete-eula) |
 
-What to do: Search for `/fleet/mdm/` in your scripts and integrations, and replace each path with its Fleet 5 path.
+What to do: Before you upgrade, search for `/fleet/mdm/` in your scripts and integrations, and replace each path with its Fleet 5 path. Fleet 4.95 already supports the new paths.
 
 GitHub issue: [#53563](https://github.com/fleetdm/fleet/issues/53563)
 
@@ -170,7 +170,7 @@ GitHub issue: [#53563](https://github.com/fleetdm/fleet/issues/53563)
 |:--|:--|
 | `GET /commands` without `host_identifier` | [`GET /commands?host_identifier=<host>`](https://fleetdm.com/docs/rest-api/rest-api#list-mdm-commands). `host_identifier` is required. |
 
-What to do: Pass `host_identifier` on every call.
+What to do: Before you upgrade, pass `host_identifier` on every call. Fleet 4.95 already accepts it.
 
 GitHub issue: [#53146](https://github.com/fleetdm/fleet/issues/53146)
 
@@ -182,7 +182,7 @@ GitHub issue: [#53146](https://github.com/fleetdm/fleet/issues/53146)
 | `GET /scripts/batch/summary/:batch_execution_id` | [`GET /scripts/batch/:batch_execution_id`](https://fleetdm.com/docs/rest-api/rest-api#get-batch-script) |
 | `POST /hosts/:host_id/configuration_profiles/resend/:profile_uuid` | [`POST /hosts/:id/configuration_profiles/:profile_uuid/resend`](https://fleetdm.com/docs/rest-api/rest-api#resend-configuration-profile) |
 
-What to do: Search for `hosts/identifier/`, `scripts/batch/summary/`, and `configuration_profiles/resend/`, and replace each path. For `hosts/identifier/`, put the identifier where `:id` goes in `GET /hosts/:id`. `POST /hosts/identifier/:identifier/query` doesn't change.
+What to do: Before you upgrade, search for `hosts/identifier/`, `scripts/batch/summary/`, and `configuration_profiles/resend/`, and replace each path. Fleet 4.95 already supports the new paths. For `hosts/identifier/`, put the identifier where `:id` goes in `GET /hosts/:id`. `POST /hosts/identifier/:identifier/query` doesn't change.
 
 GitHub issue: [#53080](https://github.com/fleetdm/fleet/issues/53080)
 
@@ -200,7 +200,7 @@ GitHub issue: [#53080](https://github.com/fleetdm/fleet/issues/53080)
 | `mdm.apple_business_manager`, `mdm.apple_bm_enabled_and_configured`, and `mdm.apple_bm_terms_expired` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration) | `mdm.apple_business`, `mdm.apple_business_enabled_and_configured`, and `mdm.apple_business_terms_expired` |
 | `mdm.apple_bm_default_team` in [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | Removed |
 
-What to do: Search for `abm`, `apple_bm`, and `apple_business_manager` in your scripts and integrations, and replace each match with its Fleet 5 name.
+What to do: Before you upgrade, search for `abm`, `apple_bm`, and `apple_business_manager` in your scripts and integrations, and replace each match with its Fleet 5 name. Fleet 4.95 already supports the new endpoints and keys, except `mdm.apple_business_enabled_and_configured` and `mdm.apple_business_terms_expired`. Fleet 4.95 doesn't return those two, so have your code read the new key when it's there and fall back to the old one.
 
 GitHub issue: [#53272](https://github.com/fleetdm/fleet/issues/53272)
 
@@ -210,7 +210,7 @@ GitHub issue: [#53272](https://github.com/fleetdm/fleet/issues/53272)
 |:--|:--|
 | `mdm.macos_setup` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration), [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration), and fleet settings | `mdm.setup_experience` |
 
-What to do: Search for `macos_setup` and rename it to `setup_experience`.
+What to do: Before you upgrade, search for `macos_setup` and rename it to `setup_experience`. Fleet 4.95 already accepts the new name.
 
 GitHub issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 
@@ -221,7 +221,7 @@ GitHub issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 | `require_all_software_macos` and `require_all_software_windows` in [Update setup experience](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience) | `macos_require_all_software` and `windows_require_all_software` |
 | `mdm.enable_recovery_lock_password` in [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | `mdm.macos_recovery_lock_password_enabled` |
 
-What to do: Search for these keys and rename them.
+What to do: Fleet 4.95 doesn't accept the new names, and Fleet 5 doesn't accept the old ones. Right after you upgrade, search for these keys and rename them.
 
 GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 
@@ -232,7 +232,7 @@ GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 | `mdm.windows_enabled_and_configured` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration) and [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | `mdm.windows_mdm_enabled` |
 | `mdm.windows_migration_enabled` in [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | `mdm.windows_mdm_migration_enabled` |
 
-What to do: Search for these keys and rename them.
+What to do: Fleet 4.95 doesn't accept the new names, and Fleet 5 doesn't accept the old ones. Right after you upgrade, search for these keys and rename them.
 
 GitHub issue: [#53873](https://github.com/fleetdm/fleet/issues/53873)
 
@@ -244,7 +244,7 @@ GitHub issue: [#53873](https://github.com/fleetdm/fleet/issues/53873)
 | `enable_managed_local_account` and `enable_create_local_admin_account` under `mdm.macos_setup` in the same endpoints | `mdm.apple_settings.managed_local_account_enabled` |
 | `end_user_local_account_type` under `mdm.macos_setup` in the same endpoints | `mdm.apple_settings.end_user_local_account_type` |
 
-What to do: Search for these keys and rename them.
+What to do: Fleet 4.95 doesn't accept the new names, and Fleet 5 doesn't accept the old ones. Right after you upgrade, search for these keys and rename them.
 
 GitHub issue: [#50084](https://github.com/fleetdm/fleet/issues/50084)
 
@@ -255,7 +255,7 @@ GitHub issue: [#50084](https://github.com/fleetdm/fleet/issues/50084)
 | `org_logo_url` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration), [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration), and [Get host by Fleet Desktop token](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-fleet-desktop-token) | `org_logo_url_dark_mode` |
 | `org_logo_url_light_background` in the same endpoints | `org_logo_url_light_mode` |
 
-What to do: Rename both keys. Fleet 4.95 already accepts the new names.
+What to do: Before you upgrade, rename both keys. Fleet 4.95 already accepts the new names.
 
 GitHub issue: [#52800](https://github.com/fleetdm/fleet/issues/52800)
 
@@ -265,7 +265,7 @@ GitHub issue: [#52800](https://github.com/fleetdm/fleet/issues/52800)
 |:--|:--|
 | `all_linux_count` in [Get hosts summary](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-summary) | [`GET /hosts/count`](https://fleetdm.com/docs/rest-api/rest-api#count-hosts) with `label_id` set to the ID of the built-in "All Linux" label |
 
-What to do: Get the "All Linux" label's ID from `builtin_labels` in the Get hosts summary response, then call Count hosts with it.
+What to do: Before you upgrade, get the "All Linux" label's ID from `builtin_labels` in the Get hosts summary response, then call Count hosts with it. Fleet 4.95 already supports this.
 
 GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 
@@ -276,7 +276,10 @@ GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 | `os_version` includes the OS name (for example `macOS 15.2`), and there's no `os_name` in host responses | Separate `os_name` and `os_version` keys in the hosts returned by [List hosts](https://fleetdm.com/docs/rest-api/rest-api#list-hosts), [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host), [Get host by identifier](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-identifier), [Get host by Fleet Desktop token](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-fleet-desktop-token), [Get host's device health report](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-device-health-report), [List label's hosts](https://fleetdm.com/docs/rest-api/rest-api#list-labels-hosts), and [Search targets](https://fleetdm.com/docs/rest-api/rest-api#search-targets), and as columns in [Get hosts report in CSV](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-report-in-csv). For example, `"os_name": "macOS"` and `"os_version": "15.2"`, or `"os_name": "Windows 11 Home Single Language 23H2"` and `"os_version": "10.0.22631.5335"`. |
 | Windows OS names start with "Microsoft" (for example `Microsoft Windows 11 Pro 23H2`) in the `os_name` filter, and in `name` and `name_only` in [List operating systems](https://fleetdm.com/docs/rest-api/rest-api#list-operating-systems) and [Get operating system version](https://fleetdm.com/docs/rest-api/rest-api#get-operating-system-version) | Windows OS names don't include "Microsoft" (for example `Windows 11 Pro 23H2`), including in the `os_name` filter |
 
-What to do: Update code that splits the OS name out of `os_version`. Read the name from `os_name` and the version from `os_version`. If you filter by or compare against a Windows OS name, remove "Microsoft " from it.
+What to do: Fleet 4.95 doesn't return `os_name`, so you can't switch to it early. Instead:
+
+1. Before you upgrade, update code that splits the OS name out of `os_version`. When a host has `os_name`, read the name from `os_name` and the version from `os_version`. When it doesn't, keep splitting `os_version`. This works on both versions.
+2. After you upgrade, remove "Microsoft " from any Windows OS name you filter by or compare against.
 
 GitHub issue: [#53877](https://github.com/fleetdm/fleet/issues/53877)
 
@@ -286,7 +289,7 @@ GitHub issue: [#53877](https://github.com/fleetdm/fleet/issues/53877)
 |:--|:--|
 | `windows` object with `wipe_type` in `POST /hosts/:id/wipe` | `POST /hosts/:id/reset`. [Wipe host](https://fleetdm.com/docs/rest-api/rest-api#wipe-host) no longer takes a `windows` object. |
 
-What to do: Use `POST /hosts/:id/reset` instead.
+What to do: Fleet 4.95 doesn't have `POST /hosts/:id/reset`. Right after you upgrade, switch Windows wipes to it.
 
 GitHub issue: [#55003](https://github.com/fleetdm/fleet/issues/55003)
 
@@ -296,7 +299,7 @@ GitHub issue: [#55003](https://github.com/fleetdm/fleet/issues/55003)
 |:--|:--|
 | `mdm.apple_settings.configuration_profiles`, `mdm.windows_settings.configuration_profiles`, `mdm.setup_experience`, `mdm.volume_purchasing_program`, and `scripts` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration) and [Get fleet](https://fleetdm.com/docs/rest-api/rest-api#get-fleet) | Removed. Use each feature's list endpoint, for example [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-configuration-profiles). |
 
-What to do: These lists only included settings applied with YAML. Call the list endpoint for each feature instead.
+What to do: These lists only included settings applied with YAML. Before you upgrade, call the list endpoint for each feature instead.
 
 GitHub issue: [#53932](https://github.com/fleetdm/fleet/issues/53932)
 
@@ -306,7 +309,7 @@ GitHub issue: [#53932](https://github.com/fleetdm/fleet/issues/53932)
 |:--|:--|
 | `features.detail_query_overrides` in [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | Removed |
 
-What to do: Remove `detail_query_overrides` from your API calls.
+What to do: Before you upgrade, remove `detail_query_overrides` from your API calls.
 
 GitHub issue: [#33769](https://github.com/fleetdm/fleet/issues/33769)
 
@@ -321,7 +324,7 @@ GitHub issue: [#33769](https://github.com/fleetdm/fleet/issues/33769)
 | `app_store_app` object in software title responses | `app_store_apps` array in [Get software](https://fleetdm.com/docs/rest-api/rest-api#get-software) |
 | `browser` in host, software title, and software version responses | `extension_for` |
 
-What to do: Search for `/fleet/software`, `software_id`, `software_package`, `app_store_app`, and `browser`, and update each request and the code that reads responses.
+What to do: Before you upgrade, search for `/fleet/software`, `software_id`, `software_package`, `app_store_app`, and `browser`, and update each request and the code that reads responses. Fleet 4.95 already supports the new endpoints, filters, and keys.
 
 GitHub issues: [#54408](https://github.com/fleetdm/fleet/issues/54408), [#54410](https://github.com/fleetdm/fleet/issues/54410), [#54409](https://github.com/fleetdm/fleet/issues/54409), [#52687](https://github.com/fleetdm/fleet/issues/52687), [#53395](https://github.com/fleetdm/fleet/issues/53395)
 
@@ -332,7 +335,7 @@ GitHub issues: [#54408](https://github.com/fleetdm/fleet/issues/54408), [#54410]
 | `centos` and `ubuntu` as a label's `platform` | `linux` ([docs](https://fleetdm.com/docs/rest-api/rest-api#add-label)) |
 | `hostname` as a host identifier in a manual label's `hosts` | Not accepted ([docs](https://fleetdm.com/docs/rest-api/rest-api#add-label)) |
 
-What to do: Change `centos` and `ubuntu` label platforms to `linux`. Identify hosts in manual labels by something other than `hostname`.
+What to do: Before you upgrade, change `centos` and `ubuntu` label platforms to `linux`. Identify hosts in manual labels by something other than `hostname`.
 
 GitHub issues: [#52905](https://github.com/fleetdm/fleet/issues/52905), [#53924](https://github.com/fleetdm/fleet/issues/53924)
 
@@ -342,7 +345,7 @@ GitHub issues: [#52905](https://github.com/fleetdm/fleet/issues/52905), [#53924]
 |:--|:--|
 | `POST /hosts/:id/lock` locks the screen of an Android host | [Lock host](https://fleetdm.com/docs/rest-api/rest-api#lock-host) resets the PIN to a random six-digit PIN and locks the host |
 
-What to do: To get the PIN, use [Unlock host](https://fleetdm.com/docs/rest-api/rest-api#unlock-host).
+What to do: After you upgrade, use [Unlock host](https://fleetdm.com/docs/rest-api/rest-api#unlock-host) to get the PIN after you lock an Android host.
 
 GitHub issue: [#49909](https://github.com/fleetdm/fleet/issues/49909)
 
@@ -352,7 +355,7 @@ GitHub issue: [#49909](https://github.com/fleetdm/fleet/issues/49909)
 |:--|:--|
 | `DELETE /scim/Users/:id` works with a maintainer's API token | [Delete SCIM user](https://fleetdm.com/docs/rest-api/rest-api#delete-scim-user) requires an admin's API token |
 
-What to do: Use an admin's API token for your SCIM integration.
+What to do: Before you upgrade, use an admin's API token for your SCIM integration.
 
 GitHub issue: [#53472](https://github.com/fleetdm/fleet/issues/53472)
 
@@ -362,7 +365,7 @@ GitHub issue: [#53472](https://github.com/fleetdm/fleet/issues/53472)
 |:--|:--|
 | GitOps users can run custom MDM commands (including lock, unlock, and wipe hosts) | GitOps users get a 403 from [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command), [Lock host](https://fleetdm.com/docs/rest-api/rest-api#lock-host), [Unlock host](https://fleetdm.com/docs/rest-api/rest-api#unlock-host), and [Wipe host](https://fleetdm.com/docs/rest-api/rest-api#wipe-host) |
 
-What to do: Run MDM commands, or lock, unlock, and wipe hosts, with a different [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user).
+What to do: Before you upgrade, run MDM commands, or lock, unlock, and wipe hosts, with a different [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user).
 
 GitHub issue: [#53145](https://github.com/fleetdm/fleet/issues/53145)
 
@@ -372,7 +375,7 @@ GitHub issue: [#53145](https://github.com/fleetdm/fleet/issues/53145)
 |:--|:--|
 | GitOps users can get a host's `id` from `GET /hosts/identifier/:identifier` | GitOps users get a 403 from [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) when `:id` is an identifier |
 
-What to do: If an integration uses a GitOps user's API token to look up hosts by identifier, switch it to a different [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) that can view hosts.
+What to do: Before you upgrade, if an integration uses a GitOps user's API token to look up hosts by identifier, switch it to a different [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) that can view hosts.
 
 GitHub issue: [#57406](https://github.com/fleetdm/fleet/issues/57406)
 
@@ -382,7 +385,7 @@ GitHub issue: [#57406](https://github.com/fleetdm/fleet/issues/57406)
 |:--|:--|
 | GitOps users can delete hosts | GitOps users get a 403 from [Delete host](https://fleetdm.com/docs/rest-api/rest-api#delete-host) and [Batch-delete hosts](https://fleetdm.com/docs/rest-api/rest-api#batch-delete-hosts) |
 
-What to do: Delete hosts with a different [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user).
+What to do: Before you upgrade, delete hosts with a different [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user).
 
 GitHub issue: [#57406](https://github.com/fleetdm/fleet/issues/57406)
 
@@ -392,7 +395,7 @@ GitHub issue: [#57406](https://github.com/fleetdm/fleet/issues/57406)
 |:--|:--|
 | GitOps users can transfer hosts between fleets | GitOps users get a 403 from [Update hosts' fleet](https://fleetdm.com/docs/rest-api/rest-api#update-hosts-fleet) and [Update hosts' fleet by filter](https://fleetdm.com/docs/rest-api/rest-api#update-hosts-fleet-by-filter) |
 
-What to do: Transfer hosts between fleets with a different [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user).
+What to do: Before you upgrade, transfer hosts between fleets with a different [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user).
 
 GitHub issue: [#57406](https://github.com/fleetdm/fleet/issues/57406)
 
@@ -412,7 +415,7 @@ GitHub issue: [#56271](https://github.com/fleetdm/fleet/issues/56271)
 |:--|:--|
 | Fleets can have names that differ only by case or special characters | [Create fleet](https://fleetdm.com/docs/rest-api/rest-api#create-fleet) and [Update fleet](https://fleetdm.com/docs/rest-api/rest-api#update-fleet) require names that are unique after Fleet trims whitespace, lowercases the name, and removes special characters |
 
-What to do: Call [List fleets](https://fleetdm.com/docs/rest-api/rest-api#list-fleets), find names that match after you ignore case, whitespace, and special characters (for example `Workstations` and `workstations!`), and rename one in each pair.
+What to do: Before you upgrade, call [List fleets](https://fleetdm.com/docs/rest-api/rest-api#list-fleets), find names that match after you ignore case, whitespace, and special characters (for example `Workstations` and `workstations!`), and rename one in each pair.
 
 GitHub issue: [#53790](https://github.com/fleetdm/fleet/issues/53790)
 
@@ -432,7 +435,7 @@ GitHub issue: [#53470](https://github.com/fleetdm/fleet/issues/53470)
 |:--|:--|
 | Fleet's Puppet module (`fleetdm-fleetdm` on the Puppet Forge), and the `POST /mdm/apple/profiles/preassign` and `POST /mdm/apple/profiles/match` endpoints it calls | Removed. |
 
-What to do: If you use the Puppet module, assign configuration profiles to fleets in the UI, API, or GitOps instead, and move hosts between fleets the same way. Fleets the module created stay as regular fleets.
+What to do: Before you upgrade, if you use the Puppet module, assign configuration profiles to fleets in the UI, API, or GitOps instead, and move hosts between fleets the same way. Fleets the module created stay as regular fleets.
 
 GitHub issue: [#28334](https://github.com/fleetdm/fleet/issues/28334)
 
@@ -442,7 +445,7 @@ GitHub issue: [#28334](https://github.com/fleetdm/fleet/issues/28334)
 |:--|:--|
 | `GET /enrollment_profiles/manual` works | [Get manual enrollment profile](https://fleetdm.com/docs/rest-api/rest-api#get-manual-enrollment-profile) returns a `400` unless `mdm.apple_scep_static_challenge_enabled` is `true` |
 
-What to do: See [Static SCEP challenge off by default](#static-scep-challenge-off-by-default).
+What to do: Before you upgrade, see [Static SCEP challenge off by default](#static-scep-challenge-off-by-default).
 
 GitHub issue: [#54190](https://github.com/fleetdm/fleet/issues/54190)
 
