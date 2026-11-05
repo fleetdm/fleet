@@ -97,6 +97,8 @@ type TestAppleMDMClient struct {
 	// otaIdpSession is the optional BYOD IdP session cookie value, as minted by
 	// the SSO callback, that associates the enrolling host with an idp account.
 	otaIdpSession string
+	// otaPersonal requests the OTA profile for a personal (BYOD) enrollment, like the /enroll page does.
+	otaPersonal bool
 
 	// fetchEnrollmentProfileFromMDMBYOD indicates whether this simulated device will fetch
 	// the enrollment profile from Fleet as if it were a device running the Account Driven User
@@ -166,6 +168,13 @@ func WithEnrollmentProfileFromDEPUsingPost() TestMDMAppleClientOption {
 func WithOTAIdpSession(sessionID string) TestMDMAppleClientOption {
 	return func(c *TestAppleMDMClient) {
 		c.otaIdpSession = sessionID
+	}
+}
+
+// WithOTAPersonal requests the OTA enrollment profile for a personal (BYOD) enrollment.
+func WithOTAPersonal() TestMDMAppleClientOption {
+	return func(c *TestAppleMDMClient) {
+		c.otaPersonal = true
 	}
 }
 
@@ -617,9 +626,11 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURLUsingPost() error {
 }
 
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromOTAURL() error {
-	return c.fetchOTAProfile(
-		"/api/latest/fleet/enrollment_profiles/ota?enroll_secret=" + url.QueryEscape(c.otaEnrollSecret),
-	)
+	path := "/api/latest/fleet/enrollment_profiles/ota?enroll_secret=" + url.QueryEscape(c.otaEnrollSecret)
+	if c.otaPersonal {
+		path += "&byod=1"
+	}
+	return c.fetchOTAProfile(path)
 }
 
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromMDMBYODURL() error {

@@ -271,7 +271,9 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo, tweakCfg ...
 }
 
 func TestAppleMDMAuthorization(t *testing.T) {
-	svc, ctx, ds, opts := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	svc, ctx, ds, opts := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium}, func(fc *config.FleetConfig) {
+		fc.MDM.AppleSCEPStaticChallengeEnabled = true
+	})
 
 	ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
 		return []*fleet.EnrollSecret{
@@ -2671,6 +2673,81 @@ func TestMDMAuthenticateManualEnrollment(t *testing.T) {
 	require.True(t, ds.SetHostMDMAppleEnrollmentPermissionsFuncInvoked)
 }
 
+func TestMDMAuthenticatePersonalEnrollmentFlag(t *testing.T) {
+	uuid, serial, model := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1"
+
+	cases := []struct {
+		name           string
+		checkinInfo    *fleet.HostMDMCheckinInfo // nil: no host with this UUID yet
+		depAssignments []*fleet.HostDEPAssignment
+		depErr         error
+		wantPersonal   bool
+		wantErr        string
+	}{
+		{name: "new device", wantPersonal: true},
+		{name: "unenrolled host", checkinInfo: &fleet.HostMDMCheckinInfo{HardwareSerial: serial}, wantPersonal: true},
+		{name: "personal host enrolls again", checkinInfo: &fleet.HostMDMCheckinInfo{HardwareSerial: serial, OsqueryEnrolled: true}, wantPersonal: true},
+		{name: "host enrolled as company-owned", checkinInfo: &fleet.HostMDMCheckinInfo{HardwareSerial: serial, FleetEnrolledCorporate: true}},
+		{name: "host assigned in Apple Business", checkinInfo: &fleet.HostMDMCheckinInfo{HardwareSerial: serial, DEPAssignedToFleet: true}},
+		{name: "new device with a serial assigned in Apple Business", depAssignments: []*fleet.HostDEPAssignment{{HostID: 1}}},
+		{name: "Apple Business lookup fails", depErr: errors.New("db down"), wantErr: "db down"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			mdmLifecycle := mdmlifecycle.New(ds, slog.New(slog.DiscardHandler), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil })
+			svc := MDMAppleCheckinAndCommandService{
+				notificationsSvc: &mock.MockNotificationsService{},
+				ds:               ds,
+				mdmLifecycle:     mdmLifecycle,
+				keyValueStore:    redis_key_value.New(redistest.NopRedis()),
+				logger:           slog.New(slog.DiscardHandler),
+			}
+
+			wantType, wantRights := fleet.PersonalEnrollmentTypeNone, apple_mdm.MDMAccessRightAll
+			if tc.wantPersonal {
+				wantType, wantRights = fleet.PersonalEnrollmentTypeManualProfile, apple_mdm.AppleEnrollmentAccessRights(true)
+			}
+			ds.GetHostMDMCheckinInfoFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
+				if tc.checkinInfo == nil {
+					return nil, newNotFoundError()
+				}
+				return tc.checkinInfo, nil
+			}
+			ds.GetHostDEPAssignmentsBySerialFunc = func(ctx context.Context, s string) ([]*fleet.HostDEPAssignment, error) {
+				require.Equal(t, serial, s)
+				return tc.depAssignments, tc.depErr
+			}
+			ds.MDMAppleUpsertHostFunc = func(ctx context.Context, mdmHost *fleet.Host, personalType fleet.PersonalEnrollmentType) error {
+				require.Equal(t, wantType, personalType)
+				return nil
+			}
+			ds.MDMResetEnrollmentFunc = func(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error { return nil }
+			ds.SetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string, accessRights int) error {
+				require.Equal(t, wantRights, accessRights)
+				return nil
+			}
+
+			err := svc.Authenticate(
+				&mdm.Request{
+					Context:  context.Background(),
+					EnrollID: &mdm.EnrollID{ID: uuid},
+					Params:   map[string]string{apple_mdm.FleetPersonalEnrollmentKey: "1"},
+				},
+				&mdm.Authenticate{UDID: uuid, SerialNumber: serial, Model: model},
+			)
+			if tc.wantErr != "" {
+				require.ErrorContains(t, err, tc.wantErr)
+				require.False(t, ds.MDMAppleUpsertHostFuncInvoked)
+				return
+			}
+			require.NoError(t, err)
+			require.True(t, ds.MDMAppleUpsertHostFuncInvoked)
+			require.True(t, ds.SetHostMDMAppleEnrollmentPermissionsFuncInvoked)
+		})
+	}
+}
+
 func TestMDMAuthenticateAccountDrivenUserEnrollment(t *testing.T) {
 	ds := new(mock.Store)
 	mdmLifecycle := mdmlifecycle.New(ds, slog.New(slog.DiscardHandler), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil })
@@ -2903,15 +2980,15 @@ func TestMDMAuthenticateSCEPRenewalWithNewEnrollmentCert(t *testing.T) {
 func TestGetMDMManualEnrollmentProfileStaticChallenge(t *testing.T) {
 	premium := &fleet.LicenseInfo{Tier: fleet.TierPremium}
 
-	svc, ctx, _, _ := setupAppleMDMService(t, premium, func(cfg *config.FleetConfig) {
-		cfg.MDM.AppleSCEPStaticChallengeEnabled = false
-	})
+	svc, ctx, _, _ := setupAppleMDMService(t, premium)
 	_, err := svc.GetMDMManualEnrollmentProfile(test.UserContext(ctx, test.UserAdmin), false)
-	var badRequest *fleet.BadRequestError
-	require.ErrorAs(t, err, &badRequest)
-	require.ErrorContains(t, err, fleet.ManualEnrollmentStaticChallengeDisabledErrMsg)
+	var notAllowed *fleet.NotAllowedByDefaultDeprecationError
+	require.ErrorAs(t, err, &notAllowed)
+	require.ErrorContains(t, err, fleet.Fleet5MigrationGuide)
 
-	svc, ctx, _, _ = setupAppleMDMService(t, premium)
+	svc, ctx, _, _ = setupAppleMDMService(t, premium, func(cfg *config.FleetConfig) {
+		cfg.MDM.AppleSCEPStaticChallengeEnabled = true
+	})
 	profile, err := svc.GetMDMManualEnrollmentProfile(test.UserContext(ctx, test.UserAdmin), false)
 	require.NoError(t, err)
 	require.NotEmpty(t, profile)
