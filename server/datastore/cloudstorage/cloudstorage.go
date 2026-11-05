@@ -56,6 +56,7 @@ func IsMisconfigured(err error) bool {
 	return errors.As(err, &apiErr) && apiErr.misconfigured
 }
 
+// Error returns the short message shown to users, see APIError.
 func (e *APIError) Error() string {
 	var b strings.Builder
 	if e.misconfigured {
@@ -72,6 +73,7 @@ func (e *APIError) Error() string {
 	return b.String()
 }
 
+// Unwrap returns the vendor SDK error as a slice, see APIError.
 func (e *APIError) Unwrap() []error {
 	return []error{e.err}
 }
