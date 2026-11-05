@@ -992,10 +992,12 @@ func TestReconcileAndroidAppsRemoval(t *testing.T) {
 		}
 		return &androidmanagement.Policy{Version: 6}, nil
 	}
+	retryCounter := &appReconcilerRetryCounter{state: &androidAppReconcileState{}}
 	reconcile := func() error {
 		client.EnterprisesPoliciesPatchFuncInvoked = false
 		client.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked = false
-		return ReconcileProfilesWithClient(t.Context(), ds, slog.New(slog.DiscardHandler), "", client, config.AndroidAgentConfig{Package: "com.fleetdm.agent", SigningSHA256: "abc123def456"}, 0, nil)
+		*retryCounter.state = androidAppReconcileState{}
+		return ReconcileProfilesWithClient(t.Context(), ds, slog.New(slog.DiscardHandler), "", client, config.AndroidAgentConfig{Package: "com.fleetdm.agent", SigningSHA256: "abc123def456"}, 0, retryCounter)
 	}
 
 	t.Run("a deleted setup experience app and a new app go in one patch before the setup experience app is removed", func(t *testing.T) {
@@ -1121,6 +1123,23 @@ func TestReconcileAndroidAppsRemoval(t *testing.T) {
 		require.True(t, client.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
 		require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 		require.Empty(t, state.upserted)
+		require.Empty(t, state.removed)
+	})
+	t.Run("a quota error on a retried removal doesn't increase the host's retry count", func(t *testing.T) {
+		requestFailedAppOneInstall := appOneInstall(hostA.ID)
+		requestFailedAppOneInstall.Status = fleet.AndroidSoftwareInstallStatusRequestFailed
+		*state = removalTestState{
+			hosts:     []*fleet.Host{hostA},
+			installs:  []*fleet.HostAndroidSoftwareInstall{requestFailedAppOneInstall, agentInstall(hostA.ID)},
+			removeErr: &googleapi.Error{Code: http.StatusTooManyRequests},
+		}
+
+		// return a quota error on the retried removal, the host's retry count should not increase
+		err := reconcile()
+		require.NoError(t, err)
+		require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
+		require.True(t, client.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
+		require.Zero(t, retryCounter.state.recordedRetries)
 		require.Empty(t, state.removed)
 	})
 }

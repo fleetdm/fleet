@@ -333,7 +333,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 		}
 
 		// the patch still lists the "No team" app, the removal sent after it takes it out of the policy
-		s.Assert().ElementsMatch(appIDs, []string{androidAppNewTeam.AdamID, androidAppNewTeam2.AdamID, androidApp.AdamID, "com.fleetdm.agent"})
+		s.ElementsMatch(appIDs, []string{androidAppNewTeam.AdamID, androidAppNewTeam2.AdamID, androidApp.AdamID, "com.fleetdm.agent"})
 		s.Assert().Contains(policyName, host1.UUID)
 	}
 
@@ -352,7 +352,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 	s.runWorkerUntilDone()
 	s.awaitTriggerAndroidProfileSchedule(t)
 	s.Assert().True(s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
-	s.Assert().True(s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
+	s.True(s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
 
 	// Transfer host back to "No team"
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{

@@ -28,7 +28,8 @@ type androidAppList struct {
 	installsToUpsert             []fleet.HostAndroidSoftwareInstall
 	installsToRemove             []fleet.HostAndroidSoftwareInstall
 	setupAppIDsWithChangedConfig []string
-	retriesFailedRequest         bool
+	// set when the list is sent only to retry a failed request
+	isFailedRequestRetry bool
 }
 
 func (r *profileReconciler) buildAppListsToSend(
@@ -198,7 +199,7 @@ func (r *profileReconciler) prepareHostAppList(
 		}
 	}
 
-	var retriesFailedRequest bool
+	var isFailedRequestRetry bool
 	// Retry a failed request after 1 hour, like the App Store app configuration reconciler
 	if !needsSend && needsRetry && time.Since(lastFailedAt) >= fleet.VPPAutomaticInstallWaitSeconds*time.Second {
 		var retries int
@@ -212,7 +213,7 @@ func (r *profileReconciler) prepareHostAppList(
 		// Retry at most twice until the count expires
 		if retries < fleet.MaxVPPAutomaticInstallRetries {
 			needsSend = true
-			retriesFailedRequest = true
+			isFailedRequestRetry = true
 		}
 	}
 	if !needsSend {
@@ -301,7 +302,7 @@ func (r *profileReconciler) prepareHostAppList(
 		installsToUpsert:             installsToUpsert,
 		installsToRemove:             installsToRemove,
 		setupAppIDsWithChangedConfig: setupAppIDsWithChangedConfig,
-		retriesFailedRequest:         retriesFailedRequest,
+		isFailedRequestRetry:         isFailedRequestRetry,
 	}, nil
 }
 
@@ -395,6 +396,7 @@ func (r *profileReconciler) removeAppsAndRecordAppListRequest(
 		case removeRequest.StatusCode == http.StatusTooManyRequests:
 			r.appSendsStoppedByQuota = true
 			appList.installsToRemove = nil
+			appList.isFailedRequestRetry = false
 		case !removeNotModified && removeRequest.StatusCode != http.StatusOK:
 			// Set the removed apps to request failed instead of deleting them, so the retry will send their removal again
 			for _, install := range appList.installsToRemove {
@@ -413,7 +415,7 @@ func (r *profileReconciler) removeAppsAndRecordAppListRequest(
 	}
 
 	// Count a retry only once its request is sent, because the batch size can delay the host to the next run
-	if appList.retriesFailedRequest && r.RetryCounter != nil {
+	if appList.isFailedRequestRetry && r.RetryCounter != nil {
 		_, err := r.RetryCounter.RecordAttempt(ctx, host.ID, 0, fleet.VPPAutomaticInstallRetryTimeout)
 		if err != nil {
 			r.Logger.ErrorContext(ctx, "failed to record android app list retry", "host_id", host.ID, "err", err)

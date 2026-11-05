@@ -3251,6 +3251,8 @@ func (ds *Datastore) BulkUpsertHostAndroidSoftwareInstalls(ctx context.Context, 
 				-- Don't clear a resend flag set after the policy was built, because the sent
 				-- policy doesn't have that change
 				needs_resend = IF(needs_resend = 1 AND updated_at > VALUES(policy_built_at), 1, VALUES(needs_resend)),
+				-- bump updated_at if this is a repeated failed request
+				updated_at = IF(VALUES(status) = 'request_failed', CURRENT_TIMESTAMP(6), updated_at),
 				vpp_app_team_id = VALUES(vpp_app_team_id),
 				install_type = VALUES(install_type),
 				status = VALUES(status),
