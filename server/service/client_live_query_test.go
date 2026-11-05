@@ -224,3 +224,53 @@ func TestLiveQueryConnectionCloseDoesNotPanic(t *testing.T) {
 		t.Fatal("expected Done channel to close after websocket disconnect")
 	}
 }
+
+func TestLiveQueryDoneClosesWithoutDrainingErrors(t *testing.T) {
+	upgrader := websocket.Upgrader{}
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/latest/fleet/reports/run_by_identifiers":
+			_ = json.NewEncoder(w).Encode(createDistributedQueryCampaignResponse{
+				Campaign: &fleet.DistributedQueryCampaign{ID: 99},
+			})
+		case "/api/latest/fleet/results/websocket":
+			ws, err := upgrader.Upgrade(w, r, nil)
+			if !assert.NoError(t, err) {
+				return
+			}
+			defer ws.Close()
+			for {
+				_, msg, err := ws.ReadMessage()
+				if err != nil {
+					return
+				}
+				if strings.Contains(string(msg), "select_campaign") {
+					return
+				}
+			}
+		}
+	}))
+	defer ts.Close()
+
+	baseURL, err := url.Parse(ts.URL)
+	require.NoError(t, err)
+	client := &Client{
+		baseClient: &baseClient{
+			BaseURL: baseURL,
+			HTTP:    fleethttp.NewClient(),
+		},
+		token: "1234",
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	res, err := client.LiveQueryWithContext(ctx, "select 1;", nil, nil, []string{"host1"})
+	require.NoError(t, err)
+
+	// Wait only on Done() without reading Errors() or cancelling ctx.
+	select {
+	case <-res.Done():
+	case <-time.After(3 * time.Second):
+		t.Fatal("expected Done channel to close without draining Errors")
+	}
+}

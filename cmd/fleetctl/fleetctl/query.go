@@ -203,10 +203,23 @@ be run on the union of the hosts and hosts with matching labels.
 				case err := <-res.Errors():
 					fmt.Fprintf(os.Stderr, "Error talking to server: %s\n", err.Error())
 
-				// Exit gracefully if the live query stream closed unexpectedly
+				// Exit if the live query stream closed
 				case <-res.Done():
 					s.Stop()
-					return nil
+					for {
+						select {
+						case err := <-res.Errors():
+							fmt.Fprintf(os.Stderr, "Error talking to server: %s\n", err.Error())
+						default:
+							status := res.Status()
+							totals := res.Totals()
+							if status != nil && totals != nil &&
+								(totals.Total == status.ActualResults || (flExit && status.ActualResults >= totals.Online)) {
+								return nil
+							}
+							return errors.New("live query connection closed before report completed")
+						}
+					}
 
 				// Update status message on interval
 				case <-tick.C:

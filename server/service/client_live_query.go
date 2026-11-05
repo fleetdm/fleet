@@ -28,7 +28,7 @@ type LiveQueryResultsHandler struct {
 
 func NewLiveQueryResultsHandler() *LiveQueryResultsHandler {
 	return &LiveQueryResultsHandler{
-		errors:  make(chan error),
+		errors:  make(chan error, 1),
 		results: make(chan fleet.DistributedQueryResult),
 		done:    make(chan struct{}),
 	}
@@ -154,7 +154,7 @@ func (c *Client) LiveQueryWithContext(
 				if err != nil {
 					select {
 					case resHandler.errors <- ctxerr.Wrap(ctx, err, "receive ws message"):
-					case <-ctx.Done():
+					default:
 					}
 					return
 				}
