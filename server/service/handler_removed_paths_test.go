@@ -25,9 +25,16 @@ func TestRemovedPaths(t *testing.T) {
 	// removedPaths panics when a path has no removednames entry.
 	require.Len(t, removedPaths(), len(removedPathTemplates))
 
+	pathVar := regexp.MustCompile(`\{\w+(:[^}]+)?\}`)
+	// Aliases write a variable as {id:[0-9]+} and the table as {id}, and mux treats differently named variables as the same route.
+	shape := func(path string) string { return pathVar.ReplaceAllString(path, "{}") }
+	var removedShapes []string
+	for _, template := range removedPathTemplates {
+		removedShapes = append(removedShapes, shape(template))
+	}
 	for _, alias := range deprecatedPathAliases {
 		for _, deprecated := range alias.DeprecatedPaths {
-			assert.NotContains(t, removedPathTemplates, deprecated, "a removed path must not also be served as an alias of %s", alias.PrimaryPath)
+			assert.NotContains(t, removedShapes, shape(deprecated), "a removed path must not also be served as an alias of %s", alias.PrimaryPath)
 		}
 	}
 
@@ -37,9 +44,8 @@ func TestRemovedPaths(t *testing.T) {
 	endpointer.RegisterRemovedPaths(router, []string{"v1", "2022-04"}, slog.New(slog.DiscardHandler), removedPaths())
 
 	// Fill in the path variables with a value that matches any of them.
-	pathVar := regexp.MustCompile(`\{\w+(:[^}]+)?\}`)
 	for _, template := range removedPathTemplates {
-		_, ok := removednames.Find(removednames.KindPath, template, "")
+		entry, ok := removedPathEntry(template)
 		require.True(t, ok, template)
 		for _, version := range []string{"v1", "latest"} {
 			path := pathVar.ReplaceAllString(strings.Replace(template, "/_version_/", "/"+version+"/", 1), "1")
@@ -49,6 +55,11 @@ func TestRemovedPaths(t *testing.T) {
 					t.Parallel() // requests with different methods share the route, so -race catches state shared between them
 					rec := httptest.NewRecorder()
 					router.ServeHTTP(rec, httptest.NewRequest(method, path, nil))
+					if entry.Context != "" && method != entry.Context {
+						// This router holds only the removed paths, so a method the entry didn't remove gets 405, not 410.
+						require.Equal(t, http.StatusMethodNotAllowed, rec.Code)
+						return
+					}
 					require.Equal(t, http.StatusGone, rec.Code)
 					if method == http.MethodHead {
 						return // a response to HEAD has no body
@@ -68,4 +79,22 @@ func TestRemovedPaths(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestRemovedPathForEntryWithMethod(t *testing.T) {
+	t.Parallel()
+
+	const template = "/api/_version_/fleet/widgets/{name}"
+	pinned := removednames.Entry{
+		Kind: removednames.KindPath, Scope: removednames.ScopeRequest, Old: template, Context: http.MethodDelete,
+		Format: removednames.EndpointFormat{},
+	}
+	removed := removedPathFor(template, pinned)
+	assert.Equal(t, []string{http.MethodDelete}, removed.Methods)
+	assert.Equal(t, `The "DELETE /widgets/{name}" endpoint is not available anymore. What to use instead: `+removednames.GuideURL,
+		removed.Message(http.MethodDelete))
+
+	unpinned := pinned
+	unpinned.Context = ""
+	assert.Empty(t, removedPathFor(template, unpinned).Methods)
 }

@@ -23,7 +23,7 @@ describe("SoftwareScriptDetailsModal - StatusMessage component", () => {
       />
     );
 
-    expect(screen.queryByTestId("pending-outline-icon")).toBeInTheDocument();
+    expect(screen.queryByTestId("pending-icon")).toBeInTheDocument();
     expect(screen.getByText(/is running or will run/)).toBeInTheDocument();
     expect(screen.getByText(/\(com\.cool\.app\)/)).toBeInTheDocument();
     expect(screen.getByText(/Test Host/)).toBeInTheDocument();

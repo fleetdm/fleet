@@ -41,6 +41,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
@@ -67,6 +68,176 @@ func (s *integrationMDMTestSuite) TestUserAuthenticate() {
 
 	err = mdmDevice.UserAuthenticate()
 	require.ErrorContains(t, err, "410 Gone")
+}
+
+func (s *integrationMDMTestSuite) TestAppleMDMSharedPushTopic() {
+	t := s.T()
+	ctx := t.Context()
+
+	topic, err := assets.APNSTopic(ctx, s.ds)
+	require.NoError(t, err)
+
+	enrollInfo := mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.scepChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	}
+	devices := []*mdmtest.TestAppleMDMClient{
+		mdmtest.NewTestMDMClientAppleDirect(enrollInfo, "MacBookPro16,1", mdmtest.WithPushTopic(topic)),
+		mdmtest.NewTestMDMClientAppleDirect(enrollInfo, "iPhone14,6", mdmtest.WithPushTopic(topic)),
+	}
+	var deviceIDs []string
+	for _, d := range devices {
+		require.NoError(t, d.Enroll())
+		deviceIDs = append(deviceIDs, d.UUID)
+
+		var stored string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &stored, "SELECT topic FROM nano_enrollments WHERE id = ?", d.UUID)
+		})
+		require.Equal(t, topic, stored)
+	}
+
+	var (
+		pushedMu     sync.Mutex
+		pushedTopics []string
+	)
+	origPush := s.pushProvider.PushFunc
+	t.Cleanup(func() { s.pushProvider.PushFunc = origPush })
+	s.pushProvider.PushFunc = func(ctx context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
+		pushedMu.Lock()
+		defer pushedMu.Unlock()
+		for _, p := range pushes {
+			pushedTopics = append(pushedTopics, p.Topic)
+		}
+		return mockSuccessfulPush(ctx, pushes)
+	}
+
+	cmdUUID := uuid.NewString()
+	require.NoError(t, s.mdmCommander.CertificateList(ctx, deviceIDs, cmdUUID))
+	require.Equal(t, []string{topic, topic}, pushedTopics)
+
+	for _, d := range devices {
+		cmd, err := d.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		require.Equal(t, cmdUUID, cmd.CommandUUID)
+	}
+}
+
+func (s *integrationMDMTestSuite) TestPersonalEnrollmentFlagFromDevice() {
+	t := s.T()
+	ctx := t.Context()
+
+	enrollMac := func(mdmURL string) (*fleet.Host, *mdmtest.TestAppleMDMClient) {
+		device := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
+			SCEPChallenge: s.scepChallenge,
+			SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+			MDMURL:        mdmURL,
+		}, "MacBookPro16,1")
+		require.NoError(t, device.Enroll())
+		host, err := s.ds.HostByIdentifier(ctx, device.UUID)
+		require.NoError(t, err)
+		return host, device
+	}
+	isPersonal := func(host *fleet.Host) bool {
+		hostMDM, err := s.ds.GetHostMDM(ctx, host.ID)
+		require.NoError(t, err)
+		return hostMDM.IsPersonalEnrollment
+	}
+
+	t.Run("a company-owned host stays company-owned", func(t *testing.T) {
+		host, device := enrollMac(s.server.URL + apple_mdm.MDMPath)
+		require.False(t, isPersonal(host))
+
+		// The device repeats Authenticate and TokenUpdate, with its own identity, to the URL a personal profile has.
+		device.EnrollInfo.MDMURL = s.server.URL + apple_mdm.MDMPath + "?" + apple_mdm.FleetPersonalEnrollmentKey + "=1"
+		require.NoError(t, device.Authenticate())
+		require.NoError(t, device.TokenUpdate(false))
+
+		require.False(t, isPersonal(host))
+		var permissions int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &permissions, `SELECT access_rights FROM host_mdm_apple_enrollment_permissions WHERE host_uuid = ?`, host.UUID)
+		})
+		require.Equal(t, apple_mdm.MDMAccessRightAll, permissions)
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusOK)
+	})
+
+	t.Run("a new host enrolls as personal", func(t *testing.T) {
+		host, _ := enrollMac(s.server.URL + apple_mdm.MDMPath + "?" + apple_mdm.FleetPersonalEnrollmentKey + "=1")
+		require.True(t, isPersonal(host))
+	})
+
+	secret := "personal-flag-ota-secret"
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: secret}}},
+	}, http.StatusOK, &applyEnrollSecretSpecResponse{})
+	enrollOTA := func(device *mdmtest.TestAppleMDMClient) *fleet.Host {
+		require.NoError(t, device.Enroll())
+		host, err := s.ds.HostByIdentifier(ctx, device.UUID)
+		require.NoError(t, err)
+		return host
+	}
+
+	t.Run("a new host enrolls as personal over the air", func(t *testing.T) {
+		host := enrollOTA(mdmtest.NewTestMDMClientAppleOTA(s.server.URL, secret, "MacBookPro16,1", mdmtest.WithOTAPersonal()))
+		require.True(t, isPersonal(host))
+	})
+
+	t.Run("a company-owned host stays company-owned over the air", func(t *testing.T) {
+		corporate := mdmtest.NewTestMDMClientAppleOTA(s.server.URL, secret, "MacBookPro16,1")
+		host := enrollOTA(corporate)
+		require.False(t, isPersonal(host))
+
+		personal := mdmtest.NewTestMDMClientAppleOTA(s.server.URL, secret, "MacBookPro16,1", mdmtest.WithOTAPersonal())
+		personal.UUID, personal.SerialNumber = corporate.UUID, corporate.SerialNumber
+		host = enrollOTA(personal)
+		require.False(t, isPersonal(host))
+	})
+}
+
+func (s *integrationMDMTestSuite) TestDeviceChannelIDCannotTakeUserChannelID() {
+	t := s.T()
+	ctx := t.Context()
+	enrollInfo := mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.scepChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	}
+
+	victim := mdmtest.NewTestMDMClientAppleDirect(enrollInfo, "MacBookPro16,1")
+	require.NoError(t, victim.Enroll())
+	require.NoError(t, victim.UserEnroll())
+	userChannelID := victim.UUID + ":" + victim.UserUUID
+
+	type enrollment struct {
+		Type     string `db:"type"`
+		TokenHex string `db:"token_hex"`
+	}
+	readUserChannel := func() enrollment {
+		var e enrollment
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &e, `SELECT type, token_hex FROM nano_enrollments WHERE id = ?`, userChannelID)
+		})
+		return e
+	}
+	before := readUserChannel()
+	require.Equal(t, "User", before.Type)
+
+	// A device claims the user channel's ID as its UDID.
+	device := mdmtest.NewTestMDMClientAppleDirect(enrollInfo, "MacBookPro16,1")
+	device.UUID = userChannelID
+	require.ErrorContains(t, device.Enroll(), "400")
+
+	require.Equal(t, before, readUserChannel())
+	for _, table := range []string{"nano_devices", "nano_cert_auth_associations"} {
+		var n int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, `SELECT COUNT(*) FROM `+table+` WHERE id = ?`, userChannelID)
+		})
+		require.Zero(t, n, table)
+	}
 }
 
 func (s *integrationMDMTestSuite) TestGetBootstrapToken() {

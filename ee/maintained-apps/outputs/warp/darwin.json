@@ -1,13 +1,13 @@
 {
   "versions": [
     {
-      "version": "0.2026.10.21.08.25.02",
+      "version": "0.2026.11.03.17.08.00",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'dev.warp.Warp-Stable';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dev.warp.Warp-Stable' AND version_compare(bundle_short_version, '0.2026.10.21.08.25.02') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dev.warp.Warp-Stable' AND version_compare(bundle_short_version, '0.2026.11.03.17.08.00') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'dev.warp.Warp-Stable' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://releases.warp.dev/stable/v0.2026.10.21.08.25.stable_02/Warp.dmg",
+      "installer_url": "https://releases.warp.dev/stable/v0.2026.11.03.17.08.stable_00/Warp.dmg",
       "install_script_ref": "b33a43e8",
       "uninstall_script_ref": "760bc4cc",
       "sha256": "no_check",

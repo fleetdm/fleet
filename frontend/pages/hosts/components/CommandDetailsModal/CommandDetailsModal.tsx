@@ -32,11 +32,11 @@ export const getIconName = (status: string): IconNames => {
       return "success";
     case "Pending":
     case "NotNow":
-      return "pending-outline";
+      return "pending";
     // sentinel used when the command results API returns a 200 with no
     // results (e.g. the host it was sent to was wiped and re-enrolled since)
     case "Deleted":
-      return "info-outline";
+      return "info";
     default:
       break;
   }
@@ -45,7 +45,7 @@ export const getIconName = (status: string): IconNames => {
   if (!Number.isNaN(code)) {
     if (code >= 400) return "error";
     if (code >= 200) return "success";
-    return "pending-outline";
+    return "pending";
   }
   return "warning";
 };
@@ -57,7 +57,7 @@ export const getVerbForCommandStatus = (status: string): string => {
       return "failed to run";
     case "success":
       return "ran";
-    case "pending-outline":
+    case "pending":
       return "sent";
     default:
       // unknown status
