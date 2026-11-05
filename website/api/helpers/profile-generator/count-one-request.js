@@ -49,9 +49,6 @@ module.exports = {
 
   fn: async function ({registrationId, requestType}) {
 
-    let now = new Date();
-    let thisMonth = now.toISOString().slice(0, 7);
-    let resetsAt = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)).toISOString();
     let profileLimit = sails.config.custom.profileGeneratorMonthlyProfileLimit;
     let nameAndDescriptionLimit = sails.config.custom.profileGeneratorMonthlyNameAndDescriptionLimit;
 
@@ -63,6 +60,13 @@ module.exports = {
       if(!registration) {
         throw new Error(`Could not count a configuration profile generator request: no registration has the id ${registrationId}.`);
       }
+
+      // Read after the row, so a request that started before midnight UTC and reads a row a newer request
+      // already moved into the new month counts in that month rather than moving it back.  YYYY-MM sorts by date.
+      let currentMonth = new Date().toISOString().slice(0, 7);
+      let thisMonth = registration.usageMonth > currentMonth ? registration.usageMonth : currentMonth;
+      let [year, month] = thisMonth.split('-').map(Number);
+      let resetsAt = new Date(Date.UTC(year, month, 1)).toISOString();
 
       // The first request in a new month starts the counters from zero.
       let isSameMonth = registration.usageMonth === thisMonth;

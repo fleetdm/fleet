@@ -296,6 +296,20 @@ describe('profile generator credentials and limits for Fleet servers', function(
       }
     });
 
+    it('never moves a row back to an earlier month, as a request read just before midnight UTC would', async function() {
+      // A newer request already moved the row into the next month while this one was starting.
+      let now = new Date();
+      let nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)).toISOString().slice(0, 7);
+      let monthAfterNext = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 2, 1)).toISOString();
+      let registration = await createRegistration({ usageMonth: nextMonth, profileGenerationsThisMonth: 14 });
+      stubbedOutcome = generatedResult;
+      assert.strictEqual((await requestProfile(registration.fleetServerSecret)).status, 200);
+      assert.deepStrictEqual(await usageOf(registration), { usageMonth: nextMonth, profileGenerationsThisMonth: 15, nameAndDescriptionRequestsThisMonth: 0 });
+      let limited = await requestProfile(registration.fleetServerSecret);
+      assert.strictEqual(limited.status, 429);
+      assert.strictEqual(limited.body.resetsAt, monthAfterNext);
+    });
+
     it('gives nothing back to a month that has already ended', async function() {
       let registration = await createRegistration({ usageMonth: thisMonth(), profileGenerationsThisMonth: 3 });
       await sails.helpers.profileGenerator.giveBackOneRequest.with({ registrationId: registration.id, requestType: 'profile', usageMonth: '2026-01' });
@@ -333,6 +347,19 @@ describe('profile generator credentials and limits for Fleet servers', function(
       stubbedOutcome = generatedResult;
       assert.strictEqual((await requestProfile(registration.fleetServerSecret)).status, 200);
       assert.deepStrictEqual(await usageOf(registration), usedThisMonth(1, 45));
+    });
+
+    it('gives a timed-out request back if the AI service then fails without answering', async function() {
+      this.timeout(15000);
+      let registration = await createRegistration();
+      // Fails after the route has stopped waiting at 8 seconds.
+      stubbedOutcome = ()=>{
+        return new Promise((resolve, reject)=>{ setTimeout(()=>{ reject(_.extend(new Error('overloaded'), { statusCode: 529, llmDidNotAnswer: true })); }, 8500); });
+      };
+      assert.strictEqual((await requestNameAndDescription(registration.fleetServerSecret)).status, 500);
+      assert.deepStrictEqual(await usageOf(registration), usedThisMonth(0, 1), 'counted while the AI service might still answer');
+      await new Promise((resolve)=>{ setTimeout(resolve, 1000); });
+      assert.deepStrictEqual(await usageOf(registration), usedThisMonth(0, 0));
     });
 
     it('gives a request back when the AI service never answers, and counts a refusal', async function() {

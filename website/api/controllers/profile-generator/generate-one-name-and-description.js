@@ -135,6 +135,18 @@ ${naturalLanguageInstructions}
       clearTimeout(timeout);
     }
     if(result === 'timedOut') {
+      // Still given back if the AI service turns out never to have answered, after Fleet has its error.
+      if(usage) {
+        naming.catch(async (err)=>{
+          if(!err.llmDidNotAnswer) {
+            return;
+          }
+          await sails.helpers.profileGenerator.giveBackOneRequest.with({ registrationId: fleetServer.registration.id, requestType: 'nameAndDescription', usageMonth: usage.usageMonth })
+          .tolerate((giveBackErr)=>{
+            sails.log.warn(`Could not give back a timed-out name and description request to configuration profile generator registration ${fleetServer.registration.id}: ${giveBackErr.message}`);
+          });
+        });
+      }
       throw new Error(`Naming and describing a configuration profile took over ${TIMEOUT_MS}ms.`);
     }
 
