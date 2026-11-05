@@ -2617,7 +2617,7 @@ func TestGetAppleBM(t *testing.T) {
 		testing_utils.RunServerWithMockedDS(t)
 
 		expected := `could not get Apple Business information: missing or invalid license`
-		_, err := runAppNoChecks([]string{"get", "mdm_apple_bm"})
+		_, err := runAppNoChecks([]string{"get", "mdm-ab"})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), expected)
 	})
@@ -2631,7 +2631,7 @@ func TestGetAppleBM(t *testing.T) {
 			}, nil
 		}
 
-		out := runAppForTest(t, []string{"get", "mdm_apple_bm"})
+		out := runAppForTest(t, []string{"get", "mdm-ab"})
 		assert.Contains(t, out, "Apple ID:")
 		assert.Contains(t, out, "Organization name:")
 		assert.Contains(t, out, "MDM server URL:")
@@ -2646,7 +2646,7 @@ func TestGetAppleBM(t *testing.T) {
 			return nil, nil
 		}
 
-		out := runAppForTest(t, []string{"get", "mdm_apple_bm"})
+		out := runAppForTest(t, []string{"get", "mdm-ab"})
 		assert.Contains(t, out, "No Apple Business (AB) server token found.")
 	})
 
@@ -2660,7 +2660,7 @@ func TestGetAppleBM(t *testing.T) {
 			}, nil
 		}
 
-		_, err := runAppNoChecks([]string{"get", "mdm_apple_bm"})
+		_, err := runAppNoChecks([]string{"get", "mdm-ab"})
 		assert.ErrorContains(t, err, "This API endpoint has been deprecated. Please use the new GET /ab_tokens API endpoint")
 	})
 }
