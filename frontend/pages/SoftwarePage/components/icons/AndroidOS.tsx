@@ -4,7 +4,7 @@ import type { SVGProps } from "react";
 const AndroidOS = (props: SVGProps<SVGSVGElement>) => (
   <svg fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
     <path fill="#F9FAFC" d="M0 0h32v32H0z" />
-    <g transform="translate(8 8) scale(0.5)">
+    <g transform="translate(6.6667 6.6667) scale(0.5833)">
       <path
         fillRule="evenodd"
         clipRule="evenodd"

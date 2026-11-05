@@ -4,7 +4,7 @@ import type { SVGProps } from "react";
 const ChromeOS = (props: SVGProps<SVGSVGElement>) => (
   <svg fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
     <path fill="#F9FAFC" d="M0 0h32v32H0z" />
-    <g transform="translate(8 8) scale(0.5)">
+    <g transform="translate(6.6667 6.6667) scale(0.5833)">
       <path
         d="M30.8301 10C31.5801 11.85 32 13.88 32 16C32 24.83 24.83 31.94 16 32L22.8203 20.0996C23.5801 18.8997 24 17.4398 24 16C24 14.8601 23.75 13.7401 23.29 12.7002C22.82 11.6702 22.14 10.75 21.29 10H30.8301Z"
         fill="#515774"
