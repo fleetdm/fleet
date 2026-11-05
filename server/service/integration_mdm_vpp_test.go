@@ -1788,7 +1788,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			require.JSONEq(
 				t,
 				withVPPToken(t, fmt.Sprintf(
-					`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "software_display_name": null, "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "host_platform": "%s"}`,
+					`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "software_display_name": "", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "host_platform": "%s"}`,
 					installHost.ID,
 					installHost.DisplayName(),
 					app.Name,

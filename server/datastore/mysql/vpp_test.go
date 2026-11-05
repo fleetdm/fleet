@@ -839,7 +839,7 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 		"host_id":%d,
 		"host_platform":"darwin",
 		"self_service":false,
-		"software_display_name":null,
+		"software_display_name":"",
 		"software_title":"foo",
 		"status":"pending_install",
 		"vpp_token":null
@@ -857,7 +857,7 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 		"host_id":%d,
 		"host_platform":"darwin",
 		"self_service":true,
-		"software_display_name":null,
+		"software_display_name":"",
 		"software_title":"vpp_app_2",
 		"status":"pending_install",
 		"vpp_token":null
@@ -6249,6 +6249,5 @@ func testPastActivityVPPInstallDisplayNameHonorsPlatform(t *testing.T, ds *Datas
 		Status:      fleet.MDMAppleStatusAcknowledged,
 	})
 	require.NoError(t, err)
-	require.NotNil(t, act.SoftwareDisplayName)
-	assert.Equal(t, "QA51285 VPP iPad Name", *act.SoftwareDisplayName)
+	assert.Equal(t, "QA51285 VPP iPad Name", act.SoftwareDisplayName)
 }

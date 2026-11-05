@@ -456,7 +456,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 		"install_uuid": "%s",
 		"self_service": false,
 		"software_title": "%s",
-		"software_display_name": null,
+		"software_display_name": "",
 		"software_package": "%s",
 		"source": "apps",
 		"host_display_name": "%s"

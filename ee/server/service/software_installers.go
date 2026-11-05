@@ -969,6 +969,10 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		if payload.SelfService != nil {
 			activity.SelfService = *payload.SelfService
 		}
+		// Carry the stored display name on every edit so edits that don't touch
+		// it still record the current override, instead of emitting an empty
+		// string (which reads as "cleared" to downstream consumers).
+		activity.SoftwareDisplayName = software.DisplayName
 		if payload.DisplayName != nil {
 			activity.SoftwareDisplayName = *payload.DisplayName
 		}
