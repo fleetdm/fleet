@@ -4323,6 +4323,23 @@ type Datastore interface {
 	// ConditionalAccessMicrosoftDelete deletes the integration from the datastore.
 	// It will also cleanup all recorded compliance status of all hosts from the datastore.
 	ConditionalAccessMicrosoftDelete(ctx context.Context) error
+	// GetGoogleConditionalAccessIntegration returns the Google conditional access integration.
+	// Returns a NotFoundError error if there's none.
+	GetGoogleConditionalAccessIntegration(ctx context.Context) (*ConditionalAccessGoogleIntegration, error)
+	// SaveGoogleConditionalAccessIntegration creates or replaces the single Google
+	// conditional access integration.
+	SaveGoogleConditionalAccessIntegration(ctx context.Context, integration *ConditionalAccessGoogleIntegration) error
+	// ListGoogleConditionalAccessDeviceUserNames returns the Google DeviceUser resource
+	// names stored for the customer.
+	ListGoogleConditionalAccessDeviceUserNames(ctx context.Context, customerID string) ([]string, error)
+	// DeleteGoogleConditionalAccessDevicesExcept deletes up to limit device rows, with
+	// their DeviceUser rows, that don't belong to the customer, and returns how many
+	// device rows it deleted. An empty customer ID deletes any row.
+	DeleteGoogleConditionalAccessDevicesExcept(ctx context.Context, customerID string, limit int) (int, error)
+	// DeleteGoogleConditionalAccessIntegration deletes the Google conditional access integration
+	// and every stored device and DeviceUser row.
+	DeleteGoogleConditionalAccessIntegration(ctx context.Context) error
+
 	// LoadHostConditionalAccessStatus will load the current "Conditional Access" status of a host.
 	// The status holds Entra's "Device ID", "User Principal Name", and last reported "managed" and "compliant" status.
 	// Returns a NotFoundError error if there's no entry for the host.
