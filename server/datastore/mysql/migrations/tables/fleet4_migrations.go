@@ -121,3 +121,14 @@ var Fleet4Migrations = []int64{
 	20261026180029, 20261027034724, 20261027212007, 20261028210551, 20261029055700, 20261029121411,
 	20261029151238, 20261030104609, 20261102034125, 20261102134247, 20261102134303, 20261102142138,
 }
+
+// Fleet4OptionalMigrations may also be recorded on a 4.95.x database: a
+// migration released in 4.4.0 under a timestamp that 4.4.1 changed.
+var Fleet4OptionalMigrations = []int64{20210924114500}
+
+// fleet4DataMigrations are the data migrations every 4.95.x database has
+// applied, recorded in migration_status_data.
+var fleet4DataMigrations = []int64{
+	20161229171615, 20170223171234, 20170301093653, 20170314151620, 20181119180000,
+	20210330130314, 20210806135609, 20210819120215, 20230525175650,
+}

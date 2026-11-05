@@ -32,42 +32,65 @@ func TestFleet5BaselineRetry(t *testing.T) {
 }
 
 func TestFleet5BaselineFleet4Database(t *testing.T) {
-	newFleet4DB := func(t *testing.T, versions []int64) *sqlx.DB {
+	newFleet4DB := func(t *testing.T, tableVersions, dataVersions []int64) *sqlx.DB {
 		db := newDBConnForTests(t)
 		_, err := MigrationClient.GetDBVersion(db.DB)
 		require.NoError(t, err)
-		execNoErr(t, db, `CREATE TABLE migration_status_data (id INT PRIMARY KEY)`)
-		for _, v := range versions {
+		execNoErr(t, db, `CREATE TABLE migration_status_data (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+			version_id BIGINT NOT NULL,
+			is_applied BOOLEAN NOT NULL,
+			tstamp TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+		)`)
+		for _, v := range tableVersions {
 			execNoErr(t, db, `INSERT INTO migration_status_tables (version_id, is_applied) VALUES (?, 1)`, v)
+		}
+		for _, v := range dataVersions {
+			execNoErr(t, db, `INSERT INTO migration_status_data (version_id, is_applied) VALUES (?, 1)`, v)
 		}
 		return db
 	}
 	last := len(Fleet4Migrations) - 1
 
 	t.Run("fleet 4_95", func(t *testing.T) {
-		db := newFleet4DB(t, Fleet4Migrations)
+		db := newFleet4DB(t, Fleet4Migrations, fleet4DataMigrations)
 		// A 4.95 database already has the schema, so the baseline only records itself.
 		require.NoError(t, runBaseline(t, db))
 		requireNoBaselineTables(t, db)
 	})
 
+	t.Run("fleet 4_95 legacy extras", func(t *testing.T) {
+		db := newFleet4DB(t,
+			slices.Concat(Fleet4Migrations, Fleet4OptionalMigrations),
+			// A data migration removed in an old Fleet 4 release.
+			append(slices.Clone(fleet4DataMigrations), 20171212182459),
+		)
+		require.NoError(t, runBaseline(t, db))
+		requireNoBaselineTables(t, db)
+	})
+
 	t.Run("older than fleet 4_95", func(t *testing.T) {
-		db := newFleet4DB(t, Fleet4Migrations[:last])
+		db := newFleet4DB(t, Fleet4Migrations[:last], fleet4DataMigrations)
 		requireBaselineRefused(t, db)
 	})
 
 	t.Run("missing a fleet 4_95 migration", func(t *testing.T) {
-		db := newFleet4DB(t, append(slices.Clone(Fleet4Migrations[:10]), Fleet4Migrations[11:]...))
+		db := newFleet4DB(t, slices.Concat(Fleet4Migrations[:10], Fleet4Migrations[11:]), fleet4DataMigrations)
+		requireBaselineRefused(t, db)
+	})
+
+	t.Run("missing a data migration", func(t *testing.T) {
+		db := newFleet4DB(t, Fleet4Migrations, fleet4DataMigrations[:len(fleet4DataMigrations)-1])
 		requireBaselineRefused(t, db)
 	})
 
 	t.Run("newer than fleet 4_95", func(t *testing.T) {
-		db := newFleet4DB(t, append(slices.Clone(Fleet4Migrations), Fleet4Migrations[last]+1))
+		db := newFleet4DB(t, append(slices.Clone(Fleet4Migrations), Fleet4Migrations[last]+1), fleet4DataMigrations)
 		requireBaselineRefused(t, db)
 	})
 
 	t.Run("data migrations only", func(t *testing.T) {
-		db := newFleet4DB(t, nil)
+		db := newFleet4DB(t, nil, fleet4DataMigrations)
 		requireBaselineRefused(t, db)
 	})
 }

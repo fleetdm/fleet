@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"os/exec"
+	"slices"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -57,7 +58,7 @@ func TestMigrationStatusFleet4Upgrade(t *testing.T) {
 	// A Fleet 4.95 database: every Fleet 4 migration applied, no baseline yet.
 	_, err := tables.MigrationClient.GetDBVersion(ds.primary.DB)
 	require.NoError(t, err)
-	for _, v := range tables.Fleet4Migrations {
+	for _, v := range slices.Concat(tables.Fleet4Migrations, tables.Fleet4OptionalMigrations) {
 		_, err := ds.writer(ctx).Exec(`INSERT INTO `+tables.MigrationClient.TableName+` (version_id, is_applied) VALUES (?, 1)`, v)
 		require.NoError(t, err)
 	}

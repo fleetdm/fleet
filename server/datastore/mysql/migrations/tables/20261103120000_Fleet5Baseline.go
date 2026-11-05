@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
@@ -44,7 +45,13 @@ func Up_20261103120000(tx *sql.Tx) error {
 		// A 4.95.x database already has the baseline schema. Running the
 		// baseline on any other Fleet 4 database would fill in missing tables
 		// and leave a mix of both schemas.
-		if !isFleet495Database(legacyMigrations) {
+		var dataMigrations []int64
+		if legacyDataTable > 0 {
+			if err := txx.Select(&dataMigrations, `SELECT DISTINCT version_id FROM migration_status_data WHERE version_id > 0 AND is_applied`); err != nil {
+				return fmt.Errorf("loading Fleet 4 data migrations: %w", err)
+			}
+		}
+		if !isFleet495Database(legacyMigrations, dataMigrations) {
 			return errors.New("this database is not on Fleet 4.95; upgrade to the latest Fleet 4.95.x before upgrading to Fleet 5")
 		}
 		return nil
@@ -70,20 +77,33 @@ func Up_20261103120000(tx *sql.Tx) error {
 	return nil
 }
 
-// isFleet495Database reports whether applied has every Fleet 4.95.0 migration
-// and nothing newer from Fleet 4, such as a 4.96 release.
-func isFleet495Database(applied []int64) bool {
-	known := make(map[int64]struct{}, len(Fleet4Migrations))
+// isFleet495Database reports whether a database's applied Fleet 4 table and
+// data migrations are exactly those of 4.95, ignoring Fleet4OptionalMigrations.
+func isFleet495Database(tableMigrations, dataMigrations []int64) bool {
+	required := make(map[int64]struct{}, len(Fleet4Migrations))
 	for _, v := range Fleet4Migrations {
-		known[v] = struct{}{}
+		required[v] = struct{}{}
 	}
-	for _, v := range applied {
-		if _, ok := known[v]; !ok {
+	for _, v := range tableMigrations {
+		if slices.Contains(Fleet4OptionalMigrations, v) {
+			continue
+		}
+		if _, ok := required[v]; !ok {
 			return false
 		}
-		delete(known, v)
+		delete(required, v)
 	}
-	return len(known) == 0
+	if len(required) > 0 {
+		return false
+	}
+	// Fleet 4 also accepted data migrations removed in old releases, so only
+	// the current ones are required.
+	for _, v := range fleet4DataMigrations {
+		if !slices.Contains(dataMigrations, v) {
+			return false
+		}
+	}
+	return true
 }
 
 func execBaselineStatements(tx *sql.Tx) error {

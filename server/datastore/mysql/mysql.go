@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -605,8 +606,8 @@ func compareMigrations(knownTable goose.Migrations, appliedTable []int64) *fleet
 	}
 
 	// Databases upgraded from Fleet 4.95 keep their Fleet 4 migration records.
-	fleet4 := make(map[int64]struct{}, len(tables.Fleet4Migrations))
-	for _, v := range tables.Fleet4Migrations {
+	fleet4 := make(map[int64]struct{}, len(tables.Fleet4Migrations)+len(tables.Fleet4OptionalMigrations))
+	for _, v := range slices.Concat(tables.Fleet4Migrations, tables.Fleet4OptionalMigrations) {
 		fleet4[v] = struct{}{}
 	}
 	missingTable, unknownTable, equalTable := compareVersions(
