@@ -114,11 +114,13 @@ func handleGetState(store *deviceStore) http.HandlerFunc {
 			PolicyName          string   `json:"policy_name"`
 			PendingCommands     []string `json:"pending_commands"`
 			PendingCertificates []uint   `json:"pending_certificates"`
+			AgentEnrollSecret   string   `json:"agent_enroll_secret,omitempty"`
 		}{
 			PolicyVersion:       policyVersion,
 			PolicyName:          d.PolicyName,
 			PendingCommands:     d.PendingCommands,
 			PendingCertificates: d.PendingCertificates,
+			AgentEnrollSecret:   d.AgentEnrollSecret,
 		}
 		d.PendingCommands = nil
 		d.mu.Unlock()
@@ -357,6 +359,24 @@ func handlePoliciesPatch(store *deviceStore, google *googleForwarder) http.Handl
 			return
 		}
 
+		// The app list Fleet patches includes the Fleet agent with its managed configuration.
+		if isFakeDevice && r.Body != nil {
+			if bodyBytes, err := io.ReadAll(r.Body); err == nil {
+				var policy struct {
+					Applications []struct {
+						ManagedConfiguration json.RawMessage `json:"managedConfiguration"`
+					} `json:"applications"`
+				}
+				if json.Unmarshal(bodyBytes, &policy) == nil {
+					configs := make([]json.RawMessage, 0, len(policy.Applications))
+					for _, app := range policy.Applications {
+						configs = append(configs, app.ManagedConfiguration)
+					}
+					storeAgentEnrollSecret(store, hostUUID, configs)
+				}
+			}
+		}
+
 		version := store.nextPolicyVersion(name)
 
 		w.Header().Set("Content-Type", "application/json")
@@ -516,6 +536,12 @@ func extractAndStoreCertTemplateIDs(store *deviceStore, hostUUID string, body []
 		return
 	}
 
+	configs := make([]json.RawMessage, 0, len(req.Changes))
+	for _, change := range req.Changes {
+		configs = append(configs, change.Application.ManagedConfiguration)
+	}
+	storeAgentEnrollSecret(store, hostUUID, configs)
+
 	// Keep looking after a change that carries no install operation: returning early here
 	// dropped certificates that were listed in a later change.
 	var certIDs []uint
@@ -549,6 +575,29 @@ func extractAndStoreCertTemplateIDs(store *deviceStore, hostUUID string, body []
 	d.mu.Lock()
 	d.PendingCertificates = certIDs
 	d.mu.Unlock()
+}
+
+// storeAgentEnrollSecret records the enroll secret of the Fleet agent's managed configuration among configs, so the simulated
+// agent can enroll orbit with it. A configuration counts as the agent's only when it names this device as its host, since
+// other apps' configurations are free-form.
+func storeAgentEnrollSecret(store *deviceStore, hostUUID string, configs []json.RawMessage) {
+	d := store.getByESID(hostUUID)
+	if d == nil {
+		return
+	}
+	for _, raw := range configs {
+		if len(raw) == 0 {
+			continue
+		}
+		var config android.AgentManagedConfiguration
+		if err := json.Unmarshal(raw, &config); err != nil || config.EnrollSecret == "" || config.HostUUID != hostUUID {
+			continue
+		}
+		d.mu.Lock()
+		d.AgentEnrollSecret = config.EnrollSecret
+		d.mu.Unlock()
+		return
+	}
 }
 
 func handleCatchAll(_ *googleForwarder) http.HandlerFunc {

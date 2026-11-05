@@ -41,6 +41,9 @@ type fakeDevice struct {
 	PolicyName           string   `json:"policy_name"`
 	PendingCommands      []string `json:"pending_commands"`
 	PendingCertificates  []uint   `json:"pending_certificates"`
+	// AgentEnrollSecret is the enroll secret in the Fleet agent's last managed configuration, which the simulated agent
+	// enrolls orbit with.
+	AgentEnrollSecret string `json:"agent_enroll_secret"`
 }
 
 // maxRestorablePolicyVersion bounds the policy version a device may report when it

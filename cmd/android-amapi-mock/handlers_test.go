@@ -289,6 +289,58 @@ type testDeviceState struct {
 	PolicyName          string   `json:"policy_name"`
 	PendingCommands     []string `json:"pending_commands"`
 	PendingCertificates []uint   `json:"pending_certificates"`
+	AgentEnrollSecret   string   `json:"agent_enroll_secret"`
+}
+
+// TestGetStateReportsAgentEnrollSecret covers both ways Fleet sends the agent's managed configuration: a
+// modifyPolicyApplications change, and the app list in a policy patch.
+func TestGetStateReportsAgentEnrollSecret(t *testing.T) {
+	agentConfig := func(hostUUID, secret string) android.AgentManagedConfiguration {
+		return android.AgentManagedConfiguration{ServerURL: "https://fleet.example.com", HostUUID: hostUUID, EnrollSecret: secret}
+	}
+
+	t.Run("policy action", func(t *testing.T) {
+		mux, _ := newTestMux(t)
+		registerTestDevice(t, mux, defaultRegisterRequest(), http.StatusOK)
+		assert.Empty(t, getTestState(t, mux, testESID, http.StatusOK).AgentEnrollSecret)
+
+		rr := postPolicyAction(t, mux, fmt.Sprintf("/v1/enterprises/%s/policies/%s:modifyPolicyApplications", testEnterpriseID, testESID),
+			certChangesBody(t, agentConfig(testESID, "one-time-1")))
+		require.Equal(t, http.StatusOK, rr.Code)
+		assert.Equal(t, "one-time-1", getTestState(t, mux, testESID, http.StatusOK).AgentEnrollSecret)
+
+		// A newer configuration replaces it.
+		rr = postPolicyAction(t, mux, fmt.Sprintf("/v1/enterprises/%s/policies/%s:modifyPolicyApplications", testEnterpriseID, testESID),
+			certChangesBody(t, agentConfig(testESID, "one-time-2")))
+		require.Equal(t, http.StatusOK, rr.Code)
+		assert.Equal(t, "one-time-2", getTestState(t, mux, testESID, http.StatusOK).AgentEnrollSecret)
+	})
+
+	t.Run("policy patch app list", func(t *testing.T) {
+		mux, _ := newTestMux(t)
+		registerTestDevice(t, mux, defaultRegisterRequest(), http.StatusOK)
+
+		agentManagedConfig, err := json.Marshal(agentConfig(testESID, "from-patch"))
+		require.NoError(t, err)
+		policy, err := json.Marshal(androidmanagement.Policy{Applications: []*androidmanagement.ApplicationPolicy{
+			{PackageName: "com.example.other", ManagedConfiguration: []byte(`{"enroll_secret":"not-the-agent"}`)},
+			{PackageName: "com.fleetdm.agent", ManagedConfiguration: agentManagedConfig},
+		}})
+		require.NoError(t, err)
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, httptest.NewRequest("PATCH", fmt.Sprintf("/v1/enterprises/%s/policies/%s", testEnterpriseID, testESID), bytes.NewReader(policy)))
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+		assert.Equal(t, "from-patch", getTestState(t, mux, testESID, http.StatusOK).AgentEnrollSecret)
+	})
+
+	t.Run("another host's configuration is ignored", func(t *testing.T) {
+		mux, _ := newTestMux(t)
+		registerTestDevice(t, mux, defaultRegisterRequest(), http.StatusOK)
+		rr := postPolicyAction(t, mux, fmt.Sprintf("/v1/enterprises/%s/policies/%s:modifyPolicyApplications", testEnterpriseID, testESID),
+			certChangesBody(t, agentConfig("some-other-host", "not-ours")))
+		require.Equal(t, http.StatusOK, rr.Code)
+		assert.Empty(t, getTestState(t, mux, testESID, http.StatusOK).AgentEnrollSecret)
+	})
 }
 
 func getTestState(t *testing.T, mux *http.ServeMux, esid string, wantStatus int) testDeviceState {

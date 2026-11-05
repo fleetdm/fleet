@@ -119,6 +119,40 @@ func testState() proxyDeviceState {
 	}
 }
 
+// TestOrbitEnrollUsesAgentEnrollSecret checks orbit enrolls with the enroll secret from the agent's managed configuration
+// once the proxy reports one, like the real agent, and with the shared secret before that.
+func TestOrbitEnrollUsesAgentEnrollSecret(t *testing.T) {
+	var presented []string
+	fleetMux := http.NewServeMux()
+	fleetMux.HandleFunc("POST /api/fleet/orbit/enroll", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			EnrollSecret string `json:"enroll_secret"`
+			Platform     string `json:"platform"`
+		}
+		assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+		assert.Equal(t, "android", body.Platform)
+		presented = append(presented, body.EnrollSecret)
+		_ = json.NewEncoder(w).Encode(map[string]string{"orbit_node_key": "node-key"})
+	})
+	fleetSrv := httptest.NewServer(fleetMux)
+	t.Cleanup(fleetSrv.Close)
+
+	proxy := &fakeProxy{registered: true, state: testState()}
+	agent := newTestAndroidAgent(proxy.server(t).URL)
+	agent.serverAddress = fleetSrv.URL
+	agent.enrollSecret = "shared-secret"
+
+	agent.refreshAgentEnrollSecret()
+	require.NoError(t, agent.orbitEnroll())
+
+	proxy.set(func(p *fakeProxy) { p.state.AgentEnrollSecret = "one-time-secret" })
+	agent.refreshAgentEnrollSecret()
+	require.NoError(t, agent.orbitEnroll())
+
+	assert.Equal(t, []string{"shared-secret", "one-time-secret"}, presented)
+	assert.Equal(t, "node-key", agent.orbitNodeKey)
+}
+
 // TestCurrentStateRecoversLostRegistration covers the load-testing bug where a proxy that
 // lost its in-memory device state left the agent polling a 404 forever. The agent stopped
 // sending status reports, so Fleet's hourly reconciler marked the host unenrolled and MDM

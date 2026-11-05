@@ -49,6 +49,9 @@ type androidAgent struct {
 	deviceName           string // AMAPI resource name: enterprises/{id}/devices/{id}
 	enterpriseID         string
 	orbitNodeKey         string // obtained from orbit enrollment, used for certificate API auth
+	// agentEnrollSecret is the enroll secret in the Fleet agent's managed configuration, as the proxy last reported it. Orbit
+	// enrolls with it when set, like the real agent; with one-time enroll secrets on, Fleet refuses the shared one.
+	agentEnrollSecret string
 
 	// Hardware details
 	brand        string
@@ -616,8 +619,10 @@ func (a *androidAgent) runLoop() {
 	}
 	a.stats.IncrementAndroidEnrollments()
 
-	// Step 2b: Orbit enrollment (retry with backoff, non-fatal)
+	// Step 2b: Orbit enrollment (retry with backoff, non-fatal). The status loop keeps trying until it succeeds, since the
+	// agent's managed configuration, and the enroll secret in it, arrives only after Fleet runs the setup experience.
 	for attempt := 1; ; attempt++ {
+		a.refreshAgentEnrollSecret()
 		if err := a.orbitEnroll(); err != nil {
 			if attempt >= 3 {
 				log.Printf("Android agent %d: orbit enrollment failed after %d attempts: %v", a.agentIndex, attempt, err)
@@ -654,6 +659,16 @@ func (a *androidAgent) runLoop() {
 			// Still report, so the device doesn't look dead to Fleet's reconciler, but count
 			// it: the state being reported is fabricated.
 			a.stats.IncrementAndroidErrors()
+		}
+
+		if state.AgentEnrollSecret != "" {
+			a.agentEnrollSecret = state.AgentEnrollSecret
+		}
+		if a.orbitNodeKey == "" {
+			if err := a.orbitEnroll(); err != nil {
+				log.Printf("Android agent %d: orbit enrollment failed: %v", a.agentIndex, err)
+				a.stats.IncrementAndroidErrors()
+			}
 		}
 
 		// Send STATUS_REPORT
@@ -716,6 +731,7 @@ type proxyDeviceState struct {
 	PolicyName          string   `json:"policy_name"`
 	PendingCommands     []string `json:"pending_commands"`
 	PendingCertificates []uint   `json:"pending_certificates"`
+	AgentEnrollSecret   string   `json:"agent_enroll_secret"`
 }
 
 // certTemplateResponse is the response from GET /api/fleetd/certificates/{id}
@@ -986,7 +1002,19 @@ func (a *androidAgent) sendCommandAck(operationName string) error {
 	return a.sendPubSubMessage(android.PubSubCommand, op)
 }
 
+// refreshAgentEnrollSecret picks up the enroll secret from the agent's managed configuration, if the proxy has one yet.
+func (a *androidAgent) refreshAgentEnrollSecret() {
+	state, err := a.pollProxyState()
+	if err == nil && state.AgentEnrollSecret != "" {
+		a.agentEnrollSecret = state.AgentEnrollSecret
+	}
+}
+
 func (a *androidAgent) orbitEnroll() error {
+	enrollSecret := a.enrollSecret
+	if a.agentEnrollSecret != "" {
+		enrollSecret = a.agentEnrollSecret
+	}
 	body := struct {
 		EnrollSecret   string `json:"enroll_secret"`
 		HardwareUUID   string `json:"hardware_uuid"`
@@ -994,7 +1022,7 @@ func (a *androidAgent) orbitEnroll() error {
 		Platform       string `json:"platform"`
 		ComputerName   string `json:"computer_name"`
 	}{
-		EnrollSecret:   a.enrollSecret,
+		EnrollSecret:   enrollSecret,
 		HardwareUUID:   a.enterpriseSpecificID,
 		HardwareSerial: a.serialNumber,
 		Platform:       "android",
