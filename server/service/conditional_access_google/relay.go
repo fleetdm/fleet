@@ -33,37 +33,38 @@ func AllowHTTP() RelayOption {
 
 // relay sends this server's URL as the Origin, which fleetdm.com calls back.
 type relay struct {
-	uri          string
-	uriErr       error
-	originGetter func() (string, error)
-	c            *http.Client
+	uri    string
+	uriErr error
+	c      *http.Client
 }
 
-// NewRelay fails on an unparsable uri only; an unusable one fails each request instead,
-// so an unused integration doesn't stop the server from starting.
-func NewRelay(uri string, originGetter func() (string, error), opts ...RelayOption) (Relay, error) {
-	u, err := url.Parse(uri)
-	if err != nil {
-		return nil, fmt.Errorf("parse relay uri: %w", err)
-	}
+// NewRelay never fails: an unusable or unparsable uri fails each request instead, so an
+// unused integration doesn't stop the server from starting.
+func NewRelay(uri string, opts ...RelayOption) Relay {
 	var o relayOptions
 	for _, opt := range opts {
 		opt(&o)
 	}
-	var uriErr error
-	switch {
-	case u.Scheme == "" || u.Host == "" || u.RawQuery != "" || u.ForceQuery || u.Fragment != "":
-		uriErr = fmt.Errorf("invalid relay uri %q: a scheme and host are required, with no query or fragment", uri)
-	case u.Scheme != "https" && (u.Scheme != "http" || !o.allowHTTP):
-		uriErr = fmt.Errorf("invalid relay uri %q: must use https", uri)
-	}
 	// A followed 307 or 308 would resend the server secret to another host.
 	return &relay{
-		uri:          strings.TrimRight(uri, "/"),
-		uriErr:       uriErr,
-		originGetter: originGetter,
-		c:            fleethttp.NewClient(fleethttp.WithFollowRedir(false)),
-	}, nil
+		uri:    strings.TrimRight(uri, "/"),
+		uriErr: validateRelayURI(uri, o.allowHTTP),
+		c:      fleethttp.NewClient(fleethttp.WithFollowRedir(false)),
+	}
+}
+
+func validateRelayURI(uri string, allowHTTP bool) error {
+	u, err := url.Parse(uri)
+	if err != nil {
+		return fmt.Errorf("invalid relay uri: %w", err)
+	}
+	switch {
+	case u.Scheme == "" || u.Host == "" || u.RawQuery != "" || u.ForceQuery || u.Fragment != "":
+		return fmt.Errorf("invalid relay uri %q: a scheme and host are required, with no query or fragment", uri)
+	case u.Scheme != "https" && (u.Scheme != "http" || !allowHTTP):
+		return fmt.Errorf("invalid relay uri %q: must use https", uri)
+	}
+	return nil
 }
 
 type registerRequest struct {
@@ -77,9 +78,9 @@ type Registration struct {
 	OAuthClientID string `json:"oauthClientId"`
 }
 
-func (r *relay) Register(ctx context.Context, customerID string) (*Registration, error) {
+func (r *relay) Register(ctx context.Context, serverURL, customerID string) (*Registration, error) {
 	var resp Registration
-	if err := r.send(ctx, http.MethodPost, registerRequest{CustomerID: customerID}, &resp); err != nil {
+	if err := r.send(ctx, http.MethodPost, serverURL, registerRequest{CustomerID: customerID}, &resp); err != nil {
 		return nil, fmt.Errorf("register with fleetdm.com: %w", err)
 	}
 	if resp.FleetServerSecret == "" {
@@ -93,8 +94,8 @@ type deregisterRequest struct {
 	Secret     string `json:"fleetServerSecret"`
 }
 
-func (r *relay) Deregister(ctx context.Context, customerID, secret string) error {
-	err := r.send(ctx, http.MethodDelete, deregisterRequest{CustomerID: customerID, Secret: secret}, nil)
+func (r *relay) Deregister(ctx context.Context, serverURL, customerID, secret string) error {
+	err := r.send(ctx, http.MethodDelete, serverURL, deregisterRequest{CustomerID: customerID, Secret: secret}, nil)
 	if se, ok := errors.AsType[*RelayStatusError](err); ok && se.Code == http.StatusNotFound {
 		err = &relayNotFoundError{RelayStatusError: se}
 	}
@@ -106,7 +107,7 @@ func (r *relay) Deregister(ctx context.Context, customerID, secret string) error
 
 // send decodes a 2xx response into response, which may be nil. Other statuses return a
 // *RelayStatusError.
-func (r *relay) send(ctx context.Context, method string, body, response any) error {
+func (r *relay) send(ctx context.Context, method, serverURL string, body, response any) error {
 	if r.uriErr != nil {
 		return r.uriErr
 	}
@@ -118,12 +119,8 @@ func (r *relay) send(ctx context.Context, method string, body, response any) err
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}
-	origin, err := r.originGetter()
-	if err != nil {
-		return fmt.Errorf("get origin: %w", err)
-	}
 	// The relay appends paths to the origin.
-	origin = strings.TrimRight(origin, "/")
+	origin := strings.TrimRight(serverURL, "/")
 	if origin == "" {
 		return errors.New("missing origin: server URL is not set")
 	}
@@ -138,7 +135,7 @@ func (r *relay) send(ctx context.Context, method string, body, response any) err
 
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, str.MaxErrorResponseBytes+1))
-		return &RelayStatusError{Code: resp.StatusCode, RespErr: str.TruncateErrorResponse(string(bodyBytes))}
+		return &RelayStatusError{Code: resp.StatusCode, RespErr: str.TruncateErrorResponse(strings.TrimSpace(string(bodyBytes)))}
 	}
 	if response == nil {
 		// Drain so the connection can be reused.

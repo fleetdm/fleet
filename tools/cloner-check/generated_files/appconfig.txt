@@ -119,6 +119,10 @@ github.com/fleetdm/fleet/v4/server/fleet/Integrations	GoogleWorkspace	[]*fleet.G
 github.com/fleetdm/fleet/v4/server/fleet/GoogleWorkspaceIntegration	Domain	string
 github.com/fleetdm/fleet/v4/server/fleet/GoogleWorkspaceIntegration	ImpersonatedUserEmail	string
 github.com/fleetdm/fleet/v4/server/fleet/GoogleWorkspaceIntegration	ApiKey	fleet.GoogleCalendarApiKey
+github.com/fleetdm/fleet/v4/server/fleet/Integrations	GoogleConditionalAccess	*fleet.GoogleConditionalAccessIntegration
+github.com/fleetdm/fleet/v4/server/fleet/GoogleConditionalAccessIntegration	Enabled	bool
+github.com/fleetdm/fleet/v4/server/fleet/GoogleConditionalAccessIntegration	CustomerID	string
+github.com/fleetdm/fleet/v4/server/fleet/GoogleConditionalAccessIntegration	AdminEmail	string
 github.com/fleetdm/fleet/v4/server/fleet/Integrations	CertificatesIdPIntrospectionURLs	optjson.Slice[string]
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Valid	bool

@@ -10,6 +10,8 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -26,6 +28,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	fleetmock "github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
+	"github.com/fleetdm/fleet/v4/server/service/conditional_access_google"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/service/redis_install_attempts"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
@@ -142,8 +145,12 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 		SoftwareInstallStore:            softwareInstallStore,
 		SoftwareTitleIconStore:          softwareTitleIconStore,
 		ConditionalAccessMicrosoftProxy: mockedConditionalAccessMicrosoftProxyInstance,
-		DBConns:                         s.dbConns,
-		FleetConfig:                     &fleetCfg,
+		ConditionalAccessGoogleClient: &GoogleConditionalAccessClient{
+			Relay:         mockedGoogleConditionalAccessClientInstance,
+			CloudIdentity: mockedGoogleConditionalAccessClientInstance.cloudIdentity,
+		},
+		DBConns:     s.dbConns,
+		FleetConfig: &fleetCfg,
 	}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		config.Logger = slog.New(slog.DiscardHandler)
@@ -538,6 +545,123 @@ func (m *mockedConditionalAccessMicrosoftProxy) GetMessageStatus(
 }
 
 var mockedConditionalAccessMicrosoftProxyInstance = &mockedConditionalAccessMicrosoftProxy{}
+
+// mockedGoogleConditionalAccessClient stands in for fleetdm.com and Google and records
+// the calls the service makes.
+type mockedGoogleConditionalAccessClient struct {
+	mu              sync.Mutex
+	registers       []string
+	deregisters     []string
+	relayOrigins    []string // server URL passed to each Register and Deregister
+	checkDelegation []string // "adminEmail/customerID" per call
+	checkKeys       [][]byte // service account key used by each delegation check
+	unmanaged       []string
+	unmanagedCreds  []conditional_access_google.Credentials
+	registerErr     error
+	registerSecret  string // secret returned by Register; "secret-<customer ID>" when empty
+	deregisterErr   error
+	deregSecrets    []string // secret passed to each Deregister
+	checkErr        error
+}
+
+func (m *mockedGoogleConditionalAccessClient) Register(_ context.Context, serverURL, customerID string) (*conditional_access_google.Registration, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.registers = append(m.registers, customerID)
+	m.relayOrigins = append(m.relayOrigins, serverURL)
+	if m.registerErr != nil {
+		return nil, m.registerErr
+	}
+	secret := m.registerSecret
+	if secret == "" {
+		secret = "secret-" + customerID
+	}
+	return &conditional_access_google.Registration{
+		FleetServerSecret: secret,
+		OAuthClientID:     "web-client-id",
+	}, nil
+}
+
+func (m *mockedGoogleConditionalAccessClient) Deregister(_ context.Context, serverURL, customerID, secret string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.deregisters = append(m.deregisters, customerID)
+	m.deregSecrets = append(m.deregSecrets, secret)
+	m.relayOrigins = append(m.relayOrigins, serverURL)
+	return m.deregisterErr
+}
+
+// cloudIdentity is the mock's CloudIdentityFactory: each client records its calls with
+// the credentials it was built for.
+func (m *mockedGoogleConditionalAccessClient) cloudIdentity(_ context.Context, creds conditional_access_google.Credentials) (conditional_access_google.CloudIdentity, error) {
+	return &mockedGoogleCloudIdentity{m: m, creds: creds}, nil
+}
+
+type mockedGoogleCloudIdentity struct {
+	m     *mockedGoogleConditionalAccessClient
+	creds conditional_access_google.Credentials
+}
+
+func (c *mockedGoogleCloudIdentity) CheckDelegation(_ context.Context) error {
+	c.m.mu.Lock()
+	defer c.m.mu.Unlock()
+	c.m.checkDelegation = append(c.m.checkDelegation, c.creds.AdminEmail+"/"+c.creds.CustomerID)
+	c.m.checkKeys = append(c.m.checkKeys, c.creds.ServiceAccountKey)
+	return c.m.checkErr
+}
+
+func (c *mockedGoogleCloudIdentity) SetUnmanaged(_ context.Context, name string) error {
+	c.m.mu.Lock()
+	defer c.m.mu.Unlock()
+	c.m.unmanaged = append(c.m.unmanaged, name)
+	c.m.unmanagedCreds = append(c.m.unmanagedCreds, c.creds)
+	return nil
+}
+
+// delegationCheckKeys returns the service account key each delegation check used.
+func (m *mockedGoogleConditionalAccessClient) delegationCheckKeys() [][]byte {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return slices.Clone(m.checkKeys)
+}
+
+// deregisterSecrets returns the secret passed to each Deregister.
+func (m *mockedGoogleConditionalAccessClient) deregisterSecrets() []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return slices.Clone(m.deregSecrets)
+}
+
+// serverURLs returns the server URL passed to each relay call.
+func (m *mockedGoogleConditionalAccessClient) serverURLs() []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return slices.Clone(m.relayOrigins)
+}
+
+// unmarkCreds returns the credentials each SetUnmanaged call was made with.
+func (m *mockedGoogleConditionalAccessClient) unmarkCreds() []conditional_access_google.Credentials {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return slices.Clone(m.unmanagedCreds)
+}
+
+func (m *mockedGoogleConditionalAccessClient) reset() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.registers, m.deregisters, m.deregSecrets, m.relayOrigins, m.checkDelegation, m.unmanaged, m.unmanagedCreds = nil, nil, nil, nil, nil, nil, nil
+	m.checkKeys = nil
+	m.registerErr, m.deregisterErr, m.checkErr = nil, nil, nil
+	m.registerSecret = ""
+}
+
+func (m *mockedGoogleConditionalAccessClient) calls() (checks, registers, deregisters, unmanaged []string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return slices.Clone(m.checkDelegation), slices.Clone(m.registers), slices.Clone(m.deregisters), slices.Clone(m.unmanaged)
+}
+
+var mockedGoogleConditionalAccessClientInstance = &mockedGoogleConditionalAccessClient{}
 
 func genDistributedReqWithLabelResults(host *fleet.Host, labelResults map[uint]*bool) submitDistributedQueryResultsRequestShim {
 	var (

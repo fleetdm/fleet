@@ -8796,6 +8796,15 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 	err = sqlx.GetContext(ctx, ds.reader(ctx), &result, "SELECT 1 FROM mdm_config_assets WHERE name = ?", fleet.MDMAssetCAKey)
 	assert.NoError(t, err)
 	assert.True(t, result)
+
+	// A stored value that can't be decrypted is reported as such, so callers can tell it
+	// apart from a failed query.
+	require.NoError(t, ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{{Name: fleet.MDMAssetABMCert, Value: []byte("e")}}, nil))
+	_, err = ds.writer(ctx).ExecContext(ctx, "UPDATE mdm_config_assets SET value = REPEAT('x', 64) WHERE name = ? AND deletion_uuid = ''", fleet.MDMAssetABMCert)
+	require.NoError(t, err)
+	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetABMCert}, nil)
+	require.ErrorIs(t, err, fleet.ErrMDMConfigAssetUndecryptable)
+	require.Nil(t, a)
 }
 
 func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {

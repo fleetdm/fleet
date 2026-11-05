@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -1245,6 +1246,10 @@ const (
 )
 
 type MDMAssetName string
+
+// ErrMDMConfigAssetUndecryptable is returned when a stored config asset can't be
+// decrypted with the server private key.
+var ErrMDMConfigAssetUndecryptable = errors.New("mdm config asset can't be decrypted")
 
 const (
 	// MDMAssetCACert is the name of the root CA certificate used by MDM, for
