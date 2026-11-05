@@ -152,9 +152,11 @@ func (c *Client) LiveQueryWithContext(
 				return
 			case err := <-doneReadingChan:
 				if err != nil {
-					select {
-					case resHandler.errors <- ctxerr.Wrap(ctx, err, "receive ws message"):
-					default:
+					if ctx.Err() == nil {
+						select {
+						case resHandler.errors <- ctxerr.Wrap(ctx, err, "receive ws message"):
+						default:
+						}
 					}
 					return
 				}

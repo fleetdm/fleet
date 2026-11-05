@@ -130,9 +130,7 @@ func TestLiveQueryErrorFrame(t *testing.T) {
 			assert.NoError(t, err)
 		case "/api/latest/fleet/results/websocket":
 			ws, err := upgrader.Upgrade(w, r, nil)
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			defer ws.Close()
 			assert.NoError(t, ws.WriteMessage(websocket.TextMessage, []byte(`{"type":"error","data":"pubsub error: boom"}`)))
 			for {
@@ -176,9 +174,7 @@ func TestLiveQueryConnectionCloseDoesNotPanic(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(resp)
 		case "/api/latest/fleet/results/websocket":
 			ws, err := upgrader.Upgrade(w, r, nil)
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			defer ws.Close()
 			for {
 				_, msg, err := ws.ReadMessage()
@@ -213,7 +209,7 @@ func TestLiveQueryConnectionCloseDoesNotPanic(t *testing.T) {
 	select {
 	case err := <-res.Errors():
 		require.Error(t, err)
-		assert.ErrorContains(t, err, "receive ws message")
+		require.ErrorContains(t, err, "receive ws message")
 	case <-time.After(3 * time.Second):
 		t.Fatal("expected error on websocket close, timed out")
 	}
@@ -235,9 +231,7 @@ func TestLiveQueryDoneClosesWithoutDrainingErrors(t *testing.T) {
 			})
 		case "/api/latest/fleet/results/websocket":
 			ws, err := upgrader.Upgrade(w, r, nil)
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			defer ws.Close()
 			for {
 				_, msg, err := ws.ReadMessage()
