@@ -102,7 +102,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Edit OS updates for macOS, Windows, iOS, and iPadOS hosts                                                                                  |          |            |            |            | ✅    | ✅      |
 | Create, edit, resend and delete configuration profiles for Apple (macOS/iOS/iPadOS), Windows, and Android hosts                            |          |            |            | ✅         | ✅    | ✅      |
 | View and resend configuration profiles for Apple (macOS/iOS/iPadOS), Windows, and Android hosts                                            |          |            | ✅         | ✅         | ✅    | ✅      |
-| Execute MDM commands\**                                                                                         |          |            |            | ✅         | ✅    | ✅      |
+| Execute MDM commands\**                                                                                         |          |            |            | ✅         | ✅    |         |
 | View results of MDM commands\**                                                                        | ✅       | ✅         | ✅         | ✅         | ✅    |         |
 | Edit [OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                                 |          |            |            | ✅         | ✅    | ✅      |
 | View all [OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                             |          |            | ✅         | ✅         | ✅    | ✅      |

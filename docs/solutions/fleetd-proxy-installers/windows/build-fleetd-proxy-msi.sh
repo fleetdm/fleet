@@ -15,7 +15,7 @@
 #   - appends `-- --proxy_hostname="[OSQUERY_PROXY]"` to the Orbit service arguments;
 #     osquery ignores HTTP(S)_PROXY and only honours its own --proxy_hostname
 #   - writes HTTP_PROXY / HTTPS_PROXY / NO_PROXY into the service-specific environment
-#     HKLM\SYSTEM\CurrentControlSet\Services\Fleet osquery\Environment (REG_MULTI_SZ), which
+#     HKLM\SYSTEM\CurrentControlSet\Services\Fleet\Environment (REG_MULTI_SZ), which
 #     Orbit's Go HTTP clients read from the first service start. If the stock MSI already
 #     writes that value (fleetctl after v4.92.0, fleetdm/fleet#52475), the proxy entries
 #     are merged into it instead of racing it.
@@ -114,8 +114,8 @@ def q(query):
 def rows(t):
     lines=subprocess.run(['msiinfo','export',OUT,t],capture_output=True,text=True).stdout.split('\n')
     return [l.split('\t') for l in lines[3:] if l.strip()]
-svc=[r for r in rows('ServiceInstall') if len(r)>1 and r[1]=='Fleet osquery']
-if not svc: sys.exit('no ServiceInstall row named "Fleet osquery"')
+svc=[r for r in rows('ServiceInstall') if len(r)>1 and r[1]=='Fleet']
+if not svc: sys.exit('no ServiceInstall row named "Fleet"')
 key=svc[0][0]; args=svc[0][10] if len(svc[0])>10 else ''
 if '--proxy_hostname' not in args:
     args=(args.rstrip()+' -- --proxy_hostname="[OSQUERY_PROXY]"').lstrip()
@@ -133,7 +133,7 @@ if stock:   # fleetctl > v4.92.0 writes its own Environment value: merge, don't 
 else:
     comp=[r[0] for r in rows('Component') if r and r[0]=='C_ORBITBIN'] or [svc[0][11]]  # else the service's component
     q("CREATE TABLE `Registry` (`Registry` CHAR(72) NOT NULL, `Root` SHORT NOT NULL, `Key` CHAR(255) NOT NULL LOCALIZABLE, `Name` CHAR(255) LOCALIZABLE, `Value` CHAR(0) LOCALIZABLE, `Component_` CHAR(72) NOT NULL PRIMARY KEY `Registry`)")
-    q("INSERT INTO `Registry` (`Registry`,`Root`,`Key`,`Name`,`Value`,`Component_`) VALUES ('RegOrbitProxyEnv',2,'SYSTEM\\CurrentControlSet\\Services\\Fleet osquery','Environment','%s','%s')"%(PROXY_ENV,comp[0]))
+    q("INSERT INTO `Registry` (`Registry`,`Root`,`Key`,`Name`,`Value`,`Component_`) VALUES ('RegOrbitProxyEnv',2,'SYSTEM\\CurrentControlSet\\Services\\Fleet','Environment','%s','%s')"%(PROXY_ENV,comp[0]))
 q("INSERT INTO `InstallExecuteSequence` (`Action`,`Sequence`) VALUES ('WriteRegistryValues',5000)")
 scp=[r for r in rows('Property') if r[0]=='SecureCustomProperties']
 want='ORBIT_PROXY_URL;OSQUERY_PROXY;NO_PROXY'
@@ -145,7 +145,7 @@ else:
 
 print('\n== verify ==')
 ok=True
-a=[r for r in rows('ServiceInstall') if r[1]=='Fleet osquery'][0]
+a=[r for r in rows('ServiceInstall') if r[1]=='Fleet'][0]
 a=a[10] if len(a)>10 else ''
 print('service args end:', a[-60:]); ok&='--proxy_hostname="[OSQUERY_PROXY]"' in a
 env=[r[4] for r in rows('Registry') if r[3].lower()=='environment' and 'fleet osquery' in r[2].lower()]
@@ -165,7 +165,7 @@ if [ -n "$SIGN_PFX" ]; then
   passarg=(); [ -n "$SIGN_PFX_PASS_FILE" ] && passarg=(-readpass "$SIGN_PFX_PASS_FILE")
   rm -f "$OUT"
   osslsigncode sign -pkcs12 "$SIGN_PFX" "${passarg[@]}" -h sha256 \
-    -n "Fleet osquery" -i "https://fleetdm.com" -ts "$TIMESTAMP_URL" \
+    -n "Fleet" -i "https://fleetdm.com" -ts "$TIMESTAMP_URL" \
     -in "$UNSIGNED" -out "$OUT" || die "signing failed"
   osslsigncode verify -in "$OUT" ${VERIFY_CAFILE:+-CAfile "$VERIFY_CAFILE"} 2>&1 | grep -E "Signer|Subject:|Issuer:|Message digest|Signature verification|Timestamp" | head -12
 else

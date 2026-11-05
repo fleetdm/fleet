@@ -60,7 +60,7 @@ Next, head over to your terminal (or the magic box where you can run commands to
 Once `fleetctl` has finished creating the installer, you can see the location of the installer package in the success message:
 
 ```
-Success! You generated an osquery installer at /Users/currentUser/fleet-osquery.pkg
+Success! You generated an osquery installer at /Users/currentUser/fleet-linux-amd64.deb
 ```
 
 ## Run the installer
@@ -70,13 +70,13 @@ You can run the installer using your package manager. Double click on the instal
 For DEB, run:
 
 ```
-sudo apt install ./fleet-osquery.deb
+sudo apt install ./fleet-linux-amd64.deb
 ```
 
 For RPM, run:
 
 ```
-yum install fleet-osquery.rpm
+yum install fleet-linux-amd64.rpm
 ```
 
 > Your file name may be slightly different. Check the success message for the file’s name and exact location.

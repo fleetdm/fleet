@@ -1029,6 +1029,20 @@ When enabled, Fleet server will require HTTP message signatures for all incoming
     require_http_message_signature: true
   ```
 
+### auth_require_host_identity_renewal_key_binding
+
+*Available in Fleet Premium.*
+
+When enabled, Fleet server rejects host identity certificate renewals from fleetd older than 1.64.0. Upgrade those hosts first. Fleet server logs `renewal proof is not bound to the CSR key, upgrade fleetd` when one renews.
+
+- Default value: `false`
+- Environment variable: `FLEET_AUTH_REQUIRE_HOST_IDENTITY_RENEWAL_KEY_BINDING`
+- Config file format:
+  ```yaml
+  auth:
+    require_host_identity_renewal_key_binding: true
+  ```
+
 ### auth_sso_rate_limit_per_minute
 
 The number of requests per minute allowed to the [SSO callback endpoint](https://fleetdm.com/docs/rest-api/rest-api#sso-callback) (`/api/v1/fleet/sso/callback`).

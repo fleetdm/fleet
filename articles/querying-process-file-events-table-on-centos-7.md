@@ -55,7 +55,7 @@ fleetctl package --type=rpm --fleet-desktop --fleet-url=https://host.docker.inte
 
 Install fleetd package on the CentOS 7 VM:
 ```sh
-rpm --install fleet-osquery-1.10.0.x86_64.rpm
+rpm --install fleet-linux-amd64.rpm
 ```
 
 ## Set agent options
