@@ -262,7 +262,9 @@ Run it with the two identifiers from Step 1, then paste the printed block into y
 
 **The tile does not appear on a host's self-service page.** Confirm the host matches the package's label, and that the label query returns the host in the Fleet UI under the label's host list.
 
-## Deploy a Store app machine-wide
+## Advanced
+
+### Deploy a Store app machine-wide
 
 Currently, Fleet only deploys Microsoft Store apps for the currently logged-in user. Deploying an app for every user requires `.zip` files as custom packages. Support for `.zip` packages is [coming soon](https://github.com/fleetdm/fleet/issues/38800). Until then, use the per-user self-service install in this guide.
 
