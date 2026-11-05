@@ -62,11 +62,16 @@ $olderReleases = @(foreach ($arpPath in $arpPaths) {
 $exitCode = 0
 foreach ($release in $olderReleases) {
   Write-Host "Removing older release: $($release.DisplayName)"
-  $p = Start-Process -FilePath $release.BundleCachePath `
-    -ArgumentList '/uninstall', '/quiet', '/norestart' `
-    -PassThru -Wait
-  Write-Host "Uninstall exit code: $($p.ExitCode)"
-  if ($successCodes -notcontains $p.ExitCode) { $exitCode = $p.ExitCode }
+  try {
+    $p = Start-Process -FilePath $release.BundleCachePath `
+      -ArgumentList '/uninstall', '/quiet', '/norestart' `
+      -PassThru -Wait
+    Write-Host "Uninstall exit code: $($p.ExitCode)"
+    if ($successCodes -notcontains $p.ExitCode) { $exitCode = $p.ExitCode }
+  } catch {
+    Write-Host "Failed to remove $($release.DisplayName): $_"
+    $exitCode = 1
+  }
 }
 
 Exit $exitCode

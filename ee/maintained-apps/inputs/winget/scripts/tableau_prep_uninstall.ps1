@@ -12,26 +12,36 @@ $arpPaths = @(
 )
 
 try {
-    $bundlePaths = @(foreach ($arpPath in $arpPaths) {
+    $bundles = @(foreach ($arpPath in $arpPaths) {
         Get-ItemProperty "$arpPath\*" -ErrorAction SilentlyContinue | Where-Object {
-            $_.DisplayName -like 'Tableau Prep Builder 20*' -and $_.BundleCachePath -and
-                (Test-Path -LiteralPath $_.BundleCachePath)
-        } | ForEach-Object { $_.BundleCachePath }
+            $_.DisplayName -like 'Tableau Prep Builder 20*' -and $_.BundleCachePath
+        }
     })
 
-    if ($bundlePaths.Count -eq 0) {
+    if ($bundles.Count -eq 0) {
         Write-Host "Tableau Prep Builder bundle not found in the uninstall registry."
         Exit 1
     }
 
+    # A release that can't be removed (including one whose cached bundle is gone)
+    # fails the uninstall, but the remaining releases are still removed.
     $exitCode = 0
-    foreach ($bundlePath in $bundlePaths) {
-        Write-Host "Uninstalling: $bundlePath"
-        $p = Start-Process -FilePath $bundlePath `
-            -ArgumentList '/uninstall', '/quiet', '/norestart' `
-            -PassThru -Wait
-        Write-Host "Uninstall exit code: $($p.ExitCode)"
-        if ($p.ExitCode -notin 0, 3010, 1641) { $exitCode = $p.ExitCode }
+    foreach ($bundle in $bundles) {
+        $bundlePath = $bundle.BundleCachePath
+        try {
+            if (-not (Test-Path -LiteralPath $bundlePath)) {
+                throw "cached bundle not found: $bundlePath"
+            }
+            Write-Host "Uninstalling: $bundlePath"
+            $p = Start-Process -FilePath $bundlePath `
+                -ArgumentList '/uninstall', '/quiet', '/norestart' `
+                -PassThru -Wait
+            Write-Host "Uninstall exit code: $($p.ExitCode)"
+            if ($p.ExitCode -notin 0, 3010, 1641) { $exitCode = $p.ExitCode }
+        } catch {
+            Write-Host "Failed to uninstall $($bundle.DisplayName): $_"
+            $exitCode = 1
+        }
     }
 
     Exit $exitCode
