@@ -620,10 +620,16 @@ func (a *androidAgent) runLoop() {
 	a.stats.IncrementAndroidEnrollments()
 
 	// Step 2b: Orbit enrollment (retry with backoff, non-fatal). The status loop keeps trying until it succeeds, since the
-	// agent's managed configuration, and the enroll secret in it, arrives only after Fleet runs the setup experience.
+	// agent's managed configuration, and the enroll secret in it, arrives only after Fleet runs the setup experience. Like
+	// the real agent, this waits for that secret rather than presenting the shared one, which Fleet refuses when one-time
+	// enroll secrets are on.
 	for attempt := 1; ; attempt++ {
 		a.refreshAgentEnrollSecret()
-		if err := a.orbitEnroll(); err != nil {
+		err := errors.New("no enroll secret in the agent's managed configuration yet")
+		if a.agentEnrollSecret != "" {
+			err = a.orbitEnroll()
+		}
+		if err != nil {
 			if attempt >= 3 {
 				log.Printf("Android agent %d: orbit enrollment failed after %d attempts: %v", a.agentIndex, attempt, err)
 				break // Non-fatal — certificate flow won't work but status reports will
@@ -641,6 +647,7 @@ func (a *androidAgent) runLoop() {
 
 	// Track which certificate templates we've already verified so we don't re-verify
 	verifiedCerts := make(map[uint]struct{})
+	ticksWithoutAgentSecret := 0
 
 	for range statusTicker.C {
 		// Poll proxy for current state (policy version, pending commands)
@@ -665,9 +672,13 @@ func (a *androidAgent) runLoop() {
 			a.agentEnrollSecret = state.AgentEnrollSecret
 		}
 		if a.orbitNodeKey == "" {
-			if err := a.orbitEnroll(); err != nil {
-				log.Printf("Android agent %d: orbit enrollment failed: %v", a.agentIndex, err)
-				a.stats.IncrementAndroidErrors()
+			ticksWithoutAgentSecret++
+			// The shared secret is a fallback for a proxy too old to report the managed configuration's secret.
+			if a.agentEnrollSecret != "" || ticksWithoutAgentSecret > maxTicksWithoutAgentSecret {
+				if err := a.orbitEnroll(); err != nil {
+					log.Printf("Android agent %d: orbit enrollment failed: %v", a.agentIndex, err)
+					a.stats.IncrementAndroidErrors()
+				}
 			}
 		}
 
@@ -792,6 +803,10 @@ var errProxyDeviceUnknown = errors.New("device not registered with proxy")
 // unenrolled. Unlike errProxyDeviceUnknown this is terminal: the device is gone on purpose
 // and must not register again.
 var errProxyDeviceDeleted = errors.New("device was deleted from the proxy")
+
+// maxTicksWithoutAgentSecret is how many status reports an agent that hasn't enrolled orbit waits for the proxy to report the
+// enroll secret in its managed configuration before enrolling with the shared one.
+const maxTicksWithoutAgentSecret = 3
 
 // maxStaleStateReports bounds how many consecutive status reports may be sent from a stale
 // cached state, so a permanently broken agent stops looking healthy.
