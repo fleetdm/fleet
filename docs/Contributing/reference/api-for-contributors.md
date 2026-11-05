@@ -2966,9 +2966,9 @@ Some routes are always exempt from SSO and others are exempt while a host is sti
 - [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information) (`GET /api/v1/fleet/device/{token}/macadmins`) — *exempt during setup experience*
 - [Get device's policies](#get-devices-policies) (`GET /api/v1/fleet/device/{token}/policies`) — *exempt during setup experience*
 - [Get device's software](#get-devices-software) (`GET /api/v1/fleet/device/{token}/software`) — *exempt during setup experience*
-- `POST /api/v1/fleet/device/{token}/software/install/{software_title_id}` — *exempt during setup experience*
+- `POST /api/v1/fleet/device/{token}/software/{software_title_id}/install` — *exempt during setup experience*
 - [Install all self-service software](#install-all-self-service-software) (`POST /api/v1/fleet/device/{token}/software/install_all`) — *exempt during setup experience*
-- [Uninstall software via self-service](#uninstall-software-via-self-service) (`POST /api/v1/fleet/device/{token}/software/uninstall/{software_title_id}`) — *exempt during setup experience*
+- [Uninstall software via self-service](#uninstall-software-via-self-service) (`POST /api/v1/fleet/device/{token}/software/{software_title_id}/uninstall`) — *exempt during setup experience*
 - [Get device's software install results](#get-devices-software-install-results) (`GET /api/v1/fleet/device/{token}/software/install/{install_uuid}/results`) — *exempt during setup experience*
 - [Get uninstall results via self-service](#get-uninstall-results-via-self-service) (`GET /api/v1/fleet/device/{token}/software/uninstall/{execution_id}/results`) — *exempt during setup experience*
 - `GET /api/v1/fleet/device/{token}/software/self_service_categories` — *exempt during setup experience*
@@ -3408,7 +3408,7 @@ Queues an install for every self-service software title available to the device 
 
 Uninstalls software from a host via the My device page.
 
-`POST /api/v1/fleet/device/{token}/software/uninstall/:software_title_id`
+`POST /api/v1/fleet/device/{token}/software/:software_title_id/uninstall`
 
 #### Parameters
 
@@ -3419,7 +3419,7 @@ Uninstalls software from a host via the My device page.
 
 #### Example
 
-`POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/uninstall/123`
+`POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/123/uninstall`
 
 ##### Default response
 
@@ -4759,6 +4759,7 @@ If `"status"` is `"failed"` then the `"message"` field contains the error messag
       "team_id": 1,
       "fleet_id": 1,
       "title_id": 2751,
+      "package_id": 36817,
       "url": "https://ftp.mozilla.org/pub/firefox/releases/129.0.2/win64/en-US/Firefox%20Setup%20129.0.2.msi",
       "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
       "icon_hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
@@ -4768,6 +4769,7 @@ If `"status"` is `"failed"` then the `"message"` field contains the error messag
       "team_id": 1,
       "fleet_id": 1,
       "title_id": 3496,
+      "package_id": 36818,
       "url": "https://work-desktop-assets.8x8.com/prod-publish/ga/work-arm64-dmg-v8.29.1-3.dmg",
       "hash_sha256": "c6aa78d0911a0cb504a21bcf8421de703cc7dd07b7388903cf29227ca5955737",
       "fleet_maintained_app_id": 150,
@@ -4880,7 +4882,7 @@ _Available in Fleet Premium._
 
 _Available in Fleet Premium._
 
-`POST /api/v1/fleet/software/titles/:software_title_id/package/token?alt=media`
+`POST /api/v1/fleet/software/titles/:software_title_id/packages/:package_id/token?alt=media`
 
 The returned token is a one-time use token that expires after 10 minutes.
 
@@ -4889,12 +4891,13 @@ The returned token is a one-time use token that expires after 10 minutes.
 | Name              | Type    | In    | Description                                                      |
 |-------------------|---------|-------|------------------------------------------------------------------|
 | software_title_id | integer | path  | **Required**. The ID of the software title for software package. |
+| package_id        | integer | path  | **Required**. The ID of the package to download. This is the `id` of the package in the `packages` array returned by Get software title. |
 | fleet_id           | integer | query | **Required**. The fleet ID containing the software package.      |
 | alt               | integer | query | **Required**. Must be specified and set to "media".              |
 
 #### Example
 
-`POST /api/v1/fleet/software/titles/123/package/token?alt=media&fleet_id=2`
+`POST /api/v1/fleet/software/titles/123/packages/36818/token?alt=media&fleet_id=2`
 
 ##### Default response
 
