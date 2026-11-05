@@ -609,6 +609,51 @@ func TestAutofillConfigProfileCredentials(t *testing.T) {
 		assert.EqualValues(t, 1, gen.registrations.Load())
 	})
 
+	t.Run("a request waiting on another's registration stops when its own context ends", func(t *testing.T) {
+		resetCounts()
+		svc, ctx, _, storedSecret := newUnregisteredService(t, &fleet.LicenseInfo{Tier: fleet.TierFree}, "")
+		gen.respond(http.StatusOK, nameAndDescription)
+		gate := make(chan struct{})
+		openGate := sync.OnceFunc(func() { close(gate) })
+		gen.mu.Lock()
+		gen.registerGate = gate
+		gen.mu.Unlock()
+		t.Cleanup(func() {
+			// Opened even when an assertion fails, so the fake server can shut down.
+			openGate()
+			gen.mu.Lock()
+			gen.registerGate = nil
+			gen.mu.Unlock()
+		})
+
+		// The first request starts the registration and waits on it.
+		firstDone := make(chan error, 1)
+		go func() {
+			_, _, err := svc.AutofillConfigProfileNameDescription(ctx, "Turn off AirDrop", "apple")
+			firstDone <- err
+		}()
+		require.Eventually(t, func() bool { return gen.registrations.Load() == 1 }, 2*time.Second, 10*time.Millisecond)
+
+		// The second shares it, and is canceled while fleetdm.com hasn't answered.
+		reqCtx, cancel := context.WithCancel(ctx)
+		time.AfterFunc(50*time.Millisecond, cancel)
+		started := time.Now()
+		_, _, err := svc.AutofillConfigProfileNameDescription(reqCtx, "Turn off AirDrop", "apple")
+		require.ErrorIs(t, err, context.Canceled)
+		assert.Less(t, time.Since(started), time.Second)
+
+		// The registration carries on for the first request.
+		openGate()
+		select {
+		case err := <-firstDone:
+			require.NoError(t, err)
+		case <-time.After(5 * time.Second):
+			t.Fatal("the first request didn't finish")
+		}
+		assert.Equal(t, "registered-secret", storedSecret())
+		assert.EqualValues(t, 1, gen.registrations.Load())
+	})
+
 	t.Run("a rejected secret is reported as unavailable and doesn't register again", func(t *testing.T) {
 		resetCounts()
 		svc, ctx, _ := newAutofillTestService(t, fleet.TierFree, nil)
@@ -701,9 +746,11 @@ func TestAutofillLimitErrorRetryAfter(t *testing.T) {
 	assert.Equal(t, 3600, retryAfter(`{"error": "generationLimitReached", "resetsAt": "2026-12-01T00:00:00.000Z"}`))
 	// A fraction of a second still waits a whole one.
 	assert.Equal(t, 3601, retryAfter(`{"error": "generationLimitReached", "resetsAt": "2026-12-01T00:00:00.500Z"}`))
-	// With no usable date, the 1st of next month (UTC).
+	// With no date, the 1st of next month (UTC).
 	assert.Equal(t, 3600, retryAfter(`{"error": "generationLimitReached"}`))
-	assert.Equal(t, 3600, retryAfter(`{"error": "generationLimitReached", "resetsAt": "2026-11-01T00:00:00.000Z"}`))
+	// A reset that has already passed means try again now, not next month.
+	assert.Equal(t, 1, retryAfter(`{"error": "generationLimitReached", "resetsAt": "2026-11-30T22:59:59.000Z"}`))
+	assert.Equal(t, 1, retryAfter(`{"error": "generationLimitReached", "resetsAt": "2026-11-01T00:00:00.000Z"}`))
 
 	require.NoError(t, autofillLimitError(ctx, "", http.StatusTooManyRequests, []byte(`{"error": "somethingElse"}`), now))
 	require.NoError(t, autofillLimitError(ctx, "", http.StatusOK, []byte(`{"error": "generationLimitReached"}`), now))
