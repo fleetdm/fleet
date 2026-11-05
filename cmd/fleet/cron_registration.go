@@ -347,7 +347,7 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 	// BYOD enrollment flow (a Free feature) depends on.
 	deps.register("failed to register apple_mdm_iphone_ipad_refetcher schedule", func() (fleet.CronSchedule, error) {
 		return newIPhoneIPadRefetcher(ctx, deps.instanceID, time.Minute, deps.ds, deps.commander, deps.logger, deps.svc.NewActivity,
-			deps.config.MDM.AppleIOSIPadOSRefetchBatchSize)
+			deps.config.MDM.IOSIPadOSRefetchBatchSize)
 	})
 
 	deps.register("failed to register apple_mdm_iphone_ipad_reviver schedule", func() (fleet.CronSchedule, error) {
