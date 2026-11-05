@@ -260,7 +260,7 @@ type ActivityTypeCreatedTeam struct {
 }
 
 func (a ActivityTypeCreatedTeam) ActivityName() string {
-	return "created_team"
+	return "created_fleet"
 }
 
 type ActivityTypeDeletedTeam struct {
@@ -269,7 +269,7 @@ type ActivityTypeDeletedTeam struct {
 }
 
 func (a ActivityTypeDeletedTeam) ActivityName() string {
-	return "deleted_team"
+	return "deleted_fleet"
 }
 
 type TeamActivityDetail struct {
@@ -282,7 +282,7 @@ type ActivityTypeAppliedSpecTeam struct {
 }
 
 func (a ActivityTypeAppliedSpecTeam) ActivityName() string {
-	return "applied_spec_team"
+	return "applied_spec_fleet"
 }
 
 type ActivityTypeTransferredHostsToTeam struct {
@@ -449,7 +449,7 @@ type ActivityTypeChangedUserTeamRole struct {
 }
 
 func (a ActivityTypeChangedUserTeamRole) ActivityName() string {
-	return "changed_user_team_role"
+	return "changed_user_fleet_role"
 }
 
 type ActivityTypeDeletedUserTeamRole struct {
@@ -463,7 +463,7 @@ type ActivityTypeDeletedUserTeamRole struct {
 }
 
 func (a ActivityTypeDeletedUserTeamRole) ActivityName() string {
-	return "deleted_user_team_role"
+	return "deleted_user_fleet_role"
 }
 
 type ActivityTypeFleetEnrolled struct {
@@ -1416,9 +1416,16 @@ type ActivityTypeInstalledSoftware struct {
 	FromSetupExperience bool    `json:"from_setup_experience"`
 	CommandUUID         string  `json:"command_uuid,omitempty"`
 	FailureReason       string  `json:"failure_reason,omitempty"`
-	// SkippedInstall is set on a patch-when-closed skip (the app was open); Status is then "failed_install".
-	SkippedInstall  bool `json:"skipped_install,omitempty"`
-	PatchWhenClosed bool `json:"patch_when_closed"`
+	// SkippedInstall is set on any app-open skip; Status is then "failed_install".
+	SkippedInstall bool `json:"skipped_install,omitempty"`
+	// PatchWhenClosed, NotifyBeforePatching, and PatchDeadline are mutually
+	// exclusive and only one is true on a given skip. They distinguish the three
+	// skip variants so consumers can show the right explanation copy without
+	// substring-matching pre_install_output (which the automation activities
+	// endpoint returns raw, before EnhanceOutputDetails runs).
+	PatchWhenClosed      bool `json:"patch_when_closed"`
+	NotifyBeforePatching bool `json:"notify_before_patching,omitempty"`
+	PatchDeadline        bool `json:"patch_deadline,omitempty"`
 }
 
 func (a ActivityTypeInstalledSoftware) ActivityName() string {
@@ -2709,6 +2716,17 @@ type ActivityTypeEditedSelfServiceCategory struct {
 
 func (a ActivityTypeEditedSelfServiceCategory) ActivityName() string {
 	return "edited_self_service_category"
+}
+
+type ActivityTypeEditedPatchDeadlineSettings struct {
+	TeamID   *uint    `json:"team_id" renameto:"fleet_id"`
+	TeamName *string  `json:"team_name" renameto:"fleet_name"`
+	Days     []string `json:"days"`
+	Time     string   `json:"time"`
+}
+
+func (a ActivityTypeEditedPatchDeadlineSettings) ActivityName() string {
+	return "edited_patch_deadline_settings"
 }
 
 type ActivityTypeDeletedSelfServiceCategory struct {

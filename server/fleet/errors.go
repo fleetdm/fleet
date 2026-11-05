@@ -33,6 +33,7 @@ var (
 	CantTurnOffMDMForWindowsHostsMessage         = "Can't turn off MDM for Windows hosts."
 	CantTurnOffMDMAlreadyTurnedOffMessage        = "Couldn't turn off MDM. This host already has MDM turned off."
 	CantTurnOffMDMForPersonalHostsMessage        = "Couldn't turn off MDM. This command isn't available for personal hosts."
+	CantUnenrollPendingUnenrollMessage           = "Couldn't unenroll. This host already has a pending unenroll. It will unenroll when it comes online."
 	CantWipePersonalHostsMessage                 = "Couldn't wipe. This command isn't available for personal hosts."
 	CantLockPersonalHostsMessage                 = "Couldn't lock. This command isn't available for personal hosts."
 	CantClearPasscodePersonalHostsMessage        = "Unlock token is not available for this device. Unable to issue ClearPasscode command."
@@ -65,6 +66,8 @@ var (
 	ConfigProfileLabelScopingPremiumCauseMsg     = "Scoping configuration profiles with labels"
 	DDMCustomActivationPremiumCauseMsg           = "Custom activations for declaration (DDM) profiles"
 )
+
+const Fleet5MigrationGuide = "https://fleetdm.com/learn-more-about/fleet-5-migration"
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP
 // status code.
@@ -179,6 +182,27 @@ func (e *InvalidArgumentError) Invalid() []map[string]string {
 // BadRequestError is an alias for platform_http.BadRequestError.
 type BadRequestError = platform_http.BadRequestError
 
+// ParamRequiredDeprecationError is a bad request for a parameter that Fleet 5 made required, so that every
+// such change returns the same message and migration link.
+type ParamRequiredDeprecationError struct {
+	Param string
+}
+
+// NewParamRequiredDeprecationError returns a ParamRequiredDeprecationError for the named parameter.
+func NewParamRequiredDeprecationError(param string) *ParamRequiredDeprecationError {
+	return &ParamRequiredDeprecationError{Param: param}
+}
+
+func (e *ParamRequiredDeprecationError) Error() string {
+	return fmt.Sprintf(`The %q parameter is now required. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration`, e.Param)
+}
+
+// BadRequestError makes the error encoder return a 400.
+func (e *ParamRequiredDeprecationError) BadRequestError() []map[string]string { return nil }
+
+// IsClientError implements ErrWithIsClientError.
+func (e *ParamRequiredDeprecationError) IsClientError() bool { return true }
+
 // AuthFailedError is an alias for platform_http.AuthFailedError.
 type AuthFailedError = platform_http.AuthFailedError
 
@@ -190,6 +214,12 @@ type AuthRequiredError = platform_http.AuthRequiredError
 
 // NewAuthRequiredError is an alias for platform_http.NewAuthRequiredError.
 var NewAuthRequiredError = platform_http.NewAuthRequiredError
+
+// AuthUnavailableError is an alias for platform_http.AuthUnavailableError.
+type AuthUnavailableError = platform_http.AuthUnavailableError
+
+// NewAuthUnavailableError is an alias for platform_http.NewAuthUnavailableError.
+var NewAuthUnavailableError = platform_http.NewAuthUnavailableError
 
 // DeviceSSORequiredError is an alias for platform_http.DeviceSSORequiredError.
 type DeviceSSORequiredError = platform_http.DeviceSSORequiredError
@@ -743,4 +773,16 @@ func (e *AutomaticEnrollmentRefusedError) IsClientError() bool { return true }
 
 const AdminOnlyEnrollmentForbiddenErrMsg = "Manual enrollment is not available because only Apple Business enrollment is allowed for this organization."
 
-const ManualEnrollmentStaticChallengeDisabledErrMsg = "Manual enrollment profile is not available because the static SCEP challenge is disabled for this Fleet server."
+// This is a unique deprecation notice only used very few places, where a default was changed and thereby blocked, therefore not part of the pkg/removednames
+type NotAllowedByDefaultDeprecationError struct {
+	Method   string
+	Endpoint string
+}
+
+func (e *NotAllowedByDefaultDeprecationError) Error() string {
+	return fmt.Sprintf(`The "%s %s" endpoint is not available anymore by default. What to use instead: %s`, e.Method, e.Endpoint, Fleet5MigrationGuide)
+}
+
+func (e *NotAllowedByDefaultDeprecationError) StatusCode() int { return http.StatusGone }
+
+func (e *NotAllowedByDefaultDeprecationError) IsClientError() bool { return true }

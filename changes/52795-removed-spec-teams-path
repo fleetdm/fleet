@@ -1,0 +1,1 @@
+- **Breaking change:** Removed `POST /api/v1/fleet/spec/teams`. It now returns `410 Gone` with a link to the Fleet 5 migration guide. Use `POST /api/v1/fleet/spec/fleets` instead.

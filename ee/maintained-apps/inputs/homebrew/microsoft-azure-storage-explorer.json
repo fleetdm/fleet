@@ -4,7 +4,6 @@
   "token": "microsoft-azure-storage-explorer",
   "installer_format": "zip",
   "slug": "microsoft-azure-storage-explorer/darwin",
-  "frozen": true,
   "default_categories": [
     "Productivity"
   ]

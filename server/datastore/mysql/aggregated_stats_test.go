@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -153,4 +154,30 @@ func checkAgainstSlowStats(t *testing.T, ds *Datastore, id uint, percentile int,
 	} else {
 		assert.Zero(t, slowp)
 	}
+}
+
+func TestAggregatedStatsSkipsDeletedQueries(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := t.Context()
+
+	live := test.NewQuery(t, ds, nil, "live", "select 1", 0, true)
+	deleted := test.NewQuery(t, ds, nil, "deleted", "select 2", 0, true)
+	notRun := test.NewQuery(t, ds, nil, "not run", "select 3", 0, true)
+	test.NewQuery(t, ds, nil, "no stats", "select 4", 0, true)
+	for id, executions := range map[uint]int{live.ID: 1, deleted.ID: 1, notRun.ID: 0} {
+		_, err := ds.writer(ctx).ExecContext(ctx, `INSERT INTO scheduled_query_stats
+			(host_id, scheduled_query_id, average_memory, executions, output_size, system_time, user_time, wall_time)
+			VALUES (1, ?, 1, ?, 1, 1, 1, 1)`, id, executions)
+		require.NoError(t, err)
+	}
+	// Delete only the report row, leaving its stats behind like a failed deleteQueryStats.
+	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM queries WHERE id = ?`, deleted.ID)
+	require.NoError(t, err)
+
+	require.NoError(t, ds.UpdateQueryAggregatedStats(ctx))
+
+	var ids []uint
+	require.NoError(t, ds.writer(ctx).SelectContext(ctx, &ids,
+		`SELECT id FROM aggregated_stats WHERE type = ?`, fleet.AggregatedStatsTypeScheduledQuery))
+	require.Equal(t, []uint{live.ID}, ids)
 }

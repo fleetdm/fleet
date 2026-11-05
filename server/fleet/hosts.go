@@ -419,7 +419,8 @@ type Host struct {
 	HardwareVersion  string `json:"hardware_version" db:"hardware_version" csv:"hardware_version"`
 	HardwareSerial   string `json:"hardware_serial" db:"hardware_serial" csv:"hardware_serial"`
 	ComputerName     string `json:"computer_name" db:"computer_name" csv:"computer_name"`
-	// TimeZone is the host's configured timezone. Currently only ingested for iOS/iPadOS hosts via MDM.
+	// TimeZone is the host's IANA timezone. Ingested via MDM on iOS/iPadOS and via detail
+	// queries on macOS, Linux, and Windows. nil or "" means unknown.
 	// CSV not exported to not break automations.
 	TimeZone *string `json:"timezone" db:"timezone" csv:"-"`
 	// PrimaryNetworkInterfaceID if present indicates to primary network for the host, the details of which
@@ -1264,6 +1265,7 @@ func (h *Host) IsDEPAssignedToFleet() bool {
 var LUKSSupportedPlatforms = []string{
 	"ubuntu", // also Kubuntu
 	"zorin",
+	"omarchy", // Omarchy 4+; earlier versions report "arch" and aren't supported
 }
 
 // IsLUKSSupported returns true if the host runs a Linux distribution Fleet escrows LUKS keys for.
@@ -1373,10 +1375,10 @@ type HostDetail struct {
 	OSUpdateMinimumVersion *string `json:"os_update_minimum_version"`
 	OSUpdateDeadline       *string `json:"os_update_deadline"`
 
-	// IDOnly marks a result where the caller was allowed to resolve the host but
-	// not to read it, so only ID is populated. Handlers must render it as an
-	// id-only response rather than a full one with everything zeroed out, which
-	// would advertise fields the caller never had access to.
+	// PatchDeadlineAt is when Fleet next forces a patch deadline install on this host, or nil.
+	PatchDeadlineAt *time.Time `json:"patch_deadline_at"`
+
+	// IDOnly marks a result where the caller was allowed to resolve the host but not to read it, so only ID is populated.
 	IDOnly bool `json:"-"`
 }
 
@@ -2112,10 +2114,14 @@ type HostMDMCheckinInfo struct {
 	TeamID             uint   `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	DEPAssignedToFleet bool   `json:"dep_assigned_to_fleet" db:"dep_assigned_to_fleet"`
 	OsqueryEnrolled    bool   `json:"osquery_enrolled" db:"osquery_enrolled"`
+	// FleetEnrolledCorporate is true while the host is enrolled in Fleet's MDM as a non-personal host.
+	FleetEnrolledCorporate bool `json:"-" db:"fleet_enrolled_corporate"`
 
-	SCEPRenewalInProgress bool   `json:"-" db:"scep_renewal_in_progress"`
-	MigrationInProgress   bool   `json:"-" db:"migration_in_progress"`
-	Platform              string `json:"-" db:"platform"`
+	SCEPRenewalInProgress bool       `json:"-" db:"scep_renewal_in_progress"`
+	MigrationInProgress   bool       `json:"-" db:"migration_in_progress"`
+	MDMMigrationDeadline  *time.Time `json:"-" db:"mdm_migration_deadline"`
+	MDMMigrationCompleted *time.Time `json:"-" db:"mdm_migration_completed"`
+	Platform              string     `json:"-" db:"platform"`
 }
 
 // HostEscrowState is where a Linux host's LUKS escrow request stands.

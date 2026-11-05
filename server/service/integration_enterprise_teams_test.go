@@ -105,7 +105,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		},
 	}
 	var applyResp applyTeamSpecsResponse
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp)
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, &applyResp)
 	require.Len(t, applyResp.TeamIDsByName, 1)
 
 	team, err := s.ds.TeamByName(context.Background(), teamName)
@@ -193,7 +193,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			},
 		},
 	}
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp)
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, &applyResp)
 	require.Len(t, applyResp.TeamIDsByName, 1)
 
 	team, err = s.ds.TeamByName(context.Background(), teamName)
@@ -215,7 +215,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			},
 		},
 	}
-	res := s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
+	res := s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `"enable_end_user_authentication" must be set to "true"`)
 
@@ -233,7 +233,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			},
 		},
 	}
-	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
+	res = s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "deadline_days must be an integer between 0 and 30")
 
@@ -251,7 +251,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			},
 		},
 	}
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp)
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, &applyResp)
 	require.Len(t, applyResp.TeamIDsByName, 1)
 	team, err = s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
@@ -397,16 +397,16 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			},
 		},
 	}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest, "dry_run", "true")
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusBadRequest, "dry_run", "true")
 
 	// dry-run with empty body
-	res = s.DoRaw("POST", "/api/latest/fleet/spec/teams", nil, http.StatusBadRequest, "force", "true")
+	res = s.DoRaw("POST", "/api/latest/fleet/spec/fleets", nil, http.StatusBadRequest, "force", "true")
 	errBody, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
 	require.Contains(t, string(errBody), `"Expected JSON Body"`)
 
 	// dry-run with invalid top-level key
-	s.Do("POST", "/api/latest/fleet/spec/teams", json.RawMessage(`{
+	s.Do("POST", "/api/latest/fleet/spec/fleets", json.RawMessage(`{
 		"specs": [
 			{"name": "team_name_1", "unknown_key": true}
 		]
@@ -431,7 +431,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			},
 		},
 	}
-	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
+	res = s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Couldn't update apple_settings because MDM features aren't turned on in Fleet.")
 
@@ -449,7 +449,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		},
 	}
 	applyResp = applyTeamSpecsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp, "dry_run", "true")
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, &applyResp, "dry_run", "true")
 	assert.Equal(t, map[string]uint{teamName: team.ID}, applyResp.TeamIDsByName)
 
 	// dry-run with macos disk encryption set to true, no error: like the disk
@@ -467,7 +467,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		},
 	}
 	applyResp = applyTeamSpecsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp, "dry_run", "true")
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, &applyResp, "dry_run", "true")
 	assert.Equal(t, map[string]uint{teamName: team.ID}, applyResp.TeamIDsByName)
 
 	// dry-run with macos enable release device set to false, no error
@@ -484,7 +484,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		},
 	}
 	applyResp = applyTeamSpecsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp, "dry_run", "true")
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, &applyResp, "dry_run", "true")
 	assert.Equal(t, map[string]uint{teamName: team.ID}, applyResp.TeamIDsByName)
 
 	// dry-run with macos enable release device manually set to true
@@ -500,7 +500,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			},
 		},
 	}
-	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
+	res = s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Couldn't update setup_experience because MDM features aren't turned on in Fleet.")
 
@@ -517,12 +517,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		},
 	}
 	// Update team
-	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
+	res = s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "host expiry window")
 	// Create team (coverage should show that this validation was covered for both update and create)
 	teamSpecs["specs"].([]map[string]any)[0]["name"] = teamName + "invalid host expiry window"
-	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
+	res = s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "host expiry window")
 
@@ -536,7 +536,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			},
 		},
 	}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, "dry_run", "true")
 
 	team, err = s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
@@ -552,7 +552,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			},
 		},
 	}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 
 	// agent options are unchanged, not cleared
 	team, err = s.ds.TeamByName(context.Background(), teamName)
@@ -568,7 +568,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			},
 		},
 	}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 
 	// agent options are cleared
 	team, err = s.ds.TeamByName(context.Background(), teamName)
@@ -585,14 +585,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			},
 		},
 	}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "force", "true")
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, "force", "true")
 
 	team, err = s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
 	require.Contains(t, string(*team.Config.AgentOptions), `"foo": "qux"`)
 
 	// force create new team with invalid top-level key
-	s.Do("POST", "/api/latest/fleet/spec/teams", json.RawMessage(`{
+	s.Do("POST", "/api/latest/fleet/spec/fleets", json.RawMessage(`{
 		"specs": [
 			{"name": "team_with_invalid_key", "unknown_key": true}
 		]
@@ -611,7 +611,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			},
 		},
 	}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusBadRequest)
 
 	// valid agent options command-line flag
 	agentOpts = json.RawMessage(`{"command_line_flags": {"enable_tables": "abcd"}}`)
@@ -623,7 +623,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			},
 		},
 	}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 
 	team, err = s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
@@ -645,7 +645,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		},
 	}
 	applyResp = applyTeamSpecsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp)
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, &applyResp)
 	require.Len(t, applyResp.TeamIDsByName, 1)
 
 	teams, err = s.ds.ListTeams(context.Background(), fleet.TeamFilter{User: user}, fleet.ListOptions{})
@@ -678,7 +678,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		},
 	}
 	applyResp = applyTeamSpecsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp)
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, &applyResp)
 	require.Len(t, applyResp.TeamIDsByName, 1)
 
 	team, err = s.ds.TeamByName(context.Background(), "team2")
@@ -705,7 +705,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecsMacOSDiskEncryptionWithout
 	}
 
 	var applyResp applyTeamSpecsResponse
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", spec(map[string]any{
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", spec(map[string]any{
 		"enable_disk_encryption":            true,
 		"enable_escrow_disk_encryption_key": true,
 	}), http.StatusOK, &applyResp)
@@ -716,7 +716,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecsMacOSDiskEncryptionWithout
 	assert.True(t, getResp.Team.Config.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
 
 	// custom profiles still need Apple MDM
-	res := s.Do("POST", "/api/latest/fleet/spec/teams", spec(map[string]any{
+	res := s.Do("POST", "/api/latest/fleet/spec/fleets", spec(map[string]any{
 		"custom_settings": []string{"foo"},
 	}), http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(res.Body), "Couldn't update apple_settings because MDM features aren't turned on in Fleet.")
@@ -805,7 +805,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecsPermissions() {
 			},
 		},
 	}
-	s.Do("POST", "/api/latest/fleet/spec/teams", editTeam1Spec, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", editTeam1Spec, http.StatusOK)
 	team1b, err := s.ds.TeamLite(context.Background(), team1.ID)
 	require.NoError(t, err)
 	require.Equal(t, *team1b.Config.AgentOptions, agentOpts)
@@ -819,7 +819,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecsPermissions() {
 			},
 		},
 	}
-	s.Do("POST", "/api/latest/fleet/spec/teams", editTeam2Spec, http.StatusForbidden)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", editTeam2Spec, http.StatusForbidden)
 }
 
 func (s *integrationEnterpriseTestSuite) TestModifyTeamEnrollSecrets() {

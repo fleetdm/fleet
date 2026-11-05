@@ -164,13 +164,18 @@ func (s *integrationEnterpriseTestSuite) TestEmbeddedMCP() {
 	require.NoError(t, err)
 	// Asleep hosts let a campaign finish as soon as Fleet reports no online targets.
 	asleepIDs := []uint{asleep[0].ID, asleep[1].ID}
-	// Fleet stops a campaign's query only once its results stream closes, so
-	// the test waits for every stop before TearDownTest resets the mock.
+	// Fleet stops a campaign's query only once its results stream closes, so the
+	// test waits for every stop. StopQuery bypasses testify because Called still
+	// locks the mock's mutex after Run, racing with TearDownTest's reset.
 	var campaigns, stoppedCampaigns atomic.Int64
 	s.lq.On("RunQuery", mock.Anything, mock.Anything, mock.MatchedBy(func(got []uint) bool {
 		return len(got) == 2 && ((got[0] == asleepIDs[0] && got[1] == asleepIDs[1]) || (got[0] == asleepIDs[1] && got[1] == asleepIDs[0]))
 	})).Return(nil).Run(func(mock.Arguments) { campaigns.Add(1) })
-	s.lq.On("StopQuery", mock.Anything).Return(nil).Run(func(mock.Arguments) { stoppedCampaigns.Add(1) })
+	s.lq.StopQueryOverride = func(string) error {
+		stoppedCampaigns.Add(1)
+		return nil
+	}
+	t.Cleanup(func() { s.lq.StopQueryOverride = nil })
 	defer func() {
 		assert.Eventually(t, func() bool { return stoppedCampaigns.Load() == campaigns.Load() }, 10*time.Second, 50*time.Millisecond,
 			"every live query campaign must be stopped")

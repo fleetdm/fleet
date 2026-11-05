@@ -343,11 +343,34 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			out.UniqueIdentifier, out.Version,
 		)
 	}
+	if input.Token == "enpass" {
+		// The cask version ("6.12.8.2837") is CFBundleShortVersionString ("6.12.8")
+		// plus CFBundleVersion ("2837"), so neither column alone compares correctly.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version || '.' || bundle_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
+	if input.Token == "wechat" {
+		// WeChat's CFBundleShortVersionString is three parts ("4.2.0" for cask
+		// "4.2.0.16,270352"), so it always sorts below the cask version. Compare
+		// CFBundleVersion against the build after the comma instead.
+		if m := weChatCaskBuildPattern.FindStringSubmatch(cask.Version); m != nil {
+			out.Queries.Patched = fmt.Sprintf(
+				"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
+				out.UniqueIdentifier, m[1],
+			)
+		}
+	}
 	switch input.Token {
-	case "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3":
-		// CFBundleShortVersionString is major.minor only ("26.3" for cask "26.3.5"),
-		// which version_compare sorts below the cask version even for x.y.0 releases;
-		// CFBundleVersion carries the full cask version.
+	case "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "jasp",
+		"bitrix24", "chrome-remote-desktop-host", "crossover", "kdenlive", "malwarebytes", "plex-media-server", "sigmaos",
+		"axure-rp", "gotomeeting", "macvim-app":
+		// CFBundleVersion carries the full cask version, but CFBundleShortVersionString
+		// drops part of it ("26.3" for cask "26.3.5", "0.99" for JASP's "0.99.0.0",
+		// "5.28.4" for Malwarebytes' "5.28.4.4244"), which version_compare sorts below
+		// the cask version even for x.y.0 releases. Axure RP has no short version, and
+		// GoToMeeting's and MacVim's is a marketing version the cask doesn't track.
 		out.Queries.Patched = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
 			out.UniqueIdentifier, out.Version,
@@ -499,6 +522,10 @@ func firefoxMacBundleVersion(version, buildDate string) (string, error) {
 	yy := buildDate[2:4]
 	return fmt.Sprintf("%s%s.%d.%d", major, yy, int(date.Month()), date.Day()), nil
 }
+
+// weChatCaskBuildPattern extracts the numeric build from a WeChat cask version
+// ("4.2.0.16,270352").
+var weChatCaskBuildPattern = regexp.MustCompile(`^[^,]+,(\d+)$`)
 
 // firefoxNightlyCaskVersionPattern extracts the build timestamp from a Firefox
 // Nightly cask version ("154.0a1,2026-07-17-09-27-13").

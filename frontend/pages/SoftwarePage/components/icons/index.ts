@@ -71,7 +71,6 @@ import Alacritty from "./png/Alacritty.png";
 import Alcove from "./png/Alcove.png";
 import Aldente from "./png/Aldente.png";
 import Alfaview from "./png/Alfaview.png";
-import Alloy from "./png/Alloy.png";
 import AllwaySync from "./png/AllwaySync.png";
 import AltairGraphqlClient from "./png/AltairGraphqlClient.png";
 import AltTab from "./png/AltTab.png";
@@ -87,7 +86,6 @@ import AmazonWorkspaces from "./png/AmazonWorkspaces.png";
 import Amethyst from "./png/Amethyst.png";
 import Amie from "./png/Amie.png";
 import AndroidStudio from "./png/AndroidStudio.png";
-import AngryIpScanner from "./png/AngryIpScanner.png";
 import Anka from "./png/Anka.png";
 import AnotherRedisDesktopManager from "./png/AnotherRedisDesktopManager.png";
 import Antigravity from "./png/Antigravity.png";
@@ -102,7 +100,6 @@ import Apidog from "./png/Apidog.png";
 import Apparency from "./png/Apparency.png";
 import AppCleaner from "./png/AppCleaner.png";
 import AppFair from "./png/AppFair.png";
-import AppiumInspector from "./png/AppiumInspector.png";
 import Applite from "./png/Applite.png";
 import Aptakube from "./png/Aptakube.png";
 import Arc from "./png/Arc.png";
@@ -192,7 +189,6 @@ import Capto from "./png/Capto.png";
 import CarbonCopyCloner from "./png/CarbonCopyCloner.png";
 import Cardhop from "./png/Cardhop.png";
 import Cavalry from "./png/Cavalry.png";
-import Cellprofiler from "./png/Cellprofiler.png";
 import CertifyTheWeb from "./png/CertifyTheWeb.png";
 import Chalk from "./png/Chalk.png";
 import Charles from "./png/Charles.png";
@@ -493,7 +489,6 @@ import HarmonySase from "./png/HarmonySase.png";
 import Hazel from "./png/Hazel.png";
 import Hazeover from "./png/Hazeover.png";
 import Heidisql from "./png/Heidisql.png";
-import Helium from "./png/Helium.png";
 import HexFiend from "./png/HexFiend.png";
 import HeyDesktop from "./png/HeyDesktop.png";
 import Hiddenbar from "./png/Hiddenbar.png";
@@ -620,9 +615,7 @@ import Lunasea from "./png/Lunasea.png";
 import Lunatask from "./png/Lunatask.png";
 import Lycheeslicer from "./png/Lycheeslicer.png";
 import Maccy from "./png/Maccy.png";
-import Macdown from "./png/Macdown.png";
 import Mace from "./png/Mace.png";
-import Macjournal from "./png/Macjournal.png";
 import MacMouseFix from "./png/MacMouseFix.png";
 import Macpacker from "./png/Macpacker.png";
 import Macpass from "./png/Macpass.png";
@@ -665,6 +658,7 @@ import MicrosoftEdge from "./png/MicrosoftEdge.png";
 import MicrosoftOdbcDriver17 from "./png/MicrosoftOdbcDriver17.png";
 import MicrosoftOdbcDriver18 from "./png/MicrosoftOdbcDriver18.png";
 import MicrosoftOffice from "./png/MicrosoftOffice.png";
+import MicrosoftOleDbDriver18 from "./png/MicrosoftOleDbDriver18.png";
 import MicrosoftOleDbDriver19 from "./png/MicrosoftOleDbDriver19.png";
 import MicrosoftOneNote from "./png/MicrosoftOneNote.png";
 import MicrosoftOutlook from "./png/MicrosoftOutlook.png";
@@ -1126,6 +1120,7 @@ import Winlogbeat from "./png/Winlogbeat.png";
 import Winrar from "./png/Winrar.png";
 import Wins from "./png/Wins.png";
 import Winscp from "./png/Winscp.png";
+import Wireguard from "./png/Wireguard.png";
 import Wireshark from "./png/Wireshark.png";
 import WisprFlow from "./png/WisprFlow.png";
 import WondershareEdrawmax from "./png/WondershareEdrawmax.png";
@@ -1148,7 +1143,6 @@ import Yaak from "./png/Yaak.png";
 import Yacreader from "./png/Yacreader.png";
 import Yarn from "./png/Yarn.png";
 import Yattee from "./png/Yattee.png";
-import Yippy from "./png/Yippy.png";
 import YtMusic from "./png/YtMusic.png";
 import YubicoAuthenticator from "./png/YubicoAuthenticator.png";
 import YubikeyManager from "./png/YubikeyManager.png";
@@ -1229,7 +1223,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   alcove: Alcove,
   aldente: Aldente,
   alfaview: Alfaview,
-  alloy: Alloy,
   "allway sync": AllwaySync,
   "altair graphql client": AltairGraphqlClient,
   alttab: AltTab,
@@ -1251,7 +1244,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   amie: Amie,
   "android studio": AndroidStudio,
   androidPlayStore: AndroidPlayStore,
-  "angry ip scanner": AngryIpScanner,
   anka: Anka,
   "another redis desktop manager": AnotherRedisDesktopManager,
   antigravity: Antigravity,
@@ -1266,7 +1258,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "app fair": AppFair,
   apparency: Apparency,
   appcleaner: AppCleaner,
-  "appium inspector gui": AppiumInspector,
   appleAppStore: AppleAppStore,
   applite: Applite,
   aptakube: Aptakube,
@@ -1362,7 +1353,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "carbon copy cloner": CarbonCopyCloner,
   cardhop: Cardhop,
   cavalry: Cavalry,
-  cellprofiler: Cellprofiler,
   "certify the web": CertifyTheWeb,
   chalk: Chalk,
   charles: Charles,
@@ -1675,7 +1665,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   hazel: Hazel,
   hazeover: Hazeover,
   heidisql: Heidisql,
-  helium: Helium,
   "hex fiend": HexFiend,
   hey: HeyDesktop,
   "hidden bar": Hiddenbar,
@@ -1805,9 +1794,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "lychee slicer": Lycheeslicer,
   "mac mouse fix": MacMouseFix,
   maccy: Maccy,
-  macdown: Macdown,
   mace: Mace,
-  macjournal: Macjournal,
   macpacker: Macpacker,
   macpass: Macpass,
   macpilot: Macpilot,
@@ -1852,7 +1839,9 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "microsoft odbc driver 17 for sql server": MicrosoftOdbcDriver17,
   "microsoft odbc driver 18 for sql server": MicrosoftOdbcDriver18,
   "microsoft office": MicrosoftOffice,
+  "microsoft ole db driver 18 for sql server": MicrosoftOleDbDriver18,
   "microsoft ole db driver 19 for sql server": MicrosoftOleDbDriver19,
+  "microsoft ole db driver for sql server": MicrosoftOleDbDriver18,
   "microsoft onenote": MicrosoftOneNote,
   "microsoft outlook": MicrosoftOutlook,
   "microsoft powerpoint": MicrosoftPowerPoint,
@@ -2342,6 +2331,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   winrar: Winrar,
   wins: Wins,
   winscp: Winscp,
+  wireguard: Wireguard,
   wireshark: Wireshark,
   "wispr flow": WisprFlow,
   "wondershare filmora": WondershareFilmora,
@@ -2364,7 +2354,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   yacreader: Yacreader,
   yarn: Yarn,
   yattee: Yattee,
-  yippy: Yippy,
   "youtube music": YtMusic,
   "yubico authenticator": YubicoAuthenticator,
   "yubikey manager": YubikeyManager,

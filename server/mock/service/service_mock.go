@@ -249,11 +249,13 @@ type DeleteHostFunc func(ctx context.Context, id uint) (err error)
 
 type HostByIdentifierFunc func(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error)
 
+type GetHostByIDOrIdentifierFunc func(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error)
+
 type RefetchHostFunc func(ctx context.Context, id uint) (err error)
 
 type CleanupExpiredHostsBatchFunc func(ctx context.Context, batchSize int) ([]fleet.DeletedHostDetails, error)
 
-type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error
+type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint) error
 
 type AddHostsToTeamByFilterFunc func(ctx context.Context, teamID *uint, filter *map[string]interface{}) error
 
@@ -677,11 +679,7 @@ type RenewABMTokenFunc func(ctx context.Context, token io.Reader, tokenID uint) 
 
 type EnqueueMDMAppleCommandFunc func(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error)
 
-type BatchSetMDMAppleProfilesFunc func(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool, skipBulkPending bool) error
-
-type MDMApplePreassignProfileFunc func(ctx context.Context, payload fleet.MDMApplePreassignProfilePayload) error
-
-type MDMAppleMatchPreassignmentFunc func(ctx context.Context, externalHostIdentifier string) error
+type BatchSetMDMAppleProfilesFunc func(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool) error
 
 type MDMAppleDeviceLockFunc func(ctx context.Context, hostID uint) error
 
@@ -922,6 +920,10 @@ type NewSoftwareCategoryFunc func(ctx context.Context, teamID *uint, name string
 type UpdateSoftwareCategoryFunc func(ctx context.Context, id uint, name string) (*fleet.SoftwareCategory, error)
 
 type DeleteSoftwareCategoryFunc func(ctx context.Context, id uint) error
+
+type GetPatchDeadlineSettingsFunc func(ctx context.Context, teamID *uint) (*fleet.PatchDeadlineSettings, error)
+
+type UpdatePatchDeadlineSettingsFunc func(ctx context.Context, teamID *uint, days any, time any) (*fleet.PatchDeadlineSettings, error)
 
 type UploadOrgLogoFunc func(ctx context.Context, mode fleet.OrgLogoMode, content io.ReadSeeker) error
 
@@ -1397,6 +1399,9 @@ type Service struct {
 
 	HostByIdentifierFunc        HostByIdentifierFunc
 	HostByIdentifierFuncInvoked bool
+
+	GetHostByIDOrIdentifierFunc        GetHostByIDOrIdentifierFunc
+	GetHostByIDOrIdentifierFuncInvoked bool
 
 	RefetchHostFunc        RefetchHostFunc
 	RefetchHostFuncInvoked bool
@@ -2043,12 +2048,6 @@ type Service struct {
 	BatchSetMDMAppleProfilesFunc        BatchSetMDMAppleProfilesFunc
 	BatchSetMDMAppleProfilesFuncInvoked bool
 
-	MDMApplePreassignProfileFunc        MDMApplePreassignProfileFunc
-	MDMApplePreassignProfileFuncInvoked bool
-
-	MDMAppleMatchPreassignmentFunc        MDMAppleMatchPreassignmentFunc
-	MDMAppleMatchPreassignmentFuncInvoked bool
-
 	MDMAppleDeviceLockFunc        MDMAppleDeviceLockFunc
 	MDMAppleDeviceLockFuncInvoked bool
 
@@ -2408,6 +2407,12 @@ type Service struct {
 
 	DeleteSoftwareCategoryFunc        DeleteSoftwareCategoryFunc
 	DeleteSoftwareCategoryFuncInvoked bool
+
+	GetPatchDeadlineSettingsFunc        GetPatchDeadlineSettingsFunc
+	GetPatchDeadlineSettingsFuncInvoked bool
+
+	UpdatePatchDeadlineSettingsFunc        UpdatePatchDeadlineSettingsFunc
+	UpdatePatchDeadlineSettingsFuncInvoked bool
 
 	UploadOrgLogoFunc        UploadOrgLogoFunc
 	UploadOrgLogoFuncInvoked bool
@@ -3408,6 +3413,13 @@ func (s *Service) HostByIdentifier(ctx context.Context, identifier string, opts 
 	return s.HostByIdentifierFunc(ctx, identifier, opts)
 }
 
+func (s *Service) GetHostByIDOrIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
+	s.mu.Lock()
+	s.GetHostByIDOrIdentifierFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostByIDOrIdentifierFunc(ctx, identifier, opts)
+}
+
 func (s *Service) RefetchHost(ctx context.Context, id uint) (err error) {
 	s.mu.Lock()
 	s.RefetchHostFuncInvoked = true
@@ -3422,11 +3434,11 @@ func (s *Service) CleanupExpiredHostsBatch(ctx context.Context, batchSize int) (
 	return s.CleanupExpiredHostsBatchFunc(ctx, batchSize)
 }
 
-func (s *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error {
+func (s *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error {
 	s.mu.Lock()
 	s.AddHostsToTeamFuncInvoked = true
 	s.mu.Unlock()
-	return s.AddHostsToTeamFunc(ctx, teamID, hostIDs, skipBulkPending)
+	return s.AddHostsToTeamFunc(ctx, teamID, hostIDs)
 }
 
 func (s *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, filter *map[string]interface{}) error {
@@ -4906,25 +4918,11 @@ func (s *Service) EnqueueMDMAppleCommand(ctx context.Context, rawBase64Cmd strin
 	return s.EnqueueMDMAppleCommandFunc(ctx, rawBase64Cmd, deviceIDs)
 }
 
-func (s *Service) BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool, skipBulkPending bool) error {
+func (s *Service) BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool) error {
 	s.mu.Lock()
 	s.BatchSetMDMAppleProfilesFuncInvoked = true
 	s.mu.Unlock()
-	return s.BatchSetMDMAppleProfilesFunc(ctx, teamID, teamName, profiles, dryRun, skipBulkPending)
-}
-
-func (s *Service) MDMApplePreassignProfile(ctx context.Context, payload fleet.MDMApplePreassignProfilePayload) error {
-	s.mu.Lock()
-	s.MDMApplePreassignProfileFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMApplePreassignProfileFunc(ctx, payload)
-}
-
-func (s *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHostIdentifier string) error {
-	s.mu.Lock()
-	s.MDMAppleMatchPreassignmentFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMAppleMatchPreassignmentFunc(ctx, externalHostIdentifier)
+	return s.BatchSetMDMAppleProfilesFunc(ctx, teamID, teamName, profiles, dryRun)
 }
 
 func (s *Service) MDMAppleDeviceLock(ctx context.Context, hostID uint) error {
@@ -5765,6 +5763,20 @@ func (s *Service) DeleteSoftwareCategory(ctx context.Context, id uint) error {
 	s.DeleteSoftwareCategoryFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteSoftwareCategoryFunc(ctx, id)
+}
+
+func (s *Service) GetPatchDeadlineSettings(ctx context.Context, teamID *uint) (*fleet.PatchDeadlineSettings, error) {
+	s.mu.Lock()
+	s.GetPatchDeadlineSettingsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetPatchDeadlineSettingsFunc(ctx, teamID)
+}
+
+func (s *Service) UpdatePatchDeadlineSettings(ctx context.Context, teamID *uint, days any, time any) (*fleet.PatchDeadlineSettings, error) {
+	s.mu.Lock()
+	s.UpdatePatchDeadlineSettingsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdatePatchDeadlineSettingsFunc(ctx, teamID, days, time)
 }
 
 func (s *Service) UploadOrgLogo(ctx context.Context, mode fleet.OrgLogoMode, content io.ReadSeeker) error {

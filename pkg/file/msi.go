@@ -14,7 +14,7 @@ import (
 	"golang.org/x/text/encoding/charmap"
 )
 
-func ExtractMSIMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
+func ExtractMSIMetadata(tfr *fleet.TempFileReader) (_ *InstallerMetadata, err error) {
 	// compute its hash
 	h := sha256.New()
 	_, _ = io.Copy(h, tfr) // writes to a hash cannot fail
@@ -22,6 +22,13 @@ func ExtractMSIMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 	if err := tfr.Rewind(); err != nil {
 		return nil, err
 	}
+
+	// Past this point every error comes from parsing the uploaded file.
+	defer func() {
+		if err != nil && !errors.Is(err, ErrInvalidInstaller) {
+			err = fmt.Errorf("%w: %w", ErrInvalidInstaller, err)
+		}
+	}()
 
 	c, err := comdoc.ReadFile(tfr)
 	if err != nil {
@@ -157,9 +164,26 @@ func decodePropertyTable(propReader io.Reader, table *msiTable, strings []string
 
 	kv := make(map[string]string, rowCount)
 	for i := 0; i < rowCount; i++ {
-		kv[strings[cols[0][i]-1]] = strings[cols[1][i]-1]
+		key, err := msiStringAt(strings, cols[0][i])
+		if err != nil {
+			return nil, err
+		}
+		val, err := msiStringAt(strings, cols[1][i])
+		if err != nil {
+			return nil, err
+		}
+		kv[key] = val
 	}
 	return kv, nil
+}
+
+// msiStringAt resolves a 1-based string table reference. The id comes from the
+// file, so it can be 0 or past the end of the table.
+func msiStringAt(strings []string, id uint16) (string, error) {
+	if id == 0 || int(id) > len(strings) {
+		return "", fmt.Errorf("%w: string table index %d out of range (%d strings)", ErrInvalidInstaller, id, len(strings))
+	}
+	return strings[id-1], nil
 }
 
 func decodePropertyTableColumns(colReader io.Reader, strings []string) (*msiTable, error) {
@@ -203,12 +227,19 @@ func decodePropertyTableColumns(colReader io.Reader, strings []string) (*msiTabl
 	for i := 0; i < rowCount; i++ {
 		tblID, colNum, colNameID, colAttr := cols[0][i], cols[1][i], cols[2][i], cols[3][i]
 
-		tableName := strings[tblID-1]
+		tableName, err := msiStringAt(strings, tblID)
+		if err != nil {
+			return nil, err
+		}
 		if tableName == "Property" {
+			colName, err := msiStringAt(strings, colNameID)
+			if err != nil {
+				return nil, err
+			}
 			tbl.Name = tableName
 			tbl.Cols = append(tbl.Cols, msiColumn{
 				Number:     int(colNum),
-				Name:       strings[colNameID-1],
+				Name:       colName,
 				Attributes: colAttr,
 			})
 		}

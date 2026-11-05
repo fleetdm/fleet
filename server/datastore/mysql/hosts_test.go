@@ -4713,6 +4713,75 @@ func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(9), h.ID)
 	assert.Equal(t, now.UTC(), h.SeenTime)
 
+	t.Run("priority across and within columns", func(t *testing.T) {
+		setSerial := func(h *fleet.Host, value string) { h.HardwareSerial = value }
+		setUUID := func(h *fleet.Host, value string) { h.UUID = value }
+		setHostname := func(h *fleet.Host, value string) { h.Hostname = value }
+		setOsqueryHostID := func(h *fleet.Host, value string) { h.OsqueryHostID = &value }
+		setNodeKey := func(h *fleet.Host, value string) { h.NodeKey = &value }
+
+		// The expected loser is created first, so the winner never has the lower ID unless the case is about the tie-break.
+		testCases := []struct {
+			name         string
+			setLoser     func(*fleet.Host, string)
+			setWinner    func(*fleet.Host, string)
+			winnerIsLast bool
+		}{
+			{name: "serial beats UUID", setLoser: setUUID, setWinner: setSerial, winnerIsLast: true},
+			{name: "UUID beats hostname", setLoser: setHostname, setWinner: setUUID, winnerIsLast: true},
+			{name: "hostname beats osquery host ID", setLoser: setOsqueryHostID, setWinner: setHostname, winnerIsLast: true},
+			{name: "osquery host ID beats node key", setLoser: setNodeKey, setWinner: setOsqueryHostID, winnerIsLast: true},
+			{name: "lowest ID wins on a shared hostname", setLoser: setHostname, setWinner: setHostname},
+			{name: "lowest ID wins on a shared serial", setLoser: setSerial, setWinner: setSerial},
+			{name: "lowest ID wins on a shared UUID", setLoser: setUUID, setWinner: setUUID},
+		}
+		for i, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				contested := fmt.Sprintf("contested_%d", i)
+				newContender := func(suffix string, set func(*fleet.Host, string)) uint {
+					contender := &fleet.Host{
+						DetailUpdatedAt: now, LabelUpdatedAt: now, PolicyUpdatedAt: now, SeenTime: now,
+						OsqueryHostID: new(contested + "_osquery_" + suffix), NodeKey: new(contested + "_node_key_" + suffix),
+						UUID: contested + "_uuid_" + suffix, Hostname: contested + "_hostname_" + suffix, HardwareSerial: contested + "_serial_" + suffix,
+					}
+					set(contender, contested)
+					created, err := ds.NewHost(t.Context(), contender)
+					require.NoError(t, err)
+					return created.ID
+				}
+				firstID := newContender("first", tc.setLoser)
+				lastID := newContender("last", tc.setWinner)
+				wantID := firstID
+				if tc.winnerIsLast {
+					wantID = lastID
+				}
+
+				host, err := ds.HostByIdentifier(t.Context(), contested)
+				require.NoError(t, err)
+				require.Equal(t, wantID, host.ID)
+
+				hostLite, err := ds.HostLiteByIdentifier(t.Context(), contested)
+				require.NoError(t, err)
+				require.Equal(t, wantID, hostLite.ID)
+			})
+		}
+	})
+
+	t.Run("blank identifiers match nothing", func(t *testing.T) {
+		_, err := ds.NewHost(t.Context(), &fleet.Host{
+			DetailUpdatedAt: now, LabelUpdatedAt: now, PolicyUpdatedAt: now, SeenTime: now,
+			OsqueryHostID: new(""), NodeKey: new(""),
+		})
+		require.NoError(t, err)
+
+		for _, blank := range []string{"", " ", "   ", "\u200b", "\ufeff", "\x00", "\u200b "} {
+			_, err := ds.HostByIdentifier(t.Context(), blank)
+			require.True(t, fleet.IsNotFound(err), "HostByIdentifier(%q): %v", blank, err)
+			_, err = ds.HostLiteByIdentifier(t.Context(), blank)
+			require.True(t, fleet.IsNotFound(err), "HostLiteByIdentifier(%q): %v", blank, err)
+		}
+	})
+
 	h, err = ds.HostByIdentifier(context.Background(), "foobar")
 	assert.ErrorIs(t, err, sql.ErrNoRows)
 	assert.Nil(t, h)
@@ -11108,6 +11177,13 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		uuid.NewString(), host.ID)
 	require.NoError(t, err)
 
+	// Insert into host_android_software_installs table (no host FK, cleaned up via hostRefs).
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{{
+		HostID: host.ID, AdamID: "com.example.delete", InstallType: android.AppStatusAvailable,
+		Status: fleet.AndroidSoftwareInstallStatusPending, PolicyBuiltAt: time.Now(),
+	}}, nil)
+	require.NoError(t, err)
+
 	// Insert into host_policy_automation_run_counts table (no host FK, cleaned up via hostRefs).
 	err = ds.IncrementHostPolicyAutomationRunCount(ctx, policy.ID, host.ID, fleet.ActivityTypeRanScript{}, true)
 	require.NoError(t, err)
@@ -12218,6 +12294,26 @@ func testHostsGetHostMDMCheckinInfo(t *testing.T, ds *Datastore) {
 	info, err = ds.GetHostMDMCheckinInfo(ctx, host.UUID)
 	require.NoError(t, err)
 	require.False(t, info.OsqueryEnrolled)
+
+	// company-owned only while enrolled in Fleet and not personal
+	require.True(t, info.FleetEnrolledCorporate)
+	for _, tc := range []struct {
+		enrolled     bool
+		mdmName      string
+		personalType fleet.PersonalEnrollmentType
+		want         bool
+	}{
+		{true, fleet.WellKnownMDMFleet, fleet.PersonalEnrollmentTypeManualProfile, false},
+		{false, fleet.WellKnownMDMFleet, fleet.PersonalEnrollmentTypeNone, false},
+		{true, "Other MDM", fleet.PersonalEnrollmentTypeNone, false},
+		{true, fleet.WellKnownMDMFleet, fleet.PersonalEnrollmentTypeNone, true},
+	} {
+		err = ds.SetOrUpdateMDMData(ctx, host.ID, false, tc.enrolled, "https://"+strings.ReplaceAll(tc.mdmName, " ", "")+".example.com", false, tc.mdmName, "", tc.personalType)
+		require.NoError(t, err)
+		info, err = ds.GetHostMDMCheckinInfo(ctx, host.UUID)
+		require.NoError(t, err)
+		require.Equal(t, tc.want, info.FleetEnrolledCorporate, "%+v", tc)
+	}
 }
 
 func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
@@ -12304,6 +12400,44 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 		require.True(t, *returned.DiskEncryptionEnabled)
 		require.NotNil(t, returned.BitLockerProtectionStatus)
 		require.Equal(t, fleet.BitLockerProtectionStatusOff, *returned.BitLockerProtectionStatus)
+	})
+
+	// UpdateHost writes timezone unconditionally, so a host loaded without it would wipe the stored value on save.
+	t.Run("preserves timezone across a save", func(t *testing.T) {
+		h, err := ds.EnrollOsquery(
+			ctx,
+			fleet.WithEnrollOsqueryHostID("timezone-uuid"),
+			fleet.WithEnrollOsqueryHardwareUUID("timezone-uuid"),
+			fleet.WithEnrollOsqueryNodeKey("timezone-node-key"),
+		)
+		require.NoError(t, err)
+
+		orbitKey := uuid.New().String()
+		_, err = ds.EnrollOrbit(
+			ctx,
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+				HardwareUUID:   *h.OsqueryHostID,
+				HardwareSerial: h.HardwareSerial,
+			}),
+			fleet.WithEnrollOrbitNodeKey(orbitKey),
+		)
+		require.NoError(t, err)
+
+		h.OrbitNodeKey = &orbitKey
+		h.TimeZone = new("America/New_York")
+		require.NoError(t, ds.UpdateHost(ctx, h))
+
+		loaded, err := ds.LoadHostByOrbitNodeKey(ctx, orbitKey)
+		require.NoError(t, err)
+		require.NotNil(t, loaded.TimeZone)
+		require.Equal(t, "America/New_York", *loaded.TimeZone)
+
+		require.NoError(t, ds.UpdateHost(ctx, loaded))
+
+		reloaded, err := ds.Host(ctx, h.ID)
+		require.NoError(t, err)
+		require.NotNil(t, reloaded.TimeZone)
+		require.Equal(t, "America/New_York", *reloaded.TimeZone)
 	})
 
 	createOrbitHost := func(tag string) *fleet.Host {

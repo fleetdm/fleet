@@ -39,7 +39,18 @@ CACHE_MAX_AGE = 7 * 24 * 3600
 
 TOP_LEVEL_KEYS = {"name", "settings", "org_settings", "agent_options", "controls", "policies", "reports",
                   "software", "labels", "custom_host_vitals"}
-DEPRECATED_TOP_LEVEL = {"team_settings": "settings", "queries": "reports"}
+DEPRECATED_TOP_LEVEL = {"queries": "reports"}
+MIGRATION_GUIDE = "https://fleetdm.com/learn-more-about/fleet-5-migration"
+# Team-related keys that Fleet 5 removed. [] stands for every element of a list. Keep in sync with RemovedGitOpsKeys in pkg/spec.
+REMOVED_KEYS = [
+    "team_settings",
+    "org_settings.mdm.apple_business[].macos_team",
+    "org_settings.mdm.apple_business[].ios_team",
+    "org_settings.mdm.apple_business[].ipados_team",
+    "org_settings.mdm.apple_business[].byod_team",
+    "org_settings.mdm.volume_purchasing_program[].teams",
+]
+KEY_ALIASES = {"apple_business": ("apple_business", "apple_business_manager")}
 POLICY_PLATFORMS = {"darwin", "windows", "linux", "chrome"}
 LABEL_PLATFORMS = {"darwin", "windows", "linux", "ubuntu", "centos"}
 LABEL_PLATFORM_ALIASES = {"ubuntu": "linux", "centos": "linux"}
@@ -1166,6 +1177,29 @@ def config_files(root):
     return files
 
 
+
+def check_removed_keys(ctx, src, data):
+    for removed in REMOVED_KEYS:
+        if has_key_path(data, removed.split(".")):
+            ctx.fail(src, f'The "{removed}" key is not available anymore. What to use instead: {MIGRATION_GUIDE}')
+
+
+def has_key_path(data, parts):
+    """True if the dot-separated path exists in data; a trailing [] on a part means every element of that list."""
+    name, is_list = (parts[0][:-2], True) if parts[0].endswith("[]") else (parts[0], False)
+    for key in KEY_ALIASES.get(name, (name,)):
+        if not isinstance(data, dict) or key not in data:
+            continue
+        value = data[key]
+        if len(parts) == 1 and not is_list:
+            return True
+        if is_list:
+            if isinstance(value, list) and len(parts) > 1 and any(has_key_path(item, parts[1:]) for item in value):
+                return True
+        elif has_key_path(value, parts[1:]):
+            return True
+    return False
+
 def run_checks(ctx):
     files = config_files(ctx.root)
     if not ctx.yaml_backend:
@@ -1184,6 +1218,16 @@ def run_checks(ctx):
         if not isinstance(data, dict):
             ctx.fail(src, "top level must be a mapping")
             continue
+        check_removed_keys(ctx, src, data)
+        org_ref = data.get("org_settings")
+        org_path = org_ref.get("path") if isinstance(org_ref, dict) else None
+        if isinstance(org_path, str) and org_path.startswith("$"):
+            ctx.info(src, f"org_settings: path {org_path} is an environment variable; not resolved, removed-key checks skipped")
+        elif isinstance(org_path, str):
+            org_file = Path(src).parent / org_path
+            org_data = load_yaml_file(ctx, org_file) if org_file.is_file() else None
+            if isinstance(org_data, dict):
+                check_removed_keys(ctx, org_file, {"org_settings": org_data})
         for k in list(data):
             if k in DEPRECATED_TOP_LEVEL:
                 ctx.warn(src, f"'{k}' is deprecated; use '{DEPRECATED_TOP_LEVEL[k]}'")

@@ -2115,6 +2115,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "tpm_pin_config_verify":                     {},
 		hostDetailQueryPrefix + "bitlocker_startup_policy_relax":            {},
 		hostDetailQueryPrefix + "bitlocker_key_protectors_verify":           {},
+		hostDetailQueryPrefix + "timezone_unix":                             {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -7608,6 +7609,20 @@ func TestGetClientConfigRequest_DecodeRequest(t *testing.T) {
 		req := result.(*getClientConfigRequest)
 		assert.Equal(t, "test-key", req.NodeKey)
 		assert.Nil(t, req.ETag)
+	})
+
+	t.Run("fallback change header", func(t *testing.T) {
+		body := []byte(`{"node_key": "test-key"}`)
+		r := httptest.NewRequest("POST", "/api/osquery/config", bytes.NewReader(body))
+		result, err := decoder.DecodeRequest(t.Context(), r)
+		require.NoError(t, err)
+		assert.False(t, result.(*getClientConfigRequest).fallbackChange)
+
+		r = httptest.NewRequest("POST", "/api/osquery/config", bytes.NewReader(body))
+		r.Header.Set(fleet.OsqueryConfigFallbackChangeHeader, "1")
+		result, err = decoder.DecodeRequest(t.Context(), r)
+		require.NoError(t, err)
+		assert.True(t, result.(*getClientConfigRequest).fallbackChange)
 	})
 
 	t.Run("If-None-Match header is ignored", func(t *testing.T) {

@@ -288,11 +288,22 @@ func printTeams(c *cli.Context, client *service.Client, teams []fleet.Team) erro
 			team.Config.Software = software
 			teamItem = team
 		}
+		// Rename the fleet's own keys here, removing the old ones: printSpec only renames the keys it finds, and the spec key is no longer
+		// "team", whose renamed copy used to carry the new names. Delete this once the JSON tags are renamed in later PRs.
+		teamJSON, err := json.Marshal(teamItem)
+		if err != nil {
+			return err
+		}
+		var renamedTeam any
+		if err := json.Unmarshal(teamJSON, &renamedTeam); err != nil {
+			return err
+		}
+		replaceAliasKeys(renamedTeam, aliasRules, true)
 		spec := specGeneric{
 			Kind:    fleet.FleetKind,
 			Version: fleet.ApiVersion,
 			Spec: map[string]interface{}{
-				"team": teamItem,
+				"fleet": renamedTeam,
 			},
 		}
 
@@ -1514,9 +1525,14 @@ func getSoftwareCommand() *cli.Command {
 func printSoftwareVersions(c *cli.Context, client *service.Client, query url.Values) error {
 	// The request carries no pagination, so the server returns at most its
 	// maximum page size. An inventory larger than that is truncated here.
-	software, err := client.ListSoftwareVersions(query.Encode())
+	software, total, err := client.ListSoftwareVersions(query.Encode())
 	if err != nil {
 		return fmt.Errorf("could not list software versions: %w", err)
+	}
+	if total > len(software) {
+		fmt.Fprintf(c.App.ErrWriter,
+			"[!] Showing %d of %d software versions. To list them all, use the API's page and per_page parameters: GET /api/v1/fleet/software/versions\n",
+			len(software), total)
 	}
 
 	if len(software) == 0 {

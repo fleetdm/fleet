@@ -3098,7 +3098,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		// A modify payload carries only the delta, so the stored flag still conflicts.
 		res := s.Do("PATCH", policyPath(policyID), map[string]any{"patch_when_closed": true}, http.StatusBadRequest)
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, `Only one of "patch_when_closed" or "notify_before_patching" can be set to true`)
+		require.Contains(t, errMsg, `Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`)
 		res.Body.Close()
 
 		// An explicit continuous_automations_enabled false is rejected while the flag is on.
@@ -3115,6 +3115,28 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		s.DoJSON("GET", policyPath(policyID), nil, http.StatusOK, &getPolicyResp)
 		require.True(t, getPolicyResp.Policy.NotifyBeforePatching)
 		require.True(t, getPolicyResp.Policy.ContinuousAutomationsEnabled)
+
+		// Switching to patch_deadline displaces notify_before_patching and reads back on the policy and the title.
+		s.Do("PATCH", policyPath(policyID), map[string]any{"notify_before_patching": false, "patch_deadline": true}, http.StatusOK).Body.Close()
+		getPolicyResp = fleet.GetTeamPolicyByIDResponse{}
+		s.DoJSON("GET", policyPath(policyID), nil, http.StatusOK, &getPolicyResp)
+		require.True(t, getPolicyResp.Policy.PatchDeadline)
+		require.False(t, getPolicyResp.Policy.NotifyBeforePatching)
+		require.True(t, getPolicyResp.Policy.ContinuousAutomationsEnabled)
+		titleResp = getSoftwareTitleResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
+			"fleet_id", fmt.Sprint(teamID))
+		require.True(t, titleResp.SoftwareTitle.SoftwarePackage.PatchPolicy.PatchDeadline)
+
+		res = s.Do("PATCH", policyPath(policyID), map[string]any{"notify_before_patching": true}, http.StatusBadRequest)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, `Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`)
+		res.Body.Close()
+
+		res = s.Do("PATCH", policyPath(policyID), map[string]any{"continuous_automations_enabled": false}, http.StatusBadRequest)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, `If "patch_deadline" is true, "continuous_automations_enabled" can't be set to false.`)
+		res.Body.Close()
 
 		// The flag is only for patch policies.
 		res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", teamID), map[string]any{

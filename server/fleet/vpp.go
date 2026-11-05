@@ -268,6 +268,33 @@ type HostAndroidVPPSoftwareInstall struct {
 	CreatedAt         *time.Time `db:"created_at"` // read-only, the column is nullable
 }
 
+// HostAndroidSoftwareInstall is the app Fleet last put in an Android host's policy, one per host and app.
+type HostAndroidSoftwareInstall struct {
+	HostID          uint      `db:"host_id"`
+	AdamID          string    `db:"adam_id"`
+	VPPAppTeamID    *uint     `db:"vpp_app_team_id"`
+	InstallType     string    `db:"install_type"`
+	Status          string    `db:"status"`
+	NeedsResend     bool      `db:"needs_resend"`
+	InPolicyVersion *int64    `db:"in_policy_version"`
+	PolicyBuiltAt   time.Time `db:"policy_built_at"`
+	CreatedAt       time.Time `db:"created_at"`
+	UpdatedAt       time.Time `db:"updated_at"`
+}
+
+const (
+	// AndroidSoftwareInstallStatusPending means the app was sent in the host's
+	// policy and the device hasn't applied that policy version yet.
+	AndroidSoftwareInstallStatusPending = "pending"
+	// AndroidSoftwareInstallStatusVerified means the device applied a policy version that includes the app.
+	AndroidSoftwareInstallStatusVerified = "verified"
+	// AndroidSoftwareInstallStatusFailed means Fleet couldn't send the app to the host, e.g. because its
+	// configuration uses a Fleet variable that has no value for the host.
+	AndroidSoftwareInstallStatusFailed = "failed"
+	// AndroidSoftwareInstallStatusRequestFailed means the request that sent the host's app list failed.
+	AndroidSoftwareInstallStatusRequestFailed = "request_failed"
+)
+
 const (
 	DefaultVPPInstallVerifyTimeout = 10 * time.Minute
 	DefaultVPPVerifyRequestDelay   = 5 * time.Second

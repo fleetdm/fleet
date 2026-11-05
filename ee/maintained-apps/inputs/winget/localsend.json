@@ -3,6 +3,7 @@
   "slug": "localsend/windows",
   "package_identifier": "LocalSend.LocalSend",
   "unique_identifier": "LocalSend",
+  "fuzzy_match_name": true,
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "machine",

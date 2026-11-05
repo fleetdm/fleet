@@ -1329,6 +1329,23 @@ func (s *integrationEnterpriseTestSuite) TestHostGoogleDeviceID() {
 	s.DoJSON("PUT", idPath(androidHost), map[string]any{"google_device_id": "device-c"}, http.StatusOK, &putResp)
 	s.Do("DELETE", idPath(androidHost), nil, http.StatusForbidden)
 	s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", androidHost.ID), nil, http.StatusForbidden)
+	s.Do("GET", "/api/latest/fleet/hosts/"+androidHost.UUID, nil, http.StatusForbidden)
 	s.token = s.getTestAdminToken()
 	require.Equal(t, "device-c", storedID(androidHost))
+
+	// A grant on GET /hosts/:id covers every value that route accepts.
+	var getHostOnlyResp struct {
+		Token string `json:"token"`
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
+		"name":          t.Name() + " get host only",
+		"global_role":   fleet.RoleObserver,
+		"api_endpoints": []map[string]any{{"method": "GET", "path": "/api/v1/fleet/hosts/:id"}},
+	}, http.StatusOK, &getHostOnlyResp)
+	require.NotEmpty(t, getHostOnlyResp.Token)
+	s.token = getHostOnlyResp.Token
+	s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", androidHost.ID), nil, http.StatusOK)
+	s.Do("GET", "/api/latest/fleet/hosts/"+androidHost.UUID, nil, http.StatusOK)
+	s.Do("GET", "/api/latest/fleet/hosts/identifier/"+androidHost.UUID, nil, http.StatusForbidden)
+	s.token = s.getTestAdminToken()
 }
