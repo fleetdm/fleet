@@ -221,7 +221,6 @@ func TestStoreOperationsMisconfiguredErrors(t *testing.T) {
 			want := fmt.Sprintf("Cloud storage is misconfigured. Azure: api error %s: %s (container: my-container)", c.code, c.message)
 			// HEAD responses carry no body, so only the status text is known.
 			wantHead := fmt.Sprintf("Cloud storage is misconfigured. Azure: api error %s: %s (container: my-container)", c.code, http.StatusText(c.status))
-			containerNotFound := c.code == bloberror.ContainerNotFound
 
 			check := func(t *testing.T, err error, wantMsg string) {
 				t.Helper()
@@ -237,19 +236,10 @@ func TestStoreOperationsMisconfiguredErrors(t *testing.T) {
 			})
 			t.Run("get", func(t *testing.T) {
 				_, _, err := installers.Get(t.Context(), "installer")
-				if containerNotFound {
-					require.True(t, fleet.IsNotFound(err))
-					return
-				}
 				check(t, err, want)
 			})
 			t.Run("exists", func(t *testing.T) {
-				exists, err := installers.Exists(t.Context(), "installer")
-				if containerNotFound {
-					require.NoError(t, err)
-					require.False(t, exists)
-					return
-				}
+				_, err := installers.Exists(t.Context(), "installer")
 				check(t, err, wantHead)
 			})
 			t.Run("cleanup list", func(t *testing.T) {
@@ -264,15 +254,29 @@ func TestStoreOperationsMisconfiguredErrors(t *testing.T) {
 				check(t, err, want)
 			})
 			t.Run("org logo delete", func(t *testing.T) {
-				err := logos.Delete(t.Context(), fleet.OrgLogoModeLight)
-				if containerNotFound {
-					require.NoError(t, err)
-					return
-				}
-				check(t, err, want)
+				check(t, logos.Delete(t.Context(), fleet.OrgLogoModeLight), want)
 			})
 		})
 	}
+}
+
+// TestStoreOperationsBlobNotFound checks that a missing blob is not an error.
+func TestStoreOperationsBlobNotFound(t *testing.T) {
+	srv := newErrorServer(t, bloberror.BlobNotFound, "The specified blob does not exist.", http.StatusNotFound, false)
+	cfg := newErrorTestConfig(srv.URL)
+	installers, err := NewSoftwareInstallerStore(cfg)
+	require.NoError(t, err)
+	logos, err := NewOrgLogoStore(cfg)
+	require.NoError(t, err)
+
+	_, _, err = installers.Get(t.Context(), "installer")
+	require.True(t, fleet.IsNotFound(err))
+
+	exists, err := installers.Exists(t.Context(), "installer")
+	require.NoError(t, err)
+	require.False(t, exists)
+
+	require.NoError(t, logos.Delete(t.Context(), fleet.OrgLogoModeLight))
 }
 
 // TestStoreOperationsOtherErrorsAreNotMisconfigured checks that other Azure errors get no prefix.

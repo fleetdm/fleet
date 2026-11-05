@@ -95,8 +95,10 @@ func (s *commonFileStore) Put(ctx context.Context, fileID string, content io.Rea
 
 		ChecksumAlgorithm: checksumAlgorithm,
 	})
-
-	return s.wrapAPIError(err)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, s.wrapAPIError(err), "uploading %s to S3 store", s.fileLabel)
+	}
+	return nil
 }
 
 // Exists checks if a file exists in the S3 bucket for the ID.

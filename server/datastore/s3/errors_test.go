@@ -223,6 +223,7 @@ func TestStoreOperationsMisconfiguredErrors(t *testing.T) {
 			t.Run("put", func(t *testing.T) {
 				err := installers.Put(t.Context(), "installer", bytes.NewReader([]byte("content")))
 				check(t, err, want)
+				require.ErrorContains(t, err, "uploading software installer to S3 store")
 			})
 			t.Run("get", func(t *testing.T) {
 				_, _, err := installers.Get(t.Context(), "installer")
