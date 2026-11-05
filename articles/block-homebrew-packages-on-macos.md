@@ -14,11 +14,13 @@ Homebrew reads its settings from `/etc/homebrew/brew.env`. These settings contro
 
 | Setting | What it does |
 | ------- | ------------ |
-| `HOMEBREW_FORBIDDEN_FORMULAE` | Blocks the listed formulae. Also blocks any formula that depends on one of them. |
+| `HOMEBREW_FORBIDDEN_FORMULAE` | Blocks the listed formulae. Also blocks any formula or cask that depends on one of them. |
 | `HOMEBREW_FORBIDDEN_CASKS` | Blocks the listed casks. |
 | `HOMEBREW_FORBIDDEN_OWNER` | The name shown in the error message, like `your IT team`. Defaults to `you`. |
 | `HOMEBREW_FORBIDDEN_OWNER_CONTACT` | Contact details added to the error message, like a link to request an exception. |
-| `HOMEBREW_SYSTEM_ENV_TAKES_PRIORITY` | Makes `/etc/homebrew/brew.env` override settings in the user's own `~/.homebrew/brew.env`. Without it, users can unblock packages themselves. |
+| `HOMEBREW_SYSTEM_ENV_TAKES_PRIORITY` | Makes `/etc/homebrew/brew.env` override the user's own `brew.env` files. Without it, users can unblock packages themselves. |
+
+> **Note:** This is a guardrail, not a hard control. It stops installs through the system Homebrew, and clearing the variables in a user's shell doesn't bypass it. Users can still get software other ways, like a direct download or a second Homebrew installation in their home folder. Local admins can also edit or remove the blocking files.
 
 ## Set the package lists
 
@@ -51,19 +53,22 @@ HOMEBREW_FORBIDDEN_OWNER_CONTACT=To request an exception, contact it@example.com
 HOMEBREW_SYSTEM_ENV_TAKES_PRIORITY=1
 EOF
 
-echo "$FLEET_SECRET_HOMEBREW_FORBIDDEN_FORMULAE $FLEET_SECRET_HOMEBREW_FORBIDDEN_CASKS" | tr -s ' ' '\n' > /etc/homebrew/blocked-packages.txt
+echo "$FLEET_SECRET_HOMEBREW_FORBIDDEN_FORMULAE" | tr -s ' ' '\n' > /etc/homebrew/blocked-formulae.txt
+echo "$FLEET_SECRET_HOMEBREW_FORBIDDEN_CASKS" | tr -s ' ' '\n' > /etc/homebrew/blocked-casks.txt
 
-chown root:wheel /etc/homebrew /etc/homebrew/brew.env /etc/homebrew/blocked-packages.txt
+chown root:wheel /etc/homebrew /etc/homebrew/brew.env /etc/homebrew/blocked-formulae.txt /etc/homebrew/blocked-casks.txt
 chmod 755 /etc/homebrew
-chmod 644 /etc/homebrew/brew.env /etc/homebrew/blocked-packages.txt
+chmod 644 /etc/homebrew/brew.env /etc/homebrew/blocked-formulae.txt /etc/homebrew/blocked-casks.txt
 ```
 
 > **Warning:** This script replaces `/etc/homebrew/brew.env`. If you manage other Homebrew settings in this file, add them to the script before you run it.
 
+> **Note:** Fleet replaces the `$FLEET_SECRET_` variables before the script reaches the host, so the quoted `'EOF'` is intentional. Homebrew doesn't expand variables in `brew.env`. To test the script outside Fleet, replace the variables with package names first.
+
 2. In Fleet, go to **Controls > Scripts** and upload the script.
 3. To run the script on a host, open the host's page and select **Actions > Run script**. To run it automatically on hosts that fail a policy, see [Run automatically with policies](#run-automatically-with-policies).
 
-The script also writes every blocked name to `/etc/homebrew/blocked-packages.txt`, one per line, for the [policy](#run-automatically-with-policies) that checks for blocked packages. Both files are owned by root, so only admins can change them.
+The script also writes the blocked formulae and casks to `/etc/homebrew/blocked-formulae.txt` and `/etc/homebrew/blocked-casks.txt`, one per line, for the [policy](#run-automatically-with-policies) that checks for blocked packages. All three files are owned by root, so only admins can change them.
 
 Blocking a package doesn't remove copies that are already installed. To remove them, see [Remove installed packages](#remove-installed-packages).
 
@@ -134,7 +139,9 @@ exit $STATUS
 2. In Fleet, go to **Controls > Scripts** and upload the script.
 3. To run the script on a host, open the host's page and select **Actions > Run script**. To run it automatically on hosts that fail a policy, see [Run automatically with policies](#run-automatically-with-policies).
 
-If another installed formula depends on a blocked formula, the script skips it and lists the formulae that need it. The script run then shows as failed in Fleet.
+If another installed formula or cask depends on a blocked formula, the script skips it and lists the packages that need it. The script run then shows as failed in Fleet.
+
+> **Note:** When the script skips a formula, it exits with an error, so the policy automation retries it, up to 3 attempts in total. If the formula is still needed after that, the host keeps failing the policy until you remove or block the dependent package.
 
 When the script removes a formula, Homebrew also removes dependencies that were installed only for it. To turn this off, add `HOMEBREW_NO_AUTOREMOVE=1` to the `brew.env` lines in `homebrew-forbidden-packages.sh`.
 
@@ -142,7 +149,7 @@ When the script removes a formula, Homebrew also removes dependencies that were 
 
 ## Run automatically with policies
 
-Add two policies that run the scripts when a host fails them. The first puts the blocking files back if either is missing. The second removes blocked packages, including ones installed before you added the block. It reads the names from `/etc/homebrew/blocked-packages.txt`, so you don't need to edit it when the lists change.
+Add two policies that run the scripts when a host fails them. The first puts the blocking files back if any is missing. The second removes blocked packages, including ones installed before you added the block. It reads the names from `/etc/homebrew/blocked-formulae.txt` and `/etc/homebrew/blocked-casks.txt`, so you don't need to edit it when the lists change.
 
 1. In Fleet, go to **Policies**, select your fleet, and select **Add policy**.
 2. Enter the following query:
@@ -150,8 +157,8 @@ Add two policies that run the scripts when a host fails them. The first puts the
 ```sql
 SELECT 1 WHERE (
   SELECT COUNT(*) FROM file
-  WHERE path IN ('/etc/homebrew/brew.env', '/etc/homebrew/blocked-packages.txt')
-) = 2;
+  WHERE path IN ('/etc/homebrew/brew.env', '/etc/homebrew/blocked-formulae.txt', '/etc/homebrew/blocked-casks.txt')
+) = 3;
 ```
 
 3. Name the policy `macOS - Homebrew blocklist is present` and set the platform to macOS.
@@ -161,11 +168,12 @@ SELECT 1 WHERE (
 ```sql
 SELECT 1 WHERE NOT EXISTS (
   SELECT 1 FROM homebrew_packages
-  WHERE name IN (SELECT line FROM file_lines WHERE path = '/etc/homebrew/blocked-packages.txt')
+  WHERE (type = 'formula' AND name IN (SELECT line FROM file_lines WHERE path = '/etc/homebrew/blocked-formulae.txt'))
+     OR (type = 'cask' AND name IN (SELECT line FROM file_lines WHERE path = '/etc/homebrew/blocked-casks.txt'))
 );
 ```
 
-> **Note:** The first policy only checks that the files exist. After you change a variable, run `homebrew-forbidden-packages.sh` again on each host.
+> **Note:** The first policy only checks that the files exist. After you change a variable, run `homebrew-forbidden-packages.sh` again. To run it on many hosts at once, see [Batch execute scripts](https://fleetdm.com/guides/scripts#batch-execute-scripts).
 
 To learn more, see [Automatically run scripts](https://fleetdm.com/guides/policy-automation-run-script).
 
@@ -202,8 +210,8 @@ policies:
     query: |
       SELECT 1 WHERE (
         SELECT COUNT(*) FROM file
-        WHERE path IN ('/etc/homebrew/brew.env', '/etc/homebrew/blocked-packages.txt')
-      ) = 2;
+        WHERE path IN ('/etc/homebrew/brew.env', '/etc/homebrew/blocked-formulae.txt', '/etc/homebrew/blocked-casks.txt')
+      ) = 3;
     platform: darwin
     run_script:
       path: ../lib/macos/scripts/homebrew-forbidden-packages.sh
@@ -211,7 +219,8 @@ policies:
     query: |
       SELECT 1 WHERE NOT EXISTS (
         SELECT 1 FROM homebrew_packages
-        WHERE name IN (SELECT line FROM file_lines WHERE path = '/etc/homebrew/blocked-packages.txt')
+        WHERE (type = 'formula' AND name IN (SELECT line FROM file_lines WHERE path = '/etc/homebrew/blocked-formulae.txt'))
+           OR (type = 'cask' AND name IN (SELECT line FROM file_lines WHERE path = '/etc/homebrew/blocked-casks.txt'))
       );
     platform: darwin
     run_script:
@@ -227,13 +236,13 @@ To learn more, see [Custom variables](https://fleetdm.com/guides/secrets-in-scri
 | Situation | What happens |
 | --------- | ------------ |
 | Blocked formula | Homebrew stops the install: `Error: The installation of telnet was forbidden by your IT team`, followed by your contact details if you set them. |
-| Blocked dependency | If a formula depends on a blocked formula, Homebrew stops the install and names the blocked dependency. |
+| Blocked dependency | If a formula or cask depends on a blocked formula, Homebrew stops the install and names the blocked dependency. |
 | Blocked cask | Homebrew stops the install with a similar error. |
 | Removed package | The package is uninstalled without a prompt. If users try to install it again, Homebrew blocks it. |
 
 ## Verify
 
-1. On a host, run `cat /etc/homebrew/brew.env /etc/homebrew/blocked-packages.txt` and confirm both files list the packages you blocked.
+1. On a host, run `cat /etc/homebrew/brew.env /etc/homebrew/blocked-formulae.txt /etc/homebrew/blocked-casks.txt` and confirm the files list the packages you blocked.
 2. Run `brew install <blocked formula>` and confirm Homebrew refuses.
 
 To check across all your hosts, run this report to list installed Homebrew packages:
@@ -259,11 +268,11 @@ Check these in order:
 
 **A host doesn't block a package you added**
 
-Changing a variable doesn't update hosts that already have `/etc/homebrew/brew.env`. Run `homebrew-forbidden-packages.sh` again on those hosts.
+Changing a variable doesn't update hosts that already have `/etc/homebrew/brew.env`. Run `homebrew-forbidden-packages.sh` again on those hosts. To run it on many hosts at once, see [Batch execute scripts](https://fleetdm.com/guides/scripts#batch-execute-scripts).
 
 **The removal script skips a formula**
 
-Another installed formula depends on it. Remove the dependent formula first, or add it to your blocked formulae.
+Another installed formula or cask depends on it. Fleet retries the script up to 3 times, and the host keeps failing the policy until the dependency is gone. Remove the dependent package first, or add it to your blocked formulae or casks.
 
 **A blocked package is still installed**
 
