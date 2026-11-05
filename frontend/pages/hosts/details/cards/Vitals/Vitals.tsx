@@ -653,7 +653,7 @@ export const buildHostVitals = ({
           value={
             <span className={`${baseClass}__os-version`}>
               {!osVersionRequirementMet && (
-                <Icon name="error-outline" color="ui-fleet-black-75" />
+                <Icon name="error" color="ui-fleet-black-75" />
               )}
               <TooltipWrapper
                 className={`${baseClass}__ellipsis-tooltip`}

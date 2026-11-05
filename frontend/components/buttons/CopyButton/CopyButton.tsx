@@ -117,9 +117,7 @@ const CopyButton = ({
         )}
         ariaLabel={ariaLabel}
       >
-        {children ?? (
-          <Icon name="copy" size={size === "small" ? "small" : undefined} />
-        )}
+        {children ?? <Icon name="copy" />}
       </Button>
       <ReactTooltip5
         id={tipIdRef.current}
