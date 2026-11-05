@@ -441,7 +441,7 @@ How to deploy a custom fleetd:
 
 4. Once the option to manually install Fleet's agent is checked, instead of using the **Install software** option, include your software in the bootstrap package.
 
-If you deploy a custom fleetd, also add the software and scripts you want to install/run during out-of-the-box macOS setup to your bootstrap package. Fleet won't install the software [configured in setup experience](#software-and-script).
+If you deploy a custom fleetd, also add the software and scripts you want to install/run during out-of-the-box macOS setup to your bootstrap package. Fleet won't install the software [configured in setup experience](#install-software).
 
 ### swiftDialog
 

@@ -608,7 +608,7 @@ The `setup_experience` section lets you control the out-of-the-box [setup experi
 - `apple_enable_release_device_manually` when enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. Applies to Apple (macOS, iOS, iPadOS) hosts that automatically enroll via Apple Business (AB).
 - `apple_setup_assistant` is a path to a custom [automatic enrollment (ADE) profile](https://support.apple.com/guide/deployment/automated-device-enrollment-management-dep73069dd57/web) (.json). Applies to macOS and iOS/iPadOS hosts.
 
-> To run a script during setup, add a script-only package (.sh file) to software.packages with `setup_experience: true`. See [software](https://fleetdm.com/docs/configuration/yaml-files#software).
+> To run a script during macOS setup, add a script-only package (.sh file) to `software.packages` with `setup_experience_platform: darwin`. With `setup_experience: true`, a .sh package runs during Linux setup instead. See [software](https://fleetdm.com/docs/configuration/yaml-files#software).
 
 `enable_managed_local_account` and `end_user_local_account_type` at this level are deprecated. 
 Please use the platform-specific `apple_settings.managed_local_account_settings`, `apple_settings.end_user_local_account_type`, or `windows_settings.enable_managed_local_account` instead.
