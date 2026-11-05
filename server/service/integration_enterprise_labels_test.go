@@ -105,7 +105,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabelsShareNames() {
 	require.Equal(t, team2Label.ID, teamLabel(team2.ID).ID)
 
 	// Labels are deleted by ID, so deleting one fleet's label leaves the other fleet's label with the same name.
-	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(shared)), nil, http.StatusNotFound)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(shared)), nil, http.StatusGone)
 	var delResp fleet.DeleteLabelByIDResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", team1Label.ID), nil, http.StatusOK, &delResp)
 

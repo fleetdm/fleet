@@ -480,7 +480,7 @@ func (s *integrationTestSuite) TestLabels() {
 		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", lbl2.ID+1), nil, http.StatusNotFound, &delIDResp)
 
 		// labels can only be deleted by ID
-		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(lbl2.Name)), nil, http.StatusNotFound)
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(lbl2.Name)), nil, http.StatusGone)
 		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", lbl2.ID), nil, http.StatusOK, &delIDResp)
 		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", lbl2.ID), nil, http.StatusNotFound, &delIDResp)
 		listResp = fleet.ListLabelsResponse{}
