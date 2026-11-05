@@ -9,12 +9,13 @@ func init() {
 	MigrationClient.AddMigration(Up_20261104211402, Down_20261104211402)
 }
 
-// Up_20261104211402 deletes the Entra device IDs macOS hosts reported before Fleet required
-// an Entra-signed token to prove them, so only verified device IDs get compliance updates.
-// Hosts report a verified one on their next orbit config fetch.
-//
-// It also indexes the device ID so Fleet can reject one already assigned to another host. The
-// index isn't unique because existing rows may already share a device ID.
+// Up_20261104211402 prepares the Entra device IDs for one owner per device ID:
+//   - It deletes the device IDs macOS hosts reported before Fleet required an Entra-signed token to
+//     prove them. Hosts report a verified one on their next orbit config fetch.
+//   - It deletes device IDs that more than one host reported, since Fleet can't tell which one owns
+//     it. The owner reports it again on its next check-in.
+//   - It adds a verified column, set when the device ID comes from an Entra-signed token, and indexes
+//     the device ID so Fleet can reject one already assigned to another host.
 func Up_20261104211402(tx *sql.Tx) error {
 	// The statuses table has at most one row per host; the join is on hosts' primary key.
 	if _, err := tx.Exec(`
@@ -25,13 +26,29 @@ func Up_20261104211402(tx *sql.Tx) error {
 		return fmt.Errorf("delete macOS host conditional access statuses: %w", err)
 	}
 
-	if indexExistsTx(tx, "microsoft_compliance_partner_host_statuses", "idx_microsoft_compliance_partner_host_statuses_device_id") {
-		return nil
+	// The derived table is materialized, which MySQL requires to delete from the table it reads.
+	if _, err := tx.Exec(`
+		DELETE s FROM microsoft_compliance_partner_host_statuses s
+		JOIN (
+			SELECT device_id FROM microsoft_compliance_partner_host_statuses
+			GROUP BY device_id HAVING COUNT(*) > 1
+		) d ON d.device_id = s.device_id`,
+	); err != nil {
+		return fmt.Errorf("delete shared host conditional access device IDs: %w", err)
 	}
-	if _, err := tx.Exec(`ALTER TABLE microsoft_compliance_partner_host_statuses
-		ADD INDEX idx_microsoft_compliance_partner_host_statuses_device_id (device_id),
-		ALGORITHM=INPLACE, LOCK=NONE`); err != nil {
-		return fmt.Errorf("add device_id index to microsoft_compliance_partner_host_statuses: %w", err)
+
+	if !columnExists(tx, "microsoft_compliance_partner_host_statuses", "verified") {
+		if _, err := tx.Exec(`ALTER TABLE microsoft_compliance_partner_host_statuses
+			ADD COLUMN verified tinyint(1) NOT NULL DEFAULT 0`); err != nil {
+			return fmt.Errorf("add verified column to microsoft_compliance_partner_host_statuses: %w", err)
+		}
+	}
+	if !indexExistsTx(tx, "microsoft_compliance_partner_host_statuses", "idx_microsoft_compliance_partner_host_statuses_device_id") {
+		if _, err := tx.Exec(`ALTER TABLE microsoft_compliance_partner_host_statuses
+			ADD INDEX idx_microsoft_compliance_partner_host_statuses_device_id (device_id),
+			ALGORITHM=INPLACE, LOCK=NONE`); err != nil {
+			return fmt.Errorf("add device_id index to microsoft_compliance_partner_host_statuses: %w", err)
+		}
 	}
 	return nil
 }

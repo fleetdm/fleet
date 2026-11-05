@@ -2583,6 +2583,7 @@ CREATE TABLE `microsoft_compliance_partner_host_statuses` (
   `compliant` tinyint(1) DEFAULT NULL,
   `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `verified` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`host_id`),
   KEY `idx_microsoft_compliance_partner_host_statuses_device_id` (`device_id`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

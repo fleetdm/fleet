@@ -348,6 +348,18 @@ func testConditionalAccessDeviceIDOneHost(t *testing.T, ds *Datastore) {
 	assertDeviceID(mac2.ID, "winDeviceID")
 	assertDeviceID(win1.ID, "")
 
+	// An unverified claimant that later reports itself as macOS still can't block a verified claim.
+	changed, err = ds.CreateHostConditionalAccessStatus(ctx, win2.ID, "spoofedDeviceID", "", false)
+	require.NoError(t, err)
+	require.True(t, changed)
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET platform = 'darwin' WHERE id = ?`, win2.ID)
+	require.NoError(t, err)
+	changed, err = ds.CreateHostConditionalAccessStatus(ctx, mac2.ID, "spoofedDeviceID", "user3@example.com", true)
+	require.NoError(t, err)
+	require.True(t, changed)
+	assertDeviceID(mac2.ID, "spoofedDeviceID")
+	assertDeviceID(win2.ID, "")
+
 	// After the host is deleted, the device ID can move to another host.
 	require.NoError(t, ds.DeleteHost(ctx, mac1.ID))
 	changed, err = ds.CreateHostConditionalAccessStatus(ctx, win2.ID, "macDeviceID", "", false)

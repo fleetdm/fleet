@@ -116,16 +116,20 @@ func extractWindowsBuildVersion(osVersion string) string {
 
 func (ds *Datastore) CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string, userPrincipalName string, verified bool) (bool, error) {
 	// Most of the time this information won't change, so use the reader first.
-	var hostConditionalAccessStatus fleet.HostConditionalAccessStatus
+	var current struct {
+		DeviceID          string `db:"device_id"`
+		UserPrincipalName string `db:"user_principal_name"`
+		Verified          bool   `db:"verified"`
+	}
 	err := sqlx.GetContext(ctx,
 		ds.reader(ctx),
-		&hostConditionalAccessStatus,
-		`SELECT device_id, user_principal_name FROM microsoft_compliance_partner_host_statuses WHERE host_id = ?`,
+		&current,
+		`SELECT device_id, user_principal_name, verified FROM microsoft_compliance_partner_host_statuses WHERE host_id = ?`,
 		hostID,
 	)
 	switch {
 	case err == nil:
-		if deviceID == hostConditionalAccessStatus.DeviceID && userPrincipalName == hostConditionalAccessStatus.UserPrincipalName {
+		if deviceID == current.DeviceID && userPrincipalName == current.UserPrincipalName && verified == current.Verified {
 			// Nothing to do, the Entra account on the device is still the same.
 			return false, nil
 		}
@@ -139,31 +143,27 @@ func (ds *Datastore) CreateHostConditionalAccessStatus(ctx context.Context, host
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// A device ID belongs to one host; it moves to another host only after the old host is
 		// deleted. The locking read keeps a concurrent claim from assigning it twice.
-		var otherHostIDs []uint
-		if err := sqlx.SelectContext(ctx, tx, &otherHostIDs,
-			`SELECT host_id FROM microsoft_compliance_partner_host_statuses WHERE device_id = ? AND host_id <> ? FOR UPDATE`,
+		var others []struct {
+			HostID   uint `db:"host_id"`
+			Verified bool `db:"verified"`
+		}
+		if err := sqlx.SelectContext(ctx, tx, &others,
+			`SELECT host_id, verified FROM microsoft_compliance_partner_host_statuses WHERE device_id = ? AND host_id <> ? FOR UPDATE`,
 			deviceID, hostID,
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "check Entra device ID assignment")
 		}
-		if len(otherHostIDs) > 0 {
-			if !verified {
-				return ctxerr.Wrap(ctx, &fleet.ConflictError{Message: "Entra device ID is already assigned to another host"})
+		if len(others) > 0 {
+			// A verified claim proves the device ID is this host's, so it replaces unverified
+			// claims, but not another verified one.
+			otherHostIDs := make([]uint, 0, len(others))
+			for _, o := range others {
+				if !verified || o.Verified {
+					return ctxerr.Wrap(ctx, &fleet.ConflictError{Message: "Entra device ID is already assigned to another host"})
+				}
+				otherHostIDs = append(otherHostIDs, o.HostID)
 			}
-			// A verified claim proves the device ID is this host's, so it replaces claims from hosts
-			// that report it unverified (any platform but macOS), but not another verified one.
-			stmt, args, err := sqlx.In(`SELECT COUNT(*) FROM hosts WHERE id IN (?) AND platform = 'darwin'`, otherHostIDs)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "build verified hosts query")
-			}
-			var verifiedHolders int
-			if err := sqlx.GetContext(ctx, tx, &verifiedHolders, stmt, args...); err != nil {
-				return ctxerr.Wrap(ctx, err, "count verified Entra device ID holders")
-			}
-			if verifiedHolders > 0 {
-				return ctxerr.Wrap(ctx, &fleet.ConflictError{Message: "Entra device ID is already assigned to another host"})
-			}
-			stmt, args, err = sqlx.In(`DELETE FROM microsoft_compliance_partner_host_statuses WHERE host_id IN (?)`, otherHostIDs)
+			stmt, args, err := sqlx.In(`DELETE FROM microsoft_compliance_partner_host_statuses WHERE host_id IN (?)`, otherHostIDs)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build delete unverified holders query")
 			}
@@ -177,14 +177,15 @@ func (ds *Datastore) CreateHostConditionalAccessStatus(ctx context.Context, host
 		// Create or override existing row for the host.
 		if _, err := tx.ExecContext(ctx,
 			`INSERT INTO microsoft_compliance_partner_host_statuses
-			(host_id, device_id, user_principal_name)
-			VALUES (?, ?, ?)
+			(host_id, device_id, user_principal_name, verified)
+			VALUES (?, ?, ?, ?)
 			ON DUPLICATE KEY UPDATE
 			device_id = VALUES(device_id),
 			user_principal_name = VALUES(user_principal_name),
+			verified = VALUES(verified),
 			managed = NULL,
 			compliant = NULL`,
-			hostID, deviceID, userPrincipalName,
+			hostID, deviceID, userPrincipalName, verified,
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "create host conditional access status")
 		}
