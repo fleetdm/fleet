@@ -79,8 +79,8 @@ export interface IButtonProps {
   /** Small: 1/2 the padding, Wide: 200px */
   size?: "small" | "wide" | "default";
   /**
-   * Icon rendered inside the button. Sized automatically (16px on default,
-   * 12px on `size="small"`) and colored to match the variant's text.
+   * Icon rendered inside the button. Always 16px, colored to match the
+   * variant's text.
    * With no `children`, renders an icon-only square (secondary/subdued only).
    */
   icon?: IconNames;
