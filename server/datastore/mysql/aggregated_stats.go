@@ -109,6 +109,37 @@ func (ds *Datastore) UpdateQueryAggregatedStats(ctx context.Context) error {
 	return rows.Err()
 }
 
+// deleteQueryStatsBatchSize is a var so tests can exercise multiple batches.
+var deleteQueryStatsBatchSize = 5000
+
+// DeleteOrphanedQueryStats deletes stats left behind when deleteQueryStats fails, e.g. on a lock
+// wait timeout during a bulk report delete.
+func (ds *Datastore) DeleteOrphanedQueryStats(ctx context.Context) error {
+	var queryIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &queryIDs,
+		`SELECT DISTINCT scheduled_query_id FROM scheduled_query_stats WHERE scheduled_query_id NOT IN (SELECT id FROM queries)`); err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting stats of deleted queries")
+	}
+	for _, queryID := range queryIDs {
+		for {
+			res, err := ds.writer(ctx).ExecContext(ctx,
+				`DELETE FROM scheduled_query_stats WHERE scheduled_query_id = ? LIMIT ?`, queryID, deleteQueryStatsBatchSize)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "deleting stats of deleted query %d", queryID)
+			}
+			if n, _ := res.RowsAffected(); n < int64(deleteQueryStatsBatchSize) {
+				break
+			}
+		}
+	}
+	if _, err := ds.writer(ctx).ExecContext(ctx,
+		`DELETE FROM aggregated_stats WHERE type = ? AND id NOT IN (SELECT id FROM queries)`,
+		fleet.AggregatedStatsTypeScheduledQuery); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting aggregated stats of deleted queries")
+	}
+	return nil
+}
+
 // CalculateAggregatedPerfStatsPercentiles calculates the aggregated user/system time performance statistics for the given query.
 func (ds *Datastore) CalculateAggregatedPerfStatsPercentiles(ctx context.Context, aggregate fleet.AggregatedStatsType, queryID uint) error {
 	// Before calling this method to update stats after a live query, we make sure the reader (replica) is up-to-date with the latest stats.
