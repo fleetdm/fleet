@@ -1095,6 +1095,7 @@ func testListSoftwareTitlesAppStoreApps(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &fleetID}, adminFilter)
 		require.NoError(t, err)
+		require.Len(t, titles, 2)
 		titlesByID = map[uint]fleet.SoftwareTitleListResult{titles[0].ID: titles[0], titles[1].ID: titles[1]}
 		iosTitle = titlesByID[iosFirstVersion.TitleID]
 		require.Empty(t, iosTitle.AppStoreApps[0].AutomaticInstallPolicies)
