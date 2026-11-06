@@ -70,29 +70,25 @@ func (c *ConditionalAccessGoogleIntegration) Registered() bool {
 // with its leading "C".
 var googleCustomerIDRegexp = regexp.MustCompile(`^C[0-9A-Za-z]{6,32}$`)
 
-// ValidateGoogleConditionalAccessSettings trims the customer ID and admin email in
-// place and appends any error to invalid, with field names under fieldPrefix. Both are
-// required when the integration is enabled.
-func ValidateGoogleConditionalAccessSettings(intg *GoogleConditionalAccessIntegration, fieldPrefix string, invalid *InvalidArgumentError) {
-	if intg == nil {
-		return
-	}
-	intg.CustomerID = strings.TrimSpace(intg.CustomerID)
-	intg.AdminEmail = strings.TrimSpace(intg.AdminEmail)
+// Validate trims the customer ID and admin email in place and appends any error to
+// invalid. Both are required when the integration is enabled.
+func (g *GoogleConditionalAccessIntegration) Validate(invalid *InvalidArgumentError) {
+	g.CustomerID = strings.TrimSpace(g.CustomerID)
+	g.AdminEmail = strings.TrimSpace(g.AdminEmail)
 
-	if intg.CustomerID == "" {
-		if intg.Enabled {
-			invalid.Append(fieldPrefix+"customer_id", "customer_id is required")
+	if g.CustomerID == "" {
+		if g.Enabled {
+			invalid.Append("customer_id", "customer_id is required")
 		}
-	} else if !googleCustomerIDRegexp.MatchString(intg.CustomerID) {
-		invalid.Append(fieldPrefix+"customer_id", "must be a Google customer ID starting with C, for example C01234abc")
+	} else if !googleCustomerIDRegexp.MatchString(g.CustomerID) {
+		invalid.Append("customer_id", "must be a Google customer ID starting with C, for example C01234abc")
 	}
 
-	if intg.AdminEmail == "" {
-		if intg.Enabled {
-			invalid.Append(fieldPrefix+"admin_email", "admin_email is required")
+	if g.AdminEmail == "" {
+		if g.Enabled {
+			invalid.Append("admin_email", "admin_email is required")
 		}
-	} else if addr, err := mail.ParseAddress(intg.AdminEmail); err != nil || addr.Address != intg.AdminEmail {
-		invalid.Append(fieldPrefix+"admin_email", "must be a valid email address")
+	} else if addr, err := mail.ParseAddress(g.AdminEmail); err != nil || addr.Address != g.AdminEmail {
+		invalid.Append("admin_email", "must be a valid email address")
 	}
 }

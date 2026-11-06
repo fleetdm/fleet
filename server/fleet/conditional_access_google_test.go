@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestValidateGoogleConditionalAccessSettings(t *testing.T) {
+func TestGoogleConditionalAccessIntegrationValidate(t *testing.T) {
 	errNames := func(invalid *InvalidArgumentError) []string {
 		var names []string
 		for _, e := range invalid.Errors {
@@ -17,13 +17,13 @@ func TestValidateGoogleConditionalAccessSettings(t *testing.T) {
 
 	t.Run("enabled requires both fields", func(t *testing.T) {
 		invalid := &InvalidArgumentError{}
-		ValidateGoogleConditionalAccessSettings(&GoogleConditionalAccessIntegration{Enabled: true}, "p.", invalid)
-		require.ElementsMatch(t, []string{"p.customer_id", "p.admin_email"}, errNames(invalid))
+		(&GoogleConditionalAccessIntegration{Enabled: true}).Validate(invalid)
+		require.ElementsMatch(t, []string{"customer_id", "admin_email"}, errNames(invalid))
 	})
 
 	t.Run("disabled and empty is valid", func(t *testing.T) {
 		invalid := &InvalidArgumentError{}
-		ValidateGoogleConditionalAccessSettings(&GoogleConditionalAccessIntegration{}, "p.", invalid)
+		(&GoogleConditionalAccessIntegration{}).Validate(invalid)
 		require.False(t, invalid.HasErrors())
 	})
 
@@ -42,7 +42,7 @@ func TestValidateGoogleConditionalAccessSettings(t *testing.T) {
 			{"customers/C02cajzvg", false},
 		} {
 			invalid := &InvalidArgumentError{}
-			ValidateGoogleConditionalAccessSettings(&GoogleConditionalAccessIntegration{CustomerID: tc.in}, "p.", invalid)
+			(&GoogleConditionalAccessIntegration{CustomerID: tc.in}).Validate(invalid)
 			require.Equal(t, !tc.valid, invalid.HasErrors(), tc.in)
 		}
 	})
@@ -50,7 +50,7 @@ func TestValidateGoogleConditionalAccessSettings(t *testing.T) {
 	t.Run("trims", func(t *testing.T) {
 		invalid := &InvalidArgumentError{}
 		intg := &GoogleConditionalAccessIntegration{Enabled: true, CustomerID: " C02cajzvg", AdminEmail: " admin@example.com "}
-		ValidateGoogleConditionalAccessSettings(intg, "p.", invalid)
+		intg.Validate(invalid)
 		require.False(t, invalid.HasErrors())
 		require.Equal(t, "C02cajzvg", intg.CustomerID)
 		require.Equal(t, "admin@example.com", intg.AdminEmail)
@@ -63,7 +63,7 @@ func TestValidateGoogleConditionalAccessSettings(t *testing.T) {
 			{AdminEmail: "admin"},
 		} {
 			invalid := &InvalidArgumentError{}
-			ValidateGoogleConditionalAccessSettings(intg, "p.", invalid)
+			intg.Validate(invalid)
 			require.True(t, invalid.HasErrors(), "%+v", intg)
 		}
 	})
