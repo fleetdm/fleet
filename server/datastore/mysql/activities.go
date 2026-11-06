@@ -57,10 +57,30 @@ var policyAutomationActivityAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"activity_type": "t.activity_type",
 }
 
-var policyAutomationActivityBranchOrderKeys = map[string]string{
-	"id":            "ap.id",
-	"created_at":    "ap.created_at",
-	"activity_type": "ap.activity_type",
+// policyAutomationActivityTotalOrder returns nil for a key that isn't allowed. The directions match
+// idx_activity_past_policy_type_created, whose implicit id suffix is ascending, so a sort can read that index in order.
+func policyAutomationActivityTotalOrder(orderKey string, descending bool) []string {
+	asc, desc := "ASC", "DESC"
+	if descending {
+		asc, desc = desc, asc
+	}
+	switch orderKey {
+	case "id":
+		return []string{"id " + asc}
+	case "created_at":
+		return []string{"created_at " + asc, "id " + desc}
+	case "activity_type":
+		return []string{"activity_type " + asc, "created_at " + desc, "id " + asc}
+	}
+	return nil
+}
+
+func qualifiedOrderTerms(alias string, terms []string) []string {
+	qualified := make([]string, 0, len(terms))
+	for _, term := range terms {
+		qualified = append(qualified, alias+"."+term)
+	}
+	return qualified
 }
 
 // ListHostUpcomingActivities returns the list of activities pending execution
@@ -2063,6 +2083,28 @@ const policyAutomationHostJoin = `
     JOIN  hosts               h   ON h.id            = ahp.host_id
     LEFT JOIN host_display_names hdn ON hdn.host_id  = ahp.host_id`
 
+// policyAutomationMultiHostPageSQL selects the rows up to limit for a branch whose activities can cover several hosts. A
+// plain ORDER BY on host_id would sort every row of the policy for each page. Each selected activity has a matching row
+// and limit rows at most come from one activity, so the first limit activities and their first limit hosts hold the first
+// limit rows.
+func policyAutomationMultiHostPageSQL(activityCond, teamFilterSQL, hostNameCond, order string, limit uint) string {
+	matchingHosts := fmt.Sprintf(`FROM activity_host_past ahp
+        JOIN hosts h ON h.id = ahp.host_id
+        LEFT JOIN host_display_names hdn ON hdn.host_id = ahp.host_id
+        WHERE ahp.activity_id = ap.id AND %s%s`, teamFilterSQL, hostNameCond)
+	return fmt.Sprintf(`SELECT %s, %s
+    FROM (
+        SELECT ap.id FROM activity_past ap
+        WHERE %s AND EXISTS (SELECT 1 %s)
+        ORDER BY %s LIMIT %d
+    ) AS first_activities
+    JOIN activity_past ap ON ap.id = first_activities.id
+    JOIN LATERAL (SELECT ahp.host_id %s ORDER BY ahp.host_id ASC LIMIT %d) AS ahp
+    LEFT JOIN host_display_names hdn ON hdn.host_id = ahp.host_id
+    ORDER BY %s, ahp.host_id ASC LIMIT %d`,
+		policyAutomationCols, policyAutomationNamedStatusCols.sql(), activityCond, matchingHosts, order, limit, matchingHosts, limit, order, limit)
+}
+
 // statusOutputCols renders the trailing status/output columns that every UNION
 // branch must project after policyAutomationCols. Modeling it as a struct
 // (rather than a raw SQL fragment) makes the positional contract that UNION ALL
@@ -2234,6 +2276,9 @@ type policyAutomationBranch struct {
 	args []any
 	// countRows is set when the total counts the branch's rows.
 	countRows bool
+	// multiHostCond is set on a branch whose activities can cover several hosts. It binds the branch's args before the host
+	// name filter.
+	multiHostCond string
 }
 
 // buildPolicyAutomationBranches assembles every UNION branch contributing to
@@ -2251,14 +2296,14 @@ func buildPolicyAutomationBranches(ds *Datastore, policyID uint, filter fleet.Te
 	case "success":
 		namedTypes = policyAutomationSuccessActivityTypes
 	}
-	namedSQL, namedArgs, err := sqlx.In(fmt.Sprintf(`SELECT %s, %s FROM activity_past ap %s
-        WHERE ap.activity_type IN (?)
-          AND ap.policy_id = ?
-          AND %s`, policyAutomationCols, policyAutomationNamedStatusCols.sql(), policyAutomationHostJoin, teamFilterSQL), namedTypes, policyID)
+	namedCond, namedArgs, err := sqlx.In("ap.activity_type IN (?) AND ap.policy_id = ?", namedTypes, policyID)
 	if err != nil {
 		return nil, err
 	}
-	branches := []policyAutomationBranch{{sql: namedSQL, args: namedArgs, countRows: true}}
+	namedSQL := fmt.Sprintf(`SELECT %s, %s FROM activity_past ap %s
+        WHERE %s
+          AND %s`, policyAutomationCols, policyAutomationNamedStatusCols.sql(), policyAutomationHostJoin, namedCond, teamFilterSQL)
+	branches := []policyAutomationBranch{{sql: namedSQL, args: namedArgs, countRows: true, multiHostCond: namedCond}}
 
 	// Task activities are linked to the policy through a result table; their
 	// success/failure condition is appended based on the requested status.
@@ -2309,53 +2354,46 @@ func (ds *Datastore) ListPolicyAutomationActivities(ctx context.Context, policyI
 		escaped = strings.ReplaceAll(escaped, "%", "\\%")
 		likeArg = escaped + "%"
 	}
-	// Break activity type ties by created_at in the opposite direction, which the policy_id, activity_type, created_at DESC
-	// index reads in order both ways.
-	if opts.OrderKey == "activity_type" {
-		opts.TestSecondaryOrderKey = "created_at"
-		opts.TestSecondaryOrderDirection = fleet.OrderDescending
-		if opts.OrderDirection == fleet.OrderDescending {
-			opts.TestSecondaryOrderDirection = fleet.OrderAscending
-		}
-	}
-	// Sort and cut each branch to the rows up to the end of the requested page, so a branch reads only those rows from the
-	// index instead of the policy's whole history. Skip it for cursor pagination, which filters after the cut.
-	var branchOrderAndLimit string
-	branchOrderColumn, orderKeyAllowed := policyAutomationActivityBranchOrderKeys[opts.OrderKey]
-	if orderKeyAllowed && opts.After == "" {
+	activityOrder := policyAutomationActivityTotalOrder(opts.OrderKey, opts.OrderDirection == fleet.OrderDescending)
+	// Sort and cut each branch to the rows up to the end of the requested page, so the outer query sorts only those rows.
+	// Skip it for cursor pagination, which filters after the cut.
+	branchOrder := strings.Join(qualifiedOrderTerms("ap", activityOrder), ", ")
+	var branchLimit uint
+	if activityOrder != nil && opts.After == "" {
 		perPage := opts.PerPage
 		if perPage == 0 {
 			perPage = fleet.DefaultPerPage
 		}
-		direction := "ASC"
-		if opts.OrderDirection == fleet.OrderDescending {
-			direction = "DESC"
-		}
-		branchOrder := branchOrderColumn + " " + direction
-		secondaryOrderColumn, secondaryOrderKeyAllowed := policyAutomationActivityBranchOrderKeys[opts.TestSecondaryOrderKey]
-		if secondaryOrderKeyAllowed {
-			secondaryDirection := "ASC"
-			if opts.TestSecondaryOrderDirection == fleet.OrderDescending {
-				secondaryDirection = "DESC"
-			}
-			branchOrder += ", " + secondaryOrderColumn + " " + secondaryDirection
-		}
-		branchOrderAndLimit = fmt.Sprintf(" ORDER BY %s LIMIT %d", branchOrder, (opts.Page+1)*perPage+1)
+		branchLimit = (opts.Page+1)*perPage + 1
 	}
 
+	teamFilterSQL := ds.whereFilterHostsByTeams(filter, "h")
 	for _, b := range branches {
 		sql, args := b.sql, b.args
+		var hostNameCond string
+		var hostNameArgs []any
 		if opts.MatchQuery != "" {
-			sql += " AND hdn.display_name LIKE ?"
+			hostNameCond = " AND hdn.display_name LIKE ?"
+			hostNameArgs = []any{likeArg}
+			sql += hostNameCond
 			args = append(args, likeArg)
 		}
-		parts = append(parts, "("+sql+branchOrderAndLimit+")")
-		allArgs = append(allArgs, args...)
-
 		if b.countRows {
 			countParts = append(countParts, "("+sql+")")
 			countArgs = append(countArgs, args...)
 		}
+
+		switch {
+		case branchLimit == 0:
+		case b.multiHostCond != "":
+			sql = policyAutomationMultiHostPageSQL(b.multiHostCond, teamFilterSQL, hostNameCond, branchOrder, branchLimit)
+			args = slices.Concat(args, hostNameArgs)
+		default:
+			// The other branches' activity types each have one host, so id already orders their rows.
+			sql += fmt.Sprintf(" ORDER BY %s LIMIT %d", branchOrder, branchLimit)
+		}
+		parts = append(parts, "("+sql+")")
+		allArgs = append(allArgs, args...)
 	}
 
 	runCountColumns := "c.success_count + c.fail_count"
@@ -2365,7 +2403,7 @@ func (ds *Datastore) ListPolicyAutomationActivities(ctx context.Context, policyI
 	case "success":
 		runCountColumns = "c.success_count"
 	}
-	runCountSQL := fmt.Sprintf(policyAutomationRunCountsSQL, runCountColumns, ds.whereFilterHostsByTeams(filter, "h"))
+	runCountSQL := fmt.Sprintf(policyAutomationRunCountsSQL, runCountColumns, teamFilterSQL)
 	countArgs = append(countArgs, policyID)
 	if opts.MatchQuery != "" {
 		runCountSQL += " AND c.host_id IN (SELECT host_id FROM host_display_names WHERE display_name LIKE ?)"
@@ -2378,7 +2416,11 @@ func (ds *Datastore) ListPolicyAutomationActivities(ctx context.Context, policyI
 	listSQL := fmt.Sprintf("SELECT * FROM (%s) AS t", unionCore)
 	countSQL := fmt.Sprintf("SELECT (SELECT COUNT(*) FROM (%s) AS t_cnt) + (%s)", strings.Join(countParts, " UNION ALL "), runCountSQL)
 
-	listSQL, listArgs, err := appendListOptionsWithCursorToSQLSecure(listSQL, allArgs, &opts, policyAutomationActivityAllowedOrderKeys)
+	var tieBreaks []string
+	if activityOrder != nil {
+		tieBreaks = append(qualifiedOrderTerms("t", activityOrder[1:]), "t.host_id ASC")
+	}
+	listSQL, listArgs, err := appendListOptionsWithCursorToSQLSecure(listSQL, allArgs, &opts, policyAutomationActivityAllowedOrderKeys, tieBreaks...)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "apply list options")
 	}
