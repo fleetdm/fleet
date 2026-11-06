@@ -22,25 +22,25 @@ const missingServerPrivateKeyMessage = "Missing required private key. Learn how 
 // POST /api/_version_/fleet/conditional_access/google
 ////////////////////////////////////////////////////////////////////////////////
 
-type conditionalAccessGoogleConnectRequest struct {
+type connectGoogleConditionalAccessRequest struct {
 	CustomerID        string          `json:"customer_id"`
 	AdminEmail        string          `json:"admin_email"`
 	ServiceAccountKey json.RawMessage `json:"service_account_key"`
 }
 
-type conditionalAccessGoogleStatusResponse struct {
+type googleConditionalAccessResponse struct {
 	CustomerID string `json:"customer_id"`
 	AdminEmail string `json:"admin_email"`
 	fleet.ConditionalAccessGoogleStatus
 	Err error `json:"error,omitempty"`
 }
 
-func (r conditionalAccessGoogleStatusResponse) Error() error { return r.Err }
+func (r googleConditionalAccessResponse) Error() error { return r.Err }
 
-func newConditionalAccessGoogleStatusResponse(
+func newGoogleConditionalAccessResponse(
 	integration *fleet.ConditionalAccessGoogleIntegration, status *fleet.ConditionalAccessGoogleStatus,
-) conditionalAccessGoogleStatusResponse {
-	var resp conditionalAccessGoogleStatusResponse
+) googleConditionalAccessResponse {
+	var resp googleConditionalAccessResponse
 	if integration != nil {
 		resp.CustomerID = integration.CustomerID
 		resp.AdminEmail = integration.AdminEmail
@@ -51,20 +51,20 @@ func newConditionalAccessGoogleStatusResponse(
 	return resp
 }
 
-func conditionalAccessGoogleConnectEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*conditionalAccessGoogleConnectRequest)
-	if err := svc.ConditionalAccessGoogleConnect(ctx, req.CustomerID, req.AdminEmail, req.ServiceAccountKey); err != nil {
-		return conditionalAccessGoogleStatusResponse{Err: err}, nil
+func connectGoogleConditionalAccessEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*connectGoogleConditionalAccessRequest)
+	if err := svc.ConnectGoogleConditionalAccess(ctx, req.CustomerID, req.AdminEmail, req.ServiceAccountKey); err != nil {
+		return googleConditionalAccessResponse{Err: err}, nil
 	}
 	// Read back from the primary so replica lag doesn't show the state from before the connect.
-	integration, status, err := svc.ConditionalAccessGoogleStatus(ctxdb.RequirePrimary(ctx, true))
+	integration, status, err := svc.GetGoogleConditionalAccess(ctxdb.RequirePrimary(ctx, true))
 	if err != nil {
-		return conditionalAccessGoogleStatusResponse{Err: err}, nil
+		return googleConditionalAccessResponse{Err: err}, nil
 	}
-	return newConditionalAccessGoogleStatusResponse(integration, status), nil
+	return newGoogleConditionalAccessResponse(integration, status), nil
 }
 
-func (svc *Service) ConditionalAccessGoogleConnect(ctx context.Context, customerID, adminEmail string, serviceAccountKey json.RawMessage) error {
+func (svc *Service) ConnectGoogleConditionalAccess(ctx context.Context, customerID, adminEmail string, serviceAccountKey json.RawMessage) error {
 	if err := svc.authz.Authorize(ctx, &fleet.ConditionalAccessGoogleIntegration{}, fleet.ActionWrite); err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to authorize")
 	}
@@ -132,24 +132,24 @@ func (svc *Service) ConditionalAccessGoogleConnect(ctx context.Context, customer
 	if err := svc.saveGoogleConditionalAccessSettings(ctx, appConfig, settings); err != nil {
 		return err
 	}
-	return svc.connectGoogleConditionalAccess(ctx, appConfig.ServerSettings.ServerURL, settings, existing)
+	return svc.registerGoogleConditionalAccess(ctx, appConfig.ServerSettings.ServerURL, settings, existing)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // GET /api/_version_/fleet/conditional_access/google
 ////////////////////////////////////////////////////////////////////////////////
 
-func conditionalAccessGoogleGetEndpoint(ctx context.Context, _ any, svc fleet.Service) (fleet.Errorer, error) {
-	integration, status, err := svc.ConditionalAccessGoogleStatus(ctx)
+func getGoogleConditionalAccessEndpoint(ctx context.Context, _ any, svc fleet.Service) (fleet.Errorer, error) {
+	integration, status, err := svc.GetGoogleConditionalAccess(ctx)
 	if err != nil {
-		return conditionalAccessGoogleStatusResponse{Err: err}, nil
+		return googleConditionalAccessResponse{Err: err}, nil
 	}
-	return newConditionalAccessGoogleStatusResponse(integration, status), nil
+	return newGoogleConditionalAccessResponse(integration, status), nil
 }
 
-// ConditionalAccessGoogleStatus returns the connection row (nil when none) and its
+// GetGoogleConditionalAccess returns the connection row (nil when none) and its
 // status. Both are nil on Fleet Free.
-func (svc *Service) ConditionalAccessGoogleStatus(ctx context.Context) (*fleet.ConditionalAccessGoogleIntegration, *fleet.ConditionalAccessGoogleStatus, error) {
+func (svc *Service) GetGoogleConditionalAccess(ctx context.Context) (*fleet.ConditionalAccessGoogleIntegration, *fleet.ConditionalAccessGoogleStatus, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "failed to authorize")
 	}
@@ -186,20 +186,20 @@ func (svc *Service) ConditionalAccessGoogleStatus(ctx context.Context) (*fleet.C
 // DELETE /api/_version_/fleet/conditional_access/google
 ////////////////////////////////////////////////////////////////////////////////
 
-type conditionalAccessGoogleDeleteResponse struct {
+type deleteGoogleConditionalAccessResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r conditionalAccessGoogleDeleteResponse) Error() error { return r.Err }
+func (r deleteGoogleConditionalAccessResponse) Error() error { return r.Err }
 
-func conditionalAccessGoogleDeleteEndpoint(ctx context.Context, _ any, svc fleet.Service) (fleet.Errorer, error) {
-	if err := svc.ConditionalAccessGoogleDelete(ctx); err != nil {
-		return conditionalAccessGoogleDeleteResponse{Err: err}, nil
+func deleteGoogleConditionalAccessEndpoint(ctx context.Context, _ any, svc fleet.Service) (fleet.Errorer, error) {
+	if err := svc.DeleteGoogleConditionalAccess(ctx); err != nil {
+		return deleteGoogleConditionalAccessResponse{Err: err}, nil
 	}
-	return conditionalAccessGoogleDeleteResponse{}, nil
+	return deleteGoogleConditionalAccessResponse{}, nil
 }
 
-func (svc *Service) ConditionalAccessGoogleDelete(ctx context.Context) error {
+func (svc *Service) DeleteGoogleConditionalAccess(ctx context.Context) error {
 	if err := svc.authz.Authorize(ctx, &fleet.ConditionalAccessGoogleIntegration{}, fleet.ActionWrite); err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to authorize")
 	}
@@ -326,12 +326,12 @@ func (svc *Service) saveGoogleConditionalAccessRow(
 	return nil
 }
 
-// connectGoogleConditionalAccess registers the server with fleetdm.com when it isn't
+// registerGoogleConditionalAccess registers the server with fleetdm.com when it isn't
 // registered for this customer yet, and stores the connection row. The delegation
 // check must have passed and a previous customer must have been left (see
 // leaveGoogleConditionalAccessCustomer). A failed registration is recorded in the row.
 // serverURL is the app config's server URL.
-func (svc *Service) connectGoogleConditionalAccess(
+func (svc *Service) registerGoogleConditionalAccess(
 	ctx context.Context, serverURL string, settings fleet.GoogleConditionalAccessIntegration,
 	existing *fleet.ConditionalAccessGoogleIntegration,
 ) error {

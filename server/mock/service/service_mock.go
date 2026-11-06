@@ -995,11 +995,11 @@ type ConditionalAccessMicrosoftConfirmFunc func(ctx context.Context) (configurat
 
 type ConditionalAccessMicrosoftDeleteFunc func(ctx context.Context) error
 
-type ConditionalAccessGoogleConnectFunc func(ctx context.Context, customerID string, adminEmail string, serviceAccountKey json.RawMessage) error
+type ConnectGoogleConditionalAccessFunc func(ctx context.Context, customerID string, adminEmail string, serviceAccountKey json.RawMessage) error
 
-type ConditionalAccessGoogleStatusFunc func(ctx context.Context) (*fleet.ConditionalAccessGoogleIntegration, *fleet.ConditionalAccessGoogleStatus, error)
+type GetGoogleConditionalAccessFunc func(ctx context.Context) (*fleet.ConditionalAccessGoogleIntegration, *fleet.ConditionalAccessGoogleStatus, error)
 
-type ConditionalAccessGoogleDeleteFunc func(ctx context.Context) error
+type DeleteGoogleConditionalAccessFunc func(ctx context.Context) error
 
 type ConditionalAccessGetIdPSigningCertFunc func(ctx context.Context) (certPEM []byte, err error)
 
@@ -2527,14 +2527,14 @@ type Service struct {
 	ConditionalAccessMicrosoftDeleteFunc        ConditionalAccessMicrosoftDeleteFunc
 	ConditionalAccessMicrosoftDeleteFuncInvoked bool
 
-	ConditionalAccessGoogleConnectFunc        ConditionalAccessGoogleConnectFunc
-	ConditionalAccessGoogleConnectFuncInvoked bool
+	ConnectGoogleConditionalAccessFunc        ConnectGoogleConditionalAccessFunc
+	ConnectGoogleConditionalAccessFuncInvoked bool
 
-	ConditionalAccessGoogleStatusFunc        ConditionalAccessGoogleStatusFunc
-	ConditionalAccessGoogleStatusFuncInvoked bool
+	GetGoogleConditionalAccessFunc        GetGoogleConditionalAccessFunc
+	GetGoogleConditionalAccessFuncInvoked bool
 
-	ConditionalAccessGoogleDeleteFunc        ConditionalAccessGoogleDeleteFunc
-	ConditionalAccessGoogleDeleteFuncInvoked bool
+	DeleteGoogleConditionalAccessFunc        DeleteGoogleConditionalAccessFunc
+	DeleteGoogleConditionalAccessFuncInvoked bool
 
 	ConditionalAccessGetIdPSigningCertFunc        ConditionalAccessGetIdPSigningCertFunc
 	ConditionalAccessGetIdPSigningCertFuncInvoked bool
@@ -6044,25 +6044,25 @@ func (s *Service) ConditionalAccessMicrosoftDelete(ctx context.Context) error {
 	return s.ConditionalAccessMicrosoftDeleteFunc(ctx)
 }
 
-func (s *Service) ConditionalAccessGoogleConnect(ctx context.Context, customerID string, adminEmail string, serviceAccountKey json.RawMessage) error {
+func (s *Service) ConnectGoogleConditionalAccess(ctx context.Context, customerID string, adminEmail string, serviceAccountKey json.RawMessage) error {
 	s.mu.Lock()
-	s.ConditionalAccessGoogleConnectFuncInvoked = true
+	s.ConnectGoogleConditionalAccessFuncInvoked = true
 	s.mu.Unlock()
-	return s.ConditionalAccessGoogleConnectFunc(ctx, customerID, adminEmail, serviceAccountKey)
+	return s.ConnectGoogleConditionalAccessFunc(ctx, customerID, adminEmail, serviceAccountKey)
 }
 
-func (s *Service) ConditionalAccessGoogleStatus(ctx context.Context) (*fleet.ConditionalAccessGoogleIntegration, *fleet.ConditionalAccessGoogleStatus, error) {
+func (s *Service) GetGoogleConditionalAccess(ctx context.Context) (*fleet.ConditionalAccessGoogleIntegration, *fleet.ConditionalAccessGoogleStatus, error) {
 	s.mu.Lock()
-	s.ConditionalAccessGoogleStatusFuncInvoked = true
+	s.GetGoogleConditionalAccessFuncInvoked = true
 	s.mu.Unlock()
-	return s.ConditionalAccessGoogleStatusFunc(ctx)
+	return s.GetGoogleConditionalAccessFunc(ctx)
 }
 
-func (s *Service) ConditionalAccessGoogleDelete(ctx context.Context) error {
+func (s *Service) DeleteGoogleConditionalAccess(ctx context.Context) error {
 	s.mu.Lock()
-	s.ConditionalAccessGoogleDeleteFuncInvoked = true
+	s.DeleteGoogleConditionalAccessFuncInvoked = true
 	s.mu.Unlock()
-	return s.ConditionalAccessGoogleDeleteFunc(ctx)
+	return s.DeleteGoogleConditionalAccessFunc(ctx)
 }
 
 func (s *Service) ConditionalAccessGetIdPSigningCert(ctx context.Context) (certPEM []byte, err error) {

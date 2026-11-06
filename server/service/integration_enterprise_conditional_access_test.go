@@ -2046,9 +2046,9 @@ func (s *integrationEnterpriseTestSuite) newGoogleCATest() *googleCATest {
 	return g
 }
 
-func (g *googleCATest) connect(customerID, adminEmail, key string, wantStatus int) conditionalAccessGoogleStatusResponse {
-	var resp conditionalAccessGoogleStatusResponse
-	g.s.DoJSON("POST", "/api/latest/fleet/conditional_access/google", conditionalAccessGoogleConnectRequest{
+func (g *googleCATest) connect(customerID, adminEmail, key string, wantStatus int) googleConditionalAccessResponse {
+	var resp googleConditionalAccessResponse
+	g.s.DoJSON("POST", "/api/latest/fleet/conditional_access/google", connectGoogleConditionalAccessRequest{
 		CustomerID:        customerID,
 		AdminEmail:        adminEmail,
 		ServiceAccountKey: json.RawMessage(key),
@@ -2056,8 +2056,8 @@ func (g *googleCATest) connect(customerID, adminEmail, key string, wantStatus in
 	return resp
 }
 
-func (g *googleCATest) status() conditionalAccessGoogleStatusResponse {
-	var resp conditionalAccessGoogleStatusResponse
+func (g *googleCATest) status() googleConditionalAccessResponse {
+	var resp googleConditionalAccessResponse
 	g.s.DoJSON("GET", "/api/latest/fleet/conditional_access/google", nil, http.StatusOK, &resp)
 	return resp
 }
@@ -2103,10 +2103,10 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	st := g.status()
 	require.Empty(t, st.CustomerID)
 	require.Equal(t, fleet.ConditionalAccessGoogleStatus{}, st.ConditionalAccessGoogleStatus)
-	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusBadRequest, &conditionalAccessGoogleDeleteResponse{})
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusBadRequest, &deleteGoogleConditionalAccessResponse{})
 
 	// Invalid input is a 422 on the field (the validator has its own unit tests).
-	res := s.Do("POST", "/api/latest/fleet/conditional_access/google", conditionalAccessGoogleConnectRequest{
+	res := s.Do("POST", "/api/latest/fleet/conditional_access/google", connectGoogleConditionalAccessRequest{
 		CustomerID: "C02cajzvg", AdminEmail: "admin@example.com",
 	}, http.StatusUnprocessableEntity)
 	name, _ := extractServerErrorNameReason(res.Body)
@@ -2115,7 +2115,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 
 	// Without a server private key the key can't be stored, so nothing is called.
 	testSetEmptyPrivateKey = true
-	res = s.Do("POST", "/api/latest/fleet/conditional_access/google", conditionalAccessGoogleConnectRequest{
+	res = s.Do("POST", "/api/latest/fleet/conditional_access/google", connectGoogleConditionalAccessRequest{
 		CustomerID: "C02cajzvg", AdminEmail: "admin@example.com", ServiceAccountKey: json.RawMessage(key),
 	}, http.StatusUnprocessableEntity)
 	testSetEmptyPrivateKey = false
@@ -2129,14 +2129,14 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	require.NoError(t, err)
 	s.setTokenForTest(t, maintainer.Email, test.GoodPassword)
 	g.connect("C02cajzvg", "admin@example.com", key, http.StatusForbidden)
-	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusForbidden, &conditionalAccessGoogleDeleteResponse{})
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusForbidden, &deleteGoogleConditionalAccessResponse{})
 	s.token = s.getTestAdminToken()
 	g.requireCalls(nil, nil, nil)
 
 	// A failed delegation check (e.g. a wrong customer ID) stores nothing.
 	addedBefore, deletedBefore := g.addedCount(), g.deletedCount()
 	g.client.checkErr = errors.New("Not Authorized to access this resource/api")
-	res = s.Do("POST", "/api/latest/fleet/conditional_access/google", conditionalAccessGoogleConnectRequest{
+	res = s.Do("POST", "/api/latest/fleet/conditional_access/google", connectGoogleConditionalAccessRequest{
 		CustomerID: "C02cajzvg", AdminEmail: "admin@example.com", ServiceAccountKey: json.RawMessage(key),
 	}, http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(res.Body), "Not Authorized to access this resource/api")
@@ -2250,7 +2250,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	// A fleetdm.com failure on DELETE is a 502, never fleetdm.com's own status (a 401 would
 	// log the admin out), and keeps the integration so the admin can retry.
 	g.client.deregisterErr = &conditional_access_google.RelayStatusError{Code: http.StatusUnauthorized, RespErr: "bad secret"}
-	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusBadGateway, &conditionalAccessGoogleDeleteResponse{})
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusBadGateway, &deleteGoogleConditionalAccessResponse{})
 	_, err = s.ds.GetGoogleConditionalAccessIntegration(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, g.storedKey())
@@ -2263,7 +2263,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	insertGoogleDeviceUsers(t, s.ds, host2, "devices/d2/deviceUsers/u1")
 	addedBefore, deletedBefore = g.addedCount(), g.deletedCount()
 	g.client.deregisterErr = &notFoundError{}
-	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusOK, &conditionalAccessGoogleDeleteResponse{})
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusOK, &deleteGoogleConditionalAccessResponse{})
 	_, _, _, unmanaged = g.client.calls()
 	require.ElementsMatch(t, []string{"devices/d1/deviceUsers/u1", "devices/d1/deviceUsers/u2", "devices/d2/deviceUsers/u1"}, unmanaged)
 	_, _, deletes, _ := g.client.calls()
@@ -2280,7 +2280,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	require.Equal(t, deletedBefore+1, g.deletedCount())
 	require.False(t, g.getConfig().Integrations.GoogleConditionalAccess.Enabled)
 	require.Equal(t, fleet.ConditionalAccessGoogleStatus{}, g.status().ConditionalAccessGoogleStatus)
-	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusBadRequest, &conditionalAccessGoogleDeleteResponse{})
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusBadRequest, &deleteGoogleConditionalAccessResponse{})
 	g.client.reset()
 
 	// A registration whose secret can't be saved is dropped again on fleetdm.com, so no
@@ -2312,11 +2312,11 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 
 	// DELETE also cleans up a key left without a connection row.
 	require.NoError(t, s.ds.DeleteGoogleConditionalAccessIntegration(ctx))
-	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusOK, &conditionalAccessGoogleDeleteResponse{})
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusOK, &deleteGoogleConditionalAccessResponse{})
 	g.requireCalls(nil, nil, nil)
 	require.Nil(t, g.storedKey())
 	require.False(t, g.getConfig().Integrations.GoogleConditionalAccess.Enabled)
-	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusBadRequest, &conditionalAccessGoogleDeleteResponse{})
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusBadRequest, &deleteGoogleConditionalAccessResponse{})
 }
 
 func insertGoogleDeviceUsers(t *testing.T, ds *mysql.Datastore, host *fleet.Host, names ...string) {
