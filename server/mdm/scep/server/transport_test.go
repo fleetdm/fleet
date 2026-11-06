@@ -15,6 +15,8 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	filedepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/file"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
@@ -266,6 +268,52 @@ func TestInvalidReqs(t *testing.T) {
 	}
 	if resp.StatusCode != 400 {
 		t.Error("expected", http.StatusBadRequest, "got", resp.StatusCode)
+	}
+}
+
+// berGuardService rejects PKIOperation messages the way Fleet's SCEP services do, with a
+// fleet.BadRequestError.
+type berGuardService struct {
+	scepserver.Service
+}
+
+func (s berGuardService) PKIOperation(ctx context.Context, data []byte) ([]byte, error) {
+	if err := cryptoutil.ValidateBERDepth(data, cryptoutil.MaxBERDepth); err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "invalid request body",
+			InternalErr: err,
+		}
+	}
+	return s.Service.PKIOperation(ctx, data)
+}
+
+func TestPKIOperationFleetBadRequestError(t *testing.T) {
+	_, svc, teardown := newServer(t)
+	defer teardown()
+
+	guarded := berGuardService{Service: svc}
+	slogLogger := slog.New(slog.DiscardHandler)
+	r := mux.NewRouter()
+	r.Handle("/scep", scepserver.MakeHTTPHandler(scepserver.MakeServerEndpoints(guarded), guarded, slogLogger))
+	server := httptest.NewServer(r)
+	defer server.Close()
+
+	// Each 0x30 0x80 opens an indefinite-length SEQUENCE, so this nests one level past MaxBERDepth.
+	body := bytes.Repeat([]byte{0x30, 0x80}, cryptoutil.MaxBERDepth+1)
+	resp, err := http.Post(server.URL+"/scep?operation=PKIOperation", "application/octet-stream", bytes.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected %d, got %d", http.StatusBadRequest, resp.StatusCode)
+	}
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(string(respBody)); got != "invalid request body" {
+		t.Errorf("expected body %q, got %q", "invalid request body", got)
 	}
 }
 
