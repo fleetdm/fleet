@@ -17,7 +17,13 @@ function Get-Entries {
         'Registry::HKEY_USERS\S-1-5-18\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
     )
     foreach ($root in $roots) {
-        foreach ($sub in (Get-ChildItem -Path $root -ErrorAction SilentlyContinue)) {
+        # A missing root is fine; any other read failure stops the uninstall.
+        try {
+            $subs = @(Get-ChildItem -Path $root -ErrorAction Stop)
+        } catch [System.Management.Automation.ItemNotFoundException] {
+            continue
+        }
+        foreach ($sub in $subs) {
             $key = Get-ItemProperty $sub.PSPath -ErrorAction SilentlyContinue
             if ($key.DisplayName -notlike "$displayName *" -or $key.Publisher -ne $publisher) { continue }
             [PSCustomObject]@{
@@ -53,8 +59,12 @@ function Remove-Entry {
         return 1
     }
 
-    $running = @(Get-Process -ErrorAction SilentlyContinue |
-        Where-Object { $_.Path -and $_.Path.StartsWith("$installDir\", [System.StringComparison]::OrdinalIgnoreCase) })
+    $isThoriumDir = (Split-Path $installDir -Leaf) -eq $installDirName
+    $running = @()
+    if ($isThoriumDir) {
+        $running = @(Get-Process -ErrorAction SilentlyContinue |
+            Where-Object { $_.Path -and $_.Path.StartsWith("$installDir\", [System.StringComparison]::OrdinalIgnoreCase) })
+    }
     if ($running.Count -gt 0) {
         Write-Host "Stopping $($running.Count) running $displayName process(es)."
         $running | Stop-Process -Force -ErrorAction SilentlyContinue
@@ -82,7 +92,6 @@ function Remove-Entry {
             Write-Host "Couldn't run the uninstaller: $_"
         }
     }
-    $isThoriumDir = (Split-Path $installDir -Leaf) -eq $installDirName
     if (-not $ran) {
         # Keep the registration unless the leftover folder is gone, so a retry can finish.
         if (Test-Path -LiteralPath $installDir) {
