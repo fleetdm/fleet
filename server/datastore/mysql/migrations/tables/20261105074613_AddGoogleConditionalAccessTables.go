@@ -10,7 +10,9 @@ func init() {
 }
 
 func Up_20261105074613(tx *sql.Tx) error {
-	// A single global row, pinned to id 1 so concurrent saves upsert the same row.
+	// The Google Workspace customer the integration is connected to, plus the per-server
+	// secret and OAuth client ID fleetdm.com issued on registration and the connection
+	// state. A single global row, pinned to id 1 so concurrent saves upsert the same row.
 	if _, err := tx.Exec(`
 		CREATE TABLE IF NOT EXISTS google_conditional_access_integrations (
 			id                  INT UNSIGNED NOT NULL DEFAULT 1,
@@ -28,6 +30,8 @@ func Up_20261105074613(tx *sql.Tx) error {
 		return fmt.Errorf("create google_conditional_access_integrations: %w", err)
 	}
 
+	// One row per host registered (or registering) with Google, holding its one-time
+	// registration token and the retry counters.
 	// Keyed by host UUID and not in the host deletion cascade: the row and its names
 	// must outlive the host until every name is marked UNMANAGED, and a host that
 	// re-enrolls with the same UUID finds its row again.
@@ -47,8 +51,9 @@ func Up_20261105074613(tx *sql.Tx) error {
 		return fmt.Errorf("create google_conditional_access_devices: %w", err)
 	}
 
-	// Google resource IDs are case-sensitive, so the name uses a binary collation
-	// for the uniqueness check across hosts.
+	// The Google device-user resource names matched to each host, with the marking
+	// state of each. Google resource IDs are case-sensitive, so the name uses a binary
+	// collation for the uniqueness check across hosts.
 	if _, err := tx.Exec(`
 		CREATE TABLE IF NOT EXISTS google_conditional_access_device_users (
 			host_uuid        VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
