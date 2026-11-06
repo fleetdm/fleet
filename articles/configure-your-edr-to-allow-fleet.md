@@ -83,8 +83,8 @@ The simplest way to create the exclusion is from the detection in the Falcon con
 IOA name:                   BundledMalware  (use the IOA name from your detection)
 Image filename:             .*\\Windows\\System32\\WindowsPowerShell\\v1\.0\\powershell\.exe
 Command line:               powershell\s+-MTA\s+-ExecutionPolicy\s+Bypass\s+-File\s+.*\\WINDOWS\\SystemTemp\\.*\\(?:install-script|post-install-script|rollback-script|script)\.ps1
-Parent image filename:      .*\\Program\s+Files\\Orbit\\bin\\orbit\\orbit\.exe
-Parent command line:        ".*\\Program\s+Files\\Orbit\\bin\\orbit\\orbit\.exe"
+Parent image filename:      .*\\Program\s+Files\\Orbit\\bin\\orbit\\.*orbit\.exe
+Parent command line:        ".*\\Program\s+Files\\Orbit\\bin\\orbit\\.*orbit\.exe"
 Grandparent image filename: .*\\Windows\\System32\\services\.exe
 Grandparent command line:   .*\\WINDOWS\\system32\\services\.exe
 ```
@@ -96,6 +96,7 @@ Tips:
 - Copy the script path from your own detection's command line. On Windows, processes running as SYSTEM may use `C:\Windows\SystemTemp` for temporary files.
 - Before saving, review the list of recent detections that Falcon shows the exclusion would have covered. Exclusions can take up to 40 minutes to take effect.
 - Scope the exclusion to a small host group first, then expand once detections stop.
+- Orbit can run from `C:\Program Files\Orbit\bin\orbit\orbit.exe` or, after it updates itself, from a subfolder such as `bin\orbit\windows\stable\orbit.exe`. Use `.*` before `orbit\.exe` in the parent fields so the exclusion matches both.
 
 ### Example: CrowdStrike Falcon IOA exclusion for the BitLocker check (Windows)
 
@@ -105,7 +106,7 @@ In one CrowdStrike deployment, Falcon flagged Orbit's BitLocker key protector ch
 IOA name:              BundledMalware  (use the IOA name from your detection)
 Image filename:        .*\\Windows\\System32\\WindowsPowerShell\\v1\.0\\powershell\.exe
 Command line:          powershell\.exe\s+-NoProfile\s+-Command\s+.*Get-Bit[Ll]ockerVolume.*
-Parent image filename: .*\\Program\s+Files\\Orbit\\bin\\orbit\\orbit\.exe
+Parent image filename: .*\\Program\s+Files\\Orbit\\bin\\orbit\\.*orbit\.exe
 ```
 
 While this check is blocked, the host's details may stop updating in Fleet, a refetch may stay pending, and your EDR may log a new detection every few seconds as Fleet asks again. In one deployment, disk encryption key escrow and configuration profiles also didn't complete until the exclusion was in place.
