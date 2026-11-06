@@ -517,6 +517,8 @@ type HostSoftwareInstallerResult struct {
 	SoftwareTitleID *uint `json:"software_title_id" db:"software_title_id"`
 	// SoftwareInstallerID is the unique numerical ID of the software installer assigned by the datastore.
 	SoftwareInstallerID *uint `json:"-" db:"software_installer_id"`
+	// InstallerGlobalOrTeamID is the fleet the installer belongs to, 0 for no fleet, or nil if the installer was deleted.
+	InstallerGlobalOrTeamID *uint `json:"-" db:"installer_global_or_team_id"`
 	// SoftwarePackage is the name of the software installer package.
 	SoftwarePackage string `json:"software_package" db:"software_package"`
 	// HashSHA256 is the SHA256 hash of the software installer package. It is

@@ -1929,4 +1929,200 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.Empty(t, notificationsForHost(t, host.ID))
 		require.Nil(t, hostPatchDeadlineAt(t, host.ID))
 	})
+
+	t.Run("a host moved to another fleet", func(t *testing.T) {
+		moveToFleet := func(host *fleet.Host, teamID uint) {
+			s.Do("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{TeamID: &teamID, HostIDs: []uint{host.ID}}, http.StatusOK)
+		}
+		appsOn := func(t *testing.T, notificationUUID string) []fleet.PatchNotificationAppDetail {
+			apps, err := s.ds.ListPatchNotificationApps(ctx, notificationUUID)
+			require.NoError(t, err)
+			return apps
+		}
+		openNotifications := func(t *testing.T, hostID uint) []notifications_api.EndUserNotification {
+			var open []notifications_api.EndUserNotification
+			for _, row := range notificationsForHost(t, hostID) {
+				if row.Status == notifications_api.EndUserNotificationPending || row.Status == notifications_api.EndUserNotificationDispatched {
+					open = append(open, row)
+				}
+			}
+			return open
+		}
+		failPolicyAndSkipInstall := func(t *testing.T, host *fleet.Host, policyID, wantInstallerID uint) {
+			var distributedResp submitDistributedQueryResultsResponse
+			s.DoJSON("POST", "/api/osquery/distributed/write",
+				genDistributedReqWithPolicyResults(host, map[uint]*bool{policyID: new(false)}), http.StatusOK, &distributedResp)
+			executionID, installerID := activatedInstallFor(t, host.ID)
+			require.Equal(t, wantInstallerID, installerID)
+			postSkippedInstall(t, host, executionID)
+		}
+		installsQueuedFor := func(t *testing.T, hostID uint) []uint {
+			var installerIDs []uint
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				return sqlx.SelectContext(ctx, q, &installerIDs, `
+					SELECT siua.software_installer_id
+					FROM upcoming_activities ua
+						JOIN software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+					WHERE ua.host_id = ?`, hostID)
+			})
+			return installerIDs
+		}
+		const timezone = "America/New_York"
+
+		t.Run("before the notice leaves the old fleet's apps behind and the new fleet's skip adds its own", func(t *testing.T) {
+			host, oldFleetID := notifyTeamAndHost(t, "notif-move-before-notice")
+			newFleet, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "notif-move-before-notice-new"})
+			require.NoError(t, err)
+
+			oldPolicyID, oldInstallerID := newDeadlinePolicy(t, host, oldFleetID, timezone, "Move Shared App")
+			oldOnlyPolicyID, oldOnlyInstallerID := newDeadlinePolicy(t, host, oldFleetID, timezone, "Move Old Fleet App")
+			newPolicyID, newInstallerID := newDeadlinePolicy(t, host, newFleet.ID, timezone, "Move Shared App")
+			failPolicyAndSkipInstall(t, host, oldPolicyID, oldInstallerID)
+			failPolicyAndSkipInstall(t, host, oldOnlyPolicyID, oldOnlyInstallerID)
+			require.Len(t, openNotifications(t, host.ID), 1)
+
+			moveToFleet(host, newFleet.ID)
+
+			require.Empty(t, openNotifications(t, host.ID))
+			require.Nil(t, hostPatchDeadlineAt(t, host.ID))
+
+			failPolicyAndSkipInstall(t, host, newPolicyID, newInstallerID)
+
+			open := openNotifications(t, host.ID)
+			require.Len(t, open, 1)
+			apps := appsOn(t, open[0].UUID)
+			require.Len(t, apps, 1)
+			require.NotNil(t, apps[0].SoftwareInstallerID)
+			require.Equal(t, newInstallerID, *apps[0].SoftwareInstallerID)
+		})
+
+		t.Run("with the toast on screen installs nothing of the old fleet's at the deadline", func(t *testing.T) {
+			host, oldFleetID := notifyTeamAndHost(t, "notif-move-on-screen")
+			newFleet, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "notif-move-on-screen-new"})
+			require.NoError(t, err)
+			policyID, installerID := newDeadlinePolicy(t, host, oldFleetID, timezone, "Move On Screen App")
+			failPolicyAndSkipInstall(t, host, policyID, installerID)
+			require.Empty(t, installsQueuedFor(t, host.ID))
+
+			open := openNotifications(t, host.ID)
+			require.Len(t, open, 1)
+			notificationUUID := open[0].UUID
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx,
+					`UPDATE notifications_end_user SET next_attempt_at = NOW(6) - INTERVAL 1 MINUTE WHERE uuid = ?`, notificationUUID)
+				return err
+			})
+			displayToast := func() {
+				dispatch(t)
+				toast := getTestNotification(t, s.ds, notificationUUID)
+				require.NotNil(t, toast.ExecutionID)
+				fetchScript(t, host, *toast.ExecutionID)
+				postScriptResult(host, *toast.ExecutionID, 0)
+				require.NotNil(t, getTestNotification(t, s.ds, notificationUUID).DisplayedAt)
+			}
+			displayToast()
+
+			expireTestToast(t, notificationUUID)
+			setTestInstallAt(t, s.ds, notificationUUID, "NOW(6) + INTERVAL 4 MINUTE")
+			require.NoError(t, s.patchNotificationKind.RemindAndInstallDuePatches(ctx))
+			displayToast()
+
+			moveToFleet(host, newFleet.ID)
+
+			markTestHostSeen(t, s.ds, host.ID)
+			setTestInstallAt(t, s.ds, notificationUUID, "NOW(6) - INTERVAL 1 MINUTE")
+			require.NoError(t, s.patchNotificationKind.RemindAndInstallDuePatches(ctx))
+			require.Empty(t, installsQueuedFor(t, host.ID))
+		})
+
+		t.Run("with the toast on screen queues nothing when the end user presses Update now", func(t *testing.T) {
+			host, oldFleetID := notifyTeamAndHost(t, "notif-move-update-now")
+			newFleet, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "notif-move-update-now-new"})
+			require.NoError(t, err)
+			policyID, installerID := newDeadlinePolicy(t, host, oldFleetID, timezone, "Move Update Now App")
+			failPolicyAndSkipInstall(t, host, policyID, installerID)
+
+			open := openNotifications(t, host.ID)
+			require.Len(t, open, 1)
+			notificationUUID := open[0].UUID
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx,
+					`UPDATE notifications_end_user SET next_attempt_at = NOW(6) - INTERVAL 1 MINUTE WHERE uuid = ?`, notificationUUID)
+				return err
+			})
+			dispatch(t)
+			dispatched := getTestNotification(t, s.ds, notificationUUID)
+			require.NotNil(t, dispatched.ExecutionID)
+			_, token := fetchScript(t, host, *dispatched.ExecutionID)
+			postScriptResult(host, *dispatched.ExecutionID, 0)
+
+			moveToFleet(host, newFleet.ID)
+
+			s.Do("POST", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s/actions", token, notificationUUID),
+				json.RawMessage(`{"action":"update_now"}`), http.StatusInternalServerError)
+			require.Empty(t, installsQueuedFor(t, host.ID))
+		})
+
+		t.Run("with the script already queued stays failed when the script reports back", func(t *testing.T) {
+			host, oldFleetID := notifyTeamAndHost(t, "notif-move-queued-script")
+			newFleet, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "notif-move-queued-script-new"})
+			require.NoError(t, err)
+			policyID, installerID := newDeadlinePolicy(t, host, oldFleetID, timezone, "Move Queued Script App")
+			failPolicyAndSkipInstall(t, host, policyID, installerID)
+
+			open := openNotifications(t, host.ID)
+			require.Len(t, open, 1)
+			notificationUUID := open[0].UUID
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx,
+					`UPDATE notifications_end_user SET next_attempt_at = NOW(6) - INTERVAL 1 MINUTE WHERE uuid = ?`, notificationUUID)
+				return err
+			})
+			dispatch(t)
+			dispatched := getTestNotification(t, s.ds, notificationUUID)
+			require.NotNil(t, dispatched.ExecutionID)
+
+			moveToFleet(host, newFleet.ID)
+			require.Equal(t, notifications_api.EndUserNotificationFailed, getTestNotification(t, s.ds, notificationUUID).Status)
+
+			// Fleet Desktop exits 31 when the page gets an error, and that exit code retries a notification still out
+			fetchScript(t, host, *dispatched.ExecutionID)
+			postScriptResult(host, *dispatched.ExecutionID, 31)
+
+			require.Equal(t, notifications_api.EndUserNotificationFailed, getTestNotification(t, s.ds, notificationUUID).Status)
+			require.Empty(t, installsQueuedFor(t, host.ID))
+
+			var hostFeed listActivitiesResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host.ID), nil, http.StatusOK, &hostFeed)
+			var notified []fleet.ActivityTypeNotifiedEndUserBeforePatching
+			for _, activity := range hostFeed.Activities {
+				if activity.Type == "notified_end_user_before_patching" {
+					var details fleet.ActivityTypeNotifiedEndUserBeforePatching
+					require.NoError(t, json.Unmarshal(*activity.Details, &details))
+					notified = append(notified, details)
+				}
+			}
+			require.Len(t, notified, 1)
+			require.Equal(t, "failed", notified[0].Status)
+			require.Empty(t, notified[0].SoftwareTitles)
+		})
+
+		t.Run("ignores a skip from an install the old fleet queued before the move", func(t *testing.T) {
+			host, oldFleetID := notifyTeamAndHost(t, "notif-move-late-skip")
+			newFleet, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "notif-move-late-skip-new"})
+			require.NoError(t, err)
+			policyID, installerID := newDeadlinePolicy(t, host, oldFleetID, timezone, "Move Late Skip App")
+
+			var distributedResp submitDistributedQueryResultsResponse
+			s.DoJSON("POST", "/api/osquery/distributed/write",
+				genDistributedReqWithPolicyResults(host, map[uint]*bool{policyID: new(false)}), http.StatusOK, &distributedResp)
+			executionID, activatedInstallerID := activatedInstallFor(t, host.ID)
+			require.Equal(t, installerID, activatedInstallerID)
+
+			moveToFleet(host, newFleet.ID)
+			postSkippedInstall(t, host, executionID)
+
+			require.Empty(t, notificationsForHost(t, host.ID))
+		})
+	})
 }

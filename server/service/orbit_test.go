@@ -1371,6 +1371,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 	t.Run("two skips on one host make one notification listing both apps", func(t *testing.T) {
 		host := test.NewHost(t, ds, "batch-host", "10.0.0.5", uuid.NewString(), uuid.NewString(), time.Now())
 		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+		host.TeamID = &team.ID
 
 		// a second app, so the two skips are for different titles
 		otherPayload := *installerPayload

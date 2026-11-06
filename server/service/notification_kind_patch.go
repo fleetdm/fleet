@@ -192,6 +192,13 @@ func (svc *Service) createPatchNotificationForEndUser(ctx context.Context, host 
 		return nil
 	}
 
+	// an install queued before a transfer can still skip after it
+	if install.InstallerGlobalOrTeamID != nil && *install.InstallerGlobalOrTeamID != ptr.ValOrZero(host.TeamID) {
+		svc.logger.InfoContext(ctx, "not notifying about a skipped patch whose installer is outside the host's fleet",
+			"host_id", host.ID, "install_uuid", install.InstallUUID, "software_installer_id", ptr.ValOrZero(install.SoftwareInstallerID))
+		return nil
+	}
+
 	kind := fleet.PatchNotificationKind
 	var nextAttemptAt *time.Time
 	if install.PatchDeadline {
