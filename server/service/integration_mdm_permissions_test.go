@@ -191,9 +191,36 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 	require.NoError(t, err)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/profiles", h1.ID), getHostRequest{}, http.StatusOK, &getHostResponse{})
 
-	// GitOps users can't run or cancel MDM commands, even on hosts of their fleets.
-	s.Do("POST", "/api/latest/fleet/commands/run", runMDMCommandRequest{Command: "cmd", HostUUIDs: []string{h1.UUID}}, http.StatusForbidden)
-	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/commands/%s", h1.ID, uuid.NewString()), nil, http.StatusForbidden)
+	// GitOps users can't run MDM commands, even on hosts of their fleets.
+	const gitOpsMDMCommandMsg = "Users with the GitOps role can no longer run MDM commands. " +
+		"What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration"
+	mdmCommandEndpoints := []struct {
+		method string
+		path   string
+		body   any
+	}{
+		{"POST", "/api/latest/fleet/commands/run", runMDMCommandRequest{Command: "cmd", HostUUIDs: []string{h1.UUID}}},
+		{"POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", h1.ID), nil},
+		{"POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", h1.ID), nil},
+		{"POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", h1.ID), nil},
+		{"DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", h1.ID), nil},
+		{"DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/commands/%s", h1.ID, uuid.NewString()), nil},
+		{"POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", h1.ID), nil},
+		{"POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_account_password/rotate", h1.ID), nil},
+	}
+	for _, email := range []string{"gitops1-mdm@example.com", "gitops2-mdm@example.com"} {
+		s.setTokenForTest(t, email, test.GoodPassword)
+		for _, e := range mdmCommandEndpoints {
+			t.Run(email+" "+e.method+" "+e.path, func(t *testing.T) {
+				res := s.Do(e.method, e.path, e.body, http.StatusForbidden)
+				var errBody struct {
+					Message string `json:"message"`
+				}
+				require.NoError(t, json.NewDecoder(res.Body).Decode(&errBody))
+				assert.Equal(t, gitOpsMDMCommandMsg, errBody.Message)
+			})
+		}
+	}
 }
 
 // TestTechnicianPermissions tests the permissions listed in ../../docs/Using\ Fleet/manage-access.md

@@ -525,13 +525,13 @@ func TestRunMDMCommandAuthz(t *testing.T) {
 	checkAuthErr := func(t *testing.T, shouldFailWithAuth bool, err error) {
 		t.Helper()
 
+		var forbidden *authz.Forbidden
 		if shouldFailWithAuth {
-			require.Error(t, err)
-			require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+			require.ErrorAs(t, err, &forbidden)
 		} else {
 			// call always fails, but due to the host not being enrolled in MDM
 			require.Error(t, err)
-			require.NotContains(t, err.Error(), authz.ForbiddenErrorMessage)
+			require.NotErrorAs(t, err, &forbidden)
 		}
 	}
 

@@ -5845,7 +5845,7 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 		{
 			name:          "team gitops",
 			user:          &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
-			wantGlobalErr: test.ErrForbidden,
+			wantGlobalErr: test.ErrNotFound,
 			wantTeamErr:   test.ErrForbidden,
 		},
 	}
