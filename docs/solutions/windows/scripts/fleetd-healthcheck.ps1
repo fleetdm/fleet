@@ -8,13 +8,13 @@
   fleetd_healthcheck_ubuntu.sh.
 
   Components checked:
-    - "Fleet osquery" service (Windows service, runs orbit.exe)
-    - orbit               (process: orbit.exe)
+    - "Fleet" service (Windows service)
+    - Fleet               (process)
     - osqueryd            (process: spawned and managed by orbit)
     - fleet-desktop       (process: optional, only present if packaged with --fleet-desktop)
 
   Sources:
-    - Service name:        orbit/pkg/constant/constant.go (SystemServiceName = "Fleet osquery")
+    - Service name:        orbit/pkg/constant/constant.go (SystemServiceName = "Fleet")
     - Install root:        orbit/pkg/packaging/windows_templates.go (ORBITROOT = C:\Program Files\Orbit)
     - File names:          orbit/pkg/constant/constant.go (OrbitNodeKeyFileName, OsqueryEnrollSecretFileName, OsqueryPidfile)
     - Registry key:        HKLM:\SOFTWARE\FleetDM\Orbit (Path)
@@ -61,7 +61,7 @@ New-Item -ItemType File -Path $Summary -Force | Out-Null
 $OverallExit  = 0
 
 $OrbitRoot = Join-Path $env:ProgramFiles 'Orbit'
-$ServiceName = 'Fleet osquery'
+$ServiceName = 'Fleet'
 $Since = (Get-Date).AddHours(-$LookbackHours)
 
 # -- Header ---------------------------------------------------------------------
@@ -120,7 +120,7 @@ function Check-Process {
   }
 }
 
-Check-Process "orbit" "orbit"
+Check-Process "Fleet" "Fleet"
 Check-Process "osqueryd" "osqueryd"
 
 $Desktop = Get-Process -Name "fleet-desktop" -ErrorAction SilentlyContinue
@@ -198,7 +198,7 @@ if ($SvcCim -and $SvcCim.PathName) {
   $OverallExit = 1
 }
 # fleetd is configured through the service's per-service Environment (REG_MULTI_SZ) value
-$SvcEnv = (Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\Fleet osquery' -Name Environment -ErrorAction SilentlyContinue).Environment
+$SvcEnv = (Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\Fleet' -Name Environment -ErrorAction SilentlyContinue).Environment
 if ($SvcEnv) {
   Log "    Environment:"
   foreach ($Entry in $SvcEnv) {

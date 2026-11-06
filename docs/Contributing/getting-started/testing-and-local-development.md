@@ -938,7 +938,7 @@ To use the workflow, follow these steps:
 
 `productsign --sign "Developer ID Installer: Your Apple Account Name (serial number)" <path_to_unpacked_files> <path_to_signed_package.pkg>`
 
-Example: `productsign --sign "Developer ID Installer: PezHub (5F863R529J)" fleet-osquery.pkg signed-fleetd.pkg`
+Example: `productsign --sign "Developer ID Installer: PezHub (5F863R529J)" fleet-macos.pkg signed-fleetd.pkg`
 
 5. Check the signature by running `pkgutil --check-signature signed-fleetd.pkg`
 6. Rename your signed pkg `mv signed-fleetd.pkg fleet-base.pkg`
@@ -1058,7 +1058,7 @@ DEBUG=1 \
   "fleetd_base_msi_sha256": "[sha256sum of]"
 }
 ```
-3. Rename the generated fleet-osquery.msi to fleetd-base.msi
+3. Rename the generated fleet-windows-amd64.msi to fleetd-base.msi
 
 #### Serving the fleetd-base.msi installer
 
@@ -1206,7 +1206,7 @@ We use [Nudge](https://github.com/macadmins/nudge) to enforce macOS updates. Our
 open /opt/orbit/bin/nudge/macos/stable/Nudge.app --args -json-url file:///opt/orbit/nudge-config.json
 ```
 
-- Make sure that the `fleet-osquery.pkg` package you build to install `fleetd` has the `--debug` flag, there are many Nudge logs at the debug level.
+- Make sure that the `fleet-macos.pkg` package you build to install `fleetd` has the `--debug` flag, there are many Nudge logs at the debug level.
 
 - Nudge has a great [guide](https://github.com/macadmins/nudge/wiki/Logging) to stream/parse their logs, the TL;DR version is that you probably want a terminal running:
 

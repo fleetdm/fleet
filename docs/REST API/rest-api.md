@@ -2236,7 +2236,7 @@ Modifies the Fleet's configuration with the supplied information.
     "apple_require_hardware_attestation": false,
     "only_allow_apple_business_enrollment": false,
     "enable_profile_validation": true,
-    "enable_recovery_lock_password": true,
+    "macos_enable_recovery_lock_password": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01",
@@ -2926,7 +2926,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 | apple_require_hardware_attestation | boolean | _Available in Fleet Premium._ Specifies whether or not to require Apple hosts with supported hardware (Apple Silicon Macs, and iPhones and iPads with an A11 Bionic or later chip running iOS/iPadOS 16 or later) to complete a device attestation challenge verifying that the hardware serial matches a known host record from Apple Business (AB) as part of DEP enrollment. Hosts without supported hardware (for example, Intel Macs) enroll with SCEP and aren't attested, unless `only_allow_apple_business_enrollment` is also enabled. In that case, they can't enroll. |
 | only_allow_apple_business_enrollment | boolean | _Available in Fleet Premium._ Specifies whether or not to allow only Apple hosts that are assigned to Fleet in Apple Business (AB) to turn on MDM, through Automated Device Enrollment (ADE). When enabled, manual enrollment, over-the-air (OTA) enrollment, and account-driven user enrollment (BYOD) are blocked. Fleet also stops renewing MDM certificates for enrolled hosts that aren't in AB, so those hosts lose MDM when their certificate expires. If `apple_require_hardware_attestation` is also enabled, only hosts with supported hardware can enroll (SCEP isn't used as a fallback), and enrolled hosts without supported hardware also stop renewing. |
 | enable_profile_validation          | boolean | Specifies whether or not to check that recognized settings in Apple and Windows configuration profiles have values of the expected type when profiles are added or edited. Settings and payload types Fleet doesn't recognize are always allowed. Default is `true`. Set to `false` to skip this check. |
-| enable_recovery_lock_password     | boolean | _Available in Fleet Premium._ Unassigned hosts will have Recovery Lock password enabled if set to true. |
+| macos_enable_recovery_lock_password | boolean | _Available in Fleet Premium._ Unassigned hosts will have Recovery Lock password enabled if set to true. |
 | name_template                     | string  | _Available in Fleet Premium._ Naming convention applied to "Unassigned" macOS, iOS, and iPadOS hosts. Supports the built-in host identity and IdP end-user variables and custom (`$FLEET_SECRET_*`) variables; certificate authority variables aren't supported. See the [Update host name template](#update-host-name-template) endpoint for the full list. An empty string clears the template. To set the template for a fleet, use that endpoint. |
 | macos_updates            | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
 | ios_updates              | object  | See [`mdm.ios_updates`](#mdm-ios-updates). |
@@ -2946,6 +2946,9 @@ When updating conditional access config, all `conditional_access` fields must ei
 > Note: If `apple_require_hardware_attestation` is enabled and Apple attestation servers are down, Apple Silicon Macs and supported iPhones and iPads will not be able to enroll.
 
 > Note: If `only_allow_apple_business_enrollment` is enabled, the [Get manual enrollment profile](#get-manual-enrollment-profile) and [Get Over-the-Air (OTA) enrollment profile](#get-over-the-air-ota-enrollment-profile) endpoints return an error.
+
+> Note: If `mdm.apple_scep_static_challenge_enabled` is `false` (the default), the [Get manual enrollment profile](#get-manual-enrollment-profile) endpoint returns an error.
+
 
 <br/>
 
@@ -3112,7 +3115,7 @@ _Available in Fleet Premium._
     "enable_turn_on_windows_mdm_manually": false,
     "apple_require_hardware_attestation": false,
     "only_allow_apple_business_enrollment": false,
-    "enable_recovery_lock_password": true,
+    "macos_enable_recovery_lock_password": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01",
@@ -3615,8 +3618,8 @@ the `software` table.
 | software_title_id       | integer | query | The ID of the software title to filter hosts by.                                                                                                                                                                                                                                                                                                  |
 | software_status       | string | query | The status of the software install to filter hosts by. One of: `pending_install`, `failed_install`, `installed`, `pending_uninstall`, `failed_uninstall`, `pending`, or `failed`. Mutually exclusive with `software_version_id`, and must be supplied if `software_title_id` is set.   |
 | os_version_id | integer | query | The ID of the operating system version to filter hosts by. |
-| os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`. See note below for filtering Windows hosts.                                                                                                                                                                                                                                     |
-| os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`. See note below for filtering Windows hosts.                                                                                                                                                                                                                                  |
+| os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`.                                                                                                                                                                                                                                     |
+| os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`.                                                                                                                                                                                                                                  |
 | vulnerability           | string  | query | The cve to filter hosts by (including "cve-" prefix, case-insensitive).                                                                                                                                                                                                                                                                     |
 | device_mapping          | boolean | query | Indicates whether `device_mapping` should be included for each host. |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
@@ -3660,8 +3663,6 @@ If `include_device_status` is set to `true`, `device_status` and `pending_action
 
 To filter hosts by platform (macOS, Windows, Linux), use the ["List label's hosts" API endpoint](https://fleetdm.com/docs/rest-api/rest-api#list-labels-hosts). Find the label ID by filtering in the **Hosts** page of the Fleet UI and copying the ID from the URL (for example: `7` for `/hosts/manage/labels/7`).
 
-To filter Windows hosts using `os_name` and `os_version`, set `os_name` to the full operating system name without the build number, and set `os_version` to the build number. For example, if the **Operating system** field in host details shows `Windows 11 Home Single Language 23H2 10.0.22631.5335`, query with `os_name=Microsoft Windows 11 Home Single Language 23H2` and `os_version=10.0.22631.5335`. For macOS and Linux hosts, `os_name` is the OS name (for example, `macOS` or `Ubuntu`) and `os_version` is the version number (for example, `15.2` or `20.04.3 LTS`).
-
 #### Example
 
 `GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&populate_software=true&populate_policies=true&populate_users=true&populate_end_users=true&populate_labels=true&include_device_status=true`
@@ -3699,7 +3700,8 @@ To filter Windows hosts using `os_name` and `os_version`, set `os_name` to the f
       "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
       "platform": "darwin",
       "osquery_version": "5.15.0",
-      "os_version": "macOS 15.2",
+      "os_name": "macOS",
+      "os_version": "15.2",
       "build": "24C101",
       "platform_like": "darwin",
       "code_name": "",
@@ -3899,6 +3901,20 @@ To filter Windows hosts using `os_name` and `os_version`, set `os_name` to the f
 
 > Note: `disk_encryption_enabled` is omitted when Fleet doesn't know the host's disk encryption status, such as when the host hasn't reported it yet. It's also omitted for Linux hosts that report their root volume as unencrypted, because Fleet can't confirm that a Linux host's disk is unencrypted.
 
+Response payload for a Windows host (other host fields not shown):
+
+```json
+{
+  "hosts": [
+    {
+      "platform": "windows",
+      "os_name": "Windows 11 Home Single Language 23H2",
+      "os_version": "10.0.22631.5335"
+    }
+  ]
+}
+```
+
 Response payload with the `mdm_id` filter provided:
 
 ```json
@@ -3993,6 +4009,8 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 
 For iOS, iPadOS, and Android hosts, which don't run osquery, `online`/`offline` is derived from the most recent of `nano_enrollments.last_seen_at` (Apple, active enrollments only) or `host_seen_times.seen_time`, falling back to `detail_updated_at` when neither is present — within a ~1-hour window, instead of the per-host osquery check-in interval used by other platforms.
 
+To get the number of Linux hosts, use the [Count hosts](#count-hosts) endpoint with `label_id` set to the ID of the built-in "All Linux" label. You can find this ID in `builtin_labels` in the response below.
+
 `GET /api/v1/fleet/host_summary`
 
 #### Parameters
@@ -4020,7 +4038,6 @@ For iOS, iPadOS, and Android hosts, which don't run osquery, `online`/`offline` 
   "mia_count": 0,
   "missing_30_days_count": 0,
   "new_count": 0,
-  "all_linux_count": 1204,
   "low_disk_space_count": 12,
   "dep_assign_error_count": 7,
   "builtin_labels": [
@@ -4178,7 +4195,8 @@ Returns the information of the specified host.
     "orbit_version": "1.22.0",
     "fleet_desktop_version": "1.22.0",
     "scripts_enabled": true,
-    "os_version": "macOS 15.2",
+    "os_name": "macOS",
+    "os_version": "15.2",
     "build": "24C101",
     "platform_like": "darwin",
     "code_name": "",
@@ -4465,7 +4483,8 @@ Returns the information of the specified host.
     "orbit_version": "1.22.0",
     "fleet_desktop_version": null,
     "scripts_enabled": false,
-    "os_version": "iOS 17.4.1",
+    "os_name": "iOS",
+    "os_version": "17.4.1",
     "os_update_minimum_version": "15.1",
     "os_update_deadline": "2025-07-01",
     "build": "21E236",
@@ -4797,7 +4816,8 @@ Returns the information of the specified host.
     "orbit_version": null,
     "fleet_desktop_version": null,
     "scripts_enabled": null,
-    "os_version": "Android 16 (2026-05-01)",
+    "os_name": "Android",
+    "os_version": "16 (2026-05-01)",
     "os_update_minimum_version": null,
     "os_update_deadline": null,
     "build": "",
@@ -4988,7 +5008,7 @@ The `extension_for` field is included when set and when empty. It shows the brow
 > - `telephony_infos`, `imei`, and `meid` are never returned for a personal (BYOD) enrollment. AMAPI only reports them for fully managed devices in the first place, and Fleet gates the response on its own enrollment record so they stay hidden after a BYOD host unenrolls. `telephony_infos` holds one entry per SIM card, so a dual-SIM host reports more than one, and it requires Android 6 or above. Its `activation_state` and `config_mode` describe eSIMs on Android 15 and above only. A host reports either `imei` or `meid` depending on its radio, never both.
 > - `security_posture_details[].advice` holds AMAPI's default, non-localized admin-facing message for each risk. Fleet has no device locale to select a localized variant with, so the localized messages aren't returned.
 > - `encryption_type`, `security_posture`, `system_update_status`, `security_posture_details[].security_risk`, `telephony_infos[].activation_state`, and `telephony_infos[].config_mode` carry AMAPI's raw enum values, such as `ACTIVE`, `AT_RISK`, `UP_TO_DATE`, `UNKNOWN_OS`, `ACTIVATED`, and `ADMIN_CONFIGURED`. AMAPI's "no data" sentinels (`*_UNSPECIFIED` and `UPDATE_STATUS_UNKNOWN`) are omitted from the response instead of being returned.
-> - `security_update_version` is the host's Android security patch level. It's also folded into `os_version`, for example `Android 16 (2026-05-01)`.
+> - `security_update_version` is the host's Android security patch level. It's also folded into `os_version`, for example `16 (2026-05-01)`.
 
 > Note:
 > - `orbit_version: null` means this agent is not a fleetd agent
@@ -5054,7 +5074,8 @@ If `hostname` is specified when there is more than one host with the same hostna
     "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
     "platform": "ubuntu",
     "osquery_version": "5.5.1",
-    "os_version": "Ubuntu 20.04.3 LTS",
+    "os_name": "Ubuntu",
+    "os_version": "20.04.3 LTS",
     "os_update_minimum_version": "15.1",
     "os_update_deadline": "2025-07-01",
     "build": "",
@@ -5263,7 +5284,8 @@ If `hostname` is specified when there is more than one host with the same hostna
     "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
     "platform": "ios",
     "osquery_version": "5.5.1",
-    "os_version": "iOS 17.4.1",
+    "os_name": "iOS",
+    "os_version": "17.4.1",
     "build": "21E236",
     "platform_like": "darwin",
     "code_name": "",
@@ -5541,7 +5563,8 @@ If `hostname` is specified when there is more than one host with the same hostna
     "orbit_version": null,
     "fleet_desktop_version": null,
     "scripts_enabled": null,
-    "os_version": "Android 16 (2026-05-01)",
+    "os_name": "Android",
+    "os_version": "16 (2026-05-01)",
     "os_update_minimum_version": null,
     "os_update_deadline": null,
     "build": "",
@@ -5723,7 +5746,7 @@ The `extension_for` field is included when set and when empty. It shows the brow
 > - `telephony_infos`, `imei`, and `meid` are never returned for a personal (BYOD) enrollment. AMAPI only reports them for fully managed devices in the first place, and Fleet gates the response on its own enrollment record so they stay hidden after a BYOD host unenrolls. `telephony_infos` holds one entry per SIM card, so a dual-SIM host reports more than one, and it requires Android 6 or above. Its `activation_state` and `config_mode` describe eSIMs on Android 15 and above only. A host reports either `imei` or `meid` depending on its radio, never both.
 > - `security_posture_details[].advice` holds AMAPI's default, non-localized admin-facing message for each risk. Fleet has no device locale to select a localized variant with, so the localized messages aren't returned.
 > - `encryption_type`, `security_posture`, `system_update_status`, `security_posture_details[].security_risk`, `telephony_infos[].activation_state`, and `telephony_infos[].config_mode` carry AMAPI's raw enum values, such as `ACTIVE`, `AT_RISK`, `UP_TO_DATE`, `UNKNOWN_OS`, `ACTIVATED`, and `ADMIN_CONFIGURED`. AMAPI's "no data" sentinels (`*_UNSPECIFIED` and `UPDATE_STATUS_UNKNOWN`) are omitted from the response instead of being returned.
-> - `security_update_version` is the host's Android security patch level. It's also folded into `os_version`, for example `Android 16 (2026-05-01)`.
+> - `security_update_version` is the host's Android security patch level. It's also folded into `os_version`, for example `16 (2026-05-01)`.
 
 
 ### Get host by Fleet Desktop token
@@ -5779,7 +5802,8 @@ For iOS/iPadOS hosts, Fleet omits identifying details from the response: `uuid`,
     "uuid": "309a4b7d-0000-0000-8e7f-26ae0815ede8",
     "platform": "darwin",
     "osquery_version": "5.15.0",
-    "os_version": "macOS 15.2",
+    "os_name": "macOS",
+    "os_version": "15.2",
     "os_update_minimum_version": "15.1",
     "os_update_deadline": "2025-07-01",
     "build": "24C101",
@@ -6280,7 +6304,8 @@ This report includes a subset of host vitals, and simplified policy and vulnerab
   "host_id": 1,
   "health": {
     "updated_at": "2023-09-16T18:52:19Z",
-    "os_version": "CentOS Linux 8.3.2011",
+    "os_name": "CentOS Linux",
+    "os_version": "8.3.2011",
     "disk_encryption_enabled": true,
     "failing_policies_count": 1,
     "failing_critical_policies_count": 1, // Fleet Premium only
@@ -6933,10 +6958,10 @@ If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Se
 `Status: 200`
 
 ```csv
-created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,last_enrolled_at,seen_time,refetch_requested,hostname,uuid,platform,osquery_version,os_version,build,platform_like,code_name,uptime,memory,cpu_type,cpu_subtype,cpu_brand,cpu_physical_cores,cpu_logical_cores,hardware_vendor,hardware_model,hardware_marketing_name,hardware_version,hardware_serial,computer_name,primary_ip_id,primary_ip,primary_mac,distributed_interval,config_tls_refresh,logger_tls_period,fleet_name,gigs_disk_space_available,percent_disk_space_available,gigs_total_disk_space,issues,device_mapping,status,display_text
-2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,1,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,false,foo.local0,a4fc55a1-b5de-409c-a2f4-441f564680d3,debian,,,,,,0s,0,,,,0,0,,,,,,,,,,0,0,0,,,0,0,0,0,,,,
-2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:22:56Z,false,foo.local1,689539e5-72f0-4bf7-9cc5-1530d3814660,rhel,,,,,,0s,0,,,,0,0,,,,,,,,,,0,0,0,,,0,0,0,0,,,,
-2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,3,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:21:56Z,false,foo.local2,48ebe4b0-39c3-4a74-a67f-308f7b5dd171,linux,,,,,,0s,0,,,,0,0,,,,,,,,,,0,0,0,,,0,0,0,0,,,,
+created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,last_enrolled_at,seen_time,refetch_requested,hostname,uuid,platform,osquery_version,os_name,os_version,build,platform_like,code_name,uptime,memory,cpu_type,cpu_subtype,cpu_brand,cpu_physical_cores,cpu_logical_cores,hardware_vendor,hardware_model,hardware_marketing_name,hardware_version,hardware_serial,computer_name,primary_ip_id,primary_ip,primary_mac,distributed_interval,config_tls_refresh,logger_tls_period,fleet_name,gigs_disk_space_available,percent_disk_space_available,gigs_total_disk_space,issues,device_mapping,status,display_text
+2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,1,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,false,foo.local0,a4fc55a1-b5de-409c-a2f4-441f564680d3,debian,,,,,,,0s,0,,,,0,0,,,,,,,,,,0,0,0,,,0,0,0,0,,,,
+2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:22:56Z,false,foo.local1,689539e5-72f0-4bf7-9cc5-1530d3814660,rhel,,,,,,,0s,0,,,,0,0,,,,,,,,,,0,0,0,,,0,0,0,0,,,,
+2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,3,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:21:56Z,false,foo.local2,48ebe4b0-39c3-4a74-a67f-308f7b5dd171,linux,,,,,,,0s,0,,,,0,0,,,,,,,,,,0,0,0,,,0,0,0,0,,,,
 ```
 
 ### Get host's disk encryption key
@@ -8205,7 +8230,8 @@ If `mdm_id`, `mdm_name`, `mdm_enrollment_status`, `os_settings`, or `os_settings
       "uuid": "a2064cef-0000-0000-afb9-283e3c1d487e",
       "platform": "ubuntu",
       "osquery_version": "4.5.1",
-      "os_version": "Ubuntu 20.4.0",
+      "os_name": "Ubuntu",
+      "os_version": "20.4.0",
       "build": "",
       "platform_like": "debian",
       "code_name": "",
@@ -8454,8 +8480,6 @@ If one or more assigned labels are deleted the profile is considered broken (`br
 
 ### Get or download configuration profile
 
-> [Download custom macOS setting](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#download-custom-macos-setting-configuration-profile) (`GET /api/v1/fleet/mdm/apple/profiles/:profile_id`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the API endpoint below instead.
-
 `GET /api/v1/fleet/configuration_profiles/:profile_uuid`
 
 #### Parameters
@@ -8639,6 +8663,8 @@ The generated name is meant for declaration (DDM) and Windows profiles. A .mobil
 
 Returns `400` when AI features are disabled (`server_settings.ai_features_disabled`).
 
+On Fleet Free, this request doesn't count toward the [monthly generation limit](#autofill-configuration-profile-content), but it returns `429` once the limit is reached.
+
 `POST /api/v1/fleet/autofill/configuration_profile/name_description`
 
 #### Parameters
@@ -8690,6 +8716,43 @@ Returned when Fleet can't reach the AI service, or the AI service returns an err
 }
 ```
 
+##### Generation limit reached
+
+`Status: 429 Too Many Requests`
+`Header: retry-after: N`
+
+Returned on Fleet Free once this Fleet instance has used its monthly generation limit. The `retry-after` header is the number of seconds until the limit resets.
+
+```json
+{
+  "message": "Couldn't generate configuration profile name and description",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "You have reached the monthly limit for AI-generated configuration profiles on Fleet Free."
+    }
+  ]
+}
+```
+
+##### Private key required
+
+`Status: 422 Unprocessable entity`
+
+Returned on Fleet Free, or with an expired license, when the Fleet server has no [private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key). Fleet needs it to store the credential it uses to request generations from fleetdm.com.
+
+```json
+{
+  "message": "Couldn't generate configuration profile name and description",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key"
+    }
+  ]
+}
+```
+
 ---
 
 ### Autofill configuration profile content
@@ -8699,6 +8762,10 @@ Generates configuration profile content using AI.
 For Apple, Fleet generates a declaration (DDM) profile when one declaration can enforce the instructions. Otherwise, Fleet generates a .mobileconfig profile. For Windows, Fleet generates an XML profile.
 
 Returns `400` when AI features are disabled (`server_settings.ai_features_disabled`).
+
+On Fleet Free, each Fleet instance can make 15 content requests per month. Every request that reaches the AI service counts, including requests the AI declines. The limit resets on the 1st of each month (UTC). Fleet Premium has no limit. A Fleet Premium instance whose license has expired gets the Fleet Free limit.
+
+On Fleet Free, or with an expired license, the Fleet server needs a [private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key) to generate profiles.
 
 `POST /api/v1/fleet/autofill/configuration_profile/content`
 
@@ -8773,6 +8840,43 @@ Returned when Fleet can't reach the AI service, the AI service returns an error 
     {
       "name": "base",
       "reason": "The AI service timed out."
+    }
+  ]
+}
+```
+
+##### Generation limit reached
+
+`Status: 429 Too Many Requests`
+`Header: retry-after: N`
+
+Returned on Fleet Free once this Fleet instance has used its monthly generation limit. The `retry-after` header is the number of seconds until the limit resets.
+
+```json
+{
+  "message": "Couldn't generate configuration profile",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "You have reached the monthly limit for AI-generated configuration profiles on Fleet Free."
+    }
+  ]
+}
+```
+
+##### Private key required
+
+`Status: 422 Unprocessable entity`
+
+Returned on Fleet Free, or with an expired license, when the Fleet server has no [private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key).
+
+```json
+{
+  "message": "Couldn't generate configuration profile",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key"
     }
   ]
 }
@@ -9112,8 +9216,6 @@ Resends a configuration profile for the specified host. Currently, macOS, iOS, i
 
 
 ### Update disk encryption
-
-> The `PATCH /api/v1/fleet/mdm/apple/settings` API endpoint is deprecated as of Fleet 4.45. It is maintained for backward compatibility. Please use the new API endpoint below. You can view [archived documentation for the deprecated endpoint](https://github.com/iansltx/fleet/blob/d1791518a43c9d290192dbf992bcea290c8158a3/docs/REST%20API/rest-api.md#update-disk-encryption-enforcement).
 
 _Available in Fleet Premium_
 
@@ -9494,9 +9596,9 @@ Deletes the custom MDM setup enrollment profile assigned to a fleet or "Unassign
 
 The returned value is a signed `.mobileconfig` OTA enrollment profile (see [Apple enrollment profile docs](https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/OTASecurity/OTASecurity.html)). Install this profile on macOS, iOS, or iPadOS hosts to enroll them to a specific fleet in Fleet and turn on MDM features.
 
-If the fleet has [Require IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication) enabled, the OTA enrollment profile won't work. Use the [manual enrollment profile](#get-manual-enrollment-profile) instead.
+If the fleet has [Require IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication) enabled, the profile from this endpoint won't work. Share the fleet's enrollment link (`https://<your_fleet_url>/enroll?enroll_secret=<enroll_secret>`) instead. End users sign in with your IdP before they download the profile.
 
-To enroll macOS hosts, turn on MDM features, and add [human-device mapping](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts), use the [manual enrollment profile](#get-manual-enrollment-profile) instead.
+To add [human-device mapping](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts) to a macOS host that enrolled with this profile, use [Update human-device mapping](#update-human-device-mapping) after the host enrolls or use the [manual enrollment profile](#get-manual-enrollment-profile) instead if this is not possible. The manual enrollment profile requires [`mdm.apple_scep_static_challenge_enabled`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-scep-static-challenge-enabled) to be set to `true` (it's `false` by default).
 
 If the `only_allow_apple_business_enrollment` setting is enabled, this endpoint returns a `403` error with the message: "Manual enrollment is not available. Only devices assigned through Apple Business can enroll. Please contact your IT administrator."
 
@@ -9567,11 +9669,15 @@ Retrieves an unsigned manual enrollment profile for macOS hosts. Install this pr
 
 To add [human-device mapping](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts), [add the end user's email to the enrollment profile](https://fleetdm.com/guides/config-less-fleetd-agent-deployment#using-human-device-mapping).
 
+The manual enrollment profile uses Fleet's static SCEP challenge. If [`mdm.apple_scep_static_challenge_enabled`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-scep-static-challenge-enabled) is `false` (the default), this endpoint returns a `400` error with the message: "Manual enrollment profile is not available because the static SCEP challenge is disabled for this Fleet server."
+
 If the `only_allow_apple_business_enrollment` setting is enabled, this endpoint returns a `400` error with the message: "Manual enrollment is not available because only Apple Business enrollment is allowed for this organization."
 
 > **Warning:** Do not change or modify this profile. Apple requires values in this profile to remain unchanged. Any values changed block Fleet's ability to renew this profile and result in Fleet losing its ability to manage a device.
 
 `GET /api/v1/fleet/enrollment_profiles/manual`
+
+> This endpoint is deprecated as of Fleet 5.0. It's maintained for backwards compatibility. Please use [Get Over-the-Air (OTA) enrollment profile](#get-over-the-air-ota-enrollment-profile) instead.
 
 ##### Example
 
@@ -9766,8 +9872,8 @@ _Available in Fleet Premium_
 | fleet_id                        | integer | body  | The fleet ID to apply the settings to. Settings are applied to "Unassigned" hosts if absent.       |
 | enable_end_user_authentication | boolean | body  | When enabled, require end users to authenticate with your identity provider (IdP) when they set up their new macOS hosts. |
 | lock_end_user_info | boolean | body  | When enabled, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`)  |
-| require_all_software_macos | boolean | body | If set to `true`, setup will be canceled on macOS hosts if any software installs fail. |
-| require_all_software_windows | boolean | body | If set to `true`, setup will be canceled on Windows hosts if any software installs fail (the host is blocked at the Windows Enrollment Status Page until the device is reset). If `false`, the Enrollment Status Page lists the failed software and the end user can continue to the desktop and install it later via self-service. |
+| macos_require_all_software | boolean | body | If set to `true`, setup will be canceled on macOS hosts if any software installs fail. |
+| windows_require_all_software | boolean | body | If set to `true`, setup will be canceled on Windows hosts if any software installs fail (the host is blocked at the Windows Enrollment Status Page until the device is reset). If `false`, the Enrollment Status Page lists the failed software and the end user can continue to the desktop and install it later via self-service. |
 | enable_release_device_manually | boolean | body  | When enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. |
 | manual_agent_install | boolean | body  | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
 | enable_managed_local_account     | boolean | body | _Available in Fleet Premium._ During the Setup experience, a managed local account will be created on macOS hosts if set to true. |
@@ -9951,7 +10057,7 @@ List software that can be automatically installed during setup. If `install_duri
           "install_during_setup": true
         }
       ],
-      "app_store_app": null,
+      "app_store_apps": null,
       "versions_count": 3,
       "source": "apps",
       "hosts_count": 48,
@@ -10285,8 +10391,6 @@ Example VPP `InstallApplication` command result metadata:
 
 ### List MDM commands
 
-> `GET /api/v1/fleet/mdm/apple/commands` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below.  [Archived documentation](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#list-custom-mdm-commands) is available for the deprecated endpoint.
-
 This endpoint returns the list of custom MDM commands that have been executed.
 
 `GET /api/v1/fleet/commands`
@@ -10295,8 +10399,8 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 | Name                      | Type    | In    | Description                                                               |
 | ------------------------- | ------  | ----- | ------------------------------------------------------------------------- |
-| host_identifier           | string  | query | **Required.** The host's `hostname`, `uuid`, or `hardware_serial`. Returns only commands that target the specified host. Omitting `host_identifier` is deprecated (see the deprecation notice below). Requests w/o it continue to work for backward compatibility but are not recommended; the underlying query is not performant at scale and may time out on large fleets. Support will be removed in Fleet 5. |
-| page                      | integer | query | Page number of the results to fetch. Maximum is `100`.                    |
+| host_identifier           | string  | query | **Required.** The host's `hostname`, `uuid`, or `hardware_serial`. Returns only commands that target the specified host. |
+| page                      | integer | query | Page number of the results to fetch. Maximum is `100`. |
 | per_page                  | integer | query | Results per page. Default is `10`. Maximum is 1,000 records. |
 | order_key                 | string  | query | What to order results by. Allowed values: `host_uuid`, `command_uuid`, `status`, `updated_at`, `request_type`, `hostname`. Default is `updated_at`. |
 | order_direction           | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
@@ -10304,7 +10408,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 | command_status            | string  | query | Comma-separated string of one of the following options: 'ran', 'pending', or 'failed'. |
 | after                     | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
-> Currently, `⁠command_status` is only available when ⁠`host_identifier` is provided and the host is macOS, iOS, iPadOS, or Android. Additionally, ⁠`count` is returned only when ⁠`command_status` is `⁠pending`; for any other values, ⁠`count` will be `⁠null`.
+> `⁠command_status` is only available when the host is macOS, iOS, iPadOS, or Android. Additionally, ⁠`count` is returned only when ⁠`command_status` is `⁠pending`; for any other values, `⁠count` will be `⁠null`.
 >
 > Apple (macOS, iOS, iPadOS) MDM commands that 'ran' have an 'Acknowledged' `status`. Commands that are 'pending' have a 'Pending' or 'NotNow' `status`. Apple commands that 'failed' have an 'Error' `status`.
 >
@@ -10351,6 +10455,13 @@ This endpoint returns the list of custom MDM commands that have been executed.
   ]
 }
 ```
+
+#### Errors
+
+| Status | Error code                | Description                                                          |
+| ------ | ------------------------- | -------------------------------------------------------------------- |
+| 400    | bad_request               | `host_identifier` is required.                                       |
+| 404    | not_found                 | Host not found.                                                      |
 
 ### Cancel host's pending MDM command
 
@@ -12206,7 +12317,8 @@ The semantics for creating a fleet policy are the same as for global policies, s
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
 | software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. If `software_title_id` is specified and the software has `labels_include_any` or `labels_exclude_any` defined, the policy will inherit this target in addition to specified `platform`.                                                                     |
-| software_package_id | integer | body | _Available in Fleet Premium_. ID of the specific package to install when the software title has multiple packages. If omitted, defaults to the title's first-added package. |
+| software_package_id | integer | body | _Available in Fleet Premium_. ID of the specific package to install when the software title has multiple packages. |
+| software_installer_id | integer | body | _Available in Fleet Premium_. ID of a specific package of `software_title_id` to install on failure. If omitted, defaults to the title's first-added package. |                                                                    |
 | script_id         | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails.                                                                 |
 | profile_uuid      | string  | body | _Available in Fleet Premium_. UUID of the configuration profile to resend if the policy fails. The profile must belong to the same fleet. |
 | continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. If the install software automation does not resolve the policy after 10 attempts, Fleet will wait 24 hours before retrying. |
@@ -12443,7 +12555,8 @@ _Available in Fleet Premium_
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
 | software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. Set to `null` to remove the automation.                              |
-| software_package_id     | integer | body | _Available in Fleet Premium_. ID of the specific package to install when the software title has multiple packages. If omitted, defaults to the title's first-added package. Set to `null` to clear the pinned package. |
+| software_package_id     | integer | body | _Available in Fleet Premium_. ID of the specific package to install when the software title has multiple packages. Set to `null` to clear the pinned package. |
+| software_installer_id   | integer | body | _Available in Fleet Premium_. ID of a specific package of `software_title_id` to install on failure. If omitted, defaults to the title's first-added package.                              |
 | script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `null` to remove the automation.                                          |
 | profile_uuid            | string  | body | _Available in Fleet Premium_. UUID of the configuration profile to resend if the policy fails. Set to `null` to remove the automation. The profile must belong to the same fleet. |
 | continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. If the install software automation does not resolve the policy after 10 attempts, Fleet will wait 24 hours before retrying. |
@@ -13304,7 +13417,7 @@ Only one of  `labels_include_any` or `labels_include_all` can be specified. If n
 
 Deletes the report specified by name.
 
-`DELETE /api/v1/fleet/reports/:name`
+`DELETE /api/v1/fleet/reports/name/:name`
 
 #### Parameters
 
@@ -13315,7 +13428,7 @@ Deletes the report specified by name.
 
 #### Example
 
-`DELETE /api/v1/fleet/reports/foo`
+`DELETE /api/v1/fleet/reports/name/foo`
 
 ##### Default response
 
@@ -13324,9 +13437,11 @@ Deletes the report specified by name.
 
 ### Delete report by ID
 
+> `DELETE /api/v1/fleet/reports/id/:id` is deprecated as of Fleet 5.0. It is maintained for backwards compatibility. Please use the below API endpoint instead.
+
 Deletes the report specified by ID.
 
-`DELETE /api/v1/fleet/reports/id/:id`
+`DELETE /api/v1/fleet/reports/:id`
 
 #### Parameters
 
@@ -13336,7 +13451,7 @@ Deletes the report specified by ID.
 
 #### Example
 
-`DELETE /api/v1/fleet/reports/id/28`
+`DELETE /api/v1/fleet/reports/28`
 
 ##### Default response
 
@@ -14677,7 +14792,7 @@ Get a list of all software.
 
 #### Example
 
-`GET /api/v1/fleet/software/titles?fleet_id=3&platform=darwin,windows`
+`GET /api/v1/fleet/software/titles?fleet_id=3&platform=darwin,windows,ios`
 
 ##### Default response
 
@@ -14686,7 +14801,7 @@ Get a list of all software.
 ```json
 {
   "counts_updated_at": "2026-06-04T12:34:56Z",
-  "count": 3,
+  "count": 4,
   "software_titles": [
     {
       "id": 2792,
@@ -14726,7 +14841,7 @@ Get a list of all software.
               "package_url": ""
           }
       ],
-      "app_store_app": null,
+      "app_store_apps": null,
       "bundle_identifier": "com.tinyspeck.slackmacgap",
       "hash_sha256": "f7e4cba7676dacb03ac4cdbe5a99cc1d80ef751c484a13c6a7cf6a93de4a494e",
       "display_name": ""
@@ -14748,7 +14863,7 @@ Get a list of all software.
           }
       ],
       "packages": null,
-      "app_store_app": null,
+      "app_store_apps": null,
       "display_name": ""
     },
     {
@@ -14767,9 +14882,47 @@ Get a list of all software.
           }
       ],
       "packages": null,
-      "app_store_app": null,
+      "app_store_apps": null,
       "bundle_identifier": "com.raycast.macos",
       "display_name": ""
+    },
+    {
+      "id": 3311,
+      "name": "Cloudflare One Agent",
+      "icon_url": null,
+      "source": "ios_apps",
+      "extension_for": "",
+      "hosts_count": 15,
+      "versions_count": 1,
+      "versions": [
+          {
+              "id": 720415,
+              "version": "2.6.0",
+              "vulnerabilities": null
+          }
+      ],
+      "packages": null,
+      "app_store_apps": [
+          {
+              "id": 41,
+              "name": "Production",
+              "app_store_id": "6443476492",
+              "platform": "ios",
+              "version": "2.6.0",
+              "self_service": true,
+              "automatic_install_policies": null
+          },
+          {
+              "id": 42,
+              "name": "Test",
+              "app_store_id": "6443476492",
+              "platform": "ios",
+              "version": "2.6.0",
+              "self_service": false,
+              "automatic_install_policies": null
+          }
+      ],
+      "display_name": "Cloudflare One Agent"
     }
   ],
   "meta": {
@@ -14784,6 +14937,8 @@ The `extension_for` field is included when set and when empty. It shows the brow
 Each entry in `versions` includes `release` when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions.
 
 A software title can have more than one package. The `packages` array lists all packages added for the title.
+
+A software title can have more than one App Store app version. The `app_store_apps` array lists all of them. Learn more in [Get software](#get-software).
 
 ### List software versions
 
@@ -14939,8 +15094,8 @@ Returns a list of all operating systems.
     {
       "os_version_id": 123,
       "hosts_count": 21,
-      "name": "Microsoft Windows 11 Pro 23H2 10.0.22621.1234",
-      "name_only": "Microsoft Windows 11 Pro 23H2",
+      "name": "Windows 11 Pro 23H2 10.0.22621.1234",
+      "name_only": "Windows 11 Pro 23H2",
       "version": "10.0.22621.1234",
       "platform": "windows",
       "generated_cpes": [],
@@ -15022,7 +15177,7 @@ Returns information about the specified software. By default, `versions` are sor
             "version": "4.50.128",
             "platform": "darwin",
             "uploaded_at": "2026-06-04T17:29:09.155424Z",
-            "id": 36817,
+            "installer_id": 36817,
             "install_script": "#!/bin/sh\n\ninstaller -pkg \"$INSTALLER_PATH\" -target /\n",
             "pre_install_query": "",
             "post_install_script": "",
@@ -15054,7 +15209,7 @@ Returns information about the specified software. By default, `versions` are sor
             "version": "4.51.133",
             "platform": "darwin",
             "uploaded_at": "2026-06-10T09:14:51.482217Z",
-            "id": 36901,
+            "installer_id": 36901,
             "install_script": "#!/bin/sh\n\ninstaller -pkg \"$INSTALLER_PATH\" -target /\n",
             "pre_install_query": "",
             "post_install_script": "",
@@ -15085,7 +15240,6 @@ Returns information about the specified software. By default, `versions` are sor
             "fleet_id": 310
         }
     ],
-    "app_store_app": null,
     "bundle_identifier": "com.tinyspeck.slackmacgap",
     "display_name": ""
   }
@@ -15097,8 +15251,6 @@ The `extension_for` field is included when set and when empty, at the same level
 Each entry in `versions` includes `release` when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions.
 
 A software title can have more than one package. The `packages` array lists all packages added for the title, including per-package `self_service`, `categories`, and labels (`labels_include_any`, `labels_exclude_any`, `labels_include_all`).
-
-> `installer_id` is deprecated as of Fleet 5.0. It's maintained for backwards compatibility. Please use `id` instead.
 
 > Install, pending, and failed counts in `packages.status` are combined across policy automations, setup experience, and manual installs.
 
@@ -15136,8 +15288,6 @@ For in-house iOS apps, the `packages` array is populated with package informatio
 For Apple App Store and Google Play apps, `packages` is `null` and `app_store_apps` is populated with information from the store.
 
 A software title can have more than one app store apps on the same fleet for iOS, iPadOS, and Android. Each one is a *version* of the app, and the `app_store_apps` array lists all of them. Fleet always installs the latest version available in the Apple App Store or Google Play, so versions don't differ by the app version that's installed. Instead, each version carries its own settings: `name`, `self_service`, `categories`, labels (`labels_include_any`, `labels_exclude_any`, `labels_include_all`), automatic update settings, and managed app configuration.
-
-`app_store_app` is kept for backwards compatibility and contains the first-added version.
 
 For iOS, iPadOS, and Android apps, each version includes `configuration`, the version's managed app configuration. It's in XML format for iOS and iPadOS apps, and JSON format for Android apps.
 
@@ -15179,7 +15329,13 @@ For example:
         "🔐 Security"
       ],
       "display_name": "Cloudflare One Agent",
-      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Production config -->"
+      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Production config -->",
+      "vpp_token": {
+        "id": 1,
+        "org_name": "Fleet Device Management Inc.",
+        "organization_unit": "Fleet Device Management Inc.",
+        "country_code": "us"
+      }
     },
     {
       "id": 42,
@@ -15208,46 +15364,19 @@ For example:
       "created_at": "2026-02-03T10:14:22.882031Z",
       "categories": null,
       "display_name": "Cloudflare One Agent",
-      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Test config -->"
-    }
-  ],
-  "app_store_app": {
-    "app_store_id": "6443476492",
-    "platform": "ios",
-    "name": "Cloudflare One Agent",
-    "latest_version": "2.6.0",
-    "status": {
-      "installed": 13,
-      "pending": 0,
-      "failed": 2
-    },
-    "self_service": true,
-    "automatic_install_policies": null,
-    "labels_include_any": null,
-    "labels_exclude_any": [
-      {
-        "name": "IT team",
-        "id": 12
+      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Test config -->",
+      "vpp_token": {
+        "id": 1,
+        "org_name": "Fleet Device Management Inc.",
+        "organization_unit": "Fleet Device Management Inc.",
+        "country_code": "us"
       }
-    ],
-    "labels_include_all": null,
-    "created_at": "2026-01-28T21:49:04.145909Z",
-    "categories": [
-      "🔐 Security"
-    ],
-    "display_name": "Cloudflare One Agent",
-    "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Production config -->",
-    "vpp_token": {
-      "id": 1,
-      "org_name": "Fleet Device Management Inc.",
-      "location": "Fleet Device Management Inc.",
-      "country_code": "us"
     }
-  }
+  ]
 }
 ```
 
-For Apple App Store apps, `vpp_token` is the VPP token the app was added from in the specified fleet. Fleet uses this VPP token for all requests to Apple related to the app in that fleet. For Google Play apps, or if `fleet_id` isn't specified, `vpp_token` is `null`.
+For Apple App Store apps, each version in `app_store_apps` includes `vpp_token`: the VPP token the app was added from in the specified fleet. Fleet uses this VPP token for all requests to Apple related to the app in that fleet. For Google Play apps, or if `fleet_id` isn't specified, `vpp_token` is `null`.
 
 ### Get software version
 
@@ -15335,8 +15464,8 @@ Retrieves information about the specified operating system (OS) version.
   "os_version": {
     "os_version_id": 123,
     "hosts_count": 21,
-    "name": "Microsoft Windows 11 Pro 23H2 10.0.22621.1234",
-    "name_only": "Microsoft Windows 11 Pro 23H2",
+    "name": "Windows 11 Pro 23H2 10.0.22621.1234",
+    "name_only": "Windows 11 Pro 23H2",
     "version": "10.0.22621.1234",
     "platform": "windows",
     "generated_cpes": [],
@@ -15478,14 +15607,14 @@ labels_exclude_any="QA"
 
 ```json
 {
-  "package": {
+  "software_package": {
     "title_id": 2792,
     "name": "Slack-4.50.128-macOS.pkg",
     "icon_url": null,
     "version": "4.50.128",
     "platform": "darwin",
     "uploaded_at": "2026-06-04T17:43:46.125681Z",
-    "id": 36818,
+    "installer_id": 36818,
     "install_script": "#!/bin/sh\n\ninstaller -pkg \"$INSTALLER_PATH\" -target /\n",
     "pre_install_query": "",
     "post_install_script": "",
@@ -15516,16 +15645,13 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 
 > This endpoint accepts a maximum request body size of 10GB.
 
-`PATCH /api/v1/fleet/software/titles/:software_title_id/packages/:package_id`
-
-> `PATCH /api/v1/fleet/software/titles/:id/package` is deprecated as of Fleet 5.0. It's maintained for backwards compatibility. Please use `PATCH /api/v1/fleet/software/titles/:software_title_id/packages/:package_id` instead.
+`PATCH /api/v1/fleet/software/titles/:id/package`
 
 #### Parameters
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software_title_id | integer | path | **Required**. The ID of the software title. |
-| package_id | integer | path | **Required**. The ID of the package. This is the `id` of the package in the `packages` array returned by [Get software title](#get-software-title). |
+| id | integer | path | ID of the software title being updated. |
 | software        | file    | body | Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, `.py`, and `.ps1`.   |
 | fleet_id         | integer | body | **Required**. The fleet ID. Updates a software package in the specified fleet. |
 | categories        | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**. |
@@ -15554,7 +15680,7 @@ Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`,
 
 #### Example
 
-`PATCH /api/v1/fleet/software/titles/1/packages/36818`
+`PATCH /api/v1/fleet/software/titles/1/package`
 
 ##### Request body
 
@@ -15574,14 +15700,14 @@ post_install_script="sudo /Applications/Falcon.app/Contents/Resources/falconctl 
 
 ```json
 {
-  "package": {
+  "software_installer": {
     "title_id": 2792,
     "name": "Slack-4.45.64-macOS.pkg",
     "icon_url": null,
     "version": "4.45.64",
     "platform": "darwin",
     "uploaded_at": "2026-06-04T17:47:23Z",
-    "id": 36818,
+    "installer_id": 36818,
     "install_script": "#!/bin/sh\n\ninstaller -pkg \"$INSTALLER_PATH\" -target /\n",
     "pre_install_query": "",
     "post_install_script": "",
@@ -15835,16 +15961,12 @@ Modify an Apple App Store (VPP) or a Google Play app's options.
 
 A software title can have more than one version of the same App Store app on a fleet. Use `version_id` to select which version to update — the version's `name` is a mutable field, not its identifier.
 
-`PATCH /api/v1/fleet/software/titles/:software_title_id/app_store_apps/:version_id`
-
-> `PATCH /api/v1/fleet/software/titles/:title_id/app_store_app` is deprecated as of Fleet 5.0. It's maintained for backwards compatibility. Please use `PATCH /api/v1/fleet/software/titles/:software_title_id/app_store_apps/:version_id` instead.
+`PATCH /api/v1/fleet/software/titles/:title_id/app_store_app`
 
 #### Parameters
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| software_title_id | integer | path | **Required**. The ID of the software title. |
-| version_id | integer | path | **Required**. The ID of the App Store app version. This is the `id` of the app in the `app_store_apps` array returned by [Get software title](#get-software-title). |
 | fleet_id       | integer | body | **Required**. The fleet ID. Edits Apple App Store or Android Play store app from the specified fleet.  |
 | version_id | integer | body | ID of the version of the app to update. **Required when the title has more than one version** on the fleet. |
 | name | string | body | The version's name (e.g. `"Production"`). Must be unique for the software title on the fleet. |
@@ -15868,7 +15990,7 @@ If a host is in scope for more than one version, Fleet installs the one that was
 
 #### Example
 
-`PATCH /api/v1/fleet/software/titles/3467/app_store_apps/12`
+`PATCH /api/v1/fleet/software/titles/3467/app_store_app`
 
 ##### Request body
 
@@ -16218,7 +16340,7 @@ Uninstalls software from a host.
 
 Install self-service software on a macOS, Windows, or Linux host. The software must have a `self_service` flag `true` to be installed.
 
-`POST /api/v1/fleet/desktop/:token/software/:software_title_id/install`
+`POST /api/v1/fleet/desktop/:token/software/install/:software_title_id`
 
 #### Parameters
 
@@ -16229,7 +16351,7 @@ Install self-service software on a macOS, Windows, or Linux host. The software m
 
 #### Example
 
-`POST /api/v1/fleet/desktop/22aada07-dc73-41f2-8452-c0987543fd29/software/123/install`
+`POST /api/v1/fleet/desktop/22aada07-dc73-41f2-8452-c0987543fd29/software/install/123`
 
 ##### Default response
 
@@ -16283,8 +16405,6 @@ Deletes software that's available for install. For Android hosts, the software i
 
 `DELETE /api/v1/fleet/software/titles/:software_title_id/available_for_install`
 
-> This endpoint is deprecated as of Fleet 5.0. It's maintained for backwards compatibility. Please use [Delete package](#delete-package) or [Delete app store app](#delete-app-store-app) instead.
-
 #### Parameters
 
 | Name            | Type    | In   | Description                                      |
@@ -16296,54 +16416,6 @@ Deletes software that's available for install. For Android hosts, the software i
 #### Example
 
 `DELETE /api/v1/fleet/software/titles/24/available_for_install?fleet_id=2`
-
-##### Default response
-
-`Status: 204`
-
-### Delete package
-
-_Available in Fleet Premium._
-
-Deletes one package from a software title. The software isn't uninstalled from hosts.
-
-`DELETE /api/v1/fleet/software/titles/:software_title_id/packages/:package_id`
-
-#### Parameters
-
-| Name            | Type    | In   | Description                                      |
-| ----            | ------- | ---- | --------------------------------------------     |
-| software_title_id | integer | path | **Required**. The ID of the software title. |
-| package_id | integer | path | **Required**. The ID of the package. This is the `id` of the package in the `packages` array returned by [Get software title](#get-software-title). |
-| fleet_id | integer | query | **Required**. The fleet ID. |
-
-#### Example
-
-`DELETE /api/v1/fleet/software/titles/24/packages/36818?fleet_id=2`
-
-##### Default response
-
-`Status: 204`
-
-### Delete app store app
-
-_Available in Fleet Premium._
-
-Deletes one Apple App Store (VPP) or Google Play app version from a software title. For Android hosts, the app is also uninstalled. For all other hosts, the app isn't uninstalled.
-
-`DELETE /api/v1/fleet/software/titles/:software_title_id/app_store_apps/:version_id`
-
-#### Parameters
-
-| Name            | Type    | In   | Description                                      |
-| ----            | ------- | ---- | --------------------------------------------     |
-| software_title_id | integer | path | **Required**. The ID of the software title. |
-| version_id | integer | path | **Required**. The ID of the App Store app version. This is the `id` of the app in the `app_store_apps` array returned by [Get software title](#get-software-title). |
-| fleet_id | integer | query | **Required**. The fleet ID. |
-
-#### Example
-
-`DELETE /api/v1/fleet/software/titles/3467/app_store_apps/12?fleet_id=2`
 
 ##### Default response
 
@@ -16689,7 +16761,8 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "uuid": "a2064cef-0000-0000-afb9-283e3c1d487e",
         "platform": "rhel",
         "osquery_version": "4.5.1",
-        "os_version": "CentOS 6.10.0",
+        "os_name": "CentOS",
+        "os_version": "6.10.0",
         "build": "",
         "platform_like": "rhel",
         "code_name": "",
@@ -16730,7 +16803,8 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "uuid": "a2064cef-0000-0000-afb9-283e3c1d487e",
         "platform": "ubuntu",
         "osquery_version": "4.5.1",
-        "os_version": "Ubuntu 16.4.0",
+        "os_name": "Ubuntu",
+        "os_version": "16.4.0",
         "build": "",
         "platform_like": "debian",
         "code_name": "",

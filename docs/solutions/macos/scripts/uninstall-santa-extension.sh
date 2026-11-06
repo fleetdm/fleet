@@ -134,7 +134,7 @@ handle_orbit_restart() {
 # Function to restart orbit immediately 
 restart_orbit_immediate() {
     log "Restarting orbit service immediately..."
-    launchctl kickstart -k system/com.fleetdm.orbit
+    launchctl kickstart -k system/com.fleetdm.fleet
     log "Orbit service restart command executed"
 }
 
@@ -158,7 +158,7 @@ handle_detached_restart() {
     sleep 10
     
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] Executing orbit restart..." >> /var/log/santa_uninstaller.log 2>&1
-    launchctl kickstart -k system/com.fleetdm.orbit >> /var/log/santa_uninstaller.log 2>&1
+    launchctl kickstart -k system/com.fleetdm.fleet >> /var/log/santa_uninstaller.log 2>&1
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] Orbit restart command executed" >> /var/log/santa_uninstaller.log 2>&1
 }
 
