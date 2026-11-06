@@ -1191,6 +1191,10 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	require.ElementsMatch(t, wantPlatforms, gotPlatforms)
 	require.Nil(t, resp.TeamID)
 	assert.NotEmpty(t, resp.BuiltinLabels)
+	// the Linux total was removed; the "All Linux" label count replaces it
+	rawSummary, err := io.ReadAll(s.DoRaw("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK).Body)
+	require.NoError(t, err)
+	require.NotContains(t, string(rawSummary), "all_linux_count")
 	for _, lbl := range resp.BuiltinLabels {
 		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
 	}
