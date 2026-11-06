@@ -139,6 +139,23 @@ describe("WindowsMdmPage", () => {
     );
   });
 
+  it("saves automatic migration when it is turned on", async () => {
+    (configAPI.updateMDMConfig as jest.Mock).mockResolvedValue({});
+    const { user } = renderPage({
+      windows_mdm_enabled: true,
+      enable_turn_on_windows_mdm_manually: false,
+      windows_mdm_migration_enabled: false,
+    });
+
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(configAPI.updateMDMConfig).toHaveBeenCalledWith(
+      expect.objectContaining({ windows_mdm_migration_enabled: true }),
+      true
+    );
+  });
+
   it("does not re-save a stale migration setting when enrollment is manual", async () => {
     (configAPI.updateMDMConfig as jest.Mock).mockResolvedValue({});
     // Inconsistent server state (settable via the API or GitOps): migration
