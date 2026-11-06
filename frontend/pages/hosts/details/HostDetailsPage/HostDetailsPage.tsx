@@ -309,6 +309,10 @@ const HostDetailsPage = ({
 
   const handlePageError = useErrorHandler();
 
+  if (!hostIdFromURL) {
+    handlePageError({ status: 404 });
+  }
+
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showSelectReportModal, setShowSelectReportModal] = useState(false);
