@@ -319,17 +319,16 @@ describe("TicketDestinations", () => {
     });
   });
 
-  it("deletes the selected Linear destination when the list order changes", async () => {
+  it("deletes the selected Linear destination when the list changes", async () => {
     const patchSpy = jest.fn();
-    const getSpy = jest.fn();
     const linearB = { api_key: "********", team_id: "team-b" };
-    let reordered = false;
+    const linearC = { api_key: "********", team_id: "team-c" };
+    let refetched = false;
     mockServer.use(
       http.get(configUrl, () => {
-        getSpy();
         const config = createConfig();
-        config.integrations.linear = reordered
-          ? [linearB, linearIntegration]
+        config.integrations.linear = refetched
+          ? [linearC, linearIntegration, linearB]
           : [linearIntegration, linearB];
         return HttpResponse.json(config);
       }),
@@ -343,19 +342,18 @@ describe("TicketDestinations", () => {
     );
     expect(await screen.findByText("Delete integration")).toBeInTheDocument();
 
-    // Reorder the list while the delete modal is open.
-    reordered = true;
+    // Refetch a longer list while the delete modal is open.
+    refetched = true;
     window.dispatchEvent(new Event("focus"));
-    await waitFor(() => {
-      expect(getSpy).toHaveBeenCalledTimes(2);
-    });
+    expect(await screen.findByText("Linear - team-c")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Delete" }));
 
-    // An index filter would remove `team-a` here.
+    // An index filter would send `[team-c, team-b]` (fresh list)
+    // or `[team-a]` (stale list).
     await waitFor(() => {
       expect(patchSpy).toHaveBeenCalledWith({
-        integrations: { linear: [linearIntegration] },
+        integrations: { linear: [linearC, linearIntegration] },
       });
     });
   });
