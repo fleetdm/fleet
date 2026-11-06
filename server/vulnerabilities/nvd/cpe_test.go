@@ -86,6 +86,18 @@ func TestCPEFromSoftware(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, cpe)
 
+	// fleetd's renamed Installed apps entry gets no CPE; another app called "Fleet" still does.
+	cpe, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{
+		Name: "Fleet", Version: "1.64.0", Vendor: "Fleet Device Management (fleetdm.com)", Source: "programs",
+	}, nil, reCache)
+	require.NoError(t, err)
+	require.Empty(t, cpe)
+	cpe, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{
+		Name: "Fleet", Version: "1.64.0", Vendor: "JetBrains s.r.o.", Source: "programs",
+	}, nil, reCache)
+	require.NoError(t, err)
+	require.Equal(t, "cpe:2.3:a:jetbrains:fleet:1.64.0:*:*:*:*:windows:*:*", cpe)
+
 	// Does not error on Unicode Names
 	_, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{Name: "Девушка Фонарём", Version: "1.2.3", BundleIdentifier: "vendor", Source: "apps"}, nil, reCache)
 	require.NoError(t, err)

@@ -1551,6 +1551,8 @@ func orbitAction(c *cli.Context) error {
 	startedInDebug := c.Bool("debug")
 	orbitClient.RegisterConfigReceiver(update.NewDebugLogReceiver(startedInDebug))
 
+	orbitClient.RegisterConfigReceiver(update.NewAgentNamesReceiver(orbitClient.GetServerCapabilities))
+
 	if !c.Bool("disable-updates") {
 		serverOverridesReceiver := newServerOverridesReceiver(
 			c.String("root-dir"),

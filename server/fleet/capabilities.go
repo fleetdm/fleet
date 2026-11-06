@@ -121,6 +121,10 @@ const (
 	// CapabilityWindowsDiskEncryptionErrorKeepsKey denotes that the server records a Windows disk encryption client error without
 	// discarding the key it already holds. This prevents newer agents from sending a destructive operation to an old server.
 	CapabilityWindowsDiskEncryptionErrorKeepsKey Capability = "windows_disk_encryption_error_keeps_key"
+	// CapabilityFleetAgentNames lets fleetd show itself as "Fleet" in the Windows Installed apps list and as the Linux
+	// process name. Gated on the server because fleetd updates on its own schedule, and policies and scripts that match
+	// the old names should only stop matching with the Fleet 5 upgrade.
+	CapabilityFleetAgentNames Capability = "fleet_agent_names"
 )
 
 func GetServerOrbitCapabilities() CapabilityMap {
@@ -136,6 +140,7 @@ func GetServerOrbitCapabilities() CapabilityMap {
 		CapabilityWebSetupExperience:                 {},
 		CapabilityMacOSWebSetupExperience:            {},
 		CapabilityWindowsDiskEncryptionErrorKeepsKey: {},
+		CapabilityFleetAgentNames:                    {},
 	}
 }
 

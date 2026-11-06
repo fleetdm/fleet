@@ -1,0 +1,1 @@
+- **Breaking change:** Fleet now lets fleetd show itself as "Fleet" in the Windows Installed apps list and as the Linux process name, instead of "Fleet osquery" and `orbit`. The Windows software title on servers upgraded from Fleet 4 stays "Fleet osquery". Policies and scripts that match the old names need the new ones.

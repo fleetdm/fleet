@@ -43,9 +43,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Task Manager shows the file description as the process name. The product name stays: AppLocker publisher rules can
+	// pin it.
 	info := resourceInfo{
 		productName:     "Fleet osquery",
-		fileDescription: "Orbit osquery runtime and autoupdater",
+		fileDescription: constant.AgentDisplayName,
 		comments:        "Fleet osquery",
 	}
 	if strings.HasSuffix(*flagCmdDir, "desktop") {

@@ -609,9 +609,9 @@ function Force-Remove-Orbit {
     #Remove HKLM registry entries
     Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" -Recurse  -ErrorAction "SilentlyContinue" |  Where-Object {($_.ValueCount -gt 0)} | ForEach-Object {
 
-      # Filter for osquery entries
+      # fleetd's entry, also after fleetd renames it "Fleet" (other apps use that name, hence the publisher)
       $entryPath = $_.PSPath
-      $properties = try { Get-ItemProperty -LiteralPath $entryPath -ErrorAction "SilentlyContinue" | Where-Object {($_.DisplayName -eq "Fleet osquery")} } catch { Write-Host "Skipping invalid registry entry at ${entryPath}: $_"; $null }
+      $properties = try { Get-ItemProperty -LiteralPath $entryPath -ErrorAction "SilentlyContinue" | Where-Object {($_.DisplayName -eq "Fleet osquery") -or (($_.DisplayName -eq "Fleet") -and ($_.Publisher -eq "Fleet Device Management (fleetdm.com)"))} } catch { Write-Host "Skipping invalid registry entry at ${entryPath}: $_"; $null }
       if ($properties) {
 
         #Remove Registry Entries

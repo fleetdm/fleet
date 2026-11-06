@@ -19,6 +19,8 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -877,10 +879,10 @@ func readPidFromFile(destDir string, what string) (int, error) {
 }
 
 // processNameMatches returns whether the process running with the given pid matches
-// the executable name (case insensitive).
+// the executable name (case insensitive), or has exactly one of exactNames.
 //
 // If there's no process running with the given pid then (false, nil) is returned.
-func processNameMatches(pid int, expectedPrefix string) (bool, error) {
+func processNameMatches(pid int, expectedPrefix string, exactNames ...string) (bool, error) {
 	process, err := ps.FindProcess(pid)
 	if err != nil {
 		return false, fmt.Errorf("find process: %d: %w", pid, err)
@@ -888,7 +890,11 @@ func processNameMatches(pid int, expectedPrefix string) (bool, error) {
 	if process == nil {
 		return false, nil
 	}
-	return strings.HasPrefix(strings.ToLower(process.Executable()), strings.ToLower(expectedPrefix)), nil
+	return nameMatches(process.Executable(), expectedPrefix, exactNames...), nil
+}
+
+func nameMatches(name, expectedPrefix string, exactNames ...string) bool {
+	return strings.HasPrefix(strings.ToLower(name), strings.ToLower(expectedPrefix)) || slices.Contains(exactNames, name)
 }
 
 func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquerydChannel, updateURL, updateRoots string, debug bool) error {
@@ -992,14 +998,20 @@ func stopOrbit(destDir string) error {
 	if err != nil {
 		return err
 	}
-	err = killFromPIDFile(destDir, "orbit.pid", "orbit")
+	// On Linux, orbit renames its process to AgentDisplayName once the server supports it. That
+	// name is matched exactly, because a reused pid could belong to fleetctl or the Fleet server.
+	var renamedOrbit []string
+	if runtime.GOOS == "linux" {
+		renamedOrbit = []string{constant.AgentDisplayName}
+	}
+	err = killFromPIDFile(destDir, "orbit.pid", "orbit", renamedOrbit...)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func killFromPIDFile(destDir string, pidFileName string, expectedExecName string) error {
+func killFromPIDFile(destDir string, pidFileName string, expectedExecName string, exactNames ...string) error {
 	pid, err := readPidFromFile(destDir, pidFileName)
 	switch {
 	case err == nil:
@@ -1009,7 +1021,7 @@ func killFromPIDFile(destDir string, pidFileName string, expectedExecName string
 	default:
 		return fmt.Errorf("reading pid from: %s: %w", destDir, err)
 	}
-	matches, err := processNameMatches(pid, expectedExecName)
+	matches, err := processNameMatches(pid, expectedExecName, exactNames...)
 	if err != nil {
 		return fmt.Errorf("inspecting process %d: %w", pid, err)
 	}

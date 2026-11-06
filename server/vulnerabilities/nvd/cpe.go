@@ -638,6 +638,13 @@ func CPEFromSoftware(ctx context.Context, logger *slog.Logger, db *sqlx.DB, soft
 		return "", nil
 	}
 
+	// fleetd's Windows Installed apps entry, once fleetd renames it (fleet.CapabilityFleetAgentNames).
+	// The name alone matches the Fleet server's CPE, and other apps are also called "Fleet", so the
+	// publisher decides.
+	if software.Source == "programs" && software.Name == "Fleet" && software.Vendor == "Fleet Device Management (fleetdm.com)" {
+		return "", nil
+	}
+
 	mutateSoftware(ctx, software, logger) // tweak e.g. software versions prior to CPE matching if needed
 
 	translation, match, err := translations.Translate(reCache, software)

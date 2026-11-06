@@ -443,7 +443,8 @@ jobs:
         echo "Checking if osqueryd is running..."
         pgrep -x osqueryd || (echo "ERROR: osqueryd is not running" && exit 1)
         echo "Checking if orbit is running..."
-        pgrep -x orbit || (echo "ERROR: orbit is not running" && exit 1)
+        # With a Fleet 5 server, orbit renames its process to Fleet.
+        pgrep -x Fleet || pgrep -x orbit || (echo "ERROR: orbit is not running" && exit 1)
         # Don't check for Fleet Desktop as it doesn't run in the windowless CI environment.
         echo "All processes are running."
 
