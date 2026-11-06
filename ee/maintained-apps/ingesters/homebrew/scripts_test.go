@@ -364,6 +364,131 @@ osascript() {
 	}
 }
 
+// TestMozillaVPNScriptsStopOnlyTheGUI runs the Mozilla VPN scripts against a
+// fake process table. They signal only the GUI, never the browsers' native
+// messaging hosts (same executable) or the daemon, force-quit a GUI that
+// ignores SIGTERM, and stop before installing or removing anything if it
+// survives that.
+func TestMozillaVPNScriptsStopOnlyTheGUI(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+
+	readScript := func(name string) string {
+		b, err := os.ReadFile(filepath.Join("../../inputs/homebrew/scripts", name))
+		require.NoError(t, err)
+		return string(b)
+	}
+	install := readScript("mozilla-vpn-install.sh")
+	uninstall := readScript("mozilla-vpn-uninstall.sh")
+
+	// The install script cases cover the helpers, so both copies must match.
+	helpers := regexp.MustCompile(`(?s)\nmozilla_vpn_pids\(\) \{.*?\nquit_mozilla_vpn\(\) \{.*?\n\}\n`)
+	require.NotEmpty(t, helpers.FindString(install))
+	require.Equal(t, helpers.FindString(install), helpers.FindString(uninstall))
+
+	// Everything after the quit call removes files, so it's replaced with a marker.
+	quitCall := "\nquit_mozilla_vpn || exit 1\n"
+	i := strings.Index(uninstall, quitCall)
+	require.Positive(t, i)
+	uninstall = uninstall[:i+len(quitCall)] + "echo 'Removing Mozilla VPN.'\n"
+
+	// Each process is "<pid> <behavior> <args>". It exits on SIGTERM ("exits"),
+	// only on SIGKILL ("stubborn"), or never ("unkillable").
+	run := func(t *testing.T, script string, procs ...string) (out, signals string, err error) {
+		dir := t.TempDir()
+		procFile := filepath.Join(dir, "procs")
+		sigFile := filepath.Join(dir, "signals")
+		require.NoError(t, os.WriteFile(procFile, []byte(strings.Join(procs, "\n")+"\n"), 0o600))
+		require.NoError(t, os.WriteFile(sigFile, nil, 0o600))
+		stubs := `procs=` + shellSingleQuote(procFile) + `
+signals=` + shellSingleQuote(sigFile) + `
+INSTALLER_PATH=/tmp/fleet-test/MozillaVPN.pkg
+sleep() { :; }
+scutil() { :; }
+sudo() { echo "sudo $*"; }
+installer() { echo "installer $*"; }
+ps() { grep . "$procs" | cut -d' ' -f1,3-; }
+kill() {
+  local sig="$1" pid behavior
+  shift
+  for pid in "$@"; do
+    echo "$sig $pid" >> "$signals"
+    behavior=$(awk -v p="$pid" '$1 == p { print $2 }' "$procs")
+    case "$sig $behavior" in
+      "-TERM exits" | "-KILL exits" | "-KILL stubborn")
+        awk -v p="$pid" '$1 != p' "$procs" > "$procs.new" && command mv "$procs.new" "$procs" ;;
+    esac
+  done
+}
+`
+		b, err := exec.Command(bash, "-c", stubs+script).CombinedOutput()
+		sigs, readErr := os.ReadFile(sigFile)
+		require.NoError(t, readErr)
+		return string(b), string(sigs), err
+	}
+	requireExit1 := func(t *testing.T, err error, out string) {
+		var exitErr *exec.ExitError
+		require.ErrorAs(t, err, &exitErr, out)
+		require.Equal(t, 1, exitErr.ExitCode(), out)
+	}
+
+	const exe = "/Applications/Mozilla VPN.app/Contents/MacOS/Mozilla VPN"
+	others := []string{
+		"201 unkillable " + exe + " /Library/Application Support/Mozilla/NativeMessagingHosts/mozillavpn.json vpn@mozilla.com",
+		"202 unkillable " + exe + " chrome-extension://abcdefghijklmnop/",
+		"203 unkillable /Applications/Mozilla VPN.app/Contents/Library/LaunchServices/org.mozilla.macos.FirefoxVPN.daemon",
+	}
+
+	t.Run("not running", func(t *testing.T) {
+		out, signals, err := run(t, install, others...)
+		require.NoError(t, err, out)
+		require.Empty(t, signals)
+		require.NotContains(t, out, "Quitting Mozilla VPN")
+		require.Contains(t, out, "installer -pkg /tmp/fleet-test/MozillaVPN.pkg -target /")
+	})
+
+	t.Run("quits on SIGTERM", func(t *testing.T) {
+		procs := append([]string{"101 exits " + exe, "102 exits " + exe + " ui --updated"}, others...)
+		out, signals, err := run(t, install, procs...)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 101\n-TERM 102\n", signals)
+		require.Contains(t, out, "Mozilla VPN quit successfully.")
+		require.Contains(t, out, "installer -pkg")
+	})
+
+	t.Run("force-quit after SIGTERM", func(t *testing.T) {
+		out, signals, err := run(t, install, append([]string{"101 stubborn " + exe}, others...)...)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 101\n-KILL 101\n", signals)
+		require.Contains(t, out, "Mozilla VPN didn't quit; forcing it to quit.")
+		require.Contains(t, out, "installer -pkg")
+	})
+
+	t.Run("install stops when the GUI survives", func(t *testing.T) {
+		out, signals, err := run(t, install, "101 unkillable "+exe)
+		requireExit1(t, err, out)
+		require.Equal(t, "-TERM 101\n-KILL 101\n", signals)
+		require.Contains(t, out, "Mozilla VPN did not quit.")
+		require.NotContains(t, out, "installer")
+	})
+
+	t.Run("uninstall", func(t *testing.T) {
+		out, _, err := run(t, uninstall, "101 unkillable "+exe)
+		requireExit1(t, err, out)
+		require.NotContains(t, out, "Removing Mozilla VPN.")
+
+		out, signals, err := run(t, uninstall, append([]string{"101 exits " + exe}, others...)...)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 101\n", signals)
+		require.Contains(t, out, "Removing Mozilla VPN.")
+	})
+}
+
 func TestShellDoubleQuoteEscape(t *testing.T) {
 	// Values without shell metacharacters (the common case) must pass through
 	// unchanged so the generated scripts stay byte-identical to before.
