@@ -561,6 +561,33 @@ type mockedGoogleConditionalAccessClient struct {
 	deregisterErr   error
 	deregSecrets    []string // secret passed to each Deregister
 	checkErr        error
+	dev             googleDeviceMock
+}
+
+// googleDeviceMock is the device side of the mock: the DeviceUsers in Google.
+type googleDeviceMock struct {
+	managed     []string            // "name hostUUID" per successful SetManaged
+	markErrs    map[string]error    // by DeviceUser name
+	deviceUsers map[string][]string // DeviceUser names by device ID
+	goneDevices map[string]bool     // by device ID
+	listErr     error
+}
+
+// googleResourceError is Google's 404 on a device or DeviceUser it no longer has, or its
+// 403 on one that left the customer's Workspace.
+type googleResourceError struct{ status int }
+
+func (e googleResourceError) Error() string {
+	if e.status == http.StatusNotFound {
+		return "Requested entity was not found."
+	}
+	return "The caller does not have permission"
+}
+func (e googleResourceError) IsNotFound() bool { return e.status == http.StatusNotFound }
+func (googleResourceError) IsStale() bool      { return true }
+
+func (m *mockedGoogleConditionalAccessClient) SignInURL(customerID, hostUUID, token string) (string, error) {
+	return conditional_access_google.NewRelay("https://fleetdm.example.com").SignInURL(customerID, hostUUID, token)
 }
 
 func (m *mockedGoogleConditionalAccessClient) Register(_ context.Context, serverURL, customerID string) (*conditional_access_google.Registration, error) {
@@ -613,24 +640,53 @@ func (c *mockedGoogleCloudIdentity) SetClientState(_ context.Context, name strin
 	defer c.m.mu.Unlock()
 	if state.Managed != nil && !*state.Managed {
 		c.m.unmanaged = append(c.m.unmanaged, name)
+		return nil
 	}
+	if err := c.m.dev.markErrs[name]; err != nil {
+		return err
+	}
+	customID := ""
+	if state.CustomID != nil {
+		customID = *state.CustomID
+	}
+	c.m.dev.managed = append(c.m.dev.managed, name+" "+customID)
 	return nil
-}
-
-func (m *mockedGoogleConditionalAccessClient) SignInURL(customerID, hostUUID, token string) (string, error) {
-	return conditional_access_google.NewRelay("https://fleetdm.example.com").SignInURL(customerID, hostUUID, token)
 }
 
 func (c *mockedGoogleCloudIdentity) FindDeviceIDs(context.Context, string) ([]string, error) {
 	return nil, errors.New("unexpected device search")
 }
 
-func (c *mockedGoogleCloudIdentity) ListDeviceUserNames(context.Context, string) ([]string, error) {
-	return nil, errors.New("unexpected device user listing")
+func (c *mockedGoogleCloudIdentity) ListDeviceUserNames(_ context.Context, deviceID string) ([]string, error) {
+	c.m.mu.Lock()
+	defer c.m.mu.Unlock()
+	if c.m.dev.listErr != nil {
+		return nil, c.m.dev.listErr
+	}
+	if c.m.dev.goneDevices[deviceID] {
+		return nil, googleResourceError{status: http.StatusNotFound}
+	}
+	return slices.Clone(c.m.dev.deviceUsers[deviceID]), nil
 }
 
 func (c *mockedGoogleCloudIdentity) DeviceExists(context.Context, string) (bool, error) {
 	return false, errors.New("unexpected device check")
+}
+
+// devCalls returns the device side's recorded calls.
+func (m *mockedGoogleConditionalAccessClient) devCalls() googleDeviceMock {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	d := m.dev
+	d.managed = slices.Clone(d.managed)
+	return d
+}
+
+// setDev changes the device side of the mock under its lock.
+func (m *mockedGoogleConditionalAccessClient) setDev(fn func(d *googleDeviceMock)) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	fn(&m.dev)
 }
 
 // delegationCheckKeys returns the service account key each delegation check used.
@@ -661,6 +717,7 @@ func (m *mockedGoogleConditionalAccessClient) reset() {
 	m.checkKeys = nil
 	m.registerErr, m.deregisterErr, m.checkErr = nil, nil, nil
 	m.registerSecret = ""
+	m.dev = googleDeviceMock{}
 }
 
 func (m *mockedGoogleConditionalAccessClient) calls() (checks, registers, deregisters, unmanaged []string) {
