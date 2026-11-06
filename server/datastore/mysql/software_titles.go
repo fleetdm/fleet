@@ -587,6 +587,7 @@ func (ds *Datastore) processSoftwareTitleResults(
 		}
 		for _, appStoreApp := range appStoreApps {
 			title := softwareList[titleIndex[appStoreApp.TitleID]]
+			// only macOS apps take automatic install policies and they have one version
 			listItem := fleet.AppStoreAppListItem{
 				ID:                       appStoreApp.VPPAppsTeamsID,
 				Name:                     appStoreApp.VersionName,

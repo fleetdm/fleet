@@ -551,14 +551,22 @@ func TestSoftwareTitleByIDVPPToken(t *testing.T) {
 		return summaries, nil
 	}
 	var versionTokenID *uint
+	var secondVersionTokenID *uint
 	ds.GetAppStoreAppVersionsByTeamAndTitleIDFunc = func(ctx context.Context, teamID uint, titleID uint) ([]*fleet.VPPAppStoreApp, error) {
-		return []*fleet.VPPAppStoreApp{{Name: "Bar", VPPTokenID: versionTokenID}}, nil
+		versions := []*fleet.VPPAppStoreApp{{Name: "Bar", VPPTokenID: versionTokenID}}
+		if secondVersionTokenID != nil {
+			versions = append(versions, &fleet.VPPAppStoreApp{Name: "Bar", VersionName: "Beta", VPPAppsTeamsID: 2, VPPTokenID: secondVersionTokenID})
+		}
+		return versions, nil
 	}
 	ds.GetVPPTokenFunc = func(ctx context.Context, tokenID uint) (*fleet.VPPTokenDB, error) {
-		if tokenID != 2 {
-			return nil, &notFoundError{}
+		switch tokenID {
+		case 2:
+			return &fleet.VPPTokenDB{ID: 2, OrgName: "Acme Org", Location: "Acme Japan", CountryCode: "jp"}, nil
+		case 4:
+			return &fleet.VPPTokenDB{ID: 4, OrgName: "Acme Org", Location: "Acme US", CountryCode: "us"}, nil
 		}
-		return &fleet.VPPTokenDB{ID: 2, OrgName: "Acme Org", Location: "Acme Japan", CountryCode: "jp"}, nil
+		return nil, &notFoundError{}
 	}
 
 	svc, ctx := newTestService(t, ds, nil, nil)
@@ -596,5 +604,17 @@ func TestSoftwareTitleByIDVPPToken(t *testing.T) {
 		require.NoError(t, err)
 		require.Nil(t, title.AppStoreApp)
 		require.False(t, ds.GetVPPTokenFuncInvoked)
+	})
+
+	t.Run("two versions added from different tokens", func(t *testing.T) {
+		// read a title whose versions have tokens 2 and 4, each version should have its own token
+		versionTokenID = new(uint(2))
+		secondVersionTokenID = new(uint(4))
+		title, err := svc.SoftwareTitleByID(ctx, 1, new(uint(1)))
+		require.NoError(t, err)
+		require.Len(t, title.AppStoreApps, 2)
+		require.Equal(t, &fleet.VPPTokenSummary{ID: 2, OrgName: "Acme Org", Location: "Acme Japan", CountryCode: "jp"}, title.AppStoreApps[0].VPPToken)
+		require.Equal(t, &fleet.VPPTokenSummary{ID: 4, OrgName: "Acme Org", Location: "Acme US", CountryCode: "us"}, title.AppStoreApps[1].VPPToken)
+		require.Equal(t, &fleet.VPPTokenSummary{ID: 2, OrgName: "Acme Org", Location: "Acme Japan", CountryCode: "jp"}, title.AppStoreApp.VPPToken)
 	})
 }
