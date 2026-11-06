@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -39,7 +40,7 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 		}
 
 		// Load custom roles from SSO attributes.
-		ssoRolesInfo, coercedAttrs, err := fleet.RolesFromSSOAttributes(auth.AssertionAttributes())
+		ssoRolesInfo, coercedAttrs, ignoredAttrs, err := fleet.RolesFromSSOAttributes(auth.AssertionAttributes())
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "invalid SSO attributes")
 		}
@@ -47,6 +48,12 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 			svc.logger.WarnContext(ctx,
 				"SAML role attribute(s) coerced to null due to empty value",
 				"attributes", coercedAttrs,
+			)
+		}
+		if len(ignoredAttrs) > 0 {
+			svc.logger.WarnContext(ctx,
+				removedSAMLAttributeMessage(ignoredAttrs),
+				"attributes", ignoredAttrs,
 			)
 		}
 		if !ssoRolesInfo.IsSet() {
@@ -98,7 +105,7 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 		teamRoles  []fleet.UserTeam
 	)
 	// Attempt to retrieve user roles from SAML custom attributes.
-	ssoRolesInfo, coercedAttrs, err := fleet.RolesFromSSOAttributes(auth.AssertionAttributes())
+	ssoRolesInfo, coercedAttrs, ignoredAttrs, err := fleet.RolesFromSSOAttributes(auth.AssertionAttributes())
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "invalid SSO attributes")
 	}
@@ -106,6 +113,12 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 		svc.logger.WarnContext(ctx,
 			"SAML role attribute(s) coerced to null due to empty value",
 			"attributes", coercedAttrs,
+		)
+	}
+	if len(ignoredAttrs) > 0 {
+		svc.logger.WarnContext(ctx,
+			removedSAMLAttributeMessage(ignoredAttrs),
+			"attributes", ignoredAttrs,
 		)
 	}
 	if ssoRolesInfo.IsSet() {
@@ -180,4 +193,10 @@ func (svc *Service) userRolesFromSSOAttributes(ctx context.Context, ssoRolesInfo
 	}
 
 	return ssoRolesInfo.Global, teamsRoles, nil
+}
+
+// removedSAMLAttributeMessage is the warning for SAML attributes that Fleet 5 removed and the server ignores.
+func removedSAMLAttributeMessage(attrs []string) string {
+	entry, _ := removednames.FindSAMLAttribute(attrs[0])
+	return entry.Message()
 }
