@@ -120,6 +120,13 @@ const LabelChooser = ({
   if (!labels.length) {
     return (
       <div className={`${baseClass}__no-labels`}>
+        {!!labelsError && (
+          <div
+            className={`${baseClass}__description ${baseClass}__description--error`}
+          >
+            {labelsError}
+          </div>
+        )}
         <CustomLink url={PATHS.LABEL_NEW_DYNAMIC} text="Add label" /> to target
         specific hosts.
       </div>

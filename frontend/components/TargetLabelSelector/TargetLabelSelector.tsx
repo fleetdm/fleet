@@ -38,13 +38,20 @@ export interface ILabelConfig {
 interface INoLabelsEmptyStateProps {
   description: ReactNode;
   onAddLabel: () => void;
+  /** Validation error for the Custom-labels selection. Rendered above "No
+   * labels" so the user knows why Save was blocked when zero labels exist. */
+  labelsError?: ReactNode | null;
 }
 
 const NoLabelsEmptyState = ({
   description,
   onAddLabel,
+  labelsError,
 }: INoLabelsEmptyStateProps) => (
   <div className={`${baseClass}__empty-state`}>
+    {!!labelsError && (
+      <span className={`${baseClass}__empty-state--error`}>{labelsError}</span>
+    )}
     <span className={`${baseClass}__empty-state--title`}>No labels</span>
     <span className={`${baseClass}__empty-state--description`}>
       {description}
@@ -326,6 +333,7 @@ const CustomTargetTabs = ({
             <NoLabelsEmptyState
               description={emptyStateDescription}
               onAddLabel={onAddLabel}
+              labelsError={labelsError}
             />
           )}
         </TabPanel>
@@ -344,6 +352,7 @@ const CustomTargetTabs = ({
             <NoLabelsEmptyState
               description={emptyStateDescription}
               onAddLabel={onAddLabel}
+              labelsError={labelsError}
             />
           )}
         </TabPanel>
