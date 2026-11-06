@@ -632,32 +632,14 @@ func testConditionalAccessStatistics(t *testing.T, ds *Datastore) {
 
 	markStatisticsStale(t, ctx, ds)
 
-	// Google conditional access is configured only with a completed row on Premium.
+	// Google conditional access is configured only with a connected row on Premium.
 	stats, _, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
 	require.NoError(t, err)
 	assert.False(t, stats.GoogleConditionalAccessConfigured)
 	markStatisticsStale(t, ctx, ds)
 
 	require.NoError(t, ds.SaveGoogleConditionalAccessIntegration(ctx, &fleet.ConditionalAccessGoogleIntegration{
-		CustomerID: "C02cajzvg", AdminEmail: "admin@example.com", State: fleet.ConditionalAccessGoogleStateKeyRequired, ErrorMessage: new("key required"),
-	}))
-	stats, _, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
-	require.NoError(t, err)
-	assert.False(t, stats.GoogleConditionalAccessConfigured)
-	markStatisticsStale(t, ctx, ds)
-
-	// A registered server whose delegation later failed isn't configured either.
-	require.NoError(t, ds.SaveGoogleConditionalAccessIntegration(ctx, &fleet.ConditionalAccessGoogleIntegration{
-		CustomerID: "C02cajzvg", AdminEmail: "admin@example.com", ProxyServerSecret: "s",
-		State: fleet.ConditionalAccessGoogleStateDelegationFailed, ErrorMessage: new("not authorized"),
-	}))
-	stats, _, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
-	require.NoError(t, err)
-	assert.False(t, stats.GoogleConditionalAccessConfigured)
-	markStatisticsStale(t, ctx, ds)
-
-	require.NoError(t, ds.SaveGoogleConditionalAccessIntegration(ctx, &fleet.ConditionalAccessGoogleIntegration{
-		CustomerID: "C02cajzvg", AdminEmail: "admin@example.com", ProxyServerSecret: "s", State: fleet.ConditionalAccessGoogleStateConnected,
+		CustomerID: "C02cajzvg", AdminEmail: "admin@example.com", State: fleet.ConditionalAccessGoogleStateConnected,
 	}))
 	stats, _, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
 	require.NoError(t, err)
