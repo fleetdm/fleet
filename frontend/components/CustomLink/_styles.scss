@@ -34,9 +34,10 @@
     gap: $pad-xxsmall;
   }
 
-  // Pull the icon in by its built-in inset so the visible gap is $pad-xxsmall.
+  // Offset each icon's built-in inset (2.5px at 16px, 1px at 12px) so the
+  // visible gap is 4px next to regular text and 2px next to small text.
   .external-link-icon {
-    margin-left: -2.5px;
+    margin-left: -0.5px;
   }
 
   .external-link-icon--small {
