@@ -1,3 +1,9 @@
+## Fleet 4.94.1 (Nov 06, 2026)
+
+### Bug fixes
+
+- Fixed macOS hosts that had already completed an Apple Business MDM migration skipping setup experience on a later Automated Device Enrollment after Apple Business reported a new migration deadline for them and improved logging of Enrollment flows
+
 ## Fleet 4.94.0 (Oct 28, 2026)
 
 ### IT Admins
