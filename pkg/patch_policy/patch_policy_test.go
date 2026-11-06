@@ -151,6 +151,9 @@ func TestGenerateOpenQuery(t *testing.T) {
 		require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'acrobat.exe');", got, title)
 	}
 
+	got = patch_policy.GenerateOpenQuery("windows", "", "SQL Server Management Studio")
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'ssms.exe');", got)
+
 	got = patch_policy.GenerateOpenQuery("windows", "", "Clockify Desktop")
 	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'clockifywindows.exe');", got)
 

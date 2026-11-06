@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'SQL Server Management Studio 22';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'SQL Server Management Studio 22' AND version_compare(version, '22.11.3') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'sql server management studio.exe');"
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'ssms.exe');"
       },
       "installer_url": "https://download.visualstudio.microsoft.com/download/pr/5f474104-723f-4007-bf4c-92e42a23dcc6/8784f511aa380e8637ce005bbecb81a6a071140465f33e7114deebd0caebf876/vs_SSMS.exe",
       "install_script_ref": "660f158a",
