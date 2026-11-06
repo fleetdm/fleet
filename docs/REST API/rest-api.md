@@ -3545,6 +3545,7 @@ None.
 - [Lock host](#lock-host)
 - [Unlock host](#unlock-host)
 - [Wipe host](#wipe-host)
+- [Reset host](#reset-host)
 - [Send APNs ping to host](#send-apns-ping-to-host)
 - [Get host's past activity](#get-hosts-past-activity)
 - [Get host's upcoming activity](#get-hosts-upcoming-activity)
@@ -3654,7 +3655,7 @@ If `munki_issue_id` is specified, an additional top-level key `munki_issue` is r
 
 If `after` is being used with `created_at` or `updated_at`, the table must be specified in `order_key`. Those columns become `h.created_at` and `h.updated_at`.
 
-If `include_device_status` is set to `true`, `device_status` and `pending_action` are included in the MDM information for each host. `device_status` indicates the current lock/wipe state of the device with possible values: `unlocked`, `locked`, `locking`, `unlocking`, `wiped`, `wiping`. `pending_action` indicates if a lock, unlock, or wipe command is pending with possible values: `lock`, `unlock`, `wipe`, or an empty string (no pending action).
+If `include_device_status` is set to `true`, `device_status` and `pending_action` are included in the MDM information for each host. `device_status` indicates the current lock/wipe/reset state of the device with possible values: `unlocked`, `locked`, `locking`, `unlocking`, `wiped`, `wiping`, `reset`, `resetting`. `pending_action` indicates if a lock, unlock, wipe, or reset command is pending with possible values: `lock`, `unlock`, `wipe`, `reset`, or an empty string (no pending action).
 
 To filter hosts by platform (macOS, Windows, Linux), use the ["List label's hosts" API endpoint](https://fleetdm.com/docs/rest-api/rest-api#list-labels-hosts). Find the label ID by filtering in the **Hosts** page of the Fleet UI and copying the ID from the URL (for example: `7` for `/hosts/manage/labels/7`).
 
@@ -7234,6 +7235,8 @@ Wiping a macOS, iOS, iPadOS, Linux, Windows, or personal (BYOD) Android host is 
 
 To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on. To wipe a Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts). To wipe an Android host, the host must be enrolled as a fully managed device.
 
+To repurpose a Windows host for another end user, use [Reset host](#reset-host).
+
 `POST /api/v1/fleet/hosts/:id/wipe`
 
 #### Parameters
@@ -7241,18 +7244,10 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 | Name         | Type       | In   | Description                                                                                          |
 |--------------| ---------- | ---- |------------------------------------------------------------------------------------------------------|
 | id           | integer    | path | **Required**. ID of the host to be wiped. |
-| windows      | object     | body | Optional metadata used when wiping Windows hosts. The object includes a `wipe_type` property that can be used for specifying what type of remote wipe to perform. Allowed values are `"doWipe"` and `"doWipeProtected"`. |
 
 #### Example
 
 `POST /api/v1/fleet/hosts/123/wipe`
-
-##### Optional request body
-
-```json
-{ "windows": { "wipe_type": "doWipe" } }
-```
-
 
 ##### Default response
 
@@ -7266,6 +7261,46 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 ```
 
 > To verify the host was successfully wiped, you can use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint to retrieve the host's `mdm.device_status`.
+
+
+### Reset host
+
+_Available in Fleet Premium._
+
+Sends a command to reset the specified Windows host so it can be repurposed for another end user. The host is reset once it comes online.
+
+To reset a Windows host, the host must have MDM turned on.
+
+To wipe a lost or stolen host instead, use [Wipe host](#wipe-host).
+
+`POST /api/v1/fleet/hosts/:id/reset`
+
+
+#### Parameters
+
+| Name         | Type       | In   | Description                                                                                          |
+|--------------| ---------- | ---- |------------------------------------------------------------------------------------------------------|
+| id           | integer    | path | **Required**. ID of the host to be reset. |
+
+
+#### Example
+
+`POST /api/v1/fleet/hosts/123/reset`
+
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "device_status": "unlocked",
+  "pending_action": "reset"
+}
+```
+
+> To verify the host was successfully reset, you can use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint to retrieve the host's `mdm.device_status`.
+
 
 ### Send APNs ping to host
 
