@@ -43,6 +43,10 @@ interface ICheckerboardVizProps {
   // "Offline [offline swatch] [online swatch] Online" — for filters that
   // render as on/off only, e.g. a single-host uptime view.
   legendVariant?: "gradient" | "binary";
+  // Lowers the readability floor by COMPACT_MIN_SCALE so a 30-column grid
+  // still fits inside a medium modal's ~530px scroll-wrapper. Dashboard cards
+  // leave this off.
+  compact?: boolean;
 }
 
 // Baseline cell size, tuned around a 580px scroll-wrapper. Cells grow past
@@ -53,6 +57,7 @@ interface ICheckerboardVizProps {
 const CELL_W = 16.75;
 const CELL_H = 19;
 const CELL_MAX_SCALE = 2;
+const COMPACT_MIN_SCALE = 0.93;
 const CELL_GAP = 2;
 const Y_AXIS_WIDTH = 40; // space for y-axis labels on the left
 
@@ -63,6 +68,7 @@ const CheckerboardViz = ({
   tooltipFormatter,
   relativeScale = false,
   legendVariant = "gradient",
+  compact = false,
 }: ICheckerboardVizProps): JSX.Element => {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollWrapperRef = useRef<HTMLDivElement>(null);
@@ -230,14 +236,18 @@ const CheckerboardViz = ({
   const numCols = is24h ? hourRows : numDays;
   const numRows = is24h ? 1 : hourRows;
 
-  // Fill the scroll-wrapper, clamped at the baseline (readability floor)
-  // and CELL_MAX_SCALE × baseline (oversized-cell ceiling). Fall back to
-  // the baseline before ResizeObserver measures.
+  // Fill the scroll-wrapper, clamped at the readability floor (lower in
+  // compact mode) and CELL_MAX_SCALE × baseline ceiling. Fall back to the
+  // floor before ResizeObserver measures.
+  const minCellW = compact ? CELL_W * COMPACT_MIN_SCALE : CELL_W;
   const idealCellW =
     wrapperWidth > 0 && numCols > 0
       ? (wrapperWidth - CELL_GAP * (numCols - 1)) / numCols
-      : CELL_W;
-  const cellW = Math.max(CELL_W, Math.min(idealCellW, CELL_W * CELL_MAX_SCALE));
+      : minCellW;
+  const cellW = Math.max(
+    minCellW,
+    Math.min(idealCellW, CELL_W * CELL_MAX_SCALE)
+  );
   const cellH = cellW * (CELL_H / CELL_W);
   const gridWidth = cellW * numCols + CELL_GAP * (numCols - 1);
   const gridHeight = cellH * numRows + CELL_GAP * (numRows - 1);
