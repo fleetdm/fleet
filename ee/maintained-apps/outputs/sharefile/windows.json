@@ -3,8 +3,8 @@
     {
       "version": "26.9.9.0",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'ShareFile For Windows' AND publisher = 'ShareFile';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'ShareFile For Windows' AND publisher = 'ShareFile' AND version_compare(version, '26.9.9.0') < 0);",
+        "exists": "SELECT 1 FROM programs WHERE name = 'ShareFile' AND publisher = 'ShareFile';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'ShareFile' AND publisher = 'ShareFile' AND version_compare(version, '26.9.9.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'sharefile.exe');"
       },
       "installer_url": "https://dl.sharefile.com/sfwin-msi/ShareFileForWindows_x64_v26.9.9.0.msi",

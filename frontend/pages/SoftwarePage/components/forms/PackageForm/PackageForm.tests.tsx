@@ -1,4 +1,8 @@
-import { render as renderComponent, screen } from "@testing-library/react";
+import {
+  render as renderComponent,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 
@@ -54,7 +58,7 @@ const selectFileNamed = async (container: HTMLElement, name: string) => {
   await userEvent.upload(input, file, { applyAccept: false });
 };
 
-const TARGET_BANNER_COPY = /If multiple packages of the same software target the same host, Fleet will install the one that was added first\./i;
+const TARGET_BANNER_COPY = /If multiple versions target the same host, Fleet will deploy the one that was added first\./i;
 
 describe("PackageForm", () => {
   describe("Target section on the single-package Add flow", () => {
@@ -231,7 +235,7 @@ describe("PackageForm", () => {
       </AppContext.Provider>
     );
 
-    it("enables Save even though the target selector is hidden", async () => {
+    it("enables Add even though the target selector is hidden", async () => {
       const { container } = renderForm(
         { multiPackageContext: true, initialTargetType: "Custom" },
         gitOpsConfig
@@ -240,10 +244,10 @@ describe("PackageForm", () => {
       await selectFileOfSize(container, 1024);
 
       // GitOps mode hides the selector, so the user can't pick labels. A
-      // preselected "Custom" would leave Save disabled with nothing on screen
+      // preselected "Custom" would leave Add disabled with nothing on screen
       // to explain why.
       expect(screen.queryByLabelText("Custom")).not.toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Save" })).not.toBeDisabled();
+      expect(screen.getByRole("button", { name: "Add" })).not.toBeDisabled();
     });
 
     it("normalizes the target when config arrives after mount", async () => {
@@ -253,10 +257,10 @@ describe("PackageForm", () => {
       await selectFileOfSize(container, 1024);
 
       expect(screen.queryByLabelText("Custom")).not.toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Save" })).not.toBeDisabled();
+      expect(screen.getByRole("button", { name: "Add" })).not.toBeDisabled();
     });
 
-    it("enables Save when the file is chosen before config arrives", async () => {
+    it("enables Add when the file is chosen before config arrives", async () => {
       // The reverse ordering of the previous test: validation is computed on
       // file select against the still-preselected "Custom", so normalizing the
       // target afterwards has to refresh validation too.
@@ -265,21 +269,32 @@ describe("PackageForm", () => {
       await selectFileOfSize(container, 1024);
       rerender(renderWithConfig(gitOpsConfig));
 
-      expect(screen.getByRole("button", { name: "Save" })).not.toBeDisabled();
+      expect(screen.getByRole("button", { name: "Add" })).not.toBeDisabled();
     });
 
-    it("keeps requiring labels for a Custom target when GitOps mode is off", async () => {
-      const { container } = renderForm({
+    it("surfaces an inline labels error on submit for a Custom target when GitOps mode is off", async () => {
+      const onSubmit = jest.fn();
+      const { container, user } = renderForm({
         multiPackageContext: true,
         initialTargetType: "Custom",
+        labels: [
+          { id: 1, name: "Engineering", label_type: "regular" } as never,
+        ],
+        onSubmit,
       });
 
       await selectFileOfSize(container, 1024);
 
-      // The selector is visible here, so the preselection stands and the
-      // existing "pick at least one label" rule still applies.
       expect(screen.getByLabelText("Custom")).toBeChecked();
-      expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+      const submitButton = screen.getByRole("button", { name: "Add" });
+      expect(submitButton).toBeEnabled();
+      await user.click(submitButton);
+      expect(onSubmit).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Select at least one label/)
+        ).toBeInTheDocument();
+      });
     });
   });
 });

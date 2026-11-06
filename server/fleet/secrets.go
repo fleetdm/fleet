@@ -108,7 +108,17 @@ func (e MissingSecretsError) Error() string {
 // IsMissingSecretsError reports whether err is (or wraps) a MissingSecretsError,
 // i.e. a reference to a secret variable that doesn't exist.
 func IsMissingSecretsError(err error) bool {
-	var valErr MissingSecretsError
-	var ptrErr *MissingSecretsError
-	return errors.As(err, &valErr) || errors.As(err, &ptrErr)
+	_, ok := MissingSecretNames(err)
+	return ok
+}
+
+// MissingSecretNames returns the names a MissingSecretsError in err reports, as a value or a pointer.
+func MissingSecretNames(err error) ([]string, bool) {
+	if valErr, ok := errors.AsType[MissingSecretsError](err); ok {
+		return valErr.MissingSecrets, true
+	}
+	if ptrErr, ok := errors.AsType[*MissingSecretsError](err); ok {
+		return ptrErr.MissingSecrets, true
+	}
+	return nil, false
 }

@@ -313,14 +313,60 @@ End users won't continue through setup experience unless they press Command (⌘
 
 App Store (VPP) apps are installed by Apple. Fleet sends an [InstallApplication](https://developer.apple.com/documentation/devicemanagement/install-application-command) MDM command, and the device downloads and installs the app from the App Store. As a result, VPP installs during setup depend on Apple's services and the device's connection to the App Store while it's still in Setup Assistant.
 
-Because Apple performs the install, things outside Fleet's control, such as an App Store or Apple Business outage, `InstallApplication` throttling, an expired VPP token, or too few licenses, can cause installs to fail or hang for every host at once. Fleet retries automatically (up to 4 attempts, waiting 10 minutes each time to verify), but retries won’t help while Apple itself is unavailable, and until an install finishes, the end user waits at the Setup Assistant screen.
+Because Apple performs the install, things outside Fleet's control, such as an App Store or Apple Business outage, `InstallApplication` throttling, an expired VPP token, or too few licenses for a paid app, can cause installs to fail or hang for every host at once. Fleet retries automatically (up to 4 attempts, waiting 10 minutes each time to verify), but retries won’t help while Apple itself is unavailable, and until an install finishes, the end user waits at the Setup Assistant screen.
 
 To reduce these risks:
 
 - Only add apps that end users need before their first login. Deliver everything else after enrollment using [automatic install](https://fleetdm.com/guides/automatic-software-install-in-fleet), which runs in the background and doesn't hold the device in Setup Assistant.
 - Keep the setup experience software list short. Each item extends setup time.
-- Before a large rollout, confirm your VPP token is valid and you have enough available licenses for the apps you're installing.
+- Before a large rollout, confirm your VPP token is valid. For paid apps, also confirm you have enough available licenses. Free apps don't need this check.
 - If available, choose Fleet-maintained app over App Store (VPP) app for better control
+
+### Python (.py) packages on macOS
+
+A new Mac doesn't include a Python interpreter. Python comes with Apple's Command Line Tools (CLT). Without CLT, `.py` packages in setup experience fail with an `xcode-select: error: No developer tools were found` error.
+
+To run `.py` packages during setup experience, install CLT first:
+
+1. Save the script below as a `.sh` file and [add it as a custom package](https://fleetdm.com/guides/deploy-software-packages).
+2. Give the package a name that sorts before your `.py` packages, for example "1. Install Python". Fleet installs setup experience software alphabetically, by display name or by title if there's no display name.
+3. Add both the `.sh` package and your `.py` packages to setup experience.
+
+```sh
+#!/bin/sh
+# Installs Command Line Tools without a GUI session, so /usr/bin/python3 works for .py packages.
+# Same mechanism as Homebrew's installer: the in-progress flag makes softwareupdate offer Command Line Tools.
+
+if /usr/bin/xcode-select -p >/dev/null 2>&1 && [ -x /Library/Developer/CommandLineTools/usr/bin/python3 ]; then
+  echo "Command Line Tools already installed"
+  exit 0
+fi
+
+flag=/tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+/usr/bin/touch "$flag"
+trap '/bin/rm -f "$flag"' EXIT
+
+label=$(/usr/sbin/softwareupdate -l 2>/dev/null |
+  /usr/bin/grep -B 1 -E 'Command Line Tools' |
+  /usr/bin/awk -F'*' '/^ *\*/ {print $2}' |
+  /usr/bin/sed -e 's/^ *Label: //' -e 's/^ *//' |
+  /usr/bin/sort -V |
+  /usr/bin/tail -n1)
+
+if [ -z "$label" ]; then
+  echo "softwareupdate did not offer Command Line Tools"
+  exit 1
+fi
+
+echo "Installing $label"
+/usr/sbin/softwareupdate -i "$label" --verbose || exit 1
+/usr/bin/xcode-select --switch /Library/Developer/CommandLineTools || exit 1
+/Library/Developer/CommandLineTools/usr/bin/python3 --version || exit 1
+```
+
+CLT is about a 520 MB download and takes a few minutes to install, so expect setup to take longer. Use a package, not the setup experience [script](#run-script), because the script runs after all software is installed.
+
+On macOS 27, CLT includes Python 3.9.6. `.py` packages that need a newer Python version will still fail.
 
 ### Host stuck during setup experience
 

@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"fmt"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
@@ -80,6 +81,9 @@ func (s *Signer) Signx509CSR(csr *x509.CertificateRequest) (*x509.Certificate, e
 
 // SignX509CSRWithCallback signs a certificate using Signer's Depot CA with a custom callback to modify the certificate template.
 func (s *Signer) SignX509CSRWithCallback(csr *x509.CertificateRequest, subject pkix.Name, callback func(tmpl *x509.Certificate)) (*x509.Certificate, error) {
+	if err := csr.CheckSignature(); err != nil {
+		return nil, fmt.Errorf("checking CSR signature: %w", err)
+	}
 	id, err := cryptoutil.GenerateSubjectKeyID(csr.PublicKey)
 	if err != nil {
 		return nil, err

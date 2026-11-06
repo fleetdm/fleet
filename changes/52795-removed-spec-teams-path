@@ -1,0 +1,2 @@
+- **Breaking change:** Removed `POST /api/v1/fleet/spec/teams`. It now returns `410 Gone` with a link to the Fleet 5 migration guide. Use `POST /api/v1/fleet/spec/fleets` instead.
+- **Breaking change:** Removed `GET`, `POST`, `PATCH` and `DELETE` on `/api/v1/fleet/teams`, `/api/v1/fleet/teams/{id}`, `/api/v1/fleet/teams/{id}/agent_options`, `/api/v1/fleet/teams/{id}/secrets` and `/api/v1/fleet/teams/{id}/users`. They now return `410 Gone` with a link to the Fleet 5 migration guide. Use the same paths with `fleets` instead of `teams`.

@@ -1940,7 +1940,7 @@ policies:
 agent_options:
 labels:
 name: ${TEST_TEAM_NAME}
-team_settings:
+settings:
   secrets: ${TEST_SECRET}
 software:
 `,
@@ -2185,7 +2185,7 @@ func TestGitOpsTeamLabelAndProfileSameApply(t *testing.T) {
 	teamYAMLPath := filepath.Join(tmpDir, "team.yml")
 	require.NoError(t, os.WriteFile(teamYAMLPath, fmt.Appendf(nil, `
 name: "Test Label Order Team"
-team_settings:
+settings:
   secrets:
     - secret: "ABC"
 queries:
@@ -2819,7 +2819,6 @@ func TestGitOpsFullTeam(t *testing.T) {
 			// Dry run
 			logs := runAppForTest(t, []string{"gitops", "-f", gitopsFile, "--dry-run"})
 			if useDeprecatedKeys {
-				assert.Contains(t, logs, "'team_settings' is deprecated; use 'settings' instead")
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
 				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
 				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
@@ -2847,7 +2846,6 @@ func TestGitOpsFullTeam(t *testing.T) {
 			}
 			logs = runAppForTest(t, []string{"gitops", "-f", gitopsFile})
 			if useDeprecatedKeys {
-				assert.Contains(t, logs, "'team_settings' is deprecated; use 'settings' instead")
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
 				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
 				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
@@ -2882,6 +2880,8 @@ func TestGitOpsFullTeam(t *testing.T) {
 			assert.True(t, savedTeam.Config.Integrations.GoogleCalendar.Enable)
 			assert.False(t, savedTeam.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
 			assert.False(t, savedTeam.Config.MDM.MacOSSetup.ManualAgentInstall.Value)
+			assert.True(t, savedTeam.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment)
+			assert.True(t, savedTeam.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration)
 			assert.True(t, ds.SetSetupExperienceScriptFuncInvoked)
 			assert.True(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
 			assert.Equal(t, basePath+".yml", *savedTeam.Filename)
@@ -2922,10 +2922,6 @@ func TestGitOpsFullTeam(t *testing.T) {
 			require.NoError(t, err)
 			secret := "TestSecret"
 			t.Setenv("TEST_SECRET", secret)
-			settingsKey := "settings"
-			if useDeprecatedKeys {
-				settingsKey = "team_settings"
-			}
 
 			_, err = tmpFile.WriteString(
 				`
@@ -2934,7 +2930,7 @@ queries:
 policies:
 agent_options:
 name: ${TEST_TEAM_NAME}
-` + settingsKey + `:
+settings:
   secrets:
    - secret: ${TEST_SECRET}
 software:
@@ -3118,6 +3114,7 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		return team, nil
 	}
 	vppToken := &fleet.VPPTokenDB{ //nolint:gosec // G101 not a real token
+		ID:          1,
 		Location:    "Foobar",
 		RenewDate:   time.Now().Add(24 * 365 * time.Hour),
 		Token:       "vpp-token",
@@ -3130,7 +3127,15 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		CountryCode: "us",
 	}
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
-		return []*fleet.VPPTokenDB{vppToken, vppToken2}, nil
+		// Copies, since callers reset Teams on the returned tokens.
+		tok, tok2 := *vppToken, *vppToken2
+		if savedTeam != nil {
+			tok.Teams = []fleet.TeamTuple{{ID: savedTeam.ID, Name: savedTeam.Name}}
+		}
+		return []*fleet.VPPTokenDB{&tok, &tok2}, nil
+	}
+	ds.GetAssignedVPPAppsFunc = func(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error) {
+		return map[fleet.VPPAppID]fleet.VPPAppTeam{}, nil
 	}
 
 	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
@@ -3188,10 +3193,10 @@ org_settings:
   mdm:
     volume_purchasing_program:
     - location: Foobar
-      teams:
+      fleets:
       - "${TEST_TEAM_NAME}"
     - location: Gadzooks
-      teams:
+      fleets:
       - "${TEST_TEAM_NAME}"
   secrets:
     - secret: globalSecret
@@ -3210,7 +3215,7 @@ queries:
 policies:
 agent_options:
 name: ${TEST_TEAM_NAME}
-team_settings:
+settings:
   secrets:
     - secret: ${TEST_SECRET}
 software:
@@ -3229,7 +3234,7 @@ queries:
 policies:
 agent_options:
 name: ${TEST_TEAM_NAME}
-team_settings:
+settings:
   secrets:
     - secret: ${TEST_SECRET}
     - secret: globalSecret
@@ -3284,10 +3289,10 @@ software:
 	assert.Equal(t, secret, enrolledTeamSecrets[0].Secret)
 
 	// Dry run again (after team was created by real run)
-	ds.GetVPPTokenByTeamIDFuncInvoked = false
+	ds.GetAssignedVPPAppsFuncInvoked = false
 	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
-	// Dry run should attempt to get the VPP token when applying VPP apps (it may not exist), so we want to error to the user.
-	require.True(t, ds.GetVPPTokenByTeamIDFuncInvoked)
+	// Dry run should resolve each app's VPP token for the existing team, so a missing token errors to the user.
+	require.True(t, ds.GetAssignedVPPAppsFuncInvoked)
 
 	// Now, set  up a team to delete
 	teamToDeleteID := uint(999)
@@ -3817,7 +3822,7 @@ queries:
 policies:
 agent_options:
 name: %s
-team_settings:
+settings:
   secrets:
     - secret: %s
 software:
@@ -4069,7 +4074,6 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 				assert.Contains(t, logs, "'org_settings.server_settings.live_query_disabled' is deprecated; use 'org_settings.server_settings.live_reporting_disabled' instead")
 				assert.Contains(t, logs, "'org_settings.server_settings.query_reports_disabled' is deprecated; use 'org_settings.server_settings.discard_reports_data' instead")
 				assert.Contains(t, logs, "'org_settings.server_settings.query_report_cap' is deprecated; use 'org_settings.server_settings.report_cap' instead")
-				assert.Contains(t, logs, "'team_settings' is deprecated; use 'settings' instead")
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
 				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
 				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
@@ -4102,7 +4106,6 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 				assert.Contains(t, logs, "'org_settings.server_settings.live_query_disabled' is deprecated; use 'org_settings.server_settings.live_reporting_disabled' instead")
 				assert.Contains(t, logs, "'org_settings.server_settings.query_reports_disabled' is deprecated; use 'org_settings.server_settings.discard_reports_data' instead")
 				assert.Contains(t, logs, "'org_settings.server_settings.query_report_cap' is deprecated; use 'org_settings.server_settings.report_cap' instead")
-				assert.Contains(t, logs, "'team_settings' is deprecated; use 'settings' instead")
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
 				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
 				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
@@ -4514,7 +4517,7 @@ org_settings:
 	team := func(name string) string {
 		return fmt.Sprintf(`
 name: %s
-team_settings:
+settings:
   secrets:
     - secret: "%s-secret"
 agent_options:
@@ -4587,10 +4590,10 @@ software:
 				global(`
                                   apple_business_manager:
                                     - organization_name: Fleet Device Management Inc.
-                                      byod_team: "📱🔐 Personal mobile devices"
-                                      macos_team: "💻 Workstations"
-                                      ios_team: "📱🏢 Company-owned iPhones"
-                                      ipados_team: "🔳🏢 Company-owned iPads"`),
+                                      byod_fleet: "📱🔐 Personal mobile devices"
+                                      macos_fleet: "💻 Workstations"
+                                      ios_fleet: "📱🏢 Company-owned iPhones"
+                                      ipados_fleet: "🔳🏢 Company-owned iPads"`),
 				workstations,
 				iosTeam,
 				ipadTeam,
@@ -4667,15 +4670,15 @@ software:
 				global(`
                                   apple_business_manager:
                                     - organization_name: Foo Inc.
-                                      byod_team: "📱🔐 Personal mobile devices"
-                                      macos_team: "💻 Workstations"
-                                      ios_team: "📱🏢 Company-owned iPhones"
-                                      ipados_team: "🔳🏢 Company-owned iPads"
+                                      byod_fleet: "📱🔐 Personal mobile devices"
+                                      macos_fleet: "💻 Workstations"
+                                      ios_fleet: "📱🏢 Company-owned iPhones"
+                                      ipados_fleet: "🔳🏢 Company-owned iPads"
                                     - organization_name: Fleet Device Management Inc.
-                                      byod_team: "📱🔐 Personal mobile devices"
-                                      macos_team: "💻 Workstations"
-                                      ios_team: "📱🏢 Company-owned iPhones"
-                                      ipados_team: "🔳🏢 Company-owned iPads"`),
+                                      byod_fleet: "📱🔐 Personal mobile devices"
+                                      macos_fleet: "💻 Workstations"
+                                      ios_fleet: "📱🏢 Company-owned iPhones"
+                                      ipados_fleet: "🔳🏢 Company-owned iPads"`),
 				workstations,
 				iosTeam,
 				ipadTeam,
@@ -4720,10 +4723,10 @@ software:
                                   apple_bm_default_team: "💻 Workstations"
                                   apple_business_manager:
                                     - organization_name: Fleet Device Management Inc.
-                                      byod_team: "📱🔐 Personal mobile devices"
-                                      macos_team: "💻 Workstations"
-                                      ios_team: "📱🏢 Company-owned iPhones"
-                                      ipados_team: "🔳🏢 Company-owned iPads"`),
+                                      byod_fleet: "📱🔐 Personal mobile devices"
+                                      macos_fleet: "💻 Workstations"
+                                      ios_fleet: "📱🏢 Company-owned iPhones"
+                                      ipados_fleet: "🔳🏢 Company-owned iPads"`),
 				workstations,
 				iosTeam,
 				ipadTeam,
@@ -4744,10 +4747,10 @@ software:
 				global(`
                                   apple_business_manager:
                                     - organization_name: Fleet Device Management Inc.
-                                      byod_team: "📱🔐 Personal mobile devices"
-                                      macos_team: "💻 Workstations"
-                                      ios_team: "📱🏢 Company-owned iPhones"
-                                      ipados_team: "🔳🏢 Company-owned iPads"`),
+                                      byod_fleet: "📱🔐 Personal mobile devices"
+                                      macos_fleet: "💻 Workstations"
+                                      ios_fleet: "📱🏢 Company-owned iPhones"
+                                      ipados_fleet: "🔳🏢 Company-owned iPads"`),
 				workstations,
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
@@ -4763,10 +4766,10 @@ software:
 				global(`
                                   apple_business_manager:
                                     - organization_name: Fleet Device Management Inc.
-                                      byod_team: "No team"
-                                      macos_team: "No team"
-                                      ios_team: "No team"
-                                      ipados_team: "No team"`),
+                                      byod_fleet: "No team"
+                                      macos_fleet: "No team"
+                                      ios_fleet: "No team"
+                                      ipados_fleet: "No team"`),
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
@@ -4799,8 +4802,8 @@ software:
 				global(`
                                   apple_business_manager:
                                     - organization_name: Fleet Device Management Inc.
-                                      macos_team: "No team"
-                                      ios_team: ""`),
+                                      macos_fleet: "No team"
+                                      ios_fleet: ""`),
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
@@ -4833,7 +4836,7 @@ software:
 				global(`
                                   apple_business_manager:
                                     - organization_name: Does not exist
-                                      macos_team: "No team"`),
+                                      macos_fleet: "No team"`),
 			},
 			tokens: []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
@@ -4858,7 +4861,7 @@ software:
 				global(`
                                   apple_business_manager:
                                     - organization_name: "Café Inc."
-                                      macos_team: "No team"`),
+                                      macos_fleet: "No team"`),
 			},
 			tokens: []*fleet.ABMToken{{ID: 1, OrganizationName: "Café Inc."}},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
@@ -4876,10 +4879,10 @@ software:
 				global(`
                                   apple_business_manager:
                                     - organization_name: Fleet Device Management Inc.
-                                      macos_team: "No team"
+                                      macos_fleet: "No team"
                                     - organization_name: Foo Inc.
                                       default: true
-                                      macos_team: "No team"`),
+                                      macos_fleet: "No team"`),
 			},
 			tokens: []*fleet.ABMToken{
 				{ID: 1, OrganizationName: "Fleet Device Management Inc.", IsDefault: true},
@@ -4910,10 +4913,10 @@ software:
                                   apple_business_manager:
                                     - organization_name: Fleet Device Management Inc.
                                       default: true
-                                      macos_team: "No team"
+                                      macos_fleet: "No team"
                                     - organization_name: Foo Inc.
                                       default: true
-                                      macos_team: "No team"`),
+                                      macos_fleet: "No team"`),
 			},
 			tokens: []*fleet.ABMToken{
 				{ID: 1, OrganizationName: "Fleet Device Management Inc."},
@@ -4938,9 +4941,9 @@ software:
 				global(`
                                   apple_business_manager:
                                     - organization_name: Fleet Device Management Inc.
-                                      macos_team: "No team"
+                                      macos_fleet: "No team"
                                     - organization_name: Foo Inc.
-                                      macos_team: "No team"`),
+                                      macos_fleet: "No team"`),
 			},
 			tokens: []*fleet.ABMToken{
 				{ID: 1, OrganizationName: "Fleet Device Management Inc.", IsDefault: true},
@@ -4968,7 +4971,7 @@ software:
 				global(`
                                   apple_business_manager:
                                     - organization_name: Fleet Device Management Inc.
-                                      macos_team: "No team"`),
+                                      macos_fleet: "No team"`),
 			},
 			tokens: []*fleet.ABMToken{
 				{ID: 1, OrganizationName: "Fleet Device Management Inc.", IsDefault: true},
@@ -5094,7 +5097,7 @@ org_settings:
 	team := func(name string) string {
 		return fmt.Sprintf(`
 name: %s
-team_settings:
+settings:
   secrets:
     - secret: "%s-secret"
 agent_options:
@@ -7110,7 +7113,7 @@ func TestGitOpsAndroidCertificatesAdd(t *testing.T) {
 	// Create team config
 	teamConfig := `
 name: %s
-team_settings:
+settings:
   secrets:
     - secret: TestSecret
 agent_options:
@@ -7219,7 +7222,7 @@ func TestGitOpsAndroidCertificatesChange(t *testing.T) {
 	// Create team config with modified subjectNames
 	teamConfig := `
 name: %s
-team_settings:
+settings:
   secrets:
     - secret: TestSecret
   mdm:
@@ -7283,7 +7286,7 @@ software: null
 	deletedCertificateIDs = make([]uint, 0)
 	teamConfig = `
 name: %s
-team_settings:
+settings:
   secrets:
     - secret: TestSecret
   mdm:
@@ -7346,7 +7349,7 @@ software: null
 	deletedCertificateIDs = make([]uint, 0)
 	teamConfig = `
 name: %s
-team_settings:
+settings:
   secrets:
     - secret: TestSecret
   mdm:
@@ -7461,7 +7464,7 @@ func TestGitOpsAndroidCertificatesDeleteOne(t *testing.T) {
 	// Create team config with only one certificate (Certificate 1 removed)
 	teamConfig := `
 name: %s
-team_settings:
+settings:
   secrets:
     - secret: TestSecret
   mdm:
@@ -7580,7 +7583,7 @@ func TestGitOpsAndroidCertificatesDeleteAll(t *testing.T) {
 	// Create team config with no certificates
 	teamConfig := `
 name: %s
-team_settings:
+settings:
   secrets:
     - secret: TestSecret
   mdm:
@@ -7739,7 +7742,7 @@ queries:
 policies:
 agent_options:
 name: Team1
-team_settings:
+settings:
   secrets:
     - secret: test
 software:
@@ -7775,7 +7778,7 @@ queries:
 policies:
 agent_options:
 name: Team1
-team_settings:
+settings:
   secrets:
     - secret: test
 software:
@@ -7807,7 +7810,7 @@ queries:
 policies:
 agent_options:
 name: Team1
-team_settings:
+settings:
   secrets:
     - secret: test
 software:
@@ -7836,7 +7839,7 @@ queries:
 policies:
 agent_options:
 name: Team1
-team_settings:
+settings:
   secrets:
     - secret: test
 software:
@@ -7975,7 +7978,7 @@ func TestAppStoreAppAutoUpdateFieldsParsing(t *testing.T) {
 
 	yaml := `
 name: Test Team
-team_settings: {
+settings: {
   secrets: []
 }
 agent_options: {}
@@ -8118,6 +8121,20 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 			CountryCode: "us",
 		}, nil
 	}
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{{
+			ID:          1,
+			OrgName:     "fleet",
+			Location:    "ca",
+			RenewDate:   tokExpire,
+			Token:       string(token),
+			CountryCode: "us",
+			Teams:       []fleet.TeamTuple{},
+		}}, nil
+	}
+	ds.GetAssignedVPPAppsFunc = func(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error) {
+		return map[fleet.VPPAppID]fleet.VPPAppTeam{}, nil
+	}
 	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
 		return map[string]uint{}, nil
 	}
@@ -8155,7 +8172,7 @@ queries:
 policies:
 agent_options:
 name: TeamAutoUpdate
-team_settings:
+settings:
   secrets:
     - secret: test
 software:
@@ -8195,7 +8212,7 @@ queries:
 policies:
 agent_options:
 name: TeamAutoUpdate
-team_settings:
+settings:
   secrets:
     - secret: test
 software:
@@ -8242,7 +8259,7 @@ queries:
 policies:
 agent_options:
 name: TeamAutoUpdate
-team_settings:
+settings:
   secrets:
     - secret: test
 software:
@@ -8269,7 +8286,7 @@ queries:
 policies:
 agent_options:
 name: TeamAutoUpdate
-team_settings:
+settings:
   secrets:
     - secret: test
 software:
@@ -8303,7 +8320,7 @@ queries:
 policies:
 agent_options:
 name: TeamAutoUpdate
-team_settings:
+settings:
   secrets:
     - secret: test
 software:
@@ -8409,7 +8426,7 @@ queries:
 policies:
 agent_options:
 name: %s
-team_settings:
+settings:
   secrets:
     - secret: test
 software:
@@ -8666,7 +8683,7 @@ queries:
 policies:
 agent_options:
 name: %s
-team_settings:
+settings:
   secrets:
     - secret: test
 software:
@@ -8960,7 +8977,7 @@ queries:
 policies:
 agent_options:
 name: %s
-team_settings:
+settings:
   secrets:
     - secret: test
 software:
@@ -9361,7 +9378,7 @@ software:
 	teamPath := filepath.Join(tmpDir, "team.yml")
 	require.NoError(t, os.WriteFile(teamPath, []byte(`
 name: $TEST_TEAM_NAME
-team_settings:
+settings:
   secrets:
     - secret: team-secret
 agent_options:
@@ -9658,7 +9675,7 @@ func TestGitOpsSelfServiceCategoriesReconcile(t *testing.T) {
 
 	teamYAML := func(body string) []string {
 		path := filepath.Join(dir, "team.yml")
-		require.NoError(t, os.WriteFile(path, []byte("name: Test Fleet\nteam_settings:\n  secrets:\n"+body), 0o600))
+		require.NoError(t, os.WriteFile(path, []byte("name: Test Fleet\nsettings:\n  secrets:\n"+body), 0o600))
 		return []string{"gitops", "-f", path}
 	}
 	unassignedYAML := func(body string) []string {
@@ -9824,7 +9841,7 @@ func TestSelfServiceCategoriesPruneSkipped(t *testing.T) {
 	t.Run("software excepted from gitops", func(t *testing.T) {
 		deleted = nil
 		path := filepath.Join(dir, "exception.yml")
-		require.NoError(t, os.WriteFile(path, []byte("name: Test Fleet\nteam_settings:\n  secrets:\ncontrols:\npolicies:\n"), 0o600))
+		require.NoError(t, os.WriteFile(path, []byte("name: Test Fleet\nsettings:\n  secrets:\ncontrols:\npolicies:\n"), 0o600))
 		_, err := runAppNoChecks([]string{"gitops", "-f", path})
 		require.NoError(t, err)
 		assert.Empty(t, deleted)
@@ -9836,7 +9853,7 @@ func TestSelfServiceCategoriesPruneSkipped(t *testing.T) {
 		require.NoError(t, os.WriteFile(path, []byte(`apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: Test Fleet
     secrets:
       - secret: AAA
@@ -10287,7 +10304,7 @@ func TestGitOpsPolicyResendConfigurationProfile(t *testing.T) {
 	teamYAMLPath := filepath.Join(tmpDir, "team.yml")
 	require.NoError(t, os.WriteFile(teamYAMLPath, fmt.Appendf(nil, `
 name: Resend Profile Team
-team_settings:
+settings:
   secrets:
     - secret: "ABC"
 queries:
@@ -10334,7 +10351,7 @@ func TestGitOpsPolicyHidden(t *testing.T) {
 	teamYAMLPath := filepath.Join(tmpDir, "team.yml")
 	require.NoError(t, os.WriteFile(teamYAMLPath, []byte(`
 name: Hidden Policy Team
-team_settings:
+settings:
   secrets:
     - secret: "ABC"
 queries:
@@ -10362,7 +10379,7 @@ policies:
 	appliedSpecs = nil
 	require.NoError(t, os.WriteFile(teamYAMLPath, []byte(`
 name: Hidden Policy Team
-team_settings:
+settings:
   secrets:
     - secret: "ABC"
 queries:

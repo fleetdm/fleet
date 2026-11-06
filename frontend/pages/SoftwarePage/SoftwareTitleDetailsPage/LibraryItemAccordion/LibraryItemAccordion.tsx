@@ -334,13 +334,13 @@ const LibraryItemAccordion = ({
   // per-row indicator says the same thing the title-level chip would.
   const renderSelfServiceIcon = () =>
     renderRowActionIcon({
-      iconName: "user",
+      iconName: "self-service",
       tooltipContent: getSelfServiceTooltip(
         !!isIosOrIpadosApp,
         !!isAndroidPlayStoreApp
       ),
-      // Both icons open the same modal (version for multi-version rows, package otherwise); the glyph is the context cue.
-      ariaLabel: canActivateMultipleVersions ? "Edit version" : "Edit package",
+      // Opens the row's Edit version modal; the glyph is the context cue.
+      ariaLabel: "Edit version",
       onClick: onSelfServiceClick,
       canClick: canEditSoftware,
     });
@@ -354,7 +354,7 @@ const LibraryItemAccordion = ({
         ? getAutoUpdateTooltip(autoUpdateWindowStart, autoUpdateWindowEnd)
         : "Auto updates on.";
     return renderRowActionIcon({
-      iconName: "refresh",
+      iconName: "install-auto",
       tooltipContent,
       ariaLabel: "Edit version",
       onClick: onAutoUpdateClick,
@@ -368,7 +368,7 @@ const LibraryItemAccordion = ({
   // variant here.
   const renderAutoInstallIcon = () =>
     renderRowActionIcon({
-      iconName: "refresh",
+      iconName: "install-auto",
       tooltipContent: <>Policy triggers install.</>,
       ariaLabel: "View auto-install policies",
       onClick: onAutoInstallClick,
@@ -387,7 +387,7 @@ const LibraryItemAccordion = ({
             construction (only FMA exposes version pinning). */}
         {isFma &&
           badgeState === "latest" &&
-          renderStatusBadge("refresh", "Latest")}
+          renderStatusBadge("update", "Latest")}
         {(canActivateMultiplePackages || canActivateMultipleVersions) &&
           isSelfService &&
           renderSelfServiceIcon()}
@@ -452,7 +452,7 @@ const LibraryItemAccordion = ({
   };
 
   const renderStatusCount = (
-    iconName: "success" | "pending-outline" | "error",
+    iconName: "success" | "pending" | "error",
     count: number,
     label: string,
     iconTooltip: React.ReactNode,
@@ -767,11 +767,11 @@ const LibraryItemAccordion = ({
                   position="top"
                   tipOffset={8}
                 >
-                  <Icon name="info-outline" color="ui-fleet-black-50" />
+                  <Icon name="info" color="ui-fleet-black-50" />
                 </TooltipWrapper>
               )}
               {renderStatusCount(
-                "pending-outline",
+                "pending",
                 pending,
                 "pending",
                 pendingIconTooltip,

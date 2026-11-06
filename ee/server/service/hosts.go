@@ -26,6 +26,14 @@ func (svc *Service) GetHost(ctx context.Context, id uint, opts fleet.HostDetailO
 	return svc.Service.GetHost(ctx, id, opts)
 }
 
+func (svc *Service) GetHostByIDOrIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
+	// reuse GetHostByIDOrIdentifier, but include premium details
+	opts.IncludeCVEScores = true
+	opts.IncludePolicies = true
+	opts.IncludeCriticalVulnerabilitiesCount = true
+	return svc.Service.GetHostByIDOrIdentifier(ctx, identifier, opts)
+}
+
 func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
 	// reuse HostByIdentifier, but include premium options
 	opts.IncludeCVEScores = true

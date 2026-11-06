@@ -1,6 +1,6 @@
 {
   "name": "Enpass",
-  "unique_identifier": "in.sinew.Enpass-Desktop",
+  "unique_identifier": "in.sinew.Enpass-Desktop.App",
   "token": "enpass",
   "installer_format": "pkg",
   "slug": "enpass/darwin",

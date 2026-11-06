@@ -86,7 +86,7 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 					},
 				},
 				{
-					Name: teamUserRoleSSOAttrNamePrefix + "5",
+					Name: fleetUserRoleSSOAttrNamePrefix + "5",
 					Values: []SAMLAttributeValue{
 						{Value: "observer"},
 					},
@@ -99,7 +99,7 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 			name: "invalid-team-id",
 			attributes: []SAMLAttribute{
 				{
-					Name: teamUserRoleSSOAttrNamePrefix + "foo",
+					Name: fleetUserRoleSSOAttrNamePrefix + "foo",
 					Values: []SAMLAttributeValue{
 						{Value: "observer"},
 					},
@@ -112,13 +112,13 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 			name: "all-teams",
 			attributes: []SAMLAttribute{
 				{
-					Name: teamUserRoleSSOAttrNamePrefix + "1",
+					Name: fleetUserRoleSSOAttrNamePrefix + "1",
 					Values: []SAMLAttributeValue{
 						{Value: "observer"},
 					},
 				},
 				{
-					Name: teamUserRoleSSOAttrNamePrefix + "2",
+					Name: fleetUserRoleSSOAttrNamePrefix + "2",
 					Values: []SAMLAttributeValue{
 						{Value: "admin"},
 					},
@@ -143,13 +143,13 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 			name: "teams-and-unknown",
 			attributes: []SAMLAttribute{
 				{
-					Name: teamUserRoleSSOAttrNamePrefix + "1",
+					Name: fleetUserRoleSSOAttrNamePrefix + "1",
 					Values: []SAMLAttributeValue{
 						{Value: "observer"},
 					},
 				},
 				{
-					Name: teamUserRoleSSOAttrNamePrefix + "2",
+					Name: fleetUserRoleSSOAttrNamePrefix + "2",
 					Values: []SAMLAttributeValue{
 						{Value: "admin"},
 					},
@@ -192,7 +192,7 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 			name: "invalid-team-role",
 			attributes: []SAMLAttribute{
 				{
-					Name: teamUserRoleSSOAttrNamePrefix + "1",
+					Name: fleetUserRoleSSOAttrNamePrefix + "1",
 					Values: []SAMLAttributeValue{
 						{Value: "administrator"},
 					},
@@ -204,13 +204,13 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 			name: "duplicate-teams",
 			attributes: []SAMLAttribute{
 				{
-					Name: teamUserRoleSSOAttrNamePrefix + "1",
+					Name: fleetUserRoleSSOAttrNamePrefix + "1",
 					Values: []SAMLAttributeValue{
 						{Value: "observer"},
 					},
 				},
 				{
-					Name: teamUserRoleSSOAttrNamePrefix + "1",
+					Name: fleetUserRoleSSOAttrNamePrefix + "1",
 					Values: []SAMLAttributeValue{
 						{Value: "admin"},
 					},
@@ -228,7 +228,7 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 			name: "multi-value-attributes-uses-last",
 			attributes: []SAMLAttribute{
 				{
-					Name: teamUserRoleSSOAttrNamePrefix + "1",
+					Name: fleetUserRoleSSOAttrNamePrefix + "1",
 					Values: []SAMLAttributeValue{
 						{Value: "observer"},
 						{Value: "admin"},
@@ -250,7 +250,7 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 			name: "null-value-on-team-attribute-is-ignored",
 			attributes: []SAMLAttribute{
 				{
-					Name: teamUserRoleSSOAttrNamePrefix + "1",
+					Name: fleetUserRoleSSOAttrNamePrefix + "1",
 					Values: []SAMLAttributeValue{
 						{Value: "null"},
 					},
@@ -269,7 +269,7 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 					},
 				},
 				{
-					Name: teamUserRoleSSOAttrNamePrefix + "2",
+					Name: fleetUserRoleSSOAttrNamePrefix + "2",
 					Values: []SAMLAttributeValue{
 						{Value: "null"},
 					},
@@ -294,7 +294,7 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 					},
 				},
 				{
-					Name: teamUserRoleSSOAttrNamePrefix + "1",
+					Name: fleetUserRoleSSOAttrNamePrefix + "1",
 					Values: []SAMLAttributeValue{
 						{Value: "null"},
 					},
@@ -335,7 +335,7 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 			name: "whitespace-only-on-team-is-ignored",
 			attributes: []SAMLAttribute{
 				{
-					Name: teamUserRoleSSOAttrNamePrefix + "1",
+					Name: fleetUserRoleSSOAttrNamePrefix + "1",
 					Values: []SAMLAttributeValue{
 						{Value: "   "},
 					},
@@ -343,7 +343,7 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 			},
 			shouldFail:           false,
 			expectedSSORolesInfo: SSORolesInfo{},
-			expectedCoerced:      []string{teamUserRoleSSOAttrNamePrefix + "1"},
+			expectedCoerced:      []string{fleetUserRoleSSOAttrNamePrefix + "1"},
 		},
 		{
 			name: "empty-team-attribute-alongside-set-global-attribute",
@@ -355,11 +355,11 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 					},
 				},
 				{
-					Name:   teamUserRoleSSOAttrNamePrefix + "1",
+					Name:   fleetUserRoleSSOAttrNamePrefix + "1",
 					Values: []SAMLAttributeValue{},
 				},
 				{
-					Name: teamUserRoleSSOAttrNamePrefix + "2",
+					Name: fleetUserRoleSSOAttrNamePrefix + "2",
 					Values: []SAMLAttributeValue{
 						{Value: ""},
 					},
@@ -370,23 +370,9 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 				Global: ptr.String("admin"),
 			},
 			expectedCoerced: []string{
-				teamUserRoleSSOAttrNamePrefix + "1",
-				teamUserRoleSSOAttrNamePrefix + "2",
+				fleetUserRoleSSOAttrNamePrefix + "1",
+				fleetUserRoleSSOAttrNamePrefix + "2",
 			},
-		},
-		{
-			name: "v2-prefix-empty-value-ignored",
-			attributes: []SAMLAttribute{
-				{
-					Name: "FLEET_JIT_USER_ROLE_FLEET_1",
-					Values: []SAMLAttributeValue{
-						{Value: ""},
-					},
-				},
-			},
-			shouldFail:           false,
-			expectedSSORolesInfo: SSORolesInfo{},
-			expectedCoerced:      []string{"FLEET_JIT_USER_ROLE_FLEET_1"},
 		},
 		{
 			// Locks in "last value wins" semantics even when the last value is
@@ -395,7 +381,7 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 			name: "multi-value-last-empty-ignored",
 			attributes: []SAMLAttribute{
 				{
-					Name: teamUserRoleSSOAttrNamePrefix + "1",
+					Name: fleetUserRoleSSOAttrNamePrefix + "1",
 					Values: []SAMLAttributeValue{
 						{Value: "admin"},
 						{Value: ""},
@@ -404,7 +390,7 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 			},
 			shouldFail:           false,
 			expectedSSORolesInfo: SSORolesInfo{},
-			expectedCoerced:      []string{teamUserRoleSSOAttrNamePrefix + "1"},
+			expectedCoerced:      []string{fleetUserRoleSSOAttrNamePrefix + "1"},
 		},
 		{
 			// Whitespace around a valid role is NOT trimmed for validation;
@@ -440,7 +426,7 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 			name: "team-technician",
 			attributes: []SAMLAttribute{
 				{
-					Name: teamUserRoleSSOAttrNamePrefix + "3",
+					Name: fleetUserRoleSSOAttrNamePrefix + "3",
 					Values: []SAMLAttributeValue{
 						{Value: "technician"},
 					},
@@ -457,16 +443,22 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 			},
 		},
 		{
-			name: "v2-prefix-all-teams",
+			name: "legacy-team-prefix-is-ignored",
 			attributes: []SAMLAttribute{
 				{
-					Name: "FLEET_JIT_USER_ROLE_FLEET_1",
+					Name: "FLEET_JIT_USER_ROLE_TEAM_1",
 					Values: []SAMLAttributeValue{
 						{Value: "observer"},
 					},
 				},
 				{
-					Name: "FLEET_JIT_USER_ROLE_FLEET_2",
+					Name: "FLEET_JIT_USER_ROLE_TEAM_foo",
+					Values: []SAMLAttributeValue{
+						{Value: "not-a-role"},
+					},
+				},
+				{
+					Name: fleetUserRoleSSOAttrNamePrefix + "2",
 					Values: []SAMLAttributeValue{
 						{Value: "admin"},
 					},
@@ -476,106 +468,6 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 			expectedSSORolesInfo: SSORolesInfo{
 				Global: nil,
 				Teams: []TeamRole{
-					{
-						ID:   1,
-						Role: "observer",
-					},
-					{
-						ID:   2,
-						Role: "admin",
-					},
-				},
-			},
-		},
-		{
-			name: "v2-prefix-global-and-team",
-			attributes: []SAMLAttribute{
-				{
-					Name: globalUserRoleSSOAttrName,
-					Values: []SAMLAttributeValue{
-						{Value: "admin"},
-					},
-				},
-				{
-					Name: "FLEET_JIT_USER_ROLE_FLEET_5",
-					Values: []SAMLAttributeValue{
-						{Value: "observer"},
-					},
-				},
-			},
-			shouldFail:           true,
-			expectedSSORolesInfo: SSORolesInfo{},
-		},
-		{
-			name: "v2-prefix-invalid-team-id",
-			attributes: []SAMLAttribute{
-				{
-					Name: "FLEET_JIT_USER_ROLE_FLEET_foo",
-					Values: []SAMLAttributeValue{
-						{Value: "observer"},
-					},
-				},
-			},
-			shouldFail:           true,
-			expectedSSORolesInfo: SSORolesInfo{},
-		},
-		{
-			name: "v2-prefix-null-value-ignored",
-			attributes: []SAMLAttribute{
-				{
-					Name: "FLEET_JIT_USER_ROLE_FLEET_1",
-					Values: []SAMLAttributeValue{
-						{Value: "null"},
-					},
-				},
-			},
-			shouldFail:           false,
-			expectedSSORolesInfo: SSORolesInfo{},
-		},
-		{
-			name: "v2-prefix-team-technician",
-			attributes: []SAMLAttribute{
-				{
-					Name: "FLEET_JIT_USER_ROLE_FLEET_3",
-					Values: []SAMLAttributeValue{
-						{Value: "technician"},
-					},
-				},
-			},
-			shouldFail: false,
-			expectedSSORolesInfo: SSORolesInfo{
-				Teams: []TeamRole{
-					{
-						ID:   3,
-						Role: "technician",
-					},
-				},
-			},
-		},
-		{
-			name: "mixed-v1-and-v2-prefixes",
-			attributes: []SAMLAttribute{
-				{
-					Name: teamUserRoleSSOAttrNamePrefix + "1",
-					Values: []SAMLAttributeValue{
-						{Value: "observer"},
-					},
-				},
-				{
-					Name: "FLEET_JIT_USER_ROLE_FLEET_2",
-					Values: []SAMLAttributeValue{
-						{Value: "admin"},
-					},
-				},
-			},
-			shouldFail: false,
-			expectedSSORolesInfo: SSORolesInfo{
-				Global: nil,
-				Teams: []TeamRole{
-					{
-						ID:   1,
-						Role: "observer",
-					},
 					{
 						ID:   2,
 						Role: "admin",
@@ -599,7 +491,7 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 			name: "team-gitops-not-supported-for-jit",
 			attributes: []SAMLAttribute{
 				{
-					Name: teamUserRoleSSOAttrNamePrefix + "1",
+					Name: fleetUserRoleSSOAttrNamePrefix + "1",
 					Values: []SAMLAttributeValue{
 						{Value: "gitops"},
 					},

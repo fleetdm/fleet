@@ -132,7 +132,7 @@ func TestUploadBootstrapPackageIfNeededReplacesWithoutDelete(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			calls = append(calls, r.Method+" "+r.URL.Path)
 			switch r.URL.Path {
-			case "/api/latest/fleet/mdm/bootstrap/3/metadata":
+			case "/api/latest/fleet/bootstrap/3/metadata":
 				_ = json.NewEncoder(w).Encode(map[string]any{"name": "old.pkg", "sha256": []byte("old")})
 			case "/api/latest/fleet/config":
 				_ = json.NewEncoder(w).Encode(map[string]any{"staged_upload_available": true})
@@ -154,7 +154,7 @@ func TestUploadBootstrapPackageIfNeededReplacesWithoutDelete(t *testing.T) {
 		if putStatus == http.StatusOK {
 			require.NoError(t, err)
 			require.Equal(t, []string{
-				"GET /api/latest/fleet/mdm/bootstrap/3/metadata",
+				"GET /api/latest/fleet/bootstrap/3/metadata",
 				"GET /api/latest/fleet/config",
 				"POST /api/latest/fleet/staged_upload",
 				"PUT /object-store",
@@ -162,7 +162,7 @@ func TestUploadBootstrapPackageIfNeededReplacesWithoutDelete(t *testing.T) {
 			}, calls)
 		} else {
 			require.Error(t, err)
-			require.NotContains(t, calls, "DELETE /api/latest/fleet/mdm/bootstrap/3")
+			require.NotContains(t, calls, "DELETE /api/latest/fleet/bootstrap/3")
 		}
 	}
 }
@@ -172,7 +172,7 @@ func TestUploadBootstrapPackageIfNeededFailedRegisterKeepsExisting(t *testing.T)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls = append(calls, r.Method+" "+r.URL.Path)
 		switch r.URL.Path {
-		case "/api/latest/fleet/mdm/bootstrap/3/metadata":
+		case "/api/latest/fleet/bootstrap/3/metadata":
 			_ = json.NewEncoder(w).Encode(map[string]any{"name": "old.pkg", "sha256": []byte("old")})
 		case "/api/latest/fleet/config":
 			_ = json.NewEncoder(w).Encode(map[string]any{"staged_upload_available": false})
@@ -192,7 +192,7 @@ func TestUploadBootstrapPackageIfNeededFailedRegisterKeepsExisting(t *testing.T)
 	err = client.UploadBootstrapPackageIfNeeded(&fleet.MDMAppleBootstrapPackage{Name: "b.pkg", Bytes: []byte("pkg"), Sha256: []byte("new")}, 3, false)
 	require.Error(t, err)
 	require.Contains(t, calls, "POST /api/latest/fleet/bootstrap")
-	require.NotContains(t, calls, "DELETE /api/latest/fleet/mdm/bootstrap/3")
+	require.NotContains(t, calls, "DELETE /api/latest/fleet/bootstrap/3")
 }
 
 func TestGitOpsWindowsEULAWaitsForWindowsMDMToSettle(t *testing.T) {
