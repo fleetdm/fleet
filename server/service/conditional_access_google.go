@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"reflect"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
@@ -15,10 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_google"
 )
-
-// googleConditionalAccessKeyRequired is the error message of an integration turned on
-// before its service account key was uploaded.
-const googleConditionalAccessKeyRequired = "A service account key is required. Upload it in Settings > Integrations > Conditional access."
 
 const missingServerPrivateKeyMessage = "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key"
 
@@ -106,7 +103,7 @@ func (svc *Service) ConnectGoogleConditionalAccess(ctx context.Context, customer
 	if err != nil {
 		return err
 	}
-	keyChanged := !bytes.Equal(storedKey, serviceAccountKey)
+	keyChanged := !sameGoogleServiceAccountKey(storedKey, serviceAccountKey)
 	if !keyChanged && googleConditionalAccessConnected(existing, settings) {
 		return svc.saveGoogleConditionalAccessSettings(ctx, appConfig, settings)
 	}
@@ -123,11 +120,8 @@ func (svc *Service) ConnectGoogleConditionalAccess(ctx context.Context, customer
 	// Saved before registering, so a failed registration is retried by the next config
 	// update.
 	if keyChanged {
-		if err := svc.ds.ReplaceMDMConfigAssets(ctx, []fleet.MDMConfigAsset{{
-			Name:  fleet.MDMAssetGoogleConditionalAccessServiceAccountKey,
-			Value: serviceAccountKey,
-		}}, nil); err != nil {
-			return ctxerr.Wrap(ctx, err, "store google conditional access service account key")
+		if err := svc.storeGoogleConditionalAccessKey(ctx, serviceAccountKey); err != nil {
+			return err
 		}
 	}
 	if err := svc.saveGoogleConditionalAccessSettings(ctx, appConfig, settings); err != nil {
@@ -265,7 +259,6 @@ type googleConditionalAccessAction int
 const (
 	googleConditionalAccessNoop googleConditionalAccessAction = iota
 	googleConditionalAccessConnect
-	googleConditionalAccessKeyMissing
 	googleConditionalAccessRemove
 )
 
@@ -277,6 +270,8 @@ type googleConditionalAccessPlan struct {
 	settings fleet.GoogleConditionalAccessIntegration
 	existing *fleet.ConditionalAccessGoogleIntegration
 	key      []byte
+	// storeKey is set when key came with the update and replaces the stored key.
+	storeKey bool
 	// oldServerURL is the server URL before the update, which an existing registration was
 	// made with, so it is used to leave or remove it. serverURL is the server URL after the
 	// update, used to register.
@@ -297,7 +292,7 @@ type googleConditionalAccessPlan struct {
 // read when it is off before and after the update.
 func (svc *Service) planGoogleConditionalAccess(
 	ctx context.Context, oldSettings, settings *fleet.GoogleConditionalAccessIntegration, requested bool,
-	oldServerURL, serverURL string,
+	newKey []byte, oldServerURL, serverURL string,
 ) (*googleConditionalAccessPlan, error) {
 	if !requested || (oldSettings == nil && settings == nil) {
 		return nil, nil
@@ -318,20 +313,29 @@ func (svc *Service) planGoogleConditionalAccess(
 	}
 	plan.settings = *settings
 
-	if googleConditionalAccessConnected(existing, *settings) {
+	if newKey == nil && googleConditionalAccessConnected(existing, *settings) {
 		return plan, nil
 	}
 	key, err := svc.googleConditionalAccessKey(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if len(key) == 0 {
-		// A deleted integration's key is gone, so adding it back needs a new upload.
-		if existing == nil || existing.State == fleet.ConditionalAccessGoogleStateDeleted ||
-			existing.CustomerID != settings.CustomerID || existing.AdminEmail != settings.AdminEmail {
-			plan.action = googleConditionalAccessKeyMissing
+	if newKey != nil {
+		if sameGoogleServiceAccountKey(key, newKey) {
+			if googleConditionalAccessConnected(existing, *settings) {
+				return plan, nil
+			}
+		} else {
+			plan.action = googleConditionalAccessConnect
+			plan.key = newKey
+			plan.storeKey = true
+			return plan, nil
 		}
-		return plan, nil
+	}
+	if len(key) == 0 {
+		// Removing the integration deletes its key, so adding it back needs a key too.
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("integrations.google_conditional_access.api_key_json",
+			"api_key_json is required because no service account key is stored"))
 	}
 	plan.action = googleConditionalAccessConnect
 	plan.key = key
@@ -358,23 +362,16 @@ func (svc *Service) verifyGoogleConditionalAccessPlan(ctx context.Context, plan 
 // Nothing it does needs a new key upload to undo if the save then fails, which is why
 // removal waits for finishGoogleConditionalAccessPlan.
 func (svc *Service) applyGoogleConditionalAccessPlan(ctx context.Context, plan *googleConditionalAccessPlan) error {
-	if plan == nil {
+	if plan == nil || plan.action != googleConditionalAccessConnect || plan.retry {
 		return nil
 	}
 	ctx = ctxdb.RequirePrimary(ctx, true)
-	switch plan.action {
-	case googleConditionalAccessConnect:
-		if plan.retry {
-			return nil
-		}
-		return svc.leaveChangedGoogleConditionalAccessCustomer(ctx, plan)
-	case googleConditionalAccessKeyMissing:
-		// The previous customer's registration is dropped: the new row can't keep its secret.
-		if err := svc.leaveChangedGoogleConditionalAccessCustomer(ctx, plan); err != nil {
-			return err
-		}
-		return svc.saveGoogleConditionalAccessRow(ctx, plan.settings, plan.existing,
-			fleet.ConditionalAccessGoogleStateKeyRequired, new(googleConditionalAccessKeyRequired))
+	if err := svc.leaveChangedGoogleConditionalAccessCustomer(ctx, plan); err != nil {
+		return err
+	}
+	if plan.storeKey {
+		// Stored before registering, so a failed registration is retried with this key.
+		return svc.storeGoogleConditionalAccessKey(ctx, plan.key)
 	}
 	return nil
 }
@@ -428,6 +425,23 @@ func (svc *Service) leaveChangedGoogleConditionalAccessCustomer(ctx context.Cont
 	}
 	plan.existing = nil
 	return nil
+}
+
+// takeGoogleConditionalAccessKey clears the key from the settings, since it is stored in
+// mdm_config_assets and never with the app config, and returns it when one was given.
+func (svc *Service) takeGoogleConditionalAccessKey(gca *fleet.GoogleConditionalAccessIntegration, invalid *fleet.InvalidArgumentError) []byte {
+	if gca == nil {
+		return nil
+	}
+	key := gca.APIKeyJSON
+	gca.APIKeyJSON = ""
+	if !key.Provided() {
+		return nil
+	}
+	if svc.config.Server.PrivateKey == "" || testSetEmptyPrivateKey {
+		invalid.Append("integrations.google_conditional_access.api_key_json", missingServerPrivateKeyMessage)
+	}
+	return []byte(key)
 }
 
 // GoogleConditionalAccessClient holds the fleetdm.com relay and the Cloud Identity
@@ -515,9 +529,7 @@ func (svc *Service) registerGoogleConditionalAccess(
 		if err := svc.saveGoogleConditionalAccessRow(ctx, settings, existing, fleet.ConditionalAccessGoogleStateConnected, nil); err != nil {
 			return err
 		}
-		// key_required with a registration only follows a re-add of a deleted integration
-		// through the config.
-		if existing.State == fleet.ConditionalAccessGoogleStateDeleted || existing.State == fleet.ConditionalAccessGoogleStateKeyRequired {
+		if existing.State == fleet.ConditionalAccessGoogleStateDeleted {
 			return svc.newGoogleConditionalAccessAddedActivity(ctx)
 		}
 		return nil
@@ -650,4 +662,24 @@ func (svc *Service) googleConditionalAccessKey(ctx context.Context) ([]byte, err
 		return nil, ctxerr.Wrap(ctx, err, "load google conditional access service account key")
 	}
 	return assets[fleet.MDMAssetGoogleConditionalAccessServiceAccountKey].Value, nil
+}
+
+func (svc *Service) storeGoogleConditionalAccessKey(ctx context.Context, key []byte) error {
+	if err := svc.ds.ReplaceMDMConfigAssets(ctx, []fleet.MDMConfigAsset{{
+		Name:  fleet.MDMAssetGoogleConditionalAccessServiceAccountKey,
+		Value: key,
+	}}, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "store google conditional access service account key")
+	}
+	return nil
+}
+
+// sameGoogleServiceAccountKey compares the keys as JSON, so a GitOps run that resends the
+// stored key with different formatting changes nothing.
+func sameGoogleServiceAccountKey(a, b []byte) bool {
+	var av, bv map[string]any
+	if json.Unmarshal(a, &av) != nil || json.Unmarshal(b, &bv) != nil {
+		return bytes.Equal(a, b)
+	}
+	return reflect.DeepEqual(av, bv)
 }

@@ -177,6 +177,10 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		return nil, err
 	}
 	appConfig.ConditionalAccess.Google = googleStatus
+	// The key lives in mdm_config_assets, so show it masked whenever one is stored.
+	if gca := appConfig.Integrations.GoogleConditionalAccess; gca != nil && googleStatus != nil && googleStatus.ServiceAccountKeyConfigured {
+		gca.APIKeyJSON = fleet.MaskedPassword
+	}
 
 	isGlobalAdmin := vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleAdmin
 	isAnyTeamAdmin := false
@@ -1166,6 +1170,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	fleet.ValidateGoogleCalendarIntegrations(appConfig.Integrations.GoogleCalendar, invalid)
 	fleet.ValidateGoogleWorkspaceIntegrations(appConfig.Integrations.GoogleWorkspace, invalid)
 	fleet.ValidateGoogleConditionalAccessIntegration(appConfig.Integrations.GoogleConditionalAccess, invalid)
+	gcaKey := svc.takeGoogleConditionalAccessKey(appConfig.Integrations.GoogleConditionalAccess, invalid)
 	fleet.ValidateCertIdPIntrospectionAllowlists(&appConfig.Integrations, invalid)
 	fleet.ValidateEnabledVulnerabilitiesIntegrations(appConfig.WebhookSettings.VulnerabilitiesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledFailingPoliciesIntegrations(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations, invalid)
@@ -1234,7 +1239,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	var gcaPlan *googleConditionalAccessPlan
 	if lic.IsPremium() {
 		gcaPlan, err = svc.planGoogleConditionalAccess(ctx, oldGoogleConditionalAccess, appConfig.Integrations.GoogleConditionalAccess,
-			newAppConfig.Integrations.GoogleConditionalAccess != nil || gcaCleared, oldServerURL, appConfig.ServerSettings.ServerURL)
+			newAppConfig.Integrations.GoogleConditionalAccess != nil || gcaCleared, gcaKey, oldServerURL, appConfig.ServerSettings.ServerURL)
 		if err != nil {
 			return nil, err
 		}

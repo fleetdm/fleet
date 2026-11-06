@@ -332,8 +332,7 @@ org_settings:
 
 func TestGitOpsGlobalGoogleConditionalAccessTurnedOff(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables.
-	// An absent or null google_conditional_access turns the integration off, since the
-	// service account key is never in YAML.
+	// An absent or null google_conditional_access turns the integration off.
 	cases := []struct {
 		name         string
 		integrations string
