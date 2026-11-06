@@ -4561,7 +4561,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationRunCountsAfterClean
 	require.Equal(t, 4, rows)
 
 	// turn on host expiry for the fleet and set a host's last seen time to 3 days ago
-	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID),
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID),
 		json.RawMessage(`{"host_expiry_settings": {"host_expiry_enabled": true, "host_expiry_window": 1}}`), http.StatusOK)
 	execSQL(`UPDATE host_seen_times SET seen_time = ? WHERE host_id = ?`, threeDaysAgo, expiredHost.ID)
 	// clean up expired hosts like the cron does, the host's run should be gone from both
