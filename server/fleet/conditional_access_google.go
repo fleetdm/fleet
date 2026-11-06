@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"net/mail"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // GoogleConditionalAccessIntegration is the app config part of the integration.
@@ -141,3 +143,101 @@ func (g *GoogleConditionalAccessIntegration) Validate(invalid *InvalidArgumentEr
 		}
 	}
 }
+
+// GoogleConditionalAccessDeviceUserState is the marking state of a stored DeviceUser.
+type GoogleConditionalAccessDeviceUserState string
+
+const (
+	// GoogleConditionalAccessDeviceUserPending is stored but not yet marked MANAGED.
+	GoogleConditionalAccessDeviceUserPending GoogleConditionalAccessDeviceUserState = "pending"
+	GoogleConditionalAccessDeviceUserManaged GoogleConditionalAccessDeviceUserState = "managed"
+	// GoogleConditionalAccessDeviceUserStale is a name Google refused (404 or 403). It
+	// doesn't count as registered, so the host signs in again on the next open.
+	GoogleConditionalAccessDeviceUserStale GoogleConditionalAccessDeviceUserState = "stale"
+	// GoogleConditionalAccessDeviceUserUnmanaging is queued for the UNMANAGED write.
+	GoogleConditionalAccessDeviceUserUnmanaging GoogleConditionalAccessDeviceUserState = "unmanaging"
+)
+
+const (
+	// GoogleConditionalAccessMaxRegistrationAttempts is how many sign-ins a host can
+	// start without a register call within GoogleConditionalAccessRegistrationWindow.
+	GoogleConditionalAccessMaxRegistrationAttempts = 3
+	GoogleConditionalAccessRegistrationWindow      = 24 * time.Hour
+)
+
+// GoogleConditionalAccessDeviceUser is a Google DeviceUser resource name stored on a host.
+type GoogleConditionalAccessDeviceUser struct {
+	HostUUID     string                                 `db:"host_uuid" json:"-"`
+	Name         string                                 `db:"device_user_name" json:"name"`
+	State        GoogleConditionalAccessDeviceUserState `db:"state" json:"state"`
+	ErrorMessage *string                                `db:"error_message" json:"error_message"`
+	UpdatedAt    time.Time                              `db:"updated_at" json:"updated_at"`
+}
+
+// GoogleConditionalAccessDevice is a host's registration row with its DeviceUsers.
+type GoogleConditionalAccessDevice struct {
+	HostUUID                   string     `db:"host_uuid"`
+	CustomerID                 string     `db:"customer_id"`
+	RegistrationAttempts       uint       `db:"registration_attempts"`
+	FirstRegistrationAttemptAt *time.Time `db:"first_registration_attempt_at"`
+	DeviceUsers                []GoogleConditionalAccessDeviceUser
+}
+
+// Registered reports whether the host has a name that is marked or waiting to be.
+func (d *GoogleConditionalAccessDevice) Registered() bool {
+	if d == nil {
+		return false
+	}
+	for _, du := range d.DeviceUsers {
+		if du.State == GoogleConditionalAccessDeviceUserPending || du.State == GoogleConditionalAccessDeviceUserManaged {
+			return true
+		}
+	}
+	return false
+}
+
+// Managed reports whether the host is registered and every name it is registered with
+// is marked MANAGED.
+func (d *GoogleConditionalAccessDevice) Managed() bool {
+	if d == nil || !d.Registered() {
+		return false
+	}
+	for _, du := range d.DeviceUsers {
+		if du.State == GoogleConditionalAccessDeviceUserPending {
+			return false
+		}
+	}
+	return true
+}
+
+// GoogleConditionalAccessDeviceUserFilter selects DeviceUsers for the sync cron.
+type GoogleConditionalAccessDeviceUserFilter struct {
+	CustomerID string
+	States     []GoogleConditionalAccessDeviceUserState
+	// HostExists skips names whose host was deleted.
+	HostExists bool
+	// AfterName pages through the names in order.
+	AfterName string
+	Limit     int
+}
+
+// GoogleConditionalAccessBookmarkHost is a host with a Google device ID from the
+// bookmark flow and no stored DeviceUsers.
+type GoogleConditionalAccessBookmarkHost struct {
+	HostUUID       string `db:"host_uuid"`
+	GoogleDeviceID string `db:"google_device_id"`
+}
+
+// GoogleConditionalAccessDeviceUserConflictError is returned when a DeviceUser is
+// already stored on another host.
+type GoogleConditionalAccessDeviceUserConflictError struct {
+	Name string
+}
+
+func (e *GoogleConditionalAccessDeviceUserConflictError) Error() string {
+	return "This Google device user is already registered to another host."
+}
+
+func (e *GoogleConditionalAccessDeviceUserConflictError) Status() int { return http.StatusConflict }
+
+func (e *GoogleConditionalAccessDeviceUserConflictError) IsClientError() bool { return true }

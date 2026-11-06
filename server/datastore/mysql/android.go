@@ -683,7 +683,16 @@ UPDATE host_mdm
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete certificate templates for unenrolled android hosts in bulk")
 	}
-	return nil
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var uuids []string
+		if err := sqlx.SelectContext(ctx, tx, &uuids, `
+			SELECT d.host_uuid FROM google_conditional_access_devices d
+			JOIN hosts h ON h.uuid = d.host_uuid
+			WHERE h.platform = 'android'`); err != nil {
+			return ctxerr.Wrap(ctx, err, "select google conditional access rows of android hosts")
+		}
+		return queueGoogleConditionalAccessUnmanageDB(ctx, tx, uuids)
+	})
 }
 
 // SetAndroidHostUnenrolled sets a single android host to unenrolled in host_mdm and OS settings records
@@ -718,6 +727,9 @@ UPDATE host_mdm
 			_, err = tx.ExecContext(ctx, `DELETE FROM host_certificate_templates WHERE host_uuid = ?`, hostUUID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "delete certificate templates for unenrolled android host")
+			}
+			if err := queueGoogleConditionalAccessUnmanageDB(ctx, tx, []string{hostUUID}); err != nil {
+				return err
 			}
 		}
 		return nil
