@@ -3,7 +3,7 @@
 #
 # Removes the machine-wide install and any copy that earlier versions of the
 # install script left in the SYSTEM account's profile. If the uninstaller is
-# missing or fails, removes the registration, shortcuts and folder itself.
+# missing or fails, removes the Stretchly folder and then the registration.
 
 $displayName = "Stretchly"
 $publisher = "Jan Hovancik"
@@ -54,19 +54,19 @@ function Remove-Entry {
         $arguments = $matches[2].Trim()
     }
 
-    $installDir = if ($exePath) { Split-Path $exePath -Parent } else { $null }
     # A copy installed into SYSTEM's profile by the 32-bit installer is under
     # SysWOW64, but its registration names system32.
-    if ($installDir -and -not (Test-Path -LiteralPath $installDir)) {
-        $redirected = $installDir -replace '(?i)\\system32\\', '\SysWOW64\'
-        if (Test-Path -LiteralPath $redirected) {
-            $installDir = $redirected
-            $exePath = Join-Path $installDir (Split-Path $exePath -Leaf)
+    if ($exePath -and -not (Test-Path -LiteralPath $exePath -PathType Leaf)) {
+        $redirected = $exePath -replace '(?i)\\system32\\', '\SysWOW64\'
+        if ($redirected -ne $exePath -and (Test-Path -LiteralPath (Split-Path $redirected -Parent))) {
+            $exePath = $redirected
         }
     }
+    $installDir = if ($exePath) { Split-Path $exePath -Parent } else { $null }
+    $appDir = if ($installDir -and (Split-Path $installDir -Leaf) -eq $installDirName) { $installDir } else { $null }
 
     if ($exePath -and (Test-Path -LiteralPath $exePath -PathType Leaf)) {
-        Stop-InstallDirProcesses $installDir
+        if ($appDir) { Stop-InstallDirProcesses $appDir }
         if ($arguments -notmatch '(?i)(^|\s)/S($|\s)') { $arguments = "$arguments /S".Trim() }
         # _?= runs the uninstaller in place, so this waits for it to finish.
         $arguments = "$arguments _?=$installDir"
@@ -82,24 +82,31 @@ function Remove-Entry {
         Write-Host "Uninstaller not found."
     }
 
-    if (Test-Path -LiteralPath $Entry.KeyPath) {
-        Write-Host "$displayName is still registered; removing it manually."
-        if ($installDir) { Stop-InstallDirProcesses $installDir }
-        Remove-Item -LiteralPath $Entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
-        $shortcuts = @(
-            "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Stretchly.lnk",
-            "$env:PUBLIC\Desktop\Stretchly.lnk",
-            "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Stretchly.lnk",
-            "$env:USERPROFILE\Desktop\Stretchly.lnk"
-        )
-        foreach ($shortcut in $shortcuts) {
-            $redirected = $shortcut -replace '(?i)\\system32\\', '\SysWOW64\'
-            Remove-Item -LiteralPath $shortcut, $redirected -Force -ErrorAction SilentlyContinue
-        }
+    if ($appDir -and (Test-Path -LiteralPath $appDir)) {
+        Stop-InstallDirProcesses $appDir
+        Remove-Item -LiteralPath $appDir -Recurse -Force -ErrorAction SilentlyContinue
     }
 
-    if ($installDir -and (Split-Path $installDir -Leaf) -eq $installDirName -and (Test-Path -LiteralPath $installDir)) {
-        Remove-Item -LiteralPath $installDir -Recurse -Force -ErrorAction SilentlyContinue
+    if (Test-Path -LiteralPath $Entry.KeyPath) {
+        if ($installDir -and (Test-Path -LiteralPath $installDir)) {
+            Write-Host "Couldn't remove $installDir, so $displayName stays registered."
+        } else {
+            Write-Host "Removing the leftover registration."
+            Remove-Item -LiteralPath $Entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Remove-Shortcuts {
+    $shortcuts = @(
+        "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Stretchly.lnk",
+        "$env:PUBLIC\Desktop\Stretchly.lnk",
+        "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Stretchly.lnk",
+        "$env:USERPROFILE\Desktop\Stretchly.lnk"
+    )
+    foreach ($shortcut in $shortcuts) {
+        $redirected = $shortcut -replace '(?i)\\system32\\', '\SysWOW64\'
+        Remove-Item -LiteralPath $shortcut, $redirected -Force -ErrorAction SilentlyContinue
     }
 }
 
@@ -141,12 +148,12 @@ try {
         Remove-Entry $entry
     }
 
-    Remove-StretchlyFromPath
-
     if (@(Get-Entries).Count -gt 0) {
         Write-Host "$displayName is still registered after uninstall."
         $exitCode = 1
     } else {
+        Remove-Shortcuts
+        Remove-StretchlyFromPath
         Write-Host "$displayName is no longer present."
     }
 } catch {

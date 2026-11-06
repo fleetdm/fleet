@@ -2,14 +2,33 @@
 # http://fleetdm.com/learn-more-about/exe-install-scripts
 #
 # /allusers installs Stretchly machine-wide. Without it, the installer puts the
-# app in the SYSTEM account's profile, where no one can open it.
+# app in the SYSTEM account's profile, where no one can open it. The installer
+# removes a copy an earlier install left there; if that copy's uninstaller is
+# missing, the copy is removed here first.
 
 $exeFilePath = "${env:INSTALLER_PATH}"
+$legacyKey = 'Registry::HKEY_USERS\S-1-5-18\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\4f357cc2-fcfb-5fb1-89af-67446d29eff0'
 
 try {
     if (-not (Test-Path $exeFilePath)) {
         Write-Host "Error: Installer file not found at: $exeFilePath"
         Exit 1
+    }
+
+    $legacy = Get-ItemProperty -LiteralPath $legacyKey -ErrorAction SilentlyContinue
+    if ($legacy -and $legacy.UninstallString -match '^\s*"([^"]+)"') {
+        # The 32-bit installer wrote it under SysWOW64 but registered the system32 path.
+        $legacyExe = $matches[1] -replace '(?i)\\system32\\', '\SysWOW64\'
+        if (-not (Test-Path -LiteralPath $legacyExe -PathType Leaf)) {
+            $legacyDir = Split-Path $legacyExe -Parent
+            Write-Host "Removing the copy of Stretchly in $legacyDir"
+            if ((Split-Path $legacyDir -Leaf) -eq "Stretchly") {
+                Remove-Item -LiteralPath $legacyDir -Recurse -Force -ErrorAction SilentlyContinue
+            }
+            if (-not (Test-Path -LiteralPath $legacyDir)) {
+                Remove-Item -LiteralPath $legacyKey -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
     }
 
     $processOptions = @{
