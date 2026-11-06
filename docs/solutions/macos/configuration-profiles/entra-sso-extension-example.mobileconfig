@@ -5,6 +5,11 @@
 	<key>PayloadContent</key>
 	<array>
 		<dict>
+			<key>ExtensionData</key>
+			<dict>
+				<key>AppAllowList</key>
+				<string>com.fleetdm.orbit</string>
+			</dict>
 			<key>ExtensionIdentifier</key>
 			<string>com.microsoft.CompanyPortalMac.ssoextension</string>
 			<key>PayloadDisplayName</key>
