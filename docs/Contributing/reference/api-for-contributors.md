@@ -1615,6 +1615,8 @@ Creates and/or modifies the reports included in the list. To modify an existing 
 
 If a query field is not specified in the "spec" then its default value depending on its type will be assumed, e.g. if `interval` is not set then `0` will be assumed, if `discard_data` is omitted then `false` will be assumed, etc.
 
+Fleets can have labels with the same name. If a global report's `labels_include_any` or `labels_include_all` includes a name that labels on more than one fleet use, this endpoint returns `409`.
+
 `POST /api/v1/fleet/spec/queries`
 
 #### Parameters
@@ -1775,6 +1777,8 @@ Returns all packs in the Fleet instance.
 Creates and/or modifies the policies included in the list. To modify an existing policy, the name of the policy included in the list must already be used by an existing policy. If a policy with the specified name doesn't exist in Fleet, a new policy will be created.
 
 NOTE: when updating a policy, fleet and platform will be ignored.
+
+Fleets can have labels with the same name. If a global policy's label fields (`labels_include_any`, `labels_include_all`, `labels_exclude_any`, or `labels_exclude_all`) include a name that labels on more than one fleet use, this endpoint returns `409`.
 
 `POST /api/v1/fleet/spec/policies`
 
@@ -2217,9 +2221,11 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 | ----- | ---- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | team_id | int | query | The ID of the fleet to set labels to; omit to set global labels |
 | specs | object[] | body | A list of the label to apply. Each label requires the `name`, `query`, and `label_membership_type` properties |
-| names_to_move | string[] | body | A list of names of labels that are both in `specs` in the current request and already exist on other fleets. If the requesting user has permission to modify those labels, this endpoint will rename the specified labels so new labels on the correct fleet can be created. The request will fail with no changes if one or more of the specified labels cannot be moved. |
+| labels_to_move | object[] | body | Labels in `specs` whose names are moving between the global level and a fleet. Each object has a `name` and, when applying global labels, the `from_fleet_id` of the fleet the name is moving from. List a name once per fleet it's moving from. Omit `from_fleet_id` when applying a fleet's labels, since the name is moving from the global level. |
 
-The purpose of `names_to_move` is to allow a GitOps run to move a Fleet instance from having a label on one fleet (or global) to using that same label name on another fleet (or switching a fleet label to a global label). Once labels are created on the correct fleets, the old labels are cleaned up when GitOps is run on the old fleet via explicit `DELETE` calls.
+A global label and a fleet label can't have the same name. `labels_to_move` lets a GitOps run move a name across that boundary in one run: this endpoint renames the existing labels so the new ones can be created, and GitOps deletes the renamed labels at the end of the run.
+
+When applying global labels, only the listed fleets' labels are renamed. If another fleet has a label with one of the names, the request fails with `409` and no labels are renamed. Names with no label to rename are skipped, since an earlier request in the same GitOps run may already have renamed it.
 
 #### Example
 
@@ -2243,7 +2249,12 @@ The purpose of `names_to_move` is to allow a GitOps run to move a Fleet instance
       "hosts": ["C02XK1Z2JG5J"]
     }
   ],
-  "names_to_move": ["local_machine"]
+  "labels_to_move": [
+    {
+      "name": "local_machine",
+      "from_fleet_id": 2
+    }
+  ]
 }
 ```
 
@@ -2370,6 +2381,8 @@ Gets all labels visible to the currently logged-in user.
 ### Get label
 
 Returns the label specified by name if it exists and its fleet (if any) is accessible by the current user.
+
+Fleets can have labels with the same name. If the name matches labels on more than one fleet the user can access, this endpoint returns `409`.
 
 `GET /api/v1/fleet/spec/labels/{name}`
 
