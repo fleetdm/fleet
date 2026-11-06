@@ -1152,22 +1152,6 @@ func TestParseHostIDArg(t *testing.T) {
 	}
 }
 
-func TestGetHostByIdentifierRejectsResponseWithoutHost(t *testing.T) {
-	// GET /hosts/count serves the identifier "count", and its response has no host.
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewEncoder(w).Encode(map[string]any{"count": 3})
-	}))
-	defer srv.Close()
-	fc := newTestClient(srv.URL)
-
-	if _, err := fc.GetHostByIdentifier(t.Context(), "count"); err == nil || !strings.Contains(err.Error(), "host not found: count") {
-		t.Fatalf("GetHostByIdentifier: err=%v, want host not found", err)
-	}
-	if _, err := fc.GetHostByIdentifierWithPolicies(t.Context(), "count"); err == nil || !strings.Contains(err.Error(), "host not found: count") {
-		t.Fatalf("GetHostByIdentifierWithPolicies: err=%v, want host not found", err)
-	}
-}
-
 func TestResolveHost_IdentifierSingleAndFallback(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {

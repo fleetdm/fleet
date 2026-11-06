@@ -528,25 +528,31 @@ func TestGetHosts(t *testing.T) {
 	}
 
 	// these are run when host is specified `fleetctl get hosts --json test_host`
-	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
-		require.NotEmpty(t, identifier)
-		return &fleet.Host{
-			UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
-				CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Time{}},
-				UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Time{}},
-			},
-			HostSoftware: fleet.HostSoftware{
-				Software: []fleet.HostSoftwareEntry{},
-			},
-			DetailUpdatedAt: time.Time{},
-			LabelUpdatedAt:  time.Time{},
-			LastEnrolledAt:  time.Time{},
-			SeenTime:        time.Time{},
-			ComputerName:    "test_host",
-			Hostname:        "test_host",
-		}, nil
+	testHost := &fleet.Host{
+		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+			CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Time{}},
+			UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Time{}},
+		},
+		HostSoftware: fleet.HostSoftware{
+			Software: []fleet.HostSoftwareEntry{},
+		},
+		DetailUpdatedAt: time.Time{},
+		LabelUpdatedAt:  time.Time{},
+		LastEnrolledAt:  time.Time{},
+		SeenTime:        time.Time{},
+		ComputerName:    "test_host",
+		Hostname:        "test_host",
 	}
-	testing_utils.MockHostByIDOrIdentifier(ds)
+	ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+		require.NotEmpty(t, identifier)
+		return &fleet.HostLite{ID: testHost.ID}, nil
+	}
+	ds.HostFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+		return testHost, nil
+	}
+	ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostID uint) (time.Time, error) {
+		return time.Now(), nil
+	}
 
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 		return nil
