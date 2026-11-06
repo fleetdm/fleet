@@ -468,8 +468,9 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		// defers patching too.
 		out.Queries.Open = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier GLOB 'com.mindjet.mindmanager.[0-9][0-9]' AND a.bundle_executable != '');"
 	case "xquartz":
+		// The X11 launcher execs X11.sh, which execs the X server, X11.bin.
 		out.Queries.Open = fmt.Sprintf(
-			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier IN ('%s', '%s') AND a.bundle_executable != '');",
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path IN (concat(a.path, '/Contents/MacOS/', a.bundle_executable), concat(a.path, '/Contents/MacOS/X11.bin')) WHERE a.bundle_identifier IN ('%s', '%s') AND a.bundle_executable != '');",
 			out.UniqueIdentifier, xquartzLegacyBundleID,
 		)
 	case "chatgpt":

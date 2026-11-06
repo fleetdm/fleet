@@ -452,8 +452,9 @@ func TestIngestValidations(t *testing.T) {
 					out.Queries.Open,
 				)
 			case "xquartz":
+				// A running XQuartz is the X11.bin server, not the X11 launcher.
 				require.Equal(t,
-					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier IN ('org.xquartz.X11', 'org.macosforge.xquartz.X11') AND a.bundle_executable != '');",
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path IN (concat(a.path, '/Contents/MacOS/', a.bundle_executable), concat(a.path, '/Contents/MacOS/X11.bin')) WHERE a.bundle_identifier IN ('org.xquartz.X11', 'org.macosforge.xquartz.X11') AND a.bundle_executable != '');",
 					out.Queries.Open,
 				)
 			case "chatgpt":
