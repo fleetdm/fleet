@@ -138,7 +138,7 @@ func main() {
 	var sb strings.Builder
 	if existing, err := os.ReadFile(os.Args[2]); err == nil {
 		for line := range strings.Lines(string(existing)) {
-			line = strings.TrimRight(line, "\n")
+			line = strings.TrimSpace(line)
 			if pending[line] {
 				sb.WriteString(line + "\n")
 				delete(pending, line)
