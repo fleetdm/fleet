@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE (name = 'Visual Studio Professional 2022' OR name LIKE 'Visual Studio Professional 2022 (%') AND publisher = 'Microsoft Corporation';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE ((name = 'Visual Studio Professional 2022' OR name LIKE 'Visual Studio Professional 2022 (%') AND publisher = 'Microsoft Corporation') AND version_compare(version, '17.14.44') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'visual studio professional 2022.exe');"
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'devenv.exe');"
       },
       "installer_url": "https://download.visualstudio.microsoft.com/download/pr/6bd63d7f-1818-4e03-a552-9feb11496c19/4a59cc25d14a66a3fcb9bf767dbf695a86fda8df85b466b947f3fb543066c4d6/vs_Professional.exe",
       "install_script_ref": "d7f33fd3",
