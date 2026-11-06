@@ -34,14 +34,6 @@ func (c *Client) GetAppleMDM() (*fleet.AppleMDM, error) {
 	return responseBody.AppleMDM, err
 }
 
-// GetAppleBM retrieves the Apple Business information.
-func (c *Client) GetAppleBM() (*fleet.AppleBM, error) {
-	verb, path := "GET", "/api/latest/fleet/mdm/apple_bm"
-	var responseBody getAppleBMResponse
-	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, "")
-	return responseBody.AppleBM, err
-}
-
 // GetVPPTokens retrieves the List Volume Purchasing Program (VPP) tokens
 func (c *Client) GetVPPTokens() ([]*fleet.VPPTokenDB, error) {
 	verb, path := "GET", "/api/latest/fleet/vpp_tokens"
@@ -58,7 +50,7 @@ func (c *Client) CountABMTokens() (int, error) {
 }
 
 // ListABMTokens retrieves the ABM tokens with their default fleet assignments.
-func (c *Client) ListABMTokens() ([]*fleet.ABMToken, error) {
+func (c *Client) ListABTokens() ([]*fleet.ABMToken, error) {
 	verb, path := "GET", "/api/latest/fleet/ab_tokens"
 	var responseBody listABMTokensResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, "")
@@ -83,9 +75,9 @@ func (c *Client) RequestAppleCSR() ([]byte, error) {
 	return resp.CSR, err
 }
 
-// RequestAppleABM requests a signed CSR from the Fleet server and returns the
+// RequestAppleAB requests a signed CSR from the Fleet server and returns the
 // public key bytes
-func (c *Client) RequestAppleABM() ([]byte, error) {
+func (c *Client) RequestAppleAB() ([]byte, error) {
 	verb, path := "GET", "/api/latest/fleet/mdm/apple/ab_public_key"
 	var resp generateABMKeyPairResponse
 	err := c.authenticatedRequest(nil, verb, path, &resp)
@@ -182,7 +174,8 @@ func (c *Client) registerBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage, u
 
 	w.Close()
 
-	response, err := c.doContextWithBodyAndHeaders(context.Background(), verb, path, fmt.Sprintf("dry_run=%t", dryRun),
+	response, err := c.doContextWithBodyAndHeaders(
+		context.Background(), verb, path, fmt.Sprintf("dry_run=%t", dryRun),
 		b.Bytes(),
 		map[string]string{
 			"Content-Type":  w.FormDataContentType(),

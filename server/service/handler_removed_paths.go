@@ -21,6 +21,16 @@ var removedPathTemplates = []string{
 	"/api/_version_/fleet/mdm/apple/profiles/preassign",
 	"/api/_version_/fleet/mdm/apple/profiles/match",
 	"/api/_version_/fleet/hosts/{host_id}/configuration_profiles/resend/{profile_uuid}",
+	"/api/_version_/fleet/abm",
+	"/api/_version_/fleet/abm_tokens",
+	"/api/_version_/fleet/abm_tokens/count",
+	"/api/_version_/fleet/abm_tokens/{id}",
+	"/api/_version_/fleet/abm_tokens/{id}/renew",
+	"/api/_version_/fleet/ab_tokens/{id}/teams",
+	"/api/_version_/fleet/abm_tokens/{id}/fleets",
+	"/api/_version_/fleet/abm_tokens/{id}/teams",
+	"/api/_version_/fleet/mdm/apple_bm",
+	"/api/_version_/fleet/mdm/apple/abm_public_key",
 }
 
 // removedPathOverlaps has the removed paths that a stdlib ServeMux cannot register next to a live route.

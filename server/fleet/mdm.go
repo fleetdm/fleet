@@ -216,20 +216,6 @@ func (a AppleMDM) AuthzType() string {
 	return "mdm_apple"
 }
 
-type AppleBM struct {
-	AppleID      string    `json:"apple_id"`
-	OrgName      string    `json:"org_name"`
-	MDMServerURL string    `json:"mdm_server_url"`
-	RenewDate    time.Time `json:"renew_date"`
-	DefaultTeam  string    `json:"default_team" renameto:"default_fleet"`
-}
-
-func (a AppleBM) AuthzType() string {
-	return "mdm_apple"
-}
-
-// TODO: during API implementation, remove AppleBM above or reconciliate those
-// two types. We'll likely need a new authz type for the ABM token.
 type ABMToken struct {
 	ID               uint      `db:"id" json:"id"`
 	AppleID          string    `db:"apple_id" json:"apple_id"`
@@ -268,6 +254,10 @@ type ABMToken struct {
 	IOSTeam    ABMTokenTeam `json:"ios_team" renameto:"ios_fleet"`
 	IPadOSTeam ABMTokenTeam `json:"ipados_team" renameto:"ipados_fleet"`
 	BYODTeam   ABMTokenTeam `json:"byod_team" renameto:"byod_fleet"`
+}
+
+func (a ABMToken) AuthzType() string {
+	return "mdm_apple"
 }
 
 type ABMTokenTeam struct {

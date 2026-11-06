@@ -958,12 +958,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// Batch VPP Associations
 	ue.POST("/api/_version_/fleet/software/app_store_apps/batch", batchAssociateAppStoreAppsEndpoint, batchAssociateAppStoreAppsRequest{})
 
-	// Deprecated: GET /mdm/apple_bm is now deprecated, replaced by the
-	// GET /abm endpoint.
-	ue.GET("/api/_version_/fleet/mdm/apple_bm", getAppleBMEndpoint, nil)
-	// Deprecated: GET /abm is now deprecated, replaced by the GET /ab_tokens endpoint.
-	ue.GET("/api/_version_/fleet/abm", getAppleBMEndpoint, nil)
-
 	// Deprecated: POST /mdm/apple/profiles/batch is now deprecated, replaced by the
 	// platform-agnostic POST /mdm/profiles/batch. It is still supported
 	// indefinitely for backwards compatibility.
