@@ -173,7 +173,9 @@ To allow only specific extensions or force-install extensions, add `ExtensionIns
 
 Blocking an extension that's already installed disables it but leaves it on the host. It still appears in Fleet's software inventory, and it turns back on if you remove the blocklist. To uninstall an extension and stop users from installing it again, set its `installation_mode` to `removed` in the [`ExtensionSettings` policy](https://chromeenterprise.google/policies/extension-settings/).
 
-The files below work on their own or alongside the blocklist files. Set `ExtensionSettings` in only one profile per host on macOS and Windows, or one JSON file on Linux. If you already use it for other settings, such as `blocked_install_message`, add the `removed` entries there instead.
+The files below work on their own or alongside the blocklist files.
+
+> **Warning:** Set `ExtensionSettings` in only one profile per host on macOS and Windows, or one JSON file on Linux. A second profile or file that sets the same policy conflicts with the first. If you already use `ExtensionSettings` for other settings, such as `blocked_install_message`, add the `removed` entries there instead.
 
 ### macOS
 
@@ -279,9 +281,7 @@ chmod 644 /etc/opt/chrome/policies/managed/fleet-extension-removal.json
 2. In Fleet, go to **Controls > Scripts** and upload the script.
 3. Run the script on a host from its **Details** page, or [run it automatically](https://fleetdm.com/guides/policy-automation-run-script) on Linux hosts that fail a policy.
 
-To confirm the extension was removed from your hosts, run the [report in the Verify section](#verify) with `WHERE chrome_extensions.identifier = '<extension ID>'`. It should return no results.
-
-> **Note:** If Chrome sync is turned on and you later remove this policy, sync reinstalls the extension. To prevent this, also turn off extension sync with the [`SyncTypesListDisabled` policy](https://chromeenterprise.google/policies/#SyncTypesListDisabled).
+> **Note:** If Chrome sync is turned on and you later remove this policy, sync reinstalls the extension. To prevent this, also turn off extension sync by adding `extensions` to the [`SyncTypesListDisabled` policy](https://chromeenterprise.google/policies/#SyncTypesListDisabled).
 
 
 ## Manage with GitOps
@@ -313,7 +313,7 @@ policies:
 
 > **Note:** This policy only checks that the file exists. After you change the extension list, run the script again from each host's **Details** page.
 
-To also [remove installed extensions](#remove-installed-extensions), add the removal files next to your blocklist files:
+To also [remove installed extensions](#remove-installed-extensions), add the removal files next to your blocklist files. The policy that runs the Linux script requires Fleet Premium.
 
 ```yaml
 controls:
@@ -354,6 +354,7 @@ SELECT users.username, chrome_extensions.name, chrome_extensions.identifier
 FROM users
 CROSS JOIN chrome_extensions USING (uid);
 ```
+To confirm an extension was [removed](#remove-installed-extensions), add `WHERE chrome_extensions.identifier = '<extension ID>'` to the report. It should return no results.
 
 ## Troubleshoot
 
