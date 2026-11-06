@@ -117,7 +117,7 @@ var teamEntries = []Entry{
 	{Kind: KindFileName, Scope: ScopeRequest, Old: "no-team.yml", New: "unassigned.yml"},
 	{Kind: KindYAMLValue, Scope: ScopeRequest, Old: "name: No team", New: "name: Unassigned"},
 
-	// The SAML attribute that sets a user's role in a fleet during just-in-time provisioning. The server ignores it and logs this message.
+	// SAML attributes.
 	{Kind: KindSAMLAttribute, Scope: ScopeRequest, Old: "FLEET_JIT_USER_ROLE_TEAM_<ID>", New: "FLEET_JIT_USER_ROLE_FLEET_<ID>"},
 
 	// Spec kinds accepted by fleetctl apply.

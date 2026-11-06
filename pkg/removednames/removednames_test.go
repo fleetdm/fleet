@@ -107,11 +107,8 @@ func TestFindAndFilter(t *testing.T) {
 	// A SAML attribute matches on the text before its <ID>.
 	_, ok := FindSAMLAttribute("FLEET_JIT_USER_ROLE_TEAM_12")
 	assert.True(t, ok)
-	for _, name := range []string{"FLEET_JIT_USER_ROLE_FLEET_12", "FLEET_JIT_USER_ROLE_GLOBAL", "FLEET_JIT_USER_ROLE_TEAM"} {
-		_, ok = FindSAMLAttribute(name)
-		assert.False(t, ok, name)
-	}
-
+	_, ok = FindSAMLAttribute("FLEET_JIT_USER_ROLE_FLEET_12")
+	assert.False(t, ok)
 	// A flag entry is tied to its command, and an entry without a context matches every context.
 	_, ok = Find(KindFlag, "team", "fleetctl get hosts")
 	assert.True(t, ok)

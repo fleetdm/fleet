@@ -51,10 +51,7 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 			)
 		}
 		if len(ignoredAttrs) > 0 {
-			svc.logger.WarnContext(ctx,
-				removedSAMLAttributeMessage(ignoredAttrs),
-				"attributes", ignoredAttrs,
-			)
+			svc.logger.WarnContext(ctx, removedSAMLAttributeMessage(ignoredAttrs), "attributes", ignoredAttrs)
 		}
 		if !ssoRolesInfo.IsSet() {
 			// If role attributes were not set, then there's nothing to do here.
@@ -116,10 +113,7 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 		)
 	}
 	if len(ignoredAttrs) > 0 {
-		svc.logger.WarnContext(ctx,
-			removedSAMLAttributeMessage(ignoredAttrs),
-			"attributes", ignoredAttrs,
-		)
+		svc.logger.WarnContext(ctx, removedSAMLAttributeMessage(ignoredAttrs), "attributes", ignoredAttrs)
 	}
 	if ssoRolesInfo.IsSet() {
 		globalRole, teamRoles, err = svc.userRolesFromSSOAttributes(ctx, ssoRolesInfo)
