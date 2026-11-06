@@ -581,23 +581,9 @@ func (ds *Datastore) processSoftwareTitleResults(
 				appStoreAppTitleIDs = append(appStoreAppTitleIDs, title.ID)
 			}
 		}
-		var appStoreApps []fleet.VPPAppStoreApp
-		if len(appStoreAppTitleIDs) > 0 {
-			var appStoreAppsStmt string
-			var appStoreAppsArgs []any
-			appStoreAppsStmt, appStoreAppsArgs, err = sqlx.In(`
-SELECT vap.title_id, vat.id AS vpp_apps_teams_id, vat.name AS version_name, vat.adam_id, vat.platform, vap.latest_version, vat.self_service, vat.install_during_setup
-FROM vpp_apps vap
-INNER JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform
-WHERE vat.global_or_team_id = ? AND vap.title_id IN (?)
-ORDER BY vat.id`, *opt.TeamID, appStoreAppTitleIDs)
-			if err != nil {
-				return nil, 0, nil, ctxerr.Wrap(ctx, err, "build get app store apps for software titles")
-			}
-			err = sqlx.SelectContext(ctx, dbReader, &appStoreApps, appStoreAppsStmt, appStoreAppsArgs...)
-			if err != nil {
-				return nil, 0, nil, ctxerr.Wrap(ctx, err, "get app store apps for software titles")
-			}
+		appStoreApps, err := ds.getAppStoreAppVersionsForTitles(ctx, opt.TeamID, appStoreAppTitleIDs)
+		if err != nil {
+			return nil, 0, nil, ctxerr.Wrap(ctx, err, "get app store apps for software titles")
 		}
 		for _, appStoreApp := range appStoreApps {
 			title := softwareList[titleIndex[appStoreApp.TitleID]]
