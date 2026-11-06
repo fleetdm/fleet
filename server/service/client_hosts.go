@@ -24,13 +24,18 @@ func (c *Client) GetHost(id uint) (*fleet.HostDetailResponse, error) {
 	return responseBody.Host, err
 }
 
-// HostByIdentifier retrieves a host by the uuid, osquery_host_id, hostname, or
-// node_key.
+// HostByIdentifier retrieves a host by the host ID, hardware_serial, uuid, hostname, osquery_host_id, or node_key.
 func (c *Client) HostByIdentifier(identifier string) (*fleet.HostDetailResponse, error) {
-	verb, path := "GET", "/api/latest/fleet/hosts/identifier/"+identifier
+	verb, path := "GET", "/api/latest/fleet/hosts/"+identifier
 	var responseBody getHostResponse
-	err := c.authenticatedRequest(nil, verb, path, &responseBody)
-	return responseBody.Host, err
+	if err := c.authenticatedRequest(nil, verb, path, &responseBody); err != nil {
+		return nil, err
+	}
+	// An identifier that is also a literal route name, like "count", reaches that route instead, and its response has no host.
+	if responseBody.Host == nil {
+		return nil, &notFoundErr{Msg: fmt.Sprintf("host %q not found", identifier)}
+	}
+	return responseBody.Host, nil
 }
 
 func (c *Client) translateTransferHostsToIDs(hosts []string, label string, team string) ([]uint, uint, uint, error) {

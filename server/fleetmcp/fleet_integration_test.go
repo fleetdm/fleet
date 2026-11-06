@@ -1163,7 +1163,7 @@ func TestResolveHost_IdentifierSingleAndFallback(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(struct {
 				Hosts []Endpoint `json:"hosts"`
 			}{Hosts: hosts})
-		case r.URL.Path == "/api/v1/fleet/hosts/identifier/ghost":
+		case r.URL.Path == "/api/v1/fleet/hosts/ghost":
 			_ = json.NewEncoder(w).Encode(struct {
 				Host Endpoint `json:"host"`
 			}{Host: Endpoint{ID: 9, Name: "ghost.local"}})
@@ -1201,8 +1201,8 @@ func TestResolveHostWithUsers_SingleMatchAndFallback(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(struct {
 				Host HostWithUsers `json:"host"`
 			}{Host: HostWithUsers{Endpoint: Endpoint{ID: 5, Name: "solo.local"}, Users: []HostUser{{UID: 501, Username: "alice"}}}})
-		case "/api/v1/fleet/hosts/identifier/ghost":
-			// identifier endpoint resolves the host but carries NO users
+		case "/api/v1/fleet/hosts/ghost":
+			// the identifier lookup resolves the host but carries NO users
 			_ = json.NewEncoder(w).Encode(struct {
 				Host Endpoint `json:"host"`
 			}{Host: Endpoint{ID: 9, Name: "ghost.local"}})

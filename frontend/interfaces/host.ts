@@ -219,14 +219,14 @@ export interface IHostMdmData {
   encryption_key_available: boolean;
   /**
    * encryption_key_archived indicates where there is any archived key for the host. It is only
-   * populated for GET /hosts/:id and GET /hosts/identifiers/:identifier endpoints. It is not
-   * populated for list hosts or other hosts endpoints.
+   * populated for the GET /hosts/:id endpoint. It is not populated for list hosts or other hosts
+   * endpoints.
    */
   encryption_key_archived?: boolean;
   /**
    * bootstrap_token_escrowed indicates whether Fleet has escrowed a bootstrap token for
    * the macOS host. Only applicable to macOS hosts. It is only populated for
-   * GET /hosts/:id and GET /hosts/identifiers/:identifier endpoints.
+   * the GET /hosts/:id endpoint.
    */
   bootstrap_token_escrowed?: boolean;
   enrollment_status: MdmEnrollmentStatus | null;
