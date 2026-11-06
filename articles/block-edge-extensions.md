@@ -173,7 +173,9 @@ To allow only specific extensions or force-install extensions, add `ExtensionIns
 
 Blocking an extension that's already installed disables it but leaves it on the host. It still appears in Fleet's software inventory, and it turns back on if you remove the blocklist. To uninstall an extension and stop users from installing it again, set its `installation_mode` to `removed` in the [`ExtensionSettings` policy](https://learn.microsoft.com/en-us/deployedge/microsoft-edge-manage-extensions-ref-guide).
 
-The files below work on their own or alongside the blocklist files. Set `ExtensionSettings` in only one profile per host on macOS and Windows, or one JSON file on Linux. If you already use it for other settings, such as `blocked_install_message`, add the `removed` entries there instead.
+The files below work on their own or alongside the blocklist files.
+
+> **Warning:** Set `ExtensionSettings` in only one profile per host on macOS and Windows, or one JSON file on Linux. A second profile or file that sets the same policy conflicts with the first. If you already use `ExtensionSettings` for other settings, such as `blocked_install_message`, add the `removed` entries there instead.
 
 ### macOS
 
@@ -281,7 +283,7 @@ chmod 644 /etc/opt/edge/policies/managed/fleet-extension-removal.json
 
 To confirm the extension was removed from your hosts, run the [report in the Verify section](#verify) with `AND chrome_extensions.identifier = '<extension ID>'` added to the `WHERE` clause. It should return no results.
 
-> **Note:** If Edge sync is turned on and you later remove this policy, sync reinstalls the extension. To prevent this, also turn off extension sync with the [`SyncTypesListDisabled` policy](https://learn.microsoft.com/en-us/deployedge/microsoft-edge-policies#synctypeslistdisabled).
+> **Note:** If Edge sync is turned on and you later remove this policy, sync reinstalls the extension. To prevent this, also turn off extension sync by adding `extensions` to the [`SyncTypesListDisabled` policy](https://learn.microsoft.com/en-us/deployedge/microsoft-edge-policies#synctypeslistdisabled).
 
 ## Manage with GitOps
 
@@ -312,7 +314,7 @@ policies:
 
 > **Note:** This policy only checks that the file exists. After you change the extension list, run the script again from each host's **Details** page.
 
-To also [remove installed extensions](#remove-installed-extensions), add the removal files next to your blocklist files:
+To also [remove installed extensions](#remove-installed-extensions), add the removal files next to your blocklist files. The policy that runs the Linux script requires Fleet Premium.
 
 ```yaml
 controls:
@@ -358,6 +360,8 @@ CROSS JOIN chrome_extensions USING (uid)
 WHERE chrome_extensions.browser_type IN ('edge', 'edge_beta');
 ```
 
+To confirm an extension was [removed](#remove-installed-extensions), add `AND chrome_extensions.identifier = '<extension ID>'` to the end of the `WHERE` clause, before the semicolon. It should return no results.
+
 ## Troubleshoot
 
 **Policies don't appear on `edge://policy`**
@@ -366,7 +370,7 @@ Restart Edge and select **Reload policies**. On Windows, confirm the profile sho
 
 **The extension is still installed after you block it**
 
-Edge disables blocked extensions but doesn't uninstall them. To uninstall them, see [Remove installed extensions](#remove-installed-extensions). Confirm the ID matches exactly, and check `edge://policy` for errors on the policy.
+Edge disables blocked extensions but doesn't uninstall them. If you remove the block, they turn back on. To uninstall them, see [Remove installed extensions](#remove-installed-extensions). Confirm the ID matches exactly, and check `edge://policy` for errors on the policy.
 
 **A force-installed extension doesn't install**
 
