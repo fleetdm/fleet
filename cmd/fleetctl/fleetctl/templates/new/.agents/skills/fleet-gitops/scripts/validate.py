@@ -1223,10 +1223,10 @@ def run_checks(ctx):
             if not isinstance(name, str) or not name.strip():
                 ctx.fail(src, "'name' must be a non-empty string")
                 name = base
-            role = "unassigned" if name.strip().lower() in ("unassigned", "no team") else "fleet"
-            if role == "unassigned" and base not in ("unassigned.yml", "no-team.yml"):
+            role = "unassigned" if name.strip().lower() == "unassigned" else "fleet"
+            if role == "unassigned" and base != "unassigned.yml":
                 ctx.fail(src, "a fleet named 'Unassigned' must live in fleets/unassigned.yml")
-            if role == "fleet" and base in ("unassigned.yml", "no-team.yml"):
+            if role == "fleet" and base == "unassigned.yml":
                 ctx.fail(src, f"{base} must have name: Unassigned")
             if name.strip().lower() == "no team":
                 ctx.fail(src, f"name: No team was removed in Fleet 5. Use name: Unassigned instead. See {MIGRATION_GUIDE}")
