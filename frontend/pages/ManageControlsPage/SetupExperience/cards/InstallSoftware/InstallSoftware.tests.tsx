@@ -152,4 +152,39 @@ describe("InstallSoftware", () => {
       ).toBeNull();
     });
   });
+
+  it.each(["macos", "windows"])(
+    "shows the saved 'Cancel setup if software fails' for unassigned hosts on %s",
+    async (platform) => {
+      const mdm = createMockMdmConfig();
+      mockServer.use(createSetupExperienceSoftwareHandler());
+      mockServer.use(
+        createGetConfigHandler({
+          mdm: {
+            ...mdm,
+            setup_experience: {
+              ...mdm.setup_experience,
+              macos_require_all_software: true,
+              windows_require_all_software: true,
+            },
+          },
+        })
+      );
+      const render = createCustomRenderer({ withBackendMock: true });
+
+      render(
+        <InstallSoftware
+          router={createMockRouter()}
+          currentTeamId={0}
+          urlPlatformParam={platform}
+        />
+      );
+
+      expect(
+        await screen.findByRole("checkbox", {
+          name: /Cancel setup if software fails/,
+        })
+      ).toBeChecked();
+    }
+  );
 });
