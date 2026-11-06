@@ -53,21 +53,21 @@ function Remove-Entry {
         return 1
     }
 
+    $running = @(Get-Process -ErrorAction SilentlyContinue |
+        Where-Object { $_.Path -and $_.Path.StartsWith("$installDir\", [System.StringComparison]::OrdinalIgnoreCase) })
+    if ($running.Count -gt 0) {
+        Write-Host "Stopping $($running.Count) running $displayName process(es)."
+        $running | Stop-Process -Force -ErrorAction SilentlyContinue
+        $running | Wait-Process -Timeout 30 -ErrorAction SilentlyContinue
+        if (@($running | Where-Object { -not $_.HasExited }).Count -gt 0) {
+            Write-Host "$displayName is still running after 30 seconds."
+            return 1
+        }
+    }
+
     $result = 0
     $ran = $false
     if (Test-Path -LiteralPath $exePath -PathType Leaf) {
-        $running = @(Get-Process -ErrorAction SilentlyContinue |
-            Where-Object { $_.Path -and $_.Path.StartsWith("$installDir\", [System.StringComparison]::OrdinalIgnoreCase) })
-        if ($running.Count -gt 0) {
-            Write-Host "Stopping $($running.Count) running $displayName process(es)."
-            $running | Stop-Process -Force -ErrorAction SilentlyContinue
-            $running | Wait-Process -Timeout 30 -ErrorAction SilentlyContinue
-            if (@($running | Where-Object { -not $_.HasExited }).Count -gt 0) {
-                Write-Host "$displayName is still running after 30 seconds."
-                return 1
-            }
-        }
-
         if ($arguments -notmatch '(?i)(^|\s)/S($|\s)') { $arguments = "$arguments /S".Trim() }
         # _?= runs the uninstaller in place, so this waits for it to finish.
         $arguments = "$arguments _?=$installDir"
@@ -91,7 +91,11 @@ function Remove-Entry {
                 return 1
             }
             Write-Host "Uninstaller not available; removing $installDir."
-            Remove-Item -LiteralPath $installDir -Recurse -Force -ErrorAction SilentlyContinue
+            # Files of just-stopped processes can stay locked for a moment.
+            for ($i = 0; $i -lt 10 -and (Test-Path -LiteralPath $installDir); $i++) {
+                if ($i -gt 0) { Start-Sleep -Seconds 2 }
+                Remove-Item -LiteralPath $installDir -Recurse -Force -ErrorAction SilentlyContinue
+            }
             if (Test-Path -LiteralPath $installDir) {
                 Write-Host "Couldn't remove $installDir."
                 return 1
