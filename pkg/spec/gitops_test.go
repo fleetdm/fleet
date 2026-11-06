@@ -866,7 +866,7 @@ func TestMissingNameErrorMessages(t *testing.T) {
 	assert.Contains(t, err.Error(), "add `org_settings:` as a top-level key.")
 	assert.Contains(t, err.Error(), "Otherwise, use `name` to specify the fleet name.")
 
-	// Empty unassigned.yml should report the removed file name.
+	// Empty no-team.yml should report the removed file name.
 	noTeamPath, noTeamBase := createNamedFileOnTempDir(t, "no-team.yml", "")
 	_, err = GitOpsFromFile(noTeamPath, noTeamBase, nil, nopLogf)
 	require.Error(t, err)

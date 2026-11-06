@@ -3632,33 +3632,6 @@ software:
 		assert.Contains(t, err.Error(), "must be set on global config or unassigned.yml", err.Error())
 	})
 
-	t.Run("no-team provided without global -- should fail", func(t *testing.T) {
-		noTeamFilePathWithoutControls := filepath.Join(t.TempDir(), "unassigned.yml")
-		noTeamFileWithoutControls, err := os.Create(noTeamFilePathWithoutControls)
-		require.NoError(t, err)
-		_, err = noTeamFileWithoutControls.WriteString(`
-policies:
-name: Unassigned
-software:
-`)
-		require.NoError(t, err)
-
-		// Dry run.
-		_, err = runAppNoChecks([]string{
-			"gitops", "-f", teamFileBasic.Name(), "-f",
-			noTeamFileWithoutControls.Name(), "--dry-run",
-		})
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "global config must be provided alongside unassigned.yml", err.Error())
-
-		_, err = runAppNoChecks([]string{
-			"gitops", "-f", teamFileBasic.Name(), "-f",
-			noTeamFileWithoutControls.Name(),
-		})
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "global config must be provided alongside unassigned.yml", err.Error())
-	})
-
 	t.Run("unassigned provided without global -- should fail", func(t *testing.T) {
 		noTeamFilePathWithoutControls := filepath.Join(t.TempDir(), "unassigned.yml")
 		noTeamFileWithoutControls, err := os.Create(noTeamFilePathWithoutControls)
