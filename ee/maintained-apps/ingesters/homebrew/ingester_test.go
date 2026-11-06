@@ -88,7 +88,7 @@ func TestIngestValidations(t *testing.T) {
 				Version: "1.0",
 			}
 
-		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "logitech-g-hub", "wezterm", "swiftdialog", "teleport-suite", "r-app", "qgis", "qgis@ltr", "kicad", "mindmanager", "chatgpt", "xquartz", "tableau", "tableau-prep", "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "jasp", "malwarebytes", "macvim-app", "syncmate", "google-earth-pro", "disk-drill", "enpass", "gog-galaxy", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
+		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "logitech-g-hub", "wezterm", "swiftdialog", "teleport-suite", "syncovery", "r-app", "qgis", "qgis@ltr", "kicad", "mindmanager", "chatgpt", "xquartz", "tableau", "tableau-prep", "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "jasp", "malwarebytes", "macvim-app", "syncmate", "google-earth-pro", "disk-drill", "enpass", "gog-galaxy", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
 			cask = brewCask{
 				Token:   appToken,
 				Name:    []string{appToken},
@@ -205,6 +205,7 @@ func TestIngestValidations(t *testing.T) {
 		{"", inputApp{Token: "wezterm", UniqueIdentifier: "com.github.wez.wezterm", InstallerFormat: "zip", Name: "WezTerm", Slug: "wezterm/darwin"}},
 		{"", inputApp{Token: "swiftdialog", UniqueIdentifier: "au.csiro.dialog", InstallerFormat: "pkg", Name: "swiftDialog", Slug: "swiftdialog/darwin"}},
 		{"", inputApp{Token: "teleport-suite", UniqueIdentifier: "com.gravitational.teleport.tsh", InstallerFormat: "pkg", Name: "Teleport Suite", Slug: "teleport-suite/darwin"}},
+		{"", inputApp{Token: "syncovery", UniqueIdentifier: "com.company.Syncovery", InstallerFormat: "dmg", Name: "Syncovery", Slug: "syncovery/darwin"}},
 		{"", inputApp{Token: "r-app", UniqueIdentifier: "org.R-project.R", InstallerFormat: "pkg", Name: "R for macOS", Slug: "r/darwin"}},
 		{"", inputApp{Token: "qgis", UniqueIdentifier: "org.qgis.qgis3", InstallerFormat: "dmg", Name: "QGIS", Slug: "qgis/darwin"}},
 		{"", inputApp{Token: "qgis@ltr", UniqueIdentifier: "org.qgis.qgis3", InstallerFormat: "dmg", Name: "QGIS LTR", Slug: "qgis@ltr/darwin"}},
@@ -284,6 +285,12 @@ func TestIngestValidations(t *testing.T) {
 				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.gravitational.teleport.tsh';", out.Queries.Exists)
 				require.Equal(t,
 					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.gravitational.teleport.tsh' AND path NOT LIKE '%/.tsh/bin/%' AND version_compare(bundle_short_version, '1.0') < 0);",
+					out.Queries.Patched,
+				)
+			case "syncovery":
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.company.Syncovery' AND path NOT LIKE '%.app/Contents/%';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.company.Syncovery' AND path NOT LIKE '%.app/Contents/%' AND version_compare(bundle_short_version, '1.0') < 0);",
 					out.Queries.Patched,
 				)
 			case "firefox@developer-edition":

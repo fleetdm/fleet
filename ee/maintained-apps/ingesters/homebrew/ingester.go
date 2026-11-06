@@ -176,6 +176,13 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		// The patch policy generated below inherits this match.
 		out.Queries.Exists = fmt.Sprintf("SELECT 1 FROM apps WHERE %s;", chatGPTBundleMatch(""))
 	}
+	if input.Token == "syncovery" {
+		// Syncovery.app/Contents/MacOS/BackgroundScheduler.app shares the app's
+		// bundle identifier but has its own version ("9"), which always sorts below
+		// the cask version. Count only top-level bundles, as software inventory
+		// does. The patch policy generated below inherits this filter.
+		out.Queries.Exists = fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND path NOT LIKE '%%.app/Contents/%%';", out.UniqueIdentifier)
+	}
 	out.Slug = input.Slug
 	out.DefaultCategories = input.DefaultCategories
 
