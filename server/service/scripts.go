@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -631,7 +632,7 @@ func (svc *Service) UpdateScript(ctx context.Context, scriptID uint, r io.Reader
 		return nil, err
 	}
 
-	if err := fleet.ValidateHostScriptContents(scriptContents, true); err != nil {
+	if err := (&fleet.Script{Name: script.Name, ScriptContents: scriptContents}).ValidateNewScript(); err != nil {
 		return nil, fleet.NewInvalidArgumentError("script", err.Error())
 	}
 
@@ -1215,10 +1216,15 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 	}
 
 	if notBefore == nil || notBefore.Before(time.Now()) {
-		batchID, err := svc.ds.BatchExecuteScript(ctx, userId, scriptID, hostIDsToExecute)
+		batchID, err := svc.ds.NewBatchScriptExecution(ctx, userId, scriptID, hostIDsToExecute)
 		if err != nil {
 			return "", fleet.NewUserMessageError(err, http.StatusBadRequest)
 		}
+
+		// Insert script executions and activities in a separate goroutine, because it can be quite
+		// slow for a large number of hosts, and we just need to return the batchID here.
+		// Read the batch from the primary, a replica can lag behind the batch row written above.
+		go svc.runBatchScriptExecution(ctxdb.RequirePrimary(context.WithoutCancel(ctx), true), batchID)
 
 		if err := svc.NewActivity(ctx, ctxUser, fleet.ActivityTypeRanScriptBatch{
 			ScriptName:       script.Name,
@@ -1249,6 +1255,14 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 	}
 
 	return batchID, nil
+}
+
+func (svc *Service) runBatchScriptExecution(ctx context.Context, batchID string) {
+	err := svc.ds.RunScheduledBatchActivity(ctx, batchID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "run batch script execution", "batch_execution_id", batchID, "err", err)
+		ctxerr.Handle(ctx, err)
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////

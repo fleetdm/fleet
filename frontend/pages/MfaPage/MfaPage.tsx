@@ -53,7 +53,7 @@ const MfaPage = ({ router, params }: IMfaPage) => {
       setAvailableTeams(user, available_fleets);
       setCurrentTeam(undefined);
 
-      if (!user.global_role && user.teams.length === 0) {
+      if (!user.global_role && user.fleets.length === 0) {
         router.push(NO_ACCESS);
         return;
       }

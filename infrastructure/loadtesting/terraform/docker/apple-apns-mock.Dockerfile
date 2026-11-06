@@ -4,7 +4,7 @@ RUN apk add git
 RUN git clone -b "$TAG" --depth=1 --no-tags --progress --no-recurse-submodules https://github.com/fleetdm/fleet.git
 RUN cd /go/fleet && go build -o /go/bin/apple-apns-mock ./cmd/apple-apns-mock
 
-FROM alpine:3.23.4@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11
+FROM alpine:3.23.7@sha256:ff7f0c727dd796aa36787bfcd9a64bf35a6ce72a73451b3359fde849b6703d63
 LABEL maintainer="Fleet Developers"
 
 RUN addgroup -S apple-apns-mock && adduser -S apple-apns-mock -G apple-apns-mock

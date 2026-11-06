@@ -111,6 +111,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 	fleetCfg := config.TestConfig()
 	fleetCfg.MDM.WindowsWSTEPIdentityCert = "testdata/server.pem"
 	fleetCfg.MDM.WindowsWSTEPIdentityKey = "testdata/server.key"
+	fleetCfg.MicrosoftCompliancePartner.ClientID = testEntraClientID
 
 	config := TestServerOpts{
 		License: &fleet.LicenseInfo{

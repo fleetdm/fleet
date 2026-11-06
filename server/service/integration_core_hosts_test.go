@@ -1581,6 +1581,68 @@ func (s *integrationTestSuite) TestGetHostByIdentifier() {
 	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/no-such-host", nil, http.StatusNotFound, &resp)
 }
 
+func (s *integrationTestSuite) TestGetHostByIDOrIdentifier() {
+	t := s.T()
+	ctx := t.Context()
+
+	newHost := func(name string, mutate func(*fleet.Host)) *fleet.Host {
+		host := &fleet.Host{
+			Hostname:       "any-identifier-hostname-" + name,
+			OsqueryHostID:  new("any-identifier-osquery-" + name),
+			NodeKey:        new("any-identifier-nodekey-" + name),
+			UUID:           "any-identifier-uuid-" + name,
+			Platform:       "darwin",
+			HardwareSerial: "any-identifier-serial-" + name,
+		}
+		if mutate != nil {
+			mutate(host)
+		}
+		created, err := s.ds.NewHost(ctx, host)
+		require.NoError(t, err)
+		return created
+	}
+	target := newHost("target", nil)
+	// Another host whose serial is the target's ID: the ID has to win.
+	newHost("numeric-serial", func(h *fleet.Host) { h.HardwareSerial = fmt.Sprint(target.ID) })
+	// A blank or zero width identifier must not match this host's empty serial.
+	newHost("empty-serial", func(h *fleet.Host) { h.HardwareSerial = "" })
+	// A numeric hostname that no host ID uses resolves as a hostname.
+	const unusedHostID = "4294967295"
+	numericHostname := newHost("numeric-hostname", func(h *fleet.Host) { h.Hostname = unusedHostID })
+	// A serial with leading zeros resolves as a serial when the number is not a host ID.
+	const leadingZerosSerial = "0004294967293"
+	leadingZeros := newHost("leading-zeros", func(h *fleet.Host) { h.HardwareSerial = leadingZerosSerial })
+
+	testCases := []struct {
+		name       string
+		identifier string
+		wantHostID uint
+	}{
+		{name: "id beats a matching serial", identifier: fmt.Sprint(target.ID), wantHostID: target.ID},
+		{name: "serial", identifier: target.HardwareSerial, wantHostID: target.ID},
+		{name: "uuid", identifier: target.UUID, wantHostID: target.ID},
+		{name: "hostname", identifier: target.Hostname, wantHostID: target.ID},
+		{name: "numeric hostname that is not an id", identifier: unusedHostID, wantHostID: numericHostname.ID},
+		{name: "id with leading zeros", identifier: fmt.Sprintf("000%d", target.ID), wantHostID: target.ID},
+		{name: "serial with leading zeros that is not an id", identifier: leadingZerosSerial, wantHostID: leadingZeros.ID},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var resp getHostResponse
+			s.DoJSON("GET", "/api/latest/fleet/hosts/"+tc.identifier, nil, http.StatusOK, &resp)
+			require.Equal(t, tc.wantHostID, resp.Host.ID)
+		})
+	}
+
+	t.Run("not found", func(t *testing.T) {
+		s.Do("GET", "/api/latest/fleet/hosts/no-such-host", nil, http.StatusNotFound)
+		s.Do("GET", "/api/latest/fleet/hosts/4294967294", nil, http.StatusNotFound)
+		s.Do("GET", "/api/latest/fleet/hosts/%20", nil, http.StatusNotFound)
+		s.Do("GET", "/api/latest/fleet/hosts/%E2%80%8B", nil, http.StatusNotFound)
+		s.Do("GET", "/api/latest/fleet/hosts/99999999999999999999", nil, http.StatusNotFound)
+	})
+}
+
 func (s *integrationTestSuite) TestHostDeviceMapping() {
 	t := s.T()
 	ctx := context.Background()

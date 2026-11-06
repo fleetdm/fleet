@@ -466,7 +466,7 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
     if (entraIsConfigured) {
       entraIconName = "success";
     } else if (entraIsAwaitingOAuth) {
-      entraIconName = "pending-outline";
+      entraIconName = "pending";
     }
 
     let entraCta: React.JSX.Element | undefined;

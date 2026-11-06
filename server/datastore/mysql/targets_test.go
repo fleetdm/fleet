@@ -365,9 +365,7 @@ func testTargetsHostIDsInTargets(t *testing.T, ds *Datastore) {
 		return h
 	}
 
-	// Run MigrateData to populate built-in labels.
-	err := ds.MigrateData(context.Background())
-	require.NoError(t, err)
+	test.AddBuiltinLabels(t, ds)
 
 	t1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
@@ -384,20 +382,20 @@ func testTargetsHostIDsInTargets(t *testing.T, ds *Datastore) {
 	h6 := initHost(nil, "darwin")
 
 	// Load and record results for builtin labels.
-	allHosts, _, err := ds.Label(context.Background(), 6, filter)
-	require.NoError(t, err)
-	macOS, _, err := ds.Label(context.Background(), 7, filter)
-	require.NoError(t, err)
-	ubuntuLinux, _, err := ds.Label(context.Background(), 8, filter)
-	require.NoError(t, err)
-	centOSLinux, _, err := ds.Label(context.Background(), 9, filter)
-	require.NoError(t, err)
-	msWindows, _, err := ds.Label(context.Background(), 10, filter)
-	require.NoError(t, err)
-	redHatLinux, _, err := ds.Label(context.Background(), 11, filter)
-	require.NoError(t, err)
-	allLinux, _, err := ds.Label(context.Background(), 12, filter)
-	require.NoError(t, err)
+	builtinLabel := func(name string) *fleet.LabelWithTeamName {
+		l, err := ds.LabelByName(context.Background(), name, filter)
+		require.NoError(t, err)
+		lwt, _, err := ds.Label(context.Background(), l.ID, filter)
+		require.NoError(t, err)
+		return lwt
+	}
+	allHosts := builtinLabel(fleet.BuiltinLabelNameAllHosts)
+	macOS := builtinLabel(fleet.BuiltinLabelNameMacOS)
+	ubuntuLinux := builtinLabel(fleet.BuiltinLabelNameUbuntuLinux)
+	centOSLinux := builtinLabel(fleet.BuiltinLabelNameCentOSLinux)
+	msWindows := builtinLabel(fleet.BuiltinLabelNameWindows)
+	redHatLinux := builtinLabel(fleet.BuiltinLabelNameRedHatLinux)
+	allLinux := builtinLabel(fleet.BuiltinLabelNameAllLinux)
 
 	allBuiltIn := []*fleet.LabelWithTeamName{
 		allHosts, macOS, ubuntuLinux, centOSLinux, msWindows, redHatLinux, allLinux,

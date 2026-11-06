@@ -480,21 +480,14 @@ Use the following steps to send Fleet's vendor collateral to a prospect or custo
 
 The goal of a slide deck is not necessarily to walk every customer through it.  It's to make sure we're presenting the most impactful outcomes of Fleet to the right people, and standardizing how we talk about the products and customer experience to give people evaluating Fleet the opportunity to understand it, fairly evaluate it, and present it in the best light internally to other people at their organization.
 
-Even if you never show these decks on a screenshare, use them to keep the conversation on track, or to send as a teaser.
-
-- [Fleet for IT engineers and IT admins](https://docs.google.com/presentation/d/1WTyGrmA4pSB7H8BeT14BF7peozBceToW8TK__doyQTg/edit?slide=id.g3d7b8aeb1bc_1_182#slide=id.g3d7b8aeb1bc_1_182)
+### First meeting decks
+- [Fleet for IT engineers and IT admins](https://drive.google.com/file/d/1NPGhLHf5_bv5gBmYFlW0sXKXPFgxqbdJ/view?usp=drive_link)
 - [Device management for Europe](https://docs.google.com/presentation/d/1_3Vyn32r9sfpKSfqelZq68u4ayXqE-opXZoJab6hhBU/edit?slide=id.g3d4265576de_4_433#slide=id.g3d4265576de_4_433)
+
+### PDFs to send
 - [Leave behind (PDF)](https://fleetdm.com/pdfs/fleet-ai-device-management-patching-and-governance-for-every-os.pdf)
 - [Fleet Fast Track (PDF)](https://fleetdm.com/pdfs/fleet-fast-track.pdf)
 - [Fleet for partners (PDF)](https://docs.google.com/presentation/d/1iNvn5EYnkklKxguYzrOh6ZNvZee53OqAlF3rc_Da_Us/edit?slide=id.g3871afd58d8_0_0#slide=id.g3871afd58d8_0_0)
-
-
-<!--
-- [Fleet for digital workplace leaders](https://drive.google.com/file/d/1JlIV1PY5lECQQmq2H_eR35haeKefHXIf/view?usp=sharing)
-- [Fleet for digital workplace leaders](https://docs.google.com/presentation/d/1G8BtuhYRX92He3AifA5TAW4YlZO3jlcj8OeCqcSHmOM/edit?slide=id.g3d28ee536a1_2_37#slide=id.g3d28ee536a1_2_37)
-- [Fleet for CISOs](https://docs.google.com/presentation/d/17PUAqa63jTb5yFT3hGg3F5mgGyPtUmg8OlTGyxS6vLI/edit?slide=id.g3d28ee536a1_2_0#slide=id.g3d28ee536a1_2_0)
-- [Fleet for CIOs](https://docs.google.com/presentation/d/14GpQs83B_nxTe2hbf2eOJDU6i0OaGnNvXSX7b47boBA/edit?slide=id.g3e7bfd82431_0_29#slide=id.g3e7bfd82431_0_29)
--->
 
 
 ## Go-To-Market runbook
