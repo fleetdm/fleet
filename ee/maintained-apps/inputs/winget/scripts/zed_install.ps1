@@ -15,26 +15,25 @@ $stageDir = $null
 
 function Remove-SystemProfileCopy {
     $key = "Registry::HKEY_USERS\S-1-5-18\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$appId"
-    $systemProfile = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\S-1-5-18" -ErrorAction Stop).ProfileImagePath
-    $dir = Join-Path $systemProfile "AppData\Local\Programs\Zed"
-    if (-not (Test-Path -LiteralPath $key) -and -not (Test-Path -LiteralPath $dir)) { return }
+    $entry = Get-ItemProperty -LiteralPath $key -ErrorAction SilentlyContinue
+    if (-not $entry) { return }
 
+    $dir = "$($entry.InstallLocation)".TrimEnd('\')
     Write-Host "Removing the copy of Zed in $dir."
-    Get-Process -ErrorAction SilentlyContinue |
-        Where-Object { $_.Path -and $_.Path.StartsWith("$dir\", [System.StringComparison]::OrdinalIgnoreCase) } |
-        Stop-Process -Force -ErrorAction SilentlyContinue
-    $uninstaller = Join-Path $dir "unins000.exe"
-    if (Test-Path -LiteralPath $uninstaller) {
-        $process = Start-Process -FilePath $uninstaller -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART" `
+    if ($dir) {
+        Get-Process -ErrorAction SilentlyContinue |
+            Where-Object { $_.Path -and $_.Path.StartsWith("$dir\", [System.StringComparison]::OrdinalIgnoreCase) } |
+            Stop-Process -Force -ErrorAction SilentlyContinue
+    }
+    # The uninstaller is in SysWOW64's copy of SYSTEM's profile, not next to Zed.exe.
+    if ($entry.UninstallString -match '^\s*"([^"]+)"' -and (Test-Path -LiteralPath $matches[1])) {
+        $process = Start-Process -FilePath $matches[1] -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART" `
             -NoNewWindow -PassThru -Wait
         Write-Host "Uninstall exit code: $($process.ExitCode)"
-        # The uninstaller finishes from a copy of itself in %TEMP%.
-        for ($i = 0; $i -lt 60 -and (Test-Path -LiteralPath $dir); $i++) { Start-Sleep -Seconds 1 }
+        for ($i = 0; $i -lt 60 -and (Test-Path -LiteralPath $key); $i++) { Start-Sleep -Seconds 1 }
     }
-    Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue
-    Remove-Item -LiteralPath $key -Recurse -Force -ErrorAction SilentlyContinue
-    if ((Test-Path -LiteralPath $key) -or (Test-Path -LiteralPath $dir)) {
-        Throw "Zed was installed for $userAccount, but the copy in $dir could not be removed."
+    if (Test-Path -LiteralPath $key) {
+        Throw "Zed was installed for $userAccount, but the copy in $dir could not be removed. Uninstall Zed, then install it again."
     }
 }
 
@@ -51,7 +50,7 @@ try {
         [System.Security.Principal.SecurityIdentifier]).Value
     Write-Host "Installing Zed for $userAccount."
 
-    # Setup exits 1 while Zed is open, so stop the user's copy first. Unsaved
+    # Setup fails while Zed is open, so stop the user's copy first. Unsaved
     # changes are lost.
     $profilePath = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\$sid" -ErrorAction SilentlyContinue).ProfileImagePath
     if ($profilePath) {
