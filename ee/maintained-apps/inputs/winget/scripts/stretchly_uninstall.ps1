@@ -7,8 +7,13 @@
 
 $displayName = "Stretchly"
 $publisher = "Jan Hovancik"
-$installDirName = "Stretchly"
 $exitCode = 0
+# The script only stops processes in, or deletes, Stretchly's default folders.
+$knownDirs = @(
+    "$env:ProgramFiles\Stretchly",
+    "$env:SystemRoot\System32\config\systemprofile\AppData\Local\Programs\Stretchly",
+    "$env:SystemRoot\SysWOW64\config\systemprofile\AppData\Local\Programs\Stretchly"
+)
 
 function Get-Entries {
     $roots = @(
@@ -63,7 +68,7 @@ function Remove-Entry {
         }
     }
     $installDir = if ($exePath) { Split-Path $exePath -Parent } else { $null }
-    $appDir = if ($installDir -and (Split-Path $installDir -Leaf) -eq $installDirName) { $installDir } else { $null }
+    $appDir = if ($installDir -and $knownDirs -contains $installDir) { $installDir } else { $null }
 
     if ($exePath -and (Test-Path -LiteralPath $exePath -PathType Leaf)) {
         if ($appDir) { Stop-InstallDirProcesses $appDir }
@@ -89,7 +94,7 @@ function Remove-Entry {
 
     if (Test-Path -LiteralPath $Entry.KeyPath) {
         if ($installDir -and (Test-Path -LiteralPath $installDir)) {
-            Write-Host "Couldn't remove $installDir, so $displayName stays registered."
+            Write-Host "$installDir is still there, so $displayName stays registered."
         } else {
             Write-Host "Removing the leftover registration."
             Remove-Item -LiteralPath $Entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue

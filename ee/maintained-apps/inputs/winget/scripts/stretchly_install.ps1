@@ -8,6 +8,7 @@
 
 $exeFilePath = "${env:INSTALLER_PATH}"
 $legacyKey = 'Registry::HKEY_USERS\S-1-5-18\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\4f357cc2-fcfb-5fb1-89af-67446d29eff0'
+$legacyDir = "$env:SystemRoot\SysWOW64\config\systemprofile\AppData\Local\Programs\Stretchly"
 
 try {
     if (-not (Test-Path $exeFilePath)) {
@@ -19,12 +20,9 @@ try {
     if ($legacy -and $legacy.UninstallString -match '^\s*"([^"]+)"') {
         # The 32-bit installer wrote it under SysWOW64 but registered the system32 path.
         $legacyExe = $matches[1] -replace '(?i)\\system32\\', '\SysWOW64\'
-        if (-not (Test-Path -LiteralPath $legacyExe -PathType Leaf)) {
-            $legacyDir = Split-Path $legacyExe -Parent
+        if ((Split-Path $legacyExe -Parent) -eq $legacyDir -and -not (Test-Path -LiteralPath $legacyExe -PathType Leaf)) {
             Write-Host "Removing the copy of Stretchly in $legacyDir"
-            if ((Split-Path $legacyDir -Leaf) -eq "Stretchly") {
-                Remove-Item -LiteralPath $legacyDir -Recurse -Force -ErrorAction SilentlyContinue
-            }
+            Remove-Item -LiteralPath $legacyDir -Recurse -Force -ErrorAction SilentlyContinue
             if (-not (Test-Path -LiteralPath $legacyDir)) {
                 Remove-Item -LiteralPath $legacyKey -Recurse -Force -ErrorAction SilentlyContinue
             }
