@@ -85,6 +85,19 @@ const getGraphicName = (ext: string) => {
   return "file-pkg";
 };
 
+export const IPA_DUAL_PLATFORM_BANNER_COPY =
+  "Fleet adds this app for both iOS and iPadOS. Edit each platform separately. Changes to one don't apply to the other.";
+
+const renderIpaDualPlatformBanner = () => (
+  <InfoBanner
+    icon="info"
+    iconColor="ui-fleet-black-50"
+    className={`${baseClass}__ipa-dual-platform-banner`}
+  >
+    {IPA_DUAL_PLATFORM_BANNER_COPY}
+  </InfoBanner>
+);
+
 const renderSoftwareDeployWarningBanner = () => (
   <InfoBanner
     color="yellow"
@@ -551,7 +564,7 @@ const PackageForm = ({
 
   const renderTargetLabelSelector = () => (
     <>
-      {!isEditingSoftware && (
+      {!isEditingSoftware && !isIpaPackage && (
         <InfoBanner
           icon="info"
           iconColor="ui-fleet-black-50"
@@ -606,6 +619,13 @@ const PackageForm = ({
         {multiPackageContext && gitOpsModeEnabled && (
           <GitOpsCustomPackageBanner />
         )}
+        {/* One .ipa upload creates separate iOS and iPadOS titles that must be
+            edited independently. Warn on Add; hide in GitOps mode (read-only)
+            and on Edit (the user is already inside a single-platform title). */}
+        {isIpaPackage &&
+          !isEditingSoftware &&
+          !gitOpsModeEnabled &&
+          renderIpaDualPlatformBanner()}
         {(showDeploySoftwareSlider ||
           showSoftwareOptionsSelector ||
           showTargetLabelSelector) && ( // Only show container if any one component will render — avoids stray gap spacing
