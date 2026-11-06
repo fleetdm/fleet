@@ -1,0 +1,1 @@
+- Fixed false positive vulnerability CVE-2023-49292 reported for the Go toolchain installed with Homebrew, which was incorrectly matched to the `ecies/go` library CPE. The Homebrew `go` formula now maps to the Go toolchain CPE.

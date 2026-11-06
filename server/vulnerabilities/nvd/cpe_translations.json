@@ -1,6 +1,16 @@
 [
   {
     "software": {
+      "name": ["/^go(@.*)?$/"],
+      "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "product": ["go"],
+      "vendor": ["golang"]
+    }
+  },
+  {
+    "software": {
       "bundle_identifier": ["us.zoom.xos"],
       "source": ["apps"]
     },
