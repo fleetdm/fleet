@@ -2733,7 +2733,7 @@ func cleanupHostScriptResultsDB(ctx context.Context, ds *Datastore, olderThan ti
 		var n int64
 		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 			// Decrement from the automation runs so it lines up with the number of rows in the table
-			err := decrementHostPolicyAutomationRunCountsDB(ctx, tx, fleet.ActivityTypeRanScript{}, ids)
+			err := decrementHostPolicyAutomationRunCountsDB(ctx, tx, fleet.ActivityTypeRanScript{}, ids, olderThan)
 			if err != nil {
 				return err
 			}

@@ -3038,7 +3038,7 @@ LIMIT ?`
 		var n int64
 		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 			// Decrement from the automation runs so it lines up with the number of rows in the table
-			err := decrementHostPolicyAutomationRunCountsDB(ctx, tx, fleet.ActivityTypeInstalledSoftware{}, ids)
+			err := decrementHostPolicyAutomationRunCountsDB(ctx, tx, fleet.ActivityTypeInstalledSoftware{}, ids, olderThan)
 			if err != nil {
 				return err
 			}

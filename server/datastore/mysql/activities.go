@@ -2425,30 +2425,41 @@ func incrementHostPolicyAutomationRunCountDB(ctx context.Context, tx sqlx.Execer
 	return nil
 }
 
-func decrementHostPolicyAutomationRunCountsDB(ctx context.Context, tx sqlx.ExecerContext, activity fleet.ActivityDetails, ids []uint) error {
+func decrementHostPolicyAutomationRunCountsDB(
+	ctx context.Context,
+	tx sqlx.ExecerContext,
+	activity fleet.ActivityDetails,
+	ids []uint,
+	olderThan time.Time,
+) error {
 	const scriptRunCountsStmt = `
-SELECT
-	policy_id,
-	host_id,
-	SUM(exit_code = 0) AS success_count,
-	SUM(exit_code != 0) AS fail_count
-FROM host_script_results
-WHERE id IN (?)
-	AND policy_id IS NOT NULL
-	AND exit_code IS NOT NULL
-GROUP BY policy_id, host_id`
+SELECT ` + deletableHostScriptResultHints + `
+	hsr.policy_id,
+	hsr.host_id,
+	SUM(hsr.exit_code = 0) AS success_count,
+	SUM(hsr.exit_code != 0) AS fail_count
+FROM host_script_results hsr
+WHERE hsr.id IN (?)
+	AND hsr.policy_id IS NOT NULL
+	AND hsr.exit_code IS NOT NULL
+	AND hsr.canceled = 0
+	AND ` + deletableHostScriptResultPredicate + `
+GROUP BY hsr.policy_id, hsr.host_id`
 
 	const installRunCountsStmt = `
 SELECT
-	policy_id,
-	host_id,
-	SUM(execution_status = 'installed') AS success_count,
-	SUM(execution_status = 'failed_install') AS fail_count
-FROM host_software_installs
-WHERE id IN (?)
-	AND policy_id IS NOT NULL
-	AND execution_status IN ('installed', 'failed_install')
-GROUP BY policy_id, host_id`
+	hsi.policy_id,
+	hsi.host_id,
+	SUM(hsi.execution_status = 'installed') AS success_count,
+	SUM(hsi.execution_status = 'failed_install') AS fail_count
+FROM host_software_installs hsi
+WHERE hsi.id IN (?)
+	AND hsi.policy_id IS NOT NULL
+	AND hsi.execution_status IN ('installed', 'failed_install')
+	AND ` + deletableHostSoftwareInstallPredicate + `
+	AND (` + unreadHostSoftwareInstall + `
+		OR EXISTS (SELECT 1 FROM host_software_installs newer WHERE ` + supersededHostSoftwareInstall + `))
+GROUP BY hsi.policy_id, hsi.host_id`
 
 	var runCountsStmt string
 	switch activity.(type) {
@@ -2469,7 +2480,7 @@ JOIN (` + runCountsStmt + `) d
 SET
 	c.success_count = c.success_count - LEAST(c.success_count, d.success_count),
 	c.fail_count = c.fail_count - LEAST(c.fail_count, d.fail_count)`
-	stmt, args, err := sqlx.In(decrementStmt, ids, activity.ActivityName())
+	stmt, args, err := sqlx.In(decrementStmt, ids, olderThan, olderThan, activity.ActivityName())
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "build decrement host policy automation run counts")
 	}
