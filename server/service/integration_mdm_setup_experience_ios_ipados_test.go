@@ -326,7 +326,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSInHouseApp() {
 		for _, res := range results {
 			require.Equal(t, fleet.SetupExperienceStatusSuccess, res.Status)
 			switch {
-			case res.IsForInHouseApp():
+			case res.InHouseAppID != nil:
 				inHouseSeen = true
 				require.NotNil(t, res.NanoCommandUUID)
 			case res.IsForVPPApp():

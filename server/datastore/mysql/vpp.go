@@ -2293,19 +2293,6 @@ ON DUPLICATE KEY UPDATE
 	return nil
 }
 
-func (ds *Datastore) ListVPPClientUsersForToken(ctx context.Context, tokenID uint) ([]*fleet.VPPClientUser, error) {
-	const stmt = `
-SELECT id, vpp_token_id, managed_apple_id, client_user_id, apple_user_id, status, created_at, updated_at
-FROM vpp_client_users
-WHERE vpp_token_id = ?
-ORDER BY id`
-	var rows []*fleet.VPPClientUser
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, tokenID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list vpp_client_users rows")
-	}
-	return rows, nil
-}
-
 func (ds *Datastore) DeleteVPPToken(ctx context.Context, tokenID uint) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, `UPDATE policies p
@@ -3173,11 +3160,8 @@ ORDER BY vat.id
 
 type appStoreAppChanges struct {
 	Any                bool
-	Categories         bool
 	Labels             bool
 	InstallDuringSetup bool
-	DisplayName        bool
-	Configuration      bool
 }
 
 // hasAppStoreAppChanged reports what changed between incomingApp and existingApp.
@@ -3244,7 +3228,7 @@ func (ds *Datastore) hasAppStoreAppChanged(ctx context.Context, teamID *uint, in
 
 	if !isExistingApp || existingApp.VersionName != incomingApp.VersionName || existingApp.SelfService != incomingApp.SelfService || labelsChanged ||
 		categoriesChanged || displayNameChanged || configurationChanged || installDuringSetupChanged || autoUpdateChanged {
-		return appStoreAppChanges{true, categoriesChanged, labelsChanged, installDuringSetupChanged, displayNameChanged, configurationChanged}, nil
+		return appStoreAppChanges{Any: true, Labels: labelsChanged, InstallDuringSetup: installDuringSetupChanged}, nil
 	}
 
 	return appStoreAppChanges{}, nil
@@ -3654,26 +3638,6 @@ WHERE vat.id IN (?) AND vat.configuration IS NOT NULL
 		m[c.ID] = c.Configuration
 	}
 	return m, nil
-}
-
-func (ds *Datastore) DeleteVPPAppConfiguration(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) error {
-	const stmt = `UPDATE vpp_apps_teams SET configuration = NULL WHERE adam_id = ? AND global_or_team_id = ? AND platform = ? AND configuration IS NOT NULL`
-
-	result, err := ds.writer(ctx).ExecContext(ctx, stmt, adamID, teamID, platform)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete vpp app configuration")
-	}
-
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete vpp app configuration rows affected")
-	}
-
-	if rows == 0 {
-		return ctxerr.Wrap(ctx, notFound("VPPAppConfiguration"))
-	}
-
-	return nil
 }
 
 func (ds *Datastore) updateVPPAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, vppAppTeamID uint, config []byte) error {

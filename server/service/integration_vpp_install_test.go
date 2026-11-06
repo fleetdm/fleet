@@ -702,7 +702,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	require.Equal(t, false, commandResultsResp.Results[0].ResultsMetadata["software_installed"])
 	require.Equal(
 		t,
-		float64(int(fleet.DefaultVPPInstallVerifyTimeout.Seconds())),
+		float64(int((10 * time.Minute).Seconds())),
 		commandResultsResp.Results[0].ResultsMetadata["vpp_verify_timeout_seconds"],
 	)
 
@@ -715,7 +715,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	require.Equal(t, false, deviceCmdResultsResp.Results[0].ResultsMetadata["software_installed"])
 	require.InEpsilon(
 		t,
-		float64(int(fleet.DefaultVPPInstallVerifyTimeout.Seconds())),
+		float64(int((10 * time.Minute).Seconds())),
 		deviceCmdResultsResp.Results[0].ResultsMetadata["vpp_verify_timeout_seconds"],
 		0.01,
 	)

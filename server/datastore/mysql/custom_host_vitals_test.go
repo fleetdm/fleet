@@ -465,7 +465,10 @@ func testDeleteUsedCustomHostVital(t *testing.T, ds *Datastore) {
 		require.Equal(t, "Firefox", useErr.Entity.Name)
 		require.Equal(t, "Foobar", useErr.Entity.FleetName)
 
-		require.NoError(t, ds.DeleteAndroidAppConfiguration(ctx, appID, foobarTeam.ID))
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE vpp_apps_teams SET configuration = NULL WHERE id = ?`, appTeamID)
+			return err
+		})
 	})
 
 	t.Run("scripts", func(t *testing.T) {

@@ -1444,7 +1444,7 @@ func testEnqueueSetupExperienceInHouseApps(t *testing.T, ds *Datastore) {
 	require.Len(t, results, 1)
 	require.NotNil(t, results[0].InHouseAppID)
 	require.Equal(t, iosAppID, *results[0].InHouseAppID)
-	require.True(t, results[0].IsForInHouseApp())
+	require.True(t, results[0].InHouseAppID != nil)
 	require.True(t, results[0].IsForSoftware())
 	require.Equal(t, fleet.SetupExperienceStatusPending, results[0].Status)
 	require.NotNil(t, results[0].SoftwareTitleID)

@@ -846,6 +846,16 @@ func NormalizeSQL(query string) string {
 	return query
 }
 
+func listPendingSoftwareInstalls(ctx context.Context, ds *Datastore, hostID uint) ([]string, error) {
+	var executionIDs []string
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &executionIDs, `
+		SELECT execution_id
+		FROM upcoming_activities
+		WHERE host_id = ? AND activity_type = 'software_install'
+		ORDER BY IF(activated_at IS NULL, 0, 1) DESC, priority ASC, created_at ASC`, hostID)
+	return executionIDs, err
+}
+
 func checkUpcomingActivities(t *testing.T, ds *Datastore, host *fleet.Host, execIDs ...string) {
 	ctx := t.Context()
 
