@@ -48,15 +48,24 @@ function Remove-Entry {
     }
     $installDir = if ($exePath) { Split-Path $exePath -Parent } else { $null }
 
+    if (-not $installDir) {
+        Write-Host "Couldn't find the uninstaller in: $($Entry.Command)"
+        return 1
+    }
+
     $result = 0
     $ran = $false
-    if ($exePath -and (Test-Path -LiteralPath $exePath -PathType Leaf)) {
+    if (Test-Path -LiteralPath $exePath -PathType Leaf) {
         $running = @(Get-Process -ErrorAction SilentlyContinue |
             Where-Object { $_.Path -and $_.Path.StartsWith("$installDir\", [System.StringComparison]::OrdinalIgnoreCase) })
         if ($running.Count -gt 0) {
             Write-Host "Stopping $($running.Count) running $displayName process(es)."
             $running | Stop-Process -Force -ErrorAction SilentlyContinue
             $running | Wait-Process -Timeout 30 -ErrorAction SilentlyContinue
+            if (@($running | Where-Object { -not $_.HasExited }).Count -gt 0) {
+                Write-Host "$displayName is still running after 30 seconds."
+                return 1
+            }
         }
 
         if ($arguments -notmatch '(?i)(^|\s)/S($|\s)') { $arguments = "$arguments /S".Trim() }
@@ -73,13 +82,29 @@ function Remove-Entry {
             Write-Host "Couldn't run the uninstaller: $_"
         }
     }
+    $isThoriumDir = (Split-Path $installDir -Leaf) -eq $installDirName
     if (-not $ran) {
-        Write-Host "Uninstaller not available; removing the leftover files and registration."
+        # Keep the registration unless the leftover folder is gone, so a retry can finish.
+        if (Test-Path -LiteralPath $installDir) {
+            if (-not $isThoriumDir) {
+                Write-Host "Uninstaller not available; not removing unexpected folder $installDir."
+                return 1
+            }
+            Write-Host "Uninstaller not available; removing $installDir."
+            Remove-Item -LiteralPath $installDir -Recurse -Force -ErrorAction SilentlyContinue
+            if (Test-Path -LiteralPath $installDir) {
+                Write-Host "Couldn't remove $installDir."
+                return 1
+            }
+        } else {
+            Write-Host "Uninstaller not available; removing the leftover registration."
+        }
     }
 
     if ($result -eq 0) {
-        if ($installDir -and (Split-Path $installDir -Leaf) -eq $installDirName -and (Test-Path -LiteralPath $installDir)) {
+        if ($ran -and $isThoriumDir -and (Test-Path -LiteralPath $installDir)) {
             Remove-Item -LiteralPath $installDir -Recurse -Force -ErrorAction SilentlyContinue
+            if (Test-Path -LiteralPath $installDir) { Write-Host "Some files in $installDir couldn't be removed." }
         }
         if (Test-Path -Path $Entry.KeyPath) {
             Remove-Item -Path $Entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
