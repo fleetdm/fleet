@@ -591,7 +591,7 @@ module.exports.routes = {
     action: 'view-workshops',
     locals: {
       pageTitleForMeta: 'Workshops',
-      pageDescriptionForMeta: 'Join Fleet’s GitOps workshop to learn configuration-as-code for managing devices at scale. See every change, undo any error, and repeat every success.',
+      pageDescriptionForMeta: 'Free, in-person workshops to learn AI-native device management and earn Fleet certifications for Apple, Windows, Linux, and GitOps.',
     }
   },
 
