@@ -34,6 +34,11 @@
     gap: $pad-xsmall;
   }
 
+  &--small,
+  &--small &__no-wrap {
+    gap: $pad-xxsmall;
+  }
+
   &__last-word {
     text-decoration: underline;
     line-height: normal;
