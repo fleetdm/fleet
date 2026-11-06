@@ -24,7 +24,16 @@ Fleet plans releases in the open. The [release planning board](https://github.co
 
 ## 📺 Fleet Virtual Summit
 
-Fleet's first virtual summit streams free on LinkedIn Live on Tuesday, November 10, at 11 AM ET / 8 AM PT / 4 PM GMT. Four 30-minute panels of IT and security practitioners cover infrastructure as code for device management, open source in enterprise device management, AI agents as a device management problem, and device management in 2027. [Mike McNeil](https://www.linkedin.com/in/mikermcneil/), Fleet's cofounder and CEO, hosts all four. [See the sessions and panelists](https://fleetdm.com/announcements/fleet-virtual-summit-2026).
+Device settings are moving into Git, AI agents are popping up on laptops, and attackers aren't slowing down. On Tuesday, November 10, IT and security leaders from Cisco, Pinterest, Red Hat, Reddit, and more get real about what's working and what isn't. It's free on LinkedIn Live, with no slides and no demos.
+
+**[RSVP on LinkedIn](https://www.linkedin.com/events/7518683538410459136/)** to save your seat and get a reminder when we go live. Have a favorite topic? Reserve a spot in the panels you care about most:
+
+- **11 AM ET / 4 PM GMT:** [Infrastructure as code for device management](https://calendly.com/fleetdm/fleet-virtual-summit-infrastructure-as-code)
+- **11:30 AM ET / 4:30 PM GMT:** [Open source in enterprise device management](https://calendly.com/fleetdm/fleet-virtual-summit-open-source-in-device-management)
+- **12 PM ET / 5 PM GMT:** [AI agents as a device management problem](https://calendly.com/fleetdm/fleet-virtual-summit-ai-agents-as-a-device-management-problem)
+- **12:30 PM ET / 5:30 PM GMT:** [Device management 2027](https://calendly.com/fleetdm/fleet-virtual-summit-device-management-2030)
+
+Can't choose? Stay for all four. [Meet the panelists](https://fleetdm.com/announcements/fleet-virtual-summit-2026), then [RSVP on LinkedIn](https://www.linkedin.com/events/7518683538410459136/), and tune in live!
 
 ## 🎓 Upcoming workshops
 
