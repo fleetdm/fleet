@@ -6,5 +6,6 @@
   "slug": "xld/darwin",
   "default_categories": [
     "Productivity"
-  ]
+  ],
+  "frozen": true
 }

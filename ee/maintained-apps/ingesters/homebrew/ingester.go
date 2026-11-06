@@ -343,9 +343,10 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			out.UniqueIdentifier, out.Version,
 		)
 	}
-	if input.Token == "enpass" {
-		// The cask version ("6.12.8.2837") is CFBundleShortVersionString ("6.12.8")
-		// plus CFBundleVersion ("2837"), so neither column alone compares correctly.
+	if input.Token == "enpass" || input.Token == "gog-galaxy" {
+		// The cask version ("6.12.8.2837", GOG Galaxy's "2.1.10.56") is
+		// CFBundleShortVersionString ("6.12.8") plus CFBundleVersion ("2837"), so
+		// neither column alone compares correctly.
 		out.Queries.Patched = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version || '.' || bundle_version, '%s') < 0);",
 			out.UniqueIdentifier, out.Version,
@@ -365,12 +366,13 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 	switch input.Token {
 	case "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "jasp",
 		"bitrix24", "chrome-remote-desktop-host", "crossover", "kdenlive", "malwarebytes", "plex-media-server", "sigmaos",
-		"axure-rp", "gotomeeting", "macvim-app":
+		"axure-rp", "gotomeeting", "macvim-app", "syncmate", "google-earth-pro", "disk-drill":
 		// CFBundleVersion carries the full cask version, but CFBundleShortVersionString
 		// drops part of it ("26.3" for cask "26.3.5", "0.99" for JASP's "0.99.0.0",
-		// "5.28.4" for Malwarebytes' "5.28.4.4244"), which version_compare sorts below
-		// the cask version even for x.y.0 releases. Axure RP has no short version, and
-		// GoToMeeting's and MacVim's is a marketing version the cask doesn't track.
+		// "5.28.4" for Malwarebytes' "5.28.4.4244", "6.3" for Disk Drill's "6.3.2326"),
+		// which version_compare sorts below the cask version even for x.y.0 releases.
+		// Axure RP has no short version, and GoToMeeting's and MacVim's is a marketing
+		// version the cask doesn't track.
 		out.Queries.Patched = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
 			out.UniqueIdentifier, out.Version,
@@ -407,6 +409,15 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		out.Queries.Patched = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier GLOB 'com.mindjet.mindmanager.[0-9][0-9]' AND version_compare(bundle_short_version, '%s') < 0);",
 			out.Version,
+		)
+	}
+	if input.Token == "xquartz" {
+		// XQuartz 2.7.x reports org.macosforge.xquartz.X11 from the same path, and the
+		// current pkg overwrites it in place, so a legacy install there is outdated.
+		// Copies elsewhere aren't flagged because installing can't replace them.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE (bundle_identifier = '%s' AND path = '/Applications/Utilities/XQuartz.app') OR (bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0));",
+			xquartzLegacyBundleID, out.UniqueIdentifier, out.Version,
 		)
 	}
 	if input.Token == "firefox@developer-edition" {
@@ -458,6 +469,12 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		// Match every major's bundle ID, like the patched query, so a running older major
 		// defers patching too.
 		out.Queries.Open = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier GLOB 'com.mindjet.mindmanager.[0-9][0-9]' AND a.bundle_executable != '');"
+	case "xquartz":
+		// The X11 launcher execs X11.sh, which execs the X server, X11.bin.
+		out.Queries.Open = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path IN (concat(a.path, '/Contents/MacOS/', a.bundle_executable), concat(a.path, '/Contents/MacOS/X11.bin')) WHERE a.bundle_identifier IN ('%s', '%s') AND a.bundle_executable != '');",
+			out.UniqueIdentifier, xquartzLegacyBundleID,
+		)
 	case "chatgpt":
 		out.Queries.Open = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE (%s) AND a.bundle_executable != '');",
@@ -474,6 +491,9 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 
 	return out, nil
 }
+
+// xquartzLegacyBundleID is the bundle identifier XQuartz used before 2.8.0.
+const xquartzLegacyBundleID = "org.macosforge.xquartz.X11"
 
 // qgisPathFilters tells QGIS and QGIS LTR apart by where their casks install them:
 // both report the org.qgis.qgis3 bundle identifier.

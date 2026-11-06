@@ -148,6 +148,13 @@ type Options struct {
 	NativePlatform string
 	// CustomOutfile is the custom output file name for the package.
 	CustomOutfile string
+	// FleetName is the name of the fleet the enroll secret belongs to, if known. It is added to the default output
+	// file name, cleaned up so it is safe in a file name.
+	FleetName string
+	// FleetID is that fleet's ID. It is added to the file name only when another fleet's name could give the same one.
+	FleetID uint
+	// OtherFleets are the other fleets the user can see.
+	OtherFleets []Fleet
 	// FleetManagedHostIdentityCertificate configures fleetd to use TPM-backed key to sign HTTP requests.
 	FleetManagedHostIdentityCertificate bool
 }

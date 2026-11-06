@@ -88,7 +88,7 @@ func TestIngestValidations(t *testing.T) {
 				Version: "1.0",
 			}
 
-		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "logitech-g-hub", "wezterm", "swiftdialog", "teleport-suite", "r-app", "qgis", "qgis@ltr", "kicad", "mindmanager", "chatgpt", "tableau", "tableau-prep", "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "jasp", "malwarebytes", "macvim-app", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
+		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "logitech-g-hub", "wezterm", "swiftdialog", "teleport-suite", "r-app", "qgis", "qgis@ltr", "kicad", "mindmanager", "chatgpt", "xquartz", "tableau", "tableau-prep", "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "jasp", "malwarebytes", "macvim-app", "syncmate", "google-earth-pro", "disk-drill", "enpass", "gog-galaxy", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
 			cask = brewCask{
 				Token:   appToken,
 				Name:    []string{appToken},
@@ -211,6 +211,7 @@ func TestIngestValidations(t *testing.T) {
 		{"", inputApp{Token: "kicad", UniqueIdentifier: "org.kicad.kicad", InstallerFormat: "dmg", Name: "KiCad", Slug: "kicad/darwin"}},
 		{"", inputApp{Token: "mindmanager", UniqueIdentifier: "com.mindjet.mindmanager.26", InstallerFormat: "dmg", Name: "MindManager", Slug: "mindmanager/darwin"}},
 		{"", inputApp{Token: "chatgpt", UniqueIdentifier: "com.openai.chat", InstallerFormat: "zip", Name: "ChatGPT Desktop", Slug: "chatgpt/darwin"}},
+		{"", inputApp{Token: "xquartz", UniqueIdentifier: "org.xquartz.X11", InstallerFormat: "pkg", Name: "XQuartz", Slug: "xquartz/darwin"}},
 		{"", inputApp{Token: "updf", UniqueIdentifier: "com.superace.updf.mac", InstallerFormat: "dmg", Name: "UPDF", Slug: "updf/darwin"}},
 		{"", inputApp{Token: "tableau", UniqueIdentifier: "com.tableausoftware.tableaudesktop", InstallerFormat: "dmg", Name: "Tableau Desktop", Slug: "tableau/darwin"}},
 		{"", inputApp{Token: "tableau-prep", UniqueIdentifier: "com.tableausoftware.tableauprep", InstallerFormat: "dmg", Name: "Tableau Prep", Slug: "tableau-prep/darwin"}},
@@ -222,6 +223,11 @@ func TestIngestValidations(t *testing.T) {
 		{"", inputApp{Token: "jasp", UniqueIdentifier: "org.jaspstats.jasp", InstallerFormat: "dmg", Name: "JASP", Slug: "jasp/darwin"}},
 		{"", inputApp{Token: "malwarebytes", UniqueIdentifier: "com.malwarebytes.mbam.frontend.application", InstallerFormat: "pkg", Name: "Malwarebytes", Slug: "malwarebytes/darwin"}}, //nolint:gosec // G101: cask token, not a credential
 		{"", inputApp{Token: "macvim-app", UniqueIdentifier: "org.vim.MacVim", InstallerFormat: "dmg", Name: "MacVim", Slug: "macvim-app/darwin"}},                                       //nolint:gosec // G101: cask token, not a credential
+		{"", inputApp{Token: "syncmate", UniqueIdentifier: "com.eltima.SyncMate", InstallerFormat: "zip", Name: "SyncMate", Slug: "syncmate/darwin"}},
+		{"", inputApp{Token: "google-earth-pro", UniqueIdentifier: "com.Google.GoogleEarthPro", InstallerFormat: "dmg", Name: "Google Earth Pro", Slug: "google-earth-pro/darwin"}},
+		{"", inputApp{Token: "disk-drill", UniqueIdentifier: "com.cleverfiles.DiskDrill", InstallerFormat: "dmg", Name: "Disk Drill", Slug: "disk-drill/darwin"}},
+		{"", inputApp{Token: "enpass", UniqueIdentifier: "in.sinew.Enpass-Desktop", InstallerFormat: "pkg", Name: "Enpass", Slug: "enpass/darwin"}},
+		{"", inputApp{Token: "gog-galaxy", UniqueIdentifier: "com.gog.galaxy", InstallerFormat: "pkg", Name: "GOG Galaxy", Slug: "gog-galaxy/darwin"}},
 		{"", inputApp{Token: "install_script_path", UniqueIdentifier: "abc", InstallerFormat: "pkg", InstallScriptPath: path.Join(tempDir, "install_script.sh")}},
 		{"", inputApp{Token: "uninstall_script_path", UniqueIdentifier: "abc", InstallerFormat: "pkg", UninstallScriptPath: path.Join(tempDir, "uninstall_script.sh")}},
 		{"", inputApp{Token: "open-query", UniqueIdentifier: "com.example.app", InstallerFormat: "pkg", Name: "Example App"}},
@@ -396,7 +402,20 @@ func TestIngestValidations(t *testing.T) {
 					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE (bundle_identifier = 'com.openai.chat' OR (bundle_identifier = 'com.openai.codex' AND bundle_name = 'ChatGPT')) AND version_compare(bundle_short_version, '1.0') < 0);",
 					out.Queries.Patched,
 				)
-			case "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "jasp", "malwarebytes", "macvim-app":
+			case "xquartz":
+				// XQuartz 2.7.x at the pkg's install path still reports the legacy bundle ID.
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'org.xquartz.X11';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE (bundle_identifier = 'org.macosforge.xquartz.X11' AND path = '/Applications/Utilities/XQuartz.app') OR (bundle_identifier = 'org.xquartz.X11' AND version_compare(bundle_short_version, '1.0') < 0));",
+					out.Queries.Patched,
+				)
+			case "enpass", "gog-galaxy":
+				// The cask version is CFBundleShortVersionString plus CFBundleVersion.
+				require.Equal(t,
+					fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version || '.' || bundle_version, '1.0') < 0);", c.inputApp.UniqueIdentifier),
+					out.Queries.Patched,
+				)
+			case "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "jasp", "malwarebytes", "macvim-app", "syncmate", "google-earth-pro", "disk-drill":
 				// CFBundleShortVersionString drops part of the cask version or isn't it; CFBundleVersion tracks the cask.
 				require.Equal(t, fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s';", c.inputApp.UniqueIdentifier), out.Queries.Exists)
 				require.Equal(t,
@@ -441,6 +460,12 @@ func TestIngestValidations(t *testing.T) {
 				// A running older major must defer patching, same as the current one.
 				require.Equal(t,
 					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier GLOB 'com.mindjet.mindmanager.[0-9][0-9]' AND a.bundle_executable != '');",
+					out.Queries.Open,
+				)
+			case "xquartz":
+				// A running XQuartz is the X11.bin server, not the X11 launcher.
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path IN (concat(a.path, '/Contents/MacOS/', a.bundle_executable), concat(a.path, '/Contents/MacOS/X11.bin')) WHERE a.bundle_identifier IN ('org.xquartz.X11', 'org.macosforge.xquartz.X11') AND a.bundle_executable != '');",
 					out.Queries.Open,
 				)
 			case "chatgpt":
