@@ -46,6 +46,7 @@ function Get-AppEntries {
                 KeyPath     = $sub.PSPath
                 Sid         = $sid
                 Command     = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }
+                Location    = "$($key.InstallLocation)".Trim().TrimEnd('\')
             }
         }
     }
@@ -96,8 +97,8 @@ function Resolve-Uninstaller {
         }
     }
 
-    if ($arguments -notmatch '(?i)/VERYSILENT') {
-        $arguments = "$arguments /VERYSILENT /SUPPRESSMSGBOXES /NORESTART".Trim()
+    foreach ($flag in @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART')) {
+        if ($arguments -notmatch "(?i)(^|\s)$flag(\s|$)") { $arguments = "$arguments $flag".Trim() }
     }
 
     return [PSCustomObject]@{ ExePath = $exePath; Arguments = $arguments }
@@ -204,6 +205,7 @@ function Remove-Shortcuts {
     } else {
         $found | ForEach-Object { Remove-Item -LiteralPath $_ -Force -ErrorAction SilentlyContinue }
     }
+    $found | Where-Object { Test-Path -LiteralPath $_ } | ForEach-Object { Write-Host "  Could not remove shortcut $_." }
 }
 
 try {
@@ -248,6 +250,25 @@ try {
                 Write-Host "  Leaving this copy registered because $installDir is still there."
                 if ($exitCode -eq 0) { $exitCode = 1 }
                 continue
+            }
+            # Zed.exe can be in another folder: the SYSTEM-profile copy keeps its
+            # uninstaller elsewhere, and users can choose where to install.
+            $payloadDir = ""
+            if ($entry.Location -and $entry.Location -notmatch '^\s*[\\/]{2}') {
+                try { $payloadDir = [System.IO.Path]::GetFullPath($entry.Location) } catch {}
+            }
+            if ($payloadDir -and $payloadDir -ne $installDir -and (Test-Path -LiteralPath (Join-Path $payloadDir "Zed.exe"))) {
+                if (-not $entry.Sid -and (Split-Path $payloadDir -Leaf) -eq (Split-Path $appDir -Leaf)) {
+                    Get-Process -ErrorAction SilentlyContinue |
+                        Where-Object { $_.Path -and $_.Path.StartsWith("$payloadDir\", [System.StringComparison]::OrdinalIgnoreCase) } |
+                        Stop-Process -Force -ErrorAction SilentlyContinue
+                    Remove-Item -LiteralPath $payloadDir -Recurse -Force -ErrorAction SilentlyContinue
+                }
+                if (Test-Path -LiteralPath (Join-Path $payloadDir "Zed.exe")) {
+                    Write-Host "  Leaving this copy registered because Zed.exe is still in $payloadDir."
+                    if ($exitCode -eq 0) { $exitCode = 1 }
+                    continue
+                }
             }
             if ($isAppDir) { Remove-Shortcuts $installDir $profilePath $entry.Sid }
             Remove-Item -Path $entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
