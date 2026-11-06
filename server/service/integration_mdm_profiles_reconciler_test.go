@@ -1111,7 +1111,7 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationResendConfigurationProfile
 	// confirm only the former triggers a resend.
 	newPolicy := func(name string, profileUUID *string) *fleet.Policy {
 		var resp fleet.TeamPolicyResponse
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", tm.ID), fleet.TeamPolicyRequest{
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", tm.ID), fleet.TeamPolicyRequest{
 			Name:        name,
 			Query:       "SELECT 1;",
 			Platform:    "darwin",
