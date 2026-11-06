@@ -363,7 +363,7 @@ Restart Chrome and select **Reload policies**. On Windows, confirm the profile s
 
 **The extension is still installed after you block it**
 
-Chrome disables blocked extensions but doesn't permanently uninstall them; if the blocked profile is removed, the extensions will be reinstalled. To uninstall them completely, see [Remove installed extensions](#remove-installed-extensions). Confirm the ID matches exactly, and check `chrome://policy` for errors on the policy.
+Chrome disables blocked extensions but doesn't uninstall them. If you remove the block, they turn back on. To uninstall them, see [Remove installed extensions](#remove-installed-extensions). Confirm the ID matches exactly, and check `chrome://policy` for errors on the policy.
 
 **A force-installed extension doesn't install**
 
