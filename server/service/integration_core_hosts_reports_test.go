@@ -1094,7 +1094,6 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	// should succeed as we no longer require MDM to access this endpoint, as Linux encryption doesn't require MDM
 	var profiles getMDMProfilesSummaryResponse
 	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/summary", getMDMProfilesSummaryRequest{}, http.StatusOK, &profiles)
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles/summary", getMDMProfilesSummaryRequest{}, http.StatusOK, &profiles)
 
 	// set unencrypted for all hosts
 	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), hostWin.ID, false, nil))

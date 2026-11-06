@@ -601,9 +601,8 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	deleteResp = deleteMDMConfigProfileResponse{}
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", teamWinProfUUID), nil, http.StatusOK, &deleteResp)
 	require.Equal(t, fleet.WindowsProfileDeletedWarning, deleteResp.Warning)
-	// the deprecated route, which the UI uses, shares the handler
 	deleteResp = deleteMDMConfigProfileResponse{}
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%s", uuidWindowsWithLabel), nil, http.StatusOK, &deleteResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", uuidWindowsWithLabel), nil, http.StatusOK, &deleteResp)
 	require.Equal(t, fleet.WindowsProfileDeletedWarning, deleteResp.Warning)
 	// delete non-existing Windows profile
 	deleteResp = deleteMDMConfigProfileResponse{}
@@ -1172,7 +1171,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 
 	// get the specific include-all label-based profile returns the information
 	var getProfResp getMDMConfigProfileResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles/"+tm2ProfG.ProfileUUID, nil, http.StatusOK, &getProfResp)
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/"+tm2ProfG.ProfileUUID, nil, http.StatusOK, &getProfResp)
 	getProfResp.CreatedAt, getProfResp.UploadedAt = time.Time{}, time.Time{}
 	require.Equal(t, &fleet.MDMConfigProfilePayload{
 		ProfileUUID: tm2ProfG.ProfileUUID,
@@ -1188,7 +1187,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 
 	// get the specific exclude-any label-based profile returns the information
 	getProfResp = getMDMConfigProfileResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles/"+tm2ProfF.ProfileUUID, nil, http.StatusOK, &getProfResp)
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/"+tm2ProfF.ProfileUUID, nil, http.StatusOK, &getProfResp)
 	getProfResp.CreatedAt, getProfResp.UploadedAt = time.Time{}, time.Time{}
 	require.Equal(t, &fleet.MDMConfigProfilePayload{
 		ProfileUUID:        tm2ProfF.ProfileUUID,
@@ -1208,7 +1207,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 
 	// get the specific include-any label-based profile returns the information
 	getProfResp = getMDMConfigProfileResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles/"+tm2ProfH.ProfileUUID, nil, http.StatusOK, &getProfResp)
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/"+tm2ProfH.ProfileUUID, nil, http.StatusOK, &getProfResp)
 	getProfResp.CreatedAt, getProfResp.UploadedAt = time.Time{}, time.Time{}
 	require.Equal(t, &fleet.MDMConfigProfilePayload{
 		ProfileUUID: tm2ProfH.ProfileUUID,
@@ -1759,7 +1758,7 @@ func (s *integrationMDMTestSuite) testSecretVariablesUpload(newProfileBytes func
 	}
 
 	var listResp listMDMConfigProfilesResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &listResp)
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &listResp)
 	require.Len(t, listResp.Profiles, numProfiles)
 	profileUUIDs := make([]string, numProfiles)
 	for _, p := range listResp.Profiles {
@@ -1784,7 +1783,7 @@ func (s *integrationMDMTestSuite) testSecretVariablesUpload(newProfileBytes func
 	for i := 0; i < numProfiles; i++ {
 		s.Do("DELETE", "/api/latest/fleet/configuration_profiles/"+profileUUIDs[i], nil, http.StatusOK)
 	}
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &listResp)
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &listResp)
 	require.Empty(t, listResp.Profiles)
 }
 
@@ -1902,10 +1901,6 @@ func (s *integrationMDMTestSuite) TestAppleProfileNameCantHoldSecretValue() {
 			checkRejected(s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 				{Contents: profile("com.example.name-secret."+c.name+".batch", c.displayName)},
 			}}, http.StatusUnprocessableEntity))
-
-			checkRejected(s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
-				profile("com.example.name-secret."+c.name+".apple-batch", c.displayName),
-			}}, http.StatusUnprocessableEntity))
 		})
 	}
 
@@ -1971,10 +1966,6 @@ func (s *integrationMDMTestSuite) TestAppleProfileIdentifierCantHoldSecretValue(
 			}}
 			checkRejected(s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batch, http.StatusUnprocessableEntity))
 			checkRejected(s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batch, http.StatusUnprocessableEntity, "dry_run", "true"))
-
-			checkRejected(s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
-				profile("Identifier secret "+c.name+" apple-batch", c.identifier),
-			}}, http.StatusUnprocessableEntity))
 		})
 	}
 
@@ -2554,18 +2545,15 @@ func (s *integrationMDMTestSuite) TestConfigProfileSchemaValidation() {
 	const declMsg = `"MinimumLength" expects a number.` + hint
 	const winMsg = `"` + pinLengthLocURI + `" expects a number.` + hint
 
-	upload := func(path, fileName string, content []byte, wantStatus int) string {
+	add := func(fileName string, content []byte, wantStatus int) string {
 		body, headers := generateNewProfileMultipartRequest(t, fileName, content, s.token, nil)
-		res := s.DoRawWithHeaders("POST", path, body.Bytes(), wantStatus, headers)
+		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), wantStatus, headers)
 		if wantStatus != http.StatusOK {
 			return extractServerErrorText(res.Body)
 		}
 		var resp newMDMConfigProfileResponse
 		require.NoError(t, json.NewDecoder(res.Body).Decode(&resp))
 		return resp.ProfileUUID
-	}
-	add := func(fileName string, content []byte, wantStatus int) string {
-		return upload("/api/latest/fleet/configuration_profiles", fileName, content, wantStatus)
 	}
 	edit := func(profileUUID, fileName string, content []byte, wantStatus int) string {
 		body, headers := generateNewProfileMultipartRequest(t, fileName, content, s.token, nil)
@@ -2582,9 +2570,6 @@ func (s *integrationMDMTestSuite) TestConfigProfileSchemaValidation() {
 		errMsg := add("bad-apple.mobileconfig", badApple("pv bad apple", "com.example.pv.bad"), http.StatusUnprocessableEntity)
 		require.Contains(t, errMsg, "Couldn't add profile. "+appleMsg)
 		require.NotContains(t, errMsg, "allowCamera")
-
-		errMsg = upload("/api/latest/fleet/mdm/apple/profiles", "bad-apple.mobileconfig", badApple("pv bad apple", "com.example.pv.bad"), http.StatusUnprocessableEntity)
-		require.Contains(t, errMsg, "Couldn't add profile. "+appleMsg)
 
 		errMsg = add("pv-bad-decl.json", badDecl("com.example.pv.baddecl"), http.StatusUnprocessableEntity)
 		require.Contains(t, errMsg, "Couldn't add profile. "+declMsg)
@@ -2711,31 +2696,6 @@ func (s *integrationMDMTestSuite) TestConfigProfileSchemaValidation() {
 		batch([]fleet.MDMProfileBatchPayload{{Name: "pv batch secret", Contents: withSecret}}, http.StatusNoContent, "dry_run", "true")
 	})
 
-	t.Run("deprecated Apple batch validates", func(t *testing.T) {
-		appleBatch := func(profiles [][]byte, wantStatus int) string {
-			res := s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: profiles}, wantStatus,
-				"fleet_id", fmt.Sprint(batchTeam.ID))
-			if wantStatus != http.StatusNoContent {
-				return extractServerErrorText(res.Body)
-			}
-			return ""
-		}
-		bad := badApple("Disable AirDrop", "com.example.pv.deprbad")
-
-		setValidation(true)
-		errMsg := appleBatch([][]byte{goodApple, bad}, http.StatusUnprocessableEntity)
-		require.Contains(t, errMsg, `Couldn't edit configuration_profiles. "Disable AirDrop": "allowAirDrop" expects a boolean.`+gitopsHint)
-		require.NotContains(t, errMsg, "allowCamera")
-
-		appleBatch([][]byte{
-			mkMobileconfig("pv depr unknown key", "com.example.pv.deprunknownkey", "com.apple.applicationaccess", `<key>allowSomethingMadeUp</key><true/>`),
-			mkMobileconfig("pv depr unknown type", "com.example.pv.deprunknowntype", "com.example.not.a.real.type", `<key>anything</key><string>x</string>`),
-		}, http.StatusNoContent)
-
-		setValidation(false)
-		appleBatch([][]byte{bad}, http.StatusNoContent)
-	})
-
 	t.Run("batch validates only new or changed profiles", func(t *testing.T) {
 		otherTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "pv-batch-team-2"})
 		require.NoError(t, err)
@@ -2780,34 +2740,6 @@ func (s *integrationMDMTestSuite) TestConfigProfileSchemaValidation() {
 		caseRenamed := slices.Clone(stored)
 		caseRenamed[2].Name = "PV-NN-WIN"
 		batch(caseRenamed, http.StatusNoContent)
-	})
-
-	t.Run("deprecated Apple batch validates only new or changed profiles", func(t *testing.T) {
-		teamA, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "pv-depr-netnew-a"})
-		require.NoError(t, err)
-		teamB, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "pv-depr-netnew-b"})
-		require.NoError(t, err)
-		appleBatch := func(teamID uint, profiles [][]byte, wantStatus int) string {
-			res := s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: profiles}, wantStatus,
-				"fleet_id", fmt.Sprint(teamID))
-			if wantStatus != http.StatusNoContent {
-				return extractServerErrorText(res.Body)
-			}
-			return ""
-		}
-		bad := badApple("pv depr netnew", "com.example.pv.deprnetnew")
-		setValidation(false)
-		appleBatch(teamA.ID, [][]byte{bad}, http.StatusNoContent)
-		setValidation(true)
-
-		// unchanged is accepted
-		appleBatch(teamA.ID, [][]byte{bad}, http.StatusNoContent)
-		// one byte changed is validated
-		errMsg := appleBatch(teamA.ID, [][]byte{append(slices.Clone(bad), '\n')}, http.StatusUnprocessableEntity)
-		require.Contains(t, errMsg, `"pv depr netnew": "allowAirDrop" expects a boolean.`)
-		// a match in another fleet doesn't count
-		errMsg = appleBatch(teamB.ID, [][]byte{bad}, http.StatusUnprocessableEntity)
-		require.Contains(t, errMsg, `"pv depr netnew": "allowAirDrop" expects a boolean.`)
 	})
 
 	t.Run("Windows secrets are validated expanded", func(t *testing.T) {

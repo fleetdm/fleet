@@ -923,49 +923,6 @@ func (s *integrationMDMTestSuite) TestDeviceMultipleAuthMessages() {
 	s.Require().Len(listHostsRes.Hosts, 1)
 }
 
-func (s *integrationMDMTestSuite) TestAppleMDMCSRRequest() {
-	t := s.T()
-
-	var errResp validationErrResp
-	// missing arguments
-	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{}, http.StatusUnprocessableEntity, &errResp)
-	require.Len(t, errResp.Errors, 1)
-	require.Equal(t, "email_address", errResp.Errors[0].Name)
-
-	// invalid email address
-	errResp = validationErrResp{}
-	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "abc", Organization: "def"}, http.StatusUnprocessableEntity, &errResp)
-	require.Len(t, errResp.Errors, 1)
-	require.Equal(t, "email_address", errResp.Errors[0].Name)
-
-	// missing organization
-	errResp = validationErrResp{}
-	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: ""}, http.StatusUnprocessableEntity, &errResp)
-	require.Len(t, errResp.Errors, 1)
-	require.Equal(t, "organization", errResp.Errors[0].Name)
-
-	// fleetdm CSR request failed
-	s.FailNextCSRRequestWith(http.StatusBadRequest)
-	errResp = validationErrResp{}
-	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@gmail.com", Organization: "test"}, http.StatusUnprocessableEntity, &errResp)
-	require.Len(t, errResp.Errors, 1)
-	require.Contains(t, errResp.Errors[0].Reason, "CSR request failed. Email domain '@gmail.com' is not permitted for APNS certificate signing. Please use a corporate or organization email address.")
-
-	s.FailNextCSRRequestWith(http.StatusInternalServerError)
-	errResp = validationErrResp{}
-	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: "test"}, http.StatusBadGateway, &errResp)
-	require.Len(t, errResp.Errors, 1)
-	require.Contains(t, errResp.Errors[0].Reason, "FleetDM CSR request failed")
-
-	var reqCSRResp requestMDMAppleCSRResponse
-	// fleetdm CSR request succeeds
-	s.SucceedNextCSRRequest()
-	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: "test"}, http.StatusOK, &reqCSRResp)
-	require.Contains(t, string(reqCSRResp.APNsKey), "-----BEGIN RSA PRIVATE KEY-----\n")
-	require.Contains(t, string(reqCSRResp.SCEPCert), "-----BEGIN CERTIFICATE-----\n")
-	require.Contains(t, string(reqCSRResp.SCEPKey), "-----BEGIN RSA PRIVATE KEY-----\n")
-}
-
 func (s *integrationMDMTestSuite) TestGetMDMCSR() {
 	t := s.T()
 	ctx := context.Background()
@@ -1054,11 +1011,11 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 	h := listHostsRes.Hosts[0]
 
 	// assign profiles to the host
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest([][]byte{
 		mobileconfigForTest("N1", "I1"),
 		mobileconfigForTest("N2", "I2"),
 		mobileconfigForTest("N3", "I3"),
-	}}, http.StatusNoContent)
+	}), http.StatusNoContent)
 
 	// trigger a sync and verify that there are profiles assigned to the host
 	s.awaitTriggerProfileSchedule(t)

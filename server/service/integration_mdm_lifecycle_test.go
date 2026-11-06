@@ -919,8 +919,8 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	}
 	s.Do(
 		"POST",
-		"/api/v1/fleet/mdm/apple/profiles/batch",
-		batchSetMDMAppleProfilesRequest{Profiles: globalProfiles},
+		"/api/v1/fleet/mdm/profiles/batch",
+		appleProfilesBatchRequest(globalProfiles),
 		http.StatusNoContent,
 	)
 	expectedProfiles := 4 // Fleetd configuration, Fleet root cert, N1, N2
@@ -955,7 +955,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 					require.NotNil(t, manifest)
 					require.Len(t, manifest.ManifestItems, 1)
 					require.Len(t, manifest.ManifestItems[0].Assets, 1)
-					require.Contains(t, manifest.ManifestItems[0].Assets[0].URL, "fleet/mdm/bootstrap")
+					require.Contains(t, manifest.ManifestItems[0].Assets[0].URL, "/api/latest/fleet/bootstrap?token=")
 					foundBootstrapInstall = true
 				}
 			case "InstallProfile":

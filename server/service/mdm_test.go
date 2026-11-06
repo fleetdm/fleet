@@ -181,11 +181,6 @@ func TestMDMAppleAuthorization(t *testing.T) {
 		_, err = svc.GetAppleBM(ctx)
 		checkAuthErr(t, shouldFailWithAuth, err)
 
-		// deliberately send invalid args so it doesn't actually generate a CSR
-		_, err = svc.RequestMDMAppleCSR(ctx, "not-an-email", "")
-		require.Error(t, err) // it *will* always fail, but not necessarily due to authorization
-		checkAuthErr(t, shouldFailWithAuth, err)
-
 		_, err = svc.GetMDMAppleCSR(ctx)
 		checkAuthErr(t, shouldFailWithAuth, err)
 
