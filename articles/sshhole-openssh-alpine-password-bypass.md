@@ -9,7 +9,7 @@
 - **Debian, Ubuntu, Fedora, and RHEL aren't affected.** The bug needs the musl C library without PAM, and those distributions use glibc.
 - **Updating the package doesn't finish the job.** The old sshd keeps running until it restarts, and containers need a rebuild on a patched base.
 
-<a purpose="cta-button" href="https://fleetdm.com/linux-management">See how Fleet watches containers on your Linux servers</a>
+<a purpose="cta-button" href="https://fleetdm.com/linux-management">See your Linux containers</a>
 
 On November 5, 2026, OpenSSH released version 10.6p2 to fix what the project called a critical vulnerability, and Alpine Linux released patched packages the same day. Maintainer Damien Miller's [announcement](https://marc.info/?l=openssh-unix-dev&m=179388064263131&w=2) told anyone running musl without PAM to turn off password logins or SSH "IMMEDIATELY."
 
