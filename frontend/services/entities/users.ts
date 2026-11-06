@@ -21,6 +21,11 @@ export interface ISortOption {
   desc: boolean;
 }
 
+/** The API only needs a fleet's id and role. Sending back the whole fleet carries both names of renamed settings. */
+export const toFleetRoles = <T extends { id: number; role?: string }>(
+  fleets?: T[]
+) => fleets?.map(({ id, role }) => ({ id, role }));
+
 interface IUserSearchOptions {
   page?: number;
   perPage?: number;
@@ -197,8 +202,11 @@ export default {
   update: (userId: number, formData: IUpdateUserFormData) => {
     const { USERS } = endpoints;
     const path = `${USERS}/${userId}`;
+    const body = formData.fleets
+      ? { ...formData, fleets: toFleetRoles(formData.fleets) }
+      : formData;
 
-    return sendRequest("PATCH", path, formData).then((response) =>
+    return sendRequest("PATCH", path, body).then((response) =>
       helpers.addGravatarUrlToResource(response.user)
     );
   },
