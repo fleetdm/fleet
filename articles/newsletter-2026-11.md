@@ -4,8 +4,8 @@ Our first virtual summit streams free on November 10, and [you're invited](https
 
 ## 🚀 What shipped last month
 
-- **Warn end users before patching macOS apps.** With Fleet Premium, patch policies can now notify end users when an open app is about to update. Fleet Desktop lists the apps, waits an hour with a reminder five minutes before, and then installs the update, so nobody loses unsaved work.
-- **Zero-touch enrollment for company-owned Android.** With Fleet Premium, ship company-owned Android devices straight to end users, and they enroll in Fleet the first time they're turned on. As of Fleet 4.94.0, you choose which fleet each device lands in.
+- **Warn end users before patching macOS apps.** Patch policies can now notify end users when an open app is about to update. Fleet Desktop lists the apps, waits an hour with a reminder five minutes before, and then installs the update, so nobody loses unsaved work.
+- **Zero-touch enrollment for company-owned Android.** Ship company-owned Android devices straight to end users, and they enroll in Fleet the first time they're turned on. As of Fleet 4.94.0, you choose which fleet each device lands in.
 - **Self-service configuration profiles for macOS.** Offer configuration profiles that end users install themselves from the **My device** page, instead of pushing every profile to every host. Mark a profile hidden to keep it off the list until an end user turns on **Show hidden profiles**.
 
 Also shipped in October: a dedicated configuration profile editor with names and descriptions, Windows local admin password rotation, on-demand FileVault recovery key rotation, and reports that keep a result for every host instead of stopping at 1,000. [See every release](https://fleetdm.com/releases).
@@ -14,8 +14,8 @@ Also shipped in October: a dedicated configuration profile editor with names and
 
 Fleet 4.95.0 is planned for November. These are planned, not promised, and scope changes as the release comes together.
 
-- **AI tools in software inventory.** With Fleet Premium, see which AI tools are installed across your hosts on the **Software** page, **Host details**, and **My device**, without writing a custom report.
-- **Patch deadlines for macOS apps.** With Fleet Premium, set a deadline for Fleet-maintained app patches, so updates land within your organization's patching rules.
+- **AI tools in software inventory.** See which AI tools are installed across your hosts on the **Software** page, **Host details**, and **My device**, without writing a custom report.
+- **Patch deadlines for macOS apps.** Set a deadline for Fleet-maintained app patches, so updates land within your organization's patching rules.
 - **Configuration profile validation.** Fleet checks the type, keys, and values in Apple and Windows configuration profiles, so you know a profile built with Fleet's AI-native builder, or any other tool, is valid before it reaches a host.
 
 Also on deck: Okta conditional access for Windows hosts, scoping Android Play Store apps with labels, running a bootstrap package during manual macOS enrollment, and multiple versions of the same App Store app for iOS, iPadOS, and Android.
