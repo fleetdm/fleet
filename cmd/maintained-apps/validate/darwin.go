@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -83,36 +84,75 @@ func assessGatekeeper(ctx context.Context, appLogger *slog.Logger, bundleIdentif
 		query = fmt.Sprintf("SELECT path FROM apps WHERE bundle_identifier = '%s';", bundleIdentifier)
 	}
 
+	// An app's own updater can replace the bundle right after install (OneDrive's
+	// StandaloneUpdater when the cask lags Microsoft's channel), so a bundle that
+	// vanished is looked up and assessed again instead of failing the app.
+	var err error
+	for attempt := 1; ; attempt++ {
+		var vanished bool
+		vanished, err = assessGatekeeperOnce(ctx, appLogger, query)
+		if !vanished || attempt == gatekeeperAttempts {
+			return err
+		}
+		appLogger.InfoContext(ctx, fmt.Sprintf("App bundle was replaced during the Gatekeeper assessment, retrying: %v", err))
+		time.Sleep(gatekeeperRetryDelay)
+	}
+}
+
+var (
+	gatekeeperAttempts   = 4
+	gatekeeperRetryDelay = 15 * time.Second
+	runSpctl             = func(ctx context.Context, path string) ([]byte, error) {
+		return exec.CommandContext(ctx, "spctl", "--assess", "--type", "execute", "-v", path).CombinedOutput()
+	}
+)
+
+func assessGatekeeperOnce(ctx context.Context, appLogger *slog.Logger, query string) (vanished bool, err error) {
 	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	output, err := runOsqueryi(execTimeout, query)
 	if err != nil {
-		return fmt.Errorf("finding app bundles for Gatekeeper assessment: %w", err)
+		return false, fmt.Errorf("finding app bundles for Gatekeeper assessment: %w", err)
 	}
 	var bundles []struct {
 		Path string `json:"path"`
 	}
 	if err := json.Unmarshal(output, &bundles); err != nil {
-		return fmt.Errorf("parsing app bundles %q: %w", output, err)
+		return false, fmt.Errorf("parsing app bundles %q: %w", output, err)
 	}
 	if len(bundles) == 0 {
-		return fmt.Errorf("Gatekeeper assessment found no app: %s", query)
+		return false, fmt.Errorf("Gatekeeper assessment found no app: %s", query)
 	}
 
-	var rejected []string
+	paths := make([]string, 0, len(bundles))
 	for _, bundle := range bundles {
-		output, err := exec.CommandContext(ctx, "spctl", "--assess", "--type", "execute", "-v", bundle.Path).CombinedOutput()
+		paths = append(paths, bundle.Path)
+	}
+	var rejected []string
+	for _, path := range paths {
+		// A helper that shares the app's bundle identifier (Syncovery's
+		// Contents/MacOS/BackgroundScheduler.app) is covered by the app's own seal
+		// and never launched through Gatekeeper.
+		if slices.ContainsFunc(paths, func(outer string) bool {
+			return strings.HasPrefix(path, strings.TrimSuffix(outer, "/")+"/")
+		}) {
+			continue
+		}
+		output, err := runSpctl(ctx, path)
 		status := strings.ReplaceAll(strings.TrimSpace(string(output)), "\n", ", ")
 		if err != nil {
+			if strings.Contains(status, "No such file or directory") {
+				vanished = true
+			}
 			rejected = append(rejected, fmt.Sprintf("%s (%v)", status, err))
 			continue
 		}
 		appLogger.InfoContext(ctx, fmt.Sprintf("Gatekeeper assessment: %s", status))
 	}
 	if len(rejected) > 0 {
-		return fmt.Errorf("Gatekeeper rejected: %s", strings.Join(rejected, "; "))
+		return vanished, fmt.Errorf("Gatekeeper rejected: %s", strings.Join(rejected, "; "))
 	}
-	return nil
+	return false, nil
 }
 
 func forceLaunchServicesRefresh(appPath string) error {
