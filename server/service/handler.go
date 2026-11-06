@@ -1121,14 +1121,14 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	}
 	heHeader.WithAltPaths("/api/v1/osquery/distributed/read").
 		POST("/api/osquery/distributed/read", distReadEndpoint, getDistributedQueriesRequest{})
-	// /distributed/write and /log accept large payloads. The body-size
-	// policy depends on which auth scheme is in effect:
-	//   - body-auth mode: per-route limit (operator-tunable via
-	//     MaxLogWriteBodySize / MaxDistributedWriteBodySize, defaulting to
-	//     the historical DefaultMaxOsquery* constants).
-	//   - header-auth mode: no per-route limit. Once pre-auth accepts the
-	//     request via Authorization: NodeKey, the agent is authenticated
-	//     and the body can be any size.
+		// /distributed/write and /log accept large payloads. The body-size
+		// policy depends on which auth scheme is in effect:
+		//   - body-auth mode: per-route limit (operator-tunable via
+		//     MaxLogWriteBodySize / MaxDistributedWriteBodySize, defaulting to
+		//     the historical DefaultMaxOsquery* constants).
+		//   - header-auth mode: no per-route limit. Once pre-auth accepts the
+		//     request via Authorization: NodeKey, the agent is authenticated
+		//     and the body can be any size.
 	distWriteReg, logWriteReg := heHeader, heHeader
 	if config.Osquery.AllowBodyAuthFallback {
 		distLimit := config.Osquery.MaxDistributedWriteBodySize
