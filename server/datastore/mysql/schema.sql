@@ -616,6 +616,7 @@ CREATE TABLE `google_conditional_access_device_users` (
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `google_conditional_access_devices` (
   `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `customer_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `registration_token_hash` binary(32) DEFAULT NULL,
   `registration_token_expires_at` datetime(6) DEFAULT NULL,
   `registration_attempts` int unsigned NOT NULL DEFAULT '0',
@@ -623,7 +624,8 @@ CREATE TABLE `google_conditional_access_devices` (
   `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`host_uuid`),
-  UNIQUE KEY `idx_google_conditional_access_devices_registration_token_hash` (`registration_token_hash`)
+  UNIQUE KEY `idx_google_conditional_access_devices_registration_token_hash` (`registration_token_hash`),
+  KEY `idx_google_conditional_access_devices_customer_id` (`customer_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

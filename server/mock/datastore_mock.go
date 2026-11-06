@@ -2470,9 +2470,9 @@ type GetGoogleConditionalAccessIntegrationFunc func(ctx context.Context) (*fleet
 
 type SaveGoogleConditionalAccessIntegrationFunc func(ctx context.Context, integration *fleet.ConditionalAccessGoogleIntegration) error
 
-type ListGoogleConditionalAccessDeviceUserNamesFunc func(ctx context.Context) ([]string, error)
+type ListGoogleConditionalAccessDeviceUserNamesFunc func(ctx context.Context, customerID string) ([]string, error)
 
-type DeleteGoogleConditionalAccessDevicesFunc func(ctx context.Context) error
+type DeleteGoogleConditionalAccessDevicesExceptFunc func(ctx context.Context, customerID string, limit int) (int, error)
 
 type DeleteGoogleConditionalAccessIntegrationFunc func(ctx context.Context) error
 
@@ -6355,8 +6355,8 @@ type DataStore struct {
 	ListGoogleConditionalAccessDeviceUserNamesFunc        ListGoogleConditionalAccessDeviceUserNamesFunc
 	ListGoogleConditionalAccessDeviceUserNamesFuncInvoked bool
 
-	DeleteGoogleConditionalAccessDevicesFunc        DeleteGoogleConditionalAccessDevicesFunc
-	DeleteGoogleConditionalAccessDevicesFuncInvoked bool
+	DeleteGoogleConditionalAccessDevicesExceptFunc        DeleteGoogleConditionalAccessDevicesExceptFunc
+	DeleteGoogleConditionalAccessDevicesExceptFuncInvoked bool
 
 	DeleteGoogleConditionalAccessIntegrationFunc        DeleteGoogleConditionalAccessIntegrationFunc
 	DeleteGoogleConditionalAccessIntegrationFuncInvoked bool
@@ -15234,18 +15234,18 @@ func (s *DataStore) SaveGoogleConditionalAccessIntegration(ctx context.Context, 
 	return s.SaveGoogleConditionalAccessIntegrationFunc(ctx, integration)
 }
 
-func (s *DataStore) ListGoogleConditionalAccessDeviceUserNames(ctx context.Context) ([]string, error) {
+func (s *DataStore) ListGoogleConditionalAccessDeviceUserNames(ctx context.Context, customerID string) ([]string, error) {
 	s.mu.Lock()
 	s.ListGoogleConditionalAccessDeviceUserNamesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListGoogleConditionalAccessDeviceUserNamesFunc(ctx)
+	return s.ListGoogleConditionalAccessDeviceUserNamesFunc(ctx, customerID)
 }
 
-func (s *DataStore) DeleteGoogleConditionalAccessDevices(ctx context.Context) error {
+func (s *DataStore) DeleteGoogleConditionalAccessDevicesExcept(ctx context.Context, customerID string, limit int) (int, error) {
 	s.mu.Lock()
-	s.DeleteGoogleConditionalAccessDevicesFuncInvoked = true
+	s.DeleteGoogleConditionalAccessDevicesExceptFuncInvoked = true
 	s.mu.Unlock()
-	return s.DeleteGoogleConditionalAccessDevicesFunc(ctx)
+	return s.DeleteGoogleConditionalAccessDevicesExceptFunc(ctx, customerID, limit)
 }
 
 func (s *DataStore) DeleteGoogleConditionalAccessIntegration(ctx context.Context) error {

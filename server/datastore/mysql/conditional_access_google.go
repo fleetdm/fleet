@@ -47,22 +47,32 @@ func (ds *Datastore) SaveGoogleConditionalAccessIntegration(ctx context.Context,
 	return nil
 }
 
-func (ds *Datastore) ListGoogleConditionalAccessDeviceUserNames(ctx context.Context) ([]string, error) {
+func (ds *Datastore) ListGoogleConditionalAccessDeviceUserNames(ctx context.Context, customerID string) ([]string, error) {
 	var names []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &names,
-		`SELECT device_user_name FROM google_conditional_access_device_users ORDER BY device_user_name`,
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &names, `
+		SELECT du.device_user_name
+		FROM google_conditional_access_device_users du
+		JOIN google_conditional_access_devices d ON d.host_uuid = du.host_uuid
+		WHERE d.customer_id = ?
+		ORDER BY du.device_user_name`, customerID,
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing google_conditional_access_device_users")
 	}
 	return names, nil
 }
 
-func (ds *Datastore) DeleteGoogleConditionalAccessDevices(ctx context.Context) error {
+func (ds *Datastore) DeleteGoogleConditionalAccessDevicesExcept(ctx context.Context, customerID string, limit int) (int, error) {
 	// The DeviceUser rows go with the device rows through the foreign key.
-	if _, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM google_conditional_access_devices`); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting google_conditional_access_devices")
+	res, err := ds.writer(ctx).ExecContext(ctx,
+		`DELETE FROM google_conditional_access_devices WHERE customer_id <> ? LIMIT ?`, customerID, limit)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "deleting google_conditional_access_devices")
 	}
-	return nil
+	n, err := res.RowsAffected()
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "deleted google_conditional_access_devices")
+	}
+	return int(n), nil
 }
 
 func (ds *Datastore) DeleteGoogleConditionalAccessIntegration(ctx context.Context) error {

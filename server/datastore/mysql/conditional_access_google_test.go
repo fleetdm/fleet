@@ -106,13 +106,13 @@ func testConditionalAccessGoogleConcurrentFirstSave(t *testing.T, ds *Datastore)
 func testConditionalAccessGoogleDeviceUsers(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	names, err := ds.ListGoogleConditionalAccessDeviceUserNames(ctx)
+	names, err := ds.ListGoogleConditionalAccessDeviceUserNames(ctx, "C02cajzvg")
 	require.NoError(t, err)
 	require.Empty(t, names)
 
-	insertDevice := func(hostUUID string, names ...string) {
+	insertDevice := func(customerID, hostUUID string, names ...string) {
 		_, err := ds.writer(ctx).ExecContext(ctx,
-			`INSERT INTO google_conditional_access_devices (host_uuid) VALUES (?)`, hostUUID)
+			`INSERT INTO google_conditional_access_devices (host_uuid, customer_id) VALUES (?, ?)`, hostUUID, customerID)
 		require.NoError(t, err)
 		for _, name := range names {
 			_, err := ds.writer(ctx).ExecContext(ctx,
@@ -125,41 +125,64 @@ func testConditionalAccessGoogleDeviceUsers(t *testing.T, ds *Datastore) {
 		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &n, `SELECT COUNT(*) FROM google_conditional_access_devices`))
 		return n
 	}
-	insertDevice("uuid-1", "devices/d1/deviceUsers/1", "devices/d1/deviceUsers/2")
-	insertDevice("uuid-2", "devices/d2/deviceUsers/1")
+	insertDevice("C02cajzvg", "uuid-1", "devices/d1/deviceUsers/1", "devices/d1/deviceUsers/2")
+	insertDevice("C02cajzvg", "uuid-2", "devices/d2/deviceUsers/1")
 	// Names are unique across hosts, case-sensitively.
 	_, err = ds.writer(ctx).ExecContext(ctx,
 		`INSERT INTO google_conditional_access_device_users (host_uuid, device_user_name) VALUES (?, ?)`, "uuid-1", "devices/d2/deviceUsers/1")
 	require.True(t, IsDuplicate(err))
-	insertDevice("uuid-3", "devices/D2/deviceUsers/1")
+	insertDevice("C02cajzvg", "uuid-3", "devices/D2/deviceUsers/1")
+	// Rows left by a previous customer are listed only for that customer.
+	insertDevice("C03other", "uuid-4", "devices/d4/deviceUsers/1")
+	insertDevice("C03other", "uuid-5", "devices/d5/deviceUsers/1")
 
-	names, err = ds.ListGoogleConditionalAccessDeviceUserNames(ctx)
+	names, err = ds.ListGoogleConditionalAccessDeviceUserNames(ctx, "C02cajzvg")
 	require.NoError(t, err)
 	require.Equal(t, []string{"devices/D2/deviceUsers/1", "devices/d1/deviceUsers/1", "devices/d1/deviceUsers/2", "devices/d2/deviceUsers/1"}, names)
+	names, err = ds.ListGoogleConditionalAccessDeviceUserNames(ctx, "C03other")
+	require.NoError(t, err)
+	require.Equal(t, []string{"devices/d4/deviceUsers/1", "devices/d5/deviceUsers/1"}, names)
 
 	// Deleting a device row takes its names with it.
 	_, err = ds.writer(ctx).ExecContext(ctx, `DELETE FROM google_conditional_access_devices WHERE host_uuid = ?`, "uuid-3")
 	require.NoError(t, err)
-	names, err = ds.ListGoogleConditionalAccessDeviceUserNames(ctx)
+	names, err = ds.ListGoogleConditionalAccessDeviceUserNames(ctx, "C02cajzvg")
 	require.NoError(t, err)
 	require.Len(t, names, 3)
 
-	// Deleting the devices keeps the integration.
+	// The rows of other customers are deleted in batches, keeping the integration.
 	integration := &fleet.ConditionalAccessGoogleIntegration{CustomerID: "C02cajzvg", AdminEmail: "a@example.com"}
 	require.NoError(t, ds.SaveGoogleConditionalAccessIntegration(ctx, integration))
-	require.NoError(t, ds.DeleteGoogleConditionalAccessDevices(ctx))
-	names, err = ds.ListGoogleConditionalAccessDeviceUserNames(ctx)
+	deleted, err := ds.DeleteGoogleConditionalAccessDevicesExcept(ctx, "C02cajzvg", 1)
+	require.NoError(t, err)
+	require.Equal(t, 1, deleted)
+	names, err = ds.ListGoogleConditionalAccessDeviceUserNames(ctx, "C03other")
+	require.NoError(t, err)
+	require.Len(t, names, 1)
+	deleted, err = ds.DeleteGoogleConditionalAccessDevicesExcept(ctx, "C02cajzvg", 10)
+	require.NoError(t, err)
+	require.Equal(t, 1, deleted)
+	deleted, err = ds.DeleteGoogleConditionalAccessDevicesExcept(ctx, "C02cajzvg", 10)
+	require.NoError(t, err)
+	require.Zero(t, deleted)
+	names, err = ds.ListGoogleConditionalAccessDeviceUserNames(ctx, "C03other")
 	require.NoError(t, err)
 	require.Empty(t, names)
-	require.Zero(t, countDevices())
+	require.Equal(t, 2, countDevices())
 	got, err := ds.GetGoogleConditionalAccessIntegration(ctx)
 	require.NoError(t, err)
 	require.Equal(t, integration, got)
 
+	// An empty customer ID deletes every row.
+	deleted, err = ds.DeleteGoogleConditionalAccessDevicesExcept(ctx, "", 10)
+	require.NoError(t, err)
+	require.Equal(t, 2, deleted)
+	require.Zero(t, countDevices())
+
 	// Deleting the integration removes everything.
-	insertDevice("uuid-1", "devices/d1/deviceUsers/1")
+	insertDevice("C02cajzvg", "uuid-1", "devices/d1/deviceUsers/1")
 	require.NoError(t, ds.DeleteGoogleConditionalAccessIntegration(ctx))
-	names, err = ds.ListGoogleConditionalAccessDeviceUserNames(ctx)
+	names, err = ds.ListGoogleConditionalAccessDeviceUserNames(ctx, "C02cajzvg")
 	require.NoError(t, err)
 	require.Empty(t, names)
 	require.Zero(t, countDevices())

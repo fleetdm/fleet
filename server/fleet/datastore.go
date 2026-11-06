@@ -4329,11 +4329,13 @@ type Datastore interface {
 	// SaveGoogleConditionalAccessIntegration creates or replaces the single Google
 	// conditional access integration.
 	SaveGoogleConditionalAccessIntegration(ctx context.Context, integration *ConditionalAccessGoogleIntegration) error
-	// ListGoogleConditionalAccessDeviceUserNames returns every stored Google DeviceUser resource name.
-	ListGoogleConditionalAccessDeviceUserNames(ctx context.Context) ([]string, error)
-	// DeleteGoogleConditionalAccessDevices deletes every stored device and DeviceUser
-	// row, keeping the integration.
-	DeleteGoogleConditionalAccessDevices(ctx context.Context) error
+	// ListGoogleConditionalAccessDeviceUserNames returns the Google DeviceUser resource
+	// names stored for the customer.
+	ListGoogleConditionalAccessDeviceUserNames(ctx context.Context, customerID string) ([]string, error)
+	// DeleteGoogleConditionalAccessDevicesExcept deletes up to limit device rows, with
+	// their DeviceUser rows, that don't belong to the customer, and returns how many
+	// device rows it deleted. An empty customer ID deletes any row.
+	DeleteGoogleConditionalAccessDevicesExcept(ctx context.Context, customerID string, limit int) (int, error)
 	// DeleteGoogleConditionalAccessIntegration deletes the Google conditional access integration
 	// and every stored device and DeviceUser row.
 	DeleteGoogleConditionalAccessIntegration(ctx context.Context) error

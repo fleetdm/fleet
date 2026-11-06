@@ -35,9 +35,13 @@ func Up_20261105074613(tx *sql.Tx) error {
 	// Keyed by host UUID and not in the host deletion cascade: the row and its names
 	// must outlive the host until every name is marked UNMANAGED, and a host that
 	// re-enrolls with the same UUID finds its row again.
+	// customer_id is the customer the host registered under. After a customer change the
+	// old rows stay until the cron deletes them in batches, so reads filter on it; a
+	// host's names belong to the same customer as its row.
 	if _, err := tx.Exec(`
 		CREATE TABLE IF NOT EXISTS google_conditional_access_devices (
 			host_uuid                     VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+			customer_id                   VARCHAR(64) COLLATE utf8mb4_unicode_ci NOT NULL,
 			registration_token_hash       BINARY(32) NULL,
 			registration_token_expires_at DATETIME(6) NULL,
 			registration_attempts         INT UNSIGNED NOT NULL DEFAULT 0,
@@ -45,7 +49,8 @@ func Up_20261105074613(tx *sql.Tx) error {
 			created_at                    DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
 			updated_at                    DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
 			PRIMARY KEY (host_uuid),
-			UNIQUE KEY idx_google_conditional_access_devices_registration_token_hash (registration_token_hash)
+			UNIQUE KEY idx_google_conditional_access_devices_registration_token_hash (registration_token_hash),
+			KEY idx_google_conditional_access_devices_customer_id (customer_id)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 	`); err != nil {
 		return fmt.Errorf("create google_conditional_access_devices: %w", err)
