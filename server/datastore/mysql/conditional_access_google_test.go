@@ -31,6 +31,7 @@ func TestConditionalAccessGoogle(t *testing.T) {
 		{"UnresolvedAndroidHosts", testConditionalAccessGoogleUnresolvedAndroidHosts},
 		{"DeleteHosts", testConditionalAccessGoogleDeleteHosts},
 		{"UnmarkUnenrolledHosts", testConditionalAccessGoogleUnmarkUnenrolledHosts},
+		{"AndroidUnenroll", testConditionalAccessGoogleAndroidUnenroll},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -849,4 +850,22 @@ func testConditionalAccessGoogleUnresolvedAndroidHosts(t *testing.T, ds *Datasto
 	require.NoError(t, ds.RecordGoogleConditionalAccessRegistration(ctx, retried.HostUUID, customer, []string{"devices/retried/deviceUsers/a"}))
 	require.NoError(t, ds.DeleteGoogleConditionalAccessDeviceUser(ctx, "devices/retried/deviceUsers/a", fleet.GoogleConditionalAccessDeviceUserPending, false))
 	require.Equal(t, []fleet.GoogleConditionalAccessAndroidHost{retried, stale, fresh, bookmark}, list(customer, 0, 10))
+}
+
+func testConditionalAccessGoogleAndroidUnenroll(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	const customer = "C02cajzvg"
+
+	host := newTestHostWithPlatform(t, ds, "android-unenroll", "android", nil)
+	require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://fleet.example.com", true,
+		fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone))
+	name := "devices/" + host.UUID + "/deviceUsers/a"
+	require.NoError(t, ds.RecordGoogleConditionalAccessRegistration(ctx, host.UUID, customer, []string{name}))
+
+	unenrolled, err := ds.SetAndroidHostUnenrolled(ctx, host.ID)
+	require.NoError(t, err)
+	require.True(t, unenrolled)
+	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{
+		name: fleet.GoogleConditionalAccessDeviceUserUnmanaging,
+	}, googleDeviceUserStates(t, ds, host.UUID))
 }

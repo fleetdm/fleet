@@ -14,6 +14,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -1171,8 +1172,20 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCanReadHostPastActivities(
 
 func (s *integrationEnterpriseTestSuite) TestHostGoogleDeviceID() {
 	t := s.T()
-	hosts := s.createHosts(t, "ios", "android", "darwin", "ipados")
-	iosHost, androidHost, macHost, pendingHost := hosts[0], hosts[1], hosts[2], hosts[3]
+	g := s.newGoogleDeviceTest()
+	iosHost := g.newIOSHost("ios", true)
+	androidHost := g.newAndroidHost(true)
+	byodHost := g.newIOSHost("ios", false)
+	hosts := s.createHosts(t, "darwin", "ipados")
+	macHost, pendingHost := hosts[0], hosts[1]
+	deviceUsers := func(deviceID string, n int) []string {
+		names := make([]string, n)
+		for i := range names {
+			names[i] = fmt.Sprintf("devices/%s/deviceUsers/%d", deviceID, i+1)
+		}
+		return names
+	}
+	const notConnected = "Google conditional access isn't connected. Connect it in Settings > Integrations > Conditional access."
 
 	idPath := func(h *fleet.Host) string { return fmt.Sprintf("/api/latest/fleet/hosts/%d/google_device_id", h.ID) }
 	hostJSON := func(path string) map[string]any {
@@ -1203,12 +1216,51 @@ func (s *integrationEnterpriseTestSuite) TestHostGoogleDeviceID() {
 	require.Empty(t, got["google_device_id"])
 	require.NotContains(t, hostJSON(fmt.Sprintf("/api/latest/fleet/hosts/%d", macHost.ID)), "google_device_id")
 
+	// Fleet marks the device, so the integration has to be connected
+	res := s.Do("PUT", idPath(iosHost), map[string]any{"google_device_id": "device-a"}, http.StatusUnprocessableEntity)
+	requireErrorReason(res, notConnected)
+	require.Empty(t, storedID(iosHost))
+
+	g.connectIntegration()
+	g.client.setDev(func(d *googleDeviceMock) {
+		d.deviceUsers = map[string][]string{
+			"device-a": deviceUsers("device-a", 2), "device-b": deviceUsers("device-b", 1), "device-c": deviceUsers("device-c", 1),
+			"device-empty": nil, "device-taken": {"devices/device-a/deviceUsers/1"},
+		}
+		d.goneDevices = map[string]bool{"device-gone": true}
+	})
+
+	// only company-owned hosts, as for a sign-in
+	res = s.Do("PUT", idPath(byodHost), map[string]any{"google_device_id": "device-a"}, http.StatusUnprocessableEntity)
+	requireErrorReason(res, "Google device ID is only supported on company-owned hosts (MDM status: On (automatic)).")
+	require.Empty(t, storedID(byodHost))
+
+	// the device must exist in Google and have users
+	res = s.Do("PUT", idPath(iosHost), map[string]any{"google_device_id": "device-gone"}, http.StatusUnprocessableEntity)
+	requireErrorReason(res, "Google has no device with this ID.")
+	res = s.Do("PUT", idPath(iosHost), map[string]any{"google_device_id": "device-empty"}, http.StatusUnprocessableEntity)
+	requireErrorReason(res, "This device has no users in Google.")
+	g.client.setDev(func(d *googleDeviceMock) { d.listErr = errors.New("Google returned HTTP 500") })
+	s.Do("PUT", idPath(iosHost), map[string]any{"google_device_id": "device-a"}, http.StatusBadGateway)
+	g.client.setDev(func(d *googleDeviceMock) { d.listErr = nil })
+	require.Empty(t, storedID(iosHost))
+	require.Empty(t, g.states(iosHost))
+
+	// setting the ID stores every user of the device and marks them
 	var putResp putHostGoogleDeviceIDResponse
 	s.DoJSON("PUT", idPath(iosHost), map[string]any{"google_device_id": "device-a"}, http.StatusOK, &putResp)
 	require.Equal(t, iosHost.ID, putResp.HostID)
 	require.Equal(t, "device-a", putResp.GoogleDeviceID)
 	activityID := s.lastActivityMatches("set_host_google_device_id", activityDetails(iosHost, "device-a"), 0)
 	s.lastHostActivityMatches(iosHost.ID, "set_host_google_device_id", activityDetails(iosHost, "device-a"), activityID)
+	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{
+		"devices/device-a/deviceUsers/1": fleet.GoogleConditionalAccessDeviceUserManaged,
+		"devices/device-a/deviceUsers/2": fleet.GoogleConditionalAccessDeviceUserManaged,
+	}, g.states(iosHost))
+	require.Equal(t, []string{"devices/device-a/deviceUsers/1 " + iosHost.UUID, "devices/device-a/deviceUsers/2 " + iosHost.UUID},
+		g.client.devCalls().managed)
+	// the host reads as registered, so opening Self-service starts no sign-in
+	require.Equal(t, fleet.GoogleConditionalAccessDeviceStatus{Enabled: true, Eligible: true, Registered: true, Managed: true}, g.iosStatus(iosHost))
 
 	// repeating the same value is idempotent and doesn't log another activity
 	putResp = putHostGoogleDeviceIDResponse{}
@@ -1220,13 +1272,17 @@ func (s *integrationEnterpriseTestSuite) TestHostGoogleDeviceID() {
 	require.Equal(t, "device-a", hostJSON("/api/latest/fleet/hosts/identifier/" + iosHost.UUID)["google_device_id"])
 
 	// a different value is refused
-	res := s.Do("PUT", idPath(iosHost), map[string]any{"google_device_id": "device-b"}, http.StatusConflict)
+	res = s.Do("PUT", idPath(iosHost), map[string]any{"google_device_id": "device-b"}, http.StatusConflict)
 	requireErrorReason(res, "This host already has a different Google device ID.")
 	require.Equal(t, "device-a", storedID(iosHost))
 
 	// an ID can only be bound to one host
 	res = s.Do("PUT", idPath(androidHost), map[string]any{"google_device_id": "device-a"}, http.StatusConflict)
 	requireErrorReason(res, "This Google device ID is already used by another host.")
+	require.Empty(t, storedID(androidHost))
+	// nor can a device whose user is stored on another host
+	res = s.Do("PUT", idPath(androidHost), map[string]any{"google_device_id": "device-taken"}, http.StatusConflict)
+	requireErrorReason(res, "This Google device is already registered to another host.")
 	require.Empty(t, storedID(androidHost))
 	s.DoJSON("PUT", idPath(androidHost), map[string]any{"google_device_id": "device-c"}, http.StatusOK, &putResp)
 	require.Equal(t, "device-c", hostJSON("/api/latest/fleet/hosts/identifier/" + androidHost.UUID)["google_device_id"])
@@ -1238,6 +1294,11 @@ func (s *integrationEnterpriseTestSuite) TestHostGoogleDeviceID() {
 	require.Equal(t, "device-a", storedID(iosHost))
 	s.Do("DELETE", idPath(iosHost), nil, http.StatusNoContent)
 	require.Empty(t, storedID(iosHost))
+	// the names wait for the cron to unmark them in Google
+	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{
+		"devices/device-a/deviceUsers/1": fleet.GoogleConditionalAccessDeviceUserUnmanaging,
+		"devices/device-a/deviceUsers/2": fleet.GoogleConditionalAccessDeviceUserUnmanaging,
+	}, g.states(iosHost))
 	activityID = s.lastActivityMatches("deleted_host_google_device_id", activityDetails(iosHost, "device-a"), 0)
 	s.lastHostActivityMatches(iosHost.ID, "deleted_host_google_device_id", activityDetails(iosHost, "device-a"), activityID)
 	// deleting again is a no-op without an activity
@@ -1276,14 +1337,20 @@ func (s *integrationEnterpriseTestSuite) TestHostGoogleDeviceID() {
 
 	// the limit is 255 characters, not bytes
 	s.Do("DELETE", idPath(iosHost), nil, http.StatusNoContent)
-	maxLenID := strings.Repeat("é", 255)
-	s.DoJSON("PUT", idPath(iosHost), map[string]any{"google_device_id": maxLenID}, http.StatusOK, &putResp)
-	require.Equal(t, maxLenID, storedID(iosHost))
-	s.Do("DELETE", idPath(iosHost), nil, http.StatusNoContent)
+	g.client.setDev(func(d *googleDeviceMock) { d.goneDevices[strings.Repeat("é", 255)] = true })
+	res = s.Do("PUT", idPath(iosHost), map[string]any{"google_device_id": strings.Repeat("é", 255)}, http.StatusUnprocessableEntity)
+	requireErrorReason(res, "Google has no device with this ID.")
 	res = s.Do("PUT", idPath(iosHost), map[string]any{"google_device_id": strings.Repeat("a", 256)}, http.StatusUnprocessableEntity)
-	name, _ = extractServerErrorNameReason(res.Body)
-	require.Equal(t, "google_device_id", name)
+	requireErrorReason(res, "Google device ID must be 255 characters or less.")
+
+	// a mark that fails leaves the name for the cron and the ID set
+	g.client.setDev(func(d *googleDeviceMock) {
+		d.markErrs = map[string]error{"devices/device-b/deviceUsers/1": errors.New("Google returned HTTP 500")}
+	})
 	s.DoJSON("PUT", idPath(iosHost), map[string]any{"google_device_id": "device-b"}, http.StatusOK, &putResp)
+	require.Equal(t, "device-b", storedID(iosHost))
+	require.Equal(t, fleet.GoogleConditionalAccessDeviceUserPending, g.states(iosHost)["devices/device-b/deviceUsers/1"])
+	g.client.setDev(func(d *googleDeviceMock) { d.markErrs = nil })
 
 	s.Do("PUT", "/api/latest/fleet/hosts/999999/google_device_id", map[string]any{"google_device_id": "device-d"}, http.StatusNotFound)
 	s.Do("DELETE", "/api/latest/fleet/hosts/999999/google_device_id", nil, http.StatusNotFound)
