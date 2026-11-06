@@ -1,6 +1,8 @@
 .okta-conditional-access-modal {
   &__certificate-section {
-    @include flex-column-24px-gap;
+    display: flex;
+    flex-direction: column;
+    gap: $gap-form-component;
     align-items: flex-start;
   }
 

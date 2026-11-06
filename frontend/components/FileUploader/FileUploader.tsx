@@ -265,6 +265,16 @@ export const FileUploader = ({
   };
 
   const renderLabel = () => {
+    // Like other form fields, the error replaces the label. Without a label,
+    // the error shows in the title slot, which isn't rendered once a file is
+    // selected, so it falls back to the label slot then too.
+    if (errorText && (label || fileDetails)) {
+      return (
+        <div className="form-field__label form-field__label--error">
+          {errorText}
+        </div>
+      );
+    }
     return label ? (
       <div className={`${baseClass}__label form-field__label`}>{label}</div>
     ) : null;
@@ -352,7 +362,7 @@ export const FileUploader = ({
   };
 
   const renderTitle = () => {
-    if (errorText) {
+    if (errorText && !label) {
       return <div className={`${baseClass}__internal-error`}>{errorText}</div>;
     }
     if (title) {
