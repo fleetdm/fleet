@@ -767,7 +767,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabelsDistributedReadWrite() {
 
 	// Delete team should delete the labels and their membership.
 	var delResp deleteTeamResponse
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), nil, http.StatusOK, &delResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d", t1.ID), nil, http.StatusOK, &delResp)
 
 	// Membership is cleared.
 	getHostResp = getHostResponse{}

@@ -16,12 +16,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
 	"google.golang.org/api/androidmanagement/v1"
 
@@ -31,7 +33,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
@@ -472,6 +473,31 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	s.runWorker()
 	time.Sleep(time.Second)
 
+	// sorted packages of the app list last sent to each host's policy, by host UUID
+	sentAppLists := map[string][]string{}
+	s.androidAPIClient.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		if !opts.ExcludeApps {
+			packages := make([]string, 0, len(policy.Applications))
+			for _, app := range policy.Applications {
+				packages = append(packages, app.PackageName)
+			}
+			slices.Sort(packages)
+			sentAppLists[policyName[strings.LastIndex(policyName, "/")+1:]] = packages
+		}
+		return &androidmanagement.Policy{}, nil
+	}
+
+	// set the device's applied policy to its own policy, so the app reconciler sends to it
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE android_devices SET applied_policy_id = enterprise_specific_id WHERE enterprise_specific_id = ?`,
+			enterpriseSpecificID1)
+		return err
+	})
+
+	// run the Android profile schedule to send the host's first app list, then clear it
+	s.awaitTriggerAndroidProfileSchedule(t)
+	clear(sentAppLists)
+
 	chromeAppID := "com.google.chrome"
 	driveAppID := "com.google.drive"
 	s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
@@ -493,32 +519,10 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		assert.Contains(t, assoc, a)
 	}
 
-	s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked = false
-
-	checkJobs := func(expectedAppIDs []string) {
-		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			w := &worker.SoftwareWorker{}
-			var j fleet.Job
-
-			err := sqlx.GetContext(ctx, q, &j, "SELECT * FROM jobs WHERE name = ? ORDER BY updated_at DESC LIMIT 1", w.Name())
-			s.Require().NoError(err)
-
-			var args map[string]any
-			s.Require().NoError(json.Unmarshal(*j.Args, &args))
-			s.Equal("bulk_set_android_apps_available_for_host", args["task"])
-			s.Equal(fleet.JobStateSuccess, j.State)
-			s.ElementsMatch(expectedAppIDs, args["application_ids"])
-
-			return nil
-		})
-	}
-
-	// Run worker to set apps available to device
-	time.Sleep(time.Second)
-	s.runWorker()
-	s.True(s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
-	s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked = false
-	checkJobs([]string{chromeAppID, driveAppID})
+	// run the Android profile schedule, the host should get both apps
+	s.awaitTriggerAndroidProfileSchedule(t)
+	require.Equal(t, map[string][]string{enterpriseSpecificID1: {"com.fleetdm.agent", chromeAppID, driveAppID}}, sentAppLists)
+	clear(sentAppLists)
 
 	// Remove an app
 	s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
@@ -538,10 +542,10 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		assert.Contains(t, assoc, a)
 	}
 
-	time.Sleep(time.Second)
-	s.runWorker()
-	s.True(s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
-	checkJobs([]string{driveAppID})
+	// run the Android profile schedule, the host should get an app list without Chrome
+	s.awaitTriggerAndroidProfileSchedule(t)
+	require.Equal(t, map[string][]string{enterpriseSpecificID1: {"com.fleetdm.agent", driveAppID}}, sentAppLists)
+	clear(sentAppLists)
 
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSwTitles, "team_id", fmt.Sprint(tmGood.ID))
 
@@ -587,10 +591,9 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 			assert.Contains(t, displayNameToAppStoreID, key(a))
 		}
 
-		time.Sleep(time.Second)
-		s.runWorker()
-		s.True(s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
-		checkJobs([]string{driveAppID})
+		// run the Android profile schedule, the host's Android apps are unchanged, so it should get no request
+		s.awaitTriggerAndroidProfileSchedule(t)
+		require.Empty(t, sentAppLists)
 
 		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSwTitles, "team_id", fmt.Sprint(tmGood.ID))
 
@@ -709,7 +712,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	t.Run("vpp apps with labels", func(t *testing.T) {
 		// Create a team
 		var newTeamResp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("Team Labels" + t.Name())}, http.StatusOK, &newTeamResp)
+		s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("Team Labels" + t.Name())}, http.StatusOK, &newTeamResp)
 		team := newTeamResp.Team
 
 		// Add an MDM macOS host to the team
@@ -983,7 +986,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	// Create a team with unique name to avoid conflicts with other tests
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("VPPApps Test Team " + t.Name())}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("VPPApps Test Team " + t.Name())}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	// Associate team to the VPP token.
@@ -1989,7 +1992,7 @@ func (s *integrationMDMTestSuite) TestVPPAppsMDMFiltering() {
 
 	// Create team and add hosts to team
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{orbitHost.ID, mdmHost.ID}, TeamID: &team.ID}, http.StatusOK)
@@ -2027,7 +2030,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 	}
 
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("Team 1" + t.Name())}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("Team 1" + t.Name())}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	stubbedConfig := apple_apps.StubbedConfig() // authentication is tested elsewhere
@@ -2147,7 +2150,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 	stubbedConfig := apple_apps.StubbedConfig() // authentication is tested elsewhere
 
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("Team 1" + t.Name())}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("Team 1" + t.Name())}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	// Set up VPP token

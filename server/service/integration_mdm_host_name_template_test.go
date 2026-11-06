@@ -1110,7 +1110,7 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateTeamSpecSecret() {
 
 	teamName := t.Name()
 	applySpec := func(tmpl string, wantStatus int) *http.Response {
-		return s.Do("POST", "/api/latest/fleet/spec/teams", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		return s.Do("POST", "/api/latest/fleet/spec/fleets", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 			Name: teamName,
 			MDM:  fleet.TeamSpecMDM{HostNameTemplate: optjson.SetString(tmpl)},
 		}}}, wantStatus)

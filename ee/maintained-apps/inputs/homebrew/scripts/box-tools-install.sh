@@ -9,14 +9,23 @@
 # home, then registers them with LaunchServices so osquery's apps table (which
 # enumerates LaunchServices) and the box.com web app can find them.
 
-quit_application() {
+app_process_running() {
+  local bundle_id="$1" app
+  while IFS= read -r app; do
+    grep -qixF -- "$bundle_id" <<< "$(defaults read "$app/Contents/Info" CFBundleIdentifier 2>/dev/null)" && return 0
+  done < <(ps -axo comm= | sed -n 's|^ *\(.*\.app\)/Contents/MacOS/.*|\1|p' | sort -u)
+  return 1
+}
+
+quit_and_track_application() {
   local bundle_id="$1"
+  local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local timeout_duration=10
 
-  # check if the application is running
   local app_running
-  app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
+  app_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null)
   if [[ "$app_running" != "true" ]]; then
+    eval "export $var_name=0"
     return
   fi
 
@@ -24,18 +33,32 @@ quit_application() {
   console_user=$(stat -f "%Su" /dev/console)
   if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
     echo "Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'."
+    eval "export $var_name=0"
     return
   fi
 
+  eval "export $var_name=1"
+  echo "Application '$bundle_id' was running; will relaunch after installation."
+
   echo "Quitting application '$bundle_id'..."
 
-  # try to quit the application within the timeout period
-  local quit_success=false still_running
+  local quit_success=false quit_sent=false still_running quit_error
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1
+    quit_error=$(osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" 2>&1 >/dev/null)
+    if [[ "$quit_error" == *"(-600)" ]] && ! app_process_running "$bundle_id"; then
+      if [[ "$quit_sent" == false ]]; then
+        eval "export $var_name=0"
+        echo "Application '$bundle_id' isn't running; it won't be relaunched."
+      else
+        echo "Application '$bundle_id' quit successfully."
+      fi
+      quit_success=true
+      break
+    fi
+    quit_sent=true
     sleep 1
-    if still_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+    if still_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
       echo "Application '$bundle_id' quit successfully."
       quit_success=true
       break
@@ -45,6 +68,47 @@ quit_application() {
   if [[ "$quit_success" = false ]]; then
     echo "Application '$bundle_id' did not quit."
     return 1
+  fi
+}
+
+relaunch_application() {
+  local bundle_id="$1"
+  local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
+  local was_running
+
+  # Check if the app was running before installation
+  eval "was_running=\$$var_name"
+  if [[ "$was_running" != "1" ]]; then
+    return
+  fi
+
+  local console_user
+  console_user=$(stat -f "%Su" /dev/console)
+  if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
+    echo "Not logged into a non-root GUI; skipping relaunching application ID '$bundle_id'."
+    return
+  fi
+
+  echo "Relaunching application '$bundle_id'..."
+
+  # Launch the app in the logged-in user's GUI session. Apps launched by root
+  # won't register with the user's Dock/GUI, so run 'open' as the console user.
+  # Use 'launchctl asuser' to bootstrap into the console user's Mach namespace
+  # and GUI session — 'sudo -u' alone doesn't do this, which can cause
+  # LSOpenURLsWithRole() failures even when 'open' exits 0.
+  local open_status=0
+  if [[ $EUID -eq 0 ]]; then
+    local console_uid
+    console_uid=$(id -u "$console_user")
+    /bin/launchctl asuser "$console_uid" sudo -u "$console_user" open -b "$bundle_id" >/dev/null 2>&1 || open_status=$?
+  else
+    open -b "$bundle_id" >/dev/null 2>&1 || open_status=$?
+  fi
+
+  if [[ $open_status -eq 0 ]]; then
+    echo "Application '$bundle_id' relaunched successfully."
+  else
+    echo "Failed to relaunch application '$bundle_id'."
   fi
 }
 
@@ -96,8 +160,8 @@ user_home=$(dscl . -read "/Users/$target_user" NFSHomeDirectory 2>/dev/null | se
 [[ -n "$user_home" ]] || user_home="/Users/$target_user"
 [[ -d "$user_home" ]] || { echo "home directory for $target_user not found"; exit 1; }
 
-quit_application "com.Box.Box-Edit" || exit 1
-quit_application "com.box.Box-Local-Com-Server" || exit 1
+quit_and_track_application "com.Box.Box-Edit" || exit 1
+quit_and_track_application "com.box.Box-Local-Com-Server" || exit 1
 
 BOX_DIR="$user_home/Library/Application Support/Box"
 DEST="$BOX_DIR/Box Edit"
@@ -145,5 +209,8 @@ for app in "${BUNDLES[@]}"; do
   "$LSREGISTER" -f "$DEST/$app" >/dev/null 2>&1 || true
   /bin/launchctl asuser "$target_uid" sudo -u "$target_user" "$LSREGISTER" -f "$DEST/$app" >/dev/null 2>&1 || true
 done
+
+relaunch_application "com.Box.Box-Edit"
+relaunch_application "com.box.Box-Local-Com-Server"
 
 echo "Box Tools installed for user $target_user"

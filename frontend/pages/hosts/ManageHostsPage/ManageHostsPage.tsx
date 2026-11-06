@@ -132,6 +132,7 @@ import {
 } from "./HostsPageConfig";
 import {
   defaultHiddenColumns,
+  toFleetColumnId,
   generateVisibleTableColumns,
   generateAvailableTableHeaders,
 } from "./HostTableConfig";
@@ -222,7 +223,7 @@ const ManageHostsPage = ({
 
     if (queryParams) {
       const { order_key, order_direction } = queryParams;
-      key = order_key || key;
+      key = toFleetColumnId(order_key || key);
       direction = order_direction || direction;
     }
 
@@ -325,7 +326,9 @@ const ManageHostsPage = ({
   ]);
 
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(
-    userSettings?.hidden_host_columns || defaultHiddenColumns
+    (userSettings?.hidden_host_columns || defaultHiddenColumns).map(
+      toFleetColumnId
+    )
   );
 
   const [selectedLabel, setSelectedLabel] = useState<ILabel>();
@@ -567,7 +570,9 @@ const ManageHostsPage = ({
     {
       enabled: isRouteOk && !!isPremiumTier,
       select: (data: ILoadTeamsResponse) =>
-        data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
+        data.fleets.sort((a, b) =>
+          sortUtils.caseInsensitiveAsc(a.name, b.name)
+        ),
     }
   );
 
@@ -778,7 +783,9 @@ const ManageHostsPage = ({
         // for type checker
         return;
       }
-      const parsed = JSON.parse(locallyHiddenCols) as string[];
+      const parsed = (JSON.parse(locallyHiddenCols) as string[]).map(
+        toFleetColumnId
+      );
       try {
         await usersAPI.update(currentUser.id, {
           settings: { ...userSettings, hidden_host_columns: parsed },

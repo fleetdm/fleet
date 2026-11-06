@@ -36,6 +36,14 @@ func (c *captureNotifier) NotifyOrbitConfigScope(ctx context.Context, scope flee
 	return nil
 }
 
+func (c *captureNotifier) NotifyOsqueryConfigHosts(ctx context.Context, hostIDs []uint, reason string) error {
+	return nil
+}
+
+func (c *captureNotifier) NotifyOsqueryConfigScope(ctx context.Context, scope fleet.AgentNotificationScope, reason string) error {
+	return nil
+}
+
 func newTestDatastore() (*mock.Store, *captureNotifier, *Datastore) {
 	ds := new(mock.Store)
 	notifier := &captureNotifier{}

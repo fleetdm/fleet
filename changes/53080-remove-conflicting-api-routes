@@ -1,0 +1,1 @@
+- BREAKING: Removed the deprecated `POST /api/v1/fleet/hosts/:id/configuration_profiles/resend/:profile_uuid` endpoint. The path now returns 410. Use `POST /api/v1/fleet/hosts/:id/configuration_profiles/:profile_uuid/resend` instead.

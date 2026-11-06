@@ -658,14 +658,11 @@ def create_fleet_team(
     fleet_url: str, token: str, fleetctl: str, team_name: str, enroll_secret: str
 ) -> FleetTeam:
     """Create a Fleet team via fleetctl apply and return the team info."""
-    # Note: "kind: fleet" / "spec.fleet" is the new naming but silently
-    # fails to create teams as of fleetctl v4.x. Use the deprecated
-    # "kind: team" / "spec.team" which actually works.
     team_yaml = {
         "apiVersion": "v1",
-        "kind": "team",
+        "kind": "fleet",
         "spec": {
-            "team": {
+            "fleet": {
                 "name": team_name,
                 "secrets": [{"secret": enroll_secret}],
             }
@@ -688,8 +685,8 @@ def create_fleet_team(
     # Get team ID. Try --name filter first, fall back to scanning all.
     team_id = 0
     for get_cmd in [
-        [fleetctl, "get", "teams", "--json", "--name", team_name],
-        [fleetctl, "get", "teams", "--json"],
+        [fleetctl, "get", "fleets", "--json", "--name", team_name],
+        [fleetctl, "get", "fleets", "--json"],
     ]:
         result = run_cmd(get_cmd, check=False)
         if result.returncode != 0 or not result.stdout:
@@ -703,7 +700,7 @@ def create_fleet_team(
             except json.JSONDecodeError:
                 continue
             spec = team_data.get("spec", {})
-            team_obj = spec.get("fleet") or spec.get("team") or {}
+            team_obj = spec.get("fleet") or {}
             if team_obj.get("name") == team_name:
                 team_id = team_obj.get("id", 0)
                 break
@@ -747,9 +744,9 @@ def push_profiles_to_team(
 
     team_yaml = {
         "apiVersion": "v1",
-        "kind": "team",
+        "kind": "fleet",
         "spec": {
-            "team": {
+            "fleet": {
                 "name": team_name,
                 "mdm": {
                     "macos_settings": {
@@ -778,7 +775,7 @@ def delete_fleet_team(fleet_url: str, token: str, team_id: int) -> None:
     """Delete a Fleet team and all its associated data."""
     log(f"Deleting Fleet team ID {team_id}")
     try:
-        fleet_api(fleet_url, token, "DELETE", f"/api/v1/fleet/teams/{team_id}")
+        fleet_api(fleet_url, token, "DELETE", f"/api/v1/fleet/fleets/{team_id}")
     except HTTPError:
         log_error(f"Failed to delete team {team_id}")
 

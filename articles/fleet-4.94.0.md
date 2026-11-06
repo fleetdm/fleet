@@ -2,7 +2,7 @@
 
 <!--
 <div purpose="embedded-content">
-   <iframe src="https://www.youtube.com/embed/TODO" allowfullscreen></iframe>
+   <iframe src="https://www.youtube.com/embed/N3KoFc4D_uM?si=svfjCTkZC2BezvVF" allowfullscreen></iframe>
 </div>
 -->
 
@@ -83,6 +83,7 @@ GitHub issue: [#50149](https://github.com/fleetdm/fleet/issues/50149)
 
 ## Changes
 
+- Fixed GitOps allowing a label whose name or description is longer than 255 characters, which then failed with a generic error or passed and silently got trimmed. Fleet now rejects these labels with a clear message in the dry run, on `fleetctl apply`, and in the labels API.
 
 ### IT Admins
 - Added a page for adding and editing configuration profiles, replacing the add and edit modals. A profile can be uploaded, pasted, or edited inline.
@@ -203,7 +204,6 @@ GitHub issue: [#50149](https://github.com/fleetdm/fleet/issues/50149)
 - Fixed `fleetctl generate-gitops` not adding any fleets under `volume_purchasing_program` when a VPP token is assigned to all fleets.
 - Fixed GitOps runs failing with a duplicate name error when .mobileconfig profiles trade names, or one takes a name another profile is giving up, in the same run.
 - Fixed GitOps software batch uploads continuing to download remaining packages after one package failed.
-- Fixed `fleetctl gitops --dry-run` passing a label whose name or description is longer than 255 characters, which then failed the real apply with a generic error. Fleet now rejects these labels with a clear message in the dry run, on `fleetctl apply`, and in the labels API.
 - Fixed `fleetctl apply` silently dropping incorrectly typed paths and labels in fleet custom profile settings. Invalid values now return a validation error.
 - Fixed a `fleetctl gitops` crash when `controls.enable_disk_encryption`, `controls.enable_recovery_lock_password`, or `controls.windows_require_bitlocker_pin` is set to a non-boolean value; it now returns a validation error.
 - Fixed `fleetctl generate-gitops` so `windows_enabled_and_configured` and `android_enabled_and_configured` are only exported to the global controls file (including on Fleet Free), and no longer leak into fleet YAML files.
