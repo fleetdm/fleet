@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>Label</key>
+			<string>Confluence</string>
+			<key>PayloadDescription</key>
+			<string>Adds a Confluence web clip to the Dock</string>
+			<key>PayloadDisplayName</key>
+			<string>Confluence</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.confluence.webclip.payload</string>
+			<key>PayloadType</key>
+			<string>com.apple.webClip.managed</string>
+			<key>PayloadUUID</key>
+			<string>0C556E3F-3816-4377-9173-C084F85B52DC</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>URL</key>
+			<string>https://confluence.atlassian.com</string>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>Adds a Confluence web clip (https://confluence.atlassian.com) to the Dock</string>
+	<key>PayloadDisplayName</key>
+	<string>Confluence web clip</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.confluence.webclip</string>
+	<key>PayloadOrganization</key>
+	<string>Fleet Device Management</string>
+	<key>PayloadScope</key>
+	<string>User</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>C272F1AB-2C6C-4E82-A122-5B77BB50C952</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

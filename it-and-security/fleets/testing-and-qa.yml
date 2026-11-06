@@ -71,6 +71,8 @@ controls:
     configuration_profiles:
       # Required for osqueryd to inherit Full Disk Access (EndpointSecurity tables)
       - path: ../lib/macos/configuration-profiles/full-disk-access-for-fleetd.mobileconfig
+      # Confluence web clip (user-scoped, shows in the Dock)
+      - path: ../lib/macos/configuration-profiles/confluence-web-clip.mobileconfig
   setup_experience:
     macos_bootstrap_package: ""
     enable_end_user_authentication: true
