@@ -1763,6 +1763,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2026-10-26 09:29:44
 
+### [CVE-2026-109518](https://nvd.nist.gov/vuln/detail/CVE-2026-109518)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** apt and libapt-pkg7.0 are only used at image build time to install packages. When fleetctl uses fleetdm/wix to generate MSI packages, the container only runs WiX heat/candle/light under Wine; apt is never invoked and no package repositories are fetched.
+- **Products:** `wix`,`pkg:deb/debian/apt`,`pkg:deb/debian/libapt-pkg7.0`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-11-06 13:40:33
+
 ### [CVE-2026-103111](https://nvd.nist.gov/vuln/detail/CVE-2026-103111)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
