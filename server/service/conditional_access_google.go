@@ -110,17 +110,16 @@ func (svc *Service) ConnectGoogleConditionalAccess(ctx context.Context, customer
 	if err := svc.verifyGoogleConditionalAccess(ctx, settings, serviceAccountKey, "service_account_key"); err != nil {
 		return err
 	}
-	// The previous customer's devices can only be unmarked with the key stored for it,
-	// so it is left before the key is replaced.
+	// The previous customer's devices can only be unmarked with its key, so leave it
+	// before the key is replaced.
 	if existing != nil && existing.CustomerID != settings.CustomerID {
 		if err := svc.leaveGoogleConditionalAccessCustomer(ctx, appConfig.ServerSettings.ServerURL, settings, existing, storedKey); err != nil {
 			return err
 		}
 		existing = nil
 	}
-	// The key and the setting are saved before connecting: if registering fails, the
-	// integration is on with a stored key and no completed row, which the next config
-	// update retries.
+	// Saved before registering, so a failed registration is retried by the next config
+	// update.
 	if keyChanged {
 		if err := svc.ds.ReplaceMDMConfigAssets(ctx, []fleet.MDMConfigAsset{{
 			Name:  fleet.MDMAssetGoogleConditionalAccessServiceAccountKey,
@@ -147,8 +146,6 @@ func getGoogleConditionalAccessEndpoint(ctx context.Context, _ any, svc fleet.Se
 	return newGoogleConditionalAccessResponse(integration, status), nil
 }
 
-// GetGoogleConditionalAccess returns the connection row (nil when none) and its
-// status. Both are nil on Fleet Free.
 func (svc *Service) GetGoogleConditionalAccess(ctx context.Context) (*fleet.ConditionalAccessGoogleIntegration, *fleet.ConditionalAccessGoogleStatus, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "failed to authorize")
@@ -241,20 +238,15 @@ func (svc *Service) DeleteGoogleConditionalAccess(ctx context.Context) error {
 	return nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Shared by the endpoints above.
-////////////////////////////////////////////////////////////////////////////////
-
-// GoogleConditionalAccessClient holds the clients of the Google conditional access
-// integration: the fleetdm.com relay and the per-customer Cloud Identity factory.
-// The service methods check it is set before the helpers below use it.
+// GoogleConditionalAccessClient holds the fleetdm.com relay and the Cloud Identity
+// client factory.
 type GoogleConditionalAccessClient struct {
 	Relay         conditional_access_google.Relay
 	CloudIdentity conditional_access_google.CloudIdentityFactory
 }
 
-// NewGoogleConditionalAccessClient builds the production client for the fleetdm.com
-// relay at relayURI. Dev mode accepts a plain HTTP relay for the mock relay.
+// NewGoogleConditionalAccessClient accepts a plain HTTP relay in dev mode, for the
+// mock relay.
 func NewGoogleConditionalAccessClient(relayURI string, logger *slog.Logger) *GoogleConditionalAccessClient {
 	var opts []conditional_access_google.RelayOption
 	if dev_mode.IsEnabled {
@@ -275,7 +267,7 @@ func googleConditionalAccessConnected(existing *fleet.ConditionalAccessGoogleInt
 		existing.CustomerID == settings.CustomerID && existing.AdminEmail == settings.AdminEmail
 }
 
-// checkGoogleDelegation runs the delegation check. The error message is meant for the admin.
+// checkGoogleDelegation's error message is shown to the admin.
 func (svc *Service) checkGoogleDelegation(ctx context.Context, settings fleet.GoogleConditionalAccessIntegration, key []byte) error {
 	creds := conditional_access_google.Credentials{ServiceAccountKey: key, AdminEmail: settings.AdminEmail, CustomerID: settings.CustomerID}
 	client, err := svc.googleConditionalAccess.CloudIdentity(ctx, creds)
@@ -288,8 +280,6 @@ func (svc *Service) checkGoogleDelegation(ctx context.Context, settings fleet.Go
 	return nil
 }
 
-// verifyGoogleConditionalAccess runs the delegation check and returns a 422 with
-// Google's reason when it fails.
 func (svc *Service) verifyGoogleConditionalAccess(ctx context.Context, settings fleet.GoogleConditionalAccessIntegration, key []byte, field string) error {
 	if err := svc.checkGoogleDelegation(ctx, settings, key); err != nil {
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(field, err.Error()))
@@ -297,8 +287,8 @@ func (svc *Service) verifyGoogleConditionalAccess(ctx context.Context, settings 
 	return nil
 }
 
-// newGoogleConditionalAccessRow builds the connection row for settings, carrying the
-// registration over from existing when it is for the same customer.
+// newGoogleConditionalAccessRow keeps existing's registration when it is for the same
+// customer.
 func newGoogleConditionalAccessRow(
 	settings fleet.GoogleConditionalAccessIntegration, existing *fleet.ConditionalAccessGoogleIntegration,
 	state fleet.ConditionalAccessGoogleState, errorMessage *string,
@@ -326,11 +316,9 @@ func (svc *Service) saveGoogleConditionalAccessRow(
 	return nil
 }
 
-// registerGoogleConditionalAccess registers the server with fleetdm.com when it isn't
-// registered for this customer yet, and stores the connection row. The delegation
-// check must have passed and a previous customer must have been left (see
-// leaveGoogleConditionalAccessCustomer). A failed registration is recorded in the row.
-// serverURL is the app config's server URL.
+// registerGoogleConditionalAccess registers with fleetdm.com unless already registered
+// for this customer, and saves the row. Callers must have run the delegation check and
+// left any previous customer.
 func (svc *Service) registerGoogleConditionalAccess(
 	ctx context.Context, serverURL string, settings fleet.GoogleConditionalAccessIntegration,
 	existing *fleet.ConditionalAccessGoogleIntegration,
@@ -368,9 +356,8 @@ func (svc *Service) registerGoogleConditionalAccess(
 	return nil
 }
 
-// removeGoogleConditionalAccess unmarks every stored DeviceUser name (best effort),
-// deregisters from fleetdm.com, and deletes the rows and the key. serverURL is the app
-// config's server URL.
+// removeGoogleConditionalAccess unmarks the devices (best effort), deregisters, and
+// deletes the rows and the key.
 func (svc *Service) removeGoogleConditionalAccess(
 	ctx context.Context, serverURL string, existing *fleet.ConditionalAccessGoogleIntegration,
 ) error {
@@ -402,10 +389,8 @@ func (svc *Service) removeGoogleConditionalAccess(
 	return nil
 }
 
-// leaveGoogleConditionalAccessCustomer drops the previous customer before a new one is
-// connected. Its fleetdm.com registration goes first, so a failure changes nothing and
-// keeps the old secret for the retry. Its devices are then unmarked (best effort) with
-// the key stored for it, and their rows deleted.
+// leaveGoogleConditionalAccessCustomer deregisters the previous customer first, so a
+// failure changes nothing and keeps its secret for the retry, then unmarks its devices.
 func (svc *Service) leaveGoogleConditionalAccessCustomer(
 	ctx context.Context, serverURL string, settings fleet.GoogleConditionalAccessIntegration,
 	existing *fleet.ConditionalAccessGoogleIntegration, key []byte,
@@ -477,15 +462,12 @@ func (svc *Service) deleteGoogleConditionalAccessRegistration(
 	return nil
 }
 
-// newFleetdmRelayError reports a failed fleetdm.com call as a 502. The relay's own
-// status must not reach the admin's client: a 401 from fleetdm.com would read as an
-// expired Fleet session.
+// newFleetdmRelayError hides the relay's status behind a 502: a 401 from fleetdm.com
+// would read as an expired Fleet session.
 func newFleetdmRelayError(message string, err error) *fleet.GatewayError {
 	return fleet.NewBadGatewayError(message, err)
 }
 
-// saveGoogleConditionalAccessSettings writes the settings to appConfig and saves it, so
-// the config and the connection state agree after a key upload.
 func (svc *Service) saveGoogleConditionalAccessSettings(
 	ctx context.Context, appConfig *fleet.AppConfig, settings fleet.GoogleConditionalAccessIntegration,
 ) error {
@@ -499,7 +481,6 @@ func (svc *Service) saveGoogleConditionalAccessSettings(
 	return nil
 }
 
-// googleConditionalAccessIntegration returns the connection row, or nil when there's none.
 func (svc *Service) googleConditionalAccessIntegration(ctx context.Context) (*fleet.ConditionalAccessGoogleIntegration, error) {
 	integration, err := svc.ds.GetGoogleConditionalAccessIntegration(ctx)
 	if err != nil {
@@ -511,8 +492,8 @@ func (svc *Service) googleConditionalAccessIntegration(ctx context.Context) (*fl
 	return integration, nil
 }
 
-// googleConditionalAccessKeyStored reports whether a key is stored, without decrypting
-// it, so a server private key problem doesn't break reading the config.
+// googleConditionalAccessKeyStored checks hashes only, so reading the config doesn't
+// decrypt the key.
 func (svc *Service) googleConditionalAccessKeyStored(ctx context.Context) (bool, error) {
 	hashes, err := svc.ds.GetAllMDMConfigAssetsHashes(ctx, []fleet.MDMAssetName{fleet.MDMAssetGoogleConditionalAccessServiceAccountKey})
 	if err != nil {
@@ -525,7 +506,6 @@ func (svc *Service) googleConditionalAccessKeyStored(ctx context.Context) (bool,
 	return ok, nil
 }
 
-// googleConditionalAccessKey returns the stored service account key, or nil when there's none.
 func (svc *Service) googleConditionalAccessKey(ctx context.Context) ([]byte, error) {
 	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx,
 		[]fleet.MDMAssetName{fleet.MDMAssetGoogleConditionalAccessServiceAccountKey}, nil)

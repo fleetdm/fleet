@@ -2006,8 +2006,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation
 	}, http.StatusOK, &applyResp)
 }
 
-// newGoogleCATestKey returns a service account key JSON with a fresh RSA key, since
-// connecting validates the key.
+// newGoogleCATestKey returns a service account key JSON with a fresh RSA key.
 func newGoogleCATestKey(t *testing.T, clientEmail string) string {
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
@@ -2197,14 +2196,12 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	require.Equal(t, "secret-C02cajzvg", row.ProxyServerSecret)
 	g.client.reset()
 
-	// Changing the customer ID (here with a new key too) first unmarks the devices
-	// registered under the previous customer with that customer's key and drops their
-	// rows, then re-registers, since fleetdm.com keys the server by it.
+	// Changing the customer ID unmarks the previous customer's devices with its key,
+	// drops their rows, and re-registers.
 	host0 := test.NewHost(t, s.ds, "gca-host-0", "", "gca-host-0-key", uuid.NewString(), time.Now())
 	insertGoogleDeviceUsers(t, s.ds, host0, "devices/old/deviceUsers/u1", "devices/old/deviceUsers/u2")
 
-	// If fleetdm.com can't drop the previous customer's registration, the change fails
-	// before anything else changes, so the old secret is kept for the retry.
+	// If fleetdm.com can't drop the previous registration, nothing changes.
 	g.client.deregisterErr = &conditional_access_google.RelayStatusError{Code: http.StatusServiceUnavailable}
 	g.connect("C03other", "admin2@example.com", key, http.StatusBadGateway)
 	g.requireCalls([]string{"admin2@example.com/C03other"}, nil, []string{"C02cajzvg"})
@@ -2247,8 +2244,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	require.Equal(t, deletedBefore+1, g.deletedCount())
 	g.client.reset()
 
-	// A fleetdm.com failure on DELETE is a 502, never fleetdm.com's own status (a 401 would
-	// log the admin out), and keeps the integration so the admin can retry.
+	// A fleetdm.com failure on DELETE is a 502 and keeps the integration.
 	g.client.deregisterErr = &conditional_access_google.RelayStatusError{Code: http.StatusUnauthorized, RespErr: "bad secret"}
 	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusBadGateway, &deleteGoogleConditionalAccessResponse{})
 	_, err = s.ds.GetGoogleConditionalAccessIntegration(ctx)
@@ -2283,9 +2279,8 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusBadRequest, &deleteGoogleConditionalAccessResponse{})
 	g.client.reset()
 
-	// A registration whose secret can't be saved is dropped again on fleetdm.com, so no
-	// registration is left that Fleet can't remove.
-	// A secret longer than the column makes the save fail; MySQL's "data too long" is a 422.
+	// A registration whose secret can't be saved is deregistered again. A secret longer
+	// than the column fails the save, and MySQL's "data too long" is a 422.
 	g.client.registerSecret = strings.Repeat("s", 300)
 	g.connect("C02cajzvg", "admin@example.com", key, http.StatusUnprocessableEntity)
 	g.requireCalls([]string{"admin@example.com/C02cajzvg"}, []string{"C02cajzvg"}, []string{"C02cajzvg"})
@@ -2296,9 +2291,8 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	require.NotEqual(t, fleet.ConditionalAccessGoogleStateConnected, row.State)
 	g.client.reset()
 
-	// If fleetdm.com fails during a key upload, the key and the setting are kept and the
-	// failure is shown as a registration error. The response is a 502 whatever fleetdm.com
-	// answered.
+	// A fleetdm.com failure during upload is a 502 and is recorded as a registration
+	// error; the key and the setting are kept.
 	g.client.registerErr = &conditional_access_google.RelayStatusError{Code: http.StatusUnauthorized, RespErr: "fleetdm.com unavailable"}
 	g.connect("C02cajzvg", "admin@example.com", key, http.StatusBadGateway)
 	require.JSONEq(t, key, string(g.storedKey()))

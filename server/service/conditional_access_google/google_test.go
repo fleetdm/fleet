@@ -274,8 +274,7 @@ func TestServiceAccountKeyNotJSON(t *testing.T) {
 	require.EqualError(t, err, "read the service account key: not a JSON object")
 }
 
-// Keys aren't validated on upload: the delegation check rejects an unusable one before
-// anything is sent to Google.
+// Keys aren't validated on upload, so an unusable one must fail before reaching Google.
 func TestUnusableServiceAccountKey(t *testing.T) {
 	for name, edit := range map[string]func(map[string]string){
 		"private key not PEM": func(k map[string]string) { k["private_key"] = "not a key" },

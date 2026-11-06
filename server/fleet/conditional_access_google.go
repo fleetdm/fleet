@@ -6,19 +6,17 @@ import (
 	"strings"
 )
 
-// GoogleConditionalAccessIntegration holds the app config settings of the Google
-// conditional access integration. The service account key is not part of it: it is
-// uploaded through the integration endpoint and stored encrypted in mdm_config_assets.
+// GoogleConditionalAccessIntegration is the app config part of the integration. The
+// service account key is stored encrypted in mdm_config_assets instead.
 type GoogleConditionalAccessIntegration struct {
 	Enabled bool `json:"enabled"`
-	// CustomerID is the Google Workspace customer ID with its leading "C", as the Admin console shows it.
+	// CustomerID includes the leading "C".
 	CustomerID string `json:"customer_id"`
 	// AdminEmail is the Workspace admin the service account impersonates.
 	AdminEmail string `json:"admin_email"`
 }
 
-// ConditionalAccessGoogleStatus is the read-only connection state of the Google
-// conditional access integration.
+// ConditionalAccessGoogleStatus is the integration's connection state.
 type ConditionalAccessGoogleStatus struct {
 	ServiceAccountKeyConfigured bool `json:"service_account_key_configured"`
 	// State is empty when the integration is off.
@@ -66,12 +64,9 @@ func (c *ConditionalAccessGoogleIntegration) Registered() bool {
 	return c != nil && c.ProxyServerSecret != ""
 }
 
-// googleCustomerIDRegexp matches a Google customer ID as the Admin console shows it,
-// with its leading "C".
 var googleCustomerIDRegexp = regexp.MustCompile(`^C[0-9A-Za-z]{6,32}$`)
 
-// Validate trims the customer ID and admin email in place and appends any error to
-// invalid. Both are required when the integration is enabled.
+// Validate trims the fields in place and appends any error to invalid.
 func (g *GoogleConditionalAccessIntegration) Validate(invalid *InvalidArgumentError) {
 	g.CustomerID = strings.TrimSpace(g.CustomerID)
 	g.AdminEmail = strings.TrimSpace(g.AdminEmail)
