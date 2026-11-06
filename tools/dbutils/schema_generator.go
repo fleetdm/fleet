@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/WatchBeam/clock"
@@ -39,13 +41,14 @@ func panicif(err error) {
 	}
 }
 
-// main requires 1 argument:
-// 1. Path to dumpfile
+// main requires 2 arguments:
+// 1. Path to the schema dumpfile
+// 2. Path to the migration status dumpfile
 func main() {
-	if len(os.Args) != 2 {
-		panic("not enough arguments")
+	if len(os.Args) != 3 {
+		panic("usage: dbutils <schema.sql> <schema_migrations.sql>")
 	}
-	fmt.Println("dumping schema to", os.Args[1])
+	fmt.Println("dumping schema to", os.Args[1], "and", os.Args[2])
 
 	// Create the database (must use raw MySQL client to do this)
 	db, err := sql.Open(
@@ -69,14 +72,12 @@ func main() {
 	defer ds.Close()
 	panicif(ds.MigrateTables(context.Background()))
 
-	// Set created_at/updated_at for migrations and app_config_json to prevent the schema from being changed every time
+	// Set created_at/updated_at for app_config_json to prevent the schema from being changed every time
 	// This schema is to test anyway
 	fixedDate := time.Date(2020, 01, 01, 01, 01, 01, 01, time.UTC)
 	_, err = db.Exec(`USE schemadb`)
 	panicif(err)
 	_, err = db.Exec(`UPDATE app_config_json SET created_at = ?, updated_at = ?`, fixedDate, fixedDate)
-	panicif(err)
-	_, err = db.Exec(`UPDATE migration_status_tables SET tstamp = ?`, fixedDate)
 	panicif(err)
 
 	// Tests create these built-in labels themselves via test.AddBuiltinLabels.
@@ -110,5 +111,62 @@ func main() {
 	cmd.Stdout = &stdoutBuf
 	panicif(cmd.Run())
 
-	panicif(os.WriteFile(os.Args[1], stdoutBuf.Bytes(), 0o655))
+	panicif(os.WriteFile(os.Args[1], stripMigrationStatus(stdoutBuf.Bytes()), 0o655))
+
+	// Migration rows are written one self-contained statement per line, without
+	// the auto-increment id, so that concurrent PRs adding migrations only add
+	// lines and the file can be merged with git's union driver (see .gitattributes).
+	var versions []struct {
+		VersionID int64 `db:"version_id"`
+		IsApplied bool  `db:"is_applied"`
+	}
+	panicif(sqlx.Select(sqlx.NewDb(db, "mysql"), &versions,
+		`SELECT version_id, is_applied FROM schemadb.migration_status_tables ORDER BY version_id, is_applied`))
+	pending := make(map[string]bool, len(versions))
+	var ordered []string
+	for _, v := range versions {
+		isApplied := 0
+		if v.IsApplied {
+			isApplied = 1
+		}
+		line := fmt.Sprintf("INSERT INTO `migration_status_tables` (`version_id`, `is_applied`) VALUES (%d, %d);", v.VersionID, isApplied)
+		pending[line] = true
+		ordered = append(ordered, line)
+	}
+	// Keep the existing line order: a union merge appends lines in arbitrary
+	// order, and re-sorting would make the CI up-to-date check fail after it.
+	var sb strings.Builder
+	if existing, err := os.ReadFile(os.Args[2]); err == nil {
+		for line := range strings.Lines(string(existing)) {
+			line = strings.TrimRight(line, "\n")
+			if pending[line] {
+				sb.WriteString(line + "\n")
+				delete(pending, line)
+			}
+		}
+	}
+	for _, line := range ordered {
+		if pending[line] {
+			sb.WriteString(line + "\n")
+		}
+	}
+	panicif(os.WriteFile(os.Args[2], []byte(sb.String()), 0o655))
+}
+
+var (
+	migrationStatusInsertRe  = regexp.MustCompile("(?m)^INSERT INTO `migration_status_tables` VALUES .*;\n")
+	migrationStatusCreateRe  = regexp.MustCompile("(?s)CREATE TABLE `migration_status_tables` \\(.*?\\) ENGINE=[^;]*;")
+	migrationStatusAutoIncRe = regexp.MustCompile(` AUTO_INCREMENT=\d+`)
+)
+
+// stripMigrationStatus removes the migration_status_tables rows and its
+// AUTO_INCREMENT counter from the dump, as they change with every migration.
+func stripMigrationStatus(dump []byte) []byte {
+	if !migrationStatusInsertRe.Match(dump) || !migrationStatusCreateRe.Match(dump) {
+		panic("migration_status_tables not found in dump")
+	}
+	dump = migrationStatusInsertRe.ReplaceAll(dump, nil)
+	return migrationStatusCreateRe.ReplaceAllFunc(dump, func(b []byte) []byte {
+		return migrationStatusAutoIncRe.ReplaceAll(b, nil)
+	})
 }

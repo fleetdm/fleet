@@ -153,7 +153,7 @@ go run ./tools/zendesk-integration \
 ### Database Management
 ```bash
 # Generate database schema
-go run ./tools/dbutils/schema_generator.go ./schema.sql
+go run ./tools/dbutils ./schema.sql ./schema_migrations.sql
 
 # Bump migration timestamp (when PR migration is older than main)
 go run ./tools/bump-migration -source-migration 20240101120000_MyMigration.go -regen-schema

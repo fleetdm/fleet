@@ -121,17 +121,23 @@ type DatastoreTestOptions struct {
 // LoadDefaultSchema loads the default database schema for testing.
 func LoadDefaultSchema(t testing.TB, testName string, opts *DatastoreTestOptions) {
 	_, thisFile, _, _ := runtime.Caller(0)
-	schemaPath := filepath.Join(filepath.Dir(thisFile), "../../../datastore/mysql/schema.sql")
-	LoadSchema(t, testName, opts, schemaPath)
+	dir := filepath.Join(filepath.Dir(thisFile), "../../../datastore/mysql")
+	LoadSchema(t, testName, opts, filepath.Join(dir, "schema.sql"), filepath.Join(dir, "schema_migrations.sql"))
 }
 
-// LoadSchema loads a database schema from the specified path for testing.
-func LoadSchema(t testing.TB, testName string, opts *DatastoreTestOptions, schemaPath string) {
-	schema, err := os.ReadFile(schemaPath)
-	if err != nil {
-		t.Error(err)
-		t.FailNow()
+// LoadSchema loads a database schema from the specified paths, in order, for testing.
+func LoadSchema(t testing.TB, testName string, opts *DatastoreTestOptions, schemaPaths ...string) {
+	var schemaBuf strings.Builder
+	for _, schemaPath := range schemaPaths {
+		b, err := os.ReadFile(schemaPath)
+		if err != nil {
+			t.Error(err)
+			t.FailNow()
+		}
+		schemaBuf.Write(b)
+		schemaBuf.WriteString("\n")
 	}
+	schema := schemaBuf.String()
 
 	// execute the schema for the test db, and once more for the replica db if
 	// that option is set.

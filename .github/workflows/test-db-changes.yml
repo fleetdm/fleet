@@ -10,6 +10,7 @@ on:
     paths:
       - '**.go'
       - 'server/datastore/mysql/schema.sql'
+      - 'server/datastore/mysql/schema_migrations.sql'
       - '.github/workflows/test-db-changes.yml'
   workflow_dispatch: # Manual
 
@@ -112,8 +113,8 @@ jobs:
     - name: Verify test schema changes
       run: |
         make test-schema
-        if [[ $(git diff-files --patch server/datastore/mysql/schema.sql) ]]; then
-          echo "❌ fail: uncommitted changes in schema.sql"
+        if [[ $(git diff-files --patch server/datastore/mysql/schema.sql server/datastore/mysql/schema_migrations.sql) ]]; then
+          echo "❌ fail: uncommitted changes in schema.sql or schema_migrations.sql"
           echo "please run 'make test-schema' and commit the changes"
           exit 1
         fi
