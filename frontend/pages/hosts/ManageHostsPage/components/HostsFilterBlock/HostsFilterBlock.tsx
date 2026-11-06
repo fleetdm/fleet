@@ -341,7 +341,7 @@ const HostsFilterBlock = ({
           options={OS_SETTINGS_FILTER_OPTIONS}
           onChange={onChangeMacSettingsFilter}
           searchable={false}
-          iconName="filter-alt"
+          iconName="filter"
         />
         <FilterPill
           label={label}
@@ -470,7 +470,7 @@ const HostsFilterBlock = ({
           options={OS_SETTINGS_FILTER_OPTIONS}
           onChange={onChangeOsSettingsFilter}
           searchable={false}
-          iconName="filter-alt"
+          iconName="filter"
         />
         <FilterPill
           label={label}
@@ -533,7 +533,7 @@ const HostsFilterBlock = ({
           options={OPTIONS}
           searchable={false}
           onChange={onChangeSoftwareInstallStatusFilter}
-          iconName="filter-alt"
+          iconName="filter"
         />
         {renderSoftwareFilterBlock([HOSTS_QUERY_PARAMS.SOFTWARE_STATUS])}
       </>
@@ -555,7 +555,7 @@ const HostsFilterBlock = ({
           options={OPTIONS}
           searchable={false}
           onChange={onChangeConfigProfileStatusFilter}
-          iconName="filter-alt"
+          iconName="filter"
         />
         <FilterPill
           label={`OS settings: ${configProfile?.name}`}
@@ -581,7 +581,7 @@ const HostsFilterBlock = ({
           options={OPTIONS}
           searchable={false}
           onChange={onChangeScriptBatchStatusFilter}
-          iconName="filter-alt"
+          iconName="filter"
         />
         {scriptBatchScriptName && (
           <FilterPill
