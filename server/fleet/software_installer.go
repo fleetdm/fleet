@@ -1022,8 +1022,9 @@ type AutomaticInstallPolicy struct {
 	// InstallerID is nil for VPP-app-backed policies (they carry
 	// vpp_apps_teams_id instead). For custom-package-backed policies it
 	// points at the specific package the policy triggers install on.
-	InstallerID *uint  `json:"-" db:"software_installer_id"`
-	Type        string `json:"type" db:"type"`
+	InstallerID    *uint  `json:"-" db:"software_installer_id"`
+	VPPAppsTeamsID *uint  `json:"-" db:"vpp_apps_teams_id"`
+	Type           string `json:"type" db:"type"`
 }
 
 type PatchPolicyData struct {
@@ -1081,25 +1082,6 @@ type SoftwarePackageListItem struct {
 	SelfService              *bool                    `json:"self_service,omitempty"`
 	PackageURL               *string                  `json:"package_url"`
 	UploadedAt               time.Time                `json:"uploaded_at"`
-}
-
-func (s *SoftwarePackageOrApp) GetPlatform() string {
-	return s.Platform
-}
-
-func (s *SoftwarePackageOrApp) GetAppStoreID() string {
-	return s.AppStoreID
-}
-
-// Returns unique name by Platform + AppStoreID/Name
-func (s *SoftwarePackageOrApp) FullyQualifiedName() string {
-	if s.AppStoreID != "" {
-		return fmt.Sprintf(`%s_%s`, s.AppStoreID, s.Platform)
-	}
-	if s.Name != "" {
-		return fmt.Sprintf(`%s_%s`, s.Name, s.Platform)
-	}
-	return ""
 }
 
 type SoftwarePackageSpec struct {

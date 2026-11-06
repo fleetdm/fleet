@@ -73,14 +73,6 @@ type VPPAppTeam struct {
 	AutoUpdateEndTime   *string `db:"auto_update_window_end" json:"-"`
 }
 
-func (v VPPAppTeam) GetPlatform() string {
-	return string(v.Platform)
-}
-
-func (v VPPAppTeam) GetAppStoreID() string {
-	return v.AdamID
-}
-
 // VPPApp represents a VPP (Volume Purchase Program) application,
 // this is used by Apple MDM to manage applications via Apple
 // Business Manager.
@@ -126,15 +118,17 @@ type VPPAppStoreApp struct {
 	Status        *VPPAppStatusSummary `db:"-" json:"status"`
 	SelfService   bool                 `db:"self_service" json:"self_service"`
 	// only filled by GetVPPAppMetadataByTeamAndTitleID
-	VPPAppsTeamsID uint `db:"vpp_apps_teams_id" json:"-"`
+	VPPAppsTeamsID uint `db:"vpp_apps_teams_id" json:"id"`
 	// VPPTokenID is the token the app was added from on this fleet. Nil for Google Play apps.
 	VPPTokenID *uint            `db:"vpp_token_id" json:"-"`
 	VPPToken   *VPPTokenSummary `db:"-" json:"vpp_token"`
 
 	VersionName         string  `db:"version_name" json:"-"`
-	AutoUpdateEnabled   *bool   `db:"auto_update_enabled" json:"-"`
-	AutoUpdateStartTime *string `db:"auto_update_window_start" json:"-"`
-	AutoUpdateEndTime   *string `db:"auto_update_window_end" json:"-"`
+	AutoUpdateEnabled   *bool   `db:"auto_update_enabled" json:"auto_update_enabled"`
+	AutoUpdateStartTime *string `db:"auto_update_window_start" json:"auto_update_window_start"`
+	AutoUpdateEndTime   *string `db:"auto_update_window_end" json:"auto_update_window_end"`
+	InstallDuringSetup  *bool   `db:"install_during_setup" json:"-"`
+	TitleID             uint    `db:"title_id" json:"-"`
 	// AutomaticInstallPolicies is the list of policies that trigger automatic
 	// installation of this software.
 	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies" db:"-"`
@@ -170,6 +164,7 @@ const (
 	MaxAppStoreAppVersionNameLength = 255
 )
 
+// TODO: replace with VPPAppStoreApp once app_store_app is removed from software title responses.
 // AppStoreAppVersion is one version of an App Store app on a fleet, as returned in the app_store_apps list of a software title.
 type AppStoreAppVersion struct {
 	ID                       uint                      `json:"id"`
@@ -190,6 +185,18 @@ type AppStoreAppVersion struct {
 	Categories               []string                  `json:"categories"`
 	DisplayName              string                    `json:"display_name"`
 	Configuration            json.RawMessage           `json:"configuration,omitempty"`
+	VPPToken                 *VPPTokenSummary          `json:"vpp_token"`
+}
+
+type AppStoreAppListItem struct {
+	ID                       uint                      `json:"id"`
+	Name                     string                    `json:"name"`
+	AppStoreID               string                    `json:"app_store_id"`
+	Platform                 InstallableDevicePlatform `json:"platform"`
+	Version                  string                    `json:"version"`
+	SelfService              bool                      `json:"self_service"`
+	AutomaticInstallPolicies []AutomaticInstallPolicy  `json:"automatic_install_policies"`
+	InstallDuringSetup       *bool                     `json:"install_during_setup,omitempty"`
 }
 
 func (v *VPPAppStoreApp) AppStoreAppVersion() AppStoreAppVersion {
@@ -212,6 +219,7 @@ func (v *VPPAppStoreApp) AppStoreAppVersion() AppStoreAppVersion {
 		Categories:               v.Categories,
 		DisplayName:              v.DisplayName,
 		Configuration:            v.Configuration,
+		VPPToken:                 v.VPPToken,
 	}
 }
 

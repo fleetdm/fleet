@@ -1064,6 +1064,11 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 	require.NoError(t, json.Unmarshal(titleResp.SoftwareTitle.AppStoreApp.Configuration, &gotFirstPlist))
 	require.Equal(t, productionPlist, gotFirstPlist)
 
+	// read the vpp_token of both versions, each should have the token the app was added from
+	require.NotNil(t, titleResp.SoftwareTitle.AppStoreApps[0].VPPToken)
+	require.Equal(t, validToken.Token.ID, titleResp.SoftwareTitle.AppStoreApps[0].VPPToken.ID)
+	require.Equal(t, titleResp.SoftwareTitle.AppStoreApps[0].VPPToken, titleResp.SoftwareTitle.AppStoreApps[1].VPPToken)
+
 	// edit the title without a version id, the request should be rejected since the title has two versions
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
 		&updateAppStoreAppRequest{TeamID: &team.ID, SelfService: new(true)}, http.StatusBadRequest)
@@ -1128,6 +1133,8 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 	require.NotNil(t, updResp.AppStoreApp)
 	require.Equal(t, addTestResp.VersionID, updResp.AppStoreApp.ID)
 	require.Equal(t, "Staging", updResp.AppStoreApp.Name)
+	require.NotNil(t, updResp.AppStoreApp.VPPToken)
+	require.Equal(t, validToken.Token.ID, updResp.AppStoreApp.VPPToken.ID)
 	require.NotNil(t, updResp.AppStoreApp.AutoUpdateEnabled)
 	require.True(t, *updResp.AppStoreApp.AutoUpdateEnabled)
 	require.Equal(t, "Staging", lastActivityVersionName(fleet.ActivityEditedAppStoreApp{}.ActivityName()))

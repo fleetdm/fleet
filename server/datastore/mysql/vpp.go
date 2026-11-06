@@ -38,14 +38,20 @@ func (ds *Datastore) GetAppStoreAppVersionsByTeamAndTitleID(ctx context.Context,
 	return ds.getAppStoreAppVersionsByTeamAndTitleID(ctx, &teamID, titleID, false)
 }
 
-func (ds *Datastore) getAppStoreAppVersionsByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, onlyFirstAdded bool) ([]*fleet.VPPAppStoreApp, error) {
+func (ds *Datastore) getAppStoreAppVersionsForTitles(ctx context.Context, teamID *uint, titleIDs []uint) ([]*fleet.VPPAppStoreApp, error) {
+	if len(titleIDs) == 0 {
+		return nil, nil
+	}
+
 	query := `
 SELECT
+	vap.title_id,
 	vap.adam_id,
 	vap.platform,
 	vap.name,
 	vap.latest_version,
 	vat.self_service,
+	vat.install_during_setup,
 	vat.id vpp_apps_teams_id,
 	vat.vpp_token_id,
 	vat.name version_name,
@@ -60,31 +66,42 @@ FROM
 	vpp_apps vap
 	INNER JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform
 WHERE
-	vap.title_id = ? %s
+	vap.title_id IN (?) %s
 ORDER BY vat.id`
 
-	tmID := ptr.ValOrZero(teamID)
-
 	// when team id is not nil, we need to filter by the global or team id given.
-	args := []any{titleID}
+	args := []any{titleIDs}
 	teamFilter := ""
 	if teamID != nil {
 		args = append(args, *teamID)
 		teamFilter = "AND vat.global_or_team_id = ?"
 	}
 
-	if onlyFirstAdded {
-		query += ` LIMIT 1`
+	query, args, err := sqlx.In(fmt.Sprintf(query, teamFilter), args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build get VPP app metadata query")
 	}
-
 	var versions []*fleet.VPPAppStoreApp
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &versions, fmt.Sprintf(query, teamFilter), args...)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &versions, query, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get VPP app metadata")
+	}
+	return versions, nil
+}
+
+func (ds *Datastore) getAppStoreAppVersionsByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, onlyFirstAdded bool) ([]*fleet.VPPAppStoreApp, error) {
+	versions, err := ds.getAppStoreAppVersionsForTitles(ctx, teamID, []uint{titleID})
+	if err != nil {
+		return nil, err
 	}
 	if len(versions) == 0 {
 		return nil, ctxerr.Wrap(ctx, notFound("VPPApp"), "get VPP app metadata")
 	}
+	if onlyFirstAdded {
+		versions = versions[:1]
+	}
+
+	tmID := ptr.ValOrZero(teamID)
 
 	// Read the display name, automatic install policies, and icon once since they are set per title
 	displayName, err := ds.getSoftwareTitleDisplayName(ctx, tmID, titleID)
@@ -93,11 +110,17 @@ ORDER BY vat.id`
 	}
 
 	var policies []fleet.AutomaticInstallPolicy
+	policiesByVersionID := make(map[uint][]fleet.AutomaticInstallPolicy)
 	var iconURL *string
 	if teamID != nil {
 		policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, *teamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get policies by software title ID")
+		}
+		for _, p := range policies {
+			if p.VPPAppsTeamsID != nil {
+				policiesByVersionID[*p.VPPAppsTeamsID] = append(policiesByVersionID[*p.VPPAppsTeamsID], p)
+			}
 		}
 
 		icon, err := ds.GetSoftwareTitleIcon(ctx, *teamID, titleID)
@@ -167,7 +190,7 @@ ORDER BY vat.id`
 			app.Configuration = configuration
 		}
 
-		app.AutomaticInstallPolicies = policies
+		app.AutomaticInstallPolicies = policiesByVersionID[app.VPPAppsTeamsID]
 		if iconURL != nil {
 			app.IconURL = iconURL
 		}
