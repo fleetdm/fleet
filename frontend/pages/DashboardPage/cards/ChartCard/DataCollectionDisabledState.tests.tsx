@@ -27,7 +27,7 @@ describe("DataCollectionDisabledState", () => {
   it("shows Turn on when the viewer is a team admin of the passed-in fleet, even if the app context's selected team is different", () => {
     const teamAdminOfFleet5 = createMockUser({
       global_role: null,
-      teams: [{ id: 5, name: "Fleet 5", role: "admin" }],
+      fleets: [{ id: 5, name: "Fleet 5", role: "admin" }],
     });
     const render = createCustomRenderer({
       context: {
@@ -57,7 +57,7 @@ describe("DataCollectionDisabledState", () => {
   it("shows Ask an admin when the viewer is not admin of the passed-in fleet", () => {
     const teamObserverOfFleet5 = createMockUser({
       global_role: null,
-      teams: [{ id: 5, name: "Fleet 5", role: "observer" }],
+      fleets: [{ id: 5, name: "Fleet 5", role: "observer" }],
     });
     const render = createCustomRenderer({
       context: {
@@ -85,7 +85,7 @@ describe("DataCollectionDisabledState", () => {
   it("hides Turn on from a team admin when the setting is disabled globally — only a global admin can override the org gate", () => {
     const teamAdminOfFleet5 = createMockUser({
       global_role: null,
-      teams: [{ id: 5, name: "Fleet 5", role: "admin" }],
+      fleets: [{ id: 5, name: "Fleet 5", role: "admin" }],
     });
     const render = createCustomRenderer({
       context: {

@@ -1191,10 +1191,17 @@ func (w WebSocketConfig) Validate(initFatal func(err error, msg string)) {
 	}
 }
 
+// DefaultMicrosoftCompliancePartnerClientID is the client ID of Fleet's production
+// Microsoft Compliance Partner app (the one fleetdm.com's proxy uses).
+const DefaultMicrosoftCompliancePartnerClientID = "f505600d-d90e-4bd0-bea4-065e48377bd6"
+
 // MicrosoftCompliancePartnerConfig holds the server configuration for the "Conditional access" feature.
 type MicrosoftCompliancePartnerConfig struct {
 	// ProxyURI is the URI of the Microsoft Compliance Partner proxy (for development/testing).
 	ProxyURI string `yaml:"proxy_uri"`
+	// ClientID is the client ID of Fleet's multi-tenant Entra app, the audience of the
+	// device ID tokens reported by macOS hosts.
+	ClientID string `yaml:"client_id"`
 }
 
 type MDMConfig struct {
@@ -2359,7 +2366,7 @@ func (man Manager) addConfigs() {
 	man.hideConfig("mdm.android_batch_size")
 	man.addConfigInt("mdm.ios_ipados_refetch_batch_size", 1000, "Maximum number of iOS/iPadOS hosts sent refetch commands per refetch cron tick (runs every minute)")
 	man.hideConfig("mdm.ios_ipados_refetch_batch_size")
-	man.addConfigBool("mdm.apple_scep_static_challenge_enabled", true, "Allows static SCEP challenges to be used alongside dynamic challenges for Apple MDM SCEP")
+	man.addConfigBool("mdm.apple_scep_static_challenge_enabled", false, "Allows static SCEP challenges to be used alongside dynamic challenges for Apple MDM SCEP")
 
 	// Calendar integration
 	man.addConfigDuration(
@@ -2386,6 +2393,7 @@ func (man Manager) addConfigs() {
 
 	// Microsoft Compliance Partner
 	man.addConfigString("microsoft_compliance_partner.proxy_uri", "https://fleetdm.com", "URI of the Microsoft Compliance Partner proxy (for development/testing)")
+	man.addConfigString("microsoft_compliance_partner.client_id", DefaultMicrosoftCompliancePartnerClientID, "Client ID of Fleet's Microsoft Compliance Partner Entra app (for development/testing)")
 
 	man.addConfigBool("partnerships.enable_primo", false, "Disables the ability to manage multiple fleets in an instance, even in premium tier")
 
@@ -2791,6 +2799,7 @@ func (man Manager) LoadConfig() FleetConfig {
 		},
 		MicrosoftCompliancePartner: MicrosoftCompliancePartnerConfig{
 			ProxyURI: man.getConfigString("microsoft_compliance_partner.proxy_uri"),
+			ClientID: man.getConfigString("microsoft_compliance_partner.client_id"),
 		},
 		ConditionalAccess: ConditionalAccessConfig{
 			CertSerialFormat: man.getConfigString("conditional_access.cert_serial_format"),
@@ -3279,8 +3288,7 @@ func TestConfig() FleetConfig {
 			OSVForVulnerabilities: true,
 		},
 		MDM: MDMConfig{
-			AllowOrbitEndUserAuthBypass:     true,
-			AppleSCEPStaticChallengeEnabled: true,
+			AllowOrbitEndUserAuthBypass: true,
 		},
 		WebSocket: WebSocketConfig{
 			TransportEnabled: false,

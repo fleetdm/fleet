@@ -217,7 +217,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 		// reload the host by identifier, tests might
 		// delete hosts and create new records with different IDs
 		var err error
-		host, err = s.ds.HostByIdentifier(context.Background(), host.UUID)
+		host, err = s.ds.HostByIdentifier(t.Context(), device.UUID)
 		require.NoError(t, err)
 
 		sCmds, sSumm, sHostMDM := s.recordAppleHostStatus(host, device)

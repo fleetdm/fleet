@@ -1378,10 +1378,7 @@ type HostDetail struct {
 	// PatchDeadlineAt is when Fleet next forces a patch deadline install on this host, or nil.
 	PatchDeadlineAt *time.Time `json:"patch_deadline_at"`
 
-	// IDOnly marks a result where the caller was allowed to resolve the host but
-	// not to read it, so only ID is populated. Handlers must render it as an
-	// id-only response rather than a full one with everything zeroed out, which
-	// would advertise fields the caller never had access to.
+	// IDOnly marks a result where the caller was allowed to resolve the host but not to read it, so only ID is populated.
 	IDOnly bool `json:"-"`
 }
 
@@ -2117,6 +2114,8 @@ type HostMDMCheckinInfo struct {
 	TeamID             uint   `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	DEPAssignedToFleet bool   `json:"dep_assigned_to_fleet" db:"dep_assigned_to_fleet"`
 	OsqueryEnrolled    bool   `json:"osquery_enrolled" db:"osquery_enrolled"`
+	// FleetEnrolledCorporate is true while the host is enrolled in Fleet's MDM as a non-personal host.
+	FleetEnrolledCorporate bool `json:"-" db:"fleet_enrolled_corporate"`
 
 	SCEPRenewalInProgress bool       `json:"-" db:"scep_renewal_in_progress"`
 	MigrationInProgress   bool       `json:"-" db:"migration_in_progress"`

@@ -490,7 +490,7 @@ const HostDetailsPage = ({
   >("teams", () => teamAPI.loadAll(), {
     enabled: !!hostIdFromURL && !!isPremiumTier,
     retry: false,
-    select: (data: ILoadTeamsResponse) => data.teams,
+    select: (data: ILoadTeamsResponse) => data.fleets,
   });
 
   const { data: macadmins, refetch: refetchMacadmins } = useQuery(
@@ -2333,8 +2333,7 @@ const HostDetailsPage = ({
             <CommandResultsModal
               command={activityCommandDetails}
               contentBody={(cls, result) => {
-                const isPending =
-                  getIconName(result.status) === "pending-outline";
+                const isPending = getIconName(result.status) === "pending";
                 const cmdDisplayName = getMdmCommandDisplayName(
                   result.request_type
                 );

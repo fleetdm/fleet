@@ -154,7 +154,7 @@ const SelectTargets = ({
     ["teams"],
     () => teamsAPI.loadAll(),
     {
-      select: (data) => data.teams,
+      select: (data) => data.fleets,
       enabled: isPremiumTier,
       staleTime: STALE_TIME, // TODO: confirm
     }

@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1920,6 +1921,16 @@ func TestHostAuth(t *testing.T) {
 		}
 		return globalHost, nil
 	}
+	ds.HostLiteByIDFunc = func(ctx context.Context, id uint) (*fleet.HostLite, error) {
+		return &fleet.HostLite{ID: id}, nil
+	}
+	ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+		assert.NotEqual(t, "1", identifier, "a matched id must not fall back to the other identifiers")
+		if identifier == "team-host" {
+			return &fleet.HostLite{ID: 1}, nil
+		}
+		return &fleet.HostLite{ID: 2}, nil
+	}
 	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		return nil, nil
 	}
@@ -2142,6 +2153,11 @@ func TestHostAuth(t *testing.T) {
 			_, err = svc.HostByIdentifier(ctx, "1", opts)
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
+			for _, identifier := range []string{"1", "team-host"} {
+				_, err = svc.GetHostByIDOrIdentifier(ctx, identifier, opts)
+				checkAuthErr(t, tt.shouldFailTeamRead, err)
+			}
+
 			_, _, err = svc.ListHostUpcomingActivities(ctx, 1, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
@@ -2153,6 +2169,11 @@ func TestHostAuth(t *testing.T) {
 
 			_, err = svc.HostByIdentifier(ctx, "2", opts)
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
+
+			for _, identifier := range []string{"2", "global-host"} {
+				_, err = svc.GetHostByIDOrIdentifier(ctx, identifier, opts)
+				checkAuthErr(t, tt.shouldFailGlobalRead, err)
+			}
 
 			_, _, err = svc.ListHostUpcomingActivities(ctx, 2, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
@@ -2389,6 +2410,18 @@ func TestHostByIdentifierGitOpsGetsIDOnly(t *testing.T) {
 	})
 }
 
+func TestGetHostByIDOrIdentifierIDLookupError(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ds.HostLiteByIDFunc = func(ctx context.Context, id uint) (*fleet.HostLite, error) {
+		return nil, errors.New("database unavailable")
+	}
+
+	// A failed lookup says nothing about whether the id exists, so it must not fall back to the other identifiers.
+	_, err := svc.GetHostByIDOrIdentifier(test.UserContext(ctx, test.UserAdmin), "1", fleet.HostDetailOptions{})
+	require.ErrorContains(t, err, "database unavailable")
+}
+
 func TestListHosts(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
@@ -2564,6 +2597,20 @@ func TestSanitizeCSVFormula(t *testing.T) {
 		once := sanitizeCSVFormula("=1+1")
 		require.Equal(t, once, sanitizeCSVFormula(once))
 	})
+}
+
+func TestHostsReportFleetAliasesWithoutDeviceMapping(t *testing.T) {
+	// Hosts without device mapping, as in an export that does not ask for it, still get the fleet columns.
+	resp := hostsReportResponse{
+		Columns: []string{"hostname", "team_name", "fleet_id", "fleet_name"},
+		Hosts:   []*fleet.HostResponse{{Host: &fleet.Host{Hostname: "h1", TeamID: new(uint(7)), TeamName: new("Workstations")}}},
+	}
+	rr := httptest.NewRecorder()
+	resp.HijackRender(t.Context(), rr)
+	require.Equal(t, http.StatusOK, rr.Code)
+	rows, err := csv.NewReader(rr.Body).ReadAll()
+	require.NoError(t, err)
+	require.Equal(t, [][]string{{"hostname", "team_name", "fleet_id", "fleet_name"}, {"h1", "Workstations", "7", "Workstations"}}, rows)
 }
 
 func TestStreamHosts(t *testing.T) {
