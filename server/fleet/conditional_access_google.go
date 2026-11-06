@@ -1,14 +1,9 @@
 package fleet
 
 import (
-	"crypto/rsa"
-	"encoding/json"
-	"fmt"
 	"net/mail"
 	"regexp"
 	"strings"
-
-	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
 )
 
 // GoogleConditionalAccessIntegration holds the app config settings of the Google
@@ -99,43 +94,5 @@ func ValidateGoogleConditionalAccessSettings(intg *GoogleConditionalAccessIntegr
 		}
 	} else if addr, err := mail.ParseAddress(intg.AdminEmail); err != nil || addr.Address != intg.AdminEmail {
 		invalid.Append(fieldPrefix+"admin_email", "must be a valid email address")
-	}
-}
-
-// Fields of a Google service account key JSON file.
-const (
-	googleServiceAccountKeyType        = "type"
-	googleServiceAccountKeyClientEmail = "client_email"
-	googleServiceAccountKeyPrivateKey  = "private_key"
-	googleServiceAccountType           = "service_account"
-)
-
-// ValidateGoogleServiceAccountKey checks that key is a service account key JSON object
-// with a non-empty client_email and a PEM-encoded RSA private_key, and appends any error
-// to invalid. It is the only check the key gets: the Cloud Identity client trusts it.
-func ValidateGoogleServiceAccountKey(key json.RawMessage, field string, invalid *InvalidArgumentError) {
-	if len(key) == 0 || string(key) == "null" {
-		invalid.Append(field, "service_account_key is required")
-		return
-	}
-	var fields map[string]any
-	if err := json.Unmarshal(key, &fields); err != nil {
-		invalid.Append(field, "must be the service account key JSON object")
-		return
-	}
-	if v, _ := fields[googleServiceAccountKeyType].(string); v != googleServiceAccountType {
-		invalid.Append(field+"."+googleServiceAccountKeyType, "type must be "+googleServiceAccountType)
-	}
-	for _, name := range []string{googleServiceAccountKeyClientEmail, googleServiceAccountKeyPrivateKey} {
-		if v, _ := fields[name].(string); strings.TrimSpace(v) == "" {
-			invalid.Append(fmt.Sprintf("%s.%s", field, name), fmt.Sprintf("%s is required", name))
-		}
-	}
-	// Google signs the delegated token with RS256, so only an RSA key works.
-	if v, _ := fields[googleServiceAccountKeyPrivateKey].(string); strings.TrimSpace(v) != "" {
-		k, _ := cryptoutil.ParsePrivateKey([]byte(v), googleServiceAccountKeyPrivateKey)
-		if _, ok := k.(*rsa.PrivateKey); !ok {
-			invalid.Append(field+"."+googleServiceAccountKeyPrivateKey, "private_key must be a PEM-encoded RSA private key")
-		}
 	}
 }

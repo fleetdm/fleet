@@ -78,7 +78,10 @@ func (svc *Service) ConditionalAccessGoogleConnect(ctx context.Context, customer
 	settings := fleet.GoogleConditionalAccessIntegration{Enabled: true, CustomerID: customerID, AdminEmail: adminEmail}
 	invalid := &fleet.InvalidArgumentError{}
 	fleet.ValidateGoogleConditionalAccessSettings(&settings, "", invalid)
-	fleet.ValidateGoogleServiceAccountKey(serviceAccountKey, "service_account_key", invalid)
+	// The delegation check rejects any key Google can't use.
+	if len(serviceAccountKey) == 0 || string(serviceAccountKey) == "null" {
+		invalid.Append("service_account_key", "service_account_key is required")
+	}
 	if invalid.HasErrors() {
 		return ctxerr.Wrap(ctx, invalid)
 	}

@@ -106,7 +106,6 @@ type serviceAccountKey struct {
 	PrivateKey   string `json:"private_key"`
 }
 
-// parseServiceAccountKey doesn't validate: the service does when the key is uploaded.
 func parseServiceAccountKey(b []byte) (*serviceAccountKey, error) {
 	var key serviceAccountKey
 	if err := json.Unmarshal(b, &key); err != nil {

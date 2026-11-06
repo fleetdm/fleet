@@ -2105,12 +2105,13 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	require.Equal(t, fleet.ConditionalAccessGoogleStatus{}, st.ConditionalAccessGoogleStatus)
 	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusBadRequest, &conditionalAccessGoogleDeleteResponse{})
 
-	// Invalid input is a 422 on the field (the validators have their own unit tests).
+	// Invalid input is a 422 on the field (the validator has its own unit tests).
 	res := s.Do("POST", "/api/latest/fleet/conditional_access/google", conditionalAccessGoogleConnectRequest{
-		CustomerID: "C02cajzvg", AdminEmail: "admin@example.com", ServiceAccountKey: json.RawMessage(`{"type":"service_account","client_email":"sa@example.com"}`),
+		CustomerID: "C02cajzvg", AdminEmail: "admin@example.com",
 	}, http.StatusUnprocessableEntity)
 	name, _ := extractServerErrorNameReason(res.Body)
-	require.Equal(t, "service_account_key.private_key", name)
+	require.Equal(t, "service_account_key", name)
+	g.requireCalls(nil, nil, nil)
 
 	// Without a server private key the key can't be stored, so nothing is called.
 	testSetEmptyPrivateKey = true
