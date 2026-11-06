@@ -2,6 +2,7 @@ import classnames from "classnames";
 import React, { useCallback, useEffect, useRef } from "react";
 
 import Button from "components/buttons/Button";
+import CustomLinkSizeContext from "components/CustomLink/CustomLinkSizeContext";
 import Icon from "components/Icon/Icon";
 import { ICON_MAP } from "components/icons";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -103,7 +104,9 @@ const InputFieldWithIcon = ({
     if (helpText) {
       return (
         <span className={`${baseClass}__help-text form-field__help-text`}>
-          {helpText}
+          <CustomLinkSizeContext.Provider value="small">
+            {helpText}
+          </CustomLinkSizeContext.Provider>
         </span>
       );
     }

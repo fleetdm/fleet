@@ -15,6 +15,10 @@
     .external-link-icon path {
       fill: $core-fleet-black;
     }
+
+    .external-link-icon--small {
+      stroke: $core-fleet-black;
+    }
   }
 
   // Non-multiline links lay out the icon next to the text on a single line.
