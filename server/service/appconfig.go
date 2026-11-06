@@ -2361,7 +2361,7 @@ func (svc *Service) validateMDM(
 		invalid.Append("windows_settings.enable_managed_local_account", ErrMissingLicense.Error())
 	}
 	if mdm.WindowsMigrationEnabled && !lic.IsPremium() {
-		invalid.Append("windows_mdm_migration_enabled", ErrMissingLicense.Error())
+		invalid.Append("mdm.windows_mdm_migration_enabled", ErrMissingLicense.Error())
 	}
 	if mdm.EnableTurnOnWindowsMDMManually && !lic.IsPremium() {
 		invalid.Append("enable_turn_on_windows_mdm_manually", ErrMissingLicense.Error())
