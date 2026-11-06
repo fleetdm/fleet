@@ -6,7 +6,15 @@ TMPDIR=$(dirname "$(realpath "$INSTALLER_PATH")")
 # functions
 
 wezterm_pids() {
-  ps -x -U "$1" -o pid=,comm= | sed -n 's|^ *\([0-9][0-9]*\) .*/WezTerm\.app/Contents/MacOS/wezterm-gui$|\1|p'
+  local uid out pid puid exe
+  uid=$(id -u "$1") || return 1
+  out=$(ps -axo pid=,uid=,comm=) || return 1
+  while read -r pid puid exe; do
+    [[ "$puid" == "$uid" && "$exe" == */Contents/MacOS/wezterm-gui ]] || continue
+    if [[ "$(defaults read "${exe%/Contents/MacOS/*}/Contents/Info" CFBundleIdentifier 2>/dev/null)" == "com.github.wez.wezterm" ]]; then
+      echo "$pid"
+    fi
+  done <<< "$out"
 }
 
 # By default WezTerm asks "Terminate WezTerm?" before it quits, so the
@@ -22,7 +30,10 @@ quit_and_track_wezterm() {
     echo "Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'."
     return
   fi
-  pids=$(wezterm_pids "$console_user")
+  if ! pids=$(wezterm_pids "$console_user"); then
+    echo "Couldn't check whether application '$bundle_id' is running."
+    return 1
+  fi
   [[ -n "$pids" ]] || return 0
 
   eval "export $var_name=1"
@@ -32,7 +43,7 @@ quit_and_track_wezterm() {
   kill -TERM $pids 2>/dev/null
   for _ in {1..10}; do
     sleep 1
-    if [[ -z "$(wezterm_pids "$console_user")" ]]; then
+    if pids=$(wezterm_pids "$console_user") && [[ -z "$pids" ]]; then
       echo "Application '$bundle_id' quit successfully."
       return 0
     fi
