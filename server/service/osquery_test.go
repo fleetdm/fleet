@@ -204,7 +204,7 @@ func TestSubmitResultLogsDropsOverlongNames(t *testing.T) {
 	name := "pack/Global/" + strings.Repeat("a", maxScheduledQueryNameLen)
 	result := fmt.Sprintf(`{"snapshot":[{"a":"b"}],"action":"snapshot","name":%q,"hostIdentifier":"h","unixTime":1484078931}`, name)
 	require.NoError(t, serv.SubmitResultLogs(ctx, []json.RawMessage{json.RawMessage(result)}))
-	assert.Zero(t, len(serv.osqueryLogWriter.Result.(*testJSONLogger).logs))
+	assert.Empty(t, serv.osqueryLogWriter.Result.(*testJSONLogger).logs)
 }
 
 // TestSubmitResultLogsCapWarningOnlyWhenNamesDropped pins the cap's warning to
