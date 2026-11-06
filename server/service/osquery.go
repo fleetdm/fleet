@@ -22,7 +22,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/Masterminds/semver/v3"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/server"
@@ -1963,8 +1962,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 	var detailConfig *hostDetailQueryConfig
 	var detailConfigFailed bool
 
-	// Only a batch carrying the main software query reaches the full replace that would delete
-	// the rows of a skipped orbit software query, and such a batch loads the config anyway.
+	// Only a batch with the main software query can delete a skipped query's rows, and such a
+	// batch loads the config anyway.
 	if len(skippedSoftwareQueries) > 0 && hasMainSoftwareResults(results) {
 		cfg, err := svc.loadHostDetailQueryConfig(ctx, host)
 		if err != nil {
@@ -2407,9 +2406,7 @@ func getFailingCalendarPolicies(policyResults map[uint]*bool, calendarPolicies [
 // any overrides that are set.
 // We do this to not grow the main software queries and to ingest
 // all software together (one direct ingest function for all software).
-//
-// It returns the names of the extra queries that did not execute successfully, for
-// preservedSoftwareSources.
+// It returns the extra queries that did not run or failed.
 func preProcessSoftwareResults(
 	ctx context.Context,
 	host *fleet.Host,
@@ -2463,101 +2460,6 @@ func preProcessSoftwareResults(
 
 	updateFleetdVersion(host.Platform, results)
 	return skipped
-}
-
-// orbitSoftwareQuery is an extra software query backed by a fleetd table that reports sources no
-// other query does. Its discovery finds no table while fleetd's extension is not registered with
-// osqueryd, as on the first detail query run after a reboot, so osquery sends nothing for it and
-// the full replace in directIngestSoftware would read that as "none installed".
-type orbitSoftwareQuery struct {
-	sources []string
-	// minFleetdVersion is the fleetd release that added the table: an older fleetd never ran
-	// the query, so there is nothing to keep.
-	minFleetdVersion *semver.Version
-}
-
-// orbitSoftwareQueries lists the queries whose rows are kept when the query did not run, keyed
-// by detail query name. The ai_tools pseudo-source rows are never stored and rows it flags on
-// other sources survive on their own, so only the sources it alone reports are listed.
-var orbitSoftwareQueries = map[string]orbitSoftwareQuery{
-	"software_ai_tools": {
-		sources:          []string{"ai_clis", "mcp_servers", "ai_skills"},
-		minFleetdVersion: semver.MustParse("1.59.0"),
-	},
-}
-
-// preservedSoftwareSources returns the software sources this batch's software ingestion must
-// keep: those of the skipped orbit software queries that were sent to the host and whose table
-// the host's last reported fleetd ships. The version comes from host_orbit_info rather than the
-// batch, since orbit_info is itself an orbit table and misses the same batches.
-func (svc *Service) preservedSoftwareSources(ctx context.Context, host *fleet.Host, cfg *hostDetailQueryConfig, skipped []string) []string {
-	var candidates []string
-	for _, name := range skipped {
-		if _, ok := orbitSoftwareQueries[name]; !ok {
-			continue
-		}
-		if dq, sent := cfg.detailQueries[name]; sent && dq.RunsForPlatform(host.Platform) {
-			candidates = append(candidates, name)
-		}
-	}
-	if len(candidates) == 0 {
-		return nil
-	}
-
-	// A read failure keeps every candidate's rows rather than letting the full replace delete
-	// them: keeping is a no-op on a host that turns out to lack the table.
-	var fleetdVersion *semver.Version
-	fleetdVersionString := "unknown"
-	info, err := svc.ds.GetHostOrbitInfo(ctx, host.ID)
-	switch {
-	case fleet.IsNotFound(err):
-		return nil
-	case err != nil:
-		svc.logger.ErrorContext(ctx, "reading host orbit info", "host_id", host.ID, "err", err)
-	default:
-		fleetdVersion, err = fleet.VersionToSemverVersion(info.Version)
-		if err != nil {
-			svc.logger.DebugContext(ctx, "unparseable fleetd version", "host_id", host.ID, "version", info.Version)
-			return nil
-		}
-		fleetdVersionString = info.Version
-	}
-
-	var kept, sources []string
-	for _, name := range candidates {
-		oq := orbitSoftwareQueries[name]
-		if fleetdVersion != nil && fleetdVersion.LessThan(oq.minFleetdVersion) {
-			continue
-		}
-		kept = append(kept, name)
-		sources = append(sources, oq.sources...)
-	}
-	if len(kept) > 0 {
-		svc.logger.InfoContext(ctx, "orbit software queries did not run, keeping previously reported rows",
-			"queries", kept,
-			"sources", sources,
-			"fleetd_version", fleetdVersionString,
-			"host_id", host.ID,
-		)
-	}
-	return sources
-}
-
-// mainSoftwareQueries are the software queries whose results reach directIngestSoftware. Only
-// one of them runs on each host.
-var mainSoftwareQueries = []string{
-	hostDetailQueryPrefix + "software_macos",
-	hostDetailQueryPrefix + "software_windows",
-	hostDetailQueryPrefix + "software_linux",
-}
-
-func hasMainSoftwareResults(results fleet.OsqueryDistributedQueryResults) bool {
-	for _, query := range mainSoftwareQueries {
-		if _, ok := results[query]; ok {
-			return true
-		}
-	}
-	return false
 }
 
 // updateFleetdVersion updates the version of the fleetd package using the orbit version from the orbit_info table for Linux hosts.
@@ -2674,8 +2576,8 @@ func pythonPackageFilter(platform string, results fleet.OsqueryDistributedQueryR
 	results[linuxSoftware] = sw
 }
 
-// preProcessSoftwareExtraResults reports whether the extra query executed successfully on the
-// host, which is false when it did not run at all (no status) or ran with errors.
+// preProcessSoftwareExtraResults reports whether the extra query ran without error. A query
+// with no status did not run, e.g. its discovery found no table.
 func preProcessSoftwareExtraResults(
 	ctx context.Context,
 	softwareExtraQuery string,
