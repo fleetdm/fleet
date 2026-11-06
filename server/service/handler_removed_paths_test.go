@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/removednames"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
@@ -76,6 +77,46 @@ func TestRemovedPaths(t *testing.T) {
 			}
 		}
 	}
+}
+
+// TestRemovedPathsThroughHandler sends requests through the assembled API handler, fast path included. TestRemovedPaths uses a router of
+// its own, which cannot show another route answering a removed path first or a path the fast path serves differently.
+func TestRemovedPathsThroughHandler(t *testing.T) {
+	t.Parallel()
+
+	handler, _ := newAPIHandler(t, config.TestConfig(), nil)
+
+	for _, c := range []struct{ path, template string }{
+		{"/api/v1/fleet/team/1/policies", "/team/{fleet_id}/policies"},
+		{"/api/latest/fleet/teams/1/policies/count", "/teams/{fleet_id}/policies/count"}, // a literal next to {policy_id}
+		{"/api/v1/fleet/teams/1/policies/7", "/teams/{fleet_id}/policies/{policy_id}"},
+		{"/api/v1/fleet/team/1/schedule/7", "/team/{fleet_id}/schedule/{report_id}"},
+	} {
+		for _, method := range []string{http.MethodGet, http.MethodPost} {
+			t.Run(method+" "+c.path, func(t *testing.T) {
+				t.Parallel()
+				rec := httptest.NewRecorder()
+				handler.ServeHTTP(rec, httptest.NewRequest(method, c.path, nil))
+				require.Equal(t, http.StatusGone, rec.Code)
+
+				var body struct {
+					Errors []map[string]string `json:"errors"`
+				}
+				require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+				require.Len(t, body.Errors, 1)
+				assert.Equal(t, fmt.Sprintf(`The "%s %s" endpoint is not available anymore. What to use instead: %s`,
+					method, c.template, removednames.GuideURL), body.Errors[0]["reason"])
+			})
+		}
+	}
+
+	// HEAD is not one of the removed methods: a HEAD pattern next to the GET pattern of a sibling is ambiguous on a stdlib mux.
+	t.Run("HEAD gets 405", func(t *testing.T) {
+		t.Parallel()
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodHead, "/api/v1/fleet/teams/1/policies/count", nil))
+		require.Equal(t, http.StatusMethodNotAllowed, rec.Code)
+	})
 }
 
 // TestRemovedPathOverlaps covers the requests that the wildcard of an overlap catches without being requests to the removed path.
