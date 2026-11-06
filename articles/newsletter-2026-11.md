@@ -53,15 +53,13 @@ Don't see your city? [Request a workshop](https://fleetdm.com/contact#gitops) to
 
 - [New research: AI helps Mac admins ship changes quickly, but rollback often takes days](https://fleetdm.com/announcements/apple-in-the-enterprise-2026). Fleet surveyed more than 250 enterprise Mac admins: 86% let AI-written changes reach production devices, but 69% can't roll back a bad change within an hour.
 - [Fleet brings NVIDIA AI hardware under enterprise IT control](https://fleetdm.com/announcements/nvidia-gtc-2026). Manage NVIDIA RTX PRO workstations and NVIDIA DGX Station alongside your macOS, Windows, and Linux devices.
-- [Tailworm: what to do about Tailscale SSH before the fix ships](https://fleetdm.com/articles/tailworm-what-to-do-about-tailscale-ssh-before-the-fix-ships). Find the Linux servers and Macs where Tailscale SSH can forward as root, and close the path today with one environment variable and a Fleet policy.
+- Missed MacSysAdmin? Watch Fleet's session, "[Open All the Way Down](https://www.youtube.com/watch?v=tbAhyq095Aw)", on YouTube. In 20 minutes, [Henry Stamerjohann](https://www.linkedin.com/in/henry-st/) explains why working in the open matters as AI agents take on more IT work.
 
 ### Guides
 
 - [Revert a bad change in GitOps](https://fleetdm.com/guides/revert-a-bad-change-in-gitops). Undo a bad change with a revert commit instead of a reset and force-push, so your history keeps a record of what changed and why.
 - Block browser extensions in [Chrome](https://fleetdm.com/guides/block-chrome-extensions), [Edge](https://fleetdm.com/guides/block-edge-extensions), [Firefox](https://fleetdm.com/guides/block-firefox-extensions), and [Safari](https://fleetdm.com/guides/block-safari-extensions). Block, allow, or force-install extensions across macOS, Windows, and Linux.
 - [Use Claude Code with Fleet](https://fleetdm.com/guides/use-claude-code-with-fleet). Generate Fleet policies, reports, and configuration profiles with Claude Code, with or without GitOps.
-
-
 
 ## 🤝 Community contributions
 
