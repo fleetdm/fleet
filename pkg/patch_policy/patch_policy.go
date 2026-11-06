@@ -245,6 +245,7 @@ var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false 
 	"Gephi":                             "= 'gephi64.exe'",
 	"GIMP":                              "LIKE 'gimp-3%'",
 	"GitHub Desktop":                    "= 'githubdesktop.exe'",
+	"GoAnywhere OpenPGP Studio":         "= 'openpgpstudio.exe'",
 	"GoLand":                            "IN ('goland.exe','goland64.exe')",
 	"Google Antigravity IDE":            "= 'antigravity.exe'",
 	"Google Chrome":                     "= 'chrome.exe'",
