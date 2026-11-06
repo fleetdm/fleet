@@ -1,0 +1,1 @@
+- Fixed false positive vulnerability CVE-2021-43635 reported for the OpenAI Codex CLI installed with Homebrew (`codex`), which was incorrectly matched to the CPE of the Codex notes app.

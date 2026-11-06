@@ -2161,6 +2161,17 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			cpe: "cpe:2.3:a:snyk:snyk_security:2.4.9:*:*:*:*:intellij:*:*",
 		},
 		{
+			// The Homebrew "codex" formula is the OpenAI Codex CLI, which has no CPE of its own.
+			// Without a translation it matched codexnotes:codex, a notes app, and inherited its
+			// CVEs (CVE-2021-43635).
+			software: fleet.Software{
+				Name:    "codex",
+				Source:  "homebrew_packages",
+				Version: "0.165.0",
+			},
+			cpe: "",
+		},
+		{
 			// teamcity-cli installs as "teamcity" via the JetBrains Homebrew tap, but it is a
 			// separate product from the TeamCity CI server and has no CPE of its own, so it must
 			// not inherit the server's vulnerabilities.
