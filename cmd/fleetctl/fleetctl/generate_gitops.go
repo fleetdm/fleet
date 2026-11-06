@@ -18,6 +18,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
@@ -323,9 +324,8 @@ func generateGitopsCommand() *cli.Command {
 				Usage: "A key to output the config value for.",
 			},
 			&cli.StringFlag{
-				Name:    fleetFlagName,
-				Aliases: []string{"team"},
-				Usage:   "(Premium only) The fleet to output configuration for.  Omit to export all configuration.  Use 'global' to export global settings, or 'unassigned' to export settings for unassigned hosts.",
+				Name:  fleetFlagName,
+				Usage: "(Premium only) The fleet to output configuration for.  Omit to export all configuration.  Use 'global' to export global settings, or 'unassigned' to export settings for unassigned hosts.",
 			},
 			&cli.StringFlag{
 				Name:  "dir",
@@ -346,6 +346,9 @@ func generateGitopsCommand() *cli.Command {
 // Create the action for the generate-gitops command, using a provided fleetClient.
 func createGenerateGitopsAction(fleetClient generateGitopsClient) func(*cli.Context) error {
 	return func(c *cli.Context) error {
+		if entry, ok := removednames.Find(removednames.KindFlagValue, "--"+fleetFlagName+" "+c.String(fleetFlagName), "fleetctl generate-gitops"); ok {
+			return errors.New(entry.Message())
+		}
 		var err error
 		if fleetClient == nil {
 			fleetClient, err = clientFromCLI(c)
@@ -448,10 +451,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 	switch {
 	case cmd.CLI.String(fleetFlagName) == "global" || !cmd.AppConfig.License.IsPremium():
 		teamsToProcess = []teamToProcess{globalTeam}
-	case cmd.CLI.String("team") == "no-team":
-		fmt.Fprintf(cmd.CLI.App.ErrWriter, "[!] '--team no-team' is deprecated. Use '--fleet unassigned' instead.\n")
-		teamsToProcess = []teamToProcess{noTeam}
-	case cmd.CLI.String("team") == "unassigned":
+	case cmd.CLI.String(fleetFlagName) == "unassigned":
 		teamsToProcess = []teamToProcess{noTeam}
 	default:
 		// Get the list of teams.
@@ -664,7 +664,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			fileName = "default.yml"
 		case "":
 			fileName = "default.yml"
-		case "no-team", "unassigned":
+		case "unassigned":
 			fileName = "fleets/unassigned.yml"
 		default:
 			teamFileName := generateFilename(cmd.CLI.String(fleetFlagName))
