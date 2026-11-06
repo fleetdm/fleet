@@ -54,7 +54,7 @@ module.exports = {
 
     // Each retry means another request changed the counters in between, so this only runs out under a flood
     // of concurrent requests from one registration.
-    const MAX_ATTEMPTS = 20;
+    const MAX_ATTEMPTS = 5;
     for(let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       let registration = await ProfileGeneratorRegistration.findOne({ id: registrationId });
       if(!registration) {

@@ -36,7 +36,7 @@ module.exports = {
 
     let counterName = requestType === 'profile' ? 'profileGenerationsThisMonth' : 'nameAndDescriptionRequestsThisMonth';
 
-    const MAX_ATTEMPTS = 20;
+    const MAX_ATTEMPTS = 5;
     for(let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       let registration = await ProfileGeneratorRegistration.findOne({ id: registrationId });
       if(!registration || registration.usageMonth !== usageMonth || registration[counterName] <= 0) {
