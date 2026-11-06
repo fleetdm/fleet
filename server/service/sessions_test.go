@@ -1,14 +1,17 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
+	"log/slog"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -330,7 +333,9 @@ func (a *testAuth) AssertionNotOnOrAfter() time.Time { return time.Time{} }
 
 func TestGetSSOUser(t *testing.T) {
 	ds := new(mock.Store)
+	var logs bytes.Buffer
 	opts := &TestServerOpts{
+		Logger: slog.New(slog.NewTextHandler(&logs, nil)),
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
 		},
@@ -376,12 +381,27 @@ func TestGetSSOUser(t *testing.T) {
 					{Value: "admin"},
 				},
 			},
+			{
+				Name: "FLEET_JIT_USER_ROLE_TEAM_1",
+				Values: []fleet.SAMLAttributeValue{
+					{Value: "observer"},
+				},
+			},
 		},
 	}
+	// removedAttrWarning is the warning for the former fleet role attribute, which Fleet 5 ignores.
+	removedAttrWarning := func() {
+		t.Helper()
+		require.Contains(t, logs.String(), "level=WARN")
+		require.Contains(t, logs.String(), "SAML attribute is not available anymore")
+		require.Contains(t, logs.String(), removednames.GuideURL)
+		require.Contains(t, logs.String(), "attributes=[FLEET_JIT_USER_ROLE_TEAM_1]")
+	}
 
-	// Test SSO login with a non-existent user.
+	// Test SSO login with a non-existent user. The removed attribute is ignored and logged.
 	_, err := svc.GetSSOUser(ctx, auth)
 	require.NoError(t, err)
+	removedAttrWarning()
 
 	require.NotNil(t, newUser)
 	require.NotNil(t, newUser.GlobalRole)
@@ -409,10 +429,12 @@ func TestGetSSOUser(t *testing.T) {
 		return newUser, nil
 	}
 
+	logs.Reset()
 	_, err = svc.GetSSOUser(ctx, auth)
 	require.NoError(t, err)
 
 	require.False(t, ds.SaveUserFuncInvoked)
+	removedAttrWarning()
 
 	// (2) Test SSO login with the same user with roles updated in its attributes.
 
@@ -436,9 +458,11 @@ func TestGetSSOUser(t *testing.T) {
 		},
 	}
 
+	logs.Reset()
 	_, err = svc.GetSSOUser(ctx, auth)
 	require.NoError(t, err)
 
+	require.NotContains(t, logs.String(), "SAML attribute is not available anymore")
 	require.NotNil(t, savedUser)
 	require.Nil(t, savedUser.GlobalRole)
 	require.Len(t, savedUser.Teams, 1)
