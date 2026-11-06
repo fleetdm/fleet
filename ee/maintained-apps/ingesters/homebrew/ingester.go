@@ -409,6 +409,15 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			out.Version,
 		)
 	}
+	if input.Token == "elgato-wave-link" {
+		// Wave Link 2 (com.elgato.WaveLink) installs to the same path, so the install
+		// replaces it. Flag it as outdated only there, and only on macOS 15+, which
+		// Wave Link 3 requires; a copy anywhere else would keep failing the policy.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE (bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0) OR (bundle_identifier = '%s' AND path = '%s' AND (SELECT major FROM os_version) >= 15));",
+			out.UniqueIdentifier, out.Version, waveLink2BundleID, waveLinkAppPath,
+		)
+	}
 	if input.Token == "firefox@developer-edition" {
 		// The bundle reports only the base version ("153.0") for cask version
 		// "153.0b13", so compare CFBundleVersion (encodes the build date, resolved
@@ -458,6 +467,12 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		// Match every major's bundle ID, like the patched query, so a running older major
 		// defers patching too.
 		out.Queries.Open = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier GLOB 'com.mindjet.mindmanager.[0-9][0-9]' AND a.bundle_executable != '');"
+	case "elgato-wave-link":
+		// A running Wave Link 2 defers patching too, since the patched query flags it.
+		out.Queries.Open = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier IN ('%s', '%s') AND a.bundle_executable != '');",
+			out.UniqueIdentifier, waveLink2BundleID,
+		)
 	case "chatgpt":
 		out.Queries.Open = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE (%s) AND a.bundle_executable != '');",
@@ -481,6 +496,12 @@ var qgisPathFilters = map[string]string{
 	"qgis":     "path LIKE '/Applications/QGIS-final-%.app'",
 	"qgis@ltr": "path = '/Applications/QGIS-LTR.app'",
 }
+
+// Wave Link 2's bundle identifier, and the path both Wave Link 2 and 3 install to.
+const (
+	waveLink2BundleID = "com.elgato.WaveLink"
+	waveLinkAppPath   = "/Applications/Elgato Wave Link.app"
+)
 
 // chatGPTBundleMatch matches the ChatGPT app under both of its bundle identifiers.
 // OpenAI rebuilt ChatGPT on the Codex app, so current builds report com.openai.codex
