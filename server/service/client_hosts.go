@@ -28,8 +28,14 @@ func (c *Client) GetHost(id uint) (*fleet.HostDetailResponse, error) {
 func (c *Client) HostByIdentifier(identifier string) (*fleet.HostDetailResponse, error) {
 	verb, path := "GET", "/api/latest/fleet/hosts/"+identifier
 	var responseBody getHostResponse
-	err := c.authenticatedRequest(nil, verb, path, &responseBody)
-	return responseBody.Host, err
+	if err := c.authenticatedRequest(nil, verb, path, &responseBody); err != nil {
+		return nil, err
+	}
+	// An identifier that is also a literal route name, like "count", reaches that route instead, and its response has no host.
+	if responseBody.Host == nil {
+		return nil, &notFoundErr{Msg: fmt.Sprintf("host %q not found", identifier)}
+	}
+	return responseBody.Host, nil
 }
 
 func (c *Client) translateTransferHostsToIDs(hosts []string, label string, team string) ([]uint, uint, uint, error) {

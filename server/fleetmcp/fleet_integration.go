@@ -518,6 +518,10 @@ func (fc *FleetClient) GetHostByIdentifier(ctx context.Context, identifier strin
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("failed to decode host response: %w", err)
 	}
+	// An identifier that is also a literal route name, like "count", reaches that route instead, and its response has no host.
+	if result.Host.ID == 0 {
+		return nil, fmt.Errorf("host not found: %s", identifier)
+	}
 	return &result.Host, nil
 }
 
@@ -609,6 +613,9 @@ func (fc *FleetClient) GetHostByIdentifierWithPolicies(ctx context.Context, iden
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("failed to decode host with policies response: %w", err)
+	}
+	if result.Host.ID == 0 {
+		return nil, fmt.Errorf("host not found: %s", identifier)
 	}
 	return &result.Host, nil
 }
