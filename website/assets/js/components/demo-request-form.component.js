@@ -23,7 +23,9 @@ parasails.registerComponent('demoRequestForm', {
   data: function() {
     return {
       syncing: false,
-      formData: { /* … */ },
+      formData: {
+        submittedFromPage: window.location.pathname,
+      },
       formErrors: { /* … */ },
       cloudError: '',
       demoFormRules: {

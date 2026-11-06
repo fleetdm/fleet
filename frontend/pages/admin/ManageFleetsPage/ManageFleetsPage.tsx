@@ -113,7 +113,7 @@ const ManageFleetsPage = ({
     ["teams"],
     () => teamsAPI.loadAll(),
     {
-      select: (data: ILoadTeamsResponse) => data.teams,
+      select: (data: ILoadTeamsResponse) => data.fleets,
       onError: (error) => handlePageError(error),
     }
   );
