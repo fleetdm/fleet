@@ -75,7 +75,7 @@ func (svc *Service) ConnectGoogleConditionalAccess(ctx context.Context, customer
 		return ctxerr.New(ctx, "google conditional access client is not configured")
 	}
 
-	settings := fleet.GoogleConditionalAccessIntegration{Enabled: true, CustomerID: customerID, AdminEmail: adminEmail}
+	settings := fleet.GoogleConditionalAccessIntegration{CustomerID: customerID, AdminEmail: adminEmail}
 	invalid := &fleet.InvalidArgumentError{}
 	settings.Validate(invalid)
 	// The delegation check rejects any key Google can't use.
@@ -158,8 +158,8 @@ func (svc *Service) GetGoogleConditionalAccess(ctx context.Context) (*fleet.Cond
 		return nil, nil, ctxerr.Wrap(ctx, err, "load app config")
 	}
 	status := &fleet.ConditionalAccessGoogleStatus{}
-	// The connection state and the key only exist while the integration is on.
-	if !googleConditionalAccessEnabled(appConfig.Integrations.GoogleConditionalAccess) {
+	// The connection state and the key only exist while the integration is configured.
+	if appConfig.Integrations.GoogleConditionalAccess == nil {
 		return nil, status, nil
 	}
 
@@ -220,17 +220,16 @@ func (svc *Service) DeleteGoogleConditionalAccess(ctx context.Context) error {
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "load app config")
 	}
-	enabled := googleConditionalAccessEnabled(appConfig.Integrations.GoogleConditionalAccess)
-	if existing == nil && !keyStored && !enabled {
+	configured := appConfig.Integrations.GoogleConditionalAccess != nil
+	if existing == nil && !keyStored && !configured {
 		return &fleet.BadRequestError{Message: "integration not found"}
 	}
 	if err := svc.removeGoogleConditionalAccess(ctx, appConfig.ServerSettings.ServerURL, existing); err != nil {
 		return err
 	}
 
-	if enabled {
-		gca := appConfig.Integrations.GoogleConditionalAccess
-		gca.Enabled = false
+	if configured {
+		appConfig.Integrations.GoogleConditionalAccess = nil
 		if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 			return ctxerr.Wrap(ctx, err, "save app config")
 		}
@@ -256,10 +255,6 @@ func NewGoogleConditionalAccessClient(relayURI string, logger *slog.Logger) *Goo
 		Relay:         conditional_access_google.NewRelay(relayURI, opts...),
 		CloudIdentity: conditional_access_google.NewCloudIdentityFactory(logger),
 	}
-}
-
-func googleConditionalAccessEnabled(settings *fleet.GoogleConditionalAccessIntegration) bool {
-	return settings != nil && settings.Enabled
 }
 
 func googleConditionalAccessConnected(existing *fleet.ConditionalAccessGoogleIntegration, settings fleet.GoogleConditionalAccessIntegration) bool {

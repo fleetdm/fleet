@@ -492,7 +492,7 @@ type Integrations struct {
 	Zendesk         []*ZendeskIntegration         `json:"zendesk"`
 	GoogleCalendar  []*GoogleCalendarIntegration  `json:"google_calendar"`
 	GoogleWorkspace []*GoogleWorkspaceIntegration `json:"google_workspace,omitempty"`
-	// GoogleConditionalAccess is nil when never configured; a nil value in a PATCH keeps the existing settings.
+	// GoogleConditionalAccess is nil when the integration isn't configured; a nil value in a PATCH keeps the existing settings.
 	GoogleConditionalAccess *GoogleConditionalAccessIntegration `json:"google_conditional_access,omitempty"`
 	// CertificatesIdPIntrospectionURLs allowlists the OAuth 2.0 token introspection endpoints permitted
 	// to vouch for certificate requests. Closed by default: while empty, no IdP credentials are

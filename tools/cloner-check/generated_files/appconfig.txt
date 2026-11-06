@@ -120,7 +120,6 @@ github.com/fleetdm/fleet/v4/server/fleet/GoogleWorkspaceIntegration	Domain	strin
 github.com/fleetdm/fleet/v4/server/fleet/GoogleWorkspaceIntegration	ImpersonatedUserEmail	string
 github.com/fleetdm/fleet/v4/server/fleet/GoogleWorkspaceIntegration	ApiKey	fleet.GoogleCalendarApiKey
 github.com/fleetdm/fleet/v4/server/fleet/Integrations	GoogleConditionalAccess	*fleet.GoogleConditionalAccessIntegration
-github.com/fleetdm/fleet/v4/server/fleet/GoogleConditionalAccessIntegration	Enabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/GoogleConditionalAccessIntegration	CustomerID	string
 github.com/fleetdm/fleet/v4/server/fleet/GoogleConditionalAccessIntegration	AdminEmail	string
 github.com/fleetdm/fleet/v4/server/fleet/Integrations	CertificatesIdPIntrospectionURLs	optjson.Slice[string]

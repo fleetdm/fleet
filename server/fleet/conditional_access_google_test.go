@@ -15,16 +15,10 @@ func TestGoogleConditionalAccessIntegrationValidate(t *testing.T) {
 		return names
 	}
 
-	t.Run("enabled requires both fields", func(t *testing.T) {
-		invalid := &InvalidArgumentError{}
-		(&GoogleConditionalAccessIntegration{Enabled: true}).Validate(invalid)
-		require.ElementsMatch(t, []string{"customer_id", "admin_email"}, errNames(invalid))
-	})
-
-	t.Run("disabled and empty is valid", func(t *testing.T) {
+	t.Run("both fields are required", func(t *testing.T) {
 		invalid := &InvalidArgumentError{}
 		(&GoogleConditionalAccessIntegration{}).Validate(invalid)
-		require.False(t, invalid.HasErrors())
+		require.ElementsMatch(t, []string{"customer_id", "admin_email"}, errNames(invalid))
 	})
 
 	t.Run("customer ID must start with C", func(t *testing.T) {
@@ -42,29 +36,25 @@ func TestGoogleConditionalAccessIntegrationValidate(t *testing.T) {
 			{"customers/C02cajzvg", false},
 		} {
 			invalid := &InvalidArgumentError{}
-			(&GoogleConditionalAccessIntegration{CustomerID: tc.in}).Validate(invalid)
+			(&GoogleConditionalAccessIntegration{CustomerID: tc.in, AdminEmail: "admin@example.com"}).Validate(invalid)
 			require.Equal(t, !tc.valid, invalid.HasErrors(), tc.in)
 		}
 	})
 
 	t.Run("trims", func(t *testing.T) {
 		invalid := &InvalidArgumentError{}
-		intg := &GoogleConditionalAccessIntegration{Enabled: true, CustomerID: " C02cajzvg", AdminEmail: " admin@example.com "}
+		intg := &GoogleConditionalAccessIntegration{CustomerID: " C02cajzvg", AdminEmail: " admin@example.com "}
 		intg.Validate(invalid)
 		require.False(t, invalid.HasErrors())
 		require.Equal(t, "C02cajzvg", intg.CustomerID)
 		require.Equal(t, "admin@example.com", intg.AdminEmail)
 	})
 
-	t.Run("malformed values are rejected even when disabled", func(t *testing.T) {
-		for _, intg := range []*GoogleConditionalAccessIntegration{
-			{CustomerID: "C0-1"},
-			{AdminEmail: "Admin <admin@example.com>"},
-			{AdminEmail: "admin"},
-		} {
+	t.Run("malformed admin email", func(t *testing.T) {
+		for _, email := range []string{"Admin <admin@example.com>", "admin"} {
 			invalid := &InvalidArgumentError{}
-			intg.Validate(invalid)
-			require.True(t, invalid.HasErrors(), "%+v", intg)
+			(&GoogleConditionalAccessIntegration{CustomerID: "C02cajzvg", AdminEmail: email}).Validate(invalid)
+			require.Equal(t, []string{"admin_email"}, errNames(invalid), email)
 		}
 	})
 }

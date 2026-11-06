@@ -9,7 +9,6 @@ import (
 // GoogleConditionalAccessIntegration is the app config part of the integration. The
 // service account key is stored encrypted in mdm_config_assets instead.
 type GoogleConditionalAccessIntegration struct {
-	Enabled bool `json:"enabled"`
 	// CustomerID includes the leading "C".
 	CustomerID string `json:"customer_id"`
 	// AdminEmail is the Workspace admin the service account impersonates.
@@ -72,17 +71,13 @@ func (g *GoogleConditionalAccessIntegration) Validate(invalid *InvalidArgumentEr
 	g.AdminEmail = strings.TrimSpace(g.AdminEmail)
 
 	if g.CustomerID == "" {
-		if g.Enabled {
-			invalid.Append("customer_id", "customer_id is required")
-		}
+		invalid.Append("customer_id", "customer_id is required")
 	} else if !googleCustomerIDRegexp.MatchString(g.CustomerID) {
 		invalid.Append("customer_id", "must be a Google customer ID starting with C, for example C01234abc")
 	}
 
 	if g.AdminEmail == "" {
-		if g.Enabled {
-			invalid.Append("admin_email", "admin_email is required")
-		}
+		invalid.Append("admin_email", "admin_email is required")
 	} else if addr, err := mail.ParseAddress(g.AdminEmail); err != nil || addr.Address != g.AdminEmail {
 		invalid.Append("admin_email", "must be a valid email address")
 	}

@@ -2037,7 +2037,10 @@ func (s *integrationEnterpriseTestSuite) newGoogleCATest() *googleCATest {
 		ctx := context.Background()
 		g.client.reset()
 		s.token = s.getTestAdminToken()
-		s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{"integrations": {"google_conditional_access": {"enabled": false}}}`), http.StatusOK)
+		appCfg, err := s.ds.AppConfig(ctx)
+		require.NoError(t, err)
+		appCfg.Integrations.GoogleConditionalAccess = nil
+		require.NoError(t, s.ds.SaveAppConfig(ctx, appCfg))
 		require.NoError(t, s.ds.DeleteGoogleConditionalAccessIntegration(ctx))
 		require.NoError(t, s.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetGoogleConditionalAccessServiceAccountKey}))
 		g.client.reset()
@@ -2163,7 +2166,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	}, row)
 	require.Equal(t, addedBefore+1, g.addedCount())
 	require.Equal(t, deletedBefore, g.deletedCount())
-	require.Equal(t, &fleet.GoogleConditionalAccessIntegration{Enabled: true, CustomerID: "C02cajzvg", AdminEmail: "admin@example.com"},
+	require.Equal(t, &fleet.GoogleConditionalAccessIntegration{CustomerID: "C02cajzvg", AdminEmail: "admin@example.com"},
 		g.getConfig().Integrations.GoogleConditionalAccess)
 	for _, path := range []string{"/api/latest/fleet/config", "/api/latest/fleet/conditional_access/google"} {
 		rawBody, err := io.ReadAll(s.Do("GET", path, nil, http.StatusOK).Body)
@@ -2274,7 +2277,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	require.Nil(t, g.storedKey())
 	require.Equal(t, addedBefore, g.addedCount())
 	require.Equal(t, deletedBefore+1, g.deletedCount())
-	require.False(t, g.getConfig().Integrations.GoogleConditionalAccess.Enabled)
+	require.Nil(t, g.getConfig().Integrations.GoogleConditionalAccess)
 	require.Equal(t, fleet.ConditionalAccessGoogleStatus{}, g.status().ConditionalAccessGoogleStatus)
 	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusBadRequest, &deleteGoogleConditionalAccessResponse{})
 	g.client.reset()
@@ -2296,7 +2299,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	g.client.registerErr = &conditional_access_google.RelayStatusError{Code: http.StatusUnauthorized, RespErr: "fleetdm.com unavailable"}
 	g.connect("C02cajzvg", "admin@example.com", key, http.StatusBadGateway)
 	require.JSONEq(t, key, string(g.storedKey()))
-	require.True(t, g.getConfig().Integrations.GoogleConditionalAccess.Enabled)
+	require.NotNil(t, g.getConfig().Integrations.GoogleConditionalAccess)
 	st = g.status()
 	require.True(t, st.ServiceAccountKeyConfigured)
 	require.Equal(t, fleet.ConditionalAccessGoogleStateRegistrationFailed, st.State)
@@ -2309,7 +2312,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusOK, &deleteGoogleConditionalAccessResponse{})
 	g.requireCalls(nil, nil, nil)
 	require.Nil(t, g.storedKey())
-	require.False(t, g.getConfig().Integrations.GoogleConditionalAccess.Enabled)
+	require.Nil(t, g.getConfig().Integrations.GoogleConditionalAccess)
 	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusBadRequest, &deleteGoogleConditionalAccessResponse{})
 }
 
