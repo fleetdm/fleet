@@ -1720,6 +1720,16 @@ type Service interface {
 	// ConditionalAccessMicrosoftDelete deletes the integration and deprovisions the tenant on Entra.
 	ConditionalAccessMicrosoftDelete(ctx context.Context) error
 
+	// ConnectGoogleConditionalAccess verifies the key with Google, registers with
+	// fleetdm.com, and turns the integration on.
+	ConnectGoogleConditionalAccess(ctx context.Context, customerID, adminEmail string, serviceAccountKey json.RawMessage) error
+	// GetGoogleConditionalAccess returns the connection row (nil when none) and its
+	// status. Both are nil on Fleet Free.
+	GetGoogleConditionalAccess(ctx context.Context) (*ConditionalAccessGoogleIntegration, *ConditionalAccessGoogleStatus, error)
+	// DeleteGoogleConditionalAccess turns the integration off and deletes the key. The
+	// registration and the device rows are kept for a re-create for the same customer.
+	DeleteGoogleConditionalAccess(ctx context.Context) error
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Okta conditional access
 

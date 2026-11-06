@@ -23,9 +23,7 @@ type recordedRequest struct {
 
 func newTestRelay(t *testing.T, status int, response string) (Relay, *[]recordedRequest) {
 	uri, requests := newRecordingServer(t, status, response)
-	p, err := NewRelay(uri, func() (string, error) { return origin, nil }, AllowHTTP())
-	require.NoError(t, err)
-	return p, requests
+	return NewRelay(uri, AllowHTTP()), requests
 }
 
 func newRecordingServer(t *testing.T, status int, response string) (string, *[]recordedRequest) {
@@ -47,7 +45,7 @@ func newRecordingServer(t *testing.T, status int, response string) (string, *[]r
 func TestRegister(t *testing.T) {
 	p, requests := newTestRelay(t, http.StatusOK, `{"fleetServerSecret":"s3cret","oauthClientId":"client.apps.googleusercontent.com"}`)
 
-	resp, err := p.Register(t.Context(), "C02cajzvg")
+	resp, err := p.Register(t.Context(), origin, "C02cajzvg")
 	require.NoError(t, err)
 	require.Equal(t, &Registration{FleetServerSecret: "s3cret", OAuthClientID: "client.apps.googleusercontent.com"}, resp)
 	require.Equal(t, []recordedRequest{{
@@ -60,14 +58,14 @@ func TestRegister(t *testing.T) {
 
 func TestRegisterWithoutSecretFails(t *testing.T) {
 	p, _ := newTestRelay(t, http.StatusOK, `{}`)
-	_, err := p.Register(t.Context(), "C02cajzvg")
+	_, err := p.Register(t.Context(), origin, "C02cajzvg")
 	require.ErrorContains(t, err, "fleetServerSecret")
 }
 
 func TestDeregister(t *testing.T) {
 	p, requests := newTestRelay(t, http.StatusOK, ``)
 
-	require.NoError(t, p.Deregister(t.Context(), "C02cajzvg", "s3cret"))
+	require.NoError(t, p.Deregister(t.Context(), origin, "C02cajzvg", "s3cret"))
 	require.Equal(t, []recordedRequest{{
 		method: http.MethodDelete,
 		path:   "/api/v1/google-conditional-access",
@@ -78,36 +76,36 @@ func TestDeregister(t *testing.T) {
 
 func TestDeregisterNotFound(t *testing.T) {
 	p, _ := newTestRelay(t, http.StatusNotFound, `{"error":"not found"}`)
-	err := p.Deregister(t.Context(), "C02cajzvg", "wrong")
+	err := p.Deregister(t.Context(), origin, "C02cajzvg", "wrong")
 	require.True(t, fleet.IsNotFound(err))
 }
 
 func TestRelayStatusError(t *testing.T) {
-	p, _ := newTestRelay(t, http.StatusConflict, `{"error":"registered from another origin"}`)
-	_, err := p.Register(t.Context(), "C02cajzvg")
+	p, _ := newTestRelay(t, http.StatusConflict, "registered from another origin\n")
+	_, err := p.Register(t.Context(), origin, "C02cajzvg")
 	se, ok := errors.AsType[*RelayStatusError](err)
 	require.True(t, ok)
 	require.Equal(t, http.StatusConflict, se.StatusCode())
-	require.Contains(t, se.Body(), "registered from another origin")
+	require.Equal(t, "registered from another origin", se.Body())
 	require.False(t, fleet.IsNotFound(err))
 
 	// Only Deregister treats a 404 as "no such registration".
 	p, _ = newTestRelay(t, http.StatusNotFound, `{"error":"not found"}`)
-	_, err = p.Register(t.Context(), "C02cajzvg")
+	_, err = p.Register(t.Context(), origin, "C02cajzvg")
 	require.False(t, fleet.IsNotFound(err))
 }
 
 func TestRelayResponseBodies(t *testing.T) {
 	// An empty 2xx body is fine when no response is expected.
 	p, _ := newTestRelay(t, http.StatusNoContent, ``)
-	require.NoError(t, p.Deregister(t.Context(), "C02cajzvg", "s3cret"))
+	require.NoError(t, p.Deregister(t.Context(), origin, "C02cajzvg", "s3cret"))
 
 	p, _ = newTestRelay(t, http.StatusOK, ``)
-	_, err := p.Register(t.Context(), "C02cajzvg")
+	_, err := p.Register(t.Context(), origin, "C02cajzvg")
 	require.ErrorContains(t, err, "empty response body")
 
 	p, _ = newTestRelay(t, http.StatusOK, `{"fleetServerSecret":"`+strings.Repeat("x", maxRelayResponseBytes)+`"}`)
-	_, err = p.Register(t.Context(), "C02cajzvg")
+	_, err = p.Register(t.Context(), origin, "C02cajzvg")
 	require.ErrorContains(t, err, "exceeds")
 }
 
@@ -116,26 +114,23 @@ func TestRelayRequiresOriginAndValidURI(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { called = true }))
 	t.Cleanup(srv.Close)
 
-	p, err := NewRelay(srv.URL, func() (string, error) { return "", nil }, AllowHTTP())
-	require.NoError(t, err)
-	_, err = p.Register(t.Context(), "C02cajzvg")
+	p := NewRelay(srv.URL, AllowHTTP())
+	_, err := p.Register(t.Context(), "", "C02cajzvg")
 	require.ErrorContains(t, err, "missing origin")
 
-	// An unusable URI fails the request, not NewRelay.
-	for _, uri := range []string{"fleetdm.com", srv.URL + "?x=1", srv.URL + "#frag"} {
-		p, err := NewRelay(uri, func() (string, error) { return origin, nil }, AllowHTTP())
-		require.NoError(t, err, uri)
-		require.ErrorContains(t, p.Deregister(t.Context(), "C02cajzvg", "s3cret"), "invalid relay uri", uri)
+	// An unusable or unparsable URI fails the request, not NewRelay.
+	for _, uri := range []string{"fleetdm.com", srv.URL + "?x=1", srv.URL + "#frag", srv.URL + "/%zz"} {
+		p := NewRelay(uri, AllowHTTP())
+		require.ErrorContains(t, p.Deregister(t.Context(), origin, "C02cajzvg", "s3cret"), "invalid relay uri", uri)
 	}
 	require.False(t, called)
 }
 
 func TestRelayTrimsTrailingSlashes(t *testing.T) {
 	uri, requests := newRecordingServer(t, http.StatusOK, ``)
-	p, err := NewRelay(uri+"/", func() (string, error) { return origin + "/", nil }, AllowHTTP())
-	require.NoError(t, err)
+	p := NewRelay(uri+"/", AllowHTTP())
 
-	require.NoError(t, p.Deregister(t.Context(), "C02cajzvg", "s3cret"))
+	require.NoError(t, p.Deregister(t.Context(), origin+"/", "C02cajzvg", "s3cret"))
 	require.Len(t, *requests, 1)
 	require.Equal(t, "/api/v1/google-conditional-access", (*requests)[0].path)
 	require.Equal(t, origin, (*requests)[0].origin)
@@ -150,9 +145,8 @@ func TestRelayDoesNotFollowRedirects(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	p, err := NewRelay(srv.URL, func() (string, error) { return origin, nil }, AllowHTTP())
-	require.NoError(t, err)
-	err = p.Deregister(t.Context(), "C02cajzvg", "s3cret")
+	p := NewRelay(srv.URL, AllowHTTP())
+	err := p.Deregister(t.Context(), origin, "C02cajzvg", "s3cret")
 	se, ok := errors.AsType[*RelayStatusError](err)
 	require.True(t, ok, err)
 	require.Equal(t, http.StatusTemporaryRedirect, se.StatusCode())
@@ -161,7 +155,7 @@ func TestRelayDoesNotFollowRedirects(t *testing.T) {
 
 func TestDeregisterIgnoresLargeBody(t *testing.T) {
 	p, _ := newTestRelay(t, http.StatusOK, strings.Repeat("x", maxRelayResponseBytes+1))
-	require.NoError(t, p.Deregister(t.Context(), "C02cajzvg", "s3cret"))
+	require.NoError(t, p.Deregister(t.Context(), origin, "C02cajzvg", "s3cret"))
 }
 
 func TestRelayStopsOnCancel(t *testing.T) {
@@ -170,12 +164,11 @@ func TestRelayStopsOnCancel(t *testing.T) {
 	t.Cleanup(srv.Close)
 	t.Cleanup(func() { close(release) })
 
-	p, err := NewRelay(srv.URL, func() (string, error) { return origin, nil }, AllowHTTP())
-	require.NoError(t, err)
+	p := NewRelay(srv.URL, AllowHTTP())
 	ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
 	defer cancel()
 	start := time.Now()
-	_, err = p.Register(ctx, "C02cajzvg")
+	_, err := p.Register(ctx, origin, "C02cajzvg")
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 	require.Less(t, time.Since(start), 5*time.Second)
 }
@@ -187,20 +180,17 @@ func TestRelayRequiresHTTPS(t *testing.T) {
 
 	// Plain HTTP needs AllowHTTP.
 	for _, uri := range []string{srv.URL, "ftp://fleetdm.example.com"} {
-		p, err := NewRelay(uri, func() (string, error) { return origin, nil })
-		require.NoError(t, err, uri)
-		require.ErrorContains(t, p.Deregister(t.Context(), "C02cajzvg", "s3cret"), "must use https", uri)
+		p := NewRelay(uri)
+		require.ErrorContains(t, p.Deregister(t.Context(), origin, "C02cajzvg", "s3cret"), "must use https", uri)
 	}
 	require.False(t, called)
 
 	// The allowance is for HTTP only.
-	p, err := NewRelay("ftp://fleetdm.example.com", func() (string, error) { return origin, nil }, AllowHTTP())
-	require.NoError(t, err)
-	require.ErrorContains(t, p.Deregister(t.Context(), "C02cajzvg", "s3cret"), "must use https")
+	p := NewRelay("ftp://fleetdm.example.com", AllowHTTP())
+	require.ErrorContains(t, p.Deregister(t.Context(), origin, "C02cajzvg", "s3cret"), "must use https")
 
 	// HTTPS needs no allowance.
-	p, err = NewRelay("https://127.0.0.1:1", func() (string, error) { return origin, nil })
-	require.NoError(t, err)
+	p = NewRelay("https://127.0.0.1:1")
 	// Nothing listens there, so the send fails.
-	require.ErrorContains(t, p.Deregister(t.Context(), "C02cajzvg", "s3cret"), "send request")
+	require.ErrorContains(t, p.Deregister(t.Context(), origin, "C02cajzvg", "s3cret"), "send request")
 }
