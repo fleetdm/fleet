@@ -424,8 +424,26 @@ GitHub issues: [#54408](https://github.com/fleetdm/fleet/issues/54408), [#54410]
 
 Make these changes before you upgrade.
 
-- Change `centos` and `ubuntu` label platforms to `linux`.
+- Change `centos` and `ubuntu` label platforms to `linux`. If you don't, Fleet 5 changes them to `linux` for you.
 - Identify hosts in manual labels by something other than `hostname`.
+
+A label with the `linux` platform runs its query on every Linux host. Its current hosts stay, but it can add hosts running other Linux distributions if its query matches them.
+
+To keep a label limited to Ubuntu or CentOS, wrap its query in an `os_version` check. For example, an Ubuntu label with this query:
+
+```sql
+SELECT 1 FROM deb_packages WHERE name = 'nginx';
+```
+
+becomes:
+
+```sql
+SELECT 1 FROM os_version WHERE platform = 'ubuntu' AND EXISTS (SELECT 1 FROM deb_packages WHERE name = 'nginx');
+```
+
+For a CentOS label, use `name LIKE '%centos%'` instead of `platform = 'ubuntu'`. Some CentOS hosts report `rhel` as their platform, so check the name.
+
+[Update label](https://fleetdm.com/docs/rest-api/rest-api#update-label) can't change a label's query or platform. Use [GitOps](https://fleetdm.com/docs/configuration/yaml-files#labels) or `fleetctl apply` instead.
 
 GitHub issues: [#52905](https://github.com/fleetdm/fleet/issues/52905), [#53924](https://github.com/fleetdm/fleet/issues/53924)
 
@@ -764,8 +782,24 @@ GitHub issue: [#33769](https://github.com/fleetdm/fleet/issues/33769)
 
 Make these changes before you upgrade.
 
-- Change `centos` and `ubuntu` label platforms to `linux`.
+- Change `centos` and `ubuntu` label platforms to `linux`. Fleet 5 GitOps runs fail on `centos` or `ubuntu`.
 - Identify hosts in manual labels by something other than `hostname`.
+
+A label with the `linux` platform runs its query on every Linux host. Its current hosts stay, but it can add hosts running other Linux distributions if its query matches them.
+
+To keep a label limited to Ubuntu or CentOS, wrap its query in an `os_version` check. For example, an Ubuntu label with this query:
+
+```sql
+SELECT 1 FROM deb_packages WHERE name = 'nginx';
+```
+
+becomes:
+
+```sql
+SELECT 1 FROM os_version WHERE platform = 'ubuntu' AND EXISTS (SELECT 1 FROM deb_packages WHERE name = 'nginx');
+```
+
+For a CentOS label, use `name LIKE '%centos%'` instead of `platform = 'ubuntu'`. Some CentOS hosts report `rhel` as their platform, so check the name.
 
 GitHub issues: [#52905](https://github.com/fleetdm/fleet/issues/52905), [#53924](https://github.com/fleetdm/fleet/issues/53924)
 
