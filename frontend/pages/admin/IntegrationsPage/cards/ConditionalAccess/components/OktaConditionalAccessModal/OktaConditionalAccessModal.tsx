@@ -338,7 +338,7 @@ const OktaConditionalAccessModal = ({
           />
           <FileUploader
             graphicName="file-pem"
-            title="Okta certificate"
+            label="Okta certificate"
             message={
               <>
                 Upload the certificate provided by Okta during the{" "}
