@@ -19,9 +19,10 @@
     position: sticky; // Needed for settings page scroll
     z-index: 4; // Needed for settings page scroll
 
-    // The AB token invalid banner sits directly above page content that
-    // already provides its own top spacing, so it doesn't need this margin.
-    &:has(.apple-bm-token-invalid-message) {
+    // These banners sit directly above page content that already provides
+    // its own top spacing, so they don't need this margin.
+    &:has(.apple-bm-token-invalid-message),
+    &:has(.license-host-limit-message) {
       margin-bottom: 0;
     }
   }

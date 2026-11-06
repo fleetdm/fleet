@@ -11,18 +11,18 @@
 # The added post-install block reads these from the installer's environment, falling back to
 # KEY=value lines in /etc/default/fleetd-proxy (for tools that can drop a file but not set env):
 #   FLEET_URL        e.g. https://fleet.example.com (optional if baked in at build time)
-#   FLEET_SECRET     enroll secret (team secret picks the team)
+#   FLEET_SECRET     enroll secret (fleet secret picks the fleet)
 #   ORBIT_PROXY_URL  e.g. http://proxy.example.internal:3128
 #   OSQUERY_PROXY    host:port for osquery; optional, derived from ORBIT_PROXY_URL when unset
 #   NO_PROXY         optional; defaults to localhost,127.0.0.1 when a proxy is set
 # and writes them to /etc/default/orbit-proxy plus a systemd drop-in
-# (/etc/systemd/system/orbit.service.d/10-fleetd-proxy.conf). Package-owned files are never
+# (/etc/systemd/system/Fleet.service.d/10-fleetd-proxy.conf). Package-owned files are never
 # edited, so package upgrades keep the settings. The osquery proxy is passed as
 # `-- --proxy_hostname=...` on Orbit's command line, which overrides osquery.flags (that file
 # can be rewritten by Fleet's agent options).
 #
 # Install example:
-#   sudo env FLEET_SECRET=<team-secret> ORBIT_PROXY_URL=http://proxy.example.internal:3128 \
+#   sudo env FLEET_SECRET=<fleet-secret> ORBIT_PROXY_URL=http://proxy.example.internal:3128 \
 #     apt-get install -y ./fleetd-proxy_amd64.deb        # or: dnf install -y ./fleetd-proxy.x86_64.rpm
 #
 # Knobs (env vars):
@@ -74,7 +74,7 @@ cat > "$WORK/postinst-block.sh" <<'BLOCK'
 # (for example on upgrades), the existing settings are left as they are.
 fp_conf=/etc/default/fleetd-proxy
 fp_env=/etc/default/orbit-proxy
-fp_dropin=/etc/systemd/system/orbit.service.d/10-fleetd-proxy.conf
+fp_dropin=/etc/systemd/system/Fleet.service.d/10-fleetd-proxy.conf
 fp_get() {
   fp_v=$(printenv "$1" 2>/dev/null || true)
   if [ -z "$fp_v" ] && [ -r "$fp_conf" ]; then
@@ -109,7 +109,7 @@ if [ -n "$fp_url$fp_secret$fp_proxy$fp_osq" ]; then
   if [ -z "$fp_osq" ] && [ -r "$fp_dropin" ]; then
     fp_osq=$(sed -n 's/.*--proxy_hostname=\([^ ]*\).*/\1/p' "$fp_dropin" | tail -n 1)
   fi
-  fp_exec=$(sed -n 's/^ExecStart=//p' /usr/lib/systemd/system/orbit.service 2>/dev/null | tail -n 1)
+  fp_exec=$(sed -n 's/^ExecStart=//p' /usr/lib/systemd/system/Fleet.service 2>/dev/null | tail -n 1)
   if [ -z "$fp_exec" ]; then fp_exec=/opt/orbit/bin/orbit/orbit; fi
   fp_old_umask=$(umask); umask 077
   {
@@ -141,8 +141,8 @@ BLOCK
 cat > "$WORK/postrm-block.sh" <<'BLOCK'
 # >>> fleetd-proxy install-time configuration: cleanup on uninstall >>>
 if [ "${1:-}" = 0 ] || [ "${1:-}" = remove ] || [ "${1:-}" = purge ]; then
-  rm -f /etc/default/orbit-proxy /etc/systemd/system/orbit.service.d/10-fleetd-proxy.conf
-  rmdir /etc/systemd/system/orbit.service.d 2>/dev/null || true
+  rm -f /etc/default/orbit-proxy /etc/systemd/system/Fleet.service.d/10-fleetd-proxy.conf
+  rmdir /etc/systemd/system/Fleet.service.d 2>/dev/null || true
   if command -v systemctl >/dev/null 2>&1; then systemctl daemon-reload >/dev/null 2>&1 || true; fi
 fi
 # <<< fleetd-proxy cleanup <<<
@@ -180,7 +180,7 @@ for type in $TYPES; do
       fi
       mv "$f.new" "$f"; chmod 0755 "$f"
     done
-    out="$OUT_DIR/$(basename "$stock" .deb | sed 's/^fleet-osquery/fleetd-proxy/').deb"
+    out="$OUT_DIR/$(basename "$stock" .deb | sed -E 's/^fleet-(osquery|linux)/fleetd-proxy/').deb"
     dpkg-deb --root-owner-group -b "$WORK/deb" "$out" >/dev/null || die "dpkg-deb -b"
     echo "-- verify"
     debls() { dpkg-deb -c "$1" | awk '$6 != "./" { m = $1; if (m ~ /^l/) m = "l"; print m, $2, $3, $6, $7, $8 }' | sort; }  # symlink modes are meaningless
@@ -207,7 +207,7 @@ EOF
       --change-spec-post="$WORK/post-filter.sh" --change-spec-postun="$WORK/postun-filter.sh" \
       "$stock" >/dev/null || die "rpmrebuild failed"
     built="$(find "$WORK/rpmout" -name '*.rpm' | head -1)"; [ -f "$built" ] || die "rebuilt rpm not found"
-    out="$OUT_DIR/$(basename "$stock" | sed 's/^fleet-osquery/fleetd-proxy/')"
+    out="$OUT_DIR/$(basename "$stock" | sed -E 's/^fleet-(osquery|linux)/fleetd-proxy/')"
     cp -f "$built" "$out"
     echo "-- verify"
     rpmls() { rpm -qp --qf '[%{FILEMODES:perms} %{FILEUSERNAME} %{FILEGROUPNAME} %{FILEDIGESTS} %{FILENAMES} %{FILELINKTOS}\n]' "$1" 2>/dev/null \

@@ -1972,6 +1972,30 @@ func (a ActivityEditedEJBCA) ActivityName() string {
 	return "edited_ejbca"
 }
 
+type ActivityAddedGoogleCAS struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityAddedGoogleCAS) ActivityName() string {
+	return "added_google_cas"
+}
+
+type ActivityDeletedGoogleCAS struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityDeletedGoogleCAS) ActivityName() string {
+	return "deleted_google_cas"
+}
+
+type ActivityEditedGoogleCAS struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityEditedGoogleCAS) ActivityName() string {
+	return "edited_google_cas"
+}
+
 type ActivityTypeEnabledAndroidMDM struct{}
 
 func (a ActivityTypeEnabledAndroidMDM) ActivityName() string { return "enabled_android_mdm" }

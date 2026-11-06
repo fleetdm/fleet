@@ -2003,6 +2003,13 @@ func (s *integrationEnterpriseTestSuite) TestBatchApplyScriptsEndpoints() {
 		{Name: "N1.sh", ScriptContents: []byte("bar")},
 	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 
+	// script names that differ by case and accent are the same name to the database
+	res := s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
+		{Name: "Bêta.sh", ScriptContents: []byte("foo")},
+		{Name: "beta.sh", ScriptContents: []byte("bar")},
+	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
+	require.Contains(t, extractServerErrorText(res.Body), `More than one script has the same file name: "beta.sh"`)
+
 	// invalid script name
 	s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
 		{Name: "N1", ScriptContents: []byte("foo")},

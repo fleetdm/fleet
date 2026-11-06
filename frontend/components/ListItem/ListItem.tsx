@@ -37,6 +37,11 @@ interface IListItemProps {
   actions?: React.ReactNode;
   /** An optional function to call when the user clicks anywhere in the ListItem */
   onClick?: () => void;
+  /** When true (and `onClick` is set), make the row itself keyboard-focusable
+   * so Enter/Space triggers `onClick`. Use for rows where no action button
+   * provides keyboard access to the row's primary intent (e.g. technician view
+   * with no actions, or GitOps mode where the Edit button is disabled). */
+  isInteractiveRow?: boolean;
   className?: string;
 }
 
@@ -46,11 +51,34 @@ const ListItem = ({
   details,
   actions,
   onClick,
+  isInteractiveRow,
   className,
 }: IListItemProps) => {
   const classNames = classnames(baseClass, className);
+  const interactive = isInteractiveRow && onClick;
+  const onKeyDown = interactive
+    ? (e: React.KeyboardEvent<HTMLDivElement>) => {
+        // Only trigger the row's onClick when the row itself has keyboard
+        // focus — not when the event bubbles up from a focused child button
+        // (e.g. Download), which has its own handler.
+        if (
+          e.target === e.currentTarget &&
+          (e.key === "Enter" || e.key === " ")
+        ) {
+          e.preventDefault();
+          onClick();
+        }
+      }
+    : undefined;
   return (
-    <div className={classNames} onClick={onClick}>
+    <div
+      className={classNames}
+      onClick={onClick}
+      onKeyDown={onKeyDown}
+      role={interactive ? "button" : undefined}
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+      tabIndex={interactive ? 0 : undefined}
+    >
       <div className={`${baseClass}__main-content`}>
         {graphic && <Graphic name={graphic} />}
         <div className={`${baseClass}__info`}>

@@ -126,6 +126,13 @@ func TestValidateWindowsProfileFleetVariables(t *testing.T) {
 			errContains: "Fleet variable $FLEET_VAR_HOST_FAKE is not supported in Windows profiles",
 		},
 		{
+			name: "EJBCA variable",
+			profileXML: `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/System/AllowLocation</LocURI></Target>` +
+				`<Data>$FLEET_VAR_EJBCA_DATA_myCA</Data></Item></Replace>`,
+			wantErr:     true,
+			errContains: "Fleet variable $FLEET_VAR_EJBCA_DATA_myCA is not supported in Windows profiles",
+		},
+		{
 			name: "HOST_UUID with another unsupported variable",
 			profileXML: `<Replace>
 				<Item>

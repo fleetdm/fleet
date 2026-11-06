@@ -33,11 +33,12 @@ If you would like to use Fleet's macOS MDM features, the following endpoints nee
 - `/api/mdm/acme/*`: Allows hosts to obtain an ACME certificate (required if Hardware Attestation is enabled)
 - `/mdm/apple/mdm`: Allows hosts to reach the server using the MDM protocol.
 - `/api/mdm/apple/enroll`: If you use automatic enrollment, allows hosts to get an enrollment profile.
+- `/enroll`, `/api/*/fleet/enrollment_profiles/ota`, and `/api/*/fleet/ota_enrollment`: Allows end users to turn on MDM from the **My device** page or with an enrollment link (over-the-air enrollment). If the fleet requires [IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication), the `/mdm/sso` endpoints below are also required.
 - `/api/*/fleet/device/*`: Provides end users access to their **My device** page.
-  - This page is where they download their manual enrollment profile, rotate their disk encryption key, and use other features. For more information on these API endpoints see the [API documentation for device-authenticated routes](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#device-authenticated-routes).
+  - This page is where they turn on MDM, rotate their disk encryption key, and use other features. For more information on these API endpoints see the [API documentation for device-authenticated routes](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#device-authenticated-routes).
 - `/mdm/sso`, `/api/*/fleet/mdm/sso`, `/mdm/sso/callback`, `/api/*/fleet/mdm/sso/callback`, and `/assets/*`: If you use automatic enrollment and you require [IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication) during out-of-the-box macOS setup, allows end users to authenticate with your IdP.
-- `/api/*/fleet/mdm/setup/eula/*`: If you use automatic enrollment and you require that the end user agrees to an [End User License Agreement (EULA)](https://fleetdm.com/guides/setup-experience#end-user-license-agreement-eula) during out-of-the-box macOS setup, allows end user to see the EULA.
-- `/api/*/fleet/mdm/bootstrap`: If you use automatic enrollment and you install a [bootstrap package](https://fleetdm.com/guides/setup-experience#bootstrap-package) during out-of-the-box macOS setup, installs the bootstrap package.
+- `/api/*/fleet/setup_experience/eula/*`: If you use automatic enrollment and you require that the end user agrees to an [End User License Agreement (EULA)](https://fleetdm.com/guides/setup-experience#end-user-license-agreement-eula) during out-of-the-box macOS setup, allows end user to see the EULA.
+- `/api/*/fleet/bootstrap`: If you use automatic enrollment and you install a [bootstrap package](https://fleetdm.com/guides/setup-experience#bootstrap-package) during out-of-the-box macOS setup, installs the bootstrap package.
 - `/api/mdm/apple/psso/*` and `/.well-known/apple-app-site-association`: If you use Fleet's Platform SSO extension (not a third-party extension provided by your IdP), allows macOS hosts to authenticate for user provisioning and password syncing.
 
 > The `/mdm/apple/scep` and `/mdm/apple/mdm` endpoints are outside of the `/api` path because they
@@ -63,6 +64,7 @@ If you would like to use Fleet's iOS/iPadOS MDM features, the following endpoint
 
 - `/enroll`: Allows end users to access the enrollment page on which they download an enrollment profile to enroll their iOS/iPadOS host.
 - `/api/*/fleet/enrollment_profiles/ota`:  Allows hosts to download an enrollment profile.
+- `/api/*/fleet/ota_enrollment`: Allows hosts to complete over-the-air (OTA) profile enrollment.
 - `/api/*/fleet/software/titles/*/in_house_app`: Allows deloying in-house (`.ipa`) apps.
 
 If you use [Account-driven User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account#basic-article) for personal iPhones and iPads (BYOD), the following endpoints also need to be exposed:

@@ -7751,6 +7751,27 @@ func TestGetHostDEPAssignmentDetailsNotFoundClassification(t *testing.T) {
 	}
 }
 
+func TestGetHostDEPAssignmentDetailsDeletedABMToken(t *testing.T) {
+	ds := new(mock.Store)
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return &fleet.Host{ID: id, HardwareSerial: "SERIAL123"}, nil
+	}
+	// Deleting an AB token nulls abm_token_id on its hosts' assignments.
+	ds.GetHostDEPAssignmentFunc = func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
+		return &fleet.HostDEPAssignment{HostID: hostID, ABMTokenID: nil}, nil
+	}
+
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{})
+	ctx = test.UserContext(ctx, test.UserAdmin)
+
+	depAssignment, depDevice, depErr, err := svc.GetHostDEPAssignmentDetails(ctx, 1)
+	require.NoError(t, err)
+	assert.Nil(t, depAssignment)
+	assert.Nil(t, depDevice)
+	assert.Empty(t, depErr)
+	assert.False(t, ds.GetABMTokenByIDFuncInvoked)
+}
+
 func TestReorderCSVColumnAfter(t *testing.T) {
 	cases := []struct {
 		name     string

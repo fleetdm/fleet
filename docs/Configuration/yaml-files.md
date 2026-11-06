@@ -128,7 +128,7 @@ Policies support `path:` (single file) and `paths:` (glob pattern) references. S
 
 ### Options
 
-For available options, see the parameters for the [Create policy](https://fleetdm.com/docs/rest-api/rest-api#create-policy) and [Create team policy](https://fleetdm.com/docs/rest-api/rest-api#create-team-policy) API endpoints.
+For available options, see the parameters for the [Create policy](https://fleetdm.com/docs/rest-api/rest-api#create-policy) API endpoint.
 
 #### Patch policy
 
@@ -413,9 +413,9 @@ The `controls` section allows you to configure scripts and device management (MD
 - `windows_migration_enabled` specifies whether or not to automatically migrate Windows hosts connected to another MDM solution. If `false`, MDM is only turned on after hosts are unenrolled from your old MDM solution. `enable_turn_on_windows_mdm_manually` must be set to `false`. (default: `false`). Can only be configured for "All fleets" (`default.yml`).
 - `apple_require_hardware_attestation` specifies whether or not to require Apple hosts with supported hardware (Apple Silicon Macs, and iPhones and iPads with an A11 Bionic or later chip running iOS/iPadOS 16 or later) to complete a device attestation challenge verifying that the hardware serial matches a known host record from AB as part of DEP enrollment (default: `false`). Hosts without supported hardware (for example, Intel Macs) enroll with SCEP and aren't attested, unless `only_allow_apple_business_enrollment` is also `true`. In that case, they can't enroll. Can only be configured for "All fleets" (default.yml).
 - `only_allow_apple_business_enrollment` specifies whether or not to allow only Apple hosts that are assigned to Fleet in Apple Business (AB) to turn on MDM, through Automated Device Enrollment (ADE) (default: `false`). When `true`, manual enrollment, over-the-air (OTA) enrollment, and account-driven user enrollment (BYOD) are blocked. Fleet also stops renewing MDM certificates for enrolled hosts that aren't in AB, so those hosts lose MDM when their certificate expires. If `apple_require_hardware_attestation` is also `true`, new enrollment is ACME-only: hosts without supported hardware can't enroll (SCEP isn't used as a fallback), and enrolled hosts without supported hardware also stop renewing. Can only be configured for "All fleets" (`default.yml`). _Available in Fleet Premium._
-- `enable_recovery_lock_password` specifies whether or not to enforce Recovery Lock password on eligible macOS hosts (default: `false`).
+- `macos_enable_recovery_lock_password` specifies whether or not to enforce Recovery Lock password on eligible macOS hosts (default: `false`).
 - `enable_profile_validation` specifies whether or not to check that recognized settings in Apple and Windows configuration profiles have values of the expected type when profiles are added or edited (default: `true`). Settings and payload types Fleet doesn't recognize are always allowed. Set to `false` to skip this check. Can only be configured for "All fleets" (`default.yml`).
-- `name_template` sets a naming convention for macOS, iOS, and iPadOS hosts. Fleet resolves the template per host, renames the host on the device via an MDM command, and updates the host's name in Fleet. Supports the built-in host identity variables (`$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_PLATFORM`), the IdP end-user variables (`$FLEET_VAR_HOST_END_USER_IDP_USERNAME`, `_USERNAME_LOCAL_PART`, `_GROUPS`, `_DEPARTMENT`, `_FULL_NAME`), and custom (`$FLEET_SECRET_*`) variables; certificate authority variables aren't supported. A referenced custom variable must already exist. Supported for fleets and for hosts that aren't in a fleet ("Unassigned"): set it in a fleet's YAML, or in `no_team.yml`/`default.yml` controls to apply it to "Unassigned" hosts. Removing the key clears the template but doesn't rename any host. _Available in Fleet Premium._
+- `name_template` sets a naming convention for macOS, iOS, and iPadOS hosts. Fleet resolves the template per host, renames the host on the device via an MDM command, and updates the host's name in Fleet. Supports the built-in host identity variables (`$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_PLATFORM`), the IdP end-user variables (`$FLEET_VAR_HOST_END_USER_IDP_USERNAME`, `_USERNAME_LOCAL_PART`, `_GROUPS`, `_DEPARTMENT`, `_FULL_NAME`), and custom (`$FLEET_SECRET_*`) variables; certificate authority variables aren't supported. A referenced custom variable must already exist. Supported for fleets and for hosts that aren't in a fleet ("Unassigned"): set it in a fleet's YAML, or in `fleets/unassigned.yml`/`default.yml` controls to apply it to "Unassigned" hosts. Removing the key clears the template but doesn't rename any host. _Available in Fleet Premium._
 
 > `enable_disk_encryption` at this level is deprecated. Please use per-platform (`apple_settings`, `windows_settings`, `linux_settings`) instead.
 > `windows_require_bitlocker_pin` at this level is deprecated. Please use `windows_settings.require_bitlocker_pin` instead.
@@ -440,7 +440,7 @@ controls:
   apple_require_hardware_attestation: false # Available in Fleet Premium
   only_allow_apple_business_enrollment: false # Available in Fleet Premium
   enable_profile_validation: true
-  enable_recovery_lock_password: true # Available in Fleet Premium
+  macos_enable_recovery_lock_password: true # Available in Fleet Premium
   name_template: "iPad $FLEET_VAR_HOST_HARDWARE_SERIAL" # Available in Fleet Premium
   android_enabled_and_configured: true
   macos_updates: # Available in Fleet Premium
@@ -601,10 +601,9 @@ The `setup_experience` section lets you control the out-of-the-box [setup experi
 - `bootstrap_package` is the URL to a bootstrap package. Fleet will download the bootstrap package. Applies to macOS only (default: `""`).
 - `macos_manual_agent_install` specifies whether Fleet's agent (fleetd) will be installed as part of setup experience. Applies to macOS only (default: `false`)
 - `enable_end_user_authentication` specifies whether or not to require IdP authentication when the user first sets up their host. Applies to macOS, Windows, Linux, iOS/iPadOS, and Android.
-- `require_all_software_macos` specifies whether to cancel setup on a macOS host if any software installs fail.
-- `require_all_software_windows` specifies whether to cancel setup on a Windows host if any software installs fail. When `true`, the host is blocked at the Windows Enrollment Status Page and the end user must reset the device to try again. When `false`, the Enrollment Status Page lists the software that failed and the end user can continue to the desktop and install it later via self-service.
+- `macos_require_all_software` specifies whether to cancel setup on a macOS host if any software installs fail.
+- `windows_require_all_software` specifies whether to cancel setup on a Windows host if any software installs fail. When `true`, the host is blocked at the Windows Enrollment Status Page and the end user must reset the device to try again. When `false`, the Enrollment Status Page lists the software that failed and the end user can continue to the desktop and install it later via self-service.
 - `lock_end_user_info` specifies whether or not to enable end user to edit the local account Account Name and Full Name in macOS Setup Assistant. (default: `true`)
-- `require_all_software` specifies whether to cancel setup on a macOS host if any software installs fail.
 - `apple_enable_release_device_manually` when enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. Applies to Apple (macOS, iOS, iPadOS) hosts that automatically enroll via Apple Business (AB).
 - `apple_setup_assistant` is a path to a custom [automatic enrollment (ADE) profile](https://support.apple.com/guide/deployment/automated-device-enrollment-management-dep73069dd57/web) (.json). Applies to macOS and iOS/iPadOS hosts.
 
@@ -795,18 +794,18 @@ software:
 ```yaml
 - url: https://github.com/northpolesec/santa/releases/download/2026.2/santa-2026.2.pkg
   install_script:
-    path: ../lib/software/santa-install-script.sh
+    path: santa-install-script.sh
   self_service: true
   labels_exclude_any:
-    - IT test team
+    - IT test fleet
 - url: https://github.com/northpolesec/santa/releases/download/2026.4/santa-2026.4.pkg
   install_script:
-    path: ../lib/software/santa-install-script.sh
+    path: santa-install-script.sh
   self_service: true
   categories:
     - "💻 Productivity"
   labels_include_all:
-    - IT test team
+    - IT test fleet
 ```
 
 ##### URL
@@ -849,7 +848,7 @@ If your server doesn't support ETags reliably, you can disable this behavior wit
 
 Script-only packages (`.sh`, `.py`, and `.ps1` files) are referenced directly inline in the fleet's YAML file. The file contents become the install script. Script packages do not support `install_script` or automatic install (`install_software` in policies).
 
-`self_service`, `categories`, `labels`, `icon`, `pre_install_query`, `post_install_script`, and `uninstall_script` are specified inline in the team's YAML file. There's no default uninstall script for script packages.
+`self_service`, `categories`, `labels`, `icon`, `pre_install_query`, `post_install_script`, and `uninstall_script` are specified inline in the fleet's YAML file. There's no default uninstall script for script packages.
 
 ```yaml
 software:
@@ -951,6 +950,18 @@ software:
             - Test
           configuration:
             path: ../lib/software/ios-cloudflare-one-agent-config-test.xml
+    - path: ../lib/software/zoom.app-store-app.yml
+```
+
+`lib/software/zoom.app-store-app.yml`
+
+```yaml
+- app_store_id: "546505307"
+  platform: ios
+  categories:
+    - "👬 Communication"
+  configuration:
+    path: zoom-config.xml
 ```
 
 ### fleet_maintained_apps
@@ -1008,23 +1019,12 @@ A `path:`/`paths:` file can define more than one app, so related apps can be gro
 
 Currently, managing users and ticket destinations (Jira and Zendesk) are only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api).
 
-### features
+### host_data_collection
 
-The `features` section of the configuration YAML lets you turn on/off Fleet features.
+The `host_data_collection` section of the configuration YAML lets you control what Fleet collects from hosts.
 - `additional_queries` adds extra host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned (default: empty).
 - `enable_host_users` specifies whether or not Fleet collects user data from hosts (default: `true`).
 - `enable_software_inventory` specifies whether or not Fleet collects software inventory from hosts (default: `true`).
-- `historical_data` controls per-dataset collection of the data that drive the dashboard charts. Each sub-key defaults to `true`:
-  - `uptime` — host activity samples that drive the **Hosts active** dashboard chart.
-  - `vulnerabilities` — per-host software vulnerability data that drive the **Vulnerability exposure** dashboard chart. _Available in Fleet Premium._ Fleet Free doesn't collect this data, because the chart that reads it requires Fleet Premium.
-- `vulnerability_exposure_historical_reporting` lets you define and persist the default filters for the **Vulnerability exposure** dashboard chart (risk registry) when the page loads. These filter display only and don't change which data Fleet collects. A user can still adjust the filters in the UI, but these changes aren't saved. `historical_data.vulnerabilities` must be enabled.
-  - `software_filters` is the list of software categories to show. Valid values: `os` (operating system), `browsers` (Google Chrome, Safari, Mozilla Firefox, Brave, and Opera), `office` (Word, Excel, PowerPoint, and Outlook), and `adobe` (Acrobat, Flash, and Shockwave Player) (default: all categories).
-  - `cvss_min` / `cvss_max` filters vulnerabilities by severity (CVSS version 3.x base score, range 0 to 10). Omitting a bound leaves that side unfiltered, which isn't the same as setting it to `0` or `10`: vulnerabilities that Fleet has no CVSS score for are shown only when neither bound is set.
-  - `epss_min` / `epss_max` filters vulnerabilities by probability of exploit ([EPSS](https://www.first.org/epss/)) score (range 0 to 100).
-  - `has_known_exploit`, when `true`, only includes software that has vulnerabilities which have been actively exploited in the wild ([CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)) (default: `false`).
-  - `exclude_vulnerabilities` is a list of specific CVEs to exclude.
- 
-A dataset is collected for a given host only when the sub-key is `true` at both the global level (`org_settings.features.historical_data`) and the host's fleet level (`settings.features.historical_data`). Setting a sub-key to `false` at either level disables collection for the affected hosts. Flipping the global sub-key off disables it for every fleet, regardless of per-fleet settings.
 
 Can be configured for "All fleets" (`org_settings`) and specific fleets (`settings`).
 
@@ -1032,29 +1032,62 @@ Can be configured for "All fleets" (`org_settings`) and specific fleets (`settin
 
 ```yaml
 org_settings:
-  features:
+  host_data_collection:
     additional_queries:
       time: SELECT * FROM time
       macs: SELECT mac FROM interface_details
     enable_host_users: true
     enable_software_inventory: true
-    historical_data:
-      uptime: true
-      vulnerabilities: false
-    vulnerability_exposure_historical_reporting:
-      software_filters:
-        - os
-        - browsers
-        - office
-        - adobe
-      has_known_exploit: true
-      cvss_min: 9
-      cvss_max: 10
-      epss_min: 0
-      epss_max: 100
-      exclude_vulnerabilities:
-        - CVE-2025-50897
-        - CVE-2025-76306
+```
+
+### historical_data
+
+The `historical_data` section of the configuration YAML controls per-dataset collection of the data that drive the dashboard charts. Each sub-key defaults to `true`:
+- `uptime` — host activity samples that drive the **Hosts active** dashboard chart.
+- `vulnerabilities` — per-host software vulnerability data that drive the **Vulnerability exposure** dashboard chart. _Available in Fleet Premium._ Fleet Free doesn't collect this data, because the chart that reads it requires Fleet Premium.
+
+A dataset is collected for a given host only when the sub-key is `true` at both the global level (`org_settings.historical_data`) and the host's fleet level (`settings.historical_data`). Setting a sub-key to `false` at either level disables collection for the affected hosts. Flipping the global sub-key off disables it for every fleet, regardless of per-fleet settings.
+
+Can be configured for "All fleets" (`org_settings`) and specific fleets (`settings`).
+
+#### Example
+
+```yaml
+org_settings:
+  historical_data:
+    uptime: true
+    vulnerabilities: false
+```
+
+### vulnerability_exposure_historical_reporting
+
+The `vulnerability_exposure_historical_reporting` section of the configuration YAML lets you define and persist the default filters for the **Vulnerability exposure** dashboard chart (risk registry) when the page loads. These filter display only and don't change which data Fleet collects. A user can still adjust the filters in the UI, but these changes aren't saved. `historical_data.vulnerabilities` must be enabled.
+- `software_filters` is the list of software categories to show. Valid values: `os` (operating system), `browsers` (Google Chrome, Safari, Mozilla Firefox, Brave, and Opera), `office` (Word, Excel, PowerPoint, and Outlook), and `adobe` (Acrobat, Flash, and Shockwave Player) (default: all categories).
+- `cvss_min` / `cvss_max` filters vulnerabilities by severity (CVSS version 3.x base score, range 0 to 10). Omitting a bound leaves that side unfiltered, which isn't the same as setting it to `0` or `10`: vulnerabilities that Fleet has no CVSS score for are shown only when neither bound is set.
+- `epss_min` / `epss_max` filters vulnerabilities by probability of exploit ([EPSS](https://www.first.org/epss/)) score (range 0 to 100).
+- `has_known_exploit`, when `true`, only includes software that has vulnerabilities which have been actively exploited in the wild ([CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)) (default: `false`).
+- `exclude_vulnerabilities` is a list of specific CVEs to exclude.
+
+Can be configured for "All fleets" (`org_settings`) and specific fleets (`settings`).
+
+#### Example
+
+```yaml
+org_settings:
+  vulnerability_exposure_historical_reporting:
+    software_filters:
+      - os
+      - browsers
+      - office
+      - adobe
+    has_known_exploit: true
+    cvss_min: 9
+    cvss_max: 10
+    epss_min: 0
+    epss_max: 100
+    exclude_vulnerabilities:
+      - CVE-2025-50897
+      - CVE-2025-76306
 ```
 
 ### fleet_desktop
@@ -1082,14 +1115,12 @@ org_settings:
 
 The `gitops` section allows configuring [GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) in the Fleet UI. When GitOps mode is enabled, many UI features become read-only to ensure that configuration changes are made only via GitOps.
 
-- `gitops_mode_enabled` — when `true`, Fleet's UI shows GitOps-managed sections as read-only with a tooltip pointing to the repository URL. Requires Fleet Premium.
+- `gitops_mode_enabled` (default: `false`) — _Available in Fleet Premium._ When `true`, Fleet's UI shows GitOps-managed sections as read-only with a tooltip pointing to the repository URL.
 - `repository_url` (default: `""`) — the URL of the GitOps repository that manages this Fleet. Must be a valid `http://` or `https://` URL. Required when `gitops_mode_enabled: true`.
 
 Can only be configured for "All fleets" (`org_settings`).
 
 > GitOps mode exceptions for labels, software, and enroll secrets can't be set in YAML. Configure them in the Fleet UI under **Settings** > **Integrations** > **Change management**. Learn more in the [GitOps mode guide](https://fleetdm.com/guides/gitops-mode).
-
-> If `gitops:` is not provided in your YAML file, any existing GitOps mode settings will be preserved.
 
 #### Example
 
@@ -1105,8 +1136,6 @@ org_settings:
 The `host_expiry_settings` section lets you define if and when hosts should be automatically deleted from Fleet if they have not checked in.
 - `host_expiry_enabled` (default: `false`)
 - `host_expiry_window` if a host has not communicated with Fleet in the specified number of days, it will be removed. Must be > `0` when host expiry is enabled (default: `0`).
-
-If this setting is not defined in your YAML files, unlike all other settings, it will not get reset to the default values.
 
 Can be configured for "All fleets" (`org_settings`) and specific fleets (`settings`).
 
@@ -1524,7 +1553,7 @@ Can be configured for specific fleets (`settings`) or "Unassigned" (`settings` i
 
 ```yaml
 name: Workstations
-team_settings:
+settings:
   webhook_settings:
     host_activities_webhook:
       enable_host_activities_webhook: true
@@ -1762,8 +1791,6 @@ org_settings:
 ```
 
 Can only be configured for "All fleets" (`org_settings`).
-
-Unlike other options, omitting `smtp_settings` or leaving it blank won't reset the values back to the default.
 
 ## Tips
 

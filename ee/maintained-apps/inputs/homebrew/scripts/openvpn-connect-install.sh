@@ -91,47 +91,12 @@ if [ -z "${INSTALLER_PATH:-}" ] || [ ! -f "$INSTALLER_PATH" ]; then
   exit 1
 fi
 
-MOUNT_POINT=$(mktemp -d /tmp/openvpn_connect_dmg.XXXXXX)
-cleanup() {
-  hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || true
-  rmdir "$MOUNT_POINT" >/dev/null 2>&1 || true
-}
-trap cleanup EXIT
-
-if ! hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH" >/dev/null; then
-  echo "Failed to mount DMG at $INSTALLER_PATH"
-  exit 1
-fi
-
-# Locate the arm64 installer pkg. We only support Apple Silicon for this FMA,
-# so deliberately skip the x86_64 pkg shipped in the same DMG. Use a glob so
-# parentheses and version/build numbers in the file name don't have to be
-# hard-coded here.
-PKG=""
-for candidate in "$MOUNT_POINT"/*_arm64_Installer_signed.pkg; do
-  if [ -e "$candidate" ]; then
-    PKG="$candidate"
-    break
-  fi
-done
-
-if [ -z "$PKG" ] || [ ! -e "$PKG" ]; then
-  echo "Could not find an arm64 OpenVPN Connect installer pkg in the DMG. Contents:"
-  ls -la "$MOUNT_POINT"
-  exit 1
-fi
-
-echo "Installing $PKG..."
-
 quit_and_track_application "$BUNDLE_ID" || exit 1
 
-if ! sudo installer -pkg "$PKG" -target /; then
-  echo "installer -pkg failed for $PKG"
+if ! sudo installer -pkg "$INSTALLER_PATH" -target /; then
+  echo "installer -pkg failed for $INSTALLER_PATH"
   exit 1
 fi
-
-cleanup
-trap - EXIT
 
 # OpenVPN Connect 3.8+ places the .app inside a wrapper directory rather than
 # directly under /Applications/. osquery's apps table doesn't recurse into

@@ -2723,6 +2723,35 @@ func TestAuthorizeMDMAppleManualEnrollmentProfile(t *testing.T) {
 	})
 }
 
+func TestAuthorizeAppleBM(t *testing.T) {
+	t.Parallel()
+
+	abm := &fleet.AppleBM{}
+	runTestCases(t, []authTestCase{
+		{user: nil, object: abm, action: list, allow: false},
+		{user: test.UserNoRoles, object: abm, action: list, allow: false},
+
+		{user: test.UserAdmin, object: abm, action: list, allow: true},
+		{user: test.UserGitOps, object: abm, action: list, allow: true},
+		{user: test.UserMaintainer, object: abm, action: list, allow: false},
+		{user: test.UserObserver, object: abm, action: list, allow: false},
+		{user: test.UserObserverPlus, object: abm, action: list, allow: false},
+		{user: test.UserTechnician, object: abm, action: list, allow: false},
+
+		{user: test.UserTeamAdminTeam1, object: abm, action: list, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: abm, action: list, allow: false},
+		{user: test.UserTeamObserverTeam1, object: abm, action: list, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: abm, action: list, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: abm, action: list, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: abm, action: list, allow: false},
+
+		{user: test.UserAdmin, object: abm, action: read, allow: true},
+		{user: test.UserAdmin, object: abm, action: write, allow: true},
+		{user: test.UserGitOps, object: abm, action: read, allow: false},
+		{user: test.UserGitOps, object: abm, action: write, allow: false},
+	})
+}
+
 func TestAuthorizeMDMAppleBootstrapPackage(t *testing.T) {
 	t.Parallel()
 

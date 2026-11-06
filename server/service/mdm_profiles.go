@@ -9,15 +9,38 @@ import (
 	"github.com/fleetdm/fleet/v4/server/variables"
 )
 
+// pkcs12CAPrefixes are the Fleet variable prefixes of a certificate authority that delivers a PKCS#12 in a profile.
+type pkcs12CAPrefixes interface {
+	prefixes() (data, password fleet.FleetVarName)
+}
+
+type digiCertPrefixes struct{}
+
+func (digiCertPrefixes) prefixes() (fleet.FleetVarName, fleet.FleetVarName) {
+	return fleet.FleetVarDigiCertDataPrefix, fleet.FleetVarDigiCertPasswordPrefix
+}
+
+type ejbcaPrefixes struct{}
+
+func (ejbcaPrefixes) prefixes() (fleet.FleetVarName, fleet.FleetVarName) {
+	return fleet.FleetVarEJBCADataPrefix, fleet.FleetVarEJBCAPasswordPrefix
+}
+
 // Certificate Authority structs for MDM profile checking
 // to ensure all variables needed for a given CA is present within a single profile.
-type DigiCertVarsFound struct {
+type PKCS12VarsFound[P pkcs12CAPrefixes] struct {
 	dataCA     map[string]struct{}
 	passwordCA map[string]struct{}
 }
 
-// Ok makes sure that both DATA and PASSWORD variables are present in a DigiCert profile.
-func (d *DigiCertVarsFound) Ok() bool {
+// DigiCertVarsFound and EJBCAVarsFound track the variables of the CAs that deliver a PKCS#12.
+type (
+	DigiCertVarsFound = PKCS12VarsFound[digiCertPrefixes]
+	EJBCAVarsFound    = PKCS12VarsFound[ejbcaPrefixes]
+)
+
+// Ok makes sure that both DATA and PASSWORD variables are present for each CA in the profile.
+func (d *PKCS12VarsFound[P]) Ok() bool {
 	if d == nil {
 		return true
 	}
@@ -32,11 +55,11 @@ func (d *DigiCertVarsFound) Ok() bool {
 	return true
 }
 
-func (d *DigiCertVarsFound) Found() bool {
+func (d *PKCS12VarsFound[P]) Found() bool {
 	return d != nil
 }
 
-func (d *DigiCertVarsFound) CAs() []string {
+func (d *PKCS12VarsFound[P]) CAs() []string {
 	if d == nil {
 		return nil
 	}
@@ -47,24 +70,28 @@ func (d *DigiCertVarsFound) CAs() []string {
 	return keys
 }
 
-func (d *DigiCertVarsFound) ErrorMessage() string {
+func (d *PKCS12VarsFound[P]) ErrorMessage() string {
+	if d == nil {
+		return ""
+	}
+	var p P
+	dataVar, passwordVar := p.prefixes()
 	for ca := range d.passwordCA {
 		if _, ok := d.dataCA[ca]; !ok {
-			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", fleet.FleetVarDigiCertDataPrefix, ca)
+			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", dataVar, ca)
 		}
 	}
 	for ca := range d.dataCA {
 		if _, ok := d.passwordCA[ca]; !ok {
-			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", fleet.FleetVarDigiCertPasswordPrefix, ca)
+			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", passwordVar, ca)
 		}
 	}
-	return fmt.Sprintf("CA name mismatch between $FLEET_VAR_%s<ca_name> and $FLEET_VAR_%s<ca_name> in the profile.",
-		fleet.FleetVarDigiCertDataPrefix, fleet.FleetVarDigiCertPasswordPrefix)
+	return fmt.Sprintf("CA name mismatch between $FLEET_VAR_%s<ca_name> and $FLEET_VAR_%s<ca_name> in the profile.", dataVar, passwordVar)
 }
 
-func (d *DigiCertVarsFound) SetData(value string) (*DigiCertVarsFound, bool) {
+func (d *PKCS12VarsFound[P]) SetData(value string) (*PKCS12VarsFound[P], bool) {
 	if d == nil {
-		d = &DigiCertVarsFound{}
+		d = &PKCS12VarsFound[P]{}
 	}
 	if d.dataCA == nil {
 		d.dataCA = make(map[string]struct{})
@@ -74,9 +101,9 @@ func (d *DigiCertVarsFound) SetData(value string) (*DigiCertVarsFound, bool) {
 	return d, !alreadyPresent
 }
 
-func (d *DigiCertVarsFound) SetPassword(value string) (*DigiCertVarsFound, bool) {
+func (d *PKCS12VarsFound[P]) SetPassword(value string) (*PKCS12VarsFound[P], bool) {
 	if d == nil {
-		d = &DigiCertVarsFound{}
+		d = &PKCS12VarsFound[P]{}
 	}
 	if d.passwordCA == nil {
 		d.passwordCA = make(map[string]struct{})
@@ -377,6 +404,7 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 
 	var (
 		digiCertVars   *DigiCertVarsFound
+		ejbcaVars      *EJBCAVarsFound
 		ndesVars       *NDESVarsFound
 		smallstepVars  *SmallstepVarsFound
 		customSCEPVars *CustomSCEPVarsFound
@@ -403,6 +431,30 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 				if ca.Name == caName {
 					caFound = true
 					digiCertVars, ok = digiCertVars.SetPassword(caName)
+					break
+				}
+			}
+			if !caFound {
+				ok = false
+			}
+		case strings.HasPrefix(k, string(fleet.FleetVarEJBCADataPrefix)):
+			caName := strings.TrimPrefix(k, string(fleet.FleetVarEJBCADataPrefix))
+			for _, ca := range groupedCAs.EJBCA {
+				if ca.Name == caName {
+					caFound = true
+					ejbcaVars, ok = ejbcaVars.SetData(caName)
+					break
+				}
+			}
+			if !caFound {
+				ok = false
+			}
+		case strings.HasPrefix(k, string(fleet.FleetVarEJBCAPasswordPrefix)):
+			caName := strings.TrimPrefix(k, string(fleet.FleetVarEJBCAPasswordPrefix))
+			for _, ca := range groupedCAs.EJBCA {
+				if ca.Name == caName {
+					caFound = true
+					ejbcaVars, ok = ejbcaVars.SetPassword(caName)
 					break
 				}
 			}
@@ -502,6 +554,16 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 			if err != nil {
 				return err
 			}
+		}
+	}
+
+	if ejbcaVars.Found() {
+		if !ejbcaVars.Ok() {
+			return &fleet.BadRequestError{Message: ejbcaVars.ErrorMessage()}
+		}
+		// Only supported for Apple.
+		if err := additionalEJBCAValidation(profileContents, ejbcaVars); err != nil {
+			return err
 		}
 	}
 

@@ -1046,6 +1046,13 @@ allow {
   action == [read, write, list][_]
 }
 
+# Global gitops can list AB tokens, so fleetctl gitops can check setup assistant coverage.
+allow {
+  object.type == "mdm_apple"
+  subject.global_role == gitops
+  action == list
+}
+
 # Global admins can write/modify AB release devices
 allow {
   object.type == "mdm_ab_release"

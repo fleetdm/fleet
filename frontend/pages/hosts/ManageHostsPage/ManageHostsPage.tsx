@@ -8,7 +8,7 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { useMutation, useQuery } from "react-query";
+import { useMutation, useQuery, useQueryClient } from "react-query";
 import { RouteProps } from "react-router/lib/Route";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { SingleValue } from "react-select-5";
@@ -180,6 +180,7 @@ const ManageHostsPage = ({
   const isPrimoMode = config?.partnerships?.enable_primo;
 
   const { setResetSelectedRows } = useContext(TableContext);
+  const queryClient = useQueryClient();
 
   const shouldStripParamOnTeamChange = (
     newTeamId?: number,
@@ -1607,6 +1608,7 @@ const ManageHostsPage = ({
       setResetSelectedRows(true);
       refetchHosts();
       refetchLabels();
+      queryClient.invalidateQueries(["hosts_count_for_license"]);
       toggleDeleteHostModal();
       setSelectedHostIds([]);
       setIsAllMatchingHostsSelected(false);

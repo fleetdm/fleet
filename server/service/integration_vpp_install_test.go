@@ -1748,7 +1748,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 	// Get title and software package details
 	var st getSoftwareTitleResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID),
-		nil, http.StatusOK, &st)
+		nil, http.StatusOK, &st, "fleet_id", "0")
 
 	require.Equal(t, "ipa_test", st.SoftwareTitle.Name)
 	require.Equal(t, "ipa_test.ipa", st.SoftwareTitle.SoftwarePackage.Name)

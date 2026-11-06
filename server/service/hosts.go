@@ -837,6 +837,9 @@ type searchHostsRequest struct {
 	// ExcludedHostIDs is the list of IDs selected on the caller side
 	// (e.g. the UI) that will be excluded from the returned payload.
 	ExcludedHostIDs []uint `json:"excluded_host_ids"`
+	// ExcludeMobileHosts omits iOS, iPadOS, and Android hosts, which can't be
+	// targeted by live reports.
+	ExcludeMobileHosts bool `json:"exclude_mobile_hosts"`
 }
 
 type searchHostsResponse struct {
@@ -849,7 +852,7 @@ func (r searchHostsResponse) Error() error { return r.Err }
 func searchHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*searchHostsRequest)
 
-	hosts, err := svc.SearchHosts(ctx, req.MatchQuery, req.QueryID, req.ExcludedHostIDs)
+	hosts, err := svc.SearchHosts(ctx, req.MatchQuery, req.QueryID, req.ExcludedHostIDs, req.ExcludeMobileHosts)
 	if err != nil {
 		return searchHostsResponse{Err: err}, nil
 	}
@@ -865,7 +868,7 @@ func searchHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	}, nil
 }
 
-func (svc *Service) SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint) ([]*fleet.Host, error) {
+func (svc *Service) SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint, excludeMobileHosts bool) ([]*fleet.Host, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
@@ -889,7 +892,7 @@ func (svc *Service) SearchHosts(ctx context.Context, matchQuery string, queryID 
 
 	results := []*fleet.Host{}
 
-	hosts, err := svc.ds.SearchHosts(ctx, filter, matchQuery, excludedHostIDs...)
+	hosts, err := svc.ds.SearchHosts(ctx, filter, matchQuery, excludeMobileHosts, excludedHostIDs...)
 	if err != nil {
 		return nil, err
 	}
@@ -2967,10 +2970,10 @@ func (svc *Service) GetHostDEPAssignmentDetails(ctx context.Context, hostID uint
 		return nil, nil, "", ctxerr.Wrap(ctx, err, "get host dep assignment")
 	}
 
-	// Without an ABM token ID we can't resolve which org name to use for the
-	// Apple API call, so return what we have from Fleet's DB.
+	// Deleting an ABM token nulls abm_token_id but leaves the assignment, so
+	// there's nothing to ask Apple about: treat the host as not a DEP host.
 	if depAssignment.ABMTokenID == nil {
-		return depAssignment, nil, "", nil
+		return nil, nil, "", nil
 	}
 
 	abmToken, err := svc.ds.GetABMTokenByID(ctx, *depAssignment.ABMTokenID)

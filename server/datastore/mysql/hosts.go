@@ -1437,6 +1437,30 @@ func (ds *Datastore) applyHostFilters(
 		softwareFilter = "EXISTS (SELECT 1 FROM host_software hs WHERE hs.host_id = h.id AND hs.software_id = ?)"
 		whereParams = append(whereParams, *softwareIDFilter)
 	} else if opt.SoftwareTitleIDFilter != nil {
+		// Reject a version or package filter that isn't one of the title's in the fleet
+		if opt.AppStoreAppVersionIDFilter != nil {
+			_, err := ds.GetVPPAppByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, *opt.AppStoreAppVersionIDFilter)
+			if err != nil {
+				if fleet.IsNotFound(err) {
+					return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+						Message: "app_store_app_version_id is not a version of this software title in this fleet",
+					})
+				}
+				return "", nil, ctxerr.Wrap(ctx, err, "get app store app version for title")
+			}
+		}
+		if opt.SoftwareInstallerIDFilter != nil {
+			_, err := ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, *opt.SoftwareInstallerIDFilter, false)
+			if err != nil {
+				if fleet.IsNotFound(err) {
+					return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+						Message: "software_installer_id is not a package of this software title in this fleet",
+					})
+				}
+				return "", nil, ctxerr.Wrap(ctx, err, "get software installer for title")
+			}
+		}
+
 		// software (version) ID filter is mutually exclusive with software title ID
 		// so we're reusing the same filter to avoid adding unnecessary conditions.
 		if opt.SoftwareStatusFilter != nil {
@@ -1469,17 +1493,6 @@ func (ds *Datastore) applyHostFilters(
 					return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 						Message: "software_installer_id does not apply to this software_title_id (title is a VPP app)",
 					}, "mismatched child id for title")
-				}
-				if opt.AppStoreAppVersionIDFilter != nil {
-					_, err = ds.GetVPPAppByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, *opt.AppStoreAppVersionIDFilter)
-					switch {
-					case fleet.IsNotFound(err):
-						return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-							Message: "app_store_app_version_id does not apply to this software_title_id (not a version of the title in this fleet)",
-						}, "mismatched child id for title")
-					case err != nil:
-						return "", nil, ctxerr.Wrap(ctx, err, "get app store app version for title")
-					}
 				}
 				vppAppJoin, vppAppParams, err := ds.vppAppJoin(ctx, *vppID, opt.AppStoreAppVersionIDFilter, *opt.SoftwareStatusFilter)
 				if err != nil {
@@ -3625,12 +3638,18 @@ func (ds *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.T
 	return nil
 }
 
-// SearchHosts returns hosts matching the query string. Called by the
-// live-query target picker (which filters mobile hosts at the service
-// layer) and the manual-label host picker (which needs all platforms).
+// SearchHosts returns hosts matching the query string. excludeMobile is set by
+// the live-report target picker (mobile hosts don't run osquery); the
+// manual-label host picker needs all platforms. The filter is applied in SQL
+// so mobile hosts can't crowd desktop hosts out of the LIMIT.
 // Deliberately does not populate LastMDMCheckedInAt: no caller reads it
 // here, and skipping the mobile MDM join keeps this query lean.
-func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Host, error) {
+func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, matchQuery string, excludeMobile bool, omit ...uint) ([]*fleet.Host, error) {
+	platformFilter := "TRUE"
+	if excludeMobile {
+		platformFilter = "h.platform NOT IN " + mobilePlatformsSQLList
+	}
+
 	query := `SELECT
     h.id,
     h.osquery_host_id,
@@ -3684,7 +3703,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
   LEFT JOIN host_updates hu ON (h.id = hu.host_id)
   LEFT JOIN host_disks hd ON hd.host_id = h.id
   ` + hostMDMJoin + `
-  WHERE TRUE AND `
+  WHERE ` + platformFilter + ` AND `
 
 	matchingHostIDs := make([]int, 0)
 	if len(matchQuery) > 0 {
@@ -3692,7 +3711,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 		// to get all the additional data for hosts that match the search criteria by host_id.
 		// Apply the team filter so that LIMIT 10 below only counts hosts the caller can access —
 		// without it, 10 high-ID hosts on inaccessible teams could crowd out all accessible results.
-		matchingHosts := "SELECT h.id FROM hosts h WHERE " + ds.whereFilterHostsByTeams(filter, "h")
+		matchingHosts := "SELECT h.id FROM hosts h WHERE " + platformFilter + " AND " + ds.whereFilterHostsByTeams(filter, "h")
 		var args []interface{}
 		// TODO: should search columns include display_name (requires join to host_display_names)?
 		searchHostsQuery, args := hostSearchLike(matchingHosts, args, matchQuery, hostSearchColumns...)
@@ -3743,6 +3762,11 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 }
 
 func (ds *Datastore) HostIDsByIdentifier(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error) {
+	// A blank identifier would match every host with an empty hostname, UUID or serial (whitespace-only
+	// ones too, since these columns use PAD SPACE collations).
+	hostIdentifiers = slices.DeleteFunc(slices.Clone(hostIdentifiers), func(ident string) bool {
+		return strings.TrimSpace(ident) == ""
+	})
 	if len(hostIdentifiers) == 0 {
 		return []uint{}, nil
 	}

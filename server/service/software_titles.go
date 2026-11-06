@@ -191,15 +191,8 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get license")
 	}
-	// A nil teamID resolves to "no team" below, a scope the check above skips.
-	// Omit the installer data rather than failing, so this path doesn't turn the
-	// status code into a signal about titles the caller can't otherwise reach.
-	includeInstallers := license.IsPremium()
-	if includeInstallers && teamID == nil {
-		includeInstallers = svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead) == nil
-	}
-
-	if includeInstallers {
+	// Skip installer data when no fleet is given, packages, App Store apps and in-house apps are set per fleet
+	if license.IsPremium() && teamID != nil {
 		// add software installer data if needed
 		if software.SoftwareInstallersCount > 0 {
 			pkgs, err := svc.ds.GetSoftwarePackagesByTeamAndTitleID(ctx, teamID, id)
@@ -290,8 +283,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 		}
 
 		// add VPP app data if needed
-		// Skip App Store apps when no fleet is given, their versions and settings are set per fleet
-		if software.VPPAppsCount > 0 && teamID != nil {
+		if software.VPPAppsCount > 0 {
 			versions, err := svc.ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, *teamID, id)
 			if err != nil && !fleet.IsNotFound(err) {
 				return nil, ctxerr.Wrap(ctx, err, "get VPP app metadata")
