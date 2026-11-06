@@ -1306,6 +1306,10 @@ func (svc *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandL
 		User:            vc.User,
 		IncludeObserver: true,
 	}, opts)
+	if fleet.IsNotFound(err) && opts.Filters.HostIdentifier != "" {
+		// Not found covers hosts in teams the user can't see, so they look like hosts that don't exist.
+		return nil, nil, nil, fleet.NewInvalidArgumentError("Invalid Host", fleet.HostIdentiferNotFound).WithStatus(http.StatusNotFound)
+	}
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -1361,13 +1365,6 @@ func (svc *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandL
 		results = allowedResults
 	}
 
-	if len(results) == 0 && opts.Filters.HostIdentifier != "" {
-		_, err := svc.ds.HostLiteByIdentifier(ctx, opts.Filters.HostIdentifier)
-		var nve fleet.NotFoundError
-		if errors.As(err, &nve) {
-			return nil, nil, nil, fleet.NewInvalidArgumentError("Invalid Host", fleet.HostIdentiferNotFound).WithStatus(http.StatusNotFound)
-		}
-	}
 	return results, total, meta, nil
 }
 

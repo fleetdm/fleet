@@ -61,6 +61,8 @@ type EnrollOrbitFunc func(ctx context.Context, hostInfo fleet.OrbitHostInfo, enr
 
 type GetOrbitConfigFunc func(ctx context.Context) (fleet.OrbitConfig, error)
 
+type SetHostEntraDeviceTokenFunc func(ctx context.Context, idToken string) error
+
 type LogFleetdErrorFunc func(ctx context.Context, errData fleet.FleetdError) error
 
 type SetOrUpdateDeviceAuthTokenFunc func(ctx context.Context, authToken string) error
@@ -246,6 +248,8 @@ type GetHostSummaryFunc func(ctx context.Context, teamID *uint, platform *string
 type DeleteHostFunc func(ctx context.Context, id uint) (err error)
 
 type HostByIdentifierFunc func(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error)
+
+type GetHostByIDOrIdentifierFunc func(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error)
 
 type RefetchHostFunc func(ctx context.Context, id uint) (err error)
 
@@ -1114,6 +1118,9 @@ type Service struct {
 	GetOrbitConfigFunc        GetOrbitConfigFunc
 	GetOrbitConfigFuncInvoked bool
 
+	SetHostEntraDeviceTokenFunc        SetHostEntraDeviceTokenFunc
+	SetHostEntraDeviceTokenFuncInvoked bool
+
 	LogFleetdErrorFunc        LogFleetdErrorFunc
 	LogFleetdErrorFuncInvoked bool
 
@@ -1392,6 +1399,9 @@ type Service struct {
 
 	HostByIdentifierFunc        HostByIdentifierFunc
 	HostByIdentifierFuncInvoked bool
+
+	GetHostByIDOrIdentifierFunc        GetHostByIDOrIdentifierFunc
+	GetHostByIDOrIdentifierFuncInvoked bool
 
 	RefetchHostFunc        RefetchHostFunc
 	RefetchHostFuncInvoked bool
@@ -2745,6 +2755,13 @@ func (s *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, error)
 	return s.GetOrbitConfigFunc(ctx)
 }
 
+func (s *Service) SetHostEntraDeviceToken(ctx context.Context, idToken string) error {
+	s.mu.Lock()
+	s.SetHostEntraDeviceTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetHostEntraDeviceTokenFunc(ctx, idToken)
+}
+
 func (s *Service) LogFleetdError(ctx context.Context, errData fleet.FleetdError) error {
 	s.mu.Lock()
 	s.LogFleetdErrorFuncInvoked = true
@@ -3394,6 +3411,13 @@ func (s *Service) HostByIdentifier(ctx context.Context, identifier string, opts 
 	s.HostByIdentifierFuncInvoked = true
 	s.mu.Unlock()
 	return s.HostByIdentifierFunc(ctx, identifier, opts)
+}
+
+func (s *Service) GetHostByIDOrIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
+	s.mu.Lock()
+	s.GetHostByIDOrIdentifierFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostByIDOrIdentifierFunc(ctx, identifier, opts)
 }
 
 func (s *Service) RefetchHost(ctx context.Context, id uint) (err error) {

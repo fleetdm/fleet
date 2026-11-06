@@ -9091,7 +9091,7 @@
       "name": "UltiMaker Cura",
       "slug": "ultimaker-cura/darwin",
       "platform": "darwin",
-      "unique_identifier": "nl.ultimaker.cura.dmg",
+      "unique_identifier": "nl.ultimaker.cura_UltiMaker_Cura",
       "description": "UltiMaker Cura is a 3D printer and slicing GUI."
     },
     {

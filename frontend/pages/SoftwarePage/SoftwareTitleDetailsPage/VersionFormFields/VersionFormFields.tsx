@@ -382,7 +382,7 @@ const VersionFormFields = ({
         error={getError("labelTargets")}
         disableOptions={disabled}
         labelInfoBanner={
-          <InfoBanner icon="info-outline">
+          <InfoBanner icon="info">
             If multiple versions target the same host, Fleet will deploy the one
             that was added first.
           </InfoBanner>

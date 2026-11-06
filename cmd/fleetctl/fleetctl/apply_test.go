@@ -1747,7 +1747,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     agent_options:
       config:
         views:
@@ -1803,7 +1803,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: Team1
     mdm:
       macos_setup:
@@ -1846,7 +1846,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: Team1
     mdm:
       macos_setup:
@@ -2499,7 +2499,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: tm1
     mdm:
       setup_experience:
@@ -2514,7 +2514,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: tm1
     mdm:
       setup_experience:
@@ -2523,7 +2523,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: tm1
     mdm:
       setup_experience:
@@ -2533,7 +2533,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: tm2
     mdm:
       setup_experience:
@@ -2544,7 +2544,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: tm1
     mdm:
       setup_experience:
@@ -2679,7 +2679,7 @@ spec:
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1Set.yml"))
 		require.NoError(t, err)
-		expectedTm1Set := fmt.Sprintf(string(b), "", "", "", "")
+		expectedTm1Set := fmt.Sprintf(string(b), "", "")
 		expectedTm1SetReleaseAndRequireEnabled := strings.ReplaceAll(expectedTm1Set, `enable_release_device_manually: false`, `enable_release_device_manually: true`)
 		expectedTm1SetReleaseAndRequireEnabled = strings.ReplaceAll(expectedTm1SetReleaseAndRequireEnabled, `require_all_software_macos: false`, `require_all_software_macos: true`)
 
@@ -2689,7 +2689,7 @@ spec:
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1And2Set.yml"))
 		require.NoError(t, err)
-		expectedTm1And2Set := fmt.Sprintf(string(b), "", emptyMacosSetup, "", emptyMacosSetup, "", emptyMacosSetup, "", emptyMacosSetup)
+		expectedTm1And2Set := fmt.Sprintf(string(b), "", emptyMacosSetup, "", emptyMacosSetup)
 
 		// get without setup assistant set
 		assert.YAMLEq(t, expectedEmptyAppCfg, runAppForTest(t, []string{"get", "config", "--yaml"}))
@@ -2831,14 +2831,14 @@ spec:
 
 		b, err := os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1Set.yml"))
 		require.NoError(t, err)
-		expectedTm1 := fmt.Sprintf(string(b), "", "", "", "")
+		expectedTm1 := fmt.Sprintf(string(b), "", "")
 
 		// Apply team with require_all_software_windows enabled.
 		windowsRequireSpec := `
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: tm1
     mdm:
       setup_experience:
@@ -2863,7 +2863,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: tm1
     mdm:
       setup_experience:
@@ -3265,7 +3265,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: ""
 `,
 			wantErr: `422 Validation Failed: name may not be empty`,
@@ -3276,7 +3276,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     agent_options:
       config:
@@ -3290,7 +3290,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     blah: nope
 `,
@@ -3302,7 +3302,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: 123
 `,
 			flags:   []string{"--force"},
@@ -3314,7 +3314,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     blah: true
 `,
@@ -3327,7 +3327,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: teamNEW
     agent_options:
       config:
@@ -3341,7 +3341,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: teamNEW
     agent_options:
       config:
@@ -3356,7 +3356,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: teamNEW
     agent_options:
       config:
@@ -3371,7 +3371,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: teamNEW
     agent_options:
       config:
@@ -3387,7 +3387,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: teamNEW
     agent_options:
       command_line_flags:
@@ -3401,7 +3401,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: teamNEW
     agent_options:
       command_line_flags:
@@ -3415,7 +3415,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: teamNEW
     agent_options:
       config:
@@ -3577,7 +3577,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: teamNEW
 ---
 apiVersion: v1
@@ -3602,7 +3602,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: teamNEW
 ---
 apiVersion: v1
@@ -3628,7 +3628,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_updates:
@@ -3642,7 +3642,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_updates:
@@ -3656,7 +3656,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_updates:
@@ -3671,7 +3671,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_updates:
@@ -3686,7 +3686,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_updates:
@@ -3701,7 +3701,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_updates:
@@ -3716,7 +3716,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       windows_updates:
@@ -3730,7 +3730,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       windows_updates:
@@ -3744,7 +3744,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       windows_updates:
@@ -3759,7 +3759,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       windows_updates:
@@ -3774,7 +3774,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       windows_updates:
@@ -3789,7 +3789,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       windows_updates:
@@ -3804,7 +3804,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       windows_updates:
@@ -3819,7 +3819,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       windows_updates:
@@ -4191,7 +4191,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       apple_settings:
@@ -4205,7 +4205,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       apple_settings:
@@ -4219,7 +4219,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       apple_settings:
@@ -4235,7 +4235,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       apple_settings:
@@ -4252,7 +4252,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       apple_settings:
@@ -4270,7 +4270,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       apple_settings:
@@ -4284,7 +4284,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       apple_settings:
@@ -4298,7 +4298,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       setup_experience:
@@ -4566,7 +4566,7 @@ func TestApplyWindowsUpdates(t *testing.T) {
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: Team1
     mdm:
       windows_updates:
@@ -4595,7 +4595,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: Team1
     mdm:
       windows_updates:
@@ -4623,7 +4623,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: Team1
     mdm: {}
 `)

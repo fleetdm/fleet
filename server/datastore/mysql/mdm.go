@@ -232,8 +232,8 @@ WHERE ` + whereTeam
 	case err != nil:
 		return nil, nil, nil, ctxerr.Wrap(ctx, err, "get host by identifier for mdm")
 	case len(dest) == 0:
-		// TODO: should we return an empty slice or an error?
-		return []*fleet.MDMCommand{}, nil, nil, nil
+		// The lookup is filtered by team, so a host the caller can't see is not found too.
+		return nil, nil, nil, ctxerr.Wrap(ctx, notFound("Host").WithName(identifier))
 	case len(dest) > 1:
 		// TODO: how should we handle this unexpected case?
 		ds.logger.DebugContext(

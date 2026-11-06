@@ -395,8 +395,8 @@ type Datastore interface {
 	// TODO JUAN: Refactor this to use the Operating System type instead.
 	// HostIDsByOSVersion retrieves the IDs of all host matching osVersion
 	HostIDsByOSVersion(ctx context.Context, osVersion OSVersion, offset int, limit int) ([]uint, error)
-	// HostByIdentifier returns one host matching the provided identifier. Possible matches can be on
-	// osquery_host_id, node_key, UUID, hardware_serial or hostname.
+	// HostByIdentifier returns one host matching the provided identifier. Possible matches are, in priority order,
+	// hardware_serial, UUID, hostname, osquery_host_id and node_key. The lowest host ID wins among hosts matching on the same column.
 	HostByIdentifier(ctx context.Context, identifier string) (*Host, error)
 	// HostByUUID returns one host whose uuid column matches exactly. Unlike
 	// HostByIdentifier, it does not fall back to other identifier columns.
@@ -1244,8 +1244,6 @@ type Datastore interface {
 
 	// MigrateTables creates and migrates the table schemas
 	MigrateTables(ctx context.Context) error
-	// MigrateData populates built-in data
-	MigrateData(ctx context.Context) error
 	// MigrationStatus returns nil if migrations are complete, and an error if migrations need to be run.
 	MigrationStatus(ctx context.Context) (*MigrationStatus, error)
 
@@ -1927,7 +1925,7 @@ type Datastore interface {
 	// IngestMDMAppleDeviceFromOTAEnrollment creates new host records for
 	// MDM-enrolled devices via OTA that are not already enrolled in Fleet. It
 	// returns the IdP account the host was linked to before, empty if none.
-	IngestMDMAppleDeviceFromOTAEnrollment(ctx context.Context, teamID *uint, idpUUID string, deviceInfo MDMAppleMachineInfo) (previousAcctUUID string, err error)
+	IngestMDMAppleDeviceFromOTAEnrollment(ctx context.Context, teamID *uint, idpUUID string, deviceInfo MDMAppleMachineInfo, personalType PersonalEnrollmentType) (previousAcctUUID string, err error)
 
 	// MDMAppleUpsertHost creates or matches a Fleet host record for an
 	// MDM-enrolled device.
@@ -3007,6 +3005,7 @@ type Datastore interface {
 	// ListMDMCommands returns a list of MDM Apple commands that have been
 	// executed, based on the provided options.
 	// returns a non-nil count if filtering by command_status = pending
+	// It returns a NotFoundError when filtering by a host identifier that matches no host visible to tmFilter.
 	ListMDMCommands(ctx context.Context, tmFilter TeamFilter, listOpts *MDMCommandListOptions) ([]*MDMCommand, *int64, *PaginationMetadata, error)
 
 	// GetMDMWindowsBitLockerSummary summarizes the current state of Windows disk encryption on
@@ -3320,13 +3319,13 @@ type Datastore interface {
 	// BatchSetScripts sets the scripts for the given team or no team.
 	BatchSetScripts(ctx context.Context, tmID *uint, scripts []*Script) ([]ScriptResponse, error)
 
-	// BatchExecuteScript queues a script to run on a set of hosts and returns the batch script
-	// execution ID.
-	BatchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error)
-
 	// BatchExecuteScript queued a script to run on a set of hosts after notBefore and returns the
 	// batch execution ID.
 	BatchScheduleScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, notBefore time.Time) (string, error)
+
+	// NewBatchScriptExecution creates a batch script execution for a set of hosts without running
+	// it and returns the batch execution ID. Run it with RunScheduledBatchActivity.
+	NewBatchScriptExecution(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error)
 
 	// GetBatchActivity returns a batch activity with executionID
 	GetBatchActivity(ctx context.Context, executionID string) (*BatchActivity, error)
@@ -4338,7 +4337,9 @@ type Datastore interface {
 	// CreateHostConditionalAccessStatus creates the entry for the host on the datastore.
 	// This does not set the "managed" or "compliant" status yet, this just creates the entry needed with Entra information.
 	// If the host already has a different deviceID/userPrincipalName it will override them.
-	CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string, userPrincipalName string) error
+	// It returns whether the entry was created or changed, and a ConflictError if another host has deviceID.
+	// A verified deviceID (from an Entra-signed token) replaces unverified claims from other hosts.
+	CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string, userPrincipalName string, verified bool) (bool, error)
 	// SetHostConditionalAccessStatus sets the "managed" and "compliant" statuses last set on Entra.
 	// It does nothing if the host doesn't have a status entry created with CreateHostConditionalAccessStatus yet.
 	SetHostConditionalAccessStatus(ctx context.Context, hostID uint, managed, compliant bool) error
@@ -4927,19 +4928,15 @@ type MigrationStatus struct {
 	// then all other fields are empty.
 	//
 	// If StatusCode is SomeMigrationsCompleted, then missing migrations
-	// are available in MissingTable and MissingData.
+	// are available in MissingTable.
 	//
 	// If StatusCode is UnknownMigrations, then unknown migrations
-	// are available in UnknownTable and UnknownData.
+	// are available in UnknownTable.
 	StatusCode MigrationStatusCode `json:"status_code"`
 	// MissingTable holds the missing table migrations.
 	MissingTable []int64 `json:"missing_table"`
-	// MissingTable holds the missing data migrations.
-	MissingData []int64 `json:"missing_data"`
 	// UnknownTable holds unknown applied table migrations.
 	UnknownTable []int64 `json:"unknown_table"`
-	// UnknownTable holds unknown applied data migrations.
-	UnknownData []int64 `json:"unknown_data"`
 }
 
 type MigrationStatusCode int
@@ -4953,11 +4950,6 @@ const (
 	AllMigrationsCompleted
 	// UnknownMigrations means some unidentified migrations were detected on the database.
 	UnknownMigrations
-	// NeedsFleetv4732Fix means the database needs the special fix migration for fleet v4.73.2
-	NeedsFleetv4732Fix
-	// UnknownFleetv4732State means the database has the broken migrations from fleet v4.73.2 however
-	// it is not in the expected state and needs manual intervention.
-	UnknownFleetv4732State
 )
 
 // TODO: we have a similar but different interface in the service package,

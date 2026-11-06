@@ -29,6 +29,7 @@ module.exports = {
 
 
     let sortOrderOfTestimonialAuthorsShownOnThisPage = [
+      'Kenny Botelho',
       'Scott MacVicar',
       'Adam Anklewicz',
       'Nick Fohs',
@@ -36,7 +37,6 @@ module.exports = {
       'Erik Gomez',
       'Matt Carr',
       'nico waisman',
-      'Kenny Botelho',
       'Dan Grzelak',
       'Eric Tan',
     ];

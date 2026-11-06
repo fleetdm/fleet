@@ -774,7 +774,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/users/%d", admin.ID), deleteUserRequest{}, http.StatusForbidden, &deleteUserResponse{})
 
 	// Attempt to add users to team, should fail.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/users", t1.ID), modifyTeamUsersRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/users", t1.ID), modifyTeamUsersRequest{
 		Users: []fleet.TeamUser{
 			{
 				User: *maintainer,
@@ -784,7 +784,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	}, http.StatusForbidden, &teamResponse{})
 
 	// Attempt to delete users from team, should allow.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d/users", t1.ID), modifyTeamUsersRequest{
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d/users", t1.ID), modifyTeamUsersRequest{
 		Users: []fleet.TeamUser{
 			{
 				User: *maintainer,
@@ -795,17 +795,17 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 
 	// Attempt to create a team, should fail.
 	tr := teamResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+	s.DoJSON("POST", "/api/latest/fleet/fleets", createTeamRequest{
 		Name: new("foo11"),
 	}, http.StatusForbidden, &tr)
 
 	// Attempt to edit a team, should fail.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), modifyTeamRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", t1.ID), modifyTeamRequest{
 		Name: new("foo12"),
 	}, http.StatusForbidden, &teamResponse{})
 
 	// Attempt to edit a team's agent options, should fail.
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", t1.ID), json.RawMessage(`{
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/agent_options", t1.ID), json.RawMessage(`{
 		"config": {
 			"options": {
 				"aws_debug": true
@@ -815,13 +815,13 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 
 	// Attempt to view a team, should allow, but enroll secrets should be masked.
 	var teamRes teamResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), getTeamRequest{}, http.StatusOK, &teamRes)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", t1.ID), getTeamRequest{}, http.StatusOK, &teamRes)
 	require.Len(t, teamRes.Team.Secrets, 1)
 	require.Equal(t, fleet.MaskedPassword, teamRes.Team.Secrets[0].Secret)
 
 	// Attempt to list teams, should allow, but all enroll secrets should be masked.
 	var ltr listTeamsResponse
-	s.DoJSON("GET", "/api/latest/fleet/teams", listTeamsRequest{}, http.StatusOK, &ltr)
+	s.DoJSON("GET", "/api/latest/fleet/fleets", listTeamsRequest{}, http.StatusOK, &ltr)
 	require.Len(t, ltr.Teams, 3)
 	for _, team := range ltr.Teams {
 		require.Len(t, team.Secrets, 1)
@@ -830,7 +830,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 
 	// Attempt to delete a team, should fail.
 	dtr := deleteTeamResponse{}
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), deleteTeamRequest{}, http.StatusForbidden, &dtr)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d", t1.ID), deleteTeamRequest{}, http.StatusForbidden, &dtr)
 
 	// Attempt to create/edit enroll secrets, should fail.
 	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
@@ -853,7 +853,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 
 	// Attempt to get team enroll secret, should allow, but should return enroll secrets masked for technicians.
 	var tesr teamEnrollSecretsResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", t1.ID), teamEnrollSecretsRequest{}, http.StatusOK, &tesr)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/secrets", t1.ID), teamEnrollSecretsRequest{}, http.StatusOK, &tesr)
 	require.Len(t, tesr.Secrets, 1)
 	require.Equal(t, fleet.MaskedPassword, tesr.Secrets[0].Secret)
 
@@ -1160,13 +1160,13 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 
 	// Attempt to view own team, should allow, but enroll secrets should be masked.
 	teamRes = teamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), getTeamRequest{}, http.StatusOK, &teamRes)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", t1.ID), getTeamRequest{}, http.StatusOK, &teamRes)
 	require.Len(t, teamRes.Team.Secrets, 1)
 	require.Equal(t, fleet.MaskedPassword, teamRes.Team.Secrets[0].Secret)
 
 	// Attempt to list teams, should allow, but all enroll secrets should be masked.
 	ltr = listTeamsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/teams", listTeamsRequest{}, http.StatusOK, &ltr)
+	s.DoJSON("GET", "/api/latest/fleet/fleets", listTeamsRequest{}, http.StatusOK, &ltr)
 	require.Len(t, ltr.Teams, 2)
 	for _, team := range ltr.Teams {
 		require.Len(t, team.Secrets, 1)
@@ -1174,17 +1174,17 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	}
 
 	// Attempt to edit own team, should fail.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), modifyTeamRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", t1.ID), modifyTeamRequest{
 		Name: new("foo123456"),
 	}, http.StatusForbidden, &teamResponse{})
 
 	// Attempt to edit another team, should fail.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", t2.ID), modifyTeamRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", t2.ID), modifyTeamRequest{
 		Name: new("foo123456"),
 	}, http.StatusForbidden, &teamResponse{})
 
 	// Attempt to edit own team's agent options, should fail.
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", t1.ID), json.RawMessage(`{
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/agent_options", t1.ID), json.RawMessage(`{
 			"config": {
 				"options": {
 					"aws_debug": true
@@ -1193,7 +1193,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 		}`), http.StatusForbidden, &teamResponse{})
 
 	// Attempt to edit another team's agent options, should fail.
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", t2.ID), json.RawMessage(`{
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/agent_options", t2.ID), json.RawMessage(`{
 			"config": {
 				"options": {
 					"aws_debug": true
@@ -1202,7 +1202,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 		}`), http.StatusForbidden, &teamResponse{})
 
 	// Attempt to add users from team it owns to another team it owns, should fail.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/users", t3.ID), modifyTeamUsersRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/users", t3.ID), modifyTeamUsersRequest{
 		Users: []fleet.TeamUser{
 			{
 				User: *u3,
@@ -1212,7 +1212,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	}, http.StatusForbidden, &teamResponse{})
 
 	// Attempt to delete users from team it owns, should fail.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d/users", t3.ID), modifyTeamUsersRequest{
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d/users", t3.ID), modifyTeamUsersRequest{
 		Users: []fleet.TeamUser{
 			{
 				User: *u3,
@@ -1221,7 +1221,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	}, http.StatusForbidden, &teamResponse{})
 
 	// Attempt to add users to another team it doesn't own, should fail.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/users", t2.ID), modifyTeamUsersRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/users", t2.ID), modifyTeamUsersRequest{
 		Users: []fleet.TeamUser{
 			{
 				User: *u3,
@@ -1231,7 +1231,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	}, http.StatusForbidden, &teamResponse{})
 
 	// Attempt to delete users from team it doesn't own, should fail.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d/users", t2.ID), modifyTeamUsersRequest{
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d/users", t2.ID), modifyTeamUsersRequest{
 		Users: []fleet.TeamUser{
 			{
 				User: *u2,

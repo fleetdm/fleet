@@ -112,7 +112,7 @@ export const generateTableHeaders = (): IDataColumn[] => {
 const STATUS_CELL_VALUES: Record<DiskEncryptionStatus, IStatusCellValue> = {
   verified: {
     displayName: "Verified",
-    statusName: "success",
+    statusName: "verified",
     value: "verified",
     tooltip:
       "These hosts turned disk encryption on and sent their key to Fleet. Fleet verified with osquery.",
