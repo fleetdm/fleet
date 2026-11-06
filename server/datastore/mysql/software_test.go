@@ -48,6 +48,7 @@ func TestSoftware(t *testing.T) {
 		{"NothingChanged", testSoftwareNothingChanged},
 		{"LoadSupportsTonsOfCVEs", testSoftwareLoadSupportsTonsOfCVEs},
 		{"List", testSoftwareList},
+		{"ListSharedCVEs", testSoftwareListSharedCVEs},
 		{"SyncHostsSoftware", testSoftwareSyncHostsSoftware},
 		{"LoadHostsPopulateSoftware", testLoadHostSoftwarePopulateSoftwareInstalledPath},
 		{"DeleteSoftwareVulnerabilities", testDeleteSoftwareVulnerabilities},
@@ -1094,24 +1095,33 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		assert.Equal(t, foo001.Version, software[0].Version)
 	})
 
-	t.Run("nil cve scores if IncludeCVEScores is false", func(t *testing.T) {
-		opts := fleet.SoftwareListOptions{
-			ListOptions: fleet.ListOptions{
-				OrderKey:       "name,version",
-				OrderDirection: fleet.OrderDescending,
-			},
-			IncludeCVEScores: false,
-		}
-
-		software := listSoftwareCheckCount(t, ds, 5, 5, opts, false)
-		for _, s := range software {
-			for _, vuln := range s.Vulnerabilities {
-				assert.Nil(t, vuln.CVSSScore)
-				assert.Nil(t, vuln.EPSSProbability)
-				assert.Nil(t, vuln.CISAKnownExploit)
+	// Both the covering-index path (default order) and the goqu path must omit details.
+	for _, orderKey := range []string{"", "name,version"} {
+		t.Run("nil cve details if IncludeCVEScores is false order="+orderKey, func(t *testing.T) {
+			opts := fleet.SoftwareListOptions{
+				ListOptions: fleet.ListOptions{
+					OrderKey:       orderKey,
+					OrderDirection: fleet.OrderDescending,
+				},
+				IncludeCVEScores: false,
 			}
-		}
-	})
+
+			software := listSoftwareCheckCount(t, ds, 5, 5, opts, false)
+			var vulnCount int
+			for _, s := range software {
+				for _, vuln := range s.Vulnerabilities {
+					vulnCount++
+					require.Nil(t, vuln.CVSSScore)
+					require.Nil(t, vuln.EPSSProbability)
+					require.Nil(t, vuln.CISAKnownExploit)
+					require.Nil(t, vuln.CVEPublished)
+					require.Nil(t, vuln.Description)
+					require.Nil(t, vuln.ResolvedInVersion)
+				}
+			}
+			require.Equal(t, 3, vulnCount)
+		})
+	}
 
 	t.Run("SQL injection prevention in OrderKey", func(t *testing.T) {
 		maliciousPayloads := []string{
@@ -16368,4 +16378,133 @@ func testCleanupUnusedSoftwareBatches(t *testing.T, ds *Datastore) {
 	cleanupUnusedSoftwareAfterBatchHook = nil
 	require.NoError(t, ds.cleanupUnusedSoftware(ctx))
 	require.Equal(t, []string{"sw5"}, softwareNames())
+}
+
+// testSoftwareListSharedCVEs covers CVE details on a list where several software
+// versions share a CVE: the per-CVE metadata is the same for each of them, while
+// resolved_in_version stays per software version, and a CVE without metadata still
+// shows up with null details on Premium.
+func testSoftwareListSharedCVEs(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "sharedcves", "", "sharedcveskey", "sharedcvesuuid", time.Now())
+
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "alpha", Version: "1.0", Source: "apps"},
+		{Name: "alpha", Version: "2.0", Source: "apps"},
+		{Name: "beta", Version: "1.0", Source: "apps"},
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+	byVersion := make(map[string]uint, len(host.Software))
+	for _, s := range host.Software {
+		byVersion[s.Name+" "+s.Version] = s.ID
+	}
+	alpha1, alpha2 := byVersion["alpha 1.0"], byVersion["alpha 2.0"]
+
+	for _, v := range []fleet.SoftwareVulnerability{
+		{SoftwareID: alpha1, CVE: "CVE-2026-0001", ResolvedInVersion: new("1.5")},
+		{SoftwareID: alpha2, CVE: "CVE-2026-0001", ResolvedInVersion: new("2.5")},
+		{SoftwareID: alpha1, CVE: "CVE-2026-0002"},
+	} {
+		_, err = ds.InsertSoftwareVulnerability(ctx, v, fleet.NVDSource)
+		require.NoError(t, err)
+	}
+	published := time.Now().UTC().Truncate(time.Second).Add(-time.Hour)
+	// CVE-2026-0002 deliberately has no cve_meta row.
+	require.NoError(t, ds.InsertCVEMeta(ctx, []fleet.CVEMeta{{
+		CVE:              "CVE-2026-0001",
+		CVSSScore:        new(7.5),
+		EPSSProbability:  new(0.42),
+		CISAKnownExploit: new(true),
+		Published:        &published,
+		Description:      "shared description",
+	}}))
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+
+	bySoftware := func(list []fleet.Software) map[string]fleet.Software {
+		m := make(map[string]fleet.Software, len(list))
+		for _, s := range list {
+			m[s.Name+" "+s.Version] = s
+		}
+		return m
+	}
+
+	t.Run("premium details", func(t *testing.T) {
+		list, _, err := ds.ListSoftware(ctx, fleet.SoftwareListOptions{
+			IncludeCVEScores: true,
+			WithHostCounts:   true,
+		})
+		require.NoError(t, err)
+		got := bySoftware(list)
+		require.Len(t, got, 3)
+
+		a1 := got["alpha 1.0"].Vulnerabilities
+		require.Len(t, a1, 2)
+		require.Equal(t, "CVE-2026-0001", a1[0].CVE)
+		require.Equal(t, "CVE-2026-0002", a1[1].CVE)
+		require.Equal(t, "shared description", **a1[0].Description)
+		require.Equal(t, "1.5", **a1[0].ResolvedInVersion)
+		require.False(t, a1[0].CreatedAt.IsZero())
+		// No metadata: details are present but null, not omitted.
+		require.NotNil(t, a1[1].CVSSScore)
+		require.Nil(t, *a1[1].CVSSScore)
+		require.NotNil(t, a1[1].Description)
+		require.Nil(t, *a1[1].Description)
+		require.NotNil(t, a1[1].ResolvedInVersion)
+		require.Nil(t, *a1[1].ResolvedInVersion)
+
+		a2 := got["alpha 2.0"].Vulnerabilities
+		require.Len(t, a2, 1)
+		require.Equal(t, "CVE-2026-0001", a2[0].CVE)
+		require.Equal(t, "shared description", **a2[0].Description)
+		require.Equal(t, "2.5", **a2[0].ResolvedInVersion)
+
+		require.Empty(t, got["beta 1.0"].Vulnerabilities)
+	})
+
+	t.Run("host software with details", func(t *testing.T) {
+		require.NoError(t, ds.LoadHostSoftware(ctx, host, true))
+		got := make(map[string]fleet.HostSoftwareEntry, len(host.Software))
+		for _, s := range host.Software {
+			got[s.Name+" "+s.Version] = s
+		}
+		require.Len(t, got, 3)
+		a1 := got["alpha 1.0"].Vulnerabilities
+		require.Len(t, a1, 2)
+		require.Equal(t, "CVE-2026-0001", a1[0].CVE)
+		require.Equal(t, "shared description", **a1[0].Description)
+		require.Equal(t, "1.5", **a1[0].ResolvedInVersion)
+		require.NotNil(t, a1[1].CVSSScore)
+		require.Nil(t, *a1[1].CVSSScore)
+		require.Equal(t, "2.5", **got["alpha 2.0"].Vulnerabilities[0].ResolvedInVersion)
+		require.Empty(t, got["beta 1.0"].Vulnerabilities)
+	})
+
+	t.Run("CVEs shared across batches", func(t *testing.T) {
+		orig := listSoftwareCVEsBatchSize
+		t.Cleanup(func() { listSoftwareCVEsBatchSize = orig })
+		listSoftwareCVEsBatchSize = 1
+
+		list, _, err := ds.ListSoftware(ctx, fleet.SoftwareListOptions{IncludeCVEScores: true, WithHostCounts: true})
+		require.NoError(t, err)
+		got := bySoftware(list)
+		require.Len(t, got["alpha 1.0"].Vulnerabilities, 2)
+		require.Len(t, got["alpha 2.0"].Vulnerabilities, 1)
+		require.Equal(t, "shared description", **got["alpha 2.0"].Vulnerabilities[0].Description)
+		require.Equal(t, "2.5", **got["alpha 2.0"].Vulnerabilities[0].ResolvedInVersion)
+	})
+
+	t.Run("vulnerable only with cvss filter", func(t *testing.T) {
+		list, _, err := ds.ListSoftware(ctx, fleet.SoftwareListOptions{
+			VulnerableOnly:   true,
+			IncludeCVEScores: true,
+			MinimumCVSS:      7,
+			WithHostCounts:   true,
+		})
+		require.NoError(t, err)
+		got := bySoftware(list)
+		require.Len(t, got, 2)
+		// The CVSS filter selects software, not the CVEs listed on it.
+		require.Len(t, got["alpha 1.0"].Vulnerabilities, 2)
+	})
 }

@@ -87,7 +87,7 @@ const FeedListItem = ({
               variant="subdued"
               onClick={onClickFeedItem}
               ariaLabel="show info"
-              icon="info-outline"
+              icon="info"
             />
           )}
           {allowCancel && (

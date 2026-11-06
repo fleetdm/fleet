@@ -183,12 +183,11 @@ jobs:
         with:
           timeout_minutes: 40
           max_attempts: 10
-          command: fleetctl package --type pkg --fleet-desktop --use-system-configuration --sign-identity $PACKAGE_SIGNING_IDENTITY_SHA1 --notarize
+          command: fleetctl package --type pkg --fleet-desktop --use-system-configuration --sign-identity $PACKAGE_SIGNING_IDENTITY_SHA1 --notarize --outfile fleetd-base.pkg
 
       - name: Calculate the SHA256 checksum of the package
         id: calculate-sha256
         run: |
-          mv fleet-osquery*.pkg fleetd-base.pkg
           echo "fleetd_base_pkg_sha256=$(shasum -a 256 fleetd-base.pkg | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
 
       - name: Create plist
@@ -235,7 +234,9 @@ jobs:
   build-fleetd-base-msi:
     needs: [check-for-fleetd-component-updates]
     if: needs.check-for-fleetd-component-updates.outputs.update_needed == 'true'
-    runs-on: ubuntu-latest
+    # Wine in the fleetdm/wix image fails on ubuntu-26.04. Use ubuntu-latest once msi
+    # generation is pure Go: https://github.com/fleetdm/fleet/issues/50503
+    runs-on: ubuntu-24.04
     env:
       FULL_DATE_DIR: archive/stable/${{ needs.check-for-fleetd-component-updates.outputs.date_dir }}
     steps:
@@ -252,8 +253,7 @@ jobs:
       - name: Build MSI
         id: build
         run: |
-          fleetctl package --type msi --fleet-desktop --fleet-url dummy --enroll-secret dummy
-          mv fleet-osquery*.msi fleetd-base.msi
+          fleetctl package --type msi --fleet-desktop --fleet-url dummy --enroll-secret dummy --outfile fleetd-base.msi
 
       - name: Upload fleetd-base.msi for code signing
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

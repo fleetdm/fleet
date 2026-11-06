@@ -288,7 +288,7 @@ jobs:
         # Retry a few times: downloading fleetd components from the TUF server
         # occasionally times out on macOS runners.
         for attempt in 1 2 3; do
-          if fleetctl package --type pkg --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug --host-identifier=instance --disable-updates=${{ matrix.disable-updates }}; then
+          if fleetctl package --type pkg --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug --host-identifier=instance --disable-updates=${{ matrix.disable-updates }} --outfile=fleet-macos.pkg; then
             break
           elif [ "$attempt" = "3" ]; then
             echo "fleetctl package failed after $attempt attempts"
@@ -297,7 +297,7 @@ jobs:
           echo "fleetctl package failed (attempt $attempt), retrying in 10s..."
           sleep 10
         done
-        sudo installer -pkg fleet-osquery.pkg -target /
+        sudo installer -pkg fleet-macos.pkg -target /
         ENROLLMENT_START=$(date +%s)
         until fleetctl get hosts | grep -iF $(hostname -s);
         do
@@ -395,8 +395,8 @@ jobs:
         SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
         echo "Secret: $SECRET"
         echo "Hostname: $(hostname -s)"
-        fleetctl package --type deb --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET  --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug --arch=$FLEET_ARCH --disable-updates=${{ matrix.disable-updates }}
-        sudo dpkg -i fleet-osquery*
+        fleetctl package --type deb --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET  --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug --arch=$FLEET_ARCH --disable-updates=${{ matrix.disable-updates }} --outfile=fleet-linux.deb
+        sudo dpkg -i fleet-linux.deb
         ENROLLMENT_START=$(date +%s)
         until fleetctl get hosts | grep -iF $(hostname -s); do
           CURRENT_TIME=$(date +%s)
@@ -529,12 +529,12 @@ jobs:
         echo "Secret: $SECRET"
         ARCH=$(echo "$PROCESSOR_ARCHITECTURE" | tr '[:upper:]' '[:lower:]')
         # WIX env var points to the WiX Toolset install dir (pre-installed on windows-11 runner, installed above on windows-11-arm)
-        fleetctl package --type msi --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug --local-wix-dir="${WIX}bin" --arch=$ARCH --disable-updates=${{ matrix.disable-updates }}
+        fleetctl package --type msi --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug --local-wix-dir="${WIX}bin" --arch=$ARCH --disable-updates=${{ matrix.disable-updates }} --outfile=fleet-windows.msi
 
     - name: Install Orbit
       shell: cmd
       run: |
-        msiexec /i fleet-osquery.msi /quiet /passive /lv log.txt
+        msiexec /i fleet-windows.msi /quiet /passive /lv log.txt
 
     - name: Wait for enrollment
       shell: powershell

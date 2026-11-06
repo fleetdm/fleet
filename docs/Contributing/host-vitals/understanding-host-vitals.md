@@ -78,20 +78,6 @@ SELECT
 SELECT email FROM users
 ```
 
-## conditional_access_microsoft_device_id
-
-- Platforms: darwin
-
-- Discovery query:
-```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'app_sso_platform'
-```
-
-- Query:
-```sql
-SELECT * FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM';
-```
-
 ## conditional_access_microsoft_device_id_windows
 
 - Platforms: windows

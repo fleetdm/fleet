@@ -321,13 +321,17 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 
 	// Attempt to retrieve a host by identifier should succeed, but return the host id
 	// and nothing else: GitOps is denied on every other host read endpoint, and only
-	// needs the id here to resolve an identifier for the Puppet module's
-	// profile pre-assignment. Asserting on the raw body since decoding into a
-	// response struct wouldn't catch extra fields.
+	// gets the id here, a documented permission kept for compatibility. Asserting on
+	// the raw body since decoding into a response struct wouldn't catch extra fields.
 	resp := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", h1.Hostname), hostByIdentifierRequest{}, http.StatusOK)
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	require.JSONEq(t, fmt.Sprintf(`{"host":{"id":%d}}`, h1.ID), string(body))
+
+	// GET /hosts/:id is denied for an identifier and for an id, and doesn't reveal which values match a host.
+	for _, identifier := range []string{h1.Hostname, fmt.Sprint(h1.ID), "no-such-host"} {
+		s.Do("GET", "/api/latest/fleet/hosts/"+identifier, nil, http.StatusForbidden)
+	}
 
 	// Attempt to filter hosts using labels, should fail (label ID 6 is the builtin label "All Hosts")
 	s.DoJSON("GET", "/api/latest/fleet/labels/6/hosts", nil, http.StatusOK, &listHostsResponse{})
@@ -570,7 +574,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/users/%d", admin.ID), deleteUserRequest{}, http.StatusForbidden, &deleteUserResponse{})
 
 	// Attempt to add users to team, should fail (gitops cannot manage team membership).
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/users", t1.ID), modifyTeamUsersRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/users", t1.ID), modifyTeamUsersRequest{
 		Users: []fleet.TeamUser{
 			{
 				User: *maintainer,
@@ -580,7 +584,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	}, http.StatusForbidden, &teamResponse{})
 
 	// Attempt to delete users from team, should fail (gitops cannot manage team membership).
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d/users", t1.ID), modifyTeamUsersRequest{
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d/users", t1.ID), modifyTeamUsersRequest{
 		Users: []fleet.TeamUser{
 			{
 				User: *maintainer,
@@ -591,17 +595,17 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 
 	// Attempt to create a team, should allow.
 	tr := teamResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+	s.DoJSON("POST", "/api/latest/fleet/fleets", createTeamRequest{
 		Name: new("foo11"),
 	}, http.StatusOK, &tr)
 
 	// Attempt to edit a team, should allow.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tr.Team.ID), modifyTeamRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", tr.Team.ID), modifyTeamRequest{
 		Name: new("foo12"),
 	}, http.StatusOK, &teamResponse{})
 
 	// Attempt to edit a team's agent options, should allow.
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tr.Team.ID), json.RawMessage(`{
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/agent_options", tr.Team.ID), json.RawMessage(`{
 		"config": {
 			"options": {
 				"aws_debug": true
@@ -610,11 +614,11 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	}`), http.StatusOK, &teamResponse{})
 
 	// Attempt to view a team, should fail.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", tr.Team.ID), getTeamRequest{}, http.StatusForbidden, &teamResponse{})
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", tr.Team.ID), getTeamRequest{}, http.StatusForbidden, &teamResponse{})
 
 	// Attempt to delete a team, should allow.
 	dtr := deleteTeamResponse{}
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d", tr.Team.ID), deleteTeamRequest{}, http.StatusOK, &dtr)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d", tr.Team.ID), deleteTeamRequest{}, http.StatusOK, &dtr)
 
 	// Attempt to create/edit enroll secrets, should allow.
 	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
@@ -636,7 +640,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	s.DoJSON("GET", "/api/latest/fleet/spec/enroll_secret", nil, http.StatusForbidden, &getEnrollSecretSpecResponse{})
 
 	// Attempt to get team enroll secret, should fail.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", t1.ID), teamEnrollSecretsRequest{}, http.StatusForbidden, &teamEnrollSecretsResponse{})
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/secrets", t1.ID), teamEnrollSecretsRequest{}, http.StatusForbidden, &teamEnrollSecretsResponse{})
 
 	// Attempt to list carved files, should fail.
 	s.DoJSON("GET", "/api/latest/fleet/carves", fleet.ListCarvesRequest{}, http.StatusForbidden, &fleet.ListCarvesResponse{})
@@ -798,17 +802,17 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	}, http.StatusOK, &fleet.DeleteTeamPoliciesResponse{})
 
 	// Attempt to edit own team, should allow.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), modifyTeamRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", t1.ID), modifyTeamRequest{
 		Name: new("foo123456"),
 	}, http.StatusOK, &teamResponse{})
 
 	// Attempt to edit another team, should fail.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", t2.ID), modifyTeamRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", t2.ID), modifyTeamRequest{
 		Name: new("foo123456"),
 	}, http.StatusForbidden, &teamResponse{})
 
 	// Attempt to edit own team's agent options, should allow.
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", t1.ID), json.RawMessage(`{
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/agent_options", t1.ID), json.RawMessage(`{
 		"config": {
 			"options": {
 				"aws_debug": true
@@ -817,7 +821,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	}`), http.StatusOK, &teamResponse{})
 
 	// Attempt to edit another team's agent options, should fail.
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", t2.ID), json.RawMessage(`{
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/agent_options", t2.ID), json.RawMessage(`{
 		"config": {
 			"options": {
 				"aws_debug": true
@@ -826,7 +830,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	}`), http.StatusForbidden, &teamResponse{})
 
 	// Attempt to add users from team it owns to another team it owns, should fail (gitops cannot manage team membership).
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/users", t3.ID), modifyTeamUsersRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/users", t3.ID), modifyTeamUsersRequest{
 		Users: []fleet.TeamUser{
 			{
 				User: *u3,
@@ -836,7 +840,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	}, http.StatusForbidden, &teamResponse{})
 
 	// Attempt to delete users from team it owns, should fail (gitops cannot manage team membership).
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d/users", t3.ID), modifyTeamUsersRequest{
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d/users", t3.ID), modifyTeamUsersRequest{
 		Users: []fleet.TeamUser{
 			{
 				User: *u3,
@@ -845,7 +849,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	}, http.StatusForbidden, &teamResponse{})
 
 	// Attempt to add users to another team it doesn't own, should fail.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/users", t2.ID), modifyTeamUsersRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/users", t2.ID), modifyTeamUsersRequest{
 		Users: []fleet.TeamUser{
 			{
 				User: *u3,
@@ -855,7 +859,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	}, http.StatusForbidden, &teamResponse{})
 
 	// Attempt to delete users from team it doesn't own, should fail.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d/users", t2.ID), modifyTeamUsersRequest{
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d/users", t2.ID), modifyTeamUsersRequest{
 		Users: []fleet.TeamUser{
 			{
 				User: *u2,

@@ -429,7 +429,7 @@ func TestGetSSOUser(t *testing.T) {
 
 	auth.assertionAttributes = []fleet.SAMLAttribute{
 		{
-			Name: "FLEET_JIT_USER_ROLE_TEAM_2",
+			Name: "FLEET_JIT_USER_ROLE_FLEET_2",
 			Values: []fleet.SAMLAttributeValue{
 				{Value: "maintainer"},
 			},
@@ -480,7 +480,7 @@ func TestGetSSOUser(t *testing.T) {
 
 	auth.assertionAttributes = []fleet.SAMLAttribute{
 		{
-			Name: "FLEET_JIT_USER_ROLE_TEAM_2",
+			Name: "FLEET_JIT_USER_ROLE_FLEET_2",
 			Values: []fleet.SAMLAttributeValue{
 				{Value: "admin"},
 			},
@@ -510,7 +510,7 @@ func TestGetSSOUser(t *testing.T) {
 
 	auth.assertionAttributes = []fleet.SAMLAttribute{
 		{
-			Name: "FLEET_JIT_USER_ROLE_TEAM_3",
+			Name: "FLEET_JIT_USER_ROLE_FLEET_3",
 			Values: []fleet.SAMLAttributeValue{
 				{Value: "maintainer"},
 			},
@@ -569,7 +569,7 @@ func TestGetSSOUser(t *testing.T) {
 
 	auth.assertionAttributes = []fleet.SAMLAttribute{
 		{
-			Name: "FLEET_JIT_USER_ROLE_TEAM_1",
+			Name: "FLEET_JIT_USER_ROLE_FLEET_1",
 			Values: []fleet.SAMLAttributeValue{
 				{Value: "technician"},
 			},

@@ -1446,11 +1446,13 @@ func TestDirectIngestMDMMacPersonalEnrollment(t *testing.T) {
 	for _, tc := range []struct {
 		name         string
 		mdmData      []map[string]string
+		stored       *fleet.PersonalEnrollmentType // nil: no host_mdm row yet
 		wantPersonal fleet.PersonalEnrollmentType
 	}{
 		{
 			name:         "Fleet byod=1",
 			mdmData:      generateRows("https://test.example.com?byod=1", apple_mdm.FleetPayloadIdentifier),
+			stored:       new(fleet.PersonalEnrollmentTypeManualProfile),
 			wantPersonal: fleet.PersonalEnrollmentTypeManualProfile,
 		},
 		{
@@ -1461,7 +1463,19 @@ func TestDirectIngestMDMMacPersonalEnrollment(t *testing.T) {
 		{
 			name:         "Fleet byod=1 alongside other params",
 			mdmData:      generateRows("https://test.example.com?enroll_reference=ref&byod=1", apple_mdm.FleetPayloadIdentifier),
+			stored:       new(fleet.PersonalEnrollmentTypeManualProfile),
 			wantPersonal: fleet.PersonalEnrollmentTypeManualProfile,
+		},
+		{
+			name:         "Fleet byod=1 on a company-owned host is ignored",
+			mdmData:      generateRows("https://test.example.com?byod=1", apple_mdm.FleetPayloadIdentifier),
+			stored:       new(fleet.PersonalEnrollmentTypeNone),
+			wantPersonal: fleet.PersonalEnrollmentTypeNone,
+		},
+		{
+			name:         "Fleet byod=1 without an enrollment record is ignored",
+			mdmData:      generateRows("https://test.example.com?byod=1", apple_mdm.FleetPayloadIdentifier),
+			wantPersonal: fleet.PersonalEnrollmentTypeNone,
 		},
 		{
 			name:         "Fleet byod=0",
@@ -1475,6 +1489,12 @@ func TestDirectIngestMDMMacPersonalEnrollment(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+				if tc.stored == nil {
+					return nil, &notFoundErrorForTest{}
+				}
+				return &fleet.HostMDM{IsPersonalEnrollment: tc.stored.IsPersonal(), PersonalEnrollmentType: *tc.stored}, nil
+			}
 			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, personalType fleet.PersonalEnrollmentType) error {
 				require.Equal(t, tc.wantPersonal, personalType)
 				require.Equal(t, "https://test.example.com", serverURL) // query string is stripped
@@ -3254,6 +3274,28 @@ func TestDirectIngestHostMacOSProfiles(t *testing.T) {
 	// expect error: unrecognized install date format
 	rows[0]["install_date"] = time.Now().Format(time.UnixDate)
 	require.ErrorContains(t, directIngestMacOSProfiles(ctx, logger, h, ds, rows), "unsupported install_date format")
+}
+
+func TestBuildConfigProfilesMacOSQueryQuotesUsername(t *testing.T) {
+	cases := []struct {
+		username string
+		want     string
+	}{
+		{"alice", `username = 'alice' AND`},
+		{"o'brien", `username = 'o''brien' AND`},
+		{`alice" OR 1=1 OR --`, `username = 'alice" OR 1=1 OR --' AND`},
+		{`a\" OR 1=1 --`, `username = 'a\" OR 1=1 --' AND`},
+		{"alice' OR 1=1 OR '", `username = 'alice'' OR 1=1 OR ''' AND`},
+	}
+	for _, c := range cases {
+		ds := new(mock.Store)
+		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+			return c.username, "user-uuid", nil
+		}
+		query, ok := buildConfigProfilesMacOSQuery(t.Context(), slog.New(slog.DiscardHandler), &fleet.Host{UUID: "host-uuid"}, ds)
+		require.True(t, ok)
+		require.Contains(t, query, c.want, c.username)
+	}
 }
 
 func TestParseMacOSProfileInstallDate(t *testing.T) {

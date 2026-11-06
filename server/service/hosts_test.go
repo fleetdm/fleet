@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1920,6 +1921,16 @@ func TestHostAuth(t *testing.T) {
 		}
 		return globalHost, nil
 	}
+	ds.HostLiteByIDFunc = func(ctx context.Context, id uint) (*fleet.HostLite, error) {
+		return &fleet.HostLite{ID: id}, nil
+	}
+	ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+		assert.NotEqual(t, "1", identifier, "a matched id must not fall back to the other identifiers")
+		if identifier == "team-host" {
+			return &fleet.HostLite{ID: 1}, nil
+		}
+		return &fleet.HostLite{ID: 2}, nil
+	}
 	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		return nil, nil
 	}
@@ -2142,6 +2153,11 @@ func TestHostAuth(t *testing.T) {
 			_, err = svc.HostByIdentifier(ctx, "1", opts)
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
+			for _, identifier := range []string{"1", "team-host"} {
+				_, err = svc.GetHostByIDOrIdentifier(ctx, identifier, opts)
+				checkAuthErr(t, tt.shouldFailTeamRead, err)
+			}
+
 			_, _, err = svc.ListHostUpcomingActivities(ctx, 1, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
@@ -2153,6 +2169,11 @@ func TestHostAuth(t *testing.T) {
 
 			_, err = svc.HostByIdentifier(ctx, "2", opts)
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
+
+			for _, identifier := range []string{"2", "global-host"} {
+				_, err = svc.GetHostByIDOrIdentifier(ctx, identifier, opts)
+				checkAuthErr(t, tt.shouldFailGlobalRead, err)
+			}
 
 			_, _, err = svc.ListHostUpcomingActivities(ctx, 2, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
@@ -2169,7 +2190,7 @@ func TestHostAuth(t *testing.T) {
 			err = svc.DeleteHosts(ctx, []uint{2}, nil)
 			checkHostWriteAuthErr(t, tt.shouldFailGlobalWrite, isTeamOnlyRole, err)
 
-			err = svc.AddHostsToTeam(ctx, new(uint(1)), []uint{1}, false)
+			err = svc.AddHostsToTeam(ctx, new(uint(1)), []uint{1})
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
 			emptyFilter := make(map[string]interface{})
@@ -2256,8 +2277,8 @@ func TestHostAuth(t *testing.T) {
 
 // TestHostByIdentifierGitOpsGetsIDOnly asserts that GitOps, which is denied on
 // every other host read endpoint, doesn't get host details from the identifier
-// endpoint either: it only gets the host id it needs to resolve an identifier
-// for the deprecated Puppet module's profile pre-assignment flow.
+// endpoint either: it only gets the host id, a documented permission kept for
+// compatibility.
 func TestHostByIdentifierGitOpsGetsIDOnly(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
@@ -2387,6 +2408,18 @@ func TestHostByIdentifierGitOpsGetsIDOnly(t *testing.T) {
 		require.True(t, ds.ListLabelsForHostFuncInvoked)
 		require.True(t, ds.ListPoliciesForHostFuncInvoked)
 	})
+}
+
+func TestGetHostByIDOrIdentifierIDLookupError(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ds.HostLiteByIDFunc = func(ctx context.Context, id uint) (*fleet.HostLite, error) {
+		return nil, errors.New("database unavailable")
+	}
+
+	// A failed lookup says nothing about whether the id exists, so it must not fall back to the other identifiers.
+	_, err := svc.GetHostByIDOrIdentifier(test.UserContext(ctx, test.UserAdmin), "1", fleet.HostDetailOptions{})
+	require.ErrorContains(t, err, "database unavailable")
 }
 
 func TestListHosts(t *testing.T) {
@@ -2564,6 +2597,20 @@ func TestSanitizeCSVFormula(t *testing.T) {
 		once := sanitizeCSVFormula("=1+1")
 		require.Equal(t, once, sanitizeCSVFormula(once))
 	})
+}
+
+func TestHostsReportFleetAliasesWithoutDeviceMapping(t *testing.T) {
+	// Hosts without device mapping, as in an export that does not ask for it, still get the fleet columns.
+	resp := hostsReportResponse{
+		Columns: []string{"hostname", "team_name", "fleet_id", "fleet_name"},
+		Hosts:   []*fleet.HostResponse{{Host: &fleet.Host{Hostname: "h1", TeamID: new(uint(7)), TeamName: new("Workstations")}}},
+	}
+	rr := httptest.NewRecorder()
+	resp.HijackRender(t.Context(), rr)
+	require.Equal(t, http.StatusOK, rr.Code)
+	rows, err := csv.NewReader(rr.Body).ReadAll()
+	require.NoError(t, err)
+	require.Equal(t, [][]string{{"hostname", "team_name", "fleet_id", "fleet_name"}, {"h1", "Workstations", "7", "Workstations"}}, rows)
 }
 
 func TestStreamHosts(t *testing.T) {
@@ -3392,7 +3439,7 @@ func TestAddHostsToTeamAndroidCertTemplates(t *testing.T) {
 			return nil
 		}
 
-		require.NoError(t, svc.AddHostsToTeam(test.UserContext(ctx, test.UserAdmin), new(uint(5)), []uint{1}, false))
+		require.NoError(t, svc.AddHostsToTeam(test.UserContext(ctx, test.UserAdmin), new(uint(5)), []uint{1}))
 		assert.True(t, ds.CreatePendingCertificateTemplatesForNewHostFuncInvoked)
 		assert.Equal(t, "android-uuid-1", certUUID)
 		assert.Equal(t, uint(5), certTeamID)
@@ -3419,7 +3466,7 @@ func TestAddHostsToTeamAndroidCertTemplates(t *testing.T) {
 			return nil
 		}
 
-		require.NoError(t, svc.AddHostsToTeam(test.UserContext(ctx, test.UserAdmin), nil, []uint{1}, false))
+		require.NoError(t, svc.AddHostsToTeam(test.UserContext(ctx, test.UserAdmin), nil, []uint{1}))
 		assert.True(t, ds.CreatePendingCertificateTemplatesForNewHostFuncInvoked)
 		assert.Equal(t, uint(0), certTeamID)
 		assert.True(t, ds.UpdateTeamIDOnAndroidDevicesFuncInvoked)
@@ -3433,7 +3480,7 @@ func TestAddHostsToTeamAndroidCertTemplates(t *testing.T) {
 			return nil, nil
 		}
 
-		require.NoError(t, svc.AddHostsToTeam(test.UserContext(ctx, test.UserAdmin), new(uint(5)), []uint{1}, false))
+		require.NoError(t, svc.AddHostsToTeam(test.UserContext(ctx, test.UserAdmin), new(uint(5)), []uint{1}))
 		assert.False(t, ds.CreatePendingCertificateTemplatesForNewHostFuncInvoked)
 		assert.False(t, ds.UpdateTeamIDOnAndroidDevicesFuncInvoked)
 	})
@@ -3452,7 +3499,7 @@ func TestAddHostsToTeamAndroidCertTemplates(t *testing.T) {
 		}
 
 		// transfer the android host, its agent's row should be flagged for resend before the request returns
-		require.NoError(t, svc.AddHostsToTeam(test.UserContext(ctx, test.UserAdmin), new(uint(5)), []uint{1}, false))
+		require.NoError(t, svc.AddHostsToTeam(test.UserContext(ctx, test.UserAdmin), new(uint(5)), []uint{1}))
 		assert.Equal(t, []uint{1}, flaggedHostIDs)
 		require.NotNil(t, flaggedAdamID)
 		assert.Equal(t, "com.fleetdm.agent", *flaggedAdamID)
@@ -3611,7 +3658,7 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 			}, nil
 		}
 		userCtx := test.UserContext(ctx, test.UserTeamMaintainerTeam1)
-		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10}, false)
+		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10})
 		test.RequireErrKind(t, test.ErrNotFound, err)
 	})
 
@@ -3623,7 +3670,7 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 			}, nil
 		}
 		userCtx := test.UserContext(ctx, test.UserTeamAdminTeam1)
-		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10}, false)
+		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10})
 		test.RequireErrKind(t, test.ErrNotFound, err)
 	})
 
@@ -3635,7 +3682,7 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 			}, nil
 		}
 		userCtx := test.UserContext(ctx, test.UserTeamMaintainerTeam1)
-		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10}, false)
+		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10})
 		test.RequireErrKind(t, test.ErrNotFound, err)
 	})
 
@@ -3646,8 +3693,10 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 			}, nil
 		}
 		userCtx := test.UserContext(ctx, test.UserAdmin)
-		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10}, false)
+		ds.BulkSetPendingMDMHostProfilesFuncInvoked = false
+		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10})
 		require.NoError(t, err)
+		require.True(t, ds.BulkSetPendingMDMHostProfilesFuncInvoked)
 	})
 
 	t.Run("global maintainer can transfer host across teams", func(t *testing.T) {
@@ -3657,7 +3706,7 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 			}, nil
 		}
 		userCtx := test.UserContext(ctx, test.UserMaintainer)
-		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10}, false)
+		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10})
 		require.NoError(t, err)
 	})
 
@@ -3669,7 +3718,7 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 			}, nil
 		}
 		userCtx := test.UserContext(ctx, test.UserTeamMaintainerTeam1)
-		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10}, false)
+		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10})
 		require.NoError(t, err)
 	})
 
@@ -3682,7 +3731,7 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 			}, nil
 		}
 		userCtx := test.UserContext(ctx, test.UserTeamMaintainerTeam1)
-		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10, 11}, false)
+		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10, 11})
 		test.RequireErrKind(t, test.ErrNotFound, err)
 	})
 
@@ -3701,7 +3750,7 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 			}, nil
 		}
 		userCtx := test.UserContext(ctx, multiTeamUser)
-		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10}, false)
+		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10})
 		require.NoError(t, err)
 
 		// Transfer host from team 1 to team 2
@@ -3710,7 +3759,7 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 				{ID: 10, TeamID: new(uint(1))},
 			}, nil
 		}
-		err = svc.AddHostsToTeam(userCtx, new(uint(2)), []uint{10}, false)
+		err = svc.AddHostsToTeam(userCtx, new(uint(2)), []uint{10})
 		require.NoError(t, err)
 	})
 
@@ -3731,7 +3780,7 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 			}, nil
 		}
 		userCtx := test.UserContext(ctx, multiTeamUser)
-		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10}, false)
+		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10})
 		test.RequireErrKind(t, test.ErrForbidden, err)
 
 		// Transfer host from team 1 (admin) to team 2 (observer) — blocked on destination
@@ -3740,7 +3789,7 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 				{ID: 10, TeamID: new(uint(1))},
 			}, nil
 		}
-		err = svc.AddHostsToTeam(userCtx, new(uint(2)), []uint{10}, false)
+		err = svc.AddHostsToTeam(userCtx, new(uint(2)), []uint{10})
 		test.RequireErrKind(t, test.ErrForbidden, err)
 	})
 
@@ -3751,7 +3800,7 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 			}, nil
 		}
 		userCtx := test.UserContext(ctx, test.UserTechnician)
-		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10}, false)
+		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10})
 		require.NoError(t, err)
 	})
 
@@ -3763,7 +3812,7 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 			}, nil
 		}
 		userCtx := test.UserContext(ctx, test.UserTechnician)
-		err := svc.AddHostsToTeam(userCtx, nil, []uint{10}, false)
+		err := svc.AddHostsToTeam(userCtx, nil, []uint{10})
 		require.NoError(t, err)
 
 		// Host currently in no team, transfer to team 1.
@@ -3772,7 +3821,7 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 				{ID: 10, TeamID: nil},
 			}, nil
 		}
-		err = svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10}, false)
+		err = svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10})
 		require.NoError(t, err)
 	})
 
@@ -3791,7 +3840,7 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 			}, nil
 		}
 		userCtx := test.UserContext(ctx, multiTeamTechnician)
-		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10}, false)
+		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10})
 		require.NoError(t, err)
 	})
 
@@ -3803,7 +3852,7 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 			}, nil
 		}
 		userCtx := test.UserContext(ctx, test.UserTeamTechnicianTeam1)
-		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10}, false)
+		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10})
 		test.RequireErrKind(t, test.ErrNotFound, err)
 	})
 
@@ -3815,7 +3864,7 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 			}, nil
 		}
 		userCtx := test.UserContext(ctx, test.UserTeamTechnicianTeam1)
-		err := svc.AddHostsToTeam(userCtx, new(uint(2)), []uint{10}, false)
+		err := svc.AddHostsToTeam(userCtx, new(uint(2)), []uint{10})
 		test.RequireErrKind(t, test.ErrForbidden, err)
 	})
 
@@ -3827,7 +3876,7 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 			}, nil
 		}
 		userCtx := test.UserContext(ctx, test.UserTeamTechnicianTeam1)
-		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10}, false)
+		err := svc.AddHostsToTeam(userCtx, new(uint(1)), []uint{10})
 		test.RequireErrKind(t, test.ErrNotFound, err)
 
 		// Host on team 1 -> no team: blocked on destination (no team).
@@ -3836,7 +3885,7 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 				{ID: 10, TeamID: new(uint(1))},
 			}, nil
 		}
-		err = svc.AddHostsToTeam(userCtx, nil, []uint{10}, false)
+		err = svc.AddHostsToTeam(userCtx, nil, []uint{10})
 		test.RequireErrKind(t, test.ErrForbidden, err)
 	})
 }
@@ -3884,40 +3933,40 @@ func TestAddHostsToTeamDoesNotLeakOutOfScopeExistence(t *testing.T) {
 
 	t.Run("out-of-scope host is reported as not found", func(t *testing.T) {
 		ds.AddHostsToTeamFuncInvoked = false
-		err := svc.AddHostsToTeam(team1Admin, new(uint(1)), []uint{10}, false)
+		err := svc.AddHostsToTeam(team1Admin, new(uint(1)), []uint{10})
 		test.RequireErrKind(t, test.ErrNotFound, err)
 		require.False(t, ds.AddHostsToTeamFuncInvoked)
 	})
 
 	t.Run("nonexistent host is reported as not found, even for a global admin", func(t *testing.T) {
 		ds.AddHostsToTeamFuncInvoked = false
-		err := svc.AddHostsToTeam(globalAdmin, new(uint(1)), []uint{999}, false)
+		err := svc.AddHostsToTeam(globalAdmin, new(uint(1)), []uint{999})
 		test.RequireErrKind(t, test.ErrNotFound, err)
 		require.False(t, ds.AddHostsToTeamFuncInvoked)
 
 		ds.AddHostsToTeamFuncInvoked = false
-		err = svc.AddHostsToTeam(team1Admin, new(uint(1)), []uint{999}, false)
+		err = svc.AddHostsToTeam(team1Admin, new(uint(1)), []uint{999})
 		test.RequireErrKind(t, test.ErrNotFound, err)
 		require.False(t, ds.AddHostsToTeamFuncInvoked)
 	})
 
 	t.Run("mix of existing and nonexistent hosts fails the whole request", func(t *testing.T) {
 		ds.AddHostsToTeamFuncInvoked = false
-		err := svc.AddHostsToTeam(globalAdmin, new(uint(1)), []uint{11, 999}, false)
+		err := svc.AddHostsToTeam(globalAdmin, new(uint(1)), []uint{11, 999})
 		test.RequireErrKind(t, test.ErrNotFound, err)
 		require.False(t, ds.AddHostsToTeamFuncInvoked)
 	})
 
 	t.Run("mix of in-scope and out-of-scope hosts is reported as not found", func(t *testing.T) {
 		ds.AddHostsToTeamFuncInvoked = false
-		err := svc.AddHostsToTeam(team1Admin, new(uint(1)), []uint{11, 10}, false)
+		err := svc.AddHostsToTeam(team1Admin, new(uint(1)), []uint{11, 10})
 		test.RequireErrKind(t, test.ErrNotFound, err)
 		require.False(t, ds.AddHostsToTeamFuncInvoked)
 	})
 
 	t.Run("duplicate IDs of an existing host are not mistaken for missing hosts", func(t *testing.T) {
 		ds.AddHostsToTeamFuncInvoked = false
-		err := svc.AddHostsToTeam(team1Admin, new(uint(1)), []uint{11, 11}, false)
+		err := svc.AddHostsToTeam(team1Admin, new(uint(1)), []uint{11, 11})
 		require.NoError(t, err)
 		require.True(t, ds.AddHostsToTeamFuncInvoked)
 	})
@@ -3933,7 +3982,7 @@ func TestAddHostsToTeamDoesNotLeakOutOfScopeExistence(t *testing.T) {
 			},
 		}
 		ds.AddHostsToTeamFuncInvoked = false
-		err := svc.AddHostsToTeam(test.UserContext(ctx, user), new(uint(1)), []uint{10}, false)
+		err := svc.AddHostsToTeam(test.UserContext(ctx, user), new(uint(1)), []uint{10})
 		test.RequireErrKind(t, test.ErrForbidden, err)
 		require.False(t, ds.AddHostsToTeamFuncInvoked)
 	})

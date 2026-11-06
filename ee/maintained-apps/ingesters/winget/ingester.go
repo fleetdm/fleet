@@ -180,6 +180,11 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	}
 
 	versionDirs := wingetVersionManifestDirs(repoContents)
+	if input.VersionPrefix != "" {
+		versionDirs = slices.DeleteFunc(versionDirs, func(c *github.RepositoryContent) bool {
+			return !strings.HasPrefix(c.GetName(), input.VersionPrefix)
+		})
+	}
 	if len(versionDirs) == 0 {
 		return nil, ctxerr.NewWithData(ctx, "no version manifest directories found under package path", map[string]any{
 			"path": dirPath,
@@ -649,6 +654,10 @@ type inputApp struct {
 	// PackageIdentifier is the identifier used by winget. It's composed of a vendor part (e.g.
 	// AgileBits) and an app part (e.g. 1Password), joined by a "."
 	PackageIdentifier string `json:"package_identifier"`
+	// VersionPrefix limits ingestion to winget version directories starting with this
+	// string (e.g. "18."), for packages that publish several side-by-side majors under
+	// one identifier (e.g. Microsoft.SQLServer.OLEDBDriver ships OLE DB 18 and 19).
+	VersionPrefix string `json:"version_prefix"`
 	// The value matching programs.name for the primary app package in osquery
 	UniqueIdentifier    string     `json:"unique_identifier"`
 	InstallScriptPath   string     `json:"install_script_path"`

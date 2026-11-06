@@ -542,7 +542,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			}
 
 			var resp teamResponse
-			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &resp)
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &resp)
 			require.Equal(t, team.Name, resp.Team.Name)
 			require.Equal(t, wantDiskEncryption, resp.Team.Config.MDM.EnableDiskEncryption)
 			require.Equal(t, wantMacOSSetup.BootstrapPackage.Value, resp.Team.Config.MDM.MacOSSetup.BootstrapPackage.Value)
@@ -561,7 +561,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 		checkAppConfig(t, false, false) // both mac and windows mdm disabled
 
 		var createTeamResp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{fleet.TeamPayload{
+		s.DoJSON("POST", "/api/latest/fleet/fleets", createTeamRequest{fleet.TeamPayload{
 			Name: new("Ninjas"),
 			MDM:  &fleet.TeamPayloadMDM{EnableDiskEncryption: optjson.SetBool(true)}, // mdm is ignored by the create team endpoint
 		}}, http.StatusOK, &createTeamResp)
@@ -641,7 +641,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			t.Run(c.name, func(t *testing.T) {
 				checkAppConfig(t, false, false) // both mac and windows mdm disabled
 
-				s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+				s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), fleet.TeamPayload{
 					Name:        &team.Name,
 					Description: new(c.name),
 					MDM:         c.mdm,
@@ -677,7 +677,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			}
 
 			var resp teamResponse
-			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &resp)
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &resp)
 			require.Equal(t, team.Name, resp.Team.Name)
 			// require.Equal(t, wantDiskEncryption, resp.Team.Config.MDM.EnableDiskEncryption)
 			require.Equal(t, wantMacOSSetup.BootstrapPackage.Value, resp.Team.Config.MDM.MacOSSetup.BootstrapPackage.Value)
@@ -698,7 +698,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 		// create a team from spec
 		tmSpecReq := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "Pirates"}}}
 		var tmSpecResp applyTeamSpecsResponse
-		s.DoJSON("POST", "/api/latest/fleet/spec/teams", tmSpecReq, http.StatusOK, &tmSpecResp)
+		s.DoJSON("POST", "/api/latest/fleet/spec/fleets", tmSpecReq, http.StatusOK, &tmSpecResp)
 		teamID, ok := tmSpecResp.TeamIDsByName["Pirates"]
 		require.True(t, ok)
 		team := fleet.Team{ID: teamID, Name: "Pirates"}
@@ -790,7 +790,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 					Name: team.Name,
 					MDM:  *c.mdm,
 				}}}
-				s.DoJSON("POST", "/api/latest/fleet/spec/teams", tmSpecReq, c.expectedStatus, &tmSpecResp)
+				s.DoJSON("POST", "/api/latest/fleet/spec/fleets", tmSpecReq, c.expectedStatus, &tmSpecResp)
 
 				if c.expectedStatus == http.StatusOK {
 					checkTeam(t, &team, c.mdm)
@@ -978,7 +978,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 		},
 	}
 	var applyResp applyTeamSpecsResponse
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp)
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, &applyResp)
 	require.Len(t, applyResp.TeamIDsByName, 1)
 	teamID := applyResp.TeamIDsByName[t.Name()]
 
@@ -1018,7 +1018,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 		},
 	}
 	applyResp = applyTeamSpecsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp)
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, &applyResp)
 	require.Len(t, applyResp.TeamIDsByName, 1)
 	// assign the DEP profile and assert that contains the right values for the URL
 	s.runWorker()
@@ -1046,7 +1046,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 		},
 	}
 	applyResp = applyTeamSpecsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp)
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, &applyResp)
 	require.Len(t, applyResp.TeamIDsByName, 1)
 
 	// assign the DEP profile and assert that contains the right values for the URL
@@ -1081,7 +1081,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 		},
 	}
 	applyResp = applyTeamSpecsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, &applyResp)
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusUnprocessableEntity, &applyResp)
 
 	t.Cleanup(func() {
 		acResp.MDM.MacOSSetup.EnableEndUserAuthentication = false
@@ -1259,7 +1259,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsTeamDeletion() {
 
 	// Delete team t1.
 	delResp := deleteTeamResponse{}
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), nil, http.StatusOK, &delResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d", t1.ID), nil, http.StatusOK, &delResp)
 
 	// Check label l1t1 on t1 has been removed.
 	_, _, err = s.ds.Label(t.Context(), l1t1.ID, fleet.TeamFilter{})
@@ -1894,7 +1894,7 @@ func (s *integrationMDMTestSuite) TestStagedUpload() {
 	wantSha := sha256.Sum256(signedPkg)
 	require.Equal(t, wantSha[:], metaResp.MDMAppleBootstrapPackage.Sha256)
 	s.lastActivityMatches(fleet.ActivityTypeAddedBootstrapPackage{}.ActivityName(),
-		`{"bootstrap_package_name": "staged.pkg", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+		`{"bootstrap_package_name": "staged.pkg", "fleet_id": null, "fleet_name": null}`, 0)
 	s.Do("DELETE", "/api/latest/fleet/bootstrap/0", nil, http.StatusOK)
 
 	// software package add and edit

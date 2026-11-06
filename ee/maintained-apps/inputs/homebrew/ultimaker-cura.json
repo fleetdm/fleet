@@ -1,6 +1,6 @@
 {
   "name": "UltiMaker Cura",
-  "unique_identifier": "nl.ultimaker.cura.dmg",
+  "unique_identifier": "nl.ultimaker.cura_UltiMaker_Cura",
   "token": "ultimaker-cura",
   "installer_format": "dmg",
   "slug": "ultimaker-cura/darwin",

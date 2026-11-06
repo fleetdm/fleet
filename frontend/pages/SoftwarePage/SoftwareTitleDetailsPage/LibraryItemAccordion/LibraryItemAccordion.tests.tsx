@@ -590,7 +590,7 @@ describe("LibraryItemAccordion", () => {
       expect(await screen.findByText(expected)).toBeInTheDocument();
     };
 
-    // The info-outline icon trailing the "installed" count carries its own
+    // The info icon trailing the "installed" count carries its own
     // tooltip whose copy varies by installer source (package / tarball /
     // Android). Hover it and assert the wording.
     const expectInfoTooltip = async (
@@ -602,7 +602,7 @@ describe("LibraryItemAccordion", () => {
         ".library-item-accordion__status-counts-info .component__tooltip-wrapper__element"
       );
       if (!wrapper) {
-        throw new Error("info-outline tooltip wrapper not found");
+        throw new Error("info tooltip wrapper not found");
       }
       await user.hover(wrapper);
       expect(await screen.findByText(expected)).toBeInTheDocument();
@@ -650,7 +650,7 @@ describe("LibraryItemAccordion", () => {
       await user.click(screen.getByRole("button", { expanded: false }));
 
       // Tarballs don't swap labels or per-status icon tooltips — only the
-      // info-outline tooltip changes (no setup-experience leg).
+      // info tooltip changes (no setup-experience leg).
       expect(screen.getByText("32 installed")).toBeVisible();
       expect(screen.getByText("5 pending")).toBeVisible();
       expect(screen.getByText("3 failed")).toBeVisible();
