@@ -1846,7 +1846,7 @@
       "name": "coconutBattery",
       "slug": "coconutbattery/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.coconut-flavour.coconutBattery-Menu",
+      "unique_identifier": "com.coconut-flavour.coconutBattery",
       "description": "coconutBattery is a tool to show live information about the batteries in various devices."
     },
     {
