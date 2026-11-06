@@ -136,7 +136,7 @@ Once you've created the identity provider in Okta, click on the Fleet identity p
 
 ## Step 4: Deploy the profiles
 
-The profiles deploy a SCEP certificate that identifies the host to Okta. Fleet shows them once Okta is connected: go to **Settings** > **Integrations** > **Conditional access** and, on the **Okta** card, click **Edit**.
+The profiles deploy a SCEP certificate that identifies the host to Okta. Fleet shows them once Okta is connected: go to **Settings** > **Integrations** > **Conditional access** and, on the **Okta** card, click **Profiles**.
 
 The certificates are valid for 1 year and 33 days, and Fleet automatically renews them. [Learn more](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#renewal).
 
@@ -231,7 +231,7 @@ To disable conditional access on the Okta side:
 1. In the Okta Admin Console, go to **Security** > **Authentication policies**.
 2. Either delete the authentication policy rule that requires Fleet, or remove the policy from all apps by going to **Applications** > select an app > **Sign On** tab > **Authentication policy** and assigning a different policy.
 
-Once disabled on the Okta side, you can delete the conditional access configuration on Fleet's side from **Settings** > **Integrations** > **Conditional access** > **Okta** and clicking the delete button.
+Once disabled on the Okta side, delete the configuration in Fleet: go to **Settings** > **Integrations** > **Conditional access** and, on the **Okta** card, click **Delete**.
 
 ## Bypassing conditional access
 
