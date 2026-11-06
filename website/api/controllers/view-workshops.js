@@ -79,8 +79,8 @@ module.exports = {
       });
 
       await sails.helpers.flow.simultaneouslyForEach(eventsToGetDetailsFor, async (event)=>{
-        // Determine if this event is a GitOps workshop or an Apple administrator workshop.
-        let eventType = _.contains(event.name.text.toLowerCase(), 'gitops') ? 'GitOps workshop' : _.contains(event.name.text.toLowerCase(), 'apple administrator') ? 'Apple administrator workshop' :  _.contains(event.name.text.toLowerCase(), 'windows administrator') ? 'Windows administrator workshop' : undefined;
+        // Determine which kind of workshop this event is.
+        let eventType = _.contains(event.name.text.toLowerCase(), 'gitops') ? 'GitOps workshop' : _.contains(event.name.text.toLowerCase(), 'apple administrator') ? 'Apple administrator workshop' :  _.contains(event.name.text.toLowerCase(), 'windows administrator') ? 'Windows administrator workshop' : _.contains(event.name.text.toLowerCase(), 'linux administrator') ? 'Linux administrator workshop' : undefined;
         // If it is not one of those types of events, skip it.
         if(!eventType) {
           return;
