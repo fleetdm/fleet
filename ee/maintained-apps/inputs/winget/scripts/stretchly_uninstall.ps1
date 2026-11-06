@@ -1,134 +1,157 @@
-# Locate the uninstall entry in the registry and run it silently.
-# Stretchly 1.22.0's NSIS uninstaller runs a custom PATH-cleanup step (EnVar
-# plugin) before any removal work and can crash with 0xc0000005, leaving the
-# app fully installed. Don't trust its exit code: verify the registry entry is
-# gone and fall back to removing the app manually.
+# Learn more about .exe uninstall scripts:
+# http://fleetdm.com/learn-more-about/exe-uninstall-scripts
+#
+# Removes the machine-wide install and any copy that earlier versions of the
+# install script left in the SYSTEM account's profile. If the uninstaller is
+# missing or fails, removes the registration, shortcuts and folder itself.
 
-$displayNameLike = "Stretchly*"
+$displayName = "Stretchly"
 $publisher = "Jan Hovancik"
+$installDirName = "Stretchly"
+$exitCode = 0
 
-$paths = @(
-  'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
-  'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
-  'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
-)
-
-function Find-UninstallEntry {
-  foreach ($p in $paths) {
-    $items = Get-ItemProperty "$p\*" -ErrorAction SilentlyContinue | Where-Object {
-      $_.DisplayName -like $displayNameLike -and ($publisher -eq "" -or $_.Publisher -like "*$publisher*")
+function Get-Entries {
+    $roots = @(
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+        'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall',
+        'Registry::HKEY_USERS\S-1-5-18\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+        'Registry::HKEY_USERS\S-1-5-18\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
+    )
+    foreach ($root in $roots) {
+        if (-not (Test-Path -LiteralPath $root)) { continue }
+        foreach ($sub in (Get-ChildItem -LiteralPath $root -ErrorAction Stop)) {
+            $key = Get-ItemProperty -LiteralPath $sub.PSPath -ErrorAction SilentlyContinue
+            if ($key.DisplayName -notlike "$displayName *" -or $key.Publisher -ne $publisher) { continue }
+            [PSCustomObject]@{
+                KeyPath = $sub.PSPath
+                Command = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }
+            }
+        }
     }
-    if ($items) { return $items | Select-Object -First 1 }
-  }
-  return $null
+}
+
+function Stop-InstallDirProcesses {
+    param($Dir)
+    $running = @(Get-Process -ErrorAction SilentlyContinue |
+        Where-Object { $_.Path -and $_.Path.StartsWith("$Dir\", [System.StringComparison]::OrdinalIgnoreCase) })
+    if ($running.Count -gt 0) {
+        Write-Host "Stopping $($running.Count) running $displayName process(es)."
+        $running | Stop-Process -Force -ErrorAction SilentlyContinue
+        $running | Wait-Process -Timeout 30 -ErrorAction SilentlyContinue
+    }
+}
+
+function Remove-Entry {
+    param($Entry)
+
+    $exePath = $null
+    $arguments = ""
+    if ($Entry.Command -match '^\s*"([^"]+)"\s*(.*)$') {
+        $exePath = $matches[1]
+        $arguments = $matches[2].Trim()
+    } elseif ($Entry.Command -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
+        $exePath = $matches[1]
+        $arguments = $matches[2].Trim()
+    }
+
+    $installDir = if ($exePath) { Split-Path $exePath -Parent } else { $null }
+    # A copy installed into SYSTEM's profile by the 32-bit installer is under
+    # SysWOW64, but its registration names system32.
+    if ($installDir -and -not (Test-Path -LiteralPath $installDir)) {
+        $redirected = $installDir -replace '(?i)\\system32\\', '\SysWOW64\'
+        if (Test-Path -LiteralPath $redirected) {
+            $installDir = $redirected
+            $exePath = Join-Path $installDir (Split-Path $exePath -Leaf)
+        }
+    }
+
+    if ($exePath -and (Test-Path -LiteralPath $exePath -PathType Leaf)) {
+        Stop-InstallDirProcesses $installDir
+        if ($arguments -notmatch '(?i)(^|\s)/S($|\s)') { $arguments = "$arguments /S".Trim() }
+        # _?= runs the uninstaller in place, so this waits for it to finish.
+        $arguments = "$arguments _?=$installDir"
+        Write-Host "Uninstall command: $exePath"
+        Write-Host "Uninstall args: $arguments"
+        try {
+            $process = Start-Process -FilePath $exePath -ArgumentList $arguments -Wait -PassThru -NoNewWindow
+            Write-Host "Uninstall exit code: $($process.ExitCode)"
+        } catch {
+            Write-Host "Error running uninstaller: $_"
+        }
+    } else {
+        Write-Host "Uninstaller not found."
+    }
+
+    if (Test-Path -LiteralPath $Entry.KeyPath) {
+        Write-Host "$displayName is still registered; removing it manually."
+        if ($installDir) { Stop-InstallDirProcesses $installDir }
+        Remove-Item -LiteralPath $Entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
+        $shortcuts = @(
+            "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Stretchly.lnk",
+            "$env:PUBLIC\Desktop\Stretchly.lnk",
+            "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Stretchly.lnk",
+            "$env:USERPROFILE\Desktop\Stretchly.lnk"
+        )
+        foreach ($shortcut in $shortcuts) {
+            $redirected = $shortcut -replace '(?i)\\system32\\', '\SysWOW64\'
+            Remove-Item -LiteralPath $shortcut, $redirected -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    if ($installDir -and (Split-Path $installDir -Leaf) -eq $installDirName -and (Test-Path -LiteralPath $installDir)) {
+        Remove-Item -LiteralPath $installDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }
 
 function Remove-StretchlyFromPath {
-  # The vendor uninstaller's EnVar step removes "<install dir>\bin" from PATH;
-  # do it ourselves since that step is what crashes. Use the raw registry API
-  # to preserve unexpanded REG_EXPAND_SZ entries like %SystemRoot%.
-  $envKeys = @(
-    @{ Hive = [Microsoft.Win32.Registry]::CurrentUser; SubKey = 'Environment' },
-    @{ Hive = [Microsoft.Win32.Registry]::LocalMachine; SubKey = 'SYSTEM\CurrentControlSet\Control\Session Manager\Environment' }
-  )
-  foreach ($envKey in $envKeys) {
-    try {
-      $key = $envKey.Hive.OpenSubKey($envKey.SubKey, $true)
-      if (-not $key) { continue }
-      $current = $key.GetValue('Path', $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
-      if ($current) {
-        $kind = $key.GetValueKind('Path')
-        $updated = ($current -split ';' | Where-Object { $_ -and $_ -notlike '*\Stretchly\bin' }) -join ';'
-        if ($updated -ne $current) {
-          $key.SetValue('Path', $updated, $kind)
-          Write-Host "Removed Stretchly from PATH in $($envKey.SubKey)"
+    # Uses the raw registry API so unexpanded entries like %SystemRoot% are kept.
+    $envKeys = @(
+        @{ Hive = [Microsoft.Win32.Registry]::CurrentUser; SubKey = 'Environment' },
+        @{ Hive = [Microsoft.Win32.Registry]::LocalMachine; SubKey = 'SYSTEM\CurrentControlSet\Control\Session Manager\Environment' }
+    )
+    foreach ($envKey in $envKeys) {
+        try {
+            $key = $envKey.Hive.OpenSubKey($envKey.SubKey, $true)
+            if (-not $key) { continue }
+            $current = $key.GetValue('Path', $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+            if ($current) {
+                $kind = $key.GetValueKind('Path')
+                $updated = ($current -split ';' | Where-Object { $_ -and $_ -notlike '*\Stretchly\bin' }) -join ';'
+                if ($updated -ne $current) {
+                    $key.SetValue('Path', $updated, $kind)
+                    Write-Host "Removed $displayName from PATH in $($envKey.SubKey)"
+                }
+            }
+            $key.Close()
+        } catch {
+            Write-Host "PATH cleanup skipped for $($envKey.SubKey): $_"
         }
-      }
-      $key.Close()
-    } catch {
-      Write-Host "PATH cleanup skipped for $($envKey.SubKey): $_"
     }
-  }
-}
-
-$uninstall = Find-UninstallEntry
-if (-not $uninstall -or -not $uninstall.UninstallString) {
-  Write-Host "Uninstall entry not found"
-  Exit 0
 }
 
 try {
-    $uninstallString = $uninstall.UninstallString
-
-    # Parse the uninstaller executable path from the UninstallString.
-    if ($uninstallString -match '^"([^"]+)"') {
-        $uninstallExe = $matches[1]
-    } elseif ($uninstallString -match '^(.+?\.exe)') {
-        $uninstallExe = $matches[1]
-    } else {
-        $uninstallExe = $uninstallString
+    $entries = @(Get-Entries)
+    if ($entries.Count -eq 0) {
+        Write-Host "$displayName is not installed."
+        Exit 0
     }
 
-    # Determine the install directory for cleanup.
-    $installDir = $uninstall.InstallLocation
-    if (-not $installDir -or -not (Test-Path $installDir)) {
-        $installDir = Split-Path $uninstallExe -Parent
-    }
-
-    Stop-Process -Name "stretchly" -Force -ErrorAction SilentlyContinue
-
-    $uninstallArgs = @("/S", "_?=$installDir")
-
-    Write-Host "Uninstall command: $uninstallExe"
-    Write-Host "Uninstall args: $uninstallArgs"
-
-    $processOptions = @{
-        FilePath = $uninstallExe
-        ArgumentList = $uninstallArgs
-        PassThru = $true
-        Wait = $true
-        NoNewWindow = $true
-    }
-
-    $process = Start-Process @processOptions
-    $exitCode = $process.ExitCode
-    Write-Host "Uninstall exit code: $exitCode"
-
-    if ($exitCode -ne 0) {
-        $remaining = Find-UninstallEntry
-        if ($remaining) {
-            # The vendor uninstaller crashed before removing anything; finish
-            # the job manually.
-            Write-Host "Uninstaller failed and app is still registered; removing manually"
-            Remove-Item -Path $remaining.PSPath -Recurse -Force -ErrorAction SilentlyContinue
-            $shortcuts = @(
-                "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Stretchly.lnk",
-                "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\Stretchly.lnk",
-                "$env:USERPROFILE\Desktop\Stretchly.lnk",
-                "$env:PUBLIC\Desktop\Stretchly.lnk"
-            )
-            foreach ($shortcut in $shortcuts) {
-                Remove-Item $shortcut -Force -ErrorAction SilentlyContinue
-            }
-        } else {
-            Write-Host "App is no longer registered despite exit code $exitCode; treating as success"
-        }
+    foreach ($entry in $entries) {
+        Write-Host "Removing $($entry.KeyPath)"
+        Remove-Entry $entry
     }
 
     Remove-StretchlyFromPath
 
-    if ($installDir -and (Test-Path $installDir)) {
-        Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue
+    if (@(Get-Entries).Count -gt 0) {
+        Write-Host "$displayName is still registered after uninstall."
+        $exitCode = 1
+    } else {
+        Write-Host "$displayName is no longer present."
     }
-
-    if (Find-UninstallEntry) {
-        Write-Host "Stretchly is still present after removal attempts"
-        Exit 1
-    }
-
-    Write-Host "Stretchly is no longer present"
-    Exit 0
 } catch {
-    Write-Host "Error running uninstaller: $_"
-    Exit 1
+    Write-Host "Error: $_"
+    $exitCode = 1
 }
+
+Exit $exitCode
