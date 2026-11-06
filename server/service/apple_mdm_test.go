@@ -2292,11 +2292,11 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 		}
 		return &fleet.Host{ID: hostID, UUID: "WR0N6-UU1D", Platform: "darwin"}, nil
 	}
-	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+	ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
 		if identifier == "h0571d3n71f13r" {
-			return &fleet.Host{ID: uint(42), UUID: "H057-UU1D-1337", Platform: "darwin"}, nil
+			return &fleet.HostLite{ID: uint(42)}, nil
 		}
-		return &fleet.Host{ID: uint(21), UUID: "WR0N6-UU1D", Platform: "darwin"}, nil
+		return &fleet.HostLite{ID: uint(21)}, nil
 	}
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 		return nil
@@ -2426,7 +2426,7 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 			}
 			ds.AppConfigFuncInvoked = false
 			ds.HostFuncInvoked = false
-			ds.HostByIdentifierFuncInvoked = false
+			ds.HostLiteByIdentifierFuncInvoked = false
 			ds.GetHostMDMAppleProfilesFuncInvoked = false
 
 			var gotHost *fleet.HostDetail
@@ -2437,9 +2437,9 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 				gotHost = h
 			}
 			if c.hostIdentifier != nil {
-				h, err := svc.HostByIdentifier(ctx, *c.hostIdentifier, fleet.HostDetailOptions{})
+				h, err := svc.GetHostByIDOrIdentifier(ctx, *c.hostIdentifier, fleet.HostDetailOptions{})
 				require.NoError(t, err)
-				require.True(t, ds.HostByIdentifierFuncInvoked)
+				require.True(t, ds.HostLiteByIdentifierFuncInvoked)
 				gotHost = h
 			}
 			require.NotNil(t, gotHost)

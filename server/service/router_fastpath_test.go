@@ -222,16 +222,25 @@ func TestFastPathMatchesGorillaForEdgeCases(t *testing.T) {
 		{name: "literal report beats the host identifier", method: "GET", path: "/api/latest/fleet/hosts/report", wantServedBy: byFastPath},
 		{name: "unknown API version", method: "GET", path: "/api/v9/fleet/hosts/1"},
 		{
-			name: "identifier beats the numeric host id", method: "GET",
+			name: "removed host identifier spelling of a subresource", method: "GET",
 			path: "/api/latest/fleet/hosts/identifier/device_mapping", wantServedBy: byGorilla,
 		},
 		{
-			name: "host by identifier", method: "GET",
-			path: "/api/latest/fleet/hosts/identifier/somehost", wantServedBy: byGorilla,
+			name: "removed host identifier", method: "GET",
+			path: "/api/latest/fleet/hosts/identifier/somehost", wantServedBy: byFastPath,
+		},
+		{name: "removed host identifier on another method", method: "POST", path: "/api/latest/fleet/hosts/identifier/somehost"},
+		{
+			name: "live host subresource wins the overlap", method: "GET",
+			path: "/api/latest/fleet/hosts/1/device_mapping", wantServedBy: byFastPath,
 		},
 		{
-			name: "host subresource excluded alongside it", method: "GET",
-			path: "/api/latest/fleet/hosts/1/device_mapping", wantServedBy: byGorilla,
+			name: "wrong method on a live host subresource", method: "GET",
+			path: "/api/latest/fleet/hosts/1/refetch", wantServedBy: byFastPath,
+		},
+		{
+			name: "unknown host subresource", method: "GET",
+			path: "/api/latest/fleet/hosts/1/nothing", wantServedBy: byFastPath,
 		},
 		{
 			name: "live batch host results wins the overlap", method: "GET",
@@ -549,11 +558,11 @@ func TestFastPathSpanNamesFeedTheTracingTierRegistry(t *testing.T) {
 			wantTier: tracing.TierHighVolume,
 		},
 		{
-			// An excluded route reaches gorilla through the fast path's catch-all, so otelmux, not otelhttp, names its span.
+			// An encoded path reaches gorilla through the fast path's catch-all, so otelmux, not otelhttp, names its span.
 			name:     "route served by gorilla is named by otelmux the same way",
 			method:   "GET",
-			path:     "/api/latest/fleet/hosts/identifier/abc",
-			wantSpan: "GET /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/identifier/{identifier}",
+			path:     "/api/latest/fleet/hosts/a%2Cb",
+			wantSpan: "GET /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/{id}",
 			wantTier: tracing.TierStandard,
 		},
 	}

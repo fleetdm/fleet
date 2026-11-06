@@ -365,6 +365,7 @@ Fleet records the last 10,000 characters to prevent downtime.
 			}
 			return &fleet.Host{ID: 42, SeenTime: time.Now(), OrbitNodeKey: ptr.String("abc")}, nil
 		}
+		testing_utils.MockHostByIDOrIdentifier(ds)
 		ds.HostFunc = func(ctx context.Context, hid uint) (*fleet.Host, error) {
 			if hid != 42 || c.expectNotFound {
 				return nil, &notFoundError{}

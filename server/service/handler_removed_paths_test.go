@@ -7,10 +7,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/removednames"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
@@ -96,6 +98,9 @@ func TestRemovedPathOverlaps(t *testing.T) {
 		{http.MethodGet, "/api/v1/fleet/scripts/batch/abc/cancel", http.StatusMethodNotAllowed, http.MethodPost},
 		{http.MethodGet, "/api/v1/fleet/scripts/batch/abc/foo", http.StatusNotFound, ""},
 		{http.MethodPost, "/api/v1/fleet/hosts/1/configuration_profiles/foo/bar", http.StatusNotFound, ""},
+		{http.MethodGet, "/api/v1/fleet/hosts/1/refetch", http.StatusMethodNotAllowed, http.MethodPost},
+		{http.MethodGet, "/api/v1/fleet/hosts/1/labels", http.StatusMethodNotAllowed, "POST, DELETE"},
+		{http.MethodGet, "/api/v1/fleet/hosts/1/nothing", http.StatusNotFound, ""},
 	} {
 		t.Run(c.method+" "+c.path, func(t *testing.T) {
 			t.Parallel()
@@ -105,6 +110,62 @@ func TestRemovedPathOverlaps(t *testing.T) {
 			assert.Equal(t, c.wantAllow, rec.Header().Get("Allow"))
 		})
 	}
+}
+
+// TestRemovedPathOverlapsListEveryWrongMethodRoute walks the real route table: a live path that the wildcard of an overlap catches
+// on a method the path does not serve must get the 405 it got before the path was removed, not a 404.
+func TestRemovedPathOverlapsListEveryWrongMethodRoute(t *testing.T) {
+	_, router := newAPIHandler(t, config.TestConfig(), productionFeatureRoutes(t, nil))
+	// The real router only matches. Its handlers count requests in global Prometheus metrics, which TestAPIRoutesMetrics asserts exactly.
+	removedOnly := mux.NewRouter()
+	endpointer.RegisterRemovedPaths(removedOnly, apiVersions, slog.New(slog.DiscardHandler), removedPaths())
+
+	wildcards := make(map[string]string, len(removedPathOverlaps))
+	for _, overlap := range removedPathOverlaps {
+		wildcards[strings.TrimPrefix(overlap.RouteTemplate, "/api/_version_")] = overlap.Method
+	}
+	checked := 0
+	require.NoError(t, router.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
+		tpl, err := route.GetPathTemplate()
+		if err != nil || strings.HasSuffix(tpl, "/") {
+			return nil
+		}
+		path := sampleRequestPath(tpl)
+		for wildcard, method := range wildcards {
+			var match mux.RouteMatch
+			if !router.Match(httptest.NewRequest(method, path, nil), &match) || match.Route == nil {
+				continue
+			}
+			if matchedTpl, _ := match.Route.GetPathTemplate(); !strings.HasSuffix(matchedTpl, wildcard) || match.Route == route {
+				continue // a live route serves this method, or this is the wildcard itself
+			}
+			if slices.ContainsFunc(removedPathTemplates, func(removed string) bool { return sameShape(removed, path) }) {
+				continue // a request to the removed path itself
+			}
+			checked++
+			rec := httptest.NewRecorder()
+			removedOnly.ServeHTTP(rec, httptest.NewRequest(method, path, nil))
+			assert.Equalf(t, http.StatusMethodNotAllowed, rec.Code,
+				"%s %s (route %s) is caught by the wildcard %s; add the route to its WrongMethodRoutes", method, path, tpl, wildcard)
+		}
+		return nil
+	}))
+	require.NotZero(t, checked)
+}
+
+// sameShape reports whether path has the segments of template, with any value for a variable.
+func sameShape(template, path string) bool {
+	templateSegments := strings.Split(strings.TrimPrefix(template, "/api/_version_/"), "/")
+	pathSegments := strings.Split(path, "/")
+	if len(pathSegments) < len(templateSegments) {
+		return false
+	}
+	for i, segment := range templateSegments {
+		if !strings.HasPrefix(segment, "{") && segment != pathSegments[len(pathSegments)-len(templateSegments)+i] {
+			return false
+		}
+	}
+	return true
 }
 
 func TestRemovedPathForEntryWithMethod(t *testing.T) {

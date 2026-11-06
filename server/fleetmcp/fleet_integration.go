@@ -490,14 +490,15 @@ func (fc *FleetClient) GetEndpoints(ctx context.Context, perPage int) ([]Endpoin
 }
 
 // GetHostByIdentifier fetches full host details (including labels) by hostname, UUID, or serial.
-// Uses GET /api/v1/fleet/hosts/identifier/:identifier which returns complete host and label data.
+// Uses GET /api/v1/fleet/hosts/:id, which also takes an identifier and returns complete host and label data. A numeric identifier
+// matches a host ID first.
 // Note: GetEndpoints already requests labels via populate_labels=true; this method is for targeted lookups of a single host.
 func (fc *FleetClient) GetHostByIdentifier(ctx context.Context, identifier string) (*Endpoint, error) {
 	segment, err := pathSegment("host identifier", identifier)
 	if err != nil {
 		return nil, err
 	}
-	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/identifier/%s", segment)
+	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/%s", segment)
 	resp, err := fc.makeFleetRequest(ctx, "GET", endpointPath, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get host: %w", err)
@@ -579,7 +580,7 @@ func (fc *FleetClient) GetHostByIDWithPolicies(ctx context.Context, hostID uint)
 // GetHostByIdentifierWithPolicies fetches a host's full details together with
 // every policy that applies to it (global + fleet-inherited), each entry
 // carrying its pass/fail/empty Response. Wraps GET
-// /api/v1/fleet/hosts/identifier/:identifier?populate_policies=true.
+// /api/v1/fleet/hosts/:id?populate_policies=true.
 //
 // This is the single API call behind the per-host "Policies" tab in the
 // Fleet UI — answer "is this host compliant?" with one call instead of
@@ -589,7 +590,7 @@ func (fc *FleetClient) GetHostByIdentifierWithPolicies(ctx context.Context, iden
 	if err != nil {
 		return nil, err
 	}
-	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/identifier/%s?populate_policies=true", segment)
+	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/%s?populate_policies=true", segment)
 	resp, err := fc.makeFleetRequest(ctx, "GET", endpointPath, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get host with policies: %w", err)
@@ -2117,7 +2118,7 @@ func (fc *FleetClient) ResolveLiveQueryTargets(ctx context.Context, spec LiveQue
 			if qErr == nil && len(candidates) > 1 {
 				return nil, fmt.Errorf("hostname %q matches %d hosts — disambiguate with host_ids (Fleet's substring search does not cover display_name; pass numeric IDs to be unambiguous)", name, len(candidates))
 			}
-			// Fall back to /hosts/identifier/:id for UUID and computer_name matches.
+			// Fall back to /hosts/:id for UUID and computer_name matches.
 			h, idErr := fc.GetHostByIdentifier(ctx, name)
 			if idErr != nil {
 				return nil, fmt.Errorf("hostname %q not found: %w", name, idErr)

@@ -1330,10 +1330,10 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 
 	// get by identifier unknown
 	var getResp getHostResponse
-	s.DoJSON("GET", "/api/latest/fleet/hosts/identifier/no-such-host", nil, http.StatusNotFound, &getResp)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/no-such-host", nil, http.StatusNotFound, &getResp)
 
 	// get by identifier valid
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", hosts[0].UUID), nil, http.StatusOK, &getResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", hosts[0].UUID), nil, http.StatusOK, &getResp)
 	require.Equal(t, hosts[0].ID, getResp.Host.ID)
 	require.Nil(t, getResp.Host.TeamID)
 
@@ -1385,7 +1385,7 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	require.NotNil(t, getResp.Host.TeamID)
 	require.Equal(t, tm1.ID, *getResp.Host.TeamID)
 
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", hosts[0].UUID), nil, http.StatusOK, &getResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", hosts[0].UUID), nil, http.StatusOK, &getResp)
 	require.NotNil(t, getResp.Host.TeamID)
 	require.Equal(t, tm1.ID, *getResp.Host.TeamID)
 	require.NotNil(t, getResp.Host.TeamName)
@@ -1563,22 +1563,22 @@ func (s *integrationTestSuite) TestGetHostByIdentifier() {
 	}
 
 	var resp getHostResponse
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/osquery-1", nil, http.StatusOK, &resp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/osquery-1", nil, http.StatusOK, &resp)
 	require.Equal(t, hosts[1].ID, resp.Host.ID)
 
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/serial-2", nil, http.StatusOK, &resp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/serial-2", nil, http.StatusOK, &resp)
 	require.Equal(t, hosts[2].ID, resp.Host.ID)
 
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/nodekey-3", nil, http.StatusOK, &resp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/nodekey-3", nil, http.StatusOK, &resp)
 	require.Equal(t, hosts[3].ID, resp.Host.ID)
 
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/test-uuid-4", nil, http.StatusOK, &resp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/test-uuid-4", nil, http.StatusOK, &resp)
 	require.Equal(t, hosts[4].ID, resp.Host.ID)
 
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/test-host5-name", nil, http.StatusOK, &resp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/test-host5-name", nil, http.StatusOK, &resp)
 	require.Equal(t, hosts[5].ID, resp.Host.ID)
 
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/no-such-host", nil, http.StatusNotFound, &resp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/no-such-host", nil, http.StatusNotFound, &resp)
 }
 
 func (s *integrationTestSuite) TestGetHostByIDOrIdentifier() {
@@ -1658,7 +1658,7 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[0].ID), nil, http.StatusOK, &listResp)
 	require.Empty(t, listResp.DeviceMapping)
 	var hostResp getHostResponse
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+hosts[0].UUID, nil, http.StatusOK, &hostResp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/"+hosts[0].UUID, nil, http.StatusOK, &hostResp)
 	assert.Empty(t, hostResp.Host.EndUsers)
 	hostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &hostResp)
@@ -1692,7 +1692,7 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	})
 	// Check that mappings show up in host details
 	hostResp = getHostResponse{}
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+hosts[0].UUID, nil, http.StatusOK, &hostResp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/"+hosts[0].UUID, nil, http.StatusOK, &hostResp)
 	checkEndUser := func() {
 		require.Len(t, hostResp.Host.EndUsers, 1)
 		endUser := hostResp.Host.EndUsers[0]
@@ -1858,7 +1858,7 @@ func (s *integrationTestSuite) TestHostDeviceMappingIDP() {
 
 	// Test 4: Verify custom mappings appear in host details via getHostEndpoint
 	var hostResp getHostResponse
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+host.UUID, nil, http.StatusOK, &hostResp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/"+host.UUID, nil, http.StatusOK, &hostResp)
 
 	// Should have at least 1 end user with device mappings
 	require.GreaterOrEqual(t, len(hostResp.Host.EndUsers), 1)

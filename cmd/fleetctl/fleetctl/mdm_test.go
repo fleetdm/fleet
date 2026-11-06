@@ -196,6 +196,7 @@ func TestMDMRunCommand(t *testing.T) {
 				}
 				return h.host, nil
 			}
+			testing_utils.MockHostByIDOrIdentifier(ds)
 			ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 				return nil
 			}
@@ -1494,6 +1495,7 @@ func setupDSMocks(ds *mock.Store, hostByUUID map[string]testhost, hostsByID map[
 		}
 		return h.host, nil
 	}
+	testing_utils.MockHostByIDOrIdentifier(ds)
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 		return nil
 	}

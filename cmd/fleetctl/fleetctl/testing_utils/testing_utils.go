@@ -1060,6 +1060,39 @@ func AddLabelMocks(ds *mock.Store) {
 	}
 }
 
+// MockHostByIDOrIdentifier serves GET /hosts/:id from ds.HostByIdentifierFunc, which the caller sets. The endpoint resolves the value to
+// a host ID with HostLiteByID or HostLiteByIdentifier and then loads the host with Host, so the host it loads is the one HostByIdentifier
+// returned. A numeric value never matches a host ID, so it falls through to HostByIdentifierFunc.
+func MockHostByIDOrIdentifier(ds *mock.Store) {
+	var mu sync.Mutex
+	resolved := make(map[uint]*fleet.Host)
+	ds.HostLiteByIDFunc = func(ctx context.Context, id uint) (*fleet.HostLite, error) {
+		return nil, &notFoundError{}
+	}
+	ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+		host, err := ds.HostByIdentifierFunc(ctx, identifier)
+		if err != nil {
+			return nil, err
+		}
+		mu.Lock()
+		resolved[host.ID] = host
+		mu.Unlock()
+		return &fleet.HostLite{ID: host.ID, TeamID: host.TeamID}, nil
+	}
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		if host, ok := resolved[id]; ok {
+			return host, nil
+		}
+		return nil, &notFoundError{}
+	}
+	// Skips the failing policies recalculation that GET /hosts/:id runs at most once a minute.
+	ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostID uint) (time.Time, error) {
+		return time.Now(), nil
+	}
+}
+
 type notFoundError struct{}
 
 var _ fleet.NotFoundError = (*notFoundError)(nil)

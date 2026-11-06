@@ -960,7 +960,7 @@ func (s *integrationEnterpriseTestSuite) TestHostDeviceMappingIDP() {
 
 	// Test that IDP mapping appears correctly in host details via getHostEndpoint
 	var hostResp getHostResponse
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+host.UUID, nil, http.StatusOK, &hostResp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/"+host.UUID, nil, http.StatusOK, &hostResp)
 
 	// Find the IDP information in end_users field
 	foundIdpInDetails := false
@@ -1084,7 +1084,7 @@ func (s *integrationEnterpriseTestSuite) TestHostDeviceMappingIDP() {
 	// test DELETE
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping/idp", host.ID), deleteHostIDPRequest{}, http.StatusNoContent)
 
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+host.UUID, nil, http.StatusOK, &hostResp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/"+host.UUID, nil, http.StatusOK, &hostResp)
 	require.Len(t, hostResp.Host.EndUsers, 1, "Should have exactly one end user")
 	endUser = hostResp.Host.EndUsers[0]
 	// Non-SCIM IDP user should now be replaced by user's username
@@ -1217,7 +1217,7 @@ func (s *integrationEnterpriseTestSuite) TestHostGoogleDeviceID() {
 	s.lastActivityMatches("", "", activityID)
 
 	require.Equal(t, "device-a", storedID(iosHost))
-	require.Equal(t, "device-a", hostJSON("/api/latest/fleet/hosts/identifier/" + iosHost.UUID)["google_device_id"])
+	require.Equal(t, "device-a", hostJSON("/api/latest/fleet/hosts/" + iosHost.UUID)["google_device_id"])
 
 	// a different value is refused
 	res := s.Do("PUT", idPath(iosHost), map[string]any{"google_device_id": "device-b"}, http.StatusConflict)
@@ -1229,7 +1229,7 @@ func (s *integrationEnterpriseTestSuite) TestHostGoogleDeviceID() {
 	requireErrorReason(res, "This Google device ID is already used by another host.")
 	require.Empty(t, storedID(androidHost))
 	s.DoJSON("PUT", idPath(androidHost), map[string]any{"google_device_id": "device-c"}, http.StatusOK, &putResp)
-	require.Equal(t, "device-c", hostJSON("/api/latest/fleet/hosts/identifier/" + androidHost.UUID)["google_device_id"])
+	require.Equal(t, "device-c", hostJSON("/api/latest/fleet/hosts/" + androidHost.UUID)["google_device_id"])
 
 	// only DELETE removes the ID, and it logs an activity
 	res = s.Do("PUT", idPath(iosHost), map[string]any{"google_device_id": ""}, http.StatusUnprocessableEntity)
@@ -1319,33 +1319,18 @@ func (s *integrationEnterpriseTestSuite) TestHostGoogleDeviceID() {
 		"name":        t.Name() + " registration service",
 		"global_role": fleet.RoleMaintainer,
 		"api_endpoints": []map[string]any{
-			{"method": "GET", "path": "/api/v1/fleet/hosts/identifier/:identifier"},
+			{"method": "GET", "path": "/api/v1/fleet/hosts/:id"},
 			{"method": "PUT", "path": "/api/v1/fleet/hosts/:id/google_device_id"},
 		},
 	}, http.StatusOK, &apiUserResp)
 	require.NotEmpty(t, apiUserResp.Token)
 	s.token = apiUserResp.Token
-	hostJSON("/api/latest/fleet/hosts/identifier/" + androidHost.UUID)
+	// The GET /hosts/:id grant covers every value that route accepts.
+	hostJSON("/api/latest/fleet/hosts/" + androidHost.UUID)
+	s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", androidHost.ID), nil, http.StatusOK)
 	s.DoJSON("PUT", idPath(androidHost), map[string]any{"google_device_id": "device-c"}, http.StatusOK, &putResp)
 	s.Do("DELETE", idPath(androidHost), nil, http.StatusForbidden)
-	s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", androidHost.ID), nil, http.StatusForbidden)
-	s.Do("GET", "/api/latest/fleet/hosts/"+androidHost.UUID, nil, http.StatusForbidden)
 	s.token = s.getTestAdminToken()
 	require.Equal(t, "device-c", storedID(androidHost))
-
-	// A grant on GET /hosts/:id covers every value that route accepts.
-	var getHostOnlyResp struct {
-		Token string `json:"token"`
-	}
-	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
-		"name":          t.Name() + " get host only",
-		"global_role":   fleet.RoleObserver,
-		"api_endpoints": []map[string]any{{"method": "GET", "path": "/api/v1/fleet/hosts/:id"}},
-	}, http.StatusOK, &getHostOnlyResp)
-	require.NotEmpty(t, getHostOnlyResp.Token)
-	s.token = getHostOnlyResp.Token
-	s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", androidHost.ID), nil, http.StatusOK)
-	s.Do("GET", "/api/latest/fleet/hosts/"+androidHost.UUID, nil, http.StatusOK)
-	s.Do("GET", "/api/latest/fleet/hosts/identifier/"+androidHost.UUID, nil, http.StatusForbidden)
 	s.token = s.getTestAdminToken()
 }

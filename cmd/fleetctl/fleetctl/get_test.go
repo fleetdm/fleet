@@ -546,6 +546,7 @@ func TestGetHosts(t *testing.T) {
 			Hostname:        "test_host",
 		}, nil
 	}
+	testing_utils.MockHostByIDOrIdentifier(ds)
 
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 		return nil

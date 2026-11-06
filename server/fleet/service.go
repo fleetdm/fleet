@@ -484,16 +484,6 @@ type Service interface {
 	GetHostHealth(ctx context.Context, id uint) (hostHealth *HostHealth, err error)
 	GetHostSummary(ctx context.Context, teamID *uint, platform *string, lowDiskSpace *int) (summary *HostSummary, err error)
 	DeleteHost(ctx context.Context, id uint) (err error)
-	// HostByIdentifier returns one host matching the provided identifier.
-	// Possible matches can be on osquery_host_identifier, node_key, UUID, or
-	// hostname.
-	//
-	// The return value can also include policy information and CVE scores based
-	// on the values provided to `opts`
-	//
-	// A caller allowed to resolve the identifier but not to read the host
-	// (GitOps) gets a result with HostDetail.IDOnly set, see that field.
-	HostByIdentifier(ctx context.Context, identifier string, opts HostDetailOptions) (*HostDetail, error)
 	// GetHostByIDOrIdentifier returns one host matching the provided value. A value that is a host id matches on id first, then
 	// any value matches as described on Datastore.HostByIdentifier.
 	GetHostByIDOrIdentifier(ctx context.Context, identifier string, opts HostDetailOptions) (*HostDetail, error)

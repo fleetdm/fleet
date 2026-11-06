@@ -24,10 +24,9 @@ func (c *Client) GetHost(id uint) (*fleet.HostDetailResponse, error) {
 	return responseBody.Host, err
 }
 
-// HostByIdentifier retrieves a host by the uuid, osquery_host_id, hostname, or
-// node_key.
+// HostByIdentifier retrieves a host by the host ID, hardware_serial, uuid, hostname, osquery_host_id, or node_key.
 func (c *Client) HostByIdentifier(identifier string) (*fleet.HostDetailResponse, error) {
-	verb, path := "GET", "/api/latest/fleet/hosts/identifier/"+identifier
+	verb, path := "GET", "/api/latest/fleet/hosts/"+identifier
 	var responseBody getHostResponse
 	err := c.authenticatedRequest(nil, verb, path, &responseBody)
 	return responseBody.Host, err

@@ -249,8 +249,6 @@ type GetHostSummaryFunc func(ctx context.Context, teamID *uint, platform *string
 
 type DeleteHostFunc func(ctx context.Context, id uint) (err error)
 
-type HostByIdentifierFunc func(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error)
-
 type GetHostByIDOrIdentifierFunc func(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error)
 
 type RefetchHostFunc func(ctx context.Context, id uint) (err error)
@@ -1399,9 +1397,6 @@ type Service struct {
 
 	DeleteHostFunc        DeleteHostFunc
 	DeleteHostFuncInvoked bool
-
-	HostByIdentifierFunc        HostByIdentifierFunc
-	HostByIdentifierFuncInvoked bool
 
 	GetHostByIDOrIdentifierFunc        GetHostByIDOrIdentifierFunc
 	GetHostByIDOrIdentifierFuncInvoked bool
@@ -3411,13 +3406,6 @@ func (s *Service) DeleteHost(ctx context.Context, id uint) (err error) {
 	s.DeleteHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteHostFunc(ctx, id)
-}
-
-func (s *Service) HostByIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
-	s.mu.Lock()
-	s.HostByIdentifierFuncInvoked = true
-	s.mu.Unlock()
-	return s.HostByIdentifierFunc(ctx, identifier, opts)
 }
 
 func (s *Service) GetHostByIDOrIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
