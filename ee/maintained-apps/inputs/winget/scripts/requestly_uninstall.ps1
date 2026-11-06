@@ -86,8 +86,9 @@ function Resolve-Uninstaller {
     # unredirected system32 path that 64-bit PowerShell cannot resolve.
     if ($exePath -and -not (Test-Path -LiteralPath $exePath)) {
         $redirected = $exePath -replace '(?i)\\system32\\', '\SysWOW64\'
-        if ($redirected -ne $exePath -and -not (Test-Path -LiteralPath (Split-Path $exePath -Parent)) -and
-            (Test-Path -LiteralPath (Split-Path $redirected -Parent))) {
+        $onlyRedirectedDir = -not (Test-Path -LiteralPath (Split-Path $exePath -Parent)) -and
+            (Test-Path -LiteralPath (Split-Path $redirected -Parent))
+        if ($redirected -ne $exePath -and ((Test-Path -LiteralPath $redirected) -or $onlyRedirectedDir)) {
             Write-Host "  This copy is under SysWOW64, not the recorded $exePath"
             $exePath = $redirected
         }
