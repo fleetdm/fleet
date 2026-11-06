@@ -251,9 +251,7 @@ const WelcomeHost = ({
                 >
                   <div className="policy-block">
                     <Icon
-                      name={
-                        p.response === POLICY_PASS ? "success" : "error-outline"
-                      }
+                      name={p.response === POLICY_PASS ? "success" : "error"}
                     />
                     <span className="info">{p.name}</span>
                     <Icon

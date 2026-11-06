@@ -11,7 +11,7 @@ export interface IInvite {
   sso_enabled: boolean;
   mfa_enabled?: boolean;
   global_role: UserRole | null;
-  teams: ITeam[];
+  fleets: ITeam[];
   api_only?: boolean;
 }
 
@@ -22,7 +22,7 @@ export interface ICreateInviteFormData {
   name: string;
   sso_enabled?: boolean;
   mfa_enabled?: boolean;
-  teams: ITeam[];
+  fleets: ITeam[];
 }
 
 export interface IEditInviteFormData {
@@ -33,5 +33,5 @@ export interface IEditInviteFormData {
   password: null;
   sso_enabled: boolean;
   mfa_enabled?: boolean;
-  teams?: ITeam[];
+  fleets?: ITeam[];
 }

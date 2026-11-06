@@ -60,7 +60,6 @@ func (m *Store) GetCurrentTime(ctx context.Context) (time.Time, error) {
 
 func (m *Store) Drop() error                             { return nil }
 func (m *Store) MigrateTables(ctx context.Context) error { return nil }
-func (m *Store) MigrateData(ctx context.Context) error   { return nil }
 func (m *Store) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus, error) {
 	return &fleet.MigrationStatus{}, nil
 }

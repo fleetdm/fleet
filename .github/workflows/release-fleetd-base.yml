@@ -235,7 +235,9 @@ jobs:
   build-fleetd-base-msi:
     needs: [check-for-fleetd-component-updates]
     if: needs.check-for-fleetd-component-updates.outputs.update_needed == 'true'
-    runs-on: ubuntu-latest
+    # Wine in the fleetdm/wix image fails on ubuntu-26.04. Use ubuntu-latest once msi
+    # generation is pure Go: https://github.com/fleetdm/fleet/issues/50503
+    runs-on: ubuntu-24.04
     env:
       FULL_DATE_DIR: archive/stable/${{ needs.check-for-fleetd-component-updates.outputs.date_dir }}
     steps:

@@ -111,7 +111,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
     () => teamsAPI.loadAll(),
     {
       enabled: isRouteOk,
-      select: (data: ILoadTeamsResponse) => data.teams,
+      select: (data: ILoadTeamsResponse) => data.fleets,
     }
   );
 
@@ -284,7 +284,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
             ) {
               // If user edits self and removes "admin" role,
               // redirect to home
-              const selectedTeam = formData.teams.filter(
+              const selectedTeam = formData.fleets.filter(
                 (thisTeam) => thisTeam.id === teamIdForApi
               );
               if (selectedTeam && selectedTeam[0].role !== "admin") {
@@ -421,7 +421,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           defaultEmail={userEditing?.email}
           defaultGlobalRole={userEditing?.global_role || null}
           defaultTeamRole={userEditing?.role}
-          defaultTeams={userEditing?.teams}
+          defaultTeams={userEditing?.fleets}
           availableTeams={teams || []}
           isPremiumTier={isPremiumTier || false}
           smtpConfigured={smtpConfigured}

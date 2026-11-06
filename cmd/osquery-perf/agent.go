@@ -390,7 +390,13 @@ type mdmAgent struct {
 	supplementalOSVersionExtra string
 	isPersonalEnrollment       bool
 	apnsPushURL                string
+	apnsTopic                  string
 }
+
+// defaultMDMAPNSTopic is what simulated Apple devices send as their APNs topic when
+// -mdm_apns_topic isn't set. Fleet loads its one APNs certificate whatever the topic, so a
+// shared placeholder is enough to keep it at a single push provider, like production.
+const defaultMDMAPNSTopic = "com.apple.mgmt.External.osquery-perf"
 
 // delayCancelableMDMAck holds the fetch→acknowledge window open for
 // cancelable MDM commands (lock, wipe, clear passcode, enable lost mode) so
@@ -802,6 +808,7 @@ func newAgent(
 	mdmProbWindows float64,
 	mdmUserProb float64,
 	mdmSCEPChallenge string,
+	mdmAPNSTopic string,
 	liveQueryFailProb float64,
 	liveQueryNoResultsProb float64,
 	disableScriptExec bool,
@@ -849,7 +856,7 @@ func newAgent(
 			SCEPChallenge: mdmSCEPChallenge,
 			SCEPURL:       serverAddress + apple_mdm.SCEPPath,
 			MDMURL:        serverAddress + apple_mdm.MDMPath,
-		}, "MacBookPro16,1")
+		}, "MacBookPro16,1", mdmtest.WithPushTopic(mdmAPNSTopic))
 		// Have the osquery agent match the MDM device serial number and UUID.
 		serialNumber = macMDMClient.SerialNumber
 		hostUUID = macMDMClient.UUID
@@ -4612,7 +4619,7 @@ func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
 		SCEPChallenge: mdmSCEPChallenge,
 		SCEPURL:       a.serverAddress + apple_mdm.SCEPPath,
 		MDMURL:        a.serverAddress + apple_mdm.MDMPath,
-	}, a.model)
+	}, a.model, mdmtest.WithPushTopic(a.apnsTopic))
 	mdmClient.UUID = udid
 	mdmClient.SerialNumber = mdmtest.RandSerialNumber()
 	deviceName := fmt.Sprintf("%s-%d", a.model, a.agentIndex)
@@ -4871,6 +4878,7 @@ func main() {
 		mdmUserProb                  = flag.Float64("mdm_user_prob", 0.0, "Probability of a host having an MDM user enrollment (compounds on mdm_prob) [0, 1]")
 		mdmAPNSURL                   = flag.String("mdm_apns_url", "", "APNS URL to check for MDM push notifications (e.g., http://localhost:8378) - required for Apple (macOS/iOS/iPadOS) MDM enrollments.")
 		mdmSCEPChallenge             = flag.String("mdm_scep_challenge", "", "SCEP challenge to use when running macOS MDM enroll")
+		mdmAPNSTopic                 = flag.String("mdm_apns_topic", defaultMDMAPNSTopic, "APNs topic simulated Apple MDM devices send at check-in. Set it to the UID of Fleet's APNs certificate (com.apple.mgmt.External.<uuid>) to match real devices. The default is a placeholder shared by all simulated devices; an empty value gives each device its own topic (and Fleet one push provider per device)")
 		mdmProfileFailureProb        = flag.Float64("mdm_profile_failure_prob", 0.0, "Probability of an MDM profile to fail install [0, 1]")
 		mdmCancelableCommandAckDelay = flag.Duration("mdm_cancelable_command_ack_delay", 0, "Delay between fetching a cancelable MDM command (lock, wipe, clear passcode, enable lost mode) and acknowledging it, opening a window to test command cancellation")
 		mdmIOSBYODProb               = flag.Float64("mdm_ios_byod_prob", 0.0, "Probability of a simulated iOS/iPadOS device (os_templates iphone_14.6/ipad_13.18/iphone_17) reporting as a personal (BYOD) enrollment, which omits the newer device vitals fields from its DeviceInformation ack [0, 1]")
@@ -4987,6 +4995,9 @@ func main() {
 	}
 	if *mdmProbWindows < 0 {
 		*mdmProbWindows = *mdmProb
+	}
+	if *mdmAPNSTopic != "" && !strings.HasPrefix(*mdmAPNSTopic, "com.apple.mgmt.") {
+		log.Fatalf("Argument mdm_apns_topic must be an APNs MDM topic (com.apple.mgmt.External.<uuid>), got %q", *mdmAPNSTopic)
 	}
 
 	// only fail if mdm is turned on for macOS devices and the mdm_apns_url is not specified.
@@ -5105,6 +5116,7 @@ func main() {
 				mdmProfileFailureProb: *mdmProfileFailureProb,
 				cancelableCmdAckDelay: *mdmCancelableCommandAckDelay,
 				apnsPushURL:           *mdmAPNSURL,
+				apnsTopic:             *mdmAPNSTopic,
 			}
 			go mobileDevice.runAppleIDeviceMDMLoop(*mdmSCEPChallenge)
 			time.Sleep(sleepTime)
@@ -5217,6 +5229,7 @@ func main() {
 			*mdmProbWindows,
 			*mdmUserProb,
 			*mdmSCEPChallenge,
+			*mdmAPNSTopic,
 			*liveQueryFailProb,
 			*liveQueryNoResultsProb,
 			*disableScriptExec,

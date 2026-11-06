@@ -3977,6 +3977,29 @@ WHERE id IN (?)`
 	return hosts, nil
 }
 
+// hostByIdentifierWhere picks the host matching an identifier using one index per column. Each subselect excludes empty values because
+// the collations ignore trailing spaces and characters like a zero width space, so an identifier made of those equals an empty value.
+const hostByIdentifierWhere = `
+    WHERE h.id = (
+      SELECT candidates.id FROM (
+        (SELECT id, 0 AS priority FROM hosts WHERE hardware_serial = ? AND hardware_serial <> '' ORDER BY id LIMIT 1)
+        UNION ALL
+        (SELECT id, 1 FROM hosts WHERE uuid = ? AND uuid <> '' ORDER BY id LIMIT 1)
+        UNION ALL
+        (SELECT id, 2 FROM hosts WHERE hostname = ? AND hostname <> '' ORDER BY id LIMIT 1)
+        UNION ALL
+        (SELECT id, 3 FROM hosts WHERE osquery_host_id = ? AND osquery_host_id <> '')
+        UNION ALL
+        (SELECT id, 4 FROM hosts WHERE node_key = ? AND node_key <> '')
+      ) candidates
+      ORDER BY candidates.priority
+      LIMIT 1
+    )`
+
+func hostByIdentifierArgs(identifier string) []any {
+	return []any{identifier, identifier, identifier, identifier, identifier}
+}
+
 func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*fleet.Host, error) {
 	stmt := `
     SELECT
@@ -4034,11 +4057,10 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
     LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
     ` + hostMDMJoin + `
-    WHERE ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid, h.hardware_serial)
-    LIMIT 1
+    ` + hostByIdentifierWhere + `
 	`
 	host := &fleet.Host{}
-	err := sqlx.GetContext(ctx, ds.reader(ctx), host, stmt, identifier)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), host, stmt, hostByIdentifierArgs(identifier)...)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("Host").WithName(identifier))
@@ -6118,6 +6140,7 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 			COALESCE(h.team_id, 0) as team_id,
 			hda.host_id IS NOT NULL AND hda.deleted_at IS NULL as dep_assigned_to_fleet,
 			h.node_key IS NOT NULL as osquery_enrolled,
+			COALESCE(hm.enrolled = 1 AND hm.is_personal_enrollment = 0 AND mdms.name = ?, false) AS fleet_enrolled_corporate,
 			EXISTS (SELECT 1 FROM nano_cert_auth_associations WHERE id = h.uuid AND renew_command_uuid IS NOT NULL) AS scep_renewal_in_progress,
 			h.platform,
 			hda.mdm_migration_deadline,
@@ -6129,12 +6152,15 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 			host_mdm hm
 		ON h.id = hm.host_id
 		LEFT JOIN
+			mobile_device_management_solutions mdms
+		ON hm.mdm_id = mdms.id
+		LEFT JOIN
 			host_display_names hd
 		ON h.id = hd.host_id
 		LEFT JOIN
 			host_dep_assignments hda
 		ON h.id = hda.host_id
-		WHERE h.uuid = ? LIMIT 1`, hostUUID)
+		WHERE h.uuid = ? LIMIT 1`, fleet.WellKnownMDMFleet, hostUUID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("Host").WithMessage(fmt.Sprintf("with UUID: %s", hostUUID)))
@@ -7536,18 +7562,18 @@ func (ds *Datastore) loadHostLite(ctx context.Context, id *uint, identifier *str
     LIMIT 1
 	`
 	var (
-		arg         interface{}
+		args        []any
 		whereClause string
 	)
 	if identifier != nil {
-		whereClause = "WHERE ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid, h.hardware_serial)"
-		arg = identifier
+		whereClause = hostByIdentifierWhere
+		args = hostByIdentifierArgs(*identifier)
 	} else {
 		whereClause = "WHERE id = ?"
-		arg = id
+		args = []any{id}
 	}
 	host := &fleet.HostLite{}
-	err := sqlx.GetContext(ctx, ds.reader(ctx), host, fmt.Sprintf(stmt, whereClause), arg)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), host, fmt.Sprintf(stmt, whereClause), args...)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			if identifier != nil {

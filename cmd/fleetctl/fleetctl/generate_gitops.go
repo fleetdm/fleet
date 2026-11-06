@@ -145,13 +145,13 @@ func (r aliasRule) appliesIn(enclosingKey string) bool {
 // aliasRules maps deprecated JSON key names to their new canonical names.
 // Used by replaceAliasKeys and yamlMarshalRenamed to rename keys in serialized output
 // for generate_gitops, fleetctl get (via printSpec), and fleetctl apply.
-// Derived entirely from spec.DeprecatedGitOpsKeyMappings using leaf key segments,
+// Derived entirely from spec.DeprecatedGitOpsKeyMappings and spec.RemovedGitOpsKeys using leaf key segments,
 // with scopes from spec.DeprecatedGitOpsKeyScopes.
 var aliasRules = buildAliasRules()
 
 func buildAliasRules() map[string]aliasRule {
 	rules := make(map[string]aliasRule)
-	for _, m := range spec.DeprecatedGitOpsKeyMappings {
+	for _, m := range slices.Concat(spec.DeprecatedGitOpsKeyMappings, spec.RemovedGitOpsKeys) {
 		// Take the last segment of the old and new paths as the leaf key names.
 		// Remove any array indicators (e.g. "[]") in case an array key is renamed.
 		oldLeaf := m.OldPath
