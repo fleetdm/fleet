@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.6.3",
+      "version": "1.6.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'garden.lemon.Retcon';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'garden.lemon.Retcon' AND version_compare(bundle_short_version, '1.6.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'garden.lemon.Retcon' AND version_compare(bundle_short_version, '1.6.4') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'garden.lemon.Retcon' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://downloads.lemon.garden/retcon/retcon-1.6.3.dmg",
+      "installer_url": "https://downloads.lemon.garden/retcon/retcon-1.6.4.dmg",
       "install_script_ref": "3b456a04",
       "uninstall_script_ref": "700ab070",
-      "sha256": "09d1f705f03622013562196c4972e44635e70dce324c6aa2d782c1265e1337bd",
+      "sha256": "d18c9c9eadba7a03e0dda14c7a05fadb634b39379c61eecfc91bf36f0fb922df",
       "default_categories": [
         "Productivity"
       ]
