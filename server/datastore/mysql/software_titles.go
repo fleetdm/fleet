@@ -558,11 +558,14 @@ func (ds *Datastore) processSoftwareTitleResults(
 		// always carry a non-nil InstallerID; VPP-backed policies do not
 		// (they're already attached above via softwareList[i].AppStoreApp).
 		policiesByInstaller := make(map[uint][]fleet.AutomaticInstallPolicy)
+		policiesByVersionID := make(map[uint][]fleet.AutomaticInstallPolicy)
 		for _, p := range policies {
-			if p.InstallerID == nil {
-				continue
+			if p.InstallerID != nil {
+				policiesByInstaller[*p.InstallerID] = append(policiesByInstaller[*p.InstallerID], p)
 			}
-			policiesByInstaller[*p.InstallerID] = append(policiesByInstaller[*p.InstallerID], p)
+			if p.VPPAppsTeamsID != nil {
+				policiesByVersionID[*p.VPPAppsTeamsID] = append(policiesByVersionID[*p.VPPAppsTeamsID], p)
+			}
 		}
 		for titleID, pkgs := range packagesByTitle {
 			i, ok := titleIndex[titleID]
@@ -587,7 +590,6 @@ func (ds *Datastore) processSoftwareTitleResults(
 		}
 		for _, appStoreApp := range appStoreApps {
 			title := softwareList[titleIndex[appStoreApp.TitleID]]
-			// only macOS apps take automatic install policies and they have one version
 			listItem := fleet.AppStoreAppListItem{
 				ID:                       appStoreApp.VPPAppsTeamsID,
 				Name:                     appStoreApp.VersionName,
@@ -595,7 +597,7 @@ func (ds *Datastore) processSoftwareTitleResults(
 				Platform:                 appStoreApp.Platform,
 				Version:                  appStoreApp.LatestVersion,
 				SelfService:              appStoreApp.SelfService,
-				AutomaticInstallPolicies: title.AppStoreApp.AutomaticInstallPolicies,
+				AutomaticInstallPolicies: policiesByVersionID[appStoreApp.VPPAppsTeamsID],
 			}
 			if opt.ForSetupExperience {
 				listItem.InstallDuringSetup = appStoreApp.InstallDuringSetup

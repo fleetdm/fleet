@@ -1022,8 +1022,9 @@ type AutomaticInstallPolicy struct {
 	// InstallerID is nil for VPP-app-backed policies (they carry
 	// vpp_apps_teams_id instead). For custom-package-backed policies it
 	// points at the specific package the policy triggers install on.
-	InstallerID *uint  `json:"-" db:"software_installer_id"`
-	Type        string `json:"type" db:"type"`
+	InstallerID    *uint  `json:"-" db:"software_installer_id"`
+	VPPAppsTeamsID *uint  `json:"-" db:"vpp_apps_teams_id"`
+	Type           string `json:"type" db:"type"`
 }
 
 type PatchPolicyData struct {

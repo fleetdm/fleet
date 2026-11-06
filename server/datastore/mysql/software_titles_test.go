@@ -1087,6 +1087,28 @@ func testListSoftwareTitlesAppStoreApps(t *testing.T, ds *Datastore) {
 		require.Len(t, macTitle.AppStoreApps[0].AutomaticInstallPolicies, 1)
 		require.Equal(t, policy.ID, macTitle.AppStoreApps[0].AutomaticInstallPolicies[0].ID)
 
+		// add an automatic install policy for the iOS "Beta" version and list titles, only the "Beta" version should have it
+		iosPolicy, err := ds.NewTeamPolicy(ctx, fleetID, &user.ID, fleet.PolicyPayload{Name: "app-store-apps-ios-policy-" + c.name, Query: "SELECT 1;"})
+		require.NoError(t, err)
+		iosPolicy.VPPAppsTeamsID = new(iosSecondVersion.AppTeamID)
+		err = ds.SavePolicy(ctx, iosPolicy, false, false)
+		require.NoError(t, err)
+		titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &fleetID}, adminFilter)
+		require.NoError(t, err)
+		titlesByID = map[uint]fleet.SoftwareTitleListResult{titles[0].ID: titles[0], titles[1].ID: titles[1]}
+		iosTitle = titlesByID[iosFirstVersion.TitleID]
+		require.Empty(t, iosTitle.AppStoreApps[0].AutomaticInstallPolicies)
+		require.Len(t, iosTitle.AppStoreApps[1].AutomaticInstallPolicies, 1)
+		require.Equal(t, iosPolicy.ID, iosTitle.AppStoreApps[1].AutomaticInstallPolicies[0].ID)
+
+		// read the iOS title's versions, only the "Beta" version should have the policy
+		iosVersions, err := ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, fleetID, iosFirstVersion.TitleID)
+		require.NoError(t, err)
+		require.Len(t, iosVersions, 2)
+		require.Empty(t, iosVersions[0].AutomaticInstallPolicies)
+		require.Len(t, iosVersions[1].AutomaticInstallPolicies, 1)
+		require.Equal(t, iosPolicy.ID, iosVersions[1].AutomaticInstallPolicies[0].ID)
+
 		// select the iOS title for setup experience and list setup experience software, every version should have install_during_setup
 		err = ds.SetSetupExperienceSoftwareTitles(ctx, string(fleet.IOSPlatform), fleetID, []uint{iosFirstVersion.TitleID})
 		require.NoError(t, err)

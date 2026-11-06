@@ -110,11 +110,17 @@ func (ds *Datastore) getAppStoreAppVersionsByTeamAndTitleID(ctx context.Context,
 	}
 
 	var policies []fleet.AutomaticInstallPolicy
+	policiesByVersionID := make(map[uint][]fleet.AutomaticInstallPolicy)
 	var iconURL *string
 	if teamID != nil {
 		policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, *teamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get policies by software title ID")
+		}
+		for _, p := range policies {
+			if p.VPPAppsTeamsID != nil {
+				policiesByVersionID[*p.VPPAppsTeamsID] = append(policiesByVersionID[*p.VPPAppsTeamsID], p)
+			}
 		}
 
 		icon, err := ds.GetSoftwareTitleIcon(ctx, *teamID, titleID)
@@ -184,7 +190,7 @@ func (ds *Datastore) getAppStoreAppVersionsByTeamAndTitleID(ctx context.Context,
 			app.Configuration = configuration
 		}
 
-		app.AutomaticInstallPolicies = policies
+		app.AutomaticInstallPolicies = policiesByVersionID[app.VPPAppsTeamsID]
 		if iconURL != nil {
 			app.IconURL = iconURL
 		}
