@@ -123,13 +123,18 @@ func envVarsOf(f cli.Flag) []string {
 	return nil
 }
 
-// rawFlagValue returns the argument after "--name" or "-name" in the invocation, or "" when there is none. urfave/cli drops the parsed
-// arguments when parsing fails, which is when this is needed.
+// rawFlagValue returns the value of "--name", "-name", "--name=value" or "-name=value" in the invocation, or "" when there is none.
+// urfave/cli drops the parsed arguments when parsing fails, which is when this is needed.
 func rawFlagValue(c *cli.Context, name string) string {
 	args := rawArgs(c)
 	for i, arg := range args {
-		if (arg == "--"+name || arg == "-"+name) && i+1 < len(args) {
-			return args[i+1]
+		for _, flag := range []string{"--" + name, "-" + name} {
+			if arg == flag && i+1 < len(args) {
+				return args[i+1]
+			}
+			if value, ok := strings.CutPrefix(arg, flag+"="); ok {
+				return value
+			}
 		}
 	}
 	return ""

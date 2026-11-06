@@ -54,17 +54,24 @@ func TestRemovedFlags(t *testing.T) {
 	}
 }
 
-// TestRemovedFlagValues covers the values that the error spec calls out: a removed flag with one of them gets the message of the value.
+// TestRemovedFlagValues covers the values that the error spec calls out: a removed flag with one of them gets the message of the value,
+// whether the value follows the flag or is joined to it with "=".
 func TestRemovedFlagValues(t *testing.T) {
 	entries := removednames.Filter(removednames.KindFlagValue, 0)
 	require.NotEmpty(t, entries)
 
 	for _, entry := range entries {
 		t.Run(entry.Context+" "+entry.Old, func(t *testing.T) {
-			app := CreateApp(nil, io.Discard, io.Discard, func(*cli.Context, error) {})
-			full := append(strings.Fields(entry.Context), strings.Fields(entry.Old)...)
-			StashRawArgs(app, full)
-			require.EqualError(t, app.Run(full), entry.Message())
+			flag, value, _ := strings.Cut(entry.Old, " ")
+			for _, args := range [][]string{{flag, value}, {flag + "=" + value}, {strings.TrimPrefix(flag, "-") + "=" + value}} {
+				if !strings.HasPrefix(args[0], "-") {
+					args[0] = "-" + args[0]
+				}
+				app := CreateApp(nil, io.Discard, io.Discard, func(*cli.Context, error) {})
+				full := append(strings.Fields(entry.Context), args...)
+				StashRawArgs(app, full)
+				require.EqualError(t, app.Run(full), entry.Message(), strings.Join(args, " "))
+			}
 		})
 	}
 }
