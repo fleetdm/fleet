@@ -519,6 +519,11 @@ A: You're better off booking 30-minute blocks instead.  Calendly is configured t
 The underlying principle is simple: we optimize for the people on the other side of the calendar.  Limited or fragmented availability creates friction that hurts the prospect and customer experience.
 
 
+## Why do we use either Keynote or PDFs for presentations and collateral?
+
+Google Slides doesn't export PDFs properly sometimes, and it also has bad defaults around including skipped slides. Instead, at Fleet we use Keynote for all public-facing slide decks and customer materials (customers, prospects, investors, any time the audience is outside the company). [Prebuilt PDFs from the Fleet design team](https://fleetdm.com/handbook/company/go-to-market-operations#slide-decks) can also be used.
+
+
 #### Stubs
 
 The following stubs are included only so that old links continue to work (for backwards compatibility.)
