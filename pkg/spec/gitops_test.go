@@ -852,7 +852,7 @@ func TestWhitespaceOnlyTeamName(t *testing.T) {
 	config += `name: "     "`
 	_, err := gitOpsFromString(t, config)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "team 'name' is required")
+	require.Contains(t, err.Error(), "fleet 'name' is required")
 }
 
 func TestMissingNameErrorMessages(t *testing.T) {
@@ -2580,7 +2580,7 @@ software:
 		Tier: fleet.TierPremium,
 	}
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
-	assert.ErrorContains(t, err, "the software package defined in software/single-package.yml must not have icons, scripts, queries, URL, or hash specified at the team level")
+	assert.ErrorContains(t, err, "the software package defined in software/single-package.yml must not have icons, scripts, queries, URL, or hash specified at the fleet level")
 }
 
 func TestScriptOnlyPackagesPathWithInline(t *testing.T) {
@@ -2737,7 +2737,7 @@ software:
 	_, err := GitOpsFromFile(path, basePath, &appConfig, nopLogf)
 	// The message must not claim scripts/queries are forbidden — they're allowed
 	// for script-only packages.
-	require.ErrorContains(t, err, "must not have install_script, URL, or hash specified at the team level")
+	require.ErrorContains(t, err, "must not have install_script, URL, or hash specified at the fleet level")
 }
 
 func TestIllegalFleetSecret(t *testing.T) {
@@ -6047,7 +6047,7 @@ custom_host_vitals:
   - name: Asset tag
 `)
 		_, err := GitOpsFromFile(path, basePath, nil, nopLogf)
-		require.ErrorContains(t, err, "'custom_host_vitals' cannot be set on a team file")
+		require.ErrorContains(t, err, "'custom_host_vitals' cannot be set on a fleet file")
 	})
 
 	t.Run("rejects an invalid name", func(t *testing.T) {
