@@ -3964,6 +3964,9 @@ func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	if err != nil {
 		return &osVersionsResponse{Err: err}, nil
 	}
+	for i := range osVersions.OSVersions {
+		osVersions.OSVersions[i].UseAPINames()
+	}
 
 	return &osVersionsResponse{
 		CountsUpdatedAt: &osVersions.CountsUpdatedAt,
@@ -4322,6 +4325,7 @@ func getOSVersionEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	if osVersion == nil {
 		osVersion = &fleet.OSVersion{}
 	}
+	osVersion.UseAPINames()
 
 	return getOSVersionResponse{CountsUpdatedAt: updateTime, OSVersion: osVersion}, nil
 }

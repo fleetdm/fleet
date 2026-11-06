@@ -35,6 +35,7 @@ export default PropTypes.shape({
   osquery_version: PropTypes.string,
   orbit_version: PropTypes.string,
   fleet_desktop_version: PropTypes.string,
+  os_name: PropTypes.string,
   os_version: PropTypes.string,
   build: PropTypes.string,
   platform_like: PropTypes.string,
@@ -510,6 +511,9 @@ export interface IHost {
   osquery_version: string;
   orbit_version: string | null;
   fleet_desktop_version: string | null;
+  /** e.g. "macOS" or "Windows 11 Pro 24H2"; use getHostOSDisplayName to show it */
+  os_name: string;
+  /** The version without the name, e.g. "15.2" */
   os_version: string;
   build: string;
   platform_like: string; // TODO: replace with more specific union type

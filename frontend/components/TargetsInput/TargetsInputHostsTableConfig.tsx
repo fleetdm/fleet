@@ -9,6 +9,7 @@ import LiveQueryIssueCell from "components/TableContainer/DataTable/LiveQueryIss
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import { IStringCellProps } from "interfaces/datatable_config";
 import { IHost } from "interfaces/host";
+import { getHostOSDisplayName } from "utilities/helpers";
 
 export type ITargestInputHostTableConfig = Column<IHost>;
 type ITableStringCellProps = IStringCellProps<IHost>;
@@ -71,7 +72,14 @@ export const generateTableHeaders = (
     {
       Header: "OS",
       accessor: "os_version",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      Cell: (cellProps) => (
+        <TextCell
+          value={getHostOSDisplayName(
+            cellProps.row.original.os_name,
+            cellProps.row.original.os_version
+          )}
+        />
+      ),
     },
     {
       Header: "Osquery",
