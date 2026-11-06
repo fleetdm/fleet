@@ -61,10 +61,11 @@ module.exports = {
     }
 
     let authHeader = req.get('authorization');
-    if(!authHeader || !authHeader.startsWith('Bearer ')) {
+    // Authentication schemes are case-insensitive.
+    if(!authHeader || !/^bearer /i.test(authHeader)) {
       throw 'couldNotAuthenticate';
     }
-    let fleetServerSecret = authHeader.replace('Bearer ', '').trim();
+    let fleetServerSecret = authHeader.replace(/^bearer /i, '').trim();
     if(!fleetServerSecret) {
       throw 'couldNotAuthenticate';
     }

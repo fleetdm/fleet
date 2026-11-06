@@ -53,6 +53,9 @@ module.exports = {
 
   fn: async function ({platform, naturalLanguageInstructions, fleetLicenseKey}) {
 
+    // Fleet's wait starts when it sends the request, so the time limit below starts here too.
+    let startedAt = Date.now();
+
     // Counted the same way as for the profile itself.
     const MAX_INSTRUCTIONS_LENGTH = 2000;
     if(Array.from(naturalLanguageInstructions).length > MAX_INSTRUCTIONS_LENGTH) {
@@ -124,7 +127,7 @@ ${naturalLanguageInstructions}
     let timeout;
     let result;
     try {
-      result = await Promise.race([naming, new Promise((resolve)=>{ timeout = setTimeout(()=>{ resolve('timedOut'); }, TIMEOUT_MS); })]);
+      result = await Promise.race([naming, new Promise((resolve)=>{ timeout = setTimeout(()=>{ resolve('timedOut'); }, Math.max(0, TIMEOUT_MS - (Date.now() - startedAt))); })]);
     } catch(err) {
       // Only a request the AI service never answered is given back, the same as for a profile.
       if(usage && err.llmDidNotAnswer) {

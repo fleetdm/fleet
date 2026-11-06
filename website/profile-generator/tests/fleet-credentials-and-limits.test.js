@@ -85,11 +85,12 @@ describe('profile generator credentials and limits for Fleet servers', function(
 
   // A request with no marketingAttribution cookie makes the custom hook set one, which a virtual response
   // cannot do, so every request carries one.
-  let post = (url, data, fleetServerSecret)=>{
+  let post = (url, data, fleetServerSecret, extraHeaders)=>{
     let headers = { cookie: 'marketingAttribution=%7B%7D' };
     if(fleetServerSecret) {
       headers.authorization = `Bearer ${fleetServerSecret}`;
     }
+    _.extend(headers, extraHeaders);
     return new Promise((resolve)=>{
       sails.request({ method: 'POST', url, data, headers }, (err, res, body)=>{
         resolve(err ? { status: err.status, body: err.body } : { status: res.statusCode, body });
@@ -187,6 +188,13 @@ describe('profile generator credentials and limits for Fleet servers', function(
         assert.strictEqual((await requestProfile(fleetServerSecret)).status, 401);
         assert.strictEqual((await requestNameAndDescription(fleetServerSecret)).status, 401);
       }
+      // The scheme is case-insensitive.
+      stubbedOutcome = generatedResult;
+      let lowercase = await post(PROFILE_URL, { platform: 'windows', naturalLanguageInstructions: 'Block removable storage' }, undefined, { authorization: `bearer ${registration.fleetServerSecret}` });
+      assert.strictEqual(lowercase.status, 200);
+      stubCalls = [];
+      await ProfileGeneratorRegistration.updateOne({ id: registration.id }).set({ usageMonth: '', profileGenerationsThisMonth: 0 });
+
       // A secret that is right but not sent as a bearer token.
       let response = await post(PROFILE_URL, { platform: 'windows', naturalLanguageInstructions: 'Block removable storage', fleetServerSecret: registration.fleetServerSecret });
       assert.strictEqual(response.status, 401);
@@ -347,6 +355,29 @@ describe('profile generator credentials and limits for Fleet servers', function(
       stubbedOutcome = generatedResult;
       assert.strictEqual((await requestProfile(registration.fleetServerSecret)).status, 200);
       assert.deepStrictEqual(await usageOf(registration), usedThisMonth(1, 45));
+    });
+
+    it('times out 8 seconds after the request arrived, including the time spent counting it', async function() {
+      this.timeout(15000);
+      let registration = await createRegistration();
+      let originalCountOneRequest = sails.helpers.profileGenerator.countOneRequest;
+      sails.helpers.profileGenerator.countOneRequest = {
+        with(inputs) {
+          let counted = new Promise((resolve)=>{ setTimeout(resolve, 2000); }).then(()=>{ return originalCountOneRequest.with(inputs); });
+          counted.intercept = (exitName, handler)=>{ return counted.catch((err)=>{ throw err.exit === exitName ? handler(err) : err; }); };
+          return counted;
+        },
+      };
+      stubbedOutcome = ()=>{ return new Promise(()=>{}); };
+      let startedAt = Date.now();
+      let response;
+      try {
+        response = await requestNameAndDescription(registration.fleetServerSecret);
+      } finally {
+        sails.helpers.profileGenerator.countOneRequest = originalCountOneRequest;
+      }
+      assert.strictEqual(response.status, 500);
+      assert.ok(Date.now() - startedAt < 9000, `answered after ${Date.now() - startedAt}ms`);
     });
 
     it('gives a timed-out request back if the AI service then fails without answering', async function() {
