@@ -11,7 +11,12 @@
     color: @core-fleet-black;
     margin-bottom: 0px;
   }
-  h5 {
+  [purpose='feature-heading'] h3, [purpose='feature-text'] > h3 {
+    .title-m();
+    color: @core-fleet-black;
+    margin-bottom: 0px;
+  }
+  [purpose='feature'] h3 {
     .title-s();
     font-weight: @bold;
     color: @core-fleet-black;
@@ -421,16 +426,23 @@
       flex-direction: column;
       gap: @inner-padding;
     }
+    [purpose='feature-graphic'] {
+      width: 100%;
+      max-width: 504px;
+      height: auto;
+      margin-bottom: @section-gap;
+    }
   }
 
   // Feature rows
-  [purpose='feature-pair'] {
+  [purpose='feature-group'] {
     display: flex;
     flex-direction: column;
     gap: 96px;
   }
-  [purpose='page-section'] > [purpose='feature-with-image'] {
-    margin-top: @section-gap;
+  // Adds to the section's 48px gap so the heading sits 96px above the first row, like the rows themselves.
+  [purpose='page-section'] > [purpose='feature-group'] {
+    margin-top: @section-48;
   }
   [purpose='feature-with-image'] {
     .feature-with-image();
@@ -485,62 +497,31 @@
     }
   }
 
-  // Quote and logos
-  [purpose='quote-and-logos'] {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: @section-64;
-  }
-  [purpose='section-quote'] {
-    display: flex;
-    flex-direction: row;
-    align-items: flex-start;
-    gap: 24px;
-    flex: 1 1 50%;
-    [purpose='quote-content'] {
-      display: flex;
-      flex-direction: column;
-      gap: 24px;
-    }
-    [purpose='quote-text'] {
-      font-size: 18px;
-      font-style: italic;
-    }
-  }
-  [purpose='quote-author-image'] {
-    img {
-      height: 48px;
-      width: 48px;
-      border-radius: 50%;
-      object-fit: cover;
-    }
-  }
-  [purpose='name-and-title'] {
+  // Logo strip
+  [purpose='logo-strip'] {
     display: flex;
     flex-direction: column;
-    gap: @inner-padding-xxs;
+    align-items: center;
+    gap: @section-gap;
+    width: 100%;
   }
-  [purpose='author-name'] {
+  [purpose='logo-strip-label'] {
     font-size: 14px;
     font-weight: @bold;
     color: @core-fleet-black;
   }
-  [purpose='author-title'] {
-    .body-m();
-  }
-  // The grid's background shows through the 1px gaps as divider lines between logos.
-  [purpose='logo-grid'] {
+  [purpose='logo-tiles'] {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1px;
-    flex: 1 1 50%;
-    background-color: @core-fleet-black-10;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 16px;
+    width: 100%;
     [purpose='logo'] {
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 76px;
+      height: 80px;
+      border: 1px solid @core-fleet-black-10;
+      border-radius: 8px;
       background-color: @accent-white;
       // Each logo's height comes from its height attribute so differently shaped logos look balanced.
       // object-fit keeps wide logos from stretching when max-width caps them.
@@ -577,7 +558,7 @@
       align-items: flex-start;
       gap: @inner-padding-xs;
       padding: @section-gap @page-padding;
-      h3 {
+      h2 {
         font-size: 20px;
         line-height: 150%;
         font-weight: @bold;
@@ -641,14 +622,25 @@
       font-size: 22px;
       font-style: italic;
     }
-    [purpose='quote-author-info'] {
+    [purpose='quote-author-image'] img {
+      height: 64px;
+      width: 64px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    [purpose='name-and-title'] {
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: @inner-padding-xxs;
     }
-    [purpose='name-and-title'] {
-      align-items: center;
+    [purpose='author-name'] {
+      font-size: 14px;
+      font-weight: @bold;
+      color: @core-fleet-black;
+    }
+    [purpose='author-title'] {
+      .body-m();
     }
   }
 
@@ -709,6 +701,9 @@
     align-items: center;
     gap: @section-48;
     text-align: center;
+    h2 {
+      .page-heading();
+    }
   }
 
   @media (max-width: 1199px) {
@@ -727,21 +722,8 @@
     [purpose='photo-collage'] {
       max-width: calc(~'50% - 24px');
     }
-    [purpose='quote-and-logos'] {
-      flex-direction: column;
-      gap: @section-64-md;
-      [purpose='section-quote'] {
-        flex-direction: column;
-        align-items: center;
-        max-width: 560px;
-        text-align: center;
-      }
-      [purpose='name-and-title'] {
-        align-items: center;
-      }
-      [purpose='logo-grid'] {
-        width: 100%;
-      }
+    [purpose='logo-tiles'] {
+      grid-template-columns: repeat(3, 1fr);
     }
     [purpose='migration-banner'] [purpose='banner-image'] {
       flex-basis: 280px;
@@ -755,11 +737,14 @@
     [purpose='photo-collage'] {
       max-width: 100%;
     }
-    [purpose='feature-pair'] {
+    [purpose='feature-group'] {
       gap: @section-160-xs;
     }
     [purpose='two-column-features'] {
       grid-template-columns: 1fr;
+      [purpose='feature-graphic'] {
+        max-width: 100%;
+      }
     }
     [purpose='migration-banner'] {
       flex-direction: column;
@@ -783,7 +768,7 @@
     [purpose='page-hero'] {
       padding-top: 0;
     }
-    [purpose='logo-grid'] {
+    [purpose='logo-tiles'] {
       grid-template-columns: repeat(2, 1fr);
     }
     [purpose='quote-section'] [purpose='quote-text'] {
