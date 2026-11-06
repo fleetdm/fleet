@@ -13,6 +13,7 @@ import { AppContext } from "context/app";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { IConfig, isOktaConditionalAccessConfigured } from "interfaces/config";
+import { getErrorReason } from "interfaces/errors";
 import conditionalAccessAPI from "services/entities/conditional_access";
 import configAPI from "services/entities/config";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
@@ -33,6 +34,19 @@ interface IFormData {
   [OKTA_AUDIENCE_URI]: string;
   [OKTA_CERTIFICATE]: string;
 }
+
+// The request uses responseType "blob", so a JSON error body arrives as a Blob.
+const getBlobErrorReason = async (e: unknown): Promise<string> => {
+  const data = (e as { data?: unknown } | undefined)?.data;
+  if (data instanceof Blob) {
+    try {
+      return getErrorReason({ data: JSON.parse(await data.text()) });
+    } catch {
+      return "";
+    }
+  }
+  return getErrorReason(e);
+};
 
 export const validate = (data: IFormData): IFormErrors => {
   const errors: IFormErrors = {};
@@ -73,7 +87,7 @@ export const validate = (data: IFormData): IFormErrors => {
   } else if (data[OKTA_CERTIFICATE].length > MAX_CERT_LENGTH) {
     errors[
       OKTA_CERTIFICATE
-    ] = `Certificate must be ${MAX_CERT_LENGTH} characters or fewer`;
+    ] = `Upload only the Okta certificate (${MAX_CERT_LENGTH} characters or fewer)`;
   }
 
   return errors;
@@ -135,7 +149,25 @@ const OktaConditionalAccessModal = ({
       downloadLink.remove();
       URL.revokeObjectURL(url);
     } catch (e: unknown) {
-      notify.error("Failed to download signing certificate.", { response: e });
+      const reason = await getBlobErrorReason(e);
+      if (reason.toLowerCase().includes("private key is not configured")) {
+        notify.error(
+          <>
+            Couldn&apos;t download. Please configure a private key.{" "}
+            <CustomLink
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/fleet-server-private-key`}
+              text="Learn how"
+              newTab
+              variant="flash-message-link"
+            />
+          </>,
+          { response: e }
+        );
+      } else {
+        notify.error("Something's gone wrong. Please try again.", {
+          response: e,
+        });
+      }
     } finally {
       setIsDownloadingCert(false);
     }

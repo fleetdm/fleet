@@ -404,6 +404,9 @@ export const FileUploader = ({
     >
       {renderLabel()}
       <Card color="grey" className={classes}>
+        {fileDetails && errorText && (
+          <div className={`${baseClass}__internal-error`}>{errorText}</div>
+        )}
         {fileDetails ? (
           <FileDetails
             graphicNames={graphicNames}
