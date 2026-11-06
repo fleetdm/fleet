@@ -3558,6 +3558,51 @@ func (s *integrationEnterpriseTestSuite) TestNonPolicySoftwareInstallRetries() {
 	require.Nil(t, pendingInstall)
 }
 
+// A PATCH that doesn't touch display_name on an installer with a stored
+// per-fleet display name override must still carry that override in the
+// edited_software activity. A prior regression emitted an empty string in
+// that case, which reads as "cleared" to downstream consumers.
+func (s *integrationEnterpriseTestSuite) TestEditInstallerCarriesStoredDisplayName() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team"})
+	require.NoError(t, err)
+
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "ruby.deb",
+		Title:         "ruby",
+		Version:       "1:2.5.1",
+		Source:        "deb_packages",
+		StorageID:     "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
+		Platform:      "linux",
+		TeamID:        &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+	_, titleID := checkSoftwareInstaller(t, s.ds, payload)
+
+	const override = "Ruby (admin override)"
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, execErr := q.ExecContext(ctx,
+			`INSERT INTO software_title_display_names (team_id, software_title_id, display_name) VALUES (?, ?, ?)`,
+			team.ID, titleID, override)
+		return execErr
+	})
+
+	// PATCH a non-display-name field. The edit activity must include the stored override.
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		SelfService:   new(true),
+		InstallScript: new("install"),
+		Filename:      "ruby.deb",
+		TitleID:       titleID,
+		TeamID:        &team.ID,
+	}, http.StatusOK, "")
+	s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), fmt.Sprintf(
+		`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": %q, "fleet_name": %q, "team_id": %d, "fleet_id": %d, "self_service": true, "software_title_id": %d, "software_display_name": %q, "pinned_version": null}`,
+		team.Name, team.Name, team.ID, team.ID, titleID, override), 0)
+}
+
 func (s *integrationEnterpriseTestSuite) TestSoftwareInstallersWithoutBundleIdentifier() {
 	t := s.T()
 	ctx := context.Background()
