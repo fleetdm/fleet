@@ -188,7 +188,9 @@ describe("OktaConditionalAccessPage", () => {
 
     const { user } = renderPage();
 
-    await user.click(screen.getByRole("button", { name: "Settings" }));
+    await user.click(
+      screen.getByRole("button", { name: "Edit configuration" })
+    );
 
     expect(screen.getByLabelText("IdP ID")).toHaveValue(TEST_OKTA_IDP_ID);
     expect(screen.getByLabelText("Assertion consumer service URL")).toHaveValue(
@@ -213,7 +215,9 @@ describe("OktaConditionalAccessPage", () => {
 
     const { user } = renderPage();
 
-    await user.click(screen.getByRole("button", { name: "Settings" }));
+    await user.click(
+      screen.getByRole("button", { name: "Edit configuration" })
+    );
     const idpIdInput = screen.getByLabelText("IdP ID");
     await user.clear(idpIdInput);
     await user.type(idpIdInput, "new-idp-id");

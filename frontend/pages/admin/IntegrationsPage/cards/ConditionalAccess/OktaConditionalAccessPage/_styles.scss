@@ -3,7 +3,16 @@
 
   &__content {
     @include vertical-page-layout;
+    position: relative;
     max-width: $settings-form-max-width;
+  }
+
+  // Sits in the tab list row; the tab list is full width so it can't hold the button itself.
+  &__actions {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 1;
   }
 
   &__profiles {

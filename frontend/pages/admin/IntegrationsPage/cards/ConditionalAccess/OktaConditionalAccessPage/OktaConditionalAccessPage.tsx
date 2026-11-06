@@ -165,7 +165,16 @@ const OktaConditionalAccessPage = ({
       </div>
       <h1>Okta conditional access</h1>
       <div className={`${baseClass}__content`}>
-        <TabNav secondary>
+        <div className={`${baseClass}__actions`}>
+          <Button
+            variant="secondary"
+            icon="pencil"
+            onClick={() => setShowSettingsModal(true)}
+          >
+            Edit configuration
+          </Button>
+        </div>
+        <TabNav>
           <Tabs>
             <TabList>
               <Tab>
@@ -183,9 +192,6 @@ const OktaConditionalAccessPage = ({
             </TabPanel>
           </Tabs>
         </TabNav>
-        <div className={`${baseClass}__actions`}>
-          <Button onClick={() => setShowSettingsModal(true)}>Settings</Button>
-        </div>
       </div>
       {showSettingsModal && (
         <OktaConditionalAccessModal
