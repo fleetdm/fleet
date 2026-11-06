@@ -7,7 +7,11 @@ import { CustomOptionType } from "components/forms/fields/DropdownWrapper/Dropdo
 import Modal from "components/Modal";
 import PageDescription from "components/PageDescription";
 import { AppContext } from "context/app";
-import { IIntegration, IZendeskJiraIntegrations } from "interfaces/integration";
+import {
+  IIntegration,
+  ILinearIntegration,
+  IZendeskJiraIntegrations,
+} from "interfaces/integration";
 
 import IntegrationForm from "../IntegrationForm";
 
@@ -16,16 +20,17 @@ const baseClass = "add-integration-modal";
 interface IAddTicketDestinationModalProps {
   onCancel: () => void;
   onSubmit: (
-    integrationSubmitData: IIntegration[],
+    integrationSubmitData: IIntegration[] | ILinearIntegration[],
     integrationDestination: string
   ) => void | Promise<unknown>;
-  integrations: IZendeskJiraIntegrations;
+  integrations: IZendeskJiraIntegrations & { linear?: ILinearIntegration[] };
   testingConnection: boolean;
 }
 
 const destinationOptions = [
   { label: "Jira", value: "jira" },
   { label: "Zendesk", value: "zendesk" },
+  { label: "Linear", value: "linear" },
 ];
 
 const AddTicketDestinationModal = ({

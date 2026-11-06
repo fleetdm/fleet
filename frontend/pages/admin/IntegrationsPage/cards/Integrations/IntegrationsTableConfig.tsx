@@ -7,10 +7,12 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import {
   IJiraIntegration,
   IZendeskIntegration,
+  ILinearIntegration,
   IIntegrationTableData as IIntegrationCompleteData,
 } from "interfaces/integration";
 
 import JiraIcon from "../../../../../assets/images/icon-jira-24x24@2x.png";
+import LinearIcon from "../../../../../assets/images/icon-linear-24x24@2x.png";
 import ZendeskIcon from "../../../../../assets/images/icon-zendesk-32x24@2x.png";
 
 interface IHeaderProps {
@@ -70,6 +72,17 @@ const generateTableHeaders = (
       sortType: "caseInsensitive",
       accessor: "type",
       Cell: (cellProps: ICellProps) => {
+        if (cellProps.cell.value === "linear") {
+          return (
+            <div className="logo-cell">
+              <img
+                src={LinearIcon}
+                alt="integration-icon"
+                className="linear-icon"
+              />
+            </div>
+          );
+        }
         return (
           <div className="logo-cell">
             <img
@@ -161,13 +174,31 @@ const enhanceZendeskData = (
   });
 };
 
+const enhanceLinearData = (
+  linearIntegrations: ILinearIntegration[]
+): IIntegrationTableData[] => {
+  return linearIntegrations.map((integration, index) => {
+    return {
+      url: "",
+      apiToken: integration.api_key,
+      teamId: integration.team_id,
+      name: `Linear - ${integration.team_id}`,
+      actions: generateActionDropdownOptions(),
+      originalIndex: index,
+      type: "linear",
+    };
+  });
+};
+
 const combineDataSets = (
   jiraIntegrations: IJiraIntegration[],
-  zendeskIntegrations: IZendeskIntegration[]
+  zendeskIntegrations: IZendeskIntegration[],
+  linearIntegrations: ILinearIntegration[] = []
 ): IIntegrationTableData[] => {
   const combine = [
     ...enhanceJiraData(jiraIntegrations),
     ...enhanceZendeskData(zendeskIntegrations),
+    ...enhanceLinearData(linearIntegrations),
   ];
   return combine.map((integration, index) => {
     return { ...integration, tableIndex: index };

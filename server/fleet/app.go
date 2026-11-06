@@ -1294,6 +1294,9 @@ func (c *AppConfig) Obfuscate() {
 	for _, zdIntegration := range c.Integrations.Zendesk {
 		zdIntegration.APIToken = MaskedPassword
 	}
+	for _, linearIntegration := range c.Integrations.Linear {
+		linearIntegration.APIKey = MaskedPassword
+	}
 	for _, gcIntegration := range c.Integrations.GoogleCalendar {
 		gcIntegration.ApiKey.SetMasked()
 	}
@@ -1389,6 +1392,13 @@ func (c *AppConfig) Copy() *AppConfig {
 		for i, z := range c.Integrations.Zendesk {
 			zd := *z
 			clone.Integrations.Zendesk[i] = &zd
+		}
+	}
+	if c.Integrations.Linear != nil {
+		clone.Integrations.Linear = make([]*LinearIntegration, len(c.Integrations.Linear))
+		for i, l := range c.Integrations.Linear {
+			linear := *l
+			clone.Integrations.Linear[i] = &linear
 		}
 	}
 	if len(c.Integrations.GoogleCalendar) > 0 {

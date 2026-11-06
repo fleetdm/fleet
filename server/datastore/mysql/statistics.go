@@ -253,7 +253,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.StatusLogDestination = config.Osquery.StatusLogPlugin
 		stats.AuditLogDestination = config.Activity.AuditLogPlugin
 
-		stats.TicketDestinationConfigured = len(appConfig.Integrations.Jira) > 0 || len(appConfig.Integrations.Zendesk) > 0
+		stats.TicketDestinationConfigured = len(appConfig.Integrations.Jira) > 0 || len(appConfig.Integrations.Zendesk) > 0 || len(appConfig.Integrations.Linear) > 0
 		if appConfig.SSOSettings != nil {
 			stats.SSOConfiguredFleetUsers = appConfig.SSOSettings.EnableSSO
 		}

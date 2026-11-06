@@ -1,4 +1,4 @@
-export type IIntegrationType = "jira" | "zendesk";
+export type IIntegrationType = "jira" | "zendesk" | "linear";
 
 export interface IJiraIntegration {
   url: string;
@@ -18,11 +18,18 @@ export interface IZendeskIntegration {
   enable_software_vulnerabilities?: boolean;
 }
 
+export interface ILinearIntegration {
+  api_key: string;
+  team_id: string;
+}
+
 export interface IIntegration {
   url: string;
   username?: string;
   email?: string;
   api_token: string;
+  api_key?: string;
+  team_id?: string;
   project_key?: string;
   group_id?: number;
   enable_failing_policies?: boolean;
@@ -41,6 +48,7 @@ export interface IIntegrationFormData {
   apiToken: string;
   projectKey?: string;
   groupId?: number;
+  teamId?: string;
   enableSoftwareVulnerabilities?: boolean;
 }
 
@@ -58,6 +66,7 @@ export interface IIntegrationFormErrors {
   apiToken?: string | null;
   groupId?: number | null;
   projectKey?: string | null;
+  teamId?: string | null;
   enableSoftwareVulnerabilities?: boolean;
 }
 
@@ -94,6 +103,7 @@ export interface IGlobalGoogleWorkspaceIntegration {
 export interface IGlobalIntegrations extends IZendeskJiraIntegrations {
   google_calendar?: IGlobalCalendarIntegration[] | null;
   google_workspace?: IGlobalGoogleWorkspaceIntegration[];
+  linear?: ILinearIntegration[];
   // whether or not conditional access is enabled for "No team"
   conditional_access_enabled?: boolean;
 }

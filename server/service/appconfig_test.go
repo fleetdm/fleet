@@ -188,6 +188,44 @@ func TestModifyAppConfigHostExpiryWindow(t *testing.T) {
 	}
 }
 
+// TestModifyAppConfigLinearValidatedBeforeTeamDeletes checks that a
+// bad Linear payload is rejected before any integration is removed
+// from teams, and also in dry-run mode.
+func TestModifyAppConfigLinearValidatedBeforeTeamDeletes(t *testing.T) {
+	for _, dryRun := range []bool{false, true} {
+		t.Run(fmt.Sprintf("dry run %t", dryRun), func(t *testing.T) {
+			ds := new(mock.Store)
+			svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{
+				License: &fleet.LicenseInfo{Tier: fleet.TierFree},
+			})
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				ac := &fleet.AppConfig{
+					OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+					ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+				}
+				// one stored Jira entry that the payload removes
+				ac.Integrations.Jira = []*fleet.JiraIntegration{{
+					URL: "https://example.atlassian.net", Username: "u",
+					APIToken: "t", ProjectKey: "P1",
+				}}
+				return ac, nil
+			}
+			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error { return nil }
+			ds.DeleteIntegrationsFromTeamsFunc = func(ctx context.Context, deleted fleet.Integrations) error { return nil }
+
+			// empty Linear team id, and a Jira list that removes the stored entry
+			body := `{"integrations":{"jira":[],"linear":[{"api_key":"k","team_id":""}]}}`
+			_, err := svc.ModifyAppConfig(ctx, []byte(body), fleet.ApplySpecOptions{DryRun: dryRun})
+			var badReq *fleet.BadRequestError
+			require.ErrorAs(t, err, &badReq)
+			require.ErrorContains(t, err, "missing team id")
+			require.False(t, ds.DeleteIntegrationsFromTeamsFuncInvoked, "team integrations should not be deleted when the payload is rejected")
+			require.False(t, ds.SaveAppConfigFuncInvoked, "config should not be saved when rejected")
+		})
+	}
+}
+
 // TestModifyAppConfigVulnExposureFilters covers the GitOps wiring for the
 // vulnerability-exposure chart filter defaults: the premium gate and the
 // payload validation, both of which reject the apply before persisting. The

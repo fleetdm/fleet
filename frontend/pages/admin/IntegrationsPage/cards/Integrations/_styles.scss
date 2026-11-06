@@ -75,6 +75,14 @@
     .jira-icon {
       width: 24px;
     }
+
+    .linear-icon {
+      width: 16px;
+
+      body.dark-mode & {
+        filter: invert(1);
+      }
+    }
   }
 
   .empty-table__container {

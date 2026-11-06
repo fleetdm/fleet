@@ -10,6 +10,7 @@ import {
   IIntegrationFormData,
   IIntegrationTableData,
   IIntegration,
+  ILinearIntegration,
   IZendeskJiraIntegrations,
   IIntegrationType,
 } from "interfaces/integration";
@@ -19,11 +20,11 @@ const baseClass = "integration-form";
 interface IIntegrationFormProps {
   onCancel: () => void;
   onSubmit: (
-    integrationSubmitData: IIntegration[],
+    integrationSubmitData: IIntegration[] | ILinearIntegration[],
     integrationDestination: string
   ) => void | Promise<unknown>;
   integrationEditing?: IIntegrationTableData;
-  integrations: IZendeskJiraIntegrations;
+  integrations: IZendeskJiraIntegrations & { linear?: ILinearIntegration[] };
   integrationEditingUrl?: string;
   integrationEditingUsername?: string;
   integrationEditingEmail?: string;
@@ -42,6 +43,16 @@ export const validateForm = (
   destination: string
 ): IFormErrors => {
   const errors: IFormErrors = {};
+
+  if (destination === "linear") {
+    if (!data.apiToken) {
+      errors.apiToken = "Enter an API key";
+    }
+    if (!data.teamId) {
+      errors.teamId = "Enter a team ID";
+    }
+    return errors;
+  }
 
   if (!data.url) {
     errors.url = "Enter a URL";
@@ -91,7 +102,11 @@ const IntegrationForm = ({
   testingConnection,
   gitOpsModeEnabled,
 }: IIntegrationFormProps): JSX.Element => {
-  const { jira: jiraIntegrations, zendesk: zendeskIntegrations } = integrations;
+  const {
+    jira: jiraIntegrations,
+    zendesk: zendeskIntegrations,
+    linear: linearIntegrations,
+  } = integrations;
 
   const [integrationDestination, setIntegrationDestination] = useState(
     integrationEditingType || destination || "jira"
@@ -118,6 +133,7 @@ const IntegrationForm = ({
       apiToken: integrationEditingApiToken || "",
       projectKey: integrationEditingProjectKey || "",
       groupId: integrationEditingGroupId || 0,
+      teamId: "",
       enableSoftwareVulnerabilities:
         integrationEnableSoftwareVulnerabilities || false,
     },
@@ -132,15 +148,32 @@ const IntegrationForm = ({
     if (integrationDestination === "jira") {
       clearFieldError("email");
       clearFieldError("groupId");
+      clearFieldError("teamId");
+    } else if (integrationDestination === "linear") {
+      clearFieldError("url");
+      clearFieldError("username");
+      clearFieldError("email");
+      clearFieldError("projectKey");
+      clearFieldError("groupId");
     } else {
       clearFieldError("username");
       clearFieldError("projectKey");
+      clearFieldError("teamId");
     }
   }, [integrationDestination, clearFieldError]);
 
   // IntegrationForm component can be used to create a new integration or edit
   // an existing integration, so submitData will be assembled accordingly.
-  const createSubmitData = (data: IIntegrationFormData): IIntegration[] => {
+  const createSubmitData = (
+    data: IIntegrationFormData
+  ): IIntegration[] | ILinearIntegration[] => {
+    if (integrationDestination === "linear") {
+      return [
+        ...(linearIntegrations || []),
+        { api_key: data.apiToken, team_id: data.teamId || "" },
+      ];
+    }
+
     let jiraIntegrationSubmitData = jiraIntegrations || [];
     let zendeskIntegrationSubmitData = zendeskIntegrations || [];
 
@@ -213,6 +246,8 @@ const IntegrationForm = ({
     );
   }
 
+  const isLinear = integrationDestination === "linear";
+
   return (
     <form
       className={`${baseClass}__form`}
@@ -220,25 +255,28 @@ const IntegrationForm = ({
       autoComplete="off"
       noValidate
     >
-      <InputField
-        autofocus
-        {...getTextFieldProps("url")}
-        label="URL"
-        placeholder={
-          integrationDestination === "jira"
-            ? "https://example.atlassian.net"
-            : "https://example.zendesk.com"
-        }
-        disabled={gitOpsModeEnabled || isSubmitting}
-      />
-      {integrationDestination === "jira" ? (
+      {!isLinear && (
+        <InputField
+          autofocus
+          {...getTextFieldProps("url")}
+          label="URL"
+          placeholder={
+            integrationDestination === "jira"
+              ? "https://example.atlassian.net"
+              : "https://example.zendesk.com"
+          }
+          disabled={gitOpsModeEnabled || isSubmitting}
+        />
+      )}
+      {integrationDestination === "jira" && (
         <InputField
           {...getTextFieldProps("username")}
           label="Username"
           placeholder="name@example.com"
           disabled={gitOpsModeEnabled || isSubmitting}
         />
-      ) : (
+      )}
+      {integrationDestination === "zendesk" && (
         <InputField
           {...getTextFieldProps("email")}
           label="Email"
@@ -248,11 +286,26 @@ const IntegrationForm = ({
         />
       )}
       <InputField
+        autofocus={isLinear}
         {...getTextFieldProps("apiToken")}
-        label="API token"
+        label={isLinear ? "API key" : "API token"}
         disabled={gitOpsModeEnabled || isSubmitting}
       />
-      {integrationDestination === "jira" ? (
+      {isLinear && (
+        <InputField
+          {...getTextFieldProps("teamId")}
+          label="Team ID"
+          disabled={gitOpsModeEnabled || isSubmitting}
+          tooltip={
+            <>
+              To find the team ID, open your team in Linear. Press Cmd+K (Ctrl+K
+              on Windows) and select <strong>Copy model UUID</strong>. The teams
+              query in the Linear API also returns the team ID.
+            </>
+          }
+        />
+      )}
+      {integrationDestination === "jira" && (
         <InputField
           {...getTextFieldProps("projectKey")}
           label="Project key"
@@ -267,7 +320,8 @@ const IntegrationForm = ({
             </>
           }
         />
-      ) : (
+      )}
+      {integrationDestination === "zendesk" && (
         <InputField
           name="groupId"
           label="Group ID"

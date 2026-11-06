@@ -385,6 +385,117 @@ func makeTestZendeskRequest(ctx context.Context, intg *ZendeskIntegration) error
 	return nil
 }
 
+// LinearIntegration configures an instance of an integration with the external Linear service.
+type LinearIntegration struct {
+	APIKey string `json:"api_key"`
+	TeamID string `json:"team_id"` //nolint:apiparamcheck // a Linear team, not a Fleet team
+}
+
+// IndexLinearIntegrations indexes the provided Linear integrations in a map
+// keyed by team ID. It returns an error if a duplicate configuration is found
+// for the same team.
+//
+// Note that the returned map uses non-pointer LinearIntegration struct values,
+// so that any changes to the original value do not modify the value in the map.
+func IndexLinearIntegrations(linearIntgs []*LinearIntegration) (map[string]LinearIntegration, error) {
+	indexed := make(map[string]LinearIntegration, len(linearIntgs))
+	for _, intg := range linearIntgs {
+		if _, ok := indexed[intg.TeamID]; ok {
+			return nil, fmt.Errorf("duplicate Linear integration for team id %s", intg.TeamID)
+		}
+		indexed[intg.TeamID] = *intg
+	}
+	return indexed, nil
+}
+
+// ValidateLinearIntegrationFields checks the new Linear integrations
+// without any network request: no null entry, no duplicate team id,
+// no empty team id, and no empty or masked API key for a team that is
+// not in the original integrations. It does not change its input.
+func ValidateLinearIntegrationFields(oriLinearIntgsIndexed map[string]LinearIntegration, newLinearIntgs []*LinearIntegration) error {
+	seen := make(map[string]struct{}, len(newLinearIntgs))
+	for i, intg := range newLinearIntgs {
+		if intg == nil {
+			return fmt.Errorf("Linear integration at index %d: entry is null", i)
+		}
+		if _, ok := seen[intg.TeamID]; ok {
+			return fmt.Errorf("duplicate Linear integration for team id %s", intg.TeamID)
+		}
+		seen[intg.TeamID] = struct{}{}
+
+		if intg.TeamID == "" {
+			return fmt.Errorf("Linear integration at index %d: %w", i,
+				IntegrationTestError{Err: errors.New("Linear integration request failed: missing team id")})
+		}
+		if _, ok := oriLinearIntgsIndexed[intg.TeamID]; !ok && (intg.APIKey == "" || intg.APIKey == MaskedPassword) {
+			return fmt.Errorf("Linear integration at index %d: %w", i,
+				IntegrationTestError{Err: errors.New("Linear integration request failed: missing or invalid API key")})
+		}
+	}
+	return nil
+}
+
+// ValidateLinearIntegrations validates the fields of the new Linear
+// integrations (see ValidateLinearIntegrationFields), and that each
+// modified or added integration can successfully connect to the external
+// Linear service. It returns the list of integrations that were deleted,
+// if any.
+//
+// On successful return, the newLinearIntgs slice is ready to be saved - it may
+// have been updated using the original integrations if the API key was missing.
+func ValidateLinearIntegrations(ctx context.Context, oriLinearIntgsIndexed map[string]LinearIntegration, newLinearIntgs []*LinearIntegration) (deleted []*LinearIntegration, err error) {
+	if err := ValidateLinearIntegrationFields(oriLinearIntgsIndexed, newLinearIntgs); err != nil {
+		return nil, err
+	}
+
+	newIndexed := make(map[string]*LinearIntegration, len(newLinearIntgs))
+	for i, new := range newLinearIntgs {
+		newIndexed[new.TeamID] = new
+
+		if old, ok := oriLinearIntgsIndexed[new.TeamID]; ok {
+			// the frontend gets a masked key, so keep the stored key unless a new one is sent
+			if new.APIKey == "" || new.APIKey == MaskedPassword {
+				new.APIKey = old.APIKey
+			}
+			if old == *new {
+				continue
+			}
+		}
+
+		if err := makeTestLinearRequest(ctx, new); err != nil {
+			return nil, fmt.Errorf("Linear integration at index %d: %w", i, err)
+		}
+	}
+
+	for key, intg := range oriLinearIntgsIndexed {
+		if _, ok := newIndexed[key]; !ok {
+			deleted = append(deleted, &intg)
+		}
+	}
+	return deleted, nil
+}
+
+func makeTestLinearRequest(ctx context.Context, intg *LinearIntegration) error {
+	if intg.APIKey == "" || intg.APIKey == MaskedPassword {
+		return IntegrationTestError{Err: errors.New("Linear integration request failed: missing or invalid API key")}
+	}
+	if intg.TeamID == "" {
+		return IntegrationTestError{Err: errors.New("Linear integration request failed: missing team id")}
+	}
+	client := externalsvc.NewLinearClient(&externalsvc.LinearOptions{
+		APIKey: intg.APIKey,
+		TeamID: intg.TeamID,
+	})
+	team, err := client.GetTeam(ctx)
+	if err != nil {
+		return IntegrationTestError{Err: fmt.Errorf("Linear integration request failed: %w", err)}
+	}
+	if team.ID != intg.TeamID {
+		return IntegrationTestError{Err: fmt.Errorf("Linear integration request failed: no matching team id: received %s, expected %s", team.ID, intg.TeamID)}
+	}
+	return nil
+}
+
 const (
 	GoogleCalendarEmail      = "client_email"
 	GoogleCalendarPrivateKey = "private_key"
@@ -490,6 +601,7 @@ type GoogleWorkspaceIntegration struct {
 type Integrations struct {
 	Jira            []*JiraIntegration            `json:"jira"`
 	Zendesk         []*ZendeskIntegration         `json:"zendesk"`
+	Linear          []*LinearIntegration          `json:"linear,omitempty"`
 	GoogleCalendar  []*GoogleCalendarIntegration  `json:"google_calendar"`
 	GoogleWorkspace []*GoogleWorkspaceIntegration `json:"google_workspace,omitempty"`
 	// CertificatesIdPIntrospectionURLs allowlists the OAuth 2.0 token introspection endpoints permitted
