@@ -26,7 +26,7 @@ import (
 
 func TestTokenURL(t *testing.T) {
 	require.Equal(t, google.JWTTokenURL, tokenURL(""))
-	// With the override the mock stands in for Google's token endpoint too.
+	// The override also serves the token endpoint.
 	require.Equal(t, "http://mock/token", tokenURL("http://mock/"))
 	require.Equal(t, "http://mock/token", tokenURL("http://mock"))
 }
@@ -169,7 +169,7 @@ func TestCheckDelegation(t *testing.T) {
 
 	require.NoError(t, client.CheckDelegation(t.Context()))
 
-	// The token is minted as the admin, with the devices scope only, signed with the key's ID.
+	// Minted as the admin with the devices scope only, signed with the key ID.
 	require.Len(t, fake.assertions, 1)
 	require.Equal(t, "admin@example.com", fake.assertions[0]["sub"])
 	require.Equal(t, "https://www.googleapis.com/auth/cloud-identity.devices", fake.assertions[0]["scope"])
@@ -181,7 +181,7 @@ func TestCheckDelegation(t *testing.T) {
 	require.Equal(t, "/v1/devices", req.URL.Path)
 	require.Equal(t, "customers/02cajzvg", req.URL.Query().Get("customer"))
 	require.Equal(t, "1", req.URL.Query().Get("pageSize"))
-	// Only authorization matters, so Google returns no device data.
+	// No device data is requested.
 	require.Equal(t, "nextPageToken", req.URL.Query().Get("fields"))
 	require.Equal(t, "Bearer tok", req.Header.Get("Authorization"))
 }

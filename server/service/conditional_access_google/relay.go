@@ -17,24 +17,21 @@ import (
 
 const registrationPath = "/api/v1/google-conditional-access"
 
-// maxRelayResponseBytes bounds a successful relay response body.
 const maxRelayResponseBytes = 1 << 20
 
-// relay sends JSON requests to the Google conditional access relay on fleetdm.com, with
-// this server's URL in the Origin header, which the relay uses to call the server back.
-// RelayOption configures NewRelay.
 type RelayOption func(*relayOptions)
 
 type relayOptions struct {
 	allowHTTP bool
 }
 
-// AllowHTTP accepts a plain HTTP relay URI, for a mock relay in development and tests.
-// Without it only HTTPS is accepted, since the relay exchanges the server secret.
+// AllowHTTP accepts a plain HTTP relay URI for a dev or test mock. Otherwise HTTPS is
+// required, since the relay exchanges the server secret.
 func AllowHTTP() RelayOption {
 	return func(o *relayOptions) { o.allowHTTP = true }
 }
 
+// relay sends this server's URL as the Origin, which fleetdm.com calls back.
 type relay struct {
 	uri          string
 	uriErr       error
@@ -42,10 +39,8 @@ type relay struct {
 	c            *http.Client
 }
 
-// NewRelay creates the relay client. uri is the fleetdm.com service and originGetter
-// returns this Fleet server's URL, which fleetdm.com uses to call the server back. A uri
-// that parses but can't be used as a base fails each request instead, so an unused
-// integration with a bad URI doesn't stop the server from starting.
+// NewRelay fails on an unparsable uri only; an unusable one fails each request instead,
+// so an unused integration doesn't stop the server from starting.
 func NewRelay(uri string, originGetter func() (string, error), opts ...RelayOption) (Relay, error) {
 	u, err := url.Parse(uri)
 	if err != nil {
@@ -62,8 +57,7 @@ func NewRelay(uri string, originGetter func() (string, error), opts ...RelayOpti
 	case u.Scheme != "https" && (u.Scheme != "http" || !o.allowHTTP):
 		uriErr = fmt.Errorf("invalid relay uri %q: must use https", uri)
 	}
-	// Every call runs inside an admin's request, so it keeps the default timeout. Redirects
-	// aren't followed: a 307 or 308 would resend the server secret to another host.
+	// A followed 307 or 308 would resend the server secret to another host.
 	return &relay{
 		uri:          strings.TrimRight(uri, "/"),
 		uriErr:       uriErr,
@@ -79,7 +73,7 @@ type registerRequest struct {
 // Registration holds the per-server secret and Fleet's Web OAuth client ID.
 type Registration struct {
 	FleetServerSecret string `json:"fleetServerSecret"`
-	// TODO: the Android app is its only consumer and may not need it; drop it if so.
+	// TODO: may be unneeded; the Android app is its only consumer.
 	OAuthClientID string `json:"oauthClientId"`
 }
 
@@ -110,9 +104,8 @@ func (r *relay) Deregister(ctx context.Context, customerID, secret string) error
 	return nil
 }
 
-// send sends body as JSON to the registration path and decodes a 2xx JSON response into
-// response (nil to ignore it). An empty 2xx body is only accepted when response is nil.
-// Any other status returns a *RelayStatusError.
+// send decodes a 2xx response into response, which may be nil. Other statuses return a
+// *RelayStatusError.
 func (r *relay) send(ctx context.Context, method string, body, response any) error {
 	if r.uriErr != nil {
 		return r.uriErr
@@ -129,7 +122,7 @@ func (r *relay) send(ctx context.Context, method string, body, response any) err
 	if err != nil {
 		return fmt.Errorf("get origin: %w", err)
 	}
-	// The relay calls the server back at the origin plus a path.
+	// The relay appends paths to the origin.
 	origin = strings.TrimRight(origin, "/")
 	if origin == "" {
 		return errors.New("missing origin: server URL is not set")
@@ -148,7 +141,7 @@ func (r *relay) send(ctx context.Context, method string, body, response any) err
 		return &RelayStatusError{Code: resp.StatusCode, RespErr: str.TruncateErrorResponse(string(bodyBytes))}
 	}
 	if response == nil {
-		// The status already says the call succeeded; draining only lets the connection be reused.
+		// Drain so the connection can be reused.
 		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxRelayResponseBytes))
 		return nil
 	}
@@ -168,8 +161,7 @@ func (r *relay) send(ctx context.Context, method string, body, response any) err
 	return nil
 }
 
-// RelayStatusError is a non-2xx relay response, with the remote body so callers can
-// surface it.
+// RelayStatusError is a non-2xx relay response with its body.
 type RelayStatusError struct {
 	Code    int
 	RespErr string
@@ -182,14 +174,11 @@ func (e *RelayStatusError) Error() string {
 	return fmt.Sprintf("%d: %s", e.Code, e.RespErr)
 }
 
-// StatusCode returns the remote HTTP status code.
 func (e *RelayStatusError) StatusCode() int { return e.Code }
 
-// Body returns the remote response body.
 func (e *RelayStatusError) Body() string { return e.RespErr }
 
-// relayNotFoundError is a 404 on Deregister, where it means fleetdm.com has no matching
-// registration.
+// relayNotFoundError is a 404 on Deregister: no matching registration.
 type relayNotFoundError struct {
 	*RelayStatusError
 }

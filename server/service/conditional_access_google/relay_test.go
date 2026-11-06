@@ -98,7 +98,7 @@ func TestRelayStatusError(t *testing.T) {
 }
 
 func TestRelayResponseBodies(t *testing.T) {
-	// Any 2xx is a success, and an empty body is fine when no response is expected.
+	// An empty 2xx body is fine when no response is expected.
 	p, _ := newTestRelay(t, http.StatusNoContent, ``)
 	require.NoError(t, p.Deregister(t.Context(), "C02cajzvg", "s3cret"))
 
@@ -121,7 +121,7 @@ func TestRelayRequiresOriginAndValidURI(t *testing.T) {
 	_, err = p.Register(t.Context(), "C02cajzvg")
 	require.ErrorContains(t, err, "missing origin")
 
-	// A URI that can't be used as a base fails the request, not the server start.
+	// An unusable URI fails the request, not NewRelay.
 	for _, uri := range []string{"fleetdm.com", srv.URL + "?x=1", srv.URL + "#frag"} {
 		p, err := NewRelay(uri, func() (string, error) { return origin, nil }, AllowHTTP())
 		require.NoError(t, err, uri)
@@ -185,7 +185,7 @@ func TestRelayRequiresHTTPS(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { called = true }))
 	t.Cleanup(srv.Close)
 
-	// Deregistration sends the server secret, so plain HTTP needs the explicit allowance.
+	// Plain HTTP needs AllowHTTP.
 	for _, uri := range []string{srv.URL, "ftp://fleetdm.example.com"} {
 		p, err := NewRelay(uri, func() (string, error) { return origin, nil })
 		require.NoError(t, err, uri)
@@ -198,9 +198,9 @@ func TestRelayRequiresHTTPS(t *testing.T) {
 	require.NoError(t, err)
 	require.ErrorContains(t, p.Deregister(t.Context(), "C02cajzvg", "s3cret"), "must use https")
 
-	// HTTPS passes validation without the allowance.
+	// HTTPS needs no allowance.
 	p, err = NewRelay("https://127.0.0.1:1", func() (string, error) { return origin, nil })
 	require.NoError(t, err)
-	// Nothing listens there, so the request is sent and fails to connect.
+	// Nothing listens there, so the send fails.
 	require.ErrorContains(t, p.Deregister(t.Context(), "C02cajzvg", "s3cret"), "send request")
 }

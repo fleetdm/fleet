@@ -22,18 +22,14 @@ import (
 	"google.golang.org/api/option"
 )
 
-// EndpointOverrideEnv points the Cloud Identity API and the token exchange (at its
-// "token" path) at a mock server. Development and tests only.
+// EndpointOverrideEnv points the API and the token exchange at a mock server. Dev only.
 const EndpointOverrideEnv = "FLEET_DEV_GOOGLE_CLOUD_IDENTITY_ENDPOINT"
 
-// ClientStateSuffix is appended to the customer ID without its "C" to form Fleet's client
-// state ID.
+// ClientStateSuffix follows the customer ID, without its "C", in Fleet's client state ID.
 const ClientStateSuffix = "-fleet"
 
-// maxGoogleResponseBytes bounds every response body read from Google.
 const maxGoogleResponseBytes = 1 << 20
 
-// NewCloudIdentityFactory returns the factory of Cloud Identity clients.
 func NewCloudIdentityFactory(logger *slog.Logger) CloudIdentityFactory {
 	return func(ctx context.Context, creds Credentials) (CloudIdentity, error) {
 		c, err := newCloudIdentity(ctx, creds, logger)
@@ -50,7 +46,7 @@ type cloudIdentityClient struct {
 }
 
 func newCloudIdentity(ctx context.Context, creds Credentials, logger *slog.Logger) (*cloudIdentityClient, error) {
-	// The device APIs and Fleet's client state ID take the ID without its "C".
+	// Google's device APIs take the ID without its "C".
 	bareCustomerID := strings.TrimPrefix(creds.CustomerID, "C")
 	key, err := parseServiceAccountKey(creds.ServiceAccountKey)
 	if err != nil {
@@ -67,8 +63,7 @@ func newCloudIdentity(ctx context.Context, creds Credentials, logger *slog.Logge
 		Subject:      creds.AdminEmail,
 	}
 
-	// The token exchange and the API calls both go through this client, so both get its
-	// timeout and response cap.
+	// The token exchange and the API calls share this client's timeout and response cap.
 	httpClient := fleethttp.NewClient(fleethttp.WithMaxResponseSize(maxGoogleResponseBytes))
 	opts := []option.ClientOption{option.WithHTTPClient(conf.Client(context.WithValue(ctx, oauth2.HTTPClient, httpClient)))}
 	if endpoint != "" {
@@ -84,7 +79,7 @@ func newCloudIdentity(ctx context.Context, creds Credentials, logger *slog.Logge
 }
 
 func (c *cloudIdentityClient) CheckDelegation(ctx context.Context) error {
-	// Only the authorization matters, so ask for no device data.
+	// Only authorization matters; fetch no device data.
 	if _, err := c.svc.Devices.List().Customer(c.customer()).PageSize(1).Fields("nextPageToken").Context(ctx).Do(); err != nil {
 		return &Error{err: err}
 	}
@@ -111,8 +106,7 @@ type serviceAccountKey struct {
 	PrivateKey   string `json:"private_key"`
 }
 
-// parseServiceAccountKey reads the fields the token exchange needs. The service validates
-// the key when it's uploaded, so a bad field surfaces from the exchange itself.
+// parseServiceAccountKey doesn't validate: the service does when the key is uploaded.
 func parseServiceAccountKey(b []byte) (*serviceAccountKey, error) {
 	var key serviceAccountKey
 	if err := json.Unmarshal(b, &key); err != nil {
@@ -121,9 +115,7 @@ func parseServiceAccountKey(b []byte) (*serviceAccountKey, error) {
 	return &key, nil
 }
 
-// tokenURL pins the token exchange to Google, or to the mock server when one stands in
-// for Google. The key's token_uri is ignored: the key is customer-supplied, and its
-// token_uri would receive the signed assertion.
+// tokenURL ignores the key's token_uri, which would receive the signed assertion.
 func tokenURL(endpointOverride string) string {
 	if endpointOverride != "" {
 		return strings.TrimSuffix(endpointOverride, "/") + "/token"
@@ -131,11 +123,10 @@ func tokenURL(endpointOverride string) string {
 	return google.JWTTokenURL
 }
 
-// Error is a failed Google call. Its message is Google's own reason, without the
-// library's prefixes or the request URL, so it can be shown to the admin.
+// Error is a failed Google call whose message is safe to show the admin.
 type Error struct {
 	err error
-	// resourceCall marks calls that name a device resource, where a 404 means it's gone.
+	// resourceCall is set when a 404 means the device resource is gone.
 	resourceCall bool
 }
 
@@ -150,7 +141,7 @@ func (e *Error) message() string {
 		if apiErr.Message != "" {
 			return apiErr.Message
 		}
-		// Without a JSON reason the body is a proxy or load balancer page, not worth showing.
+		// Without a JSON reason the body is a proxy page; don't show it.
 		return fmt.Sprintf("Google returned HTTP %d", apiErr.Code)
 	}
 	if tokenErr, ok := errors.AsType[*oauth2.RetrieveError](e.err); ok {
@@ -168,7 +159,7 @@ func (e *Error) message() string {
 func tokenErrorMessage(e *oauth2.RetrieveError) string {
 	code, desc := e.ErrorCode, e.ErrorDescription
 	if code == "" {
-		// The jwt token source leaves the parsed fields empty.
+		// The jwt token source leaves these empty.
 		var body struct {
 			Code        string `json:"error"`
 			Description string `json:"error_description"`
@@ -188,8 +179,7 @@ func tokenErrorMessage(e *oauth2.RetrieveError) string {
 	return "Google token request failed"
 }
 
-// IsNotFound reports whether Google answered 404 to a call naming a device resource,
-// e.g. for a deleted device. On the delegation check a 404 doesn't mean that.
+// IsNotFound reports a 404 on a call naming a device resource.
 func (e *Error) IsNotFound() bool {
 	if !e.resourceCall {
 		return false
