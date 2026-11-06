@@ -137,6 +137,9 @@ func setCarveStoreInRequestContext(carveStore fleet.CarveStore) kithttp.RequestF
 	}
 }
 
+// apiVersions are the versions the Fleet API routes are registered for, in addition to "latest".
+var apiVersions = []string{"v1", "2022-04"}
+
 // MakeHandler creates an HTTP handler for the Fleet server endpoints.
 func MakeHandler(
 	svc fleet.Service,
@@ -236,8 +239,7 @@ func MakeHandler(
 	for _, featureRoute := range featureRoutes {
 		featureRoute(r, fleetAPIOptions)
 	}
-	// Last, so the wildcard of an overlap never shadows a live route in gorilla, which takes the first match. The routes of the feature
-	// bounded contexts are registered after the core ones.
+	// Last, so the wildcard of an overlap never shadows a live route in gorilla, which takes the first match.
 	endpointer.RegisterRemovedPaths(r, apiVersions, logger, removedPaths())
 	addMetrics(r)
 
@@ -344,8 +346,6 @@ const (
 	DeviceIPAllowedConsecutiveFailingRequestsTimeWindow = 1 * time.Minute
 	DeviceIPBanTime                                     = 1 * time.Minute
 )
-
-var apiVersions = []string{"v1", "2022-04"}
 
 func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetConfig,
 	logger *slog.Logger, limitStore throttled.GCRAStore, redisPool fleet.RedisPool, opts []kithttp.ServerOption,
@@ -1121,14 +1121,14 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	}
 	heHeader.WithAltPaths("/api/v1/osquery/distributed/read").
 		POST("/api/osquery/distributed/read", distReadEndpoint, getDistributedQueriesRequest{})
-		// /distributed/write and /log accept large payloads. The body-size
-		// policy depends on which auth scheme is in effect:
-		//   - body-auth mode: per-route limit (operator-tunable via
-		//     MaxLogWriteBodySize / MaxDistributedWriteBodySize, defaulting to
-		//     the historical DefaultMaxOsquery* constants).
-		//   - header-auth mode: no per-route limit. Once pre-auth accepts the
-		//     request via Authorization: NodeKey, the agent is authenticated
-		//     and the body can be any size.
+	// /distributed/write and /log accept large payloads. The body-size
+	// policy depends on which auth scheme is in effect:
+	//   - body-auth mode: per-route limit (operator-tunable via
+	//     MaxLogWriteBodySize / MaxDistributedWriteBodySize, defaulting to
+	//     the historical DefaultMaxOsquery* constants).
+	//   - header-auth mode: no per-route limit. Once pre-auth accepts the
+	//     request via Authorization: NodeKey, the agent is authenticated
+	//     and the body can be any size.
 	distWriteReg, logWriteReg := heHeader, heHeader
 	if config.Osquery.AllowBodyAuthFallback {
 		distLimit := config.Osquery.MaxDistributedWriteBodySize

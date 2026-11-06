@@ -92,7 +92,7 @@ func TestRegisterRemovedPathsWithOverlap(t *testing.T) {
 		Overlap: RemovedPathOverlap{
 			Method:            http.MethodPost,
 			RouteTemplate:     "/api/_version_/fleet/items/{id}/{old_segment}/{name}",
-			WrongMethodRoutes: map[string]string{"/api/_version_/fleet/items/{id}/live/{name}": http.MethodGet},
+			WrongMethodRoutes: map[string][]string{"/api/_version_/fleet/items/{id}/live/{name}": {http.MethodGet}},
 		},
 		Message: func(method string) string { return "gone via " + method },
 	}})
