@@ -296,5 +296,6 @@ func (svc *Service) AuthSettings(ctx context.Context) (*fleet.AuthSettings, erro
 	return &fleet.AuthSettings{
 		MDMAppleOneTimeEnrollSecrets:   svc.config.MDM.AppleOneTimeEnrollSecrets,
 		MDMWindowsOneTimeEnrollSecrets: svc.config.MDM.WindowsOneTimeEnrollSecrets,
+		MDMAndroidOneTimeEnrollSecrets: svc.config.MDM.AndroidOneTimeEnrollSecrets,
 	}, nil
 }

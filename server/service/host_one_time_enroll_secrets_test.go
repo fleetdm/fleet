@@ -56,6 +56,7 @@ type oneTimeEnrollFixture struct {
 	rejections *[]fleet.ActivityTypeHostEnrollmentRejected
 	enrolled   *int
 	logs       *bytes.Buffer
+	kv         *akvmock.AdvancedKeyValueStore
 }
 
 func newOneTimeEnrollFixture(t *testing.T, useOneTimeEnrollSecrets bool) *oneTimeEnrollFixture {
@@ -78,7 +79,8 @@ func newOneTimeEnrollFixtureWithMDM(t *testing.T, setMDM func(*config.MDMConfig)
 	cfg := config.TestConfig()
 	setMDM(&cfg.MDM)
 	var logs bytes.Buffer
-	opts := &TestServerOpts{KeyValueStore: memoryKVStore(), Logger: slog.New(slog.NewTextHandler(&logs, nil))}
+	kv := memoryKVStore()
+	opts := &TestServerOpts{KeyValueStore: kv, Logger: slog.New(slog.NewTextHandler(&logs, nil))}
 	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
 
 	var rejections []fleet.ActivityTypeHostEnrollmentRejected
@@ -130,7 +132,7 @@ func newOneTimeEnrollFixtureWithMDM(t *testing.T, setMDM func(*config.MDMConfig)
 	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error { return nil }
 	ds.SerialUpdateHostFunc = func(ctx context.Context, host *fleet.Host) error { return nil }
 
-	return &oneTimeEnrollFixture{ds: ds, svc: svc, ctx: ctx, row: row, rejections: &rejections, enrolled: &enrolled, logs: &logs}
+	return &oneTimeEnrollFixture{ds: ds, svc: svc, ctx: ctx, row: row, rejections: &rejections, enrolled: &enrolled, logs: &logs, kv: kv}
 }
 
 func (f *oneTimeEnrollFixture) orbitInfo() fleet.OrbitHostInfo {

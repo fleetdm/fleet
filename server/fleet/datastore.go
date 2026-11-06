@@ -1665,6 +1665,9 @@ type Datastore interface {
 	// superseded by a newer secret for the same host, and secrets whose host no
 	// longer exists. It returns the number of rows deleted.
 	CleanupHostOneTimeEnrollSecrets(ctx context.Context) (int64, error)
+	// MintAndroidOneTimeEnrollSecret returns the one-time enroll secret for the given Android host's Fleet agent, reusing the
+	// host's unconsumed secret if there is one and minting a new one otherwise.
+	MintAndroidOneTimeEnrollSecret(ctx context.Context, hostID uint) (string, error)
 
 	// EnrollOsquery will enroll a new host with the given identifier, setting the node key, and team. Implementations of
 	// this method should respect the provided host enrollment cooldown, by returning an error if the host has enrolled

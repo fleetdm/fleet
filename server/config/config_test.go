@@ -1769,3 +1769,24 @@ type testSigner struct{}
 func (*testSigner) Public() crypto.PublicKey { return nil }
 
 func (*testSigner) Sign(io.Reader, []byte, crypto.SignerOpts) ([]byte, error) { return nil, nil }
+
+func TestMDMConfigOneTimeEnrollSecretsForPlatform(t *testing.T) {
+	for _, tc := range []struct {
+		name                  string
+		cfg                   MDMConfig
+		apple, windows, droid bool
+	}{
+		{name: "all off", cfg: MDMConfig{}},
+		{name: "apple only", cfg: MDMConfig{AppleOneTimeEnrollSecrets: true}, apple: true},
+		{name: "windows only", cfg: MDMConfig{WindowsOneTimeEnrollSecrets: true}, windows: true},
+		{name: "android only", cfg: MDMConfig{AndroidOneTimeEnrollSecrets: true}, droid: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.apple || tc.windows || tc.droid, tc.cfg.OneTimeEnrollSecretsEnabled())
+			require.Equal(t, tc.apple, tc.cfg.OneTimeEnrollSecretsEnabledForPlatform("darwin"))
+			require.Equal(t, tc.windows, tc.cfg.OneTimeEnrollSecretsEnabledForPlatform("windows"))
+			// Each platform has its own switch: a secret minted for Android is not honored because another platform's is on.
+			require.Equal(t, tc.droid, tc.cfg.OneTimeEnrollSecretsEnabledForPlatform("android"))
+		})
+	}
+}

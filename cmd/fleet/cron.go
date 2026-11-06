@@ -2293,6 +2293,7 @@ func newAndroidMDMProfileManagerSchedule(
 	androidAgentConfig config.AndroidAgentConfig,
 	batchSize int,
 	redisPool fleet.RedisPool,
+	oneTimeEnrollSecrets bool,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronMDMAndroidProfileManager)
@@ -2305,7 +2306,8 @@ func newAndroidMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_android_profiles", func(ctx context.Context) error {
-			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey, androidAgentConfig, batchSize, retryCounter)
+			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey, androidAgentConfig, batchSize, retryCounter,
+				android_svc.WithReconcileOneTimeEnrollSecrets(oneTimeEnrollSecrets))
 		}),
 	)
 
