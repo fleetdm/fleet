@@ -6,7 +6,8 @@
 # there when the wait runs out. Already absent counts as success.
 
 $packageFamilyName = $PACKAGE_ID
-$timeoutSeconds = 300  # 5 minute timeout
+# Under Fleet's 5-minute script timeout, so a failure exits 1603 instead of being killed.
+$timeoutSeconds = 240
 $start = Get-Date
 
 # Get-AppxProvisionedPackage objects have no PackageFamilyName. Their PackageName is
@@ -20,8 +21,8 @@ function Get-ProvisionedPackage {
 
 # Windows finishes removing the package for signed-out users at their next sign-in, so
 # only a provisioned package or a signed-in user's copy counts as left behind. These are
-# also the only copies osquery reports. The queries stop on errors so a failed query
-# isn't read as nothing left.
+# also the only copies osquery reports. A Staged entry isn't registered for anyone. The
+# queries stop on errors so a failed query isn't read as nothing left.
 function Test-PackagePresent {
   param([string]$pfn)
   if (@(Get-ProvisionedPackage -pfn $pfn).Count -gt 0) {
@@ -31,7 +32,7 @@ function Test-PackagePresent {
     Where-Object { $_.PackageFamilyName -eq $pfn }
   foreach ($package in @($installed)) {
     foreach ($user in @($package.PackageUserInformation)) {
-      if (Test-Path "Registry::HKEY_USERS\$($user.UserSecurityId.Sid)") {
+      if ($user.InstallState -ne 'Staged' -and (Test-Path "Registry::HKEY_USERS\$($user.UserSecurityId.Sid)")) {
         return $true
       }
     }
@@ -70,9 +71,13 @@ try {
   }
 
   do {
-    if (-not (Test-PackagePresent -pfn $packageFamilyName)) {
-      Write-Host "Microsoft Teams ($packageFamilyName) is no longer present."
-      Exit 0
+    try {
+      if (-not (Test-PackagePresent -pfn $packageFamilyName)) {
+        Write-Host "Microsoft Teams ($packageFamilyName) is no longer present."
+        Exit 0
+      }
+    } catch {
+      Write-Host "Checking for Microsoft Teams failed, retrying: $($_.Exception.Message)"
     }
     Start-Sleep -Seconds 5
   } while ((New-TimeSpan -Start $start).TotalSeconds -lt $timeoutSeconds)
