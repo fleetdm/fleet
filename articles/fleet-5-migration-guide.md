@@ -349,14 +349,15 @@ GitHub issue: [#53877](https://github.com/fleetdm/fleet/issues/53877)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `windows` object with `wipe_type` in `POST /hosts/:id/wipe` | `POST /hosts/:id/reset`. [Wipe host](https://fleetdm.com/docs/rest-api/rest-api#wipe-host) no longer takes a `windows` object. |
+| `windows` object with `wipe_type` in `POST /hosts/:id/wipe` | Removed. [Wipe host](https://fleetdm.com/docs/rest-api/rest-api#wipe-host) always uses `doWipeProtected` for Windows hosts |
+| `wipe_type` set to `"doWipe"` | [`POST /hosts/:id/reset`](https://fleetdm.com/docs/rest-api/rest-api#reset-host) to repurpose a Windows host for another end user |
 
 #### What to do
 
-Fleet 4.95 doesn't support `POST /hosts/:id/reset`, so you can't change this before you upgrade.
+Fleet 4.95 doesn't support `POST /hosts/:id/reset`, so you can't switch to it early. Instead:
 
-- Change it right after you upgrade: use `POST /hosts/:id/reset` for Windows wipes.
-- Until you do, Windows wipes that pass a `windows` object fail with a `422` error like: `The "windows" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+1. Before you upgrade, remove the `windows` object from any request that sends `"doWipeProtected"`. Wiping works the same.
+2. After you upgrade, use `POST /hosts/:id/reset` instead of `"doWipe"` to repurpose hosts. Until you do, Windows wipes that pass a `windows` object fail with a `422` error like: `The "windows" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
 
 GitHub issue: [#55003](https://github.com/fleetdm/fleet/issues/55003)
 
