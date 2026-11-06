@@ -105,12 +105,59 @@ func (c *cloudIdentityClient) SetClientState(ctx context.Context, deviceUserName
 	if len(mask) == 0 {
 		return errors.New("client state has no field to write")
 	}
-	name := deviceUserName + "/clientStates/" + c.bareCustomerID + ClientStateSuffix
-	if _, err := c.svc.Devices.DeviceUsers.ClientStates.Patch(name, &body).
+	if _, err := c.svc.Devices.DeviceUsers.ClientStates.Patch(c.clientStateName(deviceUserName), &body).
 		Customer(c.customer()).UpdateMask(strings.Join(mask, ",")).Context(ctx).Do(); err != nil {
 		return &Error{err: err, resourceCall: true}
 	}
 	return nil
+}
+
+func (c *cloudIdentityClient) ListDeviceUserNames(ctx context.Context, deviceID string) ([]string, error) {
+	var names []string
+	if err := c.svc.Devices.DeviceUsers.List("devices/"+deviceID).Customer(c.customer()).
+		Fields("deviceUsers/name", "nextPageToken").Context(ctx).
+		Pages(ctx, func(resp *cloudidentity.GoogleAppsCloudidentityDevicesV1ListDeviceUsersResponse) error {
+			for _, du := range resp.DeviceUsers {
+				names = append(names, du.Name)
+			}
+			return nil
+		}); err != nil {
+		return nil, &Error{err: err, resourceCall: true}
+	}
+	return names, nil
+}
+
+func (c *cloudIdentityClient) FindDeviceIDs(ctx context.Context, androidDeviceID string) ([]string, error) {
+	var ids []string
+	if err := c.svc.Devices.List().Customer(c.customer()).Filter("id:"+androidDeviceID).
+		Fields("devices(name,deviceId)", "nextPageToken").Context(ctx).
+		Pages(ctx, func(resp *cloudidentity.GoogleAppsCloudidentityDevicesV1ListDevicesResponse) error {
+			for _, d := range resp.Devices {
+				// Google doesn't document the filter as an exact match.
+				if strings.EqualFold(d.DeviceId, androidDeviceID) {
+					ids = append(ids, strings.TrimPrefix(d.Name, "devices/"))
+				}
+			}
+			return nil
+		}); err != nil {
+		return nil, &Error{err: err}
+	}
+	return ids, nil
+}
+
+func (c *cloudIdentityClient) DeviceExists(ctx context.Context, deviceID string) (bool, error) {
+	if _, err := c.svc.Devices.Get("devices/" + deviceID).Customer(c.customer()).Fields("name").Context(ctx).Do(); err != nil {
+		gErr := &Error{err: err, resourceCall: true}
+		if gErr.IsNotFound() {
+			return false, nil
+		}
+		return false, gErr
+	}
+	return true, nil
+}
+
+func (c *cloudIdentityClient) clientStateName(deviceUserName string) string {
+	return deviceUserName + "/clientStates/" + c.bareCustomerID + ClientStateSuffix
 }
 
 func (c *cloudIdentityClient) customer() string {
@@ -151,7 +198,8 @@ func tokenURL(endpointOverride string) string {
 // Error is a failed Google call whose message is safe to show the admin.
 type Error struct {
 	err error
-	// resourceCall is set when a 404 means the device resource is gone.
+	// resourceCall is set on a call naming a device or DeviceUser, where a 404 or 403 is
+	// about that resource rather than the delegation.
 	resourceCall bool
 }
 
@@ -244,4 +292,45 @@ func IsUnavailable(err error) bool {
 		IsUnavailable() bool
 	}](err)
 	return ok && u.IsUnavailable()
+}
+
+// IsStale reports a 404 or 403 on a call naming a DeviceUser or device: Google no longer
+// has it, or it is no longer in the customer's Workspace.
+func IsStale(err error) bool {
+	e, ok := errors.AsType[interface {
+		error
+		IsStale() bool
+	}](err)
+	return ok && e.IsStale()
+}
+
+// IsAuthError reports that Google refused the delegated token, its exchange, or the
+// delegation check, so no call can succeed until the customer fixes the delegation.
+func IsAuthError(err error) bool {
+	e, ok := errors.AsType[interface {
+		error
+		IsAuthError() bool
+	}](err)
+	return ok && e.IsAuthError()
+}
+
+func (e *Error) IsStale() bool {
+	if !e.resourceCall {
+		return false
+	}
+	apiErr, ok := errors.AsType[*googleapi.Error](e.err)
+	return ok && (apiErr.Code == http.StatusNotFound || apiErr.Code == http.StatusForbidden)
+}
+
+func (e *Error) IsAuthError() bool {
+	if tokenErr, ok := errors.AsType[*oauth2.RetrieveError](e.err); ok {
+		// Google refuses a bad subject, scope or signature with a 4xx; a 5xx is an outage.
+		return tokenErr.Response != nil && tokenErr.Response.StatusCode >= 400 && tokenErr.Response.StatusCode < 500
+	}
+	apiErr, ok := errors.AsType[*googleapi.Error](e.err)
+	if !ok {
+		return false
+	}
+	// A 403 on a device resource can mean the device left the Workspace.
+	return apiErr.Code == http.StatusUnauthorized || (apiErr.Code == http.StatusForbidden && !e.resourceCall)
 }
