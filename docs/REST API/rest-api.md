@@ -2266,14 +2266,6 @@ Modifies the Fleet's configuration with the supplied information.
       "mode": "voluntary",
       "webhook_url": "https://webhook.example.com"
     },
-    "macos_setup": {
-      "bootstrap_package": "",
-      "enable_end_user_authentication": false,
-      "enable_managed_local_account": false,
-      "end_user_local_account_type": "admin",
-      "lock_end_user_info": true,
-      "macos_setup_assistant": "path/to/config.json"
-    },
     "setup_experience": {
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
@@ -2956,10 +2948,13 @@ _Available in Fleet Premium._
 
 `mdm.setup_experience` is an object with the following structure:
 
-| Name                                 | Type    | Description   |
-| ---------------------                | ------- | ------------- |
-| enable_end_user_authentication       | boolean | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#end-user-authentication). |
-| lock_end_user_info                   | boolean | If set to true, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`) |
+| Name                                  | Type    | Description   |
+| ---------------------                 | ------- | ------------- |
+| enable_end_user_authentication        | boolean | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#end-user-authentication). |
+| lock_end_user_info                    | boolean | If set to true, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`) |
+| macos_managed_local_account_enabled   | boolean | body | If set to `true`, a hidden managed local admin account is created on macOS hosts during automatic enrollment (ADE). (Default: `false`) |
+| macos_end_user_local_account_type     | string  | body | The end user's local account type on macOS hosts. Options: `"admin"`, `"standard"`, or `"none"`. `"standard"` and `"none"` require `macos_managed_local_account_enabled` to be `true`. (Default: `"admin"`) |
+| windows_managed_local_account_enabled | boolean | body | If set to `true`, a hidden managed local admin account is created on Windows hosts with MDM turned on, including hosts enrolled before the setting was turned on. (Default: `false`) |
 
 <br/>
 
@@ -2970,9 +2965,6 @@ _Available in Fleet Premium._
 | Name                                   | Type    | Description   |
 | -------------------------------------- | ------- | ------------- |
 | custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
-| macos_managed_local_account_enabled   | boolean | body | If set to `true`, a hidden managed local admin account is created on macOS hosts during automatic enrollment (ADE). (Default: `false`) |
-| macos_end_user_local_account_type     | string  | body | The end user's local account type on macOS hosts. Options: `"admin"`, `"standard"`, or `"none"`. `"standard"` and `"none"` require `macos_managed_local_account_enabled` to be `true`. (Default: `"admin"`) |
-| windows_managed_local_account_enabled | boolean | body | If set to `true`, a hidden managed local admin account is created on Windows hosts with MDM turned on, including hosts enrolled before the setting was turned on. (Default: `false`) |
 
 <br/>
 
@@ -16324,7 +16316,6 @@ _Available in Fleet Premium_
         "macos_managed_local_account_enabled": false,
         "macos_end_user_local_account_type": "admin",
         "windows_managed_local_account_enabled": false
-        }
       }
     }
   }
