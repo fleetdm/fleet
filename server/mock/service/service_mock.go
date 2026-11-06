@@ -1003,6 +1003,10 @@ type UpdateGoogleConditionalAccessFunc func(ctx context.Context, customerID *str
 
 type DeleteGoogleConditionalAccessFunc func(ctx context.Context) error
 
+type GetGoogleConditionalAccessDeviceStatusFunc func(ctx context.Context, host *fleet.Host) (*fleet.GoogleConditionalAccessDeviceStatus, error)
+
+type RegisterGoogleConditionalAccessDeviceFunc func(ctx context.Context, secret string, reg fleet.GoogleConditionalAccessRegistration) (fleet.GoogleConditionalAccessRegisterResult, error)
+
 type ConditionalAccessGetIdPSigningCertFunc func(ctx context.Context) (certPEM []byte, err error)
 
 type ConditionalAccessGetIdPAppleProfileFunc func(ctx context.Context) (profileData []byte, err error)
@@ -2540,6 +2544,12 @@ type Service struct {
 
 	DeleteGoogleConditionalAccessFunc        DeleteGoogleConditionalAccessFunc
 	DeleteGoogleConditionalAccessFuncInvoked bool
+
+	GetGoogleConditionalAccessDeviceStatusFunc        GetGoogleConditionalAccessDeviceStatusFunc
+	GetGoogleConditionalAccessDeviceStatusFuncInvoked bool
+
+	RegisterGoogleConditionalAccessDeviceFunc        RegisterGoogleConditionalAccessDeviceFunc
+	RegisterGoogleConditionalAccessDeviceFuncInvoked bool
 
 	ConditionalAccessGetIdPSigningCertFunc        ConditionalAccessGetIdPSigningCertFunc
 	ConditionalAccessGetIdPSigningCertFuncInvoked bool
@@ -6075,6 +6085,20 @@ func (s *Service) DeleteGoogleConditionalAccess(ctx context.Context) error {
 	s.DeleteGoogleConditionalAccessFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteGoogleConditionalAccessFunc(ctx)
+}
+
+func (s *Service) GetGoogleConditionalAccessDeviceStatus(ctx context.Context, host *fleet.Host) (*fleet.GoogleConditionalAccessDeviceStatus, error) {
+	s.mu.Lock()
+	s.GetGoogleConditionalAccessDeviceStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetGoogleConditionalAccessDeviceStatusFunc(ctx, host)
+}
+
+func (s *Service) RegisterGoogleConditionalAccessDevice(ctx context.Context, secret string, reg fleet.GoogleConditionalAccessRegistration) (fleet.GoogleConditionalAccessRegisterResult, error) {
+	s.mu.Lock()
+	s.RegisterGoogleConditionalAccessDeviceFuncInvoked = true
+	s.mu.Unlock()
+	return s.RegisterGoogleConditionalAccessDeviceFunc(ctx, secret, reg)
 }
 
 func (s *Service) ConditionalAccessGetIdPSigningCert(ctx context.Context) (certPEM []byte, err error) {

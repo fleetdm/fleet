@@ -188,6 +188,13 @@ func GoogleConditionalAccessDesiredClientState(du GoogleConditionalAccessDeviceU
 }
 
 // GoogleConditionalAccessDevice is a host's registration row with its DeviceUsers.
+//
+// A host has both DeviceUser names and a Google device ID (see GetHostGoogleDeviceID)
+// because Google's API needs both. Google keeps the managed mark per DeviceUser, one per
+// Workspace account on the device, so the names are what Fleet marks, unmarks and checks.
+// The device ID is what an admin sees in Google and sets through the API, and what host
+// details show. A name starts with its device ID, but a host can have names under more
+// than one device record, so the ID is stored rather than derived.
 type GoogleConditionalAccessDevice struct {
 	HostUUID    string `db:"host_uuid"`
 	DeviceUsers []GoogleConditionalAccessDeviceUser
@@ -267,4 +274,38 @@ type GoogleConditionalAccessDeviceUserConflictError struct {
 
 func (e *GoogleConditionalAccessDeviceUserConflictError) Error() string {
 	return "This Google device user is already registered to another host."
+}
+
+// GoogleConditionalAccessDeviceStatus is the Google sign-in state of an iOS or iPadOS
+// host, as the Self-service web clip reads it on open.
+type GoogleConditionalAccessDeviceStatus struct {
+	Enabled      bool `json:"enabled"`
+	Eligible     bool `json:"eligible"`
+	Registered   bool `json:"registered"`
+	Managed      bool `json:"managed"`
+	RetryBlocked bool `json:"retry_blocked"`
+	// SignInURL is set for hosts that should sign in.
+	SignInURL string `json:"sign_in_url,omitempty"`
+}
+
+// GoogleConditionalAccessRegisterResult tells fleetdm.com which result to show the end
+// user.
+type GoogleConditionalAccessRegisterResult string
+
+const (
+	GoogleConditionalAccessRegisterDone       GoogleConditionalAccessRegisterResult = "done"
+	GoogleConditionalAccessRegisterNotAllowed GoogleConditionalAccessRegisterResult = "not_allowed"
+	// GoogleConditionalAccessRegisterNotFound means Google returned no DeviceUser: the
+	// user hasn't signed in to a Workspace app on the device yet.
+	GoogleConditionalAccessRegisterNotFound GoogleConditionalAccessRegisterResult = "not_found"
+	GoogleConditionalAccessRegisterError    GoogleConditionalAccessRegisterResult = "error"
+)
+
+// GoogleConditionalAccessRegistration is the DeviceUser lookup fleetdm.com sends for an
+// iOS or iPadOS host.
+type GoogleConditionalAccessRegistration struct {
+	Token    string   `json:"token"`
+	Names    []string `json:"names"`
+	Customer string   `json:"customer"`
+	Email    string   `json:"email"`
 }

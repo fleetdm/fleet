@@ -654,7 +654,17 @@ func (s *integrationTestSuite) TestConditionalAccessRequiresPremium() {
 	var gd deleteGoogleConditionalAccessResponse
 	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusPaymentRequired, &gd)
 
-	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	t := s.T()
+	host := createOrbitEnrolledHost(t, "ios", "google", s.ds)
+	cleanupCtx := context.WithoutCancel(t.Context())
+	t.Cleanup(func() { _ = s.ds.DeleteHost(cleanupCtx, host.ID) })
+	// The device flows are off: nothing is enabled and no sign-in starts.
+	var st fleet.GoogleConditionalAccessDeviceStatus
+	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+host.UUID+"/conditional_access/google", nil, http.StatusOK)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&st))
+	require.Equal(t, fleet.GoogleConditionalAccessDeviceStatus{}, st)
+
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"integrations": {"google_conditional_access": {"customer_id": "C02cajzvg", "admin_email": "admin@example.com"}}
 	}`), http.StatusUnprocessableEntity)
 	name, _ := extractServerErrorNameReason(res.Body)
