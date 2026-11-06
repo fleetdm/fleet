@@ -216,7 +216,10 @@ func TestFastPathMatchesGorillaForEdgeCases(t *testing.T) {
 		{name: "unknown path", method: "GET", path: "/api/latest/fleet/nope/nothing/here"},
 		{name: "method mismatch", method: "DELETE", path: "/api/osquery/distributed/write"},
 		{name: "HEAD on a GET route is a 405", method: "HEAD", path: "/api/latest/fleet/hosts/1"},
-		{name: "non-numeric id fails the route constraint", method: "GET", path: "/api/latest/fleet/hosts/not-a-number"},
+		{name: "non-numeric id fails the route constraint", method: "DELETE", path: "/api/latest/fleet/hosts/not-a-number"},
+		{name: "host by identifier on the id route", method: "GET", path: "/api/latest/fleet/hosts/not-a-number", wantServedBy: byFastPath},
+		{name: "literal count beats the host identifier", method: "GET", path: "/api/latest/fleet/hosts/count", wantServedBy: byFastPath},
+		{name: "literal report beats the host identifier", method: "GET", path: "/api/latest/fleet/hosts/report", wantServedBy: byFastPath},
 		{name: "unknown API version", method: "GET", path: "/api/v9/fleet/hosts/1"},
 		{
 			name: "identifier beats the numeric host id", method: "GET",
@@ -235,8 +238,21 @@ func TestFastPathMatchesGorillaForEdgeCases(t *testing.T) {
 			path: "/api/latest/fleet/scripts/batch/summary/host_results", wantServedBy: byGorilla,
 		},
 		{
-			name: "both spellings of profile resend", method: "POST",
-			path: "/api/latest/fleet/hosts/1/configuration_profiles/resend/resend", wantServedBy: byGorilla,
+			name: "live resend wins the overlap", method: "POST",
+			path: "/api/latest/fleet/hosts/1/configuration_profiles/resend/resend", wantServedBy: byFastPath,
+		},
+		{
+			name: "removed resend spelling", method: "POST",
+			path: "/api/latest/fleet/hosts/1/configuration_profiles/resend/abc", wantServedBy: byFastPath,
+		},
+		{
+			name: "removed resend spelling on another method", method: "GET",
+			path: "/api/latest/fleet/hosts/1/configuration_profiles/resend/abc", wantServedBy: byFastPath,
+		},
+		{name: "wrong method on the live resend", method: "PUT", path: "/api/latest/fleet/hosts/1/configuration_profiles/abc/resend"},
+		{
+			name: "live resend declining a non-numeric host id", method: "POST",
+			path: "/api/latest/fleet/hosts/abc/configuration_profiles/foo/resend", wantServedBy: byGorilla,
 		},
 		{name: "encoded separator in a path variable", method: "GET", path: "/api/latest/fleet/device/abc%2Fdef"},
 		{
@@ -353,19 +369,21 @@ func TestFastPathExclusionsCoverEveryAmbiguousRoute(t *testing.T) {
 			return nil
 		}
 		methods, err := route.GetMethods()
-		if err != nil || len(methods) != 1 {
+		if err != nil {
 			return nil
 		}
 		if _, supported := supportedVarMatchers(tpl); !supported {
 			return nil
 		}
-		key := unversionedKey(methods[0], tpl)
-		registered[key] = struct{}{}
-		for _, pattern := range expandToStdlibPatterns(tpl) {
-			if conflictErr := tryRegister(fast, methods[0]+" "+pattern, noopHandler); conflictErr != nil {
-				assert.Containsf(t, fastPathExcluded, key,
-					"route %q is ambiguous on a stdlib ServeMux; add it and the route it collides with to fastPathExcluded (%v)",
-					key, conflictErr)
+		for _, method := range methods {
+			key := unversionedKey(method, tpl)
+			registered[key] = struct{}{}
+			for _, pattern := range expandToStdlibPatterns(tpl) {
+				if conflictErr := tryRegister(fast, method+" "+pattern, noopHandler); conflictErr != nil {
+					assert.Containsf(t, fastPathExcluded, key,
+						"route %q is ambiguous on a stdlib ServeMux; add it and the route it collides with to fastPathExcluded (%v)",
+						key, conflictErr)
+				}
 			}
 		}
 		return nil
@@ -508,8 +526,8 @@ func TestFastPathSpanNamesFeedTheTracingTierRegistry(t *testing.T) {
 			wantSpan: "GET /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/config", wantTier: tracing.TierStandard,
 		},
 		{
-			name: "constrained variable stays in the span name", method: "GET", path: "/api/latest/fleet/hosts/1",
-			wantSpan: "GET /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/{id:[0-9]+}", wantTier: tracing.TierStandard,
+			name: "path variable stays in the span name", method: "GET", path: "/api/latest/fleet/hosts/1",
+			wantSpan: "GET /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/{id}", wantTier: tracing.TierStandard,
 		},
 		{
 			name:     "token variable stays unexpanded on the fast path",

@@ -501,6 +501,12 @@
                 "null"
               ]
             },
+            "config_tls_etag": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
             "config_tls_max_attempts": {
               "type": [
                 "integer",
@@ -1446,6 +1452,12 @@
             "tls_session_timeout": {
               "type": [
                 "integer",
+                "null"
+              ]
+            },
+            "tls_user_agent": {
+              "type": [
+                "string",
                 "null"
               ]
             },
@@ -2800,7 +2812,7 @@
       "description": "AppleOSUpdateSettings is the common type that contains the settings for OS updates on Apple devices.",
       "properties": {
         "deadline": {
-          "description": "Deadline the required installation date for Nudge to enforce the required\noperating system version.\n\ntype: `string`",
+          "description": "Deadline is the required installation date to enforce the required\noperating system version.\n\ntype: `string`",
           "type": [
             "string",
             "null"
@@ -3406,6 +3418,45 @@
         "null"
       ]
     },
+    "GitOpsPatchDeadlineSettings": {
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "errorMessage": "patch_deadline_settings must set days and time.",
+          "required": [
+            "days",
+            "time"
+          ]
+        }
+      ],
+      "description": "GitOpsPatchDeadlineSettings has no fleet ID, since the fleet comes from the file.",
+      "properties": {
+        "days": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "time": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
     "GitOpsPolicySpec": {
       "additionalProperties": false,
       "anyOf": [
@@ -3565,6 +3616,13 @@
             "null"
           ]
         },
+        "patch_deadline": {
+          "description": "PatchDeadline skips the install while the app is open, and notifies the end user before the fleet's next patch deadline.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "patch_when_closed": {
           "description": "PatchWhenClosed skips the install while the app is open, via the managed pre-install query.\n\ntype: `boolean`",
           "type": [
@@ -3693,6 +3751,10 @@
             "array",
             "null"
           ]
+        },
+        "patch_deadline_settings": {
+          "$ref": "#/$defs/GitOpsPatchDeadlineSettings",
+          "description": "PatchDeadlineSettings is nil when the file omits the key.\n\ntype: `GitOpsPatchDeadlineSettings`"
         }
       },
       "type": [
@@ -4220,6 +4282,13 @@
             "null"
           ]
         },
+        "enable_profile_validation": {
+          "description": "EnableProfileValidation turns on schema validation of admin-uploaded\nconfiguration profiles. Defaults to true.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "enable_recovery_lock_password": {
           "description": "type: `boolean`",
           "type": [
@@ -4705,6 +4774,20 @@
           "description": "type: `string`",
           "type": [
             "string",
+            "null"
+          ]
+        },
+        "macos_enable_bootstrap_package_during_manual_enrollment": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "macos_enable_bootstrap_package_during_migration": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
             "null"
           ]
         },
@@ -5394,6 +5477,13 @@
           ]
         },
         "live_reporting_disabled": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "mcp_disabled": {
           "description": "type: `boolean`",
           "type": [
             "boolean",

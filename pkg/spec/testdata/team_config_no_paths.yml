@@ -1,5 +1,5 @@
 name: Team1
-team_settings:
+settings:
   secrets:
     - secret: "SampleSecret123"
     - secret: "ABC"

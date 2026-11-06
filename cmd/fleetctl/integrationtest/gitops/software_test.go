@@ -1047,7 +1047,7 @@ org_settings:
   mdm:
     volume_purchasing_program:
       - location: Earth
-        teams:
+        fleets:
           - %q
           - %q
   server_settings:
@@ -1061,7 +1061,7 @@ org_settings:
 	teamCfg := func(name string) string {
 		return fmt.Sprintf(`
 name: %q
-team_settings:
+settings:
   secrets:
     - secret: "%s-secret"
   features:
@@ -1186,7 +1186,7 @@ org_settings:
   mdm:
     volume_purchasing_program:
       - location: Earth
-        teams:
+        fleets:
           - %q
           - %q
   server_settings:
@@ -1200,7 +1200,7 @@ org_settings:
 	teamCfg := func(name string) string {
 		return fmt.Sprintf(`
 name: %q
-team_settings:
+settings:
   secrets:
     - secret: "%s-secret"
   features:
@@ -1338,7 +1338,7 @@ org_settings:
 	teamCfg := func(name string) string {
 		return fmt.Sprintf(`
 name: %q
-team_settings:
+settings:
   secrets:
     - secret: "%s-secret"
   features:
@@ -1476,7 +1476,7 @@ org_settings:
 
 	newTeamCfg := fmt.Sprintf(`
 name: %q
-team_settings:
+settings:
   secrets:
     - secret: "new-secret"
 agent_options:
@@ -1527,7 +1527,7 @@ org_settings:
 	team := func(name string) string {
 		return fmt.Sprintf(`
 name: %s
-team_settings:
+settings:
   secrets:
     - secret: "%s-secret"
 agent_options:
@@ -1554,7 +1554,7 @@ software:
 				global(`
                                   volume_purchasing_program:
                                     - location: Fleet Device Management Inc.
-                                      teams:
+                                      fleets:
                                         - "💻 Workstations"
                                         - "📱🏢 Company-owned iPhones"
                                         - "🔳🏢 Company-owned iPads"`),
@@ -1592,10 +1592,10 @@ software:
 				global(`
                                   volume_purchasing_program:
                                     - location: Acme Inc.
-                                      teams:
+                                      fleets:
                                         - "💻 Workstations"
                                     - location: Fleet Device Management Inc.
-                                      teams:
+                                      fleets:
                                         - "📱🏢 Company-owned iPhones"
                                         - "🔳🏢 Company-owned iPads"`),
 				workstations,
@@ -1637,7 +1637,7 @@ software:
 				global(`
                                   volume_purchasing_program:
                                     - location: Fleet Device Management Inc.
-                                      teams:
+                                      fleets:
                                         - "💻 Workstations"
                                         - "📱🏢 Company-owned iPhones"
                                         - "🔳🏢 Company-owned iPads"`),
@@ -1657,7 +1657,7 @@ software:
 				global(`
                                   volume_purchasing_program:
                                     - location: Fleet Device Management Inc.
-                                      teams:
+                                      fleets:
                                         - "💻 Workstations"
                                         - "📱🏢 Company-owned iPhones"
                                         - "No team"`),
@@ -1694,7 +1694,7 @@ software:
 				global(`
                         volume_purchasing_program:
                           - location: Fleet Device Management Inc.
-                            teams:
+                            fleets:
                               - "All teams"`),
 				workstations,
 				iosTeam,
@@ -1727,7 +1727,7 @@ software:
 				global(`
                         volume_purchasing_program:
                           - location: Fleet Device Management Inc.
-                            teams:
+                            fleets:
                               - "All fleets"`),
 				workstations,
 				iosTeam,
@@ -1760,7 +1760,7 @@ software:
 				global(`
                                   volume_purchasing_program:
                                     - location: Fleet Device Management Inc.
-                                      teams:`),
+                                      fleets:`),
 				workstations,
 				ipadTeam,
 			},
@@ -1790,7 +1790,7 @@ software:
 				global(`
                                   volume_purchasing_program:
                                     - location: Does not exist
-                                      teams:`),
+                                      fleets:`),
 				workstations,
 				ipadTeam,
 			},

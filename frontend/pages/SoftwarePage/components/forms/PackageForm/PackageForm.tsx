@@ -515,7 +515,7 @@ const PackageForm = ({
     <>
       {!isEditingSoftware && (
         <InfoBanner
-          icon="info-outline"
+          icon="info"
           iconColor="ui-fleet-black-50"
           className={`${baseClass}__multi-package-banner`}
         >

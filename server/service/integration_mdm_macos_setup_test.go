@@ -195,7 +195,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		Description: "desc team1",
 	}
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", team, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
 	team = createTeamResp.Team
 
@@ -523,6 +523,137 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	checkHostAPIs(t, fleet.MDMBootstrapPackageInstalled, &team.ID)
 	checkHostAPIs(t, fleet.MDMBootstrapPackagePending, &team.ID)
 	checkHostAPIs(t, fleet.MDMBootstrapPackageFailed, &team.ID)
+}
+
+func (s *integrationMDMTestSuite) TestBootstrapPackageManualEnrollment() {
+	t := s.T()
+	ctx := t.Context()
+
+	pkg, err := os.ReadFile(filepath.Join("testdata", "bootstrap-packages", "signed.pkg"))
+	require.NoError(t, err)
+
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{Name: t.Name() + "team1"}, http.StatusOK, &createTeamResp)
+	team := createTeamResp.Team
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: pkg, Name: "pkg.pkg", TeamID: team.ID}, http.StatusOK, "", false)
+
+	var metadataResp bootstrapPackageMetadataResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/bootstrap/%d/metadata", team.ID), nil, http.StatusOK, &metadataResp)
+	wantURL, err := metadataResp.MDMAppleBootstrapPackage.URL(s.server.URL)
+	require.NoError(t, err)
+
+	enrollManualHost := func() (*fleet.Host, *mdmtest.TestAppleMDMClient) {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-1 * time.Minute),
+			OsqueryHostID:   new(uuid.NewString()),
+			NodeKey:         new(uuid.NewString()),
+			Hostname:        "manual-host.local",
+			Platform:        "darwin",
+			HardwareModel:   "MacBookPro16,1",
+			UUID:            strings.ToUpper(uuid.NewString()),
+			HardwareSerial:  mdmtest.RandSerialNumber(),
+			TeamID:          &team.ID,
+		})
+		require.NoError(t, err)
+		device := enrollMacOSHostInMDMManually(t, h, s.ds, s.server.URL)
+		s.awaitRunAppleMDMWorkerSchedule()
+		return h, device
+	}
+
+	// acknowledges all commands and reports which installs were received
+	drainCommands := func(device *mdmtest.TestAppleMDMClient) (gotFleetd, gotBootstrap bool) {
+		cmd, err := device.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			if cmd.Command.RequestType == "DeclarativeManagement" {
+				cmd, err = device.Acknowledge(cmd.CommandUUID)
+				require.NoError(t, err)
+				continue
+			}
+			var fullCmd micromdm.CommandPayload
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			if fullCmd.Command.RequestType == "InstallEnterpriseApplication" {
+				if fullCmd.Command.InstallEnterpriseApplication.ManifestURL != nil {
+					gotFleetd = true
+				}
+				if manifest := fullCmd.Command.InstallEnterpriseApplication.Manifest; manifest != nil {
+					gotBootstrap = true
+					require.Equal(t, wantURL, manifest.ManifestItems[0].Assets[0].URL)
+				}
+			}
+			cmd, err = device.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+		return gotFleetd, gotBootstrap
+	}
+
+	getSummary := func() fleet.MDMAppleBootstrapPackageSummary {
+		var resp getMDMAppleBootstrapPackageSummaryResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/bootstrap/summary?team_id=%d", team.ID), nil, http.StatusOK, &resp)
+		return resp.MDMAppleBootstrapPackageSummary
+	}
+
+	// the setting is off by default, manual enrollments only get fleetd
+	var teamResp teamResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.False(t, teamResp.Team.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment)
+
+	_, device := enrollManualHost()
+	gotFleetd, gotBootstrap := drainCommands(device)
+	require.True(t, gotFleetd)
+	require.False(t, gotBootstrap)
+	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{}, getSummary())
+
+	// turn the setting on for the team
+	s.Do("PATCH", "/api/latest/fleet/setup_experience",
+		json.RawMessage(jsonMustMarshal(t, map[string]any{"team_id": team.ID, "macos_enable_bootstrap_package_during_manual_enrollment": true})), http.StatusNoContent)
+	teamResp = teamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.True(t, teamResp.Team.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment)
+
+	host, device := enrollManualHost()
+	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: 1}, getSummary())
+
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+	require.NotNil(t, hostResp.Host.MDM.MacOSSetup)
+	require.Equal(t, "pkg.pkg", hostResp.Host.MDM.MacOSSetup.BootstrapPackageName)
+	require.Equal(t, fleet.MDMBootstrapPackagePending, hostResp.Host.MDM.MacOSSetup.BootstrapPackageStatus)
+
+	gotFleetd, gotBootstrap = drainCommands(device)
+	require.True(t, gotFleetd)
+	require.True(t, gotBootstrap)
+	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Installed: 1}, getSummary())
+
+	hostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+	require.Equal(t, fleet.MDMBootstrapPackageInstalled, hostResp.Host.MDM.MacOSSetup.BootstrapPackageStatus)
+
+	var listResp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "team_id", fmt.Sprint(team.ID), "bootstrap_package", "installed")
+	require.Len(t, listResp.Hosts, 1)
+	require.Equal(t, host.ID, listResp.Hosts[0].ID)
+
+	// with manual agent install on as well, only the bootstrap package is sent
+	s.Do("PATCH", "/api/latest/fleet/setup_experience",
+		json.RawMessage(jsonMustMarshal(t, map[string]any{"team_id": team.ID, "macos_manual_agent_install": true})), http.StatusNoContent)
+	_, device = enrollManualHost()
+	gotFleetd, gotBootstrap = drainCommands(device)
+	require.False(t, gotFleetd)
+	require.True(t, gotBootstrap)
+	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Installed: 2}, getSummary())
+
+	// the migration setting is independent, and patching it leaves the manual enrollment one untouched
+	require.False(t, teamResp.Team.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration)
+	s.Do("PATCH", "/api/latest/fleet/setup_experience",
+		json.RawMessage(jsonMustMarshal(t, map[string]any{"team_id": team.ID, "macos_enable_bootstrap_package_during_migration": true})), http.StatusNoContent)
+	teamResp = teamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.True(t, teamResp.Team.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration)
+	require.True(t, teamResp.Team.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment)
 }
 
 func (s *integrationMDMTestSuite) TestEULA() {
@@ -1047,7 +1178,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 	})
 
 	t.Run("UpdateTeamConfig", func(t *testing.T) {
-		path := fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID)
+		path := fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID)
 		fmtJSON := `{
 			"name": %q,
 			%s
@@ -1104,7 +1235,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 							Name: tm.Name,
 							MDM:  fleet.TeamSpecMDM{MacOSSetup: macSetup},
 						}}}
-						s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+						s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 					}
 				} else {
 					// no setup assistant, use the PATCH /setup_experience endpoint
@@ -1165,7 +1296,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		})
 
 		t.Run("TestTeam", func(t *testing.T) {
-			tmConfigPath := fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID)
+			tmConfigPath := fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID)
 			expectedActivityDetail := fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name, tm.ID, tm.Name)
 			var tmResp teamResponse
 			s.Do("PATCH", "/api/latest/fleet/setup_experience",
@@ -1276,7 +1407,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		require.False(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
 
 		// 2. enable EUA on a team
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), json.RawMessage(fmt.Sprintf(`{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID), json.RawMessage(fmt.Sprintf(`{
 			"name": %q,
 			"mdm": {
 				"macos_setup": {
@@ -1301,7 +1432,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		require.Equal(t, "End user authentication is enabled. Please disable end user authentication in Controls > Setup experience and try again", errResp.Errors[0].Reason)
 
 		// 4. disable team EUA, then clear IdP
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), json.RawMessage(fmt.Sprintf(`{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID), json.RawMessage(fmt.Sprintf(`{
 			"name": %q,
 			"mdm": {
 				"macos_setup": {
@@ -1340,7 +1471,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 			fleet.MDMAppleSetupPayload{TeamID: new(uint(0)), EnableEndUserAuthentication: new(true)}, http.StatusUnprocessableEntity)
 
 		// can't enable end user authentication on team config without a configured IdP already on app config
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), json.RawMessage(fmt.Sprintf(`{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID), json.RawMessage(fmt.Sprintf(`{
 			"name": %q,
 			"mdm": {
 				"macos_setup": {
@@ -1768,7 +1899,7 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 
 	// Create a team used by enrollment subtests
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name() + "team"}, http.StatusOK, &createTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{Name: t.Name() + "team"}, http.StatusOK, &createTeamResp)
 	team := createTeamResp.Team
 
 	// Enable managed local account on the team
@@ -2328,9 +2459,9 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 	t.Run("Setup experience team config", func(t *testing.T) {
 		// Create a team
 		var createTeamResp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name() + "team"}, http.StatusOK, &createTeamResp)
+		s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{Name: t.Name() + "team"}, http.StatusOK, &createTeamResp)
 		tm := createTeamResp.Team
-		tmConfigPath := fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID)
+		tmConfigPath := fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID)
 		expectedDetail := fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "platform": "darwin"}`, tm.ID, tm.Name, tm.ID, tm.Name)
 
 		// Enable via PATCH /setup_experience
@@ -2365,9 +2496,9 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 	t.Run("Setup experience team config via Update fleet endpoint", func(t *testing.T) {
 		// Create a team
 		var createTeamResp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name() + "team"}, http.StatusOK, &createTeamResp)
+		s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{Name: t.Name() + "team"}, http.StatusOK, &createTeamResp)
 		tm := createTeamResp.Team
-		tmConfigPath := fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID)
+		tmConfigPath := fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID)
 		expectedDetail := fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "platform": "darwin"}`, tm.ID, tm.Name, tm.ID, tm.Name)
 
 		// Enable via PATCH /teams/:id

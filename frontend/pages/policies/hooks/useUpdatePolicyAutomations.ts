@@ -20,6 +20,7 @@ export type IPolicyAutomationUpdate = Pick<
   | "continuous_automations_enabled"
   | "patch_when_closed"
   | "notify_before_patching"
+  | "patch_deadline"
 >;
 
 export interface IUpdatePolicyAutomationsVars {
@@ -100,7 +101,7 @@ const useUpdatePolicyAutomations = ({
       if (policyUpdate) {
         requests.push(
           teamPoliciesAPI.update(policyId, {
-            team_id: teamIdForApi,
+            fleet_id: teamIdForApi,
             ...policyUpdate,
           })
         );

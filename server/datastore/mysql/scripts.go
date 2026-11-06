@@ -2791,6 +2791,8 @@ func teamIDEq(teamID1, teamID2 *uint) bool {
 	return sameTeamNoTeam || sameTeamNumber
 }
 
+var errBatchScriptCanceled = errors.New("batch script canceled")
+
 func (ds *Datastore) batchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, batchExecID string) error {
 	script, err := ds.Script(ctx, scriptID)
 	if err != nil {
@@ -2877,6 +2879,17 @@ func (ds *Datastore) batchExecuteScript(ctx context.Context, userID *uint, scrip
 			})
 		}
 
+		// Lock the batch so a later cancel waits for this transaction to commit,
+		// and roll back if it was canceled during the run.
+		var canceled bool
+		err = sqlx.GetContext(ctx, tx, &canceled, `SELECT canceled FROM batch_activities WHERE execution_id = ? FOR UPDATE`, batchExecID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "locking batch activity")
+		}
+		if canceled {
+			return errBatchScriptCanceled
+		}
+
 		_, err := tx.ExecContext(
 			ctx,
 			`INSERT INTO batch_activities (execution_id, script_id, status, activity_type, num_targeted, started_at) VALUES (?, ?, ?, ?, ?, NOW())
@@ -2920,36 +2933,13 @@ func (ds *Datastore) batchExecuteScript(ctx context.Context, userID *uint, scrip
 
 		return nil
 	}); err != nil {
+		if errors.Is(err, errBatchScriptCanceled) {
+			return nil
+		}
 		return fmt.Errorf("creating bulk execution order: %w", err)
 	}
 
 	return nil
-}
-
-func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
-	batchExecID := uuid.New().String()
-
-	script, err := ds.Script(ctx, scriptID)
-	if err != nil {
-		return "", fleet.NewInvalidArgumentError("script_id", err.Error())
-	}
-
-	for _, hostID := range hostIDs {
-		host, err := ds.HostLite(ctx, hostID)
-		if err != nil {
-			return "", fmt.Errorf("unable to load host information for %d: %w", hostID, err)
-		}
-
-		if !teamIDEq(host.TeamID, script.TeamID) {
-			return "", ctxerr.Errorf(ctx, "all hosts must be on the same fleet as the script")
-		}
-	}
-
-	if err := ds.batchExecuteScript(ctx, userID, scriptID, hostIDs, batchExecID); err != nil {
-		return "", ctxerr.Wrap(ctx, err, "immediate batch execution")
-	}
-
-	return batchExecID, nil
 }
 
 func (ds *Datastore) BatchScheduleScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, notBefore time.Time) (string, error) {
@@ -3012,6 +3002,49 @@ func (ds *Datastore) BatchScheduleScript(ctx context.Context, userID *uint, scri
 	return batchExecID, nil
 }
 
+func (ds *Datastore) NewBatchScriptExecution(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
+	batchExecID := uuid.New().String()
+
+	const batchActivitiesStmt = `INSERT INTO batch_activities (execution_id, script_id, user_id, status, activity_type, num_targeted) VALUES (?, ?, ?, ?, ?, ?)`
+	const batchHostsStmt = `INSERT INTO batch_activity_host_results (batch_execution_id, host_id) VALUES (:exec_id, :host_id)`
+
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(
+			ctx,
+			batchActivitiesStmt,
+			batchExecID,
+			scriptID,
+			userID,
+			fleet.ScheduledBatchExecutionScheduled,
+			fleet.BatchExecutionActivityScript,
+			len(hostIDs),
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting new batch activity")
+		}
+
+		args := make([]map[string]any, 0, len(hostIDs))
+		for _, hostID := range hostIDs {
+			args = append(args, map[string]any{
+				"exec_id": batchExecID,
+				"host_id": hostID,
+			})
+		}
+
+		_, err = sqlx.NamedExecContext(ctx, tx, batchHostsStmt, args)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting batch host results")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "creating batch script execution")
+	}
+
+	return batchExecID, nil
+}
+
 func (ds *Datastore) CancelBatchScript(ctx context.Context, executionID string) error {
 	stmt := `
 SELECT
@@ -3059,6 +3092,16 @@ WHERE
 	}
 
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Wait for a running batch to commit, so the scripts it queued get canceled below.
+		var status fleet.ScheduledBatchExecutionStatus
+		err = sqlx.GetContext(ctx, tx, &status, `SELECT status FROM batch_activities WHERE execution_id = ? FOR UPDATE`, executionID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "locking batch activity")
+		}
+		if status == fleet.ScheduledBatchExecutionFinished {
+			return nil
+		}
+
 		// If job worker exists, mark it as complete to stop it from running
 		if jobID := activity.JobID; jobID != nil {
 			job, err := ds.GetJob(ctx, *jobID)
@@ -3073,7 +3116,7 @@ WHERE
 			}
 		}
 
-		if activity.Status == fleet.ScheduledBatchExecutionStarted {
+		if status == fleet.ScheduledBatchExecutionStarted {
 			// If the batch activity has started, we need to cancel anything in progress or queued
 			toCancel := []struct {
 				HostExecutionID string `db:"host_execution_id"`

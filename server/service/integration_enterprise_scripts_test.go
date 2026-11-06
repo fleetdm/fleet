@@ -435,6 +435,12 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	}, http.StatusOK, &batchRes)
 	require.NotEmpty(t, batchRes.BatchExecutionID)
 
+	// wait for the background run to queue the script, the batch should be started
+	require.Eventually(t, func() bool {
+		batchActivity, err := s.ds.GetBatchActivity(ctx, batchRes.BatchExecutionID)
+		return err == nil && batchActivity.Status == fleet.ScheduledBatchExecutionStarted
+	}, 5*time.Second, 10*time.Millisecond)
+
 	// verify that script was queued for orbit
 	s.DoJSON("POST", "/api/fleet/orbit/config",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host1.OrbitNodeKey)),
@@ -528,6 +534,12 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	}, http.StatusOK, &batchRes2)
 	require.NotEmpty(t, batchRes2.BatchExecutionID)
 
+	// wait for the background run to queue the script, the batch should be started
+	require.Eventually(t, func() bool {
+		batchActivity, err := s.ds.GetBatchActivity(ctx, batchRes2.BatchExecutionID)
+		return err == nil && batchActivity.Status == fleet.ScheduledBatchExecutionStarted
+	}, 5*time.Second, 10*time.Millisecond)
+
 	// Check with the list endpoint
 	var batchListResp fleet.BatchScriptExecutionListResponse
 	s.DoJSON("GET", "/api/latest/fleet/scripts/batch?team_id=0&per_page=1", nil, http.StatusOK, &batchListResp)
@@ -560,6 +572,12 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 		NotBefore: &scheduledPast,
 	}, http.StatusOK, &batchResUpcoming)
 	require.NotEmpty(t, batchResUpcoming.BatchExecutionID)
+
+	// wait for the background run to queue the script, the batch should be started
+	require.Eventually(t, func() bool {
+		batchActivity, err := s.ds.GetBatchActivity(ctx, batchResUpcoming.BatchExecutionID)
+		return err == nil && batchActivity.Status == fleet.ScheduledBatchExecutionStarted
+	}, 5*time.Second, 10*time.Millisecond)
 
 	// save a result via the orbit endpoint
 	var orbitPostScriptResp fleet.OrbitPostScriptResultResponse
@@ -615,6 +633,12 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 		HostIDs:  []uint{host1.ID, host2.ID},
 	}, http.StatusOK, &batchResUpcoming)
 	require.NotEmpty(t, batchResUpcoming.BatchExecutionID)
+
+	// wait for the background run to queue the script, the batch should be started
+	require.Eventually(t, func() bool {
+		batchActivity, err := s.ds.GetBatchActivity(ctx, batchResUpcoming.BatchExecutionID)
+		return err == nil && batchActivity.Status == fleet.ScheduledBatchExecutionStarted
+	}, 5*time.Second, 10*time.Millisecond)
 
 	// Queue again this time using a filter
 	filters := map[string]any{
@@ -1878,7 +1902,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsScriptsConfig() {
 		Description: "desc team1",
 	}
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", team, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
 	team = createTeamResp.Team
 
@@ -1893,11 +1917,11 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsScriptsConfig() {
 			},
 		},
 	}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 
 	// retrieving the team returns the scripts
 	var teamResp getTeamResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.Scripts.Value)
 
 	// apply without custom scripts specified, should not replace existing scripts
@@ -1908,9 +1932,9 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsScriptsConfig() {
 			},
 		},
 	}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.Scripts.Value)
 
 	// apply with explicitly empty custom scripts would clear the existing
@@ -1923,9 +1947,9 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsScriptsConfig() {
 			},
 		},
 	}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, "dry_run", "true")
 	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.Scripts.Value)
 
 	// apply with explicitly empty scripts clears the existing scripts
@@ -1937,9 +1961,9 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsScriptsConfig() {
 			},
 		},
 	}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Empty(t, teamResp.Team.Config.Scripts.Value)
 
 	// patch with an invalid array returns an error
@@ -1951,9 +1975,9 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsScriptsConfig() {
 			},
 		},
 	}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusBadRequest)
 	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Empty(t, teamResp.Team.Config.Scripts.Value)
 }
 

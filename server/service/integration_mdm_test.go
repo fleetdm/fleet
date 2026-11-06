@@ -221,6 +221,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	fleetCfg.Osquery.EnrollCooldown = 0
 	fleetCfg.Server.VPPVerifyRequestDelay = 0 * time.Second // Remove the delay to speed up tests
 	fleetCfg.Server.VPPVerifyTimeout = fleet.DefaultVPPInstallVerifyTimeout
+	fleetCfg.MDM.AppleSCEPStaticChallengeEnabled = true // Enable static challenge for SCEP in integration tests
 
 	mdmStorage, err := s.ds.NewMDMAppleMDMStorage()
 	require.NoError(s.T(), err)
@@ -231,6 +232,8 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	require.NoError(s.T(), err)
 	scepStorage, err := s.ds.NewSCEPDepot()
 	require.NoError(s.T(), err)
+	conditionalAccessSCEPStorage, err := s.ds.NewConditionalAccessSCEPDepot(slog.New(slog.DiscardHandler), &fleetCfg)
+	s.Require().NoError(err)
 
 	pushLog := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
@@ -361,6 +364,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		MDMStorage:             mdmStorage,
 		DEPStorage:             depStorage,
 		SCEPStorage:            scepStorage,
+		ConditionalAccess:      &ConditionalAccess{SCEPStorage: conditionalAccessSCEPStorage},
 		MDMPusher:              mdmPushService,
 		Pool:                   s.redisPool,
 		Rs:                     pubsub.NewInmemQueryResults(),
@@ -524,7 +528,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 							err := android_service.ReconcileProfilesWithClient(ctx, ds, logger, "", androidMockClient, config.AndroidAgentConfig{
 								Package:       "com.fleetdm.agent",
 								SigningSHA256: "abc123def456",
-							}, 0)
+							}, 0, nil)
 							require.NoError(s.T(), err)
 							return err
 						}),
@@ -540,7 +544,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
 						schedule.WithLogger(logger),
 						schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
-							return apple_mdm.IOSiPadOSRefetch(ctx, ds, mdmCommander, logger, s.fleetSvc.NewActivity)
+							return apple_mdm.IOSiPadOSRefetch(ctx, ds, mdmCommander, logger, s.fleetSvc.NewActivity, 1000)
 						}),
 					)
 					return refetcherSchedule, nil
@@ -1111,6 +1115,7 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	require.NoError(t, err)
 
 	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked = false
+	s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked = false
 	s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked = false
 	s.androidAPIClient.EnterprisesDevicesPatchFuncInvoked = false
 }
