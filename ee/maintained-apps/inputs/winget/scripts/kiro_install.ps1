@@ -35,7 +35,8 @@ try {
             Write-Host "Stopping $($proc.Name) (PID $($proc.Id)) before installing."
             Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
         }
-        $running | Wait-Process -Timeout 30 -ErrorAction SilentlyContinue
+        # Kiro's main process can take most of a minute to exit once stopped.
+        $running | Wait-Process -Timeout 120 -ErrorAction SilentlyContinue
     }
 
     # Fleet's installer directory is not readable by that user, so stage a copy in
