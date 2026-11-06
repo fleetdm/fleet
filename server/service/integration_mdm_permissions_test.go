@@ -190,6 +190,10 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&t1.ID, []uint{h1.ID}))
 	require.NoError(t, err)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/profiles", h1.ID), getHostRequest{}, http.StatusOK, &getHostResponse{})
+
+	// GitOps users can't run or cancel MDM commands, even on hosts of their fleets.
+	s.Do("POST", "/api/latest/fleet/commands/run", runMDMCommandRequest{Command: "cmd", HostUUIDs: []string{h1.UUID}}, http.StatusForbidden)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/commands/%s", h1.ID, uuid.NewString()), nil, http.StatusForbidden)
 }
 
 // TestTechnicianPermissions tests the permissions listed in ../../docs/Using\ Fleet/manage-access.md

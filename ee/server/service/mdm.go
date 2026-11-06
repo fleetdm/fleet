@@ -2266,10 +2266,7 @@ func (svc *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.Comm
 }
 
 func (svc *Service) CancelHostMDMCommand(ctx context.Context, hostID uint, commandUUID string) error {
-	// The selective-list gate (rather than host read) admits gitops, which can
-	// send raw MDM commands via POST /commands/run — whoever can send a
-	// command can cancel one. Mirrors authorizeAllHostsTeams on that endpoint.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return err
 	}
 
