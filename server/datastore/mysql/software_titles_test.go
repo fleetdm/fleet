@@ -2971,12 +2971,11 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	endTime := "04:00"
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID:            fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.IPadOSPlatform},
-			AutoUpdateEnabled:   ptr.Bool(true),
-			AutoUpdateStartTime: ptr.String(startTime),
-			AutoUpdateEndTime:   ptr.String(endTime),
-		},
+		AdamID:              "adam_vpp_app_1",
+		Platform:            fleet.IPadOSPlatform,
+		AutoUpdateEnabled:   new(true),
+		AutoUpdateStartTime: new(startTime),
+		AutoUpdateEndTime:   new(endTime),
 	}, teamID, nil)
 	require.NoError(t, err)
 
@@ -3027,12 +3026,11 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	// Save a disabled auto-update schedule for the other VPP app, the window is not stored for a disabled schedule so the app should not be listed.
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp2", BundleIdentifier: "com.app.vpp2",
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID:            fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.IPadOSPlatform},
-			AutoUpdateEnabled:   ptr.Bool(false),
-			AutoUpdateStartTime: ptr.String(startTime),
-			AutoUpdateEndTime:   ptr.String(endTime),
-		},
+		AdamID:              "adam_vpp_app_2",
+		Platform:            fleet.IPadOSPlatform,
+		AutoUpdateEnabled:   new(false),
+		AutoUpdateStartTime: new(startTime),
+		AutoUpdateEndTime:   new(endTime),
 	}, teamID, nil)
 	require.NoError(t, err)
 
@@ -3064,10 +3062,9 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	// Disable auto-update.
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID:          fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.IPadOSPlatform},
-			AutoUpdateEnabled: ptr.Bool(false),
-		},
+		AdamID:            "adam_vpp_app_1",
+		Platform:          fleet.IPadOSPlatform,
+		AutoUpdateEnabled: new(false),
 	}, teamID, nil)
 	require.NoError(t, err)
 
@@ -3092,12 +3089,11 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	endTime = "04:00"
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID:            fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.IPadOSPlatform},
-			AutoUpdateEnabled:   ptr.Bool(true),
-			AutoUpdateStartTime: ptr.String(startTime),
-			AutoUpdateEndTime:   ptr.String(endTime),
-		},
+		AdamID:              "adam_vpp_app_1",
+		Platform:            fleet.IPadOSPlatform,
+		AutoUpdateEnabled:   new(true),
+		AutoUpdateStartTime: new(startTime),
+		AutoUpdateEndTime:   new(endTime),
 	}, teamID, nil)
 	require.NoError(t, err)
 
@@ -3111,12 +3107,11 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	endTime = "05:00"
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp3", BundleIdentifier: "com.app.vpp3",
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID:            fleet.VPPAppID{AdamID: "adam_vpp_app_3", Platform: fleet.IOSPlatform},
-			AutoUpdateEnabled:   ptr.Bool(true),
-			AutoUpdateStartTime: ptr.String(startTime),
-			AutoUpdateEndTime:   ptr.String(endTime),
-		},
+		AdamID:              "adam_vpp_app_3",
+		Platform:            fleet.IOSPlatform,
+		AutoUpdateEnabled:   new(true),
+		AutoUpdateStartTime: new(startTime),
+		AutoUpdateEndTime:   new(endTime),
 	}, teamID, nil)
 	require.NoError(t, err)
 

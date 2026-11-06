@@ -6756,15 +6756,14 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 	// window on the host-software list. This is the plumbing that lets the
 	// FE host software / device software tables render the auto-update icon.
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID:            fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform},
-			AutoUpdateEnabled:   new(true),
-			AutoUpdateStartTime: new("02:00"),
-			AutoUpdateEndTime:   new("04:00"),
-		},
-		Name:             "vpp1",
-		BundleIdentifier: "com.app.vpp1",
-		LatestVersion:    "1.0.0",
+		AdamID:              "adam_vpp_1",
+		Platform:            fleet.MacOSPlatform,
+		AutoUpdateEnabled:   new(true),
+		AutoUpdateStartTime: new("02:00"),
+		AutoUpdateEndTime:   new("04:00"),
+		Name:                "vpp1",
+		BundleIdentifier:    "com.app.vpp1",
+		LatestVersion:       "1.0.0",
 	}, &tm.ID, nil)
 	require.NoError(t, err)
 
