@@ -2178,19 +2178,6 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	g.requireCalls(nil, nil, nil)
 	require.Equal(t, addedBefore+1, g.addedCount())
 
-	// A stored key that can't be decrypted (e.g. the server private key changed) counts
-	// as missing, so the same upload re-runs the check and stores it again.
-	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `UPDATE mdm_config_assets SET value = REPEAT('x', 32), md5_checksum = UNHEX(MD5('x')) WHERE name = ? AND deletion_uuid = ''`,
-			fleet.MDMAssetGoogleConditionalAccessServiceAccountKey)
-		return err
-	})
-	require.True(t, g.status().ServiceAccountKeyConfigured)
-	g.connect("C02cajzvg", "admin@example.com", key, http.StatusOK)
-	g.requireCalls([]string{"admin@example.com/C02cajzvg"}, nil, nil)
-	require.JSONEq(t, key, string(g.storedKey()))
-	g.client.reset()
-
 	// A new key re-runs the check with that key but doesn't re-register.
 	g.connect("C02cajzvg", "admin@example.com", otherKey, http.StatusOK)
 	g.requireCalls([]string{"admin@example.com/C02cajzvg"}, nil, nil)

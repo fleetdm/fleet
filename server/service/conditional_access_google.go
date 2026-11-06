@@ -119,8 +119,6 @@ func (svc *Service) ConditionalAccessGoogleConnect(ctx context.Context, customer
 	// integration is on with a stored key and no completed row, which the next config
 	// update retries.
 	if keyChanged {
-		// Replace rather than compare-and-replace: a stored key that can't be decrypted
-		// must still be replaceable.
 		if err := svc.ds.ReplaceMDMConfigAssets(ctx, []fleet.MDMConfigAsset{{
 			Name:  fleet.MDMAssetGoogleConditionalAccessServiceAccountKey,
 			Value: serviceAccountKey,
@@ -524,17 +522,12 @@ func (svc *Service) googleConditionalAccessKeyStored(ctx context.Context) (bool,
 	return ok, nil
 }
 
-// googleConditionalAccessKey returns the stored service account key, or nil when there's
-// none or it can't be decrypted: a damaged key must not stop the admin from replacing or
-// removing the integration.
+// googleConditionalAccessKey returns the stored service account key, or nil when there's none.
 func (svc *Service) googleConditionalAccessKey(ctx context.Context) ([]byte, error) {
 	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx,
 		[]fleet.MDMAssetName{fleet.MDMAssetGoogleConditionalAccessServiceAccountKey}, nil)
 	switch {
 	case fleet.IsNotFound(err):
-		return nil, nil
-	case errors.Is(err, fleet.ErrMDMConfigAssetUndecryptable):
-		svc.logger.WarnContext(ctx, "google conditional access service account key can't be decrypted, treating it as missing", "err", err)
 		return nil, nil
 	case err != nil:
 		return nil, ctxerr.Wrap(ctx, err, "load google conditional access service account key")
