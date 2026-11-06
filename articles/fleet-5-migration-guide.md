@@ -1092,12 +1092,17 @@ GitHub issue: [#52800](https://github.com/fleetdm/fleet/issues/52800)
 
 ## Fleet UI
 
-### Script settings removed
+### Script settings hidden or removed
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| **Run script** tab in **Controls > Setup experience** | Removed. Add a script-only package to setup experience software instead. |
+| **Run script** tab in **Controls > Setup experience** | Hidden. The page is still available at `/controls/setup-experience/run-script`. |
 | **Disable scripts** checkbox in **Settings > Organization settings > Advanced options** | Removed. To keep scripts off, deploy fleetd without `--enable-scripts`. |
+
+#### What to do
+
+- If you run a setup experience script, add it as a [script-only package](https://fleetdm.com/guides/deploy-software-packages#script-only-packages) to setup experience software instead. This is the best practice.
+- To keep scripts off, deploy fleetd without `--enable-scripts`.
 
 GitHub issues: [#53274](https://github.com/fleetdm/fleet/issues/53274), [#53897](https://github.com/fleetdm/fleet/issues/53897)
 
