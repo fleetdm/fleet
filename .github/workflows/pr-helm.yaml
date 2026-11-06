@@ -148,3 +148,6 @@ jobs:
         FILE=helm-temp/vulnprocessing-affinity.yaml
         test "$(yq eval-all "${CRON} | .affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].values[0]" "${FILE}")" = "batch"
         test "$(yq eval-all "${CRON} | .affinity.podAntiAffinity" "${FILE}")" = "null"
+        # The Deployment keeps the top-level affinity.
+        test "$(yq eval-all "${DEPLOY} | .affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].podAffinityTerm.topologyKey" "${FILE}")" = "kubernetes.io/hostname"
+        test "$(yq eval-all "${DEPLOY} | .affinity.nodeAffinity" "${FILE}")" = "null"
