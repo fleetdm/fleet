@@ -45,7 +45,7 @@ func TestWhenCreatingNewLabelsPlatformIsValidated(t *testing.T) {
 	ds.NewLabelFunc = func(ctx context.Context, lbl *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
 		return &expectedNewLabel, nil
 	}
-	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
+	ds.HostIDsByLabelIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error) {
 		return nil, nil
 	}
 	ds.UpdateLabelMembershipByHostIDsFunc = func(ctx context.Context, label fleet.Label, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
@@ -1201,12 +1201,12 @@ func TestNewManualLabel(t *testing.T) {
 		lbl.LabelMembershipType = fleet.LabelMembershipTypeManual
 		return lbl, nil
 	}
-	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
+	ds.HostIDsByLabelIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error) {
 		return []uint{99, 100}, nil
 	}
 	mockListHostsLiteByIDs(ds)
 
-	t.Run("using hostnames", func(t *testing.T) {
+	t.Run("using host identifiers", func(t *testing.T) {
 		ds.UpdateLabelMembershipByHostIDsFunc = func(ctx context.Context, label fleet.Label, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
 			require.Equal(t, uint(1), label.ID)
 			require.Equal(t, []uint{99, 100}, hostIds)
@@ -1214,7 +1214,7 @@ func TestNewManualLabel(t *testing.T) {
 		}
 		_, _, err := svc.NewLabel(ctx, fleet.LabelPayload{
 			Name:  "foo",
-			Hosts: []string{"host1", "host2"},
+			Hosts: []string{"serial1", "uuid2"},
 		})
 		require.NoError(t, err)
 	})
@@ -1246,19 +1246,19 @@ func TestModifyManualLabel(t *testing.T) {
 			},
 		}, nil, nil
 	}
-	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
+	ds.HostIDsByLabelIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error) {
 		return []uint{99, 100}, nil
 	}
 	mockListHostsLiteByIDs(ds)
 
-	t.Run("using hostnames", func(t *testing.T) {
+	t.Run("using host identifiers", func(t *testing.T) {
 		ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, hostIDs []uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
 			require.Equal(t, uint(1), lbl.ID)
 			require.Equal(t, []uint{99, 100}, hostIDs)
 			return &fleet.LabelWithTeamName{Label: *lbl}, hostIDs, nil
 		}
 		_, _, err := svc.ModifyLabel(ctx, 1, fleet.ModifyLabelPayload{
-			Hosts: []string{"host1", "host2"},
+			Hosts: []string{"serial1", "uuid2"},
 		})
 		require.NoError(t, err)
 		require.True(t, ds.SaveLabelFuncInvoked)
@@ -1295,7 +1295,7 @@ func TestModifyLabelRejectsHostsForComputedMembership(t *testing.T) {
 	ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, hostIDs []uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
 		return &fleet.LabelWithTeamName{Label: *lbl}, hostIDs, nil
 	}
-	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
+	ds.HostIDsByLabelIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error) {
 		return []uint{99}, nil
 	}
 	mockListHostsLiteByIDs(ds)

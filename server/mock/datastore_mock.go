@@ -268,6 +268,8 @@ type GenerateHostStatusStatisticsFunc func(ctx context.Context, filter fleet.Tea
 
 type HostIDsByIdentifierFunc func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error)
 
+type HostIDsByLabelIdentifierFunc func(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error)
+
 type HostIDsByOSIDFunc func(ctx context.Context, osID uint, offset int, limit int) ([]uint, error)
 
 type HostMembershipForLabelsFunc func(ctx context.Context, hostID uint, labelNames []string) (map[string]struct{}, error)
@@ -3034,6 +3036,9 @@ type DataStore struct {
 
 	HostIDsByIdentifierFunc        HostIDsByIdentifierFunc
 	HostIDsByIdentifierFuncInvoked bool
+
+	HostIDsByLabelIdentifierFunc        HostIDsByLabelIdentifierFunc
+	HostIDsByLabelIdentifierFuncInvoked bool
 
 	HostIDsByOSIDFunc        HostIDsByOSIDFunc
 	HostIDsByOSIDFuncInvoked bool
@@ -7490,6 +7495,13 @@ func (s *DataStore) HostIDsByIdentifier(ctx context.Context, filter fleet.TeamFi
 	s.HostIDsByIdentifierFuncInvoked = true
 	s.mu.Unlock()
 	return s.HostIDsByIdentifierFunc(ctx, filter, hostnames)
+}
+
+func (s *DataStore) HostIDsByLabelIdentifier(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error) {
+	s.mu.Lock()
+	s.HostIDsByLabelIdentifierFuncInvoked = true
+	s.mu.Unlock()
+	return s.HostIDsByLabelIdentifierFunc(ctx, filter, hostIdentifiers)
 }
 
 func (s *DataStore) HostIDsByOSID(ctx context.Context, osID uint, offset int, limit int) ([]uint, error) {

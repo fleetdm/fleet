@@ -134,11 +134,17 @@ func (s *integrationTestSuite) TestLabels() {
 
 		// create a valid manual label
 		createResp = fleet.CreateLabelResponse{}
-		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: t.Name() + "manual", Hosts: []string{manualHosts[0].UUID, manualHosts[1].Hostname, *manualHosts[2].NodeKey}}, http.StatusOK, &createResp)
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: t.Name() + "manual", Hosts: []string{manualHosts[0].UUID, manualHosts[1].UUID, manualHosts[2].UUID}}, http.StatusOK, &createResp)
 		assert.NotZero(t, createResp.Label.ID)
 		assert.Equal(t, t.Name()+"manual", createResp.Label.Name)
 		assert.ElementsMatch(t, []uint{manualHosts[0].ID, manualHosts[1].ID, manualHosts[2].ID}, createResp.Label.HostIDs)
 		manualLbl1 := createResp.Label.Label
+
+		// hostname, node key and osquery host ID aren't manual label host identifiers
+		hostnameResp := fleet.CreateLabelResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: t.Name() + "hostname", Hosts: []string{manualHosts[1].Hostname, *manualHosts[1].NodeKey, *manualHosts[1].OsqueryHostID}}, http.StatusOK, &hostnameResp)
+		assert.Empty(t, hostnameResp.Label.HostIDs)
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", hostnameResp.Label.ID), nil, http.StatusOK)
 
 		// get the label
 		getResp = fleet.GetLabelResponse{}
