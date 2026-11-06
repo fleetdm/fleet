@@ -1,6 +1,6 @@
 # Fleet news: November 2026
 
-Ship company-owned Android devices straight to end users, and give Mac users a heads-up before Fleet patches the app they're working in. October brought Fleet 4.93.0 and 4.94.0, new research on how fast Mac admins can undo a change, and an invite to Fleet's first virtual summit. Fleet 4.95.0 is planned for November.
+Our first virtual summit streams free on November 10, and [you're invited](https://www.linkedin.com/events/7518683538410459136/)! October also brought two releases, including a heads-up for Mac users before Fleet patches the apps they're working in. Let's dig in!
 
 ## 🚀 What shipped last month
 
@@ -28,7 +28,7 @@ Fleet's first virtual summit streams free on LinkedIn Live on Tuesday, November 
 
 ## 🎓 Upcoming workshops
 
-Fleet workshops are free, run about four hours, and set you on course to becoming a Fleet-certified expert. Seats are limited to about seven per session, so register early.
+Fleet workshops are free, run about four hours, and set you on course to becoming a Fleet-certified expert. Seats are limited, so register early.
 
 - **GitOps, Chicago.** November 6, 1pm to 5pm CST. [Register](https://www.eventbrite.com/e/gitops-chicago-tickets-2003719976388)
 - **GitOps, Tokyo.** November 12, 1pm to 5pm GMT+9. [Register](https://www.eventbrite.com/e/gitops-tokyo-tickets-2003716644422)
