@@ -24,6 +24,7 @@ Breaking changes are grouped by where you use Fleet. Read the sections that appl
 - [Activities](#activities): SIEM rules and log pipelines that read Fleet activities
 - [fleetd](#fleetd): EDR, monitoring, and firewall rules that match fleetd
 - [Fleet UI](#fleet-ui)
+- [Deprecated](#deprecated): features that keep working in Fleet 5 and are removed in Fleet 6
 
 
 ## REST API
@@ -507,6 +508,16 @@ What to do: Fleet 4.95 doesn't support the new names, so you can't change them b
 
 GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 
+### Setup experience script key removed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `script` under `controls.setup_experience` (or `controls.macos_setup`) | Removed. `fleetctl gitops` fails if it's set. |
+
+What to do: Move the script to a script-only package. Add the .sh file to `software.packages` with `setup_experience_platform: darwin` ([docs](https://fleetdm.com/docs/configuration/yaml-files#packages)), then remove `script`. Setup experience software installs in alphabetical order, and the setup script runs after all software. To run the package last, give it a name that sorts after your other setup experience software. If you can't move the script yet, rename `script` to `macos_script`. `macos_script` keeps working in Fleet 5 and is removed in Fleet 6. See [Setup experience script deprecated](#setup-experience-script-deprecated).
+
+GitHub issues: [#53274](https://github.com/fleetdm/fleet/issues/53274), [#53894](https://github.com/fleetdm/fleet/issues/53894)
+
 ### Windows MDM keys renamed in YAML
 
 | Fleet 4 | Fleet 5 |
@@ -836,14 +847,36 @@ GitHub issue: [#52800](https://github.com/fleetdm/fleet/issues/52800)
 
 ## Fleet UI
 
-### Script settings removed
+### Disable scripts setting removed
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| **Run script** tab in **Controls > Setup experience** | Removed. Add a script-only package to setup experience software instead. |
 | **Disable scripts** checkbox in **Settings > Organization settings > Advanced options** | Removed. To keep scripts off, deploy fleetd without `--enable-scripts`. |
 
-GitHub issues: [#53274](https://github.com/fleetdm/fleet/issues/53274), [#53897](https://github.com/fleetdm/fleet/issues/53897)
+GitHub issue: [#53897](https://github.com/fleetdm/fleet/issues/53897)
+
+
+## Deprecated
+
+These features keep working in Fleet 5 and are removed in Fleet 6.
+
+### Setup experience script deprecated
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| **Run script** in **Controls > Setup experience** | Hidden. The page still works at `https://<your-fleet-url>/controls/setup-experience/run-script`. |
+| `controls.setup_experience.macos_script` | Works, but isn't documented. `fleetctl gitops` prints a deprecation warning when it's set. |
+| `POST`, `GET`, and `DELETE /api/v1/fleet/setup_experience/script` | Work, but aren't documented. Fleet logs a deprecation warning when you add or delete a setup script. |
+
+What to do: Move the script to a script-only package:
+
+1. Upload the .sh file as a [custom package](https://fleetdm.com/guides/deploy-software-packages), or add it to `software.packages` with `setup_experience_platform: darwin` ([docs](https://fleetdm.com/docs/configuration/yaml-files#packages)).
+2. In the Fleet UI, add the package in **Controls > Setup experience > Install software**. With GitOps, `setup_experience_platform: darwin` does this.
+3. Delete the setup script, or remove `macos_script` from your YAML.
+
+Setup experience software installs in alphabetical order, and the setup script runs after all software. To run the package last, give it a name that sorts after your other setup experience software.
+
+GitHub issue: [#53274](https://github.com/fleetdm/fleet/issues/53274)
 
 
 <meta name="articleTitle" value="Migrate to Fleet 5">
