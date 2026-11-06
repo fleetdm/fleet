@@ -1,4 +1,8 @@
-import { render as renderComponent, screen } from "@testing-library/react";
+import {
+  render as renderComponent,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 
@@ -268,18 +272,29 @@ describe("PackageForm", () => {
       expect(screen.getByRole("button", { name: "Add" })).not.toBeDisabled();
     });
 
-    it("keeps requiring labels for a Custom target when GitOps mode is off", async () => {
-      const { container } = renderForm({
+    it("surfaces an inline labels error on submit for a Custom target when GitOps mode is off", async () => {
+      const onSubmit = jest.fn();
+      const { container, user } = renderForm({
         multiPackageContext: true,
         initialTargetType: "Custom",
+        labels: [
+          { id: 1, name: "Engineering", label_type: "regular" } as never,
+        ],
+        onSubmit,
       });
 
       await selectFileOfSize(container, 1024);
 
-      // The selector is visible here, so the preselection stands and the
-      // existing "pick at least one label" rule still applies.
       expect(screen.getByLabelText("Custom")).toBeChecked();
-      expect(screen.getByRole("button", { name: "Add" })).toBeDisabled();
+      const submitButton = screen.getByRole("button", { name: "Add" });
+      expect(submitButton).toBeEnabled();
+      await user.click(submitButton);
+      expect(onSubmit).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Select at least one label/)
+        ).toBeInTheDocument();
+      });
     });
   });
 });

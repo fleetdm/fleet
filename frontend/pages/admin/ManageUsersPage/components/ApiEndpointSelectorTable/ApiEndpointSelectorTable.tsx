@@ -10,6 +10,7 @@ import { Row } from "react-table";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
+import CustomLinkSizeContext from "components/CustomLink/CustomLinkSizeContext";
 import DataError from "components/DataError";
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon/InputFieldWithIcon";
 import TableContainer from "components/TableContainer";
@@ -256,12 +257,14 @@ const ApiEndpointSelectorTable = ({
         disabled={disabled}
       />
       <span className="form-field__help-text">
-        You can find this information in the{" "}
-        <CustomLink
-          url="https://fleetdm.com/docs/rest-api/rest-api"
-          text="REST API docs"
-          newTab
-        />
+        <CustomLinkSizeContext.Provider value="small">
+          You can find this information in the{" "}
+          <CustomLink
+            url="https://fleetdm.com/docs/rest-api/rest-api"
+            text="REST API docs"
+            newTab
+          />
+        </CustomLinkSizeContext.Provider>
       </span>
       {showResults && (
         <div className={`${baseClass}__search-dropdown`} ref={dropdownRef}>
