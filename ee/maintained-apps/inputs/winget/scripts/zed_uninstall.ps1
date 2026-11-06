@@ -146,24 +146,41 @@ function Invoke-AsUser {
     }
 }
 
+# Zed's own files, from its installer and updater. Anything else in the folder, such
+# as a --user-data-dir pointed there, is left alone.
+$appFiles = @('Zed.exe', 'OpenConsole.exe', 'conpty.dll', 'amd_ags_x64.dll', 'unins*.exe', 'unins*.dat', 'unins*.msg')
+$appSubdirs = @('bin', 'tools', 'x64', 'arm64', 'appx', 'install', 'updates', 'old')
+
+function Get-AppItems {
+    param([string]$Path)
+    @($appFiles + $appSubdirs | Where-Object { Test-Path -Path (Join-Path $Path $_) })
+}
+
 # A user can write to their own profile, including swapping a folder for a link
-# elsewhere, so their folder is removed as them rather than as SYSTEM.
+# elsewhere, so their folder is cleaned up as them rather than as SYSTEM.
 function Remove-AppDir {
     param([string]$Path, [string]$Sid)
 
+    if (-not (Get-AppItems $Path)) { return $true }
     if ($Sid) {
+        $commands = @($appFiles | ForEach-Object { "del /f /q `"$Path\$_`"" }) +
+            @($appSubdirs | ForEach-Object { "rd /s /q `"$Path\$_`"" }) + "rd `"$Path`""
         try {
-            $null = Invoke-AsUser -Sid $Sid -ExePath "$env:SystemRoot\System32\cmd.exe" -Arguments "/d /c rd /s /q `"$Path`""
+            $null = Invoke-AsUser -Sid $Sid -ExePath "$env:SystemRoot\System32\cmd.exe" -Arguments ("/d /c " + ($commands -join " & "))
         } catch {
             Write-Host "  $_"
         }
     } else {
-        Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction SilentlyContinue
+        foreach ($item in $appFiles + $appSubdirs) {
+            Remove-Item -Path (Join-Path $Path $item) -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        try { [System.IO.Directory]::Delete($Path, $false) } catch {}  # only if empty
     }
-    if (Test-Path -LiteralPath $Path) {
-        Write-Host "  Could not remove $Path."
+    if (Test-Path -LiteralPath (Join-Path $Path "Zed.exe")) {
+        Write-Host "  Could not remove Zed from $Path."
         return $false
     }
+    if (Test-Path -LiteralPath $Path) { Write-Host "  Left other files in $Path." }
     return $true
 }
 
@@ -262,7 +279,7 @@ try {
                     Get-Process -ErrorAction SilentlyContinue |
                         Where-Object { $_.Path -and $_.Path.StartsWith("$payloadDir\", [System.StringComparison]::OrdinalIgnoreCase) } |
                         Stop-Process -Force -ErrorAction SilentlyContinue
-                    Remove-Item -LiteralPath $payloadDir -Recurse -Force -ErrorAction SilentlyContinue
+                    $null = Remove-AppDir $payloadDir $null
                 }
                 if (Test-Path -LiteralPath (Join-Path $payloadDir "Zed.exe")) {
                     Write-Host "  Leaving this copy registered because Zed.exe is still in $payloadDir."
@@ -315,8 +332,8 @@ try {
             Start-Sleep -Seconds 1
         }
 
-        if ($isAppDir -and (Test-Path -LiteralPath $installDir)) {
-            Write-Host "  Uninstaller left $installDir behind; removing it."
+        if ($isAppDir -and (Get-AppItems $installDir)) {
+            Write-Host "  Uninstaller left Zed files in $installDir; removing them."
             if (-not (Remove-AppDir $installDir $entry.Sid)) {
                 if ($exitCode -eq 0) { $exitCode = 1 }
                 continue
