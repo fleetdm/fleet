@@ -66,33 +66,6 @@ func TestEvalMigrationStatus(t *testing.T) {
 			wantOut:  "unrecognized migrations",
 		},
 		{
-			name:         "needs v4732 fix exits unless allowed",
-			status:       &fleet.MigrationStatus{StatusCode: fleet.NeedsFleetv4732Fix},
-			allowMissing: false,
-			wantExit:     true,
-			wantOut:      "automatically perform this fix",
-		},
-		{
-			name:         "needs v4732 fix tolerated when missing allowed still warns",
-			status:       &fleet.MigrationStatus{StatusCode: fleet.NeedsFleetv4732Fix},
-			allowMissing: true,
-			wantExit:     false,
-			wantOut:      "automatically perform this fix",
-		},
-		{
-			name:     "unknown v4732 state exits unless allowed",
-			status:   &fleet.MigrationStatus{StatusCode: fleet.UnknownFleetv4732State},
-			wantExit: true,
-			wantOut:  "contact Fleet support",
-		},
-		{
-			name:         "unknown v4732 state tolerated when missing allowed still warns",
-			status:       &fleet.MigrationStatus{StatusCode: fleet.UnknownFleetv4732State},
-			allowMissing: true,
-			wantExit:     false,
-			wantOut:      "contact Fleet support",
-		},
-		{
 			name:     "some migrations completed exits unless allowed",
 			status:   &fleet.MigrationStatus{StatusCode: fleet.SomeMigrationsCompleted, MissingTable: []int64{7}},
 			wantExit: true,

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "11.40.3",
+      "version": "11.41.7",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Evernote%' AND publisher = 'Bending Spoons US Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Evernote%' AND publisher = 'Bending Spoons US Inc.' AND version_compare(version, '11.40.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Evernote%' AND publisher = 'Bending Spoons US Inc.' AND version_compare(version, '11.41.7') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'evernote.exe');"
       },
-      "installer_url": "https://win.desktop.evernote.com/builds/Evernote-11.40.3-win-ddl-stage-20261028150328-72813fc90b1fb765821ba48623647d59cd0e0af6-setup.exe",
+      "installer_url": "https://win.desktop.evernote.com/builds/Evernote-11.41.7-win-ddl-stage-20261102181103-0e9695c2352e9119cfab3cb7fa20a2790c6ed8f0-setup.exe",
       "install_script_ref": "30e766be",
       "uninstall_script_ref": "0c86d350",
-      "sha256": "bfa276801b54f7cb81c1d33890666a2094fea3868fa04779a0af0c46687fa8b5",
+      "sha256": "b26fb126edd3ff714c38bf89e79c5fe282d4d45660ee19e23184c1aaaf531fd7",
       "default_categories": [
         "Productivity"
       ]

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "8.3.1",
+      "version": "8.3.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.mactrackerapp.Mactracker';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mactrackerapp.Mactracker' AND version_compare(bundle_short_version, '8.3.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mactrackerapp.Mactracker' AND version_compare(bundle_short_version, '8.3.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.mactrackerapp.Mactracker' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://mactracker.ca/downloads/Mactracker_8.3.1.zip",
+      "installer_url": "https://mactracker.ca/downloads/Mactracker_8.3.2.zip",
       "install_script_ref": "6d2b8e35",
       "uninstall_script_ref": "487243dd",
-      "sha256": "4399b0c5857132390810dfc50e280b3ce0d798e680bafb4c98b99ad6d42ada2d",
+      "sha256": "6c0fd1e2ed50f638261a60d674f56f96e60455d19791c3754eb1c09b9c385367",
       "default_categories": [
         "Productivity"
       ]

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "8.0.504.1",
+      "version": "8.0.512.9",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Eclipse Temurin JRE%' AND publisher = 'Eclipse Adoptium' AND version LIKE '8.%';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Eclipse Temurin JRE%' AND publisher = 'Eclipse Adoptium' AND version LIKE '8.%' AND version_compare(version, '8.0.504.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Eclipse Temurin JRE%' AND publisher = 'Eclipse Adoptium' AND version LIKE '8.%' AND version_compare(version, '8.0.512.9') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'eclipse temurin jre 8.exe');"
       },
-      "installer_url": "https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u504-b01/OpenJDK8U-jre_x64_windows_hotspot_8u504b01.msi",
+      "installer_url": "https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u512-b09/OpenJDK8U-jre_x64_windows_hotspot_8u512b09.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "24e08f0a",
-      "sha256": "087a67240cd659a35dd894ee1201ec1f989e244cbe29500f4fc0f00443850d09",
+      "sha256": "c60f51ed33d483cebae883d22cba42fb956c79a42150b22fe42341967973c129",
       "default_categories": [
         "Developer tools"
       ],

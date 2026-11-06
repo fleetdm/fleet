@@ -6181,9 +6181,7 @@ _Available in Fleet Premium_
 | query                             | string  | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`. |
 | status                            | string  | Host status. Can either be `new`, `online`, `offline`, `mia` or `missing`. |
 | label_id                          | number  | ID of a label to filter by.  |
-| fleet_id                           | number  | ID of the fleet to filter by. |
-
-> Note: `label_id` and `status` filters cannot be used at the same time.
+| fleet_id                           | number  | ID of the fleet to filter by. Use `0` to filter by "Unassigned" hosts. |
 
 
 #### Example
@@ -6243,7 +6241,7 @@ Delete hosts selected by filter or ids.
 | Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
 | ------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | ids     | array   | body | A list of the host IDs you'd like to delete. Required if `filters` not specified. Only one of `ids` or `filters` may be included in the request. |
-| filters | object  | body | **Required**. See [filters](#filters2). Required if `ids` not specified. Only one of `ids` or `filters` may be included in the request.   |
+| filters | object  | body | See [filters](#filters2). Required if `ids` not specified. Only one of `ids` or `filters` may be included in the request.   |
 
 
 ##### Filters
@@ -6253,9 +6251,7 @@ Delete hosts selected by filter or ids.
 | query                             | string  | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`. |
 | status                            | string  | Host status. Can either be `new`, `online`, `offline`, `mia` or `missing`. |
 | label_id                          | number  | ID of a label to filter by.  |
-| fleet_id                           | number  | ID of the fleet to filter by. |
-
-> Notes: `label_id` and `status` filters cannot be used at the same time.
+| fleet_id                           | number  | ID of the fleet to filter by. Use `0` to filter by "Unassigned" hosts. |
 
 
 Request (using `ids`):

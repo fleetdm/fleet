@@ -828,8 +828,6 @@ type AsyncBatchUpdatePolicyTimestampFunc func(ctx context.Context, ids []uint, t
 
 type MigrateTablesFunc func(ctx context.Context) error
 
-type MigrateDataFunc func(ctx context.Context) error
-
 type MigrationStatusFunc func(ctx context.Context) (*fleet.MigrationStatus, error)
 
 type ListSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, *fleet.PaginationMetadata, error)
@@ -1816,9 +1814,9 @@ type GetHostScriptDetailsFunc func(ctx context.Context, hostID uint, teamID *uin
 
 type BatchSetScriptsFunc func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error)
 
-type BatchExecuteScriptFunc func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error)
-
 type BatchScheduleScriptFunc func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, notBefore time.Time) (string, error)
+
+type NewBatchScriptExecutionFunc func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error)
 
 type GetBatchActivityFunc func(ctx context.Context, executionID string) (*fleet.BatchActivity, error)
 
@@ -2468,7 +2466,7 @@ type ConditionalAccessMicrosoftDeleteFunc func(ctx context.Context) error
 
 type LoadHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint) (*fleet.HostConditionalAccessStatus, error)
 
-type CreateHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint, deviceID string, userPrincipalName string) error
+type CreateHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint, deviceID string, userPrincipalName string, verified bool) (bool, error)
 
 type SetHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint, managed bool, compliant bool) error
 
@@ -3878,9 +3876,6 @@ type DataStore struct {
 
 	MigrateTablesFunc        MigrateTablesFunc
 	MigrateTablesFuncInvoked bool
-
-	MigrateDataFunc        MigrateDataFunc
-	MigrateDataFuncInvoked bool
 
 	MigrationStatusFunc        MigrationStatusFunc
 	MigrationStatusFuncInvoked bool
@@ -5361,11 +5356,11 @@ type DataStore struct {
 	BatchSetScriptsFunc        BatchSetScriptsFunc
 	BatchSetScriptsFuncInvoked bool
 
-	BatchExecuteScriptFunc        BatchExecuteScriptFunc
-	BatchExecuteScriptFuncInvoked bool
-
 	BatchScheduleScriptFunc        BatchScheduleScriptFunc
 	BatchScheduleScriptFuncInvoked bool
+
+	NewBatchScriptExecutionFunc        NewBatchScriptExecutionFunc
+	NewBatchScriptExecutionFuncInvoked bool
 
 	GetBatchActivityFunc        GetBatchActivityFunc
 	GetBatchActivityFuncInvoked bool
@@ -9462,13 +9457,6 @@ func (s *DataStore) MigrateTables(ctx context.Context) error {
 	return s.MigrateTablesFunc(ctx)
 }
 
-func (s *DataStore) MigrateData(ctx context.Context) error {
-	s.mu.Lock()
-	s.MigrateDataFuncInvoked = true
-	s.mu.Unlock()
-	return s.MigrateDataFunc(ctx)
-}
-
 func (s *DataStore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus, error) {
 	s.mu.Lock()
 	s.MigrationStatusFuncInvoked = true
@@ -12920,18 +12908,18 @@ func (s *DataStore) BatchSetScripts(ctx context.Context, tmID *uint, scripts []*
 	return s.BatchSetScriptsFunc(ctx, tmID, scripts)
 }
 
-func (s *DataStore) BatchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
-	s.mu.Lock()
-	s.BatchExecuteScriptFuncInvoked = true
-	s.mu.Unlock()
-	return s.BatchExecuteScriptFunc(ctx, userID, scriptID, hostIDs)
-}
-
 func (s *DataStore) BatchScheduleScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, notBefore time.Time) (string, error) {
 	s.mu.Lock()
 	s.BatchScheduleScriptFuncInvoked = true
 	s.mu.Unlock()
 	return s.BatchScheduleScriptFunc(ctx, userID, scriptID, hostIDs, notBefore)
+}
+
+func (s *DataStore) NewBatchScriptExecution(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
+	s.mu.Lock()
+	s.NewBatchScriptExecutionFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewBatchScriptExecutionFunc(ctx, userID, scriptID, hostIDs)
 }
 
 func (s *DataStore) GetBatchActivity(ctx context.Context, executionID string) (*fleet.BatchActivity, error) {
@@ -15202,11 +15190,11 @@ func (s *DataStore) LoadHostConditionalAccessStatus(ctx context.Context, hostID 
 	return s.LoadHostConditionalAccessStatusFunc(ctx, hostID)
 }
 
-func (s *DataStore) CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string, userPrincipalName string) error {
+func (s *DataStore) CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string, userPrincipalName string, verified bool) (bool, error) {
 	s.mu.Lock()
 	s.CreateHostConditionalAccessStatusFuncInvoked = true
 	s.mu.Unlock()
-	return s.CreateHostConditionalAccessStatusFunc(ctx, hostID, deviceID, userPrincipalName)
+	return s.CreateHostConditionalAccessStatusFunc(ctx, hostID, deviceID, userPrincipalName, verified)
 }
 
 func (s *DataStore) SetHostConditionalAccessStatus(ctx context.Context, hostID uint, managed bool, compliant bool) error {

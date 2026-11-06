@@ -8,6 +8,7 @@ import { IHost } from "interfaces/host";
 import {
   generateAvailableTableHeaders,
   getPrimaryDeviceUser,
+  toFleetColumnId,
 } from "./HostTableConfig";
 
 // react-table's `Column` union includes group columns, which carry no `Cell`,
@@ -411,5 +412,19 @@ describe("HostTableConfig - Status column", () => {
         "Device is pending enrollment in Windows Autopilot and status is not yet available."
       )
     ).toBeInTheDocument();
+  });
+});
+
+describe("HostTableConfig - Fleet column", () => {
+  it("is sorted and hidden by `fleet_name`, and saved `team_name` settings carry over", () => {
+    const ids = generateAvailableTableHeaders({
+      isFreeTier: false,
+      isOnlyObserver: false,
+    }).map((h) => (h as Column<IHost>).id);
+
+    expect(ids).toContain("fleet_name");
+    expect(ids).not.toContain("team_name");
+    expect(toFleetColumnId("team_name")).toBe("fleet_name");
+    expect(toFleetColumnId("hostname")).toBe("hostname");
   });
 });

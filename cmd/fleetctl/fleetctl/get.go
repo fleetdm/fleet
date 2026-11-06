@@ -288,11 +288,22 @@ func printTeams(c *cli.Context, client *service.Client, teams []fleet.Team) erro
 			team.Config.Software = software
 			teamItem = team
 		}
+		// Rename the fleet's own keys here, removing the old ones: printSpec only renames the keys it finds, and the spec key is no longer
+		// "team", whose renamed copy used to carry the new names. Delete this once the JSON tags are renamed in later PRs.
+		teamJSON, err := json.Marshal(teamItem)
+		if err != nil {
+			return err
+		}
+		var renamedTeam any
+		if err := json.Unmarshal(teamJSON, &renamedTeam); err != nil {
+			return err
+		}
+		replaceAliasKeys(renamedTeam, aliasRules, true)
 		spec := specGeneric{
 			Kind:    fleet.FleetKind,
 			Version: fleet.ApiVersion,
 			Spec: map[string]interface{}{
-				"team": teamItem,
+				"fleet": renamedTeam,
 			},
 		}
 
