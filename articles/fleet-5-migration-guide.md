@@ -8,9 +8,9 @@ Fleet will support Fleet 4.95 with security fixes through June 30, 2027.
 
 How to migrate?
 
-1. Update to Fleet 4.95.
+1. [Upgrade](https://fleetdm.com/docs/deploy/upgrading-fleet#upgrading-fleet) to Fleet 4.95.
 2. Work through the list of [breaking changes](#breaking-changes).
-3. Upgrade you Fleet server and [fleetctl CLI](https://fleetdm.com/guides/fleetctl) (both in CI and on your computer).
+3. Upgrade to Fleet 5. If you're using the [fleetctl CLI](https://fleetdm.com/guides/fleetctl) or [GitOps](https://fleetdm.com/docs/configuration/yaml-files) (fleetctl runs in CI/CD) remember to upgrade fleetctl to 5.
 
 ## Breaking changes
 
