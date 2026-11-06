@@ -157,11 +157,18 @@ With `self_service: true`, the app appears on the end user's self-service page, 
 
 > **Note:** Any label you reference on a package must be defined in the `labels` section first. Use `labels_include_any`, `labels_include_all`, or `labels_exclude_any`, but only one per package. Use a label to exclude hosts without App Installer, such as Windows Server and LTSC images.
 
-## Step 7: Generate new tiles from a Store ID
+## Step 7: Generate script-only packages for more Store apps
 
-Only two lines differ between apps, so the rest can be emitted. Fleet script-only packages are single files with no shared helper to import, so the boilerplate is inlined into each generated script.
+Steps 3–6 give you three scripts and a YAML block for one app. For each additional Store app, only the Store ID and MSIX package name change, so you can generate these files instead of repeating Steps 3–6 by hand.
 
-Save this as `New-StoreAppTile.ps1`.
+The helper script below runs on your own computer, from the root of your GitOps repo. It doesn't run on hosts, isn't uploaded to Fleet, and doesn't install anything. It:
+
+- Writes the install, uninstall, and verify scripts from Steps 3–5 for the new app to `lib/windows/scripts/`.
+- Prints the `software.packages` YAML from Step 6 for you to paste into your fleet file.
+
+Its inputs are the Store ID and MSIX package name from Step 1, plus the display name end users see in self-service. Script-only packages are single files with no shared helper to import, so each generated script includes the full code from Step 3.
+
+Save this as `New-StoreAppPackage.ps1` in the root of your GitOps repo.
 
 ```powershell
 param(
@@ -242,11 +249,19 @@ exit 0
 "@
 ```
 
-Run it with the two identifiers from Step 1, then paste the printed block into your fleet file and open a pull request.
+Then add the app:
 
-```powershell
-./New-StoreAppTile.ps1 -StoreId 9WZDNCRFJ3PZ -DisplayName "Company Portal" -PackageName Microsoft.CompanyPortal
-```
+1. From the root of your GitOps repo, run the script with the identifiers from Step 1 and a display name.
+
+   ```powershell
+   ./New-StoreAppPackage.ps1 -StoreId 9WZDNCRFJ3PZ -DisplayName "Company Portal" -PackageName Microsoft.CompanyPortal
+   ```
+
+2. Paste the printed YAML under `software.packages` in `fleets/<name>.yml`.
+3. Commit the three new scripts in `lib/windows/scripts/` and the change to your fleet file.
+4. Open a pull request.
+
+> **Note:** The printed paths, such as `../lib/windows/scripts/install-company-portal.ps1`, assume your fleet files are in `fleets/`, one level below the repo root. If yours are somewhere else, adjust the paths before you commit.
 
 ## Troubleshoot
 
