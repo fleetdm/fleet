@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.98",
+      "version": "3.99",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.knollsoft.Hookshot';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.knollsoft.Hookshot' AND version_compare(bundle_short_version, '3.98') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.knollsoft.Hookshot' AND version_compare(bundle_short_version, '3.99') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.knollsoft.Hookshot' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://rectangleapp.com/pro/downloads/Rectangle%20Pro%203.98.dmg",
+      "installer_url": "https://rectangleapp.com/pro/downloads/Rectangle%20Pro%203.99.dmg",
       "install_script_ref": "a08ffd41",
       "uninstall_script_ref": "97651611",
-      "sha256": "551a481c9b390c81bf968f3784d3e9b5eccab9fa2fcc5956d39886ba679ade0a",
+      "sha256": "dcffec5fbb34adc83e42a15e965f27cc80527426bbfc70f7ce6477863b4bda0f",
       "default_categories": [
         "Productivity"
       ]

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.3.2",
+      "version": "5.4.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.mountainduck';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.mountainduck' AND version_compare(bundle_short_version, '5.3.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.mountainduck' AND version_compare(bundle_short_version, '5.4.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'io.mountainduck' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://dist.mountainduck.io/Mountain%20Duck-5.3.2.29785.zip",
+      "installer_url": "https://dist.mountainduck.io/Mountain%20Duck-5.4.0.30093.zip",
       "install_script_ref": "b816b0fd",
       "uninstall_script_ref": "962a7cd6",
-      "sha256": "682d496bfd747a6f74a63c63f4a441b5d376034249686c7be29f9679628004ef",
+      "sha256": "a17badf342dc42616a7cb2f9843913fb9c5762401cbbee46876ab1bdd683e0cc",
       "default_categories": [
         "Productivity"
       ]
