@@ -726,7 +726,7 @@ type UploadSoftwareInstallerPayload struct {
 	// after software installer creation if AutomaticInstall is true.
 	AddedAutomaticInstallPolicy *Policy
 	// HTTPETag stores the ETag from the last download response, used for
-	// conditional GET requests.
+	// conditional GET requests when always_download is false.
 	HTTPETag   *string
 	PatchQuery string
 	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only).
