@@ -248,59 +248,6 @@ Run it with the two identifiers from Step 1, then paste the printed block into y
 ./New-StoreAppTile.ps1 -StoreId 9WZDNCRFJ3PZ -DisplayName "Company Portal" -PackageName Microsoft.CompanyPortal
 ```
 
-## Deploy a Store app machine-wide
-
-Self-service installs are per-user. If an app has to be present for every user on a host, provision it instead of installing it, which does work as SYSTEM. Because you now have files to deliver, this uses a Fleet custom package rather than a script-only one.
-
-1. On an admin workstation, download the package, its dependencies, and its license.
-
-   ```powershell
-   winget download --id 9WZDNCRFJ3PZ --source msstore --download-directory C:\staging
-   ```
-
-2. Zip the downloaded files. Fleet doesn't accept `.msix` or `.msixbundle` files as custom packages, but it does accept a `.zip` for Windows.
-
-   ```powershell
-   Compress-Archive -Path C:\staging\* -DestinationPath C:\company-portal.zip
-   ```
-
-3. In Fleet, go to **Software > Add software > Custom package**, upload `company-portal.zip`, and open **Advanced options**. Fleet requires both an install and an uninstall script for `.zip` packages, and passes the uploaded file to the install script as `$env:INSTALLER_PATH`.
-
-   Set the install script to extract the zip and provision the package:
-
-   ```powershell
-   $staging = Join-Path $env:TEMP "fleet-store-9WZDNCRFJ3PZ"
-   Expand-Archive -Path $env:INSTALLER_PATH -DestinationPath $staging -Force
-
-   try {
-       $package = Get-ChildItem -Path "$staging\*" -File -Include *.msixbundle, *.appxbundle, *.msix, *.appx | Select-Object -First 1
-       $license = Get-ChildItem $staging -Recurse -Filter *_License.xml | Select-Object -First 1
-       $dependencies = Get-ChildItem $staging -Recurse -File -Include *.msix, *.appx |
-           Where-Object { $_.DirectoryName -ne $staging } | Select-Object -ExpandProperty FullName
-
-       $params = @{ Online = $true; PackagePath = $package.FullName; LicensePath = $license.FullName }
-       if ($dependencies) { $params.DependencyPackagePath = $dependencies }
-       Add-AppxProvisionedPackage @params
-   } catch {
-       Write-Host "Error: $_"
-       exit 1
-   } finally {
-       Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue
-   }
-   ```
-
-   Set the uninstall script to remove the provisioned package and any per-user copies, using the MSIX package name from Step 1:
-
-   ```powershell
-   $PackageName = "Microsoft.CompanyPortal"
-   Get-AppxProvisionedPackage -Online | Where-Object DisplayName -eq $PackageName | Remove-AppxProvisionedPackage -Online
-   Get-AppxPackage -AllUsers -Name $PackageName | Remove-AppxPackage -AllUsers
-   ```
-
-> **Warning:** Downloading a Store package's license file [requires Entra ID authentication](https://learn.microsoft.com/en-us/windows/package-manager/winget/download) by an account with the Global Administrator, User Administrator, or License Administrator role.
-
-> **Note:** Do not reach for `winget install --scope machine` as a shortcut here. For a Store package it [installs under the SYSTEM account](https://github.com/microsoft/winget-cli/issues/4748) rather than provisioning the app, which looks like success and leaves no app for your users.
-
 ## Troubleshoot
 
 **The install fails with "Device wide install for msstore type is not supported under admin context."** The script is running winget as SYSTEM. Store apps are per-user, so wrap the call in the scheduled task from Step 3, or provision the app machine-wide instead.
@@ -314,6 +261,68 @@ Self-service installs are per-user. If an app has to be present for every user o
 **The script fails because `winget` is not recognized.** The host has no App Installer package, which is common on Windows Server and LTSC images. Exclude those hosts with a label, or install App Installer first.
 
 **The tile does not appear on a host's self-service page.** Confirm the host matches the package's label, and that the label query returns the host in the Fleet UI under the label's host list.
+
+## Advanced
+
+### Deploy a Store app machine-wide
+
+Self-service installs are per-user. If an app has to be present for every user on a host, provision it instead of installing it, which does work as SYSTEM. Fleet doesn't accept `.msix`, `.msixbundle`, or `.zip` files as custom packages, so you host the downloaded files yourself and a script-only package fetches them.
+
+1. On an admin workstation, download the package, its dependencies, and its license.
+
+   ```powershell
+   winget download --id 9WZDNCRFJ3PZ --source msstore --download-directory C:\staging
+   ```
+
+2. Zip the downloaded files.
+
+   ```powershell
+   Compress-Archive -Path C:\staging\* -DestinationPath C:\company-portal.zip
+   ```
+
+3. Upload `company-portal.zip` to a location your hosts can download from over HTTPS, such as an internal web server or a cloud storage bucket.
+
+4. Save this install script as `provision-company-portal.ps1`. Set `$PackageUrl` to the URL from the previous step.
+
+   ```powershell
+   $PackageUrl = "https://example.com/company-portal.zip"
+
+   $staging = Join-Path $env:TEMP "fleet-store-9WZDNCRFJ3PZ"
+   $zip = "$staging.zip"
+
+   try {
+       Invoke-WebRequest -Uri $PackageUrl -OutFile $zip -UseBasicParsing
+       Expand-Archive -Path $zip -DestinationPath $staging -Force
+
+       $package = Get-ChildItem -Path "$staging\*" -File -Include *.msixbundle, *.appxbundle, *.msix, *.appx | Select-Object -First 1
+       $license = Get-ChildItem $staging -Recurse -Filter *_License.xml | Select-Object -First 1
+       $dependencies = Get-ChildItem $staging -Recurse -File -Include *.msix, *.appx |
+           Where-Object { $_.DirectoryName -ne $staging } | Select-Object -ExpandProperty FullName
+
+       $params = @{ Online = $true; PackagePath = $package.FullName; LicensePath = $license.FullName }
+       if ($dependencies) { $params.DependencyPackagePath = $dependencies }
+       Add-AppxProvisionedPackage @params
+   } catch {
+       Write-Host "Error: $_"
+       exit 1
+   } finally {
+       Remove-Item $staging, $zip -Recurse -Force -ErrorAction SilentlyContinue
+   }
+   ```
+
+5. Save this uninstall script as `deprovision-company-portal.ps1`. It removes the provisioned package and any per-user copies, using the MSIX package name from Step 1.
+
+   ```powershell
+   $PackageName = "Microsoft.CompanyPortal"
+   Get-AppxProvisionedPackage -Online | Where-Object DisplayName -eq $PackageName | Remove-AppxProvisionedPackage -Online
+   Get-AppxPackage -AllUsers -Name $PackageName | Remove-AppxPackage -AllUsers
+   ```
+
+6. In Fleet, go to **Software > Add software > Custom package** and upload `provision-company-portal.ps1`. Open **Advanced options** and paste the contents of `deprovision-company-portal.ps1` as the uninstall script.
+
+> **Warning:** Downloading a Store package's license file [requires Entra ID authentication](https://learn.microsoft.com/en-us/windows/package-manager/winget/download) by an account with the Global Administrator, User Administrator, or License Administrator role.
+
+> **Note:** Do not reach for `winget install --scope machine` as a shortcut here. For a Store package it [installs under the SYSTEM account](https://github.com/microsoft/winget-cli/issues/4748) rather than provisioning the app, which looks like success and leaves no app for your users.
 
 ## Further reading
 

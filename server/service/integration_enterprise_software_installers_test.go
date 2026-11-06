@@ -501,7 +501,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 	t.Run("create team software installer", func(t *testing.T) {
 		var createTeamResp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{
+		s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{
 			Name: t.Name(),
 		}, http.StatusOK, &createTeamResp)
 		require.NotZero(t, createTeamResp.Team.ID)
@@ -750,7 +750,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 	t.Run("uninstall migration for software installer", func(t *testing.T) {
 		var createTeamResp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{
+		s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{
 			Name: t.Name(),
 		}, http.StatusOK, &createTeamResp)
 		require.NotZero(t, createTeamResp.Team.ID)
@@ -1094,7 +1094,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	})
 
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{
 		Name: t.Name(),
 	}, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
@@ -4035,7 +4035,7 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 
 	t.Run("upload update delete in-house app", func(t *testing.T) {
 		var createTeamResp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{
+		s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{
 			Name: t.Name(),
 		}, http.StatusOK, &createTeamResp)
 		require.NotZero(t, createTeamResp.Team.ID)
@@ -4140,7 +4140,7 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 
 	t.Run("managed app configuration", func(t *testing.T) {
 		var teamResp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name()}, http.StatusOK, &teamResp)
+		s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{Name: t.Name()}, http.StatusOK, &teamResp)
 
 		const validPlist = `<dict><key>K</key><string>v</string></dict>`
 		const validPlist2 = `<dict><key>K2</key><string>v2</string></dict>`
@@ -4317,7 +4317,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareMultiplePackagesInstallPrec
 	ctx := context.Background()
 
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name()}, http.StatusOK, &createTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{Name: t.Name()}, http.StatusOK, &createTeamResp)
 	teamID := createTeamResp.Team.ID
 	user := s.users["admin1@example.com"]
 

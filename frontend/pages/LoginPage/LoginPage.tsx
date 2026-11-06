@@ -137,7 +137,7 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
         setAvailableTeams(user, available_fleets);
         setCurrentTeam(undefined);
 
-        if (!user.global_role && user.teams.length === 0) {
+        if (!user.global_role && user.fleets.length === 0) {
           return router.push(NO_ACCESS);
         }
         // Redirect to password reset page if user is forced to reset password.

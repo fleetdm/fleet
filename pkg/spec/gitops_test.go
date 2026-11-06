@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
@@ -5223,6 +5224,111 @@ org_settings:
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "org_settings.mdm.apple_business")
+	})
+}
+
+// TestRemovedTeamKeys checks that the team-related keys removed in Fleet 5 fail with their message and the file name, and that every
+// removed key in a file is reported in one run.
+func TestRemovedTeamKeys(t *testing.T) {
+	t.Parallel()
+
+	globalConfig := func(mdmSection string) string {
+		return `
+controls:
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: Test Org
+  secrets:
+  mdm:` + mdmSection + `
+`
+	}
+	removed := func(path string) string {
+		entry, ok := removednames.Find(removednames.KindYAMLKey, path, "")
+		require.True(t, ok, path)
+		return entry.Message()
+	}
+	for _, key := range RemovedGitOpsKeys {
+		removed(key.OldPath)
+	}
+	const abmPath = "org_settings.mdm.apple_business[]."
+
+	tests := []struct {
+		name string
+		yaml string
+		want []string
+	}{
+		{"team_settings", "name: Workstations\nteam_settings:\n  secrets:\n    - secret: abc\n", []string{removed("team_settings")}},
+		{"ABM and VPP keys", globalConfig(`
+    apple_business:
+      - organization_name: Test Org
+        macos_team: Workstations
+        ios_team: Phones
+        ipados_team: Tablets
+        byod_team: Personal
+    volume_purchasing_program:
+      - location: Earth
+        teams: [Workstations]`), []string{
+			removed(abmPath + "macos_team"), removed(abmPath + "ios_team"), removed(abmPath + "ipados_team"), removed(abmPath + "byod_team"),
+			removed("org_settings.mdm.volume_purchasing_program[].teams"),
+		}},
+		{"new keys are accepted", globalConfig(`
+    apple_business:
+      - organization_name: Test Org
+        macos_fleet: Workstations
+    volume_purchasing_program:
+      - location: Earth
+        fleets: [Workstations]`), nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			yamlPath := filepath.Join(dir, "gitops.yml")
+			require.NoError(t, os.WriteFile(yamlPath, []byte(tt.yaml), 0o644))
+
+			_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+			if len(tt.want) == 0 {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			for _, message := range tt.want {
+				assert.ErrorContains(t, err, yamlPath+": "+message)
+			}
+		})
+	}
+
+	// The file that org_settings references is parsed on its own, so it is checked on its own and the error names it.
+	t.Run("keys in a file-backed org_settings", func(t *testing.T) {
+		dir := t.TempDir()
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte("controls:\nreports:\npolicies:\nagent_options:\norg_settings:\n  path: org.yml\n"), 0o644))
+		orgFile := `
+server_settings:
+  server_url: https://fleet.example.com
+org_info:
+  contact_url: https://example.com/contact
+  org_name: Test Org
+secrets:
+mdm:
+  apple_business_manager:
+    - organization_name: Test Org
+      macos_team: Workstations
+  volume_purchasing_program:
+    - location: Earth
+      teams: [Workstations]
+`
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "org.yml"), []byte(orgFile), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "org.yml: "+removed(abmPath+"macos_team"))
+		require.ErrorContains(t, err, "org.yml: "+removed("org_settings.mdm.volume_purchasing_program[].teams"))
 	})
 }
 

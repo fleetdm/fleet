@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "9.5.4",
+      "version": "9.6.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'ch.sudo.cyberduck';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ch.sudo.cyberduck' AND version_compare(bundle_short_version, '9.5.4') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ch.sudo.cyberduck' AND version_compare(bundle_short_version, '9.6.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'ch.sudo.cyberduck' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://update.cyberduck.io/Cyberduck-9.5.4.45528.zip",
+      "installer_url": "https://update.cyberduck.io/Cyberduck-9.6.0.46406.zip",
       "install_script_ref": "25f554b9",
       "uninstall_script_ref": "52f57392",
-      "sha256": "9398777ad01bfac7228db3990aed1c834437a599664e0f3e27a68feb53cbcebf",
+      "sha256": "a9195fb3dc904265dbb1b238d707e3ac4ac8a1ed356b188464e8773aad3a8ca8",
       "default_categories": [
         "Productivity"
       ]

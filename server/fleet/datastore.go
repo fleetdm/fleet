@@ -501,9 +501,9 @@ type Datastore interface {
 	// HostLiteByIdentifier) that are prone to full-table scans. See the implementation for more details.
 	GetHostMDMIdentifiers(ctx context.Context, identifer string, teamFilter TeamFilter) ([]*HostMDMIdentifiers, error)
 
-	// ListIOSAndIPadOSToRefetch returns the UUIDs of iPhones/iPads that should be refetched (their details haven't been
-	// updated in the given `interval`).
-	ListIOSAndIPadOSToRefetch(ctx context.Context, refetchInterval time.Duration) (devices []AppleDevicesToRefetch, err error)
+	// ListIOSAndIPadOSToRefetch returns up to limit iPhones/iPads that should be refetched (their details haven't been
+	// updated in the given `interval`), longest-waiting first.
+	ListIOSAndIPadOSToRefetch(ctx context.Context, refetchInterval time.Duration, limit int) (devices []AppleDevicesToRefetch, err error)
 	// AddHostMDMCommands adds the provided MDM commands to the host to track which commands have been sent.
 	AddHostMDMCommands(ctx context.Context, commands []HostMDMCommand) error
 	// GetHostMDMCommands returns the MDM commands that have been sent to the host.
@@ -1240,8 +1240,6 @@ type Datastore interface {
 
 	// MigrateTables creates and migrates the table schemas
 	MigrateTables(ctx context.Context) error
-	// MigrateData populates built-in data
-	MigrateData(ctx context.Context) error
 	// MigrationStatus returns nil if migrations are complete, and an error if migrations need to be run.
 	MigrationStatus(ctx context.Context) (*MigrationStatus, error)
 
@@ -3317,13 +3315,13 @@ type Datastore interface {
 	// BatchSetScripts sets the scripts for the given team or no team.
 	BatchSetScripts(ctx context.Context, tmID *uint, scripts []*Script) ([]ScriptResponse, error)
 
-	// BatchExecuteScript queues a script to run on a set of hosts and returns the batch script
-	// execution ID.
-	BatchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error)
-
 	// BatchExecuteScript queued a script to run on a set of hosts after notBefore and returns the
 	// batch execution ID.
 	BatchScheduleScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, notBefore time.Time) (string, error)
+
+	// NewBatchScriptExecution creates a batch script execution for a set of hosts without running
+	// it and returns the batch execution ID. Run it with RunScheduledBatchActivity.
+	NewBatchScriptExecution(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error)
 
 	// GetBatchActivity returns a batch activity with executionID
 	GetBatchActivity(ctx context.Context, executionID string) (*BatchActivity, error)
@@ -4335,7 +4333,9 @@ type Datastore interface {
 	// CreateHostConditionalAccessStatus creates the entry for the host on the datastore.
 	// This does not set the "managed" or "compliant" status yet, this just creates the entry needed with Entra information.
 	// If the host already has a different deviceID/userPrincipalName it will override them.
-	CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string, userPrincipalName string) error
+	// It returns whether the entry was created or changed, and a ConflictError if another host has deviceID.
+	// A verified deviceID (from an Entra-signed token) replaces unverified claims from other hosts.
+	CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string, userPrincipalName string, verified bool) (bool, error)
 	// SetHostConditionalAccessStatus sets the "managed" and "compliant" statuses last set on Entra.
 	// It does nothing if the host doesn't have a status entry created with CreateHostConditionalAccessStatus yet.
 	SetHostConditionalAccessStatus(ctx context.Context, hostID uint, managed, compliant bool) error
@@ -4924,19 +4924,15 @@ type MigrationStatus struct {
 	// then all other fields are empty.
 	//
 	// If StatusCode is SomeMigrationsCompleted, then missing migrations
-	// are available in MissingTable and MissingData.
+	// are available in MissingTable.
 	//
 	// If StatusCode is UnknownMigrations, then unknown migrations
-	// are available in UnknownTable and UnknownData.
+	// are available in UnknownTable.
 	StatusCode MigrationStatusCode `json:"status_code"`
 	// MissingTable holds the missing table migrations.
 	MissingTable []int64 `json:"missing_table"`
-	// MissingTable holds the missing data migrations.
-	MissingData []int64 `json:"missing_data"`
 	// UnknownTable holds unknown applied table migrations.
 	UnknownTable []int64 `json:"unknown_table"`
-	// UnknownTable holds unknown applied data migrations.
-	UnknownData []int64 `json:"unknown_data"`
 }
 
 type MigrationStatusCode int
@@ -4950,11 +4946,6 @@ const (
 	AllMigrationsCompleted
 	// UnknownMigrations means some unidentified migrations were detected on the database.
 	UnknownMigrations
-	// NeedsFleetv4732Fix means the database needs the special fix migration for fleet v4.73.2
-	NeedsFleetv4732Fix
-	// UnknownFleetv4732State means the database has the broken migrations from fleet v4.73.2 however
-	// it is not in the expected state and needs manual intervention.
-	UnknownFleetv4732State
 )
 
 // TODO: we have a similar but different interface in the service package,

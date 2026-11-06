@@ -134,7 +134,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 
 	// Create a team
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	// Check apps returned
@@ -736,7 +736,7 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 
 	// Create a team
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	// Add WARP for Windows
@@ -992,7 +992,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 
 	// --- setup: team with cloudflare-warp v1.0, self-service on ---
 	var teamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{
 		Name: new("team_" + t.Name()),
 	}, http.StatusOK, &teamResp)
 	team := *teamResp.Team
@@ -1257,7 +1257,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCronTimeBudget() {
 	}
 
 	var teamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{
 		Name: new("team_" + t.Name()),
 	}, http.StatusOK, &teamResp)
 	team := *teamResp.Team
@@ -1413,7 +1413,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	// newTeam creates a new team with the given name and returns it.
 	newTeam := func(name string) fleet.Team {
 		var resp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
+		s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{
 			Name: new(name),
 		}, http.StatusOK, &resp)
 		return *resp.Team
@@ -3442,7 +3442,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	})
 
 	var teamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{
 		Name: new("fma_pin_" + t.Name()),
 	}, http.StatusOK, &teamResp)
 	team := *teamResp.Team

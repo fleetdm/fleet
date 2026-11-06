@@ -18,6 +18,14 @@ import (
 
 var MigrationClient = newMigrationClient()
 
+// Helpers for migrations added after the Fleet 5 baseline. Referenced here so
+// the unused linter doesn't flag them while no migration uses them.
+var _ = []any{
+	logger, basicMigrationStep, basicMigrationStepWithArgs, incrementalMigrationStep, withSteps,
+	fkExists, constraintExists, columnExists, columnsExists, tableExists, indexExists,
+	indexExistsTx, addIndexesTx, indexDef{}, updateAppConfigJSON,
+}
+
 func newMigrationClient() *goose.Client {
 	c := goose.New("migration_status_tables", goose.MySqlDialect{})
 	// NOTE FOR MIGRATION AUTHORS: because of out-of-order application (below),
@@ -27,16 +35,11 @@ func newMigrationClient() *goose.Client {
 	// of concurrently in-flight migrations, and the guard helpers in this file
 	// (columnExists, indexExistsTx, ...) protect against reordering as well as
 	// retries.
-	// Migrations newer than the ones shipped in fleet v4.94.0 may be applied
-	// out of order, so a migration shipped in a patch release with a timestamp
-	// older than already-applied migrations is picked up on the next
-	// `fleet prepare db` instead of requiring renumbering. The floor is the
-	// first migration after the v4.94.0 RC was cut: migrations at or below the
-	// RC's newest (20261014074522) predate the order-independence rule and had
-	// their relative order guaranteed by releases, so gaps there are
-	// historical and are left alone. Bump this to the first post-RC migration
-	// when a release introduces a new ordering guarantee worth anchoring to.
-	c.MinOutOfOrderVersion = 20261014132040
+	// Every migration after the Fleet 5 baseline may be applied out of order,
+	// so a migration shipped in a patch release with a timestamp older than
+	// already-applied migrations is picked up on the next `fleet prepare db`
+	// instead of requiring renumbering.
+	c.MinOutOfOrderVersion = Fleet5BaselineVersion
 	return c
 }
 
