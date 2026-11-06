@@ -862,6 +862,7 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 	ipa2.Categories = []string{"👬 Communication", "🖥️ Productivity"}
 	catIDsByName, err := ds.GetSoftwareCategoryNameToIDMap(ctx, team.ID, ipa2.Categories)
 	require.NoError(t, err)
+	require.Len(t, catIDsByName, 2)
 	ipa2.CategoryIDs = []uint{catIDsByName[ipa2.Categories[0]], catIDsByName[ipa2.Categories[1]]}
 
 	err = ds.BatchSetInHouseAppsInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{

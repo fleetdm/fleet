@@ -355,13 +355,13 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	hostInstall4, err := ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID2, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
-	pendingHost1, err := listPendingSoftwareInstalls(ctx, ds, host1.ID)
+	pendingHost1, err := ds.listUpcomingSoftwareInstalls(ctx, host1.ID, false)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(pendingHost1))
 	require.Equal(t, hostInstall1, pendingHost1[0])
 	require.Equal(t, hostInstall2, pendingHost1[1])
 
-	pendingHost2, err := listPendingSoftwareInstalls(ctx, ds, host2.ID)
+	pendingHost2, err := ds.listUpcomingSoftwareInstalls(ctx, host2.ID, false)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(pendingHost2))
 	require.Equal(t, hostInstall3, pendingHost2[0])
@@ -394,11 +394,11 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 
-	installDetailsList1, err := listPendingSoftwareInstalls(ctx, ds, host1.ID)
+	installDetailsList1, err := ds.listUpcomingSoftwareInstalls(ctx, host1.ID, false)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(installDetailsList1))
 
-	installDetailsList2, err := listPendingSoftwareInstalls(ctx, ds, host2.ID)
+	installDetailsList2, err := ds.listUpcomingSoftwareInstalls(ctx, host2.ID, false)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(installDetailsList2))
 
@@ -460,7 +460,7 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	err = ds.RestoreMDMApplePendingDEPHost(ctx, host3)
 	require.NoError(t, err)
 
-	hostInstalls4, err := listPendingSoftwareInstalls(ctx, ds, host3.ID)
+	hostInstalls4, err := ds.listUpcomingSoftwareInstalls(ctx, host3.ID, false)
 	require.NoError(t, err)
 	require.Empty(t, hostInstalls4)
 
@@ -1610,7 +1610,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	summary, err = ds.GetSummaryHostSoftwareInstalls(ctx, instDetails1.InstallerID)
 	require.NoError(t, err)
 	require.Equal(t, fleet.SoftwareInstallerStatusSummary{Installed: 0, PendingInstall: 0}, *summary)
-	pendingHost1, err := listPendingSoftwareInstalls(ctx, ds, host1.ID)
+	pendingHost1, err := ds.listUpcomingSoftwareInstalls(ctx, host1.ID, false)
 	require.NoError(t, err)
 	require.Empty(t, pendingHost1)
 
@@ -1633,7 +1633,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 
-	pendingHost1, err = listPendingSoftwareInstalls(ctx, ds, host1.ID)
+	pendingHost1, err = ds.listUpcomingSoftwareInstalls(ctx, host1.ID, false)
 	require.NoError(t, err)
 	require.Len(t, pendingHost1, 1)
 
@@ -1701,7 +1701,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	summary, err = ds.GetSummaryHostSoftwareInstalls(ctx, instDetails0.InstallerID)
 	require.NoError(t, err)
 	require.Equal(t, fleet.SoftwareInstallerStatusSummary{FailedInstall: 0, PendingInstall: 0}, *summary)
-	pendingHost1, err = listPendingSoftwareInstalls(ctx, ds, host1.ID)
+	pendingHost1, err = ds.listUpcomingSoftwareInstalls(ctx, host1.ID, false)
 	require.NoError(t, err)
 	require.Empty(t, pendingHost1)
 
@@ -1940,7 +1940,7 @@ func testBatchSetSoftwareInstallersMultipleCustomPackages(t *testing.T, ds *Data
 	require.NoError(t, err)
 	require.NotNil(t, kept.SoftwareInstallerID)
 	require.Equal(t, firstID, *kept.SoftwareInstallerID)
-	pending, err := listPendingSoftwareInstalls(ctx, ds, host.ID)
+	pending, err := ds.listUpcomingSoftwareInstalls(ctx, host.ID, false)
 	require.NoError(t, err)
 	require.Len(t, pending, 1)
 

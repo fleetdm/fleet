@@ -24,7 +24,16 @@ import (
 const setupExperienceSoftwareInstallsRetries uint = 2 // 3 attempts = 1 initial + 2 retries
 
 func (ds *Datastore) ListReadyToExecuteSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error) {
-	const stmt = `
+	return ds.listUpcomingSoftwareInstalls(ctx, hostID, true)
+}
+
+func (ds *Datastore) listUpcomingSoftwareInstalls(ctx context.Context, hostID uint, onlyReadyToExecute bool) ([]string, error) {
+	extraWhere := ""
+	if onlyReadyToExecute {
+		extraWhere = " AND activated_at IS NOT NULL"
+	}
+
+	stmt := fmt.Sprintf(`
 	SELECT
 		execution_id
 	FROM (
@@ -37,13 +46,13 @@ func (ds *Datastore) ListReadyToExecuteSoftwareInstalls(ctx context.Context, hos
 			upcoming_activities
 		WHERE
 			host_id = ? AND
-			activity_type = 'software_install' AND
-			activated_at IS NOT NULL
+			activity_type = 'software_install'
+			%s
 		ORDER BY topmost DESC, priority ASC, created_at ASC) as t
-`
+`, extraWhere)
 	var results []string
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, hostID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list ready to execute software installs")
+		return nil, ctxerr.Wrap(ctx, err, "list pending software installs")
 	}
 	return results, nil
 }
