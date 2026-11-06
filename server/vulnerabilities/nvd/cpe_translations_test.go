@@ -36,6 +36,41 @@ func TestFirefoxDeveloperEditionTranslation(t *testing.T) {
 	require.Empty(t, filter.SWEdition)
 }
 
+// TestClaudeCodeNPMTranslation loads the real, shipped cpe_translations.json and
+// verifies the @anthropic-ai/claude-code npm package translates to NVD's
+// anthropic:claude_code product. Without this rule the generic npm_packages rule
+// uses the package name as the product, which has no NVD entry, so Claude Code
+// CVEs are never matched (#57926). This test needs no CPE dictionary or network.
+func TestClaudeCodeNPMTranslation(t *testing.T) {
+	translations, err := loadCPETranslations(filepath.Join(".", cpeTranslationsFilename))
+	require.NoError(t, err)
+
+	software := &fleet.Software{
+		Name:    "@anthropic-ai/claude-code",
+		Source:  "npm_packages",
+		Version: "1.0.61",
+	}
+
+	filter, matched, err := translations.Translate(newRegexpCache(), software)
+	require.NoError(t, err)
+	require.True(t, matched, "@anthropic-ai/claude-code should match a translation rule")
+	require.Equal(t, []string{"claude_code"}, filter.Product)
+	require.Equal(t, []string{"anthropic"}, filter.Vendor)
+	require.Equal(t, []string{"node.js"}, filter.TargetSW)
+
+	// Other npm packages still fall through to the generic npm_packages rule.
+	filter, matched, err = translations.Translate(newRegexpCache(), &fleet.Software{
+		Name:    "express",
+		Source:  "npm_packages",
+		Version: "4.18.0",
+	})
+	require.NoError(t, err)
+	require.True(t, matched)
+	require.Equal(t, []string{"express"}, filter.Product)
+	require.Empty(t, filter.Vendor)
+	require.Equal(t, []string{"node.js"}, filter.TargetSW)
+}
+
 func TestTranslate(t *testing.T) {
 	tests := []struct {
 		name         string
