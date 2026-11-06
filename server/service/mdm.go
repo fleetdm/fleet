@@ -2698,13 +2698,13 @@ func (svc *Service) batchValidateProfileLabels(ctx context.Context, teamID *uint
 
 	uniqueNames := server.RemoveDuplicatesFromSlice(labelNames)
 
-	labels, err := svc.ds.LabelIDsByName(ctx, labelNames, fleet.TeamFilter{User: authz.UserFromContext(ctx)})
+	found, err := foundLabelNames(ctx, svc.ds, uniqueNames, authz.UserFromContext(ctx))
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting label IDs by name")
+		return nil, err
 	}
 
-	if len(labels) != len(uniqueNames) {
-		labelError := fleet.NewMissingLabelError(uniqueNames, labels)
+	if len(found) != len(uniqueNames) {
+		labelError := fleet.NewMissingLabelError(uniqueNames, found)
 		return nil, &fleet.BadRequestError{
 			InternalErr: labelError,
 			Message:     fmt.Sprintf("Couldn't update. Label %q doesn't exist. Please remove the label from the configuration profile.", labelError.MissingLabelName),
@@ -2712,17 +2712,18 @@ func (svc *Service) batchValidateProfileLabels(ctx context.Context, teamID *uint
 	}
 
 	// NOTE(lucas): To not break API error string returned above
-	// AND for code reusability we are a-ok with loading labels again in verifyLabelsToAssociate.
+	// AND for code reusability we are a-ok with loading labels again in labelsToAssociate.
 	// This can definitely be optimized if need be.
-	if err := verifyLabelsToAssociate(ctx, svc.ds, teamID, labelNames, authz.UserFromContext(ctx)); err != nil {
+	scoped, err := labelsToAssociate(ctx, svc.ds, teamID, labelNames, authz.UserFromContext(ctx))
+	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 
 	profLabels := make(map[string]fleet.ConfigurationProfileLabel)
-	for labelName, labelID := range labels {
+	for labelName, label := range scoped {
 		profLabels[labelName] = fleet.ConfigurationProfileLabel{
 			LabelName: labelName,
-			LabelID:   labelID,
+			LabelID:   label.ID,
 		}
 	}
 	return profLabels, nil

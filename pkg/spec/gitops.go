@@ -34,7 +34,7 @@ const LabelAPIGlobalTeamName = "global"
 type LabelChangesSummary struct {
 	LabelsToUpdate  []string
 	LabelsToAdd     []string
-	LabelsToRemove  []string
+	LabelsToRemove  []LabelChange
 	LabelsMovements []LabelMovement
 }
 
@@ -62,7 +62,7 @@ func NewLabelChangesSummary(changes []LabelChange, moves []LabelMovement) LabelC
 
 			r.LabelsToAdd = append(r.LabelsToAdd, change.Name)
 		case "-":
-			r.LabelsToRemove = append(r.LabelsToRemove, change.Name)
+			r.LabelsToRemove = append(r.LabelsToRemove, change)
 		case "=":
 			r.LabelsToUpdate = append(r.LabelsToUpdate, change.Name)
 		}
@@ -70,16 +70,19 @@ func NewLabelChangesSummary(changes []LabelChange, moves []LabelMovement) LabelC
 	return r
 }
 
-// LabelMovement specifies a label movement, a label is moved if its removed from one team and added to another
+// LabelMovement specifies a label movement, a label is moved if its name is removed from the global level and added
+// to a fleet, or the reverse
 type LabelMovement struct {
 	FromTeamName string // Source team name
+	FromTeamID   *uint  // Source team ID, so the server only sets aside that fleet's label
 	ToTeamName   string // Dest. team name
-	Name         string // The globally unique label name
+	Name         string // The label name
 }
 
 // LabelChange used for keeping track of label operations
 type LabelChange struct {
-	Name     string // The globally unique label name
+	Name     string // The label name, unique among the labels this team can see
+	ID       uint   // The existing label's ID; zero for a label being added
 	Op       string // What operation to perform on the label. +:add, -:remove, =:no-op
 	TeamName string // The team this label belongs to.
 	FileName string // The filename that contains the label change

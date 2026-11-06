@@ -185,17 +185,6 @@ func newGlobalPolicy(ctx context.Context, db sqlx.ExtContext, authorID *uint, ar
 
 func updatePolicyLabelsTx(ctx context.Context, tx sqlx.ExtContext, policy *fleet.Policy) error {
 	const deleteLabelsStmt = `DELETE FROM policy_labels WHERE policy_id = ?`
-	const insertLabelStmt = `
-		INSERT INTO policy_labels (
-			policy_id,
-			label_id,
-			exclude,
-			require_all
-		)
-		SELECT ?, id, ?, ?
-		FROM labels
-		WHERE name IN (?)
-	`
 
 	if err := policy.VerifyLabelScopes(); err != nil {
 		return ctxerr.Wrap(ctx, err, "validating policy label scopes")
@@ -215,24 +204,26 @@ func updatePolicyLabelsTx(ctx context.Context, tx sqlx.ExtContext, policy *fleet
 		for _, label := range labels {
 			names = append(names, label.LabelName)
 		}
-
-		stmt, args, err := sqlx.In(insertLabelStmt, policy.ID, exclude, requireAll, names)
+		ids, err := resolveLabelNamesTx(ctx, tx, names, policy.TeamID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "constructing policy label update query")
+			return ctxerr.Wrap(ctx, err, "resolving policy labels")
 		}
 
-		res, err := tx.ExecContext(ctx, stmt, args...)
-		if err != nil {
+		values := make([]string, 0, len(ids))
+		args := make([]any, 0, len(ids)*4)
+		inserted := make(map[uint]struct{}, len(ids))
+		for _, name := range names {
+			id := ids[name]
+			if _, ok := inserted[id]; ok {
+				continue
+			}
+			inserted[id] = struct{}{}
+			values = append(values, "(?, ?, ?, ?)")
+			args = append(args, policy.ID, id, exclude, requireAll)
+		}
+		stmt := `INSERT INTO policy_labels (policy_id, label_id, exclude, require_all) VALUES ` + strings.Join(values, ", ")
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "creating policy labels")
-		}
-
-		rowsAffected, err := res.RowsAffected()
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "listing number of policy labels affected")
-		}
-
-		if rowsAffected != int64(len(names)) {
-			return ctxerr.Errorf(ctx, "invalid label")
 		}
 		return nil
 	}
@@ -1655,6 +1646,7 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 	dummyPolicy := &fleet.Policy{
 		PolicyData: fleet.PolicyData{
 			ID:               policyID,
+			TeamID:           &teamID,
 			LabelsIncludeAny: fleet.LabelNamesToIdents(args.LabelsIncludeAny),
 			LabelsIncludeAll: fleet.LabelNamesToIdents(args.LabelsIncludeAll),
 			LabelsExcludeAny: fleet.LabelNamesToIdents(args.LabelsExcludeAny),
@@ -2258,6 +2250,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				err = updatePolicyLabelsTx(ctx, tx, &fleet.Policy{
 					PolicyData: fleet.PolicyData{
 						ID:               policyID,
+						TeamID:           teamID,
 						LabelsIncludeAny: fleet.LabelNamesToIdents(spec.LabelsIncludeAny),
 						LabelsIncludeAll: fleet.LabelNamesToIdents(spec.LabelsIncludeAll),
 						LabelsExcludeAny: fleet.LabelNamesToIdents(spec.LabelsExcludeAny),

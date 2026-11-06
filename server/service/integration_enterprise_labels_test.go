@@ -25,6 +25,96 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func (s *integrationEnterpriseTestSuite) TestTeamLabelsShareNames() {
+	t := s.T()
+	ctx := t.Context()
+
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team1"})
+	require.NoError(t, err)
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team2"})
+	require.NoError(t, err)
+
+	shared := strings.ReplaceAll(t.Name(), "/", "_") + "_engineering"
+	globalName := strings.ReplaceAll(t.Name(), "/", "_") + "_ops"
+	applyTeamSpec := func(teamID uint, name string, wantStatus int) *http.Response {
+		return s.Do("POST", "/api/latest/fleet/spec/labels", fleet.ApplyLabelSpecsRequest{
+			Specs: []*fleet.LabelSpec{{Name: name, Query: "select 1", LabelMembershipType: fleet.LabelMembershipTypeDynamic}},
+		}, wantStatus, "fleet_id", fmt.Sprint(teamID))
+	}
+
+	applyTeamSpec(team1.ID, shared, http.StatusOK)
+	applyTeamSpec(team2.ID, shared, http.StatusOK)
+
+	teamLabel := func(teamID uint) *fleet.LabelSpec {
+		var specsResp fleet.GetLabelSpecsResponse
+		s.DoJSON("GET", "/api/latest/fleet/spec/labels", nil, http.StatusOK, &specsResp, "fleet_id", fmt.Sprint(teamID))
+		for _, spec := range specsResp.Specs {
+			if spec.Name == shared {
+				return spec
+			}
+		}
+		return nil
+	}
+	team1Label, team2Label := teamLabel(team1.ID), teamLabel(team2.ID)
+	require.NotNil(t, team1Label)
+	require.NotNil(t, team2Label)
+	require.NotEqual(t, team1Label.ID, team2Label.ID)
+
+	// A global label can't take a name a fleet uses, through the UI's endpoint or specs.
+	res := s.Do("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: shared, Query: "select 1"}, http.StatusConflict)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.LabelNameInUseByFleetsErrMsg)
+	res = s.Do("POST", "/api/latest/fleet/spec/labels", fleet.ApplyLabelSpecsRequest{
+		Specs: []*fleet.LabelSpec{{Name: shared, Query: "select 1", LabelMembershipType: fleet.LabelMembershipTypeDynamic}},
+	}, http.StatusConflict)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.LabelNameInUseByFleetsErrMsg)
+
+	// A fleet label can't take a global label's name, by spec or by rename.
+	var createResp fleet.CreateLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: globalName, Query: "select 1"}, http.StatusOK, &createResp)
+	res = applyTeamSpec(team1.ID, globalName, http.StatusConflict)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.LabelNameInUseGloballyErrMsg)
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", team1Label.ID), &fleet.ModifyLabelPayload{Name: &globalName}, http.StatusConflict)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.LabelNameInUseGloballyErrMsg)
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", createResp.Label.ID), &fleet.ModifyLabelPayload{Name: &shared}, http.StatusConflict)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.LabelNameInUseByFleetsErrMsg)
+
+	// A fleet's resources resolve the shared name to that fleet's label.
+	var tpResp fleet.TeamPolicyResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team2.ID), fleet.TeamPolicyRequest{
+		Name: t.Name() + "_policy", Query: "select 1", LabelsIncludeAny: []string{shared, globalName},
+	}, http.StatusOK, &tpResp)
+	require.Len(t, tpResp.Policy.LabelsIncludeAny, 2)
+	gotIDs := []uint{tpResp.Policy.LabelsIncludeAny[0].LabelID, tpResp.Policy.LabelsIncludeAny[1].LabelID}
+	require.ElementsMatch(t, []uint{team2Label.ID, createResp.Label.ID}, gotIDs)
+
+	// The name alone no longer identifies one label.
+	res = s.Do("GET", fmt.Sprintf("/api/latest/fleet/spec/labels/%s", url.PathEscape(shared)), nil, http.StatusConflict)
+	require.Contains(t, extractServerErrorText(res.Body), "More than one fleet has a label named")
+	res = s.Do("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
+		Specs: []*fleet.PolicySpec{{Name: t.Name() + "_global_policy", Query: "select 1", LabelsIncludeAny: []string{shared}}},
+	}, http.StatusConflict)
+	require.Contains(t, extractServerErrorText(res.Body), "More than one fleet has a label named")
+
+	// Moving the name to global from one fleet doesn't set aside another fleet's label.
+	res = s.Do("POST", "/api/latest/fleet/spec/labels", fleet.ApplyLabelSpecsRequest{
+		Specs:        []*fleet.LabelSpec{{Name: shared, Query: "select 1", LabelMembershipType: fleet.LabelMembershipTypeDynamic}},
+		LabelsToMove: []fleet.LabelToMove{{Name: shared, FromFleetID: &team1.ID}},
+	}, http.StatusConflict)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.LabelNameInUseByFleetsErrMsg)
+	require.Equal(t, team1Label.ID, teamLabel(team1.ID).ID)
+	require.Equal(t, team2Label.ID, teamLabel(team2.ID).ID)
+
+	// Labels are deleted by ID, so deleting one fleet's label leaves the other fleet's label with the same name.
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(shared)), nil, http.StatusGone)
+	var delResp fleet.DeleteLabelByIDResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", team1Label.ID), nil, http.StatusOK, &delResp)
+
+	var getResp fleet.GetLabelResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", team1Label.ID), nil, http.StatusNotFound, &getResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", team2Label.ID), nil, http.StatusOK, &getResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", createResp.Label.ID), nil, http.StatusOK, &delResp)
+}
+
 func (s *integrationEnterpriseTestSuite) TestTeamLabels() {
 	t := s.T()
 
@@ -119,14 +209,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabels() {
 	require.Equal(t, newName, modResp.Label.Name)
 
 	// Delete team labels
-	var delResp fleet.DeleteLabelResponse
+	var delResp fleet.DeleteLabelByIDResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", team1LabelID), nil, http.StatusOK, &delResp)
 
 	// Verify it's deleted
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", team1LabelID), nil, http.StatusNotFound, &getResp)
 
-	// Delete team2 label by name
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", team2Label.Name), nil, http.StatusOK, &delResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", team2LabelID), nil, http.StatusOK, &delResp)
 
 	// Verify it's deleted
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", team2LabelID), nil, http.StatusNotFound, &getResp)
@@ -551,10 +640,9 @@ func (s *integrationEnterpriseTestSuite) TestDeleteLabels() {
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "foreign key constraint on labels: TestDeleteLabels1")
 
-	// try to delete a label that does not exist by id and name
+	// try to delete a label that does not exist
 	var delLabelResp fleet.DeleteLabelByIDResponse
 	s.DoJSON("DELETE", "/api/v1/fleet/labels/id/"+fmt.Sprint(lbl1+1000), nil, http.StatusNotFound, &delLabelResp)
-	s.DoJSON("DELETE", "/api/v1/fleet/labels/no-such-label", nil, http.StatusNotFound, &delLabelResp)
 
 	// delete the unused label2
 	s.DoJSON("DELETE", "/api/v1/fleet/labels/id/"+fmt.Sprint(lbl2), nil, http.StatusOK, &delLabelResp)

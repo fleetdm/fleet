@@ -21,6 +21,7 @@ var removedPathTemplates = []string{
 	"/api/_version_/fleet/mdm/apple/profiles/preassign",
 	"/api/_version_/fleet/mdm/apple/profiles/match",
 	"/api/_version_/fleet/hosts/{host_id}/configuration_profiles/resend/{profile_uuid}",
+	"/api/_version_/fleet/labels/{name}",
 }
 
 // removedPathOverlaps has the removed paths that a stdlib ServeMux cannot register next to a live route.

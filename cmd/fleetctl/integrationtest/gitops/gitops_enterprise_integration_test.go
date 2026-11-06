@@ -990,6 +990,88 @@ settings:
 	require.Len(t, profs[0].LabelsIncludeAll, 0)
 }
 
+// A label moved between the global level and a fleet takes the fleet's profile references with it in the same run,
+// so the label left behind can be deleted at the end of that run.
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsLabelMoveWithProfileReference() {
+	t := s.T()
+	ctx := t.Context()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	dir := t.TempDir()
+	profilePath := filepath.Join(dir, "moving.mobileconfig")
+	require.NoError(t, os.WriteFile(profilePath, []byte(test.GenerateMDMAppleProfile("moving", "moving", uuid.NewString())), 0o644))
+
+	labelName := "moving-" + uuid.NewString()
+	teamName := "moving-" + uuid.NewString()
+	label := fmt.Sprintf("labels:\n  - name: %s\n    query: select 1\n", labelName)
+	const noLabels = "labels:\n"
+	const globalTemplate = `
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+reports:
+%s`
+	const teamTemplate = `
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+controls:
+  apple_settings:
+    configuration_profiles:
+      - path: %s
+        labels_include_any:
+          - %s
+software:
+reports:
+policies:
+agent_options:
+%s`
+	globalFile := filepath.Join(dir, "default.yml")
+	teamFile := filepath.Join(dir, "team.yml")
+	run := func(globalLabels, teamLabels string) {
+		require.NoError(t, os.WriteFile(globalFile, fmt.Appendf(nil, globalTemplate, globalLabels), 0o644))
+		require.NoError(t, os.WriteFile(teamFile, fmt.Appendf(nil, teamTemplate, teamName, profilePath, labelName, teamLabels), 0o644))
+		s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile}))
+	}
+	profileLabelFleet := func(teamID uint) *uint {
+		profs, _, err := s.DS.ListMDMConfigProfiles(ctx, &teamID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, profs, 1)
+		require.Len(t, profs[0].LabelsIncludeAny, 1)
+		lbl, _, err := s.DS.Label(ctx, profs[0].LabelsIncludeAny[0].LabelID, fleet.TeamFilter{User: test.UserAdmin})
+		require.NoError(t, err)
+		require.Equal(t, labelName, lbl.Name)
+		return lbl.TeamID
+	}
+	requireNoSetAsideLabels := func() {
+		for name := range labelTeamIDResult(t, s, ctx) {
+			require.False(t, strings.HasPrefix(name, labelName+"__team_"), name)
+		}
+	}
+
+	run(label, noLabels)
+	team, err := s.DS.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+	require.Nil(t, profileLabelFleet(team.ID))
+
+	run(noLabels, label)
+	require.Equal(t, &team.ID, profileLabelFleet(team.ID))
+	requireNoSetAsideLabels()
+
+	run(label, noLabels)
+	require.Nil(t, profileLabelFleet(team.ID))
+	requireNoSetAsideLabels()
+}
+
 func (s *enterpriseIntegrationGitopsTestSuite) TestConfigurationProfileSelfServiceHidden() {
 	t := s.T()
 	ctx := t.Context()
@@ -3456,22 +3538,107 @@ labels:
 
 	s.assertDryRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name(), "-f", teamOneFile.Name(), "-f", teamTwoFile.Name(), "--dry-run"}))
 
-	// TODO: Seems like we require two passes to achieve equilibrium?
-	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name(), "-f", teamOneFile.Name(), "-f", teamTwoFile.Name()}))
-	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name(), "-f", teamOneFile.Name(), "-f", teamTwoFile.Name()}))
+	// One pass reaches the final state, and a second pass changes nothing.
+	for range 2 {
+		s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name(), "-f", teamOneFile.Name(), "-f", teamTwoFile.Name()}))
 
+		teamTwo, err := s.DS.TeamByName(ctx, teamTwoName)
+		require.NoError(t, err)
+
+		got = labelTeamIDResult(t, s, ctx)
+
+		expected = make(map[string]uint)
+		expected["global-label-one"] = 0
+		expected["team-one-label-two"] = teamOne.ID
+		expected["global-label-two"] = teamOne.ID
+		expected["team-one-label-one"] = teamTwo.ID
+
+		require.Equal(t, expected, got)
+	}
 	teamTwo, err := s.DS.TeamByName(ctx, teamTwoName)
 	require.NoError(t, err)
 
-	got = labelTeamIDResult(t, s, ctx)
+	// ------------------------------------------------
+	// Fleets can share label names, but not with global labels
+	// ------------------------------------------------
+	writeTeamFile := func(file *os.File, teamName, secret string, labelNames ...string) {
+		var labels strings.Builder
+		for _, name := range labelNames {
+			fmt.Fprintf(&labels, "  - name: %s\n    label_membership_type: dynamic\n    query: SELECT 1\n", name)
+		}
+		require.NoError(t, os.WriteFile(file.Name(), fmt.Appendf(nil, `
+controls:
+software:
+reports:
+policies:
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"%s"}]
+labels:
+%s`, teamName, secret, labels.String()), 0o644))
+	}
+	writeGlobalFile := func(labelNames ...string) {
+		var labels strings.Builder
+		for _, name := range labelNames {
+			fmt.Fprintf(&labels, "  - name: %s\n    label_membership_type: dynamic\n    query: SELECT 1\n", name)
+		}
+		require.NoError(t, os.WriteFile(globalFile.Name(), fmt.Appendf(nil, `
+agent_options:
+controls:
+org_settings:
+  secrets:
+  - secret: test_secret
+policies:
+reports:
+labels:
+%s`, labels.String()), 0o644))
+	}
+	sharedLabelTeams := func() []uint {
+		var teamIDs []uint
+		mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &teamIDs, "SELECT COALESCE(team_id, 0) FROM labels WHERE name LIKE 'shared-label%' ORDER BY 1")
+		})
+		return teamIDs
+	}
+	runAll := func() {
+		s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name(), "-f", teamOneFile.Name(), "-f", teamTwoFile.Name()}))
+	}
 
-	expected = make(map[string]uint)
-	expected["global-label-one"] = 0
-	expected["team-one-label-two"] = teamOne.ID
-	expected["global-label-two"] = teamOne.ID
-	expected["team-one-label-one"] = teamTwo.ID
+	writeGlobalFile("global-label-one")
+	writeTeamFile(teamOneFile, teamOneName, "enroll_secret", "team-one-label-two", "global-label-two", "shared-label")
+	writeTeamFile(teamTwoFile, teamTwoName, "enroll_secret2", "team-one-label-one", "shared-label")
+	runAll()
+	require.Equal(t, []uint{teamOne.ID, teamTwo.ID}, sharedLabelTeams())
 
-	require.True(t, maps.Equal(expected, got))
+	// Removing it from one fleet leaves the other fleet's label alone.
+	writeTeamFile(teamOneFile, teamOneName, "enroll_secret", "team-one-label-two", "global-label-two")
+	runAll()
+	require.Equal(t, []uint{teamTwo.ID}, sharedLabelTeams())
+
+	// A global label can't use a name a fleet still has.
+	writeGlobalFile("global-label-one", "shared-label")
+	_, err = fleetctltest.RunAppNoChecks([]string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name(), "-f", teamOneFile.Name(), "-f", teamTwoFile.Name()})
+	require.ErrorContains(t, err, fleet.LabelNameInUseByFleetsErrMsg)
+	require.Equal(t, []uint{teamTwo.ID}, sharedLabelTeams())
+
+	// Moving the name to the global level from both fleets at once takes one pass and leaves nothing behind.
+	writeGlobalFile("global-label-one")
+	writeTeamFile(teamOneFile, teamOneName, "enroll_secret", "team-one-label-two", "global-label-two", "shared-label")
+	runAll()
+	require.Equal(t, []uint{teamOne.ID, teamTwo.ID}, sharedLabelTeams())
+	writeGlobalFile("global-label-one", "shared-label")
+	writeTeamFile(teamOneFile, teamOneName, "enroll_secret", "team-one-label-two", "global-label-two")
+	writeTeamFile(teamTwoFile, teamTwoName, "enroll_secret2", "team-one-label-one")
+	runAll()
+	require.Equal(t, []uint{0}, sharedLabelTeams())
+
+	// And back to both fleets.
+	writeGlobalFile("global-label-one")
+	writeTeamFile(teamOneFile, teamOneName, "enroll_secret", "team-one-label-two", "global-label-two", "shared-label")
+	writeTeamFile(teamTwoFile, teamTwoName, "enroll_secret2", "team-one-label-one", "shared-label")
+	runAll()
+	require.Equal(t, []uint{teamOne.ID, teamTwo.ID}, sharedLabelTeams())
 }
 
 // Tests a gitops setup where every team runs from an independent repo. Multiple repos are simulated by
