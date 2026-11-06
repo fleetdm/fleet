@@ -509,6 +509,98 @@ func TestIngestValidations(t *testing.T) {
 			},
 		},
 		{
+			// An exe bootstrapper that installs an MSI: the manifest lists no UpgradeCode.
+			name: "upgrade code from input for exe installer",
+			inputApp: inputApp{
+				Name:                "Foo",
+				UniqueIdentifier:    "Foo",
+				PackageIdentifier:   "Foo",
+				InstallerArch:       "x64",
+				Slug:                "foo/windows",
+				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:       "exe",
+				InstallerScope:      "machine",
+				UpgradeCode:         "{AC76BA86-0000-0000-7760-7E8A45000000}",
+			},
+			cfg: serverConfig{
+				installerType:  "exe",
+				installerScope: "machine",
+				installerArch:  "x64",
+				installerURL:   "https://example.com/foo_installer.exe",
+			},
+		},
+		{
+			name: "upgrade code from input overrides manifest",
+			inputApp: inputApp{
+				Name:                "Foo",
+				UniqueIdentifier:    "Foo",
+				PackageIdentifier:   "Foo",
+				InstallerArch:       "x64",
+				Slug:                "foo/windows",
+				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:       "msi",
+				InstallerScope:      "machine",
+				UpgradeCode:         "{AC76BA86-0000-0000-7760-7E8A45000000}",
+			},
+			cfg: serverConfig{
+				productCode:       "{ABCDEF}",
+				installerType:     "msi",
+				installerScope:    "machine",
+				installerArch:     "x64",
+				installerProdCode: "{ACBDEF}",
+				upgradeCode:       "{ABCDEF}",
+			},
+		},
+		{
+			name:    "upgrade code from input must be a braced GUID",
+			wantErr: "isn't a braced GUID",
+			inputApp: inputApp{
+				Name:                "Foo",
+				UniqueIdentifier:    "Foo",
+				PackageIdentifier:   "Foo",
+				InstallerArch:       "x64",
+				Slug:                "foo/windows",
+				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:       "exe",
+				InstallerScope:      "machine",
+				UpgradeCode:         "AC76BA86-0000-0000-7760-7E8A45000000",
+			},
+			cfg: serverConfig{
+				installerType:  "exe",
+				installerScope: "machine",
+				installerArch:  "x64",
+				installerURL:   "https://example.com/foo_installer.exe",
+			},
+		},
+		{
+			name:    "upgrade code from input conflicts with ignore upgrade code",
+			wantErr: "can't both be set",
+			inputApp: inputApp{
+				Name:                "Foo",
+				UniqueIdentifier:    "Foo",
+				PackageIdentifier:   "Foo",
+				InstallerArch:       "x64",
+				Slug:                "foo/windows",
+				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:       "msi",
+				InstallerScope:      "machine",
+				UpgradeCode:         "{AC76BA86-0000-0000-7760-7E8A45000000}",
+				IgnoreUpgradeCode:   true,
+			},
+			cfg: serverConfig{
+				productCode:       "{ABCDEF}",
+				installerType:     "msi",
+				installerScope:    "machine",
+				installerArch:     "x64",
+				installerProdCode: "{ACBDEF}",
+				upgradeCode:       "{ABCDEF}",
+			},
+		},
+		{
 			// winget manifests sometimes mislabel an exe installer as "portable".
 			name:       "portable installer type falls back to the URL extension",
 			wantExists: "SELECT 1 FROM programs WHERE name = 'Foo' AND publisher = 'Bar, Inc.';",
@@ -604,9 +696,12 @@ func TestIngestValidations(t *testing.T) {
 			if c.wantPatchedContains != "" {
 				require.Contains(t, out.Queries.Patched, c.wantPatchedContains)
 			}
-			if c.inputApp.IgnoreUpgradeCode {
+			switch {
+			case c.inputApp.UpgradeCode != "":
+				require.Equal(t, c.inputApp.UpgradeCode, out.UpgradeCode)
+			case c.inputApp.IgnoreUpgradeCode:
 				require.Empty(t, out.UpgradeCode)
-			} else {
+			default:
 				require.Equal(t, c.cfg.upgradeCode, out.UpgradeCode)
 			}
 			// The managed "is app open" query matches a process named "<title>.exe".
