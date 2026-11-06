@@ -396,7 +396,6 @@ const ConditionalAccess = () => {
                 variant="subdued"
                 onClick={handleOktaDelete}
                 icon="trash"
-                iconPosition="right"
                 disabled={disableChildren}
               >
                 Delete
