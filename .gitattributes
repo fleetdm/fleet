@@ -11,5 +11,3 @@ website/** linguist-vendored
 # test TestCertificateChain in server/service/service_certificate_test.go was having issues on Windows
 server/service/testdata/server.key text eol=lf
 server/service/testdata/server.pem text eol=lf
-# One self-contained INSERT per line, so concurrent migration PRs merge by keeping both sides.
-server/datastore/mysql/schema_migrations.sql merge=union

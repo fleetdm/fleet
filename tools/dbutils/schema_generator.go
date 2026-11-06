@@ -8,14 +8,16 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
-	"strings"
+	"slices"
 	"time"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -41,14 +43,13 @@ func panicif(err error) {
 	}
 }
 
-// main requires 2 arguments:
-// 1. Path to the schema dumpfile
-// 2. Path to the migration status dumpfile
+// main requires 1 argument:
+// 1. Path to dumpfile
 func main() {
-	if len(os.Args) != 3 {
-		panic("usage: dbutils <schema.sql> <schema_migrations.sql>")
+	if len(os.Args) != 2 {
+		panic("not enough arguments")
 	}
-	fmt.Println("dumping schema to", os.Args[1], "and", os.Args[2])
+	fmt.Println("dumping schema to", os.Args[1])
 
 	// Create the database (must use raw MySQL client to do this)
 	db, err := sql.Open(
@@ -113,44 +114,16 @@ func main() {
 
 	panicif(os.WriteFile(os.Args[1], stripMigrationStatus(stdoutBuf.Bytes()), 0o655))
 
-	// Migration rows are written one self-contained statement per line, without
-	// the auto-increment id, so that concurrent PRs adding migrations only add
-	// lines and the file can be merged with git's union driver (see .gitattributes).
-	var versions []struct {
-		VersionID int64 `db:"version_id"`
-		IsApplied bool  `db:"is_applied"`
+	// Tests derive migration_status_tables rows from the migration filenames
+	// (see testing_utils.LoadDefaultSchema), so make sure they match what ran.
+	var applied []int64
+	panicif(sqlx.Select(sqlx.NewDb(db, "mysql"), &applied,
+		`SELECT version_id FROM schemadb.migration_status_tables WHERE version_id > 0 AND is_applied = 1 ORDER BY version_id`))
+	fromFiles, err := testing_utils.MigrationVersions(filepath.Join(filepath.Dir(os.Args[1]), "migrations", "tables"))
+	panicif(err)
+	if !slices.Equal(applied, fromFiles) {
+		panic(fmt.Sprintf("applied migrations %v do not match migration filenames %v", applied, fromFiles))
 	}
-	panicif(sqlx.Select(sqlx.NewDb(db, "mysql"), &versions,
-		`SELECT version_id, is_applied FROM schemadb.migration_status_tables ORDER BY version_id, is_applied`))
-	pending := make(map[string]bool, len(versions))
-	var ordered []string
-	for _, v := range versions {
-		isApplied := 0
-		if v.IsApplied {
-			isApplied = 1
-		}
-		line := fmt.Sprintf("INSERT INTO `migration_status_tables` (`version_id`, `is_applied`) VALUES (%d, %d);", v.VersionID, isApplied)
-		pending[line] = true
-		ordered = append(ordered, line)
-	}
-	// Keep the existing line order: a union merge appends lines in arbitrary
-	// order, and re-sorting would make the CI up-to-date check fail after it.
-	var sb strings.Builder
-	if existing, err := os.ReadFile(os.Args[2]); err == nil {
-		for line := range strings.Lines(string(existing)) {
-			line = strings.TrimSpace(line)
-			if pending[line] {
-				sb.WriteString(line + "\n")
-				delete(pending, line)
-			}
-		}
-	}
-	for _, line := range ordered {
-		if pending[line] {
-			sb.WriteString(line + "\n")
-		}
-	}
-	panicif(os.WriteFile(os.Args[2], []byte(sb.String()), 0o655))
 }
 
 var (

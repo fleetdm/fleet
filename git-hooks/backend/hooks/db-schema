@@ -3,8 +3,8 @@
 ## DB Schema Dump
 if [[ $DB_SCHEMA_DUMP ]]; then
   make dump-test-schema
-  if [[ $(git diff-files --patch server/datastore/mysql/schema.sql server/datastore/mysql/schema_migrations.sql) ]]; then
-    echo "❌ fail: uncommitted changes in schema.sql or schema_migrations.sql"
+  if [[ $(git diff-files --patch server/datastore/mysql/schema.sql) ]]; then
+    echo "❌ fail: uncommited changes in schema.sql"
     echo "please run 'make dump-test-schema' and commit the changes"
     exit 1
   fi
