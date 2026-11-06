@@ -3435,10 +3435,10 @@ func TestJSONToInterfaceUser(t *testing.T) {
 		subject := subject.(map[string]interface{})
 		assert.Equal(t, nil, subject["global_role"])
 		assert.Len(t, subject["fleets"], 2)
-		assert.Equal(t, fleet.RoleObserver, subject["fleets"].([]interface{})[0].(map[string]interface{})["role"])
-		assert.Equal(t, json.Number("3"), subject["fleets"].([]interface{})[0].(map[string]interface{})["id"])
-		assert.Equal(t, fleet.RoleMaintainer, subject["fleets"].([]interface{})[1].(map[string]interface{})["role"])
-		assert.Equal(t, json.Number("42"), subject["fleets"].([]interface{})[1].(map[string]interface{})["id"])
+		assert.Equal(t, fleet.RoleObserver, subject["fleets"].([]any)[0].(map[string]any)["role"])
+		assert.Equal(t, json.Number("3"), subject["fleets"].([]any)[0].(map[string]any)["id"])
+		assert.Equal(t, fleet.RoleMaintainer, subject["fleets"].([]any)[1].(map[string]any)["role"])
+		assert.Equal(t, json.Number("42"), subject["fleets"].([]any)[1].(map[string]any)["id"])
 	}
 }
 
