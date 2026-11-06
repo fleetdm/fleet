@@ -1,0 +1,17 @@
+<Replace>
+  <!-- Use XTS-AES 256-bit for BitLocker on operating system, fixed data and removable data drives.
+       This only applies when a drive is encrypted after the policy lands; drives that are already
+       encrypted keep their current method until they are decrypted and re-encrypted.
+       Dropdown values: 6 = XTS-AES 128-bit, 7 = XTS-AES 256-bit.
+       Requires mdm.enable_custom_disk_encryption on the Fleet server. -->
+  <CmdID>1</CmdID>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/BitLocker/EncryptionMethodByDriveType</LocURI>
+    </Target>
+    <Data><![CDATA[<enabled/><data id="EncryptionMethodWithXtsOsDropDown_Name" value="7"/><data id="EncryptionMethodWithXtsFdvDropDown_Name" value="7"/><data id="EncryptionMethodWithXtsRdvDropDown_Name" value="7"/>]]></Data>
+  </Item>
+</Replace>

@@ -79,6 +79,10 @@ controls:
     deadline:
     minimum_version:
   enable_disk_encryption: true
+  windows_settings:
+    configuration_profiles:
+      # Use XTS-AES 256-bit for newly encrypted BitLocker drives (requires mdm.enable_custom_disk_encryption)
+      - path: ../lib/windows/configuration-profiles/BitLocker XTS-AES 256 encryption.xml
   scripts:
     # macOS scripts
     - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
