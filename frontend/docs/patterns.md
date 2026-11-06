@@ -1028,10 +1028,8 @@ Figma is the source of truth for icons. If an icon in code doesn't match Figma, 
 - **Grid and stroke:** icons are drawn on a 16px grid with a 1.5px stroke.
 - **Status icons:** use the outlined versions (`success`, `error`, `pending`, `info`).
   The one exception is the OS settings "Verified" status, which uses `success-filled`.
-- **Names:** use plain names (`error`, `pending`, `info`, `success`, `close`), without suffixes for
-  size or style. The only exceptions are the two icons above: `external-link-small` and
-  `success-filled`. Before adding an icon, check `ICON_MAP` for an existing one instead of adding a
-  variant.
+- **Names:** use simple names (`error`, `pending`, `info`, `success`, `close`). Before adding an
+  icon, check `ICON_MAP` for an existing one instead of adding a variant.
 - **Buttons:** pass the icon with the `icon` prop instead of an `<Icon>` child, so the button handles
   icon color, spacing, and icon-only sizing.
 
