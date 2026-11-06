@@ -147,19 +147,13 @@ spec:
     admin1@example.com:
       global_role: admin
       fleets: null
-      teams: null
     admin2@example.com:
       global_role: null
       fleets:
       - role: maintainer
         fleet: team1
-        team: team1
-      teams:
-      - role: maintainer
-        fleet: team1
-        team: team1
 `
-	expectedJson := `{"kind":"user_roles","apiVersion":"v1","spec":{"roles":{"admin1@example.com":{"global_role":"admin","fleets":null,"teams":null},"admin2@example.com":{"global_role":null,"fleets":[{"fleet":"team1","role":"maintainer","team":"team1"}],"teams":[{"fleet":"team1","role":"maintainer","team":"team1"}]}}}}
+	expectedJson := `{"kind":"user_roles","apiVersion":"v1","spec":{"roles":{"admin1@example.com":{"global_role":"admin","fleets":null},"admin2@example.com":{"global_role":null,"fleets":[{"fleet":"team1","role":"maintainer"}]}}}}
 `
 
 	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "user_roles"}))
@@ -1537,8 +1531,7 @@ spec:
     "disabled": false,
     "targets": {
       "labels": null,
-      "fleets": null,
-      "teams": null
+      "fleets": null
     }
   }
 }
@@ -1614,8 +1607,7 @@ spec:
     "disabled": false,
     "targets": {
       "labels": null,
-      "fleets": null,
-      "teams": null
+      "fleets": null
     }
   }
 }

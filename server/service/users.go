@@ -315,7 +315,7 @@ type modifyAPIOnlyUserRequest struct {
 	ID           uint                       `json:"-" url:"id"`
 	Name         *string                    `json:"name,omitempty"`
 	GlobalRole   *string                    `json:"global_role,omitempty"`
-	Teams        *[]fleet.UserTeam          `json:"teams,omitempty" renameto:"fleets"`
+	Teams        *[]fleet.UserTeam          `json:"fleets,omitempty"`
 	APIEndpoints fleet.OptionalAPIEndpoints `json:"api_endpoints"`
 }
 
@@ -611,7 +611,7 @@ type getUserRequest struct {
 
 type getUserResponse struct {
 	User           *fleet.User          `json:"user,omitempty"`
-	AvailableTeams []*fleet.TeamSummary `json:"available_teams" renameto:"available_fleets"`
+	AvailableTeams []*fleet.TeamSummary `json:"available_fleets"`
 	Settings       *fleet.UserSettings  `json:"settings,omitempty"`
 	Err            error                `json:"error,omitempty"`
 }
