@@ -282,7 +282,7 @@ class ClaudeClient {
     try {
       data = this._tryParseJson(text);
     } catch {
-      if (/"(pr_title|pr_body|changes)"\s*:/.test(text)) {
+      if (this._looksLikeConfigChange(text)) {
         throw new Error("Claude returned a config change that could not be parsed");
       }
       // Not JSON — treat as informational response
@@ -312,6 +312,12 @@ class ClaudeClient {
         isNewFile: c.is_new_file || false,
       })),
     };
+  }
+
+  // A config change is a JSON object (optionally fenced) whose first key is one
+  // of the schema's fields. Prose that merely quotes a field name is an answer.
+  _looksLikeConfigChange(text) {
+    return /^(?:```(?:json)?\s*)?\{\s*"(summary|pr_title|pr_body|changes)"\s*:/.test(text);
   }
 
   _tryParseJson(text) {
