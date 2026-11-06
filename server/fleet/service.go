@@ -1726,8 +1726,8 @@ type Service interface {
 	// GetGoogleConditionalAccess returns the connection row (nil when none) and its
 	// status. Both are nil on Fleet Free.
 	GetGoogleConditionalAccess(ctx context.Context) (*ConditionalAccessGoogleIntegration, *ConditionalAccessGoogleStatus, error)
-	// DeleteGoogleConditionalAccess unmarks the devices, deregisters from fleetdm.com,
-	// and turns the integration off.
+	// DeleteGoogleConditionalAccess turns the integration off and deletes the key. The
+	// registration and the device rows are kept for a re-create for the same customer.
 	DeleteGoogleConditionalAccess(ctx context.Context) error
 
 	// /////////////////////////////////////////////////////////////////////////////

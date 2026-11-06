@@ -51,6 +51,9 @@ const (
 	ConditionalAccessGoogleStateDelegationFailed   ConditionalAccessGoogleState = "delegation_failed"
 	ConditionalAccessGoogleStateRegistrationFailed ConditionalAccessGoogleState = "registration_failed"
 	ConditionalAccessGoogleStateConnected          ConditionalAccessGoogleState = "connected"
+	// ConditionalAccessGoogleStateDeleted keeps the registration and the device rows after
+	// a DELETE, so re-creating the integration for the same customer reuses them.
+	ConditionalAccessGoogleStateDeleted ConditionalAccessGoogleState = "deleted"
 )
 
 // AuthzType implements authz.AuthzTyper.

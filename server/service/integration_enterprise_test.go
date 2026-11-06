@@ -556,7 +556,6 @@ type mockedGoogleConditionalAccessClient struct {
 	checkDelegation []string // "adminEmail/customerID" per call
 	checkKeys       [][]byte // service account key used by each delegation check
 	unmanaged       []string
-	unmanagedCreds  []conditional_access_google.Credentials
 	registerErr     error
 	registerSecret  string // secret returned by Register; "secret-<customer ID>" when empty
 	deregisterErr   error
@@ -614,7 +613,6 @@ func (c *mockedGoogleCloudIdentity) SetUnmanaged(_ context.Context, name string)
 	c.m.mu.Lock()
 	defer c.m.mu.Unlock()
 	c.m.unmanaged = append(c.m.unmanaged, name)
-	c.m.unmanagedCreds = append(c.m.unmanagedCreds, c.creds)
 	return nil
 }
 
@@ -639,17 +637,10 @@ func (m *mockedGoogleConditionalAccessClient) serverURLs() []string {
 	return slices.Clone(m.relayOrigins)
 }
 
-// unmarkCreds returns the credentials each SetUnmanaged call was made with.
-func (m *mockedGoogleConditionalAccessClient) unmarkCreds() []conditional_access_google.Credentials {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return slices.Clone(m.unmanagedCreds)
-}
-
 func (m *mockedGoogleConditionalAccessClient) reset() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.registers, m.deregisters, m.deregSecrets, m.relayOrigins, m.checkDelegation, m.unmanaged, m.unmanagedCreds = nil, nil, nil, nil, nil, nil, nil
+	m.registers, m.deregisters, m.deregSecrets, m.relayOrigins, m.checkDelegation, m.unmanaged = nil, nil, nil, nil, nil, nil
 	m.checkKeys = nil
 	m.registerErr, m.deregisterErr, m.checkErr = nil, nil, nil
 	m.registerSecret = ""

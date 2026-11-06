@@ -110,10 +110,8 @@ func (svc *Service) ConnectGoogleConditionalAccess(ctx context.Context, customer
 	if err := svc.verifyGoogleConditionalAccess(ctx, settings, serviceAccountKey, "service_account_key"); err != nil {
 		return err
 	}
-	// The previous customer's devices can only be unmarked with its key, so leave it
-	// before the key is replaced.
 	if existing != nil && existing.CustomerID != settings.CustomerID {
-		if err := svc.leaveGoogleConditionalAccessCustomer(ctx, appConfig.ServerSettings.ServerURL, settings, existing, storedKey); err != nil {
+		if err := svc.leaveGoogleConditionalAccessCustomer(ctx, appConfig.ServerSettings.ServerURL, settings, existing); err != nil {
 			return err
 		}
 		existing = nil
@@ -203,9 +201,6 @@ func (svc *Service) DeleteGoogleConditionalAccess(ctx context.Context) error {
 	if lic, _ := license.FromContext(ctx); lic == nil || !lic.IsPremium() {
 		return fleet.ErrMissingLicense
 	}
-	if svc.googleConditionalAccess == nil {
-		return ctxerr.New(ctx, "google conditional access client is not configured")
-	}
 
 	ctx = ctxdb.RequirePrimary(ctx, true)
 	existing, err := svc.googleConditionalAccessIntegration(ctx)
@@ -221,17 +216,35 @@ func (svc *Service) DeleteGoogleConditionalAccess(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "load app config")
 	}
 	configured := appConfig.Integrations.GoogleConditionalAccess != nil
-	if existing == nil && !keyStored && !configured {
+	active := existing != nil && existing.State != fleet.ConditionalAccessGoogleStateDeleted
+	if !active && !keyStored && !configured {
 		return &fleet.BadRequestError{Message: "integration not found"}
 	}
-	if err := svc.removeGoogleConditionalAccess(ctx, appConfig.ServerSettings.ServerURL, existing); err != nil {
-		return err
-	}
 
+	// Nothing changes in Google or on fleetdm.com: the row keeps the registration and the
+	// device rows, so re-creating the integration for the same customer reuses them. The
+	// row is marked last, so a failed DELETE can be retried.
 	if configured {
 		appConfig.Integrations.GoogleConditionalAccess = nil
 		if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 			return ctxerr.Wrap(ctx, err, "save app config")
+		}
+	}
+	if keyStored {
+		if err := svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetGoogleConditionalAccessServiceAccountKey}); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete google conditional access service account key")
+		}
+	}
+	if active {
+		existing.State = fleet.ConditionalAccessGoogleStateDeleted
+		existing.ErrorMessage = nil
+		if err := svc.ds.SaveGoogleConditionalAccessIntegration(ctx, existing); err != nil {
+			return ctxerr.Wrap(ctx, err, "save google conditional access integration")
+		}
+		if existing.Registered() {
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedConditionalAccessIntegrationGoogle{}); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for deletion of google conditional access integration")
+			}
 		}
 	}
 	return nil
@@ -319,7 +332,13 @@ func (svc *Service) registerGoogleConditionalAccess(
 	existing *fleet.ConditionalAccessGoogleIntegration,
 ) error {
 	if existing != nil && existing.Registered() && existing.CustomerID == settings.CustomerID {
-		return svc.saveGoogleConditionalAccessRow(ctx, settings, existing, fleet.ConditionalAccessGoogleStateConnected, nil)
+		if err := svc.saveGoogleConditionalAccessRow(ctx, settings, existing, fleet.ConditionalAccessGoogleStateConnected, nil); err != nil {
+			return err
+		}
+		if existing.State == fleet.ConditionalAccessGoogleStateDeleted {
+			return svc.newGoogleConditionalAccessAddedActivity(ctx)
+		}
+		return nil
 	}
 
 	if err := svc.saveGoogleConditionalAccessRow(ctx, settings, nil, fleet.ConditionalAccessGoogleStatePending, nil); err != nil {
@@ -345,50 +364,23 @@ func (svc *Service) registerGoogleConditionalAccess(
 		}
 		return ctxerr.Wrap(ctx, err, "save google conditional access integration")
 	}
+	return svc.newGoogleConditionalAccessAddedActivity(ctx)
+}
+
+func (svc *Service) newGoogleConditionalAccessAddedActivity(ctx context.Context) error {
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeAddedConditionalAccessIntegrationGoogle{}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for google conditional access integration")
 	}
 	return nil
 }
 
-// removeGoogleConditionalAccess unmarks the devices (best effort), deregisters, and
-// deletes the rows and the key.
-func (svc *Service) removeGoogleConditionalAccess(
-	ctx context.Context, serverURL string, existing *fleet.ConditionalAccessGoogleIntegration,
-) error {
-	if existing != nil {
-		key, err := svc.googleConditionalAccessKey(ctx)
-		if err != nil {
-			return err
-		}
-		if err := svc.unmarkGoogleConditionalAccessDevices(ctx, existing, key); err != nil {
-			return err
-		}
-		if existing.Registered() {
-			if err := svc.deleteGoogleConditionalAccessRegistration(ctx, serverURL, existing); err != nil {
-				return err
-			}
-		}
-	}
-	if err := svc.ds.DeleteGoogleConditionalAccessIntegration(ctx); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete google conditional access integration")
-	}
-	if err := svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetGoogleConditionalAccessServiceAccountKey}); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete google conditional access service account key")
-	}
-	if existing != nil && existing.Registered() {
-		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedConditionalAccessIntegrationGoogle{}); err != nil {
-			return ctxerr.Wrap(ctx, err, "create activity for deletion of google conditional access integration")
-		}
-	}
-	return nil
-}
-
-// leaveGoogleConditionalAccessCustomer deregisters the previous customer first, so a
-// failure changes nothing and keeps its secret for the retry, then unmarks its devices.
+// leaveGoogleConditionalAccessCustomer drops the previous customer's registration, so a
+// failure changes nothing and keeps its secret for the retry. Google is left as it is,
+// and the previous customer's device rows are left for the cron: deleting them here
+// takes seconds on large fleets.
 func (svc *Service) leaveGoogleConditionalAccessCustomer(
 	ctx context.Context, serverURL string, settings fleet.GoogleConditionalAccessIntegration,
-	existing *fleet.ConditionalAccessGoogleIntegration, key []byte,
+	existing *fleet.ConditionalAccessGoogleIntegration,
 ) error {
 	if existing.Registered() {
 		if err := svc.deleteGoogleConditionalAccessRegistration(ctx, serverURL, existing); err != nil {
@@ -398,46 +390,11 @@ func (svc *Service) leaveGoogleConditionalAccessCustomer(
 		if err := svc.saveGoogleConditionalAccessRow(ctx, settings, nil, fleet.ConditionalAccessGoogleStatePending, nil); err != nil {
 			return err
 		}
-		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedConditionalAccessIntegrationGoogle{}); err != nil {
-			return ctxerr.Wrap(ctx, err, "create activity for deletion of google conditional access integration")
-		}
-	}
-	if err := svc.unmarkGoogleConditionalAccessDevices(ctx, existing, key); err != nil {
-		return err
-	}
-	if err := svc.ds.DeleteGoogleConditionalAccessDevices(ctx); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete google devices")
-	}
-	return nil
-}
-
-func (svc *Service) unmarkGoogleConditionalAccessDevices(
-	ctx context.Context, existing *fleet.ConditionalAccessGoogleIntegration, key []byte,
-) error {
-	names, err := svc.ds.ListGoogleConditionalAccessDeviceUserNames(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "list google device user names")
-	}
-	if len(names) == 0 {
-		return nil
-	}
-	if len(key) == 0 {
-		svc.logger.WarnContext(ctx, "no google service account key, skipping unmarking devices", "device_users", len(names))
-		return nil
-	}
-	creds := conditional_access_google.Credentials{ServiceAccountKey: key, AdminEmail: existing.AdminEmail, CustomerID: existing.CustomerID}
-	client, err := svc.googleConditionalAccess.CloudIdentity(ctx, creds)
-	if err != nil {
-		svc.logger.ErrorContext(ctx, "build google cloud identity client, skipping unmarking devices", "device_users", len(names), "err", err)
-		return nil
-	}
-	for _, name := range names {
-		if err := client.SetUnmanaged(ctx, name); err != nil {
-			if fleet.IsNotFound(err) {
-				svc.logger.DebugContext(ctx, "google device user already gone", "device_user", name)
-				continue
+		// A deleted integration already logged its deletion.
+		if existing.State != fleet.ConditionalAccessGoogleStateDeleted {
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedConditionalAccessIntegrationGoogle{}); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for deletion of google conditional access integration")
 			}
-			svc.logger.ErrorContext(ctx, "unmark google device user", "device_user", name, "err", err)
 		}
 	}
 	return nil

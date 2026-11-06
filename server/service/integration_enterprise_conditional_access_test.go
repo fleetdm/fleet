@@ -2199,10 +2199,10 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	require.Equal(t, "secret-C02cajzvg", row.ProxyServerSecret)
 	g.client.reset()
 
-	// Changing the customer ID unmarks the previous customer's devices with its key,
-	// drops their rows, and re-registers.
+	// Changing the customer ID drops the previous customer's registration and re-registers.
+	// The previous customer's device rows are left for the cron and nothing is unmarked.
 	host0 := test.NewHost(t, s.ds, "gca-host-0", "", "gca-host-0-key", uuid.NewString(), time.Now())
-	insertGoogleDeviceUsers(t, s.ds, host0, "devices/old/deviceUsers/u1", "devices/old/deviceUsers/u2")
+	insertGoogleDeviceUsers(t, s.ds, "C02cajzvg", host0, "devices/old/deviceUsers/u1", "devices/old/deviceUsers/u2")
 
 	// If fleetdm.com can't drop the previous registration, nothing changes.
 	g.client.deregisterErr = &conditional_access_google.RelayStatusError{Code: http.StatusServiceUnavailable}
@@ -2217,7 +2217,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, row.State)
 	require.JSONEq(t, otherKey, string(g.storedKey()))
 	require.Equal(t, "C02cajzvg", g.getConfig().Integrations.GoogleConditionalAccess.CustomerID)
-	require.Equal(t, 1, countGoogleDeviceRows(t, s.ds))
+	require.Equal(t, 1, countGoogleDeviceRows(t, s.ds, "C02cajzvg"))
 	g.client.reset()
 
 	addedBefore, deletedBefore = g.addedCount(), g.deletedCount()
@@ -2229,16 +2229,11 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	require.NotEmpty(t, serverURL)
 	require.Equal(t, []string{serverURL, serverURL}, g.client.serverURLs())
 	_, _, _, unmanaged = g.client.calls()
-	require.Equal(t, []string{"devices/old/deviceUsers/u1", "devices/old/deviceUsers/u2"}, unmanaged)
-	for _, creds := range g.client.unmarkCreds() {
-		require.Equal(t, "C02cajzvg", creds.CustomerID)
-		require.Equal(t, "admin2@example.com", creds.AdminEmail)
-		require.JSONEq(t, otherKey, string(creds.ServiceAccountKey))
-	}
-	require.Equal(t, 0, countGoogleDeviceRows(t, s.ds))
-	names, err := s.ds.ListGoogleConditionalAccessDeviceUserNames(ctx)
+	require.Empty(t, unmanaged)
+	names, err := s.ds.ListGoogleConditionalAccessDeviceUserNames(ctx, "C03other")
 	require.NoError(t, err)
 	require.Empty(t, names)
+	require.Equal(t, 1, countGoogleDeviceRows(t, s.ds, "C02cajzvg"))
 	require.JSONEq(t, key, string(g.storedKey()))
 	row, err = s.ds.GetGoogleConditionalAccessIntegration(ctx)
 	require.NoError(t, err)
@@ -2247,39 +2242,71 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	require.Equal(t, deletedBefore+1, g.deletedCount())
 	g.client.reset()
 
-	// A fleetdm.com failure on DELETE is a 502 and keeps the integration.
-	g.client.deregisterErr = &conditional_access_google.RelayStatusError{Code: http.StatusUnauthorized, RespErr: "bad secret"}
-	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusBadGateway, &deleteGoogleConditionalAccessResponse{})
-	_, err = s.ds.GetGoogleConditionalAccessIntegration(ctx)
-	require.NoError(t, err)
-	require.NotNil(t, g.storedKey())
-	g.client.reset()
-
-	// DELETE unmarks every stored name, deregisters, and removes the rows and the key.
+	// DELETE is a soft delete: it removes the key and the setting and marks the row
+	// deleted, but keeps the registration and the device rows and calls nothing.
 	host1 := test.NewHost(t, s.ds, "gca-host-1", "", "gca-host-1-key", uuid.NewString(), time.Now())
 	host2 := test.NewHost(t, s.ds, "gca-host-2", "", "gca-host-2-key", uuid.NewString(), time.Now())
-	insertGoogleDeviceUsers(t, s.ds, host1, "devices/d1/deviceUsers/u1", "devices/d1/deviceUsers/u2")
-	insertGoogleDeviceUsers(t, s.ds, host2, "devices/d2/deviceUsers/u1")
+	insertGoogleDeviceUsers(t, s.ds, "C03other", host1, "devices/d1/deviceUsers/u1", "devices/d1/deviceUsers/u2")
+	insertGoogleDeviceUsers(t, s.ds, "C03other", host2, "devices/d2/deviceUsers/u1")
 	addedBefore, deletedBefore = g.addedCount(), g.deletedCount()
-	g.client.deregisterErr = &notFoundError{}
 	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusOK, &deleteGoogleConditionalAccessResponse{})
+	g.requireCalls(nil, nil, nil)
 	_, _, _, unmanaged = g.client.calls()
-	require.ElementsMatch(t, []string{"devices/d1/deviceUsers/u1", "devices/d1/deviceUsers/u2", "devices/d2/deviceUsers/u1"}, unmanaged)
-	_, _, deletes, _ := g.client.calls()
-	require.Equal(t, []string{"C03other"}, deletes)
-	require.Equal(t, []string{"secret-C03other"}, g.client.deregisterSecrets())
-	_, err = s.ds.GetGoogleConditionalAccessIntegration(ctx)
-	require.True(t, fleet.IsNotFound(err))
-	names, err = s.ds.ListGoogleConditionalAccessDeviceUserNames(ctx)
+	require.Empty(t, unmanaged)
+	row, err = s.ds.GetGoogleConditionalAccessIntegration(ctx)
 	require.NoError(t, err)
-	require.Empty(t, names)
-	require.Equal(t, 0, countGoogleDeviceRows(t, s.ds))
+	require.Equal(t, fleet.ConditionalAccessGoogleStateDeleted, row.State)
+	require.Equal(t, "C03other", row.CustomerID)
+	require.Equal(t, "secret-C03other", row.ProxyServerSecret)
+	require.Equal(t, 2, countGoogleDeviceRows(t, s.ds, "C03other"))
 	require.Nil(t, g.storedKey())
-	require.Equal(t, addedBefore, g.addedCount())
-	require.Equal(t, deletedBefore+1, g.deletedCount())
 	require.Nil(t, g.getConfig().Integrations.GoogleConditionalAccess)
 	require.Equal(t, fleet.ConditionalAccessGoogleStatus{}, g.status().ConditionalAccessGoogleStatus)
+	require.Equal(t, addedBefore, g.addedCount())
+	require.Equal(t, deletedBefore+1, g.deletedCount())
 	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusBadRequest, &deleteGoogleConditionalAccessResponse{})
+	g.client.reset()
+
+	// Re-creating it for the same customer (e.g. to rotate the key) reuses the
+	// registration and keeps the device rows.
+	g.connect("C03other", "admin3@example.com", otherKey, http.StatusOK)
+	g.requireCalls([]string{"admin3@example.com/C03other"}, nil, nil)
+	row, err = s.ds.GetGoogleConditionalAccessIntegration(ctx)
+	require.NoError(t, err)
+	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, row.State)
+	require.Equal(t, "admin3@example.com", row.AdminEmail)
+	require.Equal(t, "secret-C03other", row.ProxyServerSecret)
+	require.Equal(t, 2, countGoogleDeviceRows(t, s.ds, "C03other"))
+	require.JSONEq(t, otherKey, string(g.storedKey()))
+	require.Equal(t, addedBefore+1, g.addedCount())
+	g.client.reset()
+
+	// Re-creating it for another customer drops the old registration and leaves the old
+	// device rows for the cron, without unmarking anything in Google. The delete was
+	// already logged.
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusOK, &deleteGoogleConditionalAccessResponse{})
+	g.client.reset()
+	addedBefore, deletedBefore = g.addedCount(), g.deletedCount()
+	g.connect("C02cajzvg", "admin@example.com", key, http.StatusOK)
+	g.requireCalls([]string{"admin@example.com/C02cajzvg"}, []string{"C02cajzvg"}, []string{"C03other"})
+	require.Equal(t, []string{"secret-C03other"}, g.client.deregisterSecrets())
+	_, _, _, unmanaged = g.client.calls()
+	require.Empty(t, unmanaged)
+	require.Equal(t, 2, countGoogleDeviceRows(t, s.ds, "C03other"))
+	// Rows this customer had before, not cleaned up yet, count again: their names were
+	// never unmarked in Google.
+	require.Equal(t, 1, countGoogleDeviceRows(t, s.ds, "C02cajzvg"))
+	row, err = s.ds.GetGoogleConditionalAccessIntegration(ctx)
+	require.NoError(t, err)
+	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, row.State)
+	require.Equal(t, "secret-C02cajzvg", row.ProxyServerSecret)
+	require.Equal(t, addedBefore+1, g.addedCount())
+	require.Equal(t, deletedBefore, g.deletedCount())
+	g.client.reset()
+
+	// Start over without a row, as after the cleanup of a deleted integration.
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusOK, &deleteGoogleConditionalAccessResponse{})
+	require.NoError(t, s.ds.DeleteGoogleConditionalAccessIntegration(ctx))
 	g.client.reset()
 
 	// A registration whose secret can't be saved is deregistered again. A secret longer
@@ -2316,10 +2343,10 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusBadRequest, &deleteGoogleConditionalAccessResponse{})
 }
 
-func insertGoogleDeviceUsers(t *testing.T, ds *mysql.Datastore, host *fleet.Host, names ...string) {
+func insertGoogleDeviceUsers(t *testing.T, ds *mysql.Datastore, customerID string, host *fleet.Host, names ...string) {
 	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		if _, err := q.ExecContext(t.Context(),
-			`INSERT IGNORE INTO google_conditional_access_devices (host_uuid) VALUES (?)`, host.UUID); err != nil {
+			`INSERT IGNORE INTO google_conditional_access_devices (host_uuid, customer_id) VALUES (?, ?)`, host.UUID, customerID); err != nil {
 			return err
 		}
 		for _, name := range names {
@@ -2332,10 +2359,10 @@ func insertGoogleDeviceUsers(t *testing.T, ds *mysql.Datastore, host *fleet.Host
 	})
 }
 
-func countGoogleDeviceRows(t *testing.T, ds *mysql.Datastore) int {
+func countGoogleDeviceRows(t *testing.T, ds *mysql.Datastore, customerID string) int {
 	var n int
 	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(t.Context(), q, &n, `SELECT COUNT(*) FROM google_conditional_access_devices`)
+		return sqlx.GetContext(t.Context(), q, &n, `SELECT COUNT(*) FROM google_conditional_access_devices WHERE customer_id = ?`, customerID)
 	})
 	return n
 }
