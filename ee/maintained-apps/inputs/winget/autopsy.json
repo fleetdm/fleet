@@ -6,5 +6,6 @@
   "installer_arch": "x64",
   "installer_type": "msi",
   "installer_scope": "machine",
+  "exists_query": "SELECT 1 FROM programs WHERE name = 'Autopsy' AND publisher IN ('Sleuth Kit Labs', 'The Sleuth Kit');",
   "default_categories": ["Security"]
 }
