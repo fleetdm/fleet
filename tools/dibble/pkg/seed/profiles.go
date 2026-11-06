@@ -29,8 +29,8 @@ var windowsProfileTmpl string
 // per-platform "enabled and configured" flags are relevant here.
 type mdmConfigSubset struct {
 	MDM struct {
-		EnabledAndConfigured        bool `json:"enabled_and_configured"`         // Apple
-		WindowsEnabledAndConfigured bool `json:"windows_mdm_enabled"` // Windows
+		EnabledAndConfigured        bool `json:"enabled_and_configured"` // Apple
+		WindowsEnabledAndConfigured bool `json:"windows_mdm_enabled"`    // Windows
 	} `json:"mdm"`
 }
 
