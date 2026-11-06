@@ -340,19 +340,19 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				ID:           2,
 				Name:         "My App Store App",
 				AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "1234567890", Platform: fleet.MacOSPlatform}},
-				HashSHA256:   ptr.String("app-store-app-hash"),
+				HashSHA256:   new("app-store-app-hash"),
 			},
 			{
 				ID:           6,
 				Name:         "My Setup Experience App",
 				AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "55566677778", Platform: fleet.AndroidPlatform, InstallDuringSetup: new(true)}},
-				HashSHA256:   ptr.String("app-setup-experience-hash"),
+				HashSHA256:   new("app-setup-experience-hash"),
 			},
 			{
 				ID:           7,
 				Name:         "My iOS Auto Update App",
 				AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "9999888877", Platform: fleet.IOSPlatform}},
-				HashSHA256:   ptr.String("ios-auto-update-hash"),
+				HashSHA256:   new("ios-auto-update-hash"),
 			},
 			{
 				ID:         8,
@@ -1028,7 +1028,7 @@ func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fl
 				ID:           6,
 				Name:         "My Setup Experience App",
 				AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "55566677778", Platform: fleet.AndroidPlatform, InstallDuringSetup: new(true)}},
-				HashSHA256:   ptr.String("app-setup-experience-hash"),
+				HashSHA256:   new("app-setup-experience-hash"),
 			},
 			{
 				ID:   8,

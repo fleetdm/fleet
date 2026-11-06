@@ -1035,21 +1035,26 @@ func testListSoftwareTitlesAppStoreApps(t *testing.T, ds *Datastore) {
 
 		// add an iOS app with a default version and a "Beta" version, and a macOS app with one version
 		iosFirstVersion, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
-			VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: iosAdamID, Platform: fleet.IOSPlatform}, SelfService: true},
+			AdamID:           iosAdamID,
+			Platform:         fleet.IOSPlatform,
+			SelfService:      true,
 			Name:             "iOS Versions App",
 			BundleIdentifier: "com.example." + iosAdamID,
 			LatestVersion:    "2.6.0",
 		}, &fleetID, nil)
 		require.NoError(t, err)
 		iosSecondVersion, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
-			VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: iosAdamID, Platform: fleet.IOSPlatform}, VersionName: "Beta"},
+			AdamID:           iosAdamID,
+			Platform:         fleet.IOSPlatform,
+			VersionName:      "Beta",
 			Name:             "iOS Versions App",
 			BundleIdentifier: "com.example." + iosAdamID,
 			LatestVersion:    "2.6.0",
 		}, &fleetID, nil)
 		require.NoError(t, err)
 		macVersion, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
-			VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: macAdamID, Platform: fleet.MacOSPlatform}},
+			AdamID:           macAdamID,
+			Platform:         fleet.MacOSPlatform,
 			Name:             "macOS App",
 			BundleIdentifier: "com.example." + macAdamID,
 			LatestVersion:    "1.0",

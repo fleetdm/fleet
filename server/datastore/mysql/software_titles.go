@@ -586,7 +586,7 @@ func (ds *Datastore) processSoftwareTitleResults(
 			var appStoreAppsStmt string
 			var appStoreAppsArgs []any
 			appStoreAppsStmt, appStoreAppsArgs, err = sqlx.In(`
-SELECT vat.id AS vpp_apps_teams_id, vat.name AS version_name, vat.adam_id, vat.platform, vap.latest_version, vat.self_service, vat.install_during_setup
+SELECT vap.title_id, vat.id AS vpp_apps_teams_id, vat.name AS version_name, vat.adam_id, vat.platform, vap.latest_version, vat.self_service, vat.install_during_setup
 FROM vpp_apps vap
 INNER JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform
 WHERE vat.global_or_team_id = ? AND vap.title_id IN (?)
@@ -599,28 +599,21 @@ ORDER BY vat.id`, *opt.TeamID, appStoreAppTitleIDs)
 				return nil, 0, nil, ctxerr.Wrap(ctx, err, "get app store apps for software titles")
 			}
 		}
-		for _, title := range softwareList {
-			if title.AppStoreApp == nil {
-				continue
+		for _, appStoreApp := range appStoreApps {
+			title := softwareList[titleIndex[appStoreApp.TitleID]]
+			listItem := fleet.AppStoreAppListItem{
+				ID:                       appStoreApp.VPPAppsTeamsID,
+				Name:                     appStoreApp.VersionName,
+				AppStoreID:               appStoreApp.AdamID,
+				Platform:                 appStoreApp.Platform,
+				Version:                  appStoreApp.LatestVersion,
+				SelfService:              appStoreApp.SelfService,
+				AutomaticInstallPolicies: title.AppStoreApp.AutomaticInstallPolicies,
 			}
-			for _, appStoreApp := range appStoreApps {
-				if appStoreApp.AdamID != title.AppStoreApp.AppStoreID || string(appStoreApp.Platform) != title.AppStoreApp.Platform {
-					continue
-				}
-				listItem := fleet.AppStoreAppListItem{
-					ID:                       appStoreApp.VPPAppsTeamsID,
-					Name:                     appStoreApp.VersionName,
-					AppStoreID:               appStoreApp.AdamID,
-					Platform:                 appStoreApp.Platform,
-					Version:                  appStoreApp.LatestVersion,
-					SelfService:              appStoreApp.SelfService,
-					AutomaticInstallPolicies: title.AppStoreApp.AutomaticInstallPolicies,
-				}
-				if opt.ForSetupExperience {
-					listItem.InstallDuringSetup = appStoreApp.InstallDuringSetup
-				}
-				title.AppStoreApps = append(title.AppStoreApps, listItem)
+			if opt.ForSetupExperience {
+				listItem.InstallDuringSetup = appStoreApp.InstallDuringSetup
 			}
+			title.AppStoreApps = append(title.AppStoreApps, listItem)
 		}
 	}
 

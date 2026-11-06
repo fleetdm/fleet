@@ -128,6 +128,7 @@ type VPPAppStoreApp struct {
 	AutoUpdateStartTime *string `db:"auto_update_window_start" json:"auto_update_window_start"`
 	AutoUpdateEndTime   *string `db:"auto_update_window_end" json:"auto_update_window_end"`
 	InstallDuringSetup  *bool   `db:"install_during_setup" json:"-"`
+	TitleID             uint    `db:"title_id" json:"-"`
 	// AutomaticInstallPolicies is the list of policies that trigger automatic
 	// installation of this software.
 	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies" db:"-"`
