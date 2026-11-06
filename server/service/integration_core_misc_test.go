@@ -389,8 +389,10 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	res = s.Do("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
 		"mdm": { "windows_mdm_migration_enabled": true }
 	}`), http.StatusUnprocessableEntity)
-	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "missing or invalid license")
+	// the Windows MDM page shows the reason only for an error under this name
+	licenseErrName, licenseErrReason := extractServerErrorNameReason(res.Body)
+	require.Equal(t, "mdm.windows_mdm_migration_enabled", licenseErrName)
+	require.Contains(t, licenseErrReason, "missing or invalid license")
 
 	// list API endpoints requires premium license
 	var listAPIEndpointsResp listAPIEndpointsResponse
