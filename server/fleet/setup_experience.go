@@ -150,11 +150,6 @@ func (s *SetupExperienceStatusResult) IsForVPPApp() bool {
 	return s.VPPAppTeamID != nil
 }
 
-// IsForInHouseApp indicates if this result is for a setup experience in-house app (.ipa) step.
-func (s *SetupExperienceStatusResult) IsForInHouseApp() bool {
-	return s.InHouseAppID != nil
-}
-
 func (s *SetupExperienceStatusResult) ForMyDevicePage(token string) {
 	// convert api style iconURL to device token URL
 	if s.IconURL != "" && s.SoftwareTitleID != nil {
