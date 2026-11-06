@@ -265,6 +265,15 @@ export const FileUploader = ({
   };
 
   const renderLabel = () => {
+    // With a file selected, the title slot that shows errors isn't rendered,
+    // so the error takes the label slot like other form fields.
+    if (fileDetails && errorText) {
+      return (
+        <div className="form-field__label form-field__label--error">
+          {errorText}
+        </div>
+      );
+    }
     return label ? (
       <div className={`${baseClass}__label form-field__label`}>{label}</div>
     ) : null;
@@ -422,12 +431,6 @@ export const FileUploader = ({
           renderFileUploader()
         )}
       </Card>
-      {/* With a file selected, the title slot that shows errors isn't rendered. */}
-      {fileDetails && errorText && (
-        <span className={`form-field__help-text ${baseClass}__error-help-text`}>
-          {errorText}
-        </span>
-      )}
     </div>
   );
 };

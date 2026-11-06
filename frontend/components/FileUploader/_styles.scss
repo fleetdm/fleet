@@ -100,8 +100,3 @@
     }
   }
 }
-
-// Compound selector so it wins over the grey .form-field__help-text color.
-.form-field__help-text.file-uploader__error-help-text {
-  color: $core-vibrant-red;
-}
