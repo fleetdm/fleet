@@ -10,7 +10,8 @@ How to migrate?
 
 1. Update to Fleet 4.95.
 2. Work through the list of [breaking changes](#breaking-changes).
-3. Upgrade you Fleet server and [fleetctl CLI](https://fleetdm.com/guides/fleetctl) (both in CI and on your computer).
+3. Back up your Fleet database. If you need to go back to Fleet 4 after upgrading, restore this backup. Fleet 4 can't read the settings Fleet 5 renames, so it would turn off features like Windows MDM.
+4. Upgrade your Fleet server and [fleetctl CLI](https://fleetdm.com/guides/fleetctl) (both in CI and on your computer).
 
 ## Breaking changes
 
@@ -258,8 +259,8 @@ GitHub issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `require_all_software_macos` and `require_all_software_windows` in [Update setup experience](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience) | `macos_require_all_software` and `windows_require_all_software` |
-| `mdm.enable_recovery_lock_password` in [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | `mdm.macos_recovery_lock_password_enabled` |
+| `require_all_software_macos` and `require_all_software_windows` in [Update setup experience](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience), and under `mdm.setup_experience` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration), [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration), [Get fleet](https://fleetdm.com/docs/rest-api/rest-api#get-fleet), and [Update fleet](https://fleetdm.com/docs/rest-api/rest-api#update-fleet) | `macos_require_all_software` and `windows_require_all_software` |
+| `mdm.enable_recovery_lock_password` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration), [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration), [Get fleet](https://fleetdm.com/docs/rest-api/rest-api#get-fleet), and [Update fleet](https://fleetdm.com/docs/rest-api/rest-api#update-fleet) | `mdm.macos_recovery_lock_password_enabled` |
 
 #### What to do
 
@@ -276,7 +277,7 @@ GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 | Fleet 4 | Fleet 5 |
 |:--|:--|
 | `mdm.windows_enabled_and_configured` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration) and [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | `mdm.windows_mdm_enabled` |
-| `mdm.windows_migration_enabled` in [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | `mdm.windows_mdm_migration_enabled` |
+| `mdm.windows_migration_enabled` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration) and [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | `mdm.windows_mdm_migration_enabled` |
 
 #### What to do
 
@@ -653,6 +654,7 @@ GitHub issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 |:--|:--|
 | `require_all_software_macos` and `require_all_software_windows` under `controls.setup_experience` | `macos_require_all_software` and `windows_require_all_software` ([docs](https://fleetdm.com/docs/configuration/yaml-files#setup-experience)) |
 | `controls.enable_recovery_lock_password` | `controls.macos_recovery_lock_password_enabled` ([docs](https://fleetdm.com/docs/configuration/yaml-files#controls)) |
+| `enable_recovery_lock_password` under `spec.mdm`, and `require_all_software_macos` and `require_all_software_windows` under `spec.mdm.setup_experience`, in `fleetctl apply` files (`kind: config` and `kind: fleet`) | `macos_recovery_lock_password_enabled`, `macos_require_all_software`, and `windows_require_all_software` |
 
 #### What to do
 
@@ -669,6 +671,7 @@ GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 |:--|:--|
 | `controls.windows_enabled_and_configured` | `controls.windows_mdm_enabled` ([docs](https://fleetdm.com/docs/configuration/yaml-files#controls)) |
 | `controls.windows_migration_enabled` | `controls.windows_mdm_migration_enabled` ([docs](https://fleetdm.com/docs/configuration/yaml-files#controls)) |
+| `windows_enabled_and_configured` and `windows_migration_enabled` under `spec.mdm` in `fleetctl apply` files (`kind: config`) | `windows_mdm_enabled` and `windows_mdm_migration_enabled` |
 
 #### What to do
 
