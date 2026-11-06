@@ -429,6 +429,16 @@ Make these changes before you upgrade.
 
 GitHub issues: [#52905](https://github.com/fleetdm/fleet/issues/52905), [#53924](https://github.com/fleetdm/fleet/issues/53924)
 
+### Delete label by name removed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `DELETE /api/v1/fleet/labels/:name` | Removed, since fleets can now have labels with the same name. Use [`DELETE /api/v1/fleet/labels/id/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-label-by-id). |
+
+What to do: Delete labels by ID. Get a label's ID from [`GET /api/v1/fleet/labels`](https://fleetdm.com/docs/rest-api/rest-api#list-labels) (with `fleet_id` for a fleet's labels). If an API-only user can only call "Delete label by name", give it "Delete label by ID" instead.
+
+GitHub issue: [#53801](https://github.com/fleetdm/fleet/issues/53801)
+
 ### Android Lock resets the PIN
 
 | Fleet 4 | Fleet 5 |
@@ -963,6 +973,15 @@ GitHub issue: [#53470](https://github.com/fleetdm/fleet/issues/53470)
 
 GitHub issue: [#53365](https://github.com/fleetdm/fleet/issues/53365)
 
+### fleetctl 5 required for GitOps
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `fleetctl gitops` with fleetctl 4 | Fails when it deletes a label, or moves a label between `default.yml` and a fleet's YAML file |
+
+What to do: Upgrade `fleetctl` to version 5 wherever you run `fleetctl gitops`, including CI, when you upgrade your Fleet server.
+
+GitHub issue: [#53801](https://github.com/fleetdm/fleet/issues/53801)
 
 ## Fleet server configuration
 
