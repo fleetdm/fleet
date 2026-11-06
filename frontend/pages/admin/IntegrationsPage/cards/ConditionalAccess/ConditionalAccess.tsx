@@ -383,9 +383,9 @@ const ConditionalAccess = () => {
           <Button
             variant="subdued"
             onClick={toggleOktaProfilesModal}
-            icon="eye"
+            icon="settings"
           >
-            View profiles
+            Profiles
           </Button>
           <Button variant="subdued" onClick={toggleOktaModal} icon="pencil">
             Edit
