@@ -246,8 +246,8 @@
         </div>
         <div purpose="schedule-toolbar" v-if="futureWorkshops.length > 0">
           <div purpose="filter-chips">
-            <button purpose="filter-chip" :class="{ selected: !selectedType }" @click="clickSelectType('')">All <span>{{futureWorkshops.length}}</span></button>
-            <button purpose="filter-chip" :class="{ selected: selectedType === type }" @click="clickSelectType(type)" v-for="type in workshopTypes" :key="type">
+            <button purpose="filter-chip" :class="{ selected: !selectedType }" :aria-pressed="!selectedType ? 'true' : 'false'" @click="clickSelectType('')">All <span>{{futureWorkshops.length}}</span></button>
+            <button purpose="filter-chip" :class="{ selected: selectedType === type }" :aria-pressed="selectedType === type ? 'true' : 'false'" @click="clickSelectType(type)" v-for="type in workshopTypes" :key="type">
               <img alt="" :src="iconByType[type]">{{type.replace(' workshop', '')}} <span>{{countByType[type]}}</span>
             </button>
           </div>

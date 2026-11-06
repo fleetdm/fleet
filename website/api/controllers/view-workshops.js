@@ -134,11 +134,16 @@ module.exports = {
           eventbriteLink: event.url,
           eventTime: eventTimeDetailsString,
           startsAt: eventStartsAt,
+          // The year in the event's own time zone, so a late Dec 31 event isn't grouped under the next year.
+          startYear: Number(new Intl.DateTimeFormat('en-US', { timeZone: eventTimeZone, year: 'numeric' }).format(eventStartsOn)),
           type: eventType,
         };
 
-        // If an event has a venue_id, we'll send a request to the Eventbrite API to get details about the venue.
-        if(event.venue_id) {
+        if(event.online_event) {
+          eventDetails.workshopCity = 'Online';
+          eventDetails.workshopAddress = 'Online';
+        } else if(event.venue_id) {
+          // If an event has a venue_id, we'll send a request to the Eventbrite API to get details about the venue.
           let eventVenueResponse = await sails.helpers.http.get.with({
             url: `https://www.eventbriteapi.com/v3/venues/${event.venue_id}/`,
             headers: {

@@ -94,7 +94,7 @@ parasails.registerPage('workshops', {
         if (this.selectedType && event.type !== this.selectedType) {
           return false;
         }
-        return !search || _.contains(event.workshopCity.toLowerCase(), search);
+        return !search || _.contains((event.workshopCity || '').toLowerCase(), search);
       });
     },
     workshopsByMonth: function() {
@@ -104,7 +104,8 @@ parasails.registerPage('workshops', {
         // eventTime is formatted by the view action in the event's own time zone, e.g. "Oct 20 from 1pm to 5pm MDT".
         let [date, timeRange] = event.eventTime.split(' from ');
         let [monthAbbreviation, day] = date.split(' ');
-        let label = monthAbbreviation + ' ' + new Date(event.startsAt).getUTCFullYear();
+        // Workshops cached before startYear existed fall back to the UTC year.
+        let label = monthAbbreviation + ' ' + (event.startYear || new Date(event.startsAt).getUTCFullYear());
         if (!monthsByLabel[label]) {
           monthsByLabel[label] = { label, totalCount: 0, workshops: [] };
           months.push(monthsByLabel[label]);
