@@ -36,7 +36,7 @@ type googleDeviceRow struct {
 func (ds *Datastore) GetGoogleConditionalAccessIntegration(ctx context.Context) (*fleet.ConditionalAccessGoogleIntegration, error) {
 	var integration fleet.ConditionalAccessGoogleIntegration
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &integration, `
-		SELECT proxy_server_secret, state, error_message
+		SELECT proxy_server_secret, state, error_message, updated_at
 		FROM google_conditional_access_integrations
 		WHERE id = 1`,
 	); err != nil {
@@ -93,6 +93,62 @@ func (ds *Datastore) DeleteGoogleConditionalAccessIntegration(ctx context.Contex
 		}
 		return nil
 	})
+}
+
+func (ds *Datastore) PurgeDeletedGoogleConditionalAccessIntegration(ctx context.Context, deletedBefore time.Time, limit int) (bool, error) {
+	var more bool
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		more = false
+		// Locking the row makes a concurrent re-add wait for this batch, and the next batch
+		// sees it and stops, so a re-added integration never loses its rows.
+		var deleted bool
+		if err := sqlx.GetContext(ctx, tx, &deleted, `
+			SELECT 1 FROM google_conditional_access_integrations
+			WHERE id = 1 AND state = ? AND updated_at < ?
+			FOR UPDATE`, fleet.ConditionalAccessGoogleStateDeleted, deletedBefore); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil
+			}
+			return ctxerr.Wrap(ctx, err, "locking deleted google_conditional_access_integrations")
+		}
+		res, err := tx.ExecContext(ctx, `DELETE FROM google_conditional_access_devices LIMIT ?`, limit)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "purging google_conditional_access_devices")
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "purged google_conditional_access_devices")
+		}
+		if int(n) == limit {
+			more = true
+			return nil
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM google_conditional_access_integrations WHERE id = 1`); err != nil {
+			return ctxerr.Wrap(ctx, err, "purging google_conditional_access_integrations")
+		}
+		return nil
+	})
+	return more, err
+}
+
+func (ds *Datastore) SetGoogleConditionalAccessIntegrationState(
+	ctx context.Context, secret string, fromStates []fleet.ConditionalAccessGoogleState,
+	toState fleet.ConditionalAccessGoogleState, errorMessage *string,
+) (bool, error) {
+	stmt, args, err := sqlx.In(`UPDATE google_conditional_access_integrations SET state = ?, error_message = ?
+		WHERE id = 1 AND proxy_server_secret = ? AND state IN (?)`, toState, errorMessage, secret, fromStates)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "building update of google conditional access state")
+	}
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "updating google conditional access state")
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "updated google conditional access state")
+	}
+	return n > 0, nil
 }
 
 func (ds *Datastore) GetGoogleConditionalAccessDevice(ctx context.Context, hostUUID, customerID string) (*fleet.GoogleConditionalAccessDevice, error) {
@@ -317,10 +373,11 @@ func recordGoogleDeviceUsersDB(ctx context.Context, tx sqlx.ExtContext, hostUUID
 	for _, name := range names {
 		args = append(args, hostUUID, name, fleet.GoogleConditionalAccessDeviceUserPending)
 	}
+	// created_at restarts with each registration, since the mark retry backoff counts from it.
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO google_conditional_access_device_users (host_uuid, device_user_name, state)
 		VALUES `+strings.TrimSuffix(strings.Repeat("(?, ?, ?),", len(names)), ",")+`
-		ON DUPLICATE KEY UPDATE state = VALUES(state), error_message = NULL`, args...); err != nil {
+		ON DUPLICATE KEY UPDATE state = VALUES(state), error_message = NULL, created_at = NOW(6)`, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting google_conditional_access_device_users")
 	}
 	return nil
@@ -330,12 +387,13 @@ func (ds *Datastore) UpdateGoogleConditionalAccessDeviceUserState(
 	ctx context.Context, name string, fromState, toState fleet.GoogleConditionalAccessDeviceUserState, errorMessage *string,
 ) (bool, error) {
 	res, err := ds.writer(ctx).ExecContext(ctx, `
-		UPDATE google_conditional_access_device_users SET state = ?, error_message = ?
+		UPDATE google_conditional_access_device_users SET state = ?, error_message = ?, updated_at = NOW(6)
 		WHERE device_user_name = ? AND state = ?`, toState, errorMessage, name, fromState)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "updating google_conditional_access_device_users state")
 	}
-	// Matched rows, not changed rows: the connection uses clientFoundRows.
+	// Matched rows, not changed rows: the connection uses clientFoundRows. updated_at is set
+	// explicitly so a repeated failure with the same message still counts for the backoff.
 	n, err := res.RowsAffected()
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "updated google_conditional_access_device_users state")
@@ -408,7 +466,7 @@ func (ds *Datastore) ListGoogleConditionalAccessDeviceUsers(
 		return nil, ctxerr.New(ctx, "listing google device users needs states and a limit")
 	}
 	query := `
-		SELECT du.host_uuid, du.device_user_name, du.state, du.error_message, du.updated_at
+		SELECT du.host_uuid, du.device_user_name, du.state, du.error_message, du.created_at, du.updated_at
 		FROM google_conditional_access_device_users du
 		JOIN google_conditional_access_devices d ON d.host_uuid = du.host_uuid
 		WHERE d.customer_id = ? AND du.state IN (?) AND du.device_user_name > ?`

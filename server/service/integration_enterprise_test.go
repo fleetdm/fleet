@@ -568,9 +568,20 @@ type mockedGoogleConditionalAccessClient struct {
 type googleDeviceMock struct {
 	managed     []string            // "name hostUUID" per successful SetManaged
 	markErrs    map[string]error    // by DeviceUser name
+	unmarkErrs  map[string]error    // by DeviceUser name
 	deviceUsers map[string][]string // DeviceUser names by device ID
 	goneDevices map[string]bool     // by device ID
+	leftDevices map[string]bool     // by device ID, no longer in the customer's Workspace
+	googleCalls int
 	listErr     error
+	// androidRecords holds the Google device IDs of the records whose deviceId is the
+	// Android Management API device ID.
+	androidRecords map[string][]string
+	finds          []string // Android Management API device ID of each device search
+}
+
+func (m *mockedGoogleConditionalAccessClient) SignInURL(customerID, hostUUID, token string) (string, error) {
+	return conditional_access_google.NewRelay("https://fleetdm.example.com").SignInURL(customerID, hostUUID, token)
 }
 
 // googleResourceError is Google's 404 on a device or DeviceUser it no longer has, or its
@@ -586,9 +597,11 @@ func (e googleResourceError) Error() string {
 func (e googleResourceError) IsNotFound() bool { return e.status == http.StatusNotFound }
 func (googleResourceError) IsStale() bool      { return true }
 
-func (m *mockedGoogleConditionalAccessClient) SignInURL(customerID, hostUUID, token string) (string, error) {
-	return conditional_access_google.NewRelay("https://fleetdm.example.com").SignInURL(customerID, hostUUID, token)
-}
+// googleAuthError is Google refusing the delegated token.
+type googleAuthError struct{}
+
+func (googleAuthError) Error() string     { return "unauthorized_client: Client is unauthorized" }
+func (googleAuthError) IsAuthError() bool { return true }
 
 func (m *mockedGoogleConditionalAccessClient) Register(_ context.Context, serverURL, customerID string) (*conditional_access_google.Registration, error) {
 	m.mu.Lock()
@@ -638,7 +651,11 @@ func (c *mockedGoogleCloudIdentity) CheckDelegation(_ context.Context) error {
 func (c *mockedGoogleCloudIdentity) SetClientState(_ context.Context, name string, state fleet.GoogleConditionalAccessClientState) error {
 	c.m.mu.Lock()
 	defer c.m.mu.Unlock()
+	c.m.dev.googleCalls++
 	if state.Managed != nil && !*state.Managed {
+		if err := c.m.dev.unmarkErrs[name]; err != nil {
+			return err
+		}
 		c.m.unmanaged = append(c.m.unmanaged, name)
 		return nil
 	}
@@ -653,13 +670,21 @@ func (c *mockedGoogleCloudIdentity) SetClientState(_ context.Context, name strin
 	return nil
 }
 
-func (c *mockedGoogleCloudIdentity) FindDeviceIDs(context.Context, string) ([]string, error) {
-	return nil, errors.New("unexpected device search")
+func (c *mockedGoogleCloudIdentity) FindDeviceIDs(_ context.Context, androidDeviceID string) ([]string, error) {
+	c.m.mu.Lock()
+	defer c.m.mu.Unlock()
+	c.m.dev.googleCalls++
+	c.m.dev.finds = append(c.m.dev.finds, androidDeviceID)
+	if c.m.dev.listErr != nil {
+		return nil, c.m.dev.listErr
+	}
+	return slices.Clone(c.m.dev.androidRecords[androidDeviceID]), nil
 }
 
 func (c *mockedGoogleCloudIdentity) ListDeviceUserNames(_ context.Context, deviceID string) ([]string, error) {
 	c.m.mu.Lock()
 	defer c.m.mu.Unlock()
+	c.m.dev.googleCalls++
 	if c.m.dev.listErr != nil {
 		return nil, c.m.dev.listErr
 	}
@@ -669,8 +694,14 @@ func (c *mockedGoogleCloudIdentity) ListDeviceUserNames(_ context.Context, devic
 	return slices.Clone(c.m.dev.deviceUsers[deviceID]), nil
 }
 
-func (c *mockedGoogleCloudIdentity) DeviceExists(context.Context, string) (bool, error) {
-	return false, errors.New("unexpected device check")
+func (c *mockedGoogleCloudIdentity) DeviceExists(_ context.Context, deviceID string) (bool, error) {
+	c.m.mu.Lock()
+	defer c.m.mu.Unlock()
+	c.m.dev.googleCalls++
+	if c.m.dev.leftDevices[deviceID] {
+		return false, googleResourceError{status: http.StatusForbidden}
+	}
+	return !c.m.dev.goneDevices[deviceID], nil
 }
 
 // devCalls returns the device side's recorded calls.
@@ -679,6 +710,7 @@ func (m *mockedGoogleConditionalAccessClient) devCalls() googleDeviceMock {
 	defer m.mu.Unlock()
 	d := m.dev
 	d.managed = slices.Clone(d.managed)
+	d.finds = slices.Clone(d.finds)
 	return d
 }
 

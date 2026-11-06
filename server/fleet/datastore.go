@@ -4341,6 +4341,14 @@ type Datastore interface {
 	// DeleteGoogleConditionalAccessIntegration deletes the Google conditional access integration
 	// and every stored device and DeviceUser row.
 	DeleteGoogleConditionalAccessIntegration(ctx context.Context) error
+	// PurgeDeletedGoogleConditionalAccessIntegration deletes up to limit device rows of an
+	// integration deleted before deletedBefore, and the integration row once none are left.
+	// It does nothing for an integration that isn't deleted, and reports whether rows remain.
+	PurgeDeletedGoogleConditionalAccessIntegration(ctx context.Context, deletedBefore time.Time, limit int) (bool, error)
+	// SetGoogleConditionalAccessIntegrationState sets the integration's state and error
+	// message if it still has the registration whose secret is given and is in one of
+	// fromStates, and reports whether it did.
+	SetGoogleConditionalAccessIntegrationState(ctx context.Context, secret string, fromStates []ConditionalAccessGoogleState, toState ConditionalAccessGoogleState, errorMessage *string) (bool, error)
 	// GetGoogleConditionalAccessDevice returns the host's registration row for the
 	// customer with its DeviceUsers, or a NotFoundError.
 	GetGoogleConditionalAccessDevice(ctx context.Context, hostUUID, customerID string) (*GoogleConditionalAccessDevice, error)

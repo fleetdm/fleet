@@ -30,6 +30,9 @@ func TestConditionalAccessGoogle(t *testing.T) {
 		{"UnresolvedAndroidHosts", testConditionalAccessGoogleUnresolvedAndroidHosts},
 		{"DeleteHosts", testConditionalAccessGoogleDeleteHosts},
 		{"AndroidUnenroll", testConditionalAccessGoogleAndroidUnenroll},
+		{"SetIntegrationState", testConditionalAccessGoogleSetIntegrationState},
+		{"PurgeDeletedIntegration", testConditionalAccessGooglePurgeDeletedIntegration},
+		{"FailureTimes", testConditionalAccessGoogleFailureTimes},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -49,8 +52,7 @@ func testConditionalAccessGoogleIntegration(t *testing.T, ds *Datastore) {
 		State: fleet.ConditionalAccessGoogleStateRegistrationFailed, ErrorMessage: new("fleetdm.com unavailable"),
 	}
 	require.NoError(t, ds.SaveGoogleConditionalAccessIntegration(ctx, pending))
-	got, err := ds.GetGoogleConditionalAccessIntegration(ctx)
-	require.NoError(t, err)
+	got := getGoogleIntegrationWithoutTime(t, ds)
 	require.Equal(t, pending, got)
 	require.False(t, got.Registered())
 
@@ -62,8 +64,7 @@ func testConditionalAccessGoogleIntegration(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.SaveGoogleConditionalAccessIntegration(ctx, connected))
 	// Saving the same values again is still a no-op insert-wise.
 	require.NoError(t, ds.SaveGoogleConditionalAccessIntegration(ctx, connected))
-	got, err = ds.GetGoogleConditionalAccessIntegration(ctx)
-	require.NoError(t, err)
+	got = getGoogleIntegrationWithoutTime(t, ds)
 	require.Equal(t, connected, got)
 	require.True(t, got.Registered())
 	var ids []uint
@@ -164,9 +165,7 @@ func testConditionalAccessGoogleDeviceUsers(t *testing.T, ds *Datastore) {
 	require.Zero(t, deleted)
 	require.Empty(t, googleDeviceUserNames(t, ds, "C03other"))
 	require.Equal(t, 3, countDevices())
-	got, err := ds.GetGoogleConditionalAccessIntegration(ctx)
-	require.NoError(t, err)
-	require.Equal(t, integration, got)
+	require.Equal(t, integration, getGoogleIntegrationWithoutTime(t, ds))
 
 	// An empty customer ID deletes every row that has a customer.
 	deleted, err = ds.DeleteGoogleConditionalAccessDevicesExcept(ctx, "", 10)
@@ -216,6 +215,16 @@ func googleDeviceID(t *testing.T, ds *Datastore, hostUUID string) string {
 		return ""
 	}
 	return *id
+}
+
+// getGoogleIntegrationWithoutTime returns the integration with UpdatedAt checked and
+// cleared, so it compares with what was saved.
+func getGoogleIntegrationWithoutTime(t *testing.T, ds *Datastore) *fleet.ConditionalAccessGoogleIntegration {
+	got, err := ds.GetGoogleConditionalAccessIntegration(t.Context())
+	require.NoError(t, err)
+	require.NotZero(t, got.UpdatedAt)
+	got.UpdatedAt = time.Time{}
+	return got
 }
 
 func googleDeviceRowExists(t *testing.T, ds *Datastore, hostUUID string) bool {
@@ -729,4 +738,135 @@ func testConditionalAccessGoogleAndroidUnenroll(t *testing.T, ds *Datastore) {
 	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{
 		name: fleet.GoogleConditionalAccessDeviceUserUnmanaging,
 	}, googleDeviceUserStates(t, ds, host.UUID))
+}
+
+func testConditionalAccessGoogleSetIntegrationState(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	connected := []fleet.ConditionalAccessGoogleState{fleet.ConditionalAccessGoogleStateConnected}
+
+	ok, err := ds.SetGoogleConditionalAccessIntegrationState(ctx, "secret", connected, fleet.ConditionalAccessGoogleStateDelegationFailed, nil)
+	require.NoError(t, err)
+	require.False(t, ok)
+
+	require.NoError(t, ds.SaveGoogleConditionalAccessIntegration(ctx, &fleet.ConditionalAccessGoogleIntegration{
+		ProxyServerSecret: "secret", State: fleet.ConditionalAccessGoogleStateConnected,
+	}))
+	getState := func() (fleet.ConditionalAccessGoogleState, *string) {
+		got, err := ds.GetGoogleConditionalAccessIntegration(ctx)
+		require.NoError(t, err)
+		return got.State, got.ErrorMessage
+	}
+
+	// A registration replaced since the caller read it is left alone.
+	ok, err = ds.SetGoogleConditionalAccessIntegrationState(ctx, "old-secret", connected,
+		fleet.ConditionalAccessGoogleStateDelegationFailed, new("denied"))
+	require.NoError(t, err)
+	require.False(t, ok)
+	state, msg := getState()
+	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, state)
+	require.Nil(t, msg)
+
+	// So is one no longer in one of the given states.
+	ok, err = ds.SetGoogleConditionalAccessIntegrationState(ctx, "secret",
+		[]fleet.ConditionalAccessGoogleState{fleet.ConditionalAccessGoogleStateDelegationFailed},
+		fleet.ConditionalAccessGoogleStateConnected, nil)
+	require.NoError(t, err)
+	require.False(t, ok)
+
+	ok, err = ds.SetGoogleConditionalAccessIntegrationState(ctx, "secret", connected,
+		fleet.ConditionalAccessGoogleStateDelegationFailed, new("denied"))
+	require.NoError(t, err)
+	require.True(t, ok)
+	state, msg = getState()
+	require.Equal(t, fleet.ConditionalAccessGoogleStateDelegationFailed, state)
+	require.Equal(t, new("denied"), msg)
+}
+
+func testConditionalAccessGooglePurgeDeletedIntegration(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	const customer = "C02cajzvg"
+	for i := range 3 {
+		require.NoError(t, ds.RecordGoogleConditionalAccessRegistration(ctx, fmt.Sprint("uuid-", i), customer,
+			[]string{fmt.Sprintf("devices/d%d/deviceUsers/a", i)}))
+	}
+	countDevices := func() int {
+		var n int
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &n, `SELECT COUNT(*) FROM google_conditional_access_devices`))
+		return n
+	}
+	purge := func(deletedBefore time.Time, limit int) bool {
+		more, err := ds.PurgeDeletedGoogleConditionalAccessIntegration(ctx, deletedBefore, limit)
+		require.NoError(t, err)
+		return more
+	}
+	later := time.Now().Add(time.Hour)
+
+	// Without a row, or with a live one, nothing is deleted.
+	require.False(t, purge(later, 10))
+	require.NoError(t, ds.SaveGoogleConditionalAccessIntegration(ctx, &fleet.ConditionalAccessGoogleIntegration{
+		ProxyServerSecret: "secret", State: fleet.ConditionalAccessGoogleStateConnected,
+	}))
+	require.False(t, purge(later, 10))
+	require.Equal(t, 3, countDevices())
+
+	// A deleted row newer than the cutoff is kept.
+	require.NoError(t, ds.SaveGoogleConditionalAccessIntegration(ctx, &fleet.ConditionalAccessGoogleIntegration{
+		State: fleet.ConditionalAccessGoogleStateDeleted,
+	}))
+	require.False(t, purge(time.Now().Add(-time.Hour), 10))
+	require.Equal(t, 3, countDevices())
+
+	// An older one goes in batches, the integration row last.
+	require.True(t, purge(later, 2))
+	require.Equal(t, 1, countDevices())
+	_, err := ds.GetGoogleConditionalAccessIntegration(ctx)
+	require.NoError(t, err)
+	require.False(t, purge(later, 2))
+	require.Zero(t, countDevices())
+	_, err = ds.GetGoogleConditionalAccessIntegration(ctx)
+	require.True(t, fleet.IsNotFound(err))
+}
+
+func testConditionalAccessGoogleFailureTimes(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	const customer = "C02cajzvg"
+	name := "devices/d1/deviceUsers/a"
+	require.NoError(t, ds.RecordGoogleConditionalAccessRegistration(ctx, "uuid-1", customer, []string{name}))
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE google_conditional_access_device_users
+			SET created_at = NOW(6) - INTERVAL 1 HOUR, updated_at = NOW(6) - INTERVAL 1 HOUR`)
+		return err
+	})
+	list := func() fleet.GoogleConditionalAccessDeviceUser {
+		dus, err := ds.ListGoogleConditionalAccessDeviceUsers(ctx, fleet.GoogleConditionalAccessDeviceUserFilter{
+			CustomerID: customer, States: []fleet.GoogleConditionalAccessDeviceUserState{fleet.GoogleConditionalAccessDeviceUserPending}, Limit: 10,
+		})
+		require.NoError(t, err)
+		require.Len(t, dus, 1)
+		return dus[0]
+	}
+	before := list()
+	require.Equal(t, before.CreatedAt, before.UpdatedAt)
+
+	// A repeated failure with the same message still moves updated_at, which the backoff reads.
+	pending := fleet.GoogleConditionalAccessDeviceUserPending
+	ok, err := ds.UpdateGoogleConditionalAccessDeviceUserState(ctx, name, pending, pending, new("HTTP 500"))
+	require.NoError(t, err)
+	require.True(t, ok)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE google_conditional_access_device_users SET updated_at = NOW(6) - INTERVAL 1 MINUTE`)
+		return err
+	})
+	ok, err = ds.UpdateGoogleConditionalAccessDeviceUserState(ctx, name, pending, pending, new("HTTP 500"))
+	require.NoError(t, err)
+	require.True(t, ok)
+	after := list()
+	require.Equal(t, before.CreatedAt, after.CreatedAt)
+	require.WithinDuration(t, time.Now(), after.UpdatedAt, 30*time.Second)
+
+	// Registering the name again restarts the backoff.
+	require.NoError(t, ds.RecordGoogleConditionalAccessRegistration(ctx, "uuid-1", customer, []string{name}))
+	again := list()
+	require.Nil(t, again.ErrorMessage)
+	require.WithinDuration(t, time.Now(), again.CreatedAt, 30*time.Second)
 }
