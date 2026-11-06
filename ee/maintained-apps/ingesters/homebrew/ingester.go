@@ -292,6 +292,16 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			out.UniqueIdentifier, out.Version,
 		)
 	}
+	if input.Token == "syncovery" {
+		// Syncovery.app/Contents/MacOS/BackgroundScheduler.app shares the app's
+		// bundle identifier but has its own version ("9"), which always sorts below
+		// the cask version. Skip nested bundles, as software inventory does. The
+		// exists query keeps matching both: the helper only exists inside the app.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND path NOT LIKE '%%.app/Contents/%%' AND version_compare(bundle_short_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
 	if input.Token == "sonos" {
 		// Sonos versions its cask by build number (matching CFBundleVersion, e.g.
 		// "90.0.77070" after SonosVersionTransformer), while bundle_short_version is
