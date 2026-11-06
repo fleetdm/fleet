@@ -354,6 +354,7 @@ SELECT users.username, chrome_extensions.name, chrome_extensions.identifier
 FROM users
 CROSS JOIN chrome_extensions USING (uid);
 ```
+
 To confirm an extension was [removed](#remove-installed-extensions), add `WHERE chrome_extensions.identifier = '<extension ID>'` to the report. It should return no results.
 
 ## Troubleshoot
