@@ -22,6 +22,8 @@ interface IPlatformSelectorProps {
   disabled?: boolean;
   installSoftware?: IPolicySoftwareToInstall;
   currentTeamId?: number;
+  /** Replaces the "Target" label with a red validation message. */
+  error?: string | null;
 }
 
 export const PlatformSelector = ({
@@ -37,11 +39,13 @@ export const PlatformSelector = ({
   disabled = false,
   installSoftware,
   currentTeamId,
+  error,
 }: IPlatformSelectorProps): JSX.Element => {
   const baseClass = "platform-selector";
 
   const labelClasses = classNames("form-field__label", {
     [`form-field__label--disabled`]: disabled,
+    [`form-field__label--error`]: !!error,
   });
 
   const renderInstallSoftwareHelpText = () => {
@@ -82,7 +86,7 @@ export const PlatformSelector = ({
 
   return (
     <div className={`${parentClass}__${baseClass} ${baseClass} form-field`}>
-      <span className={labelClasses}>Target</span>
+      <span className={labelClasses}>{error || "Target"}</span>
       <span className={`${baseClass}__checkboxes`}>
         <Checkbox
           value={checkDarwin}
