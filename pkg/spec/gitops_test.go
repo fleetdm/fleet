@@ -4893,6 +4893,7 @@ org_settings:
 		require.NoError(t, err)
 
 		// Verify controls parsed correctly with new key names
+		require.Equal(t, true, gitops.Controls.WindowsEnabledAndConfigured)
 		macSettings, ok := gitops.Controls.MacOSSettings.(fleet.MacOSSettings)
 		require.True(t, ok, "macos_settings (via apple_settings) not parsed")
 		require.Len(t, macSettings.CustomSettings, 1)
@@ -4967,6 +4968,7 @@ org_settings:
 		require.NoError(t, err)
 
 		// Verify controls parsed correctly from external file with new key names
+		require.Equal(t, true, gitops.Controls.WindowsEnabledAndConfigured)
 		macSettings, ok := gitops.Controls.MacOSSettings.(fleet.MacOSSettings)
 		require.True(t, ok, "macos_settings (via apple_settings in external file) not parsed")
 		require.Len(t, macSettings.CustomSettings, 1)
