@@ -1972,6 +1972,9 @@ func (svc *Service) buildAndSendFleetAgentConfig(
 				svc.logger.ErrorContext(ctx, "failed to revert to pending after AMAPI failure", "host_uuid", hostUUID, "err", revertErr)
 				return ctxerr.Wrapf(ctx, revertErr, "revert certificate templates to pending after AMAPI failure for host %s", hostUUID)
 			}
+			if failOnSendError {
+				return ctxerr.Wrapf(ctx, err, "send fleet agent config for host %s", hostUUID)
+			}
 			continue
 		}
 

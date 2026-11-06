@@ -1529,19 +1529,33 @@ func testSendFleetAgentConfigReportsFailures(t *testing.T, ds fleet.Datastore, c
 	require.NoError(t, svc.BuildAndSendFleetAgentConfig(ctx, reconciler.Enterprise.Name(), []string{host.Host.UUID}, false))
 	require.ErrorIs(t, svc.SendFleetAgentConfig(ctx, reconciler.Enterprise.Name(), host.Host.UUID), amapiErr)
 
-	t.Run("templates go back to pending when the configuration can't be built", func(t *testing.T) {
-		ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
-			Type: string(fleet.CATypeCustomSCEPProxy), Name: new("Send failure CA"),
-			URL: new("http://localhost:8080/scep"), Challenge: new("test-challenge"),
+	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type: string(fleet.CATypeCustomSCEPProxy), Name: new("Send failure CA"),
+		URL: new("http://localhost:8080/scep"), Challenge: new("test-challenge"),
+	})
+	require.NoError(t, err)
+	template, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+		Name: "send-failure-template", TeamID: team.ID, CertificateAuthorityID: ca.ID, SubjectName: "CN=Test",
+	})
+	require.NoError(t, err)
+	_, err = ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, template.ID, team.ID)
+	require.NoError(t, err)
+	templateStatuses := func(t *testing.T) []string {
+		var statuses []string
+		mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &statuses, `SELECT status FROM host_certificate_templates WHERE host_uuid = ?`, host.Host.UUID)
 		})
-		require.NoError(t, err)
-		template, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
-			Name: "send-failure-template", TeamID: team.ID, CertificateAuthorityID: ca.ID, SubjectName: "CN=Test",
-		})
-		require.NoError(t, err)
-		_, err = ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, template.ID, team.ID)
-		require.NoError(t, err)
+		return statuses
+	}
 
+	t.Run("a failed send with certificate templates is reported and the templates go back to pending", func(t *testing.T) {
+		require.NoError(t, svc.BuildAndSendFleetAgentConfig(ctx, reconciler.Enterprise.Name(), []string{host.Host.UUID}, true))
+		require.Equal(t, []string{string(fleet.CertificateTemplatePending)}, templateStatuses(t))
+		require.ErrorIs(t, svc.SendFleetAgentConfig(ctx, reconciler.Enterprise.Name(), host.Host.UUID), amapiErr)
+		require.Equal(t, []string{string(fleet.CertificateTemplatePending)}, templateStatuses(t))
+	})
+
+	t.Run("templates go back to pending when the configuration can't be built", func(t *testing.T) {
 		// With one-time secrets on, building the configuration mints a secret, which fails for a host that isn't Android.
 		reconciler.OneTimeEnrollSecrets = true
 		mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
@@ -1549,12 +1563,7 @@ func testSendFleetAgentConfigReportsFailures(t *testing.T, ds fleet.Datastore, c
 			return err
 		})
 		require.Error(t, reconciler.agentService().BuildAndSendFleetAgentConfig(ctx, reconciler.Enterprise.Name(), []string{host.Host.UUID}, true))
-
-		var statuses []string
-		mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
-			return sqlx.SelectContext(ctx, q, &statuses, `SELECT status FROM host_certificate_templates WHERE host_uuid = ?`, host.Host.UUID)
-		})
-		require.Equal(t, []string{string(fleet.CertificateTemplatePending)}, statuses)
+		require.Equal(t, []string{string(fleet.CertificateTemplatePending)}, templateStatuses(t))
 	})
 }
 

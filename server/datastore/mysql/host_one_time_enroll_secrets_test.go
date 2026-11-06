@@ -1707,6 +1707,36 @@ func testOneTimeEnrollSecretAndroidOtherRowsHoldingTheDeviceID(t *testing.T, ds 
 		})
 	}
 
+	t.Run("the agent's secret can't take another host's osquery identifier", func(t *testing.T) {
+		h := newOneTimeSecretAndroidHost(t, ds, nil)
+		other := newOneTimeSecretTestHost(t, ds, "darwin", nil)
+		otherIdentifier := osqueryHostIDOf(t, other.ID)
+		require.NotNil(t, otherIdentifier)
+
+		secret, err := ds.MintAndroidOneTimeEnrollSecret(ctx, h.ID)
+		require.NoError(t, err)
+		row, err := ds.GetHostOneTimeEnrollSecret(ctx, secret)
+		require.NoError(t, err)
+		_, err = ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitMDMEnabled(true),
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+				HardwareUUID: h.UUID, HardwareSerial: h.UUID, Platform: "android", OsqueryIdentifier: *otherIdentifier,
+			}),
+			fleet.WithEnrollOrbitNodeKey(uuid.NewString()), reject, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedOneTimeSecretIdentifierMismatch, &h.ID)
+		require.Equal(t, otherIdentifier, osqueryHostIDOf(t, other.ID))
+		require.Nil(t, androidOrbitNodeKey(t, ds, h.ID))
+
+		// The device's own ID still enrolls, in either case.
+		otherCase := strings.ToUpper(h.UUID)
+		if otherCase == h.UUID {
+			otherCase = strings.ToLower(h.UUID)
+		}
+		enrolled, err := ds.EnrollOrbit(ctx, androidAgentEnrollOpts(otherCase, "android", reject, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
+		require.NoError(t, err)
+		require.Equal(t, h.ID, enrolled.ID)
+	})
+
 	t.Run("a shared secret can't refresh a non-Android row holding the device's ID", func(t *testing.T) {
 		h := newOneTimeSecretAndroidHost(t, ds, nil)
 		stray := strayRow(t, h.UUID, "darwin")

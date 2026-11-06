@@ -865,19 +865,21 @@ func isAndroidOneTimeEnrollSecret(ctx context.Context, tx sqlx.QueryerContext, s
 // nil when the secret isn't an Android one or its host no longer exists. Matching by identifier would otherwise land on any
 // row already holding the device's ID as its osquery identifier (a legacy duplicate of the device, or a row another machine
 // enrolled with that ID), and the secret's host binding would refuse the real agent there for good. That row's osquery
-// identifier is cleared, since the identifier is unique and the bound host takes it.
+// identifier is cleared, since the identifier is unique and the bound host takes it. The identifier must be the device's ID,
+// the one the secret is bound to, so the secret can't take another host's identifier.
 func (ds *Datastore) androidOneTimeSecretHost(
 	ctx context.Context, tx sqlx.ExtContext, secretID uint, osqueryIdentifier string,
 ) (*enrolledHostInfo, bool, error) {
 	var rows []struct {
 		SecretPlatform string     `db:"secret_platform"`
+		SecretUUID     string     `db:"secret_uuid"`
 		ID             *uint      `db:"id"`
 		LastEnrolledAt *time.Time `db:"last_enrolled_at"`
 		NodeKeySet     bool       `db:"node_key_set"`
 		HasUUID        bool       `db:"has_uuid"`
 	}
 	if err := sqlx.SelectContext(ctx, tx, &rows, `
-		SELECT s.platform AS secret_platform, h.id, h.last_enrolled_at,
+		SELECT s.platform AS secret_platform, s.hardware_uuid AS secret_uuid, h.id, h.last_enrolled_at,
 			COALESCE(h.orbit_node_key IS NOT NULL, FALSE) AS node_key_set, COALESCE(h.uuid <> '', FALSE) AS has_uuid
 		FROM host_one_time_enroll_secrets s
 		LEFT JOIN hosts h ON h.id = s.host_id AND h.platform = 'android'
@@ -890,6 +892,10 @@ func (ds *Datastore) androidOneTimeSecretHost(
 	row := rows[0]
 	if row.ID == nil {
 		return nil, true, nil
+	}
+	if !strings.EqualFold(osqueryIdentifier, row.SecretUUID) {
+		return nil, true, ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedOneTimeSecretIdentifierMismatch, HostID: row.ID},
+			"android one-time enroll secret presented another osquery identifier")
 	}
 
 	res, err := tx.ExecContext(ctx, `UPDATE hosts SET osquery_host_id = NULL WHERE osquery_host_id = ? AND id <> ?`, osqueryIdentifier, *row.ID)
