@@ -560,13 +560,10 @@ func TestSoftwareTitleByIDVPPToken(t *testing.T) {
 		return versions, nil
 	}
 	ds.GetVPPTokenFunc = func(ctx context.Context, tokenID uint) (*fleet.VPPTokenDB, error) {
-		switch tokenID {
-		case 2:
-			return &fleet.VPPTokenDB{ID: 2, OrgName: "Acme Org", Location: "Acme Japan", CountryCode: "jp"}, nil
-		case 4:
-			return &fleet.VPPTokenDB{ID: 4, OrgName: "Acme Org", Location: "Acme US", CountryCode: "us"}, nil
+		if tokenID != 2 {
+			return nil, &notFoundError{}
 		}
-		return nil, &notFoundError{}
+		return &fleet.VPPTokenDB{ID: 2, OrgName: "Acme Org", Location: "Acme Japan", CountryCode: "jp"}, nil
 	}
 
 	svc, ctx := newTestService(t, ds, nil, nil)
@@ -606,15 +603,15 @@ func TestSoftwareTitleByIDVPPToken(t *testing.T) {
 		require.False(t, ds.GetVPPTokenFuncInvoked)
 	})
 
-	t.Run("two versions added from different tokens", func(t *testing.T) {
-		// read a title whose versions have tokens 2 and 4, each version should have its own token
-		versionTokenID = new(uint(2))
-		secondVersionTokenID = new(uint(4))
+	t.Run("first version without a token and second version with a token", func(t *testing.T) {
+		// read a title whose first version has no token and second version has token 2, only the second version should have a token
+		versionTokenID = nil
+		secondVersionTokenID = new(uint(2))
 		title, err := svc.SoftwareTitleByID(ctx, 1, new(uint(1)))
 		require.NoError(t, err)
 		require.Len(t, title.AppStoreApps, 2)
-		require.Equal(t, &fleet.VPPTokenSummary{ID: 2, OrgName: "Acme Org", Location: "Acme Japan", CountryCode: "jp"}, title.AppStoreApps[0].VPPToken)
-		require.Equal(t, &fleet.VPPTokenSummary{ID: 4, OrgName: "Acme Org", Location: "Acme US", CountryCode: "us"}, title.AppStoreApps[1].VPPToken)
-		require.Equal(t, &fleet.VPPTokenSummary{ID: 2, OrgName: "Acme Org", Location: "Acme Japan", CountryCode: "jp"}, title.AppStoreApp.VPPToken)
+		require.Nil(t, title.AppStoreApps[0].VPPToken)
+		require.Equal(t, &fleet.VPPTokenSummary{ID: 2, OrgName: "Acme Org", Location: "Acme Japan", CountryCode: "jp"}, title.AppStoreApps[1].VPPToken)
+		require.Nil(t, title.AppStoreApp.VPPToken)
 	})
 }
