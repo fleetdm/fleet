@@ -6,7 +6,7 @@ Our first virtual summit streams free on November 10, and [you're invited](https
 
 - **Warn end users before patching macOS apps.** Patch policies can now notify end users when an open app is about to update. Fleet Desktop lists the apps, waits an hour with a reminder five minutes before, and then installs the update, so nobody loses unsaved work.
 - **Zero-touch enrollment for company-owned Android.** Ship company-owned Android devices straight to end users, and they enroll in Fleet the first time they're turned on. As of Fleet 4.94.0, you choose which fleet each device lands in.
-- **Self-service configuration profiles for macOS.** Offer configuration profiles that end users install themselves from the **My device** page, instead of pushing every profile to every host. Mark a profile hidden to keep it off the list until an end user turns on **Show hidden profiles**.
+- **Self-service configuration profiles for Mac.** Offer configuration profiles that end users install themselves from the **My device** page.
 
 Also shipped in October: a dedicated configuration profile editor with names and descriptions, Windows local admin password rotation, on-demand FileVault recovery key rotation, and reports that keep a result for every host instead of stopping at 1,000. [See every release](https://fleetdm.com/releases).
 
