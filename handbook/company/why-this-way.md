@@ -521,7 +521,7 @@ The underlying principle is simple: we optimize for the people on the other side
 
 ## Why do we use either Keynote or PDFs for presentations and collateral?
 
-Google Slides doesn't export PDFs properly sometimes, and it also has bad defaults around including skipped slides. Instead, at Fleet we use Keynote for all public-facing slide decks and customer materials (customers, prospects, investors, any time the audience is outside the company). [Prebuilt PDFs from the Fleet design team](https://fleetdm.com/handbook/company/go-to-market-operations#slide-decks) can also be used.
+Google Slides doesn't export PDFs properly sometimes, and it also has bad defaults around including skipped slides. Instead, at Fleet we use Keynote for all [public-facing slide decks and customer materials](/handbook/company/go-to-market-operations#slide-decks) (customers, prospects, investors, any time the audience is outside the company). [Prebuilt PDFs from the Fleet design team](/handbook/company/go-to-market-operations#slide-decks) can also be used.
 
 
 #### Stubs
