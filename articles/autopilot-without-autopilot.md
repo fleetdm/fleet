@@ -2,6 +2,10 @@
 
 *Windows Autopilot ships laptops straight to end users, but it expects you to pay for Microsoft Entra ID P1 for every one of them. A provisioning package and Fleet get new devices enrolled from the first boot without that bill.*
 
+<div purpose="embedded-content">
+  <iframe src="https://www.youtube.com/embed/7-O9Fiad80g" frameborder="0" allowfullscreen></iframe>
+</div>
+
 ## Key takeaways
 
 - **Zero touch doesn't have to mean Autopilot.** A Windows provisioning package installs Fleet's agent at the first setup screen, so a new laptop enrolls in Fleet the first time it gets online, before the end user reaches the desktop.
