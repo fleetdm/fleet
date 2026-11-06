@@ -617,6 +617,23 @@ func (e ConflictError) StatusCode() int {
 	return http.StatusConflict
 }
 
+// HostGoogleDeviceIDConflictError is returned when a host is already bound to a different Google device ID.
+type HostGoogleDeviceIDConflictError struct {
+	StoredID string
+}
+
+func (e *HostGoogleDeviceIDConflictError) Error() string {
+	return "This host already has a different Google device ID."
+}
+
+func (e *HostGoogleDeviceIDConflictError) Invalid() []map[string]string {
+	return []map[string]string{{"name": "google_device_id", "reason": e.Error()}}
+}
+
+func (e *HostGoogleDeviceIDConflictError) Status() int { return http.StatusConflict }
+
+func (e *HostGoogleDeviceIDConflictError) IsClientError() bool { return true }
+
 // CertificateAuthorityTransientError is the 503 for a certificate request the CA could not
 // serve for a reason expected to clear on its own, such as no response or an HTTP 5xx.
 // Retry-After tells callers such as curl --retry when to try again.
