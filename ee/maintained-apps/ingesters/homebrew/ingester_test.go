@@ -288,7 +288,7 @@ func TestIngestValidations(t *testing.T) {
 					out.Queries.Patched,
 				)
 			case "syncovery":
-				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.company.Syncovery';", out.Queries.Exists)
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.company.Syncovery' AND path NOT LIKE '%.app/Contents/%';", out.Queries.Exists)
 				require.Equal(t,
 					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.company.Syncovery' AND path NOT LIKE '%.app/Contents/%' AND version_compare(bundle_short_version, '1.0') < 0);",
 					out.Queries.Patched,

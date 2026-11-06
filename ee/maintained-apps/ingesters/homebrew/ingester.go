@@ -176,6 +176,13 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		// The patch policy generated below inherits this match.
 		out.Queries.Exists = fmt.Sprintf("SELECT 1 FROM apps WHERE %s;", chatGPTBundleMatch(""))
 	}
+	if input.Token == "syncovery" {
+		// Syncovery.app/Contents/MacOS/BackgroundScheduler.app shares the app's
+		// bundle identifier but has its own version ("9"), which always sorts below
+		// the cask version. Count only top-level bundles, as software inventory
+		// does. The patch policy generated below inherits this filter.
+		out.Queries.Exists = fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND path NOT LIKE '%%.app/Contents/%%';", out.UniqueIdentifier)
+	}
 	out.Slug = input.Slug
 	out.DefaultCategories = input.DefaultCategories
 
@@ -289,16 +296,6 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		// tools dir is excluded; TELEPORT_HOME/TELEPORT_TOOLS_DIR overrides are not.
 		out.Queries.Patched = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND path NOT LIKE '%%/.tsh/bin/%%' AND version_compare(bundle_short_version, '%s') < 0);",
-			out.UniqueIdentifier, out.Version,
-		)
-	}
-	if input.Token == "syncovery" {
-		// Syncovery.app/Contents/MacOS/BackgroundScheduler.app shares the app's
-		// bundle identifier but has its own version ("9"), which always sorts below
-		// the cask version. Skip nested bundles, as software inventory does. The
-		// exists query keeps matching both: the helper only exists inside the app.
-		out.Queries.Patched = fmt.Sprintf(
-			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND path NOT LIKE '%%.app/Contents/%%' AND version_compare(bundle_short_version, '%s') < 0);",
 			out.UniqueIdentifier, out.Version,
 		)
 	}
