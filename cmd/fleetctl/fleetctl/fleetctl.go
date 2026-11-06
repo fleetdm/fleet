@@ -78,6 +78,7 @@ func CreateApp(
 		generateGitopsCommand(),
 		newCommand(),
 	}
+	registerRemovedCommands(app)
 	return app
 }
 
