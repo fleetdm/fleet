@@ -181,6 +181,8 @@ var defaultVPPAssetList = []vpp.Asset{
 
 const defaultFakeJWTKeyID = "fleetdefaultkeyid"
 
+const vppVerifyTimeout = 10 * time.Minute
+
 // requireTrackedRefetchCommands asserts the host's tracking rows cover exactly
 // the given refetch command types, each recording the full prefixed UUID of
 // the command it tracks (the exact UUIDs are random).
@@ -220,7 +222,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	config.SetTestMDMConfig(s.T(), &fleetCfg, testCertPEM, testKeyPEM, "../../server/service/testdata")
 	fleetCfg.Osquery.EnrollCooldown = 0
 	fleetCfg.Server.VPPVerifyRequestDelay = 0 * time.Second // Remove the delay to speed up tests
-	fleetCfg.Server.VPPVerifyTimeout = 10 * time.Minute
+	fleetCfg.Server.VPPVerifyTimeout = vppVerifyTimeout
 	fleetCfg.MDM.AppleSCEPStaticChallengeEnabled = true // Enable static challenge for SCEP in integration tests
 
 	mdmStorage, err := s.ds.NewMDMAppleMDMStorage()

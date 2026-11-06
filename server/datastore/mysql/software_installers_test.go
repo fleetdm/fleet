@@ -7551,19 +7551,19 @@ func testSoftwareTitlePins(t *testing.T, ds *Datastore) {
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	// A literal pin round-trips.
-	require.NoError(t, setPinnedVersionDB(ctx, ds.writer(ctx), 0, titleID, "1.0"))
+	require.NoError(t, setPinnedVersionDB(ctx, ds.writer(ctx), *noTeam, titleID, "1.0"))
 	pin, err := ds.GetPinnedVersion(ctx, noTeam, titleID)
 	require.NoError(t, err)
 	require.Equal(t, new("1.0"), pin)
 
 	// Upsert overwrites in place (literal -> caret).
-	require.NoError(t, setPinnedVersionDB(ctx, ds.writer(ctx), 0, titleID, "^1"))
+	require.NoError(t, setPinnedVersionDB(ctx, ds.writer(ctx), *noTeam, titleID, "^1"))
 	pin, err = ds.GetPinnedVersion(ctx, noTeam, titleID)
 	require.NoError(t, err)
 	require.Equal(t, new("^1"), pin)
 
 	// A different team's pin on the same title is independent.
-	require.NoError(t, setPinnedVersionDB(ctx, ds.writer(ctx), 42, titleID, "2.0"))
+	require.NoError(t, setPinnedVersionDB(ctx, ds.writer(ctx), *otherTeam, titleID, "2.0"))
 	pin, err = ds.GetPinnedVersion(ctx, otherTeam, titleID)
 	require.NoError(t, err)
 	require.Equal(t, new("2.0"), pin)
