@@ -1634,7 +1634,7 @@ func testOneTimeEnrollSecretAndroidRejectShared(t *testing.T, ds *Datastore) {
 		h := newOneTimeSecretAndroidHost(t, ds, &victimFleet.ID)
 		secret, err := ds.MintAndroidOneTimeEnrollSecret(ctx, h.ID)
 		require.NoError(t, err)
-		row, err := ds.GetHostOneTimeEnrollSecret(ctx, secret)
+		_, err = ds.GetHostOneTimeEnrollSecret(ctx, secret)
 		require.NoError(t, err)
 		require.NoError(t, ds.DeleteHost(ctx, h.ID))
 
@@ -1658,7 +1658,7 @@ func testOneTimeEnrollSecretAndroidRejectShared(t *testing.T, ds *Datastore) {
 		require.NotEqual(t, h.ID, recreated.Host.ID)
 		secret, err = ds.MintAndroidOneTimeEnrollSecret(ctx, recreated.Host.ID)
 		require.NoError(t, err)
-		row, err = ds.GetHostOneTimeEnrollSecret(ctx, secret)
+		row, err := ds.GetHostOneTimeEnrollSecret(ctx, secret)
 		require.NoError(t, err)
 		enrolled, err := ds.EnrollOrbit(ctx, androidAgentEnrollOpts(h.UUID, "android", reject, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
 		require.NoError(t, err)
