@@ -20,6 +20,7 @@ import conditionalAccessAPI, {
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import OktaConditionalAccessModal from "../components/OktaConditionalAccessModal";
+import { getConditionalAccessErrorMessage } from "../helpers";
 
 const baseClass = "okta-conditional-access-page";
 
@@ -75,10 +76,10 @@ const MacOSProfileTab = () => {
           errorReason = getErrorReason(e);
         }
 
-        const message = errorReason
-          ? `Failed to load Apple profile: ${errorReason}`
-          : "Failed to load Apple profile.";
-        notify.error(message, { response: e });
+        notify.error(
+          getConditionalAccessErrorMessage("load Apple profile", errorReason),
+          { response: e }
+        );
       },
     }
   );
@@ -101,11 +102,11 @@ const WindowsProfilesTab = () => {
   >(["windowsProfiles"], conditionalAccessAPI.getIdpWindowsProfiles, {
     ...DEFAULT_USE_QUERY_OPTIONS,
     onError: (e: unknown) => {
-      const reason = getErrorReason(e);
       notify.error(
-        reason
-          ? `Failed to load Windows profiles: ${reason}`
-          : "Failed to load Windows profiles.",
+        getConditionalAccessErrorMessage(
+          "load Windows profiles",
+          getErrorReason(e)
+        ),
         { response: e }
       );
     },

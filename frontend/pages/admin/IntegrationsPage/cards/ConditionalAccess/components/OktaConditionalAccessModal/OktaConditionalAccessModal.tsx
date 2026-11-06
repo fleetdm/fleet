@@ -18,6 +18,8 @@ import conditionalAccessAPI from "services/entities/conditional_access";
 import configAPI from "services/entities/config";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
+import { getConditionalAccessErrorMessage } from "../../helpers";
+
 const baseClass = "okta-conditional-access-modal";
 
 const OKTA_IDP_ID = "okta_idp_id";
@@ -149,25 +151,13 @@ const OktaConditionalAccessModal = ({
       downloadLink.remove();
       URL.revokeObjectURL(url);
     } catch (e: unknown) {
-      const reason = await getBlobErrorReason(e);
-      if (reason.toLowerCase().includes("private key is not configured")) {
-        notify.error(
-          <>
-            Couldn&apos;t download. Please configure a private key.{" "}
-            <CustomLink
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/fleet-server-private-key`}
-              text="Learn how"
-              newTab
-              variant="flash-message-link"
-            />
-          </>,
-          { response: e }
-        );
-      } else {
-        notify.error("Something's gone wrong. Please try again.", {
-          response: e,
-        });
-      }
+      notify.error(
+        getConditionalAccessErrorMessage(
+          "download",
+          await getBlobErrorReason(e)
+        ),
+        { response: e }
+      );
     } finally {
       setIsDownloadingCert(false);
     }

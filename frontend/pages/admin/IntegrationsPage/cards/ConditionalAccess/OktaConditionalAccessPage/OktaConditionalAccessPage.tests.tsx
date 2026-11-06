@@ -151,7 +151,7 @@ describe("OktaConditionalAccessPage", () => {
 
     await waitFor(() => {
       expect(notify.error).toHaveBeenCalledWith(
-        "Failed to load Windows profiles: global enroll secret is not configured",
+        "Couldn't load Windows profiles. global enroll secret is not configured",
         expect.anything()
       );
     });
@@ -176,7 +176,7 @@ describe("OktaConditionalAccessPage", () => {
 
     await waitFor(() => {
       expect(notify.error).toHaveBeenCalledWith(
-        "Failed to load Apple profile: missing private key",
+        "Couldn't load Apple profile. missing private key",
         expect.anything()
       );
     });
