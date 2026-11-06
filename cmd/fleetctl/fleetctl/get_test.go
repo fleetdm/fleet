@@ -529,13 +529,9 @@ func TestGetHosts(t *testing.T) {
 
 	// these are run when host is specified `fleetctl get hosts --json test_host`
 	testHost := &fleet.Host{
-		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
-			CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Time{}},
-			UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Time{}},
-		},
-		HostSoftware: fleet.HostSoftware{
-			Software: []fleet.HostSoftwareEntry{},
-		},
+		CreatedAt:       time.Time{},
+		UpdatedAt:       time.Time{},
+		Software:        []fleet.HostSoftwareEntry{},
 		DetailUpdatedAt: time.Time{},
 		LabelUpdatedAt:  time.Time{},
 		LastEnrolledAt:  time.Time{},
