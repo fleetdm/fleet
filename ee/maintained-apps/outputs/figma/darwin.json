@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "126.10.13",
+      "version": "126.11.7",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.figma.Desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.figma.Desktop' AND version_compare(bundle_short_version, '126.10.13') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.figma.Desktop' AND version_compare(bundle_short_version, '126.11.7') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.figma.Desktop' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://desktop.figma.com/mac-arm/Figma-126.10.13.zip",
+      "installer_url": "https://desktop.figma.com/mac-arm/Figma-126.11.7.zip",
       "install_script_ref": "725917e1",
       "uninstall_script_ref": "8c6eaee2",
-      "sha256": "2f8dfb7f737a750bdc30a0572ae5d3179ff1b8282c6001e5536880b394a63445",
+      "sha256": "33d8a13780774c03071b22d73dcff68a0ec59f7426842ca0f7db3a1035755c9b",
       "default_categories": [
         "Productivity"
       ]
