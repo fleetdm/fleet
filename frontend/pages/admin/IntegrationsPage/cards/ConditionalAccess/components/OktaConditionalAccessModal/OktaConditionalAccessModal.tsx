@@ -276,12 +276,14 @@ const OktaConditionalAccessModal = ({
 
         {/* IdP Signature Certificate Section */}
         <div className={`${baseClass}__certificate-section`}>
-          <TooltipWrapper
-            tipContent="Upload this certificate in Okta when creating the Fleet IdP."
-            underline
-          >
-            Identity provider (IdP) signature certificate
-          </TooltipWrapper>
+          <div className="form-field__label">
+            <TooltipWrapper
+              tipContent="Upload this certificate in Okta when creating the Fleet IdP."
+              underline
+            >
+              Identity provider (IdP) signature certificate
+            </TooltipWrapper>
+          </div>
           <Button
             variant="secondary"
             onClick={onDownloadSigningCert}
