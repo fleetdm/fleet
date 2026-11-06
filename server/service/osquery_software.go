@@ -21,9 +21,25 @@ type orbitSoftwareQuery struct {
 // query did not run. Only the sources a query alone reports are listed: ai_tools rows with its
 // pseudo-source are never stored, and the rows it flags on other sources survive on their own.
 var orbitSoftwareQueries = map[string]orbitSoftwareQuery{
+	"software_linux_fleetd_pacman": {
+		sources:          []string{"pacman_packages"},
+		minFleetdVersion: semver.MustParse("1.48.1"),
+	},
+	"software_go_binaries": {
+		sources:          []string{"go_binaries"},
+		minFleetdVersion: semver.MustParse("1.54.0"),
+	},
+	"software_adobe_plugins": {
+		sources:          []string{"adobe_plugins"},
+		minFleetdVersion: semver.MustParse("1.56.2"),
+	},
 	"software_ai_tools": {
 		sources:          []string{"ai_clis", "mcp_servers", "ai_skills"},
 		minFleetdVersion: semver.MustParse("1.59.0"),
+	},
+	"software_linux_fleetd_nix": {
+		sources:          []string{"nix_packages"},
+		minFleetdVersion: semver.MustParse("1.63.0"),
 	},
 }
 
