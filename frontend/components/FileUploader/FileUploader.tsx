@@ -404,9 +404,6 @@ export const FileUploader = ({
     >
       {renderLabel()}
       <Card color="grey" className={classes}>
-        {fileDetails && errorText && (
-          <div className={`${baseClass}__internal-error`}>{errorText}</div>
-        )}
         {fileDetails ? (
           <FileDetails
             graphicNames={graphicNames}
@@ -425,6 +422,12 @@ export const FileUploader = ({
           renderFileUploader()
         )}
       </Card>
+      {/* With a file selected, the title slot that shows errors isn't rendered. */}
+      {fileDetails && errorText && (
+        <span className={`form-field__help-text ${baseClass}__error-help-text`}>
+          {errorText}
+        </span>
+      )}
     </div>
   );
 };

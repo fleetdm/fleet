@@ -44,7 +44,6 @@
   // slightly smaller on the top and bottom.
   &__file-preview {
     padding: $pad-medium $pad-large;
-    gap: $pad-small;
   }
 
   &__internal-error {
@@ -100,4 +99,9 @@
       }
     }
   }
+}
+
+// Compound selector so it wins over the grey .form-field__help-text color.
+.form-field__help-text.file-uploader__error-help-text {
+  color: $core-vibrant-red;
 }
