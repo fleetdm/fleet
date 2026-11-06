@@ -6464,6 +6464,16 @@ func TestPreservedSoftwareSources(t *testing.T) {
 			expectLookup: true,
 		},
 		{
+			name:          "orbit info cannot be read: rows are kept rather than risked",
+			cfg:           sentToMacOS,
+			platform:      "darwin",
+			skipped:       []string{"software_vscode_extensions", "software_ai_tools"},
+			orbitInfoErr:  errors.New("replica unavailable"),
+			expected:      aiSources,
+			expectLookup:  true,
+			expectLogging: true,
+		},
+		{
 			name:         "fleetd version cannot be parsed",
 			cfg:          sentToMacOS,
 			platform:     "darwin",

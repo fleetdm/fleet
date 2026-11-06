@@ -2503,23 +2503,29 @@ func (svc *Service) preservedSoftwareSources(ctx context.Context, host *fleet.Ho
 		return nil
 	}
 
+	// A read failure keeps every candidate's rows rather than letting the full replace delete
+	// them: keeping is a no-op on a host that turns out to lack the table.
+	var fleetdVersion *semver.Version
+	fleetdVersionString := "unknown"
 	info, err := svc.ds.GetHostOrbitInfo(ctx, host.ID)
-	if err != nil {
-		if !fleet.IsNotFound(err) {
-			svc.logger.ErrorContext(ctx, "reading host orbit info", "host_id", host.ID, "err", err)
+	switch {
+	case fleet.IsNotFound(err):
+		return nil
+	case err != nil:
+		svc.logger.ErrorContext(ctx, "reading host orbit info", "host_id", host.ID, "err", err)
+	default:
+		fleetdVersion, err = fleet.VersionToSemverVersion(info.Version)
+		if err != nil {
+			svc.logger.DebugContext(ctx, "unparseable fleetd version", "host_id", host.ID, "version", info.Version)
+			return nil
 		}
-		return nil
-	}
-	fleetdVersion, err := fleet.VersionToSemverVersion(info.Version)
-	if err != nil {
-		svc.logger.DebugContext(ctx, "unparseable fleetd version", "host_id", host.ID, "version", info.Version)
-		return nil
+		fleetdVersionString = info.Version
 	}
 
 	var kept, sources []string
 	for _, name := range candidates {
 		oq := orbitSoftwareQueries[name]
-		if fleetdVersion.LessThan(oq.minFleetdVersion) {
+		if fleetdVersion != nil && fleetdVersion.LessThan(oq.minFleetdVersion) {
 			continue
 		}
 		kept = append(kept, name)
@@ -2529,7 +2535,7 @@ func (svc *Service) preservedSoftwareSources(ctx context.Context, host *fleet.Ho
 		svc.logger.InfoContext(ctx, "orbit software queries did not run, keeping previously reported rows",
 			"queries", kept,
 			"sources", sources,
-			"fleetd_version", info.Version,
+			"fleetd_version", fleetdVersionString,
 			"host_id", host.ID,
 		)
 	}
