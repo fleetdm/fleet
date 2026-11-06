@@ -230,14 +230,9 @@ const CheckerboardViz = ({
   const numCols = is24h ? hourRows : numDays;
   const numRows = is24h ? 1 : hourRows;
 
-  // Grow cells to fill the scroll-wrapper exactly, so the last column aligns
-  // with the wrapper's (and therefore the card's) right edge on wide layouts.
-  // Clamped between the baseline and CELL_MAX_SCALE × baseline: below the
-  // baseline, cells would be unreadable and the grid should horizontally
-  // scroll instead; above the cap, few-column views (7 / 14 days) would
-  // balloon into cells much larger than the design intent. Fall back to the
-  // baseline before the first ResizeObserver callback lands (wrapperWidth
-  // === 0) so the initial render matches the previous narrow default.
+  // Fill the scroll-wrapper, clamped at the baseline (readability floor)
+  // and CELL_MAX_SCALE × baseline (oversized-cell ceiling). Fall back to
+  // the baseline before ResizeObserver measures.
   const idealCellW =
     wrapperWidth > 0 && numCols > 0
       ? (wrapperWidth - CELL_GAP * (numCols - 1)) / numCols
