@@ -374,6 +374,26 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 				return cpeMeta.TargetSW != "windows"
 			},
 		},
+		// CVE-2017-2744 (published January 2018) lists HP Support Assistant "before 12.7.26.1" as affected.
+		// HP Support Assistant releases are versioned 8.x and 9.x, and the 9.x line is years newer than
+		// this advisory, so a plain version comparison flags every current install. Ignore the CVE for
+		// versions 9.x through 11.x. See #57255.
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2017-2744": {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				if cpeMeta.Vendor != "hp" || cpeMeta.Product != "support_assistant" {
+					return false
+				}
+				parts := strings.Split(wfn.StripSlashes(cpeMeta.Version), ".")
+				majorVer, err := strconv.Atoi(parts[0])
+				if err != nil {
+					return false
+				}
+				return majorVer >= 9 && majorVer < 12
+			},
+		},
 		// CVE-2023-28205 WebKit vulnerability
 		// Apple released fixes via:
 		// - Safari 16.4.1 standalone update for Big Sur/Monterey (HT213722)

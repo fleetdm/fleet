@@ -351,6 +351,22 @@ func TestGetKnownNVDBugRules(t *testing.T) {
 		require.True(t, rule.CPEMatches(abrWindows), "%s should match on Windows", cve)
 	}
 
+	// Test that CVE-2017-2744 does not match current HP Support Assistant 9.x versions. See #57255.
+	rule, ok = cpeMatchingRules.FindMatch("CVE-2017-2744")
+	require.True(t, ok)
+	for _, tc := range []struct {
+		cpe   string
+		match bool
+	}{
+		{"cpe:2.3:a:hp:support_assistant:9.55.10.0:*:*:*:*:windows:*:*", false},
+		{"cpe:2.3:a:hp:support_assistant:9.11:*:*:*:*:windows:*:*", false},
+		{"cpe:2.3:a:hp:support_assistant:8.7.50.3:*:*:*:*:windows:*:*", true},
+	} {
+		hpsa, err := wfn.Parse(tc.cpe)
+		require.NoError(t, err)
+		require.Equal(t, tc.match, rule.CPEMatches(hpsa), tc.cpe)
+	}
+
 	// Test that CVE-2024-7006 (libtiff) only matches on Linux.
 	rule, ok = cpeMatchingRules.FindMatch("CVE-2024-7006")
 	require.True(t, ok)
