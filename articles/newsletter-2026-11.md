@@ -56,7 +56,7 @@ Don't see your city? [Request a workshop](https://fleetdm.com/contact#gitops) to
 
 ## 🤝 Community contributions
 
-Fleet is open source, and people outside Fleet helped build it in October.
+We're grateful for the Fleet community! Fleet is open source, and every month people outside Fleet help make it better. Want in? [Start contributing](https://fleetdm.com/docs/contributing) and your name could be here next month.
 
 - [Michael Alt](https://github.com/alt-Rational) added Azure Blob Storage support for software installers, bootstrap packages, and organization logos, so self-managed Fleet deployments on Azure can keep those files in their own storage.
 - [Andrew Doering](https://github.com/delize) made `fleetctl gitops --dry-run` check that each App Store app is available on your VPP account, so a wrong or unlicensed app fails in CI instead of during the real apply.
