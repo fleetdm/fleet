@@ -39,7 +39,6 @@ Can't choose? Stay for all four. [Meet the panelists](https://fleetdm.com/announ
 
 Fleet workshops are free, run about four hours, and set you on course to becoming a Fleet-certified expert. Seats are limited, so register early.
 
-- **GitOps, Chicago.** November 6, 1pm to 5pm CST. [Register](https://www.eventbrite.com/e/gitops-chicago-tickets-2003719976388)
 - **GitOps, Tokyo.** November 12, 1pm to 5pm GMT+9. [Register](https://www.eventbrite.com/e/gitops-tokyo-tickets-2003716644422)
 - **GitOps, Austin.** November 17, 1pm to 5pm CST. [Register](https://www.eventbrite.com/e/gitops-austin-tickets-2002266719658)
 - **Apple administrator, San Antonio.** November 18, 1pm to 5pm CST. [Register](https://www.eventbrite.com/e/apple-administrator-workshop-san-antonio-tickets-2002266872114)
