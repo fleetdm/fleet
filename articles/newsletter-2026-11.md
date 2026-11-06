@@ -22,7 +22,7 @@ Also on deck: Okta conditional access for Windows hosts, scoping Android Play St
 
 Fleet plans releases in the open. The [release planning board](https://github.com/orgs/fleetdm/projects/87/views/10) shows what's queued for the releases after this one, and the [October roadmap preview](https://fleetdm.com/announcements/roadmap-preview-october-2026) walks through the next 90 days, including Fleet 5.
 
-## 📺 Fleet Virtual Summit
+## 📺 You're invited: Fleet virtual summit
 
 Device settings are moving into Git, AI agents are popping up on laptops, and attackers aren't slowing down. On Tuesday, November 10, IT and security leaders from Cisco, Pinterest, Red Hat, Reddit, and more get real about what's working and what isn't. It's free on LinkedIn Live, with no slides and no demos.
 
