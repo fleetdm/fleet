@@ -24,9 +24,12 @@ func TestUp_20261106154955(t *testing.T) {
 		execNoErr(t, db, `INSERT INTO user_api_endpoints (user_id, path, method) VALUES (?, ?, 'GET')`, userID, path)
 	}
 
+	// A user with no grants can call every endpoint, so the only grant must be replaced, not just removed.
 	identifierOnly := newUser("identifier-only")
 	grant(identifierOnly, oldPath)
-	grant(identifierOnly, otherPath)
+	identifierAndOther := newUser("identifier-and-other")
+	grant(identifierAndOther, oldPath)
+	grant(identifierAndOther, otherPath)
 	bothGrants := newUser("both-grants")
 	grant(bothGrants, oldPath)
 	grant(bothGrants, newPath)
@@ -40,7 +43,8 @@ func TestUp_20261106154955(t *testing.T) {
 		require.NoError(t, db.Select(&paths, `SELECT path FROM user_api_endpoints WHERE user_id = ? AND method = 'GET' ORDER BY path`, userID))
 		return paths
 	}
-	assert.Equal(t, []string{otherPath, newPath}, grantsOf(identifierOnly))
+	assert.Equal(t, []string{newPath}, grantsOf(identifierOnly))
+	assert.Equal(t, []string{otherPath, newPath}, grantsOf(identifierAndOther))
 	assert.Equal(t, []string{newPath}, grantsOf(bothGrants))
 	assert.Equal(t, []string{otherPath}, grantsOf(unrelated))
 }
