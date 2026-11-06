@@ -95,6 +95,10 @@
       .external-link-icon path {
         fill: $static-white;
       }
+
+      .external-link-icon--small {
+        stroke: $static-white;
+      }
     }
 
     &:focus-visible {

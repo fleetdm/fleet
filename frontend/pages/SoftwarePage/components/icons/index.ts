@@ -8,10 +8,8 @@ import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 import AcrobatReader from "./AcrobatReader";
 import AdobePlugin from "./AdobePlugin";
 import AmazonDCV from "./AmazonDCV";
-import AndroidApp from "./AndroidApp";
 import AndroidOS from "./AndroidOS";
 import AndroidPlayStore from "./AndroidPlayStore";
-import AppleApp from "./AppleApp";
 import AppleAppStore from "./AppleAppStore";
 import Box from "./Box";
 import Brave from "./Brave";
@@ -2399,11 +2397,11 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
   atom_packages: Package,
   python_packages: Package,
   homebrew_packages: Package,
-  apps: AppleApp,
-  ios_apps: AppleApp,
-  ipados_apps: AppleApp,
+  apps: MacOS,
+  ios_apps: MacOS,
+  ipados_apps: MacOS,
   programs: WindowsOS,
-  android_apps: AndroidApp,
+  android_apps: AndroidOS,
   chrome_extensions: Extension,
   safari_extensions: Extension,
   firefox_addons: Extension,
