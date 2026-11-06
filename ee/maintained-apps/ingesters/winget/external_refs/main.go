@@ -11,6 +11,7 @@ import (
 var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error){
 	"1password/windows":    {OnePasswordVersionShortener},
 	"anyburn/windows":      {AnyBurnVersionShortener},
+	"geany/windows":        {GeanyVersionShortener},
 	"sublime-text/windows": {SublimeTextFileVersion},
 }
 
