@@ -1473,13 +1473,15 @@ Generated when a user sends a request to wipe a host.
 This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
+- "host_platform": Platform of the host.
 
 #### Example
 
 ```json
 {
   "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro"
+  "host_display_name": "Anna's MacBook Pro",
+  "host_platform": "darwin"
 }
 ```
 
@@ -1490,6 +1492,27 @@ Generated when a Windows host reports that a wipe MDM command failed.
 This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
+- "host_platform": Platform of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "DESKTOP-1C3ARC1",
+  "host_platform": "windows"
+}
+```
+
+
+## reset_host
+
+Generated when a user sends a request to reset a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
 
 #### Example
 
@@ -1499,6 +1522,26 @@ This activity contains the following fields:
   "host_display_name": "DESKTOP-1C3ARC1"
 }
 ```
+
+
+## failed_reset
+
+Generated when a Windows host reports that a reset MDM command failed.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "DESKTOP-1C3ARC1"
+}
+```
+
 
 ## created_declaration_profile
 
