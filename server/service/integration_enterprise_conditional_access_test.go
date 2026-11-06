@@ -2283,10 +2283,11 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 
 	// Re-creating it for another customer drops the old registration and leaves the old
 	// device rows for the cron, without unmarking anything in Google. The delete was
-	// already logged.
+	// already logged, and a registration fleetdm.com no longer has doesn't block it.
 	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusOK, &deleteGoogleConditionalAccessResponse{})
 	g.client.reset()
 	addedBefore, deletedBefore = g.addedCount(), g.deletedCount()
+	g.client.deregisterErr = &notFoundError{}
 	g.connect("C02cajzvg", "admin@example.com", key, http.StatusOK)
 	g.requireCalls([]string{"admin@example.com/C02cajzvg"}, []string{"C02cajzvg"}, []string{"C03other"})
 	require.Equal(t, []string{"secret-C03other"}, g.client.deregisterSecrets())
@@ -2321,10 +2322,17 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	require.NotEqual(t, fleet.ConditionalAccessGoogleStateConnected, row.State)
 	g.client.reset()
 
+	// Deleting an integration that never registered logs nothing, and adding it back for
+	// the same customer registers again.
+	deletedBefore = g.deletedCount()
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusOK, &deleteGoogleConditionalAccessResponse{})
+	require.Equal(t, deletedBefore, g.deletedCount())
+
 	// A fleetdm.com failure during upload is a 502 and is recorded as a registration
 	// error; the key and the setting are kept.
 	g.client.registerErr = &conditional_access_google.RelayStatusError{Code: http.StatusUnauthorized, RespErr: "fleetdm.com unavailable"}
 	g.connect("C02cajzvg", "admin@example.com", key, http.StatusBadGateway)
+	g.requireCalls([]string{"admin@example.com/C02cajzvg"}, []string{"C02cajzvg"}, nil)
 	require.JSONEq(t, key, string(g.storedKey()))
 	require.NotNil(t, g.getConfig().Integrations.GoogleConditionalAccess)
 	st = g.status()
@@ -2332,6 +2340,16 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	require.Equal(t, fleet.ConditionalAccessGoogleStateRegistrationFailed, st.State)
 	require.NotNil(t, st.ErrorMessage)
 	require.Contains(t, *st.ErrorMessage, "fleetdm.com unavailable")
+	g.client.reset()
+
+	// Sending the same values again retries the check and the registration.
+	addedBefore = g.addedCount()
+	g.connect("C02cajzvg", "admin@example.com", key, http.StatusOK)
+	g.requireCalls([]string{"admin@example.com/C02cajzvg"}, []string{"C02cajzvg"}, nil)
+	st = g.status()
+	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, st.State)
+	require.Nil(t, st.ErrorMessage)
+	require.Equal(t, addedBefore+1, g.addedCount())
 	g.client.reset()
 
 	// DELETE also cleans up a key left without a connection row.
