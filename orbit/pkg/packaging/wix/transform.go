@@ -96,10 +96,13 @@ func transform(cur *node, stack *[]*node) error {
 		// Administrators: read/write/execute
 		// Users: read/execute
 		sddl := "O:SYG:SYD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)"
-		if strings.HasSuffix(cur.Attrs.Get("Source"), "secret.txt") {
-			// This SDDL copied from properly configured file on a Windows 10
-			// machine. Permissions are same as above but with access removed
-			// for regular users.
+		source := cur.Attrs.Get("Source")
+		if strings.HasSuffix(source, "secret.txt") ||
+			strings.HasSuffix(source, "fleet_client.key") ||
+			strings.HasSuffix(source, "fleet_client.crt") ||
+			strings.HasSuffix(source, "update_client.key") {
+			// Restrict TLS private keys, certs, and the enrollment secret
+			// so that only SYSTEM and Administrators can read them.
 			//
 			// Permissions:
 			// Disable inheritance
