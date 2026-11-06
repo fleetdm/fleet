@@ -2,7 +2,6 @@
 
 You can add Microsoft Store apps to self-service using winget and script-only packages. Built-in support for Microsoft Store apps is [coming soon](https://github.com/fleetdm/fleet/issues/43493).
 
-Winget only supports per-user installs for Microsoft Store apps, so, currently, these apps are self-service only.
 
 > **Warning:** `winget install --source msstore` cannot run as SYSTEM, and Fleet runs Windows scripts as SYSTEM. The Store rejects device-wide installs with "Device wide install for msstore type is not supported under admin context." Step 3 works around this by running winget in the logged-on user's session. If you need a Store app installed machine-wide for every user, see [Deploy a Store app machine-wide](#deploy-a-store-app-machine-wide) instead.
 
