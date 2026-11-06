@@ -8,7 +8,7 @@ Our first virtual summit streams free on November 10, and [you're invited](https
 - **Zero-touch enrollment for company-owned Android.** Ship company-owned Android devices straight to end users, and they enroll in Fleet the first time they're turned on. As of Fleet 4.94.0, you choose which fleet each device lands in.
 - **Self-service configuration profiles for Mac.** Offer configuration profiles that end users install themselves from the **My device** page.
 
-Also shipped in October: a dedicated configuration profile editor with names and descriptions, Windows local admin password rotation, on-demand FileVault recovery key rotation, and reports that keep a result for every host instead of stopping at 1,000. [See every release](https://fleetdm.com/releases).
+Also new: a configuration profile editor, Windows local admin password rotation, on-demand FileVault key rotation, and reports that keep a result for every host instead of stopping at 1,000. [See every release](https://fleetdm.com/releases).
 
 ## 🗺️ What we plan to ship this month
 
