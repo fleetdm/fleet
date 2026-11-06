@@ -5,7 +5,7 @@
 # a timestamped archive for support/troubleshooting.
 #
 # Components checked:
-#   - Fleet.service      (systemd service)
+#   - orbit.service      (systemd service)
 #   - orbit              (process: /opt/orbit/bin/orbit/orbit)
 #   - osqueryd           (process: spawned and managed by orbit)
 #   - fleet-desktop      (process: optional, only present if packaged with --fleet-desktop)
@@ -61,9 +61,9 @@ log ""
 # ══════════════════════════════════════════════════════════════════════════════
 # 1. SYSTEMD SERVICE
 # ══════════════════════════════════════════════════════════════════════════════
-log "── 1. systemd service (Fleet.service) ──────────────────────"
+log "── 1. systemd service (orbit.service) ──────────────────────"
 
-SERVICE="Fleet.service"
+SERVICE="orbit.service"
 if systemctl is-active --quiet "${SERVICE}" 2>/dev/null; then
   ok "${SERVICE} is active (running)"
 else
@@ -212,13 +212,13 @@ collect_log "osquery logs" "/var/log/osquery" "${WORK_DIR}/logs/osquery"
 # (osqueryd.INFO*, osqueryd.results.log, osqueryd.snapshots.log, etc.) actually live.
 collect_log "osquery filesystem logger" "/opt/orbit/osquery_log" "${WORK_DIR}/logs/osquery_log"
 
-# systemd journal for Fleet.service (last 500 lines)
+# systemd journal for orbit.service (last 500 lines)
 mkdir -p "${WORK_DIR}/logs"
 if command -v journalctl >/dev/null 2>&1; then
-  journalctl -u Fleet.service --no-pager -n 500 \
+  journalctl -u orbit.service --no-pager -n 500 \
     > "${WORK_DIR}/logs/orbit_journal.log" 2>&1 && \
     ok "Collected systemd journal (last 500 lines)" || \
-    warn "journalctl failed for Fleet.service"
+    warn "journalctl failed for orbit.service"
 fi
 
 # syslog fallback — orbit/osqueryd stderr goes to syslog on Debian/Ubuntu
