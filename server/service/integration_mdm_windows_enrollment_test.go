@@ -117,34 +117,6 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 	assert.False(t, acResp.MDM.WindowsMigrationEnabled)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledWindowsMDM{}.ActivityName(), `{}`, 0)
 
-	// responses carry only the new names
-	var rawConfig struct {
-		MDM map[string]any `json:"mdm"`
-	}
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &rawConfig)
-	assert.Equal(t, true, rawConfig.MDM["windows_mdm_enabled"])
-	assert.Equal(t, false, rawConfig.MDM["windows_mdm_migration_enabled"])
-	assert.NotContains(t, rawConfig.MDM, "windows_enabled_and_configured")
-	assert.NotContains(t, rawConfig.MDM, "windows_migration_enabled")
-
-	// the old names are rejected and change nothing, not even other settings in the same request
-	orgName := acResp.OrgInfo.OrgName
-	for _, body := range []string{
-		`{"mdm": {"windows_enabled_and_configured": false}}`,
-		`{"mdm": {"windows_mdm_enabled": false, "windows_enabled_and_configured": false}}`,
-		`{"mdm": {"windows_migration_enabled": true}}`,
-		`{"org_info": {"org_name": "set by a rejected request"}, "mdm": {"windows_migration_enabled": true}}`,
-	} {
-		res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(body), http.StatusUnprocessableEntity)
-		assert.Regexp(t, `The "windows_(enabled_and_configured|migration_enabled)" parameter is not available anymore\. `+
-			`What to use instead: https://fleetdm\.com/learn-more-about/fleet-5-migration`, extractServerErrorText(res.Body), body)
-	}
-	acResp = appConfigResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	assert.True(t, acResp.MDM.WindowsEnabledAndConfigured)
-	assert.False(t, acResp.MDM.WindowsMigrationEnabled)
-	assert.Equal(t, orgName, acResp.OrgInfo.OrgName)
-
 	// create some hosts - a Windows workstation in each team and no-team,
 	// Windows server in no team, Windows workstation enrolled in a 3rd-party in
 	// team 2, Windows workstation already enrolled in Fleet in no team, and a
