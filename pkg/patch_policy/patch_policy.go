@@ -296,6 +296,7 @@ var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false 
 	"Tableau Prep":                              "= 'tableau prep builder.exe'",
 	"Vim":                                       "IN ('gvim.exe','vim.exe','evim.exe','gview.exe','gvimdiff.exe','view.exe','vimdiff.exe')",
 	"VirtualBox":                                "LIKE 'virtualbox%'",
+	"Visual Studio Professional 2022":           "= 'devenv.exe'",
 	"Wacom Tablet":                              "IN ('wacomdesktopcenter.exe','wacom_tablet.exe')",
 	"WebStorm":                                  "IN ('webstorm.exe','webstorm64.exe')",
 	"Windows App":                               "= 'windowsapp.exe'",
