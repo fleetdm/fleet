@@ -6,5 +6,6 @@
   "slug": "wifiman/darwin",
   "default_categories": [
     "Productivity"
-  ]
+  ],
+  "frozen": true
 }

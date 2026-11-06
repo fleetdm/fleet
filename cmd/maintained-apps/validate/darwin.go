@@ -86,11 +86,13 @@ func assessGatekeeper(ctx context.Context, appLogger *slog.Logger, bundleIdentif
 
 	// An app's own updater can replace the bundle right after install (OneDrive's
 	// StandaloneUpdater when the cask lags Microsoft's channel), so a bundle that
-	// vanished is looked up and assessed again instead of failing the app.
+	// vanished or is half-written is looked up and assessed again instead of
+	// failing the app. Until the new bundle is registered, the lookup can also
+	// come back empty.
 	var err error
+	vanished := false
 	for attempt := 1; ; attempt++ {
-		var vanished bool
-		vanished, err = assessGatekeeperOnce(ctx, appLogger, query)
+		vanished, err = assessGatekeeperOnce(ctx, appLogger, query, vanished)
 		if !vanished || attempt == gatekeeperAttempts {
 			return err
 		}
@@ -100,14 +102,17 @@ func assessGatekeeper(ctx context.Context, appLogger *slog.Logger, bundleIdentif
 }
 
 var (
-	gatekeeperAttempts   = 4
+	gatekeeperAttempts   = 6
 	gatekeeperRetryDelay = 15 * time.Second
 	runSpctl             = func(ctx context.Context, path string) ([]byte, error) {
 		return exec.CommandContext(ctx, "spctl", "--assess", "--type", "execute", "-v", path).CombinedOutput()
 	}
+	// spctl's messages for a bundle that was removed, or whose executable isn't
+	// written yet.
+	bundleReplacedMessages = []string{"No such file or directory", "cannot find code object on disk"}
 )
 
-func assessGatekeeperOnce(ctx context.Context, appLogger *slog.Logger, query string) (vanished bool, err error) {
+func assessGatekeeperOnce(ctx context.Context, appLogger *slog.Logger, query string, replacing bool) (vanished bool, err error) {
 	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	output, err := runOsqueryi(execTimeout, query)
@@ -121,7 +126,7 @@ func assessGatekeeperOnce(ctx context.Context, appLogger *slog.Logger, query str
 		return false, fmt.Errorf("parsing app bundles %q: %w", output, err)
 	}
 	if len(bundles) == 0 {
-		return false, fmt.Errorf("Gatekeeper assessment found no app: %s", query)
+		return replacing, fmt.Errorf("Gatekeeper assessment found no app: %s", query)
 	}
 
 	paths := make([]string, 0, len(bundles))
@@ -141,7 +146,7 @@ func assessGatekeeperOnce(ctx context.Context, appLogger *slog.Logger, query str
 		output, err := runSpctl(ctx, path)
 		status := strings.ReplaceAll(strings.TrimSpace(string(output)), "\n", ", ")
 		if err != nil {
-			if strings.Contains(status, "No such file or directory") {
+			if slices.ContainsFunc(bundleReplacedMessages, func(msg string) bool { return strings.Contains(status, msg) }) {
 				vanished = true
 			}
 			rejected = append(rejected, fmt.Sprintf("%s (%v)", status, err))
