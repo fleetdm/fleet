@@ -1,0 +1,1 @@
+- Fixed patch notifications keeping the old fleet's apps after a host moves to another fleet, which could install the old fleet's package on the host at the deadline and stopped the new fleet's patch from joining the notification.
