@@ -7,7 +7,8 @@
 #
 # The bootstrapper's default command only creates new instances, so it fails
 # when Visual Studio Professional 2022 is already installed. An existing
-# instance is updated in place instead.
+# instance is updated in place instead. --force closes Visual Studio if it's
+# running; without it the update fails with exit code 8006.
 
 $exeFilePath = "${env:INSTALLER_PATH}"
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
@@ -33,7 +34,7 @@ if (Test-Path $vswhere) {
 
 if ($installPath) {
   Write-Host "Found Visual Studio Professional 2022 at: $installPath, updating it"
-  $arguments = "update --installPath `"$installPath`" --quiet --wait --norestart"
+  $arguments = "update --installPath `"$installPath`" --quiet --wait --norestart --force"
 } else {
   $arguments = "--quiet --wait --norestart"
 }
