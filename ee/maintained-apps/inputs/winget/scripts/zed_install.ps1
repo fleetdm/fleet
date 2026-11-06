@@ -28,7 +28,12 @@ function Remove-SystemProfileCopy {
     # The uninstaller is in SysWOW64's copy of SYSTEM's profile, not next to Zed.exe.
     if ($entry.UninstallString -match '^\s*"([^"]+)"' -and (Test-Path -LiteralPath $matches[1])) {
         $process = Start-Process -FilePath $matches[1] -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART" `
-            -NoNewWindow -PassThru -Wait
+            -NoNewWindow -PassThru
+        $null = $process.Handle  # keeps ExitCode readable after the process exits
+        if (-not $process.WaitForExit(300000)) {
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            Throw "Zed was installed for $userAccount, but the uninstaller for the copy in $dir timed out."
+        }
         Write-Host "Uninstall exit code: $($process.ExitCode)"
         for ($i = 0; $i -lt 60 -and (Test-Path -LiteralPath $key); $i++) { Start-Sleep -Seconds 1 }
     }
