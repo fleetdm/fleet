@@ -37,7 +37,6 @@ import {
   IMdmSummaryResponse,
   IMdmSummaryMdmSolution,
 } from "interfaces/mdm";
-import { isLinuxLike } from "interfaces/platform";
 import { ISoftwareResponse, ISoftwareCountResponse } from "interfaces/software";
 import { API_ALL_TEAMS_ID, ITeam } from "interfaces/team";
 import paths from "router/paths";
@@ -76,7 +75,11 @@ import ActivityFeedAutomationsModal from "./components/ActivityFeedAutomationsMo
 import { IAFAMFormData } from "./components/ActivityFeedAutomationsModal/ActivityFeedAutomationsModal";
 import useInfoCard from "./components/InfoCard";
 import MdmSolutionModal from "./components/MdmSolutionModal";
-import { LOW_DISK_SPACE_GB, PLATFORM_DROPDOWN_OPTIONS } from "./helpers";
+import {
+  getPlatformHostCounts,
+  LOW_DISK_SPACE_GB,
+  PLATFORM_DROPDOWN_OPTIONS,
+} from "./helpers";
 import MetricsHostCounts from "./sections/MetricsHostCounts";
 
 const baseClass = "dashboard-page";
@@ -265,32 +268,10 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     }
   );
 
-  const totalCounts = useMemo<IHostPlatformCounts>(() => {
-    const base: IHostPlatformCounts = {
-      darwin: 0,
-      windows: 0,
-      linux: 0,
-      chrome: 0,
-      ios: 0,
-      ipados: 0,
-      android: 0,
-    };
-    if (!hostSummaryTotals?.platforms) {
-      return base;
-    }
-    return hostSummaryTotals.platforms.reduce<IHostPlatformCounts>(
-      (acc, item) => {
-        if (isLinuxLike(item.platform)) {
-          acc.linux += item.hosts_count || 0;
-        } else if (item.platform in acc) {
-          acc[item.platform as keyof IHostPlatformCounts] =
-            item.hosts_count || 0;
-        }
-        return acc;
-      },
-      { ...base }
-    );
-  }, [hostSummaryTotals]);
+  const totalCounts = useMemo<IHostPlatformCounts>(
+    () => getPlatformHostCounts(hostSummaryTotals?.platforms),
+    [hostSummaryTotals]
+  );
 
   const { isLoading: isGlobalSecretsLoading, data: globalSecrets } = useQuery<
     IEnrollSecretsResponse,
