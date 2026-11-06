@@ -84,21 +84,6 @@ module.exports = {
           }//•
           numRemainingPathsToCheck--;
         }//∞
-        // Check wildcard paths (e.g. 'website/api/controllers/view-*'), where `*` never matches across a slash.
-        return _.any(_.keys(MAINTAINERS_BY_PATH), (pathPattern)=>{
-          if (!pathPattern.includes('*')) {
-            return false;
-          }
-          let pathRegex = new RegExp('^' + _.escapeRegExp(pathPattern).replace(/\\\*/g, '[^/]*') + '$');
-          if (!pathRegex.test(changedPath)) {
-            return false;
-          }
-          let selfMergers = [].concat(MAINTAINERS_BY_PATH[pathPattern]);
-          if (!githubUserToCheck && selfMergers.length >= 1) {
-            return true;
-          }
-          return !!(githubUserToCheck && (selfMergers.includes(githubUserToCheck.toLowerCase()) || (isGithubUserMaintainerOrDoesntMatter && selfMergers.includes('*'))));
-        });
       });//∞
 
       if (isMaintainerForAllChangedPathsStill && changedPaths.length < 100) {
