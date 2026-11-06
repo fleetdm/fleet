@@ -5,54 +5,34 @@ APPDIR="/Applications/"
 LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ { print $3 }')
 # functions
 
-app_process_running() {
-  local bundle_id="$1" app
-  while IFS= read -r app; do
-    grep -qixF -- "$bundle_id" <<< "$(defaults read "$app/Contents/Info" CFBundleIdentifier 2>/dev/null)" && return 0
-  done < <(ps -axo comm= | sed -n 's|^ *\(.*\.app\)/Contents/MacOS/.*|\1|p' | sort -u)
-  return 1
+wezterm_pids() {
+  ps -x -U "$1" -o pid=,comm= | sed -n 's|^ *\([0-9][0-9]*\) .*/WezTerm\.app/Contents/MacOS/wezterm-gui$|\1|p'
 }
 
-quit_application() {
-  local bundle_id="$1"
-  local timeout_duration=10
-
-  local app_running
-  app_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null)
-  if [[ "$app_running" != "true" ]]; then
-    return
-  fi
-
-  local console_user
+# By default WezTerm asks "Terminate WezTerm?" before it quits, so the
+# AppleScript quit never finishes. SIGTERM closes it without asking.
+quit_wezterm() {
+  local bundle_id="com.github.wez.wezterm"
+  local console_user pids
   console_user=$(stat -f "%Su" /dev/console)
   if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
     echo "Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'."
     return
   fi
+  pids=$(wezterm_pids "$console_user")
+  [[ -n "$pids" ]] || return 0
 
   echo "Quitting application '$bundle_id'..."
-
-  local quit_success=false still_running quit_error
-  SECONDS=0
-  while (( SECONDS < timeout_duration )); do
-    quit_error=$(osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" 2>&1 >/dev/null)
-    if [[ "$quit_error" == *"(-600)" ]] && ! app_process_running "$bundle_id"; then
-      echo "Application '$bundle_id' isn't running."
-      quit_success=true
-      break
-    fi
+  kill -TERM $pids 2>/dev/null
+  for _ in {1..10}; do
     sleep 1
-    if still_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+    if [[ -z "$(wezterm_pids "$console_user")" ]]; then
       echo "Application '$bundle_id' quit successfully."
-      quit_success=true
-      break
+      return 0
     fi
   done
-
-  if [[ "$quit_success" = false ]]; then
-    echo "Application '$bundle_id' did not quit."
-    return 1
-  fi
+  echo "Application '$bundle_id' did not quit."
+  return 1
 }
 
 
@@ -139,7 +119,7 @@ trash() {
   fi
 }
 
-quit_application 'com.github.wez.wezterm' || exit 1
+quit_wezterm || exit 1
 sudo rm -rf "$APPDIR/WezTerm.app"
 trash "$LOGGED_IN_USER" '~/.local/share/wezterm'
 trash "$LOGGED_IN_USER" '~/Library/Saved Application State/com.github.wez.wezterm.savedState'

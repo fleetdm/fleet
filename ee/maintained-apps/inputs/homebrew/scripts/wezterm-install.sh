@@ -5,66 +5,40 @@ APPDIR="/Applications/"
 TMPDIR=$(dirname "$(realpath "$INSTALLER_PATH")")
 # functions
 
-app_process_running() {
-  local bundle_id="$1" app
-  while IFS= read -r app; do
-    grep -qixF -- "$bundle_id" <<< "$(defaults read "$app/Contents/Info" CFBundleIdentifier 2>/dev/null)" && return 0
-  done < <(ps -axo comm= | sed -n 's|^ *\(.*\.app\)/Contents/MacOS/.*|\1|p' | sort -u)
-  return 1
+wezterm_pids() {
+  ps -x -U "$1" -o pid=,comm= | sed -n 's|^ *\([0-9][0-9]*\) .*/WezTerm\.app/Contents/MacOS/wezterm-gui$|\1|p'
 }
 
-quit_and_track_application() {
-  local bundle_id="$1"
+# By default WezTerm asks "Terminate WezTerm?" before it quits, so the
+# AppleScript quit never finishes. SIGTERM closes it without asking.
+quit_and_track_wezterm() {
+  local bundle_id="com.github.wez.wezterm"
   local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
-  local timeout_duration=10
+  eval "export $var_name=0"
 
-  local app_running
-  app_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null)
-  if [[ "$app_running" != "true" ]]; then
-    eval "export $var_name=0"
-    return
-  fi
-
-  local console_user
+  local console_user pids
   console_user=$(stat -f "%Su" /dev/console)
   if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
     echo "Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'."
-    eval "export $var_name=0"
     return
   fi
+  pids=$(wezterm_pids "$console_user")
+  [[ -n "$pids" ]] || return 0
 
   eval "export $var_name=1"
   echo "Application '$bundle_id' was running; will relaunch after installation."
 
   echo "Quitting application '$bundle_id'..."
-
-  local quit_success=false quit_sent=false still_running quit_error
-  SECONDS=0
-  while (( SECONDS < timeout_duration )); do
-    quit_error=$(osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" 2>&1 >/dev/null)
-    if [[ "$quit_error" == *"(-600)" ]] && ! app_process_running "$bundle_id"; then
-      if [[ "$quit_sent" == false ]]; then
-        eval "export $var_name=0"
-        echo "Application '$bundle_id' isn't running; it won't be relaunched."
-      else
-        echo "Application '$bundle_id' quit successfully."
-      fi
-      quit_success=true
-      break
-    fi
-    quit_sent=true
+  kill -TERM $pids 2>/dev/null
+  for _ in {1..10}; do
     sleep 1
-    if still_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+    if [[ -z "$(wezterm_pids "$console_user")" ]]; then
       echo "Application '$bundle_id' quit successfully."
-      quit_success=true
-      break
+      return 0
     fi
   done
-
-  if [[ "$quit_success" = false ]]; then
-    echo "Application '$bundle_id' did not quit."
-    return 1
-  fi
+  echo "Application '$bundle_id' did not quit."
+  return 1
 }
 
 
@@ -118,7 +92,7 @@ if [ -z "$SRC" ]; then
 	echo "WezTerm.app not found in the installer."
 	exit 1
 fi
-quit_and_track_application 'com.github.wez.wezterm' || exit 1
+quit_and_track_wezterm || exit 1
 if [ -d "$APPDIR/WezTerm.app" ]; then
 	sudo mv "$APPDIR/WezTerm.app" "$TMPDIR/WezTerm.app.bkp" || exit $?
 fi

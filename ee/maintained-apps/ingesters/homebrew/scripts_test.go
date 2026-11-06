@@ -489,6 +489,150 @@ kill() {
 	})
 }
 
+// TestWezTermScriptsQuitWithSIGTERM runs the WezTerm scripts against a fake
+// process table. WezTerm prompts before it quits, so they send SIGTERM to the
+// console user's GUI processes only, relaunch it after an install, and stop
+// before installing or removing anything if it survives.
+func TestWezTermScriptsQuitWithSIGTERM(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("as root the relaunch goes through /bin/launchctl asuser, which can't be stubbed")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+
+	readScript := func(name string) string {
+		b, err := os.ReadFile(filepath.Join("../../inputs/homebrew/scripts", name))
+		require.NoError(t, err)
+		return string(b)
+	}
+	install := readScript("wezterm-install.sh")
+	uninstall := readScript("wezterm-uninstall.sh")
+
+	pidsHelper := regexp.MustCompile(`(?s)\nwezterm_pids\(\) \{.*?\n\}\n`)
+	require.NotEmpty(t, pidsHelper.FindString(install))
+	require.Equal(t, pidsHelper.FindString(install), pidsHelper.FindString(uninstall))
+
+	// Everything between the quit and the relaunch changes files, so it's
+	// replaced with a marker.
+	cut := func(script, quitCall, marker, tail string) string {
+		i := strings.Index(script, quitCall)
+		require.Positive(t, i)
+		require.True(t, strings.HasSuffix(script, tail))
+		return script[:i+len(quitCall)] + marker + tail
+	}
+	install = cut(install, "\nquit_and_track_wezterm || exit 1\n", "echo 'Installing WezTerm.'\n", "\nrelaunch_application 'com.github.wez.wezterm'\n")
+	uninstall = cut(uninstall, "\nquit_wezterm || exit 1\n", "echo 'Removing WezTerm.'\n", "")
+
+	// Each process is "<pid> <behavior> <user> <path>". It exits on SIGTERM
+	// ("exits") or ignores it ("stubborn").
+	run := func(t *testing.T, script, consoleUser string, procs ...string) (out, signals string, err error) {
+		dir := t.TempDir()
+		procFile := filepath.Join(dir, "procs")
+		sigFile := filepath.Join(dir, "signals")
+		require.NoError(t, os.WriteFile(procFile, []byte(strings.Join(procs, "\n")+"\n"), 0o600))
+		require.NoError(t, os.WriteFile(sigFile, nil, 0o600))
+		stubs := `procs=` + shellSingleQuote(procFile) + `
+signals=` + shellSingleQuote(sigFile) + `
+INSTALLER_PATH=/tmp/fleet-test/WezTerm.zip
+stat() { echo ` + consoleUser + `; }
+realpath() { echo "$1"; }
+unzip() { :; }
+find() { echo /tmp/fleet-test/WezTerm-macos/WezTerm.app; }
+scutil() { :; }
+sleep() { :; }
+open() { :; }
+ps() {
+  local user=""
+  while (( $# )); do [[ "$1" == -U ]] && user="$2"; shift; done
+  grep . "$procs" | awk -v u="$user" '$3 == u' | cut -d' ' -f1,4-
+}
+kill() {
+  local sig="$1" pid behavior
+  shift
+  for pid in "$@"; do
+    echo "$sig $pid" >> "$signals"
+    behavior=$(awk -v p="$pid" '$1 == p { print $2 }' "$procs")
+    if [[ "$sig $behavior" == "-TERM exits" ]]; then
+      awk -v p="$pid" '$1 != p' "$procs" > "$procs.new" && command mv "$procs.new" "$procs"
+    fi
+  done
+}
+`
+		b, err := exec.Command(bash, "-c", stubs+script).CombinedOutput()
+		sigs, readErr := os.ReadFile(sigFile)
+		require.NoError(t, readErr)
+		return string(b), string(sigs), err
+	}
+	requireExit1 := func(t *testing.T, err error, out string) {
+		var exitErr *exec.ExitError
+		require.ErrorAs(t, err, &exitErr, out)
+		require.Equal(t, 1, exitErr.ExitCode(), out)
+	}
+
+	const bundle = "/Applications/WezTerm.app/Contents/MacOS/"
+	others := []string{
+		"201 exits bob " + bundle + "wezterm-gui",
+		"202 exits alice " + bundle + "wezterm-mux-server",
+		"203 exits alice " + bundle + "wezterm",
+	}
+	running := append([]string{
+		"101 exits alice " + bundle + "wezterm-gui",
+		"102 exits alice /Users/alice/Download Folder/WezTerm.app/Contents/MacOS/wezterm-gui",
+	}, others...)
+
+	t.Run("not running", func(t *testing.T) {
+		out, signals, err := run(t, install, "alice", others...)
+		require.NoError(t, err, out)
+		require.Empty(t, signals)
+		require.NotContains(t, out, "Quitting application")
+		require.Contains(t, out, "Installing WezTerm.")
+		require.NotContains(t, out, "Relaunching application")
+	})
+
+	t.Run("quits and relaunches", func(t *testing.T) {
+		out, signals, err := run(t, install, "alice", running...)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 101\n-TERM 102\n", signals)
+		require.Contains(t, out, "Application 'com.github.wez.wezterm' quit successfully.")
+		require.Contains(t, out, "Installing WezTerm.")
+		require.Contains(t, out, "Application 'com.github.wez.wezterm' relaunched successfully.")
+	})
+
+	t.Run("install stops when it won't quit", func(t *testing.T) {
+		out, signals, err := run(t, install, "alice", "101 stubborn alice "+bundle+"wezterm-gui")
+		requireExit1(t, err, out)
+		require.Equal(t, "-TERM 101\n", signals)
+		require.Contains(t, out, "Application 'com.github.wez.wezterm' did not quit.")
+		require.NotContains(t, out, "Installing WezTerm.")
+		require.NotContains(t, out, "Relaunching application")
+	})
+
+	t.Run("login window", func(t *testing.T) {
+		out, signals, err := run(t, install, "root", running...)
+		require.NoError(t, err, out)
+		require.Empty(t, signals)
+		require.Contains(t, out, "Installing WezTerm.")
+		require.NotContains(t, out, "Relaunching application")
+	})
+
+	t.Run("uninstall", func(t *testing.T) {
+		out, signals, err := run(t, uninstall, "alice", running...)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 101\n-TERM 102\n", signals)
+		require.Contains(t, out, "Removing WezTerm.")
+
+		out, _, err = run(t, uninstall, "alice", "101 stubborn alice "+bundle+"wezterm-gui")
+		requireExit1(t, err, out)
+		require.Contains(t, out, "Application 'com.github.wez.wezterm' did not quit.")
+		require.NotContains(t, out, "Removing WezTerm.")
+	})
+}
+
 func TestShellDoubleQuoteEscape(t *testing.T) {
 	// Values without shell metacharacters (the common case) must pass through
 	// unchanged so the generated scripts stay byte-identical to before.
