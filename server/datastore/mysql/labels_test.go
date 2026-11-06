@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -739,17 +738,18 @@ func testLabelsListHostsInLabelAndTeamFilter(deferred bool, t *testing.T, db *Da
 }
 
 func testLabelsBuiltIn(t *testing.T, db *Datastore) {
-	require.Nil(t, db.MigrateData(context.Background()))
+	test.AddBuiltinLabels(t, db)
 
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	filter := fleet.TeamFilter{User: user}
 
 	hits, err := db.SearchLabels(context.Background(), filter, "macOS")
 	require.Nil(t, err)
-	// Should get Mac OS X and All Hosts
-	assert.Equal(t, 2, len(hits))
-	assert.Equal(t, fleet.LabelTypeBuiltIn, hits[0].LabelType)
-	assert.Equal(t, fleet.LabelTypeBuiltIn, hits[1].LabelType)
+	// Should get macOS, macOS 14+ (Sonoma+) and All Hosts
+	assert.Len(t, hits, 3)
+	for _, hit := range hits {
+		assert.Equal(t, fleet.LabelTypeBuiltIn, hit.LabelType)
+	}
 }
 
 func testLabelsChangeDetails(t *testing.T, db *Datastore) {
@@ -1462,9 +1462,11 @@ func testLabelsQueriesForLinuxPlatformLabel(t *testing.T, db *Datastore) {
 }
 
 func TestBuiltinLinuxLabelQueries(t *testing.T) {
-	db := CreateMySQLDS(t)
+	// Uses a migrated database rather than schema.sql, which omits these labels.
+	db := createMySQLDSForMigrationTests(t, t.Name())
+	t.Cleanup(func() { db.Close() })
 	ctx := t.Context()
-	require.NoError(t, db.MigrateData(ctx))
+	require.NoError(t, db.MigrateTables(ctx))
 
 	type storedLabel struct {
 		Name     string `db:"name"`
@@ -1485,17 +1487,12 @@ func TestBuiltinLinuxLabelQueries(t *testing.T) {
 	}
 
 	sources := map[string]string{"database": byName[fleet.BuiltinLabelNameUbuntuLinux].Query}
-	for _, l := range data.Labels2() {
-		if l.Name == fleet.BuiltinLabelNameUbuntuLinux {
-			sources["data migration Labels2"] = l.Query
-		}
-	}
 	for _, l := range test.BuiltinLabels() {
 		if l.Name == fleet.BuiltinLabelNameUbuntuLinux {
 			sources["test.BuiltinLabels"] = l.Query
 		}
 	}
-	require.Len(t, sources, 3)
+	require.Len(t, sources, 2)
 	for name, query := range sources {
 		require.NotEmpty(t, query, "%s has no %s query", name, fleet.BuiltinLabelNameUbuntuLinux)
 		assert.Equal(t, sources["database"], query,

@@ -653,7 +653,7 @@ export const buildHostVitals = ({
           value={
             <span className={`${baseClass}__os-version`}>
               {!osVersionRequirementMet && (
-                <Icon name="error-outline" color="ui-fleet-black-75" />
+                <Icon name="error" color="ui-fleet-black-75" />
               )}
               <TooltipWrapper
                 className={`${baseClass}__ellipsis-tooltip`}
@@ -728,14 +728,26 @@ export const buildHostVitals = ({
     });
   }
 
-  if (isIosOrIpadosHost && vitalsData?.timezone) {
-    const hasValidTimezone = vitalsData.timezone !== DEFAULT_EMPTY_CELL_VALUE;
-    const localTime = hasValidTimezone
-      ? // toZonedTime shifts the instant so its epoch value reads as the
-        // host's timezone under the system's own default-timezone formatting,
-        // letting internationalTimeFormat run unmodified/as-is elsewhere.
-        internationalTimeFormat(toZonedTime(new Date(), vitalsData.timezone))
+  const hasValidTimezone =
+    !!vitalsData?.timezone && vitalsData.timezone !== DEFAULT_EMPTY_CELL_VALUE;
+  // Android and Chrome don't report a timezone. iOS/iPadOS report one only
+  // after MDM check-in, so the row stays hidden until that lands. macOS,
+  // Windows, and Linux always show the row, with "---" until osquery fills
+  // it in.
+  const showTimezone =
+    !isAndroidHost && !isChromeHost && (!isIosOrIpadosHost || hasValidTimezone);
+  if (showTimezone) {
+    // toZonedTime shifts the instant so its epoch value reads as the host's
+    // timezone under the system's own default-timezone formatting, letting
+    // internationalTimeFormat run unmodified/as-is elsewhere. It returns an
+    // Invalid Date for a zone the browser doesn't know, which would throw.
+    const hostNow = hasValidTimezone
+      ? toZonedTime(new Date(), vitalsData.timezone)
       : null;
+    const localTime =
+      hostNow && !Number.isNaN(hostNow.getTime())
+        ? internationalTimeFormat(hostNow)
+        : DEFAULT_EMPTY_CELL_VALUE;
 
     vitals.push({
       sortKey: "Timezone",

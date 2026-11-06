@@ -118,7 +118,7 @@ const ReportPicker = ({
                   position="top"
                   delayInMs={300}
                 >
-                  <Icon name="query" size="small" color="ui-fleet-black-50" />
+                  <Icon name="query" color="ui-fleet-black-50" />
                 </TooltipWrapper>
               )}
               {showInheritedBadge && (

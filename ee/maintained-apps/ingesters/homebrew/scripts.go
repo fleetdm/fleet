@@ -31,6 +31,7 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 	}
 
 	if needsQuitRelaunch {
+		sb.AddFunction("app_process_running", appProcessRunningFunc)
 		sb.AddFunction("quit_and_track_application", quitAndTrackApplicationFunc)
 		sb.AddFunction("relaunch_application", relaunchApplicationFunc)
 	}
@@ -455,6 +456,7 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID stri
 			return
 		}
 		quitIDs[appName] = struct{}{}
+		sb.AddFunction("app_process_running", appProcessRunningFunc)
 		sb.AddFunction("quit_application", quitApplicationFunc)
 		// Stop before the app's bundle is removed if the app itself won't quit.
 		// Other IDs (helpers, shared updaters like Microsoft AutoUpdate, other
@@ -504,6 +506,7 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID stri
 	// signal finds no PID (Parallels' pkill), and still runs before the stanza
 	// removes anything.
 	if signalsApp {
+		sb.AddFunction("app_process_running", appProcessRunningFunc)
 		sb.AddFunction("quit_application", quitApplicationFunc)
 		sb.Writef("quit_application %s || exit 1", shellSingleQuote(bundleID))
 	}
@@ -636,6 +639,7 @@ func quitAppBeforeRemoval(sb *scriptBuilder, bundleID string, appStopped *bool) 
 		return
 	}
 	*appStopped = true
+	sb.AddFunction("app_process_running", appProcessRunningFunc)
 	sb.AddFunction("quit_application", quitApplicationFunc)
 	sb.Writef("quit_application %s || exit 1", shellSingleQuote(bundleID))
 }
@@ -928,20 +932,35 @@ const removeLaunchctlServiceFunc = `remove_launchctl_service() {
   done
 }`
 
+// appProcessRunningFunc returns 0 if a process runs from an app bundle with the
+// given bundle ID, compared case-insensitively. A -600 quit only says the event
+// reached no process, so the quit helpers check this before counting it as
+// quit, and don't replace or remove a bundle that still has one running. It
+// reads ps and each bundle's Info.plist, not AppleScript's view of the app.
+const appProcessRunningFunc = `app_process_running() {
+  local bundle_id="$1" app
+  while IFS= read -r app; do
+    grep -qixF -- "$bundle_id" <<< "$(defaults read "$app/Contents/Info" CFBundleIdentifier 2>/dev/null)" && return 0
+  done < <(ps -axo comm= | sed -n 's|^ *\(.*\.app\)/Contents/MacOS/.*|\1|p' | sort -u)
+  return 1
+}
+`
+
 // quitApplicationFunc quits a running application. It's a port of the
 // homebrew implementation
 // https://github.com/Homebrew/brew/blob/e1ff668957dd8a66304c0290dfa66083e6c7444e/Library/Homebrew/cask/artifact/abstract_uninstall.rb#L192
 // Returns 1 if the application is still running after the timeout. As in
 // quitAndTrackApplicationFunc, the quit is confirmed with 'is running' because
-// 'pgrep -f <bundle_id>' never matches. Both helpers pass the bundle ID to
-// osascript as a run handler argument, never in the AppleScript source, so it
-// can't inject AppleScript. The '--' stops osascript from parsing an ID that
-// starts with '-' as an option such as -e.
+// 'pgrep -f <bundle_id>' never matches. Both helpers count a -600 quit as quit
+// when app_process_running finds no process left: 'is running' can keep
+// reporting an app that has none. Both helpers pass the bundle ID to osascript
+// as a run handler argument, never in the AppleScript source, so it can't
+// inject AppleScript. The '--' stops osascript from parsing an ID that starts
+// with '-' as an option such as -e.
 const quitApplicationFunc = `quit_application() {
   local bundle_id="$1"
   local timeout_duration=10
 
-  # check if the application is running
   local app_running
   app_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null)
   if [[ "$app_running" != "true" ]]; then
@@ -957,11 +976,15 @@ const quitApplicationFunc = `quit_application() {
 
   echo "Quitting application '$bundle_id'..."
 
-  # try to quit the application within the timeout period
-  local quit_success=false still_running
+  local quit_success=false still_running quit_error
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" >/dev/null 2>&1
+    quit_error=$(osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" 2>&1 >/dev/null)
+    if [[ "$quit_error" == *"(-600)" ]] && ! app_process_running "$bundle_id"; then
+      echo "Application '$bundle_id' isn't running."
+      quit_success=true
+      break
+    fi
     sleep 1
     if still_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
       echo "Application '$bundle_id' quit successfully."
@@ -1051,13 +1074,13 @@ ids.join("\n")'
 // so it can be relaunched after installation. Sets APP_WAS_RUNNING_<bundle_id> environment variable.
 // Returns 1 if the application is still running after the timeout. The quit is
 // confirmed with 'is running' because a macOS app's command line is its
-// executable path, so 'pgrep -f <bundle_id>' never matches.
+// executable path, so 'pgrep -f <bundle_id>' never matches. An app whose first
+// quit gets -600 with no process left wasn't running, so it isn't relaunched.
 const quitAndTrackApplicationFunc = `quit_and_track_application() {
   local bundle_id="$1"
   local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local timeout_duration=10
 
-  # check if the application is running
   local app_running
   app_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null)
   if [[ "$app_running" != "true" ]]; then
@@ -1073,17 +1096,26 @@ const quitAndTrackApplicationFunc = `quit_and_track_application() {
     return
   fi
 
-  # App was running, mark it for relaunch
   eval "export $var_name=1"
   echo "Application '$bundle_id' was running; will relaunch after installation."
 
   echo "Quitting application '$bundle_id'..."
 
-  # try to quit the application within the timeout period
-  local quit_success=false still_running
+  local quit_success=false quit_sent=false still_running quit_error
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" >/dev/null 2>&1
+    quit_error=$(osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" 2>&1 >/dev/null)
+    if [[ "$quit_error" == *"(-600)" ]] && ! app_process_running "$bundle_id"; then
+      if [[ "$quit_sent" == false ]]; then
+        eval "export $var_name=0"
+        echo "Application '$bundle_id' isn't running; it won't be relaunched."
+      else
+        echo "Application '$bundle_id' quit successfully."
+      fi
+      quit_success=true
+      break
+    fi
+    quit_sent=true
     sleep 1
     if still_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
       echo "Application '$bundle_id' quit successfully."

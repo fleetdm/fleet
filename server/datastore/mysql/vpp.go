@@ -1628,7 +1628,7 @@ WHERE
 		HostID:              res.HostID,
 		HostDisplayName:     res.HostDisplayName,
 		SoftwareTitle:       res.SoftwareTitle,
-		SoftwareDisplayName: res.SoftwareDisplayName,
+		SoftwareDisplayName: ptr.ValOrZero(res.SoftwareDisplayName),
 		AppStoreID:          res.AppStoreID,
 		CommandUUID:         res.CommandUUID,
 		SelfService:         res.SelfService,
@@ -3105,6 +3105,44 @@ ORDER BY installable_id
 	}
 
 	return apps, nil
+}
+
+func (ds *Datastore) ListAndroidAppsInScopeForHosts(ctx context.Context, hostIDs []uint) (map[uint][]fleet.VPPAppTeam, error) {
+	if len(hostIDs) == 0 {
+		return nil, nil
+	}
+
+	stmt := fmt.Sprintf(`
+		SELECT
+			h.id AS host_id,
+			vat.adam_id,
+			MIN(vat.id) AS id
+		FROM
+			hosts h
+			JOIN vpp_apps_teams vat ON vat.team_id <=> h.team_id AND vat.platform = 'android'
+		WHERE
+			h.id IN (?) AND
+			EXISTS (%s)
+		GROUP BY h.id, vat.adam_id
+		ORDER BY h.id, vat.adam_id
+	`, fmt.Sprintf(labelScopedFilter, softwareTypeVPP, "vat.id"))
+	query, args, err := sqlx.In(stmt, hostIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build list android apps in scope for hosts query")
+	}
+	var hostApps []struct {
+		HostID uint `db:"host_id"`
+		fleet.VPPAppTeam
+	}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &hostApps, query, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list android apps in scope for hosts")
+	}
+	appsByHostID := make(map[uint][]fleet.VPPAppTeam)
+	for _, hostApp := range hostApps {
+		appsByHostID[hostApp.HostID] = append(appsByHostID[hostApp.HostID], hostApp.VPPAppTeam)
+	}
+	return appsByHostID, nil
 }
 
 func (ds *Datastore) GetVPPAppsToInstallDuringSetupExperience(ctx context.Context, teamID *uint, platform string) ([]fleet.VPPAppTeam, error) {

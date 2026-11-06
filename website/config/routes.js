@@ -506,6 +506,16 @@ module.exports.routes = {
     }
   },
 
+  'GET /software-inventory': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'more',
+      markdownPageUrl: '/guides/software-inventory-reference',
+      docsNavSection: 'software-inventory',
+    }
+  },
+
   'GET /software-catalog/:appIdentifier': {
     action: 'docs/view-app-details',// Meta title and description set in view action
   },
@@ -719,6 +729,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /aviation': {
+    action: 'view-aviation',
+    locals: {
+      pageTitleForMeta: 'Device management for aviation',
+      pageDescriptionForMeta: 'More efficient, lower cost, and more secure. Fleet is AI-native device management for all your endpoints.',
+    }
+  },
+
   'GET /pharma': {
     action: 'view-pharma',
     locals: {
@@ -860,6 +878,7 @@ module.exports.routes = {
   'GET /use-cases/import-and-export-queries-and-packs-in-fleet': '/guides/import-and-export-queries-and-packs-in-fleet',
   'GET /guides/import-and-export-queries-and-packs-in-fleet': '/guides/import-and-export-queries-in-fleet',
   'GET /guides/deploy-security-agents': '/guides/deploy-software-packages',
+  'GET /guides/software-inventory-reference': '/software-inventory',
   'GET /guides/manage-boostrap-package-with-gitops': '/guides/manage-bootstrap-package-with-gitops',
   'GET /use-cases/locate-assets-with-osquery': '/guides/locate-assets-with-osquery',
   'GET /use-cases/osquery-a-tool-to-easily-ask-questions-about-operating-systems': '/guides/osquery-a-tool-to-easily-ask-questions-about-operating-systems',
@@ -1010,7 +1029,6 @@ module.exports.routes = {
   'GET /docs/using-fleet/mdm-macos-setup-experience': (req, res) => { return res.redirect(301, '/guides/macos-setup-experience'); },
   'GET /docs/using-fleet/scripts': (req, res) => { return res.redirect(301, '/guides/scripts'); },
   'GET /docs/using-fleet/automations': (req, res) => { return res.redirect(301, '/guides/automations'); },
-  'GET /docs/using-fleet/puppet-module': (req, res) => { return res.redirect(301, '/guides/puppet-module'); },
   'GET /docs/using-fleet/vulnerability-processing': (req, res) => { return res.redirect(301, '/guides/vulnerability-processing'); },
   'GET /docs/using-fleet/cis-benchmarks': (req, res) => { return res.redirect(301, '/guides/cis-benchmarks'); },
   'GET /docs/using-fleet/osquery-process': (req, res) => { return res.redirect(301, '/guides/osquery-watchdog'); },
@@ -1279,6 +1297,7 @@ module.exports.routes = {
   // For example, a clever user might try to visit fleetdm.com/documentation, not knowing that Fleet's website
   // puts this kind of thing under /docs, NOT /documentation.  These "convenience" redirects are to help them out.
   'GET /admin': '/admin/email-preview',
+  'GET /demo': '/contact?talkToUs',
   'GET /renew': 'https://calendly.com/zayhanlon/fleet-renewal-discussion',
   'GET /documentation': '/docs',
   'GET /contribute': '/docs/contributing',
@@ -1607,6 +1626,7 @@ module.exports.routes = {
   '/api/v1/query-generator/get-llm-generated-sql': { action: 'query-generator/get-llm-generated-sql' },
   'POST /api/v1/get-llm-generated-configuration-profile': { action: 'get-llm-generated-configuration-profile', hasSocketFeatures: true, csrf: false },
   'POST /api/v1/get-llm-generated-configuration-profile-name-and-description': { action: 'get-llm-generated-configuration-profile-name-and-description', csrf: false },
+  'POST /api/profile-generator/v1/register': { action: 'profile-generator/register-one-fleet-instance', csrf: false },
   'POST /api/v1/deliver-application-submission': { action: 'deliver-application-submission' },
   'POST /api/v1/deliver-gitops-request': { action: 'deliver-gitops-workshop-request' },
   'POST /api/v1/admin/reset-one-fleet-premium-local-trial': { action: 'admin/reset-one-fleet-premium-local-trial' },
