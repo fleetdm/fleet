@@ -5297,20 +5297,25 @@ func TestGitOpsWindowsMigration(t *testing.T) {
 	cases := []struct {
 		file    string
 		wantErr string
+		// saved values when the run succeeds
+		wantMDM, wantMigration bool
 	}{
 		// booleans are Windows MDM enabled and Windows migration enabled
-		{"testdata/gitops/global_config_windows_migration_true_true.yml", ""},
-		{"testdata/gitops/global_config_windows_migration_false_true.yml", "Windows MDM is not enabled"},
-		{"testdata/gitops/global_config_windows_migration_true_false.yml", ""},
-		{"testdata/gitops/global_config_windows_migration_false_false.yml", ""},
+		{"testdata/gitops/global_config_windows_migration_true_true.yml", "", true, true},
+		{"testdata/gitops/global_config_windows_migration_false_true.yml", "Windows MDM is not enabled", false, false},
+		{"testdata/gitops/global_config_windows_migration_true_false.yml", "", true, false},
+		{"testdata/gitops/global_config_windows_migration_false_false.yml", "", false, false},
 	}
 	for _, c := range cases {
 		t.Run(filepath.Base(c.file), func(t *testing.T) {
-			testing_utils.SetupFullGitOpsPremiumServer(t)
+			_, savedAppConfigPtr, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 
 			_, err := runAppNoChecks([]string{"gitops", "-f", c.file})
 			if c.wantErr == "" {
 				require.NoError(t, err)
+				mdm := (*savedAppConfigPtr).MDM
+				require.Equal(t, c.wantMDM, mdm.WindowsEnabledAndConfigured)
+				require.Equal(t, c.wantMigration, mdm.WindowsMigrationEnabled)
 			} else {
 				require.ErrorContains(t, err, c.wantErr)
 			}
