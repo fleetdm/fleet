@@ -150,6 +150,24 @@ func (s *integrationMDMTestSuite) TestRemovedPlatformSuffixKeys() {
 	require.False(t, teamResp.Team.Config.MDM.MacOSSetup.RequireAllSoftware)
 	require.False(t, teamResp.Team.Config.MDM.MacOSSetup.RequireAllSoftwareWindows)
 
+	// nor does a rejected request clear a setting that is on
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": {"macos_recovery_lock_password_enabled": true}}`), http.StatusOK)
+	t.Cleanup(func() {
+		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": {"macos_recovery_lock_password_enabled": false}}`), http.StatusOK)
+	})
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), json.RawMessage(`{"mdm": {"macos_recovery_lock_password_enabled": true}}`),
+		http.StatusOK)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{"mdm": {"macos_recovery_lock_password_enabled": false, "enable_recovery_lock_password": false}}`),
+		http.StatusUnprocessableEntity)
+	s.DoRaw("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), []byte(`{"mdm": {"enable_recovery_lock_password": false}}`),
+		http.StatusUnprocessableEntity)
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.True(t, acResp.MDM.EnableRecoveryLockPassword.Value)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.True(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
+
 	// a value that only looks like an old name isn't rejected
 	s.DoRaw("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), []byte(`{"description": "enable_recovery_lock_password"}`), http.StatusOK)
 
