@@ -15,7 +15,10 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/str"
 )
 
-const registrationPath = "/api/v1/google-conditional-access"
+const (
+	registrationPath = "/api/v1/google-conditional-access"
+	signInPath       = registrationPath + "/sign-in"
+)
 
 const maxRelayResponseBytes = 1 << 20
 
@@ -99,6 +102,17 @@ func (r *relay) Deregister(ctx context.Context, serverURL, customerID, secret st
 		err = &relayNotFoundError{RelayStatusError: se}
 	}
 	return err
+}
+
+func (r *relay) SignInURL(customerID, hostUUID, token string) (string, error) {
+	if r.uriErr != nil {
+		return "", r.uriErr
+	}
+	q := url.Values{}
+	q.Set("googleCustomerId", customerID)
+	q.Set("hostUuid", hostUUID)
+	q.Set("token", token)
+	return r.uri + signInPath + "?" + q.Encode(), nil
 }
 
 // send decodes a 2xx response into response, which may be nil. Other statuses return a
