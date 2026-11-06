@@ -885,7 +885,7 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		}
 
 		if p.Teams != nil && len(*p.Teams) > 0 {
-			return nil, fleet.NewInvalidArgumentError("teams", "may not be specified with global_role")
+			return nil, fleet.NewInvalidArgumentError("fleets", "may not be specified with global_role")
 		}
 
 		// Track whether this is a demotion from global admin so we can
@@ -928,7 +928,7 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 			if p.GlobalRole != nil {
 				return nil, fleet.NewInvalidArgumentError("global_role", "cannot demote the last global admin")
 			}
-			return nil, fleet.NewInvalidArgumentError("teams", "cannot demote the last global admin")
+			return nil, fleet.NewInvalidArgumentError("fleets", "cannot demote the last global admin")
 		}
 		if err == nil && p.NewPassword != nil {
 			// Clean up password reset requests and sessions like setNewPassword does.

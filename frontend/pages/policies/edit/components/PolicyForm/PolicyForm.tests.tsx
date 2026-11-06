@@ -218,7 +218,7 @@ describe("PolicyForm - component", () => {
       // The team response carries `integrations` at the top level, which the
       // ITeam type doesn't declare, so build the mock as a plain object.
       jest.spyOn(teamsAPI, "load").mockResolvedValue({
-        team: {
+        fleet: {
           ...createMockTeam({ id: 2 }),
           integrations: {
             jira: [],
@@ -1079,7 +1079,7 @@ describe("PolicyForm - component", () => {
 
       it("saves Force patch with Deadline through the loaded automation configuration", async () => {
         jest.spyOn(teamsAPI, "load").mockResolvedValue({
-          team: createMockTeam({ id: 1 }),
+          fleet: createMockTeam({ id: 1 }),
         } as never);
         const updatePolicySpy = jest
           .spyOn(teamPoliciesAPI, "update")
@@ -1216,7 +1216,7 @@ describe("PolicyForm - component", () => {
 
       it("sends the conditional access disable together with hidden for a patch policy", async () => {
         jest.spyOn(teamsAPI, "load").mockResolvedValue({
-          team: {
+          fleet: {
             ...createMockTeam({ id: 2 }),
             integrations: {
               jira: [],

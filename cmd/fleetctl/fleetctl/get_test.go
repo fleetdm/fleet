@@ -1531,7 +1531,8 @@ spec:
     "disabled": false,
     "targets": {
       "labels": null,
-      "fleets": null
+      "fleets": null,
+      "teams": null
     }
   }
 }
@@ -1607,7 +1608,8 @@ spec:
     "disabled": false,
     "targets": {
       "labels": null,
-      "fleets": null
+      "fleets": null,
+      "teams": null
     }
   }
 }

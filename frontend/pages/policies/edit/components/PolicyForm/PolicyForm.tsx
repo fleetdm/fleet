@@ -298,7 +298,7 @@ const PolicyForm = ({
   );
 
   const automationsConfig =
-    (isGlobalPolicy ? config : automationsTeamData?.team) ?? undefined;
+    (isGlobalPolicy ? config : automationsTeamData?.fleet) ?? undefined;
 
   let automationsFleetName = "";
   if (isGlobalPolicy) {
@@ -307,7 +307,7 @@ const PolicyForm = ({
     automationsFleetName = APP_CONTEXT_NO_TEAM_SUMMARY.name;
   } else {
     automationsFleetName =
-      automationsTeamData?.team?.name ?? currentTeam?.name ?? "";
+      automationsTeamData?.fleet?.name ?? currentTeam?.name ?? "";
   }
 
   const automationsRef = useRef<IPolicyAutomationsFieldsHandle>(null);
