@@ -2266,9 +2266,6 @@ func (svc *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.Comm
 }
 
 func (svc *Service) CancelHostMDMCommand(ctx context.Context, hostID uint, commandUUID string) error {
-	// The selective-list gate (rather than host read) admits gitops, which can
-	// send raw MDM commands via POST /commands/run — whoever can send a
-	// command can cancel one. Mirrors authorizeAllHostsTeams on that endpoint.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
 		return err
 	}
@@ -2282,7 +2279,7 @@ func (svc *Service) CancelHostMDMCommand(ctx context.Context, hostID uint, comma
 	// MDM commands, so host IDs outside their visibility can't be probed.
 	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "cancel host mdm command")
 	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
-		return err
+		return authz.GitOpsMDMCommandError(ctx, host.TeamID, err)
 	}
 
 	// Non-Apple hosts have no nano queue rows; without this guard they would

@@ -2984,9 +2984,9 @@ func TestAuthorizeMDMCommand(t *testing.T) {
 		{user: test.UserTechnician, object: team1Command, action: write, allow: false},
 		{user: test.UserTechnician, object: team1Command, action: read, allow: true},
 
-		{user: test.UserGitOps, object: globalCommand, action: write, allow: true},
+		{user: test.UserGitOps, object: globalCommand, action: write, allow: false},
 		{user: test.UserGitOps, object: globalCommand, action: read, allow: false},
-		{user: test.UserGitOps, object: team1Command, action: write, allow: true},
+		{user: test.UserGitOps, object: team1Command, action: write, allow: false},
 		{user: test.UserGitOps, object: team1Command, action: read, allow: false},
 
 		{user: test.UserTeamAdminTeam1, object: globalCommand, action: write, allow: false},
@@ -3031,7 +3031,7 @@ func TestAuthorizeMDMCommand(t *testing.T) {
 
 		{user: test.UserTeamGitOpsTeam1, object: globalCommand, action: write, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: globalCommand, action: read, allow: false},
-		{user: test.UserTeamGitOpsTeam1, object: team1Command, action: write, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: team1Command, action: write, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: team1Command, action: read, allow: false},
 
 		{user: test.UserTeamGitOpsTeam2, object: globalCommand, action: write, allow: false},

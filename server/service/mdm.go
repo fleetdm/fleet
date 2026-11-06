@@ -1516,7 +1516,7 @@ func (svc *Service) authorizeAllHostsTeams(ctx context.Context, hostUUIDs []stri
 		authorizer.SetTeamID(authzTeamID)
 
 		if err := svc.authz.Authorize(ctx, authorizer, authzAction); err != nil {
-			return nil, ctxerr.Wrap(ctx, err)
+			return nil, ctxerr.Wrap(ctx, authz.GitOpsMDMCommandError(ctx, authzTeamID, err))
 		}
 	}
 	return hosts, nil
@@ -4952,7 +4952,7 @@ func mdmUnenrollEndpoint(ctx context.Context, request any, svc fleet.Service) (f
 }
 
 func (svc *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
 		return err
 	}
 
@@ -4966,7 +4966,7 @@ func (svc *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
 	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{
 		TeamID: host.TeamID,
 	}, fleet.ActionWrite, notFoundErr); err != nil {
-		return err
+		return authz.GitOpsMDMCommandError(ctx, host.TeamID, err)
 	}
 
 	installedFromDEP := false
