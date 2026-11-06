@@ -1,10 +1,12 @@
 package mysql
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -3276,6 +3278,110 @@ func testListPolicyAutomationActivities(t *testing.T, ds *Datastore) {
 		}
 	})
 
+	t.Run("pages return every host row of multi-host runs exactly once", func(t *testing.T) {
+		pagedPolicy, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "paged-policy", Query: "SELECT 4"})
+		require.NoError(t, err)
+		pagedFleet, err := ds.NewTeam(ctx, &fleet.Team{Name: "paged-fleet"})
+		require.NoError(t, err)
+
+		hostIDs := make([]uint, 0, 12)
+		for i := range 12 {
+			name := fmt.Sprintf("paged-host-%02d", i)
+			h := test.NewHost(t, ds, name, "", name+"-key", name+"-uuid", time.Now())
+			hostIDs = append(hostIDs, h.ID)
+		}
+		_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET team_id = ? WHERE id = ?`, pagedFleet.ID, hostIDs[0])
+		require.NoError(t, err)
+		fleetObserver := fleet.TeamFilter{
+			User:            &fleet.User{Teams: []fleet.UserTeam{{ID: pagedFleet.ID, Role: fleet.RoleObserver}}},
+			IncludeObserver: true,
+		}
+
+		// Only the oldest runs cover the fleet's host, which is also the one the host name search finds.
+		hostsWithoutFirst := hostIDs[1:]
+		connectionRefused := "failed to POST to https://example.com/webhook: dial tcp 192.0.2.1:443: connect: connection refused"
+		runHosts := [][]uint{hostIDs, hostIDs, hostIDs, hostsWithoutFirst, hostsWithoutFirst}
+		runs := []fleet.ActivityDetails{
+			fleet.ActivityTypeFailedAutomationWebhook{PolicyID: pagedPolicy.ID, HostIDList: runHosts[0], ErrorResponse: connectionRefused},
+			fleet.ActivityTypeRanAutomationWebhook{PolicyID: pagedPolicy.ID, HostIDList: runHosts[1]},
+			fleet.ActivityTypeFailedAutomationWebhook{PolicyID: pagedPolicy.ID, HostIDList: runHosts[2], ErrorResponse: connectionRefused},
+			fleet.ActivityTypeFailedAutomationTicket{PolicyID: pagedPolicy.ID, HostIDList: runHosts[3], ErrorResponse: connectionRefused},
+			fleet.ActivityTypeRanAutomationWebhook{PolicyID: pagedPolicy.ID, HostIDList: runHosts[4]},
+		}
+		tiedCreatedAt := time.Now().UTC().Truncate(time.Microsecond)
+		allRows := map[[2]uint]struct{}{}
+		firstHostRows := map[[2]uint]struct{}{}
+		for i, run := range runs {
+			require.NoError(t, activitySvc.NewActivity(ctx, nil, run))
+			var activityID uint
+			require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &activityID, `SELECT MAX(id) FROM activity_past`))
+			if i < 2 {
+				_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE activity_past SET created_at = ? WHERE id = ?`, tiedCreatedAt, activityID)
+				require.NoError(t, err)
+			}
+			for _, hostID := range runHosts[i] {
+				allRows[[2]uint{activityID, hostID}] = struct{}{}
+				if hostID == hostIDs[0] {
+					firstHostRows[[2]uint{activityID, hostID}] = struct{}{}
+				}
+			}
+		}
+
+		type activity = *fleet.PolicyAutomationActivity
+		newestFirst := func(a, b activity) int {
+			return cmp.Or(b.CreatedAt.Compare(a.CreatedAt), cmp.Compare(a.ID, b.ID), cmp.Compare(a.HostID, b.HostID))
+		}
+		oldestFirst := func(a, b activity) int {
+			return cmp.Or(a.CreatedAt.Compare(b.CreatedAt), cmp.Compare(b.ID, a.ID), cmp.Compare(a.HostID, b.HostID))
+		}
+		for _, tc := range []struct {
+			name   string
+			opts   fleet.ListOptions
+			filter fleet.TeamFilter
+			want   map[[2]uint]struct{}
+			order  func(a, b activity) int
+		}{
+			{"newest first", fleet.ListOptions{OrderKey: "created_at", OrderDirection: fleet.OrderDescending}, adminFilter, allRows, newestFirst},
+			{"oldest first", fleet.ListOptions{OrderKey: "created_at", OrderDirection: fleet.OrderAscending}, adminFilter, allRows, oldestFirst},
+			{"type ascending", fleet.ListOptions{OrderKey: "activity_type", OrderDirection: fleet.OrderAscending}, adminFilter, allRows, func(a, b activity) int {
+				return cmp.Or(cmp.Compare(a.Type, b.Type), newestFirst(a, b))
+			}},
+			{"type descending", fleet.ListOptions{OrderKey: "activity_type", OrderDirection: fleet.OrderDescending}, adminFilter, allRows, func(a, b activity) int {
+				return cmp.Or(cmp.Compare(b.Type, a.Type), oldestFirst(a, b))
+			}},
+			{"id", fleet.ListOptions{OrderKey: "id"}, adminFilter, allRows, func(a, b activity) int {
+				return cmp.Or(cmp.Compare(a.ID, b.ID), cmp.Compare(a.HostID, b.HostID))
+			}},
+			{"host name search", fleet.ListOptions{OrderKey: "created_at", OrderDirection: fleet.OrderDescending, MatchQuery: "paged-host-00"}, adminFilter, firstHostRows, newestFirst},
+			{"fleet observer", fleet.ListOptions{OrderKey: "created_at", OrderDirection: fleet.OrderDescending}, fleetObserver, firstHostRows, newestFirst},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				opts := tc.opts
+				opts.PerPage = 2
+				opts.IncludeMetadata = true
+				got := map[[2]uint]struct{}{}
+				var pages []activity
+				for {
+					activities, meta, err := ds.ListPolicyAutomationActivities(ctx, pagedPolicy.ID, tc.filter, opts, "")
+					require.NoError(t, err)
+					require.EqualValues(t, len(tc.want), meta.TotalResults)
+					for _, a := range activities {
+						row := [2]uint{a.ID, a.HostID}
+						require.NotContains(t, got, row, "page %d repeats a row", opts.Page)
+						got[row] = struct{}{}
+					}
+					pages = append(pages, activities...)
+					if !meta.HasNextResults {
+						break
+					}
+					opts.Page++
+				}
+				require.Equal(t, tc.want, got)
+				require.True(t, slices.IsSortedFunc(pages, tc.order), "pages are out of order")
+			})
+		}
+	})
+
 	// ── Script-run, software-install and VPP-install branches ─────────────────
 	// Disable FK checks so we can insert result rows without satisfying every
 	// foreign key in the test setup.
@@ -3705,6 +3811,56 @@ func testListPolicyAutomationActivities(t *testing.T, ds *Datastore) {
 		}
 		require.True(t, sawNamedErr, "expected a failed named automation")
 		require.True(t, sawNamedSucc, "expected a successful named automation")
+	})
+
+	t.Run("pages follow the sort through a single-host branch", func(t *testing.T) {
+		scriptPolicy, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "paged-script-policy", Query: "SELECT 5"})
+		require.NoError(t, err)
+
+		const runCount = 6
+		newest := time.Now().UTC().Truncate(time.Microsecond)
+		var idsNewestFirst []uint
+		for i := range runCount {
+			execID := fmt.Sprintf("paged-script-exec-%d", i)
+			_, err := ds.writer(ctx).ExecContext(ctx,
+				`INSERT INTO host_script_results (host_id, execution_id, output, exit_code, policy_id) VALUES (?, ?, '', 0, ?)`,
+				h1.ID, execID, scriptPolicy.ID)
+			require.NoError(t, err)
+			require.NoError(t, activitySvc.NewActivity(ctx, nil, fleet.ActivityTypeRanScript{
+				HostID:            h1.ID,
+				HostDisplayName:   h1.DisplayName(),
+				ScriptExecutionID: execID,
+				ScriptName:        "fix.sh",
+				PolicyID:          new(scriptPolicy.ID),
+			}))
+			var activityID uint
+			require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &activityID, `SELECT MAX(id) FROM activity_past`))
+			_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE activity_past SET created_at = ? WHERE id = ?`, newest.Add(-time.Duration(i)*time.Minute), activityID)
+			require.NoError(t, err)
+			idsNewestFirst = append(idsNewestFirst, activityID)
+		}
+		idsOldestFirst := slices.Clone(idsNewestFirst)
+		slices.Reverse(idsOldestFirst)
+
+		for direction, want := range map[fleet.OrderDirection][]uint{
+			fleet.OrderDescending: idsNewestFirst,
+			fleet.OrderAscending:  idsOldestFirst,
+		} {
+			opts := fleet.ListOptions{OrderKey: "created_at", OrderDirection: direction, PerPage: 2, IncludeMetadata: true}
+			var got []uint
+			for {
+				activities, meta, err := ds.ListPolicyAutomationActivities(ctx, scriptPolicy.ID, adminFilter, opts, "")
+				require.NoError(t, err)
+				for _, a := range activities {
+					got = append(got, a.ID)
+				}
+				if !meta.HasNextResults {
+					break
+				}
+				opts.Page++
+			}
+			require.Equal(t, want, got)
+		}
 	})
 }
 
