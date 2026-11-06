@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"testing"
 	"time"
@@ -230,6 +231,67 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 				require.Equal(t, policyID, *addedApp.PolicyID)
 			}
 		})
+	}
+}
+
+func TestCreatePatchNotificationForSkipFromAnotherFleet(t *testing.T) {
+	const (
+		hostID       = uint(1)
+		titleID      = uint(10)
+		hostFleetID  = uint(5)
+		otherFleetID = uint(6)
+	)
+	newSkip := func(installerFleetID *uint, deadline bool) *fleet.HostSoftwareInstallerResult {
+		skip := &fleet.HostSoftwareInstallerResult{
+			InstallUUID:             "install-uuid",
+			SoftwareTitleID:         new(titleID),
+			InstallerGlobalOrTeamID: installerFleetID,
+			PolicyID:                new(uint(30)),
+			PatchDeadline:           deadline,
+		}
+		if installerFleetID != nil {
+			skip.SoftwareInstallerID = new(uint(20))
+		}
+		return skip
+	}
+
+	cases := []struct {
+		name               string
+		hostFleetID        *uint
+		installerTeam      *uint
+		wantPastFleetGuard bool
+	}{
+		{"an installer of the fleet the host left", new(hostFleetID), new(otherFleetID), false},
+		{"an installer of a fleet, the host moved to no fleet", nil, new(otherFleetID), false},
+		{"an installer of no fleet, the host moved to a fleet", new(hostFleetID), new(uint(0)), false},
+		{"an installer of the host's fleet", new(hostFleetID), new(hostFleetID), true},
+		{"an installer of no fleet on a host in no fleet", nil, new(uint(0)), true},
+		{"a deleted installer has no fleet to compare", new(hostFleetID), nil, true},
+	}
+	for _, c := range cases {
+		for _, deadline := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s, deadline %t", c.name, deadline), func(t *testing.T) {
+				ds := new(mock.Store)
+				notificationsSvc := &mock.MockNotificationsService{}
+				svc := &Service{ds: ds, notificationsSvc: notificationsSvc, logger: slog.New(slog.DiscardHandler)}
+
+				ds.GetPatchDeadlineSettingsFunc = func(context.Context, uint) (*fleet.PatchDeadlineSettings, error) {
+					return &fleet.PatchDeadlineSettings{Days: []string{"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"}, Time: "17:00"}, nil
+				}
+				notificationsSvc.RescheduleNotificationsAwaitingDispatchFunc = func(context.Context, uint, string, time.Time, time.Time) error {
+					return nil
+				}
+				ds.PatchNotificationExistsForAppFunc = func(context.Context, uint, uint) (bool, error) { return true, nil }
+
+				host := &fleet.Host{ID: hostID, TeamID: c.hostFleetID, TimeZone: new("UTC")}
+				require.NoError(t, svc.createPatchNotificationForEndUser(t.Context(), host, newSkip(c.installerTeam, deadline)))
+
+				require.Equal(t, c.wantPastFleetGuard, ds.PatchNotificationExistsForAppFuncInvoked)
+				require.Equal(t, c.wantPastFleetGuard && deadline, notificationsSvc.RescheduleNotificationsAwaitingDispatchFuncInvoked)
+				require.False(t, notificationsSvc.CreateNotificationFuncInvoked)
+				require.False(t, ds.AddPatchNotificationAppFuncInvoked)
+			})
+		}
 	}
 }
 
