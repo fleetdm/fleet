@@ -34,6 +34,15 @@
     gap: $pad-xxsmall;
   }
 
+  // Pull the icon in by its built-in inset so the visible gap is $pad-xxsmall.
+  .external-link-icon {
+    margin-left: -2.5px;
+  }
+
+  .external-link-icon--small {
+    margin-left: -1px;
+  }
+
   &__last-word {
     text-decoration: underline;
     line-height: normal;
