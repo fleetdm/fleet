@@ -3834,6 +3834,14 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 }
 
 func (ds *Datastore) HostIDsByIdentifier(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error) {
+	return ds.hostIDsByIdentifier(ctx, filter, hostIdentifiers, "hostname", "uuid", "hardware_serial", "node_key", "osquery_host_id")
+}
+
+func (ds *Datastore) HostIDsByLabelIdentifier(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error) {
+	return ds.hostIDsByIdentifier(ctx, filter, hostIdentifiers, "uuid", "hardware_serial")
+}
+
+func (ds *Datastore) hostIDsByIdentifier(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string, identColumns ...string) ([]uint, error) {
 	// A blank identifier would match every host with an empty hostname, UUID or serial (whitespace-only
 	// ones too, since these columns use PAD SPACE collations).
 	hostIdentifiers = slices.DeleteFunc(slices.Clone(hostIdentifiers), func(ident string) bool {
@@ -3843,21 +3851,23 @@ func (ds *Datastore) HostIDsByIdentifier(ctx context.Context, filter fleet.TeamF
 		return []uint{}, nil
 	}
 
+	conditions := make([]string, 0, len(identColumns))
+	identArgs := make([]any, 0, len(identColumns))
+	for _, col := range identColumns {
+		conditions = append(conditions, col+" IN (?)")
+		identArgs = append(identArgs, hostIdentifiers)
+	}
 	sqlStatement := fmt.Sprintf(
 		`
 			SELECT
 				DISTINCT id FROM hosts
 			WHERE
-				(hostname IN (?)
-				OR uuid IN (?)
-				OR hardware_serial IN (?)
-				OR node_key IN (?)
-				OR osquery_host_id IN (?))
+				(%s)
 			AND %s
-		`, ds.whereFilterHostsByTeams(filter, "hosts"),
+		`, strings.Join(conditions, " OR "), ds.whereFilterHostsByTeams(filter, "hosts"),
 	)
 
-	sql, args, err := sqlx.In(sqlStatement, hostIdentifiers, hostIdentifiers, hostIdentifiers, hostIdentifiers, hostIdentifiers)
+	sql, args, err := sqlx.In(sqlStatement, identArgs...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building query to get host IDs by identifier")
 	}

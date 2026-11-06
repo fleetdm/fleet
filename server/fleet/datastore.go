@@ -379,6 +379,9 @@ type Datastore interface {
 	// HostIDsByIdentifier retrieves the IDs associated with the given hostnames, UUIDs, hardware serials, node keys or osquery host IDs.
 	// Empty and whitespace-only identifiers are ignored.
 	HostIDsByIdentifier(ctx context.Context, filter TeamFilter, hostnames []string) ([]uint, error)
+	// HostIDsByLabelIdentifier retrieves the IDs of hosts matching a manual label's host identifiers: UUIDs or hardware serials.
+	// Empty and whitespace-only identifiers are ignored.
+	HostIDsByLabelIdentifier(ctx context.Context, filter TeamFilter, hostIdentifiers []string) ([]uint, error)
 
 	// HostIDsByOSID retrieves the IDs of all host for the given OS ID
 	HostIDsByOSID(ctx context.Context, osID uint, offset int, limit int) ([]uint, error)
