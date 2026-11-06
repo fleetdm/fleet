@@ -157,11 +157,16 @@ function Get-AppItems {
 }
 
 # A user can write to their own profile, including swapping a folder for a link
-# elsewhere, so their folder is cleaned up as them rather than as SYSTEM.
+# elsewhere, so their folder is cleaned up as them rather than as SYSTEM. cmd
+# expands %VAR% even inside quotes, so a path containing % is never passed to it.
 function Remove-AppDir {
     param([string]$Path, [string]$Sid)
 
     if (-not (Get-AppItems $Path)) { return $true }
+    if ($Sid -and $Path.Contains('%')) {
+        Write-Host "  Could not remove Zed from $Path."
+        return $false
+    }
     if ($Sid) {
         $commands = @($appFiles | ForEach-Object { "del /f /q `"$Path\$_`"" }) +
             @($appSubdirs | ForEach-Object { "rd /s /q `"$Path\$_`"" }) + "rd `"$Path`""
@@ -213,11 +218,13 @@ function Remove-Shortcuts {
     }
     if (-not $found) { return }
     if ($Sid) {
-        $quoted = ($found | ForEach-Object { "`"$_`"" }) -join ' '
-        try {
-            $null = Invoke-AsUser -Sid $Sid -ExePath "$env:SystemRoot\System32\cmd.exe" -Arguments "/d /c del /f /q $quoted"
-        } catch {
-            Write-Host "  $_"
+        $quoted = ($found | Where-Object { -not $_.Contains('%') } | ForEach-Object { "`"$_`"" }) -join ' '
+        if ($quoted) {
+            try {
+                $null = Invoke-AsUser -Sid $Sid -ExePath "$env:SystemRoot\System32\cmd.exe" -Arguments "/d /c del /f /q $quoted"
+            } catch {
+                Write-Host "  $_"
+            }
         }
     } else {
         $found | ForEach-Object { Remove-Item -LiteralPath $_ -Force -ErrorAction SilentlyContinue }
