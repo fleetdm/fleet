@@ -3,7 +3,7 @@
 *Windows Autopilot ships laptops straight to end users, but it expects you to pay for Microsoft Entra ID P1 for every one of them. A provisioning package and Fleet get new devices enrolled from the first boot without that bill.*
 
 <div purpose="embedded-content">
-  <iframe src="https://www.youtube.com/embed/7-O9Fiad80g" frameborder="0" allowfullscreen></iframe>
+  <iframe src="https://www.youtube.com/embed/7-O9Fiad80g?mute=1" frameborder="0" allowfullscreen></iframe>
 </div>
 
 ## Key takeaways
