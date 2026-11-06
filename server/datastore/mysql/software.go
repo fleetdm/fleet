@@ -765,9 +765,20 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 	r.WasCurrInstalled = currentSoftware
 
 	// Preserved rows are re-reported as the host already has them, so they are never deleted
-	// and, being unchanged, never written.
-	for _, sw := range currentSoftware {
-		if slices.Contains(opts.PreserveSources, sw.Source) {
+	// and, being unchanged, never written. A row the report does contain is not preserved, so
+	// its paths are reconciled against the report like any other.
+	if len(opts.PreserveSources) > 0 {
+		reported := make(map[string]struct{}, len(incomingSoftware))
+		for _, sw := range incomingSoftware {
+			reported[sw.ToUniqueStr()] = struct{}{}
+		}
+		for _, sw := range currentSoftware {
+			if !slices.Contains(opts.PreserveSources, sw.Source) {
+				continue
+			}
+			if _, ok := reported[sw.ToUniqueStr()]; ok {
+				continue
+			}
 			r.Preserved = append(r.Preserved, sw)
 			incomingSoftware = append(incomingSoftware, sw)
 		}

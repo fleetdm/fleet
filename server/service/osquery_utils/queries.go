@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/contexts/preservedsources"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
@@ -2613,23 +2614,6 @@ var (
 	archKernelRegex = regexp.MustCompile(archKernelName)
 )
 
-type preservedSoftwareSourcesKey struct{}
-
-// WithPreservedSoftwareSources records the software sources whose current rows the software
-// ingestion of this request must keep, because the extra query reporting them did not run.
-func WithPreservedSoftwareSources(ctx context.Context, sources []string) context.Context {
-	if len(sources) == 0 {
-		return ctx
-	}
-	return context.WithValue(ctx, preservedSoftwareSourcesKey{}, sources)
-}
-
-// PreservedSoftwareSourcesFromContext returns the sources set by WithPreservedSoftwareSources.
-func PreservedSoftwareSourcesFromContext(ctx context.Context) []string {
-	sources, _ := ctx.Value(preservedSoftwareSourcesKey{}).([]string)
-	return sources
-}
-
 func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	var software, aiTools []fleet.Software
 	sPaths := map[string]fleet.ExecutableHashes{}
@@ -2733,7 +2717,7 @@ func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.
 	}
 
 	result, err := ds.UpdateHostSoftware(ctx, host.ID, software,
-		fleet.PreserveSoftwareSources(PreservedSoftwareSourcesFromContext(ctx)...))
+		fleet.PreserveSoftwareSources(preservedsources.FromContext(ctx)...))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "update host software")
 	}

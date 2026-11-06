@@ -945,8 +945,12 @@ type UpdateHostSoftwareDBResult struct {
 
 // UpdateHostSoftwareOptions configures UpdateHostSoftware.
 type UpdateHostSoftwareOptions struct {
-	// PreserveSources lists software sources whose current rows stay installed even when absent
-	// from the reported software, because the query reporting them did not run.
+	// PreserveSources lists software sources whose absence from the report means "not reported"
+	// rather than "not installed". The host's current rows with these sources are kept, with
+	// their installed paths, as if the report had included them. Rows of these sources the
+	// report does include are ingested as usual, and no row is ever created from the list
+	// alone. The datastore applies this without judgement: the caller passes a source only when
+	// the query that reports it did not run. See preservedSoftwareSources in the service package.
 	PreserveSources []string
 }
 

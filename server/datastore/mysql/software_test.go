@@ -16167,6 +16167,20 @@ func testUpdateHostSoftwarePreserveSources(t *testing.T, ds *Datastore) {
 	require.Equal(t, []string{"CLAUDE.md", "Safari", "codex", "github"}, installedNames())
 	require.Equal(t, []string{"/Applications/Safari.app", "/Users/a/.cursor/mcp.json", "/usr/local/bin/codex"}, storedPaths())
 
+	// A preserved source the report does contain is reconciled as usual: only the absent rows
+	// are preserved, and the reported row's paths are replaced rather than duplicated.
+	result, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{safari, codex}, preserveAISources)
+	require.NoError(t, err)
+	require.Empty(t, result.Deleted)
+	require.Empty(t, result.Inserted)
+	require.Equal(t, []string{"CLAUDE.md", "github"}, names(result.Preserved))
+	movedCodexPaths := map[string]fleet.ExecutableHashes{
+		pathKey(safari, "/Applications/Safari.app"): nil,
+		pathKey(codex, "/opt/homebrew/bin/codex"):   nil,
+	}
+	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, movedCodexPaths, result))
+	require.Equal(t, []string{"/Applications/Safari.app", "/Users/a/.cursor/mcp.json", "/opt/homebrew/bin/codex"}, storedPaths())
+
 	// The query ran and reported fewer rows: the usual full replace.
 	result, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{safari, codex})
 	require.NoError(t, err)

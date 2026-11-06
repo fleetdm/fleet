@@ -33,6 +33,7 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/contexts/preservedsources"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
@@ -1971,7 +1972,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "loading host detail query config"))
 		} else {
 			detailConfig = cfg
-			ctx = osquery_utils.WithPreservedSoftwareSources(ctx, svc.preservedSoftwareSources(ctx, host, cfg, skippedSoftwareQueries))
+			ctx = preservedsources.NewContext(ctx, svc.preservedSoftwareSources(ctx, host, cfg, skippedSoftwareQueries))
 		}
 	}
 
