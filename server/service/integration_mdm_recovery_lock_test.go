@@ -45,7 +45,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMRecoveryLockPassword() {
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableRecoveryLockPassword.Value)
 	enabledActID := s.lastActivityMatches(fleet.ActivityTypeEnabledRecoveryLockPasswords{}.ActivityName(),
-		`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+		`{"fleet_id": null, "fleet_name": null}`, 0)
 
 	// check that it's returned by GET /config
 	acResp = appConfigResponse{}
@@ -78,7 +78,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMRecoveryLockPassword() {
   }`), http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.EnableRecoveryLockPassword.Value)
 	s.lastActivityMatches(fleet.ActivityTypeDisabledRecoveryLockPasswords{}.ActivityName(),
-		`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+		`{"fleet_id": null, "fleet_name": null}`, 0)
 
 	// check that it's returned by GET /config
 	acResp = appConfigResponse{}
@@ -206,7 +206,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMRecoveryLockPassword() {
 	}, http.StatusOK, &modResp)
 	require.True(t, modResp.Team.Config.MDM.EnableRecoveryLockPassword)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledRecoveryLockPasswords{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, teamName, team.ID, teamName), 0)
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q}`, team.ID, teamName), 0)
 
 	// check it's returned by GET
 	teamResp := getTeamResponse{}
@@ -235,7 +235,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMRecoveryLockPassword() {
 	}, http.StatusOK, &modResp)
 	require.False(t, modResp.Team.Config.MDM.EnableRecoveryLockPassword)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledRecoveryLockPasswords{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, teamName, team.ID, teamName), 0)
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q}`, team.ID, teamName), 0)
 
 	// check it's returned by GET
 	teamResp = getTeamResponse{}
@@ -401,7 +401,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		// Verify activity was created for enabling recovery lock
 		s.lastActivityMatches(fleet.ActivityTypeEnabledRecoveryLockPasswords{}.ActivityName(),
-			`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+			`{"fleet_id": null, "fleet_name": null}`, 0)
 
 		host, mdmClient := createAppleSiliconHost(t)
 
@@ -763,7 +763,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		// Verify activity was created
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledRecoveryLockPasswords{}.ActivityName(),
-			fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, teamName, team.ID, teamName), 0)
+			fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q}`, team.ID, teamName), 0)
 
 		// Create host and add to team
 		host, mdmClient := createAppleSiliconHost(t)

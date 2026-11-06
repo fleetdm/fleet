@@ -5,6 +5,8 @@ import (
 	"slices"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/fleetdm/fleet/v4/pkg/str"
 )
 
 // fitToolInput cuts a tool call's arguments to limit bytes, and to
@@ -26,7 +28,7 @@ func fitToolInput(s string, limit int) string {
 		}
 		target = int(int64(target) * maxNamedBlockBytes / int64(w))
 	}
-	s = truncateUTF8(s, limit)
+	s = str.TruncateBytes(s, limit, "")
 	if jsonLen(s) > maxNamedBlockBytes {
 		s = truncateJSON(s, maxNamedBlockBytes)
 	}

@@ -8,12 +8,16 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"regexp"
+	"slices"
 	"time"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -69,14 +73,12 @@ func main() {
 	defer ds.Close()
 	panicif(ds.MigrateTables(context.Background()))
 
-	// Set created_at/updated_at for migrations and app_config_json to prevent the schema from being changed every time
+	// Set created_at/updated_at for app_config_json to prevent the schema from being changed every time
 	// This schema is to test anyway
 	fixedDate := time.Date(2020, 01, 01, 01, 01, 01, 01, time.UTC)
 	_, err = db.Exec(`USE schemadb`)
 	panicif(err)
 	_, err = db.Exec(`UPDATE app_config_json SET created_at = ?, updated_at = ?`, fixedDate, fixedDate)
-	panicif(err)
-	_, err = db.Exec(`UPDATE migration_status_tables SET tstamp = ?`, fixedDate)
 	panicif(err)
 
 	// Tests create these built-in labels themselves via test.AddBuiltinLabels.
@@ -110,5 +112,34 @@ func main() {
 	cmd.Stdout = &stdoutBuf
 	panicif(cmd.Run())
 
-	panicif(os.WriteFile(os.Args[1], stdoutBuf.Bytes(), 0o655))
+	panicif(os.WriteFile(os.Args[1], stripMigrationStatus(stdoutBuf.Bytes()), 0o655))
+
+	// Tests derive migration_status_tables rows from the migration filenames
+	// (see testing_utils.LoadDefaultSchema), so make sure they match what ran.
+	var applied []int64
+	panicif(sqlx.Select(sqlx.NewDb(db, "mysql"), &applied,
+		`SELECT version_id FROM schemadb.migration_status_tables WHERE version_id > 0 AND is_applied = 1 ORDER BY version_id`))
+	fromFiles, err := testing_utils.MigrationVersions(filepath.Join(filepath.Dir(os.Args[1]), "migrations", "tables"))
+	panicif(err)
+	if !slices.Equal(applied, fromFiles) {
+		panic(fmt.Sprintf("applied migrations %v do not match migration filenames %v", applied, fromFiles))
+	}
+}
+
+var (
+	migrationStatusInsertRe  = regexp.MustCompile("(?m)^INSERT INTO `migration_status_tables` VALUES .*;\n")
+	migrationStatusCreateRe  = regexp.MustCompile("(?s)CREATE TABLE `migration_status_tables` \\(.*?\\) ENGINE=[^;]*;")
+	migrationStatusAutoIncRe = regexp.MustCompile(` AUTO_INCREMENT=\d+`)
+)
+
+// stripMigrationStatus removes the migration_status_tables rows and its
+// AUTO_INCREMENT counter from the dump, as they change with every migration.
+func stripMigrationStatus(dump []byte) []byte {
+	if !migrationStatusInsertRe.Match(dump) || !migrationStatusCreateRe.Match(dump) {
+		panic("migration_status_tables not found in dump")
+	}
+	dump = migrationStatusInsertRe.ReplaceAll(dump, nil)
+	return migrationStatusCreateRe.ReplaceAllFunc(dump, func(b []byte) []byte {
+		return migrationStatusAutoIncRe.ReplaceAll(b, nil)
+	})
 }

@@ -80,8 +80,8 @@ jobs:
             --use-system-configuration --sign-identity $PACKAGE_SIGNING_IDENTITY_SHA1 --notarize \
             --orbit-channel ${{ github.event.inputs.orbit-channel }} \
             --osqueryd-channel ${{ github.event.inputs.osqueryd-channel }} \
-            --desktop-channel ${{ github.event.inputs.desktop-channel }}
-          mv fleet-osquery*.pkg fleetd-base.pkg
+            --desktop-channel ${{ github.event.inputs.desktop-channel }} \
+            --outfile fleetd-base.pkg
           : # Calculate the SHA256 checksum of the package
           echo "fleetd_base_pkg_sha256=$(shasum -a 256 fleetd-base.pkg | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
 
