@@ -19,10 +19,10 @@ function Get-ProvisionedPackage {
     Where-Object { $_.PackageName -like $packageNameLike }
 }
 
-# Windows finishes removing the package for signed-out users at their next sign-in, so
-# only a provisioned package or a signed-in user's copy counts as left behind. These are
-# also the only copies osquery reports. A Staged entry isn't registered for anyone. The
-# queries stop on errors so a failed query isn't read as nothing left.
+# A provisioned package or a signed-in user's copy counts as left behind. A signed-out
+# user's copy counts unless Windows marked it "(pending removal)", which finishes at their
+# next sign-in. A Staged entry isn't registered for anyone. The queries stop on errors so
+# a failed query isn't read as nothing left.
 function Test-PackagePresent {
   param([string]$pfn)
   if (@(Get-ProvisionedPackage -pfn $pfn).Count -gt 0) {
@@ -32,7 +32,12 @@ function Test-PackagePresent {
     Where-Object { $_.PackageFamilyName -eq $pfn }
   foreach ($package in @($installed)) {
     foreach ($user in @($package.PackageUserInformation)) {
-      if ($user.InstallState -ne 'Staged' -and (Test-Path "Registry::HKEY_USERS\$($user.UserSecurityId.Sid)")) {
+      $state = $user.InstallState
+      if ($state -like 'Staged*') {
+        continue
+      }
+      if ($state -notlike '*(pending removal)' -or
+          (Test-Path "Registry::HKEY_USERS\$($user.UserSecurityId.Sid)" -ErrorAction Stop)) {
         return $true
       }
     }
