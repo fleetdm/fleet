@@ -38,7 +38,7 @@ func testConditionalAccessGoogleIntegration(t *testing.T, ds *Datastore) {
 	pending := &fleet.ConditionalAccessGoogleIntegration{
 		CustomerID: "C02cajzvg",
 		AdminEmail: "admin@example.com",
-		State:      fleet.ConditionalAccessGoogleStateKeyRequired, ErrorMessage: new("key required"),
+		State:      fleet.ConditionalAccessGoogleStateDelegationFailed, ErrorMessage: new("delegation failed"),
 	}
 	require.NoError(t, ds.SaveGoogleConditionalAccessIntegration(ctx, pending))
 	got, err := ds.GetGoogleConditionalAccessIntegration(ctx)
