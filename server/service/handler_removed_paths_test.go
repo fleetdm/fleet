@@ -55,15 +55,12 @@ func TestRemovedPaths(t *testing.T) {
 					t.Parallel() // requests with different methods share the route, so -race catches state shared between them
 					rec := httptest.NewRecorder()
 					router.ServeHTTP(rec, httptest.NewRequest(method, path, nil))
-					if entry.Context != "" && method != entry.Context {
-						// This router holds only the removed paths, so a method the entry didn't remove gets 405, not 410.
+					if method == http.MethodHead || (entry.Context != "" && method != entry.Context) {
+						// This router holds only the removed paths, so a method they don't remove gets 405, not 410. HEAD is one of them.
 						require.Equal(t, http.StatusMethodNotAllowed, rec.Code)
 						return
 					}
 					require.Equal(t, http.StatusGone, rec.Code)
-					if method == http.MethodHead {
-						return // a response to HEAD has no body
-					}
 
 					var body struct {
 						Message string              `json:"message"`
