@@ -9826,7 +9826,7 @@
       "name": "XQuartz",
       "slug": "xquartz/darwin",
       "platform": "darwin",
-      "unique_identifier": "org.macosforge.xquartz.X11",
+      "unique_identifier": "org.xquartz.X11",
       "description": "XQuartz is an open-source version of the X.Org X Window System."
     },
     {
