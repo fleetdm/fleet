@@ -2730,13 +2730,17 @@ func cleanupHostScriptResultsDB(ctx context.Context, ds *Datastore, olderThan ti
 			ids[i] = row.ID
 		}
 
-		// Decrement from the automation runs so it lines up with the number of rows in the table
-		err := decrementHostPolicyAutomationRunCountsDB(ctx, ds.writer(ctx), fleet.ActivityTypeRanScript{}, ids)
-		if err != nil {
-			return deleted, err
-		}
+		var n int64
+		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			// Decrement from the automation runs so it lines up with the number of rows in the table
+			err := decrementHostPolicyAutomationRunCountsDB(ctx, tx, fleet.ActivityTypeRanScript{}, ids)
+			if err != nil {
+				return err
+			}
 
-		n, err := deleteHostScriptResultsByIDs(ctx, ds.writer(ctx), ids, olderThan)
+			n, err = deleteHostScriptResultsByIDs(ctx, tx, ids, olderThan)
+			return err
+		})
 		if err != nil {
 			return deleted, err
 		}
