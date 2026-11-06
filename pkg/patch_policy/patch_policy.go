@@ -221,7 +221,7 @@ var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false 
 	"Amazon Chime":                      "IN ('amazon chime.exe','chime.exe')",
 	"Android Studio":                    "= 'studio64.exe'",
 	"Audacity":                          "IN ('audacity.exe','audacity4.exe')",
-	"Autopsy":                           "= 'autopsy64.exe'",
+	"Autopsy":                           "IN ('autopsy.exe','autopsy64.exe')",
 	"AVS Image Converter":               "= 'avsimageconverter.exe'",
 	"AVS Media Player":                  "= 'avsmediaplayer.exe'",
 	"Beyond Compare":                    "= 'bcompare.exe'",
