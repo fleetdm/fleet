@@ -276,11 +276,27 @@ const CustomTargetTabs = ({
   const [selectedTabIndex, setSelectedTabIndex] = useState(0);
   const [labelSearchQuery, setLabelSearchQuery] = useState("");
 
+  const errorBanner = !!labelsError && (
+    <div className={`form-field__label form-field__label--error`}>
+      {labelsError}
+    </div>
+  );
+
   if (isLoadingLabels) {
-    return <Spinner centered={false} />;
+    return (
+      <>
+        {errorBanner}
+        <Spinner centered={false} />
+      </>
+    );
   }
   if (isErrorLabels) {
-    return <DataError />;
+    return (
+      <>
+        {errorBanner}
+        <DataError />
+      </>
+    );
   }
 
   const hasLabels = !!labels.length;

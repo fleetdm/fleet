@@ -184,6 +184,48 @@ describe("DropdownTargetLabelSelector component", () => {
     expect(screen.queryByText("Target")).not.toBeInTheDocument();
   });
 
+  it("surfaces the labels error while labels are loading", () => {
+    render(
+      <DropdownTargetLabelSelector
+        selectedTargetType="Custom"
+        selectedCustomTarget="labelIncludeAny"
+        customTargetOptions={[
+          { value: "labelIncludeAny", label: "Include any" },
+        ]}
+        selectedLabels={{}}
+        labels={[]}
+        isLoadingLabels
+        onSelectCustomTarget={noop}
+        onSelectLabel={noop}
+        onSelectTargetType={noop}
+        labelsError="Select at least one label"
+      />
+    );
+
+    expect(screen.getByText("Select at least one label")).toBeVisible();
+  });
+
+  it("surfaces the labels error when the labels request fails", () => {
+    render(
+      <DropdownTargetLabelSelector
+        selectedTargetType="Custom"
+        selectedCustomTarget="labelIncludeAny"
+        customTargetOptions={[
+          { value: "labelIncludeAny", label: "Include any" },
+        ]}
+        selectedLabels={{}}
+        labels={[]}
+        isErrorLabels
+        onSelectCustomTarget={noop}
+        onSelectLabel={noop}
+        onSelectTargetType={noop}
+        labelsError="Select at least one label"
+      />
+    );
+
+    expect(screen.getByText("Select at least one label")).toBeVisible();
+  });
+
   it("surfaces the labels error when no labels exist and Custom is selected", () => {
     render(
       <DropdownTargetLabelSelector
