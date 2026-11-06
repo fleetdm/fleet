@@ -187,9 +187,14 @@ If the candidate passes all of these steps then continue with [hiring a new team
 
 ### Confirm and celebrate
 
-The relevant Product Designer (PD) and the Manager of Customer Support and Solutions Architecture (CSA) review the checkboxes in user stories we shipped but haven't closed. Are they done? If not notify relevant contributor to help get them done. If they're done, PD notifies the requester in the story with context on whether they think the entire request is fulfilled or still has some work left (more user stories to be drafted and shipped). [Up to the requester](https://fleetdm.com/handbook/customer-success#communicate-feedback-on-prioritized-customer-requests) to close the story and leave feedback.
+The relevant Product Designer (PD) and the Manager of Customer Support and Solutions Architecture (CSA) review the checkboxes in user stories we shipped but haven't closed. Are they done? If not, notify the relevant contributor to help get them done.
 
-If the story has customer labels, it's up to the Manager of CSA to decide if the request is fulfilled.  If it is, we assign the relevant Customer Success Manager (CSM) and add the `:help-customers` label to move the story to the [🌦️ :help-customers board](https://github.com/orgs/fleetdm/projects/79).
+If they're done, the PD notifies the requester in the story with context on whether they think the entire request is fulfilled or still has some work left (more user stories to be drafted and shipped). What happens next depends on whether the story has customer labels:
+
+- **Stories with customer labels:** Don't close the story. It's up to the Manager of CSA to decide if the request is fulfilled. If it is, add the `:help-customers` label (this automatically adds the story to the [🌦️ :help-customers board](https://github.com/orgs/fleetdm/projects/79)) and assign the relevant Customer Success Manager (CSM). The CSM [closes the story](https://fleetdm.com/handbook/customer-success#communicate-feedback-on-prioritized-customer-requests) after they notify the customer and collect feedback.
+- **Stories without customer labels:** The PD closes the story when they notify the requester.
+
+> If a story with customer labels is closed by accident, reopen it and make sure it has the `:help-customers` label and a CSM assigned.
 
 
 ### Update a company brand front
