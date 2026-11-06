@@ -409,6 +409,15 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			out.Version,
 		)
 	}
+	if input.Token == "xquartz" {
+		// XQuartz 2.7.x reports org.macosforge.xquartz.X11 from the same path, and the
+		// current pkg overwrites it in place, so a legacy install there is outdated.
+		// Copies elsewhere aren't flagged because installing can't replace them.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE (bundle_identifier = '%s' AND path = '/Applications/Utilities/XQuartz.app') OR (bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0));",
+			xquartzLegacyBundleID, out.UniqueIdentifier, out.Version,
+		)
+	}
 	if input.Token == "firefox@developer-edition" {
 		// The bundle reports only the base version ("153.0") for cask version
 		// "153.0b13", so compare CFBundleVersion (encodes the build date, resolved
@@ -458,6 +467,12 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		// Match every major's bundle ID, like the patched query, so a running older major
 		// defers patching too.
 		out.Queries.Open = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier GLOB 'com.mindjet.mindmanager.[0-9][0-9]' AND a.bundle_executable != '');"
+	case "xquartz":
+		// The X11 launcher execs X11.sh, which execs the X server, X11.bin.
+		out.Queries.Open = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path IN (concat(a.path, '/Contents/MacOS/', a.bundle_executable), concat(a.path, '/Contents/MacOS/X11.bin')) WHERE a.bundle_identifier IN ('%s', '%s') AND a.bundle_executable != '');",
+			out.UniqueIdentifier, xquartzLegacyBundleID,
+		)
 	case "chatgpt":
 		out.Queries.Open = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE (%s) AND a.bundle_executable != '');",
@@ -474,6 +489,9 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 
 	return out, nil
 }
+
+// xquartzLegacyBundleID is the bundle identifier XQuartz used before 2.8.0.
+const xquartzLegacyBundleID = "org.macosforge.xquartz.X11"
 
 // qgisPathFilters tells QGIS and QGIS LTR apart by where their casks install them:
 // both report the org.qgis.qgis3 bundle identifier.

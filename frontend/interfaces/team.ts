@@ -7,7 +7,7 @@ import {
 } from "./config";
 import enrollSecretInterface, { IEnrollSecret } from "./enroll_secret";
 import { ITeamIntegrations } from "./integration";
-import { EndUserLocalAccountType, ITokenFleet, ITokenTeam } from "./mdm";
+import { EndUserLocalAccountType, ITokenFleet } from "./mdm";
 import { UserRole } from "./user";
 
 export default PropTypes.shape({
@@ -169,11 +169,6 @@ export const APP_CONTEXT_NO_TEAM_SUMMARY: ITeamSummary = {
 
 export const isAnyTeamSelected = (currentTeamId?: number) =>
   currentTeamId !== undefined && currentTeamId > APP_CONTEXT_NO_TEAM_ID;
-
-export const getTeamDisplayName = (team: ITokenTeam) =>
-  team.team_id === APP_CONTEXT_NO_TEAM_ID
-    ? APP_CONTEXT_NO_TEAM_SUMMARY.name
-    : team.name;
 
 export const getFleetDisplayName = (fleet: ITokenFleet) =>
   fleet.fleet_id === APP_CONTEXT_NO_TEAM_ID

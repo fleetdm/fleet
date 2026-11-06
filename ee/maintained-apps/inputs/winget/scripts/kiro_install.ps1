@@ -24,6 +24,20 @@ try {
         [System.Security.Principal.SecurityIdentifier]).Value
     Write-Host "Installing Kiro for $userAccount."
 
+    # Setup exits 1 while Kiro is open, before /CLOSEAPPLICATIONS can close it, so
+    # stop the user's copy first. Unsaved changes are lost.
+    $profilePath = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\$sid" -ErrorAction SilentlyContinue).ProfileImagePath
+    if ($profilePath) {
+        $installDir = Join-Path $profilePath "AppData\Local\Programs\Kiro"
+        $running = @(Get-Process -ErrorAction SilentlyContinue |
+            Where-Object { $_.Path -and $_.Path.StartsWith("$installDir\", [System.StringComparison]::OrdinalIgnoreCase) })
+        foreach ($proc in $running) {
+            Write-Host "Stopping $($proc.Name) (PID $($proc.Id)) before installing."
+            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+        }
+        $running | Wait-Process -Timeout 30 -ErrorAction SilentlyContinue
+    }
+
     # Fleet's installer directory is not readable by that user, so stage a copy in
     # a new folder only SYSTEM and Administrators can write to.
     $security = New-Object System.Security.AccessControl.DirectorySecurity

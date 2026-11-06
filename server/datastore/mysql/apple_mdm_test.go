@@ -122,6 +122,7 @@ func TestMDMApple(t *testing.T) {
 		{"GetHostDEPAssignmentsByHostIDs", testGetHostDEPAssignmentsByHostIDs},
 		{"TestMDMConfigAsset", testMDMConfigAsset},
 		{"ListIOSAndIPadOSToRefetch", testListIOSAndIPadOSToRefetch},
+		{"ListIOSAndIPadOSToRefetchBatching", testListIOSAndIPadOSToRefetchBatching},
 		{"MDMAppleUpsertHostIOSiPadOS", testMDMAppleUpsertHostIOSIPadOS},
 		{"MDMAppleUpsertHostPersonalEnrollment", testMDMAppleUpsertHostPersonalEnrollment},
 		{"MDMAppleUpsertHostPersonalEnrollmentClearsStaleVitals", testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitals},
@@ -146,6 +147,7 @@ func TestMDMApple(t *testing.T) {
 		{"CleanupHostMDMCommandsQueueAware", testCleanupHostMDMCommandsQueueAware},
 		{"IngestMDMAppleDeviceFromOTAEnrollment", testIngestMDMAppleDeviceFromOTAEnrollment},
 		{"IngestMDMAppleDeviceFromOTAEnrollmentEnrolledSerial", testIngestMDMAppleDeviceFromOTAEnrollmentEnrolledSerial},
+		{"IngestMDMAppleDeviceFromOTAEnrollmentPersonal", testIngestMDMAppleDeviceFromOTAEnrollmentPersonal},
 		{"IngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping", testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping},
 		{"MDMManagedSCEPCertificates", testMDMManagedSCEPCertificates},
 		{"MDMManagedDigicertCertificates", testMDMManagedDigicertCertificates},
@@ -1782,7 +1784,7 @@ func testPreserveDisplayNameAfterFleetdEnroll(t *testing.T, ds *Datastore) {
 
 	// Repeat for the OTA enrollment path which goes through createHostFromMDMDB.
 	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "",
-		fleet.MDMAppleMachineInfo{Serial: testSerial, UDID: testUUID, Product: "MacBookPro18,1"})
+		fleet.MDMAppleMachineInfo{Serial: testSerial, UDID: testUUID, Product: "MacBookPro18,1"}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &displayName,
@@ -3562,13 +3564,13 @@ func testHostMDMIdPAccountWritesReturnPrevious(t *testing.T, ds *Datastore) {
 
 	t.Run("ota", func(t *testing.T) {
 		mi := fleet.MDMAppleMachineInfo{UDID: uuid.NewString(), Serial: "OTA-PREV-1", Product: "MacBookPro16,1"}
-		previous, err := ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, acc1.UUID, mi)
+		previous, err := ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, acc1.UUID, mi, fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 		require.Empty(t, previous)
-		previous, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, acc2.UUID, mi)
+		previous, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, acc2.UUID, mi, fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 		require.Equal(t, acc1.UUID, previous)
-		previous, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", mi)
+		previous, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", mi, fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 		require.Equal(t, acc2.UUID, previous)
 		requireLinked(mi.UDID, "")
@@ -8766,7 +8768,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	require.NotEmpty(t, abmToken.ID)
 
 	// Test with no hosts.
-	devices, err := ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err := ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval, 100)
 	require.NoError(t, err)
 	require.Empty(t, devices)
 
@@ -8784,7 +8786,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	require.Equal(t, int64(3), n)
 
 	// Hosts are not enrolled yet (e.g. DEP enrolled)
-	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval, 100)
 	require.NoError(t, err)
 	require.Empty(t, devices)
 
@@ -8825,7 +8827,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	nanoEnroll(t, ds, iPod, false)
 
 	// Test with hosts but empty state in nanomdm command tables.
-	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval, 100)
 	require.NoError(t, err)
 	require.Len(t, devices, 3)
 	uuids := []string{devices[0].UUID, devices[1].UUID, devices[2].UUID}
@@ -8853,7 +8855,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	})
 
 	// iOS device should not be returned because it was refetched recently
-	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval, 100)
 	require.NoError(t, err)
 	require.Len(t, devices, 2)
 	require.Equal(t, devices[0].UUID, "iPadOS0_UUID")
@@ -8866,7 +8868,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	})
 
 	// two devices are up to date now, only iPod should be returned
-	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval, 100)
 	require.NoError(t, err)
 	require.Len(t, devices, 1)
 	require.Equal(t, devices[0].UUID, "iPod_UUID")
@@ -8878,7 +8880,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	})
 
 	// all devices are up to date now, none should be returned
-	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval, 100)
 	require.NoError(t, err)
 	require.Empty(t, devices)
 
@@ -8889,7 +8891,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	})
 
 	// iOS device be returned because it is out of date.
-	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval, 100)
 	require.NoError(t, err)
 	require.Len(t, devices, 1)
 	require.Equal(t, devices[0].UUID, "iOS0_UUID")
@@ -8900,7 +8902,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 		HostID:      iOS0.ID,
 		CommandType: fleet.RefetchAppsCommandUUIDPrefix,
 	}}))
-	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval, 100)
 	require.NoError(t, err)
 	require.Len(t, devices, 1)
 	require.Equal(t, devices[0].UUID, "iOS0_UUID")
@@ -8912,9 +8914,76 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 		_, err := q.ExecContext(ctx, `UPDATE nano_enrollments SET enabled = 0 WHERE id = ?`, iOS0.UUID)
 		return err
 	})
-	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval, 100)
 	require.NoError(t, err)
 	require.Empty(t, devices)
+}
+
+func testListIOSAndIPadOSToRefetchBatching(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newMobileHost := func(name, platform string, detailAge time.Duration, refetchRequested bool) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:         name,
+			UUID:             name + "-uuid",
+			HardwareSerial:   name + "-serial",
+			Platform:         platform,
+			DetailUpdatedAt:  time.Now().Add(-detailAge),
+			RefetchRequested: refetchRequested,
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, h, false)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO host_mdm (host_id, enrolled, server_url) VALUES (?, 1, '')`, h.ID)
+			return err
+		})
+		return h
+	}
+	trackAll := func(h *fleet.Host) {
+		require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{
+			{HostID: h.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
+			{HostID: h.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
+			{HostID: h.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
+		}))
+	}
+	uuids := func(devices []fleet.AppleDevicesToRefetch) []string {
+		var out []string
+		for _, d := range devices {
+			out = append(out, d.UUID)
+		}
+		return out
+	}
+
+	// Offline hosts: stalest of all, every refetch command still outstanding.
+	for i := range 3 {
+		trackAll(newMobileHost(fmt.Sprintf("offline%d", i), "ios", 48*time.Hour, false))
+	}
+	stale5h := newMobileHost("stale5h", "ipados", 5*time.Hour, false)
+	newMobileHost("stale3h", "ios", 3*time.Hour, false)
+	newMobileHost("stale2h", "ipados", 2*time.Hour, false)
+	newMobileHost("fresh", "ios", 10*time.Minute, false)
+	newMobileHost("requested", "ipados", 10*time.Minute, true)
+	newMobileHost("mac", "darwin", 5*time.Hour, false)
+
+	// Requested hosts come first, then stalest; offline hosts don't take slots.
+	devices, err := ds.ListIOSAndIPadOSToRefetch(ctx, time.Hour, 3)
+	require.NoError(t, err)
+	require.Equal(t, []string{"requested-uuid", "stale5h-uuid", "stale3h-uuid"}, uuids(devices))
+
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, time.Hour, 10)
+	require.NoError(t, err)
+	require.Equal(t, []string{"requested-uuid", "stale5h-uuid", "stale3h-uuid", "stale2h-uuid"}, uuids(devices))
+
+	// A host with only some commands outstanding still needs the rest.
+	require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{
+		{HostID: stale5h.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
+	}))
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, time.Hour, 2)
+	require.NoError(t, err)
+	require.Len(t, devices, 2)
+	require.Equal(t, []string{"requested-uuid", "stale5h-uuid"}, uuids(devices))
+	require.Equal(t, fleet.MDMCommandsAlreadySent{fleet.RefetchCertsCommandUUIDPrefix}, devices[1].CommandsAlreadySent)
+	require.Empty(t, devices[0].CommandsAlreadySent)
 }
 
 func testMDMAppleUpsertHostIOSIPadOS(t *testing.T, ds *Datastore) {
@@ -10780,7 +10849,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollment(t *testing.T, ds *Datastore) {
 	wantSerials = append(wantSerials, "abc", "xyz", "ijk", "tuv")
 
 	for _, d := range otaDevices {
-		_, err := ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", d)
+		_, err := ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", d, fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 	}
 
@@ -10802,6 +10871,32 @@ func testIngestMDMAppleDeviceFromOTAEnrollment(t *testing.T, ds *Datastore) {
 	require.ElementsMatch(t, wantSerials, gotSerials)
 }
 
+func testIngestMDMAppleDeviceFromOTAEnrollmentPersonal(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	createBuiltinLabels(t, ds)
+
+	ingest := func(serial, udid string, personalType fleet.PersonalEnrollmentType) *fleet.HostMDMCheckinInfo {
+		_, err := ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{Serial: serial, UDID: udid, Product: "MacBook Pro"}, personalType)
+		require.NoError(t, err)
+		info, err := ds.GetHostMDMCheckinInfo(ctx, udid)
+		require.NoError(t, err)
+		return info
+	}
+
+	// a new host records the enrollment's ownership until its Authenticate arrives
+	info := ingest("personal-serial", "personal-uuid", fleet.PersonalEnrollmentTypeManualProfile)
+	require.False(t, info.FleetEnrolledCorporate)
+	hostMDM, err := ds.GetHostMDM(ctx, info.HostID)
+	require.NoError(t, err)
+	require.True(t, hostMDM.IsPersonalEnrollment)
+	require.Equal(t, fleet.PersonalEnrollmentTypeManualProfile, hostMDM.PersonalEnrollmentType)
+
+	require.True(t, ingest("corporate-serial", "corporate-uuid", fleet.PersonalEnrollmentTypeNone).FleetEnrolledCorporate)
+
+	// an enrolled host keeps its ownership
+	require.True(t, ingest("corporate-serial", "corporate-uuid", fleet.PersonalEnrollmentTypeManualProfile).FleetEnrolledCorporate)
+}
+
 func testIngestMDMAppleDeviceFromOTAEnrollmentEnrolledSerial(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	createBuiltinLabels(t, ds)
@@ -10820,7 +10915,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollmentEnrolledSerial(t *testing.T, ds *D
 	// a different UUID claiming the enrolled host's serial is refused, and the host keeps its UUID
 	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
 		Serial: enrolled.HardwareSerial, UDID: "new-uuid", Product: "MacBook Pro",
-	})
+	}, fleet.PersonalEnrollmentTypeNone)
 	var conflict *fleet.ConflictError
 	require.ErrorAs(t, err, &conflict)
 	host, err := ds.HostLite(ctx, enrolled.ID)
@@ -10830,7 +10925,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollmentEnrolledSerial(t *testing.T, ds *D
 	// the enrolled device itself can re-enroll
 	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
 		Serial: enrolled.HardwareSerial, UDID: enrolled.UUID, Product: "MacBook Pro",
-	})
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	// once MDM is turned off, the serial can be claimed by a new UUID
@@ -10840,7 +10935,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollmentEnrolledSerial(t *testing.T, ds *D
 	})
 	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
 		Serial: enrolled.HardwareSerial, UDID: "new-uuid", Product: "MacBook Pro",
-	})
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 	host, err = ds.HostLite(ctx, enrolled.ID)
 	require.NoError(t, err)
@@ -10860,13 +10955,13 @@ func testIngestMDMAppleDeviceFromOTAEnrollmentEnrolledSerial(t *testing.T, ds *D
 	require.NoError(t, ds.DeleteHost(ctx, deleted.ID))
 	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
 		Serial: deleted.HardwareSerial, UDID: "replacement-uuid", Product: "MacBook Pro",
-	})
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	// and a device that was never enrolled
 	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
 		Serial: "never-enrolled-serial", UDID: "never-enrolled-uuid", Product: "MacBook Pro",
-	})
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 }
 
@@ -10921,7 +11016,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping(t *testing.T, ds *Data
 		Product: "MacBook Pro",
 		UDID:    hostUDID,
 	}
-	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, idpUUID, deviceInfo)
+	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, idpUUID, deviceInfo, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	host, err := ds.HostByIdentifier(ctx, hostSerial)
@@ -10955,7 +11050,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping(t *testing.T, ds *Data
 	// Re-enrollment of the same hardware must be idempotent: no duplicate
 	// key error, exactly one mapping row, no stale change. host_scim_user
 	// has host_id as the PK, so a raw re-INSERT would fail.
-	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, idpUUID, deviceInfo)
+	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, idpUUID, deviceInfo, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 	var hostCount int
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -10991,7 +11086,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping(t *testing.T, ds *Data
 		Serial:  unmatchedHostSerial,
 		Product: "MacBook Pro",
 		UDID:    unmatchedHostUDID,
-	})
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 	unmatchedHost, err := ds.HostByIdentifier(ctx, unmatchedHostSerial)
 	require.NoError(t, err)
@@ -11007,7 +11102,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping(t *testing.T, ds *Data
 		Serial:  emptyIdpHostSerial,
 		Product: "MacBook Pro",
 		UDID:    "TAHOE-MIGRATED-UDID-EMPTY",
-	})
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 	emptyIdpHost, err := ds.HostByIdentifier(ctx, emptyIdpHostSerial)
 	require.NoError(t, err)

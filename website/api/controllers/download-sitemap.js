@@ -81,6 +81,7 @@ module.exports = {
       '/linux-management',
       '/europe',
       '/pharma',
+      '/aviation',
       '/windows',
       '/apple',
       // Other stuff:

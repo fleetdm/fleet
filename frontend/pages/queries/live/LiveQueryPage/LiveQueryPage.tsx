@@ -76,7 +76,7 @@ const RunQueryPage = ({
     selectedQueryTargetsByType.labels
   );
   const [targetedTeams, setTargetedTeams] = useState<ITeam[]>(
-    selectedQueryTargetsByType.teams
+    selectedQueryTargetsByType.fleets
   );
   const [targetsTotalCount, setTargetsTotalCount] = useState(0);
 
@@ -149,7 +149,7 @@ const RunQueryPage = ({
     setSelectedQueryTargetsByType({
       hosts: targetedHosts,
       labels: targetedLabels,
-      teams: targetedTeams,
+      fleets: targetedTeams,
     });
   }, [targetedLabels, targetedHosts, targetedTeams]);
 

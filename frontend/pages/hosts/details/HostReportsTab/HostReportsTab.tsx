@@ -239,6 +239,7 @@ const HostReportsTab = ({
             onChange={onSortChange}
             className={`${baseClass}__sort-dropdown`}
             variant="table-filter"
+            iconName="sort"
             isDisabled={isTrulyEmpty}
           />
           <SearchField
