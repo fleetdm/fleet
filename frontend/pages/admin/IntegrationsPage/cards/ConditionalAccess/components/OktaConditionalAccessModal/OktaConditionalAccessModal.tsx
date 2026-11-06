@@ -296,13 +296,6 @@ const OktaConditionalAccessModal = ({
           </Button>
         </div>
 
-        {/* Help text */}
-        <p className={`${baseClass}__field-instructions`}>
-          You can find the following fields in Okta after creating an IdP in{" "}
-          <strong>Security</strong> &gt; <strong>Identity Providers</strong>{" "}
-          &gt; <strong>SAML 2.0 IdP</strong>.
-        </p>
-
         <div
           className={`form ${
             gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
