@@ -45,8 +45,10 @@ const CustomLink = ({
   disableKeyboardNavigation = false,
   variant = "default",
 }: ICustomLinkProps): JSX.Element => {
-  const isSmall = useContext(CustomLinkSizeContext) === "small";
-  const iconName = isSmall ? "external-link-small" : "external-link";
+  const iconName =
+    useContext(CustomLinkSizeContext) === "small"
+      ? "external-link-small"
+      : "external-link";
 
   const getIconColor = (): Colors => {
     switch (variant) {
@@ -65,7 +67,6 @@ const CustomLink = ({
     [`${baseClass}--${variant}`]: variant !== "default",
     [`${baseClass}--multiline`]: multiline,
     [`${baseClass}--emphasized`]: emphasized,
-    [`${baseClass}--small`]: isSmall,
   });
 
   // Needed to not trigger clickable parent elements

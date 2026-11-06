@@ -25,17 +25,12 @@
   &:not(.custom-link--multiline) {
     display: inline-flex;
     align-items: center;
-    gap: $pad-xsmall;
+    gap: $pad-xxsmall;
   }
 
   &__no-wrap {
     white-space: nowrap;
     display: inline-flex;
-    gap: $pad-xsmall;
-  }
-
-  &--small,
-  &--small &__no-wrap {
     gap: $pad-xxsmall;
   }
 
