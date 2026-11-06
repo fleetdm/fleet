@@ -418,14 +418,14 @@ GitHub issues: [#54408](https://github.com/fleetdm/fleet/issues/54408), [#54410]
 | Fleet 4 | Fleet 5 |
 |:--|:--|
 | `centos` and `ubuntu` as a label's `platform` | `linux` ([docs](https://fleetdm.com/docs/rest-api/rest-api#add-label)) |
-| `hostname` as a host identifier in a manual label's `hosts` | Not accepted ([docs](https://fleetdm.com/docs/rest-api/rest-api#add-label)) |
+| `hostname`, `node_key`, or `osquery_host_id` as a host identifier in a manual label's `hosts` | Not accepted ([docs](https://fleetdm.com/docs/rest-api/rest-api#add-label)) |
 
 #### What to do
 
 Make these changes before you upgrade.
 
 - Change `centos` and `ubuntu` label platforms to `linux`. If you don't, Fleet 5 changes them to `linux` for you.
-- Identify hosts in manual labels by something other than `hostname`.
+- Identify hosts in manual labels by `hardware_serial` or `uuid`, or pass their IDs in `host_ids`. Fleet 5 ignores a `hostname`, `node_key`, or `osquery_host_id` in `hosts`.
 
 A label with the `linux` platform runs its query on every Linux host. Its current hosts stay, but it can add hosts running other Linux distributions if its query matches them.
 
