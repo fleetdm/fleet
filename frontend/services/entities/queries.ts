@@ -56,7 +56,7 @@ export default {
   },
   destroy: (id: string | number) => {
     const { QUERIES } = endpoints;
-    const path = `${QUERIES}/id/${id}`;
+    const path = `${QUERIES}/${id}`;
 
     return sendRequest("DELETE", path);
   },
