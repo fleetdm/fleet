@@ -867,8 +867,8 @@ github.com/skeema/knownhosts v1.3.1/go.mod h1:r7KTdC8l4uxWRyK2TpQZ/1o5HaSzh06ePQ
 github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966 h1:JIAuq3EEf9cgbU6AtGPK4CTG3Zf6CKMNqf0MHTggAUA=
 github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966/go.mod h1:sUM3LWHvSMaG192sy56D9F7CNvL7jUJVXoqM1QKLnog=
 github.com/smallstep/pkcs7 v0.0.0-20231024181729-3b98ecc1ca81/go.mod h1:SoUAr/4M46rZ3WaLstHxGhLEgoYIDRqxQEXLOmOEB0Y=
-github.com/smallstep/pkcs7 v0.0.0-20240723090913-5e2c6a136dfa h1:FtxzVccOwaK+bK4bnWBPGua0FpCOhrVyeo6Fy9nxdlo=
-github.com/smallstep/pkcs7 v0.0.0-20240723090913-5e2c6a136dfa/go.mod h1:SoUAr/4M46rZ3WaLstHxGhLEgoYIDRqxQEXLOmOEB0Y=
+github.com/smallstep/pkcs7 v0.2.3 h1:bhoQ3TeZmdoXTatcwxCbk+FMcdsyr0gYrrW2Xq2qr+s=
+github.com/smallstep/pkcs7 v0.2.3/go.mod h1:7STkdKhZaZe4xNEXTtY4j1NGeST1gYM4GA40kC5iqr8=
 github.com/smallstep/scep v0.0.0-20240214080410-892e41795b99 h1:e85HuLX5/MW15yJ7yWb/PMNFW1Kx1N+DeQtpQnlMUbw=
 github.com/smallstep/scep v0.0.0-20240214080410-892e41795b99/go.mod h1:4d0ub42ut1mMtvGyMensjuHYEUpRrASvkzLEJvoRQcU=
 github.com/smarty/assertions v1.15.0 h1:cR//PqUBUiQRakZWqBiFFQ9wb8emQGDb0HeGdqGByCY=

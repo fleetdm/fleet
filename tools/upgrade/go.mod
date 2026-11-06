@@ -168,7 +168,7 @@ require (
 	github.com/siderolabs/go-blockdevice/v2 v2.0.3 // indirect
 	github.com/siderolabs/go-cmd v0.1.1 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/smallstep/pkcs7 v0.0.0-20240723090913-5e2c6a136dfa // indirect
+	github.com/smallstep/pkcs7 v0.2.3 // indirect
 	github.com/smallstep/scep v0.0.0-20240214080410-892e41795b99 // indirect
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8 // indirect
 	github.com/spf13/afero v1.15.0 // indirect

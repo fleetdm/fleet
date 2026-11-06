@@ -21,14 +21,14 @@ export enum ActivityType {
   DeletedSavedQuery = "deleted_saved_query",
   DeletedMultipleSavedQuery = "deleted_multiple_saved_query",
   EditedSavedQuery = "edited_saved_query",
-  CreatedTeam = "created_team",
-  DeletedTeam = "deleted_team",
+  CreatedFleet = "created_fleet",
+  DeletedFleet = "deleted_fleet",
   LiveQuery = "live_query",
   AppliedSpecPack = "applied_spec_pack", // fleetctl
   AppliedSpecPolicy = "applied_spec_policy", // fleetctl
   AppliedSpecSavedQuery = "applied_spec_saved_query", // fleetctl
   AppliedSpecSoftware = "applied_spec_software", // fleetctl
-  AppliedSpecTeam = "applied_spec_team", // fleetctl
+  AppliedSpecFleet = "applied_spec_fleet", // fleetctl
   EditedAgentOptions = "edited_agent_options",
   UserAddedBySSO = "user_added_by_sso",
   UserLoggedIn = "user_logged_in",
@@ -39,8 +39,8 @@ export enum ActivityType {
   HostDeleted = "deleted_host",
   UserChangedGlobalRole = "changed_user_global_role",
   UserDeletedGlobalRole = "deleted_user_global_role",
-  UserChangedTeamRole = "changed_user_team_role",
-  UserDeletedTeamRole = "deleted_user_team_role",
+  UserChangedFleetRole = "changed_user_fleet_role",
+  UserDeletedFleetRole = "deleted_user_fleet_role",
   FleetEnrolled = "fleet_enrolled",
   MdmEnrolled = "mdm_enrolled",
   MdmUnenrolled = "mdm_unenrolled",
@@ -516,6 +516,7 @@ export interface IActivityDetails {
 export type IActivityDetailsWithActor = IActivityDetails & {
   actor_full_name?: string;
   fleet_initiated?: boolean;
+  activity_created_at?: string;
 };
 
 // maps activity types to their corresponding label to use when filtering activites via the dropdown
@@ -534,10 +535,10 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   added_script: "Added script",
   added_self_service_category: "Added self-service category",
   added_software: "Added software",
+  applied_spec_fleet: "GitOps: edited fleets",
   applied_spec_pack: "GitOps: edited packs",
   applied_spec_policy: "GitOps: edited policies",
   applied_spec_saved_query: "GitOps: edited reports",
-  applied_spec_team: "GitOps: edited fleets",
   applied_spec_software: "GitOps: edited software",
   canceled_install_app_store_app:
     "Canceled activity: install App Store (VPP) app",
@@ -548,14 +549,14 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   canceled_setup_experience: "Canceled setup experience",
   changed_macos_setup_assistant: "Edited macOS automatic enrollment profile",
   changed_org_logo: "Updated organization logo",
+  changed_user_fleet_role: "Edited user's role: fleet",
   changed_user_global_role: "Edited user's role: global",
-  changed_user_team_role: "Edited user's role: fleet",
   created_declaration_profile: "Added declaration (DDM) profile",
+  created_fleet: "Added fleet",
   created_macos_profile: "Added configuration profile: Apple",
   created_pack: "Created pack",
   created_policy: "Created policy",
   created_saved_query: "Added report",
-  created_team: "Added fleet",
   created_user: "Added user",
   created_windows_profile: "Added configuration profile: Windows",
   deleted_app_store_app: "Deleted App Store app", // Includes VPP and Android Playstore apps
@@ -566,6 +567,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   deleted_digicert: "Deleted certificate authority (CA): DigiCert",
   deleted_ejbca: "Deleted certificate authority (CA): EJBCA",
   deleted_end_user_agreement: "Deleted end user agreement (EULA)",
+  deleted_fleet: "Deleted fleet",
   deleted_macos_profile: "Deleted configuration profile: Apple",
   deleted_macos_setup_assistant: "Deleted macOS automatic enrollment profile",
   deleted_microsoft_entra_tenant: "Deleted Microsoft Entra tenant",
@@ -580,10 +582,9 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   deleted_script: "Deleted script",
   deleted_self_service_category: "Deleted self-service category",
   deleted_software: "Deleted software",
-  deleted_team: "Deleted fleet",
   deleted_user: "Deleted user",
+  deleted_user_fleet_role: "Deleted user's role: fleet",
   deleted_user_global_role: "Deleted user's role: global",
-  deleted_user_team_role: "Deleted user's role: fleet",
   deleted_windows_profile: "Deleted configuration profile: Windows",
   disabled_activity_automations: "Disabled activity automations",
   disabled_android_mdm: "Turned off Android MDM",

@@ -7,6 +7,7 @@ import helpers, {
   willExpireWithinXDays,
   humanLastSeen,
   internationalTimeOnlyFormat,
+  formatSelectedTargetsForApi,
 } from "./helpers";
 
 describe("helpers utilities", () => {
@@ -119,6 +120,23 @@ describe("helpers utilities", () => {
       const result = helpers.setupData(formData);
 
       expect(result.org_info).toEqual({ org_name: "Fleet" });
+    });
+  });
+
+  describe("formatSelectedTargetsForApi function", () => {
+    it("sends fleet targets under `fleets`", () => {
+      const targets = [
+        { id: 2, target_type: "hosts" },
+        { id: 3, target_type: "labels" },
+        { id: 9, target_type: "teams" },
+        { id: 4, target_type: "teams" },
+      ] as Parameters<typeof formatSelectedTargetsForApi>[0];
+
+      expect(formatSelectedTargetsForApi(targets)).toEqual({
+        hosts: [2],
+        labels: [3],
+        fleets: [4, 9],
+      });
     });
   });
 

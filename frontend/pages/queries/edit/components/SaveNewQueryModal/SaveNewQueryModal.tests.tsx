@@ -140,7 +140,7 @@ describe("SaveNewQueryModal", () => {
 
     await user.click(screen.getByText("Save"));
 
-    expect(screen.getByText("Report name must be present")).toBeInTheDocument();
+    expect(screen.getByText("Enter a report name")).toBeInTheDocument();
   });
 
   it("neither saves nor toggles automations when Enter is pressed in the name field", async () => {
@@ -184,7 +184,7 @@ describe("SaveNewQueryModal", () => {
     expect(screen.queryByText("All hosts")).not.toBeInTheDocument();
   });
 
-  it("should disable the save button in when no platforms are selected", async () => {
+  it("surfaces an inline platforms error on Save click when none are selected", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,
       context: {
@@ -201,8 +201,10 @@ describe("SaveNewQueryModal", () => {
       },
     });
 
+    const saveQuery = jest.fn();
     const props = {
       ...defaultProps,
+      saveQuery,
       platformSelector: {
         getSelectedPlatforms: () => [] as QueryablePlatform[],
         setSelectedPlatforms: jest.fn(),
@@ -211,9 +213,13 @@ describe("SaveNewQueryModal", () => {
       },
     };
 
-    render(<SaveNewQueryModal {...props} />);
+    const { user } = render(<SaveNewQueryModal {...props} />);
     const saveButton = screen.getByRole("button", { name: "Save" });
-    expect(saveButton).toBeDisabled();
+    expect(saveButton).toBeEnabled();
+    const nameInput = screen.getByLabelText("Name");
+    await user.type(nameInput, "name");
+    await user.click(saveButton);
+    expect(saveQuery).not.toHaveBeenCalled();
   });
 
   it("should send platforms when saving a new query", async () => {
@@ -285,8 +291,11 @@ describe("SaveNewQueryModal", () => {
       });
     });
 
-    it("should disable the save button in Custom target mode when no labels are selected, and enable it once labels are selected", async () => {
-      render(<SaveNewQueryModal {...defaultProps} />);
+    it("surfaces an inline labels error on Save click in Custom target mode when no labels are selected", async () => {
+      const saveQuery = jest.fn();
+      const { user } = render(
+        <SaveNewQueryModal {...defaultProps} saveQuery={saveQuery} />
+      );
       let allHosts;
       let custom;
       await waitFor(() => {
@@ -295,16 +304,21 @@ describe("SaveNewQueryModal", () => {
         expect(allHosts).toBeInTheDocument();
         expect(custom).toBeInTheDocument();
       });
-      custom && (await userEvent.click(custom));
-      const saveButton = screen.getByRole("button", { name: "Save" });
-      expect(saveButton).toBeDisabled();
+      custom && (await user.click(custom));
 
-      const funButton = await screen.findByRole("checkbox", {
-        name: "Fun",
-      });
-      expect(funButton).not.toBeChecked();
-      await userEvent.click(funButton);
+      await user.type(screen.getByLabelText("Name"), "name");
+      const saveButton = screen.getByRole("button", { name: "Save" });
       expect(saveButton).toBeEnabled();
+      await user.click(saveButton);
+
+      expect(saveQuery).not.toHaveBeenCalled();
+      expect(screen.getByText(/Select at least one label/)).toBeInTheDocument();
+
+      const funButton = await screen.findByRole("checkbox", { name: "Fun" });
+      await user.click(funButton);
+      expect(
+        screen.queryByText(/Select at least one label/)
+      ).not.toBeInTheDocument();
     });
 
     it("should send labels when saving a new query in Custom target mode", async () => {

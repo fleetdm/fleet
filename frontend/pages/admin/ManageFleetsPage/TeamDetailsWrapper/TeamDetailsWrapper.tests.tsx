@@ -30,7 +30,7 @@ const setupHandlers = () =>
     http.get(baseUrl("/me"), () =>
       HttpResponse.json({ user: createMockUser({ global_role: "admin" }) })
     ),
-    http.get(baseUrl("/fleets"), () => HttpResponse.json({ teams: [TEAM] })),
+    http.get(baseUrl("/fleets"), () => HttpResponse.json({ fleets: [TEAM] })),
     http.get(baseUrl("/fleets/1/secrets"), () =>
       HttpResponse.json({ secrets: [] })
     )

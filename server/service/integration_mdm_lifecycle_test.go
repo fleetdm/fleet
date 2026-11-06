@@ -217,7 +217,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 		// reload the host by identifier, tests might
 		// delete hosts and create new records with different IDs
 		var err error
-		host, err = s.ds.HostByIdentifier(context.Background(), host.UUID)
+		host, err = s.ds.HostByIdentifier(t.Context(), device.UUID)
 		require.NoError(t, err)
 
 		sCmds, sSumm, sHostMDM := s.recordAppleHostStatus(host, device)
@@ -1236,7 +1236,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	// enqueue refetch commands and report results
 	require.NoError(t, apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
-	}))
+	}, 1000))
 	require.True(t, existsRefetchCmd(iPadMdmDevice.UUID))
 	reportResultsRefetchCmds(iPadMdmDevice)
 
@@ -1332,7 +1332,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	// enqueue refetch commands and report results
 	require.NoError(t, apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
-	}))
+	}, 1000))
 	require.True(t, existsRefetchCmd(iPadMdmDevice.UUID))
 	reportResultsRefetchCmds(iPadMdmDevice)
 

@@ -28,9 +28,22 @@ func TestMessage(t *testing.T) {
 		context string
 		want    string
 	}{
-		{KindJSONKey, "team_id", "", "team_id was removed in Fleet 5. Use fleet_id instead." + suffix},
+		// The Fleet 5 error spec: one wording for parameters and YAML keys, with the replacement left to the guide.
+		{KindQueryParam, "team_id", "", `The "team_id" parameter is not available anymore. What to use instead: ` + GuideURL},
+		{KindJSONKey, "team_id", "", `The "team_id" parameter is not available anymore. What to use instead: ` + GuideURL},
+		{KindYAMLKey, "team_settings", "", `The "team_settings" key is not available anymore. What to use instead: ` + GuideURL},
+		{KindSortKey, "team_id", "", `The "team_id" parameter is not available anymore. What to use instead: ` + GuideURL},
+		{KindTargetType, "team", "", `The "team" parameter is not available anymore. What to use instead: ` + GuideURL},
+		{KindCommand, "fleetctl get teams", "", `The "fleetctl get teams" command is not available anymore. What to use instead: ` + GuideURL},
+		{KindEnvVar, "DELETE_OTHER_TEAMS", "fleetctl gitops",
+			`The "DELETE_OTHER_TEAMS" environment variable is not available anymore. What to use instead: ` + GuideURL},
+		{KindFlagValue, "--fleet no-team", "fleetctl generate-gitops",
+			`The "--fleet no-team" value is not available anymore. What to use instead: ` + GuideURL},
 		// Only flags are displayed differently: they get their leading dashes.
-		{KindFlag, "team", "fleetctl get hosts", "--team was removed in Fleet 5. Use --fleet instead." + suffix},
+		{KindFlag, "team", "fleetctl get hosts", `The "--team" flag is not available anymore. What to use instead: ` + GuideURL},
+		// A removed endpoint leaves the replacement to the guide. The request's method is added when a handler answers it.
+		{KindPath, pathPrefix + "/spec/teams", "", `The "/spec/teams" endpoint is not available anymore. What to use instead: ` + GuideURL},
+		{KindFlag, "t", "fleetctl user create", `The "-t" flag is not available anymore. What to use instead: ` + GuideURL},
 	} {
 		e, ok := Find(c.kind, c.old, c.context)
 		require.True(t, ok)
@@ -50,9 +63,19 @@ func TestEntryMessageFormats(t *testing.T) {
 		entry Entry
 		want  string
 	}{
-		{"nil format is ReplacedFormat", Entry{Kind: KindJSONKey, Old: "a", New: "b"}, "a was removed in Fleet 5. Use b instead." + suffix},
+		{"nil format is ReplacedFormat for a CSV column", Entry{Kind: KindCSVColumn, Old: "a", New: "b"},
+			"a was removed in Fleet 5. Use b instead." + suffix},
+		{"nil format is ParameterFormat for a JSON key", Entry{Kind: KindJSONKey, Old: "a", New: "b"},
+			`The "a" parameter is not available anymore. What to use instead: ` + GuideURL},
+		{"nil format is KeyFormat for a YAML key", Entry{Kind: KindYAMLKey, Old: "a.b", New: "a.c"},
+			`The "a.b" key is not available anymore. What to use instead: ` + GuideURL},
+		{"nil format is EndpointFormat for a path", Entry{Kind: KindPath, Old: pathPrefix + "/a", Context: "GET"},
+			`The "GET /a" endpoint is not available anymore. What to use instead: ` + GuideURL},
 		{"replaced without a replacement", Entry{Kind: KindJSONKey, Old: "a", Format: ReplacedFormat{}}, "a was removed in Fleet 5." + suffix},
-		{"flag without a replacement has no dangling dashes", Entry{Kind: KindFlag, Old: "a"}, "--a was removed in Fleet 5." + suffix},
+		{"a flag with a replacement is not shown with it", Entry{Kind: KindFlag, Old: "abc", New: "def"},
+			`The "--abc" flag is not available anymore. What to use instead: ` + GuideURL},
+		{"replaced flag has dashes and no dangling replacement", Entry{Kind: KindFlag, Old: "a", Format: ReplacedFormat{}},
+			"-a was removed in Fleet 5." + suffix},
 		{
 			"endpoint without a method",
 			Entry{Kind: KindPath, Old: pathPrefix + "/x/{id}", Format: EndpointFormat{}},
@@ -86,6 +109,14 @@ func TestFindAndFilter(t *testing.T) {
 	assert.False(t, ok)
 	_, ok = Find(KindJSONKey, "team_id", "anything")
 	assert.True(t, ok)
+
+	// A YAML value ignores case, but its key does not.
+	for name, want := range map[string]bool{
+		"name: No team": true, "name: no team": true, "name: NO TEAM": true, "NAME: No team": false, "name: Unassigned": false, "No team": false,
+	} {
+		_, ok = Find(KindYAMLValue, name, "")
+		assert.Equal(t, want, ok, name)
+	}
 
 	// Filter matches on scope bits, and a zero scope matches every scope.
 	for _, scope := range []Scope{ScopeRequest, ScopeResponse, ScopeActivityDetails} {
@@ -125,9 +156,18 @@ func TestEntriesWellFormed(t *testing.T) {
 		assert.NotEmpty(t, e.Kind)
 		assert.NotZero(t, e.Scope, e.Old)
 		assert.NotEqual(t, e.Old, e.New)
+		if e.Kind == KindYAMLValue {
+			assert.Contains(t, e.Old, ": ", "a YAML value is written key: value")
+			assert.Contains(t, e.New, ": ", "a YAML value is written key: value")
+		}
 		assert.Contains(t, e.Message(), GuideURL, e.Old)
 		switch e.Format.(type) {
-		case nil, ReplacedFormat:
+		case nil:
+		case ReplacedFormat:
+			assert.NotEqual(t, KindPath, e.Kind, "a removed path uses the endpoint message: %s", e.Old)
+		case ParameterFormat, KeyFormat:
+		case NounFormat:
+			assert.NotEqual(t, KindPath, e.Kind, "a removed path uses the endpoint message: %s", e.Old)
 		case EndpointFormat:
 			assert.Equal(t, KindPath, e.Kind, "an endpoint message is for a path: %s", e.Old)
 		default:
@@ -146,8 +186,8 @@ func TestEntriesWellFormed(t *testing.T) {
 	// Renaming teams always has a replacement, and every old name is team-related.
 	for _, e := range teamEntries {
 		assert.NotEmpty(t, e.New, e.Old)
-		// The one exception is the short command alias "t" of the team commands.
-		if e.Kind != KindCommand {
+		// The exceptions are the single-letter aliases of team commands and flags, such as -t.
+		if e.Kind != KindCommand && len(e.Old) > 1 {
 			assert.Contains(t, strings.ToLower(e.Old), "team", "old name should be team-related")
 		}
 	}
@@ -220,7 +260,6 @@ func TestEntriesCoverDeprecatedSources(t *testing.T) {
 				}
 				found++
 				oldPath, newPath := paramRegex.ReplaceAllString(deprecated, "{$1}"), paramRegex.ReplaceAllString(primary[0], "{$1}")
-				// Entries hold paths relative to /api/_version_/fleet.
 				assert.True(t, hasEntry(func(e Entry) bool { return e.Kind == KindPath && e.Old == oldPath && e.New == newPath }),
 					"deprecated path %s -> %s is missing from entries", oldPath, newPath)
 			}
@@ -278,6 +317,32 @@ func TestEntriesCoverDeprecatedSources(t *testing.T) {
 			return true
 		})
 		assert.Positive(t, found)
+	})
+
+	t.Run("gitops no-team file and name", func(t *testing.T) {
+		t.Parallel()
+		var fileNames, noTeamNames []string
+		ast.Inspect(parseFile(t, filepath.Join(root, "pkg", "spec", "gitops.go")), func(n ast.Node) bool {
+			switch v := n.(type) {
+			case *ast.BasicLit:
+				if strings.HasSuffix(v.Value, `-team.yml"`) {
+					fileNames = append(fileNames, stringLits(v)...)
+				}
+			case *ast.ValueSpec:
+				if len(v.Names) == 1 && v.Names[0].Name == "noTeam" && len(v.Values) == 1 {
+					noTeamNames = append(noTeamNames, stringLits(v.Values[0])...)
+				}
+			}
+			return true
+		})
+		require.NotEmpty(t, fileNames)
+		require.NotEmpty(t, noTeamNames)
+		for _, name := range fileNames {
+			assert.True(t, has(KindFileName, ScopeRequest, name, ""), "GitOps file name %s is missing from entries", name)
+		}
+		for _, name := range noTeamNames {
+			assert.True(t, has(KindYAMLValue, ScopeRequest, "name: "+name, ""), "GitOps fleet name %s is missing from entries", name)
+		}
 	})
 }
 
@@ -414,7 +479,12 @@ func collectCLIAliases(file *ast.File, match func(string) bool) []cliAlias {
 			if names := literalsOf(lit, "Name"); len(names) == 1 {
 				flagName = names[0]
 			}
-			add(cliFlagAlias, literalsOf(lit, "Aliases"), command, flagName)
+			// A flag is deprecated as a whole when one of its aliases names a team, so its other aliases, such as -t, are too.
+			if aliases := literalsOf(lit, "Aliases"); slices.ContainsFunc(aliases, match) {
+				for _, alias := range aliases {
+					out = append(out, cliAlias{kind: cliFlagAlias, name: alias, command: command, flagName: flagName})
+				}
+			}
 			add(cliEnvVar, literalsOf(lit, "EnvVars"), command, "")
 			return true
 		})

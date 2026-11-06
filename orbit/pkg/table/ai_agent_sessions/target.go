@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"regexp"
 	"strings"
+
+	"github.com/fleetdm/fleet/v4/pkg/str"
 )
 
 // maxTargetBytes caps the `target` column.
@@ -267,5 +269,5 @@ func finishTarget(action, t string) string {
 	} else {
 		t = oneLine.Replace(t)
 	}
-	return truncateUTF8(strings.TrimSpace(t), maxTargetBytes)
+	return str.TruncateBytes(strings.TrimSpace(t), maxTargetBytes, "")
 }

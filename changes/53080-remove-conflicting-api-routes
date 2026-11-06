@@ -1,0 +1,2 @@
+- BREAKING: Removed the deprecated `POST /api/v1/fleet/hosts/:id/configuration_profiles/resend/:profile_uuid` endpoint. The path now returns 410. Use `POST /api/v1/fleet/hosts/:id/configuration_profiles/:profile_uuid/resend` instead.
+- BREAKING: Removed the deprecated `GET /api/v1/fleet/scripts/batch/summary/:batch_execution_id` endpoint. The path now returns 410. Use `GET /api/v1/fleet/scripts/batch/:batch_execution_id` instead.
