@@ -2,6 +2,7 @@
 # hangs without installing anything when run as SYSTEM, so this uses the MSI build.
 
 $zipFilePath = "${env:INSTALLER_PATH}"
+$timeoutSeconds = 600
 
 try {
 
@@ -19,8 +20,16 @@ if (-not $msi) {
 $logFile = Join-Path $env:TEMP "PaintDotNetInstall.log"
 $process = Start-Process -FilePath "msiexec.exe" `
   -ArgumentList "/i `"$($msi.FullName)`" ALLUSERS=1 /quiet /norestart /l*v `"$logFile`"" `
-  -PassThru -Wait
-$exitCode = $process.ExitCode
+  -PassThru
+# Reading Handle now keeps ExitCode available after WaitForExit(timeout).
+$null = $process.Handle
+if ($process.WaitForExit($timeoutSeconds * 1000)) {
+  $exitCode = $process.ExitCode
+} else {
+  Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+  Write-Host "Timed out after $timeoutSeconds seconds waiting for the installer."
+  $exitCode = 1460  # ERROR_TIMEOUT
+}
 Write-Host "Install exit code (msiexec): $exitCode"
 
 Remove-Item -Path $extractPath -Recurse -Force -ErrorAction SilentlyContinue
