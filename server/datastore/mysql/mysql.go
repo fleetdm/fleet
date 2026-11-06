@@ -856,11 +856,11 @@ func appendListOptionsToSQLSecure(sql string, opts *fleet.ListOptions, allowlist
 // The allowlist parameter maps user-facing order key names to actual SQL column expressions.
 // This prevents SQL injection and information disclosure via arbitrary column sorting.
 // See common_mysql.OrderKeyAllowlist for details.
-func appendListOptionsWithCursorToSQLSecure(sql string, params []any, opts *fleet.ListOptions, allowlist common_mysql.OrderKeyAllowlist) (string, []any, error) {
+func appendListOptionsWithCursorToSQLSecure(sql string, params []any, opts *fleet.ListOptions, allowlist common_mysql.OrderKeyAllowlist, tieBreaks ...string) (string, []any, error) {
 	if opts.PerPage == 0 {
 		opts.PerPage = fleet.DefaultPerPage
 	}
-	return common_mysql.AppendListOptionsWithParamsSecure(sql, params, opts, allowlist)
+	return common_mysql.AppendListOptionsWithParamsSecure(sql, params, opts, allowlist, tieBreaks...)
 }
 
 // whereFilterHostsByTeams returns the appropriate condition to use in the WHERE
