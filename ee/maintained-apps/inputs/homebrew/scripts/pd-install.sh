@@ -132,7 +132,7 @@ if [ -z "$APP_BUNDLE" ]; then
 fi
 APP_NAME=$(basename "$APP_BUNDLE")
 # copy to the applications folder
-if ! quit_and_track_application 'org.puredata.pd.pd-gui'; then
+if ! quit_and_track_application 'info.puredata.pd.pd-gui'; then
   hdiutil detach "$MOUNT_POINT" || true
   exit 1
 fi
@@ -150,4 +150,4 @@ if ! sudo cp -R "$APP_BUNDLE" "$APPDIR"; then
   exit 1
 fi
 hdiutil detach "$MOUNT_POINT" || true
-relaunch_application 'org.puredata.pd.pd-gui'
+relaunch_application 'info.puredata.pd.pd-gui'

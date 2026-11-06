@@ -3334,9 +3334,6 @@ type Datastore interface {
 	// table and assumes it is being executed at the right time.
 	RunScheduledBatchActivity(ctx context.Context, executionID string) error
 
-	// BatchExecuteSummary returns the summary of a batch script execution
-	BatchExecuteSummary(ctx context.Context, executionID string) (*BatchActivity, error)
-
 	// CancelBatchScript cancels the execution of a batch script execution
 	CancelBatchScript(ctx context.Context, executionID string) error
 

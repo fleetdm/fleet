@@ -427,7 +427,9 @@ func appFromJson(manifest *maintained_apps.FMAManifestFile) (fleet.MaintainedApp
 }
 
 func DownloadMaintainedApp(cfg *Config, app fleet.MaintainedApp) (*fleet.TempFileReader, string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	// Match Fleet's own limit: large installers from slow CDNs (WeChat's ~550 MB
+	// DMG) can take longer than a few minutes on a runner.
+	ctx, cancel := context.WithTimeout(context.Background(), mdm_maintained_apps.InstallerTimeout)
 	defer cancel()
 
 	cfg.logger.InfoContext(ctx, "Downloading...")
