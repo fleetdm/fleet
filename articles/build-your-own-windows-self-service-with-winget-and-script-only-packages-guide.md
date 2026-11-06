@@ -1,6 +1,6 @@
 # Add Microsoft Store apps to Windows self-service with winget
 
-Fleet 4.89.0 gave script-only packages an uninstall script, a pre-install query, and a post-install script. That is enough to put Microsoft Store apps on your end users' self-service page using winget, with no packages to host. This guide builds one Store app tile end to end, then generates the rest from a Store ID. It covers per-user Store installs driven through self-service, which is the only scope the Store supports through winget.
+Fleet 4.89.0 gave script-only packages an uninstall script, a pre-install query, and a post-install script. That is enough to put Microsoft Store apps on your end users' self-service page using winget, with no packages to host. This guide adds one Store app to self-service end to end, then generates the scripts and YAML for more Store apps from a Store ID. It covers per-user Store installs driven through self-service, which is the only scope the Store supports through winget.
 
 > **Warning:** `winget install --source msstore` cannot run as SYSTEM, and Fleet runs Windows scripts as SYSTEM. The Store rejects device-wide installs with "Device wide install for msstore type is not supported under admin context." Step 3 works around this by running winget in the logged-on user's session. If you need a Store app installed machine-wide for every user, see [Deploy a Store app machine-wide](#deploy-a-store-app-machine-wide) instead.
 
@@ -275,7 +275,7 @@ Then add the app:
 
 **The script fails because `winget` is not recognized.** The host has no App Installer package, which is common on Windows Server and LTSC images. Exclude those hosts with a label, or install App Installer first.
 
-**The tile does not appear on a host's self-service page.** Confirm the host matches the package's label, and that the label query returns the host in the Fleet UI under the label's host list.
+**The software does not appear on a host's self-service page.** Confirm the host matches the package's label, and that the label query returns the host in the Fleet UI under the label's host list.
 
 ## Advanced
 
