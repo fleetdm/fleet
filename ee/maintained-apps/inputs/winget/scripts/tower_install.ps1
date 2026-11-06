@@ -15,6 +15,42 @@ $successCodes = @(0, 3010, 1641)
 try {
 
 $installer = New-Object -ComObject "WindowsInstaller.Installer"
+
+# Tower needs the x64 .NET Desktop Runtime, which its MSI only installs when run
+# with a UI. Fail with an actionable message rather than leave behind an app
+# that can't start. The required major version comes from the MSI itself.
+$database = $installer.OpenDatabase("${env:INSTALLER_PATH}", 0)
+$view = $database.OpenView("SELECT Value FROM Property WHERE Property = 'RustRuntimeDependencies'")
+$view.Execute()
+$record = $view.Fetch()
+$dependencies = if ($record) { $record.StringData(1) } else { "" }
+$view.Close()
+$null = [System.Runtime.InteropServices.Marshal]::ReleaseComObject($view)
+$null = [System.Runtime.InteropServices.Marshal]::ReleaseComObject($database)
+
+if ($dependencies -match 'net(\d+)-x64-desktop') {
+  $major = $matches[1]
+  $dotnetRoots = @((Get-ItemProperty 'HKLM:\SOFTWARE\dotnet\Setup\InstalledVersions\x64' -ErrorAction SilentlyContinue).InstallLocation)
+  # On ARM64 Windows the x64 runtime installs side by side under dotnet\x64.
+  $nativeArch = (Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment').PROCESSOR_ARCHITECTURE
+  if ($nativeArch -eq 'ARM64') {
+    $dotnetRoots += Join-Path $env:ProgramFiles "dotnet\x64"
+  } else {
+    $dotnetRoots += Join-Path $env:ProgramFiles "dotnet"
+  }
+
+  $hasRuntime = $dotnetRoots | Where-Object { $_ } | Where-Object {
+    Get-ChildItem -Path (Join-Path $_ "shared\Microsoft.WindowsDesktop.App") -Directory -ErrorAction SilentlyContinue |
+      Where-Object { $_.Name -like "$major.*" }
+  } | Select-Object -First 1
+
+  if (-not $hasRuntime) {
+    Write-Host "Tower requires the Microsoft .NET Desktop Runtime $major (x64), which was not found on this host."
+    Write-Host "Install it (for example, with the Microsoft .NET Desktop Runtime $major Fleet-maintained app), then retry."
+    Exit 1
+  }
+}
+
 foreach ($productCode in @($installer.RelatedProducts($upgradeCode))) {
   # 0 = installed for this account only; 1 = installed machine-wide
   if ($installer.ProductInfo($productCode, "AssignmentType") -ne "0") { continue }
