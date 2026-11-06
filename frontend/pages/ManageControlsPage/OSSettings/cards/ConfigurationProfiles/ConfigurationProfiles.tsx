@@ -419,6 +419,7 @@ const ConfigurationProfiles = ({
           teamId={currentTeamId}
           name={selectedProfile.current.name}
           uuid={selectedProfile.current.profile_uuid}
+          payloadDisplayName={selectedProfile.current.payload_display_name}
           platform={selectedProfile.current.platform}
           onClickResend={(hostCount) => {
             selectedStatusHostCount.current = hostCount;

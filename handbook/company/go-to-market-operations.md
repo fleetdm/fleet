@@ -480,6 +480,8 @@ Use the following steps to send Fleet's vendor collateral to a prospect or custo
 
 The goal of a slide deck is not necessarily to walk every customer through it.  It's to make sure we're presenting the most impactful outcomes of Fleet to the right people, and standardizing how we talk about the products and customer experience to give people evaluating Fleet the opportunity to understand it, fairly evaluate it, and present it in the best light internally to other people at their organization.
 
+**Prerequisite:** Fleet's slide decks use the [Inter typeface](https://rsms.me/inter/). Install it on your computer before you edit or present a deck so the text renders correctly.
+
 ### First meeting decks
 - [Fleet for IT engineers and IT admins](https://drive.google.com/file/d/1NPGhLHf5_bv5gBmYFlW0sXKXPFgxqbdJ/view?usp=drive_link)
 - [Device management for Europe](https://docs.google.com/presentation/d/1_3Vyn32r9sfpKSfqelZq68u4ayXqE-opXZoJab6hhBU/edit?slide=id.g3d4265576de_4_433#slide=id.g3d4265576de_4_433)
