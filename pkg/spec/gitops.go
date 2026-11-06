@@ -307,15 +307,15 @@ func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePac
 	if spec.InstallScript.Path != "" || spec.URL != "" || spec.SHA256 != "" ||
 		(!isScript && (spec.UninstallScript.Path != "" || spec.PostInstallScript.Path != "" || spec.PreInstallQuery.Path != "")) {
 		if isScript {
-			return packageLevel, fmt.Errorf("the software package defined in %s must not have install_script, URL, or hash specified at the team level", *spec.Path)
+			return packageLevel, fmt.Errorf("the software package defined in %s must not have install_script, URL, or hash specified at the fleet level", *spec.Path)
 		}
-		return packageLevel, fmt.Errorf("the software package defined in %s must not have icons, scripts, queries, URL, or hash specified at the team level", *spec.Path)
+		return packageLevel, fmt.Errorf("the software package defined in %s must not have icons, scripts, queries, URL, or hash specified at the fleet level", *spec.Path)
 	}
 
 	// Icon should be allowed at the team level yaml for script packages which must be specified as a path
 	if spec.Icon.Path != "" {
 		if !fleet.IsScriptPackage(ext) {
-			return packageLevel, fmt.Errorf("the software package defined in %s must not have icons, scripts, queries, URL, or hash specified at the team level", *spec.Path)
+			return packageLevel, fmt.Errorf("the software package defined in %s must not have icons, scripts, queries, URL, or hash specified at the fleet level", *spec.Path)
 		}
 	}
 
@@ -692,7 +692,7 @@ func parseName(raw json.RawMessage, result *GitOps, filePath string, multiError 
 		*result.TeamName = strings.TrimSpace(*result.TeamName)
 	}
 	if result.TeamName == nil || *result.TeamName == "" {
-		return multierror.Append(multiError, errors.New("team 'name' is required"))
+		return multierror.Append(multiError, errors.New("fleet 'name' is required"))
 	}
 	// Normalize team name for full Unicode support, so that we can assume team names are unique going forward
 	normalized := norm.NFC.String(*result.TeamName)
@@ -1013,7 +1013,7 @@ func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, file
 		fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *teamSettingsTop.Path))
 		if err != nil {
 			noError = false
-			multiError = multierror.Append(multiError, fmt.Errorf("failed to read team settings file %s: %v", *teamSettingsTop.Path, err))
+			multiError = multierror.Append(multiError, fmt.Errorf("failed to read fleet settings file %s: %v", *teamSettingsTop.Path, err))
 		} else {
 			// Replace $var and ${var} with env values.
 			fileBytes, err = ExpandEnvBytes(fileBytes)
@@ -1259,7 +1259,7 @@ func parseCustomHostVitals(top map[string]json.RawMessage, result *GitOps, fileP
 	raw := top["custom_host_vitals"]
 
 	if !result.global() {
-		return multierror.Append(multiError, errors.New("'custom_host_vitals' cannot be set on a team file"))
+		return multierror.Append(multiError, errors.New("'custom_host_vitals' cannot be set on a fleet file"))
 	}
 
 	result.CustomHostVitals = []fleet.CustomHostVital{}

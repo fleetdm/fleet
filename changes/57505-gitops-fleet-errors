@@ -1,0 +1,1 @@
+- Updated GitOps errors for software packages, fleet names, fleet settings files, and `custom_host_vitals` to say "fleet" instead of "team".
