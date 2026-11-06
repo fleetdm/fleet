@@ -94,7 +94,6 @@ func TestRemovedPathsThroughHandler(t *testing.T) {
 	} {
 		for _, method := range []string{http.MethodGet, http.MethodPost} {
 			t.Run(method+" "+c.path, func(t *testing.T) {
-				t.Parallel()
 				rec := httptest.NewRecorder()
 				handler.ServeHTTP(rec, httptest.NewRequest(method, c.path, nil))
 				require.Equal(t, http.StatusGone, rec.Code)
@@ -112,7 +111,6 @@ func TestRemovedPathsThroughHandler(t *testing.T) {
 
 	// HEAD is not one of the removed methods: a HEAD pattern next to the GET pattern of a sibling is ambiguous on a stdlib mux.
 	t.Run("HEAD gets 405", func(t *testing.T) {
-		t.Parallel()
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodHead, "/api/v1/fleet/teams/1/policies/count", nil))
 		require.Equal(t, http.StatusMethodNotAllowed, rec.Code)
