@@ -114,7 +114,10 @@ relaunch_application() {
 # extract contents
 MOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)
 yes | hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH" || exit 1
-sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"
+if ! sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"; then
+	hdiutil detach "$MOUNT_POINT" || true
+	exit 1
+fi
 hdiutil detach "$MOUNT_POINT" || true
 # copy to the applications folder
 quit_and_track_application 'com.elgato.WaveLink3' || exit 1
@@ -132,5 +135,12 @@ if ! sudo cp -R "$TMPDIR/Elgato Wave Link.app" "$APPDIR"; then
 		sudo mv "$TMPDIR/Elgato Wave Link.app.bkp" "$APPDIR/Elgato Wave Link.app"
 	fi
 	exit 1
+fi
+# If Wave Link 2 was running, open Wave Link 3 in its place. Register it with the
+# user's LaunchServices first, or opening it by bundle ID fails.
+if [[ "$APP_WAS_RUNNING_com_elgato_WaveLink" == "1" ]]; then
+	console_user=$(stat -f "%Su" /dev/console)
+	/bin/launchctl asuser "$(id -u "$console_user")" sudo -u "$console_user" /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "${APPDIR}Elgato Wave Link.app" >/dev/null 2>&1 || true
+	export APP_WAS_RUNNING_com_elgato_WaveLink3=1
 fi
 relaunch_application 'com.elgato.WaveLink3'
