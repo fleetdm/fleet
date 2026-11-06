@@ -120,12 +120,6 @@ The command to install the profile is queued in the `renew_scep_certificates` jo
 
 It's important to note that when sending a new enrollment profile, certain fields must remain unchanged. Apple has documented these restrictions here: [Apple MDM Profile Restrictions](https://github.com/apple/device-management/blob/85fae8ac896578447f8fcb07ff6c976128133a9c/mdm/profiles/com.apple.mdm.yaml#L1).
 
-### Puppet module
-
-> The Puppet module is deprecated as of Fleet 4.66. It's maintained for backwards compatibility.
-
-The implementation of the Puppet module is described in detail at: `ee/tools/puppet/fleetdm/CONTRIBUTING.md`
-
 ### MDM migrations
 
 Windows MDM is more flexible when it comes to switching MDM servers, so MDM migrations are generally not a big deal.
