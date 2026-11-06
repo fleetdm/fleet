@@ -2620,40 +2620,25 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 	}}, http.StatusOK, &defaultTeamResp)
 }
 
-func (s *integrationEnterpriseTestSuite) TestTeamConfigDetailQueriesOverrides() {
+func (s *integrationEnterpriseTestSuite) TestTeamConfigIgnoresStoredDetailQueryOverrides() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
-	teamName := t.Name() + "team1"
-	team := &fleet.Team{
-		Name:        teamName,
-		Description: "desc team1",
-	}
-	s.Do("POST", "/api/latest/fleet/teams", team, http.StatusOK)
-
-	spec := []byte(fmt.Sprintf(`
-  name: %s
-  features:
-    additional_queries:
-      time: SELECT * FROM time
-    enable_host_users: true
-    detail_query_overrides:
-      users: null
-      software_linux: "select * from blah;"
-      disk_encryption_linux: null
-`, teamName))
-
-	s.applyTeamSpec(spec)
-	team, err := s.ds.TeamByName(ctx, teamName)
+	// Created through s.ds, not the API, so the server's cached team features never hold this fleet's pre-seed config.
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name:   t.Name(),
+		Config: fleet.TeamConfig{Features: fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}},
+	})
 	require.NoError(t, err)
-	require.NotNil(t, team.Config.Features.DetailQueryOverrides)
-	require.Nil(t, team.Config.Features.DetailQueryOverrides["users"])
-	require.Nil(t, team.Config.Features.DetailQueryOverrides["disk_encryption_linux"])
-	require.NotNil(t, team.Config.Features.DetailQueryOverrides["software_linux"])
-	require.Equal(t, "select * from blah;", *team.Config.Features.DetailQueryOverrides["software_linux"])
 
-	// create a linux host
-	linuxHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
+	// Configs saved by an older Fleet can still hold overrides, so seed them directly.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE teams SET config = JSON_SET(config, '$.features.detail_query_overrides',
+			JSON_OBJECT('users', NULL, 'disk_encryption_linux', NULL, 'software_linux', 'select * from blah;')) WHERE id = ?`, team.ID)
+		return err
+	})
+
+	linuxHost, err := s.ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now().Add(-10 * time.Hour),
 		LabelUpdatedAt:  time.Now().Add(-10 * time.Hour),
 		PolicyUpdatedAt: time.Now().Add(-10 * time.Hour),
@@ -2663,50 +2648,26 @@ func (s *integrationEnterpriseTestSuite) TestTeamConfigDetailQueriesOverrides() 
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "linux",
+		TeamID:          &team.ID,
 	})
 	require.NoError(t, err)
 
-	// add the host to team1
-	err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team.ID, []uint{linuxHost.ID}))
-	require.NoError(t, err)
-
-	// get distributed queries for the host
-	s.lq.On("QueriesForHost", linuxHost.ID).Return(map[string]string{t.Name(): "select 1 from osquery;"}, nil)
-	req := getDistributedQueriesRequest{NodeKey: *linuxHost.NodeKey}
+	s.lq.On("QueriesForHost", linuxHost.ID).Return(map[string]string{}, nil)
 	var dqResp getDistributedQueriesResponse
-	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
-	require.NotContains(t, dqResp.Queries, "fleet_detail_query_users")
-	require.NotContains(t, dqResp.Queries, "fleet_detail_query_disk_encryption_linux")
-	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_linux")
-	require.Contains(t, dqResp.Queries, fmt.Sprintf("fleet_distributed_query_%s", t.Name()))
-
-	spec = []byte(fmt.Sprintf(`
-  name: %s
-  features:
-    additional_queries:
-      time: SELECT * FROM time
-    enable_host_users: true
-    detail_query_overrides:
-      software_linux: "select * from blah;"
-`, teamName))
-
-	s.applyTeamSpec(spec)
-	team, err = s.ds.TeamByName(ctx, teamName)
-	require.NoError(t, err)
-	require.NotNil(t, team.Config.Features.DetailQueryOverrides)
-	require.Nil(t, team.Config.Features.DetailQueryOverrides["users"])
-	require.Nil(t, team.Config.Features.DetailQueryOverrides["disk_encryption_linux"])
-	require.NotNil(t, team.Config.Features.DetailQueryOverrides["software_linux"])
-	require.Equal(t, "select * from blah;", *team.Config.Features.DetailQueryOverrides["software_linux"])
-
-	// get distributed queries for the host
-	req = getDistributedQueriesRequest{NodeKey: *linuxHost.NodeKey}
-	dqResp = getDistributedQueriesResponse{}
-	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
+	s.DoJSON("POST", "/api/osquery/distributed/read", getDistributedQueriesRequest{NodeKey: *linuxHost.NodeKey}, http.StatusOK, &dqResp)
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_users")
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_disk_encryption_linux")
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_linux")
-	require.Contains(t, dqResp.Queries, fmt.Sprintf("fleet_distributed_query_%s", t.Name()))
+	require.NotEqual(t, "select * from blah;", dqResp.Queries["fleet_detail_query_software_linux"])
+
+	// Saves re-marshal the whole config from the struct, so the stale key disappears without a migration.
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), fleet.TeamPayload{Description: new("saved")}, http.StatusOK)
+	var stillStored bool
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &stillStored,
+			`SELECT JSON_CONTAINS_PATH(config, 'one', '$.features.detail_query_overrides') FROM teams WHERE id = ?`, team.ID)
+	})
+	require.False(t, stillStored)
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamConfigHistoricalDataGitOps() {

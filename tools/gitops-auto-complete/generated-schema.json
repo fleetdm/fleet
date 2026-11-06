@@ -3101,19 +3101,6 @@
       "additionalProperties": false,
       "properties": {
         "additional_queries": true,
-        "detail_query_overrides": {
-          "additionalProperties": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "description": "type: `object`",
-          "type": [
-            "object",
-            "null"
-          ]
-        },
         "enable_host_users": {
           "description": "type: `boolean`",
           "type": [

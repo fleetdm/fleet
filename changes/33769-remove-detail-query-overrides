@@ -1,0 +1,1 @@
+- Removed support for the `features.detail_query_overrides` setting. Fleet now rejects it in `PATCH /api/v1/fleet/config` and GitOps, and ignores overrides saved by earlier versions.
