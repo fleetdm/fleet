@@ -292,17 +292,11 @@ GitHub issue: [#53873](https://github.com/fleetdm/fleet/issues/53873)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `mdm.windows_settings.enable_managed_local_account` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration), [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration), and fleet settings | `mdm.windows_settings.managed_local_account_enabled` |
-| `enable_managed_local_account` and `enable_create_local_admin_account` under `mdm.macos_setup` in the same endpoints | `mdm.apple_settings.managed_local_account_enabled` |
-| `end_user_local_account_type` under `mdm.macos_setup` in the same endpoints | `mdm.apple_settings.end_user_local_account_type` |
+| `enable_managed_local_account` and `enable_create_local_admin_account` in [Update setup experience](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience), and under `mdm.macos_setup` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration), [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration), and fleet settings | `macos_managed_local_account_enabled` in the same endpoints, under `mdm.setup_experience` |
+| `end_user_local_account_type` in the same endpoints | `macos_end_user_local_account_type` |
+| `mdm.windows_settings.enable_managed_local_account` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration), [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration), and fleet settings | `windows_managed_local_account_enabled` in [Update setup experience](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience), and under `mdm.setup_experience` in the same endpoints |
 
-#### What to do
-
-Fleet 4.95 doesn't support the new names, so you can't change them before you upgrade.
-
-- Change them right after you upgrade.
-- Search for these keys in your scripts and integrations, and rename them.
-- Until you do, calls that use the old names fail with a `422` error like: `The "mdm.windows_settings.enable_managed_local_account" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+What to do: Search for these keys and rename them. Move the Windows key from `windows_settings` to setup experience.
 
 GitHub issue: [#50084](https://github.com/fleetdm/fleet/issues/50084)
 
@@ -701,16 +695,11 @@ GitHub issue: [#53873](https://github.com/fleetdm/fleet/issues/53873)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `controls.windows_settings.enable_managed_local_account` | `controls.windows_settings.managed_local_account_enabled` |
-| `enable_managed_local_account` and `enable_create_local_admin_account` under `controls.setup_experience` (or `controls.macos_setup`) | `controls.apple_settings.managed_local_account_enabled` |
-| `end_user_local_account_type` under `controls.setup_experience` (or `controls.macos_setup`) | `controls.apple_settings.end_user_local_account_type` |
+| `enable_managed_local_account` and `enable_create_local_admin_account` under `controls.setup_experience` (or `controls.macos_setup`) | `macos_managed_local_account_enabled` ([docs](https://fleetdm.com/docs/configuration/yaml-files#setup-experience)) |
+| `end_user_local_account_type` under `controls.setup_experience` (or `controls.macos_setup`) | `macos_end_user_local_account_type` ([docs](https://fleetdm.com/docs/configuration/yaml-files#setup-experience)) |
+| `controls.windows_settings.enable_managed_local_account` | `controls.setup_experience.windows_managed_local_account_enabled` ([docs](https://fleetdm.com/docs/configuration/yaml-files#setup-experience)) |
 
-#### What to do
-
-Fleet 4.95 doesn't support the new names, so you can't change them before you upgrade.
-
-- After you upgrade, rename these keys before your next GitOps run.
-- Until you do, your GitOps run fails with an error like: `The "controls.windows_settings.enable_managed_local_account" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+What to do: Rename these keys. Move the Windows key from `windows_settings` to `setup_experience`.
 
 GitHub issue: [#50084](https://github.com/fleetdm/fleet/issues/50084)
 
@@ -938,11 +927,9 @@ GitHub issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `fleetctl get config` and `fleetctl get fleets` print `windows_settings.enable_managed_local_account` and `macos_setup.enable_create_local_admin_account` | `fleetctl get config` and `fleetctl get fleets` print `windows_settings.managed_local_account_enabled` and `apple_settings.managed_local_account_enabled` |
+| `fleetctl get config` and `fleetctl get fleets` print `enable_create_local_admin_account` and `end_user_local_account_type` under `macos_setup`, and `enable_managed_local_account` under `windows_settings` | They print `macos_managed_local_account_enabled`, `macos_end_user_local_account_type`, and `windows_managed_local_account_enabled` under `setup_experience` |
 
-#### What to do
-
-Update scripts that read `enable_managed_local_account` or `enable_create_local_admin_account` from `fleetctl get config` or `fleetctl get fleets` output.
+What to do: Update scripts that read these keys from `fleetctl get config` or `fleetctl get fleets` output.
 
 GitHub issue: [#50084](https://github.com/fleetdm/fleet/issues/50084)
 
