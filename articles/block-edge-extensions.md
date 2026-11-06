@@ -279,7 +279,7 @@ chmod 644 /etc/opt/edge/policies/managed/fleet-extension-removal.json
 2. In Fleet, go to **Controls > Scripts** and upload the script.
 3. Run the script on a host from its **Details** page, or [run it automatically](https://fleetdm.com/guides/policy-automation-run-script) on Linux hosts that fail a policy.
 
-To confirm the extension was removed from your hosts, run the [report in the Verify section](#verify) with `WHERE chrome_extensions.identifier = '<extension ID>'`. It should return no results.
+To confirm the extension was removed from your hosts, run the [report in the Verify section](#verify) with `AND chrome_extensions.identifier = '<extension ID>'` added to the `WHERE` clause. It should return no results.
 
 > **Note:** If Edge sync is turned on and you later remove this policy, sync reinstalls the extension. To prevent this, also turn off extension sync with the [`SyncTypesListDisabled` policy](https://learn.microsoft.com/en-us/deployedge/microsoft-edge-policies#synctypeslistdisabled).
 
