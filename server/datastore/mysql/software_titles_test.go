@@ -53,6 +53,7 @@ func TestSoftwareTitles(t *testing.T) {
 		{"ListSoftwareTitlesSearchByBundleAndDisplayName", testListSoftwareTitlesSearchByBundleAndDisplayName},
 		{"ListSoftwareTitlesMultiplePackages", testListSoftwareTitlesMultiplePackages},
 		{"ListSoftwareTitlesPolicyDispatchPerInstaller", testListSoftwareTitlesPolicyDispatchPerInstaller},
+		{"ListSoftwareTitlesAppStoreApps", testListSoftwareTitlesAppStoreApps},
 		{"SoftwareTitleNameForHostFilter", testSoftwareTitleNameForHostFilter},
 		{"SoftwareTitleByIDNoFleetScopedToVisibleFleets", testSoftwareTitleByIDNoFleetScopedToVisibleFleets},
 		{"GetFleetMaintainedVersionsOrder", testGetFleetMaintainedVersionsOrder},
@@ -1008,6 +1009,89 @@ func testListSoftwareTitlesPolicyDispatchPerInstaller(t *testing.T, ds *Datastor
 
 	require.Equal(t, installer2ID, titles[0].Packages[1].InstallerID)
 	assert.Empty(t, titles[0].Packages[1].AutomaticInstallPolicies, "installer 2 should NOT carry any policies (regression: aggregate title-level list)")
+}
+
+func testListSoftwareTitlesAppStoreApps(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "AppStoreApps", "app-store-apps@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "app-store-apps-team"})
+	require.NoError(t, err)
+	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	const iosAdamID = "77770001"
+	const macAdamID = "77770002"
+
+	cases := []struct {
+		name    string
+		fleetID uint
+	}{
+		{name: "no team", fleetID: 0},
+		{name: "team", fleetID: team.ID},
+	}
+	for _, c := range cases {
+		t.Log(c.name)
+		fleetID := c.fleetID
+
+		// add an iOS app with a default version and a "Beta" version, and a macOS app with one version
+		iosFirstVersion, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+			VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: iosAdamID, Platform: fleet.IOSPlatform}, SelfService: true},
+			Name:             "iOS Versions App",
+			BundleIdentifier: "com.example." + iosAdamID,
+			LatestVersion:    "2.6.0",
+		}, &fleetID, nil)
+		require.NoError(t, err)
+		iosSecondVersion, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+			VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: iosAdamID, Platform: fleet.IOSPlatform}, VersionName: "Beta"},
+			Name:             "iOS Versions App",
+			BundleIdentifier: "com.example." + iosAdamID,
+			LatestVersion:    "2.6.0",
+		}, &fleetID, nil)
+		require.NoError(t, err)
+		macVersion, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+			VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: macAdamID, Platform: fleet.MacOSPlatform}},
+			Name:             "macOS App",
+			BundleIdentifier: "com.example." + macAdamID,
+			LatestVersion:    "1.0",
+		}, &fleetID, nil)
+		require.NoError(t, err)
+
+		// add an automatic install policy for the macOS app
+		policy, err := ds.NewTeamPolicy(ctx, fleetID, &user.ID, fleet.PolicyPayload{Name: "app-store-apps-policy-" + c.name, Query: "SELECT 1;"})
+		require.NoError(t, err)
+		policy.VPPAppsTeamsID = new(macVersion.AppTeamID)
+		err = ds.SavePolicy(ctx, policy, false, false)
+		require.NoError(t, err)
+
+		// list titles for the fleet, the iOS title should list both versions first-added first
+		titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &fleetID}, adminFilter)
+		require.NoError(t, err)
+		require.Len(t, titles, 2)
+		titlesByID := map[uint]fleet.SoftwareTitleListResult{titles[0].ID: titles[0], titles[1].ID: titles[1]}
+
+		iosTitle := titlesByID[iosFirstVersion.TitleID]
+		require.Equal(t, []fleet.AppStoreAppListItem{
+			{ID: iosFirstVersion.AppTeamID, Name: fleet.DefaultAppStoreAppVersionName, AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, Version: "2.6.0", SelfService: true},
+			{ID: iosSecondVersion.AppTeamID, Name: "Beta", AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, Version: "2.6.0"},
+		}, iosTitle.AppStoreApps)
+
+		// read the macOS title, the policy should be on its only version
+		macTitle := titlesByID[macVersion.TitleID]
+		require.Len(t, macTitle.AppStoreApps, 1)
+		require.Equal(t, macVersion.AppTeamID, macTitle.AppStoreApps[0].ID)
+		require.Len(t, macTitle.AppStoreApps[0].AutomaticInstallPolicies, 1)
+		require.Equal(t, policy.ID, macTitle.AppStoreApps[0].AutomaticInstallPolicies[0].ID)
+
+		// select the iOS title for setup experience and list setup experience software, every version should have install_during_setup
+		err = ds.SetSetupExperienceSoftwareTitles(ctx, string(fleet.IOSPlatform), fleetID, []uint{iosFirstVersion.TitleID})
+		require.NoError(t, err)
+		setupTitles, _, _, err := ds.ListSetupExperienceSoftwareTitles(ctx, string(fleet.IOSPlatform), fleetID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, setupTitles, 1)
+		require.Len(t, setupTitles[0].AppStoreApps, 2)
+		require.Equal(t, new(true), setupTitles[0].AppStoreApps[0].InstallDuringSetup)
+		require.Equal(t, new(true), setupTitles[0].AppStoreApps[1].InstallDuringSetup)
+	}
 }
 
 func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {

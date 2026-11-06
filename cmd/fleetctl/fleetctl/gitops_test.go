@@ -1591,12 +1591,9 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 				},
 			},
 			{
-				ID:   20,
-				Name: "VPP App",
-				AppStoreApp: &fleet.SoftwarePackageOrApp{
-					AppStoreID: "5128675309",
-					Platform:   string(fleet.MacOSPlatform),
-				},
+				ID:           20,
+				Name:         "VPP App",
+				AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "5128675309", Platform: fleet.MacOSPlatform}},
 			},
 			{
 				ID:         40,
@@ -8103,11 +8100,8 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 		// Return a software title that matches the app_store_id we're testing (app_store_id "2" is defined in the mock VPP server)
 		return []fleet.SoftwareTitleListResult{
 			{
-				ID: 100,
-				AppStoreApp: &fleet.SoftwarePackageOrApp{
-					AppStoreID: "2",
-					Platform:   "ios",
-				},
+				ID:           100,
+				AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "2", Platform: fleet.IOSPlatform}},
 			},
 		}, 1, nil, nil
 	}

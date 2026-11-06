@@ -321,6 +321,9 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 						software.AppStoreApp.VPPToken = &fleet.VPPTokenSummary{ID: tok.ID, OrgName: tok.OrgName, Location: tok.Location, CountryCode: tok.CountryCode}
 					}
 				}
+				for i := range software.AppStoreApps {
+					software.AppStoreApps[i].VPPToken = software.AppStoreApp.VPPToken
+				}
 			}
 		}
 

@@ -574,6 +574,54 @@ func (ds *Datastore) processSoftwareTitleResults(
 			}
 			softwareList[i].Packages = pkgs
 		}
+
+		var appStoreAppTitleIDs []uint
+		for _, title := range softwareList {
+			if title.AppStoreApp != nil {
+				appStoreAppTitleIDs = append(appStoreAppTitleIDs, title.ID)
+			}
+		}
+		var appStoreApps []fleet.VPPAppStoreApp
+		if len(appStoreAppTitleIDs) > 0 {
+			var appStoreAppsStmt string
+			var appStoreAppsArgs []any
+			appStoreAppsStmt, appStoreAppsArgs, err = sqlx.In(`
+SELECT vat.id AS vpp_apps_teams_id, vat.name AS version_name, vat.adam_id, vat.platform, vap.latest_version, vat.self_service, vat.install_during_setup
+FROM vpp_apps vap
+INNER JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform
+WHERE vat.global_or_team_id = ? AND vap.title_id IN (?)
+ORDER BY vat.id`, *opt.TeamID, appStoreAppTitleIDs)
+			if err != nil {
+				return nil, 0, nil, ctxerr.Wrap(ctx, err, "build get app store apps for software titles")
+			}
+			err = sqlx.SelectContext(ctx, dbReader, &appStoreApps, appStoreAppsStmt, appStoreAppsArgs...)
+			if err != nil {
+				return nil, 0, nil, ctxerr.Wrap(ctx, err, "get app store apps for software titles")
+			}
+		}
+		for _, title := range softwareList {
+			if title.AppStoreApp == nil {
+				continue
+			}
+			for _, appStoreApp := range appStoreApps {
+				if appStoreApp.AdamID != title.AppStoreApp.AppStoreID || string(appStoreApp.Platform) != title.AppStoreApp.Platform {
+					continue
+				}
+				listItem := fleet.AppStoreAppListItem{
+					ID:                       appStoreApp.VPPAppsTeamsID,
+					Name:                     appStoreApp.VersionName,
+					AppStoreID:               appStoreApp.AdamID,
+					Platform:                 appStoreApp.Platform,
+					Version:                  appStoreApp.LatestVersion,
+					SelfService:              appStoreApp.SelfService,
+					AutomaticInstallPolicies: title.AppStoreApp.AutomaticInstallPolicies,
+				}
+				if opt.ForSetupExperience {
+					listItem.InstallDuringSetup = appStoreApp.InstallDuringSetup
+				}
+				title.AppStoreApps = append(title.AppStoreApps, listItem)
+			}
+		}
 	}
 
 	// Fetch matching versions separately to avoid aggregating nested arrays in the main query.
