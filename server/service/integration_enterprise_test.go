@@ -617,6 +617,22 @@ func (c *mockedGoogleCloudIdentity) SetClientState(_ context.Context, name strin
 	return nil
 }
 
+func (m *mockedGoogleConditionalAccessClient) SignInURL(customerID, hostUUID, token string) (string, error) {
+	return conditional_access_google.NewRelay("https://fleetdm.example.com").SignInURL(customerID, hostUUID, token)
+}
+
+func (c *mockedGoogleCloudIdentity) FindDeviceIDs(context.Context, string) ([]string, error) {
+	return nil, errors.New("unexpected device search")
+}
+
+func (c *mockedGoogleCloudIdentity) ListDeviceUserNames(context.Context, string) ([]string, error) {
+	return nil, errors.New("unexpected device user listing")
+}
+
+func (c *mockedGoogleCloudIdentity) DeviceExists(context.Context, string) (bool, error) {
+	return false, errors.New("unexpected device check")
+}
+
 // delegationCheckKeys returns the service account key each delegation check used.
 func (m *mockedGoogleConditionalAccessClient) delegationCheckKeys() [][]byte {
 	m.mu.Lock()
