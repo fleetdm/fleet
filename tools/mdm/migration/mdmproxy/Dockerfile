@@ -5,7 +5,7 @@ RUN git clone --branch "${TAG}" --depth=1 --progress --no-recurse-submodules htt
     && cd /go/fleet/tools/mdm/migration/mdmproxy \
     && go build -o /go/fleet/tools/mdm/migration/mdmproxy/mdmproxy .
 
-FROM alpine:3.23.7@sha256:ff7f0c727dd796aa36787bfcd9a64bf35a6ce72a73451b3359fde849b6703d63
+FROM alpine:3.23.8@sha256:5c216c9767869f6ec7c4718977601d52f087c5c7bf2fdfb198e403f6b48ec40d
 LABEL maintainer="Fleet Developers"
 
 RUN apk --no-cache upgrade openssl libcrypto3 libssl3 \

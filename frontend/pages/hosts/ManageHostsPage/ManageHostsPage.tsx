@@ -79,7 +79,7 @@ import {
 import policiesAPI from "services/entities/policies";
 import scriptsAPI, {
   IScriptBatchSummaryQueryKey,
-  IScriptBatchSummaryV1,
+  IScriptBatchSummaryV2,
   ScriptBatchHostCountV1,
 } from "services/entities/scripts";
 import teamsAPI, {
@@ -622,9 +622,9 @@ const ManageHostsPage = ({
     isLoading: isLoadingScriptBatchSummary,
     isError: isErrorScriptBatchSummary,
   } = useQuery<
-    IScriptBatchSummaryV1,
+    IScriptBatchSummaryV2,
     Error,
-    IScriptBatchSummaryV1,
+    IScriptBatchSummaryV2,
     IScriptBatchSummaryQueryKey[]
   >(
     [
@@ -634,7 +634,7 @@ const ManageHostsPage = ({
       },
     ],
     ({ queryKey: [{ batch_execution_id }] }) =>
-      scriptsAPI.getRunScriptBatchSummaryV1({ batch_execution_id }),
+      scriptsAPI.getRunScriptBatchSummaryV2({ batch_execution_id }),
     {
       enabled: !!scriptBatchExecutionId && isRouteOk,
       ...DEFAULT_USE_QUERY_OPTIONS,

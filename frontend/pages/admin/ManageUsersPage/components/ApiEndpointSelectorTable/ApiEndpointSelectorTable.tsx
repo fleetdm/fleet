@@ -6,7 +6,6 @@ import React, {
   useRef,
   useEffect,
 } from "react";
-import { useQuery } from "react-query";
 import { Row } from "react-table";
 
 import Button from "components/buttons/Button";
@@ -16,12 +15,13 @@ import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon/Input
 import TableContainer from "components/TableContainer";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import Tag from "components/Tag";
+import useApiEndpoints from "hooks/useApiEndpoints";
 import {
   IApiEndpoint,
   IApiEndpointRef,
+  endpointFingerprint,
   endpointKey,
 } from "interfaces/api_endpoint";
-import apiEndpointsAPI from "services/entities/api_endpoints";
 
 const baseClass = "endpoint-selector-table";
 
@@ -146,12 +146,7 @@ const ApiEndpointSelectorTable = ({
   const [searchText, setSearchText] = useState("");
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
-  const { data: apiEndpoints, isLoading, error } = useQuery<
-    IApiEndpoint[],
-    Error
-  >(["api_endpoints"], () => apiEndpointsAPI.loadAll(), {
-    refetchOnWindowFocus: false,
-  });
+  const { data: apiEndpoints, isLoading, error } = useApiEndpoints();
 
   const allRows: IApiEndpointRow[] = useMemo(
     () =>
@@ -160,6 +155,17 @@ const ApiEndpointSelectorTable = ({
         id: endpointKey(ep),
       })),
     [apiEndpoints]
+  );
+
+  // Stored grants can spell a catalog endpoint differently (method case, path
+  // parameter names), so match them the way the server does.
+  const selectedFingerprints = useMemo(
+    () => new Set(selectedEndpoints.map(endpointFingerprint)),
+    [selectedEndpoints]
+  );
+  const isSelected = useCallback(
+    (ep: IApiEndpointRef) => selectedFingerprints.has(endpointFingerprint(ep)),
+    [selectedFingerprints]
   );
 
   // Filter search results: match search text and exclude already-selected,
@@ -171,7 +177,7 @@ const ApiEndpointSelectorTable = ({
     if (isEmpty(searchText)) return [];
     const query = normalizePath(searchText);
     return allRows
-      .filter((ep) => !selectedEndpoints.some((s) => endpointKey(s) === ep.id))
+      .filter((ep) => !isSelected(ep))
       .map((ep) => ({ ep, score: scoreEndpoint(ep, query) }))
       .filter(({ score }) => score > 0)
       .sort(
@@ -179,14 +185,11 @@ const ApiEndpointSelectorTable = ({
           b.score - a.score || pathDepth(a.ep.path) - pathDepth(b.ep.path)
       )
       .map(({ ep }) => ep);
-  }, [allRows, searchText, selectedEndpoints]);
+  }, [allRows, searchText, isSelected]);
 
   const selectedRows: IApiEndpointRow[] = useMemo(
-    () =>
-      allRows.filter((ep) =>
-        selectedEndpoints.some((s) => endpointKey(s) === ep.id)
-      ),
-    [allRows, selectedEndpoints]
+    () => allRows.filter(isSelected),
+    [allRows, isSelected]
   );
 
   // Close dropdown when clicking outside or pressing Escape
@@ -215,21 +218,19 @@ const ApiEndpointSelectorTable = ({
   const handleRowSelect = useCallback(
     (row: Row<IApiEndpointRow>) => {
       const { method, path } = row.original;
-      if (
-        !selectedEndpoints.some((s) => s.method === method && s.path === path)
-      ) {
+      if (!isSelected(row.original)) {
         onSelectionChange([...selectedEndpoints, { method, path }]);
       }
       setSearchText("");
     },
-    [selectedEndpoints, onSelectionChange]
+    [selectedEndpoints, onSelectionChange, isSelected]
   );
 
   const handleRowRemove = useCallback(
     (row: Row<IApiEndpointRow>) => {
-      const { method, path } = row.original;
+      const removed = endpointFingerprint(row.original);
       onSelectionChange(
-        selectedEndpoints.filter((s) => s.method !== method || s.path !== path)
+        selectedEndpoints.filter((s) => endpointFingerprint(s) !== removed)
       );
     },
     [selectedEndpoints, onSelectionChange]

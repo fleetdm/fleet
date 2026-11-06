@@ -501,9 +501,9 @@ type Datastore interface {
 	// HostLiteByIdentifier) that are prone to full-table scans. See the implementation for more details.
 	GetHostMDMIdentifiers(ctx context.Context, identifer string, teamFilter TeamFilter) ([]*HostMDMIdentifiers, error)
 
-	// ListIOSAndIPadOSToRefetch returns the UUIDs of iPhones/iPads that should be refetched (their details haven't been
-	// updated in the given `interval`).
-	ListIOSAndIPadOSToRefetch(ctx context.Context, refetchInterval time.Duration) (devices []AppleDevicesToRefetch, err error)
+	// ListIOSAndIPadOSToRefetch returns up to limit iPhones/iPads that should be refetched (their details haven't been
+	// updated in the given `interval`), longest-waiting first.
+	ListIOSAndIPadOSToRefetch(ctx context.Context, refetchInterval time.Duration, limit int) (devices []AppleDevicesToRefetch, err error)
 	// AddHostMDMCommands adds the provided MDM commands to the host to track which commands have been sent.
 	AddHostMDMCommands(ctx context.Context, commands []HostMDMCommand) error
 	// GetHostMDMCommands returns the MDM commands that have been sent to the host.
@@ -3333,9 +3333,6 @@ type Datastore interface {
 	// the script on the hosts. Note that it does not know about the `not_before` column on the jobs
 	// table and assumes it is being executed at the right time.
 	RunScheduledBatchActivity(ctx context.Context, executionID string) error
-
-	// BatchExecuteSummary returns the summary of a batch script execution
-	BatchExecuteSummary(ctx context.Context, executionID string) (*BatchActivity, error)
 
 	// CancelBatchScript cancels the execution of a batch script execution
 	CancelBatchScript(ctx context.Context, executionID string) error

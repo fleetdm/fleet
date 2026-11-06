@@ -1346,6 +1346,10 @@ type MDMConfig struct {
 	AndroidAgent     AndroidAgentConfig `yaml:"android_agent"`
 	AndroidBatchSize int                `yaml:"android_batch_size"`
 
+	// IOSIPadOSRefetchBatchSize caps how many iOS/iPadOS hosts the refetch
+	// cron sends refetch commands to per tick.
+	IOSIPadOSRefetchBatchSize int `yaml:"ios_ipados_refetch_batch_size"`
+
 	// AppleSCEPStaticChallengeEnabled controls whether static SCEP challenges are allowed alongside dynamic challenges.
 	AppleSCEPStaticChallengeEnabled bool `yaml:"apple_scep_static_challenge_enabled"`
 }
@@ -1375,6 +1379,14 @@ func (m MDMConfig) ValidateAndroidBatchSize(initFatal func(err error, msg string
 	if m.AndroidBatchSize < 0 {
 		initFatal(errors.New("mdm.android_batch_size must be non-negative (0 = no limit)"),
 			"Android MDM configuration")
+	}
+}
+
+// ValidateAppleIOSIPadOSRefetchBatchSize checks that the configured batch size is positive.
+func (m MDMConfig) ValidateAppleIOSIPadOSRefetchBatchSize(initFatal func(err error, msg string)) {
+	if m.IOSIPadOSRefetchBatchSize <= 0 {
+		initFatal(errors.New("mdm.ios_ipados_refetch_batch_size must be positive"),
+			"Apple MDM configuration")
 	}
 }
 
@@ -2352,6 +2364,8 @@ func (man Manager) addConfigs() {
 	man.hideConfig("mdm.android_agent.signing_sha256")
 	man.addConfigInt("mdm.android_batch_size", 100, "Maximum number of hosts per batch for Android MDM API operations (100 default; 0 = no limit)")
 	man.hideConfig("mdm.android_batch_size")
+	man.addConfigInt("mdm.ios_ipados_refetch_batch_size", 1000, "Maximum number of iOS/iPadOS hosts sent refetch commands per refetch cron tick (runs every minute)")
+	man.hideConfig("mdm.ios_ipados_refetch_batch_size")
 	man.addConfigBool("mdm.apple_scep_static_challenge_enabled", false, "Allows static SCEP challenges to be used alongside dynamic challenges for Apple MDM SCEP")
 
 	// Calendar integration
@@ -2763,6 +2777,7 @@ func (man Manager) LoadConfig() FleetConfig {
 				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),
 			},
 			AndroidBatchSize:                         man.getConfigInt("mdm.android_batch_size"),
+			IOSIPadOSRefetchBatchSize:                man.getConfigInt("mdm.ios_ipados_refetch_batch_size"),
 			AppleSCEPStaticChallengeEnabled:          man.getConfigBool("mdm.apple_scep_static_challenge_enabled"),
 			AppleCommandCleanupShortRetention:        man.getConfigDuration("mdm.apple_command_cleanup_short_retention"),
 			AppleCommandCleanupStandardRetention:     man.getConfigDuration("mdm.apple_command_cleanup_standard_retention"),

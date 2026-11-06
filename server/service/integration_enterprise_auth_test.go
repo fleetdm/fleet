@@ -445,9 +445,9 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	// A user with pre-configured roles can be created,
 	// see `tools/saml/users.php` for details.
 	// This user has the following configuration (the last two are ignored by Fleet):
-	//	- 'FLEET_JIT_USER_ROLE_TEAM_1' => 'admin',
+	//	- 'FLEET_JIT_USER_ROLE_FLEET_1' => 'admin',
 	//	- 'FLEET_JIT_USER_ROLE_GLOBAL' => 'null',
-	//	- 'FLEET_JIT_USER_ROLE_TEAM_2' => 'null',
+	//	- 'FLEET_JIT_USER_ROLE_FLEET_2' => 'null',
 	body = s.LoginSSOUser("sso_user_5_team_admin", "user123#")
 	require.Contains(t, body, "Redirecting to Fleet at  ...")
 	user5, err := s.ds.UserByEmail(context.Background(), "sso_user_5_team_admin@example.com")
@@ -463,7 +463,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	// see `tools/saml/users.php` for details.
 	// This user has the following configuration (all ignored by Fleet thus added as global observer):
 	//	- 'FLEET_JIT_USER_ROLE_GLOBAL' => 'null',
-	//	- 'FLEET_JIT_USER_ROLE_TEAM_1' => 'null',
+	//	- 'FLEET_JIT_USER_ROLE_FLEET_1' => 'null',
 	body = s.LoginSSOUser("sso_user_6_global_observer", "user123#")
 	require.Contains(t, body, "Redirecting to Fleet at  ...")
 	user6, err := s.ds.UserByEmail(context.Background(), "sso_user_6_global_observer@example.com")
