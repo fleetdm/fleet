@@ -659,15 +659,33 @@ func (ds *Datastore) insertAndroidHostLabelMembershipTx(ctx context.Context, tx 
 // BulkSetAndroidHostsUnenrolled sets all android hosts to unenrolled (for when
 // Android MDM is turned off for all Fleet).
 func (ds *Datastore) BulkSetAndroidHostsUnenrolled(ctx context.Context) error {
-	// installed_from_dep is also cleared because Android has no DEP/ABM equivalent (no "Pending" state).
-	_, err := ds.writer(ctx).ExecContext(ctx, `
+	// The Google unmark is queued with the unenrollment because callers may not retry, and
+	// an unqueued name would stay MANAGED in Google.
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// host_mdm is locked before the Google rows, as in the single-host unenroll, so the
+		// two can't deadlock.
+		// installed_from_dep is also cleared because Android has no DEP/ABM equivalent (no "Pending" state).
+		_, err := tx.ExecContext(ctx, `
 UPDATE host_mdm
 	SET server_url = '', mdm_id = NULL, enrolled = 0, installed_from_dep = 0
 	WHERE host_id IN (
 		SELECT id FROM hosts WHERE platform = 'android'
 	)`)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "set host_mdm to unenrolled for android hosts in bulk")
+		}
+		// Listing the hosts first keeps the unmark from locking every Google row.
+		var googleHostUUIDs []string
+		if err := sqlx.SelectContext(ctx, tx, &googleHostUUIDs, `
+			SELECT d.host_uuid FROM google_conditional_access_devices d
+			JOIN hosts h ON h.uuid = d.host_uuid
+			WHERE h.platform = 'android'`); err != nil {
+			return ctxerr.Wrap(ctx, err, "list android hosts registered with google")
+		}
+		return queueGoogleConditionalAccessUnmarkDB(ctx, tx, googleHostUUIDs)
+	})
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "set host_mdm to unenrolled for android hosts in bulk")
+		return err
 	}
 	// Delete all Android custom OS settings for unenrolled hosts.
 	// We do this in one query using a JOIN to avoid doing it one host at a time.
@@ -718,6 +736,9 @@ UPDATE host_mdm
 			_, err = tx.ExecContext(ctx, `DELETE FROM host_certificate_templates WHERE host_uuid = ?`, hostUUID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "delete certificate templates for unenrolled android host")
+			}
+			if err := queueGoogleConditionalAccessUnmarkDB(ctx, tx, []string{hostUUID}); err != nil {
+				return err
 			}
 		}
 		return nil

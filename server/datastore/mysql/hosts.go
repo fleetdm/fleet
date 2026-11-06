@@ -613,7 +613,6 @@ var hostRefs = []string{
 	"host_identity_scep_certificates",
 	"conditional_access_scep_certificates",
 	"host_conditional_access",
-	"host_google_device_ids",
 	// unlike for host_software_installs, where we use soft-delete so that
 	// existing activities can still access the installation details, this is not
 	// needed for in-house apps or vpp apps as the activity contains the MDM
@@ -760,6 +759,17 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 		if err != nil {
 			return err
 		}
+	}
+
+	// Only mobile hosts can register with Google conditional access.
+	var mobileUUIDs []string
+	for _, info := range hostInfos {
+		if fleet.IsMobilePlatform(info.Platform) {
+			mobileUUIDs = append(mobileUUIDs, info.UUID)
+		}
+	}
+	if err := queueGoogleConditionalAccessUnmarkDB(ctx, tx, mobileUUIDs); err != nil {
+		return err
 	}
 
 	stmt, args, err = sqlx.In(`DELETE FROM pack_targets WHERE type = ? AND target_id IN (?)`, fleet.TargetHost, hostIDs)
