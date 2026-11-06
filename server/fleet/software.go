@@ -938,6 +938,26 @@ type UpdateHostSoftwareDBResult struct {
 	Deleted []Software
 	// What software was inserted
 	Inserted []Software
+	// Preserved is the software kept as installed although absent from the reported list, see
+	// PreserveSoftwareSources.
+	Preserved []Software
+}
+
+// UpdateHostSoftwareOptions configures UpdateHostSoftware.
+type UpdateHostSoftwareOptions struct {
+	// PreserveSources lists software sources whose current rows stay installed even when absent
+	// from the reported software, because the query reporting them did not run.
+	PreserveSources []string
+}
+
+// UpdateHostSoftwareOption is a functional option for UpdateHostSoftware.
+type UpdateHostSoftwareOption func(*UpdateHostSoftwareOptions)
+
+// PreserveSoftwareSources keeps the host's current rows with these sources.
+func PreserveSoftwareSources(sources ...string) UpdateHostSoftwareOption {
+	return func(o *UpdateHostSoftwareOptions) {
+		o.PreserveSources = append(o.PreserveSources, sources...)
+	}
 }
 
 // CurrInstalled returns all software that should be currently installed on the host by looking at

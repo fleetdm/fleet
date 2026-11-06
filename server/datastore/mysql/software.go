@@ -141,7 +141,7 @@ func (ds *Datastore) expireWindowsFMAMatchesCache() {
 	ds.windowsFMAMatchesExpiry = time.Now().Add(-time.Second)
 }
 
-func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software, opts ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error) {
 	// OTEL instrumentation. It has no-op behavior when OTEL is not enabled.
 	ctx, span := tracer.Start(ctx, "mysql.UpdateHostSoftware",
 		trace.WithSpanKind(trace.SpanKindInternal),
@@ -151,7 +151,11 @@ func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, softwa
 		))
 	defer span.End()
 
-	return ds.applyChangesForNewSoftwareDB(ctx, hostID, software)
+	var options fleet.UpdateHostSoftwareOptions
+	for _, opt := range opts {
+		opt(&options)
+	}
+	return ds.applyChangesForNewSoftwareDB(ctx, hostID, software, options)
 }
 
 // MarkSoftwareAsAITool reads first and only updates the rows not yet flagged, so the hourly
@@ -262,6 +266,19 @@ func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 	hsip, err := ds.getHostSoftwareInstalledPaths(ctx, hostID)
 	if err != nil {
 		return err
+	}
+
+	// Preserved software was not reported this time, so its stored paths are left as they are
+	// rather than deleted for not being reported.
+	if mutationResults != nil && len(mutationResults.Preserved) > 0 {
+		preserved := make(map[uint]struct{}, len(mutationResults.Preserved))
+		for _, sw := range mutationResults.Preserved {
+			preserved[sw.ID] = struct{}{}
+		}
+		hsip = slices.DeleteFunc(hsip, func(p fleet.HostSoftwareInstalledPath) bool {
+			_, ok := preserved[p.SoftwareID]
+			return ok
+		})
 	}
 
 	toI, toU, toD, err := hostSoftwareInstalledPathsDelta(ctx, hostID, reported, hsip, currS, ds.logger)
@@ -729,6 +746,7 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 	ctx context.Context,
 	hostID uint,
 	incomingSoftware []fleet.Software,
+	opts fleet.UpdateHostSoftwareOptions,
 ) (*fleet.UpdateHostSoftwareDBResult, error) {
 	r := &fleet.UpdateHostSoftwareDBResult{}
 
@@ -745,6 +763,15 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 		return nil, ctxerr.Wrap(ctx, err, "loading current software for host")
 	}
 	r.WasCurrInstalled = currentSoftware
+
+	// Preserved rows are re-reported as the host already has them, so they are never deleted
+	// and, being unchanged, never written.
+	for _, sw := range currentSoftware {
+		if slices.Contains(opts.PreserveSources, sw.Source) {
+			r.Preserved = append(r.Preserved, sw)
+			incomingSoftware = append(incomingSoftware, sw)
+		}
+	}
 
 	current, incoming, noChanges := nothingChanged(currentSoftware, incomingSoftware, ds.minLastOpenedAtDiff)
 	if noChanges {

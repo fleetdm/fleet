@@ -22,6 +22,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/server"
@@ -1953,13 +1954,26 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 	svc.maybeDebugHost(ctx, host, results, statuses, messages, stats)
 
-	preProcessSoftwareResults(ctx, host, results, statuses, messages, osquery_utils.SoftwareOverrideQueries, svc.logger)
+	skippedSoftwareQueries := preProcessSoftwareResults(ctx, host, results, statuses, messages, osquery_utils.SoftwareOverrideQueries, svc.logger)
 
 	// Lazy-load detail query config only when a detail result is present, to avoid
 	// unnecessary HostFeatures/TeamMDMConfig/conditional access DB calls for payloads
 	// that only contain label, policy, or live-query results.
 	var detailConfig *hostDetailQueryConfig
 	var detailConfigFailed bool
+
+	// Only a batch carrying the main software query reaches the full replace that would delete
+	// the rows of a skipped orbit software query, and such a batch loads the config anyway.
+	if len(skippedSoftwareQueries) > 0 && hasMainSoftwareResults(results) {
+		cfg, err := svc.loadHostDetailQueryConfig(ctx, host)
+		if err != nil {
+			detailConfigFailed = true
+			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "loading host detail query config"))
+		} else {
+			detailConfig = cfg
+			ctx = osquery_utils.WithPreservedSoftwareSources(ctx, svc.preservedSoftwareSources(ctx, host, cfg, skippedSoftwareQueries))
+		}
+	}
 
 	var hostWithoutPolicies bool
 	for query, rows := range results {
@@ -2392,6 +2406,9 @@ func getFailingCalendarPolicies(policyResults map[uint]*bool, calendarPolicies [
 // any overrides that are set.
 // We do this to not grow the main software queries and to ingest
 // all software together (one direct ingest function for all software).
+//
+// It returns the names of the extra queries that did not execute successfully, for
+// preservedSoftwareSources.
 func preProcessSoftwareResults(
 	ctx context.Context,
 	host *fleet.Host,
@@ -2400,33 +2417,24 @@ func preProcessSoftwareResults(
 	messages map[string]string,
 	overrides map[string]osquery_utils.DetailQuery,
 	logger *slog.Logger,
-) {
-	vsCodeExtensionsExtraQuery := hostDetailQueryPrefix + "software_vscode_extensions"
-	preProcessSoftwareExtraResults(ctx, vsCodeExtensionsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+) (skipped []string) {
+	merge := func(name string, query osquery_utils.DetailQuery) {
+		if !preProcessSoftwareExtraResults(ctx, hostDetailQueryPrefix+name, host.ID, results, statuses, messages, query, logger) {
+			skipped = append(skipped, name)
+		}
+	}
 
-	pythonPackagesExtraQuery := hostDetailQueryPrefix + "software_python_packages"
-	preProcessSoftwareExtraResults(ctx, pythonPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
-	pythonPackagesWithUsersExtraQuery := hostDetailQueryPrefix + "software_python_packages_with_users_dir"
-	preProcessSoftwareExtraResults(ctx, pythonPackagesWithUsersExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
-
-	fleetdPacmanPackagesExtraQuery := hostDetailQueryPrefix + "software_linux_fleetd_pacman"
-	preProcessSoftwareExtraResults(ctx, fleetdPacmanPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
-
-	fleetdNixPackagesExtraQuery := hostDetailQueryPrefix + "software_linux_fleetd_nix"
-	preProcessSoftwareExtraResults(ctx, fleetdNixPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
-
-	jetbrainsPluginsExtraQuery := hostDetailQueryPrefix + "software_jetbrains_plugins"
-	preProcessSoftwareExtraResults(ctx, jetbrainsPluginsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
-
-	adobePluginsExtraQuery := hostDetailQueryPrefix + "software_adobe_plugins"
-	preProcessSoftwareExtraResults(ctx, adobePluginsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
-
-	goBinariesExtraQuery := hostDetailQueryPrefix + "software_go_binaries"
-	preProcessSoftwareExtraResults(ctx, goBinariesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+	merge("software_vscode_extensions", osquery_utils.DetailQuery{})
+	merge("software_python_packages", osquery_utils.DetailQuery{})
+	merge("software_python_packages_with_users_dir", osquery_utils.DetailQuery{})
+	merge("software_linux_fleetd_pacman", osquery_utils.DetailQuery{})
+	merge("software_linux_fleetd_nix", osquery_utils.DetailQuery{})
+	merge("software_jetbrains_plugins", osquery_utils.DetailQuery{})
+	merge("software_adobe_plugins", osquery_utils.DetailQuery{})
+	merge("software_go_binaries", osquery_utils.DetailQuery{})
 
 	for name, query := range overrides {
-		fullQueryName := hostDetailQueryPrefix + "software_" + name
-		preProcessSoftwareExtraResults(ctx, fullQueryName, host.ID, results, statuses, messages, query, logger)
+		merge("software_"+name, query)
 	}
 
 	// The flag lands on the software row shared by every host, so a host must not be able to set
@@ -2443,18 +2451,106 @@ func preProcessSoftwareResults(
 
 	// Merged last so every row it can flag is already present, including rows the overrides add
 	// or re-append.
-	aiToolsExtraQuery := hostDetailQueryPrefix + "software_ai_tools"
-	aiToolsMerge := osquery_utils.DetailQuery{
+	merge("software_ai_tools", osquery_utils.DetailQuery{
 		SoftwareProcessResults: func(mainRows, aiRows []map[string]string) []map[string]string {
 			return osquery_utils.AIToolsProcessResults(host.Platform, mainRows, aiRows)
 		},
-	}
-	preProcessSoftwareExtraResults(ctx, aiToolsExtraQuery, host.ID, results, statuses, messages, aiToolsMerge, logger)
+	})
 
 	// Filter out python packages that are also deb packages on ubuntu/debian
 	pythonPackageFilter(host.Platform, results, statuses)
 
 	updateFleetdVersion(host.Platform, results)
+	return skipped
+}
+
+// orbitSoftwareQuery is an extra software query backed by a fleetd table that reports sources no
+// other query does. Its discovery finds no table while fleetd's extension is not registered with
+// osqueryd, as on the first detail query run after a reboot, so osquery sends nothing for it and
+// the full replace in directIngestSoftware would read that as "none installed".
+type orbitSoftwareQuery struct {
+	sources []string
+	// minFleetdVersion is the fleetd release that added the table: an older fleetd never ran
+	// the query, so there is nothing to keep.
+	minFleetdVersion *semver.Version
+}
+
+// orbitSoftwareQueries lists the queries whose rows are kept when the query did not run, keyed
+// by detail query name. The ai_tools pseudo-source rows are never stored and rows it flags on
+// other sources survive on their own, so only the sources it alone reports are listed.
+var orbitSoftwareQueries = map[string]orbitSoftwareQuery{
+	"software_ai_tools": {
+		sources:          []string{"ai_clis", "mcp_servers", "ai_skills"},
+		minFleetdVersion: semver.MustParse("1.59.0"),
+	},
+}
+
+// preservedSoftwareSources returns the software sources this batch's software ingestion must
+// keep: those of the skipped orbit software queries that were sent to the host and whose table
+// the host's last reported fleetd ships. The version comes from host_orbit_info rather than the
+// batch, since orbit_info is itself an orbit table and misses the same batches.
+func (svc *Service) preservedSoftwareSources(ctx context.Context, host *fleet.Host, cfg *hostDetailQueryConfig, skipped []string) []string {
+	var candidates []string
+	for _, name := range skipped {
+		if _, ok := orbitSoftwareQueries[name]; !ok {
+			continue
+		}
+		if dq, sent := cfg.detailQueries[name]; sent && dq.RunsForPlatform(host.Platform) {
+			candidates = append(candidates, name)
+		}
+	}
+	if len(candidates) == 0 {
+		return nil
+	}
+
+	info, err := svc.ds.GetHostOrbitInfo(ctx, host.ID)
+	if err != nil {
+		if !fleet.IsNotFound(err) {
+			svc.logger.ErrorContext(ctx, "reading host orbit info", "host_id", host.ID, "err", err)
+		}
+		return nil
+	}
+	fleetdVersion, err := fleet.VersionToSemverVersion(info.Version)
+	if err != nil {
+		svc.logger.DebugContext(ctx, "unparseable fleetd version", "host_id", host.ID, "version", info.Version)
+		return nil
+	}
+
+	var kept, sources []string
+	for _, name := range candidates {
+		oq := orbitSoftwareQueries[name]
+		if fleetdVersion.LessThan(oq.minFleetdVersion) {
+			continue
+		}
+		kept = append(kept, name)
+		sources = append(sources, oq.sources...)
+	}
+	if len(kept) > 0 {
+		svc.logger.InfoContext(ctx, "orbit software queries did not run, keeping previously reported rows",
+			"queries", kept,
+			"sources", sources,
+			"fleetd_version", info.Version,
+			"host_id", host.ID,
+		)
+	}
+	return sources
+}
+
+// mainSoftwareQueries are the software queries whose results reach directIngestSoftware. Only
+// one of them runs on each host.
+var mainSoftwareQueries = []string{
+	hostDetailQueryPrefix + "software_macos",
+	hostDetailQueryPrefix + "software_windows",
+	hostDetailQueryPrefix + "software_linux",
+}
+
+func hasMainSoftwareResults(results fleet.OsqueryDistributedQueryResults) bool {
+	for _, query := range mainSoftwareQueries {
+		if _, ok := results[query]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 // updateFleetdVersion updates the version of the fleetd package using the orbit version from the orbit_info table for Linux hosts.
@@ -2571,6 +2667,8 @@ func pythonPackageFilter(platform string, results fleet.OsqueryDistributedQueryR
 	results[linuxSoftware] = sw
 }
 
+// preProcessSoftwareExtraResults reports whether the extra query executed successfully on the
+// host, which is false when it did not run at all (no status) or ran with errors.
 func preProcessSoftwareExtraResults(
 	ctx context.Context,
 	softwareExtraQuery string,
@@ -2580,14 +2678,14 @@ func preProcessSoftwareExtraResults(
 	messages map[string]string,
 	override osquery_utils.DetailQuery,
 	logger *slog.Logger,
-) {
+) (executed bool) {
 	// We always remove the extra query and its results
 	// in case the main or extra software query failed to execute.
 	defer delete(results, softwareExtraQuery)
 
 	status, ok := statuses[softwareExtraQuery]
 	if !ok {
-		return // query did not execute, e.g. the table does not exist.
+		return false // query did not execute, e.g. the table does not exist.
 	}
 	failed := status != fleet.StatusOK
 	if failed {
@@ -2598,22 +2696,17 @@ func preProcessSoftwareExtraResults(
 			"message", messages[softwareExtraQuery],
 			"hostID", hostID,
 		)
-		return
+		return false
 	}
 
 	// Extract the results of the extra query.
 	softwareExtraRows := results[softwareExtraQuery]
 	if len(softwareExtraRows) == 0 {
-		return
+		return true
 	}
 
 	// Append the results of the extra query to the main query.
-	for _, query := range []string{
-		// Only one of these execute in each host.
-		hostDetailQueryPrefix + "software_macos",
-		hostDetailQueryPrefix + "software_windows",
-		hostDetailQueryPrefix + "software_linux",
-	} {
+	for _, query := range mainSoftwareQueries {
 		if _, ok := results[query]; !ok {
 			continue
 		}
@@ -2627,8 +2720,9 @@ func preProcessSoftwareExtraResults(
 			results[query] = removeOverrides(results[query], override)
 			results[query] = append(results[query], softwareExtraRows...)
 		}
-		return
+		return true
 	}
+	return true
 }
 
 func removeOverrides(rows []map[string]string, override osquery_utils.DetailQuery) []map[string]string {

@@ -3176,7 +3176,7 @@ func TestDetailQueries(t *testing.T) {
 		return nil
 	}
 	var gotSoftware []fleet.Software
-	ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+	ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software, _ ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error) {
 		if hostID != 1 {
 			return nil, errors.New("not found")
 		}
@@ -5605,6 +5605,9 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		overrides  map[string]osquery_utils.DetailQuery
 
 		resultsExpected fleet.OsqueryDistributedQueryResults
+		// extra query names expected in, and absent from, the returned skipped list
+		skipped []string
+		ran     []string
 	}{
 		{
 			name: "python packages using original query in extras adds results",
@@ -6333,6 +6336,64 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "ai_tools discovery found no table: no status, the query is skipped",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Safari", "version": "18.0", "source": "apps", "installed_path": "/Applications/Safari.app"},
+				},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Safari", "version": "18.0", "source": "apps", "installed_path": "/Applications/Safari.app"},
+				},
+			},
+			skipped: []string{"software_ai_tools"},
+		},
+		{
+			name: "ai_tools query failed: the query is skipped",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":    fleet.StatusOK,
+				hostDetailQueryPrefix + "software_ai_tools": 1,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Safari", "version": "18.0", "source": "apps", "installed_path": "/Applications/Safari.app"},
+				},
+				hostDetailQueryPrefix + "software_ai_tools": []map[string]string{},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Safari", "version": "18.0", "source": "apps", "installed_path": "/Applications/Safari.app"},
+				},
+			},
+			skipped: []string{"software_ai_tools"},
+		},
+		{
+			name: "ai_tools query ran and found nothing: the query is not skipped",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":    fleet.StatusOK,
+				hostDetailQueryPrefix + "software_ai_tools": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Safari", "version": "18.0", "source": "apps", "installed_path": "/Applications/Safari.app"},
+				},
+				hostDetailQueryPrefix + "software_ai_tools": []map[string]string{},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Safari", "version": "18.0", "source": "apps", "installed_path": "/Applications/Safari.app"},
+				},
+			},
+			ran: []string{"software_ai_tools"},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			host := &fleet.Host{ID: 1}
@@ -6340,8 +6401,122 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				host = tc.host
 			}
 			// mutates tc.resultsIn
-			preProcessSoftwareResults(t.Context(), host, tc.resultsIn, tc.statusesIn, tc.messagesIn, tc.overrides, slog.New(slog.DiscardHandler))
+			skipped := preProcessSoftwareResults(t.Context(), host, tc.resultsIn, tc.statusesIn, tc.messagesIn, tc.overrides, slog.New(slog.DiscardHandler))
 			require.Equal(t, tc.resultsExpected, tc.resultsIn)
+			for _, name := range tc.skipped {
+				require.Contains(t, skipped, name)
+			}
+			for _, name := range tc.ran {
+				require.NotContains(t, skipped, name)
+			}
+		})
+	}
+}
+
+func TestPreservedSoftwareSources(t *testing.T) {
+	aiSources := []string{"ai_clis", "mcp_servers", "ai_skills"}
+	sentToMacOS := &hostDetailQueryConfig{detailQueries: map[string]osquery_utils.DetailQuery{
+		"software_ai_tools": {Platforms: []string{"darwin"}},
+	}}
+	notSent := &hostDetailQueryConfig{detailQueries: map[string]osquery_utils.DetailQuery{}}
+
+	for _, tc := range []struct {
+		name          string
+		cfg           *hostDetailQueryConfig
+		platform      string
+		skipped       []string
+		orbitInfo     *fleet.HostOrbitInfo
+		orbitInfoErr  error
+		expected      []string
+		expectLookup  bool
+		expectLogging bool
+	}{
+		{
+			name:     "nothing skipped",
+			cfg:      sentToMacOS,
+			platform: "darwin",
+			skipped:  nil,
+		},
+		{
+			name:     "a skipped query no fleetd table backs",
+			cfg:      sentToMacOS,
+			platform: "darwin",
+			skipped:  []string{"software_vscode_extensions"},
+		},
+		{
+			name:     "the query was not sent to the host",
+			cfg:      notSent,
+			platform: "darwin",
+			skipped:  []string{"software_ai_tools"},
+		},
+		{
+			name:     "the query does not run on the host's platform",
+			cfg:      sentToMacOS,
+			platform: "chrome",
+			skipped:  []string{"software_ai_tools"},
+		},
+		{
+			name:         "host without fleetd",
+			cfg:          sentToMacOS,
+			platform:     "darwin",
+			skipped:      []string{"software_ai_tools"},
+			orbitInfoErr: newNotFoundError(),
+			expectLookup: true,
+		},
+		{
+			name:         "fleetd version cannot be parsed",
+			cfg:          sentToMacOS,
+			platform:     "darwin",
+			skipped:      []string{"software_ai_tools"},
+			orbitInfo:    &fleet.HostOrbitInfo{Version: "dev"},
+			expectLookup: true,
+		},
+		{
+			name:         "fleetd older than the table",
+			cfg:          sentToMacOS,
+			platform:     "darwin",
+			skipped:      []string{"software_ai_tools"},
+			orbitInfo:    &fleet.HostOrbitInfo{Version: "1.58.2"},
+			expectLookup: true,
+		},
+		{
+			name:          "fleetd that shipped the table",
+			cfg:           sentToMacOS,
+			platform:      "darwin",
+			skipped:       []string{"software_vscode_extensions", "software_ai_tools"},
+			orbitInfo:     &fleet.HostOrbitInfo{Version: "1.59.0"},
+			expected:      aiSources,
+			expectLookup:  true,
+			expectLogging: true,
+		},
+		{
+			name:          "newer fleetd",
+			cfg:           sentToMacOS,
+			platform:      "darwin",
+			skipped:       []string{"software_ai_tools"},
+			orbitInfo:     &fleet.HostOrbitInfo{Version: "1.62.1"},
+			expected:      aiSources,
+			expectLookup:  true,
+			expectLogging: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.GetHostOrbitInfoFunc = func(ctx context.Context, hostID uint) (*fleet.HostOrbitInfo, error) {
+				return tc.orbitInfo, tc.orbitInfoErr
+			}
+			var logs bytes.Buffer
+			svc := &Service{ds: ds, logger: slog.New(slog.NewTextHandler(&logs, nil))}
+			host := &fleet.Host{ID: 1, Platform: tc.platform}
+
+			got := svc.preservedSoftwareSources(t.Context(), host, tc.cfg, tc.skipped)
+			require.Equal(t, tc.expected, got)
+			require.Equal(t, tc.expectLookup, ds.GetHostOrbitInfoFuncInvoked)
+			if tc.expectLogging {
+				require.Contains(t, logs.String(), "keeping previously reported rows")
+			} else {
+				require.NotContains(t, logs.String(), "keeping previously reported rows")
+			}
 		})
 	}
 }
