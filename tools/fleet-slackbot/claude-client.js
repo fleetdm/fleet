@@ -9,6 +9,13 @@ const SYSTEM_PROMPT = require("./system-prompt");
 // var or the `maxToolCalls` constructor option.
 const DEFAULT_MAX_TOOL_CALLS = 100;
 
+// Config-change responses carry complete file contents, so large changes need
+// far more room than a typical answer.
+const MAX_OUTPUT_TOKENS = 64000;
+
+const TRUNCATED_RESPONSE_MESSAGE =
+  "The response was too long to finish, so nothing was changed. Try splitting the request into smaller changes.";
+
 class ClaudeClient {
   constructor({ apiKey, model, mcpClient, maxToolCalls }) {
     this.client = new Anthropic({ apiKey, timeout: 10 * 60 * 1000 });
@@ -48,6 +55,7 @@ class ClaudeClient {
       }
 
       // Check stop reason: "end_turn" = done, "pause_turn" = server tool limit hit, "tool_use" = client tools needed
+      this._assertNotTruncated(response);
       if (response.stop_reason === "end_turn") {
         const text = response.content
           .filter((b) => b.type === "text")
@@ -137,6 +145,7 @@ class ClaudeClient {
     const finalResponse = await this._streamMessage(messages, tools, onText, {
       toolChoice: { type: "none" },
     });
+    this._assertNotTruncated(finalResponse);
     return finalResponse.content
       .filter((b) => b.type === "text")
       .map((b) => b.text)
@@ -155,7 +164,7 @@ class ClaudeClient {
   async _streamMessage(messages, tools, onText, options = {}) {
     const params = {
       model: this.model,
-      max_tokens: 16000,
+      max_tokens: MAX_OUTPUT_TOKENS,
       system: SYSTEM_PROMPT,
       messages,
     };
@@ -189,6 +198,14 @@ class ClaudeClient {
     );
 
     return response;
+  }
+
+  // A truncated response is never safe to use: a cut-off config change would
+  // otherwise be posted to Slack as raw JSON.
+  _assertNotTruncated(response) {
+    if (response.stop_reason === "max_tokens") {
+      throw new Error(TRUNCATED_RESPONSE_MESSAGE);
+    }
   }
 
   // ──────────────────────────────────────────────────
@@ -265,6 +282,9 @@ class ClaudeClient {
     try {
       data = this._tryParseJson(text);
     } catch {
+      if (/"(pr_title|pr_body|changes)"\s*:/.test(text)) {
+        throw new Error("Claude returned a config change that could not be parsed");
+      }
       // Not JSON — treat as informational response
       return { type: "info", text };
     }
@@ -324,4 +344,5 @@ class ClaudeClient {
 }
 
 ClaudeClient.DEFAULT_MAX_TOOL_CALLS = DEFAULT_MAX_TOOL_CALLS;
+ClaudeClient.TRUNCATED_RESPONSE_MESSAGE = TRUNCATED_RESPONSE_MESSAGE;
 module.exports = ClaudeClient;

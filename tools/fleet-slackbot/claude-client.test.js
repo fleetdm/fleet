@@ -234,3 +234,41 @@ test("ClaudeClient maxToolCalls defaults to DEFAULT_MAX_TOOL_CALLS and accepts o
     assert.equal(c.maxToolCalls, ClaudeClient.DEFAULT_MAX_TOOL_CALLS);
   }
 });
+
+test("runAgentLoop throws instead of returning a response cut off by max_tokens", async () => {
+  const client = new ClaudeClient({
+    apiKey: "test",
+    model: "claude-test",
+    mcpClient: { getAnthropicTools: () => [] },
+  });
+  client.client = {
+    messages: {
+      stream() {
+        return makeStreamingResponse("max_tokens", [
+          { type: "text", text: '{"summary": "Adds a policy", "pr_title": "Add' },
+        ]);
+      },
+    },
+  };
+
+  await assert.rejects(client.runAgentLoop("Add a policy"), {
+    message: ClaudeClient.TRUNCATED_RESPONSE_MESSAGE,
+  });
+});
+
+test("_parseResponse throws on an unparseable config change instead of treating it as info", () => {
+  const client = new ClaudeClient({
+    apiKey: "test",
+    model: "claude-test",
+    mcpClient: { getAnthropicTools: () => [] },
+  });
+
+  assert.throws(
+    () => client._parseResponse('{"summary": "Adds a policy", "pr_title": "Add policy", "changes": [{"file_path": "a.yml"'),
+    /could not be parsed/
+  );
+  assert.deepEqual(client._parseResponse("There are 42 macOS hosts."), {
+    type: "info",
+    text: "There are 42 macOS hosts.",
+  });
+});
