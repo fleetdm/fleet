@@ -607,6 +607,66 @@ CREATE TABLE `host_additional` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `host_ai_session_events` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `ai_session_id` bigint unsigned NOT NULL,
+  `tool_call_index` int unsigned NOT NULL,
+  `action` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `target` varchar(256) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `decision` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `executed_at` datetime(6) DEFAULT NULL,
+  `payload` json NOT NULL,
+  `content_length` int unsigned NOT NULL DEFAULT '0',
+  `truncated` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_host_ai_session_events_session_call` (`ai_session_id`,`tool_call_index`),
+  CONSTRAINT `fk_host_ai_session_events_ai_session_id` FOREIGN KEY (`ai_session_id`) REFERENCES `host_ai_sessions` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `host_ai_sessions` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `host_id` int unsigned NOT NULL,
+  `agent` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `agent_session_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `agent_version` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `username` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `account_identifier` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `model` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `project_path` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `git_repository` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `git_branch` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `started_at` datetime(6) DEFAULT NULL,
+  `ended_at` datetime(6) DEFAULT NULL,
+  `user_message_count` int unsigned NOT NULL DEFAULT '0',
+  `assistant_message_count` int unsigned NOT NULL DEFAULT '0',
+  `tool_call_count` int unsigned NOT NULL DEFAULT '0',
+  `input_token_count` bigint unsigned NOT NULL DEFAULT '0',
+  `output_token_count` bigint unsigned NOT NULL DEFAULT '0',
+  `cache_read_token_count` bigint unsigned NOT NULL DEFAULT '0',
+  `cache_write_token_count` bigint unsigned NOT NULL DEFAULT '0',
+  `actions` set('read','write','execute','search','network','mcp','other') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `transcript_path` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `transcript_size` bigint unsigned NOT NULL DEFAULT '0',
+  `backfill` tinyint(1) NOT NULL DEFAULT '0',
+  `event_count` int unsigned NOT NULL DEFAULT '0',
+  `first_undecided_tool_call_index` int unsigned DEFAULT NULL,
+  `events_ended_at` datetime(6) DEFAULT NULL,
+  `events_empty_reads` tinyint unsigned NOT NULL DEFAULT '0',
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_host_ai_sessions_host_agent_session` (`host_id`,`agent`,`agent_session_id`),
+  KEY `idx_host_ai_sessions_host_ended_at` (`host_id`,`ended_at`),
+  KEY `idx_host_ai_sessions_started_at` (`started_at`),
+  KEY `idx_host_ai_sessions_updated_at_started_at` (`updated_at`,`started_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `host_android_software_installs` (
   `host_id` int unsigned NOT NULL,
   `adam_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
