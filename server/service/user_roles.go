@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"gopkg.in/guregu/null.v3"
 )
@@ -64,7 +66,25 @@ func (svc *Service) ApplyUserRolesSpecs(ctx context.Context, specs fleet.UsersRo
 		users = append(users, user)
 	}
 
-	return svc.ds.SaveUsers(ctx, users)
+	previous, err := svc.ds.SaveUsers(ctx, users)
+	if err != nil {
+		return err
+	}
+
+	// Spec keys that differ only in case resolve to one user, and the last entry saved wins.
+	saved := make(map[uint]*fleet.User, len(users))
+	for _, user := range users {
+		saved[user.ID] = user
+	}
+
+	adminUser := authz.UserFromContext(ctx)
+	for id, user := range saved {
+		old := previous[id]
+		if err := fleet.LogRoleChangeActivities(ctx, svc, adminUser, old.GlobalRole, old.Teams, user, false); err != nil {
+			return ctxerr.Wrap(ctx, err, "log activities for role change")
+		}
+	}
+	return nil
 }
 
 func (svc *Service) checkAtLeastOneAdmin(ctx context.Context, user *fleet.User, spec *fleet.UserRoleSpec, email string) error {
