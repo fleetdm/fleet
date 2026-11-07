@@ -1,0 +1,53 @@
+<Replace>
+  <!-- CIS 18.10.10.1.2–1.9 Fixed data drive recovery options
+       18.10.10.1.1 Deny access from earlier Windows versions (sub-setting; no direct CSP)
+       18.10.10.1.2 Configure recovery options
+       18.10.10.1.3 Allow data recovery agent: True
+       18.10.10.1.4 Allow 48-digit recovery password
+       18.10.10.1.5 Allow 256-bit recovery key
+       18.10.10.1.6 Omit recovery options from wizard: True
+       18.10.10.1.7 Save to AD DS: False
+       18.10.10.1.8 Backup recovery passwords and key packages: Store passwords and key packages
+       18.10.10.1.9 Do not enable BitLocker until recovery info stored: False -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/BitLocker/FixedDrivesRecoveryOptions</LocURI>
+    </Target>
+    <Data><![CDATA[<enabled/>
+<data id="FDVAllowDRA_Name" value="true"/>
+<data id="FDVRecoveryPasswordUsageDropDown_Name" value="2"/>
+<data id="FDVRecoveryKeyUsageDropDown_Name" value="2"/>
+<data id="FDVHideRecoveryPage_Name" value="true"/>
+<data id="FDVActiveDirectoryBackup_Name" value="false"/>
+<data id="FDVActiveDirectoryBackupDropDown_Name" value="1"/>
+<data id="FDVRequireActiveDirectoryBackup_Name" value="false"/>]]></Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 18.10.10.1.10 Disable hardware encryption for fixed drives (use software encryption) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/BitLocker/FixedDrivesEncryptionType</LocURI>
+    </Target>
+    <Data><![CDATA[<enabled/><data id="FDVEncryptionType_Name" value="1"/>]]></Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 18.10.10.1.11 Disable passwords for fixed drives (require encryption) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/BitLocker/FixedDrivesRequireEncryption</LocURI>
+    </Target>
+    <Data><![CDATA[<enabled/>]]></Data>
+  </Item>
+</Replace>
+<!-- CIS 18.10.10.1.12–1.13 Enable smart cards and require them for fixed drives: no direct BitLocker CSP equivalent -->

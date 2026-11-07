@@ -1,0 +1,36 @@
+<Replace>
+  <!-- ES-004: SmartScreen - Enable SmartScreen (value 1 = enabled) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/SmartScreen/EnableSmartScreenInShell</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- ES-004: SmartScreen - Prevent Override for Files -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/SmartScreen/PreventOverrideForFilesInShell</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- ES-004: SmartScreen - Enable App Install Control -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/SmartScreen/EnableAppInstallControl</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
