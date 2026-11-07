@@ -91,6 +91,9 @@ ANDROID_PREMIUM = {"systemUpdate"}
 SQL_ALIAS_STOPWORDS = {"where", "on", "join", "left", "right", "inner", "cross", "natural", "outer", "group", "order",
                        "limit", "union", "using", "having", "and", "or", "not", "as", "set", "when", "then", "else",
                        "end", "select", "from", "values", "intersect", "except", "with"}
+# osquery bundles SQLite 3.42 (no jsonb_*), and its authorizer only allows these pragmas.
+SQLITE_TABLE_FUNCTIONS = {"json_each", "json_tree", "pragma_table_info", "pragma_table_xinfo", "pragma_function_list",
+                          "pragma_collation_list"}
 
 
 # ---------------------------------------------------------------- reporting
@@ -100,7 +103,7 @@ class Ctx:
         self.root = root
         self.offline = offline
         self.ddf_dir = ddf_dir
-        self.findings = []  # (level, relpath, message)
+        self.findings = set()  # (level, relpath, message); a file referenced from several fleet files is checked once per reference
         self.yaml_cache = {}
         self.yaml_backend = detect_yaml_backend()
         self._schema = None
@@ -121,7 +124,7 @@ class Ctx:
             return str(p)
 
     def add(self, level, path, msg):
-        self.findings.append((level, self.rel(path) if path else "", msg))
+        self.findings.add((level, self.rel(path) if path else "", msg))
 
     def fail(self, path, msg):
         self.add("FAIL", path, msg)
@@ -434,23 +437,47 @@ def strip_sql(sql):
     return sql
 
 
+def move_table_function_args(s):
+    """Move SQLite table-valued function arguments to the end of s.
+
+    A call's parentheses would end the comma-separated source list, hiding the sources after it. Keeping the
+    arguments means a subquery inside them is still checked. The ";" separators keep an argument from reading as an
+    alias of the query's last source."""
+    call = re.compile(r"(?i)\b(?:" + "|".join(SQLITE_TABLE_FUNCTIONS) + r")\s*\(")
+    args = []
+    while True:
+        m = call.search(s)
+        if not m:
+            return s + "".join(" ; " + a for a in args)
+        depth = 0
+        for end in range(m.end() - 1, len(s)):
+            depth += {"(": 1, ")": -1}.get(s[end], 0)
+            if depth == 0:
+                break
+        args.append(s[m.end():end])
+        s = s[:m.end() - 1] + " " + s[end + 1:]
+
+
 def extract_tables(sql):
-    """Return {table_name: {aliases}} for every FROM/JOIN source that isn't a CTE or subquery."""
-    s = strip_sql(sql)
-    ctes = {m.group(1).lower() for m in re.finditer(r"(?i)\b([a-z_][a-z0-9_]*)\s+AS\s*\(\s*SELECT", s)}
+    """Return {table_name: {aliases}} for every FROM/JOIN source that isn't a CTE, subquery, or SQLite table-valued function."""
+    s = move_table_function_args(strip_sql(sql))
+    # A CTE may have a column list and a VALUES body: setting(name, guid) AS (VALUES ...). Requiring the body keyword
+    # keeps named windows (WINDOW w AS (PARTITION BY ...)) out.
+    ctes = {m.group(1).lower() for m in re.finditer(
+        r"(?i)\b([a-z_][a-z0-9_]*)(?:\s*\([^()]*\))?\s+AS\s*(?:NOT\s+)?(?:MATERIALIZED\s*)?\(\s*(?:SELECT|VALUES|WITH)\b", s)}
     tables = {}
-    pattern = re.compile(r"(?i)\b(FROM|JOIN)\s+([a-z_][a-z0-9_]*)(?:\s+(?:AS\s+)?([a-z_][a-z0-9_]*))?"
-                         r"((?:\s*,\s*[a-z_][a-z0-9_]*(?:\s+(?:AS\s+)?[a-z_][a-z0-9_]*)?)*)")
+    # A keyword can't be an alias, or the JOIN in "FROM a JOIN b" would be consumed and b never checked.
+    alias_re = r"(?:\s+(?:AS\s+)?(?!(?:" + "|".join(sorted(SQL_ALIAS_STOPWORDS)) + r")\b)([a-z_][a-z0-9_]*))?"
+    pattern = re.compile(r"(?i)\b(FROM|JOIN)\s+([a-z_][a-z0-9_]*)" + alias_re
+                         + r"((?:\s*,\s*[a-z_][a-z0-9_]*" + alias_re + r")*)")
     for m in pattern.finditer(s):
         sources = [(m.group(2), m.group(3))]
-        for extra in re.finditer(r",\s*([a-z_][a-z0-9_]*)(?:\s+(?:AS\s+)?([a-z_][a-z0-9_]*))?", m.group(4) or "", re.I):
+        for extra in re.finditer(r",\s*([a-z_][a-z0-9_]*)" + alias_re, m.group(4) or "", re.I):
             sources.append((extra.group(1), extra.group(2)))
         for name, alias in sources:
             name = name.lower()
-            if name in ctes:
+            if name in ctes or name in SQLITE_TABLE_FUNCTIONS:
                 continue
-            if alias and alias.lower() in SQL_ALIAS_STOPWORDS:
-                alias = None
             tables.setdefault(name, set())
             if alias:
                 tables[name].add(alias.lower())
