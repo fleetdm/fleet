@@ -1,0 +1,10 @@
+vulnProcessing:
+  dedicated: true
+  nodeSelector:
+    example.com/node-pool: batch
+  tolerations:
+    - key: example.com/batch
+      operator: Equal
+      value: "true"
+      effect: NoSchedule
+  affinity: {}
