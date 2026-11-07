@@ -505,9 +505,6 @@ func TestReleaseVPPSeatUsesRecordedToken(t *testing.T) {
 
 	newSvc := func() (*Service, *mock.Store) {
 		ds := new(mock.Store)
-		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
-			return nil, common_mysql.NotFound("HostMDM")
-		}
 		ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, id string) (*fleet.NanoEnrollment, error) {
 			return &fleet.NanoEnrollment{ID: id, DeviceID: id, Type: "Device", Enabled: true}, nil
 		}
