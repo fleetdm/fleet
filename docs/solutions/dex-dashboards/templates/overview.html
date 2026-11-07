@@ -1,0 +1,224 @@
+<title>DEX overview</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Code+Pro:wght@400;500&display=swap">
+<style>
+/*__BASE_CSS__*/
+/* Cards share subgrid rows, so titles, numbers, and detail rows line up across a row of cards. */
+.dashes { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.dash { display: grid; grid-row: span 3; grid-template-rows: subgrid; gap: 16px; }
+.dash > * { min-width: 0; }
+.dash h3 { margin: 0 0 4px; font-size: 16px; }
+.dash h3 a { color: var(--ink); }
+.dash h3 a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.dash h3 a span { color: var(--ink-2); font-weight: 400; margin-left: 4px; }
+.dash .about { margin: 0; color: var(--ink-2); }
+.dash .big { margin-top: 2px; }
+.dash.wide { grid-column: 1 / -1; grid-row: auto; grid-template-rows: none; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 32px; }
+.dash.wide > :first-child { grid-column: 1 / -1; }
+.spark { margin-top: 12px; }
+.spark-axis { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-2); margin-top: 2px; }
+.spark-empty { height: 48px; margin-top: 12px; display: flex; align-items: center; justify-content: center; text-align: center;
+  font-size: 12px; color: var(--ink-2); background: var(--panel-2); border-radius: 4px; padding: 0 12px; }
+.spark-empty + .spark-axis { visibility: hidden; }
+@media (max-width: 700px) {
+  .dash.wide { grid-template-columns: minmax(0, 1fr); }
+}
+</style>
+
+<div class="wrap">
+  <header class="top" id="top"></header>
+  <div class="title-row">
+    <div>
+      <h1>DEX overview</h1>
+      <p class="subtitle">How your computers are doing across every DEX dashboard: hardware, software, patching, AI tools, connectivity, energy, and policies. Each card sums up one dashboard. Open it for the computers behind the numbers.</p>
+    </div>
+  </div>
+  <section class="hero" id="hero" aria-label="Summary"></section>
+
+  <section class="sec" aria-labelledby="dash-h">
+    <div class="sec-head">
+      <h2 id="dash-h">Dashboards</h2>
+      <span class="hint">Today's numbers, with the last 30 days under each. Dashboards open in a new tab.</span>
+    </div>
+    <div class="dashes" id="dashes"></div>
+  </section>
+
+  <p class="foot" id="foot"></p>
+</div>
+
+<script>window.__DATA__=/*__DATA__*/null;</script>
+<script>
+/*__BASE_JS__*/
+</script>
+<script>
+const splitKey = (k) => { const i = k.lastIndexOf("|"); return [k.slice(0, i), k.slice(i + 1)]; };
+const selected = (k) => { const [f, p] = splitKey(k); return inFleet(f) && inPlatform(p); };
+const fleets = [...new Set(Object.keys(DATA.hosts).map((k) => splitKey(k)[0]))].sort();
+const platformCounts = {};
+for (const [k, n] of Object.entries(DATA.hosts)) platformCounts[splitKey(k)[1]] = (platformCounts[splitKey(k)[1]] || 0) + n;
+
+const today = DATA.generated_at.slice(0, 10);
+const daysAgo = (n) => new Date(Date.parse(today + "T00:00:00Z") - n * 864e5).toISOString().slice(0, 10);
+// A page's history can be younger than the window, like on that page.
+const windowLabel = (page, days) => {
+  const since = DATA.pages[page].since;
+  return since && since > daysAgo(days) ? `since ${shortDate(since + "T00:00:00Z")}` : `last ${days} days`;
+};
+const kwhFmt = (x) => (x == null ? "---" : x >= 100 ? fmt.n(Math.round(x)) : x >= 10 ? (Math.round(x * 10) / 10).toString() : (Math.round(x * 100) / 100).toString());
+const kgFmt = (g) => (g == null ? "---" : g >= 10000 ? `${fmt.n(Math.round(g / 1000))} kg` : g >= 1000 ? `${Math.round(g / 100) / 10} kg` : `${Math.round(g)} g`);
+
+// One row per day of a page's counts, summed over the selected fleets and platforms.
+function dailyRows(page) {
+  const { trend, fields } = DATA.pages[page];
+  return trend.map(([date, byKey]) => {
+    const row = { date };
+    for (const f of fields) row[f] = 0;
+    for (const [k, counts] of Object.entries(byKey)) {
+      if (selected(k)) for (const f of fields) row[f] += counts[f] || 0;
+    }
+    return row;
+  });
+}
+const sumSince = (rows, f, days) => {
+  const xs = rows.filter((r) => r.date > daysAgo(days));
+  return xs.length ? xs.reduce((a, r) => a + r[f], 0) : null;
+};
+const offMac = () => PLATFORM && PLATFORM !== "macos";
+
+// Alphabetical by title, then Policies and Analytics across the bottom, since they check compliance and the data behind the rest.
+// key: the card's main number for today's row. spark: the same measure per day.
+const CARDS = [
+  { page: "ai", title: "AI governance", about: "Which AI tools run where, and the settings that put data at risk.",
+    label: () => "Using AI today", spark: (r) => r.act,
+    unit: (r) => `of ${fmt.plural(r.ai, "computer")} with AI tools`,
+    rows: (r) => [["High-risk findings", fmt.n(r.high), r.high], ["Medium-risk findings", fmt.n(r.med)]] },
+  { page: "connectivity", title: "Connectivity", about: "Whether every computer reports to Fleet, and the network under the Macs.",
+    label: () => "Reporting within 24 hours", spark: (r) => pct(r.fresh24, r.computers), keyFmt: fmt.pct, yMax: 100,
+    unit: (r) => `${fmt.n(r.fresh24)} of ${fmt.n(r.computers)}`,
+    rows: (r) => [["Not seen for 7+ days", fmt.n(r.stale7), r.stale7],
+      ["Weak Wi-Fi now", offMac() ? "---" : fmt.n(r.weak)], ["Weak Wi-Fi most days", offMac() ? "---" : fmt.n(r.persistent)]] },
+  { page: "lifecycle", title: "Hardware lifecycle", about: "Which computers to replace, repair, or leave alone.",
+    label: () => "Need action", spark: (r) => r.refresh + r.battery + r.investigate,
+    unit: (r) => `of ${fmt.plural(r.scored, "computer")}`,
+    rows: (r) => [["Refresh", fmt.n(r.refresh), r.refresh], ["Battery service", fmt.n(r.battery)], ["Old CPU", fmt.pct(pct(r.old, r.scored))]] },
+  { page: "patch", title: "Patch velocity", about: "How fast new versions reach every computer.",
+    label: () => "App installs on the newest version", spark: (r) => pct(r.app_current, r.app_installs), keyFmt: fmt.pct, yMax: 100,
+    unit: (r) => `${fmt.n(r.app_current)} of ${fmt.n(r.app_installs)}`,
+    rows: (r, rows) => [["OS up to date", fmt.pct(pct(r.os_current, r.os_installs))],
+      [`Updates, ${windowLabel("patch", 7)}`, fmt.n(sumSince(rows, "updates", 7))]] },
+  { page: "software", title: "Software usage", about: "Seats nobody opens, to reclaim at renewal.",
+    label: () => "Seats idle", spark: (r) => pct(r.idle, r.seats), keyFmt: fmt.pct, yMax: 100,
+    unit: (r) => `${fmt.n(r.idle)} of ${fmt.n(r.seats)}`,
+    rows: (r) => [["Seats in use", fmt.n(r.seats - r.idle)], ["Idle seats", fmt.n(r.idle)]] },
+  { page: "sustainability", title: "Sustainability", about: "Energy use, sleep settings, and batteries to service.",
+    label: () => `Energy used, ${windowLabel("sustainability", 7)}`, spark: (r) => r.kwh, macOnly: true,
+    key: (r, rows) => sumSince(rows, "kwh", 7), keyFmt: kwhFmt, unit: () => "kWh, Macs",
+    rows: (r, rows) => [[`Carbon, ${windowLabel("sustainability", 7)}`, offMac() ? "---" : kgFmt(sumSince(rows, "co2", 7))],
+      ["Haven't slept", fmt.n(r.never_slept), r.never_slept], ["Sleep turned off", fmt.n(r.sleep_off)]] },
+  { page: "policies", title: "Policies", about: "Which Fleet policies your computers pass and fail, today and on any day this year.", wide: true,
+    label: () => "Policy pass rate", spark: (r) => pct(r.passed, r.passed + r.failed), keyFmt: fmt.pct, yMax: 100,
+    unit: (r) => `${fmt.n(r.passed)} of ${fmt.n(r.passed + r.failed)} results`,
+    rows: (r) => [["Failing a policy", fmt.n(r.any_fail), r.any_fail], ["Passing every policy", fmt.pct(pct(r.all_pass, r.computers))],
+      ["Pass rate, other than patch policies", fmt.pct(pct(r.o_passed, r.o_passed + r.o_failed))]] },
+  { page: "analytics", title: "Analytics", about: "Whether the data behind these dashboards is complete and fresh, and the security posture it shows.", wide: true,
+    label: () => "Every source fresh", spark: (r) => pct(r.all_fresh, r.computers), keyFmt: fmt.pct, yMax: 100,
+    unit: (r) => `${fmt.n(r.all_fresh)} of ${fmt.n(r.computers)}`,
+    rows: (r) => [["Disk encryption off", fmt.n(r.disk_known - r.disk_on), r.disk_known - r.disk_on],
+      ["fleetd current", fmt.pct(pct(r.agent_current, r.computers))], ["Failing a policy", fmt.n(r.failing)]] },
+];
+
+// Sparklines draw at their container's width, like the trend charts.
+const sparks = new Set();
+function spark(rows, value, { yMax, yFmt, label }) {
+  const pts = rows.map((r) => [r.date, value(r)]).filter(([, v]) => Number.isFinite(v));
+  const axis = h("div", { class: "spark-axis", "aria-hidden": "true" }, h("span", {}, pts.length ? shortDate(pts[0][0] + "T00:00:00Z") : ""), h("span", {}, "Today"));
+  if (pts.length < 2) return [h("div", { class: "spark-empty" }, "The trend starts after a second day of history."), axis];
+  const el = h("div", { class: "trend spark" });
+  const day = (d) => Date.parse(d + "T00:00:00Z");
+  const t0 = day(pts[0][0]), span = Math.max(864e5, day(pts[pts.length - 1][0]) - t0);
+  const top = yMax || Math.max(1, ...pts.map(([, v]) => v)) * 1.1;
+  const [d0, v0] = pts[0], [d1, v1] = pts[pts.length - 1];
+  const summary = `${label}. ${fmt.date(d0)}: ${yFmt(v0)}. ${fmt.date(d1)}: ${yFmt(v1)}.`;
+  el._draw = () => {
+    const W = Math.max(120, el.clientWidth), H = 48, P = 5;
+    const x = (d) => P + ((day(d) - t0) / span) * (W - 2 * P);
+    const y = (v) => P + (1 - v / top) * (H - 2 * P);
+    const line = pts.map(([d, v], i) => `${i ? "L" : "M"}${x(d).toFixed(1)},${y(v).toFixed(1)}`).join("");
+    const area = `${line}L${x(d1).toFixed(1)},${H - P}L${x(d0).toFixed(1)},${H - P}Z`;
+    el.replaceChildren(svg("svg", { width: "100%", height: H, viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": summary },
+      svg("line", { class: "axis", x1: 0, x2: W, y1: H - P, y2: H - P }),
+      svg("path", { d: area, style: "fill:var(--info);fill-opacity:0.12;stroke:none" }),
+      svg("path", { class: "halo", d: line }), svg("path", { class: "series", d: line, style: "stroke:var(--info)" }),
+      svg("circle", { class: "marker", cx: x(d1), cy: y(v1), r: 4, style: "fill:var(--info)" })));
+  };
+  sparks.add(el);
+  trendRO.observe(el);
+  return [tip(el, `${fmt.date(d0)}: ${yFmt(v0)}\n${fmt.date(d1)}: ${yFmt(v1)}`), axis];
+}
+
+function render() {
+  for (const el of sparks) trendRO.unobserve(el);
+  sparks.clear();
+  const total = Object.entries(DATA.hosts).filter(([k]) => selected(k)).reduce((a, [, n]) => a + n, 0);
+  const nFleets = new Set(Object.keys(DATA.hosts).filter(selected).map((k) => splitKey(k)[0])).size;
+  const byPage = Object.fromEntries(CARDS.map((c) => {
+    const rows = dailyRows(c.page);
+    const last = rows.length && rows[rows.length - 1].date === today ? rows[rows.length - 1] : null;
+    return [c.page, { rows, last }];
+  }));
+  const now = (page, f) => (byPage[page].last ? f(byPage[page].last) : null);
+  const action = now("lifecycle", (r) => r.refresh + r.battery + r.investigate);
+  const silent = now("connectivity", (r) => r.stale7);
+  const high = now("ai", (r) => r.high);
+  const neverSlept = now("sustainability", (r) => r.never_slept);
+
+  // Summary
+  const parts = [];
+  if (action) parts.push(`${fmt.plural(action, "computer")} ${action === 1 ? "needs" : "need"} hardware action`);
+  if (silent) parts.push(`${fmt.n(silent)} ${silent === 1 ? "hasn't" : "haven't"} checked in for more than 7 days`);
+  const lede = parts.length ? `${parts.join(", and ")}.`.replace(/^./, (c) => c.toUpperCase())
+    : "No computer needs hardware action, and every one checked in within the last week.";
+  const support = [];
+  if (high) support.push(`AI tools show ${fmt.plural(high, "high-risk finding")}.`);
+  if (neverSlept) support.push(`${fmt.n(neverSlept)} ${neverSlept === 1 ? "computer hasn't" : "computers haven't"} slept in a week or more.`);
+  support.push("Numbers follow the fleet and platform you pick above.");
+  const railRow = (label, n, page) => h("div", { class: "rail-row" },
+    h("a", { href: DATA.links[page], target: "_blank", rel: "noopener" }, label), h("b", { class: n ? "hl-bad" : null }, fmt.n(n)));
+  mount("hero",
+    h("div", {}, h("div", { class: "eyebrow" }, "Computers"),
+      h("div", { class: "big" }, h("b", {}, fmt.n(total)), h("span", {}, FLEET ? `in ${FLEET}` : `in ${fmt.plural(nFleets, "fleet")}`))),
+    h("div", { class: "hero-mid" }, h("p", { class: "lede" }, lede), h("p", { class: "support" }, support.join(" "))),
+    h("div", { class: "rail" }, h("div", { class: "eyebrow" }, "Right now"),
+      railRow("Need hardware action", action, "lifecycle"),
+      railRow("Not checking in", silent, "connectivity"),
+      railRow("High-risk AI findings", high, "ai"),
+      railRow("Haven't slept", neverSlept, "sustainability")));
+
+  // Cards
+  mount("dashes", CARDS.map((c) => {
+    const { rows, last } = byPage[c.page];
+    const keyFmt = c.keyFmt || fmt.n;
+    const notMeasured = c.macOnly && offMac();
+    const key = !last || notMeasured ? null : c.key ? c.key(last, rows) : c.spark(last);
+    const main = h("div", {},
+      h("div", { class: "eyebrow" }, c.label()),
+      h("div", { class: "big" }, h("b", {}, key == null ? "---" : keyFmt(key)),
+        h("span", {}, notMeasured ? "measured on Macs only" : last ? c.unit(last) : "no data yet")),
+      notMeasured ? [h("div", { class: "spark-empty" }, `Energy isn't measured on ${platformLabel(PLATFORM)}.`), h("div", { class: "spark-axis" }, h("span", {}, "Today"))]
+        : spark(rows, c.spark, { yMax: c.yMax, yFmt: keyFmt, label: `${c.title}: ${c.label()}` }));
+    const details = h("div", { class: "rail" }, last ? c.rows(last, rows).map(([label, value, bad]) =>
+      h("div", { class: "rail-row" }, h("span", {}, label), h("b", { class: bad ? "hl-bad" : null }, value))) : null);
+    return h("div", { class: `panel dash${c.wide ? " wide" : ""}` },
+      h("div", {}, h("h3", {}, h("a", { href: DATA.links[c.page], target: "_blank", rel: "noopener" }, c.title, h("span", { "aria-hidden": "true" }, "↗"))),
+        h("p", { class: "about" }, c.about)),
+      main, details);
+  }));
+
+  document.getElementById("foot").textContent = `Data from ${DATA.fleet_url.replace(/^https?:\/\//, "")} via the Fleet API, from the same daily counts as each dashboard's Over time charts. Rebuilt daily.`;
+}
+
+renderTop(fleets, render, platformCounts);
+render();
+</script>

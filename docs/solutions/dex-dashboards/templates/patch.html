@@ -1,0 +1,455 @@
+<title>Patch velocity</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Code+Pro:wght@400;500&display=swap">
+<style>
+/*__BASE_CSS__*/
+.act-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.chart { width: 100%; height: auto; display: block; }
+.chart .grid-line { stroke: var(--line); stroke-width: 1; }
+.chart .sla { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 4 4; }
+.chart .curve { fill: none; stroke: var(--info); stroke-width: 2; }
+.chart .area { fill: color-mix(in srgb, var(--info) 14%, transparent); }
+.lever { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 20px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.lever:last-child { border-bottom: 0; }
+.lever .t { font-weight: 600; }
+.lever .e { color: var(--ink-2); grid-column: 1; }
+.lever .x { grid-column: 2; grid-row: 1 / span 2; text-align: right; align-self: center; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+.lever .x span { display: block; font-weight: 400; color: var(--ink-3); font-size: 12px; }
+.ver { font-family: var(--font-mono); font-size: 12px; }
+.split { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 6px 24px; }
+.split h4 { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--ink); }
+.app-line { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.notice { border: 1px solid var(--line-2); border-radius: 8px; padding: 12px 16px; background: var(--panel-2); color: var(--ink-2); }
+.notice b { color: var(--ink); }
+</style>
+
+<div class="wrap">
+  <header class="top" id="top"></header>
+  <div class="title-row">
+    <div>
+      <h1>Patch velocity</h1>
+      <p class="subtitle">How fast new versions reach every computer, and which apps and computers fall behind. Covers OS updates and third-party apps on macOS, Windows, and Linux, from Fleet's software inventory.</p>
+    </div>
+  </div>
+  <div id="notice"></div>
+  <section class="hero" id="hero" aria-label="Summary"></section>
+  <div class="stats" id="stats"></div>
+
+  <section class="sec" aria-labelledby="trend-h">
+    <div class="sec-head">
+      <h2 id="trend-h">Over time</h2>
+      <div class="trend-tools" id="trend-tools"></div>
+    </div>
+    <div class="grid" id="trend"></div>
+  </section>
+
+  <section class="sec" aria-labelledby="cov-h">
+    <div class="sec-head">
+      <h2 id="cov-h">Coverage after a new version ships</h2>
+      <span class="hint" id="cov-hint"></span>
+    </div>
+    <div class="panel" id="coverage"></div>
+  </section>
+
+  <section class="sec" aria-labelledby="apps-h">
+    <div class="sec-head">
+      <h2 id="apps-h">App by app</h2>
+      <span class="hint">Share of installs on the newest version. Click a row for each computer's version.</span>
+    </div>
+    <div class="panel" id="app-lag"></div>
+    <div class="act-bar"><div class="chips" id="drift-chips"></div><input class="search" id="app-search" type="search" placeholder="Search apps" aria-label="Search apps"></div>
+    <div id="drift"></div>
+  </section>
+
+  <section class="sec" aria-labelledby="roll-h">
+    <div class="sec-head">
+      <h2 id="roll-h">Rollouts in progress</h2>
+      <span class="hint">New versions released, or first seen in Fleet, in the last 45 days</span>
+    </div>
+    <div class="act-bar"><div class="chips" id="roll-chips"></div><span class="hint" id="roll-hint"></span></div>
+    <div id="rollouts"></div>
+  </section>
+
+  <section class="sec" aria-labelledby="tail-h">
+    <div class="sec-head">
+      <h2 id="tail-h">Computers dragging the tail</h2>
+      <span class="hint">Usually offline stretches or restarts put off. A pattern to chase, not a verdict.</span>
+    </div>
+    <div class="grid">
+      <div class="panel"><h3>Behind on the most apps</h3><div id="laggards"></div></div>
+      <div class="panel"><h3>Slowest to apply updates, last 30 days</h3><div id="slow"></div></div>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="lever-h">
+    <div class="sec-head">
+      <h2 id="lever-h">What would speed this up</h2>
+      <span class="hint">Each one is worked out from this fleet's data</span>
+    </div>
+    <div class="panel" id="levers"></div>
+  </section>
+
+  <details class="method">
+    <summary>How this is measured</summary>
+    <div class="cols">
+      <div>
+        <p><span class="term">Clock starts</span> the day Apple or Microsoft released the version, for macOS and Windows. For apps and Linux, it starts the first day Fleet sees the version on any computer. <span class="term">Clock stops</span> the day each computer reports it. Days are wall-clock days.</p>
+        <p><span class="term">Who's counted:</span> only computers seen completing an update. One still on the old version isn't in the timing numbers yet, so the real picture is slower than shown, never faster. Fresh installs and downgrades aren't updates. Virtual machines are left out.</p>
+      </div>
+      <div>
+        <p><span class="term">History:</span> Fleet keeps current versions only, so this page records a daily snapshot and times new versions from <span id="since"></span>. Versions already installed the first day an app or OS appears in the history aren't timed.</p>
+        <p><span class="term">Newest version:</span> for macOS, Apple's newest release from SOFA, the Mac admins' public feed of Apple's updates. For Windows, the newest security build Microsoft lists in its Security Update Guide for the release each computer runs, such as 25H2's newest build. Windows OS update deadlines make each month's update mandatory but never move a computer to a newer release, so a computer on 25H2 isn't behind just because 26H2 is out. For an app with a patch policy, the version the policy asks for, the latest in Fleet's maintained-apps catalog. Anything else is measured against the highest version at least two computers run. Each run checks the sources again, so the share on the newest version drops the day a new release ships and climbs as computers update.</p>
+        <p><span class="term">Patched:</span> an OS on the latest update for the release it runs, such as macOS 26.7.2 or Windows 11 25H2's newest build, even when a newer release exists. <span class="term">Missing updates:</span> an update for the release it runs is out but not installed. <span class="term">No longer updated:</span> the release gets no more security updates, so only an upgrade fixes it. On macOS, that's a major version Apple hasn't updated since the newest one shipped. On Windows, it's a release missing from Microsoft's latest monthly security update. macOS betas (builds ending in a letter) and Windows Insider builds count as current but aren't timed.</p>
+      </div>
+      <div>
+        <p><span class="term">Scope:</span> on macOS, the OS plus third-party apps in <code>/Applications</code>. On Windows, the OS build across Windows 11's releases (for example 25H2 and 26H2) plus third-party programs. On Linux, the point release within each distribution release (for example Ubuntu 24.04.5 within 24.04) plus apps whose vendors ship their own Linux packages, such as Chrome, VS Code, Slack, and Zoom. Apps the distribution builds, such as LibreOffice and Ubuntu's Firefox, update with the OS and aren't timed on their own. Kernels aren't timed either, since a new kernel only runs after a restart. Apple's and Microsoft's own apps and components update on their own schedule and are left out, as are helpers and installers. Computers that haven't checked in for <span id="stale-days"></span> days are left out of the version counts.</p>
+        <p><span class="term">Target:</span> <span id="sla"></span> days from release to install. <span id="os-targets"></span>Medians are used because patch times have a long tail.</p>
+        <p><span class="term">Patch policy:</span> Rollouts in progress can show only apps with a patch policy in Fleet, counted on the computers each policy applies to. A policy is matched to an app by the bundle ID (macOS) or program name (Windows) in its query.</p>
+      </div>
+    </div>
+  </details>
+  <p class="foot" id="foot"></p>
+</div>
+
+<script>window.__DATA__=/*__DATA__*/null;</script>
+<script>
+/*__BASE_JS__*/
+</script>
+<script>
+const fleets = [...new Set(Object.values(DATA.hosts).map((x) => x.f))].sort();
+const platformCounts = {};
+for (const x of Object.values(DATA.hosts)) platformCounts[x.p] = (platformCounts[x.p] || 0) + 1;
+const noun = (n) => (PLATFORM === "macos" ? fmt.plural(n, "Mac") : fmt.plural(n, "computer"));
+const Noun = (plural) => (PLATFORM === "macos" ? (plural ? "Macs" : "Mac") : (plural ? "Computers" : "Computer"));
+const SLA = DATA.sla_days;
+let driftType = "all";
+// Rollouts default to apps with a patch policy when the fleet has any.
+const HAS_PATCH = DATA.titles.some((t) => t.i.some((e) => e[2]));
+let rollScope = store.get("dex-rollouts") || (HAS_PATCH ? "patch" : "all");
+let showAll = false;
+let query = "";
+// An OS version's release: the major version on macOS, the build on Windows (26200 in 10.0.26200.9711).
+const lineOf = (t, v) => (t.key === "os:macOS" ? v.split(".")[0] : v.split(".")[2]);
+// "26H2 (26300.9711)" for a Windows build, the version itself for everything else.
+const verLabel = (t, v) => {
+  const name = t.key.startsWith("os:Windows") && t.line_names ? t.line_names[lineOf(t, v)] : null;
+  return name ? `${name} (${v.split(".").slice(2).join(".")})` : v;
+};
+// Days before the patched count was recorded would read as 0%, so that line starts here.
+const PATCHED_SINCE = ((DATA.trend || []).find(([, byKey]) => Object.values(byKey).some((c) => "os_patched" in c)) || [])[0];
+const SOURCES = { Apple: "Apple, via SOFA", Microsoft: "Microsoft Security Update Guide", "Fleet-maintained apps": "Patch policy" };
+const lagTone = (d, target = SLA) => (d <= target / 2 ? "good" : d <= target ? "info" : d <= target * 2 ? "warn" : "bad");
+// Windows is measured against the latest build for the release each computer runs: Windows OS
+// update deadlines make each month's update mandatory but never move a computer to a newer release.
+const targetVer = (t, v) => (t.per_release && t.lines[lineOf(t, v)]) || t.newest;
+const upToDate = (t, v) => vcmp(v, targetVer(t, v)) >= 0;
+const updateLabel = (t) => (t.update ? `${t.update} update` : "Latest update");
+// {"fleet|windows": [deadline, grace]}: Windows OS updates there are held to the deadline plus grace period.
+const OS_TARGETS = DATA.os_targets || {};
+const osTarget = (fp) => (OS_TARGETS[fp] ? OS_TARGETS[fp][0] + OS_TARGETS[fp][1] : SLA);
+const andList = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(", ")}${xs.length > 2 ? "," : ""} and ${xs[xs.length - 1]}` : xs[0] || "");
+const covTone = (p) => (p >= 90 ? "good" : p >= 60 ? "info" : p >= 30 ? "warn" : "bad");
+
+function compute() {
+  const ok = (hid) => DATA.hosts[hid] && inFleet(DATA.hosts[hid].f) && inPlatform(DATA.hosts[hid].p);
+  const titles = DATA.titles.filter((t) => inPlatform(t.p)).map((t) => {
+    const inst = t.i.filter(([hid]) => ok(hid));
+    const on = inst.filter(([, v]) => upToDate(t, v)).length;
+    const onTop = inst.filter(([, v]) => vcmp(v, t.newest) >= 0).length;
+    const fresh = t.fresh.filter(([v]) => vcmp(v, t.newest) <= 0).slice(-1)[0];
+    // Behind the newest: patched (on the latest update for its release), on a release the
+    // vendor no longer updates, or missing an update it could install.
+    const behindNewest = t.lines ? inst.filter(([, v]) => vcmp(v, t.newest) < 0) : [];
+    const patched = behindNewest.filter(([, v]) => t.lines[lineOf(t, v)] && vcmp(v, t.lines[lineOf(t, v)]) >= 0).length;
+    const unsupported = behindNewest.filter(([, v]) => !t.lines[lineOf(t, v)]).length;
+    return { ...t, _id: t.key, inst, installs: inst.length, on, onTop, patched, unsupported, pct: inst.length ? (100 * on) / inst.length : null,
+      versions: new Set(inst.map(([, v]) => v)).size, fresh };
+  }).filter((t) => t.installs >= DATA.min_installs);
+  // Timed updates arrive as totals per "fleet|platform": lag (days) counts, per-computer
+  // [updates, total days], and per-app [title, updates, total days, computers].
+  const keyOk = (k) => { const i = k.lastIndexOf("|"); return inFleet(k.slice(0, i)) && inPlatform(k.slice(i + 1)); };
+  const counts = {};
+  for (const [k, rows] of Object.entries(DATA.lags)) if (keyOk(k)) for (const [lag, n] of rows) counts[lag] = (counts[lag] || 0) + n;
+  const lagDays = Object.keys(counts).map(Number).sort((a, b) => a - b);
+  let n = 0, sum = 0, inTarget = 0;
+  for (const d of lagDays) { n += counts[d]; sum += d * counts[d]; if (d <= SLA) inTarget += counts[d]; }
+  for (const [k, rows] of Object.entries(DATA.os_lags || {})) {
+    if (!keyOk(k) || !OS_TARGETS[k]) continue;
+    for (const [lag, c] of rows) inTarget += (lag <= osTarget(k) ? c : 0) - (lag <= SLA ? c : 0);
+  }
+  const nth = (k) => { let c = 0; for (const d of lagDays) { c += counts[d]; if (k < c) return d; } return null; };
+  const timing = {
+    n, mean: n ? sum / n : null, inTarget,
+    within: (days) => lagDays.reduce((s, d) => s + (d <= days ? counts[d] : 0), 0),
+    // Same interpolation as quantile() on the full list of lags.
+    q: (p) => { if (!n) return null; const i = (n - 1) * p, lo = Math.floor(i), hi = Math.min(lo + 1, n - 1); const a = nth(lo); return a + (nth(hi) - a) * (i - lo); },
+    byHost: Object.fromEntries(Object.entries(DATA.by_host).filter(([hid]) => ok(hid))),
+    byApp: {},
+  };
+  for (const [k, rows] of Object.entries(DATA.by_app)) if (keyOk(k)) for (const [ti, cnt, total, hosts] of rows) {
+    const a = (timing.byApp[ti] ||= { t: DATA.titles[ti], n: 0, sum: 0, hosts: 0 });
+    a.n += cnt; a.sum += total; a.hosts += hosts;
+  }
+  return { titles, timing };
+}
+
+function render() {
+  const { titles, timing } = compute();
+  const apps = titles.filter((t) => t.type === "app");
+  const installs = apps.reduce((s, t) => s + t.installs, 0);
+  const onNewest = apps.reduce((s, t) => s + t.on, 0);
+  const pCur = pct(onNewest, installs);
+  const p50 = timing.q(0.5), p90 = timing.q(0.9);
+  const timed = timing.n >= 5;
+  const share = pct(timing.inTarget, timing.n);
+  // Fleets in view with Windows computers, and the target for their Windows OS updates.
+  const winFleets = [...new Set(Object.values(DATA.hosts).filter((x) => x.p === "windows" && inFleet(x.f) && inPlatform(x.p)).map((x) => x.f))].sort();
+  const winTargets = winFleets.map((f) => osTarget(`${f}|windows`));
+  const winMax = winTargets.length ? Math.max(...winTargets) : SLA;
+  const mixed = winTargets.some((d) => d !== SLA);
+  const deadlined = winFleets.filter((f) => OS_TARGETS[`${f}|windows`]);
+  const targetDays = [...new Set([SLA, ...winTargets])].sort((a, b) => a - b);
+  const byDays = {};
+  for (const f of deadlined) (byDays[osTarget(`${f}|windows`)] ||= []).push(f);
+  const targetsText = andList([...Object.entries(byDays).map(([d, fs]) => `${d} days for Windows OS updates on ${andList(fs)}`), `${SLA} days for everything else`]);
+  const behind = {};
+  for (const t of titles) for (const [hid, v] of t.inst) if (!upToDate(t, v)) (behind[hid] ||= []).push(t);
+  const laggards = Object.entries(behind).map(([hid, ts]) => ({ hid, ts })).sort((a, b) => b.ts.length - a.ts.length);
+  const daysSince = Math.max(0, Math.round((new Date(DATA.generated_at) - new Date(DATA.history_since + "T00:00:00Z")) / 864e5));
+
+  // Summary band
+  const left = timed
+    ? h("div", { class: "hero-split" },
+        h("div", {}, h("div", { class: "eyebrow" }, "Half of updates land in"), h("div", { class: "big" }, h("b", {}, p50 < 1 ? "<1" : fmt.n(Math.round(p50))), h("span", {}, "days"))),
+        h("div", {}, h("div", { class: "eyebrow" }, "Nine in ten in"), h("div", { class: "big" }, h("b", { class: (mixed ? share < 90 : p90 > SLA) ? "hl-bad" : "hl-good" }, p90 < 1 ? "<1" : fmt.n(Math.round(p90))), h("span", {}, "days"))))
+    : h("div", {}, h("div", { class: "eyebrow" }, "Installs on the newest version"),
+        h("div", { class: "big" }, h("b", { class: pCur >= 80 ? "hl-good" : pCur < 50 ? "hl-bad" : null }, fmt.pct(pCur)), h("span", {}, `of ${fmt.n(installs)}`)));
+  const lede = timed && mixed
+    ? (share < 90 ? `The first half lands in ${fmt.days(p50)}, but only ${fmt.pct(share)} land inside their target: ${targetsText}.`
+      : `Nine in ten updates land within ${fmt.days(p90)}, and ${fmt.pct(share)} land inside their target: ${targetsText}.`)
+    : timed
+    ? (p90 > SLA ? `The first half lands in ${fmt.days(p50)}. The slowest tenth takes ${fmt.n(Math.round(p90 - p50))} more days, past the ${SLA}-day target.`
+      : `Nine in ten updates land within ${fmt.days(p90)}, inside the ${SLA}-day target.`)
+    : `${fmt.pct(pCur)} of app installs run the newest version. ${noun(laggards.filter((l) => l.ts.length >= 3).length)} ${laggards.filter((l) => l.ts.length >= 3).length === 1 ? "is" : "are"} behind on three or more apps.`;
+  const support = timed
+    ? `${fmt.pct(pCur)} of app installs run the newest version today. Timing covers ${fmt.plural(timing.n, "update")} on ${noun(Object.keys(timing.byHost).length)} in the last 90 days.`
+    : `Timing starts with the next release. Since ${fmt.date(DATA.history_since)}, every new version Fleet sees is timed until each computer reports it. ${timing.n ? `${fmt.plural(timing.n, "update")} timed so far.` : `No new versions timed yet (${fmt.plural(daysSince, "day")} of history).`}`;
+  const osTs = titles.filter((t) => t.type === "os").sort((a, b) => b.installs - a.installs);
+  if (!titles.length) {
+    const where = `${DATA.min_installs} or more ${Noun(true).toLowerCase()}`;
+    mount("hero", h("div", {}, h("div", { class: "eyebrow" }, "Apps and OS versions tracked"), h("div", { class: "big" }, h("b", {}, "0"))),
+      h("div", { class: "hero-mid" }, h("p", { class: "lede" }, `No app or OS version is on ${where} here yet.`),
+        h("p", { class: "support" }, `Patch velocity compares versions across computers, so a title needs ${DATA.min_installs} installs in the selected fleet and platform to count.${PLATFORM === "linux" ? " On Linux, that's the OS point release and apps whose vendors ship their own packages." : ""}`)));
+  } else mount("hero", left,
+    h("div", { class: "hero-mid" }, h("p", { class: "lede" }, lede), h("p", { class: "support" }, support)),
+    h("div", { class: "rail" }, h("div", { class: "eyebrow" }, "Right now"),
+      h("div", { class: "rail-row" }, h("span", {}, "App installs on newest"), h("b", {}, fmt.pct(pCur))),
+      osTs.slice(0, 2).map((t) => h("div", { class: "rail-row" }, h("span", {}, t.per_release ? `${t.name} patched` : `On ${t.p === "linux" ? `newest ${t.name}` : `${t.name} ${verLabel(t, t.newest)}`}+`), h("b", {}, fmt.pct(t.pct)))),
+      h("div", { class: "rail-row" }, h("span", {}, "Apps under 50% current"), h("b", {}, fmt.n(apps.filter((t) => t.pct < 50).length))),
+      h("div", { class: "rail-row" }, h("span", {}, `${Noun(true)} behind on 3+ apps`), h("b", {}, fmt.n(laggards.filter((l) => l.ts.length >= 3).length)))));
+
+  const byHost = timing.byHost;
+  const hostMeans = Object.values(byHost).map(([cnt, total]) => total / cnt);
+  const stat = (k, v, s) => h("div", { class: "stat" }, h("span", { class: "k" }, k), h("span", { class: "v" }, v), h("span", { class: "s" }, s));
+  mount("stats",
+    stat("Updates timed", fmt.n(timing.n), "last 90 days"),
+    stat(`${Noun(true)} patched`, fmt.n(Object.keys(byHost).length), "at least one timed update"),
+    stat("Apps updated", fmt.n(Object.keys(timing.byApp).length), "with a timed update"),
+    stat("Within target", timing.n ? fmt.pct(share) : "---", mixed ? "each update's own target" : `${SLA} days or less`),
+    stat(`Median ${Noun(false).toLowerCase()}`, hostMeans.length ? fmt.days(quantile(hostMeans, 0.5)) : "---", "each one counted once"),
+    stat("Versions in use", fmt.n(titles.reduce((s, t) => s + t.versions, 0)), `across ${fmt.plural(titles.length, "title")}`));
+
+  renderTrend(["app_installs", "app_current", "os_installs", "os_current", "os_patched", "updates"], [
+    { title: "Installs on the newest version", yFmt: fmt.pct, yMax: 100, series: [
+      { label: "Apps", color: "var(--info)", value: (r) => pct(r.app_current, r.app_installs) },
+      { label: "OS", color: "var(--warn)", value: (r) => pct(r.os_current, r.os_installs) },
+      { label: "OS patched for its release", color: "var(--good)", value: (r) => (PATCHED_SINCE && r.date >= PATCHED_SINCE ? pct(r.os_patched, r.os_installs) : null) }],
+      note: `Apps and OS versions on ${DATA.min_installs} or more computers, measured against the newest version on that day (for Windows, the newest build for the release each computer runs). It drops when a new release ships and climbs as computers update.` },
+    { title: "Updates applied per day", kind: "bar", series: [{ label: "Updates", color: "var(--good)", value: (r) => r.updates }],
+      note: "Computers seen moving to a newer version, counted on the day Fleet first reports it." },
+  ]);
+
+  // Coverage curve
+  document.getElementById("cov-hint").textContent = timing.n ? `Share of ${fmt.plural(timing.n, "timed update")} installed by each day after release` : "";
+  if (timing.n >= 5) {
+    const W = 860, H = 230, L = 44, R = 16, T = 12, B = 30, maxD = 30;
+    const x = (d) => L + (Math.min(d, maxD) / maxD) * (W - L - R), y = (p) => T + (1 - p / 100) * (H - T - B);
+    const pts = [];
+    for (let d = 0; d <= maxD; d++) pts.push([d, pct(timing.within(d), timing.n)]);
+    const line = pts.map(([d, p], i) => `${i ? "L" : "M"}${x(d).toFixed(1)},${y(p).toFixed(1)}`).join(" ");
+    const g = svg("svg", { viewBox: `0 0 ${W} ${H}`, class: "chart", role: "img", "aria-label": "Cumulative share of updates installed by days after release" },
+      [0, 25, 50, 75, 100].map((p) => [svg("line", { x1: L, x2: W - R, y1: y(p), y2: y(p), class: "grid-line" }), svg("text", { x: L - 8, y: y(p) + 4, "text-anchor": "end" }, `${p}%`)]),
+      [0, 7, 14, 21, 30].map((d) => svg("text", { x: x(d), y: H - 10, "text-anchor": "middle" }, d === 0 ? "release" : `${d}d`)),
+      targetDays.map((d, i) => [svg("line", { x1: x(d), x2: x(d), y1: T, y2: H - B, class: "sla" }),
+        svg("text", { x: x(d) + 6, y: T + 12 + i * 16 }, `${d}-day target`)]),
+      svg("path", { d: `${line} L${x(maxD)},${y(0)} L${x(0)},${y(0)} Z`, class: "area" }),
+      svg("path", { d: line, class: "curve" }),
+      pts.map(([d, p]) => tip(svg("circle", { cx: x(d), cy: y(p), r: 7, fill: "transparent" }), `Day ${d}: ${fmt.pct(p)} of updates installed`)));
+    mount("coverage", g, h("p", { class: "panel-note" }, mixed ? `${fmt.pct(share)} of timed updates land inside their target: ${targetsText}.`
+      : `${fmt.pct(share)} of timed updates land within ${SLA} days.`));
+  } else {
+    mount("coverage", empty("Not enough timed updates yet", `This curve fills in once at least five updates have been timed. Each new version Fleet sees from ${fmt.date(DATA.history_since)} on is timed until every computer has it.`));
+  }
+
+  // Per-app timing: fastest and slowest
+  const appRows = Object.values(timing.byApp).filter((r) => r.hosts >= 3)
+    .map((r) => ({ name: r.t.name, mean: r.sum / r.n, n: r.n, target: r.t.type === "os" && r.t.p === "windows" ? winMax : SLA })).sort((a, b) => a.mean - b.mean);
+  if (appRows.length >= 2) {
+    const line = (r) => h("div", { class: "app-line" }, h("span", {}, r.name), h("span", { class: "num" }, pill(`${fmt.days(r.mean)} · ${noun(r.n)}`, lagTone(r.mean, r.target))));
+    mount("app-lag", h("h3", {}, `Average days to update, apps with 3+ timed ${Noun(true).toLowerCase()}`),
+      appRows.length > 5
+        ? h("div", { class: "split" }, h("div", {}, h("h4", {}, "Fastest"), appRows.slice(0, 5).map(line)), h("div", {}, h("h4", {}, "Slowest"), appRows.slice(-5).reverse().map(line)))
+        : h("div", {}, appRows.map(line)));
+  } else {
+    mount("app-lag", h("h3", {}, "Average days to update"), empty("Timing per app starts with the next release", "Once three computers have taken a new version of an app, its average time to update shows here."));
+  }
+
+  // Version drift table
+  mount("drift-chips", [["all", "All"], ["app", "Apps"], ["os", "OS"]].map(([k, l]) => h("button", { type: "button", class: "chip", "aria-pressed": driftType === k ? "true" : "false", onclick: () => { driftType = k; render(); } }, l,
+    h("b", {}, fmt.n(k === "all" ? titles.length : titles.filter((t) => t.type === k).length)))));
+  const q = query.trim().toLowerCase();
+  let rows = titles.filter((t) => (driftType === "all" || t.type === driftType) && (!q || t.name.toLowerCase().includes(q)));
+  rows.sort((a, b) => a.pct - b.pct || b.installs - a.installs);
+  const total = rows.length;
+  if (!showAll && !q) rows = rows.slice(0, 15);
+  const columns = [
+    { key: "name", label: "App", value: (t) => t.name.toLowerCase(), cell: (t) => [h("span", { class: "cell-main" }, t.name), t.type === "os" ? h("span", { class: "tag" }, "OS") : "", PLATFORM ? "" : h("span", { class: "plat" }, platformLabel(t.p))] },
+    { key: "installs", label: "Installs", num: true, value: (t) => t.installs },
+    { key: "newest", label: "Newest", value: (t) => t.newest, cell: (t) => [t.per_release ? h("span", {}, updateLabel(t)) : h("span", { class: "ver" }, verLabel(t, t.newest)),
+      h("div", { class: "cell-sub" }, t.source ? SOURCES[t.source] : "Newest your fleet runs")] },
+    { key: "pct", label: "On newest", num: true, value: (t) => t.pct, cell: (t) => [`${fmt.n(t.on)} of ${fmt.n(t.installs)}`, mini(t.pct, covTone(t.pct))] },
+    { key: "versions", label: "Versions in use", num: true, value: (t) => t.versions },
+    { key: "seen", label: "Out since", num: true, value: (t) => t.newest_seen, cell: (t) => (t.newest_seen
+      ? [fmt.date(t.newest_seen), h("div", { class: "cell-sub" }, t.source === "Apple" || t.source === "Microsoft" ? "released" : "first seen")]
+      : h("span", { class: "muted" }, t.source === "Fleet-maintained apps" ? "not installed yet" : `before ${fmt.date(DATA.history_since)}`)) },
+  ];
+  const detail = (t) => {
+    const counts = {};
+    for (const [, v] of t.inst) counts[v] = (counts[v] || 0) + 1;
+    const lag = t.inst.filter(([, v]) => !upToDate(t, v)).sort((a, b) => vcmp(a[1], b[1]));
+    const status = (v) => {
+      if (!t.lines) return null;
+      const latest = t.lines[lineOf(t, v)];
+      return latest && vcmp(v, latest) >= 0 ? "patched, older release" : latest ? `needs ${verLabel(t, latest)}` : "no longer updated";
+    };
+    return [h("div", { class: "cell-sub" }, Object.entries(counts).sort((a, b) => vcmp(b[0], a[0])).map(([v, n]) => `${verLabel(t, v)}: ${n}`).join(" · ")),
+      t.lines ? h("div", { class: "cell-sub" }, [`${fmt.n(t.onTop)} on the newest release`, `${fmt.n(t.patched)} patched on an older release`,
+        `${fmt.n(t.installs - t.onTop - t.patched - t.unsupported)} missing updates`, t.unsupported ? `${fmt.n(t.unsupported)} on a release no longer updated` : null].filter(Boolean).join(" · ")) : null,
+      lag.length ? h("div", { class: "split", style: "margin-top:10px" }, lag.map(([hid, v]) => h("div", { class: "app-line" }, hostLink(hid, DATA.hosts[hid].n),
+        h("span", {}, h("span", { class: "ver" }, verLabel(t, v)), status(v) ? h("span", { class: "tag" }, status(v)) : null))))
+        : h("p", {}, t.per_release ? "Every computer has the latest update for its release." : "Every computer runs the newest version.")];
+  };
+  mount("drift", rows.length ? [sortTable({ columns, groups: [{ rows }], sort: ["pct", "asc"], detail, id: "drift-table" }),
+    total > 15 && !q ? h("button", { type: "button", class: "btn", style: "margin-top:8px", onclick: () => { showAll = !showAll; render(); } }, showAll ? "Show the 15 furthest behind" : `Show all ${total}`) : null]
+    : empty("No apps match", "Clear the search or pick another type."));
+
+  // Rollouts. Install rows carry a third value, 1, when a patch policy for the app applies to that computer.
+  // On Windows the rollout is the month's update, reached once a computer has it for its release.
+  const rollRows = (scope) => titles.map((t) => {
+    const [ver, seen] = t.per_release ? [t.newest, t.newest_seen] : t.fresh || [];
+    const age = seen ? Math.round((new Date(DATA.generated_at) - new Date(seen + "T00:00:00Z")) / 864e5) : null;
+    // fresh already keeps only versions from the last 45 days.
+    if (!seen || (t.per_release && age > 45)) return null;
+    const inst = scope === "patch" ? t.inst.filter((e) => e[2]) : t.inst;
+    if (!inst.length) return null;
+    const reached = inst.filter(([, v]) => (t.per_release ? upToDate(t, v) : vcmp(v, ver) >= 0)).length;
+    return { _id: t.key, t, name: t.name, type: t.type, ver, seen, reached, installs: inst.length, pct: pct(reached, inst.length),
+      patch: t.inst.some((e) => e[2]), age };
+  }).filter(Boolean).sort((a, b) => (a.seen < b.seen ? 1 : -1));
+  const rollsBy = { patch: rollRows("patch"), all: rollRows("all") };
+  const rolls = rollsBy[rollScope];
+  mount("roll-chips", [["patch", "Patch policy"], ["all", "All"]].map(([k, l]) => h("button", { type: "button", class: "chip", "aria-pressed": rollScope === k ? "true" : "false",
+    onclick: () => { rollScope = k; store.set("dex-rollouts", k); render(); } }, l, h("b", {}, fmt.n(rollsBy[k].length)))));
+  mount("roll-hint", rollScope === "patch" ? "Apps with a patch policy, on the computers each policy applies to" : "Every app and OS on this page");
+  mount("rollouts", rolls.length ? sortTable({ id: "rollout-table", sort: ["seen", "desc"], groups: [{ rows: rolls }], columns: [
+    { key: "name", label: "App", value: (r) => r.name.toLowerCase(), cell: (r) => [h("span", { class: "cell-main" }, r.name),
+      rollScope === "all" && r.patch ? h("span", { class: "tag" }, "Patch policy") : ""] },
+    { key: "ver", label: "Version", value: (r) => r.ver, cell: (r) => (r.t.per_release ? updateLabel(r.t) : h("span", { class: "ver" }, verLabel(r.t, r.ver))) },
+    { key: "seen", label: "Since", num: true, value: (r) => r.seen, cell: (r) => [fmt.date(r.seen), h("div", { class: "cell-sub" }, r.t.source === "Apple" || r.t.source === "Microsoft" ? "released" : "first seen")] },
+    { key: "age", label: "Days out", num: true, value: (r) => r.age },
+    { key: "pct", label: "Reached", num: true, value: (r) => r.pct, cell: (r) => [`${fmt.n(r.reached)} of ${fmt.n(r.installs)}`,
+      mini(r.pct, r.age > (r.type === "os" && r.t.p === "windows" ? winMax : SLA) && r.pct < 90 ? "bad" : covTone(r.pct))] },
+  ] }) : rollScope === "patch" && !HAS_PATCH ? empty("No patch policies yet", "Add a patch policy to a Fleet-maintained app in Fleet, and its new versions show here. Pick All to see every app.")
+    : rollScope === "patch" && rollsBy.all.length ? empty("No new versions for apps with a patch policy", "None has a version first seen in the last 45 days. Pick All to see every app.")
+    : empty("No new versions yet", `Versions that first appear after ${fmt.date(DATA.history_since)} show here as computers pick them up.`));
+
+  // Tail
+  mount("laggards", laggards.length ? h("div", { class: "bars" }, barRows(laggards.slice(0, 8).map((l) => ({
+    label: DATA.hosts[l.hid].n, valueText: fmt.plural(l.ts.length, "app"),
+    segs: [{ value: l.ts.length, color: "var(--warn)", tip: `${DATA.hosts[l.hid].n} is behind on ${l.ts.slice(0, 8).map((t) => t.name).join(", ")}${l.ts.length > 8 ? "…" : ""}` }] }))))
+    : empty("Nothing is behind", ""));
+  const slow = Object.entries(byHost).filter(([, [cnt]]) => cnt >= 2).map(([hid, [cnt, total]]) => ({ hid, m: total / cnt, n: cnt })).sort((a, b) => b.m - a.m).slice(0, 8);
+  mount("slow", slow.length ? barRows(slow.map((s) => ({ label: DATA.hosts[s.hid]?.n ?? `Host ${s.hid}`, valueText: fmt.days(s.m),
+    segs: [{ value: s.m, color: `var(--${lagTone(s.m)})`, tip: `Average ${fmt.days(s.m)} across ${fmt.plural(s.n, "update")}` }] })))
+    : empty("Not enough timed updates yet", "Computers with two or more timed updates in the last 30 days show here."));
+
+  // Levers
+  const levers = [];
+  const fleetMean = timing.mean;
+  if (slow.length >= 2 && fleetMean != null) {
+    const tail = slow.filter((s) => s.m > fleetMean * 2).slice(0, 5);
+    if (tail.length >= 2) levers.push({ t: `Follow up with the ${tail.length} slowest ${Noun(true).toLowerCase()}`, e: `They average ${fmt.days(mean(tail.map((s) => s.m)))} to apply updates, against ${fmt.days(fleetMean)} for the fleet.`, x: noun(tail.length), s: "to contact" });
+  }
+  const worst = apps.filter((t) => t.installs >= 5 && t.pct < 50).sort((a, b) => (b.installs - b.on) - (a.installs - a.on)).slice(0, 4);
+  if (worst.length) {
+    const n = worst.reduce((s, t) => s + (t.installs - t.on), 0);
+    levers.push({ t: `Automate updates for ${worst.map((t) => t.name).join(", ")}`, e: `Under half of their installs run the newest version. A Fleet policy that installs the update automatically would close most of the gap.`, x: fmt.n(n), s: "installs behind" });
+  }
+  const heavy = laggards.filter((l) => l.ts.length >= 10);
+  if (heavy.length) {
+    const share = pct(heavy.reduce((s, l) => s + l.ts.length, 0), laggards.reduce((s, l) => s + l.ts.length, 0));
+    levers.push({ t: `Get the ${noun(heavy.length)} behind on 10+ apps up to date`, e: `${heavy.length === 1 ? "It holds" : "Together they hold"} ${fmt.pct(share)} of all outdated installs. A restart and an update pass usually clears most of it.`, x: fmt.pct(share), s: "of outdated installs" });
+  }
+  for (const t of osTs.filter((t) => t.pct < 90).slice(0, 2)) {
+    const behind = `${fmt.n(t.installs - t.on)} of ${noun(t.installs)} run an older`;
+    if (t.p === "linux") {
+      levers.push({ t: `Bring ${t.name} up to ${t.newest}`, e: `${behind} point release. Fleet can't set OS update deadlines on Linux, but a policy that runs an update script on computers that fall behind does the same job.`, x: fmt.pct(t.pct), s: "on the newest release" });
+      continue;
+    }
+    if (t.per_release) {
+      // Computers on a release Microsoft no longer updates aren't missing an update; they need an upgrade.
+      const missing = t.installs - t.on - t.unsupported;
+      const missingText = missing ? `${fmt.n(missing)} of ${noun(t.installs)} don't have the ${updateLabel(t)} for their release.` : "";
+      const upgrade = t.unsupported ? ` ${fmt.n(t.unsupported)} ${t.unsupported === 1 ? "runs" : "run"} a release that no longer gets updates, so no deadline brings ${t.unsupported === 1 ? "it" : "them"} current until ${t.unsupported === 1 ? "it upgrades" : "they upgrade"}.` : "";
+      const age = t.newest_seen ? Math.round((new Date(DATA.generated_at) - new Date(t.newest_seen + "T00:00:00Z")) / 864e5) : 0;
+      if (missing && deadlined.length < winFleets.length) {
+        levers.push({ t: `Set a Windows OS update deadline`, e: `${missingText}${upgrade} A deadline in Fleet's OS updates settings makes each month's update mandatory.`, x: fmt.pct(t.pct), s: "patched" });
+      } else if ((missing && age > winMax) || t.unsupported) {
+        const late = missing && age > winMax;
+        levers.push({ t: late ? `Follow up on ${t.name} computers without the ${updateLabel(t)}` : `Upgrade ${t.name} computers on a release that no longer gets updates`,
+          e: `${missingText}${late ? ` The ${winMax}-day deadline has passed, so they've usually been offline or are waiting on a restart.` : ""}${upgrade}`.trim(), x: fmt.pct(t.pct), s: "patched" });
+      }
+      continue;
+    }
+    const older = [t.patched ? `${fmt.n(t.patched)} ${t.patched === 1 ? "is" : "are"} patched but on an older release` : null,
+      t.unsupported ? `${fmt.n(t.unsupported)} ${t.unsupported === 1 ? "runs" : "run"} a release that no longer gets updates` : null].filter(Boolean);
+    const upgrades = older.length ? ` Of them, ${older.join(", and ")}, so they need an upgrade, not just an update.` : "";
+    levers.push({ t: `Set a deadline for ${t.name} ${verLabel(t, t.newest)}`, e: `${behind} build.${upgrades} A deadline in Fleet's OS updates settings makes the update mandatory.`, x: fmt.pct(t.pct), s: "on the newest build" });
+  }
+  mount("levers", levers.length ? levers.map((l) => h("div", { class: "lever" }, h("span", { class: "t" }, l.t), h("span", { class: "e" }, l.e), h("span", { class: "x" }, l.x, h("span", {}, l.s))))
+    : empty("Nothing stands out", "Every app and computer is close to current."));
+
+  document.getElementById("since").textContent = fmt.date(DATA.history_since);
+  document.getElementById("stale-days").textContent = DATA.stale_days;
+  document.getElementById("sla").textContent = SLA;
+  const named = Object.entries(OS_TARGETS).map(([fp, [d, g]]) => `${d + g} days on ${fp.slice(0, fp.lastIndexOf("|"))} (${d}-day deadline plus ${g}-day grace period)`);
+  document.getElementById("os-targets").textContent = named.length
+    ? `Windows OS updates in a fleet with a Windows OS update deadline are held to the deadline plus its grace period instead: ${andList(named)}. `
+    : "A fleet with a Windows OS update deadline in Fleet holds its Windows OS updates to the deadline plus its grace period instead. ";
+  const missing = [["macos", "Apple's release feed (SOFA)", "Macs"], ["windows", "Microsoft's Security Update Guide", "Windows computers"]]
+    .filter(([p]) => inPlatform(p) && titles.some((t) => t.type === "os" && t.p === p && !t.source));
+  mount("notice", missing.length ? h("div", { class: "notice" }, h("b", {}, "Couldn't check the latest release. "),
+    missing.map(([, src, who]) => `${src} wasn't reachable on this run, so ${who} are measured against the newest version they run.`).join(" ")) : null);
+  const used = new Set(DATA.titles.map((t) => t.source));
+  const sources = [["Apple", "SOFA for macOS"], ["Microsoft", "Microsoft's Security Update Guide for Windows"], ["Fleet-maintained apps", "patch policies for apps"]]
+    .filter(([k]) => used.has(k)).map(([, label]) => label);
+  const list = sources.length > 1 ? `${sources.slice(0, -1).join(", ")}, and ${sources[sources.length - 1]}` : sources[0];
+  document.getElementById("foot").textContent = `Data from ${DATA.fleet_url.replace(/^https?:\/\//, "")} via the Fleet API (List hosts with software).${list ? ` Newest versions from ${list}.` : ""}${DATA.betas.length ? ` macOS beta builds: ${DATA.betas.join(", ")}.` : ""}`;
+}
+
+document.getElementById("app-search").addEventListener("input", (e) => { query = e.target.value; render(); });
+renderTop(fleets, render, platformCounts);
+render();
+</script>
