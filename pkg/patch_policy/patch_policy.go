@@ -301,4 +301,6 @@ var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false 
 	"Windows App":                               "= 'windowsapp.exe'",
 	"XnSoft XnConvert":                          "= 'xnconvert.exe'",
 	"YACReader":                                 "IN ('yacreader.exe','yacreaderlibrary.exe')",
+	// Zoom Workplace ships executables with the same names, so match the plugin's folder too.
+	"Zoom VDI Universal Plugin": "IN ('zoom.exe','cpthost.exe','airhost.exe','aomhost64.exe') AND LOWER(path) LIKE '%\\zoomvdiuniversalplugin\\%'",
 }

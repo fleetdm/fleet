@@ -7513,6 +7513,13 @@
       "description": "Rocket.Chat is an official desktop client for Rocket.Chat."
     },
     {
+      "name": "Rocket.Chat",
+      "slug": "rocket-chat/windows",
+      "platform": "windows",
+      "unique_identifier": "Rocket.Chat",
+      "description": "Rocket.Chat is an official desktop client for Rocket.Chat."
+    },
+    {
       "name": "Rocket Typist",
       "slug": "rocket-typist/darwin",
       "platform": "darwin",
@@ -9905,6 +9912,13 @@
       "platform": "windows",
       "unique_identifier": "Zoom Rooms",
       "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
+    },
+    {
+      "name": "Zoom VDI Universal Plugin",
+      "slug": "zoom-vdi-universal-plugin/windows",
+      "platform": "windows",
+      "unique_identifier": "Zoom VDI Universal Plugin(64bit)",
+      "description": "Zoom VDI Universal Plugin is an endpoint media plug-in that offloads Zoom audio and video processing to the local device in virtual desktop environments."
     },
     {
       "name": "Zoom",
