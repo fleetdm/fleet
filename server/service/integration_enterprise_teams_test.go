@@ -2485,7 +2485,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 	// Test that we can configure webhooks for "No Team" (team ID 0)
 	// Use a generic response that will work with DefaultTeam
 	var defaultTeamResp struct {
-		Team *fleet.DefaultTeam `json:"team"` //nolint:apiparamcheck // test helper; matches server response shape
+		Team *fleet.DefaultTeam `json:"fleet"` //nolint:apiparamcheck // test helper; matches server response shape
 	}
 
 	// First clear any existing webhook configuration for "No Team"
@@ -2519,7 +2519,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 
 	// Get the config again to verify it persisted
 	defaultTeamResp = struct {
-		Team *fleet.DefaultTeam `json:"team"` //nolint:apiparamcheck // test helper; matches server response shape
+		Team *fleet.DefaultTeam `json:"fleet"` //nolint:apiparamcheck // test helper; matches server response shape
 	}{}
 	s.DoJSON("GET", "/api/latest/fleet/fleets/0", nil, http.StatusOK, &defaultTeamResp)
 	require.Equal(t, uint(0), defaultTeamResp.Team.ID)
@@ -2564,7 +2564,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 
 	// Verify it persisted
 	defaultTeamResp = struct {
-		Team *fleet.DefaultTeam `json:"team"` //nolint:apiparamcheck // test helper; matches server response shape
+		Team *fleet.DefaultTeam `json:"fleet"` //nolint:apiparamcheck // test helper; matches server response shape
 	}{}
 	s.DoJSON("GET", "/api/latest/fleet/fleets/0", nil, http.StatusOK, &defaultTeamResp)
 	require.NotNil(t, defaultTeamResp.Team.WebhookSettings.HostActivitiesWebhook)

@@ -84,7 +84,7 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
     {
       refetchOnWindowFocus: false,
       enabled: !!teamIdForApi,
-      select: (data) => data.team,
+      select: (data) => data.fleet,
     }
   );
 
