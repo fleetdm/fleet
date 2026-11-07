@@ -1,0 +1,1 @@
+- Fixed adding a Fleet-maintained app leaving the app added when Fleet couldn't store its installer, which made adding it again return a 409.

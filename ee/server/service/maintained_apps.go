@@ -207,6 +207,10 @@ func (svc *Service) AddFleetMaintainedApp(
 	payload.Categories = categories
 	payload.CategoryIDs = catIDs
 
+	if err := svc.storeSoftware(ctx, payload); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "storing maintained app installer")
+	}
+
 	// Create record in software installers table
 	_, titleID, err = svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)
 	if err != nil {
@@ -228,11 +232,6 @@ func (svc *Service) AddFleetMaintainedApp(
 				"err", err,
 			)
 		}
-	}
-
-	// Save in S3
-	if err := svc.storeSoftware(ctx, payload); err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "upload maintained app installer to S3")
 	}
 
 	// Create activity
