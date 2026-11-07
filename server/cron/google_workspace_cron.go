@@ -224,8 +224,9 @@ func syncGoogleWorkspaceUsers(ctx context.Context, ds fleet.Datastore, gwUsers [
 	return extIDToScimUserID, failed, nil
 }
 
-// syncGoogleWorkspaceGroups reconciles groups and their memberships, resolving
-// member Google user IDs to scim_users.id via extIDToScimUserID.
+// syncGoogleWorkspaceGroups reconciles groups, their user memberships and their
+// nested group edges. Edges are wired in a second pass because a child group's
+// scim_groups.id may not exist yet when its parent is processed.
 func syncGoogleWorkspaceGroups(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -252,6 +253,11 @@ func syncGoogleWorkspaceGroups(
 	usedDisplayNames := make(map[string]struct{}, len(gwGroups))
 	failed := 0
 
+	// Pass 1: make every group exist and record the scim_groups.id it maps to.
+	extIDToScimGroupID := make(map[string]uint, len(gwGroups))
+	desiredByExtID := make(map[string]*fleet.ScimGroup, len(gwGroups))
+	currentByExtID := make(map[string]*fleet.ScimGroup, len(gwGroups))
+
 	for _, gg := range gwGroups {
 		if gg.ExternalID == "" {
 			continue
@@ -274,26 +280,53 @@ func syncGoogleWorkspaceGroups(
 
 		if ex, ok := existingByExtID[gg.ExternalID]; ok {
 			desired.ID = ex.ID
-			if scimGroupNeedsUpdate(ex, desired) {
-				if err := ds.ReplaceScimGroup(ctx, desired); err != nil {
-					// Best-effort: log and skip so one bad group doesn't abort the sync.
-					failed++
-					logger.ErrorContext(ctx, "google workspace sync: skipping group that failed to update",
-						"display_name", displayName, "external_id", gg.ExternalID, "err", err)
-				}
-			}
+			extIDToScimGroupID[gg.ExternalID] = ex.ID
+			desiredByExtID[gg.ExternalID] = desired
+			currentByExtID[gg.ExternalID] = ex
 			continue
 		}
 
-		if _, err := ds.CreateScimGroup(ctx, desired); err != nil {
+		id, err := ds.CreateScimGroup(ctx, desired)
+		if err != nil {
 			failed++
 			logger.ErrorContext(ctx, "google workspace sync: skipping group that failed to create",
 				"display_name", displayName, "external_id", gg.ExternalID, "err", err)
 			continue
 		}
+		desired.ID = id
+		extIDToScimGroupID[gg.ExternalID] = id
+		desiredByExtID[gg.ExternalID] = desired
+		// The group was just created with these users and no edges, so pass 2 only
+		// writes again if it turns out to have child groups.
+		currentByExtID[gg.ExternalID] = &fleet.ScimGroup{
+			ID:          id,
+			DisplayName: displayName,
+			ScimUsers:   memberIDs,
+		}
+	}
+
+	// Pass 2: resolve nested children now that every group has an ID, and write
+	// the groups whose desired state differs from what is stored.
+	for _, gg := range gwGroups {
+		desired, ok := desiredByExtID[gg.ExternalID]
+		if !ok {
+			continue
+		}
+		desired.ChildGroups = resolveChildGroupIDs(ctx, gg, desired.ID, extIDToScimGroupID, logger)
+
+		if !scimGroupNeedsUpdate(currentByExtID[gg.ExternalID], desired) {
+			continue
+		}
+		if err := ds.ReplaceScimGroup(ctx, desired); err != nil {
+			// Best-effort: log and skip so one bad group doesn't abort the sync.
+			failed++
+			logger.ErrorContext(ctx, "google workspace sync: skipping group that failed to update",
+				"display_name", desired.DisplayName, "external_id", gg.ExternalID, "err", err)
+		}
 	}
 
 	// Delete groups no longer in Google Workspace (guard against an empty pull).
+	// scim_group_group cascades on both foreign keys, so edges go with them.
 	if len(gwGroups) == 0 {
 		logger.WarnContext(ctx, "google workspace returned no groups; skipping group deletion to avoid data loss")
 		return failed, nil
@@ -310,6 +343,36 @@ func syncGoogleWorkspaceGroups(
 	}
 
 	return failed, nil
+}
+
+// resolveChildGroupIDs maps nested Google group IDs onto scim_groups.id, dropping
+// self-references and children absent from the pull.
+func resolveChildGroupIDs(
+	ctx context.Context,
+	gg *fleet.GoogleWorkspaceGroup,
+	parentID uint,
+	extIDToScimGroupID map[string]uint,
+	logger *slog.Logger,
+) []uint {
+	childIDs := make([]uint, 0, len(gg.ChildGroupExternalIDs))
+	added := make(map[uint]struct{}, len(gg.ChildGroupExternalIDs))
+	for _, childExtID := range gg.ChildGroupExternalIDs {
+		childID, ok := extIDToScimGroupID[childExtID]
+		if !ok {
+			logger.DebugContext(ctx, "google workspace sync: skipping unresolvable nested group",
+				"parent_external_id", gg.ExternalID, "child_external_id", childExtID)
+			continue
+		}
+		if childID == parentID {
+			continue
+		}
+		if _, dup := added[childID]; dup {
+			continue
+		}
+		added[childID] = struct{}{}
+		childIDs = append(childIDs, childID)
+	}
+	return childIDs
 }
 
 // uniqueDisplayName returns a display name guaranteed not to collide with one
@@ -349,7 +412,10 @@ func scimGroupNeedsUpdate(existing, desired *fleet.ScimGroup) bool {
 	if existing.DisplayName != desired.DisplayName {
 		return true
 	}
-	return !uintSetEqual(existing.ScimUsers, desired.ScimUsers)
+	if !uintSetEqual(existing.ScimUsers, desired.ScimUsers) {
+		return true
+	}
+	return !uintSetEqual(existing.ChildGroups, desired.ChildGroups)
 }
 
 func listAllScimUsers(ctx context.Context, ds fleet.Datastore) ([]fleet.ScimUser, error) {
@@ -376,7 +442,8 @@ func listAllScimGroups(ctx context.Context, ds fleet.Datastore) ([]fleet.ScimGro
 	startIndex := uint(1)
 	for {
 		page, total, err := ds.ListScimGroups(ctx, fleet.ScimGroupsListOptions{
-			ScimListOptions: fleet.ScimListOptions{StartIndex: startIndex, PerPage: scimSyncPageSize},
+			ScimListOptions:    fleet.ScimListOptions{StartIndex: startIndex, PerPage: scimSyncPageSize},
+			IncludeChildGroups: true,
 		})
 		if err != nil {
 			return nil, err
