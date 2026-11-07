@@ -8067,8 +8067,8 @@ Add a dynamic or manual label.
 
 | Name        | Type   | In   | Description                                                                                                                                                                                                                                  |
 | ----------- | ------ | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| name        | string | body | **Required**. The label's name.                                                                                                                                                                                                              |
-| description | string | body | The label's description.                                                                                                                                                                                                                     |
+| name        | string | body | **Required**. The label's name. Must be 255 characters or fewer.                                                                                                                                                                             |
+| description | string | body | The label's description. Must be 255 characters or fewer.                                                                                                                                                                                    |
 | query       | string | body | The query in SQL syntax used to filter the hosts. Only one of either `query` (to create a dynamic label) or `hosts` (to create a manual label) can be included in the request.  |
 | criteria    | object | body | Criteria for adding hosts to a host vitals label. See [`criteria`](#criteria) for details. |
 | hosts       | array | body | The list of host identifiers (`hardware_serial` or `uuid`). The label will apply to any host with a matching identifier. Only one of either `query` (to create a dynamic label), `hosts` (to create a manual label), or `host_ids` (to create a manual label)  can be included in the request. |
@@ -8139,8 +8139,8 @@ Updates the specified label. Note: Label queries, platforms, and fleets are immu
 | Name        | Type    | In   | Description                   |
 | ----------- | ------- | ---- | ----------------------------- |
 | id          | integer | path | **Required**. The label's id. |
-| name        | string  | body | The label's name.             |
-| description | string  | body | The label's description.      |
+| name        | string  | body | The label's name. Must be 255 characters or fewer. |
+| description | string  | body | The label's description. Must be 255 characters or fewer. |
 | hosts       | array   | body | If updating a manual label: the list of host identifiers (`hardware_serial` or `uuid`). The label will apply to any host with a matching identifier. The provided list fully replaces the previous list.  Only one of either `hosts` or `host_ids` can be included in the request.  |
 | host_ids    | array   | body | If updating a manual label: the list of Fleet host IDs the label will apply to. The provided list fully replaces the previous list. Only one of either `hosts` or `host_ids` can be included in the request.
 

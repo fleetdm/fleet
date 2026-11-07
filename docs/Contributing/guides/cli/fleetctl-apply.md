@@ -64,7 +64,7 @@ If you want to change the name of a report, you must first create a new report w
 
 ## Labels
 
-The following file describes the labels which hosts should be automatically grouped into. The label resource should include the actual SQL query so that the label is self-contained:
+The following file describes the labels which hosts should be automatically grouped into. The label resource should include the actual SQL query so that the label is self-contained. A label's `name` and `description` must be 255 characters or fewer.
 
 ```yaml
 apiVersion: v1
