@@ -34,9 +34,12 @@ func TestInstallScriptDmgExtractUsesYesPipe(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, script, "yes | hdiutil attach -plist -nobrowse -readonly -mountpoint")
 	require.Contains(t, script, `|| exit 1`)
-	require.Contains(t, script, `hdiutil detach "$MOUNT_POINT" || true`)
+	detach := `hdiutil detach "$MOUNT_POINT" || { sleep 2; hdiutil detach "$MOUNT_POINT"; } || hdiutil detach -force "$MOUNT_POINT" || true`
+	// A busy volume is retried and then forced, never left attached.
+	require.Contains(t, script, detach)
+	require.Equal(t, 2, strings.Count(script, detach))
 	// A failed staging copy detaches and exits before the existing app is backed up.
-	staging := "if ! sudo cp -R \"$MOUNT_POINT\"/* \"$TMPDIR\"; then\n\thdiutil detach \"$MOUNT_POINT\" || true\n\texit 1\nfi\n"
+	staging := "if ! sudo cp -R \"$MOUNT_POINT\"/* \"$TMPDIR\"; then\n\t" + detach + "\n\texit 1\nfi\n"
 	require.Contains(t, script, staging)
 	require.Less(t, strings.Index(script, staging), strings.Index(script, "quit_and_track_application '"))
 }
