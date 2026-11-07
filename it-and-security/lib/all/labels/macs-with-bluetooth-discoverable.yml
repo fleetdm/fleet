@@ -1,0 +1,13 @@
+# Closest Fleet equivalent of the Jamf "Bluetooth Discoverable State" extension attribute.
+# Like the EA (which read MCX via dscl), this only sees the setting when it is delivered as a managed preference
+# (configuration profile or MCX). Hosts where it is unmanaged are NOT in this label.
+# The EA's Pass/Fail against "desired value false" becomes: in this label = Fail (discoverable).
+- name: Macs with Bluetooth discoverable
+  description: macOS hosts where a managed preference (com.apple.Bluetooth.ByHost, DiscoverableState) sets Bluetooth to discoverable. Hosts without the managed setting are not included.
+  query: |-
+    SELECT 1 FROM managed_policies
+    WHERE domain = 'com.apple.Bluetooth.ByHost'
+      AND name = 'DiscoverableState'
+      AND CAST(value AS INTEGER) = 1;
+  label_membership_type: dynamic
+  platform: darwin

@@ -1,0 +1,10 @@
+# Closest Fleet equivalent of the Jamf "DNS Servers" extension attribute (macOS half).
+# PLACEHOLDER LIST: edit the addresses below to match the resolvers your organization considers non-corporate.
+- name: Macs using public DNS resolvers
+  description: macOS hosts with at least one well-known public DNS resolver (Cloudflare, Google, Quad9) configured. Placeholder list; edit the addresses in the query to fit your organization.
+  query: >-
+    SELECT 1 FROM dns_resolvers WHERE type = 'nameserver' AND address IN
+    ('1.1.1.1', '1.0.0.1', '8.8.8.8', '8.8.4.4', '9.9.9.9', '149.112.112.112',
+    '2606:4700:4700::1111', '2606:4700:4700::1001', '2001:4860:4860::8888', '2001:4860:4860::8844');
+  label_membership_type: dynamic
+  platform: darwin

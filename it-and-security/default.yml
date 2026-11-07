@@ -137,6 +137,13 @@ labels:
   - path: ./lib/all/labels/linux-excluded-from-external-storage-restrictions.yml
   - path: ./lib/all/labels/hosts-with-npm-package-inventory.yml
   - path: ./lib/all/labels/warehouse-status.yml
+  - path: ./lib/all/labels/macs-using-public-dns-resolvers.yml
+  - path: ./lib/all/labels/windows-hosts-using-public-dns-resolvers.yml
+  - path: ./lib/all/labels/macs-with-google-chrome-below-minimum-version.yml
+  - path: ./lib/all/labels/macs-with-crowdstrike-falcon-running.yml
+  - path: ./lib/all/labels/macs-with-bluetooth-discoverable.yml
+  - path: ./lib/all/labels/macs-with-battery-below-20-percent.yml
+  - path: ./lib/all/labels/windows-hosts-with-battery-below-20-percent.yml
 custom_host_vitals:
   # Set daily from Retriever's warehouse API by a scheduled routine.
   - name: Warehouse status

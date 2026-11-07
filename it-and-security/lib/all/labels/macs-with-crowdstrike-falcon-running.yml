@@ -1,0 +1,10 @@
+# Closest Fleet equivalent of the Jamf "CrowdStrike Falcon Sensor" extension attribute.
+# The Jamf EA read `sysctl cs.version`; this label instead checks for the sensor process or its system extension.
+# For the sensor version, use a report on the crowdstrike_falcon table (macadmins extension): SELECT falcon_version FROM crowdstrike_falcon;
+- name: Macs with CrowdStrike Falcon running
+  description: macOS hosts where the CrowdStrike Falcon sensor process (falcond) is running or its system extension (com.crowdstrike.falcon.Agent) is installed.
+  query: |-
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM processes WHERE name = 'falcond')
+    OR EXISTS (SELECT 1 FROM system_extensions WHERE identifier = 'com.crowdstrike.falcon.Agent');
+  label_membership_type: dynamic
+  platform: darwin
