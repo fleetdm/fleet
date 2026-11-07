@@ -246,8 +246,14 @@ func createBulkUsersCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
+			if len(csvLines) == 0 {
+				return errors.New("the CSV file is empty: expected a header row")
+			}
 			users := []fleet.UserPayload{}
-			for _, record := range csvLines[1:] {
+			for i, record := range csvLines[1:] {
+				if len(record) < 6 {
+					return fmt.Errorf("row %d of the CSV has %d columns, expected 6", i+2, len(record))
+				}
 				name := record[0]
 				email := record[1]
 				password, passErr := generateRandomPassword()
@@ -389,7 +395,13 @@ func deleteBulkUsersCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			for _, user := range csvLines[1:] {
+			if len(csvLines) == 0 {
+				return errors.New("the CSV file is empty: expected a header row")
+			}
+			for i, user := range csvLines[1:] {
+				if len(user) < 1 {
+					return fmt.Errorf("row %d of the CSV has no columns, expected an email", i+2)
+				}
 				email := user[0]
 				if err := client.DeleteUser(email); err != nil {
 					return err

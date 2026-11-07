@@ -1,0 +1,1 @@
+- `fleetctl user create-users` and `delete-users` now return an error instead of panicking when the CSV file is empty or a row has too few columns.

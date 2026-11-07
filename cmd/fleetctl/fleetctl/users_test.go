@@ -241,3 +241,17 @@ func TestDeleteBulkUsers(t *testing.T) {
 		assert.Equal(t, user.ID, deletedUser)
 	}
 }
+
+func TestBulkUsersMalformedCSV(t *testing.T) {
+	_, _ = testing_utils.RunServerWithMockedDS(t)
+
+	empty := writeTmpCsv(t, "")
+	short := writeTmpCsv(t, "Name,Email\nuser1,user1@example.com")
+
+	_, err := runAppNoChecks([]string{"user", "create-users", "--csv", empty})
+	require.ErrorContains(t, err, "empty")
+	_, err = runAppNoChecks([]string{"user", "create-users", "--csv", short})
+	require.ErrorContains(t, err, "expected 6")
+	_, err = runAppNoChecks([]string{"user", "delete-users", "--csv", empty})
+	require.ErrorContains(t, err, "empty")
+}
