@@ -8521,6 +8521,13 @@
       "description": "Tableau Prep is a data preparation tool for combining, shaping, and cleaning data for analysis in Tableau."
     },
     {
+      "name": "Tableau Reader",
+      "slug": "tableau-reader/windows",
+      "platform": "windows",
+      "unique_identifier": "Tableau Reader",
+      "description": "Tableau Reader is a free desktop application for opening and interacting with data visualizations built in Tableau."
+    },
+    {
       "name": "Tableau Desktop",
       "slug": "tableau/darwin",
       "platform": "darwin",
