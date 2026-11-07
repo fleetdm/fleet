@@ -1,4 +1,4 @@
-# Migrate to Fleet 5
+# Upgrade to Fleet 5
 
 Fleet 5 removes deprecated features such as API endpoints and parameters, YAML (GitOps) keys, and more. This guide lists [every breaking change](#breaking-changes), what changed, and what you need to do.
 
@@ -6,7 +6,7 @@ Fleet 5 removes deprecated features such as API endpoints and parameters, YAML (
 
 Fleet will support Fleet 4.95 with security fixes through June 30, 2027.
 
-How to migrate?
+How to upgrade?
 
 1. [Upgrade](https://fleetdm.com/docs/deploy/upgrading-fleet#upgrading-fleet) to Fleet 4.95.
 2. Work through the list of [breaking changes](#breaking-changes).
@@ -267,7 +267,7 @@ Fleet 4.95 doesn't support the new names, so you can't change them before you up
 
 - Change them right after you upgrade.
 - Search for these keys in your scripts and integrations, and rename them.
-- Until you do, calls that use the old names fail with a `422` error like: `The "mdm.enable_recovery_lock_password" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+- Until you do, calls that use the old names fail with a `422` error like: `The "mdm.enable_recovery_lock_password" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 
 GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 
@@ -284,7 +284,7 @@ Fleet 4.95 doesn't support the new names, so you can't change them before you up
 
 - Change them right after you upgrade.
 - Search for these keys in your scripts and integrations, and rename them.
-- Until you do, calls that use the old names fail with a `422` error like: `The "mdm.windows_enabled_and_configured" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+- Until you do, calls that use the old names fail with a `422` error like: `The "mdm.windows_enabled_and_configured" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 
 GitHub issue: [#53873](https://github.com/fleetdm/fleet/issues/53873)
 
@@ -357,7 +357,7 @@ GitHub issue: [#53877](https://github.com/fleetdm/fleet/issues/53877)
 Fleet 4.95 doesn't support `POST /hosts/:id/reset`, so you can't switch to it early. Instead:
 
 1. Before you upgrade, remove the `windows` object from any request that sends `"doWipeProtected"`. Wiping works the same.
-2. After you upgrade, use `POST /hosts/:id/reset` instead of `"doWipe"` to repurpose hosts. Until you do, Windows wipes that pass a `windows` object fail with a `422` error like: `The "windows" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+2. After you upgrade, use `POST /hosts/:id/reset` instead of `"doWipe"` to repurpose hosts. Until you do, Windows wipes that pass a `windows` object fail with a `422` error like: `The "windows" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 
 GitHub issue: [#55003](https://github.com/fleetdm/fleet/issues/55003)
 
@@ -672,7 +672,7 @@ GitHub issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 Fleet 4.95 doesn't support the new names, so you can't change them before you upgrade.
 
 - After you upgrade, rename these keys before your next GitOps run.
-- Until you do, your GitOps run fails with an error like: `The "controls.enable_recovery_lock_password" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+- Until you do, your GitOps run fails with an error like: `The "controls.enable_recovery_lock_password" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 
 GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 
@@ -688,7 +688,7 @@ GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 Fleet 4.95 doesn't support the new names, so you can't change them before you upgrade.
 
 - After you upgrade, rename these keys before your next GitOps run.
-- Until you do, your GitOps run fails with an error like: `The "controls.windows_enabled_and_configured" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+- Until you do, your GitOps run fails with an error like: `The "controls.windows_enabled_and_configured" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 
 GitHub issue: [#53873](https://github.com/fleetdm/fleet/issues/53873)
 
@@ -1129,7 +1129,7 @@ GitHub issue: [#52800](https://github.com/fleetdm/fleet/issues/52800)
 GitHub issues: [#53274](https://github.com/fleetdm/fleet/issues/53274), [#53897](https://github.com/fleetdm/fleet/issues/53897)
 
 
-<meta name="articleTitle" value="Migrate to Fleet 5">
+<meta name="articleTitle" value="Upgrade to Fleet 5">
 <meta name="authorFullName" value="Steven Palmesano">
 <meta name="authorGitHubUsername" value="spalmesano0">
 <meta name="publishedOn" value="2026-11-09">
