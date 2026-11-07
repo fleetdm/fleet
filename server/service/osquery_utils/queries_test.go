@@ -730,7 +730,7 @@ func TestGetDetailQueries(t *testing.T) {
 	premiumCtx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	queriesPremium := GetDetailQueries(premiumCtx, config.FleetConfig{}, nil, nil, Integrations{}, nil)
 	premiumQueries := append([]string{}, baseQueries...)
-	premiumQueries = append(premiumQueries, "entra_join_user_windows")
+	premiumQueries = append(premiumQueries, "entra_join_user_windows", "ai_agent_sessions", "ai_agent_session_events")
 	require.Len(t, queriesPremium, len(premiumQueries))
 	sortedKeysCompare(t, queriesPremium, premiumQueries)
 

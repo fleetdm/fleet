@@ -224,14 +224,16 @@ func (ds *Datastore) ListHostAISessionsNeedingEvents(ctx context.Context, hostID
 	// rereading first would re-send the same events each time and never reach the new ones. An undecided event can
 	// only get its decision if the agent wrote to the transcript after the event was read, so a caught-up session is
 	// reread only once its ended_at moves past the one its events were read at. A backfill still behind is read
-	// apart, at most one per read and a few calls at a time.
+	// apart, at most one per read and a few calls at a time. Sessions within a day of the cleanup's cutoffs are left
+	// out, so their events aren't being stored while the cleanup deletes them.
 	const stmt = `
 (SELECT
 	agent, agent_session_id, transcript_path, ended_at, event_count,
 	IF(event_count < tool_call_count, NULL, first_undecided_tool_call_index) AS reread_from_tool_call_index,
 	0 AS max_tool_calls
 FROM host_ai_sessions
-WHERE host_id = ? AND transcript_path <> '' AND events_empty_reads < ? AND NOT (backfill AND event_count < tool_call_count) AND (
+WHERE host_id = ? AND transcript_path <> '' AND events_empty_reads < ? AND (started_at IS NULL OR started_at >= ?) AND
+	updated_at >= ? AND NOT (backfill AND event_count < tool_call_count) AND (
 	event_count < tool_call_count OR
 	(agent <> ? AND first_undecided_tool_call_index IS NOT NULL AND ended_at > COALESCE(events_ended_at, '1000-01-01'))
 )
@@ -242,20 +244,25 @@ UNION ALL
 	agent, agent_session_id, transcript_path, ended_at, event_count, NULL AS reread_from_tool_call_index,
 	? AS max_tool_calls
 FROM host_ai_sessions
-WHERE host_id = ? AND transcript_path <> '' AND events_empty_reads < ? AND backfill AND event_count < tool_call_count
+WHERE host_id = ? AND transcript_path <> '' AND events_empty_reads < ? AND (started_at IS NULL OR started_at >= ?) AND
+	updated_at >= ? AND backfill AND event_count < tool_call_count
 ORDER BY ended_at DESC
 LIMIT 1)`
+	startedAfter := time.Now().UTC().Add(-fleet.HostAISessionsMaxAge)
+	updatedAfter := startedAfter.Add(hostAISessionsCleanupGrace)
 	var cursors []*fleet.HostAISessionEventsCursor
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &cursors, stmt,
-		hostID, hostAISessionMaxEmptyEventReads, fleet.AISessionAgentCursor, limit,
-		hostAISessionBackfillCalls, hostID, hostAISessionMaxEmptyEventReads); err != nil {
+		hostID, hostAISessionMaxEmptyEventReads, startedAfter, updatedAfter, fleet.AISessionAgentCursor, limit,
+		hostAISessionBackfillCalls, hostID, hostAISessionMaxEmptyEventReads, startedAfter, updatedAfter); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list host ai sessions needing events")
 	}
 	return cursors, nil
 }
 
-// hostAISessionIDs returns the ids of the host's stored sessions among keys.
-func hostAISessionIDs(ctx context.Context, q sqlx.QueryerContext, hostID uint, keys []hostAISessionKey) (map[hostAISessionKey]uint, error) {
+// lockHostAISessions locks the host's stored sessions among keys until the transaction ends, so a session can't be
+// deleted while its events are stored, nor its events stored by another transaction. It must be the transaction's
+// first read: the reads after it then see every event stored before the locks were taken.
+func lockHostAISessions(ctx context.Context, q sqlx.QueryerContext, hostID uint, keys []hostAISessionKey) (map[hostAISessionKey]uint, error) {
 	var sb strings.Builder
 	args := []any{hostID}
 	for i, key := range keys {
@@ -271,9 +278,9 @@ func hostAISessionIDs(ctx context.Context, q sqlx.QueryerContext, hostID uint, k
 		AgentSessionID string `db:"agent_session_id"`
 	}
 	if err := sqlx.SelectContext(ctx, q, &stored, fmt.Sprintf(
-		`SELECT id, agent, agent_session_id FROM host_ai_sessions WHERE host_id = ? AND (agent, agent_session_id) IN (%s)`,
+		`SELECT id, agent, agent_session_id FROM host_ai_sessions WHERE host_id = ? AND (agent, agent_session_id) IN (%s) FOR UPDATE`,
 		sb.String()), args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "select host ai sessions for events")
+		return nil, ctxerr.Wrap(ctx, err, "lock host ai sessions for events")
 	}
 	ids := make(map[hostAISessionKey]uint, len(stored))
 	for _, s := range stored {
@@ -339,15 +346,58 @@ WHERE id = ?`
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		sessionIDs, err := hostAISessionIDs(ctx, tx, hostID, slices.Concat(keys, empty))
+		sessionIDs, err := lockHostAISessions(ctx, tx, hostID, slices.Concat(keys, empty))
 		if err != nil {
 			return err
 		}
 
+		// Stored events that are read again only have their decision updated. Inserting them would hit the unique key:
+		// InnoDB undoes the row it already put in the primary key, keeping a gap lock there, and transactions given
+		// interleaved ids then deadlock inserting into each other's gaps. The sessions are locked, so what's read here
+		// can't change before the insert.
+		stored := make(map[uint]map[uint]struct{}, len(keys))
+		for _, key := range keys {
+			id, ok := sessionIDs[key]
+			if !ok {
+				continue
+			}
+			var indexes []uint
+			if err := sqlx.SelectContext(ctx, tx, &indexes,
+				`SELECT tool_call_index FROM host_ai_session_events WHERE ai_session_id = ? AND tool_call_index >= ?`,
+				id, readFrom[key]); err != nil {
+				return ctxerr.Wrap(ctx, err, "select stored host ai session events")
+			}
+			stored[id] = make(map[uint]struct{}, len(indexes))
+			for _, i := range indexes {
+				stored[id][i] = struct{}{}
+			}
+		}
+		type decisionKey struct {
+			sessionID uint
+			decision  string
+		}
+		decided := make(map[decisionKey][]uint)
 		toInsert := make([]*fleet.HostAISessionEvent, 0, len(events))
 		for _, e := range events {
-			if _, ok := sessionIDs[newHostAISessionKey(e.Agent, e.AgentSessionID)]; ok {
+			id, ok := sessionIDs[newHostAISessionKey(e.Agent, e.AgentSessionID)]
+			if !ok {
+				continue
+			}
+			if _, ok := stored[id][e.ToolCallIndex]; !ok {
 				toInsert = append(toInsert, e)
+			} else if e.Decision != "" {
+				k := decisionKey{id, truncateRunes(e.Decision, hostAISessionDecisionMaxLen)}
+				decided[k] = append(decided[k], e.ToolCallIndex)
+			}
+		}
+		for k, indexes := range decided {
+			stmt, args, err := sqlx.In(`UPDATE host_ai_session_events SET decision = ?
+				WHERE ai_session_id = ? AND decision <> ? AND tool_call_index IN (?)`, k.decision, k.sessionID, k.decision, indexes)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build update host ai session event decisions")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "update host ai session event decisions")
 			}
 		}
 		generateValueArgs := func(e *fleet.HostAISessionEvent) (string, []any) {
