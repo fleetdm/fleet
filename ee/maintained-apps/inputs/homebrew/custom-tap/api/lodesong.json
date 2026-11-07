@@ -1,0 +1,69 @@
+{
+  "token": "lodesong",
+  "old_tokens": [],
+  "name": [
+    "lodesong"
+  ],
+  "desc": "Self-hosted music player for Navidrome",
+  "homepage": "https://github.com/FindMalek/lodesong",
+  "url": "https://github.com/FindMalek/lodesong/releases/download/v1.9.1/lodesong-macos.zip",
+  "url_specs": {},
+  "version": "1.9.1",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "sha256": "d0f9fd0916e22ee4a34df81d90fa686ec6b522e174fae5f798a495cf67cde193",
+  "artifacts": [
+    {
+      "app": [
+        "lodesong.app"
+      ]
+    },
+    {
+      "zap": [
+        {
+          "trash": [
+            "~/Library/Caches/engineer.findmalek.lodesong",
+            "~/Library/HTTPStorages/engineer.findmalek.lodesong",
+            "~/Library/Preferences/engineer.findmalek.lodesong.plist",
+            "~/Library/Saved Application State/engineer.findmalek.lodesong.savedState"
+          ]
+        }
+      ]
+    }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+    "macos": {
+      ">=": [
+        "14"
+      ]
+    }
+  },
+  "conflicts_with": null,
+  "container": null,
+  "rename": [],
+  "auto_updates": null,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "languages": [],
+  "ruby_source_path": "Casks/lodesong.rb",
+  "ruby_source_checksum": {
+    "sha256": "d50d0b7231bc011189a8bd85719b0a8cadcedf83bab9850b035779f8d572b6ca"
+  }
+}

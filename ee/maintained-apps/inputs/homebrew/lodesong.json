@@ -1,0 +1,9 @@
+{
+  "name": "lodesong",
+  "slug": "lodesong/darwin",
+  "unique_identifier": "engineer.findmalek.lodesong",
+  "token": "lodesong",
+  "installer_format": "zip",
+  "default_categories": ["Productivity"],
+  "cask_path": "ee/maintained-apps/inputs/homebrew/custom-tap/api/lodesong.json"
+}
