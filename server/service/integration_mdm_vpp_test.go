@@ -1141,8 +1141,10 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	// check that we created an activity for the policy creation
 	wantAct := fleet.ActivityTypeCreatedPolicy{
-		ID:   listSw.SoftwareTitles[0].AppStoreApp.AutomaticInstallPolicies[0].ID,
-		Name: listSw.SoftwareTitles[0].AppStoreApp.AutomaticInstallPolicies[0].Name,
+		ID:       listSw.SoftwareTitles[0].AppStoreApp.AutomaticInstallPolicies[0].ID,
+		Name:     listSw.SoftwareTitles[0].AppStoreApp.AutomaticInstallPolicies[0].Name,
+		TeamID:   new(int64(team.ID)), //nolint:gosec // dismiss G115
+		TeamName: &team.Name,
 	}
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
@@ -1976,6 +1978,22 @@ func (s *integrationMDMTestSuite) TestNoTeamVPPAppIcons() {
 
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d", validToken.Token.ID), &deleteVPPTokenResponse{}, http.StatusNoContent)
 	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &resp)
+}
+
+func (s *integrationMDMTestSuite) TestVPPAutomaticInstallPolicyActivityNoFleet() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	s.setVPPTokenForTeam(fleet.PolicyNoTeamID)
+
+	var addAppResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
+		&addAppStoreAppRequest{TeamID: new(fleet.PolicyNoTeamID), AppStoreID: "1", AutomaticInstall: true}, http.StatusOK, &addAppResp)
+
+	var policies fleet.ListTeamPoliciesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", fleet.PolicyNoTeamID), nil, http.StatusOK, &policies)
+	require.Len(t, policies.Policies, 1)
+	s.lastActivityMatches(fleet.ActivityTypeCreatedPolicy{}.ActivityName(),
+		fmt.Sprintf(`{"fleet_id":0, "policy_id":%d, "policy_name":%q}`, policies.Policies[0].ID, policies.Policies[0].Name), 0)
 }
 
 func (s *integrationMDMTestSuite) TestVPPAppsMDMFiltering() {
