@@ -56,8 +56,8 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, _ bo
 func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (unlockPIN string, err error) {
 	// First ensure the user has access to list hosts, then check the specific
 	// host once team_id is loaded.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
-		return "", err
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return "", authz.GitOpsHostListError(ctx, err)
 	}
 	host, err := svc.ds.Host(ctx, hostID)
 	if err != nil {
@@ -193,8 +193,8 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error) {
 	// First ensure the user has access to list hosts, then check the specific
 	// host once team_id is loaded.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
-		return "", err
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return "", authz.GitOpsHostListError(ctx, err)
 	}
 	host, err := svc.ds.HostLite(ctx, hostID)
 	if err != nil {
@@ -277,8 +277,8 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 func (svc *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.MDMWipeMetadata) error {
 	// First ensure the user has access to list hosts, then check the specific
 	// host once team_id is loaded.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
-		return err
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return authz.GitOpsHostListError(ctx, err)
 	}
 	host, err := svc.ds.Host(ctx, hostID)
 	if err != nil {
@@ -598,8 +598,8 @@ func (svc *Service) enqueueWipeHostRequest(
 }
 
 func (svc *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
-		return err
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return authz.GitOpsHostListError(ctx, err)
 	}
 	host, err := svc.ds.Host(ctx, hostID)
 	if err != nil {
@@ -975,8 +975,8 @@ func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID ui
 // The user-actor activity is logged immediately on both paths; the cron must not re-log it. A rotation already in
 // flight is rejected with 400 BadRequest.
 func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostID uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
-		return err
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return authz.GitOpsHostListError(ctx, err)
 	}
 	host, err := svc.ds.HostLite(ctx, hostID)
 	if err != nil {

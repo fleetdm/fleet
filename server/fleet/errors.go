@@ -197,6 +197,10 @@ func (e *ParamRequiredDeprecationError) Error() string {
 	return fmt.Sprintf(`The %q parameter is now required. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration`, e.Param)
 }
 
+// GitOpsMDMCommandErrorMessage is returned to GitOps users, who can't run MDM commands since Fleet 5.
+const GitOpsMDMCommandErrorMessage = "Users with the GitOps role can no longer run MDM commands. " +
+	"What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration"
+
 // BadRequestError makes the error encoder return a 400.
 func (e *ParamRequiredDeprecationError) BadRequestError() []map[string]string { return nil }
 

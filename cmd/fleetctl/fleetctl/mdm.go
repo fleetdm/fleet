@@ -111,6 +111,10 @@ func mdmRunCommand() *cli.Command {
 					}
 					return err
 				}
+				// Only GitOps users get an ID-only host (no UUID), and they can't run MDM commands.
+				if host.UUID == "" {
+					return errors.New(fleet.GitOpsMDMCommandErrorMessage)
+				}
 
 				mdmHostPlatform := fleet.ClassicMDMPlatform(host.Platform)
 				if mdmHostPlatform == "" && fleet.IsAndroidPlatform(host.Platform) {

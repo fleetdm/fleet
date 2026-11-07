@@ -4952,8 +4952,8 @@ func mdmUnenrollEndpoint(ctx context.Context, request any, svc fleet.Service) (f
 }
 
 func (svc *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
-		return err
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return authz.GitOpsHostListError(ctx, err)
 	}
 
 	host, err := svc.ds.HostLite(ctx, hostID)

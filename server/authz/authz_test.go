@@ -123,14 +123,42 @@ func TestGitOpsMDMCommandError(t *testing.T) {
 				ctx = viewer.NewContext(ctx, viewer.Viewer{User: c.user})
 			}
 			err := GitOpsMDMCommandError(ctx, c.teamID, authzErr)
-			if !c.wantMessage {
-				require.Equal(t, authzErr, err)
-				return
-			}
-			var forbidden *Forbidden
-			require.ErrorAs(t, err, &forbidden)
-			require.Equal(t, gitOpsMDMCommandErrorMessage, err.Error())
-			require.Equal(t, authzErr.Error(), forbidden.Internal())
+			requireGitOpsMDMCommandError(t, c.wantMessage, authzErr, err)
 		})
 	}
+}
+
+func TestGitOpsHostListError(t *testing.T) {
+	authzErr := errors.New("authz failed")
+	cases := []struct {
+		name        string
+		user        *fleet.User
+		wantMessage bool
+	}{
+		{"global gitops", test.UserGitOps, true},
+		{"fleet gitops", &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}}, true},
+		{"fleet observer", test.UserTeamObserverTeam1, false},
+		{"no viewer", nil, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ctx := t.Context()
+			if c.user != nil {
+				ctx = viewer.NewContext(ctx, viewer.Viewer{User: c.user})
+			}
+			requireGitOpsMDMCommandError(t, c.wantMessage, authzErr, GitOpsHostListError(ctx, authzErr))
+		})
+	}
+}
+
+func requireGitOpsMDMCommandError(t *testing.T, wantMessage bool, authzErr, err error) {
+	t.Helper()
+	if !wantMessage {
+		require.Equal(t, authzErr, err)
+		return
+	}
+	var forbidden *Forbidden
+	require.ErrorAs(t, err, &forbidden)
+	require.Equal(t, fleet.GitOpsMDMCommandErrorMessage, err.Error())
+	require.Equal(t, authzErr.Error(), forbidden.Internal())
 }

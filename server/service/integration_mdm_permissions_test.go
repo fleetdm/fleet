@@ -207,6 +207,8 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 		{"DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/commands/%s", h1.ID, uuid.NewString()), nil},
 		{"POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", h1.ID), nil},
 		{"POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_account_password/rotate", h1.ID), nil},
+		// A nonexistent host gets the same response, so host IDs can't be probed.
+		{"POST", "/api/latest/fleet/hosts/999999/lock", nil},
 	}
 	for _, email := range []string{"gitops1-mdm@example.com", "gitops2-mdm@example.com"} {
 		s.setTokenForTest(t, email, test.GoodPassword)

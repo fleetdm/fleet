@@ -1337,8 +1337,8 @@ func wipeHostEndpoint(ctx context.Context, request interface{}, svc fleet.Servic
 func (svc *Service) WipeHost(ctx context.Context, hostID uint, _ *fleet.MDMWipeMetadata) error {
 	// First ensure the user has access to list hosts, then check the specific
 	// host once team_id is loaded.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
-		return err
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return authz.GitOpsHostListError(ctx, err)
 	}
 	host, err := svc.ds.Host(ctx, hostID)
 	if err != nil {
