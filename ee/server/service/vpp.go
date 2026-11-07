@@ -244,8 +244,6 @@ func (svc *Service) resolveAppStoreAppToken(ctx context.Context, teamID, vppToke
 	return tok, nil
 }
 
-var isAdamID = regexp.MustCompile(`^[0-9]+$`)
-
 // The payload checks below need no team context, so BatchAssociateVPPApps and
 // the dry run for a not-yet-created team share them. A check that needs the
 // team (its config, labels, categories, or token) stays in BatchAssociateVPPApps.
@@ -408,7 +406,7 @@ func vppBatchPayloadPlatforms(payload fleet.VPPBatchPayload) []fleet.Installable
 	switch {
 	case payload.Platform != "":
 		return []fleet.InstallableDevicePlatform{payload.Platform}
-	case isAdamID.MatchString(payload.AppStoreID):
+	case fleet.IsAppleAppStoreID(payload.AppStoreID):
 		return []fleet.InstallableDevicePlatform{fleet.MacOSPlatform, fleet.IOSPlatform, fleet.IPadOSPlatform}
 	default:
 		return []fleet.InstallableDevicePlatform{fleet.MacOSPlatform}
@@ -751,7 +749,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 		payload.VersionName = strings.TrimSpace(payload.VersionName)
 
-		if payload.Platform == "" && isAdamID.MatchString(payload.AppStoreID) {
+		if payload.Platform == "" && fleet.IsAppleAppStoreID(payload.AppStoreID) {
 			// add all possible Apple platforms, we'll remove the ones that this app doesn't support later
 			for _, p := range []fleet.InstallableDevicePlatform{fleet.MacOSPlatform, fleet.IOSPlatform, fleet.IPadOSPlatform} {
 				expandedPlatforms[fleet.VPPAppID{AdamID: payload.AppStoreID, Platform: p}] = struct{}{}
