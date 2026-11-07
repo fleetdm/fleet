@@ -95,8 +95,10 @@ func TestApplyUserRoles(t *testing.T) {
 		}, nil
 	}
 
-	ds.SaveUsersFunc = func(ctx context.Context, users []*fleet.User) error {
+	ds.SaveUsersFunc = func(ctx context.Context, users []*fleet.User) (map[uint]fleet.User, error) {
+		previous := make(map[uint]fleet.User, len(users))
 		for _, u := range users {
+			previous[u.ID] = fleet.User{ID: u.ID}
 			switch u.Email {
 			case "admin1@example.com":
 				userRoleList[0] = u
@@ -104,7 +106,7 @@ func TestApplyUserRoles(t *testing.T) {
 				userRoleList[1] = u
 			}
 		}
-		return nil
+		return previous, nil
 	}
 
 	tmpFile, err := os.CreateTemp(os.TempDir(), "*.yml")

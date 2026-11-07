@@ -281,8 +281,19 @@ func (ds *Datastore) SaveUser(ctx context.Context, user *fleet.User) error {
 	})
 }
 
-func (ds *Datastore) SaveUsers(ctx context.Context, users []*fleet.User) error {
-	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+func (ds *Datastore) SaveUsers(ctx context.Context, users []*fleet.User) (map[uint]fleet.User, error) {
+	ids := make([]uint, 0, len(users))
+	for _, user := range users {
+		ids = append(ids, user.ID)
+	}
+
+	var previous map[uint]fleet.User
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var err error
+		previous, err = lockUserRolesDB(ctx, tx, ids)
+		if err != nil {
+			return err
+		}
 		for _, user := range users {
 			if err := saveUserDB(ctx, tx, user); err != nil {
 				return err
@@ -290,6 +301,54 @@ func (ds *Datastore) SaveUsers(ctx context.Context, users []*fleet.User) error {
 		}
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
+	return previous, nil
+}
+
+// lockUserRolesDB locks the users and returns their identity and current roles. Writers that take this lock, including
+// saveUserDB's UPDATE, serialize with it; SaveTeam does not. Call it first in the transaction, because an earlier plain
+// read would fix the snapshot that the role read uses.
+func lockUserRolesDB(ctx context.Context, tx sqlx.ExtContext, ids []uint) (map[uint]fleet.User, error) {
+	users := make(map[uint]fleet.User, len(ids))
+	if len(ids) == 0 {
+		return users, nil
+	}
+
+	stmt, args, err := sqlx.In(`SELECT id, name, email, global_role FROM users WHERE id IN (?) ORDER BY id FOR UPDATE`, ids)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build lock users query")
+	}
+	var rows []fleet.User
+	if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "lock users")
+	}
+	for _, user := range rows {
+		users[user.ID] = user
+	}
+
+	stmt, args, err = sqlx.In(`
+		SELECT ut.team_id AS id, ut.user_id, ut.role, t.name
+		FROM user_teams ut INNER JOIN teams t ON ut.team_id = t.id
+		WHERE ut.user_id IN (?)`, ids)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build user roles query")
+	}
+	var teams []struct {
+		UserID uint `db:"user_id"`
+		fleet.UserTeam
+	}
+	if err := sqlx.SelectContext(ctx, tx, &teams, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select user roles")
+	}
+	for _, row := range teams {
+		if user, ok := users[row.UserID]; ok {
+			user.Teams = append(user.Teams, row.UserTeam)
+			users[row.UserID] = user
+		}
+	}
+	return users, nil
 }
 
 func saveUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.User) error {

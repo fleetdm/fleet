@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -967,7 +968,6 @@ func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet
 	currentUser := authz.UserFromContext(ctx)
 
 	idMap := make(map[uint]fleet.TeamUser)
-	requestedUsers := make(map[uint]*fleet.User, len(users))
 	for _, user := range users {
 		if !fleet.ValidTeamRole(user.Role) {
 			return nil, fleet.NewInvalidArgumentError("users", fmt.Sprintf("%s is not a valid user role", user.Role))
@@ -983,47 +983,24 @@ func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet
 				currentUser, fullUser, fleet.ActionWriteMembers,
 			)
 		}
-		requestedUsers[user.ID] = fullUser
 	}
 
-	team, err := svc.ds.TeamWithExtras(ctx, teamID)
+	team, err := svc.ds.TeamLite(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
 
-	oldRoles := make(map[uint]string, len(team.Users))
-
-	// Replace existing
-	for i, existingUser := range team.Users {
-		if user, ok := idMap[existingUser.ID]; ok {
-			oldRoles[user.ID] = existingUser.Role
-			team.Users[i] = user
-			delete(idMap, user.ID)
-		}
-	}
-
-	// Add new (that have not already been replaced)
-	for _, user := range idMap {
-		team.Users = append(team.Users, user)
-	}
-
-	logging.WithExtras(ctx, "users", team.Users)
-
-	team, err = svc.ds.SaveTeam(ctx, team)
+	previous, err := svc.ds.UpdateTeamUsers(ctx, teamID, slices.Collect(maps.Values(idMap)), nil)
 	if err != nil {
 		return nil, err
 	}
-
-	for _, teamUser := range team.Users {
-		fullUser, ok := requestedUsers[teamUser.ID]
-		if !ok {
-			continue
-		}
-		if err := svc.logTeamRoleChange(ctx, team, *fullUser, oldRoles[teamUser.ID], teamUser.Role); err != nil {
+	for id, user := range idMap {
+		if err := svc.logTeamRoleChange(ctx, team, previous[id], user.Role); err != nil {
 			return nil, err
 		}
 	}
-	return team, nil
+
+	return svc.teamAfterUsersChange(ctx, teamID)
 }
 
 func (svc *Service) DeleteTeamUsers(ctx context.Context, teamID uint, users []fleet.TeamUser) (*fleet.Team, error) {
@@ -1036,54 +1013,52 @@ func (svc *Service) DeleteTeamUsers(ctx context.Context, teamID uint, users []fl
 		idMap[user.ID] = true
 	}
 
-	team, err := svc.ds.TeamWithExtras(ctx, teamID)
+	team, err := svc.ds.TeamLite(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
 
-	newUsers := []fleet.TeamUser{}
-	removedUsers := []fleet.TeamUser{}
-	// Delete existing
-	for _, existingUser := range team.Users {
-		if _, ok := idMap[existingUser.ID]; !ok {
-			// Only add non-deleted users
-			newUsers = append(newUsers, existingUser)
-		} else {
-			removedUsers = append(removedUsers, existingUser)
-		}
-	}
-	team.Users = newUsers
-
-	logging.WithExtras(ctx, "users", team.Users)
-
-	team, err = svc.ds.SaveTeam(ctx, team)
+	previous, err := svc.ds.UpdateTeamUsers(ctx, teamID, nil, slices.Collect(maps.Keys(idMap)))
 	if err != nil {
 		return nil, err
 	}
-
-	for _, removedUser := range removedUsers {
-		if err := svc.logTeamRoleChange(ctx, team, removedUser.User, removedUser.Role, ""); err != nil {
+	for _, user := range previous {
+		if err := svc.logTeamRoleChange(ctx, team, user, ""); err != nil {
 			return nil, err
 		}
 	}
-	return team, nil
+
+	return svc.teamAfterUsersChange(ctx, teamID)
 }
 
-// logTeamRoleChange logs the activity for a change to user's role in team. An empty role means no role in the team.
-func (svc *Service) logTeamRoleChange(ctx context.Context, team *fleet.Team, user fleet.User, oldRole, newRole string) error {
-	teamRoles := func(role string) []fleet.UserTeam {
-		if role == "" {
-			return nil
+// logTeamRoleChange logs the activity for a change to previous's role in team. An empty newRole means no role in the team.
+func (svc *Service) logTeamRoleChange(ctx context.Context, team *fleet.TeamLite, previous fleet.User, newRole string) error {
+	var oldRoles []fleet.UserTeam
+	for _, userTeam := range previous.Teams {
+		if userTeam.ID == team.ID {
+			oldRoles = append(oldRoles, userTeam)
 		}
-		return []fleet.UserTeam{{ID: team.ID, Name: team.Name, Role: role}}
 	}
-	user.Teams = teamRoles(newRole)
+	changed := previous
+	changed.Teams = nil
+	if newRole != "" {
+		changed.Teams = []fleet.UserTeam{{ID: team.ID, Name: team.Name, Role: newRole}}
+	}
 	if err := fleet.LogRoleChangeActivities(
-		ctx, svc, authz.UserFromContext(ctx), user.GlobalRole, teamRoles(oldRole), &user, false,
+		ctx, svc, authz.UserFromContext(ctx), previous.GlobalRole, oldRoles, &changed, false,
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "log activities for role change")
 	}
 	return nil
+}
+
+func (svc *Service) teamAfterUsersChange(ctx context.Context, teamID uint) (*fleet.Team, error) {
+	team, err := svc.ds.TeamWithExtras(ctxdb.RequirePrimary(ctx, true), teamID)
+	if err != nil {
+		return nil, err
+	}
+	logging.WithExtras(ctx, "users", team.Users)
+	return team, nil
 }
 
 func (svc *Service) ListTeamUsers(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]*fleet.User, error) {
