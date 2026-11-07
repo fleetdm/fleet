@@ -5987,6 +5987,13 @@
       "description": "Nitro PDF Pro is a PDF editing software."
     },
     {
+      "name": "Nitro PDF Pro",
+      "slug": "nitro-pdf-pro/windows",
+      "platform": "windows",
+      "unique_identifier": "Nitro PDF Pro",
+      "description": "Nitro PDF Pro is a PDF editor for creating, converting, editing, signing, and securing PDF documents."
+    },
+    {
       "name": "Node.js",
       "slug": "nodejs/windows",
       "platform": "windows",
@@ -9590,6 +9597,13 @@
       "platform": "windows",
       "unique_identifier": "WinSCP",
       "description": "WinSCP is a free SFTP, SCP, S3, and FTP client for Windows."
+    },
+    {
+      "name": "WinZip",
+      "slug": "winzip/windows",
+      "platform": "windows",
+      "unique_identifier": "WinZip",
+      "description": "WinZip is a file compression utility for creating, extracting, and encrypting ZIP and other archives."
     },
     {
       "name": "WireGuard",

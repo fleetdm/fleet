@@ -265,6 +265,7 @@ var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false 
 	"Mozilla Firefox Developer Edition (ARM64)": "= 'firefox.exe'",
 	"Mozilla Firefox Nightly":                   "= 'firefox.exe'",
 	"Mozilla Firefox Nightly (ARM64)":           "= 'firefox.exe'",
+	"Nitro PDF Pro":                             "= 'nitropdf.exe'",
 	"Node.js":                                   "= 'node.exe'",
 	"Notion Calendar":                           "IN ('cron.exe','notion calendar.exe')",
 	"OBS":                                       "IN ('obs32.exe','obs64.exe')",
@@ -299,6 +300,7 @@ var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false 
 	"Wacom Tablet":                              "IN ('wacomdesktopcenter.exe','wacom_tablet.exe')",
 	"WebStorm":                                  "IN ('webstorm.exe','webstorm64.exe')",
 	"Windows App":                               "= 'windowsapp.exe'",
+	"WinZip":                                    "= 'winzip64.exe'",
 	"XnSoft XnConvert":                          "= 'xnconvert.exe'",
 	"YACReader":                                 "IN ('yacreader.exe','yacreaderlibrary.exe')",
 }
