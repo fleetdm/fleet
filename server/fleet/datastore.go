@@ -3985,7 +3985,9 @@ type Datastore interface {
 	// rows to the canonical Fleet-maintained app name, since inventory and the installer
 	// already share a title via bundle_identifier and only the name is wrong. Belongs to
 	// the catalog sync, which is where those canonical names come from. Idempotent, and
-	// ambiguity-aware for apps that share a bundle identifier.
+	// ambiguity-aware for apps that share a bundle identifier. Also renames Windows titles
+	// owned by an app's installer to follow a corrected unique_identifier, which is what
+	// an installer without an upgrade code names its title after.
 	ReconcileMaintainedAppSoftwareNames(ctx context.Context) error
 
 	// ReconcileWindowsMaintainedAppSoftwareTitles merges Windows software titles whose
