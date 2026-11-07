@@ -778,11 +778,11 @@ const PolicyForm = ({
     if (!fleetName) return null;
 
     return isEditMode ? (
-      <p>
+      <p className={`${baseClass}__fleet-name`}>
         Editing policy for <strong>{fleetName}</strong>.
       </p>
     ) : (
-      <p>
+      <p className={`${baseClass}__fleet-name`}>
         Creating a new policy for <strong>{fleetName}</strong>.
       </p>
     );
