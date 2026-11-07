@@ -1,0 +1,13 @@
+{
+  "name": "SonicWall Global VPN Client",
+  "slug": "sonicwall-global-vpn-client/windows",
+  "package_identifier": "SonicWall.GlobalVPNClient",
+  "unique_identifier": "Global VPN Client",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "exists_query": "SELECT 1 FROM programs WHERE name = 'Global VPN Client' AND publisher LIKE '%SonicWall%';",
+  "default_categories": ["Security"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/sonicwall-global-vpn-client_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/sonicwall-global-vpn-client_uninstall.ps1"
+}

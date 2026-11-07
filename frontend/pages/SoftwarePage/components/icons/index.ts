@@ -2129,6 +2129,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   snowsql: SnowflakeSnowsql,
   sococo: Sococo,
   "sonic visualiser": SonicVisualiser,
+  "sonicwall global vpn client": SonicwallNetextender,
   "sonicwall netextender": SonicwallNetextender,
   sonobus: Sonobus,
   sonos: Sonos,
