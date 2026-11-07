@@ -158,8 +158,10 @@ function Remove-StretchlyFromPath {
 try {
     $entries = @(Get-Entries)
     if ($entries.Count -eq 0) {
-        # A previous run may have removed the registration but not the folder.
+        # A previous run may have removed the registration but not finished cleanup.
         Remove-KnownDirs
+        Remove-Shortcuts
+        Remove-StretchlyFromPath
         if ($exitCode -eq 0) { Write-Host "$displayName is not installed." }
         Exit $exitCode
     }
