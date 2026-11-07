@@ -39,7 +39,7 @@ func (s *commonFileStore) Get(ctx context.Context, fileID string) (io.ReadCloser
 		if bloberror.HasCode(err, bloberror.BlobNotFound, bloberror.ContainerNotFound) {
 			return nil, int64(0), fileNotFoundError{}
 		}
-		return nil, int64(0), ctxerr.Wrapf(ctx, err, "retrieving %s from Azure Blob store", s.fileLabel)
+		return nil, int64(0), ctxerr.Wrapf(ctx, newAPIError(err, s.container), "retrieving %s from Azure Blob store", s.fileLabel)
 	}
 
 	var contentLength int64
@@ -59,7 +59,7 @@ func (s *commonFileStore) Put(ctx context.Context, fileID string, content io.Rea
 
 	_, err := s.client.UploadStream(ctx, s.container, key, content, nil)
 	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "uploading %s to Azure Blob store", s.fileLabel)
+		return ctxerr.Wrapf(ctx, newAPIError(err, s.container), "uploading %s to Azure Blob store", s.fileLabel)
 	}
 	return nil
 }
@@ -74,7 +74,7 @@ func (s *commonFileStore) Exists(ctx context.Context, fileID string) (bool, erro
 		if bloberror.HasCode(err, bloberror.BlobNotFound, bloberror.ContainerNotFound) {
 			return false, nil
 		}
-		return false, ctxerr.Wrapf(ctx, err, "checking existence of %s in Azure Blob store", s.fileLabel)
+		return false, ctxerr.Wrapf(ctx, newAPIError(err, s.container), "checking existence of %s in Azure Blob store", s.fileLabel)
 	}
 	return true, nil
 }
@@ -99,7 +99,7 @@ func (s *commonFileStore) Cleanup(ctx context.Context, usedFileIDs []string, rem
 	for pager.More() {
 		page, err := pager.NextPage(ctx)
 		if err != nil {
-			return 0, ctxerr.Wrapf(ctx, err, "listing %s in Azure Blob store", s.fileLabel)
+			return 0, ctxerr.Wrapf(ctx, newAPIError(err, s.container), "listing %s in Azure Blob store", s.fileLabel)
 		}
 
 		if page.Segment == nil {
@@ -131,7 +131,7 @@ func (s *commonFileStore) Cleanup(ctx context.Context, usedFileIDs []string, rem
 		g.Go(func() error {
 			_, err := s.client.DeleteBlob(ctx, s.container, key, nil)
 			if err != nil {
-				return ctxerr.Wrapf(ctx, err, "deleting %s in Azure Blob store", s.fileLabel)
+				return ctxerr.Wrapf(ctx, newAPIError(err, s.container), "deleting %s in Azure Blob store", s.fileLabel)
 			}
 			deleted.Add(1)
 			return nil
