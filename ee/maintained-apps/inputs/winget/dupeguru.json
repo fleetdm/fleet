@@ -3,6 +3,7 @@
   "slug": "dupeguru/windows",
   "package_identifier": "DupeGuru.DupeGuru",
   "unique_identifier": "dupeGuru",
+  "fuzzy_match_name": true,
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "machine",

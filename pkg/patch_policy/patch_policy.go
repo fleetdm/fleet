@@ -241,6 +241,7 @@ var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false 
 	"Directory Opus":                    "= 'dopus.exe'",
 	"dotPeek":                           "IN ('dotpeek32.exe','dotpeek64.exe','dotpeek64a.exe')",
 	"dotTrace":                          "IN ('dottrace32.exe','dottrace64.exe','dottrace64a.exe','dottraceviewer32.exe','dottraceviewer64.exe','dottraceviewer64a.exe','jetbrains.dottrace.home.shell.exe')",
+	"dupeGuru":                          "= 'dupeguru-win64.exe'",
 	"eM Client":                         "= 'mailclient.exe'",
 	"Gephi":                             "= 'gephi64.exe'",
 	"GIMP":                              "LIKE 'gimp-3%'",
