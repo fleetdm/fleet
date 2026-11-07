@@ -1,0 +1,39 @@
+- name: Battery maximum capacity at least 50% (macOS)
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      -- Fail when any battery's full-charge capacity has degraded below 50% of
+      -- its designed capacity. Hosts with no battery (desktops) return no rows
+      -- here and pass. designed_capacity > 0 guards against divide-by-zero.
+      SELECT 1 FROM battery
+      WHERE designed_capacity > 0
+        AND (max_capacity * 100.0 / designed_capacity) < 50
+    );
+  critical: false
+  description: >-
+    Checks that the battery's maximum (full-charge) capacity is still at least 50% of its designed
+    capacity. A battery below 50% holds less than half its original charge and should be replaced.
+    Hosts without a battery pass.
+  resolution: >-
+    Your battery has degraded below 50% of its original capacity. Contact #help-it to arrange a
+    battery replacement.
+  platform: darwin
+
+- name: Battery maximum capacity at least 50% (Windows)
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      -- Fail when any battery's full-charge capacity has degraded below 50% of
+      -- its designed capacity. Hosts with no battery (desktops) return no rows
+      -- here and pass. designed_capacity > 0 guards against divide-by-zero.
+      SELECT 1 FROM battery
+      WHERE designed_capacity > 0
+        AND (max_capacity * 100.0 / designed_capacity) < 50
+    );
+  critical: false
+  description: >-
+    Checks that the battery's maximum (full-charge) capacity is still at least 50% of its designed
+    capacity. A battery below 50% holds less than half its original charge and should be replaced.
+    Hosts without a battery pass.
+  resolution: >-
+    Your battery has degraded below 50% of its original capacity. Contact #help-it to arrange a
+    battery replacement.
+  platform: windows

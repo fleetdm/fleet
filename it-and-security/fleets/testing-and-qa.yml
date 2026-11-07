@@ -100,6 +100,8 @@ policies:
   - path: ../lib/macos/policies/cli-trust-store-excludes-emudhra-roots.yml
   # Linux policies
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
+  # macOS and Windows policies
+  - path: ../lib/all/policies/battery-max-capacity.yml
 reports:
   - path: ../lib/all/reports/dex-queries.yml
   - path: ../lib/windows/reports/collect-windows-11-hardware-readiness.yml
