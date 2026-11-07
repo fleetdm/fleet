@@ -429,6 +429,15 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			xquartzLegacyBundleID, out.UniqueIdentifier, out.Version,
 		)
 	}
+	if input.Token == "roboform" {
+		// RoboForm 9 reports com.SiberSystems.RoboForm from the same path, as does the
+		// installer that RoboForm 10's disk image ships as RoboForm.app. Installing
+		// replaces either in place, so both are outdated.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE (bundle_identifier = '%s' AND path = '/Applications/RoboForm.app') OR (bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0));",
+			roboformLegacyBundleID, out.UniqueIdentifier, out.Version,
+		)
+	}
 	if input.Token == "firefox@developer-edition" {
 		// The bundle reports only the base version ("153.0") for cask version
 		// "153.0b13", so compare CFBundleVersion (encodes the build date, resolved
@@ -484,6 +493,11 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path IN (concat(a.path, '/Contents/MacOS/', a.bundle_executable), concat(a.path, '/Contents/MacOS/X11.bin')) WHERE a.bundle_identifier IN ('%s', '%s') AND a.bundle_executable != '');",
 			out.UniqueIdentifier, xquartzLegacyBundleID,
 		)
+	case "roboform":
+		out.Queries.Open = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier IN ('%s', '%s') AND a.bundle_executable != '');",
+			out.UniqueIdentifier, roboformLegacyBundleID,
+		)
 	case "chatgpt":
 		out.Queries.Open = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE (%s) AND a.bundle_executable != '');",
@@ -503,6 +517,9 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 
 // xquartzLegacyBundleID is the bundle identifier XQuartz used before 2.8.0.
 const xquartzLegacyBundleID = "org.macosforge.xquartz.X11"
+
+// roboformLegacyBundleID is the bundle identifier RoboForm used before 10.0.
+const roboformLegacyBundleID = "com.SiberSystems.RoboForm"
 
 // zenChannelLetters are trimmed from the end of Zen versions ("1.24.1b" → "1.24.1").
 const zenChannelLetters = "abcdefghijklmnopqrstuvwxyz"
