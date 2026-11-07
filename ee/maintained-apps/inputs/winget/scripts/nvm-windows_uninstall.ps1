@@ -80,8 +80,9 @@ function Resolve-Uninstaller {
     }
 
     # A user's entry could point at a share that collects the computer account's
-    # credentials, so a network path is never touched as SYSTEM.
-    if ($exePath -match '^\s*[\\/]{2}') { return $null }
+    # credentials, so only a drive-letter path is touched as SYSTEM. PowerShell
+    # also reaches a share without a leading \\, as FileSystem::\\host\share.
+    if ($exePath -and $exePath -notmatch '^[A-Za-z]:[\\/]') { return $null }
 
     if ($exePath -and -not (Test-Path -LiteralPath $exePath)) {
         $redirected = $exePath -replace '(?i)\\system32\\', '\SysWOW64\'
@@ -217,7 +218,7 @@ try {
         Write-Host "Removing '$($entry.DisplayName)' ($($entry.KeyPath))"
         $uninstaller = Resolve-Uninstaller $entry.Command
         if (-not $uninstaller) {
-            Write-Host "  Skipping this copy: its uninstaller is on a network path."
+            Write-Host "  Skipping this copy: its uninstaller isn't on a local drive."
             if ($exitCode -eq 0) { $exitCode = 1 }
             continue
         }
@@ -256,7 +257,7 @@ try {
             # nvm.exe can be in another folder: the SYSTEM-profile copy keeps its
             # uninstaller elsewhere, and users can choose where to install.
             $payloadDir = ""
-            if ($entry.Location -and $entry.Location -notmatch '^\s*[\\/]{2}') {
+            if ($entry.Location -match '^[A-Za-z]:[\\/]') {
                 try { $payloadDir = [System.IO.Path]::GetFullPath($entry.Location) } catch {}
             }
             if ($payloadDir -and $payloadDir -ne $installDir -and (Test-Path -LiteralPath (Join-Path $payloadDir "nvm.exe"))) {
