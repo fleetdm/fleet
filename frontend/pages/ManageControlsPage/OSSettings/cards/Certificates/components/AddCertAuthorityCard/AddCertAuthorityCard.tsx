@@ -11,7 +11,7 @@ interface IAddCertAuthorityCardProps {
 
 const AddCertAuthorityCard = ({ router }: IAddCertAuthorityCardProps) => (
   <EmptyState
-    variant="list"
+    variant="header-list"
     header="No certificate authority"
     info="Add a custom SCEP certificate authority to deploy certificates to your end users."
     primaryButton={

@@ -88,11 +88,14 @@ describe("Certificates tab-header", () => {
       },
     });
 
-    render(<Certificates {...baseProps} />);
+    const { container } = render(<Certificates {...baseProps} />);
 
     // Wait for the "no CAs" empty state to confirm the CA fetch resolved.
     expect(
       await screen.findByText("No certificate authority")
+    ).toBeInTheDocument();
+    expect(
+      container.querySelector(".empty-state__ghost-header")
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /Add certificate$/i })
@@ -109,9 +112,12 @@ describe("Certificates tab-header", () => {
       },
     });
 
-    render(<Certificates {...baseProps} />);
+    const { container } = render(<Certificates {...baseProps} />);
 
     expect(await screen.findByText("No certificates")).toBeInTheDocument();
+    expect(
+      container.querySelector(".empty-state__ghost-header")
+    ).toBeInTheDocument();
     expect(
       screen.getByText(
         "Add a certificate to help your end users connect to your corporate network."

@@ -10,7 +10,7 @@ interface IAddCertCardProps {
 
 const AddCertCard = ({ setShowModal }: IAddCertCardProps) => (
   <EmptyState
-    variant="list"
+    variant="header-list"
     header="No certificates"
     info="Add a certificate to help your end users connect to your corporate network."
     primaryButton={
