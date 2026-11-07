@@ -16,7 +16,17 @@ module.exports = {
         'ddm',
         'android',
       ],
-      required: true
+      description: 'The kind of profile to generate.  Pass this or a platform, not both.'
+    },
+    platform: {
+      type: 'string',
+      isIn: ['apple', 'windows'],
+      description: 'The platform to generate a profile for, leaving the kind of profile to be decided.  Pass this or a profileType, not both.'
+    },
+    forFleet: {
+      type: 'boolean',
+      defaultsTo: false,
+      description: 'Whether Fleet is asking, rather than someone using the profile generator page.'
     },
     naturalLanguageInstructions: {
       type: 'string',
@@ -29,6 +39,10 @@ module.exports = {
     success: {
       description: 'A configuration profile was successfully generated for a user.',
     },
+    invalidInput: {
+      description: 'The request did not say what to generate a profile for, or its instructions are too long.',
+      responseType: 'badRequest'
+    },
     couldNotGenerateProfile: {
       description: 'A configuration profile could not be generated for a user using the provided instructions.',
       responseType: 'badRequest'
@@ -36,7 +50,17 @@ module.exports = {
   },
 
 
-  fn: async function ({profileType, naturalLanguageInstructions}) {
+  fn: async function ({profileType, platform, forFleet, naturalLanguageInstructions}) {
+
+    if(!profileType === !platform) {
+      throw {invalidInput: {error: 'invalidInput', reason: 'Pass a profileType or a platform, but not both.'}};
+    }
+    // Counted in code points, the way Go's utf8.RuneCountInString counts them, so Fleet and this agree on
+    // where the limit falls for instructions with emoji or other characters outside the Basic Multilingual Plane.
+    const MAX_INSTRUCTIONS_LENGTH = 2000;
+    if(Array.from(naturalLanguageInstructions).length > MAX_INSTRUCTIONS_LENGTH) {
+      throw {invalidInput: {error: 'invalidInput', reason: `Instructions must be ${MAX_INSTRUCTIONS_LENGTH} characters or fewer.`}};
+    }
 
     // Generate a random room name.
     let roomId = await sails.helpers.strings.random();
@@ -55,12 +79,16 @@ module.exports = {
       let profileTypeDescriptions = {
         csp: 'CSP XML profile that enforces OS settings on Windows devices',
         mobileconfig: 'XML .mobileconfig profile that enforces OS settings on macOS/iOS/iPadOS devices',
-        ddm: 'Apple DDM declaration in JSON format that enforces OS settings on macOS devices',
+        ddm: 'Apple DDM declaration in JSON format that enforces OS settings on Apple devices',
         android: 'Android Management API Policy in JSON format that enforces OS settings on Android devices',
+      };
+      let platformDescriptions = {
+        apple: 'Apple configuration profile (a .mobileconfig or a DDM declaration) that enforces OS settings on Apple devices',
+        windows: profileTypeDescriptions.csp,
       };
       let previewSystemPrompt = `Return ONLY a raw JSON object.  Do not include \`\`\`json, \`\`\`, or any markdown formatting.  Do not include any explanation or text before or after the JSON.  Your entire response must be valid JSON.
 
-An IT admin has asked for a ${profileTypeDescriptions[profileType]}, and another model is already writing it.  You do not write the profile.  You name the settings the profile is likely to enforce so the admin has something to read while it is generated.
+An IT admin has asked for a ${profileType ? profileTypeDescriptions[profileType] : platformDescriptions[platform]}, and another model is already writing it.  You do not write the profile.  You name the settings the profile is likely to enforce so the admin has something to read while it is generated.
 
 "anticipatedSettings" is a preview, replaced by the real settings the moment the profile arrives.  A best guess is useful there and a long list is not, so name the settings this request asks for and nothing else, and return an empty array when you cannot name them.
 
@@ -88,7 +116,8 @@ Respond in JSON with this data shape:
     \`\`\`
     ${naturalLanguageInstructions}
     \`\`\``,
-          baseModel: 'claude-haiku-4-5',
+          baseModel: 'claude-haiku-5-5',
+          effort: 'low',
           expectJson: true,
         })
         .tolerate((err)=>{
@@ -105,86 +134,48 @@ Respond in JSON with this data shape:
       })();
     }
 
-    // Get the prompts for this profile, and the configuration for this profile type.
-    let generatorConfiguration = await sails.helpers.getConfigurationProfileGeneratorConfiguration.with({
+    let generationResult = await sails.helpers.generateConfigurationProfile.with({
       profileType,
+      platform,
+      forFleet,
       naturalLanguageInstructions,
-      useLighterResponseShape: true,
-      useApplePayloadTypeLookup: true,
-    });
-
-    // Generate the configuration profile with Haiku, the model the profile generator's test suite measures these prompts against.
-    let configurationProfileGenerationResult = await sails.helpers.ai.prompt.with({
-      systemPrompt: generatorConfiguration.systemPrompt,
-      prompt: generatorConfiguration.userPrompt,
-      baseModel: 'claude-haiku-4-5',
-      expectJson: true,
     })
-    .tolerate((err)=>{
-      sails.log.warn(`When trying to generate a configuration profile with the smaller model, an error occurred. Falling back to the larger model. Full error: ${require('util').inspect(err, {depth: 2})}`);
-      return undefined;
+    .intercept((err)=>{
+      sails.log.warn(`When trying to generate a configuration profile for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
+      if(this.req.isSocket){
+        // If this request was from a socket and an error occurs, broadcast an 'error' event and unsubscribe the socket from this room.
+        sails.sockets.broadcast(roomId, 'error', {error: 'couldNotGenerateProfile'});
+        sails.sockets.leave(this.req, roomId);
+        return 'couldNotGenerateProfile';
+      }
+      // A failure, rather than the model declining, so an HTTP caller gets a 500 it can tell apart from a 400 decline.
+      return err;
     });
 
-    // If Haiku did not generate a profile, either because of an error or because it returned the couldNotGenerateProfile
-    // shape, send the same prompts to Sonnet.
-    if(!configurationProfileGenerationResult ||
-        configurationProfileGenerationResult.couldNotGenerateProfile ||
-        !configurationProfileGenerationResult.configurationProfile ||
-        !configurationProfileGenerationResult.profileFilename ||
-        !configurationProfileGenerationResult.settingsEnforced) {
-      configurationProfileGenerationResult = await sails.helpers.ai.prompt.with({
-        systemPrompt: generatorConfiguration.systemPrompt,
-        prompt: generatorConfiguration.userPrompt,
-        baseModel: 'claude-sonnet-5',
-        expectJson: true,
-      })
-      .intercept((err)=>{
-        sails.log.warn(`When trying generate a configuration profile for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
-        if(this.req.isSocket){
-          // If this request was from a socket and an error occurs, broadcast an 'error' event and unsubscribe the socket from this room.
-          sails.sockets.broadcast(roomId, 'error', {error: 'couldNotGenerateProfile'});
-          sails.sockets.leave(this.req, roomId);
-        }
-        return 'couldNotGenerateProfile';
-      });
-    }
-
-    // Check the generated result, and return an error if a profile could not be generated.
-    if(!configurationProfileGenerationResult ||
-        configurationProfileGenerationResult.couldNotGenerateProfile ||
-        !configurationProfileGenerationResult.configurationProfile ||
-        !configurationProfileGenerationResult.profileFilename ||
-        !configurationProfileGenerationResult.settingsEnforced) {
+    if(generationResult.couldNotGenerateProfile) {
       if(this.req.isSocket){
         // If the result has a reasonWhyAProfileCouldNotBeGenerated, broadcast an error event with a reason to the requesting user's socket, and leave the room.
-        if(configurationProfileGenerationResult && configurationProfileGenerationResult.reasonWhyAProfileCouldNotBeGenerated){
-          sails.sockets.broadcast(roomId, 'error', {error: 'couldNotGenerateProfile', reason: configurationProfileGenerationResult.reasonWhyAProfileCouldNotBeGenerated});
+        if(generationResult.reasonWhyAProfileCouldNotBeGenerated){
+          sails.sockets.broadcast(roomId, 'error', {error: 'couldNotGenerateProfile', reason: generationResult.reasonWhyAProfileCouldNotBeGenerated});
         } else {
           // Otherwise, broadcast an error event with no reason.
           sails.sockets.broadcast(roomId, 'error', {error: 'couldNotGenerateProfile'});
         }
         sails.sockets.leave(this.req, roomId);
         return;
+      } else if(generationResult.contentDidNotMatchProfileType) {
+        // A generation that went wrong rather than a decline, so an HTTP caller gets the same 500 as any other failure.
+        throw new Error(`The generated profile did not look like a ${generationResult.profileType} profile.`);
       } else {
-        throw 'couldNotGenerateProfile';
+        throw {couldNotGenerateProfile: {
+          error: 'couldNotGenerateProfile',
+          reason: generationResult.reasonWhyAProfileCouldNotBeGenerated || 'These instructions could not be turned into a configuration profile.',
+        }};
       }
     }
 
-    let generatedProfile = {
-      profile: configurationProfileGenerationResult.configurationProfile,
-      profileFilename: configurationProfileGenerationResult.profileFilename,
-      deliveryNotes: configurationProfileGenerationResult.deliveryNotes,
-      items: configurationProfileGenerationResult.settingsEnforced,
-      additionalProfiles: [],
-    };
-
-    // Run the profile through the addAdmxInstallCommandsToWindowsProfile helper before returning it to the user.
-    if(profileType === 'csp') {
-      let withAdmxInstalls = await sails.helpers.addAdmxInstallCommandsToWindowsProfile.with({ profile: generatedProfile.profile });
-      generatedProfile.profile = withAdmxInstalls.profile;
-      generatedProfile.additionalProfiles = withAdmxInstalls.admxInstallProfiles || [];
-      generatedProfile.deliveryNotes = _.compact([generatedProfile.deliveryNotes].concat(withAdmxInstalls.deliveryNotes)).join(' ');
-    }
+    // The type first, since for a platform request it is the only place the caller learns what it got.
+    let generatedProfile = _.extend({profileType: generationResult.profileType}, generationResult.generatedProfile);
 
     // If this request was from a socket, we'll broadcast a 'profileGenerated' event with the generated profile and unsubscribe the socket.
     if(this.req.isSocket){

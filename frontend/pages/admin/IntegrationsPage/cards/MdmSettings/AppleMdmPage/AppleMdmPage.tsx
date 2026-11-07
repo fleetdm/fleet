@@ -78,8 +78,9 @@ const AppleMdmPage = ({ router }: { router: InjectedRouter }) => {
 
   const onRenewCert = useCallback(() => {
     refetch();
+    queryClient.invalidateQueries(["apns"]);
     toggleRenewCertModal();
-  }, [refetch]);
+  }, [queryClient, refetch]);
 
   const onSetupSuccess = useCallback(() => {
     router.push(PATHS.ADMIN_INTEGRATIONS_MDM);

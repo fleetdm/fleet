@@ -1,0 +1,1 @@
+- Added Omarchy (4 and later) to the Linux distributions Fleet escrows LUKS disk encryption keys for, and fixed the escrowed-key verification query so it finds the LUKS device when the root filesystem is a btrfs subvolume that lsblk lists only under "mountpoints".

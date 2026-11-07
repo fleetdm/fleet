@@ -138,11 +138,15 @@ go run agent.go --os_templates ipad_13.18,iphone_14.6 --host_count 10 --mdm_scep
 
 `mdm_prob` determines the probability of MDM enrollment for each host. The default is 0 (0%). You can set it to 1.0 to ensure all hosts enroll in MDM.
 
+`mdm_prob_macos` and `mdm_prob_windows` override `mdm_prob` for macOS and Windows hosts, so a mix can enroll each platform at its own rate (for example, `--mdm_prob_macos 0 --mdm_prob_windows 1.0` enrolls only the Windows hosts, with no Apple MDM or mock APNs server needed). Each defaults to `mdm_prob`.
+
 `mdm_user_prob` determines the probability of MDM user enrollment for each host. The default is 0 (0%). You can set it to 1.0 to ensure all hosts enroll in MDM user enrollment. This probability stacks with `mdm_prob`. So this probability is based on the hosts who end up MDM enrolling.
 
 `mdm_ios_byod_prob` determines the probability that a simulated iOS/iPadOS device (`iphone_14.6`, `ipad_13.18`, `iphone_17` templates) reports as a personal (BYOD) enrollment, which omits the newer device vitals fields from its `DeviceInformation` ack, matching what Fleet's server asks a real BYOD device for. The default is 0 (all simulated iOS/iPadOS devices report the full vitals set).
 
-`mdm_apns_url` sets the mock APNs server URL for the simulated Apple MDM devices. It is required when using iPhone/iPad templates and required when using macOS templates with a non-zero `mdm_prob`.
+`mdm_apns_url` sets the mock APNs server URL for the simulated Apple MDM devices. It is required when using iPhone/iPad templates and required when using macOS templates with a non-zero `mdm_prob` or `mdm_prob_macos`.
+
+`mdm_apns_topic` sets the APNs topic that simulated Apple MDM devices (macOS, iPhone, iPad) send at check-in. Real devices all send the topic of Fleet's APNs certificate, so Fleet keeps a single push provider. To match them, pass the certificate's UID, which you can read with `openssl x509 -in <apns-cert.pem> -noout -subject` (`UID=com.apple.mgmt.External.<uuid>`). The default, `com.apple.mgmt.External.osquery-perf`, is a placeholder that every simulated device shares, which keeps Fleet's push service at one provider too. An empty value (`--mdm_apns_topic ""`) gives each device its own topic, the old behavior: Fleet then loads the APNs certificate and builds a push provider for every device, which inflates Fleet's memory in large Apple load tests.
 
 `mdm_cancelable_command_ack_delay` makes simulated Apple devices log when they fetch a cancelable MDM command (lock, wipe, clear passcode, enable lost mode) and wait the given duration before acknowledging it. This opens a window to cancel an already-delivered command (`DELETE /api/v1/fleet/hosts/:id/commands/:command_uuid`) and observe the server restoring the host's lock/wipe state when the acknowledgment arrives anyway. The default is 0 (acknowledge immediately, no behavior change).
 

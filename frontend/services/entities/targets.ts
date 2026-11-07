@@ -15,13 +15,14 @@ interface ITargetsProps {
 const defaultSelected = {
   hosts: [],
   labels: [],
-  teams: [],
+  fleets: [],
 };
 
 export interface ITargetsSearchParams {
   report_id?: number | null;
   query: string;
   excluded_host_ids: number[] | null;
+  exclude_mobile_hosts?: boolean;
 }
 
 export interface ITargetsSearchResponse {
@@ -96,7 +97,7 @@ export default {
         targets: [
           ...appendTargetTypeToTargets(targets.hosts, "hosts"),
           ...appendTargetTypeToTargets(targets.labels, "labels"),
-          ...appendTargetTypeToTargets(targets.teams, "teams"),
+          ...appendTargetTypeToTargets(targets.fleets, "teams"),
         ],
       };
     });

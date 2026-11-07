@@ -31,6 +31,7 @@ func TestWhenCreatingNewLabelsPlatformIsValidated(t *testing.T) {
 	t.Parallel()
 
 	ds := new(mock.Store)
+	mockDuplicateStringGroupsExactMatch(ds)
 	user := &fleet.User{
 		ID:         3,
 		Email:      "foo@bar.com",
@@ -426,15 +427,15 @@ func testLabelsGetLabel(t *testing.T, ds *mysql.Datastore) {
 
 func testLabelsListLabels(t *testing.T, ds *mysql.Datastore) {
 	svc, ctx := newTestService(t, ds, nil, nil)
-	require.NoError(t, ds.MigrateData(context.Background()))
+	test.AddBuiltinLabels(t, ds)
 
 	labels, err := svc.ListLabels(test.UserContext(ctx, test.UserAdmin), fleet.ListOptions{Page: 0, PerPage: 1000}, nil, true)
 	require.NoError(t, err)
-	require.Len(t, labels, 8)
+	require.Len(t, labels, 13)
 
 	labelsSummary, err := svc.LabelsSummary(test.UserContext(ctx, test.UserAdmin), nil)
 	require.NoError(t, err)
-	require.Len(t, labelsSummary, 8)
+	require.Len(t, labelsSummary, 13)
 }
 
 func TestApplyLabelSpecsWithBuiltInLabels(t *testing.T) {
@@ -1024,6 +1025,7 @@ func TestBatchValidateLabels(t *testing.T) {
 func TestApplyLabelSpecsManualLabelNilHosts(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
+	mockDuplicateStringGroupsExactMatch(ds)
 	user := &fleet.User{
 		ID:         3,
 		Email:      "foo@bar.com",
@@ -1501,6 +1503,7 @@ func TestNewLabelFieldValidation(t *testing.T) {
 
 func TestLabelActivities(t *testing.T) {
 	ds := new(mock.Store)
+	mockDuplicateStringGroupsExactMatch(ds)
 	opts := &TestServerOpts{}
 	svc, ctx := newTestService(t, ds, nil, nil, opts)
 	user := &fleet.User{ID: 7, GlobalRole: ptr.String(fleet.RoleAdmin)}

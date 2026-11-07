@@ -8,7 +8,7 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { useMutation, useQuery } from "react-query";
+import { useMutation, useQuery, useQueryClient } from "react-query";
 import { RouteProps } from "react-router/lib/Route";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { SingleValue } from "react-select-5";
@@ -79,7 +79,7 @@ import {
 import policiesAPI from "services/entities/policies";
 import scriptsAPI, {
   IScriptBatchSummaryQueryKey,
-  IScriptBatchSummaryV1,
+  IScriptBatchSummaryV2,
   ScriptBatchHostCountV1,
 } from "services/entities/scripts";
 import teamsAPI, {
@@ -132,6 +132,7 @@ import {
 } from "./HostsPageConfig";
 import {
   defaultHiddenColumns,
+  toFleetColumnId,
   generateVisibleTableColumns,
   generateAvailableTableHeaders,
 } from "./HostTableConfig";
@@ -180,8 +181,9 @@ const ManageHostsPage = ({
   const isPrimoMode = config?.partnerships?.enable_primo;
 
   const { setResetSelectedRows } = useContext(TableContext);
+  const queryClient = useQueryClient();
 
-  const shouldStripScriptBatchExecParamOnTeamChange = (
+  const shouldStripParamOnTeamChange = (
     newTeamId?: number,
     curTeamId?: number
   ) => newTeamId !== curTeamId;
@@ -207,8 +209,10 @@ const ManageHostsPage = ({
     overrideParamsOnTeamChange: {
       ...STRIP_FLEET_SCOPED_FILTERS_ON_ALL_FLEETS,
       // remove batch script summary results filters on team change
-      [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID]: shouldStripScriptBatchExecParamOnTeamChange,
-      [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS]: shouldStripScriptBatchExecParamOnTeamChange,
+      [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID]: shouldStripParamOnTeamChange,
+      [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS]: shouldStripParamOnTeamChange,
+      // remove the App Store app version filter on team change, versions belong to one fleet
+      [HOSTS_QUERY_PARAMS.APP_STORE_APP_VERSION_ID]: shouldStripParamOnTeamChange,
     },
   });
 
@@ -219,7 +223,7 @@ const ManageHostsPage = ({
 
     if (queryParams) {
       const { order_key, order_direction } = queryParams;
-      key = order_key || key;
+      key = toFleetColumnId(order_key || key);
       direction = order_direction || direction;
     }
 
@@ -322,7 +326,9 @@ const ManageHostsPage = ({
   ]);
 
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(
-    userSettings?.hidden_host_columns || defaultHiddenColumns
+    (userSettings?.hidden_host_columns || defaultHiddenColumns).map(
+      toFleetColumnId
+    )
   );
 
   const [selectedLabel, setSelectedLabel] = useState<ILabel>();
@@ -362,6 +368,10 @@ const ManageHostsPage = ({
         HOSTS_QUERY_PARAMS.SOFTWARE_STATUS
       ] as SoftwareAggregateStatus)
     : undefined;
+  const appStoreAppVersionId =
+    queryParams?.app_store_app_version_id !== undefined
+      ? parseInt(queryParams.app_store_app_version_id, 10)
+      : undefined;
   const status = isAcceptableStatus(queryParams?.status)
     ? queryParams?.status
     : undefined;
@@ -560,7 +570,9 @@ const ManageHostsPage = ({
     {
       enabled: isRouteOk && !!isPremiumTier,
       select: (data: ILoadTeamsResponse) =>
-        data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
+        data.fleets.sort((a, b) =>
+          sortUtils.caseInsensitiveAsc(a.name, b.name)
+        ),
     }
   );
 
@@ -610,9 +622,9 @@ const ManageHostsPage = ({
     isLoading: isLoadingScriptBatchSummary,
     isError: isErrorScriptBatchSummary,
   } = useQuery<
-    IScriptBatchSummaryV1,
+    IScriptBatchSummaryV2,
     Error,
-    IScriptBatchSummaryV1,
+    IScriptBatchSummaryV2,
     IScriptBatchSummaryQueryKey[]
   >(
     [
@@ -622,7 +634,7 @@ const ManageHostsPage = ({
       },
     ],
     ({ queryKey: [{ batch_execution_id }] }) =>
-      scriptsAPI.getRunScriptBatchSummaryV1({ batch_execution_id }),
+      scriptsAPI.getRunScriptBatchSummaryV2({ batch_execution_id }),
     {
       enabled: !!scriptBatchExecutionId && isRouteOk,
       ...DEFAULT_USE_QUERY_OPTIONS,
@@ -679,6 +691,7 @@ const ManageHostsPage = ({
         softwareTitleId,
         softwareVersionId,
         softwareStatus,
+        appStoreAppVersionId,
         status,
         mdmId,
         mdmEnrollmentStatus,
@@ -729,6 +742,7 @@ const ManageHostsPage = ({
         softwareTitleId,
         softwareVersionId,
         softwareStatus,
+        appStoreAppVersionId,
         status,
         mdmId,
         mdmEnrollmentStatus,
@@ -769,7 +783,9 @@ const ManageHostsPage = ({
         // for type checker
         return;
       }
-      const parsed = JSON.parse(locallyHiddenCols) as string[];
+      const parsed = (JSON.parse(locallyHiddenCols) as string[]).map(
+        toFleetColumnId
+      );
       try {
         await usersAPI.update(currentUser.id, {
           settings: { ...userSettings, hidden_host_columns: parsed },
@@ -1249,6 +1265,7 @@ const ManageHostsPage = ({
         if (softwareStatus && teamIdForApi !== API_ALL_TEAMS_ID) {
           // software_status is only valid when software_title_id is present and a subset of hosts ('No team' or a team) is selected
           newQueryParams[HOSTS_QUERY_PARAMS.SOFTWARE_STATUS] = softwareStatus;
+          newQueryParams.app_store_app_version_id = appStoreAppVersionId;
         }
       } else if (mdmId) {
         newQueryParams.mdm_id = mdmId;
@@ -1334,6 +1351,7 @@ const ManageHostsPage = ({
       routeTemplate,
       routeParams,
       softwareStatus,
+      appStoreAppVersionId,
       depProfileError,
       depAssignProfileResponse,
     ]
@@ -1597,6 +1615,7 @@ const ManageHostsPage = ({
       setResetSelectedRows(true);
       refetchHosts();
       refetchLabels();
+      queryClient.invalidateQueries(["hosts_count_for_license"]);
       toggleDeleteHostModal();
       setSelectedHostIds([]);
       setIsAllMatchingHostsSelected(false);
@@ -1805,6 +1824,7 @@ const ManageHostsPage = ({
         softwareTitleId,
         softwareVersionId,
         softwareStatus,
+        appStoreAppVersionId,
         status,
         mdmId,
         mdmEnrollmentStatus,
@@ -1871,6 +1891,7 @@ const ManageHostsPage = ({
       softwareTitleId,
       softwareVersionId,
       softwareStatus,
+      appStoreAppVersionId,
       status,
       mdmId,
       mdmEnrollmentStatus,
@@ -2032,13 +2053,18 @@ const ManageHostsPage = ({
       },
     ];
 
+    // Technician is a Premium-only role, but its sessions outlive a downgrade to Free.
+    const isTechnicianOnFree =
+      !isPremiumTier && (isGlobalTechnician || isTeamTechnician);
     const tableColumns = generateVisibleTableColumns({
       hiddenColumns,
       isFreeTier,
       // The selection column is only for roles that can bulk delete hosts.
-      isOnlyObserver: isOnGlobalTeam
-        ? isOnlyObserver
-        : !isTeamMaintainerOrTeamAdmin && !isTeamTechnician,
+      isOnlyObserver:
+        isTechnicianOnFree ||
+        (isOnGlobalTeam
+          ? isOnlyObserver
+          : !isTeamMaintainerOrTeamAdmin && !isTeamTechnician),
       teamId: teamIdForApi,
     });
 

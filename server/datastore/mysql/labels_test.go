@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -481,6 +480,19 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 
 	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "203.0.113.99"}}, 0)
 
+	// agent sorts by orbit version, falling back to osquery version (same as ListHosts):
+	// h1 9.0.0 (no orbit row), h2 1.0.0 (orbit), h3 5.0.0 (empty orbit version)
+	for id, v := range map[uint]string{h1.ID: "9.0.0", h2.ID: "9.9.9", h3.ID: "5.0.0"} {
+		_, err = db.writer(ctx).Exec(`UPDATE hosts SET osquery_version = ? WHERE id = ?`, v, id)
+		require.NoError(t, err)
+	}
+	_, err = db.writer(ctx).Exec(`INSERT INTO host_orbit_info (host_id, version) VALUES (?, '1.0.0'), (?, '')`, h2.ID, h3.ID)
+	require.NoError(t, err)
+	hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OrderKey: "agent"}, 3)
+	require.Equal(t, []uint{h2.ID, h3.ID, h1.ID}, hostIDs(hosts))
+	hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OrderKey: "agent", OrderDirection: fleet.OrderDescending}, 3)
+	require.Equal(t, []uint{h1.ID, h3.ID, h2.ID}, hostIDs(hosts))
+
 	// Test team label filtering
 	team1, err := db.NewTeam(context.Background(), &fleet.Team{Name: "team1_listhosts"})
 	require.NoError(t, err)
@@ -726,17 +738,18 @@ func testLabelsListHostsInLabelAndTeamFilter(deferred bool, t *testing.T, db *Da
 }
 
 func testLabelsBuiltIn(t *testing.T, db *Datastore) {
-	require.Nil(t, db.MigrateData(context.Background()))
+	test.AddBuiltinLabels(t, db)
 
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	filter := fleet.TeamFilter{User: user}
 
 	hits, err := db.SearchLabels(context.Background(), filter, "macOS")
 	require.Nil(t, err)
-	// Should get Mac OS X and All Hosts
-	assert.Equal(t, 2, len(hits))
-	assert.Equal(t, fleet.LabelTypeBuiltIn, hits[0].LabelType)
-	assert.Equal(t, fleet.LabelTypeBuiltIn, hits[1].LabelType)
+	// Should get macOS, macOS 14+ (Sonoma+) and All Hosts
+	assert.Len(t, hits, 3)
+	for _, hit := range hits {
+		assert.Equal(t, fleet.LabelTypeBuiltIn, hit.LabelType)
+	}
 }
 
 func testLabelsChangeDetails(t *testing.T, db *Datastore) {
@@ -1449,9 +1462,11 @@ func testLabelsQueriesForLinuxPlatformLabel(t *testing.T, db *Datastore) {
 }
 
 func TestBuiltinLinuxLabelQueries(t *testing.T) {
-	db := CreateMySQLDS(t)
+	// Uses a migrated database rather than schema.sql, which omits these labels.
+	db := createMySQLDSForMigrationTests(t, t.Name())
+	t.Cleanup(func() { db.Close() })
 	ctx := t.Context()
-	require.NoError(t, db.MigrateData(ctx))
+	require.NoError(t, db.MigrateTables(ctx))
 
 	type storedLabel struct {
 		Name     string `db:"name"`
@@ -1472,17 +1487,12 @@ func TestBuiltinLinuxLabelQueries(t *testing.T) {
 	}
 
 	sources := map[string]string{"database": byName[fleet.BuiltinLabelNameUbuntuLinux].Query}
-	for _, l := range data.Labels2() {
-		if l.Name == fleet.BuiltinLabelNameUbuntuLinux {
-			sources["data migration Labels2"] = l.Query
-		}
-	}
 	for _, l := range test.BuiltinLabels() {
 		if l.Name == fleet.BuiltinLabelNameUbuntuLinux {
 			sources["test.BuiltinLabels"] = l.Query
 		}
 	}
-	require.Len(t, sources, 3)
+	require.Len(t, sources, 2)
 	for name, query := range sources {
 		require.NotEmpty(t, query, "%s has no %s query", name, fleet.BuiltinLabelNameUbuntuLinux)
 		assert.Equal(t, sources["database"], query,

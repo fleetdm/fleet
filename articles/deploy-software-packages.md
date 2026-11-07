@@ -111,14 +111,13 @@ To add another package to a software:
 * In the **Library** section of the **Software details** page, select **Add package**.
 * Choose a file to upload, set the **Target**, and configure any advanced options.
 
-Each package has its own [target labels](https://fleetdm.com/guides/managing-labels-in-fleet), [self-service](https://fleetdm.com/guides/software-self-service) availability, categories, and advanced options. Scope each package to a distinct set of labels so that each host matches only one package.
+Each version has its own [target labels](https://fleetdm.com/guides/managing-labels-in-fleet), [self-service](https://fleetdm.com/guides/software-self-service) availability, categories, and advanced options. Scope each package to a distinct set of labels so that each host matches only one package.
 
-> If multiple packages target the same host, Fleet installs the one that was added first.
+> If multiple versions target the same host, Fleet will deploy the one that was added first.
 
 During [setup experience](https://fleetdm.com/guides/setup-experience), Fleet installs the package that was added first. Labels don't apply during setup experience.
 
-Fleet identifies packages by their contents, so you can add different builds of the same version. Uploading the exact same file again is rejected.
-
+Fleet identifies each version of the package by their contents, so you can add different builds of the same version. Uploading the exact same file again is rejected.
 
 Script-only packages (`.sh` and `.ps1`) can also be added multiple times to the same software item. Fleet uses the filename as a unique identifier to group multiple script-only packages into the same software.
 

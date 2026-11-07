@@ -16,10 +16,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -307,6 +309,9 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		for i := range got {
 			require.NotZero(t, got[i].ID)
 			got[i].ID = 0
+			require.NotNil(t, got[i].AITool)
+			require.False(t, *got[i].AITool)
+			got[i].AITool = nil
 
 			for j := range got[i].Versions {
 				require.NotZero(t, got[i].Versions[j].ID)
@@ -348,6 +353,9 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 			require.NotZero(t, got[i].ID)
 			got[i].CountsUpdatedAt = nil
 			got[i].ID = 0
+			require.NotNil(t, got[i].AITool)
+			require.False(t, *got[i].AITool)
+			got[i].AITool = nil
 
 			for j := range got[i].Versions {
 				require.NotZero(t, got[i].Versions[j].ID)
@@ -1252,7 +1260,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 
 	emacsPath := fmt.Sprintf("/api/latest/fleet/software/titles/%d", resp.SoftwareTitles[0].ID)
 	respTitle := getSoftwareTitleResponse{}
-	s.DoJSON("GET", emacsPath, listSoftwareTitlesRequest{}, http.StatusOK, &respTitle)
+	s.DoJSON("GET", emacsPath, listSoftwareTitlesRequest{}, http.StatusOK, &respTitle, "fleet_id", "0")
 
 	require.NotNil(t, respTitle.SoftwareTitle)
 	require.Equal(t, "emacs.deb", respTitle.SoftwareTitle.SoftwarePackage.Name)
@@ -2377,7 +2385,7 @@ func (s *integrationEnterpriseTestSuite) TestVPPAppsWithoutMDM() {
 
 	// Create team and add host to team
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{orbitHost.ID}, TeamID: &team.ID}, http.StatusOK)
@@ -2543,7 +2551,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 	require.NoError(t, err)
 	teamID := team.ID
 
-	test.CreateInsertGlobalVPPToken(t, s.ds)
+	tok := test.CreateInsertGlobalVPPToken(t, s.ds)
 
 	// create two VPP apps
 	vppApp, err := s.ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
@@ -2567,7 +2575,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 		AutoUpdateEndTime:   new("04:00"),
 	}, http.StatusOK, &titlesResp)
 
-	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1", "auto_update_enabled":true, "auto_update_window_end":"04:00", "auto_update_window_start":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1", "auto_update_enabled":true, "auto_update_window_end":"04:00", "auto_update_window_start":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), tok), 0)
 
 	// Get the software title again.
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppApp.TitleID), nil, http.StatusOK, &titlesResp, "team_id", fmt.Sprintf("%d", teamID))
@@ -2584,7 +2592,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 		DisplayName: new("New Display Name"),
 	}, http.StatusOK, &titlesResp)
 
-	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1",  "auto_update_enabled":true, "auto_update_window_end":"04:00", "auto_update_window_start":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"New Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1",  "auto_update_enabled":true, "auto_update_window_end":"04:00", "auto_update_window_start":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"New Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), tok), 0)
 
 	// Disable the auto-update config
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", vppApp.TitleID), updateAppStoreAppRequest{
@@ -2592,7 +2600,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 		AutoUpdateEnabled: new(false),
 	}, http.StatusOK, &titlesResp)
 
-	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"New Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"New Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), tok), 0)
 
 	// Do an update without auto-update fields to check that it still includes the auto-update values.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", vppApp.TitleID), updateAppStoreAppRequest{
@@ -2600,7 +2608,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 		DisplayName: new("Updated Display Name"),
 	}, http.StatusOK, &titlesResp)
 
-	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"Updated Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"Updated Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), tok), 0)
 }
 
 func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
@@ -2616,7 +2624,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 	require.Equal(t, uint(0), addResp.SelfServiceCategory.TeamID)
 	catID := addResp.SelfServiceCategory.ID
 	s.lastActivityMatches(fleet.ActivityTypeAddedSelfServiceCategory{}.ActivityName(),
-		`{"self_service_category_name":"💼 Engineering","team_id":0,"team_name":null,"fleet_id":0,"fleet_name":null}`, 0)
+		`{"self_service_category_name":"💼 Engineering","fleet_id":0,"fleet_name":null}`, 0)
 
 	// list includes new category
 	var listResp getSelfServiceCategoriesResponse
@@ -2633,7 +2641,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 	require.Equal(t, catID, patchResp.SelfServiceCategory.ID)
 	require.Equal(t, "💼 Engineering tools", patchResp.SelfServiceCategory.Name)
 	editActID := s.lastActivityMatches(fleet.ActivityTypeEditedSelfServiceCategory{}.ActivityName(),
-		`{"self_service_category_name":"💼 Engineering tools","team_id":0,"team_name":null,"fleet_id":0,"fleet_name":null}`, 0)
+		`{"self_service_category_name":"💼 Engineering tools","fleet_id":0,"fleet_name":null}`, 0)
 
 	// patch with the same name is a no-op — no new activity emitted
 	s.DoJSON("PATCH", fmt.Sprintf("%s/%d", path, catID), map[string]any{"name": "💼 Engineering tools"}, http.StatusOK, &patchResp)
@@ -2643,7 +2651,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 	// delete + activity
 	s.Do("DELETE", fmt.Sprintf("%s/%d", path, catID), nil, http.StatusNoContent)
 	s.lastActivityMatches(fleet.ActivityTypeDeletedSelfServiceCategory{}.ActivityName(),
-		`{"self_service_category_name":"💼 Engineering tools","team_id":0,"team_name":null,"fleet_id":0,"fleet_name":null}`, 0)
+		`{"self_service_category_name":"💼 Engineering tools","fleet_id":0,"fleet_name":null}`, 0)
 
 	// post without name returns 422
 	s.Do("POST", path, map[string]any{"fleet_id": 0}, http.StatusUnprocessableEntity)
@@ -2672,7 +2680,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 
 	// duplicate across fleets allowed
 	var teamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: "SelfServiceCategoryCrossFleet"}, http.StatusOK, &teamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{Name: "SelfServiceCategoryCrossFleet"}, http.StatusOK, &teamResp)
 	t.Cleanup(func() { require.NoError(t, s.ds.DeleteTeam(context.Background(), teamResp.Team.ID)) })
 
 	var cf0, cf1 addSelfServiceCategoriesResponse
@@ -2680,7 +2688,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 	s.DoJSON("POST", path, map[string]any{"fleet_id": teamResp.Team.ID, "name": "CrossFleet"}, http.StatusOK, &cf1)
 	require.NotEqual(t, cf0.SelfServiceCategory.ID, cf1.SelfServiceCategory.ID)
 	s.lastActivityMatches(fleet.ActivityTypeAddedSelfServiceCategory{}.ActivityName(),
-		fmt.Sprintf(`{"self_service_category_name":"CrossFleet","team_id":%d,"team_name":%q,"fleet_id":%d,"fleet_name":%q}`, teamResp.Team.ID, teamResp.Team.Name, teamResp.Team.ID, teamResp.Team.Name), 0)
+		fmt.Sprintf(`{"self_service_category_name":"CrossFleet","fleet_id":%d,"fleet_name":%q}`, teamResp.Team.ID, teamResp.Team.Name), 0)
 
 	// list scoped to the new fleet returns its seeded defaults plus the added category
 	s.DoJSON("GET", path, nil, http.StatusOK, &listResp, "fleet_id", fmt.Sprint(teamResp.Team.ID))
@@ -2728,7 +2736,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 
 	// deleting a team cascades to its categories
 	var deletableResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: "SelfServiceCategoryDeleteScope"}, http.StatusOK, &deletableResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{Name: "SelfServiceCategoryDeleteScope"}, http.StatusOK, &deletableResp)
 	seeded, err := s.ds.ListSoftwareCategories(ctx, deletableResp.Team.ID)
 	require.NoError(t, err)
 	require.Len(t, seeded, len(fleet.DefaultSelfServiceCategoryNames))
@@ -2736,6 +2744,164 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 	leftover, err := s.ds.ListSoftwareCategories(ctx, deletableResp.Team.ID)
 	require.NoError(t, err)
 	require.Empty(t, leftover, "categories should be cleaned up when a team is deleted")
+}
+
+func (s *integrationEnterpriseTestSuite) TestPatchDeadlineSettings() {
+	t := s.T()
+	ctx := t.Context()
+	const path = "/api/latest/fleet/software/patch_deadline_settings"
+	const activityName = "edited_patch_deadline_settings"
+
+	// commonTearDownTest only clears fleet rows, so Unassigned would leak into later tests
+	t.Cleanup(func() {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(context.Background(), "DELETE FROM patch_deadline_settings WHERE team_id = 0")
+			return err
+		})
+	})
+	countActivities := func() (n int) {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, "SELECT COUNT(*) FROM activity_past WHERE activity_type = ?", activityName)
+		})
+		return n
+	}
+
+	newFleet := func(name string) *fleet.Team {
+		tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + name})
+		require.NoError(t, err)
+		return tm
+	}
+	tm := newFleet("main")
+	other := newFleet("other")
+	t.Cleanup(func() { require.NoError(t, s.ds.DeleteTeam(context.Background(), other.ID)) })
+
+	var resp patchDeadlineSettingsResponse
+	get := func(fleetID uint) *fleet.PatchDeadlineSettings {
+		resp = patchDeadlineSettingsResponse{}
+		s.DoJSON("GET", path, nil, http.StatusOK, &resp, "fleet_id", fmt.Sprint(fleetID))
+		return resp.PatchDeadlineSettings
+	}
+	patch := func(fleetID uint, days []string, hhmm string) *fleet.PatchDeadlineSettings {
+		resp = patchDeadlineSettingsResponse{}
+		s.DoJSON("PATCH", path, map[string]any{"fleet_id": fleetID, "days": days, "time": hhmm}, http.StatusOK, &resp)
+		return resp.PatchDeadlineSettings
+	}
+
+	// defaults
+	for _, id := range []uint{tm.ID, 0} {
+		require.Equal(t, &fleet.PatchDeadlineSettings{TeamID: id, Days: []string{"tuesday"}, Time: "17:00"}, get(id))
+	}
+
+	// days are returned in week order and time is normalized, on PATCH and on a later GET
+	for _, id := range []uint{tm.ID, 0} {
+		want := &fleet.PatchDeadlineSettings{TeamID: id, Days: []string{"monday", "friday"}, Time: "09:00"}
+		require.Equal(t, want, patch(id, []string{"friday", "monday"}, "9:00"))
+		require.Equal(t, want, get(id))
+	}
+
+	// activity for a fleet and for Unassigned
+	activitiesBefore := countActivities()
+	patch(tm.ID, []string{"wednesday"}, "18:30")
+	require.Equal(t, activitiesBefore+1, countActivities())
+	s.lastActivityMatches(activityName,
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "days": ["wednesday"], "time": "18:30"}`, tm.ID, tm.Name), 0)
+	patch(0, []string{"sunday", "saturday"}, "06:05")
+	lastActivityID := s.lastActivityMatches(activityName,
+		`{"fleet_id": null, "fleet_name": null, "days": ["saturday", "sunday"], "time": "06:05"}`, 0)
+
+	// no activity for a PATCH with the stored values, even in a different spelling
+	patch(0, []string{"sunday", "saturday"}, "6:05")
+	require.Equal(t, lastActivityID, s.lastActivityMatches("", "", 0))
+
+	// no activity for a PATCH equal to the default when no row exists
+	fresh := newFleet("fresh")
+	t.Cleanup(func() { require.NoError(t, s.ds.DeleteTeam(context.Background(), fresh.ID)) })
+	require.Equal(t, &fleet.PatchDeadlineSettings{TeamID: fresh.ID, Days: []string{"tuesday"}, Time: "17:00"}, patch(fresh.ID, []string{"tuesday"}, "17:00"))
+	require.Equal(t, lastActivityID, s.lastActivityMatches("", "", 0))
+
+	// missing fleet_id is 422, unknown fleet is 404
+	s.Do("GET", path, nil, http.StatusUnprocessableEntity)
+	s.Do("PATCH", path, map[string]any{"days": []string{"monday"}, "time": "09:00"}, http.StatusUnprocessableEntity)
+	s.Do("GET", path, nil, http.StatusNotFound, "fleet_id", "9999999")
+	s.Do("PATCH", path, map[string]any{"fleet_id": 9999999, "days": []string{"monday"}, "time": "09:00"}, http.StatusNotFound)
+
+	// each validation message comes back as a 400
+	prefix := `Couldn't edit patch deadline settings. `
+	for _, c := range []struct {
+		days, time any
+		msg        string
+	}{
+		{[]string{}, "09:00", `"days" must include at least one day.`},
+		{"monday", "09:00", `"days" must be a list of days, for example ["monday", "wednesday"].`},
+		{[]string{"Mon"}, "09:00", `"days" includes an invalid value "Mon". Options are "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", and "sunday".`},
+		{[]string{"monday", "monday"}, "09:00", `"days" includes "monday" more than once.`},
+		{[]string{"monday"}, "", `"time" is required.`},
+		{[]string{"monday"}, 1700, `"time" must be wrapped in quotes, for example "17:00".`},
+		{[]string{"monday"}, "24:00", `"time" must be in HH:MM (24-hour) format, for example "17:00".`},
+	} {
+		res := s.Do("PATCH", path, map[string]any{"fleet_id": tm.ID, "days": c.days, "time": c.time}, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), prefix+c.msg)
+	}
+	// a rejected PATCH leaves the stored settings alone
+	require.Equal(t, []string{"wednesday"}, get(tm.ID).Days)
+
+	// roles
+	mkUser := func(name string, globalRole *string, teams []fleet.UserTeam) *fleet.User {
+		u := &fleet.User{Name: name, Email: name + "@example.com", GlobalRole: globalRole, Teams: teams}
+		require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
+		u, err := s.ds.NewUser(ctx, u)
+		require.NoError(t, err)
+		return u
+	}
+	patchStatus := func(fleetID uint, status int) {
+		s.Do("PATCH", path, map[string]any{"fleet_id": fleetID, "days": []string{"monday"}, "time": "09:00"}, status)
+	}
+	getStatus := func(fleetID uint, status int) {
+		s.Do("GET", path, nil, status, "fleet_id", fmt.Sprint(fleetID))
+	}
+	for _, c := range []struct {
+		role     string
+		canWrite bool
+	}{
+		{fleet.RoleObserver, false},
+		{fleet.RoleObserverPlus, false},
+		{fleet.RoleTechnician, false},
+		{fleet.RoleMaintainer, true},
+		{fleet.RoleGitOps, true},
+	} {
+		u := mkUser("pd-global-"+c.role, &c.role, nil)
+		s.setTokenForTest(t, u.Email, test.GoodPassword)
+		getStatus(tm.ID, http.StatusOK)
+		getStatus(0, http.StatusOK)
+		if c.canWrite {
+			patchStatus(tm.ID, http.StatusOK)
+			patchStatus(0, http.StatusOK)
+		} else {
+			patchStatus(tm.ID, http.StatusForbidden)
+			patchStatus(0, http.StatusForbidden)
+		}
+	}
+
+	fleetMaintainer := mkUser("pd-fleet-maintainer", nil, []fleet.UserTeam{{Team: *tm, Role: fleet.RoleMaintainer}})
+	s.setTokenForTest(t, fleetMaintainer.Email, test.GoodPassword)
+	getStatus(tm.ID, http.StatusOK)
+	patchStatus(tm.ID, http.StatusOK)
+	// authz runs before the existence check, so a missing fleet doesn't reveal itself
+	for _, id := range []uint{other.ID, 0, 9999999} {
+		getStatus(id, http.StatusForbidden)
+		patchStatus(id, http.StatusForbidden)
+	}
+
+	fleetObserver := mkUser("pd-fleet-observer", nil, []fleet.UserTeam{{Team: *tm, Role: fleet.RoleObserver}})
+	s.setTokenForTest(t, fleetObserver.Email, test.GoodPassword)
+	getStatus(tm.ID, http.StatusOK)
+	patchStatus(tm.ID, http.StatusForbidden)
+
+	s.token = s.getTestAdminToken()
+
+	// deleting the fleet makes its ID unknown
+	require.NoError(t, s.ds.DeleteTeam(ctx, tm.ID))
+	s.Do("GET", path, nil, http.StatusNotFound, "fleet_id", fmt.Sprint(tm.ID))
 }
 
 func (s *integrationEnterpriseTestSuite) TestDeviceSelfServiceCategories() {
@@ -2906,4 +3072,184 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceHostVitalsExcludeAnyLabe
 		nil, http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(res.Body),
 		"Couldn't install. Host isn't member of the labels defined for this software title.")
+}
+
+func (s *integrationEnterpriseTestSuite) TestAIToolFilter() {
+	t := s.T()
+	ctx := t.Context()
+
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	newHost := func(name string) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   new(t.Name() + name),
+			NodeKey:         new(t.Name() + name),
+			UUID:            uuid.New().String(),
+			Hostname:        t.Name() + name + ".local",
+			Platform:        "darwin",
+		})
+		require.NoError(t, err)
+		return h
+	}
+	teamHost := newHost("team")
+	noTeamHost := newHost("noteam")
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{teamHost.ID})))
+
+	_, err = s.ds.UpdateHostSoftware(ctx, teamHost.ID, []fleet.Software{
+		{Name: "AIToolClaude", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.aitoolclaude", AITool: new(true)},
+		{Name: "AIToolSlack", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.aitoolslack"},
+		{Name: "aitool-codex", Version: "1.0", Source: "ai_clis", AITool: new(true)},
+	})
+	require.NoError(t, err)
+	_, err = s.ds.UpdateHostSoftware(ctx, noTeamHost.ID, []fleet.Software{
+		{Name: "AIToolSlack", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.aitoolslack"},
+		{Name: "aitool-github", Version: "0.1", Source: "mcp_servers", AITool: new(true)},
+	})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+	token := "ai_tool_premium_token"
+	createDeviceTokenForHost(t, s.ds, teamHost.ID, token)
+
+	// flag returns an item's ai_tool, which Premium sets on every item.
+	flag := func(name string, aiTool *bool) bool {
+		require.NotNil(t, aiTool, "ai_tool missing on %q", name)
+		return *aiTool
+	}
+
+	// Restrict the cross-host lists to this test's software, which all match "aitool".
+	listTitles := func(params ...string) (map[string]bool, int) {
+		var resp listSoftwareTitlesResponse
+		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &resp, append(params, "query", "aitool")...)
+		got := make(map[string]bool, len(resp.SoftwareTitles))
+		for _, title := range resp.SoftwareTitles {
+			got[title.Name] = flag(title.Name, title.AITool)
+		}
+		return got, resp.Count
+	}
+	listVersions := func(params ...string) (map[string]bool, int) {
+		var resp listSoftwareVersionsResponse
+		s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &resp, append(params, "query", "aitool")...)
+		var countResp countSoftwareResponse
+		s.DoJSON("GET", "/api/latest/fleet/software/count", nil, http.StatusOK, &countResp, append(params, "query", "aitool")...)
+		require.Equal(t, resp.Count, countResp.Count)
+		got := make(map[string]bool, len(resp.Software))
+		for _, sw := range resp.Software {
+			got[sw.Name] = flag(sw.Name, sw.AITool)
+		}
+		return got, resp.Count
+	}
+	hostSoftware := func(sw []*fleet.HostSoftwareWithInstaller) map[string]bool {
+		got := make(map[string]bool, len(sw))
+		for _, s := range sw {
+			got[s.Name] = flag(s.Name, s.AITool)
+		}
+		return got
+	}
+	listHostSoftware := func(params ...string) (map[string]bool, int) {
+		var resp getHostSoftwareResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", teamHost.ID), nil, http.StatusOK, &resp, params...)
+		return hostSoftware(resp.Software), resp.Count
+	}
+	listDeviceSoftware := func(params ...string) (map[string]bool, int) {
+		var resp getDeviceSoftwareResponse
+		res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK, params...)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&resp))
+		require.NoError(t, res.Body.Close())
+		return hostSoftware(resp.Software), resp.Count
+	}
+
+	allFlags := map[string]bool{"AIToolClaude": true, "AIToolSlack": false, "aitool-codex": true, "aitool-github": true}
+	teamHostFlags := map[string]bool{"AIToolClaude": true, "AIToolSlack": false, "aitool-codex": true}
+	for _, c := range []struct {
+		name string
+		list func(params ...string) (map[string]bool, int)
+		all  map[string]bool
+	}{
+		{"titles", listTitles, allFlags},
+		{"versions", listVersions, allFlags},
+		{"host", listHostSoftware, teamHostFlags},
+		{"device", listDeviceSoftware, teamHostFlags},
+	} {
+		got, count := c.list()
+		require.Equal(t, c.all, got, c.name)
+		require.Equal(t, len(c.all), count, c.name)
+
+		want := make(map[string]bool)
+		for name, aiTool := range c.all {
+			if aiTool {
+				want[name] = true
+			}
+		}
+		got, count = c.list("ai_tool", "true")
+		require.Equal(t, want, got, c.name)
+		require.Equal(t, len(want), count, c.name)
+
+		got, count = c.list("ai_tool", "true", "source", "apps")
+		require.Equal(t, map[string]bool{"AIToolClaude": true}, got, c.name)
+		require.Equal(t, 1, count, c.name)
+
+		// Paging through the filtered list returns every match once.
+		paged := make(map[string]bool)
+		for page := 0; page < len(want); page++ {
+			got, count = c.list("ai_tool", "true", "per_page", "1", "page", strconv.Itoa(page), "order_key", "name")
+			require.Len(t, got, 1, c.name)
+			require.Equal(t, len(want), count, c.name)
+			maps.Copy(paged, got)
+		}
+		require.Equal(t, want, paged, c.name)
+
+		for _, source := range []string{"mcp_servers", "ai_clis", "ai_skills", "apps,mcp_servers"} {
+			c.list("source", source)
+		}
+	}
+
+	got, count := listTitles("ai_tool", "true", "team_id", fmt.Sprint(tm.ID))
+	require.Equal(t, map[string]bool{"AIToolClaude": true, "aitool-codex": true}, got)
+	require.Equal(t, 2, count)
+	got, count = listVersions("ai_tool", "true", "team_id", fmt.Sprint(tm.ID))
+	require.Equal(t, map[string]bool{"AIToolClaude": true, "aitool-codex": true}, got)
+	require.Equal(t, 2, count)
+
+	res := s.Do("GET", "/api/latest/fleet/software/titles", nil, http.StatusUnprocessableEntity, "source", "ai_tool")
+	require.Contains(t, extractServerErrorText(res.Body), fmt.Sprintf(fleet.InvalidSoftwareSourceErrMsg, "ai_tool"))
+
+	// By-id endpoints and host details carry the flag too.
+	var titlesResp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &titlesResp, "query", "aitool")
+	for _, listed := range titlesResp.SoftwareTitles {
+		var titleResp getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", listed.ID), nil, http.StatusOK, &titleResp)
+		require.Equal(t, flag(listed.Name, listed.AITool), flag(listed.Name, titleResp.SoftwareTitle.AITool), listed.Name)
+	}
+	var versionsResp listSoftwareVersionsResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versionsResp, "query", "aitool")
+	for _, listed := range versionsResp.Software {
+		var versionResp getSoftwareResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", listed.ID), nil, http.StatusOK, &versionResp)
+		require.Equal(t, flag(listed.Name, listed.AITool), flag(listed.Name, versionResp.Software.AITool), listed.Name)
+	}
+	teamHostAITool := make(map[string]*bool, len(teamHostFlags))
+	for name, aiTool := range teamHostFlags {
+		teamHostAITool[name] = &aiTool
+	}
+	get := func(path string, params ...string) *http.Response {
+		return s.Do("GET", path, nil, http.StatusOK, params...)
+	}
+	require.Equal(t, teamHostAITool, aiToolByName(t, get(fmt.Sprintf("/api/latest/fleet/hosts/%d", teamHost.ID)), "host", "software"))
+	require.Equal(t, teamHostAITool, aiToolByName(t, get("/api/latest/fleet/hosts/identifier/"+teamHost.UUID), "host", "software"))
+	require.Equal(t, teamHostAITool, aiToolByName(t,
+		s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK), "host", "software"))
+	var hostsResp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hostsResp, "populate_software", "true", "query", teamHost.Hostname)
+	require.Len(t, hostsResp.Hosts, 1)
+	populated := make(map[string]bool, len(hostsResp.Hosts[0].Software))
+	for _, sw := range hostsResp.Hosts[0].Software {
+		populated[sw.Name] = flag(sw.Name, sw.AITool)
+	}
+	require.Equal(t, teamHostFlags, populated)
 }

@@ -423,10 +423,10 @@ func (s *integrationTestSuite) TestLabels() {
 			"computer_name", "primary_ip_id", "distributed_interval", "logger_tls_period",
 			"config_tls_refresh", "primary_ip", "primary_mac", "label_updated_at",
 			"last_enrolled_at", "refetch_requested", "refetch_critical_queries_until",
-			"team_id", "policy_updated_at", "public_ip",
+			"team_id", "fleet_id", "policy_updated_at", "public_ip",
 			"gigs_disk_space_available", "percent_disk_space_available",
 			"gigs_total_disk_space", "seen_time", "software_updated_at",
-			"last_restarted_at", "timezone", "team_name",
+			"last_restarted_at", "timezone", "team_name", "fleet_name",
 			"failing_policies_count", "critical_vulnerabilities_count",
 			"total_issues_count",
 			"issues", // supported as alias for "total_issues_count"
@@ -982,11 +982,11 @@ func (s *integrationTestSuite) TestLabels() {
 			"hardware_vendor", "hardware_model", "hardware_version", "hardware_serial",
 			"computer_name", "primary_ip_id", "distributed_interval", "logger_tls_period",
 			"config_tls_refresh", "primary_ip", "primary_mac", "label_updated_at",
-			"last_enrolled_at", "refetch_critical_queries_until", "team_id",
+			"last_enrolled_at", "refetch_critical_queries_until", "team_id", "fleet_id",
 			"policy_updated_at", "public_ip",
 			"gigs_disk_space_available", "percent_disk_space_available",
 			"gigs_total_disk_space", "seen_time", "software_updated_at",
-			"last_restarted_at", "timezone", "team_name",
+			"last_restarted_at", "timezone", "team_name", "fleet_name",
 			"failing_policies_count", "critical_vulnerabilities_count",
 			"total_issues_count", "issues",
 			"device_mapping",
@@ -1214,6 +1214,22 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 			},
 		}, http.StatusUnprocessableEntity, &applyResp,
 	)
+
+	// names that differ by case and accent are the same name to the database, so they collide with each other and with built-in labels
+	res := s.Do("POST", "/api/latest/fleet/spec/labels", fleet.ApplyLabelSpecsRequest{Specs: []*fleet.LabelSpec{
+		{Name: name + "_Gämma", Query: "select 1", LabelMembershipType: fleet.LabelMembershipTypeDynamic},
+		{Name: name + "_gamma", Query: "select 2", LabelMembershipType: fleet.LabelMembershipTypeDynamic},
+	}}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), fmt.Sprintf("More than one label has the same name: %q", name+"_gamma"))
+	res = s.Do("POST", "/api/latest/fleet/spec/labels", fleet.ApplyLabelSpecsRequest{Specs: []*fleet.LabelSpec{
+		{Name: "Àll Hosts", Query: "select 1", LabelMembershipType: fleet.LabelMembershipTypeDynamic},
+	}}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "conflicts with the name of a built-in label")
+	s.DoJSON("GET", "/api/latest/fleet/spec/labels", nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Specs, builtInsCount)
+	for _, spec := range listResp.Specs {
+		require.Equal(t, fleet.LabelTypeBuiltIn, spec.LabelType)
+	}
 
 	// apply an invalid label spec - invalid platform
 	s.DoJSON(

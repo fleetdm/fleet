@@ -8,7 +8,7 @@ interface IExProps {
   size?: IconSizes;
 }
 
-const Close = ({ size = "medium", color = "ui-fleet-black-75" }: IExProps) => {
+const Close = ({ color = "ui-fleet-black-75", size = "medium" }: IExProps) => {
   return (
     <svg
       width={ICON_SIZES[size]}
@@ -18,10 +18,8 @@ const Close = ({ size = "medium", color = "ui-fleet-black-75" }: IExProps) => {
       xmlns="http://www.w3.org/2000/svg"
     >
       <path
-        d="M3 3L13 13M3 13L13 3"
-        stroke={COLORS[color]}
-        strokeWidth="2"
-        strokeLinecap="round"
+        d="M11.315 3.625C11.608 3.332 12.083 3.332 12.376 3.625C12.669 3.918 12.669 4.393 12.376 4.685L9.06 8L12.376 11.315C12.669 11.608 12.669 12.083 12.376 12.376C12.083 12.669 11.608 12.669 11.315 12.376L8 9.06L4.685 12.376C4.393 12.669 3.918 12.669 3.625 12.376C3.332 12.083 3.332 11.608 3.625 11.315L6.939 8L3.625 4.685C3.332 4.393 3.332 3.918 3.625 3.625C3.918 3.332 4.393 3.332 4.685 3.625L8 6.939L11.315 3.625Z"
+        fill={COLORS[color]}
       />
     </svg>
   );

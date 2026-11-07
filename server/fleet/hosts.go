@@ -53,10 +53,10 @@ const (
 	// hosts are queued for a refetch this often (see fleet.RefetchIOSHostInterval).
 	MobileRefetchInterval = time.Hour
 
-	// MobileCronTickPeriod is the apple_mdm_iphone_ipad_refetcher cron tick.
-	// A refetch queued at t may not be dispatched until the next tick, so the
-	// online window must cover a full tick of dispatch latency on top of the
-	// refetch interval.
+	// MobileCronTickPeriod is the dispatch latency budget for the
+	// apple_mdm_iphone_ipad_refetcher cron. The cron ticks every minute but
+	// sends a bounded batch per tick, so a due host may wait several ticks;
+	// the online window must cover that on top of the refetch interval.
 	MobileCronTickPeriod = 10 * time.Minute
 
 	// MobileOnlineWindow bounds the MDM activity signal for mobile hosts to
@@ -419,7 +419,8 @@ type Host struct {
 	HardwareVersion  string `json:"hardware_version" db:"hardware_version" csv:"hardware_version"`
 	HardwareSerial   string `json:"hardware_serial" db:"hardware_serial" csv:"hardware_serial"`
 	ComputerName     string `json:"computer_name" db:"computer_name" csv:"computer_name"`
-	// TimeZone is the host's configured timezone. Currently only ingested for iOS/iPadOS hosts via MDM.
+	// TimeZone is the host's IANA timezone. Ingested via MDM on iOS/iPadOS and via detail
+	// queries on macOS, Linux, and Windows. nil or "" means unknown.
 	// CSV not exported to not break automations.
 	TimeZone *string `json:"timezone" db:"timezone" csv:"-"`
 	// PrimaryNetworkInterfaceID if present indicates to primary network for the host, the details of which
@@ -963,6 +964,10 @@ const (
 	DiskEncryptionRemovingEnforcement DiskEncryptionStatus = "removing_enforcement"
 )
 
+// BitLockerKeyUndecryptableDetail is the Windows disk encryption detail shown while the host is asked to escrow a new
+// recovery key because Fleet cannot read the stored one.
+const BitLockerKeyUndecryptableDetail = "Fleet can't read this host's stored recovery key. The host will escrow a new one when it comes online."
+
 // BitLocker conversion status values from the Win32_EncryptableVolume WMI class.
 // https://learn.microsoft.com/en-us/windows/win32/secprov/getconversionstatus-win32-encryptablevolume
 //
@@ -1260,6 +1265,7 @@ func (h *Host) IsDEPAssignedToFleet() bool {
 var LUKSSupportedPlatforms = []string{
 	"ubuntu", // also Kubuntu
 	"zorin",
+	"omarchy", // Omarchy 4+; earlier versions report "arch" and aren't supported
 }
 
 // IsLUKSSupported returns true if the host runs a Linux distribution Fleet escrows LUKS keys for.
@@ -1362,13 +1368,17 @@ type HostDetail struct {
 
 	ConditionalAccessBypassed bool `json:"conditional_access_bypassed"`
 
+	// GoogleDeviceID is set only for iOS, iPadOS and Android hosts, to "" when the host has no device ID
+	// in Google, so other platforms omit the field.
+	GoogleDeviceID *string `json:"google_device_id,omitempty"`
+
 	OSUpdateMinimumVersion *string `json:"os_update_minimum_version"`
 	OSUpdateDeadline       *string `json:"os_update_deadline"`
 
-	// IDOnly marks a result where the caller was allowed to resolve the host but
-	// not to read it, so only ID is populated. Handlers must render it as an
-	// id-only response rather than a full one with everything zeroed out, which
-	// would advertise fields the caller never had access to.
+	// PatchDeadlineAt is when Fleet next forces a patch deadline install on this host, or nil.
+	PatchDeadlineAt *time.Time `json:"patch_deadline_at"`
+
+	// IDOnly marks a result where the caller was allowed to resolve the host but not to read it, so only ID is populated.
 	IDOnly bool `json:"-"`
 }
 
@@ -2104,10 +2114,14 @@ type HostMDMCheckinInfo struct {
 	TeamID             uint   `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	DEPAssignedToFleet bool   `json:"dep_assigned_to_fleet" db:"dep_assigned_to_fleet"`
 	OsqueryEnrolled    bool   `json:"osquery_enrolled" db:"osquery_enrolled"`
+	// FleetEnrolledCorporate is true while the host is enrolled in Fleet's MDM as a non-personal host.
+	FleetEnrolledCorporate bool `json:"-" db:"fleet_enrolled_corporate"`
 
-	SCEPRenewalInProgress bool   `json:"-" db:"scep_renewal_in_progress"`
-	MigrationInProgress   bool   `json:"-" db:"migration_in_progress"`
-	Platform              string `json:"-" db:"platform"`
+	SCEPRenewalInProgress bool       `json:"-" db:"scep_renewal_in_progress"`
+	MigrationInProgress   bool       `json:"-" db:"migration_in_progress"`
+	MDMMigrationDeadline  *time.Time `json:"-" db:"mdm_migration_deadline"`
+	MDMMigrationCompleted *time.Time `json:"-" db:"mdm_migration_completed"`
+	Platform              string     `json:"-" db:"platform"`
 }
 
 // HostEscrowState is where a Linux host's LUKS escrow request stands.
@@ -2142,6 +2156,9 @@ type HostDiskEncryptionKey struct {
 	ClientError         string    `json:"-" db:"client_error"`
 	RotationCommandUUID *string   `json:"-" db:"rotation_command_uuid"`
 	RotationPending     bool      `json:"rotation_pending" db:"-"`
+	// WSTEPEncrypted marks a legacy Windows key, encrypted to the WSTEP identity certificate by an older release.
+	// Current rows use the server private key. The hourly job re-encrypts marked rows.
+	WSTEPEncrypted bool `json:"-" db:"wstep_encrypted"`
 }
 
 // DiskEncryptionKeyRotationStaleAfter is how long a pending FileVault key rotation
@@ -2151,11 +2168,13 @@ type HostDiskEncryptionKey struct {
 const DiskEncryptionKeyRotationStaleAfter = time.Minute
 
 type HostArchivedDiskEncryptionKey struct {
+	ID                  uint      `json:"-" db:"id"`
 	HostID              uint      `json:"-" db:"host_id"`
 	Base64Encrypted     string    `json:"-" db:"base64_encrypted"`
 	Base64EncryptedSalt string    `json:"-" db:"base64_encrypted_salt"`
 	KeySlot             *uint     `json:"-" db:"key_slot"`
 	CreatedAt           time.Time `json:"created_at" db:"created_at"`
+	WSTEPEncrypted      bool      `json:"-" db:"wstep_encrypted"`
 }
 
 // HostSoftwareInstalledPath represents where in the file system a software on a host was installed

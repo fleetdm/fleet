@@ -47,8 +47,8 @@ type EnterpriseOverrides struct {
 	MDMWindowsDisableOSUpdates        func(ctx context.Context, teamID *uint) error
 	MDMAppleEditedAppleOSUpdates      func(ctx context.Context, teamID *uint, appleDevice AppleDevice, updates AppleOSUpdateSettings) error
 	SetupExperienceNextStep           func(ctx context.Context, host *Host) (bool, error)
-	GetVPPTokenIfCanInstallVPPApps    func(ctx context.Context, appleDevice bool, host *Host) (string, error)
-	InstallVPPAppPostValidation       func(ctx context.Context, host *Host, vppApp *VPPApp, token string, opts HostSoftwareInstallOptions) (string, error)
+	CheckCanInstallVPPApps            func(ctx context.Context, appleDevice bool, host *Host) error
+	InstallVPPAppPostValidation       func(ctx context.Context, host *Host, vppApp *VPPApp, opts HostSoftwareInstallOptions) (string, error)
 	// VerifyAppleAccountProvisioning checks Apple account provisioning IdP
 	// settings with the IdP before they're saved.
 	VerifyAppleAccountProvisioning func(ctx context.Context, settings AppleAccountProvisioning, clientSecret string) error
@@ -170,6 +170,11 @@ type Service interface {
 	// agent options. It also returns any notifications that fleet wants to surface
 	// to fleetd (formerly orbit).
 	GetOrbitConfig(ctx context.Context) (OrbitConfig, error)
+
+	// SetHostEntraDeviceToken verifies an Entra ID token reported by a macOS host and stores
+	// the Entra device ID and user principal name it proves, for the Microsoft "Conditional
+	// access" integration.
+	SetHostEntraDeviceToken(ctx context.Context, idToken string) error
 
 	// LogFleetdError logs an error report from a `fleetd` component
 	LogFleetdError(ctx context.Context, errData FleetdError) error
@@ -489,13 +494,16 @@ type Service interface {
 	// A caller allowed to resolve the identifier but not to read the host
 	// (GitOps) gets a result with HostDetail.IDOnly set, see that field.
 	HostByIdentifier(ctx context.Context, identifier string, opts HostDetailOptions) (*HostDetail, error)
+	// GetHostByIDOrIdentifier returns one host matching the provided value. A value that is a host id matches on id first, then
+	// any value matches as described on Datastore.HostByIdentifier.
+	GetHostByIDOrIdentifier(ctx context.Context, identifier string, opts HostDetailOptions) (*HostDetail, error)
 	// RefetchHost requests a refetch of host details for the provided host.
 	RefetchHost(ctx context.Context, id uint) (err error)
 	// CleanupExpiredHostsBatch deletes up to batchSize hosts that have exceeded the expiry window and
 	// creates an activity for each deletion. Callers loop until it returns no hosts.
 	CleanupExpiredHostsBatch(ctx context.Context, batchSize int) ([]DeletedHostDetails, error)
 	// AddHostsToTeam adds hosts to an existing team, clearing their team settings if teamID is nil.
-	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error
+	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error
 	// AddHostsToTeamByFilter adds hosts to an existing team, clearing their team settings if teamID is nil. Hosts are
 	// selected by the label and HostListOptions provided.
 	AddHostsToTeamByFilter(ctx context.Context, teamID *uint, filter *map[string]interface{}) error
@@ -505,7 +513,8 @@ type Service interface {
 	//	- matchQuery is the query SQL
 	//	- queryID is the ID of a saved query to run (used to determine whether this is a query that observers can run)
 	//	- excludedHostIDs is an optional list of IDs to omit from the search
-	SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint) ([]*Host, error)
+	//	- excludeMobileHosts omits iOS, iPadOS, and Android hosts (used by the live report target picker)
+	SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint, excludeMobileHosts bool) ([]*Host, error)
 	// ListHostDeviceMapping returns the list of device-mapping of user's email address
 	// for the host.
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
@@ -514,6 +523,11 @@ type Service interface {
 	// mappings or DeviceMappingIDP for identity provider mappings.
 	SetHostDeviceMapping(ctx context.Context, id uint, email, source string) ([]*HostDeviceMapping, error)
 	DeleteHostIDP(ctx context.Context, id uint) error
+	// SetHostGoogleDeviceID binds an iOS, iPadOS or Android host to its device ID in Google. A different
+	// value than the stored one, or one bound to another host, is refused with a 409. Only
+	// DeleteHostGoogleDeviceID removes it.
+	SetHostGoogleDeviceID(ctx context.Context, hostID uint, googleDeviceID string) error
+	DeleteHostGoogleDeviceID(ctx context.Context, hostID uint) error
 	HostLiteByIdentifier(ctx context.Context, identifier string) (*HostLite, error)
 	// HostLiteByIdentifier returns a host and a subset of its fields from its id.
 	HostLiteByID(ctx context.Context, id uint) (*HostLite, error)
@@ -870,11 +884,12 @@ type Service interface {
 	// InstallSoftwareTitle installs a software title in the given host.
 	InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error
 
-	// GetVPPTokenIfCanInstallVPPApps returns the host team's VPP token if the host can be a target for VPP apps
-	GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *Host) (string, error)
+	// CheckCanInstallVPPApps returns an error if the host can't be a target for VPP apps
+	CheckCanInstallVPPApps(ctx context.Context, appleDevice bool, host *Host) error
 
-	// InstallVPPAppPostValidation installs a VPP app, assuming that GetVPPTokenIfCanInstallVPPApps has passed and provided a VPP token
-	InstallVPPAppPostValidation(ctx context.Context, host *Host, vppApp *VPPApp, token string, opts HostSoftwareInstallOptions) (string, error)
+	// InstallVPPAppPostValidation installs a VPP app using the token the app is bound to, assuming that
+	// CheckCanInstallVPPApps has passed.
+	InstallVPPAppPostValidation(ctx context.Context, host *Host, vppApp *VPPApp, opts HostSoftwareInstallOptions) (string, error)
 
 	// InstallInHouseAppForSetupExperience validates the in-house app's managed configuration for the
 	// host and enqueues its InstallApplication command during setup experience, returning the command UUID.
@@ -905,7 +920,7 @@ type Service interface {
 	// HasSelfServiceSoftwareInstallers returns whether the host has self-service software installers
 	HasSelfServiceSoftwareInstallers(ctx context.Context, host *Host) (bool, error)
 
-	GetAppStoreApps(ctx context.Context, teamID *uint) ([]*VPPApp, error)
+	GetAppStoreApps(ctx context.Context, teamID *uint, vppTokenID *uint) ([]*VPPApp, error)
 
 	// AddAppStoreApp persists a VPP app version onto a team and returns the added app with its title ID and version ID set
 	AddAppStoreApp(ctx context.Context, teamID *uint, appTeam VPPAppTeam) (*VPPApp, error)
@@ -1015,7 +1030,7 @@ type Service interface {
 
 	// GetHostDEPAssignmentDetails retrieves Fleet's DEP assignment record and
 	// Apple's live device details from ABM for the given host ID.
-	// Returns (nil, nil, "", nil) for non-DEP hosts.
+	// Returns (nil, nil, "", nil) for non-DEP hosts and hosts whose ABM token was deleted.
 	// If ABM returns an error, dep_device is nil, depError classifies why, and
 	// the original error is logged rather than returned to the caller.
 	GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*HostDEPAssignment, *godep.DeviceDetails, DEPDeviceErrorType, error)
@@ -1158,17 +1173,7 @@ type Service interface {
 
 	// BatchSetMDMAppleProfiles replaces the custom macOS profiles for a specified
 	// team or for hosts with no team.
-	BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool, skipBulkPending bool) error
-
-	// MDMApplePreassignProfile preassigns a profile to a host, pending the match
-	// request that will match the profiles to a team (or create one if needed),
-	// assign the host to that team and assign the profiles to the host.
-	MDMApplePreassignProfile(ctx context.Context, payload MDMApplePreassignProfilePayload) error
-
-	// MDMAppleMatchPreassignment matches the existing preassigned profiles to a
-	// team, creating one if none match, assigns the corresponding host to that
-	// team and assigns the matched team's profiles to the host.
-	MDMAppleMatchPreassignment(ctx context.Context, externalHostIdentifier string) error
+	BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool) error
 
 	// MDMAppleDeviceLock remote locks a host
 	MDMAppleDeviceLock(ctx context.Context, hostID uint) error
@@ -1202,6 +1207,11 @@ type Service interface {
 	// Windows MDM. If an error is returned, authorization is skipped so the
 	// error can be raised to the user.
 	VerifyMDMWindowsConfigured(ctx context.Context) error
+
+	// VerifyMCPAvailable verifies that Fleet's embedded MCP server is turned on
+	// (server_settings.mcp_disabled) and licensed. If an error is returned,
+	// authorization is skipped so it can run before authentication.
+	VerifyMCPAvailable(ctx context.Context) error
 
 	// VerifyMDMAndroidConfigured verifies that the server is configured for
 	// Android MDM. If an error is returned, authorization is skipped so the
@@ -1378,6 +1388,15 @@ type Service interface {
 	// cannot be resolved to either Apple DDM or Android format
 	NewMDMInvalidJSONConfigProfile(ctx context.Context, teamID uint, err error) error
 
+	// AutofillConfigProfileNameDescription asks fleetdm.com for a name and
+	// description for a profile described in natural language.
+	AutofillConfigProfileNameDescription(ctx context.Context, instructions, platform string) (name, description string, err error)
+
+	// AutofillConfigProfileContent asks fleetdm.com to generate a profile and
+	// runs the checks Fleet runs when the profile is added to teamID, without
+	// saving it.
+	AutofillConfigProfileContent(ctx context.Context, instructions, platform string, teamID uint) (*AutofilledConfigProfile, error)
+
 	// UpdateMDMConfigProfile updates an existing configuration profile's
 	// contents and/or label targeting in place. Supported for Apple
 	// .mobileconfig profiles, Apple DDM declarations, Windows profiles, and
@@ -1399,7 +1418,7 @@ type Service interface {
 	// team or for hosts with no team.
 	BatchSetMDMProfiles(
 		ctx context.Context, teamID *uint, teamName *string, profiles []MDMProfileBatchPayload, dryRun bool, skipBulkPending bool,
-		assumeEnabled *bool, noCache bool,
+		assumeEnabled *bool, assumeProfileValidation *bool, noCache bool,
 	) error
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -1509,8 +1528,6 @@ type Service interface {
 	// BatchScriptExecute runs a script on many hosts. It creates and returns a batch execution ID
 	BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs []uint, filters *map[string]any, notBefore *time.Time) (string, error)
 
-	BatchScriptExecutionSummary(ctx context.Context, batchExecutionID string) (*BatchActivity, error)
-
 	BatchScriptExecutionStatus(ctx context.Context, batchExecutionID string) (*BatchActivity, error)
 
 	BatchScriptExecutionHostResults(ctx context.Context, batchExecutionID string, status BatchScriptExecutionStatus, opt ListOptions) ([]BatchScriptHost, *PaginationMetadata, uint, error)
@@ -1583,6 +1600,12 @@ type Service interface {
 	NewSoftwareCategory(ctx context.Context, teamID *uint, name string) (*SoftwareCategory, error)
 	UpdateSoftwareCategory(ctx context.Context, id uint, name string) (*SoftwareCategory, error)
 	DeleteSoftwareCategory(ctx context.Context, id uint) error
+
+	// GetPatchDeadlineSettings returns the fleet's patch deadline settings, or the default when none are stored.
+	GetPatchDeadlineSettings(ctx context.Context, teamID *uint) (*PatchDeadlineSettings, error)
+	// UpdatePatchDeadlineSettings validates and stores the fleet's patch deadline settings. days and time
+	// are the values as decoded from JSON.
+	UpdatePatchDeadlineSettings(ctx context.Context, teamID *uint, days, time any) (*PatchDeadlineSettings, error)
 
 	/////////////////////////////////////////////////////////////////////////////////
 	// Organization logo
@@ -1702,6 +1725,10 @@ type Service interface {
 	// ConditionalAccessGetIdPAppleProfile returns the Apple MDM configuration profile
 	// (for user scope) to configure Okta conditional access on the host.
 	ConditionalAccessGetIdPAppleProfile(ctx context.Context) (profileData []byte, err error)
+	// ConditionalAccessGetIdPWindowsProfiles returns the Windows MDM configuration profiles (SyncML) to configure Okta
+	// conditional access on the host: one that enrolls the certificate into the user's store and one that makes Chrome
+	// and Edge auto-select it.
+	ConditionalAccessGetIdPWindowsProfiles(ctx context.Context) (*ConditionalAccessWindowsProfiles, error)
 
 	//////////////////////////////////////////////////////////////////////////////
 	// Certificate Authorities
@@ -2006,6 +2033,9 @@ const (
 	BatchSetSoftwareInstallersStatusFailed = "failed"
 	// MinOrbitLUKSVersion is the earliest version of Orbit that can escrow LUKS passphrases
 	MinOrbitLUKSVersion = "1.36.0"
+	// MinOrbitOmarchyLUKSVersion is the earliest version of Orbit whose passphrase prompt opens
+	// under Hyprland, which Omarchy uses.
+	MinOrbitOmarchyLUKSVersion = "1.64.0"
 	// LinuxEscrowInFlightWindow is how long a LUKS escrow request blocks re-triggering after fleetd's
 	// last sign of life (hand-off or progress report). It only matters for agents that report nothing.
 	LinuxEscrowInFlightWindow = 5 * time.Minute

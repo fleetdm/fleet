@@ -75,6 +75,8 @@ func StartTestSCEPServer(t *testing.T) *httptest.Server {
 		scepHandler := scepserver.MakeHTTPHandler(e, svc, logger)
 		r := mux.NewRouter()
 		r.Handle("/scep", scepHandler)
+		// The Windows SCEP client appends /pkiclient.exe to the server URL, as NDES expects.
+		r.Handle("/scep/pkiclient.exe", scepHandler)
 		server = httptest.NewServer(r)
 		return server
 	}

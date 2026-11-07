@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -26,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/worker"
@@ -944,10 +944,25 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		// Onboarding hosts keep the default poll interval: many flags depend
 		// on state ingested from osquery (host_mdm, the Windows MDM enrollment
 		// link), which doesn't notify agents.
-		onboarding := !host.IsOsqueryEnrolled() || svc.clock.Now().Sub(host.LastEnrolledAt) < orbitConfigOnboardingWindow
+		// Orbit and Apple MDM enrollment create the host before osquery
+		// enrolls, with osquery_host_id set and last_enrolled_at at the
+		// "never" sentinel; only osquery enrollment moves it.
+		osqueryEnrolled := host.IsOsqueryEnrolled() && host.LastEnrolledAt.After(common_mysql.GetDefaultNonZeroTime())
+		onboarding := !osqueryEnrolled || svc.clock.Now().Sub(host.LastEnrolledAt) < orbitConfigOnboardingWindow
 		if svc.config.WebSocket.OrbitConfigEnabled && !onboarding {
 			wsTransport.OrbitConfigPollInterval = new(int(svc.config.WebSocket.OrbitConfigPollInterval.Seconds()))
 		}
+		// Onboarding hosts keep osquery's TLS config plugin, which retries
+		// osquery enrollment on every refresh; orbit's doesn't. Switching
+		// restarts orbit once (the config plugin is a command-line flag).
+		if svc.config.WebSocket.OsqueryConfigEnabled && !onboarding {
+			wsTransport.OsqueryConfigPollInterval = new(int(svc.config.WebSocket.OsqueryConfigPollInterval.Seconds()))
+		}
+	}
+
+	entraDeviceTokenReq, err := svc.entraDeviceTokenRequest(ctx, host)
+	if err != nil {
+		return fleet.OrbitConfig{}, err
 	}
 
 	// team ID is not nil, get team specific flags and options
@@ -985,33 +1000,6 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			return fleet.OrbitConfig{}, err
 		}
 
-		var nudgeConfig *fleet.NudgeConfig
-		if appConfig.MDM.EnabledAndConfigured &&
-			mdmConfig != nil &&
-			host.IsOsqueryEnrolled() &&
-			isConnectedToFleetMDM &&
-			mdmConfig.MacOSUpdates.Configured() {
-
-			hostOS, err := svc.ds.GetHostOperatingSystem(ctx, host.ID)
-			if errors.Is(err, sql.ErrNoRows) {
-				// host os has not been collected yet (no details query)
-				hostOS = &fleet.OperatingSystem{}
-			} else if err != nil {
-				return fleet.OrbitConfig{}, err
-			}
-			requiresNudge, err := hostOS.RequiresNudge()
-			if err != nil {
-				return fleet.OrbitConfig{}, err
-			}
-
-			if requiresNudge {
-				nudgeConfig, err = fleet.NewNudgeConfig(mdmConfig.MacOSUpdates)
-				if err != nil {
-					return fleet.OrbitConfig{}, err
-				}
-			}
-		}
-
 		err = svc.setDiskEncryptionNotifications(
 			ctx,
 			&notifs,
@@ -1045,14 +1033,14 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 
 		return fleet.OrbitConfig{
-			ScriptExeTimeout:   opts.ScriptExecutionTimeout,
-			Flags:              mergedFlags,
-			Extensions:         extensionsFiltered,
-			Notifications:      notifs,
-			NudgeConfig:        nudgeConfig,
-			UpdateChannels:     updateChannels,
-			DebugLogging:       debugLogging,
-			WebSocketTransport: wsTransport,
+			ScriptExeTimeout:        opts.ScriptExecutionTimeout,
+			Flags:                   mergedFlags,
+			Extensions:              extensionsFiltered,
+			Notifications:           notifs,
+			UpdateChannels:          updateChannels,
+			DebugLogging:            debugLogging,
+			WebSocketTransport:      wsTransport,
+			EntraDeviceTokenRequest: entraDeviceTokenReq,
 		}, nil
 	}
 
@@ -1067,31 +1055,6 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	extensionsFiltered, err := svc.filterExtensionsForHost(ctx, opts.Extensions, host)
 	if err != nil {
 		return fleet.OrbitConfig{}, err
-	}
-
-	var nudgeConfig *fleet.NudgeConfig
-	if appConfig.MDM.EnabledAndConfigured &&
-		isConnectedToFleetMDM &&
-		host.IsOsqueryEnrolled() &&
-		appConfig.MDM.MacOSUpdates.Configured() {
-		hostOS, err := svc.ds.GetHostOperatingSystem(ctx, host.ID)
-		if errors.Is(err, sql.ErrNoRows) {
-			// host os has not been collected yet (no details query)
-			hostOS = &fleet.OperatingSystem{}
-		} else if err != nil {
-			return fleet.OrbitConfig{}, err
-		}
-		requiresNudge, err := hostOS.RequiresNudge()
-		if err != nil {
-			return fleet.OrbitConfig{}, err
-		}
-
-		if requiresNudge {
-			nudgeConfig, err = fleet.NewNudgeConfig(appConfig.MDM.MacOSUpdates)
-			if err != nil {
-				return fleet.OrbitConfig{}, err
-			}
-		}
 	}
 
 	err = svc.setDiskEncryptionNotifications(
@@ -1127,14 +1090,14 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	return fleet.OrbitConfig{
-		ScriptExeTimeout:   opts.ScriptExecutionTimeout,
-		Flags:              mergedFlags,
-		Extensions:         extensionsFiltered,
-		Notifications:      notifs,
-		NudgeConfig:        nudgeConfig,
-		UpdateChannels:     updateChannels,
-		DebugLogging:       debugLogging,
-		WebSocketTransport: wsTransport,
+		ScriptExeTimeout:        opts.ScriptExecutionTimeout,
+		Flags:                   mergedFlags,
+		Extensions:              extensionsFiltered,
+		Notifications:           notifs,
+		UpdateChannels:          updateChannels,
+		DebugLogging:            debugLogging,
+		WebSocketTransport:      wsTransport,
+		EntraDeviceTokenRequest: entraDeviceTokenReq,
 	}, nil
 }
 
@@ -1191,7 +1154,7 @@ func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *
 				RequestType:    "AccountConfiguration",
 			},
 		})
-		if err != nil {
+		if err != nil && !fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx, err, "list AccountConfiguration commands")
 		}
 		var acctConfigCmdUUID string
@@ -1498,7 +1461,7 @@ func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.Ho
 				failureMessage = "Fleet couldn't find the notification this script belongs to."
 			}
 			if failureMessage == "" {
-				failureMessage = svc.setPatchNotificationPayloadForDisplay(ctx, notificationUUID)
+				failureMessage = svc.setPatchNotificationPayloadForDisplay(ctx, host.ID, notificationUUID)
 			}
 			if failureMessage == "" {
 				expanded, failureMessage = svc.expandNotificationURL(ctx, host, script, notificationUUID)
@@ -1644,7 +1607,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 					HostID:              host.ID,
 					HostDisplayName:     host.DisplayName(),
 					SoftwareTitle:       softwareTitleName,
-					SoftwareDisplayName: softwareDisplayName,
+					SoftwareDisplayName: ptr.ValOrZero(softwareDisplayName),
 					ExecutionID:         hsr.ExecutionID,
 					Status:              activityStatus,
 					SelfService:         selfService,
@@ -1695,6 +1658,14 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 				},
 			); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for script execution request")
+			}
+
+			if hsr.PolicyID != nil {
+				scriptSucceeded := hsr.ExitCode != nil && *hsr.ExitCode == 0
+				err = svc.ds.IncrementHostPolicyAutomationRunCount(ctx, *hsr.PolicyID, host.ID, fleet.ActivityTypeRanScript{}, scriptSucceeded)
+				if err != nil {
+					svc.logger.ErrorContext(ctx, "increment host policy automation run count for script", "host_id", host.ID, "execution_id", hsr.ExecutionID, "err", err)
+				}
 			}
 		}
 	}
@@ -1850,15 +1821,13 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 
 	// only set the encryption key if there was no client error
 	if clientError == "" && encryptionKey != "" {
-		wstepCert, _, _, err := svc.config.MDM.MicrosoftWSTEP()
-		if err != nil {
-			// should never return an error because the WSTEP is first parsed and
-			// cached at the start of the fleet serve process.
-			return ctxerr.Wrap(ctx, err, "get WSTEP certificate")
+		// Disk encryption cannot be turned on without the server private key, so a missing one is a deployment error.
+		if svc.config.Server.PrivateKey == "" {
+			return ctxerr.New(ctx, "server private key is required to store the disk encryption key")
 		}
-		enc, err := microsoft_mdm.Encrypt(encryptionKey, wstepCert.Leaf)
+		enc, err := mdm.EncryptAndEncode(encryptionKey, svc.config.Server.PrivateKey)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "encrypt the key with WSTEP certificate")
+			return ctxerr.Wrap(ctx, err, "encrypt the key with the server private key")
 		}
 		encryptedEncryptionKey = enc
 		decryptable = ptr.Bool(true)
@@ -2529,30 +2498,40 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			ctx,
 			user,
 			fleet.ActivityTypeInstalledSoftware{
-				HostID:              host.ID,
-				HostDisplayName:     host.DisplayName(),
-				SoftwareTitle:       hsi.SoftwareTitle,
-				SoftwareDisplayName: softwareDisplayName,
-				SoftwarePackage:     hsi.SoftwarePackage,
-				HashSHA256:          hsi.HashSHA256,
-				InstallUUID:         result.InstallUUID,
-				Status:              string(status),
-				Source:              hsi.Source,
-				SelfService:         hsi.SelfService,
-				PolicyID:            hsi.PolicyID,
-				PolicyName:          policyName,
-				FromSetupExperience: fromSetupExperience,
-				SkippedInstall:      isAppOpenSkip,
-				PatchWhenClosed:     hsi.PatchWhenClosed,
+				HostID:               host.ID,
+				HostDisplayName:      host.DisplayName(),
+				SoftwareTitle:        hsi.SoftwareTitle,
+				SoftwareDisplayName:  ptr.ValOrZero(softwareDisplayName),
+				SoftwarePackage:      hsi.SoftwarePackage,
+				HashSHA256:           hsi.HashSHA256,
+				InstallUUID:          result.InstallUUID,
+				Status:               string(status),
+				Source:               hsi.Source,
+				SelfService:          hsi.SelfService,
+				PolicyID:             hsi.PolicyID,
+				PolicyName:           policyName,
+				FromSetupExperience:  fromSetupExperience,
+				SkippedInstall:       isAppOpenSkip,
+				PatchWhenClosed:      hsi.PatchWhenClosed,
+				NotifyBeforePatching: hsi.NotifyBeforePatching,
+				PatchDeadline:        hsi.PatchDeadline,
 			},
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for software installation")
 		}
 
+		if hsi.PolicyID != nil {
+			installSucceeded := status == fleet.SoftwareInstalled
+			err = svc.ds.IncrementHostPolicyAutomationRunCount(ctx, *hsi.PolicyID, host.ID, fleet.ActivityTypeInstalledSoftware{}, installSucceeded)
+			if err != nil {
+				svc.logger.ErrorContext(ctx, "increment host policy automation run count for software install", "host_id", host.ID, "install_uuid", result.InstallUUID, "err", err)
+			}
+		}
+
 		// The install result and its activity are already recorded, so a failure
 		// here is logged rather than returned: failing the request would have orbit
 		// report the same result again and emit a second activity.
-		if isAppOpenSkip && hsi.NotifyBeforePatching {
+		if isAppOpenSkip && (hsi.NotifyBeforePatching || hsi.PatchDeadline) {
 			if err := svc.createPatchNotificationForEndUser(ctx, host, hsi); err != nil {
 				svc.logger.ErrorContext(
 					ctx,

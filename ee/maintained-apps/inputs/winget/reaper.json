@@ -2,7 +2,7 @@
   "name": "REAPER",
   "slug": "reaper/windows",
   "package_identifier": "Cockos.REAPER",
-  "unique_identifier": "REAPER",
+  "unique_identifier": "REAPER (x64)",
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/reaper_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/reaper_uninstall.ps1",
   "installer_arch": "x64",

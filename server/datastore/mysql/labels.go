@@ -31,6 +31,7 @@ var labelsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"author_id":             "l.author_id",
 	"criteria":              "l.criteria",
 	"team_id":               "l.team_id",
+	"fleet_id":              "l.team_id",
 
 	// dependent on include_host_counts being set on request
 	// (checked on transport layer).
@@ -1186,10 +1187,12 @@ var hostsInLabelAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"refetch_requested":              "h.refetch_requested",
 	"refetch_critical_queries_until": "h.refetch_critical_queries_until",
 	"team_id":                        "h.team_id",
+	"fleet_id":                       "h.team_id",
 	"policy_updated_at":              "h.policy_updated_at",
 	"public_ip":                      "h.public_ip",
 
 	"display_name": "hdn.display_name",
+	"agent":        "COALESCE(NULLIF(hoi.version, ''), h.osquery_version)",
 
 	// COALESCE required on the following:
 	// must match SELECT clause so cursor pagination (WHERE) and ORDER BY are consistent
@@ -1203,7 +1206,8 @@ var hostsInLabelAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"timezone":          "h.timezone",
 	// must match SELECT clause subquery so cursor pagination (WHERE) and
 	// ORDER BY are consistent — MySQL disallows SELECT aliases in WHERE.
-	"team_name": "(SELECT name FROM teams t WHERE t.id = h.team_id)",
+	"team_name":  "(SELECT name FROM teams t WHERE t.id = h.team_id)",
+	"fleet_name": "(SELECT name FROM teams t WHERE t.id = h.team_id)",
 
 	// COALESCE required on the following:
 	// must match SELECT clause so cursor pagination (WHERE) and ORDER BY are consistent
@@ -1358,6 +1362,9 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	if opt.ListOptions.OrderKey == "display_name" {
 		query += ` JOIN host_display_names hdn ON h.id = hdn.host_id `
 	}
+	if opt.ListOptions.OrderKey == "agent" {
+		query += ` LEFT JOIN host_orbit_info hoi ON hoi.host_id = h.id `
+	}
 
 	softwareStatusJoin := ""
 	// if opt.SoftwareVersionIDFilter != nil {
@@ -1383,7 +1390,7 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 
 		case vppID != nil:
 			// found a VPP app
-			vppAppJoin, vppAppParams, err := ds.vppAppJoin(*vppID, nil, *opt.SoftwareStatusFilter)
+			vppAppJoin, vppAppParams, err := ds.vppAppJoin(ctx, *vppID, nil, *opt.SoftwareStatusFilter)
 			if err != nil {
 				return "", nil, ctxerr.Wrap(ctx, err, "vpp app join")
 			}
@@ -1453,7 +1460,10 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 		return "", nil, ctxerr.Wrap(ctx, err, "building macOS settings status filter")
 	}
 	query, whereParams = filterHostsByMacOSDiskEncryptionStatus(query, opt, whereParams, diskEncryptionConfig)
-	query, whereParams = filterHostsByMDMBootstrapPackageStatus(query, opt, whereParams)
+	query, whereParams, err = ds.filterHostsByMDMBootstrapPackageStatus(ctx, query, opt, whereParams)
+	if err != nil {
+		return "", nil, ctxerr.Wrap(ctx, err, "building bootstrap package status filter")
+	}
 	if opt.OSSettingsFilter.IsValid() {
 		query, whereParams = ds.filterHostsByOSSettingsStatus(ctx, query, opt, whereParams, diskEncryptionConfig)
 	} else if opt.OSSettingsDiskEncryptionFilter.IsValid() {

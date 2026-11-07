@@ -38,7 +38,7 @@ parasails.registerPage('basic-documentation', {
       return _.startsWith(page.url, '/docs');
     });
     this.pagesBySectionSlug = (() => {
-      const DOCS_SLUGS = ['get-started', 'deploy', 'configuration', 'rest-api'];
+      const DOCS_SLUGS = ['get-started', 'deploy', 'configuration', 'api'];
       let sectionSlugs = _.uniq(this.pages.map((page) => page.url.split(/\//).slice(-2)[0]));
       let pagesBySectionSlug = {};
 
@@ -91,8 +91,9 @@ parasails.registerPage('basic-documentation', {
       let elementWithMatchingId = document.getElementById(possibleHashToScrollTo);
       // If the hash matches a header's ID, we'll scroll to that section.
       if(elementWithMatchingId){
-        // Get the distance of the specified element, and reduce it by 90 so the section is not hidden by the page header.
-        let amountToScroll = elementWithMatchingId.offsetTop - 90;
+        // Get the distance of the specified element, and reduce it by 90 (plus the announcement banner, if shown) so the section is not hidden by the page header.
+        let announcementBannerHeight = parseInt(document.documentElement.style.getPropertyValue('--announcement-banner-height')) || 0;
+        let amountToScroll = elementWithMatchingId.offsetTop - 90 - announcementBannerHeight;
         window.scrollTo({
           top: amountToScroll,
           left: 0,

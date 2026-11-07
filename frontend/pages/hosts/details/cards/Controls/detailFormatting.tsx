@@ -8,46 +8,6 @@ import {
 
 import { IHostMdmProfileWithAddedStatus } from "./OSSettingsTableConfig";
 
-/**
- * The Fleet Android app reports certificate failures in its own terms, e.g. "Failed to create
- * CSR: ...". Those reach both Host > Controls and the end user's My device page, where SCEP and
- * CSR mean nothing and there is nothing the reader can act on. Each known reason is restated in
- * plain language; anything unrecognized falls through to the reported text so a new failure is
- * never swallowed. The app's own wording stays in the details block either way.
- */
-const ANDROID_CERTIFICATE_ERRORS: [prefix: string, message: string][] = [
-  [
-    "Network error during SCEP enrollment",
-    "Fleet couldn't reach the certificate authority.",
-  ],
-  ["SCEP enrollment failed", "The certificate authority rejected the request."],
-  [
-    "Certificate validation failed",
-    "The host couldn't validate the certificate from the certificate authority.",
-  ],
-  ["Failed to generate key pair", "The host couldn't generate a private key."],
-  [
-    "Failed to create CSR",
-    "The host couldn't create a certificate signing request.",
-  ],
-  ["Invalid configuration", "The certificate configuration isn't valid."],
-  [
-    "Certificate installation failed",
-    "The host couldn't install the certificate.",
-  ],
-];
-
-/** Restates a Fleet Android app certificate error in plain language, or null if unrecognized. */
-export const formatAndroidCertificateError = (
-  detail: IHostMdmProfile["detail"]
-) => {
-  const trimmed = detail.trim();
-  const match = ANDROID_CERTIFICATE_ERRORS.find(([prefix]) =>
-    trimmed.startsWith(prefix)
-  );
-  return match ? match[1] : null;
-};
-
 /** Whether this row is an Android certificate template rather than a configuration profile. */
 export const isAndroidCertificateProfile = (
   profile: IHostMdmProfileWithAddedStatus
@@ -64,7 +24,7 @@ export const isRetryingAndroidCertificate = (
 ) => !!profile && isAndroidCertificateProfile(profile) && !!profile.retrying;
 
 /**
- * Builds the details message for a retrying Android certificate, e.g. "Fleet couldn't reach the
+ * Builds the details message for a retrying Android certificate, e.g. "Couldn't reach the
  * certificate authority. Retrying enrollment (attempt 2 of 4)." The numbers are labelled as
  * attempts because they count the initial attempt, and so run one higher than the
  * retry_count/max_retries the API reports. The host does not have to report an error message with
@@ -84,10 +44,7 @@ export const getAndroidCertificateRetryMessage = (
     return retrying;
   }
 
-  // Prefer plain language over the app's own wording, falling back to what it reported so an
-  // unrecognized failure still reaches the reader.
-  const detail = formatAndroidCertificateError(reported) ?? reported;
-  const sentence = /[.!?]$/.test(detail) ? detail : `${detail}.`;
+  const sentence = /[.!?]$/.test(reported) ? reported : `${reported}.`;
   return `${sentence} ${retrying}`;
 };
 
@@ -215,13 +172,8 @@ export const getDetailGuidance = (
 ): IDetailGuidance | null => {
   if (profile.status !== "failed" || !profile.detail) return null;
 
-  // Android certificates read the same here as they do while retrying, so an admin doesn't see
-  // the failure reworded the moment Fleet stops retrying it. The raw detail is left in place
-  // below, since the rewrite drops the app's diagnostic text.
-  if (isAndroidCertificateProfile(profile)) {
-    const message = formatAndroidCertificateError(profile.detail);
-    return message ? { message, supersedesDetail: false } : null;
-  }
+  // The Fleet Android app reports certificate errors in plain language, so they stand alone.
+  if (isAndroidCertificateProfile(profile)) return null;
 
   const idpEmailError = formatDetailIdpEmailError(profile.detail);
   if (idpEmailError) {
