@@ -1,6 +1,7 @@
 import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
+import { ErrorBoundary, FallbackProps } from "react-error-boundary";
 
 import { createMockActivity } from "__mocks__/activityMock";
 import createMockConfig from "__mocks__/configMock";
@@ -120,12 +121,14 @@ const renderHostDetails = (overrides?: {
   isGlobalAdmin?: boolean;
   isMacMdmEnabledAndConfigured?: boolean;
   location?: typeof mockLocation;
+  hostId?: string;
 }) => {
   const {
     currentUser = ADMIN,
     isGlobalAdmin = true,
     isMacMdmEnabledAndConfigured = false,
     location = mockLocation,
+    hostId = "1",
   } = overrides || {};
 
   const render = createCustomRenderer({
@@ -141,12 +144,19 @@ const renderHostDetails = (overrides?: {
     },
   });
 
+  // App.tsx wraps every page in an ErrorBoundary; its overlay reads the status.
+  const ErrorStatus = ({ error }: FallbackProps) => (
+    <div>error status {(error as Error & { status?: number }).status}</div>
+  );
+
   return render(
-    <HostDetailsPage
-      router={createMockRouter()}
-      location={location}
-      params={{ host_id: "1" }}
-    />
+    <ErrorBoundary FallbackComponent={ErrorStatus}>
+      <HostDetailsPage
+        router={createMockRouter()}
+        location={location}
+        params={{ host_id: hostId }}
+      />
+    </ErrorBoundary>
   );
 };
 
@@ -667,4 +677,22 @@ describe("HostDetailsPage - enrollment rejection details", () => {
     expect(screen.getByText("Fleetd enroll secret")).toBeInTheDocument();
     expect(screen.queryByText("Fleetd configuration")).not.toBeInTheDocument();
   });
+});
+
+describe("HostDetailsPage - invalid host id", () => {
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it.each(["abc", "0"])(
+    "shows the not found page for /hosts/%s",
+    async (id) => {
+      stubQueries(createMockHost());
+
+      renderHostDetails({ hostId: id });
+
+      expect(await screen.findByText("error status 404")).toBeInTheDocument();
+      expect(hostAPI.loadHostDetails).not.toHaveBeenCalled();
+    }
+  );
 });
