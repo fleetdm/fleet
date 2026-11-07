@@ -402,6 +402,15 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			out.UniqueIdentifier, out.Version,
 		)
 	}
+	if input.Token == "zen" {
+		// Zen ends every version with a channel letter ("1.24b", "1.24.1b"), and
+		// version_compare sorts "1.24b" after "1.24.1b", so hosts on the previous
+		// release would pass. Strip the letters from both sides before comparing.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(rtrim(bundle_short_version, '%s'), '%s') < 0);",
+			out.UniqueIdentifier, zenChannelLetters, strings.TrimRight(out.Version, zenChannelLetters),
+		)
+	}
 	if input.Token == "mindmanager" {
 		// MindManager's bundle ID carries the major version (com.mindjet.mindmanager.25,
 		// .26, ...), so hosts still on an older major never match the current ID. Flag
@@ -494,6 +503,9 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 
 // xquartzLegacyBundleID is the bundle identifier XQuartz used before 2.8.0.
 const xquartzLegacyBundleID = "org.macosforge.xquartz.X11"
+
+// zenChannelLetters are trimmed from the end of Zen versions ("1.24.1b" → "1.24.1").
+const zenChannelLetters = "abcdefghijklmnopqrstuvwxyz"
 
 // qgisPathFilters tells QGIS and QGIS LTR apart by where their casks install them:
 // both report the org.qgis.qgis3 bundle identifier.
