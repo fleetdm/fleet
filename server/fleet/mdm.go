@@ -1302,6 +1302,9 @@ const (
 
 	// MDMAssetVPPProxyBearerToken is the bearer token Fleet uses to communicate with the fleetdm.com VPP metadata proxy
 	MDMAssetVPPProxyBearerToken MDMAssetName = "vpp_proxy_bearer_token" //nolint:gosec // no, this is not a credential
+	// MDMAssetProfileGeneratorFleetServerSecret is the bearer token Fleet sends to the fleetdm.com configuration
+	// profile generator when it has no unexpired Premium license to send instead.
+	MDMAssetProfileGeneratorFleetServerSecret MDMAssetName = "profile_generator_fleet_server_secret" //nolint:gosec // no, this is not a credential
 	// MDMAssetPSSOSigningKey is the EC P-256 private key Fleet uses to sign Platform SSO responses
 	// and publishes via the PSSO JWKS endpoint for the Mac extension to verify.
 	MDMAssetPSSOSigningKey MDMAssetName = "psso_signing_key" //nolint:gosec // private key, not a credential string
