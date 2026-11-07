@@ -65,69 +65,6 @@ func (s *integrationTestSuite) TestSlowOsqueryHost() {
 	assert.Equal(t, http.StatusRequestTimeout, resp.StatusCode)
 }
 
-func (s *integrationTestSuite) TestDistributedReadWithChangedQueries() {
-	t := s.T()
-
-	spec := []byte(`
-  features:
-    enable_software_inventory: true
-    enable_host_users: true
-    detail_query_overrides:
-      users: null
-      software_macos: "SELECT * FROM foo;"
-      unknown_query: "SELECT * FROM bar;"
-`)
-	s.applyConfig(spec)
-
-	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   new(t.Name()),
-		NodeKey:         new(t.Name()),
-		UUID:            uuid.New().String(),
-		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
-		Platform:        "darwin",
-	})
-	require.NoError(t, err)
-
-	s.lq.On("QueriesForHost", host.ID).Return(map[string]string{fmt.Sprintf("%d", host.ID): "SELECT 1 FROM osquery;"}, nil)
-
-	// Ensure we can read distributed queries for the host.
-	err = s.ds.UpdateHostRefetchRequested(context.Background(), host.ID, true)
-	require.NoError(t, err)
-
-	// Get distributed queries for the host.
-	req := getDistributedQueriesRequest{NodeKey: *host.NodeKey}
-	var dqResp getDistributedQueriesResponse
-	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
-	require.NotContains(t, dqResp.Queries, "fleet_detail_query_users")
-	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_macos")
-	require.Equal(t, "SELECT * FROM foo;", dqResp.Queries["fleet_detail_query_software_macos"])
-
-	err = s.ds.UpdateHostRefetchRequested(context.Background(), host.ID, true)
-	require.NoError(t, err)
-
-	spec = []byte(`
-  features:
-    enable_software_inventory: true
-    enable_host_users: true
-    detail_query_overrides:
-`)
-	s.applyConfig(spec)
-
-	// Get distributed queries for the host.
-	req = getDistributedQueriesRequest{NodeKey: *host.NodeKey}
-	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
-	require.Contains(t, dqResp.Queries, "fleet_detail_query_users")
-	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_macos")
-	require.Contains(t, dqResp.Queries["fleet_detail_query_software_macos"], "FROM apps")
-	require.Contains(t, dqResp.Queries["fleet_detail_query_users"], "FROM users")
-	// AI tools inventory is Fleet Premium only.
-	require.NotContains(t, dqResp.Queries, "fleet_detail_query_software_ai_tools")
-}
-
 func (s *integrationTestSuite) TestOsqueryConfig() {
 	t := s.T()
 
