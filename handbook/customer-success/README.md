@@ -264,6 +264,21 @@ A single issue can sprawl across the customer channel, #help-customers, #help-en
 - **Coordinate internally** in a single #help-customers thread. This is the source of truth for the issue.
 - **When asking for help** in any channel other than #help-customers (e.g., #help-engineering or a product group channel), keep the post short: summarize the ask and link to the #help-customers thread. Ask responders to reply in the #help-customers thread, not in the post, so everyone has the most context at all times.
 
+### Escalate an issue to Apple
+
+Fleet has an AppleCare cooperative support agreement with Apple. It lets Fleet work a support case together with Apple for a customer we share. It does not let Fleet open cases for customers who don't have their own support agreement with Apple.
+
+When a customer reports a problem that's caused by Apple (for example, Setup Assistant behavior, Apple Business device assignment, or an OS bug), follow these steps:
+
+1. **Confirm it's an Apple issue.** If Fleet could be involved, [file a customer bug report](#file-a-customer-bug-report) first.
+2. **Ask if the customer has an AppleCare Enterprise (AppleCare OS Support) agreement.** Ask before you offer a cooperative case.
+   - **If they do:** Ask the customer to open a case at [enterprise.apple.com](https://enterprise.apple.com) and share the case number with Fleet. Fleet can then link a cooperative case to theirs and give Apple technical details from the Fleet side. If Apple asks for a Fleet reference, give them the related GitHub issue number.
+   - **If they don't:** Ask the customer to file a report with the Feedback Assistant app, ideally from an affected Mac right after the issue happens, and to share the feedback number with Fleet.
+3. **Decide whether Fleet should open a linked case.** Usually Apple contacts Fleet if it needs more information. Open a cooperative case from Fleet's side when Apple asks for one, or when Fleet can reproduce the issue, because a second reproduction strengthens the customer's case. Coordinate this in the #help-customers thread.
+4. **File Fleet's own feedback when we can reproduce the issue.** Sign in to Feedback Assistant with your Fleet Apple Account so you can track its status. Contacts at Apple generally won't look into an issue that doesn't have a feedback number.
+5. **Collect logs remotely if Apple asks for them.** On iOS and iPadOS 27, customers can [trigger AppleCare log collection](https://fleetdm.com/guides/trigger-applecare-log-collection) with a custom MDM command in Fleet.
+6. **Track the Apple case and feedback numbers** in the #help-customers thread and on the GitHub issue.
+
 ### Troubleshooting a managed cloud or self-hosted customer suspected infrastructure issue
 
 ##### For managed cloud customers, CSE is responsible for doing an initial check on logs. Timebox 10 minutes to do the following: 
