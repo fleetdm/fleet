@@ -1306,9 +1306,74 @@ func longestCommonPrefix(strs []string) string {
 // title no installer owns, leaving the uninstall action hidden and the reconcile pass
 // unable to repair it.
 type windowsFMAPrefix struct {
-	prefix    string
-	titleName string
-	titleID   uint
+	prefix           string
+	titleName        string
+	titleID          uint
+	titleUpgradeCode string
+	msiInstaller     bool
+	channelSibling   bool
+	// versionSeries is the normalized catalog name when it pins the app to one major
+	// version ("Azul Zulu JRE 25" for identifier "Azul Zulu JRE"), else empty.
+	versionSeries string
+}
+
+// acceptsProgram reports whether a program with this name and upgrade code, having
+// matched this prefix, may join the title by name. A program with an upgrade code
+// normally joins through it instead (software_titles.unique_identifier resolves to
+// upgrade_code ahead of name), so it is accepted only when nothing else can link it:
+// a cached version of the app's installer is an MSI, whose program reports an upgrade
+// code, and the title has none to join through because the FMA manifest carries none.
+// Requiring an MSI keeps an unrelated MSI product that shares a prefix, such as an
+// add-in named after an app that has never shipped an MSI, off its title. Requiring the
+// prefix to be followed by nothing or a version keeps off an MSI product named after
+// the app: "PowerShell 7-preview-x64" is PowerShell Preview, not PowerShell.
+//
+// Other versions of the product report the same name, so two more cases are excluded.
+// An app with a release-channel sibling: "QGIS 3.44.15" is QGIS LTR, yet prefix-matches
+// QGIS. And a program outside the major version the catalog pins: every Zulu JRE MSI
+// reports "Azul Zulu JRE <major>.…", but only 25 belongs to Azul Zulu JRE 25.
+func (p windowsFMAPrefix) acceptsProgram(name, upgradeCode string) bool {
+	if upgradeCode == "" {
+		return true
+	}
+	if p.titleUpgradeCode != "" || !p.msiInstaller || p.channelSibling {
+		return false
+	}
+	normalized := normalizeSoftwareNameForMatch(name)
+	if rest, ok := strings.CutPrefix(normalized, p.prefix); !ok || !startsWithVersionWord(rest) {
+		return false
+	}
+	if p.versionSeries == "" {
+		return true
+	}
+	rest, ok := strings.CutPrefix(normalized, p.versionSeries)
+	// A digit here means another version, such as 250 for series 25.
+	return ok && (rest == "" || rest[0] < '0' || rest[0] > '9')
+}
+
+// startsWithVersionWord reports whether s, what a program name has after its matched
+// prefix, is empty or starts with a word of digits and dots, optionally led by "v":
+// " 25.38.109 (25.0.5.0.3), 64-bit" or " v23.5.1040", but not " 7-preview-x64". A bare
+// major must end the name or be followed by another version word, since one can lead a
+// product's name: " 7 Preview" is PowerShell Preview.
+func startsWithVersionWord(s string) bool {
+	if s == "" {
+		return true
+	}
+	word, rest, _ := strings.Cut(strings.TrimPrefix(s, " "), " ")
+	if !isVersionWord(word) {
+		return false
+	}
+	if strings.Contains(word, ".") || rest == "" {
+		return true
+	}
+	next, _, _ := strings.Cut(rest, " ")
+	return isVersionWord(next)
+}
+
+func isVersionWord(word string) bool {
+	word = strings.TrimPrefix(word, "v")
+	return word != "" && word[0] >= '0' && word[0] <= '9' && strings.Trim(word, "0123456789.") == ""
 }
 
 // windowsFMAPrefixes flattens Windows FMAs into their candidate prefixes. Computed
@@ -1319,11 +1384,19 @@ func windowsFMAPrefixes(fmas []fleet.MaintainedApp) []windowsFMAPrefix {
 		if f.TitleID == nil {
 			continue
 		}
+		var versionSeries string
+		if major, ok := strings.CutPrefix(f.Name, f.UniqueIdentifier+" "); ok && major != "" && strings.Trim(major, "0123456789") == "" {
+			versionSeries = normalizeSoftwareNameForMatch(f.Name)
+		}
 		for _, p := range f.WinMatchPrefixes() {
 			prefixes = append(prefixes, windowsFMAPrefix{
-				prefix:    normalizeSoftwareNameForMatch(p),
-				titleName: f.TitleName,
-				titleID:   *f.TitleID,
+				prefix:           normalizeSoftwareNameForMatch(p),
+				titleName:        f.TitleName,
+				titleID:          *f.TitleID,
+				titleUpgradeCode: f.TitleUpgradeCode,
+				msiInstaller:     f.HasMSIInstaller,
+				channelSibling:   f.HasChannelSibling,
+				versionSeries:    versionSeries,
 			})
 		}
 	}
@@ -1483,10 +1556,15 @@ func (ds *Datastore) preInsertSoftwareInventory(
 		// Compute which software titles need to be created.
 		// This is done outside the transaction because the computation is pure (no DB access).
 		newTitlesNeeded := make(map[string]fleet.SoftwareTitle)
+		// The FMA title each renamed program belongs on. The name lookup below also
+		// returns any other title with that name, which can only differ from it by
+		// upgrade code.
+		fmaTitleMatches := make(map[string]windowsFMAPrefix)
 		for checksum, sw := range batchSoftware {
 			if _, ok := incomingChecksumsToExistingTitleSummaries[checksum]; !ok {
 				// there is not an existing software title corresponding to this incoming software version
 				newTitleName := sw.Name
+				newTitleUpgradeCode := sw.UpgradeCode
 				if sw.BundleIdentifier != "" {
 					// First check if there's an FMA with this bundle identifier - use its canonical name
 					if fmaName, ok := fmaNames[sw.BundleIdentifier]; ok {
@@ -1502,17 +1580,16 @@ func (ds *Datastore) preInsertSoftwareInventory(
 							newTitleName = computedName
 						}
 					}
-				} else if sw.Source == "programs" && (sw.UpgradeCode == nil || *sw.UpgradeCode == "") {
+				} else if sw.Source == "programs" && sw.ExtensionFor == "" {
 					// Use the canonical FMA name so versioned program names collapse
-					// onto the single title the FMA installer owns.
-					//
-					// Only when there is no upgrade code. software_titles.unique_identifier
-					// resolves to upgrade_code ahead of name, so renaming a program that
-					// reports one would create a second title under the canonical name with
-					// a different unique_identifier: a duplicate in the UI, and still not the
-					// title the installer owns. Those programs already match by upgrade code.
-					if match, ok := matchWindowsFMATitle(sw.Name, winFMAPrefixes); ok {
+					// onto the single title the FMA installer owns. The title's own upgrade
+					// code is carried so the insert collides with that title on
+					// unique_identifier rather than creating a second one under the same
+					// name; the software row keeps the code it reported.
+					if match, ok := matchWindowsFMATitle(sw.Name, winFMAPrefixes); ok && match.acceptsProgram(sw.Name, ptr.ValOrZero(sw.UpgradeCode)) {
 						newTitleName = match.titleName
+						newTitleUpgradeCode = new(match.titleUpgradeCode)
+						fmaTitleMatches[checksum] = match
 					}
 				}
 
@@ -1528,9 +1605,9 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				if sw.ApplicationID != nil && *sw.ApplicationID != "" {
 					newTitle.ApplicationID = sw.ApplicationID
 				}
-				if sw.UpgradeCode != nil {
+				if newTitleUpgradeCode != nil {
 					// intentionally write both empty and non-empty strings as upgrade codes
-					newTitle.UpgradeCode = sw.UpgradeCode
+					newTitle.UpgradeCode = newTitleUpgradeCode
 				}
 				newTitlesNeeded[checksum] = newTitle
 			}
@@ -1644,6 +1721,9 @@ func (ds *Datastore) preInsertSoftwareInventory(
 						titleSummaryUpgradeCode = *titleSummary.UpgradeCode
 					}
 					for checksum, title := range newTitlesNeeded {
+						if match, ok := fmaTitleMatches[checksum]; ok && titleSummaryUpgradeCode != match.titleUpgradeCode {
+							continue
+						}
 						var titleBundleID string
 						if title.BundleIdentifier != nil {
 							titleBundleID = *title.BundleIdentifier
@@ -1675,6 +1755,22 @@ func (ds *Datastore) preInsertSoftwareInventory(
 							titleIDsByChecksum[checksum] = titleSummary.ID
 							// Don't break here - multiple checksums can map to the same title
 							// (e.g., when software has same truncated name but different versions (very rare))
+						}
+					}
+				}
+
+				// The upgrade code a renamed program carried comes from the cached match. If
+				// the FMA title's code has changed since, the insert made a separate row under
+				// the old code, and the reconcile pass won't merge one that has a code. So a
+				// renamed program maps to the FMA title itself whenever the lookup returned it.
+				if len(fmaTitleMatches) > 0 {
+					retrievedIDs := make(map[uint]struct{}, len(retrievedTitleSummaries))
+					for _, titleSummary := range retrievedTitleSummaries {
+						retrievedIDs[titleSummary.ID] = struct{}{}
+					}
+					for checksum, match := range fmaTitleMatches {
+						if _, ok := retrievedIDs[match.titleID]; ok {
+							titleIDsByChecksum[checksum] = match.titleID
 						}
 					}
 				}
