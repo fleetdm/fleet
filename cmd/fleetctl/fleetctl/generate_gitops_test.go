@@ -1095,6 +1095,7 @@ func (MockClient) GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*fle
 func (MockClient) GetSetupExperienceScript(teamID uint) (*fleet.Script, error) {
 	if teamID == 4 {
 		return &fleet.Script{
+			ID:   2,
 			Name: "Setup Experience Script for Team 1",
 		}, nil
 	}
@@ -1107,7 +1108,8 @@ func (MockClient) GetSetupExperienceScript(teamID uint) (*fleet.Script, error) {
 func (MockClient) GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetupAssistant, error) {
 	if teamID == 5 {
 		return &fleet.MDMAppleSetupAssistant{
-			Name: "Apple MDM Enrollment Profile for Team 1",
+			Name:    "Apple MDM Enrollment Profile for Team 1",
+			Profile: json.RawMessage(`{"profile_name":"Fleet Setup Assistant"}`),
 		}, nil
 	}
 	if teamID == 0 || teamID == 1 || teamID == 2 || teamID == 3 || teamID == 4 {
@@ -2249,6 +2251,37 @@ func TestGenerateControls(t *testing.T) {
 	require.Contains(t, string(controlsYaml), "enable_managed_local_account: true")
 	require.NotContains(t, string(controlsYaml), "enable_create_local_admin_account")
 
+	// Setup toggles that are the only non-default setting must still be exported,
+	// otherwise applying the output resets them to their defaults.
+	for _, tc := range []struct {
+		name       string
+		macOSSetup fleet.MacOSSetup
+		key        string
+	}{
+		{"release device manually", fleet.MacOSSetup{EnableReleaseDeviceManually: optjson.SetBool(true)}, "apple_enable_release_device_manually"},
+		{"require all software", fleet.MacOSSetup{RequireAllSoftware: true}, "require_all_software_macos"},
+	} {
+		mdmConfig = fleet.TeamMDM{MacOSSetup: tc.macOSSetup}
+		controlsRaw, err = cmd.generateControls(new(uint(0)), "no_team", &mdmConfig)
+		require.NoError(t, err, tc.name)
+		verifyControlsHasMacosSetup(t, controlsRaw)
+		controlsYaml, err = yamlMarshalRenamed(controlsRaw)
+		require.NoError(t, err, tc.name)
+		require.Contains(t, string(controlsYaml), tc.key+": true", tc.name)
+	}
+
+	// An explicit lock_end_user_info: false is exported so it doesn't fall back to
+	// the enable_end_user_authentication value on apply.
+	mdmConfig = fleet.TeamMDM{
+		MacOSSetup: fleet.MacOSSetup{
+			EnableEndUserAuthentication: true,
+			LockEndUserInfo:             optjson.SetBool(false),
+		},
+	}
+	controlsRaw, err = cmd.generateControls(new(uint(0)), "no_team", &mdmConfig)
+	require.NoError(t, err)
+	require.Equal(t, false, controlsRaw["setup_experience"].(map[string]any)["lock_end_user_info"])
+
 	b, err = os.ReadFile("./testdata/generateGitops/teamConfig.json")
 	require.NoError(t, err)
 	var teamConfig fleet.TeamConfig
@@ -2303,16 +2336,27 @@ func TestGenerateControls(t *testing.T) {
 	controlsRaw, err = cmd.generateControls(ptr.Uint(3), "some_team", nil)
 	require.NoError(t, err)
 	verifyControlsHasMacosSetup(t, controlsRaw)
+	// The bootstrap package has no URL to export, so we emit a TODO for the URL.
+	setupExperience := controlsRaw["setup_experience"].(map[string]any)
+	require.Contains(t, setupExperience["macos_bootstrap_package"], "TODO")
 
 	// Generate controls for a team with a setup experience script.
 	controlsRaw, err = cmd.generateControls(ptr.Uint(4), "some_team", nil)
 	require.NoError(t, err)
 	verifyControlsHasMacosSetup(t, controlsRaw)
+	// The script contents are written to a file and referenced by path.
+	setupExperience = controlsRaw["setup_experience"].(map[string]any)
+	require.Equal(t, "../lib/some_team/setup-experience/setup-script.sh", setupExperience["macos_script"])
+	require.Equal(t, "pop goes the weasel!", cmd.FilesToWrite["lib/some_team/setup-experience/setup-script.sh"])
 
 	// Generate controls for a team with a setup experience profile.
 	controlsRaw, err = cmd.generateControls(ptr.Uint(5), "some_team", nil)
 	require.NoError(t, err)
 	verifyControlsHasMacosSetup(t, controlsRaw)
+	// The enrollment profile JSON is written to a file and referenced by path.
+	setupExperience = controlsRaw["setup_experience"].(map[string]any)
+	require.Equal(t, "../lib/some_team/setup-experience/setup-assistant.json", setupExperience["apple_setup_assistant"])
+	require.Contains(t, cmd.FilesToWrite["lib/some_team/setup-experience/setup-assistant.json"], "Fleet Setup Assistant")
 }
 
 func TestGenerateGitopsAppleAccountProvisioning(t *testing.T) {
@@ -3239,9 +3283,9 @@ func TestGenerateLabels(t *testing.T) {
 }
 
 func verifyControlsHasMacosSetup(t *testing.T, controlsRaw map[string]interface{}) {
-	macosSetup, ok := controlsRaw["setup_experience"].(string)
-	require.True(t, ok, "Expected setup_experience section to be a string")
-	require.Equal(t, macosSetup, "TODO: update with your setup_experience configuration")
+	setupExperience, ok := controlsRaw["setup_experience"].(map[string]any)
+	require.True(t, ok, "Expected setup_experience section to be a map")
+	require.NotEmpty(t, setupExperience, "Expected setup_experience section to be non-empty")
 }
 
 func TestGenerateControlsAndMDMWithoutMDMEnabledAndConfigured(t *testing.T) {
