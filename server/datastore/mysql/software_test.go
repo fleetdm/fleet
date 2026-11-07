@@ -12074,6 +12074,19 @@ func testListHostSoftwareInHouseAppsTransferFleet(t *testing.T, ds *Datastore) {
 		requirePackageOnEveryRead(t, bystander, libraryTab, "transfer-b.ipa", "2.0", nil, "")
 	})
 
+	t.Run("app installed from the old fleet's copy and then deleted offers the new fleet's copy", func(t *testing.T) {
+		host := newHostOn(&teamA.ID)
+		attempt(host, appA, "Acknowledged")
+		putOnDevice(host)
+		_, err := ds.UpdateHostSoftware(ctx, host.ID, nil)
+		require.NoError(t, err)
+		require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+		require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+		moveHostToTeam(host, &teamB.ID)
+
+		requirePackageOnEveryRead(t, host, libraryTab, "transfer-b.ipa", "2.0", nil, "")
+	})
+
 	t.Run("attempts on both copies report the new fleet's attempt", func(t *testing.T) {
 		host := newHostOn(&teamA.ID)
 		attempt(host, appA, "Error")
