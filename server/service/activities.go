@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
 )
 
@@ -245,8 +246,9 @@ func (svc *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint,
 // the cancel transaction deletes). The seat is released only when the canceled
 // install was the one that originally reserved it (associated_event_id is
 // non-empty) AND no other still-active install for the same (host, adam_id)
-// needs the seat. Personal-enrollment hosts are disassociated by clientUserId
-// (matching how they were assigned); device-enrolled hosts by serial number.
+// needs the seat. Account-Driven User Enrollment hosts are disassociated by
+// clientUserId and every other host by serial number, chosen from the nano
+// enrollment type as InstallVPPAppPostValidation does when it assigns the seat.
 func (svc *Service) releaseVPPSeat(ctx context.Context, host *fleet.Host, info *fleet.VPPInstallReleaseInfo, lookupErr error) error {
 	if lookupErr != nil {
 		if fleet.IsNotFound(lookupErr) {
@@ -270,11 +272,11 @@ func (svc *Service) releaseVPPSeat(ctx context.Context, host *fleet.Host, info *
 		return ctxerr.Wrap(ctx, err, "get vpp token for seat release")
 	}
 
-	hostMDM, err := svc.ds.GetHostMDM(ctx, host.ID)
-	if err != nil && !fleet.IsNotFound(err) {
-		return ctxerr.Wrap(ctx, err, "get host mdm for seat release")
+	nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(ctx, host.UUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get nano enrollment for seat release")
 	}
-	isPersonal := hostMDM != nil && hostMDM.IsPersonalEnrollment
+	isUserEnrollment := nanoEnroll != nil && nanoEnroll.Type == mdm.EnrollType(mdm.UserEnrollmentDevice).String()
 
 	// PricingParam: STDQ is the standard tier used by Fleet's install path.
 	// If a customer uses PLUS we'd need to look up the asset here — defer until
@@ -282,7 +284,7 @@ func (svc *Service) releaseVPPSeat(ctx context.Context, host *fleet.Host, info *
 	req := &vpp.DisassociateAssetsRequest{
 		Assets: []vpp.Asset{{AdamID: info.AdamID, PricingParam: "STDQ"}},
 	}
-	if isPersonal {
+	if isUserEnrollment {
 		managedAppleID, err := svc.ds.GetHostManagedAppleID(ctx, host.ID)
 		if err != nil || managedAppleID == "" {
 			if err != nil && !fleet.IsNotFound(err) {
