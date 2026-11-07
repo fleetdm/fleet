@@ -48,6 +48,13 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: Checkout fleetctl install script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: website/assets/resources/install-fleetctl.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
       - name: Import package signing keys
         env:
           APPLE_INSTALLER_CERTIFICATE: ${{ secrets.APPLE_INSTALLER_CERTIFICATE }}
@@ -65,7 +72,7 @@ jobs:
 
       - name: Install fleetctl
         run: |
-          curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | bash
+          bash website/assets/resources/install-fleetctl.sh
           echo "$HOME/.fleetctl" >> "$GITHUB_PATH"
 
       - name: Build PKG, sign, and notarize
