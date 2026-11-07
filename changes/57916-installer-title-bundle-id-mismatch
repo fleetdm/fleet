@@ -1,0 +1,1 @@
+- Fixed adding a macOS app attaching its installer to another app's software title that only shares the same name but has a different bundle identifier.
