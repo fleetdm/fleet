@@ -5703,12 +5703,15 @@ func (a *hostSoftwareTitleAssembler) addRecord(
 	// This happens when there is a software installed on the host but it is
 	// also an in-house record, so we want to grab the in-house data from the
 	// installed record and merge it onto the software record
-	if installedInHouseRecord, ok := a.hostInHouseInstalledTitles[softwareTitleRecord.ID]; ok {
-		softwareTitleRecord.InHouseAppID = installedInHouseRecord.InHouseAppID
-		softwareTitleRecord.InHouseAppName = installedInHouseRecord.InHouseAppName
-		softwareTitleRecord.InHouseAppVersion = installedInHouseRecord.InHouseAppVersion
-		softwareTitleRecord.InHouseAppPlatform = installedInHouseRecord.InHouseAppPlatform
-		softwareTitleRecord.InHouseAppSelfService = installedInHouseRecord.InHouseAppSelfService
+	if installedInHouseRecord, ok := a.hostInHouseInstalledTitles[softwareTitleRecord.ID]; ok && installedInHouseRecord.InHouseAppID != nil {
+		// An out-of-scope copy, such as another fleet's from a past attempt, is never promoted below, so keep what this record has.
+		if _, inScope := a.filteredByInHouseID[*installedInHouseRecord.InHouseAppID]; inScope {
+			softwareTitleRecord.InHouseAppID = installedInHouseRecord.InHouseAppID
+			softwareTitleRecord.InHouseAppName = installedInHouseRecord.InHouseAppName
+			softwareTitleRecord.InHouseAppVersion = installedInHouseRecord.InHouseAppVersion
+			softwareTitleRecord.InHouseAppPlatform = installedInHouseRecord.InHouseAppPlatform
+			softwareTitleRecord.InHouseAppSelfService = installedInHouseRecord.InHouseAppSelfService
+		}
 	}
 	// promote the in-house app id and version to the proper destination fields
 	if softwareTitleRecord.InHouseAppID != nil {
