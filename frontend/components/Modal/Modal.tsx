@@ -1,11 +1,16 @@
 import classnames from "classnames";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import Button from "components/buttons/Button/Button";
 import Icon from "components/Icon/Icon";
 
 const baseClass = "modal";
 const CLOSE_ANIMATION_MS = 100;
+
+// Shared stack of visible modal containers. Only the topmost one handles Tab,
+// so stacked dialogs (two mounted at once, or one CSS-hidden under another)
+// don't fight each other for focus.
+const focusTrapStack: HTMLDivElement[] = [];
 
 type ModalWidth = "medium" | "large" | "xlarge" | "auto";
 //                  650px    800px      850px      auto
@@ -45,6 +50,36 @@ export interface IModalProps {
   className?: string;
 }
 
+const FOCUSABLE_SELECTOR = [
+  "a[href]",
+  "button:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  '[tabindex]:not([tabindex="-1"])',
+].join(",");
+
+const getFocusable = (container: HTMLElement): HTMLElement[] => {
+  const nodes = container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+  return Array.from(nodes).filter((el) => {
+    // Native controls can opt out of Tab navigation via tabIndex=-1
+    // (e.g. react-select's hidden sentinel input).
+    if (el.tabIndex < 0) return false;
+    // Walk ancestors up to the container: display:none / visibility:hidden
+    // set higher up doesn't propagate into the element's own computed style.
+    let node: HTMLElement | null = el;
+    while (node) {
+      const style = window.getComputedStyle(node);
+      if (style.display === "none" || style.visibility === "hidden") {
+        return false;
+      }
+      if (node === container) break;
+      node = node.parentElement;
+    }
+    return true;
+  });
+};
+
 const Modal = ({
   title,
   children,
@@ -59,8 +94,15 @@ const Modal = ({
 }: IModalProps): JSX.Element => {
   const isDownOnBackgroundRef = useRef(false);
   const isFormDirtyRef = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  // Captured during render so we grab the opener BEFORE any descendant
+  // autofocus (child mount effects) steals the active element.
+  const triggerRef = useRef<HTMLElement | null>(
+    document.activeElement as HTMLElement | null
+  );
   const [isClosing, setIsClosing] = useState(false);
   const isClosingRef = useRef(false);
+  const titleId = useId();
 
   const handleClose = useCallback(() => {
     if (isClosingRef.current) return;
@@ -136,6 +178,88 @@ const Modal = ({
     };
   }, []);
 
+  // Restore focus to the opener once, on unmount. Local copy because
+  // triggerRef is set once during initial render and never reassigned,
+  // but exhaustive-deps can't prove that for a ref read in cleanup.
+  useEffect(() => {
+    const trigger = triggerRef.current;
+    return () => {
+      if (trigger && document.body.contains(trigger)) {
+        trigger.focus();
+      }
+    };
+  }, []);
+
+  // Initial focus: skipped while hidden (ScriptModalGroup mounts multiple
+  // dialogs at once); re-applied when a hidden dialog becomes visible. Yields
+  // to any descendant that has already autofocused itself.
+  useEffect(() => {
+    if (isHidden) return;
+    const container = containerRef.current;
+    if (!container) return;
+    if (container.contains(document.activeElement)) return;
+    // isContentDisabled autofocuses the close button via the Button's own
+    // autofocus prop, so don't fight it.
+    if (isContentDisabled) return;
+    const focusables = getFocusable(container);
+    (focusables[0] ?? container).focus();
+  }, [isHidden, isContentDisabled]);
+
+  useEffect(() => {
+    if (isHidden) return undefined;
+    const container = containerRef.current;
+    if (!container) return undefined;
+
+    focusTrapStack.push(container);
+
+    const trapFocus = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      // Only the topmost visible modal handles Tab, so background dialogs
+      // don't pull focus out of a stacked dialog on top.
+      if (focusTrapStack[focusTrapStack.length - 1] !== container) return;
+
+      const focusables = getFocusable(container);
+      if (focusables.length === 0) {
+        e.preventDefault();
+        container.focus();
+        return;
+      }
+
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+
+      if (!container.contains(active)) {
+        e.preventDefault();
+        first.focus();
+        return;
+      }
+
+      // Container itself holds focus (tabIndex=-1): treat as a boundary so
+      // Shift+Tab doesn't escape to the page behind.
+      if (active === container) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+        return;
+      }
+
+      if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", trapFocus);
+    return () => {
+      document.removeEventListener("keydown", trapFocus);
+      const idx = focusTrapStack.indexOf(container);
+      if (idx !== -1) focusTrapStack.splice(idx, 1);
+    };
+  }, [isHidden]);
+
   const backgroundClasses = classnames(`${baseClass}__background`, {
     [`${baseClass}__hidden`]: isHidden,
     [`${baseClass}__closing`]: isClosing,
@@ -203,8 +327,15 @@ const Modal = ({
       onMouseDown={handleBackgroundMouseDown}
       onMouseUp={handleBackgroundMouseUp}
     >
+      {/* Handlers here are stopPropagation shims for the click-outside-to-close
+          overlay above, not user-facing interactions on the dialog itself. */}
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
+        ref={containerRef}
         className={modalContainerClasses}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         tabIndex={-1} // Make focusable
         onMouseDown={handleContainerMouseDown}
         onMouseUp={handleContainerMouseUp}
@@ -212,7 +343,7 @@ const Modal = ({
         onClick={handleContainerClick}
       >
         <div className={`${baseClass}__header`}>
-          <span>{title}</span>
+          <span id={titleId}>{title}</span>
           {!disableClosingModal && (
             <div className={`${baseClass}__ex`}>
               <Button
