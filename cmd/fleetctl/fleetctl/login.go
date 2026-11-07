@@ -114,6 +114,7 @@ https://fleetdm.com/guides/fleetctl#users-with-single-sign-on-sso-or-email-two-f
 			}
 
 			fmt.Printf("[+] Fleet login successful and context configured!\n")
+			warnIfTokenEnvVarOverrides(c.App.ErrWriter, token)
 
 			return nil
 		},

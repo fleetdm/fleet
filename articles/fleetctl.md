@@ -116,6 +116,8 @@ contexts:
 
 > The token can also be set with `fleetctl config set --token`, but this may leak the token into a user's shell history.
 
+The token can also be provided with the `FLEET_API_TOKEN` environment variable. If set, it takes precedence over the `token` value in the config file. This lets you keep the token out of `~/.fleet/config`, for example by injecting it from a secrets manager at runtime.
+
 ### Using fleetctl with an API-only user
 
 When running automated workflows using the Fleet API, we recommend using an API-only user's API key rather than a regular user's API key. A regular user's API key expires frequently for security purposes, requiring routine updates. Meanwhile, an API-only user's key does not expire.   
