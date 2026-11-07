@@ -580,6 +580,9 @@ export const humanHostEnrolled = (enrolled: string): string => {
 };
 
 export const humanHostMemory = (bytes: number): string => {
+  if (bytes < 0) {
+    return DEFAULT_EMPTY_CELL_VALUE;
+  }
   return `${inGigaBytes(bytes)} GB`;
 };
 
