@@ -90,6 +90,11 @@ function Remove-Entry {
     if ($appDir -and (Test-Path -LiteralPath $appDir)) {
         Stop-InstallDirProcesses $appDir
         Remove-Item -LiteralPath $appDir -Recurse -Force -ErrorAction SilentlyContinue
+        # The uninstaller may have removed the registration, so check the folder itself.
+        if (Test-Path -LiteralPath $appDir) {
+            Write-Host "$appDir is still there after uninstall."
+            $script:exitCode = 1
+        }
     }
 
     if (Test-Path -LiteralPath $Entry.KeyPath) {
@@ -159,7 +164,7 @@ try {
     } else {
         Remove-Shortcuts
         Remove-StretchlyFromPath
-        Write-Host "$displayName is no longer present."
+        if ($exitCode -eq 0) { Write-Host "$displayName is no longer present." }
     }
 } catch {
     Write-Host "Error: $_"
