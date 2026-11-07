@@ -1,7 +1,6 @@
 package http
 
 import (
-	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -40,6 +39,15 @@ func flattenedWithHeader(header string) []byte {
 	return b
 }
 
+const rsaPrivateJWK = `{"kty":"RSA","n":"AQ","e":"AQAB","d":"AQ","p":"AQ","q":"AQ"}`
+
+// flattenedWithUnprotectedHeader returns a flattened JWS with a kid in the protected header and the given JWK under
+// the given top-level member name, which is written verbatim so callers can test whitespace variants.
+func flattenedWithUnprotectedHeader(member, jwk string) []byte {
+	return []byte(`{"protected":"` + base64.RawURLEncoding.EncodeToString([]byte(`{"kid":"x"}`)) +
+		`",` + member + `:{"jwk":` + jwk + `},"payload":"","signature":"AA"}`)
+}
+
 func TestPrecheckJWSBody(t *testing.T) {
 	ecKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
@@ -57,6 +65,12 @@ func TestPrecheckJWSBody(t *testing.T) {
 		{"private EC jwk", flattenedWithHeader(`{"alg":"ES256","jwk":{"kty":"EC","crv":"P-256","x":"AA","y":"AA","d":"AA"}}`), true},
 		{"private RSA jwk", flattenedWithHeader(`{"alg":"RS256","jwk":{"kty":"RSA","n":"AQ","e":"AQAB","d":"AQ","p":"AQ","q":"AQ"}}`), true},
 		{"jwk without kty", flattenedWithHeader(`{"alg":"ES256","jwk":{"crv":"P-256"}}`), true},
+		{"RSA jwk in unprotected header", flattenedWithUnprotectedHeader(`"header"`, rsaPrivateJWK), true},
+		{"whitespace in unprotected header member name", flattenedWithUnprotectedHeader(`"hea der"`, rsaPrivateJWK), true},
+		{"whitespace in protected member name", []byte(`{"protected":"` + base64.RawURLEncoding.EncodeToString([]byte(`{"kid":"x"}`)) +
+			`","protec ted":"` + base64.RawURLEncoding.EncodeToString([]byte(`{"jwk":`+rsaPrivateJWK+`}`)) + `","payload":"","signature":"AA"}`), true},
+		{"general serialization", []byte(`{"protected":"` + base64.RawURLEncoding.EncodeToString([]byte(`{"kid":"x"}`)) +
+			`","payload":"","signatures":[{"protected":"` + base64.RawURLEncoding.EncodeToString([]byte(`{"jwk":`+rsaPrivateJWK+`}`)) + `","signature":"AA"}]}`), true},
 		{"case-variant protected key", []byte(`{"protected":"` + base64.RawURLEncoding.EncodeToString([]byte(`{"jwk":{"kty":"RSA","d":"AQ"}}`)) +
 			`","PROTECTED":"` + base64.RawURLEncoding.EncodeToString([]byte(`{"kid":"x"}`)) + `","payload":"","signature":"AA"}`), true},
 		{"deeply nested body", []byte(`{"protected":"e30","header":` + strings.Repeat("[", 20000) + strings.Repeat("]", 20000) + `}`), true},
@@ -80,13 +94,19 @@ func TestJWSRequestContainerDecodeBodyRejectsRSAJWK(t *testing.T) {
 	require.NoError(t, err)
 
 	var req JWSRequestContainer
-	err = req.DecodeBody(context.Background(), strings.NewReader(string(signTestJWS(t, rsaKey, jose.RS256, true))), nil, nil)
+	err = req.DecodeBody(t.Context(), strings.NewReader(string(signTestJWS(t, rsaKey, jose.RS256, true))), nil, nil)
+	require.ErrorContains(t, err, "Failed to parse JWS body")
+
+	privJWK, err := json.Marshal(jose.JSONWebKey{Key: rsaKey})
+	require.NoError(t, err)
+	req = JWSRequestContainer{}
+	err = req.DecodeBody(t.Context(), strings.NewReader(string(flattenedWithUnprotectedHeader(`"header"`, string(privJWK)))), nil, nil)
 	require.ErrorContains(t, err, "Failed to parse JWS body")
 
 	ecKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 	req = JWSRequestContainer{}
-	require.NoError(t, req.DecodeBody(context.Background(), strings.NewReader(string(signTestJWS(t, ecKey, jose.ES256, true))), nil, nil))
+	require.NoError(t, req.DecodeBody(t.Context(), strings.NewReader(string(signTestJWS(t, ecKey, jose.ES256, true))), nil, nil))
 	require.NotNil(t, req.Key)
 	require.Equal(t, "https://example.com/acme/new-account", req.JWSHeaderURL)
 }
