@@ -1890,28 +1890,79 @@ func TestGitOpsTeamVPPAppleConfiguration(t *testing.T) {
 	wantXML, err := os.ReadFile(xmlPath)
 	require.NoError(t, err)
 
+	const gitopsDir = "../../fleetctl/testdata/gitops/"
 	cases := []struct {
-		name    string
-		yaml    string
-		wantErr string
-		// expectConfig is the expected value of VPPAppTeam.Configuration the
-		// datastore receives. Empty means SetTeamVPPApps should be called with
-		// no configuration (clear).
-		expectConfig []byte
+		name          string
+		files         []string
+		wantErr       string
+		expectConfigs map[fleet.InstallableDevicePlatform][]byte
 	}{
 		{
-			name:         "valid configuration is read, validated, and stored as raw XML",
-			yaml:         "../../fleetctl/testdata/gitops/team_vpp_ios_with_config.yml",
-			expectConfig: wantXML,
+			name:          "valid configuration is read, validated, and stored as raw XML",
+			files:         []string{"team_vpp_ios_with_config.yml"},
+			expectConfigs: map[fleet.InstallableDevicePlatform][]byte{fleet.IOSPlatform: wantXML},
 		},
 		{
 			name:    "invalid Fleet variable is rejected",
-			yaml:    "../../fleetctl/testdata/gitops/team_vpp_ios_with_invalid_config.yml",
+			files:   []string{"team_vpp_ios_with_invalid_config.yml"},
 			wantErr: "unsupported variable $FLEET_VAR_NDES_SCEP_PROXY_URL",
 		},
 		{
-			name: "missing configuration clears any prior configuration",
-			yaml: "../../fleetctl/testdata/gitops/team_vpp_ios_no_config.yml",
+			name:          "missing configuration clears any prior configuration",
+			files:         []string{"team_vpp_ios_no_config.yml"},
+			expectConfigs: map[fleet.InstallableDevicePlatform][]byte{fleet.IOSPlatform: nil},
+		},
+		{
+			name:  "no platform applies the configuration to iOS and iPadOS but not macOS",
+			files: []string{"team_vpp_no_platform_with_config.yml"},
+			expectConfigs: map[fleet.InstallableDevicePlatform][]byte{
+				fleet.MacOSPlatform:  nil,
+				fleet.IOSPlatform:    wantXML,
+				fleet.IPadOSPlatform: wantXML,
+			},
+		},
+		{
+			name:  "no platform applies each version's configuration to iOS and iPadOS",
+			files: []string{"team_vpp_no_platform_versions_with_config.yml"},
+			expectConfigs: map[fleet.InstallableDevicePlatform][]byte{
+				fleet.MacOSPlatform:  nil,
+				fleet.IOSPlatform:    wantXML,
+				fleet.IPadOSPlatform: wantXML,
+			},
+		},
+		{
+			name:  "no platform in the unassigned file applies the configuration to iOS and iPadOS",
+			files: []string{"global_config_no_paths.yml", "vpp_no_platform_with_config/unassigned.yml"},
+			expectConfigs: map[fleet.InstallableDevicePlatform][]byte{
+				fleet.MacOSPlatform:  nil,
+				fleet.IOSPlatform:    wantXML,
+				fleet.IPadOSPlatform: wantXML,
+			},
+		},
+		{
+			name:          "no platform on a macOS-only app stores no configuration",
+			files:         []string{"team_vpp_no_platform_mac_only_with_config.yml"},
+			expectConfigs: map[fleet.InstallableDevicePlatform][]byte{fleet.MacOSPlatform: nil},
+		},
+		{
+			name:    "no platform with an unsupported Fleet variable is rejected",
+			files:   []string{"team_vpp_no_platform_with_invalid_config.yml"},
+			wantErr: "unsupported variable $FLEET_VAR_NDES_SCEP_PROXY_URL",
+		},
+		{
+			name:    "no platform with a Play Store ID is rejected",
+			files:   []string{"team_vpp_no_platform_play_store_id_with_config.yml"},
+			wantErr: `Couldn't edit app store app (com.android.chrome). "configuration" requires "platform" when "app_store_id" isn't an Apple App Store ID.`,
+		},
+		{
+			name:    "macOS is rejected",
+			files:   []string{"team_vpp_darwin_with_config.yml"},
+			wantErr: `Couldn't edit app store app (2). "configuration" isn't supported for macOS App Store apps.`,
+		},
+		{
+			name:    "an unknown platform is rejected",
+			files:   []string{"team_vpp_unknown_platform_with_config.yml"},
+			wantErr: `Couldn't edit app store app (2). "configuration" isn't supported for platform "linux". Use "ios", "ipados", or "android".`,
 		},
 	}
 
@@ -1960,16 +2011,25 @@ func TestGitOpsTeamVPPAppleConfiguration(t *testing.T) {
 				return nil
 			}
 
-			_, err = fleetctltest.RunAppNoChecks([]string{"gitops", "-f", c.yaml})
+			args := []string{"gitops"}
+			for _, f := range c.files {
+				args = append(args, "-f", gitopsDir+f)
+			}
+			_, err = fleetctltest.RunAppNoChecks(args)
 
 			if c.wantErr != "" {
 				require.ErrorContains(t, err, c.wantErr)
+				require.False(t, ds.SetTeamVPPAppsFuncInvoked)
 				return
 			}
 			require.NoError(t, err)
 			require.True(t, ds.SetTeamVPPAppsFuncInvoked)
-			require.Len(t, capturedApps, 1)
-			require.Equal(t, c.expectConfig, capturedApps[0].Configuration)
+			require.Len(t, capturedApps, len(c.expectConfigs))
+			gotConfigs := make(map[fleet.InstallableDevicePlatform][]byte, len(capturedApps))
+			for _, app := range capturedApps {
+				gotConfigs[app.Platform] = app.Configuration
+			}
+			require.Equal(t, c.expectConfigs, gotConfigs)
 		})
 	}
 }
