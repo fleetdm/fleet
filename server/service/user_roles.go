@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"gopkg.in/guregu/null.v3"
 )
@@ -32,6 +34,12 @@ func (svc *Service) ApplyUserRolesSpecs(ctx context.Context, specs fleet.UsersRo
 	}
 
 	var users []*fleet.User
+	type roleChange struct {
+		oldGlobalRole *string
+		oldTeams      []fleet.UserTeam
+		user          *fleet.User
+	}
+	changes := make(map[uint]roleChange, len(specs.Roles))
 	for email, spec := range specs.Roles {
 		user, err := svc.ds.UserByEmail(ctx, email)
 		if err != nil {
@@ -42,6 +50,7 @@ func (svc *Service) ApplyUserRolesSpecs(ctx context.Context, specs fleet.UsersRo
 		if err != nil {
 			return err
 		}
+		oldGlobalRole, oldTeams := user.GlobalRole, user.Teams
 		user.GlobalRole = spec.GlobalRole
 		var teams []fleet.UserTeam
 		for _, team := range spec.Teams {
@@ -62,9 +71,21 @@ func (svc *Service) ApplyUserRolesSpecs(ctx context.Context, specs fleet.UsersRo
 		}
 		user.Teams = teams
 		users = append(users, user)
+		// Spec keys that differ only in case resolve to one user, and the last entry saved wins.
+		changes[user.ID] = roleChange{oldGlobalRole: oldGlobalRole, oldTeams: oldTeams, user: user}
 	}
 
-	return svc.ds.SaveUsers(ctx, users)
+	if err := svc.ds.SaveUsers(ctx, users); err != nil {
+		return err
+	}
+
+	adminUser := authz.UserFromContext(ctx)
+	for _, change := range changes {
+		if err := fleet.LogRoleChangeActivities(ctx, svc, adminUser, change.oldGlobalRole, change.oldTeams, change.user, false); err != nil {
+			return ctxerr.Wrap(ctx, err, "log activities for role change")
+		}
+	}
+	return nil
 }
 
 func (svc *Service) checkAtLeastOneAdmin(ctx context.Context, user *fleet.User, spec *fleet.UserRoleSpec, email string) error {
