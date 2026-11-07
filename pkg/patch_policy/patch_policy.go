@@ -291,6 +291,7 @@ var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false 
 	"RubyMine":                                  "IN ('rubymine.exe','rubymine64.exe')",
 	"RustRover":                                 "IN ('rustrover.exe','rustrover64.exe')",
 	"Spotify":                                   "IN ('spotify.exe','spotifywebhelper.exe')",
+	"SQL Server Management Studio":              "= 'ssms.exe'",
 	"Sublime Text":                              "= 'sublime_text.exe'",
 	"Tableau Desktop":                           "= 'tableau.exe'",
 	"Tableau Prep":                              "= 'tableau prep builder.exe'",
