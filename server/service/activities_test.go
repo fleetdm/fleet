@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -14,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -490,7 +492,7 @@ func TestCancelActivitiesAndNotificationsForHost(t *testing.T) {
 func TestReleaseVPPSeatUsesRecordedToken(t *testing.T) {
 	const adamID = "adam-1"
 	// The host moved to a fleet whose first token is not the one that reserved the seat.
-	host := &fleet.Host{ID: 1, HardwareSerial: "SERIAL-1", TeamID: new(uint(9))}
+	host := &fleet.Host{ID: 1, UUID: "00008110-000A1B2C3D4E801E", HardwareSerial: "SERIAL-1", TeamID: new(uint(9))}
 
 	var auths []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -505,6 +507,9 @@ func TestReleaseVPPSeatUsesRecordedToken(t *testing.T) {
 		ds := new(mock.Store)
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 			return nil, common_mysql.NotFound("HostMDM")
+		}
+		ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, id string) (*fleet.NanoEnrollment, error) {
+			return &fleet.NanoEnrollment{ID: id, DeviceID: id, Type: "Device", Enabled: true}, nil
 		}
 		return &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}, ds
 	}
@@ -543,5 +548,125 @@ func TestReleaseVPPSeatUsesRecordedToken(t *testing.T) {
 
 		require.NoError(t, svc.releaseVPPSeat(t.Context(), host, info(new(uint(5))), nil))
 		require.Empty(t, auths)
+	})
+}
+
+func TestReleaseVPPSeatRoutesByEnrollmentType(t *testing.T) {
+	const (
+		adamID         = "989804926"
+		deviceUUID     = "00008110-000A1B2C3D4E801E"
+		enrollmentID   = "F1E2D3C4-B5A6-4978-8695-A4B3C2D1E0F9"
+		serial         = "F2LXK0ABCD12"
+		managedAppleID = "user@example.com"
+		clientUserID   = "6b0b1d5e-3c2a-4f7e-9a10-2d4e6f8a0b1c"
+	)
+	deviceHost := &fleet.Host{ID: 1, UUID: deviceUUID, HardwareSerial: serial}
+	// An Account-Driven User Enrollment has no real serial number, so Fleet stores its enrollment ID there.
+	userEnrolledHost := &fleet.Host{ID: 1, UUID: enrollmentID, HardwareSerial: enrollmentID}
+
+	var requests []vpp.DisassociateAssetsRequest
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/assets/disassociate", r.URL.Path)
+		var body vpp.DisassociateAssetsRequest
+		assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+		requests = append(requests, body)
+		_, _ = w.Write([]byte(`{"eventId":"evt"}`))
+	}))
+	t.Cleanup(srv.Close)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", srv.URL, t)
+
+	release := func(t *testing.T, host *fleet.Host, hostMDM *fleet.HostMDM, nanoEnroll *fleet.NanoEnrollment, appleID string, clientUserErr error) {
+		t.Helper()
+		ds := new(mock.Store)
+		ds.GetVPPTokenFunc = func(ctx context.Context, id uint) (*fleet.VPPTokenDB, error) {
+			return &fleet.VPPTokenDB{ID: id, Token: "tok"}, nil
+		}
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return hostMDM, nil
+		}
+		ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, id string) (*fleet.NanoEnrollment, error) {
+			require.Equal(t, host.UUID, id)
+			return nanoEnroll, nil
+		}
+		ds.GetHostManagedAppleIDFunc = func(ctx context.Context, hostID uint) (string, error) {
+			return appleID, nil
+		}
+		ds.GetVPPClientUserFunc = func(ctx context.Context, tokenID uint, appleID string) (*fleet.VPPClientUser, error) {
+			if clientUserErr != nil {
+				return nil, clientUserErr
+			}
+			return &fleet.VPPClientUser{ClientUserID: clientUserID}, nil
+		}
+		svc := &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}
+
+		requests = nil
+		info := &fleet.VPPInstallReleaseInfo{AdamID: adamID, AssociatedEventID: "evt", VPPTokenID: new(uint(5))}
+		require.NoError(t, svc.releaseVPPSeat(t.Context(), host, info, nil))
+	}
+
+	manualProfile := &fleet.HostMDM{IsPersonalEnrollment: true, PersonalEnrollmentType: fleet.PersonalEnrollmentTypeManualProfile}
+	accountDriven := &fleet.HostMDM{IsPersonalEnrollment: true, PersonalEnrollmentType: fleet.PersonalEnrollmentTypeAccountDriven}
+	deviceChannel := &fleet.NanoEnrollment{ID: deviceUUID, DeviceID: deviceUUID, Type: "Device", Enabled: true}
+	userEnrollment := &fleet.NanoEnrollment{ID: enrollmentID, DeviceID: enrollmentID, Type: "User Enrollment (Device)", Enabled: true}
+
+	releasedBySerial := []vpp.DisassociateAssetsRequest{{
+		Assets:        []vpp.Asset{{AdamID: adamID, PricingParam: "STDQ"}},
+		SerialNumbers: []string{serial},
+	}}
+	releasedByClientUser := []vpp.DisassociateAssetsRequest{{
+		Assets:        []vpp.Asset{{AdamID: adamID, PricingParam: "STDQ"}},
+		ClientUserIds: []string{clientUserID},
+	}}
+
+	t.Run("manual-profile personal enrollment releases by serial", func(t *testing.T) {
+		release(t, deviceHost, manualProfile, deviceChannel, "", nil)
+		require.Equal(t, releasedBySerial, requests)
+	})
+
+	t.Run("company-owned enrollment releases by serial", func(t *testing.T) {
+		release(t, deviceHost, &fleet.HostMDM{}, deviceChannel, "", nil)
+		require.Equal(t, releasedBySerial, requests)
+	})
+
+	t.Run("no enrollment row releases by serial", func(t *testing.T) {
+		release(t, deviceHost, manualProfile, nil, "", nil)
+		require.Equal(t, releasedBySerial, requests)
+	})
+
+	t.Run("account-driven user enrollment releases by client user ID", func(t *testing.T) {
+		release(t, userEnrolledHost, accountDriven, userEnrollment, managedAppleID, nil)
+		require.Equal(t, releasedByClientUser, requests)
+	})
+
+	t.Run("account-driven user enrollment with no Managed Apple ID calls nothing", func(t *testing.T) {
+		release(t, userEnrolledHost, accountDriven, userEnrollment, "", nil)
+		require.Empty(t, requests)
+	})
+
+	t.Run("account-driven user enrollment with no VPP client user calls nothing", func(t *testing.T) {
+		release(t, userEnrolledHost, accountDriven, userEnrollment, managedAppleID, common_mysql.NotFound("VPPClientUser"))
+		require.Empty(t, requests)
+	})
+
+	t.Run("a failed enrollment lookup calls nothing and returns the error", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.GetVPPTokenFunc = func(ctx context.Context, id uint) (*fleet.VPPTokenDB, error) {
+			return &fleet.VPPTokenDB{ID: id, Token: "tok"}, nil
+		}
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return manualProfile, nil
+		}
+		ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, id string) (*fleet.NanoEnrollment, error) {
+			return nil, errors.New("database is down")
+		}
+		ds.GetHostManagedAppleIDFunc = func(ctx context.Context, hostID uint) (string, error) {
+			return "", nil
+		}
+		svc := &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}
+
+		requests = nil
+		info := &fleet.VPPInstallReleaseInfo{AdamID: adamID, AssociatedEventID: "evt", VPPTokenID: new(uint(5))}
+		require.ErrorContains(t, svc.releaseVPPSeat(t.Context(), deviceHost, info, nil), "database is down")
+		require.Empty(t, requests)
 	})
 }
