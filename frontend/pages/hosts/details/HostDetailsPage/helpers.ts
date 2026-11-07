@@ -1,7 +1,16 @@
 import { getErrorReason } from "interfaces/errors";
 import { IHost } from "interfaces/host";
-import { isAndroid, isChrome, isIPadOrIPhone } from "interfaces/platform";
+import {
+  isAndroid,
+  isChrome,
+  isIPadOrIPhone,
+  isLinuxLike,
+  isMacOS,
+  isWindows,
+} from "interfaces/platform";
+import { IUser } from "interfaces/user";
 import { INITIAL_FLEET_DATE } from "utilities/constants";
+import permissions from "utilities/permissions";
 
 import { getHostDeviceStatusUIState } from "../helpers";
 
@@ -87,3 +96,24 @@ export const getCanManageSelfServiceProfiles = (
   isMacOSHost: boolean,
   canResendProfiles: boolean
 ) => !!isPremiumTier && isMacOSHost && canResendProfiles;
+
+// Matches the server's host_ai_session policy: AI sessions can hold secrets in
+// commands and their arguments.
+export const canViewHostAISessions = ({
+  isPremiumTier,
+  currentUser,
+  host,
+}: {
+  isPremiumTier: boolean | undefined;
+  currentUser: IUser | null;
+  host: Pick<IHost, "platform" | "team_id"> | undefined;
+}) =>
+  !!isPremiumTier &&
+  !!host &&
+  (isMacOS(host.platform) ||
+    isWindows(host.platform) ||
+    isLinuxLike(host.platform)) &&
+  (permissions.isGlobalAdmin(currentUser) ||
+    permissions.isGlobalMaintainer(currentUser) ||
+    permissions.isTeamAdmin(currentUser, host.team_id) ||
+    permissions.isTeamMaintainer(currentUser, host.team_id));
