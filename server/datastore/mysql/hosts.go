@@ -762,6 +762,10 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 		}
 	}
 
+	if err := queueGoogleConditionalAccessUnmanageForDeletedHostsDB(ctx, tx, hostUUIDs); err != nil {
+		return err
+	}
+
 	stmt, args, err = sqlx.In(`DELETE FROM pack_targets WHERE type = ? AND target_id IN (?)`, fleet.TargetHost, hostIDs)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "building delete statement for pack_targets for hosts %v", hostIDs)
