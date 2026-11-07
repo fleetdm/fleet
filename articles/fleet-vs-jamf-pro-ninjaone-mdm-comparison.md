@@ -86,7 +86,7 @@ NinjaOne uses per-device pricing that tends to work well for SMBs and MSPs. The 
 
 Organizations evaluating MDM solutions often face a choice between vendor lock-in and operational flexibility. Fleet offers a different approach with complete source code transparency, self-hosting options, and multi-platform support that doesn't compromise on Apple device management capabilities.
 
-Fleet combines near real-time device visibility with the API-first architecture that IT and security teams need. Whether you're managing a fleet of 500 devices or 50,000, Fleet's osquery foundation delivers the same near real-time reporting and SQL-based report capabilities. [Schedule a demo](https://fleetdm.com/demo) to see how Fleet handles your device management needs.
+Fleet combines near real-time device visibility with the API-first architecture that IT and security teams need. Whether you're managing a fleet of 500 devices or 50,000, Fleet's osquery foundation delivers the same near real-time reporting and SQL-based report capabilities. [Schedule a demo](https://fleetdm.com/contact?talkToUs) to see how Fleet handles your device management needs.
 
 ## FAQ
 

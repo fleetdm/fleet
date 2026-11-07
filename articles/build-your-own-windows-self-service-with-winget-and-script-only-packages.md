@@ -13,7 +13,7 @@ _Installing a Store app with winget is one command. Getting that one command to 
 
 <a purpose="cta-button" href="https://fleetdm.com/infrastructure-as-code">See it managed as code</a>
 
-[Fleet 4.89.0](https://fleetdm.com/releases/fleet-4.89.0) added an uninstall script, a pre-install query, and a post-install script to script-only packages. On Linux, that was enough to [build a self-service catalog on top of apt and dnf](https://fleetdm.com/articles/build-your-own-linux-self-service-with-script-only-packages). Windows gets the same three additions for `.ps1` files, and Windows already ships a package manager that can reach the Microsoft Store.
+[Fleet 4.89.0](https://fleetdm.com/releases/fleet-4-89-0) added an uninstall script, a pre-install query, and a post-install script to script-only packages. On Linux, that was enough to [build a self-service catalog on top of apt and dnf](https://fleetdm.com/articles/build-your-own-linux-self-service-with-script-only-packages). Windows gets the same three additions for `.ps1` files, and Windows already ships a package manager that can reach the Microsoft Store.
 
 So the obvious move is a two-line script: `winget install` on the way in, `winget uninstall` on the way out. Those are the right commands. They won't run where Fleet puts them, though, and understanding why is what turns a broken tile into a working one.
 

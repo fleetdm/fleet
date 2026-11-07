@@ -27,7 +27,7 @@ For your Apple fleet, audit coverage usually comes from two places: MDM server r
 
 For MDM command and profile delivery, audit questions typically boil down to "what did the server try to do, and what did the device say happened?" The MDM protocol operates as a queue-and-acknowledge system: the server creates a command or profile delivery, the device checks in and receives it, and then reports back whether it succeeded, failed, or is still pending. Audit coverage depends on retaining both sides of that exchange, with stable identifiers and timestamps that tie the server action to the device outcome.
 
-If your environment uses [Declarative Device Management (DDM)](https://developer.apple.com/documentation/devicemanagement/leveraging_the_declarative_management_data_model_to_send_and_receive_data), the pattern is similar but the mechanism differs. The server publishes a declared state, and devices independently evaluate that state and send status reports. Retain both the declarations and the status reports so you can reconstruct what the device was told and what it reported back.
+If your environment uses [Declarative Device Management (DDM)](https://developer.apple.com/documentation/devicemanagement/leveraging-the-declarative-management-data-model-to-scale-devices), the pattern is similar but the mechanism differs. The server publishes a declared state, and devices independently evaluate that state and send status reports. Retain both the declarations and the status reports so you can reconstruct what the device was told and what it reported back.
 
 ### Device security events on macOS
 

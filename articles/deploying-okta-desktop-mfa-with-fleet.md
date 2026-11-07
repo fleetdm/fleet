@@ -371,7 +371,7 @@ If the key is missing, re-run the policy configuration script.
 
 ## Additional resources
 
-For more information about Okta Desktop MFA configuration and troubleshooting, see the [official Okta Desktop MFA documentation](https://help.okta.com/oie/en-us/content/topics/oda/windows-mfa/deploy-win-mfa.htm).
+For more information about Okta Desktop MFA configuration and troubleshooting, see the [official Okta Desktop MFA documentation](https://help.okta.com/oie/en-us/content/topics/oda/windows-mfa/configure-deploy-win-mfa.htm).
 
 To learn more about Fleet's software deployment and script execution capabilities, see the [Fleet documentation](https://fleetdm.com/docs).
 

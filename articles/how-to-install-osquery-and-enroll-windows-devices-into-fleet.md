@@ -33,7 +33,7 @@ fleetctl.exe - version 4.8.0
   go version:  go1.17.2
 ```
 
-> You can generate an osquery installer using `fleetctl` for Windows on macOS and even Linux distributions, but for this article we are assuming generating on a Windows device. To generate an osquery installer for a different OS, check out the guides for [macOS](https://fleetdm.com//guides/how-to-install-osquery-and-enroll-macos-devices-into-fleet) and [Linux](https://fleetdm.com//guides/how-to-install-osquery-and-enroll-linux-devices-into-fleet).
+> You can generate an osquery installer using `fleetctl` for Windows on macOS and even Linux distributions, but for this article we are assuming generating on a Windows device. To generate an osquery installer for a different OS, check out the guides for [macOS](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-macos-devices-into-fleet) and [Linux](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-linux-devices-into-fleet).
 
 ## Installing osquery
 
