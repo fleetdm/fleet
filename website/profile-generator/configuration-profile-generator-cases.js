@@ -961,7 +961,7 @@ const TEST_CASES = [
     }
   },
   // The mobileconfig-cis-* cases come from the "Profile Method" blocks in
-  // ee/cis/macos-26/cis-policy-queries.yml, which give the payload type, key and value.  Where CIS
+  // docs/solutions/cis/macos-26/policies/cis-policy-queries.yml, which give the payload type, key and value.  Where CIS
   // relies on a key Apple does not document, the case follows Apple's schema instead, since the
   // prompt forbids undocumented keys.
   {

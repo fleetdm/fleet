@@ -25,7 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/mdm/profilevalidation"
 )
 
-var defaultPaths = []string{"it-and-security", "docs/solutions", "ee/cis"}
+var defaultPaths = []string{"it-and-security", "docs/solutions"}
 
 func main() {
 	strict := flag.Bool("strict", false, "also report unknown types, keys, and LocURIs, envelope problems, and Windows format and scope disagreements")

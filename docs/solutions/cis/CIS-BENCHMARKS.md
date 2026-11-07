@@ -7,7 +7,7 @@ from CIS PDF documents end-to-end.
 ## Directory layout
 
 ```
-ee/cis/
+docs/solutions/cis/
   macos-13/
   macos-14/
   macos-15/
@@ -20,8 +20,11 @@ ee/cis/
 Each OS directory follows the same structure:
 
 ```
-cis-policy-queries.yml          # All policies for this OS version
+policies/
+  cis-policy-queries.yml        # All policies for this OS version (GitOps format)
 README.md                       # Limitations, org-decision policies, notes
+configuration-profiles/         # Profiles that enforce the settings (some OS versions)
+scripts/                        # Remediation scripts (some OS versions)
 test/
   scripts/                      # Shell scripts that remediate or break settings
     CIS_1.1_pass.sh
@@ -36,16 +39,16 @@ test/
 
 ## Policy format
 
-Every policy is a YAML document inside `cis-policy-queries.yml`:
+Every policy is an item in the list in `policies/cis-policy-queries.yml`,
+in [Fleet GitOps format](https://fleetdm.com/docs/configuration/yaml-files#policies).
+GitOps rejects unknown keys, so metadata fields are commented out. The
+test runner (`tools/cis/cis-test-runner.py`) reads the commented
+`cis_id` and `tags`, so keep them in this exact form:
 
 ```yaml
----
-apiVersion: v1
-kind: policy
-spec:
-  name: "CIS - <title from the benchmark> (<qualifier>)"
-  cis_id: "<dotted CIS number, e.g. 2.3.3.4>"
-  platforms: macOS
+- name: "[macOS 26] CIS - <title from the benchmark> (<qualifier>)"
+  # cis_id: "<dotted CIS number, e.g. 2.3.3.4>"
+  # platforms: macOS
   platform: darwin
   description: |
     <description from the benchmark>
@@ -53,16 +56,16 @@ spec:
     <remediation steps from the benchmark>
   query: |
     <osquery SQL that returns 1+ rows when compliant, 0 rows when not>
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level<1 or 2>
-  contributors: <github-username>
+  # purpose: Informational
+  # tags: compliance, CIS, CIS_Level<1 or 2>
+  # contributors: <github-username>
 ```
 
 ### Field reference
 
 | Field | Required | Notes |
 |-------|----------|-------|
-| `name` | yes | Format: `CIS - <benchmark title>`. Append `(MDM Required)`, `(Fleetd Required)`, or `(FDA Required)` when the check depends on managed profiles, fleetd tables, or full disk access. |
+| `name` | yes | Format: `[<OS> <version>] CIS - <benchmark title>`. Append `(MDM Required)`, `(Fleetd Required)`, or `(FDA Required)` when the check depends on managed profiles, fleetd tables, or full disk access. |
 | `cis_id` | yes | The dotted section number from the benchmark document (e.g. `"2.3.3.4"`). For combined checks, comma-separate: `"5.2.3, 5.2.4"`. |
 | `platforms` | yes | Human-readable: `macOS`, `Windows`, etc. |
 | `platform` | yes | Osquery platform string: `darwin`, `windows`, `linux`. |
@@ -588,7 +591,7 @@ a tart VM, enrolls it, runs each test, and prints a summary. See
 
 ## Adding a new macOS version
 
-Creating the `ee/cis/macos-NN/` directory is only half the job —
+Creating the `docs/solutions/cis/macos-NN/` directory is only half the job —
 the Python test runner also needs to know the new version exists.
 Missing any of these registrations will make the runner either
 reject `--macos-version NN` outright or fail unpredictably mid-run.
@@ -596,8 +599,9 @@ reject `--macos-version NN` outright or fail unpredictably mid-run.
 **1. Scaffold the OS directory.**
 
 ```
-ee/cis/macos-NN/
-  cis-policy-queries.yml   # starts empty; append as you go
+docs/solutions/cis/macos-NN/
+  policies/
+    cis-policy-queries.yml # starts empty; append as you go
   README.md                # use the structure from "README.md per OS version"
   test/
     scripts/               # empty
@@ -609,7 +613,7 @@ Four dicts near the top of the file key off the OS version
 string (`"13"`, `"14"`, `"15"`, `"NN"`). Add an entry to each:
 
 - `VERSION_MAP`: the Tart base image URL for the OS and the
-  matching `ee/cis/` directory name.
+  matching `docs/solutions/cis/` directory name.
   ```python
   "26": {
       "image": "ghcr.io/cirruslabs/macos-tahoe-base:latest",
@@ -735,9 +739,9 @@ continue from the **Next action** line.
 
 ## Task (frozen)
 
-Create `ee/cis/<os>-<version>/` — policies, test scripts, MDM
+Create `docs/solutions/cis/<os>-<version>/` — policies, test scripts, MDM
 profiles, README — from `pdf/<filename>.pdf` alone, following
-`ee/cis/CIS-BENCHMARKS.md` and `ee/cis/prompt.md`.
+`docs/solutions/cis/CIS-BENCHMARKS.md` and `docs/solutions/cis/prompt.md`.
 
 ## Decisions (locked for this session)
 
@@ -777,10 +781,10 @@ Status legend: ⬜ not started · 🟨 in progress · ✅ done ·
 ## Files touched
 
 - `tmp/<os>-<version>-state.md` (this file)
-- `ee/cis/<os>-<version>/cis-policy-queries.yml`
-- `ee/cis/<os>-<version>/README.md`
-- `ee/cis/<os>-<version>/test/scripts/` — N files …
-- `ee/cis/<os>-<version>/test/profiles/` — N files …
+- `docs/solutions/cis/<os>-<version>/policies/cis-policy-queries.yml`
+- `docs/solutions/cis/<os>-<version>/README.md`
+- `docs/solutions/cis/<os>-<version>/test/scripts/` — N files …
+- `docs/solutions/cis/<os>-<version>/test/profiles/` — N files …
 
 ## Next action
 
