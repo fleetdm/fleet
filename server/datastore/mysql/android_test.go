@@ -3944,6 +3944,21 @@ func testAndroidPubSubDedupState(t *testing.T, ds *Datastore) {
 	// must not be mistaken for a missing android_devices row.
 	require.NoError(t, ds.SetAndroidPubSubDedupState(testCtx(), hostID, "msg-3", &t3))
 
+	// t3 is two hours ahead, which no real event time can be, so an earlier time replaces it.
+	t4 := time.Now().UTC().Add(-time.Minute).Truncate(time.Microsecond)
+	require.NoError(t, ds.SetAndroidPubSubDedupState(testCtx(), hostID, "msg-4", &t4))
+	messageID, eventTime, err = ds.GetAndroidPubSubDedupState(testCtx(), hostID)
+	require.NoError(t, err)
+	require.Equal(t, "msg-4", messageID)
+	require.WithinDuration(t, t4, *eventTime, time.Millisecond, "a recorded time far in the future must be replaced")
+
+	// Once the recorded time is a real one, an older time no longer replaces it.
+	t5 := t4.Add(-time.Hour)
+	require.NoError(t, ds.SetAndroidPubSubDedupState(testCtx(), hostID, "msg-5", &t5))
+	_, eventTime, err = ds.GetAndroidPubSubDedupState(testCtx(), hostID)
+	require.NoError(t, err)
+	require.WithinDuration(t, t4, *eventTime, time.Millisecond)
+
 	// Unknown host -> NotFound (both get and set).
 	_, _, err = ds.GetAndroidPubSubDedupState(testCtx(), 999999)
 	require.True(t, fleet.IsNotFound(err), "expected NotFound for unknown host, got %v", err)

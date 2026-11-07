@@ -47,6 +47,17 @@ func (g *googleForwarder) ForwardDevicesGet(w http.ResponseWriter, r *http.Reque
 	writeJSON(w, device)
 }
 
+// ForwardOperationsGet forwards a GET .../devices/{id}/operations/{oid} request to Google.
+func (g *googleForwarder) ForwardOperationsGet(w http.ResponseWriter, r *http.Request) {
+	name := deviceName(r) + "/operations/" + r.PathValue("oid")
+	op, err := g.svc.Enterprises.Devices.Operations.Get(name).Context(r.Context()).Do()
+	if err != nil {
+		writeGoogleError(w, err)
+		return
+	}
+	writeJSON(w, op)
+}
+
 // ForwardDevicesPatch forwards a PATCH .../devices/{id} request to Google.
 func (g *googleForwarder) ForwardDevicesPatch(w http.ResponseWriter, r *http.Request) {
 	name := deviceName(r)
