@@ -168,7 +168,7 @@ describe("Conditional access", () => {
       expect(
         screen.getByText("Identity provider (IdP) signature certificate")
       ).toBeInTheDocument();
-      // Profiles live on the Okta page, not in the setup modal.
+      // Profiles live in their own modal, not in the setup modal.
       expect(screen.queryByText("User scope profile")).not.toBeInTheDocument();
       expect(screen.queryByText("Windows profile")).not.toBeInTheDocument();
       expect(
@@ -436,6 +436,47 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
       await user.click(screen.getByRole("button", { name: "Edit" }));
 
       expect(screen.getByLabelText("IdP ID")).toHaveValue(TEST_OKTA_IDP_ID);
+    });
+
+    it("Opens the Okta profiles modal when clicking Profiles on a configured Okta card", async () => {
+      const mockConfig = createMockConfig({
+        conditional_access: {
+          microsoft_entra_tenant_id: "",
+          microsoft_entra_connection_configured: false,
+          okta_idp_id: TEST_OKTA_IDP_ID,
+          okta_assertion_consumer_service_url: "https://example.com/acs",
+          okta_audience_uri: "https://example.com",
+          okta_certificate: "cert-data",
+          bypass_disabled: false,
+        },
+      });
+      mockServer.use(
+        http.get(baseUrl("/conditional_access/idp/apple/profile"), () =>
+          HttpResponse.text("<plist>apple</plist>")
+        )
+      );
+
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: { app: { isPremiumTier: true, config: mockConfig } },
+      });
+
+      const { user } = render(<ConditionalAccess />);
+
+      await user.click(screen.getByRole("button", { name: "Profiles" }));
+
+      expect(
+        screen.getByText("Okta conditional access profiles")
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("tab", { name: "macOS", selected: true })
+      ).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Close" }));
+
+      expect(
+        screen.queryByText("Okta conditional access profiles")
+      ).not.toBeInTheDocument();
     });
 
     it("Shows both providers as configured when both are set up", async () => {

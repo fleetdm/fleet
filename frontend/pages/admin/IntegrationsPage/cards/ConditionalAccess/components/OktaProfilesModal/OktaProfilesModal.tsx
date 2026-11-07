@@ -139,28 +139,26 @@ const OktaProfilesModal = ({ onExit }: IOktaProfilesModalProps) => (
     className={baseClass}
     width="large"
   >
-    <>
-      <TabNav>
-        <Tabs>
-          <TabList>
-            {PLATFORM_TABS.map(({ name }) => (
-              // data-text reserves the bold width so the active tab doesn't shift
-              <Tab key={name} data-text={name}>
-                <TabText>{name}</TabText>
-              </Tab>
-            ))}
-          </TabList>
-          {PLATFORM_TABS.map(({ name, Panel }) => (
-            <TabPanel key={name}>
-              <Panel />
-            </TabPanel>
+    <TabNav>
+      <Tabs>
+        <TabList>
+          {PLATFORM_TABS.map(({ name }) => (
+            // data-text reserves the bold width so the active tab doesn't shift
+            <Tab key={name} data-text={name}>
+              <TabText>{name}</TabText>
+            </Tab>
           ))}
-        </Tabs>
-      </TabNav>
-      <div className="modal-cta-wrap">
-        <Button onClick={onExit}>Close</Button>
-      </div>
-    </>
+        </TabList>
+        {PLATFORM_TABS.map(({ name, Panel }) => (
+          <TabPanel key={name}>
+            <Panel />
+          </TabPanel>
+        ))}
+      </Tabs>
+    </TabNav>
+    <div className="modal-cta-wrap">
+      <Button onClick={onExit}>Close</Button>
+    </div>
   </Modal>
 );
 
