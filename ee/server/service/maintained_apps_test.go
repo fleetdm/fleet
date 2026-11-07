@@ -369,8 +369,7 @@ func TestAddFleetMaintainedApp(t *testing.T) {
 		require.Equal(t, "IEXPLODE-SETUP.EXE", payload.Filename, "filename keeps the original casing")
 		require.Equal(t, "exe", payload.Extension)
 
-		// Can't easily inject a proper fleet.service so we bail early before NewActivity gets called and panics
-		return 0, 0, errors.New("forced error to short-circuit storage and activity creation")
+		return 0, 0, errors.New("forced error to short-circuit activity creation")
 	}
 
 	// Mock server to serve the manifest
@@ -402,12 +401,15 @@ func TestAddFleetMaintainedApp(t *testing.T) {
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
 
 	svc := newTestService(t, ds)
+	svc.softwareInstallStore = &mocksoftware.SoftwareInstallerStore{
+		ExistsFunc: func(context.Context, string) (bool, error) { return true, nil },
+	}
 
 	authCtx := authz_ctx.AuthorizationContext{}
 	ctx := authz_ctx.NewContext(context.Background(), &authCtx)
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	_, err = svc.AddFleetMaintainedApp(ctx, nil, 1, "", "", "", "", false, false, nil, nil, nil)
-	require.ErrorContains(t, err, "forced error to short-circuit storage and activity creation")
+	require.ErrorContains(t, err, "forced error to short-circuit activity creation")
 
 	require.True(t, ds.MatchOrCreateSoftwareInstallerFuncInvoked)
 }
@@ -535,19 +537,19 @@ func TestAddFleetMaintainedAppReconcilesWindowsTitles(t *testing.T) {
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
 
 	svc := newTestService(t, ds)
-	// Fail at the storage step, which runs just after the reconcile, so the call returns
-	// before NewActivity needs a fully wired service.
+	svc.Service = &svcmock.Service{
+		NewActivityFunc: func(context.Context, *fleet.User, fleet.ActivityDetails) error { return nil },
+	}
 	svc.softwareInstallStore = &mocksoftware.SoftwareInstallerStore{
-		ExistsFunc: func(context.Context, string) (bool, error) {
-			return false, errors.New("forced error to short-circuit storage and activity creation")
-		},
+		ExistsFunc: func(context.Context, string) (bool, error) { return true, nil },
 	}
 
 	ctx := authz_ctx.NewContext(context.Background(), &authz_ctx.AuthorizationContext{})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 
-	_, err := svc.AddFleetMaintainedApp(ctx, nil, 1, "", "", "", "", false, false, nil, nil, nil)
-	require.ErrorContains(t, err, "forced error to short-circuit storage and activity creation")
+	titleID, err := svc.AddFleetMaintainedApp(ctx, nil, 1, "", "", "", "", false, false, nil, nil, nil)
+	require.NoError(t, err)
+	require.Equal(t, uint(42), titleID)
 
 	require.True(t, ds.MatchOrCreateSoftwareInstallerFuncInvoked)
 	require.True(t, ds.ReconcileWindowsMaintainedAppSoftwareTitlesFuncInvoked,
@@ -654,8 +656,7 @@ func TestExtractMaintainedAppVersionWhenLatest(t *testing.T) {
 		require.Equal(t, spoofedSHA, payload.StorageID)
 		require.Equal(t, "1.0.0", payload.Version)
 
-		// Can't easily inject a proper fleet.service so we bail early before NewActivity gets called and panics
-		return 0, 0, errors.New("forced error to short-circuit storage and activity creation")
+		return 0, 0, errors.New("forced error to short-circuit activity creation")
 	}
 
 	// Mock server to serve the manifest
@@ -687,12 +688,15 @@ func TestExtractMaintainedAppVersionWhenLatest(t *testing.T) {
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
 
 	svc := newTestService(t, ds)
+	svc.softwareInstallStore = &mocksoftware.SoftwareInstallerStore{
+		ExistsFunc: func(context.Context, string) (bool, error) { return true, nil },
+	}
 
 	authCtx := authz_ctx.AuthorizationContext{}
 	ctx := authz_ctx.NewContext(context.Background(), &authCtx)
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	_, err = svc.AddFleetMaintainedApp(ctx, nil, 1, "", "", "", "", false, false, nil, nil, nil)
-	require.ErrorContains(t, err, "forced error to short-circuit storage and activity creation")
+	require.ErrorContains(t, err, "forced error to short-circuit activity creation")
 
 	require.True(t, ds.MatchOrCreateSoftwareInstallerFuncInvoked)
 }
