@@ -967,6 +967,7 @@ func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet
 	currentUser := authz.UserFromContext(ctx)
 
 	idMap := make(map[uint]fleet.TeamUser)
+	requestedUsers := make(map[uint]*fleet.User, len(users))
 	for _, user := range users {
 		if !fleet.ValidTeamRole(user.Role) {
 			return nil, fleet.NewInvalidArgumentError("users", fmt.Sprintf("%s is not a valid user role", user.Role))
@@ -982,6 +983,7 @@ func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet
 				currentUser, fullUser, fleet.ActionWriteMembers,
 			)
 		}
+		requestedUsers[user.ID] = fullUser
 	}
 
 	team, err := svc.ds.TeamWithExtras(ctx, teamID)
@@ -989,9 +991,12 @@ func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet
 		return nil, err
 	}
 
+	oldRoles := make(map[uint]string, len(team.Users))
+
 	// Replace existing
 	for i, existingUser := range team.Users {
 		if user, ok := idMap[existingUser.ID]; ok {
+			oldRoles[user.ID] = existingUser.Role
 			team.Users[i] = user
 			delete(idMap, user.ID)
 		}
@@ -1004,7 +1009,21 @@ func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet
 
 	logging.WithExtras(ctx, "users", team.Users)
 
-	return svc.ds.SaveTeam(ctx, team)
+	team, err = svc.ds.SaveTeam(ctx, team)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, teamUser := range team.Users {
+		fullUser, ok := requestedUsers[teamUser.ID]
+		if !ok {
+			continue
+		}
+		if err := svc.logTeamRoleChange(ctx, team, *fullUser, oldRoles[teamUser.ID], teamUser.Role); err != nil {
+			return nil, err
+		}
+	}
+	return team, nil
 }
 
 func (svc *Service) DeleteTeamUsers(ctx context.Context, teamID uint, users []fleet.TeamUser) (*fleet.Team, error) {
@@ -1023,18 +1042,48 @@ func (svc *Service) DeleteTeamUsers(ctx context.Context, teamID uint, users []fl
 	}
 
 	newUsers := []fleet.TeamUser{}
+	removedUsers := []fleet.TeamUser{}
 	// Delete existing
 	for _, existingUser := range team.Users {
 		if _, ok := idMap[existingUser.ID]; !ok {
 			// Only add non-deleted users
 			newUsers = append(newUsers, existingUser)
+		} else {
+			removedUsers = append(removedUsers, existingUser)
 		}
 	}
 	team.Users = newUsers
 
 	logging.WithExtras(ctx, "users", team.Users)
 
-	return svc.ds.SaveTeam(ctx, team)
+	team, err = svc.ds.SaveTeam(ctx, team)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, removedUser := range removedUsers {
+		if err := svc.logTeamRoleChange(ctx, team, removedUser.User, removedUser.Role, ""); err != nil {
+			return nil, err
+		}
+	}
+	return team, nil
+}
+
+// logTeamRoleChange logs the activity for a change to user's role in team. An empty role means no role in the team.
+func (svc *Service) logTeamRoleChange(ctx context.Context, team *fleet.Team, user fleet.User, oldRole, newRole string) error {
+	teamRoles := func(role string) []fleet.UserTeam {
+		if role == "" {
+			return nil
+		}
+		return []fleet.UserTeam{{ID: team.ID, Name: team.Name, Role: role}}
+	}
+	user.Teams = teamRoles(newRole)
+	if err := fleet.LogRoleChangeActivities(
+		ctx, svc, authz.UserFromContext(ctx), user.GlobalRole, teamRoles(oldRole), &user, false,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "log activities for role change")
+	}
+	return nil
 }
 
 func (svc *Service) ListTeamUsers(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]*fleet.User, error) {
