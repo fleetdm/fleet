@@ -55,6 +55,15 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       run: fleetctl config set --address ${{ env.FLEET_URL }} --token ${{ env.FLEET_API_TOKEN }}
 
+    # Fleet only rejects an App Store app the VPP account cannot supply during
+    # a real apply, and a failure part-way through re-applying VPP fleets leaves
+    # the remaining fleets without their App Store apps. Check first, so a wrong
+    # or unlicensed app_store_id fails the pull request instead.
+    - name: Verify App Store apps are available on the VPP account
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: ./.github/fleet-gitops/check-app-store-apps.sh
+
     - name: Run fleetctl gitops commands
       shell: bash
       working-directory: ${{ inputs.working-directory }}
