@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "19.3.1",
+      "version": "20.0.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.super-productivity.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.super-productivity.app' AND version_compare(bundle_short_version, '19.3.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.super-productivity.app' AND version_compare(bundle_short_version, '20.0.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.super-productivity.app' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/super-productivity/super-productivity/releases/download/v19.3.1/superProductivity-arm64.dmg",
+      "installer_url": "https://github.com/super-productivity/super-productivity/releases/download/v20.0.0/superProductivity-arm64.dmg",
       "install_script_ref": "42bae086",
       "uninstall_script_ref": "184d1bf7",
-      "sha256": "ccbddcf82dabd677a0daa8d2fee73d7a004d01057e3eb585229de93842924707",
+      "sha256": "63cd4b4dcb18420b21c61e0f68d1d792653511bccb1de26b5043844ba20be1c0",
       "default_categories": [
         "Productivity"
       ]

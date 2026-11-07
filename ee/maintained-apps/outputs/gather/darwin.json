@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.39.2",
+      "version": "1.41.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.gather.Gather';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.gather.Gather' AND version_compare(bundle_short_version, '1.39.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.gather.Gather' AND version_compare(bundle_short_version, '1.41.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.gather.Gather' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/gathertown/gather-town-desktop-releases/releases/download/v1.39.2/Gather-1.39.2-arm64-mac.zip",
+      "installer_url": "https://github.com/gathertown/gather-town-desktop-releases/releases/download/v1.41.3/Gather-1.41.3-arm64-mac.zip",
       "install_script_ref": "1538da57",
       "uninstall_script_ref": "586f0fdd",
-      "sha256": "292a6f5d7f20a865218055fd3de75f2facc4ce07ca8a35854e348ec069b7cd2f",
+      "sha256": "9a94de6685caa265cd32f71ccb0351de9615acde68780a3113adb6d2b7a759a5",
       "default_categories": [
         "Developer tools"
       ]
