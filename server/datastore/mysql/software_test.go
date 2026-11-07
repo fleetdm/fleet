@@ -143,6 +143,7 @@ func TestSoftware(t *testing.T) {
 		{"ListHostSoftwareWithExtensionFor", testListHostSoftwareWithExtensionFor},
 		{"LongestCommonPrefix", testLongestCommonPrefix},
 		{"ListHostSoftwareInHouseApps", testListHostSoftwareInHouseApps},
+		{"ListHostSoftwareInHouseAppsTransferFleet", testListHostSoftwareInHouseAppsTransferFleet},
 		{"ListHostSoftwareAndroidVPPAppMatching", testListHostSoftwareAndroidVPPAppMatching},
 		{"CountHostSoftwareInstallAttempts", testCountHostSoftwareInstallAttempts},
 		{"ResetNonPolicyInstallAttempts", testResetNonPolicyInstallAttempts},
@@ -11964,6 +11965,332 @@ func findSoftware(sw []*fleet.HostSoftwareWithInstaller, name, extensionFor stri
 		}
 	}
 	return nil
+}
+
+func testListHostSoftwareInHouseAppsTransferFleet(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	t.Cleanup(func() { ds.testActivateSpecificNextActivities = nil })
+	user := test.NewUser(t, ds, "user1", "user1@example.com", true)
+
+	teamA, err := ds.NewTeam(ctx, &fleet.Team{Name: "fleet a"})
+	require.NoError(t, err)
+	teamB, err := ds.NewTeam(ctx, &fleet.Team{Name: "fleet b"})
+	require.NoError(t, err)
+	teamNoCopy, err := ds.NewTeam(ctx, &fleet.Team{Name: "fleet without a copy"})
+	require.NoError(t, err)
+
+	const bundleID = "com.example.transfer"
+	addCopy := func(teamID *uint, filename, version string, selfService bool) (appID, titleID uint) {
+		appID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			TeamID:           teamID,
+			UserID:           user.ID,
+			Title:            "transfer app",
+			Source:           "ios_apps",
+			Filename:         filename,
+			Extension:        "ipa",
+			Platform:         "ios",
+			Version:          version,
+			BundleIdentifier: bundleID,
+			StorageID:        filename + "-storage",
+			SelfService:      selfService,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+		return appID, titleID
+	}
+	appA, titleID := addCopy(&teamA.ID, "transfer-a.ipa", "1.0", false)
+	appB, titleIDB := addCopy(&teamB.ID, "transfer-b.ipa", "2.0", true)
+	_, titleIDNoFleet := addCopy(nil, "transfer-no-fleet.ipa", "3.0", false)
+	require.Equal(t, titleID, titleIDB)
+	require.Equal(t, titleID, titleIDNoFleet)
+
+	moveHostToTeam := func(host *fleet.Host, teamID *uint) {
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(teamID, []uint{host.ID})))
+		host.TeamID = teamID
+	}
+	var hostSeq int
+	newHostOn := func(teamID *uint) *fleet.Host {
+		hostSeq++
+		name := fmt.Sprintf("transfer-host%d", hostSeq)
+		host := test.NewHost(t, ds, name, "", name+"key", name+"uuid", time.Now(), test.WithPlatform("ios"))
+		nanoEnroll(t, ds, host, false)
+		moveHostToTeam(host, teamID)
+		return host
+	}
+	attempt := func(host *fleet.Host, appID uint, result string) string {
+		cmdUUID := createInHouseAppInstallRequest(t, ds, host.ID, appID, titleID, user)
+		ds.testActivateSpecificNextActivities = []string{cmdUUID}
+		_, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host.ID, "")
+		require.NoError(t, err)
+		if result == "Acknowledged" {
+			createInHouseAppInstallResultVerified(t, ds, host, cmdUUID, result)
+		} else {
+			createInHouseAppInstallResult(t, ds, host, cmdUUID, result)
+		}
+		return cmdUUID
+	}
+	putOnDevice := func(host *fleet.Host) {
+		_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{{
+			Name: "transfer app", Version: "1.0", Source: "ios_apps", BundleIdentifier: bundleID,
+		}})
+		require.NoError(t, err)
+		require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+		require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+	}
+	listOpts := fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"}
+	libraryTab := fleet.HostSoftwareTitleListOptions{ListOptions: listOpts, OnlyAvailableForInstall: true, IsMDMEnrolled: true}
+	includeAvailable := fleet.HostSoftwareTitleListOptions{ListOptions: listOpts, IncludeAvailableForInstall: true, IsMDMEnrolled: true}
+	selfService := fleet.HostSoftwareTitleListOptions{ListOptions: listOpts, IncludeAvailableForInstall: true, SelfServiceOnly: true, IsMDMEnrolled: true}
+	inventory := fleet.HostSoftwareTitleListOptions{ListOptions: listOpts, IsMDMEnrolled: true}
+
+	const readsToCatchRandomResults = 50
+	requirePackageOnEveryRead := func(t *testing.T, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions, wantName, wantVersion string, wantStatus *fleet.SoftwareInstallerStatus, wantLastInstall string) {
+		t.Helper()
+		for range readsToCatchRandomResults {
+			sw, _, err := ds.ListHostSoftware(ctx, host, opts)
+			require.NoError(t, err)
+			require.Len(t, sw, 1)
+			require.NotNil(t, sw[0].SoftwarePackage, "software_package must be set on every read")
+			require.Equal(t, wantName, sw[0].SoftwarePackage.Name)
+			require.Equal(t, wantVersion, sw[0].SoftwarePackage.Version)
+			require.Equal(t, wantStatus, sw[0].Status)
+			if wantLastInstall == "" {
+				require.Nil(t, sw[0].SoftwarePackage.LastInstall)
+			} else {
+				require.NotNil(t, sw[0].SoftwarePackage.LastInstall)
+				require.Equal(t, wantLastInstall, sw[0].SoftwarePackage.LastInstall.CommandUUID)
+			}
+		}
+	}
+
+	t.Run("failed attempt on the old fleet's copy offers the new fleet's copy", func(t *testing.T) {
+		host := newHostOn(&teamA.ID)
+		bystander := newHostOn(&teamB.ID)
+		attempt(host, appA, "Error")
+		moveHostToTeam(host, &teamB.ID)
+
+		requirePackageOnEveryRead(t, host, libraryTab, "transfer-b.ipa", "2.0", nil, "")
+		requirePackageOnEveryRead(t, host, includeAvailable, "transfer-b.ipa", "2.0", nil, "")
+		requirePackageOnEveryRead(t, bystander, libraryTab, "transfer-b.ipa", "2.0", nil, "")
+	})
+
+	t.Run("attempts on both copies report the new fleet's attempt", func(t *testing.T) {
+		host := newHostOn(&teamA.ID)
+		attempt(host, appA, "Error")
+		moveHostToTeam(host, &teamB.ID)
+		cmdB := attempt(host, appB, "Error")
+
+		requirePackageOnEveryRead(t, host, libraryTab, "transfer-b.ipa", "2.0", new(fleet.SoftwareInstallFailed), cmdB)
+	})
+
+	t.Run("moving back reports the attempt on that fleet's copy", func(t *testing.T) {
+		host := newHostOn(&teamA.ID)
+		cmdA := attempt(host, appA, "Error")
+		moveHostToTeam(host, &teamB.ID)
+		attempt(host, appB, "Error")
+		moveHostToTeam(host, &teamA.ID)
+
+		requirePackageOnEveryRead(t, host, libraryTab, "transfer-a.ipa", "1.0", new(fleet.SoftwareInstallFailed), cmdA)
+	})
+
+	t.Run("move to no fleet offers the no fleet copy", func(t *testing.T) {
+		host := newHostOn(&teamA.ID)
+		attempt(host, appA, "Error")
+		moveHostToTeam(host, nil)
+
+		requirePackageOnEveryRead(t, host, libraryTab, "transfer-no-fleet.ipa", "3.0", nil, "")
+	})
+
+	t.Run("new fleet without a copy lists nothing", func(t *testing.T) {
+		host := newHostOn(&teamA.ID)
+		attempt(host, appA, "Error")
+		moveHostToTeam(host, &teamNoCopy.ID)
+
+		sw, _, err := ds.ListHostSoftware(ctx, host, libraryTab)
+		require.NoError(t, err)
+		require.Empty(t, sw)
+	})
+
+	t.Run("self-service lists the new fleet's copy", func(t *testing.T) {
+		host := newHostOn(&teamA.ID)
+		attempt(host, appA, "Error")
+		moveHostToTeam(host, &teamB.ID)
+
+		requirePackageOnEveryRead(t, host, selfService, "transfer-b.ipa", "2.0", nil, "")
+	})
+
+	t.Run("self-service lists nothing when the new fleet's copy isn't self-service", func(t *testing.T) {
+		host := newHostOn(&teamB.ID)
+		attempt(host, appB, "Error")
+		moveHostToTeam(host, &teamA.ID)
+
+		sw, _, err := ds.ListHostSoftware(ctx, host, selfService)
+		require.NoError(t, err)
+		require.Empty(t, sw)
+	})
+
+	t.Run("host with MDM off lists nothing for an app that isn't on the device", func(t *testing.T) {
+		host := newHostOn(&teamA.ID)
+		attempt(host, appA, "Error")
+		moveHostToTeam(host, &teamB.ID)
+
+		mdmOff := libraryTab
+		mdmOff.IsMDMEnrolled = false
+		sw, meta, err := ds.ListHostSoftware(ctx, host, mdmOff)
+		require.NoError(t, err)
+		require.Empty(t, sw)
+		require.Zero(t, meta.TotalResults)
+	})
+
+	t.Run("app on the device from the old fleet's attempt", func(t *testing.T) {
+		host := newHostOn(&teamA.ID)
+		attempt(host, appA, "Acknowledged")
+		putOnDevice(host)
+		moveHostToTeam(host, &teamB.ID)
+
+		installed := new(fleet.SoftwareInstalled)
+		requirePackageOnEveryRead(t, host, libraryTab, "transfer-b.ipa", "2.0", installed, "")
+		requirePackageOnEveryRead(t, host, includeAvailable, "transfer-b.ipa", "2.0", nil, "")
+
+		sw, _, err := ds.ListHostSoftware(ctx, host, inventory)
+		require.NoError(t, err)
+		require.Len(t, sw, 1)
+		require.Nil(t, sw[0].SoftwarePackage)
+		require.Len(t, sw[0].InstalledVersions, 1)
+	})
+
+	t.Run("app on the device with attempts on both copies reports the new fleet's attempt", func(t *testing.T) {
+		host := newHostOn(&teamB.ID)
+		cmdB := attempt(host, appB, "Error")
+		putOnDevice(host)
+		moveHostToTeam(host, &teamA.ID)
+		attempt(host, appA, "Error")
+		moveHostToTeam(host, &teamB.ID)
+
+		requirePackageOnEveryRead(t, host, inventory, "transfer-b.ipa", "2.0", new(fleet.SoftwareInstallFailed), cmdB)
+	})
+
+	t.Run("app on the device keeps the package when the attempt was removed", func(t *testing.T) {
+		host := newHostOn(&teamB.ID)
+		cmd := attempt(host, appB, "Acknowledged")
+		putOnDevice(host)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE host_in_house_software_installs SET removed = 1 WHERE command_uuid = ?`, cmd)
+			return err
+		})
+
+		sw, _, err := ds.ListHostSoftware(ctx, host, inventory)
+		require.NoError(t, err)
+		require.Len(t, sw, 1)
+		require.NotNil(t, sw[0].SoftwarePackage)
+		require.Equal(t, "transfer-b.ipa", sw[0].SoftwarePackage.Name)
+	})
+
+	t.Run("app on the device keeps the package in the vulnerable view", func(t *testing.T) {
+		host := newHostOn(&teamB.ID)
+		attempt(host, appB, "Acknowledged")
+		putOnDevice(host)
+		require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+		require.Len(t, host.Software, 1)
+		_, err := ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: host.Software[0].ID, CVE: "CVE-2026-57451"}, fleet.NVDSource)
+		require.NoError(t, err)
+
+		vulnerable := inventory
+		vulnerable.VulnerableOnly = true
+		sw, _, err := ds.ListHostSoftware(ctx, host, vulnerable)
+		require.NoError(t, err)
+		require.Len(t, sw, 1)
+		require.NotNil(t, sw[0].SoftwarePackage)
+		require.Equal(t, "transfer-b.ipa", sw[0].SoftwarePackage.Name)
+	})
+
+	t.Run("new fleet's copy out of scope lists nothing", func(t *testing.T) {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "fleet with a scoped copy"})
+		require.NoError(t, err)
+		scopedApp, _ := addCopy(&team.ID, "transfer-scoped.ipa", "4.0", false)
+		label, err := ds.NewLabel(ctx, &fleet.Label{Name: "transfer exclude", Query: "select 1"})
+		require.NoError(t, err)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO in_house_app_labels (in_house_app_id, label_id, exclude) VALUES (?, ?, 1)`, scopedApp, label.ID)
+			return err
+		})
+
+		host := newHostOn(&teamA.ID)
+		attempt(host, appA, "Error")
+		moveHostToTeam(host, &team.ID)
+		require.NoError(t, ds.AddLabelsToHost(ctx, host.ID, []uint{label.ID}))
+		host.LabelUpdatedAt = time.Now().Add(time.Second)
+
+		sw, _, err := ds.ListHostSoftware(ctx, host, libraryTab)
+		require.NoError(t, err)
+		require.Empty(t, sw)
+	})
+
+	t.Run("new fleet with two copies of the title offers one of them on every read", func(t *testing.T) {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "fleet with two copies"})
+		require.NoError(t, err)
+		// A GitOps run that changes an app's filename adds a row for the same title.
+		gitOpsPayloadsWithFilename := func(filename string) []*fleet.UploadSoftwareInstallerPayload {
+			payload := func(source, platform string) *fleet.UploadSoftwareInstallerPayload {
+				return &fleet.UploadSoftwareInstallerPayload{
+					TeamID: &team.ID, UserID: user.ID, Title: "transfer app", Source: source, Filename: filename, Extension: "ipa",
+					Platform: platform, Version: "5.0", BundleIdentifier: bundleID, StorageID: filename + "-storage",
+					ValidatedLabels: &fleet.LabelIdentsWithScope{},
+				}
+			}
+			return []*fleet.UploadSoftwareInstallerPayload{payload("ios_apps", "ios"), payload("ipados_apps", "ipados")}
+		}
+		filenames := []string{"transfer-v1.ipa", "transfer-v2.ipa"}
+		var rows []uint
+		for _, filename := range filenames {
+			require.NoError(t, ds.BatchSetInHouseAppsInstallers(ctx, &team.ID, gitOpsPayloadsWithFilename(filename)))
+			var id uint
+			require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &id, `SELECT id FROM in_house_apps WHERE filename = ? AND platform = 'ios'`, filename))
+			rows = append(rows, id)
+		}
+		requireFleetCopyOnEveryRead := func(host *fleet.Host) {
+			t.Helper()
+			for range readsToCatchRandomResults {
+				sw, _, err := ds.ListHostSoftware(ctx, host, libraryTab)
+				require.NoError(t, err)
+				require.Len(t, sw, 1)
+				require.NotNil(t, sw[0].SoftwarePackage, "software_package must be set on every read")
+				require.Contains(t, filenames, sw[0].SoftwarePackage.Name)
+			}
+		}
+
+		host := newHostOn(&teamA.ID)
+		attempt(host, appA, "Error")
+		moveHostToTeam(host, &team.ID)
+		requireFleetCopyOnEveryRead(host)
+
+		for _, row := range rows {
+			host := newHostOn(&teamA.ID)
+			attempt(host, appA, "Error")
+			moveHostToTeam(host, &team.ID)
+			attempt(host, row, "Error")
+			requireFleetCopyOnEveryRead(host)
+		}
+
+		// An attempt on a row the host's labels exclude doesn't hide the row that's in scope.
+		neverMoved := newHostOn(&team.ID)
+		attempt(neverMoved, rows[1], "Error")
+		label, err := ds.NewLabel(ctx, &fleet.Label{Name: "transfer exclude second row", Query: "select 1"})
+		require.NoError(t, err)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO in_house_app_labels (in_house_app_id, label_id, exclude) VALUES (?, ?, 1)`, rows[1], label.ID)
+			return err
+		})
+		require.NoError(t, ds.AddLabelsToHost(ctx, neverMoved.ID, []uint{label.ID}))
+		neverMoved.LabelUpdatedAt = time.Now().Add(time.Second)
+		for range readsToCatchRandomResults {
+			sw, _, err := ds.ListHostSoftware(ctx, neverMoved, libraryTab)
+			require.NoError(t, err)
+			require.Len(t, sw, 1)
+			require.NotNil(t, sw[0].SoftwarePackage, "software_package must be set on every read")
+			require.Equal(t, filenames[0], sw[0].SoftwarePackage.Name)
+		}
+	})
 }
 
 func testListHostSoftwareInHouseApps(t *testing.T, ds *Datastore) {
