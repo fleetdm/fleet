@@ -21,6 +21,7 @@ import {
   isIpadOrIphoneSoftwareSource,
   isAndroidSoftwareSource,
 } from "interfaces/software";
+import PATHS from "router/paths";
 import hostsCountAPI, {
   IHostsCountQueryKey,
   IHostsCountResponse,
@@ -30,6 +31,7 @@ import softwareAPI, {
   IGetSoftwareVersionQueryKey,
 } from "services/entities/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 import DetailsNoHosts from "../components/cards/DetailsNoHosts";
 import SoftwareDetailsSummary from "../components/cards/SoftwareDetailsSummary";
@@ -48,6 +50,47 @@ type ISoftwareTitleDetailsPageProps = RouteComponentProps<
   undefined,
   ISoftwareVersionDetailsRouteParams
 >;
+
+interface ISummarySectionProps {
+  softwareVersion: ISoftwareVersion;
+  hostsCount?: number;
+  teamIdForApi?: number;
+}
+
+export const getTitleDetailsPath = (titleId: number, teamIdForApi?: number) =>
+  getPathWithQueryParams(PATHS.SOFTWARE_TITLE_DETAILS(titleId.toString()), {
+    fleet_id: teamIdForApi,
+  });
+
+export const SummarySection = ({
+  softwareVersion,
+  hostsCount,
+  teamIdForApi,
+}: ISummarySectionProps) => (
+  <Card className={`${baseClass}__summary-section`}>
+    <SoftwareDetailsSummary
+      displayName={getDisplayedSoftwareName(
+        softwareVersion.name,
+        softwareVersion.display_name,
+        softwareVersion.bundle_identifier
+      )}
+      displayNameSuffix={`, ${formatSoftwareVersion(softwareVersion)}`}
+      titlePath={
+        softwareVersion.title_id
+          ? getTitleDetailsPath(softwareVersion.title_id, teamIdForApi)
+          : undefined
+      }
+      type={formatSoftwareType(softwareVersion)}
+      hostCount={hostsCount}
+      queryParams={{
+        software_version_id: softwareVersion.id,
+        fleet_id: teamIdForApi,
+      }}
+      name={softwareVersion.name}
+      source={softwareVersion.source}
+    />
+  </Card>
+);
 
 const getVulnUnsupportedSourceText = (
   source: string
@@ -173,23 +216,11 @@ const SoftwareVersionDetailsPage = ({
           />
         ) : (
           <>
-            <Card className={`${baseClass}__summary-section`}>
-              <SoftwareDetailsSummary
-                displayName={`${getDisplayedSoftwareName(
-                  softwareVersion.name,
-                  softwareVersion.display_name,
-                  softwareVersion.bundle_identifier
-                )}, ${formatSoftwareVersion(softwareVersion)}`}
-                type={formatSoftwareType(softwareVersion)}
-                hostCount={hostsCount}
-                queryParams={{
-                  software_version_id: softwareVersion.id,
-                  fleet_id: teamIdForApi,
-                }}
-                name={softwareVersion.name}
-                source={softwareVersion.source}
-              />
-            </Card>
+            <SummarySection
+              softwareVersion={softwareVersion}
+              hostsCount={hostsCount}
+              teamIdForApi={teamIdForApi}
+            />
             <Card className={`${baseClass}__vulnerabilities-section`}>
               <h2 className="section__header">Vulnerabilities</h2>
               {renderVulnTable(softwareVersion)}

@@ -48,6 +48,33 @@
     grid-area: title;
   }
 
+  // Same marking as the system's table links (see .link-cell): plain at
+  // rest, underline on hover — inheriting the heading's font untouched.
+  &__title-link {
+    // The global `a { @include link }` rule forces $x-small bold; keep the
+    // heading's own font.
+    color: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &:hover,
+    &:focus-visible {
+      // No underline offset: the anchor's overflow: hidden (truncation)
+      // clips an offset underline below the line box.
+      text-decoration: underline;
+    }
+  }
+
+  &__title-with-suffix {
+    display: flex;
+    align-items: baseline;
+    min-width: 0;
+  }
+
   &__actions-wrapper {
     grid-area: actions;
     justify-self: end;

@@ -395,6 +395,23 @@ func TestHostSoftwareEntryMarshalJSON(t *testing.T) {
 	assert.JSONEq(t, expectedJSON, string(data))
 }
 
+func TestSoftwareMarshalJSONTitleID(t *testing.T) {
+	titleID := uint(42)
+
+	b, err := json.Marshal(&Software{Source: "programs", TitleID: &titleID})
+	require.NoError(t, err)
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(b, &got))
+	require.EqualValues(t, 42, got["title_id"])
+
+	// nil TitleID is omitted (title not reconciled yet)
+	b, err = json.Marshal(&Software{Source: "programs"})
+	require.NoError(t, err)
+	got = map[string]any{}
+	require.NoError(t, json.Unmarshal(b, &got))
+	require.NotContains(t, got, "title_id")
+}
+
 func TestSoftwareMarshalJSONLastOpenedAt(t *testing.T) {
 	now := time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC)
 

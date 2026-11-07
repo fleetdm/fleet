@@ -627,9 +627,10 @@ func TestSoftwareOrderKeysCoverListedColumns(t *testing.T) {
 	notSelected := map[string]struct{}{
 		"last_opened_at": {},
 	}
-	// Returned by the list, but a flag is not a useful sort key.
+	// Returned by the list, but not useful sort keys (internal flag / FK).
 	notSortable := map[string]struct{}{
-		"ai_tool": {},
+		"ai_tool":  {},
+		"title_id": {},
 	}
 
 	sortable := softwareOrderKeys(fleet.SoftwareListOptions{IncludeCVEScores: true, WithHostCounts: true})

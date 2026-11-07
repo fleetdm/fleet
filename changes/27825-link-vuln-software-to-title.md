@@ -1,0 +1,1 @@
+- Added a link to the associated software title from software rows on the vulnerability details page and from the software version details page, so users can jump straight to where patching is set up. The `GET /vulnerabilities/:cve` and `GET /software/versions/:id` API responses now include `title_id` for each software item.

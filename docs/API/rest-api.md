@@ -15514,6 +15514,7 @@ Returns information about the specified software version.
     "version": "117.0",
     "bundle_identifier": "org.mozilla.firefox",
     "source": "apps",
+    "title_id": 1337,
     "ai_tool": false,
     "generated_cpe": "cpe:2.3:a:mozilla:firefox:117.0:*:*:*:*:macos:*:*",
     "vulnerabilities": [
@@ -16832,6 +16833,7 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
       "name": "Docker Desktop",
       "version": "4.9.1",
       "source": "programs",
+      "title_id": 820,
       "generated_cpe": "cpe:2.3:a:docker:docker_desktop:4.9.1:*:*:*:*:windows:*:*",
       "hosts_count": 50,
       "resolved_in_version": "5.0.0"
