@@ -90,11 +90,6 @@ function Remove-Entry {
     if ($appDir -and (Test-Path -LiteralPath $appDir)) {
         Stop-InstallDirProcesses $appDir
         Remove-Item -LiteralPath $appDir -Recurse -Force -ErrorAction SilentlyContinue
-        # The uninstaller may have removed the registration, so check the folder itself.
-        if (Test-Path -LiteralPath $appDir) {
-            Write-Host "$appDir is still there after uninstall."
-            $script:exitCode = 1
-        }
     }
 
     if (Test-Path -LiteralPath $Entry.KeyPath) {
@@ -103,6 +98,20 @@ function Remove-Entry {
         } else {
             Write-Host "Removing the leftover registration."
             Remove-Item -LiteralPath $Entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Remove-KnownDirs {
+    # Checked without a registration: the uninstaller may already have removed it.
+    foreach ($dir in $knownDirs) {
+        if (-not (Test-Path -LiteralPath $dir)) { continue }
+        Write-Host "Removing $dir"
+        Stop-InstallDirProcesses $dir
+        Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue
+        if (Test-Path -LiteralPath $dir) {
+            Write-Host "$dir is still there after uninstall."
+            $script:exitCode = 1
         }
     }
 }
@@ -149,14 +158,17 @@ function Remove-StretchlyFromPath {
 try {
     $entries = @(Get-Entries)
     if ($entries.Count -eq 0) {
-        Write-Host "$displayName is not installed."
-        Exit 0
+        # A previous run may have removed the registration but not the folder.
+        Remove-KnownDirs
+        if ($exitCode -eq 0) { Write-Host "$displayName is not installed." }
+        Exit $exitCode
     }
 
     foreach ($entry in $entries) {
         Write-Host "Removing $($entry.KeyPath)"
         Remove-Entry $entry
     }
+    Remove-KnownDirs
 
     if (@(Get-Entries).Count -gt 0) {
         Write-Host "$displayName is still registered after uninstall."
