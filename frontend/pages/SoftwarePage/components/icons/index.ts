@@ -850,6 +850,7 @@ import RapidApi from "./png/RapidApi.png";
 import Rapidweaver from "./png/Rapidweaver.png";
 import RaspberryPiImager from "./png/RaspberryPiImager.png";
 import Raycast from "./png/Raycast.png";
+import ReadAI from "./png/ReadAI.png";
 import Readest from "./png/Readest.png";
 import RealVncServer from "./png/RealVncServer.png";
 import Reaper from "./png/Reaper.png";
@@ -2037,6 +2038,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   rapidweaver: Rapidweaver,
   "raspberry pi imager": RaspberryPiImager,
   raycast: Raycast,
+  "read ai": ReadAI,
   readest: Readest,
   "realvnc connect viewer": VncViewer,
   "realvnc server": RealVncServer,

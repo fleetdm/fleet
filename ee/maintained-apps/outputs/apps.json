@@ -7275,6 +7275,13 @@
       "description": "Raycast is an app that allows you to control your tools with a few keystrokes."
     },
     {
+      "name": "Read AI",
+      "slug": "read-ai/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.readai.desktop",
+      "description": "Read AI is a meeting recorder, transcriber and summariser."
+    },
+    {
       "name": "Readest",
       "slug": "readest/darwin",
       "platform": "darwin",
