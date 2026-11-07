@@ -141,6 +141,27 @@ func (e *ParseUnknownKeyError) Error() string {
 	return fmt.Sprintf("unknown key %q in %q%s", key, e.Filename, suffix)
 }
 
+// ParseRemovedKeyError is a key that Fleet no longer accepts in GitOps YAML. Unlike ParseUnknownKeyError, it stays an
+// error when unknown keys are allowed.
+type ParseRemovedKeyError struct {
+	Filename string
+	Path     string // dot-separated path of the object holding the key, e.g. "controls.setup_experience"
+	Field    string
+}
+
+func (e *ParseRemovedKeyError) Error() string {
+	key := e.Field
+	if e.Path != "" {
+		key = e.Path + "." + e.Field
+	}
+	entry, ok := removednames.Find(removednames.KindYAMLKey, key, "")
+	if !ok {
+		// An unregistered key still gets the Fleet 5 wording; TestRemovedKeysRegistered catches the missing entry.
+		entry = removednames.Entry{Kind: removednames.KindYAMLKey, Old: key}
+	}
+	return fmt.Sprintf("in %q: %s", e.Filename, entry.Message())
+}
+
 func MaybeParseTypeError(filename string, keysPath []string, err error) error {
 	unmarshallErr := &json.UnmarshalTypeError{}
 	if errors.As(err, &unmarshallErr) {
@@ -200,7 +221,7 @@ type GitOpsControls struct {
 	EnableProfileValidation          any `json:"enable_profile_validation"`
 
 	EnableDiskEncryption       any              `json:"enable_disk_encryption"`
-	EnableRecoveryLockPassword any              `json:"enable_recovery_lock_password"`
+	EnableRecoveryLockPassword any              `json:"macos_recovery_lock_password_enabled" removedkey:"enable_recovery_lock_password"`
 	RequireBitLockerPIN        any              `json:"windows_require_bitlocker_pin,omitempty"`
 	NameTemplate               any              `json:"name_template"`
 	Scripts                    []fleet.BaseItem `json:"scripts"`
@@ -1436,7 +1457,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 		value any
 	}{
 		{"enable_disk_encryption", result.Controls.EnableDiskEncryption},
-		{"enable_recovery_lock_password", result.Controls.EnableRecoveryLockPassword},
+		{"macos_recovery_lock_password_enabled", result.Controls.EnableRecoveryLockPassword},
 		{"windows_require_bitlocker_pin", result.Controls.RequireBitLockerPIN},
 	} {
 		if _, ok := c.value.(bool); c.value != nil && !ok {

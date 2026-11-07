@@ -2960,7 +2960,7 @@
             "null"
           ]
         },
-        "enable_recovery_lock_password": {
+        "enable_profile_validation": {
           "description": "type: `boolean`",
           "type": [
             "boolean",
@@ -2981,6 +2981,13 @@
           "description": "type: `LinuxSettings`"
         },
         "macos_migration": true,
+        "macos_recovery_lock_password_enabled": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "macos_settings": {
           "$ref": "#/$defs/MacOSSettings",
           "deprecated": true,
@@ -4289,13 +4296,6 @@
             "null"
           ]
         },
-        "enable_recovery_lock_password": {
-          "description": "type: `boolean`",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
         "enable_turn_on_windows_mdm_manually": {
           "description": "type: `boolean`",
           "type": [
@@ -4330,6 +4330,13 @@
         "macos_migration": {
           "$ref": "#/$defs/MacOSMigration",
           "description": "type: `MacOSMigration`"
+        },
+        "macos_recovery_lock_password_enabled": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "macos_settings": {
           "$ref": "#/$defs/MacOSSettings",
@@ -4798,6 +4805,13 @@
             "null"
           ]
         },
+        "macos_require_all_software": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "macos_script": {
           "description": "type: `string`",
           "type": [
@@ -4823,20 +4837,6 @@
             "null"
           ]
         },
-        "require_all_software_macos": {
-          "description": "type: `boolean`",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "require_all_software_windows": {
-          "description": "type: `boolean`",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
         "script": {
           "deprecated": true,
           "deprecationMessage": "'script' is deprecated, use 'macos_script' instead",
@@ -4856,6 +4856,13 @@
           },
           "type": [
             "array",
+            "null"
+          ]
+        },
+        "windows_require_all_software": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
             "null"
           ]
         }
@@ -5863,13 +5870,6 @@
             "null"
           ]
         },
-        "enable_recovery_lock_password": {
-          "description": "type: `boolean`",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
         "ios_updates": {
           "$ref": "#/$defs/AppleOSUpdateSettings",
           "description": "type: `AppleOSUpdateSettings`"
@@ -5881,6 +5881,13 @@
         "linux_settings": {
           "$ref": "#/$defs/LinuxSettings",
           "description": "type: `LinuxSettings`"
+        },
+        "macos_recovery_lock_password_enabled": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "macos_settings": {
           "$ref": "#/$defs/MacOSSettings",

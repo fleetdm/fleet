@@ -2932,7 +2932,7 @@ func (c *Client) DoGitOps(
 		}
 		enableRecoveryLockPassword, ok := incoming.Controls.EnableRecoveryLockPassword.(bool)
 		if incoming.Controls.EnableRecoveryLockPassword != nil && !ok {
-			return nil, errors.New("controls.enable_recovery_lock_password must be a boolean")
+			return nil, errors.New("controls.macos_recovery_lock_password_enabled must be a boolean")
 		}
 		requireBitLockerPIN := windowsSettings.RequireBitLockerPIN.Value
 		if incoming.Controls.RequireBitLockerPIN != nil {
@@ -2977,7 +2977,7 @@ func (c *Client) DoGitOps(
 		mdmAppConfig["windows_settings"] = windowsSettings
 		mdmAppConfig["linux_settings"] = linuxSettings
 
-		mdmAppConfig["enable_recovery_lock_password"] = enableRecoveryLockPassword
+		mdmAppConfig["macos_recovery_lock_password_enabled"] = enableRecoveryLockPassword
 
 		if incoming.TeamName != nil {
 			team["gitops_filename"] = filename
