@@ -512,6 +512,16 @@ func (s *integrationTestSuite) TestUserRolesSpec() {
 	require.Len(t, user.Teams, 1)
 	assert.Equal(t, fleet.RoleMaintainer, user.Teams[0].Role)
 
+	globalRoleDetails := fmt.Sprintf(`{"user_id": %d, "user_name": %q, "user_email": %q, "role": %%q}`, user.ID, user.Name, user.Email)
+	fleetRoleDetails := fmt.Sprintf(`{"user_id": %d, "user_name": %q, "user_email": %q, "role": "maintainer", "fleet_id": %d, "fleet_name": "team1"}`,
+		user.ID, user.Name, user.Email, user.Teams[0].ID)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedUserGlobalRole{}.ActivityName(), fmt.Sprintf(globalRoleDetails, fleet.RoleObserver), 0)
+	lastActivityID := s.lastActivityOfTypeMatches(fleet.ActivityTypeChangedUserTeamRole{}.ActivityName(), fleetRoleDetails, 0)
+
+	// applying the same roles again logs nothing
+	s.Do("POST", "/api/latest/fleet/users/roles/spec", &userRoleSpec, http.StatusOK)
+	s.lastActivityMatches("", "", lastActivityID)
+
 	spec = []byte(fmt.Sprintf(`
   roles:
     %s:
@@ -525,6 +535,32 @@ func (s *integrationTestSuite) TestUserRolesSpec() {
 	err = yaml.Unmarshal(spec, &userRoleSpec.Spec)
 	require.NoError(t, err)
 	s.Do("POST", "/api/latest/fleet/users/roles/spec", &userRoleSpec, http.StatusBadRequest)
+	s.lastActivityMatches("", "", lastActivityID)
+
+	// moving the user from the fleet role to a global role logs both changes
+	userRoleSpec = applyUserRoleSpecsRequest{Spec: &fleet.UsersRoleSpec{Roles: map[string]*fleet.UserRoleSpec{
+		email: {GlobalRole: new(fleet.RoleAdmin)},
+	}}}
+	s.Do("POST", "/api/latest/fleet/users/roles/spec", &userRoleSpec, http.StatusOK)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeChangedUserGlobalRole{}.ActivityName(), fmt.Sprintf(globalRoleDetails, fleet.RoleAdmin), 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedUserTeamRole{}.ActivityName(), fleetRoleDetails, 0)
+	activities := s.listActivities()
+	require.NotNil(t, activities[len(activities)-1].ActorID)
+	assert.Equal(t, s.users["admin1@example.com"].ID, *activities[len(activities)-1].ActorID)
+
+	// spec keys that differ only in case resolve to one user, so only the role that gets saved is logged
+	changedGlobalRole := fleet.ActivityTypeChangedUserGlobalRole{}.ActivityName()
+	changedCount := s.countActivitiesOfType(changedGlobalRole)
+	userRoleSpec = applyUserRoleSpecsRequest{Spec: &fleet.UsersRoleSpec{Roles: map[string]*fleet.UserRoleSpec{
+		email:                  {GlobalRole: new(fleet.RoleMaintainer)},
+		strings.ToUpper(email): {GlobalRole: new(fleet.RoleObserver)},
+	}}}
+	s.Do("POST", "/api/latest/fleet/users/roles/spec", &userRoleSpec, http.StatusOK)
+	user, err = s.ds.UserByEmail(context.Background(), email)
+	require.NoError(t, err)
+	require.NotNil(t, user.GlobalRole)
+	s.lastActivityOfTypeMatches(changedGlobalRole, fmt.Sprintf(globalRoleDetails, *user.GlobalRole), 0)
+	assert.Equal(t, changedCount+1, s.countActivitiesOfType(changedGlobalRole))
 }
 
 func (s *integrationTestSuite) TestInvites() {
