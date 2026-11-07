@@ -1,0 +1,2 @@
+- Fixed GitOps leaving a policy without its automation after switching a fleet between two Fleet-maintained apps that share a software title, such as Druva inSync and Druva inSync (GovCloud).
+- `fleetctl gitops` now fails instead of logging a warning when a policy's Fleet-maintained app can't be resolved to a software title.
