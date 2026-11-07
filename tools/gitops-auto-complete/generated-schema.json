@@ -3038,16 +3038,16 @@
           "$ref": "#/$defs/MacOSSetup",
           "description": "type: `MacOSSetup`"
         },
-        "windows_enabled_and_configured": {
+        "windows_entra_client_ids": true,
+        "windows_entra_tenant_ids": true,
+        "windows_mdm_enabled": {
           "description": "type: `boolean`",
           "type": [
             "boolean",
             "null"
           ]
         },
-        "windows_entra_client_ids": true,
-        "windows_entra_tenant_ids": true,
-        "windows_migration_enabled": true,
+        "windows_mdm_migration_enabled": true,
         "windows_require_bitlocker_pin": {
           "description": "type: `boolean`",
           "type": [
@@ -4399,13 +4399,6 @@
             "null"
           ]
         },
-        "windows_enabled_and_configured": {
-          "description": "WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.\nThere is no other configuration required for Windows other than enabling\nthe support, but it is still called \"EnabledAndConfigured\" for consistency\nwith the similarly named macOS-specific fields.\n\ntype: `boolean`",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
         "windows_entra_client_ids": {
           "description": "WindowsEntraClientIDs is the allowlist of Entra application client IDs (GUIDs) whose tokens are accepted for\nWindows automatic enrollment.\n\ntype: `array\u003cstring\u003e`",
           "items": {
@@ -4433,7 +4426,14 @@
           ]
         },
         "windows_eula": true,
-        "windows_migration_enabled": {
+        "windows_mdm_enabled": {
+          "description": "WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.\nThere is no other configuration required for Windows other than enabling\nthe support, but it is still called \"EnabledAndConfigured\" for consistency\nwith the similarly named macOS-specific fields.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "windows_mdm_migration_enabled": {
           "description": "type: `boolean`",
           "type": [
             "boolean",

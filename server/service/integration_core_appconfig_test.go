@@ -1822,7 +1822,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 	// try to enable Windows MDM, impossible without the WSTEP certs
 	// (only set in mdm integrations tests)
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "windows_enabled_and_configured": true }
+		"mdm": { "windows_mdm_enabled": true }
   }`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, "Please configure Fleet with a certificate and key pair first.")

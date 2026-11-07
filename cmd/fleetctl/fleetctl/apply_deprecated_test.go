@@ -310,7 +310,7 @@ spec:
       - %s
     macos_setup:
       macos_setup_assistant: %s
-    windows_enabled_and_configured: true
+    windows_mdm_enabled: true
 `, mobileConfigPath, emptySetupAsst))
 
 	// first apply with dry-run
@@ -2573,7 +2573,7 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    windows_enabled_and_configured: true
+    windows_mdm_enabled: true
 `,
 			wantErr: `422 Validation Failed: Couldn't turn on Windows MDM. Please configure Fleet with a certificate and key pair first.`,
 		},

@@ -985,6 +985,7 @@ type TeamSpecIntegrations struct {
 
 // TeamSpecsDryRunAssumptions holds the assumptions that are made when applying team specs in dry-run mode.
 type TeamSpecsDryRunAssumptions struct {
+	// Keeps the Fleet 4 name: only fleetctl's GitOps dry run sends it, and it is never stored or returned.
 	WindowsEnabledAndConfigured optjson.Bool `json:"windows_enabled_and_configured,omitempty"`
 	AndroidEnabledAndConfigured optjson.Bool `json:"android_enabled_and_configured,omitempty"`
 	EnableProfileValidation     optjson.Bool `json:"enable_profile_validation,omitzero"`

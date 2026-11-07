@@ -207,8 +207,8 @@ type GitOpsControls struct {
 
 	WindowsUpdates                 any `json:"windows_updates"`
 	WindowsSettings                any `json:"windows_settings"`
-	WindowsEnabledAndConfigured    any `json:"windows_enabled_and_configured"`
-	WindowsMigrationEnabled        any `json:"windows_migration_enabled"`
+	WindowsEnabledAndConfigured    any `json:"windows_mdm_enabled" removedkey:"windows_enabled_and_configured"`
+	WindowsMigrationEnabled        any `json:"windows_mdm_migration_enabled" removedkey:"windows_migration_enabled"`
 	EnableTurnOnWindowsMDMManually any `json:"enable_turn_on_windows_mdm_manually"`
 	WindowsEntraTenantIDs          any `json:"windows_entra_tenant_ids"`
 	WindowsEntraClientIDs          any `json:"windows_entra_client_ids"`

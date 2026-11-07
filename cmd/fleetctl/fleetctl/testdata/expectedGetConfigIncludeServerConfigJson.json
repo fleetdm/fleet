@@ -79,7 +79,7 @@
       "apple_bm_terms_expired": false,
       "apple_bm_enabled_and_configured": false,
       "enabled_and_configured": false,
-      "windows_enabled_and_configured": false,
+      "windows_mdm_enabled": false,
       "enable_disk_encryption": false,
       "name_template": null,
       "macos_recovery_lock_password_enabled": false,
@@ -109,7 +109,7 @@
         "deadline_days": 7,
         "grace_period_days": 3
       },
-      "windows_migration_enabled": false,
+      "windows_mdm_migration_enabled": false,
       "enable_turn_on_windows_mdm_manually": false,
       "apple_require_hardware_attestation": false,
       "only_allow_apple_business_enrollment": false,

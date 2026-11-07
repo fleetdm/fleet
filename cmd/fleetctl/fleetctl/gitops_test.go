@@ -820,7 +820,7 @@ func TestGitOpsWindowsEntraIDs(t *testing.T) {
 		_, err = f.WriteString(fmt.Sprintf(`
 controls:
 %s
-  windows_enabled_and_configured: true
+  windows_mdm_enabled: true
   android_enabled_and_configured: true
   windows_entra_tenant_ids:
     - 1a86b496-e2a4-43ef-ba00-20004e29b13b
@@ -1053,7 +1053,7 @@ software:
 		mdm.RequireBitLockerPIN = optjson.SetBool(true)
 		mdm.LinuxSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(true)
 
-		_ = runAppForTest(t, []string{"gitops", "-f", writeGlobalFile(t, "  windows_enabled_and_configured: true")})
+		_ = runAppForTest(t, []string{"gitops", "-f", writeGlobalFile(t, "  windows_mdm_enabled: true")})
 
 		mdm = &(*savedAppConfigPtr).MDM
 		require.False(t, mdm.MacOSSettings.EnableDiskEncryption.Value)
@@ -1069,7 +1069,7 @@ software:
 		testing_utils.SetupFullGitOpsPremiumServer(t)
 		t.Setenv("FLEET_SERVER_URL", fleetServerURL)
 
-		_, err := runAppNoChecks([]string{"gitops", "-f", writeGlobalFile(t, "  windows_enabled_and_configured: true")})
+		_, err := runAppNoChecks([]string{"gitops", "-f", writeGlobalFile(t, "  windows_mdm_enabled: true")})
 		require.NoError(t, err)
 	})
 }
@@ -4117,7 +4117,7 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 controls:
   scripts:
     - path: ./script.sh
-  windows_enabled_and_configured: true
+  windows_mdm_enabled: true
   android_enabled_and_configured: true
   macos_settings:
     custom_settings:
@@ -5297,20 +5297,25 @@ func TestGitOpsWindowsMigration(t *testing.T) {
 	cases := []struct {
 		file    string
 		wantErr string
+		// saved values when the run succeeds
+		wantMDM, wantMigration bool
 	}{
 		// booleans are Windows MDM enabled and Windows migration enabled
-		{"testdata/gitops/global_config_windows_migration_true_true.yml", ""},
-		{"testdata/gitops/global_config_windows_migration_false_true.yml", "Windows MDM is not enabled"},
-		{"testdata/gitops/global_config_windows_migration_true_false.yml", ""},
-		{"testdata/gitops/global_config_windows_migration_false_false.yml", ""},
+		{"testdata/gitops/global_config_windows_migration_true_true.yml", "", true, true},
+		{"testdata/gitops/global_config_windows_migration_false_true.yml", "Windows MDM is not enabled", false, false},
+		{"testdata/gitops/global_config_windows_migration_true_false.yml", "", true, false},
+		{"testdata/gitops/global_config_windows_migration_false_false.yml", "", false, false},
 	}
 	for _, c := range cases {
 		t.Run(filepath.Base(c.file), func(t *testing.T) {
-			testing_utils.SetupFullGitOpsPremiumServer(t)
+			_, savedAppConfigPtr, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 
 			_, err := runAppNoChecks([]string{"gitops", "-f", c.file})
 			if c.wantErr == "" {
 				require.NoError(t, err)
+				mdm := (*savedAppConfigPtr).MDM
+				require.Equal(t, c.wantMDM, mdm.WindowsEnabledAndConfigured)
+				require.Equal(t, c.wantMigration, mdm.WindowsMigrationEnabled)
 			} else {
 				require.ErrorContains(t, err, c.wantErr)
 			}
@@ -6662,7 +6667,7 @@ func TestGitOpsWindowsEULASetting(t *testing.T) {
 			if strings.Contains(setting, "%s") {
 				setting = fmt.Sprintf(setting, mdPath)
 			}
-			cfgPath := writeGitOpsFile(t, dir, eulaGitOpsConfig(fmt.Sprintf("windows_enabled_and_configured: %t", tt.windowsInFile), setting))
+			cfgPath := writeGitOpsFile(t, dir, eulaGitOpsConfig(fmt.Sprintf("windows_mdm_enabled: %t", tt.windowsInFile), setting))
 
 			// Turning Windows MDM off through the config cleans up profiles, which
 			// the shared gitops mocks do not cover.
@@ -6731,7 +6736,7 @@ func TestGitOpsWindowsEULAFreeTierWarns(t *testing.T) {
 	dir := t.TempDir()
 	mdPath := filepath.Join(dir, "terms.md")
 	require.NoError(t, os.WriteFile(mdPath, []byte("# Terms\n"), 0o600))
-	cfgPath := writeGitOpsFile(t, dir, eulaGitOpsConfig("windows_enabled_and_configured: false", fmt.Sprintf(`windows_eula: "%s"`, mdPath)))
+	cfgPath := writeGitOpsFile(t, dir, eulaGitOpsConfig("windows_mdm_enabled: false", fmt.Sprintf(`windows_eula: "%s"`, mdPath)))
 
 	out, err := runAppNoChecks([]string{"gitops", "-f", cfgPath})
 	require.NoError(t, err, out.String())
@@ -6868,7 +6873,7 @@ policies:
 agent_options:
 `, fleetName, profiles)
 			} else {
-				cfg = eulaGitOpsConfig(fmt.Sprintf(`windows_enabled_and_configured: %t
+				cfg = eulaGitOpsConfig(fmt.Sprintf(`windows_mdm_enabled: %t
   windows_settings:
     configuration_profiles: %s`, tt.windowsInFile, profiles), "")
 			}
@@ -6933,7 +6938,7 @@ func TestGitOpsWarnsOnDeletedWindowsProfilesFreeTier(t *testing.T) {
 		return []*fleet.MDMConfigProfilePayload{{ProfileUUID: "wgone", Name: "gone", Platform: "windows"}}, &fleet.PaginationMetadata{}, nil
 	}
 
-	cfgPath := writeGitOpsFile(t, t.TempDir(), eulaGitOpsConfig(`windows_enabled_and_configured: true
+	cfgPath := writeGitOpsFile(t, t.TempDir(), eulaGitOpsConfig(`windows_mdm_enabled: true
   windows_settings:
     configuration_profiles: []`, ""))
 	out, err := runAppNoChecks([]string{"gitops", "-f", cfgPath})
@@ -10162,7 +10167,7 @@ func TestGitOpsMicrosoftGraphCredentials(t *testing.T) {
 		require.NoError(t, err)
 		_, err = f.WriteString(fmt.Sprintf(`
 controls:
-  windows_enabled_and_configured: true
+  windows_mdm_enabled: true
 queries:
 policies:
 agent_options:

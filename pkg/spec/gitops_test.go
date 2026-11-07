@@ -356,9 +356,9 @@ func TestValidGitOpsYaml(t *testing.T) {
 				_, ok = gitops.Controls.IPadOSUpdates.(map[string]interface{})
 				assert.True(t, ok, "ipados_updates not found")
 				_, ok = gitops.Controls.WindowsEnabledAndConfigured.(bool)
-				assert.True(t, ok, "windows_enabled_and_configured not found")
+				assert.True(t, ok, "windows_mdm_enabled not found")
 				_, ok = gitops.Controls.WindowsMigrationEnabled.(bool)
-				assert.True(t, ok, "windows_migration_enabled not found")
+				assert.True(t, ok, "windows_mdm_migration_enabled not found")
 				_, ok = gitops.Controls.EnableTurnOnWindowsMDMManually.(bool)
 				assert.True(t, ok, "enable_turn_on_windows_mdm_manually not found")
 				_, ok = gitops.Controls.WindowsEntraTenantIDs.([]any)
@@ -1902,7 +1902,7 @@ func TestGitOpsPaths(t *testing.T) {
 		},
 		"controls": {
 			isArray:    false,
-			goodConfig: "windows_enabled_and_configured: true\n",
+			goodConfig: "windows_mdm_enabled: true\n",
 		},
 		"reports": {
 			isArray:    true,
@@ -4447,6 +4447,11 @@ software:
 		fleetFile := func(controls, settings string) string {
 			return "name: TeamName\nsettings:\n  secrets:\n" + settings + "agent_options:\ncontrols:\n" + controls + "reports:\npolicies:\nsoftware:\n"
 		}
+		globalFile := func(mdm string) string {
+			return "org_settings:\n  server_settings:\n    server_url: https://fleet.example.com\n" +
+				"  org_info:\n    org_name: Test Org\n  secrets:\n  mdm:\n" + mdm +
+				"controls:\nagent_options:\nreports:\npolicies:\n"
+		}
 		for _, tc := range []struct {
 			name, file, config string
 			// other files next to it, by name
@@ -4458,22 +4463,29 @@ software:
 			{
 				name: "fleet controls", file: "workstations.yml",
 				config: fleetFile("  enable_recovery_lock_password: true\n"+
+					"  windows_enabled_and_configured: true\n  windows_migration_enabled: false\n"+
 					"  macos_setup:\n    require_all_software_macos: true\n    require_all_software_windows: false\n", ""),
 				want: []string{
 					`The "controls.enable_recovery_lock_password" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
 					// the path names the parent by its current name, not the file's alias
 					`The "controls.setup_experience.require_all_software_macos" key is not available anymore.`,
 					`The "controls.setup_experience.require_all_software_windows" key is not available anymore.`,
+					`The "controls.windows_enabled_and_configured" key is not available anymore.`,
+					`The "controls.windows_migration_enabled" key is not available anymore.`,
 				},
 			},
 			{
 				// GitOps used to match keys in any letter case, so these once set the setting.
 				// The message names the registered key.
 				name: "fleet controls in another letter case", file: "workstations.yml",
-				config: fleetFile("  Enable_Recovery_Lock_Password: true\n  setup_experience:\n    REQUIRE_ALL_SOFTWARE_MACOS: true\n", ""),
+				config: fleetFile("  Enable_Recovery_Lock_Password: true\n"+
+					"  Windows_Enabled_And_Configured: true\n  WINDOWS_MIGRATION_ENABLED: true\n"+
+					"  setup_experience:\n    REQUIRE_ALL_SOFTWARE_MACOS: true\n", ""),
 				want: []string{
 					`The "controls.enable_recovery_lock_password" key is not available anymore.`,
 					`The "controls.setup_experience.require_all_software_macos" key is not available anymore.`,
+					`The "controls.windows_enabled_and_configured" key is not available anymore.`,
+					`The "controls.windows_migration_enabled" key is not available anymore.`,
 				},
 			},
 			{
@@ -4505,10 +4517,20 @@ software:
 				want:   []string{`The "settings.mdm.enable_recovery_lock_password" key is not available anymore.`},
 			},
 			{
+				name: "org_settings", file: "default.yml",
+				config: globalFile("    windows_enabled_and_configured: true\n    windows_migration_enabled: true\n"),
+				want: []string{
+					`The "org_settings.mdm.windows_enabled_and_configured" key is not available anymore.`,
+					`The "org_settings.mdm.windows_migration_enabled" key is not available anymore.`,
+				},
+			},
+			{
 				name: "org_settings in another letter case", file: "default.yml",
-				config: "org_settings:\n  server_settings:\n    server_url: https://fleet.example.com\n  org_info:\n    org_name: Test Org\n" +
-					"  secrets:\n  mdm:\n    ENABLE_RECOVERY_LOCK_PASSWORD: true\ncontrols:\nagent_options:\nreports:\npolicies:\n",
-				want: []string{`The "org_settings.mdm.enable_recovery_lock_password" key is not available anymore.`},
+				config: globalFile("    ENABLE_RECOVERY_LOCK_PASSWORD: true\n    Windows_Enabled_And_Configured: true\n"),
+				want: []string{
+					`The "org_settings.mdm.enable_recovery_lock_password" key is not available anymore.`,
+					`The "org_settings.mdm.windows_enabled_and_configured" key is not available anymore.`,
+				},
 			},
 		} {
 			for _, allowUnknown := range []bool{false, true} {
@@ -4850,7 +4872,7 @@ controls:
   macos_updates:
     deadline: null
     minimum_version: null
-  windows_enabled_and_configured: true
+  windows_mdm_enabled: true
 reports:
 policies:
 agent_options:
@@ -4871,6 +4893,7 @@ org_settings:
 		require.NoError(t, err)
 
 		// Verify controls parsed correctly with new key names
+		require.Equal(t, true, gitops.Controls.WindowsEnabledAndConfigured)
 		macSettings, ok := gitops.Controls.MacOSSettings.(fleet.MacOSSettings)
 		require.True(t, ok, "macos_settings (via apple_settings) not parsed")
 		require.Len(t, macSettings.CustomSettings, 1)
@@ -4917,7 +4940,7 @@ setup_experience:
 macos_updates:
   deadline: null
   minimum_version: null
-windows_enabled_and_configured: true
+windows_mdm_enabled: true
 `
 		controlsPath := filepath.Join(dir, "controls.yml")
 		require.NoError(t, os.WriteFile(controlsPath, []byte(controlsYAML), 0o644))
@@ -4945,6 +4968,7 @@ org_settings:
 		require.NoError(t, err)
 
 		// Verify controls parsed correctly from external file with new key names
+		require.Equal(t, true, gitops.Controls.WindowsEnabledAndConfigured)
 		macSettings, ok := gitops.Controls.MacOSSettings.(fleet.MacOSSettings)
 		require.True(t, ok, "macos_settings (via apple_settings in external file) not parsed")
 		require.Len(t, macSettings.CustomSettings, 1)

@@ -282,7 +282,7 @@ type MDM struct {
 	MacOSSettings                  MacOSSettings            `json:"macos_settings" renameto:"apple_settings"`
 	MacOSSetup                     MacOSSetup               `json:"macos_setup" renameto:"setup_experience"`
 	MacOSMigration                 MacOSMigration           `json:"macos_migration"`
-	WindowsMigrationEnabled        bool                     `json:"windows_migration_enabled"`
+	WindowsMigrationEnabled        bool                     `json:"windows_mdm_migration_enabled" removedkey:"windows_migration_enabled" renamescope:"mdm"`
 	EnableTurnOnWindowsMDMManually bool                     `json:"enable_turn_on_windows_mdm_manually"`
 	EndUserAuthentication          MDMEndUserAuthentication `json:"end_user_authentication"`
 
@@ -316,7 +316,7 @@ type MDM struct {
 	// There is no other configuration required for Windows other than enabling
 	// the support, but it is still called "EnabledAndConfigured" for consistency
 	// with the similarly named macOS-specific fields.
-	WindowsEnabledAndConfigured bool `json:"windows_enabled_and_configured"`
+	WindowsEnabledAndConfigured bool `json:"windows_mdm_enabled" removedkey:"windows_enabled_and_configured" renamescope:"mdm"`
 
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
 

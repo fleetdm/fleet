@@ -3433,7 +3433,7 @@ func TestGenerateControlsMDMEnabledAndConfigured(t *testing.T) {
 			controls, err := cmd.generateControls(tc.teamID, "some_team", &fleet.TeamMDM{})
 			require.NoError(t, err)
 
-			for _, key := range []string{"windows_enabled_and_configured", "android_enabled_and_configured"} {
+			for _, key := range []string{"windows_mdm_enabled", "android_enabled_and_configured"} {
 				if tc.wantEmit {
 					assert.Equal(t, true, controls[key], key)
 				} else {
