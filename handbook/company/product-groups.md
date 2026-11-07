@@ -42,7 +42,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 | [Power to the PC](#power-to-the-pc-group)  | Empower Windows users to fully leverage Fleet as an MDM. Measured by Windows devices enrolled with MDM turned on. |
 | [BYOD](#byod-group)                        | The goal of BYOD product group is to increase enrollment of Android devices in Fleet. Measured by Android devices enrolled. |
 | [Website](#website-group)                  | Increase and exceed Fleet's product maturity goals for fleetdm.com. |
-| [First Impressions](#first-impressions-group) | Make changes to the core Fleet product that improve first impressions of Fleet at workshops, conferences, and demos. |
+| [First Impressions](#first-impressions-group) | Improve first impressions of Fleet. Primary focus is the Fleet website, landing pages, and marketing operations, followed by core product improvements. |
 
 
 ### Orchestration group
@@ -188,7 +188,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 
 ### First Impressions group
 
-The goal of the First Impressions product group is to make changes to the core Fleet product that improve first impressions of Fleet at workshops, conferences, and demos.
+The goal of the First Impressions product group is to improve first impressions of Fleet. The primary focus is the Fleet website, landing pages, and marketing operations, followed by core product improvements.
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
