@@ -386,6 +386,14 @@ type SoftDeleteMDMHostCertificatesForUnenrolledHostsFunc func(ctx context.Contex
 
 type CleanupSoftDeletedHostCertificatesFunc func(ctx context.Context, olderThan time.Time) (int64, error)
 
+type UpsertHostAISessionsFunc func(ctx context.Context, hostID uint, sessions []*fleet.HostAISession) error
+
+type ListHostAISessionsNeedingEventsFunc func(ctx context.Context, hostID uint, limit int) ([]*fleet.HostAISessionEventsCursor, error)
+
+type UpsertHostAISessionEventsFunc func(ctx context.Context, hostID uint, requested []*fleet.HostAISessionEventsCursor, events []*fleet.HostAISessionEvent) error
+
+type CleanupHostAISessionsFunc func(ctx context.Context, before time.Time) (int64, error)
+
 type ProfileHasACMEPayloadForCommandFunc func(ctx context.Context, hostUUID string, commandUUID string) (fleet.ProfileACMECommandResult, error)
 
 type OktaCACleanupTargetForInstallCommandFunc func(ctx context.Context, hostUUID string, commandUUID string) (fleet.OktaCACleanupTarget, bool, error)
@@ -3175,6 +3183,18 @@ type DataStore struct {
 
 	CleanupSoftDeletedHostCertificatesFunc        CleanupSoftDeletedHostCertificatesFunc
 	CleanupSoftDeletedHostCertificatesFuncInvoked bool
+
+	UpsertHostAISessionsFunc        UpsertHostAISessionsFunc
+	UpsertHostAISessionsFuncInvoked bool
+
+	ListHostAISessionsNeedingEventsFunc        ListHostAISessionsNeedingEventsFunc
+	ListHostAISessionsNeedingEventsFuncInvoked bool
+
+	UpsertHostAISessionEventsFunc        UpsertHostAISessionEventsFunc
+	UpsertHostAISessionEventsFuncInvoked bool
+
+	CleanupHostAISessionsFunc        CleanupHostAISessionsFunc
+	CleanupHostAISessionsFuncInvoked bool
 
 	ProfileHasACMEPayloadForCommandFunc        ProfileHasACMEPayloadForCommandFunc
 	ProfileHasACMEPayloadForCommandFuncInvoked bool
@@ -7813,6 +7833,34 @@ func (s *DataStore) CleanupSoftDeletedHostCertificates(ctx context.Context, olde
 	s.CleanupSoftDeletedHostCertificatesFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanupSoftDeletedHostCertificatesFunc(ctx, olderThan)
+}
+
+func (s *DataStore) UpsertHostAISessions(ctx context.Context, hostID uint, sessions []*fleet.HostAISession) error {
+	s.mu.Lock()
+	s.UpsertHostAISessionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpsertHostAISessionsFunc(ctx, hostID, sessions)
+}
+
+func (s *DataStore) ListHostAISessionsNeedingEvents(ctx context.Context, hostID uint, limit int) ([]*fleet.HostAISessionEventsCursor, error) {
+	s.mu.Lock()
+	s.ListHostAISessionsNeedingEventsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostAISessionsNeedingEventsFunc(ctx, hostID, limit)
+}
+
+func (s *DataStore) UpsertHostAISessionEvents(ctx context.Context, hostID uint, requested []*fleet.HostAISessionEventsCursor, events []*fleet.HostAISessionEvent) error {
+	s.mu.Lock()
+	s.UpsertHostAISessionEventsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpsertHostAISessionEventsFunc(ctx, hostID, requested, events)
+}
+
+func (s *DataStore) CleanupHostAISessions(ctx context.Context, before time.Time) (int64, error) {
+	s.mu.Lock()
+	s.CleanupHostAISessionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupHostAISessionsFunc(ctx, before)
 }
 
 func (s *DataStore) ProfileHasACMEPayloadForCommand(ctx context.Context, hostUUID string, commandUUID string) (fleet.ProfileACMECommandResult, error) {

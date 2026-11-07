@@ -567,6 +567,25 @@ type Datastore interface {
 	// host_certificate_sources rows. Returns the count deleted.
 	CleanupSoftDeletedHostCertificates(ctx context.Context, olderThan time.Time) (int64, error)
 
+	// UpsertHostAISessions stores the host's AI agent sessions by (agent, agent session ID). Stored sessions missing
+	// from sessions are kept. On the host's first report, the tool calls its sessions made before it are skipped;
+	// sessions first stored later have all their tool calls collected.
+	UpsertHostAISessions(ctx context.Context, hostID uint, sessions []*HostAISession) error
+	// ListHostAISessionsNeedingEvents returns up to limit of the host's stored sessions that still need events, latest
+	// ended first: those with tool calls after their stored events, and those caught up but with recent undecided
+	// events that may have had their decision recorded since they were read (except Cursor sessions, which never
+	// record decisions). Sessions whose last few reads returned no events are left out until they are active again.
+	ListHostAISessionsNeedingEvents(ctx context.Context, hostID uint, limit int) ([]*HostAISessionEventsCursor, error)
+	// UpsertHostAISessionEvents stores tool calls of the host's stored sessions by (session, tool call index),
+	// updating the decision of those already stored, and updates their sessions' actions. Events of sessions that
+
+	// aren't stored are ignored. requested are the sessions the events were asked for: those with none in events count
+	// an empty read.
+	UpsertHostAISessionEvents(ctx context.Context, hostID uint, requested []*HostAISessionEventsCursor, events []*HostAISessionEvent) error
+	// CleanupHostAISessions deletes the sessions, and their events, that started before before, or, when their start is
+	// unknown or in the future, that Fleet last saw change before it. Returns the count of sessions deleted.
+	CleanupHostAISessions(ctx context.Context, before time.Time) (int64, error)
+
 	// ProfileHasACMEPayloadForCommand returns the host/profile gating data
 	// needed to decide whether an InstallProfile ack should trigger a
 	// CertificateList refetch: host platform, profile UUID, whether the

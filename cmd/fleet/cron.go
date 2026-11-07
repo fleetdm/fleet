@@ -1662,6 +1662,13 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob("cleanup_host_certificates", func(ctx context.Context) error {
 			return cleanupHostCertificatesCronJob(ctx, ds, logger, config.Server.DeletedHostCertificatesRetention)
 		}),
+		schedule.WithJob("cleanup_host_ai_sessions", func(ctx context.Context) error {
+			deleted, err := ds.CleanupHostAISessions(ctx, time.Now().UTC().Add(-fleet.HostAISessionsMaxAge))
+			if deleted > 0 {
+				logger.InfoContext(ctx, "cleaned up host ai sessions", "count", deleted)
+			}
+			return err
+		}),
 		schedule.WithJob("cleanup_host_mdm_apple_profiles", func(ctx context.Context) error {
 			return ds.CleanupHostMDMAppleProfiles(ctx)
 		}),

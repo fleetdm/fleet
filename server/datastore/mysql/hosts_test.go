@@ -11016,6 +11016,9 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	err = ds.IncrementHostPolicyAutomationRunCount(ctx, policy.ID, host.ID, fleet.ActivityTypeRanScript{}, true)
 	require.NoError(t, err)
 
+	err = ds.UpsertHostAISessions(ctx, host.ID, []*fleet.HostAISession{{Agent: "claude_code", AgentSessionID: "s1"}})
+	require.NoError(t, err)
+
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
 		var ok bool
