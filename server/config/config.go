@@ -301,6 +301,8 @@ type OsqueryConfig struct {
 	AsyncHostRedisPopCount           int           `yaml:"async_host_redis_pop_count"`
 	AsyncHostRedisScanKeysCount      int           `yaml:"async_host_redis_scan_keys_count"`
 	MinSoftwareLastOpenedAtDiff      time.Duration `yaml:"min_software_last_opened_at_diff"`
+	// DisableAISessionIngestion stops Fleet from collecting AI agent sessions and their tool calls from hosts.
+	DisableAISessionIngestion bool `yaml:"disable_ai_session_ingestion"`
 
 	// MaxLogWriteBodySize overrides the default request body size limit
 	// for the /api/osquery/log endpoint. A value of 0 means use the
@@ -1944,6 +1946,8 @@ func (man Manager) addConfigs() {
 		"(DEPRECATED: Use filesystem.enable_log_rotation) Enable automatic rotation for osquery log files")
 	man.addConfigInt("osquery.max_jitter_percent", 10,
 		"Maximum percentage of the interval to add as jitter")
+	man.addConfigBool("osquery.disable_ai_session_ingestion", false,
+		"Disable collecting AI agent sessions and their tool calls from hosts (Fleet Premium)")
 	man.addConfigString("osquery.enable_async_host_processing", "false",
 		"Enable asynchronous processing of host-reported query results (either 'true'/'false' or set per task, e.g., 'label_membership=true&policy_membership=true')")
 	man.addConfigString("osquery.async_host_collect_interval", (30 * time.Second).String(),
@@ -2511,6 +2515,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			EnableLogRotation:                man.getConfigBool("osquery.enable_log_rotation"),
 			MaxJitterPercent:                 man.getConfigInt("osquery.max_jitter_percent"),
 			EnableAsyncHostProcessing:        man.getConfigString("osquery.enable_async_host_processing"),
+			DisableAISessionIngestion:        man.getConfigBool("osquery.disable_ai_session_ingestion"),
 			AsyncHostCollectInterval:         man.getConfigString("osquery.async_host_collect_interval"),
 			AsyncHostCollectMaxJitterPercent: man.getConfigInt("osquery.async_host_collect_max_jitter_percent"),
 			AsyncHostCollectLockTimeout:      man.getConfigString("osquery.async_host_collect_lock_timeout"),
