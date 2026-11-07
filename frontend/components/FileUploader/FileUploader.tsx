@@ -93,6 +93,10 @@ interface IFileUploaderProps {
   title?: string;
   /** allow error state within the file uploader, as opposed to on its label */
   internalError?: string;
+  /** Show the error in the label slot, replacing the label, like other form
+   * fields. Off by default because some callers already show the error in
+   * `fileDetails`. */
+  errorInLabel?: boolean;
   additionalInfo?: string;
   /** Controls the loading spinner on the upload button */
   isLoading?: boolean;
@@ -152,6 +156,7 @@ export const FileUploader = ({
   message,
   title,
   internalError,
+  errorInLabel = false,
   additionalInfo,
   isLoading = false,
   disabled = false,
@@ -265,10 +270,9 @@ export const FileUploader = ({
   };
 
   const renderLabel = () => {
-    // Like other form fields, the error replaces the label. Without a label,
-    // the error shows in the title slot, which isn't rendered once a file is
-    // selected, so it falls back to the label slot then too.
-    if (errorText && (label || fileDetails)) {
+    // The title slot isn't rendered once a file is selected, so the error
+    // falls back to the label slot then.
+    if (errorInLabel && errorText && (label || fileDetails)) {
       return (
         <div className="form-field__label form-field__label--error">
           {errorText}
@@ -362,7 +366,7 @@ export const FileUploader = ({
   };
 
   const renderTitle = () => {
-    if (errorText && !label) {
+    if (errorText && !(errorInLabel && label)) {
       return <div className={`${baseClass}__internal-error`}>{errorText}</div>;
     }
     if (title) {

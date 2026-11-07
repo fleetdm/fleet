@@ -331,6 +331,7 @@ const OktaConditionalAccessModal = ({
               </>
             }
             internalError={getError(OKTA_CERTIFICATE)}
+            errorInLabel
             onFileUpload={onSelectFile}
             buttonType="secondary"
             buttonMessage="Upload"
