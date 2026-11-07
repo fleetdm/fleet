@@ -1383,6 +1383,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/users", tm1ID), modifyTeamUsersRequest{Users: []fleet.TeamUser{{ID: user.ID, Role: fleet.RoleObserver}}}, http.StatusOK, &tmResp)
 	require.Len(t, tmResp.Team.Users, 1) // nolint:nilaway // DoJSON fails the test unless the response decodes into tmResp
 	assert.Equal(t, user.ID, tmResp.Team.Users[0].ID)
+	assert.Equal(t, user.Email, tmResp.Team.Users[0].Email)
 
 	fleetRoleDetails := fmt.Sprintf(`{"user_id": %d, "user_name": %q, "user_email": %q, "role": %%q, "fleet_id": %d, "fleet_name": %q}`,
 		user.ID, user.Name, user.Email, tm1ID, tmResp.Team.Name)

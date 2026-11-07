@@ -557,6 +557,52 @@ WHERE
 	return team, nil
 }
 
+func (ds *Datastore) UpdateTeamUsers(ctx context.Context, teamID uint, set []fleet.TeamUser, removeIDs []uint) (map[uint]fleet.User, error) {
+	ids := make([]uint, 0, len(set)+len(removeIDs))
+	for _, user := range set {
+		ids = append(ids, user.ID)
+	}
+	ids = append(ids, removeIDs...)
+
+	var previous map[uint]fleet.User
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var err error
+		previous, err = lockUserRolesDB(ctx, tx, ids)
+		if err != nil {
+			return err
+		}
+
+		if len(set) > 0 {
+			const valueStr = "(?,?,?),"
+			args := make([]any, 0, len(set)*3)
+			for _, user := range set {
+				args = append(args, user.ID, teamID, user.Role)
+			}
+			stmt := "INSERT INTO user_teams (user_id, team_id, role) VALUES " +
+				strings.TrimSuffix(strings.Repeat(valueStr, len(set)), ",") +
+				" ON DUPLICATE KEY UPDATE role = VALUES(role)"
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "set team users")
+			}
+		}
+
+		if len(removeIDs) > 0 {
+			stmt, args, err := sqlx.In(`DELETE FROM user_teams WHERE team_id = ? AND user_id IN (?)`, teamID, removeIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build remove team users query")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "remove team users")
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return previous, nil
+}
+
 // ListTeams lists all teams with limit, sort and offset passed in with
 // fleet.ListOptions
 func (ds *Datastore) ListTeams(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {

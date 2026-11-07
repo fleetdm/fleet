@@ -34,12 +34,6 @@ func (svc *Service) ApplyUserRolesSpecs(ctx context.Context, specs fleet.UsersRo
 	}
 
 	var users []*fleet.User
-	type roleChange struct {
-		oldGlobalRole *string
-		oldTeams      []fleet.UserTeam
-		user          *fleet.User
-	}
-	changes := make(map[uint]roleChange, len(specs.Roles))
 	for email, spec := range specs.Roles {
 		user, err := svc.ds.UserByEmail(ctx, email)
 		if err != nil {
@@ -50,7 +44,6 @@ func (svc *Service) ApplyUserRolesSpecs(ctx context.Context, specs fleet.UsersRo
 		if err != nil {
 			return err
 		}
-		oldGlobalRole, oldTeams := user.GlobalRole, user.Teams
 		user.GlobalRole = spec.GlobalRole
 		var teams []fleet.UserTeam
 		for _, team := range spec.Teams {
@@ -71,17 +64,23 @@ func (svc *Service) ApplyUserRolesSpecs(ctx context.Context, specs fleet.UsersRo
 		}
 		user.Teams = teams
 		users = append(users, user)
-		// Spec keys that differ only in case resolve to one user, and the last entry saved wins.
-		changes[user.ID] = roleChange{oldGlobalRole: oldGlobalRole, oldTeams: oldTeams, user: user}
 	}
 
-	if err := svc.ds.SaveUsers(ctx, users); err != nil {
+	previous, err := svc.ds.SaveUsers(ctx, users)
+	if err != nil {
 		return err
 	}
 
+	// Spec keys that differ only in case resolve to one user, and the last entry saved wins.
+	saved := make(map[uint]*fleet.User, len(users))
+	for _, user := range users {
+		saved[user.ID] = user
+	}
+
 	adminUser := authz.UserFromContext(ctx)
-	for _, change := range changes {
-		if err := fleet.LogRoleChangeActivities(ctx, svc, adminUser, change.oldGlobalRole, change.oldTeams, change.user, false); err != nil {
+	for id, user := range saved {
+		old := previous[id]
+		if err := fleet.LogRoleChangeActivities(ctx, svc, adminUser, old.GlobalRole, old.Teams, user, false); err != nil {
 			return ctxerr.Wrap(ctx, err, "log activities for role change")
 		}
 	}
