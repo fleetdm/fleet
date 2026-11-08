@@ -112,7 +112,7 @@ func mdmRunCommand() *cli.Command {
 					return err
 				}
 				// Only GitOps users get an ID-only host (until that's removed in Fleet 5), and they can't run MDM commands.
-				if host.UUID == "" && host.HardwareSerial == "" {
+				if host.UUID == "" && host.HardwareSerial == "" && host.CreatedAt.IsZero() {
 					return errors.New(fleet.GitOpsMDMCommandErrorMessage)
 				}
 
