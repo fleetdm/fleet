@@ -111,8 +111,9 @@ func mdmRunCommand() *cli.Command {
 					}
 					return err
 				}
-				// Only GitOps users get an ID-only host (no UUID), and they can't run MDM commands.
-				if host.UUID == "" {
+				// Only GitOps users get an ID-only host, and they can't run MDM commands. Pending hosts also lack a UUID
+				// until they enroll, but always have a serial.
+				if host.UUID == "" && host.HardwareSerial == "" {
 					return errors.New(fleet.GitOpsMDMCommandErrorMessage)
 				}
 

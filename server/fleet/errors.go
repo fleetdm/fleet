@@ -198,8 +198,8 @@ func (e *ParamRequiredDeprecationError) Error() string {
 }
 
 // GitOpsMDMCommandErrorMessage is returned to GitOps users, who can't run MDM commands since Fleet 5.
-const GitOpsMDMCommandErrorMessage = "Users with the GitOps role can no longer run MDM commands. " +
-	"What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration"
+const GitOpsMDMCommandErrorMessage = "Users with the GitOps role can no longer run MDM commands. What to use instead: " +
+	Fleet5MigrationGuide
 
 // BadRequestError makes the error encoder return a 400.
 func (e *ParamRequiredDeprecationError) BadRequestError() []map[string]string { return nil }
