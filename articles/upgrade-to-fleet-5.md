@@ -210,9 +210,9 @@ GitHub issue: [#53146](https://github.com/fleetdm/fleet/issues/53146)
 
 Fleet 4.95 already supports the new paths, so change them before you upgrade.
 
-- Search for `hosts/identifier/`, `scripts/batch/summary/`, and `configuration_profiles/resend/`, and replace each path.
-- For `hosts/identifier/`, put the identifier where `:id` goes in `GET /hosts/:id`.
-- `POST /hosts/identifier/:identifier/query` doesn't change.
+1. Search for `hosts/identifier/`, `scripts/batch/summary/`, and `configuration_profiles/resend/`, and replace each path.
+   - For `hosts/identifier/`, put the identifier where `:id` goes in `GET /hosts/:id`.
+   - `POST /hosts/identifier/:identifier/query` doesn't change.
 
 GitHub issue: [#53080](https://github.com/fleetdm/fleet/issues/53080)
 
@@ -234,9 +234,9 @@ GitHub issue: [#53080](https://github.com/fleetdm/fleet/issues/53080)
 
 Fleet 4.95 already supports the new endpoints and keys, so change them before you upgrade.
 
-- Search for `abm`, `apple_bm`, and `apple_business_manager` in your scripts and integrations, and replace each match with its Fleet 5 name.
-- The exceptions are `mdm.apple_business_enabled_and_configured` and `mdm.apple_business_terms_expired`, which Fleet 4.95 doesn't return.
-- Have your code read the new key when it's there and fall back to the old one.
+1. Search for `abm`, `apple_bm`, and `apple_business_manager` in your scripts and integrations, and replace each match with its Fleet 5 name.
+   - The exceptions are `mdm.apple_business_enabled_and_configured` and `mdm.apple_business_terms_expired`, which Fleet 4.95 doesn't return.
+2. Have your code read the new key when it's there and fall back to the old one.
 
 GitHub issue: [#53272](https://github.com/fleetdm/fleet/issues/53272)
 
@@ -265,9 +265,8 @@ GitHub issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 
 Fleet 4.95 doesn't support the new names, so you can't change them before you upgrade.
 
-- Change them right after you upgrade.
-- Search for these keys in your scripts and integrations, and rename them.
-- Until you do, calls that use the old names fail with a `422` error like: `The "mdm.enable_recovery_lock_password" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
+1. Right after you upgrade, search for these keys in your scripts and integrations, and rename them.
+   - Until you do, calls that use the old names fail with a `422` error like: `The "mdm.enable_recovery_lock_password" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 
 GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 
@@ -282,9 +281,8 @@ GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 
 Fleet 4.95 doesn't support the new names, so you can't change them before you upgrade.
 
-- Change them right after you upgrade.
-- Search for these keys in your scripts and integrations, and rename them.
-- Until you do, calls that use the old names fail with a `422` error like: `The "mdm.windows_enabled_and_configured" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
+1. Right after you upgrade, search for these keys in your scripts and integrations, and rename them.
+   - Until you do, calls that use the old names fail with a `422` error like: `The "mdm.windows_enabled_and_configured" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 
 GitHub issue: [#53873](https://github.com/fleetdm/fleet/issues/53873)
 
@@ -296,7 +294,10 @@ GitHub issue: [#53873](https://github.com/fleetdm/fleet/issues/53873)
 | `end_user_local_account_type` in the same endpoints | `macos_end_user_local_account_type` |
 | `mdm.windows_settings.enable_managed_local_account` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration), [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration), and fleet settings | `windows_managed_local_account_enabled` in [Update setup experience](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience), and under `mdm.setup_experience` in the same endpoints |
 
-What to do: Search for these keys and rename them. Move the Windows key from `windows_settings` to setup experience.
+#### What to do
+
+1. Search for these keys and rename them.
+2. Move the Windows key from `windows_settings` to setup experience.
 
 GitHub issue: [#50084](https://github.com/fleetdm/fleet/issues/50084)
 
@@ -356,8 +357,10 @@ GitHub issue: [#53877](https://github.com/fleetdm/fleet/issues/53877)
 
 Fleet 4.95 doesn't support `POST /hosts/:id/reset`, so you can't switch to it early. Instead:
 
-1. Before you upgrade, remove the `windows` object from any request that sends `"doWipeProtected"`. Wiping works the same.
-2. After you upgrade, use `POST /hosts/:id/reset` instead of `"doWipe"` to repurpose hosts. Until you do, Windows wipes that pass a `windows` object fail with a `422` error like: `The "windows" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
+1. Before you upgrade, remove the `windows` object from any request that sends `"doWipeProtected"`.
+   - Wiping works the same.
+2. After you upgrade, use `POST /hosts/:id/reset` instead of `"doWipe"` to repurpose hosts.
+   - Until you do, Windows wipes that pass a `windows` object fail with a `422` error like: `The "windows" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 
 GitHub issue: [#55003](https://github.com/fleetdm/fleet/issues/55003)
 
@@ -419,8 +422,10 @@ GitHub issues: [#54408](https://github.com/fleetdm/fleet/issues/54408), [#54410]
 
 Make these changes before you upgrade.
 
-- Change `centos` and `ubuntu` label platforms to `linux`. If you don't, Fleet 5 changes them to `linux` for you.
-- Identify hosts in manual labels by `hardware_serial` or `uuid`, or pass their IDs in `host_ids`. Fleet 5 ignores a `hostname`, `node_key`, or `osquery_host_id` in `hosts`.
+- Change `centos` and `ubuntu` label platforms to `linux`.
+  - If you don't, Fleet 5 changes them to `linux` for you.
+- Identify hosts in manual labels by `hardware_serial` or `uuid`, or pass their IDs in `host_ids`.
+  - Fleet 5 ignores a `hostname`, `node_key`, or `osquery_host_id` in `hosts`.
 
 A label with the `linux` platform runs its query on every Linux host. Its current hosts stay, but it can add hosts running other Linux distributions if its query matches them.
 
@@ -534,8 +539,8 @@ GitHub issue: [#57406](https://github.com/fleetdm/fleet/issues/57406)
 
 Change these before you upgrade.
 
-- Call [List certificate authorities](https://fleetdm.com/docs/rest-api/rest-api#list-certificate-authorities-cas), find CAs that share a `name`, and rename them.
-- Update the configuration profiles that reference them.
+1. Call [List certificate authorities](https://fleetdm.com/docs/rest-api/rest-api#list-certificate-authorities-cas), find CAs that share a `name`, and rename them.
+2. Update the configuration profiles that reference them.
 
 GitHub issue: [#56271](https://github.com/fleetdm/fleet/issues/56271)
 
@@ -561,10 +566,10 @@ GitHub issue: [#53790](https://github.com/fleetdm/fleet/issues/53790)
 
 #### What to do
 
-- Before you upgrade, replace `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` with `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` in your configuration profiles, managed app configurations, and the DigiCert CA fields `certificate_common_name`, `certificate_user_principal_names`, and `certificate_seat_id`.
-- Profiles and DigiCert CA fields that still use the old variable fail after you upgrade.
-- Editing the DigiCert CA fields reissues certificates to every host that uses the CA.
-- See [Fleet variables](https://fleetdm.com/guides/fleet-variables).
+1. Before you upgrade, replace `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` with `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` in your configuration profiles, managed app configurations, and the DigiCert CA fields `certificate_common_name`, `certificate_user_principal_names`, and `certificate_seat_id`.
+   - Profiles and DigiCert CA fields that still use the old variable fail after you upgrade.
+   - Editing the DigiCert CA fields reissues certificates to every host that uses the CA.
+   - See [Fleet variables](https://fleetdm.com/guides/fleet-variables).
 
 GitHub issue: [#57603](https://github.com/fleetdm/fleet/issues/57603)
 
@@ -578,9 +583,9 @@ GitHub issue: [#57603](https://github.com/fleetdm/fleet/issues/57603)
 
 Change these before you upgrade.
 
-- Convert 2017 packs into reports.
-- See [fleetctl upgrade-packs](#packs-commands-removed).
-- 2017 packs stop running on hosts after the upgrade.
+1. Convert 2017 packs into reports.
+   - See [fleetctl upgrade-packs](#packs-commands-removed).
+   - 2017 packs stop running on hosts after the upgrade.
 
 GitHub issue: [#53470](https://github.com/fleetdm/fleet/issues/53470)
 
@@ -594,8 +599,8 @@ GitHub issue: [#53470](https://github.com/fleetdm/fleet/issues/53470)
 
 Change these before you upgrade.
 
-- If you use the Puppet module, assign configuration profiles to fleets in the UI, API, or GitOps instead, and move hosts between fleets the same way.
-- Fleets the module created stay as regular fleets.
+1. If you use the Puppet module, assign configuration profiles to fleets in the UI, API, or GitOps instead, and move hosts between fleets the same way.
+   - Fleets the module created stay as regular fleets.
 
 GitHub issue: [#28334](https://github.com/fleetdm/fleet/issues/28334)
 
@@ -671,8 +676,8 @@ GitHub issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 
 Fleet 4.95 doesn't support the new names, so you can't change them before you upgrade.
 
-- After you upgrade, rename these keys before your next GitOps run.
-- Until you do, your GitOps run fails with an error like: `The "controls.enable_recovery_lock_password" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
+1. After you upgrade, rename these keys before your next GitOps run.
+   - Until you do, your GitOps run fails with an error like: `The "controls.enable_recovery_lock_password" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 
 GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 
@@ -687,8 +692,8 @@ GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 
 Fleet 4.95 doesn't support the new names, so you can't change them before you upgrade.
 
-- After you upgrade, rename these keys before your next GitOps run.
-- Until you do, your GitOps run fails with an error like: `The "controls.windows_enabled_and_configured" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
+1. After you upgrade, rename these keys before your next GitOps run.
+   - Until you do, your GitOps run fails with an error like: `The "controls.windows_enabled_and_configured" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 
 GitHub issue: [#53873](https://github.com/fleetdm/fleet/issues/53873)
 
@@ -700,7 +705,10 @@ GitHub issue: [#53873](https://github.com/fleetdm/fleet/issues/53873)
 | `end_user_local_account_type` under `controls.setup_experience` (or `controls.macos_setup`) | `macos_end_user_local_account_type` ([docs](https://fleetdm.com/docs/configuration/yaml-files#setup-experience)) |
 | `controls.windows_settings.enable_managed_local_account` | `controls.setup_experience.windows_managed_local_account_enabled` ([docs](https://fleetdm.com/docs/configuration/yaml-files#setup-experience)) |
 
-What to do: Rename these keys. Move the Windows key from `windows_settings` to `setup_experience`.
+#### What to do
+
+1. Rename these keys.
+2. Move the Windows key from `windows_settings` to `setup_experience`.
 
 GitHub issue: [#50084](https://github.com/fleetdm/fleet/issues/50084)
 
@@ -772,7 +780,8 @@ GitHub issue: [#33769](https://github.com/fleetdm/fleet/issues/33769)
 
 Make these changes before you upgrade.
 
-- Change `centos` and `ubuntu` label platforms to `linux`. Fleet 5 GitOps runs fail on `centos` or `ubuntu`.
+- Change `centos` and `ubuntu` label platforms to `linux`.
+  - Fleet 5 GitOps runs fail on `centos` or `ubuntu`.
 - Identify hosts in manual labels by something other than `hostname`.
 
 A label with the `linux` platform runs its query on every Linux host. Its current hosts stay, but it can add hosts running other Linux distributions if its query matches them.
@@ -803,8 +812,8 @@ GitHub issues: [#52905](https://github.com/fleetdm/fleet/issues/52905), [#53924]
 
 Change these before you upgrade.
 
-- Add these settings to your YAML with the values you use today.
-- To get the current values, run `fleetctl generate-gitops`.
+1. To get the current values, run `fleetctl generate-gitops`.
+2. Add these settings to your YAML with the values you use today.
 
 GitHub issue: [#53899](https://github.com/fleetdm/fleet/issues/53899)
 
@@ -818,8 +827,8 @@ GitHub issue: [#53899](https://github.com/fleetdm/fleet/issues/53899)
 
 Change these before you upgrade.
 
-- Remove `scripts_disabled` from your YAML.
-- To keep scripts off, deploy fleetd without `--enable-scripts`.
+1. Remove `scripts_disabled` from your YAML.
+2. To keep scripts off, deploy fleetd without `--enable-scripts`.
 
 GitHub issue: [#53897](https://github.com/fleetdm/fleet/issues/53897)
 
@@ -847,7 +856,8 @@ GitHub issue: [#53378](https://github.com/fleetdm/fleet/issues/53378)
 
 Change these before you upgrade.
 
-Rename CAs that share a name, and update the configuration profiles that reference them.
+1. Rename CAs that share a name.
+2. Update the configuration profiles that reference them.
 
 GitHub issue: [#56271](https://github.com/fleetdm/fleet/issues/56271)
 
@@ -860,10 +870,10 @@ GitHub issue: [#56271](https://github.com/fleetdm/fleet/issues/56271)
 
 #### What to do
 
-- Before you upgrade, replace `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` with `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` in your configuration profiles and in the DigiCert keys.
-- Profiles and DigiCert keys that still use the old variable fail after you upgrade.
-- Editing the DigiCert keys reissues certificates to every host that uses the CA.
-- See [Fleet variables](https://fleetdm.com/guides/fleet-variables).
+1. Before you upgrade, replace `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` with `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` in your configuration profiles and in the DigiCert keys.
+   - Profiles and DigiCert keys that still use the old variable fail after you upgrade.
+   - Editing the DigiCert keys reissues certificates to every host that uses the CA.
+   - See [Fleet variables](https://fleetdm.com/guides/fleet-variables).
 
 GitHub issue: [#57603](https://github.com/fleetdm/fleet/issues/57603)
 
@@ -881,8 +891,8 @@ GitHub issue: [#57603](https://github.com/fleetdm/fleet/issues/57603)
 
 #### What to do
 
-- Search your scripts and CI for `--team`, `--policies-team`, `--delete-other-teams`, `no-team`, and `get teams`, and replace each match.
-- The new flags already work in Fleet 4.95.
+1. Search your scripts and CI for `--team`, `--policies-team`, `--delete-other-teams`, `no-team`, and `get teams`, and replace each match.
+   - The new flags already work in Fleet 4.95.
 
 GitHub issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
 
@@ -907,8 +917,8 @@ GitHub issue: [#53146](https://github.com/fleetdm/fleet/issues/53146)
 
 #### What to do
 
-- Replace `mdm-apple-bm` with `mdm-ab`.
-- It already works in Fleet 4.95.
+1. Replace `mdm-apple-bm` with `mdm-ab`.
+   - It already works in Fleet 4.95.
 
 GitHub issue: [#53272](https://github.com/fleetdm/fleet/issues/53272)
 
@@ -930,7 +940,9 @@ GitHub issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 |:--|:--|
 | `fleetctl get config` and `fleetctl get fleets` print `enable_create_local_admin_account` and `end_user_local_account_type` under `macos_setup`, and `enable_managed_local_account` under `windows_settings` | They print `macos_managed_local_account_enabled`, `macos_end_user_local_account_type`, and `windows_managed_local_account_enabled` under `setup_experience` |
 
-What to do: Update scripts that read these keys from `fleetctl get config` or `fleetctl get fleets` output.
+#### What to do
+
+Update scripts that read these keys from `fleetctl get config` or `fleetctl get fleets` output.
 
 GitHub issue: [#50084](https://github.com/fleetdm/fleet/issues/50084)
 
@@ -967,8 +979,8 @@ GitHub issue: [#49909](https://github.com/fleetdm/fleet/issues/49909)
 
 #### What to do
 
-- Before you upgrade, run `fleetctl upgrade-packs -o packs-to-reports.yml` on Fleet 4.95, review the file, and apply it with `fleetctl apply -f packs-to-reports.yml`.
-- 2017 packs stop running on hosts after the upgrade.
+1. Before you upgrade, run `fleetctl upgrade-packs -o packs-to-reports.yml` on Fleet 4.95, review the file, and apply it with `fleetctl apply -f packs-to-reports.yml`.
+   - 2017 packs stop running on hosts after the upgrade.
 
 GitHub issue: [#53470](https://github.com/fleetdm/fleet/issues/53470)
 
@@ -980,8 +992,8 @@ GitHub issue: [#53470](https://github.com/fleetdm/fleet/issues/53470)
 
 #### What to do
 
-- Update scripts and CI that use the file names.
-- `fleetctl package` leaves out the fleet name if it can't find it, for example when you're not logged in to `fleetctl` or the enroll secret is global (hosts in Unassigned).
+1. Update scripts and CI that use the file names.
+   - `fleetctl package` leaves out the fleet name if it can't find it, for example when you're not logged in to `fleetctl` or the enroll secret is global (hosts in Unassigned).
 
 GitHub issue: [#53365](https://github.com/fleetdm/fleet/issues/53365)
 
@@ -999,8 +1011,8 @@ GitHub issue: [#53365](https://github.com/fleetdm/fleet/issues/53365)
 
 #### What to do
 
-- Rename the options and environment variables in the same deploy that upgrades to Fleet 5.
-- Fleet 5 doesn't start if an old one is still set.
+1. Rename the options and environment variables in the same deploy that upgrades to Fleet 5.
+   - Fleet 5 doesn't start if an old one is still set.
 
 GitHub issue: [#53272](https://github.com/fleetdm/fleet/issues/53272)
 
@@ -1012,10 +1024,10 @@ GitHub issue: [#53272](https://github.com/fleetdm/fleet/issues/53272)
 
 #### What to do
 
-- If you use the [manual enrollment profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#get-manual-enrollment-profile), set `mdm.apple_scep_static_challenge_enabled` (`FLEET_MDM_APPLE_SCEP_STATIC_CHALLENGE_ENABLED`) to `true`.
-- That turns the static SCEP challenge back on for all Apple MDM enrollments, so anyone with the challenge can turn on MDM for any host.
-- Previously downloaded profiles stop working.
-- Hosts that already have MDM on aren't affected.
+1. If you use the [manual enrollment profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#get-manual-enrollment-profile), set `mdm.apple_scep_static_challenge_enabled` (`FLEET_MDM_APPLE_SCEP_STATIC_CHALLENGE_ENABLED`) to `true`.
+   - That turns the static SCEP challenge back on for all Apple MDM enrollments, so anyone with the challenge can turn on MDM for any host.
+   - Previously downloaded profiles stop working.
+   - Hosts that already have MDM on aren't affected.
 
 GitHub issue: [#54190](https://github.com/fleetdm/fleet/issues/54190)
 
@@ -1028,8 +1040,8 @@ GitHub issue: [#54190](https://github.com/fleetdm/fleet/issues/54190)
 
 #### What to do
 
-- Remove these options from your server configuration.
-- Data still waiting in Redis when you upgrade is dropped and corrected on the next check-in.
+1. Remove these options from your server configuration.
+   - Data still waiting in Redis when you upgrade is dropped and corrected on the next check-in.
 
 GitHub issue: [#54009](https://github.com/fleetdm/fleet/issues/54009)
 
@@ -1056,9 +1068,9 @@ GitHub issue: [#53787](https://github.com/fleetdm/fleet/issues/53787)
 
 #### What to do
 
-- Rename the attribute in your IdP before you upgrade.
-- Fleet 4.95 already accepts the new name.
-- Fleet 5 ignores the old one, so new users who log in with SSO get the global Observer role, and existing users keep the roles they have now.
+1. Rename the attribute in your IdP before you upgrade.
+   - Fleet 4.95 already accepts the new name.
+   - Fleet 5 ignores the old one, so new users who log in with SSO get the global Observer role, and existing users keep the roles they have now.
 
 GitHub issue: [#53925](https://github.com/fleetdm/fleet/issues/53925)
 
@@ -1094,8 +1106,8 @@ GitHub issues: [#52795](https://github.com/fleetdm/fleet/issues/52795), [#53481]
 
 #### What to do
 
-- Add the new names to EDR, monitoring, and firewall rules, and update scripts that call `launchctl` or `systemctl` with the old names.
-- Keep the old names until every host runs the new fleetd.
+1. Add the new names to EDR, monitoring, and firewall rules, and update scripts that call `launchctl` or `systemctl` with the old names.
+2. Keep the old names until every host runs the new fleetd.
 
 GitHub issue: [#56803](https://github.com/fleetdm/fleet/issues/56803)
 
@@ -1123,7 +1135,8 @@ GitHub issue: [#52800](https://github.com/fleetdm/fleet/issues/52800)
 
 #### What to do
 
-- If you run a setup experience script, add it as a [script-only package](https://fleetdm.com/guides/deploy-software-packages#script-only-packages) to setup experience software instead. This is the best practice.
+- If you run a setup experience script, add it as a [script-only package](https://fleetdm.com/guides/deploy-software-packages#script-only-packages) to setup experience software instead.
+  - This is the best practice.
 - To keep scripts off, deploy fleetd without `--enable-scripts`.
 
 GitHub issues: [#53274](https://github.com/fleetdm/fleet/issues/53274), [#53897](https://github.com/fleetdm/fleet/issues/53897)
