@@ -443,7 +443,7 @@ SELECT 1 FROM os_version WHERE platform = 'ubuntu' AND EXISTS (SELECT 1 FROM deb
 
 For a CentOS label, use `name LIKE '%centos%'` instead of `platform = 'ubuntu'`. Some CentOS hosts report `rhel` as their platform, so check the name.
 
-[Update label](https://fleetdm.com/docs/rest-api/rest-api#update-label) can't change a label's query or platform. Use [GitOps](https://fleetdm.com/docs/configuration/yaml-files#labels) or `fleetctl apply` instead.
+[Update label](https://fleetdm.com/docs/rest-api/rest-api#update-label) can't change a label's query or platform. With the API, delete the label with [Delete label by ID](https://fleetdm.com/docs/rest-api/rest-api#delete-label-by-id) and create a new one with [Add label](https://fleetdm.com/docs/rest-api/rest-api#add-label). With [GitOps](https://fleetdm.com/docs/configuration/yaml-files#labels), change the label's `query` or `platform` in your YAML.
 
 GitHub issues: [#52905](https://github.com/fleetdm/fleet/issues/52905), [#53924](https://github.com/fleetdm/fleet/issues/53924)
 
@@ -979,8 +979,11 @@ GitHub issue: [#49909](https://github.com/fleetdm/fleet/issues/49909)
 
 #### What to do
 
-1. Before you upgrade, run `fleetctl upgrade-packs -o packs-to-reports.yml` on Fleet 4.95, review the file, and apply it with `fleetctl apply -f packs-to-reports.yml`.
+1. Before you upgrade, run `fleetctl upgrade-packs -o packs-to-reports.yml` on Fleet 4.95 and review the file.
    - 2017 packs stop running on hosts after the upgrade.
+2. Add the reports to Fleet with [GitOps (YAML)](https://fleetdm.com/docs/configuration/yaml-files#reports) or [Create report](https://fleetdm.com/docs/rest-api/rest-api#create-report) (API).
+   - With GitOps, copy each report's settings from under `spec:` into `reports` in `default.yml` or the fleet's YAML file.
+   - With the API, call `POST /api/v1/fleet/reports` once for each report.
 
 GitHub issue: [#53470](https://github.com/fleetdm/fleet/issues/53470)
 
