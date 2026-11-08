@@ -5,7 +5,7 @@ Fleet already knows what hardware your computers run, which apps people open, an
 - Hardware lifecycle: which computers to replace, repair, or leave alone.
 - Software usage: which installed apps nobody opens.
 - Patch velocity: how fast new versions reach every computer, measured against the latest releases from Apple and Microsoft. Rollouts in progress can show only the apps you have patch policies for.
-- AI governance: which AI tools people use, how they're set up, and which settings put data at risk.
+- AI governance: which AI tools people use, how much coding agents are used and with which models, how they're set up, and which settings put data at risk.
 - Connectivity: which computers stopped checking in, and which Macs have weak Wi-Fi or no network path.
 - Analytics: whether the data behind the dashboards is complete and fresh, plus security posture and Fleet agent versions.
 - Sustainability: how much energy your Macs use, which computers never sleep, and which laptop batteries need service.
@@ -18,7 +18,7 @@ A daily [Claude Code routine](https://code.claude.com/docs/en/routines) reads th
 ## How it works
 
 - A cloud environment holds a read-only Fleet API token and can reach only your Fleet server.
-- Once a day, the routine runs a set of Python scripts from Fleet's repository. They read your hosts, their software, and 13 DEX reports, then build the eight pages and the overview.
+- Once a day, the routine runs a set of Python scripts from Fleet's repository. They read your hosts, their software, and 14 DEX reports, then build the eight pages and the overview.
 - Each dashboard stores a small history file next to its page. Every run reads the history back and adds a day. Patch velocity uses it to time how long each new version takes to reach every computer, Hardware lifecycle uses it to tell sustained memory strain on a Mac from a single bad day, and Sustainability uses it to turn each Mac's running energy total into kWh per day. Each page also charts its key numbers over time, for up to a year, and the overview reads the same daily counts, so its numbers match each dashboard's. All of this gets more useful over the first few weeks.
 
 ## Tradeoffs
@@ -51,23 +51,24 @@ These dashboards replace a business intelligence (BI) tool with a scheduled Clau
 - A global admin account in Fleet, to add the reports and create the API-only user.
 - A Claude account that can use Claude Code [routines](https://code.claude.com/docs/en/routines), [cloud environments](https://code.claude.com/docs/en/cloud-environments), and artifacts.
 - Claude Code on your computer, for the one-time setup.
-- fleetd 1.59.0 or later on your computers, for the AI governance dashboard. It reads fleetd's `ai_tools` table.
+- fleetd 1.59.0 or later on your computers, for the AI governance dashboard. It reads fleetd's `ai_tools` table. Its agent usage section needs fleetd 1.64.0 or later, for the `ai_agent_sessions` table.
 - fleetd on your computers, for the Sustainability dashboard. Its reports read fleetd's `ioreg`, `pmset`, `file_lines`, and `dconf_read` tables.
 - Optional: the Slack connector in Claude, if you want a Slack message when a run fails.
 - Optional: [GeoIP](https://fleetdm.com/docs/configuration/fleet-server-configuration#geoip) on your Fleet server, so Sustainability can estimate carbon from each computer's country. Without it, set `DEX_GRID_INTENSITY` in step 3.
 - Optional: warranty end dates in a [custom host vital](https://fleetdm.com/guides/custom-host-vitals) (Fleet 4.90.0 or later), formatted `YYYY-MM-DD`. Hardware lifecycle shows a warranty chart when it finds one.
 
-> **Note:** Software usage lists, per computer, when each app was last opened, and AI governance lists the AI tools, MCP servers, and agent instruction files on each computer. Before you share them, check that your organization's privacy commitments allow showing that to the people you share them with. AI governance never shows command lines, launch arguments, environment values, or usernames.
+> **Note:** Software usage lists, per computer, when each app was last opened, and AI governance lists the AI tools, MCP servers, and agent instruction files on each computer. Before you share them, check that your organization's privacy commitments allow showing that to the people you share them with. AI governance never shows command lines, launch arguments, environment values, or usernames. Its agent usage report sends counts per day, agent, model, and sign-in type, plus the domain of a sign-in email, and the page shows them as totals, not per person.
 
 ## Step 1: Add the DEX reports
 
-The dashboards read 13 reports, all in [`dex-reports.yml`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/dex-dashboards/dex-reports.yml):
+The dashboards read 14 reports, all in [`dex-reports.yml`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/dex-dashboards/dex-reports.yml):
 
 | Report | Platforms | What reads it |
 |:--|:--|:--|
 | `DEX - Hardware experience - Device health` | macOS | Hardware lifecycle, for memory pressure and battery health. |
 | `DEX - System experience - OS health` | macOS | Patch velocity, for macOS build numbers, so it can leave betas out. |
 | `DEX - AI governance - AI tools per host` | macOS, Windows, Linux | AI governance. It packs every AI tool fleetd finds into one row per computer, so a report row limit doesn't cut computers off. |
+| `DEX - AI governance - AI agent usage per host` | macOS, Windows, Linux | AI governance, for coding agent sessions, tokens, models, and sign-in types over the last 30 days. It needs fleetd 1.64.0 or later. |
 | `DEX - Network experience - Wi-Fi signal quality` | macOS | Connectivity, for signal strength, noise, and band. |
 | `DEX - Network experience - VPN gate` | macOS | Connectivity, for whether a Mac's traffic goes through a VPN tunnel, goes direct, or has no network. |
 | `DEX - System experience - Security posture` | macOS | Analytics, for FileVault, System Integrity Protection, Gatekeeper, and the firewall. |
@@ -90,7 +91,7 @@ reports:
 
 The path is relative to the file it's in. This example is for a file in `fleets/`. In `default.yml`, use `./lib/all/reports/dex-reports.yml`.
 
-- **UI:** create the 13 reports from `dex-reports.yml` in the Fleet UI, with the same names, SQL, and platforms.
+- **UI:** create the 14 reports from `dex-reports.yml` in the Fleet UI, with the same names, SQL, and platforms.
 
 Keep the report names exactly as written. The scripts find each report by name, in any fleet or in **All fleets**.
 
@@ -107,7 +108,7 @@ The scripts only read data. Create an API-only user that can read only what they
 | Endpoint | Why the dashboards need it |
 |:--|:--|
 | [List hosts](https://fleetdm.com/docs/rest-api/rest-api#list-hosts) (`GET /api/v1/fleet/hosts`) | Hardware, OS version, check-in times, disk encryption, MDM enrollment, failing policies, and each host's software with its last-opened time. |
-| [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) (`GET /api/v1/fleet/hosts/:id`) | Battery health (macOS and Windows), custom host vitals such as warranty dates, each computer's policy results, and its country from GeoIP. |
+| [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) (`GET /api/v1/fleet/hosts/:id`) | Battery health (macOS and Windows), custom host vitals such as warranty dates, each computer's policy results, its country from GeoIP, and the department and email domain of its end user from your identity provider. |
 | [List fleets](https://fleetdm.com/docs/rest-api/rest-api#list-fleets) (`GET /api/v1/fleet/fleets`) | Finds the DEX reports in each fleet. |
 | [List reports](https://fleetdm.com/docs/rest-api/rest-api#list-reports) (`GET /api/v1/fleet/reports`) | Looks up each DEX report by name. |
 | [Get report data](https://fleetdm.com/docs/rest-api/rest-api#get-report-data) (`GET /api/v1/fleet/reports/:id/report`) | Reads the stored DEX report results. |
@@ -136,6 +137,7 @@ FLEET_API_TOKEN=<api-only-user-token>
 
 3. Optional: if your warranty dates are in a custom host vital with another name, add `DEX_WARRANTY_VITAL=<vital name>`. The default is `AppleCare warranty expiration`.
 4. Optional: to estimate carbon for computers with no GeoIP country, add `DEX_GRID_INTENSITY=<grams of CO2 per kWh>`. Without it, Sustainability uses the figure for your most common country.
+5. Optional: to set which email domains count as company sign-ins for coding agents, add `DEX_COMPANY_DOMAINS=<domain>,<domain>`. Without it, AI governance uses the domains of the end users Fleet has from your identity provider.
 
 > **Warning:** Anyone who can use an environment can read its environment variables. Keep this environment to yourself.
 
@@ -287,6 +289,10 @@ The fleet is too large for these dashboards. Use a data pipeline instead (see "C
 **AI governance says "No AI tool inventory yet"**
 
 The AI tools report has no stored results. Check that it's assigned to your fleets and that your computers run fleetd 1.59.0 or later. The report runs hourly.
+
+**AI governance says "Agent usage isn't set up yet" or "No computer has reported agent usage yet"**
+
+Add the `DEX - AI governance - AI agent usage per host` report from `dex-reports.yml` (step 1). It reads the `ai_agent_sessions` table, so only computers with fleetd 1.64.0 or later send results.
 
 **Connectivity says "Wi-Fi report not set up" or "VPN gate report not set up"**
 

@@ -31,6 +31,9 @@
 .log li { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--line); color: var(--ink-2); }
 .log li:last-child { border-bottom: 0; }
 .log li b { color: var(--ink); }
+.panel-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; margin-bottom: 12px; }
+.panel-head h3 { margin: 0; }
+.usage-hint { margin: 0; }
 pre.yaml { font-family: var(--font-mono); font-size: 12px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 12px; overflow-x: auto; max-height: 260px; margin: 12px 0 0; color: var(--ink); }
 .flash { color: var(--ink-2); font-size: 12px; }
 </style>
@@ -40,7 +43,7 @@ pre.yaml { font-family: var(--font-mono); font-size: 12px; background: var(--pan
   <div class="title-row">
     <div>
       <h1>AI governance</h1>
-      <p class="subtitle">Which AI tools run on your computers, how they're set up, and which settings put code, credentials, or data at risk. From fleetd's AI tool inventory on macOS, Windows, and Linux.</p>
+      <p class="subtitle">Which AI tools run on your computers, how much coding agents are used and with which models, and which settings put code, credentials, or data at risk. From fleetd's AI tool inventory and agent sessions on macOS, Windows, and Linux.</p>
     </div>
     <div class="title-tools" id="title-tools"></div>
   </div>
@@ -66,6 +69,15 @@ pre.yaml { font-family: var(--font-mono); font-size: 12px; background: var(--pan
       <div class="panel"><h3>How AI tools run</h3><div id="surfaces"></div></div>
       <div class="panel"><h3>Agent instruction files</h3><div id="instructions"></div></div>
     </div>
+  </section>
+
+  <section class="sec" aria-labelledby="usage-h">
+    <div class="sec-head">
+      <h2 id="usage-h">Agent usage</h2>
+      <div class="trend-tools" id="usage-tools"></div>
+    </div>
+    <p class="hint usage-hint" id="usage-hint"></p>
+    <div id="usage"></div>
   </section>
 
   <section class="sec" aria-labelledby="prod-h">
@@ -105,6 +117,10 @@ pre.yaml { font-family: var(--font-mono); font-size: 12px; background: var(--pan
     </div>
     <div class="policy">
       <div class="panel"><h3>Decisions by product</h3><div id="decisions"></div></div>
+      <div class="panel"><h3>Decisions by model</h3><div id="model-decisions"></div></div>
+    </div>
+    <div class="policy">
+      <div class="panel"><h3>Agent sign-in</h3><div id="signin"></div></div>
       <div class="panel"><h3>Change log</h3><div id="log"></div></div>
     </div>
   </section>
@@ -114,15 +130,16 @@ pre.yaml { font-family: var(--font-mono); font-size: 12px; background: var(--pan
     <div class="cols">
       <div>
         <p><span class="term">Source:</span> fleetd's <code>ai_tools</code> table, read by the <code id="report-name"></code> report every hour. It finds AI desktop apps, command-line agents, editor plugins, browser extensions, MCP servers, live connections to AI services, and agent instruction files. It needs fleetd 1.59.0 or later. Computers that haven't checked in for <span id="stale-days"></span> days are left out.</p>
-        <p><span class="term">Active:</span> a product counts as active on a computer when the report saw it running or connected to an AI service, or when Fleet's software inventory shows its app was opened. The report runs hourly, so a tool used briefly between runs can be missed. Activity history starts <span id="since"></span>.</p>
+        <p><span class="term">Active:</span> a product counts as active on a computer when the report saw it running or connected to an AI service, when Fleet's software inventory shows its app was opened, or when its coding agent ran a session there. The report runs hourly, so a tool used briefly between runs can be missed. Activity history starts <span id="since"></span>.</p>
       </div>
       <div>
         <p><span class="term">Products:</span> a desktop app, command-line agent, editor plugin, or browser extension from the same product counts once per computer. "How it runs" lists each way it's installed. MCP servers and instruction files are counted on their own.</p>
         <p><span class="term">Risk findings:</span> the table's own risk flags, such as an agent started with an auto-approve flag or a credential in an MCP config. Severity is this dashboard's judgment of how much each one exposes.</p>
+        <p><span class="term">Agent usage:</span> fleetd's <code>ai_agent_sessions</code> table, read by the <code>DEX - AI governance - AI agent usage per host</code> report every hour. It needs fleetd 1.64.0 or later and covers Claude Code, Codex, Gemini CLI, Copilot CLI, and Cursor sessions in every user's home folder. Each computer sends its last 30 days, so recent days fill in as computers report. A session counts on the day it was last active, under the last model its main agent used, with its sub-agents' tokens. Input tokens include prompt cache reads and writes. Cursor records no model or token counts.</p>
       </div>
       <div>
         <p><span class="term">Policy:</span> decisions and the posture are saved with this dashboard and every change is logged with who made it and when. Only people who can edit the dashboard can change them. Fleet enforces them through the policies you copy from "Enforce it in Fleet."</p>
-        <p><span class="term">Privacy:</span> the dashboard never shows command lines, launch arguments, environment values, or usernames. File paths start at <code>~</code>, so they don't include a username.</p>
+        <p><span class="term">Privacy:</span> the dashboard never shows command lines, launch arguments, environment values, or usernames. File paths start at <code>~</code>, so they don't include a username. Agent usage leaves each computer as counts per day, agent, model, and sign-in type, and only the domain of a sign-in email. It's shown in totals, not per person.</p>
       </div>
     </div>
   </details>
@@ -145,7 +162,7 @@ const BYPASS = new Set(["skip_permissions_runtime", "bypass_permissions"]);
 const TYPE_LABEL = { mcp_server: "MCP server", agents: "Agent", agent_instruction: "Instruction file", browser_extension: "Browser extension", ide_plugins: "Editor plugin", apps: "Desktop app", sockets: "Connection" };
 let WINDOW = Number(store.get("dex-ai-window")) || 7;
 if (!DATA.windows.includes(WINDOW)) WINDOW = 7;
-let POLICY = { posture: "sanctioned", tools: {} };
+let POLICY = { posture: "sanctioned", tools: {}, models: {}, signin: "any" };
 let LOG = null;
 let EDIT = false, DB = null, USER = null, DOWNLOADS = null, POLICY_ERROR = "";
 let prodFilter = "all", prodQuery = "", riskSev = new Set(["high", "medium", "low"]), allDecisions = false;
@@ -163,23 +180,68 @@ const isNew = (d) => d && (Date.parse(DATA.generated_at) - Date.parse(d + "T00:0
 const daysText = (d) => (d == null ? "not seen running" : d < 1 ? "active today" : `active ${fmt.ago(d)}`);
 const PRODUCT_COLORS = ["var(--info)", "var(--warn)", "var(--good)"];
 
+// Agent usage. Rows: [host, agent, model, sign-in, window, sessions, prompts, tool calls,
+// input, output, cache read, cache write]; window 0 is the last 7 days, 1 the 7 before, 2 the rest of 30.
+const U = DATA.usage || { rows: [], models: [], signins: [], agents: {}, company: [] };
+const METRICS = [["sessions", "Sessions"], ["output", "Output tokens"], ["input", "Input tokens"]];
+let METRIC = store.get("dex-ai-usage-metric") || "sessions";
+if (!METRICS.some(([k]) => k === METRIC)) METRIC = "sessions";
+let GROUP = store.get("dex-ai-usage-group") === "dept" ? "dept" : "fleet";
+const SIGNIN = {
+  company: ["Company", "var(--good)"], personal: ["Personal", "var(--bad)"], email: ["Email", "var(--info)"],
+  api_key: ["API key", "var(--info)"], cloud: ["Cloud provider", "var(--info)"], gateway: ["Gateway", "var(--info)"],
+  github: ["GitHub", "var(--info)"], other: ["Other", "var(--info)"], none: ["Not recorded", "var(--neutral)"],
+};
+const SIGNIN_POLICY = { any: "any account", company: "company accounts only" };
+const compact = (x) => {
+  if (x == null || !Number.isFinite(x)) return "---";
+  const short = (v) => String(v >= 100 ? Math.round(v) : Math.round(v * 10) / 10);
+  return x >= 1e9 ? `${short(x / 1e9)}B` : x >= 1e6 ? `${short(x / 1e6)}M` : x >= 1e4 ? `${short(x / 1e3)}K` : fmt.n(Math.round(x));
+};
+const inputOf = (r) => r[8] + r[10] + r[11];
+const metricOf = (r) => (METRIC === "sessions" ? r[5] : METRIC === "output" ? r[9] : inputOf(r));
+const agentName = (a) => (U.agents[a] ? U.agents[a][0] : a);
+const modelOf = (r) => U.models[r[2]];
+const signinOf = (r) => U.signins[r[3]];
+const modelStatus = (k) => (POLICY.models[k] && POLICY.models[k].status) || "unreviewed";
+// Usage days in the trend run from 30 days before the report first answered to yesterday;
+// the AI tool counts only exist on the days a run saved them.
+const TOOL_DAYS = new Set(DATA.tool_days || []);
+const toolsDay = (r) => TOOL_DAYS.has(r.date);
+const usageDay = (r) => Boolean(U.since) && r.date >= U.since && r.date <= U.through;
+
 function compute() {
   const hostsInView = Object.keys(DATA.hosts).filter(inView);
   const reported = hostsInView.filter((hid) => DATA.hosts[hid].r);
   const findings = DATA.findings.filter((f) => inView(f[0]));
+  const wi = DATA.windows.indexOf(WINDOW);
+  const usage = U.rows.filter((r) => r[4] <= wi && inView(r[0]));
+  const usageReported = hostsInView.filter((hid) => DATA.hosts[hid].u);
+  const byProduct = {};
+  for (const r of usage) {
+    const a = U.agents[r[1]];
+    if (!a) continue;
+    const x = (byProduct[a[1]] ||= { sessions: 0, output: 0, rows: [] });
+    x.sessions += r[5];
+    x.output += r[9];
+    x.rows.push(r);
+  }
+  const agentProducts = new Set(Object.values(U.agents).map((a) => a[1]));
   const products = DATA.products.map((p) => {
     const rows = p.h.filter((r) => inView(r[0]));
     const activeRows = rows.filter((r) => r[2] != null && r[2] < WINDOW);
     const surfaces = {};
     for (const r of rows) for (const s of r[1]) surfaces[s] = (surfaces[s] || 0) + 1;
     const fs = findings.filter((f) => f[3] === p.name);
+    const use = byProduct[p.name];
     return { ...p, rows, installs: rows.length, active: activeRows.length, activeIds: new Set(activeRows.map((r) => r[0])),
-      surfaces, findings: fs, status: statusOf(p.k) };
+      surfaces, findings: fs, status: statusOf(p.k), sessions: agentProducts.has(p.name) && U.found ? (use ? use.sessions : 0) : null,
+      output: use ? use.output : 0, usage: use ? use.rows : [] };
   }).filter((p) => p.installs);
   const mcp = DATA.mcp.map((m) => ({ ...m, rows: m.h.filter((r) => inView(r[0])) })).filter((m) => m.rows.length);
   const withAI = new Set(products.flatMap((p) => p.rows.map((r) => r[0])));
   const activeAny = new Set(products.flatMap((p) => [...p.activeIds]));
-  return { hostsInView, reported, findings, products, mcp, withAI, activeAny };
+  return { hostsInView, reported, findings, products, mcp, withAI, activeAny, usage, usageReported };
 }
 
 function outOfPolicy(c) {
@@ -195,6 +257,12 @@ function outOfPolicy(c) {
     const r = DATA.risks[f[1]];
     if (BYPASS.has(f[1]) || (POLICY.posture === "strict" && r && r.sev === "high")) add(f[0], r ? r.label : f[1]);
   }
+  for (const r of c.usage) {
+    const [k, name] = modelOf(r);
+    const st = modelStatus(k);
+    if (k && (st === "restricted" || (POLICY.posture === "strict" && st === "unreviewed"))) add(r[0], `${name} (${STATUS[st].label.toLowerCase()} model)`);
+    if (POLICY.signin === "company" && signinOf(r)[1] === "personal") add(r[0], "Agent signed in with a personal account");
+  }
   return out;
 }
 
@@ -202,7 +270,7 @@ function outOfPolicy(c) {
 function windowRows(fields) {
   const saved = RANGE;
   RANGE = WINDOW;
-  const rows = trendRows(fields);
+  const rows = trendRows(fields).filter(toolsDay);
   RANGE = saved;
   return rows;
 }
@@ -242,6 +310,14 @@ function render() {
     const topHigh = Object.entries(c.findings.filter((f) => DATA.risks[f[1]]?.sev === "high").reduce((a, f) => ((a[f[1]] = (a[f[1]] || 0) + 1), a), {})).sort((a, b) => b[1] - a[1])[0];
     support.push(`${noun(highHosts.size)} ${highHosts.size === 1 ? "has" : "have"} a high-risk finding. The most common: ${DATA.risks[topHigh[0]].label.toLowerCase()}.`);
   }
+  if (c.usage.length) {
+    const sessions = c.usage.reduce((a, r) => a + r[5], 0);
+    const byModel = {};
+    for (const r of c.usage) if (modelOf(r)[0]) byModel[r[2]] = (byModel[r[2]] || 0) + r[5];
+    const topModel = Object.entries(byModel).sort((a, b) => b[1] - a[1])[0];
+    support.push(`Coding agents ran ${fmt.plural(sessions, "session")} on ${noun(new Set(c.usage.map((r) => r[0])).size)} in the last ${WINDOW} days`
+      + (topModel ? `, ${fmt.pct(pct(topModel[1], sessions))} of them on ${U.models[topModel[0]][1]}.` : "."));
+  }
   if (POLICY.posture !== "visibility") support.push(`${noun(oop.size)} ${oop.size === 1 ? "is" : "are"} out of policy under the ${postureLabel.toLowerCase()} posture.`);
   else support.push(`The posture is visibility first, so nothing is out of policy yet. ${fmt.plural(unreviewed.length, "product")} ${unreviewed.length === 1 ? "is" : "are"} waiting for a decision.`);
   mount("hero",
@@ -265,14 +341,29 @@ function render() {
 
   // Trend
   const trendTop = byActive.filter((p) => p.active).slice(0, 3);
-  renderTrend(["act", "high", "med", ...trendTop.map((p) => "a:" + p.k)], [
+  const tools = (f) => (r) => (toolsDay(r) ? r[f] : NaN);
+  const used = (f) => (r) => (usageDay(r) ? r[f] : NaN);
+  const top3 = (key, value) => Object.entries(c.usage.reduce((a, r) => (value(r) ? ((a[key(r)] = (a[key(r)] || 0) + value(r)), a) : a), {}))
+    .sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k]) => k);
+  const topAgents = top3((r) => r[1], (r) => r[5]);
+  const topModels = top3((r) => r[2], (r) => (modelOf(r)[0] ? r[9] : 0)).map((i) => U.models[i]);
+  const usagePanels = !U.since ? [] : [
+    { title: "Agent sessions per day", series: [{ label: "All agents", color: "var(--ink-2)", value: used("u_s") },
+      ...(topAgents.length > 1 ? topAgents.map((a, i) => ({ label: agentName(a), color: PRODUCT_COLORS[i], value: used("u_s:" + a) })) : [])] },
+    { title: "Output tokens per day", yFmt: compact, series: [{ label: "All models", color: "var(--ink-2)", value: used("u_out") },
+      ...(topModels.length > 1 ? topModels.map((m, i) => ({ label: m[1], color: PRODUCT_COLORS[i], value: used("u_mo:" + m[0]) })) : [])],
+      note: `Through ${fmt.date(U.through)}. Recent days fill in as computers report.` },
+  ];
+  renderTrend(["act", "high", "med", ...trendTop.map((p) => "a:" + p.k),
+    ...(U.since ? ["u_s", "u_out", ...topAgents.map((a) => "u_s:" + a), ...topModels.map((m) => "u_mo:" + m[0])] : [])], [
     { title: "Computers using AI each day", series: [
-      { label: "Any AI tool", color: "var(--ink-2)", value: (r) => r.act },
-      ...trendTop.map((p, i) => ({ label: p.name, color: PRODUCT_COLORS[i], value: (r) => r["a:" + p.k] }))] },
+      { label: "Any AI tool", color: "var(--ink-2)", value: tools("act") },
+      ...trendTop.map((p, i) => ({ label: p.name, color: PRODUCT_COLORS[i], value: tools("a:" + p.k) }))] },
     { title: "Risk findings", series: [
-      { label: "High", color: "var(--bad)", value: (r) => r.high },
-      { label: "Medium", color: "var(--warn)", value: (r) => r.med }],
+      { label: "High", color: "var(--bad)", value: tools("high") },
+      { label: "Medium", color: "var(--warn)", value: tools("med") }],
       note: "Low-severity findings are left out of this chart." },
+    ...usagePanels,
   ]);
 
   // What's in use
@@ -298,6 +389,7 @@ function render() {
     h("p", { class: "panel-note" }, "Files such as CLAUDE.md and AGENTS.md tell coding agents how to work in a project, so they show where people use agents.")]
     : empty("No instruction files found", ""));
 
+  renderUsage(c);
   renderProducts(c);
   renderMcp(c);
   renderRisks(c);
@@ -307,7 +399,103 @@ function render() {
   document.getElementById("report-name").textContent = src.report || "DEX - AI governance - AI tools per host";
   document.getElementById("stale-days").textContent = DATA.stale_days;
   document.getElementById("since").textContent = fmt.date(DATA.history_since);
-  document.getElementById("foot").textContent = `Data from ${DATA.fleet_url.replace(/^https?:\/\//, "")} via the Fleet API (List hosts with software, Get report data). Rebuilt daily.`;
+  document.getElementById("foot").textContent = `Data from ${DATA.fleet_url.replace(/^https?:\/\//, "")} via the Fleet API (List hosts with software, Get host, Get report data). Rebuilt daily.`;
+}
+
+function renderUsage(c) {
+  mount("usage-tools", h("div", { class: "seg-toggle small", role: "group", "aria-label": "Usage measure" }, METRICS.map(([k, label]) => h("button", { type: "button",
+    "aria-pressed": METRIC === k ? "true" : "false", onclick: () => { METRIC = k; store.set("dex-ai-usage-metric", k); render(); } }, label))));
+  const hint = document.getElementById("usage-hint");
+  if (!U.found || !c.usageReported.length) {
+    hint.textContent = "";
+    mount("usage", !U.found ? empty("Agent usage isn't set up yet", "Add the DEX - AI governance - AI agent usage per host report to Fleet. It reads fleetd's ai_agent_sessions table, which needs fleetd 1.64.0 or later.")
+      : empty("No computer has reported agent usage yet", "The AI agent usage report runs hourly on computers with fleetd 1.64.0 or later."));
+    return;
+  }
+  hint.textContent = `Coding agent sessions in the last ${WINDOW} days. ${fmt.n(c.usageReported.length)} of ${noun(c.hostsInView.length)} report agent usage, which needs fleetd 1.64.0 or later. Shown as totals, never per person.`;
+  const u = c.usage;
+  const sum = (f) => u.reduce((a, r) => a + f(r), 0);
+  const sessions = sum((r) => r[5]), output = sum((r) => r[9]), input = sum(inputOf), toolCalls = sum((r) => r[7]);
+  const fmtMetric = METRIC === "sessions" ? fmt.n : compact;
+  const metricLabel = METRICS.find(([k]) => k === METRIC)[1];
+  const group = (keyOf) => {
+    const g = new Map();
+    for (const r of u) {
+      const k = keyOf(r);
+      const x = g.get(k) || { key: k, value: 0, sessions: 0, output: 0, input: 0, hosts: new Set() };
+      x.value += metricOf(r);
+      x.sessions += r[5];
+      x.output += r[9];
+      x.input += inputOf(r);
+      x.hosts.add(r[0]);
+      g.set(k, x);
+    }
+    return [...g.values()].sort((a, b) => b.value - a.value || b.sessions - a.sessions);
+  };
+  const bars = (items, labelOf) => {
+    const shown = items.filter((x) => x.value > 0).slice(0, 10);
+    return shown.length ? barRows(shown.map((x) => ({ label: labelOf(x), valueText: fmtMetric(x.value), segs: [{ value: x.value, color: "var(--info)",
+      tip: `${labelOf(x)}: ${fmt.plural(x.sessions, "session")}, ${compact(x.output)} output and ${compact(x.input)} input tokens, on ${noun(x.hosts.size)}` }] })))
+      : h("p", { class: "cell-sub" }, METRIC === "sessions" ? "No sessions in this window." : "No token counts recorded.");
+  };
+  const models = group((r) => r[2]);
+  const depts = c.hostsInView.some((hid) => DATA.hosts[hid].d);
+  const by = depts ? GROUP : "fleet";
+  const groups = group((r) => (by === "dept" ? DATA.hosts[r[0]].d || "No department" : DATA.hosts[r[0]].f));
+  const vendors = new Set(models.map((m) => U.models[m.key][2]).filter(Boolean));
+
+  const classes = new Map();
+  for (const r of u) {
+    const [account, cls] = signinOf(r);
+    const x = classes.get(cls) || { hosts: new Set(), accounts: new Map() };
+    x.hosts.add(r[0]);
+    if (!x.accounts.has(account)) x.accounts.set(account, new Set());
+    x.accounts.get(account).add(r[0]);
+    classes.set(cls, x);
+  }
+  const signinRows = Object.keys(SIGNIN).filter((k) => classes.has(k)).map((k) => {
+    const x = classes.get(k);
+    const which = [...x.accounts].sort((a, b) => b[1].size - a[1].size).slice(0, 6).map(([a, hs]) => `${a || "unknown"} (${hs.size})`).join(", ");
+    return { label: SIGNIN[k][0], valueText: fmt.n(x.hosts.size), segs: [{ value: x.hosts.size, color: SIGNIN[k][1], tip: `${SIGNIN[k][0]} sign-in on ${noun(x.hosts.size)}: ${which}` }] };
+  });
+  const signinNote = U.company_source === "idp" ? `Company accounts are emails at ${U.company.join(", ")}, the domains of your identity provider's users.`
+    : U.company_source === "setting" ? `Company accounts are emails at ${U.company.join(", ")}, from the DEX_COMPANY_DOMAINS setting.`
+    : "Fleet has no end users from an identity provider, so email sign-ins aren't sorted into company and personal. Set DEX_COMPANY_DOMAINS for the routine to sort them.";
+
+  // Agents whose every session fleetd reads: installed with no session means unused.
+  const idle = Object.entries(U.agents).filter(([, a]) => a[2]).map(([agent, [label, product]]) => {
+    const p = c.products.find((x) => x.name === product);
+    const installed = p ? p.rows.filter((r) => r[1].length && DATA.hosts[r[0]].u).map((r) => r[0]) : [];
+    const usedOn = new Set(u.filter((r) => r[1] === agent).map((r) => r[0]));
+    const n = installed.filter((hid) => !usedOn.has(hid)).length;
+    return installed.length ? { label, valueText: `${fmt.n(n)} of ${fmt.n(installed.length)}`, segs: [
+      { value: installed.length - n, color: "var(--info)", tip: `${label}: sessions on ${noun(installed.length - n)} in the last ${WINDOW} days` },
+      { value: n, color: "var(--neutral)", tip: `${label}: installed on ${noun(n)} with no session in the last ${WINDOW} days` }] } : null;
+  }).filter(Boolean);
+
+  const stat = (k, v, s) => h("div", { class: "stat" }, h("span", { class: "k" }, k), h("span", { class: "v" }, v), h("span", { class: "s" }, s));
+  mount("usage",
+    h("div", { class: "mini-stats" },
+      stat("Sessions", fmt.n(sessions), `on ${noun(new Set(u.map((r) => r[0])).size)}, ${fmt.plural(sum((r) => r[6]), "prompt")}`),
+      stat("Output tokens", compact(output), sessions ? `${compact(output / sessions)} a session` : "---"),
+      stat("Input tokens", compact(input), input ? `${fmt.pct(pct(sum((r) => r[10]), input))} read from the prompt cache` : "---"),
+      stat("Tool calls", fmt.n(toolCalls), sessions ? `${fmt.n(Math.round(toolCalls / sessions))} a session` : "---"),
+      stat("Models", fmt.n(models.filter((m) => U.models[m.key][0]).length), `from ${fmt.plural(vendors.size, "vendor")}`)),
+    h("div", { class: "grid", style: "margin-top:16px" },
+      h("div", { class: "panel" }, h("h3", {}, `${metricLabel} by model`), bars(models, (x) => U.models[x.key][1]),
+        h("p", { class: "panel-note" }, "A session counts under the last model its main agent used, with its sub-agents' tokens."
+          + (METRIC !== "sessions" && u.some((r) => r[1] === "cursor") ? " Cursor records no model or tokens." : ""))),
+      h("div", { class: "panel" }, h("h3", {}, `${metricLabel} by agent`), bars(group((r) => r[1]), (x) => agentName(x.key))),
+      h("div", { class: "panel" }, h("div", { class: "panel-head" }, h("h3", {}, `${metricLabel} by ${by === "dept" ? "department" : "fleet"}`),
+        depts ? h("div", { class: "seg-toggle small", role: "group", "aria-label": "Group by" }, [["fleet", "Fleet"], ["dept", "Department"]].map(([k, label]) =>
+          h("button", { type: "button", "aria-pressed": by === k ? "true" : "false", onclick: () => { GROUP = k; store.set("dex-ai-usage-group", k); render(); } }, label))) : null),
+        bars(groups, (x) => x.key)),
+      h("div", { class: "panel" }, h("h3", {}, "How agents sign in"), signinRows.length ? barRows(signinRows) : h("p", { class: "cell-sub" }, "No sessions in this window."),
+        h("p", { class: "panel-note" }, signinNote)),
+      h("div", { class: "panel" }, h("h3", {}, "Installed, no sessions"), idle.length
+        ? [barRows(idle), legend([[`Sessions, last ${WINDOW} days`, "var(--info)"], ["No sessions", "var(--neutral)"]])]
+        : h("p", { class: "cell-sub" }, "None of these agents is installed on a computer that reports usage."),
+        h("p", { class: "panel-note" }, "Seats to reclaim. Copilot and Cursor are left out, since their editors keep no sessions fleetd reads."))));
 }
 
 function renderProducts(c) {
@@ -326,6 +514,7 @@ function renderProducts(c) {
     { key: "status", label: "Decision", value: (p) => ["restricted", "unreviewed", "sanctioned"].indexOf(p.status), cell: (p) => pill(STATUS[p.status].label, STATUS[p.status].tone) },
     { key: "installs", label: "Computers", num: true, value: (p) => p.installs },
     { key: "active", label: `Active ${WINDOW}d`, num: true, value: (p) => p.active, cell: (p) => [fmt.n(p.active), mini(pct(p.active, p.installs), "info")] },
+    { key: "sessions", label: `Sessions ${WINDOW}d`, num: true, value: (p) => p.sessions ?? -1, cell: (p) => (p.sessions == null ? "---" : fmt.n(p.sessions)) },
     { key: "how", label: "How it runs", value: (p) => Object.keys(p.surfaces).length, cell: (p) => h("span", { class: "cell-sub" },
       Object.entries(p.surfaces).sort((a, b) => b[1] - a[1]).map(([s]) => s).slice(0, 3).join(", ") || "Seen running only") },
     { key: "findings", label: "Findings", num: true, value: (p) => p.findings.length, cell: (p) => (p.findings.length ? fmt.n(p.findings.length) : "---") },
@@ -338,13 +527,15 @@ function renderProducts(c) {
     for (const f of p.findings) (fsBy[f[1]] ||= new Set()).add(f[0]);
     const versions = {};
     for (const r of p.rows) if (r[3]) versions[r[3]] = (versions[r[3]] || 0) + 1;
+    const modelsOf = Object.entries(p.usage.reduce((a, r) => ((a[r[2]] = (a[r[2]] || 0) + r[5]), a), {})).sort((a, b) => b[1] - a[1]);
     const stat = (k, v, s) => h("div", { class: "stat" }, h("span", { class: "k" }, k), h("span", { class: "v" }, v), h("span", { class: "s" }, s));
     return [
       h("div", { class: "mini-stats" },
         stat(nounWord(true)[0].toUpperCase() + nounWord(true).slice(1), fmt.n(p.installs), "with it installed or running"),
         stat(`Active, last ${WINDOW} days`, fmt.n(p.active), fmt.pct(pct(p.active, p.installs)) + " of them"),
         stat("Daily average", avg == null ? "---" : fmt.n(Math.round(avg)), avg == null ? "after day 2" : "active computers a day"),
-        stat("Risk findings", fmt.n(p.findings.length), `on ${noun(new Set(p.findings.map((f) => f[0])).size)}`)),
+        stat("Risk findings", fmt.n(p.findings.length), `on ${noun(new Set(p.findings.map((f) => f[0])).size)}`),
+        p.sessions == null ? null : stat(`Sessions, last ${WINDOW} days`, fmt.n(p.sessions), `${compact(p.output)} output tokens`)),
       h("div", { class: "detail-grid" },
         h("div", {}, h("h4", {}, "How it runs"), Object.keys(p.surfaces).length
           ? barRows(Object.entries(p.surfaces).sort((a, b) => b[1] - a[1]).map(([s, n]) => ({ label: s, segs: [{ value: n, color: "var(--info)", tip: `${s}: ${noun(n)}` }] })))
@@ -355,6 +546,9 @@ function renderProducts(c) {
         h("div", {}, h("h4", {}, "Risk findings"), Object.keys(fsBy).length
           ? barRows(Object.entries(fsBy).map(([f, set]) => ({ label: DATA.risks[f]?.label || f, segs: [{ value: set.size, color: `var(--${SEV[DATA.risks[f]?.sev || "low"].tone})`, tip: `${noun(set.size)}` }] })))
           : h("p", { class: "cell-sub" }, "None.")),
+        p.sessions == null ? null : h("div", {}, h("h4", {}, "Models it uses"), modelsOf.length
+          ? barRows(modelsOf.slice(0, 6).map(([i, n]) => ({ label: U.models[i][1], segs: [{ value: n, color: "var(--info)", tip: `${U.models[i][1]}: ${fmt.plural(n, "session")} in the last ${WINDOW} days` }] })))
+          : h("p", { class: "cell-sub" }, "No sessions in this window.")),
         h("div", {}, h("h4", {}, "Versions"), Object.keys(versions).length
           ? h("dl", { class: "kv" }, Object.entries(versions).sort((a, b) => vcmp(b[0], a[0])).slice(0, 6).flatMap(([v, n]) => [h("dt", { class: "mono" }, v), h("dd", {}, noun(n))]))
           : h("p", { class: "cell-sub" }, "Not reported."))),
@@ -423,7 +617,7 @@ function renderRisks(c) {
 
 // ---- Policy: decisions live in the artifact's shared store.
 const sqlStr = (v) => "'" + String(v).replace(/'/g, "''") + "'";
-function policyYaml() {
+function policyItems() {
   const restricted = DATA.products.filter((p) => statusOf(p.k) === "restricted" && p.m.length);
   const items = [];
   if (restricted.length) {
@@ -432,22 +626,44 @@ function policyYaml() {
       query: `SELECT 1 WHERE NOT EXISTS (\n  SELECT 1 FROM ai_tools WHERE\n    ${conds.join("\n    OR ")}\n);`,
       resolution: "Remove the restricted AI tool, or ask IT to review it." });
   }
+  const recent = "ended_at >= strftime('%s', 'now') - 7 * 86400";
+  const named = U.models.filter((m) => m[0]);
+  const restrictedModels = named.filter((m) => modelStatus(m[0]) === "restricted");
+  const sanctionedModels = named.filter((m) => modelStatus(m[0]) === "sanctioned");
+  const ids = (ms) => ms.flatMap((m) => m[3]).filter(Boolean).map(sqlStr).join(", ");
+  if (POLICY.posture === "strict" && sanctionedModels.length) {
+    items.push({ name: "AI agents use sanctioned models only", description: `Fails when an AI coding agent used a model other than ${sanctionedModels.map((m) => m[1]).join(", ")} in the last 7 days. Sanctioned on the AI governance dashboard. Needs fleetd 1.64.0 or later.`,
+      query: `SELECT 1 WHERE NOT EXISTS (\n  SELECT 1 FROM ai_agent_sessions WHERE ${recent}\n    AND model != '' AND model NOT IN (${ids(sanctionedModels)})\n);`,
+      resolution: "Switch the agent to a sanctioned model, or ask IT to review the model you need." });
+  } else if (restrictedModels.length) {
+    items.push({ name: "No restricted AI models", description: `Fails when an AI coding agent used ${restrictedModels.map((m) => m[1]).join(", ")} in the last 7 days. Restricted on the AI governance dashboard. Needs fleetd 1.64.0 or later.`,
+      query: `SELECT 1 WHERE NOT EXISTS (\n  SELECT 1 FROM ai_agent_sessions WHERE ${recent}\n    AND model IN (${ids(restrictedModels)})\n);`,
+      resolution: "Switch the agent to another model, or ask IT to review the restricted one." });
+  }
+  if (POLICY.signin === "company" && U.company.length) {
+    items.push({ name: "AI agents signed in with a company account", description: `Fails when an AI coding agent signed in with an email outside ${U.company.join(", ")} in the last 7 days. Copilot CLI signs in with a GitHub username, so it isn't checked. Needs fleetd 1.64.0 or later.`,
+      query: `SELECT 1 WHERE NOT EXISTS (\n  SELECT 1 FROM ai_agent_sessions WHERE ${recent}\n    AND account_identifier LIKE '%@%'\n${U.company.map((d) => `    AND lower(account_identifier) NOT LIKE ${sqlStr("%@" + d)}`).join("\n")}\n);`,
+      resolution: "Sign the agent out of the personal account, then sign in with your company account." });
+  }
   items.push({ name: "No AI agents running with permission checks off",
     description: "Fails when an AI agent runs with an auto-approve flag such as --dangerously-skip-permissions or --yolo, or when Claude Code's default mode is bypassPermissions.",
     query: "SELECT 1 WHERE NOT EXISTS (\n  SELECT 1 FROM ai_tools WHERE type = 'agents'\n    AND (risk_flags LIKE '%skip_permissions_runtime%' OR risk_flags LIKE '%bypass_permissions%')\n);",
     resolution: "Restart the agent without the auto-approve flag. In Claude Code, set permissions.defaultMode back to default." });
-  return items.map((i) => `- name: ${JSON.stringify(i.name)}\n  description: ${JSON.stringify(i.description)}\n  query: |\n${i.query.split("\n").map((l) => "    " + l).join("\n")}\n  platform: darwin,windows,linux\n  critical: false\n  resolution: ${JSON.stringify(i.resolution)}`).join("\n");
+  return items;
 }
+const policyYaml = (items) => items.map((i) => `- name: ${JSON.stringify(i.name)}\n  description: ${JSON.stringify(i.description)}\n  query: |\n${i.query.split("\n").map((l) => "    " + l).join("\n")}\n  platform: darwin,windows,linux\n  critical: false\n  resolution: ${JSON.stringify(i.resolution)}`).join("\n");
 
 let writing = Promise.resolve();
 function savePolicy(change) {
   if (!DB || !EDIT) return;
   const at = new Date().toISOString();
-  const next = { posture: POLICY.posture, tools: { ...POLICY.tools } };
+  const next = { posture: POLICY.posture, tools: { ...POLICY.tools }, models: { ...POLICY.models }, signin: POLICY.signin };
   writing = writing.then(async () => {
     const by = USER ? await USER.id() : null;
     if (change.posture_to) next.posture = change.posture_to;
     if (change.product) next.tools[change.product] = { status: change.to, by, at };
+    if (change.model) next.models[change.model] = { status: change.to, by, at };
+    if (change.signin_to) next.signin = change.signin_to;
     POLICY = next;
     render();
     try {
@@ -476,11 +692,10 @@ function renderPolicy(c, oop) {
         h("span", { class: "cell-sub" }, [...why].join("; "))))) : h("p", {}, "Every computer meets the policy.")),
     POLICY_ERROR ? h("p", { class: "flash" }, POLICY_ERROR) : null);
 
-  const yaml = policyYaml();
-  const restrictedN = DATA.products.filter((p) => statusOf(p.k) === "restricted").length;
-  mount("enforce", h("p", { style: "margin-top:0" }, restrictedN
-      ? `Two Fleet policies: one fails on computers with a restricted tool (${fmt.plural(restrictedN, "product")}), and one fails when an agent runs with permission checks off. Add them to your GitOps policies file, then automate a script or ticket on failure.`
-      : "One Fleet policy that fails when an agent runs with permission checks off. Restrict a product below and this adds a second policy that fails on computers that have it."),
+  const items = policyItems();
+  const yaml = policyYaml(items);
+  mount("enforce", h("p", { style: "margin-top:0" }, `${items.length === 1 ? "One Fleet policy" : `${fmt.n(items.length)} Fleet policies`}: ${items.map((i) => i.name).join("; ")}. `
+      + "Add them to your GitOps policies file, then automate a script or ticket on failure. Restricting a product or a model, or requiring company sign-ins, adds a policy for it."),
     h("div", { class: "title-tools", style: "margin-top:12px" }, copyButton("Copy policies as YAML", () => yaml)),
     h("pre", { class: "yaml" }, yaml));
 
@@ -495,7 +710,45 @@ function renderPolicy(c, oop) {
       h("button", { type: "button", "data-v": k, "aria-pressed": p.status === k ? "true" : "false", disabled: !editable && p.status !== k,
         onclick: () => { if (editable && p.status !== k) savePolicy({ product: p.k, name: p.name, from: p.status, to: k }); } }, STATUS[k].label))))), more]
     : empty("No products to decide on", ""));
+
+  // Models agents used in the last 30 days, so the list holds still when the window changes.
+  const used = new Map();
+  for (const r of U.rows) {
+    if (!inView(r[0]) || !modelOf(r)[0]) continue;
+    const x = used.get(r[2]) || { sessions: 0, hosts: new Set() };
+    x.sessions += r[5];
+    x.hosts.add(r[0]);
+    used.set(r[2], x);
+  }
+  const models = [...used].sort((a, b) => b[1].sessions - a[1].sessions).slice(0, 20);
+  mount("model-decisions", models.length ? models.map(([i, x]) => {
+    const [k, name, vendor] = U.models[i];
+    const st = modelStatus(k);
+    return h("div", { class: "decision" },
+      h("div", {}, h("span", { class: "cell-main" }, name), h("span", { class: "cell-sub" }, [vendor, `${noun(x.hosts.size)} in 30 days`,
+        POLICY.models[k] && POLICY.models[k].at ? `decided ${fmt.date(POLICY.models[k].at)}` : null].filter(Boolean).join(" · "))),
+      h("div", { class: "seg-toggle small decide", role: "group", "aria-label": `Decision for ${name}` }, ["sanctioned", "unreviewed", "restricted"].map((v) =>
+        h("button", { type: "button", "data-v": v, "aria-pressed": st === v ? "true" : "false", disabled: !editable && st !== v,
+          onclick: () => { if (editable && st !== v) savePolicy({ model: k, name, from: st, to: v }); } }, STATUS[v].label))));
+  }) : empty("No models to decide on", U.found ? "Models show up once coding agents report sessions." : "Add the AI agent usage report to see which models coding agents use."));
+
+  const personal = new Set(U.rows.filter((r) => inView(r[0]) && signinOf(r)[1] === "personal").map((r) => r[0]));
+  const canRequire = U.company.length > 0;
+  mount("signin", h("div", { class: "seg-toggle", role: "group", "aria-label": "Agent sign-in" }, Object.entries(SIGNIN_POLICY).map(([k, label]) =>
+      h("button", { type: "button", "aria-pressed": POLICY.signin === k ? "true" : "false",
+        disabled: POLICY.signin !== k && (!editable || (k === "company" && !canRequire)),
+        onclick: () => { if (editable && POLICY.signin !== k) savePolicy({ signin_from: POLICY.signin, signin_to: k }); } }, label[0].toUpperCase() + label.slice(1)))),
+    h("p", {}, canRequire ? `Company accounts only puts computers whose coding agents signed in with an email outside ${U.company.join(", ")} out of policy, unless the posture is visibility first.`
+      : "Turns on once the dashboard knows your company's email domains: from end users in your identity provider, or the DEX_COMPANY_DOMAINS setting."),
+    U.found ? h("p", {}, personal.size ? `${noun(personal.size)} signed in with a personal account in the last 30 days.` : "No personal sign-ins in the last 30 days.") : null);
   renderLog();
+}
+
+function changeText(e, label, posture) {
+  return e.product ? ` marked ${e.name || e.product} ${label(e.to)}, was ${label(e.from)}`
+    : e.model ? ` marked the model ${e.name || e.model} ${label(e.to)}, was ${label(e.from)}`
+    : e.signin_to ? ` set agent sign-in to ${SIGNIN_POLICY[e.signin_to] || e.signin_to}, was ${SIGNIN_POLICY[e.signin_from] || e.signin_from}`
+    : ` set the posture to ${posture(e.posture_to)}, was ${posture(e.posture_from)}`;
 }
 
 async function renderLog() {
@@ -508,7 +761,7 @@ async function renderLog() {
   const label = (s) => (STATUS[s] ? STATUS[s].label.toLowerCase() : s);
   const posture = (k) => (POSTURES.find(([p]) => p === k) || [k, k])[1].toLowerCase();
   mount("log", h("ul", { class: "log" }, LOG.map((e) => h("li", {},
-    h("span", {}, h("b", {}, who(e.by)), e.product ? ` marked ${e.name || e.product} ${label(e.to)}, was ${label(e.from)}` : ` set the posture to ${posture(e.posture_to)}, was ${posture(e.posture_from)}`),
+    h("span", {}, h("b", {}, who(e.by)), changeText(e, label, posture)),
     h("span", { class: "cell-sub" }, `${fmt.date(e.at)}, ${String(e.at).slice(11, 16)} UTC`)))));
 }
 
@@ -527,13 +780,24 @@ async function downloadReport(c, oop) {
   const row = (cells) => `<tr>${cells.map((x) => `<td>${esc(x)}</td>`).join("")}</tr>`;
   const byFlag = {};
   for (const f of c.findings) (byFlag[f[1]] ||= new Set()).add(f[0]);
+  const usageSum = (f) => (U.found ? c.usage.reduce((a, r) => a + f(r), 0) : "n/a");
+  const models = new Map();
+  for (const r of c.usage) {
+    const x = models.get(r[2]) || { s: 0, o: 0, in: 0, hosts: new Set() };
+    x.s += r[5]; x.o += r[9]; x.in += inputOf(r); x.hosts.add(r[0]);
+    models.set(r[2], x);
+  }
+  const byModel = [...models].sort((a, b) => b[1].s - a[1].s);
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>AI governance report</title><style>
 body{font:14px/1.5 system-ui,sans-serif;color:#192147;margin:32px;max-width:960px}h1{font-size:24px;margin:0}h2{font-size:16px;margin:28px 0 8px}
 table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #e2e4ea;padding:6px 8px;text-align:left;font-size:13px}th{background:#f9fafc}.m{color:#515774}
 </style></head><body><h1>AI governance report</h1><p class="m">${esc(DATA.fleet_url)} · ${esc(scope)} · data from ${esc(DATA.generated_at)} · activity window ${WINDOW} days</p>
 <h2>Summary</h2><table>${[["Computers reporting", c.reported.length], ["Computers with AI tools", c.withAI.size], [`Active, last ${WINDOW} days`, c.activeAny.size],
     ["Risk findings", c.findings.length], ["MCP servers", c.mcp.length], ["Posture", POSTURES.find(([k]) => k === POLICY.posture)[1]],
-    ["Out of policy", POLICY.posture === "visibility" ? "n/a" : oop.size]].map(row).join("")}</table>
+    ["Agent sign-in", SIGNIN_POLICY[POLICY.signin]], ["Out of policy", POLICY.posture === "visibility" ? "n/a" : oop.size],
+    ["Agent sessions", usageSum((r) => r[5])], ["Output tokens", usageSum((r) => r[9])], ["Input tokens", usageSum(inputOf)]].map(row).join("")}</table>
+<h2>Agent usage by model</h2><table><tr><th>Model</th><th>Decision</th><th>Sessions</th><th>Output tokens</th><th>Input tokens</th><th>Computers</th></tr>${byModel.map(([i, x]) =>
+    row([U.models[i][1], U.models[i][0] ? STATUS[modelStatus(U.models[i][0])].label : "n/a", x.s, x.o, x.in, x.hosts.size])).join("") || row(["No agent usage reported"])}</table>
 <h2>Products</h2><table><tr><th>Product</th><th>Decision</th><th>Computers</th><th>Active</th><th>How it runs</th></tr>${[...c.products].sort((a, b) => b.installs - a.installs)
     .map((p) => row([p.name, STATUS[p.status].label, p.installs, p.active, Object.keys(p.surfaces).join(", ")])).join("")}</table>
 <h2>Risk findings</h2><table><tr><th>Severity</th><th>Finding</th><th>Computers</th></tr>${Object.entries(byFlag).sort((a, b) => b[1].size - a[1].size)
@@ -541,7 +805,8 @@ table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #e2e4ea;
 <h2>MCP servers</h2><table><tr><th>Server</th><th>Transport</th><th>Computers</th></tr>${c.mcp.slice(0, 50).map((m) => row([m.name, m.transports.join(", "), m.rows.length])).join("")}</table>
 <h2>Out of policy</h2><table>${[...oop.entries()].map(([hid, why]) => row([DATA.hosts[hid].n, [...why].join("; ")])).join("") || row(["None"])}</table>
 <h2>Policy change log</h2><table>${(LOG || []).map((e) => row([e.at, (e.by && ps[e.by] && ps[e.by].name) || "Someone",
-    e.product ? `${e.name || e.product}: ${e.from} to ${e.to}` : `Posture: ${e.posture_from} to ${e.posture_to}`])).join("") || row(["No changes recorded"])}</table>
+    e.product ? `${e.name || e.product}: ${e.from} to ${e.to}` : e.model ? `Model ${e.name || e.model}: ${e.from} to ${e.to}`
+      : e.signin_to ? `Agent sign-in: ${e.signin_from} to ${e.signin_to}` : `Posture: ${e.posture_from} to ${e.posture_to}`])).join("") || row(["No changes recorded"])}</table>
 </body></html>`;
   try {
     await DOWNLOADS.save({ filename: `ai-governance-report-${DATA.generated_at.slice(0, 10)}.html`, data: html });
@@ -559,7 +824,7 @@ async function initPolicy() {
   if (db) {
     db.doc("governance/policy").onSnapshot((s) => {
       const d = s.exists ? s.data() : null;
-      POLICY = { posture: (d && d.posture) || "sanctioned", tools: (d && d.tools) || {} };
+      POLICY = { posture: (d && d.posture) || "sanctioned", tools: (d && d.tools) || {}, models: (d && d.models) || {}, signin: (d && d.signin) || "any" };
       render();
     }, () => {});
     db.collection("governance-log").orderBy("at", "desc").limit(30).onSnapshot((s) => {

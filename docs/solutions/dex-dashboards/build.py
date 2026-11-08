@@ -1081,9 +1081,97 @@ AI_INSTRUCTION_TOOLS = {"claude": "CLAUDE.md", "codex": "AGENTS.md", "gemini": "
 AI_INSTALL_TYPES = {"apps", "agents", "ide_plugins", "browser_extension"}
 HOME_RE = re.compile(r"^(/Users/[^/]+|/home/[^/]+|/root|[A-Za-z]:\\Users\\[^\\]+)", re.I)
 
+# The agent usage report repeats each host's last 30 days, so those days are
+# recounted every run and only older days are final.
+AI_USAGE_DAYS = 30
+AI_USAGE_FIELDS = ("sessions", "prompts", "tool_calls", "input", "output", "cache_read", "cache_write")
+# fleetd's ai_agent_sessions agents: (label, product on this page, every session
+# of the product is in the table). Copilot's and Cursor's editors keep no
+# transcripts the table reads, so no sessions there doesn't mean unused.
+AI_SESSION_AGENTS = {
+    "claude_code": ("Claude Code", "Claude Code", True), "codex_cli": ("Codex", "Codex", True),
+    "gemini_cli": ("Gemini CLI", "Gemini CLI", True), "copilot_cli": ("Copilot CLI", "GitHub Copilot", False),
+    "cursor": ("Cursor", "Cursor", False),
+}
+AI_CLOUD_SIGNINS = {"bedrock", "vertex", "vertex-ai", "foundry", "anthropic_aws", "anthropic_google_cloud",
+                    "bedrock_mantle", "amazon-bedrock", "azure"}
+AI_MODEL_VENDORS = [
+    (re.compile(r"claude"), "Anthropic"), (re.compile(r"gpt|o\d|codex|chatgpt"), "OpenAI"),
+    (re.compile(r"gemini|gemma"), "Google"), (re.compile(r"grok"), "xAI"), (re.compile(r"llama"), "Meta"),
+    (re.compile(r"mistral|codestral|devstral|magistral"), "Mistral"), (re.compile(r"deepseek"), "DeepSeek"),
+    (re.compile(r"qwen"), "Qwen"), (re.compile(r"kimi"), "Moonshot"), (re.compile(r"glm"), "Z.ai"),
+]
+AI_MODEL_WORDS = {"gpt": "GPT", "glm": "GLM", "oss": "OSS"}
+
 
 def ai_slug(name):
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+
+def ai_model(raw):
+    """(key, name, vendor) for a model ID as an agent recorded it. Clouds and agents
+    spell one model differently (us.anthropic.claude-sonnet-4-5-20250929-v1:0,
+    claude-sonnet-4-5@20250929, claude-sonnet-4.5), so they share a key."""
+    m = (raw or "").strip().lower().rsplit("/", 1)[-1].split("@")[0]
+    m = re.sub(r"\[[^\]]*\]$", "", m)
+    m = re.sub(r"^(?:[a-z]{2,6}\.)?(?:anthropic|openai|google|meta|amazon|mistral|deepseek|qwen)\.", "", m)
+    m = re.sub(r"[\s_]+", "-", m)
+    m = re.sub(r"-v\d+(?::\d+)?$", "", m)
+    m = re.sub(r"-(?:20\d{6}|20\d\d-\d\d-\d\d|latest)$", "", m)
+    m = re.sub(r"(?<=\d)\.(?=\d)", "-", m).strip("-")
+    if not m:
+        return "", "Not recorded", ""
+    vendor = next((v for rx, v in AI_MODEL_VENDORS if rx.match(m)), "")
+    if re.match(r"o\d", m):
+        return m, m, vendor
+    words = []
+    for w in m.split("-"):
+        if re.fullmatch(r"\d{1,2}", w) and words and re.fullmatch(r"[\d.]+", words[-1]):
+            words[-1] += "." + w
+        else:
+            words.append(w)
+    name = " ".join(AI_MODEL_WORDS.get(w, w[:1].upper() + w[1:]) for w in words)
+    return m, re.sub(r"^GPT (?=\S)", "GPT-", name), vendor
+
+
+def ai_signin(account, company):
+    """How an agent signs in: company, personal, email (no company domain known),
+    api_key, cloud, gateway, github, other, or none. account is "@domain" for an
+    email, or the agent's sign-in method."""
+    a = (account or "").strip().lower()
+    if a.startswith("@"):
+        return "company" if a[1:] in company else "personal" if company else "email"
+    if not a:
+        return "none"
+    if a in ("github", "gateway"):
+        return a
+    if a in ("api key", "console") or re.search(r"api[-_ ]?key", a):
+        return "api_key"
+    if a in AI_CLOUD_SIGNINS or "bedrock" in a or "vertex" in a:
+        return "cloud"
+    return "other"
+
+
+def ai_company_domains(snap):
+    """Email domains that count as company sign-ins: DEX_COMPANY_DOMAINS, or else the
+    domains of the end users Fleet has from the identity provider."""
+    env = [d.strip().lower().lstrip("@") for d in os.environ.get("DEX_COMPANY_DOMAINS", "").split(",") if d.strip()]
+    if env:
+        return set(env), "setting"
+    found = {d for det in (snap.get("host_details") or {}).values() for d in det.get("idp_domains") or []}
+    return found, "idp" if found else ""
+
+
+def ai_usage(snap):
+    """Each host's agent usage report rows: {"day", "agent", "model", "account", counts...}."""
+    out = {}
+    for hid, r in ((snap.get("dex") or {}).get("ai_usage") or {}).items():
+        try:
+            rows = json.loads(r.get("usage") or "[]")
+        except ValueError:
+            rows = []
+        out[hid] = [u for u in rows if isinstance(u, dict)] if isinstance(rows, list) else []
+    return out
 
 
 def short_path(p):
@@ -1166,7 +1254,7 @@ def build_ai(snap, hist):
 
     def product_host(name, hid):
         p = products.setdefault(name, {"name": name, "h": {}})
-        return p["h"].setdefault(hid, {"s": set(), "v": "", "live": False, "opened": None})
+        return p["h"].setdefault(hid, {"s": set(), "v": "", "live": False, "opened": None, "sess": None})
 
     for hid in ids:
         h = hosts[hid]
@@ -1233,6 +1321,61 @@ def build_ai(snap, hist):
                 where = short_path(t.get("path")) if typ == "mcp_server" else ""
                 findings.append([int(hid), flag, typ, item, where])
 
+    # Agent usage. The page gets totals per host, agent, model, sign-in, and
+    # window (last 7, 7 to 14, 14 to 30 days); the trend gets totals per day.
+    usage = ai_usage(snap)
+    usage_info = (snap.get("report_info") or {}).get("ai_usage") or {}
+    company, company_source = ai_company_domains(snap)
+    details = snap.get("host_details") or {}
+    first_day = today - dt.timedelta(days=AI_USAGE_DAYS - 1)
+    on_page = set(ids)
+    models, signins, agg, days = {}, {}, {}, {}
+    for hid, rows in usage.items():
+        h = hosts.get(hid)
+        plat = platform_of(h) if h else None
+        if not plat:
+            continue
+        key = f"{h.get('team_name') or 'Unassigned'}|{plat}"
+        used = set()
+        for u in rows:
+            try:
+                d = dt.date.fromisoformat(str(u.get("day")))
+            except ValueError:
+                continue
+            n = [max(0, as_int(u.get(f)) or 0) for f in AI_USAGE_FIELDS]
+            if not first_day <= d <= today or not n[0]:
+                continue
+            agent = str(u.get("agent") or "")
+            mkey, mname, vendor = ai_model(u.get("model"))
+            row = days.setdefault(d.isoformat(), {}).setdefault(key, {})
+            for f, v in (("u_c", int(d not in used)), ("u_s", n[0]), ("u_p", n[1]), ("u_t", n[2]), ("u_in", n[3]),
+                         ("u_out", n[4]), ("u_cr", n[5]), ("u_cw", n[6]), ("u_s:" + agent, n[0]), ("u_o:" + agent, n[4]),
+                         ("u_ms:" + mkey, n[0]), ("u_mo:" + mkey, n[4])):
+                if v:
+                    row[f] = row.get(f, 0) + v
+            used.add(d)
+            if hid not in on_page:
+                continue
+            ago = (today - d).days
+            if agent in AI_SESSION_AGENTS:
+                e = product_host(AI_SESSION_AGENTS[agent][1], hid)
+                e["sess"] = ago if e["sess"] is None else min(e["sess"], ago)
+            m = models.setdefault(mkey, {"name": mname, "vendor": vendor, "ids": set(), "i": len(models)})
+            m["ids"].add(str(u.get("model") or ""))
+            s = signins.setdefault(str(u.get("account") or ""), len(signins))
+            bucket = next((i for i, w in enumerate(AI_WINDOWS) if ago < w), len(AI_WINDOWS) - 1)
+            a = agg.setdefault((int(hid), agent, m["i"], s, bucket), [0] * len(n))
+            for i, v in enumerate(n):
+                a[i] += v
+    stored = hist.setdefault("usage", {})
+    # Recount the days the report still covers, unless it's missing or hasn't
+    # reached any computer yet, which would wipe them.
+    if usage_info.get("found") and usage:
+        hist.setdefault("usage_since", first_day.isoformat())
+        stored = {d: v for d, v in stored.items() if d < first_day.isoformat()}
+        stored.update(days)
+        hist["usage"] = stored = trim_daily(stored, TREND_DAYS, today)
+
     # Live signals carry over day to day, so "active in the last 30 days" holds.
     cutoff = (today - dt.timedelta(days=35)).isoformat()
     for hid in list(live):
@@ -1250,7 +1393,7 @@ def build_ai(snap, hist):
     def days_ago(name, hid, e):
         last = (live.get(hid) or {}).get(name)
         d_live = (today - dt.date.fromisoformat(last)).days if last else None
-        opts = [x for x in (d_live, e["opened"]) if x is not None]
+        opts = [x for x in (d_live, e["opened"], e["sess"]) if x is not None]
         return round(min(opts), 1) if opts else None
 
     out_products = []
@@ -1295,17 +1438,42 @@ def build_ai(snap, hist):
 
     trimmed = dict(sorted(first_seen.items()))
     hist["first_seen"] = trimmed
+    # Usage days live apart from the trend, since the last 30 of them change.
+    trend = {d: {k: dict(v) for k, v in by_key.items()} for d, by_key in save_trend(hist, today, day)}
+    tool_days = sorted(trend)
+    for d, by_key in stored.items():
+        for k, v in by_key.items():
+            trend.setdefault(d, {}).setdefault(k, {}).update(v)
+
+    def host_row(hid):
+        dept = (details.get(hid) or {}).get("department")
+        return {**host_map(hosts, [hid])[hid], "r": int(hid in reported), **({"u": 1} if hid in usage else {}),
+                **({"d": dept} if dept else {})}
+
     return {
         "generated_at": snap["generated_at"], "fleet_url": snap["fleet_url"], "history_since": hist["since"],
         "windows": AI_WINDOWS, "stale_days": STALE_DAYS,
         "source": {"report": ai.get("report"), "clipped": bool(ai.get("clipped")), "reported": len(reported),
                    "per_host": ai.get("per_host", 0)},
-        "hosts": {hid: {**host_map(hosts, [hid])[hid], "r": int(hid in reported)} for hid in ids},
+        "hosts": {hid: host_row(hid) for hid in ids},
         "products": out_products, "mcp": out_mcp, "findings": findings,
         "instructions": [{"tool": tool, "h": [[int(hid), n] for hid, n in hs.items()]}
                          for tool, hs in sorted(instructions.items(), key=lambda kv: -len(kv[1]))],
         "risks": {f: {"sev": s, "label": label, "about": about} for f, (s, label, about) in AI_RISKS.items()},
-        "trend": save_trend(hist, today, day),
+        "usage": {
+            "found": bool(usage_info.get("found")), "clipped": bool(usage_info.get("clipped")),
+            "since": hist.get("usage_since"), "through": (today - dt.timedelta(days=1)).isoformat(),
+            "agents": {k: list(v) for k, v in AI_SESSION_AGENTS.items()},
+            # [key, name, vendor, model IDs as recorded], indexed by rows[2]
+            "models": [[k, m["name"], m["vendor"], sorted(m["ids"])[:20]]
+                       for k, m in sorted(models.items(), key=lambda kv: kv[1]["i"])],
+            # [account, sign-in type], indexed by rows[3]
+            "signins": [[a, ai_signin(a, company)] for a, _ in sorted(signins.items(), key=lambda kv: kv[1])],
+            "company": sorted(company), "company_source": company_source,
+            # [host, agent, model, sign-in, window, sessions, prompts, tool calls, input, output, cache read, cache write]
+            "rows": [[*k, *v] for k, v in agg.items()],
+        },
+        "trend": [[d, trend[d]] for d in sorted(trend)], "tool_days": tool_days,
     }
 
 
@@ -1909,7 +2077,7 @@ OVERVIEW_FIELDS = {
     "lifecycle": ("refresh", "battery", "investigate", "old", "scored"),
     "software": ("seats", "idle"),
     "patch": ("app_installs", "app_current", "os_installs", "os_current", "updates"),
-    "ai": ("reported", "ai", "act", "high", "med"),
+    "ai": ("reported", "ai", "act", "high", "med", "u_s"),
     "connectivity": ("computers", "fresh24", "stale7", "weak", "persistent"),
     "analytics": ("computers", "all_fresh", "disk_known", "disk_on", "agent_current", "failing"),
     "sustainability": ("kwh", "co2", "sleep_off", "never_slept"),
@@ -1929,13 +2097,21 @@ def build_overview(snap, page_hists):
         for d, by_key in (hist.get("kwh_day") or {}).items():
             for k, (kwh, co2) in by_key.items():
                 trend.setdefault(d, {}).setdefault(k, {}).update(kwh=round(kwh, 4), co2=round(co2, 1))
+        # AI governance keeps agent usage apart from its trend too. Days before
+        # the trend began would draw as zeros on the card's sparkline.
+        for d, by_key in (hist.get("usage") or {}).items():
+            if d < (hist.get("since") or d):
+                continue
+            for k, v in by_key.items():
+                trend.setdefault(d, {}).setdefault(k, {}).update({f: v[f] for f in fields if f in v})
         rows = []
         for d in sorted(trend):
             if d <= cutoff:
                 continue
             keep = {k: {f: v[f] for f in fields if v.get(f)} for k, v in trend[d].items()}
             rows.append([d, {k: v for k, v in keep.items() if v}])
-        pages[page] = {"since": hist.get("since"), "fields": list(fields), "trend": rows}
+        pages[page] = {"since": hist.get("since"), "fields": list(fields), "trend": rows,
+                       **({"usage_since": hist["usage_since"]} if hist.get("usage_since") else {})}
     hosts = {}
     for h in snap["hosts"]:
         plat = platform_of(h)

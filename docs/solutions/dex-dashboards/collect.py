@@ -37,6 +37,7 @@ AI_TOOLS_REPORT = "DEX - AI governance - AI tools per host"
 AI_TOOLS_ROWS_REPORT = "DEX - AI Tools - Surfaces AI tools on the host"
 # One row per host each. Connectivity and Analytics read these.
 DEX_REPORTS = {
+    "ai_usage": "DEX - AI governance - AI agent usage per host",
     "wifi": "DEX - Network experience - Wi-Fi signal quality",
     "vpn": "DEX - Network experience - VPN gate",
     "mac_posture": "DEX - System experience - Security posture",
@@ -194,7 +195,13 @@ def detail(fleet, h):
     a GeoIP database. The policies themselves come back under "_policy_info"."""
     g = fleet.get(f"/api/v1/fleet/hosts/{h['id']}", {"exclude_software": "true"}).get("host") or {}
     policies = [p for p in g.get("policies") or [] if p.get("id") is not None]
+    # Only the department and the email domain of the end user from the identity
+    # provider, never who they are: AI governance groups agent usage by department
+    # and tells company sign-ins from personal ones by domain.
+    idp = [u for u in g.get("end_users") or [] if u.get("idp_username") or u.get("idp_department")]
     return {
+        "department": next((u["idp_department"] for u in idp if u.get("idp_department")), ""),
+        "idp_domains": sorted({u["idp_username"].rsplit("@", 1)[1].lower() for u in idp if "@" in (u.get("idp_username") or "")}),
         # [policy ID, 1 pass / 0 fail / None no result yet]
         "policies": [[p["id"], {"pass": 1, "fail": 0}.get(p.get("response"))] for p in policies],
         "_policy_info": {str(p["id"]): {
