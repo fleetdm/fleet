@@ -4523,6 +4523,57 @@ func TestStagedUploadAvailable(t *testing.T) {
 	}
 }
 
+func TestValidateVPPAssignmentsFleetNames(t *testing.T) {
+	newSvc := func(teams ...*fleet.TeamSummary) *Service {
+		ds := new(mock.Store)
+		ds.TeamsSummaryFunc = func(context.Context) ([]*fleet.TeamSummary, error) {
+			return teams, nil
+		}
+		ds.ListVPPTokensFunc = func(context.Context) ([]*fleet.VPPTokenDB, error) {
+			return []*fleet.VPPTokenDB{{ID: 1, Location: "HQ"}}, nil
+		}
+		return &Service{ds: ds}
+	}
+	lic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+
+	t.Run("a fleet name in decomposed form resolves to that fleet", func(t *testing.T) {
+		svc := newSvc(&fleet.TeamSummary{ID: 1, Name: "Caf\u00e9 Macs"})
+		invalid := &fleet.InvalidArgumentError{}
+		got, err := svc.validateVPPAssignments(t.Context(), []fleet.MDMAppleVolumePurchasingProgramInfo{
+			{Location: "HQ", Teams: []string{"Cafe\u0301 Macs"}},
+		}, invalid, lic)
+		require.NoError(t, err)
+		require.False(t, invalid.HasErrors(), invalid.Error())
+		require.Equal(t, map[uint][]uint{1: {1}}, got)
+	})
+
+	t.Run("Unassigned is rejected while fleets are named Unassigned", func(t *testing.T) {
+		svc := newSvc(
+			&fleet.TeamSummary{ID: 1, Name: "Workstations"},
+			&fleet.TeamSummary{ID: 7, Name: "unassigned"},
+			&fleet.TeamSummary{ID: 8, Name: "Unassigned"},
+		)
+		invalid := &fleet.InvalidArgumentError{}
+		got, err := svc.validateVPPAssignments(t.Context(), []fleet.MDMAppleVolumePurchasingProgramInfo{
+			{Location: "HQ", Teams: []string{fleet.DisplayNameNoTeam, "Workstations"}},
+		}, invalid, lic)
+		require.NoError(t, err)
+		require.Nil(t, got)
+		require.ErrorContains(t, invalid, `fleets with the reserved name Unassigned must be renamed before you assign a VPP token to Unassigned: "Unassigned", "unassigned"`)
+	})
+
+	t.Run("No team and other fleets still work while a fleet is named Unassigned", func(t *testing.T) {
+		svc := newSvc(&fleet.TeamSummary{ID: 1, Name: "Workstations"}, &fleet.TeamSummary{ID: 7, Name: "unassigned"})
+		invalid := &fleet.InvalidArgumentError{}
+		got, err := svc.validateVPPAssignments(t.Context(), []fleet.MDMAppleVolumePurchasingProgramInfo{
+			{Location: "HQ", Teams: []string{fleet.TeamNameNoTeam, "Workstations"}},
+		}, invalid, lic)
+		require.NoError(t, err)
+		require.False(t, invalid.HasErrors(), invalid.Error())
+		require.Equal(t, map[uint][]uint{1: {0, 1}}, got)
+	})
+}
+
 func TestValidateVPPAssignmentsManyTokensPerFleet(t *testing.T) {
 	ds := new(mock.Store)
 	ds.TeamsSummaryFunc = func(context.Context) ([]*fleet.TeamSummary, error) {
