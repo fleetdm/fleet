@@ -34,6 +34,13 @@ try {
         $uninstallExe = $uninstallString
     }
 
+    # A copy installed into SYSTEM's profile by the 32-bit installer is under
+    # SysWOW64, but its registration names system32.
+    if (-not (Test-Path -LiteralPath $uninstallExe)) {
+        $redirected = $uninstallExe -replace '(?i)\\system32\\', '\SysWOW64\'
+        if (Test-Path -LiteralPath $redirected) { $uninstallExe = $redirected }
+    }
+
     # Determine the install directory for cleanup.
     $installDir = $uninstall.InstallLocation
     if (-not $installDir -or -not (Test-Path $installDir)) {
