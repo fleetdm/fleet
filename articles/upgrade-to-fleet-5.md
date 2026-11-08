@@ -614,7 +614,7 @@ GitHub issue: [#28334](https://github.com/fleetdm/fleet/issues/28334)
 
 Change these before you upgrade.
 
-See [Static SCEP challenge off by default](#static-scep-challenge-off-by-default).
+Follow the steps in [Static SCEP challenge off by default](#static-scep-challenge-off-by-default).
 
 GitHub issue: [#54190](https://github.com/fleetdm/fleet/issues/54190)
 
