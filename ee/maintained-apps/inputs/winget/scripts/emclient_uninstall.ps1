@@ -75,7 +75,9 @@ try {
     }
   }
 
-  do {
+  # Stops right after a check, never after a sleep, so a removal that finishes during
+  # the last sleep isn't missed.
+  while ($true) {
     $checkFailed = $false
     try {
       if (-not (Test-PackageRemains)) {
@@ -83,10 +85,13 @@ try {
       }
     } catch {
       $checkFailed = $true
-      Write-Host "Checking for eM Client failed, retrying: $($_.Exception.Message)"
+      Write-Host "Checking for eM Client failed: $($_.Exception.Message)"
+    }
+    if ($stopwatch.Elapsed.TotalSeconds -ge $timeoutSeconds) {
+      break
     }
     Start-Sleep -Seconds 5
-  } while ($stopwatch.Elapsed.TotalSeconds -lt $timeoutSeconds)
+  }
 
   if ($checkFailed) {
     Write-Host "Couldn't verify that eM Client was removed."
