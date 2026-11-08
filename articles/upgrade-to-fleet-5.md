@@ -589,6 +589,18 @@ Change these before you upgrade.
 
 GitHub issue: [#53470](https://github.com/fleetdm/fleet/issues/53470)
 
+### User spec endpoints removed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| TODO | Removed |
+
+#### What to do
+
+TODO
+
+GitHub issue: TODO
+
 ### Puppet module removed
 
 | Fleet 4 | Fleet 5 |
@@ -983,9 +995,34 @@ GitHub issue: [#49909](https://github.com/fleetdm/fleet/issues/49909)
    - 2017 packs stop running on hosts after the upgrade.
 2. Add the reports to Fleet with [GitOps (YAML)](https://fleetdm.com/docs/configuration/yaml-files#reports) or [Create report](https://fleetdm.com/docs/rest-api/rest-api#create-report) (API).
    - With GitOps, copy each report's settings from under `spec:` into `reports` in `default.yml` or the fleet's YAML file.
-   - With the API, call `POST /api/v1/fleet/reports` once for each report.
+   - With the API, call [`POST /reports`](https://fleetdm.com/docs/rest-api/rest-api#create-report) once for each report.
 
 GitHub issue: [#53470](https://github.com/fleetdm/fleet/issues/53470)
+
+### fleetctl delete removed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `fleetctl delete -f` deletes the reports and labels listed in a file | Removed |
+
+#### What to do
+
+1. Delete reports and labels in the UI, with the API, or with GitOps.
+   - With the API, use [`DELETE /reports/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-report-by-id) and [`DELETE /labels/id/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-label-by-id).
+
+GitHub issue: TODO
+
+### fleetctl user create-users and delete-users removed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `fleetctl user create-users` and `fleetctl user delete-users` | Removed |
+
+#### What to do
+
+TODO
+
+GitHub issue: TODO
 
 ### package file names changed
 
