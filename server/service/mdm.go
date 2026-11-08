@@ -1481,8 +1481,8 @@ func (svc *Service) GetMDMAndroidProfilesSummary(ctx context.Context, teamID *ui
 func (svc *Service) authorizeAllHostsTeams(ctx context.Context, hostUUIDs []string, authzAction any, authorizer fleet.TeamIDSetter) ([]*fleet.Host, error) {
 	// load hosts (lite) by uuids, check that the user has the rights to run
 	// commands for every affected team.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
-		return nil, err
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, authz.GitOpsHostListError(ctx, err)
 	}
 
 	// here we use a global admin as filter because we want to get all hosts that
