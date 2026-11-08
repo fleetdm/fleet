@@ -109,10 +109,10 @@ relaunch_application() {
 MOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)
 yes | hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH" || exit 1
 if ! sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"; then
-	hdiutil detach "$MOUNT_POINT" || true
+	hdiutil detach "$MOUNT_POINT" || { sleep 2; hdiutil detach "$MOUNT_POINT"; } || hdiutil detach -force "$MOUNT_POINT" || true
 	exit 1
 fi
-hdiutil detach "$MOUNT_POINT" || true
+hdiutil detach "$MOUNT_POINT" || { sleep 2; hdiutil detach "$MOUNT_POINT"; } || hdiutil detach -force "$MOUNT_POINT" || true
 quit_and_track_application 'com.electron.wispr-flow' || exit 1
 if [ -d "$APPDIR/Wispr Flow.app" ]; then
 	sudo mv "$APPDIR/Wispr Flow.app" "$TMPDIR/Wispr Flow.app.bkp" || exit $?

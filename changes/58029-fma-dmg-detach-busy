@@ -1,1 +1,0 @@
-- Fleet-maintained macOS apps installed from a DMG no longer leave the disk image attached when the volume is busy: the install script retries the detach and then forces it.
