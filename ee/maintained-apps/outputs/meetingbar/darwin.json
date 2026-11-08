@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.11.6",
+      "version": "5.0.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'leits.MeetingBar';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'leits.MeetingBar' AND version_compare(bundle_short_version, '4.11.6') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'leits.MeetingBar' AND version_compare(bundle_short_version, '5.0.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'leits.MeetingBar' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/leits/MeetingBar/releases/download/v4.11.6/MeetingBar.dmg",
+      "installer_url": "https://github.com/leits/MeetingBar/releases/download/v5.0.0/MeetingBar.dmg",
       "install_script_ref": "0d82642a",
       "uninstall_script_ref": "2cd5825f",
-      "sha256": "4f19af496d4ff44b9b0ee02be02bc76207f3e365a7f9e77c7219a08c607838d7",
+      "sha256": "26d4759f73f429c2aa93d225704bf85cdde8b1c035c12aadeb63d4dddbdae1e4",
       "default_categories": [
         "Communication"
       ]

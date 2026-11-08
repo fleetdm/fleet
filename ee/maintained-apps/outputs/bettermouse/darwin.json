@@ -7,10 +7,10 @@
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.naotanhaocan.BetterMouse' AND version_compare(bundle_short_version, '1.7') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.naotanhaocan.BetterMouse' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://better-mouse.com/wp-content/uploads/BetterMouse.1.7.9059.zip",
+      "installer_url": "https://better-mouse.com/wp-content/uploads/BetterMouse.1.7.9092.zip",
       "install_script_ref": "1bb05f0e",
       "uninstall_script_ref": "0fe7ea8a",
-      "sha256": "0a9b35b4f16dff80d23d0c2f07f1ab8b20ce077a65462c269eec098fd182fa1f",
+      "sha256": "3fdad25aa5f68c091f33d708158f468a4f93dc24020ad586ddc6741a43efddce",
       "default_categories": [
         "Productivity"
       ]
