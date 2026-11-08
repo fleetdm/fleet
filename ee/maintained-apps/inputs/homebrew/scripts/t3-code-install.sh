@@ -114,10 +114,10 @@ relaunch_application() {
 MOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)
 yes | hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH" || exit 1
 if ! sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"; then
-	hdiutil detach "$MOUNT_POINT" || true
+	hdiutil detach "$MOUNT_POINT" || { sleep 2; hdiutil detach "$MOUNT_POINT"; } || hdiutil detach -force "$MOUNT_POINT" || true
 	exit 1
 fi
-hdiutil detach "$MOUNT_POINT" || true
+hdiutil detach "$MOUNT_POINT" || { sleep 2; hdiutil detach "$MOUNT_POINT"; } || hdiutil detach -force "$MOUNT_POINT" || true
 # copy to the applications folder
 quit_and_track_application 'com.t3tools.t3code' || exit 1
 if [ -d "$APPDIR/T3 Code (Beta).app" ]; then

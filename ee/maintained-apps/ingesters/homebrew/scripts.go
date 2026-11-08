@@ -694,13 +694,16 @@ func (s *scriptBuilder) Extract(format string) {
 		// behavior). Harmless when the DMG has no license prompt.
 		// A partial copy would otherwise be installed over the working app, so stop
 		// before the existing app is backed up or replaced.
+		// A busy volume ("Resource busy") would stay attached after the DMG is deleted,
+		// holding its disk space until a restart, so retry once and then force it.
+		detach := `hdiutil detach "$MOUNT_POINT" || { sleep 2; hdiutil detach "$MOUNT_POINT"; } || hdiutil detach -force "$MOUNT_POINT" || true`
 		s.Write(`MOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)
 yes | hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH" || exit 1
 if ! sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"; then
-	hdiutil detach "$MOUNT_POINT" || true
+	` + detach + `
 	exit 1
 fi
-hdiutil detach "$MOUNT_POINT" || true`)
+` + detach)
 
 	case "zip":
 		s.Write("# extract contents")
