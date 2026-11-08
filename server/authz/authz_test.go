@@ -98,7 +98,7 @@ func TestCanWriteSecretVariables(t *testing.T) {
 
 func TestGitOpsMDMCommandError(t *testing.T) {
 	authzErr := errors.New("authz failed")
-	teamGitOps := &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}}
+	teamGitOps := &fleet.User{Teams: []fleet.UserTeam{{ID: 1, Role: fleet.RoleGitOps}}}
 	cases := []struct {
 		name        string
 		user        *fleet.User
@@ -111,7 +111,7 @@ func TestGitOpsMDMCommandError(t *testing.T) {
 		{"fleet gitops, other fleet", teamGitOps, new(uint(2)), false},
 		{"fleet gitops, no fleet", teamGitOps, nil, false},
 		{"fleet gitops on another fleet, maintainer on this one", &fleet.User{Teams: []fleet.UserTeam{
-			{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}, {Team: fleet.Team{ID: 2}, Role: fleet.RoleGitOps},
+			{ID: 1, Role: fleet.RoleMaintainer}, {ID: 2, Role: fleet.RoleGitOps},
 		}}, new(uint(1)), false},
 		{"global maintainer", test.UserMaintainer, nil, false},
 		{"no viewer", nil, nil, false},
@@ -136,7 +136,7 @@ func TestGitOpsHostListError(t *testing.T) {
 		wantMessage bool
 	}{
 		{"global gitops", test.UserGitOps, true},
-		{"fleet gitops", &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}}, true},
+		{"fleet gitops", &fleet.User{Teams: []fleet.UserTeam{{ID: 1, Role: fleet.RoleGitOps}}}, true},
 		{"fleet observer", test.UserTeamObserverTeam1, false},
 		{"no viewer", nil, false},
 	}

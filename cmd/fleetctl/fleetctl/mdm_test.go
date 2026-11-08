@@ -371,7 +371,7 @@ func TestMDMRunCommand(t *testing.T) {
 					return appCfgAllMDM, nil
 				}
 				ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
-					return &fleet.User{ID: id, GlobalRole: ptr.String(fleet.RoleGitOps)}, nil
+					return &fleet.User{ID: id, GlobalRole: new(fleet.RoleGitOps)}, nil
 				}
 				_, err := runAppNoChecks([]string{"mdm", "run-command", "--hosts", "mac-enrolled", "--payload", appleCmdFilePath})
 				require.ErrorContains(t, err, fleet.GitOpsMDMCommandErrorMessage)
