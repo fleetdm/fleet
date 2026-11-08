@@ -7282,6 +7282,13 @@
       "description": "Read AI is a meeting recorder, transcriber and summariser."
     },
     {
+      "name": "Read AI",
+      "slug": "read-ai/windows",
+      "platform": "windows",
+      "unique_identifier": "Read AI",
+      "description": "Read AI is a meeting recorder, transcriber and summariser."
+    },
+    {
       "name": "Readest",
       "slug": "readest/darwin",
       "platform": "darwin",
