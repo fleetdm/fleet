@@ -32,6 +32,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
+	"golang.org/x/net/http/httpguts"
 	"golang.org/x/text/unicode/norm"
 	"google.golang.org/api/androidmanagement/v1"
 )
@@ -2102,12 +2103,16 @@ func (svc *Service) UploadVPPToken(ctx context.Context, token io.ReadSeeker) (*f
 		return nil, ctxerr.Wrap(ctx, err, "reading VPP token")
 	}
 
+	if !httpguts.ValidHeaderFieldValue(string(tokenBytes)) {
+		return nil, fleet.NewInvalidArgumentError("token", "Invalid token. Please provide a valid content token from Apple Business.")
+	}
+
 	clientCfg, err := vpp.GetConfig(ctx, string(tokenBytes))
 	if err != nil {
 		var vppErr *vpp.ErrorResponse
 		if errors.As(err, &vppErr) {
 			// Per https://developer.apple.com/documentation/devicemanagement/app_and_book_management/app_and_book_management_legacy/interpreting_error_codes
-			if vppErr.ErrorNumber == 9622 {
+			if vppErr.ErrorNumber == 9622 || vppErr.ErrorNumber == 9722 {
 				return nil, fleet.NewInvalidArgumentError("token", "Invalid token. Please provide a valid content token from Apple Business.")
 			}
 		}

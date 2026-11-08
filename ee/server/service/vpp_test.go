@@ -3216,3 +3216,43 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 		require.False(t, f.ds.ListIOSAndIPadOSMDMHostsAfterIDFuncInvoked)
 	})
 }
+
+func TestUploadVPPTokenInvalidContent(t *testing.T) {
+	var calls atomic.Int32
+	var errorNumber int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		fmt.Fprintf(w, `{"errorNumber":%d,"errorMessage":"Invalid authorization"}`, errorNumber)
+	}))
+	t.Cleanup(server.Close)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", server.URL, t)
+
+	for _, tc := range []struct {
+		name      string
+		token     string
+		code      int
+		wantCalls int32
+	}{
+		{"invalid authentication", "invalid", 9622, 1},
+		{"invalid authorization", "plain text", 9722, 1},
+		{"PNG", "\x89PNG\r\n\x1a\n", 0, 0},
+		{"certificate", "-----BEGIN CERTIFICATE-----\ninvalid\n-----END CERTIFICATE-----", 0, 0},
+		{"NUL", "token\x00", 0, 0},
+		{"DEL", "token\x7f", 0, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			calls.Store(0)
+			errorNumber = tc.code
+			ds := new(mock.Store)
+			svc := newTestService(t, ds)
+			svc.config.Server.PrivateKey = "test-key"
+			ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+			_, err := svc.UploadVPPToken(ctx, strings.NewReader(tc.token))
+			var invalidArg *fleet.InvalidArgumentError
+			require.ErrorAs(t, err, &invalidArg)
+			require.ErrorContains(t, err, "Invalid token. Please provide a valid content token from Apple Business.")
+			require.Equal(t, tc.wantCalls, calls.Load())
+			require.False(t, ds.InsertVPPTokenFuncInvoked)
+		})
+	}
+}
