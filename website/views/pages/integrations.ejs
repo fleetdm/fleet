@@ -1,521 +1,151 @@
 <div id="integrations" v-cloak>
+  <div purpose="page-container">
+    <div purpose="page-content">
 
-  <div purpose="page-container" class="container-xl mx-auto">
-    <div purpose="page-heading">
-      <h1>Extend Fleet</h1>
-      <p>Integrate ticketing systems, data lakes (/SIEMs), no-code (/SOAR) platforms, configuration management tools, network appliances for asset discovery, and more.</p>
-      <p>You can also build custom workflows with the REST API, webhook events, and fleetctl command line tool.</p>
-      <a purpose="edit-button" href="https://github.com/fleetdm/fleet/edit/main/website/views/pages/integrations.ejs" target="_blank" no-icon>
-        <i class="fa fa-pencil"></i>Edit page
-      </a>
-    </div>
-
-    <div purpose="integration-cards" class="card-deck d-flex justify-content-center">
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-okta-85x28@2x.png" alt="Okta logo">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            Okta is an identity and access management (IAM) platform. Configure Fleet as an Okta SAML application so your team signs in with existing corporate credentials, reduces password sprawl, and centralizes access control. Use Fleet's <a href="/guides/okta-conditional-access-integration">conditional access</a> so Okta blocks sign-in from macOS hosts that are failing Fleet policies.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://www.okta.com/">Learn more</a>
-            <animated-arrow-button class="py-0" href="/docs/deploy/single-sign-on-sso#okta">Docs</animated-arrow-button>
+      <div purpose="page-hero">
+        <div purpose="hero-text">
+          <h4>Integrations</h4>
+          <h1>Extend Fleet</h1>
+          <p>Integrate AI coding agents, ticketing systems, data lakes (/SIEMs), no-code (/SOAR) platforms, configuration management tools, network appliances for asset discovery, and more.</p>
+          <p>You can also build custom workflows with the REST API, webhook events, and fleetctl command line tool.</p>
+          <div purpose="button-row">
+            <a purpose="cta-button" href="/contact?talkToUs">Get a demo</a>
+            <animated-arrow-button href="/docs/rest-api/rest-api">Explore the REST API</animated-arrow-button>
           </div>
         </div>
-      </div>
-
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo" class="d-flex flex-row align-items-center">
-          <img src="/images/logo-microsoft-entra-28x28@2x.png" alt="Microsoft Entra logo">
-          <p>Microsoft Entra</p>
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            Microsoft Entra ID is Microsoft's identity and access management (IAM) platform. Configure Fleet as an Entra application so your team signs in with existing corporate credentials. Use Fleet's <a href="/guides/entra-conditional-access-integration">conditional access</a> so Entra blocks sign-in from macOS and Windows hosts that are failing Fleet policies.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://www.microsoft.com/en-us/security/business/identity-access/microsoft-entra-id">Learn more</a>
-            <animated-arrow-button class="py-0" href="/docs/deploy/single-sign-on-sso#entra">Docs</animated-arrow-button>
+        <%
+          // Positions are in the hub's 520×460 coordinate space, so the SVG lines and the HTML nodes line up at any size.
+          let hubWidth = 520;
+          let hubHeight = 460;
+          let hubNodes = [];
+          aiIntegrations.forEach((integration, index)=>{
+            let angle = (45 + index * 90) * Math.PI / 180;
+            hubNodes.push({ integration, ring: 'inner', x: hubWidth / 2 + 118 * Math.cos(angle), y: hubHeight / 2 + 118 * Math.sin(angle) });
+          });
+          ['okta', 'splunk', 'jira', 'snowflake', 'github', 'ansible', 'vanta', 'aws'].forEach((slug, index)=>{
+            let angle = (22.5 + index * 45) * Math.PI / 180;
+            hubNodes.push({ integration: integrations.find((integration)=> integration.slug === slug), ring: 'outer', x: hubWidth / 2 + 200 * Math.cos(angle), y: hubHeight / 2 + 180 * Math.sin(angle) });
+          });
+        %>
+        <div purpose="hub" aria-hidden="true">
+          <svg purpose="hub-lines" viewBox="0 0 <%- hubWidth %> <%- hubHeight %>">
+            <ellipse cx="<%- hubWidth / 2 %>" cy="<%- hubHeight / 2 %>" rx="118" ry="118" purpose="hub-ring"/>
+            <ellipse cx="<%- hubWidth / 2 %>" cy="<%- hubHeight / 2 %>" rx="200" ry="180" purpose="hub-ring"/>
+            <% for (let node of hubNodes) { %>
+            <line x1="<%- node.x.toFixed(1) %>" y1="<%- node.y.toFixed(1) %>" x2="<%- hubWidth / 2 %>" y2="<%- hubHeight / 2 %>" purpose="hub-line" ring="<%- node.ring %>"/>
+            <% } %>
+          </svg>
+          <div purpose="hub-center">
+            <img src="/images/icon-fleet-avatar-28x28.svg" alt="">
           </div>
-        </div>
-      </div>
-
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-duo-93x47@2x.png" alt="Duo logo">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            Duo is a multi-factor authentication (MFA) and access platform. Configure Fleet as a Duo SSO application so your team signs in with existing corporate credentials. Use Fleet's <a href="/guides/duo-conditional-access-integration">conditional access</a> so Duo blocks sign-in from macOS, Windows, and Linux hosts that aren't managed by Fleet.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://duo.com/">Learn more</a>
-            <animated-arrow-button class="py-0" href="/docs/deploy/single-sign-on-sso#other-idps">Docs</animated-arrow-button>
+          <% hubNodes.forEach((node, index)=>{ %>
+          <div purpose="hub-node" ring="<%- node.ring %>" style="left: <%- (node.x / hubWidth * 100).toFixed(2) %>%; top: <%- (node.y / hubHeight * 100).toFixed(2) %>%; animation-delay: -<%- index * 0.7 %>s;">
+            <img src="<%- node.integration.logo %>" alt="">
           </div>
+          <% }); %>
         </div>
       </div>
 
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-ping-identity-164x28@2x.png" alt="Ping Identity logo">
+      <div purpose="ai-section">
+        <div purpose="section-heading">
+          <h4>AI-native device management</h4>
+          <h2>Use the AI you already trust</h2>
+          <p>Fleet works natively with your team’s AI tools, like Claude, Copilot, or any AI harness. Use it to propose changes, with a human review between it and your devices.</p>
         </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            PingFederate is Ping Identity's identity federation server. Configure Fleet as a PingFederate SAML application so your team signs in with existing corporate credentials. Use Fleet's <a href="/guides/pingfederate-conditional-access-integration">conditional access</a> so PingFederate blocks sign-in from macOS, Windows, and Linux hosts that aren't managed by Fleet or are failing critical policies.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://www.pingidentity.com/en/platform/capabilities/authentication-authority/pingfederate.html">Learn more</a>
-            <animated-arrow-button class="py-0" href="/docs/deploy/single-sign-on-sso#other-idps">Docs</animated-arrow-button>
+        <ai-tool-graphic :include-teams="true" :platform="visitorPlatform" :initial-tool="visitorPlatform === 'windows' ? 'teams' : 'slack'"></ai-tool-graphic>
+        <div purpose="ai-tools">
+          <% for (let integration of aiIntegrations) { %>
+          <div purpose="ai-tool">
+            <div purpose="ai-tool-heading">
+              <img src="<%- integration.logo %>" alt="<%- integration.name %> logo">
+              <h5><%- integration.name %></h5>
+            </div>
+            <p><%- integration.summary %></p>
+            <animated-arrow-button href="<%- integration.docsUrl %>" target="<%- integration.docsUrl.startsWith('http') ? '_blank' : '_self' %>"><%- integration.docsLabel %></animated-arrow-button>
           </div>
+          <% } %>
         </div>
       </div>
 
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-google-workspace-223x28@2x.png" alt="Google Workspace logo">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            Google Workspace is Google's productivity and identity platform. Configure Fleet as a Google Workspace SAML app so your team signs in with existing corporate credentials. Use Fleet's <a href="/guides/google-conditional-access-integration">conditional access</a> so Google blocks sign-in from iPhones and iPads that aren't managed by Fleet.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://workspace.google.com/">Learn more</a>
-            <animated-arrow-button class="py-0" href="/docs/deploy/single-sign-on-sso#google-workspace">Docs</animated-arrow-button>
+      <div purpose="directory">
+        <div purpose="directory-toolbar">
+          <div purpose="directory-heading">
+            <h2>All integrations</h2>
+            <div purpose="search">
+              <img src="/images/icon-search-16x16@2x.png" alt="">
+              <input type="text" v-model="searchQuery" placeholder="Search integrations" aria-label="Search integrations">
+            </div>
           </div>
+          <div purpose="category-filters">
+            <button purpose="category-filter" :class="{selected: selectedCategory === 'all'}" @click="clickSelectCategory('all')">All</button>
+            <% for (let category of integrationCategories) { %>
+            <button purpose="category-filter" :class="{selected: selectedCategory === '<%- category.slug %>'}" @click="clickSelectCategory('<%- category.slug %>')"><%- category.shortName %></button>
+            <% } %>
+          </div>
+        </div>
+
+        <% for (let category of integrationCategories) { %>
+        <div purpose="category-section" v-if="countVisibleIntegrations('<%- category.slug %>') > 0">
+          <div purpose="category-heading">
+            <h3><%- category.name %></h3>
+            <span>{{countVisibleIntegrations('<%- category.slug %>')}}</span>
+          </div>
+          <div purpose="integration-grid">
+            <% for (let integration of integrations.filter((integration)=> integration.category === category.slug)) { %>
+            <div purpose="integration-card" v-if="isIntegrationVisible('<%- integration.slug %>')">
+              <a purpose="card-link" href="<%- integration.docsUrl || integration.learnMoreUrl %>" target="<%- (integration.docsUrl || integration.learnMoreUrl).startsWith('http') ? '_blank' : '_self' %>" no-icon aria-label="<%- integration.name %>"></a>
+              <div purpose="integration-logo" class="<%- integration.logoType === 'icon' ? 'with-name' : '' %>">
+                <img src="<%- integration.logo %>" alt="<%- integration.name %> logo">
+                <% if (integration.logoType === 'icon') { %><span><%- integration.name %></span><% } %>
+              </div>
+              <p><%- integration.summary %></p>
+              <div purpose="integration-links">
+                <% if (integration.docsUrl) { %>
+                <animated-arrow-button href="<%- integration.docsUrl %>" target="<%- integration.docsUrl.startsWith('http') ? '_blank' : '_self' %>"><%- integration.docsLabel %></animated-arrow-button>
+                <% } %>
+                <a purpose="learn-more-link" href="<%- integration.learnMoreUrl %>" target="_blank">Learn more</a>
+              </div>
+            </div>
+            <% } %>
+          </div>
+        </div>
+        <% } %>
+        <div purpose="no-results" v-if="countVisibleIntegrations() === 0">
+          <p>No integrations match “{{searchQuery}}”.</p>
+          <button purpose="clear-filters-button" @click="clickClearFilters()">Clear filters</button>
         </div>
       </div>
 
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-snowflake-color-117x28@2x.png" alt="Snowflake logo">
+      <div purpose="build-section">
+        <div purpose="section-heading">
+          <h2>Build anything</h2>
+          <p>Configure custom IdPs, trigger automations with webhooks, or build custom dashboards using Fleet’s REST API.</p>
         </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            Snowflake is a cloud data warehouse. Stream Fleet host and osquery data into Snowflake to run analytics, build dashboards, and combine endpoint visibility with the rest of your data, so security and BI teams work from one source.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://www.snowflake.com/">Learn more</a>
-            <animated-arrow-button class="py-0" href="/guides/delivering-data-to-snowflake-from-fleet-and-osquery">Docs</animated-arrow-button>
+        <div purpose="build-grid">
+          <% for (let block of buildingBlocks) { %>
+          <div purpose="build-card">
+            <a purpose="card-link" href="<%- block.docsUrl %>" aria-label="<%- block.name %> docs"></a>
+            <div purpose="build-card-heading">
+              <img src="<%- block.logo %>" alt="">
+              <h5><%- block.name %></h5>
+            </div>
+            <p><%- block.description %></p>
+            <animated-arrow-button href="<%- block.docsUrl %>">Docs</animated-arrow-button>
           </div>
+          <% } %>
         </div>
       </div>
 
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-tines-90x28@2x.png" alt="Tines logo">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            Tines is a no-code SOAR and workflow automation platform. Use Fleet webhooks so Tines runs workflows when hosts go offline, policies fail, or new vulnerabilities appear, automating response without writing code.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://www.tines.com/">Learn more</a>
-            <animated-arrow-button class="py-0" href="/guides/using-fleet-and-tines-together#basic-article">Docs</animated-arrow-button>
-          </div>
+      <div purpose="bottom-cta">
+        <h2>Build integrations that connect your product with Fleet</h2>
+        <div purpose="button-row">
+          <a purpose="cta-button" href="/partners">Become a technology partner</a>
+          <animated-arrow-button href="/contact?talkToUs">Get a demo</animated-arrow-button>
         </div>
       </div>
 
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-runzero-130x28@2x.png" alt="runZero Directory logo">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            runZero is an asset discovery and network visibility platform. Use runZero to deploy osquery and discover assets, then manage and query those hosts in Fleet, giving you one place for asset discovery and endpoint visibility.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://www.runzero.com/">Learn more</a>
-          </div>
-        </div>
-      </div>
-
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-active-directory-169x28@2x.png" alt="Active Directory logo">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            Active Directory is an on-premises identity and directory service. Use AD as the identity provider for Fleet so users sign in with existing domain credentials, keeping Fleet aligned with your current identity and access model.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://learn.microsoft.com/en-us/azure/active-directory/fundamentals/whatis">Learn more</a>
-          </div>
-        </div>
-      </div>
-
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-ansible-147x28@2x.png" alt="Ansible logo">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            Ansible is a configuration management and automation platform. Run Ansible playbooks from or alongside Fleet to install software, change configs, and enforce state across your hosts, combining Fleet’s visibility with Ansible’s automation.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://www.youtube.com/watch?v=mXGisrZK7fc">Learn more</a>
-          </div>
-        </div>
-      </div>
-
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-aws-46x28@2x.png" alt="AWS logo">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            AWS is a cloud provider. Run a self-managed Fleet server on EC2 (or ECS) so Fleet lives in your AWS account, giving you full control over data, networking, and compliance while using the same cloud you already use.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://aws.amazon.com/">Learn more</a>
-            <animated-arrow-button class="py-0" href="/docs/deploy/deploy-fleet#aws">Get started</animated-arrow-button>
-          </div>
-        </div>
-      </div>
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-azure-169x28@2x.png" alt="Azure logo">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            Azure is a cloud provider. Run a self-managed Fleet server on Azure VMs or containers so Fleet runs in your Azure tenant, keeping endpoint data in your cloud and under your governance.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://azure.microsoft.com/en-us">Learn more</a>
-            <animated-arrow-button class="py-0" href="https://chat.osquery.io/c/fleet">Community support</animated-arrow-button>
-          </div>
-        </div>
-      </div>
-
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-chef-169x28@2x.png" alt="Chef logo">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            Chef is a configuration management platform. Deploy and run Chef cookbooks with Fleet to define and enforce desired state across servers and workstations, so Fleet’s visibility pairs with Chef’s configuration automation.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://www.youtube.com/watch?v=tbRzbRCf35E">Learn more</a>
-          </div>
-        </div>
-      </div>
-
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-elastic-82x28@2x.png" alt="Elastic logo">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            Elastic (Elasticsearch, Kibana) is a search and observability platform. Send Fleet and osquery logs and results to Elastic to search, visualize, and alert on endpoint data, turning Fleet into a rich data source for your SIEM or ops stack.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://www.elastic.co/">Learn more</a>
-            <animated-arrow-button class="py-0" href="/guides/using-elasticsearch-and-kibana-to-visualize-osquery-performance">Docs</animated-arrow-button>
-          </div>
-        </div>
-      </div>
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-github-89x28@2x.png" alt="Github logo">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            GitHub is a version control and CI/CD platform. Use GitHub Actions (or similar) to apply Fleet configuration and profiles from a repo, so Fleet config is versioned, reviewed, and deployed via a gitOps workflow.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://github.com/">Learn more</a>
-            <animated-arrow-button class="py-0" href="/guides/using-github-actions-to-apply-configuration-profiles-with-fleet">Docs</animated-arrow-button>
-          </div>
-        </div>
-      </div>
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-gitlab-124x28@2x.png" alt="GitLab logo">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            GitLab is a version control and CI/CD platform. Use GitLab CI to manage and apply Fleet configuration from a repo, so Fleet follows a gitOps workflow with version history and collaboration.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://about.gitlab.com/">Learn more</a>
-            <animated-arrow-button class="py-0" target="_blank" href="https://docs.gitlab.com/ee/ci/">Docs</animated-arrow-button>
-          </div>
-        </div>
-      </div>
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-google-chronicle-128x28@2x.png" alt="Google Chronicle logo">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            Google Chronicle is a SIEM and security analytics platform. Ingest Fleet and osquery data into Chronicle to run detections and investigations on endpoint telemetry, so Fleet’s host and query data powers your security analytics.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://chronicle.security/">Learn more</a>
-            <animated-arrow-button class="py-0" target="_blank" href="https://cloud.google.com/chronicle/docs/ingestion/default-parsers/collect-osquery">Docs</animated-arrow-button>
-          </div>
-        </div>
-      </div>
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-google-cloud-174x28@2x.png" alt="Google Cloud Platform logo">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            Google Cloud Platform (GCP) is a cloud provider. Run a self-managed Fleet server on Compute Engine or GKE so Fleet operates inside your GCP project, with control over data residency and network topology.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://console.cloud.google.com/getting-started">Learn more</a>
-            <animated-arrow-button class="py-0" href="https://chat.osquery.io/c/fleet">Community support</animated-arrow-button>
-          </div>
-        </div>
-      </div>
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-ilert-93x28@2x.png" alt="Ilert logo">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            Ilert is an alerting and incident management platform. Route Fleet webhooks (e.g., policy failures, new CVEs) to Ilert to get notified via SMS, push, or voice, so critical endpoint events reach the right people immediately.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://docs.ilert.com/integrations/inbound-integrations/fleet/?utm_campaign=145843449-Fleet&utm_source=integration&utm_medium=organic">Learn more</a>
-          </div>
-        </div>
-      </div>
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-jira-185x28@2x.png" alt="Jira Software logo">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            Jira is a ticketing and project management platform. Use Fleet’s vulnerability automations to create Jira tickets when new CVEs are detected on hosts, so remediation is tracked in the same tool your team already uses.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://www.atlassian.com">Learn more</a>
-            <animated-arrow-button class="py-0" href="/docs/using-fleet/automations#vulnerability-automations">Docs</animated-arrow-button>
-          </div>
-        </div>
-      </div>
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-munki-101x28@2x.png" alt="Munki logo">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            Munki is an open-source Mac software management tool. Use Fleet with Munki (e.g., via bootstrap packages) to deploy and update software on macOS hosts, so Mac fleet management and Fleet’s visibility stay in sync.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://github.com/munki/munki">Learn more</a>
-            <animated-arrow-button class="py-0" href="/docs/using-fleet/mdm-macos-setup-experience#bootstrap-package">Docs</animated-arrow-button>
-          </div>
-        </div>
-      </div>
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-puppet-79x28@2x.png" alt="Puppet logo">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            Puppet is a configuration management platform. Deploy and run Puppet with Fleet to enforce desired state and compliance across infrastructure, so Fleet’s host visibility complements Puppet’s configuration automation.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://www.youtube.com/watch?v=_99wKuvHlMQ&t=1s">Learn more</a>
-          </div>
-        </div>
-      </div>
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-salt-1000x356@2x.png" alt="Salt logo">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            Salt is a configuration management and orchestration platform. Deploy and run Salt with Fleet to automate configuration and compliance at scale, so Fleet’s endpoint view and Salt’s automation work together.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://www.youtube.com/watch?v=vzW3BTtJ0-M">Learn more</a>
-          </div>
-        </div>
-      </div>
-
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-splunk-95x28@2x.png" alt="Splunk logo">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            Splunk is a SIEM and observability platform. Send Fleet logs and osquery results to Splunk to search, correlate, and alert on endpoint data alongside the rest of your security and ops data.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://www.splunk.com/">Learn more</a>
-            <animated-arrow-button class="py-0" href="/docs/using-fleet/log-destinations#splunk">Docs</animated-arrow-button>
-          </div>
-        </div>
-      </div>
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-oomnitza-109x28@2x.png" alt="Oomnitza">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            Oomnitza is an IT asset management (ITAM) platform. Sync Fleet host data (serial, user, location, lifecycle) into Oomnitza so asset inventory, lifecycle, and compliance are based on the same endpoint truth.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://oomnitza.zendesk.com/hc/en-us/sections/15236197815191-Fleet-Device-Management">Learn more</a>
-          </div>
-        </div>
-      </div>
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-crowdstrike-158x28@2x.png" alt="CrowdStrike logo">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            Connect Fleet to CrowdStrike Falcon Shield (SSPM) to tie SaaS logins to devices and flag risky access using Fleet’s inventory. Fleet also integrates with <a target="_blank" href="https://www.crowdstrike.com/en-us/platform/exposure-management/integrations/">Falcon Exposure Management</a>, and you can deploy the Falcon sensor with Fleet.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://www.crowdstrike.com/en-us/platform/falcon-shield/integrations/">Learn more</a>
-            <animated-arrow-button class="py-0" href="/guides/deploying-crowdstrike-with-fleet">Docs</animated-arrow-button>
-          </div>
-        </div>
-      </div>
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-homebrew-112x29@2x.png" alt="Homebrew">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            Homebrew is a Mac and Linux package manager. Use Fleet to install and manage software via Homebrew across your fleet, so open-source tools and dependencies are deployed consistently and at scale.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://brew.sh">Learn more</a>
-          </div>
-        </div>
-      </div>
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-workbrew-154x28@2x.png" alt="Workbrew">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            Workbrew manages Homebrew packages across your macOS fleet. Connect Workbrew to Fleet to map those hosts and get a single view of device health, queries, and policies alongside your Homebrew deployment status.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://workbrew.com">Learn more</a>
-          </div>
-        </div>
-      </div>
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-vanta-82x28@2x.png" alt="Vanta">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            Vanta is a compliance and security automation platform. Send Fleet user and host data to Vanta to automatically collect evidence and demonstrate control over endpoints, speeding up audits and continuous compliance.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="/guides/connect-fleet-to-vanta">Learn more</a>
-            <animated-arrow-button class="py-0" href="/connect-vanta">Get started</animated-arrow-button>
-          </div>
-        </div>
-      </div>
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-smallstep-165x28@2x.png" alt="Smallstep logo">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            Smallstep is a device identity and certificate platform. Add Smallstep as a certificate authority in Fleet to deploy Wi-Fi and VPN certificates to macOS, iOS, and iPadOS hosts, and Smallstep uses Fleet’s inventory to verify that certificates only go to devices you manage.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://smallstep.com/product/solutions/fleet/">Learn more</a>
-            <animated-arrow-button class="py-0" href="/guides/connect-end-user-to-wifi-with-certificate#smallstep">Docs</animated-arrow-button>
-          </div>
-        </div>
-      </div>
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-digicert-130x28@2x.png" alt="DigiCert logo">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            DigiCert is a certificate authority and PKI provider. Connect DigiCert Trust Lifecycle Manager to Fleet to issue and deploy certificates to macOS, iOS, and iPadOS hosts, so end users connect to Wi-Fi and VPN without installing certificates by hand.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://www.digicert.com/">Learn more</a>
-            <animated-arrow-button class="py-0" href="/guides/connect-end-user-to-wifi-with-certificate#digicert">Docs</animated-arrow-button>
-          </div>
-        </div>
-      </div>
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-retriever-126x28@2x.png" alt="Retriever logo">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            Retriever is a device retrieval and warehousing service. Sync each device’s Retriever warehouse status into a Fleet custom host vital. See which spare devices are ready to ship before anyone buys new hardware.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a purpose="learn-more-link" target="_blank" href="https://www.helloretriever.com/">Learn more</a>
-            <animated-arrow-button class="py-0" href="/guides/sync-warehouse-status-from-retriever">Docs</animated-arrow-button>
-          </div>
-        </div>
-      </div>
-      <div purpose="integration-card" class="card invisible mb-0 d-none d-sm-flex">
-      </div>
-    </div>
-    <div purpose="page-heading">
-      <h2>Build anything</h2>
-      <p>Configure custom IdPs, trigger automations with webhooks, or build custom dashboards using Fleet’s REST API.</p>
-    </div>
-    <div purpose="integration-cards" class="card-deck d-flex justify-content-center">
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo" class="d-flex flex-row align-items-center">
-          <img src="/images/icon-idp-22x28@2x.png" alt="Custom IdP">
-          <p>Custom IdP</p>
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-Use any SAML-compatible IdP for Fleet. Combine Fleet's device ground truth (e.g., host status, policy) with your IdP so access decisions can factor in both identity and device state.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-end">
-            <animated-arrow-button class="py-0" href="/docs/deploy/single-sign-on-sso#other-idps">Docs</animated-arrow-button>
-          </div>
-        </div>
-      </div>
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo" class="d-flex flex-row align-items-center">
-          <img src="/images/icon-webhooks-30x28@2x.png" alt="Webhooks">
-          <p>Webhooks</p>
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            Webhooks are outbound event notifications. Fleet can send webhooks when host, policy, or CVE status changes, so you can trigger ticketing, SOAR, chat, or custom scripts without polling, and keep the rest of your stack in sync.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-end">
-            <animated-arrow-button class="py-0" href="/docs/using-fleet/automations">Docs</animated-arrow-button>
-          </div>
-        </div>
-      </div>
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo" class="d-flex flex-row align-items-center">
-          <img src="/images/icon-rest-api-35x28@2x.png" alt="REST API">
-          <p>REST API</p>
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            Fleet’s REST API exposes hosts, queries, policies, and configuration programmatically. Use it to build custom dashboards, integrate with internal tools, or automate Fleet, so you can extend Fleet to fit your workflows.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-end">
-            <animated-arrow-button class="py-0" href="/docs/rest-api/rest-api">Docs</animated-arrow-button>
-          </div>
-        </div>
-      </div>
-      <div purpose="integration-card" class="card invisible mb-0 d-none d-sm-flex">
-      </div>
     </div>
   </div>
+  <cloud-city></cloud-city>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
