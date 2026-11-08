@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.8.1",
+      "version": "2026.11",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.pilotmoon.popclip';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.pilotmoon.popclip' AND version_compare(bundle_short_version, '2026.8.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.pilotmoon.popclip' AND version_compare(bundle_short_version, '2026.11') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.pilotmoon.popclip' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://pilotmoon.com/downloads/PopClip-2026.8.1.zip",
+      "installer_url": "https://pilotmoon.com/downloads/PopClip-2026.11.zip",
       "install_script_ref": "a49a9b35",
       "uninstall_script_ref": "39adb8f7",
-      "sha256": "a3117319336996cee1ef9a6d17c03c3d3f1dbf6077164c2cfca5d235420425db",
+      "sha256": "dd8e039dd1048a81048ecaa4eafeae1b4ae08b9546ae4912c93b078da9629eaf",
       "default_categories": [
         "Productivity"
       ]
