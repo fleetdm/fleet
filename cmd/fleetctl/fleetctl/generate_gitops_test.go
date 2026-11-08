@@ -3492,7 +3492,7 @@ func TestGenerateMDMVPPTokens(t *testing.T) {
 			},
 			expected: []fleet.MDMAppleVolumePurchasingProgramInfo{
 				{Location: "Acme Inc.", Teams: []string{"Workstations"}},
-				{Location: "Widgets LLC", Teams: []string{"Servers", fleet.DisplayNameNoTeam}},
+				{Location: "Widgets LLC", Teams: []string{"Servers", fleet.TeamNameNoTeam}},
 			},
 		},
 		{

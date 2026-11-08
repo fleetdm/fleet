@@ -1413,10 +1413,6 @@ func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interf
 		for _, token := range vppTokens {
 			teamNames := make([]string, 0, len(token.Teams))
 			for _, team := range token.Teams {
-				if team.ID == 0 {
-					teamNames = append(teamNames, fleet.DisplayNameNoTeam)
-					continue
-				}
 				teamNames = append(teamNames, team.Name)
 			}
 			// Write "All fleets" for a token assigned to all fleets, it has no fleet names to list
