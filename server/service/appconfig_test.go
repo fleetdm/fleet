@@ -4545,6 +4545,18 @@ func TestValidateVPPAssignmentsManyTokensPerFleet(t *testing.T) {
 		require.Equal(t, map[uint][]uint{1: {1, 0}, 2: {1, 0}}, got)
 	})
 
+	t.Run("Unassigned is the same as No team", func(t *testing.T) {
+		for _, name := range []string{fleet.DisplayNameNoTeam, "unassigned"} {
+			invalid := &fleet.InvalidArgumentError{}
+			got, err := svc.validateVPPAssignments(t.Context(), []fleet.MDMAppleVolumePurchasingProgramInfo{
+				{Location: "HQ", Teams: []string{name, "Workstations"}},
+			}, invalid, lic)
+			require.NoError(t, err)
+			require.False(t, invalid.HasErrors(), invalid.Error())
+			require.Equal(t, map[uint][]uint{1: {0, 1}}, got)
+		}
+	})
+
 	t.Run("All fleets can't mix with other fleets on one token", func(t *testing.T) {
 		invalid := &fleet.InvalidArgumentError{}
 		_, err := svc.validateVPPAssignments(t.Context(), []fleet.MDMAppleVolumePurchasingProgramInfo{
