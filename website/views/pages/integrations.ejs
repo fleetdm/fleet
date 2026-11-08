@@ -76,10 +76,10 @@
               <input type="text" v-model="searchQuery" placeholder="Search integrations" aria-label="Search integrations">
             </div>
           </div>
-          <div purpose="category-filters">
-            <button purpose="category-filter" :class="{selected: selectedCategory === 'all'}" @click="clickSelectCategory('all')">All</button>
+          <div purpose="category-filters" role="group" aria-label="Filter by category">
+            <button type="button" purpose="category-filter" :class="{selected: selectedCategory === 'all'}" :aria-pressed="selectedCategory === 'all' ? 'true' : 'false'" @click="clickSelectCategory('all')">All</button>
             <% for (let category of integrationCategories) { %>
-            <button purpose="category-filter" :class="{selected: selectedCategory === '<%- category.slug %>'}" @click="clickSelectCategory('<%- category.slug %>')"><%- category.shortName %></button>
+            <button type="button" purpose="category-filter" :class="{selected: selectedCategory === '<%- category.slug %>'}" :aria-pressed="selectedCategory === '<%- category.slug %>' ? 'true' : 'false'" @click="clickSelectCategory('<%- category.slug %>')"><%- category.shortName %></button>
             <% } %>
           </div>
         </div>
@@ -112,7 +112,7 @@
         <% } %>
         <div purpose="no-results" v-if="countVisibleIntegrations() === 0">
           <p>No integrations match “{{searchQuery}}”.</p>
-          <button purpose="clear-filters-button" @click="clickClearFilters()">Clear filters</button>
+          <button type="button" purpose="clear-filters-button" @click="clickClearFilters()">Clear filters</button>
         </div>
       </div>
 
