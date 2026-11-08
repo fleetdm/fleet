@@ -1,0 +1,1 @@
+- Fixed `fleetctl gitops` deleting and recreating a custom host vital, and losing its host values, when only the letter case of its name changed. The vital is now renamed in place and keeps its ID and values.

@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"golang.org/x/text/unicode/norm"
 )
 
 const CustomHostVitalPrefix = "FLEET_HOST_VITAL_"
@@ -197,6 +199,13 @@ func ValidateCustomHostVitalName(name string) error {
 		return NewInvalidArgumentError("name", fmt.Sprintf("custom host vital name is too long: %s", name))
 	}
 	return nil
+}
+
+// CustomHostVitalNameKey returns the name lowercased and NFC-normalized. Names
+// with the same key are the same vital. The name column's collation is broader
+// (it also ignores accents), so names with different keys can still collide.
+func CustomHostVitalNameKey(name string) string {
+	return norm.NFC.String(strings.ToLower(name))
 }
 
 func FindCustomHostVitalIDs(text string) []uint {

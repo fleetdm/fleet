@@ -2234,7 +2234,7 @@ type ValidateReferencedCustomHostVitalsFunc func(ctx context.Context, documents 
 
 type ExpandCustomHostVitalsFunc func(ctx context.Context, hostID uint, document string) (string, error)
 
-type UpsertCustomHostVitalsFunc func(ctx context.Context, vitals []fleet.CustomHostVital) (created []fleet.CustomHostVital, deleted []fleet.CustomHostVital, err error)
+type UpsertCustomHostVitalsFunc func(ctx context.Context, vitals []fleet.CustomHostVital) (created []fleet.CustomHostVital, renamed []fleet.CustomHostVital, deleted []fleet.CustomHostVital, err error)
 
 type CreateEnterpriseFunc func(ctx context.Context, userID uint) (uint, error)
 
@@ -14378,7 +14378,7 @@ func (s *DataStore) ExpandCustomHostVitals(ctx context.Context, hostID uint, doc
 	return s.ExpandCustomHostVitalsFunc(ctx, hostID, document)
 }
 
-func (s *DataStore) UpsertCustomHostVitals(ctx context.Context, vitals []fleet.CustomHostVital) (created []fleet.CustomHostVital, deleted []fleet.CustomHostVital, err error) {
+func (s *DataStore) UpsertCustomHostVitals(ctx context.Context, vitals []fleet.CustomHostVital) (created []fleet.CustomHostVital, renamed []fleet.CustomHostVital, deleted []fleet.CustomHostVital, err error) {
 	s.mu.Lock()
 	s.UpsertCustomHostVitalsFuncInvoked = true
 	s.mu.Unlock()

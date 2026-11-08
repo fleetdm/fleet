@@ -3590,25 +3590,30 @@ func (c *Client) doGitOpsCustomHostVitals(config *spec.GitOps, logFn func(format
 		return err
 	}
 
-	existingNames := make(map[string]struct{}, len(existing))
+	existingByKey := make(map[string]string, len(existing))
 	for _, v := range existing {
-		existingNames[v.Name] = struct{}{}
+		existingByKey[fleet.CustomHostVitalNameKey(v.Name)] = v.Name
 	}
-	desiredNames := make(map[string]struct{}, len(desired))
+	desiredKeys := make(map[string]struct{}, len(desired))
 	for _, v := range desired {
-		desiredNames[v.Name] = struct{}{}
+		desiredKeys[fleet.CustomHostVitalNameKey(v.Name)] = struct{}{}
 	}
 
 	var toDelete []string
 	for _, v := range existing {
-		if _, ok := desiredNames[v.Name]; !ok {
+		if _, ok := desiredKeys[fleet.CustomHostVitalNameKey(v.Name)]; !ok {
 			toDelete = append(toDelete, v.Name)
 		}
 	}
 	var toAdd []string
+	var toRename []struct{ from, to string }
 	for _, v := range desired {
-		if _, ok := existingNames[v.Name]; !ok {
+		name, ok := existingByKey[fleet.CustomHostVitalNameKey(v.Name)]
+		switch {
+		case !ok:
 			toAdd = append(toAdd, v.Name)
+		case name != v.Name:
+			toRename = append(toRename, struct{ from, to string }{name, v.Name})
 		}
 	}
 
@@ -3622,6 +3627,9 @@ func (c *Client) doGitOpsCustomHostVitals(config *spec.GitOps, logFn func(format
 		if len(toAdd) > 0 {
 			logFn("[+] would've created %s\n", numberWithPluralization(len(toAdd), "custom host vital", "custom host vitals"))
 		}
+		for _, r := range toRename {
+			logFn("[+] would've renamed custom host vital '%s' to '%s'\n", r.from, r.to)
+		}
 		return c.SaveCustomHostVitals(desired, true)
 	}
 
@@ -3633,6 +3641,9 @@ func (c *Client) doGitOpsCustomHostVitals(config *spec.GitOps, logFn func(format
 	}
 	if len(toAdd) > 0 {
 		logFn("[+] creating %s\n", numberWithPluralization(len(toAdd), "custom host vital", "custom host vitals"))
+	}
+	for _, r := range toRename {
+		logFn("[+] renaming custom host vital '%s' to '%s'\n", r.from, r.to)
 	}
 	return c.SaveCustomHostVitals(desired, false)
 }
