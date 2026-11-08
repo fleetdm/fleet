@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.45.0",
+      "version": "1.45.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.readai.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.readai.desktop' AND version_compare(bundle_short_version, '1.45.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.readai.desktop' AND version_compare(bundle_short_version, '1.45.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.readai.desktop' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://desktop.read.ai/installers/darwin/aarch64/1.45.0/Read+AI_1.45.0_aarch64.dmg",
+      "installer_url": "https://desktop.read.ai/installers/darwin/aarch64/1.45.1/Read+AI_1.45.1_aarch64.dmg",
       "install_script_ref": "61c19814",
       "uninstall_script_ref": "3d8992ba",
-      "sha256": "0c92f27354f95207bfd5b9517e56b1700213def33bcbb982408bf67943156af2",
+      "sha256": "66bb9fa69c576c342367847772dc68cd744ab21a6166dd4f16cac88023520f8a",
       "default_categories": [
         "Productivity"
       ]
