@@ -126,6 +126,22 @@ func testUpsertCustomHostVitals(t *testing.T, ds *Datastore) {
 	require.ElementsMatch(t, []string{"Department"}, vitalNames(deleted))
 	require.ElementsMatch(t, []string{"Function", "Role"}, vitalNames(list()))
 
+	// A name that differs only in letter case is the same vital: it keeps its
+	// ID and host values, and takes the incoming spelling.
+	host := test.NewHost(t, ds, "upsert-host", "1", "upsert-key", "upsert-uuid", time.Now())
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, host.ID, funcID, "Engineering"))
+	for _, name := range []string{"FUNCTION", "Function"} {
+		created, deleted, err = ds.UpsertCustomHostVitals(ctx, []fleet.CustomHostVital{{Name: name}, {Name: "Role"}})
+		require.NoError(t, err)
+		require.Empty(t, created)
+		require.Empty(t, deleted)
+		hostVitals, err := ds.GetHostCustomHostVitals(ctx, host.ID)
+		require.NoError(t, err)
+		require.Len(t, hostVitals, 2)
+		require.Equal(t, fleet.HostCustomHostVital{CustomHostVitalID: funcID, Name: name, Value: "Engineering"}, hostVitals[0])
+		require.Equal(t, "Role", hostVitals[1].Name)
+	}
+
 	// Dropping a still-referenced name errors the whole call and leaves state unchanged.
 	script, err := ds.NewScript(ctx, &fleet.Script{
 		Name:           "collect.sh",
