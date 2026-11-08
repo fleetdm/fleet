@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
-	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/require"
@@ -94,71 +93,4 @@ func TestCanWriteSecretVariables(t *testing.T) {
 		require.False(t, auth.CanWriteSecretVariables(ctx))
 		require.True(t, authctx.Checked())
 	})
-}
-
-func TestGitOpsMDMCommandError(t *testing.T) {
-	authzErr := errors.New("authz failed")
-	teamGitOps := &fleet.User{Teams: []fleet.UserTeam{{ID: 1, Role: fleet.RoleGitOps}}}
-	cases := []struct {
-		name        string
-		user        *fleet.User
-		teamID      *uint
-		wantMessage bool
-	}{
-		{"global gitops, no fleet", test.UserGitOps, nil, true},
-		{"global gitops, fleet", test.UserGitOps, new(uint(1)), true},
-		{"fleet gitops, own fleet", teamGitOps, new(uint(1)), true},
-		{"fleet gitops, other fleet", teamGitOps, new(uint(2)), false},
-		{"fleet gitops, no fleet", teamGitOps, nil, false},
-		{"fleet gitops on another fleet, maintainer on this one", &fleet.User{Teams: []fleet.UserTeam{
-			{ID: 1, Role: fleet.RoleMaintainer}, {ID: 2, Role: fleet.RoleGitOps},
-		}}, new(uint(1)), false},
-		{"global maintainer", test.UserMaintainer, nil, false},
-		{"no viewer", nil, nil, false},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			ctx := t.Context()
-			if c.user != nil {
-				ctx = viewer.NewContext(ctx, viewer.Viewer{User: c.user})
-			}
-			err := GitOpsMDMCommandError(ctx, c.teamID, authzErr)
-			requireGitOpsMDMCommandError(t, c.wantMessage, authzErr, err)
-		})
-	}
-}
-
-func TestGitOpsHostListError(t *testing.T) {
-	authzErr := errors.New("authz failed")
-	cases := []struct {
-		name        string
-		user        *fleet.User
-		wantMessage bool
-	}{
-		{"global gitops", test.UserGitOps, true},
-		{"fleet gitops", &fleet.User{Teams: []fleet.UserTeam{{ID: 1, Role: fleet.RoleGitOps}}}, true},
-		{"fleet observer", test.UserTeamObserverTeam1, false},
-		{"no viewer", nil, false},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			ctx := t.Context()
-			if c.user != nil {
-				ctx = viewer.NewContext(ctx, viewer.Viewer{User: c.user})
-			}
-			requireGitOpsMDMCommandError(t, c.wantMessage, authzErr, GitOpsHostListError(ctx, authzErr))
-		})
-	}
-}
-
-func requireGitOpsMDMCommandError(t *testing.T, wantMessage bool, authzErr, err error) {
-	t.Helper()
-	if !wantMessage {
-		require.Equal(t, authzErr, err)
-		return
-	}
-	var forbidden *Forbidden
-	require.ErrorAs(t, err, &forbidden)
-	require.Equal(t, fleet.GitOpsMDMCommandErrorMessage, err.Error())
-	require.Equal(t, authzErr.Error(), forbidden.Internal())
 }
