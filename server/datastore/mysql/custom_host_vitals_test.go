@@ -157,6 +157,47 @@ func testUpsertCustomHostVitals(t *testing.T, ds *Datastore) {
 		require.ElementsMatch(t, []string{step.rename, step.add}, vitalNames(list()))
 	}
 
+	// The collation tells U+04C0 and U+04CF apart although they lowercase alike,
+	// so both can exist. Listing one of them keeps that exact vital.
+	upperID := createCustomHostVital(t, ds, "Ӏ tag")
+	lowerID := createCustomHostVital(t, ds, "ӏ tag")
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, host.ID, upperID, "kept"))
+	created, renamed, deleted, err = ds.UpsertCustomHostVitals(ctx, []fleet.CustomHostVital{{Name: "Function"}, {Name: "Role"}, {Name: "Ӏ tag"}})
+	require.NoError(t, err)
+	require.Empty(t, created)
+	require.Empty(t, renamed)
+	require.Equal(t, []fleet.CustomHostVital{{ID: lowerID, Name: "ӏ tag"}}, deleted)
+	hostVitals, err := ds.GetHostCustomHostVitals(ctx, host.ID)
+	require.NoError(t, err)
+	require.Contains(t, hostVitals, fleet.HostCustomHostVital{CustomHostVitalID: upperID, Name: "Ӏ tag", Value: "kept"})
+	_, _, _, err = ds.UpsertCustomHostVitals(ctx, []fleet.CustomHostVital{{Name: "Function"}, {Name: "Role"}})
+	require.NoError(t, err)
+
+	// Two renames can swap names that the collation treats as equal ("Ä" is
+	// "A", "Ӏ" isn't "ӏ"), whichever runs first.
+	firstID := createCustomHostVital(t, ds, "ÄӀ")
+	secondID := createCustomHostVital(t, ds, "Aӏ")
+	created, renamed, deleted, err = ds.UpsertCustomHostVitals(ctx,
+		[]fleet.CustomHostVital{{Name: "Function"}, {Name: "Role"}, {Name: "Äӏ"}, {Name: "AӀ"}})
+	require.NoError(t, err)
+	require.Empty(t, created)
+	require.ElementsMatch(t, []fleet.CustomHostVital{{ID: firstID, Name: "Äӏ"}, {ID: secondID, Name: "AӀ"}}, renamed)
+	require.Empty(t, deleted)
+	_, _, _, err = ds.UpsertCustomHostVitals(ctx, []fleet.CustomHostVital{{Name: "Function"}, {Name: "Role"}})
+	require.NoError(t, err)
+
+	// The collation ignores U+200B, so a valid name can look like "<space><id>".
+	lookalike := fmt.Sprintf("​ %d", funcID)
+	createCustomHostVital(t, ds, lookalike)
+	created, renamed, deleted, err = ds.UpsertCustomHostVitals(ctx,
+		[]fleet.CustomHostVital{{Name: "FUNCTION"}, {Name: "Role"}, {Name: lookalike}})
+	require.NoError(t, err)
+	require.Empty(t, created)
+	require.Equal(t, []fleet.CustomHostVital{{ID: funcID, Name: "FUNCTION"}}, renamed)
+	require.Empty(t, deleted)
+	_, _, _, err = ds.UpsertCustomHostVitals(ctx, []fleet.CustomHostVital{{Name: "Function"}, {Name: "Role"}})
+	require.NoError(t, err)
+
 	// Dropping a still-referenced name errors the whole call and leaves state unchanged.
 	script, err := ds.NewScript(ctx, &fleet.Script{
 		Name:           "collect.sh",

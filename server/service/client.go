@@ -3590,45 +3590,20 @@ func (c *Client) doGitOpsCustomHostVitals(config *spec.GitOps, logFn func(format
 		return err
 	}
 
-	existingByKey := make(map[string]string, len(existing))
-	for _, v := range existing {
-		existingByKey[fleet.CustomHostVitalNameKey(v.Name)] = v.Name
-	}
-	desiredKeys := make(map[string]struct{}, len(desired))
-	for _, v := range desired {
-		desiredKeys[fleet.CustomHostVitalNameKey(v.Name)] = struct{}{}
-	}
-
-	var toDelete []string
-	for _, v := range existing {
-		if _, ok := desiredKeys[fleet.CustomHostVitalNameKey(v.Name)]; !ok {
-			toDelete = append(toDelete, v.Name)
-		}
-	}
-	var toAdd []string
-	var toRename []struct{ from, to string }
-	for _, v := range desired {
-		name, ok := existingByKey[fleet.CustomHostVitalNameKey(v.Name)]
-		switch {
-		case !ok:
-			toAdd = append(toAdd, v.Name)
-		case name != v.Name:
-			toRename = append(toRename, struct{ from, to string }{name, v.Name})
-		}
-	}
+	toAdd, toRename, toDelete := fleet.DiffCustomHostVitals(existing, desired)
 
 	if dryRun {
 		if len(toDelete) > 0 {
 			logFn("[-] would've deleted %s\n", numberWithPluralization(len(toDelete), "custom host vital", "custom host vitals"))
 		}
-		for _, name := range toDelete {
-			logFn("[-] would've deleted custom host vital '%s'\n", name)
+		for _, v := range toDelete {
+			logFn("[-] would've deleted custom host vital '%s'\n", v.Name)
 		}
 		if len(toAdd) > 0 {
 			logFn("[+] would've created %s\n", numberWithPluralization(len(toAdd), "custom host vital", "custom host vitals"))
 		}
 		for _, r := range toRename {
-			logFn("[+] would've renamed custom host vital '%s' to '%s'\n", r.from, r.to)
+			logFn("[+] would've renamed custom host vital '%s' to '%s'\n", r.From, r.To)
 		}
 		return c.SaveCustomHostVitals(desired, true)
 	}
@@ -3636,14 +3611,14 @@ func (c *Client) doGitOpsCustomHostVitals(config *spec.GitOps, logFn func(format
 	if len(toDelete) > 0 {
 		logFn("[-] deleting %s\n", numberWithPluralization(len(toDelete), "custom host vital", "custom host vitals"))
 	}
-	for _, name := range toDelete {
-		logFn("[-] deleting custom host vital '%s'\n", name)
+	for _, v := range toDelete {
+		logFn("[-] deleting custom host vital '%s'\n", v.Name)
 	}
 	if len(toAdd) > 0 {
 		logFn("[+] creating %s\n", numberWithPluralization(len(toAdd), "custom host vital", "custom host vitals"))
 	}
 	for _, r := range toRename {
-		logFn("[+] renaming custom host vital '%s' to '%s'\n", r.from, r.to)
+		logFn("[+] renaming custom host vital '%s' to '%s'\n", r.From, r.To)
 	}
 	return c.SaveCustomHostVitals(desired, false)
 }

@@ -201,11 +201,54 @@ func ValidateCustomHostVitalName(name string) error {
 	return nil
 }
 
-// CustomHostVitalNameKey returns the name lowercased and NFC-normalized. Names
-// with the same key are the same vital. The name column's collation is broader
-// (it also ignores accents), so names with different keys can still collide.
+// CustomHostVitalNameKey returns the name lowercased and NFC-normalized. A
+// desired name renames the existing vital with the same key. The name column's
+// collation differs: it also ignores accents, and it tells apart some letters
+// that lowercase alike (U+04C0 and U+04CF), so two vitals can share a key.
 func CustomHostVitalNameKey(name string) string {
 	return norm.NFC.String(strings.ToLower(name))
+}
+
+// CustomHostVitalRename is an existing custom host vital that takes a new name.
+type CustomHostVitalRename struct {
+	ID       uint
+	From, To string
+}
+
+// DiffCustomHostVitals returns the creates, renames and deletes that make the
+// existing custom host vitals match the desired names, which must have distinct
+// keys. A desired name keeps the vital of the same name, or else renames the
+// only vital with its CustomHostVitalNameKey, or else is created. Existing
+// vitals that no desired name keeps are deleted.
+func DiffCustomHostVitals(existing, desired []CustomHostVital) (create []string, rename []CustomHostVitalRename, del []CustomHostVital) {
+	byName := make(map[string]CustomHostVital, len(existing))
+	byKey := make(map[string][]CustomHostVital, len(existing))
+	for _, e := range existing {
+		byName[e.Name] = e
+		key := CustomHostVitalNameKey(e.Name)
+		byKey[key] = append(byKey[key], e)
+	}
+
+	kept := make(map[uint]struct{}, len(desired))
+	for _, d := range desired {
+		if e, ok := byName[d.Name]; ok {
+			kept[e.ID] = struct{}{}
+			continue
+		}
+		if same := byKey[CustomHostVitalNameKey(d.Name)]; len(same) == 1 {
+			kept[same[0].ID] = struct{}{}
+			rename = append(rename, CustomHostVitalRename{ID: same[0].ID, From: same[0].Name, To: d.Name})
+			continue
+		}
+		create = append(create, d.Name)
+	}
+
+	for _, e := range existing {
+		if _, ok := kept[e.ID]; !ok {
+			del = append(del, e)
+		}
+	}
+	return create, rename, del
 }
 
 func FindCustomHostVitalIDs(text string) []uint {
