@@ -7,7 +7,8 @@ $upgradeCode = '{D8A1DC6C-8EDA-4135-8E82-6F4EEA116B2F}'
 $packageName = 'eMClient.20054CA46072C'
 # Under Fleet's 5-minute script timeout, so a failure exits 1603 instead of being killed.
 $timeoutSeconds = 240
-$start = Get-Date
+# Monotonic, so a clock change can't stretch the wait past Fleet's limit.
+$stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 # 3010 = reboot required, 1641 = reboot initiated
 $successCodes = @(0, 3010, 1641)
 
@@ -42,7 +43,7 @@ try {
     $process = Start-Process msiexec -ArgumentList @('/quiet', '/x', $productCode, '/norestart') -PassThru
     # Caching the handle keeps ExitCode readable after a timed WaitForExit.
     $null = $process.Handle
-    $remainingSeconds = [Math]::Max(0, $timeoutSeconds - (New-TimeSpan -Start $start).TotalSeconds)
+    $remainingSeconds = [Math]::Max(0, $timeoutSeconds - $stopwatch.Elapsed.TotalSeconds)
     if (-not $process.WaitForExit([int]($remainingSeconds * 1000))) {
       Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
       Write-Host "Uninstall of $productCode timed out"
@@ -75,17 +76,23 @@ try {
   }
 
   do {
+    $checkFailed = $false
     try {
       if (-not (Test-PackageRemains)) {
         Exit 0
       }
     } catch {
+      $checkFailed = $true
       Write-Host "Checking for eM Client failed, retrying: $($_.Exception.Message)"
     }
     Start-Sleep -Seconds 5
-  } while ((New-TimeSpan -Start $start).TotalSeconds -lt $timeoutSeconds)
+  } while ($stopwatch.Elapsed.TotalSeconds -lt $timeoutSeconds)
 
-  Write-Host "eM Client is still installed after removal."
+  if ($checkFailed) {
+    Write-Host "Couldn't verify that eM Client was removed."
+  } else {
+    Write-Host "eM Client is still installed after removal."
+  }
   Exit 1603
 } catch {
   Write-Host "Error: $_"
