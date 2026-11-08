@@ -187,7 +187,7 @@ func testUpsertCustomHostVitals(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// The collation ignores U+200B, so a valid name can look like "<space><id>".
-	lookalike := fmt.Sprintf("​ %d", funcID)
+	lookalike := fmt.Sprintf("\u200b %d", funcID)
 	createCustomHostVital(t, ds, lookalike)
 	created, renamed, deleted, err = ds.UpsertCustomHostVitals(ctx,
 		[]fleet.CustomHostVital{{Name: "FUNCTION"}, {Name: "Role"}, {Name: lookalike}})
