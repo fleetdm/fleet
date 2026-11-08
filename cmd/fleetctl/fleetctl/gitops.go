@@ -1557,6 +1557,9 @@ func checkVPPTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 										if normalizedTeam == fleet.DisplayNameAllTeams {
 											normalizedTeam = fleet.TeamNameAllTeams
 										}
+										if fleet.IsUnassignedFleetName(normalizedTeam) {
+											normalizedTeam = fleet.TeamNameNoTeam
+										}
 										vppTeams = append(vppTeams, normalizedTeam)
 										// ListTeams doesn't return "No team" or "All teams", so account for those special cases
 										if _, ok := teamNames[normalizedTeam]; !ok && normalizedTeam != fleet.TeamNameNoTeam && normalizedTeam != fleet.TeamNameAllTeams {

@@ -1,0 +1,1 @@
+- Fixed GitOps rejecting "Unassigned" in `volume_purchasing_program` fleets, which also removed the VPP token from "Unassigned" and deleted its App Store apps mid-run. `fleetctl generate-gitops` now writes "Unassigned" instead of "No team" for that token.

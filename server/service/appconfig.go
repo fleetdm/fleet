@@ -2916,6 +2916,9 @@ func (svc *Service) validateVPPAssignments(
 			if tmName == fleet.DisplayNameAllTeams {
 				tmName = fleet.TeamNameAllTeams
 			}
+			if fleet.IsUnassignedFleetName(tmName) {
+				tmName = fleet.TeamNameNoTeam
+			}
 			if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok && tmName != fleet.TeamNameAllTeams {
 				invalid.Appendf("mdm.volume_purchasing_program", "team %s doesn't exist", tmName)
 				return nil, nil
@@ -2932,6 +2935,9 @@ func (svc *Service) validateVPPAssignments(
 		for _, teamName := range vpp.Teams {
 			if teamName == fleet.DisplayNameAllTeams {
 				teamName = fleet.TeamNameAllTeams
+			}
+			if fleet.IsUnassignedFleetName(teamName) {
+				teamName = fleet.TeamNameNoTeam
 			}
 			if teamName == fleet.TeamNameAllTeams {
 				if len(vpp.Teams) > 1 {
