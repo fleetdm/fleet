@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "26.603.1020",
+      "version": "26.1105.1141",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Groove OmniDialer %' AND name NOT LIKE 'Groove OmniDialer Enterprise%' AND publisher = 'Groove Labs, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Groove OmniDialer %' AND name NOT LIKE 'Groove OmniDialer Enterprise%' AND publisher = 'Groove Labs, Inc.' AND version_compare(version, '26.603.1020') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Groove OmniDialer %' AND name NOT LIKE 'Groove OmniDialer Enterprise%' AND publisher = 'Groove Labs, Inc.' AND version_compare(version, '26.1105.1141') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'groove omnidialer.exe');"
       },
-      "installer_url": "https://groove-dialer.s3-us-west-2.amazonaws.com/electron/Groove%20OmniDialer%20Setup%2026.603.1020.exe",
+      "installer_url": "https://groove-dialer.s3-us-west-2.amazonaws.com/electron/Groove%20OmniDialer%20Setup%2026.1105.1141.exe",
       "install_script_ref": "6ef59330",
       "uninstall_script_ref": "9c30d285",
-      "sha256": "2c7c2b995f222c27a53ab9bfc4e501bc122f156d9074841ada84805bb22859a2",
+      "sha256": "e80253c967733509b41e7b1f1472e9b861820e9d29b3e7d4b3f534ff2dc705b4",
       "default_categories": [
         "Productivity"
       ]
