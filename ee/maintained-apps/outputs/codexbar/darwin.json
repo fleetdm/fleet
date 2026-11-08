@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "0.83.0",
+      "version": "0.84.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.steipete.codexbar';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.steipete.codexbar' AND version_compare(bundle_short_version, '0.83.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.steipete.codexbar' AND version_compare(bundle_short_version, '0.84.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.steipete.codexbar' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/steipete/CodexBar/releases/download/v0.83.0/CodexBar-macos-universal-0.83.0.zip",
+      "installer_url": "https://github.com/steipete/CodexBar/releases/download/v0.84.0/CodexBar-macos-universal-0.84.0.zip",
       "install_script_ref": "daabc752",
       "uninstall_script_ref": "55f765dd",
-      "sha256": "38a89860923a9b45eee03ba947f7f6f66d1bbad6f1b64ed83bef5b7e81f68b2c",
+      "sha256": "c1da2faaa9608f8798306c300804d3720782656f955d736d18bcac476b77ed2c",
       "default_categories": [
         "Utilities"
       ]
