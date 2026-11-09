@@ -177,7 +177,6 @@ export interface IConfigServerSettings {
   enable_analytics: boolean;
   deferred_save_host: boolean;
   query_reports_disabled: boolean;
-  scripts_disabled: boolean;
   ai_features_disabled: boolean;
   mcp_disabled: boolean;
 }
