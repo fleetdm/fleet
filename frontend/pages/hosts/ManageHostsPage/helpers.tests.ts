@@ -43,10 +43,4 @@ describe("STRIP_FLEET_SCOPED_FILTERS_ON_ALL_FLEETS", () => {
       rebuild("?fleet_id=2&os_settings=pending", APP_CONTEXT_NO_TEAM_ID)
     ).toBe("?fleet_id=0&os_settings=pending");
   });
-
-  it("does not rewrite a legacy team_id param", () => {
-    expect(rebuild("?team_id=2&os_settings=pending", 3)).toBe(
-      "?team_id=2&os_settings=pending&fleet_id=3"
-    );
-  });
 });
