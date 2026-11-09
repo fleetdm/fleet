@@ -439,6 +439,27 @@ func TestIngestValidations(t *testing.T) {
 			},
 		},
 		{
+			name:    "enricher failure stops ingestion",
+			wantErr: "enriching manifest",
+			inputApp: inputApp{
+				Name:                "Sublime Text",
+				UniqueIdentifier:    "Sublime Text",
+				PackageIdentifier:   "Foo",
+				InstallerArch:       "x64",
+				Slug:                "sublime-text/windows",
+				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:       "exe",
+				InstallerScope:      "machine",
+			},
+			cfg: serverConfig{
+				installerType:  "exe",
+				installerScope: "machine",
+				installerArch:  "x64",
+				installerURL:   "https://download.sublimetext.com/latest/windows",
+			},
+		},
+		{
 			name: "arm64 scopes policy queries to ARM hosts",
 			// An arm64 build can't run on x64, so both policy queries pass on non-ARM
 			// hosts. The open query runs only on a host already queued, so it is unscoped.
@@ -768,6 +789,21 @@ func TestIngestOneVersionWalk(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorContains(t, err, "429")
 		require.True(t, isTransientGitHubError(err), "the caller must recognize this error and skip the app")
+	})
+
+	t.Run("version_prefix skips version dirs outside the pinned major", func(t *testing.T) {
+		srv := newTwoVersionServer(t, http.StatusInternalServerError)
+		t.Cleanup(srv.Close)
+
+		pinned := input
+		pinned.VersionPrefix = "1."
+		out, err := newIngester(srv).ingestOne(ctx, pinned)
+		require.NoError(t, err)
+		require.Equal(t, "1.0", out.Version)
+
+		pinned.VersionPrefix = "3."
+		_, err = newIngester(srv).ingestOne(ctx, pinned)
+		require.ErrorContains(t, err, "no version manifest directories found")
 	})
 
 	t.Run("504 on the latest version dir fails the app instead of downgrading", func(t *testing.T) {

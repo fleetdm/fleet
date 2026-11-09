@@ -9,11 +9,11 @@ How it works:
 3. The page asks Fleet whether the host is enrolled and company-owned. If so, it saves the device's Google device ID on the host in Fleet and marks the device as managed in Google. Once a host has a Google device ID, Fleet refuses a different one, so the link doesn't work on any other device. Fleet also refuses an ID that's already saved on another host.
 4. A Context-Aware Access level blocks sign-in from devices that aren't marked as managed.
 
-> **Note:** Built-in support for Google is [coming soon](https://github.com/fleetdm/fleet/issues/56195). Until then, everything in this guide works today.
+> **Note:** Built-in support for Google is [coming soon](https://github.com/fleetdm/fleet/issues/56195). Until then, use the steps in this guide.
 
 ## Prerequisites
 
-- Fleet Premium.
+- Fleet Premium, version 4.95 or later. Fleet 4.95 is [coming soon](https://github.com/fleetdm/fleet/issues/54888) and adds the Google device ID on hosts that this guide relies on: the page in Step 6 saves it, Fleet refuses a link copied to another device, and [Remove a device](#remove-a-device) clears it.
 - Google Workspace Enterprise Standard, Enterprise Plus, or Enterprise for Education, or Cloud Identity Premium.
 - A Chrome Enterprise Premium license for each end user. Without it, IAP doesn't include the device ID.
 - A Google super admin account.
@@ -481,14 +481,7 @@ The page says "You're done!" In the Google Admin console, the device's **Third-p
 The page marks devices as managed, but it doesn't unmark them. When a host leaves Fleet or stops being company-owned:
 
 1. Remove the device from Google: in the Google Admin console, head to **Devices > Mobile & endpoints > Devices**, select the device, and delete it.
-2. Delete the host in Fleet. This also deletes its Google device ID, including when [host expiry](https://fleetdm.com/docs/configuration/yaml-files#host-expiry-settings) deletes the host. If the host stays in Fleet, remove its Google device ID instead. Fleet keeps the ID when the device is wiped or enrolls again, so another device can't take over the host. Removing it shows up in the activity feed.
-
-```sh
-curl -X DELETE https://<your Fleet URL>/api/v1/fleet/hosts/<host ID>/google_device_id \
-  -H "Authorization: Bearer <your API token>"
-```
-
-Use an admin or maintainer's API token, not the page's API-only user from Step 5, which can't remove IDs.
+2. Delete the host in Fleet. This also deletes its Google device ID, including when [host expiry](https://fleetdm.com/docs/configuration/yaml-files#host-expiry-settings) deletes the host. If you want to keep the host in Fleet, remove its Google device ID via Fleet's `DELETE /hosts/:id/:google_device_id` API endpoint ([coming soon](https://github.com/fleetdm/fleet/issues/54888)). Fleet keeps the ID when the device is wiped or re-enrolls, so another device can't take over the host. Removing it shows up in the activity feed.
 
 ## Troubleshooting
 

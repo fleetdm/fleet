@@ -7,7 +7,7 @@ import {
 } from "./config";
 import enrollSecretInterface, { IEnrollSecret } from "./enroll_secret";
 import { ITeamIntegrations } from "./integration";
-import { EndUserLocalAccountType, ITokenFleet, ITokenTeam } from "./mdm";
+import { EndUserLocalAccountType, ITokenFleet } from "./mdm";
 import { UserRole } from "./user";
 
 export default PropTypes.shape({
@@ -69,6 +69,8 @@ export interface ITeam extends ITeamSummary {
       enable_end_user_authentication: boolean;
       apple_setup_assistant: string | null;
       apple_enable_release_device_manually: boolean | null;
+      macos_enable_bootstrap_package_during_manual_enrollment: boolean;
+      macos_enable_bootstrap_package_during_migration: boolean;
       macos_manual_agent_install: boolean | null;
       require_all_software_macos: boolean | null;
       require_all_software_windows: boolean | null;
@@ -140,7 +142,7 @@ export interface IRemoveTeamUserFormData {
   users: { id?: number }[];
 }
 interface INewTeamSecret {
-  team_id: number;
+  fleet_id: number;
   secret: string;
   created_at?: string;
 }
@@ -167,11 +169,6 @@ export const APP_CONTEXT_NO_TEAM_SUMMARY: ITeamSummary = {
 
 export const isAnyTeamSelected = (currentTeamId?: number) =>
   currentTeamId !== undefined && currentTeamId > APP_CONTEXT_NO_TEAM_ID;
-
-export const getTeamDisplayName = (team: ITokenTeam) =>
-  team.team_id === APP_CONTEXT_NO_TEAM_ID
-    ? APP_CONTEXT_NO_TEAM_SUMMARY.name
-    : team.name;
 
 export const getFleetDisplayName = (fleet: ITokenFleet) =>
   fleet.fleet_id === APP_CONTEXT_NO_TEAM_ID

@@ -198,6 +198,10 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 
 	switch input.UninstallScriptPath {
 	case "":
+		if err := validateQuitIDs(&cask); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "invalid uninstall quit for cask %s", input.Token)
+		}
+
 		if len(input.PreUninstallScripts) != 0 {
 			cask.PreUninstallScripts = input.PreUninstallScripts
 		}
@@ -339,13 +343,46 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			out.UniqueIdentifier, out.Version,
 		)
 	}
+	if input.Token == "enpass" {
+		// The cask version ("6.12.8.2837") is CFBundleShortVersionString ("6.12.8")
+		// plus CFBundleVersion ("2837"), so neither column alone compares correctly.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version || '.' || bundle_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
+	if input.Token == "wechat" {
+		// WeChat's CFBundleShortVersionString is three parts ("4.2.0" for cask
+		// "4.2.0.16,270352"), so it always sorts below the cask version. Compare
+		// CFBundleVersion against the build after the comma instead.
+		if m := weChatCaskBuildPattern.FindStringSubmatch(cask.Version); m != nil {
+			out.Queries.Patched = fmt.Sprintf(
+				"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
+				out.UniqueIdentifier, m[1],
+			)
+		}
+	}
 	switch input.Token {
-	case "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3":
-		// CFBundleShortVersionString is major.minor only ("26.3" for cask "26.3.5"),
-		// which version_compare sorts below the cask version even for x.y.0 releases;
-		// CFBundleVersion carries the full cask version.
+	case "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "jasp",
+		"bitrix24", "chrome-remote-desktop-host", "crossover", "kdenlive", "malwarebytes", "plex-media-server", "sigmaos",
+		"axure-rp", "gotomeeting", "macvim-app":
+		// CFBundleVersion carries the full cask version, but CFBundleShortVersionString
+		// drops part of it ("26.3" for cask "26.3.5", "0.99" for JASP's "0.99.0.0",
+		// "5.28.4" for Malwarebytes' "5.28.4.4244"), which version_compare sorts below
+		// the cask version even for x.y.0 releases. Axure RP has no short version, and
+		// GoToMeeting's and MacVim's is a marketing version the cask doesn't track.
 		out.Queries.Patched = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	case "tableau", "tableau-prep":
+		// Each Tableau release installs as its own versioned .app (e.g. "Tableau
+		// Desktop (Apple silicon) 2026.3.app") and the pkg never removes earlier
+		// ones, which users keep to match their Tableau Server version. Treat the
+		// host as patched when any installed copy is current, so an upgrade passes
+		// without deleting those older releases.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%[1]s') OR EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%[1]s' AND version_compare(bundle_short_version, '%[2]s') >= 0);",
 			out.UniqueIdentifier, out.Version,
 		)
 	}
@@ -361,6 +398,24 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		out.Queries.Patched = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(REGEX_MATCH(bundle_short_version, 'R (?:R )?([0-9]+(?:\\.[0-9]+)+) GUI', 1), '%s') < 0);",
 			out.UniqueIdentifier, out.Version,
+		)
+	}
+	if input.Token == "mindmanager" {
+		// MindManager's bundle ID carries the major version (com.mindjet.mindmanager.25,
+		// .26, ...), so hosts still on an older major never match the current ID. Flag
+		// any major's bundle that's older than the cask version.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier GLOB 'com.mindjet.mindmanager.[0-9][0-9]' AND version_compare(bundle_short_version, '%s') < 0);",
+			out.Version,
+		)
+	}
+	if input.Token == "xquartz" {
+		// XQuartz 2.7.x reports org.macosforge.xquartz.X11 from the same path, and the
+		// current pkg overwrites it in place, so a legacy install there is outdated.
+		// Copies elsewhere aren't flagged because installing can't replace them.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE (bundle_identifier = '%s' AND path = '/Applications/Utilities/XQuartz.app') OR (bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0));",
+			xquartzLegacyBundleID, out.UniqueIdentifier, out.Version,
 		)
 	}
 	if input.Token == "firefox@developer-edition" {
@@ -408,6 +463,16 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat(a.path, '/Contents/Applications/%%.app/Contents/MacOS/%%')) WHERE a.bundle_identifier = '%s' AND a.bundle_executable != '');",
 			out.UniqueIdentifier,
 		)
+	case "mindmanager":
+		// Match every major's bundle ID, like the patched query, so a running older major
+		// defers patching too.
+		out.Queries.Open = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier GLOB 'com.mindjet.mindmanager.[0-9][0-9]' AND a.bundle_executable != '');"
+	case "xquartz":
+		// The X11 launcher execs X11.sh, which execs the X server, X11.bin.
+		out.Queries.Open = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path IN (concat(a.path, '/Contents/MacOS/', a.bundle_executable), concat(a.path, '/Contents/MacOS/X11.bin')) WHERE a.bundle_identifier IN ('%s', '%s') AND a.bundle_executable != '');",
+			out.UniqueIdentifier, xquartzLegacyBundleID,
+		)
 	case "chatgpt":
 		out.Queries.Open = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE (%s) AND a.bundle_executable != '');",
@@ -424,6 +489,9 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 
 	return out, nil
 }
+
+// xquartzLegacyBundleID is the bundle identifier XQuartz used before 2.8.0.
+const xquartzLegacyBundleID = "org.macosforge.xquartz.X11"
 
 // qgisPathFilters tells QGIS and QGIS LTR apart by where their casks install them:
 // both report the org.qgis.qgis3 bundle identifier.
@@ -472,6 +540,10 @@ func firefoxMacBundleVersion(version, buildDate string) (string, error) {
 	yy := buildDate[2:4]
 	return fmt.Sprintf("%s%s.%d.%d", major, yy, int(date.Month()), date.Day()), nil
 }
+
+// weChatCaskBuildPattern extracts the numeric build from a WeChat cask version
+// ("4.2.0.16,270352").
+var weChatCaskBuildPattern = regexp.MustCompile(`^[^,]+,(\d+)$`)
 
 // firefoxNightlyCaskVersionPattern extracts the build timestamp from a Firefox
 // Nightly cask version ("154.0a1,2026-07-17-09-27-13").

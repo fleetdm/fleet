@@ -176,3 +176,7 @@ Mechanics (`renderWithSetup` vs `createCustomRenderer`, MSW handlers, entity moc
 - `console.log` is allowed (`no-console` is off) — useful for debugging, but clean up before merging
 - `react-hooks/exhaustive-deps` is enforced as a warning — include all dependencies in hook dependency arrays
 - Run `make lint-js` or `yarn lint` and `npx prettier --check frontend/` before submitting
+
+## Readability
+- **Never nest ternaries.** Use flat `{cond && (...)}` blocks, or extract a helper function that returns early (`const content = getContent();`). Applies to JSX and plain TS.
+- **Prefer `const` + extracted helpers over `let` + reassignment.** When you have conditional branches that each set the same variable, pull them into a small `getFoo()` function that returns early.

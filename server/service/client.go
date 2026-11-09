@@ -1048,6 +1048,7 @@ func (c *Client) ApplyGroup(
 						IconPath:            app.Icon.Path,
 						IconHash:            iconHash,
 						Platform:            fleet.InstallableDevicePlatform(app.Platform),
+						Location:            app.Location,
 						AutoUpdateEnabled:   version.AutoUpdateEnabled,
 						AutoUpdateStartTime: version.AutoUpdateStartTime,
 						AutoUpdateEndTime:   version.AutoUpdateEndTime,
@@ -3057,6 +3058,9 @@ func (c *Client) DoGitOps(
 							numberWithPluralization(numCerts, "Android certificate", "Android certificates"),
 							*incoming.TeamName)
 					}
+					if incoming.Software.PatchDeadlineSettings != nil && !exceptions.Software {
+						logFn("[+] would've set patch deadline settings for fleet %s\n", *incoming.TeamName)
+					}
 
 					return nil, nil
 				}
@@ -3088,6 +3092,10 @@ func (c *Client) DoGitOps(
 			}
 			teamScripts = teamsScripts["No team"]
 		}
+	}
+
+	if err := c.doGitOpsPatchDeadlineSettings(incoming, appConfig, exceptions.Software, logFn, dryRun); err != nil {
+		return nil, err
 	}
 
 	// Apply Android certificates before policies so that certificate templates
@@ -3315,6 +3323,7 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 					IconPath:            appStoreApp.Icon.Path,
 					IconHash:            iconHash,
 					Platform:            fleet.InstallableDevicePlatform(appStoreApp.Platform),
+					Location:            appStoreApp.Location,
 					AutoUpdateEnabled:   version.AutoUpdateEnabled,
 					AutoUpdateStartTime: version.AutoUpdateStartTime,
 					AutoUpdateEndTime:   version.AutoUpdateEndTime,
@@ -3470,6 +3479,51 @@ func (c *Client) doGitOpsNoTeamWebhookSettings(
 		logFn("[+] would've applied webhook settings for unassigned hosts\n")
 	}
 
+	return nil
+}
+
+func (c *Client) doGitOpsPatchDeadlineSettings(
+	incoming *spec.GitOps,
+	appConfig *fleet.EnrichedAppConfig,
+	softwareExcepted bool,
+	logFn func(format string, args ...any),
+	dryRun bool,
+) error {
+	if incoming.TeamName == nil || appConfig == nil || appConfig.License == nil || !appConfig.License.IsPremium() || softwareExcepted {
+		return nil
+	}
+
+	var fleetID uint
+	target := "unassigned hosts"
+	if !incoming.IsNoTeam() {
+		if incoming.TeamID == nil {
+			return fmt.Errorf("applying patch deadline settings for fleet %s: fleet ID not set", *incoming.TeamName)
+		}
+		fleetID = *incoming.TeamID
+		target = "fleet " + *incoming.TeamName
+	}
+
+	desired := fleet.DefaultPatchDeadlineSettings(fleetID)
+	if s := incoming.Software.PatchDeadlineSettings; s != nil {
+		desired.Days, desired.Time = s.Days, s.Time
+	}
+
+	current, err := c.GetPatchDeadlineSettings(fleetID)
+	if err != nil {
+		return fmt.Errorf("getting patch deadline settings for %s: %w", target, err)
+	}
+	if slices.Equal(current.Days, desired.Days) && current.Time == desired.Time {
+		return nil
+	}
+
+	if dryRun {
+		logFn("[+] would've set patch deadline settings for %s\n", target)
+		return nil
+	}
+	if err := c.UpdatePatchDeadlineSettings(fleetID, *desired); err != nil {
+		return fmt.Errorf("setting patch deadline settings for %s: %w", target, err)
+	}
+	logFn("[+] set patch deadline settings for %s\n", target)
 	return nil
 }
 

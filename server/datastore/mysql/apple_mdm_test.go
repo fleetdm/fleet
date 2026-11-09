@@ -20,6 +20,7 @@ import (
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3/s3test"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
@@ -68,6 +69,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestUpdateMDMAppleConfigProfile", testUpdateMDMAppleConfigProfile},
 		{"TestVerifyAppleConfigProfileScopesDoNotConflict", testVerifyAppleConfigProfileScopesDoNotConflict},
 		{"TestDeleteMDMAppleConfigProfile", testDeleteMDMAppleConfigProfile},
+		{"TestBulkUpsertMDMAppleHostProfilesRemoveIgnoreError", testBulkUpsertMDMAppleHostProfilesRemoveIgnoreError},
 		{"TestDeleteMDMAppleConfigProfileWithPendingInstalls", testDeleteMDMAppleConfigProfileWithPendingInstalls},
 		{"TestDeleteMDMAppleConfigProfileCleansUpOptIns", testDeleteMDMAppleConfigProfileCleansUpOptIns},
 		{"TestDeleteMDMAppleConfigProfileByTeamAndIdentifier", testDeleteMDMAppleConfigProfileByTeamAndIdentifier},
@@ -100,6 +102,8 @@ func TestMDMApple(t *testing.T) {
 		{"TestMDMAppleConfigProfileHash", testMDMAppleConfigProfileHash},
 		{"TestUpsertMDMAppleFleetConfigProfile", testUpsertMDMAppleFleetConfigProfile},
 		{"TestMDMAppleResetEnrollment", testMDMAppleResetEnrollment},
+		{"TestBootstrapPackageStatusManuallyEnrolledHosts", testBootstrapPackageStatusManuallyEnrolledHosts},
+		{"TestBootstrapPackageStatusPendingMigration", testBootstrapPackageStatusPendingMigration},
 		{"TestMDMAppleResetEnrollmentScimLink", testMDMAppleResetEnrollmentScimLink},
 		{"TestMDMAppleResetOnReenrollment", testMDMAppleResetOnReenrollment},
 		{"TestMDMAppleDeleteHostDEPAssignments", testMDMAppleDeleteHostDEPAssignments},
@@ -114,12 +118,17 @@ func TestMDMApple(t *testing.T) {
 		{"MDMAppleSetPendingDeclarationsAs", testMDMAppleSetPendingDeclarationsAs},
 		{"SetOrUpdateMDMAppleDeclaration", testSetOrUpdateMDMAppleDDMDeclaration},
 		{"DEPAssignmentUpdates", testMDMAppleDEPAssignmentUpdates},
+		{"MDMMigrationCompletedIsSticky", testMDMMigrationCompletedIsSticky},
 		{"GetHostDEPAssignmentsByHostIDs", testGetHostDEPAssignmentsByHostIDs},
 		{"TestMDMConfigAsset", testMDMConfigAsset},
 		{"ListIOSAndIPadOSToRefetch", testListIOSAndIPadOSToRefetch},
+		{"ListIOSAndIPadOSToRefetchBatching", testListIOSAndIPadOSToRefetchBatching},
 		{"MDMAppleUpsertHostIOSiPadOS", testMDMAppleUpsertHostIOSIPadOS},
 		{"MDMAppleUpsertHostPersonalEnrollment", testMDMAppleUpsertHostPersonalEnrollment},
 		{"MDMAppleUpsertHostPersonalEnrollmentClearsStaleVitals", testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitals},
+		{"MDMAppleUpsertHostEnrolledSerial", testMDMAppleUpsertHostEnrolledSerial},
+		{"NewAppleSCEPChallengeEnrolledSerial", testNewAppleSCEPChallengeEnrolledSerial},
+		{"GetAppleSerialEnrolledUnderAnotherUUID", testGetAppleSerialEnrolledUnderAnotherUUID},
 		{"MDMAppleUpsertHostPersonalEnrollmentClearsStaleVitalsUUIDChange", testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitalsUUIDChange},
 		{"MDMAppleUpsertHostEnrollmentTypeOnReenrollment", testMDMAppleUpsertHostEnrollmentTypeOnReenrollment},
 		{"IngestMDMAppleDevicesFromDEPSyncIOSIPadOS", testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS},
@@ -138,12 +147,15 @@ func TestMDMApple(t *testing.T) {
 		{"CleanupHostMDMCommandsQueueAware", testCleanupHostMDMCommandsQueueAware},
 		{"IngestMDMAppleDeviceFromOTAEnrollment", testIngestMDMAppleDeviceFromOTAEnrollment},
 		{"IngestMDMAppleDeviceFromOTAEnrollmentEnrolledSerial", testIngestMDMAppleDeviceFromOTAEnrollmentEnrolledSerial},
+		{"IngestMDMAppleDeviceFromOTAEnrollmentPersonal", testIngestMDMAppleDeviceFromOTAEnrollmentPersonal},
 		{"IngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping", testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping},
 		{"MDMManagedSCEPCertificates", testMDMManagedSCEPCertificates},
 		{"MDMManagedDigicertCertificates", testMDMManagedDigicertCertificates},
+		{"MDMManagedCertificatesFollowAdoptedProfile", testMDMManagedCertificatesFollowAdoptedProfile},
 		{"AppleMDMSetBatchAsyncLastSeenAt", testAppleMDMSetBatchAsyncLastSeenAt},
 		{"AggregateMacOSSettingsAllPlatforms", testAggregateMacOSSettingsAllPlatforms},
 		{"GetMDMAppleEnrolledDeviceDeletedFromFleet", testGetMDMAppleEnrolledDeviceDeletedFromFleet},
+		{"IsMDMAppleCommandQueuedForEnrollment", testIsMDMAppleCommandQueuedForEnrollment},
 		{"SetMDMAppleProfilesWithVariables", testSetMDMAppleProfilesWithVariables},
 		{"GetNanoMDMEnrollmentDetails", testGetNanoMDMEnrollmentDetails},
 		{"GetNanoMDMUserEnrollment", testGetNanoMDMUserEnrollment},
@@ -1019,6 +1031,39 @@ func testListMDMAppleConfigProfiles(t *testing.T, ds *Datastore) {
 	require.Len(t, cps, 0)
 }
 
+func testBulkUpsertMDMAppleHostProfilesRemoveIgnoreError(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	profUUID := "a" + uuid.NewString()[:8]
+	put := func(op fleet.MDMOperationType, status *fleet.MDMDeliveryStatus, ignoreErr bool) {
+		require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
+			ProfileUUID: profUUID, ProfileIdentifier: "com.example.p", ProfileName: "P",
+			HostUUID: "host-1", Status: status, OperationType: op, CommandUUID: uuid.NewString(),
+			Checksum: []byte("csum"), Scope: fleet.PayloadScopeSystem, IgnoreError: ignoreErr,
+		}}))
+	}
+	ignoreError := func() bool {
+		var v bool
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &v,
+			`SELECT ignore_error FROM host_mdm_apple_profiles WHERE host_uuid = 'host-1' AND profile_uuid = ?`, profUUID))
+		return v
+	}
+
+	// install -> remove converts the row in place and must be able to raise the flag
+	put(fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryPending, false)
+	require.False(t, ignoreError())
+	put(fleet.MDMOperationTypeRemove, &fleet.MDMDeliveryPending, true)
+	require.True(t, ignoreError())
+
+	// a later remove upsert must not lower it
+	put(fleet.MDMOperationTypeRemove, &fleet.MDMDeliveryPending, false)
+	require.True(t, ignoreError())
+
+	// a fresh install resets it
+	put(fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryPending, false)
+	require.False(t, ignoreError())
+}
+
 func testDeleteMDMAppleConfigProfile(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -1739,7 +1784,7 @@ func testPreserveDisplayNameAfterFleetdEnroll(t *testing.T, ds *Datastore) {
 
 	// Repeat for the OTA enrollment path which goes through createHostFromMDMDB.
 	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "",
-		fleet.MDMAppleMachineInfo{Serial: testSerial, UDID: testUUID, Product: "MacBookPro18,1"})
+		fleet.MDMAppleMachineInfo{Serial: testSerial, UDID: testUUID, Product: "MacBookPro18,1"}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &displayName,
@@ -3519,13 +3564,13 @@ func testHostMDMIdPAccountWritesReturnPrevious(t *testing.T, ds *Datastore) {
 
 	t.Run("ota", func(t *testing.T) {
 		mi := fleet.MDMAppleMachineInfo{UDID: uuid.NewString(), Serial: "OTA-PREV-1", Product: "MacBookPro16,1"}
-		previous, err := ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, acc1.UUID, mi)
+		previous, err := ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, acc1.UUID, mi, fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 		require.Empty(t, previous)
-		previous, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, acc2.UUID, mi)
+		previous, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, acc2.UUID, mi, fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 		require.Equal(t, acc1.UUID, previous)
-		previous, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", mi)
+		previous, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", mi, fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 		require.Equal(t, acc2.UUID, previous)
 		requireLinked(mi.UDID, "")
@@ -5519,179 +5564,6 @@ func TestMDMAppleFileVaultSummary_NullDecryptableKey(t *testing.T) {
 	}
 }
 
-func TestCopyDefaultMDMAppleBootstrapPackage(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer ds.Close()
-
-	ctx := t.Context()
-
-	checkStoredBP := func(teamID uint, wantErr error, wantNewToken bool, wantBP *fleet.MDMAppleBootstrapPackage) {
-		var gotBP fleet.MDMAppleBootstrapPackage
-		err := sqlx.GetContext(ctx, ds.primary, &gotBP, "SELECT * FROM mdm_apple_bootstrap_packages WHERE team_id = ?", teamID)
-		if wantErr != nil {
-			require.EqualError(t, err, wantErr.Error())
-			return
-		}
-		require.NoError(t, err)
-		if wantNewToken {
-			require.NotEqual(t, wantBP.Token, gotBP.Token)
-		} else {
-			require.Equal(t, wantBP.Token, gotBP.Token)
-		}
-		require.Equal(t, wantBP.Name, gotBP.Name)
-		require.Equal(t, wantBP.Sha256[:32], gotBP.Sha256)
-		require.Equal(t, wantBP.Bytes, gotBP.Bytes)
-	}
-
-	checkAppConfig := func(wantURL string) {
-		ac, err := ds.AppConfig(ctx)
-		require.NoError(t, err)
-		require.Equal(t, wantURL, ac.MDM.MacOSSetup.BootstrapPackage.Value)
-	}
-
-	checkTeamConfig := func(teamID uint, wantURL string) {
-		tm, err := ds.TeamLite(ctx, teamID)
-		require.NoError(t, err)
-		require.Equal(t, wantURL, tm.Config.MDM.MacOSSetup.BootstrapPackage.Value)
-	}
-
-	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
-	require.NoError(t, err)
-	teamID := tm.ID
-	noTeamID := uint(0)
-
-	// confirm bootstrap package url is empty by default
-	checkAppConfig("")
-	checkTeamConfig(teamID, "")
-
-	// create a default bootstrap package
-	content := []byte("content")
-	hasher := sha256.New()
-	hasher.Write(content)
-	defaultBP := &fleet.MDMAppleBootstrapPackage{
-		TeamID: noTeamID,
-		Name:   "name",
-		Sha256: hasher.Sum(nil),
-		Bytes:  content,
-		Token:  uuid.New().String(),
-	}
-	err = ds.InsertMDMAppleBootstrapPackage(ctx, defaultBP, nil)
-	require.NoError(t, err)
-	checkStoredBP(noTeamID, nil, false, defaultBP)   // default bootstrap package is stored
-	checkStoredBP(teamID, sql.ErrNoRows, false, nil) // no bootstrap package yet for team
-
-	ac, err := ds.AppConfig(ctx)
-	require.NoError(t, err)
-	require.Empty(t, ac.MDM.MacOSSetup.BootstrapPackage.Value)
-	err = ds.CopyDefaultMDMAppleBootstrapPackage(ctx, ac, teamID)
-	require.NoError(t, err)
-
-	checkAppConfig("")                             // no bootstrap package url set in app config
-	checkTeamConfig(teamID, "")                    // no bootstrap package url set in team config
-	checkStoredBP(noTeamID, nil, false, defaultBP) // no change to default bootstrap package
-	checkStoredBP(teamID, nil, true, defaultBP)    // copied default bootstrap package
-
-	// delete and update the default bootstrap package
-	err = ds.DeleteMDMAppleBootstrapPackage(ctx, noTeamID)
-	require.NoError(t, err)
-	checkStoredBP(noTeamID, sql.ErrNoRows, false, nil) // deleted
-	checkStoredBP(teamID, nil, true, defaultBP)        // still exists
-
-	// update the default bootstrap package
-	newContent := []byte("new content")
-	newHasher := sha256.New()
-	newHasher.Write(newContent)
-	defaultBP2 := &fleet.MDMAppleBootstrapPackage{
-		TeamID: noTeamID,
-		Name:   "new name",
-		Sha256: newHasher.Sum(nil),
-		Bytes:  newContent,
-		Token:  uuid.New().String(),
-	}
-	err = ds.InsertMDMAppleBootstrapPackage(ctx, defaultBP2, nil)
-	require.NoError(t, err)
-	checkStoredBP(noTeamID, nil, false, defaultBP2)
-	// set bootstrap package url in app config
-	ac.MDM.MacOSSetup.BootstrapPackage = optjson.SetString("https://example.com/bootstrap.pkg")
-	err = ds.SaveAppConfig(ctx, ac)
-	require.NoError(t, err)
-	checkAppConfig("https://example.com/bootstrap.pkg")
-
-	// copy default bootstrap package fails when there is already a team bootstrap package
-	var wantErr error = &existsError{ResourceType: "BootstrapPackage", TeamID: &teamID}
-	err = ds.CopyDefaultMDMAppleBootstrapPackage(ctx, ac, teamID)
-	require.ErrorContains(t, err, wantErr.Error())
-	// confirm team bootstrap package is unchanged
-	checkStoredBP(teamID, nil, true, defaultBP)
-	checkTeamConfig(teamID, "")
-
-	// delete the team bootstrap package
-	err = ds.DeleteMDMAppleBootstrapPackage(ctx, teamID)
-	require.NoError(t, err)
-	checkStoredBP(teamID, sql.ErrNoRows, false, nil)
-	checkTeamConfig(teamID, "")
-
-	// confirm no change to default bootstrap package
-	checkStoredBP(noTeamID, nil, false, defaultBP2)
-	checkAppConfig("https://example.com/bootstrap.pkg")
-
-	// copy default bootstrap package succeeds when there is no team bootstrap package
-	err = ds.CopyDefaultMDMAppleBootstrapPackage(ctx, ac, teamID)
-	require.NoError(t, err)
-	// confirm team bootstrap package gets new token and otherwise matches default bootstrap package
-	checkStoredBP(teamID, nil, true, defaultBP2)
-	// confirm bootstrap package url was set in team config to match app config
-	checkTeamConfig(teamID, "https://example.com/bootstrap.pkg")
-
-	// test some edge cases
-
-	// delete the team bootstrap package doesn't affect the team config
-	err = ds.DeleteMDMAppleBootstrapPackage(ctx, teamID)
-	require.NoError(t, err)
-	checkStoredBP(teamID, sql.ErrNoRows, false, nil)
-	checkTeamConfig(teamID, "https://example.com/bootstrap.pkg")
-
-	// set other team config values so we can confirm they are not affected by bootstrap package changes
-	tc, err := ds.TeamWithExtras(ctx, teamID)
-	require.NoError(t, err)
-	tc.Config.MDM.MacOSSetup.MacOSSetupAssistant = optjson.SetString("/path/to/setupassistant")
-	tc.Config.MDM.MacOSUpdates.Deadline = optjson.SetString("2024-01-01")
-	tc.Config.MDM.MacOSUpdates.MinimumVersion = optjson.SetString("10.15.4")
-	tc.Config.WebhookSettings.FailingPoliciesWebhook = fleet.FailingPoliciesWebhookSettings{
-		Enable:         true,
-		DestinationURL: "https://example.com/webhook",
-	}
-	tc.Config.Features.EnableHostUsers = true
-	savedTeam, err := ds.SaveTeam(ctx, tc)
-	require.NoError(t, err)
-	require.Equal(t, tc.Config, savedTeam.Config)
-
-	// change the default bootstrap package url
-	ac.MDM.MacOSSetup.BootstrapPackage = optjson.SetString("https://example.com/bs.pkg")
-	err = ds.SaveAppConfig(ctx, ac)
-	require.NoError(t, err)
-	checkAppConfig("https://example.com/bs.pkg")
-	checkTeamConfig(teamID, "https://example.com/bootstrap.pkg") // team config is unchanged
-
-	// copy default bootstrap package succeeds when there is no team bootstrap package
-	err = ds.CopyDefaultMDMAppleBootstrapPackage(ctx, ac, teamID)
-	require.NoError(t, err)
-	// confirm team bootstrap package gets new token and otherwise matches default bootstrap package
-	checkStoredBP(teamID, nil, true, defaultBP2)
-	// confirm bootstrap package url was set in team config to match app config
-	checkTeamConfig(teamID, "https://example.com/bs.pkg")
-
-	// confirm other team config values are unchanged
-	teamFromDb, err := ds.TeamWithExtras(ctx, teamID)
-	require.NoError(t, err)
-	require.Equal(t, teamFromDb.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value, "/path/to/setupassistant")
-	require.Equal(t, teamFromDb.Config.MDM.MacOSUpdates.Deadline.Value, "2024-01-01")
-	require.Equal(t, teamFromDb.Config.MDM.MacOSUpdates.MinimumVersion.Value, "10.15.4")
-	require.Equal(t, teamFromDb.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL, "https://example.com/webhook")
-	require.Equal(t, teamFromDb.Config.WebhookSettings.FailingPoliciesWebhook.Enable, true)
-	require.Equal(t, teamFromDb.Config.Features.EnableHostUsers, true)
-}
-
 func TestHostDEPAssignments(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
@@ -6095,8 +5967,8 @@ func TestHostDEPAssignments(t *testing.T) {
 }
 
 func testMDMAppleConfigProfileHash(t *testing.T, ds *Datastore) {
-	// test that the mysql md5 hash exactly matches the hash produced by Go in
-	// the preassign profiles logic (no corner cases with extra whitespace, etc.)
+	// profile validation skips profiles whose Go md5 matches the stored checksum, so
+	// mysql's MD5 must match Go's exactly (no corner cases with extra whitespace, etc.)
 	ctx := t.Context()
 
 	// sprintf placeholders for prefix, content and suffix
@@ -6151,13 +6023,11 @@ func testMDMAppleConfigProfileHash(t *testing.T, ds *Datastore) {
 				require.NoError(t, err)
 			})
 
-			goProf := fleet.MDMApplePreassignProfilePayload{Profile: mc}
-			goHash := goProf.HexMD5Hash()
-			require.NotEmpty(t, goHash)
+			goHash := md5.Sum(mc) // nolint:gosec // content comparison, not security
 
 			var uid string
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM mdm_apple_configuration_profiles WHERE checksum = UNHEX(?)`, goHash)
+				return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM mdm_apple_configuration_profiles WHERE checksum = ?`, goHash[:])
 			})
 			require.Equal(t, prof.ProfileUUID, uid)
 		})
@@ -6297,6 +6167,85 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &optInCount,
 		`SELECT COUNT(*) FROM host_mdm_profile_opt_ins WHERE host_uuid = ?`, host.UUID))
 	require.Zero(t, optInCount)
+}
+
+func testBootstrapPackageStatusManuallyEnrolledHosts(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	err := ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{
+		TeamID: uint(0),
+		Name:   t.Name(),
+		Sha256: []byte("sha"),
+		Bytes:  []byte("content"),
+		Token:  uuid.New().String(),
+	}, nil)
+	require.NoError(t, err)
+
+	// manually enrolled hosts (installed_from_dep = 0)
+	newManualHost := func(i int) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      fmt.Sprintf("manual-host-%d", i),
+			OsqueryHostID: new(fmt.Sprintf("manual-osq-%d", i)),
+			NodeKey:       new(fmt.Sprintf("manual-key-%d", i)),
+			UUID:          fmt.Sprintf("manual-uuid-%d", i),
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, h, false)
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "foo.mdm.example.com", false, "", "", fleet.PersonalEnrollmentTypeNone))
+		return h
+	}
+	hostNoPackage, hostPending, hostInstalled, hostFailed := newManualHost(1), newManualHost(2), newManualHost(3), newManualHost(4)
+
+	for i, h := range []*fleet.Host{hostPending, hostInstalled, hostFailed} {
+		cmdUUID := fmt.Sprintf("manual-cmd-%d", i)
+		_, err := ds.writer(ctx).Exec(`INSERT INTO nano_commands (command_uuid, request_type, command) VALUES (?, 'InstallEnterpriseApplication', '<?xml')`, cmdUUID)
+		require.NoError(t, err)
+		require.NoError(t, ds.RecordHostBootstrapPackage(ctx, cmdUUID, h.UUID))
+	}
+	for _, res := range []struct {
+		host   *fleet.Host
+		cmd    string
+		status string
+	}{
+		{hostInstalled, "manual-cmd-1", "Acknowledged"},
+		{hostFailed, "manual-cmd-2", "Error"},
+	} {
+		_, err := ds.writer(ctx).Exec(`INSERT INTO nano_command_results (id, command_uuid, status, result) VALUES (?, ?, ?, '<?xml')`, res.host.UUID, res.cmd, res.status)
+		require.NoError(t, err)
+	}
+
+	sum, err := ds.GetMDMAppleBootstrapPackageSummary(ctx, 0)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, sum.Installed)
+	require.EqualValues(t, 1, sum.Failed)
+	require.EqualValues(t, 1, sum.Pending)
+
+	// the host that was never sent the package has no status
+	_, err = ds.GetHostMDMMacOSSetup(ctx, hostNoPackage.ID)
+	require.True(t, fleet.IsNotFound(err))
+	for host, want := range map[*fleet.Host]fleet.MDMBootstrapPackageStatus{
+		hostPending:   fleet.MDMBootstrapPackagePending,
+		hostInstalled: fleet.MDMBootstrapPackageInstalled,
+		hostFailed:    fleet.MDMBootstrapPackageFailed,
+	} {
+		setup, err := ds.GetHostMDMMacOSSetup(ctx, host.ID)
+		require.NoError(t, err)
+		require.Equal(t, want, setup.BootstrapPackageStatus)
+	}
+
+	listWithStatus := func(status fleet.MDMBootstrapPackageStatus) []uint {
+		hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MDMBootstrapPackageFilter: &status})
+		require.NoError(t, err)
+		var ids []uint
+		for _, h := range hosts {
+			ids = append(ids, h.ID)
+		}
+		return ids
+	}
+	require.Equal(t, []uint{hostPending.ID}, listWithStatus(fleet.MDMBootstrapPackagePending))
+	require.Equal(t, []uint{hostInstalled.ID}, listWithStatus(fleet.MDMBootstrapPackageInstalled))
+	require.Equal(t, []uint{hostFailed.ID}, listWithStatus(fleet.MDMBootstrapPackageFailed))
 }
 
 func testMDMAppleResetOnReenrollment(t *testing.T, ds *Datastore) {
@@ -8489,6 +8438,89 @@ func testMDMAppleDEPAssignmentUpdates(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.DEPAssignProfileResponseFailed, *assignment.AssignProfileResponse)
 }
 
+func testMDMMigrationCompletedIsSticky(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(uuid.NewString()), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
+	require.NoError(t, err)
+
+	newHost := func(name string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:       name,
+			OsqueryHostID:  new("osquery-" + name),
+			NodeKey:        new("nodekey-" + name),
+			UUID:           "uuid-" + name,
+			Platform:       "darwin",
+			HardwareSerial: "serial-" + name,
+		})
+		require.NoError(t, err)
+		return h
+	}
+	firstDeadline := time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC)
+	secondDeadline := time.Date(2026, 11, 30, 0, 0, 0, 0, time.UTC)
+
+	upsertWithDeadline := func(h *fleet.Host, deadline time.Time) {
+		err := ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmToken.ID, map[uint]time.Time{h.ID: deadline})
+		require.NoError(t, err)
+	}
+	checkinInfo := func(h *fleet.Host) *fleet.HostMDMCheckinInfo {
+		info, err := ds.GetHostMDMCheckinInfo(ctx, h.UUID)
+		require.NoError(t, err)
+		return info
+	}
+	requireTime := func(want time.Time, got *time.Time) {
+		require.NotNil(t, got)
+		require.True(t, want.Equal(*got), "want %s, got %s", want, *got)
+	}
+
+	migrated := newHost("migrated")
+	upsertWithDeadline(migrated, firstDeadline)
+	info := checkinInfo(migrated)
+	require.True(t, info.MigrationInProgress)
+	requireTime(firstDeadline, info.MDMMigrationDeadline)
+	require.Nil(t, info.MDMMigrationCompleted)
+
+	require.NoError(t, ds.SetHostMDMMigrationCompleted(ctx, migrated.ID))
+	info = checkinInfo(migrated)
+	require.False(t, info.MigrationInProgress)
+	requireTime(firstDeadline, info.MDMMigrationCompleted)
+
+	// ABM reports a new deadline for an already-migrated host
+	upsertWithDeadline(migrated, secondDeadline)
+	info = checkinInfo(migrated)
+	require.False(t, info.MigrationInProgress)
+	requireTime(secondDeadline, info.MDMMigrationDeadline)
+	requireTime(firstDeadline, info.MDMMigrationCompleted)
+
+	// removing the ABM assignment clears the marker: ABM drops the deadline when a device leaves this
+	// server, so a deadline it comes back with is a new migration
+	removals := map[string]func() error{
+		"DeleteHostDEPAssignments": func() error {
+			return ds.DeleteHostDEPAssignments(ctx, abmToken.ID, []string{migrated.HardwareSerial})
+		},
+		"MarkHostDEPAssignmentDeleted": func() error { return ds.MarkHostDEPAssignmentDeleted(ctx, migrated.ID) },
+		"MarkHostDEPAssignmentsDeleted": func() error {
+			return ds.MarkHostDEPAssignmentsDeleted(ctx, []uint{migrated.ID})
+		},
+	}
+	for name, remove := range removals {
+		upsertWithDeadline(migrated, firstDeadline)
+		require.NoError(t, ds.SetHostMDMMigrationCompleted(ctx, migrated.ID), name)
+		require.False(t, checkinInfo(migrated).MigrationInProgress, name)
+
+		require.NoError(t, remove(), name)
+		info = checkinInfo(migrated)
+		require.False(t, info.DEPAssignedToFleet, name)
+		require.Nil(t, info.MDMMigrationDeadline, name)
+		require.Nil(t, info.MDMMigrationCompleted, name)
+
+		upsertWithDeadline(migrated, secondDeadline)
+		info = checkinInfo(migrated)
+		require.True(t, info.DEPAssignedToFleet, name)
+		require.True(t, info.MigrationInProgress, name)
+	}
+}
+
 func testGetHostDEPAssignmentsByHostIDs(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	n := t.Name()
@@ -8736,7 +8768,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	require.NotEmpty(t, abmToken.ID)
 
 	// Test with no hosts.
-	devices, err := ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err := ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval, 100)
 	require.NoError(t, err)
 	require.Empty(t, devices)
 
@@ -8754,7 +8786,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	require.Equal(t, int64(3), n)
 
 	// Hosts are not enrolled yet (e.g. DEP enrolled)
-	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval, 100)
 	require.NoError(t, err)
 	require.Empty(t, devices)
 
@@ -8795,7 +8827,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	nanoEnroll(t, ds, iPod, false)
 
 	// Test with hosts but empty state in nanomdm command tables.
-	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval, 100)
 	require.NoError(t, err)
 	require.Len(t, devices, 3)
 	uuids := []string{devices[0].UUID, devices[1].UUID, devices[2].UUID}
@@ -8823,7 +8855,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	})
 
 	// iOS device should not be returned because it was refetched recently
-	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval, 100)
 	require.NoError(t, err)
 	require.Len(t, devices, 2)
 	require.Equal(t, devices[0].UUID, "iPadOS0_UUID")
@@ -8836,7 +8868,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	})
 
 	// two devices are up to date now, only iPod should be returned
-	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval, 100)
 	require.NoError(t, err)
 	require.Len(t, devices, 1)
 	require.Equal(t, devices[0].UUID, "iPod_UUID")
@@ -8848,7 +8880,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	})
 
 	// all devices are up to date now, none should be returned
-	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval, 100)
 	require.NoError(t, err)
 	require.Empty(t, devices)
 
@@ -8859,7 +8891,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	})
 
 	// iOS device be returned because it is out of date.
-	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval, 100)
 	require.NoError(t, err)
 	require.Len(t, devices, 1)
 	require.Equal(t, devices[0].UUID, "iOS0_UUID")
@@ -8870,7 +8902,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 		HostID:      iOS0.ID,
 		CommandType: fleet.RefetchAppsCommandUUIDPrefix,
 	}}))
-	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval, 100)
 	require.NoError(t, err)
 	require.Len(t, devices, 1)
 	require.Equal(t, devices[0].UUID, "iOS0_UUID")
@@ -8882,9 +8914,76 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 		_, err := q.ExecContext(ctx, `UPDATE nano_enrollments SET enabled = 0 WHERE id = ?`, iOS0.UUID)
 		return err
 	})
-	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval, 100)
 	require.NoError(t, err)
 	require.Empty(t, devices)
+}
+
+func testListIOSAndIPadOSToRefetchBatching(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newMobileHost := func(name, platform string, detailAge time.Duration, refetchRequested bool) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:         name,
+			UUID:             name + "-uuid",
+			HardwareSerial:   name + "-serial",
+			Platform:         platform,
+			DetailUpdatedAt:  time.Now().Add(-detailAge),
+			RefetchRequested: refetchRequested,
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, h, false)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO host_mdm (host_id, enrolled, server_url) VALUES (?, 1, '')`, h.ID)
+			return err
+		})
+		return h
+	}
+	trackAll := func(h *fleet.Host) {
+		require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{
+			{HostID: h.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
+			{HostID: h.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
+			{HostID: h.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
+		}))
+	}
+	uuids := func(devices []fleet.AppleDevicesToRefetch) []string {
+		var out []string
+		for _, d := range devices {
+			out = append(out, d.UUID)
+		}
+		return out
+	}
+
+	// Offline hosts: stalest of all, every refetch command still outstanding.
+	for i := range 3 {
+		trackAll(newMobileHost(fmt.Sprintf("offline%d", i), "ios", 48*time.Hour, false))
+	}
+	stale5h := newMobileHost("stale5h", "ipados", 5*time.Hour, false)
+	newMobileHost("stale3h", "ios", 3*time.Hour, false)
+	newMobileHost("stale2h", "ipados", 2*time.Hour, false)
+	newMobileHost("fresh", "ios", 10*time.Minute, false)
+	newMobileHost("requested", "ipados", 10*time.Minute, true)
+	newMobileHost("mac", "darwin", 5*time.Hour, false)
+
+	// Requested hosts come first, then stalest; offline hosts don't take slots.
+	devices, err := ds.ListIOSAndIPadOSToRefetch(ctx, time.Hour, 3)
+	require.NoError(t, err)
+	require.Equal(t, []string{"requested-uuid", "stale5h-uuid", "stale3h-uuid"}, uuids(devices))
+
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, time.Hour, 10)
+	require.NoError(t, err)
+	require.Equal(t, []string{"requested-uuid", "stale5h-uuid", "stale3h-uuid", "stale2h-uuid"}, uuids(devices))
+
+	// A host with only some commands outstanding still needs the rest.
+	require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{
+		{HostID: stale5h.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
+	}))
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, time.Hour, 2)
+	require.NoError(t, err)
+	require.Len(t, devices, 2)
+	require.Equal(t, []string{"requested-uuid", "stale5h-uuid"}, uuids(devices))
+	require.Equal(t, fleet.MDMCommandsAlreadySent{fleet.RefetchCertsCommandUUIDPrefix}, devices[1].CommandsAlreadySent)
+	require.Empty(t, devices[0].CommandsAlreadySent)
 }
 
 func testMDMAppleUpsertHostIOSIPadOS(t *testing.T, ds *Datastore) {
@@ -9843,8 +9942,11 @@ func testMDMAppleBootstrapPackageWithS3(t *testing.T, ds *Datastore) {
 	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp2, pkgStore)
 	require.NoError(t, err)
 
-	// associate the same content as bp1 with team id 1, via a copy
-	err = ds.CopyDefaultMDMAppleBootstrapPackage(ctx, &fleet.AppConfig{}, 1)
+	// associate the same content as bp1 with team id 1, so both share one stored object
+	bp1b := *bp1
+	bp1b.TeamID = 1
+	bp1b.Token = uuid.New().String()
+	err = ds.InsertMDMAppleBootstrapPackage(ctx, &bp1b, pkgStore)
 	require.NoError(t, err)
 
 	// get bp for no team
@@ -9852,13 +9954,9 @@ func testMDMAppleBootstrapPackageWithS3(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	bpMatchesWithoutContent(bp1, meta)
 
-	// get for team 1, token differs due to the copy, rest is the same
+	// get for team 1
 	meta, err = ds.GetMDMAppleBootstrapPackageMeta(ctx, 1)
 	require.NoError(t, err)
-	require.NotEqual(t, bp1.Token, meta.Token)
-	bp1b := *bp1
-	bp1b.Token = meta.Token
-	bp1b.TeamID = 1
 	bpMatchesWithoutContent(&bp1b, meta)
 
 	// get for team 2
@@ -9876,7 +9974,7 @@ func testMDMAppleBootstrapPackageWithS3(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, bp1.Bytes, bpContent.Bytes)
 
-	// get content for team 1 (copy of no team)
+	// get content for team 1 (shares bp1's stored object)
 	bpContent, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, bp1b.Token, pkgStore)
 	require.NoError(t, err)
 	require.Equal(t, bp1b.Bytes, bpContent.Bytes)
@@ -10751,7 +10849,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollment(t *testing.T, ds *Datastore) {
 	wantSerials = append(wantSerials, "abc", "xyz", "ijk", "tuv")
 
 	for _, d := range otaDevices {
-		_, err := ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", d)
+		_, err := ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", d, fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 	}
 
@@ -10773,6 +10871,32 @@ func testIngestMDMAppleDeviceFromOTAEnrollment(t *testing.T, ds *Datastore) {
 	require.ElementsMatch(t, wantSerials, gotSerials)
 }
 
+func testIngestMDMAppleDeviceFromOTAEnrollmentPersonal(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	createBuiltinLabels(t, ds)
+
+	ingest := func(serial, udid string, personalType fleet.PersonalEnrollmentType) *fleet.HostMDMCheckinInfo {
+		_, err := ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{Serial: serial, UDID: udid, Product: "MacBook Pro"}, personalType)
+		require.NoError(t, err)
+		info, err := ds.GetHostMDMCheckinInfo(ctx, udid)
+		require.NoError(t, err)
+		return info
+	}
+
+	// a new host records the enrollment's ownership until its Authenticate arrives
+	info := ingest("personal-serial", "personal-uuid", fleet.PersonalEnrollmentTypeManualProfile)
+	require.False(t, info.FleetEnrolledCorporate)
+	hostMDM, err := ds.GetHostMDM(ctx, info.HostID)
+	require.NoError(t, err)
+	require.True(t, hostMDM.IsPersonalEnrollment)
+	require.Equal(t, fleet.PersonalEnrollmentTypeManualProfile, hostMDM.PersonalEnrollmentType)
+
+	require.True(t, ingest("corporate-serial", "corporate-uuid", fleet.PersonalEnrollmentTypeNone).FleetEnrolledCorporate)
+
+	// an enrolled host keeps its ownership
+	require.True(t, ingest("corporate-serial", "corporate-uuid", fleet.PersonalEnrollmentTypeManualProfile).FleetEnrolledCorporate)
+}
+
 func testIngestMDMAppleDeviceFromOTAEnrollmentEnrolledSerial(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	createBuiltinLabels(t, ds)
@@ -10791,7 +10915,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollmentEnrolledSerial(t *testing.T, ds *D
 	// a different UUID claiming the enrolled host's serial is refused, and the host keeps its UUID
 	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
 		Serial: enrolled.HardwareSerial, UDID: "new-uuid", Product: "MacBook Pro",
-	})
+	}, fleet.PersonalEnrollmentTypeNone)
 	var conflict *fleet.ConflictError
 	require.ErrorAs(t, err, &conflict)
 	host, err := ds.HostLite(ctx, enrolled.ID)
@@ -10801,7 +10925,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollmentEnrolledSerial(t *testing.T, ds *D
 	// the enrolled device itself can re-enroll
 	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
 		Serial: enrolled.HardwareSerial, UDID: enrolled.UUID, Product: "MacBook Pro",
-	})
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	// once MDM is turned off, the serial can be claimed by a new UUID
@@ -10811,7 +10935,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollmentEnrolledSerial(t *testing.T, ds *D
 	})
 	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
 		Serial: enrolled.HardwareSerial, UDID: "new-uuid", Product: "MacBook Pro",
-	})
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 	host, err = ds.HostLite(ctx, enrolled.ID)
 	require.NoError(t, err)
@@ -10831,13 +10955,13 @@ func testIngestMDMAppleDeviceFromOTAEnrollmentEnrolledSerial(t *testing.T, ds *D
 	require.NoError(t, ds.DeleteHost(ctx, deleted.ID))
 	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
 		Serial: deleted.HardwareSerial, UDID: "replacement-uuid", Product: "MacBook Pro",
-	})
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	// and a device that was never enrolled
 	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
 		Serial: "never-enrolled-serial", UDID: "never-enrolled-uuid", Product: "MacBook Pro",
-	})
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 }
 
@@ -10892,7 +11016,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping(t *testing.T, ds *Data
 		Product: "MacBook Pro",
 		UDID:    hostUDID,
 	}
-	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, idpUUID, deviceInfo)
+	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, idpUUID, deviceInfo, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	host, err := ds.HostByIdentifier(ctx, hostSerial)
@@ -10926,7 +11050,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping(t *testing.T, ds *Data
 	// Re-enrollment of the same hardware must be idempotent: no duplicate
 	// key error, exactly one mapping row, no stale change. host_scim_user
 	// has host_id as the PK, so a raw re-INSERT would fail.
-	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, idpUUID, deviceInfo)
+	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, idpUUID, deviceInfo, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 	var hostCount int
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -10962,7 +11086,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping(t *testing.T, ds *Data
 		Serial:  unmatchedHostSerial,
 		Product: "MacBook Pro",
 		UDID:    unmatchedHostUDID,
-	})
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 	unmatchedHost, err := ds.HostByIdentifier(ctx, unmatchedHostSerial)
 	require.NoError(t, err)
@@ -10978,7 +11102,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping(t *testing.T, ds *Data
 		Serial:  emptyIdpHostSerial,
 		Product: "MacBook Pro",
 		UDID:    "TAHOE-MIGRATED-UDID-EMPTY",
-	})
+	}, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 	emptyIdpHost, err := ds.HostByIdentifier(ctx, emptyIdpHostSerial)
 	require.NoError(t, err)
@@ -11791,6 +11915,86 @@ func testMDMManagedDigicertCertificates(t *testing.T, ds *Datastore) {
 	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 
+// A fleet transfer onto an identical profile adopts the old host profile row. Deleting that row
+// hands its managed certificates to the adopter, or renewal could never find them again.
+func testMDMManagedCertificatesFollowAdoptedProfile(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	const profA, profB = "aFleetAProfileUUID", "aFleetBProfileUUID"
+	const adoptedHost, otherHost = "host-adopted", "host-other"
+
+	notValidBefore := time.Now().Add(-24 * time.Hour).UTC().Round(time.Microsecond)
+	notValidAfter := time.Now().Add(300 * 24 * time.Hour).UTC().Round(time.Microsecond)
+	staleNotValidAfter := time.Now().Add(-48 * time.Hour).UTC().Round(time.Microsecond)
+	challengeRetrievedAt := time.Now().Add(-time.Hour).UTC().Round(time.Microsecond)
+	require.NoError(t, ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
+		{
+			HostUUID: adoptedHost, ProfileUUID: profA, Type: fleet.CAConfigDigiCert, CAName: "digicert",
+			NotValidBefore: &notValidBefore, NotValidAfter: &notValidAfter, Serial: new("01"),
+		},
+		// issued but not reported by the host yet
+		{
+			HostUUID: adoptedHost, ProfileUUID: profA, Type: fleet.CAConfigNDES, CAName: "NDES",
+			ChallengeRetrievedAt: &challengeRetrievedAt,
+		},
+		// left over from an earlier stint in fleet B
+		{
+			HostUUID: adoptedHost, ProfileUUID: profB, Type: fleet.CAConfigDigiCert, CAName: "digicert",
+			NotValidBefore: &notValidBefore, NotValidAfter: &staleNotValidAfter, Serial: new("00"),
+		},
+		// left over from an earlier stint in fleet B, for a CA its profile no longer references
+		{
+			HostUUID: adoptedHost, ProfileUUID: profB, Type: fleet.CAConfigDigiCert, CAName: "retired",
+			NotValidBefore: &notValidBefore, NotValidAfter: &staleNotValidAfter, Serial: new("03"),
+		},
+		{
+			HostUUID: otherHost, ProfileUUID: profA, Type: fleet.CAConfigDigiCert, CAName: "digicert",
+			NotValidBefore: &notValidBefore, NotValidAfter: &notValidAfter, Serial: new("02"),
+		},
+	}))
+
+	// The second pass replays the adoption, as a reconcile tick reading a stale replica would.
+	for range 2 {
+		require.NoError(t, ds.BulkDeleteMDMAppleHostsConfigProfiles(ctx, []*fleet.MDMAppleProfilePayload{
+			{HostUUID: adoptedHost, ProfileUUID: profA, AdoptedByProfileUUID: profB},
+			{HostUUID: otherHost, ProfileUUID: profA},
+		}))
+
+		certs, err := ds.ListHostMDMManagedCertificates(ctx, adoptedHost)
+		require.NoError(t, err)
+		require.Len(t, certs, 2)
+		certsByCA := make(map[string]*fleet.MDMManagedCertificate, len(certs))
+		for _, c := range certs {
+			require.Equal(t, profB, c.ProfileUUID)
+			certsByCA[c.CAName] = c
+		}
+		digicert, ndes := certsByCA["digicert"], certsByCA["NDES"]
+		require.NotNil(t, digicert)
+		require.NotNil(t, ndes)
+		require.Equal(t, new("01"), digicert.Serial, "the adopted certificate replaces the stale one")
+		require.Equal(t, &notValidAfter, digicert.NotValidAfter)
+		require.Equal(t, fleet.CAConfigDigiCert, digicert.Type)
+		require.Nil(t, ndes.NotValidAfter)
+		require.Equal(t, &challengeRetrievedAt, ndes.ChallengeRetrievedAt)
+	}
+
+	certs, err := ds.ListHostMDMManagedCertificates(ctx, otherHost)
+	require.NoError(t, err)
+	require.Len(t, certs, 1)
+	require.Equal(t, profA, certs[0].ProfileUUID, "rows that were not adopted stay put")
+
+	certs, err = ds.ListMDMManagedCertificatesForHostProfiles(ctx, []fleet.HostProfileUUID{
+		{HostUUID: adoptedHost, ProfileUUID: profB},
+		{HostUUID: otherHost, ProfileUUID: profA},
+		{HostUUID: otherHost, ProfileUUID: profB},
+	})
+	require.NoError(t, err)
+	listed := make([]string, 0, len(certs))
+	for _, c := range certs {
+		listed = append(listed, c.HostUUID+"/"+c.ProfileUUID+"/"+c.CAName)
+	}
+	require.ElementsMatch(t, []string{adoptedHost + "/" + profB + "/digicert", adoptedHost + "/" + profB + "/NDES", otherHost + "/" + profA + "/digicert"}, listed)
+}
+
 func testAppleMDMSetBatchAsyncLastSeenAt(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -12053,6 +12257,31 @@ func testAggregateMacOSSettingsAllPlatforms(t *testing.T, ds *Datastore) {
 	require.EqualValues(t, 0, res.Failed)
 	require.EqualValues(t, 0, res.Verifying)
 	require.EqualValues(t, 0, res.Verified)
+}
+
+func testIsMDMAppleCommandQueuedForEnrollment(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	h1 := test.NewHost(t, ds, "h1", "1", "h1key", "h1uuid", time.Now())
+	h2 := test.NewHost(t, ds, "h2", "2", "h2key", "h2uuid", time.Now())
+	nanoEnroll(t, ds, h1, false)
+	nanoEnroll(t, ds, h2, false)
+
+	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+	cmdUUID := uuid.NewString()
+	require.NoError(t, commander.EnqueueCommand(ctx, []string{h1.UUID}, createRawAppleCmd("ProfileList", cmdUUID)))
+
+	queued, err := ds.IsMDMAppleCommandQueuedForEnrollment(ctx, h1.UUID, cmdUUID)
+	require.NoError(t, err)
+	require.True(t, queued)
+
+	queued, err = ds.IsMDMAppleCommandQueuedForEnrollment(ctx, h2.UUID, cmdUUID)
+	require.NoError(t, err)
+	require.False(t, queued)
+
+	queued, err = ds.IsMDMAppleCommandQueuedForEnrollment(ctx, h1.UUID, uuid.NewString())
+	require.NoError(t, err)
+	require.False(t, queued)
 }
 
 func testGetMDMAppleEnrolledDeviceDeletedFromFleet(t *testing.T, ds *Datastore) {
@@ -14921,4 +15150,304 @@ func testCleanupAppleSCEPChallenges(t *testing.T, ds *Datastore) {
 			"consumed-8d", "consumed-6d", "consumed-1d-expired-8d", "unconsumed-expired-8d", "unconsumed-expired-6d", "unconsumed-active")
 	})
 	require.ElementsMatch(t, []string{"consumed-6d", "consumed-1d-expired-8d", "unconsumed-expired-6d", "unconsumed-active"}, remaining)
+}
+
+func testBootstrapPackageStatusPendingMigration(t *testing.T, ds *Datastore) {
+	// the migration setting only applies with a premium license
+	ctx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "org", EncryptedToken: []byte("token"), RenewAt: time.Now().Add(24 * time.Hour)})
+	require.NoError(t, err)
+
+	// DEP hosts that haven't enrolled yet, one of them with a migration in progress
+	newDEPHost := func(name string, teamID *uint, migrating bool) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:       name,
+			OsqueryHostID:  new(name),
+			NodeKey:        new(name),
+			UUID:           name,
+			HardwareSerial: name,
+			Platform:       "darwin",
+			TeamID:         teamID,
+		})
+		require.NoError(t, err)
+		deadlines := map[uint]time.Time{}
+		if migrating {
+			deadlines[h.ID] = time.Now().Add(24 * time.Hour)
+		}
+		require.NoError(t, ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmToken.ID, deadlines))
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, false, "foo.mdm.example.com", true, "", "", fleet.PersonalEnrollmentTypeNone))
+		return h
+	}
+	noTeamHost, noTeamMigrating := newDEPHost("no-team", nil, false), newDEPHost("no-team-migrating", nil, true)
+	teamHost, teamMigrating := newDEPHost("team", &tm.ID, false), newDEPHost("team-migrating", &tm.ID, true)
+
+	listPending := func(teamID *uint) []uint {
+		status := fleet.MDMBootstrapPackagePending
+		hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{TeamFilter: teamID, MDMBootstrapPackageFilter: &status})
+		require.NoError(t, err)
+		var ids []uint
+		for _, h := range hosts {
+			ids = append(ids, h.ID)
+		}
+		return ids
+	}
+	requirePending := func(teamID *uint, want ...*fleet.Host) {
+		sum, err := ds.GetMDMAppleBootstrapPackageSummary(ctx, ptr.ValOrZero(teamID))
+		require.NoError(t, err)
+		require.EqualValues(t, len(want), sum.Pending)
+		var wantIDs []uint
+		for _, h := range want {
+			wantIDs = append(wantIDs, h.ID)
+		}
+		require.ElementsMatch(t, wantIDs, listPending(teamID))
+	}
+
+	// by default, migrating hosts will skip the package so they aren't pending
+	requirePending(nil, noTeamHost)
+	requirePending(&tm.ID, teamHost)
+
+	// enabled for no team only
+	ac, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	ac.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration = true
+	require.NoError(t, ds.SaveAppConfig(ctx, ac))
+	t.Cleanup(func() {
+		ac, err := ds.AppConfig(context.Background())
+		require.NoError(t, err)
+		ac.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration = false
+		require.NoError(t, ds.SaveAppConfig(context.Background(), ac))
+	})
+	requirePending(nil, noTeamHost, noTeamMigrating)
+	requirePending(&tm.ID, teamHost)
+
+	// enabled for the team as well
+	tm.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration = true
+	_, err = ds.SaveTeam(ctx, tm)
+	require.NoError(t, err)
+	requirePending(&tm.ID, teamHost, teamMigrating)
+
+	// once the migrating host enrolls and gets skipped, it's no longer pending even if enabled
+	require.NoError(t, ds.RecordSkippedHostBootstrapPackage(ctx, teamMigrating.UUID))
+	requirePending(&tm.ID, teamHost)
+}
+
+func testMDMAppleUpsertHostEnrolledSerial(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	createBuiltinLabels(t, ds)
+
+	enrolled, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "enrolled",
+		OsqueryHostID:  new("enrolled"),
+		NodeKey:        new("enrolled"),
+		UUID:           "enrolled-uuid",
+		HardwareSerial: "enrolled-serial",
+		HardwareModel:  "MacBookPro16,1",
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, enrolled, false)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_actions (host_id, lock_ref, fleet_platform) VALUES (?, 'lock-ref', 'darwin')`, enrolled.ID)
+		return err
+	})
+	lockRef := func() *string {
+		var ref *string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			err := sqlx.GetContext(ctx, q, &ref, `SELECT lock_ref FROM host_mdm_actions WHERE host_id = ?`, enrolled.ID)
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil
+			}
+			return err
+		})
+		return ref
+	}
+
+	// a check-in from a different UUID claiming the enrolled host's serial leaves the host and its pending lock alone
+	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID: "other-uuid", HardwareSerial: enrolled.HardwareSerial, HardwareModel: "iPhone14,5", Platform: "ios",
+	}, fleet.PersonalEnrollmentTypeNone)
+	var conflictErr *fleet.ConflictError
+	require.ErrorAs(t, err, &conflictErr)
+	host, err := ds.HostLite(ctx, enrolled.ID)
+	require.NoError(t, err)
+	assert.Equal(t, enrolled.UUID, host.UUID)
+	assert.Equal(t, enrolled.HardwareSerial, host.HardwareSerial)
+	assert.Equal(t, "darwin", host.Platform)
+	assert.Equal(t, new("lock-ref"), lockRef())
+
+	// the enrolled device itself can still check in
+	require.NoError(t, ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID: enrolled.UUID, HardwareSerial: enrolled.HardwareSerial, HardwareModel: "MacBookPro16,1", Platform: "darwin",
+	}, fleet.PersonalEnrollmentTypeNone))
+	host, err = ds.HostLite(ctx, enrolled.ID)
+	require.NoError(t, err)
+	assert.Equal(t, enrolled.UUID, host.UUID)
+
+	// once MDM is turned off, the serial can be claimed by a new UUID
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE nano_enrollments SET enabled = 0 WHERE device_id = ?`, enrolled.UUID)
+		return err
+	})
+	require.NoError(t, ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID: "new-uuid", HardwareSerial: enrolled.HardwareSerial, HardwareModel: "MacBookPro16,1", Platform: "darwin",
+	}, fleet.PersonalEnrollmentTypeNone))
+	host, err = ds.HostLite(ctx, enrolled.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "new-uuid", host.UUID)
+
+	newHost := func(name, uuid, serial string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname: name, OsqueryHostID: new(name), NodeKey: new(name),
+			UUID: uuid, HardwareSerial: serial, HardwareModel: "MacBookPro16,1", Platform: "darwin",
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	// the serial match picks the lowest ID, so an older host with the serial that isn't enrolled doesn't hide the
+	// enrolled one
+	stale := newHost("stale", "stale-uuid", "shared-serial")
+	nanoEnroll(t, ds, newHost("shared-enrolled", "shared-enrolled-uuid", "shared-serial"), false)
+	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID: "claiming-uuid", HardwareSerial: "shared-serial", HardwareModel: "MacBookPro16,1", Platform: "darwin",
+	}, fleet.PersonalEnrollmentTypeNone)
+	require.ErrorAs(t, err, &conflictErr)
+	host, err = ds.HostLite(ctx, stale.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "stale-uuid", host.UUID)
+
+	// a device matched by its own UUID checks in even if another host with its serial is enrolled
+	own := newHost("own", "own-uuid", "own-serial")
+	nanoEnroll(t, ds, newHost("own-duplicate", "own-duplicate-uuid", "own-serial"), false)
+	require.NoError(t, ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID: own.UUID, HardwareSerial: "own-serial", HardwareModel: "MacBookPro16,1", Platform: "darwin",
+	}, fleet.PersonalEnrollmentTypeNone))
+	host, err = ds.HostLite(ctx, own.ID)
+	require.NoError(t, err)
+	assert.Equal(t, own.UUID, host.UUID)
+
+	// an account-driven user enrollment isn't matched by serial, even to a host that isn't enrolled yet
+	pending := newHost("pending", "pending-uuid", "enrollment-id")
+	adue := &fleet.Host{UUID: "enrollment-id", HardwareSerial: "enrollment-id", HardwareModel: "iPhone14,5", Platform: "ios"}
+	require.NoError(t, ds.MDMAppleUpsertHost(ctx, adue, fleet.PersonalEnrollmentTypeAccountDriven))
+	host, err = ds.HostLite(ctx, pending.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "pending-uuid", host.UUID)
+	assert.Equal(t, "darwin", host.Platform)
+	countByUUID := func(uuid string) int {
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, `SELECT COUNT(*) FROM hosts WHERE uuid = ?`, uuid)
+		})
+		return n
+	}
+	require.Equal(t, 1, countByUUID("enrollment-id"))
+	// and it finds its own host again on the next check-in
+	require.NoError(t, ds.MDMAppleUpsertHost(ctx, adue, fleet.PersonalEnrollmentTypeAccountDriven))
+	require.Equal(t, 1, countByUUID("enrollment-id"))
+}
+
+func testNewAppleSCEPChallengeEnrolledSerial(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	enrolled, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "enrolled",
+		OsqueryHostID:  new("enrolled"),
+		NodeKey:        new("enrolled"),
+		UUID:           "enrolled-uuid",
+		HardwareSerial: "enrolled-serial",
+		HardwareModel:  "MacBookPro16,1",
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, enrolled, false)
+	// pre-created from Apple Business, not enrolled yet
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "pending",
+		OsqueryHostID:  new("pending"),
+		NodeKey:        new("pending"),
+		UUID:           "pending-uuid",
+		HardwareSerial: "pending-serial",
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+
+	challengeCount := func() int {
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, `SELECT COUNT(*) FROM mdm_apple_scep_challenges`)
+		})
+		return n
+	}
+	newChallenge := func(uuid, serial string) error {
+		_, err := ds.NewAppleSCEPChallenge(ctx, fleet.AppleSCEPChallengeInfo{
+			Purpose: fleet.AppleMDMCertPurposeADE, UUID: &uuid, Serial: &serial,
+		}, time.Hour)
+		return err
+	}
+
+	// another UUID claiming the enrolled host's serial gets no challenge
+	var conflictErr *fleet.ConflictError
+	require.ErrorAs(t, newChallenge("other-uuid", enrolled.HardwareSerial), &conflictErr)
+	require.Zero(t, challengeCount())
+
+	require.NoError(t, newChallenge(enrolled.UUID, enrolled.HardwareSerial))
+	require.NoError(t, newChallenge("new-uuid", "pending-serial"))
+	_, err = ds.NewAppleSCEPChallenge(ctx, fleet.AppleSCEPChallengeInfo{
+		Purpose: fleet.AppleMDMCertPurposeADUE, IDPAccountUUID: new(uuid.NewString()),
+	}, time.Hour)
+	require.NoError(t, err)
+	require.Equal(t, 3, challengeCount())
+
+	// once MDM is turned off, a new UUID can get one
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE nano_enrollments SET enabled = 0 WHERE device_id = ?`, enrolled.UUID)
+		return err
+	})
+	require.NoError(t, newChallenge("other-uuid", enrolled.HardwareSerial))
+}
+
+func testGetAppleSerialEnrolledUnderAnotherUUID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	enrolled, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname: "enrolled", OsqueryHostID: new("enrolled-uuid"), NodeKey: new("enrolled"),
+		UUID: "enrolled-uuid", HardwareSerial: "enrolled-serial", Platform: "darwin",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, enrolled, false)
+
+	got, err := ds.GetAppleSerialEnrolledUnderAnotherUUID(ctx, "enrolled-serial", "other-uuid")
+	require.NoError(t, err)
+	require.Equal(t, "enrolled-uuid", got)
+
+	// the enrolled device itself, and a serial nobody has
+	got, err = ds.GetAppleSerialEnrolledUnderAnotherUUID(ctx, "enrolled-serial", "enrolled-uuid")
+	require.NoError(t, err)
+	require.Empty(t, got)
+	got, err = ds.GetAppleSerialEnrolledUnderAnotherUUID(ctx, "unknown-serial", "other-uuid")
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	// a device with a host of its own is matched by its UUID
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		Hostname: "own", OsqueryHostID: new("own-uuid"), NodeKey: new("own"),
+		UUID: "own-uuid", HardwareSerial: "enrolled-serial", Platform: "darwin",
+	})
+	require.NoError(t, err)
+	got, err = ds.GetAppleSerialEnrolledUnderAnotherUUID(ctx, "enrolled-serial", "own-uuid")
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	// once MDM is turned off, the serial is free
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE nano_enrollments SET enabled = 0 WHERE device_id = ?`, enrolled.UUID)
+		return err
+	})
+	got, err = ds.GetAppleSerialEnrolledUnderAnotherUUID(ctx, "enrolled-serial", "other-uuid")
+	require.NoError(t, err)
+	require.Empty(t, got)
 }

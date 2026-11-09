@@ -33,10 +33,10 @@ export interface IToastCardProps {
 
 const variantIcon: Record<
   ToastVariant,
-  { name: "success-outline" | "error-outline"; color: Colors }
+  { name: "success" | "error"; color: Colors }
 > = {
-  success: { name: "success-outline", color: "status-success" },
-  error: { name: "error-outline", color: "status-error" },
+  success: { name: "success", color: "status-success" },
+  error: { name: "error", color: "status-error" },
 };
 
 // Serialized payloads that hold nothing worth revealing. Compared against the
@@ -144,6 +144,7 @@ const ToastCard = ({
                 [`${baseClass}__chevron--open`]: isOpen,
               })}
               variant="subdued"
+              size="small"
               icon="chevron-down"
               ariaExpanded={isOpen}
               ariaControls={panelId}
@@ -155,6 +156,7 @@ const ToastCard = ({
           )}
           <Button
             variant="subdued"
+            size="small"
             icon="close"
             ariaLabel="Dismiss notification"
             onClick={handleClose}

@@ -165,9 +165,9 @@ const InputFieldWithIcon = ({
             onClick={() => handleClear()}
             variant="subdued"
             className={`${baseClass}__clear-button`}
-          >
-            <Icon name="close-filled" color="core-fleet-black" />
-          </Button>
+            ariaLabel="Clear"
+            icon="close"
+          />
         )}
       </div>
       {renderHelpText()}
