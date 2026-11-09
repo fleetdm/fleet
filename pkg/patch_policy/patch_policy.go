@@ -17,7 +17,8 @@ type PolicyData struct {
 	ExistsQuery string
 	Version     string
 	// ParenthesizedBuild marks a macOS app whose bundle_short_version carries its
-	// build in parentheses (e.g. Zoom's "7.2.2 (88465)").
+	// build in parentheses (e.g. Ableton Live's "12.4.16 (2026-10-30_e33287a1c7)")
+	// and whose manifest version is the release alone.
 	ParenthesizedBuild bool
 }
 
@@ -77,20 +78,21 @@ func versionCompareSuffix(platform, existsQuery, version string, parenthesizedBu
 		return "", err
 	}
 	if platform == "darwin" && (parenthesizedBuild || strings.Contains(version, "(")) {
-		column, version = normalizeParenthesizedBuild(column, version)
+		column, version = stripParenthesizedBuild(column, version)
 	}
 	return fmt.Sprintf(" AND %s < 0);", versionCompare(column, version)), nil
 }
 
-var parenthesizedBuildReplacer = strings.NewReplacer(" (", ".", "(", ".", ")", "")
-
-// normalizeParenthesizedBuild rewrites a parenthesized build as a dotted segment on
-// both sides ("7.2.2 (88465)" and "2.4.3(2EEA)" become "7.2.2.88465" and "2.4.3.2EEA").
-// osquery's version_compare doesn't split on spaces or parentheses either, so it would
-// compare "2 (88465)" against "5" by length and rank the older build higher.
-func normalizeParenthesizedBuild(column, version string) (string, string) {
-	return fmt.Sprintf("REPLACE(REPLACE(REPLACE(%s, ' (', '.'), '(', '.'), ')', '')", column),
-		parenthesizedBuildReplacer.Replace(version)
+// stripParenthesizedBuild compares only the release before a parenthesized build
+// ("7.2.2 (88465)" and "2.4.3(2EEA)" become "7.2.2" and "2.4.3"). version_compare
+// doesn't split on spaces or parentheses, and a build kept as a dotted segment would
+// rank "5.8(0920)" above "5.8.2". Unlike split, regex_match returns an empty string,
+// not NULL, for an empty version; version_compare rejects NULL and fails the query.
+func stripParenthesizedBuild(column, version string) (string, string) {
+	if i := strings.IndexAny(version, " ("); i > 0 {
+		version = version[:i]
+	}
+	return fmt.Sprintf("regex_match(%s, '^[^ (]*', 0)", column), version
 }
 
 // versionCompare returns a version_compare call for column against version. osquery
@@ -170,7 +172,7 @@ func GenerateFromInstaller(p PolicyData, installer *fleet.SoftwareInstaller) (*P
 func defaultMacOSQuery(bundleIdentifier string, version string) string {
 	column := "bundle_short_version"
 	if strings.Contains(version, "(") {
-		column, version = normalizeParenthesizedBuild(column, version)
+		column, version = stripParenthesizedBuild(column, version)
 	}
 	patchTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND %s < 0);"
 	return fmt.Sprintf(patchTemplate, escapeSQLLiteral(bundleIdentifier), versionCompare(column, version))

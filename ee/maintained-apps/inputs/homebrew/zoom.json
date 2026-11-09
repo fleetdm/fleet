@@ -4,7 +4,6 @@
   "unique_identifier": "us.zoom.xos",
   "token": "zoom-for-it-admins",
   "installer_format": "pkg",
-  "parenthesized_build_version": true,
   "default_categories": ["Communication"],
   "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/zoom_install.sh"
 }

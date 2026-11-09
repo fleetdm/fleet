@@ -82,7 +82,7 @@
     },
     "parenthesized_build_version": {
       "type": "boolean",
-      "description": "If true, the app's CFBundleShortVersionString carries its build in parentheses (e.g. \"7.2.2 (88465)\"), so the patch policy normalizes it before comparing versions."
+      "description": "If true, the app's CFBundleShortVersionString carries its build in parentheses (e.g. \"18.7 (2743)\") and CFBundleVersion doesn't match the cask version, so the patch policy compares only the release before the parentheses."
     },
     "cask_path": {
       "type": "string",

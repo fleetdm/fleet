@@ -36,11 +36,11 @@ func TestGenerateQueryForManifest(t *testing.T) {
 			name: "darwin with parenthesized build",
 			p: patch_policy.PolicyData{
 				Platform:           "darwin",
-				Version:            "7.2.5.90525",
-				ExistsQuery:        "SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.xos';",
+				Version:            "12.4.16",
+				ExistsQuery:        "SELECT 1 FROM apps WHERE bundle_identifier = 'com.ableton.live';",
 				ParenthesizedBuild: true,
 			},
-			want: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.xos' AND version_compare(REPLACE(REPLACE(REPLACE(bundle_short_version, ' (', '.'), '(', '.'), ')', ''), '7.2.5.90525') < 0);",
+			want: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ableton.live' AND version_compare(regex_match(bundle_short_version, '^[^ (]*', 0), '12.4.16') < 0);",
 		},
 		{
 			name: "darwin with parenthesized build in version",
@@ -49,7 +49,7 @@ func TestGenerateQueryForManifest(t *testing.T) {
 				Version:     "2.4.3(2EEA)",
 				ExistsQuery: "SELECT 1 FROM apps WHERE bundle_identifier = 'com.foo';",
 			},
-			want: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.foo' AND version_compare(REPLACE(REPLACE(REPLACE(bundle_short_version, ' (', '.'), '(', '.'), ')', ''), '2.4.3.2EEA') < 0);",
+			want: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.foo' AND version_compare(regex_match(bundle_short_version, '^[^ (]*', 0), '2.4.3') < 0);",
 		},
 		{
 			name: "darwin with parenthesized build and +build version",
@@ -59,7 +59,7 @@ func TestGenerateQueryForManifest(t *testing.T) {
 				ExistsQuery:        "SELECT 1 FROM apps WHERE bundle_identifier = 'com.foo';",
 				ParenthesizedBuild: true,
 			},
-			want: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.foo' AND version_compare(REPLACE(REPLACE(REPLACE(REPLACE(bundle_short_version, ' (', '.'), '(', '.'), ')', ''), '+', '.'), '0.4.26.4') < 0);",
+			want: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.foo' AND version_compare(REPLACE(regex_match(bundle_short_version, '^[^ (]*', 0), '+', '.'), '0.4.26.4') < 0);",
 		},
 		{
 			name: "windows from exists query",
@@ -167,7 +167,7 @@ func TestGenerateFromInstallerEscapesQuotes(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.xos' "+
-		"AND version_compare(REPLACE(REPLACE(REPLACE(bundle_short_version, ' (', '.'), '(', '.'), ')', ''), '7.2.5.90525') < 0);", generated.Query)
+		"AND version_compare(regex_match(bundle_short_version, '^[^ (]*', 0), '7.2.5') < 0);", generated.Query)
 
 	generated, err = patch_policy.GenerateFromInstaller(patch_policy.PolicyData{}, &fleet.SoftwareInstaller{
 		Platform:      "windows",

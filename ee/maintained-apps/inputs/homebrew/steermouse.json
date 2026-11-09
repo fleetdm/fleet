@@ -3,7 +3,6 @@
   "unique_identifier": "jp.plentycom.app.SteerMouse",
   "token": "steermouse",
   "installer_format": "dmg",
-  "parenthesized_build_version": true,
   "slug": "steermouse/darwin",
   "default_categories": [
     "Productivity"

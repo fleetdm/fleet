@@ -3,7 +3,6 @@
   "unique_identifier": "jp.plentycom.CursorSense.app",
   "token": "cursorsense",
   "installer_format": "dmg",
-  "parenthesized_build_version": true,
   "slug": "cursorsense/darwin",
   "default_categories": [
     "Productivity"

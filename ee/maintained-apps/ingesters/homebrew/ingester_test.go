@@ -132,6 +132,14 @@ func TestIngestValidations(t *testing.T) {
 				Version: "7.2.5.90525",
 			}
 
+		case "ableton-live-suite":
+			cask = brewCask{
+				Token:   appToken,
+				Name:    []string{appToken},
+				URL:     "https://example.com",
+				Version: "12.4.16",
+			}
+
 		case "wechat":
 			cask = brewCask{
 				Token:   appToken,
@@ -215,7 +223,8 @@ func TestIngestValidations(t *testing.T) {
 		{"", inputApp{Token: "firefox@nightly", UniqueIdentifier: "org.mozilla.nightly", InstallerFormat: "dmg", Name: "Mozilla Firefox Nightly", Slug: "firefox@nightly/darwin"}},
 		{"", inputApp{Token: "i1profiler", UniqueIdentifier: "com.x-rite.i1Profiler", InstallerFormat: "zip", Name: "i1Profiler", Slug: "i1profiler/darwin"}},
 		{"", inputApp{Token: "steam", UniqueIdentifier: "com.valvesoftware.steam", InstallerFormat: "dmg", Name: "Steam", Slug: "steam/darwin"}},
-		{"", inputApp{Token: "zoom-for-it-admins", UniqueIdentifier: "us.zoom.xos", InstallerFormat: "pkg", Name: "Zoom", Slug: "zoom/darwin", ParenthesizedBuildVersion: true}}, //nolint:gosec // G101: cask token, not a credential
+		{"", inputApp{Token: "zoom-for-it-admins", UniqueIdentifier: "us.zoom.xos", InstallerFormat: "pkg", Name: "Zoom", Slug: "zoom/darwin"}},                                                                   //nolint:gosec // G101: cask token, not a credential
+		{"", inputApp{Token: "ableton-live-suite", UniqueIdentifier: "com.ableton.live", InstallerFormat: "dmg", Name: "Ableton Live Suite", Slug: "ableton-live-suite/darwin", ParenthesizedBuildVersion: true}}, //nolint:gosec // G101: cask token, not a credential
 		{"", inputApp{Token: "lm-studio", UniqueIdentifier: "ai.elementlabs.lmstudio", InstallerFormat: "dmg", Name: "LM Studio", Slug: "lm-studio/darwin"}},
 		{"", inputApp{Token: "wechat", UniqueIdentifier: "com.tencent.xinWeChat", InstallerFormat: "dmg", Name: "WeChat for Mac", Slug: "wechat/darwin"}},
 		{"", inputApp{Token: "logitech-g-hub", UniqueIdentifier: "com.logi.ghub", InstallerFormat: "zip", Name: "Logitech G HUB", Slug: "logitech-g-hub/darwin"}},
@@ -346,10 +355,17 @@ func TestIngestValidations(t *testing.T) {
 					out.Queries.Patched,
 				)
 			case "zoom-for-it-admins":
-				// Zoom reports bundle_short_version as "7.2.5 (90525)", so the input
+				// Zoom reports bundle_short_version as "7.2.5 (90525)", but its
+				// CFBundleVersion is the cask version.
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.xos' AND version_compare(bundle_version, '7.2.5.90525') < 0);",
+					out.Queries.Patched,
+				)
+			case "ableton-live-suite":
+				// Both version keys read "12.4.16 (2026-10-30_e33287a1c7)", so the input
 				// sets parenthesized_build_version.
 				require.Equal(t,
-					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.xos' AND version_compare(REPLACE(REPLACE(REPLACE(bundle_short_version, ' (', '.'), '(', '.'), ')', ''), '7.2.5.90525') < 0);",
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ableton.live' AND version_compare(regex_match(bundle_short_version, '^[^ (]*', 0), '12.4.16') < 0);",
 					out.Queries.Patched,
 				)
 			case "wezterm":
