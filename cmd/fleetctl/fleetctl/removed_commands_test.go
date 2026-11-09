@@ -27,50 +27,39 @@ func TestRemovedCommands(t *testing.T) {
 	}
 }
 
-// TestRemovedFlags runs every command with each of its removed flags, in the forms an old invocation may use. A removed flag fails with
-// the entry's message before the command does anything, so none of these runs needs a server.
-func TestRemovedFlags(t *testing.T) {
-	entries := removednames.Filter(removednames.KindFlag, 0)
-	require.NotEmpty(t, entries)
-
-	for _, entry := range entries {
-		t.Run(entry.Context+" "+entry.Old, func(t *testing.T) {
-			app := CreateApp(nil, io.Discard, io.Discard, func(*cli.Context, error) {})
-			flag := "--" + entry.Old
-			if len(entry.Old) == 1 {
-				flag = "-" + entry.Old
-			}
-			path := strings.Fields(entry.Context)
-			for _, args := range [][]string{
-				{flag, "1"},
-				{flag + "=1"},
-				{"--debug", flag, "1"},
-			} {
-				full := append(slices.Clone(path), args...)
-				StashRawArgs(app, full)
-				require.EqualError(t, app.Run(full), entry.Message())
-			}
-		})
-	}
+// runRemoved runs fleetctl with the command path of a pkg/removednames context followed by args.
+func runRemoved(context string, args ...string) error {
+	app := CreateApp(nil, io.Discard, io.Discard, func(*cli.Context, error) {})
+	full := append(strings.Fields(context), args...)
+	StashRawArgs(app, full)
+	return app.Run(full)
 }
 
-// TestRemovedFlagValues covers the values that the error spec calls out: a removed flag with one of them gets the message of the value,
-// whether the value follows the flag or is joined to it with "=".
-func TestRemovedFlagValues(t *testing.T) {
-	entries := removednames.Filter(removednames.KindFlagValue, 0)
-	require.NotEmpty(t, entries)
+// TestRemovedFlags runs every command with each removed flag, and with each removed flag value that the error spec calls out, in the
+// forms an old invocation may use. These fail with the entry's message before the command does anything, so none needs a server.
+func TestRemovedFlags(t *testing.T) {
+	type invocation struct {
+		entry       removednames.Entry
+		name, value string
+	}
+	var cases []invocation
+	for _, entry := range removednames.Filter(removednames.KindFlag, 0) {
+		cases = append(cases, invocation{entry, entry.Old, "1"})
+	}
+	for _, entry := range removednames.Filter(removednames.KindFlagValue, 0) {
+		name, value, _ := strings.Cut(strings.TrimPrefix(entry.Old, "--"), " ")
+		cases = append(cases, invocation{entry, name, value})
+	}
+	require.NotEmpty(t, cases)
 
-	for _, entry := range entries {
-		t.Run(entry.Context+" "+entry.Old, func(t *testing.T) {
-			flag, value, _ := strings.Cut(entry.Old, " ")
-			for _, args := range [][]string{{flag, value}, {flag + "=" + value}, {strings.TrimPrefix(flag, "-") + "=" + value}} {
-				if !strings.HasPrefix(args[0], "-") {
-					args[0] = "-" + args[0]
-				}
-				app := CreateApp(nil, io.Discard, io.Discard, func(*cli.Context, error) {})
-				full := append(strings.Fields(entry.Context), args...)
-				StashRawArgs(app, full)
-				require.EqualError(t, app.Run(full), entry.Message(), strings.Join(args, " "))
+	for _, c := range cases {
+		t.Run(c.entry.Context+" "+c.entry.Old, func(t *testing.T) {
+			dash := "--"
+			if len(c.name) == 1 {
+				dash = "-"
+			}
+			for _, args := range [][]string{{dash + c.name, c.value}, {dash + c.name + "=" + c.value}, {"-" + c.name + "=" + c.value}} {
+				require.EqualError(t, runRemoved(c.entry.Context, args...), c.entry.Message(), strings.Join(args, " "))
 			}
 		})
 	}
@@ -84,9 +73,8 @@ func TestRemovedEnvVars(t *testing.T) {
 	for _, entry := range entries {
 		t.Run(entry.Context+" "+entry.Old, func(t *testing.T) {
 			t.Setenv(entry.Old, "true")
-			app := CreateApp(nil, io.Discard, io.Discard, func(*cli.Context, error) {})
 			// gitops is the only command with one, and it requires -f.
-			require.EqualError(t, app.Run(append(strings.Fields(entry.Context), "-f", "unused.yml")), entry.Message())
+			require.EqualError(t, runRemoved(entry.Context, "-f", "unused.yml"), entry.Message())
 		})
 	}
 }
