@@ -1,10 +1,13 @@
 module.exports = {
 
 
-  friendlyName: 'Get llm generated configuration profile name and description',
+  friendlyName: 'Generate one name and description',
 
 
-  description: 'Name and describe the configuration profile an IT admin\'s instructions ask for, quickly enough to show while the profile itself is generated.',
+  description: 'Name and describe the configuration profile an IT admin\'s instructions ask for, for a Fleet server, quickly enough to show while the profile itself is generated.',
+
+
+  extendedDescription: 'Authenticated and limited like profile generation, but counted separately: a Fleet Free registration also stops getting names and descriptions once it reaches its profile limit.',
 
 
   inputs: {
@@ -16,7 +19,11 @@ module.exports = {
     naturalLanguageInstructions: {
       type: 'string',
       required: true
-    }
+    },
+    fleetLicenseKey: {
+      type: 'string',
+      description: 'The Fleet server\'s license key.  Without a valid Fleet Premium license, the request is authenticated by its registration secret instead.',
+    },
   },
 
 
@@ -32,16 +39,43 @@ module.exports = {
     couldNotNameProfile: {
       description: 'The model declined to name and describe a profile for these instructions.',
       responseType: 'badRequest'
-    }
+    },
+    unauthorized: {
+      description: 'Neither a valid Fleet Premium license key nor a known registration secret was sent.',
+      responseType: 'unauthorized',
+    },
+    generationLimitReached: {
+      description: 'This Fleet server has reached its limit on profile generation, or on names and descriptions, for the month.',
+      statusCode: 429,
+    },
   },
 
 
-  fn: async function ({platform, naturalLanguageInstructions}) {
+  fn: async function ({platform, naturalLanguageInstructions, fleetLicenseKey}) {
+
+    // Fleet's wait starts when it sends the request, so the time limit below starts here too.
+    let startedAt = Date.now();
 
     // Counted the same way as for the profile itself.
     const MAX_INSTRUCTIONS_LENGTH = 2000;
     if(Array.from(naturalLanguageInstructions).length > MAX_INSTRUCTIONS_LENGTH) {
       throw {invalidInput: {error: 'invalidInput', reason: `Instructions must be ${MAX_INSTRUCTIONS_LENGTH} characters or fewer.`}};
+    }
+
+    let fleetServer = await sails.helpers.profileGenerator.authenticateFleetServer.with({ req: this.req, fleetLicenseKey })
+    .intercept('couldNotAuthenticate', ()=>{
+      return 'unauthorized';
+    });
+
+    let usage;
+    if(fleetServer.registration) {
+      usage = await sails.helpers.profileGenerator.countOneRequest.with({ registrationId: fleetServer.registration.id, requestType: 'nameAndDescription' })
+      .intercept('limitReached', (err)=>{
+        return {generationLimitReached: {error: 'generationLimitReached', resetsAt: err.raw}};
+      });
+      sails.log.info(`Naming and describing a configuration profile for Fleet Free registration ${fleetServer.registration.id} (${usage.nameAndDescriptionRequestsThisMonth} of ${sails.config.custom.profileGeneratorMonthlyNameAndDescriptionLimit} this month).`);
+    } else {
+      sails.log.info(`Naming and describing a configuration profile for Fleet Premium license ${fleetServer.licenseSubject}.`);
     }
 
     // Fleet's limits on a profile's name and description.
@@ -93,11 +127,29 @@ ${naturalLanguageInstructions}
     let timeout;
     let result;
     try {
-      result = await Promise.race([naming, new Promise((resolve)=>{ timeout = setTimeout(()=>{ resolve('timedOut'); }, TIMEOUT_MS); })]);
+      result = await Promise.race([naming, new Promise((resolve)=>{ timeout = setTimeout(()=>{ resolve('timedOut'); }, Math.max(0, TIMEOUT_MS - (Date.now() - startedAt))); })]);
+    } catch(err) {
+      // Only a request the AI service never answered is given back, the same as for a profile.
+      if(usage && err.llmDidNotAnswer) {
+        await sails.helpers.profileGenerator.giveBackOneRequest.with({ registrationId: fleetServer.registration.id, requestType: 'nameAndDescription', usageMonth: usage.usageMonth });
+      }
+      throw err;
     } finally {
       clearTimeout(timeout);
     }
     if(result === 'timedOut') {
+      // Still given back if the AI service turns out never to have answered, after Fleet has its error.
+      if(usage) {
+        naming.catch(async (err)=>{
+          if(!err.llmDidNotAnswer) {
+            return;
+          }
+          await sails.helpers.profileGenerator.giveBackOneRequest.with({ registrationId: fleetServer.registration.id, requestType: 'nameAndDescription', usageMonth: usage.usageMonth })
+          .tolerate((giveBackErr)=>{
+            sails.log.warn(`Could not give back a timed-out name and description request to configuration profile generator registration ${fleetServer.registration.id}: ${giveBackErr.message}`);
+          });
+        });
+      }
       throw new Error(`Naming and describing a configuration profile took over ${TIMEOUT_MS}ms.`);
     }
 
