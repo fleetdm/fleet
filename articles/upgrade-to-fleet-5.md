@@ -213,11 +213,14 @@ GitHub issue: [#53146](https://github.com/fleetdm/fleet/issues/53146)
 
 #### What to do
 
-Fleet 4.95 already supports the new paths, so change them before you upgrade.
+Fleet 4.95 supports the new `scripts/batch` and `configuration_profiles/resend` paths, so change them before you upgrade. It doesn't accept an identifier in `GET /hosts/:id`, so you can't switch `hosts/identifier` early. Instead:
 
-1. Search for `hosts/identifier/`, `scripts/batch/summary/`, and `configuration_profiles/resend/`, and replace each path.
-   - For `hosts/identifier/`, put the identifier where `:id` goes in `GET /hosts/:id`.
+1. Before you upgrade, search for `scripts/batch/summary/` and `configuration_profiles/resend/`, and replace each path.
+2. After you upgrade, search for `hosts/identifier/` and put the identifier where `:id` goes in `GET /hosts/:id`.
+   - Until you do, `GET /hosts/identifier/:identifier` fails with a `410` error.
+   - Fleet looks for a host ID first, then a serial number, UUID, and hostname. An all-digit identifier is treated as a host ID.
    - `POST /hosts/identifier/:identifier/query` doesn't change.
+3. After you upgrade, update conditional access setups that followed the Google or PingFederate guides to call `GET /hosts/:id`.
 
 GitHub issue: [#53080](https://github.com/fleetdm/fleet/issues/53080)
 
