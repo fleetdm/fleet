@@ -228,7 +228,7 @@ const ConditionalAccess = () => {
         ) {
           notify.error(
             <>
-              Couldn&apos;t update. Fleet didn&apos;t get permissions for Entra.
+              Couldn&apos;t connect. Fleet didn&apos;t get permissions for Entra.
               Please try again and accept the permissions. {troubleshootLink}
             </>
           );
