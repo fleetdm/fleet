@@ -1277,6 +1277,8 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
       COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
       h.last_restarted_at,
       h.timezone,
+      hoi.version AS orbit_version,
+      hoi.desktop_version AS fleet_desktop_version,
       (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
       %s
       %s
@@ -1286,6 +1288,7 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
     LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)` + hostMobileMDMSeenTimeJoin + `
     LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN host_disks hd ON (h.id=hd.host_id)
+    LEFT JOIN host_orbit_info hoi ON (h.id = hoi.host_id)
     %s
     %s
 		%s
@@ -1350,9 +1353,6 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 
 	if opt.ListOptions.OrderKey == "display_name" {
 		query += ` JOIN host_display_names hdn ON h.id = hdn.host_id `
-	}
-	if opt.ListOptions.OrderKey == "agent" {
-		query += ` LEFT JOIN host_orbit_info hoi ON hoi.host_id = h.id `
 	}
 
 	softwareStatusJoin := ""
@@ -1473,6 +1473,7 @@ func (ds *Datastore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFil
     JOIN hosts h ON (lm.host_id = h.id)
 	LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)` + hostMobileMDMSeenTimeJoin + `
 	LEFT JOIN host_disks hd ON (h.id=hd.host_id)
+	LEFT JOIN host_orbit_info hoi ON (h.id = hoi.host_id)
  	`
 
 	query += hostMDMJoin
