@@ -325,12 +325,21 @@ DELETE FROM label_membership WHERE label_id = ?
 				intIdents := []uint64{0}
 
 				for _, s := range hostIdentifiersBatch {
+					// A blank identifier would match every host with an empty UUID or serial (whitespace-only
+					// ones too, since these columns use PAD SPACE collations).
+					if strings.TrimSpace(s) == "" {
+						continue
+					}
 					stringIdents = append(stringIdents, s)
 					// Use strconv to check if it's a valid integer
 					if intRegex.MatchString(s) {
 						n, _ := strconv.ParseUint(s, 10, 64)
 						intIdents = append(intIdents, n)
 					}
+				}
+
+				if len(stringIdents) == 0 {
+					continue
 				}
 
 				hostsFilterClause := `(hardware_serial IN (?) OR uuid IN (?) OR id IN (?))`

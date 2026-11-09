@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -111,6 +112,7 @@ func TestLabels(t *testing.T) {
 		{"ApplyLabelSpecsErrorsWhenLabelExistsOnAnotherTeam", testApplyLabelSpecsErrorsWhenLabelExistsOnAnotherTeam},
 		{"ApplyLabelSpecsCannotModifyBuiltInLabel", testApplyLabelSpecsCannotModifyBuiltInLabel},
 		{"ApplyLabelSpecsManualNilHosts", testApplyLabelSpecsManualNilHosts},
+		{"ApplyLabelSpecsBlankHostIdentifiers", testApplyLabelSpecsBlankHostIdentifiers},
 		{"ListLabelsOrderKeys", testListLabelsOrderKeys},
 		{"LabelMembershipHostIDs", testLabelMembershipHostIDs},
 		{"GetSpecHostsTeamFiltered", testLabelsGetSpecHostsTeamFiltered},
@@ -4159,6 +4161,78 @@ func testApplyLabelSpecsWithManualTeamLabels(t *testing.T, ds *Datastore) {
 		require.Len(t, hosts, 1)
 		require.Equal(t, h1t1.ID, hosts[0].ID)
 	}
+}
+
+func testApplyLabelSpecsBlankHostIdentifiers(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "blank-idents-team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "blank-idents-team2"})
+	require.NoError(t, err)
+
+	target, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  new("blank-idents-target"),
+		NodeKey:        new("blank-idents-target"),
+		UUID:           "blank-idents-target-uuid",
+		HardwareSerial: "blank-idents-target-serial",
+		Platform:       "darwin",
+		TeamID:         &team1.ID,
+	})
+	require.NoError(t, err)
+	// no serial, on another team
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID: new("blank-idents-no-serial"),
+		NodeKey:       new("blank-idents-no-serial"),
+		UUID:          "blank-idents-no-serial-uuid",
+		Platform:      "ubuntu",
+		TeamID:        &team2.ID,
+	})
+	require.NoError(t, err)
+	// like a host ingested from ABM that hasn't enrolled yet: no UUID
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		HardwareSerial: "blank-idents-pending-serial",
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+
+	labelHostIDs := func(name string) []uint {
+		lbl, err := ds.LabelByName(ctx, name, filter)
+		require.NoError(t, err)
+		hosts, err := ds.ListHostsInLabel(ctx, filter, lbl.ID, fleet.HostListOptions{})
+		require.NoError(t, err)
+		ids := make([]uint, 0, len(hosts))
+		for _, h := range hosts {
+			ids = append(ids, h.ID)
+		}
+		return ids
+	}
+
+	blanks := []string{"", " ", "\t"}
+
+	require.NoError(t, ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{{
+		Name:                "blank-idents-global",
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+		Hosts:               append(slices.Clone(blanks), target.HardwareSerial),
+	}}))
+	assert.Equal(t, []uint{target.ID}, labelHostIDs("blank-idents-global"))
+
+	require.NoError(t, ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{{
+		Name:                "blank-idents-global",
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+		Hosts:               blanks,
+	}}))
+	assert.Empty(t, labelHostIDs("blank-idents-global"))
+
+	// A blank identifier must not match hosts on other teams and fail the team check.
+	require.NoError(t, ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{{
+		Name:                "blank-idents-team",
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+		Hosts:               append(slices.Clone(blanks), target.UUID),
+		TeamID:              &team1.ID,
+	}}))
+	assert.Equal(t, []uint{target.ID}, labelHostIDs("blank-idents-team"))
 }
 
 func testApplyLabelSpecsManualNilHosts(t *testing.T, ds *Datastore) {
