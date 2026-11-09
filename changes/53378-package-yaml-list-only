@@ -1,0 +1,1 @@
+- **Breaking change:** A package YAML file referenced by `software.packages` or `install_software.package_path` must be a list, even with one package. `fleetctl gitops` fails on a file with one package that isn't in a list, with a link to the Fleet 5 migration guide.

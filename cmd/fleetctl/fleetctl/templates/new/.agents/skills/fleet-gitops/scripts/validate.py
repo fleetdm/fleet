@@ -825,6 +825,9 @@ def check_software(ctx, fs, software):
                 data = load_yaml_file(ctx, f)
                 if data is None:
                     continue
+                if isinstance(data, dict):
+                    ctx.fail(f, f"The single package format in \"{ctx.rel(f)}\" is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration")
+                    continue
                 pkgs = data if isinstance(data, list) else [data]
                 for pkg in pkgs:
                     if not isinstance(pkg, dict):
