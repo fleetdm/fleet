@@ -416,7 +416,7 @@ GitHub issue: [#33769](https://github.com/fleetdm/fleet/issues/33769)
 |:--|:--|
 | `GET /software` and `GET /software/count` | [`GET /software/versions`](https://fleetdm.com/docs/rest-api/rest-api#list-software-versions) |
 | `GET /software/:id` | [`GET /software/versions/:id`](https://fleetdm.com/docs/rest-api/rest-api#get-software-version) |
-| `software_id` filter on `GET /hosts` | `software_version_id` or `software_title_id` on [List hosts](https://fleetdm.com/docs/rest-api/rest-api#list-hosts) |
+| `software_id` filter on `GET /hosts`, `GET /hosts/count`, `GET /hosts/report`, and `GET /labels/:id/hosts` | `software_version_id` or `software_title_id` on [List hosts](https://fleetdm.com/docs/rest-api/rest-api#list-hosts) |
 | `software_package` object in software title responses | `packages` array in [Get software](https://fleetdm.com/docs/rest-api/rest-api#get-software) |
 | `app_store_app` object in software title responses | `app_store_apps` array in [Get software](https://fleetdm.com/docs/rest-api/rest-api#get-software) |
 | `browser` in host, software title, and software version responses | `extension_for` |
@@ -904,12 +904,13 @@ GitHub issue: [#53899](https://github.com/fleetdm/fleet/issues/53899)
 | Fleet 4 | Fleet 5 |
 |:--|:--|
 | `server_settings.scripts_disabled` | Removed ([docs](https://fleetdm.com/docs/configuration/yaml-files#server-settings)). `fleetctl gitops` fails if it's `true` and shows a warning if it's `false`. Fleet 5 turns script features back on for instances that had `scripts_disabled: true`. |
+| `server_settings.scripts_disabled` in `GET` and `PATCH /api/v1/fleet/config` | Removed. `GET /config` doesn't return it, and `PATCH /config` returns an error if it's set. |
 
 #### What to do
 
 Change these before you upgrade.
 
-1. Remove `scripts_disabled` from your YAML.
+1. Remove `scripts_disabled` from your YAML, and from scripts that call `PATCH /api/v1/fleet/config`.
 2. To keep scripts off, deploy fleetd without `--enable-scripts`.
 
 GitHub issue: [#53897](https://github.com/fleetdm/fleet/issues/53897)
@@ -1290,6 +1291,19 @@ Move the script to a [script-only package](https://fleetdm.com/guides/deploy-sof
 Setup experience software installs in alphabetical order, and the setup script runs after all software. To run the package last, give it a name that sorts after your other setup experience software.
 
 GitHub issue: [#53274](https://github.com/fleetdm/fleet/issues/53274)
+
+### Software keys deprecated in host software and setup experience responses
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `software_package` in [Get host's software](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-software) and [List setup experience software](https://fleetdm.com/docs/rest-api/rest-api#list-setup-experience-software) | Use `package` (host software) or the `packages` array (setup experience). `software_package` still works, but isn't documented. |
+| `app_store_app` in [List setup experience software](https://fleetdm.com/docs/rest-api/rest-api#list-setup-experience-software) | Use the `app_store_apps` array. `app_store_app` still works, but isn't documented. |
+
+#### What to do
+
+Update scripts that read these keys from host software (including `GET /device/:token/software`) and setup experience software responses.
+
+GitHub issues: [#54409](https://github.com/fleetdm/fleet/issues/54409), [#52687](https://github.com/fleetdm/fleet/issues/52687)
 
 
 <meta name="articleTitle" value="Upgrade to Fleet 5">
