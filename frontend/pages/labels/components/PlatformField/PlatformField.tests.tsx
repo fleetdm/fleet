@@ -34,5 +34,4 @@ describe("PlatformField component", () => {
 
     expect(screen.getByText("Linux")).toBeInTheDocument();
   });
-
 });
