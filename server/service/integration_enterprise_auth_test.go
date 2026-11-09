@@ -199,7 +199,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotEscalateViaEmptyGlob
 		"email":                       t.Name() + "_svc@example.com",
 		"password":                    test.GoodPassword,
 		"global_role":                 "",
-		"teams":                       []map[string]any{{"id": team.ID, "role": fleet.RoleAdmin}},
+		"fleets":                      []map[string]any{{"id": team.ID, "role": fleet.RoleAdmin}},
 		"api_only":                    true,
 		"admin_forced_password_reset": false,
 	}, http.StatusUnprocessableEntity, &createResp)
@@ -218,7 +218,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotEscalateViaEmptyGlob
 	var selfModResp modifyUserResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", teamAdmin.ID), map[string]any{
 		"global_role": "",
-		"teams":       []map[string]any{{"id": team.ID, "role": fleet.RoleAdmin}},
+		"fleets":      []map[string]any{{"id": team.ID, "role": fleet.RoleAdmin}},
 	}, http.StatusUnprocessableEntity, &selfModResp)
 
 	plantedEmail := t.Name() + "_planted@example.com"
@@ -281,7 +281,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotEscalateViaEmptyGlob
 	})
 	var modResp modifyUserResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", globalAdmin.ID), map[string]any{
-		"teams": []map[string]any{{"id": team.ID, "role": fleet.RoleObserver}},
+		"fleets": []map[string]any{{"id": team.ID, "role": fleet.RoleObserver}},
 	}, http.StatusForbidden, &modResp)
 	globalAdmin, err = s.ds.UserByID(ctx, globalAdmin.ID)
 	require.NoError(t, err)
@@ -445,9 +445,9 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	// A user with pre-configured roles can be created,
 	// see `tools/saml/users.php` for details.
 	// This user has the following configuration (the last two are ignored by Fleet):
-	//	- 'FLEET_JIT_USER_ROLE_TEAM_1' => 'admin',
+	//	- 'FLEET_JIT_USER_ROLE_FLEET_1' => 'admin',
 	//	- 'FLEET_JIT_USER_ROLE_GLOBAL' => 'null',
-	//	- 'FLEET_JIT_USER_ROLE_TEAM_2' => 'null',
+	//	- 'FLEET_JIT_USER_ROLE_FLEET_2' => 'null',
 	body = s.LoginSSOUser("sso_user_5_team_admin", "user123#")
 	require.Contains(t, body, "Redirecting to Fleet at  ...")
 	user5, err := s.ds.UserByEmail(context.Background(), "sso_user_5_team_admin@example.com")
@@ -463,7 +463,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	// see `tools/saml/users.php` for details.
 	// This user has the following configuration (all ignored by Fleet thus added as global observer):
 	//	- 'FLEET_JIT_USER_ROLE_GLOBAL' => 'null',
-	//	- 'FLEET_JIT_USER_ROLE_TEAM_1' => 'null',
+	//	- 'FLEET_JIT_USER_ROLE_FLEET_1' => 'null',
 	body = s.LoginSSOUser("sso_user_6_global_observer", "user123#")
 	require.Contains(t, body, "Redirecting to Fleet at  ...")
 	user6, err := s.ds.UserByEmail(context.Background(), "sso_user_6_global_observer@example.com")
@@ -593,7 +593,7 @@ func (s *integrationEnterpriseTestSuite) TestCreateAPIOnlyUserPremium() {
 			APIOnly      bool          `json:"api_only"`
 			GlobalRole   *string       `json:"global_role"`
 			APIEndpoints []apiEndpoint `json:"api_endpoints"`
-			Teams        []teamEntry   `json:"teams"` //nolint:apiparamcheck // test helper; matches server response shape
+			Teams        []teamEntry   `json:"fleets"` //nolint:apiparamcheck // test helper; matches server response shape
 		} `json:"user"`
 		Token  string              `json:"token"`
 		Err    string              `json:"error,omitempty"`
@@ -768,7 +768,7 @@ func (s *integrationEnterpriseTestSuite) TestModifyAPIOnlyUserPremium() {
 			Teams []struct {
 				ID   uint   `json:"id"`
 				Role string `json:"role"`
-			} `json:"teams"` //nolint:apiparamcheck // test helper; matches server response shape
+			} `json:"fleets"` //nolint:apiparamcheck // test helper; matches server response shape
 		} `json:"user"`
 		Err string `json:"error,omitempty"`
 	}

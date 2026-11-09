@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "21.0.12.101",
+      "version": "21.0.13.9",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Eclipse Temurin JDK%' AND publisher = 'Eclipse Adoptium' AND version LIKE '21.%';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Eclipse Temurin JDK%' AND publisher = 'Eclipse Adoptium' AND version LIKE '21.%' AND version_compare(version, '21.0.12.101') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Eclipse Temurin JDK%' AND publisher = 'Eclipse Adoptium' AND version LIKE '21.%' AND version_compare(version, '21.0.13.9') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'eclipse temurin jdk 21.exe');"
       },
-      "installer_url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12.1+1/OpenJDK21U-jdk_x64_windows_hotspot_21.0.12.1_1.msi",
+      "installer_url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.13+9/OpenJDK21U-jdk_x64_windows_hotspot_21.0.13_9.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "348786d4",
-      "sha256": "454cfd334b9ca91c96dd8c2de97fcef6b9f1f98be9172ff076711f1c6b44e4e0",
+      "sha256": "9dcbb8ebe24aa9ee5a47a7fab2106a7c8988d7acee461260fef107411df91dc5",
       "default_categories": [
         "Developer tools"
       ],

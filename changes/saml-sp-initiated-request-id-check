@@ -1,1 +1,0 @@
-- Fixed SAML response validation so that enabling IdP-initiated SSO login no longer skips the `InResponseTo` request ID check for SP-initiated logins.

@@ -74,6 +74,9 @@ type updateSoftwareInstallerRequest struct {
 	// NotifyBeforePatching skips the install while the app is open and notifies the end user an hour
 	// before the patch is forced. Omitted leaves it unchanged. FMA-only.
 	NotifyBeforePatching *bool
+	// PatchDeadline skips the install while the app is open and notifies the end user an hour
+	// before the fleet's next patch deadline. Omitted leaves it unchanged. FMA-only.
+	PatchDeadline *bool
 }
 
 type uploadSoftwareInstallerResponse struct {
@@ -201,6 +204,14 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.NotifyBeforePatching = &parsed
 	}
 
+	if patchDeadlineVal, ok := r.MultipartForm.Value["patch_deadline"]; ok && len(patchDeadlineVal) > 0 && patchDeadlineVal[0] != "" {
+		parsed, err := strconv.ParseBool(patchDeadlineVal[0])
+		if err != nil {
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode patch_deadline bool in multipart form: %s", err.Error())}
+		}
+		decoded.PatchDeadline = &parsed
+	}
+
 	val, ok = r.MultipartForm.Value["self_service"]
 	if ok && len(val) > 0 && val[0] != "" {
 		parsed, err := strconv.ParseBool(val[0])
@@ -321,6 +332,7 @@ func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		Patch:                req.Patch,
 		PatchWhenClosed:      req.PatchWhenClosed,
 		NotifyBeforePatching: req.NotifyBeforePatching,
+		PatchDeadline:        req.PatchDeadline,
 	}
 	if req.File != nil {
 		ff, err := req.File.Open()
@@ -799,11 +811,11 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 	return fleet.ErrMissingLicense
 }
 
-func (svc *Service) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
-	return "", fleet.ErrMissingLicense // called downstream of auth checks so doesn't need skipauth
+func (svc *Service) CheckCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) error {
+	return fleet.ErrMissingLicense // called downstream of auth checks so doesn't need skipauth
 }
 
-func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
+func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, opts fleet.HostSoftwareInstallOptions) (string, error) {
 	return "", fleet.ErrMissingLicense // called downstream of auth checks so doesn't need skipauth
 }
 

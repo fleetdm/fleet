@@ -1,0 +1,1 @@
+- **Breaking change:** Users with the GitOps role can no longer run, cancel, or enqueue MDM commands (including lock, unlock, wipe, turning off MDM, and password rotations) via the REST API or `fleetctl`. These requests return a 403 with a link to the Fleet 5 migration guide.

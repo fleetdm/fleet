@@ -58,34 +58,27 @@ func (h *fastPathHandler) Router() *mux.Router { return h.router }
 //
 //   - "/hosts/identifier/{identifier}" against "/hosts/{id:[0-9]+}/<subresource>", including the subresource the activity
 //     bounded context registers rather than the core handler
-//   - "/scripts/batch/summary/{id}" against "/scripts/batch/{id}/host_results"
-//   - the two spellings of the host profile resend route
 //
 // Both halves are listed. Excluding only the half the stdlib mux rejected would leave the other half free to claim requests
 // that belong to the one that left. TestFastPathExclusionsCoverEveryAmbiguousRoute keeps the list in sync with the route table.
 var fastPathExcluded = map[string]struct{}{
-	"GET /api/_version_/fleet/hosts/identifier/{identifier}":                                 {},
-	"GET /api/_version_/fleet/hosts/{id}/activities":                                         {},
-	"GET /api/_version_/fleet/hosts/{id}/certificates":                                       {},
-	"GET /api/_version_/fleet/hosts/{id}/configuration_profiles":                             {},
-	"GET /api/_version_/fleet/hosts/{id}/dep_assignment":                                     {},
-	"GET /api/_version_/fleet/hosts/{id}/device_mapping":                                     {},
-	"GET /api/_version_/fleet/hosts/{id}/device_url":                                         {},
-	"GET /api/_version_/fleet/hosts/{id}/encryption_key":                                     {},
-	"GET /api/_version_/fleet/hosts/{id}/health":                                             {},
-	"GET /api/_version_/fleet/hosts/{id}/macadmins":                                          {},
-	"GET /api/_version_/fleet/hosts/{id}/managed_account_password":                           {},
-	"GET /api/_version_/fleet/hosts/{id}/mdm":                                                {},
-	"GET /api/_version_/fleet/hosts/{id}/queries":                                            {},
-	"GET /api/_version_/fleet/hosts/{id}/recovery_lock_password":                             {},
-	"GET /api/_version_/fleet/hosts/{id}/reports":                                            {},
-	"GET /api/_version_/fleet/hosts/{id}/scripts":                                            {},
-	"GET /api/_version_/fleet/hosts/{id}/software":                                           {},
-	"GET /api/_version_/fleet/scripts/batch/summary/{batch_execution_id}":                    {},
-	"GET /api/_version_/fleet/scripts/batch/{batch_execution_id}/host_results":               {},
-	"GET /api/_version_/fleet/scripts/batch/{batch_execution_id}/host-results":               {},
-	"POST /api/_version_/fleet/hosts/{host_id}/configuration_profiles/resend/{profile_uuid}": {},
-	"POST /api/_version_/fleet/hosts/{host_id}/configuration_profiles/{profile_uuid}/resend": {},
+	"GET /api/_version_/fleet/hosts/identifier/{identifier}":       {},
+	"GET /api/_version_/fleet/hosts/{id}/activities":               {},
+	"GET /api/_version_/fleet/hosts/{id}/certificates":             {},
+	"GET /api/_version_/fleet/hosts/{id}/configuration_profiles":   {},
+	"GET /api/_version_/fleet/hosts/{id}/dep_assignment":           {},
+	"GET /api/_version_/fleet/hosts/{id}/device_mapping":           {},
+	"GET /api/_version_/fleet/hosts/{id}/device_url":               {},
+	"GET /api/_version_/fleet/hosts/{id}/encryption_key":           {},
+	"GET /api/_version_/fleet/hosts/{id}/health":                   {},
+	"GET /api/_version_/fleet/hosts/{id}/macadmins":                {},
+	"GET /api/_version_/fleet/hosts/{id}/managed_account_password": {},
+	"GET /api/_version_/fleet/hosts/{id}/mdm":                      {},
+	"GET /api/_version_/fleet/hosts/{id}/queries":                  {},
+	"GET /api/_version_/fleet/hosts/{id}/recovery_lock_password":   {},
+	"GET /api/_version_/fleet/hosts/{id}/reports":                  {},
+	"GET /api/_version_/fleet/hosts/{id}/scripts":                  {},
+	"GET /api/_version_/fleet/hosts/{id}/software":                 {},
 }
 
 var (
@@ -117,15 +110,11 @@ func buildFastPathMux(r *mux.Router, middlewares []mux.MiddlewareFunc, cfg confi
 			return nil
 		}
 		methods, err := route.GetMethods()
-		if err != nil || len(methods) != 1 {
+		if err != nil {
 			return nil
 		}
 		handler := route.GetHandler()
 		if handler == nil {
-			return nil
-		}
-		method := methods[0]
-		if _, excluded := fastPathExcluded[unversionedKey(method, tpl)]; excluded {
 			return nil
 		}
 		matchers, supported := supportedVarMatchers(tpl)
@@ -147,18 +136,23 @@ func buildFastPathMux(r *mux.Router, middlewares []mux.MiddlewareFunc, cfg confi
 			varNames = append(varNames, m[1])
 		}
 
-		for _, pattern := range expandToStdlibPatterns(tpl) {
-			full := method + " " + pattern
-			if _, taken := claimed[full]; taken {
-				// Two routes registered the same method and path. gorilla dispatches to whichever came first, so the
-				// fast path keeps the first and ignores this one.
+		for _, method := range methods {
+			if _, excluded := fastPathExcluded[unversionedKey(method, tpl)]; excluded {
 				continue
 			}
-			bridged := newFastPathRoute(tpl, method, versionSegment(tpl, pattern), varNames, matchers, wrapped, gorillaFallback{r})
-			if err := tryRegister(fast, full, bridged); err != nil {
-				return fmt.Errorf("route %s: %w", route.GetName(), err)
+			for _, pattern := range expandToStdlibPatterns(tpl) {
+				full := method + " " + pattern
+				if _, taken := claimed[full]; taken {
+					// Two routes registered the same method and path. gorilla dispatches to whichever came first, so the
+					// fast path keeps the first and ignores this one.
+					continue
+				}
+				bridged := newFastPathRoute(tpl, method, versionSegment(tpl, pattern), varNames, matchers, wrapped, gorillaFallback{r})
+				if err := tryRegister(fast, full, bridged); err != nil {
+					return fmt.Errorf("route %s: %w", route.GetName(), err)
+				}
+				claimed[full] = struct{}{}
 			}
-			claimed[full] = struct{}{}
 		}
 		return nil
 	})
