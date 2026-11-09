@@ -138,6 +138,7 @@ controls:
       - path: ../lib/macos/configuration-profiles/fleet-desktop-launch-agent.mobileconfig
         labels_include_any:
           - "Macs with Fleet Desktop.app installed"
+      - path: ../lib/all/declaration-profiles/Inter font.json
   setup_experience:
     macos_bootstrap_package: ""
     enable_end_user_authentication: true
@@ -360,9 +361,9 @@ software:
     #   labels_include_any:
     #     - "ARM-based Windows hosts"
     # Fonts
-    - path: ../lib/all/scripts/install-inter-font.sh # Inter font for macOS and Linux (script-only package)
+    - path: ../lib/all/scripts/install-inter-font.sh # Inter font for Linux (script-only package)
       display_name: Inter font
-      setup_experience_platform: darwin, linux
+      setup_experience: true
     - path: ../lib/all/scripts/install-inter-font.ps1 # Inter font for Windows (script-only package)
       display_name: Inter font
       setup_experience: true
