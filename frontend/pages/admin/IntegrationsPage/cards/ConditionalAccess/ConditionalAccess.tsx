@@ -240,7 +240,15 @@ const ConditionalAccess = () => {
           //  - The Fleet server logs the error.
           //  - The MS proxy stores the error in its database.
           notify.error(
-            "Couldn't connect. Please contact your Fleet administrator."
+            <>
+              Couldn&apos;t connect. Entra returned an error.{" "}
+              <CustomLink
+                text="Learn more"
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/troubleshoot-entra-conditional-access`}
+                newTab
+                variant="flash-message-link"
+              />
+            </>
           );
         }
       }
