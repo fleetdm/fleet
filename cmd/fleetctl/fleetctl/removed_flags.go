@@ -22,42 +22,38 @@ var undefinedFlagError = regexp.MustCompile(`^flag provided but not defined: -{1
 // A removed flag is not defined: urfave/cli rejects it while parsing, before any command code runs, so the command's OnUsageError
 // turns that error into the message. An environment variable is checked in the command's Before.
 func registerRemovedFlags(app *cli.App) {
-	flags := make(map[string][]removednames.Entry)
-	envVars := make(map[string][]removednames.Entry)
-	for _, entry := range removednames.Filter(removednames.KindFlag, 0) {
-		flags[entry.Context] = append(flags[entry.Context], entry)
-	}
-	for _, entry := range removednames.Filter(removednames.KindEnvVar, 0) {
-		envVars[entry.Context] = append(envVars[entry.Context], entry)
-	}
-
-	var contexts []string
-	for context := range flags {
-		contexts = append(contexts, context)
-	}
-	for context := range envVars {
-		if _, ok := flags[context]; !ok {
-			contexts = append(contexts, context)
+	byContext := make(map[string][]removednames.Entry)
+	for _, kind := range []removednames.Kind{removednames.KindFlag, removednames.KindEnvVar} {
+		for _, entry := range removednames.Filter(kind, 0) {
+			byContext[entry.Context] = append(byContext[entry.Context], entry)
 		}
 	}
-	slices.Sort(contexts)
 
-	for _, context := range contexts {
-		cmd := commandAtPath(app, context)
-		for _, entry := range flags[context] {
-			if flagDefined(cmd, entry.Old) {
-				panic(fmt.Sprintf("removed flag %q is still defined by %q", entry.Old, context))
+	for context, entries := range byContext {
+		path := strings.Fields(context)
+		cmd := findCommand(*commandsAtPath(app, path[:len(path)-1], context), path[len(path)-1])
+		if cmd == nil {
+			panic(fmt.Sprintf("removed flag context %q: no %q command", context, path[len(path)-1]))
+		}
+		if cmd.OnUsageError != nil {
+			panic(fmt.Sprintf("%q defines OnUsageError, which removed flags would replace", context))
+		}
+		var removedFlags, removedEnvVars []removednames.Entry
+		for _, entry := range entries {
+			switch entry.Kind {
+			case removednames.KindFlag:
+				if flagDefined(cmd, entry.Old) {
+					panic(fmt.Sprintf("removed flag %q is still defined by %q", entry.Old, context))
+				}
+				removedFlags = append(removedFlags, entry)
+			case removednames.KindEnvVar:
+				if slices.ContainsFunc(cmd.Flags, func(f cli.Flag) bool { return slices.Contains(envVarsOf(f), entry.Old) }) {
+					panic(fmt.Sprintf("removed environment variable %q is still read by %q", entry.Old, context))
+				}
+				removedEnvVars = append(removedEnvVars, entry)
 			}
 		}
-		for _, entry := range envVars[context] {
-			if slices.ContainsFunc(cmd.Flags, func(f cli.Flag) bool { return slices.Contains(envVarsOf(f), entry.Old) }) {
-				panic(fmt.Sprintf("removed environment variable %q is still read by %q", entry.Old, context))
-			}
-		}
-
-		removedFlags, removedEnvVars, context := flags[context], envVars[context], context
-		previousBefore, previousOnUsageError := cmd.Before, cmd.OnUsageError
-
+		previousBefore := cmd.Before
 		cmd.Before = func(c *cli.Context) error {
 			for _, entry := range removedEnvVars {
 				if _, ok := os.LookupEnv(entry.Old); ok {
@@ -69,7 +65,7 @@ func registerRemovedFlags(app *cli.App) {
 			}
 			return nil
 		}
-		cmd.OnUsageError = func(c *cli.Context, err error, isSubcommand bool) error {
+		cmd.OnUsageError = func(c *cli.Context, err error, _ bool) error {
 			if match := undefinedFlagError.FindStringSubmatch(err.Error()); match != nil {
 				if i := slices.IndexFunc(removedFlags, func(entry removednames.Entry) bool { return entry.Old == match[1] }); i >= 0 {
 					// A value that the error spec calls out for this flag ("--team no-team") gets its own message.
@@ -81,9 +77,6 @@ func registerRemovedFlags(app *cli.App) {
 					return errors.New(removedFlags[i].Message())
 				}
 			}
-			if previousOnUsageError != nil {
-				return previousOnUsageError(c, err, isSubcommand)
-			}
 			// What urfave/cli does when a command has no OnUsageError.
 			_, _ = fmt.Fprintf(c.App.Writer, "Incorrect Usage: %s\n\n", err.Error())
 			if lineage := c.Lineage(); len(lineage) > 1 {
@@ -92,23 +85,6 @@ func registerRemovedFlags(app *cli.App) {
 			return err
 		}
 	}
-}
-
-// commandAtPath finds the command that a pkg/removednames context names, such as "fleetctl get hosts".
-func commandAtPath(app *cli.App, context string) *cli.Command {
-	path := strings.Fields(context)
-	if len(path) < 2 || path[0] != app.Name {
-		panic(fmt.Sprintf("removed flag context %q does not start with %q", context, app.Name))
-	}
-	commands := app.Commands
-	var cmd *cli.Command
-	for _, name := range path[1:] {
-		if cmd = findCommand(commands, name); cmd == nil {
-			panic(fmt.Sprintf("removed flag context %q: no %q command", context, name))
-		}
-		commands = cmd.Subcommands
-	}
-	return cmd
 }
 
 func flagDefined(cmd *cli.Command, name string) bool {

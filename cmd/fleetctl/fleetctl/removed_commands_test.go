@@ -55,7 +55,7 @@ func TestRemovedFlags(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.entry.Context+" "+c.entry.Old, func(t *testing.T) {
 			dash := "--"
-			if len(c.name) == 1 {
+			if len(c.name) == 1 { // for one-letter flags
 				dash = "-"
 			}
 			for _, args := range [][]string{{dash + c.name, c.value}, {dash + c.name + "=" + c.value}, {"-" + c.name + "=" + c.value}} {
