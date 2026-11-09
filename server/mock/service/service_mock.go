@@ -445,8 +445,6 @@ type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt f
 
 type CancelHostUpcomingActivityFunc func(ctx context.Context, hostID uint, executionID string) error
 
-type ApplyUserRolesSpecsFunc func(ctx context.Context, specs fleet.UsersRoleSpec) error
-
 type CreateCertificateTemplateFunc func(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string, subjectAlternativeName string) (*fleet.CertificateTemplateResponse, error)
 
 type ListCertificateTemplatesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error)
@@ -1693,9 +1691,6 @@ type Service struct {
 
 	CancelHostUpcomingActivityFunc        CancelHostUpcomingActivityFunc
 	CancelHostUpcomingActivityFuncInvoked bool
-
-	ApplyUserRolesSpecsFunc        ApplyUserRolesSpecsFunc
-	ApplyUserRolesSpecsFuncInvoked bool
 
 	CreateCertificateTemplateFunc        CreateCertificateTemplateFunc
 	CreateCertificateTemplateFuncInvoked bool
@@ -4097,13 +4092,6 @@ func (s *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint, e
 	s.CancelHostUpcomingActivityFuncInvoked = true
 	s.mu.Unlock()
 	return s.CancelHostUpcomingActivityFunc(ctx, hostID, executionID)
-}
-
-func (s *Service) ApplyUserRolesSpecs(ctx context.Context, specs fleet.UsersRoleSpec) error {
-	s.mu.Lock()
-	s.ApplyUserRolesSpecsFuncInvoked = true
-	s.mu.Unlock()
-	return s.ApplyUserRolesSpecsFunc(ctx, specs)
 }
 
 func (s *Service) CreateCertificateTemplate(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string, subjectAlternativeName string) (*fleet.CertificateTemplateResponse, error) {

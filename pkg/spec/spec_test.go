@@ -534,6 +534,18 @@ spec:
 `),
 			removedMessage(removednames.KindSpecKind, "team"),
 		},
+		{
+			"kind: user_roles",
+			[]byte(`
+apiVersion: v1
+kind: user_roles
+spec:
+  roles:
+    admin@example.com:
+      global_role: admin
+`),
+			removedMessage(removednames.KindSpecKind, "user_roles"),
+		},
 	}
 
 	for _, tt := range tests {

@@ -19,10 +19,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/ghodss/yaml"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -469,62 +469,19 @@ func (s *integrationTestSuite) TestPremiumOnlyRoles() {
 	}
 }
 
-func (s *integrationTestSuite) TestUserRolesSpec() {
+func (s *integrationTestSuite) TestUserRolesSpecRemoved() {
 	t := s.T()
 
-	_, err := s.ds.NewTeam(context.Background(), &fleet.Team{
-		ID:          42,
-		Name:        "team1",
-		Description: "desc team1",
-	})
-	require.NoError(t, err)
-
-	email := t.Name() + "@asd.com"
-	u := &fleet.User{
-		Password:    []byte("asd"),
-		Name:        t.Name(),
-		Email:       email,
-		GravatarURL: "http://asd.com",
-		GlobalRole:  new(fleet.RoleObserver),
+	res := s.Do("POST", "/api/latest/fleet/users/roles/spec", json.RawMessage(`{"spec":{"roles":{}}}`), http.StatusGone)
+	var body struct {
+		Errors []struct {
+			Reason string `json:"reason"`
+		} `json:"errors"`
 	}
-	user, err := s.ds.NewUser(context.Background(), u)
-	require.NoError(t, err)
-	assert.Empty(t, user.Teams)
-
-	spec := []byte(fmt.Sprintf(`
-  roles:
-    %s:
-      global_role: null
-      teams:
-      - role: maintainer
-        team: team1
-`,
-		email))
-
-	var userRoleSpec applyUserRoleSpecsRequest
-	err = yaml.Unmarshal(spec, &userRoleSpec.Spec)
-	require.NoError(t, err)
-
-	s.Do("POST", "/api/latest/fleet/users/roles/spec", &userRoleSpec, http.StatusOK)
-
-	user, err = s.ds.UserByEmail(context.Background(), email)
-	require.NoError(t, err)
-	require.Len(t, user.Teams, 1)
-	assert.Equal(t, fleet.RoleMaintainer, user.Teams[0].Role)
-
-	spec = []byte(fmt.Sprintf(`
-  roles:
-    %s:
-      global_role: null
-      teams:
-      - role: maintainer
-        team: non-existent
-`,
-		email))
-	userRoleSpec = applyUserRoleSpecsRequest{}
-	err = yaml.Unmarshal(spec, &userRoleSpec.Spec)
-	require.NoError(t, err)
-	s.Do("POST", "/api/latest/fleet/users/roles/spec", &userRoleSpec, http.StatusBadRequest)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&body))
+	require.Len(t, body.Errors, 1)
+	assert.Equal(t, `The "POST /users/roles/spec" endpoint is not available anymore. What to use instead: `+removednames.GuideURL,
+		body.Errors[0].Reason)
 }
 
 func (s *integrationTestSuite) TestInvites() {

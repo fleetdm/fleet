@@ -808,8 +808,6 @@ type Service interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// UserRolesService
 
-	// ApplyUserRolesSpecs applies a list of user global and team role changes
-	ApplyUserRolesSpecs(ctx context.Context, specs UsersRoleSpec) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Certificate Templates
