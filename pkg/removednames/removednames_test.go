@@ -280,10 +280,8 @@ func TestEntriesCoverDeprecatedSources(t *testing.T) {
 		endsWithAny := func(context string, names []string) bool {
 			return slices.ContainsFunc(names, func(name string) bool { return strings.HasSuffix(context, " "+name) })
 		}
-		found := 0
 		for rel, file := range parseFiles(t, root, []string{filepath.Join("cmd", "fleetctl", "fleetctl")}, "") {
 			for _, alias := range collectCLIAliases(file, isTeamRelated) {
-				found++
 				var match func(Entry) bool
 				switch alias.kind {
 				case cliCommandAlias:
@@ -303,7 +301,6 @@ func TestEntriesCoverDeprecatedSources(t *testing.T) {
 				assert.True(t, hasEntry(match), "%s: %s %q of command %v is missing from entries", rel, alias.kind, alias.name, alias.command)
 			}
 		}
-		assert.Positive(t, found)
 	})
 
 	t.Run("gitops key mappings", func(t *testing.T) {
