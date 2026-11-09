@@ -525,13 +525,13 @@ func TestRunMDMCommandAuthz(t *testing.T) {
 	checkAuthErr := func(t *testing.T, shouldFailWithAuth bool, err error) {
 		t.Helper()
 
+		var forbidden *authz.Forbidden
 		if shouldFailWithAuth {
-			require.Error(t, err)
-			require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+			require.ErrorAs(t, err, &forbidden)
 		} else {
 			// call always fails, but due to the host not being enrolled in MDM
 			require.Error(t, err)
-			require.NotContains(t, err.Error(), authz.ForbiddenErrorMessage)
+			require.NotErrorAs(t, err, &forbidden)
 		}
 	}
 
@@ -546,7 +546,7 @@ func TestRunMDMCommandAuthz(t *testing.T) {
 		{"admin", test.UserAdmin, singleUnenrolledHost, false},
 		{"observer", test.UserObserver, singleUnenrolledHost, true},
 		{"observer+", test.UserObserverPlus, singleUnenrolledHost, true},
-		{"gitops", test.UserGitOps, singleUnenrolledHost, false},
+		{"gitops", test.UserGitOps, singleUnenrolledHost, true},
 		{"team 1 admin", test.UserTeamAdminTeam1, singleUnenrolledHost, false},
 		{"team 2 admin", test.UserTeamAdminTeam2, singleUnenrolledHost, true},
 		{"team 1 maintainer", test.UserTeamMaintainerTeam1, singleUnenrolledHost, false},
@@ -555,7 +555,7 @@ func TestRunMDMCommandAuthz(t *testing.T) {
 		{"team 2 observer", test.UserTeamObserverTeam2, singleUnenrolledHost, true},
 		{"team 1 observer+", test.UserTeamObserverPlusTeam1, singleUnenrolledHost, true},
 		{"team 2 observer+", test.UserTeamObserverPlusTeam2, singleUnenrolledHost, true},
-		{"team 1 gitops", test.UserTeamGitOpsTeam1, singleUnenrolledHost, false},
+		{"team 1 gitops", test.UserTeamGitOpsTeam1, singleUnenrolledHost, true},
 		{"team 2 gitops", test.UserTeamGitOpsTeam2, singleUnenrolledHost, true},
 		{"team 1 admin mix of teams", test.UserTeamAdminTeam1, team1And2UnenrolledHosts, true},
 		{"team 1 maintainer mix of teams", test.UserTeamMaintainerTeam1, team1And2UnenrolledHosts, true},
