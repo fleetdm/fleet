@@ -42,6 +42,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 | [Power to the PC](#power-to-the-pc-group)  | Empower Windows users to fully leverage Fleet as an MDM. Measured by Windows devices enrolled with MDM turned on. |
 | [BYOD](#byod-group)                        | The goal of BYOD product group is to increase enrollment of Android devices in Fleet. Measured by Android devices enrolled. |
 | [Website](#website-group)                  | Increase and exceed Fleet's product maturity goals for fleetdm.com. |
+| [First Impressions](#first-impressions-group) | Improve first impressions of Fleet. Primary focus is the Fleet website, landing pages, and marketing operations, followed by core product improvements. |
 
 
 ### Orchestration group
@@ -185,22 +186,18 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 > The [Slack channel](https://fleetdm.slack.com/archives/C097P4TAPRR), [kanban board](https://github.com/orgs/fleetdm/projects/92), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-website) for this product group is `#g-website`.
 
 
-<!--
-Paused as of the 4.89.0 release cycle.
-
 ### First Impressions group
 
-The goal of the First Impressions product group is to make changes to the core Fleet product that improve first impressions of Fleet at workshops, conferences, and demos.
+The goal of the First Impressions product group is to improve first impressions of Fleet. The primary focus is the Fleet website, landing pages, and marketing operations, followed by core product improvements.
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
-| Product Designer                  | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/noahtalerman))_, [Mike McNeil](https://www.linkedin.com/in/mikermcneil/) _([@mikermcneil](https://github.com/mikermcneil))_
+| Product Designer                  | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
 | Engineering Manager               | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
-| Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
-| Software Engineer                 | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
+| Tech Lead                         | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
+| Quality Assurance                 | [Quality Assurance Engineer, First Impressions](https://fleetdm.com/handbook/company/open-positions/quality-assurance-engineer-first-impressions) _(open position)_
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C0ACJ8L1FD0), [kanban board](https://github.com/orgs/fleetdm/projects/105/), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-first-impressions) for this product group is `#g-first-impressions`.
--->
+> The [Slack channel](https://fleetdm.slack.com/archives/C097P4TAPRR), [kanban board](https://github.com/orgs/fleetdm/projects/105), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-first-impressions) for this product group is `#g-first-impressions`.
 
 
 <!--

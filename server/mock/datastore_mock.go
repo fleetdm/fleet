@@ -808,6 +808,8 @@ type GetPoliciesForConditionalAccessFunc func(ctx context.Context, teamID uint, 
 
 type GetPatchPolicyFunc func(ctx context.Context, teamID *uint, titleID uint) (*fleet.PatchPolicyData, error)
 
+type SyncPatchPolicyQueriesFunc func(ctx context.Context) error
+
 type ConditionalAccessBypassDeviceFunc func(ctx context.Context, hostID uint) error
 
 type ConditionalAccessConsumeBypassFunc func(ctx context.Context, hostID uint) (*time.Time, error)
@@ -1823,8 +1825,6 @@ type GetBatchActivityFunc func(ctx context.Context, executionID string) (*fleet.
 type GetBatchActivityHostResultsFunc func(ctx context.Context, executionID string) ([]*fleet.BatchActivityHostResult, error)
 
 type RunScheduledBatchActivityFunc func(ctx context.Context, executionID string) error
-
-type BatchExecuteSummaryFunc func(ctx context.Context, executionID string) (*fleet.BatchActivity, error)
 
 type CancelBatchScriptFunc func(ctx context.Context, executionID string) error
 
@@ -3847,6 +3847,9 @@ type DataStore struct {
 	GetPatchPolicyFunc        GetPatchPolicyFunc
 	GetPatchPolicyFuncInvoked bool
 
+	SyncPatchPolicyQueriesFunc        SyncPatchPolicyQueriesFunc
+	SyncPatchPolicyQueriesFuncInvoked bool
+
 	ConditionalAccessBypassDeviceFunc        ConditionalAccessBypassDeviceFunc
 	ConditionalAccessBypassDeviceFuncInvoked bool
 
@@ -5370,9 +5373,6 @@ type DataStore struct {
 
 	RunScheduledBatchActivityFunc        RunScheduledBatchActivityFunc
 	RunScheduledBatchActivityFuncInvoked bool
-
-	BatchExecuteSummaryFunc        BatchExecuteSummaryFunc
-	BatchExecuteSummaryFuncInvoked bool
 
 	CancelBatchScriptFunc        CancelBatchScriptFunc
 	CancelBatchScriptFuncInvoked bool
@@ -9387,6 +9387,13 @@ func (s *DataStore) GetPatchPolicy(ctx context.Context, teamID *uint, titleID ui
 	return s.GetPatchPolicyFunc(ctx, teamID, titleID)
 }
 
+func (s *DataStore) SyncPatchPolicyQueries(ctx context.Context) error {
+	s.mu.Lock()
+	s.SyncPatchPolicyQueriesFuncInvoked = true
+	s.mu.Unlock()
+	return s.SyncPatchPolicyQueriesFunc(ctx)
+}
+
 func (s *DataStore) ConditionalAccessBypassDevice(ctx context.Context, hostID uint) error {
 	s.mu.Lock()
 	s.ConditionalAccessBypassDeviceFuncInvoked = true
@@ -12941,13 +12948,6 @@ func (s *DataStore) RunScheduledBatchActivity(ctx context.Context, executionID s
 	s.RunScheduledBatchActivityFuncInvoked = true
 	s.mu.Unlock()
 	return s.RunScheduledBatchActivityFunc(ctx, executionID)
-}
-
-func (s *DataStore) BatchExecuteSummary(ctx context.Context, executionID string) (*fleet.BatchActivity, error) {
-	s.mu.Lock()
-	s.BatchExecuteSummaryFuncInvoked = true
-	s.mu.Unlock()
-	return s.BatchExecuteSummaryFunc(ctx, executionID)
 }
 
 func (s *DataStore) CancelBatchScript(ctx context.Context, executionID string) error {

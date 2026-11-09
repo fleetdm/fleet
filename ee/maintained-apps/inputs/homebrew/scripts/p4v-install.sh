@@ -120,7 +120,7 @@ for app in p4v.app p4merge.app p4admin.app; do
     if ! ditto "$MOUNT_POINT/$app" "$APPDIR/$app"; then
       # remove the partial copy so a failed install isn't inventoried as installed
       rm -rf "$APPDIR/$app" >/dev/null 2>&1 || true
-      hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || true
+      hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || { sleep 2; hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1; } || hdiutil detach -force "$MOUNT_POINT" >/dev/null 2>&1 || true
       echo "failed to install $app"
       exit 1
     fi
@@ -131,7 +131,7 @@ done
 if [[ -f "$MOUNT_POINT/p4vc" ]]; then
   mkdir -p /usr/local/bin
   if ! cp "$MOUNT_POINT/p4vc" /usr/local/bin/p4vc; then
-    hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || true
+    hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || { sleep 2; hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1; } || hdiutil detach -force "$MOUNT_POINT" >/dev/null 2>&1 || true
     echo "failed to install p4vc"
     exit 1
   fi
@@ -139,7 +139,7 @@ if [[ -f "$MOUNT_POINT/p4vc" ]]; then
   chown root:wheel /usr/local/bin/p4vc
 fi
 
-hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || true
+hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || { sleep 2; hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1; } || hdiutil detach -force "$MOUNT_POINT" >/dev/null 2>&1 || true
 
 relaunch_application "com.perforce.p4v"
 relaunch_application "com.perforce.p4merge"

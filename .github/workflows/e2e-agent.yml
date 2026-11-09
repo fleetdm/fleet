@@ -79,6 +79,13 @@ jobs:
       with:
         egress-policy: audit
 
+    - name: Checkout fleetctl install script
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        sparse-checkout: website/assets/resources/install-fleetctl.sh
+        sparse-checkout-cone-mode: false
+        persist-credentials: false
+
     - name: Start tunnel
       env:
         CERT_PEM: ${{ secrets.CLOUDFLARE_TUNNEL_FLEETUEM_CERT_B64 }}
@@ -104,7 +111,7 @@ jobs:
 
     - name: Run Fleet server
       run: |
-        curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | bash
+        bash website/assets/resources/install-fleetctl.sh
         export PATH="$HOME/.fleetctl:$PATH"
         echo "$HOME/.fleetctl" >> "$GITHUB_PATH"
         fleetctl preview --no-hosts --disable-open-browser
@@ -194,10 +201,17 @@ jobs:
           sudo resolvectl dns "$iface" 1.1.1.1 2>/dev/null || true
         done
 
+    - name: Checkout fleetctl install script
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        sparse-checkout: website/assets/resources/install-fleetctl.sh
+        sparse-checkout-cone-mode: false
+        persist-credentials: false
+
     - id: login
       name: Attempt login
       run: |
-        curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | bash
+        bash website/assets/resources/install-fleetctl.sh
         export PATH="$HOME/.fleetctl:$PATH"
         echo "$HOME/.fleetctl" >> "$GITHUB_PATH"
         fleetctl config set --address ${{ needs.gen.outputs.address }}
@@ -246,9 +260,16 @@ jobs:
     runs-on: ${{ matrix.runner }}
     needs: [gen, login]
     steps:
+    - name: Checkout fleetctl install script
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        sparse-checkout: website/assets/resources/install-fleetctl.sh
+        sparse-checkout-cone-mode: false
+        persist-credentials: false
+
     - name: Install fleetctl
       run: |
-        curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | bash
+        bash website/assets/resources/install-fleetctl.sh
         export PATH="$HOME/.fleetctl:$PATH"
         echo "$HOME/.fleetctl" >> "$GITHUB_PATH"
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
@@ -288,7 +309,7 @@ jobs:
         # Retry a few times: downloading fleetd components from the TUF server
         # occasionally times out on macOS runners.
         for attempt in 1 2 3; do
-          if fleetctl package --type pkg --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug --host-identifier=instance --disable-updates=${{ matrix.disable-updates }}; then
+          if fleetctl package --type pkg --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug --host-identifier=instance --disable-updates=${{ matrix.disable-updates }} --outfile=fleet-macos.pkg; then
             break
           elif [ "$attempt" = "3" ]; then
             echo "fleetctl package failed after $attempt attempts"
@@ -297,7 +318,7 @@ jobs:
           echo "fleetctl package failed (attempt $attempt), retrying in 10s..."
           sleep 10
         done
-        sudo installer -pkg fleet-osquery.pkg -target /
+        sudo installer -pkg fleet-macos.pkg -target /
         ENROLLMENT_START=$(date +%s)
         until fleetctl get hosts | grep -iF $(hostname -s);
         do
@@ -354,9 +375,16 @@ jobs:
       with:
         egress-policy: audit
 
+    - name: Checkout fleetctl install script
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        sparse-checkout: website/assets/resources/install-fleetctl.sh
+        sparse-checkout-cone-mode: false
+        persist-credentials: false
+
     - name: Install fleetctl
       run: |
-        curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | bash
+        bash website/assets/resources/install-fleetctl.sh
         export PATH="$HOME/.fleetctl:$PATH"
         echo "$HOME/.fleetctl" >> "$GITHUB_PATH"
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
@@ -395,8 +423,8 @@ jobs:
         SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
         echo "Secret: $SECRET"
         echo "Hostname: $(hostname -s)"
-        fleetctl package --type deb --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET  --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug --arch=$FLEET_ARCH --disable-updates=${{ matrix.disable-updates }}
-        sudo dpkg -i fleet-osquery*
+        fleetctl package --type deb --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET  --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug --arch=$FLEET_ARCH --disable-updates=${{ matrix.disable-updates }} --outfile=fleet-linux.deb
+        sudo dpkg -i fleet-linux.deb
         ENROLLMENT_START=$(date +%s)
         until fleetctl get hosts | grep -iF $(hostname -s); do
           CURRENT_TIME=$(date +%s)
@@ -529,12 +557,12 @@ jobs:
         echo "Secret: $SECRET"
         ARCH=$(echo "$PROCESSOR_ARCHITECTURE" | tr '[:upper:]' '[:lower:]')
         # WIX env var points to the WiX Toolset install dir (pre-installed on windows-11 runner, installed above on windows-11-arm)
-        fleetctl package --type msi --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug --local-wix-dir="${WIX}bin" --arch=$ARCH --disable-updates=${{ matrix.disable-updates }}
+        fleetctl package --type msi --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug --local-wix-dir="${WIX}bin" --arch=$ARCH --disable-updates=${{ matrix.disable-updates }} --outfile=fleet-windows.msi
 
     - name: Install Orbit
       shell: cmd
       run: |
-        msiexec /i fleet-osquery.msi /quiet /passive /lv log.txt
+        msiexec /i fleet-windows.msi /quiet /passive /lv log.txt
 
     - name: Wait for enrollment
       shell: powershell

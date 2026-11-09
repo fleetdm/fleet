@@ -1,6 +1,6 @@
 # Add Microsoft Store apps to Windows self-service with winget
 
-Fleet 4.89.0 gave script-only packages an uninstall script, a pre-install query, and a post-install script. That is enough to put Microsoft Store apps on your end users' self-service page using winget, with no packages to host. This guide builds one Store app tile end to end, then generates the rest from a Store ID. It covers per-user Store installs driven through self-service, which is the only scope the Store supports through winget.
+You can add Microsoft Store apps to self-service using winget and script-only packages. Built-in support for Microsoft Store apps is [coming soon](https://github.com/fleetdm/fleet/issues/43493).
 
 > **Warning:** `winget install --source msstore` cannot run as SYSTEM, and Fleet runs Windows scripts as SYSTEM. The Store rejects device-wide installs with "Device wide install for msstore type is not supported under admin context." Step 3 works around this by running winget in the logged-on user's session. If you need a Store app installed machine-wide for every user, see [Deploy a Store app machine-wide](#deploy-a-store-app-machine-wide) instead.
 
@@ -157,11 +157,18 @@ With `self_service: true`, the app appears on the end user's self-service page, 
 
 > **Note:** Any label you reference on a package must be defined in the `labels` section first. Use `labels_include_any`, `labels_include_all`, or `labels_exclude_any`, but only one per package. Use a label to exclude hosts without App Installer, such as Windows Server and LTSC images.
 
-## Step 7: Generate new tiles from a Store ID
+## Step 7: Generate script-only packages for more Store apps
 
-Only two lines differ between apps, so the rest can be emitted. Fleet script-only packages are single files with no shared helper to import, so the boilerplate is inlined into each generated script.
+Steps 3–6 give you three scripts and a YAML block for one app. For each additional Store app, only the Store ID and MSIX package name change, so you can generate these files instead of repeating Steps 3–6 by hand.
 
-Save this as `New-StoreAppTile.ps1`.
+The helper script below runs on your own computer, from the root of your GitOps repo. It doesn't run on hosts, isn't uploaded to Fleet, and doesn't install anything. It:
+
+- Writes the install, uninstall, and verify scripts from Steps 3–5 for the new app to `lib/windows/scripts/`.
+- Prints the `software.packages` YAML from Step 6 for you to paste into your fleet file.
+
+Its inputs are the Store ID and MSIX package name from Step 1, plus the display name end users see in self-service. Script-only packages are single files with no shared helper to import, so each generated script includes the full code from Step 3.
+
+Save this as `New-StoreAppPackage.ps1` in the root of your GitOps repo.
 
 ```powershell
 param(
@@ -242,11 +249,19 @@ exit 0
 "@
 ```
 
-Run it with the two identifiers from Step 1, then paste the printed block into your fleet file and open a pull request.
+Then add the app:
 
-```powershell
-./New-StoreAppTile.ps1 -StoreId 9WZDNCRFJ3PZ -DisplayName "Company Portal" -PackageName Microsoft.CompanyPortal
-```
+1. From the root of your GitOps repo, run the script with the identifiers from Step 1 and a display name.
+
+   ```powershell
+   ./New-StoreAppPackage.ps1 -StoreId 9WZDNCRFJ3PZ -DisplayName "Company Portal" -PackageName Microsoft.CompanyPortal
+   ```
+
+2. Paste the printed YAML under `software.packages` in `fleets/<name>.yml`.
+3. Commit the three new scripts in `lib/windows/scripts/` and the change to your fleet file.
+4. Open a pull request.
+
+> **Note:** The printed paths, such as `../lib/windows/scripts/install-company-portal.ps1`, assume your fleet files are in `fleets/`, one level below the repo root. If yours are somewhere else, adjust the paths before you commit.
 
 ## Troubleshoot
 
@@ -260,7 +275,7 @@ Run it with the two identifiers from Step 1, then paste the printed block into y
 
 **The script fails because `winget` is not recognized.** The host has no App Installer package, which is common on Windows Server and LTSC images. Exclude those hosts with a label, or install App Installer first.
 
-**The tile does not appear on a host's self-service page.** Confirm the host matches the package's label, and that the label query returns the host in the Fleet UI under the label's host list.
+**The software does not appear on a host's self-service page.** Confirm the host matches the package's label, and that the label query returns the host in the Fleet UI under the label's host list.
 
 ## Advanced
 
