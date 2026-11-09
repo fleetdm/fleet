@@ -390,12 +390,6 @@ const LazyAppleMdmPage = lazyPage(
       /* webpackChunkName: "admin" */ "pages/admin/IntegrationsPage/cards/MdmSettings/AppleMdmPage"
     )
 );
-const LazyOktaConditionalAccessPage = lazyPage(
-  () =>
-    import(
-      /* webpackChunkName: "admin" */ "pages/admin/IntegrationsPage/cards/ConditionalAccess/OktaConditionalAccessPage"
-    )
-);
 const LazyAndroidMdmPage = lazyPage(
   () =>
     import(
@@ -571,7 +565,6 @@ const routes = (
                   <Route path="users" component={LazyAdminManageUsersPage} />
                 </Route>
                 <Route component={PremiumRoutes}>
-                  <Redirect from="teams" to="fleets" />
                   <Route path="fleets" component={LazyAdminManageFleetsPage} />
                 </Route>
               </Route>
@@ -611,14 +604,10 @@ const routes = (
             {/* This redirect is used to handle old vpp setup page */}
             <Redirect from="integrations/vpp/setup" to="integrations/mdm/vpp" />
             <Route path="integrations/mdm/vpp" component={LazyVppPage} />
-            <Route component={AuthGlobalAdminRoutes}>
-              <Route component={PremiumRoutes}>
-                <Route
-                  path="integrations/conditional-access/okta"
-                  component={LazyOktaConditionalAccessPage}
-                />
-              </Route>
-            </Route>
+            <Redirect
+              from="integrations/conditional-access/okta"
+              to="integrations/conditional-access"
+            />
             <Route component={ExcludeInSandboxRoutes}>
               <Route component={AuthGlobalAdminRoutes}>
                 <Route path="users/new/human" component={LazyCreateUserPage} />
@@ -630,19 +619,12 @@ const routes = (
               </Route>
             </Route>
 
-            <Redirect from="teams" to="fleets" />
-            <Redirect from="teams/users" to="fleets/users" />
-            <Redirect from="teams/options" to="fleets/options" />
-            <Redirect from="teams/settings" to="fleets/settings" />
             <Route path="fleets" component={LazyTeamDetailsWrapper}>
               <Redirect from="members" to="users" />
               <Route path="users" component={LazyUsersPage} />
               <Route path="options" component={LazyAgentOptionsPage} />
               <Route path="settings" component={LazyTeamSettings} />
             </Route>
-            <Redirect from="teams/:team_id" to="fleets" />
-            <Redirect from="teams/:team_id/users" to="fleets" />
-            <Redirect from="teams/:team_id/options" to="fleets" />
           </Route>
           <Route path="labels">
             <IndexRedirect to="manage" />

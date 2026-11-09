@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -190,6 +191,71 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&t1.ID, []uint{h1.ID}))
 	require.NoError(t, err)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/profiles", h1.ID), getHostRequest{}, http.StatusOK, &getHostResponse{})
+
+	// GitOps users can't run MDM commands, even on hosts of their fleets.
+	const gitOpsMDMCommandMsg = "Users with the GitOps role can no longer run MDM commands. " +
+		"What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration"
+	type mdmCommandEndpoint struct {
+		method string
+		path   string
+		body   any
+	}
+	hostMDMCommandEndpoints := func(h *fleet.Host) []mdmCommandEndpoint {
+		return []mdmCommandEndpoint{
+			{"POST", "/api/latest/fleet/commands/run", runMDMCommandRequest{Command: "cmd", HostUUIDs: []string{h.UUID}}},
+			{"POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", h.ID), nil},
+			{"POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", h.ID), nil},
+			{"POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", h.ID), nil},
+			{"DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", h.ID), nil},
+			{"DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/commands/%s", h.ID, uuid.NewString()), nil},
+			{"POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", h.ID), nil},
+			{"POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_account_password/rotate", h.ID), nil},
+		}
+	}
+	// A nonexistent host gets the same response, so hosts can't be probed.
+	nonexistentHostMDMCommandEndpoints := []mdmCommandEndpoint{
+		{"POST", "/api/latest/fleet/hosts/999999/lock", nil},
+		{"POST", "/api/latest/fleet/commands/run", runMDMCommandRequest{Command: "cmd", HostUUIDs: []string{"no-such-uuid"}}},
+	}
+	requireForbidden := func(email string, endpoints []mdmCommandEndpoint, wantMessage string) {
+		s.setTokenForTest(t, email, test.GoodPassword)
+		for _, e := range endpoints {
+			t.Run(email+" "+e.method+" "+e.path, func(t *testing.T) {
+				res := s.Do(e.method, e.path, e.body, http.StatusForbidden)
+				var errBody struct {
+					Message string `json:"message"`
+				}
+				require.NoError(t, json.NewDecoder(res.Body).Decode(&errBody))
+				assert.Equal(t, wantMessage, errBody.Message)
+			})
+		}
+	}
+	for _, email := range []string{"gitops1-mdm@example.com", "gitops2-mdm@example.com"} {
+		requireForbidden(email, append(hostMDMCommandEndpoints(h1), nonexistentHostMDMCommandEndpoints...), gitOpsMDMCommandMsg)
+	}
+
+	// A user who can list hosts through another role gets past the host list check, so the message comes from the host's
+	// fleet: GitOps there gets the message, any other role a plain denial.
+	gitOpsAndObserver := &fleet.User{
+		Name:  "GitOps and observer",
+		Email: "gitops-observer-mdm@example.com",
+		Teams: []fleet.UserTeam{
+			{Team: *t1, Role: fleet.RoleGitOps},
+			{Team: *t2, Role: fleet.RoleObserver},
+		},
+	}
+	require.NoError(t, gitOpsAndObserver.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(ctx, gitOpsAndObserver)
+	require.NoError(t, err)
+	observedHost, err := s.ds.NewHost(ctx, &fleet.Host{
+		NodeKey:  new(t.Name() + "2"),
+		UUID:     t.Name() + "2",
+		Hostname: t.Name() + "bar.local",
+		TeamID:   &t2.ID,
+	})
+	require.NoError(t, err)
+	requireForbidden(gitOpsAndObserver.Email, hostMDMCommandEndpoints(h1), gitOpsMDMCommandMsg)
+	requireForbidden(gitOpsAndObserver.Email, hostMDMCommandEndpoints(observedHost), authz.ForbiddenErrorMessage)
 }
 
 // TestTechnicianPermissions tests the permissions listed in ../../docs/Using\ Fleet/manage-access.md

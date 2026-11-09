@@ -147,19 +147,13 @@ spec:
     admin1@example.com:
       global_role: admin
       fleets: null
-      teams: null
     admin2@example.com:
       global_role: null
       fleets:
       - role: maintainer
         fleet: team1
-        team: team1
-      teams:
-      - role: maintainer
-        fleet: team1
-        team: team1
 `
-	expectedJson := `{"kind":"user_roles","apiVersion":"v1","spec":{"roles":{"admin1@example.com":{"global_role":"admin","fleets":null,"teams":null},"admin2@example.com":{"global_role":null,"fleets":[{"fleet":"team1","role":"maintainer","team":"team1"}],"teams":[{"fleet":"team1","role":"maintainer","team":"team1"}]}}}}
+	expectedJson := `{"kind":"user_roles","apiVersion":"v1","spec":{"roles":{"admin1@example.com":{"global_role":"admin","fleets":null},"admin2@example.com":{"global_role":null,"fleets":[{"fleet":"team1","role":"maintainer"}]}}}}
 `
 
 	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "user_roles"}))
@@ -392,9 +386,9 @@ func TestGetTeamsSoftwareFromSourceOfTruth(t *testing.T) {
 		require.NotNil(t, opt.TeamID)
 		require.EqualValues(t, 1, *opt.TeamID)
 		return []fleet.SoftwareTitleListResult{
-			{ID: 10, Name: "VPPApp", AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: "123", Platform: "darwin"}},
+			{ID: 10, Name: "VPPApp", AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "123", Platform: fleet.MacOSPlatform}}},
 			{ID: 20, Name: "Pkg", SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "pkg.pkg", PackageURL: new("https://example.com/pkg.pkg")}},
-			{ID: 30, Name: "VersionsApp", AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: "456", Platform: "ios"}},
+			{ID: 30, Name: "VersionsApp", AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "456", Platform: fleet.IOSPlatform}}},
 		}, 3, &fleet.PaginationMetadata{}, nil
 	}
 
@@ -427,8 +421,9 @@ func TestGetTeamsSoftwareFromSourceOfTruth(t *testing.T) {
 	// for the setup_experience flag, not the team config.
 	ds.ListSetupExperienceSoftwareTitlesFunc = func(ctx context.Context, platform string, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
 		return []fleet.SoftwareTitleListResult{
-			{ID: 10, AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: "123", Platform: "darwin", InstallDuringSetup: new(true)}},
-		}, 1, &fleet.PaginationMetadata{}, nil
+			{ID: 10, AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "123", Platform: fleet.MacOSPlatform, InstallDuringSetup: new(true)}}},
+			{ID: 30, AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "456", Platform: fleet.IOSPlatform, InstallDuringSetup: new(true)}}},
+		}, 2, &fleet.PaginationMetadata{}, nil
 	}
 
 	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
@@ -437,10 +432,12 @@ func TestGetTeamsSoftwareFromSourceOfTruth(t *testing.T) {
 			return &fleet.SoftwareTitle{
 				ID:   10,
 				Name: "VPPApp",
-				AppStoreApp: &fleet.VPPAppStoreApp{
-					VPPAppID:    fleet.VPPAppID{AdamID: "123", Platform: "darwin"},
+				AppStoreApps: []fleet.AppStoreAppVersion{{
+					Name:        fleet.DefaultAppStoreAppVersionName,
+					AppStoreID:  "123",
+					Platform:    fleet.MacOSPlatform,
 					SelfService: true,
-				},
+				}},
 			}, nil
 		case 20:
 			return &fleet.SoftwareTitle{
@@ -475,6 +472,9 @@ func TestGetTeamsSoftwareFromSourceOfTruth(t *testing.T) {
 	require.Contains(t, out, "name: Test")
 	require.Contains(t, out, "labels_exclude_any:\n          - IT team")
 	require.Contains(t, out, "labels_include_any:\n          - IT team")
+	// count setup_experience in the output, the macOS app and the iOS app with two versions should both have it
+	setupExperienceCount := strings.Count(out, "setup_experience: true")
+	require.Equal(t, 2, setupExperienceCount)
 
 	require.True(t, ds.ListSoftwareTitlesFuncInvoked)
 	require.True(t, ds.ListSetupExperienceSoftwareTitlesFuncInvoked)
@@ -1060,6 +1060,7 @@ apiVersion: "1"
 kind: software_title
 spec:
 - app_store_app: null
+  app_store_apps: null
   hosts_count: 2
   icon_url: null
   id: 0
@@ -1086,6 +1087,7 @@ spec:
     - cve-123-456-003
   versions_count: 3
 - app_store_app: null
+  app_store_apps: null
   hosts_count: 0
   icon_url: null
   id: 0
@@ -1144,7 +1146,8 @@ spec:
       ],
       "software_package": null,
       "packages": null,
-      "app_store_app": null
+      "app_store_app": null,
+      "app_store_apps": null
     },
     {
       "id": 0,
@@ -1165,7 +1168,8 @@ spec:
       ],
       "software_package": null,
       "packages": null,
-      "app_store_app": null
+      "app_store_app": null,
+      "app_store_apps": null
     }
   ]
 }

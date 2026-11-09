@@ -427,7 +427,7 @@ const ManagePolicyPage = ({
     staleTime: 5000,
     refetchOnWindowFocus: false,
   });
-  const teamConfig = teamData?.team;
+  const teamConfig = teamData?.fleet;
 
   const automationsConfig = isAllTeamsSelected ? globalConfig : teamConfig;
 

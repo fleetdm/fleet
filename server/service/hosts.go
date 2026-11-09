@@ -1107,14 +1107,6 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *
 		return nil, err
 	}
 
-	linuxCount := uint(0)
-	for _, p := range hostSummary.Platforms {
-		if fleet.IsLinux(p.Platform) {
-			linuxCount += p.HostsCount
-		}
-	}
-	hostSummary.AllLinuxCount = linuxCount
-
 	labelsSummary, err := svc.ds.LabelsSummary(ctx, fleet.TeamFilter{})
 	if err != nil {
 		return nil, err

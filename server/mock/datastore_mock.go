@@ -562,8 +562,6 @@ type GetSoftwareTitleDisplayNameFunc func(ctx context.Context, teamID *uint, tit
 
 type UpdateSoftwareTitleNameFunc func(ctx context.Context, id uint, name string) error
 
-type UpdateSoftwareTitleAutoUpdateConfigFunc func(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error
-
 type ListSoftwareAutoUpdateSchedulesFunc func(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error)
 
 type InsertSoftwareInstallRequestFunc func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error)
@@ -646,8 +644,6 @@ type ListHostSoftwareFunc func(ctx context.Context, host *fleet.Host, opts fleet
 
 type IsSoftwareInstallerLabelScopedFunc func(ctx context.Context, installerID uint, hostID uint) (bool, error)
 
-type IsVPPAppLabelScopedFunc func(ctx context.Context, vppAppTeamID uint, hostID uint) (bool, error)
-
 type IsInHouseAppLabelScopedFunc func(ctx context.Context, inHouseAppID uint, hostID uint) (bool, error)
 
 type GetUnverifiedInHouseAppInstallsForHostFunc func(ctx context.Context, hostUUID string) ([]*fleet.HostVPPSoftwareInstall, error)
@@ -677,8 +673,6 @@ type BatchNewSoftwareCategoriesFunc func(ctx context.Context, teamID uint, names
 type UpdateSoftwareCategoryFunc func(ctx context.Context, id uint, name string) (*fleet.SoftwareCategory, error)
 
 type DeleteSoftwareCategoryFunc func(ctx context.Context, id uint) error
-
-type GetSoftwareCategoryIDsFunc func(ctx context.Context, teamID uint, names []string) ([]uint, error)
 
 type GetSoftwareCategoryNameToIDMapFunc func(ctx context.Context, teamID uint, names []string) (map[string]uint, error)
 
@@ -808,6 +802,8 @@ type GetPoliciesForConditionalAccessFunc func(ctx context.Context, teamID uint, 
 
 type GetPatchPolicyFunc func(ctx context.Context, teamID *uint, titleID uint) (*fleet.PatchPolicyData, error)
 
+type SyncPatchPolicyQueriesFunc func(ctx context.Context) error
+
 type ConditionalAccessBypassDeviceFunc func(ctx context.Context, hostID uint) error
 
 type ConditionalAccessConsumeBypassFunc func(ctx context.Context, hostID uint) (*time.Time, error)
@@ -905,6 +901,8 @@ type UpdateAllCronStatsForInstanceFunc func(ctx context.Context, instance string
 type CleanupCronStatsFunc func(ctx context.Context) error
 
 type UpdateQueryAggregatedStatsFunc func(ctx context.Context) error
+
+type DeleteOrphanedQueryStatsFunc func(ctx context.Context) error
 
 type LoadHostByNodeKeyFunc func(ctx context.Context, nodeKey string) (*fleet.Host, error)
 
@@ -1514,8 +1512,6 @@ type GetVPPClientUserFunc func(ctx context.Context, tokenID uint, managedAppleID
 
 type InsertVPPClientUserFunc func(ctx context.Context, row *fleet.VPPClientUser) error
 
-type ListVPPClientUsersForTokenFunc func(ctx context.Context, tokenID uint) ([]*fleet.VPPClientUser, error)
-
 type SetABMTokenTermsExpiredForOrgNameFunc func(ctx context.Context, orgName string, expired bool) (wasSet bool, err error)
 
 type CountABMTokensWithTermsExpiredFunc func(ctx context.Context) (int, error)
@@ -1872,8 +1868,6 @@ type ClearSoftwareInstallerAutoInstallPolicyStatusForHostsFunc func(ctx context.
 
 type GetSoftwareInstallDetailsFunc func(ctx context.Context, executionId string) (*fleet.SoftwareInstallDetails, error)
 
-type ListPendingSoftwareInstallsFunc func(ctx context.Context, hostID uint) ([]string, error)
-
 type ListReadyToExecuteSoftwareInstallsFunc func(ctx context.Context, hostID uint) ([]string, error)
 
 type GetHostLastInstallDataFunc func(ctx context.Context, hostID uint, installerID uint) (*fleet.HostLastInstallData, error)
@@ -1913,8 +1907,6 @@ type SetFleetMaintainedAppActiveInstallerFunc func(ctx context.Context, payload 
 type ResolveActiveInstallerForRetryFunc func(ctx context.Context, installerID uint) (uint, error)
 
 type GetPinnedVersionFunc func(ctx context.Context, teamID *uint, titleID uint) (*string, error)
-
-type SetPinnedVersionFunc func(ctx context.Context, teamID *uint, titleID uint, version string) error
 
 type DeletePinnedVersionFunc func(ctx context.Context, teamID *uint, titleID uint) error
 
@@ -2093,8 +2085,6 @@ type GetVPPTokenByLocationFunc func(ctx context.Context, loc string) (*fleet.VPP
 type GetIncludedHostIDMapForVPPAppFunc func(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error)
 
 type GetIncludedHostIDMapForVPPAppHostsFunc func(ctx context.Context, vppAppTeamID uint, hostIDs []uint) (map[uint]struct{}, error)
-
-type GetIncludedHostUUIDMapForAppStoreAppFunc func(ctx context.Context, vppAppTeamID uint) (map[string]string, error)
 
 type GetExcludedHostIDMapForVPPAppFunc func(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error)
 
@@ -2376,17 +2366,11 @@ type ListAndroidEnrolledDevicesForReconcileFunc func(ctx context.Context) ([]*an
 
 type InsertAndroidSetupExperienceSoftwareInstallFunc func(ctx context.Context, payload *fleet.HostAndroidVPPSoftwareInstall) error
 
-type GetAndroidAppConfigurationFunc func(ctx context.Context, applicationID string, teamID uint) ([]byte, error)
-
-type GetAndroidAppConfigurationByAppTeamIDFunc func(ctx context.Context, vppAppTeamID uint) ([]byte, error)
-
 type HasAndroidAppConfigurationChangedFunc func(ctx context.Context, applicationID string, teamID uint, vppAppTeamID *uint, newConfig []byte) (bool, error)
 
 type SetAndroidAppInstallPendingApplyConfigFunc func(ctx context.Context, hostUUID string, applicationID string, policyVersion int64) error
 
 type BulkGetAndroidAppConfigurationsFunc func(ctx context.Context, vppAppTeamIDs []uint) (map[string][]byte, error)
-
-type DeleteAndroidAppConfigurationFunc func(ctx context.Context, adamID string, teamID uint) error
 
 type ListMDMAndroidUUIDsToHostIDsFunc func(ctx context.Context, hostIDs []uint) (map[string]uint, error)
 
@@ -2396,15 +2380,7 @@ type HasVPPAppConfigurationChangedFunc func(ctx context.Context, platform fleet.
 
 type BulkGetVPPAppConfigurationsFunc func(ctx context.Context, vppAppTeamIDs []uint) (map[uint][]byte, error)
 
-type DeleteVPPAppConfigurationFunc func(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) error
-
 type GetInHouseAppConfigurationFunc func(ctx context.Context, inHouseAppID uint) ([]byte, error)
-
-type HasInHouseAppConfigurationChangedFunc func(ctx context.Context, inHouseAppID uint, newConfig []byte) (bool, error)
-
-type BulkGetInHouseAppConfigurationsFunc func(ctx context.Context, inHouseAppIDs []uint) (map[uint][]byte, error)
-
-type DeleteInHouseAppConfigurationFunc func(ctx context.Context, inHouseAppID uint) error
 
 type CreateScimUserFunc func(ctx context.Context, user *fleet.ScimUser) (uint, error)
 
@@ -3476,9 +3452,6 @@ type DataStore struct {
 	UpdateSoftwareTitleNameFunc        UpdateSoftwareTitleNameFunc
 	UpdateSoftwareTitleNameFuncInvoked bool
 
-	UpdateSoftwareTitleAutoUpdateConfigFunc        UpdateSoftwareTitleAutoUpdateConfigFunc
-	UpdateSoftwareTitleAutoUpdateConfigFuncInvoked bool
-
 	ListSoftwareAutoUpdateSchedulesFunc        ListSoftwareAutoUpdateSchedulesFunc
 	ListSoftwareAutoUpdateSchedulesFuncInvoked bool
 
@@ -3602,9 +3575,6 @@ type DataStore struct {
 	IsSoftwareInstallerLabelScopedFunc        IsSoftwareInstallerLabelScopedFunc
 	IsSoftwareInstallerLabelScopedFuncInvoked bool
 
-	IsVPPAppLabelScopedFunc        IsVPPAppLabelScopedFunc
-	IsVPPAppLabelScopedFuncInvoked bool
-
 	IsInHouseAppLabelScopedFunc        IsInHouseAppLabelScopedFunc
 	IsInHouseAppLabelScopedFuncInvoked bool
 
@@ -3649,9 +3619,6 @@ type DataStore struct {
 
 	DeleteSoftwareCategoryFunc        DeleteSoftwareCategoryFunc
 	DeleteSoftwareCategoryFuncInvoked bool
-
-	GetSoftwareCategoryIDsFunc        GetSoftwareCategoryIDsFunc
-	GetSoftwareCategoryIDsFuncInvoked bool
 
 	GetSoftwareCategoryNameToIDMapFunc        GetSoftwareCategoryNameToIDMapFunc
 	GetSoftwareCategoryNameToIDMapFuncInvoked bool
@@ -3845,6 +3812,9 @@ type DataStore struct {
 	GetPatchPolicyFunc        GetPatchPolicyFunc
 	GetPatchPolicyFuncInvoked bool
 
+	SyncPatchPolicyQueriesFunc        SyncPatchPolicyQueriesFunc
+	SyncPatchPolicyQueriesFuncInvoked bool
+
 	ConditionalAccessBypassDeviceFunc        ConditionalAccessBypassDeviceFunc
 	ConditionalAccessBypassDeviceFuncInvoked bool
 
@@ -3991,6 +3961,9 @@ type DataStore struct {
 
 	UpdateQueryAggregatedStatsFunc        UpdateQueryAggregatedStatsFunc
 	UpdateQueryAggregatedStatsFuncInvoked bool
+
+	DeleteOrphanedQueryStatsFunc        DeleteOrphanedQueryStatsFunc
+	DeleteOrphanedQueryStatsFuncInvoked bool
 
 	LoadHostByNodeKeyFunc        LoadHostByNodeKeyFunc
 	LoadHostByNodeKeyFuncInvoked bool
@@ -4904,9 +4877,6 @@ type DataStore struct {
 	InsertVPPClientUserFunc        InsertVPPClientUserFunc
 	InsertVPPClientUserFuncInvoked bool
 
-	ListVPPClientUsersForTokenFunc        ListVPPClientUsersForTokenFunc
-	ListVPPClientUsersForTokenFuncInvoked bool
-
 	SetABMTokenTermsExpiredForOrgNameFunc        SetABMTokenTermsExpiredForOrgNameFunc
 	SetABMTokenTermsExpiredForOrgNameFuncInvoked bool
 
@@ -5441,9 +5411,6 @@ type DataStore struct {
 	GetSoftwareInstallDetailsFunc        GetSoftwareInstallDetailsFunc
 	GetSoftwareInstallDetailsFuncInvoked bool
 
-	ListPendingSoftwareInstallsFunc        ListPendingSoftwareInstallsFunc
-	ListPendingSoftwareInstallsFuncInvoked bool
-
 	ListReadyToExecuteSoftwareInstallsFunc        ListReadyToExecuteSoftwareInstallsFunc
 	ListReadyToExecuteSoftwareInstallsFuncInvoked bool
 
@@ -5503,9 +5470,6 @@ type DataStore struct {
 
 	GetPinnedVersionFunc        GetPinnedVersionFunc
 	GetPinnedVersionFuncInvoked bool
-
-	SetPinnedVersionFunc        SetPinnedVersionFunc
-	SetPinnedVersionFuncInvoked bool
 
 	DeletePinnedVersionFunc        DeletePinnedVersionFunc
 	DeletePinnedVersionFuncInvoked bool
@@ -5773,9 +5737,6 @@ type DataStore struct {
 
 	GetIncludedHostIDMapForVPPAppHostsFunc        GetIncludedHostIDMapForVPPAppHostsFunc
 	GetIncludedHostIDMapForVPPAppHostsFuncInvoked bool
-
-	GetIncludedHostUUIDMapForAppStoreAppFunc        GetIncludedHostUUIDMapForAppStoreAppFunc
-	GetIncludedHostUUIDMapForAppStoreAppFuncInvoked bool
 
 	GetExcludedHostIDMapForVPPAppFunc        GetExcludedHostIDMapForVPPAppFunc
 	GetExcludedHostIDMapForVPPAppFuncInvoked bool
@@ -6197,12 +6158,6 @@ type DataStore struct {
 	InsertAndroidSetupExperienceSoftwareInstallFunc        InsertAndroidSetupExperienceSoftwareInstallFunc
 	InsertAndroidSetupExperienceSoftwareInstallFuncInvoked bool
 
-	GetAndroidAppConfigurationFunc        GetAndroidAppConfigurationFunc
-	GetAndroidAppConfigurationFuncInvoked bool
-
-	GetAndroidAppConfigurationByAppTeamIDFunc        GetAndroidAppConfigurationByAppTeamIDFunc
-	GetAndroidAppConfigurationByAppTeamIDFuncInvoked bool
-
 	HasAndroidAppConfigurationChangedFunc        HasAndroidAppConfigurationChangedFunc
 	HasAndroidAppConfigurationChangedFuncInvoked bool
 
@@ -6211,9 +6166,6 @@ type DataStore struct {
 
 	BulkGetAndroidAppConfigurationsFunc        BulkGetAndroidAppConfigurationsFunc
 	BulkGetAndroidAppConfigurationsFuncInvoked bool
-
-	DeleteAndroidAppConfigurationFunc        DeleteAndroidAppConfigurationFunc
-	DeleteAndroidAppConfigurationFuncInvoked bool
 
 	ListMDMAndroidUUIDsToHostIDsFunc        ListMDMAndroidUUIDsToHostIDsFunc
 	ListMDMAndroidUUIDsToHostIDsFuncInvoked bool
@@ -6227,20 +6179,8 @@ type DataStore struct {
 	BulkGetVPPAppConfigurationsFunc        BulkGetVPPAppConfigurationsFunc
 	BulkGetVPPAppConfigurationsFuncInvoked bool
 
-	DeleteVPPAppConfigurationFunc        DeleteVPPAppConfigurationFunc
-	DeleteVPPAppConfigurationFuncInvoked bool
-
 	GetInHouseAppConfigurationFunc        GetInHouseAppConfigurationFunc
 	GetInHouseAppConfigurationFuncInvoked bool
-
-	HasInHouseAppConfigurationChangedFunc        HasInHouseAppConfigurationChangedFunc
-	HasInHouseAppConfigurationChangedFuncInvoked bool
-
-	BulkGetInHouseAppConfigurationsFunc        BulkGetInHouseAppConfigurationsFunc
-	BulkGetInHouseAppConfigurationsFuncInvoked bool
-
-	DeleteInHouseAppConfigurationFunc        DeleteInHouseAppConfigurationFunc
-	DeleteInHouseAppConfigurationFuncInvoked bool
 
 	CreateScimUserFunc        CreateScimUserFunc
 	CreateScimUserFuncInvoked bool
@@ -8521,13 +8461,6 @@ func (s *DataStore) UpdateSoftwareTitleName(ctx context.Context, id uint, name s
 	return s.UpdateSoftwareTitleNameFunc(ctx, id, name)
 }
 
-func (s *DataStore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error {
-	s.mu.Lock()
-	s.UpdateSoftwareTitleAutoUpdateConfigFuncInvoked = true
-	s.mu.Unlock()
-	return s.UpdateSoftwareTitleAutoUpdateConfigFunc(ctx, titleID, teamID, config)
-}
-
 func (s *DataStore) ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
 	s.mu.Lock()
 	s.ListSoftwareAutoUpdateSchedulesFuncInvoked = true
@@ -8815,13 +8748,6 @@ func (s *DataStore) IsSoftwareInstallerLabelScoped(ctx context.Context, installe
 	return s.IsSoftwareInstallerLabelScopedFunc(ctx, installerID, hostID)
 }
 
-func (s *DataStore) IsVPPAppLabelScoped(ctx context.Context, vppAppTeamID uint, hostID uint) (bool, error) {
-	s.mu.Lock()
-	s.IsVPPAppLabelScopedFuncInvoked = true
-	s.mu.Unlock()
-	return s.IsVPPAppLabelScopedFunc(ctx, vppAppTeamID, hostID)
-}
-
 func (s *DataStore) IsInHouseAppLabelScoped(ctx context.Context, inHouseAppID uint, hostID uint) (bool, error) {
 	s.mu.Lock()
 	s.IsInHouseAppLabelScopedFuncInvoked = true
@@ -8925,13 +8851,6 @@ func (s *DataStore) DeleteSoftwareCategory(ctx context.Context, id uint) error {
 	s.DeleteSoftwareCategoryFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteSoftwareCategoryFunc(ctx, id)
-}
-
-func (s *DataStore) GetSoftwareCategoryIDs(ctx context.Context, teamID uint, names []string) ([]uint, error) {
-	s.mu.Lock()
-	s.GetSoftwareCategoryIDsFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetSoftwareCategoryIDsFunc(ctx, teamID, names)
 }
 
 func (s *DataStore) GetSoftwareCategoryNameToIDMap(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
@@ -9382,6 +9301,13 @@ func (s *DataStore) GetPatchPolicy(ctx context.Context, teamID *uint, titleID ui
 	return s.GetPatchPolicyFunc(ctx, teamID, titleID)
 }
 
+func (s *DataStore) SyncPatchPolicyQueries(ctx context.Context) error {
+	s.mu.Lock()
+	s.SyncPatchPolicyQueriesFuncInvoked = true
+	s.mu.Unlock()
+	return s.SyncPatchPolicyQueriesFunc(ctx)
+}
+
 func (s *DataStore) ConditionalAccessBypassDevice(ctx context.Context, hostID uint) error {
 	s.mu.Lock()
 	s.ConditionalAccessBypassDeviceFuncInvoked = true
@@ -9723,6 +9649,13 @@ func (s *DataStore) UpdateQueryAggregatedStats(ctx context.Context) error {
 	s.UpdateQueryAggregatedStatsFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateQueryAggregatedStatsFunc(ctx)
+}
+
+func (s *DataStore) DeleteOrphanedQueryStats(ctx context.Context) error {
+	s.mu.Lock()
+	s.DeleteOrphanedQueryStatsFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteOrphanedQueryStatsFunc(ctx)
 }
 
 func (s *DataStore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fleet.Host, error) {
@@ -11853,13 +11786,6 @@ func (s *DataStore) InsertVPPClientUser(ctx context.Context, row *fleet.VPPClien
 	return s.InsertVPPClientUserFunc(ctx, row)
 }
 
-func (s *DataStore) ListVPPClientUsersForToken(ctx context.Context, tokenID uint) ([]*fleet.VPPClientUser, error) {
-	s.mu.Lock()
-	s.ListVPPClientUsersForTokenFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListVPPClientUsersForTokenFunc(ctx, tokenID)
-}
-
 func (s *DataStore) SetABMTokenTermsExpiredForOrgName(ctx context.Context, orgName string, expired bool) (wasSet bool, err error) {
 	s.mu.Lock()
 	s.SetABMTokenTermsExpiredForOrgNameFuncInvoked = true
@@ -13106,13 +13032,6 @@ func (s *DataStore) GetSoftwareInstallDetails(ctx context.Context, executionId s
 	return s.GetSoftwareInstallDetailsFunc(ctx, executionId)
 }
 
-func (s *DataStore) ListPendingSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error) {
-	s.mu.Lock()
-	s.ListPendingSoftwareInstallsFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListPendingSoftwareInstallsFunc(ctx, hostID)
-}
-
 func (s *DataStore) ListReadyToExecuteSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error) {
 	s.mu.Lock()
 	s.ListReadyToExecuteSoftwareInstallsFuncInvoked = true
@@ -13251,13 +13170,6 @@ func (s *DataStore) GetPinnedVersion(ctx context.Context, teamID *uint, titleID 
 	s.GetPinnedVersionFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetPinnedVersionFunc(ctx, teamID, titleID)
-}
-
-func (s *DataStore) SetPinnedVersion(ctx context.Context, teamID *uint, titleID uint, version string) error {
-	s.mu.Lock()
-	s.SetPinnedVersionFuncInvoked = true
-	s.mu.Unlock()
-	return s.SetPinnedVersionFunc(ctx, teamID, titleID, version)
 }
 
 func (s *DataStore) DeletePinnedVersion(ctx context.Context, teamID *uint, titleID uint) error {
@@ -13881,13 +13793,6 @@ func (s *DataStore) GetIncludedHostIDMapForVPPAppHosts(ctx context.Context, vppA
 	s.GetIncludedHostIDMapForVPPAppHostsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetIncludedHostIDMapForVPPAppHostsFunc(ctx, vppAppTeamID, hostIDs)
-}
-
-func (s *DataStore) GetIncludedHostUUIDMapForAppStoreApp(ctx context.Context, vppAppTeamID uint) (map[string]string, error) {
-	s.mu.Lock()
-	s.GetIncludedHostUUIDMapForAppStoreAppFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetIncludedHostUUIDMapForAppStoreAppFunc(ctx, vppAppTeamID)
 }
 
 func (s *DataStore) GetExcludedHostIDMapForVPPApp(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error) {
@@ -14870,20 +14775,6 @@ func (s *DataStore) InsertAndroidSetupExperienceSoftwareInstall(ctx context.Cont
 	return s.InsertAndroidSetupExperienceSoftwareInstallFunc(ctx, payload)
 }
 
-func (s *DataStore) GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) ([]byte, error) {
-	s.mu.Lock()
-	s.GetAndroidAppConfigurationFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetAndroidAppConfigurationFunc(ctx, applicationID, teamID)
-}
-
-func (s *DataStore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) ([]byte, error) {
-	s.mu.Lock()
-	s.GetAndroidAppConfigurationByAppTeamIDFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetAndroidAppConfigurationByAppTeamIDFunc(ctx, vppAppTeamID)
-}
-
 func (s *DataStore) HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, vppAppTeamID *uint, newConfig []byte) (bool, error) {
 	s.mu.Lock()
 	s.HasAndroidAppConfigurationChangedFuncInvoked = true
@@ -14903,13 +14794,6 @@ func (s *DataStore) BulkGetAndroidAppConfigurations(ctx context.Context, vppAppT
 	s.BulkGetAndroidAppConfigurationsFuncInvoked = true
 	s.mu.Unlock()
 	return s.BulkGetAndroidAppConfigurationsFunc(ctx, vppAppTeamIDs)
-}
-
-func (s *DataStore) DeleteAndroidAppConfiguration(ctx context.Context, adamID string, teamID uint) error {
-	s.mu.Lock()
-	s.DeleteAndroidAppConfigurationFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteAndroidAppConfigurationFunc(ctx, adamID, teamID)
 }
 
 func (s *DataStore) ListMDMAndroidUUIDsToHostIDs(ctx context.Context, hostIDs []uint) (map[string]uint, error) {
@@ -14940,39 +14824,11 @@ func (s *DataStore) BulkGetVPPAppConfigurations(ctx context.Context, vppAppTeamI
 	return s.BulkGetVPPAppConfigurationsFunc(ctx, vppAppTeamIDs)
 }
 
-func (s *DataStore) DeleteVPPAppConfiguration(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) error {
-	s.mu.Lock()
-	s.DeleteVPPAppConfigurationFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteVPPAppConfigurationFunc(ctx, platform, adamID, teamID)
-}
-
 func (s *DataStore) GetInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) ([]byte, error) {
 	s.mu.Lock()
 	s.GetInHouseAppConfigurationFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetInHouseAppConfigurationFunc(ctx, inHouseAppID)
-}
-
-func (s *DataStore) HasInHouseAppConfigurationChanged(ctx context.Context, inHouseAppID uint, newConfig []byte) (bool, error) {
-	s.mu.Lock()
-	s.HasInHouseAppConfigurationChangedFuncInvoked = true
-	s.mu.Unlock()
-	return s.HasInHouseAppConfigurationChangedFunc(ctx, inHouseAppID, newConfig)
-}
-
-func (s *DataStore) BulkGetInHouseAppConfigurations(ctx context.Context, inHouseAppIDs []uint) (map[uint][]byte, error) {
-	s.mu.Lock()
-	s.BulkGetInHouseAppConfigurationsFuncInvoked = true
-	s.mu.Unlock()
-	return s.BulkGetInHouseAppConfigurationsFunc(ctx, inHouseAppIDs)
-}
-
-func (s *DataStore) DeleteInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) error {
-	s.mu.Lock()
-	s.DeleteInHouseAppConfigurationFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteInHouseAppConfigurationFunc(ctx, inHouseAppID)
 }
 
 func (s *DataStore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (uint, error) {

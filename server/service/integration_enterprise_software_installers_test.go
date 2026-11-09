@@ -3599,8 +3599,8 @@ func (s *integrationEnterpriseTestSuite) TestEditInstallerCarriesStoredDisplayNa
 		TeamID:        &team.ID,
 	}, http.StatusOK, "")
 	s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), fmt.Sprintf(
-		`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": %q, "fleet_name": %q, "team_id": %d, "fleet_id": %d, "self_service": true, "software_title_id": %d, "software_display_name": %q, "pinned_version": null}`,
-		team.Name, team.Name, team.ID, team.ID, titleID, override), 0)
+		`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "fleet_name": %q, "fleet_id": %d, "self_service": true, "software_title_id": %d, "software_display_name": %q, "pinned_version": null}`,
+		team.Name, team.ID, titleID, override), 0)
 }
 
 func (s *integrationEnterpriseTestSuite) TestSoftwareInstallersWithoutBundleIdentifier() {

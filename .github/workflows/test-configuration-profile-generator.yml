@@ -17,8 +17,8 @@ on:
       - "website/api/helpers/get-apple-schema-lifecycle.js"
       - "website/api/helpers/get-apple-platforms-named.js"
       - "website/api/controllers/get-llm-generated-configuration-profile.js"
-      - "website/api/controllers/get-llm-generated-configuration-profile-name-and-description.js"
       - "website/api/controllers/profile-generator/**"
+      - "website/api/helpers/profile-generator/**"
       - "website/api/models/ProfileGeneratorRegistration.js"
       - "website/.mocharc.json"
 
@@ -81,7 +81,7 @@ jobs:
       - run: rm -f .eslintrc.js
 
       # Get dependencies (including dev deps)
-      - run: cd website/ && npm install
+      - run: cd website/ && npm ci
 
       # Run the configuration profile generator tests
       - run: cd website/ && npm run test-profile-generator

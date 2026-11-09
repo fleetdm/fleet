@@ -17,7 +17,7 @@ spec:
       conditional_access_enabled: null
     mdm:
       enable_disk_encryption: false
-      enable_recovery_lock_password: false
+      macos_recovery_lock_password_enabled: false
       name_template: null
       windows_require_bitlocker_pin: null
       apple_settings:
@@ -45,8 +45,8 @@ spec:
         apple_enable_release_device_manually: false
         macos_enable_bootstrap_package_during_manual_enrollment: false
         macos_enable_bootstrap_package_during_migration: false
-        require_all_software_macos: false
-        require_all_software_windows: false
+        macos_require_all_software: false
+        windows_require_all_software: false
         macos_script: null
         software: null
       macos_updates:
@@ -93,7 +93,7 @@ spec:
       conditional_access_enabled: null
     mdm:
       enable_disk_encryption: false
-      enable_recovery_lock_password: false
+      macos_recovery_lock_password_enabled: false
       name_template: null
       windows_require_bitlocker_pin: null
       apple_settings:

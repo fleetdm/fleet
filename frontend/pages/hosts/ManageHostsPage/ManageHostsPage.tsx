@@ -602,7 +602,7 @@ const ManageHostsPage = ({
     }
   );
   const hostActivityAutomations =
-    teamResponse?.team?.webhook_settings?.host_activities_webhook;
+    teamResponse?.fleet?.webhook_settings?.host_activities_webhook;
 
   const {
     data: policy,
@@ -2011,11 +2011,7 @@ const ManageHostsPage = ({
     }
 
     let disableRunScriptBatchTooltipContent: React.ReactNode;
-    if (config?.server_settings?.scripts_disabled) {
-      disableRunScriptBatchTooltipContent = (
-        <>Running scripts is disabled in organization settings.</>
-      );
-    } else if (isAllTeamsSelected && isPremiumTier) {
+    if (isAllTeamsSelected && isPremiumTier) {
       disableRunScriptBatchTooltipContent = "Select a fleet to run a script.";
     } else if (isAllMatchingHostsSelected) {
       if (runScriptBatchFilterNotSupported) {

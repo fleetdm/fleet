@@ -287,7 +287,7 @@ func fakeFleetResponse(route Route, params map[string]string, query url.Values) 
 
 	switch route.Path {
 	case "/api/v1/fleet/fleets":
-		return map[string]any{"teams": []any{map[string]any{"id": 1, "name": "Workstations"}}}, true
+		return map[string]any{"fleets": []any{map[string]any{"id": 1, "name": "Workstations"}}}, true
 	case "/api/v1/fleet/fleets/:id/policies", "/api/v1/fleet/global/policies":
 		return map[string]any{"policies": []any{policy}}, true
 	case "/api/v1/fleet/fleets/:fleet_id/policies/:policy_id", "/api/v1/fleet/global/policies/:id":

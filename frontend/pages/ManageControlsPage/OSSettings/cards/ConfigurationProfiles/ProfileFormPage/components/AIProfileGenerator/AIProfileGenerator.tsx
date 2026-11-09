@@ -61,7 +61,7 @@ const isPlatformMDMOn = (
 ) =>
   platform === "apple"
     ? !!mdm?.enabled_and_configured
-    : !!mdm?.windows_enabled_and_configured;
+    : !!mdm?.windows_mdm_enabled;
 
 /** The platforms the AI can generate for with their MDM turned on. */
 export const getAIPlatformOptions = (mdm?: IMdmConfig) =>

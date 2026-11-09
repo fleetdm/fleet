@@ -836,7 +836,6 @@ type Datastore interface {
 	// don't retroactively change past activities.
 	GetSoftwareTitleDisplayName(ctx context.Context, teamID *uint, titleID uint) (*string, error)
 	UpdateSoftwareTitleName(ctx context.Context, id uint, name string) error
-	UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config SoftwareAutoUpdateConfig) error
 	ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, source string, optionalFilter ...SoftwareAutoUpdateScheduleFilter) ([]SoftwareAutoUpdateSchedule, error)
 
 	// InsertSoftwareInstallRequest tracks a new request to install the provided
@@ -974,9 +973,6 @@ type Datastore interface {
 	// given host ID by labels.
 	IsSoftwareInstallerLabelScoped(ctx context.Context, installerID, hostID uint) (bool, error)
 
-	// IsVPPAppLabelScoped returns whether or not the given vppAppTeamID is scoped to the given hostID by labels.
-	IsVPPAppLabelScoped(ctx context.Context, vppAppTeamID, hostID uint) (bool, error)
-
 	// IsInHouseAppLabelScoped returns whether or not the given inHouseAppID is scoped to the given hostID by labels.
 	IsInHouseAppLabelScoped(ctx context.Context, inHouseAppID, hostID uint) (bool, error)
 
@@ -1010,8 +1006,6 @@ type Datastore interface {
 	BatchNewSoftwareCategories(ctx context.Context, teamID uint, names []string) error
 	UpdateSoftwareCategory(ctx context.Context, id uint, name string) (*SoftwareCategory, error)
 	DeleteSoftwareCategory(ctx context.Context, id uint) error
-	// GetSoftwareCategoryIDs the list of IDs that correspond to the given list of software category names on a team.
-	GetSoftwareCategoryIDs(ctx context.Context, teamID uint, names []string) ([]uint, error)
 	// GetSoftwareCategoryNameToIDMap returns a map of software category names to their IDs for the given names on a team.
 	// Only categories that exist in the database are included in the map.
 	GetSoftwareCategoryNameToIDMap(ctx context.Context, teamID uint, names []string) (map[string]uint, error)
@@ -1212,6 +1206,10 @@ type Datastore interface {
 	GetPoliciesForConditionalAccess(ctx context.Context, teamID uint, platform string) ([]uint, error)
 	// GetPatchPolicy returns the patch policy associated with the title id
 	GetPatchPolicy(ctx context.Context, teamID *uint, titleID uint) (*PatchPolicyData, error)
+	// SyncPatchPolicyQueries regenerates each patch policy's query from its title's
+	// active Fleet-maintained app installer, clearing the results of any policy whose
+	// query changed. A failure on one policy doesn't stop the others.
+	SyncPatchPolicyQueries(ctx context.Context) error
 
 	// ConditionalAccessBypassDevice lets the host skip the conditional access check next time it fails
 	ConditionalAccessBypassDevice(ctx context.Context, hostID uint) error
@@ -1346,6 +1344,9 @@ type Datastore interface {
 	// Aggregated Stats
 
 	UpdateQueryAggregatedStats(ctx context.Context) error
+
+	// DeleteOrphanedQueryStats deletes the stats of reports that no longer exist.
+	DeleteOrphanedQueryStats(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Following are the set of APIs used by osquery hosts:
@@ -2084,7 +2085,7 @@ type Datastore interface {
 	GetHostRecoveryLockPasswordStatus(ctx context.Context, hostUUID string) (*HostMDMRecoveryLockPassword, error)
 
 	// GetHostsForRecoveryLockAction returns host UUIDs that need recovery lock password action mapped to a bool if a password is already saved:
-	// - Teams with enable_recovery_lock_password = true
+	// - Teams with macos_recovery_lock_password_enabled = true
 	// - macOS Apple Silicon hosts that are MDM enrolled
 	// - No password saved or status is NULL (ready for command)
 	GetHostsForRecoveryLockAction(ctx context.Context) (map[string]bool, error)
@@ -2128,7 +2129,7 @@ type Datastore interface {
 
 	// ClaimHostsForRecoveryLockClear returns host UUIDs that need their recovery lock
 	// cleared and marks them as pending. Returns hosts where the team/appconfig has
-	// enable_recovery_lock_password=false and either:
+	// macos_recovery_lock_password_enabled=false and either:
 	// - operation_type='install' and status='verified' (new clears), or
 	// - operation_type='remove' and status=NULL (retries after failed enqueue)
 	ClaimHostsForRecoveryLockClear(ctx context.Context, clearCommandUUID string) ([]string, error)
@@ -2613,9 +2614,6 @@ type Datastore interface {
 	// can re-call after a partial-failure response from Apple without having
 	// to read first.
 	InsertVPPClientUser(ctx context.Context, row *VPPClientUser) error
-	// ListVPPClientUsersForToken returns all rows for the given vpp_token_id,
-	// ordered by id. Useful for diagnostics.
-	ListVPPClientUsersForToken(ctx context.Context, tokenID uint) ([]*VPPClientUser, error)
 
 	// SetABMTokenTermsExpiredForOrgName is a specialized method to set only the
 	// terms_expired flag of the ABM token identified by the organization name.
@@ -3431,13 +3429,9 @@ type Datastore interface {
 	// GetSoftwareInstallDetails returns details required to fetch and
 	// run software installers
 	GetSoftwareInstallDetails(ctx context.Context, executionId string) (*SoftwareInstallDetails, error)
-	// ListPendingSoftwareInstalls returns a list of software
-	// installer execution IDs that have not yet been run for a given host
-	ListPendingSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error)
-	// ListReadyToExecuteSoftwareInstalls is like ListPendingSoftwareInstalls
-	// except that it only returns software installs that are ready to execute
-	// ("activated" in the upcoming activities queue, available for orbit to
-	// process).
+	// ListReadyToExecuteSoftwareInstalls returns the execution IDs of the host's software installs
+	// that are ready to execute ("activated" in the upcoming activities queue, available for orbit
+	// to process).
 	ListReadyToExecuteSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error)
 
 	// GetHostLastInstallData returns the data for the last installation of a package on a host.
@@ -3527,9 +3521,6 @@ type Datastore interface {
 	// GetPinnedVersion returns the pinned version for a team and software title.
 	GetPinnedVersion(ctx context.Context, teamID *uint, titleID uint) (*string, error)
 
-	// SetPinnedVersion upserts the pinned version for the team and title.
-	SetPinnedVersion(ctx context.Context, teamID *uint, titleID uint, version string) error
-
 	// DeletePinnedVersion removes the pin for the given team and title.
 	DeletePinnedVersion(ctx context.Context, teamID *uint, titleID uint) error
 
@@ -3540,6 +3531,8 @@ type Datastore interface {
 	// UpdateInstallerScriptsAndQueries writes the scripts and queries onto an
 	// installer still on the given version, cancelling pending installs as an edit
 	// does. The version can't be cached as a second row, being the dedup token.
+	// The title's patch policy query is then regenerated, as SyncPatchPolicyQueries
+	// does.
 	UpdateInstallerScriptsAndQueries(ctx context.Context, installerID uint, version string, installScript string, uninstallScript string, patchQuery string, appOpenQuery string) error
 
 	// GetCachedFMAInstallerMetadata returns the cached metadata for a specific
@@ -3836,10 +3829,6 @@ type Datastore interface {
 	// GetIncludedHostIDMapForVPPAppHosts returns the hosts among hostIDs that are in scope for the given VPP app, based
 	// on label membership.
 	GetIncludedHostIDMapForVPPAppHosts(ctx context.Context, vppAppTeamID uint, hostIDs []uint) (map[uint]struct{}, error)
-
-	// GetIncludedHostUUIDMapForAppStoreApp returns the Android hosts in the app's label scope that are on
-	// their own policy, as host UUID to policy ID (the host UUID).
-	GetIncludedHostUUIDMapForAppStoreApp(ctx context.Context, vppAppTeamID uint) (map[string]string, error)
 
 	// GetExcludedHostIDMapForVPPApp gets the set of hosts that are NOT targeted/in scope for the
 	// given VPP app, based on label membership.
@@ -4210,9 +4199,6 @@ type Datastore interface {
 	// VPP app install record for the setup experience flow.
 	InsertAndroidSetupExperienceSoftwareInstall(ctx context.Context, payload *HostAndroidVPPSoftwareInstall) error
 
-	// GetAndroidAppConfiguration retrieves the configuration for an Android app by application ID and team
-	GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) ([]byte, error)
-	GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) ([]byte, error)
 	// HasAndroidAppConfigurationChanged compares newConfig with the configuration of the version with vppAppTeamID, or of the first-added version when vppAppTeamID is nil.
 	HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, vppAppTeamID *uint, newConfig []byte) (bool, error)
 
@@ -4222,9 +4208,6 @@ type Datastore interface {
 	// versions with the given ids and returns them indexed by the app id.
 	BulkGetAndroidAppConfigurations(ctx context.Context, vppAppTeamIDs []uint) (map[string][]byte, error)
 
-	// DeleteAndroidAppConfiguration removes an Android app configuration.
-	DeleteAndroidAppConfiguration(ctx context.Context, adamID string, teamID uint) error
-
 	ListMDMAndroidUUIDsToHostIDs(ctx context.Context, hostIDs []uint) (map[string]uint, error)
 
 	// VPP App Configuration (iOS/iPadOS)
@@ -4233,13 +4216,9 @@ type Datastore interface {
 	HasVPPAppConfigurationChanged(ctx context.Context, platform InstallableDevicePlatform, adamID string, teamID uint, vppAppTeamID *uint, newConfig []byte) (bool, error)
 	// BulkGetVPPAppConfigurations returns the configurations of the versions with the given ids, indexed by version id.
 	BulkGetVPPAppConfigurations(ctx context.Context, vppAppTeamIDs []uint) (map[uint][]byte, error)
-	DeleteVPPAppConfiguration(ctx context.Context, platform InstallableDevicePlatform, adamID string, teamID uint) error
 
 	// In-House App Configuration (iOS/iPadOS).
 	GetInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) ([]byte, error)
-	HasInHouseAppConfigurationChanged(ctx context.Context, inHouseAppID uint, newConfig []byte) (bool, error)
-	BulkGetInHouseAppConfigurations(ctx context.Context, inHouseAppIDs []uint) (map[uint][]byte, error)
-	DeleteInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM

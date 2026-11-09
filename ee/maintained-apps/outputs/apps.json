@@ -1846,7 +1846,7 @@
       "name": "coconutBattery",
       "slug": "coconutbattery/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.coconut-flavour.coconutBattery-Menu",
+      "unique_identifier": "com.coconut-flavour.coconutBattery",
       "description": "coconutBattery is a tool to show live information about the batteries in various devices."
     },
     {
@@ -7275,6 +7275,13 @@
       "description": "Raycast is an app that allows you to control your tools with a few keystrokes."
     },
     {
+      "name": "Read AI",
+      "slug": "read-ai/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.readai.desktop",
+      "description": "Read AI is a meeting recorder, transcriber and summariser."
+    },
+    {
       "name": "Readest",
       "slug": "readest/darwin",
       "platform": "darwin",
@@ -7502,7 +7509,7 @@
       "name": "RoboForm",
       "slug": "roboform/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.SiberSystems.RoboForm",
+      "unique_identifier": "com.sibersystems.RoboFormMac",
       "description": "RoboForm is a password manager and form filler application."
     },
     {
