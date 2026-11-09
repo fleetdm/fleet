@@ -19,7 +19,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 // SMTP settings names returned from API, these map to SMTPAuthType and
@@ -1348,16 +1347,6 @@ func (c *AppConfig) Copy() *AppConfig {
 		copy(aq, *c.Features.AdditionalQueries)
 		clone.Features.AdditionalQueries = &aq
 	}
-	if c.Features.DetailQueryOverrides != nil {
-		clone.Features.DetailQueryOverrides = make(map[string]*string, len(c.Features.DetailQueryOverrides))
-		for k, v := range c.Features.DetailQueryOverrides {
-			var s *string
-			if v != nil {
-				s = ptr.String(*v)
-			}
-			clone.Features.DetailQueryOverrides[k] = s
-		}
-	}
 	clone.Features.VulnerabilityExposureHistoricalReporting = c.Features.VulnerabilityExposureHistoricalReporting.Copy()
 	if c.AgentOptions != nil {
 		ao := make(json.RawMessage, len(*c.AgentOptions))
@@ -1948,8 +1937,7 @@ type ActivityExpirySettings struct {
 type Features struct {
 	EnableHostUsers         bool                   `json:"enable_host_users"`
 	EnableSoftwareInventory bool                   `json:"enable_software_inventory"`
-	AdditionalQueries       *json.RawMessage       `json:"additional_queries,omitempty"`     //nolint:apiparamcheck // osquery host-details queries
-	DetailQueryOverrides    map[string]*string     `json:"detail_query_overrides,omitempty"` //nolint:apiparamcheck // osquery detail-query overrides
+	AdditionalQueries       *json.RawMessage       `json:"additional_queries,omitempty"` //nolint:apiparamcheck // osquery host-details queries
 	HistoricalData          HistoricalDataSettings `json:"historical_data"`
 
 	// VulnerabilityExposureHistoricalReporting holds the GitOps-managed default
@@ -2052,16 +2040,6 @@ func (f *Features) Copy() *Features {
 		aq := make(json.RawMessage, len(*f.AdditionalQueries))
 		copy(aq, *f.AdditionalQueries)
 		clone.AdditionalQueries = &aq
-	}
-	if f.DetailQueryOverrides != nil {
-		clone.DetailQueryOverrides = make(map[string]*string, len(f.DetailQueryOverrides))
-		for k, v := range f.DetailQueryOverrides {
-			var s *string
-			if v != nil {
-				s = ptr.String(*v)
-			}
-			clone.DetailQueryOverrides[k] = s
-		}
 	}
 
 	clone.VulnerabilityExposureHistoricalReporting = f.VulnerabilityExposureHistoricalReporting.Copy()

@@ -51,7 +51,8 @@ func normalizeVersion(version string) string {
 // appExists reports whether the app is installed at the expected version. When
 // it's only found somewhere the manifest's exists query doesn't read, the
 // second value says why the exists query can't be checked on this runner.
-func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifier, appVersion, patchVersion, appPath, existsQuery string) (bool, string, error) {
+func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifier, appVersion, patchedQuery, appPath, existsQuery string) (bool, string, error) {
+	patchVersion := patchedQueryVersion(patchedQuery)
 	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 

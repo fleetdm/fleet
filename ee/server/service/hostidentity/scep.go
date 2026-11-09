@@ -1,6 +1,7 @@
 package hostidentity
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/rsa"
@@ -105,7 +106,9 @@ func RegisterSCEP(
 	return nil
 }
 
-// challengeMiddleware checks that ChallengePassword matches an enrollment secret
+// challengeMiddleware checks that ChallengePassword matches an enrollment secret, and refuses to issue a certificate for a name that
+// already holds a valid one, unless that certificate was never used to enroll a host and the request is for the same key. Replacing any
+// other certificate requires a renewal request, which proves possession of the existing key.
 func challengeMiddleware(ds fleet.Datastore, next scepserver.CSRSignerContext) scepserver.CSRSignerContextFunc {
 	return func(ctx context.Context, m *scep.CSRReqMessage) (*x509.Certificate, error) {
 		// Check if this is a renewal request by looking for the custom Fleet extension
@@ -125,8 +128,36 @@ func challengeMiddleware(ds fleet.Datastore, next scepserver.CSRSignerContext) s
 		case err != nil:
 			return nil, fmt.Errorf("verifying enrollment secret: %w", err)
 		}
+
+		commonName := m.CSR.Subject.CommonName
+		existingCert, err := ds.GetHostIdentityCertByName(ctx, commonName)
+		switch {
+		case fleet.IsNotFound(err):
+			return next.SignCSRContext(ctx, m)
+		case err != nil:
+			return nil, fmt.Errorf("checking existing host identity certificate: %w", err)
+		}
+
+		// The agent retries with the key it already holds when the issued certificate never reached it, which is before it can enroll.
+		// Only the holder of the private key can sign a CSR for that public key, so this does not let someone else take over the name.
+		if existingCert.HostID != nil || !csrSignedWithKey(m.CSR, existingCert.PublicKeyRaw) {
+			return nil, fmt.Errorf("a valid host identity certificate already exists for %q, renew it with its existing key", commonName)
+		}
 		return next.SignCSRContext(ctx, m)
 	}
+}
+
+// csrSignedWithKey returns whether the CSR has a valid signature and its public key is publicKeyRaw (an uncompressed ECDSA point).
+func csrSignedWithKey(csr *x509.CertificateRequest, publicKeyRaw []byte) bool {
+	if csr.CheckSignature() != nil {
+		return false
+	}
+	key, ok := csr.PublicKey.(*ecdsa.PublicKey)
+	if !ok {
+		return false
+	}
+	csrKeyRaw, err := types.CreateECDSAPublicKeyRaw(key)
+	return err == nil && bytes.Equal(csrKeyRaw, publicKeyRaw)
 }
 
 // hasRenewalExtension checks if the CSR contains the renewal extension

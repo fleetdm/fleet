@@ -1,15 +1,13 @@
 # Uninstall the new Microsoft Teams (MSIX, PackageFamilyName MSTeams_8wekyb3d8bbwe).
 #
-# The Fleet agent runs as Local System. Removing the system-provisioned new Teams the
-# naive way (Remove-AppxProvisionedPackage / Remove-AppxPackage with -ErrorAction Stop)
-# fails with exit 1603 / "Removal failed. Please contact your software vendor." because a
-# single non-fatal cmdlet error aborts the whole script even when the package does end up
-# removed. Instead we remove best-effort (no -ErrorAction Stop abort), then re-check with
-# Get-AppxPackage and exit 0 when the package is actually gone. Treat "already absent" as
-# success so the script is idempotent.
+# The removal cmdlets can report errors for removals that succeed, and Windows finishes
+# removing the package in the background after they return. So the script removes
+# best-effort, then waits for the package to be gone and exits 1603 only if it's still
+# there when the wait runs out. Already absent counts as success.
 
 $packageFamilyName = $PACKAGE_ID
-$timeoutSeconds = 300  # 5 minute timeout
+# Under Fleet's 5-minute script timeout, so a failure exits 1603 instead of being killed.
+$timeoutSeconds = 240
 $start = Get-Date
 
 # Get-AppxProvisionedPackage objects have no PackageFamilyName. Their PackageName is
@@ -17,16 +15,34 @@ $start = Get-Date
 function Get-ProvisionedPackage {
   param([string]$pfn)
   $packageNameLike = $pfn -replace '_', '_*_'
-  Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue |
+  Get-AppxProvisionedPackage -Online -ErrorAction Stop |
     Where-Object { $_.PackageName -like $packageNameLike }
 }
 
+# A provisioned package or a signed-in user's copy counts as left behind. A signed-out
+# user's copy counts unless Windows marked it "(pending removal)", which finishes at their
+# next sign-in. A Staged entry isn't registered for anyone. The queries stop on errors so
+# a failed query isn't read as nothing left.
 function Test-PackagePresent {
   param([string]$pfn)
-  $prov = Get-ProvisionedPackage -pfn $pfn
-  $inst = Get-AppxPackage -AllUsers -PackageTypeFilter Main -ErrorAction SilentlyContinue |
+  if (@(Get-ProvisionedPackage -pfn $pfn).Count -gt 0) {
+    return $true
+  }
+  $installed = Get-AppxPackage -AllUsers -PackageTypeFilter Main -ErrorAction Stop |
     Where-Object { $_.PackageFamilyName -eq $pfn }
-  return (($prov | Measure-Object).Count -gt 0) -or (($inst | Measure-Object).Count -gt 0)
+  foreach ($package in @($installed)) {
+    foreach ($user in @($package.PackageUserInformation)) {
+      $state = $user.InstallState
+      if ($state -like 'Staged*') {
+        continue
+      }
+      if ($state -notlike '*(pending removal)' -or
+          (Test-Path "Registry::HKEY_USERS\$($user.UserSecurityId.Sid)" -ErrorAction Stop)) {
+        return $true
+      }
+    }
+  }
+  return $false
 }
 
 try {
@@ -36,8 +52,7 @@ try {
   Stop-Process -Name "Teams" -Force -ErrorAction SilentlyContinue
 
   # Remove the machine-wide provisioning so the package is not re-registered at next sign-in.
-  $provisioned = Get-ProvisionedPackage -pfn $packageFamilyName
-  foreach ($pkg in $provisioned) {
+  foreach ($pkg in @(Get-ProvisionedPackage -pfn $packageFamilyName)) {
     Write-Host "Removing provisioned package: $($pkg.PackageName)"
     try {
       Remove-AppxProvisionedPackage -Online -PackageName $pkg.PackageName -AllUsers -ErrorAction Stop | Out-String | Write-Host
@@ -50,7 +65,7 @@ try {
   # Remove the registered package for every user profile.
   $installed = Get-AppxPackage -AllUsers -PackageTypeFilter Main -ErrorAction SilentlyContinue |
     Where-Object { $_.PackageFamilyName -eq $packageFamilyName }
-  foreach ($app in $installed) {
+  foreach ($app in @($installed)) {
     Write-Host "Removing installed package: $($app.PackageFullName)"
     try {
       Remove-AppxPackage -Package $app.PackageFullName -AllUsers -ErrorAction Stop | Out-String | Write-Host
@@ -60,21 +75,22 @@ try {
     if ((New-TimeSpan -Start $start).TotalSeconds -gt $timeoutSeconds) { break }
   }
 
-  # Verify the outcome rather than trusting cmdlet exit status: a non-fatal error above is
-  # fine as long as the package is actually gone.
-  if (-not (Test-PackagePresent -pfn $packageFamilyName)) {
-    Write-Host "Microsoft Teams ($packageFamilyName) is no longer present."
-    Exit 0
-  }
+  do {
+    try {
+      if (-not (Test-PackagePresent -pfn $packageFamilyName)) {
+        Write-Host "Microsoft Teams ($packageFamilyName) is no longer present."
+        Exit 0
+      }
+    } catch {
+      Write-Host "Checking for Microsoft Teams failed, retrying: $($_.Exception.Message)"
+    }
+    Start-Sleep -Seconds 5
+  } while ((New-TimeSpan -Start $start).TotalSeconds -lt $timeoutSeconds)
 
   Write-Host "Microsoft Teams ($packageFamilyName) is still present after removal attempts."
   Exit 1603
 
 } catch {
   Write-Host "Error: $_"
-  if (-not (Test-PackagePresent -pfn $packageFamilyName)) {
-    Write-Host "Package is absent despite the error; treating as success."
-    Exit 0
-  }
   Exit 1603
 }

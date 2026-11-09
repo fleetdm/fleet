@@ -84,8 +84,8 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 		// OK
 	case fleet.IsNotFound(err):
 		// Fall back to the orbit node key: with the WebSocket transport active,
-		// orbit calls the distributed endpoints on behalf of osquery and only
-		// has its own node key. Both keys resolve to the same host row, so
+		// orbit calls the distributed (and, with osquery/config nudges, config)
+		// endpoints on behalf of osquery and only has its own node key. Both keys resolve to the same host row, so
 		// authorization is unchanged. The fallback runs only on an osquery-key
 		// miss and only with the transport enabled, keeping legacy auth
 		// semantics (and the single-query hot path) intact otherwise.
@@ -448,6 +448,9 @@ type getClientConfigRequest struct {
 	// decoded from the body even in header-auth mode, where only node_key is
 	// ignored.
 	ETag *string `json:"etag"`
+
+	// fallbackChange is set from fleet.OsqueryConfigFallbackChangeHeader.
+	fallbackChange bool
 }
 
 func (r *getClientConfigRequest) hostNodeKey() string {
@@ -462,6 +465,7 @@ func (getClientConfigRequest) DecodeRequest(
 	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
 		return nil, err
 	}
+	req.fallbackChange = r.Header.Get(fleet.OsqueryConfigFallbackChangeHeader) != ""
 	return req, nil
 }
 
@@ -560,6 +564,9 @@ func clientConfigETagMatches(clientETag *string, etag string) bool {
 
 func getClientConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getClientConfigRequest)
+	if req.fallbackChange {
+		recordOsqueryConfigFallbackChange(ctx)
+	}
 
 	// GetClientConfigWithETag may answer without building the config at all;
 	// see its interface docs in server/fleet/service.go for the contract.
@@ -4138,9 +4145,10 @@ func (svc *Service) preProcessOsqueryResults(
 	type parsedName struct {
 		scope fleet.TeamScopedQueryName
 		ok    bool
-		// capped marks a name left unresolved because the submission hit the
-		// distinct-name cap, as opposed to one Fleet does not know. The two must
-		// stay distinguishable: unknown names pass through, capped ones drop.
+		// capped marks a name Fleet declined to resolve (too long, or past the
+		// submission's distinct-name cap), as opposed to one Fleet does not know.
+		// The two must stay distinguishable: unknown names pass through, capped
+		// ones drop.
 		capped bool
 	}
 	parsedByRaw := make(map[string]parsedName)
@@ -4155,6 +4163,10 @@ func (svc *Service) preProcessOsqueryResults(
 			continue
 		}
 		teamID, queryName, err := getQueryNameAndTeamIDFromResult(queryResult.QueryName)
+		if errors.Is(err, errScheduledQueryNameTooLong) {
+			parsedByRaw[queryResult.QueryName] = parsedName{capped: true}
+			continue
+		}
 		if errors.Is(err, fleet.ErrLegacyQueryPack) {
 			// Legacy query. Cannot be stored and cannot infer team ID, but still
 			// used by some customers.
@@ -4893,31 +4905,40 @@ var (
 func findPackDelimiterString(scheduledQueryName string) string {
 	scheduledQueryName = scheduledQueryName[4:] // always starts with "pack"
 
-	count := dcounter.FindAllString(scheduledQueryName, -1)
+	markers := dcounter.FindAllStringIndex(scheduledQueryName, -1)
 
 	// If Global or team-<team_id> does not appear, then the
 	// pack_delimiter is invalid.
-	if len(count) == 0 {
+	if len(markers) == 0 {
 		return ""
 	}
 
-	if len(count) == 1 {
+	if len(markers) == 1 {
 		matches := pattern.FindStringSubmatch(scheduledQueryName)
 		if len(matches) > 1 {
 			return matches[1]
 		}
+		return ""
 	}
 
-	// Handle edge cases where "Global" or "team-<team_id>"" appears multiple times in the query
-	// name. Regex is not pre-compiled, so it is a less performant operation.
-	// Go's regexp doesn't support backreferences so we have to perform some manual work.
-	if len(count) > 1 {
-		for l := 1; l < len(scheduledQueryName); l++ {
-			sep := scheduledQueryName[:l]
-			rest := scheduledQueryName[l:]
-			pattern := fmt.Sprintf(`^(?:(Global)|(team-\d+))%s.+`, regexp.QuoteMeta(sep))
-			matched, _ := regexp.MatchString(pattern, rest)
-			if matched {
+	// "Global" or "team-<team_id>" appears multiple times in the query name, so the delimiter is
+	// the text before the first marker that is repeated right after it, ahead of the query name.
+	for _, marker := range markers {
+		start, end := marker[0], marker[1]
+		if start == 0 {
+			continue
+		}
+		sep := scheduledQueryName[:start]
+
+		// The team ID match is greedy, but a delimiter starting with a digit belongs after a
+		// shorter team ID.
+		minEnd := end
+		if strings.HasPrefix(scheduledQueryName[start:end], "team-") {
+			minEnd = start + len("team-") + 1
+		}
+		for markerEnd := minEnd; markerEnd <= end; markerEnd++ {
+			rest := scheduledQueryName[markerEnd:]
+			if len(rest) > len(sep) && strings.HasPrefix(rest, sep) {
 				return sep
 			}
 		}
@@ -4926,6 +4947,12 @@ func findPackDelimiterString(scheduledQueryName string) string {
 	return ""
 }
 
+// Fleet query names are at most 255 characters (up to 1020 bytes), which leaves ample room for
+// the "pack" prefix, team ID and delimiters.
+const maxScheduledQueryNameLen = 4096
+
+var errScheduledQueryNameTooLong = errors.New("scheduled query name too long")
+
 // getQueryNameAndTeamIDFromResult attempts to parse the scheduled query name reported by osquery.
 //
 // The expected format of query names managed by Fleet is:
@@ -4933,6 +4960,9 @@ func findPackDelimiterString(scheduledQueryName string) string {
 func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
 	if !strings.HasPrefix(path, "pack") || len(path) <= 4 {
 		return nil, "", fmt.Errorf("unknown format: %q", path)
+	}
+	if len(path) > maxScheduledQueryNameLen {
+		return nil, "", errScheduledQueryNameTooLong
 	}
 
 	sep := findPackDelimiterString(path)

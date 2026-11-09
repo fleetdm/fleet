@@ -407,7 +407,7 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 
 			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
 			globalFile := "../../fleetctl/testdata/gitops/global_config_no_paths.yml"
-			dstPath := filepath.Join(filepath.Dir(c.noTeamFile), "no-team.yml")
+			dstPath := filepath.Join(filepath.Dir(c.noTeamFile), "unassigned.yml")
 			t.Cleanup(func() {
 				os.Remove(dstPath)
 			})
@@ -445,7 +445,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/no_team_software_installer_no_url.yml", "at least one of hash_sha256 or url is required for each software package"},
 		{
 			"testdata/gitops/no_team_software_installer_invalid_self_service_value.yml",
-			"Couldn't edit \"../../fleetctl/testdata/gitops/no-team.yml\" at \"software.packages.0.self_service\", expected type bool but got string",
+			"Couldn't edit \"../../fleetctl/testdata/gitops/unassigned.yml\" at \"software.packages.0.self_service\", expected type bool but got string",
 		},
 		{
 			"testdata/gitops/no_team_software_installer_invalid_both_include_exclude.yml",
@@ -554,7 +554,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 				// the controls section is in the no-team test file, so use a global file without that section
 				globalFile = "../../fleetctl/testdata/gitops/global_config_no_paths_no_controls.yml"
 			}
-			dstPath := filepath.Join(filepath.Dir(c.noTeamFile), "no-team.yml")
+			dstPath := filepath.Join(filepath.Dir(c.noTeamFile), "unassigned.yml")
 			t.Cleanup(func() {
 				os.Remove(dstPath)
 			})
@@ -1047,7 +1047,7 @@ org_settings:
   mdm:
     volume_purchasing_program:
       - location: Earth
-        teams:
+        fleets:
           - %q
           - %q
   server_settings:
@@ -1061,7 +1061,7 @@ org_settings:
 	teamCfg := func(name string) string {
 		return fmt.Sprintf(`
 name: %q
-team_settings:
+settings:
   secrets:
     - secret: "%s-secret"
   features:
@@ -1186,7 +1186,7 @@ org_settings:
   mdm:
     volume_purchasing_program:
       - location: Earth
-        teams:
+        fleets:
           - %q
           - %q
   server_settings:
@@ -1200,7 +1200,7 @@ org_settings:
 	teamCfg := func(name string) string {
 		return fmt.Sprintf(`
 name: %q
-team_settings:
+settings:
   secrets:
     - secret: "%s-secret"
   features:
@@ -1338,7 +1338,7 @@ org_settings:
 	teamCfg := func(name string) string {
 		return fmt.Sprintf(`
 name: %q
-team_settings:
+settings:
   secrets:
     - secret: "%s-secret"
   features:
@@ -1447,9 +1447,6 @@ func TestGitOpsNewTeamVPPSharedWithUnsuppliedExistingTeam(t *testing.T) {
 		}
 		return []*fleet.VPPTokenDB{&tok}, nil
 	}
-	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, teamID uint, names []string) ([]uint, error) {
-		return []uint{}, nil
-	}
 	ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error { return nil }
 	ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error { return nil }
 	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) { return &fleet.TeamLite{}, nil }
@@ -1476,7 +1473,7 @@ org_settings:
 
 	newTeamCfg := fmt.Sprintf(`
 name: %q
-team_settings:
+settings:
   secrets:
     - secret: "new-secret"
 agent_options:
@@ -1527,7 +1524,7 @@ org_settings:
 	team := func(name string) string {
 		return fmt.Sprintf(`
 name: %s
-team_settings:
+settings:
   secrets:
     - secret: "%s-secret"
 agent_options:
@@ -1554,7 +1551,7 @@ software:
 				global(`
                                   volume_purchasing_program:
                                     - location: Fleet Device Management Inc.
-                                      teams:
+                                      fleets:
                                         - "💻 Workstations"
                                         - "📱🏢 Company-owned iPhones"
                                         - "🔳🏢 Company-owned iPads"`),
@@ -1592,10 +1589,10 @@ software:
 				global(`
                                   volume_purchasing_program:
                                     - location: Acme Inc.
-                                      teams:
+                                      fleets:
                                         - "💻 Workstations"
                                     - location: Fleet Device Management Inc.
-                                      teams:
+                                      fleets:
                                         - "📱🏢 Company-owned iPhones"
                                         - "🔳🏢 Company-owned iPads"`),
 				workstations,
@@ -1637,7 +1634,7 @@ software:
 				global(`
                                   volume_purchasing_program:
                                     - location: Fleet Device Management Inc.
-                                      teams:
+                                      fleets:
                                         - "💻 Workstations"
                                         - "📱🏢 Company-owned iPhones"
                                         - "🔳🏢 Company-owned iPads"`),
@@ -1657,7 +1654,7 @@ software:
 				global(`
                                   volume_purchasing_program:
                                     - location: Fleet Device Management Inc.
-                                      teams:
+                                      fleets:
                                         - "💻 Workstations"
                                         - "📱🏢 Company-owned iPhones"
                                         - "No team"`),
@@ -1694,7 +1691,7 @@ software:
 				global(`
                         volume_purchasing_program:
                           - location: Fleet Device Management Inc.
-                            teams:
+                            fleets:
                               - "All teams"`),
 				workstations,
 				iosTeam,
@@ -1727,7 +1724,7 @@ software:
 				global(`
                         volume_purchasing_program:
                           - location: Fleet Device Management Inc.
-                            teams:
+                            fleets:
                               - "All fleets"`),
 				workstations,
 				iosTeam,
@@ -1760,7 +1757,7 @@ software:
 				global(`
                                   volume_purchasing_program:
                                     - location: Fleet Device Management Inc.
-                                      teams:`),
+                                      fleets:`),
 				workstations,
 				ipadTeam,
 			},
@@ -1790,7 +1787,7 @@ software:
 				global(`
                                   volume_purchasing_program:
                                     - location: Does not exist
-                                      teams:`),
+                                      fleets:`),
 				workstations,
 				ipadTeam,
 			},

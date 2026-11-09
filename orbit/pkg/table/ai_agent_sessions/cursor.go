@@ -129,37 +129,36 @@ func parseCursor(src *source, r *recorder) {
 	cwd := cmp.Or(meta.CWD, resolveSlugPath(slugRoot(src.sc.home.Dir), ext.slug))
 	s.ProjectPath = cwd
 
+	// Cursor records carry no timestamps, so sub-agent transcripts follow
+	// the main one.
 	var ts time.Time
-	for i, path := range src.files {
-		sub := i > 0
-		_ = scanJSONL(src.sc, path, func(line []byte) bool {
-			if r.done() {
-				return false
-			}
-			var rec struct {
-				Role    string `json:"role"`
-				Message struct {
-					Content json.RawMessage `json:"content"`
-				} `json:"message"`
-			}
-			if json.Unmarshal(line, &rec) != nil || rec.Role == "" {
-				return true // turn_ended and other bookkeeping
-			}
-			var blocks []cursorBlock
-			if body := claudeFullBody(rec.Message.Content); body.isText {
-				blocks = []cursorBlock{{Type: "text", Text: body.text}}
-			} else {
-				_ = json.Unmarshal(rec.Message.Content, &blocks)
-			}
-			switch rec.Role {
-			case "user":
-				cursorUser(r, blocks, sub, &ts, cwd)
-			case "assistant":
-				cursorAssistant(r, blocks, ts, cwd)
-			}
-			return true
-		})
-	}
+	scanFiles(src.sc, src.files, nil, func(i int, line []byte) bool {
+		if r.done() {
+			return false
+		}
+		var rec struct {
+			Role    string `json:"role"`
+			Message struct {
+				Content json.RawMessage `json:"content"`
+			} `json:"message"`
+		}
+		if json.Unmarshal(line, &rec) != nil || rec.Role == "" {
+			return true // turn_ended and other bookkeeping
+		}
+		var blocks []cursorBlock
+		if body := claudeFullBody(rec.Message.Content); body.isText {
+			blocks = []cursorBlock{{Type: "text", Text: body.text}}
+		} else {
+			_ = json.Unmarshal(rec.Message.Content, &blocks)
+		}
+		switch rec.Role {
+		case "user":
+			cursorUser(r, blocks, i > 0, &ts, cwd)
+		case "assistant":
+			cursorAssistant(r, blocks, ts, cwd)
+		}
+		return true
+	})
 }
 
 func cursorUser(r *recorder, blocks []cursorBlock, sub bool, ts *time.Time, cwd string) {

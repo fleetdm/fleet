@@ -40,6 +40,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/cabundle"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/entratoken"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/insecure"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/installer"
@@ -93,6 +94,7 @@ func main() {
 	app.Commands = []*cli.Command{
 		versionCommand,
 		shellCommand,
+		entraDeviceTokenCommand,
 	}
 	app.Flags = []cli.Flag{
 		&cli.StringFlag{
@@ -1515,6 +1517,7 @@ func orbitAction(c *cli.Context) error {
 		setupExperiencer.UseLegacyUI = !orbitClient.GetServerCapabilities().Has(fleet.CapabilityMacOSWebSetupExperience)
 		orbitClient.RegisterConfigReceiver(setupExperiencer)
 		orbitClient.RegisterConfigReceiver(update.ApplySwiftDialogDownloaderMiddleware(updateRunner))
+		orbitClient.RegisterConfigReceiver(entratoken.NewRunner(orbitClient, orbitHostInfo.HardwareUUID))
 
 	case "windows":
 		orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMEnrollmentFetcherMiddleware(windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID, orbitClient))
@@ -1627,10 +1630,12 @@ func orbitAction(c *cli.Context) error {
 	// the early config fetch above had a chance to persist a server-directed
 	// change (and restart orbit if it did). Everything — the osquery flag
 	// flip, the plugin registration, the manager subsystem — derives from this
-	// one bool, so there is no mixed state within a run.
-	wsTransportEnabled := wstransport.Enabled(c.String("root-dir"))
+	// one state, so there is no mixed state within a run.
+	wsTransportState := wstransport.LoadState(c.String("root-dir"))
+	wsTransportEnabled := wsTransportState.Enabled
 	if wsTransportEnabled {
-		log.Info().Msg("websocket transport enabled: orbit will proxy osquery's distributed queries")
+		log.Info().Bool("osquery_config", wsTransportState.OsqueryConfig).
+			Msg("websocket transport enabled: orbit will proxy osquery's distributed queries")
 	}
 
 	// On Windows, where augeas doesn't work, we have a stubbed CopyLenses that always returns
@@ -1679,6 +1684,8 @@ func orbitAction(c *cli.Context) error {
 	// the flagfile are merged in rather than clobbered — dropping the user's
 	// list would hit the same race for their extensions (see
 	// wstransport.OsqueryFlags).
+	var wsUserFlags map[string]string
+	serveOsqueryConfig := false
 	if wsTransportEnabled {
 		userFlags, err := update.ReadFlagFile(c.String("root-dir"))
 		if err != nil {
@@ -1688,7 +1695,13 @@ func orbitAction(c *cli.Context) error {
 			}
 			userFlags = nil
 		}
-		options = append(options, osquery.WithFlags(wstransport.OsqueryFlags(table.ExtensionName, userFlags)))
+		wsUserFlags = userFlags
+		serveOsqueryConfig = wsTransportState.OsqueryConfig
+		if plugin, ok := wstransport.UserConfigPlugin(userFlags); ok && serveOsqueryConfig {
+			log.Info().Str("config_plugin", plugin).Msg("osquery.flags sets a config plugin: orbit won't serve osquery its config")
+			serveOsqueryConfig = false
+		}
+		options = append(options, osquery.WithFlags(wstransport.OsqueryFlags(table.ExtensionName, userFlags, serveOsqueryConfig)))
 	}
 
 	// Handle additional args after '--' in the command line. These are added last and should
@@ -1763,7 +1776,9 @@ func orbitAction(c *cli.Context) error {
 		if err != nil {
 			return fmt.Errorf("parse Fleet URL for websocket transport: %w", err)
 		}
-		wsManager := wstransport.NewManager(wstransport.Options{
+		var wsManager *wstransport.Manager
+		connected := func() bool { return wsManager.Connected() }
+		managerOpts := wstransport.Options{
 			ServerURL:          parsedFleetURL,
 			RootCA:             c.String("fleet-certificate"),
 			InsecureSkipVerify: c.Bool("insecure"),
@@ -1774,7 +1789,23 @@ func orbitAction(c *cli.Context) error {
 			OnOrbitConfig:      orbitClient.TriggerConfigRefresh,
 			OnConnect:          orbitClient.TransportConnected,
 			OnDisconnect:       orbitClient.TransportDisconnected,
-		})
+		}
+		if serveOsqueryConfig {
+			configFetcher := wstransport.NewConfigFetcher(orbitClient, connected, wstransport.ServerConfigRefresh(wsUserFlags))
+			managerOpts.OnOsqueryConfig = configFetcher.Nudge
+			managerOpts.OnDisconnect = func() {
+				orbitClient.TransportDisconnected()
+				configFetcher.Disconnected()
+			}
+			orbitClient.RegisterConfigReceiver(fleet.OrbitConfigReceiverFunc(func(cfg *fleet.OrbitConfig) error {
+				if ws := cfg.WebSocketTransport; ws != nil && ws.OsqueryConfigPollInterval != nil {
+					configFetcher.SetPollInterval(time.Duration(*ws.OsqueryConfigPollInterval) * time.Second)
+				}
+				return nil
+			}))
+			extensionOpts = append(extensionOpts, table.WithPlugin(wstransport.NewConfigPlugin(configFetcher)))
+		}
+		wsManager = wstransport.NewManager(managerOpts)
 		orbitClient.SetTransportConnectedFunc(wsManager.Connected)
 		addSubsystem(&g, "websocket transport", wsManager)
 		extensionOpts = append(extensionOpts, table.WithPlugin(wstransport.NewDistributedPlugin(wsManager, orbitClient)))
