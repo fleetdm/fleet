@@ -46,10 +46,3 @@ func (c *Client) ListPacks() ([]*fleet.Pack, error) {
 	}
 	return packs, nil
 }
-
-// DeletePack deletes the pack with the matching name.
-func (c *Client) DeletePack(name string) error {
-	verb, path := "DELETE", "/api/latest/fleet/packs/"+url.PathEscape(name)
-	var responseBody deletePackResponse
-	return c.authenticatedRequest(nil, verb, path, &responseBody)
-}

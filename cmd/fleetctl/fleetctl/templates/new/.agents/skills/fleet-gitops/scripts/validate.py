@@ -52,8 +52,7 @@ REMOVED_KEYS = [
 ]
 KEY_ALIASES = {"apple_business": ("apple_business", "apple_business_manager")}
 POLICY_PLATFORMS = {"darwin", "windows", "linux", "chrome"}
-LABEL_PLATFORMS = {"darwin", "windows", "linux", "ubuntu", "centos"}
-LABEL_PLATFORM_ALIASES = {"ubuntu": "linux", "centos": "linux"}
+LABEL_PLATFORMS = {"darwin", "windows", "linux"}
 REPORT_LOGGING = {"snapshot", "differential", "differential_ignore_removals"}
 LABEL_KEYS = ("labels_include_any", "labels_include_all", "labels_exclude_any", "labels_exclude_all")
 # Per item type: the label keys fleetctl accepts, and whether an include list may be paired with an exclude list.
@@ -421,7 +420,7 @@ def check_platform(ctx, src, item, what, allowed, required=False):
     bad = parts - allowed
     if bad:
         ctx.fail(src, f"{what}: unknown platform(s) {sorted(bad)}; allowed: {sorted(allowed)}")
-    return {LABEL_PLATFORM_ALIASES.get(x, x) for x in parts - bad}
+    return parts - bad
 
 
 # ---------------------------------------------------------------- osquery SQL
