@@ -646,13 +646,17 @@ GitHub issue: [#53470](https://github.com/fleetdm/fleet/issues/53470)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| TODO | Removed |
+| `POST /users/roles/spec`, which `fleetctl apply` calls for `kind: user_roles` files | Removed. Use [Update user](https://fleetdm.com/docs/rest-api/rest-api#update-user). |
 
 #### What to do
 
-TODO
+Change these before you upgrade.
 
-GitHub issue: TODO
+1. Replace calls to `POST /users/roles/spec` (and `fleetctl apply` with `kind: user_roles`) with [`PATCH /users/:id`](https://fleetdm.com/docs/rest-api/rest-api#update-user), once for each user.
+   - Set `global_role` for a global role, or `fleets` for fleet roles.
+   - To find each user's `id`, call [List users](https://fleetdm.com/docs/rest-api/rest-api#list-users).
+
+GitHub issue: [#58158](https://github.com/fleetdm/fleet/issues/58158)
 
 ### Puppet module removed
 
@@ -1089,13 +1093,17 @@ GitHub issue: [#53799](https://github.com/fleetdm/fleet/issues/53799)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `fleetctl user create-users` and `fleetctl user delete-users` | Removed |
+| `fleetctl user create-users --csv` and `fleetctl user delete-users --csv` create and delete users listed in a CSV file | Removed. Use `fleetctl user create` and `fleetctl user delete`. |
 
 #### What to do
 
-TODO
+1. Replace each `fleetctl user create-users` run with one `fleetctl user create` run for each row in the CSV file.
+   - Pass the CSV columns as flags: `--email`, `--name`, `--sso`, `--api-only`, `--global-role`, and `--fleet` (for example, `--fleet 1:observer`).
+   - `create-users` set a random password. With `fleetctl user create`, pass `--password` for users that don't use SSO.
+2. Replace each `fleetctl user delete-users` run with one `fleetctl user delete --email <email>` run for each email in the CSV file.
+3. You can also use the [Create user](https://fleetdm.com/docs/rest-api/rest-api#create-user) and [Delete user](https://fleetdm.com/docs/rest-api/rest-api#delete-user) API endpoints.
 
-GitHub issue: TODO
+GitHub issue: [#58158](https://github.com/fleetdm/fleet/issues/58158)
 
 ### fleetctl package file names changed
 
