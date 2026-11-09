@@ -326,7 +326,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSInHouseApp() {
 		for _, res := range results {
 			require.Equal(t, fleet.SetupExperienceStatusSuccess, res.Status)
 			switch {
-			case res.IsForInHouseApp():
+			case res.InHouseAppID != nil:
 				inHouseSeen = true
 				require.NotNil(t, res.NanoCommandUUID)
 			case res.IsForVPPApp():
@@ -868,7 +868,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceBYODiOS() {
 	// ListIOSAndIPadOSToRefetch, our brand-new host (its details_updated_at is
 	// set to the enroll time) gets picked up on this very first tick rather
 	// than waiting up to an hour.
-	require.NoError(t, apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, s.fleetSvc.NewActivity))
+	require.NoError(t, apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, s.fleetSvc.NewActivity, 1000))
 
 	tracked, err := s.ds.GetHostMDMCommands(ctx, enrolledHostID)
 	require.NoError(t, err)

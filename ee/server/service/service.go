@@ -38,7 +38,6 @@ type Service struct {
 	mdmAppleCommander      fleet.MDMAppleCommandIssuer
 	ssoSessionStore        sso.SessionStore
 	depService             *apple_mdm.DEPService
-	profileMatcher         fleet.ProfileMatcher
 	softwareInstallStore   fleet.SoftwareInstallerStore
 	bootstrapPackageStore  fleet.MDMBootstrapPackageStore
 	softwareTitleIconStore fleet.SoftwareTitleIconStore
@@ -52,6 +51,7 @@ type Service struct {
 	ejbcaService           fleet.EJBCAService
 	androidModule          android.Service
 	estService             fleet.ESTService
+	googleCASService       fleet.GoogleCASService
 	msGraphClientFactory   msgraph.ClientFactory
 }
 
@@ -65,7 +65,6 @@ func NewService(
 	depStorage storage.AllDEPStorage,
 	mdmAppleCommander fleet.MDMAppleCommandIssuer,
 	sso sso.SessionStore,
-	profileMatcher fleet.ProfileMatcher,
 	softwareInstallStore fleet.SoftwareInstallerStore,
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 	softwareTitleIconStore fleet.SoftwareTitleIconStore,
@@ -78,6 +77,7 @@ func NewService(
 	ejbcaService fleet.EJBCAService,
 	androidService android.Service,
 	estService fleet.ESTService,
+	googleCASService fleet.GoogleCASService,
 	pssoNonceStore fleet.PSSONonceStore,
 	msGraphClientFactory msgraph.ClientFactory,
 ) (*Service, error) {
@@ -102,7 +102,6 @@ func NewService(
 		mdmAppleCommander:      mdmAppleCommander,
 		ssoSessionStore:        sso,
 		depService:             apple_mdm.NewDEPService(ds, depStorage, logger),
-		profileMatcher:         profileMatcher,
 		softwareInstallStore:   softwareInstallStore,
 		bootstrapPackageStore:  bootstrapPackageStore,
 		softwareTitleIconStore: softwareTitleIconStore,
@@ -116,6 +115,7 @@ func NewService(
 		ejbcaService:           ejbcaService,
 		androidModule:          androidService,
 		estService:             estService,
+		googleCASService:       googleCASService,
 		pssoNonceStore:         pssoNonceStore,
 		msGraphClientFactory:   msGraphClientFactory,
 	}
@@ -136,7 +136,7 @@ func NewService(
 		MDMWindowsDisableOSUpdates:        eeservice.mdmWindowsDisableOSUpdates,
 		MDMAppleEditedAppleOSUpdates:      eeservice.mdmAppleEditedAppleOSUpdates,
 		SetupExperienceNextStep:           eeservice.SetupExperienceNextStep,
-		GetVPPTokenIfCanInstallVPPApps:    eeservice.GetVPPTokenIfCanInstallVPPApps,
+		CheckCanInstallVPPApps:            eeservice.CheckCanInstallVPPApps,
 		InstallVPPAppPostValidation:       eeservice.InstallVPPAppPostValidation,
 		VerifyAppleAccountProvisioning:    eeservice.verifyAppleAccountProvisioning,
 	})

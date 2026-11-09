@@ -73,8 +73,8 @@ describe('configuration profile generation pipeline', function() {
     sails.helpers.ai.prompt = originalPromptHelper;
   });
 
-  let generate = async (profileType)=>{
-    return await sails.helpers.generateConfigurationProfile.with({ profileType, naturalLanguageInstructions: 'Turn off the camera', useApplePayloadTypeLookup: false });
+  let generate = async (profileType, forFleet = false, naturalLanguageInstructions = 'Turn off the camera')=>{
+    return await sails.helpers.generateConfigurationProfile.with({ profileType, naturalLanguageInstructions, useApplePayloadTypeLookup: false, forFleet });
   };
   let responseWith = (configurationProfile)=>{
     return { configurationProfile, profileFilename: 'profile', deliveryNotes: '', settingsEnforced: [{ name: 'setting', value: 'value' }] };
@@ -83,6 +83,49 @@ describe('configuration profile generation pipeline', function() {
     return _.extend(new Error(`The LLM API responded with a ${statusCode} status code`), { statusCode });
   };
   let declaration = JSON.stringify({ Type: 'com.apple.configuration.passcode.settings', Identifier: 'passcode', Payload: { MinimumLength: 8 } });
+
+  describe('writes a .mobileconfig from the payload settings the model returns', function() {
+
+    it('fails a generation whose settings cannot be written, even when the model also wrote a document of its own', async function() {
+      let ownDocument = { configurationProfile: '<?xml version="1.0"?><plist version="1.0"><dict/></plist>', settingsEnforced: [{ name: 'allowCamera', value: 'disabled' }] };
+      generationOutcomes = [_.extend({ profileFilename: 'camera.mobileconfig', deliveryNotes: '', payloads: [{ payloadType: 'com.apple.applicationaccess', settings: { allowCamera: 'disabled' } }] }, ownDocument)];
+      let result = await generate('mobileconfig');
+      assert.strictEqual(result.couldNotGenerateProfile, true);
+      assert.ok(/allowCamera takes true or false/.test(result.reasonWhyAProfileCouldNotBeGenerated), result.reasonWhyAProfileCouldNotBeGenerated);
+      generationOutcomes = [{ profileFilename: 'scan.xml', deliveryNotes: '', commands: [{ verb: 'Exec', locURI: './Device/Vendor/MSFT/Defender/Scan/Quick' }], configurationProfile: '<Exec><Item><Target><LocURI>./Device/Vendor/MSFT/Defender/Scan/Quick</LocURI></Target></Item></Exec>', settingsEnforced: [{ name: 'Scan/Quick', value: '' }] }];
+      let windows = await generate('csp');
+      assert.strictEqual(windows.couldNotGenerateProfile, true);
+      assert.ok(/runs a one-time command/.test(windows.reasonWhyAProfileCouldNotBeGenerated), windows.reasonWhyAProfileCouldNotBeGenerated);
+    });
+
+    it('ends the root PayloadIdentifier with a segment that differs between two generations of the same request', async function() {
+      let settingsResponse = { profileFilename: 'camera.mobileconfig', profileDisplayName: 'Camera Disabled', deliveryNotes: '', payloads: [{ payloadType: 'com.apple.applicationaccess', settings: { allowCamera: false } }] };
+      generationOutcomes = [settingsResponse, settingsResponse];
+      let rootIdentifiers = [];
+      for (let generation of [await generate('mobileconfig'), await generate('mobileconfig')]) {
+        assert.strictEqual(generation.couldNotGenerateProfile, false);
+        let identifiers = Array.from(generation.generatedProfile.profile.matchAll(/<key>PayloadIdentifier<\/key>\s*<string>([^<]*)<\/string>/g), (match)=>{ return match[1]; });
+        let root = _.find(identifiers, (identifier)=>{ return /^com\.example\.camera\.[0-9a-f]{8}$/.test(identifier); });
+        assert.ok(root, identifiers.join(', '));
+        rootIdentifiers.push(root);
+      }
+      assert.notStrictEqual(rootIdentifiers[0], rootIdentifiers[1]);
+    });
+
+  });
+
+  describe('takes a platform from Fleet in place of a profile type', function() {
+
+    it('generates a Windows CSP profile for the windows platform', async function() {
+      generationOutcomes = [{ profileFilename: 'camera.xml', deliveryNotes: '', commands: [{ verb: 'Replace', locURI: './Device/Vendor/MSFT/Policy/Config/Camera/AllowCamera', data: 0 }] }];
+      let result = await sails.helpers.generateConfigurationProfile.with({ platform: 'windows', forFleet: true, naturalLanguageInstructions: 'Turn off the camera' });
+      assert.strictEqual(result.couldNotGenerateProfile, false, result.reasonWhyAProfileCouldNotBeGenerated);
+      assert.strictEqual(result.profileType, 'csp');
+      assert.deepStrictEqual(result.windowsCspAreasProvided, ['Storage']);
+      assert.ok(/<LocURI>\.\/Device\/Vendor\/MSFT\/Policy\/Config\/Camera\/AllowCamera<\/LocURI>/.test(result.generatedProfile.profile), result.generatedProfile.profile);
+    });
+
+  });
 
   describe('checks that the content is the kind of profile that was asked for', function() {
 
@@ -121,6 +164,151 @@ describe('configuration profile generation pipeline', function() {
       generationOutcomes = [responseWith(declaration)];
       let result = await generate('ddm');
       assert.strictEqual(result.couldNotGenerateProfile, false);
+    });
+
+  });
+
+  describe('the declaration schema Fleet is given', function() {
+
+    it('has no asset references at any depth, and keeps the rest of a type that only nests them', async function() {
+      let configuration = await sails.helpers.getConfigurationProfileGeneratorConfiguration.with({ profileType: 'ddm', naturalLanguageInstructions: 'Configure a managed app', forFleet: true });
+      // Only the rule that forbids them names them.
+      assert.doesNotMatch(configuration.systemPrompt.replace(/Never write a key that ends in AssetReference[^\n]*/, ''), /AssetReference/);
+      assert.match(configuration.systemPrompt, /com\.apple\.configuration\.app\.managed/);
+      assert.doesNotMatch(configuration.systemPrompt, /com\.apple\.configuration\.security\.certificate\b/);
+    });
+
+  });
+
+  describe('keeps links out of a decline reason', function() {
+
+    for (let [reason, expected] of [
+      ['Edge has no CSP nodes. See https://learn.microsoft.com/en-us/deployedge/ for its ADMX templates.', 'Edge has no CSP nodes. See for its ADMX templates.'],
+      ['Use the [Edge ADMX templates](https://learn.microsoft.com/deployedge) instead.', 'Use the Edge ADMX templates instead.'],
+      ['No such setting (www.example.com).', 'No such setting.'],
+      ['No such setting.', 'No such setting.'],
+    ]) {
+      it(JSON.stringify(reason), async function() {
+        generationOutcomes = [{ couldNotGenerateProfile: true, reasonWhyAProfileCouldNotBeGenerated: reason }];
+        let result = await generate('csp');
+        assert.strictEqual(result.couldNotGenerateProfile, true);
+        assert.strictEqual(result.reasonWhyAProfileCouldNotBeGenerated, expected);
+      });
+    }
+
+  });
+
+  describe('scopes a user-channel-only declaration to the user', function() {
+
+    let calDav = JSON.stringify({ Type: 'com.apple.configuration.account.caldav', Identifier: 'caldav', Payload: { HostName: 'cal.acme.example' } });
+
+    it('when Fleet asks', async function() {
+      generationOutcomes = [responseWith(calDav)];
+      let result = await generate('ddm', true);
+      assert.strictEqual(JSON.parse(result.generatedProfile.profile).PayloadScope, 'User');
+      assert.match(result.generatedProfile.deliveryNotes, /label/);
+      assert.match(result.generatedProfile.deliveryNotes, /user channel/);
+    });
+
+    it('in place of another scope, which would deliver it to the device channel', async function() {
+      generationOutcomes = [responseWith(JSON.stringify(Object.assign(JSON.parse(calDav), { PayloadScope: 'System' })))];
+      let result = await generate('ddm', true);
+      assert.strictEqual(JSON.parse(result.generatedProfile.profile).PayloadScope, 'User');
+    });
+
+    it('but not when the request names only iPhones or iPads, where Fleet fails a User-scoped declaration', async function() {
+      generationOutcomes = [responseWith(calDav)];
+      let result = await generate('ddm', true, 'Add our CardDAV server cal.acme.example on iPhones');
+      assert.strictEqual(JSON.parse(result.generatedProfile.profile).PayloadScope, undefined);
+      assert.doesNotMatch(result.generatedProfile.deliveryNotes || '', /label/);
+    });
+
+    it('but not otherwise', async function() {
+      generationOutcomes = [responseWith(calDav)];
+      let result = await generate('ddm');
+      assert.strictEqual(JSON.parse(result.generatedProfile.profile).PayloadScope, undefined);
+    });
+
+  });
+
+  describe('notes what a Chrome homepage needs to take effect', function() {
+
+    let chromeStartupPolicy = (name, data, recommended = false)=>{
+      let area = recommended ? 'googlechrome_recommended~Startup_recommended' : 'googlechrome~Startup';
+      return `<Replace><Item><Meta><Format xmlns="syncml:metinf">chr</Format></Meta><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/GoogleChrome~Policy~${area}/${name}${recommended ? '_recommended' : ''}</LocURI></Target><Data><![CDATA[${data}]]></Data></Item></Replace>`;
+    };
+    let homepageLocation = chromeStartupPolicy('HomepageLocation', '<enabled/><data id="HomepageLocation" value="https://fleetdm.com"/>');
+    let generateWindows = async (profile, deliveryNotes = '')=>{
+      generationOutcomes = [Object.assign(responseWith(profile), { deliveryNotes })];
+      return await generate('csp', true, 'Set the Google Chrome homepage to https://fleetdm.com');
+    };
+
+    it('when the profile only sets the homepage URL', async function() {
+      let result = await generateWindows(homepageLocation);
+      assert.match(result.generatedProfile.deliveryNotes, /disable HomepageIsNewTabPage/);
+      assert.match(result.generatedProfile.deliveryNotes, /enable ShowHomeButton/);
+      assert.match(result.generatedProfile.deliveryNotes, /RestoreOnStartupURLs/);
+    });
+
+    it('naming only what is missing', async function() {
+      let result = await generateWindows(homepageLocation + chromeStartupPolicy('HomepageIsNewTabPage', '<disabled/>'));
+      assert.doesNotMatch(result.generatedProfile.deliveryNotes, /HomepageIsNewTabPage/);
+      assert.match(result.generatedProfile.deliveryNotes, /enable ShowHomeButton/);
+    });
+
+    it('for the recommended homepage too', async function() {
+      let result = await generateWindows(chromeStartupPolicy('HomepageLocation', '<enabled/><data id="HomepageLocation" value="https://fleetdm.com"/>', true));
+      assert.match(result.generatedProfile.deliveryNotes, /disable HomepageIsNewTabPage/);
+    });
+
+    it('but not when the profile sets everything', async function() {
+      let result = await generateWindows(homepageLocation +
+        chromeStartupPolicy('HomepageIsNewTabPage', '<disabled/>') +
+        chromeStartupPolicy('ShowHomeButton', '<enabled/>') +
+        chromeStartupPolicy('RestoreOnStartup', '<enabled/><data id="RestoreOnStartup" value="4"/>') +
+        chromeStartupPolicy('RestoreOnStartupURLs', '<enabled/><data id="RestoreOnStartupURLsDesc" value="1&#xF000;https://fleetdm.com"/>'));
+      assert.doesNotMatch(result.generatedProfile.deliveryNotes, /HomepageIsNewTabPage|ShowHomeButton|RestoreOnStartup/);
+    });
+
+    it('when startup does not open the URLs', async function() {
+      let homeButtonShown = homepageLocation + chromeStartupPolicy('HomepageIsNewTabPage', '<disabled/>') + chromeStartupPolicy('ShowHomeButton', '<enabled/>');
+      for (let startup of [
+        chromeStartupPolicy('RestoreOnStartup', '<enabled/><data id="RestoreOnStartup" value="1"/>') + chromeStartupPolicy('RestoreOnStartupURLs', '<enabled/><data id="RestoreOnStartupURLsDesc" value="1&#xF000;https://fleetdm.com"/>'),
+        chromeStartupPolicy('RestoreOnStartup', '<enabled/><data id="RestoreOnStartup" value="4"/>'),
+      ]) {
+        let result = await generateWindows(homeButtonShown + startup);
+        assert.match(result.generatedProfile.deliveryNotes, /RestoreOnStartupURLs/);
+        assert.match(result.generatedProfile.deliveryNotes, /\bRestoreOnStartup to 4\b/);
+        assert.doesNotMatch(result.generatedProfile.deliveryNotes, /ShowHomeButton/);
+      }
+    });
+
+    it('going by the mandatory policy when its recommended twin differs, in either order', async function() {
+      let mandatoryOn = chromeStartupPolicy('HomepageIsNewTabPage', '<enabled/>');
+      let recommendedOff = chromeStartupPolicy('HomepageIsNewTabPage', '<disabled/>', true);
+      for (let pair of [mandatoryOn + recommendedOff, recommendedOff + mandatoryOn]) {
+        let result = await generateWindows(homepageLocation + pair);
+        assert.match(result.generatedProfile.deliveryNotes, /disable HomepageIsNewTabPage/);
+      }
+    });
+
+    it('even when the model mentions the New Tab page for something else', async function() {
+      let result = await generateWindows(homepageLocation, 'Startup opens the New Tab page unless RestoreOnStartup is set.');
+      assert.match(result.generatedProfile.deliveryNotes, /disable HomepageIsNewTabPage/);
+    });
+
+    it('but not when the model already explained it', async function() {
+      let modelNote = 'Chrome uses the New Tab page as the homepage unless HomepageIsNewTabPage is disabled.';
+      let result = await generateWindows(homepageLocation, modelNote);
+      assert.strictEqual(result.generatedProfile.deliveryNotes.split('HomepageIsNewTabPage').length - 1, 1);
+      // The rest still applies.
+      assert.match(result.generatedProfile.deliveryNotes, /enable ShowHomeButton/);
+      assert.match(result.generatedProfile.deliveryNotes, /RestoreOnStartupURLs/);
+    });
+
+    it('but not when the homepage policy is disabled', async function() {
+      let result = await generateWindows(chromeStartupPolicy('HomepageLocation', '<disabled/>'));
+      assert.doesNotMatch(result.generatedProfile.deliveryNotes || '', /HomepageIsNewTabPage/);
     });
 
   });

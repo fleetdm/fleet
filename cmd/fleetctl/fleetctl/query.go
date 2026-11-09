@@ -109,7 +109,9 @@ be run on the union of the hosts and hosts with matching labels.
 				return err
 			}
 
-			if flHosts == "" && flLabels == "" {
+			hostIdentifiers := splitCommaSeparated(flHosts)
+			labels := splitCommaSeparated(flLabels)
+			if len(hostIdentifiers) == 0 && len(labels) == 0 {
 				return errors.New("No hosts or labels targeted. Please provide either --hosts or --labels.")
 			}
 
@@ -148,9 +150,6 @@ be run on the union of the hosts and hosts with matching labels.
 			} else {
 				output = newJsonWriter(c.App.Writer)
 			}
-
-			hostIdentifiers := strings.Split(flHosts, ",")
-			labels := strings.Split(flLabels, ",")
 
 			res, err := client.LiveQuery(flQuery, queryID, labels, hostIdentifiers)
 			if err != nil {
@@ -255,4 +254,14 @@ be run on the union of the hosts and hosts with matching labels.
 			}
 		},
 	}
+}
+
+func splitCommaSeparated(s string) []string {
+	var parts []string
+	for part := range strings.SplitSeq(s, ",") {
+		if part = strings.TrimSpace(part); part != "" {
+			parts = append(parts, part)
+		}
+	}
+	return parts
 }

@@ -875,6 +875,7 @@ SELECT
 	NULLIF(va.adam_id, '') AS vpp_app_adam_id,
 	NULLIF(va.platform, '') AS vpp_app_platform,
 	vat.name AS vpp_app_version_name,
+	vat.vpp_token_id AS vpp_app_vpp_token_id,
 	ses.script_content_id,
 	COALESCE(si.title_id, va.title_id, iha.title_id) AS software_title_id,
 	COALESCE(

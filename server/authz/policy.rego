@@ -1046,6 +1046,13 @@ allow {
   action == [read, write, list][_]
 }
 
+# Global gitops can list AB tokens, so fleetctl gitops can check setup assistant coverage.
+allow {
+  object.type == "mdm_apple"
+  subject.global_role == gitops
+  action == list
+}
+
 # Global admins can write/modify AB release devices
 allow {
   object.type == "mdm_ab_release"
@@ -1625,6 +1632,40 @@ allow {
   object.type == "software_category"
   object.team_id != 0
   team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  action == write
+}
+
+##
+# Patch deadline settings
+##
+
+# Global admins, maintainers, technicians, gitops, observer_plus and observers can read patch deadline settings.
+allow {
+  object.type == "patch_deadline_settings"
+  subject.global_role == [admin, maintainer, gitops, technician, observer_plus, observer][_]
+  action == read
+}
+
+# Team admins, maintainers, technicians, gitops, observer_plus and observers can read patch deadline settings on their fleet.
+allow {
+  object.type == "patch_deadline_settings"
+  object.fleet_id != 0
+  team_role(subject, object.fleet_id) == [admin, maintainer, gitops, technician, observer_plus, observer][_]
+  action == read
+}
+
+# Global admins, maintainers, and gitops can write patch deadline settings.
+allow {
+  object.type == "patch_deadline_settings"
+  subject.global_role == [admin, maintainer, gitops][_]
+  action == write
+}
+
+# Team admins, maintainers, and gitops can write patch deadline settings on their fleet.
+allow {
+  object.type == "patch_deadline_settings"
+  object.fleet_id != 0
+  team_role(subject, object.fleet_id) == [admin, maintainer, gitops][_]
   action == write
 }
 

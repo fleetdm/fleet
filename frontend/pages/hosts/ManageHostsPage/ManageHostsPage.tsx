@@ -8,7 +8,7 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { useMutation, useQuery } from "react-query";
+import { useMutation, useQuery, useQueryClient } from "react-query";
 import { RouteProps } from "react-router/lib/Route";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { SingleValue } from "react-select-5";
@@ -79,7 +79,7 @@ import {
 import policiesAPI from "services/entities/policies";
 import scriptsAPI, {
   IScriptBatchSummaryQueryKey,
-  IScriptBatchSummaryV1,
+  IScriptBatchSummaryV2,
   ScriptBatchHostCountV1,
 } from "services/entities/scripts";
 import teamsAPI, {
@@ -132,6 +132,7 @@ import {
 } from "./HostsPageConfig";
 import {
   defaultHiddenColumns,
+  toFleetColumnId,
   generateVisibleTableColumns,
   generateAvailableTableHeaders,
 } from "./HostTableConfig";
@@ -180,6 +181,7 @@ const ManageHostsPage = ({
   const isPrimoMode = config?.partnerships?.enable_primo;
 
   const { setResetSelectedRows } = useContext(TableContext);
+  const queryClient = useQueryClient();
 
   const shouldStripParamOnTeamChange = (
     newTeamId?: number,
@@ -221,7 +223,7 @@ const ManageHostsPage = ({
 
     if (queryParams) {
       const { order_key, order_direction } = queryParams;
-      key = order_key || key;
+      key = toFleetColumnId(order_key || key);
       direction = order_direction || direction;
     }
 
@@ -324,7 +326,9 @@ const ManageHostsPage = ({
   ]);
 
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(
-    userSettings?.hidden_host_columns || defaultHiddenColumns
+    (userSettings?.hidden_host_columns || defaultHiddenColumns).map(
+      toFleetColumnId
+    )
   );
 
   const [selectedLabel, setSelectedLabel] = useState<ILabel>();
@@ -566,7 +570,9 @@ const ManageHostsPage = ({
     {
       enabled: isRouteOk && !!isPremiumTier,
       select: (data: ILoadTeamsResponse) =>
-        data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
+        data.fleets.sort((a, b) =>
+          sortUtils.caseInsensitiveAsc(a.name, b.name)
+        ),
     }
   );
 
@@ -616,9 +622,9 @@ const ManageHostsPage = ({
     isLoading: isLoadingScriptBatchSummary,
     isError: isErrorScriptBatchSummary,
   } = useQuery<
-    IScriptBatchSummaryV1,
+    IScriptBatchSummaryV2,
     Error,
-    IScriptBatchSummaryV1,
+    IScriptBatchSummaryV2,
     IScriptBatchSummaryQueryKey[]
   >(
     [
@@ -628,7 +634,7 @@ const ManageHostsPage = ({
       },
     ],
     ({ queryKey: [{ batch_execution_id }] }) =>
-      scriptsAPI.getRunScriptBatchSummaryV1({ batch_execution_id }),
+      scriptsAPI.getRunScriptBatchSummaryV2({ batch_execution_id }),
     {
       enabled: !!scriptBatchExecutionId && isRouteOk,
       ...DEFAULT_USE_QUERY_OPTIONS,
@@ -777,7 +783,9 @@ const ManageHostsPage = ({
         // for type checker
         return;
       }
-      const parsed = JSON.parse(locallyHiddenCols) as string[];
+      const parsed = (JSON.parse(locallyHiddenCols) as string[]).map(
+        toFleetColumnId
+      );
       try {
         await usersAPI.update(currentUser.id, {
           settings: { ...userSettings, hidden_host_columns: parsed },
@@ -1607,6 +1615,7 @@ const ManageHostsPage = ({
       setResetSelectedRows(true);
       refetchHosts();
       refetchLabels();
+      queryClient.invalidateQueries(["hosts_count_for_license"]);
       toggleDeleteHostModal();
       setSelectedHostIds([]);
       setIsAllMatchingHostsSelected(false);

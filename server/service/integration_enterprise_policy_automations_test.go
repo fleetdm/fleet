@@ -94,7 +94,7 @@ func (s *integrationEnterpriseTestSuite) TestFailingPolicyAutomationFiresHostAct
 
 	// Enable the per-fleet host activities webhook on the team.
 	var tmResp teamResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
 		HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
 			Enable:         true,
 			DestinationURL: srv.URL + "/host-activities",
@@ -211,7 +211,7 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyAutomationFiresEachFlee
 
 	var tmResp teamResponse
 	for teamID, path := range map[uint]string{teamA.ID: "/fleet-a", teamB.ID: "/fleet-b"} {
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", teamID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
 			HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
 				Enable:         true,
 				DestinationURL: srv.URL + path,
@@ -340,8 +340,8 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamFailingPolicyWebhookTrigger()
 	var defaultTeamResp struct {
 		Team *fleet.DefaultTeam `json:"team"` //nolint:apiparamcheck // test helper; matches server response shape
 	}
-	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
-		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+	s.DoJSON("PATCH", "/api/latest/fleet/fleets/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
 			Enable:         true,
 			DestinationURL: "https://example.com/webhook",
 			PolicyIDs:      []uint{noTeamPol1.ID, noTeamPol2.ID}, // pol3 is NOT included
@@ -378,7 +378,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamFailingPolicyWebhookTrigger()
 	defaultTeamResp = struct {
 		Team *fleet.DefaultTeam `json:"team"` //nolint:apiparamcheck // test helper; matches server response shape
 	}{}
-	s.DoJSON("GET", "/api/latest/fleet/teams/0", nil, http.StatusOK, &defaultTeamResp)
+	s.DoJSON("GET", "/api/latest/fleet/fleets/0", nil, http.StatusOK, &defaultTeamResp)
 	require.Equal(t, uint(0), defaultTeamResp.Team.ID)
 	require.Equal(t, fleet.ReservedNameNoTeam, defaultTeamResp.Team.Name)
 	require.True(t, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.Enable)
@@ -479,8 +479,8 @@ func (s *integrationEnterpriseTestSuite) TestResetAutomation() {
 
 	var tmResp teamResponse
 	// modify the team's config - enable the webhook
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team1.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
-		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team1.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
 			Enable:         true,
 			DestinationURL: "http://127/",
 			PolicyIDs:      []uint{createPol1.Policy.ID, createPol2.Policy.ID},
@@ -1158,6 +1158,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		"host_id": %d,
 		"host_display_name": "%s",
 		"software_title": "%s",
+		"software_display_name": "",
 		"software_package": "%s",
 		"hash_sha256": "%s",
 		"self_service": false,
@@ -1738,7 +1739,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	rubyDebTitleID := resp.SoftwareTitles[0].ID
 
 	var rubyDetail getSoftwareTitleResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", rubyDebTitleID), nil, http.StatusOK, &rubyDetail)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", rubyDebTitleID), nil, http.StatusOK, &rubyDetail, "fleet_id", "0")
 	require.NotNil(t, rubyDetail.SoftwareTitle)
 	require.NotNil(t, rubyDetail.SoftwareTitle.SoftwarePackage)
 	rubyInstallerID := rubyDetail.SoftwareTitle.SoftwarePackage.InstallerID
@@ -1802,7 +1803,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	vimTitleID := resp.SoftwareTitles[0].ID
 
 	var vimDetail getSoftwareTitleResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", vimTitleID), nil, http.StatusOK, &vimDetail)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", vimTitleID), nil, http.StatusOK, &vimDetail, "fleet_id", "0")
 	require.NotNil(t, vimDetail.SoftwareTitle)
 	require.NotNil(t, vimDetail.SoftwareTitle.SoftwarePackage)
 	vimInstallerID := vimDetail.SoftwareTitle.SoftwarePackage.InstallerID
@@ -1848,7 +1849,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	// Use a dedicated team so we can reuse the ruby.deb and vim.deb testdata
 	// files without conflicting with the no-team installers already uploaded above.
 	var inclAllTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", fleet.Team{Name: t.Name() + "-include-all"}, http.StatusOK, &inclAllTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", fleet.Team{Name: t.Name() + "-include-all"}, http.StatusOK, &inclAllTeamResp)
 	inclAllTeam := inclAllTeamResp.Team
 	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&inclAllTeam.ID, []uint{host.ID}))
 	require.NoError(t, err)
@@ -2081,7 +2082,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationLabelScopingRetrigg
 	rubyDebTitleID := resp.SoftwareTitles[0].ID
 
 	var rubyDetail getSoftwareTitleResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", rubyDebTitleID), nil, http.StatusOK, &rubyDetail)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", rubyDebTitleID), nil, http.StatusOK, &rubyDetail, "fleet_id", "0")
 	require.NotNil(t, rubyDetail.SoftwareTitle)
 	require.NotNil(t, rubyDetail.SoftwareTitle.SoftwarePackage)
 	rubyInstallerID := rubyDetail.SoftwareTitle.SoftwarePackage.InstallerID
@@ -4013,7 +4014,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwarePackageSele
 	ctx := context.Background()
 
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name()}, http.StatusOK, &createTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{Name: t.Name()}, http.StatusOK, &createTeamResp)
 	teamID := createTeamResp.Team.ID
 	user := s.users["admin1@example.com"]
 
@@ -4414,4 +4415,207 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyResendConfigProfileCRUD()
 		}, http.StatusBadRequest)
 		require.Contains(t, extractServerErrorText(res.Body), "does not belong to team ID")
 	})
+}
+
+func (s *integrationEnterpriseTestSuite) TestPolicyAutomationRunCountsAfterCleanups() {
+	t := s.T()
+	ctx := t.Context()
+	activitySvc := mysqltest.NewTestActivityService(t, s.ds)
+	threeDaysAgo := time.Now().Add(-72 * time.Hour)
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	newOrbitHost := func(name string, teamID *uint) *fleet.Host {
+		host, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-1 * time.Minute),
+			OsqueryHostID:   new(t.Name() + name),
+			NodeKey:         new(t.Name() + name),
+			UUID:            uuid.New().String(),
+			Hostname:        fmt.Sprintf("%s-%s.local", t.Name(), name),
+			Platform:        "darwin",
+			TeamID:          teamID,
+		})
+		require.NoError(t, err)
+		orbitKey := setOrbitEnrollment(t, host, s.ds)
+		host.OrbitNodeKey = &orbitKey
+		return host
+	}
+	keptHost := newOrbitHost("kept", &team.ID)
+	deletedHost := newOrbitHost("deleted", &team.ID)
+	expiredHost := newOrbitHost("expired", &team.ID)
+	noTeamHost := newOrbitHost("no-team", nil)
+
+	teamScript, err := s.ds.NewScript(ctx, &fleet.Script{Name: "run-counts-team.sh", ScriptContents: "echo team", TeamID: &team.ID})
+	require.NoError(t, err)
+	noTeamScript, err := s.ds.NewScript(ctx, &fleet.Script{Name: "run-counts-cleanups-no-team.sh", ScriptContents: "echo no team"})
+	require.NoError(t, err)
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "echo install",
+		Filename:      "dummy_installer.pkg",
+		TeamID:        &team.ID,
+	}, http.StatusOK, "")
+	var installerID uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerID,
+			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, team.ID, "dummy_installer.pkg")
+	})
+
+	query := "SELECT 1 FROM osquery_info WHERE start_time < 0;"
+	teamScriptPolicy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil,
+		fleet.PolicyPayload{Name: t.Name() + "-team-script", Query: query, Platform: "darwin", ScriptID: &teamScript.ID})
+	require.NoError(t, err)
+	installPolicy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil,
+		fleet.PolicyPayload{Name: t.Name() + "-install", Query: query, Platform: "darwin", SoftwareInstallerID: &installerID})
+	require.NoError(t, err)
+	noTeamScriptPolicy, err := s.ds.NewTeamPolicy(ctx, fleet.PolicyNoTeamID, nil,
+		fleet.PolicyPayload{Name: t.Name() + "-no-team-script", Query: query, Platform: "darwin", ScriptID: &noTeamScript.ID})
+	require.NoError(t, err)
+
+	execSQL := func(stmt string, args ...any) {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, stmt, args...)
+			return err
+		})
+	}
+	failPolicy := func(host *fleet.Host, policyID uint) {
+		var distributedResp submitDistributedQueryResultsResponse
+		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write",
+			genDistributedReqWithPolicyResults(host, map[uint]*bool{policyID: new(false)}), http.StatusOK, &distributedResp)
+	}
+	pendingScriptExecutionID := func(host *fleet.Host, policyID uint) string {
+		var execID string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &execID,
+				`SELECT execution_id FROM host_script_results WHERE host_id = ? AND policy_id = ? AND exit_code IS NULL`, host.ID, policyID)
+		})
+		return execID
+	}
+	pendingInstallExecutionID := func(host *fleet.Host) string {
+		var execID string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &execID,
+				`SELECT execution_id FROM host_software_installs WHERE host_id = ? AND execution_status = 'pending_install'`, host.ID)
+		})
+		return execID
+	}
+	postScriptResult := func(host *fleet.Host, execID string, exitCode int) {
+		var scriptResp fleet.OrbitPostScriptResultResponse
+		s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": %d, "output": "output"}`,
+				*host.OrbitNodeKey, execID, exitCode)),
+			http.StatusOK, &scriptResp)
+	}
+	postInstallResult := func(host *fleet.Host, execID string, exitCode int) {
+		s.Do("POST", "/api/fleet/orbit/software_install/result",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "install_uuid": %q, "install_script_exit_code": %d, "install_script_output": "output"}`,
+				*host.OrbitNodeKey, execID, exitCode)),
+			http.StatusNoContent)
+	}
+	listRuns := func(policyID uint, status string) (uint, int) {
+		var listResp fleet.ListPolicyAutomationActivitiesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d/automation_activities", policyID), nil, http.StatusOK, &listResp,
+			"status", status, "per_page", "100")
+		return listResp.Count, len(listResp.Activities)
+	}
+
+	scriptRuns := []struct {
+		name      string
+		host      *fleet.Host
+		policyID  uint
+		exitCodes []int
+	}{
+		{"kept host fails a run and its first retry", keptHost, teamScriptPolicy.ID, []int{1, 1}},
+		{"host that gets deleted passes its run", deletedHost, teamScriptPolicy.ID, []int{0}},
+		{"host that expires passes its run", expiredHost, teamScriptPolicy.ID, []int{0}},
+		{"Unassigned host fails a run and passes its retry", noTeamHost, noTeamScriptPolicy.ID, []int{1, 0}},
+	}
+	// fail each host's script policy, then post a result for each run it queues
+	for _, run := range scriptRuns {
+		failPolicy(run.host, run.policyID)
+		for _, exitCode := range run.exitCodes {
+			postScriptResult(run.host, pendingScriptExecutionID(run.host, run.policyID), exitCode)
+		}
+	}
+	// pass the kept host's second retry, this is its most recent run
+	recentScriptExecID := pendingScriptExecutionID(keptHost, teamScriptPolicy.ID)
+	postScriptResult(keptHost, recentScriptExecID, 0)
+
+	// fail the install policy on the kept host, then fail the install and pass its retry
+	failPolicy(keptHost, installPolicy.ID)
+	failedInstallExecID := pendingInstallExecutionID(keptHost)
+	postInstallResult(keptHost, failedInstallExecID, 1)
+	postInstallResult(keptHost, pendingInstallExecutionID(keptHost), 0)
+
+	// list the fleet script policy's runs, the total and the rows should have all 5 runs
+	total, rows := listRuns(teamScriptPolicy.ID, "")
+	require.Equal(t, uint(5), total)
+	require.Equal(t, 5, rows)
+
+	// delete a host, its run should be gone from the total and the rows
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", deletedHost.ID), nil, http.StatusOK)
+	total, rows = listRuns(teamScriptPolicy.ID, "")
+	require.Equal(t, uint(4), total)
+	require.Equal(t, 4, rows)
+
+	// turn on host expiry for the fleet and set a host's last seen time to 3 days ago
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID),
+		json.RawMessage(`{"host_expiry_settings": {"host_expiry_enabled": true, "host_expiry_window": 1}}`), http.StatusOK)
+	execSQL(`UPDATE host_seen_times SET seen_time = ? WHERE host_id = ?`, threeDaysAgo, expiredHost.ID)
+	// clean up expired hosts like the cron does, the host's run should be gone from both
+	expiredHosts, err := s.ds.CleanupExpiredHostsBatch(ctx, 100)
+	require.NoError(t, err)
+	require.Len(t, expiredHosts, 1)
+	require.Equal(t, expiredHost.ID, expiredHosts[0].ID)
+	require.NoError(t, activitySvc.CleanupHostActivities(ctx, []uint{expiredHost.ID}))
+	total, rows = listRuns(teamScriptPolicy.ID, "")
+	require.Equal(t, uint(3), total)
+	require.Equal(t, 3, rows)
+
+	// set the fleet script policy's activities to 3 days old
+	execSQL(`UPDATE activity_past SET created_at = ? WHERE policy_id = ?`, threeDaysAgo, teamScriptPolicy.ID)
+	// clean up activities older than 1 day, the kept host's runs should still be in both
+	require.NoError(t, activitySvc.CleanupExpiredActivities(ctx, 1000, 1))
+	total, rows = listRuns(teamScriptPolicy.ID, "")
+	require.Equal(t, uint(3), total)
+	require.Equal(t, 3, rows)
+
+	// set the Unassigned host's fail count to 0, lower than the failed runs that get cleaned up
+	execSQL(`UPDATE host_policy_automation_run_counts SET fail_count = 0 WHERE policy_id = ?`, noTeamScriptPolicy.ID)
+
+	// set every result except the kept host's most recent script run and install retry to 3 days old
+	execSQL(`UPDATE host_script_results SET created_at = ?, updated_at = ? WHERE policy_id IN (?, ?) AND execution_id != ?`,
+		threeDaysAgo, threeDaysAgo, teamScriptPolicy.ID, noTeamScriptPolicy.ID, recentScriptExecID)
+	execSQL(`UPDATE host_software_installs SET created_at = ?, updated_at = ? WHERE execution_id = ?`,
+		threeDaysAgo, threeDaysAgo, failedInstallExecID)
+
+	// clean up script results and install records older than 1 day
+	_, err = s.ds.CleanupHostScriptResults(ctx, time.Now().Add(-24*time.Hour))
+	require.NoError(t, err)
+	_, err = s.ds.CleanupHostSoftwareInstalls(ctx, time.Now().Add(-24*time.Hour))
+	require.NoError(t, err)
+
+	cases := []struct {
+		name     string
+		policyID uint
+		status   string
+		expected int
+	}{
+		{"run count is 1 for the fleet script policy, matching the runs left after cleanup", teamScriptPolicy.ID, "", 1},
+		{"success count is 1 for the fleet script policy, matching the successful runs left", teamScriptPolicy.ID, "success", 1},
+		{"fail count is 0 for the fleet script policy, matching the failed runs left", teamScriptPolicy.ID, "error", 0},
+		{"run count is 1 for the install policy, matching the installs left after cleanup", installPolicy.ID, "", 1},
+		{"fail count is 0 for the install policy, matching the failed installs left", installPolicy.ID, "error", 0},
+		{"run count is 0 for the Unassigned script policy, even with a fail count lower than its runs", noTeamScriptPolicy.ID, "", 0},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			total, rows := listRuns(c.policyID, c.status)
+			require.Equal(t, uint(c.expected), total)
+			require.Equal(t, c.expected, rows)
+		})
+	}
 }

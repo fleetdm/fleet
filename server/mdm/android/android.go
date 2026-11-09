@@ -91,7 +91,11 @@ type MDMAndroidPolicyRequest struct {
 	PolicyVersion        sql.Null[int64]  `db:"policy_version"`
 }
 
-const AppStatusAvailable = "AVAILABLE"
+const (
+	AppStatusAvailable      = "AVAILABLE"
+	AppStatusPreinstalled   = "PREINSTALLED"
+	AppStatusForceInstalled = "FORCE_INSTALLED"
+)
 
 // MDMAndroidCommand represents a single AMAPI command Fleet issued via EnterprisesDevicesService.IssueCommand (Lock,
 // Wipe, Clear passcode). One row is inserted at issue time and updated by the Pub/Sub COMMAND handler when the device

@@ -19,14 +19,7 @@ export type LabelType = "regular" | "builtin";
 // Valid platform values for a dynamic label, mirroring the server's
 // ValidLabelPlatformVariants (server/fleet/labels.go). "" targets all
 // platforms.
-export const LABEL_PLATFORMS = [
-  "",
-  "darwin",
-  "windows",
-  "linux",
-  "ubuntu",
-  "centos",
-] as const;
+export const LABEL_PLATFORMS = ["", "darwin", "windows", "linux"] as const;
 export type LabelPlatform = typeof LABEL_PLATFORMS[number];
 export type LabelMembershipType = "dynamic" | "manual" | "host_vitals";
 export const LabelMembershipTypeToDisplayCopy: Record<
@@ -144,8 +137,8 @@ export interface ILabel extends ILabelSummary {
   slug?: string; // e.g., "labels/13" | "online"
   target_type?: string; // e.g., "labels"
   author_id?: number;
-  team_id: number | null;
-  team_name?: string | null; // returned on individual label endpoints but not list endpoints
+  fleet_id: number | null;
+  fleet_name?: string | null; // returned on individual label endpoints but not list endpoints
 
   label_membership_type: LabelMembershipType;
 

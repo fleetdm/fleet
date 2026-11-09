@@ -3,6 +3,7 @@ package ejbca
 import (
 	"context"
 	"crypto/rsa"
+	"errors"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -196,6 +197,8 @@ func TestGetCertificateErrors(t *testing.T) {
 		configure func(*ejbcatest.Server)
 		modify    func(t *testing.T, f *ejbcatest.Server, config *fleet.EJBCA)
 		wantErr   string
+		// wantTransient is whether the error is one that is expected to clear on its own, so the enrollment is worth retrying.
+		wantTransient bool
 	}{
 		{
 			name: "unknown CA",
@@ -229,7 +232,12 @@ func TestGetCertificateErrors(t *testing.T) {
 		{
 			name:      "EJBCA server error",
 			configure: func(f *ejbcatest.Server) { f.EnrollStatus = http.StatusInternalServerError },
-			wantErr:   fmt.Sprintf(msgUnexpected, http.StatusInternalServerError, "General failure"),
+			wantErr:   fmt.Sprintf(msgUnexpected, http.StatusInternalServerError, "General failure"), wantTransient: true,
+		},
+		{
+			name:    "EJBCA that is not running",
+			modify:  func(_ *testing.T, f *ejbcatest.Server, _ *fleet.EJBCA) { f.HTTP.Close() },
+			wantErr: strings.Split(msgUnreachable, "%s")[0], wantTransient: true,
 		},
 		{
 			name:      "certificate for another key",
@@ -257,6 +265,8 @@ func TestGetCertificateErrors(t *testing.T) {
 			cert, err := NewService().GetCertificate(t.Context(), config)
 			require.ErrorContains(t, err, tt.wantErr)
 			require.Nil(t, cert)
+			_, isTransient := errors.AsType[fleet.CertificateAuthorityTransientError](err)
+			require.Equal(t, tt.wantTransient, isTransient)
 		})
 	}
 
@@ -303,6 +313,26 @@ func TestRedirectsNotFollowed(t *testing.T) {
 	_, err = NewService().GetCertificate(t.Context(), config)
 	require.ErrorContains(t, err, fmt.Sprintf(msgUnexpected, http.StatusTemporaryRedirect, ""))
 	require.Zero(t, hits.Load())
+}
+
+func TestErrorMessage(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct{ name, body, want string }{
+		{"EJBCA error", `{"error_code":400,"error_message":"CA doesn't exist"}`, "CA doesn't exist"},
+		{"plain text", "  Gateway timeout  ", "Gateway timeout"},
+		{
+			"HTML page of a proxy",
+			"<!DOCTYPE HTML>\n<html><head>\n<title>503 Service Unavailable</title>\n</head><body>\n<h1>Service Unavailable</h1>\n</body></html>",
+			"503 Service Unavailable Service Unavailable",
+		},
+		{"long text is cut", strings.Repeat("a", 300), strings.Repeat("a", 200)},
+		{"the cut doesn't split a character", strings.Repeat("a", 199) + "é", strings.Repeat("a", 199)},
+		{"invalid UTF-8 is dropped", "bad\xffbody", "badbody"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, errorMessage([]byte(tt.body)))
+		})
+	}
 }
 
 // Running out of time or being canceled while looking up the certificate profile is not that lookup being unavailable.

@@ -8,10 +8,8 @@ import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 import AcrobatReader from "./AcrobatReader";
 import AdobePlugin from "./AdobePlugin";
 import AmazonDCV from "./AmazonDCV";
-import AndroidApp from "./AndroidApp";
 import AndroidOS from "./AndroidOS";
 import AndroidPlayStore from "./AndroidPlayStore";
-import AppleApp from "./AppleApp";
 import AppleAppStore from "./AppleAppStore";
 import Box from "./Box";
 import Brave from "./Brave";
@@ -71,7 +69,6 @@ import Alacritty from "./png/Alacritty.png";
 import Alcove from "./png/Alcove.png";
 import Aldente from "./png/Aldente.png";
 import Alfaview from "./png/Alfaview.png";
-import Alloy from "./png/Alloy.png";
 import AllwaySync from "./png/AllwaySync.png";
 import AltairGraphqlClient from "./png/AltairGraphqlClient.png";
 import AltTab from "./png/AltTab.png";
@@ -87,7 +84,6 @@ import AmazonWorkspaces from "./png/AmazonWorkspaces.png";
 import Amethyst from "./png/Amethyst.png";
 import Amie from "./png/Amie.png";
 import AndroidStudio from "./png/AndroidStudio.png";
-import AngryIpScanner from "./png/AngryIpScanner.png";
 import Anka from "./png/Anka.png";
 import AnotherRedisDesktopManager from "./png/AnotherRedisDesktopManager.png";
 import Antigravity from "./png/Antigravity.png";
@@ -102,7 +98,6 @@ import Apidog from "./png/Apidog.png";
 import Apparency from "./png/Apparency.png";
 import AppCleaner from "./png/AppCleaner.png";
 import AppFair from "./png/AppFair.png";
-import AppiumInspector from "./png/AppiumInspector.png";
 import Applite from "./png/Applite.png";
 import Aptakube from "./png/Aptakube.png";
 import Arc from "./png/Arc.png";
@@ -192,7 +187,6 @@ import Capto from "./png/Capto.png";
 import CarbonCopyCloner from "./png/CarbonCopyCloner.png";
 import Cardhop from "./png/Cardhop.png";
 import Cavalry from "./png/Cavalry.png";
-import Cellprofiler from "./png/Cellprofiler.png";
 import CertifyTheWeb from "./png/CertifyTheWeb.png";
 import Chalk from "./png/Chalk.png";
 import Charles from "./png/Charles.png";
@@ -306,10 +300,10 @@ import Devpod from "./png/Devpod.png";
 import Devtoys from "./png/Devtoys.png";
 import Devutils from "./png/Devutils.png";
 import DfuBlasterPro from "./png/DfuBlasterPro.png";
+import Dia from "./png/Dia.png";
 import Dialpad from "./png/Dialpad.png";
 import Dictionaries from "./png/Dictionaries.png";
 import Diffusionbee from "./png/Diffusionbee.png";
-import Digikam from "./png/Digikam.png";
 import DigisealReader from "./png/DigisealReader.png";
 import DirectoryOpus from "./png/DirectoryOpus.png";
 import Discord from "./png/Discord.png";
@@ -378,12 +372,10 @@ import EpicGames from "./png/EpicGames.png";
 import Equinox from "./png/Equinox.png";
 import Etrecheckpro from "./png/Etrecheckpro.png";
 import Evernote from "./png/Evernote.png";
-import Exifcleaner from "./png/Exifcleaner.png";
 import Exifrenamer from "./png/Exifrenamer.png";
 import ExpressVpn from "./png/ExpressVpn.png";
 import Extradock from "./png/Extradock.png";
 import Fantastical from "./png/Fantastical.png";
-import Far2L from "./png/Far2L.png";
 import Farrago from "./png/Farrago.png";
 import Fastmail from "./png/Fastmail.png";
 import Fastscripts from "./png/Fastscripts.png";
@@ -482,6 +474,7 @@ import Granola from "./png/Granola.png";
 import Graphviz from "./png/Graphviz.png";
 import Grepwin from "./png/Grepwin.png";
 import Grids from "./png/Grids.png";
+import GrokBot from "./png/GrokBot.png";
 import GrooveOmniDialer from "./png/GrooveOmniDialer.png";
 import Gyazo from "./png/Gyazo.png";
 import Hammerspoon from "./png/Hammerspoon.png";
@@ -491,7 +484,6 @@ import HarmonySase from "./png/HarmonySase.png";
 import Hazel from "./png/Hazel.png";
 import Hazeover from "./png/Hazeover.png";
 import Heidisql from "./png/Heidisql.png";
-import Helium from "./png/Helium.png";
 import HexFiend from "./png/HexFiend.png";
 import HeyDesktop from "./png/HeyDesktop.png";
 import Hiddenbar from "./png/Hiddenbar.png";
@@ -537,7 +529,6 @@ import Install4J from "./png/Install4J.png";
 import Intellidock from "./png/Intellidock.png";
 import IntelliJIdea from "./png/IntelliJIdea.png";
 import IntelliJIdeaCe from "./png/IntelliJIdeaCe.png";
-import Invesalius from "./png/Invesalius.png";
 import Irfanview from "./png/Irfanview.png";
 import Ironpython from "./png/Ironpython.png";
 import Isobuster from "./png/Isobuster.png";
@@ -595,12 +586,13 @@ import LibreOffice from "./png/LibreOffice.png";
 import Lightburn from "./png/Lightburn.png";
 import Linear from "./png/Linear.png";
 import Linearmouse from "./png/Linearmouse.png";
-import LingonX from "./png/LingonX.png";
 import LittleSnitch from "./png/LittleSnitch.png";
+import LMStudio from "./png/LMStudio.png";
 import Local from "./png/Local.png";
 import Localsend from "./png/Localsend.png";
 import Locationsimulator from "./png/Locationsimulator.png";
 import Logioptionsplus from "./png/Logioptionsplus.png";
+import LogitechGHub from "./png/LogitechGHub.png";
 import LogitechUnifyingSoftware from "./png/LogitechUnifyingSoftware.png";
 import LogiTune from "./png/LogiTune.png";
 import Logseq from "./png/Logseq.png";
@@ -617,9 +609,7 @@ import Lunasea from "./png/Lunasea.png";
 import Lunatask from "./png/Lunatask.png";
 import Lycheeslicer from "./png/Lycheeslicer.png";
 import Maccy from "./png/Maccy.png";
-import Macdown from "./png/Macdown.png";
 import Mace from "./png/Mace.png";
-import Macjournal from "./png/Macjournal.png";
 import MacMouseFix from "./png/MacMouseFix.png";
 import Macpacker from "./png/Macpacker.png";
 import Macpass from "./png/Macpass.png";
@@ -635,7 +625,6 @@ import Mailspring from "./png/Mailspring.png";
 import Malwarebytes from "./png/Malwarebytes.png";
 import MarkedApp from "./png/MarkedApp.png";
 import Markedit from "./png/Markedit.png";
-import MarkText from "./png/MarkText.png";
 import Marsedit from "./png/Marsedit.png";
 import Marta from "./png/Marta.png";
 import Marvel from "./png/Marvel.png";
@@ -662,6 +651,7 @@ import MicrosoftEdge from "./png/MicrosoftEdge.png";
 import MicrosoftOdbcDriver17 from "./png/MicrosoftOdbcDriver17.png";
 import MicrosoftOdbcDriver18 from "./png/MicrosoftOdbcDriver18.png";
 import MicrosoftOffice from "./png/MicrosoftOffice.png";
+import MicrosoftOleDbDriver18 from "./png/MicrosoftOleDbDriver18.png";
 import MicrosoftOleDbDriver19 from "./png/MicrosoftOleDbDriver19.png";
 import MicrosoftOneNote from "./png/MicrosoftOneNote.png";
 import MicrosoftOutlook from "./png/MicrosoftOutlook.png";
@@ -762,9 +752,7 @@ import OpencodeDesktop from "./png/OpencodeDesktop.png";
 import Openinterminal from "./png/Openinterminal.png";
 import Openlens from "./png/Openlens.png";
 import Openmtp from "./png/Openmtp.png";
-import Openrct2 from "./png/Openrct2.png";
 import Openrefine from "./png/Openrefine.png";
-import Opentoonz from "./png/Opentoonz.png";
 import OpenvpnConnect from "./png/OpenvpnConnect.png";
 import Opera from "./png/Opera.png";
 import OptimusPlayer from "./png/OptimusPlayer.png";
@@ -854,7 +842,6 @@ import Qlab from "./png/Qlab.png";
 import Qlmarkdown from "./png/Qlmarkdown.png";
 import QspacePro from "./png/QspacePro.png";
 import Quip from "./png/Quip.png";
-import Qview from "./png/Qview.png";
 import R from "./png/R.png";
 import RadioSilence from "./png/RadioSilence.png";
 import Raindropio from "./png/Raindropio.png";
@@ -863,6 +850,7 @@ import RapidApi from "./png/RapidApi.png";
 import Rapidweaver from "./png/Rapidweaver.png";
 import RaspberryPiImager from "./png/RaspberryPiImager.png";
 import Raycast from "./png/Raycast.png";
+import ReadAI from "./png/ReadAI.png";
 import Readest from "./png/Readest.png";
 import RealVncServer from "./png/RealVncServer.png";
 import Reaper from "./png/Reaper.png";
@@ -994,6 +982,7 @@ import Superhuman from "./png/Superhuman.png";
 import SuperhumanDocs from "./png/SuperhumanDocs.png";
 import Superkey from "./png/Superkey.png";
 import SuperProductivity from "./png/SuperProductivity.png";
+import Superset from "./png/Superset.png";
 import Superwhisper from "./png/Superwhisper.png";
 import Supportcompanion from "./png/Supportcompanion.png";
 import Surfshark from "./png/Surfshark.png";
@@ -1008,6 +997,7 @@ import Syncmate from "./png/Syncmate.png";
 import Syncovery from "./png/Syncovery.png";
 import SyncthingApp from "./png/SyncthingApp.png";
 import SyntaxHighlight from "./png/SyntaxHighlight.png";
+import T3Code from "./png/T3Code.png";
 import Tabby from "./png/Tabby.png";
 import TableauDesktop from "./png/TableauDesktop.png";
 import TableauPrep from "./png/TableauPrep.png";
@@ -1065,6 +1055,8 @@ import UltimakerCura from "./png/UltimakerCura.png";
 import Unclutter from "./png/Unclutter.png";
 import Unicodechecker from "./png/Unicodechecker.png";
 import UnityHub from "./png/UnityHub.png";
+import UnnaturalScrollWheels from "./png/UnnaturalScrollWheels.png";
+import Updf from "./png/Updf.png";
 import Upscayl from "./png/Upscayl.png";
 import UsageApp from "./png/UsageApp.png";
 import Utm from "./png/Utm.png";
@@ -1105,6 +1097,7 @@ import Webex from "./png/Webex.png";
 import WebStorm from "./png/WebStorm.png";
 import Wechat from "./png/Wechat.png";
 import Weektodo from "./png/Weektodo.png";
+import WezTerm from "./png/WezTerm.png";
 import Whatroute from "./png/Whatroute.png";
 import Whisky from "./png/Whisky.png";
 import Whispering from "./png/Whispering.png";
@@ -1118,6 +1111,7 @@ import Winlogbeat from "./png/Winlogbeat.png";
 import Winrar from "./png/Winrar.png";
 import Wins from "./png/Wins.png";
 import Winscp from "./png/Winscp.png";
+import Wireguard from "./png/Wireguard.png";
 import Wireshark from "./png/Wireshark.png";
 import WisprFlow from "./png/WisprFlow.png";
 import WondershareEdrawmax from "./png/WondershareEdrawmax.png";
@@ -1140,7 +1134,6 @@ import Yaak from "./png/Yaak.png";
 import Yacreader from "./png/Yacreader.png";
 import Yarn from "./png/Yarn.png";
 import Yattee from "./png/Yattee.png";
-import Yippy from "./png/Yippy.png";
 import YtMusic from "./png/YtMusic.png";
 import YubicoAuthenticator from "./png/YubicoAuthenticator.png";
 import YubikeyManager from "./png/YubikeyManager.png";
@@ -1221,7 +1214,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   alcove: Alcove,
   aldente: Aldente,
   alfaview: Alfaview,
-  alloy: Alloy,
   "allway sync": AllwaySync,
   "altair graphql client": AltairGraphqlClient,
   alttab: AltTab,
@@ -1243,7 +1235,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   amie: Amie,
   "android studio": AndroidStudio,
   androidPlayStore: AndroidPlayStore,
-  "angry ip scanner": AngryIpScanner,
   anka: Anka,
   "another redis desktop manager": AnotherRedisDesktopManager,
   antigravity: Antigravity,
@@ -1258,7 +1249,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "app fair": AppFair,
   apparency: Apparency,
   appcleaner: AppCleaner,
-  "appium inspector gui": AppiumInspector,
   appleAppStore: AppleAppStore,
   applite: Applite,
   aptakube: Aptakube,
@@ -1354,7 +1344,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "carbon copy cloner": CarbonCopyCloner,
   cardhop: Cardhop,
   cavalry: Cavalry,
-  cellprofiler: Cellprofiler,
   "certify the web": CertifyTheWeb,
   chalk: Chalk,
   charles: Charles,
@@ -1474,10 +1463,10 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   devtoys: Devtoys,
   devutils: Devutils,
   "dfu blaster pro": DfuBlasterPro,
+  dia: Dia,
   dialpad: Dialpad,
   dictionaries: Dictionaries,
   "diffusion bee": Diffusionbee,
-  digikam: Digikam,
   "digiseal reader": DigisealReader,
   "directory opus": DirectoryOpus,
   discord: Discord,
@@ -1551,14 +1540,12 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   equinox: Equinox,
   etrecheck: Etrecheckpro,
   evernote: Evernote,
-  exifcleaner: Exifcleaner,
   exifrenamer: Exifrenamer,
   expressvpn: ExpressVpn,
   extradock: Extradock,
   "f.lux": FluxApp,
   falcon: Falcon,
   fantastical: Fantastical,
-  far2l: Far2L,
   farrago: Farrago,
   fastmail: Fastmail,
   fastscripts: Fastscripts,
@@ -1657,6 +1644,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   graphviz: Graphviz,
   grepwin: Grepwin,
   grids: Grids,
+  "grok bot": GrokBot,
   "groove omnidialer": GrooveOmniDialer,
   hammerspoon: Hammerspoon,
   handbrake: HandbrakeApp,
@@ -1665,7 +1653,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   hazel: Hazel,
   hazeover: Hazeover,
   heidisql: Heidisql,
-  helium: Helium,
   "hex fiend": HexFiend,
   hey: HeyDesktop,
   "hidden bar": Hiddenbar,
@@ -1714,7 +1701,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   intellidock: Intellidock,
   "intellij idea": IntelliJIdea,
   "intellij idea ce": IntelliJIdeaCe,
-  invesalius: Invesalius,
   irfanview: Irfanview,
   "ironpython 3": Ironpython,
   isobuster: Isobuster,
@@ -1771,13 +1757,14 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   lightburn: Lightburn,
   linear: Linear,
   linearmouse: Linearmouse,
-  "lingon x": LingonX,
   "little snitch": LittleSnitch,
+  "lm studio": LMStudio,
   local: Local,
   localsend: Localsend,
   locationsimulator: Locationsimulator,
   "logi options+": Logioptionsplus,
   "logi tune": LogiTune,
+  "logitech g hub": LogitechGHub,
   "logitech unifying software": LogitechUnifyingSoftware,
   logseq: Logseq,
   lookaway: Lookaway,
@@ -1794,9 +1781,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "lychee slicer": Lycheeslicer,
   "mac mouse fix": MacMouseFix,
   maccy: Maccy,
-  macdown: Macdown,
   mace: Mace,
-  macjournal: Macjournal,
   macpacker: Macpacker,
   macpass: Macpass,
   macpilot: Macpilot,
@@ -1811,7 +1796,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "malwarebytes for mac": Malwarebytes,
   marked: MarkedApp,
   markedit: Markedit,
-  marktext: MarkText,
   marsedit: Marsedit,
   "marta file manager": Marta,
   marvel: Marvel,
@@ -1830,6 +1814,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "merlin project": MerlinProject,
   "microsoft .net desktop runtime": MicrosoftDotnetRuntime,
   "microsoft .net runtime": MicrosoftDotnetRuntime,
+  "microsoft .net sdk": MicrosoftDotnetRuntime,
   "microsoft 365 copilot": Microsoft365Copilot,
   "microsoft auto update": MicrosoftAutoUpdate,
   "microsoft autoupdate": MicrosoftAutoUpdate,
@@ -1840,7 +1825,9 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "microsoft odbc driver 17 for sql server": MicrosoftOdbcDriver17,
   "microsoft odbc driver 18 for sql server": MicrosoftOdbcDriver18,
   "microsoft office": MicrosoftOffice,
+  "microsoft ole db driver 18 for sql server": MicrosoftOleDbDriver18,
   "microsoft ole db driver 19 for sql server": MicrosoftOleDbDriver19,
+  "microsoft ole db driver for sql server": MicrosoftOleDbDriver18,
   "microsoft onenote": MicrosoftOneNote,
   "microsoft outlook": MicrosoftOutlook,
   "microsoft powerpoint": MicrosoftPowerPoint,
@@ -1952,9 +1939,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   openinterminal: Openinterminal,
   openlens: Openlens,
   openmtp: Openmtp,
-  openrct2: Openrct2,
   openrefine: Openrefine,
-  opentoonz: Opentoonz,
   "openvpn connect": OpenvpnConnect,
   opera: Opera,
   "optimus player": OptimusPlayer,
@@ -2045,7 +2030,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   qlab: Qlab,
   "qspace pro": QspacePro,
   quip: Quip,
-  qview: Qview,
   "r for macos": R,
   "r for windows": R,
   "radio silence": RadioSilence,
@@ -2055,6 +2039,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   rapidweaver: Rapidweaver,
   "raspberry pi imager": RaspberryPiImager,
   raycast: Raycast,
+  "read ai": ReadAI,
   readest: Readest,
   "realvnc connect viewer": VncViewer,
   "realvnc server": RealVncServer,
@@ -2191,6 +2176,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   superhuman: Superhuman,
   "superhuman docs": SuperhumanDocs,
   superkey: Superkey,
+  superset: Superset,
   superwhisper: Superwhisper,
   "support companion": Supportcompanion,
   surfshark: Surfshark,
@@ -2205,6 +2191,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   syncovery: Syncovery,
   syncthing: SyncthingApp,
   "syntax highlight": SyntaxHighlight,
+  "t3 code": T3Code,
   tabby: Tabby,
   tableau: TableauDesktop,
   "tableau prep": TableauPrep,
@@ -2265,6 +2252,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   unclutter: Unclutter,
   unicodechecker: Unicodechecker,
   "unity hub": UnityHub,
+  unnaturalscrollwheels: UnnaturalScrollWheels,
+  updf: Updf,
   upscayl: Upscayl,
   usage: UsageApp,
   utm: Utm,
@@ -2310,6 +2299,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   wechat: Wechat,
   "wechat for mac": Wechat,
   weektodo: Weektodo,
+  wezterm: WezTerm,
   whatroute: Whatroute,
   whatsapp: WhatsApp,
   whisky: Whisky,
@@ -2326,6 +2316,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   winrar: Winrar,
   wins: Wins,
   winscp: Winscp,
+  wireguard: Wireguard,
   wireshark: Wireshark,
   "wispr flow": WisprFlow,
   "wondershare filmora": WondershareFilmora,
@@ -2348,7 +2339,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   yacreader: Yacreader,
   yarn: Yarn,
   yattee: Yattee,
-  yippy: Yippy,
   "youtube music": YtMusic,
   "yubico authenticator": YubicoAuthenticator,
   "yubikey manager": YubikeyManager,
@@ -2394,11 +2384,11 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
   atom_packages: Package,
   python_packages: Package,
   homebrew_packages: Package,
-  apps: AppleApp,
-  ios_apps: AppleApp,
-  ipados_apps: AppleApp,
+  apps: MacOS,
+  ios_apps: MacOS,
+  ipados_apps: MacOS,
   programs: WindowsOS,
-  android_apps: AndroidApp,
+  android_apps: AndroidOS,
   chrome_extensions: Extension,
   safari_extensions: Extension,
   firefox_addons: Extension,

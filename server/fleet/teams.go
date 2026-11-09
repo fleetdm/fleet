@@ -54,14 +54,14 @@ func IsUnassignedFleetName(name string) bool {
 }
 
 type TeamPayload struct {
-	Name               *string              `json:"name"`
-	Description        *string              `json:"description"`
-	Secrets            []*EnrollSecret      `json:"secrets"`
-	WebhookSettings    *TeamWebhookSettings `json:"webhook_settings"`
-	Integrations       *TeamIntegrations    `json:"integrations"`
-	MDM                *TeamPayloadMDM      `json:"mdm"`
-	HostExpirySettings *HostExpirySettings  `json:"host_expiry_settings"`
-	Features           *TeamPayloadFeatures `json:"features"`
+	Name               *string                  `json:"name"`
+	Description        *string                  `json:"description"`
+	Secrets            []*EnrollSecret          `json:"secrets"`
+	WebhookSettings    *TeamSpecWebhookSettings `json:"webhook_settings"`
+	Integrations       *TeamIntegrations        `json:"integrations"`
+	MDM                *TeamPayloadMDM          `json:"mdm"`
+	HostExpirySettings *HostExpirySettings      `json:"host_expiry_settings"`
+	Features           *TeamPayloadFeatures     `json:"features"`
 	// Note AgentOptions must be set by a separate endpoint.
 }
 
@@ -70,7 +70,7 @@ type TeamPayload struct {
 // `features` shape so admins can use the same JSON path on both endpoints.
 //
 // Only the sub-fields defined here take effect; the broader Features
-// fields (enable_host_users, additional_queries, detail_query_overrides)
+// fields (enable_host_users, additional_queries)
 // remain settable per-fleet only via the `/spec/fleets` GitOps path.
 type TeamPayloadFeatures struct {
 	// EnableSoftwareInventory uses optjson.Bool so a key omitted from a
@@ -442,6 +442,7 @@ type TeamSpecAppStoreApp struct {
 	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
 	Icon               TeamSpecSoftwareAsset `json:"icon"`
 	Platform           string                `json:"platform"`
+	Location           string                `json:"location,omitempty"`
 	DisplayName        string                `json:"display_name,omitempty"`
 	Configuration      TeamSpecSoftwareAsset `json:"configuration"`
 	// Auto-update fields for VPP apps
@@ -986,6 +987,7 @@ type TeamSpecIntegrations struct {
 type TeamSpecsDryRunAssumptions struct {
 	WindowsEnabledAndConfigured optjson.Bool `json:"windows_enabled_and_configured,omitempty"`
 	AndroidEnabledAndConfigured optjson.Bool `json:"android_enabled_and_configured,omitempty"`
+	EnableProfileValidation     optjson.Bool `json:"enable_profile_validation,omitzero"`
 }
 
 // TeamSpecFromTeam returns a TeamSpec constructed from the given Team.

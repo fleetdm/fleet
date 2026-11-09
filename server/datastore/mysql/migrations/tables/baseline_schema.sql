@@ -1,0 +1,4172 @@
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `abm_tokens` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `organization_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `apple_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `terms_expired` tinyint(1) NOT NULL DEFAULT '0',
+  `renew_at` timestamp NOT NULL,
+  `token` blob NOT NULL,
+  `macos_default_team_id` int unsigned DEFAULT NULL,
+  `ios_default_team_id` int unsigned DEFAULT NULL,
+  `ipados_default_team_id` int unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `byod_default_team_id` int unsigned DEFAULT NULL,
+  `enrollment_url_token` varbinary(64) NOT NULL,
+  `token_invalid` tinyint(1) NOT NULL DEFAULT '0',
+  `server_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_default` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_abm_tokens_organization_name` (`organization_name`),
+  UNIQUE KEY `idx_abm_tokens_enrollment_url_token` (`enrollment_url_token`),
+  KEY `fk_abm_tokens_macos_default_team_id` (`macos_default_team_id`),
+  KEY `fk_abm_tokens_ios_default_team_id` (`ios_default_team_id`),
+  KEY `fk_abm_tokens_ipados_default_team_id` (`ipados_default_team_id`),
+  KEY `abm_tokens_byod_team_fk` (`byod_default_team_id`),
+  CONSTRAINT `abm_tokens_byod_team_fk` FOREIGN KEY (`byod_default_team_id`) REFERENCES `teams` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_abm_tokens_ios_default_team_id` FOREIGN KEY (`ios_default_team_id`) REFERENCES `teams` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_abm_tokens_ipados_default_team_id` FOREIGN KEY (`ipados_default_team_id`) REFERENCES `teams` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_abm_tokens_macos_default_team_id` FOREIGN KEY (`macos_default_team_id`) REFERENCES `teams` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `abm_tokens_enroll_url_length` CHECK ((length(`enrollment_url_token`) > 32))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `acme_accounts` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `acme_enrollment_id` int unsigned NOT NULL,
+  `json_web_key` json NOT NULL,
+  `json_web_key_thumbprint` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `revoked` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_enrollment_id_thumbprint` (`acme_enrollment_id`,`json_web_key_thumbprint`),
+  CONSTRAINT `acme_accounts_ibfk_1` FOREIGN KEY (`acme_enrollment_id`) REFERENCES `acme_enrollments` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `acme_authorizations` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `identifier_type` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `identifier_value` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `acme_order_id` int unsigned NOT NULL,
+  `status` enum('pending','valid','invalid','deactivated','expired','revoked') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `acme_order_id` (`acme_order_id`),
+  CONSTRAINT `acme_authorizations_ibfk_1` FOREIGN KEY (`acme_order_id`) REFERENCES `acme_orders` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `acme_challenges` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `challenge_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `token` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `acme_authorization_id` int unsigned NOT NULL,
+  `status` enum('pending','valid','invalid','processing') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `attested_public_key` varbinary(255) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `acme_authorization_id` (`acme_authorization_id`),
+  CONSTRAINT `acme_challenges_ibfk_1` FOREIGN KEY (`acme_authorization_id`) REFERENCES `acme_authorizations` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `acme_enrollments` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `path_identifier` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `host_identifier` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `not_valid_after` datetime DEFAULT NULL,
+  `revoked` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `purpose` varchar(31) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'acme',
+  `enrollment_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_path_identifier` (`path_identifier`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `acme_orders` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `acme_account_id` int unsigned NOT NULL,
+  `finalized` tinyint(1) NOT NULL DEFAULT '0',
+  `certificate_signing_request` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `identifiers` json NOT NULL,
+  `status` enum('pending','ready','processing','valid','invalid') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `issued_certificate_serial` bigint DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_issued_certificate_serial` (`issued_certificate_serial`),
+  KEY `acme_account_id` (`acme_account_id`),
+  CONSTRAINT `acme_orders_ibfk_1` FOREIGN KEY (`acme_account_id`) REFERENCES `acme_accounts` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `activity_host_past` (
+  `host_id` int unsigned NOT NULL,
+  `activity_id` int unsigned NOT NULL,
+  PRIMARY KEY (`host_id`,`activity_id`),
+  KEY `fk_host_activities_activity_id` (`activity_id`),
+  CONSTRAINT `activity_host_past_ibfk_1` FOREIGN KEY (`activity_id`) REFERENCES `activity_past` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `activity_past` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `user_id` int unsigned DEFAULT NULL,
+  `user_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `activity_type` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `details` json DEFAULT NULL,
+  `streamed` tinyint(1) NOT NULL DEFAULT '0',
+  `user_email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `fleet_initiated` tinyint(1) NOT NULL DEFAULT '0',
+  `host_only` tinyint(1) NOT NULL DEFAULT '0',
+  `policy_id` bigint unsigned GENERATED ALWAYS AS (json_value(`details`, _utf8mb4'$.policy_id' returning unsigned)) VIRTUAL,
+  `batch_row_uuid` binary(16) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `fk_activities_user_id` (`user_id`),
+  KEY `activities_streamed_idx` (`streamed`),
+  KEY `activities_created_at_idx` (`created_at`),
+  KEY `idx_activities_user_name` (`user_name`),
+  KEY `idx_activities_user_email` (`user_email`),
+  KEY `idx_activities_activity_type` (`activity_type`),
+  KEY `idx_activities_type_created` (`activity_type`,`created_at`),
+  KEY `idx_activity_past_policy_type_created` (`policy_id`,`activity_type`,`created_at` DESC),
+  CONSTRAINT `activity_past_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `aggregated_stats` (
+  `id` bigint unsigned NOT NULL,
+  `type` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `json_value` json NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `global_stats` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`,`type`,`global_stats`),
+  KEY `idx_aggregated_stats_updated_at` (`updated_at`),
+  KEY `aggregated_stats_type_idx` (`type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `android_devices` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `host_id` int unsigned NOT NULL,
+  `device_id` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `enterprise_specific_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `last_policy_sync_time` datetime(3) DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `applied_policy_id` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `applied_policy_version` int DEFAULT NULL,
+  `team_id` int unsigned DEFAULT NULL,
+  `last_pubsub_message_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `last_pubsub_event_time` timestamp(6) NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_android_devices_host_id` (`host_id`),
+  UNIQUE KEY `idx_android_devices_device_id` (`device_id`),
+  UNIQUE KEY `idx_android_devices_enterprise_specific_id` (`enterprise_specific_id`),
+  KEY `fk_android_devices_team_id` (`team_id`),
+  CONSTRAINT `fk_android_devices_team_id` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `android_enterprises` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `signup_name` varchar(63) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `enterprise_id` varchar(63) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `signup_token` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '',
+  `pubsub_topic_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `user_id` int unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `android_policy_requests` (
+  `request_uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `request_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `policy_id` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `payload` json NOT NULL,
+  `status_code` int NOT NULL,
+  `error_details` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `applied_policy_version` int DEFAULT NULL,
+  `policy_version` int DEFAULT NULL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`request_uuid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `android_zero_touch_tokens` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `team_id` int unsigned DEFAULT NULL,
+  `global_or_team_id` int unsigned NOT NULL DEFAULT '0',
+  `token_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `token_value` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `expires_at` datetime(6) NOT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_zt_global_or_team_id` (`global_or_team_id`),
+  KEY `fk_zt_team_id` (`team_id`),
+  CONSTRAINT `fk_zt_team_id` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `app_config_json` (
+  `id` int unsigned NOT NULL DEFAULT '1',
+  `json_value` json NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+INSERT IGNORE INTO `app_config_json` VALUES (1,'{\"mdm\": {\"ios_updates\": {\"deadline\": null, \"deadline_days\": null, \"minimum_version\": null, \"update_new_hosts\": null}, \"macos_setup\": {\"script\": null, \"software\": null, \"bootstrap_package\": null, \"lock_end_user_info\": false, \"manual_agent_install\": null, \"macos_setup_assistant\": null, \"require_all_software_macos\": false, \"end_user_local_account_type\": \"admin\", \"enable_managed_local_account\": false, \"require_all_software_windows\": false, \"enable_end_user_authentication\": false, \"enable_release_device_manually\": false, \"macos_enable_bootstrap_package_during_migration\": false, \"macos_enable_bootstrap_package_during_manual_enrollment\": false}, \"macos_updates\": {\"deadline\": null, \"deadline_days\": null, \"minimum_version\": null, \"update_new_hosts\": false}, \"name_template\": null, \"ipados_updates\": {\"deadline\": null, \"deadline_days\": null, \"minimum_version\": null, \"update_new_hosts\": null}, \"linux_settings\": {\"enable_escrow_disk_encryption_key\": false}, \"macos_settings\": {\"custom_settings\": null, \"enable_disk_encryption\": false, \"enable_escrow_disk_encryption_key\": false}, \"macos_migration\": {\"mode\": \"\", \"enable\": false, \"webhook_url\": \"\"}, \"windows_updates\": {\"deadline_days\": null, \"grace_period_days\": null}, \"android_settings\": {\"certificates\": null, \"custom_settings\": null}, \"apple_server_url\": \"\", \"windows_settings\": {\"custom_settings\": null, \"require_bitlocker_pin\": false, \"enable_disk_encryption\": false, \"enable_managed_local_account\": false}, \"apple_bm_terms_expired\": false, \"apple_business_manager\": null, \"enable_disk_encryption\": false, \"enabled_and_configured\": false, \"end_user_authentication\": {\"idp_name\": \"\", \"metadata\": \"\", \"entity_id\": \"\", \"issuer_uri\": \"\", \"metadata_url\": \"\"}, \"windows_entra_client_ids\": [], \"windows_entra_tenant_ids\": [], \"enable_profile_validation\": true, \"volume_purchasing_program\": null, \"windows_migration_enabled\": false, \"apple_account_provisioning\": {\"oauth_idp_client_id\": null, \"oauth_idp_token_url\": null, \"oauth_idp_client_secret\": null}, \"windows_automatic_enrollment\": null, \"enable_recovery_lock_password\": false, \"windows_require_bitlocker_pin\": false, \"android_enabled_and_configured\": false, \"windows_enabled_and_configured\": false, \"apple_bm_enabled_and_configured\": false, \"apple_require_hardware_attestation\": false, \"microsoft_graph_credential_invalid\": false, \"enable_turn_on_windows_mdm_manually\": false, \"only_allow_apple_business_enrollment\": false}, \"gitops\": {\"exceptions\": {\"labels\": true, \"secrets\": true, \"software\": false}, \"repository_url\": \"\", \"gitops_mode_enabled\": false}, \"scripts\": null, \"features\": {\"historical_data\": {\"uptime\": true, \"vulnerabilities\": true}, \"enable_host_users\": true, \"enable_software_inventory\": false}, \"org_info\": {\"org_name\": \"\", \"contact_url\": \"\", \"org_logo_url\": \"\", \"org_logo_url_dark_mode\": \"\", \"org_logo_url_light_mode\": \"\", \"org_logo_url_light_background\": \"\"}, \"integrations\": {\"jira\": null, \"zendesk\": null, \"google_calendar\": null, \"conditional_access_enabled\": null, \"certificates_idp_client_ids\": null, \"certificates_idp_introspection_urls\": null, \"certificates_disable_host_end_user_binding\": null}, \"sso_settings\": {\"idp_name\": \"\", \"metadata\": \"\", \"entity_id\": \"\", \"enable_sso\": false, \"issuer_uri\": \"\", \"metadata_url\": \"\", \"idp_image_url\": \"\", \"sso_server_url\": \"\", \"enable_jit_role_sync\": false, \"enable_sso_idp_login\": false, \"enable_jit_provisioning\": false}, \"agent_options\": {\"config\": {\"options\": {\"logger_plugin\": \"tls\", \"pack_delimiter\": \"/\", \"logger_tls_period\": 10, \"distributed_plugin\": \"tls\", \"disable_distributed\": false, \"logger_tls_endpoint\": \"/api/osquery/log\", \"distributed_interval\": 10, \"distributed_tls_max_attempts\": 3}, \"decorators\": {\"load\": [\"SELECT uuid AS host_uuid FROM system_info;\", \"SELECT hostname AS hostname FROM system_info;\"]}}, \"overrides\": {}}, \"fleet_desktop\": {\"sso_enabled\": false, \"transparency_url\": \"\", \"alternative_browser_host\": \"\"}, \"smtp_settings\": {\"port\": 587, \"domain\": \"\", \"server\": \"\", \"password\": \"\", \"user_name\": \"\", \"configured\": false, \"enable_smtp\": false, \"enable_ssl_tls\": true, \"sender_address\": \"\", \"enable_start_tls\": true, \"verify_ssl_certs\": true, \"authentication_type\": \"0\", \"authentication_method\": \"0\"}, \"server_settings\": {\"server_url\": \"\", \"mcp_disabled\": false, \"enable_analytics\": false, \"query_report_cap\": 0, \"scripts_disabled\": false, \"deferred_save_host\": false, \"live_query_disabled\": false, \"ai_features_disabled\": false, \"query_reports_disabled\": false}, \"webhook_settings\": {\"interval\": \"0s\", \"activities_webhook\": {\"destination_url\": \"\", \"enable_activities_webhook\": false}, \"host_status_webhook\": {\"days_count\": 0, \"destination_url\": \"\", \"host_percentage\": 0, \"enable_host_status_webhook\": false}, \"vulnerabilities_webhook\": {\"destination_url\": \"\", \"host_batch_size\": 0, \"enable_vulnerabilities_webhook\": false}, \"failing_policies_webhook\": {\"policy_ids\": null, \"destination_url\": \"\", \"host_batch_size\": 0, \"enable_failing_policies_webhook\": false}}, \"host_expiry_settings\": {\"host_expiry_window\": 0, \"host_expiry_enabled\": false}, \"vulnerability_settings\": {\"databases_path\": \"\"}, \"activity_expiry_settings\": {\"activity_expiry_window\": 0, \"activity_expiry_enabled\": false, \"preserve_host_activities_on_reenrollment\": false}}',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP);
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `apple_software_update_assets` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `class` enum('macos','ios') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `product_version` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `build` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `posting_date` date DEFAULT NULL,
+  `expiration_date` date DEFAULT NULL,
+  `supported_devices` json NOT NULL,
+  `first_seen_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_asset_class_version_build` (`class`,`product_version`,`build`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `batch_activities` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `script_id` int unsigned NOT NULL,
+  `execution_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `user_id` int unsigned DEFAULT NULL,
+  `job_id` int unsigned DEFAULT NULL,
+  `status` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `activity_type` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `num_targeted` int unsigned DEFAULT NULL,
+  `num_pending` int unsigned DEFAULT NULL,
+  `num_ran` int unsigned DEFAULT NULL,
+  `num_errored` int unsigned DEFAULT NULL,
+  `num_incompatible` int unsigned DEFAULT NULL,
+  `num_canceled` int unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `started_at` datetime DEFAULT NULL,
+  `finished_at` datetime DEFAULT NULL,
+  `canceled` tinyint(1) DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_batch_script_executions_execution_id` (`execution_id`),
+  KEY `batch_script_executions_script_id` (`script_id`),
+  KEY `idx_batch_activities_status` (`status`),
+  CONSTRAINT `batch_script_executions_script_id` FOREIGN KEY (`script_id`) REFERENCES `scripts` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `batch_activity_host_results` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `batch_execution_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `host_id` int unsigned NOT NULL,
+  `host_execution_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `error` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_batch_host_results_execution_hostid` (`batch_execution_id`,`host_id`),
+  KEY `idx_batch_script_execution_host_result_execution_id` (`batch_execution_id`),
+  KEY `idx_bahr_host_execution_id` (`host_execution_id`),
+  CONSTRAINT `batch_script_batch_id` FOREIGN KEY (`batch_execution_id`) REFERENCES `batch_activities` (`execution_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `ca_config_assets` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `type` enum('digicert','custom_scep_proxy') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `value` blob NOT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_ca_config_assets_name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `calendar_events` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `start_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `end_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `event` json NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `timezone` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `uuid_bin` binary(16) NOT NULL,
+  `uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci GENERATED ALWAYS AS (insert(insert(insert(insert(hex(`uuid_bin`),9,0,_utf8mb4'-'),14,0,_utf8mb4'-'),19,0,_utf8mb4'-'),24,0,_utf8mb4'-')) VIRTUAL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_one_calendar_event_per_email` (`email`),
+  UNIQUE KEY `idx_calendar_events_uuid_bin_unique` (`uuid_bin`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `carve_blocks` (
+  `metadata_id` int unsigned NOT NULL,
+  `block_id` int NOT NULL,
+  `data` longblob,
+  PRIMARY KEY (`metadata_id`,`block_id`),
+  CONSTRAINT `carve_blocks_ibfk_1` FOREIGN KEY (`metadata_id`) REFERENCES `carve_metadata` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `carve_metadata` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `host_id` int unsigned NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `block_count` int unsigned NOT NULL,
+  `block_size` int unsigned NOT NULL,
+  `carve_size` bigint unsigned NOT NULL,
+  `carve_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `request_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `session_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `expired` tinyint DEFAULT '0',
+  `max_block` int DEFAULT '-1',
+  `error` text COLLATE utf8mb4_unicode_ci,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_session_id` (`session_id`),
+  UNIQUE KEY `idx_name` (`name`),
+  KEY `host_id` (`host_id`),
+  CONSTRAINT `carve_metadata_ibfk_1` FOREIGN KEY (`host_id`) REFERENCES `hosts` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `certificate_authorities` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `type` enum('digicert','ndes_scep_proxy','custom_scep_proxy','hydrant','smallstep','custom_est_proxy','ejbca','google_cas') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `url` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `api_token_encrypted` blob,
+  `profile_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `certificate_common_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `certificate_user_principal_names` json DEFAULT NULL,
+  `certificate_seat_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `admin_url` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `username` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `password_encrypted` blob,
+  `challenge_url` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `challenge_encrypted` blob,
+  `client_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `client_secret_encrypted` blob,
+  `mtls_cert_pem` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `mtls_key_encrypted` blob,
+  `trust_ca_bundle_pem` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `ejbca_ca_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ejbca_certificate_profile_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ejbca_end_entity_profile_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ejbca_username_template` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `google_cas_project` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `google_cas_location` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `google_cas_ca_pool` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `google_cas_api_key_json_encrypted` blob,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_ca_type_name` (`type`,`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `certificate_templates` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `team_id` int unsigned NOT NULL,
+  `certificate_authority_id` int NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `subject_name` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `subject_alternative_name` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_cert_team_name` (`team_id`,`name`),
+  KEY `certificate_authority_id` (`certificate_authority_id`),
+  CONSTRAINT `certificate_templates_ibfk_2` FOREIGN KEY (`certificate_authority_id`) REFERENCES `certificate_authorities` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `challenges` (
+  `challenge` char(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `created_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`challenge`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `conditional_access_scep_certificates` (
+  `serial` bigint unsigned NOT NULL,
+  `host_id` int unsigned NOT NULL,
+  `name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `not_valid_before` datetime NOT NULL,
+  `not_valid_after` datetime NOT NULL,
+  `certificate_pem` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `revoked` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`serial`),
+  KEY `idx_conditional_access_host_id` (`host_id`),
+  CONSTRAINT `conditional_access_scep_certificates_ibfk_1` FOREIGN KEY (`serial`) REFERENCES `conditional_access_scep_serials` (`serial`),
+  CONSTRAINT `conditional_access_scep_certificates_chk_1` CHECK ((substr(`certificate_pem`,1,27) = _utf8mb4'-----BEGIN CERTIFICATE-----'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `conditional_access_scep_serials` (
+  `serial` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`serial`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `cron_stats` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `instance` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `stats_type` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `errors` json DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_cron_stats_name_created_at` (`name`,`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `custom_host_vitals` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_custom_host_vitals_name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `cve_meta` (
+  `cve` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `cvss_score` double DEFAULT NULL,
+  `epss_probability` double DEFAULT NULL,
+  `cisa_known_exploit` tinyint(1) DEFAULT NULL,
+  `published` timestamp NULL DEFAULT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  PRIMARY KEY (`cve`),
+  KEY `idx_cve_meta_exploit` (`cisa_known_exploit`,`cve`),
+  KEY `idx_cve_meta_cvss_score` (`cvss_score`,`cve`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `default_team_config_json` (
+  `id` int unsigned NOT NULL DEFAULT '1',
+  `json_value` json NOT NULL,
+  `created_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `id` (`id`),
+  CONSTRAINT `default_team_config_id` CHECK ((`id` = 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+INSERT IGNORE INTO `default_team_config_json` VALUES (1,'{\"mdm\": {\"macos_setup\": {\"bootstrap_package\": null, \"macos_setup_assistant\": null, \"enable_end_user_authentication\": false, \"enable_release_device_manually\": false}, \"macos_updates\": {\"deadline\": null, \"minimum_version\": null}, \"macos_settings\": {\"custom_settings\": null, \"enable_end_user_authentication\": false}, \"windows_updates\": {\"deadline_days\": null, \"grace_period_days\": null}, \"windows_settings\": {\"custom_settings\": null}, \"enable_disk_encryption\": false}, \"scripts\": null, \"features\": {\"enable_host_users\": true, \"additional_queries\": null, \"detail_query_overrides\": null, \"enable_software_inventory\": true, \"enable_host_software_via_scan\": true, \"enable_host_operating_system_details\": true}, \"software\": null, \"integrations\": {\"jira\": null, \"zendesk\": null, \"google_calendar\": null}, \"agent_options\": null, \"webhook_settings\": {\"host_status_webhook\": null, \"failing_policies_webhook\": {\"policy_ids\": [], \"destination_url\": \"\", \"host_batch_size\": 0, \"enable_failing_policies_webhook\": false}}, \"host_expiry_settings\": {\"jitter_percent\": 0, \"host_expiry_window\": 0, \"host_expiry_enabled\": false}}','2020-01-01 01:01:01.000000','2020-01-01 01:01:01.000000');
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `distributed_query_campaign_targets` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `type` int DEFAULT NULL,
+  `distributed_query_campaign_id` int unsigned DEFAULT NULL,
+  `target_id` int unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_distributed_query_campaign_targets_campaign_id` (`distributed_query_campaign_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `distributed_query_campaigns` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `query_id` int unsigned DEFAULT NULL,
+  `status` int DEFAULT NULL,
+  `user_id` int unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `email_changes` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int unsigned NOT NULL,
+  `token` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `new_email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_unique_email_changes_token` (`token`) USING BTREE,
+  KEY `fk_email_changes_users` (`user_id`),
+  CONSTRAINT `fk_email_changes_users` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `enroll_secrets` (
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `secret` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `team_id` int unsigned DEFAULT NULL,
+  PRIMARY KEY (`secret`),
+  KEY `fk_enroll_secrets_team_id` (`team_id`),
+  CONSTRAINT `enroll_secrets_ibfk_1` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `eulas` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `token` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bytes` longblob,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `sha256` binary(32) DEFAULT NULL,
+  `platform` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_eulas_platform` (`platform`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `fleet_maintained_apps` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `slug` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `platform` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `unique_identifier` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_fleet_library_apps_token` (`slug`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `fleet_variables` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `is_prefix` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_fleet_variables_name_is_prefix` (`name`,`is_prefix`)
+) ENGINE=InnoDB AUTO_INCREMENT=25 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+INSERT IGNORE INTO `fleet_variables` VALUES (1,'FLEET_VAR_NDES_SCEP_CHALLENGE',0,'2025-04-22 00:00:00.000000'),(2,'FLEET_VAR_NDES_SCEP_PROXY_URL',0,'2025-04-22 00:00:00.000000'),(3,'FLEET_VAR_HOST_END_USER_EMAIL_IDP',0,'2025-04-22 00:00:00.000000'),(4,'FLEET_VAR_HOST_HARDWARE_SERIAL',0,'2025-04-22 00:00:00.000000'),(5,'FLEET_VAR_HOST_END_USER_IDP_USERNAME',0,'2025-04-22 00:00:00.000000'),(6,'FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART',0,'2025-04-22 00:00:00.000000'),(7,'FLEET_VAR_HOST_END_USER_IDP_GROUPS',0,'2025-04-22 00:00:00.000000'),(8,'FLEET_VAR_DIGICERT_DATA_',1,'2025-04-22 00:00:00.000000'),(9,'FLEET_VAR_DIGICERT_PASSWORD_',1,'2025-04-22 00:00:00.000000'),(10,'FLEET_VAR_CUSTOM_SCEP_CHALLENGE_',1,'2025-04-22 00:00:00.000000'),(11,'FLEET_VAR_CUSTOM_SCEP_PROXY_URL_',1,'2025-04-22 00:00:00.000000'),(12,'FLEET_VAR_SCEP_RENEWAL_ID',0,'2025-04-30 00:00:00.000000'),(13,'FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT',0,'2025-06-27 00:00:00.000000'),(14,'FLEET_VAR_HOST_UUID',0,'2025-08-08 00:00:00.000000'),(15,'FLEET_VAR_HOST_END_USER_IDP_FULL_NAME',0,'2025-08-25 00:00:00.000000'),(16,'FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID',0,'2025-10-22 00:00:00.000000'),(17,'FLEET_VAR_HOST_PLATFORM',0,'2025-11-19 00:00:00.000000'),(18,'FLEET_VAR_PSSO_DEVICE_REGISTRATION_TOKEN',0,'2026-06-19 00:00:00.000000'),(19,'FLEET_VAR_HOST_TARGET_OS_VERSION',0,'2026-07-27 00:00:00.000000'),(20,'FLEET_VAR_HOST_TARGET_OS_DEADLINE',0,'2026-07-27 00:00:00.000000'),(21,'FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID',0,'2026-10-13 00:00:00.000000'),(22,'FLEET_VAR_EJBCA_DATA_',1,'2026-10-15 00:00:00.000000'),(23,'FLEET_VAR_EJBCA_PASSWORD_',1,'2026-10-15 00:00:00.000000'),(24,'FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL',0,'2026-10-15 00:00:00.000000');
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_additional` (
+  `host_id` int unsigned NOT NULL,
+  `additional` json DEFAULT NULL,
+  PRIMARY KEY (`host_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_android_software_installs` (
+  `host_id` int unsigned NOT NULL,
+  `adam_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `vpp_app_team_id` int unsigned DEFAULT NULL,
+  `install_type` enum('INSTALL_TYPE_UNSPECIFIED','PREINSTALLED','FORCE_INSTALLED','BLOCKED','AVAILABLE','REQUIRED_FOR_SETUP','KIOSK','CUSTOM') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` enum('pending','verified','failed','request_failed') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `needs_resend` tinyint(1) NOT NULL DEFAULT '0',
+  `in_policy_version` int DEFAULT NULL,
+  `policy_built_at` datetime(6) NOT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`host_id`,`adam_id`),
+  KEY `idx_host_android_software_installs_vpp_app_team_id` (`vpp_app_team_id`),
+  CONSTRAINT `fk_host_android_software_installs_vpp_app_team_id` FOREIGN KEY (`vpp_app_team_id`) REFERENCES `vpp_apps_teams` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_autopilot_devices` (
+  `host_id` int unsigned NOT NULL,
+  `autopilot_device_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `entra_device_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `group_tag` varchar(2048) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `hardware_serial` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `tenant_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `deleted_at` datetime(6) DEFAULT NULL,
+  PRIMARY KEY (`host_id`),
+  KEY `idx_host_autopilot_hardware_serial` (`hardware_serial`),
+  KEY `idx_host_autopilot_tenant_id` (`tenant_id`,`deleted_at`),
+  KEY `idx_host_autopilot_device_id` (`autopilot_device_id`,`deleted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_batteries` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `host_id` int unsigned NOT NULL,
+  `serial_number` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `cycle_count` int NOT NULL,
+  `health` varchar(40) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_host_batteries_host_id_serial_number` (`host_id`,`serial_number`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_bitlocker_pin_requests` (
+  `host_id` int unsigned NOT NULL,
+  `request_uuid` binary(16) NOT NULL,
+  `pin_encrypted` text COLLATE utf8mb4_unicode_ci,
+  `status` enum('pending','delivered','set','failed') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `client_error` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`host_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_calendar_events` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `host_id` int unsigned NOT NULL,
+  `calendar_event_id` int unsigned NOT NULL,
+  `webhook_status` tinyint NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_one_calendar_event_per_host` (`host_id`),
+  KEY `calendar_event_id` (`calendar_event_id`),
+  CONSTRAINT `host_calendar_events_ibfk_1` FOREIGN KEY (`calendar_event_id`) REFERENCES `calendar_events` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_certificate_sources` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `host_certificate_id` bigint unsigned NOT NULL,
+  `source` enum('system','user') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `username` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_host_certificate_sources_unique` (`host_certificate_id`,`source`,`username`),
+  CONSTRAINT `fk_host_certificate_sources_host_certificate_id` FOREIGN KEY (`host_certificate_id`) REFERENCES `host_certificates` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_certificate_templates` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `certificate_template_id` int unsigned NOT NULL,
+  `fleet_challenge` char(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `detail` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `operation_type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'install',
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `uuid` binary(16) DEFAULT NULL,
+  `not_valid_before` datetime DEFAULT NULL,
+  `not_valid_after` datetime DEFAULT NULL,
+  `serial` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `retry_count` int unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_host_certificate_templates_host_template` (`host_uuid`,`certificate_template_id`),
+  KEY `fk_host_certificate_templates_operation_type` (`operation_type`),
+  KEY `idx_host_certificate_templates_not_valid_after` (`not_valid_after`),
+  CONSTRAINT `fk_host_certificate_templates_operation_type` FOREIGN KEY (`operation_type`) REFERENCES `mdm_operation_types` (`operation_type`) ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_certificates` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `host_id` int unsigned NOT NULL,
+  `not_valid_after` datetime(6) NOT NULL,
+  `not_valid_before` datetime(6) NOT NULL,
+  `certificate_authority` tinyint(1) NOT NULL,
+  `common_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `key_algorithm` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `key_strength` int NOT NULL,
+  `key_usage` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `serial` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `signing_algorithm` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `subject_country` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `subject_org` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `subject_org_unit` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `subject_common_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `issuer_country` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `issuer_org` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `issuer_org_unit` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `issuer_common_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `sha1_sum` binary(20) NOT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `deleted_at` datetime(6) DEFAULT NULL,
+  `origin` enum('osquery','mdm') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'osquery',
+  PRIMARY KEY (`id`),
+  KEY `idx_host_certs_hid_cn` (`host_id`,`common_name`),
+  KEY `idx_host_certs_not_valid_after` (`host_id`,`not_valid_after`),
+  KEY `idx_host_certs_origin_deleted` (`origin`,`deleted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_conditional_access` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `host_id` int unsigned NOT NULL,
+  `bypassed_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_host_conditional_access_host_id` (`host_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_custom_host_vitals` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `host_id` int unsigned NOT NULL,
+  `custom_host_vital_id` int unsigned NOT NULL,
+  `value` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_host_custom_host_vitals_host_vital` (`host_id`,`custom_host_vital_id`),
+  KEY `fk_host_custom_host_vitals_custom_host_vital_id` (`custom_host_vital_id`),
+  CONSTRAINT `fk_host_custom_host_vitals_custom_host_vital_id` FOREIGN KEY (`custom_host_vital_id`) REFERENCES `custom_host_vitals` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_dep_assignments` (
+  `host_id` int unsigned NOT NULL,
+  `added_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `assign_profile_response` varchar(15) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `response_updated_at` timestamp NULL DEFAULT NULL,
+  `retry_job_id` int unsigned NOT NULL DEFAULT '0',
+  `abm_token_id` int unsigned DEFAULT NULL,
+  `mdm_migration_deadline` timestamp(6) NULL DEFAULT NULL,
+  `mdm_migration_completed` timestamp(6) NULL DEFAULT NULL,
+  `hardware_serial` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  PRIMARY KEY (`host_id`),
+  KEY `idx_hdep_response` (`assign_profile_response`,`response_updated_at`),
+  KEY `fk_host_dep_assignments_abm_token_id` (`abm_token_id`),
+  KEY `idx_hdep_hardware_serial` (`hardware_serial`),
+  CONSTRAINT `fk_host_dep_assignments_abm_token_id` FOREIGN KEY (`abm_token_id`) REFERENCES `abm_tokens` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_device_auth` (
+  `host_id` int unsigned NOT NULL,
+  `token` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `previous_token` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  PRIMARY KEY (`host_id`),
+  UNIQUE KEY `idx_host_device_auth_token` (`token`),
+  KEY `idx_host_device_auth_previous_token` (`previous_token`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_disk_encryption_keys` (
+  `host_id` int unsigned NOT NULL,
+  `base64_encrypted` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `base64_encrypted_salt` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `key_slot` tinyint unsigned DEFAULT NULL,
+  `decryptable` tinyint(1) DEFAULT NULL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `reset_requested` tinyint(1) NOT NULL DEFAULT '0',
+  `client_error` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `escrow_sent_at` timestamp(6) NULL DEFAULT NULL,
+  `rotation_command_uuid` varchar(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `rotation_requested_at` timestamp(6) NULL DEFAULT NULL,
+  `wstep_encrypted` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`host_id`),
+  KEY `idx_host_disk_encryption_keys_decryptable` (`decryptable`),
+  KEY `idx_hdek_rotation_command_uuid` (`rotation_command_uuid`),
+  KEY `idx_host_disk_encryption_keys_wstep_encrypted` (`wstep_encrypted`,`host_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_disk_encryption_keys_archive` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `host_id` int unsigned NOT NULL,
+  `hardware_serial` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `base64_encrypted` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `base64_encrypted_salt` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `key_slot` tinyint unsigned DEFAULT NULL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `wstep_encrypted` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  KEY `idx_host_disk_encryption_keys_archive_host_created_at` (`host_id`,`created_at` DESC),
+  KEY `idx_host_disk_encryption_keys_archive_wstep_encrypted` (`wstep_encrypted`,`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_disks` (
+  `host_id` int unsigned NOT NULL,
+  `gigs_disk_space_available` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `percent_disk_space_available` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `encrypted` tinyint(1) DEFAULT NULL,
+  `gigs_total_disk_space` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `tpm_pin_set` tinyint(1) DEFAULT '0',
+  `gigs_all_disk_space` decimal(10,2) DEFAULT NULL,
+  `bitlocker_protection_status` tinyint(1) DEFAULT NULL,
+  `bitlocker_protection_error` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bitlocker_protection_outcome` enum('deferred','failed') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bitlocker_boot_protector_set` tinyint(1) DEFAULT NULL,
+  PRIMARY KEY (`host_id`),
+  KEY `idx_host_disks_gigs_disk_space_available` (`gigs_disk_space_available`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_display_names` (
+  `host_id` int unsigned NOT NULL,
+  `display_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`host_id`),
+  KEY `display_name` (`display_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_emails` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `host_id` int unsigned NOT NULL,
+  `email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `source` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_host_emails_host_id_email` (`host_id`,`email`),
+  KEY `idx_host_emails_email` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_google_device_ids` (
+  `host_id` int unsigned NOT NULL,
+  `google_device_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`host_id`),
+  UNIQUE KEY `idx_host_google_device_ids_google_device_id` (`google_device_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_identity_scep_certificates` (
+  `serial` bigint unsigned NOT NULL,
+  `host_id` int unsigned DEFAULT NULL,
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `not_valid_before` datetime NOT NULL,
+  `not_valid_after` datetime NOT NULL,
+  `certificate_pem` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `public_key_raw` varbinary(100) NOT NULL,
+  `revoked` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`serial`),
+  KEY `idx_host_id_scep_name` (`name`),
+  KEY `idx_host_id_scep_host_id` (`host_id`),
+  CONSTRAINT `host_identity_scep_certificates_ibfk_1` FOREIGN KEY (`serial`) REFERENCES `host_identity_scep_serials` (`serial`),
+  CONSTRAINT `host_identity_scep_certificates_chk_1` CHECK ((substr(`certificate_pem`,1,27) = _utf8mb4'-----BEGIN CERTIFICATE-----'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_identity_scep_serials` (
+  `serial` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`serial`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_in_house_software_installs` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `host_id` int unsigned NOT NULL,
+  `in_house_app_id` int unsigned NOT NULL,
+  `command_uuid` varchar(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `user_id` int unsigned DEFAULT NULL,
+  `platform` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `removed` tinyint NOT NULL DEFAULT '0',
+  `canceled` tinyint NOT NULL DEFAULT '0',
+  `verification_command_uuid` varchar(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `verification_at` datetime(6) DEFAULT NULL,
+  `verification_failed_at` datetime(6) DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `self_service` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_host_in_house_software_installs_command_uuid` (`command_uuid`),
+  KEY `fk_host_in_house_software_installs_user_id` (`user_id`),
+  KEY `fk_host_in_house_software_installs_in_house_app_id` (`in_house_app_id`),
+  KEY `idx_host_in_house_software_installs_host_app_created` (`host_id`,`in_house_app_id`,`created_at`),
+  KEY `idx_hihsi_verification_command_uuid` (`verification_command_uuid`),
+  KEY `idx_host_in_house_software_installs_verification` ((((`verification_at` is null) and (`verification_failed_at` is null)))),
+  CONSTRAINT `fk_host_in_house_software_installs_in_house_app_id` FOREIGN KEY (`in_house_app_id`) REFERENCES `in_house_apps` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_host_in_house_software_installs_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_issues` (
+  `host_id` int unsigned NOT NULL,
+  `failing_policies_count` int unsigned NOT NULL DEFAULT '0',
+  `critical_vulnerabilities_count` int unsigned NOT NULL DEFAULT '0',
+  `total_issues_count` int unsigned NOT NULL DEFAULT '0',
+  `created_at` timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updated_at` timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`host_id`),
+  KEY `total_issues_count` (`total_issues_count`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_last_known_locations` (
+  `host_id` int unsigned NOT NULL,
+  `latitude` decimal(10,8) DEFAULT NULL,
+  `longitude` decimal(11,8) DEFAULT NULL,
+  `created_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`host_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_managed_local_account_passwords` (
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `encrypted_password` blob,
+  `command_uuid` varchar(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `account_uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `auto_rotate_at` timestamp(6) NULL DEFAULT NULL,
+  `pending_encrypted_password` blob,
+  `pending_command_uuid` varchar(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `initiated_by_fleet` tinyint(1) NOT NULL DEFAULT '0',
+  `client_error` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `deleted` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`host_uuid`),
+  KEY `idx_hmlap_command_uuid` (`command_uuid`),
+  KEY `fk_hmlap_status` (`status`),
+  KEY `idx_hmlap_auto_rotate_at` (`auto_rotate_at`),
+  KEY `idx_hmlap_pending_command_uuid` (`pending_command_uuid`),
+  CONSTRAINT `fk_hmlap_status` FOREIGN KEY (`status`) REFERENCES `mdm_delivery_status` (`status`) ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_mdm` (
+  `host_id` int unsigned NOT NULL,
+  `enrolled` tinyint(1) NOT NULL DEFAULT '0',
+  `server_url` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `installed_from_dep` tinyint(1) NOT NULL DEFAULT '0',
+  `mdm_id` int unsigned DEFAULT NULL,
+  `is_server` tinyint(1) DEFAULT NULL,
+  `fleet_enroll_ref` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `managed_apple_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `enrollment_status` enum('On (manual)','On (automatic)','Pending','Off','On (manual - personal)','On (personal)') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci GENERATED ALWAYS AS ((case when (`is_server` = 1) then NULL when ((`enrolled` = 1) and (`installed_from_dep` = 0) and (`is_personal_enrollment` = 1) and (`personal_enrollment_type` = _utf8mb4'manual_profile')) then _utf8mb4'On (manual - personal)' when ((`enrolled` = 1) and (`installed_from_dep` = 0) and (`is_personal_enrollment` = 1)) then _utf8mb4'On (personal)' when ((`enrolled` = 1) and (`installed_from_dep` = 0) and (`is_personal_enrollment` = 0)) then _utf8mb4'On (manual)' when ((`enrolled` = 1) and (`installed_from_dep` = 1) and (`is_personal_enrollment` = 0)) then _utf8mb4'On (automatic)' when ((`enrolled` = 0) and (`installed_from_dep` = 1)) then _utf8mb4'Pending' when ((`enrolled` = 0) and (`installed_from_dep` = 0)) then _utf8mb4'Off' else NULL end)) VIRTUAL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `is_personal_enrollment` tinyint(1) NOT NULL DEFAULT '0',
+  `personal_enrollment_type` enum('account_driven','work_profile','manual_profile') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`host_id`),
+  KEY `host_mdm_mdm_id_idx` (`mdm_id`),
+  KEY `host_mdm_enrolled_dep_personal_type_idx` (`enrolled`,`installed_from_dep`,`is_personal_enrollment`,`personal_enrollment_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_mdm_actions` (
+  `host_id` int unsigned NOT NULL,
+  `lock_ref` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `wipe_ref` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `unlock_pin` varchar(6) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `unlock_ref` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `fleet_platform` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `clear_passcode_ref` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`host_id`),
+  KEY `idx_hma_lock_ref` (`lock_ref`),
+  KEY `idx_hma_wipe_ref` (`wipe_ref`),
+  KEY `idx_hma_unlock_ref` (`unlock_ref`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_mdm_android_device_vitals` (
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `adb_enabled` tinyint(1) DEFAULT NULL,
+  `passcode_protected` tinyint(1) DEFAULT NULL,
+  `play_protect_enabled` tinyint(1) DEFAULT NULL,
+  `encryption_type` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `manufacturer` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `security_update_version` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `device_kernel_version` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bootloader_version` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `system_update_status` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `security_posture` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `api_level` bigint DEFAULT NULL,
+  `security_posture_details` json DEFAULT NULL,
+  `telephony_infos` json DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `imei` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `meid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`host_uuid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_mdm_android_profiles` (
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `operation_type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `detail` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `profile_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `policy_request_uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `device_request_uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `request_fail_count` tinyint unsigned NOT NULL DEFAULT '0',
+  `included_in_policy_version` int DEFAULT NULL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `can_reverify` tinyint(1) NOT NULL DEFAULT '0',
+  `checksum` binary(16) NOT NULL DEFAULT '0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
+  PRIMARY KEY (`host_uuid`,`profile_uuid`),
+  KEY `status` (`status`),
+  KEY `operation_type` (`operation_type`),
+  KEY `policy_request_uuid` (`policy_request_uuid`),
+  KEY `device_request_uuid` (`device_request_uuid`),
+  CONSTRAINT `host_mdm_android_profiles_ibfk_1` FOREIGN KEY (`status`) REFERENCES `mdm_delivery_status` (`status`) ON UPDATE CASCADE,
+  CONSTRAINT `host_mdm_android_profiles_ibfk_2` FOREIGN KEY (`operation_type`) REFERENCES `mdm_operation_types` (`operation_type`) ON UPDATE CASCADE,
+  CONSTRAINT `host_mdm_android_profiles_ibfk_3` FOREIGN KEY (`policy_request_uuid`) REFERENCES `android_policy_requests` (`request_uuid`) ON DELETE SET NULL,
+  CONSTRAINT `host_mdm_android_profiles_ibfk_4` FOREIGN KEY (`device_request_uuid`) REFERENCES `android_policy_requests` (`request_uuid`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_mdm_apple_awaiting_configuration` (
+  `host_uuid` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `awaiting_configuration` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`host_uuid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_mdm_apple_bootstrap_packages` (
+  `host_uuid` varchar(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `command_uuid` varchar(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `skipped` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`host_uuid`),
+  KEY `command_uuid` (`command_uuid`),
+  CONSTRAINT `host_mdm_apple_bootstrap_packages_ibfk_1` FOREIGN KEY (`command_uuid`) REFERENCES `nano_commands` (`command_uuid`) ON DELETE CASCADE,
+  CONSTRAINT `ck_skipped_or_commanduuid` CHECK (((`skipped` = 0) = (`command_uuid` is not null)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_mdm_apple_declarations` (
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `operation_type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `detail` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `token` binary(16) NOT NULL,
+  `declaration_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `declaration_identifier` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `declaration_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `secrets_updated_at` datetime(6) DEFAULT NULL,
+  `resync` tinyint(1) NOT NULL DEFAULT '0',
+  `scope` enum('System','User') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'System',
+  `variables_updated_at` datetime(6) DEFAULT NULL,
+  `assets_updated_at` datetime(6) DEFAULT NULL,
+  `activation_updated_at` datetime(6) DEFAULT NULL,
+  PRIMARY KEY (`host_uuid`,`declaration_uuid`),
+  KEY `status` (`status`),
+  KEY `operation_type` (`operation_type`),
+  KEY `idx_token` (`token`),
+  CONSTRAINT `host_mdm_apple_declarations_ibfk_1` FOREIGN KEY (`status`) REFERENCES `mdm_delivery_status` (`status`) ON UPDATE CASCADE,
+  CONSTRAINT `host_mdm_apple_declarations_ibfk_2` FOREIGN KEY (`operation_type`) REFERENCES `mdm_operation_types` (`operation_type`) ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_mdm_apple_device_names` (
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `command_uuid` varchar(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `expected_device_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `detail` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `retries` tinyint unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`host_uuid`),
+  KEY `idx_host_mdm_apple_device_names_status` (`status`),
+  KEY `idx_host_mdm_apple_device_names_command_uuid` (`command_uuid`),
+  CONSTRAINT `host_mdm_apple_device_names_status` FOREIGN KEY (`status`) REFERENCES `mdm_delivery_status` (`status`) ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_mdm_apple_device_vitals` (
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `udid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `model_number` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `modem_firmware_version` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `supplemental_build_version` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `supplemental_os_version_extra` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bluetooth_mac` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `wifi_mac` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `eas_device_identifier` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `itunes_store_account_hash` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `push_token` blob,
+  `battery_level` double DEFAULT NULL,
+  `cellular_technology` int DEFAULT NULL,
+  `app_analytics_enabled` tinyint(1) DEFAULT NULL,
+  `awaiting_configuration` tinyint(1) DEFAULT NULL,
+  `data_roaming_enabled` tinyint(1) DEFAULT NULL,
+  `diagnostic_submission_enabled` tinyint(1) DEFAULT NULL,
+  `is_cloud_backup_enabled` tinyint(1) DEFAULT NULL,
+  `is_device_locator_service_enabled` tinyint(1) DEFAULT NULL,
+  `is_do_not_disturb_in_effect` tinyint(1) DEFAULT NULL,
+  `is_mdm_lost_mode_enabled` tinyint(1) DEFAULT NULL,
+  `is_network_tethered` tinyint(1) DEFAULT NULL,
+  `itunes_store_account_is_active` tinyint(1) DEFAULT NULL,
+  `personal_hotspot_enabled` tinyint(1) DEFAULT NULL,
+  `last_cloud_backup_date` datetime(6) DEFAULT NULL,
+  `accessibility_settings` json DEFAULT NULL,
+  `organization_info` json DEFAULT NULL,
+  `mdm_options` json DEFAULT NULL,
+  `device_properties_attestation` json DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`host_uuid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_mdm_apple_enrollment_permissions` (
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `access_rights` int NOT NULL DEFAULT '8191',
+  `delivered_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`host_uuid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_mdm_apple_os_updates` (
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `software_update_device_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `target_os_version` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `target_deadline` datetime(6) DEFAULT NULL,
+  `resolved_at` datetime(6) DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`host_uuid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_mdm_apple_profiles` (
+  `profile_identifier` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `host_uuid` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `operation_type` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `detail` text COLLATE utf8mb4_unicode_ci,
+  `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `profile_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `checksum` binary(16) NOT NULL,
+  `retries` tinyint unsigned NOT NULL DEFAULT '0',
+  `profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `secrets_updated_at` datetime(6) DEFAULT NULL,
+  `ignore_error` tinyint(1) NOT NULL DEFAULT '0',
+  `variables_updated_at` datetime(6) DEFAULT NULL,
+  `scope` enum('System','User') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'System',
+  `has_acme_payload` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`host_uuid`,`profile_uuid`),
+  KEY `status` (`status`),
+  KEY `operation_type` (`operation_type`),
+  KEY `idx_hmap_command_uuid` (`command_uuid`),
+  CONSTRAINT `host_mdm_apple_profiles_ibfk_1` FOREIGN KEY (`status`) REFERENCES `mdm_delivery_status` (`status`) ON UPDATE CASCADE,
+  CONSTRAINT `host_mdm_apple_profiles_ibfk_2` FOREIGN KEY (`operation_type`) REFERENCES `mdm_operation_types` (`operation_type`) ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_mdm_apple_service_subscriptions` (
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `slot` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `carrier_settings_version` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `current_carrier_network` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `current_mcc` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `current_mnc` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `eid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `iccid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `imei` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_data_preferred` tinyint(1) DEFAULT NULL,
+  `is_roaming` tinyint(1) DEFAULT NULL,
+  `is_voice_preferred` tinyint(1) DEFAULT NULL,
+  `label` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `label_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `meid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `phone_number` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `subscriber_carrier_network` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`host_uuid`,`slot`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_mdm_commands` (
+  `host_id` int unsigned NOT NULL,
+  `command_type` varchar(31) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `command_uuid` varchar(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`host_id`,`command_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_mdm_idp_accounts` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `account_uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_host_mdm_idp_accounts` (`host_uuid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_mdm_managed_certificates` (
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `type` enum('digicert','custom_scep_proxy','ndes','smallstep','ejbca','conditional_access') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ca_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'NDES',
+  `challenge_retrieved_at` timestamp(6) NULL DEFAULT NULL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `not_valid_after` datetime(6) DEFAULT NULL,
+  `serial` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `not_valid_before` datetime(6) DEFAULT NULL,
+  PRIMARY KEY (`host_uuid`,`profile_uuid`,`ca_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_mdm_profile_opt_ins` (
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`host_uuid`,`profile_uuid`),
+  KEY `idx_host_mdm_profile_opt_ins_profile_uuid` (`profile_uuid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_mdm_windows_profiles` (
+  `host_uuid` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `operation_type` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `detail` text COLLATE utf8mb4_unicode_ci,
+  `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `profile_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `retries` tinyint unsigned NOT NULL DEFAULT '0',
+  `profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `checksum` binary(16) NOT NULL DEFAULT '0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
+  `secrets_updated_at` datetime(6) DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`host_uuid`,`profile_uuid`),
+  KEY `status` (`status`),
+  KEY `operation_type` (`operation_type`),
+  KEY `idx_host_mdm_windows_profiles_profile_uuid_checksum` (`profile_uuid`,`checksum`),
+  CONSTRAINT `host_mdm_windows_profiles_ibfk_1` FOREIGN KEY (`status`) REFERENCES `mdm_delivery_status` (`status`) ON UPDATE CASCADE,
+  CONSTRAINT `host_mdm_windows_profiles_ibfk_2` FOREIGN KEY (`operation_type`) REFERENCES `mdm_operation_types` (`operation_type`) ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_mdm_windows_profiles_status` (
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`host_uuid`),
+  KEY `idx_host_mdm_windows_profiles_status_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_munki_info` (
+  `host_id` int unsigned NOT NULL,
+  `version` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`host_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_munki_issues` (
+  `host_id` int unsigned NOT NULL,
+  `munki_issue_id` int unsigned NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`host_id`,`munki_issue_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_one_time_enroll_secrets` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `secret` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `host_id` int unsigned DEFAULT NULL,
+  `mdm_windows_enrollment_id` int unsigned DEFAULT NULL,
+  `team_id` int unsigned DEFAULT NULL,
+  `platform` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `hardware_uuid` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `hardware_serial` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `consumed_at` timestamp(6) NULL DEFAULT NULL,
+  `orbit_used_at` timestamp(6) NULL DEFAULT NULL,
+  `osquery_used_at` timestamp(6) NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_hotes_secret` (`secret`),
+  KEY `idx_hotes_host_id` (`host_id`),
+  KEY `fk_hotes_team_id` (`team_id`),
+  KEY `idx_hotes_mdm_windows_enrollment_id` (`mdm_windows_enrollment_id`),
+  CONSTRAINT `fk_hotes_mdm_windows_enrollment_id` FOREIGN KEY (`mdm_windows_enrollment_id`) REFERENCES `mdm_windows_enrollments` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_hotes_team_id` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_operating_system` (
+  `host_id` int unsigned NOT NULL,
+  `os_id` int unsigned NOT NULL,
+  PRIMARY KEY (`host_id`),
+  KEY `idx_host_operating_system_id` (`os_id`),
+  CONSTRAINT `host_operating_system_ibfk_1` FOREIGN KEY (`os_id`) REFERENCES `operating_systems` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_orbit_info` (
+  `host_id` int unsigned NOT NULL,
+  `version` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `desktop_version` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `scripts_enabled` tinyint(1) DEFAULT NULL,
+  PRIMARY KEY (`host_id`),
+  KEY `idx_host_orbit_info_version` (`version`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_policy_automation_run_counts` (
+  `policy_id` int unsigned NOT NULL,
+  `activity_type` enum('installed_app_store_app','installed_software','ran_script') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `host_id` int unsigned NOT NULL,
+  `success_count` int unsigned NOT NULL DEFAULT '0',
+  `fail_count` int unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`policy_id`,`activity_type`,`host_id`),
+  KEY `idx_host_policy_automation_run_counts_host_id` (`host_id`),
+  CONSTRAINT `fk_host_policy_automation_run_counts_policy_id` FOREIGN KEY (`policy_id`) REFERENCES `policies` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_recovery_key_password_archive` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `encrypted_password` blob NOT NULL,
+  `set_command_uuid` varchar(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  KEY `idx_recovery_lock_archive_host_uuid` (`host_uuid`,`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_recovery_key_passwords` (
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `encrypted_password` blob,
+  `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `operation_type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `error_message` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `deleted` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `pending_encrypted_password` blob,
+  `auto_rotate_at` timestamp(6) NULL DEFAULT NULL,
+  `pending_set_command_uuid` varchar(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `pending_verify_command_uuid` varchar(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `set_command_uuid` varchar(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `verify_command_uuid` varchar(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `retry` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`host_uuid`),
+  KEY `status` (`status`),
+  KEY `operation_type` (`operation_type`),
+  KEY `deleted` (`deleted`),
+  KEY `idx_auto_rotate_at` (`auto_rotate_at`),
+  KEY `idx_rkp_pending_set_command_uuid` (`pending_set_command_uuid`),
+  KEY `idx_rkp_pending_verify_command_uuid` (`pending_verify_command_uuid`),
+  KEY `idx_rkp_set_command_uuid` (`set_command_uuid`),
+  KEY `idx_rkp_verify_command_uuid` (`verify_command_uuid`),
+  CONSTRAINT `host_recovery_key_passwords_ibfk_1` FOREIGN KEY (`status`) REFERENCES `mdm_delivery_status` (`status`) ON UPDATE CASCADE,
+  CONSTRAINT `host_recovery_key_passwords_ibfk_2` FOREIGN KEY (`operation_type`) REFERENCES `mdm_operation_types` (`operation_type`) ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_scd_data` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `dataset` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `entity_id` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `host_bitmap` mediumblob NOT NULL,
+  `valid_from` datetime NOT NULL,
+  `valid_to` datetime NOT NULL DEFAULT '9999-12-31 00:00:00',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `encoding_type` tinyint NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_entity_bucket` (`dataset`,`entity_id`,`valid_from`),
+  KEY `idx_dataset_range` (`dataset`,`valid_from`,`valid_to`),
+  KEY `idx_valid_to_dataset` (`valid_to`,`dataset`,`entity_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_scim_user` (
+  `host_id` int unsigned NOT NULL,
+  `scim_user_id` int unsigned NOT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`host_id`),
+  KEY `fk_host_scim_scim_user_id` (`scim_user_id`),
+  CONSTRAINT `fk_host_scim_scim_user_id` FOREIGN KEY (`scim_user_id`) REFERENCES `scim_users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_script_results` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `host_id` int unsigned NOT NULL,
+  `execution_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `output` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `runtime` int unsigned NOT NULL DEFAULT '0',
+  `exit_code` int DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `script_id` int unsigned DEFAULT NULL,
+  `user_id` int unsigned DEFAULT NULL,
+  `sync_request` tinyint(1) NOT NULL DEFAULT '0',
+  `script_content_id` int unsigned DEFAULT NULL,
+  `host_deleted_at` timestamp NULL DEFAULT NULL,
+  `timeout` int DEFAULT NULL,
+  `policy_id` int unsigned DEFAULT NULL,
+  `setup_experience_script_id` int unsigned DEFAULT NULL,
+  `is_internal` tinyint(1) DEFAULT '0',
+  `canceled` tinyint(1) NOT NULL DEFAULT '0',
+  `attempt_number` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_host_script_results_execution_id` (`execution_id`),
+  KEY `idx_host_script_results_host_exit_created` (`host_id`,`exit_code`,`created_at`),
+  KEY `fk_host_script_results_user_id` (`user_id`),
+  KEY `script_content_id` (`script_content_id`),
+  KEY `fk_script_result_policy_id` (`policy_id`),
+  KEY `fk_host_script_results_setup_experience_id` (`setup_experience_script_id`),
+  KEY `idx_host_script_canceled_created_at` (`host_id`,`script_id`,`canceled`,`created_at` DESC),
+  KEY `idx_host_script_results_host_policy` (`host_id`,`policy_id`),
+  KEY `idx_host_script_results_script_exit` (`script_id`,`exit_code`),
+  KEY `idx_host_script_results_created_at` (`created_at`),
+  CONSTRAINT `fk_host_script_results_script_id` FOREIGN KEY (`script_id`) REFERENCES `scripts` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_host_script_results_setup_experience_id` FOREIGN KEY (`setup_experience_script_id`) REFERENCES `setup_experience_scripts` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_host_script_results_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `host_script_results_ibfk_1` FOREIGN KEY (`script_content_id`) REFERENCES `script_contents` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `host_script_results_ibfk_2` FOREIGN KEY (`policy_id`) REFERENCES `policies` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_seen_times` (
+  `host_id` int unsigned NOT NULL,
+  `seen_time` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`host_id`),
+  KEY `idx_host_seen_times_seen_time` (`seen_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_software` (
+  `host_id` int unsigned NOT NULL,
+  `software_id` bigint unsigned NOT NULL,
+  `last_opened_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`host_id`,`software_id`),
+  KEY `idx_host_software_software_id` (`software_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_software_installed_paths` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `host_id` int unsigned NOT NULL,
+  `software_id` bigint unsigned NOT NULL,
+  `installed_path` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `team_identifier` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `cdhash_sha256` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `executable_sha256` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `executable_path` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `executable_hashes` json DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `host_id_software_id_idx` (`host_id`,`software_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_software_installs` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `execution_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `host_id` int unsigned NOT NULL,
+  `software_installer_id` int unsigned DEFAULT NULL,
+  `pre_install_query_output` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `install_script_output` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `install_script_exit_code` int DEFAULT NULL,
+  `post_install_script_output` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `post_install_script_exit_code` int DEFAULT NULL,
+  `user_id` int unsigned DEFAULT NULL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `self_service` tinyint(1) NOT NULL DEFAULT '0',
+  `host_deleted_at` timestamp(6) NULL DEFAULT NULL,
+  `removed` tinyint NOT NULL DEFAULT '0',
+  `uninstall_script_output` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `uninstall_script_exit_code` int DEFAULT NULL,
+  `uninstall` tinyint unsigned NOT NULL DEFAULT '0',
+  `status` enum('pending_install','failed_install','installed','pending_uninstall','failed_uninstall','canceled_install','canceled_uninstall') COLLATE utf8mb4_unicode_ci GENERATED ALWAYS AS ((case when (`removed` = 1) then NULL when ((`canceled` = 1) and (`uninstall` = 0)) then _utf8mb4'canceled_install' when ((`canceled` = 1) and (`uninstall` = 1)) then _utf8mb4'canceled_uninstall' when ((`install_script_exit_code` is not null) and (`install_script_exit_code` <> 0)) then _utf8mb4'failed_install' when ((`post_install_script_exit_code` is not null) and (`post_install_script_exit_code` = 0)) then _utf8mb4'installed' when ((`post_install_script_exit_code` is not null) and (`post_install_script_exit_code` <> 0)) then _utf8mb4'failed_install' when ((`install_script_exit_code` is not null) and (`install_script_exit_code` = 0)) then _utf8mb4'installed' when ((`pre_install_query_output` is not null) and (`pre_install_query_output` = _utf8mb4'')) then _utf8mb4'failed_install' when ((`host_id` is not null) and (`uninstall` = 0)) then _utf8mb4'pending_install' when ((`uninstall_script_exit_code` is not null) and (`uninstall_script_exit_code` <> 0)) then _utf8mb4'failed_uninstall' when ((`uninstall_script_exit_code` is not null) and (`uninstall_script_exit_code` = 0)) then NULL when ((`host_id` is not null) and (`uninstall` = 1)) then _utf8mb4'pending_uninstall' else NULL end)) STORED,
+  `policy_id` int unsigned DEFAULT NULL,
+  `installer_filename` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '[deleted installer]',
+  `version` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'unknown',
+  `software_title_id` int unsigned DEFAULT NULL,
+  `software_title_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '[deleted title]',
+  `execution_status` enum('pending_install','failed_install','installed','pending_uninstall','failed_uninstall','canceled_install','canceled_uninstall') COLLATE utf8mb4_unicode_ci GENERATED ALWAYS AS ((case when ((`canceled` = 1) and (`uninstall` = 0)) then _utf8mb4'canceled_install' when ((`canceled` = 1) and (`uninstall` = 1)) then _utf8mb4'canceled_uninstall' when ((`install_script_exit_code` is not null) and (`install_script_exit_code` <> 0)) then _utf8mb4'failed_install' when ((`post_install_script_exit_code` is not null) and (`post_install_script_exit_code` = 0)) then _utf8mb4'installed' when ((`post_install_script_exit_code` is not null) and (`post_install_script_exit_code` <> 0)) then _utf8mb4'failed_install' when ((`install_script_exit_code` is not null) and (`install_script_exit_code` = 0)) then _utf8mb4'installed' when ((`pre_install_query_output` is not null) and (`pre_install_query_output` = _utf8mb4'')) then _utf8mb4'failed_install' when ((`host_id` is not null) and (`uninstall` = 0)) then _utf8mb4'pending_install' when ((`uninstall_script_exit_code` is not null) and (`uninstall_script_exit_code` <> 0)) then _utf8mb4'failed_uninstall' when ((`uninstall_script_exit_code` is not null) and (`uninstall_script_exit_code` = 0)) then NULL when ((`host_id` is not null) and (`uninstall` = 1)) then _utf8mb4'pending_uninstall' else NULL end)) VIRTUAL,
+  `canceled` tinyint(1) NOT NULL DEFAULT '0',
+  `attempt_number` int DEFAULT NULL,
+  `patch_when_closed` tinyint unsigned NOT NULL DEFAULT '0',
+  `override_pre_install_query` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_host_software_installs_execution_id` (`execution_id`),
+  KEY `fk_host_software_installs_user_id` (`user_id`),
+  KEY `idx_host_software_installs_host_installer` (`host_id`,`software_installer_id`),
+  KEY `fk_software_install_policy_id` (`policy_id`),
+  KEY `fk_host_software_installs_installer_id` (`software_installer_id`),
+  KEY `fk_host_software_installs_software_title_id` (`software_title_id`),
+  KEY `idx_host_software_installs_host_policy` (`host_id`,`policy_id`),
+  KEY `idx_host_software_installs_created_at` (`created_at`),
+  CONSTRAINT `fk_host_software_installs_installer_id` FOREIGN KEY (`software_installer_id`) REFERENCES `software_installers` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_host_software_installs_software_title_id` FOREIGN KEY (`software_title_id`) REFERENCES `software_titles` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_host_software_installs_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `host_software_installs_ibfk_1` FOREIGN KEY (`policy_id`) REFERENCES `policies` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_updates` (
+  `host_id` int unsigned NOT NULL,
+  `software_updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`host_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_users` (
+  `host_id` int unsigned NOT NULL,
+  `uid` int unsigned NOT NULL,
+  `username` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `groupname` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `removed_at` timestamp NULL DEFAULT NULL,
+  `user_type` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `shell` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT '',
+  PRIMARY KEY (`host_id`,`uid`,`username`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `host_vpp_software_installs` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `host_id` int unsigned NOT NULL,
+  `adam_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `user_id` int unsigned DEFAULT NULL,
+  `self_service` tinyint(1) NOT NULL DEFAULT '0',
+  `associated_event_id` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `platform` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `removed` tinyint NOT NULL DEFAULT '0',
+  `vpp_token_id` int unsigned DEFAULT NULL,
+  `policy_id` int unsigned DEFAULT NULL,
+  `canceled` tinyint(1) NOT NULL DEFAULT '0',
+  `verification_command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `verification_at` datetime(6) DEFAULT NULL,
+  `verification_failed_at` datetime(6) DEFAULT NULL,
+  `retry_count` int NOT NULL DEFAULT '0',
+  `vpp_app_team_id` int unsigned DEFAULT NULL,
+  `needs_resend` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_host_vpp_software_installs_command_uuid` (`command_uuid`),
+  KEY `user_id` (`user_id`),
+  KEY `adam_id` (`adam_id`,`platform`),
+  KEY `fk_host_vpp_software_installs_vpp_token_id` (`vpp_token_id`),
+  KEY `fk_host_vpp_software_installs_policy_id` (`policy_id`),
+  KEY `idx_host_vpp_software_installs_host_adam_platform_created` (`host_id`,`adam_id`,`platform`,`created_at`),
+  KEY `idx_hvsi_verification_command_uuid` (`verification_command_uuid`),
+  KEY `idx_host_vpp_software_installs_version_host_id` (`vpp_app_team_id`,`host_id`,`canceled`,`removed`,`id`,`verification_at`,`verification_failed_at`),
+  KEY `idx_host_vpp_software_installs_verification` ((((`verification_at` is null) and (`verification_failed_at` is null)))),
+  CONSTRAINT `fk_host_vpp_software_installs_vpp_app_team_id` FOREIGN KEY (`vpp_app_team_id`) REFERENCES `vpp_apps_teams` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_host_vpp_software_installs_vpp_token_id` FOREIGN KEY (`vpp_token_id`) REFERENCES `vpp_tokens` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `host_vpp_software_installs_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `host_vpp_software_installs_ibfk_3` FOREIGN KEY (`adam_id`, `platform`) REFERENCES `vpp_apps` (`adam_id`, `platform`) ON DELETE CASCADE,
+  CONSTRAINT `host_vpp_software_installs_ibfk_4` FOREIGN KEY (`policy_id`) REFERENCES `policies` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `hosts` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `osquery_host_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `detail_updated_at` timestamp NULL DEFAULT NULL,
+  `node_key` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `hostname` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `platform` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `osquery_version` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `os_version` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `build` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `platform_like` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `code_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `uptime` bigint NOT NULL DEFAULT '0',
+  `memory` bigint NOT NULL DEFAULT '0',
+  `cpu_type` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `cpu_subtype` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `cpu_brand` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `cpu_physical_cores` int NOT NULL DEFAULT '0',
+  `cpu_logical_cores` int NOT NULL DEFAULT '0',
+  `hardware_vendor` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `hardware_model` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `hardware_version` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `hardware_serial` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `computer_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `primary_ip_id` int unsigned DEFAULT NULL,
+  `distributed_interval` int DEFAULT '0',
+  `logger_tls_period` int DEFAULT '0',
+  `config_tls_refresh` int DEFAULT '0',
+  `primary_ip` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `primary_mac` varchar(17) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `label_updated_at` timestamp NOT NULL DEFAULT '2000-01-01 00:00:00',
+  `last_enrolled_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `refetch_requested` tinyint(1) NOT NULL DEFAULT '0',
+  `team_id` int unsigned DEFAULT NULL,
+  `policy_updated_at` timestamp NOT NULL DEFAULT '2000-01-01 00:00:00',
+  `public_ip` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `orbit_node_key` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `refetch_critical_queries_until` timestamp NULL DEFAULT NULL,
+  `last_restarted_at` datetime(6) DEFAULT '0001-01-01 00:00:00.000000',
+  `timezone` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `orbit_debug_until` timestamp(6) NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_osquery_host_id` (`osquery_host_id`),
+  UNIQUE KEY `idx_host_unique_nodekey` (`node_key`),
+  UNIQUE KEY `idx_host_unique_orbitnodekey` (`orbit_node_key`),
+  KEY `fk_hosts_team_id` (`team_id`),
+  KEY `hosts_platform_idx` (`platform`),
+  KEY `idx_hosts_hardware_serial` (`hardware_serial`),
+  KEY `idx_hosts_uuid` (`uuid`),
+  KEY `idx_hosts_hostname` (`hostname`),
+  CONSTRAINT `hosts_ibfk_1` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `identity_certificates` (
+  `serial` bigint NOT NULL,
+  `name` varchar(1024) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `not_valid_before` datetime NOT NULL,
+  `not_valid_after` datetime NOT NULL,
+  `certificate_pem` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `revoked` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`serial`),
+  CONSTRAINT `identity_certificates_ibfk_1` FOREIGN KEY (`serial`) REFERENCES `identity_serials` (`serial`),
+  CONSTRAINT `identity_certificates_chk_1` CHECK ((substr(`certificate_pem`,1,27) = _utf8mb4'-----BEGIN CERTIFICATE-----')),
+  CONSTRAINT `identity_certificates_chk_2` CHECK (((`name` is null) or (`name` <> _utf8mb4'')))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `identity_serials` (
+  `serial` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`serial`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `in_house_app_configurations` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `in_house_app_id` int unsigned NOT NULL,
+  `configuration` mediumtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_in_house_app_config_app` (`in_house_app_id`),
+  CONSTRAINT `fk_in_house_app_configurations_app` FOREIGN KEY (`in_house_app_id`) REFERENCES `in_house_apps` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `in_house_app_install_tokens` (
+  `token` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `software_title_id` int unsigned NOT NULL,
+  `team_id` int unsigned NOT NULL,
+  `host_id` int unsigned NOT NULL,
+  `expires_at` datetime(6) NOT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`token`),
+  KEY `idx_in_house_app_install_tokens_expires_at` (`expires_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `in_house_app_labels` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `in_house_app_id` int unsigned NOT NULL,
+  `label_id` int unsigned NOT NULL,
+  `exclude` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `require_all` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `id_in_house_app_labels_in_house_app_id_label_id` (`in_house_app_id`,`label_id`),
+  KEY `label_id` (`label_id`),
+  CONSTRAINT `in_house_app_labels_ibfk_1` FOREIGN KEY (`in_house_app_id`) REFERENCES `in_house_apps` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `in_house_app_labels_ibfk_2` FOREIGN KEY (`label_id`) REFERENCES `labels` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `in_house_app_software_categories` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `software_category_id` int unsigned NOT NULL,
+  `in_house_app_id` int unsigned NOT NULL,
+  `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_unique_in_house_app_id_software_category_id` (`in_house_app_id`,`software_category_id`),
+  KEY `in_house_app_software_categories_ibfk_2` (`software_category_id`),
+  CONSTRAINT `in_house_app_software_categories_ibfk_1` FOREIGN KEY (`in_house_app_id`) REFERENCES `in_house_apps` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `in_house_app_software_categories_ibfk_2` FOREIGN KEY (`software_category_id`) REFERENCES `software_categories` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `in_house_app_upcoming_activities` (
+  `upcoming_activity_id` bigint unsigned NOT NULL,
+  `in_house_app_id` int unsigned NOT NULL,
+  `software_title_id` int unsigned DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`upcoming_activity_id`),
+  KEY `fk_in_house_app_upcoming_activities_in_house_app_id` (`in_house_app_id`),
+  KEY `fk_in_house_app_upcoming_activities_software_title_id` (`software_title_id`),
+  CONSTRAINT `fk_in_house_app_upcoming_activities_in_house_app_id` FOREIGN KEY (`in_house_app_id`) REFERENCES `in_house_apps` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_in_house_app_upcoming_activities_software_title_id` FOREIGN KEY (`software_title_id`) REFERENCES `software_titles` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_in_house_app_upcoming_activities_upcoming_activity_id` FOREIGN KEY (`upcoming_activity_id`) REFERENCES `upcoming_activities` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `in_house_apps` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `title_id` int unsigned DEFAULT NULL,
+  `team_id` int unsigned DEFAULT NULL,
+  `global_or_team_id` int unsigned NOT NULL DEFAULT '0',
+  `filename` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `version` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `storage_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `platform` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `bundle_identifier` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `self_service` tinyint(1) NOT NULL DEFAULT '0',
+  `url` varchar(4095) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `install_during_setup` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `global_or_team_id` (`global_or_team_id`,`filename`,`platform`),
+  KEY `fk_in_house_apps_title` (`title_id`),
+  CONSTRAINT `fk_in_house_apps_title` FOREIGN KEY (`title_id`) REFERENCES `software_titles` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `invite_teams` (
+  `invite_id` int unsigned NOT NULL,
+  `team_id` int unsigned NOT NULL,
+  `role` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`invite_id`,`team_id`),
+  KEY `fk_team_id` (`team_id`),
+  CONSTRAINT `invite_teams_ibfk_1` FOREIGN KEY (`invite_id`) REFERENCES `invites` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `invite_teams_ibfk_2` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `invites` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `invited_by` int unsigned NOT NULL,
+  `email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `position` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `token` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `sso_enabled` tinyint(1) NOT NULL DEFAULT '0',
+  `global_role` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `mfa_enabled` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_invite_unique_email` (`email`),
+  UNIQUE KEY `idx_invite_unique_key` (`token`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `jobs` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `args` json DEFAULT NULL,
+  `state` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `retries` int NOT NULL DEFAULT '0',
+  `error` text COLLATE utf8mb4_unicode_ci,
+  `not_before` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_jobs_state_not_before_updated_at` (`state`,`not_before`,`updated_at`),
+  KEY `idx_jobs_name_state` (`name`,`state`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+INSERT IGNORE INTO `jobs` VALUES (1,'2024-03-20 00:00:00','2024-03-20 00:00:00','macos_setup_assistant','{\"task\": \"update_all_profiles\"}','queued',0,'','2024-03-20 00:00:00');
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `kernel_host_counts` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `software_title_id` int unsigned DEFAULT NULL,
+  `software_id` int unsigned DEFAULT NULL,
+  `os_version_id` int unsigned DEFAULT NULL,
+  `hosts_count` int unsigned NOT NULL,
+  `team_id` int unsigned NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_kernels_unique_mapping` (`os_version_id`,`team_id`,`software_id`),
+  KEY `software_title_id` (`software_title_id`),
+  KEY `idx_kernel_host_counts_os_version_software` (`os_version_id`,`software_id`,`hosts_count`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `label_membership` (
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `label_id` int unsigned NOT NULL,
+  `host_id` int unsigned NOT NULL,
+  PRIMARY KEY (`host_id`,`label_id`),
+  KEY `idx_lm_label_id` (`label_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `labels` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `query` mediumtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `platform` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `label_type` int unsigned NOT NULL DEFAULT '1',
+  `label_membership_type` int unsigned NOT NULL DEFAULT '0',
+  `author_id` int unsigned DEFAULT NULL,
+  `criteria` json DEFAULT NULL,
+  `team_id` int unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_label_unique_name` (`name`),
+  KEY `author_id` (`author_id`),
+  KEY `team_id` (`team_id`),
+  FULLTEXT KEY `labels_search` (`name`),
+  CONSTRAINT `labels_ibfk_1` FOREIGN KEY (`author_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `labels_ibfk_2` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+INSERT IGNORE INTO `labels` VALUES (1,'2024-04-03 00:00:00','2025-10-09 00:00:00','macOS 14+ (Sonoma+)','macOS hosts with version 14 and above','select 1 from os_version where platform = \'darwin\' and major >= 14;','',1,0,NULL,NULL,NULL),(2,'2024-06-28 00:00:00','2025-10-09 00:00:00','iOS','All iOS hosts','','',1,1,NULL,NULL,NULL),(3,'2024-06-28 00:00:00','2025-10-09 00:00:00','iPadOS','All iPadOS hosts','','',1,1,NULL,NULL,NULL),(4,'2024-09-27 00:00:00','2026-08-14 00:00:00','Fedora Linux','All Fedora hosts','select 1 from os_version where name like \'%fedora%\';','',1,0,NULL,NULL,NULL),(5,'2025-02-25 00:00:00','2025-10-09 00:00:00','Android','All Android hosts','','',1,1,NULL,NULL,NULL),(11,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'All Hosts','All hosts which have enrolled in Fleet','select 1;','',1,0,NULL,NULL,NULL),(12,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'macOS','All macOS hosts','select 1 from os_version where platform = \'darwin\';','',1,0,NULL,NULL,NULL),(13,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'Ubuntu Linux','All Ubuntu hosts','select 1 from os_version where platform = \'ubuntu\' or platform_like like \'%ubuntu%\';','',1,0,NULL,NULL,NULL),(14,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'CentOS Linux','All CentOS hosts','select 1 from os_version where platform = \'centos\' or name like \'%centos%\'','',1,0,NULL,NULL,NULL),(15,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'MS Windows','All Windows hosts','select 1 from os_version where platform = \'windows\';','',1,0,NULL,NULL,NULL),(16,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'Red Hat Linux','All Red Hat Enterprise Linux hosts','SELECT 1 FROM os_version WHERE name LIKE \'%red hat%\'','',1,0,NULL,NULL,NULL),(17,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'All Linux','All Linux distributions','SELECT 1 FROM osquery_info WHERE build_platform LIKE \'%ubuntu%\' OR build_distro LIKE \'%centos%\';','',1,0,NULL,NULL,NULL),(18,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,'chrome','All Chrome hosts','select 1 from os_version where platform = \'chrome\';','',1,0,NULL,NULL,NULL);
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `legacy_host_filevault_profiles` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `host_uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `operation_type` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `profile_uuid` varchar(37) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `detail` text COLLATE utf8mb4_unicode_ci,
+  `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `scope` enum('System','User') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'System',
+  `created_at` timestamp(6) NOT NULL,
+  `updated_at` timestamp(6) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `legacy_host_mdm_enroll_refs` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `enroll_ref` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_legacy_enroll_refs_host_uuid` (`host_uuid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `legacy_host_mdm_idp_accounts` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `account_uuid` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `host_id` int unsigned DEFAULT NULL,
+  `email_id` int unsigned DEFAULT NULL,
+  `email_created_at` datetime DEFAULT NULL,
+  `email_updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `locks` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `owner` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `expires_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_name` (`name`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_adue_enrollment_challenges` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `challenge` varbinary(64) NOT NULL,
+  `idp_account_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `abm_token_id` int unsigned DEFAULT NULL,
+  `expires_at` timestamp(6) NOT NULL,
+  `used_at` timestamp(6) NULL DEFAULT NULL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_mdm_adue_challenge` (`challenge`),
+  KEY `idx_mdm_adue_expires` (`expires_at`),
+  KEY `mdm_adue_abm_token_fk` (`abm_token_id`),
+  KEY `mdm_adue_idp_account_fk` (`idp_account_uuid`),
+  CONSTRAINT `mdm_adue_abm_token_fk` FOREIGN KEY (`abm_token_id`) REFERENCES `abm_tokens` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `mdm_adue_idp_account_fk` FOREIGN KEY (`idp_account_uuid`) REFERENCES `mdm_idp_accounts` (`uuid`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_android_commands` (
+  `command_uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `host_uuid` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `operation_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `command_type` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `raw_command` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `status` enum('Pending','Acknowledged','Error') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Pending',
+  `error_code` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `error_message` varchar(1024) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `raw_result` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`command_uuid`),
+  UNIQUE KEY `idx_mdm_android_commands_operation_name` (`operation_name`),
+  KEY `idx_mdm_android_commands_host_uuid` (`host_uuid`),
+  KEY `idx_mdm_android_commands_status_created_at` (`status`,`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_android_configuration_profiles` (
+  `profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `team_id` int unsigned NOT NULL DEFAULT '0',
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `raw_json` json NOT NULL,
+  `auto_increment` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `uploaded_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `checksum` binary(16) GENERATED ALWAYS AS (unhex(md5(cast(`raw_json` as char charset utf8mb4)))) STORED,
+  `hidden` tinyint(1) NOT NULL DEFAULT '0',
+  `description` varchar(1023) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  PRIMARY KEY (`profile_uuid`),
+  UNIQUE KEY `auto_increment` (`auto_increment`),
+  UNIQUE KEY `idx_mdm_android_configuration_profiles_team_id_name` (`team_id`,`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_apple_bootstrap_packages` (
+  `team_id` int unsigned NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `sha256` binary(32) NOT NULL,
+  `bytes` longblob,
+  `token` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`team_id`),
+  UNIQUE KEY `idx_token` (`token`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_apple_configuration_profiles` (
+  `profile_id` int unsigned NOT NULL AUTO_INCREMENT,
+  `team_id` int unsigned NOT NULL DEFAULT '0',
+  `identifier` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `mobileconfig` mediumblob NOT NULL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `uploaded_at` timestamp(6) NULL DEFAULT NULL,
+  `checksum` binary(16) NOT NULL,
+  `profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `secrets_updated_at` datetime(6) DEFAULT NULL,
+  `scope` enum('System','User') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'System',
+  `self_service` tinyint(1) NOT NULL DEFAULT '0',
+  `hidden` tinyint(1) NOT NULL DEFAULT '0',
+  `description` varchar(1023) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  PRIMARY KEY (`profile_uuid`),
+  UNIQUE KEY `idx_mdm_apple_config_prof_team_identifier` (`team_id`,`identifier`),
+  UNIQUE KEY `idx_mdm_apple_config_prof_team_name` (`team_id`,`name`),
+  UNIQUE KEY `idx_mdm_apple_config_prof_id` (`profile_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_apple_ddm_activations` (
+  `activation_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `team_id` int unsigned NOT NULL DEFAULT '0',
+  `identifier` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `raw_json` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `declaration_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `configuration_identifier` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `secrets_updated_at` datetime(6) DEFAULT NULL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `uploaded_at` timestamp(6) NULL DEFAULT NULL,
+  `token` binary(16) GENERATED ALWAYS AS (unhex(md5(concat(`raw_json`,ifnull(`secrets_updated_at`,_utf8mb4''))))) STORED,
+  PRIMARY KEY (`activation_uuid`),
+  UNIQUE KEY `idx_mdm_apple_ddm_activation_team_identifier` (`team_id`,`identifier`),
+  UNIQUE KEY `idx_mdm_apple_ddm_activation_team_config` (`team_id`,`configuration_identifier`),
+  UNIQUE KEY `idx_mdm_apple_ddm_activation_declaration` (`declaration_uuid`),
+  CONSTRAINT `fk_mdm_apple_ddm_activations_declaration_uuid` FOREIGN KEY (`declaration_uuid`) REFERENCES `mdm_apple_declarations` (`declaration_uuid`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_apple_declaration_asset_references` (
+  `declaration_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `asset_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`declaration_uuid`,`asset_uuid`),
+  KEY `asset_uuid` (`asset_uuid`),
+  CONSTRAINT `mdm_apple_declaration_asset_references_ibfk_1` FOREIGN KEY (`declaration_uuid`) REFERENCES `mdm_apple_declarations` (`declaration_uuid`) ON DELETE CASCADE,
+  CONSTRAINT `mdm_apple_declaration_asset_references_ibfk_2` FOREIGN KEY (`asset_uuid`) REFERENCES `mdm_apple_declaration_assets` (`asset_uuid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_apple_declaration_assets` (
+  `asset_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `team_id` int unsigned NOT NULL,
+  `identifier` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `raw_json` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `secrets_updated_at` datetime(6) DEFAULT NULL,
+  `token` binary(16) GENERATED ALWAYS AS (unhex(md5(concat(`raw_json`,ifnull(`secrets_updated_at`,_utf8mb4''))))) STORED,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `uploaded_at` timestamp(6) NULL DEFAULT NULL,
+  PRIMARY KEY (`asset_uuid`),
+  UNIQUE KEY `idx_mdm_apple_decl_asset_team_identifier` (`team_id`,`identifier`),
+  UNIQUE KEY `idx_mdm_apple_decl_asset_team_name` (`team_id`,`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_apple_declarations` (
+  `declaration_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `team_id` int unsigned NOT NULL DEFAULT '0',
+  `identifier` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `raw_json` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `uploaded_at` timestamp(6) NULL DEFAULT NULL,
+  `auto_increment` bigint NOT NULL AUTO_INCREMENT,
+  `secrets_updated_at` datetime(6) DEFAULT NULL,
+  `token` binary(16) GENERATED ALWAYS AS (unhex(md5(concat(`raw_json`,ifnull(`secrets_updated_at`,_utf8mb4''))))) STORED,
+  `scope` enum('System','User') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'System',
+  `hidden` tinyint(1) NOT NULL DEFAULT '0',
+  `description` varchar(1023) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  PRIMARY KEY (`declaration_uuid`),
+  UNIQUE KEY `idx_mdm_apple_declaration_team_identifier` (`team_id`,`identifier`),
+  UNIQUE KEY `idx_mdm_apple_declaration_team_name` (`team_id`,`name`),
+  UNIQUE KEY `auto_increment` (`auto_increment`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_apple_declarative_requests` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `enrollment_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `message_type` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `raw_json` text COLLATE utf8mb4_unicode_ci,
+  PRIMARY KEY (`id`),
+  KEY `mdm_apple_declarative_requests_enrollment_id` (`enrollment_id`),
+  CONSTRAINT `mdm_apple_declarative_requests_enrollment_id` FOREIGN KEY (`enrollment_id`) REFERENCES `nano_enrollments` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_apple_default_setup_assistants` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `team_id` int unsigned DEFAULT NULL,
+  `global_or_team_id` int unsigned NOT NULL DEFAULT '0',
+  `profile_uuid` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `abm_token_id` int unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_mdm_default_setup_assistant_global_or_team_id_abm_token_id` (`global_or_team_id`,`abm_token_id`),
+  KEY `fk_mdm_default_setup_assistant_team_id` (`team_id`),
+  KEY `fk_mdm_default_setup_assistant_abm_token_id` (`abm_token_id`),
+  CONSTRAINT `fk_mdm_default_setup_assistant_abm_token_id` FOREIGN KEY (`abm_token_id`) REFERENCES `abm_tokens` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `mdm_apple_default_setup_assistants_ibfk_1` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_apple_dep_enrollment_challenges` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `challenge` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `idp_account_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `hardware_serial` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `expires_at` datetime(6) NOT NULL,
+  `used_at` datetime(6) DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_mdm_apple_dep_enrollment_challenges_challenge` (`challenge`),
+  KEY `idx_mdm_apple_dep_enrollment_challenges_expires_at` (`expires_at`),
+  KEY `fk_mdm_apple_dep_enrollment_challenges_idp_account` (`idp_account_uuid`),
+  CONSTRAINT `fk_mdm_apple_dep_enrollment_challenges_idp_account` FOREIGN KEY (`idp_account_uuid`) REFERENCES `mdm_idp_accounts` (`uuid`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_apple_enrollment_profiles` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `token` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `type` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'automatic',
+  `dep_profile` json DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `previous_token` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `previous_token_expires_at` datetime(6) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_type` (`type`),
+  UNIQUE KEY `idx_token` (`token`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_apple_installers` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `size` bigint NOT NULL,
+  `manifest` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `installer` longblob,
+  `url_token` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_apple_psso_devices` (
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`host_uuid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_apple_psso_keys` (
+  `kid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `key_type` enum('signing','encryption') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `pem` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`kid`),
+  KEY `fk_mdm_apple_psso_keys_host_uuid` (`host_uuid`),
+  CONSTRAINT `fk_mdm_apple_psso_keys_host_uuid` FOREIGN KEY (`host_uuid`) REFERENCES `mdm_apple_psso_devices` (`host_uuid`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_apple_scep_challenges` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `challenge` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `purpose` varchar(31) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `hardware_serial` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `idp_account_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `expires_at` datetime(6) NOT NULL,
+  `consumed_at` datetime(6) DEFAULT NULL,
+  `issued_cert_serial` bigint DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_mdm_apple_scep_challenges_challenge` (`challenge`),
+  UNIQUE KEY `idx_mdm_apple_scep_challenges_cert_serial` (`issued_cert_serial`),
+  KEY `idx_mdm_apple_scep_challenges_host_purpose` (`host_uuid`,`purpose`),
+  KEY `idx_mdm_apple_scep_challenges_expires_at` (`expires_at`),
+  KEY `idx_mdm_apple_scep_challenges_consumed_at` (`consumed_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_apple_setup_assistant_profiles` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `setup_assistant_id` int unsigned NOT NULL,
+  `abm_token_id` int unsigned NOT NULL,
+  `profile_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_mdm_apple_setup_assistant_profiles_asst_id_tok_id` (`setup_assistant_id`,`abm_token_id`),
+  KEY `fk_mdm_apple_setup_assistant_profiles_abm_token_id` (`abm_token_id`),
+  CONSTRAINT `fk_mdm_apple_setup_assistant_profiles_abm_token_id` FOREIGN KEY (`abm_token_id`) REFERENCES `abm_tokens` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_mdm_apple_setup_assistant_profiles_setup_assistant_id` FOREIGN KEY (`setup_assistant_id`) REFERENCES `mdm_apple_setup_assistants` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_apple_setup_assistants` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `team_id` int unsigned DEFAULT NULL,
+  `global_or_team_id` int unsigned NOT NULL DEFAULT '0',
+  `name` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `profile` json NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_mdm_setup_assistant_global_or_team_id` (`global_or_team_id`),
+  KEY `fk_mdm_setup_assistant_team_id` (`team_id`),
+  CONSTRAINT `mdm_apple_setup_assistants_ibfk_1` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_config_assets` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(256) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `value` longblob NOT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deletion_uuid` varchar(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `md5_checksum` binary(16) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_mdm_config_assets_name_deletion_uuid` (`name`,`deletion_uuid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_configuration_profile_labels` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `apple_profile_uuid` varchar(37) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `windows_profile_uuid` varchar(37) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `label_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `label_id` int unsigned DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `exclude` tinyint(1) NOT NULL DEFAULT '0',
+  `require_all` tinyint(1) NOT NULL DEFAULT '0',
+  `android_profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_mdm_configuration_profile_labels_apple_label_name` (`apple_profile_uuid`,`label_name`),
+  UNIQUE KEY `idx_mdm_configuration_profile_labels_windows_label_name` (`windows_profile_uuid`,`label_name`),
+  UNIQUE KEY `idx_mdm_configuration_profile_labels_android_label_name` (`android_profile_uuid`,`label_name`),
+  KEY `mdm_configuration_profile_labels_ibfk_label` (`label_id`),
+  CONSTRAINT `mdm_configuration_profile_labels_ibfk_1` FOREIGN KEY (`apple_profile_uuid`) REFERENCES `mdm_apple_configuration_profiles` (`profile_uuid`) ON DELETE CASCADE,
+  CONSTRAINT `mdm_configuration_profile_labels_ibfk_2` FOREIGN KEY (`windows_profile_uuid`) REFERENCES `mdm_windows_configuration_profiles` (`profile_uuid`) ON DELETE CASCADE,
+  CONSTRAINT `mdm_configuration_profile_labels_ibfk_4` FOREIGN KEY (`android_profile_uuid`) REFERENCES `mdm_android_configuration_profiles` (`profile_uuid`) ON DELETE CASCADE,
+  CONSTRAINT `mdm_configuration_profile_labels_ibfk_label` FOREIGN KEY (`label_id`) REFERENCES `labels` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `ck_mdm_configuration_profile_labels_profile_uuid` CHECK ((((if((`apple_profile_uuid` is null),0,1) + if((`windows_profile_uuid` is null),0,1)) + if((`android_profile_uuid` is null),0,1)) = 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_configuration_profile_update_settings` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `windows_profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `apple_declaration_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_mdm_config_profile_update_settings_apple_decl` (`apple_declaration_uuid`),
+  UNIQUE KEY `idx_mdm_config_profile_update_settings_windows_profile` (`windows_profile_uuid`),
+  CONSTRAINT `fk_mdm_config_profile_update_settings_apple_decl_uuid` FOREIGN KEY (`apple_declaration_uuid`) REFERENCES `mdm_apple_declarations` (`declaration_uuid`) ON DELETE CASCADE,
+  CONSTRAINT `fk_mdm_config_profile_update_settings_windows_profile_uuid` FOREIGN KEY (`windows_profile_uuid`) REFERENCES `mdm_windows_configuration_profiles` (`profile_uuid`) ON DELETE CASCADE,
+  CONSTRAINT `ck_mdm_config_profile_update_settings_exactly_one` CHECK (((if((`apple_declaration_uuid` is null),0,1) + if((`windows_profile_uuid` is null),0,1)) = 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_configuration_profile_variables` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `apple_profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `windows_profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `fleet_variable_id` int unsigned NOT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `apple_declaration_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `android_profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `certificate_template_id` int unsigned DEFAULT NULL,
+  `apple_ddm_activation_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `vpp_app_team_id` int unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_mdm_configuration_profile_variables_apple_variable` (`apple_profile_uuid`,`fleet_variable_id`),
+  UNIQUE KEY `idx_mdm_configuration_profile_variables_windows_label_name` (`windows_profile_uuid`,`fleet_variable_id`),
+  UNIQUE KEY `idx_mdm_config_profile_vars_apple_decl_variable` (`apple_declaration_uuid`,`fleet_variable_id`),
+  UNIQUE KEY `idx_mdm_configuration_profile_variables_android_variable` (`android_profile_uuid`,`fleet_variable_id`),
+  UNIQUE KEY `idx_mdm_configuration_profile_variables_cert_template_variable` (`certificate_template_id`,`fleet_variable_id`),
+  UNIQUE KEY `idx_mdm_config_profile_vars_ddm_activation_variable` (`apple_ddm_activation_uuid`,`fleet_variable_id`),
+  UNIQUE KEY `idx_mdm_configuration_profile_variables_vpp_app_team_variable` (`vpp_app_team_id`,`fleet_variable_id`),
+  KEY `mdm_configuration_profile_variables_fleet_variable_id` (`fleet_variable_id`),
+  CONSTRAINT `fk_mdm_configuration_profile_variables_android_profile_uuid` FOREIGN KEY (`android_profile_uuid`) REFERENCES `mdm_android_configuration_profiles` (`profile_uuid`) ON DELETE CASCADE,
+  CONSTRAINT `fk_mdm_configuration_profile_variables_apple_declaration_uuid` FOREIGN KEY (`apple_declaration_uuid`) REFERENCES `mdm_apple_declarations` (`declaration_uuid`) ON DELETE CASCADE,
+  CONSTRAINT `fk_mdm_configuration_profile_variables_apple_profile_uuid` FOREIGN KEY (`apple_profile_uuid`) REFERENCES `mdm_apple_configuration_profiles` (`profile_uuid`) ON DELETE CASCADE,
+  CONSTRAINT `fk_mdm_configuration_profile_variables_cert_template_id` FOREIGN KEY (`certificate_template_id`) REFERENCES `certificate_templates` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_mdm_configuration_profile_variables_vpp_app_team_id` FOREIGN KEY (`vpp_app_team_id`) REFERENCES `vpp_apps_teams` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_mdm_configuration_profile_variables_windows_profile_uuid` FOREIGN KEY (`windows_profile_uuid`) REFERENCES `mdm_windows_configuration_profiles` (`profile_uuid`) ON DELETE CASCADE,
+  CONSTRAINT `mdm_config_profile_variables_ddm_activation_fk` FOREIGN KEY (`apple_ddm_activation_uuid`) REFERENCES `mdm_apple_ddm_activations` (`activation_uuid`) ON DELETE CASCADE,
+  CONSTRAINT `mdm_configuration_profile_variables_fleet_variable_id` FOREIGN KEY (`fleet_variable_id`) REFERENCES `fleet_variables` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `ck_mdm_configuration_profile_variables_exactly_one` CHECK ((((((((if((`apple_profile_uuid` is null),0,1) + if((`windows_profile_uuid` is null),0,1)) + if((`apple_declaration_uuid` is null),0,1)) + if((`android_profile_uuid` is null),0,1)) + if((`certificate_template_id` is null),0,1)) + if((`vpp_app_team_id` is null),0,1)) + if((`apple_ddm_activation_uuid` is null),0,1)) = 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_declaration_labels` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `apple_declaration_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `label_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `label_id` int unsigned DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `uploaded_at` timestamp NULL DEFAULT NULL,
+  `exclude` tinyint(1) NOT NULL DEFAULT '0',
+  `require_all` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_mdm_declaration_labels_label_name` (`apple_declaration_uuid`,`label_name`),
+  KEY `label_id` (`label_id`),
+  CONSTRAINT `mdm_declaration_labels_ibfk_1` FOREIGN KEY (`apple_declaration_uuid`) REFERENCES `mdm_apple_declarations` (`declaration_uuid`) ON DELETE CASCADE,
+  CONSTRAINT `mdm_declaration_labels_ibfk_label` FOREIGN KEY (`label_id`) REFERENCES `labels` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_delivery_status` (
+  `status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+INSERT IGNORE INTO `mdm_delivery_status` VALUES ('failed'),('pending'),('verified'),('verifying');
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_idp_accounts` (
+  `uuid` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `username` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `fullname` varchar(256) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `email` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`uuid`),
+  UNIQUE KEY `unique_idp_email` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_microsoft_graph_credentials` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `tenant_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `client_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `client_secret` blob NOT NULL,
+  `credential_invalid` tinyint(1) NOT NULL DEFAULT '0',
+  `last_synced_at` datetime(6) DEFAULT NULL,
+  `last_sync_error` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_mdm_microsoft_graph_credentials_tenant_id` (`tenant_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_operation_types` (
+  `operation_type` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`operation_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+INSERT IGNORE INTO `mdm_operation_types` VALUES ('install'),('remove');
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_windows_configuration_profiles` (
+  `team_id` int unsigned NOT NULL DEFAULT '0',
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `syncml` mediumblob NOT NULL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `uploaded_at` timestamp(6) NULL DEFAULT NULL,
+  `profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `auto_increment` bigint NOT NULL AUTO_INCREMENT,
+  `checksum` binary(16) GENERATED ALWAYS AS (unhex(md5(`syncml`))) STORED,
+  `secrets_updated_at` datetime(6) DEFAULT NULL,
+  `hidden` tinyint(1) NOT NULL DEFAULT '0',
+  `description` varchar(1023) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  PRIMARY KEY (`profile_uuid`),
+  UNIQUE KEY `idx_mdm_windows_configuration_profiles_team_id_name` (`team_id`,`name`),
+  UNIQUE KEY `auto_increment` (`auto_increment`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_windows_configuration_profiles_prior_content` (
+  `profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `checksum` binary(16) NOT NULL,
+  `syncml` mediumblob NOT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`profile_uuid`,`checksum`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_windows_enrollment_config` (
+  `id` int unsigned NOT NULL,
+  `default_team_id` int unsigned DEFAULT NULL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  KEY `fk_mdm_windows_enrollment_config_default_team_id` (`default_team_id`),
+  CONSTRAINT `fk_mdm_windows_enrollment_config_default_team_id` FOREIGN KEY (`default_team_id`) REFERENCES `teams` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `ck_mdm_windows_enrollment_config_singleton` CHECK ((`id` = 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+INSERT IGNORE INTO `mdm_windows_enrollment_config` VALUES (1,NULL,'2026-08-03 00:00:00.000000','2026-08-03 00:00:00.000000');
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mdm_windows_enrollments` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `mdm_device_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `mdm_hardware_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `device_state` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `device_type` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `device_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `enroll_type` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `enroll_user_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `enroll_proto_version` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `enroll_client_version` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `not_in_oobe` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `credentials_hash` binary(16) DEFAULT NULL,
+  `credentials_acknowledged` tinyint(1) NOT NULL DEFAULT '0',
+  `awaiting_configuration` tinyint(1) NOT NULL DEFAULT '0',
+  `awaiting_configuration_at` datetime(6) DEFAULT NULL,
+  `poll_schedule_relaxed` tinyint(1) NOT NULL DEFAULT '0',
+  `has_pending_commands` tinyint(1) NOT NULL DEFAULT '0',
+  `fleetd_sync_capable` tinyint(1) NOT NULL DEFAULT '0',
+  `managed_local_account_escrowed` tinyint(1) NOT NULL DEFAULT '0',
+  `hardware_serial` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ztd_registration_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `last_login_status` varchar(16) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `last_login_status_at` datetime(6) DEFAULT NULL,
+  `enrolled_activity_at` datetime(6) DEFAULT NULL,
+  `managed_local_account_rotation_requested` tinyint(1) NOT NULL DEFAULT '0',
+  `fleetd_bitlocker_pin_capable` tinyint(1) NOT NULL DEFAULT '0',
+  `bitlocker_pin_request_pending` tinyint(1) NOT NULL DEFAULT '0',
+  `deleted_host_team_id` int unsigned DEFAULT NULL,
+  `entra_device_id` binary(16) DEFAULT NULL,
+  `fleetd_present_at` datetime(6) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_type` (`mdm_hardware_id`),
+  KEY `idx_mdm_windows_enrollments_mdm_device_id` (`mdm_device_id`),
+  KEY `idx_mdm_windows_enrollments_host_uuid_hardware_serial` (`host_uuid`,`hardware_serial`),
+  KEY `idx_mdm_windows_enrollments_ztd_registration_id` (`ztd_registration_id`),
+  KEY `idx_mdm_windows_enrollments_entra_device_id` (`entra_device_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `microsoft_compliance_partner_host_statuses` (
+  `host_id` int unsigned NOT NULL,
+  `device_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `user_principal_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `managed` tinyint(1) DEFAULT NULL,
+  `compliant` tinyint(1) DEFAULT NULL,
+  `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`host_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `microsoft_compliance_partner_integrations` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `tenant_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `proxy_server_secret` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `setup_done` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_microsoft_compliance_partner_tenant_id` (`tenant_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `mobile_device_management_solutions` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `server_url` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_mobile_device_management_solutions_name` (`name`,`server_url`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `munki_issues` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `issue_type` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_munki_issues_name` (`name`,`issue_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `nano_cert_auth_associations` (
+  `id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `sha256` char(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `cert_not_valid_after` timestamp NULL DEFAULT NULL,
+  `renew_command_uuid` varchar(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `renewal_excluded_at` timestamp(6) NULL DEFAULT NULL,
+  PRIMARY KEY (`id`,`sha256`),
+  KEY `renew_command_uuid_fk` (`renew_command_uuid`),
+  KEY `idx_sha256` (`sha256`),
+  CONSTRAINT `renew_command_uuid_fk` FOREIGN KEY (`renew_command_uuid`) REFERENCES `nano_commands` (`command_uuid`),
+  CONSTRAINT `nano_cert_auth_associations_chk_1` CHECK ((`id` <> _utf8mb4'')),
+  CONSTRAINT `nano_cert_auth_associations_chk_2` CHECK ((`sha256` <> _utf8mb4''))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `nano_command_results` (
+  `id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` varchar(31) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `result` mediumtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `not_now_at` timestamp NULL DEFAULT NULL,
+  `not_now_tally` int NOT NULL DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`,`command_uuid`),
+  KEY `command_uuid` (`command_uuid`),
+  KEY `idx_ncr_lookup` (`id`,`command_uuid`,`status`),
+  KEY `idx_ncr_status_updated_at` (`status`,`updated_at`),
+  CONSTRAINT `nano_command_results_ibfk_1` FOREIGN KEY (`id`) REFERENCES `nano_enrollments` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `nano_command_results_ibfk_2` FOREIGN KEY (`command_uuid`) REFERENCES `nano_commands` (`command_uuid`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `nano_command_results_chk_1` CHECK ((`status` <> _utf8mb4'')),
+  CONSTRAINT `nano_command_results_chk_2` CHECK ((substr(`result`,1,5) = _utf8mb4'<?xml'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `nano_commands` (
+  `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `request_type` varchar(63) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `command` mediumtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `subtype` enum('None','ProfileWithSecrets') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'None',
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`command_uuid`),
+  KEY `idx_nano_commands_created_at` (`created_at`),
+  CONSTRAINT `nano_commands_chk_1` CHECK ((`command_uuid` <> _utf8mb4'')),
+  CONSTRAINT `nano_commands_chk_2` CHECK ((`request_type` <> _utf8mb4''))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `nano_dep_names` (
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `consumer_key` text COLLATE utf8mb4_unicode_ci,
+  `consumer_secret` text COLLATE utf8mb4_unicode_ci,
+  `access_token` text COLLATE utf8mb4_unicode_ci,
+  `access_secret` text COLLATE utf8mb4_unicode_ci,
+  `access_token_expiry` timestamp NULL DEFAULT NULL,
+  `config_base_url` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `tokenpki_cert_pem` text COLLATE utf8mb4_unicode_ci,
+  `tokenpki_key_pem` text COLLATE utf8mb4_unicode_ci,
+  `syncer_cursor` varchar(1024) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `syncer_cursor_at` timestamp NULL DEFAULT NULL,
+  `assigner_profile_uuid` text COLLATE utf8mb4_unicode_ci,
+  `assigner_profile_uuid_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`name`),
+  CONSTRAINT `nano_dep_names_chk_1` CHECK (((`tokenpki_cert_pem` is null) or (substr(`tokenpki_cert_pem`,1,27) = _utf8mb4'-----BEGIN CERTIFICATE-----'))),
+  CONSTRAINT `nano_dep_names_chk_2` CHECK (((`tokenpki_key_pem` is null) or (substr(`tokenpki_key_pem`,1,5) = _utf8mb4'-----')))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `nano_devices` (
+  `id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `identity_cert` text COLLATE utf8mb4_unicode_ci,
+  `serial_number` varchar(127) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `unlock_token` mediumblob,
+  `unlock_token_at` timestamp NULL DEFAULT NULL,
+  `authenticate` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `authenticate_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `token_update` text COLLATE utf8mb4_unicode_ci,
+  `token_update_at` timestamp NULL DEFAULT NULL,
+  `bootstrap_token_b64` text COLLATE utf8mb4_unicode_ci,
+  `bootstrap_token_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `platform` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `enroll_team_id` int unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `serial_number` (`serial_number`),
+  KEY `fk_nano_devices_team_id` (`enroll_team_id`),
+  CONSTRAINT `fk_nano_devices_team_id` FOREIGN KEY (`enroll_team_id`) REFERENCES `teams` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `nano_devices_chk_1` CHECK (((`identity_cert` is null) or (substr(`identity_cert`,1,27) = _utf8mb4'-----BEGIN CERTIFICATE-----'))),
+  CONSTRAINT `nano_devices_chk_2` CHECK (((`serial_number` is null) or (`serial_number` <> _utf8mb4''))),
+  CONSTRAINT `nano_devices_chk_3` CHECK (((`unlock_token` is null) or (length(`unlock_token`) > 0))),
+  CONSTRAINT `nano_devices_chk_4` CHECK ((`authenticate` <> _utf8mb4'')),
+  CONSTRAINT `nano_devices_chk_5` CHECK (((`token_update` is null) or (`token_update` <> _utf8mb4''))),
+  CONSTRAINT `nano_devices_chk_6` CHECK (((`bootstrap_token_b64` is null) or (`bootstrap_token_b64` <> _utf8mb4'')))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `nano_enrollment_queue` (
+  `id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `active` tinyint(1) NOT NULL DEFAULT '1',
+  `priority` tinyint NOT NULL DEFAULT '0',
+  `created_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`,`command_uuid`),
+  KEY `command_uuid` (`command_uuid`),
+  KEY `priority` (`priority` DESC,`created_at`),
+  KEY `idx_neq_filter` (`active`,`priority`,`created_at`),
+  KEY `idx_neq_next_command` (`id`,`active`,`priority` DESC,`created_at`),
+  CONSTRAINT `nano_enrollment_queue_ibfk_1` FOREIGN KEY (`id`) REFERENCES `nano_enrollments` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `nano_enrollment_queue_ibfk_2` FOREIGN KEY (`command_uuid`) REFERENCES `nano_commands` (`command_uuid`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `nano_enrollments` (
+  `id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `device_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `user_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `type` varchar(31) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `topic` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `push_magic` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `token_hex` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `enabled` tinyint(1) NOT NULL DEFAULT '1',
+  `token_update_tally` int NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `enrolled_from_migration` tinyint unsigned NOT NULL DEFAULT '0',
+  `hardware_attested` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `user_id` (`user_id`),
+  KEY `device_id` (`device_id`),
+  KEY `type` (`type`),
+  KEY `idx_nano_enrollments_enabled` (`enabled`),
+  CONSTRAINT `nano_enrollments_ibfk_1` FOREIGN KEY (`device_id`) REFERENCES `nano_devices` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `nano_enrollments_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `nano_users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `nano_enrollments_chk_1` CHECK ((`id` <> _utf8mb4'')),
+  CONSTRAINT `nano_enrollments_chk_2` CHECK ((`type` <> _utf8mb4'')),
+  CONSTRAINT `nano_enrollments_chk_3` CHECK ((`topic` <> _utf8mb4'')),
+  CONSTRAINT `nano_enrollments_chk_4` CHECK ((`push_magic` <> _utf8mb4'')),
+  CONSTRAINT `nano_enrollments_chk_5` CHECK ((`token_hex` <> _utf8mb4''))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `nano_push_certs` (
+  `topic` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `cert_pem` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `key_pem` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `stale_token` int NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`topic`),
+  CONSTRAINT `nano_push_certs_chk_1` CHECK ((`topic` <> _utf8mb4'')),
+  CONSTRAINT `nano_push_certs_chk_2` CHECK ((substr(`cert_pem`,1,27) = _utf8mb4'-----BEGIN CERTIFICATE-----')),
+  CONSTRAINT `nano_push_certs_chk_3` CHECK ((substr(`key_pem`,1,5) = _utf8mb4'-----'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `nano_seen_times` (
+  `id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `seen_time` timestamp NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `nano_users` (
+  `id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `device_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `user_short_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `user_long_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `token_update` text COLLATE utf8mb4_unicode_ci,
+  `token_update_at` timestamp NULL DEFAULT NULL,
+  `user_authenticate` text COLLATE utf8mb4_unicode_ci,
+  `user_authenticate_at` timestamp NULL DEFAULT NULL,
+  `user_authenticate_digest` text COLLATE utf8mb4_unicode_ci,
+  `user_authenticate_digest_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`,`device_id`),
+  UNIQUE KEY `idx_unique_id` (`id`),
+  KEY `device_id` (`device_id`),
+  CONSTRAINT `nano_users_ibfk_1` FOREIGN KEY (`device_id`) REFERENCES `nano_devices` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `nano_users_chk_1` CHECK (((`user_short_name` is null) or (`user_short_name` <> _utf8mb4''))),
+  CONSTRAINT `nano_users_chk_2` CHECK (((`user_long_name` is null) or (`user_long_name` <> _utf8mb4''))),
+  CONSTRAINT `nano_users_chk_3` CHECK (((`token_update` is null) or (`token_update` <> _utf8mb4''))),
+  CONSTRAINT `nano_users_chk_4` CHECK (((`user_authenticate` is null) or (`user_authenticate` <> _utf8mb4''))),
+  CONSTRAINT `nano_users_chk_5` CHECK (((`user_authenticate_digest` is null) or (`user_authenticate_digest` <> _utf8mb4'')))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+SET @saved_cs_client     = @@character_set_client;
+/*!50503 SET character_set_client = utf8mb4 */;
+SET character_set_client = @saved_cs_client;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `network_interfaces` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `host_id` int unsigned NOT NULL,
+  `mac` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `ip_address` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `broadcast` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `ibytes` bigint NOT NULL DEFAULT '0',
+  `interface` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `ipackets` bigint NOT NULL DEFAULT '0',
+  `last_change` bigint NOT NULL DEFAULT '0',
+  `mask` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `metric` int NOT NULL DEFAULT '0',
+  `mtu` int NOT NULL DEFAULT '0',
+  `obytes` bigint NOT NULL DEFAULT '0',
+  `ierrors` bigint NOT NULL DEFAULT '0',
+  `oerrors` bigint NOT NULL DEFAULT '0',
+  `opackets` bigint NOT NULL DEFAULT '0',
+  `point_to_point` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `type` int NOT NULL DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_network_interfaces_unique_ip_host_intf` (`ip_address`,`host_id`,`interface`),
+  KEY `idx_network_interfaces_hosts_fk` (`host_id`),
+  FULLTEXT KEY `ip_address_search` (`ip_address`),
+  CONSTRAINT `network_interfaces_ibfk_1` FOREIGN KEY (`host_id`) REFERENCES `hosts` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `notifications_end_user` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `host_id` int unsigned NOT NULL,
+  `status` varchar(31) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `kind` varchar(63) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `payload` json NOT NULL,
+  `attempt_count` int unsigned NOT NULL DEFAULT '0',
+  `next_attempt_at` datetime(6) DEFAULT NULL,
+  `displayed_at` datetime(6) DEFAULT NULL,
+  `execution_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `last_exit_code` int DEFAULT NULL,
+  `last_reason` varchar(63) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `expires_at` datetime(6) NOT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_notifications_end_user_uuid` (`uuid`),
+  KEY `idx_notifications_end_user_dispatch` (`status`,`next_attempt_at`),
+  KEY `idx_notifications_end_user_host` (`host_id`,`status`),
+  KEY `idx_notifications_end_user_execution_id` (`execution_id`),
+  KEY `idx_notifications_end_user_expires_at` (`expires_at`),
+  KEY `idx_notifications_end_user_stuck` (`status`,`updated_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `operating_system_version_vulnerabilities` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `os_version_id` int unsigned NOT NULL,
+  `cve` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `team_id` int unsigned DEFAULT NULL,
+  `source` smallint DEFAULT '0',
+  `resolved_in_version` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_os_version_vulnerabilities_unq_os_version_team_cve` ((ifnull(cast(`team_id` as signed),-(1))),`os_version_id`,`cve`),
+  KEY `idx_os_version_vulnerabilities_os_version_team_cve` (`team_id`,`os_version_id`,`cve`),
+  KEY `idx_os_version_vulnerabilities_updated_at` (`updated_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `operating_system_vulnerabilities` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `operating_system_id` int unsigned NOT NULL,
+  `cve` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `source` smallint DEFAULT '0',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `resolved_in_version` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_os_vulnerabilities_unq_os_id_cve` (`operating_system_id`,`cve`),
+  KEY `idx_os_vulnerabilities_cve_created_at` (`cve`,`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `operating_systems` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `version` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `arch` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `kernel_version` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `platform` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `display_version` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `os_version_id` int unsigned DEFAULT NULL,
+  `installation_type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_unique_os` (`name`,`version`,`arch`,`kernel_version`,`platform`,`display_version`,`installation_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `org_logo` (
+  `mode` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `data` mediumblob NOT NULL,
+  `uploaded_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`mode`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `osquery_options` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `override_type` int NOT NULL,
+  `override_identifier` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `options` json NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+INSERT IGNORE INTO `osquery_options` VALUES (1,0,'','{\"options\": {\"logger_plugin\": \"tls\", \"pack_delimiter\": \"/\", \"logger_tls_period\": 10, \"distributed_plugin\": \"tls\", \"disable_distributed\": false, \"logger_tls_endpoint\": \"/api/v1/osquery/log\", \"distributed_interval\": 10, \"distributed_tls_max_attempts\": 3}, \"decorators\": {\"load\": [\"SELECT uuid AS host_uuid FROM system_info;\", \"SELECT hostname AS hostname FROM system_info;\"]}}');
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `pack_targets` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `pack_id` int unsigned DEFAULT NULL,
+  `type` int DEFAULT NULL,
+  `target_id` int unsigned NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `constraint_pack_target_unique` (`pack_id`,`target_id`,`type`),
+  CONSTRAINT `pack_targets_ibfk_1` FOREIGN KEY (`pack_id`) REFERENCES `packs` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `packs` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `disabled` tinyint(1) NOT NULL DEFAULT '0',
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `platform` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `pack_type` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_pack_unique_name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `password_reset_requests` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `expires_at` timestamp NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `user_id` int unsigned NOT NULL,
+  `token` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `patch_deadline_settings` (
+  `team_id` int unsigned NOT NULL,
+  `days` set('monday','tuesday','wednesday','thursday','friday','saturday','sunday') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `time` char(5) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`team_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `patch_notification_apps` (
+  `notification_uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `policy_id` int unsigned DEFAULT NULL,
+  `software_title_id` int unsigned NOT NULL,
+  `software_installer_id` int unsigned DEFAULT NULL,
+  `install_queued` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_in_inventory` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`notification_uuid`,`software_title_id`),
+  KEY `idx_patch_notification_apps_policy` (`policy_id`),
+  KEY `idx_patch_notification_apps_software_installer` (`software_installer_id`),
+  KEY `fk_patch_notification_apps_software_title_id` (`software_title_id`),
+  CONSTRAINT `fk_patch_notification_apps_notification_uuid` FOREIGN KEY (`notification_uuid`) REFERENCES `notifications_end_user` (`uuid`) ON DELETE CASCADE,
+  CONSTRAINT `fk_patch_notification_apps_policy_id` FOREIGN KEY (`policy_id`) REFERENCES `policies` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_patch_notification_apps_software_installer_id` FOREIGN KEY (`software_installer_id`) REFERENCES `software_installers` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_patch_notification_apps_software_title_id` FOREIGN KEY (`software_title_id`) REFERENCES `software_titles` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `patch_notifications` (
+  `notification_uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `install_at` datetime(6) DEFAULT NULL,
+  PRIMARY KEY (`notification_uuid`),
+  KEY `idx_patch_notifications_install_at` (`install_at`),
+  CONSTRAINT `fk_patch_notifications_notification_uuid` FOREIGN KEY (`notification_uuid`) REFERENCES `notifications_end_user` (`uuid`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `policies` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `team_id` int unsigned DEFAULT NULL,
+  `resolution` text COLLATE utf8mb4_unicode_ci,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `query` mediumtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` mediumtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `author_id` int unsigned DEFAULT NULL,
+  `platforms` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `critical` tinyint(1) NOT NULL DEFAULT '0',
+  `checksum` binary(16) NOT NULL,
+  `calendar_events_enabled` tinyint unsigned NOT NULL DEFAULT '0',
+  `software_installer_id` int unsigned DEFAULT NULL,
+  `script_id` int unsigned DEFAULT NULL,
+  `vpp_apps_teams_id` int unsigned DEFAULT NULL,
+  `conditional_access_enabled` tinyint unsigned NOT NULL DEFAULT '0',
+  `type` enum('dynamic','patch') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'dynamic',
+  `patch_software_title_id` int unsigned DEFAULT NULL,
+  `needs_full_membership_cleanup` tinyint(1) NOT NULL DEFAULT '0',
+  `continuous_automations_enabled` tinyint(1) NOT NULL DEFAULT '0',
+  `patch_when_closed` tinyint(1) NOT NULL DEFAULT '0',
+  `resend_apple_profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `resend_windows_profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `notify_before_patching` tinyint(1) NOT NULL DEFAULT '0',
+  `hidden` tinyint(1) NOT NULL DEFAULT '0',
+  `patch_deadline` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_policies_checksum` (`checksum`),
+  UNIQUE KEY `idx_team_id_patch_software_title_id` (`team_id`,`patch_software_title_id`),
+  KEY `idx_policies_author_id` (`author_id`),
+  KEY `idx_policies_team_id` (`team_id`),
+  KEY `fk_policies_software_installer_id` (`software_installer_id`),
+  KEY `fk_policies_script_id` (`script_id`),
+  KEY `fk_policies_vpp_apps_team_id` (`vpp_apps_teams_id`),
+  KEY `fk_patch_software_title_id` (`patch_software_title_id`),
+  KEY `fk_policies_resend_apple_profile` (`resend_apple_profile_uuid`),
+  KEY `fk_policies_resend_windows_profile` (`resend_windows_profile_uuid`),
+  CONSTRAINT `fk_patch_software_title_id` FOREIGN KEY (`patch_software_title_id`) REFERENCES `software_titles` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_policies_resend_apple_profile` FOREIGN KEY (`resend_apple_profile_uuid`) REFERENCES `mdm_apple_configuration_profiles` (`profile_uuid`),
+  CONSTRAINT `fk_policies_resend_windows_profile` FOREIGN KEY (`resend_windows_profile_uuid`) REFERENCES `mdm_windows_configuration_profiles` (`profile_uuid`),
+  CONSTRAINT `policies_ibfk_3` FOREIGN KEY (`software_installer_id`) REFERENCES `software_installers` (`id`),
+  CONSTRAINT `policies_ibfk_4` FOREIGN KEY (`script_id`) REFERENCES `scripts` (`id`),
+  CONSTRAINT `policies_ibfk_5` FOREIGN KEY (`vpp_apps_teams_id`) REFERENCES `vpp_apps_teams` (`id`),
+  CONSTRAINT `policies_queries_ibfk_1` FOREIGN KEY (`author_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `ck_policies_resend_profile_uuid` CHECK (((if((`resend_apple_profile_uuid` is null),0,1) + if((`resend_windows_profile_uuid` is null),0,1)) <= 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `policy_automation_iterations` (
+  `policy_id` int unsigned NOT NULL,
+  `iteration` int NOT NULL,
+  PRIMARY KEY (`policy_id`),
+  CONSTRAINT `policy_automation_iterations_ibfk_1` FOREIGN KEY (`policy_id`) REFERENCES `policies` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `policy_labels` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `policy_id` int unsigned NOT NULL,
+  `label_id` int unsigned NOT NULL,
+  `exclude` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `require_all` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_policy_labels_policy_label` (`policy_id`,`label_id`),
+  KEY `policy_labels_label_id` (`label_id`),
+  CONSTRAINT `policy_labels_label_id` FOREIGN KEY (`label_id`) REFERENCES `labels` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `policy_labels_policy_id` FOREIGN KEY (`policy_id`) REFERENCES `policies` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `policy_membership` (
+  `policy_id` int unsigned NOT NULL,
+  `host_id` int unsigned NOT NULL,
+  `passes` tinyint(1) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `automation_iteration` int DEFAULT NULL,
+  PRIMARY KEY (`policy_id`,`host_id`),
+  KEY `idx_policy_membership_passes` (`passes`),
+  KEY `idx_policy_membership_host_id_passes` (`host_id`,`passes`),
+  CONSTRAINT `policy_membership_ibfk_1` FOREIGN KEY (`policy_id`) REFERENCES `policies` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `policy_stats` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `policy_id` int unsigned NOT NULL,
+  `inherited_team_id` int unsigned DEFAULT NULL,
+  `passing_host_count` mediumint unsigned NOT NULL DEFAULT '0',
+  `failing_host_count` mediumint unsigned NOT NULL DEFAULT '0',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `inherited_team_id_char` char(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci GENERATED ALWAYS AS (if((`inherited_team_id` is null),_utf8mb4'global',cast(`inherited_team_id` as char charset utf8mb4))) VIRTUAL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `policy_id` (`policy_id`,`inherited_team_id_char`),
+  CONSTRAINT `policy_stats_ibfk_1` FOREIGN KEY (`policy_id`) REFERENCES `policies` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `queries` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `saved` tinyint(1) NOT NULL DEFAULT '0',
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` mediumtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `query` mediumtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `author_id` int unsigned DEFAULT NULL,
+  `observer_can_run` tinyint(1) NOT NULL DEFAULT '0',
+  `team_id` int unsigned DEFAULT NULL,
+  `team_id_char` char(10) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `platform` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `min_osquery_version` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `schedule_interval` int unsigned NOT NULL DEFAULT '0',
+  `automations_enabled` tinyint unsigned NOT NULL DEFAULT '0',
+  `logging_type` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'snapshot',
+  `discard_data` tinyint(1) NOT NULL DEFAULT '1',
+  `is_scheduled` tinyint(1) GENERATED ALWAYS AS ((`schedule_interval` > 0)) STORED NOT NULL,
+  `results_valid_from_id` bigint unsigned NOT NULL DEFAULT '0',
+  `results_cleanup_pending` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_team_id_name_unq` (`team_id_char`,`name`),
+  UNIQUE KEY `idx_name_team_id_unq` (`name`,`team_id_char`),
+  KEY `author_id` (`author_id`),
+  KEY `idx_team_id_saved_auto_interval` (`team_id`,`saved`,`automations_enabled`,`schedule_interval`),
+  KEY `idx_queries_schedule_automations` (`is_scheduled`,`automations_enabled`),
+  CONSTRAINT `queries_ibfk_1` FOREIGN KEY (`author_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `queries_ibfk_2` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `query_labels` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `query_id` int unsigned NOT NULL,
+  `label_id` int unsigned NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `require_all` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_query_labels_query_label` (`query_id`,`label_id`),
+  KEY `query_labels_label_id` (`label_id`),
+  CONSTRAINT `query_labels_label_id` FOREIGN KEY (`label_id`) REFERENCES `labels` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `query_labels_query_id` FOREIGN KEY (`query_id`) REFERENCES `queries` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `query_results` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `query_id` int unsigned NOT NULL,
+  `host_id` int unsigned NOT NULL,
+  `osquery_version` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `error` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `last_fetched` timestamp NOT NULL,
+  `data` json DEFAULT NULL,
+  `has_data` tinyint(1) GENERATED ALWAYS AS ((`data` is not null)) VIRTUAL,
+  PRIMARY KEY (`id`),
+  KEY `idx_query_id_host_id_last_fetched` (`query_id`,`host_id`,`last_fetched`),
+  KEY `idx_query_id_has_data_host_id_last_fetched` (`query_id`,`has_data`,`host_id`,`last_fetched`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `scheduled_queries` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `pack_id` int unsigned DEFAULT NULL,
+  `query_id` int unsigned DEFAULT NULL,
+  `interval` int unsigned DEFAULT NULL,
+  `snapshot` tinyint(1) DEFAULT NULL,
+  `removed` tinyint(1) DEFAULT NULL,
+  `platform` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT '',
+  `version` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT '',
+  `shard` int unsigned DEFAULT NULL,
+  `query_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` varchar(1023) COLLATE utf8mb4_unicode_ci DEFAULT '',
+  `denylist` tinyint(1) DEFAULT NULL,
+  `team_id_char` char(10) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_names_in_packs` (`name`,`pack_id`),
+  KEY `scheduled_queries_pack_id` (`pack_id`),
+  KEY `scheduled_queries_query_name` (`query_name`),
+  KEY `fk_scheduled_queries_queries` (`team_id_char`,`query_name`),
+  CONSTRAINT `scheduled_queries_ibfk_1` FOREIGN KEY (`team_id_char`, `query_name`) REFERENCES `queries` (`team_id_char`, `name`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `scheduled_queries_pack_id` FOREIGN KEY (`pack_id`) REFERENCES `packs` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `scheduled_query_stats` (
+  `host_id` int unsigned NOT NULL,
+  `scheduled_query_id` int unsigned NOT NULL,
+  `average_memory` bigint unsigned NOT NULL,
+  `denylisted` tinyint(1) DEFAULT NULL,
+  `executions` bigint unsigned NOT NULL,
+  `schedule_interval` int DEFAULT NULL,
+  `last_executed` timestamp NULL DEFAULT NULL,
+  `output_size` bigint unsigned NOT NULL,
+  `system_time` bigint unsigned NOT NULL,
+  `user_time` bigint unsigned NOT NULL,
+  `wall_time` bigint unsigned NOT NULL,
+  `query_type` tinyint NOT NULL DEFAULT '0',
+  PRIMARY KEY (`host_id`,`scheduled_query_id`,`query_type`),
+  KEY `scheduled_query_id` (`scheduled_query_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `scim_group_group` (
+  `parent_group_id` int unsigned NOT NULL,
+  `child_group_id` int unsigned NOT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`parent_group_id`,`child_group_id`),
+  KEY `idx_scim_group_group_child` (`child_group_id`),
+  CONSTRAINT `fk_scim_group_group_child` FOREIGN KEY (`child_group_id`) REFERENCES `scim_groups` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_scim_group_group_parent` FOREIGN KEY (`parent_group_id`) REFERENCES `scim_groups` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `scim_groups` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `external_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `display_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_scim_groups_display_name` (`display_name`),
+  KEY `idx_scim_groups_external_id` (`external_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `scim_last_request` (
+  `id` tinyint unsigned NOT NULL DEFAULT '1',
+  `status` varchar(31) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `details` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `scim_user_emails` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `scim_user_id` int unsigned NOT NULL,
+  `email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `primary` tinyint(1) DEFAULT NULL,
+  `type` varchar(31) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  KEY `idx_scim_user_emails_email_type` (`type`,`email`),
+  KEY `fk_scim_user_emails_scim_user_id` (`scim_user_id`),
+  CONSTRAINT `fk_scim_user_emails_scim_user_id` FOREIGN KEY (`scim_user_id`) REFERENCES `scim_users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `scim_user_group` (
+  `scim_user_id` int unsigned NOT NULL,
+  `group_id` int unsigned NOT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`scim_user_id`,`group_id`),
+  KEY `fk_scim_user_group_group_id` (`group_id`),
+  CONSTRAINT `fk_scim_user_group_group_id` FOREIGN KEY (`group_id`) REFERENCES `scim_groups` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_scim_user_group_scim_user_id` FOREIGN KEY (`scim_user_id`) REFERENCES `scim_users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `scim_users` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `external_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `user_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `given_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `family_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `active` tinyint(1) DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `department` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `user_id` int unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_scim_users_user_name` (`user_name`),
+  KEY `idx_scim_users_external_id` (`external_id`),
+  KEY `fk_scim_users_user_id` (`user_id`),
+  CONSTRAINT `fk_scim_users_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `script_contents` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `md5_checksum` binary(16) NOT NULL,
+  `contents` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_script_contents_md5_checksum` (`md5_checksum`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `script_upcoming_activities` (
+  `upcoming_activity_id` bigint unsigned NOT NULL,
+  `script_id` int unsigned DEFAULT NULL,
+  `script_content_id` int unsigned DEFAULT NULL,
+  `policy_id` int unsigned DEFAULT NULL,
+  `setup_experience_script_id` int unsigned DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`upcoming_activity_id`),
+  KEY `fk_script_upcoming_activities_script_id` (`script_id`),
+  KEY `fk_script_upcoming_activities_script_content_id` (`script_content_id`),
+  KEY `fk_script_upcoming_activities_policy_id` (`policy_id`),
+  KEY `fk_script_upcoming_activities_setup_experience_script_id` (`setup_experience_script_id`),
+  CONSTRAINT `fk_script_upcoming_activities_policy_id` FOREIGN KEY (`policy_id`) REFERENCES `policies` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_script_upcoming_activities_script_content_id` FOREIGN KEY (`script_content_id`) REFERENCES `script_contents` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_script_upcoming_activities_script_id` FOREIGN KEY (`script_id`) REFERENCES `scripts` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_script_upcoming_activities_setup_experience_script_id` FOREIGN KEY (`setup_experience_script_id`) REFERENCES `setup_experience_scripts` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_script_upcoming_activities_upcoming_activity_id` FOREIGN KEY (`upcoming_activity_id`) REFERENCES `upcoming_activities` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `scripts` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `team_id` int unsigned DEFAULT NULL,
+  `global_or_team_id` int unsigned NOT NULL DEFAULT '0',
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `script_content_id` int unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_scripts_global_or_team_id_name` (`global_or_team_id`,`name`),
+  UNIQUE KEY `idx_scripts_team_name` (`team_id`,`name`),
+  KEY `script_content_id` (`script_content_id`),
+  CONSTRAINT `scripts_ibfk_1` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `scripts_ibfk_2` FOREIGN KEY (`script_content_id`) REFERENCES `script_contents` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `secret_variables` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `value` blob NOT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_secret_variables_name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `sessions` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `accessed_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `user_id` int unsigned NOT NULL,
+  `key` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_session_unique_key` (`key`),
+  KEY `idx_sessions_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `setup_experience_scripts` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `team_id` int unsigned DEFAULT NULL,
+  `global_or_team_id` int unsigned NOT NULL DEFAULT '0',
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `script_content_id` int unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_setup_experience_scripts_global_or_team_id` (`global_or_team_id`),
+  KEY `idx_script_content_id` (`script_content_id`),
+  KEY `fk_setup_experience_scripts_ibfk_1` (`team_id`),
+  CONSTRAINT `fk_setup_experience_scripts_ibfk_1` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_setup_experience_scripts_ibfk_2` FOREIGN KEY (`script_content_id`) REFERENCES `script_contents` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `setup_experience_software_installers` (
+  `software_installer_id` int unsigned NOT NULL,
+  `platform` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `global_or_team_id` int unsigned NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`software_installer_id`,`platform`),
+  KEY `idx_seti_team_platform` (`global_or_team_id`,`platform`),
+  CONSTRAINT `fk_seti_installer` FOREIGN KEY (`software_installer_id`) REFERENCES `software_installers` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `setup_experience_status_results` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` enum('pending','running','success','failure','cancelled') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `software_installer_id` int unsigned DEFAULT NULL,
+  `host_software_installs_execution_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `vpp_app_team_id` int unsigned DEFAULT NULL,
+  `nano_command_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `setup_experience_script_id` int unsigned DEFAULT NULL,
+  `script_execution_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `error` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `policy_gated` tinyint(1) NOT NULL DEFAULT '0',
+  `in_house_app_id` int unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_setup_experience_scripts_host_uuid` (`host_uuid`),
+  KEY `idx_setup_experience_scripts_hsi_id` (`host_software_installs_execution_id`),
+  KEY `idx_setup_experience_scripts_nano_command_uuid` (`nano_command_uuid`),
+  KEY `idx_setup_experience_scripts_script_execution_id` (`script_execution_id`),
+  KEY `fk_setup_experience_status_results_si_id` (`software_installer_id`),
+  KEY `fk_setup_experience_status_results_va_id` (`vpp_app_team_id`),
+  KEY `fk_setup_experience_status_results_ses_id` (`setup_experience_script_id`),
+  KEY `fk_setup_experience_status_results_iha_id` (`in_house_app_id`),
+  CONSTRAINT `fk_setup_experience_status_results_iha_id` FOREIGN KEY (`in_house_app_id`) REFERENCES `in_house_apps` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_setup_experience_status_results_ses_id` FOREIGN KEY (`setup_experience_script_id`) REFERENCES `setup_experience_scripts` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_setup_experience_status_results_si_id` FOREIGN KEY (`software_installer_id`) REFERENCES `software_installers` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_setup_experience_status_results_va_id` FOREIGN KEY (`vpp_app_team_id`) REFERENCES `vpp_apps_teams` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `software` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `version` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `source` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `bundle_identifier` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT '',
+  `release` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `vendor_old` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `arch` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `vendor` varchar(114) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `extension_for` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `extension_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `title_id` int unsigned DEFAULT NULL,
+  `checksum` binary(16) NOT NULL,
+  `name_source` enum('basic','bundle_4.67') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'basic',
+  `application_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `upgrade_code` char(38) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ai_tool` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_software_checksum` (`checksum`),
+  KEY `software_source_vendor_idx` (`source`,`vendor_old`),
+  KEY `title_id` (`title_id`),
+  KEY `idx_sw_name_source_browser` (`name`,`source`,`extension_for`),
+  KEY `software_listing_idx` (`name`),
+  KEY `idx_software_bundle_identifier` (`bundle_identifier`),
+  KEY `idx_software_ai_tool_title_id` (`ai_tool`,`title_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `software_categories` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `team_id` int unsigned NOT NULL DEFAULT '0',
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_software_categories_team_id_name` (`team_id`,`name`)
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+INSERT IGNORE INTO `software_categories` VALUES (1,'🖥️ Productivity',0,'2026-05-29 00:00:00.000000','2026-05-29 00:00:00.000000'),(2,'🌎 Browsers',0,'2026-05-29 00:00:00.000000','2026-05-29 00:00:00.000000'),(3,'👬 Communication',0,'2026-05-29 00:00:00.000000','2026-05-29 00:00:00.000000'),(4,'🧰 Developer tools',0,'2026-05-29 00:00:00.000000','2026-05-29 00:00:00.000000'),(5,'🔐 Security',0,'2026-05-29 00:00:00.000000','2026-05-29 00:00:00.000000'),(6,'🛠️ Utilities',0,'2026-05-29 00:00:00.000000','2026-05-29 00:00:00.000000'),(7,'🛟 Support',0,'2026-05-29 00:00:00.000000','2026-05-29 00:00:00.000000');
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `software_cpe` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `software_id` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `cpe` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unq_software_id` (`software_id`),
+  KEY `software_cpe_cpe_idx` (`cpe`),
+  CONSTRAINT `software_cpe_ibfk_1` FOREIGN KEY (`software_id`) REFERENCES `software` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `software_cve` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `cve` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `source` int DEFAULT '0',
+  `software_id` bigint unsigned DEFAULT NULL,
+  `resolved_in_version` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unq_software_id_cve` (`software_id`,`cve`),
+  KEY `idx_software_cve_cve_created_at` (`cve`,`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `software_host_counts` (
+  `software_id` bigint unsigned NOT NULL,
+  `hosts_count` int unsigned NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `team_id` int unsigned NOT NULL DEFAULT '0',
+  `global_stats` tinyint unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`software_id`,`team_id`,`global_stats`),
+  KEY `idx_software_host_counts_updated_at_software_id` (`updated_at`,`software_id`),
+  KEY `idx_software_host_counts_team_global_hosts_desc` (`team_id`,`global_stats`,`hosts_count` DESC,`software_id`),
+  CONSTRAINT `software_host_counts_chk_1` CHECK ((`hosts_count` > 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `software_install_upcoming_activities` (
+  `upcoming_activity_id` bigint unsigned NOT NULL,
+  `software_installer_id` int unsigned DEFAULT NULL,
+  `policy_id` int unsigned DEFAULT NULL,
+  `software_title_id` int unsigned DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`upcoming_activity_id`),
+  KEY `fk_software_install_upcoming_activities_policy_id` (`policy_id`),
+  KEY `fk_software_install_upcoming_activities_software_title_id` (`software_title_id`),
+  KEY `fk_software_install_upcoming_activities_software_installer_id` (`software_installer_id`),
+  CONSTRAINT `fk_software_install_upcoming_activities_policy_id` FOREIGN KEY (`policy_id`) REFERENCES `policies` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_software_install_upcoming_activities_software_installer_id` FOREIGN KEY (`software_installer_id`) REFERENCES `software_installers` (`id`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_software_install_upcoming_activities_software_title_id` FOREIGN KEY (`software_title_id`) REFERENCES `software_titles` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_software_install_upcoming_activities_upcoming_activity_id` FOREIGN KEY (`upcoming_activity_id`) REFERENCES `upcoming_activities` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `software_installer_labels` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `software_installer_id` int unsigned NOT NULL,
+  `label_id` int unsigned NOT NULL,
+  `exclude` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `require_all` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_software_installer_labels_software_installer_id_label_id` (`software_installer_id`,`label_id`),
+  KEY `label_id` (`label_id`),
+  CONSTRAINT `software_installer_labels_ibfk_1` FOREIGN KEY (`software_installer_id`) REFERENCES `software_installers` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `software_installer_labels_ibfk_2` FOREIGN KEY (`label_id`) REFERENCES `labels` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `software_installer_software_categories` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `software_category_id` int unsigned NOT NULL,
+  `software_installer_id` int unsigned NOT NULL,
+  `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_unique_software_installer_id_software_category_id` (`software_installer_id`,`software_category_id`),
+  KEY `software_category_id` (`software_category_id`),
+  CONSTRAINT `software_installer_software_categories_ibfk_1` FOREIGN KEY (`software_installer_id`) REFERENCES `software_installers` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `software_installer_software_categories_ibfk_2` FOREIGN KEY (`software_category_id`) REFERENCES `software_categories` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `software_installers` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `team_id` int unsigned DEFAULT NULL,
+  `global_or_team_id` int unsigned NOT NULL DEFAULT '0',
+  `title_id` int unsigned DEFAULT NULL,
+  `filename` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `version` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `platform` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `pre_install_query` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `install_script_content_id` int unsigned NOT NULL,
+  `post_install_script_content_id` int unsigned DEFAULT NULL,
+  `storage_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `uploaded_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `self_service` tinyint(1) NOT NULL DEFAULT '0',
+  `user_id` int unsigned DEFAULT NULL,
+  `user_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `user_email` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `url` varchar(4095) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `package_ids` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `extension` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `uninstall_script_content_id` int unsigned NOT NULL,
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `fleet_maintained_app_id` int unsigned DEFAULT NULL,
+  `install_during_setup` tinyint(1) NOT NULL DEFAULT '0',
+  `upgrade_code` varchar(48) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `is_active` tinyint(1) NOT NULL DEFAULT '0',
+  `patch_query` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `http_etag` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `dedup_token` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci GENERATED ALWAYS AS (if((`fleet_maintained_app_id` is null),`storage_id`,`version`)) VIRTUAL,
+  `app_open_query` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT (_utf8mb4''),
+  `install_script_edited` tinyint(1) NOT NULL DEFAULT '0',
+  `uninstall_script_edited` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_software_installers_dedup` (`global_or_team_id`,`title_id`,`dedup_token`),
+  KEY `fk_software_installers_title` (`title_id`),
+  KEY `fk_software_installers_install_script_content_id` (`install_script_content_id`),
+  KEY `fk_software_installers_post_install_script_content_id` (`post_install_script_content_id`),
+  KEY `fk_software_installers_team_id` (`team_id`),
+  KEY `fk_software_installers_user_id` (`user_id`),
+  KEY `fk_uninstall_script_content_id` (`uninstall_script_content_id`),
+  KEY `fk_software_installers_fleet_library_app_id` (`fleet_maintained_app_id`),
+  KEY `idx_software_installers_team_url` (`global_or_team_id`,`url`(255)),
+  CONSTRAINT `fk_software_installers_install_script_content_id` FOREIGN KEY (`install_script_content_id`) REFERENCES `script_contents` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_software_installers_post_install_script_content_id` FOREIGN KEY (`post_install_script_content_id`) REFERENCES `script_contents` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_software_installers_team_id` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_software_installers_title` FOREIGN KEY (`title_id`) REFERENCES `software_titles` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_software_installers_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_uninstall_script_content_id` FOREIGN KEY (`uninstall_script_content_id`) REFERENCES `script_contents` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `software_installers_ibfk_1` FOREIGN KEY (`fleet_maintained_app_id`) REFERENCES `fleet_maintained_apps` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `software_metadata` (
+  `software_id` bigint unsigned NOT NULL,
+  `epoch` int unsigned DEFAULT NULL,
+  PRIMARY KEY (`software_id`),
+  CONSTRAINT `fk_software_metadata_software_id` FOREIGN KEY (`software_id`) REFERENCES `software` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `software_title_display_names` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `team_id` int unsigned NOT NULL,
+  `software_title_id` int unsigned NOT NULL,
+  `display_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_unique_team_id_title_id` (`team_id`,`software_title_id`),
+  KEY `software_title_id` (`software_title_id`),
+  CONSTRAINT `software_title_display_names_ibfk_1` FOREIGN KEY (`software_title_id`) REFERENCES `software_titles` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `software_title_icons` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `team_id` int unsigned NOT NULL,
+  `software_title_id` int unsigned NOT NULL,
+  `storage_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `filename` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_unique_team_id_title_id_storage_id` (`team_id`,`software_title_id`),
+  KEY `idx_storage_id_team_id` (`storage_id`,`team_id`),
+  KEY `software_title_id` (`software_title_id`),
+  CONSTRAINT `software_title_icons_ibfk_1` FOREIGN KEY (`software_title_id`) REFERENCES `software_titles` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `software_title_team_pins` (
+  `team_id` int unsigned NOT NULL,
+  `title_id` int unsigned NOT NULL,
+  `pinned_version` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`team_id`,`title_id`),
+  KEY `fk_pin_title` (`title_id`),
+  CONSTRAINT `fk_pin_title` FOREIGN KEY (`title_id`) REFERENCES `software_titles` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `software_titles` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `source` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `extension_for` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `bundle_identifier` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `additional_identifier` tinyint unsigned GENERATED ALWAYS AS ((case when (`source` = _utf8mb4'ios_apps') then 1 when (`source` = _utf8mb4'ipados_apps') then 2 when (`bundle_identifier` is not null) then 0 else NULL end)) VIRTUAL,
+  `is_kernel` tinyint(1) NOT NULL DEFAULT '0',
+  `application_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `unique_identifier` varchar(255) COLLATE utf8mb4_unicode_ci GENERATED ALWAYS AS (coalesce(`bundle_identifier`,`application_id`,nullif(`upgrade_code`,_utf8mb4''),`name`)) VIRTUAL,
+  `upgrade_code` char(38) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_software_titles_bundle_identifier` (`bundle_identifier`,`additional_identifier`),
+  UNIQUE KEY `idx_unique_sw_titles` (`unique_identifier`,`source`,`extension_for`),
+  KEY `idx_sw_titles` (`name`,`source`,`extension_for`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `software_titles_host_counts` (
+  `software_title_id` int unsigned NOT NULL,
+  `hosts_count` int unsigned NOT NULL,
+  `team_id` int unsigned NOT NULL DEFAULT '0',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `global_stats` tinyint unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`software_title_id`,`team_id`,`global_stats`),
+  KEY `idx_software_titles_host_counts_updated_at_software_title_id` (`updated_at`,`software_title_id`),
+  KEY `idx_software_titles_host_counts_team_global_hosts` (`team_id`,`global_stats`,`hosts_count`,`software_title_id`),
+  CONSTRAINT `software_titles_host_counts_chk_1` CHECK ((`hosts_count` > 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `statistics` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `anonymous_identifier` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `teams` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` varchar(1023) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `config` json DEFAULT NULL,
+  `name_bin` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin GENERATED ALWAYS AS (`name`) VIRTUAL,
+  `filename` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_teams_filename` (`filename`),
+  UNIQUE KEY `idx_name_bin` (`name_bin`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `trace_sampler_settings` (
+  `id` tinyint unsigned NOT NULL,
+  `high_volume_ratio` double NOT NULL DEFAULT '0.001',
+  `standard_ratio` double NOT NULL DEFAULT '0.02',
+  `force_full` tinyint(1) NOT NULL DEFAULT '0',
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  CONSTRAINT `ck_trace_sampler_settings_high_range` CHECK ((`high_volume_ratio` between 0 and 1)),
+  CONSTRAINT `ck_trace_sampler_settings_singleton` CHECK ((`id` = 1)),
+  CONSTRAINT `ck_trace_sampler_settings_std_range` CHECK ((`standard_ratio` between 0 and 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+INSERT IGNORE INTO `trace_sampler_settings` VALUES (1,0.001,0.02,0,'2026-06-01 00:00:00');
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `upcoming_activities` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `host_id` int unsigned NOT NULL,
+  `priority` int NOT NULL DEFAULT '0',
+  `user_id` int unsigned DEFAULT NULL,
+  `fleet_initiated` tinyint(1) NOT NULL DEFAULT '0',
+  `activity_type` enum('script','software_install','software_uninstall','vpp_app_install','in_house_app_install') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `execution_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `payload` json NOT NULL,
+  `activated_at` datetime(6) DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_upcoming_activities_execution_id` (`execution_id`),
+  KEY `idx_upcoming_activities_host_id_priority_created_at` (`host_id`,`priority`,`created_at`),
+  KEY `idx_upcoming_activities_host_id_activity_type` (`activity_type`,`host_id`),
+  KEY `fk_upcoming_activities_user_id` (`user_id`),
+  KEY `idx_upcoming_activities_host_id_activated_at` (`host_id`,`activated_at`),
+  KEY `idx_upcoming_activities_activated_at_fleet_initiated` (`activated_at`,`fleet_initiated`,`created_at`,`host_id`),
+  CONSTRAINT `fk_upcoming_activities_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `user_api_endpoints` (
+  `user_id` int unsigned NOT NULL,
+  `path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `method` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`user_id`,`path`,`method`),
+  CONSTRAINT `user_api_endpoints_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `user_teams` (
+  `user_id` int unsigned NOT NULL,
+  `team_id` int unsigned NOT NULL,
+  `role` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`user_id`,`team_id`),
+  KEY `fk_user_teams_team_id` (`team_id`),
+  CONSTRAINT `user_teams_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `user_teams_ibfk_2` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `users` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `password` varbinary(255) NOT NULL,
+  `salt` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `admin_forced_password_reset` tinyint(1) NOT NULL DEFAULT '0',
+  `gravatar_url` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `position` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `sso_enabled` tinyint NOT NULL DEFAULT '0',
+  `global_role` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `api_only` tinyint(1) NOT NULL DEFAULT '0',
+  `mfa_enabled` tinyint(1) NOT NULL DEFAULT '0',
+  `settings` json NOT NULL DEFAULT (json_object()),
+  `invite_id` int unsigned DEFAULT NULL,
+  `last_login_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_user_unique_email` (`email`),
+  UNIQUE KEY `invite_id` (`invite_id`),
+  KEY `idx_users_name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `users_deleted` (
+  `id` int unsigned NOT NULL,
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `email` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `verification_tokens` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int unsigned NOT NULL,
+  `token` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `token` (`token`),
+  KEY `verification_tokens_users` (`user_id`),
+  CONSTRAINT `verification_tokens_users` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `vpp_app_team_labels` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `vpp_app_team_id` int unsigned NOT NULL,
+  `label_id` int unsigned NOT NULL,
+  `exclude` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `require_all` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_vpp_app_team_labels_vpp_app_team_id_label_id` (`vpp_app_team_id`,`label_id`),
+  KEY `label_id` (`label_id`),
+  CONSTRAINT `vpp_app_team_labels_ibfk_1` FOREIGN KEY (`vpp_app_team_id`) REFERENCES `vpp_apps_teams` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `vpp_app_team_labels_ibfk_2` FOREIGN KEY (`label_id`) REFERENCES `labels` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `vpp_app_team_software_categories` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `software_category_id` int unsigned NOT NULL,
+  `vpp_app_team_id` int unsigned NOT NULL,
+  `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_unique_vpp_app_team_id_software_category_id` (`vpp_app_team_id`,`software_category_id`),
+  KEY `software_category_id` (`software_category_id`),
+  CONSTRAINT `vpp_app_team_software_categories_ibfk_1` FOREIGN KEY (`vpp_app_team_id`) REFERENCES `vpp_apps_teams` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `vpp_app_team_software_categories_ibfk_2` FOREIGN KEY (`software_category_id`) REFERENCES `software_categories` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `vpp_app_upcoming_activities` (
+  `upcoming_activity_id` bigint unsigned NOT NULL,
+  `adam_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `platform` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `vpp_token_id` int unsigned DEFAULT NULL,
+  `policy_id` int unsigned DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `vpp_app_team_id` int unsigned DEFAULT NULL,
+  PRIMARY KEY (`upcoming_activity_id`),
+  KEY `fk_vpp_app_upcoming_activities_vpp_token_id` (`vpp_token_id`),
+  KEY `fk_vpp_app_upcoming_activities_policy_id` (`policy_id`),
+  KEY `fk_vpp_app_upcoming_activities_adam_id_platform` (`adam_id`,`platform`),
+  KEY `fk_vpp_app_upcoming_activities_vpp_app_team_id` (`vpp_app_team_id`),
+  CONSTRAINT `fk_vpp_app_upcoming_activities_adam_id_platform` FOREIGN KEY (`adam_id`, `platform`) REFERENCES `vpp_apps` (`adam_id`, `platform`),
+  CONSTRAINT `fk_vpp_app_upcoming_activities_policy_id` FOREIGN KEY (`policy_id`) REFERENCES `policies` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_vpp_app_upcoming_activities_upcoming_activity_id` FOREIGN KEY (`upcoming_activity_id`) REFERENCES `upcoming_activities` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_vpp_app_upcoming_activities_vpp_app_team_id` FOREIGN KEY (`vpp_app_team_id`) REFERENCES `vpp_apps_teams` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_vpp_app_upcoming_activities_vpp_token_id` FOREIGN KEY (`vpp_token_id`) REFERENCES `vpp_tokens` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `vpp_apps` (
+  `adam_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `title_id` int unsigned DEFAULT NULL,
+  `bundle_identifier` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `icon_url` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `latest_version` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `platform` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `country_code` varchar(4) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`adam_id`,`platform`),
+  KEY `fk_vpp_apps_title` (`title_id`),
+  CONSTRAINT `fk_vpp_apps_title` FOREIGN KEY (`title_id`) REFERENCES `software_titles` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `vpp_apps_teams` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `adam_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `team_id` int unsigned DEFAULT NULL,
+  `global_or_team_id` int NOT NULL DEFAULT '0',
+  `platform` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `self_service` tinyint(1) NOT NULL DEFAULT '0',
+  `vpp_token_id` int unsigned DEFAULT NULL,
+  `install_during_setup` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `configuration` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `update_schedule_enabled` tinyint(1) NOT NULL DEFAULT '0',
+  `start_time` char(5) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `end_time` char(5) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `configuration_updated_at` datetime(6) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_global_or_team_id_adam_id_name` (`global_or_team_id`,`adam_id`,`platform`,`name`),
+  KEY `team_id` (`team_id`),
+  KEY `adam_id` (`adam_id`,`platform`),
+  KEY `fk_vpp_apps_teams_vpp_token_id` (`vpp_token_id`),
+  CONSTRAINT `vpp_apps_teams_ibfk_2` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `vpp_apps_teams_ibfk_3` FOREIGN KEY (`adam_id`, `platform`) REFERENCES `vpp_apps` (`adam_id`, `platform`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `vpp_client_users` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `vpp_token_id` int unsigned NOT NULL,
+  `managed_apple_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `client_user_id` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `apple_user_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` enum('pending','registered','retired') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_vpp_client_users_token_apple_id` (`vpp_token_id`,`managed_apple_id`),
+  UNIQUE KEY `idx_vpp_client_users_token_client_user_id` (`vpp_token_id`,`client_user_id`),
+  CONSTRAINT `fk_vpp_client_users_vpp_token_id` FOREIGN KEY (`vpp_token_id`) REFERENCES `vpp_tokens` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `vpp_token_teams` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `vpp_token_id` int unsigned NOT NULL,
+  `team_id` int unsigned DEFAULT NULL,
+  `null_team_type` enum('none','allteams','noteam') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'none',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_vpp_token_teams_team_id_vpp_token_id` (`team_id`,`vpp_token_id`),
+  KEY `fk_vpp_token_teams_vpp_token_id` (`vpp_token_id`),
+  CONSTRAINT `fk_vpp_token_teams_team_id` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_vpp_token_teams_vpp_token_id` FOREIGN KEY (`vpp_token_id`) REFERENCES `vpp_tokens` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `vpp_tokens` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `organization_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `location` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `renew_at` timestamp NOT NULL,
+  `token` blob NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `country_code` varchar(4) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_vpp_tokens_location` (`location`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `vulnerability_host_counts` (
+  `cve` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `team_id` int unsigned NOT NULL DEFAULT '0',
+  `host_count` int unsigned NOT NULL DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `global_stats` tinyint(1) NOT NULL DEFAULT '0',
+  UNIQUE KEY `cve_team_id_global_stats` (`cve`,`team_id`,`global_stats`),
+  KEY `idx_vhc_scope_cve` (`global_stats`,`team_id`,`host_count`,`cve`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `windows_mdm_command_queue` (
+  `enrollment_id` int unsigned NOT NULL,
+  `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `acked_at` datetime(6) DEFAULT NULL,
+  PRIMARY KEY (`enrollment_id`,`command_uuid`),
+  KEY `command_uuid` (`command_uuid`),
+  KEY `idx_win_mdm_cmd_queue_enrollment_acked` (`enrollment_id`,`acked_at`),
+  KEY `idx_win_mdm_cmd_queue_acked` (`acked_at`),
+  CONSTRAINT `windows_mdm_command_queue_ibfk_1` FOREIGN KEY (`enrollment_id`) REFERENCES `mdm_windows_enrollments` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `windows_mdm_command_queue_ibfk_2` FOREIGN KEY (`command_uuid`) REFERENCES `windows_mdm_commands` (`command_uuid`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `windows_mdm_command_results` (
+  `enrollment_id` int unsigned NOT NULL,
+  `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `raw_result` mediumtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `response_id` int unsigned NOT NULL,
+  `status_code` varchar(31) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`enrollment_id`,`command_uuid`),
+  KEY `command_uuid` (`command_uuid`),
+  KEY `response_id` (`response_id`),
+  CONSTRAINT `windows_mdm_command_results_ibfk_1` FOREIGN KEY (`enrollment_id`) REFERENCES `mdm_windows_enrollments` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `windows_mdm_command_results_ibfk_3` FOREIGN KEY (`response_id`) REFERENCES `windows_mdm_responses` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `windows_mdm_commands` (
+  `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `raw_command` mediumtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `target_loc_uri` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`command_uuid`),
+  UNIQUE KEY `idx_windows_mdm_commands_id` (`id`),
+  KEY `idx_windows_mdm_commands_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `windows_mdm_responses` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `enrollment_id` int unsigned NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `raw_response_gz` mediumblob NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `enrollment_id` (`enrollment_id`),
+  KEY `idx_windows_mdm_responses_created_at` (`created_at`),
+  CONSTRAINT `windows_mdm_responses_ibfk_1` FOREIGN KEY (`enrollment_id`) REFERENCES `mdm_windows_enrollments` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `wstep_cert_auth_associations` (
+  `id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `sha256` char(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`,`sha256`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `wstep_certificates` (
+  `serial` bigint unsigned NOT NULL,
+  `name` varchar(1024) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `not_valid_before` datetime NOT NULL,
+  `not_valid_after` datetime NOT NULL,
+  `certificate_pem` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `revoked` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`serial`),
+  CONSTRAINT `wstep_certificates_ibfk_1` FOREIGN KEY (`serial`) REFERENCES `wstep_serials` (`serial`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `wstep_serials` (
+  `serial` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`serial`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `yara_rules` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `contents` mediumtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_yara_rules_name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!50001 DROP VIEW IF EXISTS `nano_view_queue`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_unicode_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 SQL SECURITY INVOKER */
+/*!50001 VIEW `nano_view_queue` AS select (`q`.`id` collate utf8mb4_unicode_ci) AS `id`,`q`.`created_at` AS `created_at`,`q`.`active` AS `active`,`q`.`priority` AS `priority`,(`c`.`command_uuid` collate utf8mb4_unicode_ci) AS `command_uuid`,(`c`.`request_type` collate utf8mb4_unicode_ci) AS `request_type`,(`c`.`command` collate utf8mb4_unicode_ci) AS `command`,`c`.`name` AS `name`,`r`.`updated_at` AS `result_updated_at`,(`r`.`status` collate utf8mb4_unicode_ci) AS `status`,(`r`.`result` collate utf8mb4_unicode_ci) AS `result` from ((`nano_enrollment_queue` `q` join `nano_commands` `c` on((`q`.`command_uuid` = `c`.`command_uuid`))) left join `nano_command_results` `r` on(((`r`.`command_uuid` = `q`.`command_uuid`) and (`r`.`id` = `q`.`id`)))) order by `q`.`priority` desc,`q`.`created_at` */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;

@@ -46,6 +46,8 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   },
   setup_experience: {
     macos_bootstrap_package: "",
+    macos_enable_bootstrap_package_during_manual_enrollment: false,
+    macos_enable_bootstrap_package_during_migration: false,
     macos_manual_agent_install: false,
     enable_end_user_authentication: false,
     apple_setup_assistant: null,
@@ -71,6 +73,7 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
     metadata_url: "",
     idp_name: "",
   },
+  enable_profile_validation: true,
 };
 
 export const createMockMdmConfig = (
@@ -103,6 +106,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     query_reports_disabled: false,
     scripts_disabled: false,
     ai_features_disabled: false,
+    mcp_disabled: false,
   },
   smtp_settings: {
     enable_smtp: false,

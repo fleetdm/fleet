@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.44.14",
+      "version": "3.44.15",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'QGIS %' AND publisher = 'QGIS.org' AND version LIKE '3.44.%';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'QGIS %' AND publisher = 'QGIS.org' AND version LIKE '3.44.%' AND version_compare(version, '3.44.14') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'QGIS %' AND publisher = 'QGIS.org' AND version LIKE '3.44.%' AND version_compare(version, '3.44.15') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'qgis-ltr-bin.exe');"
       },
-      "installer_url": "https://qgis.org/downloads/QGIS-OSGeo4W-3.44.14-1.msi",
+      "installer_url": "https://qgis.org/downloads/QGIS-OSGeo4W-3.44.15-2.msi",
       "install_script_ref": "c1308e76",
       "uninstall_script_ref": "6ce7e210",
-      "sha256": "0a579f980dcec85be2ecb47c5f08234ca6ce7b625c3cb9543eded1f43d445b46",
+      "sha256": "81f7933bda110fa683a5f8f8129bc9b2ad2b814e65e99916c0d657af9518399c",
       "default_categories": [
         "Productivity"
       ]

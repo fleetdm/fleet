@@ -439,6 +439,27 @@ func TestIngestValidations(t *testing.T) {
 			},
 		},
 		{
+			name:    "enricher failure stops ingestion",
+			wantErr: "enriching manifest",
+			inputApp: inputApp{
+				Name:                "Sublime Text",
+				UniqueIdentifier:    "Sublime Text",
+				PackageIdentifier:   "Foo",
+				InstallerArch:       "x64",
+				Slug:                "sublime-text/windows",
+				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:       "exe",
+				InstallerScope:      "machine",
+			},
+			cfg: serverConfig{
+				installerType:  "exe",
+				installerScope: "machine",
+				installerArch:  "x64",
+				installerURL:   "https://download.sublimetext.com/latest/windows",
+			},
+		},
+		{
 			name: "arm64 scopes policy queries to ARM hosts",
 			// An arm64 build can't run on x64, so both policy queries pass on non-ARM
 			// hosts. The open query runs only on a host already queued, so it is unscoped.
@@ -485,6 +506,50 @@ func TestIngestValidations(t *testing.T) {
 				installerArch:     "x64",
 				installerProdCode: "{ACBDEF}",
 				upgradeCode:       "{ABCDEF}",
+			},
+		},
+		{
+			// winget manifests sometimes mislabel an exe installer as "portable".
+			name:       "portable installer type falls back to the URL extension",
+			wantExists: "SELECT 1 FROM programs WHERE name = 'Foo' AND publisher = 'Bar, Inc.';",
+			inputApp: inputApp{
+				Name:                "Foo",
+				UniqueIdentifier:    "Foo",
+				PackageIdentifier:   "Foo",
+				InstallerArch:       "x64",
+				Slug:                "foo/windows",
+				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:       "exe",
+				InstallerScope:      "machine",
+			},
+			cfg: serverConfig{
+				installerType:  "portable",
+				installerScope: "machine",
+				installerArch:  "x64",
+				installerURL:   "https://example.com/foo_installer.exe",
+			},
+		},
+		{
+			name:       "portable manifest type defers to the per-installer type",
+			wantExists: "SELECT 1 FROM programs WHERE name = 'Foo' AND publisher = 'Bar, Inc.';",
+			inputApp: inputApp{
+				Name:                "Foo",
+				UniqueIdentifier:    "Foo",
+				PackageIdentifier:   "Foo",
+				InstallerArch:       "x64",
+				Slug:                "foo/windows",
+				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:       "exe",
+				InstallerScope:      "machine",
+			},
+			cfg: serverConfig{
+				installerType:      "portable",
+				installerEntryType: "exe",
+				installerScope:     "machine",
+				installerArch:      "x64",
+				installerURL:       "https://example.com/foo_installer",
 			},
 		},
 		{
@@ -561,6 +626,9 @@ type serverConfig struct {
 	installerProdCode string
 	upgradeCode       string
 	displayVersion    string
+	installerURL      string
+	// installerEntryType overrides the per-installer InstallerType; empty means installerType.
+	installerEntryType string
 }
 
 func newTestServer(t *testing.T, cfg serverConfig) *httptest.Server {
@@ -575,6 +643,10 @@ func newTestServer(t *testing.T, cfg serverConfig) *httptest.Server {
 			require.NoError(t, json.NewEncoder(w).Encode(content))
 
 		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/1.0/Foo.installer.yaml":
+			entryType := cfg.installerEntryType
+			if entryType == "" {
+				entryType = cfg.installerType
+			}
 			manifest := installerManifest{
 				ProductCode:    cfg.productCode,
 				InstallerType:  cfg.installerType,
@@ -586,7 +658,8 @@ func newTestServer(t *testing.T, cfg serverConfig) *httptest.Server {
 				Installers: []installer{
 					{
 						Architecture:  cfg.installerArch,
-						InstallerType: cfg.installerType,
+						InstallerType: entryType,
+						InstallerURL:  cfg.installerURL,
 						ProductCode:   cfg.installerProdCode,
 						Scope:         cfg.installerScope,
 					},

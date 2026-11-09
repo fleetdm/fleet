@@ -2,7 +2,6 @@ package service_test
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -18,20 +17,15 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
-	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/microsoft/msgraph"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -146,7 +140,7 @@ func noopGraphClientFactory(*fleet.MicrosoftGraphCredential) (msgraph.Client, er
 	return nil, nil
 }
 
-func TestGetOrCreatePreassignTeam(t *testing.T) {
+func TestTeamCreationDoesNotApplyMDMDefaults(t *testing.T) {
 	ds, svc, ctx := setupMockDatastorePremiumService(t)
 
 	ssoSettings := fleet.SSOProviderSettings{
@@ -162,13 +156,9 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			EnableReleaseDeviceManually: optjson.SetBool(true),
 		},
 	}}
-	preassignGroups := []string{"one", "three"}
-
-	// initialize team store with team one and two already created, one matches
-	// preassign group [0], two does not match any preassign group
 	team1 := &fleet.Team{
 		ID:   1,
-		Name: preassignGroups[0],
+		Name: "one",
 	}
 	team2 := &fleet.Team{
 		ID:   2,
@@ -186,15 +176,11 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		ds.NewTeamFuncInvoked = false
 		ds.SaveTeamFuncInvoked = false
 		ds.UpsertMDMAppleFleetConfigProfileFuncInvoked = false
-		ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked = false
 		ds.AppConfigFuncInvoked = false
 		ds.NewJobFuncInvoked = false
-		ds.GetMDMAppleSetupAssistantFuncInvoked = false
-		ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked = false
 		ds.LabelIDsByNameFuncInvoked = false
 		ds.SetOrUpdateMDMAppleDeclarationFuncInvoked = false
 		ds.BulkSetPendingMDMHostProfilesFuncInvoked = false
-		ds.GetAllMDMConfigAssetsByNameFuncInvoked = false
 	}
 	setupDS := func(t *testing.T) {
 		resetInvoked()
@@ -238,20 +224,8 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 			return nil, errors.New("not implemented")
 		}
-		ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, profile fleet.MDMAppleConfigProfile, vars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
-			return nil, errors.New("not implemented")
-		}
-		ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, profileIdentifier string) error {
-			return errors.New("not implemented")
-		}
-		ds.CopyDefaultMDMAppleBootstrapPackageFunc = func(ctx context.Context, ac *fleet.AppConfig, toTeamID uint) error {
-			return errors.New("not implemented")
-		}
-		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
-			return nil, errors.New("not implemented")
-		}
-		ds.GetMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
-			return nil, errors.New("not implemented")
+		ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+			return false, nil
 		}
 		ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 			require.Len(t, names, 1)
@@ -266,45 +240,6 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		) (updates fleet.MDMProfilesUpdates, err error) {
 			return fleet.MDMProfilesUpdates{}, nil
 		}
-		apnsCert, apnsKey, err := mysqltest.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
-		require.NoError(t, err)
-		certPEM, keyPEM, tokenBytes, err := mysqltest.GenerateTestABMAssets(t)
-		require.NoError(t, err)
-		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-			_ sqlx.QueryerContext,
-		) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
-			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
-				fleet.MDMAssetABMCert:            {Name: fleet.MDMAssetABMCert, Value: certPEM},
-				fleet.MDMAssetABMKey:             {Name: fleet.MDMAssetABMKey, Value: keyPEM},
-				fleet.MDMAssetABMTokenDeprecated: {Name: fleet.MDMAssetABMTokenDeprecated, Value: tokenBytes},
-				fleet.MDMAssetAPNSCert:           {Name: fleet.MDMAssetAPNSCert, Value: apnsCert},
-				fleet.MDMAssetAPNSKey:            {Name: fleet.MDMAssetAPNSKey, Value: apnsKey},
-				fleet.MDMAssetCACert:             {Name: fleet.MDMAssetCACert, Value: certPEM},
-				fleet.MDMAssetCAKey:              {Name: fleet.MDMAssetCAKey, Value: keyPEM},
-			}, nil
-		}
-
-		ds.GetMDMAppleEnrollmentProfileByTypeFunc = func(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error) {
-			return &fleet.MDMAppleEnrollmentProfile{Token: "foobar"}, nil
-		}
-		ds.GetABMTokenOrgNamesAssociatedWithTeamFunc = func(ctx context.Context, teamID *uint) ([]string, error) {
-			return []string{"foobar"}, nil
-		}
-		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
-			return []*fleet.ABMToken{{ID: 1}}, nil
-		}
-		ds.CountABMTokensWithTermsExpiredFunc = func(ctx context.Context) (int, error) {
-			return 0, nil
-		}
-		ds.SetABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string, invalid bool) (bool, error) {
-			return false, nil
-		}
-		ds.IsABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string) (bool, error) {
-			return false, nil
-		}
-		ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
-			return nil, &eeservice.NotFoundError{}
-		}
 	}
 
 	authzCtx := &authz_ctx.AuthorizationContext{}
@@ -312,214 +247,6 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: test.UserAdmin})
 	actx, _ := authz_ctx.FromContext(ctx)
 	actx.SetChecked()
-
-	t.Run("get preassign team", func(t *testing.T) {
-		setupDS(t)
-
-		// preasign group corresponds to existing team so simply get it
-		team, err := svc.GetOrCreatePreassignTeam(ctx, preassignGroups[0:1])
-		require.NoError(t, err)
-		require.Equal(t, uint(1), team.ID)
-		require.Equal(t, preassignGroups[0], team.Name)
-		require.True(t, ds.TeamByNameFuncInvoked)
-		require.False(t, ds.NewTeamFuncInvoked)
-		require.False(t, ds.SaveTeamFuncInvoked)
-		require.False(t, ds.UpsertMDMAppleFleetConfigProfileFuncInvoked)
-		require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
-		require.False(t, ds.AppConfigFuncInvoked)
-		require.False(t, ds.NewJobFuncInvoked)
-		resetInvoked()
-	})
-
-	t.Run("create preassign team", func(t *testing.T) {
-		setupDS(t)
-
-		lastTeamID := uint(0)
-		ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
-			for _, tm := range teamStore {
-				if tm.Name == team.Name {
-					return nil, errors.New("team name already exists")
-				}
-			}
-			id := uint(len(teamStore) + 1) //nolint:gosec // dismiss G115
-			_, ok := teamStore[id]
-			require.False(t, ok) // sanity check
-			team.ID = id
-			teamStore[id] = team
-			lastTeamID = id
-			return team, nil
-		}
-		ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
-			tm, ok := teamStore[team.ID]
-			if !ok {
-				return nil, errors.New("invalid team id")
-			}
-			require.Equal(t, tm.ID, team.ID)     // sanity check
-			require.Equal(t, tm.Name, team.Name) // sanity check
-			// NOTE: BootstrapPackage gets set by CopyDefaultMDMAppleBootstrapPackage
-			// require.Equal(t, appConfig.MDM.MacOSSetup.BootstrapPackage.Value, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)
-			require.Equal(t, appConfig.MDM.MacOSSetup.EnableEndUserAuthentication, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)             // set to default
-			require.Equal(t, appConfig.MDM.MacOSSetup.MacOSSetupAssistant, team.Config.MDM.MacOSSetup.MacOSSetupAssistant)                             // set to default
-			require.Equal(t, appConfig.MDM.MacOSSetup.EnableReleaseDeviceManually.Value, team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value) // set to default
-			teamStore[tm.ID] = team
-			return team, nil
-		}
-		ds.UpsertMDMAppleFleetConfigProfileFunc = func(ctx context.Context, profile fleet.MDMAppleConfigProfile) error {
-			require.Equal(t, lastTeamID, *profile.TeamID)
-			require.Equal(t, mobileconfig.FleetFileVaultPayloadIdentifier, profile.Identifier)
-			return nil
-		}
-		// the reconciler reads the stored settings back before writing
-		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
-			tm, ok := teamStore[teamID]
-			if !ok {
-				return &fleet.TeamMDM{}, nil
-			}
-			mdm := tm.Config.MDM
-			return &mdm, nil
-		}
-		ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, profileIdentifier string) error {
-			require.Equal(t, lastTeamID, *teamID)
-			require.Equal(t, mobileconfig.FleetFileVaultPayloadIdentifier, profileIdentifier)
-			return nil
-		}
-		ds.CopyDefaultMDMAppleBootstrapPackageFunc = func(ctx context.Context, ac *fleet.AppConfig, toTeamID uint) error {
-			require.Equal(t, lastTeamID, toTeamID)
-			require.NotNil(t, ac)
-			require.Equal(t, "https://example.com/bootstrap.pkg", ac.MDM.MacOSSetup.BootstrapPackage.Value)
-			teamStore[toTeamID].Config.MDM.MacOSSetup.BootstrapPackage = optjson.SetString(ac.MDM.MacOSSetup.BootstrapPackage.Value)
-			return nil
-		}
-		var jobTask string
-		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
-			// first task is UpdateProfile, next is ProfileChanged (when setup assistant is set)
-			if jobTask == "" {
-				jobTask = string(worker.MacosSetupAssistantUpdateProfile)
-			} else {
-				jobTask = string(worker.MacosSetupAssistantProfileChanged)
-			}
-			wantArgs, err := json.Marshal(map[string]interface{}{
-				"task":    jobTask,
-				"team_id": lastTeamID,
-			})
-			require.NoError(t, err)
-			wantJob := &fleet.Job{
-				Name:  "macos_setup_assistant",
-				Args:  (*json.RawMessage)(&wantArgs),
-				State: fleet.JobStateQueued,
-			}
-			require.Equal(t, wantJob.Name, job.Name)
-			require.Equal(t, string(*wantJob.Args), string(*job.Args))
-			require.Equal(t, wantJob.State, job.State)
-			return job, nil
-		}
-		setupAsstByTeam := make(map[uint]*fleet.MDMAppleSetupAssistant)
-		globalSetupAsst := &fleet.MDMAppleSetupAssistant{
-			ID:      15,
-			TeamID:  nil,
-			Name:    "test asst",
-			Profile: json.RawMessage(`{"foo": "bar"}`),
-		}
-		setupAsstByTeam[0] = globalSetupAsst
-		ds.GetMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
-			var tmID uint
-			if teamID != nil {
-				tmID = *teamID
-			}
-			asst := setupAsstByTeam[tmID]
-			if asst == nil {
-				return nil, &eeservice.NotFoundError{}
-			}
-			return asst, nil
-		}
-		ds.SetOrUpdateMDMAppleSetupAssistantFunc = func(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
-			require.Equal(t, globalSetupAsst.Name, asst.Name)
-			require.JSONEq(t, string(globalSetupAsst.Profile), string(asst.Profile))
-			require.NotNil(t, asst.TeamID)
-			require.EqualValues(t, lastTeamID, *asst.TeamID)
-			setupAsstByTeam[*asst.TeamID] = asst
-			return asst, nil
-		}
-		ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
-			return false, nil
-		}
-
-		// new team ("one - three") is created with bootstrap package and end user auth based on app config
-		team, err := svc.GetOrCreatePreassignTeam(ctx, preassignGroups)
-		require.NoError(t, err)
-		require.Equal(t, uint(3), team.ID)
-		require.Equal(t, eeservice.TeamNameFromPreassignGroups(preassignGroups), team.Name)
-		require.True(t, ds.TeamByNameFuncInvoked)
-		require.True(t, ds.NewTeamFuncInvoked)
-		require.True(t, ds.SaveTeamFuncInvoked)
-		require.True(t, ds.UpsertMDMAppleFleetConfigProfileFuncInvoked)
-		require.True(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
-		require.True(t, ds.AppConfigFuncInvoked)
-		require.True(t, ds.GetMDMAppleSetupAssistantFuncInvoked)
-		require.True(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
-		require.NotEmpty(t, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)
-		require.Equal(t, appConfig.MDM.MacOSSetup.BootstrapPackage.Value, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)
-		require.Equal(t, appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value, team.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value)
-		require.True(t, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
-		require.Equal(t, appConfig.MDM.MacOSSetup.EnableEndUserAuthentication, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
-		require.True(t, team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
-		require.Equal(t, appConfig.MDM.MacOSSetup.EnableReleaseDeviceManually.Value, team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
-		require.True(t, ds.NewJobFuncInvoked)
-		resetInvoked()
-
-		jobTask = ""
-
-		// when called again, simply get the previously created team
-		team, err = svc.GetOrCreatePreassignTeam(ctx, preassignGroups)
-		require.NoError(t, err)
-		require.Equal(t, uint(3), team.ID)
-		require.Equal(t, eeservice.TeamNameFromPreassignGroups(preassignGroups), team.Name)
-		require.True(t, ds.TeamByNameFuncInvoked)
-		require.False(t, ds.NewTeamFuncInvoked)
-		require.False(t, ds.SaveTeamFuncInvoked)
-		require.False(t, ds.UpsertMDMAppleFleetConfigProfileFuncInvoked)
-		require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
-		require.False(t, ds.AppConfigFuncInvoked)
-		require.False(t, ds.NewJobFuncInvoked)
-		require.False(t, ds.GetMDMAppleSetupAssistantFuncInvoked)
-		require.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
-		require.NotEmpty(t, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)
-		require.Equal(t, appConfig.MDM.MacOSSetup.BootstrapPackage.Value, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)
-		require.Equal(t, appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value, team.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value)
-		require.True(t, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
-		require.Equal(t, appConfig.MDM.MacOSSetup.EnableEndUserAuthentication, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
-		require.True(t, team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
-		require.Equal(t, appConfig.MDM.MacOSSetup.EnableReleaseDeviceManually.Value, team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
-		resetInvoked()
-
-		jobTask = ""
-
-		// when a custom setup assistant is not set for "no team", we don't create
-		// a custom setup assistant
-		setupAsstByTeam[0] = nil
-
-		preassignGrousWithFoo := preassignGroups
-		preassignGrousWithFoo = append(preassignGrousWithFoo, "foo")
-		team, err = svc.GetOrCreatePreassignTeam(ctx, preassignGrousWithFoo)
-		require.NoError(t, err)
-		require.Equal(t, uint(4), team.ID)
-		require.Equal(t, eeservice.TeamNameFromPreassignGroups(preassignGrousWithFoo), team.Name)
-		require.True(t, ds.TeamByNameFuncInvoked)
-		require.True(t, ds.NewTeamFuncInvoked)
-		require.True(t, ds.SaveTeamFuncInvoked)
-		require.True(t, ds.UpsertMDMAppleFleetConfigProfileFuncInvoked)
-		require.True(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
-		require.True(t, ds.AppConfigFuncInvoked)
-		require.True(t, ds.GetMDMAppleSetupAssistantFuncInvoked)
-		require.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
-		require.NotEmpty(t, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)
-		require.Equal(t, appConfig.MDM.MacOSSetup.BootstrapPackage.Value, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)
-		require.True(t, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
-		require.Equal(t, appConfig.MDM.MacOSSetup.EnableEndUserAuthentication, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
-		require.True(t, team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
-		require.Equal(t, appConfig.MDM.MacOSSetup.EnableReleaseDeviceManually.Value, team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
-		resetInvoked()
-	})
 
 	t.Run("modify team via apply team spec", func(t *testing.T) {
 		setupDS(t)
@@ -548,7 +275,6 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		require.True(t, ds.TeamByNameFuncInvoked)
 		require.False(t, ds.NewTeamFuncInvoked)
 		require.False(t, ds.UpsertMDMAppleFleetConfigProfileFuncInvoked)
-		require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
 		require.False(t, ds.NewJobFuncInvoked)
 		resetInvoked()
 	})
@@ -586,7 +312,6 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		require.False(t, ds.TeamByNameFuncInvoked)
 		require.False(t, ds.SaveTeamFuncInvoked)
 		require.False(t, ds.UpsertMDMAppleFleetConfigProfileFuncInvoked)
-		require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
 		require.False(t, ds.NewJobFuncInvoked)
 		resetInvoked()
 	})
@@ -647,7 +372,6 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		require.True(t, ds.TeamByNameFuncInvoked)
 		require.False(t, ds.SaveTeamFuncInvoked)
 		require.False(t, ds.UpsertMDMAppleFleetConfigProfileFuncInvoked)
-		require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
 		require.False(t, ds.NewJobFuncInvoked)
 		resetInvoked()
 
@@ -660,7 +384,6 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		require.True(t, ds.TeamByNameFuncInvoked)
 		require.False(t, ds.NewTeamFuncInvoked)
 		require.False(t, ds.UpsertMDMAppleFleetConfigProfileFuncInvoked)
-		require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
 		require.False(t, ds.NewJobFuncInvoked)
 		resetInvoked()
 	})
