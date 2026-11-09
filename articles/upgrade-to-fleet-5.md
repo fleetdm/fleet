@@ -15,7 +15,7 @@ Fleet will support Fleet 4.96 with security fixes through June 30, 2027.
 
 #### Why are we doing this?
 
-Fleet follows [semantic versioning (SemVer)](https://semver.org/), which means breaking changes are only made in major version releases. [Learn more](https://fleetdm.com/docs/deploy/upgrading-fleet#compatibility).
+Fleet follows [semantic versioning (SemVer)](https://semver.org/), which means breaking changes are only made in major version releases except in [rare cases](https://fleetdm.com/docs/deploy/upgrading-fleet#compatibility).
 
 The last major version (Fleet 4) was released over 5 years ago (2021-06-29). Since then, the API, GitOps (YAML), and other interfaces have collected blemishes and inconsistencies. Fleet 5, among [other new features](https://fleetdm.com/announcements/roadmap-preview-october-2026), brings clear and consistent interfaces to Fleet.
 
