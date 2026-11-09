@@ -187,36 +187,12 @@ Make sure to assign the "Fleet conditional access" group to the Entra policy.
 
 ## Troubleshooting
 
-Most connection errors are fixed by connecting again in one session:
+If Fleet can't connect to Entra:
 
-1. Have an Entra admin who can grant admin consent, and who is also a Fleet admin, sign in to Fleet.
-2. In Fleet, go to **Settings > Integrations > Conditional access** and select **Connect**. Enter the tenant ID, select **Save**, and approve the permissions in Microsoft in the same session. Don't use a consent link someone sent you earlier. Fleet creates a new link each time you select **Save** or open the Conditional access page while setup is incomplete, and only the newest link works.
+1. Confirm the "Fleet conditional access" group exists in Entra ([step 1](#step-1-create-a-fleet-conditional-access-group-in-entra)) and Fleet is added as a compliance partner in Intune ([step 2](#step-2-configure-fleet-in-intune)).
+2. Have an Entra admin who is also a Fleet admin sign in to Fleet, select **Connect**, and approve the permissions in the same session. Don't send Microsoft's consent link to someone else. Fleet creates a new link each time, and only the newest one works.
 
-To see the underlying error, check the Fleet server logs for the `setup is not done` message, or the `setup_error` field in the response to the `POST /api/latest/fleet/conditional-access/microsoft/confirm` request (visible in your browser's developer tools).
-
-### Couldn't update. Fleet didn't get permissions for Entra. Please try again and accept the permissions.
-
-Fleet didn't receive admin consent. This happens if the person approving the permissions isn't an Entra admin, cancels the Microsoft consent page, or uses a consent link that's out of date. Connect again in one session as described above.
-
-### Couldn't connect. Entra didn't create Fleet's compliance policy. Have an Entra admin who's also a Fleet admin select Connect and approve permissions in one session.
-
-Microsoft didn't return the compliance policy Fleet needs. This usually means setup is partly done from an earlier attempt, or Fleet's enterprise application is missing permissions.
-
-1. In Intune, confirm Fleet is added as a compliance partner for macOS and assigned to the "Fleet conditional access" group ([step 2](#step-2-configure-fleet-in-intune)).
-2. In Entra, confirm admin consent was granted for Fleet's enterprise application.
-3. Connect again in one session as described above.
-
-### Couldn't connect. Create a group named "Fleet conditional access" in Entra and try again.
-
-Fleet couldn't find a group with this exact name in your Entra tenant. Create it as described in [step 1](#step-1-create-a-fleet-conditional-access-group-in-entra), then select **Connect** again.
-
-### Couldn't connect. Fleet couldn't access your Entra tenant. Please try again.
-
-Fleet couldn't get access to your Entra tenant after consent was granted. Confirm the tenant ID is correct, then connect again in one session as described above. If it keeps happening, [reach out to support](https://fleetdm.com/support).
-
-### Couldn't connect. Entra returned an error.
-
-Microsoft returned an error that Fleet doesn't have a specific message for. Connect again in one session as described above, and confirm the "Fleet conditional access" group exists and admin consent was granted for Fleet's enterprise application. If it keeps happening, find the underlying error as described above and [reach out to support](https://fleetdm.com/support).
+To see the underlying error, check the Fleet server logs for `setup is not done`, or the `setup_error` field in the `POST /api/latest/fleet/conditional-access/microsoft/confirm` response. If it keeps failing, [reach out to support](https://fleetdm.com/support).
 
 ## Disable
 
