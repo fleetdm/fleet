@@ -1,1 +1,1 @@
-- **Breaking change:** Removed the redirects from the old `/settings/teams` pages to `/settings/fleets`, and the redirect from the `?team_id=` URL parameter to `?fleet_id=`. Old bookmarks open the default fleet instead of forwarding.
+- **Breaking change:** Removed the redirects from the old `/settings/teams` pages to `/settings/fleets`, and the redirect from the `?team_id=` URL parameter to `?fleet_id=`. Bookmarks to the old `/settings/teams` pages now show a 404, and the `team_id` parameter no longer selects a fleet.
