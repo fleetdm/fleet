@@ -270,7 +270,7 @@ Fleet has an AppleCare cooperative support agreement with Apple. It lets Fleet w
 
 When a customer reports a problem that's caused by Apple (for example, Setup Assistant behavior, Apple Business device assignment, or an OS bug), follow these steps:
 
-1. **Confirm it's an Apple issue.** If Fleet could be involved, [file a customer bug report](#file-a-customer-bug-report) first.
+1. **Confirm it's an Apple issue.** If Fleet could be involved, [file a customer bug report](#file-a-customer-bug-report) first. Use the `~applecare-cooperative-support` label for these issues.
 2. **Ask if the customer has an AppleCare Enterprise (AppleCare OS Support) agreement.** Ask before you offer a cooperative case.
    - **If they do:** Ask the customer to open a case at [enterprise.apple.com](https://enterprise.apple.com) and share the case number with Fleet. Fleet can then link a cooperative case to theirs and give Apple technical details from the Fleet side. If Apple asks for a Fleet reference, give them the related GitHub issue number.
    - **If they don't:** Ask the customer to file a report with the Feedback Assistant app, ideally from an affected Mac right after the issue happens, and to share the feedback number with Fleet.
