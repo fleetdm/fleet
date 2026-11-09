@@ -45,7 +45,7 @@ func TestRemovedPaths(t *testing.T) {
 
 	// Fill in the path variables with a value that matches any of them.
 	for _, template := range removedPathTemplates {
-		_, ok := removednames.Find(removednames.KindPath, template, "")
+		entry, ok := removedPathEntry(template)
 		require.True(t, ok, template)
 		for _, version := range []string{"v1", "latest"} {
 			path := pathVar.ReplaceAllString(strings.Replace(template, "/_version_/", "/"+version+"/", 1), "1")
@@ -55,6 +55,11 @@ func TestRemovedPaths(t *testing.T) {
 					t.Parallel() // requests with different methods share the route, so -race catches state shared between them
 					rec := httptest.NewRecorder()
 					router.ServeHTTP(rec, httptest.NewRequest(method, path, nil))
+					if entry.Context != "" && method != entry.Context {
+						// This router holds only the removed paths, so a method the entry didn't remove gets 405, not 410.
+						require.Equal(t, http.StatusMethodNotAllowed, rec.Code)
+						return
+					}
 					require.Equal(t, http.StatusGone, rec.Code)
 					if method == http.MethodHead {
 						return // a response to HEAD has no body
@@ -74,4 +79,48 @@ func TestRemovedPaths(t *testing.T) {
 			}
 		}
 	}
+}
+
+// TestRemovedPathOverlaps covers the requests that the wildcard of an overlap catches without being requests to the removed path.
+func TestRemovedPathOverlaps(t *testing.T) {
+	t.Parallel()
+
+	router := mux.NewRouter()
+	endpointer.RegisterRemovedPaths(router, []string{"v1"}, slog.New(slog.DiscardHandler), removedPaths())
+
+	for _, c := range []struct {
+		method, path string
+		wantStatus   int
+		wantAllow    string
+	}{
+		{http.MethodGet, "/api/v1/fleet/scripts/batch/abc/cancel", http.StatusMethodNotAllowed, http.MethodPost},
+		{http.MethodGet, "/api/v1/fleet/scripts/batch/abc/foo", http.StatusNotFound, ""},
+		{http.MethodPost, "/api/v1/fleet/hosts/1/configuration_profiles/foo/bar", http.StatusNotFound, ""},
+	} {
+		t.Run(c.method+" "+c.path, func(t *testing.T) {
+			t.Parallel()
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, httptest.NewRequest(c.method, c.path, nil))
+			assert.Equal(t, c.wantStatus, rec.Code)
+			assert.Equal(t, c.wantAllow, rec.Header().Get("Allow"))
+		})
+	}
+}
+
+func TestRemovedPathForEntryWithMethod(t *testing.T) {
+	t.Parallel()
+
+	const template = "/api/_version_/fleet/widgets/{name}"
+	pinned := removednames.Entry{
+		Kind: removednames.KindPath, Scope: removednames.ScopeRequest, Old: template, Context: http.MethodDelete,
+		Format: removednames.EndpointFormat{},
+	}
+	removed := removedPathFor(template, pinned)
+	assert.Equal(t, []string{http.MethodDelete}, removed.Methods)
+	assert.Equal(t, `The "DELETE /widgets/{name}" endpoint is not available anymore. What to use instead: `+removednames.GuideURL,
+		removed.Message(http.MethodDelete))
+
+	unpinned := pinned
+	unpinned.Context = ""
+	assert.Empty(t, removedPathFor(template, unpinned).Methods)
 }

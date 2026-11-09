@@ -435,6 +435,12 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			"Use the setup_experience.macos_enable_bootstrap_package_during_migration setting instead.")
 	}
 
+	if config.MDM.AppleSCEPStaticChallengeEnabled {
+		logger.WarnContext(cmd.Context(), "Apple MDM static SCEP challenges are enabled via mdm.apple_scep_static_challenge_enabled. "+
+			"Anyone with the static SCEP challenge can turn on MDM for any Apple host. "+
+			"Static SCEP challenges are deprecated and will be removed in a future release.")
+	}
+
 	mdmStorage, depStorage, scepStorage := initAppleMDMStorages(mds, initFatal)
 
 	mdmPushService := initAppleMDMPushService(mdmStorage, config.MDM.AppleAPNsPushExpiration, logger)
@@ -554,6 +560,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	var svc fleet.Service
 	config.MDM.AndroidAgent.Validate(initFatal)
 	config.MDM.ValidateAndroidBatchSize(initFatal)
+	config.MDM.ValidateAppleIOSIPadOSRefetchBatchSize(initFatal)
 	config.GoogleWorkspace.Validate(initFatal)
 	androidSvc, err := android_service.NewService(
 		ctx,
@@ -1530,7 +1537,7 @@ func printDatabaseNotInitializedError() {
 		os.Args[0])
 }
 
-func printMissingMigrationsWarning(w io.Writer, tables []int64, data []int64) {
+func printMissingMigrationsWarning(w io.Writer, tables []int64) {
 	fmt.Fprintf(w, "################################################################################\n"+
 		"# WARNING:\n"+
 		"#   Your Fleet database is missing required migrations. This is likely to cause\n"+
@@ -1545,23 +1552,7 @@ func printMissingMigrationsWarning(w io.Writer, tables []int64, data []int64) {
 		"#     - Set config updates.allow_missing_migrations to true, or,\n"+
 		"#     - Use command line argument --upgrades_allow_missing_migrations=true\n"+
 		"################################################################################\n",
-		tablesAndDataToString(tables, data), os.Args[0])
-}
-
-func printFleetv4732FixNeededMessage() {
-	fmt.Printf("################################################################################\n"+
-		"# WARNING:\n"+
-		"#   Your Fleet database has misnumbered migrations introduced in some released\n"+
-		"#   v4.73.2 artifacts. Fleet will automatically perform this fix prior to database\n"+
-		"#   migrations. Please back up your data before continuing.\n"+
-		"#\n"+
-		"#   Run `%s prepare db` to perform migrations.\n"+
-		"#\n"+
-		"#   To run the server without performing migrations:\n"+
-		"#     - Set environment variable FLEET_UPGRADES_ALLOW_MISSING_MIGRATIONS=1, or,\n"+
-		"#     - Set config updates.allow_missing_migrations to true, or,\n"+
-		"#     - Use command line argument --upgrades_allow_missing_migrations=true\n"+
-		"################################################################################\n", os.Args[0])
+		migrationsToString(tables), os.Args[0])
 }
 
 func initLicense(config *configpkg.FleetConfig, devLicense, devExpiredLicense bool) (*fleet.LicenseInfo, error) {

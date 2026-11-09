@@ -132,86 +132,6 @@ spec:
 	assert.Equal(t, fleet.RoleMaintainer, userRoleSpecList[1].Teams[0].Role)
 }
 
-func TestApplyUserRolesDeprecated(t *testing.T) {
-	t.Setenv("FLEET_ENABLE_LOG_TOPICS", logging.DeprecatedFieldTopic)
-	_, ds := testing_utils.RunServerWithMockedDS(t)
-
-	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
-		return userRoleSpecList, nil
-	}
-
-	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
-		if email == "admin1@example.com" {
-			return userRoleSpecList[0], nil
-		}
-		return userRoleSpecList[1], nil
-	}
-
-	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
-		return &fleet.Team{
-			ID:        1,
-			CreatedAt: time.Now(),
-			Name:      "team1",
-		}, nil
-	}
-
-	ds.SaveUsersFunc = func(ctx context.Context, users []*fleet.User) error {
-		for _, u := range users {
-			switch u.Email {
-			case "admin1@example.com":
-				userRoleList[0] = u
-			case "admin2@example.com":
-				userRoleList[1] = u
-			}
-		}
-		return nil
-	}
-
-	tmpFile, err := os.CreateTemp(os.TempDir(), "*.yml")
-	require.NoError(t, err)
-	defer os.Remove(tmpFile.Name())
-
-	_, err = tmpFile.WriteString(`
----
-apiVersion: v1
-kind: user_roles
-spec:
-  roles:
-    admin1@example.com:
-      global_role: admin
-      teams: null
-    admin2@example.com:
-      global_role: null
-      teams:
-      - role: maintainer
-        team: team1
-`)
-	require.NoError(t, err)
-	expected := "[!] In user_roles: `team` is deprecated, please use `fleet` instead.\n[!] In user_roles: `teams` is deprecated, please use `fleets` instead.\n[+] applied user roles\n"
-	assert.Equal(t, expected, runAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
-	require.Len(t, userRoleSpecList[1].Teams, 1)
-	assert.Equal(t, fleet.RoleMaintainer, userRoleSpecList[1].Teams[0].Role)
-
-	_, err = tmpFile.WriteString(`
----
-apiVersion: v1
-kind: user_roles
-spec:
-  roles:
-    admin1@example.com:
-      global_role: admin
-      teams: null
-    admin2@example.com:
-      global_role: null
-      teams:
-      - role: maintainer
-        team: team1
-        fleet: team1
-`)
-	require.NoError(t, err)
-	runAppCheckErr(t, []string{"apply", "-f", tmpFile.Name()}, "in user_roles spec: Conflicting field names: cannot specify both `team` (deprecated) and `fleet` in the same request")
-}
-
 // withDiskEncryptionDefaults fills in the explicit per-platform disk
 // encryption booleans that every team spec apply now persists (settings
 // absent from the spec are stored as explicit false).
@@ -296,9 +216,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 	}
 
 	ds.GetMDMProfileChecksumsFunc = func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
-
 		return &fleet.MDMProfileChecksums{}, nil
-
 	}
 
 	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
@@ -1127,7 +1045,8 @@ spec:
     enabled_software_inventory: false # typo, correct config is enable_software_inventory
 `)
 
-	runAppCheckErr(t, []string{"apply", "-f", name},
+	runAppCheckErr(
+		t, []string{"apply", "-f", name},
 		"applying fleet config: PATCH /api/latest/fleet/config received status 400 Bad Request: unsupported key provided: \"enabled_software_inventory\"",
 	)
 	require.Nil(t, savedAppConfig)
@@ -1747,7 +1666,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     agent_options:
       config:
         views:
@@ -1803,7 +1722,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: Team1
     mdm:
       macos_setup:
@@ -1846,7 +1765,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: Team1
     mdm:
       macos_setup:
@@ -2499,7 +2418,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: tm1
     mdm:
       setup_experience:
@@ -2508,13 +2427,13 @@ spec:
 `
 		team1EnableReleaseSpec = team1Spec + `
         apple_enable_release_device_manually: %s
-        require_all_software_macos: %s
+        macos_require_all_software: %s
 `
 		team1NoKeySpec = `
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: tm1
     mdm:
       setup_experience:
@@ -2523,7 +2442,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: tm1
     mdm:
       setup_experience:
@@ -2533,7 +2452,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: tm2
     mdm:
       setup_experience:
@@ -2544,7 +2463,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: tm1
     mdm:
       setup_experience:
@@ -2679,9 +2598,9 @@ spec:
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1Set.yml"))
 		require.NoError(t, err)
-		expectedTm1Set := fmt.Sprintf(string(b), "", "", "", "")
+		expectedTm1Set := fmt.Sprintf(string(b), "", "")
 		expectedTm1SetReleaseAndRequireEnabled := strings.ReplaceAll(expectedTm1Set, `enable_release_device_manually: false`, `enable_release_device_manually: true`)
-		expectedTm1SetReleaseAndRequireEnabled = strings.ReplaceAll(expectedTm1SetReleaseAndRequireEnabled, `require_all_software_macos: false`, `require_all_software_macos: true`)
+		expectedTm1SetReleaseAndRequireEnabled = strings.ReplaceAll(expectedTm1SetReleaseAndRequireEnabled, `macos_require_all_software: false`, `macos_require_all_software: true`)
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1And2Empty.yml"))
 		require.NoError(t, err)
@@ -2689,11 +2608,11 @@ spec:
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1And2Set.yml"))
 		require.NoError(t, err)
-		expectedTm1And2Set := fmt.Sprintf(string(b), "", emptyMacosSetup, "", emptyMacosSetup, "", emptyMacosSetup, "", emptyMacosSetup)
+		expectedTm1And2Set := fmt.Sprintf(string(b), "", emptyMacosSetup, "", emptyMacosSetup)
 
 		// get without setup assistant set
 		assert.YAMLEq(t, expectedEmptyAppCfg, runAppForTest(t, []string{"get", "config", "--yaml"}))
-		assert.YAMLEq(t, expectedEmptyTm1, runAppForTest(t, []string{"get", "teams", "--yaml"}))
+		assert.YAMLEq(t, expectedEmptyTm1, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
 
 		// apply with dry-run, appconfig
 		name := writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", emptyMacosSetup))
@@ -2821,7 +2740,7 @@ spec:
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 	})
 
-	t.Run("require_all_software_windows", func(t *testing.T) {
+	t.Run("windows_require_all_software", func(t *testing.T) {
 		ds := setupServer(t, true)
 
 		// Enable Windows MDM in the app config.
@@ -2831,30 +2750,30 @@ spec:
 
 		b, err := os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1Set.yml"))
 		require.NoError(t, err)
-		expectedTm1 := fmt.Sprintf(string(b), "", "", "", "")
+		expectedTm1 := fmt.Sprintf(string(b), "", "")
 
-		// Apply team with require_all_software_windows enabled.
+		// Apply team with windows_require_all_software enabled.
 		windowsRequireSpec := `
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: tm1
     mdm:
       setup_experience:
-        require_all_software_windows: true
+        windows_require_all_software: true
 `
 		name := writeTmpYml(t, windowsRequireSpec)
 		assert.Equal(t, "[+] applied 1 fleet\n", runAppForTest(t, []string{"apply", "-f", name}))
 		assert.True(t, ds.SaveTeamFuncInvoked)
 
-		// Verify the output includes require_all_software_windows: true.
-		expectedWithWindowsRequire := strings.ReplaceAll(expectedTm1, `require_all_software_windows: false`, `require_all_software_windows: true`)
-		assert.YAMLEq(t, expectedWithWindowsRequire, runAppForTest(t, []string{"get", "teams", "--yaml"}))
+		// Verify the output includes windows_require_all_software: true.
+		expectedWithWindowsRequire := strings.ReplaceAll(expectedTm1, `windows_require_all_software: false`, `windows_require_all_software: true`)
+		assert.YAMLEq(t, expectedWithWindowsRequire, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
 	})
 
-	t.Run("require_all_software_windows rejected when Windows MDM not configured", func(t *testing.T) {
-		// Spec invariant: setting `require_all_software_windows=true` while
+	t.Run("windows_require_all_software rejected when Windows MDM not configured", func(t *testing.T) {
+		// Spec invariant: setting `windows_require_all_software=true` while
 		// `MDM.WindowsEnabledAndConfigured=false` MUST be rejected. setupServer's default appConfig leaves
 		// WindowsEnabledAndConfigured at the zero value (false), which is the precondition this test needs.
 		ds := setupServer(t, true)
@@ -2863,16 +2782,16 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: tm1
     mdm:
       setup_experience:
-        require_all_software_windows: true
+        windows_require_all_software: true
 `
 		name := writeTmpYml(t, windowsRequireSpec)
-		runAppCheckErr(t, []string{"apply", "-f", name}, "require_all_software_windows")
+		runAppCheckErr(t, []string{"apply", "-f", name}, "windows_require_all_software")
 		assert.False(t, ds.SaveTeamFuncInvoked,
-			"team must not be saved when require_all_software_windows is rejected")
+			"team must not be saved when windows_require_all_software is rejected")
 	})
 
 	t.Run("new bootstrap package", func(t *testing.T) {
@@ -3109,7 +3028,7 @@ spec:
 	// 	b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1Empty.yml"))
 	// 	require.NoError(t, err)
 	// 	expectedNotSetTeam1 := string(b)
-	// 	assert.YAMLEq(t, expectedNotSetTeam1, runAppForTest(t, []string{"get", "teams", "--yaml"}))
+	// 	assert.YAMLEq(t, expectedNotSetTeam1, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
 
 	// 	// enable end user auth in team config
 	// 	name = writeTmpYml(t, fmt.Sprintf(team1SpecEnableEndUserAuth, "true"))
@@ -3124,7 +3043,7 @@ spec:
 	// 	expectedSetTeam1 := strings.ReplaceAll(expectedNotSetTeam1, "enable_end_user_authentication: false", "enable_end_user_authentication: true")
 	// 	expectedSetTeam1 = strings.ReplaceAll(expectedSetTeam1, "enable_host_users: false", "enable_host_users: true")
 	// 	expectedSetTeam1 = strings.ReplaceAll(expectedSetTeam1, "enable_software_inventory: false", "enable_software_inventory: true")
-	// 	assert.YAMLEq(t, expectedSetTeam1, runAppForTest(t, []string{"get", "teams", "--yaml"}))
+	// 	assert.YAMLEq(t, expectedSetTeam1, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
 	// 	ds.SaveTeamFuncInvoked = false
 
 	// 	// disable end user auth in team config
@@ -3138,7 +3057,7 @@ spec:
 	// 	assert.False(t, ds.SaveAppConfigFuncInvoked)
 	// 	assert.True(t, ds.SaveTeamFuncInvoked)
 	// 	expectedSetTeam1 = strings.ReplaceAll(expectedSetTeam1, "enable_end_user_authentication: true", "enable_end_user_authentication: false")
-	// 	assert.YAMLEq(t, expectedSetTeam1, runAppForTest(t, []string{"get", "teams", "--yaml"}))
+	// 	assert.YAMLEq(t, expectedSetTeam1, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
 	// 	ds.SaveTeamFuncInvoked = false
 	// })
 }
@@ -3265,7 +3184,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: ""
 `,
 			wantErr: `422 Validation Failed: name may not be empty`,
@@ -3276,7 +3195,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     agent_options:
       config:
@@ -3290,7 +3209,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     blah: nope
 `,
@@ -3302,7 +3221,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: 123
 `,
 			flags:   []string{"--force"},
@@ -3314,7 +3233,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     blah: true
 `,
@@ -3327,7 +3246,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: teamNEW
     agent_options:
       config:
@@ -3341,7 +3260,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: teamNEW
     agent_options:
       config:
@@ -3356,7 +3275,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: teamNEW
     agent_options:
       config:
@@ -3371,7 +3290,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: teamNEW
     agent_options:
       config:
@@ -3387,7 +3306,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: teamNEW
     agent_options:
       command_line_flags:
@@ -3401,7 +3320,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: teamNEW
     agent_options:
       command_line_flags:
@@ -3415,7 +3334,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: teamNEW
     agent_options:
       config:
@@ -3577,7 +3496,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: teamNEW
 ---
 apiVersion: v1
@@ -3602,7 +3521,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: teamNEW
 ---
 apiVersion: v1
@@ -3628,7 +3547,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_updates:
@@ -3642,7 +3561,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_updates:
@@ -3656,7 +3575,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_updates:
@@ -3671,7 +3590,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_updates:
@@ -3686,7 +3605,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_updates:
@@ -3701,7 +3620,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_updates:
@@ -3716,7 +3635,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       windows_updates:
@@ -3730,7 +3649,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       windows_updates:
@@ -3744,7 +3663,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       windows_updates:
@@ -3759,7 +3678,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       windows_updates:
@@ -3774,7 +3693,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       windows_updates:
@@ -3789,7 +3708,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       windows_updates:
@@ -3804,7 +3723,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       windows_updates:
@@ -3819,7 +3738,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       windows_updates:
@@ -4095,6 +4014,34 @@ spec:
 			wantErr: `400 Bad request: failed to decode app config`,
 		},
 		{
+			desc: "app config with a removed key",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    enable_recovery_lock_password: true
+`,
+			wantErr: `422 Validation Failed: The "enable_recovery_lock_password" parameter is not available anymore. ` +
+				`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+		},
+		{
+			desc: "fleet with a removed key cannot be forced",
+			spec: `
+apiVersion: v1
+kind: fleet
+spec:
+  fleet:
+    name: team1
+    mdm:
+      setup_experience:
+        require_all_software_windows: true
+`,
+			flags: []string{"--force"},
+			wantErr: `422 Validation Failed: The "require_all_software_windows" parameter is not available anymore. ` +
+				`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+		},
+		{
 			desc: "app config windows_updates.grace_period_days not a number",
 			spec: `
 apiVersion: v1
@@ -4191,7 +4138,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       apple_settings:
@@ -4205,7 +4152,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       apple_settings:
@@ -4219,7 +4166,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       apple_settings:
@@ -4235,7 +4182,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       apple_settings:
@@ -4252,7 +4199,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       apple_settings:
@@ -4270,7 +4217,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       apple_settings:
@@ -4284,7 +4231,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       apple_settings:
@@ -4298,7 +4245,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       setup_experience:
@@ -4566,7 +4513,7 @@ func TestApplyWindowsUpdates(t *testing.T) {
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: Team1
     mdm:
       windows_updates:
@@ -4595,7 +4542,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: Team1
     mdm:
       windows_updates:
@@ -4623,7 +4570,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: Team1
     mdm: {}
 `)

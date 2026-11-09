@@ -92,13 +92,13 @@ func TestMDMShared(t *testing.T) {
 func testMDMCommands(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	// no commands or devices enrolled => no results
-	cmds, _, _, err := ds.ListMDMCommands(ctx, fleet.TeamFilter{}, &fleet.MDMCommandListOptions{
+	// no devices enrolled => the host is not found
+	_, _, _, err := ds.ListMDMCommands(ctx, fleet.TeamFilter{}, &fleet.MDMCommandListOptions{
 		PerPage: 100,
 		Filters: fleet.MDMCommandFilters{HostIdentifier: "test-host"},
 	})
-	require.NoError(t, err)
-	require.Empty(t, cmds)
+	require.True(t, fleet.IsNotFound(err), err)
+	var cmds []*fleet.MDMCommand
 
 	// enroll a windows device
 	windowsH, err := ds.NewHost(ctx, &fleet.Host{
@@ -281,7 +281,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// non-existent host identifier
-	cmds, _, _, err = ds.ListMDMCommands(
+	_, _, _, err = ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
@@ -291,8 +291,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 			},
 		},
 	)
-	require.NoError(t, err)
-	require.Len(t, cmds, 0)
+	require.True(t, fleet.IsNotFound(err), err)
 
 	// non-existent request type
 	cmds, _, _, err = ds.ListMDMCommands(
@@ -807,7 +806,12 @@ func testListMDMCommandsWithTeamFilter(t *testing.T, ds *Datastore) {
 	cmds = listForHost(fleet.TeamFilter{User: teamUser}, teamHost)
 	require.Len(t, cmds, 1)
 	require.Equal(t, teamCmdUUID, cmds[0].CommandUUID)
-	require.Empty(t, listForHost(fleet.TeamFilter{User: teamUser}, globalHost))
+	// a host in another team is not found, like one that doesn't exist
+	_, _, _, err = ds.ListMDMCommands(ctx, fleet.TeamFilter{User: teamUser}, &fleet.MDMCommandListOptions{
+		PerPage: 100,
+		Filters: fleet.MDMCommandFilters{HostIdentifier: globalHost.UUID},
+	})
+	require.True(t, fleet.IsNotFound(err), err)
 
 	// Test with admin user (should see all commands)
 	adminUser := test.UserAdmin

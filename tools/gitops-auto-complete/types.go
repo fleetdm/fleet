@@ -30,7 +30,7 @@ type ControlsWithTypes struct {
 	AndroidEnabledAndConfigured bool `json:"android_enabled_and_configured"`
 	WindowsEnabledAndConfigured bool `json:"windows_enabled_and_configured"`
 	EnableDiskEncryption        bool `json:"enable_disk_encryption"`
-	EnableRecoveryLockPassword  bool `json:"enable_recovery_lock_password"`
+	EnableRecoveryLockPassword  bool `json:"macos_recovery_lock_password_enabled"`
 	WindowsRequireBitLockerPIN  bool `json:"windows_require_bitlocker_pin"`
 
 	NameTemplate string `json:"name_template"`
@@ -51,6 +51,7 @@ type ControlsWithTypes struct {
 
 	AppleRequireHardwareAttestation  bool `json:"apple_require_hardware_attestation"`
 	OnlyAllowAppleBusinessEnrollment bool `json:"only_allow_apple_business_enrollment"`
+	EnableProfileValidation          bool `json:"enable_profile_validation"`
 
 	// Remaining keys accept any value for now.
 	MacOSMigration                 any `json:"macos_migration"`

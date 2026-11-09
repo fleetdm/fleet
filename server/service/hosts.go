@@ -914,8 +914,8 @@ func (svc *Service) SearchHosts(ctx context.Context, matchQuery string, queryID 
 /////////////////////////////////////////////////////////////////////////////////
 
 type getHostRequest struct {
-	ID              uint `url:"id"`
-	ExcludeSoftware bool `query:"exclude_software,optional"`
+	Identifier      string `url:"id"`
+	ExcludeSoftware bool   `query:"exclude_software,optional"`
 }
 
 type getHostResponse struct {
@@ -932,7 +932,7 @@ func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 		IncludePolicies:  true, // intentionally true to preserve existing behavior,
 		ExcludeSoftware:  req.ExcludeSoftware,
 	}
-	host, err := svc.GetHost(ctx, req.ID, opts)
+	host, err := svc.GetHostByIDOrIdentifier(ctx, req.Identifier, opts)
 	if err != nil {
 		return getHostResponse{Err: err}, nil
 	}
@@ -1107,14 +1107,6 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *
 		return nil, err
 	}
 
-	linuxCount := uint(0)
-	for _, p := range hostSummary.Platforms {
-		if fleet.IsLinux(p.Platform) {
-			linuxCount += p.HostsCount
-		}
-	}
-	hostSummary.AllLinuxCount = linuxCount
-
 	labelsSummary, err := svc.ds.LabelsSummary(ctx, fleet.TeamFilter{})
 	if err != nil {
 		return nil, err
@@ -1200,7 +1192,7 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opt
 		if selectiveErr := svc.authz.Authorize(ctx, host, fleet.ActionSelectiveRead); selectiveErr != nil {
 			return nil, selectiveErr
 		}
-		return &fleet.HostDetail{Host: fleet.Host{ID: host.ID}, IDOnly: true}, nil
+		return &fleet.HostDetail{ID: host.ID, IDOnly: true}, nil
 	}
 
 	hostDetails, err := svc.getHostDetails(ctx, host, opts)
@@ -1209,6 +1201,33 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opt
 	}
 
 	return hostDetails, nil
+}
+
+// GetHostByIDOrIdentifier returns the host matching a value that is either a host id or another host identifier. The id takes
+// priority, then the order documented on Datastore.HostByIdentifier. A host matched by id that the caller can't read is a denial.
+func (svc *Service) GetHostByIDOrIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
+	// Authorize before the lookup so a caller who can't list hosts can't probe which identifiers exist. GetHost checks team access.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	var host *fleet.HostLite
+	if id, parseErr := strconv.ParseUint(identifier, 10, 0); parseErr == nil {
+		var err error
+		host, err = svc.ds.HostLiteByID(ctx, uint(id))
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "get host by id")
+		}
+	}
+	if host == nil {
+		var err error
+		host, err = svc.ds.HostLiteByIdentifier(ctx, identifier)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host by identifier")
+		}
+	}
+
+	return svc.GetHost(ctx, host.ID, opts)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -3676,6 +3695,9 @@ func (r hostsReportResponse) Error() error { return r.Err }
 func (r hostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	// post-process the Device Mappings for CSV rendering
 	for _, h := range r.Hosts {
+		// Add the aliased fields for team_id and team_name.
+		h.FleetID = h.TeamID
+		h.FleetName = h.TeamName
 		if h.DeviceMapping != nil {
 			// return the list of emails, comma-separated, as part of that single CSV field
 			var dms []struct {
@@ -3695,9 +3717,6 @@ func (r hostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWr
 				sb.WriteString(dm.Email)
 			}
 			h.CSVDeviceMapping = sb.String()
-			// Add the aliased fields for team_id and team_name.
-			h.FleetID = h.TeamID
-			h.FleetName = h.TeamName
 		}
 	}
 

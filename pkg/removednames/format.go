@@ -35,6 +35,7 @@ func (KeyFormat) Message(e Entry) string {
 //
 //	The "--team" flag is not available anymore. What to use instead: <guide>
 //	The "fleetctl get teams" command is not available anymore. What to use instead: <guide>
+//	The "FLEET_JIT_USER_ROLE_TEAM_<ID>" SAML attribute is not available anymore. What to use instead: <guide>
 type NounFormat struct {
 	Noun string
 }
@@ -96,6 +97,8 @@ func defaultFormat(kind Kind) Format {
 		return NounFormat{Noun: "environment variable"}
 	case KindFlagValue:
 		return NounFormat{Noun: "value"}
+	case KindSAMLAttribute:
+		return NounFormat{Noun: "SAML attribute"}
 	default:
 		return ReplacedFormat{}
 	}

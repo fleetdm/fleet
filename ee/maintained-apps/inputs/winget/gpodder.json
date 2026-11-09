@@ -3,6 +3,7 @@
   "slug": "gpodder/windows",
   "package_identifier": "gPodder.gPodder",
   "unique_identifier": "gPodder",
+  "fuzzy_match_name": true,
   "installer_arch": "x86",
   "installer_type": "exe",
   "installer_scope": "machine",

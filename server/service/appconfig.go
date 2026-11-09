@@ -651,6 +651,15 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, err, "modify AppConfig")
 	}
 
+	// The request decoder's rewriter didn't see the raw body, so removed keys are rejected here, before strict decoding
+	// would report them as unknown fields.
+	if err := endpointer.CheckRemovedKeys(p, endpointer.ExtractRemovedKeyRules(fleet.AppConfig{})); err != nil {
+		if _, ok := errors.AsType[*endpointer.RemovedKeyError](err); !ok {
+			err = &fleet.BadRequestError{Message: "failed to decode app config", InternalErr: err}
+		}
+		return nil, ctxerr.Wrap(ctx, err, "modify AppConfig")
+	}
+
 	// Rewrite deprecated JSON field names (e.g. team_id → fleet_id) before
 	// unmarshaling into AppConfig, since the request body was captured as
 	// json.RawMessage and wasn't processed by the request decoder's rewriter.
