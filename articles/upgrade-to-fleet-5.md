@@ -1232,11 +1232,11 @@ GitHub issue: [#56803](https://github.com/fleetdm/fleet/issues/56803)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| fleetd earlier than 1.56.0 reads `org_logo_url` and `org_logo_url_light_background` to show your organization's logo in the macOS MDM migration window | Fleet no longer returns those keys. fleetd 1.56.0 and later read `org_logo_url_dark_mode` and `org_logo_url_light_mode`. Earlier versions show the default Fleet logo. |
+| fleetd earlier than 1.56.2 reads `org_logo_url` and `org_logo_url_light_background` to show your organization's logo in the macOS MDM migration window | Fleet no longer returns those keys. fleetd 1.56.2 and later read `org_logo_url_dark_mode` and `org_logo_url_light_mode`. Earlier versions show the default Fleet logo. |
 
 #### What to do
 
-Update fleetd to 1.56.0 or later before you upgrade to Fleet 5.
+Update fleetd to 1.56.2 or later before you upgrade to Fleet 5.
 
 GitHub issue: [#52800](https://github.com/fleetdm/fleet/issues/52800)
 
