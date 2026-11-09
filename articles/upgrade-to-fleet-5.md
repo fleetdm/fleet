@@ -6,7 +6,7 @@ Fleet 5 removes deprecated features such as API endpoints and parameters, YAML (
 
 Fleet will support Fleet 4.96 with security fixes through June 30, 2027.
 
-How to upgrade?
+#### How to upgrade
 
 1. [Upgrade](https://fleetdm.com/docs/deploy/upgrading-fleet#upgrading-fleet) to Fleet 4.96.
 2. Work through the list of [breaking changes](#breaking-changes).
