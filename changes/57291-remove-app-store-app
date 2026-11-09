@@ -1,1 +1,2 @@
-- BREAKING: Removed `app_store_app` from `GET /api/v1/fleet/software/titles` and `GET /api/v1/fleet/software/titles/:id`, and from the `software_title` object returned by `GET /api/v1/fleet/hosts?software_title_id=`. Use `app_store_apps` instead, which lists every App Store app version and includes each version's `vpp_token`.
+- **Breaking change:** Added `app_store_apps` and removed `app_store_app` in `GET /api/v1/fleet/software/titles`. Removed `app_store_app` from `GET /api/v1/fleet/software/titles/:id` and `GET /api/v1/fleet/hosts?software_title_id=`.
+- Added `vpp_token` to `app_store_apps` in `GET /api/v1/fleet/software/titles/:id`.
