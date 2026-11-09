@@ -575,13 +575,13 @@ GitHub issue: [#57406](https://github.com/fleetdm/fleet/issues/57406)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| Certificate authorities (CAs) of different types can share a name | Every CA needs a unique name in [Connect certificate authority](https://fleetdm.com/docs/rest-api/rest-api#connect-certificate-authority-ca) and [Update certificate authority](https://fleetdm.com/docs/rest-api/rest-api#update-certificate-authority-ca) |
+| Certificate authorities (CAs) of different types can share a name | Every CA needs a unique name, ignoring case, in [Connect certificate authority](https://fleetdm.com/docs/rest-api/rest-api#connect-certificate-authority-ca) and [Update certificate authority](https://fleetdm.com/docs/rest-api/rest-api#update-certificate-authority-ca) |
 
 #### What to do
 
 Change these before you upgrade.
 
-1. Call [List certificate authorities](https://fleetdm.com/docs/rest-api/rest-api#list-certificate-authorities-cas), find CAs that share a `name`, and rename them.
+1. Call [List certificate authorities](https://fleetdm.com/docs/rest-api/rest-api#list-certificate-authorities-cas), find CAs that share a `name` (ignoring case), and rename them.
 2. Update the configuration profiles that reference them.
 
 GitHub issue: [#56271](https://github.com/fleetdm/fleet/issues/56271)
@@ -918,13 +918,13 @@ GitHub issue: [#53378](https://github.com/fleetdm/fleet/issues/53378)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| Certificate authorities (CAs) of different types can share a name | Every CA needs a unique name ([docs](https://fleetdm.com/docs/configuration/yaml-files#certificate-authorities)) |
+| Certificate authorities (CAs) of different types can share a name | Every CA needs a unique name, ignoring case ([docs](https://fleetdm.com/docs/configuration/yaml-files#certificate-authorities)) |
 
 #### What to do
 
 Change these before you upgrade.
 
-1. Rename CAs that share a name.
+1. Rename CAs that share a name (ignoring case).
 2. Update the configuration profiles that reference them.
 
 GitHub issue: [#56271](https://github.com/fleetdm/fleet/issues/56271)
