@@ -3,8 +3,8 @@
     {
       "version": "8.15.2.0",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name LIKE 'NordVPN %' AND publisher = 'Nord Security';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'NordVPN %' AND publisher = 'Nord Security' AND version_compare(version, '8.15.2.0') < 0);",
+        "exists": "SELECT 1 FROM programs WHERE name = 'NordVPN' AND publisher = 'Nord Security';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'NordVPN' AND publisher = 'Nord Security' AND version_compare(version, '8.15.2.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'nordvpn.exe');"
       },
       "installer_url": "https://downloads.nordcdn.com/apps/windows/NordVPN/8.15.2.0/NordVPNInstall.exe",
