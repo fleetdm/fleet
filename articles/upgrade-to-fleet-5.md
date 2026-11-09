@@ -12,6 +12,13 @@ How to upgrade?
 2. Work through the list of [breaking changes](#breaking-changes).
 3. Upgrade to Fleet 5. If you're using the [fleetctl CLI](https://fleetdm.com/guides/fleetctl) or [GitOps](https://fleetdm.com/docs/configuration/yaml-files) (fleetctl runs in CI/CD) remember to upgrade fleetctl to 5.
 
+Why are we doing this?
+
+We strive to follow [semantic versioning](https://semver.org/) and only make breaking changes in major releases. Though we sometimes have breaking changes in minor releases, we try to keep those to a minimum.
+
+The first release of Fleet 4 was over 5 years ago, on June 29, 2021! Since then, we've learned a lot. Many of the breaking changes in Fleet 5 relate to things we've previously deprecated or renamed, and are now removing to reduce tech debt that will make it easier to maintain Fleet going forward, make the API and GitOps (YAML) more consistent, and fulfill user requests faster.
+
+
 ## Breaking changes
 
 Breaking changes are grouped by where you use Fleet. Read the sections that apply to you:
