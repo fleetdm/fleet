@@ -319,13 +319,26 @@ func gitopsCommand() *cli.Command {
 				}
 				// When labels are excepted and the key is omitted, preserve
 				// existing labels (no-op). Otherwise delete/update as normal.
-				labelChanges[teamName] = computeLabelChanges(
+				labelChanges[teamName], err = computeLabelChanges(
 					flFilename,
 					teamName,
 					existingLabels,
 					config.Labels,
 					appConfig.GitOpsConfig.Exceptions.Labels,
+					func(name string) (string, bool, error) {
+						label, err := fleetClient.GetLabel(name)
+						if service.IsNotFoundErr(err) {
+							return "", false, nil
+						}
+						if err != nil {
+							return "", false, err
+						}
+						return label.Name, true, nil
+					},
 				)
+				if err != nil {
+					return fmt.Errorf("computing label changes for %s: %w", flFilename, err)
+				}
 			}
 
 			// fail if scripts are supplied on no-team and global config is missing
@@ -969,7 +982,8 @@ func computeLabelChanges(
 	existingLabels []*fleet.LabelSpec,
 	specifiedLabels []*fleet.LabelSpec,
 	labelsExcepted bool,
-) []spec.LabelChange {
+	lookupLabel func(name string) (storedName string, found bool, err error),
+) ([]spec.LabelChange, error) {
 	var regularLabels []*fleet.LabelSpec
 	var labelOperations []spec.LabelChange
 
@@ -990,7 +1004,7 @@ func computeLabelChanges(
 			change := spec.LabelChange{Name: l.Name, Op: op, TeamName: teamName, FileName: filename}
 			labelOperations = append(labelOperations, change)
 		}
-		return labelOperations
+		return labelOperations, nil
 	}
 
 	specifiedMap := make(map[string]struct{}, len(specifiedLabels))
@@ -1003,7 +1017,10 @@ func computeLabelChanges(
 	for _, l := range regularLabels {
 		existingNames = append(existingNames, l.Name)
 	}
-	matched := spec.MatchExistingNames(existingNames, specifiedNames)
+	matched, err := spec.MatchExistingNames(existingNames, specifiedNames, lookupLabel)
+	if err != nil {
+		return nil, err
+	}
 
 	// Determine which existing labels to remove.
 	for _, l := range regularLabels {
@@ -1022,7 +1039,7 @@ func computeLabelChanges(
 		labelOperations = append(labelOperations, change)
 	}
 
-	return labelOperations
+	return labelOperations, nil
 }
 
 // Given a set of referenced labels and info about who is using them, update a provided usage map.

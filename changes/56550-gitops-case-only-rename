@@ -1,1 +1,1 @@
-- Fixed `fleetctl gitops` deleting a label or report when its name changed only by letter case (for example `Beta` to `BETA`). The label or report now keeps its ID and takes the new name, and renaming a label records an `edited_label` activity.
+- Fixed `fleetctl gitops` deleting a label or report when its name changed only by letter case, accents or trailing spaces (for example `Beta` to `BETA`, or `Café` to `Cafe`). The label or report now keeps its ID and takes the new name, and renaming a label records an `edited_label` activity.

@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -168,6 +169,7 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 	}
 
 	type existingLabel struct {
+		SpecName  string          `db:"spec_name"`
 		ID        uint            `db:"id"`
 		Name      string          `db:"name"`
 		Platform  string          `db:"platform"`
@@ -187,32 +189,41 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 		// is not changed?
 
 		if len(labelNames) > 0 {
-			stmt := `SELECT id, name, platform, team_id, label_type FROM labels WHERE name IN (?)`
-			stmt, args, err := sqlx.In(stmt, labelNames)
+			labelNamesJSON, err := json.Marshal(labelNames)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "build existing labels query")
+				return ctxerr.Wrap(ctx, err, "marshal label names")
 			}
 
+			// Pair each spec name with its row in SQL, so the collation of labels.name decides which names are equal,
+			// as it does for the unique index the upsert below keys on. A name too long for the column is read as NULL
+			// and matches no row.
+			const stmt = `
+SELECT jt.spec_name, l.id, l.name, l.platform, l.team_id, l.label_type
+FROM JSON_TABLE(?, '$[*]' COLUMNS (
+	spec_name VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci PATH '$'
+)) jt
+JOIN labels l ON l.name = jt.spec_name`
 			var labels []existingLabel
-			if err := sqlx.SelectContext(ctx, tx, &labels, stmt, args...); err != nil {
+			if err := sqlx.SelectContext(ctx, tx, &labels, stmt, labelNamesJSON); err != nil {
 				return ctxerr.Wrap(ctx, err, "query existing labels")
 			}
 
 			for _, label := range labels {
-				existingLabels[strings.ToLower(label.Name)] = label
+				existingLabels[label.SpecName] = label
 			}
 
 			for _, spec := range specs {
 				if spec.LabelType == fleet.LabelTypeBuiltIn {
 					return ctxerr.Errorf(ctx, "cannot modify or add built-in label '%s'", spec.Name)
 				}
-				existingLabel, ok := existingLabels[strings.ToLower(spec.Name)]
+				existingLabel, ok := existingLabels[spec.Name]
 				if !ok {
 					continue
 				}
-				// The lookup above and the unique index the upsert keys on both inherit
-				// the case-insensitive collation of labels.name, so even a spec merely
-				// named as a case variant of a built-in resolves to that built-in row.
+				// The lookup above and the unique index the upsert keys on both compare
+				// names under the collation of labels.name, so even a spec whose name is
+				// merely equal to a built-in's under it (a case variant, say) resolves to
+				// that built-in row.
 				if existingLabel.LabelType == fleet.LabelTypeBuiltIn {
 					return ctxerr.Errorf(ctx, "cannot modify built-in label '%s'", existingLabel.Name)
 				}
@@ -266,7 +277,7 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 			}
 
 			// Check if this is an existing label and platform changed -> clean up memberships if needed
-			if existing, ok := existingLabels[strings.ToLower(s.Name)]; ok && existing.Platform != s.Platform {
+			if existing, ok := existingLabels[s.Name]; ok && existing.Platform != s.Platform {
 				// When a label's platform changes, we delete all existing memberships.
 				// This ensures a clean slate - the label's query will be re-evaluated
 				// by Fleet's label execution system, and only hosts matching the new
@@ -292,7 +303,7 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 
 			// For manual labels, we need the label ID to update membership
 			var labelID uint
-			if existing, ok := existingLabels[strings.ToLower(s.Name)]; ok {
+			if existing, ok := existingLabels[s.Name]; ok {
 				// Use the existing label ID
 				labelID = existing.ID
 			} else {

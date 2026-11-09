@@ -18,7 +18,7 @@ func (c *Client) ApplyQueries(specs []*fleet.QuerySpec) error {
 
 // GetQuerySpec returns the query spec of a query by its team+name.
 func (c *Client) GetQuerySpec(teamID *uint, name string) (*fleet.QuerySpec, error) {
-	verb, path := "GET", "/api/latest/fleet/spec/reports/"+url.PathEscape(name)
+	verb, path := "GET", "/api/latest/fleet/spec/reports/"+escapeNamePathSegment(name)
 	query := url.Values{}
 	if teamID != nil {
 		query.Set("fleet_id", fmt.Sprint(*teamID))
