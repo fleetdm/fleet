@@ -4347,6 +4347,34 @@ func testApplyLabelSpecsCollationEqualRename(t *testing.T, ds *Datastore) {
 		}
 	})
 
+	t.Run("global label used by a fleet profile", func(t *testing.T) {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "collation-profile-team"})
+		require.NoError(t, err)
+
+		for _, tc := range renames {
+			t.Run(tc.name, func(t *testing.T) {
+				from, to := "Prof "+tc.from, "Prof "+tc.to
+				require.NoError(t, ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{{Name: from, Query: "select 1"}}))
+				before, err := ds.LabelByName(ctx, from, teamFilter)
+				require.NoError(t, err)
+
+				cp := generateAppleCP("prof-"+tc.name, "prof-"+tc.name, team.ID)
+				cp.LabelsIncludeAll = []fleet.ConfigurationProfileLabel{{LabelName: before.Name, LabelID: before.ID}}
+				prof, err := ds.NewMDMAppleConfigProfile(ctx, *cp, nil)
+				require.NoError(t, err)
+
+				require.NoError(t, ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{{Name: to, Query: "select 1"}}))
+
+				after, err := ds.GetMDMAppleConfigProfile(ctx, prof.ProfileUUID)
+				require.NoError(t, err)
+				require.Len(t, after.LabelsIncludeAll, 1)
+				require.Equal(t, to, after.LabelsIncludeAll[0].LabelName)
+				require.Equal(t, before.ID, after.LabelsIncludeAll[0].LabelID)
+				require.False(t, after.LabelsIncludeAll[0].Broken)
+			})
+		}
+	})
+
 	t.Run("rename onto another team", func(t *testing.T) {
 		teamA, err := ds.NewTeam(ctx, &fleet.Team{Name: "collation-team-a"})
 		require.NoError(t, err)
