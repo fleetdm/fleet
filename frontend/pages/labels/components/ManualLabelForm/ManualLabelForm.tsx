@@ -4,6 +4,7 @@ import { Row } from "react-table";
 import { useDebouncedCallback } from "use-debounce";
 
 import CustomLink from "components/CustomLink";
+import CustomLinkSizeContext from "components/CustomLink/CustomLinkSizeContext";
 import TargetsInput from "components/TargetsInput";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { IHost } from "interfaces/host";
@@ -157,13 +158,15 @@ const ManualLabelForm = ({
             />
             {labelsGitOpsManaged && (
               <span className="form-field__help-text">
-                Omitting <b>hosts</b> in YAML preserves these hosts. Setting{" "}
-                <b>hosts</b> in YAML replaces them on the next GitOps run.{" "}
-                <CustomLink
-                  newTab
-                  text="Learn more"
-                  url={LABEL_YAML_DOCS_URL}
-                />
+                <CustomLinkSizeContext.Provider value="small">
+                  Omitting <b>hosts</b> in YAML preserves these hosts. Setting{" "}
+                  <b>hosts</b> in YAML replaces them on the next GitOps run.{" "}
+                  <CustomLink
+                    newTab
+                    text="Learn more"
+                    url={LABEL_YAML_DOCS_URL}
+                  />
+                </CustomLinkSizeContext.Provider>
               </span>
             )}
           </>

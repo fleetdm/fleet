@@ -58,31 +58,27 @@ func (h *fastPathHandler) Router() *mux.Router { return h.router }
 //
 //   - "/hosts/identifier/{identifier}" against "/hosts/{id:[0-9]+}/<subresource>", including the subresource the activity
 //     bounded context registers rather than the core handler
-//   - "/scripts/batch/summary/{id}" against "/scripts/batch/{id}/host_results"
 //
 // Both halves are listed. Excluding only the half the stdlib mux rejected would leave the other half free to claim requests
 // that belong to the one that left. TestFastPathExclusionsCoverEveryAmbiguousRoute keeps the list in sync with the route table.
 var fastPathExcluded = map[string]struct{}{
-	"GET /api/_version_/fleet/hosts/identifier/{identifier}":                   {},
-	"GET /api/_version_/fleet/hosts/{id}/activities":                           {},
-	"GET /api/_version_/fleet/hosts/{id}/certificates":                         {},
-	"GET /api/_version_/fleet/hosts/{id}/configuration_profiles":               {},
-	"GET /api/_version_/fleet/hosts/{id}/dep_assignment":                       {},
-	"GET /api/_version_/fleet/hosts/{id}/device_mapping":                       {},
-	"GET /api/_version_/fleet/hosts/{id}/device_url":                           {},
-	"GET /api/_version_/fleet/hosts/{id}/encryption_key":                       {},
-	"GET /api/_version_/fleet/hosts/{id}/health":                               {},
-	"GET /api/_version_/fleet/hosts/{id}/macadmins":                            {},
-	"GET /api/_version_/fleet/hosts/{id}/managed_account_password":             {},
-	"GET /api/_version_/fleet/hosts/{id}/mdm":                                  {},
-	"GET /api/_version_/fleet/hosts/{id}/queries":                              {},
-	"GET /api/_version_/fleet/hosts/{id}/recovery_lock_password":               {},
-	"GET /api/_version_/fleet/hosts/{id}/reports":                              {},
-	"GET /api/_version_/fleet/hosts/{id}/scripts":                              {},
-	"GET /api/_version_/fleet/hosts/{id}/software":                             {},
-	"GET /api/_version_/fleet/scripts/batch/summary/{batch_execution_id}":      {},
-	"GET /api/_version_/fleet/scripts/batch/{batch_execution_id}/host_results": {},
-	"GET /api/_version_/fleet/scripts/batch/{batch_execution_id}/host-results": {},
+	"GET /api/_version_/fleet/hosts/identifier/{identifier}":       {},
+	"GET /api/_version_/fleet/hosts/{id}/activities":               {},
+	"GET /api/_version_/fleet/hosts/{id}/certificates":             {},
+	"GET /api/_version_/fleet/hosts/{id}/configuration_profiles":   {},
+	"GET /api/_version_/fleet/hosts/{id}/dep_assignment":           {},
+	"GET /api/_version_/fleet/hosts/{id}/device_mapping":           {},
+	"GET /api/_version_/fleet/hosts/{id}/device_url":               {},
+	"GET /api/_version_/fleet/hosts/{id}/encryption_key":           {},
+	"GET /api/_version_/fleet/hosts/{id}/health":                   {},
+	"GET /api/_version_/fleet/hosts/{id}/macadmins":                {},
+	"GET /api/_version_/fleet/hosts/{id}/managed_account_password": {},
+	"GET /api/_version_/fleet/hosts/{id}/mdm":                      {},
+	"GET /api/_version_/fleet/hosts/{id}/queries":                  {},
+	"GET /api/_version_/fleet/hosts/{id}/recovery_lock_password":   {},
+	"GET /api/_version_/fleet/hosts/{id}/reports":                  {},
+	"GET /api/_version_/fleet/hosts/{id}/scripts":                  {},
+	"GET /api/_version_/fleet/hosts/{id}/software":                 {},
 }
 
 var (
@@ -140,7 +136,7 @@ func buildFastPathMux(r *mux.Router, middlewares []mux.MiddlewareFunc, cfg confi
 			varNames = append(varNames, m[1])
 		}
 
-		for _, method := range methods {
+		for _, method := range fastPathMethods(methods) {
 			if _, excluded := fastPathExcluded[unversionedKey(method, tpl)]; excluded {
 				continue
 			}
@@ -327,6 +323,16 @@ func versionSegment(tpl, pattern string) string {
 		return segments[2]
 	}
 	return ""
+}
+
+// fastPathMethods are the methods of a route that get a stdlib pattern. A stdlib GET pattern also matches HEAD, and newFastPathRoute
+// hands a HEAD request back to gorilla, so a route with both doesn't register HEAD: that pattern would be ambiguous next to the GET
+// pattern of a more specific path, such as a removed /x/summary next to a removed /x/{id}, both registered for every method.
+func fastPathMethods(methods []string) []string {
+	if !slices.Contains(methods, http.MethodGet) {
+		return methods
+	}
+	return slices.DeleteFunc(slices.Clone(methods), func(method string) bool { return method == http.MethodHead })
 }
 
 // unversionedKey renders a route in the method and path form used by fastPathExcluded.

@@ -83,6 +83,11 @@ function Resolve-Uninstaller {
         $arguments = $matches[2].Trim()
     }
 
+    # A user's entry could point at a share that collects the computer account's
+    # credentials, so only a drive-letter path is touched as SYSTEM. PowerShell
+    # also reaches a share without a leading \\, as FileSystem::\\host\share.
+    if ($exePath -and $exePath -notmatch '^[A-Za-z]:[\\/]') { return $null }
+
     # A 32-bit installer run as SYSTEM is redirected into SysWOW64, but records the
     # unredirected system32 path that 64-bit PowerShell cannot resolve.
     if ($exePath -and -not (Test-Path -LiteralPath $exePath)) {
@@ -141,10 +146,15 @@ function Invoke-AsUser {
 }
 
 # A user can write to their own profile, including swapping a folder for a link
-# elsewhere, so their folder is removed as them rather than as SYSTEM.
+# elsewhere, so their folder is removed as them rather than as SYSTEM. cmd
+# expands %VAR% even inside quotes, so a path containing % is never passed to it.
 function Remove-AppDir {
     param([string]$Path, [string]$Sid)
 
+    if ($Sid -and $Path.Contains('%')) {
+        Write-Host "  Could not remove $Path."
+        return $false
+    }
     if ($Sid) {
         try {
             $null = Invoke-AsUser -Sid $Sid -ExePath "$env:SystemRoot\System32\cmd.exe" -Arguments "/d /c rd /s /q `"$Path`""
@@ -164,15 +174,17 @@ function Remove-AppDir {
 # Shortcuts the uninstaller didn't get to. Match on where they point rather than on
 # a filename, which also catches the vendor subfolders some installers create. Read
 # as SYSTEM, a user's shortcut resolves its target through SYSTEM's profile, so the
-# working directory is checked too, and only the owning profile is searched.
+# working directory is checked too, and only the owning profile is searched. A
+# user's shortcuts are deleted as that user, like their folder.
 function Remove-Shortcuts {
-    param([string]$Dir, [string]$ProfilePath)
+    param([string]$Dir, [string]$ProfilePath, [string]$Sid)
 
     if ($ProfilePath) {
         $roots = @((Join-Path $ProfilePath 'AppData\Roaming\Microsoft\Windows\Start Menu\Programs'), (Join-Path $ProfilePath 'Desktop'))
     } else {
         $roots = @('Programs', 'Desktop', 'CommonPrograms', 'CommonDesktopDirectory') | ForEach-Object { [Environment]::GetFolderPath($_) }
     }
+    $found = @()
     $shell = New-Object -ComObject WScript.Shell
     foreach ($root in $roots) {
         if (-not $root -or -not (Test-Path -LiteralPath $root)) { continue }
@@ -180,12 +192,26 @@ function Remove-Shortcuts {
             try { $link = $shell.CreateShortcut($lnk.FullName) } catch { continue }
             foreach ($path in @($link.TargetPath, $link.WorkingDirectory)) {
                 if ($path -and ($path -eq $Dir -or $path.StartsWith("$Dir\", [System.StringComparison]::OrdinalIgnoreCase))) {
-                    Remove-Item -LiteralPath $lnk.FullName -Force -ErrorAction SilentlyContinue
+                    $found += $lnk.FullName
                     break
                 }
             }
         }
     }
+    if (-not $found) { return }
+    if ($Sid) {
+        $quoted = ($found | Where-Object { -not $_.Contains('%') } | ForEach-Object { "`"$_`"" }) -join ' '
+        if ($quoted) {
+            try {
+                $null = Invoke-AsUser -Sid $Sid -ExePath "$env:SystemRoot\System32\cmd.exe" -Arguments "/d /c del /f /q $quoted"
+            } catch {
+                Write-Host "  $_"
+            }
+        }
+    } else {
+        $found | ForEach-Object { Remove-Item -LiteralPath $_ -Force -ErrorAction SilentlyContinue }
+    }
+    $found | Where-Object { Test-Path -LiteralPath $_ } | ForEach-Object { Write-Host "  Could not remove shortcut $_." }
 }
 
 try {
@@ -194,12 +220,23 @@ try {
     foreach ($entry in $entries) {
         Write-Host "Removing '$($entry.DisplayName)' ($($entry.KeyPath))"
         $uninstaller = Resolve-Uninstaller $entry.Command
+        if (-not $uninstaller) {
+            Write-Host "  Skipping this copy: its uninstaller isn't on a local drive."
+            if ($exitCode -eq 0) { $exitCode = 1 }
+            continue
+        }
         $hasUninstaller = $uninstaller.ExePath -and (Test-Path -LiteralPath $uninstaller.ExePath)
 
         # A user's uninstall string comes from a hive that user can write to, so only
         # touch the app's folder in that user's own profile.
         $installDir = ""
         if ($uninstaller.ExePath) { try { $installDir = [System.IO.Path]::GetFullPath((Split-Path $uninstaller.ExePath -Parent)) } catch {} }
+        # Resolve-Uninstaller redirects only an uninstaller it can find, so without one
+        # a 32-bit installer's SYSTEM-profile copy still points into system32.
+        if (-not $entry.Sid -and $installDir -and -not (Test-Path -LiteralPath $installDir)) {
+            $redirected = $installDir -replace '(?i)\\system32\\', '\SysWOW64\'
+            if (Test-Path -LiteralPath $redirected) { $installDir = $redirected }
+        }
         $isAppDir = $installDir -and (Split-Path $installDir -Leaf) -eq (Split-Path $appDir -Leaf)
         $profilePath = $null
         if ($entry.Sid) {
@@ -226,7 +263,7 @@ try {
                 if ($exitCode -eq 0) { $exitCode = 1 }
                 continue
             }
-            if ($isAppDir) { Remove-Shortcuts $installDir $profilePath }
+            if ($isAppDir) { Remove-Shortcuts $installDir $profilePath $entry.Sid }
             Remove-Item -Path $entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
             continue
         }
@@ -238,8 +275,15 @@ try {
             } else {
                 Write-Host "  Uninstall command: $($uninstaller.ExePath) $($uninstaller.Arguments)"
                 $process = Start-Process -FilePath $uninstaller.ExePath -ArgumentList $uninstaller.Arguments `
-                    -NoNewWindow -PassThru -Wait -ErrorAction Stop
-                $result = $process.ExitCode
+                    -NoNewWindow -PassThru -ErrorAction Stop
+                $null = $process.Handle  # keeps ExitCode readable after the process exits
+                if ($process.WaitForExit($timeoutSeconds * 1000)) {
+                    $result = $process.ExitCode
+                } else {
+                    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+                    Write-Host "  Timed out waiting for the uninstaller to finish."
+                    $result = 1460  # ERROR_TIMEOUT
+                }
             }
         } catch {
             Write-Host "  Could not run the uninstaller: $_"
@@ -282,7 +326,7 @@ try {
                 continue
             }
         }
-        if ($isAppDir) { Remove-Shortcuts $installDir $profilePath }
+        if ($isAppDir) { Remove-Shortcuts $installDir $profilePath $entry.Sid }
 
         if (Get-ItemProperty $entry.KeyPath -ErrorAction SilentlyContinue) {
             Remove-Item -Path $entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue

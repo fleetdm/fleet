@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -130,14 +131,16 @@ const (
 // `observer_plus`, `technician` and `null`. A `null` value is used to ignore the attribute.
 // An empty or whitespace-only value (or an attribute with no value elements at all) is
 // also treated as `null` and ignored. The names of any such coerced attributes are
-// returned in `coercedAttrs`.
-func RolesFromSSOAttributes(attributes []SAMLAttribute) (ssoRolesInfo SSORolesInfo, coercedAttrs []string, err error) {
+// returned in `coercedAttrs`. The names of any attributes that Fleet 5 removed are returned in `ignoredAttrs`.
+func RolesFromSSOAttributes(attributes []SAMLAttribute) (
+	ssoRolesInfo SSORolesInfo, coercedAttrs []string, ignoredAttrs []string, err error,
+) {
 	for _, attribute := range attributes {
 		switch {
 		case attribute.Name == globalUserRoleSSOAttrName:
 			role, coerced, err := parseRole(attribute.Values)
 			if err != nil {
-				return SSORolesInfo{}, nil, fmt.Errorf("parse global role: %w", err)
+				return SSORolesInfo{}, nil, nil, fmt.Errorf("parse global role: %w", err)
 			}
 			if coerced {
 				coercedAttrs = append(coercedAttrs, attribute.Name)
@@ -150,11 +153,11 @@ func RolesFromSSOAttributes(attributes []SAMLAttribute) (ssoRolesInfo SSORolesIn
 		case strings.HasPrefix(attribute.Name, fleetUserRoleSSOAttrNamePrefix):
 			teamID, err := strconv.ParseUint(strings.TrimPrefix(attribute.Name, fleetUserRoleSSOAttrNamePrefix), 10, 32)
 			if err != nil {
-				return SSORolesInfo{}, nil, fmt.Errorf("parse team ID: %w", err)
+				return SSORolesInfo{}, nil, nil, fmt.Errorf("parse team ID: %w", err)
 			}
 			teamRole, coerced, err := parseRole(attribute.Values)
 			if err != nil {
-				return SSORolesInfo{}, nil, fmt.Errorf("parse team role: %w", err)
+				return SSORolesInfo{}, nil, nil, fmt.Errorf("parse team role: %w", err)
 			}
 			if coerced {
 				coercedAttrs = append(coercedAttrs, attribute.Name)
@@ -168,13 +171,15 @@ func RolesFromSSOAttributes(attributes []SAMLAttribute) (ssoRolesInfo SSORolesIn
 				Role: teamRole,
 			})
 		default:
-			continue
+			if _, removed := removednames.FindSAMLAttribute(attribute.Name); removed {
+				ignoredAttrs = append(ignoredAttrs, attribute.Name)
+			}
 		}
 	}
 	if err := ssoRolesInfo.verify(); err != nil {
-		return SSORolesInfo{}, nil, err
+		return SSORolesInfo{}, nil, nil, err
 	}
-	return ssoRolesInfo, coercedAttrs, nil
+	return ssoRolesInfo, coercedAttrs, ignoredAttrs, nil
 }
 
 // parseRole returns the role to apply for a SAML role attribute. The second
