@@ -217,18 +217,20 @@ GitHub issue: [#53146](https://github.com/fleetdm/fleet/issues/53146)
 | Fleet 4 | Fleet 5 |
 |:--|:--|
 | `GET /hosts/identifier/:identifier` | [`GET /hosts/:id`](https://fleetdm.com/docs/rest-api/rest-api#get-host). `:id` also accepts a host identifier (`hostname`, `uuid`, or `hardware_serial`). |
+| `POST /hosts/identifier/:identifier/query` | [`POST /hosts/:id/query`](https://fleetdm.com/docs/rest-api/rest-api#run-live-report-on-host-ad-hoc). `:id` also accepts a host identifier. |
 | `GET /scripts/batch/summary/:batch_execution_id` | [`GET /scripts/batch/:batch_execution_id`](https://fleetdm.com/docs/rest-api/rest-api#get-batch-script) |
 | `POST /hosts/:host_id/configuration_profiles/resend/:profile_uuid` | [`POST /hosts/:id/configuration_profiles/:profile_uuid/resend`](https://fleetdm.com/docs/rest-api/rest-api#resend-configuration-profile) |
 
 #### What to do
 
-Fleet 4.96 supports the new `scripts/batch` and `configuration_profiles/resend` paths, so change them before you upgrade. It doesn't accept an identifier in `GET /hosts/:id`, so you can't switch `hosts/identifier` early. Instead:
+Fleet 4.96 supports the new `scripts/batch` and `configuration_profiles/resend` paths, so change them before you upgrade. It doesn't accept an identifier in `GET /hosts/:id` or `POST /hosts/:id/query`, so you can't switch `hosts/identifier` early. Instead:
 
 1. Before you upgrade, search for `scripts/batch/summary/` and `configuration_profiles/resend/`, and replace each path.
-2. After you upgrade, search for `hosts/identifier/` and put the identifier where `:id` goes in `GET /hosts/:id`.
-   - Until you do, `GET /hosts/identifier/:identifier` fails with a `410` error.
+2. After you upgrade, search for `hosts/identifier/` and put the identifier where `:id` goes in `GET /hosts/:id` or `POST /hosts/:id/query`.
+   - Until you do, `GET /hosts/identifier/:identifier` and `POST /hosts/identifier/:identifier/query` fail with a `410` error.
    - Fleet looks for a host ID first, then a serial number, UUID, and hostname. An all-digit identifier is treated as a host ID.
-   - `POST /hosts/identifier/:identifier/query` doesn't change.
+   - If more than one host matches an identifier, Fleet uses the newest host.
+   - Every `GET /hosts/:id/…` endpoint accepts an identifier in `:id` too, except [Get host's device page URL](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-device-page-url).
 3. After you upgrade, update conditional access setups that followed the Google or PingFederate guides to call `GET /hosts/:id`.
 
 GitHub issue: [#53080](https://github.com/fleetdm/fleet/issues/53080)
@@ -544,7 +546,7 @@ GitHub issue: [#53145](https://github.com/fleetdm/fleet/issues/53145)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| GitOps users can get a host's `id` from `GET /hosts/identifier/:identifier` | GitOps users get a 403 from [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) when `:id` is an identifier |
+| GitOps users can get a host's `id` from `GET /hosts/identifier/:identifier` | GitOps users get a 403 from [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) when `:id` is an identifier, and can't look up hosts by identifier on any other endpoint |
 
 #### What to do
 
