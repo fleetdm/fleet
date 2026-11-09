@@ -105,12 +105,27 @@
     }
   }
 
-  // Hub diagram. The padding keeps the 520×460 shape without aspect-ratio, which Safari 14 doesn't support.
+  // Hub diagram, laid out on a 520×460 grid. 1em is one unit of that grid, so
+  // the tiles shrink with the diagram on narrow screens instead of overlapping.
   [purpose='hub'] {
     position: relative;
     width: 100%;
-    height: 0px;
-    padding-top: 88.46%;
+    max-width: 560px;
+    margin: 0 auto;
+    font-size: 1px;
+    // Keeps the 520×460 shape without aspect-ratio, which Safari 14 doesn't support.
+    &:before {
+      content: '';
+      display: block;
+      padding-top: 88.46%;
+    }
+    // The hub's width, from .page-container()'s padding at each breakpoint.
+    @media (max-width: 767px) {
+      font-size: ~'calc(min(100vw - 64px, 520px) / 520)';
+    }
+    @media (max-width: 575px) {
+      font-size: ~'calc(min(100vw - 48px, 520px) / 520)';
+    }
   }
   [purpose='hub-lines'] {
     position: absolute;
@@ -138,11 +153,11 @@
     position: absolute;
     left: 50%;
     top: 50%;
-    width: 104px;
-    height: 104px;
+    width: 104em;
+    height: 104em;
     transform: translate(-50%, -50%);
     border-radius: 50%;
-    box-shadow: 0px 0px 0px 10px fade(#FFF, 70%), 0px 12px 32px rgba(25, 33, 71, 0.12);
+    box-shadow: 0em 0em 0em 10em fade(#FFF, 70%), 0em 12em 32em rgba(25, 33, 71, 0.12);
     img {
       width: 100%;
       height: 100%;
@@ -156,23 +171,23 @@
     transform: translate(-50%, -50%);
     border: 1px solid @core-fleet-black-10;
     background: #FFF;
-    box-shadow: 0px 4px 16px rgba(25, 33, 71, 0.08);
+    box-shadow: 0em 4em 16em rgba(25, 33, 71, 0.08);
     animation: integrations-hub-float 6s ease-in-out infinite;
     &[ring='inner'] {
-      width: 60px;
-      height: 60px;
+      width: 60em;
+      height: 60em;
       border-radius: 50%;
       img {
-        width: 28px;
-        height: 28px;
+        width: 28em;
+        height: 28em;
       }
     }
     &[ring='outer'] {
-      height: 44px;
-      padding: 0px 16px;
-      border-radius: 12px;
+      height: 44em;
+      padding: 0em 16em;
+      border-radius: 12em;
       img {
-        height: 20px;
+        height: 20em;
       }
     }
   }
@@ -514,6 +529,6 @@
     margin-top: 0px;
   }
   50% {
-    margin-top: -6px;
+    margin-top: -6em;
   }
 }
