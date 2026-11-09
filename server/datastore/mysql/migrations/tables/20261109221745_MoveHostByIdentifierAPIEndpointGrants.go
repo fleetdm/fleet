@@ -6,12 +6,12 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261106154955, Down_20261106154955)
+	MigrationClient.AddMigration(Up_20261109221745, Down_20261109221745)
 }
 
 // Up_20261106154955 moves the API-only user grants of the removed GET /hosts/identifier/:identifier to GET /hosts/:id, which now takes
 // the same identifiers. INSERT IGNORE skips a user who already has both grants.
-func Up_20261106154955(tx *sql.Tx) error {
+func Up_20261109221745(tx *sql.Tx) error {
 	const (
 		oldPath = "/api/v1/fleet/hosts/identifier/:identifier"
 		newPath = "/api/v1/fleet/hosts/:id"
@@ -27,6 +27,6 @@ func Up_20261106154955(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20261106154955(tx *sql.Tx) error {
+func Down_20261109221745(tx *sql.Tx) error {
 	return nil
 }
