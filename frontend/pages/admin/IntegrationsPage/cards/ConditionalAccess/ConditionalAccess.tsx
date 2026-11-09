@@ -251,7 +251,12 @@ const ConditionalAccess = () => {
             <>
               Couldn&apos;t connect. Create a group named &quot;Fleet
               conditional access&quot; in Entra and try again.{" "}
-              {troubleshootLink}
+              <CustomLink
+                text="Learn how"
+                url="https://fleetdm.com/guides/entra-conditional-access-integration#step-1-create-a-fleet-conditional-access-group-in-entra"
+                newTab
+                variant="flash-message-link"
+              />
             </>
           );
         } else if (
