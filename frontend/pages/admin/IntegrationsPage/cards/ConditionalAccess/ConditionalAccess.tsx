@@ -37,7 +37,7 @@ const baseClass = "conditional-access";
 const troubleshootLink = (
   <CustomLink
     text="Learn more"
-    url={`${LEARN_MORE_ABOUT_BASE_LINK}/troubleshoot-entra-conditional-access`}
+    url="https://fleetdm.com/guides/entra-conditional-access-integration#troubleshooting"
     newTab
     variant="flash-message-link"
   />
@@ -224,9 +224,7 @@ const ConditionalAccess = () => {
           // IT admin did not complete the consent.
           !setup_error ||
           // IT admin clicked "Cancel" in the consent dialog.
-          setup_error.includes(
-            "A Microsoft Entra admin did not consent to the permissions requested by the conditional access integration"
-          )
+          setup_error.includes("A Microsoft Entra admin did not consent")
         ) {
           notify.error(
             <>
@@ -235,12 +233,35 @@ const ConditionalAccess = () => {
             </>
           );
         } else if (
-          setup_error.includes(
-            'No "Fleet conditional access" Entra ID group was found'
-          )
+          // Covers both the empty (HTTP 204) and unexpected-shape responses.
+          setup_error.includes("PartnerCompliancePolicies API returned")
         ) {
           notify.error(
-            `Couldn't connect. The "Fleet conditional access" group doesn't exist in Entra. Please create the group and try again.`
+            <>
+              Couldn&apos;t connect. Entra didn&apos;t create Fleet&apos;s
+              compliance policy. Have an Entra admin who&apos;s also a Fleet
+              admin select Connect and approve permissions in one session.{" "}
+              {troubleshootLink}
+            </>
+          );
+        } else if (
+          setup_error.includes('No "Fleet conditional access" Entra ID group')
+        ) {
+          notify.error(
+            <>
+              Couldn&apos;t connect. Create a group named &quot;Fleet
+              conditional access&quot; in Entra and try again.{" "}
+              {troubleshootLink}
+            </>
+          );
+        } else if (
+          setup_error.includes("Error occurred when retrieving API tokens")
+        ) {
+          notify.error(
+            <>
+              Couldn&apos;t connect. Fleet couldn&apos;t access your Entra
+              tenant. Please try again. {troubleshootLink}
+            </>
           );
         } else {
           // For other kind of errors we just show a generic error.
