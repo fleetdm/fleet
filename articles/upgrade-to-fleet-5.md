@@ -55,6 +55,7 @@ You'll be missed, and we'll keep saying "teams" out of muscle memory.
 | `PATCH /ab_tokens/:id/teams` (and `/abm_tokens/:id/teams` and `/abm_tokens/:id/fleets`) | `PATCH /ab_tokens/:id/fleets` |
 | `team_id`, `team_name`, `team`, `teams`, `team_ids`, `team_ids_by_name`, and `available_teams` in requests, responses, and query parameters | `fleet_id`, `fleet_name`, `fleet`, `fleets`, `fleet_ids`, `fleet_ids_by_name`, and `available_fleets` |
 | `team_id` and `team_name` as `order_key` values | `fleet_id` and `fleet_name` |
+| `team` as a target type | `fleet` |
 | `team_id` and `team_name` columns in the hosts CSV | `fleet_id` and `fleet_name` columns in [Get hosts report in CSV](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-report-in-csv) |
 | `macos_team_id`, `ios_team_id`, `ipados_team_id`, and `byod_team_id` when you assign fleets to an Apple Business token | `macos_fleet_id`, `ios_fleet_id`, `ipados_fleet_id`, and `byod_fleet_id` |
 
@@ -952,15 +953,16 @@ GitHub issue: [#57603](https://github.com/fleetdm/fleet/issues/57603)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `fleetctl get teams` | `fleetctl get fleets` |
-| `fleetctl gitops --delete-other-teams` | `fleetctl gitops --delete-other-fleets` |
+| `fleetctl get teams`, `fleetctl get team`, and `fleetctl get t` | `fleetctl get fleets` |
+| `fleetctl gitops --delete-other-teams` and the `DELETE_OTHER_TEAMS` environment variable | `fleetctl gitops --delete-other-fleets` and `DELETE_OTHER_FLEETS` |
 | `fleetctl apply --policies-team` | `fleetctl apply --policies-fleet` |
 | `--team` on `fleetctl report`, `user create`, `hosts transfer`, `run-script`, `get reports`, `get labels`, `get hosts`, and `get software` | `--fleet` on the same commands |
-| `fleetctl generate-gitops --team no-team` | `fleetctl generate-gitops --fleet unassigned` |
+| `-t` on `fleetctl user create` | `--fleet` |
+| `fleetctl generate-gitops --team no-team`, and `no-team` as the value of `--fleet` or `--key` | `--fleet unassigned` and `--key unassigned` |
 
 #### What to do
 
-1. Search your scripts and CI for `--team`, `--policies-team`, `--delete-other-teams`, `no-team`, and `get teams`, and replace each match.
+1. Search your scripts and CI for `--team`, `-t`, `--policies-team`, `--delete-other-teams`, `DELETE_OTHER_TEAMS`, `no-team`, and `get teams`, and replace each match.
    - The new flags already work in Fleet 4.95.
 
 GitHub issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
@@ -1192,6 +1194,7 @@ GitHub issue: [#53925](https://github.com/fleetdm/fleet/issues/53925)
 | Fleet 4 | Fleet 5 |
 |:--|:--|
 | `created_team`, `deleted_team`, `applied_spec_team`, `changed_user_team_role`, and `deleted_user_team_role` | `created_fleet`, `deleted_fleet`, `applied_spec_fleet`, `changed_user_fleet_role`, and `deleted_user_fleet_role` |
+| `team_id`, `team_name`, and `teams` in an activity's `details` | `fleet_id`, `fleet_name`, and `fleets` |
 | `enabled_macos_disk_encryption` and `disabled_macos_disk_encryption` | `edited_disk_encryption_settings` |
 | `created_pack`, `edited_pack`, `deleted_pack`, and `applied_spec_pack` | Removed. Fleet 5 keeps existing activities with these types but doesn't create new ones. |
 
