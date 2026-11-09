@@ -732,7 +732,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		"team_id", fmt.Sprintf("%d", team1.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.NotNil(t, resp.SoftwareTitles[0].AppStoreApp)
+	require.Len(t, resp.SoftwareTitles[0].AppStoreApps, 1)
 	vppAppTitleID := resp.SoftwareTitles[0].ID
 
 	// Populate software for host1Team1 (to have a software title

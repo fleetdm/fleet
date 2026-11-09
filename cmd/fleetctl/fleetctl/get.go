@@ -406,15 +406,15 @@ func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSp
 		case len(detail.AppStoreApps) > 0:
 			app := detail.AppStoreApps[0]
 			appStoreAppSpec := fleet.TeamSpecAppStoreApp{
-				AppStoreID:         app.AppStoreID,
+				AppStoreID:         app.AdamID,
 				Platform:           string(app.Platform),
 				InstallDuringSetup: setupExperienceValue(setupSoftwareByTitleID, title.ID),
 			}
 			// Output one object instead of a versions array when the app only has one version
-			if len(detail.AppStoreApps) > 1 || (len(detail.AppStoreApps) == 1 && detail.AppStoreApps[0].Name != fleet.DefaultAppStoreAppVersionName) {
+			if len(detail.AppStoreApps) > 1 || app.VersionName != fleet.DefaultAppStoreAppVersionName {
 				for _, version := range detail.AppStoreApps {
 					appStoreAppSpec.Versions = append(appStoreAppSpec.Versions, fleet.TeamSpecAppStoreAppVersion{
-						Name:             version.Name,
+						Name:             version.VersionName,
 						SelfService:      version.SelfService,
 						LabelsIncludeAny: scopeLabelNames(version.LabelsIncludeAny),
 						LabelsExcludeAny: scopeLabelNames(version.LabelsExcludeAny),

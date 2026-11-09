@@ -196,23 +196,23 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{},
 		http.StatusOK, &listSWTitlesResp, "query", addedApp.Name, "team_id", "0")
 	require.Len(t, listSWTitlesResp.SoftwareTitles, 1)
-	require.NotNil(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApp)
+	require.Len(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApps, 1)
 	vppAppTitleID := listSWTitlesResp.SoftwareTitles[0].ID
 
 	// get the app
 	titleResponse := getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
-	require.NotNil(t, titleResponse.SoftwareTitle.AppStoreApp)
-	require.Len(t, titleResponse.SoftwareTitle.AppStoreApp.Categories, 2)
-	require.Contains(t, titleResponse.SoftwareTitle.AppStoreApp.Categories, cat2.Name)
-	require.Contains(t, titleResponse.SoftwareTitle.AppStoreApp.Categories, cat3.Name)
+	require.Len(t, titleResponse.SoftwareTitle.AppStoreApps, 1)
+	require.Len(t, titleResponse.SoftwareTitle.AppStoreApps[0].Categories, 2)
+	require.Contains(t, titleResponse.SoftwareTitle.AppStoreApps[0].Categories, cat2.Name)
+	require.Contains(t, titleResponse.SoftwareTitle.AppStoreApps[0].Categories, cat3.Name)
 
 	// update the app and change categories
 	updateAppReq := &updateAppStoreAppRequest{TeamID: nil, SelfService: new(true)}
 	updateAppReq.Categories = []string{cat1.Name, cat3.Name}
 	var updateAppResp updateAppStoreAppResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", vppAppTitleID), updateAppReq, http.StatusOK, &updateAppResp)
-	require.Equal(t, updateAppResp.AppStoreApp.AppStoreID, addedApp.AdamID)
+	require.Equal(t, updateAppResp.AppStoreApp.AdamID, addedApp.AdamID)
 	require.True(t, updateAppResp.AppStoreApp.SelfService)
 	require.Equal(t, fleet.MacOSPlatform, updateAppResp.AppStoreApp.Platform)
 	require.Contains(t, updateAppResp.AppStoreApp.Categories, cat1.Name)
@@ -234,8 +234,8 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 	require.ElementsMatch(t, []string{"🧰 Developer tools", "👬 Communication"}, batchAssociateResponse.Categories)
 
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
-	require.NotNil(t, titleResponse.SoftwareTitle.AppStoreApp)
-	require.ElementsMatch(t, []string{"🧰 Developer tools", "👬 Communication"}, titleResponse.SoftwareTitle.AppStoreApp.Categories)
+	require.Len(t, titleResponse.SoftwareTitle.AppStoreApps, 1)
+	require.ElementsMatch(t, []string{"🧰 Developer tools", "👬 Communication"}, titleResponse.SoftwareTitle.AppStoreApps[0].Categories)
 
 	// test GitOps with Security and Utilities categories
 	s.DoJSON(
@@ -249,8 +249,8 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 	)
 
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
-	require.NotNil(t, titleResponse.SoftwareTitle.AppStoreApp)
-	require.ElementsMatch(t, []string{"🔐 Security", "🛠️ Utilities"}, titleResponse.SoftwareTitle.AppStoreApp.Categories)
+	require.Len(t, titleResponse.SoftwareTitle.AppStoreApps, 1)
+	require.ElementsMatch(t, []string{"🔐 Security", "🛠️ Utilities"}, titleResponse.SoftwareTitle.AppStoreApps[0].Categories)
 
 	// empty out categories via gitops
 	s.DoJSON(
@@ -264,8 +264,8 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 	)
 
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
-	require.NotNil(t, titleResponse.SoftwareTitle.AppStoreApp)
-	require.Empty(t, titleResponse.SoftwareTitle.AppStoreApp.Categories)
+	require.Len(t, titleResponse.SoftwareTitle.AppStoreApps, 1)
+	require.Empty(t, titleResponse.SoftwareTitle.AppStoreApps[0].Categories)
 }
 
 func (s *integrationMDMTestSuite) TestInstallAllSelfServiceSoftware() {

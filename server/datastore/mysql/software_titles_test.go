@@ -384,13 +384,13 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	for i := range 3 {
 		assert.Equal(t, uint(2), titles[i].HostsCount, "titles[%d]", i)
 		assert.Nil(t, titles[i].SoftwarePackage, "titles[%d]", i)
-		assert.Nil(t, titles[i].AppStoreApp, "titles[%d]", i)
+		assert.Nil(t, titles[i].AppStoreApps, "titles[%d]", i)
 	}
 	for j := range 4 {
 		i := j + 3
 		assert.Equal(t, uint(1), titles[i].HostsCount, "titles[%d]", i)
 		assert.Nil(t, titles[i].SoftwarePackage, "titles[%d]", i)
-		assert.Nil(t, titles[i].AppStoreApp, "titles[%d]", i)
+		assert.Nil(t, titles[i].AppStoreApps, "titles[%d]", i)
 	}
 	for j := range 3 {
 		i := j + 7
@@ -400,13 +400,13 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	// Verify installer/VPP attributes by name.
 	inst1 := titleByName(titles, "installer1")
 	require.NotNil(t, inst1.SoftwarePackage)
-	require.Nil(t, inst1.AppStoreApp)
+	require.Nil(t, inst1.AppStoreApps)
 	inst2 := titleByName(titles, "installer2")
 	require.NotNil(t, inst2.SoftwarePackage)
-	require.Nil(t, inst2.AppStoreApp)
+	require.Nil(t, inst2.AppStoreApps)
 	vpp := titleByName(titles, "vpp1")
 	require.Nil(t, vpp.SoftwarePackage)
-	require.NotNil(t, vpp.AppStoreApp)
+	require.Len(t, vpp.AppStoreApps, 1)
 
 	// The optimized path sorts by hosts_count ASC, software_title_id ASC.
 	titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
@@ -697,11 +697,11 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(1), titles[0].VersionsCount)
 	assert.Equal(t, uint(1), titles[0].HostsCount)
 	require.Nil(t, titles[0].SoftwarePackage)
-	require.Nil(t, titles[0].AppStoreApp)
+	require.Nil(t, titles[0].AppStoreApps)
 	require.Equal(t, uint(2), titles[1].VersionsCount)
 	assert.Equal(t, uint(2), titles[1].HostsCount)
 	require.Nil(t, titles[1].SoftwarePackage)
-	require.Nil(t, titles[1].AppStoreApp)
+	require.Nil(t, titles[1].AppStoreApps)
 	barTitle := titles[0]
 	fooTitle := titles[1]
 
@@ -720,9 +720,8 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(0), titles[0].VersionsCount)
 	require.Nil(t, titles[0].SoftwarePackage)
 	require.Equal(t, "vpp3", titles[0].Name)
-	require.NotNil(t, titles[0].AppStoreApp)
-	require.NotNil(t, titles[0].AppStoreApp.SelfService)
-	require.True(t, *titles[0].AppStoreApp.SelfService)
+	require.Len(t, titles[0].AppStoreApps, 1)
+	require.True(t, titles[0].AppStoreApps[0].SelfService)
 
 	// Get title of bar software.
 	title, err := ds.SoftwareTitleByID(context.Background(), barTitle.ID, nil, globalTeamFilter)
@@ -781,10 +780,10 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, "foo.bar", *titles[1].BundleIdentifier)
 	require.Equal(t, uint(1), titles[0].VersionsCount)
 	require.Nil(t, titles[0].SoftwarePackage)
-	require.Nil(t, titles[0].AppStoreApp)
+	require.Nil(t, titles[0].AppStoreApps)
 	require.Equal(t, uint(0), titles[1].VersionsCount)
 	require.NotNil(t, titles[1].SoftwarePackage)
-	require.Nil(t, titles[1].AppStoreApp)
+	require.Nil(t, titles[1].AppStoreApps)
 
 	title, err = ds.SoftwareTitleByID(context.Background(), titles[1].ID, &team1.ID, team1TeamFilter)
 	require.NoError(t, err)
@@ -816,7 +815,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 		assert.Equal(t, uint(1), titles[i].HostsCount, "titles[%d]", i)
 		assert.Equal(t, uint(1), titles[i].VersionsCount, "titles[%d]", i)
 		assert.Nil(t, titles[i].SoftwarePackage, "titles[%d]", i)
-		assert.Nil(t, titles[i].AppStoreApp, "titles[%d]", i)
+		assert.Nil(t, titles[i].AppStoreApps, "titles[%d]", i)
 	}
 	for j := range 2 {
 		i := j + 2
@@ -825,10 +824,10 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	}
 	inst2 := titleByName(titles, "installer2")
 	require.NotNil(t, inst2.SoftwarePackage)
-	require.Nil(t, inst2.AppStoreApp)
+	require.Nil(t, inst2.AppStoreApps)
 	vpp2Title := titleByName(titles, "vpp2")
 	require.Nil(t, vpp2Title.SoftwarePackage)
-	require.NotNil(t, vpp2Title.AppStoreApp)
+	require.Len(t, vpp2Title.AppStoreApps, 1)
 
 	// Testing the team 1 user with self-service only
 	titles, _, _, err = ds.ListSoftwareTitles(
@@ -1076,9 +1075,11 @@ func testListSoftwareTitlesAppStoreApps(t *testing.T, ds *Datastore) {
 
 		iosTitle := titlesByID[iosFirstVersion.TitleID]
 		require.Equal(t, []fleet.AppStoreAppListItem{
-			{ID: iosFirstVersion.AppTeamID, Name: fleet.DefaultAppStoreAppVersionName, AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, Version: "2.6.0", SelfService: true},
-			{ID: iosSecondVersion.AppTeamID, Name: "Beta", AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, Version: "2.6.0"},
+			{ID: iosFirstVersion.AppTeamID, Name: fleet.DefaultAppStoreAppVersionName, AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, Version: "2.6.0", SelfService: true, InstallDuringSetup: new(false)},
+			{ID: iosSecondVersion.AppTeamID, Name: "Beta", AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, Version: "2.6.0", InstallDuringSetup: new(false)},
 		}, iosTitle.AppStoreApps)
+		// read app_store_app from the titles list, it should only be set for setup experience
+		require.Nil(t, iosTitle.AppStoreApp)
 
 		// read the macOS title, the policy should be on its only version
 		macTitle := titlesByID[macVersion.TitleID]
@@ -1119,6 +1120,15 @@ func testListSoftwareTitlesAppStoreApps(t *testing.T, ds *Datastore) {
 		require.Len(t, setupTitles[0].AppStoreApps, 2)
 		require.Equal(t, new(true), setupTitles[0].AppStoreApps[0].InstallDuringSetup)
 		require.Equal(t, new(true), setupTitles[0].AppStoreApps[1].InstallDuringSetup)
+		// read app_store_app from the setup experience list, it should be the first-added self-service version
+		require.NotNil(t, setupTitles[0].AppStoreApp)
+		require.Equal(t, iosAdamID, setupTitles[0].AppStoreApp.AppStoreID)
+		require.Equal(t, string(fleet.IOSPlatform), setupTitles[0].AppStoreApp.Platform)
+		require.Equal(t, new(true), setupTitles[0].AppStoreApp.SelfService)
+		require.Equal(t, new(true), setupTitles[0].AppStoreApp.InstallDuringSetup)
+		// read the automatic install policies on app_store_app, the "Beta" version's policy should be listed for the whole title
+		require.Len(t, setupTitles[0].AppStoreApp.AutomaticInstallPolicies, 1)
+		require.Equal(t, iosPolicy.ID, setupTitles[0].AppStoreApp.AutomaticInstallPolicies[0].ID)
 	}
 }
 
@@ -1329,9 +1339,10 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 	for _, title := range titles {
 		names = append(names, nameSource{name: title.Name, source: title.Source})
 		if title.ID == vpp2.TitleID {
-			assert.Len(t, title.AppStoreApp.AutomaticInstallPolicies, 1)
-			assert.Equal(t, title.AppStoreApp.AutomaticInstallPolicies[0].Name, "VPP Policy")
-			assert.Equal(t, title.AppStoreApp.AutomaticInstallPolicies[0].ID, vppPolicy.ID)
+			require.Len(t, title.AppStoreApps, 1)
+			assert.Len(t, title.AppStoreApps[0].AutomaticInstallPolicies, 1)
+			assert.Equal(t, title.AppStoreApps[0].AutomaticInstallPolicies[0].Name, "VPP Policy")
+			assert.Equal(t, title.AppStoreApps[0].AutomaticInstallPolicies[0].ID, vppPolicy.ID)
 		}
 	}
 	assert.ElementsMatch(t, []nameSource{
@@ -2765,13 +2776,16 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 			switch {
 			case want[i] == nil:
 				require.Nil(t, sw.SoftwarePackage)
-				require.Nil(t, sw.AppStoreApp)
+				require.Nil(t, sw.AppStoreApps)
 			case want[i].AppStoreID != "":
 				require.Nil(t, sw.SoftwarePackage)
-				require.NotNil(t, sw.AppStoreApp)
-				require.Equal(t, want[i], sw.AppStoreApp)
+				require.Len(t, sw.AppStoreApps, 1)
+				require.Equal(t, want[i].AppStoreID, sw.AppStoreApps[0].AppStoreID)
+				require.Equal(t, want[i].Platform, string(sw.AppStoreApps[0].Platform))
+				require.Equal(t, *want[i].SelfService, sw.AppStoreApps[0].SelfService)
+				require.Equal(t, want[i].InstallDuringSetup, sw.AppStoreApps[0].InstallDuringSetup)
 			default:
-				require.Nil(t, sw.AppStoreApp)
+				require.Nil(t, sw.AppStoreApps)
 				require.NotNil(t, sw.SoftwarePackage)
 				require.Equal(t, want[i], sw.SoftwarePackage)
 			}

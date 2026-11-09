@@ -296,7 +296,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	s.Assert().Equal(*updateAppReq.DisplayName, stResp.SoftwareTitle.DisplayName)
 
 	// Auto install policy has display name
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", stResp.SoftwareTitle.AppStoreApp.AutomaticInstallPolicies[0].ID), fleet.GetPolicyByIDRequest{}, http.StatusOK, &getPolicyResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", stResp.SoftwareTitle.AppStoreApps[0].AutomaticInstallPolicies[0].ID), fleet.GetPolicyByIDRequest{}, http.StatusOK, &getPolicyResp)
 	s.Assert().NotNil(getPolicyResp.Policy)
 	s.Assert().Equal(*updateAppReq.DisplayName, getPolicyResp.Policy.InstallSoftware.DisplayName)
 
@@ -382,11 +382,11 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", macOSTitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Empty(stResp.SoftwareTitle.DisplayName)
 	// PATCH semantics, so we shouldn't overwrite self service or categories or labels
-	s.Assert().True(stResp.SoftwareTitle.AppStoreApp.SelfService)
-	s.ElementsMatch([]string{"🧰 Developer tools", "🌎 Browsers"}, stResp.SoftwareTitle.AppStoreApp.Categories)
+	s.Assert().True(stResp.SoftwareTitle.AppStoreApps[0].SelfService)
+	s.ElementsMatch([]string{"🧰 Developer tools", "🌎 Browsers"}, stResp.SoftwareTitle.AppStoreApps[0].Categories)
 	s.Assert().ElementsMatch([]string{lbl1Name, lbl2Name}, func() []string {
 		var ret []string
-		for _, l := range stResp.SoftwareTitle.AppStoreApp.LabelsIncludeAny {
+		for _, l := range stResp.SoftwareTitle.AppStoreApps[0].LabelsIncludeAny {
 			ret = append(ret, l.LabelName)
 		}
 		return ret
@@ -398,7 +398,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		if a.ID == macOSTitleID {
 			s.Assert().Empty(a.DisplayName)
 			// PATCH semantics, so we shouldn't overwrite self service
-			s.Assert().True(*a.AppStoreApp.SelfService)
+			s.Assert().True(a.AppStoreApps[0].SelfService)
 		}
 	}
 

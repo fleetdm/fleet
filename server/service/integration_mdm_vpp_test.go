@@ -212,12 +212,12 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	var listSwTitles listSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSwTitles, "team_id", fmt.Sprint(tmGood.ID))
 	for _, st := range listSwTitles.SoftwareTitles {
-		if st.AppStoreApp.AppStoreID == s.appleVPPConfigSrvConfig.Assets[1].AdamID {
+		if st.AppStoreApps[0].AppStoreID == s.appleVPPConfigSrvConfig.Assets[1].AdamID {
 			var getSWTitle getSoftwareTitleResponse
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", st.ID), nil, http.StatusOK, &getSWTitle, "team_id", fmt.Sprint(tmGood.ID))
-			s.ElementsMatch([]string{"🌎 Browsers"}, getSWTitle.SoftwareTitle.AppStoreApp.Categories)
+			s.ElementsMatch([]string{"🌎 Browsers"}, getSWTitle.SoftwareTitle.AppStoreApps[0].Categories)
 			var labelNames []string
-			for _, l := range getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAll {
+			for _, l := range getSWTitle.SoftwareTitle.AppStoreApps[0].LabelsIncludeAll {
 				labelNames = append(labelNames, l.LabelName)
 			}
 			s.ElementsMatch([]string{label1.Name, label2.Name}, labelNames)
@@ -553,7 +553,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 
 	s.Len(listSwTitles.SoftwareTitles, 2)
 	for _, sw := range listSwTitles.SoftwareTitles {
-		switch sw.AppStoreApp.AppStoreID {
+		switch sw.AppStoreApps[0].AppStoreID {
 		case driveAppID:
 			s.Equal("DriveUpdatedName", sw.DisplayName)
 		case s.appleVPPConfigSrvConfig.Assets[0].AdamID:
@@ -764,11 +764,11 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 		var getSWTitle getSoftwareTitleResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &getSWTitle, "team_id", fmt.Sprint(team.ID))
-		require.NotNil(t, getSWTitle.SoftwareTitle.AppStoreApp)
-		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApp.AdamID, includeAnyApp.AdamID)
-		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsExcludeAny)
-		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAll)
-		require.Equal(t, []fleet.SoftwareScopeLabel{{LabelName: l1.Name, LabelID: l1.ID}}, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAny)
+		require.Len(t, getSWTitle.SoftwareTitle.AppStoreApps, 1)
+		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApps[0].AdamID, includeAnyApp.AdamID)
+		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApps[0].LabelsExcludeAny)
+		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApps[0].LabelsIncludeAll)
+		require.Equal(t, []fleet.SoftwareScopeLabel{{LabelName: l1.Name, LabelID: l1.ID}}, getSWTitle.SoftwareTitle.AppStoreApps[0].LabelsIncludeAny)
 
 		// Add an app with exclude_any labels
 		excludeAnyApp := fleet.VPPApp{
@@ -794,12 +794,12 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 				excludeAnyApp.Name, titleID, excludeAnyApp.AdamID, team.ID, excludeAnyApp.Platform, l2.ID, l2.Name), validToken.Token), 0)
 
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &getSWTitle, "team_id", fmt.Sprint(team.ID))
-		require.NotNil(t, getSWTitle.SoftwareTitle.AppStoreApp)
-		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApp.AdamID, excludeAnyApp.AdamID)
-		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAny)
-		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAll)
-		require.Equal(t, []fleet.SoftwareScopeLabel{{LabelName: l2.Name, LabelID: l2.ID}}, getSWTitle.SoftwareTitle.AppStoreApp.LabelsExcludeAny)
-		require.True(t, getSWTitle.SoftwareTitle.AppStoreApp.SelfService)
+		require.Len(t, getSWTitle.SoftwareTitle.AppStoreApps, 1)
+		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApps[0].AdamID, excludeAnyApp.AdamID)
+		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApps[0].LabelsIncludeAny)
+		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApps[0].LabelsIncludeAll)
+		require.Equal(t, []fleet.SoftwareScopeLabel{{LabelName: l2.Name, LabelID: l2.ID}}, getSWTitle.SoftwareTitle.AppStoreApps[0].LabelsExcludeAny)
+		require.True(t, getSWTitle.SoftwareTitle.AppStoreApps[0].SelfService)
 
 		// Add a non-VPP software
 		payloadRubyTm1 := &fleet.UploadSoftwareInstallerPayload{
@@ -848,7 +848,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID), updateAppReq, http.StatusOK, &updateAppResp)
 
 		require.NotNil(t, updateAppResp.AppStoreApp)
-		require.Equal(t, updateAppResp.AppStoreApp.AppStoreID, excludeAnyApp.AdamID)
+		require.Equal(t, updateAppResp.AppStoreApp.AdamID, excludeAnyApp.AdamID)
 		require.Equal(t, []fleet.SoftwareScopeLabel{{LabelName: l2.Name, LabelID: l2.ID}}, updateAppResp.AppStoreApp.LabelsIncludeAny)
 		require.Empty(t, updateAppResp.AppStoreApp.LabelsExcludeAny)
 		require.Empty(t, updateAppResp.AppStoreApp.LabelsIncludeAll)
@@ -863,12 +863,12 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		// double check that our updates worked
 		getSWTitle = getSoftwareTitleResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &getSWTitle, "team_id", fmt.Sprint(team.ID))
-		require.NotNil(t, getSWTitle.SoftwareTitle.AppStoreApp)
-		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApp.AdamID, excludeAnyApp.AdamID)
-		require.Equal(t, []fleet.SoftwareScopeLabel{{LabelName: l2.Name, LabelID: l2.ID}}, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAny)
-		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsExcludeAny)
-		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAll)
-		require.False(t, getSWTitle.SoftwareTitle.AppStoreApp.SelfService)
+		require.Len(t, getSWTitle.SoftwareTitle.AppStoreApps, 1)
+		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApps[0].AdamID, excludeAnyApp.AdamID)
+		require.Equal(t, []fleet.SoftwareScopeLabel{{LabelName: l2.Name, LabelID: l2.ID}}, getSWTitle.SoftwareTitle.AppStoreApps[0].LabelsIncludeAny)
+		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApps[0].LabelsExcludeAny)
+		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApps[0].LabelsIncludeAll)
+		require.False(t, getSWTitle.SoftwareTitle.AppStoreApps[0].SelfService)
 
 		// Attempt an install on the host. This should fail because the host doesn't have the label
 		// l2.
@@ -1132,14 +1132,14 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	var listSw listSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID), "available_for_install", "true")
 	require.Len(t, listSw.SoftwareTitles, 1)
-	require.True(t, *listSw.SoftwareTitles[0].AppStoreApp.SelfService)
+	require.True(t, listSw.SoftwareTitles[0].AppStoreApps[0].SelfService)
 	macOSTitleID := listSw.SoftwareTitles[0].ID
-	require.Len(t, listSw.SoftwareTitles[0].AppStoreApp.AutomaticInstallPolicies, 1)
+	require.Len(t, listSw.SoftwareTitles[0].AppStoreApps[0].AutomaticInstallPolicies, 1)
 
 	// check that we created an activity for the policy creation
 	wantAct := fleet.ActivityTypeCreatedPolicy{
-		ID:   listSw.SoftwareTitles[0].AppStoreApp.AutomaticInstallPolicies[0].ID,
-		Name: listSw.SoftwareTitles[0].AppStoreApp.AutomaticInstallPolicies[0].Name,
+		ID:   listSw.SoftwareTitles[0].AppStoreApps[0].AutomaticInstallPolicies[0].ID,
+		Name: listSw.SoftwareTitles[0].AppStoreApps[0].AutomaticInstallPolicies[0].Name,
 	}
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
@@ -1151,7 +1151,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	// delete the automatic install policy (so we can delete the app next)
 	var deletePolicyResp fleet.DeleteTeamPoliciesResponse
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", team.ID), &fleet.DeleteGlobalPoliciesRequest{IDs: []uint{listSw.SoftwareTitles[0].AppStoreApp.AutomaticInstallPolicies[0].ID}}, http.StatusOK, &deletePolicyResp)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", team.ID), &fleet.DeleteGlobalPoliciesRequest{IDs: []uint{listSw.SoftwareTitles[0].AppStoreApps[0].AutomaticInstallPolicies[0].ID}}, http.StatusOK, &deletePolicyResp)
 
 	// delete the app store app for team 1
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", macOSTitleID), nil, http.StatusNoContent,
@@ -1317,7 +1317,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	iOSTitleID := uint(99999)
 	iPadOSTitleID := uint(99999)
 	for _, sw := range listSw.SoftwareTitles {
-		assert.NotNil(t, sw.AppStoreApp)
+		assert.Len(t, sw.AppStoreApps, 1)
 		switch {
 		case sw.Name == addedApp.Name && sw.Source == "apps":
 			macOSTitleID = sw.ID
@@ -1939,7 +1939,7 @@ func (s *integrationMDMTestSuite) TestNoTeamVPPAppIcons() {
 	var listSw listSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(fleet.PolicyNoTeamID), "available_for_install", "true")
 	require.Len(t, listSw.SoftwareTitles, 1)
-	require.True(t, *listSw.SoftwareTitles[0].AppStoreApp.SelfService)
+	require.True(t, listSw.SoftwareTitles[0].AppStoreApps[0].SelfService)
 	macOSTitleID := listSw.SoftwareTitles[0].ID
 
 	_, err := s.ds.CreateOrUpdateSoftwareTitleIcon(context.Background(), &fleet.UploadSoftwareTitleIconPayload{
@@ -2087,18 +2087,18 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 	var listSWTitlesResp listSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitlesResp, "team_id", fmt.Sprintf("%d", team.ID), "query", app1.Name)
 	require.Len(t, listSWTitlesResp.SoftwareTitles, 1)
-	require.NotNil(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApp)
-	require.Equal(t, "1.0.0", listSWTitlesResp.SoftwareTitles[0].AppStoreApp.Version)
+	require.Len(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApps, 1)
+	require.Equal(t, "1.0.0", listSWTitlesResp.SoftwareTitles[0].AppStoreApps[0].Version)
 
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitlesResp, "team_id", fmt.Sprintf("%d", team.ID), "query", app2.Name)
 	require.Len(t, listSWTitlesResp.SoftwareTitles, 1)
-	require.NotNil(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApp)
-	require.Equal(t, "2.0.0", listSWTitlesResp.SoftwareTitles[0].AppStoreApp.Version)
+	require.Len(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApps, 1)
+	require.Equal(t, "2.0.0", listSWTitlesResp.SoftwareTitles[0].AppStoreApps[0].Version)
 
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitlesResp, "team_id", fmt.Sprintf("%d", team.ID), "query", app3.Name)
 	require.Len(t, listSWTitlesResp.SoftwareTitles, 1)
-	require.NotNil(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApp)
-	require.Equal(t, "3.0.0", listSWTitlesResp.SoftwareTitles[0].AppStoreApp.Version)
+	require.Len(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApps, 1)
+	require.Equal(t, "3.0.0", listSWTitlesResp.SoftwareTitles[0].AppStoreApps[0].Version)
 
 	// "update" the versions
 	s.appleVPPProxySrvData["1"] = `{"id": "1", "attributes": {"name": "App 1", "platformAttributes": {"osx": {"bundleId": "a-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "9.9.9"}}}, "deviceFamilies": ["mac"]}}`
@@ -2110,19 +2110,19 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 	// 1 and 2 should be updated
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitlesResp, "team_id", fmt.Sprintf("%d", team.ID), "query", app1.Name)
 	require.Len(t, listSWTitlesResp.SoftwareTitles, 1)
-	require.NotNil(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApp)
-	require.Equal(t, "9.9.9", listSWTitlesResp.SoftwareTitles[0].AppStoreApp.Version)
+	require.Len(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApps, 1)
+	require.Equal(t, "9.9.9", listSWTitlesResp.SoftwareTitles[0].AppStoreApps[0].Version)
 
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitlesResp, "team_id", fmt.Sprintf("%d", team.ID), "query", app2.Name)
 	require.Len(t, listSWTitlesResp.SoftwareTitles, 1)
-	require.NotNil(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApp)
-	require.Equal(t, "10.10.10", listSWTitlesResp.SoftwareTitles[0].AppStoreApp.Version)
+	require.Len(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApps, 1)
+	require.Equal(t, "10.10.10", listSWTitlesResp.SoftwareTitles[0].AppStoreApps[0].Version)
 
 	// No change
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitlesResp, "team_id", fmt.Sprintf("%d", team.ID), "query", app3.Name)
 	require.Len(t, listSWTitlesResp.SoftwareTitles, 1)
-	require.NotNil(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApp)
-	require.Equal(t, "3.0.0", listSWTitlesResp.SoftwareTitles[0].AppStoreApp.Version)
+	require.Len(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApps, 1)
+	require.Equal(t, "3.0.0", listSWTitlesResp.SoftwareTitles[0].AppStoreApps[0].Version)
 
 	// Refresh again. There are no version changes this time, so this is a no-op.
 	err = vpp.RefreshVersions(ctx, s.ds, stubbedConfig)
@@ -2243,7 +2243,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 		titleResponse := getSoftwareTitleResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResponse, "team_id", fmt.Sprint(team.ID))
 		require.NotNil(t, titleResponse.SoftwareTitle)
-		require.Equal(t, expectedVersion, titleResponse.SoftwareTitle.AppStoreApp.LatestVersion)
+		require.Equal(t, expectedVersion, titleResponse.SoftwareTitle.AppStoreApps[0].LatestVersion)
 	}
 
 	// "Update" the versions for Adam ID "1" and "2".
@@ -2265,7 +2265,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 		titleResponse := getSoftwareTitleResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResponse, "team_id", fmt.Sprint(team.ID))
 		require.NotNil(t, titleResponse.SoftwareTitle)
-		require.Equal(t, expectedVersion, titleResponse.SoftwareTitle.AppStoreApp.LatestVersion)
+		require.Equal(t, expectedVersion, titleResponse.SoftwareTitle.AppStoreApps[0].LatestVersion)
 	}
 
 	// "Update" the version for Adam ID "3".
@@ -2286,7 +2286,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 		titleResponse := getSoftwareTitleResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResponse, "team_id", fmt.Sprint(team.ID))
 		require.NotNil(t, titleResponse.SoftwareTitle)
-		require.Equal(t, expectedVersion, titleResponse.SoftwareTitle.AppStoreApp.LatestVersion)
+		require.Equal(t, expectedVersion, titleResponse.SoftwareTitle.AppStoreApps[0].LatestVersion)
 	}
 
 	// Refresh again. There are no version changes this time, so this is a no-op.

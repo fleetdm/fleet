@@ -2645,14 +2645,9 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				cmd.FilesToWrite[fileName] = icon
 			}
 
-			flatVersion := firstAppStoreApp
-			flatVersion.AutoUpdateEnabled = softwareTitle.AutoUpdateEnabled
-			flatVersion.AutoUpdateStartTime = softwareTitle.AutoUpdateStartTime
-			flatVersion.AutoUpdateEndTime = softwareTitle.AutoUpdateEndTime
-			appVersions := []fleet.AppStoreAppVersion{flatVersion}
+			appVersions := softwareTitle.AppStoreApps
 			var versionSpecs []map[string]any
-			if len(softwareTitle.AppStoreApps) > 1 || (len(softwareTitle.AppStoreApps) == 1 && softwareTitle.AppStoreApps[0].Name != fleet.DefaultAppStoreAppVersionName) {
-				appVersions = softwareTitle.AppStoreApps
+			if len(appVersions) > 1 || firstAppStoreApp.VersionName != fleet.DefaultAppStoreAppVersionName {
 				versionSpecs = make([]map[string]any, 0, len(appVersions))
 			}
 
@@ -2661,11 +2656,11 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				versionSpec := softwareSpec
 				versionFilenamePrefix := filenamePrefix
 				if versionSpecs != nil {
-					versionSpec = map[string]any{"name": version.Name}
-					versionFilenamePrefix = filenamePrefix + "-" + generateFilename(version.Name)
+					versionSpec = map[string]any{"name": version.VersionName}
+					versionFilenamePrefix = filenamePrefix + "-" + generateFilename(version.VersionName)
 					// Add the version id when two version names map to the same file name
 					if _, ok := usedVersionFilenamePrefixes[versionFilenamePrefix]; ok {
-						versionFilenamePrefix += fmt.Sprintf("-%d", version.ID)
+						versionFilenamePrefix += fmt.Sprintf("-%d", version.VPPAppsTeamsID)
 					}
 					usedVersionFilenamePrefixes[versionFilenamePrefix] = struct{}{}
 				}
@@ -2723,7 +2718,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				// export auto-update schedule settings for iOS/iPadOS VPP apps when present.
 				// only VPP apps (those with an AdamID) support auto-update schedules.
 				if version.AutoUpdateEnabled != nil || version.AutoUpdateStartTime != nil || version.AutoUpdateEndTime != nil {
-					if (version.Platform == fleet.IOSPlatform || version.Platform == fleet.IPadOSPlatform) && version.AppStoreID != "" {
+					if (version.Platform == fleet.IOSPlatform || version.Platform == fleet.IPadOSPlatform) && version.AdamID != "" {
 						if version.AutoUpdateEnabled != nil {
 							versionSpec["auto_update_enabled"] = *version.AutoUpdateEnabled
 						}

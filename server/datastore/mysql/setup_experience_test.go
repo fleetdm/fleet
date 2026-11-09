@@ -1587,8 +1587,8 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	for _, title := range softwareTitles {
-		if title.AppStoreApp != nil {
-			titleVPP[title.AppStoreApp.AppStoreID+":"+title.AppStoreApp.Platform] = title.ID
+		if len(title.AppStoreApps) > 0 {
+			titleVPP[title.AppStoreApps[0].AppStoreID+":"+string(title.AppStoreApps[0].Platform)] = title.ID
 		} else if title.SoftwarePackage != nil {
 			titleSoftware[title.SoftwarePackage.Name] = title.ID
 		}
@@ -1598,8 +1598,8 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	for _, title := range softwareTitles {
-		if title.AppStoreApp != nil {
-			titleVPP[title.AppStoreApp.AppStoreID] = title.ID
+		if len(title.AppStoreApps) > 0 {
+			titleVPP[title.AppStoreApps[0].AppStoreID] = title.ID
 		} else if title.SoftwarePackage != nil {
 			titleSoftware[title.SoftwarePackage.Name] = title.ID
 		}
