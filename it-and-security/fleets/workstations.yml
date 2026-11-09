@@ -138,6 +138,7 @@ controls:
       - path: ../lib/macos/configuration-profiles/fleet-desktop-launch-agent.mobileconfig
         labels_include_any:
           - "Macs with Fleet Desktop.app installed"
+      - path: ../lib/all/declaration-profiles/Inter font.json
   setup_experience:
     macos_bootstrap_package: ""
     enable_end_user_authentication: true
@@ -187,6 +188,8 @@ controls:
     - path: ../lib/windows/scripts/mitigate-php2shell-windows.ps1
     - path: ../lib/macos/scripts/disable-tailscale-ssh-forwarding-macos.sh
     - path: ../lib/linux/scripts/disable-tailscale-ssh-forwarding-linux.sh
+    - path: ../lib/all/scripts/install-inter-font.sh
+    - path: ../lib/all/scripts/install-inter-font.ps1
 policies:
   # macOS policies
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
@@ -230,6 +233,7 @@ policies:
   - path: ../lib/linux/policies/sshd-permitrootlogin-restricted.yml
   - path: ../lib/linux/policies/update-claude.yml
   - path: ../lib/all/policies/npm-user-npmrc-min-release-age.yml
+  - path: ../lib/all/policies/inter-font-installed.yml
 reports:
   - path: ../lib/macos/reports/detect-apple-intelligence.yml
   - path: ../lib/macos/reports/collect-default-browser.yml

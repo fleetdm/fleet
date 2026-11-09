@@ -70,7 +70,7 @@ type TeamPayload struct {
 // `features` shape so admins can use the same JSON path on both endpoints.
 //
 // Only the sub-fields defined here take effect; the broader Features
-// fields (enable_host_users, additional_queries, detail_query_overrides)
+// fields (enable_host_users, additional_queries)
 // remain settable per-fleet only via the `/spec/fleets` GitOps path.
 type TeamPayloadFeatures struct {
 	// EnableSoftwareInventory uses optjson.Bool so a key omitted from a

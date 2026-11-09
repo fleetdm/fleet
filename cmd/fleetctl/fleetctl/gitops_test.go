@@ -1592,12 +1592,9 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 				},
 			},
 			{
-				ID:   20,
-				Name: "VPP App",
-				AppStoreApp: &fleet.SoftwarePackageOrApp{
-					AppStoreID: "5128675309",
-					Platform:   string(fleet.MacOSPlatform),
-				},
+				ID:           20,
+				Name:         "VPP App",
+				AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "5128675309", Platform: fleet.MacOSPlatform}},
 			},
 			{
 				ID:         40,
@@ -5706,10 +5703,6 @@ func TestGitOpsFeatures(t *testing.T) {
 			EnableHostUsers:         true,
 			EnableSoftwareInventory: true,
 			AdditionalQueries:       ptr.RawMessage(json.RawMessage(`{"query_a": "SELECT 1", "query_b": "SELECT 2"}`)),
-			DetailQueryOverrides: map[string]*string{
-				"detail_query_a": ptr.String("SELECT a"),
-				"detail_query_b": nil,
-			},
 		},
 	}
 
@@ -5727,8 +5720,6 @@ org_settings:
     enable_software_inventory: false
     additional_queries:
       query_a: "SELECT 1"
-    detail_query_overrides:
-      detail_query_a: "SELECT it_works"
   server_settings:
     server_url: %s
   org_info:
@@ -5764,8 +5755,6 @@ software:
 	require.NoError(t, err)
 	require.Equal(t, 1, len(additionalQueries))
 	require.Equal(t, "SELECT 1", additionalQueries["query_a"])
-	require.Equal(t, 1, len(appConfig.Features.DetailQueryOverrides))
-	require.Equal(t, "SELECT it_works", *appConfig.Features.DetailQueryOverrides["detail_query_a"])
 
 	// Do a GitOps run with no feature settings.
 	_, err = runAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
@@ -5774,7 +5763,32 @@ software:
 	require.True(t, appConfig.Features.EnableHostUsers)
 	require.True(t, appConfig.Features.EnableSoftwareInventory)
 	require.Nil(t, appConfig.Features.AdditionalQueries)
-	require.Nil(t, appConfig.Features.DetailQueryOverrides)
+
+	globalFileDetailQueryOverrides, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFileDetailQueryOverrides.WriteString(fmt.Sprintf(
+		`
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  features:
+    detail_query_overrides:
+      users: null
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: %s
+  secrets:
+    - secret: globalSecret
+software:
+`, fleetServerURL, orgName),
+	)
+	require.NoError(t, err)
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFileDetailQueryOverrides.Name()})
+	require.ErrorContains(t, err, `unknown key "org_settings.features.detail_query_overrides"`)
 }
 
 func TestGitOpsHistoricalData(t *testing.T) {
@@ -8077,11 +8091,8 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 		// Return a software title that matches the app_store_id we're testing (app_store_id "2" is defined in the mock VPP server)
 		return []fleet.SoftwareTitleListResult{
 			{
-				ID: 100,
-				AppStoreApp: &fleet.SoftwarePackageOrApp{
-					AppStoreID: "2",
-					Platform:   "ios",
-				},
+				ID:           100,
+				AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "2", Platform: fleet.IOSPlatform}},
 			},
 		}, 1, nil, nil
 	}
