@@ -171,6 +171,11 @@ type Service interface {
 	// to fleetd (formerly orbit).
 	GetOrbitConfig(ctx context.Context) (OrbitConfig, error)
 
+	// SetHostEntraDeviceToken verifies an Entra ID token reported by a macOS host and stores
+	// the Entra device ID and user principal name it proves, for the Microsoft "Conditional
+	// access" integration.
+	SetHostEntraDeviceToken(ctx context.Context, idToken string) error
+
 	// LogFleetdError logs an error report from a `fleetd` component
 	LogFleetdError(ctx context.Context, errData FleetdError) error
 
@@ -489,6 +494,9 @@ type Service interface {
 	// A caller allowed to resolve the identifier but not to read the host
 	// (GitOps) gets a result with HostDetail.IDOnly set, see that field.
 	HostByIdentifier(ctx context.Context, identifier string, opts HostDetailOptions) (*HostDetail, error)
+	// GetHostByIDOrIdentifier returns one host matching the provided value. A value that is a host id matches on id first, then
+	// any value matches as described on Datastore.HostByIdentifier.
+	GetHostByIDOrIdentifier(ctx context.Context, identifier string, opts HostDetailOptions) (*HostDetail, error)
 	// RefetchHost requests a refetch of host details for the provided host.
 	RefetchHost(ctx context.Context, id uint) (err error)
 	// CleanupExpiredHostsBatch deletes up to batchSize hosts that have exceeded the expiry window and
@@ -1519,8 +1527,6 @@ type Service interface {
 
 	// BatchScriptExecute runs a script on many hosts. It creates and returns a batch execution ID
 	BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs []uint, filters *map[string]any, notBefore *time.Time) (string, error)
-
-	BatchScriptExecutionSummary(ctx context.Context, batchExecutionID string) (*BatchActivity, error)
 
 	BatchScriptExecutionStatus(ctx context.Context, batchExecutionID string) (*BatchActivity, error)
 

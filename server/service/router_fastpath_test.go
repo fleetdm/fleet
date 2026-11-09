@@ -216,7 +216,10 @@ func TestFastPathMatchesGorillaForEdgeCases(t *testing.T) {
 		{name: "unknown path", method: "GET", path: "/api/latest/fleet/nope/nothing/here"},
 		{name: "method mismatch", method: "DELETE", path: "/api/osquery/distributed/write"},
 		{name: "HEAD on a GET route is a 405", method: "HEAD", path: "/api/latest/fleet/hosts/1"},
-		{name: "non-numeric id fails the route constraint", method: "GET", path: "/api/latest/fleet/hosts/not-a-number"},
+		{name: "non-numeric id fails the route constraint", method: "DELETE", path: "/api/latest/fleet/hosts/not-a-number"},
+		{name: "host by identifier on the id route", method: "GET", path: "/api/latest/fleet/hosts/not-a-number", wantServedBy: byFastPath},
+		{name: "literal count beats the host identifier", method: "GET", path: "/api/latest/fleet/hosts/count", wantServedBy: byFastPath},
+		{name: "literal report beats the host identifier", method: "GET", path: "/api/latest/fleet/hosts/report", wantServedBy: byFastPath},
 		{name: "unknown API version", method: "GET", path: "/api/v9/fleet/hosts/1"},
 		{
 			name: "identifier beats the numeric host id", method: "GET",
@@ -231,9 +234,21 @@ func TestFastPathMatchesGorillaForEdgeCases(t *testing.T) {
 			path: "/api/latest/fleet/hosts/1/device_mapping", wantServedBy: byGorilla,
 		},
 		{
-			name: "batch summary beats batch host results", method: "GET",
-			path: "/api/latest/fleet/scripts/batch/summary/host_results", wantServedBy: byGorilla,
+			name: "live batch host results wins the overlap", method: "GET",
+			path: "/api/latest/fleet/scripts/batch/summary/host_results", wantServedBy: byFastPath,
 		},
+		{
+			name: "removed batch summary", method: "GET",
+			path: "/api/latest/fleet/scripts/batch/summary/abc", wantServedBy: byFastPath,
+		},
+		{name: "removed batch summary on another method", method: "POST", path: "/api/latest/fleet/scripts/batch/summary/abc"},
+		{name: "removed batch summary on HEAD", method: "HEAD", path: "/api/latest/fleet/scripts/batch/summary/abc"},
+		{
+			name: "wrong method on the live batch cancel", method: "GET",
+			path: "/api/latest/fleet/scripts/batch/abc/cancel", wantServedBy: byFastPath,
+		},
+		{name: "wrong method on the live batch host results", method: "POST", path: "/api/latest/fleet/scripts/batch/abc/host_results"},
+		{name: "HEAD on the live batch host results", method: "HEAD", path: "/api/latest/fleet/scripts/batch/abc/host_results"},
 		{
 			name: "live resend wins the overlap", method: "POST",
 			path: "/api/latest/fleet/hosts/1/configuration_profiles/resend/resend", wantServedBy: byFastPath,
@@ -523,8 +538,8 @@ func TestFastPathSpanNamesFeedTheTracingTierRegistry(t *testing.T) {
 			wantSpan: "GET /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/config", wantTier: tracing.TierStandard,
 		},
 		{
-			name: "constrained variable stays in the span name", method: "GET", path: "/api/latest/fleet/hosts/1",
-			wantSpan: "GET /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/{id:[0-9]+}", wantTier: tracing.TierStandard,
+			name: "path variable stays in the span name", method: "GET", path: "/api/latest/fleet/hosts/1",
+			wantSpan: "GET /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/{id}", wantTier: tracing.TierStandard,
 		},
 		{
 			name:     "token variable stays unexpanded on the fast path",

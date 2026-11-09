@@ -2966,47 +2966,17 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.Nil(t, titleResult.AutoUpdateStartTime)
 	require.Nil(t, titleResult.AutoUpdateEndTime)
 
-	// Attempt to enable auto-update with invalid start time.
-	startTime := "26:00"
-	endTime := "12:00"
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled:   ptr.Bool(true),
-		AutoUpdateStartTime: ptr.String(startTime),
-		AutoUpdateEndTime:   ptr.String(endTime),
-	})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "auto_update_window_start must be in HH:MM")
-
-	// Attempt to enable auto-update with invalid end time.
-	startTime = "12:00"
-	endTime = "abc"
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled:   ptr.Bool(true),
-		AutoUpdateStartTime: ptr.String(startTime),
-		AutoUpdateEndTime:   ptr.String(endTime),
-	})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "auto_update_window_end must be in HH:MM")
-
-	// Attempt to enable auto-update with less than an hour between start and end time.
-	startTime = "12:00"
-	endTime = "12:30"
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled:   ptr.Bool(true),
-		AutoUpdateStartTime: ptr.String(startTime),
-		AutoUpdateEndTime:   ptr.String(endTime),
-	})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "The update window must be at least one hour long")
-
 	// Enable auto-update.
-	startTime = "02:00"
-	endTime = "04:00"
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled:   ptr.Bool(true),
-		AutoUpdateStartTime: ptr.String(startTime),
-		AutoUpdateEndTime:   ptr.String(endTime),
-	})
+	startTime := "02:00"
+	endTime := "04:00"
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		AdamID:              "adam_vpp_app_1",
+		Platform:            fleet.IPadOSPlatform,
+		AutoUpdateEnabled:   new(true),
+		AutoUpdateStartTime: new(startTime),
+		AutoUpdateEndTime:   new(endTime),
+	}, teamID, nil)
 	require.NoError(t, err)
 
 	titleResult, err = ds.SoftwareTitleByID(ctx, titleID, teamID, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
@@ -3054,11 +3024,14 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.Equal(t, endTime, *listedByName.AutoUpdateEndTime)
 
 	// Save a disabled auto-update schedule for the other VPP app, the window is not stored for a disabled schedule so the app should not be listed.
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title2ID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled:   ptr.Bool(false),
-		AutoUpdateStartTime: ptr.String(startTime),
-		AutoUpdateEndTime:   ptr.String(endTime),
-	})
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp2", BundleIdentifier: "com.app.vpp2",
+		AdamID:              "adam_vpp_app_2",
+		Platform:            fleet.IPadOSPlatform,
+		AutoUpdateEnabled:   new(false),
+		AutoUpdateStartTime: new(startTime),
+		AutoUpdateEndTime:   new(endTime),
+	}, teamID, nil)
 	require.NoError(t, err)
 
 	// List the iPadOS schedules, only the enabled app should be returned.
@@ -3087,9 +3060,12 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.Empty(t, schedules)
 
 	// Disable auto-update.
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled: ptr.Bool(false),
-	})
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		AdamID:            "adam_vpp_app_1",
+		Platform:          fleet.IPadOSPlatform,
+		AutoUpdateEnabled: new(false),
+	}, teamID, nil)
 	require.NoError(t, err)
 
 	titleResult, err = ds.SoftwareTitleByID(ctx, titleID, teamID, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
@@ -3111,11 +3087,14 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	// Enable auto-update back for the iPadOS app.
 	startTime = "02:00"
 	endTime = "04:00"
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled:   ptr.Bool(true),
-		AutoUpdateStartTime: ptr.String(startTime),
-		AutoUpdateEndTime:   ptr.String(endTime),
-	})
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		AdamID:              "adam_vpp_app_1",
+		Platform:            fleet.IPadOSPlatform,
+		AutoUpdateEnabled:   new(true),
+		AutoUpdateStartTime: new(startTime),
+		AutoUpdateEndTime:   new(endTime),
+	}, teamID, nil)
 	require.NoError(t, err)
 
 	// Get scheduled updates for iOS, should return none.
@@ -3126,11 +3105,14 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	// Enable auto-update for the iOS app.
 	startTime = "00:00"
 	endTime = "05:00"
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title3ID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled:   ptr.Bool(true),
-		AutoUpdateStartTime: ptr.String(startTime),
-		AutoUpdateEndTime:   ptr.String(endTime),
-	})
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp3", BundleIdentifier: "com.app.vpp3",
+		AdamID:              "adam_vpp_app_3",
+		Platform:            fleet.IOSPlatform,
+		AutoUpdateEnabled:   new(true),
+		AutoUpdateStartTime: new(startTime),
+		AutoUpdateEndTime:   new(endTime),
+	}, teamID, nil)
 	require.NoError(t, err)
 
 	// Should still get 1 for iPadOS.

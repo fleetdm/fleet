@@ -117,7 +117,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 
 	// add an enroll secret so the fleetd profiles differ
 	var teamResp teamEnrollSecretsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", tm.ID),
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/secrets", tm.ID),
 		modifyTeamEnrollSecretsRequest{
 			Secrets: []fleet.EnrollSecret{{Secret: "team1_enroll_sec"}},
 		}, http.StatusOK, &teamResp)
@@ -559,7 +559,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 			}
 		}
 	}`), http.StatusOK)
-	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), fleet.TeamPayload{
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID), fleet.TeamPayload{
 		MDM: &fleet.TeamPayloadMDM{
 			MacOSUpdates: &fleet.AppleOSUpdateSettings{
 				Deadline:       optjson.SetString("1992-01-01"),
@@ -1216,7 +1216,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 		Description: "desc team1",
 	}
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", team, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
 	team = createTeamResp.Team
 
@@ -1236,7 +1236,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 
 	// retrieving the team returns the custom macos settings
 	var teamResp getTeamResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Equal(t, []fleet.MDMProfileSpec{
 		{Path: "foo", LabelsIncludeAll: []string{"a", "b"}},
 		{Path: "bar", LabelsExcludeAny: []string{"c"}},
@@ -1274,7 +1274,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Equal(t, []fleet.MDMProfileSpec{
 		{Path: "foo", LabelsIncludeAll: []string{"a", "b"}},
 		{Path: "bar", LabelsExcludeAny: []string{"c"}},
@@ -1290,7 +1290,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, "dry_run", "true")
 	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Equal(t, []fleet.MDMProfileSpec{
 		{Path: "foo", LabelsIncludeAll: []string{"a", "b"}},
 		{Path: "bar", LabelsExcludeAny: []string{"c"}},
@@ -1305,7 +1305,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Equal(t, []fleet.MDMProfileSpec{}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
 
 	// apply with invalid mix of labels fails
@@ -1432,7 +1432,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	// create the team 1 enroll secret
 	var teamResp teamEnrollSecretsResponse
 	tm1EnrollSec := "team1_enroll_sec"
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", tm1.ID),
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/secrets", tm1.ID),
 		modifyTeamEnrollSecretsRequest{
 			Secrets: []fleet.EnrollSecret{{Secret: tm1EnrollSec}},
 		}, http.StatusOK, &teamResp)
@@ -1852,7 +1852,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	})
 
 	// delete team 2 (h1 and h3 are part of that team)
-	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d", tm2.ID), nil, http.StatusOK)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm2.ID), nil, http.StatusOK)
 	s.awaitTriggerProfileSchedule(t)
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
@@ -3009,7 +3009,7 @@ func (s *integrationMDMTestSuite) TestIPadOSUpdateDeclarationAfterMDMReset() {
 
 	teamName := t.Name() + "team"
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: teamName}, http.StatusOK, &createTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{Name: teamName}, http.StatusOK, &createTeamResp)
 	teamID := createTeamResp.Team.ID
 	require.NotZero(t, teamID)
 

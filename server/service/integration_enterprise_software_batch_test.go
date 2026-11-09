@@ -52,7 +52,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 		Description: "desc team1",
 	}
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", team, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
 	team = createTeamResp.Team
 
@@ -136,7 +136,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 
 	// retrieving the team returns the software
 	var teamResp getTeamResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Equal(t, wantSoftwarePackages, teamResp.Team.Config.Software.Packages.Value)
 
 	// apply without custom software specified, should not replace existing software
@@ -149,7 +149,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 	}
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Equal(t, wantSoftwarePackages, teamResp.Team.Config.Software.Packages.Value)
 	require.Equal(t, wantAppStoreApps, teamResp.Team.Config.Software.AppStoreApps.Value)
 
@@ -167,7 +167,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 	}
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, "dry_run", "true")
 	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Equal(t, wantSoftwarePackages, teamResp.Team.Config.Software.Packages.Value)
 
 	// apply with explicitly empty custom app store apps would clear the existing
@@ -184,7 +184,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 	}
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, "dry_run", "true")
 	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Equal(t, wantAppStoreApps, teamResp.Team.Config.Software.AppStoreApps.Value)
 
 	// apply with empty top-level software field, should not clear packages
@@ -198,7 +198,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 	}
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Equal(t, wantSoftwarePackages, teamResp.Team.Config.Software.Packages.Value)
 	require.Equal(t, wantAppStoreApps, teamResp.Team.Config.Software.AppStoreApps.Value)
 
@@ -215,7 +215,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 	}
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Empty(t, teamResp.Team.Config.Software.Packages.Value)
 	require.Equal(t, wantAppStoreApps, teamResp.Team.Config.Software.AppStoreApps.Value)
 
@@ -232,7 +232,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 	}
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Empty(t, teamResp.Team.Config.Software.Packages.Value)
 	require.Empty(t, teamResp.Team.Config.Software.AppStoreApps.Value)
 
@@ -247,7 +247,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 	}
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusBadRequest)
 	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Empty(t, teamResp.Team.Config.Software.Packages.Value)
 
 	// patch with an invalid array returns an error
@@ -261,7 +261,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 	}
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusBadRequest)
 	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Empty(t, teamResp.Team.Config.Software.AppStoreApps.Value)
 }
 

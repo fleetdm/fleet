@@ -94,7 +94,7 @@ func (s *integrationEnterpriseTestSuite) TestFailingPolicyAutomationFiresHostAct
 
 	// Enable the per-fleet host activities webhook on the team.
 	var tmResp teamResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
 		HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
 			Enable:         true,
 			DestinationURL: srv.URL + "/host-activities",
@@ -211,7 +211,7 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyAutomationFiresEachFlee
 
 	var tmResp teamResponse
 	for teamID, path := range map[uint]string{teamA.ID: "/fleet-a", teamB.ID: "/fleet-b"} {
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", teamID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
 			HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
 				Enable:         true,
 				DestinationURL: srv.URL + path,
@@ -340,7 +340,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamFailingPolicyWebhookTrigger()
 	var defaultTeamResp struct {
 		Team *fleet.DefaultTeam `json:"team"` //nolint:apiparamcheck // test helper; matches server response shape
 	}
-	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+	s.DoJSON("PATCH", "/api/latest/fleet/fleets/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
 		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
 			Enable:         true,
 			DestinationURL: "https://example.com/webhook",
@@ -378,7 +378,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamFailingPolicyWebhookTrigger()
 	defaultTeamResp = struct {
 		Team *fleet.DefaultTeam `json:"team"` //nolint:apiparamcheck // test helper; matches server response shape
 	}{}
-	s.DoJSON("GET", "/api/latest/fleet/teams/0", nil, http.StatusOK, &defaultTeamResp)
+	s.DoJSON("GET", "/api/latest/fleet/fleets/0", nil, http.StatusOK, &defaultTeamResp)
 	require.Equal(t, uint(0), defaultTeamResp.Team.ID)
 	require.Equal(t, fleet.ReservedNameNoTeam, defaultTeamResp.Team.Name)
 	require.True(t, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.Enable)
@@ -479,7 +479,7 @@ func (s *integrationEnterpriseTestSuite) TestResetAutomation() {
 
 	var tmResp teamResponse
 	// modify the team's config - enable the webhook
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team1.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team1.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamSpecWebhookSettings{
 		FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
 			Enable:         true,
 			DestinationURL: "http://127/",
@@ -1158,6 +1158,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		"host_id": %d,
 		"host_display_name": "%s",
 		"software_title": "%s",
+		"software_display_name": "",
 		"software_package": "%s",
 		"hash_sha256": "%s",
 		"self_service": false,
@@ -1848,7 +1849,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	// Use a dedicated team so we can reuse the ruby.deb and vim.deb testdata
 	// files without conflicting with the no-team installers already uploaded above.
 	var inclAllTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", fleet.Team{Name: t.Name() + "-include-all"}, http.StatusOK, &inclAllTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", fleet.Team{Name: t.Name() + "-include-all"}, http.StatusOK, &inclAllTeamResp)
 	inclAllTeam := inclAllTeamResp.Team
 	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&inclAllTeam.ID, []uint{host.ID}))
 	require.NoError(t, err)
@@ -4013,7 +4014,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwarePackageSele
 	ctx := context.Background()
 
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name()}, http.StatusOK, &createTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{Name: t.Name()}, http.StatusOK, &createTeamResp)
 	teamID := createTeamResp.Team.ID
 	user := s.users["admin1@example.com"]
 
