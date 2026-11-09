@@ -61,6 +61,8 @@ type EnrollOrbitFunc func(ctx context.Context, hostInfo fleet.OrbitHostInfo, enr
 
 type GetOrbitConfigFunc func(ctx context.Context) (fleet.OrbitConfig, error)
 
+type SetHostEntraDeviceTokenFunc func(ctx context.Context, idToken string) error
+
 type LogFleetdErrorFunc func(ctx context.Context, errData fleet.FleetdError) error
 
 type SetOrUpdateDeviceAuthTokenFunc func(ctx context.Context, authToken string) error
@@ -859,8 +861,6 @@ type BatchSetScriptsFunc func(ctx context.Context, maybeTmID *uint, maybeTmName 
 
 type BatchScriptExecuteFunc func(ctx context.Context, scriptID uint, hostIDs []uint, filters *map[string]any, notBefore *time.Time) (string, error)
 
-type BatchScriptExecutionSummaryFunc func(ctx context.Context, batchExecutionID string) (*fleet.BatchActivity, error)
-
 type BatchScriptExecutionStatusFunc func(ctx context.Context, batchExecutionID string) (*fleet.BatchActivity, error)
 
 type BatchScriptExecutionHostResultsFunc func(ctx context.Context, batchExecutionID string, status fleet.BatchScriptExecutionStatus, opt fleet.ListOptions) ([]fleet.BatchScriptHost, *fleet.PaginationMetadata, uint, error)
@@ -1117,6 +1117,9 @@ type Service struct {
 
 	GetOrbitConfigFunc        GetOrbitConfigFunc
 	GetOrbitConfigFuncInvoked bool
+
+	SetHostEntraDeviceTokenFunc        SetHostEntraDeviceTokenFunc
+	SetHostEntraDeviceTokenFuncInvoked bool
 
 	LogFleetdErrorFunc        LogFleetdErrorFunc
 	LogFleetdErrorFuncInvoked bool
@@ -2315,9 +2318,6 @@ type Service struct {
 	BatchScriptExecuteFunc        BatchScriptExecuteFunc
 	BatchScriptExecuteFuncInvoked bool
 
-	BatchScriptExecutionSummaryFunc        BatchScriptExecutionSummaryFunc
-	BatchScriptExecutionSummaryFuncInvoked bool
-
 	BatchScriptExecutionStatusFunc        BatchScriptExecutionStatusFunc
 	BatchScriptExecutionStatusFuncInvoked bool
 
@@ -2753,6 +2753,13 @@ func (s *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, error)
 	s.GetOrbitConfigFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetOrbitConfigFunc(ctx)
+}
+
+func (s *Service) SetHostEntraDeviceToken(ctx context.Context, idToken string) error {
+	s.mu.Lock()
+	s.SetHostEntraDeviceTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetHostEntraDeviceTokenFunc(ctx, idToken)
 }
 
 func (s *Service) LogFleetdError(ctx context.Context, errData fleet.FleetdError) error {
@@ -5546,13 +5553,6 @@ func (s *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs
 	s.BatchScriptExecuteFuncInvoked = true
 	s.mu.Unlock()
 	return s.BatchScriptExecuteFunc(ctx, scriptID, hostIDs, filters, notBefore)
-}
-
-func (s *Service) BatchScriptExecutionSummary(ctx context.Context, batchExecutionID string) (*fleet.BatchActivity, error) {
-	s.mu.Lock()
-	s.BatchScriptExecutionSummaryFuncInvoked = true
-	s.mu.Unlock()
-	return s.BatchScriptExecutionSummaryFunc(ctx, batchExecutionID)
 }
 
 func (s *Service) BatchScriptExecutionStatus(ctx context.Context, batchExecutionID string) (*fleet.BatchActivity, error) {

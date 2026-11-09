@@ -33,7 +33,7 @@ describe("FailedToRotateDiskEncryptionKeyActivityItem", () => {
       )
     ).toBeVisible();
     expect(screen.queryByTestId("close-icon")).not.toBeInTheDocument();
-    expect(screen.getByTestId("info-outline-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("info-icon")).toBeInTheDocument();
   });
 
   it("offers details even without a recorded reason", () => {
@@ -45,6 +45,6 @@ describe("FailedToRotateDiskEncryptionKeyActivityItem", () => {
       />
     );
 
-    expect(screen.getByTestId("info-outline-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("info-icon")).toBeInTheDocument();
   });
 });

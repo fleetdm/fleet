@@ -14,6 +14,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
@@ -147,7 +148,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'host_id', ua.host_id,
 				'host_display_name', COALESCE(hdn.display_name, ''),
 				'software_title', COALESCE(st.name, ua.payload->>'$.software_title_name', ''),
-				'software_display_name', stdn.display_name,
+				'software_display_name', COALESCE(stdn.display_name, ''),
 				'software_package', COALESCE(si.filename, ua.payload->>'$.installer_filename', ''),
 				'install_uuid', ua.execution_id,
 				'status', 'pending_install',
@@ -197,7 +198,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'host_id', ua.host_id,
 				'host_display_name', COALESCE(hdn.display_name, ''),
 				'software_title', COALESCE(st.name, ua.payload->>'$.software_title_name', ''),
-				'software_display_name', stdn.display_name,
+				'software_display_name', COALESCE(stdn.display_name, ''),
 				'script_execution_id', ua.execution_id,
 				'status', 'pending_uninstall',
 				'self_service', COALESCE(ua.payload->'$.self_service', FALSE) IS TRUE,
@@ -246,7 +247,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'host_id', ua.host_id,
 				'host_display_name', COALESCE(hdn.display_name, ''),
 				'software_title', COALESCE(st.name, ''),
-				'software_display_name', stdn.display_name,
+				'software_display_name', COALESCE(stdn.display_name, ''),
 				'app_store_id', vaua.adam_id,
 				'command_uuid', ua.execution_id,
 				'self_service', ua.payload->'$.self_service' IS TRUE,
@@ -299,7 +300,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'host_id', ua.host_id,
 				'host_display_name', COALESCE(hdn.display_name, ''),
 				'software_title', COALESCE(st.name, ''),
-				'software_display_name', stdn.display_name,
+				'software_display_name', COALESCE(stdn.display_name, ''),
 				'command_uuid', ua.execution_id,
 				'self_service', ua.payload->'$.self_service' IS TRUE,
 				'status', 'pending_install'
@@ -818,7 +819,7 @@ func cancelHostInHouseAppInstallUpcomingActivity(ctx context.Context, tx sqlx.Ex
 		HostID:              act.HostID,
 		HostDisplayName:     act.HostDisplayName,
 		SoftwareTitle:       act.CanceledName,
-		SoftwareDisplayName: act.CanceledDisplayName,
+		SoftwareDisplayName: ptr.ValOrZero(act.CanceledDisplayName),
 		SoftwareTitleID:     titleID,
 	}, nil
 }
@@ -857,7 +858,7 @@ func cancelHostVPPAppInstallUpcomingActivity(ctx context.Context, tx sqlx.ExtCon
 		HostID:              act.HostID,
 		HostDisplayName:     act.HostDisplayName,
 		SoftwareTitle:       act.CanceledName,
-		SoftwareDisplayName: act.CanceledDisplayName,
+		SoftwareDisplayName: ptr.ValOrZero(act.CanceledDisplayName),
 		SoftwareTitleID:     titleID,
 	}, nil
 }
@@ -888,7 +889,7 @@ func cancelHostSoftwareUninstallUpcomingActivity(ctx context.Context, tx sqlx.Ex
 		HostID:              act.HostID,
 		HostDisplayName:     act.HostDisplayName,
 		SoftwareTitle:       act.CanceledName,
-		SoftwareDisplayName: act.CanceledDisplayName,
+		SoftwareDisplayName: ptr.ValOrZero(act.CanceledDisplayName),
 		SoftwareTitleID:     titleID,
 	}, nil
 }
@@ -917,7 +918,7 @@ func cancelHostSoftwareInstallUpcomingActivity(ctx context.Context, tx sqlx.ExtC
 		HostID:              act.HostID,
 		HostDisplayName:     act.HostDisplayName,
 		SoftwareTitle:       act.CanceledName,
-		SoftwareDisplayName: act.CanceledDisplayName,
+		SoftwareDisplayName: ptr.ValOrZero(act.CanceledDisplayName),
 		SoftwareTitleID:     titleID,
 	}, nil
 }

@@ -89,7 +89,6 @@ const CustomDropdownIndicator = (
       <Icon
         name="chevron-down"
         color={color}
-        size={variant === "secondary" ? "small" : undefined}
         className={`${baseClass}__icon`}
       />
     </components.DropdownIndicator>

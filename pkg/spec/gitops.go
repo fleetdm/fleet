@@ -18,6 +18,7 @@ import (
 
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
@@ -536,9 +537,12 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		return nil, fmt.Errorf("failed to unmarshal file %w: \n", err)
 	}
 
-	// Apply deprecated key mappings (e.g., team_settings -> settings, queries -> reports)
+	// Apply deprecated key mappings (e.g., queries -> reports), then reject the keys that Fleet 5 removed
 	if err := ApplyDeprecatedKeyMappings(rawData, logFn); err != nil {
 		return nil, fmt.Errorf("failed to process deprecated keys in file %s: %w", filePath, err)
+	}
+	if err := RejectRemovedKeys(rawData, filePath); err != nil {
+		return nil, err
 	}
 
 	// Re-marshal and unmarshal to map[string]json.RawMessage for existing parsing logic
@@ -567,6 +571,12 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		}
 	}
 
+	// The removed file name fails whatever the file contains.
+	removedFile := filepath.Base(filePath) == "no-team.yml"
+	if removedFile {
+		multiError = multierror.Append(multiError, removedNameError(removednames.KindFileName, "no-team.yml"))
+	}
+
 	// Figure out if this is an org or fleet settings file
 	teamRaw, teamOk := top["name"]
 	settingsRaw, settingsOk := top["settings"]
@@ -580,24 +590,21 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		}
 	case teamOk:
 		multiError = parseName(teamRaw, result, filePath, multiError)
-		// If the file is no-team.yml, the name must be "No team".
+		// Report both removed names in one run.
+		if result.IsNoTeam() {
+			multiError = multierror.Append(multiError, removedNameError(removednames.KindYAMLValue, "name: No team"))
+		}
 		switch {
-		case filepath.Base(filePath) == "no-team.yml" && !result.IsNoTeam():
-			multiError = multierror.Append(multiError, errors.New("`name` must be `No Team` for `no-team.yml`"))
+		case removedFile || result.IsNoTeam():
 			return result, multiError.ErrorOrNil()
 		case filepath.Base(filePath) == "unassigned.yml" && !result.IsUnassignedTeam():
 			multiError = multierror.Append(multiError, errors.New("`name` must be `Unassigned` for `unassigned.yml`"))
 			return result, multiError.ErrorOrNil()
-		case result.IsNoTeam() && filepath.Base(filePath) != "no-team.yml":
-			multiError = multierror.Append(multiError, fmt.Errorf("file `%s` for No Team must be named `no-team.yml`", filePath))
-			multiError = multierror.Append(multiError, errors.New("no-team.yml is deprecated; please ensure the fleet name has been updated to 'Unassigned' and rename the file to 'unassigned.yml'."))
-			return result, multiError.ErrorOrNil()
 		case result.IsUnassignedTeam() && filepath.Base(filePath) != "unassigned.yml":
 			multiError = multierror.Append(multiError, fmt.Errorf("file `%s` for unassigned hosts must be named `unassigned.yml`", filePath))
 			return result, multiError.ErrorOrNil()
-		case result.IsNoTeam() || result.IsUnassignedTeam():
-			// Coerce to "No Team" for easier processing.
-			// TODO - Remove No Team in Fleet 5
+		case result.IsUnassignedTeam():
+			// The rest of the processing uses the internal name "No team" for unassigned hosts.
 			result.TeamName = ptr.String(noTeam)
 			// For No Team, we allow settings but only process webhook_settings from it
 			if settingsOk {
@@ -613,7 +620,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	default:
 		switch filepath.Base(filePath) {
 		case "no-team.yml":
-			multiError = multierror.Append(multiError, errors.New("`name` must be `No Team` for `no-team.yml`"))
+			// Reported above.
 		case "unassigned.yml":
 			multiError = multierror.Append(multiError, errors.New("`name` must be `Unassigned` for `unassigned.yml`"))
 		default:
@@ -762,6 +769,13 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 						)
 					} else {
 						raw = fileBytes
+						var fileOrgSettings map[string]any
+						if err := YamlUnmarshal(fileBytes, &fileOrgSettings); err == nil {
+							if err := RejectRemovedKeys(map[string]any{"org_settings": fileOrgSettings}, *orgSettingsTop.Path); err != nil {
+								noError = false
+								multiError = multierror.Append(multiError, err)
+							}
+						}
 					}
 				}
 			}
@@ -808,7 +822,7 @@ func absPathFrom(baseDir, p string) string {
 
 // ResolveFilePathsAbs rewrites the controls' file-path fields that are resolved at
 // APPLY time to absolute paths against baseDir. Used when controls from
-// no-team.yml/unassigned.yml are applied onto the global config, which is applied
+// unassigned.yml is applied onto the global config, which is applied
 // under a different (global) baseDir — making these paths absolute means the
 // apply-side resolveApplyRelativePath becomes a no-op, so paths authored relative to
 // the no-team file (e.g. ../lib/...) keep working.
