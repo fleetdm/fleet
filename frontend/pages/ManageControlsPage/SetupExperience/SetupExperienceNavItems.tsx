@@ -17,28 +17,22 @@ export interface ISetupExperienceCardProps {
 
 const SETUP_EXPERIENCE_NAV_ITEMS: ISideNavItem<ISetupExperienceCardProps>[] = [
   {
-    title: "1. Users",
+    title: "Users",
     urlSection: "users",
     path: PATHS.CONTROLS_USERS,
     Card: Users,
   },
   {
-    title: "2. Bootstrap package",
+    title: "Bootstrap package",
     urlSection: "bootstrap-package",
     path: PATHS.CONTROLS_BOOTSTRAP_PACKAGE,
     Card: BootstrapPackage,
   },
   {
-    title: "3. Install software",
+    title: "Install software",
     urlSection: "install-software",
     path: PATHS.CONTROLS_INSTALL_SOFTWARE("macos"),
     Card: InstallSoftware,
-  },
-  {
-    title: "4. Setup Assistant",
-    urlSection: "setup-assistant",
-    path: PATHS.CONTROLS_SETUP_ASSISTANT,
-    Card: SetupAssistant,
   },
   {
     title: "Run script",
@@ -46,6 +40,12 @@ const SETUP_EXPERIENCE_NAV_ITEMS: ISideNavItem<ISetupExperienceCardProps>[] = [
     path: PATHS.CONTROLS_RUN_SCRIPT,
     Card: RunScript,
     exclude: true, // Excluded from the side navigation but still available via direct route - Fleet 5 deprecation
+  },
+  {
+    title: "Setup Assistant",
+    urlSection: "setup-assistant",
+    path: PATHS.CONTROLS_SETUP_ASSISTANT,
+    Card: SetupAssistant,
   },
 ];
 
