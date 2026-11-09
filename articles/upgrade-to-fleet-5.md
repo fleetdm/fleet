@@ -2,8 +2,6 @@
 
 Fleet 5 introduces a cleaner, more consistent API and GitOps (YAML) by removing deprecated API endpoints and parameters, YAML (GitOps) keys, and more. This guide lists [every breaking change](#breaking-changes), what changed, and what you need to do.
 
-Fleet 5 also brings [Fleet's AI skill](https://github.com/fleetdm/fleet/issues/54907), an [AI-native configuration profile builder](https://github.com/fleetdm/fleet/issues/51813), [AI tools, AI skills](https://github.com/fleetdm/fleet/issues/51599), and [AI sessions](https://github.com/fleetdm/fleet/issues/51599) in software inventory and host vitals respectively, and [Fleet's MCP server](https://github.com/fleetdm/fleet/issues/44448).
-
 > **Note:** Fleet 4.96 is coming [late November](https://github.com/fleetdm/fleet/milestone/239) and Fleet 5 is coming [early December](https://github.com/fleetdm/fleet/milestone/295). This guide is published early so you can plan your upgrade.
 
 Fleet will support Fleet 4.96 with security fixes through June 30, 2027.
@@ -19,7 +17,7 @@ Fleet will support Fleet 4.96 with security fixes through June 30, 2027.
 
 Fleet follows [semantic versioning (SemVer)](https://semver.org/), which means breaking changes are only made in major version releases. [Learn more](https://fleetdm.com/docs/deploy/upgrading-fleet#compatibility).
 
-The last major version (Fleet 4) was released over 5 years ago (2021-06-29). Since then, the API, GitOps (YAML), and other interfaces have collected blemishes and inconsistencies. Fleet 5, among [other new features](#upgrade-to-fleet-5), brings clear and consistent interfaces to Fleet.
+The last major version (Fleet 4) was released over 5 years ago (2021-06-29). Since then, the API, GitOps (YAML), and other interfaces have collected blemishes and inconsistencies. Fleet 5, among [other new features](https://fleetdm.com/announcements/roadmap-preview-october-2026), brings clear and consistent interfaces to Fleet.
 
 
 ## Breaking changes
