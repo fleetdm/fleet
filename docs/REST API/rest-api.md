@@ -17068,7 +17068,7 @@ _Available in Fleet Premium_
 
 | Name | Type   | In   | Description                    |
 | ---- | ------ | ---- | ------------------------------ |
-| name | string | body | **Required.** The fleet's name. Fleet names must differ by more than letter case. |
+| name | string | body | **Required.** The fleet's name. Must include at least one letter or number, and must be distinct from other fleets' names. When comparing names, Fleet ignores letter case, accents, whitespace, punctuation, symbols, and emoji. |
 
 #### Example
 
@@ -17082,11 +17082,29 @@ _Available in Fleet Premium_
 }
 ```
 
+##### Invalid name response
+
+`Status: 422`
+
+Returned when the name doesn't include at least one letter or number (for example, `🚀` or `---`).
+
+```json
+{
+  "message": "Validation Failed",
+  "errors": [
+    {
+      "name": "name",
+      "reason": "must include at least one letter or number"
+    }
+  ]
+}
+```
+
 ##### Name conflict response
 
 `Status: 409`
 
-Returned when the requested name only differs from an existing fleet's name by letter case.
+Returned when the name matches another fleet's name, ignoring letter case, accents, whitespace, punctuation, symbols, and emoji (for example, `workstations!` when `Workstations` exists).
 
 ```json
 {
@@ -17094,7 +17112,7 @@ Returned when the requested name only differs from an existing fleet's name by l
   "errors": [
     {
       "name": "base",
-      "reason": "A fleet named \"Workstations\" already exists. Fleet names must differ by more than letter case."
+      "reason": "A fleet named \"Workstations\" already exists. Choose a fleet name distinct from other fleets."
     }
   ]
 }
@@ -17157,7 +17175,7 @@ _Available in Fleet Premium_
 | Name                                                    | Type    | In   | Description                                                                                                                                                                                               |
 | ------------------------------------------------------- | ------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | id                                                      | integer | path | **Required.** The desired fleet's ID. Use `0` for "Unassigned" hosts. **Note:** When using `id=0`, only `webhook_settings.failing_policies_webhook`, `webhook_settings.host_activities_webhook`, `integrations.jira`, and `integrations.zendesk` fields are supported in the request body. |
-| name                                                    | string  | body | The fleet's name. Fleet names must differ by more than letter case. Renaming a fleet into another fleet's name returns a 409 Conflict error.                                                                                                                                                                                          |
+| name                                                    | string  | body | The fleet's name. Must include at least one letter or number, and must be distinct from other fleets' names. When comparing names, Fleet ignores letter case, accents, whitespace, punctuation, symbols, and emoji. |
 | host_ids                                                | array    | body | A list of hosts that belong to the fleet.                                                                                                                                                                  |
 | user_ids                                                | array    | body | A list of users on the fleet.                                                                                                                                                             |
 | webhook_settings                                        | object  | body | Webhook settings for the fleet. See [webhook_settings](#webhook-settings2).                                                                                                                                                          |
@@ -17179,11 +17197,29 @@ _Available in Fleet Premium_
 }
 ```
 
+##### Invalid name response
+
+`Status: 422`
+
+Returned when the name doesn't include at least one letter or number (for example, `🚀` or `---`).
+
+```json
+{
+  "message": "Validation Failed",
+  "errors": [
+    {
+      "name": "name",
+      "reason": "must include at least one letter or number"
+    }
+  ]
+}
+```
+
 ##### Name conflict response
 
 `Status: 409`
 
-Returned when the requested name only differs from another fleet's name by letter case. Renaming a fleet to a case variant of its own current name (e.g., `ABC` → `abc`) succeeds.
+Returned when the name matches another fleet's name, ignoring letter case, accents, whitespace, punctuation, symbols, and emoji (for example, `workstations!` when `Workstations` exists). Renaming a fleet to a variant of its own current name (for example, `ABC` to `abc`) succeeds.
 
 ```json
 {
@@ -17191,7 +17227,7 @@ Returned when the requested name only differs from another fleet's name by lette
   "errors": [
     {
       "name": "base",
-      "reason": "A fleet named \"Workstations\" already exists. Fleet names must differ by more than letter case."
+      "reason": "A fleet named \"Workstations\" already exists. Choose a fleet name distinct from other fleets."
     }
   ]
 }
