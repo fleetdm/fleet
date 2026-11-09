@@ -276,6 +276,12 @@ JOIN labels l ON l.name = jt.spec_name`
 				return ctxerr.Wrap(ctx, err, "exec ApplyLabelSpecs insert")
 			}
 
+			if existing, ok := existingLabels[s.Name]; ok && existing.Name != s.Name {
+				if _, err := tx.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_name = ? WHERE label_id = ?`, s.Name, existing.ID); err != nil {
+					return ctxerr.Wrap(ctx, err, "updating mdm configuration profile label")
+				}
+			}
+
 			// Check if this is an existing label and platform changed -> clean up memberships if needed
 			if existing, ok := existingLabels[s.Name]; ok && existing.Platform != s.Platform {
 				// When a label's platform changes, we delete all existing memberships.
