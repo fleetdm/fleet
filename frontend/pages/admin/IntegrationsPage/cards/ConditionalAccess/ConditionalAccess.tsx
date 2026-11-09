@@ -253,7 +253,7 @@ const ConditionalAccess = () => {
               conditional access&quot; in Entra and try again.{" "}
               <CustomLink
                 text="Learn how"
-                url="https://fleetdm.com/guides/entra-conditional-access-integration#step-1-create-a-fleet-conditional-access-group-in-entra"
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/create-entra-conditional-access-group`}
                 newTab
                 variant="flash-message-link"
               />
