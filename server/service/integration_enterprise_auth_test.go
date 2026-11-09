@@ -16,7 +16,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"testing"
 
 	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
@@ -1107,7 +1106,6 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserDeleteReportGrants() {
 	defer func() { s.token = s.getTestAdminToken() }()
 
 	const (
-		byName       = "/api/v1/fleet/reports/name/:name"
 		byID         = "/api/v1/fleet/reports/:id"
 		deprecatedID = "/api/v1/fleet/reports/id/:id"
 	)
@@ -1146,22 +1144,12 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserDeleteReportGrants() {
 		require.NoError(t, err)
 		require.Contains(t, string(body), auth.EndpointRestrictionDeniedMessage)
 	}
-	byNameURL := func(r *fleet.Query) string { return "/api/latest/fleet/reports/name/" + url.PathEscape(r.Name) }
 	byIDURL := func(r *fleet.Query) string { return fmt.Sprintf("/api/latest/fleet/reports/%d", r.ID) }
 	deprecatedIDURL := func(r *fleet.Query) string { return fmt.Sprintf("/api/latest/fleet/reports/id/%d", r.ID) }
-
-	t.Run("by-name grant", func(t *testing.T) {
-		s.token = createAPIOnlyMaintainer("api-only-delete-report-by-name", byName)
-		r := createReport()
-		requireDenied(byIDURL(r))
-		requireDenied(deprecatedIDURL(r))
-		s.Do("DELETE", byNameURL(r), nil, http.StatusOK)
-	})
 
 	t.Run("by-ID grant", func(t *testing.T) {
 		s.token = createAPIOnlyMaintainer("api-only-delete-report-by-id", byID)
 		r := createReport()
-		requireDenied(byNameURL(r))
 		requireDenied(deprecatedIDURL(r))
 		s.Do("DELETE", byIDURL(r), nil, http.StatusOK)
 	})
@@ -1169,14 +1157,13 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserDeleteReportGrants() {
 	t.Run("deprecated by-ID grant", func(t *testing.T) {
 		s.token = createAPIOnlyMaintainer("api-only-delete-report-deprecated-id", deprecatedID)
 		r := createReport()
-		requireDenied(byNameURL(r))
 		requireDenied(byIDURL(r))
 		s.Do("DELETE", deprecatedIDURL(r), nil, http.StatusOK)
 	})
 
-	t.Run("all three grants together", func(t *testing.T) {
-		s.token = createAPIOnlyMaintainer("api-only-delete-report-all", byName, byID, deprecatedID)
-		for _, del := range []func(*fleet.Query) string{byNameURL, byIDURL, deprecatedIDURL} {
+	t.Run("both by-ID grants", func(t *testing.T) {
+		s.token = createAPIOnlyMaintainer("api-only-delete-report-both", byID, deprecatedID)
+		for _, del := range []func(*fleet.Query) string{byIDURL, deprecatedIDURL} {
 			r := createReport()
 			s.Do("DELETE", del(r), nil, http.StatusOK)
 		}

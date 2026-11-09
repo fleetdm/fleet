@@ -78,10 +78,6 @@ var deprecatedPathAliases = []eu.DeprecatedPathAlias{
 		DeprecatedPaths: []string{"/api/_version_/fleet/queries/{id:[0-9]+}"},
 	},
 	{
-		Method: "DELETE", PrimaryPath: "/api/_version_/fleet/reports/name/{name}",
-		DeprecatedPaths: []string{"/api/_version_/fleet/queries/{name}"},
-	},
-	{
 		Method: "DELETE", PrimaryPath: "/api/_version_/fleet/reports/{id:[0-9]+}",
 		DeprecatedPaths: []string{
 			"/api/_version_/fleet/reports/id/{id:[0-9]+}",

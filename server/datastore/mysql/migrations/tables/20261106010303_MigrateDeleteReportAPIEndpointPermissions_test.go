@@ -17,7 +17,6 @@ func TestUp_20261106010303(t *testing.T) {
 	const (
 		oldByName = "/api/v1/fleet/reports/:name"
 		oldByID   = "/api/v1/fleet/reports/id/:id"
-		newByName = "/api/v1/fleet/reports/name/:name"
 		newByID   = "/api/v1/fleet/reports/:id"
 	)
 	del := func(path string) endpoint { return endpoint{Method: "DELETE", Path: path} }
@@ -28,9 +27,10 @@ func TestUp_20261106010303(t *testing.T) {
 		after  []endpoint
 	}{
 		{
-			name:   "by name moves to the new by-name path only",
+			// An empty grant list means full access, so the only grant can't just be dropped.
+			name:   "by name as the only grant becomes by ID",
 			before: []endpoint{del(oldByName)},
-			after:  []endpoint{del(newByName)},
+			after:  []endpoint{del(newByID)},
 		},
 		{
 			name:   "by ID keeps the deprecated path and gains the new by-ID path",
@@ -40,7 +40,7 @@ func TestUp_20261106010303(t *testing.T) {
 		{
 			name:   "both",
 			before: []endpoint{del(oldByName), del(oldByID)},
-			after:  []endpoint{del(newByName), del(oldByID), del(newByID)},
+			after:  []endpoint{del(oldByID), del(newByID)},
 		},
 		{
 			name: "non-catalog placeholder names, version placeholder, and lowercase method",
@@ -48,18 +48,18 @@ func TestUp_20261106010303(t *testing.T) {
 				{Method: "delete", Path: "/api/_version_/fleet/reports/{report_name}"},
 				del("/api/v1/fleet/reports/id/{report_id}"),
 			},
-			after: []endpoint{del(newByName), del(oldByID), del(newByID)},
+			after: []endpoint{del(oldByID), del(newByID)},
 		},
 		{
 			// The old by-name grant's exact string equals the new by-ID path.
 			name:   "by name saved with an :id placeholder",
 			before: []endpoint{del("/api/v1/fleet/reports/:id")},
-			after:  []endpoint{del(newByName)},
+			after:  []endpoint{del(newByID)},
 		},
 		{
 			name:   "by name saved with an :id placeholder alongside by ID",
 			before: []endpoint{del("/api/v1/fleet/reports/:id"), del(oldByID)},
-			after:  []endpoint{del(newByName), del(oldByID), del(newByID)},
+			after:  []endpoint{del(oldByID), del(newByID)},
 		},
 		{
 			name: "unrelated grants are untouched",

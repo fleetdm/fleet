@@ -112,12 +112,6 @@ func (r ModifyQueryResponse) Error() error { return r.Err }
 // Delete Query
 ////////////////////////////////////////////////////////////////////////////////
 
-type DeleteQueryRequest struct {
-	Name string `url:"name"`
-	// TeamID if not set is assumed to be 0 (global).
-	TeamID uint `url:"fleet_id,optional"`
-}
-
 type DeleteQueryResponse struct {
 	Err error `json:"error,omitempty"`
 }

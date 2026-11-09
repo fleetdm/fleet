@@ -108,28 +108,3 @@ spec:
 	assert.True(t, ds.DeleteQueryFuncInvoked)
 	assert.Equal(t, "query1", deletedQuery)
 }
-
-func TestDeleteReportWithNumericName(t *testing.T) {
-	_, ds := testing_utils.RunServerWithMockedDS(t)
-
-	var deletedReport string
-	ds.DeleteQueryFunc = func(ctx context.Context, teamID *uint, name string) error {
-		deletedReport = name
-		return nil
-	}
-	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
-		return &fleet.Query{ID: 7, Name: name, Query: "select 1;"}, nil
-	}
-	name := writeTmpYml(t, `---
-apiVersion: v1
-kind: report
-spec:
-  name: "42"
-  query: select 1;
-`)
-
-	assert.Empty(t, runAppForTest(t, []string{"delete", "-f", name}))
-	assert.True(t, ds.DeleteQueryFuncInvoked)
-	assert.Equal(t, "42", deletedReport)
-	assert.False(t, ds.QueryFuncInvoked, "report name was routed as an ID")
-}

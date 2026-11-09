@@ -17,16 +17,16 @@ func Up_20261106010303(tx *sql.Tx) error {
 	const (
 		oldByNamePath = "/api/v1/fleet/reports/:name"
 		oldByIDPath   = "/api/v1/fleet/reports/id/:id"
-		newByNamePath = "/api/v1/fleet/reports/name/:name"
 		newByIDPath   = "/api/v1/fleet/reports/:id"
 	)
 	fingerprint := func(path string) string {
 		return fleet.NewAPIEndpointFromTpl("DELETE", path).Fingerprint()
 	}
-	// Grants match on placeholder-normalized paths, so an untouched old by-name grant
-	// would silently start granting the new by-ID path instead.
+	// Delete by name has no replacement but delete by ID. Dropping the grant instead could leave a user with no
+	// grants, which means full access. Grants are rewritten to the exact catalog paths because the UI matches them
+	// by exact path, while the server ignores placeholder names.
 	replacements := map[string][]string{
-		fingerprint(oldByNamePath): {newByNamePath},
+		fingerprint(oldByNamePath): {newByIDPath},
 		fingerprint(oldByIDPath):   {oldByIDPath, newByIDPath},
 	}
 

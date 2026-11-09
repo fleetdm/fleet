@@ -24,6 +24,7 @@ var removedPathTemplates = []string{
 	"/api/_version_/fleet/scripts/batch/summary/{batch_execution_id}",
 	// DELETE /reports/{id:[0-9]+} is registered first, so this only answers non-numeric names.
 	"/api/_version_/fleet/reports/{name}",
+	"/api/_version_/fleet/queries/{name}",
 }
 
 // removedPathOverlaps has the removed paths that a stdlib ServeMux cannot register next to a live route.

@@ -423,7 +423,6 @@ type Service interface {
 	ListHostReports(ctx context.Context, hostID uint, opts ListHostReportsOptions) (rows []*HostReport, total int, metadata *PaginationMetadata, err error)
 	NewQuery(ctx context.Context, p QueryPayload) (*Query, error)
 	ModifyQuery(ctx context.Context, id uint, p QueryPayload) (*Query, error)
-	DeleteQuery(ctx context.Context, teamID *uint, name string) error
 	// DeleteQueryByID deletes a query by ID. For backwards compatibility with UI
 	DeleteQueryByID(ctx context.Context, id uint) error
 	// DeleteQueries deletes the existing query objects with the provided IDs. The number of deleted queries is returned
