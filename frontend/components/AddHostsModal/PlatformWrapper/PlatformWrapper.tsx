@@ -223,11 +223,9 @@ const PlatformWrapper = ({
   const renderInstallerString = (packageType: string) => {
     return packageType === "advanced"
       ? `fleetctl package --type=YOUR_TYPE --fleet-url=${config?.server_settings.server_url} --enroll-secret=${enrollSecret} --fleet-certificate=PATH_TO_YOUR_CERTIFICATE/fleet.pem`
-      : `fleetctl package --type=${packageType} ${
-          config && !config.server_settings.scripts_disabled
-            ? "--enable-scripts "
-            : ""
-        }${hostType === "workstation" ? "--fleet-desktop " : ""}--fleet-url=${
+      : `fleetctl package --type=${packageType} --enable-scripts ${
+          hostType === "workstation" ? "--fleet-desktop " : ""
+        }--fleet-url=${
           config?.server_settings.server_url
         } --enroll-secret=${enrollSecret}`;
   };
