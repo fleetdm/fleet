@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.17.1",
+      "version": "1.18.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.devuap.beautyshotapp';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.devuap.beautyshotapp' AND version_compare(bundle_short_version, '1.17.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.devuap.beautyshotapp' AND version_compare(bundle_short_version, '1.18.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.devuap.beautyshotapp' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://xnapper.com/dmg/Xnapper-1.17.1.dmg",
+      "installer_url": "https://xnapper.com/dmg/Xnapper-1.18.1-71.dmg",
       "install_script_ref": "0ea01932",
       "uninstall_script_ref": "714f1d2f",
-      "sha256": "1cfbabf28fb49d117febcc81c77ced5989768f9150d451417cd4f526b048c7e7",
+      "sha256": "7ac30bb98f6f380db04def7e3039ab32a7bb04845c2fee073de56c58e1578a19",
       "default_categories": [
         "Productivity"
       ]
