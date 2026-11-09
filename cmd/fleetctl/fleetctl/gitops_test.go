@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -1591,12 +1592,9 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 				},
 			},
 			{
-				ID:   20,
-				Name: "VPP App",
-				AppStoreApp: &fleet.SoftwarePackageOrApp{
-					AppStoreID: "5128675309",
-					Platform:   string(fleet.MacOSPlatform),
-				},
+				ID:           20,
+				Name:         "VPP App",
+				AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "5128675309", Platform: fleet.MacOSPlatform}},
 			},
 			{
 				ID:         40,
@@ -1953,17 +1951,17 @@ software:
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "'name' is required")
 
-	// Invalid name for "No team" file (dry and real).
+	// The removed name "No team" fails, however it is capitalized (dry and real).
+	noTeamNameEntry, ok := removednames.Find(removednames.KindYAMLValue, "name: No team", "")
+	require.True(t, ok)
 	t.Setenv("TEST_TEAM_NAME", "no TEam")
 	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), fmt.Sprintf("file `%s` for No Team must be named `no-team.yml`", tmpFile.Name()))
-	assert.Contains(t, err.Error(), "rename the file")
+	assert.Contains(t, err.Error(), noTeamNameEntry.Message())
 	t.Setenv("TEST_TEAM_NAME", "no TEam")
 	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), fmt.Sprintf("file `%s` for No Team must be named `no-team.yml`", tmpFile.Name()))
-	assert.Contains(t, err.Error(), "rename the file")
+	assert.Contains(t, err.Error(), noTeamNameEntry.Message())
 	t.Setenv("TEST_TEAM_NAME", "unassigned")
 	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 	require.Error(t, err)
@@ -3462,14 +3460,14 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 
 	teamFileBasic := createTeamFileBasic(t, secret)
 
-	// We cannot use os.CreateTemp because the filename must be exactly "no-team.yml"
-	noTeamFilePath := filepath.Join(t.TempDir(), "no-team.yml")
+	// We cannot use os.CreateTemp because the filename must be exactly "unassigned.yml"
+	noTeamFilePath := filepath.Join(t.TempDir(), "unassigned.yml")
 	noTeamFileBasic, err := os.Create(noTeamFilePath)
 	require.NoError(t, err)
 	_, err = noTeamFileBasic.WriteString(`
 controls:
 policies:
-name: No team
+name: Unassigned
 software:
 `)
 	require.NoError(t, err)
@@ -3517,10 +3515,10 @@ software:
 		assert.ErrorContains(t, err, "'software' cannot be set on global file")
 	})
 
-	t.Run("both global and no-team.yml define controls -- should fail", func(t *testing.T) {
+	t.Run("both global and unassigned.yml define controls -- should fail", func(t *testing.T) {
 		globalFileWithControls := createGlobalFileWithControls(t, fleetServerURL, orgName)
 
-		noTeamFilePathWithControls := filepath.Join(t.TempDir(), "no-team.yml")
+		noTeamFilePathWithControls := filepath.Join(t.TempDir(), "unassigned.yml")
 		noTeamFileWithControls, err := os.Create(noTeamFilePathWithControls)
 		require.NoError(t, err)
 		_, err = noTeamFileWithControls.WriteString(`
@@ -3529,31 +3527,31 @@ controls:
     deadline: "2023-03-03"
     minimum_version: "17.6.1"
 policies:
-name: No team
+name: Unassigned
 software:
 `)
 		require.NoError(t, err)
 
-		// Dry run, both global and no-team.yml define controls.
+		// Dry run, both global and unassigned.yml define controls.
 		_, err = runAppNoChecks([]string{
 			"gitops", "-f", globalFileWithControls.Name(), "-f", teamFileBasic.Name(), "-f",
 			noTeamFileWithControls.Name(), "--dry-run",
 		})
 		require.Error(t, err)
-		assert.True(t, strings.Contains(err.Error(), "'controls' cannot be set on both global config and on no-team.yml"))
-		// Real run, both global and no-team.yml define controls.
+		assert.Contains(t, err.Error(), "'controls' cannot be set on both global config and on unassigned.yml")
+		// Real run, both global and unassigned.yml define controls.
 		_, err = runAppNoChecks([]string{
 			"gitops", "-f", globalFileWithControls.Name(), "-f", teamFileBasic.Name(), "-f",
 			noTeamFileWithControls.Name(),
 		})
 		require.Error(t, err)
-		assert.True(t, strings.Contains(err.Error(), "'controls' cannot be set on both global config and on no-team.yml"))
+		assert.Contains(t, err.Error(), "'controls' cannot be set on both global config and on unassigned.yml")
 	})
 
-	t.Run("no-team.yml defines policy with calendar events enabled -- should fail", func(t *testing.T) {
+	t.Run("unassigned.yml defines policy with calendar events enabled -- should fail", func(t *testing.T) {
 		globalFileWithControls := createGlobalFileWithControls(t, fleetServerURL, orgName)
 
-		noTeamFilePathPoliciesCalendarPath := filepath.Join(t.TempDir(), "no-team.yml")
+		noTeamFilePathPoliciesCalendarPath := filepath.Join(t.TempDir(), "unassigned.yml")
 		noTeamFilePathPoliciesCalendar, err := os.Create(noTeamFilePathPoliciesCalendarPath)
 		require.NoError(t, err)
 		_, err = noTeamFilePathPoliciesCalendar.WriteString(`
@@ -3562,36 +3560,36 @@ policies:
   - name: Foobar
     query: SELECT 1 FROM osquery_info WHERE start_time < 0;
     calendar_events_enabled: true
-name: No team
+name: Unassigned
 software:
 `)
 		require.NoError(t, err)
 
-		// Dry run, both global and no-team.yml defines policy with calendar events enabled.
+		// Dry run, both global and unassigned.yml defines policy with calendar events enabled.
 		_, err = runAppNoChecks([]string{
 			"gitops", "-f", globalFileWithControls.Name(), "-f", teamFileBasic.Name(), "-f",
 			noTeamFilePathPoliciesCalendar.Name(), "--dry-run",
 		})
 		require.Error(t, err)
-		assert.True(t, strings.Contains(err.Error(), "calendar events are not supported on policies included in `no-team.yml`: \"Foobar\""), err.Error())
-		// Real run, both global and no-team.yml define controls.
+		assert.Contains(t, err.Error(), "calendar events are not supported on policies included in `unassigned.yml`: \"Foobar\"", err.Error())
+		// Real run, both global and unassigned.yml define controls.
 		_, err = runAppNoChecks([]string{
 			"gitops", "-f", globalFileWithControls.Name(), "-f", teamFileBasic.Name(), "-f",
 			noTeamFilePathPoliciesCalendar.Name(),
 		})
 		require.Error(t, err)
-		assert.True(t, strings.Contains(err.Error(), "calendar events are not supported on policies included in `no-team.yml`: \"Foobar\""), err.Error())
+		assert.Contains(t, err.Error(), "calendar events are not supported on policies included in `unassigned.yml`: \"Foobar\"", err.Error())
 	})
 
-	t.Run("global and no-team.yml DO NOT define controls -- should fail", func(t *testing.T) {
+	t.Run("global and unassigned.yml DO NOT define controls -- should fail", func(t *testing.T) {
 		globalFileWithoutControlsAndSoftwareKeys := createGlobalFileWithoutControlsAndSoftwareKeys(t, fleetServerURL, orgName)
 
-		noTeamFilePathWithoutControls := filepath.Join(t.TempDir(), "no-team.yml")
+		noTeamFilePathWithoutControls := filepath.Join(t.TempDir(), "unassigned.yml")
 		noTeamFileWithoutControls, err := os.Create(noTeamFilePathWithoutControls)
 		require.NoError(t, err)
 		_, err = noTeamFileWithoutControls.WriteString(`
 policies:
-name: No team
+name: Unassigned
 software:
 `)
 		require.NoError(t, err)
@@ -3602,7 +3600,7 @@ software:
 			noTeamFileWithoutControls.Name(), "--dry-run",
 		})
 		require.Error(t, err)
-		assert.True(t, strings.Contains(err.Error(), "must be set on global config or no-team.yml"), err.Error())
+		assert.Contains(t, err.Error(), "must be set on global config or unassigned.yml", err.Error())
 
 		// Real run
 		_, err = runAppNoChecks([]string{
@@ -3610,7 +3608,7 @@ software:
 			noTeamFileWithoutControls.Name(),
 		})
 		require.Error(t, err)
-		assert.True(t, strings.Contains(err.Error(), "must be set on global config or no-team.yml"), err.Error())
+		assert.Contains(t, err.Error(), "must be set on global config or unassigned.yml", err.Error())
 	})
 
 	t.Run("global DOES NOT define controls -- should fail", func(t *testing.T) {
@@ -3621,41 +3619,14 @@ software:
 			"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(), "--dry-run",
 		})
 		require.Error(t, err)
-		assert.True(t, strings.Contains(err.Error(), "must be set on global config, no-team.yml or unassigned.yml"), err.Error())
+		assert.Contains(t, err.Error(), "must be set on global config or unassigned.yml", err.Error())
 
 		// Real run
 		_, err = runAppNoChecks([]string{
 			"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(),
 		})
 		require.Error(t, err)
-		assert.True(t, strings.Contains(err.Error(), "must be set on global config, no-team.yml or unassigned.yml"), err.Error())
-	})
-
-	t.Run("no-team provided without global -- should fail", func(t *testing.T) {
-		noTeamFilePathWithoutControls := filepath.Join(t.TempDir(), "no-team.yml")
-		noTeamFileWithoutControls, err := os.Create(noTeamFilePathWithoutControls)
-		require.NoError(t, err)
-		_, err = noTeamFileWithoutControls.WriteString(`
-policies:
-name: No team
-software:
-`)
-		require.NoError(t, err)
-
-		// Dry run.
-		_, err = runAppNoChecks([]string{
-			"gitops", "-f", teamFileBasic.Name(), "-f",
-			noTeamFileWithoutControls.Name(), "--dry-run",
-		})
-		require.Error(t, err)
-		assert.True(t, strings.Contains(err.Error(), "global config must be provided alongside no-team.yml"), err.Error())
-
-		_, err = runAppNoChecks([]string{
-			"gitops", "-f", teamFileBasic.Name(), "-f",
-			noTeamFileWithoutControls.Name(),
-		})
-		require.Error(t, err)
-		assert.True(t, strings.Contains(err.Error(), "global config must be provided alongside no-team.yml"), err.Error())
+		assert.Contains(t, err.Error(), "must be set on global config or unassigned.yml", err.Error())
 	})
 
 	t.Run("unassigned provided without global -- should fail", func(t *testing.T) {
@@ -3686,7 +3657,7 @@ software:
 		assert.True(t, strings.Contains(err.Error(), "global config must be provided alongside unassigned.yml"), err.Error())
 	})
 
-	t.Run("controls only defined in no-team.yml", func(t *testing.T) {
+	t.Run("controls only defined in unassigned.yml", func(t *testing.T) {
 		savedAppConfig = &fleet.AppConfig{}
 
 		globalFileWithoutControlsAndSoftwareKeys := createGlobalFileWithoutControlsAndSoftwareKeys(t, fleetServerURL, orgName)
@@ -3715,7 +3686,7 @@ software:
 		assert.Equal(t, secret, enrolledTeamSecrets[0].Secret)
 	})
 
-	t.Run("basic global and no-team.yml", func(t *testing.T) {
+	t.Run("basic global and unassigned.yml", func(t *testing.T) {
 		savedAppConfig = &fleet.AppConfig{}
 		// Dry run
 		_ = runAppForTest(t,
@@ -4126,7 +4097,7 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 		})
 	}
 
-	t.Run("no-team.yml using relative paths", func(t *testing.T) {
+	t.Run("unassigned.yml using relative paths", func(t *testing.T) {
 		// Override label mocks to return no existing labels, since these YAML files
 		// don't include `labels:` and multi-file deletion would cause dedup errors.
 		ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
@@ -4137,7 +4108,7 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 		teamFileBasic := createTeamFileBasic(t, teamName)
 
 		noTeamDir := t.TempDir()
-		noTeamFile, err := os.Create(filepath.Join(noTeamDir, "no-team.yml"))
+		noTeamFile, err := os.Create(filepath.Join(noTeamDir, "unassigned.yml"))
 		require.NoError(t, err)
 		_, err = noTeamFile.WriteString(`
 controls:
@@ -4155,7 +4126,7 @@ controls:
     custom_settings:
     - path: ./config3.json
 policies:
-name: No team
+name: Unassigned
 software:
 `)
 		require.NoError(t, err)
@@ -4297,11 +4268,11 @@ org_settings:
 		require.NoError(t, err, "gitops should succeed when apple_setup_assistant in unassigned.yml uses a relative path that climbs out of the fleets/ directory")
 	})
 
-	// Same-directory layout (default.yml and no-team.yml side by side, path into
+	// Same-directory layout (default.yml and unassigned.yml side by side, path into
 	// a sibling lib/no-team/...). Guards against the double-anchoring regression
 	// (generated/generated/...) where the applied no-team control path was joined
 	// once at extraction and again at apply.
-	t.Run("no-team.yml with apple_setup_assistant in the same dir as default.yml", func(t *testing.T) {
+	t.Run("unassigned.yml with apple_setup_assistant in the same dir as default.yml", func(t *testing.T) {
 		ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 			return nil, nil
 		}
@@ -4312,9 +4283,9 @@ org_settings:
 		require.NoError(t, os.MkdirAll(depDir, 0o755))
 		require.NoError(t, os.WriteFile(filepath.Join(depDir, "macos_enrollment.json"), []byte(`{"profile_name":"test"}`), 0o644))
 
-		noTeamFile := filepath.Join(tmpDir, "no-team.yml")
+		noTeamFile := filepath.Join(tmpDir, "unassigned.yml")
 		require.NoError(t, os.WriteFile(noTeamFile, []byte(`
-name: No team
+name: Unassigned
 policies:
 reports:
 agent_options:
@@ -4341,7 +4312,7 @@ org_settings:
 `, fleetServerURL, orgName)), 0o644))
 
 		_, err := runAppNoChecks([]string{"gitops", "-f", globalFile, "-f", noTeamFile, "--dry-run"})
-		require.NoError(t, err, "gitops should succeed when apple_setup_assistant in no-team.yml lives in the same dir as default.yml")
+		require.NoError(t, err, "gitops should succeed when apple_setup_assistant in unassigned.yml lives in the same dir as default.yml")
 	})
 }
 
@@ -5732,10 +5703,6 @@ func TestGitOpsFeatures(t *testing.T) {
 			EnableHostUsers:         true,
 			EnableSoftwareInventory: true,
 			AdditionalQueries:       ptr.RawMessage(json.RawMessage(`{"query_a": "SELECT 1", "query_b": "SELECT 2"}`)),
-			DetailQueryOverrides: map[string]*string{
-				"detail_query_a": ptr.String("SELECT a"),
-				"detail_query_b": nil,
-			},
 		},
 	}
 
@@ -5753,8 +5720,6 @@ org_settings:
     enable_software_inventory: false
     additional_queries:
       query_a: "SELECT 1"
-    detail_query_overrides:
-      detail_query_a: "SELECT it_works"
   server_settings:
     server_url: %s
   org_info:
@@ -5790,8 +5755,6 @@ software:
 	require.NoError(t, err)
 	require.Equal(t, 1, len(additionalQueries))
 	require.Equal(t, "SELECT 1", additionalQueries["query_a"])
-	require.Equal(t, 1, len(appConfig.Features.DetailQueryOverrides))
-	require.Equal(t, "SELECT it_works", *appConfig.Features.DetailQueryOverrides["detail_query_a"])
 
 	// Do a GitOps run with no feature settings.
 	_, err = runAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
@@ -5800,7 +5763,32 @@ software:
 	require.True(t, appConfig.Features.EnableHostUsers)
 	require.True(t, appConfig.Features.EnableSoftwareInventory)
 	require.Nil(t, appConfig.Features.AdditionalQueries)
-	require.Nil(t, appConfig.Features.DetailQueryOverrides)
+
+	globalFileDetailQueryOverrides, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFileDetailQueryOverrides.WriteString(fmt.Sprintf(
+		`
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  features:
+    detail_query_overrides:
+      users: null
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: %s
+  secrets:
+    - secret: globalSecret
+software:
+`, fleetServerURL, orgName),
+	)
+	require.NoError(t, err)
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFileDetailQueryOverrides.Name()})
+	require.ErrorContains(t, err, `unknown key "org_settings.features.detail_query_overrides"`)
 }
 
 func TestGitOpsHistoricalData(t *testing.T) {
@@ -8103,11 +8091,8 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 		// Return a software title that matches the app_store_id we're testing (app_store_id "2" is defined in the mock VPP server)
 		return []fleet.SoftwareTitleListResult{
 			{
-				ID: 100,
-				AppStoreApp: &fleet.SoftwarePackageOrApp{
-					AppStoreID: "2",
-					Platform:   "ios",
-				},
+				ID:           100,
+				AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "2", Platform: fleet.IOSPlatform}},
 			},
 		}, 1, nil, nil
 	}
@@ -8841,7 +8826,7 @@ software:
 		require.Equal(t, template, *acts[len(acts)-1].HostNameTemplate)
 	})
 
-	// 6. name_template in no-team.yml controls sets the global ("No team") template
+	// 6. name_template in unassigned.yml controls sets the global ("No team") template
 	// via the same global-config merge disk encryption uses.
 	t.Run("set template for no team", func(t *testing.T) {
 		before := len(nameTemplateActivities())
@@ -8849,15 +8834,15 @@ software:
 		storedAppConfig = &fleet.AppConfig{}
 		globalFile := createGlobalFileBasic(t, fleetServerURL, orgName)
 
-		// The file must be named exactly "no-team.yml".
-		noTeamPath := filepath.Join(t.TempDir(), "no-team.yml")
+		// The file must be named exactly "unassigned.yml".
+		noTeamPath := filepath.Join(t.TempDir(), "unassigned.yml")
 		noTeamFile, err := os.Create(noTeamPath)
 		require.NoError(t, err)
 		_, err = noTeamFile.WriteString(fmt.Sprintf(`
 controls:
   name_template: %q
 policies:
-name: No team
+name: Unassigned
 software:
 `, template))
 		require.NoError(t, err)
@@ -8873,16 +8858,16 @@ software:
 		require.Nil(t, acts[len(acts)-1].FleetID)
 	})
 
-	// 7. An invalid template in no-team.yml surfaces the server's 422 through fleetctl.
+	// 7. An invalid template in unassigned.yml surfaces the server's 422 through fleetctl.
 	t.Run("invalid variable rejected for no team", func(t *testing.T) {
 		storedAppConfig = &fleet.AppConfig{}
 		globalFile := createGlobalFileBasic(t, fleetServerURL, orgName)
-		noTeamPath := filepath.Join(t.TempDir(), "no-team.yml")
+		noTeamPath := filepath.Join(t.TempDir(), "unassigned.yml")
 		require.NoError(t, os.WriteFile(noTeamPath, []byte(`
 controls:
   name_template: "$FLEET_VAR_NDES_SCEP_CHALLENGE"
 policies:
-name: No team
+name: Unassigned
 software:
 `), 0o600))
 

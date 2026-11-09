@@ -24,7 +24,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
-	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
@@ -4470,28 +4469,6 @@ func GetDetailQueries(
 			}
 		}(fleetConfig.Server.PrivateKey))
 		generatedMap["luks_verify"] = luksVerifyQuery
-	}
-
-	if features != nil {
-		var unknownQueries []string
-
-		for name, override := range features.DetailQueryOverrides {
-			query, ok := generatedMap[name]
-			if !ok {
-				unknownQueries = append(unknownQueries, name)
-				continue
-			}
-			if override == nil || *override == "" {
-				delete(generatedMap, name)
-			} else {
-				query.Query = *override
-				generatedMap[name] = query
-			}
-		}
-
-		if len(unknownQueries) > 0 {
-			logging.WithErr(ctx, ctxerr.New(ctx, fmt.Sprintf("detail_query_overrides: unknown queries: %s", strings.Join(unknownQueries, ","))))
-		}
 	}
 
 	return generatedMap

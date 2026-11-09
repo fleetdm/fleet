@@ -6,5 +6,6 @@
   "slug": "weektodo/darwin",
   "default_categories": [
     "Productivity"
-  ]
+  ],
+  "frozen": true
 }

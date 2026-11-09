@@ -251,6 +251,7 @@ software:
     platform: ios
   - app_store_id: "4444333322"
     platform: ios
+    setup_experience: true
     versions:
     - auto_update_enabled: true
       auto_update_window_end: "03:00"

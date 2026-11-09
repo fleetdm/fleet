@@ -2035,6 +2035,16 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	if updatedAppMeta == nil {
 		return nil, nil, ctxerr.Wrapf(ctx, &notFoundError{}, "app store app version %d was not found after the update", meta.VPPAppsTeamsID)
 	}
+	if updatedAppMeta.VPPTokenID != nil {
+		var tok *fleet.VPPTokenDB
+		tok, err = svc.ds.GetVPPToken(ctx, *updatedAppMeta.VPPTokenID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting vpp token")
+		}
+		if tok != nil {
+			updatedAppMeta.VPPToken = &fleet.VPPTokenSummary{ID: tok.ID, OrgName: tok.OrgName, Location: tok.Location, CountryCode: tok.CountryCode}
+		}
+	}
 
 	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromValidatedLabels(validatedLabels)
 
