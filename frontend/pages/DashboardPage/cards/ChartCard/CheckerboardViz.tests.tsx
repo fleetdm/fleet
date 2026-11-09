@@ -30,8 +30,9 @@ const generateData = (
 };
 
 // Mock ResizeObserver and getBoundingClientRect so the component
-// gets a non-zero container width in jsdom
-const MOCK_WIDTH = 600;
+// gets a non-zero container width in jsdom. Individual tests can set
+// mockWrapperWidth to drive responsive-sizing assertions.
+let mockWrapperWidth = 600;
 
 class MockResizeObserver {
   callback: ResizeObserverCallback;
@@ -45,7 +46,10 @@ class MockResizeObserver {
       [
         {
           target,
-          contentRect: { width: MOCK_WIDTH, height: 400 } as DOMRectReadOnly,
+          contentRect: {
+            width: mockWrapperWidth,
+            height: 400,
+          } as DOMRectReadOnly,
           borderBoxSize: [],
           contentBoxSize: [],
           devicePixelContentBoxSize: [],
@@ -69,12 +73,12 @@ describe("CheckerboardViz", () => {
     // Mock getBoundingClientRect so the initial measurement returns non-zero
     Element.prototype.getBoundingClientRect = function mockBCR() {
       return {
-        width: MOCK_WIDTH,
+        width: mockWrapperWidth,
         height: 400,
         top: 0,
         left: 0,
         bottom: 400,
-        right: MOCK_WIDTH,
+        right: mockWrapperWidth,
         x: 0,
         y: 0,
         toJSON: () => {},
@@ -654,6 +658,105 @@ describe("CheckerboardViz", () => {
     ).length;
     // 11 of 12 rows should be level-0 (only slot 0 has data)
     expect(level0Count).toBe(11);
+  });
+
+  describe("responsive cell sizing", () => {
+    // Mirror the component's sizing constants so expected values stay
+    // tied to the same source of truth.
+    const CELL_W = 16.75;
+    const CELL_H = 19;
+    const CELL_MAX_SCALE = 2;
+    const COMPACT_MIN_SCALE = 0.93;
+    const CELL_GAP = 2;
+
+    const firstCellDims = (container: HTMLElement) => {
+      const rect = container.querySelector("rect") as SVGRectElement;
+      return {
+        w: parseFloat(rect.getAttribute("width") || "0"),
+        h: parseFloat(rect.getAttribute("height") || "0"),
+      };
+    };
+
+    afterEach(() => {
+      mockWrapperWidth = 600;
+    });
+
+    it("scales cellW to fill the wrapper when ideal size is between the floor and ceiling", async () => {
+      mockWrapperWidth = 800;
+      const data = generateData(30);
+      const { container } = renderWithSetup(
+        <CheckerboardViz data={data} selectedDays={30} />
+      );
+
+      await waitFor(() => {
+        expect(container.querySelectorAll("rect").length).toBeGreaterThan(0);
+      });
+
+      const { w, h } = firstCellDims(container);
+      // 30 columns, 29 gaps → (800 - 58) / 30 ≈ 24.73
+      const expected = (800 - CELL_GAP * 29) / 30;
+      expect(w).toBeCloseTo(expected, 2);
+      // Cell height stays proportional to width.
+      expect(h).toBeCloseTo(w * (CELL_H / CELL_W), 2);
+    });
+
+    it("clamps cellW at the baseline floor when the wrapper is narrower than the grid", async () => {
+      // (400 - 58) / 30 ≈ 11.4, well below the 16.75 floor.
+      mockWrapperWidth = 400;
+      const data = generateData(30);
+      const { container } = renderWithSetup(
+        <CheckerboardViz data={data} selectedDays={30} />
+      );
+
+      await waitFor(() => {
+        expect(container.querySelectorAll("rect").length).toBeGreaterThan(0);
+      });
+
+      const { w, h } = firstCellDims(container);
+      expect(w).toBeCloseTo(CELL_W, 2);
+      expect(h).toBeCloseTo(CELL_H, 2);
+    });
+
+    it("uses a lower floor in compact mode so narrow modals avoid horizontal scroll", async () => {
+      // 500px wrapper: idealCellW ≈ 14.73. Dashboard mode would clamp at
+      // 16.75 (causing overflow in a ~530px host-history modal); compact
+      // mode floors at 15.5775, which fits.
+      mockWrapperWidth = 500;
+      const data = generateData(30);
+
+      const { container: dashboard } = renderWithSetup(
+        <CheckerboardViz data={data} selectedDays={30} />
+      );
+      await waitFor(() => {
+        expect(dashboard.querySelectorAll("rect").length).toBeGreaterThan(0);
+      });
+      expect(firstCellDims(dashboard).w).toBeCloseTo(CELL_W, 2);
+
+      const { container: modal } = renderWithSetup(
+        <CheckerboardViz data={data} selectedDays={30} compact />
+      );
+      await waitFor(() => {
+        expect(modal.querySelectorAll("rect").length).toBeGreaterThan(0);
+      });
+      expect(firstCellDims(modal).w).toBeCloseTo(CELL_W * COMPACT_MIN_SCALE, 2);
+    });
+
+    it("caps cellW at CELL_MAX_SCALE × baseline on wide layouts with few columns", async () => {
+      // 7 columns × very wide wrapper → idealCellW ≈ 112, far past the cap.
+      mockWrapperWidth = 1200;
+      const data = generateData(7);
+      const { container } = renderWithSetup(
+        <CheckerboardViz data={data} selectedDays={7} />
+      );
+
+      await waitFor(() => {
+        expect(container.querySelectorAll("rect").length).toBeGreaterThan(0);
+      });
+
+      const { w, h } = firstCellDims(container);
+      expect(w).toBeCloseTo(CELL_W * CELL_MAX_SCALE, 2);
+      expect(h).toBeCloseTo(CELL_H * CELL_MAX_SCALE, 2);
+    });
   });
 
   describe("current timeframe and future cells", () => {
