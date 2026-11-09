@@ -2032,8 +2032,10 @@ func processSetupExperience(orbitClient setupExperienceClient, rootDir string, o
 			return fmt.Errorf("writing setup experience file: %w", err)
 		}
 
-		setupExperiencer := setupexperience.NewLinuxSetupExperiencer(orbitClient, rootDir)
-		orbitClient.RegisterConfigReceiver(setupExperiencer)
+		if initSetupExperienceResponse.Enabled {
+			setupExperiencer := setupexperience.NewLinuxSetupExperiencer(orbitClient, rootDir)
+			orbitClient.RegisterConfigReceiver(setupExperiencer)
+		}
 	case !exp.Enabled:
 		// Setup experience was checked, but was disabled at the time, nothing else to do.
 		log.Debug().Msg("setup experience already checked and disabled at the time")
