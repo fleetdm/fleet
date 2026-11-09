@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -24,7 +25,7 @@ func (c *Client) GetHost(id uint) (*fleet.HostDetailResponse, error) {
 	return responseBody.Host, err
 }
 
-// HostByIdentifier retrieves a host by the host ID, hardware_serial, uuid, hostname, osquery_host_id, or node_key.
+// HostByIdentifier retrieves a host by the hardware_serial, uuid, hostname, osquery_host_id, or node_key. It doesn't match a host ID.
 func (c *Client) HostByIdentifier(identifier string) (*fleet.HostDetailResponse, error) {
 	verb, path := "GET", "/api/latest/fleet/hosts/"+identifier
 	var responseBody getHostResponse
@@ -32,10 +33,20 @@ func (c *Client) HostByIdentifier(identifier string) (*fleet.HostDetailResponse,
 		return nil, err
 	}
 	// An identifier that is also a literal route name, like "count", reaches that route instead, and its response has no host.
-	if responseBody.Host == nil {
+	if responseBody.Host == nil || matchesOnlyByHostID(identifier, responseBody.Host.Hostname, responseBody.Host.UUID,
+		responseBody.Host.HardwareSerial) {
 		return nil, &notFoundErr{Msg: fmt.Sprintf("host %q not found", identifier)}
 	}
 	return responseBody.Host, nil
+}
+
+// matchesOnlyByHostID reports whether a host returned for a numeric identifier matched it only as a host ID. GET /hosts/:id tries a
+// numeric value as a host ID first, so a hostname or serial number made of digits can resolve to a different host.
+func matchesOnlyByHostID(identifier, hostname, uuid, hardwareSerial string) bool {
+	if _, err := strconv.ParseUint(identifier, 10, 0); err != nil {
+		return false
+	}
+	return !strings.EqualFold(identifier, hostname) && !strings.EqualFold(identifier, uuid) && !strings.EqualFold(identifier, hardwareSerial)
 }
 
 func (c *Client) translateTransferHostsToIDs(hosts []string, label string, team string) ([]uint, uint, uint, error) {

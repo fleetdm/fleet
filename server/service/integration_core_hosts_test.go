@@ -1544,43 +1544,6 @@ func (s *integrationTestSuite) TestHostsAddToTeamByFilterActivityNames() {
 	}
 }
 
-func (s *integrationTestSuite) TestGetHostByIdentifier() {
-	t := s.T()
-	ctx := context.Background()
-
-	hosts := make([]*fleet.Host, 6)
-	for i := range hosts {
-		h, err := s.ds.NewHost(ctx, &fleet.Host{
-			Hostname:       fmt.Sprintf("test-host%d-name", i),
-			OsqueryHostID:  new(fmt.Sprintf("osquery-%d", i)),
-			NodeKey:        new(fmt.Sprintf("nodekey-%d", i)),
-			UUID:           fmt.Sprintf("test-uuid-%d", i),
-			Platform:       "darwin",
-			HardwareSerial: fmt.Sprintf("serial-%d", i),
-		})
-		require.NoError(t, err)
-		hosts[i] = h
-	}
-
-	var resp getHostResponse
-	s.DoJSON("GET", "/api/v1/fleet/hosts/osquery-1", nil, http.StatusOK, &resp)
-	require.Equal(t, hosts[1].ID, resp.Host.ID)
-
-	s.DoJSON("GET", "/api/v1/fleet/hosts/serial-2", nil, http.StatusOK, &resp)
-	require.Equal(t, hosts[2].ID, resp.Host.ID)
-
-	s.DoJSON("GET", "/api/v1/fleet/hosts/nodekey-3", nil, http.StatusOK, &resp)
-	require.Equal(t, hosts[3].ID, resp.Host.ID)
-
-	s.DoJSON("GET", "/api/v1/fleet/hosts/test-uuid-4", nil, http.StatusOK, &resp)
-	require.Equal(t, hosts[4].ID, resp.Host.ID)
-
-	s.DoJSON("GET", "/api/v1/fleet/hosts/test-host5-name", nil, http.StatusOK, &resp)
-	require.Equal(t, hosts[5].ID, resp.Host.ID)
-
-	s.DoJSON("GET", "/api/v1/fleet/hosts/no-such-host", nil, http.StatusNotFound, &resp)
-}
-
 func (s *integrationTestSuite) TestGetHostByIDOrIdentifier() {
 	t := s.T()
 	ctx := t.Context()
@@ -1622,6 +1585,8 @@ func (s *integrationTestSuite) TestGetHostByIDOrIdentifier() {
 		{name: "serial", identifier: target.HardwareSerial, wantHostID: target.ID},
 		{name: "uuid", identifier: target.UUID, wantHostID: target.ID},
 		{name: "hostname", identifier: target.Hostname, wantHostID: target.ID},
+		{name: "osquery host id", identifier: *target.OsqueryHostID, wantHostID: target.ID},
+		{name: "node key", identifier: *target.NodeKey, wantHostID: target.ID},
 		{name: "numeric hostname that is not an id", identifier: unusedHostID, wantHostID: numericHostname.ID},
 		{name: "id with leading zeros", identifier: fmt.Sprintf("000%d", target.ID), wantHostID: target.ID},
 		{name: "serial with leading zeros that is not an id", identifier: leadingZerosSerial, wantHostID: leadingZeros.ID},

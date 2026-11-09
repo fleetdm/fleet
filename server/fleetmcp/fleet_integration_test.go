@@ -1375,3 +1375,19 @@ func TestRunAdHocSingleHostFallsBackToDefaultClient(t *testing.T) {
 		t.Fatalf("unexpected result %+v", res)
 	}
 }
+
+func TestGetHostByIdentifierRejectsHostIDOnlyMatch(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"host": map[string]any{"id": 42, "uuid": "1234567"}})
+	}))
+	defer srv.Close()
+	fc := newTestClient(srv.URL)
+
+	for identifier, wantFound := range map[string]bool{"42": false, "1234567": true} {
+		_, err := fc.GetHostByIdentifier(t.Context(), identifier)
+		_, policiesErr := fc.GetHostByIdentifierWithPolicies(t.Context(), identifier)
+		if (err == nil) != wantFound || (policiesErr == nil) != wantFound {
+			t.Errorf("identifier %q: errors %v, %v, want found=%v", identifier, err, policiesErr, wantFound)
+		}
+	}
+}
