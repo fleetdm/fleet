@@ -496,6 +496,173 @@ kill() {
 	})
 }
 
+// TestTailscaleScriptsStopOnlyTheGUI runs the Tailscale scripts against a fake
+// process table. They signal only the GUI, never the CLI (same executable,
+// with arguments), the network extension or the login item. The install
+// relaunches the app only when it was running and the pkg's postinstall didn't
+// reopen it.
+func TestTailscaleScriptsStopOnlyTheGUI(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("as root the relaunch goes through /bin/launchctl asuser, which can't be stubbed")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+
+	readScript := func(name string) string {
+		b, err := os.ReadFile(filepath.Join("../../inputs/homebrew/scripts", name))
+		require.NoError(t, err)
+		return string(b)
+	}
+	install := readScript("tailscale-install.sh")
+	uninstall := readScript("tailscale-uninstall.sh")
+
+	// The install script cases cover the helpers, so both copies must match.
+	helpers := regexp.MustCompile(`(?s)\ntailscale_pids\(\) \{.*?\nquit_tailscale\(\) \{.*?\n\}\n`)
+	require.NotEmpty(t, helpers.FindString(install))
+	require.Equal(t, helpers.FindString(install), helpers.FindString(uninstall))
+
+	// Everything after the quit call removes files, so it's replaced with a marker.
+	quitCall := "\nquit_tailscale || exit 1\n"
+	i := strings.Index(uninstall, quitCall)
+	require.Positive(t, i)
+	uninstall = uninstall[:i+len(quitCall)] + "echo 'Removing Tailscale.'\n"
+
+	const exe = "/Applications/Tailscale.app/Contents/MacOS/Tailscale"
+
+	// Each process is "<pid> <behavior> <args>". It exits on SIGTERM ("exits"),
+	// only on SIGKILL ("stubborn"), or never ("unkillable"). With reopen set,
+	// the installer stub starts the GUI again, as the pkg's postinstall does.
+	// opens records the arguments of each open call.
+	run := func(t *testing.T, script string, reopen bool, procs ...string) (out, signals, opens string, err error) {
+		dir := t.TempDir()
+		procFile := filepath.Join(dir, "procs")
+		sigFile := filepath.Join(dir, "signals")
+		openFile := filepath.Join(dir, "opens")
+		require.NoError(t, os.WriteFile(procFile, []byte(strings.Join(procs, "\n")+"\n"), 0o600))
+		require.NoError(t, os.WriteFile(sigFile, nil, 0o600))
+		require.NoError(t, os.WriteFile(openFile, nil, 0o600))
+		reopenProc := ""
+		if reopen {
+			reopenProc = "301 exits " + exe
+		}
+		stubs := `procs=` + shellSingleQuote(procFile) + `
+signals=` + shellSingleQuote(sigFile) + `
+reopen=` + shellSingleQuote(reopenProc) + `
+opens=` + shellSingleQuote(openFile) + `
+INSTALLER_PATH=/tmp/fleet-test/Tailscale.pkg
+sleep() { :; }
+scutil() { :; }
+stat() { echo alice; }
+sudo() { echo "sudo $*"; }
+open() { echo "$*" >> "$opens"; }
+installer() {
+  echo "installer $*"
+  [[ -z "$reopen" ]] || echo "$reopen" >> "$procs"
+}
+ps() { grep . "$procs" | sed -E 's/^([0-9]+) [a-z]+ /  \1 /'; }
+kill() {
+  local sig="$1" pid behavior
+  shift
+  for pid in "$@"; do
+    echo "$sig $pid" >> "$signals"
+    behavior=$(awk -v p="$pid" '$1 == p { print $2 }' "$procs")
+    case "$sig $behavior" in
+      "-TERM exits" | "-KILL exits" | "-KILL stubborn")
+        awk -v p="$pid" '$1 != p' "$procs" > "$procs.new" && command mv "$procs.new" "$procs" ;;
+    esac
+  done
+}
+`
+		b, err := exec.Command(bash, "-c", stubs+script).CombinedOutput()
+		sigs, readErr := os.ReadFile(sigFile)
+		require.NoError(t, readErr)
+		opened, readErr := os.ReadFile(openFile)
+		require.NoError(t, readErr)
+		return string(b), string(sigs), string(opened), err
+	}
+	requireExit1 := func(t *testing.T, err error, out string) {
+		var exitErr *exec.ExitError
+		require.ErrorAs(t, err, &exitErr, out)
+		require.Equal(t, 1, exitErr.ExitCode(), out)
+	}
+
+	others := []string{
+		"201 unkillable " + exe + " status",
+		"202 unkillable " + exe + " serve 3000",
+		"203 unkillable /Library/SystemExtensions/0A1B2C3D-4E5F-6789-ABCD-EF0123456789/io.tailscale.ipn.macsys.network-extension.systemextension/Contents/MacOS/io.tailscale.ipn.macsys.network-extension",
+		"204 unkillable " + strings.TrimSuffix(exe, "MacOS/Tailscale") + "Library/LoginItems/TailscaleLoginItemHelper-macsys.app/Contents/MacOS/TailscaleLoginItemHelper-macsys",
+	}
+	const relaunch = "Relaunching application 'io.tailscale.ipn.macsys'..."
+
+	t.Run("not running", func(t *testing.T) {
+		for _, reopen := range []bool{false, true} {
+			out, signals, opens, err := run(t, install, reopen, others...)
+			require.NoError(t, err, out)
+			require.Empty(t, signals)
+			require.Empty(t, opens)
+			require.NotContains(t, out, "Quitting Tailscale")
+			require.Contains(t, out, "installer -pkg /tmp/fleet-test/Tailscale.pkg -target /")
+			require.NotContains(t, out, relaunch)
+		}
+	})
+
+	t.Run("quits on SIGTERM, postinstall reopens it", func(t *testing.T) {
+		out, signals, opens, err := run(t, install, true, append([]string{"101 exits " + exe}, others...)...)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 101\n", signals)
+		require.Empty(t, opens)
+		require.Contains(t, out, "Tailscale quit successfully.")
+		require.Contains(t, out, "installer -pkg")
+		require.NotContains(t, out, relaunch)
+	})
+
+	t.Run("quits on SIGTERM, relaunched when postinstall doesn't reopen it", func(t *testing.T) {
+		out, signals, opens, err := run(t, install, false, append([]string{"101 exits " + exe}, others...)...)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 101\n", signals)
+		require.Equal(t, "-b io.tailscale.ipn.macsys\n", opens)
+		require.Contains(t, out, "installer -pkg")
+		require.Contains(t, out, relaunch)
+		require.Less(t, strings.Index(out, "installer -pkg"), strings.Index(out, relaunch))
+	})
+
+	t.Run("force-quit after SIGTERM", func(t *testing.T) {
+		out, signals, _, err := run(t, install, true, append([]string{"101 stubborn " + exe}, others...)...)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 101\n-KILL 101\n", signals)
+		require.Contains(t, out, "Tailscale didn't quit; forcing it to quit.")
+		require.Contains(t, out, "installer -pkg")
+	})
+
+	t.Run("install stops when the GUI survives", func(t *testing.T) {
+		out, signals, opens, err := run(t, install, true, "101 unkillable "+exe)
+		requireExit1(t, err, out)
+		require.Empty(t, opens)
+		require.Equal(t, "-TERM 101\n-KILL 101\n", signals)
+		require.Contains(t, out, "Tailscale did not quit.")
+		require.NotContains(t, out, "installer")
+		require.NotContains(t, out, relaunch)
+	})
+
+	t.Run("uninstall", func(t *testing.T) {
+		out, _, _, err := run(t, uninstall, false, "101 unkillable "+exe)
+		requireExit1(t, err, out)
+		require.NotContains(t, out, "Removing Tailscale.")
+
+		out, signals, opens, err := run(t, uninstall, false, append([]string{"101 exits " + exe}, others...)...)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 101\n", signals)
+		require.Empty(t, opens)
+		require.Contains(t, out, "Removing Tailscale.")
+		require.NotContains(t, out, relaunch)
+	})
+}
+
 func TestShellDoubleQuoteEscape(t *testing.T) {
 	// Values without shell metacharacters (the common case) must pass through
 	// unchanged so the generated scripts stay byte-identical to before.
