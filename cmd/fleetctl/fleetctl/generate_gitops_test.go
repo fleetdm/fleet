@@ -337,32 +337,22 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				},
 			},
 			{
-				ID:   2,
-				Name: "My App Store App",
-				AppStoreApps: []fleet.AppStoreAppListItem{{
-					AppStoreID: "1234567890",
-					Platform:   fleet.MacOSPlatform,
-				}},
-				HashSHA256: ptr.String("app-store-app-hash"),
+				ID:           2,
+				Name:         "My App Store App",
+				AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "1234567890", Platform: fleet.MacOSPlatform}},
+				HashSHA256:   new("app-store-app-hash"),
 			},
 			{
-				ID:   6,
-				Name: "My Setup Experience App",
-				AppStoreApps: []fleet.AppStoreAppListItem{{
-					AppStoreID:         "55566677778",
-					Platform:           fleet.AndroidPlatform,
-					InstallDuringSetup: new(true),
-				}},
-				HashSHA256: ptr.String("app-setup-experience-hash"),
+				ID:           6,
+				Name:         "My Setup Experience App",
+				AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "55566677778", Platform: fleet.AndroidPlatform, InstallDuringSetup: new(true)}},
+				HashSHA256:   new("app-setup-experience-hash"),
 			},
 			{
-				ID:   7,
-				Name: "My iOS Auto Update App",
-				AppStoreApps: []fleet.AppStoreAppListItem{{
-					AppStoreID: "9999888877",
-					Platform:   fleet.IOSPlatform,
-				}},
-				HashSHA256: ptr.String("ios-auto-update-hash"),
+				ID:           7,
+				Name:         "My iOS Auto Update App",
+				AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "9999888877", Platform: fleet.IOSPlatform}},
+				HashSHA256:   new("ios-auto-update-hash"),
 			},
 			{
 				ID:         8,
@@ -420,12 +410,9 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				},
 			},
 			{
-				ID:   12,
-				Name: "My Multi-Version App",
-				AppStoreApps: []fleet.AppStoreAppListItem{{
-					AppStoreID: "4444333322",
-					Platform:   fleet.IOSPlatform,
-				}},
+				ID:           12,
+				Name:         "My Multi-Version App",
+				AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "4444333322", Platform: fleet.IOSPlatform}},
 			},
 		}, nil
 	case "available_for_install=1&fleet_id=0&order_key=name":
@@ -715,7 +702,8 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 		return &fleet.SoftwareTitle{
 			ID: 2,
 			AppStoreApps: []*fleet.VPPAppStoreApp{{
-				VPPAppID: fleet.VPPAppID{Platform: fleet.MacOSPlatform},
+				VersionName: fleet.DefaultAppStoreAppVersionName,
+				Platform:    fleet.MacOSPlatform,
 				LabelsExcludeAny: []fleet.SoftwareScopeLabel{{
 					LabelName: "Label C",
 				}, {
@@ -724,7 +712,6 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				Categories: []string{"Productivity", "Utilities"},
 
 				SelfService: true,
-				VersionName: fleet.DefaultAppStoreAppVersionName,
 			}},
 			IconUrl: ptr.String("/api/icon2.png"),
 		}, nil
@@ -735,7 +722,9 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 		return &fleet.SoftwareTitle{
 			ID: 6,
 			AppStoreApps: []*fleet.VPPAppStoreApp{{
-				VPPAppID: fleet.VPPAppID{AdamID: "55566677778", Platform: fleet.AndroidPlatform},
+				VersionName: fleet.DefaultAppStoreAppVersionName,
+				AdamID:      "55566677778",
+				Platform:    fleet.AndroidPlatform,
 				LabelsIncludeAll: []fleet.SoftwareScopeLabel{
 					{
 						LabelName: "Label C",
@@ -744,7 +733,6 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 					},
 				},
 				SelfService:   true,
-				VersionName:   fleet.DefaultAppStoreAppVersionName,
 				Configuration: json.RawMessage(`{"managedConfiguration": "WORK_PROFILE_ALLOWED"}`),
 			}},
 			IconUrl: ptr.String("/api/icon3.png"),
@@ -762,8 +750,9 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 		return &fleet.SoftwareTitle{
 			ID: 7,
 			AppStoreApps: []*fleet.VPPAppStoreApp{{
-				VPPAppID:    fleet.VPPAppID{AdamID: "9999888877", Platform: fleet.IOSPlatform},
 				VersionName: fleet.DefaultAppStoreAppVersionName,
+				AdamID:      "9999888877",
+				Platform:    fleet.IOSPlatform,
 				SelfService: false,
 				LabelsIncludeAll: []fleet.SoftwareScopeLabel{
 					{
@@ -1040,14 +1029,10 @@ func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fl
 				},
 			},
 			{
-				ID:   6,
-				Name: "My Setup Experience App",
-				AppStoreApps: []fleet.AppStoreAppListItem{{
-					AppStoreID:         "55566677778",
-					Platform:           fleet.AndroidPlatform,
-					InstallDuringSetup: new(true),
-				}},
-				HashSHA256: ptr.String("app-setup-experience-hash"),
+				ID:           6,
+				Name:         "My Setup Experience App",
+				AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "55566677778", Platform: fleet.AndroidPlatform, InstallDuringSetup: new(true)}},
+				HashSHA256:   new("app-setup-experience-hash"),
 			},
 			{
 				ID:   8,
@@ -1059,13 +1044,9 @@ func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fl
 				},
 			},
 			{
-				ID:   12,
-				Name: "My Multi-Version App",
-				AppStoreApps: []fleet.AppStoreAppListItem{{
-					AppStoreID:         "4444333322",
-					Platform:           fleet.IOSPlatform,
-					InstallDuringSetup: new(true),
-				}},
+				ID:           12,
+				Name:         "My Multi-Version App",
+				AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "4444333322", Platform: fleet.IOSPlatform, InstallDuringSetup: new(true)}},
 			},
 		}, nil
 	}
@@ -4060,12 +4041,10 @@ func (c *MockClientVPPLocation) GetSoftwareTitleByID(id uint, _ *uint) (*fleet.S
 		return &fleet.SoftwareTitle{ID: id, AppStoreApps: []*fleet.VPPAppStoreApp{{VersionName: fleet.DefaultAppStoreAppVersionName, AdamID: "30", Platform: fleet.IOSPlatform, VPPToken: tok}}}, nil
 	case 31:
 		tok = &fleet.VPPTokenSummary{ID: 2, Location: "Acme Japan"}
-		production := &fleet.VPPAppStoreApp{AdamID: "31", Platform: fleet.IOSPlatform, VersionName: "Production", VPPToken: tok}
-		test := &fleet.VPPAppStoreApp{AdamID: "31", Platform: fleet.IOSPlatform, VersionName: "Test", VPPToken: tok}
-		return &fleet.SoftwareTitle{
-			ID:           id,
-			AppStoreApps: []*fleet.VPPAppStoreApp{production, test},
-		}, nil
+		return &fleet.SoftwareTitle{ID: id, AppStoreApps: []*fleet.VPPAppStoreApp{
+			{VersionName: "Production", AdamID: "31", Platform: fleet.IOSPlatform, VPPToken: tok},
+			{VersionName: "Test", AdamID: "31", Platform: fleet.IOSPlatform, VPPToken: tok},
+		}}, nil
 	case 32:
 		return &fleet.SoftwareTitle{ID: id, AppStoreApps: []*fleet.VPPAppStoreApp{{VersionName: fleet.DefaultAppStoreAppVersionName, AdamID: "32", Platform: fleet.AndroidPlatform, VPPToken: tok}}}, nil
 	}
