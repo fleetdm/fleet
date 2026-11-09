@@ -164,8 +164,8 @@ describe("InstallSoftware", () => {
             ...mdm,
             setup_experience: {
               ...mdm.setup_experience,
-              macos_require_all_software: true,
-              windows_require_all_software: true,
+              macos_require_all_software: platform === "macos",
+              windows_require_all_software: platform === "windows",
             },
           },
         })
