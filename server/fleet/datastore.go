@@ -505,9 +505,9 @@ type Datastore interface {
 	// HostLiteByIdentifier) that are prone to full-table scans. See the implementation for more details.
 	GetHostMDMIdentifiers(ctx context.Context, identifer string, teamFilter TeamFilter) ([]*HostMDMIdentifiers, error)
 
-	// ListIOSAndIPadOSToRefetch returns the UUIDs of iPhones/iPads that should be refetched (their details haven't been
-	// updated in the given `interval`).
-	ListIOSAndIPadOSToRefetch(ctx context.Context, refetchInterval time.Duration) (devices []AppleDevicesToRefetch, err error)
+	// ListIOSAndIPadOSToRefetch returns up to limit iPhones/iPads that should be refetched (their details haven't been
+	// updated in the given `interval`), longest-waiting first.
+	ListIOSAndIPadOSToRefetch(ctx context.Context, refetchInterval time.Duration, limit int) (devices []AppleDevicesToRefetch, err error)
 	// AddHostMDMCommands adds the provided MDM commands to the host to track which commands have been sent.
 	AddHostMDMCommands(ctx context.Context, commands []HostMDMCommand) error
 	// GetHostMDMCommands returns the MDM commands that have been sent to the host.
@@ -1216,6 +1216,10 @@ type Datastore interface {
 	GetPoliciesForConditionalAccess(ctx context.Context, teamID uint, platform string) ([]uint, error)
 	// GetPatchPolicy returns the patch policy associated with the title id
 	GetPatchPolicy(ctx context.Context, teamID *uint, titleID uint) (*PatchPolicyData, error)
+	// SyncPatchPolicyQueries regenerates each patch policy's query from its title's
+	// active Fleet-maintained app installer, clearing the results of any policy whose
+	// query changed. A failure on one policy doesn't stop the others.
+	SyncPatchPolicyQueries(ctx context.Context) error
 
 	// ConditionalAccessBypassDevice lets the host skip the conditional access check next time it fails
 	ConditionalAccessBypassDevice(ctx context.Context, hostID uint) error
@@ -3338,9 +3342,6 @@ type Datastore interface {
 	// table and assumes it is being executed at the right time.
 	RunScheduledBatchActivity(ctx context.Context, executionID string) error
 
-	// BatchExecuteSummary returns the summary of a batch script execution
-	BatchExecuteSummary(ctx context.Context, executionID string) (*BatchActivity, error)
-
 	// CancelBatchScript cancels the execution of a batch script execution
 	CancelBatchScript(ctx context.Context, executionID string) error
 
@@ -3547,6 +3548,8 @@ type Datastore interface {
 	// UpdateInstallerScriptsAndQueries writes the scripts and queries onto an
 	// installer still on the given version, cancelling pending installs as an edit
 	// does. The version can't be cached as a second row, being the dedup token.
+	// The title's patch policy query is then regenerated, as SyncPatchPolicyQueries
+	// does.
 	UpdateInstallerScriptsAndQueries(ctx context.Context, installerID uint, version string, installScript string, uninstallScript string, patchQuery string, appOpenQuery string) error
 
 	// GetCachedFMAInstallerMetadata returns the cached metadata for a specific

@@ -1514,7 +1514,7 @@ reports:
 	err = globalFile.Close()
 	require.NoError(t, err)
 
-	// Create a no-team.yml file with webhook settings
+	// Create an unassigned.yml file with webhook settings
 	const noTeamTemplateWithWebhook = `
 name: Unassigned
 policies:

@@ -11,7 +11,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/urfave/cli/v2"
@@ -111,7 +110,6 @@ func gitopsCommand() *cli.Command {
 			if totalFilenames == 0 {
 				return errors.New("-f must be specified")
 			}
-			// TODO - remove No Team in Fleet 5
 			noTeamFilesEncountered := 0
 			for _, flFilename := range flFilenames.Value() {
 				if strings.TrimSpace(flFilename) == "" {
@@ -120,10 +118,10 @@ func gitopsCommand() *cli.Command {
 				if len(filepath.Base(flFilename)) > filenameMaxLength {
 					return fmt.Errorf("file name must be less than %d characters: %s", filenameMaxLength, filepath.Base(flFilename))
 				}
-				if filepath.Base(flFilename) == "no-team.yml" || filepath.Base(flFilename) == "unassigned.yml" {
+				if filepath.Base(flFilename) == "unassigned.yml" {
 					noTeamFilesEncountered++
 					if noTeamFilesEncountered > 1 {
-						return errors.New("Only one of `no-team.yml` or `unassigned.yml` can be provided. Use `unassigned.yml`; `no-team.yml` is deprecated.")
+						return errors.New("Only one `unassigned.yml` can be provided.")
 					}
 				}
 			}
@@ -203,7 +201,7 @@ func gitopsCommand() *cli.Command {
 			prefetchNoTeamSoftware := false
 			for _, flFilename := range flFilenames.Value() {
 				fn := filepath.Base(flFilename)
-				if fn == "no-team.yml" || fn == "unassigned.yml" {
+				if fn == "unassigned.yml" {
 					prefetchNoTeamSoftware = true
 					break
 				}
@@ -254,16 +252,10 @@ func gitopsCommand() *cli.Command {
 				gitOpsOpts.SyntheticSoftwareByTeam = syntheticSoftwareByTeam
 			}
 
-			// We need the controls from no-team.yml to apply them when applying the global app config.
+			// We need the controls from unassigned.yml to apply them when applying the global app config.
 			noTeamControls, noTeamPresent, noTeamFilename, err := extractControlsForNoTeam(flFilenames, appConfig, gitOpsOpts)
 			if err != nil {
 				return fmt.Errorf("extracting controls from %s: %w", noTeamFilename, err)
-			}
-			// Log a deprecation warning if the user is still using no-team.yml
-			if noTeamPresent && noTeamFilename == "no-team.yml" {
-				if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
-					logf("[!] no-team.yml is deprecated; please ensure the fleet name has been updated to 'Unassigned' and rename the file to 'unassigned.yml'.\n")
-				}
 			}
 
 			// Used for keeping track of all label changes in this run.
@@ -393,7 +385,7 @@ func gitopsCommand() *cli.Command {
 					}
 					if !noTeamControls.Defined && !config.Controls.Defined {
 						if appConfig.License.IsPremium() {
-							suggestion := ", no-team.yml or unassigned.yml"
+							suggestion := " or unassigned.yml"
 							if noTeamFilename != "" {
 								suggestion = fmt.Sprintf(" or %s", noTeamFilename)
 							}
@@ -1169,7 +1161,7 @@ func getCustomSettings(osSettings interface{}) ([]fleet.MDMProfileSpec, bool) {
 func extractControlsForNoTeam(flFilenames cli.StringSlice, appConfig *fleet.EnrichedAppConfig, gitOpsOpts spec.GitOpsOptions) (spec.GitOpsControls, bool, string, error) {
 	for _, flFilename := range flFilenames.Value() {
 		fileName := filepath.Base(flFilename)
-		if fileName == "no-team.yml" || fileName == "unassigned.yml" {
+		if fileName == "unassigned.yml" {
 			if !appConfig.License.IsPremium() {
 				// Message is printed in the next flFilenames loop to avoid printing it multiple times
 				break

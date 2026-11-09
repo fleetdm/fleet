@@ -407,7 +407,7 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 
 			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
 			globalFile := "../../fleetctl/testdata/gitops/global_config_no_paths.yml"
-			dstPath := filepath.Join(filepath.Dir(c.noTeamFile), "no-team.yml")
+			dstPath := filepath.Join(filepath.Dir(c.noTeamFile), "unassigned.yml")
 			t.Cleanup(func() {
 				os.Remove(dstPath)
 			})
@@ -445,7 +445,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/no_team_software_installer_no_url.yml", "at least one of hash_sha256 or url is required for each software package"},
 		{
 			"testdata/gitops/no_team_software_installer_invalid_self_service_value.yml",
-			"Couldn't edit \"../../fleetctl/testdata/gitops/no-team.yml\" at \"software.packages.0.self_service\", expected type bool but got string",
+			"Couldn't edit \"../../fleetctl/testdata/gitops/unassigned.yml\" at \"software.packages.0.self_service\", expected type bool but got string",
 		},
 		{
 			"testdata/gitops/no_team_software_installer_invalid_both_include_exclude.yml",
@@ -554,7 +554,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 				// the controls section is in the no-team test file, so use a global file without that section
 				globalFile = "../../fleetctl/testdata/gitops/global_config_no_paths_no_controls.yml"
 			}
-			dstPath := filepath.Join(filepath.Dir(c.noTeamFile), "no-team.yml")
+			dstPath := filepath.Join(filepath.Dir(c.noTeamFile), "unassigned.yml")
 			t.Cleanup(func() {
 				os.Remove(dstPath)
 			})

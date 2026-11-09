@@ -79,7 +79,7 @@ describe("FleetAppDetailsForm", () => {
     expect(screen.getByRole("button", { name: "Add software" })).toBeDisabled();
   });
 
-  it("targets Custom labels and gates submit on a label selection", async () => {
+  it("targets Custom labels and surfaces an inline labels error on submit without a selection", async () => {
     const { user } = renderForm();
 
     // Target section renders with All hosts selected by default.
@@ -87,16 +87,22 @@ describe("FleetAppDetailsForm", () => {
     const addButton = screen.getByRole("button", { name: "Add software" });
     expect(addButton).toBeEnabled();
 
-    // Custom with no label selected is invalid → submit disabled.
+    // Custom with no label selected: Save stays enabled; click shows the
+    // inline labels error and does not call onSubmit.
     await user.click(screen.getByRole("radio", { name: "Custom" }));
-    expect(addButton).toBeDisabled();
+    expect(addButton).toBeEnabled();
+    await user.click(addButton);
+    expect(defaultProps.onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText(/Select at least one label/)).toBeInTheDocument();
 
-    // Selecting a label (loaded from the labels summary) re-enables submit.
+    // Selecting a label clears the error and submission succeeds.
     const engineering = await screen.findByRole("checkbox", {
       name: "Engineering",
     });
     await user.click(engineering);
-    expect(addButton).toBeEnabled();
+    expect(
+      screen.queryByText(/Select at least one label/)
+    ).not.toBeInTheDocument();
 
     await user.click(addButton);
     expect(defaultProps.onSubmit).toHaveBeenCalledWith(

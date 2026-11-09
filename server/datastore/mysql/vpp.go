@@ -1628,7 +1628,7 @@ WHERE
 		HostID:              res.HostID,
 		HostDisplayName:     res.HostDisplayName,
 		SoftwareTitle:       res.SoftwareTitle,
-		SoftwareDisplayName: res.SoftwareDisplayName,
+		SoftwareDisplayName: ptr.ValOrZero(res.SoftwareDisplayName),
 		AppStoreID:          res.AppStoreID,
 		CommandUUID:         res.CommandUUID,
 		SelfService:         res.SelfService,

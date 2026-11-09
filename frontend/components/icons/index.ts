@@ -24,6 +24,7 @@ import Disable from "./Disable";
 import Download from "./Download";
 import Error from "./Error";
 import ExternalLink from "./ExternalLink";
+import ExternalLinkSmall from "./ExternalLinkSmall";
 import Eye from "./Eye";
 import EyeSlash from "./EyeSlash";
 import Filter from "./Filter";
@@ -92,6 +93,7 @@ export const ICON_MAP = {
   disable: Disable,
   close: Close,
   "external-link": ExternalLink,
+  "external-link-small": ExternalLinkSmall,
   filter: Filter,
   "filter-alt": FilterAlt,
   "filter-funnel": FilterFunnel,
