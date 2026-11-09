@@ -757,6 +757,99 @@ describe("CheckerboardViz", () => {
       expect(w).toBeCloseTo(CELL_W * CELL_MAX_SCALE, 2);
       expect(h).toBeCloseTo(CELL_H * CELL_MAX_SCALE, 2);
     });
+
+    describe("right-edge snap on overflow", () => {
+      // jsdom doesn't do layout, so scrollWidth/clientWidth default to 0.
+      // Mock them at the prototype level for this block only (and restore
+      // after) so the snap branch (scrollWidth > clientWidth) fires.
+      const origScrollWidth = Object.getOwnPropertyDescriptor(
+        HTMLElement.prototype,
+        "scrollWidth"
+      );
+      const origClientWidth = Object.getOwnPropertyDescriptor(
+        HTMLElement.prototype,
+        "clientWidth"
+      );
+
+      beforeEach(() => {
+        Object.defineProperty(HTMLElement.prototype, "scrollWidth", {
+          configurable: true,
+          get() {
+            return 1000;
+          },
+        });
+        Object.defineProperty(HTMLElement.prototype, "clientWidth", {
+          configurable: true,
+          get() {
+            return 400;
+          },
+        });
+      });
+
+      afterEach(() => {
+        if (origScrollWidth) {
+          Object.defineProperty(
+            HTMLElement.prototype,
+            "scrollWidth",
+            origScrollWidth
+          );
+        } else {
+          delete ((HTMLElement.prototype as unknown) as Record<string, unknown>)
+            .scrollWidth;
+        }
+        if (origClientWidth) {
+          Object.defineProperty(
+            HTMLElement.prototype,
+            "clientWidth",
+            origClientWidth
+          );
+        } else {
+          delete ((HTMLElement.prototype as unknown) as Record<string, unknown>)
+            .clientWidth;
+        }
+      });
+
+      it("snaps scrollLeft to the grid's right edge when the initial grid overflows", async () => {
+        mockWrapperWidth = 400;
+        const data = generateData(30);
+        const { container } = renderWithSetup(
+          <CheckerboardViz data={data} selectedDays={30} />
+        );
+
+        await waitFor(() => {
+          expect(container.querySelectorAll("rect").length).toBeGreaterThan(0);
+        });
+
+        const wrapper = container.querySelector(
+          ".checkerboard-viz__scroll-wrapper"
+        ) as HTMLElement;
+        expect(wrapper.scrollLeft).toBe(1000);
+      });
+
+      it("re-snaps when a dataset switch grows the grid past the wrapper", async () => {
+        mockWrapperWidth = 400;
+        const { container, rerender } = renderWithSetup(
+          <CheckerboardViz data={generateData(7)} selectedDays={7} />
+        );
+
+        await waitFor(() => {
+          expect(container.querySelectorAll("rect").length).toBeGreaterThan(0);
+        });
+
+        const wrapper = container.querySelector(
+          ".checkerboard-viz__scroll-wrapper"
+        ) as HTMLElement;
+        wrapper.scrollLeft = 0;
+
+        // Switching to 30-day data grows the grid; the gridWidth-dep effect
+        // should re-pin the viewer to the most recent slot.
+        rerender(<CheckerboardViz data={generateData(30)} selectedDays={30} />);
+
+        await waitFor(() => {
+          expect(wrapper.scrollLeft).toBe(1000);
+        });
+      });
+    });
   });
 
   describe("current timeframe and future cells", () => {
