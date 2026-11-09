@@ -173,7 +173,7 @@ module.exports = {
       if(!createPolicyResponse.body) {
         sails.log.warn(`Microsoft's PartnerCompliancePolicies API returned an empty response body for tenant ${informationAboutThisTenant.entraTenantId}. Status: ${createPolicyResponse.statusCode}. Response headers: ${require('util').inspect(createPolicyResponse.headers, {depth: 1})}`);
         // IMPORTANT: Don't change the first sentence of the below setupError value. The error string is checked by the Fleet UI frontend.
-        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError: `Fleet doesn't have the required permissions in Entra. To fix this, have an Entra admin who is also a Fleet admin sign in to Fleet, select Connect, and approve the permissions in the same session. Don't forward Microsoft's consent link to someone else. Details: Microsoft's PartnerCompliancePolicies API returned an empty response (HTTP ${createPolicyResponse.statusCode}).`});
+        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError: `Fleet doesn't have the required permissions in Entra. Make sure Fleet is added as a compliance partner in Intune. Then have an Entra admin who is also a Fleet admin sign in to Fleet, select Connect, and approve the permissions in the same session. Don't send Microsoft's consent link to someone else: Fleet creates a new link each time the Conditional access page is opened, so older links stop working. Details: Microsoft's PartnerCompliancePolicies API returned an empty response (HTTP ${createPolicyResponse.statusCode}).`});
         throw {redirect: fleetInstanceUrlToRedirectTo };
       }
       try {
@@ -187,7 +187,7 @@ module.exports = {
       if(!parsedPoliciesResponse.value || !Array.isArray(parsedPoliciesResponse.value) || parsedPoliciesResponse.value.length === 0){
         sails.log.warn(`The response body from PartnerCompliancePolicies did not contain the expected 'value' array for tenant ${informationAboutThisTenant.entraTenantId}. Parsed response: ${require('util').inspect(parsedPoliciesResponse, {depth: 2})}`);
         // IMPORTANT: Don't change the first sentence of the below setupError value. The error string is checked by the Fleet UI frontend.
-        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError: `Fleet doesn't have the required permissions in Entra. To fix this, have an Entra admin who is also a Fleet admin sign in to Fleet, select Connect, and approve the permissions in the same session. Don't forward Microsoft's consent link to someone else. Details: Microsoft's PartnerCompliancePolicies API returned an unexpected response shape (missing 'value' array).`});
+        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError: `Fleet doesn't have the required permissions in Entra. Make sure Fleet is added as a compliance partner in Intune. Then have an Entra admin who is also a Fleet admin sign in to Fleet, select Connect, and approve the permissions in the same session. Don't send Microsoft's consent link to someone else: Fleet creates a new link each time the Conditional access page is opened, so older links stop working. Details: Microsoft's PartnerCompliancePolicies API returned an unexpected response shape (missing 'value' array).`});
         throw {redirect: fleetInstanceUrlToRedirectTo };
       }
       let createdPolicyId = parsedPoliciesResponse.value[0].Id;
@@ -214,8 +214,7 @@ module.exports = {
       // If Microsoft's Graph API returned an empty body, surface a friendlier error rather than blowing up on JSON.parse.
       if(!groupResponse.body) {
         sails.log.warn(`Microsoft's Graph API returned an empty response body when searching for the "Fleet conditional access" group on tenant ${informationAboutThisTenant.entraTenantId}. Status: ${groupResponse.statusCode}. Response headers: ${require('util').inspect(groupResponse.headers, {depth: 1})}`);
-        // IMPORTANT: Don't change the first sentence of the below setupError value. The error string is checked by the Fleet UI frontend.
-        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError: `Fleet doesn't have the required permissions in Entra. To fix this, have an Entra admin who is also a Fleet admin sign in to Fleet, select Connect, and approve the permissions in the same session. Don't forward Microsoft's consent link to someone else. Details: Microsoft's Graph API returned an empty response (HTTP ${groupResponse.statusCode}) when searching for the "Fleet conditional access" group.`});
+        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError: `Microsoft's Graph API returned an empty response (HTTP ${groupResponse.statusCode}) when searching for the "Fleet conditional access" group. This may indicate missing API permissions on the Fleet enterprise app registration.`});
         throw {redirect: fleetInstanceUrlToRedirectTo };
       }
       try {

@@ -242,7 +242,8 @@ const ConditionalAccess = () => {
           notify.error(
             <>
               Couldn&apos;t connect. Fleet doesn&apos;t have the required
-              permissions in Entra. An Entra admin must sign in to Fleet and
+              permissions in Entra. Make sure Fleet is added as a compliance
+              partner in Intune, then have an Entra admin sign in to Fleet and
               select Connect. {troubleshootLink}
             </>
           );
