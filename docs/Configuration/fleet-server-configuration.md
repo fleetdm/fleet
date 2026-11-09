@@ -844,7 +844,7 @@ cloud providers that have limitations on their API gateways, such as GCP Cloud R
 
 ### server_private_key
 
-This key is required for enabling Apple, Windows, and Android MDM features and/or storing sensitive configs (passwords, API keys, etc.) in Fleet. If you are using the `FLEET_APPLE_APNS_*` and `FLEET_APPLE_SCEP_*` variables, Fleet will automatically encrypt the values of those variables using `FLEET_SERVER_PRIVATE_KEY` and save them in the database when you restart after updating.
+This key is required for enabling Apple, Windows, and Android MDM features and features that require third-party secrets, passwords, or API keys (ex. [maintenance windows](https://fleetdm.com/guides/using-maintenance-windows)). If you are using the `FLEET_APPLE_APNS_*` and `FLEET_APPLE_SCEP_*` variables, Fleet will automatically encrypt the values of those variables using `FLEET_SERVER_PRIVATE_KEY` and save them in the database when you restart after updating.
 
 The key must be at least 32 bytes long. Run `openssl rand -base64 32` in the Terminal app to generate one on macOS.
 
@@ -3421,7 +3421,7 @@ In this case, the URL should be a host that serves the files in the legacy feed 
 Fleet expects to find all the GZ and META files that can be found in https://nvd.nist.gov/vuln/data-feeds#JSON_FEED.
 For example: `FLEET_VULNERABILITIES_CVE_FEED_PREFIX_URL` + `/nvdcve-1.1-2002.meta`
 
-When not defined, Fleet downloads CVE information from the nvd.nist.gov host using the NVD 2.0 API.
+When not defined, Fleet downloads CVE information from the [`fleetdm/vulnerabilities`](https://github.com/fleetdm/vulnerabilities/releases) releases on GitHub.
 
 - Default value: `""`
 - Environment variable: `FLEET_VULNERABILITIES_CVE_FEED_PREFIX_URL`

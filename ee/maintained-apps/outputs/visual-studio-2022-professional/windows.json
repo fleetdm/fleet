@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "17.14.43",
+      "version": "17.14.44",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE (name = 'Visual Studio Professional 2022' OR name LIKE 'Visual Studio Professional 2022 (%') AND publisher = 'Microsoft Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE ((name = 'Visual Studio Professional 2022' OR name LIKE 'Visual Studio Professional 2022 (%') AND publisher = 'Microsoft Corporation') AND version_compare(version, '17.14.43') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE ((name = 'Visual Studio Professional 2022' OR name LIKE 'Visual Studio Professional 2022 (%') AND publisher = 'Microsoft Corporation') AND version_compare(version, '17.14.44') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'visual studio professional 2022.exe');"
       },
-      "installer_url": "https://download.visualstudio.microsoft.com/download/pr/4bc08c27-bd31-470c-9a30-3b62707fbf0f/0f93cdbb9b969dd1974cfa17602819652e1db204d29a80cbff8872a054efc9d4/vs_Professional.exe",
+      "installer_url": "https://download.visualstudio.microsoft.com/download/pr/6bd63d7f-1818-4e03-a552-9feb11496c19/4a59cc25d14a66a3fcb9bf767dbf695a86fda8df85b466b947f3fb543066c4d6/vs_Professional.exe",
       "install_script_ref": "1662986f",
       "uninstall_script_ref": "ea7440c0",
-      "sha256": "0f93cdbb9b969dd1974cfa17602819652e1db204d29a80cbff8872a054efc9d4",
+      "sha256": "4a59cc25d14a66a3fcb9bf767dbf695a86fda8df85b466b947f3fb543066c4d6",
       "default_categories": [
         "Developer tools"
       ]

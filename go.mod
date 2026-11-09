@@ -14,7 +14,6 @@ require (
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/MicahParks/jwkset v0.11.0
 	github.com/RoaringBitmap/roaring v1.9.4
-	github.com/RobotsAndPencils/buford v0.14.0
 	github.com/VividCortex/mysqlerr v0.0.0-20170204212430-6c6b55f8796f
 	github.com/WatchBeam/clock v0.0.0-20170901150240-b08e6b4da7ea
 	github.com/XSAM/otelsql v0.39.0
@@ -137,7 +136,7 @@ require (
 	github.com/shogo82148/rdsmysql/v2 v2.5.0
 	github.com/siderolabs/go-blockdevice/v2 v2.0.3
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
-	github.com/smallstep/pkcs7 v0.0.0-20240723090913-5e2c6a136dfa
+	github.com/smallstep/pkcs7 v0.2.3
 	github.com/smallstep/scep v0.0.0-20240214080410-892e41795b99
 	github.com/spf13/cast v1.10.0
 	github.com/spf13/cobra v1.10.2
@@ -216,6 +215,7 @@ require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/Microsoft/hcsshim v0.11.7 // indirect
 	github.com/ProtonMail/go-crypto v1.4.1 // indirect
+	github.com/RobotsAndPencils/buford v0.14.0 // indirect
 	github.com/Velocidex/json v0.0.0-20220224052537-92f3c0326e5a // indirect
 	github.com/Velocidex/ordereddict v0.0.0-20230909174157-2aa49cc5d11d // indirect
 	github.com/Velocidex/yaml/v2 v2.2.8 // indirect

@@ -89,6 +89,7 @@ module.exports.policies = {
   'view-omarchy': true,
   'view-europe': true,
   'view-pharma': true,
+  'view-aviation': true,
   'view-windows': true,
   'view-apple': true,
 };

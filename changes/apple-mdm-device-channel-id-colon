@@ -1,0 +1,1 @@
+- Apple MDM check-ins and command reports with a ':' in the device's UDID or enrollment ID are now rejected.

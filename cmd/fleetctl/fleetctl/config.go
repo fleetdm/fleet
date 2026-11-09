@@ -303,15 +303,16 @@ func configSetCommand() *cli.Command {
 				fmt.Printf("[+] Set the token in the %q context\n", c.String("context"))
 			}
 
-			if flTLSSkipVerify {
+			if c.IsSet("tls-skip-verify") {
 				set = true
-				if err := setConfigValue(configPath, context, "tls-skip-verify", "true"); err != nil {
+				value := strconv.FormatBool(flTLSSkipVerify)
+				if err := setConfigValue(configPath, context, "tls-skip-verify", value); err != nil {
 					return fmt.Errorf("error setting tls-skip-verify: %w", err)
 				}
-				fmt.Printf("[+] Set the tls-skip-verify config key to \"true\" in the %q context\n", c.String("context"))
+				fmt.Printf("[+] Set the tls-skip-verify config key to %q in the %q context\n", value, c.String("context"))
 			}
 
-			if flRootCA != "" {
+			if c.IsSet("rootca") {
 				set = true
 				if err := setConfigValue(configPath, context, "rootca", flRootCA); err != nil {
 					return fmt.Errorf("error setting rootca: %w", err)

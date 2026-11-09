@@ -115,7 +115,7 @@ Fleet will soon mark company-owned iPhones, iPads, and Android hosts as managed 
 
 fleetdm.com will:
 
-- Run the end user's Google sign-in. It starts when the end user opens the Fleet app on Android or the **Self-service** web clip on an iPhone or iPad. There's no button to find.
+- Run the end user's Google sign-in. It starts when the end user opens the Fleet app on Android or the **Self service** web clip on an iPhone or iPad. There's no button to find.
 - Use the sign-in to find the device in Google and send its Google device ID to your Fleet server. Fleet refuses a second device for the same host, so a link copied to a personal device can't take over a company-owned host.
 
 fleetdm.com won't mark devices as managed. Your Fleet server does that with a service account you create in your own Google Cloud project, with domain-wide delegation limited to the `cloud-identity.devices` scope. You own the credential, and the Fleet server unmarks a device when its host leaves Fleet or stops being company-owned. No Google credentials pass through fleetdm.com.

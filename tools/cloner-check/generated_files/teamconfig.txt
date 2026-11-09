@@ -84,6 +84,8 @@ github.com/fleetdm/fleet/v4/server/fleet/MacOSSetupSoftware	PackagePath	string
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	ManualAgentInstall	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	RequireAllSoftware	bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	RequireAllSoftwareWindows	bool
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	MacOSEnableBootstrapPackageDuringManualEnrollment	bool
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	MacOSEnableBootstrapPackageDuringMigration	bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EnableManagedLocalAccount	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EndUserLocalAccountType	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	WindowsSettings	fleet.WindowsSettings
@@ -185,6 +187,7 @@ github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	Categories	[]string
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	InstallDuringSetup	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	Icon	fleet.TeamSpecSoftwareAsset
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	Platform	string
+github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	Location	string
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	DisplayName	string
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	Configuration	fleet.TeamSpecSoftwareAsset
 github.com/fleetdm/fleet/v4/server/fleet/TeamSpecAppStoreApp	AutoUpdateEnabled	*bool
