@@ -35,16 +35,17 @@ const SETUP_EXPERIENCE_NAV_ITEMS: ISideNavItem<ISetupExperienceCardProps>[] = [
     Card: InstallSoftware,
   },
   {
-    title: "4. Run script",
-    urlSection: "run-script",
-    path: PATHS.CONTROLS_RUN_SCRIPT,
-    Card: RunScript,
-  },
-  {
-    title: "5. Setup Assistant",
+    title: "4. Setup Assistant",
     urlSection: "setup-assistant",
     path: PATHS.CONTROLS_SETUP_ASSISTANT,
     Card: SetupAssistant,
+  },
+  {
+    title: "Run script",
+    urlSection: "run-script",
+    path: PATHS.CONTROLS_RUN_SCRIPT,
+    Card: RunScript,
+    exclude: true, // Excluded from the side navigation but still available via direct route - Fleet 5 deprecation
   },
 ];
 
