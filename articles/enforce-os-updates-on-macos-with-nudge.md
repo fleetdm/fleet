@@ -69,7 +69,7 @@ Nudge reads its settings from a configuration profile. The example profile requi
 
 1. Download the [Nudge profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/configuration-profiles/nudge.mobileconfig) (`nudge.mobileconfig`). Replace each `REPLACE-WITH-UUID` with a unique value from `uuidgen`.
 
-2. Go to **Controls > OS settings > Configuration profiles** and select **Add profile**.
+2. Go to **Controls > OS settings > Configuration profiles**, select **Add profile**, then select **Create manually**.
 3. Upload `nudge.mobileconfig`.
 
 In GitOps, add the profile to the fleet's YAML file:

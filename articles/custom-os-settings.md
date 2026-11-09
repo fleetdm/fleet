@@ -4,7 +4,9 @@ In Fleet you can use configuration profiles to enforce OS settings like security
 
 ## Create configuration profile
 
-For macOS, iOS, and iPadOS hosts, Fleet recommends the [iMazing Profile Creator](https://imazing.com/profile-editor) tool for creating and exporting macOS configuration profiles. Fleet signs these profiles for you. If you have self-signed profiles, run this command to unsign them: `/usr/bin/security cms -D -i  /path/to/profile/profile.mobileconfig | xmllint --format -`
+For Apple and Windows hosts, the quickest way to start is to describe the setting you want and let Fleet generate the profile with AI. Learn how in [Enforce](#enforce).
+
+To build a profile yourself, for macOS, iOS, and iPadOS hosts, Fleet recommends the [iMazing Profile Creator](https://imazing.com/profile-editor) tool for creating and exporting macOS configuration profiles. Fleet signs these profiles for you. If you have self-signed profiles, run this command to unsign them: `/usr/bin/security cms -D -i  /path/to/profile/profile.mobileconfig | xmllint --format -`
 
 For Windows hosts, copy this [Windows configuration profile template](https://fleetdm.com/example-windows-profile) and update the profile using any [configuration service providers (CSPs)](https://fleetdm.com/guides/creating-windows-csps) from [Microsoft's MDM protocol](https://learn.microsoft.com/en-us/windows/client-management/mdm/). For local testing on Windows, [SyncMLViewer](https://github.com/okieselbach/SyncMLViewer/releases) is a useful GUI tool for inspecting MDM traffic.
 
@@ -85,18 +87,53 @@ Fleet UI:
 2. Choose which fleet you want to add a configuration profile to by selecting the desired fleet in the fleets dropdown in the upper left corner. Fleets are available in Fleet Premium.
 
 3. Select either **Profiles** or **Assets** from the sub menu.
-  - To add a configuration profile, select **Add profile** and choose your configuration profile and target.
+  - To add a configuration profile, select **Add profile**.
   - To add an asset, select **Add asset** and choose your asset.
 
-Once the profile is saved, you can edit the profile's targets or replace the configuration file. Hover over the profile row and select the **pencil/edit button** to edit the following:
+4. Create the profile with AI or manually:
+  - **With AI (Apple and Windows):** choose the **Platform**, describe the setting you want in **Instructions** (for example, "Require a passcode with at least 8 characters"), and select the arrow to generate the profile. Fleet fills in the name, description, and profile contents. You can edit the name and description while the profile generates. To stop, select the stop button. To change your instructions and generate again, edit them below the profile and select **Retry**.
+  - **Manually:** select **Create manually**. Then select **Upload a profile** or paste your profile into the editor. Fleet detects the profile type from its contents. You can enter a **Name** and **Description** (optional). If you leave **Name** empty, Fleet uses the profile's `PayloadDisplayName` (.mobileconfig) or file name (.json and .xml).
 
+  > AI can make mistakes. Review the generated profile before you add it. Fleet checks the profile with the same [profile validation](#create-configuration-profile) it runs on uploads, but it can't confirm the profile does what you asked.
+
+5. Select **Edit targets** to target all hosts or custom labels. Targeting is available in Fleet Premium. You can edit targets while a profile generates.
+
+6. Optional: select **Advanced options** to choose how the profile is delivered. Advanced options are available in Fleet Premium.
+  - **Deploy:** choose **Force install** or **End user initiated (manual)**. Only `.mobileconfig` profiles can be end user initiated. Learn more about [self-service profiles](#self-service).
+  - **Hide from end user:** install the profile but hide it from the end user's default list of profiles in Fleet Desktop. Learn more about [hidden profiles](#hidden-profiles).
+
+7. Select **Add profile**.
+
+Once the profile is saved, you can edit it. Hover over the profile row and select the **pencil/edit button** to open the **Edit profile** page, where you can edit the following:
+
+  - Name and description.
   - Targets (all hosts or custom). For custom targets, you can edit the labels (include and/or exclude).
-  - Configuration profile. In the edit modal, hover over the uploaded file and select the **pencil/edit button** to upload a replacement file.
-  > The replacement file must match the original:
-  > - **DDM profiles:** same declaration identifier and file name
-  > - **.mobileconfig profiles:** same `PayloadIdentifier` and `PayloadDisplayName`
+  - Configuration profile. Edit the profile in the editor, or select **Upload a profile** to upload a replacement file.
+  > The replacement must match the original:
+  > - **DDM profiles:** same declaration identifier
+  > - **.mobileconfig profiles:** same `PayloadIdentifier`
+
+  Select **Update profile** to save your changes. Changing only the name or description doesn't resend the profile to hosts.
 
 Fleet API: Use the [Create configuration profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#create-configuration-profile) in the Fleet API.
+
+### When the AI view isn't available
+
+**Add profile** opens the manual view instead when:
+
+- **Generative AI** is turned off in **Settings > Organization settings > Advanced options**. Learn more about [what Fleet sends to the LLM](#what-fleet-sends-to-the-llm).
+- [GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) is on.
+- Only Android MDM is turned on. AI generation supports Apple and Windows profiles. The **Platform** dropdown lists only the platforms with MDM turned on.
+
+If generation takes longer than 10 seconds, Fleet opens the manual view so you can upload or paste a profile instead. This is common for requests that name a third-party app. Select your browser's back button to return to the AI view.
+
+Some requests are declined, for example a certificate (SCEP) request or Platform SSO setup. Fleet shows the reason. Create these profiles manually.
+
+### What Fleet sends to the LLM
+
+When you generate a profile, your Fleet server sends only your instructions and the platform you chose to fleetdm.com, which uses a large language model (LLM) to write the profile. Fleet doesn't send host data, labels, or your existing profiles, and it doesn't use this data to train models. For the model provider and full details, see [AI in Fleet](https://fleetdm.com/guides/ai-in-fleet).
+
+To turn off AI profile generation, turn off **Generative AI** in **Settings > Organization settings > Advanced options**. This also turns off [AI-assisted policy descriptions and resolutions](https://fleetdm.com/guides/fleet-ai-assisted-policy-descriptions-and-resolutions). In GitOps, set `server_settings.ai_features_disabled: true`.
 
 ### Target hosts with labels
 
@@ -112,7 +149,7 @@ When you combine an include mode with **Exclude any**, the profile applies to ho
 
 If you don't select any labels, the profile applies to all hosts that support its platform.
 
-Fleet UI: on the **Add profile** modal, select **Custom**, then select labels on the **Include** tab (choose **Any** or **All**), the **Exclude** tab, or both.
+Fleet UI: on the **Add profile** or **Edit profile** page, select **Edit targets**, select **Custom**, then select labels on the **Include** tab (choose **Any** or **All**), the **Exclude** tab, or both.
 
 GitOps: on the profile, set `labels_include_all` or `labels_include_any`, and/or `labels_exclude_any`. Each takes a list of label names. See the [YAML reference](https://fleetdm.com/docs/configuration/yaml-files) for the full syntax.
 
@@ -214,6 +251,54 @@ In versions older than 4.71.0, Fleet always delivered configuration profiles to 
 
 If you want to make sure the profile stays device-scoped, update `PayloadScope` to `System` or remove `PayloadScope` entirely. The default scope in Fleet is `System`. 
 
+### Self-service
+
+_Available in Fleet Premium_
+
+By default, configuration profiles are enforced when Fleet automatically installs and removes them on targeted hosts. You can instead make a profile self-service (opt-in), so it appears on the end user's **My device > Controls** tab and is only installed when the user chooses to install it.
+
+Self-service profiles are available for macOS `.mobileconfig` profiles. Support for iOS and iPadOS is [coming soon](https://github.com/fleetdm/fleet/issues/52841). They are not supported for Windows (`.xml`), Android (`.json`), or DDM declaration (`.json`) profiles.
+
+When a profile is self-service:
+- Fleet does **not** automatically install it on targeted hosts.
+- The end user sees the profile on the **My device > Controls** tab and can install or uninstall it on demand.
+- Label scoping still controls which hosts *see* the profile in self-service, but does not force-install it.
+- When the user uninstalls a self-service profile, Fleet sends the appropriate removal command (e.g., `RemoveProfile` on Apple platforms).
+
+Fleet UI: 
+
+1. In the Fleet UI, head to the **Controls > OS settings > Configuration profiles** page.
+
+2. Select **Add profile**, select **Create manually**, then upload or paste a `.mobileconfig` configuration profile. AI-generated Apple profiles can be a `.mobileconfig` or a declaration (DDM). Only a `.mobileconfig` can be self-service.
+
+3. Expand **Advanced options** and select **End user initiated (manual)** in the **Deploy** dropdown.
+
+4. Select **Add profile**.
+
+GitOps: 
+
+Set `self_service: true` on the profile:
+
+```yaml
+controls:
+  macos_settings:
+    configuration_profiles:
+      - paths: ../lib/macos/profiles/*.mobileconfig
+        self_service: true
+```
+
+Fleet API:
+
+Pass `"self_service": true` to the Create configuration profile endpoint.
+
+#### Hidden profiles
+
+You can also mark an enforced (`self_service: false`) profile as hidden. Hidden profiles are installed automatically but are hidden from the end user on the **My device > Controls** tab by default. End users can toggle "Show hidden profiles" to view them, but these profiles do not require the end user to take any action.
+
+`self_service` must be `false` to use hidden.
+
+GitOps: set `hidden: true` on the profile. Fleet API: pass `"hidden": true`.
+
 ## See status
 
 In the Fleet UI, head to the **Controls > OS settings** tab.
@@ -273,6 +358,16 @@ SELECT data FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\Software\Policies\emp
 ```
 
 > If your Windows profile fails with the following error: "The MDM protocol returned a success but the result couldn’t be verified by osquery", and the profile includes `[!CDATA []]` sections, [escape the XML](https://www.freeformatter.com/xml-escape.html) instead of using CDATA. For example, `[!CDATA[<enabled/>]]>` should be changed to `&lt;enabled/&gt;`.
+
+
+#### Conflicting settings in multiple profiles
+
+If two Windows profiles set the same setting (`<LocURI>`) to different values, Fleet accepts both and doesn't show a warning. The host ends up with the value from whichever profile it processes last. The order isn't guaranteed, so the result can differ between hosts.
+
+Only the overlapping setting is affected. For example, if one profile sets the camera and microphone settings, and a second profile only sets the camera, the microphone setting from the first profile still applies. Both profiles show as "Verified" because Fleet only checks that the host returned a success status code, not which value is in effect. If you delete one of the profiles, Fleet doesn't remove the shared setting because the other profile still enforces it. The host keeps its current value, which can be the value from the profile you deleted.
+
+To avoid unexpected results, make sure each setting is in only one profile that applies to a host. If you need different values for different hosts, use [labels](#target-hosts-with-labels) to target each profile.
+
 
 ### Special Android behavior
 
