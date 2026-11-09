@@ -4008,6 +4008,223 @@ labels:
 	}, edited)
 }
 
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsAccentOnlyRenameKeepsLabelsAndReports() {
+	t := s.T()
+	ctx := t.Context()
+
+	user := s.createGitOpsUser(t)
+	fleetCfg := s.createFleetctlConfig(t, user)
+
+	teamName := uuid.NewString()
+	team, err := s.DS.NewTeam(ctx, &fleet.Team{Name: teamName})
+	require.NoError(t, err)
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+
+	write := func(globalLabels, teamReports, teamLabels string) {
+		require.NoError(t, os.WriteFile(globalFile.Name(), fmt.Appendf(nil, `
+agent_options:
+controls:
+org_settings:
+  secrets:
+  - secret: test_secret
+policies:
+reports:
+labels:%s
+`, globalLabels), 0o644))
+		require.NoError(t, os.WriteFile(teamFile.Name(), fmt.Appendf(nil, `
+controls:
+software:
+policies:
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+reports:%s
+labels:%s
+`, teamName, teamReports, teamLabels), 0o644))
+	}
+	run := func(extraArgs ...string) string {
+		return fleetctltest.RunAppForTest(t, append([]string{
+			"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(),
+		}, extraArgs...))
+	}
+
+	// Clear labels and reports left by other tests, so only the rows below exist.
+	write("", "", "")
+	s.assertRealRunOutput(t, run())
+
+	// Names made in the UI or API can hold accents, which GitOps names can't.
+	globalLabel, err := s.DS.NewLabel(ctx, &fleet.Label{
+		Name: "Café Global " + teamName, Query: "SELECT 1", LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+	teamLabel, err := s.DS.NewLabel(ctx, &fleet.Label{
+		Name: "Café Team " + teamName, Query: "SELECT 2", LabelMembershipType: fleet.LabelMembershipTypeDynamic, TeamID: &team.ID,
+	})
+	require.NoError(t, err)
+	report, err := s.DS.NewQuery(ctx, &fleet.Query{
+		Name: "Café Report", Query: "SELECT 1;", Interval: 3600, Platform: "darwin", Logging: fleet.LoggingSnapshot,
+		Saved: true, TeamID: &team.ID,
+	})
+	require.NoError(t, err)
+
+	globalLabelName, teamLabelName, reportName := "Cafe Global "+teamName, "Cafe Team "+teamName, "Cafe Report"
+	write(fmt.Sprintf(`
+  - name: %s
+    label_membership_type: dynamic
+    query: SELECT 1`, globalLabelName), fmt.Sprintf(`
+  - name: %s
+    query: SELECT 1;
+    interval: 3600
+    platform: darwin`, reportName), fmt.Sprintf(`
+  - name: %s
+    label_membership_type: dynamic
+    query: SELECT 2`, teamLabelName))
+	flush := s.captureLabelActivities(t)
+
+	dryRun := run("--dry-run")
+	s.assertDryRunOutput(t, dryRun)
+	require.NotContains(t, dryRun, "would've deleted")
+	require.NotContains(t, dryRun, "would've created")
+
+	realRun := run()
+	s.assertRealRunOutput(t, realRun)
+	require.NotContains(t, realRun, "deleting")
+	require.Equal(t, 2, strings.Count(realRun, "[+] applying 1 label (0 new and 1 updated)"), realRun)
+
+	for want, name := range map[*fleet.Label]string{globalLabel: globalLabelName, teamLabel: teamLabelName} {
+		got, err := s.DS.LabelByName(ctx, name, fleet.TeamFilter{User: test.UserAdmin})
+		require.NoError(t, err)
+		require.Equal(t, want.ID, got.ID)
+		require.Equal(t, name, got.Name)
+	}
+	reports, _, _, _, err := s.DS.ListQueries(ctx, fleet.ListQueryOptions{TeamID: &team.ID})
+	require.NoError(t, err)
+	require.Len(t, reports, 1)
+	require.Equal(t, report.ID, reports[0].ID)
+	require.Equal(t, reportName, reports[0].Name)
+
+	edited := map[uint]string{}
+	for _, a := range flush() {
+		e, ok := a.(fleet.ActivityTypeEditedLabel)
+		require.True(t, ok, "expected edited_label, got %T", a)
+		edited[e.ID] = e.Name
+	}
+	require.Equal(t, map[uint]string{
+		globalLabel.ID: globalLabelName,
+		teamLabel.ID:   teamLabelName,
+	}, edited)
+}
+
+// Names with dots must reach the server's by-name lookups intact. The client joins URL paths with path.Join, which
+// would drop a segment of ".".
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsDotNamedLabelAndReportReplaceDroppedOnes() {
+	t := s.T()
+	ctx := t.Context()
+
+	user := s.createGitOpsUser(t)
+	fleetCfg := s.createFleetctlConfig(t, user)
+
+	teamName := uuid.NewString()
+	team, err := s.DS.NewTeam(ctx, &fleet.Team{Name: teamName})
+	require.NoError(t, err)
+
+	oldLabel, err := s.DS.NewLabel(ctx, &fleet.Label{
+		Name: "Dropped " + teamName, Query: "SELECT 2", LabelMembershipType: fleet.LabelMembershipTypeDynamic, TeamID: &team.ID,
+	})
+	require.NoError(t, err)
+	oldReport, err := s.DS.NewQuery(ctx, &fleet.Query{
+		Name: "Dropped Report", Query: "SELECT 1;", Interval: 3600, Platform: "darwin", Logging: fleet.LoggingSnapshot,
+		Saved: true, TeamID: &team.ID,
+	})
+	require.NoError(t, err)
+	// Listed below without the accent, so only a lookup that delivers the dotted name keeps these.
+	versionLabel, err := s.DS.NewLabel(ctx, &fleet.Label{
+		Name: "Café v1.2 " + teamName, Query: "SELECT 3", LabelMembershipType: fleet.LabelMembershipTypeDynamic, TeamID: &team.ID,
+	})
+	require.NoError(t, err)
+	versionReport, err := s.DS.NewQuery(ctx, &fleet.Query{
+		Name: "Café v1.2", Query: "SELECT 3;", Interval: 3600, Platform: "darwin", Logging: fleet.LoggingSnapshot,
+		Saved: true, TeamID: &team.ID,
+	})
+	require.NoError(t, err)
+	versionLabelName, versionReportName := "Cafe v1.2 "+teamName, "Cafe v1.2"
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(globalFile.Name(), []byte(`
+agent_options:
+controls:
+org_settings:
+  secrets:
+  - secret: test_secret
+policies:
+reports:
+`), 0o644))
+	teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(teamFile.Name(), fmt.Appendf(nil, `
+controls:
+software:
+policies:
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+reports:
+  - name: "."
+    query: SELECT 1;
+    interval: 3600
+    platform: darwin
+  - name: %s
+    query: SELECT 3;
+    interval: 3600
+    platform: darwin
+labels:
+  - name: "."
+    label_membership_type: dynamic
+    query: SELECT 2
+  - name: %s
+    label_membership_type: dynamic
+    query: SELECT 3
+`, teamName, versionReportName, versionLabelName), 0o644))
+	args := []string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()}
+
+	dryRun := fleetctltest.RunAppForTest(t, append(args, "--dry-run"))
+	s.assertDryRunOutput(t, dryRun)
+	require.Contains(t, dryRun, fmt.Sprintf("[-] would've deleted label '%s'", oldLabel.Name))
+	require.NotContains(t, dryRun, fmt.Sprintf("would've deleted label '%s'", versionLabel.Name))
+
+	realRun := fleetctltest.RunAppForTest(t, args)
+	s.assertRealRunOutput(t, realRun)
+	require.Contains(t, realRun, "[+] applying 2 labels (1 new and 1 updated)")
+
+	label, err := s.DS.LabelByName(ctx, ".", fleet.TeamFilter{User: test.UserAdmin})
+	require.NoError(t, err)
+	require.Equal(t, &team.ID, label.TeamID)
+	_, err = s.DS.LabelByName(ctx, oldLabel.Name, fleet.TeamFilter{User: test.UserAdmin})
+	require.True(t, fleet.IsNotFound(err), err)
+	label, err = s.DS.LabelByName(ctx, versionLabelName, fleet.TeamFilter{User: test.UserAdmin})
+	require.NoError(t, err)
+	require.Equal(t, versionLabel.ID, label.ID)
+	require.Equal(t, versionLabelName, label.Name)
+
+	reports, _, _, _, err := s.DS.ListQueries(ctx, fleet.ListQueryOptions{TeamID: &team.ID})
+	require.NoError(t, err)
+	reportIDs := map[string]uint{}
+	for _, r := range reports {
+		reportIDs[r.Name] = r.ID
+	}
+	require.Len(t, reportIDs, 2)
+	require.Contains(t, reportIDs, ".")
+	require.NotEqual(t, oldReport.ID, reportIDs["."])
+	require.Equal(t, versionReport.ID, reportIDs[versionReportName])
+}
+
 // captureDeletedPolicyActivities replaces the suite's activity mock with a
 // recorder for deleted_policy activities. It returns a function that returns
 // and resets the captured activities. Cleanup restores the previous

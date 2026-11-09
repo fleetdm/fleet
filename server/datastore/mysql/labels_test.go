@@ -111,6 +111,7 @@ func TestLabels(t *testing.T) {
 		{"ApplyLabelSpecsErrorsWhenLabelExistsOnAnotherTeam", testApplyLabelSpecsErrorsWhenLabelExistsOnAnotherTeam},
 		{"ApplyLabelSpecsCannotModifyBuiltInLabel", testApplyLabelSpecsCannotModifyBuiltInLabel},
 		{"ApplyLabelSpecsManualNilHosts", testApplyLabelSpecsManualNilHosts},
+		{"ApplyLabelSpecsCollationEqualRename", testApplyLabelSpecsCollationEqualRename},
 		{"ListLabelsOrderKeys", testListLabelsOrderKeys},
 		{"LabelMembershipHostIDs", testLabelMembershipHostIDs},
 		{"GetSpecHostsTeamFiltered", testLabelsGetSpecHostsTeamFiltered},
@@ -4235,6 +4236,141 @@ func testApplyLabelSpecsManualNilHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	require.Equal(t, h1.ID, hosts[0].ID)
+}
+
+func testApplyLabelSpecsCollationEqualRename(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	teamFilter := fleet.TeamFilter{User: test.UserAdmin}
+
+	newHost := func(name, platform string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID:  new(name),
+			NodeKey:        new(name),
+			UUID:           name + "-uuid",
+			Hostname:       name + ".local",
+			HardwareSerial: name + "-serial",
+			Platform:       platform,
+		})
+		require.NoError(t, err)
+		return h
+	}
+	h1 := newHost("collation1", "darwin")
+	h2 := newHost("collation2", "darwin")
+	h3 := newHost("collation3", "windows")
+
+	type membership struct {
+		LabelID uint `db:"label_id"`
+		HostID  uint `db:"host_id"`
+	}
+	allMemberships := func() []membership {
+		var rows []membership
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &rows, `SELECT label_id, host_id FROM label_membership ORDER BY label_id, host_id`)
+		})
+		return rows
+	}
+
+	// A manual label the renames must leave alone.
+	require.NoError(t, ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{{
+		Name:                "collation-bystander",
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+		Hosts:               []string{h1.Hostname},
+	}}))
+	bystander, err := ds.LabelByName(ctx, "collation-bystander", teamFilter)
+	require.NoError(t, err)
+
+	// Each rename is to a name the labels.name collation treats as equal: a case
+	// variant, an accent variant and a trailing-space variant.
+	renames := []struct {
+		name     string
+		from, to string
+	}{
+		{"case", "Gamma", "GAMMA"},
+		{"accent", "Café", "Cafe"},
+		{"trailing space", "Beta ", "Beta"},
+	}
+
+	t.Run("manual label with new hosts", func(t *testing.T) {
+		for _, tc := range renames {
+			t.Run(tc.name, func(t *testing.T) {
+				from, to := "M"+tc.from, "M"+tc.to
+				require.NoError(t, ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{{
+					Name: from, LabelMembershipType: fleet.LabelMembershipTypeManual, Hosts: []string{h1.Hostname, h2.Hostname},
+				}}))
+				before, err := ds.LabelByName(ctx, from, teamFilter)
+				require.NoError(t, err)
+
+				require.NoError(t, ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{{
+					Name: to, LabelMembershipType: fleet.LabelMembershipTypeManual, Hosts: []string{h3.Hostname},
+				}}))
+
+				after, _, err := ds.Label(ctx, before.ID, teamFilter)
+				require.NoError(t, err)
+				require.Equal(t, to, after.Name)
+				require.Equal(t, []membership{
+					{LabelID: bystander.ID, HostID: h1.ID},
+					{LabelID: before.ID, HostID: h3.ID},
+				}, allMemberships())
+
+				// Empty the label so the next case starts from the bystander's row only.
+				require.NoError(t, ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{{
+					Name: to, LabelMembershipType: fleet.LabelMembershipTypeManual, Hosts: []string{},
+				}}))
+				require.Equal(t, []membership{{LabelID: bystander.ID, HostID: h1.ID}}, allMemberships())
+			})
+		}
+	})
+
+	t.Run("dynamic label with platform change", func(t *testing.T) {
+		for _, tc := range renames {
+			t.Run(tc.name, func(t *testing.T) {
+				from, to := "P"+tc.from, "P"+tc.to
+				require.NoError(t, ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{{
+					Name: from, Query: "select 1", Platform: "darwin", LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+				}}))
+				before, err := ds.LabelByName(ctx, from, teamFilter)
+				require.NoError(t, err)
+				require.NoError(t, ds.RecordLabelQueryExecutions(ctx, h1, map[uint]*bool{before.ID: new(true)}, time.Now(), false))
+
+				require.NoError(t, ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{{
+					Name: to, Query: "select 1", Platform: "windows", LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+				}}))
+
+				after, _, err := ds.Label(ctx, before.ID, teamFilter)
+				require.NoError(t, err)
+				require.Equal(t, to, after.Name)
+				require.Equal(t, "windows", after.Platform)
+				hostIDs, err := ds.LabelMembershipHostIDs(ctx, before.ID)
+				require.NoError(t, err)
+				require.Empty(t, hostIDs, "the darwin host must not stay in a label now scoped to windows")
+			})
+		}
+	})
+
+	t.Run("rename onto another team", func(t *testing.T) {
+		teamA, err := ds.NewTeam(ctx, &fleet.Team{Name: "collation-team-a"})
+		require.NoError(t, err)
+		teamB, err := ds.NewTeam(ctx, &fleet.Team{Name: "collation-team-b"})
+		require.NoError(t, err)
+
+		for _, tc := range renames {
+			t.Run(tc.name, func(t *testing.T) {
+				from, to := "X"+tc.from, "X"+tc.to
+				require.NoError(t, ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{{Name: from, Query: "select 1", TeamID: &teamA.ID}}))
+				before, err := ds.LabelByName(ctx, from, teamFilter)
+				require.NoError(t, err)
+
+				err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{{Name: to, Query: "select 2", TeamID: &teamB.ID}})
+				require.ErrorContains(t, err, "one or more specified labels exists on another team")
+
+				after, _, err := ds.Label(ctx, before.ID, teamFilter)
+				require.NoError(t, err)
+				require.Equal(t, from, after.Name)
+				require.Equal(t, "select 1", after.Query)
+				require.Equal(t, &teamA.ID, after.TeamID)
+			})
+		}
+	})
 }
 
 func testListLabelsOrderKeys(t *testing.T, ds *Datastore) {
