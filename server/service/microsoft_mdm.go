@@ -961,8 +961,8 @@ func hasAuthorizedAzureTenant(tenantIDs []string, tokenTenant string) bool {
 }
 
 // authBinarySecurityToken checks if the provided token is valid. For programmatic enrollment, it
-// returns the orbit node key and host uuid. For automatic enrollment, it returns the UPN (the
-// host uuid will be an empty string), and for an Entra token also the Entra device ID signed into it.
+// returns the orbit node key and host uuid. For automatic enrollment with an Entra token, it returns
+// the UPN and the Entra device ID signed into it (the host uuid will be an empty string).
 func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *fleet.HeaderBinarySecurityToken) (claim string, hostUUID string,
 	entraDeviceID string, enrollType fleet.WindowsMDMEnrollType, err error,
 ) {
@@ -988,46 +988,32 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 			return "", "", "", 0, fmt.Errorf("token creation error %v", err)
 		}
 
-		// Validating the Binary Security Token Payload
+		// IsValidToken only accepts the programmatic enrollment type
 		err = binSecToken.IsValidToken()
 		if err != nil {
 			return "", "", "", 0, fmt.Errorf("invalid token data %v", err)
 		}
 
-		// Validating the Binary Security Token Type used on Programmatic Enrollments
-		if binSecToken.Type == mdm_types.WindowsMDMProgrammaticEnrollmentType {
-			host, err := svc.ds.LoadHostByOrbitNodeKey(ctx, binSecToken.Payload.OrbitNodeKey)
-			if err != nil {
-				return "", "", "", 0, fmt.Errorf("host data cannot be found %v", err)
-			}
-			if host == nil {
-				return "", "", "", 0, errors.New("host not found for orbit node key")
-			}
-
-			mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
-			if err != nil && !errors.Is(err, sql.ErrNoRows) {
-				return "", "", "", 0, errors.New("unable to retrieve host mdm info")
-			}
-
-			// This ensures that only hosts that are eligible for Windows enrollment can be enrolled
-			if !isEligibleForWindowsMDMEnrollment(host, mdmInfo) {
-				return "", "", "", 0, errors.New("host is not elegible for Windows MDM enrollment")
-			}
-
-			// No errors, token is authorized
-			return binSecToken.Payload.OrbitNodeKey, host.UUID, "", fleet.WindowsMDMEnrollTypeProgrammatic, nil
+		host, err := svc.ds.LoadHostByOrbitNodeKey(ctx, binSecToken.Payload.OrbitNodeKey)
+		if err != nil {
+			return "", "", "", 0, fmt.Errorf("host data cannot be found %v", err)
+		}
+		if host == nil {
+			return "", "", "", 0, errors.New("host not found for orbit node key")
 		}
 
-		// Validating the Binary Security Token Type used on Automatic Enrollments (returned by STS Auth Endpoint)
-		if binSecToken.Type == mdm_types.WindowsMDMAutomaticEnrollmentType {
-			upnToken, err := svc.wstepCertManager.GetSTSAuthTokenUPNClaim(binSecToken.Payload.AuthToken)
-			if err != nil {
-				return "", "", "", 0, ctxerr.Wrap(ctx, err, "issue retrieving UPN from Auth token")
-			}
-
-			// No errors, token is authorized
-			return upnToken, "", "", fleet.WindowsMDMEnrollTypeAutomatic, nil
+		mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return "", "", "", 0, errors.New("unable to retrieve host mdm info")
 		}
+
+		// This ensures that only hosts that are eligible for Windows enrollment can be enrolled
+		if !isEligibleForWindowsMDMEnrollment(host, mdmInfo) {
+			return "", "", "", 0, errors.New("host is not elegible for Windows MDM enrollment")
+		}
+
+		// No errors, token is authorized
+		return binSecToken.Payload.OrbitNodeKey, host.UUID, "", fleet.WindowsMDMEnrollTypeProgrammatic, nil
 	}
 
 	// Validating the Binary Security Token Type used on Automatic Enrollments

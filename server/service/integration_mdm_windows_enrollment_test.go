@@ -690,8 +690,6 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithDevice
 	require.Equal(t, windowsHost.UUID, d.HostUUID)
 }
 
-// TODO: Do we need integration tests for WindowsMDMAutomaticEnrollmentType flows?
-
 func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithAzureToken() {
 	t := s.T()
 
