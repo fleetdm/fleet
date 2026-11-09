@@ -138,7 +138,7 @@ Fleet 4.95 already supports reports with an `interval`, so change them before yo
 
 GitHub issue: [#54461](https://github.com/fleetdm/fleet/issues/54461)
 
-### Built-in labels can't target reports
+### Reports can't target built-in labels
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
