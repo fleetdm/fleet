@@ -7897,6 +7897,25 @@ func TestComputeLabelChanges(t *testing.T) {
 				{Name: "to-add", Op: "+", TeamName: "team1", FileName: "config.yml"},
 			},
 		},
+		{
+			name:     "case-only rename updates the label under its new name",
+			filename: "config.yml",
+			teamName: "team1",
+			existingLabels: []*fleet.LabelSpec{
+				{Name: "Gamma", LabelType: fleet.LabelTypeRegular},
+				{Name: "to-remove", LabelType: fleet.LabelTypeRegular},
+			},
+			specifiedLabels: []*fleet.LabelSpec{
+				{Name: "GAMMA"},
+				{Name: "To-Add"},
+			},
+			labelsExcepted: false,
+			expected: []spec.LabelChange{
+				{Name: "GAMMA", Op: "=", TeamName: "team1", FileName: "config.yml"},
+				{Name: "to-remove", Op: "-", TeamName: "team1", FileName: "config.yml"},
+				{Name: "To-Add", Op: "+", TeamName: "team1", FileName: "config.yml"},
+			},
+		},
 	}
 
 	for _, tc := range testCases {

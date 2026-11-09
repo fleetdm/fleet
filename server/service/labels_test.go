@@ -1736,6 +1736,40 @@ func TestLabelActivities(t *testing.T) {
 		require.Equal(t, "platform-spec", got.Name)
 	})
 
+	t.Run("apply specs records a case-only rename as an edit", func(t *testing.T) {
+		activities = activities[:0]
+
+		// The name lookup matches by collation, so the spec "GAMMA" finds the stored "Gamma" row.
+		var lookupCalls int
+		ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
+			lookupCalls++
+			if lookupCalls == 1 {
+				return map[string]*fleet.Label{
+					"Gamma": {ID: 420, Name: "Gamma", LabelMembershipType: fleet.LabelMembershipTypeDynamic, Query: "SELECT 1"},
+				}, nil
+			}
+			return map[string]*fleet.Label{
+				"GAMMA": {ID: 420, Name: "GAMMA", LabelMembershipType: fleet.LabelMembershipTypeDynamic, Query: "SELECT 1"},
+			}, nil
+		}
+		ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+			return nil
+		}
+		ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error {
+			return nil
+		}
+
+		err := svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+			{Name: "GAMMA", LabelMembershipType: fleet.LabelMembershipTypeDynamic, Query: "SELECT 1"},
+		}, nil, nil)
+		require.NoError(t, err)
+		require.Len(t, activities, 1)
+		got, ok := activities[0].(fleet.ActivityTypeEditedLabel)
+		require.True(t, ok, "expected edited_label, got %T", activities[0])
+		require.Equal(t, uint(420), got.ID)
+		require.Equal(t, "GAMMA", got.Name)
+	})
+
 	t.Run("apply specs detects manual-label host membership change", func(t *testing.T) {
 		activities = activities[:0]
 

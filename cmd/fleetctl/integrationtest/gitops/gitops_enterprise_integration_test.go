@@ -3900,6 +3900,114 @@ labels:
 	require.Contains(t, deletedNames, "lbl-host-vitals")
 }
 
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsCaseOnlyRenameKeepsLabelsAndReports() {
+	t := s.T()
+	ctx := t.Context()
+
+	user := s.createGitOpsUser(t)
+	fleetCfg := s.createFleetctlConfig(t, user)
+
+	teamName := uuid.NewString()
+	team, err := s.DS.NewTeam(ctx, &fleet.Team{Name: teamName})
+	require.NoError(t, err)
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+
+	globalLabelName, teamLabelName, reportName := "Case Global "+teamName, "Case Team "+teamName, "Case Report"
+	write := func(globalLabel, teamLabel, report string) {
+		require.NoError(t, os.WriteFile(globalFile.Name(), fmt.Appendf(nil, `
+agent_options:
+controls:
+org_settings:
+  secrets:
+  - secret: test_secret
+policies:
+reports:
+labels:
+  - name: %s
+    label_membership_type: dynamic
+    query: SELECT 1
+`, globalLabel), 0o644))
+		require.NoError(t, os.WriteFile(teamFile.Name(), fmt.Appendf(nil, `
+controls:
+software:
+policies:
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+reports:
+  - name: %s
+    query: SELECT 1;
+    interval: 3600
+    platform: darwin
+labels:
+  - name: %s
+    label_membership_type: dynamic
+    query: SELECT 2
+`, teamName, report, teamLabel), 0o644))
+	}
+	run := func(extraArgs ...string) string {
+		return fleetctltest.RunAppForTest(t, append([]string{
+			"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(),
+		}, extraArgs...))
+	}
+	labelByName := func(name string) *fleet.Label {
+		label, err := s.DS.LabelByName(ctx, name, fleet.TeamFilter{User: test.UserAdmin})
+		require.NoError(t, err)
+		return label
+	}
+	reports := func() []*fleet.Query {
+		queries, _, _, _, err := s.DS.ListQueries(ctx, fleet.ListQueryOptions{TeamID: &team.ID})
+		require.NoError(t, err)
+		return queries
+	}
+
+	write(globalLabelName, teamLabelName, reportName)
+	s.assertRealRunOutput(t, run())
+	globalLabel, teamLabel := labelByName(globalLabelName), labelByName(teamLabelName)
+	before := reports()
+	require.Len(t, before, 1)
+
+	flush := s.captureLabelActivities(t)
+	upper := strings.ToUpper
+	write(upper(globalLabelName), upper(teamLabelName), upper(reportName))
+
+	dryRun := run("--dry-run")
+	s.assertDryRunOutput(t, dryRun)
+	require.NotContains(t, dryRun, "would've deleted")
+	require.NotContains(t, dryRun, "would've created")
+
+	realRun := run()
+	s.assertRealRunOutput(t, realRun)
+	require.NotContains(t, realRun, "deleting")
+	require.Equal(t, 2, strings.Count(realRun, "[+] applying 1 label (0 new and 1 updated)"), realRun)
+
+	for _, want := range []*fleet.Label{globalLabel, teamLabel} {
+		got := labelByName(upper(want.Name))
+		require.Equal(t, want.ID, got.ID)
+		require.Equal(t, upper(want.Name), got.Name)
+	}
+	after := reports()
+	require.Len(t, after, 1)
+	require.Equal(t, before[0].ID, after[0].ID)
+	require.Equal(t, upper(reportName), after[0].Name)
+
+	edited := map[uint]string{}
+	for _, a := range flush() {
+		e, ok := a.(fleet.ActivityTypeEditedLabel)
+		require.True(t, ok, "expected edited_label, got %T", a)
+		edited[e.ID] = e.Name
+	}
+	require.Equal(t, map[uint]string{
+		globalLabel.ID: upper(globalLabelName),
+		teamLabel.ID:   upper(teamLabelName),
+	}, edited)
+}
+
 // captureDeletedPolicyActivities replaces the suite's activity mock with a
 // recorder for deleted_policy activities. It returns a function that returns
 // and resets the captured activities. Cleanup restores the previous
