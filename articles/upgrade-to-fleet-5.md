@@ -589,6 +589,7 @@ GitHub issue: [#57406](https://github.com/fleetdm/fleet/issues/57406)
 | Fleet 4 | Fleet 5 |
 |:--|:--|
 | Certificate authorities (CAs) of different types can share a name | Every CA needs a unique name, ignoring case, in [Connect certificate authority](https://fleetdm.com/docs/rest-api/rest-api#connect-certificate-authority-ca) and [Update certificate authority](https://fleetdm.com/docs/rest-api/rest-api#update-certificate-authority-ca) |
+| A name that's already used returns `400` in Connect certificate authority and `409` in Update certificate authority | Both return `422` |
 
 #### What to do
 
@@ -596,6 +597,7 @@ Change these before you upgrade.
 
 1. Call [List certificate authorities](https://fleetdm.com/docs/rest-api/rest-api#list-certificate-authorities-cas), find CAs that share a `name` (ignoring case), and rename them.
 2. Update the configuration profiles that reference them.
+3. If your scripts or integrations check for a `400` or `409` when a CA name is taken, check for `422` instead.
 
 GitHub issue: [#56271](https://github.com/fleetdm/fleet/issues/56271)
 
