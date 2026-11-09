@@ -151,26 +151,36 @@ func TestReconcileAndroidCommands(t *testing.T) {
 	})
 
 	// AMAPI never marks a WIPE operation done, because the device is erased before it can report
-	// back, so a wipe whose device is gone counts as finished.
+	// back, so a wipe whose device is gone counts as finished, whether AMAPI still has the operation
+	// or has dropped it.
 	for _, tc := range []struct {
 		name            string
 		commandType     android.MDMAndroidCommandType
 		currentDeviceID string
 		deviceErr       error
 		deviceActive    bool
+		operationGone   bool
 		wantAcked       bool
 	}{
-		{"operation still running is left pending", android.MDMAndroidCommandTypeLock, "D", nil, false, false},
-		{"wipe still running while its device is active is left pending", android.MDMAndroidCommandTypeWipe, "D", nil, true, false},
-		{"wipe not done whose device is gone is acknowledged", android.MDMAndroidCommandTypeWipe, "D", nil, false, true},
-		{"wipe not done of a gone device that is not the host's current one is left pending", android.MDMAndroidCommandTypeWipe, "new-device", nil, false, false},
-		{"wipe not done whose device lookup fails is left pending", android.MDMAndroidCommandTypeWipe, "D", errors.New("network down"), false, false},
+		{"operation still running is left pending", android.MDMAndroidCommandTypeLock, "D", nil, false, false, false},
+		{"wipe still running while its device is active is left pending", android.MDMAndroidCommandTypeWipe, "D", nil, true, false, false},
+		{"wipe not done whose device is gone is acknowledged", android.MDMAndroidCommandTypeWipe, "D", nil, false, false, true},
+		{"wipe not done of a gone device that is not the host's current one is left pending", android.MDMAndroidCommandTypeWipe, "new-device", nil, false, false, false},
+		{"wipe not done whose device lookup fails is left pending", android.MDMAndroidCommandTypeWipe, "D", errors.New("network down"), false, false, false},
+		{"wipe whose operation and device are gone is acknowledged", android.MDMAndroidCommandTypeWipe, "D", nil, false, true, true},
+		{"wipe whose operation is gone while its device is active is left pending", android.MDMAndroidCommandTypeWipe, "D", nil, true, true, false},
+		{"wipe whose operation is gone, of a device that is not the host's current one, is left pending", android.MDMAndroidCommandTypeWipe, "new-device", nil, false, true, false},
+		{"wipe whose operation is gone and whose device lookup fails is left pending", android.MDMAndroidCommandTypeWipe, "D", errors.New("network down"), false, true, false},
+		{"lock whose operation is gone is left pending", android.MDMAndroidCommandTypeLock, "D", nil, false, true, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			const hostID uint = 42
 			cmd := pendingCommandForReconcile("cmd-running", string(tc.commandType), 48*time.Hour)
 			mockDS, client, logger := newReconcileFixture(t, cmd)
 			client.EnterprisesDevicesOperationsGetFunc = func(ctx context.Context, operationName string) (*androidmanagement.Operation, error) {
+				if tc.operationGone {
+					return nil, googleAPIError(http.StatusNotFound, "Requested entity was not found.")
+				}
 				return &androidmanagement.Operation{Name: operationName, Done: false}, nil
 			}
 			client.EnterprisesDevicesGetFunc = func(ctx context.Context, name string) (*androidmanagement.Device, error) {

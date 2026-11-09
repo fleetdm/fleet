@@ -139,11 +139,20 @@ func reconcileAndroidCommands(ctx context.Context, ds fleet.Datastore, client an
 		}
 
 		op, err := client.EnterprisesDevicesOperationsGet(ctx, cmd.OperationName)
-		if err == nil && !op.Done {
+		switch {
+		case err == nil && !op.Done:
 			var wiped bool
 			wiped, err = isWipeOfGoneCurrentDevice(ctx, ds, reconcileDeviceGetter(client), cmd)
 			if wiped {
 				op = &androidmanagement.Operation{Name: op.Name, Done: true, Metadata: op.Metadata}
+			}
+		case androidmgmt.IsNotFoundError(err):
+			wiped, wipeErr := isWipeOfGoneCurrentDevice(ctx, ds, reconcileDeviceGetter(client), cmd)
+			switch {
+			case wipeErr != nil:
+				err = wipeErr
+			case wiped:
+				op, err = &androidmanagement.Operation{Name: cmd.OperationName, Done: true}, nil
 			}
 		}
 		switch {
