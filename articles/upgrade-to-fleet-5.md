@@ -601,13 +601,23 @@ GitHub issue: [#56271](https://github.com/fleetdm/fleet/issues/56271)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| Fleets can have names that differ only by case or special characters | [Create fleet](https://fleetdm.com/docs/rest-api/rest-api#create-fleet) and [Update fleet](https://fleetdm.com/docs/rest-api/rest-api#update-fleet) require names that are unique after Fleet trims whitespace, lowercases the name, and removes special characters |
+| Fleets can have names that differ only by punctuation, whitespace, symbols, or emoji, or names with no letters or numbers | [Create fleet](https://fleetdm.com/docs/rest-api/rest-api#create-fleet), [Update fleet](https://fleetdm.com/docs/rest-api/rest-api#update-fleet), and GitOps require names that include at least one letter or number and are unique when Fleet ignores letter case, accents, whitespace, punctuation, symbols, and emoji |
+
+When you upgrade, Fleet renames existing fleets that break these rules:
+
+- If two or more fleets' names match (for example, `Workstations` and `workstations!`), the oldest fleet keeps its name. Fleet adds a number to the others, like `workstations! 2`.
+- If a fleet's name has no letters or numbers (for example, `🚀`), Fleet adds a number, like `🚀 1`.
+
+Fleet only changes the name. Hosts, settings, and everything else in the fleet stay the same. Apple Business and Volume Purchasing Program (VPP) settings show the fleet's new name.
 
 #### What to do
 
-Change these before you upgrade.
+Change these before you upgrade, so Fleet doesn't rename your fleets.
 
-Call [List fleets](https://fleetdm.com/docs/rest-api/rest-api#list-fleets), find names that match after you ignore case, whitespace, and special characters (for example `Workstations` and `workstations!`), and rename one in each pair.
+1. Call [List fleets](https://fleetdm.com/docs/rest-api/rest-api#list-fleets) and find names that match when you ignore letter case, accents, whitespace, punctuation, symbols, and emoji, plus names with no letters or numbers.
+2. Rename those fleets. If you use GitOps, change `name` in each fleet's YAML file and run GitOps. Also update any other YAML that refers to the fleet by name.
+
+If you upgrade first, update your YAML to use the new names: `name` in each renamed fleet's file, and any other YAML that refers to those fleets by name, like Apple Business, VPP, and Windows automatic enrollment settings in `default.yml`. Otherwise, your GitOps runs fail.
 
 GitHub issue: [#53790](https://github.com/fleetdm/fleet/issues/53790)
 
