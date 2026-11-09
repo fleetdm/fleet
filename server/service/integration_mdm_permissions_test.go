@@ -590,17 +590,15 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 
 	// Attempt to list all software, should allow.
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareRequest{}, http.StatusOK, &listSoftwareVersionsResponse{})
-	var lsr listSoftwareResponse
-	s.DoJSON("GET", "/api/latest/fleet/software", listSoftwareRequest{}, http.StatusOK, &lsr, "team_id", fmt.Sprint(t1.ID))
+	var lsr listSoftwareVersionsResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareRequest{}, http.StatusOK, &lsr, "team_id", fmt.Sprint(t1.ID))
 	require.Len(t, lsr.Software, 1)
-	s.DoJSON("GET", "/api/latest/fleet/software/count", countSoftwareRequest{}, http.StatusOK, &countSoftwareResponse{})
 	var lstr listSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &lstr, "team_id", fmt.Sprint(t1.ID))
 	require.Len(t, lstr.SoftwareTitles, 2)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", lstr.SoftwareTitles[0].ID), getSoftwareTitleRequest{}, http.StatusOK, &getSoftwareTitleResponse{}, "team_id", fmt.Sprint(t1.ID))
 
 	// Attempt to list a software, should allow.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", lsr.Software[0].ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResponse{})
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", lsr.Software[0].ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResponse{})
 
 	// Attempt to read app config, only global admins get SMTP settings.

@@ -94,46 +94,11 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 
 	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now().UTC()))
 
-	var resp listSoftwareResponse
-	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &resp)
-	require.NotNil(t, resp)
-
-	var fooPayload, barPayload, airPayload fleet.Software
-	for _, s := range resp.Software {
-		switch s.Name {
-		case "foo":
-			fooPayload = s
-		case "bar":
-			barPayload = s
-		case "air":
-			airPayload = s
-		default:
-			require.Failf(t, "unrecognized software %s", s.Name)
-
-		}
-	}
-
-	require.Empty(t, fooPayload.Vulnerabilities)
-	require.Len(t, barPayload.Vulnerabilities, 1)
-	require.Equal(t, "cve-123", barPayload.Vulnerabilities[0].CVE)
-	require.NotNil(t, barPayload.Vulnerabilities[0].CVSSScore, new(new(5.4)))
-	require.NotNil(t, barPayload.Vulnerabilities[0].EPSSProbability, new(new(0.5)))
-	require.NotNil(t, barPayload.Vulnerabilities[0].CISAKnownExploit, new(new(true)))
-	require.Equal(t, barPayload.Vulnerabilities[0].CVEPublished, new(new(now)))
-	require.Equal(t, barPayload.Vulnerabilities[0].Description, new(new("a long description of the cve")))
-	require.Equal(t, barPayload.Vulnerabilities[0].ResolvedInVersion, new(new("1.2.3")))
-
-	require.Equal(t, "go1.26.1", airPayload.Release)
-	require.Empty(t, airPayload.ExtensionID, "the Go module path must not reach the API")
-	require.Equal(t, "fooextensionid", fooPayload.ExtensionID, "other sources keep their extension id")
-
 	var respVersions listSoftwareVersionsResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &respVersions)
-	require.NotNil(t, resp)
+	require.NotNil(t, respVersions)
 
-	// Reset so a payload missing from this response can't be satisfied by the value the
-	// software-list loop above left behind.
-	fooPayload, barPayload, airPayload = fleet.Software{}, fleet.Software{}, fleet.Software{}
+	var fooPayload, barPayload, airPayload fleet.Software
 	for _, s := range respVersions.Software {
 		switch s.Name {
 		case "foo":
@@ -1539,18 +1504,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 				// Get a global software version
 				var getSoftwareResp getSoftwareResponse
 				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", softwareBar.Versions[0].ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
-
-				// Get a global software vesion using the deprecated endpoint
-				getSoftwareResp = getSoftwareResponse{}
-				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", softwareBar.Versions[0].ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
-
-				// Get a count of software vesions using the deprecated endpoint
-				var countSoftwareResp countSoftwareResponse
-				s.DoJSON("GET", "/api/latest/fleet/software/count", getSoftwareRequest{}, http.StatusForbidden, &countSoftwareResp)
-
-				// List all software versions using the deprecated endpoint
-				var softwareListResp listSoftwareResponse
-				s.DoJSON("GET", "/api/latest/fleet/software", listSoftwareRequest{}, http.StatusForbidden, &softwareListResp)
 			} else {
 				// List all software titles
 				var listSoftwareTitlesResp listSoftwareTitlesResponse
@@ -1571,20 +1524,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 				// Get a global software version
 				var getSoftwareResp getSoftwareResponse
 				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", softwareBar.Versions[0].ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
-
-				// Get a global software vesion using the deprecated endpoint
-				getSoftwareResp = getSoftwareResponse{}
-				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", softwareBar.Versions[0].ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
-
-				// Get a global count of software vesions using the deprecated endpoint
-				var countSoftwareResp countSoftwareResponse
-				s.DoJSON("GET", "/api/latest/fleet/software/count", countSoftwareRequest{}, http.StatusOK, &countSoftwareResp)
-				require.Equal(t, 3, countSoftwareResp.Count)
-
-				// List all software versions using the deprecated endpoint
-				var softwareListResp listSoftwareResponse
-				s.DoJSON("GET", "/api/latest/fleet/software", listSoftwareRequest{}, http.StatusOK, &softwareListResp)
-				require.Equal(t, 3, countSoftwareResp.Count)
 			}
 
 			if tc.shouldFailTeamRead {
@@ -1605,18 +1544,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 				// Get a team software version
 				var getSoftwareResp getSoftwareResponse
 				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", teamFooVersion.ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
-
-				// Get a team software vesion using the deprecated endpoint
-				getSoftwareResp = getSoftwareResponse{}
-				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", teamFooVersion.ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
-
-				// Get a count of team software vesions using the deprecated endpoint
-				var countSoftwareResp countSoftwareResponse
-				s.DoJSON("GET", "/api/latest/fleet/software/count", getSoftwareRequest{}, http.StatusForbidden, &countSoftwareResp)
-
-				// List all software versions using the deprecated endpoint for a team
-				var softwareListResp listSoftwareResponse
-				s.DoJSON("GET", "/api/latest/fleet/software", listSoftwareRequest{}, http.StatusForbidden, &softwareListResp)
 			} else {
 				// List all software titles for a team
 				var listSoftwareTitlesResp listSoftwareTitlesResponse
@@ -1637,20 +1564,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 				// Get a team software version
 				var getSoftwareResp getSoftwareResponse
 				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", teamFooVersion.ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
-
-				// Get a team software vesion using the deprecated endpoint
-				getSoftwareResp = getSoftwareResponse{}
-				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", teamFooVersion.ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
-
-				// Get a team count of software vesions using the deprecated endpoint
-				var countSoftwareResp countSoftwareResponse
-				s.DoJSON("GET", "/api/latest/fleet/software/count", countSoftwareRequest{TeamID: &team1.ID}, http.StatusOK, &countSoftwareResp)
-				require.Equal(t, 1, countSoftwareResp.Count)
-
-				// List all software versions using the deprecated endpoint for a team
-				var softwareListResp listSoftwareResponse
-				s.DoJSON("GET", "/api/latest/fleet/software", listSoftwareRequest{TeamID: &team1.ID}, http.StatusOK, &softwareListResp)
-				require.Equal(t, 1, countSoftwareResp.Count)
 			}
 		})
 	}
@@ -3134,9 +3047,6 @@ func (s *integrationEnterpriseTestSuite) TestAIToolFilter() {
 	listVersions := func(params ...string) (map[string]bool, int) {
 		var resp listSoftwareVersionsResponse
 		s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &resp, append(params, "query", "aitool")...)
-		var countResp countSoftwareResponse
-		s.DoJSON("GET", "/api/latest/fleet/software/count", nil, http.StatusOK, &countResp, append(params, "query", "aitool")...)
-		require.Equal(t, resp.Count, countResp.Count)
 		got := make(map[string]bool, len(resp.Software))
 		for _, sw := range resp.Software {
 			got[sw.Name] = flag(sw.Name, sw.AITool)

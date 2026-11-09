@@ -73,7 +73,7 @@ func TestRemovedPaths(t *testing.T) {
 					assert.Equal(t, "Gone", body.Message)
 					require.Len(t, body.Errors, 1)
 					want := fmt.Sprintf(`The "%s %s" endpoint is not available anymore. What to use instead: %s`,
-						method, strings.TrimPrefix(template, "/api/_version_/fleet"), removednames.GuideURL)
+						method, strings.TrimPrefix(entry.Old, "/api/_version_/fleet"), removednames.GuideURL)
 					assert.Equal(t, want, body.Errors[0]["reason"])
 				})
 			}
@@ -96,6 +96,8 @@ func TestRemovedPathOverlaps(t *testing.T) {
 		{http.MethodGet, "/api/v1/fleet/scripts/batch/abc/cancel", http.StatusMethodNotAllowed, http.MethodPost},
 		{http.MethodGet, "/api/v1/fleet/scripts/batch/abc/foo", http.StatusNotFound, ""},
 		{http.MethodPost, "/api/v1/fleet/hosts/1/configuration_profiles/foo/bar", http.StatusNotFound, ""},
+		// request a software path with a non-numeric ID, the removed software version path should not match it
+		{http.MethodGet, "/api/v1/fleet/software/package", http.StatusNotFound, ""},
 	} {
 		t.Run(c.method+" "+c.path, func(t *testing.T) {
 			t.Parallel()
