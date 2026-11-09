@@ -1345,6 +1345,9 @@ type Datastore interface {
 
 	UpdateQueryAggregatedStats(ctx context.Context) error
 
+	// DeleteOrphanedQueryStats deletes the stats of reports that no longer exist.
+	DeleteOrphanedQueryStats(ctx context.Context) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Following are the set of APIs used by osquery hosts:
 	// TODO(lucas): Move them to a separate datastore or abstraction, to avoid
