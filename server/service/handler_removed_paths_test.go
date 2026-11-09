@@ -11,10 +11,13 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/removednames"
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/throttled/throttled/v2/store/memstore"
 )
 
 // TestRemovedPaths covers every removed path in one place, so removing a path only means adding it to removedPathTemplates.
@@ -96,8 +99,6 @@ func TestRemovedPathOverlaps(t *testing.T) {
 		{http.MethodGet, "/api/v1/fleet/scripts/batch/abc/cancel", http.StatusMethodNotAllowed, http.MethodPost},
 		{http.MethodGet, "/api/v1/fleet/scripts/batch/abc/foo", http.StatusNotFound, ""},
 		{http.MethodPost, "/api/v1/fleet/hosts/1/configuration_profiles/foo/bar", http.StatusNotFound, ""},
-		// request a software path with a non-numeric ID, the removed software version path should not match it
-		{http.MethodGet, "/api/v1/fleet/software/package", http.StatusNotFound, ""},
 	} {
 		t.Run(c.method+" "+c.path, func(t *testing.T) {
 			t.Parallel()
@@ -125,4 +126,30 @@ func TestRemovedPathForEntryWithMethod(t *testing.T) {
 	unpinned := pinned
 	unpinned.Context = ""
 	assert.Empty(t, removedPathFor(template, unpinned).Methods)
+}
+
+// Send only requests that no route handles, because a handled request would increment the global
+// Prometheus request counters and make TestAPIRoutesMetrics fail with more requests than it expects.
+func TestRemovedSoftwarePathsNextToLiveRoutes(t *testing.T) {
+	svc, _ := newTestService(t, new(mock.Store), nil, nil)
+	limitStore, _ := memstore.New(0)
+	handler, err := MakeHandler(svc, config.TestConfig(), slog.New(slog.DiscardHandler), limitStore, nil, nil, nil)
+	require.NoError(t, err)
+
+	for _, c := range []struct {
+		path       string
+		wantStatus int
+	}{
+		// request POST-only software routes with GET, each should still return 405
+		{"/api/latest/fleet/software/package", http.StatusMethodNotAllowed},
+		{"/api/latest/fleet/software/batch", http.StatusMethodNotAllowed},
+		{"/api/latest/fleet/software/web_apps", http.StatusMethodNotAllowed},
+		// request software paths that are not a number, each should still return 404
+		{"/api/latest/fleet/software/foo", http.StatusNotFound},
+		{"/api/latest/fleet/software/123abc", http.StatusNotFound},
+	} {
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, c.path, nil))
+		require.Equal(t, c.wantStatus, rec.Code, c.path)
+	}
 }
