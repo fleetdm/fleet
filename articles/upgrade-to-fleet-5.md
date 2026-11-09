@@ -10,7 +10,8 @@ How to upgrade?
 
 1. [Upgrade](https://fleetdm.com/docs/deploy/upgrading-fleet#upgrading-fleet) to Fleet 4.95.
 2. Work through the list of [breaking changes](#breaking-changes).
-3. Upgrade to Fleet 5. If you're using the [fleetctl CLI](https://fleetdm.com/guides/fleetctl) or [GitOps](https://fleetdm.com/docs/configuration/yaml-files) (fleetctl runs in CI/CD) remember to upgrade fleetctl to 5.
+3. Back up your Fleet database. If you need to go back to Fleet 4 after upgrading, restore this backup. Fleet 4 can't read the settings Fleet 5 renames, so it would turn off features like Windows MDM.
+4. Upgrade to Fleet 5. If you're using the [fleetctl CLI](https://fleetdm.com/guides/fleetctl) or [GitOps](https://fleetdm.com/docs/configuration/yaml-files) (fleetctl runs in CI/CD) remember to upgrade fleetctl to 5.
 
 Why are we doing this?
 
@@ -274,8 +275,8 @@ GitHub issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `require_all_software_macos` and `require_all_software_windows` in [Update setup experience](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience) | `macos_require_all_software` and `windows_require_all_software` |
-| `mdm.enable_recovery_lock_password` in [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | `mdm.macos_recovery_lock_password_enabled` |
+| `require_all_software_macos` and `require_all_software_windows` in [Update setup experience](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience), and under `mdm.setup_experience` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration), [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration), [Get fleet](https://fleetdm.com/docs/rest-api/rest-api#get-fleet), and [Update fleet](https://fleetdm.com/docs/rest-api/rest-api#update-fleet) | `macos_require_all_software` and `windows_require_all_software` |
+| `mdm.enable_recovery_lock_password` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration), [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration), [Get fleet](https://fleetdm.com/docs/rest-api/rest-api#get-fleet), and [Update fleet](https://fleetdm.com/docs/rest-api/rest-api#update-fleet) | `mdm.macos_recovery_lock_password_enabled` |
 
 #### What to do
 
