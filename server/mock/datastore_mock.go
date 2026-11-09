@@ -350,7 +350,7 @@ type SetHostManagedAppleIDFunc func(ctx context.Context, hostID uint, managedApp
 
 type GetHostMDMIdentifiersFunc func(ctx context.Context, identifer string, teamFilter fleet.TeamFilter) ([]*fleet.HostMDMIdentifiers, error)
 
-type ListIOSAndIPadOSToRefetchFunc func(ctx context.Context, refetchInterval time.Duration) (devices []fleet.AppleDevicesToRefetch, err error)
+type ListIOSAndIPadOSToRefetchFunc func(ctx context.Context, refetchInterval time.Duration, limit int) (devices []fleet.AppleDevicesToRefetch, err error)
 
 type AddHostMDMCommandsFunc func(ctx context.Context, commands []fleet.HostMDMCommand) error
 
@@ -807,6 +807,8 @@ type GetCalendarPoliciesFunc func(ctx context.Context, teamID uint) ([]fleet.Pol
 type GetPoliciesForConditionalAccessFunc func(ctx context.Context, teamID uint, platform string) ([]uint, error)
 
 type GetPatchPolicyFunc func(ctx context.Context, teamID *uint, titleID uint) (*fleet.PatchPolicyData, error)
+
+type SyncPatchPolicyQueriesFunc func(ctx context.Context) error
 
 type ConditionalAccessBypassDeviceFunc func(ctx context.Context, hostID uint) error
 
@@ -1823,8 +1825,6 @@ type GetBatchActivityFunc func(ctx context.Context, executionID string) (*fleet.
 type GetBatchActivityHostResultsFunc func(ctx context.Context, executionID string) ([]*fleet.BatchActivityHostResult, error)
 
 type RunScheduledBatchActivityFunc func(ctx context.Context, executionID string) error
-
-type BatchExecuteSummaryFunc func(ctx context.Context, executionID string) (*fleet.BatchActivity, error)
 
 type CancelBatchScriptFunc func(ctx context.Context, executionID string) error
 
@@ -3847,6 +3847,9 @@ type DataStore struct {
 	GetPatchPolicyFunc        GetPatchPolicyFunc
 	GetPatchPolicyFuncInvoked bool
 
+	SyncPatchPolicyQueriesFunc        SyncPatchPolicyQueriesFunc
+	SyncPatchPolicyQueriesFuncInvoked bool
+
 	ConditionalAccessBypassDeviceFunc        ConditionalAccessBypassDeviceFunc
 	ConditionalAccessBypassDeviceFuncInvoked bool
 
@@ -5370,9 +5373,6 @@ type DataStore struct {
 
 	RunScheduledBatchActivityFunc        RunScheduledBatchActivityFunc
 	RunScheduledBatchActivityFuncInvoked bool
-
-	BatchExecuteSummaryFunc        BatchExecuteSummaryFunc
-	BatchExecuteSummaryFuncInvoked bool
 
 	CancelBatchScriptFunc        CancelBatchScriptFunc
 	CancelBatchScriptFuncInvoked bool
@@ -7784,11 +7784,11 @@ func (s *DataStore) GetHostMDMIdentifiers(ctx context.Context, identifer string,
 	return s.GetHostMDMIdentifiersFunc(ctx, identifer, teamFilter)
 }
 
-func (s *DataStore) ListIOSAndIPadOSToRefetch(ctx context.Context, refetchInterval time.Duration) (devices []fleet.AppleDevicesToRefetch, err error) {
+func (s *DataStore) ListIOSAndIPadOSToRefetch(ctx context.Context, refetchInterval time.Duration, limit int) (devices []fleet.AppleDevicesToRefetch, err error) {
 	s.mu.Lock()
 	s.ListIOSAndIPadOSToRefetchFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListIOSAndIPadOSToRefetchFunc(ctx, refetchInterval)
+	return s.ListIOSAndIPadOSToRefetchFunc(ctx, refetchInterval, limit)
 }
 
 func (s *DataStore) AddHostMDMCommands(ctx context.Context, commands []fleet.HostMDMCommand) error {
@@ -9385,6 +9385,13 @@ func (s *DataStore) GetPatchPolicy(ctx context.Context, teamID *uint, titleID ui
 	s.GetPatchPolicyFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetPatchPolicyFunc(ctx, teamID, titleID)
+}
+
+func (s *DataStore) SyncPatchPolicyQueries(ctx context.Context) error {
+	s.mu.Lock()
+	s.SyncPatchPolicyQueriesFuncInvoked = true
+	s.mu.Unlock()
+	return s.SyncPatchPolicyQueriesFunc(ctx)
 }
 
 func (s *DataStore) ConditionalAccessBypassDevice(ctx context.Context, hostID uint) error {
@@ -12941,13 +12948,6 @@ func (s *DataStore) RunScheduledBatchActivity(ctx context.Context, executionID s
 	s.RunScheduledBatchActivityFuncInvoked = true
 	s.mu.Unlock()
 	return s.RunScheduledBatchActivityFunc(ctx, executionID)
-}
-
-func (s *DataStore) BatchExecuteSummary(ctx context.Context, executionID string) (*fleet.BatchActivity, error) {
-	s.mu.Lock()
-	s.BatchExecuteSummaryFuncInvoked = true
-	s.mu.Unlock()
-	return s.BatchExecuteSummaryFunc(ctx, executionID)
 }
 
 func (s *DataStore) CancelBatchScript(ctx context.Context, executionID string) error {

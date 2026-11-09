@@ -61,6 +61,7 @@ var (
 	NumiVersionShortener                = makeVersionShortener(2) // "3.35.743" → "3.35"
 	OrigamiStudioVersionShortener       = makeVersionShortener(2) // "231.0.0.0.0" → "231.0"
 	SQLProVersionShortener              = makeVersionShortener(2) // "2026.301.2" → "2026.301"
+	KritaVersionShortener               = makeVersionShortener(3) // re-signed DMG "5.3.4.1" → "5.3.4"
 )
 
 // makeTrailingZeroTrimmer returns a manifest enricher that drops trailing ".0"

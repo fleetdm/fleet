@@ -46,7 +46,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: nil}, http.StatusNoContent)
 	s.lastActivityMatches(
 		fleet.ActivityTypeEditedMacosProfile{}.ActivityName(),
-		`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`,
+		`{"fleet_id": null, "fleet_name": null}`,
 		0,
 	)
 
@@ -112,7 +112,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
 	}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
 	s.lastActivityMatches(
 		fleet.ActivityTypeEditedMacosProfile{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name, tm.ID, tm.Name),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name),
 		0,
 	)
 }
@@ -150,17 +150,17 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	// Nothing changed, so no activity items
 	s.lastActivityOfTypeDoesNotMatch(
 		fleet.ActivityTypeEditedMacosProfile{}.ActivityName(),
-		`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`,
+		`{"fleet_id": null, "fleet_name": null}`,
 		0,
 	)
 	s.lastActivityOfTypeDoesNotMatch(
 		fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(),
-		`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`,
+		`{"fleet_id": null, "fleet_name": null}`,
 		0,
 	)
 	s.lastActivityOfTypeDoesNotMatch(
 		fleet.ActivityTypeEditedDeclarationProfile{}.ActivityName(),
-		`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`,
+		`{"fleet_id": null, "fleet_name": null}`,
 		0,
 	)
 
@@ -310,17 +310,17 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	s.assertWindowsConfigProfilesByName(&tm.ID, "N2", true)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeEditedMacosProfile{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name, tm.ID, tm.Name),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name),
 		0,
 	)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name, tm.ID, tm.Name),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name),
 		0,
 	)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeEditedDeclarationProfile{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name, tm.ID, tm.Name),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name),
 		0,
 	)
 
@@ -467,17 +467,17 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 	// Nothing changed, so no activity items
 	s.lastActivityOfTypeDoesNotMatch(
 		fleet.ActivityTypeEditedMacosProfile{}.ActivityName(),
-		`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`,
+		`{"fleet_id": null, "fleet_name": null}`,
 		0,
 	)
 	s.lastActivityOfTypeDoesNotMatch(
 		fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(),
-		`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`,
+		`{"fleet_id": null, "fleet_name": null}`,
 		0,
 	)
 	s.lastActivityOfTypeDoesNotMatch(
 		fleet.ActivityTypeEditedDeclarationProfile{}.ActivityName(),
-		`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`,
+		`{"fleet_id": null, "fleet_name": null}`,
 		0,
 	)
 
@@ -622,17 +622,17 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 	s.assertWindowsConfigProfilesByName(&tm.ID, "N2", true)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeEditedMacosProfile{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name, tm.ID, tm.Name),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name),
 		0,
 	)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name, tm.ID, tm.Name),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name),
 		0,
 	)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeEditedDeclarationProfile{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name, tm.ID, tm.Name),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name),
 		0,
 	)
 
@@ -851,12 +851,12 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 	// Nothing changed, so no activity
 	s.lastActivityOfTypeDoesNotMatch(
 		fleet.ActivityTypeEditedMacosProfile{}.ActivityName(),
-		`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`,
+		`{"fleet_id": null, "fleet_name": null}`,
 		0,
 	)
 	s.lastActivityOfTypeDoesNotMatch(
 		fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(),
-		`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`,
+		`{"fleet_id": null, "fleet_name": null}`,
 		0,
 	)
 
@@ -966,12 +966,12 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 	s.assertWindowsConfigProfilesByName(&tm.ID, "N2", true)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeEditedMacosProfile{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name, tm.ID, tm.Name),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name),
 		0,
 	)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name, tm.ID, tm.Name),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name),
 		0,
 	)
 }
