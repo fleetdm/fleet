@@ -16,8 +16,7 @@ import (
 var undefinedFlagError = regexp.MustCompile(`^flag provided but not defined: -{1,2}(.+)$`)
 
 // registerRemovedFlags makes each removed flag and environment variable in pkg/removednames fail with the entry's message, before the
-// command does anything. The change that adds an entry removes the flag, its alias, or its environment variable from the command, so
-// that a command still defining one panics here.
+// command does anything.
 //
 // A removed flag is not defined: urfave/cli rejects it while parsing, before any command code runs, so the command's OnUsageError
 // turns that error into the message. An environment variable is checked in the command's Before.
@@ -30,6 +29,7 @@ func registerRemovedFlags(app *cli.App) {
 	}
 
 	for context, entries := range byContext {
+		// The panics below are developer errors (a table entry that does not match the command tree), caught by any test that builds the app.
 		path := strings.Fields(context)
 		cmd := findCommand(*commandsAtPath(app, path[:len(path)-1], context), path[len(path)-1])
 		if cmd == nil {
