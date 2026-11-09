@@ -400,11 +400,13 @@ GitHub issue: [#53932](https://github.com/fleetdm/fleet/issues/53932)
 |:--|:--|
 | `features.detail_query_overrides` in [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | Removed |
 
+Fleet 5 ignores overrides that are already saved, so built-in queries you turned off or replaced run as built in.
+
 #### What to do
 
 Change these before you upgrade.
 
-Remove `detail_query_overrides` from your API calls.
+Remove `detail_query_overrides` from your API calls. To stop collecting users, set `features.enable_host_users` to `false`. To stop collecting software on all platforms, set `features.enable_software_inventory` to `false`. Other built-in queries can't be turned off.
 
 GitHub issue: [#33769](https://github.com/fleetdm/fleet/issues/33769)
 
@@ -839,11 +841,13 @@ GitHub issue: [#52900](https://github.com/fleetdm/fleet/issues/52900)
 |:--|:--|
 | `features.detail_query_overrides` | Removed |
 
+Fleet 5 ignores overrides that are already saved, so built-in queries you turned off or replaced run as built in.
+
 #### What to do
 
 Change these before you upgrade.
 
-Remove `detail_query_overrides` from your YAML.
+Remove `detail_query_overrides` from your YAML. To stop collecting users, set `features.enable_host_users` to `false`. To stop collecting software on all platforms, set `features.enable_software_inventory` to `false`. Other built-in queries can't be turned off.
 
 GitHub issue: [#33769](https://github.com/fleetdm/fleet/issues/33769)
 
