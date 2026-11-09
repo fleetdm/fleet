@@ -16,10 +16,12 @@ func TestIncompleteOSVInputPreservesArtifacts(t *testing.T) {
 		name      string
 		ecosystem string
 		version   string
+		fixed     string
 		run       func(Config) error
 	}{
-		{"ubuntu", "Ubuntu:24.04:LTS", "24.04", run},
-		{"rhel", "Red Hat:enterprise_linux:9::baseos", "9", runRHEL},
+		{"ubuntu", "Ubuntu:24.04:LTS", "24.04", "1.2.3", run},
+		{"rhel", "Red Hat:enterprise_linux:9::baseos", "9", "1.2.3", runRHEL},
+		{"android", "Android", "16", "16:2026-10-01", runAndroid},
 	} {
 		for _, inputCase := range []string{
 			"empty", "non-JSON only", "malformed only", "valid before malformed", "malformed before valid",
@@ -35,8 +37,12 @@ func TestIncompleteOSVInputPreservesArtifacts(t *testing.T) {
 				}
 				goodPath := filepath.Join(input, "CVE-2026-12345.json")
 				entry := OSVData{
-					ID: "CVE-2026-12345", SchemaVersion: "1.7.5", Upstream: []string{"CVE-2026-12345"},
-					Affected: []Affected{{Package: Package{Ecosystem: platform.ecosystem, Name: "test-package"}}},
+					ID: "CVE-2026-12345", SchemaVersion: "1.7.5",
+					Upstream: []string{"CVE-2026-12345"}, Aliases: []string{"CVE-2026-12345"},
+					Affected: []Affected{{
+						Package: Package{Ecosystem: platform.ecosystem, Name: "test-package"},
+						Ranges:  []Range{{Type: "ECOSYSTEM", Events: []Event{{Introduced: "0"}, {Fixed: platform.fixed}}}},
+					}},
 				}
 				data, err := json.Marshal(entry)
 				require.NoError(t, err)

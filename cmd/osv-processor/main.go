@@ -1053,8 +1053,10 @@ func runAndroid(cfg Config) error {
 		osvData, err := parseOSVFile(path)
 		if err != nil {
 			log.Printf("Failed to parse %s: %v", path, err)
-			filesSkipped++
-			return nil
+			return err
+		}
+		if osvData.ID == "" {
+			return errors.New("OSV record is missing an ID")
 		}
 		if osvData.Withdrawn != "" {
 			filesSkipped++

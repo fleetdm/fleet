@@ -1,1 +1,1 @@
-- Prevented incomplete or malformed OSV input from removing existing Ubuntu and RHEL vulnerability artifacts.
+- Prevented incomplete or malformed OSV input from removing existing Ubuntu, RHEL, and Android vulnerability artifacts.
