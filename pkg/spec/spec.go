@@ -273,8 +273,8 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 	return specs, nil
 }
 
-// rejectRemovedUserRoleKeys fails a user_roles spec that uses the removed teams or team keys. Decoding drops them, which would apply the
-// spec with no fleet roles for the user.
+// rejectRemovedUserRoleKeys fails a user_roles spec that uses the removed teams or team keys. Decoding ignores them, which leaves the user
+// with no fleet roles and a misleading error from the server.
 func rejectRemovedUserRoleKeys(raw json.RawMessage) error {
 	var spec struct {
 		Roles map[string]map[string]json.RawMessage `json:"roles"`
