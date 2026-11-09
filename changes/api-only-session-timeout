@@ -1,1 +1,1 @@
-API-only user sessions now follow the same session duration as regular sessions (default: 5 days of inactivity). Previously, API-only sessions never expired. Actively-used sessions are unaffected.
+Applied standard session timeout to API-only user sessions (default: 5 days of inactivity). Actively-used sessions are unaffected.
