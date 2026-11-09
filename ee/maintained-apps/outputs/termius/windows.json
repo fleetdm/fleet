@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "10.4.0",
+      "version": "10.4.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Termius %' AND publisher = 'Termius Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Termius %' AND publisher = 'Termius Corporation' AND version_compare(version, '10.4.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Termius %' AND publisher = 'Termius Corporation' AND version_compare(version, '10.4.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'termius.exe');"
       },
       "installer_url": "https://autoupdate.termius.com/windows/Install%20Termius.exe",
       "install_script_ref": "c1ec6c33",
       "uninstall_script_ref": "bf1effde",
-      "sha256": "8e329c8dd6e7d53b9bb9148518559b96a5633c18242cb1f991f28d899ceadec5",
+      "sha256": "9ec2c3ef5903e73e8cd72d27569b25f8535b087f7cd2e8b726fa0e5985d84a49",
       "default_categories": [
         "Productivity"
       ]
