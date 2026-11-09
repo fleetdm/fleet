@@ -232,19 +232,6 @@ Fleet 4.95 supports the new `scripts/batch` and `configuration_profiles/resend` 
 
 GitHub issue: [#53080](https://github.com/fleetdm/fleet/issues/53080)
 
-### Apple MDM installer endpoints removed
-
-| Fleet 4 | Fleet 5 |
-|:--|:--|
-| `POST`, `GET`, and `DELETE /api/v1/fleet/mdm/apple/installers` (and `/installers/:installer_id`) | Removed. They return a `410` error. |
-| `GET /api/mdm/apple/installer` | Removed. It returns a `410` error. |
-
-#### What to do
-
-These endpoints were never documented, and Fleet's UI and fleetctl don't use them. If a script calls them, deploy the package as a [custom package](https://fleetdm.com/guides/deploy-software-packages) instead.
-
-GitHub issue: [#56003](https://github.com/fleetdm/fleet/issues/56003)
-
 ### Apple Business Manager endpoints and keys renamed
 
 | Fleet 4 | Fleet 5 |
