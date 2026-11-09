@@ -4481,6 +4481,20 @@ func testHostAndroidSoftwareInstallsLifecycle(t *testing.T, ds *Datastore) {
 	require.True(t, installsByHostID[host.Host.ID]["com.fleetdm.agent"].NeedsResend)
 	require.False(t, installsByHostID[host.Host.ID]["com.example.removed"].NeedsResend)
 
+	// write the same request failed row twice, the second write should update updated_at
+	requestFailedRemovedInstall := fleet.HostAndroidSoftwareInstall{HostID: host.Host.ID, AdamID: "com.example.removed", VPPAppTeamID: &removedVersionID, InstallType: android.AppStatusAvailable, Status: fleet.AndroidSoftwareInstallStatusRequestFailed, InPolicyVersion: new(int64(6)), PolicyBuiltAt: newBuiltAt}
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{requestFailedRemovedInstall}, nil)
+	require.NoError(t, err)
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	firstUpdatedAt := installsByHostID[host.Host.ID]["com.example.removed"].UpdatedAt
+
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{requestFailedRemovedInstall}, nil)
+	require.NoError(t, err)
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.True(t, installsByHostID[host.Host.ID]["com.example.removed"].UpdatedAt.After(firstUpdatedAt))
+
 	// delete the host, its rows should be deleted
 	err = ds.DeleteHost(ctx, host.Host.ID)
 	require.NoError(t, err)
