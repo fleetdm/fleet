@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.15.0",
+      "version": "2.22.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Descript %' AND publisher = 'Descript, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Descript %' AND publisher = 'Descript, Inc.' AND version_compare(version, '2.15.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Descript %' AND publisher = 'Descript, Inc.' AND version_compare(version, '2.22.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'descript.exe');"
       },
-      "installer_url": "https://static-cdn.descript.com/desktop/win32/x64/Descript%20Setup%202.15.0.exe",
+      "installer_url": "https://static-cdn.descript.com/desktop/win32/x64/Descript%20Setup%202.22.1.exe",
       "install_script_ref": "a5276316",
       "uninstall_script_ref": "fcbf7a3a",
-      "sha256": "16a97179b161f3ec6fb96965c644b9ed4feae9d64940f5bcdf7fb798eb02bf0b",
+      "sha256": "a6061ebbbdecdf6ccc5441549003e3e35c5256c4e18525e6a47c0e608df1759e",
       "default_categories": [
         "Productivity"
       ]
