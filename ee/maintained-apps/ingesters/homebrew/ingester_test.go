@@ -132,6 +132,14 @@ func TestIngestValidations(t *testing.T) {
 				Version: "4.2.0.16,270352",
 			}
 
+		case "zen":
+			cask = brewCask{
+				Token:   appToken,
+				Name:    []string{"Zen"},
+				URL:     "https://example.com",
+				Version: "1.24.1b",
+			}
+
 		case "updf":
 			cask = brewCask{
 				Token:   appToken,
@@ -213,6 +221,7 @@ func TestIngestValidations(t *testing.T) {
 		{"", inputApp{Token: "chatgpt", UniqueIdentifier: "com.openai.chat", InstallerFormat: "zip", Name: "ChatGPT Desktop", Slug: "chatgpt/darwin"}},
 		{"", inputApp{Token: "xquartz", UniqueIdentifier: "org.xquartz.X11", InstallerFormat: "pkg", Name: "XQuartz", Slug: "xquartz/darwin"}},
 		{"", inputApp{Token: "updf", UniqueIdentifier: "com.superace.updf.mac", InstallerFormat: "dmg", Name: "UPDF", Slug: "updf/darwin"}},
+		{"", inputApp{Token: "zen", UniqueIdentifier: "app.zen-browser.zen", InstallerFormat: "dmg", Name: "Zen Browser", Slug: "zen/darwin"}},
 		{"", inputApp{Token: "tableau", UniqueIdentifier: "com.tableausoftware.tableaudesktop", InstallerFormat: "dmg", Name: "Tableau Desktop", Slug: "tableau/darwin"}},
 		{"", inputApp{Token: "tableau-prep", UniqueIdentifier: "com.tableausoftware.tableauprep", InstallerFormat: "dmg", Name: "Tableau Prep", Slug: "tableau-prep/darwin"}},
 		{"", inputApp{Token: "4k-slideshow-maker", UniqueIdentifier: "com.openmedia.4kslideshowmaker", InstallerFormat: "dmg", Name: "4K Slideshow Maker", Slug: "4k-slideshow-maker/darwin"}}, //nolint:gosec // G101: cask token, not a credential
@@ -370,6 +379,13 @@ func TestIngestValidations(t *testing.T) {
 				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'org.R-project.R';", out.Queries.Exists)
 				require.Equal(t,
 					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.R-project.R' AND version_compare(REGEX_MATCH(bundle_short_version, 'R (?:R )?([0-9]+(?:\\.[0-9]+)+) GUI', 1), '1.0') < 0);",
+					out.Queries.Patched,
+				)
+			case "zen":
+				// The channel letter is trimmed from both sides so "1.24b" sorts below "1.24.1b".
+				require.Equal(t, "1.24.1b", out.Version)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.zen-browser.zen' AND version_compare(rtrim(bundle_short_version, 'abcdefghijklmnopqrstuvwxyz'), '1.24.1') < 0);",
 					out.Queries.Patched,
 				)
 			case "mindmanager":

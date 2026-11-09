@@ -7,10 +7,10 @@
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ru.keepcoder.Telegram' AND version_compare(bundle_short_version, '13.2.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'ru.keepcoder.Telegram' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://osx.telegram.org/updates/Telegram-13.2.0.283462.app.zip",
+      "installer_url": "https://osx.telegram.org/updates/Telegram-13.2.0.283467.app.zip",
       "install_script_ref": "a686c7dd",
       "uninstall_script_ref": "28a65465",
-      "sha256": "a340e4f845834f1f54063bf918848b388718609bc58f8142b41099adcc43212b",
+      "sha256": "1228baa8a7ef16e2266a45fcfcbdee2d0636ed853cf9d485d4c1ab68e10c84e8",
       "default_categories": [
         "Communication"
       ]
