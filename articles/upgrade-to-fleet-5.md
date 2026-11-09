@@ -1179,7 +1179,8 @@ GitHub issue: [#53787](https://github.com/fleetdm/fleet/issues/53787)
 
 1. Rename the attribute in your IdP before you upgrade.
    - Fleet 4.95 already accepts the new name.
-   - Fleet 5 ignores the old one, so new users who log in with SSO get the global Observer role, and existing users keep the roles they have now.
+   - Fleet 5 ignores the old one. A new user whose fleet roles come only from the old attribute gets the global Observer role.
+   - An existing user whose login has only old attributes keeps their roles. If the login mixes old and new attributes, they lose the fleets sent only through the old one.
 
 GitHub issue: [#53925](https://github.com/fleetdm/fleet/issues/53925)
 
