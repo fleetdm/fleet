@@ -68,13 +68,27 @@ function Remove-Entry {
         $process = Start-Process -FilePath $exePath -ArgumentList $arguments -Wait -PassThru -NoNewWindow
         $result = $process.ExitCode
         Write-Host "Uninstall exit code: $result"
+    } elseif (-not $exePath) {
+        Write-Host "Uninstall command is missing or unrecognized: '$($Entry.Command)'"
+        return 1
     } else {
-        Write-Host "Uninstaller not found; removing the leftover registration."
+        $leftover = @(@($exePath, ($exePath -replace '(?i)\\system32\\', '\SysWOW64\')) |
+            ForEach-Object { Split-Path $_ -Parent } |
+            Where-Object { $_ -and (Test-Path -LiteralPath $_) })
+        if ($leftover.Count -gt 0) {
+            Write-Host "Uninstaller not found but $($leftover[0]) still exists."
+            return 1
+        }
+        Write-Host "Uninstaller and install directory not found; removing the leftover registration."
     }
 
     if ($result -eq 0) {
         if ($installDir -and (Split-Path $installDir -Leaf) -eq $installDirName -and (Test-Path -LiteralPath $installDir)) {
             Remove-Item -LiteralPath $installDir -Recurse -Force -ErrorAction SilentlyContinue
+            if (Test-Path -LiteralPath $installDir) {
+                Write-Host "$installDir still exists after uninstall."
+                return 1
+            }
         }
         if (Test-Path -Path $Entry.KeyPath) {
             Remove-Item -Path $Entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
