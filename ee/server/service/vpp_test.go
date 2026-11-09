@@ -3246,7 +3246,7 @@ func TestUploadVPPTokenInvalidContent(t *testing.T) {
 			ds := new(mock.Store)
 			svc := newTestService(t, ds)
 			svc.config.Server.PrivateKey = "test-key"
-			ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+			ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 			_, err := svc.UploadVPPToken(ctx, strings.NewReader(tc.token))
 			var invalidArg *fleet.InvalidArgumentError
 			require.ErrorAs(t, err, &invalidArg)
