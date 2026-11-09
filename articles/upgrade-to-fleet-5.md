@@ -500,13 +500,14 @@ GitHub issue: [#53472](https://github.com/fleetdm/fleet/issues/53472)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| GitOps users can run custom MDM commands (including lock, unlock, and wipe hosts) | GitOps users get a 403 from [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command), [Lock host](https://fleetdm.com/docs/rest-api/rest-api#lock-host), [Unlock host](https://fleetdm.com/docs/rest-api/rest-api#unlock-host), and [Wipe host](https://fleetdm.com/docs/rest-api/rest-api#wipe-host) |
+| GitOps users can run custom MDM commands (including lock, unlock, and wipe hosts) | GitOps users get a 403 from [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command), [Lock host](https://fleetdm.com/docs/rest-api/rest-api#lock-host), [Unlock host](https://fleetdm.com/docs/rest-api/rest-api#unlock-host), [Wipe host](https://fleetdm.com/docs/rest-api/rest-api#wipe-host), [Turn off host's MDM](https://fleetdm.com/docs/rest-api/rest-api#turn-off-hosts-mdm), [Cancel host's pending MDM command](https://fleetdm.com/docs/rest-api/rest-api#cancel-hosts-pending-mdm-command), [Rotate host's Recovery Lock password](https://fleetdm.com/docs/rest-api/rest-api#rotate-hosts-recovery-lock-password), and [Rotate host's managed local account password](https://fleetdm.com/docs/rest-api/rest-api#rotate-hosts-managed-local-account-password) |
+| `fleetctl mdm run-command`, `fleetctl mdm lock`, `unlock`, and `wipe` work with a GitOps user's API token | Return a 403 |
 
 #### What to do
 
 Change these before you upgrade.
 
-Run MDM commands, or lock, unlock, and wipe hosts, with a different [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user).
+Call these endpoints, and run these `fleetctl mdm` commands, with a different [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user).
 
 GitHub issue: [#53145](https://github.com/fleetdm/fleet/issues/53145)
 
