@@ -487,8 +487,20 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 		_, err = db.writer(ctx).Exec(`UPDATE hosts SET osquery_version = ? WHERE id = ?`, v, id)
 		require.NoError(t, err)
 	}
-	_, err = db.writer(ctx).Exec(`INSERT INTO host_orbit_info (host_id, version) VALUES (?, '1.0.0'), (?, '')`, h2.ID, h3.ID)
+	_, err = db.writer(ctx).Exec(`INSERT INTO host_orbit_info (host_id, version, desktop_version) VALUES (?, '1.0.0', '1.0.1'), (?, '', NULL)`, h2.ID, h3.ID)
 	require.NoError(t, err)
+
+	hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{}, 3)
+	versions := make(map[uint][2]*string, len(hosts))
+	for _, h := range hosts {
+		versions[h.ID] = [2]*string{h.OrbitVersion, h.DesktopVersion}
+	}
+	require.Equal(t, map[uint][2]*string{
+		h1.ID: {nil, nil},
+		h2.ID: {new("1.0.0"), new("1.0.1")},
+		h3.ID: {new(""), nil},
+	}, versions)
+
 	hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OrderKey: "agent"}, 3)
 	require.Equal(t, []uint{h2.ID, h3.ID, h1.ID}, hostIDs(hosts))
 	hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OrderKey: "agent", OrderDirection: fleet.OrderDescending}, 3)
