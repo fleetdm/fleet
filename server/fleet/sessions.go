@@ -68,7 +68,7 @@ type Session struct {
 	ID         uint
 	AccessedAt time.Time `db:"accessed_at"`
 	UserID     uint      `json:"user_id" db:"user_id"`
-	Key        string
+	Key        string `json:"-"`
 	APIOnly    *bool `json:"-" db:"api_only"`
 }
 

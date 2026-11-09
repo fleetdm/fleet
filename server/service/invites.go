@@ -334,7 +334,7 @@ func (svc *Service) VerifyInvite(ctx context.Context, token string) (*fleet.Invi
 	// the invite for authNZ.
 	svc.authz.SkipAuthorization(ctx)
 
-	logging.WithExtras(ctx, "token", token)
+	logging.WithExtras(ctx, "token", "REDACTED")
 
 	invite, err := svc.ds.InviteByToken(ctx, token)
 	if err != nil {
