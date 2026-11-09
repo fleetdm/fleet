@@ -490,7 +490,7 @@ const HostDetailsPage = ({
   >("teams", () => teamAPI.loadAll(), {
     enabled: !!hostIdFromURL && !!isPremiumTier,
     retry: false,
-    select: (data: ILoadTeamsResponse) => data.teams,
+    select: (data: ILoadTeamsResponse) => data.fleets,
   });
 
   const { data: macadmins, refetch: refetchMacadmins } = useQuery(
@@ -947,6 +947,10 @@ const HostDetailsPage = ({
       try {
         await hostAPI.destroy(host);
         queryClient.invalidateQueries(["hosts_count_for_license"]);
+        // Removed rather than invalidated so the Hosts page doesn't render the
+        // cached list, which still includes the deleted host.
+        queryClient.removeQueries([{ scope: "hosts" }]);
+        queryClient.removeQueries([{ scope: "hosts_count" }]);
         notify.success(`Host "${host.display_name}" was successfully deleted.`);
         router.push(PATHS.MANAGE_HOSTS);
       } catch (error) {
@@ -1375,7 +1379,7 @@ const HostDetailsPage = ({
         isDEPAssignedToFleet={host.dep_assigned_to_fleet}
         hostScriptsEnabled={host.scripts_enabled}
         isRecoveryLockPasswordEnabled={
-          mdmConfig?.enable_recovery_lock_password ?? false
+          mdmConfig?.macos_recovery_lock_password_enabled ?? false
         }
         diskEncryptionProfileStatus={diskEncryptionProfile?.status}
         recoveryLockPasswordAvailable={

@@ -60,7 +60,7 @@ export interface IMdmConfig {
   /** Host name template applied to "No team" Apple hosts. Mirrors
   `enable_disk_encryption` as a global-scope Controls > OS setting. */
   name_template?: string;
-  enable_recovery_lock_password: boolean;
+  macos_recovery_lock_password_enabled: boolean;
   /** @deprecated Use `windows_settings.require_bitlocker_pin`. */
   windows_require_bitlocker_pin: boolean;
   /** `enabled_and_configured` only tells us if Apples MDM has been enabled and
@@ -97,8 +97,8 @@ export interface IMdmConfig {
     macos_enable_bootstrap_package_during_manual_enrollment: boolean;
     macos_enable_bootstrap_package_during_migration: boolean;
     macos_manual_agent_install: boolean | null;
-    require_all_software_macos: boolean | null;
-    require_all_software_windows: boolean | null;
+    macos_require_all_software: boolean | null;
+    windows_require_all_software: boolean | null;
     lock_end_user_info: boolean | null;
     enable_create_local_admin_account?: boolean;
     end_user_local_account_type?: EndUserLocalAccountType;
@@ -140,7 +140,7 @@ export interface IWindowsAutomaticEnrollment {
 export interface IDeviceGlobalConfig {
   mdm: {
     enabled_and_configured: boolean;
-    require_all_software_macos: boolean | null;
+    macos_require_all_software: boolean | null;
     only_allow_apple_business_enrollment: boolean;
   };
   features: Pick<

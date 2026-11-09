@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -2598,6 +2599,20 @@ func TestSanitizeCSVFormula(t *testing.T) {
 	})
 }
 
+func TestHostsReportFleetAliasesWithoutDeviceMapping(t *testing.T) {
+	// Hosts without device mapping, as in an export that does not ask for it, still get the fleet columns.
+	resp := hostsReportResponse{
+		Columns: []string{"hostname", "team_name", "fleet_id", "fleet_name"},
+		Hosts:   []*fleet.HostResponse{{Host: &fleet.Host{Hostname: "h1", TeamID: new(uint(7)), TeamName: new("Workstations")}}},
+	}
+	rr := httptest.NewRecorder()
+	resp.HijackRender(t.Context(), rr)
+	require.Equal(t, http.StatusOK, rr.Code)
+	rows, err := csv.NewReader(rr.Body).ReadAll()
+	require.NoError(t, err)
+	require.Equal(t, [][]string{{"hostname", "team_name", "fleet_id", "fleet_name"}, {"h1", "Workstations", "7", "Workstations"}}, rows)
+}
+
 func TestStreamHosts(t *testing.T) {
 	t.Run("Happy path", func(t *testing.T) {
 		// Create a mock iterator for the hosts.
@@ -2841,7 +2856,6 @@ func TestGetHostSummary(t *testing.T) {
 	require.Equal(t, uint(4), summary.NewCount)
 	require.Equal(t, uint(5), summary.TotalsHostsCount)
 	require.Len(t, summary.Platforms, 4)
-	require.Equal(t, uint(9), summary.AllLinuxCount)
 	require.Nil(t, summary.LowDiskSpaceCount)
 	require.Len(t, summary.BuiltinLabels, 1)
 	require.Equal(t, "All hosts", summary.BuiltinLabels[0].Name)

@@ -962,6 +962,11 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 	}
 
+	entraDeviceTokenReq, err := svc.entraDeviceTokenRequest(ctx, host)
+	if err != nil {
+		return fleet.OrbitConfig{}, err
+	}
+
 	// team ID is not nil, get team specific flags and options
 	if host.TeamID != nil {
 		teamAgentOptions, err := svc.ds.TeamAgentOptions(ctx, *host.TeamID)
@@ -1030,13 +1035,14 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 
 		return fleet.OrbitConfig{
-			ScriptExeTimeout:   opts.ScriptExecutionTimeout,
-			Flags:              mergedFlags,
-			Extensions:         extensionsFiltered,
-			Notifications:      notifs,
-			UpdateChannels:     updateChannels,
-			DebugLogging:       debugLogging,
-			WebSocketTransport: wsTransport,
+			ScriptExeTimeout:        opts.ScriptExecutionTimeout,
+			Flags:                   mergedFlags,
+			Extensions:              extensionsFiltered,
+			Notifications:           notifs,
+			UpdateChannels:          updateChannels,
+			DebugLogging:            debugLogging,
+			WebSocketTransport:      wsTransport,
+			EntraDeviceTokenRequest: entraDeviceTokenReq,
 		}, nil
 	}
 
@@ -1086,13 +1092,14 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	return fleet.OrbitConfig{
-		ScriptExeTimeout:   opts.ScriptExecutionTimeout,
-		Flags:              mergedFlags,
-		Extensions:         extensionsFiltered,
-		Notifications:      notifs,
-		UpdateChannels:     updateChannels,
-		DebugLogging:       debugLogging,
-		WebSocketTransport: wsTransport,
+		ScriptExeTimeout:        opts.ScriptExecutionTimeout,
+		Flags:                   mergedFlags,
+		Extensions:              extensionsFiltered,
+		Notifications:           notifs,
+		UpdateChannels:          updateChannels,
+		DebugLogging:            debugLogging,
+		WebSocketTransport:      wsTransport,
+		EntraDeviceTokenRequest: entraDeviceTokenReq,
 	}, nil
 }
 
@@ -1602,7 +1609,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 					HostID:              host.ID,
 					HostDisplayName:     host.DisplayName(),
 					SoftwareTitle:       softwareTitleName,
-					SoftwareDisplayName: softwareDisplayName,
+					SoftwareDisplayName: ptr.ValOrZero(softwareDisplayName),
 					ExecutionID:         hsr.ExecutionID,
 					Status:              activityStatus,
 					SelfService:         selfService,
@@ -2496,7 +2503,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 				HostID:               host.ID,
 				HostDisplayName:      host.DisplayName(),
 				SoftwareTitle:        hsi.SoftwareTitle,
-				SoftwareDisplayName:  softwareDisplayName,
+				SoftwareDisplayName:  ptr.ValOrZero(softwareDisplayName),
 				SoftwarePackage:      hsi.SoftwarePackage,
 				HashSHA256:           hsi.HashSHA256,
 				InstallUUID:          result.InstallUUID,

@@ -1499,6 +1499,12 @@ func newCleanupsAndAggregationSchedule(
 				return err
 			},
 		),
+		schedule.WithJob(
+			"cleanup_orphaned_query_stats",
+			func(ctx context.Context) error {
+				return ds.DeleteOrphanedQueryStats(ctx)
+			},
+		),
 		// Run aggregation jobs after cleanups.
 		schedule.WithJob(
 			"query_aggregated_stats",
@@ -2633,6 +2639,7 @@ func newIPhoneIPadRefetcher(
 	commander *apple_mdm.MDMAppleCommander,
 	logger *slog.Logger,
 	newActivityFn apple_mdm.NewActivityFunc,
+	batchSize int,
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMIPhoneIPadRefetcher)
 	logger = logger.With("cron", name, "component", "iphone-ipad-refetcher")
@@ -2640,7 +2647,7 @@ func newIPhoneIPadRefetcher(
 		ctx, name, instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
-			return apple_mdm.IOSiPadOSRefetch(ctx, ds, commander, logger, newActivityFn)
+			return apple_mdm.IOSiPadOSRefetch(ctx, ds, commander, logger, newActivityFn, batchSize)
 		}),
 	)
 

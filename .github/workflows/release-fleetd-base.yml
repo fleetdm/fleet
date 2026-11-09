@@ -147,6 +147,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           sparse-checkout: |
+            website/assets/resources/install-fleetctl.sh
             .github/actions/r2-upload/action.yml
             .github/scripts/rclone-install.sh
           sparse-checkout-cone-mode: false
@@ -154,7 +155,7 @@ jobs:
 
       - name: Install fleetctl
         run: |
-          curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | bash
+          bash website/assets/resources/install-fleetctl.sh
           echo "$HOME/.fleetctl" >> "$GITHUB_PATH"
 
       - name: Import package signing keys
@@ -183,12 +184,11 @@ jobs:
         with:
           timeout_minutes: 40
           max_attempts: 10
-          command: fleetctl package --type pkg --fleet-desktop --use-system-configuration --sign-identity $PACKAGE_SIGNING_IDENTITY_SHA1 --notarize
+          command: fleetctl package --type pkg --fleet-desktop --use-system-configuration --sign-identity $PACKAGE_SIGNING_IDENTITY_SHA1 --notarize --outfile fleetd-base.pkg
 
       - name: Calculate the SHA256 checksum of the package
         id: calculate-sha256
         run: |
-          mv fleet-osquery*.pkg fleetd-base.pkg
           echo "fleetd_base_pkg_sha256=$(shasum -a 256 fleetd-base.pkg | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
 
       - name: Create plist
@@ -246,16 +246,22 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: Checkout fleetctl install script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: website/assets/resources/install-fleetctl.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
       - name: Install fleetctl
         run: |
-          curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | bash
+          bash website/assets/resources/install-fleetctl.sh
           echo "$HOME/.fleetctl" >> "$GITHUB_PATH"
 
       - name: Build MSI
         id: build
         run: |
-          fleetctl package --type msi --fleet-desktop --fleet-url dummy --enroll-secret dummy
-          mv fleet-osquery*.msi fleetd-base.msi
+          fleetctl package --type msi --fleet-desktop --fleet-url dummy --enroll-secret dummy --outfile fleetd-base.msi
 
       - name: Upload fleetd-base.msi for code signing
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

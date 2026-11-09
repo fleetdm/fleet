@@ -223,7 +223,7 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
       {renderScriptsList()}
       {!isLoading && !isError && currentPage === 0 && !scripts?.length && (
         <EmptyState
-          variant="header-list"
+          variant="list"
           header="No scripts"
           info={canUploadScripts ? SCRIPT_UPLOADER_EMPTY_STATE_TEXT : undefined}
           primaryButton={

@@ -1107,14 +1107,6 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *
 		return nil, err
 	}
 
-	linuxCount := uint(0)
-	for _, p := range hostSummary.Platforms {
-		if fleet.IsLinux(p.Platform) {
-			linuxCount += p.HostsCount
-		}
-	}
-	hostSummary.AllLinuxCount = linuxCount
-
 	labelsSummary, err := svc.ds.LabelsSummary(ctx, fleet.TeamFilter{})
 	if err != nil {
 		return nil, err
@@ -3703,6 +3695,9 @@ func (r hostsReportResponse) Error() error { return r.Err }
 func (r hostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	// post-process the Device Mappings for CSV rendering
 	for _, h := range r.Hosts {
+		// Add the aliased fields for team_id and team_name.
+		h.FleetID = h.TeamID
+		h.FleetName = h.TeamName
 		if h.DeviceMapping != nil {
 			// return the list of emails, comma-separated, as part of that single CSV field
 			var dms []struct {
@@ -3722,9 +3717,6 @@ func (r hostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWr
 				sb.WriteString(dm.Email)
 			}
 			h.CSVDeviceMapping = sb.String()
-			// Add the aliased fields for team_id and team_name.
-			h.FleetID = h.TeamID
-			h.FleetName = h.TeamName
 		}
 	}
 

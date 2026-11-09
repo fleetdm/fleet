@@ -53,10 +53,10 @@ const (
 	// hosts are queued for a refetch this often (see fleet.RefetchIOSHostInterval).
 	MobileRefetchInterval = time.Hour
 
-	// MobileCronTickPeriod is the apple_mdm_iphone_ipad_refetcher cron tick.
-	// A refetch queued at t may not be dispatched until the next tick, so the
-	// online window must cover a full tick of dispatch latency on top of the
-	// refetch interval.
+	// MobileCronTickPeriod is the dispatch latency budget for the
+	// apple_mdm_iphone_ipad_refetcher cron. The cron ticks every minute but
+	// sends a bounded batch per tick, so a due host may wait several ticks;
+	// the online window must cover that on top of the refetch interval.
 	MobileCronTickPeriod = 10 * time.Minute
 
 	// MobileOnlineWindow bounds the MDM activity signal for mobile hosts to
@@ -1415,7 +1415,6 @@ type HostSummary struct {
 	MIACount            uint                   `json:"mia_count" db:"mia"`
 	Missing30DaysCount  uint                   `json:"missing_30_days_count" db:"missing_30_days_count"`
 	NewCount            uint                   `json:"new_count" db:"new"`
-	AllLinuxCount       uint                   `json:"all_linux_count" db:"-"`
 	LowDiskSpaceCount   *uint                  `json:"low_disk_space_count,omitempty" db:"low_disk_space"`
 	BuiltinLabels       []*LabelSummary        `json:"builtin_labels" db:"-"`
 	Platforms           []*HostSummaryPlatform `json:"platforms" db:"-"`

@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 const inHouseAppInstallTokenLength = 36 // UUID
@@ -53,7 +52,13 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 	if payload.SelfService != nil {
 		selfService = *payload.SelfService
 	}
-	displayName := ptr.ValOrZero(payload.DisplayName)
+	// Carry the stored display name on every edit so edits that don't touch
+	// it still record the current override, instead of emitting an empty
+	// string (which reads as "cleared" to downstream consumers).
+	displayName := software.DisplayName
+	if payload.DisplayName != nil {
+		displayName = *payload.DisplayName
+	}
 	activity := fleet.ActivityTypeEditedSoftware{
 		SoftwareTitle:       existingInstaller.SoftwareTitle,
 		TeamName:            teamName,
@@ -123,14 +128,6 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 	if payloadForNewInstallerFile != nil {
 		if err := svc.storeSoftware(ctx, payloadForNewInstallerFile); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "storing software installer")
-		}
-	}
-
-	// Validate iOS / iPadOS managed app configuration (if provided) before
-	// persisting; SaveInHouseAppUpdates handles the storage inside its tx.
-	if len(payload.Configuration) > 0 {
-		if err := fleet.ValidateAppleAppConfiguration(payload.Configuration); err != nil {
-			return nil, err
 		}
 	}
 
