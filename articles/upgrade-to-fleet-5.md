@@ -1039,15 +1039,15 @@ TODO
 
 GitHub issue: TODO
 
-### package file names changed
+### fleetctl package file names changed
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `fleetctl package` file names like `fleet-osquery_1.61.0_amd64.deb` | `fleet-{platform}{-arch}-{fleet-name}.ext`, for example `fleet-macos-workstations.pkg`, or `fleet-windows-amd64.msi` when there's no fleet name. ([docs](https://fleetdm.com/guides/enroll-hosts)) |
+| `fleetctl package` file names like `fleet-osquery_1.61.0_amd64.deb` | `fleet-{platform}{-arch}-{fleet-name}.ext`, for example `fleet-macos-workstations.pkg`, or `fleet-windows-amd64.msi` when there's no fleet name. If two fleets' names would give the same file name, the fleet ID is added, like `fleet-macos-workstations-3.pkg`. ([docs](https://fleetdm.com/guides/enroll-hosts)) |
 
 #### What to do
 
-1. Update scripts and CI that use the file names.
+1. Update scripts and CI that use the file names, or add `--outfile` to keep a fixed name.
    - `fleetctl package` leaves out the fleet name if it can't find it, for example when you're not logged in to `fleetctl` or the enroll secret is global (hosts in Unassigned).
 
 GitHub issue: [#53365](https://github.com/fleetdm/fleet/issues/53365)
