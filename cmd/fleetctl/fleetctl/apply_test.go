@@ -2507,7 +2507,7 @@ spec:
 `
 		team1EnableReleaseSpec = team1Spec + `
         apple_enable_release_device_manually: %s
-        require_all_software_macos: %s
+        macos_require_all_software: %s
 `
 		team1NoKeySpec = `
 apiVersion: v1
@@ -2680,7 +2680,7 @@ spec:
 		require.NoError(t, err)
 		expectedTm1Set := fmt.Sprintf(string(b), "", "")
 		expectedTm1SetReleaseAndRequireEnabled := strings.ReplaceAll(expectedTm1Set, `enable_release_device_manually: false`, `enable_release_device_manually: true`)
-		expectedTm1SetReleaseAndRequireEnabled = strings.ReplaceAll(expectedTm1SetReleaseAndRequireEnabled, `require_all_software_macos: false`, `require_all_software_macos: true`)
+		expectedTm1SetReleaseAndRequireEnabled = strings.ReplaceAll(expectedTm1SetReleaseAndRequireEnabled, `macos_require_all_software: false`, `macos_require_all_software: true`)
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1And2Empty.yml"))
 		require.NoError(t, err)
@@ -2820,7 +2820,7 @@ spec:
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 	})
 
-	t.Run("require_all_software_windows", func(t *testing.T) {
+	t.Run("windows_require_all_software", func(t *testing.T) {
 		ds := setupServer(t, true)
 
 		// Enable Windows MDM in the app config.
@@ -2832,7 +2832,7 @@ spec:
 		require.NoError(t, err)
 		expectedTm1 := fmt.Sprintf(string(b), "", "")
 
-		// Apply team with require_all_software_windows enabled.
+		// Apply team with windows_require_all_software enabled.
 		windowsRequireSpec := `
 apiVersion: v1
 kind: fleet
@@ -2841,19 +2841,19 @@ spec:
     name: tm1
     mdm:
       setup_experience:
-        require_all_software_windows: true
+        windows_require_all_software: true
 `
 		name := writeTmpYml(t, windowsRequireSpec)
 		assert.Equal(t, "[+] applied 1 fleet\n", runAppForTest(t, []string{"apply", "-f", name}))
 		assert.True(t, ds.SaveTeamFuncInvoked)
 
-		// Verify the output includes require_all_software_windows: true.
-		expectedWithWindowsRequire := strings.ReplaceAll(expectedTm1, `require_all_software_windows: false`, `require_all_software_windows: true`)
+		// Verify the output includes windows_require_all_software: true.
+		expectedWithWindowsRequire := strings.ReplaceAll(expectedTm1, `windows_require_all_software: false`, `windows_require_all_software: true`)
 		assert.YAMLEq(t, expectedWithWindowsRequire, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
 	})
 
-	t.Run("require_all_software_windows rejected when Windows MDM not configured", func(t *testing.T) {
-		// Spec invariant: setting `require_all_software_windows=true` while
+	t.Run("windows_require_all_software rejected when Windows MDM not configured", func(t *testing.T) {
+		// Spec invariant: setting `windows_require_all_software=true` while
 		// `MDM.WindowsEnabledAndConfigured=false` MUST be rejected. setupServer's default appConfig leaves
 		// WindowsEnabledAndConfigured at the zero value (false), which is the precondition this test needs.
 		ds := setupServer(t, true)
@@ -2866,12 +2866,12 @@ spec:
     name: tm1
     mdm:
       setup_experience:
-        require_all_software_windows: true
+        windows_require_all_software: true
 `
 		name := writeTmpYml(t, windowsRequireSpec)
-		runAppCheckErr(t, []string{"apply", "-f", name}, "require_all_software_windows")
+		runAppCheckErr(t, []string{"apply", "-f", name}, "windows_require_all_software")
 		assert.False(t, ds.SaveTeamFuncInvoked,
-			"team must not be saved when require_all_software_windows is rejected")
+			"team must not be saved when windows_require_all_software is rejected")
 	})
 
 	t.Run("new bootstrap package", func(t *testing.T) {
@@ -4092,6 +4092,34 @@ spec:
       grace_period_days: 1
 `,
 			wantErr: `400 Bad request: failed to decode app config`,
+		},
+		{
+			desc: "app config with a removed key",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    enable_recovery_lock_password: true
+`,
+			wantErr: `422 Validation Failed: The "enable_recovery_lock_password" parameter is not available anymore. ` +
+				`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+		},
+		{
+			desc: "fleet with a removed key cannot be forced",
+			spec: `
+apiVersion: v1
+kind: fleet
+spec:
+  fleet:
+    name: team1
+    mdm:
+      setup_experience:
+        require_all_software_windows: true
+`,
+			flags: []string{"--force"},
+			wantErr: `422 Validation Failed: The "require_all_software_windows" parameter is not available anymore. ` +
+				`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
 		},
 		{
 			desc: "app config windows_updates.grace_period_days not a number",

@@ -1379,7 +1379,7 @@ const HostDetailsPage = ({
         isDEPAssignedToFleet={host.dep_assigned_to_fleet}
         hostScriptsEnabled={host.scripts_enabled}
         isRecoveryLockPasswordEnabled={
-          mdmConfig?.enable_recovery_lock_password ?? false
+          mdmConfig?.macos_recovery_lock_password_enabled ?? false
         }
         diskEncryptionProfileStatus={diskEncryptionProfile?.status}
         recoveryLockPasswordAvailable={
