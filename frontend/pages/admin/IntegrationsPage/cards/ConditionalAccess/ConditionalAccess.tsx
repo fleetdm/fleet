@@ -240,8 +240,8 @@ const ConditionalAccess = () => {
             <>
               Couldn&apos;t connect. Entra didn&apos;t create Fleet&apos;s
               compliance policy. Have an Entra admin who&apos;s also a Fleet
-              admin select Connect and approve permissions in one session.{" "}
-              {troubleshootLink}
+              admin select <b>Connect</b> and approve permissions in one
+              session. {troubleshootLink}
             </>
           );
         } else if (
