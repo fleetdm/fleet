@@ -172,7 +172,7 @@ type AppStoreAppListItem struct {
 	Version                  string                    `json:"version"`
 	SelfService              bool                      `json:"self_service"`
 	AutomaticInstallPolicies []AutomaticInstallPolicy  `json:"automatic_install_policies"`
-	InstallDuringSetup       *bool                     `json:"install_during_setup"`
+	InstallDuringSetup       *bool                     `json:"install_during_setup,omitempty"`
 }
 
 // VPPAppStatusSummary represents aggregated status metrics for a VPP app.
