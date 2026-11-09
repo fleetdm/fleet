@@ -236,19 +236,6 @@ const ConditionalAccess = () => {
           );
         } else if (
           setup_error.includes(
-            "Fleet doesn't have the required permissions in Entra"
-          )
-        ) {
-          notify.error(
-            <>
-              Couldn&apos;t connect. Fleet doesn&apos;t have the required
-              permissions in Entra. Make sure Fleet is added as a compliance
-              partner in Intune, then have an Entra admin sign in to Fleet and
-              select Connect. {troubleshootLink}
-            </>
-          );
-        } else if (
-          setup_error.includes(
             'No "Fleet conditional access" Entra ID group was found'
           )
         ) {
