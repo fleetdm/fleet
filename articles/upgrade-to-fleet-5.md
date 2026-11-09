@@ -609,7 +609,7 @@ GitHub issue: [#53790](https://github.com/fleetdm/fleet/issues/53790)
 
 #### What to do
 
-1. Before you upgrade, replace `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` with `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` in your configuration profiles, managed app configurations, and the DigiCert CA fields `certificate_common_name`, `certificate_user_principal_names`, and `certificate_seat_id`.
+1. Before you upgrade, replace `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` with `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` everywhere you use it, including your configuration profiles, managed app configurations, and the DigiCert CA fields `certificate_common_name`, `certificate_user_principal_names`, and `certificate_seat_id`.
    - Profiles and DigiCert CA fields that still use the old variable fail after you upgrade.
    - Editing the DigiCert CA fields reissues certificates to every host that uses the CA.
    - See [Fleet variables](https://fleetdm.com/guides/fleet-variables).
@@ -937,11 +937,11 @@ GitHub issue: [#56271](https://github.com/fleetdm/fleet/issues/56271)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` works in configuration profiles and in the `certificate_common_name`, `certificate_user_principal_names`, and `certificate_seat_id` keys of `org_settings.certificate_authorities.digicert` ([docs](https://fleetdm.com/docs/configuration/yaml-files#certificate-authorities)) | Removed. Use `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` |
+| `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` works in configuration profiles, managed app configurations, and in the `certificate_common_name`, `certificate_user_principal_names`, and `certificate_seat_id` keys of `org_settings.certificate_authorities.digicert` ([docs](https://fleetdm.com/docs/configuration/yaml-files#certificate-authorities)) | Removed. Use `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` |
 
 #### What to do
 
-1. Before you upgrade, replace `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` with `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` in your configuration profiles and in the DigiCert keys.
+1. Before you upgrade, replace `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` with `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` everywhere you use it, including your configuration profiles, managed app configurations, and the DigiCert keys.
    - Profiles and DigiCert keys that still use the old variable fail after you upgrade.
    - Editing the DigiCert keys reissues certificates to every host that uses the CA.
    - See [Fleet variables](https://fleetdm.com/guides/fleet-variables).
