@@ -7,7 +7,7 @@ Fleet currently has built-in conditional access integrations with Okta (macOS on
 - [Entra setup guide](https://fleetdm.com/guides/entra-conditional-access-integration)
 
 You can also use Fleet's API for conditional access with:
-- [Google](https://fleetdm.com/guides/google-conditional-access-integration) (iOS and iPadOS): require managed hosts
+- [Google](https://fleetdm.com/guides/google-conditional-access-integration) (iOS, iPadOS, and Android): require managed hosts
 
 ## How it works
 
