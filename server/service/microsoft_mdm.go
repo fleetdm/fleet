@@ -988,35 +988,32 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 			return "", "", "", 0, fmt.Errorf("token creation error %v", err)
 		}
 
-		// Validating the Binary Security Token Payload
+		// IsValidToken only accepts the programmatic enrollment type
 		err = binSecToken.IsValidToken()
 		if err != nil {
 			return "", "", "", 0, fmt.Errorf("invalid token data %v", err)
 		}
 
-		// Validating the Binary Security Token Type used on Programmatic Enrollments
-		if binSecToken.Type == mdm_types.WindowsMDMProgrammaticEnrollmentType {
-			host, err := svc.ds.LoadHostByOrbitNodeKey(ctx, binSecToken.Payload.OrbitNodeKey)
-			if err != nil {
-				return "", "", "", 0, fmt.Errorf("host data cannot be found %v", err)
-			}
-			if host == nil {
-				return "", "", "", 0, errors.New("host not found for orbit node key")
-			}
-
-			mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
-			if err != nil && !errors.Is(err, sql.ErrNoRows) {
-				return "", "", "", 0, errors.New("unable to retrieve host mdm info")
-			}
-
-			// This ensures that only hosts that are eligible for Windows enrollment can be enrolled
-			if !isEligibleForWindowsMDMEnrollment(host, mdmInfo) {
-				return "", "", "", 0, errors.New("host is not elegible for Windows MDM enrollment")
-			}
-
-			// No errors, token is authorized
-			return binSecToken.Payload.OrbitNodeKey, host.UUID, "", fleet.WindowsMDMEnrollTypeProgrammatic, nil
+		host, err := svc.ds.LoadHostByOrbitNodeKey(ctx, binSecToken.Payload.OrbitNodeKey)
+		if err != nil {
+			return "", "", "", 0, fmt.Errorf("host data cannot be found %v", err)
 		}
+		if host == nil {
+			return "", "", "", 0, errors.New("host not found for orbit node key")
+		}
+
+		mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return "", "", "", 0, errors.New("unable to retrieve host mdm info")
+		}
+
+		// This ensures that only hosts that are eligible for Windows enrollment can be enrolled
+		if !isEligibleForWindowsMDMEnrollment(host, mdmInfo) {
+			return "", "", "", 0, errors.New("host is not elegible for Windows MDM enrollment")
+		}
+
+		// No errors, token is authorized
+		return binSecToken.Payload.OrbitNodeKey, host.UUID, "", fleet.WindowsMDMEnrollTypeProgrammatic, nil
 	}
 
 	// Validating the Binary Security Token Type used on Automatic Enrollments
