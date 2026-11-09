@@ -494,6 +494,10 @@ func (s *integrationTestSuite) TestDeleteReportURLs() {
 		}
 		requireReportExists(r.ID, true)
 
+		// Unlike /reports, /queries has no DELETE route for a bare ID, so an all-digits value is gone too.
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/queries/%d", r.ID), nil, http.StatusGone)
+		requireReportExists(r.ID, true)
+
 		s.Do("DELETE", byIDPath(r.ID), nil, http.StatusOK)
 	})
 
