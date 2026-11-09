@@ -2336,6 +2336,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 	}
 
 	setupSoftwareBySoftwareTitle := make(map[uint]struct{})
+	setupSoftwareByPlatformAndAppID := make(map[string]struct{})
 	// Emitted as setup_experience_platform (comma-separated) so a UI-set
 	// non-native selection round-trips through generate → apply unchanged.
 	crossPlatformSelectionsByTitleID := make(map[uint][]string)
@@ -2361,8 +2362,11 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				setupSoftwareBySoftwareTitle[software.ID] = struct{}{}
 			}
 		}
-		if len(software.AppStoreApps) > 0 && software.AppStoreApps[0].InstallDuringSetup != nil && *software.AppStoreApps[0].InstallDuringSetup {
-			setupSoftwareBySoftwareTitle[software.ID] = struct{}{}
+		if len(software.AppStoreApps) > 0 {
+			appStoreApp := software.AppStoreApps[0]
+			if appStoreApp.InstallDuringSetup != nil && *appStoreApp.InstallDuringSetup {
+				setupSoftwareByPlatformAndAppID[fleet.VPPAppID{AdamID: appStoreApp.AppStoreID, Platform: appStoreApp.Platform}.String()] = struct{}{}
+			}
 		}
 	}
 
@@ -2755,7 +2759,8 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				softwareSpec["setup_experience_platform"] = strings.Join(inHousePlatforms, ",")
 			}
 		} else {
-			if _, exists := setupSoftwareBySoftwareTitle[softwareTitle.ID]; exists {
+			app := softwareTitle.AppStoreApps[0]
+			if _, exists := setupSoftwareByPlatformAndAppID[app.VPPAppID.String()]; exists {
 				softwareSpec["setup_experience"] = true
 			}
 		}
