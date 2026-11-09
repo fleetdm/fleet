@@ -338,8 +338,13 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 		query.AuthorEmail = vc.Email()
 	}
 
-	if err := verifyLabelsToAssociate(ctx, svc.ds, p.TeamID, slices.Concat(p.LabelsIncludeAny, p.LabelsIncludeAll), vc.User); err != nil {
+	labelNames := slices.Concat(p.LabelsIncludeAny, p.LabelsIncludeAll)
+	labels, err := loadLabelsToAssociate(ctx, svc.ds, p.TeamID, labelNames, vc.User)
+	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
+	}
+	if err := verifyNoBuiltInLabels(ctx, labelNames, labels); err != nil {
+		return nil, err
 	}
 
 	if p.Name != nil {
@@ -381,7 +386,7 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 
 	logging.WithExtras(ctx, "name", query.Name, "sql", query.Query)
 
-	query, err := svc.ds.NewQuery(ctx, query)
+	query, err = svc.ds.NewQuery(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -465,8 +470,13 @@ func (svc *Service) modifyLoadedQuery(ctx context.Context, query *fleet.Query, p
 	}
 
 	// We use query.TeamID because we do not allow changing the team.
-	if err := verifyLabelsToAssociate(ctx, svc.ds, query.TeamID, slices.Concat(p.LabelsIncludeAny, p.LabelsIncludeAll), authz.UserFromContext(ctx)); err != nil {
+	labelNames := slices.Concat(p.LabelsIncludeAny, p.LabelsIncludeAll)
+	labels, err := loadLabelsToAssociate(ctx, svc.ds, query.TeamID, labelNames, authz.UserFromContext(ctx))
+	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
+	}
+	if err := verifyNoBuiltInLabels(ctx, labelNames, labels); err != nil {
+		return nil, err
 	}
 
 	shouldDiscardQueryResults, shouldDeleteStats := false, false
@@ -933,6 +943,9 @@ func (svc *Service) queryFromSpec(ctx context.Context, spec *fleet.QuerySpec) (*
 			if _, ok := labelsMap[name]; !ok {
 				return nil, ctxerr.New(ctx, "label not found")
 			}
+		}
+		if err := verifyNoBuiltInLabels(ctx, allLabelNames, labelsMap); err != nil {
+			return nil, err
 		}
 	}
 	// LabelID is left zero — updateQueryLabelsInTx resolves names to IDs.

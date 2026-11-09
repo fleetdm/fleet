@@ -50,6 +50,101 @@ func TestNewQueryLabelsIncludeAnyRequiresPremium(t *testing.T) {
 	require.ErrorIs(t, err, fleet.ErrMissingLicense)
 }
 
+func TestQueryRejectsBuiltInLabels(t *testing.T) {
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+		return query, nil
+	}
+	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
+		return &fleet.Query{ID: id, Name: "test query", Query: "select 1"}, nil
+	}
+	ds.SaveQueryFunc = func(ctx context.Context, query *fleet.Query, shouldDiscardResults bool, shouldDeleteStats bool) error {
+		return nil
+	}
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
+		return nil, newNotFoundError()
+	}
+	ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
+		return nil
+	}
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
+		labels := make(map[string]*fleet.Label)
+		for _, name := range names {
+			labelType := fleet.LabelTypeRegular
+			if name == fleet.BuiltinLabelNameMacOS {
+				labelType = fleet.LabelTypeBuiltIn
+			}
+			labels[name] = &fleet.Label{Name: name, LabelType: labelType}
+		}
+		return labels, nil
+	}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+
+	for _, tc := range []struct {
+		name    string
+		payload fleet.QueryPayload
+	}{
+		{"include any", fleet.QueryPayload{LabelsIncludeAny: []string{"custom", fleet.BuiltinLabelNameMacOS}}},
+		{"include all", fleet.QueryPayload{LabelsIncludeAll: []string{fleet.BuiltinLabelNameMacOS, "custom"}}},
+	} {
+		t.Run("create "+tc.name, func(t *testing.T) {
+			ds.NewQueryFuncInvoked = false
+			payload := tc.payload
+			payload.Name = new("test query")
+			payload.Query = new("select 1")
+			_, err := svc.NewQuery(ctx, payload)
+			var badReq *fleet.BadRequestError
+			require.ErrorAs(t, err, &badReq)
+			require.ErrorContains(t, err, "'macOS' label is built-in. Only custom labels are supported.")
+			require.False(t, ds.NewQueryFuncInvoked)
+		})
+		t.Run("modify "+tc.name, func(t *testing.T) {
+			ds.SaveQueryFuncInvoked = false
+			_, err := svc.ModifyQuery(ctx, 1, tc.payload)
+			var badReq *fleet.BadRequestError
+			require.ErrorAs(t, err, &badReq)
+			require.ErrorContains(t, err, "'macOS' label is built-in. Only custom labels are supported.")
+			require.False(t, ds.SaveQueryFuncInvoked)
+		})
+		t.Run("apply spec "+tc.name, func(t *testing.T) {
+			ds.ApplyQueriesFuncInvoked = false
+			err := svc.ApplyQuerySpecs(ctx, []*fleet.QuerySpec{{
+				Name:             "test query",
+				Query:            "select 1",
+				LabelsIncludeAny: tc.payload.LabelsIncludeAny,
+				LabelsIncludeAll: tc.payload.LabelsIncludeAll,
+			}})
+			var badReq *fleet.BadRequestError
+			require.ErrorAs(t, err, &badReq)
+			require.ErrorContains(t, err, "'macOS' label is built-in. Only custom labels are supported.")
+			require.False(t, ds.ApplyQueriesFuncInvoked)
+		})
+	}
+
+	_, err := svc.NewQuery(ctx, fleet.QueryPayload{
+		Name:             new("test query"),
+		Query:            new("select 1"),
+		LabelsIncludeAny: []string{"custom"},
+	})
+	require.NoError(t, err)
+	require.True(t, ds.NewQueryFuncInvoked)
+
+	_, err = svc.ModifyQuery(ctx, 1, fleet.QueryPayload{LabelsIncludeAll: []string{"custom"}})
+	require.NoError(t, err)
+	require.True(t, ds.SaveQueryFuncInvoked)
+
+	require.NoError(t, svc.ApplyQuerySpecs(ctx, []*fleet.QuerySpec{{
+		Name:             "test query",
+		Query:            "select 1",
+		LabelsIncludeAny: []string{"custom"},
+	}}))
+	require.True(t, ds.ApplyQueriesFuncInvoked)
+}
+
 func TestQueryPayloadValidationCreate(t *testing.T) {
 	ds := new(mock.Store)
 	ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {

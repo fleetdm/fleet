@@ -176,6 +176,29 @@ func (s *integrationEnterpriseTestSuite) TestQueryLabelsIncludeAll() {
 	}, http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(rejCreateResp.Body), fleet.ErrQueryConflictingLabels.Error())
 
+	// Built-in labels can't be used as custom targets.
+	for _, payload := range []fleet.QueryPayload{
+		{LabelsIncludeAny: []string{fleet.BuiltinLabelNameMacOS}},
+		{LabelsIncludeAll: []string{lblA.Name, fleet.BuiltinLabelNameAllHosts}},
+	} {
+		payload.Name = new("q-builtin-" + t.Name())
+		payload.Query = new("SELECT 1")
+		res := s.Do("POST", "/api/latest/fleet/reports", payload, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), "label is built-in. Only custom labels are supported.")
+
+		payload.Name, payload.Query = nil, nil
+		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/reports/%d", createResp.Query.ID), payload, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), "label is built-in. Only custom labels are supported.")
+
+		res = s.Do("POST", "/api/latest/fleet/spec/reports", fleet.ApplyQuerySpecsRequest{Specs: []*fleet.QuerySpec{{
+			Name:             "q-builtin-spec-" + t.Name(),
+			Query:            "SELECT 1",
+			LabelsIncludeAny: payload.LabelsIncludeAny,
+			LabelsIncludeAll: payload.LabelsIncludeAll,
+		}}}, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), "label is built-in. Only custom labels are supported.")
+	}
+
 	// PATCH: switch from include_all to include_any (clears include_all).
 	includeAny := []string{lblA.Name}
 	var modifyResp fleet.ModifyQueryResponse
