@@ -3148,9 +3148,9 @@ This activity contains the following fields:
 }
 ```
 
-## escrowed_recovery_lock_password
+## set_recovery_lock_password
 
-Generated when a Recovery Lock password is escrowed.
+Generated when a Recovery Lock password is set.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
