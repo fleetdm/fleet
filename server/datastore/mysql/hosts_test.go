@@ -4541,6 +4541,7 @@ func testHostIDsByLabelIdentifier(t *testing.T, ds *Datastore) {
 
 	ids, err := ds.HostIDsByLabelIdentifier(ctx, filter, []string{"foo.0.local", "nk.1", "osq.host2"})
 	require.NoError(t, err)
+	assert.NotNil(t, ids)
 	assert.Empty(t, ids)
 
 	ids, err = ds.HostIDsByLabelIdentifier(ctx, filter, []string{"foo.0.local", "uuid.1", "hws.2"})

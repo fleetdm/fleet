@@ -662,7 +662,7 @@ func TestLabelsWithReplica(t *testing.T) {
 	// make the newly-created hosts available to the reader
 	opts.RunReplication()
 
-	lbl, hostIDs, err := svc.NewLabel(ctx, fleet.LabelPayload{Name: "label1", Hosts: []string{"host1", "host2"}})
+	lbl, hostIDs, err := svc.NewLabel(ctx, fleet.LabelPayload{Name: "label1", Hosts: []string{h1.HardwareSerial, h2.UUID}})
 	require.NoError(t, err)
 	require.ElementsMatch(t, []uint{h1.ID, h2.ID}, hostIDs)
 	require.Equal(t, 2, lbl.HostCount)
@@ -671,7 +671,7 @@ func TestLabelsWithReplica(t *testing.T) {
 	// make the newly-created label available to the reader
 	opts.RunReplication("labels", "label_membership")
 
-	lblWithName, hostIDs, err := svc.ModifyLabel(ctx, lbl.ID, fleet.ModifyLabelPayload{Hosts: []string{"host1"}})
+	lblWithName, hostIDs, err := svc.ModifyLabel(ctx, lbl.ID, fleet.ModifyLabelPayload{Hosts: []string{h1.HardwareSerial}})
 	require.NoError(t, err)
 	require.ElementsMatch(t, []uint{h1.ID}, hostIDs)
 	require.Equal(t, 1, lblWithName.HostCount)
@@ -800,13 +800,13 @@ func TestLabelCrossTeamHostMembership(t *testing.T) {
 		checkAuthErr(t, true, err)
 	})
 
-	t.Run("read-only access to the target team is rejected by host name", func(t *testing.T) {
-		// The by-name path resolves identifiers the caller can see, so an
+	t.Run("read-only access to the target team is rejected by host identifier", func(t *testing.T) {
+		// The by-identifier path resolves hosts the caller can see, so an
 		// observer_plus on team2 resolves the team2 host and must then be
 		// rejected by the write-authorization check (unlike a user with no
-		// access to team2, for whom the host name resolves to nothing).
+		// access to team2, for whom the identifier resolves to nothing).
 		readOnlyUser, err := ds.NewUser(ctx, &fleet.User{
-			Name:     "Team1 Maintainer, Team2 Observer+ (by name)",
+			Name:     "Team1 Maintainer, Team2 Observer+ (by identifier)",
 			Password: []byte("p4ssw0rd.123"),
 			Email:    "team1team2-byname@example.com",
 			Teams: []fleet.UserTeam{
@@ -818,8 +818,8 @@ func TestLabelCrossTeamHostMembership(t *testing.T) {
 		readOnlyCtx := viewer.NewContext(ctx, viewer.Viewer{User: readOnlyUser})
 
 		_, _, err = svc.NewLabel(readOnlyCtx, fleet.LabelPayload{
-			Name:  "read-only-target-team-by-name",
-			Hosts: []string{"team2-host"},
+			Name:  "read-only-target-team-by-identifier",
+			Hosts: []string{team2Host.HardwareSerial},
 		})
 		checkAuthErr(t, true, err)
 	})
@@ -872,7 +872,7 @@ func TestLabelCrossTeamHostMembership(t *testing.T) {
 	t.Run("hosts the caller can write to are still allowed", func(t *testing.T) {
 		// Sanity check that the write-authorization check doesn't over-restrict:
 		// team1User can attach a team1 host to a global label they create, both
-		// by ID and by name, and can remove all hosts.
+		// by ID and by identifier, and can remove all hosts.
 		lbl, hostIDs, err := svc.NewLabel(team1Ctx, fleet.LabelPayload{
 			Name:    "in-scope-create",
 			HostIDs: []uint{team1Host.ID},
@@ -885,9 +885,9 @@ func TestLabelCrossTeamHostMembership(t *testing.T) {
 		require.Len(t, hosts, 1)
 		require.Equal(t, team1Host.ID, hosts[0].ID)
 
-		// Modifying by name with an in-scope host is allowed.
+		// Modifying by identifier with an in-scope host is allowed.
 		_, hostIDs, err = svc.ModifyLabel(team1Ctx, lbl.ID, fleet.ModifyLabelPayload{
-			Hosts: []string{"team1-host"},
+			Hosts: []string{team1Host.UUID},
 		})
 		require.NoError(t, err)
 		require.ElementsMatch(t, []uint{team1Host.ID}, hostIDs)
@@ -898,6 +898,25 @@ func TestLabelCrossTeamHostMembership(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.Empty(t, hostIDs)
+	})
+
+	t.Run("hosts that match no identifier replace membership with an empty set", func(t *testing.T) {
+		lbl, _, err := svc.NewLabel(team1Ctx, fleet.LabelPayload{
+			Name:    "unmatched-identifiers",
+			HostIDs: []uint{team1Host.ID},
+		})
+		require.NoError(t, err)
+
+		// Hostname is no longer a label identifier, so this resolves to no hosts.
+		_, hostIDs, err := svc.ModifyLabel(team1Ctx, lbl.ID, fleet.ModifyLabelPayload{
+			Hosts: []string{team1Host.Hostname},
+		})
+		require.NoError(t, err)
+		require.Empty(t, hostIDs)
+
+		hosts, err := ds.ListHostsInLabel(ctx, adminFilter, lbl.ID, fleet.HostListOptions{})
+		require.NoError(t, err)
+		require.Empty(t, hosts)
 	})
 }
 

@@ -3872,7 +3872,8 @@ func (ds *Datastore) hostIDsByIdentifier(ctx context.Context, filter fleet.TeamF
 		return nil, ctxerr.Wrap(ctx, err, "building query to get host IDs by identifier")
 	}
 
-	var hostIDs []uint
+	// Non-nil when nothing matches: SaveLabel treats nil host IDs as "leave membership unchanged".
+	hostIDs := []uint{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostIDs, sql, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host IDs by identifier")
 	}
