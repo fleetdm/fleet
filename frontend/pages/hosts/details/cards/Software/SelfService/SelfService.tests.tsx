@@ -334,9 +334,13 @@ describe("SelfService", () => {
     await screen.findAllByText("mock software 1.app");
 
     // TooltipTruncatedTextCell renders each value twice (visible + tooltip div);
-    // available version also appears in the update card above the table
+    // available version also appears in the update card above the table, which
+    // fetches on its own timeline. Wait for its third occurrence instead of
+    // reading synchronously the moment the software list resolves.
+    await waitFor(() => {
+      expect(screen.getAllByText("1.1.0")).toHaveLength(3);
+    });
     expect(screen.getAllByText("1.0.0")).toHaveLength(2);
-    expect(screen.getAllByText("1.1.0")).toHaveLength(3);
   });
 
   it("renders the self-service list for BYOD Account-Driven User Enrollment on mobile view", async () => {
