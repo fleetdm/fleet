@@ -215,6 +215,7 @@ func run(cfg Config) error {
 
 	filesProcessed := 0
 	filesSkipped := 0
+	filesParsed := 0
 
 	err := filepath.WalkDir(cfg.InputDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -228,9 +229,12 @@ func run(cfg Config) error {
 		osvData, err := parseOSVFile(path)
 		if err != nil {
 			log.Printf("Failed to parse %s: %v", path, err)
-			filesSkipped++
-			return nil
+			return err
 		}
+		if osvData.ID == "" {
+			return errors.New("OSV record is missing an ID")
+		}
+		filesParsed++
 		if osvData.Withdrawn != "" {
 			filesSkipped++
 			return nil
@@ -344,6 +348,11 @@ func run(cfg Config) error {
 	})
 	if err != nil {
 		return fmt.Errorf("error walking directory: %w", err)
+	}
+
+	// Fail if no OSV records were parsed - incomplete input should not produce artifacts.
+	if filesParsed == 0 {
+		return errors.New("no OSV JSON records found in input directory")
 	}
 
 	log.Printf("Processed %d files, skipped %d files", filesProcessed, filesSkipped)
@@ -736,6 +745,7 @@ func runRHEL(cfg Config) error {
 
 	filesProcessed := 0
 	filesSkipped := 0
+	filesParsed := 0
 
 	err := filepath.WalkDir(cfg.InputDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -749,9 +759,12 @@ func runRHEL(cfg Config) error {
 		osvData, err := parseOSVFile(path)
 		if err != nil {
 			log.Printf("Failed to parse %s: %v", path, err)
-			filesSkipped++
-			return nil
+			return err
 		}
+		if osvData.ID == "" {
+			return errors.New("OSV record is missing an ID")
+		}
+		filesParsed++
 		if osvData.Withdrawn != "" {
 			filesSkipped++
 			return nil
@@ -836,6 +849,11 @@ func runRHEL(cfg Config) error {
 	})
 	if err != nil {
 		return fmt.Errorf("error walking directory: %w", err)
+	}
+
+	// Fail if no OSV records were parsed - incomplete input should not produce artifacts.
+	if filesParsed == 0 {
+		return errors.New("no OSV JSON records found in input directory")
 	}
 
 	log.Printf("Processed %d files, skipped %d files", filesProcessed, filesSkipped)
