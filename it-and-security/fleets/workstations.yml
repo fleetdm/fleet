@@ -360,13 +360,6 @@ software:
     #     - Browsers
     #   labels_include_any:
     #     - "ARM-based Windows hosts"
-    # Fonts
-    - path: ../lib/all/scripts/install-inter-font.sh # Inter font for Linux (script-only package)
-      display_name: Inter font
-      setup_experience: true
-    - path: ../lib/all/scripts/install-inter-font.ps1 # Inter font for Windows (script-only package)
-      display_name: Inter font
-      setup_experience: true
   app_store_apps:
     - app_store_id: "361285480" # Keynote
       display_name: "Keynote"
