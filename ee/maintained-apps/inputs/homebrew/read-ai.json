@@ -1,0 +1,8 @@
+{
+  "name": "Read AI",
+  "unique_identifier": "com.readai.desktop",
+  "token": "read-ai",
+  "installer_format": "dmg",
+  "slug": "read-ai/darwin",
+  "default_categories": ["Productivity"]
+}

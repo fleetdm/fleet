@@ -818,7 +818,7 @@ WHERE
 		HostID:              res.HostID,
 		HostDisplayName:     res.HostDisplayName,
 		SoftwareTitle:       res.SoftwareTitle,
-		SoftwareDisplayName: res.SoftwareDisplayName,
+		SoftwareDisplayName: ptr.ValOrZero(res.SoftwareDisplayName),
 		CommandUUID:         res.CommandUUID,
 		Status:              status,
 		SelfService:         res.SelfService,
