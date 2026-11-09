@@ -5,10 +5,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261104165437, Down_20261104165437)
+	MigrationClient.AddMigration(Up_20261109150357, Down_20261109150357)
 }
 
-func Up_20261104165437(tx *sql.Tx) error {
+func Up_20261109150357(tx *sql.Tx) error {
 	// Replace the single-column user_id index with a composite (user_id,
 	// accessed_at) index so that the MAX(accessed_at) subquery in
 	// userLastActivitySelect (used on every authenticated request) is
@@ -33,6 +33,6 @@ func Up_20261104165437(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20261104165437(tx *sql.Tx) error {
+func Down_20261109150357(tx *sql.Tx) error {
 	return nil
 }
