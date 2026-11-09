@@ -1031,7 +1031,7 @@ Content-Type: application/octet-stream
 "vpp_token": {
   "id": 1,
   "org_name": "Fleet Device Management Inc.",
-  "organization_unit": "Fleet Device Management Inc.",
+  "location": "https://example.com/mdm/apple/mdm",
   "renew_date": "2025-10-20T00:00:00Z",
   "created_at": "2023-10-20T14:02:11Z",
   "terms_expired": false,
