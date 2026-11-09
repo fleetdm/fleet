@@ -350,7 +350,7 @@ type SetHostManagedAppleIDFunc func(ctx context.Context, hostID uint, managedApp
 
 type GetHostMDMIdentifiersFunc func(ctx context.Context, identifer string, teamFilter fleet.TeamFilter) ([]*fleet.HostMDMIdentifiers, error)
 
-type ListIOSAndIPadOSToRefetchFunc func(ctx context.Context, refetchInterval time.Duration) (devices []fleet.AppleDevicesToRefetch, err error)
+type ListIOSAndIPadOSToRefetchFunc func(ctx context.Context, refetchInterval time.Duration, limit int) (devices []fleet.AppleDevicesToRefetch, err error)
 
 type AddHostMDMCommandsFunc func(ctx context.Context, commands []fleet.HostMDMCommand) error
 
@@ -808,6 +808,8 @@ type GetPoliciesForConditionalAccessFunc func(ctx context.Context, teamID uint, 
 
 type GetPatchPolicyFunc func(ctx context.Context, teamID *uint, titleID uint) (*fleet.PatchPolicyData, error)
 
+type SyncPatchPolicyQueriesFunc func(ctx context.Context) error
+
 type ConditionalAccessBypassDeviceFunc func(ctx context.Context, hostID uint) error
 
 type ConditionalAccessConsumeBypassFunc func(ctx context.Context, hostID uint) (*time.Time, error)
@@ -827,8 +829,6 @@ type AsyncBatchInsertPolicyMembershipFunc func(ctx context.Context, batch []flee
 type AsyncBatchUpdatePolicyTimestampFunc func(ctx context.Context, ids []uint, ts time.Time) error
 
 type MigrateTablesFunc func(ctx context.Context) error
-
-type MigrateDataFunc func(ctx context.Context) error
 
 type MigrationStatusFunc func(ctx context.Context) (*fleet.MigrationStatus, error)
 
@@ -1816,17 +1816,15 @@ type GetHostScriptDetailsFunc func(ctx context.Context, hostID uint, teamID *uin
 
 type BatchSetScriptsFunc func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error)
 
-type BatchExecuteScriptFunc func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error)
-
 type BatchScheduleScriptFunc func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, notBefore time.Time) (string, error)
+
+type NewBatchScriptExecutionFunc func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error)
 
 type GetBatchActivityFunc func(ctx context.Context, executionID string) (*fleet.BatchActivity, error)
 
 type GetBatchActivityHostResultsFunc func(ctx context.Context, executionID string) ([]*fleet.BatchActivityHostResult, error)
 
 type RunScheduledBatchActivityFunc func(ctx context.Context, executionID string) error
-
-type BatchExecuteSummaryFunc func(ctx context.Context, executionID string) (*fleet.BatchActivity, error)
 
 type CancelBatchScriptFunc func(ctx context.Context, executionID string) error
 
@@ -2468,7 +2466,7 @@ type ConditionalAccessMicrosoftDeleteFunc func(ctx context.Context) error
 
 type LoadHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint) (*fleet.HostConditionalAccessStatus, error)
 
-type CreateHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint, deviceID string, userPrincipalName string) error
+type CreateHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint, deviceID string, userPrincipalName string, verified bool) (bool, error)
 
 type SetHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint, managed bool, compliant bool) error
 
@@ -3849,6 +3847,9 @@ type DataStore struct {
 	GetPatchPolicyFunc        GetPatchPolicyFunc
 	GetPatchPolicyFuncInvoked bool
 
+	SyncPatchPolicyQueriesFunc        SyncPatchPolicyQueriesFunc
+	SyncPatchPolicyQueriesFuncInvoked bool
+
 	ConditionalAccessBypassDeviceFunc        ConditionalAccessBypassDeviceFunc
 	ConditionalAccessBypassDeviceFuncInvoked bool
 
@@ -3878,9 +3879,6 @@ type DataStore struct {
 
 	MigrateTablesFunc        MigrateTablesFunc
 	MigrateTablesFuncInvoked bool
-
-	MigrateDataFunc        MigrateDataFunc
-	MigrateDataFuncInvoked bool
 
 	MigrationStatusFunc        MigrationStatusFunc
 	MigrationStatusFuncInvoked bool
@@ -5361,11 +5359,11 @@ type DataStore struct {
 	BatchSetScriptsFunc        BatchSetScriptsFunc
 	BatchSetScriptsFuncInvoked bool
 
-	BatchExecuteScriptFunc        BatchExecuteScriptFunc
-	BatchExecuteScriptFuncInvoked bool
-
 	BatchScheduleScriptFunc        BatchScheduleScriptFunc
 	BatchScheduleScriptFuncInvoked bool
+
+	NewBatchScriptExecutionFunc        NewBatchScriptExecutionFunc
+	NewBatchScriptExecutionFuncInvoked bool
 
 	GetBatchActivityFunc        GetBatchActivityFunc
 	GetBatchActivityFuncInvoked bool
@@ -5375,9 +5373,6 @@ type DataStore struct {
 
 	RunScheduledBatchActivityFunc        RunScheduledBatchActivityFunc
 	RunScheduledBatchActivityFuncInvoked bool
-
-	BatchExecuteSummaryFunc        BatchExecuteSummaryFunc
-	BatchExecuteSummaryFuncInvoked bool
 
 	CancelBatchScriptFunc        CancelBatchScriptFunc
 	CancelBatchScriptFuncInvoked bool
@@ -7789,11 +7784,11 @@ func (s *DataStore) GetHostMDMIdentifiers(ctx context.Context, identifer string,
 	return s.GetHostMDMIdentifiersFunc(ctx, identifer, teamFilter)
 }
 
-func (s *DataStore) ListIOSAndIPadOSToRefetch(ctx context.Context, refetchInterval time.Duration) (devices []fleet.AppleDevicesToRefetch, err error) {
+func (s *DataStore) ListIOSAndIPadOSToRefetch(ctx context.Context, refetchInterval time.Duration, limit int) (devices []fleet.AppleDevicesToRefetch, err error) {
 	s.mu.Lock()
 	s.ListIOSAndIPadOSToRefetchFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListIOSAndIPadOSToRefetchFunc(ctx, refetchInterval)
+	return s.ListIOSAndIPadOSToRefetchFunc(ctx, refetchInterval, limit)
 }
 
 func (s *DataStore) AddHostMDMCommands(ctx context.Context, commands []fleet.HostMDMCommand) error {
@@ -9392,6 +9387,13 @@ func (s *DataStore) GetPatchPolicy(ctx context.Context, teamID *uint, titleID ui
 	return s.GetPatchPolicyFunc(ctx, teamID, titleID)
 }
 
+func (s *DataStore) SyncPatchPolicyQueries(ctx context.Context) error {
+	s.mu.Lock()
+	s.SyncPatchPolicyQueriesFuncInvoked = true
+	s.mu.Unlock()
+	return s.SyncPatchPolicyQueriesFunc(ctx)
+}
+
 func (s *DataStore) ConditionalAccessBypassDevice(ctx context.Context, hostID uint) error {
 	s.mu.Lock()
 	s.ConditionalAccessBypassDeviceFuncInvoked = true
@@ -9460,13 +9462,6 @@ func (s *DataStore) MigrateTables(ctx context.Context) error {
 	s.MigrateTablesFuncInvoked = true
 	s.mu.Unlock()
 	return s.MigrateTablesFunc(ctx)
-}
-
-func (s *DataStore) MigrateData(ctx context.Context) error {
-	s.mu.Lock()
-	s.MigrateDataFuncInvoked = true
-	s.mu.Unlock()
-	return s.MigrateDataFunc(ctx)
 }
 
 func (s *DataStore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus, error) {
@@ -12920,18 +12915,18 @@ func (s *DataStore) BatchSetScripts(ctx context.Context, tmID *uint, scripts []*
 	return s.BatchSetScriptsFunc(ctx, tmID, scripts)
 }
 
-func (s *DataStore) BatchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
-	s.mu.Lock()
-	s.BatchExecuteScriptFuncInvoked = true
-	s.mu.Unlock()
-	return s.BatchExecuteScriptFunc(ctx, userID, scriptID, hostIDs)
-}
-
 func (s *DataStore) BatchScheduleScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, notBefore time.Time) (string, error) {
 	s.mu.Lock()
 	s.BatchScheduleScriptFuncInvoked = true
 	s.mu.Unlock()
 	return s.BatchScheduleScriptFunc(ctx, userID, scriptID, hostIDs, notBefore)
+}
+
+func (s *DataStore) NewBatchScriptExecution(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
+	s.mu.Lock()
+	s.NewBatchScriptExecutionFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewBatchScriptExecutionFunc(ctx, userID, scriptID, hostIDs)
 }
 
 func (s *DataStore) GetBatchActivity(ctx context.Context, executionID string) (*fleet.BatchActivity, error) {
@@ -12953,13 +12948,6 @@ func (s *DataStore) RunScheduledBatchActivity(ctx context.Context, executionID s
 	s.RunScheduledBatchActivityFuncInvoked = true
 	s.mu.Unlock()
 	return s.RunScheduledBatchActivityFunc(ctx, executionID)
-}
-
-func (s *DataStore) BatchExecuteSummary(ctx context.Context, executionID string) (*fleet.BatchActivity, error) {
-	s.mu.Lock()
-	s.BatchExecuteSummaryFuncInvoked = true
-	s.mu.Unlock()
-	return s.BatchExecuteSummaryFunc(ctx, executionID)
 }
 
 func (s *DataStore) CancelBatchScript(ctx context.Context, executionID string) error {
@@ -15202,11 +15190,11 @@ func (s *DataStore) LoadHostConditionalAccessStatus(ctx context.Context, hostID 
 	return s.LoadHostConditionalAccessStatusFunc(ctx, hostID)
 }
 
-func (s *DataStore) CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string, userPrincipalName string) error {
+func (s *DataStore) CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string, userPrincipalName string, verified bool) (bool, error) {
 	s.mu.Lock()
 	s.CreateHostConditionalAccessStatusFuncInvoked = true
 	s.mu.Unlock()
-	return s.CreateHostConditionalAccessStatusFunc(ctx, hostID, deviceID, userPrincipalName)
+	return s.CreateHostConditionalAccessStatusFunc(ctx, hostID, deviceID, userPrincipalName, verified)
 }
 
 func (s *DataStore) SetHostConditionalAccessStatus(ctx context.Context, hostID uint, managed bool, compliant bool) error {

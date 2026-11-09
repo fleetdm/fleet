@@ -175,3 +175,106 @@ func TestAppExistsPatchedQueryGate(t *testing.T) {
 		})
 	}
 }
+
+func TestAssessGatekeeperRetriesReplacedBundle(t *testing.T) {
+	originalRunOsqueryi, originalRunSpctl, originalDelay := runOsqueryi, runSpctl, gatekeeperRetryDelay
+	t.Cleanup(func() {
+		runOsqueryi, runSpctl, gatekeeperRetryDelay = originalRunOsqueryi, originalRunSpctl, originalDelay
+	})
+	gatekeeperRetryDelay = 0
+	const existsQuery = "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.OneDrive';"
+	const oneDrive = `[{"path":"/Applications/OneDrive.app"}]`
+	assess := func(t *testing.T) error {
+		return assessGatekeeper(t.Context(), slog.New(slog.DiscardHandler), "com.microsoft.OneDrive", existsQuery)
+	}
+
+	for _, replaced := range []string{
+		"/Applications/OneDrive.app: No such file or directory",
+		"/Applications/OneDrive.app: cannot find code object on disk",
+	} {
+		t.Run("passes once the replaced bundle settles: "+replaced, func(t *testing.T) {
+			runOsqueryi = func(context.Context, string) ([]byte, error) { return []byte(oneDrive), nil }
+			calls := 0
+			runSpctl = func(context.Context, string) ([]byte, error) {
+				calls++
+				if calls == 1 {
+					return []byte(replaced), errors.New("exit status 1")
+				}
+				return []byte("/Applications/OneDrive.app: accepted"), nil
+			}
+			require.NoError(t, assess(t))
+			require.Equal(t, 2, calls)
+		})
+	}
+
+	t.Run("keeps retrying while the new bundle isn't registered yet", func(t *testing.T) {
+		lookups := 0
+		runOsqueryi = func(context.Context, string) ([]byte, error) {
+			lookups++
+			if lookups == 2 {
+				return []byte("[\n\n]\n"), nil
+			}
+			return []byte(oneDrive), nil
+		}
+		calls := 0
+		runSpctl = func(context.Context, string) ([]byte, error) {
+			calls++
+			if calls == 1 {
+				return []byte("/Applications/OneDrive.app: cannot find code object on disk"), errors.New("exit status 1")
+			}
+			return []byte("/Applications/OneDrive.app: accepted"), nil
+		}
+		require.NoError(t, assess(t))
+		require.Equal(t, 3, lookups)
+		require.Equal(t, 2, calls)
+	})
+
+	t.Run("gives up after the last attempt", func(t *testing.T) {
+		runOsqueryi = func(context.Context, string) ([]byte, error) { return []byte(oneDrive), nil }
+		calls := 0
+		runSpctl = func(context.Context, string) ([]byte, error) {
+			calls++
+			return []byte("/Applications/OneDrive.app: No such file or directory"), errors.New("exit status 1")
+		}
+		require.ErrorContains(t, assess(t), "No such file or directory")
+		require.Equal(t, gatekeeperAttempts, calls)
+	})
+
+	t.Run("doesn't retry a rejection", func(t *testing.T) {
+		runOsqueryi = func(context.Context, string) ([]byte, error) { return []byte(oneDrive), nil }
+		calls := 0
+		runSpctl = func(context.Context, string) ([]byte, error) {
+			calls++
+			return []byte("/Applications/OneDrive.app: rejected"), errors.New("exit status 3")
+		}
+		require.ErrorContains(t, assess(t), "Gatekeeper rejected: /Applications/OneDrive.app: rejected")
+		require.Equal(t, 1, calls)
+	})
+
+	t.Run("doesn't retry an app that was never found", func(t *testing.T) {
+		lookups := 0
+		runOsqueryi = func(context.Context, string) ([]byte, error) {
+			lookups++
+			return []byte("[\n\n]\n"), nil
+		}
+		require.ErrorContains(t, assess(t), "Gatekeeper assessment found no app")
+		require.Equal(t, 1, lookups)
+	})
+}
+
+func TestAssessGatekeeperSkipsNestedBundles(t *testing.T) {
+	originalRunOsqueryi, originalRunSpctl := runOsqueryi, runSpctl
+	t.Cleanup(func() { runOsqueryi, runSpctl = originalRunOsqueryi, originalRunSpctl })
+	runOsqueryi = func(context.Context, string) ([]byte, error) {
+		return []byte(`[{"path":"/Applications/Syncovery.app"},{"path":"/Applications/Syncovery.app/Contents/MacOS/BackgroundScheduler.app"},{"path":"/Applications/Syncovery Helper.app"}]`), nil
+	}
+	var assessed []string
+	runSpctl = func(_ context.Context, path string) ([]byte, error) {
+		assessed = append(assessed, path)
+		return []byte(path + ": accepted"), nil
+	}
+
+	err := assessGatekeeper(t.Context(), slog.New(slog.DiscardHandler), "com.company.Syncovery", "SELECT 1 FROM apps WHERE bundle_identifier = 'com.company.Syncovery';")
+	require.NoError(t, err)
+	require.Equal(t, []string{"/Applications/Syncovery.app", "/Applications/Syncovery Helper.app"}, assessed)
+}

@@ -250,7 +250,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 
 	// Add some apps to a different team. They shouldn't be sent to our existing host
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 	// Add Android app
 	androidAppNewTeam := &fleet.VPPApp{
@@ -314,8 +314,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 	}))
 
 	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-		withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "fleet_id": %s, "platform": "%s", "self_service": true}`,
-			team.Name, team.Name, androidAppNewTeam2.Name, addAppResp.TitleID, androidAppNewTeam2.AdamID, fmt.Sprint(team.ID), fmt.Sprint(team.ID), androidAppNewTeam2.Platform), nil), 0)
+		withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "fleet_id": %s, "platform": "%s", "self_service": true}`, team.Name, androidAppNewTeam2.Name, addAppResp.TitleID, androidAppNewTeam2.AdamID, fmt.Sprint(team.ID), androidAppNewTeam2.Platform), nil), 0)
 
 	s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked = false
 	s.runWorkerUntilDone()
@@ -400,8 +399,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 
 	// Verify that activity includes configuration
 	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-		withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "fleet_id": %s, "platform": "%s", "self_service": true,"configuration": %s}`,
-			fleet.TeamNameNoTeam, fleet.TeamNameNoTeam, androidAppWithConfig.Name, appWithConfigResp.TitleID, androidAppWithConfig.AdamID, "null", "null", androidAppWithConfig.Platform, androidAppWithConfig.Configuration), nil), 0)
+		withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "fleet_id": %s, "platform": "%s", "self_service": true,"configuration": %s}`, fleet.TeamNameNoTeam, androidAppWithConfig.Name, appWithConfigResp.TitleID, androidAppWithConfig.AdamID, "null", androidAppWithConfig.Platform, androidAppWithConfig.Configuration), nil), 0)
 
 	// Should see it in host software library
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
@@ -441,8 +439,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 
 	// Verify that configuration changed and last activity is correct
 	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(),
-		withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_icon_url":"https://example.com/1.jpg", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "fleet_id": %s, "software_display_name":"", "platform": "%s", "self_service": true,"configuration": %s}`,
-			"", "", androidAppWithConfig.Name, appWithConfigResp.TitleID, androidAppWithConfig.AdamID, "null", "null", androidAppWithConfig.Platform, newConfig), nil), 0)
+		withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "fleet_name": "%s", "software_title": "%s", "software_icon_url":"https://example.com/1.jpg", "software_title_id": %d, "app_store_id": "%s", "fleet_id": %s, "software_display_name":"", "platform": "%s", "self_service": true,"configuration": %s}`, "", androidAppWithConfig.Name, appWithConfigResp.TitleID, androidAppWithConfig.AdamID, "null", androidAppWithConfig.Platform, newConfig), nil), 0)
 }
 
 func (s *integrationMDMTestSuite) TestAndroidSetupExperienceSoftware() {
@@ -510,7 +507,7 @@ func (s *integrationMDMTestSuite) TestAndroidSetupExperienceSoftware() {
 
 	// verify that the expected activity got created
 	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
-		`{"platform": "android", "team_id": 0, "team_name": "", "fleet_id": 0, "fleet_name": ""}`, 0)
+		`{"platform": "android", "fleet_id": 0, "fleet_name": ""}`, 0)
 
 	// list the available setup experience software and verify that only app 1 is installed at setup
 	var getResp getSetupExperienceSoftwareResponse
@@ -665,7 +662,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 
 	teamName := "Android Team For All Tests"
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{
 		Name: teamName,
 	}, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
@@ -699,8 +696,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 
 		// Verify that activity includes configuration
 		s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-			withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "fleet_id": %d, "platform": "%s", "self_service": true,"configuration": %s}`,
-				teamName, teamName, "Test App", appWithConfigResp.TitleID, androidAppFoo.AdamID, ptr.ValOrZero(teamID), ptr.ValOrZero(teamID), androidAppFoo.Platform, androidAppFoo.Configuration), nil), 0)
+			withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "fleet_id": %d, "platform": "%s", "self_service": true,"configuration": %s}`, teamName, "Test App", appWithConfigResp.TitleID, androidAppFoo.AdamID, ptr.ValOrZero(teamID), androidAppFoo.Platform, androidAppFoo.Configuration), nil), 0)
 
 		var listSWTitles listSoftwareTitlesResponse
 		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(*teamID))
@@ -917,7 +913,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsUninstallOnDelete() {
 
 	// create a team for the test host that will not be affected
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: "test"}, http.StatusOK, &createTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{Name: "test"}, http.StatusOK, &createTeamResp)
 	teamID := createTeamResp.Team.ID
 
 	s.enableAndroidMDM(t)
