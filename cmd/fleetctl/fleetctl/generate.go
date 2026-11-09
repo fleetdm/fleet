@@ -143,7 +143,7 @@ func runGenerateMDMAB(c *cli.Context) error {
 
 Generated your public key at %s
 
-Go to %s/settings/integrations/automatic-enrollment/apple and follow the steps.
+Go to %s/settings/integrations/mdm/ab and follow the steps.
 
 `,
 		publicKeyPath,
