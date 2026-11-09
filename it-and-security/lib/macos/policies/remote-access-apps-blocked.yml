@@ -1,0 +1,50 @@
+# Dedicated remote-access and remote-control apps aren't allowed on Fleet-managed Macs.
+# Zoom (us.zoom.xos) has a screen sharing feature and is explicitly allowed: it is not in this list and the
+# remediation script never touches it. Slack huddles, Google Meet, and Microsoft Teams screen sharing run inside
+# apps and browsers this policy doesn't look at. macOS built-in Screen Sharing and Remote Management are out of scope.
+# Keep the app list in sync with ../scripts/remove-remote-access-apps.sh.
+# Fleet policy instead of a global one so it can run the remediation script, which must be defined in the same fleet.
+- name: macOS - Remote access apps not installed
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM apps
+      WHERE bundle_identifier IN (
+        'com.teamviewer.TeamViewer',
+        'com.teamviewer.TeamViewerQS',
+        'com.teamviewer.TeamViewerHost',
+        'com.philandro.anydesk',
+        'com.splashtop.stb.macosx',
+        'com.splashtop.Splashtop-Streamer',
+        'com.carriez.rustdesk',
+        'com.realvnc.vncserver_service',
+        'com.realvnc.rvncconnect',
+        'com.p5sys.jump.mac.viewer.web',
+        'com.p5sys.jump.connect',
+        'com.google.chromeremotedesktop.me2me-host-uninstaller',
+        'tv.parsec.www'
+      )
+      OR name IN (
+        'TeamViewer QuickSupport.app',
+        'LogMeIn Client.app',
+        'NoMachine.app',
+        'Supremo.app'
+      )
+      OR name LIKE 'ScreenConnect%'
+      OR name LIKE 'connectwisecontrol%'
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM launchd WHERE label = 'org.chromium.chromoting'
+    );
+  critical: false
+  description: >-
+    Passes when none of these remote-access apps are installed: TeamViewer (including QuickSupport and Host), AnyDesk,
+    Splashtop (Business and Streamer), RustDesk, RealVNC (Server and Viewer), Jump Desktop (Viewer and Connect),
+    Chrome Remote Desktop, Parsec, NoMachine, LogMeIn Client, Supremo, and ScreenConnect / ConnectWise Control clients.
+    Fleet-managed Macs shouldn't let someone outside the company take over the screen or keyboard. Zoom is allowed.
+  resolution: >-
+    Fleet runs a script that quits these apps and removes them when this policy fails. If you need one of them for
+    your work, drop a note in #help-it. If it still fails after a refetch, drop a note in #help-it too.
+  platform: darwin
+  calendar_events_enabled: false
+  run_script:
+    path: ../scripts/remove-remote-access-apps.sh

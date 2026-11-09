@@ -1,0 +1,51 @@
+# Dedicated remote-access and remote-control apps aren't allowed on Fleet-managed Windows hosts.
+# Zoom (Zoom.exe, "Zoom Workplace") has a screen sharing feature and is explicitly allowed: it is not in this list and
+# the remediation script never touches it. Slack huddles, Google Meet, and Microsoft Teams screen sharing run inside
+# apps and browsers this policy doesn't look at. Windows Remote Desktop is covered by "Remote Desktop disabled".
+# Keep the app list in sync with ../scripts/remove-remote-access-apps.ps1.
+# Fleet policy instead of a global one so it can run the remediation script, which must be defined in the same fleet.
+- name: Windows - Remote access apps not installed
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM programs
+      WHERE (name = 'TeamViewer' AND publisher = 'TeamViewer')
+        OR (name = 'TeamViewer Host' AND publisher = 'TeamViewer')
+        OR (name = 'AnyDesk' AND publisher = 'AnyDesk Software GmbH')
+        OR (name = 'Splashtop Streamer' AND publisher = 'Splashtop Inc.')
+        OR (name LIKE 'RealVNC Server %' AND publisher = 'RealVNC')
+        OR ((name LIKE 'RealVNC Viewer %' OR name LIKE 'RealVNC Connect Viewer %') AND publisher = 'RealVNC')
+        OR (name = 'TightVNC' AND publisher = 'GlavSoft LLC.')
+        OR (name = 'Chrome Remote Desktop Host' AND publisher = 'Google LLC')
+        OR name LIKE 'ScreenConnect Client %'
+        OR name = 'UltraVNC'
+        OR name = 'RustDesk'
+        OR name = 'Parsec'
+        OR name = 'NoMachine'
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM processes
+      WHERE lower(name) IN (
+        'teamviewer.exe',
+        'teamviewer host.exe',
+        'anydesk.exe',
+        'splashtop streamer.exe',
+        'vnc server.exe',
+        'vncviewer.exe',
+        'rvncconnect.exe',
+        'tightvnc.exe',
+        'chrome remote desktop.exe'
+      )
+    );
+  critical: false
+  description: >-
+    Passes when none of these remote-access apps are installed or running: TeamViewer (including Host), AnyDesk,
+    Splashtop Streamer, RealVNC (Server, Viewer, and Connect Viewer), TightVNC, UltraVNC, Chrome Remote Desktop Host,
+    RustDesk, Parsec, NoMachine, and ScreenConnect / ConnectWise Control clients. Fleet-managed PCs shouldn't let
+    someone outside the company take over the screen or keyboard. Zoom is allowed.
+  resolution: >-
+    Fleet runs a script that stops these apps and uninstalls them when this policy fails. If you need one of them for
+    your work, drop a note in #help-it. If it still fails after a refetch, drop a note in #help-it too.
+  platform: windows
+  calendar_events_enabled: false
+  run_script:
+    path: ../scripts/remove-remote-access-apps.ps1

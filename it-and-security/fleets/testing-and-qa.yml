@@ -85,9 +85,11 @@ controls:
     - path: ../lib/macos/scripts/remove-emudhra-roots-macos-system.sh
     - path: ../lib/macos/scripts/remediate-php2shell-macos.sh
     - path: ../lib/macos/scripts/disable-tailscale-ssh-forwarding-macos.sh
+    - path: ../lib/macos/scripts/remove-remote-access-apps.sh
     # Windows scripts
     - path: ../lib/windows/scripts/remove-emudhra-roots-fleetd.ps1
     - path: ../lib/windows/scripts/mitigate-php2shell-windows.ps1
+    - path: ../lib/windows/scripts/remove-remote-access-apps.ps1
     # Linux scripts
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
@@ -98,6 +100,9 @@ controls:
 policies:
   # macOS policies
   - path: ../lib/macos/policies/cli-trust-store-excludes-emudhra-roots.yml
+  - path: ../lib/macos/policies/remote-access-apps-blocked.yml
+  # Windows policies
+  - path: ../lib/windows/policies/remote-access-apps-blocked.yml
   # Linux policies
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 reports:
