@@ -534,6 +534,36 @@ spec:
 `),
 			removedMessage(removednames.KindSpecKind, "team"),
 		},
+		{
+			"kind: user_roles with teams: key",
+			[]byte(`
+apiVersion: v1
+kind: user_roles
+spec:
+  roles:
+    user@example.com:
+      global_role: null
+      teams:
+      - role: maintainer
+        team: macOS
+`),
+			removedMessage(removednames.KindYAMLKey, "spec.roles.<email>.teams"),
+		},
+		{
+			"kind: user_roles with team: key in a fleets entry",
+			[]byte(`
+apiVersion: v1
+kind: user_roles
+spec:
+  roles:
+    user@example.com:
+      global_role: null
+      fleets:
+      - role: maintainer
+        team: macOS
+`),
+			removedMessage(removednames.KindYAMLKey, "spec.roles.<email>.fleets[].team"),
+		},
 	}
 
 	for _, tt := range tests {
@@ -552,45 +582,6 @@ spec:
 			name, ok := team["name"]
 			require.True(t, ok)
 			assert.Equal(t, `"macOS"`, string(name))
-		})
-	}
-}
-
-func TestGroupFromBytesUserRolesRemovedKeys(t *testing.T) {
-	removedMessage := func(name string) string {
-		entry, ok := removednames.Find(removednames.KindYAMLKey, name, "")
-		require.True(t, ok, name)
-		return entry.Message()
-	}
-
-	tests := []struct {
-		name    string
-		roles   string
-		wantErr string
-	}{
-		{"fleets and fleet keys", "global_role: null\n      fleets:\n      - role: maintainer\n        fleet: macOS", ""},
-		{"global role with no fleets", "global_role: admin\n      fleets: null", ""},
-		{
-			"teams key",
-			"global_role: null\n      teams:\n      - role: maintainer\n        team: macOS",
-			removedMessage("spec.roles.<email>.teams"),
-		},
-		{
-			"team key in a fleets entry",
-			"global_role: null\n      fleets:\n      - role: maintainer\n        team: macOS",
-			removedMessage("spec.roles.<email>.fleets[].team"),
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			g, err := GroupFromBytes([]byte("apiVersion: v1\nkind: user_roles\nspec:\n  roles:\n    user@example.com:\n      " + tt.roles + "\n"))
-			if tt.wantErr != "" {
-				require.EqualError(t, err, tt.wantErr)
-				return
-			}
-			require.NoError(t, err)
-			require.Contains(t, g.UsersRoles.Roles, "user@example.com")
 		})
 	}
 }

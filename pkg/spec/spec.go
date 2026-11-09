@@ -273,7 +273,6 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 	return specs, nil
 }
 
-// removedNameError is the error for a removed name found in a spec file, with its Fleet 5 message.
 // rejectRemovedUserRoleKeys fails a user_roles spec that uses the removed teams or team keys. Decoding drops them, which would apply the
 // spec with no fleet roles for the user.
 func rejectRemovedUserRoleKeys(raw json.RawMessage) error {
@@ -301,6 +300,7 @@ func rejectRemovedUserRoleKeys(raw json.RawMessage) error {
 	return nil
 }
 
+// removedNameError is the error for a removed name found in a spec file, with its Fleet 5 message.
 func removedNameError(kind removednames.Kind, name string) error {
 	if entry, ok := removednames.Find(kind, name, ""); ok {
 		return errors.New(entry.Message())
