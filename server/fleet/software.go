@@ -1105,9 +1105,7 @@ type VPPBatchPayloadWithPlatform struct {
 	LabelsIncludeAny   []string                  `json:"labels_include_any"`
 	LabelsIncludeAll   []string                  `json:"labels_include_all"`
 	// Categories is the list of names of software categories associated with this VPP app.
-	Categories []string `json:"categories"`
-	// CategoryIDs is the list of IDs of software categories associated with this VPP app.
-	CategoryIDs         []uint          `json:"-"`
+	Categories          []string        `json:"categories"`
 	DisplayName         string          `json:"display_name"`
 	Configuration       json.RawMessage `json:"configuration,omitempty"`
 	AutoUpdateEnabled   *bool           `json:"auto_update_enabled,omitempty"`
