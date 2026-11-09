@@ -4129,16 +4129,18 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 			}
 		}
 	}
+	existingNames := make([]string, 0, len(queries))
+	for _, q := range queries {
+		existingNames = append(existingNames, q.Name)
+	}
+	desiredNames := make([]string, 0, len(config.Queries))
+	for _, q := range config.Queries {
+		desiredNames = append(desiredNames, q.Name)
+	}
+	kept := spec.MatchExistingNames(existingNames, desiredNames)
 	var queriesToDelete []uint
 	for _, oldQuery := range queries {
-		found := false
-		for _, newQuery := range config.Queries {
-			if oldQuery.Name == newQuery.Name {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if _, ok := kept[oldQuery.Name]; !ok {
 			queriesToDelete = append(queriesToDelete, oldQuery.ID)
 			if !dryRun {
 				fmt.Printf("[-] deleting report %s\n", oldQuery.Name)

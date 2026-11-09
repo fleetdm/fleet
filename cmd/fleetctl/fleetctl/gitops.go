@@ -994,19 +994,25 @@ func computeLabelChanges(
 	}
 
 	specifiedMap := make(map[string]struct{}, len(specifiedLabels))
+	specifiedNames := make([]string, 0, len(specifiedLabels))
 	for _, l := range specifiedLabels {
 		specifiedMap[l.Name] = struct{}{}
+		specifiedNames = append(specifiedNames, l.Name)
 	}
+	existingNames := make([]string, 0, len(regularLabels))
+	for _, l := range regularLabels {
+		existingNames = append(existingNames, l.Name)
+	}
+	matched := spec.MatchExistingNames(existingNames, specifiedNames)
 
 	// Determine which existing labels to remove.
 	for _, l := range regularLabels {
-		op := "-"
-		if _, ok := specifiedMap[l.Name]; ok {
-			op = "="
+		change := spec.LabelChange{Name: l.Name, Op: "-", TeamName: teamName, FileName: filename}
+		if newName, ok := matched[l.Name]; ok {
+			change.Name, change.Op = newName, "="
+			// Remove from the map to track which specified labels are to be added.
+			delete(specifiedMap, newName)
 		}
-		// Remove from the map to track which specified labels are to be added.
-		delete(specifiedMap, l.Name)
-		change := spec.LabelChange{Name: l.Name, Op: op, TeamName: teamName, FileName: filename}
 		labelOperations = append(labelOperations, change)
 	}
 

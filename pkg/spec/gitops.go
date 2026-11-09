@@ -3157,6 +3157,24 @@ func nameCollationKey(name string) string {
 	return strings.ToLower(strings.TrimRight(name, " "))
 }
 
+// MatchExistingNames maps each existing label or report name that a GitOps apply of desired keeps to the name it
+// takes after the apply. The apply upserts on a unique name index whose collation ignores case and trailing spaces,
+// so a desired name with the same nameCollationKey renames that row in place. GitOps names are ASCII, so only names
+// that index treats as equal share a key with one, and at most one existing name can.
+func MatchExistingNames(existing, desired []string) map[string]string {
+	desiredByKey := make(map[string]string, len(desired))
+	for _, name := range desired {
+		desiredByKey[nameCollationKey(name)] = name
+	}
+	matched := make(map[string]string, len(existing))
+	for _, name := range existing {
+		if newName, ok := desiredByKey[nameCollationKey(name)]; ok {
+			matched[name] = newName
+		}
+	}
+	return matched
+}
+
 func isASCII(s string) bool {
 	for _, c := range s {
 		if c > unicode.MaxASCII {

@@ -805,6 +805,39 @@ reports:
 	assert.ErrorContains(t, err, "duplicate report names: [orbit_info]")
 }
 
+func TestMatchExistingNames(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name              string
+		existing, desired []string
+		want              map[string]string
+	}{
+		{
+			name:     "exact names keep their rows and missing ones are dropped",
+			existing: []string{"Beta", "Gamma"},
+			desired:  []string{"Beta", "Delta"},
+			want:     map[string]string{"Beta": "Beta"},
+		},
+		{
+			name:     "case and trailing space changes rename the row",
+			existing: []string{"Beta", "Gamma"},
+			desired:  []string{"BETA", "Gamma "},
+			want:     map[string]string{"Beta": "BETA", "Gamma": "Gamma "},
+		},
+		{
+			// A name made outside GitOps can use the Kelvin sign, which lowercases to "k" and which MySQL equates with "K".
+			name:     "a Kelvin sign spelling is renamed to its ASCII spelling",
+			existing: []string{"Kappa"},
+			desired:  []string{"Kappa"},
+			want:     map[string]string{"Kappa": "Kappa"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, MatchExistingNames(tc.existing, tc.desired))
+		})
+	}
+}
+
 func TestDuplicateLabelNames(t *testing.T) {
 	t.Parallel()
 	config := getGlobalConfig([]string{})
