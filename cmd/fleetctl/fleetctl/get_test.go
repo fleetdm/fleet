@@ -439,9 +439,8 @@ func TestGetTeamsSoftwareFromSourceOfTruth(t *testing.T) {
 				ID:   10,
 				Name: "VPPApp",
 				AppStoreApps: []*fleet.VPPAppStoreApp{{
+					VPPAppID:    fleet.VPPAppID{AdamID: "123", Platform: "darwin"},
 					VersionName: fleet.DefaultAppStoreAppVersionName,
-					AdamID:      "123",
-					Platform:    fleet.MacOSPlatform,
 					SelfService: true,
 				}},
 			}, nil

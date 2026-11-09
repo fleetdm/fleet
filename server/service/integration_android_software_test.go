@@ -221,8 +221,8 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(0))
 
 	s.Assert().Len(listSWTitles.SoftwareTitles, 1)
-	s.Assert().Equal(androidApp.AdamID, listSWTitles.SoftwareTitles[0].AppStoreApps[0].AppStoreID)
-	s.Assert().Empty(listSWTitles.SoftwareTitles[0].AppStoreApps[0].Version)
+	s.Equal(androidApp.AdamID, listSWTitles.SoftwareTitles[0].AppStoreApps[0].AppStoreID)
+	s.Empty(listSWTitles.SoftwareTitles[0].AppStoreApps[0].Version)
 
 	// Google AMAPI hasn't been hit yet
 	s.Assert().False(s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
@@ -278,14 +278,14 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 	// New app should not show up in "No team" library
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(0))
 	s.Assert().Len(listSWTitles.SoftwareTitles, 1)
-	s.Assert().Equal(androidApp.AdamID, listSWTitles.SoftwareTitles[0].AppStoreApps[0].AppStoreID) // just the app we had before
-	s.Assert().Empty(listSWTitles.SoftwareTitles[0].AppStoreApps[0].Version)
+	s.Equal(androidApp.AdamID, listSWTitles.SoftwareTitles[0].AppStoreApps[0].AppStoreID) // just the app we had before
+	s.Empty(listSWTitles.SoftwareTitles[0].AppStoreApps[0].Version)
 
 	// New app SHOULD show up in our new team library
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Len(listSWTitles.SoftwareTitles, 1)
-	s.Assert().Equal(androidAppNewTeam.AdamID, listSWTitles.SoftwareTitles[0].AppStoreApps[0].AppStoreID)
-	s.Assert().Empty(listSWTitles.SoftwareTitles[0].AppStoreApps[0].Version)
+	s.Equal(androidAppNewTeam.AdamID, listSWTitles.SoftwareTitles[0].AppStoreApps[0].AppStoreID)
+	s.Empty(listSWTitles.SoftwareTitles[0].AppStoreApps[0].Version)
 
 	androidAppNewTeam2 := &fleet.VPPApp{
 		VPPAppTeam: fleet.VPPAppTeam{
@@ -708,7 +708,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 		var listSWTitles listSoftwareTitlesResponse
 		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(*teamID))
 		s.Assert().Len(listSWTitles.SoftwareTitles, 1)
-		s.Assert().Equal(androidAppFoo.AdamID, listSWTitles.SoftwareTitles[0].AppStoreApps[0].AppStoreID)
+		s.Equal(androidAppFoo.AdamID, listSWTitles.SoftwareTitles[0].AppStoreApps[0].AppStoreID)
 
 		// Batch app store apps call won't create an activity
 		var batchResp batchAssociateAppStoreAppsResponse

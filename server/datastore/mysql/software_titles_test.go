@@ -1341,8 +1341,8 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 		if title.ID == vpp2.TitleID {
 			require.Len(t, title.AppStoreApps, 1)
 			assert.Len(t, title.AppStoreApps[0].AutomaticInstallPolicies, 1)
-			assert.Equal(t, title.AppStoreApps[0].AutomaticInstallPolicies[0].Name, "VPP Policy")
-			assert.Equal(t, title.AppStoreApps[0].AutomaticInstallPolicies[0].ID, vppPolicy.ID)
+			assert.Equal(t, "VPP Policy", title.AppStoreApps[0].AutomaticInstallPolicies[0].Name)
+			assert.Equal(t, vppPolicy.ID, title.AppStoreApps[0].AutomaticInstallPolicies[0].ID)
 		}
 	}
 	assert.ElementsMatch(t, []nameSource{

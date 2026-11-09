@@ -6906,7 +6906,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 	var (
 		softwaresWithinUpdateWindowThatNeedUpdate []fleet.SoftwareAutoUpdateSchedule
 		softwareTitles                            = make(map[uint]*fleet.SoftwareTitle)
-		appStoreAppsByTitleID                     = make(map[uint]*fleet.VPPAppStoreApp)
+		appStoreAppsByTitleID                     = make(map[uint]fleet.VPPAppStoreApp)
 	)
 	for _, softwareWithAutoUpdateSchedule := range softwaresWithinUpdateSchedule {
 		// Load software title.
@@ -7014,7 +7014,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		}
 		softwaresWithinUpdateWindowThatNeedUpdate = append(softwaresWithinUpdateWindowThatNeedUpdate, softwareWithAutoUpdateSchedule)
 		softwareTitles[softwareTitle.ID] = softwareTitle
-		appStoreAppsByTitleID[softwareTitle.ID] = vppAppMetadata
+		appStoreAppsByTitleID[softwareTitle.ID] = *vppAppMetadata
 	}
 	if len(softwaresWithinUpdateWindowThatNeedUpdate) == 0 {
 		// Nothing else to do.
