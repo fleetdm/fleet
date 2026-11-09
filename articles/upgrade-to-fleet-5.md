@@ -656,6 +656,8 @@ Change these before you upgrade.
    - Set `global_role` for a global role, or `fleets` for fleet roles.
    - To find each user's `id`, call [List users](https://fleetdm.com/docs/rest-api/rest-api#list-users).
 
+GitHub issue: [#58158](https://github.com/fleetdm/fleet/issues/58158)
+
 ### Puppet module removed
 
 | Fleet 4 | Fleet 5 |
@@ -1100,6 +1102,8 @@ GitHub issue: [#53799](https://github.com/fleetdm/fleet/issues/53799)
    - `create-users` set a random password. With `fleetctl user create`, pass `--password` for users that don't use SSO.
 2. Replace each `fleetctl user delete-users` run with one `fleetctl user delete --email <email>` run for each email in the CSV file.
 3. You can also use the [Create user](https://fleetdm.com/docs/rest-api/rest-api#create-user) and [Delete user](https://fleetdm.com/docs/rest-api/rest-api#delete-user) API endpoints.
+
+GitHub issue: [#58158](https://github.com/fleetdm/fleet/issues/58158)
 
 ### fleetctl package file names changed
 
