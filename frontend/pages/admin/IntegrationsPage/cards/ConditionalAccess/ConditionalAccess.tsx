@@ -34,6 +34,15 @@ import OktaProfilesModal from "./components/OktaProfilesModal";
 
 const baseClass = "conditional-access";
 
+const troubleshootLink = (
+  <CustomLink
+    text="Learn more"
+    url={`${LEARN_MORE_ABOUT_BASE_LINK}/troubleshoot-entra-conditional-access`}
+    newTab
+    variant="flash-message-link"
+  />
+);
+
 interface IDeleteConditionalAccessModal {
   toggleDeleteConditionalAccessModal: () => void;
   onDelete: (config: IConfig) => void;
@@ -220,7 +229,22 @@ const ConditionalAccess = () => {
           )
         ) {
           notify.error(
-            "Couldn't update. Fleet didn't get permissions for Entra. Please try again and accept the permissions."
+            <>
+              Couldn&apos;t update. Fleet didn&apos;t get permissions for Entra.
+              Please try again and accept the permissions. {troubleshootLink}
+            </>
+          );
+        } else if (
+          setup_error.includes(
+            "Fleet doesn't have the required permissions in Entra"
+          )
+        ) {
+          notify.error(
+            <>
+              Couldn&apos;t connect. Fleet doesn&apos;t have the required
+              permissions in Entra. An Entra admin must sign in to Fleet and
+              select Connect. {troubleshootLink}
+            </>
           );
         } else if (
           setup_error.includes(
@@ -241,13 +265,7 @@ const ConditionalAccess = () => {
           //  - The MS proxy stores the error in its database.
           notify.error(
             <>
-              Couldn&apos;t connect. Entra returned an error.{" "}
-              <CustomLink
-                text="Learn more"
-                url={`${LEARN_MORE_ABOUT_BASE_LINK}/troubleshoot-entra-conditional-access`}
-                newTab
-                variant="flash-message-link"
-              />
+              Couldn&apos;t connect. Entra returned an error. {troubleshootLink}
             </>
           );
         }
