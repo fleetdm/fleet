@@ -130,6 +130,9 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 
 		return &androidmanagement.Policy{}, nil
 	}
+	s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFunc = func(ctx context.Context, policyName string, packageNames []string) (*androidmanagement.Policy, error) {
+		return &androidmanagement.Policy{}, nil
+	}
 
 	// Valid application ID format, but wrong platform specified: should fail
 	r = s.Do(
@@ -328,7 +331,8 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 			appIDs = append(appIDs, a.PackageName)
 		}
 
-		s.Assert().ElementsMatch(appIDs, []string{androidAppNewTeam.AdamID, androidAppNewTeam2.AdamID, "com.fleetdm.agent"})
+		// the patch still lists the "No team" app, the removal sent after it takes it out of the policy
+		s.ElementsMatch(appIDs, []string{androidAppNewTeam.AdamID, androidAppNewTeam2.AdamID, androidApp.AdamID, "com.fleetdm.agent"})
 		s.Assert().Contains(policyName, host1.UUID)
 	}
 
@@ -343,9 +347,11 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 		HostIDs: []uint{host1.ID},
 	}, http.StatusOK, &addHostsToTeamResponse{})
 
+	s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked = false
 	s.runWorkerUntilDone()
 	s.awaitTriggerAndroidProfileSchedule(t)
 	s.Assert().True(s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
+	s.True(s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
 
 	// Transfer host back to "No team"
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
@@ -945,6 +951,12 @@ func (s *integrationMDMTestSuite) TestAndroidAppsUninstallOnDelete() {
 		}
 		return &androidmanagement.Policy{}, nil
 	}
+	// sorted packages last removed from each host's policy, by host UUID
+	removedApps := map[string][]string{}
+	s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFunc = func(ctx context.Context, policyName string, packageNames []string) (*androidmanagement.Policy, error) {
+		removedApps[policyName[strings.LastIndex(policyName, "/")+1:]] = slices.Sorted(slices.Values(packageNames))
+		return &androidmanagement.Policy{}, nil
+	}
 
 	// add some Android apps
 	androidApps := make([]*fleet.VPPApp, 5)
@@ -1056,15 +1068,16 @@ func (s *integrationMDMTestSuite) TestAndroidAppsUninstallOnDelete() {
 		require.Equal(t, androidApps[3].AdamID, getHostSw.Software[2].AppStoreApp.AppStoreID)
 	}
 
-	// delete app [1] and run the Android profile schedule, both hosts should get an app list without it and the fleet
+	// delete app [1] and run the Android profile schedule, both hosts should get only a removal of it and the fleet
 	// host nothing
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleIDs[1]), nil, http.StatusNoContent, "team_id", "0")
 	s.awaitTriggerAndroidProfileSchedule(t)
+	require.Empty(t, sentAppLists)
 	require.Equal(t, map[string][]string{
-		host1.UUID: {androidApps[2].AdamID, androidApps[3].AdamID, "com.fleetdm.agent"},
-		host2.UUID: {androidApps[2].AdamID, androidApps[3].AdamID, "com.fleetdm.agent"},
-	}, sentAppLists)
-	clear(sentAppLists)
+		host1.UUID: {androidApps[1].AdamID},
+		host2.UUID: {androidApps[1].AdamID},
+	}, removedApps)
+	clear(removedApps)
 
 	for _, host := range []fleet.HostResponse{host1, host2} {
 		var getHostSw getHostSoftwareResponse
@@ -1085,13 +1098,19 @@ func (s *integrationMDMTestSuite) TestAndroidAppsUninstallOnDelete() {
 		},
 	}, http.StatusOK, &batchResp)
 
-	// run the Android profile schedule, both hosts should get an app list with only app [3]
+	// run the Android profile schedule, both hosts should get an app list with app [3]'s new configuration and app [2]
+	// still in it, then a removal of app [2]
 	s.awaitTriggerAndroidProfileSchedule(t)
 	require.Equal(t, map[string][]string{
-		host1.UUID: {androidApps[3].AdamID, "com.fleetdm.agent"},
-		host2.UUID: {androidApps[3].AdamID, "com.fleetdm.agent"},
+		host1.UUID: {androidApps[2].AdamID, androidApps[3].AdamID, "com.fleetdm.agent"},
+		host2.UUID: {androidApps[2].AdamID, androidApps[3].AdamID, "com.fleetdm.agent"},
 	}, sentAppLists)
 	clear(sentAppLists)
+	require.Equal(t, map[string][]string{
+		host1.UUID: {androidApps[2].AdamID},
+		host2.UUID: {androidApps[2].AdamID},
+	}, removedApps)
+	clear(removedApps)
 
 	for _, host := range []fleet.HostResponse{host1, host2} {
 		var getHostSw getHostSoftwareResponse
@@ -1108,13 +1127,14 @@ func (s *integrationMDMTestSuite) TestAndroidAppsUninstallOnDelete() {
 		Apps: []fleet.VPPBatchPayload{},
 	}, http.StatusOK, &batchResp)
 
-	// run the Android profile schedule, both hosts should get an app list with only the fleet agent
+	// run the Android profile schedule, both hosts should get only a removal of app [3]
 	s.awaitTriggerAndroidProfileSchedule(t)
+	require.Empty(t, sentAppLists)
 	require.Equal(t, map[string][]string{
-		host1.UUID: {"com.fleetdm.agent"},
-		host2.UUID: {"com.fleetdm.agent"},
-	}, sentAppLists)
-	clear(sentAppLists)
+		host1.UUID: {androidApps[3].AdamID},
+		host2.UUID: {androidApps[3].AdamID},
+	}, removedApps)
+	clear(removedApps)
 
 	for _, host := range []fleet.HostResponse{host1, host2} {
 		var getHostSw getHostSoftwareResponse
@@ -1779,8 +1799,8 @@ func (s *integrationMDMTestSuite) TestAndroidAppsTargetHostOwnPolicy() {
 		clear(appChanges)
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", "0")
 
-		// run the Android profile schedule, only the host on its own policy should get its app list without the app
+		// run the Android profile schedule, only the host on its own policy should get a removal of the app
 		s.awaitTriggerAndroidProfileSchedule(t)
-		require.Equal(t, map[string][]string{"set": {onOwnPolicy.UUID}}, appChanges)
+		require.Equal(t, map[string][]string{"remove": {onOwnPolicy.UUID}}, appChanges)
 	})
 }

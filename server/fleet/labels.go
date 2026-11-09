@@ -148,8 +148,6 @@ var ValidLabelPlatformVariants = map[string]struct{}{
 	"darwin":  {},
 	"windows": {},
 	"linux":   {}, // matches hosts on any Linux distribution
-	"ubuntu":  {},
-	"centos":  {},
 }
 
 // LabelNameMaxLength and LabelDescriptionMaxLength match the varchar(255) size

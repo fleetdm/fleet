@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "7.2.2.88465",
+      "version": "7.2.5.90525",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.xos';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.xos' AND version_compare(bundle_short_version, '7.2.2.88465') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.xos' AND version_compare(bundle_short_version, '7.2.5.90525') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'us.zoom.xos' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://www.zoomgov.com/client/7.2.2.88465/ZoomInstallerIT.pkg",
+      "installer_url": "https://www.zoomgov.com/client/7.2.5.90525/ZoomInstallerIT.pkg",
       "install_script_ref": "2184655f",
       "uninstall_script_ref": "ba1fefc3",
-      "sha256": "422f801771ef0c3db68bdf1a47a9c44e18b6f822b2f5d751adc3242270dc6417",
+      "sha256": "f880af3051cdc08a89d94575227570fe2d7d7a155ca7632be7fe66598de8a089",
       "default_categories": [
         "Communication"
       ]

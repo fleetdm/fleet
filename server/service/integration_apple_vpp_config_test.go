@@ -338,7 +338,7 @@ func (s *integrationMDMTestSuite) TestManagedAppConfigurationWireFormat() {
 		require.NoError(t, resp.Body.Close())
 		require.NotZero(t, addResp.TitleID)
 
-		stored, err := s.ds.GetAndroidAppConfiguration(ctxdb.RequirePrimary(ctx, true), androidAdamID, team.ID)
+		stored, err := s.ds.GetVPPAppConfiguration(ctxdb.RequirePrimary(ctx, true), addResp.VersionID)
 		require.NoError(t, err)
 		require.JSONEq(t, `{"workProfileWidgets":"WORK_PROFILE_WIDGETS_ALLOWED"}`, string(stored))
 

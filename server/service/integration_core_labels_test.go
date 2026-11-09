@@ -78,18 +78,20 @@ func (s *integrationTestSuite) TestLabels() {
 			s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: strings.ToUpper(n), Query: "select 1"}, http.StatusUnprocessableEntity, &createResp)
 		}
 
-		// try to create a label with an invalid platform
-		s.DoJSON(
-			"POST",
-			"/api/latest/fleet/labels",
-			&fleet.LabelPayload{
-				Name:     "amazing label",
-				Query:    "select 1",
-				Platform: "bados",
-			},
-			http.StatusUnprocessableEntity,
-			&createResp,
-		)
+		// try to create a label with an invalid platform; ubuntu and centos were replaced by linux
+		for _, platform := range []string{"bados", "ubuntu", "centos"} {
+			s.DoJSON(
+				"POST",
+				"/api/latest/fleet/labels",
+				&fleet.LabelPayload{
+					Name:     "amazing label",
+					Query:    "select 1",
+					Platform: platform,
+				},
+				http.StatusUnprocessableEntity,
+				&createResp,
+			)
+		}
 
 		// create a label with the generic "linux" platform (matches all Linux distros)
 		s.DoJSON(
@@ -1216,23 +1218,25 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 		require.Equal(t, fleet.LabelTypeBuiltIn, spec.LabelType)
 	}
 
-	// apply an invalid label spec - invalid platform
-	s.DoJSON(
-		"POST",
-		"/api/latest/fleet/spec/labels",
-		fleet.ApplyLabelSpecsRequest{
-			Specs: []*fleet.LabelSpec{
-				{
-					Name:                name,
-					Query:               "select 1",
-					Platform:            "bados",
-					LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	// apply an invalid label spec - invalid platform; ubuntu and centos were replaced by linux
+	for _, platform := range []string{"bados", "ubuntu", "centos"} {
+		s.DoJSON(
+			"POST",
+			"/api/latest/fleet/spec/labels",
+			fleet.ApplyLabelSpecsRequest{
+				Specs: []*fleet.LabelSpec{
+					{
+						Name:                name,
+						Query:               "select 1",
+						Platform:            platform,
+						LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+					},
 				},
 			},
-		},
-		http.StatusUnprocessableEntity,
-		&applyResp,
-	)
+			http.StatusUnprocessableEntity,
+			&applyResp,
+		)
+	}
 
 	// apply a valid label spec - generic "linux" platform
 	s.DoJSON(
@@ -1297,7 +1301,7 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 			{
 				Name:                name,
 				Query:               "select 1",
-				Platform:            "centos",
+				Platform:            "darwin",
 				LabelMembershipType: fleet.LabelMembershipTypeDynamic,
 			},
 		},
