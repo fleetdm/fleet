@@ -18,7 +18,14 @@ function Stop-RStudio {
     'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\RStudio',
     'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\RStudio'
   )) {
-    $location = (Get-ItemProperty $key -ErrorAction SilentlyContinue).InstallLocation
+    $entry = Get-ItemProperty $key -ErrorAction SilentlyContinue
+    $location = $entry.InstallLocation
+    # Installers that predate NsisMultiUser left InstallLocation unset. Setup
+    # finds and upgrades those installs through UninstallString, an unquoted
+    # path to Uninstall.exe.
+    if (-not $location -and $entry.UninstallString -match '^"?(.+)\\[^\\]+$') {
+      $location = $matches[1]
+    }
     if ($location) { $installDirs += $location.Trim('"').TrimEnd('\') + '\' }
   }
 
@@ -52,8 +59,8 @@ $exitCode = $process.ExitCode
 # aborts before changing anything, so stop it again and retry once.
 if ($exitCode -eq 2) {
   Write-Host "Install exit code: 2. Retrying in 10 seconds."
-  Stop-RStudio
   Start-Sleep -Seconds 10
+  Stop-RStudio
   $process = Start-Process @processOptions
   $exitCode = $process.ExitCode
 }
