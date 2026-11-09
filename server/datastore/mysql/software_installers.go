@@ -3034,7 +3034,18 @@ LIMIT ?`
 		for i, row := range rows {
 			ids[i] = row.ID
 		}
-		n, err := deleteHostSoftwareInstallsByIDs(ctx, ds.writer(ctx), ids, olderThan)
+
+		var n int64
+		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			// Decrement from the automation runs so it lines up with the number of rows in the table
+			err := decrementHostPolicyAutomationRunCountsDB(ctx, tx, fleet.ActivityTypeInstalledSoftware{}, ids, olderThan)
+			if err != nil {
+				return err
+			}
+
+			n, err = deleteHostSoftwareInstallsByIDs(ctx, tx, ids, olderThan)
+			return err
+		})
 		if err != nil {
 			return deleted, err
 		}
