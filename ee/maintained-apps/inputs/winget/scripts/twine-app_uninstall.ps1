@@ -106,7 +106,12 @@ try {
 
     foreach ($entry in $entries) {
         Write-Host "Removing $($entry.KeyPath)"
-        $result = Remove-Entry $entry
+        try {
+            $result = Remove-Entry $entry
+        } catch {
+            Write-Host "Error: $_"
+            $result = 1
+        }
         if ($result -ne 0 -and $exitCode -eq 0) { $exitCode = $result }
     }
 
