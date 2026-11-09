@@ -34,7 +34,14 @@ func TestInstallScriptDmgExtractUsesYesPipe(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, script, "yes | hdiutil attach -plist -nobrowse -readonly -mountpoint")
 	require.Contains(t, script, `|| exit 1`)
-	require.Contains(t, script, `hdiutil detach "$MOUNT_POINT" || true`)
+	detach := `hdiutil detach "$MOUNT_POINT" || { sleep 2; hdiutil detach "$MOUNT_POINT"; } || hdiutil detach -force "$MOUNT_POINT" || true`
+	// A busy volume is retried and then forced on both the failure and success paths.
+	require.Equal(t, 2, strings.Count(script, detach))
+	// A failed staging copy detaches and exits before the existing app is backed up;
+	// a successful one falls through to the same detach.
+	staging := "if ! sudo cp -R \"$MOUNT_POINT\"/* \"$TMPDIR\"; then\n\t" + detach + "\n\texit 1\nfi\n"
+	require.Contains(t, script, staging+detach+"\n")
+	require.Less(t, strings.Index(script, staging), strings.Index(script, "quit_and_track_application '"))
 }
 
 // TestInstallScriptPkgPropagatesInstallerExitCode guards against a regression
@@ -362,6 +369,482 @@ osascript() {
 			require.Contains(t, string(out), relaunch)
 		})
 	}
+}
+
+// TestMozillaVPNScriptsStopOnlyTheGUI runs the Mozilla VPN scripts against a
+// fake process table. They signal only the GUI, never the browsers' native
+// messaging hosts (same executable) or the daemon, force-quit a GUI that
+// ignores SIGTERM, and stop before installing or removing anything if it
+// survives that.
+func TestMozillaVPNScriptsStopOnlyTheGUI(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+
+	readScript := func(name string) string {
+		b, err := os.ReadFile(filepath.Join("../../inputs/homebrew/scripts", name))
+		require.NoError(t, err)
+		return string(b)
+	}
+	install := readScript("mozilla-vpn-install.sh")
+	uninstall := readScript("mozilla-vpn-uninstall.sh")
+
+	// The install script cases cover the helpers, so both copies must match.
+	helpers := regexp.MustCompile(`(?s)\nmozilla_vpn_pids\(\) \{.*?\nquit_mozilla_vpn\(\) \{.*?\n\}\n`)
+	require.NotEmpty(t, helpers.FindString(install))
+	require.Equal(t, helpers.FindString(install), helpers.FindString(uninstall))
+
+	// Everything after the quit call removes files, so it's replaced with a marker.
+	quitCall := "\nquit_mozilla_vpn || exit 1\n"
+	i := strings.Index(uninstall, quitCall)
+	require.Positive(t, i)
+	uninstall = uninstall[:i+len(quitCall)] + "echo 'Removing Mozilla VPN.'\n"
+
+	// Each process is "<pid> <behavior> <args>". It exits on SIGTERM ("exits"),
+	// only on SIGKILL ("stubborn"), or never ("unkillable").
+	run := func(t *testing.T, script string, procs ...string) (out, signals string, err error) {
+		dir := t.TempDir()
+		procFile := filepath.Join(dir, "procs")
+		sigFile := filepath.Join(dir, "signals")
+		require.NoError(t, os.WriteFile(procFile, []byte(strings.Join(procs, "\n")+"\n"), 0o600))
+		require.NoError(t, os.WriteFile(sigFile, nil, 0o600))
+		stubs := `procs=` + shellSingleQuote(procFile) + `
+signals=` + shellSingleQuote(sigFile) + `
+INSTALLER_PATH=/tmp/fleet-test/MozillaVPN.pkg
+sleep() { :; }
+scutil() { :; }
+sudo() { echo "sudo $*"; }
+installer() { echo "installer $*"; }
+ps() { grep . "$procs" | cut -d' ' -f1,3-; }
+kill() {
+  local sig="$1" pid behavior
+  shift
+  for pid in "$@"; do
+    echo "$sig $pid" >> "$signals"
+    behavior=$(awk -v p="$pid" '$1 == p { print $2 }' "$procs")
+    case "$sig $behavior" in
+      "-TERM exits" | "-KILL exits" | "-KILL stubborn")
+        awk -v p="$pid" '$1 != p' "$procs" > "$procs.new" && command mv "$procs.new" "$procs" ;;
+    esac
+  done
+}
+`
+		b, err := exec.Command(bash, "-c", stubs+script).CombinedOutput()
+		sigs, readErr := os.ReadFile(sigFile)
+		require.NoError(t, readErr)
+		return string(b), string(sigs), err
+	}
+	requireExit1 := func(t *testing.T, err error, out string) {
+		var exitErr *exec.ExitError
+		require.ErrorAs(t, err, &exitErr, out)
+		require.Equal(t, 1, exitErr.ExitCode(), out)
+	}
+
+	const exe = "/Applications/Mozilla VPN.app/Contents/MacOS/Mozilla VPN"
+	others := []string{
+		"201 unkillable " + exe + " /Library/Application Support/Mozilla/NativeMessagingHosts/mozillavpn.json vpn@mozilla.com",
+		"202 unkillable " + exe + " chrome-extension://abcdefghijklmnop/",
+		"203 unkillable /Applications/Mozilla VPN.app/Contents/Library/LaunchServices/org.mozilla.macos.FirefoxVPN.daemon",
+	}
+
+	t.Run("not running", func(t *testing.T) {
+		out, signals, err := run(t, install, others...)
+		require.NoError(t, err, out)
+		require.Empty(t, signals)
+		require.NotContains(t, out, "Quitting Mozilla VPN")
+		require.Contains(t, out, "installer -pkg /tmp/fleet-test/MozillaVPN.pkg -target /")
+	})
+
+	t.Run("quits on SIGTERM", func(t *testing.T) {
+		procs := append([]string{"101 exits " + exe, "102 exits " + exe + " ui --updated"}, others...)
+		out, signals, err := run(t, install, procs...)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 101\n-TERM 102\n", signals)
+		require.Contains(t, out, "Mozilla VPN quit successfully.")
+		require.Contains(t, out, "installer -pkg")
+	})
+
+	t.Run("force-quit after SIGTERM", func(t *testing.T) {
+		out, signals, err := run(t, install, append([]string{"101 stubborn " + exe}, others...)...)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 101\n-KILL 101\n", signals)
+		require.Contains(t, out, "Mozilla VPN didn't quit; forcing it to quit.")
+		require.Contains(t, out, "installer -pkg")
+	})
+
+	t.Run("install stops when the GUI survives", func(t *testing.T) {
+		out, signals, err := run(t, install, "101 unkillable "+exe)
+		requireExit1(t, err, out)
+		require.Equal(t, "-TERM 101\n-KILL 101\n", signals)
+		require.Contains(t, out, "Mozilla VPN did not quit.")
+		require.NotContains(t, out, "installer")
+	})
+
+	t.Run("uninstall", func(t *testing.T) {
+		out, _, err := run(t, uninstall, "101 unkillable "+exe)
+		requireExit1(t, err, out)
+		require.NotContains(t, out, "Removing Mozilla VPN.")
+
+		out, signals, err := run(t, uninstall, append([]string{"101 exits " + exe}, others...)...)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 101\n", signals)
+		require.Contains(t, out, "Removing Mozilla VPN.")
+	})
+}
+
+// TestTailscaleScriptsStopOnlyTheGUI runs the Tailscale scripts against a fake
+// process table. They signal only the GUI, never the CLI (same executable,
+// with arguments), the network extension or the login item. The install
+// relaunches the app only when it was running and the pkg's postinstall didn't
+// reopen it.
+func TestTailscaleScriptsStopOnlyTheGUI(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("as root the relaunch goes through /bin/launchctl asuser, which can't be stubbed")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+
+	readScript := func(name string) string {
+		b, err := os.ReadFile(filepath.Join("../../inputs/homebrew/scripts", name))
+		require.NoError(t, err)
+		return string(b)
+	}
+	install := readScript("tailscale-install.sh")
+	uninstall := readScript("tailscale-uninstall.sh")
+
+	// The install script cases cover the helpers, so both copies must match.
+	helpers := regexp.MustCompile(`(?s)\ntailscale_pids\(\) \{.*?\nquit_tailscale\(\) \{.*?\n\}\n`)
+	require.NotEmpty(t, helpers.FindString(install))
+	require.Equal(t, helpers.FindString(install), helpers.FindString(uninstall))
+
+	// Everything after the quit call removes files, so it's replaced with a marker.
+	quitCall := "\nquit_tailscale || exit 1\n"
+	i := strings.Index(uninstall, quitCall)
+	require.Positive(t, i)
+	uninstall = uninstall[:i+len(quitCall)] + "echo 'Removing Tailscale.'\n"
+
+	const exe = "/Applications/Tailscale.app/Contents/MacOS/Tailscale"
+
+	// Each process is "<pid> <behavior> <args>". It exits on SIGTERM ("exits"),
+	// only on SIGKILL ("stubborn"), or never ("unkillable"). With reopen set,
+	// the installer stub starts the GUI again, as the pkg's postinstall does.
+	// opens records the arguments of each open call.
+	run := func(t *testing.T, script string, reopen bool, procs ...string) (out, signals, opens string, err error) {
+		dir := t.TempDir()
+		procFile := filepath.Join(dir, "procs")
+		sigFile := filepath.Join(dir, "signals")
+		openFile := filepath.Join(dir, "opens")
+		require.NoError(t, os.WriteFile(procFile, []byte(strings.Join(procs, "\n")+"\n"), 0o600))
+		require.NoError(t, os.WriteFile(sigFile, nil, 0o600))
+		require.NoError(t, os.WriteFile(openFile, nil, 0o600))
+		reopenProc := ""
+		if reopen {
+			reopenProc = "301 exits " + exe
+		}
+		stubs := `procs=` + shellSingleQuote(procFile) + `
+signals=` + shellSingleQuote(sigFile) + `
+reopen=` + shellSingleQuote(reopenProc) + `
+opens=` + shellSingleQuote(openFile) + `
+INSTALLER_PATH=/tmp/fleet-test/Tailscale.pkg
+sleep() { :; }
+scutil() { :; }
+stat() { echo alice; }
+sudo() { echo "sudo $*"; }
+open() { echo "$*" >> "$opens"; }
+installer() {
+  echo "installer $*"
+  [[ -z "$reopen" ]] || echo "$reopen" >> "$procs"
+}
+ps() { grep . "$procs" | sed -E 's/^([0-9]+) [a-z]+ /  \1 /'; }
+kill() {
+  local sig="$1" pid behavior
+  shift
+  for pid in "$@"; do
+    echo "$sig $pid" >> "$signals"
+    behavior=$(awk -v p="$pid" '$1 == p { print $2 }' "$procs")
+    case "$sig $behavior" in
+      "-TERM exits" | "-KILL exits" | "-KILL stubborn")
+        awk -v p="$pid" '$1 != p' "$procs" > "$procs.new" && command mv "$procs.new" "$procs" ;;
+    esac
+  done
+}
+`
+		b, err := exec.Command(bash, "-c", stubs+script).CombinedOutput()
+		sigs, readErr := os.ReadFile(sigFile)
+		require.NoError(t, readErr)
+		opened, readErr := os.ReadFile(openFile)
+		require.NoError(t, readErr)
+		return string(b), string(sigs), string(opened), err
+	}
+	requireExit1 := func(t *testing.T, err error, out string) {
+		var exitErr *exec.ExitError
+		require.ErrorAs(t, err, &exitErr, out)
+		require.Equal(t, 1, exitErr.ExitCode(), out)
+	}
+
+	others := []string{
+		"201 unkillable " + exe + " status",
+		"202 unkillable " + exe + " serve 3000",
+		"203 unkillable /Library/SystemExtensions/0A1B2C3D-4E5F-6789-ABCD-EF0123456789/io.tailscale.ipn.macsys.network-extension.systemextension/Contents/MacOS/io.tailscale.ipn.macsys.network-extension",
+		"204 unkillable " + strings.TrimSuffix(exe, "MacOS/Tailscale") + "Library/LoginItems/TailscaleLoginItemHelper-macsys.app/Contents/MacOS/TailscaleLoginItemHelper-macsys",
+	}
+	const relaunch = "Relaunching application 'io.tailscale.ipn.macsys'..."
+
+	t.Run("not running", func(t *testing.T) {
+		for _, reopen := range []bool{false, true} {
+			out, signals, opens, err := run(t, install, reopen, others...)
+			require.NoError(t, err, out)
+			require.Empty(t, signals)
+			require.Empty(t, opens)
+			require.NotContains(t, out, "Quitting Tailscale")
+			require.Contains(t, out, "installer -pkg /tmp/fleet-test/Tailscale.pkg -target /")
+			require.NotContains(t, out, relaunch)
+		}
+	})
+
+	t.Run("quits on SIGTERM, postinstall reopens it", func(t *testing.T) {
+		out, signals, opens, err := run(t, install, true, append([]string{"101 exits " + exe}, others...)...)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 101\n", signals)
+		require.Empty(t, opens)
+		require.Contains(t, out, "Tailscale quit successfully.")
+		require.Contains(t, out, "installer -pkg")
+		require.NotContains(t, out, relaunch)
+	})
+
+	t.Run("quits on SIGTERM, relaunched when postinstall doesn't reopen it", func(t *testing.T) {
+		out, signals, opens, err := run(t, install, false, append([]string{"101 exits " + exe}, others...)...)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 101\n", signals)
+		require.Equal(t, "-b io.tailscale.ipn.macsys\n", opens)
+		require.Contains(t, out, "installer -pkg")
+		require.Contains(t, out, relaunch)
+		require.Less(t, strings.Index(out, "installer -pkg"), strings.Index(out, relaunch))
+	})
+
+	t.Run("force-quit after SIGTERM", func(t *testing.T) {
+		out, signals, _, err := run(t, install, true, append([]string{"101 stubborn " + exe}, others...)...)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 101\n-KILL 101\n", signals)
+		require.Contains(t, out, "Tailscale didn't quit; forcing it to quit.")
+		require.Contains(t, out, "installer -pkg")
+	})
+
+	t.Run("install stops when the GUI survives", func(t *testing.T) {
+		out, signals, opens, err := run(t, install, true, "101 unkillable "+exe)
+		requireExit1(t, err, out)
+		require.Empty(t, opens)
+		require.Equal(t, "-TERM 101\n-KILL 101\n", signals)
+		require.Contains(t, out, "Tailscale did not quit.")
+		require.NotContains(t, out, "installer")
+		require.NotContains(t, out, relaunch)
+	})
+
+	t.Run("uninstall", func(t *testing.T) {
+		out, _, _, err := run(t, uninstall, false, "101 unkillable "+exe)
+		requireExit1(t, err, out)
+		require.NotContains(t, out, "Removing Tailscale.")
+
+		out, signals, opens, err := run(t, uninstall, false, append([]string{"101 exits " + exe}, others...)...)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 101\n", signals)
+		require.Empty(t, opens)
+		require.Contains(t, out, "Removing Tailscale.")
+		require.NotContains(t, out, relaunch)
+	})
+}
+
+// TestWezTermScriptsQuitWithSIGTERM runs the WezTerm scripts against a fake
+// process table. WezTerm prompts before it quits, so they send SIGTERM to the
+// console user's WezTerm GUI processes only, found by bundle ID, relaunch it
+// after an install, and stop before installing or removing anything if it
+// survives or the process lookup fails.
+func TestWezTermScriptsQuitWithSIGTERM(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("as root the relaunch goes through /bin/launchctl asuser, which can't be stubbed")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+
+	readScript := func(name string) string {
+		b, err := os.ReadFile(filepath.Join("../../inputs/homebrew/scripts", name))
+		require.NoError(t, err)
+		return string(b)
+	}
+	install := readScript("wezterm-install.sh")
+	uninstall := readScript("wezterm-uninstall.sh")
+
+	pidsHelper := regexp.MustCompile(`(?s)\nwezterm_pids\(\) \{.*?\n\}\n`)
+	require.NotEmpty(t, pidsHelper.FindString(install))
+	require.Equal(t, pidsHelper.FindString(install), pidsHelper.FindString(uninstall))
+
+	// Everything between the quit and the relaunch changes files, so it's
+	// replaced with a marker.
+	cut := func(script, quitCall, marker, tail string) string {
+		i := strings.Index(script, quitCall)
+		require.Positive(t, i)
+		require.True(t, strings.HasSuffix(script, tail))
+		return script[:i+len(quitCall)] + marker + tail
+	}
+	install = cut(install, "\nquit_and_track_wezterm || exit 1\n", "echo 'Installing WezTerm.'\n", "\nrelaunch_application 'com.github.wez.wezterm'\n")
+	uninstall = cut(uninstall, "\nquit_wezterm || exit 1\n", "echo 'Removing WezTerm.'\n", "")
+
+	type result struct {
+		out, signals, opened string
+		err                  error
+	}
+	// Each process is "<pid> <behavior> <user> <path>". It exits on SIGTERM
+	// ("exits") or ignores it ("stubborn"). psFails is "always" or
+	// "after-signal" to make ps fail.
+	run := func(t *testing.T, script, consoleUser, psFails string, procs ...string) result {
+		dir := t.TempDir()
+		procFile := filepath.Join(dir, "procs")
+		sigFile := filepath.Join(dir, "signals")
+		openFile := filepath.Join(dir, "opened")
+		require.NoError(t, os.WriteFile(procFile, []byte(strings.Join(procs, "\n")+"\n"), 0o600))
+		require.NoError(t, os.WriteFile(sigFile, nil, 0o600))
+		require.NoError(t, os.WriteFile(openFile, nil, 0o600))
+		stubs := `procs=` + shellSingleQuote(procFile) + `
+signals=` + shellSingleQuote(sigFile) + `
+opened=` + shellSingleQuote(openFile) + `
+ps_fails=` + psFails + `
+INSTALLER_PATH=/tmp/fleet-test/WezTerm.zip
+stat() { echo ` + consoleUser + `; }
+realpath() { echo "$1"; }
+unzip() { :; }
+find() { echo /tmp/fleet-test/WezTerm-macos/WezTerm.app; }
+scutil() { :; }
+sleep() { :; }
+open() { echo "$*" >> "$opened"; }
+uid_of() { case "$1" in alice) echo 501 ;; bob) echo 502 ;; *) return 1 ;; esac; }
+id() { [[ "$1" == -u ]] && uid_of "$2"; }
+ps() {
+  [[ "$ps_fails" == always || ( "$ps_fails" == after-signal && -s "$signals" ) ]] && return 1
+  local pid behavior user exe
+  while read -r pid behavior user exe; do
+    [[ -n "$pid" ]] && echo "$pid $(uid_of "$user") $exe"
+  done < "$procs"
+}
+defaults() {
+  case "$2" in
+    */Other.app/Contents/Info) echo com.example.Other ;;
+    *) echo com.github.wez.wezterm ;;
+  esac
+}
+kill() {
+  local sig="$1" pid behavior
+  shift
+  for pid in "$@"; do
+    echo "$sig $pid" >> "$signals"
+    behavior=$(awk -v p="$pid" '$1 == p { print $2 }' "$procs")
+    if [[ "$sig $behavior" == "-TERM exits" ]]; then
+      awk -v p="$pid" '$1 != p' "$procs" > "$procs.new" && command mv "$procs.new" "$procs"
+    fi
+  done
+}
+`
+		b, err := exec.Command(bash, "-c", stubs+script).CombinedOutput()
+		sigs, readErr := os.ReadFile(sigFile)
+		require.NoError(t, readErr)
+		opened, readErr := os.ReadFile(openFile)
+		require.NoError(t, readErr)
+		return result{string(b), string(sigs), string(opened), err}
+	}
+	requireExit1 := func(t *testing.T, r result) {
+		var exitErr *exec.ExitError
+		require.ErrorAs(t, r.err, &exitErr, r.out)
+		require.Equal(t, 1, exitErr.ExitCode(), r.out)
+	}
+
+	const macOS = "/Contents/MacOS/"
+	others := []string{
+		"201 exits bob /Applications/WezTerm.app" + macOS + "wezterm-gui",
+		"202 exits alice /Applications/WezTerm.app" + macOS + "wezterm-mux-server",
+		"203 exits alice /Applications/WezTerm.app" + macOS + "wezterm",
+		"204 exits alice /Applications/Other.app" + macOS + "wezterm-gui",
+	}
+	running := append([]string{
+		"101 exits alice /Applications/WezTerm.app" + macOS + "wezterm-gui",
+		"102 exits alice /Users/alice/Download Folder/WezTerm-old.app" + macOS + "wezterm-gui",
+	}, others...)
+	stubborn := "101 stubborn alice /Applications/WezTerm.app" + macOS + "wezterm-gui"
+
+	t.Run("not running", func(t *testing.T) {
+		r := run(t, install, "alice", "", others...)
+		require.NoError(t, r.err, r.out)
+		require.Empty(t, r.signals)
+		require.NotContains(t, r.out, "Quitting application")
+		require.Contains(t, r.out, "Installing WezTerm.")
+		require.Empty(t, r.opened)
+	})
+
+	t.Run("quits and relaunches", func(t *testing.T) {
+		r := run(t, install, "alice", "", running...)
+		require.NoError(t, r.err, r.out)
+		require.Equal(t, "-TERM 101\n-TERM 102\n", r.signals)
+		require.Contains(t, r.out, "Application 'com.github.wez.wezterm' quit successfully.")
+		require.Contains(t, r.out, "Installing WezTerm.")
+		require.Equal(t, "-b com.github.wez.wezterm\n", r.opened)
+	})
+
+	t.Run("install stops when it won't quit", func(t *testing.T) {
+		r := run(t, install, "alice", "", stubborn)
+		requireExit1(t, r)
+		require.Equal(t, "-TERM 101\n", r.signals)
+		require.Contains(t, r.out, "Application 'com.github.wez.wezterm' did not quit.")
+		require.NotContains(t, r.out, "Installing WezTerm.")
+		require.Empty(t, r.opened)
+	})
+
+	t.Run("install stops when the process lookup fails", func(t *testing.T) {
+		r := run(t, install, "alice", "always", running...)
+		requireExit1(t, r)
+		require.Empty(t, r.signals)
+		require.Contains(t, r.out, "Couldn't check whether application 'com.github.wez.wezterm' is running.")
+		require.NotContains(t, r.out, "Installing WezTerm.")
+
+		r = run(t, install, "alice", "after-signal", running...)
+		requireExit1(t, r)
+		require.Equal(t, "-TERM 101\n-TERM 102\n", r.signals)
+		require.Contains(t, r.out, "Application 'com.github.wez.wezterm' did not quit.")
+		require.NotContains(t, r.out, "Installing WezTerm.")
+		require.Empty(t, r.opened)
+	})
+
+	t.Run("login window", func(t *testing.T) {
+		r := run(t, install, "root", "", running...)
+		require.NoError(t, r.err, r.out)
+		require.Empty(t, r.signals)
+		require.Contains(t, r.out, "Installing WezTerm.")
+		require.Empty(t, r.opened)
+	})
+
+	t.Run("uninstall", func(t *testing.T) {
+		r := run(t, uninstall, "alice", "", running...)
+		require.NoError(t, r.err, r.out)
+		require.Equal(t, "-TERM 101\n-TERM 102\n", r.signals)
+		require.Contains(t, r.out, "Removing WezTerm.")
+
+		for _, tc := range []struct{ psFails, proc string }{{"", stubborn}, {"always", stubborn}, {"after-signal", running[0]}} {
+			r = run(t, uninstall, "alice", tc.psFails, tc.proc)
+			requireExit1(t, r)
+			require.NotContains(t, r.out, "Removing WezTerm.")
+		}
+	})
 }
 
 func TestShellDoubleQuoteEscape(t *testing.T) {

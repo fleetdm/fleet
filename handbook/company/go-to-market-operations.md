@@ -790,7 +790,7 @@ Example:
 - Six months later, an SDR emails them (2026\_04-SDR-q2\_fintech\_sequence), and they reply to book a demo.   
   - Their Most Recent/Converting-Touch is Prospecting \> SDR Outbound.
   
-Converting-touch is always stamped fresh at the moment of opportunity creation. If a contact re-engages after a prior opportunity has closed, the new opportunity's Converting-touch reflects whatever campaign or activity drove the current re-engagement,not any historical value. The prior opportunity record retains its own Converting-touch data. If a closed-lost opportunity is re-engaged within 90 days, we typically should reopen the original opportunity rather than creating a new one.
+Converting-touch is always stamped fresh at the moment of opportunity creation. If a contact re-engages after a prior opportunity has closed, the new opportunity's Converting-touch reflects whatever campaign or activity drove the current re-engagement, not any historical value. The prior opportunity record retains its own Converting-touch data. If a closed-lost opportunity is re-engaged within 90 days, we typically should reopen the original opportunity rather than creating a new one.
 
 **Converting-touch** allows us to see that our webinars are great for *finding* contacts, and our SDR team is great at *converting* them.
 

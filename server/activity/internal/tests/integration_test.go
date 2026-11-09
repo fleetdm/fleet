@@ -174,7 +174,8 @@ func testListHostPastActivities(t *testing.T, s *integrationTestSuite) {
 	hostB := s.insertHost(t, "host-b.example.com", nil)
 
 	// Create activities linked to different hosts
-	actA := s.InsertActivity(t, &userID, "ran_script", map[string]any{"host": "host-a"})
+	// Stored before Fleet 5: old keys, with the new key of a row written while both were stored.
+	actA := s.InsertActivity(t, &userID, "ran_script", map[string]any{"host": "host-a", "team_id": 5, "team_name": "Old", "fleet_id": 5})
 	actB := s.InsertActivity(t, &userID, "installed_software", map[string]any{"host": "host-a"})
 	actC := s.InsertActivity(t, &userID, "ran_script", map[string]any{"host": "host-b"})
 
@@ -192,6 +193,7 @@ func testListHostPastActivities(t *testing.T, s *integrationTestSuite) {
 		// Verify order (newest first by default)
 		assert.Equal(t, "installed_software", result.Activities[0].Type)
 		assert.Equal(t, "ran_script", result.Activities[1].Type)
+		assert.JSONEq(t, `{"host": "host-a", "fleet_id": 5, "fleet_name": "Old"}`, string(*result.Activities[1].Details))
 
 		// Host B should only have its own activity
 		result, statusCode = s.getHostPastActivities(t, hostB, "per_page=100")

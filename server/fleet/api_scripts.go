@@ -277,7 +277,7 @@ type BatchSetScriptsResponse struct {
 func (r BatchSetScriptsResponse) Error() error { return r.Err }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Batch Script Execution Status / List / Summary / Host Results
+// Batch Script Execution Status / List / Host Results
 ////////////////////////////////////////////////////////////////////////////////
 
 type BatchScriptExecutionStatusRequest struct {
@@ -297,25 +297,6 @@ type BatchScriptExecutionStatusResponse struct {
 }
 
 func (r BatchScriptExecutionStatusResponse) Error() error { return r.Err }
-
-// TODO - remove these once we retire batch script summary endpoint and code.
-type (
-	BatchScriptExecutionSummaryRequest  BatchScriptExecutionStatusRequest
-	BatchScriptExecutionSummaryResponse struct {
-		ScriptID    uint      `json:"script_id" db:"script_id"`
-		ScriptName  string    `json:"script_name" db:"script_name"`
-		TeamID      *uint     `json:"team_id" db:"team_id" renameto:"fleet_id"`
-		CreatedAt   time.Time `json:"created_at" db:"created_at"`
-		NumTargeted *uint     `json:"targeted" db:"num_targeted"`
-		NumPending  *uint     `json:"pending" db:"num_pending"`
-		NumRan      *uint     `json:"ran" db:"num_ran"`
-		NumErrored  *uint     `json:"errored" db:"num_errored"`
-		NumCanceled *uint     `json:"canceled" db:"num_canceled"`
-		Err         error     `json:"error,omitempty"`
-	}
-)
-
-func (r BatchScriptExecutionSummaryResponse) Error() error { return r.Err }
 
 type BatchScriptExecutionListResponse struct {
 	BatchScriptExecutions []BatchActivity    `json:"batch_executions"`

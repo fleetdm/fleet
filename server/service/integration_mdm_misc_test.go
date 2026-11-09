@@ -1894,7 +1894,7 @@ func (s *integrationMDMTestSuite) TestStagedUpload() {
 	wantSha := sha256.Sum256(signedPkg)
 	require.Equal(t, wantSha[:], metaResp.MDMAppleBootstrapPackage.Sha256)
 	s.lastActivityMatches(fleet.ActivityTypeAddedBootstrapPackage{}.ActivityName(),
-		`{"bootstrap_package_name": "staged.pkg", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+		`{"bootstrap_package_name": "staged.pkg", "fleet_id": null, "fleet_name": null}`, 0)
 	s.Do("DELETE", "/api/latest/fleet/bootstrap/0", nil, http.StatusOK)
 
 	// software package add and edit

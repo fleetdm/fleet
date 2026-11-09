@@ -122,6 +122,7 @@ func TestMDMApple(t *testing.T) {
 		{"GetHostDEPAssignmentsByHostIDs", testGetHostDEPAssignmentsByHostIDs},
 		{"TestMDMConfigAsset", testMDMConfigAsset},
 		{"ListIOSAndIPadOSToRefetch", testListIOSAndIPadOSToRefetch},
+		{"ListIOSAndIPadOSToRefetchBatching", testListIOSAndIPadOSToRefetchBatching},
 		{"MDMAppleUpsertHostIOSiPadOS", testMDMAppleUpsertHostIOSIPadOS},
 		{"MDMAppleUpsertHostPersonalEnrollment", testMDMAppleUpsertHostPersonalEnrollment},
 		{"MDMAppleUpsertHostPersonalEnrollmentClearsStaleVitals", testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitals},
@@ -8767,7 +8768,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	require.NotEmpty(t, abmToken.ID)
 
 	// Test with no hosts.
-	devices, err := ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err := ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval, 100)
 	require.NoError(t, err)
 	require.Empty(t, devices)
 
@@ -8785,7 +8786,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	require.Equal(t, int64(3), n)
 
 	// Hosts are not enrolled yet (e.g. DEP enrolled)
-	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval, 100)
 	require.NoError(t, err)
 	require.Empty(t, devices)
 
@@ -8826,7 +8827,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	nanoEnroll(t, ds, iPod, false)
 
 	// Test with hosts but empty state in nanomdm command tables.
-	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval, 100)
 	require.NoError(t, err)
 	require.Len(t, devices, 3)
 	uuids := []string{devices[0].UUID, devices[1].UUID, devices[2].UUID}
@@ -8854,7 +8855,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	})
 
 	// iOS device should not be returned because it was refetched recently
-	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval, 100)
 	require.NoError(t, err)
 	require.Len(t, devices, 2)
 	require.Equal(t, devices[0].UUID, "iPadOS0_UUID")
@@ -8867,7 +8868,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	})
 
 	// two devices are up to date now, only iPod should be returned
-	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval, 100)
 	require.NoError(t, err)
 	require.Len(t, devices, 1)
 	require.Equal(t, devices[0].UUID, "iPod_UUID")
@@ -8879,7 +8880,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	})
 
 	// all devices are up to date now, none should be returned
-	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval, 100)
 	require.NoError(t, err)
 	require.Empty(t, devices)
 
@@ -8890,7 +8891,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	})
 
 	// iOS device be returned because it is out of date.
-	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval, 100)
 	require.NoError(t, err)
 	require.Len(t, devices, 1)
 	require.Equal(t, devices[0].UUID, "iOS0_UUID")
@@ -8901,7 +8902,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 		HostID:      iOS0.ID,
 		CommandType: fleet.RefetchAppsCommandUUIDPrefix,
 	}}))
-	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval, 100)
 	require.NoError(t, err)
 	require.Len(t, devices, 1)
 	require.Equal(t, devices[0].UUID, "iOS0_UUID")
@@ -8913,9 +8914,76 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 		_, err := q.ExecContext(ctx, `UPDATE nano_enrollments SET enabled = 0 WHERE id = ?`, iOS0.UUID)
 		return err
 	})
-	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval)
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, refetchInterval, 100)
 	require.NoError(t, err)
 	require.Empty(t, devices)
+}
+
+func testListIOSAndIPadOSToRefetchBatching(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newMobileHost := func(name, platform string, detailAge time.Duration, refetchRequested bool) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:         name,
+			UUID:             name + "-uuid",
+			HardwareSerial:   name + "-serial",
+			Platform:         platform,
+			DetailUpdatedAt:  time.Now().Add(-detailAge),
+			RefetchRequested: refetchRequested,
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, h, false)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO host_mdm (host_id, enrolled, server_url) VALUES (?, 1, '')`, h.ID)
+			return err
+		})
+		return h
+	}
+	trackAll := func(h *fleet.Host) {
+		require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{
+			{HostID: h.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
+			{HostID: h.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
+			{HostID: h.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
+		}))
+	}
+	uuids := func(devices []fleet.AppleDevicesToRefetch) []string {
+		var out []string
+		for _, d := range devices {
+			out = append(out, d.UUID)
+		}
+		return out
+	}
+
+	// Offline hosts: stalest of all, every refetch command still outstanding.
+	for i := range 3 {
+		trackAll(newMobileHost(fmt.Sprintf("offline%d", i), "ios", 48*time.Hour, false))
+	}
+	stale5h := newMobileHost("stale5h", "ipados", 5*time.Hour, false)
+	newMobileHost("stale3h", "ios", 3*time.Hour, false)
+	newMobileHost("stale2h", "ipados", 2*time.Hour, false)
+	newMobileHost("fresh", "ios", 10*time.Minute, false)
+	newMobileHost("requested", "ipados", 10*time.Minute, true)
+	newMobileHost("mac", "darwin", 5*time.Hour, false)
+
+	// Requested hosts come first, then stalest; offline hosts don't take slots.
+	devices, err := ds.ListIOSAndIPadOSToRefetch(ctx, time.Hour, 3)
+	require.NoError(t, err)
+	require.Equal(t, []string{"requested-uuid", "stale5h-uuid", "stale3h-uuid"}, uuids(devices))
+
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, time.Hour, 10)
+	require.NoError(t, err)
+	require.Equal(t, []string{"requested-uuid", "stale5h-uuid", "stale3h-uuid", "stale2h-uuid"}, uuids(devices))
+
+	// A host with only some commands outstanding still needs the rest.
+	require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{
+		{HostID: stale5h.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
+	}))
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, time.Hour, 2)
+	require.NoError(t, err)
+	require.Len(t, devices, 2)
+	require.Equal(t, []string{"requested-uuid", "stale5h-uuid"}, uuids(devices))
+	require.Equal(t, fleet.MDMCommandsAlreadySent{fleet.RefetchCertsCommandUUIDPrefix}, devices[1].CommandsAlreadySent)
+	require.Empty(t, devices[0].CommandsAlreadySent)
 }
 
 func testMDMAppleUpsertHostIOSIPadOS(t *testing.T, ds *Datastore) {

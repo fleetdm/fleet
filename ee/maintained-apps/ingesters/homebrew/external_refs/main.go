@@ -76,6 +76,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"opal-composer/darwin":              {OpalComposerVersionTrimmer},
 	"plistedit-pro/darwin":              {PlistEditProVersionTrimmer},
 	"rocketman-choices-packager/darwin": {RocketmanChoicesPackagerVersionTrimmer},
+	"krita/darwin":                      {KritaVersionShortener},
 }
 
 func ChromePKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {

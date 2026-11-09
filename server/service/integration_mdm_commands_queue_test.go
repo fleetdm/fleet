@@ -679,7 +679,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMCommandCleanup() {
 	iphone.UUID = iphoneHost.UUID
 	iphone.SerialNumber = iphoneHost.HardwareSerial
 	require.NoError(t, iphone.Enroll())
-	require.NoError(t, apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, s.fleetSvc.NewActivity))
+	require.NoError(t, apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, s.fleetSvc.NewActivity, 1000))
 
 	// both devices answer everything they are served
 	var profileCmds []string

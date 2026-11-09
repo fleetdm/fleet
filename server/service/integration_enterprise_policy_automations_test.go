@@ -1158,6 +1158,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		"host_id": %d,
 		"host_display_name": "%s",
 		"software_title": "%s",
+		"software_display_name": "",
 		"software_package": "%s",
 		"hash_sha256": "%s",
 		"self_service": false,

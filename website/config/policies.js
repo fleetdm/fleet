@@ -59,6 +59,7 @@ module.exports.policies = {
   'view-fleetctl-preview': true,
   'get-llm-generated-configuration-profile': true,
   'get-llm-generated-configuration-profile-name-and-description': true,
+  'profile-generator/register-one-fleet-instance': true,
   'account/update-start-cta-visibility': true,
   'microsoft-proxy/receive-redirect-from-microsoft': true,
   'view-configuration-builder': true,
