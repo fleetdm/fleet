@@ -274,7 +274,7 @@ GitHub issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 Fleet 4.95 doesn't support the new names, so you can't change them before you upgrade.
 
 1. Right after you upgrade, search for these keys in your scripts and integrations, and rename them.
-   - Until you do, calls that use the old names fail with a `422` error like: `The "mdm.enable_recovery_lock_password" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
+   - Until you do, calls that use the old names fail with a `422` error like: `The "enable_recovery_lock_password" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 
 GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 
@@ -290,7 +290,7 @@ GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 Fleet 4.95 doesn't support the new names, so you can't change them before you upgrade.
 
 1. Right after you upgrade, search for these keys in your scripts and integrations, and rename them.
-   - Until you do, calls that use the old names fail with a `422` error like: `The "mdm.windows_enabled_and_configured" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
+   - Until you do, calls that use the old names fail with a `422` error like: `The "windows_enabled_and_configured" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 
 GitHub issue: [#53873](https://github.com/fleetdm/fleet/issues/53873)
 
