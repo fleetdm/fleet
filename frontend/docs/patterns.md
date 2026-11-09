@@ -1024,7 +1024,8 @@ The icon should now be available to use with the `Icon` component from the given
 Figma is the source of truth for icons. If an icon in code doesn't match Figma, update the code.
 
 - **Size:** 16px minimum (`size="medium"`, the default). Don't use 12px icons. The only exception is
-  `external-link-small`, which is reserved for links in 12px text.
+  `external-link` with `size="small"`, which has its own 12px drawing for links in 12px text. If an
+  icon needs another size, draw it separately in Figma instead of scaling the 16px icon.
 - **Grid and stroke:** icons are drawn on a 16px grid with a 1.5px stroke.
 - **Status icons:** use the outlined versions (`success`, `error`, `pending`, `info`).
   The one exception is the OS settings "Verified" status, which uses `success-filled`.
