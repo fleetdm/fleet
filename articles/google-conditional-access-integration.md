@@ -81,7 +81,7 @@ gcloud access-context-manager levels create fleet_mobile_device --policy=${POLIC
 
 ## Step 5: Create a Fleet API-only user
 
-The page asks Fleet about the host before it marks the device. [Create an API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with the global **Observer** role, restricted to only the [Get host by identifier](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-identifier) endpoint.
+The page asks Fleet about the host before it marks the device. [Create an API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with the global **Observer** role, restricted to only the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint.
 
 Save the user's API token in a file named `fleet-api-token.txt`. You'll use it in Step 6.
 
@@ -132,7 +132,7 @@ def upstream_error(source, r):
 
 
 def fleet_host(host_uuid):
-    r = requests.get(f"{FLEET_URL}/api/v1/fleet/hosts/identifier/{requests.utils.quote(host_uuid, safe='')}",
+    r = requests.get(f"{FLEET_URL}/api/v1/fleet/hosts/{requests.utils.quote(host_uuid, safe='')}",
                      params={"exclude_software": "true"},
                      headers={"Authorization": f"Bearer {FLEET_API_TOKEN}"}, timeout=20)
     if r.status_code == 404:
@@ -459,7 +459,7 @@ The page marks devices as managed, but it doesn't unmark them. When a host leave
 - **No Register with Google bookmark**: Check that Chrome is installed and that you saved the configuration from Step 7. On iOS and iPadOS, the end user has to quit and reopen Chrome.
 - **"This device isn't allowed to access company data."**: Check the reason in Cloud Logging. A company iPhone or iPad enrolled without Apple Business Manager shows as **On (manual)** in Fleet, and the page doesn't allow it.
 - **"Couldn't verify the IAP token"**: `IAP_AUDIENCE` in Step 6 doesn't match the service.
-- **"Fleet returned 401"** or **"Fleet returned 403"**: The API-only user's token from Step 5 is wrong or can't call Get host by identifier.
+- **"Fleet returned 401"** or **"Fleet returned 403"**: The API-only user's token from Step 5 is wrong or can't call Get host.
 - **"Google didn't identify this device"**: The IAP binding from Step 6 is missing the access level condition, so IAP doesn't send the device ID. Run the `gcloud iap web add-iam-policy-binding` command from Step 6 again.
 - **"Google has no user ... on this device"**: The end user signed in to the page with a different account than the one signed in to Gmail on the device. Sign in to both with the same work account.
 - **`unauthorized_client` error**: Domain-wide delegation from Step 3 isn't active yet. It can take a few minutes.
