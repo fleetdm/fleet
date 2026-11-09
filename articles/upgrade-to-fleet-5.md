@@ -114,7 +114,7 @@ GitHub issue: [#52900](https://github.com/fleetdm/fleet/issues/52900)
 | `GET /global/schedule` and `GET /fleets/:id/schedule` | [`GET /reports`](https://fleetdm.com/docs/rest-api/rest-api#list-reports), with `fleet_id` for a fleet. Scheduled reports have an `interval` greater than `0`. |
 | `POST /global/schedule` and `POST /fleets/:id/schedule`, which copied the report and scheduled the copy | [`POST /reports`](https://fleetdm.com/docs/rest-api/rest-api#create-report) with `interval`, `platform`, `min_osquery_version`, and `logging` (and `fleet_id` for a fleet). No copy. |
 | `PATCH /global/schedule/:id` and `PATCH /fleets/:id/schedule/:report_id` | [`PATCH /reports/:id`](https://fleetdm.com/docs/rest-api/rest-api#update-report) |
-| `DELETE /global/schedule/:id` and `DELETE /fleets/:id/schedule/:report_id` | [`DELETE /reports/id/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-report-by-id) |
+| `DELETE /global/schedule/:id` and `DELETE /fleets/:id/schedule/:report_id` | [`DELETE /reports/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-report-by-id) |
 
 The `/schedule`, `/team/:id/schedule`, and `/teams/:id/schedule` paths are also removed.
 
@@ -469,6 +469,24 @@ Make these changes before you upgrade.
 2. If an API-only user can only call "Delete label by name", give it "Delete label by ID" instead.
 
 GitHub issue: [#53801](https://github.com/fleetdm/fleet/issues/53801)
+
+### Delete report by name removed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `DELETE /reports/:name` | Removed. Use [`DELETE /reports/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-report-by-id). |
+| `DELETE /reports/id/:id` | Moved to [`DELETE /reports/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-report-by-id). `DELETE /reports/id/:id` still works, but is deprecated. |
+
+`DELETE /reports/:name` returns a `410` error, except when the name is only digits (for example `42`). Then Fleet 5 deletes the report with that ID. This includes `fleetctl delete` from Fleet 4.
+
+#### What to do
+
+Make these changes before you upgrade.
+
+1. Delete reports with `DELETE /reports/id/:id`, which works in Fleet 4.95 and Fleet 5. Get a report's ID from [List reports](https://fleetdm.com/docs/rest-api/rest-api#list-reports), with `fleet_id` for a fleet's reports. After you upgrade, you can switch to `DELETE /reports/:id`.
+2. If an API-only user can only call "Delete report by name", give it "Delete report by ID" instead. If you don't, Fleet does this when you upgrade.
+
+GitHub issue: [#53799](https://github.com/fleetdm/fleet/issues/53799)
 
 ### Android Lock resets the PIN
 
@@ -1048,7 +1066,7 @@ GitHub issue: [#53470](https://github.com/fleetdm/fleet/issues/53470)
 1. Delete reports and labels in the UI, with the API, or with GitOps.
    - With the API, use [`DELETE /reports/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-report-by-id) and [`DELETE /labels/id/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-label-by-id).
 
-GitHub issue: TODO
+GitHub issue: [#53799](https://github.com/fleetdm/fleet/issues/53799)
 
 ### fleetctl user create-users and delete-users removed
 
