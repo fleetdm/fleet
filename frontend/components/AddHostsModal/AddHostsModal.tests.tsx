@@ -95,7 +95,7 @@ describe("AddHostsModal", () => {
     await user.click(screen.getByRole("tab", { name: "Advanced" }));
     const advancedText = screen.getByText(/--type=YOUR_TYPE/i);
     expect(advancedText).toBeInTheDocument();
-    expect(screen.queryByText(/--enable-scripts/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/--enable-scripts/i)).toBeInTheDocument();
 
     await user.click(screen.getByText(/Plain osquery/i));
     const downloadEnrollSecret = screen.getByText(
@@ -106,7 +106,9 @@ describe("AddHostsModal", () => {
       /osqueryd --flagfile=flagfile.txt --verbose/i
     );
     expect(osquerydCommand).toBeInTheDocument();
-    expect(screen.queryByText(/--enable-scripts/i)).not.toBeInTheDocument();
+    // Plain osquery reveals extra content inside the Advanced tab; the
+    // fleetctl command above it (with --enable-scripts) stays on screen.
+    expect(screen.queryByText(/--enable-scripts/i)).toBeInTheDocument();
   });
 
   it("renders enroll url input for macOS if mac mdm is enabled", async () => {
