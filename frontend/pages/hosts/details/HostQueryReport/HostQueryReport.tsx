@@ -56,10 +56,11 @@ const HostQueryReport = ({
     }
   );
 
-  const {
-    isLoading: queryLoading,
-    data: queryResponse,
-  } = useQuery<IGetQueryResponse, Error, ISchedulableQuery>(
+  const { isLoading: queryLoading, data: queryResponse } = useQuery<
+    IGetQueryResponse,
+    Error,
+    ISchedulableQuery
+  >(
     ["query", queryId],
     () => queryAPI.load(queryId),
 
