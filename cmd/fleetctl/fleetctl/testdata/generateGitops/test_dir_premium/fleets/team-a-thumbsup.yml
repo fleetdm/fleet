@@ -232,6 +232,25 @@ software:
     - Label C
     - Label D
     platform: ios
+  - app_store_id: "4444333322"
+    platform: ios
+    versions:
+    - auto_update_enabled: true
+      auto_update_window_end: "03:00"
+      auto_update_window_start: "01:00"
+      categories:
+      - Productivity
+      configuration:
+        path: "../lib/team-a-👍/software/my-multi-version-app-ios-production-config.xml"
+      labels_exclude_any:
+      - Label C
+      name: Production
+      self_service: true
+    - configuration:
+        path: "../lib/team-a-👍/software/my-multi-version-app-ios-test-config.xml"
+      labels_include_any:
+      - Label C
+      name: Test
   fleet_maintained_apps:
   - categories:
     - Browsers

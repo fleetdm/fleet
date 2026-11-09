@@ -171,11 +171,11 @@ func (ws *wsTestServer) closeAll() {
 	ws.conns = nil
 }
 
-func newTestManager(t *testing.T, serverURL string, fc distributedClient, cache *QueryCache) *Manager {
+func newTestManager(t *testing.T, serverURL string, fc distributedClient, cache *QueryCache, setOpts ...func(*Options)) *Manager {
 	t.Helper()
 	u, err := url.Parse(serverURL)
 	require.NoError(t, err)
-	m := NewManager(Options{
+	opts := Options{
 		ServerURL:          u,
 		NodeKeyFunc:        func() (string, error) { return "orbit-key", nil },
 		Client:             fc,
@@ -186,7 +186,11 @@ func newTestManager(t *testing.T, serverURL string, fc distributedClient, cache 
 		BackoffCap:         50 * time.Millisecond,
 		ServerPingInterval: time.Minute,
 		HandshakeTimeout:   time.Second,
-	})
+	}
+	for _, set := range setOpts {
+		set(&opts)
+	}
+	m := NewManager(opts)
 	done := make(chan struct{})
 	go func() {
 		_ = m.Execute()
@@ -401,4 +405,29 @@ func TestManagerKeepsRetryingWhenEverythingIsDown(t *testing.T) {
 
 	require.Eventually(t, func() bool { return fc.readCount() >= 2 }, 5*time.Second, 5*time.Millisecond)
 	assert.False(t, m.connected.Load())
+}
+
+func TestManagerOrbitConfigNotifications(t *testing.T) {
+	ws := newWSTestServer(t, "orbit-key")
+	fc := &countingClient{}
+	var orbitConfigs, connects, disconnects atomic.Int64
+	m := newTestManager(t, ws.srv.URL, fc, NewQueryCache(), func(o *Options) {
+		o.OnOrbitConfig = func() { orbitConfigs.Add(1) }
+		o.OnConnect = func() { connects.Add(1) }
+		o.OnDisconnect = func() { disconnects.Add(1) }
+	})
+
+	require.Eventually(t, m.Connected, 5*time.Second, 5*time.Millisecond)
+	require.EqualValues(t, 1, connects.Load())
+
+	// An orbit/config notification fetches it, without a distributed read.
+	reads := fc.readCount()
+	ws.notify(t, fleet.AgentWSMessage{Type: fleet.AgentWSMessageTypeOrbitConfig, Reason: fleet.AgentWSReasonActivity})
+	require.Eventually(t, func() bool { return orbitConfigs.Load() == 1 }, 5*time.Second, 5*time.Millisecond)
+	assert.Equal(t, reads, fc.readCount())
+
+	// Dropping the connection reports it, and the reconnect too.
+	ws.closeAll()
+	require.Eventually(t, func() bool { return disconnects.Load() == 1 }, 5*time.Second, 5*time.Millisecond)
+	require.Eventually(t, func() bool { return ws.connCount() == 1 && connects.Load() == 2 }, 5*time.Second, 5*time.Millisecond)
 }

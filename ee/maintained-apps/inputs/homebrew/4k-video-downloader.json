@@ -1,6 +1,6 @@
 {
   "name": "4K Video Downloader",
-  "unique_identifier": "com.4kdownload.ApplicationDirectories",
+  "unique_identifier": "com.openmedia.4kvideodownloader",
   "token": "4k-video-downloader",
   "installer_format": "dmg",
   "slug": "4k-video-downloader/darwin",

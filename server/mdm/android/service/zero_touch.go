@@ -9,8 +9,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 )
 
-func zeroTouchConfigurationEndpoint(ctx context.Context, _ any, svc android.Service) fleet.Errorer {
-	resp, err := svc.GetZeroTouchConfiguration(ctx, nil)
+type zeroTouchConfigurationRequest struct {
+	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+}
+
+func zeroTouchConfigurationEndpoint(ctx context.Context, request any, svc android.Service) fleet.Errorer {
+	req := request.(*zeroTouchConfigurationRequest)
+	resp, err := svc.GetZeroTouchConfiguration(ctx, req.TeamID)
 	if err != nil {
 		return android.DefaultResponse{Err: err}
 	}

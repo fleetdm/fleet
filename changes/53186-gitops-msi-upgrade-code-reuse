@@ -1,0 +1,1 @@
+- Fixed GitOps reusing an MSI by hash or ETag dropping its upgrade code, which listed the package as deleted in dry runs and replaced its default uninstall script.

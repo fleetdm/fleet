@@ -1,0 +1,1 @@
+- Fixed in-house app (`.ipa`) uploads reading their name, version and bundle identifier from an embedded framework or extension instead of the app itself. Metadata is now always read from the app's own `Payload/<App>.app/Info.plist`, so it no longer depends on the order entries were written to the archive.

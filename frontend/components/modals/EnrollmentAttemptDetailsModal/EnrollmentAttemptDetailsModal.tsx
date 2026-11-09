@@ -55,9 +55,24 @@ export const getEnrollmentRejectedReasonText = (
           />
         </>
       );
+    case "end_user_authentication_required":
+      return (
+        <>
+          The host&apos;s fleet requires IdP authentication, but the host tried
+          to enroll without it. Reactivate the host so it goes through IdP
+          authentication.{" "}
+          <CustomLink
+            text="Learn more"
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/rejected-automatic-enrollment`}
+            newTab
+          />
+        </>
+      );
     case "one_time_secret_identifier_mismatch":
       // Told entirely in the modal headline; there is no body text.
       return null;
+    case "host_identity_cert_required":
+      return "The enrollment wasn't signed with this host's identity certificate. Another device may have tried to enroll as this host.";
     default:
       return "The enroll secret presented was not valid for this host.";
   }
@@ -99,11 +114,16 @@ const EnrollmentAttemptDetailsModal = ({
     <CustomLink text="Fleet support" url="https://fleetdm.com/support" newTab />
   );
 
+  const enrollmentKind =
+    reason === "end_user_authentication_required"
+      ? "an automatic enrollment"
+      : "an enrollment";
+
   let message: React.ReactNode;
   if (!isIdentifierMismatch) {
     message = (
       <span>
-        Fleet rejected an enrollment for {host}
+        Fleet rejected {enrollmentKind} for {host}
         {displayTime}.
       </span>
     );

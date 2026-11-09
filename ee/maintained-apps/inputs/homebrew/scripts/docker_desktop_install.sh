@@ -23,7 +23,7 @@ trap cleanup EXIT
 quit_and_track_application() {
   local bundle_id="$1"
   local var_name
-  var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
+  var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local timeout_duration=10
 
   # check if the application is running
@@ -49,17 +49,16 @@ quit_and_track_application() {
   echo "Quitting application '$bundle_id'..."
 
   # try to quit the application within the timeout period
-  local quit_success=false
+  local quit_success=false still_running
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    if osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1; then
-      if ! pgrep -f "$bundle_id" >/dev/null 2>&1; then
-        echo "Application '$bundle_id' quit successfully."
-        quit_success=true
-        break
-      fi
-    fi
+    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1 || true
     sleep 1
+    if still_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+      echo "Application '$bundle_id' quit successfully."
+      quit_success=true
+      break
+    fi
   done
 
   if [[ "$quit_success" = false ]]; then
@@ -72,7 +71,7 @@ quit_and_track_application() {
 relaunch_application() {
   local bundle_id="$1"
   local var_name
-  var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
+  var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local was_running
 
   # Check if the app was running before installation

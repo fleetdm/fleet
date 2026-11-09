@@ -211,7 +211,12 @@ const UserMenu = ({
     onClick: () => onUserMenuItemClick(PATHS.ACCOUNT),
   });
   dropdownItems.push({
-    label: "Documentation",
+    label: (
+      <span className={`${baseClass}__external-option`}>
+        Documentation
+        <Icon name="external-link" color="ui-fleet-black-75" />
+      </span>
+    ),
     value: "documentation",
     onClick: () => {
       window.open("https://fleetdm.com/docs", "_blank");

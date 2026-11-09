@@ -972,6 +972,46 @@ func TestAppleMDM(t *testing.T) {
 		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
 	})
 
+	t.Run("fleetd comes before profiles for manual enrollments", func(t *testing.T) {
+		mysqltest.SetTestABMAssets(t, ds, testOrgName)
+		defer mysqltest.TruncateTables(t, ds)
+
+		for i := 1; i <= 3; i++ {
+			_, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+				Mobileconfig: fmt.Appendf(nil, "profile%d", i),
+				Identifier:   fmt.Sprintf("profile%d", i),
+				Name:         fmt.Sprintf("Profile %d", i),
+			}, nil)
+			require.NoError(t, err)
+		}
+
+		h := createEnrolledHost(t, 1, nil, true, "darwin")
+
+		mdmWorker := &AppleMDM{
+			Datastore: ds,
+			Log:       slogLog,
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+		w := NewWorker(ds, slogLog)
+		w.Register(mdmWorker)
+
+		err := QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostManualEnrollmentTask, h.UUID, "darwin", nil, "", false, false)
+		require.NoError(t, err)
+
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		var requestTypes []string
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &requestTypes, "SELECT request_type FROM nano_enrollment_queue neq INNER JOIN nano_commands nc ON neq.command_uuid = nc.command_uuid WHERE neq.id = ? ORDER BY neq.priority DESC, neq.created_at", h.UUID)
+		})
+		require.Greater(t, len(requestTypes), 1, "expected fleetd and profile commands to be enqueued")
+		require.Equal(t, "InstallEnterpriseApplication", requestTypes[0], "fleetd install must be the device's first command")
+		for _, rt := range requestTypes[1:] {
+			require.Contains(t, []string{"InstallProfile", "DeclarativeManagement"}, rt)
+		}
+	})
+
 	t.Run("use worker for automatic release", func(t *testing.T) {
 		mysqltest.SetTestABMAssets(t, ds, testOrgName)
 		defer mysqltest.TruncateTables(t, ds)
@@ -1186,7 +1226,7 @@ func TestAppleMDM(t *testing.T) {
 				Name: "vpp_worker-" + idx, LatestVersion: "1.0.0", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "depworker-" + idx, Platform: fleet.IOSPlatform}},
 				BundleIdentifier: "b" + idx,
 			}
-			vppAppWithTeam, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &tm.ID)
+			vppAppWithTeam, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &tm.ID, nil)
 			require.NoError(t, err)
 			expectedAppInstalls = append(expectedAppInstalls, vppAppWithTeam)
 		}
@@ -1343,7 +1383,7 @@ INSERT INTO setup_experience_status_results (
 				Name: "vpp_worker-" + idx, LatestVersion: "1.0.0", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "depworker-" + idx, Platform: fleet.IOSPlatform}},
 				BundleIdentifier: "b" + idx,
 			}
-			vppAppWithTeam, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &tm.ID)
+			vppAppWithTeam, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &tm.ID, nil)
 			require.NoError(t, err)
 			expectedAppInstalls = append(expectedAppInstalls, vppAppWithTeam)
 		}
@@ -1516,7 +1556,7 @@ INSERT INTO setup_experience_status_results (
 			VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "fail-adam-id", Platform: fleet.IOSPlatform}},
 			BundleIdentifier: "com.example.fail",
 		}
-		vppAppWithTeam, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &tm.ID)
+		vppAppWithTeam, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &tm.ID, nil)
 		require.NoError(t, err)
 
 		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {

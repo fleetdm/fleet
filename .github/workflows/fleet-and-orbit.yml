@@ -34,7 +34,7 @@ defaults:
     shell: bash
 
 env:
-  OSQUERY_VERSION: 5.23.1
+  OSQUERY_VERSION: 5.24.0
 
 permissions:
   contents: read
@@ -311,7 +311,6 @@ jobs:
           MSI_TUF_URL: http://localhost:8081
           ENROLL_SECRET: ${{ needs.gen.outputs.enroll_secret }}
           MACOS_USE_PREBUILT_DESKTOP_APP_TAR_GZ: 1
-          MACOS_USE_PREBUILT_OSQUERYD_APP_TAR_GZ: 1
           GENERATE_PKG: 1
           GENERATE_DEB: 1
           GENERATE_MSI: 1

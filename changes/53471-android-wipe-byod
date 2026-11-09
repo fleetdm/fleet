@@ -1,0 +1,1 @@
+- Wipe is now available for personally-owned (BYOD) Android hosts from the API and fleetctl, on Fleet Free and Premium. On BYOD hosts, only the work profile is removed.

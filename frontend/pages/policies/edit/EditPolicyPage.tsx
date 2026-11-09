@@ -294,6 +294,7 @@ const PolicyPage = ({
       goToSelectTargets: () =>
         router.push(
           getPathWithQueryParams(PATHS.LIVE_POLICY(policyId), {
+            from: "edit",
             fleet_id: teamIdForApi,
           })
         ),

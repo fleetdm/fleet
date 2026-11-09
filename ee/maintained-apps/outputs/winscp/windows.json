@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.5.7",
+      "version": "6.7",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'WinSCP %' AND publisher = 'Martin Prikryl';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'WinSCP %' AND publisher = 'Martin Prikryl' AND version_compare(version, '6.5.7') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'WinSCP %' AND publisher = 'Martin Prikryl' AND version_compare(version, '6.7') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'winscp.exe');"
       },
-      "installer_url": "https://sourceforge.net/projects/winscp/files/WinSCP/6.5.7/WinSCP-6.5.7-Setup.exe/download",
+      "installer_url": "https://sourceforge.net/projects/winscp/files/WinSCP/6.7/WinSCP-6.7-Setup.exe/download",
       "install_script_ref": "d07f6d6d",
       "uninstall_script_ref": "24fcb8df",
-      "sha256": "65103dad94a907bf8b7b9b8db8174dfb60010237d9125db066f34d89817bcd99",
+      "sha256": "c8e603088b608b6620ca8e06846486cfed48969b76b111f05a83a386a829207c",
       "default_categories": [
         "Productivity"
       ]

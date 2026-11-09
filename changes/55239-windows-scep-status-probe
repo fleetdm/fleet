@@ -1,0 +1,1 @@
+- Windows SCEP certificate profiles (custom SCEP, NDES, and Smallstep) now show as verified, or failed, within a couple of minutes of the host installing them, instead of after the next certificate inventory (up to an hour). This also releases Windows hosts from the setup experience as soon as their certificate is installed.

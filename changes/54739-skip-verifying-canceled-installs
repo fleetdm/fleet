@@ -1,0 +1,1 @@
+- Fixed repeated verification commands being sent after canceled in-house app and VPP app installs.

@@ -33,9 +33,58 @@ const teamMismatchVppHandler = http.get(baseUrl("/vpp_tokens"), () => {
   });
 });
 
+const teamVppHandler = http.get(baseUrl("/vpp_tokens"), () => {
+  return HttpResponse.json({
+    vpp_tokens: [
+      {
+        id: 1,
+        org_name: "Test Org",
+        location: "US",
+        renew_date: "2027-01-01",
+        teams: [{ team_id: 1, name: "Workstations" }],
+      },
+    ],
+  });
+});
+
 describe("SoftwareAppStoreVpp", () => {
   afterEach(() => {
     mockServer.resetHandlers();
+  });
+
+  it("shows enable VPP when Apple MDM is off even if the fleet has a VPP token", async () => {
+    let appsRequested = false;
+    mockServer.use(
+      teamVppHandler,
+      labelsHandler,
+      http.get(baseUrl("/software/app_store_apps"), () => {
+        appsRequested = true;
+        return HttpResponse.json({ app_store_apps: [] });
+      })
+    );
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPremiumTier: true,
+          isGlobalAdmin: true,
+          isMacMdmEnabledAndConfigured: false,
+        },
+      },
+    });
+
+    render(<SoftwareAppStoreVpp currentTeamId={1} router={router} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Volume Purchasing Program \(VPP\) isn't enabled/i)
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.getByText("Enable VPP to add App Store apps (MDM required).")
+    ).toBeInTheDocument();
+    expect(appsRequested).toBe(false);
   });
 
   it("shows enable VPP button for admins when no VPP tokens exist", async () => {
@@ -46,6 +95,7 @@ describe("SoftwareAppStoreVpp", () => {
       context: {
         app: {
           isPremiumTier: true,
+          isMacMdmEnabledAndConfigured: true,
           isGlobalAdmin: true,
         },
       },
@@ -75,6 +125,7 @@ describe("SoftwareAppStoreVpp", () => {
       context: {
         app: {
           isPremiumTier: true,
+          isMacMdmEnabledAndConfigured: true,
           isGlobalAdmin: false,
         },
       },
@@ -104,6 +155,7 @@ describe("SoftwareAppStoreVpp", () => {
       context: {
         app: {
           isPremiumTier: true,
+          isMacMdmEnabledAndConfigured: true,
           isGlobalAdmin: true,
         },
       },
@@ -132,6 +184,7 @@ describe("SoftwareAppStoreVpp", () => {
       context: {
         app: {
           isPremiumTier: true,
+          isMacMdmEnabledAndConfigured: true,
           isGlobalAdmin: false,
         },
       },

@@ -1,0 +1,1 @@
+- Fixed the dashboard's "View all software" button so the Software page opens with the selected fleet, and with the vulnerable filter applied when you're on the "Vulnerable" tab.

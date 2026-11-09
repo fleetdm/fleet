@@ -135,15 +135,6 @@ func matchKnown(tokens ...string) (knownApp, bool) {
 	return knownApp{}, false
 }
 
-func firstNonEmpty(vals ...string) string {
-	for _, v := range vals {
-		if v != "" {
-			return v
-		}
-	}
-	return ""
-}
-
 func knownByName(name string) (knownApp, bool) {
 	for _, k := range knownApps() {
 		if k.name == name {

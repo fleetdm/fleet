@@ -134,6 +134,14 @@ func isMacOS(platform string) bool {
 }
 
 func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArgs) error {
+	// fleetd is queued ahead of the profiles, as in runPostDEPEnrollment, so the
+	// device doesn't run every profile before installing it.
+	if isMacOS(args.Platform) {
+		if _, err := a.installFleetd(ctx, args.HostUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
+		}
+	}
+
 	_, err := a.installProfilesForEnrollingHost(ctx, args.HostUUID)
 	if err != nil {
 		a.Log.ErrorContext(ctx, "error installing profiles for enrolling host", "host_uuid", args.HostUUID, "err", err)
@@ -141,11 +149,7 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 		// We do this since this is a speed optimization and not critical to complete enrollment itself.
 	}
 
-	if isMacOS(args.Platform) {
-		if _, err := a.installFleetd(ctx, args.HostUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
-		}
-	} else {
+	if !isMacOS(args.Platform) {
 		// We shouldn't have any setup experience steps if we're not on a premium license,
 		// but best to check anyway plus it saves some db queries.
 		if license.IsPremium(ctx) {
@@ -439,8 +443,8 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 	if (args.ReleaseDeviceAttempt >= minAttempts && time.Since(*args.ReleaseDeviceStartedAt) >= maxWaitTime) ||
 		(args.ReleaseDeviceAttempt >= maxAttempts) {
 		a.Log.InfoContext(ctx, "releasing device after too many attempts or too long wait", "host_uuid", args.HostUUID, "attempts", args.ReleaseDeviceAttempt)
-		if err := a.Commander.DeviceConfigured(ctx, args.HostUUID, uuid.NewString()); err != nil {
-			return ctxerr.Wrapf(ctx, err, "failed to enqueue DeviceConfigured command after %d attempts", args.ReleaseDeviceAttempt)
+		if err := apple_mdm.SendDeviceConfigured(ctx, a.Commander, a.Log, args.HostUUID); err != nil {
+			return ctxerr.Wrapf(ctx, err, "release device after %d attempts", args.ReleaseDeviceAttempt)
 		}
 		return nil
 	}
@@ -574,8 +578,8 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 
 	// release the device
 	a.Log.InfoContext(ctx, "releasing device, all DEP enrollment commands and profiles have completed", "host_uuid", args.HostUUID)
-	if err := a.Commander.DeviceConfigured(ctx, args.HostUUID, uuid.NewString()); err != nil {
-		return ctxerr.Wrap(ctx, err, "failed to enqueue DeviceConfigured command")
+	if err := apple_mdm.SendDeviceConfigured(ctx, a.Commander, a.Log, args.HostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "release device")
 	}
 	return nil
 }
@@ -652,7 +656,8 @@ func (a *AppleMDM) installSetupExperienceAppsOnIosIpadOS(ctx context.Context, ho
 			vppApp := &fleet.VPPApp{
 				TitleID: *app.SoftwareTitleID,
 				VPPAppTeam: fleet.VPPAppTeam{
-					VPPAppID: *vppAppID,
+					VPPAppID:  *vppAppID,
+					AppTeamID: ptr.ValOrZero(app.VPPAppTeamID),
 				},
 			}
 			opts := fleet.HostSoftwareInstallOptions{
@@ -708,6 +713,7 @@ func (a *AppleMDM) installSetupExperienceAppsOnIosIpadOS(ctx context.Context, ho
 				Status:              string(fleet.SoftwareInstallFailed),
 				HostPlatform:        host.Platform,
 				FromSetupExperience: true,
+				VersionName:         ptr.ValOrZero(app.VPPAppVersionName),
 			}
 		} else {
 			if _, ok := errors.AsType[*fleet.PreflightInstallFailedError](installErr); ok {

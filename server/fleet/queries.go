@@ -614,6 +614,12 @@ type ScheduledQueryResultRow struct {
 	LastFetched time.Time `db:"last_fetched"`
 }
 
+// StoredQueryResultRow is a stored query result row along with its row ID.
+type StoredQueryResultRow struct {
+	ID uint `db:"id"`
+	ScheduledQueryResultRow
+}
+
 func (s *ScheduledQueryResultRow) HostDisplayName() string {
 	// If host does not exist, all values below default to empty string
 	return HostDisplayName(

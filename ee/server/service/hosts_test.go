@@ -476,11 +476,14 @@ func TestRotateDiskEncryptionKey(t *testing.T) {
 		require.Empty(t, e.acts)
 	})
 
-	t.Run("push failure keeps the marker", func(t *testing.T) {
+	t.Run("push failure keeps the marker and does not fail", func(t *testing.T) {
 		e := setup(t)
 		e.commander.err = ctxerr.Wrap(context.Background(), &apple_mdm.NotificationFailedError{}, "sending notifications")
-		require.Error(t, e.svc.RotateDiskEncryptionKey(adminCtx(), 1))
+		require.NoError(t, e.svc.RotateDiskEncryptionKey(adminCtx(), 1), "push notification failures should not fail if we enqueued the command")
 		require.NotNil(t, e.marker)
+		require.Equal(t, []fleet.ActivityDetails{fleet.ActivityTypeRotatedDiskEncryptionKey{
+			HostID: 1, HostDisplayName: e.host.DisplayName(),
+		}}, e.acts)
 	})
 
 	t.Run("authorization", func(t *testing.T) {

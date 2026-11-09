@@ -1,0 +1,1 @@
+- Moved certificate authority and certificate template secret encryption to Fleet's shared encryption package. Existing encrypted values continue to work without changes.

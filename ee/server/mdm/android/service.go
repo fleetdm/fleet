@@ -79,6 +79,21 @@ func (svc *Service) GetZeroTouchConfiguration(ctx context.Context, teamID *uint)
 			"Android MDM is NOT configured").WithStatus(http.StatusNotFound)
 	}
 
+	// 0 means Unassigned; storing it as team_id would violate the fleets foreign key.
+	if teamID != nil && *teamID == 0 {
+		teamID = nil
+	}
+	if teamID != nil {
+		exists, err := svc.fleetDS.TeamExists(ctx, *teamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "checking if fleet exists")
+		}
+		if !exists {
+			return nil, fleet.NewInvalidArgumentError("fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
+				WithStatus(http.StatusNotFound)
+		}
+	}
+
 	ctx = ctxdb.RequirePrimary(ctx, true)
 
 	// Check if a token already exists

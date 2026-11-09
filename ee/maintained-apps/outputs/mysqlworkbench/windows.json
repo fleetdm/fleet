@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "26.7.0",
+      "version": "26.10.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'MySQL Workbench %' AND publisher = 'Oracle Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'MySQL Workbench %' AND publisher = 'Oracle Corporation' AND version_compare(version, '26.7.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'MySQL Workbench %' AND publisher = 'Oracle Corporation' AND version_compare(version, '26.10.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'mysql workbench.exe');"
       },
-      "installer_url": "https://cdn.mysql.com/Downloads/MySQLGUITools/mysql-workbench-26.7.0-winx64.msi",
+      "installer_url": "https://cdn.mysql.com/Downloads/MySQLGUITools/mysql-workbench-26.10.0-winx64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "2845105d",
-      "sha256": "04928af176bebb8208623921194954715f1f6b66787251dda4b5a13c994235aa",
+      "sha256": "399e325b2492827eba3772fc5f0535a618503630d89864bbc265869c2557def9",
       "default_categories": [
         "Developer tools"
       ],

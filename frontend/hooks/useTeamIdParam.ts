@@ -522,7 +522,7 @@ export const useTeamIdParam = ({
       !!currentTeam?.id &&
       permissions.isTeamObserver(currentUser, currentTeam.id),
     isObserverPlus:
-      !!currentTeam?.id &&
+      currentTeam?.id !== undefined &&
       !!currentUser &&
       permissions.isObserverPlus(currentUser, currentTeam.id),
     teamIdForApi: getTeamIdForApi({ currentTeam, includeNoTeam }), // for everywhere except AppContext: fleet_id=0 for No team (same as currentTeamId), undefined for All teams

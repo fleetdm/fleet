@@ -89,21 +89,22 @@ func allFields(ifv reflect.Value) []fieldPair {
 // an error about a request refers to something the caller can find in the
 // payload they sent rather than to Fleet's internal Go field name.
 //
-// Falls back to the Go field name when the field carries no usable json tag,
-// which is the best available name in that case.
+// Falls back to the Go field name when the field carries no usable json or
+// query tag, which is the best available name in that case.
 func requestFieldName(sf reflect.StructField) string {
-	jsonTag, ok := sf.Tag.Lookup("json")
-	if !ok {
-		return sf.Name
+	for _, key := range []string{"json", "query"} {
+		tag, ok := sf.Tag.Lookup(key)
+		if !ok {
+			continue
+		}
+
+		// Strip options such as ",omitempty" or ",optional".
+		if name, _, _ := strings.Cut(tag, ","); name != "" && name != "-" {
+			return name
+		}
 	}
 
-	// Strip options such as ",omitempty".
-	name, _, _ := strings.Cut(jsonTag, ",")
-	if name == "" || name == "-" {
-		return sf.Name
-	}
-
-	return name
+	return sf.Name
 }
 
 // sentFieldName is requestFieldName for a field that may have been renamed.
@@ -840,9 +841,9 @@ func newNonce() (string, error) {
 
 func WriteBrowserSecurityHeaders(w http.ResponseWriter, serveCSP, includeNonce bool) (string, error) {
 	// This endpoint can optionally return a nonce if needed for the Content-Security-Policy header. In general only
-	// our HTML responses need the nonce, API and other static assets should not include it. We return an empty but
-	// syntactically valid nonce in the unused case since this will still get substituted into HTML templates when unused
-	nonce := "disabled"
+	// our HTML responses need the nonce, API and other static assets should not include it. In the unused case we
+	// return a placeholder nonce since it still gets substituted into HTML templates.
+	nonce := disabledCSPNonce
 	nonceExtraParam := ""
 	// generate a unique nonce for this response
 	if includeNonce {
@@ -878,15 +879,33 @@ func WriteBrowserSecurityHeaders(w http.ResponseWriter, serveCSP, includeNonce b
 
 func BrowserSecurityHeadersHandler(serveCSP bool, h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// We don't implement the nonce here in the generic case, however the few endpoints that need it should implement
-		// their own handling
 		_, err := WriteBrowserSecurityHeaders(w, serveCSP, false)
 		if err != nil {
 			http.Error(w, "failed to write browser security headers", http.StatusInternalServerError)
 			return
 		}
+		if serveCSP {
+			// Generated lazily since only the few endpoints that serve HTML with inline tags need it.
+			nonce := sync.OnceValues(func() (string, error) { return WriteBrowserSecurityHeaders(w, true, true) })
+			r = r.WithContext(context.WithValue(r.Context(), cspNonceKey{}, nonce))
+		}
 		h.ServeHTTP(w, r)
 	})
+}
+
+const disabledCSPNonce = "disabled"
+
+type cspNonceKey struct{}
+
+// CSPNonce returns the nonce for an HTML response's inline <script> and <style> tags and adds it to the response's
+// Content-Security-Policy, so it must be called before the response headers are written. When CSP is not enabled it
+// returns a placeholder that is still safe to render.
+func CSPNonce(ctx context.Context) (string, error) {
+	nonce, ok := ctx.Value(cspNonceKey{}).(func() (string, error))
+	if !ok {
+		return disabledCSPNonce, nil
+	}
+	return nonce()
 }
 
 // handlerKey identifies a registered handler by HTTP method and unversioned path template.
@@ -1094,7 +1113,16 @@ func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, encodeFn
 	// returning authz check missing instead of the more relevant error. Should be addressed as part
 	// of #4406.
 	e = authzcheck.NewMiddleware().AuthzCheck()(e)
-	return kithttp.NewServer(e, decodeFn, encodeFn, opts...)
+	srv := kithttp.NewServer(e, decodeFn, encodeFn, opts...)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv.ServeHTTP(w, r)
+		// net/http only removes multipart temp files for its own *http.Request, and
+		// decoders parse the form on a copy of it. Not a kithttp finalizer, which
+		// would hide http.Flusher from the encoder.
+		if r.MultipartForm != nil {
+			_ = r.MultipartForm.RemoveAll()
+		}
+	})
 }
 
 func (e *CommonEndpointer[H]) StartingAtVersion(version string) *CommonEndpointer[H] {

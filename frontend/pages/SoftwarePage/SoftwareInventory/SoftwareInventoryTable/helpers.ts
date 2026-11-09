@@ -1,55 +1,72 @@
-import { isEmpty } from "lodash";
-
-import {
-  ISeverityFilterValue,
-  severityFilters,
-  severityForRange,
-  severityValueLabel,
-} from "components/SeverityFilter";
-import { tooltipTextWithLineBreaks } from "utilities/helpers";
+import { parseSoftwareTypesParam, SOFTWARE_TYPES } from "interfaces/software";
 import numberUtils from "utilities/numbers";
 import stringUtils from "utilities/strings/stringUtils";
 import { QueryParams, parseQueryValueToNumberOrUndefined } from "utilities/url";
 
 const { isValidNumber } = numberUtils;
 
-export const getSoftwareVulnFiltersFromQueryParams = (
-  queryParams: QueryParams
-) => {
-  const { vulnerable, exploit, min_cvss_score, max_cvss_score } = queryParams;
+export const getSoftwareFiltersFromQueryParams = (queryParams: QueryParams) => {
+  const {
+    vulnerable,
+    exploit,
+    min_cvss_score,
+    max_cvss_score,
+    types,
+    ai_tool,
+  } = queryParams;
 
   return {
     vulnerable: stringUtils.strToBool(vulnerable as string),
     exploit: stringUtils.strToBool(exploit as string),
     minCvssScore: parseQueryValueToNumberOrUndefined(min_cvss_score, 0, 10),
     maxCvssScore: parseQueryValueToNumberOrUndefined(max_cvss_score, 0, 10),
+    types: parseSoftwareTypesParam(types as string | undefined),
+    aiTool: ai_tool === "true",
   };
 };
 
-export type ISoftwareVulnFilters = {
-  vulnerable?: boolean;
-  exploit?: boolean;
-  min_cvss_score?: number;
-  max_cvss_score?: number;
-};
-
-export type ISoftwareVulnFiltersParams = {
+export type ISoftwareFilters = {
   vulnerable?: boolean;
   exploit?: boolean;
   minCvssScore?: number;
   maxCvssScore?: number;
+  types?: string[];
+  aiTool?: boolean;
 };
 
-export const buildSoftwareVulnFiltersQueryParams = (
-  vulnFilters: ISoftwareVulnFiltersParams
-) => {
-  const { vulnerable, exploit, minCvssScore, maxCvssScore } = vulnFilters;
+/** Page URL params for the Filters modal's selections. */
+export type ISoftwareFiltersQueryParams = {
+  types?: string;
+  vulnerable?: boolean;
+  exploit?: boolean;
+  min_cvss_score?: string;
+  max_cvss_score?: string;
+  ai_tool?: boolean;
+};
+
+export const buildSoftwareFiltersQueryParams = (
+  filters: ISoftwareFilters
+): ISoftwareFiltersQueryParams => {
+  const {
+    vulnerable,
+    exploit,
+    minCvssScore,
+    maxCvssScore,
+    types,
+    aiTool,
+  } = filters;
+
+  const baseParams = {
+    ...(types?.length && { types: [...types].sort().join(",") }),
+    ...(aiTool && { ai_tool: true }),
+  };
 
   if (!vulnerable) {
-    return {};
+    return baseParams;
   }
 
   return {
+    ...baseParams,
     vulnerable: true,
     ...(exploit && { exploit: true }),
     ...(isValidNumber(minCvssScore, 0, maxCvssScore || 10) && {
@@ -61,48 +78,31 @@ export const buildSoftwareVulnFiltersQueryParams = (
   };
 };
 
-export const getVulnFilterRenderDetails = (
-  vulnFilters?: ISoftwareVulnFiltersParams
-) => {
-  let filterCount = 0;
-  const tooltipText = [];
-
-  if (vulnFilters) {
-    if (vulnFilters.vulnerable) {
-      filterCount += 1;
-      tooltipText.push("Vulnerable software");
-
-      const severity: ISeverityFilterValue = {
-        severity: severityForRange(
-          vulnFilters.minCvssScore,
-          vulnFilters.maxCvssScore
-        ),
-        minScore: vulnFilters.minCvssScore?.toString() ?? "",
-        maxScore: vulnFilters.maxCvssScore?.toString() ?? "",
-      };
-      if (!isEmpty(severityFilters(severity))) {
-        filterCount += 1;
-        tooltipText.push(`Severity: ${severityValueLabel(severity)}`);
-      }
-
-      if (vulnFilters.exploit) {
-        filterCount += 1;
-        tooltipText.push("Has known exploit");
-      }
-    }
-  }
-
-  const buttonText =
-    filterCount > 0
-      ? `${filterCount} filter${filterCount > 1 ? "s" : ""}`
-      : "Add filters";
+/** Filter button label: "Add filters" until any type, AI tools or
+ * vulnerability filter is applied, then "Filtered" (no count). */
+export const getFilterRenderDetails = (filters?: ISoftwareFilters) => {
+  const isFiltered =
+    !!filters?.vulnerable || !!filters?.types?.length || !!filters?.aiTool;
 
   return {
-    filterCount,
-    buttonText,
-    tooltipText: tooltipTextWithLineBreaks(tooltipText),
+    isFiltered,
+    buttonText: isFiltered ? "Filtered" : "Add filters",
   };
 };
+
+const PREMIUM_ONLY_TYPE_KEYS = new Set(
+  SOFTWARE_TYPES.filter((t) => t.premiumOnly).map((t) => t.key)
+);
+
+/** Drops filters the API rejects on Fleet Free, which a URL copied from a
+ * Premium server can still carry. */
+export const removePremiumOnlyFilters = (
+  filters: ISoftwareFilters
+): ISoftwareFilters => ({
+  ...filters,
+  aiTool: false,
+  types: filters.types?.filter((key) => !PREMIUM_ONLY_TYPE_KEYS.has(key)),
+});
 
 export const getVulnerabilities = <
   T extends { vulnerabilities: string[] | null }

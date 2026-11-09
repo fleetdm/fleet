@@ -145,6 +145,7 @@ type ServerConfig struct {
 	CleanupDistTargetsAge            time.Duration `yaml:"cleanup_dist_targets_age"`
 	ScriptResultsRetention           time.Duration `yaml:"script_results_retention"`
 	SoftwareInstallResultsRetention  time.Duration `yaml:"software_install_results_retention"`
+	DeletedHostCertificatesRetention time.Duration `yaml:"deleted_host_certificates_retention"`
 	MaxInstallerSizeBytes            int64         `yaml:"max_installer_size"`
 	TrustedProxies                   string        `yaml:"trusted_proxies"`
 	GzipResponses                    bool          `yaml:"gzip_responses"`
@@ -367,6 +368,16 @@ type OsqueryConfig struct {
 	// FLEET_OSQUERY_CONFIG_IN_MEMORY_CACHE=true and restarting opts a
 	// deployment in. Independent of the config ETag options above.
 	ConfigInMemoryCache bool `yaml:"config_in_memory_cache"`
+
+	// MaxConcurrentQueryReportReads bounds, per Fleet server, how many
+	// /api/osquery/log requests read a host's stored report results from the
+	// replica at once. MaxConcurrentQueryReportWrites bounds, across all Fleet
+	// servers, how many write changed ones to the primary at once. Requests over
+	// a limit skip storing their report results (the host sends fresh ones on the
+	// report's next run) instead of queueing on the database. A value <= 0
+	// disables the limit.
+	MaxConcurrentQueryReportReads  int `yaml:"max_concurrent_query_report_reads"`
+	MaxConcurrentQueryReportWrites int `yaml:"max_concurrent_query_report_writes"`
 }
 
 // Validate checks that osquery_host_identifier is one of the supported values.
@@ -528,6 +539,11 @@ type LambdaConfig struct {
 	StatusFunction   string `yaml:"status_function"`
 	ResultFunction   string `yaml:"result_function"`
 	AuditFunction    string `yaml:"audit_function"`
+}
+
+// CloudStorageConfig groups the configs of cloud object stores.
+type CloudStorageConfig struct {
+	Azure AzureConfig `yaml:"azure"`
 }
 
 // S3Config defines config to enable file carving storage to an S3 bucket
@@ -760,6 +776,133 @@ type S3CloudFrontConfig struct {
 	Signer             crypto.Signer
 }
 
+// AzureConfig defines config to enable Azure Blob Storage as an alternative
+// object store to S3 for the software installers group (installers,
+// bootstrap packages, software title icons, org logos). It is purely
+// additive: when unset, storage selection and behavior for S3/GCS deployments
+// are unchanged.
+type AzureConfig struct {
+	SoftwareInstallersAccountName string `yaml:"files_account_name"`
+	SoftwareInstallersAccountKey  string `yaml:"files_account_key"`
+	SoftwareInstallersContainer   string `yaml:"files_container"`
+	// SoftwareInstallersContainerURL overrides the default
+	// https://<account>.blob.core.windows.net endpoint, for Azurite or other
+	// Azure-compatible emulators in tests.
+	SoftwareInstallersContainerURL string `yaml:"files_container_url"`
+	// SoftwareInstallersSignedURL, when true, makes Fleet hand out a SAS-signed
+	// GET URL (instead of proxying the bytes) for software installer, in-house
+	// app and bootstrap package downloads. This is the Azure counterpart to the
+	// S3 CloudFront/GCS signed URL configs.
+	SoftwareInstallersSignedURL bool `yaml:"files_signed_url"`
+}
+
+// SoftwareInstallersToInternalCfg creates an internal Azure config struct from
+// the ingested Azure config for the software installers group (installers,
+// bootstrap packages, icons, org logos).
+func (a AzureConfig) SoftwareInstallersToInternalCfg() AzureConfigInternal {
+	return AzureConfigInternal{
+		AccountName:  a.SoftwareInstallersAccountName,
+		AccountKey:   a.SoftwareInstallersAccountKey,
+		Container:    a.SoftwareInstallersContainer,
+		ContainerURL: a.SoftwareInstallersContainerURL,
+		SignedURL:    a.SoftwareInstallersSignedURL,
+	}
+}
+
+// AzureConfigInternal is used internally to configure an Azure Blob Storage
+// client for a given purpose (e.g. software installers).
+type AzureConfigInternal struct {
+	AccountName  string
+	AccountKey   string
+	Container    string
+	ContainerURL string
+	SignedURL    bool
+}
+
+// StorageBackend identifies the object store backing the software installers
+// group (installers, bootstrap packages, software title icons, org logos).
+type StorageBackend string
+
+const (
+	// StorageBackendLocal means no object store is configured; Fleet falls back
+	// to the local filesystem/database stores.
+	StorageBackendLocal StorageBackend = ""
+	StorageBackendS3    StorageBackend = "s3"
+	StorageBackendAzure StorageBackend = "azure"
+)
+
+type storageBackendCandidate struct {
+	backend    StorageBackend
+	configured bool
+	// key is the name of the config key that selects this backend, used in
+	// error messages.
+	key string
+}
+
+// softwareInstallersBackendCandidates is the single place that knows where
+// each backend's selecting config lives. To add a backend (or to move S3 under
+// CloudStorage), only this list needs to change.
+func (f FleetConfig) softwareInstallersBackendCandidates() []storageBackendCandidate {
+	return []storageBackendCandidate{
+		{StorageBackendS3, f.S3.SoftwareInstallersBucket != "", "s3_software_installers_bucket"},
+		{StorageBackendAzure, f.CloudStorage.Azure.SoftwareInstallersContainer != "", "cloud_storage.azure.files_container"},
+	}
+}
+
+// SoftwareInstallersBackend returns the object store configured for the
+// software installers group, or an error if more than one is configured since
+// only one backend can be selected.
+func (f FleetConfig) SoftwareInstallersBackend() (StorageBackend, error) {
+	var keys []string
+	backend := StorageBackendLocal
+	for _, cand := range f.softwareInstallersBackendCandidates() {
+		if cand.configured {
+			backend = cand.backend
+			keys = append(keys, "`"+cand.key+"`")
+		}
+	}
+	switch {
+	case len(keys) > 2:
+		return StorageBackendLocal, fmt.Errorf("Couldn't configure. %s cannot all be set; choose one storage backend for software installers.", strings.Join(keys, ", "))
+	case len(keys) == 2:
+		return StorageBackendLocal, fmt.Errorf("Couldn't configure. %s and %s cannot both be set; choose one storage backend for software installers.", keys[0], keys[1])
+	}
+	return backend, nil
+}
+
+// ValidateSoftwareInstallersBackend fails initialization if more than one
+// object store is configured for the software installers group.
+func (f FleetConfig) ValidateSoftwareInstallersBackend(initFatal func(err error, msg string)) {
+	if _, err := f.SoftwareInstallersBackend(); err != nil {
+		initFatal(err, "software installers storage")
+	}
+}
+
+// SoftwareInstallersSignedURLEnabled reports whether downloads of software
+// installers and in-house apps should be handed out as signed URLs (pointing
+// directly at the object store) instead of proxying the bytes through Fleet.
+// Only the signing settings of the selected storage backend are considered.
+func (f FleetConfig) SoftwareInstallersSignedURLEnabled() bool {
+	backend, err := f.SoftwareInstallersBackend()
+	if err != nil {
+		return false
+	}
+	switch backend {
+	case StorageBackendS3:
+		return f.S3.SoftwareInstallersCloudFrontSigner != nil || f.S3.SoftwareInstallersSignedURL
+	case StorageBackendAzure:
+		return f.CloudStorage.Azure.SoftwareInstallersSignedURL
+	default:
+		return false
+	}
+}
+
+// StagedUploadAvailable reports whether clients can upload packages straight
+// to object storage. Only supported with S3-compatible storage for now.
+func (f FleetConfig) StagedUploadAvailable() bool {
+	return f.S3.SoftwareInstallersSignedURL && f.S3.SoftwareInstallersBucket != ""
+}
+
 // PubSubConfig defines configs the for Google PubSub logging plugin
 type PubSubConfig struct {
 	Project       string `json:"project"`
@@ -911,6 +1054,7 @@ type FleetConfig struct {
 	Kinesis                    KinesisConfig
 	Lambda                     LambdaConfig
 	S3                         S3Config
+	CloudStorage               CloudStorageConfig `yaml:"cloud_storage"`
 	Email                      EmailConfig
 	SES                        SESConfig
 	PubSub                     PubSubConfig
@@ -982,13 +1126,36 @@ type WebSocketConfig struct {
 	PongTimeout      time.Duration `yaml:"pong_timeout"`
 	CheckInterval    time.Duration `yaml:"check_interval"`
 	CheckBatchSize   int           `yaml:"check_batch_size"`
+	// OrbitConfigEnabled turns on orbit/config nudges: connected agents are
+	// notified when their orbit config changes and poll it every
+	// OrbitConfigPollInterval as a fallback, instead of every 30s.
+	OrbitConfigEnabled      bool          `yaml:"orbit_config_enabled"`
+	OrbitConfigPollInterval time.Duration `yaml:"orbit_config_poll_interval"`
+	// OrbitConfigSpread is the window over which an instance paces the
+	// nudges of a fleet-wide or global change across the agents it holds.
+	OrbitConfigSpread time.Duration `yaml:"orbit_config_spread"`
 }
+
+// minOrbitConfigPollInterval is orbit's default poll interval: a slower
+// fallback is the point of the setting.
+const minOrbitConfigPollInterval = 30 * time.Second
 
 // Validate checks that the WebSocketConfig has valid values. The values feed
 // tickers and batch loops, so zero or negative values would panic or spin.
 func (w WebSocketConfig) Validate(initFatal func(err error, msg string)) {
 	if !w.TransportEnabled {
+		if w.OrbitConfigEnabled {
+			initFatal(errors.New("requires websocket.transport_enabled"), "websocket.orbit_config_enabled")
+		}
 		return
+	}
+	if w.OrbitConfigEnabled {
+		if w.OrbitConfigPollInterval < minOrbitConfigPollInterval {
+			initFatal(fmt.Errorf("must be at least %s", minOrbitConfigPollInterval), "websocket.orbit_config_poll_interval")
+		}
+		if w.OrbitConfigSpread < 0 {
+			initFatal(errors.New("must not be negative"), "websocket.orbit_config_spread")
+		}
 	}
 	for name, ok := range map[string]bool{
 		"websocket.ping_interval":    w.PingInterval > 0,
@@ -1149,6 +1316,9 @@ type MDMConfig struct {
 
 	AndroidAgent     AndroidAgentConfig `yaml:"android_agent"`
 	AndroidBatchSize int                `yaml:"android_batch_size"`
+
+	// AppleSCEPStaticChallengeEnabled controls whether static SCEP challenges are allowed alongside dynamic challenges.
+	AppleSCEPStaticChallengeEnabled bool `yaml:"apple_scep_static_challenge_enabled"`
 }
 
 // IsCustomDiskEncryptionEnabled reports whether custom disk encryption configuration profiles are allowed. Any of the equivalent
@@ -1706,6 +1876,7 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("server.cleanup_dist_targets_age", 24*time.Hour, "Specifies the cleanup age for completed live query distributed targets.")
 	man.addConfigDuration("server.script_results_retention", 30*24*time.Hour, "Minimum time since a script run recorded its result before the hourly cleanup deletes it. Runs still waiting on a host, and those a host lock, wipe, unlock, setup experience, software uninstall or batch run depends on, are kept regardless (0 disables the cleanup)")
 	man.addConfigDuration("server.software_install_results_retention", 30*24*time.Hour, "Minimum time since a software install or uninstall finished before the hourly cleanup deletes its record. Records a host is still working on, those setup experience depends on, and the most recent install and uninstall per host and package, are kept regardless (0 disables the cleanup)")
+	man.addConfigDuration("server.deleted_host_certificates_retention", 30*24*time.Hour, "Minimum time since a certificate was removed from a host before the hourly cleanup permanently deletes Fleet's record of it (0 disables the cleanup)")
 	man.addConfigByteSize("server.max_installer_size", installersize.Human(installersize.MaxSoftwareInstallerSize), "Maximum size in bytes for software installer uploads (e.g. 10GiB, 500MB, 1G)")
 	man.addConfigString("server.trusted_proxies", "",
 		"Trusted proxy configuration for client IP extraction: 'none' (RemoteAddr only), a header name (e.g., 'True-Client-IP'), a hop count (e.g., '2'), or comma-separated IP/CIDR ranges")
@@ -1805,6 +1976,10 @@ func (man Manager) addConfigs() {
 		"Answer osquery config requests whose etag matches with the minimal 'unchanged' body straight from a Redis-backed ETag store, skipping the config build (and its database reads) entirely. Off by default; requires Redis (no effect without it) and requires osquery.config_etags to be enabled as well. While off, every config request takes the always-full-build path.")
 	man.addConfigBool("osquery.config_in_memory_cache", false,
 		"Cache the scheduled-report section of the osquery config (the response's 'packs' key) in memory, keyed by fleet (team) and the query_reports_disabled setting, instead of rebuilding it from the database on every config check-in. Off by default; while off, every check-in builds from the database. The rest of the response is never cached, and the cache is bypassed entirely for hosts with 2017 packs and for fleets with label-scoped reports, whose config differs per host.")
+	man.addConfigInt("osquery.max_concurrent_query_report_reads", 40,
+		"Maximum number of osquery log requests per Fleet server that read a host's stored report results from the database at once, to skip writing results that haven't changed. Requests over the limit skip storing report results (log destinations are unaffected). 0 disables the limit.")
+	man.addConfigInt("osquery.max_concurrent_query_report_writes", 20,
+		"Maximum number of osquery log requests across all Fleet servers that write changed report results to the database at once. Requests over the limit skip storing their changed report results (log destinations are unaffected). 0 disables the limit.")
 	man.addConfigBool("osquery.allow_body_auth_fallback", true,
 		"Selects how host-authenticated osquery requests are authenticated. When true (default), only body-based node_key is used for authentication. When false, the nodey_key header is required for authentication and the body's node_key is ignored; pre-auth rejects absent/invalid headers before the body is read.")
 
@@ -1959,6 +2134,13 @@ func (man Manager) addConfigs() {
 	man.addConfigString("s3.software_installers_cloudfront_url_signing_private_key", "", "CloudFront private key for URL signing")
 	man.addConfigBool("s3.software_installers_gcs_signed_url", false, "Hand out presigned GCS URLs for installer/in-house app/bootstrap uploads and downloads instead of proxying bytes (requires a storage.googleapis.com endpoint)")
 	man.addConfigBool("s3.software_installers_signed_url", false, "Deprecated: use s3.software_installers_gcs_signed_url")
+
+	// Azure Blob Storage for software installers
+	man.addConfigString("cloud_storage.azure.files_account_name", "", "Azure Storage account name")
+	man.addConfigString("cloud_storage.azure.files_account_key", "", "Azure Storage account shared key")
+	man.addConfigString("cloud_storage.azure.files_container", "", "Azure Storage container where to store uploaded software installers")
+	man.addConfigString("cloud_storage.azure.files_container_url", "", "Azure Blob Storage endpoint override (leave blank for the default https://<account>.blob.core.windows.net; used for Azurite/testing)")
+	man.addConfigBool("cloud_storage.azure.files_signed_url", false, "Hand out SAS-signed URLs for installer/in-house app/bootstrap downloads instead of proxying bytes")
 
 	// PubSub
 	man.addConfigString("pubsub.project", "", "Google Cloud Project to use")
@@ -2141,6 +2323,7 @@ func (man Manager) addConfigs() {
 	man.hideConfig("mdm.android_agent.signing_sha256")
 	man.addConfigInt("mdm.android_batch_size", 100, "Maximum number of hosts per batch for Android MDM API operations (100 default; 0 = no limit)")
 	man.hideConfig("mdm.android_batch_size")
+	man.addConfigBool("mdm.apple_scep_static_challenge_enabled", true, "Allows static SCEP challenges to be used alongside dynamic challenges for Apple MDM SCEP")
 
 	// Calendar integration
 	man.addConfigDuration(
@@ -2185,6 +2368,12 @@ func (man Manager) addConfigs() {
 		"Interval of the per-instance job that notifies connected agents with due interval work")
 	man.addConfigInt("websocket.check_batch_size", 500,
 		"Number of connected agents checked per batch by the interval notification job")
+	man.addConfigBool("websocket.orbit_config_enabled", false,
+		"Notify connected agents of orbit config changes so they can poll it less often (requires websocket.transport_enabled)")
+	man.addConfigDuration("websocket.orbit_config_poll_interval", 5*time.Minute,
+		"Fallback orbit config poll interval of connected agents with no pending work, when websocket.orbit_config_enabled is set")
+	man.addConfigDuration("websocket.orbit_config_spread", 30*time.Second,
+		"Window over which each instance spreads the orbit config notifications of a fleet-wide or global change")
 }
 
 func (man Manager) hideConfig(name string) {
@@ -2280,6 +2469,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			CleanupDistTargetsAge:            man.getConfigDuration("server.cleanup_dist_targets_age"),
 			ScriptResultsRetention:           man.getConfigDuration("server.script_results_retention"),
 			SoftwareInstallResultsRetention:  man.getConfigDuration("server.software_install_results_retention"),
+			DeletedHostCertificatesRetention: man.getConfigDuration("server.deleted_host_certificates_retention"),
 			MaxInstallerSizeBytes:            man.getConfigByteSize("server.max_installer_size"),
 			TrustedProxies:                   man.getConfigString("server.trusted_proxies"),
 			GzipResponses:                    man.getConfigBool("server.gzip_responses"),
@@ -2337,6 +2527,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			ConfigETags:                      man.getConfigBool("osquery.config_etags"),
 			RedisConfigETags:                 man.getConfigBool("osquery.redis_config_etags"),
 			ConfigInMemoryCache:              man.getConfigBool("osquery.config_in_memory_cache"),
+			MaxConcurrentQueryReportReads:    man.getConfigInt("osquery.max_concurrent_query_report_reads"),
+			MaxConcurrentQueryReportWrites:   man.getConfigInt("osquery.max_concurrent_query_report_writes"),
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog:                 man.getConfigBool("activity.enable_audit_log"),
@@ -2387,6 +2579,13 @@ func (man Manager) LoadConfig() FleetConfig {
 			StsExternalID:    man.getConfigString("lambda.sts_external_id"),
 		},
 		S3: man.loadS3Config(),
+		CloudStorage: CloudStorageConfig{Azure: AzureConfig{
+			SoftwareInstallersAccountName:  man.getConfigString("cloud_storage.azure.files_account_name"),
+			SoftwareInstallersAccountKey:   man.getConfigString("cloud_storage.azure.files_account_key"),
+			SoftwareInstallersContainer:    man.getConfigString("cloud_storage.azure.files_container"),
+			SoftwareInstallersContainerURL: man.getConfigString("cloud_storage.azure.files_container_url"),
+			SoftwareInstallersSignedURL:    man.getConfigBool("cloud_storage.azure.files_signed_url"),
+		}},
 		Email: EmailConfig{
 			EmailBackend: man.getConfigString("email.backend"),
 		},
@@ -2529,8 +2728,8 @@ func (man Manager) LoadConfig() FleetConfig {
 				Package:       man.getConfigString("mdm.android_agent.package"),
 				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),
 			},
-			AndroidBatchSize: man.getConfigInt("mdm.android_batch_size"),
-
+			AndroidBatchSize:                         man.getConfigInt("mdm.android_batch_size"),
+			AppleSCEPStaticChallengeEnabled:          man.getConfigBool("mdm.apple_scep_static_challenge_enabled"),
 			AppleCommandCleanupShortRetention:        man.getConfigDuration("mdm.apple_command_cleanup_short_retention"),
 			AppleCommandCleanupStandardRetention:     man.getConfigDuration("mdm.apple_command_cleanup_standard_retention"),
 			AppleCommandCleanupMaxRowDeletionsPerRun: man.getConfigInt("mdm.apple_command_cleanup_max_row_deletions_per_run"),
@@ -2561,6 +2760,10 @@ func (man Manager) LoadConfig() FleetConfig {
 			PongTimeout:      man.getConfigDuration("websocket.pong_timeout"),
 			CheckInterval:    man.getConfigDuration("websocket.check_interval"),
 			CheckBatchSize:   man.getConfigInt("websocket.check_batch_size"),
+
+			OrbitConfigEnabled:      man.getConfigBool("websocket.orbit_config_enabled"),
+			OrbitConfigPollInterval: man.getConfigDuration("websocket.orbit_config_poll_interval"),
+			OrbitConfigSpread:       man.getConfigDuration("websocket.orbit_config_spread"),
 		},
 	}
 
@@ -3032,7 +3235,8 @@ func TestConfig() FleetConfig {
 			OSVForVulnerabilities: true,
 		},
 		MDM: MDMConfig{
-			AllowOrbitEndUserAuthBypass: true,
+			AllowOrbitEndUserAuthBypass:     true,
+			AppleSCEPStaticChallengeEnabled: true,
 		},
 		WebSocket: WebSocketConfig{
 			TransportEnabled: false,
@@ -3040,6 +3244,9 @@ func TestConfig() FleetConfig {
 			PongTimeout:      30 * time.Second,
 			CheckInterval:    30 * time.Second,
 			CheckBatchSize:   500,
+
+			OrbitConfigPollInterval: 5 * time.Minute,
+			OrbitConfigSpread:       30 * time.Second,
 		},
 	}
 }

@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 
@@ -112,4 +114,34 @@ func TestResolveTeamFromEnrollmentData(t *testing.T) {
 		assert.Equal(t, uint(5), *teamID)
 		assert.Equal(t, "some-uuid", idpUUID)
 	})
+}
+
+func TestZeroTouchConfigurationRequestDecode(t *testing.T) {
+	decode := makeDecoder(zeroTouchConfigurationRequest{}, -1)
+
+	cases := []struct {
+		name       string
+		query      string
+		wantTeamID *uint
+		wantErr    bool
+	}{
+		{name: "no fleet", query: "", wantTeamID: nil},
+		{name: "fleet_id", query: "?fleet_id=5", wantTeamID: new(uint(5))},
+		{name: "deprecated team_id", query: "?team_id=5", wantTeamID: new(uint(5))},
+		{name: "fleet_id 0", query: "?fleet_id=0", wantTeamID: new(uint(0))},
+		{name: "both names", query: "?fleet_id=5&team_id=6", wantErr: true},
+		{name: "not a number", query: "?fleet_id=abc", wantErr: true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/fleet/android_enterprise/zero_touch_configuration"+c.query, nil)
+			got, err := decode(t.Context(), r)
+			if c.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, c.wantTeamID, got.(*zeroTouchConfigurationRequest).TeamID)
+		})
+	}
 }

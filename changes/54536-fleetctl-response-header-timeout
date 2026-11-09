@@ -1,1 +1,0 @@
-- Fixed `fleetctl` giving up with "timeout awaiting response headers" on requests that take the server more than 45 seconds, such as `fleetctl gitops` applying software to a fleet with many Fleet-maintained apps.

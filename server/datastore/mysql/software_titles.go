@@ -35,14 +35,15 @@ func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uin
 		softwareInstallerGlobalOrTeamIDFilter string
 		vppAppsTeamsGlobalOrTeamIDFilter      string
 		inHouseAppsTeamsGlobalOrTeamIDFilter  string
-		autoUpdatesJoin                       string
 		autoUpdatesSelect                     string
 		autoUpdatesGroupBy                    string
 	)
 
 	if teamID != nil {
-		autoUpdatesSelect = `sus.enabled as auto_update_enabled, sus.start_time as auto_update_window_start, sus.end_time as auto_update_window_end, `
-		autoUpdatesJoin = fmt.Sprintf("LEFT JOIN software_update_schedules sus ON sus.title_id = st.id AND sus.team_id = %d", *teamID)
+		autoUpdatesSelect = `
+	IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.update_schedule_enabled, NULL) as auto_update_enabled,
+	IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.start_time, NULL) as auto_update_window_start,
+	IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.end_time, NULL) as auto_update_window_end, `
 		autoUpdatesGroupBy = "auto_update_enabled, auto_update_window_start, auto_update_window_end, "
 		teamFilter = fmt.Sprintf("sthc.team_id = %d AND sthc.global_stats = 0", *teamID)
 		softwareInstallerGlobalOrTeamIDFilter = fmt.Sprintf("si.global_or_team_id = %d", *teamID)
@@ -78,11 +79,13 @@ SELECT
 	%s
 	vap.icon_url AS icon_url
 FROM software_titles st
-%s
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND (%s)
 LEFT JOIN software_installers si ON si.title_id = st.id AND si.is_active = TRUE AND %s
 LEFT JOIN vpp_apps vap ON vap.title_id = st.id
-LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND %s
+LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND %s AND vat.id = (
+	SELECT MIN(vat2.id) FROM vpp_apps_teams vat2
+	WHERE vat2.adam_id = vat.adam_id AND vat2.platform = vat.platform AND vat2.global_or_team_id = vat.global_or_team_id
+)
 LEFT JOIN in_house_apps iha ON iha.title_id = st.id AND %s
 WHERE st.id = ? AND
 	(sthc.software_title_id IS NOT NULL OR vat.adam_id IS NOT NULL OR si.id IS NOT NULL OR iha.title_id IS NOT NULL)
@@ -95,7 +98,7 @@ GROUP BY
 	hosts_count,
 	%s
 	vap.icon_url
-	`, autoUpdatesSelect, autoUpdatesJoin, teamFilter, softwareInstallerGlobalOrTeamIDFilter, vppAppsTeamsGlobalOrTeamIDFilter, inHouseAppsTeamsGlobalOrTeamIDFilter, autoUpdatesGroupBy,
+	`, autoUpdatesSelect, teamFilter, softwareInstallerGlobalOrTeamIDFilter, vppAppsTeamsGlobalOrTeamIDFilter, inHouseAppsTeamsGlobalOrTeamIDFilter, autoUpdatesGroupBy,
 	)
 	var title fleet.SoftwareTitle
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &title, selectSoftwareTitleStmt, id); err != nil {
@@ -130,6 +133,13 @@ GROUP BY
 
 		title.DisplayName = displayName
 	}
+
+	aiToolTitles, err := ds.aiToolTitleIDs(ctx, ds.reader(ctx), []uint{id})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get ai tool software title")
+	}
+	_, isAITool := aiToolTitles[id]
+	title.AITool = new(isAITool)
 
 	title.VersionsCount = uint(len(title.Versions))
 
@@ -360,21 +370,21 @@ func (ds *Datastore) listSoftwareTitlesOptimized(
 
 	dbReader := ds.reader(ctx)
 
-	listSQL := buildOptimizedListSoftwareTitlesSQL(opt)
-	countSQL := countSoftwareTitlesOptimized(opt)
+	listSQL, listArgs := buildOptimizedListSoftwareTitlesSQL(opt)
+	countSQL, countArgs := countSoftwareTitlesOptimized(opt)
 
 	// Run list and count queries in parallel.
 	var softwareList []*softwareTitleWithInstallerFields
 	var counts int
 	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
-		if err := sqlx.SelectContext(gCtx, dbReader, &softwareList, listSQL); err != nil {
+		if err := sqlx.SelectContext(gCtx, dbReader, &softwareList, listSQL, listArgs...); err != nil {
 			return ctxerr.Wrap(gCtx, err, "optimized select software titles")
 		}
 		return nil
 	})
 	g.Go(func() error {
-		if err := sqlx.GetContext(gCtx, dbReader, &counts, countSQL); err != nil {
+		if err := sqlx.GetContext(gCtx, dbReader, &counts, countSQL, countArgs...); err != nil {
 			return ctxerr.Wrap(gCtx, err, "optimized count software titles")
 		}
 		return nil
@@ -469,6 +479,22 @@ func (ds *Datastore) processSoftwareTitleResults(
 
 		titleIDs[i] = title.ID
 		titleIndex[title.ID] = i
+	}
+
+	if opt.AITool {
+		// The filter already excluded every title that isn't an AI tool.
+		for _, title := range softwareList {
+			title.AITool = new(true)
+		}
+	} else {
+		aiToolTitles, err := ds.aiToolTitleIDs(ctx, dbReader, titleIDs)
+		if err != nil {
+			return nil, 0, nil, ctxerr.Wrap(ctx, err, "get ai tool software titles")
+		}
+		for _, title := range softwareList {
+			_, ok := aiToolTitles[title.ID]
+			title.AITool = new(ok)
+		}
 	}
 
 	// Fetch automatic install policies, icons, and display names for team-scoped queries.
@@ -761,9 +787,9 @@ SELECT
 		,iha.storage_id as in_house_app_storage_id
 		,iha.self_service as in_house_app_self_service
 		,iha.install_during_setup as in_house_app_install_during_setup
-		,sus.enabled as auto_update_enabled
-		,sus.start_time as auto_update_window_start
-		,sus.end_time as auto_update_window_end
+		,IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.update_schedule_enabled, NULL) as auto_update_enabled
+		,IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.start_time, NULL) as auto_update_window_start
+		,IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.end_time, NULL) as auto_update_window_end
 	{{end}}
 FROM software_titles st
 	{{if hasTeamID .}}
@@ -774,8 +800,10 @@ FROM software_titles st
 		LEFT JOIN in_house_apps iha ON iha.title_id = st.id AND iha.global_or_team_id = {{teamID .}}
 		LEFT JOIN vpp_apps vap ON vap.title_id = st.id AND {{yesNo .PackagesOnly "FALSE" "TRUE"}}
 		LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND
-			{{if .PackagesOnly}} FALSE {{else}} vat.global_or_team_id = {{teamID .}}{{end}}
-		LEFT JOIN software_update_schedules sus ON sus.title_id = st.id AND sus.team_id = {{teamID .}}
+			{{if .PackagesOnly}} FALSE {{else}} vat.id = (
+				SELECT MIN(vat2.id) FROM vpp_apps_teams vat2
+				WHERE vat2.adam_id = vap.adam_id AND vat2.platform = vap.platform AND vat2.global_or_team_id = {{teamID .}}
+			){{end}}
 	{{end}}
 	LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND
 		(sthc.team_id = {{teamID .}} AND sthc.global_stats = {{if hasTeamID .}} 0 {{else}} 1 {{end}})
@@ -826,6 +854,12 @@ WHERE
 		{{if and (hasTeamID $) $.PackageName}}
 		  {{$additionalWhere = printf "%s AND EXISTS (SELECT 1 FROM software_installers si2 WHERE si2.title_id = st.id AND si2.global_or_team_id = %d AND si2.is_active = TRUE AND si2.filename = ?)" $additionalWhere (teamID $)}}
 		{{end}}
+		{{with $typeFilter := typeFilter}}
+		  {{$additionalWhere = printf "%s AND %s" $additionalWhere $typeFilter}}
+		{{end}}
+		{{if $.AITool}}
+		  {{$additionalWhere = printf "%s AND %s" $additionalWhere aiToolFilter}}
+		{{end}}
 		{{$additionalWhere}}
 	{{end}}
 	-- If teamID is set, defaults to "a software installer, in-house app or VPP app exists", and see next condition.
@@ -834,10 +868,18 @@ WHERE
 		{{if not $.AvailableForInstall}}
 			{{$defFilter = $defFilter | printf " ( %s OR sthc.software_title_id IS NOT NULL ) "}}
 		{{ end }}
-		{{if and $.SelfServiceOnly (hasTeamID $)}}
-		   {{$defFilter = $defFilter | printf "%s AND ( si.self_service = 1 OR vat.self_service = 1 OR iha.self_service = 1 ) "}}
-		{{end}}
 		AND ({{$defFilter}})
+		{{if and $.SelfServiceOnly (hasTeamID $)}}
+		AND (
+			si.self_service = 1
+			OR iha.self_service = 1
+			OR EXISTS (
+				SELECT 1 FROM vpp_apps_teams vat_ss
+				WHERE vat_ss.adam_id = vap.adam_id AND vat_ss.platform = vap.platform
+					AND vat_ss.global_or_team_id = {{teamID $}} AND vat_ss.self_service = 1
+			)
+		)
+		{{end}}
 	{{end}}
 	-- If for setup experience, exclude any installers that are not supported.
 	-- In-house apps are only supported for setup experience on iOS/iPadOS, so
@@ -917,7 +959,12 @@ GROUP BY
 		args = append(args, opt.PackageName)
 	}
 
+	typeFilterSQL, typeFilterArgs := softwareTypeFilterSQL(opt.TypeFilter, "st")
+	args = append(args, typeFilterArgs...)
+
 	t, err := template.New("stm").Funcs(map[string]any{
+		"typeFilter":   func() string { return typeFilterSQL },
+		"aiToolFilter": func() string { return aiToolTitleFilterSQL("st.id") },
 		"yesNo": func(b bool, yes string, no string) string {
 			if b {
 				return yes
@@ -966,7 +1013,7 @@ GROUP BY
 // software_titles_host_counts to filter by team, then joins software_titles for the correct
 // secondary sort (name, source, extension_for), and paginates. Phase 2 (outer query)
 // enriches only the ~20 paginated IDs with installer/VPP/in-house details.
-func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) string {
+func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) (string, []any) {
 	hasTeamID := opts.TeamID != nil
 	teamID := uint(0)
 	if hasTeamID {
@@ -992,6 +1039,8 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 		perPage++
 	}
 
+	hostCountsTypeFilter, installerOnlyTypeFilter, args := optimizedTitlesTypeFilterSQL(opts)
+
 	// Build the inner query: find paginated title IDs sorted by (hosts_count, software_title_id).
 	// The secondary sort uses software_title_id (not name) for performance so that the entire ORDER BY is satisfied
 	// by the covering index (team_id, global_stats, hosts_count, software_title_id) without a filesort.
@@ -1004,9 +1053,9 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 		innerSQL = fmt.Sprintf(`
 			SELECT sthc.software_title_id, sthc.hosts_count
 			FROM software_titles_host_counts sthc
-			WHERE sthc.team_id = 0 AND sthc.global_stats = 1
+			WHERE sthc.team_id = 0 AND sthc.global_stats = 1%[3]s
 			ORDER BY sthc.hosts_count %[1]s, sthc.software_title_id %[1]s
-			LIMIT %[2]d`, direction, perPage)
+			LIMIT %[2]d`, direction, perPage, hostCountsTypeFilter)
 		if offset > 0 {
 			innerSQL += fmt.Sprintf(` OFFSET %d`, offset)
 		}
@@ -1020,7 +1069,7 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 			FROM (
 				(SELECT sthc.software_title_id, sthc.hosts_count
 				FROM software_titles_host_counts sthc
-				WHERE sthc.team_id = %[1]d AND sthc.global_stats = 0)
+				WHERE sthc.team_id = %[1]d AND sthc.global_stats = 0%[4]s)
 
 				UNION ALL
 
@@ -1038,10 +1087,10 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 				) AS t
 				LEFT JOIN software_titles_host_counts sthc
 					ON sthc.software_title_id = t.title_id AND sthc.team_id = %[1]d AND sthc.global_stats = 0
-				WHERE sthc.software_title_id IS NULL)
+				WHERE sthc.software_title_id IS NULL%[5]s)
 			) AS combined
 			ORDER BY combined.hosts_count %[2]s, combined.software_title_id %[2]s
-			LIMIT %[3]d`, teamID, direction, perPage)
+			LIMIT %[3]d`, teamID, direction, perPage, hostCountsTypeFilter, installerOnlyTypeFilter)
 		if offset > 0 {
 			innerSQL += fmt.Sprintf(` OFFSET %d`, offset)
 		}
@@ -1082,9 +1131,9 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 			iha.storage_id AS in_house_app_storage_id,
 			iha.self_service AS in_house_app_self_service,
 			iha.install_during_setup AS in_house_app_install_during_setup,
-			sus.enabled AS auto_update_enabled,
-			sus.start_time AS auto_update_window_start,
-			sus.end_time AS auto_update_window_end`
+			IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.update_schedule_enabled, NULL) AS auto_update_enabled,
+			IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.start_time, NULL) AS auto_update_window_start,
+			IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.end_time, NULL) AS auto_update_window_end`
 	}
 
 	outerSQL += fmt.Sprintf(`
@@ -1104,9 +1153,10 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 		)
 		LEFT JOIN in_house_apps iha ON iha.title_id = st.id AND iha.global_or_team_id = %[1]d
 		LEFT JOIN vpp_apps vap ON vap.title_id = st.id
-		LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform
-			AND vat.global_or_team_id = %[1]d
-		LEFT JOIN software_update_schedules sus ON sus.title_id = st.id AND sus.team_id = %[1]d`, teamID)
+		LEFT JOIN vpp_apps_teams vat ON vat.id = (
+			SELECT MIN(vat2.id) FROM vpp_apps_teams vat2
+			WHERE vat2.adam_id = vap.adam_id AND vat2.platform = vap.platform AND vat2.global_or_team_id = %[1]d
+		)`, teamID)
 	}
 
 	outerSQL += `
@@ -1117,28 +1167,81 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 		ORDER BY top.hosts_count %[1]s, top.software_title_id %[1]s`,
 		direction)
 
-	return outerSQL
+	return outerSQL, args
+}
+
+// optimizedTitlesTypeFilterSQL renders the type filter as EXISTS subqueries for the optimized titles
+// queries: one on the host counts arm (sthc) and one on the installer-only arm (t). MySQL rewrites
+// the EXISTS as a semi-join driven from software_titles: no index starts with source, so it scans
+// idx_sw_titles, joins the matching titles to the host counts by primary key, and sorts them before
+// applying the LIMIT. A filtered request therefore costs about one scan of the titles index instead of
+// the index-ordered scan that stops at the LIMIT; an index on (source, extension_for) would let it
+// seek instead. EXPLAIN ANALYZE of the all-fleets list with source=apps on 200k titles (10% apps):
+//
+//	-> Limit: 21 row(s)
+//	    -> Sort: sthc.hosts_count DESC, sthc.software_title_id DESC, limit input to 21 row(s) per chunk
+//	        -> Nested loop inner join                                 (rows=19897)
+//	            -> Filter: (st.source = 'apps')                       (rows=19897)
+//	                -> Covering index scan on st using idx_sw_titles  (rows=200000)
+//	            -> Single-row index lookup on sthc using PRIMARY      (loops=19897)
+//
+// The AI tool filter is appended to both arms. MySQL drives that semi-join from the flagged rows of
+// idx_software_ai_tool_title_id and joins them to the host counts by primary key, so the list and the
+// count cost about the number of AI tools rather than the number of titles. EXPLAIN ANALYZE of the
+// all-fleets list with ai_tool=true, page 5, on 200k titles (750 AI titles):
+//
+//	-> Limit/Offset: 21/100 row(s)
+//	    -> Sort: sthc.hosts_count DESC, sthc.software_title_id DESC, limit input to 121 row(s) per chunk
+//	        -> Nested loop inner join                                                                  (rows=750)
+//	            -> Remove duplicates from input sorted on idx_software_ai_tool_title_id                 (rows=750)
+//	                -> Covering index lookup on sai using idx_software_ai_tool_title_id (ai_tool=1)    (rows=1023)
+//	            -> Single-row index lookup on sthc using PRIMARY                                        (loops=750)
+//
+// args cover the host counts arm, plus the installer-only arm when a team is set.
+func optimizedTitlesTypeFilterSQL(opts fleet.SoftwareTitleListOptions) (hostCounts, installerOnly string, args []any) {
+	if filterSQL, filterArgs := softwareTypeFilterSQL(opts.TypeFilter, "st"); filterSQL != "" {
+		hostCounts = " AND EXISTS (SELECT 1 FROM software_titles st WHERE st.id = sthc.software_title_id AND " + filterSQL + ")"
+		installerOnly = " AND EXISTS (SELECT 1 FROM software_titles st WHERE st.id = t.title_id AND " + filterSQL + ")"
+		args = filterArgs
+		if opts.TeamID != nil {
+			args = slices.Concat(filterArgs, filterArgs)
+		}
+	}
+	if opts.AITool {
+		hostCounts += " AND " + aiToolTitleFilterSQL("sthc.software_title_id")
+		installerOnly += " AND " + aiToolTitleFilterSQL("t.title_id")
+	}
+	return hostCounts, installerOnly, args
+}
+
+// aiToolTitleFilterSQL is a predicate matching titles, identified by titleIDColumn, that have at
+// least one software row flagged as an AI tool.
+func aiToolTitleFilterSQL(titleIDColumn string) string {
+	return "EXISTS (SELECT 1 FROM software sai WHERE sai.title_id = " + titleIDColumn + " AND sai.ai_tool = 1)"
 }
 
 // countSoftwareTitlesOptimized builds a dedicated count query that avoids the expensive
 // full-query-wrapping approach. It counts titles with host counts via a simple index scan,
 // and when a team is specified, adds the count of installer-only titles (small set).
-func countSoftwareTitlesOptimized(opts fleet.SoftwareTitleListOptions) string {
+func countSoftwareTitlesOptimized(opts fleet.SoftwareTitleListOptions) (string, []any) {
 	hasTeamID := opts.TeamID != nil
 	teamID := uint(0)
 	if hasTeamID {
 		teamID = *opts.TeamID
 	}
 
+	hostCountsTypeFilter, installerOnlyTypeFilter, args := optimizedTitlesTypeFilterSQL(opts)
+
 	if !hasTeamID {
 		// All teams: only count titles with host counts.
-		return `SELECT COUNT(*) FROM software_titles_host_counts WHERE team_id = 0 AND global_stats = 1`
+		return `SELECT COUNT(*) FROM software_titles_host_counts sthc WHERE sthc.team_id = 0 AND sthc.global_stats = 1` +
+			hostCountsTypeFilter, args
 	}
 
 	// Specific team: count of host-count titles + count of installer-only titles.
 	return fmt.Sprintf(`
 		SELECT
-			(SELECT COUNT(*) FROM software_titles_host_counts WHERE team_id = %[1]d AND global_stats = 0)
+			(SELECT COUNT(*) FROM software_titles_host_counts sthc WHERE sthc.team_id = %[1]d AND sthc.global_stats = 0%[2]s)
 			+
 			(SELECT COUNT(DISTINCT t.title_id) FROM (
 				SELECT si.title_id FROM software_installers si
@@ -1153,8 +1256,8 @@ func countSoftwareTitlesOptimized(opts fleet.SoftwareTitleListOptions) string {
 			) AS t
 			LEFT JOIN software_titles_host_counts sthc
 				ON sthc.software_title_id = t.title_id AND sthc.team_id = %[1]d AND sthc.global_stats = 0
-			WHERE sthc.software_title_id IS NULL)
-		AS total_count`, teamID)
+			WHERE sthc.software_title_id IS NULL%[3]s)
+		AS total_count`, teamID, hostCountsTypeFilter, installerOnlyTypeFilter), args
 }
 
 // GetFleetMaintainedVersionsByTitleID returns all cached versions of a fleet-maintained app
@@ -1486,15 +1589,15 @@ func (ds *Datastore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, ti
 	}
 
 	stmt := `
-INSERT INTO software_update_schedules
-	(title_id, team_id, enabled, start_time, end_time)
-VALUES (?, ?, ?, ?, ?)
-ON DUPLICATE KEY UPDATE
-	enabled = VALUES(enabled),
-	start_time = IF(VALUES(start_time) = '', start_time, VALUES(start_time)),
-	end_time = IF(VALUES(end_time) = '', end_time, VALUES(end_time))
+UPDATE vpp_apps_teams vat
+JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
+SET
+	vat.update_schedule_enabled = ?,
+	vat.start_time = IF(? = '', vat.start_time, ?),
+	vat.end_time = IF(? = '', vat.end_time, ?)
+WHERE va.title_id = ? AND vat.global_or_team_id = ?
 `
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, titleID, teamID, config.AutoUpdateEnabled, startTime, endTime)
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, config.AutoUpdateEnabled, startTime, startTime, endTime, endTime, titleID, teamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating software title auto update config")
 	}
@@ -1504,14 +1607,16 @@ ON DUPLICATE KEY UPDATE
 func (ds *Datastore) ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
 	stmt := `
 SELECT
-	sus.team_id,
-	sus.title_id,
-	sus.enabled AS auto_update_enabled,
-	sus.start_time AS auto_update_window_start,
-	sus.end_time AS auto_update_window_end
-FROM software_update_schedules sus
-JOIN software_titles st ON st.id = sus.title_id
-WHERE sus.team_id = ? AND st.source = ?
+	vat.id AS vpp_app_team_id,
+	vat.global_or_team_id AS team_id,
+	va.title_id,
+	vat.update_schedule_enabled AS auto_update_enabled,
+	vat.start_time AS auto_update_window_start,
+	vat.end_time AS auto_update_window_end
+FROM vpp_apps_teams vat
+JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
+JOIN software_titles st ON st.id = va.title_id
+WHERE vat.global_or_team_id = ? AND st.source = ? AND (vat.update_schedule_enabled = 1 OR vat.start_time != '')
 `
 
 	args := []any{teamID, source}
@@ -1519,7 +1624,7 @@ WHERE sus.team_id = ? AND st.source = ?
 	if len(optionalFilter) > 0 {
 		filter := optionalFilter[0]
 		if filter.Enabled != nil {
-			stmt += " AND enabled = ?"
+			stmt += " AND vat.update_schedule_enabled = ?"
 			args = append(args, *filter.Enabled)
 		}
 	}

@@ -10,6 +10,9 @@ For Windows hosts, copy this [Windows configuration profile template](https://fl
 
 For Android hosts, copy this [Android configuration profile template](https://fleetdm.com/learn-more-about/example-android-profile) and update the profile using the options available in [Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#resource:-policy). To learn how, watch [this video](https://youtu.be/Jk4Zcb2sR1w). To learn more about the different settings availabe for fully managed vs. BYOD Android devices, see [Google's documentation](https://support.google.com/work/android/topic/9621435?hl=en&ref_topic=6151012,6090502,6090491,&sjid=13375704519136380831-NA).
 
+> When you add or edit a configuration profile, Fleet checks that each setting it recognizes has a value of the expected type. For example, a setting Apple or Microsoft documents as a number must be a number. Settings and payload types Fleet doesn't recognize are allowed.
+> To skip this check, turn off **Profile validation** in **Organization settings > Advanced options**.
+
 ### Apple declaration (DDM) profiles
 
 For Apple hosts, Fleet supports uploading declaration (DDM) profiles as `.json` files. Fleet supports the following types:

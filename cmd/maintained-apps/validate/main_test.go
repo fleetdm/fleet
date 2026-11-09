@@ -126,3 +126,55 @@ func TestValidateSqlInput(t *testing.T) {
 		})
 	}
 }
+
+func TestProgramsExistsWhereClause(t *testing.T) {
+	testCases := []struct {
+		query string
+		want  string
+	}{
+		{"", ""},
+		{
+			"SELECT 1 FROM programs WHERE name LIKE 'QGIS %' AND publisher = 'QGIS.org' AND version LIKE '3.44.%';",
+			"name LIKE 'QGIS %' AND publisher = 'QGIS.org' AND version LIKE '3.44.%'",
+		},
+		{
+			"select 1 from programs where name = 'Foo'",
+			"name = 'Foo'",
+		},
+		{
+			"SELECT 1 FROM apps WHERE bundle_identifier = 'com.example.foo';",
+			"",
+		},
+		{
+			"SELECT 1 WHERE EXISTS (SELECT 1 FROM programs WHERE name = 'Foo') OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
+			"",
+		},
+	}
+	for _, tc := range testCases {
+		require.Equal(t, tc.want, programsExistsWhereClause(tc.query), tc.query)
+	}
+}
+
+func TestPatchedQueryVersion(t *testing.T) {
+	testCases := []struct {
+		query string
+		want  string
+	}{
+		{"", ""},
+		{
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Microsoft .NET SDK 9.%' AND name LIKE '%(x64)' AND publisher = 'Microsoft Corporation' AND version_compare(version, '9.3.2026.52328') < 0);",
+			"9.3.2026.52328",
+		},
+		{
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM file WHERE path = 'C:\\foo.exe' AND version_compare(file_version, '1.2.3') < 0);",
+			"",
+		},
+		{
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.example.foo' AND version_compare(bundle_short_version, '1.2.3') < 0);",
+			"",
+		},
+	}
+	for _, tc := range testCases {
+		require.Equal(t, tc.want, patchedQueryVersion(tc.query), tc.query)
+	}
+}

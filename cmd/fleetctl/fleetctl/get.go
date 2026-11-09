@@ -402,12 +402,26 @@ func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSp
 			appStoreAppSpec := fleet.TeamSpecAppStoreApp{
 				AppStoreID:         app.AdamID,
 				Platform:           string(app.Platform),
-				SelfService:        app.SelfService,
-				LabelsIncludeAny:   scopeLabelNames(app.LabelsIncludeAny),
-				LabelsExcludeAny:   scopeLabelNames(app.LabelsExcludeAny),
-				LabelsIncludeAll:   scopeLabelNames(app.LabelsIncludeAll),
-				Categories:         app.Categories,
 				InstallDuringSetup: installDuringSetup,
+			}
+			// Output one object instead of a versions array when the app only has one version
+			if len(detail.AppStoreApps) > 1 || (len(detail.AppStoreApps) == 1 && detail.AppStoreApps[0].Name != fleet.DefaultAppStoreAppVersionName) {
+				for _, version := range detail.AppStoreApps {
+					appStoreAppSpec.Versions = append(appStoreAppSpec.Versions, fleet.TeamSpecAppStoreAppVersion{
+						Name:             version.Name,
+						SelfService:      version.SelfService,
+						LabelsIncludeAny: scopeLabelNames(version.LabelsIncludeAny),
+						LabelsExcludeAny: scopeLabelNames(version.LabelsExcludeAny),
+						LabelsIncludeAll: scopeLabelNames(version.LabelsIncludeAll),
+						Categories:       version.Categories,
+					})
+				}
+			} else {
+				appStoreAppSpec.SelfService = app.SelfService
+				appStoreAppSpec.LabelsIncludeAny = scopeLabelNames(app.LabelsIncludeAny)
+				appStoreAppSpec.LabelsExcludeAny = scopeLabelNames(app.LabelsExcludeAny)
+				appStoreAppSpec.LabelsIncludeAll = scopeLabelNames(app.LabelsIncludeAll)
+				appStoreAppSpec.Categories = app.Categories
 			}
 			appStoreApps = append(appStoreApps, appStoreAppSpec)
 		}

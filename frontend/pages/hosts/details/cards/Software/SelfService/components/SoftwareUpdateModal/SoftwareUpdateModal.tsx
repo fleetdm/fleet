@@ -1,7 +1,9 @@
+import { flatMap } from "lodash";
 import React from "react";
 
 import Button from "components/buttons/Button";
 import IconStatusMessage from "components/IconStatusMessage";
+import InfoBanner from "components/InfoBanner";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import {
@@ -12,6 +14,22 @@ import InventoryVersions from "pages/hosts/details/components/InventoryVersions"
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 const baseClass = "software-update-modal";
+
+// Installers only replace the copy in /Applications, so other copies keep the
+// update showing.
+const hasMultipleMacAppCopies = (software: IHostSoftware) =>
+  software.source === "apps" &&
+  new Set(
+    flatMap(software.installed_versions || [], (iv) => iv.installed_paths)
+  ).size > 1;
+
+const MultipleCopiesMessage = () => (
+  <InfoBanner color="yellow" icon="warning">
+    Multiple versions of this app are installed, and updating only replaces the
+    original version in the Applications folder. If this update keeps showing,
+    delete the other versions.
+  </InfoBanner>
+);
 
 // Status message render helper
 interface IStatusMessageProps {
@@ -123,6 +141,9 @@ const SoftwareUpdateModal = ({
           installerName={installerName}
           installerVersion={installerVersion}
         />
+        {status !== "pending_install" && hasMultipleMacAppCopies(software) && (
+          <MultipleCopiesMessage />
+        )}
         {showCurrentVersions && <InventoryVersions hostSoftware={software} />}
       </div>
       <ModalFooter

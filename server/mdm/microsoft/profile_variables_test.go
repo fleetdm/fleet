@@ -23,6 +23,7 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 		GivenName:  ptr.String("First"),
 		FamilyName: ptr.String("Last"),
 		Department: ptr.String("Department"),
+		ExternalID: new("external-id"),
 		Groups: []fleet.ScimUserGroup{
 			{
 				ID:          1,
@@ -315,8 +316,8 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 		{
 			name:             "all idp variables",
 			hostUUID:         "idp-host-uuid",
-			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>User: $FLEET_VAR_HOST_END_USER_IDP_USERNAME - $FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART - $FLEET_VAR_HOST_END_USER_IDP_GROUPS - $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT - $FLEET_VAR_HOST_END_USER_IDP_FULL_NAME</Data></Item></Replace>`,
-			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>User: test@idp.com - test - Group One,Group Two - Department - First Last</Data></Item></Replace>`,
+			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>User: $FLEET_VAR_HOST_END_USER_IDP_USERNAME - $FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART - $FLEET_VAR_HOST_END_USER_IDP_GROUPS - $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT - $FLEET_VAR_HOST_END_USER_IDP_FULL_NAME - $FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID</Data></Item></Replace>`,
+			expectedContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>User: test@idp.com - test - Group One,Group Two - Department - First Last - external-id</Data></Item></Replace>`,
 		},
 		{
 			name:            "missing groups on idp user",
@@ -339,6 +340,19 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			processingError: "There is no IdP department for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT.",
 			setup: func() {
 				scimUser.Department = nil
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					return scimUser, nil
+				}
+			},
+		},
+		{
+			name:            "missing external ID on idp user",
+			hostUUID:        "no-external-id-idp",
+			profileContents: `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>User: $FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID</Data></Item></Replace>`,
+			expectError:     true,
+			processingError: "There is no IdP external ID for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID.",
+			setup: func() {
+				scimUser.ExternalID = nil
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 					return scimUser, nil
 				}
@@ -532,5 +546,5 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 		})
 	}
 
-	require.Len(t, hostIDForUUIDCache, 3) // make sure cache is populated by IdP var host UUID lookups
+	require.Len(t, hostIDForUUIDCache, 4) // make sure cache is populated by IdP var host UUID lookups
 }

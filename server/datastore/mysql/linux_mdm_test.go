@@ -149,3 +149,55 @@ func TestLinuxDiskEncryptionSummary(t *testing.T) {
 	require.Equal(t, uint(0), summary.ActionRequired)
 	require.Equal(t, uint(0), summary.Failed)
 }
+
+func TestLinuxDiskEncryptionSupportedPlatforms(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := t.Context()
+
+	ac, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	setAppConfigDiskEncryptionForTest(ac, true)
+	require.NoError(t, ds.SaveAppConfig(ctx, ac))
+
+	type platformVersion struct{ platform, osVersion string }
+	supported := []platformVersion{
+		{"ubuntu", "Ubuntu 24.04.1 LTS"},
+		{"zorin", "Zorin OS 17.2"},
+		{"rhel", "Fedora Linux 41.0.0"},
+	}
+	unsupported := []platformVersion{
+		{"rhel", "CentOS Linux 7.9.2009"},
+		{"arch", "Arch Linux rolling"},
+		{"omarchy", "Omarchy 4.0.0"},
+		{"cachyos", "CachyOS Linux rolling"},
+		{"manjaro", "Manjaro Linux 25.0.0"},
+		{"debian", "Debian GNU/Linux 12"},
+		{"pop", "Pop!_OS 22.04 LTS"},
+		{"darwin", "macOS 15.1"},
+	}
+
+	var supportedIDs []uint
+	for i, p := range append(supported, unsupported...) {
+		h := test.NewHost(t, ds, fmt.Sprintf("luks.local.%d", i), "1.1.1.1", fmt.Sprintf("luks-%d", i), fmt.Sprintf("luks-%d", i),
+			time.Now(), test.WithPlatform(p.platform), test.WithOSVersion(p.osVersion))
+		if i < len(supported) {
+			supportedIDs = append(supportedIDs, h.ID)
+		}
+	}
+
+	summary, err := ds.GetLinuxDiskEncryptionSummary(ctx, nil)
+	require.NoError(t, err)
+	require.Equal(t, fleet.MDMLinuxDiskEncryptionSummary{ActionRequired: uint(len(supported))}, summary)
+
+	listIDs := func(opts fleet.HostListOptions) []uint {
+		hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, opts)
+		require.NoError(t, err)
+		ids := make([]uint, 0, len(hosts))
+		for _, h := range hosts {
+			ids = append(ids, h.ID)
+		}
+		return ids
+	}
+	require.ElementsMatch(t, supportedIDs, listIDs(fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsPending}))
+	require.ElementsMatch(t, supportedIDs, listIDs(fleet.HostListOptions{OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionActionRequired}))
+}

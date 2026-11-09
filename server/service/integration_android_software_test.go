@@ -314,7 +314,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 	}))
 
 	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "fleet_id": %s, "platform": "%s", "self_service": true}`,
+		fmt.Sprintf(`{"version_name": "Default version", "team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "fleet_id": %s, "platform": "%s", "self_service": true}`,
 			team.Name, team.Name, androidAppNewTeam2.Name, addAppResp.TitleID, androidAppNewTeam2.AdamID, fmt.Sprint(team.ID), fmt.Sprint(team.ID), androidAppNewTeam2.Platform), 0)
 
 	s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked = false
@@ -394,7 +394,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 
 	// Verify that activity includes configuration
 	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "fleet_id": %s, "platform": "%s", "self_service": true,"configuration": %s}`,
+		fmt.Sprintf(`{"version_name": "Default version", "team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "fleet_id": %s, "platform": "%s", "self_service": true,"configuration": %s}`,
 			fleet.TeamNameNoTeam, fleet.TeamNameNoTeam, androidAppWithConfig.Name, appWithConfigResp.TitleID, androidAppWithConfig.AdamID, "null", "null", androidAppWithConfig.Platform, androidAppWithConfig.Configuration), 0)
 
 	// Should see it in host software library
@@ -417,7 +417,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", appWithConfigResp.TitleID), &getSoftwareTitleRequest{
 		ID:     appWithConfigResp.TitleID,
 		TeamID: nil,
-	}, http.StatusOK, &titleWithConfigResp)
+	}, http.StatusOK, &titleWithConfigResp, "fleet_id", "0")
 
 	require.Contains(t, string(titleWithConfigResp.SoftwareTitle.AppStoreApp.Configuration), "workProfileWidgets")
 
@@ -435,7 +435,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 
 	// Verify that configuration changed and last activity is correct
 	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_icon_url":"https://example.com/1.jpg", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "fleet_id": %s, "software_display_name":"", "platform": "%s", "self_service": true,"configuration": %s}`,
+		fmt.Sprintf(`{"version_name": "Default version", "team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_icon_url":"https://example.com/1.jpg", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "fleet_id": %s, "software_display_name":"", "platform": "%s", "self_service": true,"configuration": %s}`,
 			"", "", androidAppWithConfig.Name, appWithConfigResp.TitleID, androidAppWithConfig.AdamID, "null", "null", androidAppWithConfig.Platform, newConfig), 0)
 }
 
@@ -693,7 +693,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 
 		// Verify that activity includes configuration
 		s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-			fmt.Sprintf(`{"team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "fleet_id": %d, "platform": "%s", "self_service": true,"configuration": %s}`,
+			fmt.Sprintf(`{"version_name": "Default version", "team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "fleet_id": %d, "platform": "%s", "self_service": true,"configuration": %s}`,
 				teamName, teamName, "Test App", appWithConfigResp.TitleID, androidAppFoo.AdamID, ptr.ValOrZero(teamID), ptr.ValOrZero(teamID), androidAppFoo.Platform, androidAppFoo.Configuration), 0)
 
 		var listSWTitles listSoftwareTitlesResponse
@@ -1294,9 +1294,9 @@ func (s *integrationMDMTestSuite) TestAndroidWebAppsCannotSetConfiguration() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", webAppTitleID),
 		&updateAppStoreAppRequest{DisplayName: ptr.String("MyWebApp")},
 		http.StatusOK, &updateResp)
-	require.Equal(t, webAppID, updateResp.AppStoreApp.AdamID)
+	require.Equal(t, webAppID, updateResp.AppStoreApp.AppStoreID)
 	require.Equal(t, "MyWebApp", updateResp.AppStoreApp.DisplayName)
-	require.Equal(t, "abc1", updateResp.AppStoreApp.Name)
+	require.Equal(t, fleet.DefaultAppStoreAppVersionName, updateResp.AppStoreApp.Name)
 	require.True(t, updateResp.AppStoreApp.SelfService)
 	require.Nil(t, updateResp.AppStoreApp.Configuration)
 
@@ -1432,7 +1432,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfigFleetVariables() {
 	var titleResp getSoftwareTitleResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", addResp.TitleID),
 		&getSoftwareTitleRequest{ID: addResp.TitleID},
-		http.StatusOK, &titleResp,
+		http.StatusOK, &titleResp, "fleet_id", "0",
 	)
 	require.Contains(t, string(titleResp.SoftwareTitle.AppStoreApp.Configuration), "$FLEET_VAR_HOST_UUID")
 	require.Contains(t, string(titleResp.SoftwareTitle.AppStoreApp.Configuration), "${FLEET_VAR_HOST_HARDWARE_SERIAL}")

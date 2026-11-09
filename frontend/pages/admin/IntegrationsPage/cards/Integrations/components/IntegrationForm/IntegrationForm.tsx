@@ -2,8 +2,7 @@ import React, { useEffect, useState } from "react";
 
 import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
-import validateEmail from "components/forms/validators/valid_email";
-import validUrl from "components/forms/validators/valid_url";
+import { isValidEmail, isValidURL } from "components/forms/validators";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Spinner from "components/Spinner";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
@@ -46,7 +45,7 @@ const validateForm = (
 
   if (!data.url) {
     errors.url = "Enter a URL";
-  } else if (!validUrl({ url: data.url, protocols: ["https"] })) {
+  } else if (!isValidURL({ url: data.url, protocols: ["https"] })) {
     errors.url = "Enter a valid HTTPS URL";
   }
 
@@ -64,7 +63,7 @@ const validateForm = (
   } else {
     if (!data.email) {
       errors.email = "Enter an email";
-    } else if (!validateEmail(data.email)) {
+    } else if (!isValidEmail(data.email)) {
       errors.email = "Enter a valid email";
     }
     if (!data.groupId) {
@@ -108,6 +107,7 @@ const IntegrationForm = ({
     getError,
     clearFieldError,
     validateField,
+    getTextFieldProps,
     handleSubmit,
     isSubmitting,
   } = useFormValidation<IIntegrationFormData>({
@@ -222,66 +222,41 @@ const IntegrationForm = ({
     >
       <InputField
         autofocus
-        name="url"
+        {...getTextFieldProps("url")}
         label="URL"
         placeholder={
           integrationDestination === "jira"
             ? "https://example.atlassian.net"
             : "https://example.zendesk.com"
         }
-        value={formData.url}
-        onChange={(value: string) => setField("url", value)}
-        onFocus={() => clearFieldError("url")}
-        onBlur={() => validateField("url")}
-        error={getError("url")}
         disabled={gitOpsModeEnabled || isSubmitting}
       />
       {integrationDestination === "jira" ? (
         <InputField
-          name="username"
+          {...getTextFieldProps("username")}
           label="Username"
           placeholder="name@example.com"
-          value={formData.username || ""}
-          onChange={(value: string) => setField("username", value)}
-          onFocus={() => clearFieldError("username")}
-          onBlur={() => validateField("username")}
-          error={getError("username")}
           disabled={gitOpsModeEnabled || isSubmitting}
         />
       ) : (
         <InputField
-          name="email"
+          {...getTextFieldProps("email")}
           label="Email"
           placeholder="name@example.com"
           type="email"
-          value={formData.email || ""}
-          onChange={(value: string) => setField("email", value)}
-          onFocus={() => clearFieldError("email")}
-          onBlur={() => validateField("email")}
-          error={getError("email")}
           disabled={gitOpsModeEnabled || isSubmitting}
         />
       )}
       <InputField
-        name="apiToken"
+        {...getTextFieldProps("apiToken")}
         label="API token"
-        value={formData.apiToken}
-        onChange={(value: string) => setField("apiToken", value)}
-        onFocus={() => clearFieldError("apiToken")}
-        onBlur={() => validateField("apiToken")}
-        error={getError("apiToken")}
         disabled={gitOpsModeEnabled || isSubmitting}
       />
       {integrationDestination === "jira" ? (
         <InputField
-          name="projectKey"
+          {...getTextFieldProps("projectKey")}
           label="Project key"
           placeholder="JRAEXAMPLE"
-          value={formData.projectKey || ""}
-          onChange={(value: string) => setField("projectKey", value)}
-          onFocus={() => clearFieldError("projectKey")}
-          onBlur={() => validateField("projectKey")}
-          error={getError("projectKey")}
           disabled={gitOpsModeEnabled || isSubmitting}
           tooltip={
             <>

@@ -8,8 +8,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/fsutil"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/proc"
+	"github.com/stretchr/testify/require"
 )
 
 func write(t *testing.T, path, content string) {
@@ -86,7 +88,7 @@ args = ["mcp"]
 
 	by := map[string]Server{}
 	byClient := map[string][]Server{}
-	for _, s := range ScanConfigs(homes.Home{Dir: home, Username: "tester"}) {
+	for _, s := range ScanConfigs(homes.Home{Dir: home, Username: "tester"}, fsutil.WalkHome(home, WalkProbes())) {
 		by[s.ServerName] = s
 		byClient[s.Client] = append(byClient[s.Client], s)
 	}
@@ -238,5 +240,60 @@ func TestCorrelateInlineEvalLauncher(t *testing.T) {
 	}
 	if len(args) != 2 || args[0] != "-e" || args[1] != script {
 		t.Errorf("Args = %v, want [\"-e\", %q] as two elements, not shredded on whitespace", args, script)
+	}
+}
+
+// Correlate lists the host's connections only when a row needs a port: a
+// declared stdio server talks over its pipes, so matching one must not run the
+// listing (lsof on macOS).
+func TestCorrelateListsConnectionsOnlyForPorts(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		declared  []Server
+		cmdline   string
+		wantPort  int
+		wantLoads int
+	}{
+		{
+			name: "declared stdio",
+			declared: []Server{{
+				ServerName: "fs", Command: "npx", Transport: "stdio",
+				Args:   `["-y","@modelcontextprotocol/server-filesystem","/tmp"]`,
+				Source: "config", Location: "local",
+			}},
+			cmdline: "node /x/npx @modelcontextprotocol/server-filesystem /tmp",
+		},
+		{
+			name: "declared http",
+			declared: []Server{{
+				ServerName: "web", Command: "node", Transport: "http",
+				Args:   `["/opt/mcp/web-server.js"]`,
+				Source: "config", Location: "local",
+			}},
+			cmdline:   "node /opt/mcp/web-server.js",
+			wantPort:  8931,
+			wantLoads: 1,
+		},
+		{
+			name:      "process-derived",
+			cmdline:   "node /opt/mcp-server-weather/index.js",
+			wantPort:  8931,
+			wantLoads: 1,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			loads := 0
+			snap := proc.NewSnapshot(map[int]proc.Process{
+				42: {PID: 42, Name: "node", Cmdline: tc.cmdline},
+			}, func() []proc.Conn {
+				loads++
+				return []proc.Conn{{PID: 42, Status: "LISTEN", LocalPort: 8931}}
+			})
+			out := Correlate(tc.declared, snap)
+			require.Len(t, out, 1)
+			require.Equal(t, 42, out[0].PID)
+			require.Equal(t, tc.wantPort, out[0].ListeningPort)
+			require.Equal(t, tc.wantLoads, loads)
+		})
 	}
 }

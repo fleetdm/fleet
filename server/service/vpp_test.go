@@ -33,6 +33,10 @@ func TestVPPAuth(t *testing.T) {
 		return assets, nil
 	}
 
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
+
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	androidMockClient := &android_mock.Client{}
 	androidMockClient.SetAuthenticationSecretFunc = func(secret string) error { return nil }
@@ -132,7 +136,7 @@ func TestVPPAuth(t *testing.T) {
 				checkAuthErr(t, tt.shouldFailRead, err)
 			}
 
-			_, _, err = svc.AddAppStoreApp(ctx, tt.teamID, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "123", Platform: fleet.IOSPlatform}})
+			_, err = svc.AddAppStoreApp(ctx, tt.teamID, fleet.VPPAppTeam{AdamID: "123", Platform: fleet.IOSPlatform})
 			if tt.teamID == nil {
 				require.Error(t, err)
 			} else {

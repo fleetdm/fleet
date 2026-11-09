@@ -77,8 +77,6 @@ This activity contains the following fields:
 {
 	"policy_id": 123,
 	"policy_name": "foo",
-	"team_id": 1,
-	"team_name": "Workstations",
 	"fleet_id": 1,
 	"fleet_name": "Workstations"
 }
@@ -100,8 +98,6 @@ This activity contains the following fields:
 {
 	"policy_id": 123,
 	"policy_name": "foo",
-	"team_id": 1,
-	"team_name": "Workstations",
 	"fleet_id": 1,
 	"fleet_name": "Workstations"
 }
@@ -123,10 +119,33 @@ This activity contains the following fields:
 {
 	"policy_id": 123,
 	"policy_name": "foo",
-	"team_id": 1,
-	"team_name": "Workstations",
 	"fleet_id": 1,
 	"fleet_name": "Workstations"
+}
+```
+
+## reset_policy
+
+Generated when resetting a policy's results, either for all hosts or for a single host.
+
+This activity contains the following fields:
+- "policy_id": the ID of the reset policy.
+- "policy_name": the name of the reset policy.
+- "fleet_id": the ID of the fleet the policy belongs to. Use -1 for global policies, 0 for "no fleet" policies.
+- "fleet_name": the name of the fleet the policy belongs to. null for global policies and "no fleet" policies.
+- "host_id": the ID of the host whose result was reset. Only present when the reset was scoped to a single host.
+- "host_display_name": the display name of the host whose result was reset. Only present when the reset was scoped to a single host.
+
+#### Example
+
+```json
+{
+	"policy_id": 123,
+	"policy_name": "foo",
+	"fleet_id": 1,
+	"fleet_name": "Workstations",
+	"host_id": 42,
+	"host_display_name": "Anna's MacBook Pro"
 }
 ```
 
@@ -185,8 +204,6 @@ This activity contains the following fields:
 {
 	"query_id": 123,
 	"query_name": "foo",
-	"team_id": 1,
-	"team_name": "Workstations",
 	"report_id": 123,
 	"report_name": "foo",
 	"fleet_id": 1,
@@ -210,8 +227,6 @@ This activity contains the following fields:
 {
 	"query_id": 123,
 	"query_name": "foo",
-	"team_id": 1,
-	"team_name": "Workstations",
 	"report_id": 123,
 	"report_name": "foo",
 	"fleet_id": 1,
@@ -233,8 +248,6 @@ This activity contains the following fields:
 ```json
 {
 	"query_name": "foo",
-	"team_id": 1,
-	"team_name": "Workstations",
 	"report_name": "foo",
 	"fleet_id": 1,
 	"fleet_name": "Workstations"
@@ -255,8 +268,6 @@ This activity contains the following fields:
 ```json
 {
 	"query_ids": [1, 42, 100],
-	"team_id": 123,
-	"team_name": "Workstations",
 	"report_ids": [1, 42, 100],
 	"fleet_id": 123,
 	"fleet_name": "Workstations"
@@ -286,7 +297,7 @@ This activity contains a field "specs" where each item is a report spec with the
 }
 ```
 
-## created_team
+## created_fleet
 
 Generated when creating fleets.
 
@@ -298,14 +309,12 @@ This activity contains the following fields:
 
 ```json
 {
-	"team_id": 123,
-	"team_name": "Workstations",
 	"fleet_id": 123,
 	"fleet_name": "Workstations"
 }
 ```
 
-## deleted_team
+## deleted_fleet
 
 Generated when deleting fleets.
 
@@ -317,18 +326,16 @@ This activity contains the following fields:
 
 ```json
 {
-	"team_id": 123,
-	"team_name": "Workstations",
 	"fleet_id": 123,
 	"fleet_name": "Workstations"
 }
 ```
 
-## applied_spec_team
+## applied_spec_fleet
 
 Generated when applying fleet specs.
 
-This activity contains a field "teams" where each item contains the fleet details with the following fields:
+This activity contains a field "fleets" where each item contains the fleet details with the following fields:
 - "id": Unique ID of the fleet.
 - "name": Name of the fleet.
 
@@ -336,7 +343,7 @@ This activity contains a field "teams" where each item contains the fleet detail
 
 ```json
 {
-	"teams": [
+	"fleets": [
 		{
 			"id": 123,
 			"name": "foo"
@@ -359,8 +366,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations",
   "host_ids": [1, 2, 3],
@@ -381,8 +386,6 @@ This activity contains the following fields:
 
 ```json
 {
-	"team_id": 123,
-	"team_name": "Workstations",
 	"fleet_id": 123,
 	"fleet_name": "Workstations",
 	"global": false
@@ -551,6 +554,7 @@ This activity contains the following fields:
 - "user_name": Name of the edited user.
 - "user_email": E-mail of the edited user.
 - "role": New global role of the edited user.
+- "jit": Whether the role was assigned via just-in-time (JIT) user provisioning (omitted when false).
 
 #### Example
 
@@ -572,6 +576,7 @@ This activity contains the following fields:
 - "user_name": Name of the edited user.
 - "user_email": E-mail of the edited user.
 - "role": Deleted global role of the edited user.
+- "jit": Whether the role was removed via just-in-time (JIT) user provisioning (omitted when false).
 
 #### Example
 
@@ -584,7 +589,7 @@ This activity contains the following fields:
 }
 ```
 
-## changed_user_team_role
+## changed_user_fleet_role
 
 Generated when user fleet roles are changed.
 
@@ -595,6 +600,7 @@ This activity contains the following fields:
 - "role": Fleet role set to the edited user.
 - "fleet_id": Unique ID of the fleet of the changed role.
 - "fleet_name": Name of the fleet of the changed role.
+- "jit": Whether the role was assigned via just-in-time (JIT) user provisioning (omitted when false).
 
 #### Example
 
@@ -604,14 +610,12 @@ This activity contains the following fields:
 	"user_name": "Foo",
 	"user_email": "foo@example.com",
 	"role": "Maintainer",
-	"team_id": 5,
-	"team_name": "Bar",
 	"fleet_id": 5,
 	"fleet_name": "Bar"
 }
 ```
 
-## deleted_user_team_role
+## deleted_user_fleet_role
 
 Generated when user fleet roles are deleted.
 
@@ -622,6 +626,7 @@ This activity contains the following fields:
 - "role": Fleet role deleted from the edited user.
 - "fleet_id": Unique ID of the fleet of the deleted role.
 - "fleet_name": Name of the fleet of the deleted role.
+- "jit": Whether the role was removed via just-in-time (JIT) user provisioning (omitted when false).
 
 #### Example
 
@@ -631,8 +636,6 @@ This activity contains the following fields:
 	"user_name": "Foo",
 	"user_email": "foo@example.com",
 	"role": "Observer",
-	"team_id": 2,
-	"team_name": "Zoo",
 	"fleet_id": 2,
 	"fleet_name": "Zoo"
 }
@@ -657,18 +660,50 @@ This activity contains the following fields:
 }
 ```
 
+## host_enrollment_rejected
+
+Generated when Fleet refuses an Orbit or osquery enrollment under the one-time enroll secret rules (see the [`mdm.apple_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets) server configuration). Fleet records at most one of these per host and reason per 12 hours, so a host that keeps retrying doesn't flood the activity feed.
+
+This activity contains the following fields:
+- "host_id": ID of the host the attempt targeted, or null if the host is unknown.
+- "host_display_name": Display name of the host, if known.
+- "host_serial": Serial number the enrolling device presented.
+- "host_uuid": Hardware UUID the enrolling device presented.
+- "platform": Platform the enrolling device presented.
+- "enrollment_plane": Which fleetd component attempted to enroll, "orbit" or "osquery".
+- "reason": Why the attempt was refused. One of:
+  - "one_time_secret_spent": the host's one-time enroll secret was already used. Resend the "Fleetd configuration" profile to issue a new one.
+  - "one_time_secret_identifier_mismatch": a one-time enroll secret was presented with a different serial number or hardware UUID than it was issued for.
+  - "shared_secret_for_mdm_managed_host": a global or fleet-level enroll secret was used for a host that is enrolled in Fleet MDM or assigned to Fleet in Apple Business.
+
+#### Example
+
+```json
+{
+	"host_id": 123,
+	"host_display_name": "Anna's MacBook Pro",
+	"host_serial": "C02ABC123DEF",
+	"host_uuid": "5F0F24C3-1F58-4C2B-9E7B-1F0E6C2B4D6A",
+	"platform": "darwin",
+	"enrollment_plane": "orbit",
+	"reason": "one_time_secret_spent"
+}
+```
+
 ## mdm_enrolled
 
 Generated when a host is enrolled in Fleet's MDM.
 
 This activity contains the following fields:
-- "host_id": ID of the host. Omitted when the host is not yet known at enrollment time (Windows Azure automatic enrollments, which are linked to their host when the device reports its serial number on the first management session).
-- "host_serial": Serial number of the host (Apple enrollments only, always empty for Microsoft).
+- "host_id": ID of the host. Omitted from activities generated before Fleet added this field.
+- "host_serial": Serial number of the host. For Apple BYOD (account-driven user) enrollments, which have no serial number, this is the enrollment ID instead. `null` if the serial number is unknown.
 - "host_display_name": Display name of the host.
-- "installed_from_dep": Whether the host was enrolled via DEP (Apple enrollments only, always false for Microsoft).
+- "installed_from_dep": Whether the host was enrolled automatically. `true` for Apple hosts enrolled via DEP, and for Windows hosts enrolled through Microsoft Entra ID during the out-of-box experience (OOBE), such as Windows Autopilot.
 - "mdm_platform": Used to distinguish between Apple and Microsoft enrollments. Can be "apple", "microsoft" or not present. If missing, this value is treated as "apple" for backwards compatibility.
 - "enrollment_id": The unique identifier for MDM BYOD enrollments; null for other enrollments.
 - "platform": The enrolled host's platform
+
+Windows hosts that enroll automatically through Microsoft Entra ID get this activity once it matches the enrollment to a host. This is usually within a minute of the device enrolling, but can be later if the host has not run Fleet's agent (fleetd) yet.
 
 #### Example
 
@@ -676,7 +711,6 @@ This activity contains the following fields:
 {
   "host_id": 42,
   "host_serial": "C08VQ2AXHT96",
-  "host_id": "123",
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
   "installed_from_dep": true,
   "mdm_platform": "apple",
@@ -724,8 +758,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 3,
-  "team_name": "Workstations",
   "fleet_id": 3,
   "fleet_name": "Workstations",
   "minimum_version": "13.0.1",
@@ -747,8 +779,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 3,
-  "team_name": "iPhones",
   "fleet_id": 3,
   "fleet_name": "iPhones",
   "minimum_version": "17.5.1",
@@ -770,8 +800,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 3,
-  "team_name": "iPads",
   "fleet_id": 3,
   "fleet_name": "iPads",
   "minimum_version": "17.5.1",
@@ -793,12 +821,31 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 3,
-  "team_name": "Workstations",
   "fleet_id": 3,
   "fleet_name": "Workstations",
   "deadline_days": 5,
   "grace_period_days": 2
+}
+```
+
+## edited_patch_deadline_settings
+
+Generated when the patch deadline days or time are modified for a fleet.
+
+This activity contains the following fields:
+- "fleet_id": The ID of the fleet that the patch deadline settings apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the patch deadline settings apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
+- "days": Days of the week when the deadline applies.
+- "time": The deadline, formatted as `HH:MM` in the host's local time.
+
+#### Example
+
+```json
+{
+  "fleet_id": 3,
+  "fleet_name": "Workstations",
+  "days": ["monday", "wednesday", "friday"],
+  "time": "11:00"
 }
 ```
 
@@ -814,8 +861,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -833,8 +878,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -890,8 +933,6 @@ This activity contains the following fields:
 {
   "profile_name": "Custom settings 1",
   "profile_identifier": "com.my.profile",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -913,8 +954,6 @@ This activity contains the following fields:
 {
   "profile_name": "Custom settings 1",
   "profile_identifier": "com.my.profile",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -936,8 +975,6 @@ This activity contains the following fields:
 {
   "profile_name": "Custom settings 1",
   "profile_identifier": "com.my.profile",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -957,8 +994,6 @@ This activity contains the following fields:
 ```json
 {
   "name": "dep_profile.json",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -978,8 +1013,6 @@ This activity contains the following fields:
 ```json
 {
   "name": "dep_profile.json",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -998,8 +1031,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1018,8 +1049,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1131,8 +1160,6 @@ This activity contains the following fields:
 ```json
 {
   "bootstrap_package_name": "bootstrap-package.pkg",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1152,8 +1179,6 @@ This activity contains the following fields:
 ```json
 {
   "package_name": "bootstrap-package.pkg",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1171,8 +1196,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1190,8 +1213,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1230,6 +1251,18 @@ This activity does not contain any detail fields.
 ## disabled_windows_mdm_migration
 
 Generated when a user disables automatic MDM migration for Windows hosts, if Windows MDM is turned on.
+
+This activity does not contain any detail fields.
+
+## enabled_apple_business_only_enrollment
+
+Generated when a user enables the setting that allows only Apple hosts assigned to Fleet in Apple Business (AB) to turn on MDM.
+
+This activity does not contain any detail fields.
+
+## disabled_apple_business_only_enrollment
+
+Generated when a user disables the setting that allows only Apple hosts assigned to Fleet in Apple Business (AB) to turn on MDM.
 
 This activity does not contain any detail fields.
 
@@ -1278,8 +1311,6 @@ This activity contains the following fields:
 ```json
 {
   "script_name": "set-timezones.sh",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1299,8 +1330,6 @@ This activity contains the following fields:
 ```json
 {
   "script_name": "set-timezones.sh",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1318,8 +1347,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1339,8 +1366,6 @@ This activity contains the following fields:
 ```json
 {
   "script_name": "set-timezones.sh",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1360,8 +1385,6 @@ This activity contains the following fields:
 ```json
 {
   "profile_name": "Custom settings 1",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1381,8 +1404,6 @@ This activity contains the following fields:
 ```json
 {
   "profile_name": "Custom settings 1",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1402,8 +1423,6 @@ This activity contains the following fields:
 ```json
 {
   "profile_name": "Custom settings 1",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1497,8 +1516,6 @@ This activity contains the following fields:
 {
   "profile_name": "Passcode requirements",
   "profile_identifier": "com.my.declaration",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1520,8 +1537,6 @@ This activity contains the following fields:
 {
   "profile_name": "Passcode requirements",
   "profile_identifier": "com.my.declaration",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1543,8 +1558,6 @@ This activity contains the following fields:
 {
   "profile_name": "Passcode requirements",
   "profile_identifier": "com.my.declaration",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1564,8 +1577,6 @@ This activity contains the following fields:
 ```json
 {
   "profile_name": "Custom settings 1",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1585,8 +1596,6 @@ This activity contains the following fields:
 ```json
 {
   "profile_name": "Custom settings 1",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1606,8 +1615,6 @@ This activity contains the following fields:
 ```json
 {
   "profile_name": "Custom settings 1",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1625,8 +1632,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1694,7 +1699,8 @@ This activity contains the following fields:
 - "command_uuid": ID of the in-house app installation.
 - "from_setup_experience": Whether the installation was triggered as part of the setup experience.
 - "failure_reason": Reason the installation failed before reaching the device (e.g. an unresolvable Fleet variable in the managed app configuration). Only present when "status" is "failed_install" and Fleet failed the install pre-flight; omitted otherwise.
-- "skipped_install": Whether the install was skipped because the app was open. This is `true` when the Fleet-maintained app is installed by the patch policy's automation, when `patch_when_closed` is set. Only present when "status" is "failed_install" and the install was skipped for this reason, omitted otherwise.
+- "skipped_install": Whether the install was skipped because the app was open. This is `true` when the Fleet-maintained app is installed by the patch policy's automation, when the policy had `patch_when_closed` or `notify_before_patching` enabled at the time of the install. Only present when "status" is "failed_install" and the install was skipped for this reason, omitted otherwise.
+- "patch_when_closed": Whether the policy that triggered this install had `patch_when_closed` enabled at the time of the install.
 
 #### Example
 
@@ -1710,7 +1716,8 @@ This activity contains the following fields:
   "source": "pkg_packages",
   "policy_id": 1337,
   "policy_name": "Ensure 1Password is installed and up to date",
-  "from_setup_experience": false
+  "from_setup_experience": false,
+  "patch_when_closed": false
 }
 ```
 
@@ -1734,6 +1741,42 @@ This activity contains the following fields:
   "self_service_category_id": 12,
   "self_service_category_name": "🌎 Browsers",
   "software_titles_count": 3
+}
+```
+
+## notified_end_user_before_patching
+
+Generated when Fleet shows an end user a notification before patching, for patch policies with `notify_before_patching` or `patch_deadline` set to `true`.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "patch_notification_uuid": ID of the notification. The reminder for the same notification reuses this ID.
+- "status": Whether notification is displayed or failed.
+- "software": Software titles included in the notification. Each entry has `title` (raw name), `title_id`, and `display_name` (set only when an admin picked a per-fleet override).
+- "policy_ids": IDs of the patch policies included in the notification.
+- "time_before": Either 1 hour or 5 minutes before patch is forced.
+- "install_at": Timestamp at which the apps will be installed if the end user doesn't update them first.
+- "script_execution_id": Execution ID of the script run that displayed the notification to the end user.
+- "exit_code": Exit code of the notification script. `0` on success; non-zero encodes the failure reason (e.g. `41` for a locked screen).
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "patch_notification_uuid": "9f8c1c1e-0b1a-4f2a-9a3e-6c5d4b3a2f10",
+  "software": [
+    { "title": "1Password", "title_id": 42, "display_name": "1Password 8" },
+    { "title": "Slack", "title_id": 57 }
+  ],
+  "status": "success",
+  "policy_ids": [1337, 1338],
+  "time_before": 3600,
+  "install_at": "2026-08-06T14:00:00Z",
+  "script_execution_id": "c672cccb-fcfa-4424-a25f-dd2d2e3eb3be",
+  "exit_code": 0
 }
 ```
 
@@ -1784,8 +1827,6 @@ This activity contains the following fields:
 {
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
-  "team_name": "Workstations",
-  "team_id": 123,
   "fleet_name": "Workstations",
   "fleet_id": 123,
   "self_service": true,
@@ -1825,13 +1866,11 @@ This activity contains the following fields:
 {
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
-  "team_name": "Workstations",
-  "team_id": 123,
   "fleet_name": "Workstations",
   "fleet_id": 123,
   "self_service": true,
   "software_title_id": 2234,
-  "software_icon_url": "/api/latest/fleet/software/titles/2234/icon?team_id=123",
+  "software_icon_url": "/api/latest/fleet/software/titles/2234/icon?fleet_id=123",
   "software_display_name": "Crowdstrike Falcon",
   "pinned_version": "149.0.7827.54",
   "labels_include_any": [
@@ -1866,8 +1905,6 @@ This activity contains the following fields:
 {
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
-  "team_name": "Workstations",
-  "team_id": 123,
   "fleet_name": "Workstations",
   "fleet_id": 123,
   "self_service": true,
@@ -1981,6 +2018,10 @@ This activity contains the following fields:
 - "software_title_id": ID of the added software title.
 - "app_store_id": ID of the app on the Apple App Store or Google Play.
 - "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
+- "vpp_token": The VPP token the app was added from, at the time of the activity. `null` for Google Play apps.
+  - "id": ID of the VPP token.
+  - "location": Name of the organization unit in Apple Business for the VPP token.
+  - "country_code": Country code of the VPP token (e.g. `us`).
 - "self_service": App installation can be initiated by device owner.
 - "fleet_name": Name of the fleet to which this App Store app was added, or `null` if it was added to no fleet.
 - "fleet_id": ID of the fleet to which this App Store app was added, or `null` if it was added to no fleet.
@@ -1996,9 +2037,12 @@ This activity contains the following fields:
   "software_title_id": 123,
   "app_store_id": "1234567",
   "platform": "darwin",
+  "vpp_token": {
+    "id": 2,
+    "location": "Acme Japan",
+    "country_code": "jp"
+  },
   "self_service": false,
-  "team_name": "Workstations",
-  "team_id": 1,
   "fleet_name": "Workstations",
   "fleet_id": 1,
   "labels_include_any": [
@@ -2034,8 +2078,6 @@ This activity contains the following fields:
   "software_title": "Logic Pro",
   "app_store_id": "1234567",
   "platform": "darwin",
-  "team_name": "Workstations",
-  "team_id": 1,
   "fleet_name": "Workstations",
   "fleet_id": 1,
   "software_icon_url": "",
@@ -2062,12 +2104,18 @@ This activity contains the following fields:
 - "host_display_name": Display name of the host.
 - "software_title": Name of the App Store app.
 - "app_store_id": ID of the app on the Apple App Store or Google Play.
+- "vpp_token": The VPP token the app was added from, at the time of the activity. `null` for Google Play apps.
+  - "id": ID of the VPP token.
+  - "location": Name of the organization unit in Apple Business for the VPP token.
+  - "country_code": Country code of the VPP token (e.g. `us`).
 - "status": Status of the App Store app installation.
 - "command_uuid": UUID of the MDM command used to install the app.
 - "policy_id": ID of the policy whose failure triggered the install. Null if no associated policy.
 - "policy_name": Name of the policy whose failure triggered the install. Null if no associated policy.
 - "from_setup_experience": Whether the app was installed as part of the setup experience.
 - "failure_reason": Reason the installation failed before reaching the device (e.g. an unresolvable Fleet variable in the managed app configuration). Only present when "status" is "failed_install" and Fleet failed the install pre-flight; omitted otherwise.
+- "version_name": Name of the app version that was installed. An app can have more than one version on the same fleet, each with its own settings and managed app configuration.
+- "configuration": The managed app configuration that was applied, in XML format for iOS and iPadOS apps and JSON format for Android apps. Null if the version has no managed app configuration.
 
 #### Example
 
@@ -2078,10 +2126,35 @@ This activity contains the following fields:
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Logic Pro",
   "app_store_id": "1234567",
+  "vpp_token": {
+    "id": 2,
+    "location": "Acme Japan",
+    "country_code": "jp"
+  },
   "command_uuid": "98765432-1234-1234-1234-1234567890ab",
   "policy_id": 123,
   "policy_name": "[Install Software] Logic Pro",
-  "from_setup_experience": false
+  "from_setup_experience": false,
+  "version_name": "Logic Pro",
+  "configuration": null
+}
+```
+
+#### Example (iOS app with a managed app configuration)
+
+```json
+{
+  "host_id": 57,
+  "self_service": false,
+  "host_display_name": "Anna's iPhone",
+  "software_title": "Zoom Workplace",
+  "app_store_id": "546505307",
+  "command_uuid": "12345678-90ab-cdef-1234-567890abcdef",
+  "policy_id": null,
+  "policy_name": null,
+  "from_setup_experience": false,
+  "version_name": "Production",
+  "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>..."
 }
 ```
 
@@ -2131,6 +2204,10 @@ This activity contains the following fields:
 - "software_title_id": ID of the updated app's software title.
 - "app_store_id": ID of the app on the Apple App Store or Google Play.
 - "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
+- "vpp_token": The VPP token the app was added from, at the time of the activity. `null` for Google Play apps.
+  - "id": ID of the VPP token.
+  - "location": Name of the organization unit in Apple Business for the VPP token.
+  - "country_code": Country code of the VPP token (e.g. `us`).
 - "self_service": App installation can be initiated by device owner.
 - "fleet_name": Name of the fleet on which this App Store app was updated, or `null` if it was updated on no fleet.
 - "fleet_id": ID of the fleet on which this App Store app was updated, or `null` if it was updated on no fleet.
@@ -2151,12 +2228,15 @@ This activity contains the following fields:
   "software_title_id": 123,
   "app_store_id": "1234567",
   "platform": "darwin",
+  "vpp_token": {
+    "id": 2,
+    "location": "Acme Japan",
+    "country_code": "jp"
+  },
   "self_service": true,
-  "team_name": "Workstations",
-  "team_id": 1,
   "fleet_name": "Workstations",
   "fleet_id": 1,
-  "software_icon_url": "/api/latest/fleet/software/titles/123/icon?team_id=1",
+  "software_icon_url": "/api/latest/fleet/software/titles/123/icon?fleet_id=1",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -2166,10 +2246,10 @@ This activity contains the following fields:
       "name": "Product",
       "id": 17
     }
-  ]
-  "software_display_name": "Logic Pro DAW"
-  "auto_update_enabled": true
-  "auto_update_window_start": "22:00"
+  ],
+  "software_display_name": "Logic Pro DAW",
+  "auto_update_enabled": true,
+  "auto_update_window_start": "22:00",
   "auto_update_window_end": "02:00"
 }
 ```
@@ -2832,8 +2912,6 @@ This activity contains the following field:
 
 ```json
 {
-  "team_id": 5,
-  "team_name": "Workstations",
   "fleet_id": 5,
   "fleet_name": "Workstations"
 }
@@ -2851,8 +2929,6 @@ This activity contains the following field:
 
 ```json
 {
-  "team_id": 5,
-  "team_name": "Workstations",
   "fleet_id": 5,
   "fleet_name": "Workstations"
 }
@@ -2872,6 +2948,44 @@ This activity contains the following fields:
 {
 	"host_id": 123,
 	"host_display_name": "PWNED-VM-123"
+}
+```
+
+## bound_host_to_idp_account
+
+Generated when an end user signs in with the identity provider (IdP) during the Linux or Windows setup experience and Fleet links the host to that IdP account. Fleet records this activity, so it does not include a user.
+
+This activity contains the following fields:
+- "host_uuid": Hardware UUID of the host. The host may not exist in Fleet yet, because the link is made before enrollment completes.
+- "idp_email": Email of the IdP account the host is now linked to.
+- "replaced_idp_email": Email of the IdP account the host was linked to before. Only present when the host was already linked to a different account, for example when the end user signed in again with another account before the host finished enrolling; omitted otherwise.
+
+#### Example
+
+```json
+{
+	"host_uuid": "7d3f1a2c-9b4e-4f60-a1c8-2e5d6b7f8a90",
+	"idp_email": "ana.torres@example.com",
+	"replaced_idp_email": "ben.ito@example.com"
+}
+```
+
+## refused_host_idp_account_change
+
+Generated when an IdP sign-in from the Linux or Windows setup experience completes after the host has already enrolled and would have replaced the IdP account the host is linked to. Fleet keeps the existing link and records this activity, so it does not include a user.
+
+This activity contains the following fields:
+- "host_uuid": Hardware UUID of the host.
+- "idp_email": Email of the IdP account that signed in and was not linked.
+- "existing_idp_email": Email of the IdP account the host stays linked to.
+
+#### Example
+
+```json
+{
+	"host_uuid": "7d3f1a2c-9b4e-4f60-a1c8-2e5d6b7f8a90",
+	"idp_email": "mallory@example.com",
+	"existing_idp_email": "ana.torres@example.com"
 }
 ```
 
@@ -2938,8 +3052,6 @@ This activity contains the following fields:
 ```json
 {
 	"platform": "darwin",
-	"team_id": 1,
-	"team_name": "Workstations",
 	"fleet_id": 1,
 	"fleet_name": "Workstations"
 }
@@ -3031,8 +3143,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -3084,8 +3194,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -3103,8 +3211,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -3143,6 +3249,25 @@ This activity contains the following fields:
 {
   "fleet_id": 123,
   "fleet_name": "Workstations"
+}
+```
+
+## failed_to_rotate_managed_local_account_password
+
+Generated when a host reports that it could not rotate its managed local account password. Attributed to Fleet, because the failure arrives from the device outside any user's request.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "detail": The reason the host reported, if it sent one. Only Windows hosts report a reason today, so the field is omitted for macOS.
+
+#### Example
+
+```json
+{
+  "host_id": 123,
+  "host_display_name": "DESKTOP-ABC123",
+  "detail": "Resetting password for _fleetadmin failed: The password does not meet the password policy requirements."
 }
 ```
 
@@ -3646,6 +3771,51 @@ This activity contains the following fields:
 ```json
 {
 	"tenant_id": "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4"
+}
+```
+
+## added_ejbca
+
+Generated when EJBCA certificate authority configuration is added in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "WIFI_CERTIFICATE"
+}
+```
+
+## edited_ejbca
+
+Generated when EJBCA certificate authority configuration is edited in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "WIFI_CERTIFICATE"
+}
+```
+
+## deleted_ejbca
+
+Generated when EJBCA certificate authority configuration is deleted in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "WIFI_CERTIFICATE"
 }
 ```
 

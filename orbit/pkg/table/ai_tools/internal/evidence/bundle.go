@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/fsutil"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/proc"
 )
@@ -46,9 +47,11 @@ type Framework struct {
 }
 
 // Gather builds a Bundle for the given homes and optional process snapshot.
-// types controls which gatherers run (keys match ai_tools type values).
+// types controls which gatherers run (keys match ai_tools type values). walks
+// holds each home's fsutil.WalkHome result, keyed by home directory; a home
+// without one gets no project-directory evidence.
 // Failures degrade to empty slices — never panics.
-func Gather(ctx context.Context, hs []homes.Home, snap *proc.Snapshot, types map[string]struct{}) *Bundle {
+func Gather(ctx context.Context, hs []homes.Home, snap *proc.Snapshot, types map[string]struct{}, walks map[string][]fsutil.WalkedDir) *Bundle {
 	b := &Bundle{}
 	has := func(t string) bool { _, ok := types[t]; return ok }
 	needAgents := types == nil || has("agents") || has("apps") || has("sockets") || has("mcp_server")
@@ -63,8 +66,8 @@ func Gather(ctx context.Context, hs []homes.Home, snap *proc.Snapshot, types map
 			break
 		}
 		b.ToolHomes = append(b.ToolHomes, scanToolHomes(h)...)
-		b.Workspaces = append(b.Workspaces, scanWorkspaces(h)...)
-		b.Frameworks = append(b.Frameworks, scanFrameworks(h)...)
+		b.Workspaces = append(b.Workspaces, scanWorkspaces(h, walks[h.Dir])...)
+		b.Frameworks = append(b.Frameworks, scanFrameworks(h, walks[h.Dir])...)
 	}
 	// Running state is applied later, where agents fuse these candidates
 	// against the process snapshot; here the paths are only normalized.
@@ -122,11 +125,13 @@ func AgentCandidates(h homes.Home, snap *proc.Snapshot, b *Bundle) []AgentCandid
 		return a
 	}
 
+	toolHomeKeys := map[string]string{}
 	for _, th := range b.ToolHomes {
 		if !underHome(th.Path, h.Dir) {
 			continue
 		}
 		key := "home:" + th.Path
+		toolHomeKeys[filepath.Clean(th.Path)] = key
 		a := ensure(key, th.Name, th.Path)
 		a.c.Signals.Add("tool_home")
 		if th.HasConfig {
@@ -150,6 +155,13 @@ func AgentCandidates(h homes.Home, snap *proc.Snapshot, b *Bundle) []AgentCandid
 			continue
 		}
 		key := "ws:" + ws.Root
+		// A tool home shaped like a workspace (~/.claude/skills) is that tool;
+		// its shape joins the tool-home candidate, which merges into the
+		// tool's catalog row, instead of becoming a second agent.
+		thKey, isToolHome := toolHomeKeys[filepath.Clean(ws.Root)]
+		if isToolHome {
+			key = thKey
+		}
 		a := ensure(key, ws.Name, ws.Root)
 		if ws.Strong {
 			a.c.Signals.Add("workspace_shape")
@@ -178,12 +190,11 @@ func AgentCandidates(h homes.Home, snap *proc.Snapshot, b *Bundle) []AgentCandid
 		// Attach framework to nearest workspace root or use package path.
 		key := "fw:" + fw.Path
 		name := fw.Name
-		if dir := filepath.Dir(fw.Path); dir != "" {
-			// Prefer project root two levels up from package.json
-			if strings.HasSuffix(fw.Path, "package.json") || strings.HasSuffix(fw.Path, "pyproject.toml") {
-				key = "ws:" + filepath.Dir(fw.Path)
-				name = filepath.Base(filepath.Dir(fw.Path))
-			}
+		// Prefer the project root, one level up from the manifest.
+		if strings.HasSuffix(fw.Path, "package.json") || strings.HasSuffix(fw.Path, "pyproject.toml") ||
+			strings.HasSuffix(fw.Path, "requirements.txt") {
+			key = "ws:" + filepath.Dir(fw.Path)
+			name = filepath.Base(filepath.Dir(fw.Path))
 		}
 		a := ensure(key, name, filepath.Dir(fw.Path))
 		a.c.Signals.Add("framework:" + fw.Name)
@@ -205,14 +216,14 @@ func AgentCandidates(h homes.Home, snap *proc.Snapshot, b *Bundle) []AgentCandid
 				if bin == "" || strings.Contains(bin, "/") || strings.Contains(bin, "\\") || strings.HasPrefix(bin, ".") {
 					continue
 				}
-				if !procMatchesBin(p.Name, p.Exe, p.Cmdline, bin) {
+				if !p.MatchesBin(bin) {
 					continue
 				}
 				// Prefer binary path alignment when we have one.
 				if a.c.BinaryPath != "" {
 					baseWant := strings.ToLower(filepath.Base(a.c.BinaryPath))
 					lowName := strings.ToLower(p.Name)
-					lowExeBase := strings.ToLower(filepath.Base(p.Exe))
+					lowExeBase := strings.ToLower(filepath.Base(p.ExePath()))
 					if lowExeBase != baseWant && lowExeBase != baseWant+".exe" &&
 						lowName != bin && lowName != bin+".exe" {
 						continue
@@ -267,32 +278,4 @@ func underHome(path, home string) bool {
 	}
 	sep := string(filepath.Separator)
 	return strings.HasPrefix(path, home+sep)
-}
-
-// procMatchesBin reports whether a live process is the given binary.
-// Matches exact process name, exe basename, or a path-token in the command
-// line — never name suffix (short bins like "q" would false-positive).
-func procMatchesBin(name, exe, cmdline, bin string) bool {
-	bin = strings.ToLower(bin)
-	if bin == "" {
-		return false
-	}
-	name = strings.ToLower(name)
-	if name == bin || name == bin+".exe" {
-		return true
-	}
-	base := strings.ToLower(filepath.Base(exe))
-	if base == bin || base == bin+".exe" {
-		return true
-	}
-	cmd := strings.ToLower(cmdline)
-	// Path token: .../bin or .../bin <args> (also Windows backslash).
-	for _, sep := range []string{"/", "\\"} {
-		tok := sep + bin
-		if strings.HasSuffix(cmd, tok) || strings.Contains(cmd, tok+" ") ||
-			strings.HasSuffix(cmd, tok+".exe") || strings.Contains(cmd, tok+".exe ") {
-			return true
-		}
-	}
-	return false
 }

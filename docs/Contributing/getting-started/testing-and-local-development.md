@@ -19,8 +19,8 @@
     - [Command line](#command-line)
   - [Test hosts](#test-hosts)
   - [Email](#email)
-    - [Manually testing email with MailHog and Mailpit](#manually-testing-email-with-mailhog-and-mailpit)
-      - [MailHog SMTP server without authentication](#mailhog-smtp-server-without-authentication)
+    - [Manually testing email with Mailpit](#manually-testing-email-with-mailpit)
+      - [Mailpit SMTP server without authentication](#mailpit-smtp-server-without-authentication)
       - [Mailpit SMTP server with plain authentication](#mailpit-smtp-server-with-plain-authentication)
   - [Development database management](#development-database-management)
   - [MySQL shell](#mysql-shell)
@@ -73,7 +73,7 @@ Check out the [instructions](https://github.com/fleetdm/fleet/tree/main/tools/os
 You must install the [`golangci-lint`](https://golangci-lint.run/) command to run `make test[-go]` or `make lint[-go]`, using:
 
 ```sh
-go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@27774aaf853a4fd21f1dd5e69439459dc1b26e68
+go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@114493f9b3e7257d29e4130f2b4a4aadefbb6845
 ```
 
 This installs the version of `golangci-lint` used in our CI environment (currently 2.7.1). Make sure it is available in your `PATH`. To execute the basic unit and integration tests, run the following from the root of the repository:
@@ -178,7 +178,7 @@ MYSQL_TEST=1 make test-go
 
 ### Email tests
 
-To run email related integration tests using MailHog set environment as follows:
+To run email related integration tests using the Mailpit and smtp4dev services, set environment as follows:
 
 ```sh
 MAIL_TEST=1 make test-go
@@ -288,9 +288,11 @@ The Fleet repo includes tools to start testing osquery hosts. Please see the doc
 
 ## Email
 
-### Manually testing email with MailHog and Mailpit
+### Manually testing email with Mailpit
 
-#### MailHog SMTP server without authentication
+#### Mailpit SMTP server without authentication
+
+This runs as the `mailhog` service in `docker-compose.yml`. The service name is kept for backwards compatibility, but it runs Mailpit.
 
 To intercept sent emails while running a Fleet development environment, first, as an Admin in the Fleet UI, navigate to the Organization settings.
 
@@ -300,7 +302,7 @@ Then, in the "SMTP options" section, set:
 - "Use SSL/TLS to connect (recommended)" to unchecked. 
 - "Authentication type" to `None`.
 
-Visit [localhost:8025](http://localhost:8025) to view MailHog's admin interface displaying all emails sent using the simulated mail server.
+Visit [localhost:8025](http://localhost:8025) to view Mailpit's admin interface displaying all emails sent using the simulated mail server.
 
 #### Mailpit SMTP server with plain authentication
 
@@ -479,7 +481,7 @@ awslocal='AWS_ACCESS_KEY_ID=default AWS_SECRET_ACCESS_KEY=default AWS_DEFAULT_RE
 
 The following guide assumes you have server dependencies running:
 ```sh
-docker-compose up
+docker compose --profile localstack up
 #
 # (Starts LocalStack with kinesis enabled.)
 #
@@ -936,7 +938,7 @@ To use the workflow, follow these steps:
 
 `productsign --sign "Developer ID Installer: Your Apple Account Name (serial number)" <path_to_unpacked_files> <path_to_signed_package.pkg>`
 
-Example: `productsign --sign "Developer ID Installer: PezHub (5F863R529J)" fleet-osquery.pkg signed-fleetd.pkg`
+Example: `productsign --sign "Developer ID Installer: PezHub (5F863R529J)" fleet-macos.pkg signed-fleetd.pkg`
 
 5. Check the signature by running `pkgutil --check-signature signed-fleetd.pkg`
 6. Rename your signed pkg `mv signed-fleetd.pkg fleet-base.pkg`
@@ -1056,7 +1058,7 @@ DEBUG=1 \
   "fleetd_base_msi_sha256": "[sha256sum of]"
 }
 ```
-3. Rename the generated fleet-osquery.msi to fleetd-base.msi
+3. Rename the generated fleet-windows-amd64.msi to fleetd-base.msi
 
 #### Serving the fleetd-base.msi installer
 
@@ -1076,6 +1078,16 @@ mkdir -p ./tmp/fleetd-base-dir/stable
 	- For Dogfood/QA deployments using Terraform, set the environment variable on `infrastructure/dogfood/terraform/aws-tf-module/main.tf`.
 	- Note: This variable is only read when dev mode is enabled (`--dev` flag).
 7. Enroll your Windows device with Autopilot. See the [Windows Autopilot guide](../mdm/windows/windows-autopilot.md#enrolling-the-device) for detailed enrollment steps, including prerequisites like custom domain setup and required licenses. Tip: You can watch ngrok traffic via the inspect web interface url to ensure the two hosted packages are in the correct place and successfully reached by the host.
+
+## AI configuration profile autofill
+
+The autofill configuration profile endpoints call the configuration profile generator on `https://fleetdm.com`. To test against a local or preview website instead, start the server in dev mode with `FLEET_DEV_AI_AUTOFILL_BASE_URL` set to the website's base URL:
+
+```sh
+FLEET_DEV_AI_AUTOFILL_BASE_URL="http://localhost:2024" ./build/fleet serve --dev
+```
+
+The variable is ignored without `--dev`. Pointing it at an unreachable URL exercises the AI service failure path.
 
 ## MDM setup and testing
 
@@ -1194,7 +1206,7 @@ We use [Nudge](https://github.com/macadmins/nudge) to enforce macOS updates. Our
 open /opt/orbit/bin/nudge/macos/stable/Nudge.app --args -json-url file:///opt/orbit/nudge-config.json
 ```
 
-- Make sure that the `fleet-osquery.pkg` package you build to install `fleetd` has the `--debug` flag, there are many Nudge logs at the debug level.
+- Make sure that the `fleet-macos.pkg` package you build to install `fleetd` has the `--debug` flag, there are many Nudge logs at the debug level.
 
 - Nudge has a great [guide](https://github.com/macadmins/nudge/wiki/Logging) to stream/parse their logs, the TL;DR version is that you probably want a terminal running:
 

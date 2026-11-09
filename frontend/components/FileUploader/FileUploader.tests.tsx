@@ -34,9 +34,9 @@ describe("FileUploader", () => {
     expect((onFileUpload.mock.calls[0][0] as FileList)[0]).toBe(file);
   });
 
-  it("does not fire onFileUpload when disabled", () => {
+  it("does not fire onFileUpload when disabled", async () => {
     const onFileUpload = jest.fn();
-    const { container } = render(
+    const { container, user } = render(
       <FileUploader
         graphicName="file-pkg"
         message="drop a package"
@@ -48,6 +48,10 @@ describe("FileUploader", () => {
     fireEvent.drop(findDropZone(container), {
       dataTransfer: { files: [makeFile("thing.pkg")] },
     });
+    await user.upload(
+      container.querySelector('input[type="file"]') as HTMLInputElement,
+      makeFile("thing.pkg")
+    );
 
     expect(onFileUpload).not.toHaveBeenCalled();
   });
@@ -107,6 +111,49 @@ describe("FileUploader", () => {
     expect(onFileUpload).not.toHaveBeenCalled();
   });
 
+  it("surfaces an inline error when a drop is rejected by the accept filter", () => {
+    const { container } = render(
+      <FileUploader
+        graphicName="file-pkg"
+        message="drop a package"
+        accept=".pkg,.msi,.exe"
+        onFileUpload={noop}
+      />
+    );
+
+    fireEvent.drop(findDropZone(container), {
+      dataTransfer: { files: [makeFile("thing.txt")] },
+    });
+
+    expect(
+      screen.getByText("File type must be .pkg, .msi, or .exe")
+    ).toBeInTheDocument();
+  });
+
+  it("clears the drop-rejection error on the next drag over", () => {
+    const { container } = render(
+      <FileUploader
+        graphicName="file-pem"
+        message="drop a cert"
+        accept=".pem"
+        onFileUpload={noop}
+      />
+    );
+
+    fireEvent.drop(findDropZone(container), {
+      dataTransfer: { files: [makeFile("nope.txt")] },
+    });
+    expect(screen.getByText("File type must be .pem")).toBeInTheDocument();
+
+    fireEvent.dragOver(findDropZone(container), {
+      dataTransfer: { files: [makeFile("cert.pem")] },
+    });
+
+    expect(
+      screen.queryByText("File type must be .pem")
+    ).not.toBeInTheDocument();
+  });
+
   it("accepts a drop whose file matches the accept filter", () => {
     const onFileUpload = jest.fn();
     const { container } = render(
@@ -123,6 +170,51 @@ describe("FileUploader", () => {
     });
 
     expect(onFileUpload).toHaveBeenCalledTimes(1);
+  });
+
+  it("accepts a dropped .tar.gz when accept lists application/gzip", () => {
+    const onFileUpload = jest.fn();
+    const { container } = render(
+      <FileUploader
+        graphicName="file-pkg"
+        message="drop a package"
+        accept=".pkg,application/gzip,.tgz"
+        onFileUpload={onFileUpload}
+      />
+    );
+
+    // macOS Chrome often reports .tar.gz as application/x-gzip (or empty),
+    // which won't exact-match the application/gzip spec.
+    fireEvent.drop(findDropZone(container), {
+      dataTransfer: {
+        files: [makeFile("bundle-1.0.0.tar.gz", "application/x-gzip")],
+      },
+    });
+
+    expect(onFileUpload).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects a dropped bare .gz even when accept lists application/gzip", () => {
+    const onFileUpload = jest.fn();
+    const { container } = render(
+      <FileUploader
+        graphicName="file-pkg"
+        message="drop a package"
+        accept=".pkg,application/gzip,.tgz"
+        onFileUpload={onFileUpload}
+      />
+    );
+
+    // The package flow doesn't support bare .gz; the alias list intentionally
+    // omits it so the drop fails here instead of surfacing a script-mapping
+    // error further downstream.
+    fireEvent.drop(findDropZone(container), {
+      dataTransfer: {
+        files: [makeFile("archive.gz", "application/x-gzip")],
+      },
+    });
+
+    expect(onFileUpload).not.toHaveBeenCalled();
   });
 
   it("still renders the message so existing click-to-upload callers are untouched", () => {

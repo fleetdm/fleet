@@ -56,6 +56,12 @@
     .component__tooltip-wrapper:first-child {
       min-width: 0;
       overflow: hidden;
+
+      // both are flex items, which won't shrink below the text without this
+      .component__tooltip-wrapper__element,
+      .list-item__title {
+        min-width: 0;
+      }
     }
 
     /* Prevent icons from being pushed out or shrinking */
@@ -70,18 +76,21 @@
     text-overflow: ellipsis;
   }
 
-  // Stage 2 (≤1024px): constrain main content so title and details truncate
-  @include breakpoint(tablet) {
-    .list-item__main-content {
-      flex: 1;
-      min-width: 0;
-      overflow: hidden;
-    }
+  // Constrain main content so a long title and details truncate at any width
+  .list-item__main-content {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
 
-    .list-item__info {
-      min-width: 0;
-      overflow: hidden;
-    }
+  .list-item__info {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  // the tooltip wraps at spaces; this also breaks names without any
+  &__full-name {
+    overflow-wrap: anywhere;
   }
 
   .list-item__labels {

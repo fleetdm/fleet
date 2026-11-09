@@ -55,6 +55,7 @@ import {
   PlatformValueOptions,
 } from "utilities/constants";
 import sortUtils from "utilities/sort";
+import { getPathWithQueryParams } from "utilities/url";
 
 import AddHostsModal from "../../components/AddHostsModal";
 
@@ -136,7 +137,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   >("");
   const [softwareNavTabIndex, setSoftwareNavTabIndex] = useState(0);
   const [softwarePageIndex, setSoftwarePageIndex] = useState(0);
-  const [softwareActionUrl, setSoftwareActionUrl] = useState<string>();
   const [showMdmCard, setShowMdmCard] = useState(true);
   const [showSoftwareCard, setShowSoftwareCard] = useState(false);
   const [showAddHostsModal, setShowAddHostsModal] = useState(false);
@@ -548,14 +548,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   };
 
   const onSoftwareTabChange = (index: number) => {
-    const { SOFTWARE_INVENTORY } = paths;
     setSoftwareNavTabIndex(index);
-    setSoftwareActionUrl &&
-      setSoftwareActionUrl(
-        index === 1
-          ? `${SOFTWARE_INVENTORY}?vulnerable=true`
-          : SOFTWARE_INVENTORY
-      );
     setSoftwarePageIndex(0);
   };
 
@@ -671,9 +664,11 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     action: {
       type: "link",
       text: "View all software",
-      to: "software",
+      to: getPathWithQueryParams(paths.SOFTWARE_INVENTORY, {
+        fleet_id: teamIdForApi,
+        vulnerable: isViewingVulnerableSoftware || undefined,
+      }),
     },
-    actionUrl: softwareActionUrl,
     titleDetail: softwareTitleDetail,
     children: (
       <Software

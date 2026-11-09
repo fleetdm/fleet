@@ -1,0 +1,2 @@
+- Added empty state to Controls > OS updates tabs when MDM isn't turned on for a platform.
+- Added a Linux tab to Controls > OS updates that links to the guide on enforcing Linux OS updates with a policy and script.

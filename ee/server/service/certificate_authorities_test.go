@@ -329,9 +329,9 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 				URL:                           digicertURL,
 				APIToken:                      "digicert_api_token",
 				ProfileID:                     "digicert_profile_id",
-				CertificateCommonName:         "$FLEET_VAR_HOST_HARDWARE_SERIAL",
-				CertificateUserPrincipalNames: []string{"$FLEET_VAR_HOST_HARDWARE_SERIAL"},
-				CertificateSeatID:             "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+				CertificateCommonName:         "$FLEET_VAR_HOST_END_USER_IDP_USERNAME",
+				CertificateUserPrincipalNames: []string{"${FLEET_VAR_HOST_UUID}@example.com"},
+				CertificateSeatID:             "$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART",
 			},
 		}
 
@@ -867,7 +867,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		}
 
 		createdCA, err := svc.NewCertificateAuthority(ctx, createCustomSCEPRequest)
-		require.ErrorContains(t, err, "Invalid SCEP URL. Please correct and try again.")
+		require.ErrorContains(t, err, "Fleet couldn't find the CA at the specified URL. Please correct and try again.")
 		require.Len(t, createdCAs, 0)
 		require.Nil(t, createdCA)
 	})
@@ -907,7 +907,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		}
 
 		createdCA, err := svc.NewCertificateAuthority(ctx, createNDESSCEPRequest)
-		require.ErrorContains(t, err, "Invalid SCEP URL.")
+		require.ErrorContains(t, err, "Fleet couldn't find the CA at the specified URL.")
 		require.Len(t, createdCAs, 0)
 		require.Nil(t, createdCA)
 	})
@@ -1125,7 +1125,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		}
 
 		createdCA, err := svc.NewCertificateAuthority(ctx, createSmallstepRequest)
-		require.ErrorContains(t, err, "Invalid SCEP URL. Please correct and try again.")
+		require.ErrorContains(t, err, "Fleet couldn't find the CA at the specified URL. Please correct and try again.")
 		require.Len(t, createdCAs, 0)
 		require.Nil(t, createdCA)
 	})
@@ -1699,7 +1699,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			}
 
 			err := svc.UpdateCertificateAuthority(ctx, scepID, payload)
-			require.EqualError(t, err, "Couldn't edit certificate authority. Invalid SCEP URL. Please correct and try again.")
+			require.EqualError(t, err, "Couldn't edit certificate authority. Fleet couldn't find the CA at the specified URL. Please correct and try again.")
 		})
 	})
 
@@ -1749,7 +1749,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			}
 
 			err := svc.UpdateCertificateAuthority(ctx, ndesID, payload)
-			require.EqualError(t, err, "Couldn't edit certificate authority. Invalid SCEP URL. Please correct and try again.")
+			require.EqualError(t, err, "Couldn't edit certificate authority. Fleet couldn't find the CA at the specified URL. Please correct and try again.")
 		})
 
 		t.Run("Missing password", func(t *testing.T) {
@@ -2147,4 +2147,14 @@ func TestProcessCustomSCEPProxyCAsChallengeChars(t *testing.T) {
 	incoming := []fleet.CustomSCEPProxyCA{{Name: "SCEP1", URL: "https://customscep.example.com", Challenge: "base64url_style@challenge"}}
 	err := svc.processCustomSCEPProxyCAs(t.Context(), &fleet.CertificateAuthoritiesBatchOperations{}, incoming, nil)
 	require.NoError(t, err)
+}
+
+func TestDigicertFieldsAcceptIdPVariables(t *testing.T) {
+	for _, v := range fleet.IDPFleetVariables {
+		t.Run(string(v), func(t *testing.T) {
+			require.NoError(t, validateDigicertCACN(v.WithPrefix(), ""))
+			require.NoError(t, validateDigicertSeatID(v.WithPrefix(), ""))
+			require.NoError(t, validateDigicertUserPrincipalNames([]string{v.WithPrefix() + "@example.com"}, ""))
+		})
+	}
 }

@@ -1,3 +1,0 @@
-- Added the Go module path and Go toolchain version to Go binaries in software inventory. Go binaries now show a Go icon, and their version includes the toolchain they were built with (for example, `v0.21.1 (go1.26.1)`).
-- Added vulnerability detection for Go binaries in software inventory, using the Go vulnerability database (https://vuln.go.dev).
-- Fixed Go binaries, npm packages, and other non-package software being compared against Linux distro advisories when their name matched a `deb` or `rpm` package.

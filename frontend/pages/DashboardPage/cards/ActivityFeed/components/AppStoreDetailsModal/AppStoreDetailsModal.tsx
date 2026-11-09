@@ -4,9 +4,10 @@ import React from "react";
 
 import Button from "components/buttons/Button";
 import DataSet from "components/DataSet";
+import Editor from "components/Editor";
 import Modal from "components/Modal";
 import { IActivityDetails } from "interfaces/activity";
-import { isAndroid } from "interfaces/platform";
+import { isAndroid, isMobilePlatform } from "interfaces/platform";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import {
@@ -15,6 +16,20 @@ import {
 } from "../LibrarySoftwareDetailsModal/LibrarySoftwareDetailsModal";
 
 const baseClass = "app-store-details-modal";
+
+// Android configuration arrives as a parsed JSON object (axios); iOS/iPadOS
+// arrives as an XML plist string. Normalize to a display string.
+const stringifyConfiguration = (
+  configuration: IActivityDetails["configuration"]
+): string | null => {
+  if (!configuration) return null;
+  if (typeof configuration === "string") return configuration;
+  try {
+    return JSON.stringify(configuration, null, 2);
+  } catch {
+    return null;
+  }
+};
 
 interface IAppStoreDetailsModalProps {
   details: IActivityDetails;
@@ -26,6 +41,11 @@ const AppStoreDetailsModal = ({
   onCancel,
 }: IAppStoreDetailsModalProps) => {
   const { labels_include_any, labels_exclude_any } = details;
+  const isAndroidApp = isAndroid(details.platform || "");
+  // macOS activities carry version_name + configuration too, but #53641
+  // scopes the versioned-app UI to iOS/iPadOS/Android.
+  const isVersionedApp = isMobilePlatform(details.platform || "");
+  const configurationDisplay = stringifyConfiguration(details.configuration);
 
   return (
     <Modal
@@ -43,12 +63,11 @@ const AppStoreDetailsModal = ({
             details.software_display_name
           )}
         />
+        {isVersionedApp && details.version_name && (
+          <DataSet title="Version" value={details.version_name} />
+        )}
         <DataSet
-          title={
-            isAndroid(details.platform || "")
-              ? "Google Play ID"
-              : "App Store ID"
-          }
+          title={isAndroidApp ? "Google Play ID" : "App store ID"}
           value={details.app_store_id}
         />
         <DataSet
@@ -69,6 +88,14 @@ const AppStoreDetailsModal = ({
             />
           }
         />
+        {isVersionedApp && configurationDisplay && (
+          <Editor
+            label="Configuration"
+            mode={isAndroidApp ? "json" : "xml"}
+            value={configurationDisplay}
+            readOnly
+          />
+        )}
       </div>
       <div className="modal-cta-wrap">
         <Button onClick={onCancel}>Close</Button>

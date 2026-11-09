@@ -1,0 +1,1 @@
+- Added an hourly cleanup that permanently deletes Fleet's records of certificates removed from hosts more than 30 days ago, configurable with `server.deleted_host_certificates_retention`.

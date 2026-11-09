@@ -10,7 +10,7 @@ LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchS
 
 quit_and_track_application() {
   local bundle_id="$1"
-  local var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
+  local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local timeout_duration=10
 
   local app_running
@@ -33,27 +33,27 @@ quit_and_track_application() {
 
   echo "Quitting application '$bundle_id'..."
 
-  local quit_success=false
+  local quit_success=false still_running
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    if osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1; then
-      if ! pgrep -f "$bundle_id" >/dev/null 2>&1; then
-        echo "Application '$bundle_id' quit successfully."
-        quit_success=true
-        break
-      fi
-    fi
+    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1
     sleep 1
+    if still_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+      echo "Application '$bundle_id' quit successfully."
+      quit_success=true
+      break
+    fi
   done
 
   if [[ "$quit_success" = false ]]; then
     echo "Application '$bundle_id' did not quit."
+    return 1
   fi
 }
 
 relaunch_application() {
   local bundle_id="$1"
-  local var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
+  local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local was_running
 
   eval "was_running=\$$var_name"
@@ -91,47 +91,12 @@ if [ -z "${INSTALLER_PATH:-}" ] || [ ! -f "$INSTALLER_PATH" ]; then
   exit 1
 fi
 
-MOUNT_POINT=$(mktemp -d /tmp/openvpn_connect_dmg.XXXXXX)
-cleanup() {
-  hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || true
-  rmdir "$MOUNT_POINT" >/dev/null 2>&1 || true
-}
-trap cleanup EXIT
+quit_and_track_application "$BUNDLE_ID" || exit 1
 
-if ! hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH" >/dev/null; then
-  echo "Failed to mount DMG at $INSTALLER_PATH"
+if ! sudo installer -pkg "$INSTALLER_PATH" -target /; then
+  echo "installer -pkg failed for $INSTALLER_PATH"
   exit 1
 fi
-
-# Locate the arm64 installer pkg. We only support Apple Silicon for this FMA,
-# so deliberately skip the x86_64 pkg shipped in the same DMG. Use a glob so
-# parentheses and version/build numbers in the file name don't have to be
-# hard-coded here.
-PKG=""
-for candidate in "$MOUNT_POINT"/*_arm64_Installer_signed.pkg; do
-  if [ -e "$candidate" ]; then
-    PKG="$candidate"
-    break
-  fi
-done
-
-if [ -z "$PKG" ] || [ ! -e "$PKG" ]; then
-  echo "Could not find an arm64 OpenVPN Connect installer pkg in the DMG. Contents:"
-  ls -la "$MOUNT_POINT"
-  exit 1
-fi
-
-echo "Installing $PKG..."
-
-quit_and_track_application "$BUNDLE_ID"
-
-if ! sudo installer -pkg "$PKG" -target /; then
-  echo "installer -pkg failed for $PKG"
-  exit 1
-fi
-
-cleanup
-trap - EXIT
 
 # OpenVPN Connect 3.8+ places the .app inside a wrapper directory rather than
 # directly under /Applications/. osquery's apps table doesn't recurse into

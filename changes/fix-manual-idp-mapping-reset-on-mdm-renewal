@@ -1,0 +1,1 @@
+- Fixed an issue on MDM renewals that would override any manual host user mapping set with the initial SSO user during ADE.

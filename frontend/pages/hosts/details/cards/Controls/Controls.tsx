@@ -228,11 +228,8 @@ const Controls = ({
   }, [controls, isDeviceUser, showHiddenProfiles, typeFilter, searchQuery]);
 
   const tableCustomFilters = (): JSX.Element | null => {
-    if (!isMacOSHost) {
-      return null;
-    }
     if (isDeviceUser) {
-      if (!isPremiumTier) {
+      if (!isPremiumTier || !controls.some((control) => control.hidden)) {
         return null;
       }
 
@@ -247,6 +244,11 @@ const Controls = ({
         />
       );
     }
+
+    if (!isMacOSHost) {
+      return null;
+    }
+
     return (
       <>
         <DropdownWrapper
@@ -286,6 +288,7 @@ const Controls = ({
     <div
       className={classnames(baseClass, className, {
         [`${baseClass}--self-service`]: canManageSelfServiceProfiles,
+        [`${baseClass}--device-user`]: isDeviceUser,
       })}
     >
       <TableContainer

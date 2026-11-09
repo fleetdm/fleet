@@ -8,7 +8,7 @@
   "homepage": "https://www.microsoft.com/microsoft-365/microsoft-defender-for-endpoint",
   "url": "https://go.microsoft.com/fwlink/?linkid=2097502",
   "url_specs": {},
-  "version": "101.26062.0012",
+  "version": "101.26072.0017",
   "autobump": true,
   "no_autobump_message": null,
   "skip_livecheck": true,
@@ -16,7 +16,7 @@
   "bundle_short_version": null,
   "pinned": false,
   "pinned_version": null,
-  "sha256": "ceb615d5b436694a4897769fdc15a25961fc4845d21db6a07ef1c61f35211eb7",
+  "sha256": "4f2670eb11eb080e864605ff41310277228991f4ebe16a651880cb3435e4f8b7",
   "artifacts": [
     {
       "uninstall": [
@@ -89,6 +89,6 @@
   "languages": [],
   "ruby_source_path": "Casks/microsoft-defender.rb",
   "ruby_source_checksum": {
-    "sha256": "cfda511f049f1ed48db33d887bedad80c0b756fe450014deba2ada3ad76d5318"
+    "sha256": "37e0b1e5842cc45d3d1589b7ee1b66733e6966ab5315b89026d34616d9f9ec5a"
   }
 }

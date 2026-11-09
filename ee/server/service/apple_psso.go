@@ -532,6 +532,16 @@ func pssoIDTokenIssuer(settings *fleet.PSSOSettings) string {
 	return strings.TrimSuffix(settings.IssuerURL, "/")
 }
 
+// verifyAppleAccountProvisioning checks Apple account provisioning settings
+// with the IdP before they're saved.
+func (svc *Service) verifyAppleAccountProvisioning(ctx context.Context, settings fleet.AppleAccountProvisioning, clientSecret string) error {
+	return pssoIdPClientFromSettings(&fleet.PSSOSettings{
+		IdPTokenURL:     settings.OAuthIdPTokenURL.Value,
+		IdPClientID:     settings.OAuthIdPClientID.Value,
+		IdPClientSecret: clientSecret,
+	}).VerifyConfig(ctx)
+}
+
 // pssoIdPClientFromSettings builds the upstream IdP client for the password
 // login flow from the current settings, so config changes apply without a
 // restart. Returns the interface so an alternate backend (e.g. an LDAP bind

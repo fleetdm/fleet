@@ -10,27 +10,17 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
 )
 
-// toolHomeLabels maps directory basenames under $HOME to agent names.
-var toolHomeLabels = map[string]string{
-	".grok": "grok", ".claude": "claude-code", ".codex": "codex",
-	".gemini": "gemini-cli", ".cursor": "cursor-agent", ".continue": "continue-cli",
-	".openclaw": "openclaw", ".hermes": "hermes", ".opencode": "opencode",
-	".aider": "aider", "opencode": "opencode", "hermes": "hermes",
-}
-
-// scanWorkspaces finds agent-shaped user homes and bounded project roots.
-func scanWorkspaces(h homes.Home) []Workspace {
+// scanWorkspaces finds agent-shaped tool homes and project directories.
+func scanWorkspaces(h homes.Home, dirs []fsutil.WalkedDir) []Workspace {
 	var out []Workspace
 	seen := map[string]struct{}{}
 
-	emit := func(root string, extra []string) {
-		root = filepath.Clean(root)
+	emit := func(d fsutil.WalkedDir) {
+		root := filepath.Clean(d.Path)
 		if _, dup := seen[root]; root == "" || dup {
 			return
 		}
-		markers := detectMarkers(root)
-		markers = append(markers, extra...)
-		markers = unique(markers)
+		markers := detectMarkers(d)
 		if len(markers) == 0 {
 			return
 		}
@@ -42,7 +32,7 @@ func scanWorkspaces(h homes.Home) []Workspace {
 		}
 		name := filepath.Base(root)
 		// Map known tool-home basenames to stable agent labels (avoid ".grok" rows).
-		if label, ok := toolHomeLabels[name]; ok {
+		if label, ok := toolHomeLabel(name); ok {
 			name = label
 		}
 		out = append(out, Workspace{
@@ -58,84 +48,95 @@ func scanWorkspaces(h homes.Home) []Workspace {
 
 	// User-global tool homes are covered by ToolHomes gatherer for agents
 	// inventory; still evaluate shape for harness labeling when strong.
-	for _, rel := range []string{
-		".claude", ".codex", ".gemini", ".cursor", ".grok",
-		".openclaw", ".hermes", ".continue", ".opencode",
-		filepath.Join(".config", "opencode"),
-		filepath.Join(".config", "hermes"),
-	} {
-		p := filepath.Join(h.Dir, filepath.FromSlash(rel))
-		if fi, err := os.Stat(p); err == nil && fi.IsDir() {
-			emit(p, nil)
+	for _, k := range knownToolHomes {
+		p := filepath.Join(h.Dir, filepath.FromSlash(k.dir))
+		if d, ok := fsutil.ListDir(p); ok {
+			emit(d)
 		}
 	}
 
-	// Bounded project roots (same spirit as instructions collector).
-	for _, root := range projectRoots(h.Dir) {
-		fsutil.WalkBounded(root, 3, func(dir string) {
-			// Only evaluate dirs that look promising to keep cost down.
-			if hasQuickHint(dir) {
-				emit(dir, nil)
-			}
-		})
+	for _, d := range dirs {
+		// Only evaluate dirs that look promising to keep cost down.
+		if d.Project && hasQuickHint(d) {
+			emit(d)
+		}
 	}
 	return out
 }
 
-func hasQuickHint(dir string) bool {
-	hints := []string{
+// The names a walked directory is probed for: quickHints decide whether it's
+// evaluated at all, and the marker lists classify it.
+var (
+	quickHints = []string{
 		"AGENTS.md", "CLAUDE.md", "GEMINI.md", ".cursorrules",
 		"mcp.json", ".mcp.json", "SOUL.md",
 		filepath.Join(".cursor", "mcp.json"),
 		"skills", ".agents",
 	}
-	for _, h := range hints {
-		if fsutil.Exists(filepath.Join(dir, h)) {
-			return true
-		}
-	}
-	return false
-}
-
-func detectMarkers(root string) []string {
-	var m []string
-	// Instructions
-	for _, f := range []string{
+	instructionMarkers = []string{
 		"AGENTS.md", "CLAUDE.md", "CLAUDE.local.md", "GEMINI.md",
 		".cursorrules", ".windsurfrules", ".clinerules", "SOUL.md",
 		filepath.Join(".github", "copilot-instructions.md"),
 		filepath.Join(".codex", "AGENTS.md"),
 		filepath.Join(".claude", "CLAUDE.md"),
-	} {
-		if fsutil.Exists(filepath.Join(root, f)) {
-			m = append(m, "instructions")
-			break
-		}
 	}
-	// Cursor rules dir
-	if matches, _ := filepath.Glob(filepath.Join(root, ".cursor", "rules", "*")); len(matches) > 0 {
-		if !hasAny(m, "instructions") {
-			m = append(m, "instructions")
-		}
-	}
-	// Skills / tools tree
-	for _, d := range []string{"skills", ".agents", filepath.Join(".agents", "skills"), "tools"} {
-		if fi, err := os.Stat(filepath.Join(root, d)); err == nil && fi.IsDir() {
-			if ents, err := os.ReadDir(filepath.Join(root, d)); err == nil && len(ents) > 0 {
-				m = append(m, "skills")
-				break
-			}
-		}
-	}
-	// MCP config
-	for _, f := range []string{
+	skillDirMarkers  = []string{"skills", ".agents", filepath.Join(".agents", "skills"), "tools"}
+	mcpConfigMarkers = []string{
 		"mcp.json", ".mcp.json",
 		filepath.Join(".cursor", "mcp.json"),
 		filepath.Join(".vscode", "mcp.json"),
 		filepath.Join(".claude", "settings.json"),
-	} {
-		p := filepath.Join(root, f)
-		if fsutil.Exists(p) && fileMentionsMCP(p) {
+	}
+	loopConfigMarkers = []string{
+		"agent.yaml", "agent.yml", "agents.yaml", "agents.yml",
+		"hermes.yaml", "openclaw.json", "openclaw.yaml",
+		filepath.Join(".claude", "settings.json"),
+		"permissions.json",
+	}
+	stateDirMarkers    = []string{"memory", ".memory", "sessions", ".sessions", "state", ".state"}
+	frameworkManifests = []string{"package.json", "pyproject.toml", "requirements.txt"}
+)
+
+// WalkProbes are the paths the workspace and framework scans check in each
+// walked directory, for fsutil.WalkHome.
+func WalkProbes() []string {
+	return slices.Concat(quickHints, instructionMarkers, skillDirMarkers, mcpConfigMarkers,
+		loopConfigMarkers, stateDirMarkers, frameworkManifests,
+		[]string{filepath.Join(".cursor", "rules"), ".claude.json"})
+}
+
+func hasQuickHint(d fsutil.WalkedDir) bool {
+	return slices.ContainsFunc(quickHints, d.Exists)
+}
+
+// detectMarkers reads a directory's agent-shaped markers from its listing;
+// only nested paths and marker contents touch the disk.
+func detectMarkers(d fsutil.WalkedDir) []string {
+	root := d.Path
+	var m []string
+	// Instructions
+	if slices.ContainsFunc(instructionMarkers, d.Exists) {
+		m = append(m, "instructions")
+	}
+	// Cursor rules dir
+	if d.IsDir(".cursor") {
+		if matches, _ := filepath.Glob(filepath.Join(root, ".cursor", "rules", "*")); len(matches) > 0 && !hasAny(m, "instructions") {
+			m = append(m, "instructions")
+		}
+	}
+	// Skills / tools tree
+	for _, sd := range skillDirMarkers {
+		if !d.IsDir(sd) {
+			continue
+		}
+		if ents, err := os.ReadDir(filepath.Join(root, sd)); err == nil && len(ents) > 0 {
+			m = append(m, "skills")
+			break
+		}
+	}
+	// MCP config
+	for _, f := range mcpConfigMarkers {
+		if d.Exists(f) && fileMentionsMCP(filepath.Join(root, f)) {
 			m = append(m, "mcp_config")
 			break
 		}
@@ -143,27 +144,16 @@ func detectMarkers(root string) []string {
 	// Also bare mcpServers in claude json at root. Presence alone is not the
 	// signal: an unrelated .claude.json would otherwise lend a project enough
 	// workspace shape to emit an agent row on its own.
-	if p := filepath.Join(root, ".claude.json"); fsutil.Exists(p) && fileMentionsMCP(p) {
+	if d.Exists(".claude.json") && fileMentionsMCP(filepath.Join(root, ".claude.json")) {
 		m = append(m, "mcp_config")
 	}
 	// Loop / harness config
-	for _, f := range []string{
-		"agent.yaml", "agent.yml", "agents.yaml", "agents.yml",
-		"hermes.yaml", "openclaw.json", "openclaw.yaml",
-		filepath.Join(".claude", "settings.json"),
-		"permissions.json",
-	} {
-		if fsutil.Exists(filepath.Join(root, f)) {
-			m = append(m, "loop_config")
-			break
-		}
+	if slices.ContainsFunc(loopConfigMarkers, d.Exists) {
+		m = append(m, "loop_config")
 	}
 	// State
-	for _, d := range []string{"memory", ".memory", "sessions", ".sessions", "state", ".state"} {
-		if fi, err := os.Stat(filepath.Join(root, d)); err == nil && fi.IsDir() {
-			m = append(m, "state")
-			break
-		}
+	if slices.ContainsFunc(stateDirMarkers, d.IsDir) {
+		m = append(m, "state")
 	}
 	return unique(m)
 }
@@ -210,28 +200,6 @@ func unique(in []string) []string {
 		}
 		seen[s] = struct{}{}
 		out = append(out, s)
-	}
-	return out
-}
-
-// projectRoots mirrors the instruction collector's cheap project discovery.
-func projectRoots(home string) []string {
-	cands := []string{
-		filepath.Join(home, "Projects"),
-		filepath.Join(home, "projects"),
-		filepath.Join(home, "Developer"),
-		filepath.Join(home, "dev"),
-		filepath.Join(home, "src"),
-		filepath.Join(home, "code"),
-		filepath.Join(home, "repos"),
-		filepath.Join(home, "Documents"),
-		filepath.Join(home, "workspace"),
-	}
-	var out []string
-	for _, c := range cands {
-		if fi, err := os.Stat(c); err == nil && fi.IsDir() {
-			out = append(out, c)
-		}
 	}
 	return out
 }

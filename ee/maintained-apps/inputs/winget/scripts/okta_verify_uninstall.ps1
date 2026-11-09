@@ -33,8 +33,9 @@ function Invoke-Uninstaller {
         if ($existingArgs -notmatch '(?i)/norestart') { $existingArgs = ("$existingArgs /norestart").Trim() }
     } else {
         if ($existingArgs -notmatch '(?i)/uninstall') { $existingArgs = ("$existingArgs /uninstall").Trim() }
+        # Okta Verify 7+ rejects any argument that isn't key=value except /quiet,
+        # /q, and /log, so /norestart makes it exit 1.
         if ($existingArgs -notmatch '(?i)/quiet') { $existingArgs = ("$existingArgs /quiet").Trim() }
-        if ($existingArgs -notmatch '(?i)/norestart') { $existingArgs = ("$existingArgs /norestart").Trim() }
     }
 
     Write-Host "Uninstall command: $exePath"

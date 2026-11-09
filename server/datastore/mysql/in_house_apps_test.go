@@ -37,6 +37,7 @@ func TestInHouseApps(t *testing.T) {
 		{"Categories", testInHouseAppsCategories},
 		{"SoftwareTitleDisplayName", testSoftwareTitleDisplayNameInHouse},
 		{"InHouseAppsCancelledOnUnenroll", testInHouseAppsCancelledOnUnenroll},
+		{"GetUnverifiedInHouseAppInstallsForHost", testGetUnverifiedInHouseAppInstallsForHost},
 		{"InHouseAppConfigCRUDFlow", testInHouseAppConfigCRUDFlow},
 		{"InHouseAppConfigSiblingRows", testInHouseAppConfigSiblingRows},
 		{"InHouseAppConfigHasChanged", testHasInHouseAppConfigurationChanged},
@@ -1705,7 +1706,7 @@ func testSoftwareTitleDisplayNameInHouse(t *testing.T, ds *Datastore) {
 		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: "darwin"}, DisplayName: ptr.String("VPP 1")},
 		Name:             "vpp1",
 		BundleIdentifier: "com.app.vpp1",
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 
 	getAllDisplayNames := func() []string {
@@ -1788,7 +1789,7 @@ func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
 	vppApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.IOSPlatform}},
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 
 	payload := fleet.UploadSoftwareInstallerPayload{
@@ -1862,6 +1863,49 @@ func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
 	summary, err = ds.GetSummaryHostInHouseAppInstalls(ctx, ptr.Uint(0), inHouseAppID)
 	require.NoError(t, err)
 	require.Equal(t, fleet.VPPAppStatusSummary{Installed: 0, Pending: 0, Failed: 1}, *summary)
+}
+
+func testGetUnverifiedInHouseAppInstallsForHost(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	iosHost, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "host1",
+		UUID:           "host1uuid",
+		HardwareSerial: "host1serial",
+		NodeKey:        new("host1key"),
+		Platform:       string(fleet.IOSPlatform),
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, iosHost, false)
+
+	inHouseAppID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		UserID:           user.ID,
+		BundleIdentifier: "com.foo",
+		Filename:         "foo.ipa",
+		StorageID:        "id1234",
+		Extension:        "ipa",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	cmdUUID := createInHouseAppInstallRequest(t, ds, iosHost.ID, inHouseAppID, titleID, user)
+	createInHouseAppInstallResult(t, ds, iosHost, cmdUUID, "Acknowledged")
+
+	// an acknowledged install that is not verified yet should be returned
+	unverified, err := ds.GetUnverifiedInHouseAppInstallsForHost(ctx, iosHost.UUID)
+	require.NoError(t, err)
+	require.Len(t, unverified, 1)
+	require.Equal(t, cmdUUID, unverified[0].InstallCommandUUID)
+
+	// cancel the install, it should no longer be returned
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, `UPDATE host_in_house_software_installs SET canceled = 1 WHERE command_uuid = ?`, cmdUUID)
+		return err
+	})
+	unverified, err = ds.GetUnverifiedInHouseAppInstallsForHost(ctx, iosHost.UUID)
+	require.NoError(t, err)
+	require.Empty(t, unverified)
 }
 
 // setupTestInHouseApp inserts both iOS and iPadOS rows for the given filename

@@ -30,21 +30,21 @@ quit_application() {
   echo "Quitting application '$bundle_id'..."
 
   # try to quit the application within the timeout period
-  local quit_success=false
+  local quit_success=false still_running
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    if osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1; then
-      if ! pgrep -f "$bundle_id" >/dev/null 2>&1; then
-        echo "Application '$bundle_id' quit successfully."
-        quit_success=true
-        break
-      fi
-    fi
+    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1
     sleep 1
+    if still_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+      echo "Application '$bundle_id' quit successfully."
+      quit_success=true
+      break
+    fi
   done
 
   if [[ "$quit_success" = false ]]; then
     echo "Application '$bundle_id' did not quit."
+    return 1
   fi
 }
 
@@ -67,8 +67,8 @@ user_home=$(dscl . -read "/Users/$target_user" NFSHomeDirectory 2>/dev/null | se
 [[ -n "$user_home" ]] || user_home="/Users/$target_user"
 [[ -d "$user_home" ]] || { echo "home directory for $target_user not found"; exit 1; }
 
-quit_application "com.Box.Box-Edit"
-quit_application "com.box.Box-Local-Com-Server"
+quit_application "com.Box.Box-Edit" || exit 1
+quit_application "com.box.Box-Local-Com-Server" || exit 1
 
 MOUNT_POINT="$(mktemp -d /tmp/box-tools-dmg.XXXXXX)"
 hdiutil attach -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH" >/dev/null || { echo "failed to mount dmg"; exit 1; }

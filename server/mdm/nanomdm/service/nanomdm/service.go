@@ -288,7 +288,11 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 	}
 
 	expandHostSecrets := func(cmdRaw string, onError func(hostUUID string, errorMsg string)) (expanded string, didError bool) {
-		hostUUID := results.UDID
+		// The device channel ID is the UDID for device enrollments and the EnrollmentID for ADUE, which has no UDID.
+		var hostUUID string
+		if resolved := results.Resolved(); resolved != nil {
+			hostUUID = resolved.DeviceChannelID
+		}
 		hostExpanded, err := s.store.ExpandHostSecrets(r.Context, cmdRaw, hostUUID)
 		if err != nil {
 			errorMsg := fmt.Sprintf("failed to expand host secrets: %v", err)

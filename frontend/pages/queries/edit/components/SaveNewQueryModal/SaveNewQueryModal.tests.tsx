@@ -143,6 +143,26 @@ describe("SaveNewQueryModal", () => {
     expect(screen.getByText("Report name must be present")).toBeInTheDocument();
   });
 
+  it("neither saves nor toggles automations when Enter is pressed in the name field", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          currentUser: createMockUser(),
+          config: createMockConfig(),
+          isPremiumTier: false,
+        },
+      },
+    });
+
+    const { user } = render(<SaveNewQueryModal {...defaultProps} />);
+
+    await user.type(screen.getByLabelText("Name"), "Report{Enter}");
+
+    expect(defaultProps.saveQuery).not.toHaveBeenCalled();
+    expect(screen.getByRole("switch")).not.toBeChecked();
+  });
+
   it("should not show the target selector in the free tier", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,

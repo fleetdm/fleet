@@ -39,8 +39,8 @@ interface IDismissibleTagProps extends ITagBaseProps {
   onDismiss: () => void;
   /** Accessible name for the dismiss button (screen readers only, no native tooltip). Defaults to "Dismiss". */
   dismissLabel?: string;
-  /** Dismissible tags are always interactive — no production caller disables them. */
-  disabled?: never;
+  /** When true, the dismiss control is inert (e.g. read-only targeting UI). */
+  disabled?: boolean;
 }
 
 type ITagProps = IStaticTagProps | IClickableTagProps | IDismissibleTagProps;
@@ -51,6 +51,7 @@ const Tag = (props: ITagProps) => {
   const classNames = classnames(baseClass, className, {
     [`${baseClass}--clickable`]: props.type === "clickable",
     [`${baseClass}--dismissible`]: props.type === "dismissible",
+    [`${baseClass}--disabled`]: props.type === "dismissible" && props.disabled,
     [`${baseClass}--small`]: props.size === "small",
     [`${baseClass}--xsmall`]: props.size === "xsmall",
   });
@@ -79,8 +80,13 @@ const Tag = (props: ITagProps) => {
           className={`${baseClass}__dismiss`}
           onClick={props.onDismiss}
           aria-label={dismissLabel}
+          disabled={props.disabled}
         >
-          <Icon name="close" color="core-fleet-black" size="small" />
+          <Icon
+            name="close"
+            color={props.disabled ? "ui-fleet-black-33" : "core-fleet-black"}
+            size="small"
+          />
         </button>
       </span>
     );
@@ -94,6 +100,7 @@ const Tag = (props: ITagProps) => {
 
   return (
     <TooltipWrapper
+      className={`${baseClass}__tooltip-wrapper`}
       tipContent={tooltip}
       showArrow
       underline={false}

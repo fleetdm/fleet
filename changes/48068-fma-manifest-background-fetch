@@ -1,0 +1,1 @@
+- Improved GitOps so fetching many Fleet-maintained app manifests can no longer time out the request.

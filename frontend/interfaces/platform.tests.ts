@@ -1,4 +1,8 @@
-import { isMacOS, isWindows } from "./platform";
+import {
+  isDiskEncryptionSupportedLinuxPlatform,
+  isMacOS,
+  isWindows,
+} from "./platform";
 
 describe("platform helpers", () => {
   describe("isMacOS", () => {
@@ -42,6 +46,31 @@ describe("platform helpers", () => {
 
     it("does not match an empty string", () => {
       expect(isWindows("")).toBe(false);
+    });
+  });
+
+  describe("isDiskEncryptionSupportedLinuxPlatform", () => {
+    it("matches the distributions Fleet can escrow LUKS keys for", () => {
+      expect(isDiskEncryptionSupportedLinuxPlatform("ubuntu", "")).toBe(true);
+      expect(isDiskEncryptionSupportedLinuxPlatform("zorin", "")).toBe(true);
+    });
+
+    it("matches Fedora only through its OS version, since it reports rhel", () => {
+      expect(
+        isDiskEncryptionSupportedLinuxPlatform("rhel", "Fedora Linux 41")
+      ).toBe(true);
+      expect(
+        isDiskEncryptionSupportedLinuxPlatform("rhel", "CentOS Linux 7.9")
+      ).toBe(false);
+    });
+
+    it("does not match other Linux distributions", () => {
+      expect(isDiskEncryptionSupportedLinuxPlatform("arch", "")).toBe(false);
+      expect(isDiskEncryptionSupportedLinuxPlatform("omarchy", "")).toBe(false);
+      expect(isDiskEncryptionSupportedLinuxPlatform("cachyos", "")).toBe(false);
+      expect(isDiskEncryptionSupportedLinuxPlatform("manjaro", "")).toBe(false);
+      expect(isDiskEncryptionSupportedLinuxPlatform("debian", "")).toBe(false);
+      expect(isDiskEncryptionSupportedLinuxPlatform("pop", "")).toBe(false);
     });
   });
 });

@@ -677,6 +677,8 @@ func TestHasCAVariables(t *testing.T) {
 		{"Certificate renewal (preferred)", []string{string(fleet.FleetVarCertificateRenewalID)}, true},
 		{"DigiCert data", []string{string(fleet.FleetVarDigiCertDataPrefix) + "my_ca"}, true},
 		{"DigiCert password", []string{string(fleet.FleetVarDigiCertPasswordPrefix) + "my_ca"}, true},
+		{"EJBCA data", []string{string(fleet.FleetVarEJBCADataPrefix) + "my_ca"}, true},
+		{"EJBCA password", []string{string(fleet.FleetVarEJBCAPasswordPrefix) + "my_ca"}, true},
 		{"Custom SCEP challenge", []string{string(fleet.FleetVarCustomSCEPChallengePrefix) + "my_ca"}, true},
 		{"Custom SCEP proxy URL", []string{string(fleet.FleetVarCustomSCEPProxyURLPrefix) + "my_ca"}, true},
 		{"Smallstep challenge", []string{string(fleet.FleetVarSmallstepSCEPChallengePrefix) + "my_ca"}, true},
@@ -990,4 +992,44 @@ func TestPayloadDisplayNameFromMobileconfig(t *testing.T) {
 	require.Equal(t, "Top level", fleet.PayloadDisplayNameFromMobileconfig(mc))
 	require.Empty(t, fleet.PayloadDisplayNameFromMobileconfig([]byte("<plist/>")))
 	require.Empty(t, fleet.PayloadDisplayNameFromMobileconfig(nil))
+}
+
+func TestSanitizeEULAFileName(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct{ in, want string }{
+		{"terms.md", "terms.md"},
+		{"../../terms.md", "terms.md"},
+		{`..\..\Startup\run.pdf`, "run.pdf"},
+		{"a/", ""},
+		{"..", ""},
+		{".", ""},
+		{"a/..", ""},
+		{"", ""},
+		{" terms.md\t", "terms.md"},
+		{"ter\x00ms\r\n.md", "terms.md"},
+		{"terms\u202edm.exe", "termsdm.exe"},
+	} {
+		require.Equal(t, tc.want, fleet.SanitizeEULAFileName(tc.in), "%q", tc.in)
+	}
+}
+
+func TestMDMEULAPlatformValidated(t *testing.T) {
+	for _, tc := range []struct {
+		in   fleet.MDMEULAPlatform
+		want fleet.MDMEULAPlatform
+	}{
+		{"", fleet.MDMEULAPlatformDarwin},
+		{fleet.MDMEULAPlatformDarwin, fleet.MDMEULAPlatformDarwin},
+		{fleet.MDMEULAPlatformWindows, fleet.MDMEULAPlatformWindows},
+	} {
+		got, err := tc.in.Validated()
+		require.NoError(t, err, tc.in)
+		require.Equal(t, tc.want, got)
+	}
+	for _, in := range []fleet.MDMEULAPlatform{"linux", "Windows", "macos", " darwin"} {
+		_, err := in.Validated()
+		var invalid *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &invalid, in)
+	}
 }

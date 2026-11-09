@@ -1,0 +1,1 @@
+- Fixed GitOps runs that replace or remove a software package stalling or deadlocking with the installs that policy automations queue for it, which also skipped the host's other policy automations.

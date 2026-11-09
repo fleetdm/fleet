@@ -174,8 +174,8 @@ export const REFETCH_TOOLTIP_MESSAGES: Record<
 
 export const ANDROID_NO_REFETCH_TOOLTIP_MESSAGE = (
   <>
-    There&apos;s no manual <b>Refetch</b> button because Android hosts sync data
-    automatically when they change. If changes aren&apos;t appearing,{" "}
+    Refetch is disabled because Android hosts sync data automatically when they
+    change. If changes aren&apos;t appearing,{" "}
     <CustomLink
       url={`${LEARN_MORE_ABOUT_BASE_LINK}/android-manual-sync`}
       text="learn how to sync manually."

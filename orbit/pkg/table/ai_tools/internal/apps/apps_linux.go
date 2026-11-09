@@ -3,6 +3,7 @@
 package apps
 
 import (
+	"cmp"
 	"os"
 	"path/filepath"
 	"strings"
@@ -33,7 +34,7 @@ func scanApps(homesList []homes.Home) []App {
 			out = append(out, App{
 				Name:           ka.name,
 				DisplayName:    name,
-				Path:           firstNonEmpty(exec, e.Name()),
+				Path:           cmp.Or(exec, e.Name()),
 				PlatformSource: "desktop-file",
 				Scope:          scope,
 				execPath:       execBinary(exec),

@@ -1,0 +1,1 @@
+- Fixed the hourly policy stats refresh blocking policy result ingestion for its entire run on large deployments, which caused write latency spikes and lock wait timeout errors.

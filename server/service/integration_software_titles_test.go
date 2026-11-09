@@ -319,6 +319,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	// Activity has display name
 	activityData = fmt.Sprintf(`
 	{
+		"version_name": "Default version",
 		"app_store_id": "%s",
 		"software_title": "%s",
 		"software_icon_url": "%s",
@@ -1115,9 +1116,7 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 	s.Empty(titleResp.SoftwareTitle.SoftwarePackage.InstallScript)
 	s.Equal("ruby.deb", titleResp.SoftwareTitle.SoftwarePackage.Name)
 
-	// Omitting the fleet resolves to "no team", which this observer has no role
-	// in, so no package is attached. It must still succeed, or a title's
-	// existence becomes inferable from the status.
+	// get the title without a fleet, the request should succeed without a package attached
 	titleResp = getSoftwareTitleResponse{}
 	s.DoJSON(
 		"GET",

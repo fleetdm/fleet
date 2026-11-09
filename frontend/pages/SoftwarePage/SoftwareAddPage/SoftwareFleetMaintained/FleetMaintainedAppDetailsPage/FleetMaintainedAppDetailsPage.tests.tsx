@@ -98,4 +98,30 @@ describe("FleetMaintainedAppDetailsPage", () => {
       );
     });
   });
+
+  it("shows the server's message on the page when Fleet can't reach the Fleet-maintained app manifest", async () => {
+    const reason =
+      "Fleet couldn't fetch the manifest for Rectangle. Please try again.";
+    (softwareAPI.getFleetMaintainedApp as jest.Mock).mockRejectedValueOnce({
+      status: 502,
+      data: { message: reason, errors: [{ name: "base", reason }] },
+    });
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: { isPremiumTier: true } },
+    });
+    render(
+      <FleetMaintainedAppDetailsPage
+        location={
+          ({ query: { fleet_id: "3" } } as unknown) as React.ComponentProps<
+            typeof FleetMaintainedAppDetailsPage
+          >["location"]
+        }
+        router={createMockRouter()}
+        routeParams={{ id: "1" }}
+      />
+    );
+
+    expect(await screen.findByText(reason)).toBeInTheDocument();
+  });
 });

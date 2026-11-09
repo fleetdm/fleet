@@ -389,6 +389,16 @@ func QueueMacosSetupAssistantJob(
 	return job.ID, nil
 }
 
+// NewMacosSetupAssistantJob builds a macos_setup_assistant job without queuing
+// it, for callers that must queue it in the same transaction as their change.
+func NewMacosSetupAssistantJob(task MacosSetupAssistantTask, teamID *uint, serialNumbers ...string) (*fleet.Job, error) {
+	return newJob(macosSetupAssistantJobName, &macosSetupAssistantArgs{
+		Task:              task,
+		TeamID:            teamID,
+		HostSerialNumbers: serialNumbers,
+	}, 0)
+}
+
 func ProcessDEPCooldowns(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) error {
 	serialsByTeamID, err := ds.GetDEPAssignProfileExpiredCooldowns(ctx)
 	if err != nil {

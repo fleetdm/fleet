@@ -1,0 +1,5 @@
+- name: Keynote installed
+  description: macOS hosts with Keynote installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier IN ('com.apple.iWork.Keynote', 'com.apple.Keynote');
+  label_membership_type: dynamic
+  platform: darwin

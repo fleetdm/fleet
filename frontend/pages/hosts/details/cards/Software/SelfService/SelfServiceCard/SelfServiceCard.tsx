@@ -36,6 +36,7 @@ export interface SelfServiceQueryParams {
   order_direction: "asc" | "desc";
   page: number;
   per_page: number;
+  mobile?: string;
 }
 
 export interface ISelfServiceCardProps {
@@ -150,6 +151,7 @@ const SelfServiceCard = ({
           order_key: initialSortHeader,
           order_direction: initialSortDirection,
           page,
+          mobile: queryParams.mobile,
         })
       );
     },
@@ -157,6 +159,7 @@ const SelfServiceCard = ({
       pathname,
       queryParams.query,
       queryParams.category_id,
+      queryParams.mobile,
       initialSortDirection,
       initialSortHeader,
       router,
@@ -171,6 +174,7 @@ const SelfServiceCard = ({
         order_key: initialSortHeader,
         order_direction: initialSortDirection,
         page: 0,
+        mobile: queryParams.mobile,
       })
     );
   };
@@ -200,12 +204,14 @@ const SelfServiceCard = ({
           order_key: initialSortHeader,
           order_direction: initialSortDirection,
           page: 0,
+          mobile: queryParams.mobile,
         })
       );
     },
     [
       pathname,
       queryParams.query,
+      queryParams.mobile,
       initialSortHeader,
       initialSortDirection,
       router,

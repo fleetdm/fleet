@@ -1300,6 +1300,39 @@ describe("Activity Feed", () => {
     expect(withNoTeams).toBeNull();
   });
 
+  it.each<[ActivityType, "darwin" | "windows" | undefined, string]>([
+    [
+      ActivityType.AddedEndUserAgreement,
+      "darwin",
+      "added an end user agreement (EULA) for macOS hosts.",
+    ],
+    [
+      ActivityType.AddedEndUserAgreement,
+      undefined,
+      "added an end user agreement (EULA).",
+    ],
+    [
+      ActivityType.AddedEndUserAgreement,
+      "windows",
+      "added an end user agreement (EULA) for Windows hosts.",
+    ],
+    [
+      ActivityType.DeletedEndUserAgreement,
+      "darwin",
+      "deleted an end user agreement (EULA) for macOS hosts.",
+    ],
+    [
+      ActivityType.DeletedEndUserAgreement,
+      "windows",
+      "deleted an end user agreement (EULA) for Windows hosts.",
+    ],
+  ])("renders a '%s' activity for platform %s", (type, platform, expected) => {
+    const activity = createMockActivity({ type, details: { platform } });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(expected, { exact: false })).toBeInTheDocument();
+  });
+
   it("renders a 'deleted_bootstrap_package' type activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.DeletedBootstrapPackage,
@@ -1630,6 +1663,52 @@ describe("Activity Feed", () => {
       expect(
         screen.getByText(/rejected an enrollment for a host\./i)
       ).toBeInTheDocument();
+    });
+
+    describe("end_user_authentication_required", () => {
+      const reason = "end_user_authentication_required";
+
+      it("names the host by display name", () => {
+        renderRejected({
+          reason,
+          host_display_name: "Anna's MacBook Pro",
+          host_serial: "C02ABC",
+        });
+        expect(screen.getByText("Fleet")).toBeInTheDocument();
+        expect(
+          screen.getByText(
+            /rejected an automatic enrollment for.*because IdP authentication is required\./i
+          )
+        ).toBeInTheDocument();
+        expect(screen.getByText("Anna's MacBook Pro")).toBeInTheDocument();
+        expect(screen.queryByText("C02ABC")).not.toBeInTheDocument();
+      });
+
+      it("falls back to the serial number when there is no display name", () => {
+        renderRejected({ reason, host_serial: "C02ABC" });
+        expect(screen.getByText("C02ABC")).toBeInTheDocument();
+        expect(
+          screen.getByText(
+            /rejected an automatic enrollment for a host with serial number.*because IdP authentication is required\./i
+          )
+        ).toBeInTheDocument();
+      });
+
+      it("falls back to 'a host' when there is no display name or serial", () => {
+        renderRejected({ reason });
+        expect(
+          screen.getByText(
+            /rejected an automatic enrollment for a host because IdP authentication is required\./i
+          )
+        ).toBeInTheDocument();
+      });
+
+      it("has no learn more link in the global feed", () => {
+        renderRejected({ reason, host_display_name: "X" });
+        expect(
+          screen.queryByRole("link", { name: /learn more/i })
+        ).not.toBeInTheDocument();
+      });
     });
 
     it("offers details and passes the reason and time to the handler", async () => {
@@ -2336,6 +2415,125 @@ describe("Activity Feed", () => {
     expect(screen.getByText(/failed to install/)).toBeInTheDocument();
   });
 
+  // BE sends version_name on macOS activities too ("Default version"), but
+  // #53641 keeps macOS UI unchanged. The suffix should only render for mobile
+  // host_platforms.
+  it("appends the version name on an iOS install_app_store_app activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledAppStoreApp,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Zoom Workplace",
+        host_display_name: "iPhone",
+        host_platform: "ios",
+        version_name: "Production",
+        status: "installed",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/\(Production\)/)).toBeInTheDocument();
+  });
+
+  it("omits the version name on a macOS install_app_store_app activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledAppStoreApp,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Zoom Workplace",
+        host_display_name: "MacBook",
+        host_platform: "darwin",
+        version_name: "Default version",
+        status: "installed",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.queryByText(/\(Default version\)/)).toBeNull();
+  });
+
+  // The self-service and skipped-install branches of installedSoftware both
+  // weave in versionSuffix. Pin both so a future refactor can't drop the suffix
+  // on either path silently.
+  it("appends the version name on a self-service iOS install_app_store_app activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledAppStoreApp,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Zoom Workplace",
+        host_display_name: "iPhone",
+        host_platform: "ios",
+        version_name: "Production",
+        self_service: true,
+        status: "installed",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/\(Production\)/)).toBeInTheDocument();
+  });
+
+  it("appends the version name on a skipped-install iOS install_app_store_app activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledAppStoreApp,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Zoom Workplace",
+        host_display_name: "iPhone",
+        host_platform: "ios",
+        version_name: "Production",
+        skipped_install: true,
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/\(Production\)/)).toBeInTheDocument();
+  });
+
+  // Parallel suffix logic for add / edit / delete routes through the same
+  // helper; one iOS positive + one macOS negative per activity type covers it.
+  it.each([
+    [ActivityType.AddedAppStoreApp, /added/i],
+    [ActivityType.EditedAppStoreApp, /edited/i],
+    [ActivityType.DeletedAppStoreApp, /deleted/i],
+  ])(
+    "appends the version name on an iOS %s activity",
+    (activityType, verbRe) => {
+      const activity = createMockActivity({
+        type: activityType,
+        actor_full_name: "Test Admin",
+        details: {
+          software_title: "Zoom Workplace",
+          platform: "ios",
+          version_name: "Production",
+        },
+      });
+
+      render(<GlobalActivityItem activity={activity} isPremiumTier />);
+      expect(screen.getByText(verbRe)).toBeInTheDocument();
+      expect(screen.getByText(/\(Production\)/)).toBeInTheDocument();
+    }
+  );
+
+  it.each([
+    ActivityType.AddedAppStoreApp,
+    ActivityType.EditedAppStoreApp,
+    ActivityType.DeletedAppStoreApp,
+  ])("omits the version name on a macOS %s activity", (activityType) => {
+    const activity = createMockActivity({
+      type: activityType,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Zoom Workplace",
+        platform: "darwin",
+        version_name: "Default version",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.queryByText(/\(Default version\)/)).toBeNull();
+  });
+
   it("shows software_display_name over software_title for installed_software", () => {
     const activity = createMockActivity({
       type: ActivityType.InstalledSoftware,
@@ -2688,6 +2886,21 @@ describe("Activity Feed", () => {
     expect(screen.getByText(/NDES/)).toBeInTheDocument();
   });
 
+  it.each([
+    [ActivityType.AddedGoogleCAS, /added a certificate authority/],
+    [ActivityType.EditedGoogleCAS, /edited a certificate authority/],
+    [ActivityType.DeletedGoogleCAS, /deleted a certificate authority/],
+  ])("renders %s activity with the CA's name", (type, text) => {
+    const activity = createMockActivity({
+      type,
+      details: { name: "GOOGLE_WIFI" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(text)).toBeInTheDocument();
+    expect(screen.getByText("GOOGLE_WIFI")).toBeInTheDocument();
+  });
+
   it("renders addedCustomScepProxy activity correctly", () => {
     const activity = createMockActivity({
       type: ActivityType.AddedCustomScepProxy,
@@ -2782,6 +2995,22 @@ describe("Activity Feed", () => {
       screen.getByText(/deleted a certificate authority/)
     ).toBeInTheDocument();
     expect(screen.getByText(/DIGICERT_TEST/)).toBeInTheDocument();
+  });
+
+  it.each([
+    [ActivityType.AddedEJBCA, /added a certificate authority/],
+    [ActivityType.EditedEJBCA, /edited a certificate authority/],
+    [ActivityType.DeletedEJBCA, /deleted a certificate authority/],
+  ])("renders %s activity correctly", (type, text) => {
+    const activity = createMockActivity({
+      type,
+      details: { name: "EJBCA_TEST" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(screen.getByText(text)).toBeInTheDocument();
+    expect(screen.getByText(/EJBCA_TEST/)).toBeInTheDocument();
   });
 
   it("renders addedHydrant activity correctly", () => {
@@ -3243,6 +3472,66 @@ describe("Activity Feed", () => {
       expect(container.textContent).toContain(
         "failed to notify end user 1 hour before patching 1Password on Josh's MacBook Pro."
       );
+    });
+
+    it("prefers `software` override over the legacy `software_titles` fallback", () => {
+      const activity = createMockActivity({
+        type: ActivityType.NotifiedEndUserBeforePatching,
+        fleet_initiated: true,
+        details: {
+          host_display_name: "John's MacBook Pro",
+          // Legacy flat list — would be used only if `software` were absent.
+          // A regression that swapped the field-selection order would render
+          // "1Password" instead of the override "1Password 8".
+          software_titles: ["1Password"],
+          software: [
+            { title: "1Password", title_id: 42, display_name: "1Password 8" },
+          ],
+          status: "success",
+          time_before: 3600,
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+
+      expect(container.textContent).toContain(
+        "notified end user 1 hour before patching 1Password 8 on John's MacBook Pro."
+      );
+      expect(container.textContent).not.toMatch(/patching 1Password on/);
+      const bolds = Array.from(container.querySelectorAll("strong")).map(
+        (el) => el.textContent
+      );
+      expect(bolds).toContain("1Password 8");
+      expect(bolds).not.toContain("1Password");
+    });
+
+    it("renders a mix of overridden and raw titles when truncating overflow", () => {
+      const activity = createMockActivity({
+        type: ActivityType.NotifiedEndUserBeforePatching,
+        fleet_initiated: true,
+        details: {
+          host_display_name: "John's MacBook Pro",
+          software: [
+            { title: "1Password", title_id: 1, display_name: "1Password 8" },
+            { title: "Slack", title_id: 2 },
+            { title: "Docker Desktop", title_id: 3 },
+            { title: "Zoom", title_id: 4 },
+            { title: "Chrome", title_id: 5 },
+          ],
+          status: "success",
+          time_before: 3600,
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+
+      // First inline slot renders the override, not the raw title.
+      expect(container.textContent).toContain(
+        "1Password 8, Slack, Docker Desktop, and 2 more apps"
+      );
+      expect(container.textContent).not.toMatch(/1Password,/);
     });
   });
 

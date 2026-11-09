@@ -123,7 +123,7 @@ const Software = ({
                   defaultSortDirection={SOFTWARE_DEFAULT_SORT_DIRECTION}
                   resultsTitle="software"
                   emptyComponent={() => (
-                    <EmptySoftwareTable vulnFilters={{ vulnerable: true }} />
+                    <EmptySoftwareTable filters={{ vulnerable: true }} />
                   )}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}

@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
@@ -77,6 +78,90 @@ func TestRetryClientIssueCommand(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRetryClientBudget(t *testing.T) {
+	tests := []struct {
+		name              string
+		delays            []time.Duration
+		budget            time.Duration
+		requestStartedAgo time.Duration // 0 means the call isn't made for a request
+		firstCallSleep    time.Duration
+		errs              []error
+		wantCalls         int
+		wantErr           bool
+		wantMaxElapsed    time.Duration
+	}{
+		{name: "retry within budget", delays: []time.Duration{time.Millisecond}, budget: time.Minute, errs: []error{errTooManyRequests, nil}, wantCalls: 2},
+		{name: "retry past budget is not started", delays: []time.Duration{time.Hour}, budget: time.Minute, errs: []error{errTooManyRequests}, wantCalls: 1, wantErr: true},
+		{name: "later retry past budget is not started", delays: []time.Duration{time.Millisecond, time.Hour}, budget: time.Minute, errs: []error{errTooManyRequests, errTooManyRequests}, wantCalls: 2, wantErr: true},
+		{name: "first attempt counts against budget", delays: []time.Duration{10 * time.Millisecond}, budget: 40 * time.Millisecond, firstCallSleep: 50 * time.Millisecond, errs: []error{errTooManyRequests}, wantCalls: 1, wantErr: true},
+		{name: "retry within budget of a new request", delays: []time.Duration{time.Millisecond}, budget: time.Minute, requestStartedAgo: time.Nanosecond, errs: []error{errTooManyRequests, nil}, wantCalls: 2},
+		{name: "time already spent on the request counts against budget", delays: []time.Duration{time.Millisecond}, budget: time.Minute, requestStartedAgo: time.Hour, errs: []error{errTooManyRequests}, wantCalls: 1, wantErr: true},
+		{name: "jittered wait stays within budget", delays: []time.Duration{200 * time.Millisecond}, budget: 210 * time.Millisecond, errs: []error{errTooManyRequests, nil}, wantCalls: 2, wantMaxElapsed: 260 * time.Millisecond},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := t.Context()
+			if tt.requestStartedAgo > 0 {
+				ctx = logging.NewContext(ctx, &logging.LoggingContext{StartTime: time.Now().Add(-tt.requestStartedAgo)})
+			}
+			var calls int
+			inner := &mock.Client{}
+			inner.EnterprisesDevicesIssueCommandFunc = func(context.Context, string, *androidmanagement.Command) (*androidmanagement.Operation, error) {
+				require.Less(t, calls, len(tt.errs), "unexpected extra call")
+				if calls == 0 {
+					time.Sleep(tt.firstCallSleep)
+				}
+				err := tt.errs[calls]
+				calls++
+				if err != nil {
+					return nil, err
+				}
+				return &androidmanagement.Operation{}, nil
+			}
+			client := androidmgmt.NewRetryClientWithBudget(inner, tt.delays, tt.budget)
+
+			start := time.Now()
+			_, err := client.EnterprisesDevicesIssueCommand(ctx, "enterprises/e/devices/d", &androidmanagement.Command{Type: "LOCK"})
+			elapsed := time.Since(start)
+			assert.Less(t, elapsed, time.Minute)
+			if tt.wantMaxElapsed > 0 {
+				assert.Less(t, elapsed, tt.wantMaxElapsed)
+			}
+			assert.Equal(t, tt.wantCalls, calls)
+			if tt.wantErr {
+				assert.True(t, androidmgmt.IsTooManyRequestsError(err))
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+// TestRetryClientBudgetSharedByRequest checks that calls made for one request share its retry budget, so a
+// request making several calls can't wait out a quota error on each of them.
+func TestRetryClientBudgetSharedByRequest(t *testing.T) {
+	ctx := logging.NewContext(t.Context(), &logging.LoggingContext{StartTime: time.Now()})
+	var calls int
+	inner := &mock.Client{}
+	inner.EnterprisesApplicationsFunc = func(context.Context, string, string) (*androidmanagement.Application, error) {
+		calls++
+		if calls%2 == 1 {
+			return nil, errTooManyRequests
+		}
+		return &androidmanagement.Application{}, nil
+	}
+	client := androidmgmt.NewRetryClientWithBudget(inner, []time.Duration{60 * time.Millisecond}, 100*time.Millisecond)
+
+	_, err := client.EnterprisesApplications(ctx, "enterprises/e", "com.example.first")
+	require.NoError(t, err)
+	require.Equal(t, 2, calls)
+
+	// The first call's retry waited at least 60ms of the 100ms budget, so this one can't retry.
+	_, err = client.EnterprisesApplications(ctx, "enterprises/e", "com.example.second")
+	assert.True(t, androidmgmt.IsTooManyRequestsError(err))
+	assert.Equal(t, 3, calls)
 }
 
 func TestRetryClientStopsWhenContextDone(t *testing.T) {

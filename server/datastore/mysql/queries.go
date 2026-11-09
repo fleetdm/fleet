@@ -35,20 +35,8 @@ const (
 var querySearchColumns = []string{"q.name"}
 
 func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
-	if err := ds.applyQueriesInTx(ctx, authorID, queries); err != nil {
+	if err := ds.applyQueriesInTx(ctx, authorID, queries, queriesToDiscardResults); err != nil {
 		return ctxerr.Wrap(ctx, err, "apply queries in tx")
-	}
-
-	// Opportunistically delete associated query_results.
-	//
-	// TODO(lucas): We should run this on a transaction but we found
-	// performance issues and deadlocks at scale.
-	queryIDs := make([]uint, 0, len(queriesToDiscardResults))
-	for queryID := range queriesToDiscardResults {
-		queryIDs = append(queryIDs, queryID)
-	}
-	if err := ds.deleteMultipleQueryResults(ctx, queryIDs); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete query_results")
 	}
 	return nil
 }
@@ -57,6 +45,7 @@ func (ds *Datastore) applyQueriesInTx(
 	ctx context.Context,
 	authorID uint,
 	queries []*fleet.Query,
+	queriesToDiscardResults map[uint]struct{},
 ) (err error) {
 	// First, verify all 'queries' are valid.
 	for _, q := range queries {
@@ -171,6 +160,16 @@ func (ds *Datastore) applyQueriesInTx(
 				return ctxerr.Wrap(ctx, err, "closing query rows")
 			}
 
+			var discardIDs []uint
+			for _, q := range batch {
+				if _, ok := queriesToDiscardResults[q.ID]; ok {
+					discardIDs = append(discardIDs, q.ID)
+				}
+			}
+			if err := markQueryResultsStale(ctx, tx, discardIDs); err != nil {
+				return err
+			}
+
 			return ds.updateQueryLabelsInTx(ctx, batch, tx)
 		}); err != nil {
 			return ctxerr.Wrap(ctx, err, "updating query labels")
@@ -180,12 +179,30 @@ func (ds *Datastore) applyQueriesInTx(
 	return nil
 }
 
-// deleteMultipleQueryResults deletes all stored results of the given queries.
-func (ds *Datastore) deleteMultipleQueryResults(ctx context.Context, queryIDs []uint) error {
-	for _, queryID := range queryIDs {
-		if err := ds.deleteQueryResults(ctx, queryID); err != nil {
-			return err
-		}
+// Deleting a large report's rows can outlast the request, so they're hidden when the edit commits
+// and deleted later by CleanupStaleQueryResults.
+func markQueryResultsStale(ctx context.Context, tx sqlx.ExtContext, queryIDs []uint) error {
+	if len(queryIDs) == 0 {
+		return nil
+	}
+	// The table-wide max is read from the end of the primary key, where a per-query max would
+	// scan every row of the report.
+	var maxID sql.NullInt64
+	if err := sqlx.GetContext(ctx, tx, &maxID, `SELECT MAX(id) FROM query_results`); err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting last query_results id")
+	}
+	if !maxID.Valid {
+		return nil
+	}
+	stmt, args, err := sqlx.In(
+		`UPDATE queries SET results_valid_from_id = ?, results_cleanup_pending = 1 WHERE id IN (?)`,
+		maxID.Int64+1, queryIDs,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building mark query results stale statement")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "marking query results stale")
 	}
 	return nil
 }
@@ -627,6 +644,11 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscar
 		if err := ds.updateQueryLabelsInTx(ctx, []*fleet.Query{q}, tx); err != nil {
 			return ctxerr.Wrap(ctx, err, "updating query labels")
 		}
+		if shouldDiscardResults {
+			if err := markQueryResultsStale(ctx, tx, []uint{q.ID}); err != nil {
+				return err
+			}
+		}
 		return nil
 	})
 	if err != nil {
@@ -638,30 +660,7 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscar
 		go ds.deleteQueryStats(context.WithoutCancel(ctx), []uint{q.ID})
 	}
 
-	// Opportunistically delete associated query_results.
-	//
-	// TODO(lucas): We should run this on a transaction but we found
-	// performance issues and deadlocks at scale.
-	if shouldDiscardResults {
-		if err := ds.deleteQueryResults(ctx, q.ID); err != nil {
-			return ctxerr.Wrap(ctx, err, "deleting query_results")
-		}
-	}
-
 	return nil
-}
-
-// deleteQueryResults deletes all stored results of a query in primary key batches. Rows that
-// hosts write while it runs are kept, since they may already come from the updated query.
-func (ds *Datastore) deleteQueryResults(ctx context.Context, queryID uint) error {
-	var maxID sql.NullInt64
-	if err := sqlx.GetContext(ctx, ds.writer(ctx), &maxID, `SELECT MAX(id) FROM query_results WHERE query_id = ?`, queryID); err != nil {
-		return ctxerr.Wrap(ctx, err, "selecting last query_results id")
-	}
-	if !maxID.Valid {
-		return nil
-	}
-	return ds.deleteQueryResultsBeforeID(ctx, queryID, uint(maxID.Int64)+1, false, deleteQueryResultsBatchSize) //nolint:gosec // dismiss G115
 }
 
 func (ds *Datastore) DeleteQuery(ctx context.Context, teamID *uint, name string) error {
@@ -697,14 +696,6 @@ func (ds *Datastore) DeleteQuery(ctx context.Context, teamID *uint, name string)
 	// Delete any associated stats asynchronously.
 	go ds.deleteQueryStats(context.WithoutCancel(ctx), []uint{queryID})
 
-	// Opportunistically delete associated query_results.
-	//
-	// TODO(lucas): We should run this on a transaction but we found
-	// performance issues and deadlocks at scale.
-	if err := ds.deleteQueryResults(ctx, queryID); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting query_results")
-	}
-
 	return nil
 }
 
@@ -719,13 +710,6 @@ func (ds *Datastore) DeleteQueries(ctx context.Context, ids []uint) (uint, error
 	// Delete any associated stats asynchronously.
 	go ds.deleteQueryStats(context.WithoutCancel(ctx), ids)
 
-	// Opportunistically delete associated query_results.
-	//
-	// TODO(lucas): We should run this on a transaction but we found
-	// performance issues and deadlocks at scale.
-	if err := ds.deleteMultipleQueryResults(ctx, ids); err != nil {
-		return deleted, ctxerr.Wrap(ctx, err, "delete multiple query_results")
-	}
 	return deleted, nil
 }
 

@@ -835,8 +835,11 @@ func (svc *Service) RotateDiskEncryptionKey(ctx context.Context, hostID uint) er
 			if clearErr := svc.ds.ClearHostDiskEncryptionKeyRotationCommand(ctx, host.ID, cmdUUID); clearErr != nil {
 				svc.logger.ErrorContext(ctx, "clear disk encryption key rotation after enqueue failure", "host_id", host.ID, "err", clearErr)
 			}
+			return ctxerr.Wrap(ctx, err, "enqueue RotateFileVaultKey command")
 		}
-		return ctxerr.Wrap(ctx, err, "enqueue RotateFileVaultKey command")
+
+		// if we queued it correctly, log the activity the device will eventually pick it up
+		svc.logger.ErrorContext(ctx, "failed to notify device of disk encryption key rotation", "host_id", host.ID, "err", err)
 	}
 
 	if vc, ok := viewer.FromContext(ctx); ok {

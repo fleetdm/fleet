@@ -118,7 +118,9 @@ type SoftwareInstaller struct {
 	// URL is the source URL for this installer (set when uploading via batch/gitops).
 	URL string `json:"url" db:"url"`
 	// FleetMaintainedAppID is the related Fleet-maintained app for this installer (if not nil).
-	FleetMaintainedAppID    *uint                    `json:"fleet_maintained_app_id" db:"fleet_maintained_app_id"`
+	FleetMaintainedAppID *uint `json:"fleet_maintained_app_id" db:"fleet_maintained_app_id"`
+	// FleetMaintainedAppSlug is the slug of the related Fleet-maintained app (if any).
+	FleetMaintainedAppSlug  string                   `json:"fleet_maintained_app_slug,omitempty" db:"fleet_maintained_app_slug"`
 	FleetMaintainedVersions []FleetMaintainedVersion `json:"fleet_maintained_versions,omitempty"`
 	PinnedVersion           *string                  `json:"pinned_version,omitempty" db:"-"`
 	// AutomaticInstallPolicies is the list of policies that trigger automatic
@@ -790,6 +792,7 @@ type ExistingSoftwareInstaller struct {
 	BundleIdentifier       *string `db:"bundle_identifier"`
 	Title                  string  `db:"title"`
 	PackageIDList          string  `db:"package_ids"`
+	UpgradeCode            string  `db:"upgrade_code"`
 	PackageIDs             []string
 	StorageID              string  `db:"storage_id"`
 	HTTPETag               *string `db:"http_etag"`
@@ -963,6 +966,9 @@ type HostSoftwareWithInstaller struct {
 	DisplayName       string                          `json:"display_name" db:"display_name"`
 	// UpgradeCode is a GUID representing a related set of Windows software products. See https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
 	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
+	// AITool is true when any software row of this title is flagged as an AI tool. It's a Premium
+	// field: the service clears it on Free so it's omitted from responses.
+	AITool *bool `json:"ai_tool,omitempty" db:"-"`
 
 	// SoftwarePackage provides software installer package information, it is
 	// only present if a software installer is available for the software title.
@@ -973,7 +979,7 @@ type HostSoftwareWithInstaller struct {
 	AppStoreApp *SoftwarePackageOrApp `json:"app_store_app"`
 
 	// SoftwareAutoUpdateConfig carries VPP auto-update fields (enabled + window).
-	// Populated post-pagination from software_update_schedules keyed on the host's
+	// Populated post-pagination from vpp_apps_teams keyed on the host's
 	// team + title ID. Nil for hosts with no team (matches list-titles semantics).
 	SoftwareAutoUpdateConfig
 }
@@ -1025,6 +1031,10 @@ type PatchPolicyData struct {
 type SoftwarePackageOrApp struct {
 	// AppStoreID is only present for VPP apps.
 	AppStoreID string `json:"app_store_id,omitempty"`
+	// VersionID is only present for VPP apps.
+	VersionID uint `json:"version_id,omitempty"`
+	// VersionName is only present for VPP apps with more than one version.
+	VersionName string `json:"version_name,omitempty"`
 	// Name is only present for software installer packages.
 	Name string `json:"name,omitempty"`
 	// AutomaticInstallPolicies is present for Fleet maintained apps and custom packages
@@ -1478,14 +1488,18 @@ type HostSoftwareInstallOptions struct {
 	// release cron activates it within the configured per-minute budget. Set
 	// by policy-automation paths when activity.fleet_initiated_release_per_minute > 0.
 	DeferActivation bool
+	// VPPAppTeamID is the vpp_apps_teams row an App Store app install is for.
+	VPPAppTeamID uint
+	// ForConfigurationResend means the install request re-sends an iOS/iPadOS App Store app configuration, which means it was Fleet-initiated.
+	ForConfigurationResend bool
 }
 
 // IsFleetInitiated returns true if the software install is initiated by Fleet.
-// Software installs initiated via a policy, scheduled updates or setup
-// experience are fleet-initiated (and we also make sure SelfService is false,
-// as this case is always user-initiated).
+// Software installs initiated via a policy, scheduled updates, configuration
+// re-sends or setup experience are fleet-initiated (and we also make sure
+// SelfService is false, as this case is always user-initiated).
 func (o HostSoftwareInstallOptions) IsFleetInitiated() bool {
-	return !o.SelfService && (o.PolicyID != nil || o.ForScheduledUpdates || o.ForSetupExperience)
+	return !o.SelfService && (o.PolicyID != nil || o.ForScheduledUpdates || o.ForConfigurationResend || o.ForSetupExperience)
 }
 
 // Priority returns the upcoming activities queue priority to use for this

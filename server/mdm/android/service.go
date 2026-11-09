@@ -33,8 +33,8 @@ type Service interface {
 	// command_uuid so callers can correlate the API response with the persisted row via GetMDMAndroidCommandByUUID.
 	ClearAndroidPasscode(ctx context.Context, hostID uint) (commandUUID string, err error)
 
-	// WipeAndroidHost issues an AMAPI WIPE command. COBO-only; callers in the service layer reject BYO before reaching
-	// here. Persists the row in mdm_android_commands and writes host_mdm_actions.wipe_ref.
+	// WipeAndroidHost issues an AMAPI WIPE command. On a BYO host AMAPI only removes the work profile; on COBO it factory
+	// resets the device. Persists the row in mdm_android_commands and writes host_mdm_actions.wipe_ref.
 	WipeAndroidHost(ctx context.Context, hostID uint) error
 
 	// IssueCustomCommand issues an arbitrary AMAPI command (the raw JSON from the API request) against

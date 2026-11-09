@@ -521,10 +521,6 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 			return fleet.ErrMissingLicense
 		}
 
-		if policy.Hidden && !license.IsPremium(ctx) {
-			return fleet.ErrMissingLicense
-		}
-
 		// NotifyBeforePatching is premium-only.
 		if policy.NotifyBeforePatching && !license.IsPremium(ctx) {
 			return fleet.ErrMissingLicense
@@ -567,6 +563,7 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 	if !license.IsPremium(ctx) {
 		for i := range policies {
 			policies[i].Critical = false
+			policies[i].Hidden = false
 		}
 	}
 

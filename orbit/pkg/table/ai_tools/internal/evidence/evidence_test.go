@@ -1,14 +1,16 @@
 package evidence
 
 import (
-	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/fsutil"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/proc"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGrokToolHomeCandidate(t *testing.T) {
@@ -26,7 +28,7 @@ func TestGrokToolHomeCandidate(t *testing.T) {
 	snap := &proc.Snapshot{Procs: map[int]proc.Process{
 		99: {PID: 99, Name: "grok", Cmdline: filepath.Join(home, ".grok", "bin", "grok") + " chat"},
 	}}
-	b := Gather(context.Background(), []homes.Home{h}, snap, map[string]struct{}{"agents": {}})
+	b := Gather(t.Context(), []homes.Home{h}, snap, map[string]struct{}{"agents": {}}, walks(h))
 	cands := AgentCandidates(h, snap, b)
 	var found *AgentCandidate
 	for i := range cands {
@@ -60,7 +62,7 @@ func TestJarvisStrongShapeOffline(t *testing.T) {
 	write(t, filepath.Join(proj, "skills", "weather.md"), "tool")
 
 	h := homes.Home{Dir: home, Username: "u"}
-	b := Gather(context.Background(), []homes.Home{h}, nil, map[string]struct{}{"agents": {}})
+	b := Gather(t.Context(), []homes.Home{h}, nil, map[string]struct{}{"agents": {}}, walks(h))
 	cands := AgentCandidates(h, nil, b)
 	var found *AgentCandidate
 	for i := range cands {
@@ -90,7 +92,7 @@ func TestAGENTSOnlyNoCandidate(t *testing.T) {
 	write(t, filepath.Join(proj, "AGENTS.md"), "just docs")
 
 	h := homes.Home{Dir: home, Username: "u"}
-	b := Gather(context.Background(), []homes.Home{h}, nil, map[string]struct{}{"agents": {}})
+	b := Gather(t.Context(), []homes.Home{h}, nil, map[string]struct{}{"agents": {}}, walks(h))
 	cands := AgentCandidates(h, nil, b)
 	for _, c := range cands {
 		if filepath.Base(c.Path) == "notes" {
@@ -100,29 +102,23 @@ func TestAGENTSOnlyNoCandidate(t *testing.T) {
 }
 
 func TestFrameworkCrewAI(t *testing.T) {
-	home := t.TempDir()
-	proj := filepath.Join(home, "src", "bot")
-	if err := os.MkdirAll(proj, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	write(t, filepath.Join(proj, "package.json"), `{"name":"bot","dependencies":{"crewai":"^1.0.0"}}`)
+	for _, tc := range []struct{ file, content string }{
+		{"package.json", `{"name":"bot","dependencies":{"crewai":"^1.0.0"}}`},
+		{"requirements.txt", "crewai>=0.80\n"},
+		{"pyproject.toml", "[project]\ndependencies = [\"crewai>=0.1\"]\n"},
+	} {
+		t.Run(tc.file, func(t *testing.T) {
+			home := t.TempDir()
+			write(t, filepath.Join(home, "src", "bot", tc.file), tc.content)
 
-	h := homes.Home{Dir: home, Username: "u"}
-	b := Gather(context.Background(), []homes.Home{h}, nil, map[string]struct{}{"agents": {}})
-	cands := AgentCandidates(h, nil, b)
-	found := false
-	for _, c := range cands {
-		for _, tok := range c.Signals.List() {
-			if tok == "framework:crewai" {
-				found = true
-				if c.Category != "agent-harness" {
-					t.Errorf("category=%s want agent-harness", c.Category)
-				}
-			}
-		}
-	}
-	if !found {
-		t.Fatalf("framework:crewai not found; frameworks=%+v cands=%+v", b.Frameworks, cands)
+			h := homes.Home{Dir: home, Username: "u"}
+			b := Gather(t.Context(), []homes.Home{h}, nil, map[string]struct{}{"agents": {}}, walks(h))
+			cands := AgentCandidates(h, nil, b)
+			require.Len(t, cands, 1, "frameworks=%+v cands=%+v", b.Frameworks, cands)
+			require.Equal(t, "bot", cands[0].Name)
+			require.True(t, cands[0].Signals.Has("framework:crewai"))
+			require.Equal(t, "agent-harness", cands[0].Category)
+		})
 	}
 }
 
@@ -159,7 +155,7 @@ func TestHomeIsolationBobBobbyCandidates(t *testing.T) {
 		{Dir: bob, Username: "bob", UID: "501"},
 		{Dir: bobby, Username: "bobby", UID: "502"},
 	}
-	b := Gather(context.Background(), homesList, nil, map[string]struct{}{"agents": {}})
+	b := Gather(t.Context(), homesList, nil, map[string]struct{}{"agents": {}}, walks(homesList...))
 
 	bobCands := AgentCandidates(homes.Home{Dir: bob, Username: "bob", UID: "501"}, nil, b)
 	for _, c := range bobCands {
@@ -187,23 +183,6 @@ func TestHomeIsolationBobBobbyCandidates(t *testing.T) {
 			(c.Username == "bob" && c.UID == "501") {
 			t.Fatalf("bobby candidates leaked bob artifact: %+v", c)
 		}
-	}
-}
-
-func TestProcMatchesBinShortName(t *testing.T) {
-	// amazon-q binary "q" must not match processes whose name merely ends in q.
-	if procMatchesBin("icq", "/usr/bin/icq", "/usr/bin/icq", "q") {
-		t.Fatal("suffix process name must not match short bin q")
-	}
-	if procMatchesBin("sq", "/bin/sq", "sq", "q") {
-		t.Fatal("sq must not match q")
-	}
-	if !procMatchesBin("q", "/usr/local/bin/q", "/usr/local/bin/q chat", "q") {
-		t.Fatal("exact q process should match")
-	}
-	if !procMatchesBin("Amazon Q", "/opt/homebrew/bin/q", "/opt/homebrew/bin/q", "q") {
-		// name is not exact, but exe base is q
-		t.Fatal("exe base q should match")
 	}
 }
 
@@ -261,7 +240,7 @@ func TestClaudeJSONWithoutMCPIsNotAnMCPConfig(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, ".claude.json"), []byte(`{"theme":"dark"}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	for _, m := range detectMarkers(root) {
+	for _, m := range detectMarkers(listDir(t, root)) {
 		if m == "mcp_config" {
 			t.Fatal("unrelated .claude.json produced an mcp_config marker")
 		}
@@ -271,7 +250,7 @@ func TestClaudeJSONWithoutMCPIsNotAnMCPConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	var found bool
-	for _, m := range detectMarkers(root) {
+	for _, m := range detectMarkers(listDir(t, root)) {
 		if m == "mcp_config" {
 			found = true
 		}
@@ -279,4 +258,99 @@ func TestClaudeJSONWithoutMCPIsNotAnMCPConfig(t *testing.T) {
 	if !found {
 		t.Error("a .claude.json declaring mcpServers should produce an mcp_config marker")
 	}
+}
+
+func listDir(t *testing.T, dir string) fsutil.WalkedDir {
+	t.Helper()
+	d, ok := fsutil.ListDir(dir)
+	if !ok {
+		t.Fatalf("list %s", dir)
+	}
+	return d
+}
+
+func walks(hs ...homes.Home) map[string][]fsutil.WalkedDir {
+	m := map[string][]fsutil.WalkedDir{}
+	for _, h := range hs {
+		m[h.Dir] = fsutil.WalkHome(h.Dir, WalkProbes())
+	}
+	return m
+}
+
+func TestPythonDependencyNamesIgnoreSpecifiers(t *testing.T) {
+	for _, tc := range []struct {
+		name, file, content string
+		want                []string
+	}{
+		{"bare", "pyproject.toml", `dependencies = ["crewai", "requests"]`, []string{"crewai"}},
+		{"lower bound", "pyproject.toml", `dependencies=["crewai>=0.1"]`, []string{"crewai"}},
+		{"pinned", "pyproject.toml", `dependencies = ["crewai==0.80.0"]`, []string{"crewai"}},
+		{"compatible", "pyproject.toml", "dependencies = [\n  'crewai~=0.80',\n]", []string{"crewai"}},
+		{"extras", "pyproject.toml", `dependencies = ["crewai[tools]>=0.80"]`, []string{"crewai"}},
+		{"marker", "pyproject.toml", `dependencies = ["crewai; python_version>='3.10'"]`, []string{"crewai"}},
+		{"normalized name", "pyproject.toml", `dependencies = ["Semantic_Kernel>=1"]`, []string{"semantic-kernel"}},
+		{"separator run", "requirements.txt", "Semantic__Kernel\nlangchain._core\n", []string{"langchain", "semantic-kernel"}},
+		{"poetry table", "pyproject.toml", "[tool.poetry.dependencies]\npython = \"^3.11\"\ncrewai = \"^0.80\"", []string{"crewai"}},
+		{"longer name", "pyproject.toml", `dependencies = ["crewai-tools>=0.1", "notcrewai"]`, nil},
+		{"prose", "pyproject.toml", `description = "A crewai bot"`, nil},
+		{"requirements", "requirements.txt", "# agents\nrequests\nCrewAI>=0.80  # pinned\n-r base.txt\nlangchain-core==0.3; python_version>'3.9'\n", []string{"crewai", "langchain"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := filepath.Join(t.TempDir(), tc.file)
+			write(t, p, tc.content)
+			got := parsePythonDependencyNames(p)
+			slices.Sort(got)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+// A tool's own home that looks like an agent workspace (Claude Code creates
+// ~/.claude/skills) is that tool, not a second agent.
+func TestToolHomeWorkspaceShapeJoinsToolHomeCandidate(t *testing.T) {
+	for _, tc := range []struct{ dir, name string }{
+		{".claude", "claude-code"},
+		{".hermes", "hermes"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			home := t.TempDir()
+			write(t, filepath.Join(home, tc.dir, "AGENTS.md"), "# rules")
+			write(t, filepath.Join(home, tc.dir, "skills", "qa", "SKILL.md"), "# qa")
+
+			h := homes.Home{Dir: home, Username: "u"}
+			b := Gather(t.Context(), []homes.Home{h}, nil, map[string]struct{}{"agents": {}}, walks(h))
+			cands := AgentCandidates(h, nil, b)
+			require.Len(t, cands, 1, "%+v", cands)
+			c := cands[0]
+			require.Equal(t, tc.name, c.Name)
+			require.True(t, c.Signals.Has("tool_home"))
+			require.True(t, c.Signals.Has("workspace_shape"))
+			// A catalog tool's row keeps its own category when this merges into
+			// it (see agents); a tool known only by its home is a harness.
+			require.Equal(t, "agent-harness", c.Category)
+		})
+	}
+}
+
+// A global npm or pipx install of a catalog agent is that agent, which the
+// catalog already reports with its version; only a project depending on one,
+// or a globally installed framework, is framework evidence.
+func TestGlobalInstallOfCatalogAgentIsNotAFramework(t *testing.T) {
+	home := t.TempDir()
+	nm := filepath.Join(home, ".npm-global", "lib", "node_modules")
+	write(t, filepath.Join(nm, "@anthropic-ai", "claude-code", "package.json"), `{"name":"@anthropic-ai/claude-code","version":"2.1.0"}`)
+	write(t, filepath.Join(nm, "crewai", "package.json"), `{"name":"crewai"}`)
+	write(t, filepath.Join(home, ".local", "pipx", "venvs", "aider-chat", "pyvenv.cfg"), "home = /usr")
+	write(t, filepath.Join(home, "src", "sdkbot", "package.json"), `{"dependencies":{"@anthropic-ai/claude-code":"^2"}}`)
+
+	h := homes.Home{Dir: home, Username: "u"}
+	b := Gather(t.Context(), []homes.Home{h}, nil, map[string]struct{}{"agents": {}}, walks(h))
+	got := map[string]string{}
+	for _, fw := range b.Frameworks {
+		got[fw.Name+"@"+fw.Source] = fw.Path
+	}
+	require.Contains(t, got, "crewai@global-node")
+	require.Contains(t, got, "claude-code@package.json", "a project depending on a catalog agent is still evidence")
+	require.NotContains(t, got, "claude-code@global-node")
+	require.NotContains(t, got, "aider@pipx")
 }

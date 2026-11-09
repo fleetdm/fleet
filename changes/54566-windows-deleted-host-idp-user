@@ -1,0 +1,1 @@
+- Fixed a deleted Windows host enrolled in MDM through Microsoft Entra ID coming back without its IdP user or SCIM user mapping.

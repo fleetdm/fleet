@@ -767,3 +767,79 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		require.False(t, ds.ClearHostPolicyUpdatedAtFuncInvoked, "no gated item -> policy clock must not be reset")
 	})
 }
+
+func TestSetupExperienceNextStepRunningScriptResult(t *testing.T) {
+	ctx := t.Context()
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+
+	const hostUUID = "host-uuid"
+	host := &fleet.Host{ID: 1, UUID: hostUUID, Platform: "darwin"}
+	execID := "exec-1"
+
+	var step *fleet.SetupExperienceStatusResult
+	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+		return []*fleet.SetupExperienceStatusResult{step}, nil
+	}
+	var result *fleet.HostScriptResult
+	ds.GetHostScriptExecutionResultFunc = func(ctx context.Context, id string) (*fleet.HostScriptResult, error) {
+		if result == nil {
+			return nil, &notFoundError{}
+		}
+		return result, nil
+	}
+	var updatedTo []fleet.SetupExperienceStatusResultStatus
+	rowMatches := true
+	ds.MaybeUpdateSetupExperienceScriptStatusFunc = func(ctx context.Context, gotHostUUID, gotExecID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
+		assert.Equal(t, hostUUID, gotHostUUID)
+		assert.Equal(t, execID, gotExecID)
+		updatedTo = append(updatedTo, status)
+		return rowMatches, nil
+	}
+
+	runningStep := func(execID *string) *fleet.SetupExperienceStatusResult {
+		return &fleet.SetupExperienceStatusResult{
+			HostUUID:                hostUUID,
+			Name:                    "script.sh",
+			SetupExperienceScriptID: new(uint(1)),
+			ScriptContentID:         new(uint(2)),
+			ScriptExecutionID:       execID,
+			Status:                  fleet.SetupExperienceStatusRunning,
+		}
+	}
+
+	cases := []struct {
+		name         string
+		execID       *string
+		result       *fleet.HostScriptResult
+		rowChanged   bool
+		wantFinished bool
+		wantUpdate   []fleet.SetupExperienceStatusResultStatus
+	}{
+		{name: "no result yet", execID: &execID},
+		{name: "result without exit code", execID: &execID, result: &fleet.HostScriptResult{ExecutionID: execID}},
+		{name: "no execution id", execID: nil, result: &fleet.HostScriptResult{ExecutionID: execID, ExitCode: new(int64(0))}},
+		{
+			name: "recorded success", execID: &execID, result: &fleet.HostScriptResult{ExecutionID: execID, ExitCode: new(int64(0))},
+			wantFinished: true, wantUpdate: []fleet.SetupExperienceStatusResultStatus{fleet.SetupExperienceStatusSuccess},
+		},
+		{
+			name: "recorded failure", execID: &execID, result: &fleet.HostScriptResult{ExecutionID: execID, ExitCode: new(int64(1))},
+			wantFinished: true, wantUpdate: []fleet.SetupExperienceStatusResultStatus{fleet.SetupExperienceStatusFailure},
+		},
+		{
+			// the step points at another execution or already finished: keep waiting rather than finish from a stale read
+			name: "recorded result but step row no longer matches", execID: &execID, result: &fleet.HostScriptResult{ExecutionID: execID, ExitCode: new(int64(0))},
+			rowChanged: true, wantUpdate: []fleet.SetupExperienceStatusResultStatus{fleet.SetupExperienceStatusSuccess},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			step, result, updatedTo, rowMatches = runningStep(c.execID), c.result, nil, !c.rowChanged
+			finished, err := svc.SetupExperienceNextStep(ctx, host)
+			require.NoError(t, err)
+			assert.Equal(t, c.wantFinished, finished)
+			assert.Equal(t, c.wantUpdate, updatedTo)
+		})
+	}
+}

@@ -34,6 +34,8 @@ type EnrollOrbitRequest struct {
 	HardwareModel string `json:"hardware_model"`
 	// EUAToken is a Fleet-signed JWT containing the user's UPN and Windows MDM device ID.
 	EUAToken string `json:"eua_token,omitempty"`
+	// AutopilotDeviceID is the Windows Autopilot device ID (ZTDID), if the device has one.
+	AutopilotDeviceID string `json:"autopilot_device_id,omitempty"`
 }
 
 // SetOrbitNodeKeyer is the interface implemented by orbit request types that

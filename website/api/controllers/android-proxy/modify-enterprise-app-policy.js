@@ -38,6 +38,7 @@ module.exports = {
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound'},
     enterpriseNotAccessible: { description: 'Fleet is not authorized to manage this Android enterprise.', responseType: 'notFound' },
     policyNotFound: { description: 'Specified policy not found', responseType: 'notFound' },
+    invalidApplicationPolicy: { description: 'Invalid modify policy applications request', responseType: 'badRequest' },
     managementApiError: { statusCode: 503, description: 'The Android management API returned a transient 5xx error.' },
     tooManyRequests: { description: 'The Android management API rate limit was exceeded.', statusCode: 429 },
   },
@@ -109,6 +110,8 @@ module.exports = {
       sails.log.warn(`p1: Android management API rate limit exceeded!`);
       // Pass the 429 through to the Fleet server rather than collapsing it into a 500, so it can retry.
       return 'tooManyRequests';
+    }).intercept({ status: 400 }, (err) => {
+      return {'invalidApplicationPolicy': `The Android management API returned a bad request response: ${err.message}`};
     }).intercept({status: 403}, ()=>{
       // If the Android management API returns a 403 response, return a enterpriseNotAccessible (notFound) response to the Fleet server.
       return {'enterpriseNotAccessible': 'Fleet is not authorized to manage this Android enterprise.'};

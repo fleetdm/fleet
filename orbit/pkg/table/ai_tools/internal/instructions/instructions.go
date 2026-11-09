@@ -74,9 +74,24 @@ var projectFiles = []struct {
 	{filepath.Join(".github", "copilot-instructions.md"), "copilot"},
 }
 
+// WalkProbes are the paths Scan checks in each walked directory, for
+// fsutil.WalkHome.
+func WalkProbes() []string {
+	out := []string{filepath.Join(".cursor", "rules")}
+	for _, pf := range projectFiles {
+		out = append(out, pf.rel)
+	}
+	return out
+}
+
+// cursorRulesDepth bounds how many folder levels under .cursor/rules are read
+// for rules.
+const cursorRulesDepth = 3
+
 // Scan returns every agent instruction file discoverable under a home dir:
-// fixed user-scope locations plus a bounded walk of common dev-project roots.
-func Scan(h homes.Home) []Instruction {
+// fixed user-scope locations plus the directories in dirs, the home's
+// fsutil.WalkHome result.
+func Scan(h homes.Home, dirs []fsutil.WalkedDir) []Instruction {
 	seen := map[string]struct{}{}
 	var out []Instruction
 
@@ -92,33 +107,24 @@ func Scan(h homes.Home) []Instruction {
 		emit(filepath.Join(h.Dir, p.rel), p.tool, "user")
 	}
 
-	for _, root := range projectRoots(h.Dir) {
-		fsutil.WalkBounded(root, 3, func(dir string) {
-			for _, pf := range projectFiles {
-				emit(filepath.Join(dir, pf.rel), pf.tool, "project")
+	for _, d := range dirs {
+		for _, pf := range projectFiles {
+			if d.Exists(pf.rel) {
+				emit(filepath.Join(d.Path, pf.rel), pf.tool, "project")
 			}
-			// Cursor's newer rule format: .cursor/rules/*.mdc
-			if matches, err := filepath.Glob(filepath.Join(dir, ".cursor", "rules", "*.mdc")); err == nil {
+		}
+		// Cursor's newer rule format: .cursor/rules/**/*.mdc, organized in
+		// folders as deep as cursorRulesDepth.
+		if !d.IsDir(".cursor") {
+			continue
+		}
+		fsutil.WalkBounded(filepath.Join(d.Path, ".cursor", "rules"), cursorRulesDepth, func(dir string) {
+			if matches, err := filepath.Glob(filepath.Join(dir, "*.mdc")); err == nil {
 				for _, m := range matches {
 					emit(m, "cursor", "project")
 				}
 			}
 		})
-	}
-	return out
-}
-
-func projectRoots(home string) []string {
-	subs := []string{
-		"", "Documents", "Projects", "projects", "src", "code", "git", "dev", "workspace", "repos",
-	}
-	out := make([]string, 0, len(subs))
-	for _, s := range subs {
-		if s == "" {
-			out = append(out, home)
-			continue
-		}
-		out = append(out, filepath.Join(home, s))
 	}
 	return out
 }

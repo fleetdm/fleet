@@ -81,8 +81,7 @@ type uploadSoftwareInstallerResponse struct {
 	Err             error                    `json:"error,omitempty"`
 }
 
-// TODO: We parse the whole body before running svc.authz.Authorize.
-// An authenticated but unauthorized user could abuse this.
+// TODO: Per-fleet authorization still runs after parsing because fleet_id is in the body.
 func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := updateSoftwareInstallerRequest{}
 
@@ -360,8 +359,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	return nil, fleet.ErrMissingLicense
 }
 
-// TODO: We parse the whole body before running svc.authz.Authorize.
-// An authenticated but unauthorized user could abuse this.
+// TODO: Per-fleet authorization still runs after parsing because fleet_id is in the body.
 func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := uploadSoftwareInstallerRequest{}
 
@@ -602,7 +600,9 @@ type deleteSoftwareInstallerRequest struct {
 	TeamID *uint `query:"team_id" renameto:"fleet_id"`
 	// InstallerID deletes one package; omitted deletes all of the title's packages.
 	InstallerID *uint `query:"installer_id,optional"`
-	TitleID     uint  `url:"title_id"`
+	// VersionID deletes one App Store app version, omitting it deletes every version of the title.
+	VersionID *uint `query:"version_id,optional"`
+	TitleID   uint  `url:"title_id"`
 }
 
 type deleteSoftwareInstallerResponse struct {
@@ -614,14 +614,14 @@ func (r deleteSoftwareInstallerResponse) Status() int  { return http.StatusNoCon
 
 func deleteSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteSoftwareInstallerRequest)
-	err := svc.DeleteSoftwareInstaller(ctx, req.TitleID, req.TeamID, req.InstallerID)
+	err := svc.DeleteSoftwareInstaller(ctx, req.TitleID, req.TeamID, req.InstallerID, req.VersionID)
 	if err != nil {
 		return deleteSoftwareInstallerResponse{Err: err}, nil
 	}
 	return deleteSoftwareInstallerResponse{}, nil
 }
 
-func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint, installerID *uint) error {
+func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint, installerID *uint, appStoreAppVersionID *uint) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

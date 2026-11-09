@@ -62,8 +62,10 @@ jobs:
       # VEX files yet. Mirrors check-vulnerabilities-in-released-docker-images.yml.
       - name: Run trivy vulnerability scanner on locally-built fleetdm/fleet image
         env:
-          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
-          TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
+          # Fallbacks: each registry throttles anonymous pulls per source IP, which
+          # GitHub-hosted runners share with every other tenant.
+          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db,mirror.gcr.io/aquasec/trivy-db,ghcr.io/aquasecurity/trivy-db
+          TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db,mirror.gcr.io/aquasec/trivy-java-db,ghcr.io/aquasecurity/trivy-java-db
           FLEET_VEX_FLAGS: ${{ steps.generate_fleet_vex_files.outputs.FLEET_VEX_FLAGS }}
         run: |
           mkdir trivy-download
@@ -110,6 +112,11 @@ jobs:
               | unique_by(.VulnerabilityID + "|" + (.PkgName // "") + "|" + .image)
               | sort_by(.Severity, .VulnerabilityID, .image)
               | map("• *\(.VulnerabilityID)* (\(.Severity // "UNKNOWN")) in `\(safe(.image))` — \(safe(.PkgName // "?")) \(safe(.InstalledVersion // "?")) → \(safe(.FixedVersion // "?"))\\n    _\(safe(.Title // "(no title)"))_")
+              # Slack rejects section text over 3000 chars (invalid_blocks), so cap the list.
+              | (reduce .[] as $l ({kept: [], len: 0, full: false};
+                  if .full or (.len + ($l | length) + 2 > 2500) then .full = true
+                  else .kept += [$l] | .len += ($l | length) + 2 end)) as $r
+              | $r.kept + (if length > ($r.kept | length) then ["…and \(length - ($r.kept | length)) more — see job logs"] else [] end)
               | join("\\n")
             ' "${files[@]}")
           fi

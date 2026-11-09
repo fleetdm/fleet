@@ -26,8 +26,8 @@ const enrollmentRejectedActivityTTL = 12 * time.Hour
 // other Fleet key prefixes.
 const enrollmentRejectedKeyPrefix = "{enrollment_rejected}"
 
-// enrollmentAttempt carries the identifiers an agent presented, for logging and
-// the rejection activity.
+// enrollmentAttempt carries the identifiers an enrolling agent or device
+// presented, for logging and the rejection activity.
 type enrollmentAttempt struct {
 	plane          fleet.EnrollmentPlane
 	platform       string

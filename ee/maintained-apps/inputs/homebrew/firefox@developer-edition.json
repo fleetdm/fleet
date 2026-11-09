@@ -4,5 +4,6 @@
   "unique_identifier": "org.mozilla.firefoxdeveloperedition",
   "token": "firefox@developer-edition",
   "installer_format": "dmg",
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/firefox-developer-edition-install.sh",
   "default_categories": ["Browsers"]
 }

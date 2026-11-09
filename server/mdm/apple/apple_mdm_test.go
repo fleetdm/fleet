@@ -2,7 +2,11 @@ package apple_mdm
 
 import (
 	"context"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"io"
 	"log/slog"
@@ -10,6 +14,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -22,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/micromdm/plist"
+	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1462,5 +1468,159 @@ func TestSendManagedLocalAccountRotationCommands(t *testing.T) {
 		require.Error(t, err)
 		require.True(t, clearCalled)
 		require.Empty(t, loggedActivities)
+	})
+}
+
+func TestParseAppleMDMCertificateBindingExtension(t *testing.T) {
+	utf8Value := func(t *testing.T, s string) []byte {
+		v, err := asn1.MarshalWithParams(s, "utf8")
+		require.NoError(t, err)
+		return v
+	}
+	bindingExt := func(value []byte) pkix.Extension {
+		return pkix.Extension{Id: AppleMDMCertificateBindingExtensionOID, Value: value}
+	}
+	certWith := func(exts ...pkix.Extension) *x509.Certificate {
+		return &x509.Certificate{Extensions: exts}
+	}
+
+	t.Run("no extension", func(t *testing.T) {
+		otherExt := pkix.Extension{Id: asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 63991, 1, 1}, Value: utf8Value(t, "host-identity")}
+		binding, err := ParseAppleMDMCertificateBindingExtension(certWith(otherExt))
+		require.NoError(t, err)
+		require.Nil(t, binding)
+	})
+
+	t.Run("round trips a built extension", func(t *testing.T) {
+		ext, err := BuildAppleMDMCertificateBindingExtension(AppleMDMCertificateBindingExtension{
+			Purpose: fleet.AppleMDMCertPurposeADE, UDID: new("udid"), Serial: new("serial"),
+		})
+		require.NoError(t, err)
+		binding, err := ParseAppleMDMCertificateBindingExtension(certWith(ext))
+		require.NoError(t, err)
+		require.Equal(t, &AppleMDMCertificateBindingExtension{
+			Version: 1, Purpose: fleet.AppleMDMCertPurposeADE, UDID: new("udid"), Serial: new("serial"),
+		}, binding)
+	})
+
+	valid := bindingExt(utf8Value(t, `{"v":1,"purpose":"ade","udid":"udid","serial":"serial"}`))
+	octetString, err := asn1.Marshal([]byte(`{"v":1,"purpose":"ade"}`))
+	require.NoError(t, err)
+	printableString, err := asn1.MarshalWithParams("v1", "printable")
+	require.NoError(t, err)
+
+	rejected := []struct {
+		name string
+		cert *x509.Certificate
+	}{
+		{"duplicate extension", certWith(valid, valid)},
+		{"raw JSON instead of DER", certWith(bindingExt([]byte(`{"v":1,"purpose":"ade"}`)))},
+		{"empty value", certWith(bindingExt(nil))},
+		{"truncated DER", certWith(bindingExt(valid.Value[:len(valid.Value)-3]))},
+		{"octet string instead of UTF8String", certWith(bindingExt(octetString))},
+		{"printable string instead of UTF8String", certWith(bindingExt(printableString))},
+		{"trailing bytes after the UTF8String", certWith(bindingExt(append(append([]byte{}, valid.Value...), 0x00)))},
+		{"malformed JSON", certWith(bindingExt(utf8Value(t, `{"v":1,"purpose":`)))},
+		{"JSON of the wrong shape", certWith(bindingExt(utf8Value(t, `["ade"]`)))},
+		{"version as a string", certWith(bindingExt(utf8Value(t, `{"v":"1","purpose":"ade"}`)))},
+		{"missing version", certWith(bindingExt(utf8Value(t, `{"purpose":"ade","udid":"udid","serial":"serial"}`)))},
+		{"version 0", certWith(bindingExt(utf8Value(t, `{"v":0,"purpose":"ade","udid":"udid","serial":"serial"}`)))},
+		{"unsupported version 2", certWith(bindingExt(utf8Value(t, `{"v":2,"purpose":"ade","udid":"udid","serial":"serial"}`)))},
+	}
+	for _, c := range rejected {
+		t.Run("rejects "+c.name, func(t *testing.T) {
+			binding, err := ParseAppleMDMCertificateBindingExtension(c.cert)
+			require.Error(t, err)
+			require.Nil(t, binding)
+		})
+	}
+}
+
+func TestSilentMigrationRenewalProfile(t *testing.T) {
+	const static = "static/><challenge"
+	placeholder := fleet.HostSecretPlaceholder(fleet.HostSecretSCEPChallenge)
+	profileWith := func(challenge, description string) string {
+		var c, d strings.Builder
+		require.NoError(t, xml.EscapeText(&c, []byte(challenge)))
+		require.NoError(t, xml.EscapeText(&d, []byte(description)))
+		return `<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0"><dict>
+<key>PayloadContent</key><array>
+<dict><key>PayloadType</key><string>com.apple.security.scep</string>
+<key>PayloadContent</key><dict><key>Challenge</key><string>` + c.String() + `</string><key>Keysize</key><integer>2048</integer></dict></dict>
+<dict><key>PayloadType</key><string>com.apple.mdm</string><key>ServerURL</key><string>https://example.com/mdm/apple/mdm</string></dict>
+</array>
+<key>PayloadDescription</key><string>` + d.String() + `</string>
+<key>PayloadType</key><string>Configuration</string>
+</dict></plist>`
+	}
+	// returns the SCEP Challenge and PayloadDescription of a renewal profile
+	parse := func(t *testing.T, profile []byte) (string, string) {
+		var root map[string]any
+		err := plist.Unmarshal(profile, &root)
+		require.NoError(t, err)
+		scep := root["PayloadContent"].([]any)[0].(map[string]any)["PayloadContent"].(map[string]any)
+		require.EqualValues(t, 2048, scep["Keysize"])
+		return scep["Challenge"].(string), root["PayloadDescription"].(string)
+	}
+
+	cases := []struct {
+		name      string
+		challenge string
+	}{
+		{"variable", fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix()},
+		{"variable with braces", fleet.FleetVarSilentMigrationSCEPChallenge.WithBraces()},
+		{"legacy static challenge", static},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := SilentMigrationRenewalProfile([]byte(profileWith(c.challenge, "desc")), static)
+			require.NoError(t, err)
+			challenge, desc := parse(t, got)
+			require.Equal(t, placeholder, challenge)
+			require.Equal(t, "desc", desc)
+		})
+	}
+
+	t.Run("signed profile is unwrapped", func(t *testing.T) {
+		cert, key, err := NewSCEPCACertKey()
+		require.NoError(t, err)
+		signedData, err := pkcs7.NewSignedData([]byte(profileWith(fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix(), "desc")))
+		require.NoError(t, err)
+		require.NoError(t, signedData.AddSigner(cert, key, pkcs7.SignerInfoConfig{}))
+		signed, err := signedData.Finish()
+		require.NoError(t, err)
+
+		got, err := SilentMigrationRenewalProfile(signed, static)
+		require.NoError(t, err)
+		challenge, _ := parse(t, got)
+		require.Equal(t, placeholder, challenge)
+	})
+
+	t.Run("works without a static challenge", func(t *testing.T) {
+		got, err := SilentMigrationRenewalProfile([]byte(profileWith(fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix(), "desc")), "")
+		require.NoError(t, err)
+		challenge, _ := parse(t, got)
+		require.Equal(t, placeholder, challenge)
+	})
+
+	t.Run("only the SCEP Challenge is replaced", func(t *testing.T) {
+		got, err := SilentMigrationRenewalProfile([]byte(profileWith(static, "uses "+static)), static)
+		require.NoError(t, err)
+		challenge, desc := parse(t, got)
+		require.Equal(t, placeholder, challenge)
+		require.Equal(t, "uses "+static, desc)
+	})
+
+	t.Run("profile without a recognized Challenge is rejected", func(t *testing.T) {
+		_, err := SilentMigrationRenewalProfile([]byte(profileWith("other-challenge", "")), static)
+		require.Error(t, err)
+		_, err = SilentMigrationRenewalProfile([]byte(profileWith("other-challenge", "")), "")
+		require.Error(t, err)
+		// the marker outside the Challenge field doesn't count
+		_, err = SilentMigrationRenewalProfile([]byte(profileWith("other-challenge", fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix())), static)
+		require.Error(t, err)
+		_, err = SilentMigrationRenewalProfile([]byte("not a plist"), static)
+		require.Error(t, err)
 	})
 }

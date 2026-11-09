@@ -221,13 +221,8 @@ export default {
   DISK_ENCRYPTION: `/${API_VERSION}/fleet/disk_encryption`,
   HOST_NAME_TEMPLATE: `/${API_VERSION}/fleet/host_name_template`,
   MDM_APPLE_SSO: `/${API_VERSION}/fleet/mdm/sso`,
-  MDM_APPLE_ENROLLMENT_PROFILE: (
-    token: string,
-    ref?: string,
-    deviceinfo?: string
-  ) => {
+  MDM_APPLE_ENROLLMENT_PROFILE: (token: string, deviceinfo?: string) => {
     const query = new URLSearchParams({ token });
-    ref && query.append("enrollment_reference", ref);
     deviceinfo && query.append("deviceinfo", deviceinfo);
 
     return `/api/mdm/apple/enroll?${query}`;
@@ -239,9 +234,10 @@ export default {
   MDM_BOOTSTRAP_PACKAGE: `/${API_VERSION}/fleet/bootstrap`,
   MDM_BOOTSTRAP_PACKAGE_SUMMARY: `/${API_VERSION}/fleet/mdm/bootstrap/summary`,
   MDM_SETUP: `/${API_VERSION}/fleet/mdm/apple/setup`,
-  MDM_EULA: (token: string) => `/${API_VERSION}/fleet/mdm/setup/eula/${token}`,
-  MDM_EULA_UPLOAD: `/${API_VERSION}/fleet/mdm/setup/eula`,
-  MDM_EULA_METADATA: `/${API_VERSION}/fleet/mdm/setup/eula/metadata`,
+  MDM_EULA: (token: string) =>
+    `/${API_VERSION}/fleet/setup_experience/eula/${token}`,
+  MDM_EULA_UPLOAD: `/${API_VERSION}/fleet/setup_experience/eula`,
+  MDM_EULA_METADATA: `/${API_VERSION}/fleet/setup_experience/eula/metadata`,
   HOST_MDM: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/mdm`,
   HOST_ENCRYPTION_KEY: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/encryption_key`,
