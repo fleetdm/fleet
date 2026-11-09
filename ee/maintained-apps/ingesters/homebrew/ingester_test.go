@@ -210,7 +210,7 @@ func TestIngestValidations(t *testing.T) {
 		{"", inputApp{Token: "qgis@ltr", UniqueIdentifier: "org.qgis.qgis3", InstallerFormat: "dmg", Name: "QGIS LTR", Slug: "qgis@ltr/darwin"}},
 		{"", inputApp{Token: "kicad", UniqueIdentifier: "org.kicad.kicad", InstallerFormat: "dmg", Name: "KiCad", Slug: "kicad/darwin"}},
 		{"", inputApp{Token: "mindmanager", UniqueIdentifier: "com.mindjet.mindmanager.26", InstallerFormat: "dmg", Name: "MindManager", Slug: "mindmanager/darwin"}},
-		{"", inputApp{Token: "elgato-wave-link", UniqueIdentifier: "com.elgato.WaveLink3", InstallerFormat: "dmg", Name: "Elgato Wave Link", Slug: "elgato-wave-link/darwin"}},
+		{"", inputApp{Token: "elgato-wave-link", UniqueIdentifier: "com.elgato.WaveLink3", InstallerFormat: "dmg", Name: "Elgato Wave Link", Slug: "elgato-wave-link/darwin"}}, //nolint:gosec // G101: cask token, not a credential
 		{"", inputApp{Token: "chatgpt", UniqueIdentifier: "com.openai.chat", InstallerFormat: "zip", Name: "ChatGPT Desktop", Slug: "chatgpt/darwin"}},
 		{"", inputApp{Token: "updf", UniqueIdentifier: "com.superace.updf.mac", InstallerFormat: "dmg", Name: "UPDF", Slug: "updf/darwin"}},
 		{"", inputApp{Token: "tableau", UniqueIdentifier: "com.tableausoftware.tableaudesktop", InstallerFormat: "dmg", Name: "Tableau Desktop", Slug: "tableau/darwin"}},
