@@ -51,6 +51,7 @@ import {
 } from "pages/policies/hooks";
 import {
   EndUserExperience,
+  getNextEndUserExperience,
   getPatchPolicyFlags,
   PatchOption,
   PatchOptionSelector,
@@ -133,6 +134,8 @@ const PolicyForm = ({
   resetAiAutofillData,
 }: IPolicyFormProps): JSX.Element => {
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
+  const [platformError, setPlatformError] = useState<string | null>(null);
+  const [showLabelsError, setShowLabelsError] = useState(false);
   const [isSaveNewPolicyModalOpen, setIsSaveNewPolicyModalOpen] = useState(
     false
   );
@@ -141,11 +144,12 @@ const PolicyForm = ({
   const [isAddingAutomation, setIsAddingAutomation] = useState(false);
   const [patchOption, setPatchOption] = useState<PatchOption>("manual");
   const [endUserExperience, setEndUserExperience] = useState<EndUserExperience>(
-    "immediate"
+    "deadline"
   );
   const storedPatchPolicyId = storedPolicy?.id;
   const storedPatchWhenClosed = storedPolicy?.patch_when_closed;
   const storedNotifyBeforePatching = storedPolicy?.notify_before_patching;
+  const storedPatchDeadline = storedPolicy?.patch_deadline;
   const storedInstallSoftwareId =
     storedPolicy?.install_software?.software_title_id;
 
@@ -158,12 +162,21 @@ const PolicyForm = ({
       nextPatchOption = "force";
     }
     setPatchOption(nextPatchOption);
-    setEndUserExperience(storedNotifyBeforePatching ? "notify" : "immediate");
+    let nextEndUserExperience: EndUserExperience = "deadline";
+    if (storedNotifyBeforePatching) {
+      nextEndUserExperience = "notify";
+    } else if (!storedPatchDeadline) {
+      // No notify, no deadline: this is a stored "Patch immediately" policy.
+      // Deadline-less legacy Force patch policies also land here.
+      nextEndUserExperience = "immediate";
+    }
+    setEndUserExperience(nextEndUserExperience);
   }, [
     isPatchPolicy,
     storedPatchPolicyId,
     storedPatchWhenClosed,
     storedNotifyBeforePatching,
+    storedPatchDeadline,
     storedInstallSoftwareId,
   ]);
 
@@ -222,19 +235,20 @@ const PolicyForm = ({
     config?.server_settings.ai_features_disabled || false;
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
-  const debounceSQL = useDebouncedCallback((sql: string) => {
-    const { errors: newErrors } = validateQuerySQL(sql);
-
-    setErrors({
-      ...newErrors,
-    });
-  }, 500);
-
   const platformCompatibility = usePlatformCompatibility();
-  const {
-    getCompatiblePlatforms,
-    setCompatiblePlatforms,
-  } = platformCompatibility;
+  const { setCompatiblePlatforms } = platformCompatibility;
+
+  const validateSqlOnBlur = (sql: string) => {
+    const { errors: newErrors } = validateQuerySQL(sql);
+    setErrors((prev) => ({ ...prev, query: newErrors.query ?? undefined }));
+  };
+
+  // Also validate 3s after the user stops typing, so a stale pause surfaces
+  // an error without flashing mid-token. Blur / submit still fire immediately.
+  const debounceValidateSql = useDebouncedCallback((sql: string) => {
+    const { errors: newErrors } = validateQuerySQL(sql);
+    setErrors((prev) => ({ ...prev, query: newErrors.query ?? undefined }));
+  }, 3000);
 
   const platformSelectorDisabled =
     isFetchingAutofillDescription ||
@@ -249,21 +263,33 @@ const PolicyForm = ({
     currentTeam?.id
   );
 
-  const {
-    getSelectedPlatforms,
-    setSelectedPlatforms,
-    isAnyPlatformSelected,
-  } = platformSelector;
+  const { getSelectedPlatforms, isAnyPlatformSelected } = platformSelector;
 
   policyIdForEdit = policyIdForEdit || 0;
 
   const isEditMode = !!policyIdForEdit && !isTeamObserver && !isGlobalObserver;
 
+  const labelsRequired = selectedTargetType === "Custom" && !hasCustomLabels;
+  const labelsError =
+    showLabelsError && labelsRequired ? "Select at least one label" : null;
+
+  useEffect(() => {
+    if (isAnyPlatformSelected) {
+      setPlatformError(null);
+    }
+  }, [isAnyPlatformSelected]);
+
+  useEffect(() => {
+    if (!labelsRequired) {
+      setShowLabelsError(false);
+    }
+  }, [labelsRequired]);
+
   const isNewTemplatePolicy =
     !policyIdForEdit &&
     DEFAULT_POLICIES.find((p) => p.name === lastEditedQueryName);
 
-  // For an existing policy, ownership comes from the policy's stored team_id.
+  // For an existing policy, ownership comes from the policy's stored fleet_id.
   // For a new policy, it comes from the team the user is currently viewing,
   // since that's where the policy will be created.
   const newPolicyTeamId =
@@ -271,10 +297,10 @@ const PolicyForm = ({
       ? currentTeam.id
       : undefined;
   const isGlobalPolicy = isEditMode
-    ? storedPolicy?.team_id == null
+    ? storedPolicy?.fleet_id == null
     : newPolicyTeamId === undefined;
   const automationsTeamId = isEditMode
-    ? storedPolicy?.team_id ?? undefined
+    ? storedPolicy?.fleet_id ?? undefined
     : newPolicyTeamId;
 
   const { data: automationsTeamData } = useQuery<ILoadTeamResponse, Error>(
@@ -332,7 +358,7 @@ const PolicyForm = ({
      - Team users cannot edit inherited policies
     Reroute edit existing policy page (/:policyId/edit) to policy details page (/:policyId) */
   useEffect(() => {
-    const isInheritedPolicy = isEditMode && storedPolicy?.team_id === null;
+    const isInheritedPolicy = isEditMode && storedPolicy?.fleet_id === null;
 
     const noEditPermissions =
       isTeamObserver ||
@@ -362,7 +388,7 @@ const PolicyForm = ({
     isTeamTechnician,
     isGlobalTechnician,
     isOnGlobalTeam,
-    storedPolicy?.team_id,
+    storedPolicy?.fleet_id,
     router,
     teamIdForApi,
   ]);
@@ -373,8 +399,10 @@ const PolicyForm = ({
     }
   }, []);
 
+  // Compute compatibility once a policy loads. On-change updates happen
+  // in onChangePolicySql; syntax validation runs on blur / submit, not on
+  // every keystroke, so incomplete SQL doesn't flash "Syntax error".
   useEffect(() => {
-    debounceSQL(lastEditedQueryBody);
     if (
       (policyIdForEdit && policyIdForEdit !== lastEditedQueryId) ||
       (isNewTemplatePolicy && !lastEditedQueryBody)
@@ -382,7 +410,8 @@ const PolicyForm = ({
       return;
     }
     setCompatiblePlatforms(lastEditedQueryBody);
-  }, [lastEditedQueryBody, lastEditedQueryId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [policyIdForEdit, lastEditedQueryId, isNewTemplatePolicy]);
 
   const onLoad = (editor: Ace.Editor) => {
     editor.setOptions({
@@ -405,20 +434,27 @@ const PolicyForm = ({
 
   const onChangePolicySql = (sqlString: string) => {
     setLastEditedQueryBody(sqlString);
+    setCompatiblePlatforms(sqlString);
     resetAiAutofillData(); // Allows retry of AI autofill API if the SQL has changed
+    // Clear any existing syntax error immediately on change — the 3s debounce
+    // will re-add it if the query is still invalid once the user stops typing.
+    if (errors.query) {
+      setErrors({ ...errors, query: undefined });
+    }
+    debounceValidateSql(sqlString);
   };
 
   const onAddPatchAutomation = async () => {
     if (
       !storedPolicy?.patch_software?.software_title_id ||
-      storedPolicy?.team_id == null
+      storedPolicy?.fleet_id == null
     ) {
       return;
     }
     setIsAddingAutomation(true);
     try {
       await teamPoliciesAPI.update(policyIdForEdit as number, {
-        team_id: storedPolicy.team_id,
+        fleet_id: storedPolicy.fleet_id,
         software_title_id: storedPolicy.patch_software.software_title_id,
       });
       queryClient.invalidateQueries(["policy", policyIdForEdit]);
@@ -437,17 +473,18 @@ const PolicyForm = ({
   ) => {
     evt.preventDefault();
 
-    if (isEditMode && !lastEditedQueryName) {
-      setErrors({ ...errors, name: "Policy name must be present" });
+    if (isEditMode && !lastEditedQueryName.trim()) {
+      setErrors({ ...errors, name: "Enter a policy name" });
       return;
     }
 
-    if (isEditMode && !isPatchPolicy && !isAnyPlatformSelected) {
-      setErrors({
-        ...errors,
-        name: "At least one platform must be selected",
-      });
-      return;
+    if (isEditMode && !isPatchPolicy) {
+      const hasPlatform = isAnyPlatformSelected;
+      setPlatformError(hasPlatform ? null : "Select at least one platform");
+      setShowLabelsError(labelsRequired);
+      if (!hasPlatform || labelsRequired) {
+        return;
+      }
     }
 
     // Capture + validate automation changes up front so an invalid selection
@@ -521,19 +558,17 @@ const PolicyForm = ({
       return;
     }
 
-    let selectedPlatforms = getSelectedPlatforms();
-    if (selectedPlatforms.length === 0 && !isEditMode && !defaultPolicy) {
-      // If no platforms are selected, default to all compatible platforms
-      selectedPlatforms = getCompatiblePlatforms();
-      setSelectedPlatforms(selectedPlatforms);
-    }
-
+    const selectedPlatforms = getSelectedPlatforms();
     const newPlatformString = selectedPlatforms.join(
       ","
     ) as CommaSeparatedPlatformString;
 
     if (!defaultPolicy) {
-      setLastEditedQueryPlatform(newPlatformString);
+      // Empty string in platformContext is a legacy "no restriction → check
+      // all four" signal in usePlatformSelector. Persist null so clicking Save
+      // with zero platforms doesn't flip to "all platforms" when the modal
+      // opens.
+      setLastEditedQueryPlatform(newPlatformString || null);
     }
 
     if (!isEditMode) {
@@ -594,6 +629,18 @@ const PolicyForm = ({
           value={lastEditedQueryName}
           error={errors && errors.name}
           onChange={(value: string) => setLastEditedQueryName(value)}
+          onFocus={() => {
+            if (errors.name) {
+              setErrors({ ...errors, name: undefined });
+            }
+          }}
+          onBlur={() => {
+            const trimmed = lastEditedQueryName.trim();
+            setLastEditedQueryName(trimmed);
+            if (!trimmed) {
+              setErrors({ ...errors, name: "Enter a policy name" });
+            }
+          }}
           disabled={gitOpsModeEnabled}
           inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
         />
@@ -717,9 +764,9 @@ const PolicyForm = ({
     // currentTeam reflects the team URL, not the policy's true Fleet.
     let fleetName: string | undefined;
     if (isEditMode) {
-      if (storedPolicy?.team_id === null) {
+      if (storedPolicy?.fleet_id === null) {
         fleetName = APP_CONTEXT_ALL_TEAMS_SUMMARY.name;
-      } else if (storedPolicy?.team_id === 0) {
+      } else if (storedPolicy?.fleet_id === 0) {
         fleetName = APP_CONTEXT_NO_TEAM_SUMMARY.name;
       } else {
         fleetName = currentTeam?.name;
@@ -742,14 +789,11 @@ const PolicyForm = ({
   };
 
   const renderPolicyForm = () => {
-    // Save disabled for no platforms selected, policy name blank on existing policy,
-    // invalid target selection, or empty query. Syntax errors do not disable Save.
+    // Save stays enabled when name / platforms / labels are missing — click
+    // reveals the inline errors via promptSavePolicy, matching Fleet's form
+    // validation pattern. Syntax errors do not disable Save either.
     const disableSaveFormErrors =
-      isAddingAutomation ||
-      (isEditMode && !isPatchPolicy && !isAnyPlatformSelected) ||
-      (lastEditedQueryName === "" && !!lastEditedQueryId) ||
-      (selectedTargetType === "Custom" && !hasCustomLabels) ||
-      errors.query === EMPTY_QUERY_ERR;
+      isAddingAutomation || errors.query === EMPTY_QUERY_ERR;
 
     // Single source of truth: patchOptions renders inside this block (patchSlot)
     // when shown, and standalone otherwise — the two must stay exact complements.
@@ -766,10 +810,20 @@ const PolicyForm = ({
           renderChildren={(disableChildren) => (
             <PatchOptionSelector
               patchOption={patchOption}
-              onSelectPatchOption={setPatchOption}
+              onSelectPatchOption={(next) => {
+                setPatchOption(next);
+                setEndUserExperience(
+                  getNextEndUserExperience(
+                    next,
+                    endUserExperience,
+                    storedPolicy?.platform
+                  )
+                );
+              }}
               platform={storedPolicy?.platform}
               endUserExperience={endUserExperience}
               onSelectEndUserExperience={setEndUserExperience}
+              fleetId={automationsTeamId}
               disabled={disableChildren}
             />
           )}
@@ -796,7 +850,9 @@ const PolicyForm = ({
           {isEditMode && renderName()}
           {renderDescription()}
           {renderResolution()}
-          {isEditMode && !isPatchPolicy && platformSelector.render()}
+          {isEditMode &&
+            !isPatchPolicy &&
+            platformSelector.render(platformError)}
           {isEditMode && isPremiumTier && !isPatchPolicy && (
             <TargetLabelSelector
               {...selectorProps}
@@ -804,6 +860,7 @@ const PolicyForm = ({
               emptyStateDescription={POLICY_TARGET_EMPTY_STATE_DESCRIPTION}
               onAddLabel={() => router.push(PATHS.LABEL_NEW_DYNAMIC)}
               disableOptions={gitOpsModeEnabled}
+              labelsError={labelsError}
             />
           )}
           {showAutomationsBlock && (
@@ -857,7 +914,7 @@ const PolicyForm = ({
                   showArrow
                   tipOffset={12}
                 >
-                  <Icon name="info" size="small" />
+                  <Icon name="info" size="medium" />
                 </TooltipWrapper>
               ) : (
                 renderLabelComponent()
@@ -867,6 +924,7 @@ const PolicyForm = ({
             onLoad={onLoad}
             wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
             onChange={onChangePolicySql}
+            onBlur={() => validateSqlOnBlur(lastEditedQueryBody)}
             handleSubmit={promptSavePolicy}
             wrapEnabled
             focus={!isEditMode}
@@ -877,24 +935,14 @@ const PolicyForm = ({
           <div className="button-wrap">
             <GitOpsModeTooltipWrapper
               renderChildren={(disableChildren) => (
-                <TooltipWrapper
-                  tipContent="Select the platforms this policy will be checked on to save or run the policy."
-                  tooltipClass={`${baseClass}__button-wrap--tooltip`}
-                  position="top"
-                  disableTooltip={!isEditMode || isAnyPlatformSelected}
-                  underline={false}
+                <Button
+                  onClick={promptSavePolicy()}
+                  disabled={disableSaveFormErrors || disableChildren}
+                  className="save-loading"
+                  isLoading={isUpdatingPolicy || isSavingAutomations}
                 >
-                  <span className={`${baseClass}__button-wrap--tooltip`}>
-                    <Button
-                      onClick={promptSavePolicy()}
-                      disabled={disableSaveFormErrors || disableChildren}
-                      className="save-loading"
-                      isLoading={isUpdatingPolicy || isSavingAutomations}
-                    >
-                      Save
-                    </Button>
-                  </span>
-                </TooltipWrapper>
+                  Save
+                </Button>
               )}
             />
             <TooltipWrapper

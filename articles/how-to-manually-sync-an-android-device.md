@@ -60,7 +60,7 @@ Host details, like the OS version and installed software, also come from these s
 Some changes don't use the host's policy, so manually syncing won't speed them up:
 
 - Commands (lock, wipe, etc.): Google immediately sends the command to the device.
-- Certificates: deployed by the Fleet app. Takes up to 15 minutes unless the device has low battery or is in power saving mode.
+- Certificates: deployed by the Fleet app. Takes up to 15 minutes unless the device has low battery or is in power saving mode. In that case, open the Fleet app to speed up delivery.
 
 <meta name="articleTitle" value="How to manually sync an Android device">
 <meta name="authorFullName" value="Steven Palmesano">

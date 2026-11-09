@@ -81,7 +81,7 @@ describe("LoginPage", () => {
       http.post(baseUrl("/login"), () =>
         HttpResponse.json({
           user: createMockUser({ id: 2, email: "next@example.com" }),
-          available_teams: [],
+          available_fleets: [],
           token: "next-user-token",
         })
       )

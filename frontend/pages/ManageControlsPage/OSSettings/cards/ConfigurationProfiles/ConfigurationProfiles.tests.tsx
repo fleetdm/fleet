@@ -11,7 +11,7 @@ import {
 
 import ConfigurationProfiles from "./ConfigurationProfiles";
 
-const emptyProfilesHandler = http.get(baseUrl("/mdm/profiles"), () =>
+const emptyProfilesHandler = http.get(baseUrl("/configuration_profiles"), () =>
   HttpResponse.json({
     profiles: [],
     meta: { has_next_results: false, has_previous_results: false },
@@ -150,7 +150,7 @@ describe("ConfigurationProfiles header", () => {
 describe("ConfigurationProfiles add and edit", () => {
   const profile = {
     profile_uuid: "w-123",
-    team_id: 2,
+    fleet_id: 2,
     name: "Firewall",
     platform: "windows",
     identifier: null,
@@ -193,7 +193,7 @@ describe("ConfigurationProfiles add and edit", () => {
 
   it("opens a profile's edit page for the current fleet", async () => {
     mockServer.use(
-      http.get(baseUrl("/mdm/profiles"), () =>
+      http.get(baseUrl("/configuration_profiles"), () =>
         HttpResponse.json({
           profiles: [profile],
           meta: { has_next_results: false, has_previous_results: false },
@@ -230,12 +230,12 @@ describe("ConfigurationProfiles assets", () => {
 
   it("lists assets alongside profiles in a single list", async () => {
     mockServer.use(
-      http.get(baseUrl("/mdm/profiles"), () =>
+      http.get(baseUrl("/configuration_profiles"), () =>
         HttpResponse.json({
           profiles: [
             {
               profile_uuid: "p-1",
-              team_id: 0,
+              fleet_id: 0,
               name: "Firewall",
               platform: "windows",
               identifier: null,

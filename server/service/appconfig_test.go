@@ -1526,6 +1526,8 @@ func TestMDMConfig(t *testing.T) {
 		expectedMDM   fleet.MDM
 		expectedError string
 		findTeam      bool
+		// hasBootstrapPackage is whether the no team bootstrap package was uploaded (e.g. via the UI)
+		hasBootstrapPackage bool
 	}{
 		{
 			name:        "nochange",
@@ -1802,6 +1804,76 @@ func TestMDMConfig(t *testing.T) {
 			expectedError: "setup_experience.macos_manual_agent_install Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.",
 		},
 		{
+			name:        "bootstrap package for manual enrollment enabled without bootstrap package",
+			licenseTier: "premium",
+			oldMDM:      fleet.MDM{EnabledAndConfigured: true},
+			newMDM: fleet.MDM{
+				EnabledAndConfigured: true,
+				MacOSSetup:           fleet.MacOSSetup{MacOSEnableBootstrapPackageDuringManualEnrollment: true},
+			},
+			expectedError: "setup_experience.macos_enable_bootstrap_package_during_manual_enrollment Couldn't enable macos_enable_bootstrap_package_during_manual_enrollment. To use this option, first specify a bootstrap package.",
+		},
+		{
+			name:                "bootstrap package settings enabled with a bootstrap package uploaded via the UI",
+			licenseTier:         "premium",
+			hasBootstrapPackage: true,
+			oldMDM:              fleet.MDM{EnabledAndConfigured: true},
+			newMDM: fleet.MDM{
+				EnabledAndConfigured: true,
+				MacOSSetup: fleet.MacOSSetup{
+					MacOSEnableBootstrapPackageDuringManualEnrollment: true,
+					MacOSEnableBootstrapPackageDuringMigration:        true,
+				},
+			},
+			expectedMDM: defaultMDMAppConfig(func(m *fleet.MDM) {
+				m.EnabledAndConfigured = true
+				m.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment = true
+				m.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration = true
+			}),
+		},
+		{
+			name:        "bootstrap package for migration enabled without bootstrap package",
+			licenseTier: "premium",
+			oldMDM:      fleet.MDM{EnabledAndConfigured: true},
+			newMDM: fleet.MDM{
+				EnabledAndConfigured: true,
+				MacOSSetup:           fleet.MacOSSetup{MacOSEnableBootstrapPackageDuringMigration: true},
+			},
+			expectedError: "setup_experience.macos_enable_bootstrap_package_during_migration Couldn't enable macos_enable_bootstrap_package_during_migration. To use this option, first specify a bootstrap package.",
+		},
+		{
+			name:        "bootstrap package for manual enrollment requires premium",
+			licenseTier: "free",
+			newMDM: fleet.MDM{
+				MacOSSetup: fleet.MacOSSetup{MacOSEnableBootstrapPackageDuringManualEnrollment: true},
+			},
+			expectedError: "setup_experience.macos_enable_bootstrap_package_during_manual_enrollment " + licenseErr,
+		},
+		{
+			name:        "bootstrap package for manual enrollment requires MDM enabled",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				MacOSSetup: fleet.MacOSSetup{MacOSEnableBootstrapPackageDuringManualEnrollment: true},
+			},
+			expectedError: "setup_experience.macos_enable_bootstrap_package_during_manual_enrollment Couldn't update setup_experience because MDM features aren't turned on in Fleet.",
+		},
+		{
+			name:        "bootstrap package for migration requires premium",
+			licenseTier: "free",
+			newMDM: fleet.MDM{
+				MacOSSetup: fleet.MacOSSetup{MacOSEnableBootstrapPackageDuringMigration: true},
+			},
+			expectedError: "setup_experience.macos_enable_bootstrap_package_during_migration " + licenseErr,
+		},
+		{
+			name:        "bootstrap package for migration requires MDM enabled",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				MacOSSetup: fleet.MacOSSetup{MacOSEnableBootstrapPackageDuringMigration: true},
+			},
+			expectedError: "setup_experience.macos_enable_bootstrap_package_during_migration Couldn't update setup_experience because MDM features aren't turned on in Fleet.",
+		},
+		{
 			name:        "windows entra client IDs require premium",
 			licenseTier: "free",
 			newMDM: fleet.MDM{
@@ -1949,6 +2021,12 @@ func TestMDMConfig(t *testing.T) {
 			}
 			ds.NewMDMAppleEnrollmentProfileFunc = func(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error) {
 				return &fleet.MDMAppleEnrollmentProfile{}, nil
+			}
+			ds.GetMDMAppleBootstrapPackageMetaFunc = func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
+				if tt.hasBootstrapPackage {
+					return &fleet.MDMAppleBootstrapPackage{TeamID: teamID}, nil
+				}
+				return nil, &notFoundError{}
 			}
 			ds.GetMDMAppleEnrollmentProfileByTypeFunc = func(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error) {
 				raw := json.RawMessage("{}")
@@ -4443,4 +4521,36 @@ func TestStagedUploadAvailable(t *testing.T) {
 		svc, ctx := newTestServiceWithConfig(t, new(mock.Store), cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: c.tier}})
 		require.Equal(t, c.want, svc.StagedUploadAvailable(ctx), "%+v", c)
 	}
+}
+
+func TestValidateVPPAssignmentsManyTokensPerFleet(t *testing.T) {
+	ds := new(mock.Store)
+	ds.TeamsSummaryFunc = func(context.Context) ([]*fleet.TeamSummary, error) {
+		return []*fleet.TeamSummary{{ID: 1, Name: "Workstations"}}, nil
+	}
+	ds.ListVPPTokensFunc = func(context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{{ID: 1, Location: "HQ"}, {ID: 2, Location: "EU"}}, nil
+	}
+	svc := &Service{ds: ds}
+	lic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+
+	t.Run("a fleet under two tokens passes", func(t *testing.T) {
+		invalid := &fleet.InvalidArgumentError{}
+		got, err := svc.validateVPPAssignments(t.Context(), []fleet.MDMAppleVolumePurchasingProgramInfo{
+			{Location: "HQ", Teams: []string{"Workstations", fleet.TeamNameNoTeam}},
+			{Location: "EU", Teams: []string{"Workstations", fleet.TeamNameNoTeam}},
+		}, invalid, lic)
+		require.NoError(t, err)
+		require.False(t, invalid.HasErrors())
+		require.Equal(t, map[uint][]uint{1: {1, 0}, 2: {1, 0}}, got)
+	})
+
+	t.Run("All fleets can't mix with other fleets on one token", func(t *testing.T) {
+		invalid := &fleet.InvalidArgumentError{}
+		_, err := svc.validateVPPAssignments(t.Context(), []fleet.MDMAppleVolumePurchasingProgramInfo{
+			{Location: "HQ", Teams: []string{fleet.DisplayNameAllTeams, "Workstations"}},
+		}, invalid, lic)
+		require.NoError(t, err)
+		require.True(t, invalid.HasErrors())
+	})
 }

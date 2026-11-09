@@ -13,6 +13,8 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/jmoiron/sqlx"
 )
 
 const (
@@ -75,6 +77,25 @@ func main() {
 	_, err = db.Exec(`UPDATE app_config_json SET created_at = ?, updated_at = ?`, fixedDate, fixedDate)
 	panicif(err)
 	_, err = db.Exec(`UPDATE migration_status_tables SET tstamp = ?`, fixedDate)
+	panicif(err)
+
+	// Tests create these built-in labels themselves via test.AddBuiltinLabels.
+	testBuiltinLabels := []string{
+		fleet.BuiltinLabelNameAllHosts,
+		fleet.BuiltinLabelNameMacOS,
+		fleet.BuiltinLabelNameUbuntuLinux,
+		fleet.BuiltinLabelNameCentOSLinux,
+		fleet.BuiltinLabelNameWindows,
+		fleet.BuiltinLabelNameRedHatLinux,
+		fleet.BuiltinLabelNameAllLinux,
+		fleet.BuiltinLabelNameChrome,
+	}
+	stmt, args, err := sqlx.In(`DELETE FROM labels WHERE name IN (?)`, testBuiltinLabels)
+	panicif(err)
+	_, err = db.Exec(stmt, args...)
+	panicif(err)
+	// Resets AUTO_INCREMENT to MAX(id)+1, so label IDs in tests don't depend on the deleted rows.
+	_, err = db.Exec(`ALTER TABLE labels AUTO_INCREMENT = 1`)
 	panicif(err)
 
 	// Dump schema to dumpfile

@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -631,7 +632,7 @@ func (svc *Service) UpdateScript(ctx context.Context, scriptID uint, r io.Reader
 		return nil, err
 	}
 
-	if err := fleet.ValidateHostScriptContents(scriptContents, true); err != nil {
+	if err := (&fleet.Script{Name: script.Name, ScriptContents: scriptContents}).ValidateNewScript(); err != nil {
 		return nil, fleet.NewInvalidArgumentError("script", err.Error())
 	}
 
@@ -820,27 +821,6 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 	return scriptResponses, nil
 }
 
-// Deprecated summary endpoint, to be removed in favor of the status endpoint
-// once the batch script details page is ready.
-func batchScriptExecutionSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*fleet.BatchScriptExecutionSummaryRequest)
-	summary, err := svc.BatchScriptExecutionSummary(ctx, req.BatchExecutionID)
-	if err != nil {
-		return fleet.BatchScriptExecutionSummaryResponse{Err: err}, nil
-	}
-	return fleet.BatchScriptExecutionSummaryResponse{
-		ScriptID:    *summary.ScriptID,
-		ScriptName:  summary.ScriptName,
-		TeamID:      summary.TeamID,
-		CreatedAt:   summary.CreatedAt,
-		NumTargeted: summary.NumTargeted,
-		NumPending:  summary.NumPending,
-		NumRan:      summary.NumRan,
-		NumErrored:  summary.NumErrored,
-		NumCanceled: summary.NumCanceled,
-	}, nil
-}
-
 func batchScriptExecutionHostResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.BatchScriptExecutionHostResultsRequest)
 	hosts, meta, count, err := svc.BatchScriptExecutionHostResults(ctx, req.BatchExecutionID, req.BatchExecutionStatus, req.ListOptions)
@@ -898,26 +878,6 @@ func batchScriptExecutionListEndpoint(ctx context.Context, request interface{}, 
 			HasPreviousResults: hasPreviousResults,
 		},
 	}, nil
-}
-
-func (svc *Service) BatchScriptExecutionSummary(ctx context.Context, batchExecutionID string) (*fleet.BatchActivity, error) {
-	summary, err := svc.ds.BatchExecuteSummary(ctx, batchExecutionID)
-	if err != nil && !fleet.IsNotFound(err) {
-		svc.authz.SkipAuthorization(ctx)
-		return nil, ctxerr.Wrap(ctx, err, "get batch script summary")
-	} else if err != nil && fleet.IsNotFound(err) {
-		if err := svc.authz.Authorize(ctx, &fleet.Script{}, fleet.ActionRead); err != nil {
-			return nil, err
-		}
-
-		return nil, err // return the not found from the db.
-	}
-
-	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: summary.TeamID}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	return summary, nil
 }
 
 func batchScriptCancelEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
@@ -1215,10 +1175,15 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 	}
 
 	if notBefore == nil || notBefore.Before(time.Now()) {
-		batchID, err := svc.ds.BatchExecuteScript(ctx, userId, scriptID, hostIDsToExecute)
+		batchID, err := svc.ds.NewBatchScriptExecution(ctx, userId, scriptID, hostIDsToExecute)
 		if err != nil {
 			return "", fleet.NewUserMessageError(err, http.StatusBadRequest)
 		}
+
+		// Insert script executions and activities in a separate goroutine, because it can be quite
+		// slow for a large number of hosts, and we just need to return the batchID here.
+		// Read the batch from the primary, a replica can lag behind the batch row written above.
+		go svc.runBatchScriptExecution(ctxdb.RequirePrimary(context.WithoutCancel(ctx), true), batchID)
 
 		if err := svc.NewActivity(ctx, ctxUser, fleet.ActivityTypeRanScriptBatch{
 			ScriptName:       script.Name,
@@ -1249,6 +1214,14 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 	}
 
 	return batchID, nil
+}
+
+func (svc *Service) runBatchScriptExecution(ctx context.Context, batchID string) {
+	err := svc.ds.RunScheduledBatchActivity(ctx, batchID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "run batch script execution", "batch_execution_id", batchID, "err", err)
+		ctxerr.Handle(ctx, err)
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////

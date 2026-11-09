@@ -6,16 +6,20 @@
 $displayNamePattern = '^NVM\ for\ Windows$'
 $publisher = "Author Software Inc."
 $taskName = "fleet-uninstall-nvm-windows"
-$removedDirs = [System.Collections.Generic.List[string]]::new()
+$appDir = "AppData\Local\Author Software\nvm"  # in each user's profile
 $taskRunning = 267009  # SCHED_S_TASK_RUNNING
+$timeoutSeconds = 300
 $exitCode = 0
 
 function Get-AppEntries {
     $roots = [System.Collections.Generic.List[string]]::new()
     $roots.Add('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall')
     $roots.Add('HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall')
+    # Only SYSTEM's hive and user hives (S-1-5-21 local or AD, S-1-12-1 Entra ID).
+    # LocalService and NetworkService can write their own hives, and an entry
+    # there would run as SYSTEM.
     foreach ($hive in (Get-ChildItem 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue)) {
-        if ($hive.Name -match '_Classes$') { continue }
+        if ($hive.PSChildName -notmatch '^(S-1-5-18|S-1-5-21-[\d-]+|S-1-12-1-[\d-]+)$') { continue }
         $roots.Add("Registry::$($hive.Name)\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall")
         $roots.Add("Registry::$($hive.Name)\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall")
     }
@@ -51,7 +55,7 @@ function Get-SignedOutInstalls {
         if ($sid -notmatch '^S-1-(5-21|12-1)-[\d-]+$' -or (Test-Path "Registry::HKEY_USERS\$sid")) { continue }
         $profilePath = (Get-ItemProperty $profileKey.PSPath -ErrorAction SilentlyContinue).ProfileImagePath
         if (-not $profilePath) { continue }
-        $uninstallers = @(Get-ChildItem -LiteralPath (Join-Path $profilePath "AppData\Local\Author Software\nvm") -File -Filter "unins*.exe" -ErrorAction SilentlyContinue)
+        $uninstallers = @(Get-ChildItem -LiteralPath (Join-Path $profilePath $appDir) -File -Filter "unins*.exe" -ErrorAction SilentlyContinue)
         if ($uninstallers.Count -eq 0) { continue }
         try {
             (New-Object System.Security.Principal.SecurityIdentifier($sid)).Translate([System.Security.Principal.NTAccount]).Value
@@ -72,11 +76,9 @@ function Resolve-Uninstaller {
     } elseif ($Command -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
         $exePath = $matches[1]
         $arguments = $matches[2].Trim()
-    } else {
-        Throw "Could not parse uninstall string: $Command"
     }
 
-    if (-not (Test-Path -LiteralPath $exePath)) {
+    if ($exePath -and -not (Test-Path -LiteralPath $exePath)) {
         $redirected = $exePath -replace '(?i)\\system32\\', '\SysWOW64\'
         if ($redirected -ne $exePath -and (Test-Path -LiteralPath $redirected)) {
             Write-Host "  Uninstaller is under SysWOW64, not the recorded $exePath"
@@ -91,40 +93,39 @@ function Resolve-Uninstaller {
     return [PSCustomObject]@{ ExePath = $exePath; Arguments = $arguments }
 }
 
-function Invoke-UninstallerAsUser {
+function Invoke-AsUser {
     param([string]$Sid, [string]$ExePath, [string]$Arguments)
 
     $account = (New-Object System.Security.Principal.SecurityIdentifier($Sid)).Translate(
         [System.Security.Principal.NTAccount]).Value
-    Write-Host "  Running the uninstaller as $account"
+    Write-Host "  Running as ${account}: $ExePath $Arguments"
 
     try {
-        if ($Arguments) {
-            $action = New-ScheduledTaskAction -Execute $ExePath -Argument $Arguments
-        } else {
-            $action = New-ScheduledTaskAction -Execute $ExePath
-        }
-        $trigger = New-ScheduledTaskTrigger -AtLogOn
+        $action = New-ScheduledTaskAction -Execute $ExePath -Argument $Arguments
         $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
         # Without elevation, the uninstaller waits on a UAC prompt.
         $principal = New-ScheduledTaskPrincipal -UserId $account -RunLevel Highest
-        $task = New-ScheduledTask -Action $action -Trigger $trigger -Settings $settings -Principal $principal
-        Register-ScheduledTask -TaskName $taskName -InputObject $task -Force | Out-Null
+        $task = New-ScheduledTask -Action $action -Settings $settings -Principal $principal
+        Register-ScheduledTask -TaskName $taskName -InputObject $task -Force -ErrorAction Stop | Out-Null
 
         $startDate = Get-Date
-        Start-ScheduledTask -TaskName $taskName
+        $lastRun = (Get-ScheduledTaskInfo -TaskName $taskName -ErrorAction Stop).LastRunTime
+        Start-ScheduledTask -TaskName $taskName -ErrorAction Stop
 
+        # Wait for a result rather than for the "Running" state, which a fast task can
+        # enter and leave between polls. A task that's still queued hasn't updated
+        # LastRunTime yet.
         Start-Sleep -Seconds 2
         while ($true) {
             $info = Get-ScheduledTaskInfo -TaskName $taskName -ErrorAction Stop
             $state = (Get-ScheduledTask -TaskName $taskName -ErrorAction Stop).State
-            if ($state -ne "Running" -and $info.LastTaskResult -ne $taskRunning) {
+            if ($info.LastRunTime -ne $lastRun -and $state -ne "Running" -and $info.LastTaskResult -ne $taskRunning) {
                 return $info.LastTaskResult
             }
-            if ((New-TimeSpan -Start $startDate).TotalSeconds -gt 300) {
+            if ((New-TimeSpan -Start $startDate).TotalSeconds -gt $timeoutSeconds) {
                 Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
-                Write-Host "  Timed out waiting for the uninstall task to finish."
-                return $null
+                Write-Host "  Timed out waiting for the task to finish."
+                return 1460  # ERROR_TIMEOUT
             }
             Start-Sleep -Seconds 5
         }
@@ -135,54 +136,121 @@ function Invoke-UninstallerAsUser {
     }
 }
 
+# A user can write to their own profile, including swapping a folder for a link
+# elsewhere, so their folder is removed as them rather than as SYSTEM.
+function Remove-AppDir {
+    param([string]$Path, [string]$Sid)
+
+    if ($Sid) {
+        try {
+            $null = Invoke-AsUser -Sid $Sid -ExePath "$env:SystemRoot\System32\cmd.exe" -Arguments "/d /c rd /s /q `"$Path`""
+        } catch {
+            Write-Host "  $_"
+        }
+    } else {
+        Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    if (Test-Path -LiteralPath $Path) {
+        Write-Host "  Could not remove $Path."
+        return $false
+    }
+    return $true
+}
+
+# Shortcuts the uninstaller didn't get to. Match on where they point rather than on
+# a filename, which also catches the vendor subfolders some installers create. Read
+# as SYSTEM, a user's shortcut resolves its target through SYSTEM's profile, so the
+# working directory is checked too, and only the owning profile is searched.
+function Remove-Shortcuts {
+    param([string]$Dir, [string]$ProfilePath)
+
+    if ($ProfilePath) {
+        $roots = @((Join-Path $ProfilePath 'AppData\Roaming\Microsoft\Windows\Start Menu\Programs'), (Join-Path $ProfilePath 'Desktop'))
+    } else {
+        $roots = @('Programs', 'Desktop', 'CommonPrograms', 'CommonDesktopDirectory') | ForEach-Object { [Environment]::GetFolderPath($_) }
+    }
+    $shell = New-Object -ComObject WScript.Shell
+    foreach ($root in $roots) {
+        if (-not $root -or -not (Test-Path -LiteralPath $root)) { continue }
+        foreach ($lnk in (Get-ChildItem -LiteralPath $root -Filter '*.lnk' -Recurse -ErrorAction SilentlyContinue)) {
+            try { $link = $shell.CreateShortcut($lnk.FullName) } catch { continue }
+            foreach ($path in @($link.TargetPath, $link.WorkingDirectory)) {
+                if ($path -and ($path -eq $Dir -or $path.StartsWith("$Dir\", [System.StringComparison]::OrdinalIgnoreCase))) {
+                    Remove-Item -LiteralPath $lnk.FullName -Force -ErrorAction SilentlyContinue
+                    break
+                }
+            }
+        }
+    }
+}
+
 try {
     $entries = @(Get-AppEntries)
-    $signedOut = @(Get-SignedOutInstalls)
-    if ($entries.Count -eq 0 -and $signedOut.Count -eq 0) {
-        Write-Host "NVM for Windows is not installed."
-        Exit 0
-    }
 
     foreach ($entry in $entries) {
         Write-Host "Removing '$($entry.DisplayName)' ($($entry.KeyPath))"
-        if (-not $entry.Command) {
-            Write-Host "  No uninstall string recorded; removing the leftover registration."
-            Remove-Item -Path $entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
-            continue
-        }
-
         $uninstaller = Resolve-Uninstaller $entry.Command
-        $installDir = Split-Path $uninstaller.ExePath -Parent
-        $removedDirs.Add($installDir)
+        $hasUninstaller = $uninstaller.ExePath -and (Test-Path -LiteralPath $uninstaller.ExePath)
 
-        Get-Process -ErrorAction SilentlyContinue |
-            Where-Object { $_.Path -and $_.Path.StartsWith($installDir, [System.StringComparison]::OrdinalIgnoreCase) } |
-            Stop-Process -Force -ErrorAction SilentlyContinue
+        # A user's uninstall string comes from a hive that user can write to, so only
+        # touch the app's folder in that user's own profile.
+        $installDir = ""
+        if ($uninstaller.ExePath) { try { $installDir = [System.IO.Path]::GetFullPath((Split-Path $uninstaller.ExePath -Parent)) } catch {} }
+        $isAppDir = $installDir -and (Split-Path $installDir -Leaf) -eq (Split-Path $appDir -Leaf)
+        $profilePath = $null
+        if ($entry.Sid) {
+            $profilePath = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\$($entry.Sid)" -ErrorAction SilentlyContinue).ProfileImagePath
+            $userAppDir = if ($profilePath) { Join-Path $profilePath $appDir } else { "" }
+            if (-not $hasUninstaller) { $installDir = $userAppDir }
+            $isAppDir = $userAppDir -and $installDir -eq $userAppDir
+        }
 
-        if (-not (Test-Path -LiteralPath $uninstaller.ExePath)) {
-            Write-Host "  Uninstaller is gone from $($uninstaller.ExePath); removing the leftover registration."
+        if ($isAppDir) {
+            # Anything running out of this install directory blocks removal. Matching on the
+            # directory rather than a process name keeps another install of the same app,
+            # in another user's profile, running.
+            Get-Process -ErrorAction SilentlyContinue |
+                Where-Object { $_.Path -and $_.Path.StartsWith("$installDir\", [System.StringComparison]::OrdinalIgnoreCase) } |
+                Stop-Process -Force -ErrorAction SilentlyContinue
+        }
+
+        if (-not $hasUninstaller) {
+            Write-Host "  Uninstaller is missing; removing what's left of this copy."
+            if ($installDir -and (Test-Path -LiteralPath $installDir) -and
+                -not ($isAppDir -and (Remove-AppDir $installDir $entry.Sid))) {
+                Write-Host "  Leaving this copy registered because $installDir is still there."
+                if ($exitCode -eq 0) { $exitCode = 1 }
+                continue
+            }
+            if ($isAppDir) { Remove-Shortcuts $installDir $profilePath }
             Remove-Item -Path $entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
             continue
         }
 
-        Write-Host "  Uninstall command: $($uninstaller.ExePath)"
-        Write-Host "  Uninstall args: $($uninstaller.Arguments)"
-        if ($entry.Sid) {
-            $result = Invoke-UninstallerAsUser -Sid $entry.Sid -ExePath $uninstaller.ExePath -Arguments $uninstaller.Arguments
-        } else {
-            $process = Start-Process -FilePath $uninstaller.ExePath -ArgumentList $uninstaller.Arguments `
-                -NoNewWindow -PassThru -Wait
-            $result = $process.ExitCode
-        }
-        if ($null -eq $result) {
-            Write-Host "  Leaving this copy registered so the uninstall can be retried."
-            if ($exitCode -eq 0) { $exitCode = 1 }
-            continue
+        # Caught here so one copy's failure doesn't skip the others.
+        try {
+            if ($entry.Sid) {
+                $result = Invoke-AsUser -Sid $entry.Sid -ExePath $uninstaller.ExePath -Arguments $uninstaller.Arguments
+            } else {
+                Write-Host "  Uninstall command: $($uninstaller.ExePath) $($uninstaller.Arguments)"
+                $process = Start-Process -FilePath $uninstaller.ExePath -ArgumentList $uninstaller.Arguments `
+                    -NoNewWindow -PassThru -Wait -ErrorAction Stop
+                $result = $process.ExitCode
+            }
+        } catch {
+            Write-Host "  Could not run the uninstaller: $_"
+            $result = 1
         }
         Write-Host "  Uninstall exit code: $result"
-        if ($result -ne 0 -and $exitCode -eq 0) { $exitCode = $result }
+        if ($result -ne 0) {
+            Write-Host "  Leaving this copy registered so the uninstall can be retried."
+            if ($exitCode -eq 0) { $exitCode = $result }
+            continue
+        }
 
-        # The uninstaller relaunches from %TEMP% and exits before removal finishes.
+        # An uninstaller that relaunches itself from %TEMP% exits while removal is
+        # still in flight. Either the directory or the registration going away means
+        # it got there.
         for ($waited = 0; $waited -lt 60; $waited++) {
             if (-not (Test-Path -LiteralPath $installDir)) { break }
             if (-not (Get-ItemProperty $entry.KeyPath -ErrorAction SilentlyContinue)) {
@@ -192,44 +260,22 @@ try {
             Start-Sleep -Seconds 1
         }
 
-        if (Test-Path -LiteralPath $installDir) {
+        if ($isAppDir -and (Test-Path -LiteralPath $installDir)) {
             Write-Host "  Uninstaller left $installDir behind; removing it."
-            Remove-Item -LiteralPath $installDir -Recurse -Force -ErrorAction SilentlyContinue
-            if (Test-Path -LiteralPath $installDir) {
-                Write-Host "  WARNING: could not remove $installDir."
+            if (-not (Remove-AppDir $installDir $entry.Sid)) {
                 if ($exitCode -eq 0) { $exitCode = 1 }
+                continue
             }
         }
+        if ($isAppDir) { Remove-Shortcuts $installDir $profilePath }
 
         if (Get-ItemProperty $entry.KeyPath -ErrorAction SilentlyContinue) {
             Remove-Item -Path $entry.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
         }
     }
 
-    if ($removedDirs.Count) {
-        $shell = New-Object -ComObject WScript.Shell
-        foreach ($profileDir in (Get-ChildItem 'C:\Users' -Directory -ErrorAction SilentlyContinue)) {
-            foreach ($root in @(
-                (Join-Path $profileDir.FullName 'AppData\Roaming\Microsoft\Windows\Start Menu\Programs'),
-                (Join-Path $profileDir.FullName 'Desktop')
-            )) {
-                if (-not (Test-Path -LiteralPath $root)) { continue }
-                foreach ($lnk in (Get-ChildItem -LiteralPath $root -Filter '*.lnk' -Recurse -ErrorAction SilentlyContinue)) {
-                    $target = $null
-                    try { $target = $shell.CreateShortcut($lnk.FullName).TargetPath } catch {}
-                    if (-not $target) { continue }
-                    foreach ($dir in $removedDirs) {
-                        if ($target.StartsWith($dir, [System.StringComparison]::OrdinalIgnoreCase)) {
-                            Remove-Item -LiteralPath $lnk.FullName -Force -ErrorAction SilentlyContinue
-                            break
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     $remaining = @(Get-AppEntries)
+    $signedOut = @(Get-SignedOutInstalls)
     if ($remaining.Count -gt 0) {
         Write-Host "WARNING: $($remaining.Count) NVM for Windows registration(s) still present:"
         $remaining | ForEach-Object { Write-Host "  - $($_.DisplayName) [$($_.KeyPath)]" }
@@ -240,7 +286,7 @@ try {
         if ($exitCode -eq 0) { $exitCode = 1 }
     }
     if ($exitCode -eq 0) {
-        Write-Host "NVM for Windows removed."
+        if ($entries.Count) { Write-Host "NVM for Windows removed." } else { Write-Host "NVM for Windows is not installed." }
     }
 
 } catch {

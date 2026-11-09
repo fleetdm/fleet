@@ -871,7 +871,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			// both the deprecated toggle and this per-platform setting are
 			// being changed, to disagreeing values
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(
-				"mdm.enable_disk_encryption", "conflicts with per-platform disk encryption settings"))
+				"mdm.enable_disk_encryption", "conflicts with per-platform disk encryption settings",
+			))
 		case incomingChanged:
 			*f.merged = f.incoming
 		case legacyDiskEncryption.Valid && (legacyDiskEncryptionChanged || !f.incoming.Valid):
@@ -1696,9 +1697,6 @@ func (svc *Service) applyVPPTokenAssignments(
 	// 2. Set VPP assignments that are defined in the config.
 	for tokenID, tokenTeams := range vppAssignments {
 		if _, err := svc.ds.UpdateVPPTokenTeams(ctx, tokenID, tokenTeams); err != nil {
-			if errTokConstraint, ok := errors.AsType[fleet.ErrVPPTokenTeamConstraint](err); ok {
-				return ctxerr.Wrap(ctx, fleet.NewUserMessageError(errTokConstraint, http.StatusConflict))
-			}
 			return ctxerr.Wrap(ctx, err, "saving ABM token assignments")
 		}
 	}
@@ -1749,19 +1747,22 @@ func (svc *Service) processSavedAppConfigChanges(
 	//
 	// Process OS updates config changes for Apple devices.
 	//
-	if err := svc.processAppleOSUpdateSettings(ctx, lic, fleet.MacOS,
+	if err := svc.processAppleOSUpdateSettings(
+		ctx, lic, fleet.MacOS,
 		oldAppConfig.MDM.MacOSUpdates,
 		appConfig.MDM.MacOSUpdates,
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "process macOS OS updates config change")
 	}
-	if err := svc.processAppleOSUpdateSettings(ctx, lic, fleet.IOS,
+	if err := svc.processAppleOSUpdateSettings(
+		ctx, lic, fleet.IOS,
 		oldAppConfig.MDM.IOSUpdates,
 		appConfig.MDM.IOSUpdates,
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "process iOS OS updates config change")
 	}
-	if err := svc.processAppleOSUpdateSettings(ctx, lic, fleet.IPadOS,
+	if err := svc.processAppleOSUpdateSettings(
+		ctx, lic, fleet.IPadOS,
 		oldAppConfig.MDM.IPadOSUpdates,
 		appConfig.MDM.IPadOSUpdates,
 	); err != nil {
@@ -2340,6 +2341,12 @@ func (svc *Service) validateMDM(
 	if mdm.MacOSSetup.ManualAgentInstall.Valid && oldMdm.MacOSSetup.ManualAgentInstall.Value != mdm.MacOSSetup.ManualAgentInstall.Value && !lic.IsPremium() {
 		invalid.Append("setup_experience.macos_manual_agent_install", ErrMissingLicense.Error())
 	}
+	if mdm.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment && oldMdm.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment != mdm.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment && !lic.IsPremium() {
+		invalid.Append("setup_experience.macos_enable_bootstrap_package_during_manual_enrollment", ErrMissingLicense.Error())
+	}
+	if mdm.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration && oldMdm.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration != mdm.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration && !lic.IsPremium() {
+		invalid.Append("setup_experience.macos_enable_bootstrap_package_during_migration", ErrMissingLicense.Error())
+	}
 	if mdm.WindowsSettings.EnableManagedLocalAccount.Value &&
 		mdm.WindowsSettings.EnableManagedLocalAccount.Value != oldMdm.WindowsSettings.EnableManagedLocalAccount.Value && !lic.IsPremium() {
 		invalid.Append("windows_settings.enable_managed_local_account", ErrMissingLicense.Error())
@@ -2398,6 +2405,16 @@ func (svc *Service) validateMDM(
 
 		if mdm.MacOSSetup.BootstrapPackage.Value != "" && oldMdm.MacOSSetup.BootstrapPackage.Value != mdm.MacOSSetup.BootstrapPackage.Value {
 			invalid.Append("setup_experience.macos_bootstrap_package",
+				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
+		}
+
+		if mdm.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment && oldMdm.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment != mdm.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment {
+			invalid.Append("setup_experience.macos_enable_bootstrap_package_during_manual_enrollment",
+				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
+		}
+
+		if mdm.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration && oldMdm.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration != mdm.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration {
+			invalid.Append("setup_experience.macos_enable_bootstrap_package_during_migration",
 				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 
@@ -2510,6 +2527,20 @@ func (svc *Service) validateMDM(
 	}
 	if v, ok := m["ipados"]; ok && updatingIPadOSVersion {
 		invalid.Append("ipados_updates.minimum_version", v)
+	}
+
+	// The bootstrap package can come from the payload's URL (GitOps uploads it before applying the
+	// config, and dry runs don't upload it at all) or from a package already uploaded via the UI/API.
+	if keys := mdm.MacOSSetup.NewlyEnabledBootstrapPackageSettings(oldMdm.MacOSSetup); len(keys) > 0 && mdm.MacOSSetup.BootstrapPackage.Value == "" {
+		_, err := svc.ds.GetMDMAppleBootstrapPackageMeta(ctx, 0)
+		switch {
+		case fleet.IsNotFound(err):
+			for _, arg := range fleet.BootstrapPackageRequiredError(keys).Errors {
+				invalid.AppendInvalidArgument(arg)
+			}
+		case err != nil:
+			return ctxerr.Wrap(ctx, err, "checking bootstrap package")
+		}
 	}
 
 	if err := mdm.MacOSSetup.ValidateAgainst(oldMdm.MacOSSetup); err != nil {
@@ -2832,10 +2863,9 @@ func (svc *Service) validateABMAssignments(
 			tok.IOSDefaultTeamID = teamsByName[norm.NFC.String(bm.IOSTeam)]
 			tok.IPadOSDefaultTeamID = teamsByName[norm.NFC.String(bm.IpadOSTeam)]
 			tok.BYODDefaultTeamID = teamsByName[norm.NFC.String(bm.BYODTeam)]
-			tokensToSave = append(tokensToSave, tok)
 		}
 
-		return tokensToSave, defaultTokenID, nil
+		return tokens, defaultTokenID, nil
 	}
 
 	return nil, nil, nil
@@ -2905,7 +2935,7 @@ func (svc *Service) validateVPPAssignments(
 			}
 			if teamName == fleet.TeamNameAllTeams {
 				if len(vpp.Teams) > 1 {
-					invalid.Appendf("mdm.volume_purchasing_program", "token cannot belong to %s and other fleets", fleet.DisplayNameAllTeams)
+					invalid.Appendf("mdm.volume_purchasing_program", "Couldn't apply. VPP token %q can't be assigned to All fleets and specific fleets at the same time.", vpp.Location)
 					return nil, nil
 				}
 				tokenTeams = []uint{}

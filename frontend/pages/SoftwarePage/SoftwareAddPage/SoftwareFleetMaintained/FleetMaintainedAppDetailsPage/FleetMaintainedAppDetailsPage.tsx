@@ -215,7 +215,7 @@ const FleetMaintainedAppDetailsPage = ({
 
       if (formData.patch) {
         await teamPoliciesAPI.create({
-          team_id: parseInt(teamId, 10),
+          fleet_id: parseInt(teamId, 10),
           type: "patch",
           patch_software_title_id: addedSoftwareTitleId,
           ...(formData.patchOption !== "manual" && {

@@ -47,7 +47,7 @@ Engineering teams version-control production infrastructure, review changes in p
 </table>
 
 
-<a purpose="cta-button" no-icon href="https://calendly.com/fleetdm/fleet-virtual-summit-infrastructure-as-code">Reserve a spot in this session</a>
+<a purpose="cta-button" no-icon href="https://www.linkedin.com/events/7518683538410459136">Reserve a spot in this session</a>
 
 
 ### Open source in enterprise device management
@@ -76,11 +76,10 @@ Open source runs most enterprise infrastructure, but the tools that manage emplo
       <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-jarryd-stanbrook-100x100@2x.jpeg" alt="Jarryd Stanbrook" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
       <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/jarrydstanbrook/">Jarryd Stanbrook</a></strong>, Easygo, IT Systems Administrator</p></td>
     </tr>
-
   </tbody>
 </table>
 
-<a purpose="cta-button" no-icon href="https://calendly.com/fleetdm/fleet-virtual-summit-open-source-in-device-management">Reserve a spot in this session</a>
+<a purpose="cta-button" no-icon href="https://www.linkedin.com/events/7518683538410459136">Reserve a spot in this session</a>
 
 
 ### AI agents as a device management problem
@@ -110,7 +109,7 @@ AI agents are showing up on employee devices faster than IT can inventory them. 
 
 
 
-<a purpose="cta-button" no-icon href="https://calendly.com/fleetdm/fleet-virtual-summit-ai-agents-as-a-device-management-problem">Reserve a spot in this session</a>
+<a purpose="cta-button" no-icon href="https://www.linkedin.com/events/7518683538410459136">Reserve a spot in this session</a>
 
 
 ### Device management 2027
@@ -135,11 +134,15 @@ The devices IT manages, the tools it uses, and the skills the job requires will 
       <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-dave-hannigan-100x100@2x.png" alt="Dave Hannigan" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
       <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong>Dave Hannigan</strong>, former CISO, Nubank</p></td>
     </tr>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-nick-fohs-100x100@2x.png" alt="Nick Fohs" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/nickfohs/">Nick Fohs</a></strong>, Senior Manager - Enterprise Security, Reddit</p></td>
+    </tr>
   </tbody>
 </table>
 
 
-<a purpose="cta-button" no-icon href="https://calendly.com/fleetdm/fleet-virtual-summit-device-management-2030">Reserve a spot in this session</a>
+<a purpose="cta-button" no-icon href="https://www.linkedin.com/events/7518683538410459136">Reserve a spot in this session</a>
 
 
 ## How to watch

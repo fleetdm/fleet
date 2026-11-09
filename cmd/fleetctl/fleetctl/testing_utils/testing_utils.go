@@ -167,6 +167,12 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
 		return nil
 	}
+	ds.GetPatchDeadlineSettingsFunc = func(ctx context.Context, teamID uint) (*fleet.PatchDeadlineSettings, error) {
+		return fleet.DefaultPatchDeadlineSettings(teamID), nil
+	}
+	ds.SetPatchDeadlineSettingsFunc = func(ctx context.Context, settings fleet.PatchDeadlineSettings) error {
+		return nil
+	}
 	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 		return nil, nil
 	}
@@ -628,6 +634,9 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 		return nil, nil
 	}
+	ds.GetAssignedVPPAppsFunc = func(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error) {
+		return map[fleet.VPPAppID]fleet.VPPAppTeam{}, nil
+	}
 	ds.UpdateVPPTokenTeamsFunc = func(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error) {
 		return &fleet.VPPTokenDB{}, nil
 	}
@@ -712,8 +721,12 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 }
 
 type AppleVPPConfigSrvConf struct {
-	Assets        []vpp.Asset
-	SerialNumbers []string
+	Assets []vpp.Asset
+	// AssetsByBearer overrides Assets for requests whose Authorization header
+	// is "Bearer <key>". The bearer Fleet sends is the uploaded token's base64
+	// content.
+	AssetsByBearer map[string][]vpp.Asset
+	SerialNumbers  []string
 }
 
 func StartVPPApplyServer(t *testing.T, config *AppleVPPConfigSrvConf) {
@@ -815,7 +828,11 @@ func StartVPPApplyServer(t *testing.T, config *AppleVPPConfigSrvConf) {
 			// Then we're responding to GetAssets
 			w.Header().Set("Content-Type", "application/json")
 			encoder := json.NewEncoder(w)
-			err := encoder.Encode(map[string][]vpp.Asset{"assets": config.Assets})
+			assets, ok := config.AssetsByBearer[strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")]
+			if !ok {
+				assets = config.Assets
+			}
+			err := encoder.Encode(map[string][]vpp.Asset{"assets": assets})
 			if err != nil {
 				panic(err)
 			}
@@ -846,7 +863,14 @@ func StartVPPApplyServer(t *testing.T, config *AppleVPPConfigSrvConf) {
 }
 
 func StartAndServeVPPServer(t *testing.T) {
+	StartAndServeVPPServerWithAssets(t, nil)
+}
+
+// StartAndServeVPPServerWithAssets is StartAndServeVPPServer with per-token
+// assets, keyed by the bearer Fleet sends for each token.
+func StartAndServeVPPServerWithAssets(t *testing.T, assetsByBearer map[string][]vpp.Asset) {
 	config := &AppleVPPConfigSrvConf{
+		AssetsByBearer: assetsByBearer,
 		Assets: []vpp.Asset{
 			{
 				AdamID:         "1",
