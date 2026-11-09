@@ -602,7 +602,7 @@ const ManageHostsPage = ({
     }
   );
   const hostActivityAutomations =
-    teamResponse?.team?.webhook_settings?.host_activities_webhook;
+    teamResponse?.fleet?.webhook_settings?.host_activities_webhook;
 
   const {
     data: policy,
