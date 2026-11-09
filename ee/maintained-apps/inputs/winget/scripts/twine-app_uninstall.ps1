@@ -7,6 +7,7 @@
 $displayName = "Twine"
 $publisher = "Chris Klimas"
 $installDirName = "Twine"
+$appExeName = "Twine.exe"
 $exitCode = 0
 
 function Get-Entries {
@@ -52,8 +53,8 @@ function Remove-Entry {
     $installDir = $null
     if ($exePath -and (Test-Path -LiteralPath $exePath)) {
         $installDir = Split-Path $exePath -Parent
-        $running = @(Get-Process -ErrorAction SilentlyContinue |
-            Where-Object { $_.Path -and $_.Path.StartsWith("$installDir\", [System.StringComparison]::OrdinalIgnoreCase) })
+        $appPath = Join-Path $installDir $appExeName
+        $running = @(Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $appPath })
         if ($running.Count -gt 0) {
             Write-Host "Stopping $($running.Count) running $displayName process(es)."
             $running | Stop-Process -Force -ErrorAction SilentlyContinue
@@ -74,12 +75,12 @@ function Remove-Entry {
     } else {
         $leftover = @(@($exePath, ($exePath -replace '(?i)\\system32\\', '\SysWOW64\')) |
             ForEach-Object { Split-Path $_ -Parent } |
-            Where-Object { $_ -and (Test-Path -LiteralPath $_) })
+            Where-Object { $_ -and (Test-Path -LiteralPath (Join-Path $_ $appExeName)) })
         if ($leftover.Count -gt 0) {
-            Write-Host "Uninstaller not found but $($leftover[0]) still exists."
+            Write-Host "Uninstaller not found but $appExeName is still in $($leftover[0])."
             return 1
         }
-        Write-Host "Uninstaller and install directory not found; removing the leftover registration."
+        Write-Host "Uninstaller and $appExeName not found; removing the leftover registration."
     }
 
     if ($result -eq 0) {
