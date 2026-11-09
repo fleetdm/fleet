@@ -2460,29 +2460,26 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 		if err != nil {
 			return wrapErrs(fmt.Errorf("failed to expand environment in file %q: %v", installSoftwareObj.PackagePath, err))
 		}
-		var packagesInFile []fleet.SoftwarePackageSpec
-		err = YamlUnmarshal(fileBytes, &packagesInFile)
-		if err != nil {
-			var singlePackage map[string]any
-			err = YamlUnmarshal(fileBytes, &singlePackage)
-			if err == nil {
+		var policyInstallSoftwareSpec fleet.SoftwarePackageSpec
+		var multiplePackages []fleet.SoftwarePackageSpec
+		var singlePackage map[string]any
+		if err := YamlUnmarshal(fileBytes, &multiplePackages); err != nil {
+			if err := YamlUnmarshal(fileBytes, &singlePackage); err == nil {
 				return []error{fmt.Errorf("install_software.package_path: The single package format in %q is not available anymore. What to use instead: %s", installSoftwareObj.PackagePath, removednames.GuideURL)}
 			}
 			return wrapErrs(fmt.Errorf("file %q does not contain a valid software package definition", installSoftwareObj.PackagePath))
 		}
-		// Reject an empty list here and let an empty file reach the not found error below.
-		if packagesInFile != nil && len(packagesInFile) == 0 {
+		if multiplePackages != nil && len(multiplePackages) == 0 {
 			return wrapErrs(fmt.Errorf("file %q does not contain a valid software package definition", installSoftwareObj.PackagePath))
 		}
 
 		errs = append(errs, validateYAMLKeys(fileBytes, reflect.TypeFor[[]fleet.SoftwarePackageSpec](), installSoftwareObj.PackagePath, []string{"software", "packages"})...)
 
-		if len(packagesInFile) > 1 {
+		if len(multiplePackages) > 1 {
 			return wrapErrs(fmt.Errorf("file %q contains multiple packages; use install_software.hash_sha256 to select one, or split the packages into single-package YAML files", installSoftwareObj.PackagePath))
 		}
-		var policyInstallSoftwareSpec fleet.SoftwarePackageSpec
-		if len(packagesInFile) == 1 {
-			policyInstallSoftwareSpec = packagesInFile[0]
+		if len(multiplePackages) == 1 {
+			policyInstallSoftwareSpec = multiplePackages[0]
 		}
 		installerOnTeamFound := false
 		for _, pkg := range packages {
@@ -2981,18 +2978,18 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 					continue
 				}
 
+				var singlePackage map[string]any
 				listErr := YamlUnmarshal(fileBytes, &softwarePackageSpecs)
-				if listErr != nil {
-					var singlePackage map[string]any
-					err = YamlUnmarshal(fileBytes, &singlePackage)
-					if err == nil {
-						multiError = multierror.Append(multiError, fmt.Errorf("The single package format in %q is not available anymore. What to use instead: %s", *teamLevelPackage.Path, removednames.GuideURL))
-					} else {
-						multiError = multierror.Append(multiError, MaybeParseTypeError(*teamLevelPackage.Path, []string{"software", "packages"}, listErr))
-					}
+				if listErr == nil {
+					multiError = multierror.Append(multiError, validateYAMLKeys(fileBytes, reflect.TypeFor[[]fleet.SoftwarePackageSpec](), *teamLevelPackage.Path, []string{"software", "packages"})...)
+				} else if err := YamlUnmarshal(fileBytes, &singlePackage); err == nil {
+					multiError = multierror.Append(multiError, fmt.Errorf("The single package format in %q is not available anymore. What to use instead: %s", *teamLevelPackage.Path, removednames.GuideURL))
+					continue
+				} else {
+					// couldn't unmarshal as a list or a single object
+					multiError = multierror.Append(multiError, MaybeParseTypeError(*teamLevelPackage.Path, []string{"software", "packages"}, listErr))
 					continue
 				}
-				multiError = multierror.Append(multiError, validateYAMLKeys(fileBytes, reflect.TypeFor[[]fleet.SoftwarePackageSpec](), *teamLevelPackage.Path, []string{"software", "packages"})...)
 
 				// Collect the packages that validate and hydrate, dropping any that fail.
 				multiple := len(softwarePackageSpecs) > 1
