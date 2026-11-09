@@ -10,10 +10,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261106010303, Down_20261106010303)
+	MigrationClient.AddMigration(Up_20261109155711, Down_20261109155711)
 }
 
-func Up_20261106010303(tx *sql.Tx) error {
+func Up_20261109155711(tx *sql.Tx) error {
 	const (
 		oldByNamePath = "/api/v1/fleet/reports/:name"
 		oldByIDPath   = "/api/v1/fleet/reports/id/:id"
@@ -69,6 +69,6 @@ func Up_20261106010303(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20261106010303(tx *sql.Tx) error {
+func Down_20261109155711(tx *sql.Tx) error {
 	return nil
 }
