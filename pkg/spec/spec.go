@@ -12,6 +12,7 @@ import (
 	"maps"
 	"os"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -215,6 +216,9 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 			specs.EnrollSecret = enrollSecretSpec
 
 		case fleet.UserRolesKind:
+			if err := rejectRemovedUserRoleKeys(s.Spec); err != nil {
+				return nil, err
+			}
 			var err error
 			s.Spec, deprecatedKeysMap, err = rewriteNewToOldKeys(s.Spec, fleet.UsersRoleSpec{})
 			if err != nil {
@@ -270,6 +274,33 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 }
 
 // removedNameError is the error for a removed name found in a spec file, with its Fleet 5 message.
+// rejectRemovedUserRoleKeys fails a user_roles spec that uses the removed teams or team keys. Decoding drops them, which would apply the
+// spec with no fleet roles for the user.
+func rejectRemovedUserRoleKeys(raw json.RawMessage) error {
+	var spec struct {
+		Roles map[string]map[string]json.RawMessage `json:"roles"`
+	}
+	if err := yaml.Unmarshal(raw, &spec); err != nil {
+		return nil // the decoding that follows reports a malformed spec
+	}
+	for _, email := range slices.Sorted(maps.Keys(spec.Roles)) {
+		role := spec.Roles[email]
+		if _, ok := role["teams"]; ok {
+			return removedNameError(removednames.KindYAMLKey, "spec.roles.<email>.teams")
+		}
+		var fleets []map[string]json.RawMessage
+		if json.Unmarshal(role["fleets"], &fleets) != nil {
+			continue
+		}
+		for _, userFleet := range fleets {
+			if _, ok := userFleet["team"]; ok {
+				return removedNameError(removednames.KindYAMLKey, "spec.roles.<email>.fleets[].team")
+			}
+		}
+	}
+	return nil
+}
+
 func removedNameError(kind removednames.Kind, name string) error {
 	if entry, ok := removednames.Find(kind, name, ""); ok {
 		return errors.New(entry.Message())
