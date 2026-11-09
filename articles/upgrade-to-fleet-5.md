@@ -695,7 +695,8 @@ GitHub issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
 | Fleet 4 | Fleet 5 |
 |:--|:--|
 | `org_settings.mdm.apple_business_manager` | [`org_settings.mdm.apple_business`](https://fleetdm.com/docs/configuration/yaml-files#apple-business) |
-| `default_team`, `macos_team`, `ios_team`, `ipados_team`, and `byod_team` under `apple_business` | `default_fleet`, `macos_fleet`, `ios_fleet`, `ipados_fleet`, and `byod_fleet` |
+| `macos_team`, `ios_team`, `ipados_team`, and `byod_team` under `apple_business` | `macos_fleet`, `ios_fleet`, `ipados_fleet`, and `byod_fleet` |
+| `org_settings.mdm.apple_bm_default_team` | Removed |
 
 #### What to do
 
