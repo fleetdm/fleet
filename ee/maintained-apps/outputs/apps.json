@@ -6137,7 +6137,7 @@
       "name": "Notepad++",
       "slug": "notepad++/windows",
       "platform": "windows",
-      "unique_identifier": "Notepad++ (64-bit x64)",
+      "unique_identifier": "Notepad++",
       "description": "Notepad++ is a text editor for Windows."
     },
     {
