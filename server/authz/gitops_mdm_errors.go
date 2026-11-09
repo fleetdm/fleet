@@ -2,6 +2,7 @@ package authz
 
 import (
 	"context"
+	"errors"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -33,5 +34,10 @@ func gitOpsMDMCommandError(ctx context.Context, err error, matchesTeam func(team
 	if !isGitOps {
 		return err
 	}
-	return &Forbidden{message: fleet.GitOpsMDMCommandErrorMessage, internal: err.Error(), subject: user}
+	forbidden := &Forbidden{message: fleet.GitOpsMDMCommandErrorMessage, internal: err.Error(), subject: user}
+	// Keep the denial's details for the log.
+	if authzErr, ok := errors.AsType[*Forbidden](err); ok {
+		forbidden.internal, forbidden.object, forbidden.action = authzErr.internal, authzErr.object, authzErr.action
+	}
+	return forbidden
 }
