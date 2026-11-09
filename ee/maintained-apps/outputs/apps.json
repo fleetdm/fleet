@@ -7279,14 +7279,14 @@
       "slug": "read-ai/darwin",
       "platform": "darwin",
       "unique_identifier": "com.readai.desktop",
-      "description": "Read AI is a meeting recorder, transcriber and summariser."
+      "description": "Read AI is a meeting recorder, transcriber, and summarizer."
     },
     {
       "name": "Read AI",
       "slug": "read-ai/windows",
       "platform": "windows",
       "unique_identifier": "Read AI",
-      "description": "Read AI is a meeting recorder, transcriber and summariser."
+      "description": "Read AI is a meeting recorder, transcriber, and summarizer."
     },
     {
       "name": "Readest",
