@@ -284,7 +284,7 @@ GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 | Fleet 4 | Fleet 5 |
 |:--|:--|
 | `mdm.windows_enabled_and_configured` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration) and [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | `mdm.windows_mdm_enabled` |
-| `mdm.windows_migration_enabled` in [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | `mdm.windows_mdm_migration_enabled` |
+| `mdm.windows_migration_enabled` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration) and [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | `mdm.windows_mdm_migration_enabled` |
 
 #### What to do
 
@@ -763,6 +763,7 @@ GitHub issues: [#53274](https://github.com/fleetdm/fleet/issues/53274), [#53894]
 Fleet 4.95 doesn't support the new names, so you can't change them before you upgrade.
 
 1. After you upgrade, rename these keys before your next GitOps run.
+   - `fleetctl generate-gitops` writes the new names.
    - Until you do, your GitOps run fails with an error like: `The "controls.windows_enabled_and_configured" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 
 GitHub issue: [#53873](https://github.com/fleetdm/fleet/issues/53873)
