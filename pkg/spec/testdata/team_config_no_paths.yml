@@ -61,8 +61,8 @@ controls:
     enable: false
     mode: ""
     webhook_url: ""
-  windows_enabled_and_configured: true
-  windows_migration_enabled: false
+  windows_mdm_enabled: true
+  windows_mdm_migration_enabled: false
   enable_turn_on_windows_mdm_manually: false
   windows_entra_tenant_ids: []
   windows_entra_client_ids: []

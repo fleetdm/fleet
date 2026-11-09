@@ -75,9 +75,9 @@ export interface IMdmConfig {
    */
   apple_bm_terms_expired: boolean;
   apple_bm_enabled_and_configured: boolean;
-  windows_enabled_and_configured: boolean;
+  windows_mdm_enabled: boolean;
   enable_turn_on_windows_mdm_manually: boolean;
-  windows_migration_enabled: boolean;
+  windows_mdm_migration_enabled: boolean;
   android_enabled_and_configured: boolean;
   apple_require_hardware_attestation: boolean;
   end_user_authentication: IEndUserAuthentication;
