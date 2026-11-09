@@ -25,8 +25,8 @@ foreach ($productCode in @($installer.RelatedProducts($upgradeCode))) {
   $removeProcess = Start-Process msiexec.exe `
     -ArgumentList "/quiet /norestart /x $productCode" `
     -PassThru -Wait
+  Write-Host "Removal exited $($removeProcess.ExitCode)"
   if ($successCodes -notcontains $removeProcess.ExitCode) {
-    Write-Host "Removal exited $($removeProcess.ExitCode)"
     Exit $removeProcess.ExitCode
   }
 }
