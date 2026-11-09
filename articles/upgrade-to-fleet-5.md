@@ -452,6 +452,21 @@ For a CentOS label, use `name LIKE '%centos%'` instead of `platform = 'ubuntu'`.
 
 GitHub issues: [#52905](https://github.com/fleetdm/fleet/issues/52905), [#53924](https://github.com/fleetdm/fleet/issues/53924)
 
+### Delete label by name removed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `DELETE /labels/:name` | Removed, since fleets can now have labels with the same name. Use [`DELETE /labels/id/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-label-by-id). |
+
+#### What to do
+
+Make these changes before you upgrade.
+
+1. Delete labels by ID. Get a label's ID from [List labels](https://fleetdm.com/docs/rest-api/rest-api#list-labels), with `fleet_id` for a fleet's labels.
+2. If an API-only user can only call "Delete label by name", give it "Delete label by ID" instead.
+
+GitHub issue: [#53801](https://github.com/fleetdm/fleet/issues/53801)
+
 ### Android Lock resets the PIN
 
 | Fleet 4 | Fleet 5 |
@@ -1055,6 +1070,18 @@ GitHub issue: TODO
    - `fleetctl package` leaves out the fleet name if it can't find it, for example when you're not logged in to `fleetctl` or the enroll secret is global (hosts in Unassigned).
 
 GitHub issue: [#53365](https://github.com/fleetdm/fleet/issues/53365)
+
+### fleetctl 5 required for GitOps
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `fleetctl gitops` with fleetctl 4 | Fails when it deletes a label, or moves a label between `default.yml` and a fleet's YAML file |
+
+#### What to do
+
+1. Upgrade `fleetctl` to 5 wherever you run `fleetctl gitops`, including CI, when you upgrade your Fleet server.
+
+GitHub issue: [#53801](https://github.com/fleetdm/fleet/issues/53801)
 
 
 ## Fleet server configuration
