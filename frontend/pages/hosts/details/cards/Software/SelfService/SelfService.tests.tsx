@@ -334,15 +334,10 @@ describe("SelfService", () => {
     await screen.findAllByText("mock software 1.app");
 
     // The update card above the table fetches on its own timeline. Scope the
-    // "available version" check to the card rather than counting global
-    // "1.1.0" occurrences across tooltip-duplicated row cells.
-    const updatesHeading = await screen.findByRole("heading", {
-      name: "Updates",
-    });
-    const updatesCard = updatesHeading.closest<HTMLElement>(".updates-card");
-    if (!updatesCard) {
-      throw new Error("Updates card container not found");
-    }
+    // "available version" check to the card (via its data-testid, not its
+    // class) rather than counting global "1.1.0" occurrences across tooltip-
+    // duplicated row cells.
+    const updatesCard = await screen.findByTestId("updates-card");
     await within(updatesCard).findByText("1.1.0");
 
     // Both versions also appear in the software row
