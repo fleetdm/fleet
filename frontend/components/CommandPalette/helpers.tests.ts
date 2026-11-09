@@ -478,7 +478,7 @@ describe("CommandPalette helpers", () => {
             mdm: {
               ...createMockConfig().mdm,
               enabled_and_configured: false,
-              windows_enabled_and_configured: false,
+              windows_mdm_enabled: false,
               android_enabled_and_configured: false,
             },
           }),
@@ -1139,18 +1139,6 @@ describe("CommandPalette helpers", () => {
           })
         );
         expect(url.searchParams.has("page")).toBe(false);
-      });
-
-      it("strips legacy team_id on any fleet switch", () => {
-        const url = parse(
-          buildFleetSwitchUrl({
-            pathname: paths.MANAGE_HOSTS,
-            currentSearch: "?team_id=1",
-            fleetId: 2,
-          })
-        );
-        expect(url.searchParams.has("team_id")).toBe(false);
-        expect(url.searchParams.get("fleet_id")).toBe("2");
       });
 
       it("strips script_batch_execution_id and script_batch_execution_status on any fleet switch", () => {

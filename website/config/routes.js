@@ -1528,6 +1528,8 @@ module.exports.routes = {
   'GET /learn-more-about/vpp-tokens-best-practice': '/guides/apple-mdm-setup#best-practice',
   'GET /learn-more-about/mdm-migration': '/guides/mdm-migration#migrate-hosts',
   'GET /learn-more-about/android-zero-touch': '/guides/android-zero-touch-enrollment',
+  'GET /learn-more-about/fleet-5-upgrade': '/guides/upgrade-to-fleet-5',
+  'GET /learn-more-about/fleet-5-migration': '/guides/upgrade-to-fleet-5',
 
 
   // Sitemap

@@ -356,13 +356,13 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	hostInstall4, err := ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID2, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
-	pendingHost1, err := ds.ListPendingSoftwareInstalls(ctx, host1.ID)
+	pendingHost1, err := ds.listUpcomingSoftwareInstalls(ctx, host1.ID, false)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(pendingHost1))
 	require.Equal(t, hostInstall1, pendingHost1[0])
 	require.Equal(t, hostInstall2, pendingHost1[1])
 
-	pendingHost2, err := ds.ListPendingSoftwareInstalls(ctx, host2.ID)
+	pendingHost2, err := ds.listUpcomingSoftwareInstalls(ctx, host2.ID, false)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(pendingHost2))
 	require.Equal(t, hostInstall3, pendingHost2[0])
@@ -395,11 +395,11 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 
-	installDetailsList1, err := ds.ListPendingSoftwareInstalls(ctx, host1.ID)
+	installDetailsList1, err := ds.listUpcomingSoftwareInstalls(ctx, host1.ID, false)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(installDetailsList1))
 
-	installDetailsList2, err := ds.ListPendingSoftwareInstalls(ctx, host2.ID)
+	installDetailsList2, err := ds.listUpcomingSoftwareInstalls(ctx, host2.ID, false)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(installDetailsList2))
 
@@ -461,7 +461,7 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	err = ds.RestoreMDMApplePendingDEPHost(ctx, host3)
 	require.NoError(t, err)
 
-	hostInstalls4, err := ds.ListPendingSoftwareInstalls(ctx, host3.ID)
+	hostInstalls4, err := ds.listUpcomingSoftwareInstalls(ctx, host3.ID, false)
 	require.NoError(t, err)
 	require.Empty(t, hostInstalls4)
 
@@ -1611,7 +1611,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	summary, err = ds.GetSummaryHostSoftwareInstalls(ctx, instDetails1.InstallerID)
 	require.NoError(t, err)
 	require.Equal(t, fleet.SoftwareInstallerStatusSummary{Installed: 0, PendingInstall: 0}, *summary)
-	pendingHost1, err := ds.ListPendingSoftwareInstalls(ctx, host1.ID)
+	pendingHost1, err := ds.listUpcomingSoftwareInstalls(ctx, host1.ID, false)
 	require.NoError(t, err)
 	require.Empty(t, pendingHost1)
 
@@ -1634,7 +1634,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 
-	pendingHost1, err = ds.ListPendingSoftwareInstalls(ctx, host1.ID)
+	pendingHost1, err = ds.listUpcomingSoftwareInstalls(ctx, host1.ID, false)
 	require.NoError(t, err)
 	require.Len(t, pendingHost1, 1)
 
@@ -1702,7 +1702,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	summary, err = ds.GetSummaryHostSoftwareInstalls(ctx, instDetails0.InstallerID)
 	require.NoError(t, err)
 	require.Equal(t, fleet.SoftwareInstallerStatusSummary{FailedInstall: 0, PendingInstall: 0}, *summary)
-	pendingHost1, err = ds.ListPendingSoftwareInstalls(ctx, host1.ID)
+	pendingHost1, err = ds.listUpcomingSoftwareInstalls(ctx, host1.ID, false)
 	require.NoError(t, err)
 	require.Empty(t, pendingHost1)
 
@@ -1941,7 +1941,7 @@ func testBatchSetSoftwareInstallersMultipleCustomPackages(t *testing.T, ds *Data
 	require.NoError(t, err)
 	require.NotNil(t, kept.SoftwareInstallerID)
 	require.Equal(t, firstID, *kept.SoftwareInstallerID)
-	pending, err := ds.ListPendingSoftwareInstalls(ctx, host.ID)
+	pending, err := ds.listUpcomingSoftwareInstalls(ctx, host.ID, false)
 	require.NoError(t, err)
 	require.Len(t, pending, 1)
 
@@ -7552,19 +7552,19 @@ func testSoftwareTitlePins(t *testing.T, ds *Datastore) {
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	// A literal pin round-trips.
-	require.NoError(t, ds.SetPinnedVersion(ctx, noTeam, titleID, "1.0"))
+	require.NoError(t, setPinnedVersionDB(ctx, ds.writer(ctx), *noTeam, titleID, "1.0"))
 	pin, err := ds.GetPinnedVersion(ctx, noTeam, titleID)
 	require.NoError(t, err)
 	require.Equal(t, new("1.0"), pin)
 
 	// Upsert overwrites in place (literal -> caret).
-	require.NoError(t, ds.SetPinnedVersion(ctx, noTeam, titleID, "^1"))
+	require.NoError(t, setPinnedVersionDB(ctx, ds.writer(ctx), *noTeam, titleID, "^1"))
 	pin, err = ds.GetPinnedVersion(ctx, noTeam, titleID)
 	require.NoError(t, err)
 	require.Equal(t, new("^1"), pin)
 
 	// A different team's pin on the same title is independent.
-	require.NoError(t, ds.SetPinnedVersion(ctx, otherTeam, titleID, "2.0"))
+	require.NoError(t, setPinnedVersionDB(ctx, ds.writer(ctx), *otherTeam, titleID, "2.0"))
 	pin, err = ds.GetPinnedVersion(ctx, otherTeam, titleID)
 	require.NoError(t, err)
 	require.Equal(t, new("2.0"), pin)

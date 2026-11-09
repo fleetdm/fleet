@@ -232,13 +232,13 @@ type UserRoles struct {
 }
 
 type TeamRole struct {
-	Team string `json:"team" renameto:"fleet"` // renameto doesn't actually do anything here but adding for visibility
+	Team string `json:"fleet"`
 	Role string `json:"role"`
 }
 
 type UserRole struct {
 	GlobalRole *string    `json:"global_role"`
-	Teams      []TeamRole `json:"teams" renameto:"fleets"` // renameto doesn't actually do anything here but adding for visibility
+	Teams      []TeamRole `json:"fleets"`
 }
 
 func usersToUserRoles(users []fleet.User) UserRoles {
@@ -328,7 +328,6 @@ func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSp
 	// The setup experience membership is the source of truth in the setup
 	// experience tables, exposed via the setup experience endpoint.
 	setupSoftwareByTitleID := make(map[uint]struct{})
-	setupAppsByName := make(map[string]struct{})
 	setupSoftware, err := client.GetSetupExperienceSoftware("macos,windows,linux,ios,ipados,android", teamID)
 	if err != nil {
 		return nil, fmt.Errorf("could not get setup experience software for fleet %d: %w", teamID, err)
@@ -337,8 +336,8 @@ func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSp
 		if pkg := sw.SoftwarePackage; pkg != nil && pkg.InstallDuringSetup != nil && *pkg.InstallDuringSetup {
 			setupSoftwareByTitleID[sw.ID] = struct{}{}
 		}
-		if app := sw.AppStoreApp; app != nil && app.InstallDuringSetup != nil && *app.InstallDuringSetup {
-			setupAppsByName[app.FullyQualifiedName()] = struct{}{}
+		if len(sw.AppStoreApps) > 0 && sw.AppStoreApps[0].InstallDuringSetup != nil && *sw.AppStoreApps[0].InstallDuringSetup {
+			setupSoftwareByTitleID[sw.ID] = struct{}{}
 		}
 	}
 
@@ -404,16 +403,12 @@ func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSp
 				Categories:         optjson.SetSlice(pkg.Categories),
 				InstallDuringSetup: setupExperienceValue(setupSoftwareByTitleID, title.ID),
 			})
-		case detail.AppStoreApp != nil:
-			app := detail.AppStoreApp
-			var installDuringSetup optjson.Bool
-			if _, ok := setupAppsByName[app.VPPAppID.String()]; ok {
-				installDuringSetup = optjson.SetBool(true)
-			}
+		case len(detail.AppStoreApps) > 0:
+			app := detail.AppStoreApps[0]
 			appStoreAppSpec := fleet.TeamSpecAppStoreApp{
-				AppStoreID:         app.AdamID,
+				AppStoreID:         app.AppStoreID,
 				Platform:           string(app.Platform),
-				InstallDuringSetup: installDuringSetup,
+				InstallDuringSetup: setupExperienceValue(setupSoftwareByTitleID, title.ID),
 			}
 			// Output one object instead of a versions array when the app only has one version
 			if len(detail.AppStoreApps) > 1 || (len(detail.AppStoreApps) == 1 && detail.AppStoreApps[0].Name != fleet.DefaultAppStoreAppVersionName) {
