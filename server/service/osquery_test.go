@@ -195,6 +195,18 @@ func TestSubmitResultLogsCappedNamesDoNotBypassScheduleCheck(t *testing.T) {
 	require.Equal(t, 0, run(t, true), "filling the cap must not let an unscheduled query through")
 }
 
+func TestSubmitResultLogsDropsOverlongNames(t *testing.T) {
+	serv, ctx, ds := setUpBatchResultLogsTest(t)
+	ds.QueriesByNameFunc = func(ctx context.Context, names []fleet.TeamScopedQueryName) (map[string]*fleet.Query, error) {
+		return map[string]*fleet.Query{}, nil
+	}
+
+	name := "pack/Global/" + strings.Repeat("a", maxScheduledQueryNameLen)
+	result := fmt.Sprintf(`{"snapshot":[{"a":"b"}],"action":"snapshot","name":%q,"hostIdentifier":"h","unixTime":1484078931}`, name)
+	require.NoError(t, serv.SubmitResultLogs(ctx, []json.RawMessage{json.RawMessage(result)}))
+	assert.Empty(t, serv.osqueryLogWriter.Result.(*testJSONLogger).logs)
+}
+
 // TestSubmitResultLogsCapWarningOnlyWhenNamesDropped pins the cap's warning to
 // names actually left unresolved: a submission landing exactly on the cap uses
 // every slot without breaching it and must not report one.
@@ -2002,6 +2014,7 @@ func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
 		{"packteam-1team-1team-1team-1", ptr.Uint(1), "team-1", false},                     // pack_delimiter=team-1
 		{"pack/Global/GlobalInQueryName", nil, "GlobalInQueryName", false},                 // query name contains Global
 		{"pack/team-1/team-1InQueryName", ptr.Uint(1), "team-1InQueryName", false},         // query name contains team-1
+		{"pack123😁123team-1123😁123GlobalQuery", new(uint(1)), "GlobalQuery", false},        // pack_delimiter=123😁123, query name contains Global
 
 		{"InvalidString", nil, "", true},
 		{"Invalid/Query", nil, "", true},
@@ -2037,6 +2050,19 @@ func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetQueryNameAndTeamIDFromResultMaxLength(t *testing.T) {
+	prefix := "pack/Global/Global"
+	atMax := prefix + strings.Repeat("a", maxScheduledQueryNameLen-len(prefix))
+
+	teamID, name, err := getQueryNameAndTeamIDFromResult(atMax)
+	require.NoError(t, err)
+	assert.Nil(t, teamID)
+	assert.Equal(t, atMax[len("pack/Global/"):], name)
+
+	_, _, err = getQueryNameAndTeamIDFromResult(atMax + "a")
+	require.ErrorIs(t, err, errScheduledQueryNameTooLong)
 }
 
 func TestGetMostRecentResults(t *testing.T) {
@@ -2115,6 +2141,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "tpm_pin_config_verify":                     {},
 		hostDetailQueryPrefix + "bitlocker_startup_policy_relax":            {},
 		hostDetailQueryPrefix + "bitlocker_key_protectors_verify":           {},
+		hostDetailQueryPrefix + "timezone_unix":                             {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -7608,6 +7635,20 @@ func TestGetClientConfigRequest_DecodeRequest(t *testing.T) {
 		req := result.(*getClientConfigRequest)
 		assert.Equal(t, "test-key", req.NodeKey)
 		assert.Nil(t, req.ETag)
+	})
+
+	t.Run("fallback change header", func(t *testing.T) {
+		body := []byte(`{"node_key": "test-key"}`)
+		r := httptest.NewRequest("POST", "/api/osquery/config", bytes.NewReader(body))
+		result, err := decoder.DecodeRequest(t.Context(), r)
+		require.NoError(t, err)
+		assert.False(t, result.(*getClientConfigRequest).fallbackChange)
+
+		r = httptest.NewRequest("POST", "/api/osquery/config", bytes.NewReader(body))
+		r.Header.Set(fleet.OsqueryConfigFallbackChangeHeader, "1")
+		result, err = decoder.DecodeRequest(t.Context(), r)
+		require.NoError(t, err)
+		assert.True(t, result.(*getClientConfigRequest).fallbackChange)
 	})
 
 	t.Run("If-None-Match header is ignored", func(t *testing.T) {

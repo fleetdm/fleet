@@ -31,6 +31,7 @@ import (
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/api/androidmanagement/v1"
 )
 
 func TestBatchAssociateVPPApps(t *testing.T) {
@@ -536,8 +537,12 @@ func TestBatchAssociateVPPAppsDryRunNewTeamReportsMissingAssets(t *testing.T) {
 			CountryCode: "us",
 		}}, nil
 	}
+	ds.GetEnterpriseFunc = func(ctx context.Context) (*android.Enterprise, error) {
+		return &android.Enterprise{EnterpriseID: "LC01"}, nil
+	}
 
 	svc := newTestService(t, ds)
+	svc.androidModule = &playStoreLookupAndroidModule{availableApplicationIDs: []string{"com.example.android"}}
 	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 
 	payload := func(adamID string, platform fleet.InstallableDevicePlatform) []fleet.VPPBatchPayload {
@@ -561,7 +566,7 @@ func TestBatchAssociateVPPAppsDryRunNewTeamReportsMissingAssets(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorContains(t, err, "requested app not available on vpp account: "+missing)
 
-	// Play Store apps are not VPP assets and are not checked here.
+	// Play Store apps are not VPP assets and are not checked against VPP tokens.
 	_, _, err = svc.BatchAssociateVPPApps(ctx, "New team", payload("com.example.android", fleet.AndroidPlatform), true)
 	require.NoError(t, err)
 
@@ -572,6 +577,106 @@ func TestBatchAssociateVPPAppsDryRunNewTeamReportsMissingAssets(t *testing.T) {
 	_, _, err = svc.BatchAssociateVPPApps(ctx, "New team", payload(missing, fleet.IPadOSPlatform), false)
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
+}
+
+type playStoreLookupAndroidModule struct {
+	android.Service
+	availableApplicationIDs []string
+	titleByApplicationID    map[string]string
+	lookedUpApplicationIDs  []string
+}
+
+func (m *playStoreLookupAndroidModule) EnterprisesApplications(ctx context.Context, enterpriseName string, applicationID string) (*androidmanagement.Application, error) {
+	m.lookedUpApplicationIDs = append(m.lookedUpApplicationIDs, applicationID)
+	if !slices.Contains(m.availableApplicationIDs, applicationID) {
+		return nil, batchNotFoundError{}
+	}
+	title := applicationID
+	if m.titleByApplicationID[applicationID] != "" {
+		title = m.titleByApplicationID[applicationID]
+	}
+	return &androidmanagement.Application{Name: enterpriseName + "/applications/" + applicationID, Title: title}, nil
+}
+
+func TestBatchAssociateVPPAppsDryRunReportsMissingAndroidApps(t *testing.T) {
+	t.Parallel()
+
+	ds := new(mock.Store)
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		if name == "Existing fleet" {
+			return &fleet.Team{ID: 1, Name: name}, nil
+		}
+		return nil, common_mysql.NotFound("Team")
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, _ uint, _ []string) (map[string]uint, error) {
+		return nil, nil
+	}
+	ds.GetDuplicateStringGroupsUnderCollationFunc = func(ctx context.Context, _ []string) ([]fleet.DuplicateStringGroup, error) {
+		return nil, nil
+	}
+	ds.GetEnterpriseFunc = func(ctx context.Context) (*android.Enterprise, error) {
+		return &android.Enterprise{EnterpriseID: "LC01"}, nil
+	}
+
+	const firstWebApp = fleet.AndroidWebAppPrefix + ".first"
+	const secondWebApp = fleet.AndroidWebAppPrefix + ".second"
+	androidModule := &playStoreLookupAndroidModule{
+		availableApplicationIDs: []string{"com.android.chrome", firstWebApp, secondWebApp},
+		titleByApplicationID:    map[string]string{firstWebApp: "Intranet", secondWebApp: "intranet"},
+	}
+	svc := newTestService(t, ds)
+	svc.androidModule = androidModule
+
+	ctx := authz_ctx.NewContext(t.Context(), &authz_ctx.AuthorizationContext{})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	const missing = "com.example.notinplaystore"
+	missingErr := `Couldn't add software. The application ID "` + missing + `" isn't available in Play Store.`
+	chromeVersions := []fleet.VPPBatchPayload{
+		{AppStoreID: "com.android.chrome", Platform: fleet.AndroidPlatform, VersionName: "Work"},
+		{AppStoreID: "com.android.chrome", Platform: fleet.AndroidPlatform, VersionName: "Personal"},
+	}
+	missingApp := []fleet.VPPBatchPayload{{AppStoreID: missing, Platform: fleet.AndroidPlatform}}
+
+	// Dry run two versions of an available app on an existing fleet, the app should be looked up once.
+	_, _, err := svc.BatchAssociateVPPApps(ctx, "Existing fleet", chromeVersions, true)
+	require.NoError(t, err)
+	require.Equal(t, []string{"com.android.chrome"}, androidModule.lookedUpApplicationIDs)
+
+	// Dry run an app missing from Play Store on an existing fleet, the dry run should fail like the apply.
+	androidModule.lookedUpApplicationIDs = nil
+	_, _, err = svc.BatchAssociateVPPApps(ctx, "Existing fleet", missingApp, true)
+	require.ErrorContains(t, err, missingErr)
+	require.Equal(t, []string{missing}, androidModule.lookedUpApplicationIDs)
+
+	// Dry run an app missing from Play Store on Unassigned, the dry run should fail like the apply.
+	androidModule.lookedUpApplicationIDs = nil
+	_, _, err = svc.BatchAssociateVPPApps(ctx, "", missingApp, true)
+	require.ErrorContains(t, err, missingErr)
+	require.Equal(t, []string{missing}, androidModule.lookedUpApplicationIDs)
+
+	// Dry run two versions of an available app and a missing app on a new fleet, each app should be
+	// looked up once and the dry run should fail on the missing app.
+	androidModule.lookedUpApplicationIDs = nil
+	_, _, err = svc.BatchAssociateVPPApps(ctx, "New fleet", slices.Concat(chromeVersions, missingApp), true)
+	require.ErrorContains(t, err, missingErr)
+	require.Equal(t, []string{"com.android.chrome", missing}, androidModule.lookedUpApplicationIDs)
+
+	// Dry run two web apps with the same title on a new fleet, the dry run should fail like the apply.
+	androidModule.lookedUpApplicationIDs = nil
+	sameTitleWebApps := []fleet.VPPBatchPayload{
+		{AppStoreID: firstWebApp, Platform: fleet.AndroidPlatform},
+		{AppStoreID: secondWebApp, Platform: fleet.AndroidPlatform},
+	}
+	_, _, err = svc.BatchAssociateVPPApps(ctx, "New fleet", sameTitleWebApps, true)
+	require.ErrorContains(t, err, `Couldn't add. Web app with this name ("intranet") already exists in this fleet.`)
+	require.Equal(t, []string{firstWebApp, secondWebApp}, androidModule.lookedUpApplicationIDs)
+
+	require.False(t, ds.BatchInsertVPPAppsFuncInvoked)
+	require.False(t, ds.SetTeamVPPAppsFuncInvoked)
 }
 
 // A dry run for a team that does not exist yet reads every unexpired token. A
@@ -892,6 +997,10 @@ func TestAppStoreAppsRequireAppleMDM(t *testing.T) {
 		ds.GetDuplicateStringGroupsUnderCollationFunc = func(context.Context, []string) ([]fleet.DuplicateStringGroup, error) {
 			return nil, nil
 		}
+		ds.GetEnterpriseFunc = func(context.Context) (*android.Enterprise, error) {
+			return &android.Enterprise{EnterpriseID: "LC01"}, nil
+		}
+		svc.androidModule = &playStoreLookupAndroidModule{availableApplicationIDs: []string{"com.example.app"}}
 		return svc, ds, baseSvc
 	}
 

@@ -1,10 +1,12 @@
 package fleet
 
 import (
+	"bytes"
 	"context"
 	"crypto/md5" // nolint: gosec
 	"encoding/hex"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
@@ -318,9 +320,6 @@ func NewMDMAppleConfigProfile(raw []byte, teamID *uint) (*MDMAppleConfigProfile,
 	}, nil
 }
 
-// payloadDisplayNameRegex is used to extract PayloadDisplayName values from raw XML content
-var payloadDisplayNameRegex = regexp.MustCompile(`<key>PayloadDisplayName</key>\s*<string>([^<]*)</string>`)
-
 // PayloadDisplayNameFromMobileconfig returns the top-level PayloadDisplayName
 // of a raw .mobileconfig, or "" when it can't be parsed (for example a stored
 // profile whose <data> still holds an unexpanded secret). A regex won't do:
@@ -333,19 +332,98 @@ func PayloadDisplayNameFromMobileconfig(raw []byte) string {
 	return strings.TrimSpace(parsed.PayloadDisplayName)
 }
 
-// ValidateNoSecretsInProfileName checks if PayloadDisplayName contains FLEET_SECRET_ variables
-// in the raw XML content of a profile.
+// ValidateNoSecretsInProfileName checks if any PayloadDisplayName in the raw XML content of a profile,
+// at any depth, contains FLEET_SECRET_ variables.
 func ValidateNoSecretsInProfileName(xmlContent []byte) error {
-	matches := payloadDisplayNameRegex.FindAllSubmatch(xmlContent, -1)
-	for _, match := range matches {
-		if len(match) > 1 {
-			displayName := string(match[1])
-			if len(ContainsPrefixVars(displayName, ServerSecretPrefix)) > 0 {
-				return errors.New("PayloadDisplayName cannot contain FLEET_SECRET variables")
+	return validateNoSecretsInProfileKey(xmlContent, "PayloadDisplayName", false)
+}
+
+// ValidateNoSecretsInProfileIdentifier checks if the top-level PayloadIdentifier in the raw XML content of
+// a profile contains FLEET_SECRET_ variables. Nested payload identifiers aren't stored, so they may use them.
+func ValidateNoSecretsInProfileIdentifier(xmlContent []byte) error {
+	return validateNoSecretsInProfileKey(xmlContent, "PayloadIdentifier", true)
+}
+
+// ValidateNoSecretsInDeclarationIdentifier checks if the Identifier of a raw declaration or activation contains
+// FLEET_SECRET_ variables. The stored identifier is read from it after its secrets are expanded.
+func ValidateNoSecretsInDeclarationIdentifier(rawJSON []byte) error {
+	var decl struct{ Identifier string }
+	if err := json.Unmarshal([]byte(secretsOutsideJSONStringsAsZero(string(rawJSON))), &decl); err != nil {
+		// Not valid JSON: left to the parse of the expanded declaration to reject.
+		return nil
+	}
+	if len(ContainsPrefixVars(decl.Identifier, ServerSecretPrefix)) > 0 {
+		return errors.New("Identifier cannot contain FLEET_SECRET variables")
+	}
+	return nil
+}
+
+// secretsOutsideJSONStringsAsZero replaces FLEET_SECRET_ variables outside JSON strings with 0, so a declaration that
+// uses one as a number or boolean can be read before its secrets are expanded.
+func secretsOutsideJSONStringsAsZero(rawJSON string) string {
+	inString := make([]bool, len(rawJSON))
+	var in, escaped bool
+	for i := 0; i < len(rawJSON); i++ {
+		inString[i] = in
+		switch {
+		case escaped:
+			escaped = false
+		case in && rawJSON[i] == '\\':
+			escaped = true
+		case rawJSON[i] == '"':
+			in = !in
+		}
+	}
+	return MaybeExpand(rawJSON, func(name string, start, _ int) (string, bool) {
+		if inString[start] || !strings.HasPrefix(name, ServerSecretPrefix) {
+			return "", false
+		}
+		return "0", true
+	})
+}
+
+// validateNoSecretsInProfileKey reads keys and values the way the plist parser reads them, which drops
+// comments and decodes CDATA and character references, because the stored name and identifier are parsed
+// from the profile after its secrets are expanded.
+func validateNoSecretsInProfileKey(xmlContent []byte, key string, topLevelOnly bool) error {
+	dec := xml.NewDecoder(bytes.NewReader(xmlContent))
+	// The parser takes the first dictionary as the profile, with or without a <plist> around it.
+	var depth, topLevelDepth int
+	var valueNext bool
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			// Not valid XML: left to the parse of the expanded profile to reject.
+			return nil
+		}
+		switch el := tok.(type) {
+		case xml.EndElement:
+			depth--
+		case xml.StartElement:
+			switch {
+			case el.Name.Local == "key":
+				var k string
+				if err := dec.DecodeElement(&k, &el); err != nil {
+					return nil
+				}
+				valueNext = k == key && (!topLevelOnly || depth == topLevelDepth)
+			case valueNext:
+				valueNext = false
+				var value string
+				if err := dec.DecodeElement(&value, &el); err != nil {
+					return nil
+				}
+				if len(ContainsPrefixVars(value, ServerSecretPrefix)) > 0 {
+					return fmt.Errorf("%s cannot contain FLEET_SECRET variables", key)
+				}
+			default:
+				depth++
+				if el.Name.Local == "dict" && topLevelDepth == 0 {
+					topLevelDepth = depth
+				}
 			}
 		}
 	}
-	return nil
 }
 
 func (cp MDMAppleConfigProfile) ValidateUserProvided(allowCustomFileVault bool) error {
@@ -685,44 +763,6 @@ type MDMCustomEnrollmentProfileItem struct {
 	EndUserEmail string
 }
 
-// MDMApplePreassignProfilePayload is the payload accepted by the endpoint that
-// preassigns profiles to hosts before generating corresponding teams for each
-// unique set of profiles and assigning hosts to those teams and profiles. For
-// example, puppet scripts use this.
-type MDMApplePreassignProfilePayload struct {
-	ExternalHostIdentifier string `json:"external_host_identifier"`
-	HostUUID               string `json:"host_uuid"`
-	Profile                []byte `json:"profile"`
-	Group                  string `json:"group"`
-	Exclude                bool   `json:"exclude"`
-}
-
-// HexMD5Hash returns the hex-encoded MD5 hash of the profile. Note that MD5 is
-// broken and we should consider moving to a better hash, but it needs to match
-// the hashing algorithm used by the Mysql database for profiles (SHA2 would be
-// an option: https://dev.mysql.com/doc/refman/5.7/en/encryption-functions.html#function_sha2).
-func (p MDMApplePreassignProfilePayload) HexMD5Hash() string {
-	sum := md5.Sum(p.Profile) //nolint: gosec
-
-	// mysql's HEX function returns uppercase
-	return strings.ToUpper(hex.EncodeToString(sum[:]))
-}
-
-// MDMApplePreassignHostProfiles represents the set of profiles that were
-// pre-assigned to a given host identified by its UUID.
-type MDMApplePreassignHostProfiles struct {
-	HostUUID string
-	Profiles []MDMApplePreassignProfile
-}
-
-// MDMApplePreassignProfile represents a single profile pre-assigned to a host.
-type MDMApplePreassignProfile struct {
-	Profile    []byte
-	Group      string
-	HexMD5Hash string
-	Exclude    bool
-}
-
 // MDMAppleSettingsPayload describes the payload accepted by the endpoint to
 // update specific MDM macos settings for a team (or no team).
 type MDMAppleSettingsPayload struct {
@@ -790,9 +830,9 @@ type HostDEPAssignment struct {
 	// MDMMigrationDeadline is the deadline for the MDM migration received from ABM on the host's
 	// most recent sync.
 	MDMMigrationDeadline *time.Time `db:"mdm_migration_deadline" json:"mdm_migration_deadline,omitempty"`
-	// MDMMigrationCompleted is the value of MDMMigrationDeadline when the host completed its last
-	// Migration. Not a timestamp but a marker that the host completed the Migration for a given
-	// date.
+	// MDMMigrationCompleted is the value of MDMMigrationDeadline when the host completed its
+	// Migration. Not a timestamp but a marker that the host completed a Migration; once set, the
+	// host is not considered to be migrating again until its ABM assignment is removed.
 	MDMMigrationCompleted *time.Time `db:"mdm_migration_completed" json:"mdm_migration_completed,omitempty"`
 	// ProfileUUID is the UUID of the enrollment profile last assigned by Fleet via ABM.
 	ProfileUUID *string `db:"profile_uuid" json:"profile_uuid,omitempty"`
@@ -930,14 +970,6 @@ type MDMAppleSetupAssistant struct {
 // AuthzType implements authz.AuthzTyper.
 func (a MDMAppleSetupAssistant) AuthzType() string {
 	return "mdm_apple_setup_assistant"
-}
-
-// ProfileMatcher defines the methods required to preassign and retrieve MDM
-// profiles for matching with teams and associating with hosts. A Redis-based
-// implementation is used in production.
-type ProfileMatcher interface {
-	PreassignProfile(ctx context.Context, payload MDMApplePreassignProfilePayload) error
-	RetrieveProfiles(ctx context.Context, externalHostIdentifier string) (MDMApplePreassignHostProfiles, error)
 }
 
 // SCEPIdentityCertificate represents a certificate issued during MDM

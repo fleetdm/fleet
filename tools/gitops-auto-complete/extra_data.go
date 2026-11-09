@@ -110,6 +110,11 @@ var requiredKeys = []requiredKeyRule{
 		},
 	},
 	{
+		definition:           "GitOpsPatchDeadlineSettings",
+		message:              "patch_deadline_settings must set days and time.",
+		validKeyCombinations: [][]string{{"days", "time"}},
+	},
+	{
 		definition:           "YaraRule",
 		message:              "A yara_rules entry must set path.",
 		validKeyCombinations: [][]string{{"path"}},

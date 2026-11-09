@@ -17,7 +17,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/enrollment"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
@@ -37,30 +36,15 @@ func TestSCEPRateLimit(t *testing.T) {
 	}...)
 
 	t.Run("RateLimitSameHost", func(t *testing.T) {
-		// Create an enrollment secret
-		ctx := t.Context()
-		err := s.DS.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{
-			{
-				Secret: testEnrollmentSecret,
-			},
-		})
-		require.NoError(t, err)
-
-		// Create a unique host identifier (CN)
-		hostID := "test-host-rate-limit"
-
 		// First certificate request - should succeed
-		initialCert, err := requestSCEPCertificate(t, s, hostID)
+		initialCert, initialKey := testGetCertWithCurve(t, s, elliptic.P256())
+
+		// Authenticated renewal immediately after - should fail due to rate limit with HTTP 429. The enroll secret cannot be used
+		// here because a valid certificate for the name already exists.
+		newKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		require.NoError(t, err)
-		require.Equal(t, hostID, initialCert.Subject.CommonName)
-
-		// Second certificate request immediately after - should fail due to rate limit with HTTP 429
-		_, err = requestSCEPCertificate(t, s, hostID)
-		requireRateLimited(t, err)
-
-		// Wait for a small duration (less than cooldown) and try again - should still fail with HTTP 429
-		time.Sleep(500 * time.Millisecond)
-		_, err = requestSCEPCertificate(t, s, hostID)
+		renewal, _ := renewalCSR(t, initialCert, initialKey, newKey)
+		_, err = enrollHostIdentityCSR(t, s, renewal)
 		requireRateLimited(t, err)
 
 		// Different host should be able to get certificate

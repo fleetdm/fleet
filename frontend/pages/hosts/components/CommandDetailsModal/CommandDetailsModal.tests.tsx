@@ -34,12 +34,12 @@ describe("getIconName", () => {
     expect(getIconName("Acknowledged")).toEqual("success");
   });
 
-  it("returns pending-outline for Apple Pending status", () => {
-    expect(getIconName("Pending")).toEqual("pending-outline");
+  it("returns pending for Apple Pending status", () => {
+    expect(getIconName("Pending")).toEqual("pending");
   });
 
-  it("returns pending-outline for Apple NotNow status", () => {
-    expect(getIconName("NotNow")).toEqual("pending-outline");
+  it("returns pending for Apple NotNow status", () => {
+    expect(getIconName("NotNow")).toEqual("pending");
   });
 
   it("returns success for Windows 200 status", () => {
@@ -54,12 +54,12 @@ describe("getIconName", () => {
     expect(getIconName("500")).toEqual("error");
   });
 
-  it("returns pending-outline for Windows 101 status", () => {
-    expect(getIconName("101")).toEqual("pending-outline");
+  it("returns pending for Windows 101 status", () => {
+    expect(getIconName("101")).toEqual("pending");
   });
 
-  it("returns pending-outline for Windows 199 status (upper pending boundary)", () => {
-    expect(getIconName("199")).toEqual("pending-outline");
+  it("returns pending for Windows 199 status (upper pending boundary)", () => {
+    expect(getIconName("199")).toEqual("pending");
   });
 
   it("returns success for Windows 399 status (upper success boundary)", () => {

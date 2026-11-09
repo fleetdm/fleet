@@ -31,7 +31,7 @@ export interface ILoadTeamResponse {
 }
 
 export interface ILoadTeamsResponse {
-  teams: ITeamConfig[];
+  fleets: ITeamConfig[];
 }
 
 export interface ITeamFormData {

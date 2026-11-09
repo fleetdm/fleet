@@ -161,7 +161,6 @@ const generateColumnConfigs = ({
                     <Icon
                       className="observer-can-run-query-icon"
                       name="query"
-                      size="small"
                       color="ui-fleet-black-50"
                     />
                   </TooltipWrapper>
