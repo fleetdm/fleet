@@ -1,1 +1,0 @@
-- Activity feed: removed the "Turned on disk encryption" and "Turned off disk encryption" activity type filters. Disk encryption activities recorded before Fleet 4.92 now read "edited disk encryption settings for all hosts…".
