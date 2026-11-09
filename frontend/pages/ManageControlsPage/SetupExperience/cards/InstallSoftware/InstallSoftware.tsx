@@ -32,7 +32,7 @@ import {
 import { getPathWithQueryParams } from "utilities/url";
 
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
-import getManualAgentInstallSetting from "../../helpers";
+import { getManualAgentInstallSetting } from "../../helpers";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
 
 import InstallSoftwareForm from "./components/InstallSoftwareForm";
@@ -162,7 +162,7 @@ const InstallSoftware = ({
 
       // Only Apple and Android setup experience require MDM. Windows admins can
       // pre-stage setup-experience software without MDM, but the
-      // require_all_software_windows option does require Windows MDM to be on
+      // windows_require_all_software option does require Windows MDM to be on
       // (gated at the checkbox level inside InstallSoftwareForm).
       const turnOnMdm = turnOnAppleMdm || turnOnAndroidMdm;
 
@@ -192,14 +192,14 @@ const InstallSoftware = ({
           platform={platform}
           savedRequireAllSoftwareMacOS={
             currentTeamId
-              ? teamConfig?.mdm?.setup_experience?.require_all_software_macos
-              : globalConfig?.mdm?.setup_experience?.require_all_software_macos
+              ? teamConfig?.mdm?.setup_experience?.macos_require_all_software
+              : globalConfig?.mdm?.setup_experience?.macos_require_all_software
           }
           savedRequireAllSoftwareWindows={
             currentTeamId
-              ? teamConfig?.mdm?.setup_experience?.require_all_software_windows
+              ? teamConfig?.mdm?.setup_experience?.windows_require_all_software
               : globalConfig?.mdm?.setup_experience
-                  ?.require_all_software_windows
+                  ?.windows_require_all_software
           }
           isWindowsMdmEnabled={!!isWindowsMdmEnabled}
           router={router}

@@ -1,0 +1,1 @@
+- Fixed Fleet answering `401 Authentication required` for a valid session or API token when the database could not be reached during authentication. The REST API, SCIM, and software and bootstrap package uploads now answer with a `500`, so API clients no longer mistake a database outage for an invalid token.

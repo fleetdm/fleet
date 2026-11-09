@@ -59,6 +59,9 @@ type CreateNotificationService interface {
 	// host's end user has not seen yet, or nil. A kind that batches adds to that
 	// notification rather than queueing a second one.
 	NotificationAwaitingDisplay(ctx context.Context, hostID uint, kind string) (*EndUserNotification, error)
+	// RescheduleNotificationsAwaitingDispatch moves the first attempt of the host's
+	// notifications of this kind that were never dispatched.
+	RescheduleNotificationsAwaitingDispatch(ctx context.Context, hostID uint, kind string, nextAttemptAt, expiresAt time.Time) error
 }
 
 // DelayNotificationService puts a notification back in the queue for a later

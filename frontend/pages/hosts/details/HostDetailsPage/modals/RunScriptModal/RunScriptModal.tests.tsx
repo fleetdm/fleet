@@ -135,7 +135,7 @@ describe("RunScriptModal", () => {
     it("shows the link for a team maintainer on the host's team", () => {
       const maintainerUser = createMockUser({
         global_role: null,
-        teams: [{ id: 7, name: "Some team", role: "maintainer" }],
+        fleets: [{ id: 7, name: "Some team", role: "maintainer" }],
       });
       const render = createCustomRenderer({
         withBackendMock: true,
@@ -158,7 +158,7 @@ describe("RunScriptModal", () => {
     it("hides the link for a team technician on the host's team", () => {
       const technicianUser = createMockUser({
         global_role: null,
-        teams: [{ id: 7, name: "Some team", role: "technician" }],
+        fleets: [{ id: 7, name: "Some team", role: "technician" }],
       });
       const render = createCustomRenderer({
         withBackendMock: true,

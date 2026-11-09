@@ -1,6 +1,6 @@
 {
   "name": "Geekbench",
-  "unique_identifier": "com.primatelabs.Geekbench6",
+  "unique_identifier": "com.primatelabs.parkdale",
   "token": "geekbench",
   "installer_format": "zip",
   "slug": "geekbench/darwin",

@@ -5,11 +5,18 @@ APPDIR="/Applications/"
 LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ { print $3 }')
 # functions
 
+app_process_running() {
+  local bundle_id="$1" app
+  while IFS= read -r app; do
+    grep -qixF -- "$bundle_id" <<< "$(defaults read "$app/Contents/Info" CFBundleIdentifier 2>/dev/null)" && return 0
+  done < <(ps -axo comm= | sed -n 's|^ *\(.*\.app\)/Contents/MacOS/.*|\1|p' | sort -u)
+  return 1
+}
+
 quit_application() {
   local bundle_id="$1"
   local timeout_duration=10
 
-  # check if the application is running
   local app_running
   app_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null)
   if [[ "$app_running" != "true" ]]; then
@@ -25,11 +32,15 @@ quit_application() {
 
   echo "Quitting application '$bundle_id'..."
 
-  # try to quit the application within the timeout period
-  local quit_success=false still_running
+  local quit_success=false still_running quit_error
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" >/dev/null 2>&1
+    quit_error=$(osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" 2>&1 >/dev/null)
+    if [[ "$quit_error" == *"(-600)" ]] && ! app_process_running "$bundle_id"; then
+      echo "Application '$bundle_id' isn't running."
+      quit_success=true
+      break
+    fi
     sleep 1
     if still_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
       echo "Application '$bundle_id' quit successfully."
@@ -45,6 +56,25 @@ quit_application() {
 }
 
 
+remove_system_path() {
+  local target="$1"
+  local parent name rel top expected
+  parent="$(dirname "$target")"
+  name="$(basename "$target")"
+  rel="${parent#/}"
+  top="/${rel%%/*}"
+  expected="$(cd -P "$top" 2>/dev/null && pwd -P)${parent#"$top"}"
+
+  (
+    cd -P "$parent" 2>/dev/null || exit 1
+    if [[ "$(pwd -P)" != "$expected" ]]; then
+      echo "Skipped $target: a folder in its path is a symlink."
+      exit 0
+    fi
+    rm -rf "./$name"
+  ) || echo "Failed to remove $target."
+}
+
 trash() {
   local logged_in_user="$1"
   local target_file="$2"
@@ -52,19 +82,18 @@ trash() {
   local rand="$(jot -r 1 0 99999)"
   local trash=""
 
-  # At the login window there's no user Trash to move files into, so user
-  # paths are skipped and system paths are deleted outright. Removal is
-  # best-effort and never fails the uninstall.
-  if [[ -z "$logged_in_user" || "$logged_in_user" == "root" || "$logged_in_user" == "loginwindow" ]]; then
-    if [[ "$target_file" == ~* ]]; then
+  # Paths in the user's home are moved to their Trash as the user: the user
+  # controls those paths and ~/.Trash, so as root the move could be redirected
+  # into a root-only directory. Other paths are deleted as root by
+  # remove_system_path. At the login window there's no user Trash, so home
+  # paths are skipped. Removal is best-effort and never fails the uninstall.
+  if [[ "$target_file" == ~* ]]; then
+    if [[ -z "$logged_in_user" || "$logged_in_user" == "root" || "$logged_in_user" == "loginwindow" ]]; then
       echo "Not logged into a non-root GUI; skipping $target_file."
       return
     fi
-  else
     # replace ~ with /Users/$logged_in_user
-    if [[ "$target_file" == ~* ]]; then
-      target_file="/Users/$logged_in_user${target_file:1}"
-    fi
+    target_file="/Users/$logged_in_user${target_file:1}"
     trash="/Users/$logged_in_user/.Trash"
   fi
 
@@ -83,11 +112,11 @@ trash() {
       file_name="$(basename "$file")"
       echo "removing $file."
       if [[ -z "$trash" ]]; then
-        rm -rf "$file" || echo "Failed to remove $file."
+        remove_system_path "$file"
       else
         # The per-match counter keeps matches that share a basename from
         # overwriting each other in the trash.
-        mv -f "$file" "$trash/${file_name}_${timestamp}_${rand}_${i}" || echo "Failed to move $file to the Trash."
+        sudo -u "$logged_in_user" mv -f "$file" "$trash/${file_name}_${timestamp}_${rand}_${i}" || echo "Failed to move $file to the Trash."
       fi
     done < <(compgen -G "$target_file" 2>/dev/null)
     if [[ "$matched" == false ]]; then
@@ -101,9 +130,9 @@ trash() {
   if [[ -e "$target_file" ]]; then
     echo "removing $target_file."
     if [[ -z "$trash" ]]; then
-      rm -rf "$target_file" || echo "Failed to remove $target_file."
+      remove_system_path "$target_file"
     else
-      mv -f "$target_file" "$trash/${file_name}_${timestamp}_${rand}" || echo "Failed to move $target_file to the Trash."
+      sudo -u "$logged_in_user" mv -f "$target_file" "$trash/${file_name}_${timestamp}_${rand}" || echo "Failed to move $target_file to the Trash."
     fi
   else
     echo "$target_file doesn't exist."

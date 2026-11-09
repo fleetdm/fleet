@@ -31,7 +31,7 @@ const setupHandlers = (secrets: unknown[] = []) =>
       HttpResponse.json({ user: createMockUser({ global_role: "admin" }) })
     ),
     http.get(baseUrl("/fleets"), () =>
-      HttpResponse.json({ teams: [{ ...TEAM, secrets }] })
+      HttpResponse.json({ fleets: [{ ...TEAM, secrets }] })
     ),
     http.get(baseUrl("/fleets/1/secrets"), () => HttpResponse.json({ secrets }))
   );

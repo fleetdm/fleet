@@ -119,6 +119,18 @@ func (s *integrationTestSuite) TestTranslator() {
 
 	assert.Equal(t, s.users[payload.List[0].Payload.Identifier].ID, payload.List[0].Payload.ID)
 
+	tm, err := s.ds.NewTeam(t.Context(), &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, s.ds.DeleteTeam(context.Background(), tm.ID)) })
+	for _, typ := range []string{fleet.TranslatorTypeTeam, fleet.TranslatorTypeFleet} {
+		payload = translatorResponse{}
+		params = translatorRequest{List: []fleet.TranslatePayload{{Type: typ, Payload: fleet.StringIdentifierToIDPayload{Identifier: tm.Name}}}}
+		s.DoJSON("POST", "/api/latest/fleet/translate", &params, http.StatusOK, &payload)
+		require.Len(t, payload.List, 1)
+		assert.Equal(t, typ, payload.List[0].Type)
+		assert.Equal(t, tm.ID, payload.List[0].Payload.ID)
+	}
+
 	// empty body
 	s.DoJSON("POST", "/api/latest/fleet/translate", &translatorRequest{}, http.StatusBadRequest, &payload)
 
@@ -173,56 +185,56 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 
 	// list teams, none
 	var listResp listTeamsResponse
-	s.DoJSON("GET", "/api/latest/fleet/teams", nil, http.StatusPaymentRequired, &listResp)
+	s.DoJSON("GET", "/api/latest/fleet/fleets", nil, http.StatusPaymentRequired, &listResp)
 	assert.Empty(t, listResp.Teams)
 
 	// get team
 	var getResp getTeamResponse
-	s.DoJSON("GET", "/api/latest/fleet/teams/123", nil, http.StatusPaymentRequired, &getResp)
+	s.DoJSON("GET", "/api/latest/fleet/fleets/123", nil, http.StatusPaymentRequired, &getResp)
 	assert.Nil(t, getResp.Team)
 
 	// create team
 	var tmResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{}, http.StatusPaymentRequired, &tmResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{}, http.StatusPaymentRequired, &tmResp)
 	assert.Nil(t, tmResp.Team)
 
 	// modify team
-	s.DoJSON("PATCH", "/api/latest/fleet/teams/123", fleet.TeamPayload{}, http.StatusPaymentRequired, &tmResp)
+	s.DoJSON("PATCH", "/api/latest/fleet/fleets/123", fleet.TeamPayload{}, http.StatusPaymentRequired, &tmResp)
 	assert.Nil(t, tmResp.Team)
 
 	// delete team
 	var delResp deleteTeamResponse
-	s.DoJSON("DELETE", "/api/latest/fleet/teams/123", nil, http.StatusPaymentRequired, &delResp)
+	s.DoJSON("DELETE", "/api/latest/fleet/fleets/123", nil, http.StatusPaymentRequired, &delResp)
 
 	// apply team specs
 	var specResp applyTeamSpecsResponse
 	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "newteam", Secrets: &[]fleet.EnrollSecret{{Secret: "ABC"}}}}}
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusPaymentRequired, &specResp)
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusPaymentRequired, &specResp)
 
 	// modify team agent options
-	s.DoJSON("POST", "/api/latest/fleet/teams/123/agent_options", nil, http.StatusPaymentRequired, &tmResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets/123/agent_options", nil, http.StatusPaymentRequired, &tmResp)
 	assert.Nil(t, tmResp.Team)
 
 	// list team users
 	var usersResp listUsersResponse
-	s.DoJSON("GET", "/api/latest/fleet/teams/123/users", nil, http.StatusPaymentRequired, &usersResp, "page", "1")
+	s.DoJSON("GET", "/api/latest/fleet/fleets/123/users", nil, http.StatusPaymentRequired, &usersResp, "page", "1")
 	assert.Empty(t, usersResp.Users)
 
 	// add team users
-	s.DoJSON("PATCH", "/api/latest/fleet/teams/123/users", modifyTeamUsersRequest{Users: []fleet.TeamUser{{User: fleet.User{ID: 1}}}}, http.StatusPaymentRequired, &tmResp)
+	s.DoJSON("PATCH", "/api/latest/fleet/fleets/123/users", modifyTeamUsersRequest{Users: []fleet.TeamUser{{ID: 1}}}, http.StatusPaymentRequired, &tmResp)
 	assert.Nil(t, tmResp.Team)
 
 	// delete team users
-	s.DoJSON("DELETE", "/api/latest/fleet/teams/123/users", modifyTeamUsersRequest{Users: []fleet.TeamUser{{User: fleet.User{ID: 1}}}}, http.StatusPaymentRequired, &tmResp)
+	s.DoJSON("DELETE", "/api/latest/fleet/fleets/123/users", modifyTeamUsersRequest{Users: []fleet.TeamUser{{ID: 1}}}, http.StatusPaymentRequired, &tmResp)
 	assert.Nil(t, tmResp.Team)
 
 	// get team enroll secrets
 	var secResp teamEnrollSecretsResponse
-	s.DoJSON("GET", "/api/latest/fleet/teams/123/secrets", nil, http.StatusPaymentRequired, &secResp)
+	s.DoJSON("GET", "/api/latest/fleet/fleets/123/secrets", nil, http.StatusPaymentRequired, &secResp)
 	assert.Empty(t, secResp.Secrets)
 
 	// modify team enroll secrets
-	s.DoJSON("PATCH", "/api/latest/fleet/teams/123/secrets", modifyTeamEnrollSecretsRequest{Secrets: []fleet.EnrollSecret{{Secret: "DEF"}}}, http.StatusPaymentRequired, &secResp)
+	s.DoJSON("PATCH", "/api/latest/fleet/fleets/123/secrets", modifyTeamEnrollSecretsRequest{Secrets: []fleet.EnrollSecret{{Secret: "DEF"}}}, http.StatusPaymentRequired, &secResp)
 	assert.Empty(t, secResp.Secrets)
 
 	// get apple BM configuration
@@ -393,6 +405,11 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 		http.StatusPaymentRequired, &updateAppStoreAppResponse{})
 	s.Do("DELETE", "/api/latest/fleet/software/titles/123/available_for_install", nil, http.StatusPaymentRequired,
 		"fleet_id", "0", "version_id", "1")
+
+	// get and edit patch deadline settings
+	s.Do("GET", "/api/latest/fleet/software/patch_deadline_settings", nil, http.StatusPaymentRequired, "fleet_id", "0")
+	s.Do("PATCH", "/api/latest/fleet/software/patch_deadline_settings",
+		map[string]any{"fleet_id": 0, "days": []string{"monday"}, "time": "09:00"}, http.StatusPaymentRequired)
 }
 
 func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {

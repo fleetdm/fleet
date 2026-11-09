@@ -150,9 +150,9 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 
 		var wantJSON string
 		if teamID == 0 {
-			wantJSON = fmt.Sprintf(`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null, "profile_name": %q, "profile_identifier": %q}`, name, ident)
+			wantJSON = fmt.Sprintf(`{"fleet_id": null, "fleet_name": null, "profile_name": %q, "profile_identifier": %q}`, name, ident)
 		} else {
-			wantJSON = fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "profile_name": %q, "profile_identifier": %q}`, teamID, testTeam.Name, teamID, testTeam.Name, name, ident)
+			wantJSON = fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "profile_name": %q, "profile_identifier": %q}`, teamID, testTeam.Name, name, ident)
 		}
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeCreatedMacosProfile{}.ActivityName(), wantJSON, 0)
 
@@ -164,9 +164,9 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 
 		var wantJSON string
 		if teamID == 0 {
-			wantJSON = fmt.Sprintf(`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null, "profile_name": %q, "identifier": %q}`, name, ident)
+			wantJSON = fmt.Sprintf(`{"fleet_id": null, "fleet_name": null, "profile_name": %q, "identifier": %q}`, name, ident)
 		} else {
-			wantJSON = fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "profile_name": %q, "identifier": %q}`, teamID, testTeam.Name, teamID, testTeam.Name, name, ident)
+			wantJSON = fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "profile_name": %q, "identifier": %q}`, teamID, testTeam.Name, name, ident)
 		}
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeCreatedDeclarationProfile{}.ActivityName(), wantJSON, 0)
 
@@ -205,9 +205,9 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 
 		var wantJSON string
 		if teamID == 0 {
-			wantJSON = fmt.Sprintf(`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null, "profile_name": %q}`, name)
+			wantJSON = fmt.Sprintf(`{"fleet_id": null, "fleet_name": null, "profile_name": %q}`, name)
 		} else {
-			wantJSON = fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "profile_name": %q}`, teamID, testTeam.Name, teamID, testTeam.Name, name)
+			wantJSON = fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "profile_name": %q}`, teamID, testTeam.Name, name)
 		}
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeCreatedWindowsProfile{}.ActivityName(), wantJSON, 0)
 
@@ -246,9 +246,9 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 
 		var wantJSON string
 		if teamID == 0 {
-			wantJSON = fmt.Sprintf(`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null, "profile_name": %q}`, name)
+			wantJSON = fmt.Sprintf(`{"fleet_id": null, "fleet_name": null, "profile_name": %q}`, name)
 		} else {
-			wantJSON = fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "profile_name": %q}`, teamID, testTeam.Name, teamID, testTeam.Name, name)
+			wantJSON = fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "profile_name": %q}`, teamID, testTeam.Name, name)
 		}
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeCreatedAndroidProfile{}.ActivityName(), wantJSON, 0)
 
@@ -586,7 +586,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	require.Empty(t, deleteResp.Warning)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeDeletedDeclarationProfile{}.ActivityName(),
-		`{"profile_name": "apple-decl-with-labels", "identifier": "ident-decl-with-labels", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`,
+		`{"profile_name": "apple-decl-with-labels", "identifier": "ident-decl-with-labels", "fleet_id": null, "fleet_name": null}`,
 		0,
 	)
 	// delete non-existing Apple declaration
@@ -614,7 +614,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", noTeamAndroidProfUUID), nil, http.StatusOK, &deleteResp)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeDeletedAndroidProfile{}.ActivityName(),
-		`{"profile_name": "android-global-profile", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`,
+		`{"profile_name": "android-global-profile", "fleet_id": null, "fleet_name": null}`,
 		0,
 	)
 	// turn off Android MDM
@@ -626,7 +626,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", teamAndroidProfUUID), nil, http.StatusOK, &deleteResp)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeDeletedAndroidProfile{}.ActivityName(),
-		fmt.Sprintf(`{"profile_name": "android-team-profile", "team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, testTeam.ID, testTeam.Name, testTeam.ID, testTeam.Name),
+		fmt.Sprintf(`{"profile_name": "android-team-profile", "fleet_id": %d, "fleet_name": %q}`, testTeam.ID, testTeam.Name),
 		0,
 	)
 	// delete non-existing Android profiles
@@ -797,7 +797,7 @@ func (s *integrationMDMTestSuite) TestUpdateConfigProfile() {
 			identJSON = fmt.Sprintf(`"profile_identifier": %q, `, profileIdentifier)
 		}
 		wantJSON := fmt.Sprintf(
-			`{"profile_name": %q, %s"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`,
+			`{"profile_name": %q, %s"fleet_id": null, "fleet_name": null}`,
 			profileName, identJSON,
 		)
 		s.lastActivityOfTypeMatches(activityName, wantJSON, 0)
@@ -1839,6 +1839,221 @@ func (s *integrationMDMTestSuite) TestAppleConfigSecretVariablesUpload() {
 	}
 
 	s.testSecretVariablesUpload(newProfileBytes, getProfileContents, "mobileconfig", "darwin", true)
+}
+
+func (s *integrationMDMTestSuite) TestAppleProfileNameCantHoldSecretValue() {
+	t := s.T()
+	ctx := t.Context()
+
+	const value, crlfValue, xmlValue = "name-secret-value", "name-secret-line1\r\nname-secret-line2", "name-secret-a&b<c"
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", fleet.CreateSecretVariablesRequest{
+		SecretVariables: []fleet.SecretVariable{
+			{Name: "FLEET_SECRET_PROFILE_NAME", Value: value},
+			{Name: "FLEET_SECRET_PROFILE_NAME_CRLF", Value: crlfValue},
+			{Name: "FLEET_SECRET_PROFILE_NAME_XML", Value: xmlValue},
+		},
+	}, http.StatusOK, &fleet.CreateSecretVariablesResponse{})
+
+	profile := func(identifier, displayName string) []byte {
+		return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>%s
+	<key>PayloadIdentifier</key>
+	<string>%s</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>%s</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>`, displayName, identifier, uuid.NewString()))
+	}
+
+	for _, c := range []struct {
+		name        string
+		displayName string
+	}{
+		{"plain", `<string>$FLEET_SECRET_PROFILE_NAME</string>`},
+		{"comment", `<!-- x --><string>$FLEET_SECRET_PROFILE_NAME</string>`},
+		{"cdata", `<string><![CDATA[Name $FLEET_SECRET_PROFILE_NAME]]></string>`},
+		{"line breaks", `<!-- x --><string>${FLEET_SECRET_PROFILE_NAME_CRLF}</string>`},
+		// expansion XML-escapes the value, and CDATA keeps the escaped form as is
+		{"cdata with XML characters", `<string><![CDATA[$FLEET_SECRET_PROFILE_NAME_XML]]></string>`},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			const wantErr = "PayloadDisplayName cannot contain FLEET_SECRET variables"
+			checkRejected := func(res *http.Response) {
+				t.Helper()
+				errMsg := extractServerErrorText(res.Body)
+				assert.Contains(t, errMsg, wantErr)
+				assert.NotContains(t, errMsg, "name-secret")
+			}
+
+			body, headers := generateNewProfileMultipartRequest(t, "name.mobileconfig",
+				profile("com.example.name-secret."+c.name+".single", c.displayName), s.token, nil)
+			checkRejected(s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(),
+				http.StatusUnprocessableEntity, headers))
+
+			checkRejected(s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+				{Contents: profile("com.example.name-secret."+c.name+".batch", c.displayName)},
+			}}, http.StatusUnprocessableEntity))
+
+			checkRejected(s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
+				profile("com.example.name-secret."+c.name+".apple-batch", c.displayName),
+			}}, http.StatusUnprocessableEntity))
+		})
+	}
+
+	var leaked int
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &leaked,
+			`SELECT COUNT(*) FROM mdm_apple_configuration_profiles WHERE name LIKE '%name-secret-%'`)
+	})
+	require.Zero(t, leaked)
+}
+
+func (s *integrationMDMTestSuite) TestAppleProfileIdentifierCantHoldSecretValue() {
+	t := s.T()
+	ctx := t.Context()
+
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", fleet.CreateSecretVariablesRequest{
+		SecretVariables: []fleet.SecretVariable{{Name: "FLEET_SECRET_PROFILE_IDENTIFIER", Value: "identifier-secret-value"}},
+	}, http.StatusOK, &fleet.CreateSecretVariablesResponse{})
+
+	profile := func(name, identifier string) []byte {
+		return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>%s</string>
+	<key>PayloadIdentifier</key>%s
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>%s</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>`, name, identifier, uuid.NewString()))
+	}
+
+	for _, c := range []struct {
+		name       string
+		identifier string
+	}{
+		{"plain", `<string>com.example.$FLEET_SECRET_PROFILE_IDENTIFIER</string>`},
+		{"comment", `<!-- x --><string>$FLEET_SECRET_PROFILE_IDENTIFIER</string>`},
+		{"cdata", `<string><![CDATA[$FLEET_SECRET_PROFILE_IDENTIFIER]]></string>`},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			checkRejected := func(res *http.Response) {
+				t.Helper()
+				errMsg := extractServerErrorText(res.Body)
+				assert.Contains(t, errMsg, "PayloadIdentifier cannot contain FLEET_SECRET variables")
+				assert.NotContains(t, errMsg, "identifier-secret")
+			}
+
+			body, headers := generateNewProfileMultipartRequest(t, "identifier.mobileconfig",
+				profile("Identifier secret "+c.name+" single", c.identifier), s.token, nil)
+			checkRejected(s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(),
+				http.StatusUnprocessableEntity, headers))
+
+			batch := batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+				{Contents: profile("Identifier secret "+c.name+" batch", c.identifier)},
+			}}
+			checkRejected(s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batch, http.StatusUnprocessableEntity))
+			checkRejected(s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batch, http.StatusUnprocessableEntity, "dry_run", "true"))
+
+			checkRejected(s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
+				profile("Identifier secret "+c.name+" apple-batch", c.identifier),
+			}}, http.StatusUnprocessableEntity))
+		})
+	}
+
+	var leaked int
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &leaked,
+			`SELECT COUNT(*) FROM mdm_apple_configuration_profiles WHERE identifier LIKE '%identifier-secret-%'`)
+	})
+	require.Zero(t, leaked)
+}
+
+func (s *integrationMDMTestSuite) TestAppleDeclarationIdentifierCantHoldSecretValue() {
+	t := s.T()
+	ctx := t.Context()
+
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", fleet.CreateSecretVariablesRequest{
+		SecretVariables: []fleet.SecretVariable{
+			{Name: "FLEET_SECRET_DECL_IDENTIFIER", Value: "decl-identifier-secret-value"},
+			{Name: "FLEET_SECRET_DECL_PORT", Value: "443"},
+		},
+	}, http.StatusOK, &fleet.CreateSecretVariablesResponse{})
+
+	declaration := func(identifier, payload string) []byte {
+		return []byte(fmt.Sprintf(`{"Type": "com.apple.configuration.management.test", "Identifier": %q, "Payload": %s}`, identifier, payload))
+	}
+	activation := func(identifier, configIdentifier string) []byte {
+		return []byte(fmt.Sprintf(`{"Type": "com.apple.activation.simple", "Identifier": %q, "Payload": {"StandardConfigurations": [%q]}}`,
+			identifier, configIdentifier))
+	}
+	uploadProfile := func(content, act []byte) *http.Response {
+		var extraFiles map[string]multipartFile
+		if act != nil {
+			extraFiles = map[string]multipartFile{"activation": {fileName: "activation.json", content: act}}
+		}
+		body, headers := generateMultipartRequestWithFiles(t, "profile", "decl.json", content, s.token, nil, extraFiles)
+		return s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusUnprocessableEntity, headers)
+	}
+	checkRejected := func(t *testing.T, res *http.Response) {
+		t.Helper()
+		errMsg := extractServerErrorText(res.Body)
+		assert.Contains(t, errMsg, "Identifier cannot contain FLEET_SECRET variables")
+		assert.NotContains(t, errMsg, "decl-identifier-secret")
+	}
+
+	for _, c := range []struct {
+		name    string
+		payload string
+	}{
+		{"plain", `{"Echo": "foo"}`},
+		// raw JSON that only parses once its secrets are expanded
+		{"secret used as a number", `{"Echo": $FLEET_SECRET_DECL_PORT}`},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			decl := declaration("com.example.$FLEET_SECRET_DECL_IDENTIFIER", c.payload)
+			checkRejected(t, uploadProfile(decl, nil))
+			batch := batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{{Name: "decl-identifier-" + c.name, Contents: decl}}}
+			checkRejected(t, s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batch, http.StatusUnprocessableEntity))
+			if c.name == "plain" {
+				// the dry run checks it too, unless the raw JSON only parses once its secrets are expanded
+				checkRejected(t, s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batch, http.StatusUnprocessableEntity, "dry_run", "true"))
+			}
+		})
+	}
+
+	t.Run("activation", func(t *testing.T) {
+		const declIdent = "com.example.decl-identifier.activated"
+		act := activation("com.example.$FLEET_SECRET_DECL_IDENTIFIER", declIdent)
+		checkRejected(t, uploadProfile(declaration(declIdent, `{"Echo": "foo"}`), act))
+		checkRejected(t, s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+			{Name: "decl-identifier-activated", Contents: declaration(declIdent, `{"Echo": "foo"}`), Activation: act},
+		}}, http.StatusUnprocessableEntity))
+	})
+
+	var leaked int
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &leaked,
+			`SELECT COUNT(*) FROM mdm_apple_declarations WHERE identifier LIKE '%decl-identifier-secret%' OR raw_json LIKE '%decl-identifier-secret%'`)
+	})
+	require.Zero(t, leaked)
 }
 
 // TestWindowsConfigSecretVariablesUpload tests uploading Windows profiles with secrets via the /configuration_profiles endpoint

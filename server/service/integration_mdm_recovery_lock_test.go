@@ -20,7 +20,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -42,11 +41,11 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMRecoveryLockPassword() {
 	// enable recovery lock password
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "enable_recovery_lock_password": true }
+		"mdm": { "macos_recovery_lock_password_enabled": true }
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableRecoveryLockPassword.Value)
 	enabledActID := s.lastActivityMatches(fleet.ActivityTypeEnabledRecoveryLockPasswords{}.ActivityName(),
-		`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+		`{"fleet_id": null, "fleet_name": null}`, 0)
 
 	// check that it's returned by GET /config
 	acResp = appConfigResponse{}
@@ -66,7 +65,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMRecoveryLockPassword() {
 	// patch with same value should not create new activity
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "enable_recovery_lock_password": true }
+		"mdm": { "macos_recovery_lock_password_enabled": true }
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableRecoveryLockPassword.Value)
 	s.lastActivityMatches(fleet.ActivityTypeEnabledRecoveryLockPasswords{}.ActivityName(),
@@ -75,16 +74,113 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMRecoveryLockPassword() {
 	// disable recovery lock password
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "enable_recovery_lock_password": false }
+		"mdm": { "macos_recovery_lock_password_enabled": false }
   }`), http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.EnableRecoveryLockPassword.Value)
 	s.lastActivityMatches(fleet.ActivityTypeDisabledRecoveryLockPasswords{}.ActivityName(),
-		`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+		`{"fleet_id": null, "fleet_name": null}`, 0)
 
 	// check that it's returned by GET /config
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.EnableRecoveryLockPassword.Value)
+}
+
+func (s *integrationMDMTestSuite) TestRemovedPlatformSuffixKeys() {
+	t := s.T()
+
+	team, err := s.ds.NewTeam(t.Context(), &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	removedMsg := func(key string) string {
+		return `The "` + key + `" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+	}
+	recoveryLockMsg := removedMsg("enable_recovery_lock_password")
+	macOSMsg := removedMsg("require_all_software_macos")
+	windowsMsg := removedMsg("require_all_software_windows")
+
+	for _, tc := range []struct {
+		name, method, path, body, want string
+	}{
+		{"config recovery lock", "PATCH", "/api/latest/fleet/config", `{"mdm": {"enable_recovery_lock_password": true}}`, recoveryLockMsg},
+		{"config setup_experience", "PATCH", "/api/latest/fleet/config", `{"mdm": {"setup_experience": {"require_all_software_macos": true}}}`, macOSMsg},
+		{"config macos_setup", "PATCH", "/api/latest/fleet/config", `{"mdm": {"macos_setup": {"require_all_software_windows": true}}}`, windowsMsg},
+		{"config dry run", "PATCH", "/api/latest/fleet/config?dry_run=true", `{"mdm": {"enable_recovery_lock_password": true}}`, recoveryLockMsg},
+		{"config force", "PATCH", "/api/latest/fleet/config?force=true", `{"mdm": {"enable_recovery_lock_password": true}}`, recoveryLockMsg},
+		{
+			"config old and new together", "PATCH", "/api/latest/fleet/config",
+			`{"mdm": {"macos_recovery_lock_password_enabled": true, "enable_recovery_lock_password": true}}`, recoveryLockMsg,
+		},
+		{"fleet recovery lock", "PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), `{"mdm": {"enable_recovery_lock_password": "yes"}}`, recoveryLockMsg},
+		{"fleet macos_setup", "PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), `{"mdm": {"macos_setup": {"require_all_software_macos": true}}}`, macOSMsg},
+		{
+			"fleet differently cased", "PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID),
+			`{"MDM": {"Enable_Recovery_Lock_Password": true}}`, removedMsg("Enable_Recovery_Lock_Password"),
+		},
+		{
+			"config differently cased", "PATCH", "/api/latest/fleet/config",
+			`{"mdm": {"SETUP_EXPERIENCE": {"Require_All_Software_MacOS": true}}}`, removedMsg("Require_All_Software_MacOS"),
+		},
+		{
+			"fleet spec", "POST", "/api/latest/fleet/spec/fleets",
+			fmt.Sprintf(`{"specs": [{"name": %q, "mdm": {"setup_experience": {"require_all_software_windows": true}}}]}`, team.Name), windowsMsg,
+		},
+		{
+			"fleet spec force", "POST", "/api/latest/fleet/spec/fleets?force=true",
+			fmt.Sprintf(`{"specs": [{"name": %q, "mdm": {"enable_recovery_lock_password": true}}]}`, team.Name), recoveryLockMsg,
+		},
+		{"setup experience", "PATCH", "/api/latest/fleet/setup_experience", `{"require_all_software_macos": true}`, macOSMsg},
+		{"setup experience legacy path", "PATCH", "/api/latest/fleet/mdm/apple/setup", fmt.Sprintf(`{"fleet_id": %d, "require_all_software_windows": true}`, team.ID), windowsMsg},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			res := s.DoRaw(tc.method, tc.path, []byte(tc.body), http.StatusUnprocessableEntity)
+			require.Contains(t, extractServerErrorText(res.Body), tc.want)
+		})
+	}
+
+	// nothing was saved by the rejected requests
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.False(t, acResp.MDM.EnableRecoveryLockPassword.Value)
+	require.False(t, acResp.MDM.MacOSSetup.RequireAllSoftware)
+	require.False(t, acResp.MDM.MacOSSetup.RequireAllSoftwareWindows)
+	teamResp := getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.False(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
+	require.False(t, teamResp.Team.Config.MDM.MacOSSetup.RequireAllSoftware)
+	require.False(t, teamResp.Team.Config.MDM.MacOSSetup.RequireAllSoftwareWindows)
+
+	// nor does a rejected request clear a setting that is on
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": {"macos_recovery_lock_password_enabled": true}}`), http.StatusOK)
+	t.Cleanup(func() {
+		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": {"macos_recovery_lock_password_enabled": false}}`), http.StatusOK)
+	})
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), json.RawMessage(`{"mdm": {"macos_recovery_lock_password_enabled": true}}`),
+		http.StatusOK)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{"mdm": {"macos_recovery_lock_password_enabled": false, "enable_recovery_lock_password": false}}`),
+		http.StatusUnprocessableEntity)
+	s.DoRaw("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), []byte(`{"mdm": {"enable_recovery_lock_password": false}}`),
+		http.StatusUnprocessableEntity)
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.True(t, acResp.MDM.EnableRecoveryLockPassword.Value)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.True(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
+
+	// a value that only looks like an old name isn't rejected
+	s.DoRaw("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), []byte(`{"description": "enable_recovery_lock_password"}`), http.StatusOK)
+
+	// the old names don't come back in responses
+	res := s.DoRaw("GET", "/api/latest/fleet/config", nil, http.StatusOK)
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), `"macos_recovery_lock_password_enabled"`)
+	require.Contains(t, string(body), `"macos_require_all_software"`)
+	require.Contains(t, string(body), `"windows_require_all_software"`)
+	require.NotContains(t, string(body), `"require_all_software_macos"`)
+	require.NotContains(t, string(body), `"require_all_software_windows"`)
+	require.NotContains(t, string(body), `"enable_recovery_lock_password"`)
 }
 
 func (s *integrationMDMTestSuite) TestTeamsMDMRecoveryLockPassword() {
@@ -97,31 +193,31 @@ func (s *integrationMDMTestSuite) TestTeamsMDMRecoveryLockPassword() {
 		Description: "team for testing recovery lock password",
 	}
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", team, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
 	team = createTeamResp.Team
 
 	// enable recovery lock password via modify team endpoint
 	var modResp teamResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), fleet.TeamPayload{
 		MDM: &fleet.TeamPayloadMDM{
 			EnableRecoveryLockPassword: optjson.SetBool(true),
 		},
 	}, http.StatusOK, &modResp)
 	require.True(t, modResp.Team.Config.MDM.EnableRecoveryLockPassword)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledRecoveryLockPasswords{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, teamName, team.ID, teamName), 0)
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q}`, team.ID, teamName), 0)
 
 	// check it's returned by GET
 	teamResp := getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.True(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
 
 	// patch with same value should not create new activity
 	lastActID := s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledRecoveryLockPasswords{}.ActivityName(),
 		``, 0)
 	modResp = teamResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), fleet.TeamPayload{
 		MDM: &fleet.TeamPayloadMDM{
 			EnableRecoveryLockPassword: optjson.SetBool(true),
 		},
@@ -132,18 +228,18 @@ func (s *integrationMDMTestSuite) TestTeamsMDMRecoveryLockPassword() {
 
 	// disable recovery lock password
 	modResp = teamResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), fleet.TeamPayload{
 		MDM: &fleet.TeamPayloadMDM{
 			EnableRecoveryLockPassword: optjson.SetBool(false),
 		},
 	}, http.StatusOK, &modResp)
 	require.False(t, modResp.Team.Config.MDM.EnableRecoveryLockPassword)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledRecoveryLockPasswords{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, teamName, team.ID, teamName), 0)
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q}`, team.ID, teamName), 0)
 
 	// check it's returned by GET
 	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.False(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
 
 	// test via apply team specs
@@ -153,11 +249,11 @@ func (s *integrationMDMTestSuite) TestTeamsMDMRecoveryLockPassword() {
 			EnableRecoveryLockPassword: optjson.SetBool(true),
 		},
 	}}}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 
 	// check it's enabled
 	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.True(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
 
 	// apply with recovery lock password disabled
@@ -167,11 +263,11 @@ func (s *integrationMDMTestSuite) TestTeamsMDMRecoveryLockPassword() {
 			EnableRecoveryLockPassword: optjson.SetBool(false),
 		},
 	}}}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 
 	// check it's disabled
 	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.False(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
 
 	// create a new team via spec with recovery lock password enabled
@@ -183,13 +279,13 @@ func (s *integrationMDMTestSuite) TestTeamsMDMRecoveryLockPassword() {
 		},
 	}}}
 	var specResp applyTeamSpecsResponse
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &specResp)
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, &specResp)
 	newTeamID := specResp.TeamIDsByName[newTeamName]
 	require.NotZero(t, newTeamID)
 
 	// check the new team has recovery lock password enabled
 	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", newTeamID), nil, http.StatusOK, &teamResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", newTeamID), nil, http.StatusOK, &teamResp)
 	require.True(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
 }
 
@@ -300,12 +396,12 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 	t.Run("MDM on, feature enabled - full lifecycle", func(t *testing.T) {
 		// Enable recovery lock password
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": true},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": true},
 		}, http.StatusOK, &appConfigResponse{})
 
 		// Verify activity was created for enabling recovery lock
 		s.lastActivityMatches(fleet.ActivityTypeEnabledRecoveryLockPasswords{}.ActivityName(),
-			`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+			`{"fleet_id": null, "fleet_name": null}`, 0)
 
 		host, mdmClient := createAppleSiliconHost(t)
 
@@ -341,7 +437,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		// Disable recovery lock password
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": false},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
 		}, http.StatusOK, &appConfigResponse{})
 	})
 
@@ -351,7 +447,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 	t.Run("MDM command failure - host marked as failed", func(t *testing.T) {
 		// Enable recovery lock password
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": true},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": true},
 		}, http.StatusOK, &appConfigResponse{})
 
 		host, mdmClient := createAppleSiliconHost(t)
@@ -390,7 +486,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		// Disable recovery lock password
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": false},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
 		}, http.StatusOK, &appConfigResponse{})
 	})
 
@@ -400,7 +496,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 	t.Run("Get recovery lock password API", func(t *testing.T) {
 		// Enable recovery lock password
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": true},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": true},
 		}, http.StatusOK, &appConfigResponse{})
 
 		host, mdmClient := createAppleSiliconHost(t)
@@ -422,7 +518,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		// Disable recovery lock password
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": false},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
 		}, http.StatusOK, &appConfigResponse{})
 	})
 
@@ -432,7 +528,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 	t.Run("Rotate password API initiates rotation", func(t *testing.T) {
 		// Enable recovery lock password
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": true},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": true},
 		}, http.StatusOK, &appConfigResponse{})
 
 		host, mdmClient := createAppleSiliconHost(t)
@@ -473,7 +569,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		// Disable recovery lock password
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": false},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
 		}, http.StatusOK, &appConfigResponse{})
 	})
 
@@ -483,7 +579,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 	t.Run("Feature disabled with host in pending state", func(t *testing.T) {
 		// Enable recovery lock password
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": true},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": true},
 		}, http.StatusOK, &appConfigResponse{})
 
 		host, mdmClient := createAppleSiliconHost(t)
@@ -497,7 +593,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		// Disable the feature while host is in pending state
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": false},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
 		}, http.StatusOK, &appConfigResponse{})
 
 		// Run cron again - hosts in pending state are NOT claimed for clear
@@ -532,7 +628,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 	t.Run("Feature disabled with host in verified state", func(t *testing.T) {
 		// Enable recovery lock password
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": true},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": true},
 		}, http.StatusOK, &appConfigResponse{})
 
 		host, mdmClient := createAppleSiliconHost(t)
@@ -547,7 +643,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		// Disable the feature
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": false},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
 		}, http.StatusOK, &appConfigResponse{})
 
 		// Run cron - should claim host for clear
@@ -574,7 +670,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 	t.Run("Feature re-enabled with host in removing_enforcement state", func(t *testing.T) {
 		// Enable recovery lock password
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": true},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": true},
 		}, http.StatusOK, &appConfigResponse{})
 
 		host, mdmClient := createAppleSiliconHost(t)
@@ -585,7 +681,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		// Disable feature to trigger clear
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": false},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
 		}, http.StatusOK, &appConfigResponse{})
 		runRecoveryLockCron(t)
 
@@ -596,7 +692,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		// Re-enable feature before device acknowledges clear command
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": true},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": true},
 		}, http.StatusOK, &appConfigResponse{})
 
 		// Run cron - should restore host to verified state
@@ -609,7 +705,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		// Disable recovery lock password for cleanup
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": false},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
 		}, http.StatusOK, &appConfigResponse{})
 	})
 
@@ -619,7 +715,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 	t.Run("Non-Apple Silicon host should not get recovery lock", func(t *testing.T) {
 		// Enable recovery lock password
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": true},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": true},
 		}, http.StatusOK, &appConfigResponse{})
 
 		// Create Intel Mac host (NOT Apple Silicon)
@@ -637,7 +733,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		// Disable recovery lock password
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": false},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
 		}, http.StatusOK, &appConfigResponse{})
 	})
 
@@ -647,18 +743,18 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 	t.Run("Team-specific recovery lock password", func(t *testing.T) {
 		// Ensure global recovery lock is disabled
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": false},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
 		}, http.StatusOK, &appConfigResponse{})
 
 		// Create a team with recovery lock enabled
 		teamName := "RecoveryLockTeam-" + uuid.NewString()[:8]
 		var createTeamResp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: teamName}, http.StatusOK, &createTeamResp)
+		s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{Name: teamName}, http.StatusOK, &createTeamResp)
 		team := createTeamResp.Team
 
 		// Enable recovery lock for the team
 		var modTeamResp teamResponse
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), fleet.TeamPayload{
 			MDM: &fleet.TeamPayloadMDM{
 				EnableRecoveryLockPassword: optjson.SetBool(true),
 			},
@@ -667,7 +763,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		// Verify activity was created
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledRecoveryLockPasswords{}.ActivityName(),
-			fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, teamName, team.ID, teamName), 0)
+			fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q}`, team.ID, teamName), 0)
 
 		// Create host and add to team
 		host, mdmClient := createAppleSiliconHost(t)
@@ -697,7 +793,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		assert.Nil(t, rlpStatus2.Status, "host not in team should not get recovery lock")
 
 		// Disable team recovery lock
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), fleet.TeamPayload{
 			MDM: &fleet.TeamPayloadMDM{
 				EnableRecoveryLockPassword: optjson.SetBool(false),
 			},
@@ -710,7 +806,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 	t.Run("Failed host state persists error message", func(t *testing.T) {
 		// Enable recovery lock password
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": true},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": true},
 		}, http.StatusOK, &appConfigResponse{})
 
 		host, mdmClient := createAppleSiliconHost(t)
@@ -742,7 +838,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		// Disable recovery lock password
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": false},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
 		}, http.StatusOK, &appConfigResponse{})
 	})
 
@@ -752,7 +848,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 	t.Run("Get recovery lock password for non-Apple-Silicon host returns error", func(t *testing.T) {
 		// Enable recovery lock password
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": true},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": true},
 		}, http.StatusOK, &appConfigResponse{})
 
 		// Create Intel Mac host
@@ -768,7 +864,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		// Disable recovery lock password
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": false},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
 		}, http.StatusOK, &appConfigResponse{})
 	})
 
@@ -778,7 +874,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 	t.Run("Multiple hosts processed in batch", func(t *testing.T) {
 		// Enable recovery lock password
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": true},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": true},
 		}, http.StatusOK, &appConfigResponse{})
 
 		// Create multiple hosts
@@ -813,7 +909,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		// Disable recovery lock password
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": false},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
 		}, http.StatusOK, &appConfigResponse{})
 	})
 
@@ -823,7 +919,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 	t.Run("Viewing password sets auto_rotate_at", func(t *testing.T) {
 		// Enable recovery lock password
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": true},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": true},
 		}, http.StatusOK, &appConfigResponse{})
 
 		host, mdmClient := createAppleSiliconHost(t)
@@ -845,7 +941,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		// Disable recovery lock password
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": false},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
 		}, http.StatusOK, &appConfigResponse{})
 	})
 
@@ -855,7 +951,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 	t.Run("Auto-rotation triggers after password is viewed", func(t *testing.T) {
 		// Enable recovery lock password
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": true},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": true},
 		}, http.StatusOK, &appConfigResponse{})
 
 		host, mdmClient := createAppleSiliconHost(t)
@@ -903,7 +999,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		// Disable recovery lock password
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": false},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
 		}, http.StatusOK, &appConfigResponse{})
 	})
 
@@ -913,7 +1009,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 	t.Run("re-enrollment soft-deletes stored password and cron re-SETs", func(t *testing.T) {
 		// Enable recovery lock password.
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": true},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": true},
 		}, http.StatusOK, &appConfigResponse{})
 
 		host, mdmClient := createAppleSiliconHost(t)
@@ -971,7 +1067,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		// Disable recovery lock password.
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": false},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
 		}, http.StatusOK, &appConfigResponse{})
 	})
 
@@ -983,7 +1079,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 	// =========================================================================
 	t.Run("a password the device may hold survives a failed verify in the archive", func(t *testing.T) {
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": true},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": true},
 		}, http.StatusOK, &appConfigResponse{})
 
 		host, mdmClient := createAppleSiliconHost(t)
@@ -1025,7 +1121,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 			"a password the device acknowledged must stay recoverable after the verify fails")
 
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": false},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
 		}, http.StatusOK, &appConfigResponse{})
 	})
 
@@ -1036,7 +1132,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 	// =========================================================================
 	t.Run("verify acknowledged with PasswordVerified false fails the host", func(t *testing.T) {
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": true},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": true},
 		}, http.StatusOK, &appConfigResponse{})
 
 		host, mdmClient := createAppleSiliconHost(t)
@@ -1069,7 +1165,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		assert.False(t, rlpStatus.PasswordAvailable)
 
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": false},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
 		}, http.StatusOK, &appConfigResponse{})
 	})
 
@@ -1132,7 +1228,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 	t.Run("password mismatch after re-enrollment verifies the last known password", func(t *testing.T) {
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": true},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": true},
 		}, http.StatusOK, &appConfigResponse{})
 
 		host, mdmClient := createAppleSiliconHost(t)
@@ -1158,13 +1254,13 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		assert.Equal(t, knownPassword, *getPasswordResp.RecoveryLockPassword.Password)
 
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": false},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
 		}, http.StatusOK, &appConfigResponse{})
 	})
 
 	t.Run("password mismatch after re-enrollment fails when the last known password does not verify", func(t *testing.T) {
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": true},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": true},
 		}, http.StatusOK, &appConfigResponse{})
 
 		host, mdmClient := createAppleSiliconHost(t)
@@ -1185,7 +1281,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		assert.False(t, rlpStatus.PasswordAvailable)
 
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": false},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
 		}, http.StatusOK, &appConfigResponse{})
 	})
 
@@ -1194,7 +1290,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 	// =========================================================================
 	t.Run("admin API unenroll soft-deletes stored recovery lock password", func(t *testing.T) {
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": true},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": true},
 		}, http.StatusOK, &appConfigResponse{})
 
 		host, mdmClient := createAppleSiliconHost(t)
@@ -1224,7 +1320,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		assert.True(t, deleted, "row must be soft-deleted")
 
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": false},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
 		}, http.StatusOK, &appConfigResponse{})
 	})
 
@@ -1233,7 +1329,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 	// =========================================================================
 	t.Run("device CheckOut soft-deletes stored recovery lock password", func(t *testing.T) {
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": true},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": true},
 		}, http.StatusOK, &appConfigResponse{})
 
 		host, mdmClient := createAppleSiliconHost(t)
@@ -1255,7 +1351,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusNotFound)
 
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": false},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
 		}, http.StatusOK, &appConfigResponse{})
 	})
 
@@ -1265,7 +1361,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 	// =========================================================================
 	t.Run("cron sweep soft-deletes stored recovery lock password when host reports enrolled=false", func(t *testing.T) {
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": true},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": true},
 		}, http.StatusOK, &appConfigResponse{})
 
 		host, mdmClient := createAppleSiliconHost(t)
@@ -1319,13 +1415,13 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		assert.True(t, readDeleted(), "row still soft-deleted after a second cron tick")
 
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": false},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
 		}, http.StatusOK, &appConfigResponse{})
 	})
 
 	t.Run("a command whose host secret can't be expanded doesn't block the queue", func(t *testing.T) {
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": true},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": true},
 		}, http.StatusOK, &appConfigResponse{})
 
 		host, mdmClient := createAppleSiliconHost(t)
@@ -1380,378 +1476,12 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		require.Equal(t, fleet.MDMAppleStatusError, status)
 
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": false},
-		}, http.StatusOK, &appConfigResponse{})
-	})
-
-	// =========================================================================
-	// Test: a host with a SetRecoveryLock in flight when the server is upgraded from 4.92.
-	// 4.92 didn't track which command a row was waiting on, so those rows reach 4.93 with
-	// no command UUIDs. The device's acknowledgment must still complete set -> verify.
-	// =========================================================================
-
-	// Puts the host's row into the shape 4.92 left behind: still pending, with none of the
-	// command UUIDs 4.93 matches results against.
-	clearRecoveryLockCommandUUIDs := func(t *testing.T, hostUUID string) {
-		t.Helper()
-		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(t.Context(), `
-				UPDATE host_recovery_key_passwords
-				SET pending_set_command_uuid = NULL, pending_verify_command_uuid = NULL,
-					set_command_uuid = NULL, verify_command_uuid = NULL
-				WHERE host_uuid = ?`, hostUUID)
-			return err
-		})
-	}
-
-	runUpgradeRepair := func(t *testing.T) {
-		t.Helper()
-		tx, err := s.ds.TestPrimaryDB().BeginTx(t.Context(), nil)
-		require.NoError(t, err)
-		require.NoError(t, tables.Up_20261029055700(tx))
-		require.NoError(t, tx.Commit())
-	}
-
-	// Acknowledges the queued SetRecoveryLock and expects Fleet to follow with a verify,
-	// which the device confirms. Returns the acknowledged SetRecoveryLock.
-	ackInFlightSetThenVerify := func(t *testing.T, mdmClient *mdmtest.TestAppleMDMClient) *mdm.Command {
-		t.Helper()
-		setCmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, setCmd, "the SetRecoveryLock queued before the upgrade should still be delivered")
-		require.Equal(t, "SetRecoveryLock", setCmd.Command.RequestType)
-
-		verifyCmd, err := mdmClient.Acknowledge(setCmd.CommandUUID)
-		require.NoError(t, err)
-		if verifyCmd == nil {
-			verifyCmd, err = mdmClient.Idle()
-			require.NoError(t, err)
-		}
-		require.NotNil(t, verifyCmd, "acknowledging a SetRecoveryLock queued before the upgrade should enqueue VerifyRecoveryLock")
-		require.Equal(t, "VerifyRecoveryLock", verifyCmd.Command.RequestType)
-
-		_, err = mdmClient.AcknowledgeVerifyRecoveryLock(verifyCmd.CommandUUID, true)
-		require.NoError(t, err)
-		return setCmd
-	}
-
-	t.Run("rotation in flight at upgrade from 4.92 completes", func(t *testing.T) {
-		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": true},
-		}, http.StatusOK, &appConfigResponse{})
-
-		host, mdmClient := createAppleSiliconHost(t)
-		runRecoveryLockCron(t)
-		ackSetThenVerify(t, mdmClient)
-
-		var getPasswordResp getHostRecoveryLockPasswordResponse
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
-		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
-		require.NotNil(t, getPasswordResp.RecoveryLockPassword.Password)
-		// Copy the value: unmarshalling the next response reuses this pointer.
-		originalPassword := *getPasswordResp.RecoveryLockPassword.Password
-
-		// The rotation command is queued but the device is offline when the server upgrades.
-		// 4.92 queued the same rotation payload, so only the row needs to look like 4.92's.
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", host.ID), nil, http.StatusOK, &rotateRecoveryLockPasswordResponse{})
-		clearRecoveryLockCommandUUIDs(t, host.UUID)
-
-		runUpgradeRepair(t)
-
-		setCmd := ackInFlightSetThenVerify(t, mdmClient)
-
-		rlpStatus := getHostRecoveryLockStatus(host.ID)
-		require.NotNil(t, rlpStatus.Status)
-		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
-		assert.True(t, rlpStatus.PasswordAvailable)
-
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
-		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
-		require.NotNil(t, getPasswordResp.RecoveryLockPassword.Password)
-		newPassword := *getPasswordResp.RecoveryLockPassword.Password
-		assert.NotEqual(t, originalPassword, newPassword)
-		assert.Contains(t, string(setCmd.Raw), "<string>"+newPassword+"</string>", "the readable password must be the one the rotation set")
-
-		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": false},
-		}, http.StatusOK, &appConfigResponse{})
-	})
-
-	t.Run("first set in flight at upgrade from 4.92 completes", func(t *testing.T) {
-		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": true},
-		}, http.StatusOK, &appConfigResponse{})
-
-		host, mdmClient := createAppleSiliconHost(t)
-		runRecoveryLockCron(t)
-
-		var setCmdUUID string
-		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(t.Context(), q, &setCmdUUID,
-				`SELECT pending_set_command_uuid FROM host_recovery_key_passwords WHERE host_uuid = ?`, host.UUID)
-		})
-		require.NotEmpty(t, setCmdUUID)
-
-		// 4.92 stored a first password in the active slot and its queued command read it from
-		// there, where 4.93 stages it in the pending slot until the device verifies it.
-		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			if _, err := q.ExecContext(t.Context(), `
-				UPDATE host_recovery_key_passwords
-				SET encrypted_password = pending_encrypted_password, pending_encrypted_password = NULL
-				WHERE host_uuid = ?`, host.UUID); err != nil {
-				return err
-			}
-			_, err := q.ExecContext(t.Context(), `UPDATE nano_commands SET command = REPLACE(command, ?, ?) WHERE command_uuid = ?`,
-				"$"+fleet.HostSecretPrefix+fleet.HostSecretRecoveryLockPendingPassword,
-				"$"+fleet.HostSecretPrefix+fleet.HostSecretRecoveryLockPassword,
-				setCmdUUID)
-			return err
-		})
-		clearRecoveryLockCommandUUIDs(t, host.UUID)
-
-		runUpgradeRepair(t)
-
-		setCmd := ackInFlightSetThenVerify(t, mdmClient)
-		require.Equal(t, setCmdUUID, setCmd.CommandUUID)
-
-		rlpStatus := getHostRecoveryLockStatus(host.ID)
-		require.NotNil(t, rlpStatus.Status)
-		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
-		assert.True(t, rlpStatus.PasswordAvailable)
-
-		var getPasswordResp getHostRecoveryLockPasswordResponse
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
-		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
-		require.NotNil(t, getPasswordResp.RecoveryLockPassword.Password)
-		assert.Contains(t, string(setCmd.Raw), "<string>"+*getPasswordResp.RecoveryLockPassword.Password+"</string>",
-			"the readable password must be the one the first set delivered")
-
-		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": false},
-		}, http.StatusOK, &appConfigResponse{})
-	})
-
-	t.Run("rotation acknowledged before the repair from 4.92 completes", func(t *testing.T) {
-		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": true},
-		}, http.StatusOK, &appConfigResponse{})
-
-		host, mdmClient := createAppleSiliconHost(t)
-		runRecoveryLockCron(t)
-		ackSetThenVerify(t, mdmClient)
-
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", host.ID), nil, http.StatusOK, &rotateRecoveryLockPasswordResponse{})
-		clearRecoveryLockCommandUUIDs(t, host.UUID)
-
-		// The device applies the rotation, and the result is dropped: the host is stuck.
-		setCmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, setCmd)
-		require.Equal(t, "SetRecoveryLock", setCmd.Command.RequestType)
-		next, err := mdmClient.Acknowledge(setCmd.CommandUUID)
-		require.NoError(t, err)
-		require.Nil(t, next)
-		runRecoveryLockCron(t)
-		next, err = mdmClient.Idle()
-		require.NoError(t, err)
-		require.Nil(t, next)
-
-		runUpgradeRepair(t)
-		runRecoveryLockCron(t)
-
-		verifyCmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, verifyCmd, "the cron should send the verify the dropped result never triggered")
-		require.Equal(t, "VerifyRecoveryLock", verifyCmd.Command.RequestType)
-		_, err = mdmClient.AcknowledgeVerifyRecoveryLock(verifyCmd.CommandUUID, true)
-		require.NoError(t, err)
-
-		rlpStatus := getHostRecoveryLockStatus(host.ID)
-		require.NotNil(t, rlpStatus.Status)
-		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
-
-		var getPasswordResp getHostRecoveryLockPasswordResponse
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
-		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
-		require.NotNil(t, getPasswordResp.RecoveryLockPassword.Password)
-		assert.Contains(t, string(setCmd.Raw), "<string>"+*getPasswordResp.RecoveryLockPassword.Password+"</string>",
-			"the readable password must be the one the rotation set")
-
-		// Nothing is left for the cron to send.
-		runRecoveryLockCron(t)
-		next, err = mdmClient.Idle()
-		require.NoError(t, err)
-		require.Nil(t, next)
-
-		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": false},
-		}, http.StatusOK, &appConfigResponse{})
-	})
-
-	t.Run("rotation whose command was cleaned up before the repair from 4.92 completes", func(t *testing.T) {
-		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": true},
-		}, http.StatusOK, &appConfigResponse{})
-
-		host, mdmClient := createAppleSiliconHost(t)
-		runRecoveryLockCron(t)
-		ackSetThenVerify(t, mdmClient)
-
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", host.ID), nil, http.StatusOK, &rotateRecoveryLockPasswordResponse{})
-		clearRecoveryLockCommandUUIDs(t, host.UUID)
-
-		setCmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, setCmd)
-		require.Equal(t, "SetRecoveryLock", setCmd.Command.RequestType)
-		next, err := mdmClient.Acknowledge(setCmd.CommandUUID)
-		require.NoError(t, err)
-		require.Nil(t, next)
-
-		// The command cleanup deletes the acknowledged command, which no row references.
-		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(t.Context(), `DELETE FROM nano_commands WHERE command_uuid = ?`, setCmd.CommandUUID)
-			return err
-		})
-
-		runUpgradeRepair(t)
-		runRecoveryLockCron(t)
-
-		verifyCmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, verifyCmd, "the cron should verify the password the device may hold")
-		require.Equal(t, "VerifyRecoveryLock", verifyCmd.Command.RequestType)
-		_, err = mdmClient.AcknowledgeVerifyRecoveryLock(verifyCmd.CommandUUID, true)
-		require.NoError(t, err)
-
-		rlpStatus := getHostRecoveryLockStatus(host.ID)
-		require.NotNil(t, rlpStatus.Status)
-		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
-
-		var getPasswordResp getHostRecoveryLockPasswordResponse
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
-		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
-		require.NotNil(t, getPasswordResp.RecoveryLockPassword.Password)
-		assert.Contains(t, string(setCmd.Raw), "<string>"+*getPasswordResp.RecoveryLockPassword.Password+"</string>",
-			"the readable password must be the one the rotation set")
-
-		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": false},
-		}, http.StatusOK, &appConfigResponse{})
-	})
-
-	t.Run("first set in flight at upgrade from 4.92 is retried as a first set", func(t *testing.T) {
-		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": true},
-		}, http.StatusOK, &appConfigResponse{})
-
-		host, mdmClient := createAppleSiliconHost(t)
-		runRecoveryLockCron(t)
-
-		var setCmdUUID string
-		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(t.Context(), q, &setCmdUUID,
-				`SELECT pending_set_command_uuid FROM host_recovery_key_passwords WHERE host_uuid = ?`, host.UUID)
-		})
-		require.NotEmpty(t, setCmdUUID)
-		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			if _, err := q.ExecContext(t.Context(), `
-				UPDATE host_recovery_key_passwords
-				SET encrypted_password = pending_encrypted_password, pending_encrypted_password = NULL
-				WHERE host_uuid = ?`, host.UUID); err != nil {
-				return err
-			}
-			_, err := q.ExecContext(t.Context(), `UPDATE nano_commands SET command = REPLACE(command, ?, ?) WHERE command_uuid = ?`,
-				"$"+fleet.HostSecretPrefix+fleet.HostSecretRecoveryLockPendingPassword,
-				"$"+fleet.HostSecretPrefix+fleet.HostSecretRecoveryLockPassword,
-				setCmdUUID)
-			return err
-		})
-		clearRecoveryLockCommandUUIDs(t, host.UUID)
-
-		runUpgradeRepair(t)
-
-		// The device rejects the first attempt with a retryable error.
-		setCmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, setCmd)
-		require.Equal(t, setCmdUUID, setCmd.CommandUUID)
-		_, err = mdmClient.Err(setCmd.CommandUUID, []mdm.ErrorChain{
-			{ErrorCode: 12066, ErrorDomain: "MCMDMErrorDomain", LocalizedDescription: "Recovery lock password could not be set"},
-		})
-		require.NoError(t, err)
-
-		// The device holds no password, so the retry must not be a rotation from one.
-		runRecoveryLockCron(t)
-		retryCmd := ackSetThenVerify(t, mdmClient)
-		assert.NotContains(t, string(retryCmd.Raw), "CurrentPassword")
-
-		rlpStatus := getHostRecoveryLockStatus(host.ID)
-		require.NotNil(t, rlpStatus.Status)
-		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
-
-		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": false},
-		}, http.StatusOK, &appConfigResponse{})
-	})
-
-	t.Run("rotation failed before the upgrade from 4.92 can rotate again", func(t *testing.T) {
-		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": true},
-		}, http.StatusOK, &appConfigResponse{})
-
-		host, mdmClient := createAppleSiliconHost(t)
-		runRecoveryLockCron(t)
-		ackSetThenVerify(t, mdmClient)
-
-		var getPasswordResp getHostRecoveryLockPasswordResponse
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
-		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
-		require.NotNil(t, getPasswordResp.RecoveryLockPassword.Password)
-		originalPassword := *getPasswordResp.RecoveryLockPassword.Password
-
-		// 4.92 marked a rejected rotation failed and kept its new password in the pending slot.
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", host.ID), nil, http.StatusOK, &rotateRecoveryLockPasswordResponse{})
-		clearRecoveryLockCommandUUIDs(t, host.UUID)
-		rotateCmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, rotateCmd)
-		_, err = mdmClient.Err(rotateCmd.CommandUUID, []mdm.ErrorChain{
-			{ErrorCode: 12066, ErrorDomain: "MCMDMErrorDomain", LocalizedDescription: "Recovery lock password could not be set"},
-		})
-		require.NoError(t, err)
-		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(t.Context(), `UPDATE host_recovery_key_passwords SET status = 'failed' WHERE host_uuid = ?`, host.UUID)
-			return err
-		})
-
-		runUpgradeRepair(t)
-		runRecoveryLockCron(t)
-
-		verifyCmd, err := mdmClient.Idle()
-		require.NoError(t, err)
-		require.NotNil(t, verifyCmd, "the cron should verify the password the device kept")
-		require.Equal(t, "VerifyRecoveryLock", verifyCmd.Command.RequestType)
-		_, err = mdmClient.AcknowledgeVerifyRecoveryLock(verifyCmd.CommandUUID, true)
-		require.NoError(t, err)
-
-		rlpStatus := getHostRecoveryLockStatus(host.ID)
-		require.NotNil(t, rlpStatus.Status)
-		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
-		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
-		require.NotNil(t, getPasswordResp.RecoveryLockPassword.Password)
-		assert.Equal(t, originalPassword, *getPasswordResp.RecoveryLockPassword.Password)
-
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", host.ID), nil, http.StatusOK, &rotateRecoveryLockPasswordResponse{})
-
-		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-			"mdm": map[string]any{"enable_recovery_lock_password": false},
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
 		}, http.StatusOK, &appConfigResponse{})
 	})
 
 	// Final cleanup: ensure recovery lock is disabled
 	s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
-		"mdm": map[string]any{"enable_recovery_lock_password": false},
+		"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
 	}, http.StatusOK, &appConfigResponse{})
 }
