@@ -23,13 +23,23 @@ const baseClass = "hosts-enrolled-card";
 const BAR_COLOR = "var(--core-fleet-green)";
 const BAR_HOVER_COLOR = "var(--core-fleet-green-over)";
 
-// Match the checkerboard's cell-grid height so the bar plot lines up with the
-// cells next to it (excluding the checkerboard's x-axis labels and legend).
-// Values come from CheckerboardViz: cellH * numRows + CELL_GAP * (numRows - 1)
-// for the 30-day view (numRows = 8).
-const CHART_HEIGHT_NARROW = 190; // 19 * 8 + 2 * 7
-const CHART_HEIGHT_WIDE = 242; // 28.5 * 8 + 2 * 7
-const WIDE_THRESHOLD = 700; // mirror CheckerboardViz
+// Mirror the sibling checkerboard's cell-grid height so the bar plot lines up
+// with the cells next to it. Formula, constants, and 30-day column count come
+// from CheckerboardViz.tsx; keep them in sync if they change there. The
+// sibling's y-axis gutter (Y_AXIS_WIDTH, 40) is subtracted from our container
+// width to recover its scroll-wrapper width, since both cards are equal-width
+// columns in __charts-row.
+const CELL_W = 16.75;
+const CELL_H = 19;
+const CELL_MAX_SCALE = 2;
+const CELL_GAP = 2;
+const CHECKERBOARD_Y_AXIS_WIDTH = 40;
+const CHECKERBOARD_NUM_COLS = 30;
+const CHECKERBOARD_NUM_ROWS = 8;
+
+// ChromeOS is the widest y-axis label and clips at 12px medium weight without
+// the wider gutter. Width concern only, unrelated to cell-grid alignment.
+const WIDE_YAXIS_THRESHOLD = 700;
 
 export interface IHostPlatformCounts {
   darwin: number;
@@ -218,28 +228,37 @@ const HostsEnrolledCard = ({
     );
   };
 
-  // Mirror CheckerboardViz's wide-mode detection so the bar chart's plot area
-  // matches the cell grid height in both layouts.
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isWide, setIsWide] = useState(false);
+  const [containerWidth, setContainerWidth] = useState(0);
 
   useEffect(() => {
     const node = containerRef.current;
     if (!node) return undefined;
-    setIsWide(node.getBoundingClientRect().width >= WIDE_THRESHOLD);
+    setContainerWidth(node.getBoundingClientRect().width);
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
-      if (entry) setIsWide(entry.contentRect.width >= WIDE_THRESHOLD);
+      if (entry) setContainerWidth(entry.contentRect.width);
     });
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
 
-  const chartHeight = isWide ? CHART_HEIGHT_WIDE : CHART_HEIGHT_NARROW;
+  // Reproduce the sibling checkerboard's cellW clamp on its scroll-wrapper
+  // width (our container width minus its y-axis gutter), then scale cellH
+  // proportionally and sum up the 8 rows + 7 gaps.
+  const wrapperWidth = Math.max(0, containerWidth - CHECKERBOARD_Y_AXIS_WIDTH);
+  const idealCellW =
+    wrapperWidth > 0
+      ? (wrapperWidth - CELL_GAP * (CHECKERBOARD_NUM_COLS - 1)) /
+        CHECKERBOARD_NUM_COLS
+      : CELL_W;
+  const cellW = Math.max(CELL_W, Math.min(idealCellW, CELL_W * CELL_MAX_SCALE));
+  const cellH = cellW * (CELL_H / CELL_W);
+  const chartHeight =
+    cellH * CHECKERBOARD_NUM_ROWS + CELL_GAP * (CHECKERBOARD_NUM_ROWS - 1);
+
   const tickFontSize = 12;
-  // ChromeOS is the widest label and clips without this margin at 12px medium
-  // weight.
-  const yAxisWidth = isWide ? 90 : 84;
+  const yAxisWidth = containerWidth >= WIDE_YAXIS_THRESHOLD ? 90 : 84;
 
   return (
     <div className={baseClass} ref={containerRef}>
