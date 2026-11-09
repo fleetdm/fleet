@@ -40,7 +40,7 @@ describe("TooltipWrapper", () => {
     await waitFor(() => {
       expect(
         screen.getByTestId("external-link-icon").querySelector("svg")
-      ).toHaveAttribute("width", "12");
+      ).toHaveAttribute("viewBox", "0 0 12 12");
     });
   });
 
