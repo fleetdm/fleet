@@ -1408,6 +1408,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 			logFn("[!] 'controls.setup_experience.software / controls.macos_setup.software' is deprecated; set 'setup_experience: true' on individual items under 'software.packages', 'software.app_store_apps', or 'software.fleet_maintained_apps' instead.\n")
 		}
 		if result.Controls.MacOSSetup.Script.Set {
+			logFn("[!] The setup experience script (controls.setup_experience.macos_script) is deprecated for fleet %q. Use a script-only package instead.\n", *result.TeamName)
 			startupScriptPath := resolveApplyRelativePath(controlsDir, result.Controls.MacOSSetup.Script.Value)
 			fileBytes, err := os.ReadFile(startupScriptPath)
 			if err != nil {
@@ -2288,11 +2289,13 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				if slugIsKnownFMA && !strings.HasSuffix(item.FleetMaintainedAppSlug, "/darwin") {
 					if item.NotifyBeforePatching {
 						multiError = multierror.Append(multiError, fmt.Errorf(
-							"Couldn't apply policy %q: %w", item.Name, fleet.ErrPolicyNotifyBeforePatchingRequiresMacOS))
+							"Couldn't apply policy %q: %w", item.Name, fleet.ErrPolicyNotifyBeforePatchingRequiresMacOS,
+						))
 					}
 					if item.PatchDeadline {
 						multiError = multierror.Append(multiError, fmt.Errorf(
-							"Couldn't apply policy %q: %w", item.Name, fleet.ErrPolicyPatchDeadlineRequiresMacOS))
+							"Couldn't apply policy %q: %w", item.Name, fleet.ErrPolicyPatchDeadlineRequiresMacOS,
+						))
 					}
 				}
 				patchOption := "patch_when_closed"
@@ -2306,7 +2309,8 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				// force it on; auto-set when omitted.
 				if item.ContinuousAutomations.Valid && !item.ContinuousAutomations.Value {
 					multiError = multierror.Append(multiError, fmt.Errorf(
-						`Couldn't apply policy %q: If %q is true, "continuous_automations_enabled" can't be set to false.`, item.Name, patchOption))
+						`Couldn't apply policy %q: If %q is true, "continuous_automations_enabled" can't be set to false.`, item.Name, patchOption,
+					))
 				} else {
 					item.ContinuousAutomationsEnabled = true
 				}
@@ -2314,7 +2318,8 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				if fma, ok := fmasBySlug[item.FleetMaintainedAppSlug]; ok && fma.PreInstallQuery.Path != "" {
 					multiError = multierror.Append(multiError, fmt.Errorf(
 						`Couldn't apply policy %q: "pre_install_query" can't be set on Fleet-maintained app %q when %q is true; Fleet manages this query.`,
-						item.Name, item.FleetMaintainedAppSlug, patchOption))
+						item.Name, item.FleetMaintainedAppSlug, patchOption,
+					))
 				}
 			}
 		}

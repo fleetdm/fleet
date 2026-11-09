@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -177,6 +178,8 @@ func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, 
 		return ctxerr.Wrap(ctx, err, "create setup experience script")
 	}
 
+	svc.logger.WarnContext(ctx, "The setup experience script is deprecated. Use a script-only package instead.", "log_topic", logging.DeprecatedFieldTopic)
+
 	if !changed {
 		return nil
 	}
@@ -200,6 +203,8 @@ func (svc *Service) DeleteSetupExperienceScript(ctx context.Context, teamID *uin
 	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
+
+	svc.logger.WarnContext(ctx, "The setup experience script is deprecated. Use a script-only package instead.", "log_topic", logging.DeprecatedFieldTopic)
 
 	// Load the script first so we can skip the activity when there is nothing to delete (GitOps
 	// clears a script on every apply even when none was set) and so we can include its name.
