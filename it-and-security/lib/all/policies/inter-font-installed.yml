@@ -1,0 +1,50 @@
+- name: Inter font installed (macOS)
+  query: |
+    SELECT 1 WHERE
+      EXISTS (SELECT 1 FROM hash WHERE path = '/Library/Fonts/Inter-VariableFont_opsz,wght.ttf'
+        AND sha256 = '29160a80ff49ddcab2c97711247e08b1fab27a484a329ce8b813d820dc559031')
+      AND EXISTS (SELECT 1 FROM hash WHERE path = '/Library/Fonts/Inter-Italic-VariableFont_opsz,wght.ttf'
+        AND sha256 = 'acd98e64795781b2058f07b18475e0ecee2a0fe2b42a49e2f9e37d0d6bf66ce6');
+  critical: false
+  description: Checks that Fleet's brand font, Inter, is installed for all users.
+  resolution: "Fleet installs Inter automatically when this policy fails. If you are still failing after Refetch completes, drop a note in #help-it."
+  platform: darwin
+  calendar_events_enabled: false
+  run_script:
+    path: ../scripts/install-inter-font.sh
+
+- name: Inter font installed (Linux)
+  query: |
+    SELECT 1 WHERE
+      EXISTS (SELECT 1 FROM hash WHERE path = '/usr/local/share/fonts/inter/Inter-VariableFont_opsz,wght.ttf'
+        AND sha256 = '29160a80ff49ddcab2c97711247e08b1fab27a484a329ce8b813d820dc559031')
+      AND EXISTS (SELECT 1 FROM hash WHERE path = '/usr/local/share/fonts/inter/Inter-Italic-VariableFont_opsz,wght.ttf'
+        AND sha256 = 'acd98e64795781b2058f07b18475e0ecee2a0fe2b42a49e2f9e37d0d6bf66ce6');
+  critical: false
+  description: Checks that Fleet's brand font, Inter, is installed for all users.
+  resolution: "Fleet installs Inter automatically when this policy fails. If you are still failing after Refetch completes, drop a note in #help-it."
+  platform: linux
+  calendar_events_enabled: false
+  run_script:
+    path: ../scripts/install-inter-font.sh
+
+- name: Inter font installed (Windows)
+  query: |
+    SELECT 1 WHERE
+      EXISTS (SELECT 1 FROM hash WHERE path = 'C:\Windows\Fonts\Inter-VariableFont_opsz,wght.ttf'
+        AND sha256 = '29160a80ff49ddcab2c97711247e08b1fab27a484a329ce8b813d820dc559031')
+      AND EXISTS (SELECT 1 FROM hash WHERE path = 'C:\Windows\Fonts\Inter-Italic-VariableFont_opsz,wght.ttf'
+        AND sha256 = 'acd98e64795781b2058f07b18475e0ecee2a0fe2b42a49e2f9e37d0d6bf66ce6')
+      AND EXISTS (SELECT 1 FROM registry
+        WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts\Inter Regular (TrueType)'
+          AND data = 'Inter-VariableFont_opsz,wght.ttf')
+      AND EXISTS (SELECT 1 FROM registry
+        WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts\Inter Italic (TrueType)'
+          AND data = 'Inter-Italic-VariableFont_opsz,wght.ttf');
+  critical: false
+  description: Checks that Fleet's brand font, Inter, is installed for all users.
+  resolution: "Fleet installs Inter automatically when this policy fails. If you are still failing after Refetch completes, drop a note in #help-it. Apps that were open during the install see the font after you sign out and back in."
+  platform: windows
+  calendar_events_enabled: false
+  run_script:
+    path: ../scripts/install-inter-font.ps1
