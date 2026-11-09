@@ -89,7 +89,7 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
-	log.Info().Str("program", path).Msg("running command")
+	log.Info().Str("program", path).Str("user", opts.user).Msg("running command")
 
 	if err := cmd.Start(); err != nil {
 		return "", fmt.Errorf("open path %q: %w", path, err)
