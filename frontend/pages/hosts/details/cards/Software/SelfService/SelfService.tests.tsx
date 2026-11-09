@@ -333,14 +333,22 @@ describe("SelfService", () => {
 
     await screen.findAllByText("mock software 1.app");
 
-    // TooltipTruncatedTextCell renders each value twice (visible + tooltip div);
-    // available version also appears in the update card above the table, which
-    // fetches on its own timeline. Wait for its third occurrence instead of
-    // reading synchronously the moment the software list resolves.
-    await waitFor(() => {
-      expect(screen.getAllByText("1.1.0")).toHaveLength(3);
+    // The update card above the table fetches on its own timeline. Scope the
+    // "available version" check to the card rather than counting global
+    // "1.1.0" occurrences across tooltip-duplicated row cells.
+    const updatesHeading = await screen.findByRole("heading", {
+      name: "Updates",
     });
+    const updatesCard = updatesHeading.closest<HTMLElement>(".updates-card");
+    if (!updatesCard) {
+      throw new Error("Updates card container not found");
+    }
+    await within(updatesCard).findByText("1.1.0");
+
+    // Both versions also appear in the software row
+    // (TooltipTruncatedTextCell renders each value twice).
     expect(screen.getAllByText("1.0.0")).toHaveLength(2);
+    expect(screen.getAllByText("1.1.0").length).toBeGreaterThanOrEqual(2);
   });
 
   it("renders the self-service list for BYOD Account-Driven User Enrollment on mobile view", async () => {
