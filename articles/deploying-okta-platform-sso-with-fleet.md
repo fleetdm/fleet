@@ -40,7 +40,7 @@ First, you'll need to set up the Platform Single Sign-on app in your Okta Admin 
 
 **Note:** If you have devices running macOS 14 Sonoma or later, you must configure Device Access SCEP certificates before proceeding with Platform SSO deployment.
 
-Okta supports two SCEP challenge types: **dynamic** and **static**. When using the dynamic option with Fleet as a SCEP proxy, Fleet automatically renews certificates 30 days before expiration (or at half the validity period if ≤30 days) when `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` is included in the OU field of your certificate profile. 
+Okta supports two SCEP challenge types: **dynamic** and **static**. When using the dynamic option with Fleet as a SCEP proxy, Fleet automatically renews certificates 30 days before expiration (or at half the validity period if ≤30 days) when `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` is included in the CN field of your certificate profile. 
 
 Static challenges require manual redeployment before expiry. See [Okta's Device Access certificates documentation](https://help.okta.com/oie/en-us/content/topics/oda/oda-as-scep.htm) for a full overview.
 
@@ -94,13 +94,13 @@ Open [iMazing Profile Editor](https://imazing.com/profile-editor), create a new 
 **Under SCEP:**
 - **URL:** `$FLEET_VAR_NDES_SCEP_PROXY_URL`
 - **Challenge:** `$FLEET_VAR_NDES_SCEP_CHALLENGE`
-- **Subject:** `CN=managementAttestation %HardwareUUID%`, plus an OU field with value `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`
+- **Subject:** `CN=$FLEET_VAR_CERTIFICATE_RENEWAL_ID managementAttestation %HardwareUUID%`
 - **Key Size:** 2048
 - **Key Usage:** Signing
 - **Key is Extractable:** Unchecked
 - **Allow All Apps Access:** Checked
 
-**Important:** The Subject must include both the CN and an OU field with `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`. In raw XML, the Subject array should look like this:
+**Important:** Okta drops the Subject OU from the certificates it issues, so `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` must be in the CN, not the OU. Use it only once in the profile. In raw XML, the Subject array should look like this:
 
 ```xml
 <key>Subject</key>
@@ -108,13 +108,7 @@ Open [iMazing Profile Editor](https://imazing.com/profile-editor), create a new 
     <array>
         <array>
             <string>CN</string>
-            <string>managementAttestation %HardwareUUID%</string>
-        </array>
-    </array>
-    <array>
-        <array>
-            <string>OU</string>
-            <string>$FLEET_VAR_CERTIFICATE_RENEWAL_ID</string>
+            <string>$FLEET_VAR_CERTIFICATE_RENEWAL_ID managementAttestation %HardwareUUID%</string>
         </array>
     </array>
 </array>
@@ -122,7 +116,7 @@ Open [iMazing Profile Editor](https://imazing.com/profile-editor), create a new 
 
 Fleet replaces `$FLEET_VAR_NDES_SCEP_PROXY_URL`, `$FLEET_VAR_NDES_SCEP_CHALLENGE`, and `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` with the appropriate values each time the profile is delivered to a host. Each host receives a unique, short-lived challenge rather than a shared static secret.
 
-> **Important:** Fleet automatically renews this certificate when `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` is in the OU field (already included above). Use the osquery policy below to monitor certificate expiry across your fleet.
+> **Important:** Fleet automatically renews this certificate when `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` is in the CN field (already included above). Use the osquery policy below to monitor certificate expiry across your fleet.
 
 ```sql
 -- Returns 1 if all Okta certs are valid for >30 days (PASSING)
