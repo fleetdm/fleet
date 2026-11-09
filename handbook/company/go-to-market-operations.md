@@ -490,6 +490,7 @@ The goal of a slide deck is not necessarily to walk every customer through it.  
 - [Leave behind (PDF)](https://fleetdm.com/pdfs/fleet-ai-device-management-patching-and-governance-for-every-os.pdf)
 - [Fleet Fast Track (PDF)](https://fleetdm.com/pdfs/fleet-fast-track.pdf)
 - [Fleet for partners (PDF)](https://docs.google.com/presentation/d/1iNvn5EYnkklKxguYzrOh6ZNvZee53OqAlF3rc_Da_Us/edit?slide=id.g3871afd58d8_0_0#slide=id.g3871afd58d8_0_0)
+- [Zero touch, $0 (PDF)](https://drive.google.com/file/d/1Vm2e1JXxe1MNrxm08YSeikFuYgq2mnTC/view)
 
 
 ## Go-To-Market runbook
