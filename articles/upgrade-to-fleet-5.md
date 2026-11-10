@@ -546,7 +546,7 @@ GitHub issue: [#53145](https://github.com/fleetdm/fleet/issues/53145)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| GitOps users can get a host's `id` from `GET /hosts/identifier/:identifier` | GitOps users get a 403 from [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) when `:id` is an identifier, and can't look up hosts by identifier on any other endpoint |
+| GitOps users can get a host's `id` from `GET /hosts/identifier/:identifier` | GitOps users get a 403 from [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host), and can't look up hosts by identifier on any other endpoint |
 
 #### What to do
 
@@ -560,7 +560,7 @@ GitHub issue: [#57406](https://github.com/fleetdm/fleet/issues/57406)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| GitOps users can delete hosts | GitOps users get a 403 from [Delete host](https://fleetdm.com/docs/rest-api/rest-api#delete-host) and [Batch-delete hosts](https://fleetdm.com/docs/rest-api/rest-api#batch-delete-hosts) |
+| Users with only the GitOps role get a 403 from [Delete host](https://fleetdm.com/docs/rest-api/rest-api#delete-host) and [Batch-delete hosts](https://fleetdm.com/docs/rest-api/rest-api#batch-delete-hosts). A user with the GitOps role on one fleet and another role on a different fleet can delete hosts in their GitOps fleet. | GitOps users get a 403 from both endpoints for hosts in their GitOps fleets, even if they have another role on a different fleet |
 
 #### What to do
 
