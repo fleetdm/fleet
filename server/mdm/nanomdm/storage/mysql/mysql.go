@@ -27,22 +27,24 @@ var Schema string
 var ErrNoCert = errors.New("no certificate in MDM Request")
 
 type MySQLStorage struct {
-	logger        *slog.Logger
-	db            *sql.DB
-	rm            bool
-	asyncLastSeen *asyncLastSeen
-	reader        func(ctx context.Context) fleet.DBReader
+	logger           *slog.Logger
+	db               *sql.DB
+	rm               bool
+	asyncLastSeen    *asyncLastSeen
+	reader           func(ctx context.Context) fleet.DBReader
+	serverPrivateKey string
 }
 
 type config struct {
-	driver        string
-	dsn           string
-	db            *sql.DB
-	logger        *slog.Logger
-	rm            bool
-	asyncCap      int
-	asyncInterval time.Duration
-	reader        func(ctx context.Context) fleet.DBReader
+	driver           string
+	dsn              string
+	db               *sql.DB
+	logger           *slog.Logger
+	rm               bool
+	asyncCap         int
+	asyncInterval    time.Duration
+	reader           func(ctx context.Context) fleet.DBReader
+	serverPrivateKey string
 }
 
 type Option func(*config)
@@ -90,6 +92,12 @@ func WithAsyncLastSeen(capacity int, interval time.Duration) Option {
 	}
 }
 
+func WithServerPrivateKey(key string) Option {
+	return func(c *config) {
+		c.serverPrivateKey = key
+	}
+}
+
 func New(opts ...Option) (*MySQLStorage, error) {
 	const (
 		asyncLastSeenFlushInterval = 2 * time.Second
@@ -111,7 +119,7 @@ func New(opts ...Option) (*MySQLStorage, error) {
 		return nil, err
 	}
 
-	mysqlStore := &MySQLStorage{db: cfg.db, logger: cfg.logger, rm: cfg.rm}
+	mysqlStore := &MySQLStorage{db: cfg.db, logger: cfg.logger, rm: cfg.rm, serverPrivateKey: cfg.serverPrivateKey}
 	if cfg.reader == nil {
 		mysqlStore.reader = func(ctx context.Context) fleet.DBReader {
 			return sqlx.NewDb(mysqlStore.db, "")
@@ -180,8 +188,16 @@ func (s *MySQLStorage) storeDeviceTokenUpdate(r *mdm.Request, msg *mdm.TokenUpda
 	args := []interface{}{msg.Raw}
 	// separately store the Unlock Token per MDM spec
 	if len(msg.UnlockToken) > 0 {
+		tokenData := msg.UnlockToken
+		if s.serverPrivateKey != "" {
+			encrypted, err := encrypt(tokenData, s.serverPrivateKey)
+			if err != nil {
+				return fmt.Errorf("encrypt unlock token: %w", err)
+			}
+			tokenData = encrypted
+		}
 		query += `, unlock_token = ?, unlock_token_at = CURRENT_TIMESTAMP`
-		args = append(args, msg.UnlockToken)
+		args = append(args, tokenData)
 	}
 	query += ` WHERE id = ? LIMIT 1;`
 	args = append(args, r.ID)

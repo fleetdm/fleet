@@ -2594,7 +2594,7 @@ CREATE TABLE `microsoft_compliance_partner_host_statuses` (
 CREATE TABLE `microsoft_compliance_partner_integrations` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `tenant_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `proxy_server_secret` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `proxy_server_secret` blob NOT NULL,
   `setup_done` tinyint(1) NOT NULL DEFAULT '0',
   `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
@@ -2726,7 +2726,7 @@ CREATE TABLE `nano_devices` (
   `authenticate_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `token_update` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `token_update_at` timestamp NULL DEFAULT NULL,
-  `bootstrap_token_b64` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `bootstrap_token_b64` mediumblob,
   `bootstrap_token_at` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -2741,7 +2741,7 @@ CREATE TABLE `nano_devices` (
   CONSTRAINT `nano_devices_chk_3` CHECK (((`unlock_token` is null) or (length(`unlock_token`) > 0))),
   CONSTRAINT `nano_devices_chk_4` CHECK ((`authenticate` <> _utf8mb4'')),
   CONSTRAINT `nano_devices_chk_5` CHECK (((`token_update` is null) or (`token_update` <> _utf8mb4''))),
-  CONSTRAINT `nano_devices_chk_6` CHECK (((`bootstrap_token_b64` is null) or (`bootstrap_token_b64` <> _utf8mb4'')))
+  CONSTRAINT `nano_devices_chk_6` CHECK (((`bootstrap_token_b64` is null) or (`bootstrap_token_b64` <> '')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

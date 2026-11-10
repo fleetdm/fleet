@@ -14,6 +14,10 @@ import (
 func (ds *Datastore) ConditionalAccessMicrosoftCreateIntegration(
 	ctx context.Context, tenantID string, proxyServerSecret string,
 ) error {
+	encryptedSecret, err := encrypt([]byte(proxyServerSecret), ds.serverPrivateKey)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "encrypt proxy server secret")
+	}
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		// Currently only one global integration is supported, thus we need to delete the existing
 		// one before creating a new one.
@@ -24,7 +28,7 @@ func (ds *Datastore) ConditionalAccessMicrosoftCreateIntegration(
 		}
 		if _, err := tx.ExecContext(ctx,
 			`INSERT INTO microsoft_compliance_partner_integrations (tenant_id, proxy_server_secret) VALUES (?, ?);`,
-			tenantID, proxyServerSecret,
+			tenantID, encryptedSecret,
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting new microsoft_compliance_partner_integrations")
 		}
@@ -43,13 +47,17 @@ func (ds *Datastore) ConditionalAccessMicrosoftMarkSetupDone(ctx context.Context
 }
 
 func (ds *Datastore) ConditionalAccessMicrosoftGet(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
-	return getConditionalAccessMicrosoft(ctx, ds.reader(ctx))
+	return getConditionalAccessMicrosoft(ctx, ds.reader(ctx), ds.serverPrivateKey)
 }
 
-func getConditionalAccessMicrosoft(ctx context.Context, q sqlx.QueryerContext) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
-	var integration fleet.ConditionalAccessMicrosoftIntegration
+func getConditionalAccessMicrosoft(ctx context.Context, q sqlx.QueryerContext, serverPrivateKey string) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+	var row struct {
+		TenantID          string `db:"tenant_id"`
+		ProxyServerSecret []byte `db:"proxy_server_secret"`
+		SetupDone         bool   `db:"setup_done"`
+	}
 	err := sqlx.GetContext(
-		ctx, q, &integration,
+		ctx, q, &row,
 		// Currently only one global integration is supported.
 		`SELECT tenant_id, proxy_server_secret, setup_done FROM microsoft_compliance_partner_integrations;`,
 	)
@@ -59,7 +67,12 @@ func getConditionalAccessMicrosoft(ctx context.Context, q sqlx.QueryerContext) (
 		}
 		return nil, ctxerr.Wrap(ctx, err, "getting microsoft_compliance_partner_integrations")
 	}
-	return &integration, nil
+	secret := decryptOrPassthrough(row.ProxyServerSecret, serverPrivateKey)
+	return &fleet.ConditionalAccessMicrosoftIntegration{
+		TenantID:          row.TenantID,
+		ProxyServerSecret: string(secret),
+		SetupDone:         row.SetupDone,
+	}, nil
 }
 
 func (ds *Datastore) ConditionalAccessMicrosoftDelete(ctx context.Context) error {

@@ -6705,6 +6705,19 @@ func decrypt(encrypted []byte, privateKey string) ([]byte, error) {
 	return decrypted, nil
 }
 
+// decryptOrPassthrough attempts to decrypt the data. If decryption fails
+// (e.g. because the data is legacy cleartext), it returns the data as-is.
+func decryptOrPassthrough(data []byte, privateKey string) []byte {
+	if len(privateKey) == 0 || len(data) == 0 {
+		return data
+	}
+	decrypted, err := decrypt(data, privateKey)
+	if err != nil {
+		return data
+	}
+	return decrypted
+}
+
 func (ds *Datastore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset, tx sqlx.ExtContext) error {
 	insertFunc := func(tx sqlx.ExtContext) error {
 		if err := insertMDMConfigAssets(ctx, tx, assets, ds.serverPrivateKey); err != nil {
@@ -8130,15 +8143,36 @@ func (ds *Datastore) GetNanoMDMEnrollmentDetails(ctx context.Context, hostUUID s
 	  INNER JOIN nano_enrollments ne ON ne.id = nd.id
 	  LEFT JOIN nano_seen_times nst ON nst.id = ne.id
 	WHERE ne.type IN ('Device', 'User Enrollment (Device)') AND nd.id = ?`
-	var res fleet.NanoMDMEnrollmentDetails
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &res, query, hostUUID)
+	var row struct {
+		AuthenticateAt         *time.Time `db:"authenticate_at"`
+		LastSeenAt             *time.Time `db:"last_seen_at"`
+		HardwareAttested       bool       `db:"hardware_attested"`
+		UnlockToken            []byte     `db:"unlock_token"`
+		BootstrapTokenEscrowed bool       `db:"bootstrap_token_escrowed"`
+		EnrollmentType         string     `db:"enrollment_type"`
+		Enabled                bool       `db:"enabled"`
+	}
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &row, query, hostUUID)
 	if err == sql.ErrNoRows {
 		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get mdm enrollment times")
 	}
-	return &res, nil
+	res := &fleet.NanoMDMEnrollmentDetails{
+		LastMDMEnrollmentTime:  row.AuthenticateAt,
+		LastMDMSeenTime:        row.LastSeenAt,
+		HardwareAttested:       row.HardwareAttested,
+		BootstrapTokenEscrowed: row.BootstrapTokenEscrowed,
+		EnrollmentType:         row.EnrollmentType,
+		Enabled:                row.Enabled,
+	}
+	if len(row.UnlockToken) > 0 {
+		decrypted := decryptOrPassthrough(row.UnlockToken, ds.serverPrivateKey)
+		s := string(decrypted)
+		res.UnlockToken = &s
+	}
+	return res, nil
 }
 
 func (ds *Datastore) AssociateHostMDMIdPAccount(ctx context.Context, hostUUID, idpAcctUUID string) (string, error) {
