@@ -737,6 +737,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /cybersecurity': {
+    action: 'view-cybersecurity',
+    locals: {
+      pageTitleForMeta: 'Device management for cybersecurity',
+      pageDescriptionForMeta: 'See which AI agents and apps are running on every Mac, PC, and Linux machine, and check that your security controls are working. Device management built for security teams.',
+    }
+  },
+
   'GET /pharma': {
     action: 'view-pharma',
     locals: {
@@ -1527,6 +1535,8 @@ module.exports.routes = {
   'GET /learn-more-about/vpp-tokens-best-practice': '/guides/apple-mdm-setup#best-practice',
   'GET /learn-more-about/mdm-migration': '/guides/mdm-migration#migrate-hosts',
   'GET /learn-more-about/android-zero-touch': '/guides/android-zero-touch-enrollment',
+  'GET /learn-more-about/fleet-5-upgrade': '/guides/upgrade-to-fleet-5',
+  'GET /learn-more-about/fleet-5-migration': '/guides/upgrade-to-fleet-5',
 
 
   // Sitemap
@@ -1624,9 +1634,10 @@ module.exports.routes = {
   '/api/v1/unsubscribe-from-marketing-emails': { action: 'unsubscribe-from-marketing-emails' },
   'POST /api/v1/customers/get-stripe-checkout-session-url': { action: 'customers/get-stripe-checkout-session-url' },
   '/api/v1/query-generator/get-llm-generated-sql': { action: 'query-generator/get-llm-generated-sql' },
-  'POST /api/v1/get-llm-generated-configuration-profile': { action: 'get-llm-generated-configuration-profile', hasSocketFeatures: true, csrf: false },
-  'POST /api/v1/get-llm-generated-configuration-profile-name-and-description': { action: 'get-llm-generated-configuration-profile-name-and-description', csrf: false },
+  'POST /api/v1/get-llm-generated-configuration-profile': { action: 'get-llm-generated-configuration-profile', hasSocketFeatures: true },
   'POST /api/profile-generator/v1/register': { action: 'profile-generator/register-one-fleet-instance', csrf: false },
+  'POST /api/profile-generator/v1/name-and-description': { action: 'profile-generator/generate-one-name-and-description', csrf: false },
+  'POST /api/profile-generator/v1/profile': { action: 'profile-generator/generate-one-profile', csrf: false },
   'POST /api/v1/deliver-application-submission': { action: 'deliver-application-submission' },
   'POST /api/v1/deliver-gitops-request': { action: 'deliver-gitops-workshop-request' },
   'POST /api/v1/admin/reset-one-fleet-premium-local-trial': { action: 'admin/reset-one-fleet-premium-local-trial' },

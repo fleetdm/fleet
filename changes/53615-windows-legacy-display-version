@@ -1,0 +1,1 @@
+- Fixed Windows 10 LTSC 2019, LTSB 2016, and Windows Server 2019 and 2016 hosts reporting no display version (e.g. `1809`), which caused Windows 10 LTSC/LTSB hosts to receive no operating system vulnerabilities.

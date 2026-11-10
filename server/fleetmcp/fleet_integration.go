@@ -1103,7 +1103,7 @@ func (fc *FleetClient) GetTeams(ctx context.Context) ([]Team, error) {
 	}
 
 	var result struct {
-		Teams []Team `json:"teams"`
+		Teams []Team `json:"fleets"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("failed to decode teams response: %w", err)

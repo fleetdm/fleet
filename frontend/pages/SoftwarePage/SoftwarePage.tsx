@@ -259,7 +259,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     },
     {
       enabled: isRouteOk,
-      select: (data) => ("team" in data ? data.team : data),
+      select: (data) => ("fleet" in data ? data.fleet : data),
     }
   );
 

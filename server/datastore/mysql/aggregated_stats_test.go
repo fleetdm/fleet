@@ -181,3 +181,48 @@ func TestAggregatedStatsSkipsDeletedQueries(t *testing.T) {
 		`SELECT id FROM aggregated_stats WHERE type = ?`, fleet.AggregatedStatsTypeScheduledQuery))
 	require.Equal(t, []uint{live.ID}, ids)
 }
+
+func TestDeleteOrphanedQueryStats(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := t.Context()
+
+	orig := deleteQueryStatsBatchSize
+	deleteQueryStatsBatchSize = 2
+	t.Cleanup(func() { deleteQueryStatsBatchSize = orig })
+
+	live := test.NewQuery(t, ds, nil, "live", "select 1", 0, true)
+	deleted := test.NewQuery(t, ds, nil, "deleted", "select 2", 0, true)
+	for _, id := range []uint{live.ID, deleted.ID} {
+		for hostID := 1; hostID <= 3; hostID++ {
+			_, err := ds.writer(ctx).ExecContext(ctx, `INSERT INTO scheduled_query_stats
+				(host_id, scheduled_query_id, average_memory, executions, output_size, system_time, user_time, wall_time)
+				VALUES (?, ?, 1, 1, 1, 1, 1, 1)`, hostID, id)
+			require.NoError(t, err)
+		}
+	}
+	require.NoError(t, ds.UpdateQueryAggregatedStats(ctx))
+	// Another type's row with the same id must stay.
+	_, err := ds.writer(ctx).ExecContext(ctx, `INSERT INTO aggregated_stats (id, type, global_stats, json_value) VALUES (?, ?, 0, '{}')`,
+		deleted.ID, aggregatedStatsTypeMunkiVersions)
+	require.NoError(t, err)
+	// A deleted report with an aggregated row but no stats rows left.
+	aggOnly := test.NewQuery(t, ds, nil, "aggregated only", "select 3", 0, true)
+	_, err = ds.writer(ctx).ExecContext(ctx, `INSERT INTO aggregated_stats (id, type, global_stats, json_value) VALUES (?, ?, 0, '{}')`,
+		aggOnly.ID, fleet.AggregatedStatsTypeScheduledQuery)
+	require.NoError(t, err)
+	// Delete only the report rows, leaving their stats behind like a failed deleteQueryStats.
+	_, err = ds.writer(ctx).ExecContext(ctx, `DELETE FROM queries WHERE id IN (?, ?)`, deleted.ID, aggOnly.ID)
+	require.NoError(t, err)
+
+	require.NoError(t, ds.DeleteOrphanedQueryStats(ctx))
+
+	var statIDs []uint
+	require.NoError(t, ds.writer(ctx).SelectContext(ctx, &statIDs, `SELECT scheduled_query_id FROM scheduled_query_stats`))
+	require.Equal(t, []uint{live.ID, live.ID, live.ID}, statIDs)
+	var aggregated []string
+	require.NoError(t, ds.writer(ctx).SelectContext(ctx, &aggregated, `SELECT CONCAT(type, ':', id) FROM aggregated_stats ORDER BY type`))
+	require.Equal(t, []string{
+		fmt.Sprintf("%s:%d", aggregatedStatsTypeMunkiVersions, deleted.ID),
+		fmt.Sprintf("%s:%d", fleet.AggregatedStatsTypeScheduledQuery, live.ID),
+	}, aggregated)
+}

@@ -44,7 +44,7 @@ const (
 	OSUpdatesAlreadyConfiguredErrorMessage                       = "Couldn't add profile. OS updates are already configured. Remove the OS updates settings first."
 	CouldNotUpdateAppleOSSettingsWithCustomProfileErrorMessage   = "Couldn't update OS updates settings. A custom OS updates declaration profile already exists. Remove the custom profile first."
 	CouldNotUpdateWindowsOSSettingsWithCustomProfileErrorMessage = "Couldn't update OS updates settings. A custom OS updates profile already exists. Remove the custom profile first."
-	WindowsMDMNotTurnedOnMessage                                 = `Windows MDM isn’t turned on. This can be enabled by setting "controls.windows_enabled_and_configured: true" in the default configuration. Visit https://fleetdm.com/guides/windows-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`
+	WindowsMDMNotTurnedOnMessage                                 = `Windows MDM isn’t turned on. This can be enabled by setting "controls.windows_mdm_enabled: true" in the default configuration. Visit https://fleetdm.com/guides/windows-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`
 )
 
 // FleetVarName represents the name of a Fleet variable (without the FLEET_VAR_ prefix).
@@ -216,20 +216,6 @@ func (a AppleMDM) AuthzType() string {
 	return "mdm_apple"
 }
 
-type AppleBM struct {
-	AppleID      string    `json:"apple_id"`
-	OrgName      string    `json:"org_name"`
-	MDMServerURL string    `json:"mdm_server_url"`
-	RenewDate    time.Time `json:"renew_date"`
-	DefaultTeam  string    `json:"default_team" renameto:"default_fleet"`
-}
-
-func (a AppleBM) AuthzType() string {
-	return "mdm_apple"
-}
-
-// TODO: during API implementation, remove AppleBM above or reconciliate those
-// two types. We'll likely need a new authz type for the ABM token.
 type ABMToken struct {
 	ID               uint      `db:"id" json:"id"`
 	AppleID          string    `db:"apple_id" json:"apple_id"`
@@ -268,6 +254,10 @@ type ABMToken struct {
 	IOSTeam    ABMTokenTeam `json:"ios_team" renameto:"ios_fleet"`
 	IPadOSTeam ABMTokenTeam `json:"ipados_team" renameto:"ipados_fleet"`
 	BYODTeam   ABMTokenTeam `json:"byod_team" renameto:"byod_fleet"`
+}
+
+func (a ABMToken) AuthzType() string {
+	return "mdm_apple"
 }
 
 type ABMTokenTeam struct {
@@ -1298,6 +1288,9 @@ const (
 
 	// MDMAssetVPPProxyBearerToken is the bearer token Fleet uses to communicate with the fleetdm.com VPP metadata proxy
 	MDMAssetVPPProxyBearerToken MDMAssetName = "vpp_proxy_bearer_token" //nolint:gosec // no, this is not a credential
+	// MDMAssetProfileGeneratorFleetServerSecret is the bearer token Fleet sends to the fleetdm.com configuration
+	// profile generator when it has no unexpired Premium license to send instead.
+	MDMAssetProfileGeneratorFleetServerSecret MDMAssetName = "profile_generator_fleet_server_secret" //nolint:gosec // no, this is not a credential
 	// MDMAssetPSSOSigningKey is the EC P-256 private key Fleet uses to sign Platform SSO responses
 	// and publishes via the PSSO JWKS endpoint for the Mac extension to verify.
 	MDMAssetPSSOSigningKey MDMAssetName = "psso_signing_key" //nolint:gosec // private key, not a credential string

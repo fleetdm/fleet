@@ -58,6 +58,7 @@ func (h *fastPathHandler) Router() *mux.Router { return h.router }
 //
 //   - "/hosts/identifier/{identifier}" against "/hosts/{id:[0-9]+}/<subresource>", including the subresource the activity
 //     bounded context registers rather than the core handler
+//   - the removed "DELETE /reports/{name}" against "DELETE /reports/{id:[0-9]+}"
 //
 // Both halves are listed. Excluding only the half the stdlib mux rejected would leave the other half free to claim requests
 // that belong to the one that left. TestFastPathExclusionsCoverEveryAmbiguousRoute keeps the list in sync with the route table.
@@ -79,6 +80,8 @@ var fastPathExcluded = map[string]struct{}{
 	"GET /api/_version_/fleet/hosts/{id}/reports":                  {},
 	"GET /api/_version_/fleet/hosts/{id}/scripts":                  {},
 	"GET /api/_version_/fleet/hosts/{id}/software":                 {},
+	"DELETE /api/_version_/fleet/reports/{id}":                     {},
+	"DELETE /api/_version_/fleet/reports/{name}":                   {},
 }
 
 var (

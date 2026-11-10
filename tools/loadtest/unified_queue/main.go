@@ -84,7 +84,7 @@ func main() {
 		windowsSoftware []fleet.SoftwareTitleListResult
 	)
 	for _, title := range titles {
-		if title.AppStoreApp != nil {
+		if len(title.AppStoreApps) > 0 {
 			macOSSoftware = append(macOSSoftware, title)
 		} else if title.SoftwarePackage != nil {
 			if ext := filepath.Ext(title.SoftwarePackage.Name); ext == ".exe" || ext == ".msi" {

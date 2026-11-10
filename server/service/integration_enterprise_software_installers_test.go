@@ -1340,8 +1340,8 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	// create a label to test also the counts per label with the software install status filter
 	var labelResp fleet.CreateLabelResponse
 	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{
-		Name:  "test",
-		Hosts: []string{h.Hostname, h2.Hostname, h3.Hostname, h4.Hostname}}, http.StatusOK, &labelResp)
+		Name:    "test",
+		HostIDs: []uint{h.ID, h2.ID, h3.ID, h4.ID}}, http.StatusOK, &labelResp)
 	require.NotZero(t, labelResp.Label.ID)
 
 	cases := []struct {
