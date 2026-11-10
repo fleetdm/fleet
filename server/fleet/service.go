@@ -806,10 +806,6 @@ type Service interface {
 	CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) error
 
 	// /////////////////////////////////////////////////////////////////////////////
-	// UserRolesService
-
-
-	// /////////////////////////////////////////////////////////////////////////////
 	// Certificate Templates
 
 	CreateCertificateTemplate(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string, subjectAlternativeName string) (*CertificateTemplateResponse, error)
