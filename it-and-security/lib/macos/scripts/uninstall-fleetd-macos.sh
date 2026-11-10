@@ -22,7 +22,14 @@ function remove_fleet {
         echo "This Mac is MDM enrolled. Removing enrollment profile."
         profiles remove -identifier com.fleetdm.fleet.mdm.apple
     elif echo "$mdm_status" | grep -q "MDM enrollment: No"; then
-        echo "This Mac is not MDM enrolled."
+        echo "This Mac is not MDM enrolled. Removing all configuration profiles."
+        profiles remove -all -forced
+        crntusr="$(/usr/bin/stat -f %Su /dev/console)"
+        dsclusr="$(/usr/bin/dscl . -read /Users/"$crntusr" RecordName | /usr/bin/awk -F ': ' '{print $NF}')"
+        if [ "$crntusr" = "$dsclusr" ]
+        then
+            profiles remove -all -forced -user "$dsclusr"
+        fi
     else
         echo "MDM status is unknown."
     fi
