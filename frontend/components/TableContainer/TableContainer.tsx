@@ -379,7 +379,6 @@ const TableContainer = <T,>({
               <Icon
                 name={actionButton.iconSvg}
                 color={actionButton.iconColor || "ui-fleet-black-75"}
-                size="small"
               />
             )}
             {resolvedButtonText}
@@ -387,7 +386,6 @@ const TableContainer = <T,>({
               <Icon
                 name={actionButton.iconSvg}
                 color={actionButton.iconColor || "ui-fleet-black-75"}
-                size="small"
               />
             )}
           </>

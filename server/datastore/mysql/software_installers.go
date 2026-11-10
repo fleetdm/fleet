@@ -23,10 +23,6 @@ import (
 
 const setupExperienceSoftwareInstallsRetries uint = 2 // 3 attempts = 1 initial + 2 retries
 
-func (ds *Datastore) ListPendingSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error) {
-	return ds.listUpcomingSoftwareInstalls(ctx, hostID, false)
-}
-
 func (ds *Datastore) ListReadyToExecuteSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error) {
 	return ds.listUpcomingSoftwareInstalls(ctx, hostID, true)
 }
@@ -232,7 +228,6 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 			Filename:        payload.Filename,
 			BundleID:        payload.BundleIdentifier,
 			StorageID:       payload.StorageID,
-			Platform:        payload.Platform,
 			ValidatedLabels: payload.ValidatedLabels,
 			CategoryIDs:     payload.CategoryIDs,
 			Version:         payload.Version,
@@ -2358,12 +2353,14 @@ SELECT
 	st.source,
 	hsi.attempt_number,
 	hsi.patch_when_closed,
-	hsi.override_pre_install_query AND NOT hsi.patch_when_closed AS notify_before_patching,
+	hsi.override_pre_install_query AND NOT hsi.patch_when_closed AND NOT COALESCE(p.patch_deadline, 0) AS notify_before_patching,
+	hsi.override_pre_install_query AND NOT hsi.patch_when_closed AND COALESCE(p.patch_deadline, 0) AS patch_deadline,
 	hsi.override_pre_install_query
 FROM
 	host_software_installs hsi
 	LEFT JOIN software_titles st ON hsi.software_title_id = st.id
 	LEFT JOIN software_installers si ON hsi.software_installer_id = si.id
+	LEFT JOIN policies p ON p.id = hsi.policy_id
 	LEFT JOIN hosts h ON h.id = hsi.host_id
 	LEFT JOIN software_title_display_names stdn
 		ON stdn.software_title_id = hsi.software_title_id
@@ -2400,6 +2397,7 @@ SELECT
 	NULL AS attempt_number,
 	COALESCE(p.patch_when_closed, 0) AS patch_when_closed,
 	COALESCE(p.notify_before_patching, 0) AS notify_before_patching,
+	COALESCE(p.patch_deadline, 0) AS patch_deadline,
 	COALESCE(ua.payload->'$.override_pre_install_query', 0) AS override_pre_install_query
 FROM
 	upcoming_activities ua
@@ -3031,7 +3029,18 @@ LIMIT ?`
 		for i, row := range rows {
 			ids[i] = row.ID
 		}
-		n, err := deleteHostSoftwareInstallsByIDs(ctx, ds.writer(ctx), ids, olderThan)
+
+		var n int64
+		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			// Decrement from the automation runs so it lines up with the number of rows in the table
+			err := decrementHostPolicyAutomationRunCountsDB(ctx, tx, fleet.ActivityTypeInstalledSoftware{}, ids, olderThan)
+			if err != nil {
+				return err
+			}
+
+			n, err = deleteHostSoftwareInstallsByIDs(ctx, tx, ids, olderThan)
+			return err
+		})
 		if err != nil {
 			return deleted, err
 		}
@@ -4499,7 +4508,25 @@ WHERE
 		return nil
 	}
 
-	return ds.ProcessInstallerUpdateSideEffects(ctx, installerID, true, false)
+	if err := ds.ProcessInstallerUpdateSideEffects(ctx, installerID, true, false); err != nil {
+		return err
+	}
+
+	// Sync the title's patch policy now rather than at the next auto-update run.
+	var policyID uint
+	err = sqlx.GetContext(ctx, ds.writer(ctx), &policyID, `
+SELECT p.id
+FROM policies p
+JOIN software_installers si ON si.global_or_team_id = p.team_id AND si.title_id = p.patch_software_title_id
+WHERE si.id = ? AND p.type = ?
+`, installerID, fleet.PolicyTypePatch)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "getting patch policy for installer")
+	}
+	return ds.syncPatchPolicyQuery(ctx, policyID)
 }
 
 func (ds *Datastore) UpdateSoftwareInstallerWithoutPackageIDs(ctx context.Context, id uint,
@@ -4620,10 +4647,6 @@ WHERE
 
 func (ds *Datastore) IsSoftwareInstallerLabelScoped(ctx context.Context, installerID, hostID uint) (bool, error) {
 	return ds.isSoftwareLabelScoped(ctx, installerID, hostID, softwareTypeInstaller)
-}
-
-func (ds *Datastore) IsVPPAppLabelScoped(ctx context.Context, vppAppTeamID, hostID uint) (bool, error) {
-	return ds.isSoftwareLabelScoped(ctx, vppAppTeamID, hostID, softwareTypeVPP)
 }
 
 func (ds *Datastore) isSoftwareLabelScoped(ctx context.Context, softwareID, hostID uint, swType softwareType) (bool, error) {
@@ -4831,41 +4854,6 @@ WHERE
 	res := make(map[uint]struct{}, len(hostIDs))
 	for _, id := range hostIDs {
 		res[id] = struct{}{}
-	}
-
-	return res, nil
-}
-
-func (ds *Datastore) GetIncludedHostUUIDMapForAppStoreApp(ctx context.Context, vppAppTeamID uint) (map[string]string, error) {
-	return ds.getIncludedHostUUIDMapForSoftware(ctx, ds.writer(ctx), vppAppTeamID, softwareTypeVPP)
-}
-
-func (ds *Datastore) getIncludedHostUUIDMapForSoftware(ctx context.Context, tx sqlx.ExtContext, softwareID uint, swType softwareType) (map[string]string, error) {
-	filter := fmt.Sprintf(labelScopedFilter, swType, "?")
-	stmt := fmt.Sprintf(`SELECT
-		h.uuid AS uuid,
-		ad.applied_policy_id AS applied_policy_id
-FROM
-		hosts h
-		JOIN android_devices ad ON ad.enterprise_specific_id = h.uuid
-		JOIN vpp_apps_teams vat ON vat.team_id <=> h.team_id AND vat.id = ?
-WHERE
-		EXISTS (%s)
-		AND h.platform = 'android'
-`, filter)
-
-	var queryResults []struct {
-		UUID            string  `db:"uuid"`
-		AppliedPolicyID *string `db:"applied_policy_id"`
-	}
-	if err := sqlx.SelectContext(ctx, tx, &queryResults, stmt, softwareID, softwareID, softwareID, softwareID, softwareID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing hosts included in software scope")
-	}
-
-	res := make(map[string]string, len(queryResults))
-	for _, result := range queryResults {
-		polID := ptr.ValOrZero(result.AppliedPolicyID)
-		res[result.UUID] = polID
 	}
 
 	return res, nil
@@ -5336,13 +5324,6 @@ func (ds *Datastore) GetPinnedVersion(ctx context.Context, teamID *uint, titleID
 		return nil, ctxerr.Wrap(ctx, err, "get pinned version")
 	}
 	return &version, nil
-}
-
-func (ds *Datastore) SetPinnedVersion(ctx context.Context, teamID *uint, titleID uint, version string) error {
-	if err := setPinnedVersionDB(ctx, ds.writer(ctx), ptr.ValOrZero(teamID), titleID, version); err != nil {
-		return ctxerr.Wrap(ctx, err, "set pinned version")
-	}
-	return nil
 }
 
 func (ds *Datastore) DeletePinnedVersion(ctx context.Context, teamID *uint, titleID uint) error {

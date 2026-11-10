@@ -13,7 +13,7 @@ paths:
 # Fleet Go Backend Conventions
 
 ## Error Handling
-- Wrap errors with `ctxerr.Wrap(ctx, err, "description")` — never `pkg/errors` or `fmt.Errorf` with `%w`
+- When a `context.Context` is available (most server code), wrap errors with `ctxerr.Wrap(ctx, err, "description")`. Otherwise (e.g. orbit, fleetctl, helpers without ctx) use `fmt.Errorf("description: %w", err)`. Never use `pkg/errors`.
 - For error messages without wrapping, use `errors.New("msg")` not `fmt.Errorf("msg")` (the linter catches this)
 - Banned imports: `github.com/pkg/errors`, `github.com/valyala/fastjson`, `github.com/valyala/fasttemplate`
 - Use the right error type for the right situation:

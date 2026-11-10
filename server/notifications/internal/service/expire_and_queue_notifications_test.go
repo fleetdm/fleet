@@ -97,6 +97,10 @@ func (m *mockDatastore) GetNotificationAwaitingDisplay(context.Context, uint, st
 	return nil, nil
 }
 
+func (m *mockDatastore) RescheduleEndUserNotificationsAwaitingDispatch(context.Context, uint, string, time.Time, time.Time) error {
+	return nil
+}
+
 // mockScriptQueue returns the execution IDs it was built with, so a test can
 // leave a host out.
 type mockScriptQueue struct {

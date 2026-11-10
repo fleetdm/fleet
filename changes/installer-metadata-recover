@@ -1,0 +1,1 @@
+- Fleet now rejects software packages with malformed metadata as invalid installers.

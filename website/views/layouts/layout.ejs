@@ -77,6 +77,13 @@
   	  gtag('config', 'AW-10788733823', {'allow_enhanced_conversions': true});
     </script>
 
+    <% /* Microsoft UET tag with consent mode. */ %>
+    <script>(function(w, d, t, u, o) {w[u] = w[u] || [], o.ts = (new Date).getTime();var n = d.createElement(t);n.src = "https://bat.bing.net/bat.js?ti=" + o.ti + ("uetq" != u ? "&q=" + u : ""),n.async = 1, n.onload = n.onreadystatechange = function() {var s = this.readyState;s && "loaded" !== s && "complete" !== s ||(o.q = w[u], w[u] = new UET(o), w[u].push("pageLoad"),n.onload = n.onreadystatechange = null)};var i = d.getElementsByTagName(t)[0];i.parentNode.insertBefore(n, i);})(window, document, "script", "uetq", {ti: "187287175",enableAutoSpaTracking: true});</script>
+    <script>
+      window.uetq = window.uetq || [];
+      window.uetq.push('consent', 'default', {'ad_storage': 'denied'});
+    </script>
+
     <% /* Cookie consent banner */ %>
     <script id="cookieyes" type="text/javascript" src="https://cdn-cookieyes.com/client_data/71bcdd51b166ceeb18bd0d28/script.js"></script>
     <% } %>
@@ -123,6 +130,22 @@
     </script>
     <noscript>
       <img height="1" width="1" style="display:none;" alt="" src="https://px.ads.linkedin.com/collect/?pid=4365817&fmt=gif" />
+    </noscript>
+    <% /* Meta Pixel */ %>
+    <script>
+    !function(f,b,e,v,n,t,s)
+    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+    n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];
+    s.parentNode.insertBefore(t,s)}(window, document,'script',
+    'https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init', '932068693177308');
+    fbq('track', 'PageView');
+    </script>
+    <noscript>
+      <img height="1" width="1" style="display:none" alt="" src="https://www.facebook.com/tr?id=932068693177308&ev=PageView&noscript=1" />
     </noscript>
     <% /* Snitcher */ %>
     <script>
@@ -235,7 +258,7 @@
                       <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="apple" href="/apple">
                         <div purpose="dropdown-item-link">
                           <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-device-management-40x40@2x.png" alt="Apple device management">
+                            <img src="/images/nav-icon-apple-40x40@2x.png" alt="Apple device management">
                           </div>
                           <div purpose="dropdown-item-text">
                             <p purpose="nav-item-heading">
@@ -250,7 +273,7 @@
                       <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="windows" href="/windows">
                         <div purpose="dropdown-item-link">
                           <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-device-management-40x40@2x.png" alt="Windows device management">
+                            <img src="/images/nav-icon-windows-40x40@2x.png" alt="Windows device management">
                           </div>
                           <div purpose="dropdown-item-text">
                             <p purpose="nav-item-heading">
@@ -307,10 +330,25 @@
                           </div>
                         </div>
                       </a>
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Aviation" href="/aviation">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-aviation-40x40@2x.png" alt="Aviation">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Aviation
+                            </p>
+                            <p purpose="nav-item-body">
+                              Keep the airframe, swap the engine. Device management for aviation.
+                            </p>
+                          </div>
+                        </div>
+                      </a>
                       <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Pharma 4.0" href="/pharma">
                         <div purpose="dropdown-item-link">
                           <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-pharma-40x40.svg" alt="Pharma 4.0">
+                            <img src="/images/nav-icon-pharma-40x40@2x.png" alt="Pharma 4.0">
                           </div>
                           <div purpose="dropdown-item-text">
                             <p purpose="nav-item-heading">
@@ -333,21 +371,6 @@
                             </p>
                             <p purpose="nav-item-body">
                               Integrate your favorite tools with Fleet.
-                            </p>
-                          </div>
-                        </div>
-                      </a>
-                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Fast Track" href="/fast-track">
-                        <div purpose="dropdown-item-link">
-                          <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-deployment-40x40@2x.png" alt="Fast Track">
-                          </div>
-                          <div purpose="dropdown-item-text">
-                            <p purpose="nav-item-heading">
-                              Fast Track
-                            </p>
-                            <p purpose="nav-item-body">
-                              Get production-ready with help from Fleet experts.
                             </p>
                           </div>
                         </div>
@@ -441,29 +464,54 @@
                           </div>
                         </div>
                       </a>
-                      <a purpose="dropdown-cta" data-dropdown-option="" href="/gitops-workshop" no-icon>
-                        <div purpose="dropdown-cta-link">
-                          <div purpose="dropdown-cta-image">
+                      <div purpose="mobile-dropdown-ctas">
+                        <a purpose="dropdown-cta" data-dropdown-option="" href="/gitops-workshop" no-icon>
+                          <div purpose="dropdown-cta-link">
+                            <div purpose="dropdown-cta-image">
+                            </div>
+                            <div class="d-flex flex-column justify-content-center align-items-center">
+                            <div purpose="dropdown-cta-text">
+                              <p purpose="dropdown-cta-heading">
+                                Free workshops for beginners
+                              </p>
+                              <p purpose="dropdown-cta-body">
+                                GitOps, Apple, and Windows certifications.
+                              </p>
+                              <span href="/todo" purpose="cta-animated-arrow-button" target="_blank">
+                                <span purpose="button-text">Join us</span>
+                                <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+                                  <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
+                                  <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                              </span>
+                            </div>
+                            </div>
                           </div>
-                          <div class="d-flex flex-column justify-content-center align-items-center">
-                          <div purpose="dropdown-cta-text">
-                            <p purpose="dropdown-cta-heading">
-                              Free workshops for beginners
-                            </p>
-                            <p purpose="dropdown-cta-body">
-                              GitOps, Apple, and Windows certifications.
-                            </p>
-                            <span href="/todo" purpose="cta-animated-arrow-button" target="_blank">
-                              <span purpose="button-text">Join us</span>
-                              <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
-                                <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
-                                <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                              </svg>
-                            </span>
+                        </a>
+                        <a purpose="dropdown-cta" data-dropdown-option="" href="/fast-track" no-icon>
+                          <div purpose="dropdown-cta-link">
+                            <div purpose="dropdown-cta-image" class="fast-track">
+                            </div>
+                            <div class="d-flex flex-column justify-content-center align-items-center">
+                            <div purpose="dropdown-cta-text">
+                              <p purpose="dropdown-cta-heading">
+                                Fast Track
+                              </p>
+                              <p purpose="dropdown-cta-body">
+                                Get production-ready with help from Fleet experts.
+                              </p>
+                              <span href="/todo" purpose="cta-animated-arrow-button" target="_blank">
+                                <span purpose="button-text">Learn more</span>
+                                <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+                                  <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
+                                  <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                              </span>
+                            </div>
+                            </div>
                           </div>
-                          </div>
-                        </div>
-                      </a>
+                        </a>
+                      </div>
                     </div>
 
                     <% if(_.has(me, 'id')) {%>
@@ -506,7 +554,7 @@
                       <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="apple" href="/apple">
                         <div purpose="dropdown-item-link">
                           <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-device-management-40x40@2x.png" alt="Apple device management">
+                            <img src="/images/nav-icon-apple-40x40@2x.png" alt="Apple device management">
                           </div>
                           <div purpose="dropdown-item-text">
                             <p purpose="nav-item-heading">
@@ -522,7 +570,7 @@
                       <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="windows" href="/windows">
                         <div purpose="dropdown-item-link">
                           <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-device-management-40x40@2x.png" alt="Windows device management">
+                            <img src="/images/nav-icon-windows-40x40@2x.png" alt="Windows device management">
                           </div>
                           <div purpose="dropdown-item-text">
                             <p purpose="nav-item-heading">
@@ -583,10 +631,26 @@
                         </div>
                       </a>
 
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Aviation" href="/aviation">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-aviation-40x40@2x.png" alt="Aviation">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Aviation
+                            </p>
+                            <p purpose="nav-item-body">
+                              Keep the airframe, swap the engine. Device management for aviation.
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+
                       <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Pharma 4.0" href="/pharma">
                         <div purpose="dropdown-item-link">
                           <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-pharma-40x40.svg" alt="Pharma 4.0">
+                            <img src="/images/nav-icon-pharma-40x40@2x.png" alt="Pharma 4.0">
                           </div>
                           <div purpose="dropdown-item-text">
                             <p purpose="nav-item-heading">
@@ -610,22 +674,6 @@
                             </p>
                             <p purpose="nav-item-body">
                               Integrate your favorite tools with Fleet.
-                            </p>
-                          </div>
-                        </div>
-                      </a>
-
-                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Fast Track" href="/fast-track">
-                        <div purpose="dropdown-item-link">
-                          <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-deployment-40x40@2x.png" alt="Fast Track">
-                          </div>
-                          <div purpose="dropdown-item-text">
-                            <p purpose="nav-item-heading">
-                              Fast Track
-                            </p>
-                            <p purpose="nav-item-body">
-                              Get production-ready with help from Fleet experts.
                             </p>
                           </div>
                         </div>
@@ -659,6 +707,29 @@
                             </p>
                             <span href="/todo" purpose="cta-animated-arrow-button" target="_blank">
                               <span purpose="button-text">Join us</span>
+                              <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+                                <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
+                                <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                              </svg>
+                            </span>
+                          </div>
+                          </div>
+                        </div>
+                      </a>
+                      <a purpose="dropdown-cta" data-dropdown-option="" href="/fast-track" no-icon>
+                        <div purpose="dropdown-cta-link">
+                          <div purpose="dropdown-cta-image" class="fast-track">
+                          </div>
+                          <div class="d-flex flex-column justify-content-center align-items-center">
+                          <div purpose="dropdown-cta-text">
+                            <p purpose="dropdown-cta-heading">
+                              Fast Track
+                            </p>
+                            <p purpose="dropdown-cta-body">
+                              Get production-ready with help from Fleet experts.
+                            </p>
+                            <span href="/todo" purpose="cta-animated-arrow-button" target="_blank">
+                              <span purpose="button-text">Learn more</span>
                               <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
                                 <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
                                 <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -965,6 +1036,7 @@
     <script src="/dependencies/moment.js"></script>
     <script src="/dependencies/parasails.js"></script>
     <script src="/js/cloud.setup.js"></script>
+    <script src="/js/components/ai-tool-graphic.component.js"></script>
     <script src="/js/components/ajax-button.component.js"></script>
     <script src="/js/components/ajax-form.component.js"></script>
     <script src="/js/components/ajax-overlay.component.js"></script>
@@ -1002,6 +1074,7 @@
     <script src="/js/pages/articles/basic-webinar.page.js"></script>
     <script src="/js/pages/articles/basic-whitepaper.page.js"></script>
     <script src="/js/pages/articles/case-study.page.js"></script>
+    <script src="/js/pages/aviation.page.js"></script>
     <script src="/js/pages/capex-savings.page.js"></script>
     <script src="/js/pages/configuration-builder.page.js"></script>
     <script src="/js/pages/configuration-generator.page.js"></script>
@@ -1010,6 +1083,7 @@
     <script src="/js/pages/customers.page.js"></script>
     <script src="/js/pages/customers/dashboard.page.js"></script>
     <script src="/js/pages/customers/new-license.page.js"></script>
+    <script src="/js/pages/cybersecurity.page.js"></script>
     <script src="/js/pages/deals.page.js"></script>
     <script src="/js/pages/deployment.page.js"></script>
     <script src="/js/pages/device-management.page.js"></script>

@@ -215,6 +215,20 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 					return err
 				}
 
+				// Unassigned (team_id 0) has no team to delete and must survive.
+				_, err = q.ExecContext(
+					context.Background(),
+					"INSERT INTO patch_deadline_settings (team_id, days, `time`) VALUES (?, ?, ?), (0, ?, ?) ON DUPLICATE KEY UPDATE team_id = team_id",
+					team.ID,
+					"monday",
+					"09:00",
+					"friday",
+					"17:00",
+				)
+				if err != nil {
+					return err
+				}
+
 				// Insert the team label on a in-house application.
 				res, err = q.ExecContext(context.Background(), fmt.Sprintf(`INSERT INTO software_titles (name, source) VALUES ('ipa_test-%s', 'ipados_apps')`, tt.name))
 				if err != nil {
@@ -308,6 +322,10 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 				}
 				return nil
 			})
+
+			unassigned, err := ds.GetPatchDeadlineSettings(t.Context(), 0)
+			require.NoError(t, err)
+			require.Equal(t, []string{"friday"}, unassigned.Days)
 
 			// Check that team-label related tables were cleared.
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {

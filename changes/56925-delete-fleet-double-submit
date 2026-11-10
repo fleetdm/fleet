@@ -1,0 +1,1 @@
+- Fixed deleting a fleet sending a second request while the first was still in progress, which could show both success and error toasts.

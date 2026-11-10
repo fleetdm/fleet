@@ -212,6 +212,7 @@ interface IPackageAdvancedOptionsProps {
   showSchemaButton?: boolean;
   onClickShowSchema?: () => void;
   onChangePreInstallQuery: (value?: string) => void;
+  onBlurPreInstallQuery?: () => void;
   onChangeInstallScript: (value: string) => void;
   onChangePostInstallScript: (value?: string) => void;
   onChangeUninstallScript: (value?: string) => void;
@@ -231,6 +232,7 @@ const PackageAdvancedOptions = ({
   uninstallScript,
   onClickShowSchema = noop,
   onChangePreInstallQuery,
+  onBlurPreInstallQuery,
   onChangeInstallScript,
   onChangePostInstallScript,
   onChangeUninstallScript,
@@ -265,6 +267,7 @@ const PackageAdvancedOptions = ({
         uninstallScript={uninstallScript}
         onClickShowSchema={onClickShowSchema}
         onChangePreInstallQuery={onChangePreInstallQuery}
+        onBlurPreInstallQuery={onBlurPreInstallQuery}
         onChangeInstallScript={onChangeInstallScript}
         onChangePostInstallScript={onChangePostInstallScript}
         onChangeUninstallScript={onChangeUninstallScript}

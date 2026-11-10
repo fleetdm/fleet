@@ -233,7 +233,7 @@ func (ds *Datastore) GetHostRecoveryLockPasswordStatus(ctx context.Context, host
 
 func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) (map[string]bool, error) {
 	// Query hosts that:
-	// - Have enable_recovery_lock_password = true (from team config or appconfig for no-team hosts)
+	// - Have macos_recovery_lock_password_enabled = true (from team config or appconfig for no-team hosts)
 	// - Are Apple Silicon (ARM CPU)
 	// - Are MDM enrolled (enabled = 1 and device enrollment type)
 	// - Are NOT personally-owned (BYOD) enrollments. Personal enrollments have the
@@ -258,10 +258,10 @@ func (ds *Datastore) GetHostsForRecoveryLockAction(ctx context.Context) (map[str
 		  AND hm.is_personal_enrollment = 0
 		  AND (
 		      -- Team hosts: check team config
-		      (h.team_id IS NOT NULL AND JSON_EXTRACT(t.config, '$.mdm.enable_recovery_lock_password') = true)
+		      (h.team_id IS NOT NULL AND JSON_EXTRACT(t.config, '$.mdm.macos_recovery_lock_password_enabled') = true)
 		      OR
 		      -- No-team hosts: check appconfig
-		      (h.team_id IS NULL AND JSON_EXTRACT(ac.json_value, '$.mdm.enable_recovery_lock_password') = true)
+		      (h.team_id IS NULL AND JSON_EXTRACT(ac.json_value, '$.mdm.macos_recovery_lock_password_enabled') = true)
 		  )
 		  AND (rkp.host_uuid IS NULL OR rkp.status IS NULL)
 		  AND rkp.pending_set_command_uuid IS NULL
@@ -316,9 +316,9 @@ func (ds *Datastore) RestoreRecoveryLockForReenabledHosts(ctx context.Context) (
 		  AND rkp.operation_type = '%s'
 		  AND (rkp.status = '%s' OR rkp.status IS NULL)
 		  AND (
-		      (h.team_id IS NOT NULL AND JSON_EXTRACT(t.config, '$.mdm.enable_recovery_lock_password') = true)
+		      (h.team_id IS NOT NULL AND JSON_EXTRACT(t.config, '$.mdm.macos_recovery_lock_password_enabled') = true)
 		      OR
-		      (h.team_id IS NULL AND JSON_EXTRACT(ac.json_value, '$.mdm.enable_recovery_lock_password') = true)
+		      (h.team_id IS NULL AND JSON_EXTRACT(ac.json_value, '$.mdm.macos_recovery_lock_password_enabled') = true)
 		  )
 	`, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending)
 
@@ -452,9 +452,9 @@ func (ds *Datastore) ClaimHostsForRecoveryLockClear(ctx context.Context, clearCo
 		      (rkp.operation_type = '%s' AND rkp.status IS NULL)
 		  )
 		  AND (
-		      (h.team_id IS NOT NULL AND JSON_EXTRACT(t.config, '$.mdm.enable_recovery_lock_password') = false)
+		      (h.team_id IS NOT NULL AND JSON_EXTRACT(t.config, '$.mdm.macos_recovery_lock_password_enabled') = false)
 		      OR
-		      (h.team_id IS NULL AND JSON_EXTRACT(ac.json_value, '$.mdm.enable_recovery_lock_password') = false)
+		      (h.team_id IS NULL AND JSON_EXTRACT(ac.json_value, '$.mdm.macos_recovery_lock_password_enabled') = false)
 		  )
 		LIMIT 500
 		FOR UPDATE

@@ -38,6 +38,10 @@ You can also manage which Google Play Store apps are available for self-service 
 
 3. Select **Add software > App store**, choose the Android platform, then enter the application ID.
 
+4. Optionally, use the **Target** option to limit which hosts can install the app. Choose **Custom**, then include or exclude hosts with specific labels.
+
+> Dynamic (query) labels don't apply to Android hosts: including one targets no Android hosts, and excluding one has no effect. Use manual or host vitals labels to target Android apps.
+
 #### Install Android web app (web clip)
 
 > Before deploying web apps, make sure to [add Google Chrome](#google-play-android) first. This applies to both work profile (BYO) and fully-managed Android devices. If Chrome isn’t installed, the end user will be prompted to install it and redirected to the managed Play Store.
@@ -142,6 +146,15 @@ On Android 14 and above, third-party credential providers are blocked in the wor
   "credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED"
 }
 ```
+
+### Variables
+
+You can use [built-in variables](https://fleetdm.com/guides/fleet-variables) (`$FLEET_VAR_HOST_*`) in managed configurations. On Android, you can also use [custom host vitals](https://fleetdm.com/guides/custom-host-vitals) (`$FLEET_HOST_VITAL_*`). Fleet fills them in for each host when it sends the app.
+
+If Fleet can't fill in a variable for a host, what happens depends on the platform. For example, `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT` can't be filled in when the host's IdP user has no department.
+
+- **iOS and iPadOS:** Fleet doesn't send the install and marks it as failed. The reason appears in **Host details > Activity** and in the install details.
+- **Android:** Fleet doesn't send the app or its updated configuration to that host. If the app was already available on the host, it stays available with its previous configuration. Showing an error for this in Fleet is [coming soon](https://github.com/fleetdm/fleet/issues/52825).
 
 ## Multiple app instances
 

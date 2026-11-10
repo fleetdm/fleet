@@ -104,7 +104,7 @@ const generateColumnConfigs = (
             {primaryText || "---"}
           </span>
           <Icon
-            name="info-outline"
+            name="info"
             className="row-hover-button"
             color="ui-fleet-black-50"
           />

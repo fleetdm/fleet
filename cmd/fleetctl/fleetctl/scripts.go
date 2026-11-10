@@ -49,7 +49,6 @@ func runScriptCommand() *cli.Command {
 			},
 			&cli.UintFlag{
 				Name:     fleetFlagName,
-				Aliases:  []string{"team"},
 				Usage:    `Available in Fleet Premium. ID of the fleet that the saved script belongs to. 0 targets unassigned hosts (default: 0).`,
 				Required: false,
 			},
