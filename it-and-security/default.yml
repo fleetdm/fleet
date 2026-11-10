@@ -54,6 +54,7 @@ org_settings:
     enable_analytics: true
     live_reporting_disabled: false
     discard_reports_data: false
+    scripts_disabled: false
     server_url: https://dogfood.fleetdm.com
   sso_settings:
     enable_jit_provisioning: true
