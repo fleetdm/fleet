@@ -429,7 +429,7 @@ func TestWorkerBatchesWithReplica(t *testing.T) {
 	})
 
 	const numJobs = 250
-	for i := 0; i < numJobs; i++ {
+	for range numJobs {
 		args := json.RawMessage(`"job"`)
 		_, err := ds.NewJob(ctx, &fleet.Job{Name: "test", Args: &args, State: fleet.JobStateQueued})
 		require.NoError(t, err)
