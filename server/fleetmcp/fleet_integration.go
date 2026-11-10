@@ -490,14 +490,15 @@ func (fc *FleetClient) GetEndpoints(ctx context.Context, perPage int) ([]Endpoin
 }
 
 // GetHostByIdentifier fetches full host details (including labels) by hostname, UUID, or serial.
-// Uses GET /api/v1/fleet/hosts/identifier/:identifier which returns complete host and label data.
+// Uses GET /api/v1/fleet/hosts/:id, which also takes an identifier and returns complete host and label data. A host that matches a
+// numeric identifier only as its host ID is reported as not found; use GetHostByID for IDs.
 // Note: GetEndpoints already requests labels via populate_labels=true; this method is for targeted lookups of a single host.
 func (fc *FleetClient) GetHostByIdentifier(ctx context.Context, identifier string) (*Endpoint, error) {
 	segment, err := pathSegment("host identifier", identifier)
 	if err != nil {
 		return nil, err
 	}
-	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/identifier/%s", segment)
+	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/%s", segment)
 	resp, err := fc.makeFleetRequest(ctx, "GET", endpointPath, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get host: %w", err)
@@ -512,12 +513,29 @@ func (fc *FleetClient) GetHostByIdentifier(ctx context.Context, identifier strin
 	}
 
 	var result struct {
-		Host Endpoint `json:"host"`
+		Host struct {
+			Endpoint
+			UUID string `json:"uuid"`
+		} `json:"host"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("failed to decode host response: %w", err)
 	}
-	return &result.Host, nil
+	// An identifier that is also a literal route name, like "count", reaches that route instead, and its response has no host.
+	if result.Host.ID == 0 || matchesOnlyByHostID(identifier, result.Host.Endpoint, result.Host.UUID) {
+		return nil, fmt.Errorf("host not found: %s", identifier)
+	}
+	return &result.Host.Endpoint, nil
+}
+
+// matchesOnlyByHostID reports whether a host returned for a numeric identifier matched it only as a host ID. GET /hosts/:id tries a
+// numeric value as a host ID first, so a hostname or serial number made of digits can resolve to a different host.
+func matchesOnlyByHostID(identifier string, host Endpoint, uuid string) bool {
+	if _, err := strconv.ParseUint(identifier, 10, 0); err != nil {
+		return false
+	}
+	return !strings.EqualFold(identifier, host.Name) && !strings.EqualFold(identifier, uuid) &&
+		!strings.EqualFold(identifier, host.HardwareSerial)
 }
 
 // GetHostByID fetches a host by its numeric Fleet ID. Wraps
@@ -579,7 +597,7 @@ func (fc *FleetClient) GetHostByIDWithPolicies(ctx context.Context, hostID uint)
 // GetHostByIdentifierWithPolicies fetches a host's full details together with
 // every policy that applies to it (global + fleet-inherited), each entry
 // carrying its pass/fail/empty Response. Wraps GET
-// /api/v1/fleet/hosts/identifier/:identifier?populate_policies=true.
+// /api/v1/fleet/hosts/:id?populate_policies=true.
 //
 // This is the single API call behind the per-host "Policies" tab in the
 // Fleet UI — answer "is this host compliant?" with one call instead of
@@ -589,7 +607,7 @@ func (fc *FleetClient) GetHostByIdentifierWithPolicies(ctx context.Context, iden
 	if err != nil {
 		return nil, err
 	}
-	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/identifier/%s?populate_policies=true", segment)
+	endpointPath := fmt.Sprintf("/api/v1/fleet/hosts/%s?populate_policies=true", segment)
 	resp, err := fc.makeFleetRequest(ctx, "GET", endpointPath, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get host with policies: %w", err)
@@ -604,12 +622,18 @@ func (fc *FleetClient) GetHostByIdentifierWithPolicies(ctx context.Context, iden
 	}
 
 	var result struct {
-		Host HostWithPolicies `json:"host"`
+		Host struct {
+			HostWithPolicies
+			UUID string `json:"uuid"`
+		} `json:"host"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("failed to decode host with policies response: %w", err)
 	}
-	return &result.Host, nil
+	if result.Host.ID == 0 || matchesOnlyByHostID(identifier, result.Host.Endpoint, result.Host.UUID) {
+		return nil, fmt.Errorf("host not found: %s", identifier)
+	}
+	return &result.Host.HostWithPolicies, nil
 }
 
 // UID is uint64 because Fleet sends `uid` as a JSON number, not a string.
@@ -1103,7 +1127,7 @@ func (fc *FleetClient) GetTeams(ctx context.Context) ([]Team, error) {
 	}
 
 	var result struct {
-		Teams []Team `json:"teams"`
+		Teams []Team `json:"fleets"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("failed to decode teams response: %w", err)
@@ -2117,7 +2141,7 @@ func (fc *FleetClient) ResolveLiveQueryTargets(ctx context.Context, spec LiveQue
 			if qErr == nil && len(candidates) > 1 {
 				return nil, fmt.Errorf("hostname %q matches %d hosts — disambiguate with host_ids (Fleet's substring search does not cover display_name; pass numeric IDs to be unambiguous)", name, len(candidates))
 			}
-			// Fall back to /hosts/identifier/:id for UUID and computer_name matches.
+			// Fall back to /hosts/:id for UUID and computer_name matches.
 			h, idErr := fc.GetHostByIdentifier(ctx, name)
 			if idErr != nil {
 				return nil, fmt.Errorf("hostname %q not found: %w", name, idErr)

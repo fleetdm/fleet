@@ -195,6 +195,18 @@ func TestSubmitResultLogsCappedNamesDoNotBypassScheduleCheck(t *testing.T) {
 	require.Equal(t, 0, run(t, true), "filling the cap must not let an unscheduled query through")
 }
 
+func TestSubmitResultLogsDropsOverlongNames(t *testing.T) {
+	serv, ctx, ds := setUpBatchResultLogsTest(t)
+	ds.QueriesByNameFunc = func(ctx context.Context, names []fleet.TeamScopedQueryName) (map[string]*fleet.Query, error) {
+		return map[string]*fleet.Query{}, nil
+	}
+
+	name := "pack/Global/" + strings.Repeat("a", maxScheduledQueryNameLen)
+	result := fmt.Sprintf(`{"snapshot":[{"a":"b"}],"action":"snapshot","name":%q,"hostIdentifier":"h","unixTime":1484078931}`, name)
+	require.NoError(t, serv.SubmitResultLogs(ctx, []json.RawMessage{json.RawMessage(result)}))
+	assert.Empty(t, serv.osqueryLogWriter.Result.(*testJSONLogger).logs)
+}
+
 // TestSubmitResultLogsCapWarningOnlyWhenNamesDropped pins the cap's warning to
 // names actually left unresolved: a submission landing exactly on the cap uses
 // every slot without breaching it and must not report one.
@@ -2002,6 +2014,7 @@ func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
 		{"packteam-1team-1team-1team-1", ptr.Uint(1), "team-1", false},                     // pack_delimiter=team-1
 		{"pack/Global/GlobalInQueryName", nil, "GlobalInQueryName", false},                 // query name contains Global
 		{"pack/team-1/team-1InQueryName", ptr.Uint(1), "team-1InQueryName", false},         // query name contains team-1
+		{"pack123😁123team-1123😁123GlobalQuery", new(uint(1)), "GlobalQuery", false},        // pack_delimiter=123😁123, query name contains Global
 
 		{"InvalidString", nil, "", true},
 		{"Invalid/Query", nil, "", true},
@@ -2037,6 +2050,19 @@ func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetQueryNameAndTeamIDFromResultMaxLength(t *testing.T) {
+	prefix := "pack/Global/Global"
+	atMax := prefix + strings.Repeat("a", maxScheduledQueryNameLen-len(prefix))
+
+	teamID, name, err := getQueryNameAndTeamIDFromResult(atMax)
+	require.NoError(t, err)
+	assert.Nil(t, teamID)
+	assert.Equal(t, atMax[len("pack/Global/"):], name)
+
+	_, _, err = getQueryNameAndTeamIDFromResult(atMax + "a")
+	require.ErrorIs(t, err, errScheduledQueryNameTooLong)
 }
 
 func TestGetMostRecentResults(t *testing.T) {
@@ -2115,6 +2141,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "tpm_pin_config_verify":                     {},
 		hostDetailQueryPrefix + "bitlocker_startup_policy_relax":            {},
 		hostDetailQueryPrefix + "bitlocker_key_protectors_verify":           {},
+		hostDetailQueryPrefix + "timezone_unix":                             {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -3175,7 +3202,7 @@ func TestDetailQueries(t *testing.T) {
 		return nil
 	}
 	var gotSoftware []fleet.Software
-	ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+	ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software, _ ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error) {
 		if hostID != 1 {
 			return nil, errors.New("not found")
 		}
@@ -3187,6 +3214,9 @@ func TestDetailQueries(t *testing.T) {
 		result *fleet.UpdateHostSoftwareDBResult,
 	) error {
 		return nil
+	}
+	ds.GetHostOrbitInfoFunc = func(ctx context.Context, hostID uint) (*fleet.HostOrbitInfo, error) {
+		return nil, newNotFoundError()
 	}
 
 	// Verify that results are ingested properly
@@ -5604,6 +5634,9 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		overrides  map[string]osquery_utils.DetailQuery
 
 		resultsExpected fleet.OsqueryDistributedQueryResults
+		// extra query names expected in, and absent from, the returned skipped list
+		skipped []string
+		ran     []string
 	}{
 		{
 			name: "python packages using original query in extras adds results",
@@ -6332,6 +6365,64 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "ai_tools discovery found no table: no status, the query is skipped",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Safari", "version": "18.0", "source": "apps", "installed_path": "/Applications/Safari.app"},
+				},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Safari", "version": "18.0", "source": "apps", "installed_path": "/Applications/Safari.app"},
+				},
+			},
+			skipped: []string{"software_ai_tools"},
+		},
+		{
+			name: "ai_tools query failed: the query is skipped",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":    fleet.StatusOK,
+				hostDetailQueryPrefix + "software_ai_tools": 1,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Safari", "version": "18.0", "source": "apps", "installed_path": "/Applications/Safari.app"},
+				},
+				hostDetailQueryPrefix + "software_ai_tools": []map[string]string{},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Safari", "version": "18.0", "source": "apps", "installed_path": "/Applications/Safari.app"},
+				},
+			},
+			skipped: []string{"software_ai_tools"},
+		},
+		{
+			name: "ai_tools query ran and found nothing: the query is not skipped",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":    fleet.StatusOK,
+				hostDetailQueryPrefix + "software_ai_tools": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Safari", "version": "18.0", "source": "apps", "installed_path": "/Applications/Safari.app"},
+				},
+				hostDetailQueryPrefix + "software_ai_tools": []map[string]string{},
+			},
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					{"name": "Safari", "version": "18.0", "source": "apps", "installed_path": "/Applications/Safari.app"},
+				},
+			},
+			ran: []string{"software_ai_tools"},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			host := &fleet.Host{ID: 1}
@@ -6339,8 +6430,14 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				host = tc.host
 			}
 			// mutates tc.resultsIn
-			preProcessSoftwareResults(t.Context(), host, tc.resultsIn, tc.statusesIn, tc.messagesIn, tc.overrides, slog.New(slog.DiscardHandler))
+			skipped := preProcessSoftwareResults(t.Context(), host, tc.resultsIn, tc.statusesIn, tc.messagesIn, tc.overrides, slog.New(slog.DiscardHandler))
 			require.Equal(t, tc.resultsExpected, tc.resultsIn)
+			for _, name := range tc.skipped {
+				require.Contains(t, skipped, name)
+			}
+			for _, name := range tc.ran {
+				require.NotContains(t, skipped, name)
+			}
 		})
 	}
 }
@@ -7608,6 +7705,20 @@ func TestGetClientConfigRequest_DecodeRequest(t *testing.T) {
 		req := result.(*getClientConfigRequest)
 		assert.Equal(t, "test-key", req.NodeKey)
 		assert.Nil(t, req.ETag)
+	})
+
+	t.Run("fallback change header", func(t *testing.T) {
+		body := []byte(`{"node_key": "test-key"}`)
+		r := httptest.NewRequest("POST", "/api/osquery/config", bytes.NewReader(body))
+		result, err := decoder.DecodeRequest(t.Context(), r)
+		require.NoError(t, err)
+		assert.False(t, result.(*getClientConfigRequest).fallbackChange)
+
+		r = httptest.NewRequest("POST", "/api/osquery/config", bytes.NewReader(body))
+		r.Header.Set(fleet.OsqueryConfigFallbackChangeHeader, "1")
+		result, err = decoder.DecodeRequest(t.Context(), r)
+		require.NoError(t, err)
+		assert.True(t, result.(*getClientConfigRequest).fallbackChange)
 	})
 
 	t.Run("If-None-Match header is ignored", func(t *testing.T) {

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "17.0",
+      "version": "17.0.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE '010 Editor %' AND publisher = 'SweetScape Software';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE '010 Editor %' AND publisher = 'SweetScape Software' AND version_compare(version, '17.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE '010 Editor %' AND publisher = 'SweetScape Software' AND version_compare(version, '17.0.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = '010editor.exe');"
       },
-      "installer_url": "https://download.sweetscape.com/010EditorWin64Installer17.0.exe",
+      "installer_url": "https://download.sweetscape.com/010EditorWin64Installer17.0.1.exe",
       "install_script_ref": "7df1e679",
       "uninstall_script_ref": "07227ac7",
-      "sha256": "f8553c14b153c34d0cbc559837d4f1df97fcd84d74b8f3900f5c31795c776be5",
+      "sha256": "9955cc38dfda1e41a40546d7c7ea30ef6cb655f46962f4b19f4550a2e8fce49f",
       "default_categories": [
         "Developer tools"
       ]

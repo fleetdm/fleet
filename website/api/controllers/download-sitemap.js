@@ -81,8 +81,10 @@ module.exports = {
       '/linux-management',
       '/europe',
       '/pharma',
+      '/aviation',
       '/windows',
       '/apple',
+      '/cybersecurity',
       // Other stuff:
       // > Note: /handbook overview page is already included amongst the markdown pages
       // > Note: Same for /docs

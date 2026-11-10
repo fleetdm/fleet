@@ -18,10 +18,12 @@ import (
 
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
 	"github.com/hashicorp/go-multierror"
@@ -140,6 +142,27 @@ func (e *ParseUnknownKeyError) Error() string {
 	return fmt.Sprintf("unknown key %q in %q%s", key, e.Filename, suffix)
 }
 
+// ParseRemovedKeyError is a key that Fleet no longer accepts in GitOps YAML. Unlike ParseUnknownKeyError, it stays an
+// error when unknown keys are allowed.
+type ParseRemovedKeyError struct {
+	Filename string
+	Path     string // dot-separated path of the object holding the key, e.g. "controls.setup_experience"
+	Field    string
+}
+
+func (e *ParseRemovedKeyError) Error() string {
+	key := e.Field
+	if e.Path != "" {
+		key = e.Path + "." + e.Field
+	}
+	entry, ok := removednames.Find(removednames.KindYAMLKey, key, "")
+	if !ok {
+		// An unregistered key still gets the Fleet 5 wording; TestRemovedKeysRegistered catches the missing entry.
+		entry = removednames.Entry{Kind: removednames.KindYAMLKey, Old: key}
+	}
+	return fmt.Sprintf("in %q: %s", e.Filename, entry.Message())
+}
+
 func MaybeParseTypeError(filename string, keysPath []string, err error) error {
 	unmarshallErr := &json.UnmarshalTypeError{}
 	if errors.As(err, &unmarshallErr) {
@@ -185,8 +208,8 @@ type GitOpsControls struct {
 
 	WindowsUpdates                 any `json:"windows_updates"`
 	WindowsSettings                any `json:"windows_settings"`
-	WindowsEnabledAndConfigured    any `json:"windows_enabled_and_configured"`
-	WindowsMigrationEnabled        any `json:"windows_migration_enabled"`
+	WindowsEnabledAndConfigured    any `json:"windows_mdm_enabled" removedkey:"windows_enabled_and_configured"`
+	WindowsMigrationEnabled        any `json:"windows_mdm_migration_enabled" removedkey:"windows_migration_enabled"`
 	EnableTurnOnWindowsMDMManually any `json:"enable_turn_on_windows_mdm_manually"`
 	WindowsEntraTenantIDs          any `json:"windows_entra_tenant_ids"`
 	WindowsEntraClientIDs          any `json:"windows_entra_client_ids"`
@@ -199,7 +222,7 @@ type GitOpsControls struct {
 	EnableProfileValidation          any `json:"enable_profile_validation"`
 
 	EnableDiskEncryption       any              `json:"enable_disk_encryption"`
-	EnableRecoveryLockPassword any              `json:"enable_recovery_lock_password"`
+	EnableRecoveryLockPassword any              `json:"macos_recovery_lock_password_enabled" removedkey:"enable_recovery_lock_password"`
 	RequireBitLockerPIN        any              `json:"windows_require_bitlocker_pin,omitempty"`
 	NameTemplate               any              `json:"name_template"`
 	Scripts                    []fleet.BaseItem `json:"scripts"`
@@ -382,6 +405,13 @@ type Software struct {
 	Packages            []SoftwarePackage    `json:"packages"`
 	AppStoreApps        []AppStoreApp        `json:"app_store_apps"`
 	FleetMaintainedApps []FleetMaintainedApp `json:"fleet_maintained_apps"`
+	// PatchDeadlineSettings holds the values as YAML gave them, so the validator can tell a number from a string.
+	PatchDeadlineSettings *PatchDeadlineSettingsSpec `json:"patch_deadline_settings"`
+}
+
+type PatchDeadlineSettingsSpec struct {
+	Days any `json:"days"`
+	Time any `json:"time"`
 }
 
 type AppStoreApp struct {
@@ -478,6 +508,14 @@ type GitOpsSoftware struct {
 	Packages            []*fleet.SoftwarePackageSpec
 	AppStoreApps        []*fleet.TeamSpecAppStoreApp
 	FleetMaintainedApps []*fleet.MaintainedAppSpec
+	// PatchDeadlineSettings is nil when the file omits the key.
+	PatchDeadlineSettings *GitOpsPatchDeadlineSettings `json:"patch_deadline_settings"`
+}
+
+// GitOpsPatchDeadlineSettings has no fleet ID, since the fleet comes from the file.
+type GitOpsPatchDeadlineSettings struct {
+	Days []string `json:"days"`
+	Time string   `json:"time"`
 }
 
 type Logf func(format string, a ...interface{})
@@ -521,9 +559,12 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		return nil, fmt.Errorf("failed to unmarshal file %w: \n", err)
 	}
 
-	// Apply deprecated key mappings (e.g., team_settings -> settings, queries -> reports)
+	// Apply deprecated key mappings (e.g., queries -> reports), then reject the keys that Fleet 5 removed
 	if err := ApplyDeprecatedKeyMappings(rawData, logFn); err != nil {
 		return nil, fmt.Errorf("failed to process deprecated keys in file %s: %w", filePath, err)
+	}
+	if err := RejectRemovedKeys(rawData, filePath); err != nil {
+		return nil, err
 	}
 
 	// Re-marshal and unmarshal to map[string]json.RawMessage for existing parsing logic
@@ -552,6 +593,12 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		}
 	}
 
+	// The removed file name fails whatever the file contains.
+	removedFile := filepath.Base(filePath) == "no-team.yml"
+	if removedFile {
+		multiError = multierror.Append(multiError, removedNameError(removednames.KindFileName, "no-team.yml"))
+	}
+
 	// Figure out if this is an org or fleet settings file
 	teamRaw, teamOk := top["name"]
 	settingsRaw, settingsOk := top["settings"]
@@ -565,24 +612,21 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		}
 	case teamOk:
 		multiError = parseName(teamRaw, result, filePath, multiError)
-		// If the file is no-team.yml, the name must be "No team".
+		// Report both removed names in one run.
+		if result.IsNoTeam() {
+			multiError = multierror.Append(multiError, removedNameError(removednames.KindYAMLValue, "name: No team"))
+		}
 		switch {
-		case filepath.Base(filePath) == "no-team.yml" && !result.IsNoTeam():
-			multiError = multierror.Append(multiError, errors.New("`name` must be `No Team` for `no-team.yml`"))
+		case removedFile || result.IsNoTeam():
 			return result, multiError.ErrorOrNil()
 		case filepath.Base(filePath) == "unassigned.yml" && !result.IsUnassignedTeam():
 			multiError = multierror.Append(multiError, errors.New("`name` must be `Unassigned` for `unassigned.yml`"))
 			return result, multiError.ErrorOrNil()
-		case result.IsNoTeam() && filepath.Base(filePath) != "no-team.yml":
-			multiError = multierror.Append(multiError, fmt.Errorf("file `%s` for No Team must be named `no-team.yml`", filePath))
-			multiError = multierror.Append(multiError, errors.New("no-team.yml is deprecated; please ensure the fleet name has been updated to 'Unassigned' and rename the file to 'unassigned.yml'."))
-			return result, multiError.ErrorOrNil()
 		case result.IsUnassignedTeam() && filepath.Base(filePath) != "unassigned.yml":
 			multiError = multierror.Append(multiError, fmt.Errorf("file `%s` for unassigned hosts must be named `unassigned.yml`", filePath))
 			return result, multiError.ErrorOrNil()
-		case result.IsNoTeam() || result.IsUnassignedTeam():
-			// Coerce to "No Team" for easier processing.
-			// TODO - Remove No Team in Fleet 5
+		case result.IsUnassignedTeam():
+			// The rest of the processing uses the internal name "No team" for unassigned hosts.
 			result.TeamName = ptr.String(noTeam)
 			// For No Team, we allow settings but only process webhook_settings from it
 			if settingsOk {
@@ -598,7 +642,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	default:
 		switch filepath.Base(filePath) {
 		case "no-team.yml":
-			multiError = multierror.Append(multiError, errors.New("`name` must be `No Team` for `no-team.yml`"))
+			// Reported above.
 		case "unassigned.yml":
 			multiError = multierror.Append(multiError, errors.New("`name` must be `Unassigned` for `unassigned.yml`"))
 		default:
@@ -747,6 +791,13 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 						)
 					} else {
 						raw = fileBytes
+						var fileOrgSettings map[string]any
+						if err := YamlUnmarshal(fileBytes, &fileOrgSettings); err == nil {
+							if err := RejectRemovedKeys(map[string]any{"org_settings": fileOrgSettings}, *orgSettingsTop.Path); err != nil {
+								noError = false
+								multiError = multierror.Append(multiError, err)
+							}
+						}
 					}
 				}
 			}
@@ -793,7 +844,7 @@ func absPathFrom(baseDir, p string) string {
 
 // ResolveFilePathsAbs rewrites the controls' file-path fields that are resolved at
 // APPLY time to absolute paths against baseDir. Used when controls from
-// no-team.yml/unassigned.yml are applied onto the global config, which is applied
+// unassigned.yml is applied onto the global config, which is applied
 // under a different (global) baseDir — making these paths absolute means the
 // apply-side resolveApplyRelativePath becomes a no-op, so paths authored relative to
 // the no-team file (e.g. ../lib/...) keep working.
@@ -1379,6 +1430,13 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 			logFn("[!] 'controls.setup_experience.software / controls.macos_setup.software' is deprecated; set 'setup_experience: true' on individual items under 'software.packages', 'software.app_store_apps', or 'software.fleet_maintained_apps' instead.\n")
 		}
 		if result.Controls.MacOSSetup.Script.Set {
+			if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
+				teamName := unassignedTeamName
+				if !result.IsGlobal() && !result.IsNoTeam() {
+					teamName = *result.TeamName
+				}
+				logFn("[!] The setup experience script (controls.setup_experience.macos_script) is deprecated for fleet %q. Use a script-only package instead.\n", teamName)
+			}
 			startupScriptPath := resolveApplyRelativePath(controlsDir, result.Controls.MacOSSetup.Script.Value)
 			fileBytes, err := os.ReadFile(startupScriptPath)
 			if err != nil {
@@ -1407,7 +1465,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 		value any
 	}{
 		{"enable_disk_encryption", result.Controls.EnableDiskEncryption},
-		{"enable_recovery_lock_password", result.Controls.EnableRecoveryLockPassword},
+		{"macos_recovery_lock_password_enabled", result.Controls.EnableRecoveryLockPassword},
 		{"windows_require_bitlocker_pin", result.Controls.RequireBitLockerPIN},
 	} {
 		if _, ok := c.value.(bool); c.value != nil && !ok {
@@ -2254,21 +2312,33 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			if item.FleetMaintainedAppSlug != "" {
 				patchSlugs = append(patchSlugs, item.FleetMaintainedAppSlug)
 			}
-			if item.PatchWhenClosed || item.NotifyBeforePatching {
+			if item.PatchWhenClosed || item.NotifyBeforePatching || item.PatchDeadline {
 				// Key off the slug suffix because a patch policy's platform field is ignored, the datastore takes the platform from the installer.
-				if item.NotifyBeforePatching && slugIsKnownFMA && !strings.HasSuffix(item.FleetMaintainedAppSlug, "/darwin") {
-					multiError = multierror.Append(multiError, fmt.Errorf(
-						"Couldn't apply policy %q: %w", item.Name, fleet.ErrPolicyNotifyBeforePatchingRequiresMacOS))
+				if slugIsKnownFMA && !strings.HasSuffix(item.FleetMaintainedAppSlug, "/darwin") {
+					if item.NotifyBeforePatching {
+						multiError = multierror.Append(multiError, fmt.Errorf(
+							"Couldn't apply policy %q: %w", item.Name, fleet.ErrPolicyNotifyBeforePatchingRequiresMacOS,
+						))
+					}
+					if item.PatchDeadline {
+						multiError = multierror.Append(multiError, fmt.Errorf(
+							"Couldn't apply policy %q: %w", item.Name, fleet.ErrPolicyPatchDeadlineRequiresMacOS,
+						))
+					}
 				}
 				patchOption := "patch_when_closed"
 				if item.NotifyBeforePatching {
 					patchOption = "notify_before_patching"
 				}
+				if item.PatchDeadline {
+					patchOption = "patch_deadline"
+				}
 				// Declarative: reject an explicit false instead of letting the datastore silently
 				// force it on; auto-set when omitted.
 				if item.ContinuousAutomations.Valid && !item.ContinuousAutomations.Value {
 					multiError = multierror.Append(multiError, fmt.Errorf(
-						`Couldn't apply policy %q: If %q is true, "continuous_automations_enabled" can't be set to false.`, item.Name, patchOption))
+						`Couldn't apply policy %q: If %q is true, "continuous_automations_enabled" can't be set to false.`, item.Name, patchOption,
+					))
 				} else {
 					item.ContinuousAutomationsEnabled = true
 				}
@@ -2276,7 +2346,8 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				if fma, ok := fmasBySlug[item.FleetMaintainedAppSlug]; ok && fma.PreInstallQuery.Path != "" {
 					multiError = multierror.Append(multiError, fmt.Errorf(
 						`Couldn't apply policy %q: "pre_install_query" can't be set on Fleet-maintained app %q when %q is true; Fleet manages this query.`,
-						item.Name, item.FleetMaintainedAppSlug, patchOption))
+						item.Name, item.FleetMaintainedAppSlug, patchOption,
+					))
 				}
 			}
 		}
@@ -2423,21 +2494,25 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 			return wrapErrs(fmt.Errorf("failed to expand environment in file %q: %v", installSoftwareObj.PackagePath, err))
 		}
 		var policyInstallSoftwareSpec fleet.SoftwarePackageSpec
-		if err := YamlUnmarshal(fileBytes, &policyInstallSoftwareSpec); err != nil {
-			// Fall back to array shape: the file may define multiple packages for one title.
-			var multiplePackages []fleet.SoftwarePackageSpec
-			if err := YamlUnmarshal(fileBytes, &multiplePackages); err != nil || len(multiplePackages) == 0 {
-				return wrapErrs(fmt.Errorf("file %q does not contain a valid software package definition", installSoftwareObj.PackagePath))
+		var multiplePackages []fleet.SoftwarePackageSpec
+		var singlePackage map[string]any
+		if err := YamlUnmarshal(fileBytes, &multiplePackages); err != nil {
+			if err := YamlUnmarshal(fileBytes, &singlePackage); err == nil {
+				return []error{fmt.Errorf("install_software.package_path: The single package format in %q is not available anymore. What to use instead: %s", installSoftwareObj.PackagePath, removednames.GuideURL)}
 			}
+			return wrapErrs(fmt.Errorf("file %q does not contain a valid software package definition", installSoftwareObj.PackagePath))
+		}
+		if multiplePackages != nil && len(multiplePackages) == 0 {
+			return wrapErrs(fmt.Errorf("file %q does not contain a valid software package definition", installSoftwareObj.PackagePath))
+		}
 
-			errs = append(errs, validateYAMLKeys(fileBytes, reflect.TypeFor[[]fleet.SoftwarePackageSpec](), installSoftwareObj.PackagePath, []string{"software", "packages"})...)
+		errs = append(errs, validateYAMLKeys(fileBytes, reflect.TypeFor[[]fleet.SoftwarePackageSpec](), installSoftwareObj.PackagePath, []string{"software", "packages"})...)
 
-			if len(multiplePackages) > 1 {
-				return wrapErrs(fmt.Errorf("file %q contains multiple packages; use install_software.hash_sha256 to select one, or split the packages into single-package YAML files", installSoftwareObj.PackagePath))
-			}
+		if len(multiplePackages) > 1 {
+			return wrapErrs(fmt.Errorf("file %q contains multiple packages; use install_software.hash_sha256 to select one, or split the packages into single-package YAML files", installSoftwareObj.PackagePath))
+		}
+		if len(multiplePackages) == 1 {
 			policyInstallSoftwareSpec = multiplePackages[0]
-		} else {
-			errs = append(errs, validateYAMLKeys(fileBytes, reflect.TypeFor[fleet.SoftwarePackageSpec](), installSoftwareObj.PackagePath, []string{"software", "packages"})...)
 		}
 		installerOnTeamFound := false
 		for _, pkg := range packages {
@@ -2448,9 +2523,9 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 		}
 		if !installerOnTeamFound {
 			if policyInstallSoftwareSpec.URL != "" {
-				errs = append(errs, wrapErr(fmt.Errorf("install_software.package_path URL %s not found on team: %s", policyInstallSoftwareSpec.URL, installSoftwareObj.PackagePath)))
+				errs = append(errs, wrapErr(fmt.Errorf("install_software.package_path URL %s not found on fleet: %s", policyInstallSoftwareSpec.URL, installSoftwareObj.PackagePath)))
 			} else {
-				errs = append(errs, wrapErr(fmt.Errorf("install_software.package_path SHA256 %s not found on team: %s", policyInstallSoftwareSpec.SHA256, installSoftwareObj.PackagePath)))
+				errs = append(errs, wrapErr(fmt.Errorf("install_software.package_path SHA256 %s not found on fleet: %s", policyInstallSoftwareSpec.SHA256, installSoftwareObj.PackagePath)))
 			}
 			return errs
 		}
@@ -2472,7 +2547,7 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 			}
 		}
 		if !matched {
-			errs = append(errs, wrapErr(fmt.Errorf("install_software.hash_sha256 %s not found on team", installSoftwareObj.HashSHA256)))
+			errs = append(errs, wrapErr(fmt.Errorf("install_software.hash_sha256 %s not found on fleet", installSoftwareObj.HashSHA256)))
 		}
 	}
 
@@ -2485,13 +2560,13 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 			}
 		}
 		if !appOnTeamFound {
-			errs = append(errs, wrapErr(fmt.Errorf("install_software.app_store_id %s not found on team %s", policy.InstallSoftware.Other.AppStoreID, *teamName)))
+			errs = append(errs, wrapErr(fmt.Errorf("install_software.app_store_id %s not found on fleet %s", policy.InstallSoftware.Other.AppStoreID, *teamName)))
 		}
 	}
 
 	if installSoftwareObj.FleetMaintainedAppSlug != "" {
 		if _, ok := fmasBySlug[installSoftwareObj.FleetMaintainedAppSlug]; !ok {
-			errs = append(errs, wrapErr(fmt.Errorf("install_software.fleet_maintained_app_slug %q not found in software.fleet_maintained_apps for team %s", installSoftwareObj.FleetMaintainedAppSlug, *teamName)))
+			errs = append(errs, wrapErr(fmt.Errorf("install_software.fleet_maintained_app_slug %q not found in software.fleet_maintained_apps for fleet %s", installSoftwareObj.FleetMaintainedAppSlug, *teamName)))
 		}
 		policy.InstallSoftware.Other.FleetMaintainedAppSlug = installSoftwareObj.FleetMaintainedAppSlug
 	}
@@ -2770,6 +2845,14 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		multiError = multierror.Append(multiError, fieldsBesideFileReference(rawSoftware.AppStoreApps, "app_store_app")...)
 		multiError = multierror.Append(multiError, fieldsBesideFileReference(rawSoftware.FleetMaintainedApps, "fleet_maintained_app")...)
 	}
+	if raw := software.PatchDeadlineSettings; raw != nil {
+		days, tm, err := fleet.ValidatePatchDeadlineSettings(raw.Days, raw.Time)
+		if err != nil {
+			multiError = multierror.Append(multiError, err)
+		} else {
+			result.Software.PatchDeadlineSettings = &GitOpsPatchDeadlineSettings{Days: days, Time: tm}
+		}
+	}
 
 	var pathErrs []error
 	if software.AppStoreApps, pathErrs = expandBaseItems(software.AppStoreApps, baseDir, "app_store_app", GlobExpandOptions{
@@ -2928,15 +3011,13 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 					continue
 				}
 
-				// A package YAML file is a list of packages. A file written as a single
-				// object is treated as a one-element list.
-				var singlePackageSpec fleet.SoftwarePackageSpec
+				var singlePackage map[string]any
 				listErr := YamlUnmarshal(fileBytes, &softwarePackageSpecs)
 				if listErr == nil {
 					multiError = multierror.Append(multiError, validateYAMLKeys(fileBytes, reflect.TypeFor[[]fleet.SoftwarePackageSpec](), *teamLevelPackage.Path, []string{"software", "packages"})...)
-				} else if err := YamlUnmarshal(fileBytes, &singlePackageSpec); err == nil {
-					multiError = multierror.Append(multiError, validateYAMLKeys(fileBytes, reflect.TypeFor[fleet.SoftwarePackageSpec](), *teamLevelPackage.Path, []string{"software", "packages"})...)
-					softwarePackageSpecs = append(softwarePackageSpecs, &singlePackageSpec)
+				} else if err := YamlUnmarshal(fileBytes, &singlePackage); err == nil {
+					multiError = multierror.Append(multiError, fmt.Errorf("The single package format in %q is not available anymore. What to use instead: %s", *teamLevelPackage.Path, removednames.GuideURL))
+					continue
 				} else {
 					// couldn't unmarshal as a list or a single object
 					multiError = multierror.Append(multiError, MaybeParseTypeError(*teamLevelPackage.Path, []string{"software", "packages"}, listErr))

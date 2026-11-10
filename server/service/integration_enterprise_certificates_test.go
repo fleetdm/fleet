@@ -178,7 +178,7 @@ func (s *integrationEnterpriseTestSuite) TestDeleteTeamCertificateTemplates() {
 
 	// Delete the team via API (this should delete all certificate templates on the team)
 	var deleteResp deleteTeamResponse
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d", teamID), nil, http.StatusOK, &deleteResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID), nil, http.StatusOK, &deleteResp)
 
 	// Verify the certificate templates were deleted
 	_, err = s.ds.GetCertificateTemplateById(ctx, certificateTemplateID1)
@@ -304,7 +304,7 @@ func (s *integrationEnterpriseTestSuite) TestCertificatesSpecs() {
 	require.Len(t, activitiesAfterInsert, len(activitiesBeforeInsert)+1, "expected exactly one new activity for the team")
 	s.lastActivityMatches(
 		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
-		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q}`, team.ID, team.Name, team.ID, team.Name),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q}`, team.ID, team.Name),
 		0,
 	)
 
@@ -424,7 +424,7 @@ func (s *integrationEnterpriseTestSuite) TestCertificatesSpecs() {
 	// Verify activity was created for deleting certificates
 	s.lastActivityMatches(
 		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
-		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q}`, team.ID, team.Name, team.ID, team.Name),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q}`, team.ID, team.Name),
 		0,
 	)
 
@@ -463,7 +463,7 @@ func (s *integrationEnterpriseTestSuite) TestCertificatesSpecs() {
 	require.Len(t, activitiesAfterNoTeam, len(activitiesBeforeNoTeam)+1, "expected exactly one new activity for no team")
 	s.lastActivityMatches(
 		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
-		`{"fleet_id": null, "fleet_name": null, "team_id": null, "team_name": null}`,
+		`{"fleet_id": null, "fleet_name": null}`,
 		0,
 	)
 

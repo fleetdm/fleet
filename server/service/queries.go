@@ -338,8 +338,13 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 		query.AuthorEmail = vc.Email()
 	}
 
-	if err := verifyLabelsToAssociate(ctx, svc.ds, p.TeamID, slices.Concat(p.LabelsIncludeAny, p.LabelsIncludeAll), vc.User); err != nil {
+	labelNames := slices.Concat(p.LabelsIncludeAny, p.LabelsIncludeAll)
+	labels, err := loadLabelsToAssociate(ctx, svc.ds, p.TeamID, labelNames, vc.User)
+	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
+	}
+	if err := verifyNoBuiltInLabels(ctx, labelNames, labels); err != nil {
+		return nil, err
 	}
 
 	if p.Name != nil {
@@ -381,7 +386,7 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 
 	logging.WithExtras(ctx, "name", query.Name, "sql", query.Query)
 
-	query, err := svc.ds.NewQuery(ctx, query)
+	query, err = svc.ds.NewQuery(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -465,8 +470,13 @@ func (svc *Service) modifyLoadedQuery(ctx context.Context, query *fleet.Query, p
 	}
 
 	// We use query.TeamID because we do not allow changing the team.
-	if err := verifyLabelsToAssociate(ctx, svc.ds, query.TeamID, slices.Concat(p.LabelsIncludeAny, p.LabelsIncludeAll), authz.UserFromContext(ctx)); err != nil {
+	labelNames := slices.Concat(p.LabelsIncludeAny, p.LabelsIncludeAll)
+	labels, err := loadLabelsToAssociate(ctx, svc.ds, query.TeamID, labelNames, authz.UserFromContext(ctx))
+	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
+	}
+	if err := verifyNoBuiltInLabels(ctx, labelNames, labels); err != nil {
+		return nil, err
 	}
 
 	shouldDiscardQueryResults, shouldDeleteStats := false, false
@@ -578,71 +588,6 @@ func comparePlatforms(platform1, platform2 string) bool {
 	p2s := strings.Split(platform2, ",")
 	slices.Sort(p2s)
 	return slices.Compare(p1s, p2s) == 0
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Delete Query
-////////////////////////////////////////////////////////////////////////////////
-
-func deleteQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*fleet.DeleteQueryRequest)
-	var teamID *uint
-	if req.TeamID != 0 {
-		teamID = &req.TeamID
-	}
-	err := svc.DeleteQuery(ctx, teamID, req.Name)
-	if err != nil {
-		return fleet.DeleteQueryResponse{Err: err}, nil
-	}
-	return fleet.DeleteQueryResponse{}, nil
-}
-
-func (svc *Service) DeleteQuery(ctx context.Context, teamID *uint, name string) error {
-	// Load query first to determine if the user can delete it.
-	query, err := svc.ds.QueryByName(ctx, teamID, name)
-	if err != nil {
-		setAuthCheckedOnPreAuthErr(ctx)
-		return err
-	}
-	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Report").WithName(name), "get query to delete")
-	if err := svc.authz.AuthorizeOrNotFound(ctx, query, fleet.ActionWrite, notFoundErr); err != nil {
-		return err
-	}
-
-	if err := svc.ds.DeleteQuery(ctx, teamID, name); err != nil {
-		return err
-	}
-
-	svc.clearQueryReportState(ctx, query.ID, true)
-
-	var logTeamID int64
-	var teamName *string
-	if query.TeamID != nil {
-		logTeamID = int64(*query.TeamID) //nolint:gosec // dismiss G115
-		if svc.EnterpriseOverrides != nil && svc.EnterpriseOverrides.TeamByIDOrName != nil {
-			team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, query.TeamID, nil)
-			if err != nil {
-				return err
-			}
-			teamName = &team.Name
-		}
-	} else {
-		logTeamID = -1
-		teamName = nil
-	}
-
-	if err := svc.NewActivity(
-		ctx,
-		authz.UserFromContext(ctx),
-		fleet.ActivityTypeDeletedSavedQuery{
-			Name:     name,
-			TeamID:   logTeamID,
-			TeamName: teamName,
-		},
-	); err != nil {
-		return ctxerr.Wrap(ctx, err, "create activity for query deletion")
-	}
-	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -933,6 +878,9 @@ func (svc *Service) queryFromSpec(ctx context.Context, spec *fleet.QuerySpec) (*
 			if _, ok := labelsMap[name]; !ok {
 				return nil, ctxerr.New(ctx, "label not found")
 			}
+		}
+		if err := verifyNoBuiltInLabels(ctx, allLabelNames, labelsMap); err != nil {
+			return nil, err
 		}
 	}
 	// LabelID is left zero — updateQueryLabelsInTx resolves names to IDs.

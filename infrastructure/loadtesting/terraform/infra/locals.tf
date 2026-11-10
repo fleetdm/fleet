@@ -40,10 +40,11 @@ locals {
     }
   )
 
-  # Orbit config notifications require the transport, so the two are switched together.
+  # Orbit and osquery config notifications require the transport, so they are switched together.
   websocket_environment_variables = var.enable_websocket_transport ? {
-    FLEET_WEBSOCKET_TRANSPORT_ENABLED    = "true"
-    FLEET_WEBSOCKET_ORBIT_CONFIG_ENABLED = "true"
+    FLEET_WEBSOCKET_TRANSPORT_ENABLED      = "true"
+    FLEET_WEBSOCKET_ORBIT_CONFIG_ENABLED   = "true"
+    FLEET_WEBSOCKET_OSQUERY_CONFIG_ENABLED = "true"
   } : {}
 
   extra_environment_variables = merge(
@@ -81,6 +82,8 @@ locals {
 
       # Skip backfilling S3 config with dev values for load testing
       FLEET_DEV_SKIP_S3_CONFIG = "1"
+
+      FLEET_MDM_APPLE_SCEP_STATIC_CHALLENGE_ENABLED = "true"
     },
     local.otel_environment_variables,
     local.mdm_apple_environment_variables,

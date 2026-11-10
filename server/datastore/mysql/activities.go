@@ -14,6 +14,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
@@ -147,7 +148,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'host_id', ua.host_id,
 				'host_display_name', COALESCE(hdn.display_name, ''),
 				'software_title', COALESCE(st.name, ua.payload->>'$.software_title_name', ''),
-				'software_display_name', stdn.display_name,
+				'software_display_name', COALESCE(stdn.display_name, ''),
 				'software_package', COALESCE(si.filename, ua.payload->>'$.installer_filename', ''),
 				'install_uuid', ua.execution_id,
 				'status', 'pending_install',
@@ -197,7 +198,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'host_id', ua.host_id,
 				'host_display_name', COALESCE(hdn.display_name, ''),
 				'software_title', COALESCE(st.name, ua.payload->>'$.software_title_name', ''),
-				'software_display_name', stdn.display_name,
+				'software_display_name', COALESCE(stdn.display_name, ''),
 				'script_execution_id', ua.execution_id,
 				'status', 'pending_uninstall',
 				'self_service', COALESCE(ua.payload->'$.self_service', FALSE) IS TRUE,
@@ -246,7 +247,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'host_id', ua.host_id,
 				'host_display_name', COALESCE(hdn.display_name, ''),
 				'software_title', COALESCE(st.name, ''),
-				'software_display_name', stdn.display_name,
+				'software_display_name', COALESCE(stdn.display_name, ''),
 				'app_store_id', vaua.adam_id,
 				'command_uuid', ua.execution_id,
 				'self_service', ua.payload->'$.self_service' IS TRUE,
@@ -299,7 +300,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'host_id', ua.host_id,
 				'host_display_name', COALESCE(hdn.display_name, ''),
 				'software_title', COALESCE(st.name, ''),
-				'software_display_name', stdn.display_name,
+				'software_display_name', COALESCE(stdn.display_name, ''),
 				'command_uuid', ua.execution_id,
 				'self_service', ua.payload->'$.self_service' IS TRUE,
 				'status', 'pending_install'
@@ -818,7 +819,7 @@ func cancelHostInHouseAppInstallUpcomingActivity(ctx context.Context, tx sqlx.Ex
 		HostID:              act.HostID,
 		HostDisplayName:     act.HostDisplayName,
 		SoftwareTitle:       act.CanceledName,
-		SoftwareDisplayName: act.CanceledDisplayName,
+		SoftwareDisplayName: ptr.ValOrZero(act.CanceledDisplayName),
 		SoftwareTitleID:     titleID,
 	}, nil
 }
@@ -857,7 +858,7 @@ func cancelHostVPPAppInstallUpcomingActivity(ctx context.Context, tx sqlx.ExtCon
 		HostID:              act.HostID,
 		HostDisplayName:     act.HostDisplayName,
 		SoftwareTitle:       act.CanceledName,
-		SoftwareDisplayName: act.CanceledDisplayName,
+		SoftwareDisplayName: ptr.ValOrZero(act.CanceledDisplayName),
 		SoftwareTitleID:     titleID,
 	}, nil
 }
@@ -888,7 +889,7 @@ func cancelHostSoftwareUninstallUpcomingActivity(ctx context.Context, tx sqlx.Ex
 		HostID:              act.HostID,
 		HostDisplayName:     act.HostDisplayName,
 		SoftwareTitle:       act.CanceledName,
-		SoftwareDisplayName: act.CanceledDisplayName,
+		SoftwareDisplayName: ptr.ValOrZero(act.CanceledDisplayName),
 		SoftwareTitleID:     titleID,
 	}, nil
 }
@@ -917,7 +918,7 @@ func cancelHostSoftwareInstallUpcomingActivity(ctx context.Context, tx sqlx.ExtC
 		HostID:              act.HostID,
 		HostDisplayName:     act.HostDisplayName,
 		SoftwareTitle:       act.CanceledName,
-		SoftwareDisplayName: act.CanceledDisplayName,
+		SoftwareDisplayName: ptr.ValOrZero(act.CanceledDisplayName),
 		SoftwareTitleID:     titleID,
 	}, nil
 }
@@ -1639,7 +1640,7 @@ SELECT
 	COALESCE(st.name, ua.payload->>'$.software_title_name', '[deleted title]'),
 	-- Activities queued before the payload carried this key fall back to the
 	-- policy flags so an in-flight patch install keeps its app-open gate.
-	COALESCE(ua.payload->'$.override_pre_install_query', p.patch_when_closed OR p.notify_before_patching, 0),
+	COALESCE(ua.payload->'$.override_pre_install_query', p.patch_when_closed OR p.notify_before_patching OR p.patch_deadline, 0),
 	-- Compute the attempt number for this activation. Each retry creates a
 	-- new upcoming_activity (via InsertSoftwareInstallRequest), so when that
 	-- new activity activates, COUNT(*) of previous completed attempts gives
@@ -2421,6 +2422,72 @@ func incrementHostPolicyAutomationRunCountDB(ctx context.Context, tx sqlx.Execer
 	_, err := tx.ExecContext(ctx, stmt, policyID, activity.ActivityName(), hostID, succeeded, !succeeded)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "increment host policy automation run count")
+	}
+	return nil
+}
+
+func decrementHostPolicyAutomationRunCountsDB(
+	ctx context.Context,
+	tx sqlx.ExecerContext,
+	activity fleet.ActivityDetails,
+	ids []uint,
+	olderThan time.Time,
+) error {
+	const scriptRunCountsStmt = `
+SELECT ` + deletableHostScriptResultHints + `
+	hsr.policy_id,
+	hsr.host_id,
+	SUM(hsr.exit_code = 0) AS success_count,
+	SUM(hsr.exit_code != 0) AS fail_count
+FROM host_script_results hsr
+WHERE hsr.id IN (?)
+	AND hsr.policy_id IS NOT NULL
+	AND hsr.exit_code IS NOT NULL
+	AND hsr.canceled = 0
+	AND ` + deletableHostScriptResultPredicate + `
+GROUP BY hsr.policy_id, hsr.host_id`
+
+	const installRunCountsStmt = `
+SELECT
+	hsi.policy_id,
+	hsi.host_id,
+	SUM(hsi.execution_status = 'installed') AS success_count,
+	SUM(hsi.execution_status = 'failed_install') AS fail_count
+FROM host_software_installs hsi
+WHERE hsi.id IN (?)
+	AND hsi.policy_id IS NOT NULL
+	AND hsi.execution_status IN ('installed', 'failed_install')
+	AND ` + deletableHostSoftwareInstallPredicate + `
+	AND (` + unreadHostSoftwareInstall + `
+		OR EXISTS (SELECT 1 FROM host_software_installs newer WHERE ` + supersededHostSoftwareInstall + `))
+GROUP BY hsi.policy_id, hsi.host_id`
+
+	var runCountsStmt string
+	switch activity.(type) {
+	case fleet.ActivityTypeRanScript:
+		runCountsStmt = scriptRunCountsStmt
+	case fleet.ActivityTypeInstalledSoftware:
+		runCountsStmt = installRunCountsStmt
+	default:
+		return ctxerr.Errorf(ctx, "decrement host policy automation run counts: unsupported activity %s", activity.ActivityName())
+	}
+
+	decrementStmt := `
+UPDATE host_policy_automation_run_counts c
+JOIN (` + runCountsStmt + `) d
+	ON c.policy_id = d.policy_id
+	AND c.host_id = d.host_id
+	AND c.activity_type = ?
+SET
+	c.success_count = c.success_count - LEAST(c.success_count, d.success_count),
+	c.fail_count = c.fail_count - LEAST(c.fail_count, d.fail_count)`
+	stmt, args, err := sqlx.In(decrementStmt, ids, olderThan, olderThan, activity.ActivityName())
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build decrement host policy automation run counts")
+	}
+	_, err = tx.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "decrement host policy automation run counts")
 	}
 	return nil
 }

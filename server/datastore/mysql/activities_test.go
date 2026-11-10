@@ -919,7 +919,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.Len(t, pendingSw, 0)
 
 	// without only active, returns it
-	pendingSw, err = ds.ListPendingSoftwareInstalls(ctx, h1.ID)
+	pendingSw, err = ds.listUpcomingSoftwareInstalls(ctx, h1.ID, false)
 	require.NoError(t, err)
 	require.Len(t, pendingSw, 1)
 	require.Equal(t, sw1_1, pendingSw[0])

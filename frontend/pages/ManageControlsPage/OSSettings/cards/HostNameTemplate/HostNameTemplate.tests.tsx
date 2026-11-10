@@ -169,9 +169,10 @@ describe("HostNameTemplate card", () => {
       />
     );
 
-    await waitFor(() => {
-      expect(screen.getByRole("textbox")).toBeInTheDocument();
-    });
+    // Wait for the seeding effect, otherwise user.type runs before the form
+    // becomes interactive and silently drops keystrokes on the disabled input.
+    const textbox = await screen.findByRole("textbox");
+    await waitFor(() => expect(textbox).toBeEnabled());
 
     await user.type(
       screen.getByRole("textbox"),
@@ -253,10 +254,13 @@ describe("HostNameTemplate card", () => {
       <HostNameTemplate {...baseProps} onMutation={onMutation} />
     );
 
-    // Save is disabled until the pristine form is edited.
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
-    });
+    // Wait for the seeding effect. Save-disabled resolves both before seeding
+    // (nameTemplate undefined) and after (pristine), so gating on it lets
+    // user.type race the effect and silently drop keystrokes on the disabled
+    // input. Gate on the input being enabled instead.
+    const textbox = await screen.findByRole("textbox");
+    await waitFor(() => expect(textbox).toBeEnabled());
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
 
     await user.type(
       screen.getByRole("textbox"),
@@ -308,9 +312,10 @@ describe("HostNameTemplate card", () => {
 
     const { user } = render(<HostNameTemplate {...baseProps} />);
 
-    await waitFor(() => {
-      expect(screen.getByRole("textbox")).toBeInTheDocument();
-    });
+    // Wait for the seeding effect, otherwise user.type runs before the form
+    // becomes interactive and silently drops keystrokes on the disabled input.
+    const textbox = await screen.findByRole("textbox");
+    await waitFor(() => expect(textbox).toBeEnabled());
 
     await user.type(
       screen.getByRole("textbox"),

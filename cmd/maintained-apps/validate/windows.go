@@ -29,6 +29,10 @@ func postApplicationInstall(_ context.Context, _ *slog.Logger, _ string) error {
 	return nil
 }
 
+func assessGatekeeper(_ context.Context, _ *slog.Logger, _, _ string) error {
+	return nil
+}
+
 // normalizeVersion normalizes version strings for comparison
 // Handles cases like "11.2.1495.0" vs "11.2.1495" by padding with zeros
 func normalizeVersion(version string) string {
@@ -44,15 +48,19 @@ func normalizeVersion(version string) string {
 	return strings.Join(parts, ".")
 }
 
-func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifier, appVersion, patchVersion, appPath, existsQuery string) (bool, error) {
+// appExists reports whether the app is installed at the expected version. When
+// it's only found somewhere the manifest's exists query doesn't read, the
+// second value says why the exists query can't be checked on this runner.
+func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifier, appVersion, patchedQuery, appPath, existsQuery string) (bool, string, error) {
+	patchVersion := patchedQueryVersion(patchedQuery)
 	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	if err := validateSqlInput(appName); err != nil {
-		return false, fmt.Errorf("Invalid character found in appName: '%w'. Not executing query...", err)
+		return false, "", fmt.Errorf("Invalid character found in appName: '%w'. Not executing query...", err)
 	}
 	if err := validateSqlInput(appPath); err != nil {
-		return false, fmt.Errorf("Invalid character found in appPath: '%w'. Not executing query...", err)
+		return false, "", fmt.Errorf("Invalid character found in appPath: '%w'. Not executing query...", err)
 	}
 
 	logger.InfoContext(ctx, fmt.Sprintf("Looking for app: %s, version: %s", appName, appVersion))
@@ -68,7 +76,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 	// on it as well.
 	if uniqueIdentifier != "" && uniqueIdentifier != appName {
 		if err := validateSqlInput(uniqueIdentifier); err != nil {
-			return false, fmt.Errorf("Invalid character found in uniqueIdentifier: '%w'. Not executing query...", err)
+			return false, "", fmt.Errorf("Invalid character found in uniqueIdentifier: '%w'. Not executing query...", err)
 		}
 		query += `	OR LOWER(name) LIKE LOWER('%` + uniqueIdentifier + `%')`
 	}
@@ -86,7 +94,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		logger.ErrorContext(ctx, fmt.Sprintf("osquery output: %s", string(output)))
-		return false, fmt.Errorf("executing osquery command: %w", err)
+		return false, "", fmt.Errorf("executing osquery command: %w", err)
 	}
 
 	type AppResult struct {
@@ -98,7 +106,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 	var results []AppResult
 	if err := json.Unmarshal(output, &results); err != nil {
 		logger.ErrorContext(ctx, fmt.Sprintf("osquery output: %s", string(output)))
-		return false, fmt.Errorf("parsing osquery JSON output: %w", err)
+		return false, "", fmt.Errorf("parsing osquery JSON output: %w", err)
 	}
 
 	if len(results) > 0 {
@@ -122,28 +130,28 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 			// If app is found but version is empty, check if it's Sublime Text and skip version check
 			if appName == "Sublime Text" && result.Version == "" {
 				logger.InfoContext(ctx, "Sublime Text detected with empty version - skipping version check (installer may not write version to registry)")
-				return true, nil
+				return true, "", nil
 			}
 
 			// Check exact match first
 			if result.Version == appVersion {
-				return true, nil
+				return true, "", nil
 			}
 			// Check if found version starts with expected version (handles suffixes like ".0")
 			// This handles cases where the app version is "3.5.4.0" but expected is "3.5.4"
 			if strings.HasPrefix(result.Version, appVersion+".") {
-				return true, nil
+				return true, "", nil
 			}
 			// Check if expected version starts with found version (handles cases where osquery reports shorter version)
 			// This handles cases where expected is "6.4.0" but osquery reports "6.4"
 			if strings.HasPrefix(appVersion, result.Version+".") {
-				return true, nil
+				return true, "", nil
 			}
 			// Some installers register a DisplayVersion in a different format
 			// from the package version (.NET SDK 9.0.320 registers 9.3.2026.52328).
 			// The patch policy compares against that DisplayVersion, so accept it.
 			if patchVersion != "" && result.Version == patchVersion {
-				return true, nil
+				return true, "", nil
 			}
 
 			// Google Chrome auto-updates immediately after installation, so the
@@ -151,7 +159,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 			// version didn't match above, fall back to existence-only check.
 			if appName == "Google Chrome" {
 				logger.InfoContext(ctx, "Google Chrome detected - version mismatch but app is installed, skipping version check due to auto-update behavior")
-				return true, nil
+				return true, "", nil
 			}
 			// Microsoft Office is a Click-to-Run product: the bootstrap setup.exe
 			// always pulls the latest channel build from Microsoft's CDN, so the
@@ -172,7 +180,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 				(strings.HasPrefix(result.Name, "Microsoft 365 Apps") ||
 					strings.HasPrefix(result.Name, "Microsoft Office")) {
 				logger.InfoContext(ctx, "Microsoft Office detected - version mismatch but app is installed, skipping version check due to Click-to-Run always installing the latest build")
-				return true, nil
+				return true, "", nil
 			}
 		}
 	}
@@ -181,7 +189,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 	// Provisioned packages don't show up in the programs table until a user logs in
 	// Since unique_identifier should match DisplayName, use it for exact match
 	if uniqueIdentifier == "" {
-		return false, nil
+		return false, "", nil
 	}
 
 	// Search by DisplayName using exact match (unique_identifier should match DisplayName)
@@ -189,14 +197,14 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 	cmd = exec.CommandContext(execTimeout, "powershell", "-NoProfile", "-NonInteractive", "-Command", provisionedQuery)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
-		return false, nil
+		return false, "", nil
 	}
 
 	if len(output) > 0 {
 		outputStr := strings.TrimSpace(string(output))
 		// Handle case where PowerShell returns an empty array []
 		if outputStr == "[]" || outputStr == "null" {
-			return false, nil
+			return false, "", nil
 		}
 
 		var provisioned struct {
@@ -205,7 +213,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 			Version     string `json:"Version"` // Version is a string like "11.2.1495.0"
 		}
 		if err := json.Unmarshal([]byte(outputStr), &provisioned); err != nil {
-			return false, nil
+			return false, "", nil
 		}
 
 		if provisioned.DisplayName != "" || provisioned.PackageName != "" {
@@ -223,7 +231,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 				provisionedVersion == appVersion ||
 				strings.HasPrefix(provisionedVersion, appVersion+".") ||
 				strings.HasPrefix(appVersion, provisionedVersion+".") {
-				return true, nil
+				return true, "found only as a provisioned AppX package, which isn't in programs until a user signs in", nil
 			}
 		}
 	}
@@ -232,14 +240,14 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 	if uniqueIdentifier == "Codex CLI" {
 		ok, err := codexCLIExistsFromFile(execTimeout, logger, appVersion, appPath)
 		if err != nil {
-			return false, err
+			return false, "", err
 		}
 		if ok {
-			return true, nil
+			return true, "found only as a portable binary, which isn't in programs", nil
 		}
 	}
 
-	return false, nil
+	return false, "", nil
 }
 
 func codexCLIExistsFromFile(ctx context.Context, logger *slog.Logger, appVersion, appPath string) (bool, error) {

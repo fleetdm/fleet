@@ -98,6 +98,7 @@ export const MAX_ENTITY_CHAR_LENGTH = 255;
 
 export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "All", value: "" },
+  { label: "5.24.1 +", value: "5.24.1" },
   { label: "5.24.0 +", value: "5.24.0" },
   { label: "5.23.1 +", value: "5.23.1" },
   { label: "5.23.0 +", value: "5.23.0" },
@@ -455,6 +456,11 @@ export const DEFAULT_EMPTY_CELL_VALUE = "---";
 
 export const DOCUMENT_TITLE_SUFFIX = "Fleet";
 
+// Fields the host summary row (top of the Host details page and My device page)
+// renders. Not every field is shown on both pages: display_name, maintenance_window,
+// and patch_deadline_at are gated out of My device by the components that read them.
+// timezone rides along to let HostSummary format patch_deadline_at in the host's
+// local time without a second trip through the host record.
 export const HOST_SUMMARY_DATA: (keyof IHost)[] = [
   "id",
   "status",
@@ -462,12 +468,14 @@ export const HOST_SUMMARY_DATA: (keyof IHost)[] = [
   "platform",
   "detail_updated_at",
   "policy_updated_at",
-  "team_name",
-  "display_name", // Not rendered on my device page
-  "maintenance_window", // Not rendered on my device page
+  "fleet_name",
+  "display_name",
+  "maintenance_window",
   "os_version",
   "mdm",
   "last_mdm_checked_in_at",
+  "timezone",
+  "patch_deadline_at",
 ];
 
 export const HOST_VITALS_DATA = [
@@ -527,7 +535,7 @@ export const HOST_OSQUERY_DATA = [
 export const DEFAULT_USE_QUERY_OPTIONS = {
   refetchOnWindowFocus: false,
   retry: (failureCount: number, error: unknown) => {
-    const err = error as any;
+    const err = error as { status?: number };
     let isBadRequestErr = false;
     if (err.status !== undefined) {
       isBadRequestErr = err.status >= 400 && err.status < 500;

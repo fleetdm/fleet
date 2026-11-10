@@ -18,15 +18,6 @@ export default PropTypes.shape({
   vulnerabilities: PropTypes.arrayOf(vulnerabilityInterface),
 });
 
-export interface ISoftwareResponse {
-  counts_updated_at: string;
-  software: ISoftware[];
-}
-
-export interface ISoftwareCountResponse {
-  count: number;
-}
-
 export interface IGetSoftwareByIdResponse {
   software: ISoftware;
 }
@@ -77,6 +68,7 @@ export interface ISoftwarePatchPolicy {
   patch_when_closed: boolean;
   continuous_automations_enabled: boolean;
   notify_before_patching?: boolean;
+  patch_deadline?: boolean;
 }
 
 export type SoftwareInstallPolicyType = "dynamic" | "patch";
@@ -1462,17 +1454,17 @@ export const INSTALL_STATUS_ICONS: Record<
   EnhancedSoftwareInstallUninstallStatus | "pending" | "failed",
   IconNames
 > = {
-  pending: "pending-outline",
-  pending_install: "pending-outline",
-  installed: "success-outline",
-  uninstalled: "success-outline",
-  failed: "error-outline",
-  failed_install: "error-outline",
-  pending_uninstall: "pending-outline",
-  failed_uninstall: "error-outline",
-  ran_script: "success-outline", // Script-only software
-  failed_script: "error-outline", // Script-only software
-  pending_script: "pending-outline", // Script-only software
+  pending: "pending",
+  pending_install: "pending",
+  installed: "success",
+  uninstalled: "success",
+  failed: "error",
+  failed_install: "error",
+  pending_uninstall: "pending",
+  failed_uninstall: "error",
+  ran_script: "success", // Script-only software
+  failed_script: "error", // Script-only software
+  pending_script: "pending", // Script-only software
 } as const;
 
 type IHostSoftwarePackageWithLastInstall = IHostSoftwarePackage & {
