@@ -3,6 +3,7 @@
   "slug": "zoom-arm64/windows",
   "package_identifier": "Zoom.Zoom",
   "unique_identifier": "Zoom Workplace (ARM64)",
+  "open_process_names": ["zoom.exe"],
   "installer_arch": "arm64",
   "installer_type": "msi",
   "installer_scope": "machine",

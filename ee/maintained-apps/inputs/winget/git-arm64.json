@@ -3,6 +3,7 @@
   "slug": "git-arm64/windows",
   "package_identifier": "Git.Git",
   "unique_identifier": "Git",
+  "open_process_names": ["git.exe"],
   "fuzzy_match_name": "Git%",
   "installer_arch": "arm64",
   "installer_type": "exe",

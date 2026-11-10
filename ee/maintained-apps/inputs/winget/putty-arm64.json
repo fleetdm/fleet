@@ -3,6 +3,7 @@
   "slug": "putty-arm64/windows",
   "package_identifier": "PuTTY.PuTTY",
   "unique_identifier": "PuTTY release",
+  "open_process_names": ["putty.exe"],
   "fuzzy_match_name": "PuTTY release % (64-bit Arm)",
   "installer_arch": "arm64",
   "installer_type": "msi",

@@ -3,6 +3,7 @@
   "slug": "google-chrome-arm64/windows",
   "package_identifier": "Google.Chrome",
   "unique_identifier": "Google Chrome",
+  "open_process_names": ["chrome.exe"],
   "installer_arch": "arm64",
   "installer_type": "msi",
   "installer_scope": "machine",

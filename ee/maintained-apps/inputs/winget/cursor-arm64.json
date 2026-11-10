@@ -3,6 +3,7 @@
   "slug": "cursor-arm64/windows",
   "package_identifier": "Anysphere.Cursor",
   "unique_identifier": "Cursor",
+  "open_process_names": ["cursor.exe"],
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/cursor_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/cursor_uninstall.ps1",
   "installer_arch": "arm64",

@@ -3,6 +3,7 @@
   "slug": "slack-arm64/windows",
   "package_identifier": "SlackTechnologies.Slack",
   "unique_identifier": "Slack",
+  "open_process_names": ["slack.exe"],
   "installer_arch": "arm64",
   "installer_type": "msix",
   "installer_scope": "user",

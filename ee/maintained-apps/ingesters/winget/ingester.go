@@ -488,6 +488,16 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating open query")
 	}
+	// Every Python build runs python.exe, so match only this build's install dir: other
+	// Pythons running shouldn't block its updates.
+	switch input.Slug {
+	case "python-3.13/windows":
+		out.Queries.Open = `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('python.exe','pythonw.exe') AND LOWER(path) LIKE '%\python313\%');`
+	case "python-3.13-arm64/windows":
+		out.Queries.Open = `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('python.exe','pythonw.exe') AND LOWER(path) LIKE '%\python313-arm64\%');`
+	case "python-3.14/windows":
+		out.Queries.Open = `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('python.exe','pythonw.exe') AND LOWER(path) LIKE '%\python314\%');`
+	}
 
 	// arm64 builds can't run on x64 hosts, so their policies must pass there. The open
 	// query stays as-is: it only runs on a host already queued for the install.

@@ -3,6 +3,7 @@
   "slug": "powershell-arm64/windows",
   "package_identifier": "Microsoft.PowerShell",
   "unique_identifier": "PowerShell 7-arm64",
+  "open_process_names": ["pwsh.exe"],
   "installer_arch": "arm64",
   "installer_type": "msi",
   "installer_scope": "machine",

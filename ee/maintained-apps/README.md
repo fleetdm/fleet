@@ -195,6 +195,8 @@ To match other process names, set `open_process_names` in the app's input manife
 "open_process_names": ["7zfm.exe", "7zg.exe"]
 ```
 
+ARM64 builds need this too, set to their x64 sibling's executables: the default would look for `<name> (ARM64).exe`.
+
 To match every process whose name starts with a prefix, set `open_process_name_prefix` instead (the two can't be combined):
 
 ```json

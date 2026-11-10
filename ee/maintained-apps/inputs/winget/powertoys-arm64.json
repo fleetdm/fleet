@@ -3,6 +3,7 @@
   "slug": "powertoys-arm64/windows",
   "package_identifier": "Microsoft.PowerToys",
   "unique_identifier": "PowerToys (Preview) ARM64",
+  "open_process_names": ["powertoys.exe"],
   "fuzzy_match_name": "PowerToys%ARM64",
   "program_publisher": "Microsoft Corporation",
   "installer_arch": "arm64",

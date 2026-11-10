@@ -3,6 +3,7 @@
   "slug": "microsoft-teams-arm64/windows",
   "package_identifier": "Microsoft.Teams",
   "unique_identifier": "Microsoft Teams",
+  "open_process_names": ["teams.exe", "ms-teams.exe"],
   "program_publisher": "Microsoft",
   "installer_arch": "arm64",
   "installer_type": "msix",
