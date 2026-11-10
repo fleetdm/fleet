@@ -2350,6 +2350,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "zoom for government": Zoom,
   "zoom outlook plugin": ZoomOutlookPlugin,
   "zoom rooms": ZoomRooms,
+  "zoom vdi universal plugin": Zoom,
   zotero: Zotero,
   zulip: Zulip,
   zwift: Zwift,
