@@ -513,20 +513,6 @@ After you upgrade, use [Unlock host](https://fleetdm.com/docs/rest-api/rest-api#
 
 GitHub issue: [#49909](https://github.com/fleetdm/fleet/issues/49909)
 
-### SCIM user delete requires an admin
-
-| Fleet 4 | Fleet 5 |
-|:--|:--|
-| `DELETE /scim/Users/:id` works with a maintainer's API token | [Delete SCIM user](https://fleetdm.com/docs/rest-api/rest-api#delete-scim-user) requires an admin's API token |
-
-#### What to do
-
-Change these before you upgrade.
-
-Use an admin's API token for your SCIM integration.
-
-GitHub issue: [#53472](https://github.com/fleetdm/fleet/issues/53472)
-
 ### GitOps users can't run MDM commands
 
 | Fleet 4 | Fleet 5 |
