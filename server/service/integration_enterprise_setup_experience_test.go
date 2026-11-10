@@ -102,7 +102,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 	require.NoError(t, swInstallResp.Err)
 
 	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
-		fmt.Sprintf(`{"platform": "linux", "team_id": %d, "team_name": "%s", "fleet_id": %d, "fleet_name": "%s"}`, team.ID, team.Name, team.ID, team.Name), 0)
+		fmt.Sprintf(`{"platform": "linux", "fleet_id": %d, "fleet_name": "%s"}`, team.ID, team.Name), 0)
 
 	// Get "Setup experience" items.
 	respGetSetupExperience = getSetupExperienceSoftwareResponse{}
@@ -698,7 +698,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 	require.NoError(t, swInstallResp.Err)
 
 	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
-		`{"platform": "linux", "team_id": 0, "team_name": "", "fleet_id": 0, "fleet_name": ""}`, 0)
+		`{"platform": "linux", "fleet_id": 0, "fleet_name": ""}`, 0)
 
 	// Get "Setup experience" items for "No team".
 	respGetSetupExperience = getSetupExperienceSoftwareResponse{}
@@ -1004,7 +1004,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftware(
 	require.NoError(t, swInstallResp.Err)
 
 	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
-		fmt.Sprintf(`{"platform": "windows", "team_id": %d, "team_name": "%s", "fleet_id": %d, "fleet_name": "%s"}`, team.ID, team.Name, team.ID, team.Name), 0)
+		fmt.Sprintf(`{"platform": "windows", "fleet_id": %d, "fleet_name": "%s"}`, team.ID, team.Name), 0)
 
 	// Add a deb package to the Linux setup experience to test
 	// that only msi and exe are queued on Windows hosts.
@@ -1266,7 +1266,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftware(
 	require.NoError(t, swInstallResp.Err)
 
 	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
-		`{"platform": "windows", "team_id": 0, "team_name": "", "fleet_id": 0, "fleet_name": ""}`, 0)
+		`{"platform": "windows", "fleet_id": 0, "fleet_name": ""}`, 0)
 
 	// Add a deb package to the Linux setup experience to test
 	// that only msi and exe are queued on Windows hosts.

@@ -34,12 +34,12 @@ describe("EditSoftwareModal — multi-package title", () => {
   it("renders the 'Edit software' title by default (single-package legacy path)", () => {
     renderModal();
     expect(screen.getByText("Edit software")).toBeInTheDocument();
-    expect(screen.queryByText("Edit package")).not.toBeInTheDocument();
+    expect(screen.queryByText("Edit version")).not.toBeInTheDocument();
   });
 
-  it("renders the 'Edit package' title when canActivateMultiplePackages is true", () => {
+  it("renders the 'Edit version' title when canActivateMultiplePackages is true", () => {
     renderModal({ canActivateMultiplePackages: true });
-    expect(screen.getByText("Edit package")).toBeInTheDocument();
+    expect(screen.getByText("Edit version")).toBeInTheDocument();
     expect(screen.queryByText("Edit software")).not.toBeInTheDocument();
   });
 

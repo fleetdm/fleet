@@ -1,6 +1,7 @@
 package fleetctl
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -121,11 +122,21 @@ func TestMDMRunCommand(t *testing.T) {
 			},
 			mdmInfo: &fleet.HostMDM{Enrolled: false, Name: fleet.WellKnownMDMFleet},
 		},
+		{
+			// ABM and Autopilot pending hosts have no UUID until they enroll.
+			host: &fleet.Host{
+				ID:             12,
+				HardwareSerial: "abm-pending-serial",
+				Platform:       "darwin",
+				MDM:            fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: new("Pending"), ConnectedToFleet: new(false)},
+			},
+			mdmInfo: &fleet.HostMDM{Enrolled: false, Name: fleet.WellKnownMDMFleet},
+		},
 	}
 	hostByUUID := make(map[string]testhost)
 	hostByID := make(map[uint]testhost)
 	for _, h := range hosts {
-		hostByUUID[h.host.UUID] = h
+		hostByUUID[cmp.Or(h.host.UUID, h.host.HardwareSerial)] = h
 		hostByID[h.host.ID] = h
 	}
 
@@ -215,6 +226,9 @@ func TestMDMRunCommand(t *testing.T) {
 				return nil, nil
 			}
 			ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+				return nil, nil
+			}
+			ds.GetHostPatchDeadlineAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 				return nil, nil
 			}
 			ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
@@ -315,6 +329,7 @@ func TestMDMRunCommand(t *testing.T) {
 				{"windows non-fleet host", []string{"--hosts", "win-non-fleet-enrolled", "--payload", winCmdFilePath}, appCfgAllMDM, `Can't run the MDM command because one or more hosts have MDM turned off.`},
 				{"macOS pending host", []string{"--hosts", "mac-pending", "--payload", appleCmdFilePath}, appCfgAllMDM, `Can't run the MDM command because one or more hosts have MDM turned off.`},
 				{"windows pending host", []string{"--hosts", "win-pending", "--payload", winCmdFilePath}, appCfgAllMDM, `Can't run the MDM command because one or more hosts have MDM turned off.`},
+				{"pending host without UUID", []string{"--hosts", "abm-pending-serial", "--payload", appleCmdFilePath}, appCfgAllMDM, `Can't run the MDM command because one or more hosts have MDM turned off.`},
 				{"valid single mac", []string{"--hosts", "mac-enrolled", "--payload", appleCmdFilePath}, appCfgAllMDM, ""},
 				{"valid single windows", []string{"--hosts", "win-enrolled", "--payload", winCmdFilePath}, appCfgAllMDM, ""},
 				{"no mdm enabled", []string{"--hosts", "win-enrolled", "--payload", winCmdFilePath}, appCfgNoMDM, "MDM features aren't turned on in Fleet."},
@@ -362,6 +377,17 @@ func TestMDMRunCommand(t *testing.T) {
 					}
 				})
 			}
+
+			t.Run("gitops user", func(t *testing.T) {
+				ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+					return appCfgAllMDM, nil
+				}
+				ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+					return &fleet.User{ID: id, GlobalRole: new(fleet.RoleGitOps)}, nil
+				}
+				_, err := runAppNoChecks([]string{"mdm", "run-command", "--hosts", "mac-enrolled", "--payload", appleCmdFilePath})
+				require.ErrorContains(t, err, fleet.GitOpsMDMCommandErrorMessage)
+			})
 		})
 	}
 }
@@ -1511,6 +1537,12 @@ func setupDSMocks(ds *mock.Store, hostByUUID map[string]testhost, hostsByID map[
 	}
 	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 		return nil, nil
+	}
+	ds.GetHostPatchDeadlineAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+		return nil, nil
+	}
+	ds.GetHostGoogleDeviceIDFunc = func(ctx context.Context, hostID uint) (string, error) {
+		return "", nil
 	}
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
 		return nil, nil

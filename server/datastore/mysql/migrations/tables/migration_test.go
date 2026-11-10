@@ -26,6 +26,7 @@ import (
 	"testing"
 	"time"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
@@ -42,6 +43,9 @@ const (
 )
 
 var testAddress = getTestAddress()
+
+// Test helpers for migrations added after the Fleet 5 baseline.
+var _ = []any{applyUpToPrev, indexColumns}
 
 func getTestAddress() string {
 	if port := os.Getenv("FLEET_MYSQL_TEST_PORT"); port != "" {

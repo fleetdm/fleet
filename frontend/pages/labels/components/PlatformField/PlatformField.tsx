@@ -13,8 +13,6 @@ const PLATFORM_STRINGS: Record<Exclude<LabelPlatform, "">, string> = {
   darwin: "macOS",
   windows: "Windows",
   linux: "Linux",
-  ubuntu: "Ubuntu (Linux)",
-  centos: "CentOS (Linux)",
 };
 
 interface IPlatformOption extends CustomOptionType {
@@ -26,8 +24,6 @@ const platformOptions: IPlatformOption[] = [
   { label: "macOS", value: "darwin" },
   { label: "Windows", value: "windows" },
   { label: "Linux", value: "linux" },
-  { label: "Ubuntu (Linux)", value: "ubuntu" },
-  { label: "CentOS (Linux)", value: "centos" },
 ];
 
 const baseClass = "platform-field";

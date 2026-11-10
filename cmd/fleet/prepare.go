@@ -54,23 +54,6 @@ To setup Fleet infrastructure, use one of the available commands.
 			if err != nil {
 				initFatal(err, "retrieving migration status")
 			}
-			if status.StatusCode == fleet.NeedsFleetv4732Fix {
-				if !noPrompt {
-					printFleetv4732FixMessage()
-					bufio.NewScanner(os.Stdin).Scan()
-				} else {
-					fmt.Println("Applying automatic fix for mis-numbered v4.73.2 migrations")
-				}
-				if err := ds.FixFleetv4732Migrations(cmd.Context()); err != nil {
-					initFatal(err, "fixing v4.73.2 migrations")
-				}
-				// re-check status after fix
-				status, err = ds.MigrationStatus(cmd.Context())
-				if err != nil {
-					initFatal(err, "retrieving migration status")
-				}
-			}
-
 			if showTableStats {
 				defer func() {
 					stats, err := ds.GetTableRowCounts(cmd.Context())
@@ -93,13 +76,11 @@ To setup Fleet infrastructure, use one of the available commands.
 				return
 			case fleet.SomeMigrationsCompleted:
 				if !noPrompt {
-					printMissingMigrationsPrompt(status.MissingTable, status.MissingData)
+					printMissingMigrationsPrompt(status.MissingTable)
 					bufio.NewScanner(os.Stdin).Scan()
 				}
-			case fleet.NeedsFleetv4732Fix, fleet.UnknownFleetv4732State:
-				printFleetv4732UnknownStateMessage(status.StatusCode)
 			case fleet.UnknownMigrations:
-				printUnknownMigrationsMessage(status.UnknownTable, status.UnknownData)
+				printUnknownMigrationsMessage(status.UnknownTable)
 				if dev_mode.IsEnabled {
 					os.Exit(1)
 				}
@@ -107,10 +88,6 @@ To setup Fleet infrastructure, use one of the available commands.
 
 			if err := ds.MigrateTables(cmd.Context()); err != nil {
 				initFatal(err, "migrating db schema")
-			}
-
-			if err := ds.MigrateData(cmd.Context()); err != nil {
-				initFatal(err, "migrating builtin data")
 			}
 
 			fmt.Println("Migrations completed.")
@@ -125,7 +102,7 @@ To setup Fleet infrastructure, use one of the available commands.
 	return prepareCmd
 }
 
-func printUnknownMigrationsMessage(tables []int64, data []int64) {
+func printUnknownMigrationsMessage(tables []int64) {
 	fmt.Printf("################################################################################\n"+
 		"# WARNING:\n"+
 		"#   Your Fleet database has unrecognized migrations. This could happen when\n"+
@@ -133,10 +110,10 @@ func printUnknownMigrationsMessage(tables []int64, data []int64) {
 		"#\n"+
 		"#   Unknown migrations: %s.\n"+
 		"################################################################################\n",
-		tablesAndDataToString(tables, data))
+		migrationsToString(tables))
 }
 
-func printMissingMigrationsPrompt(tables []int64, data []int64) {
+func printMissingMigrationsPrompt(tables []int64) {
 	fmt.Printf("################################################################################\n"+
 		"# WARNING:\n"+
 		"#   This will perform Fleet database migrations. Please back up your data before\n"+
@@ -146,42 +123,12 @@ func printMissingMigrationsPrompt(tables []int64, data []int64) {
 		"#\n"+
 		"#   Press Enter to continue, or Control-c to exit.\n"+
 		"################################################################################\n",
-		tablesAndDataToString(tables, data))
+		migrationsToString(tables))
 }
 
-func printFleetv4732FixMessage() {
-	fmt.Printf("################################################################################\n" +
-		"# WARNING:\n" +
-		"#   Your Fleet database has misnumbered migrations introduced in some released\n" +
-		"#   v4.73.2 artifacts. Fleet will automatically perform this fix prior to database\n" +
-		"#   migrations. Please back up your data before continuing.\n" +
-		"################################################################################\n")
-}
-
-func printFleetv4732UnknownStateMessage(statusCode fleet.MigrationStatusCode) {
-	extra := "your Fleet database is in an unknown state."
-	if statusCode == fleet.NeedsFleetv4732Fix {
-		extra = "the automatic fix did not result in the expected state."
-	}
-	fmt.Print("################################################################################\n" +
-		"# WARNING:\n" +
-		"#   Your Fleet database has misnumbered migrations introduced in some released\n" +
-		"#   v4.73.2 artifacts. Fleet attempts to fix this problem automatically, however\n" +
-		"#  " + extra + "\n" +
-		"#   Please contact Fleet support for assistance in resolving this.\n" +
-		"################################################################################\n")
-}
-
-func tablesAndDataToString(tables, data []int64) string {
-	switch {
-	case len(tables) > 0 && len(data) == 0:
-		// Most common case
-		return fmt.Sprintf("tables=%v", tables)
-	case len(tables) == 0 && len(data) == 0:
+func migrationsToString(tables []int64) string {
+	if len(tables) == 0 {
 		return "unknown"
-	case len(tables) == 0 && len(data) > 0:
-		return fmt.Sprintf("data=%v", data)
-	default:
-		return fmt.Sprintf("tables=%v, data=%v", tables, data)
 	}
+	return fmt.Sprintf("tables=%v", tables)
 }

@@ -3,8 +3,8 @@
     {
       "version": "5.4.5.1509",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'LastPass' AND publisher = 'LastPass US LP.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'LastPass' AND publisher = 'LastPass US LP.' AND version_compare(version, '5.4.5.1509') < 0);",
+        "exists": "SELECT 1 FROM programs WHERE name = 'LastPass Universal Windows Installer' AND publisher = 'LastPass US LP.';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'LastPass Universal Windows Installer' AND publisher = 'LastPass US LP.' AND version_compare(version, '5.4.5.1509') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'lastpass.exe');"
       },
       "installer_url": "https://download.cloud.lastpass.com/windows_installer/LastPassInstaller.msi",
