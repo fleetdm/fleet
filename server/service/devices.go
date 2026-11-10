@@ -179,6 +179,9 @@ type getDeviceHostResponse struct {
 	Err                       error                    `json:"error,omitempty"`
 	License                   fleet.LicenseInfo        `json:"license"`
 	GlobalConfig              fleet.DeviceGlobalConfig `json:"global_config"`
+	// GoogleConditionalAccessSignInRequired tells the Self-service web clip to ask the
+	// Google status route for a sign-in URL.
+	GoogleConditionalAccessSignInRequired bool `json:"google_conditional_access_sign_in_required"`
 }
 
 func (r getDeviceHostResponse) Error() error { return r.Err }
@@ -293,6 +296,11 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		}
 	}
 
+	googleSignInRequired, err := svc.GoogleConditionalAccessSignInRequired(ctx, host)
+	if err != nil {
+		return getDeviceHostResponse{Err: ctxerr.Wrap(ctx, err, "getting google conditional access sign-in state")}, nil
+	}
+
 	deviceGlobalConfig := fleet.DeviceGlobalConfig{
 		MDM: fleet.DeviceGlobalMDMConfig{
 			// TODO(mna): It currently only returns the Apple enabled and configured,
@@ -320,7 +328,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		resp.Policies = nil
 	}
 
-	return getDeviceHostResponse{
+	deviceResp := getDeviceHostResponse{
 		Host:                      deviceHost,
 		OrgLogoURL:                ac.OrgInfo.OrgLogoURL,
 		OrgLogoURLLightBackground: ac.OrgInfo.OrgLogoURLLightBackground,
@@ -330,7 +338,9 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		License:                   *license,
 		GlobalConfig:              deviceGlobalConfig,
 		SelfService:               hasSelfService,
-	}, nil
+	}
+	deviceResp.GoogleConditionalAccessSignInRequired = googleSignInRequired
+	return deviceResp, nil
 }
 
 func (svc *Service) GetHostDEPAssignment(ctx context.Context, host *fleet.Host) (*fleet.HostDEPAssignment, error) {

@@ -154,3 +154,9 @@ export const toEndUserIssues = (issues: IHostIssues): IHostIssues => {
     total_issues_count: issues.total_issues_count - hiddenFailing,
   };
 };
+
+/** Replaces the page in history so Back doesn't land on a page that would
+ * leave again. A wrapper because jsdom can't stub `window.location`. */
+export const replaceLocation = (url: string) => {
+  window.location.replace(url);
+};

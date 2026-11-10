@@ -94,6 +94,7 @@ import {
 } from "./helpers";
 import InfoModal from "./InfoModal";
 import useDeviceSSO from "./useDeviceSSO";
+import useGoogleConditionalAccessSignIn from "./useGoogleConditionalAccessSignIn";
 
 const baseClass = "device-user";
 
@@ -559,6 +560,16 @@ const DeviceUserPage = ({
     hasSession: !!dupDetails,
   });
 
+  const {
+    isChecking: isCheckingGoogleSignIn,
+    isRedirecting: isRedirectingToGoogle,
+  } = useGoogleConditionalAccessSignIn({
+    deviceAuthToken,
+    isSignInRequired:
+      !!dupDetails?.google_conditional_access_sign_in_required &&
+      !isSSORequired,
+  });
+
   const { bypassConditionalAccess } = deviceUserAPI;
 
   const [isLoadingBypass, setIsLoadingBypass] = useState(false);
@@ -819,6 +830,15 @@ const DeviceUserPage = ({
           toggleInfoModal={toggleInfoModal}
           platform={host.platform}
         />
+      );
+    }
+
+    if (isCheckingGoogleSignIn || isRedirectingToGoogle) {
+      return (
+        <div className={`${baseClass}__redirect`} role="status">
+          <Spinner variant="mobile" />
+          <span>Redirecting to Google sign-in...</span>
+        </div>
       );
     }
 
@@ -1136,7 +1156,7 @@ const DeviceUserPage = ({
   const renderDeviceSSOState = () => {
     if (isRedirectingToSSO) {
       return (
-        <div className={`${baseClass}__sso-redirect`} role="status">
+        <div className={`${baseClass}__redirect`} role="status">
           <Spinner {...(isMobileView && { variant: "mobile" })} />
           <span>Redirecting to your organization’s sign-in page…</span>
         </div>
