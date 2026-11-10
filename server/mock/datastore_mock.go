@@ -902,6 +902,8 @@ type CleanupCronStatsFunc func(ctx context.Context) error
 
 type UpdateQueryAggregatedStatsFunc func(ctx context.Context) error
 
+type DeleteOrphanedQueryStatsFunc func(ctx context.Context) error
+
 type LoadHostByNodeKeyFunc func(ctx context.Context, nodeKey string) (*fleet.Host, error)
 
 type LoadHostByOrbitNodeKeyFunc func(ctx context.Context, nodeKey string) (*fleet.Host, error)
@@ -3959,6 +3961,9 @@ type DataStore struct {
 
 	UpdateQueryAggregatedStatsFunc        UpdateQueryAggregatedStatsFunc
 	UpdateQueryAggregatedStatsFuncInvoked bool
+
+	DeleteOrphanedQueryStatsFunc        DeleteOrphanedQueryStatsFunc
+	DeleteOrphanedQueryStatsFuncInvoked bool
 
 	LoadHostByNodeKeyFunc        LoadHostByNodeKeyFunc
 	LoadHostByNodeKeyFuncInvoked bool
@@ -9644,6 +9649,13 @@ func (s *DataStore) UpdateQueryAggregatedStats(ctx context.Context) error {
 	s.UpdateQueryAggregatedStatsFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateQueryAggregatedStatsFunc(ctx)
+}
+
+func (s *DataStore) DeleteOrphanedQueryStats(ctx context.Context) error {
+	s.mu.Lock()
+	s.DeleteOrphanedQueryStatsFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteOrphanedQueryStatsFunc(ctx)
 }
 
 func (s *DataStore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fleet.Host, error) {

@@ -1379,7 +1379,7 @@ const HostDetailsPage = ({
         isDEPAssignedToFleet={host.dep_assigned_to_fleet}
         hostScriptsEnabled={host.scripts_enabled}
         isRecoveryLockPasswordEnabled={
-          mdmConfig?.enable_recovery_lock_password ?? false
+          mdmConfig?.macos_recovery_lock_password_enabled ?? false
         }
         diskEncryptionProfileStatus={diskEncryptionProfile?.status}
         recoveryLockPasswordAvailable={
@@ -1542,7 +1542,7 @@ const HostDetailsPage = ({
     hasControls: controls.length > 0,
     isPlatformMdmEnabled:
       (isAppleDeviceHost && !!config?.mdm.enabled_and_configured) ||
-      (isWindowsHost && !!config?.mdm.windows_enabled_and_configured) ||
+      (isWindowsHost && !!config?.mdm.windows_mdm_enabled) ||
       (isAndroidHost && !!config?.mdm.android_enabled_and_configured),
   });
 

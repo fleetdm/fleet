@@ -199,7 +199,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotEscalateViaEmptyGlob
 		"email":                       t.Name() + "_svc@example.com",
 		"password":                    test.GoodPassword,
 		"global_role":                 "",
-		"teams":                       []map[string]any{{"id": team.ID, "role": fleet.RoleAdmin}},
+		"fleets":                      []map[string]any{{"id": team.ID, "role": fleet.RoleAdmin}},
 		"api_only":                    true,
 		"admin_forced_password_reset": false,
 	}, http.StatusUnprocessableEntity, &createResp)
@@ -218,7 +218,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotEscalateViaEmptyGlob
 	var selfModResp modifyUserResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", teamAdmin.ID), map[string]any{
 		"global_role": "",
-		"teams":       []map[string]any{{"id": team.ID, "role": fleet.RoleAdmin}},
+		"fleets":      []map[string]any{{"id": team.ID, "role": fleet.RoleAdmin}},
 	}, http.StatusUnprocessableEntity, &selfModResp)
 
 	plantedEmail := t.Name() + "_planted@example.com"
@@ -281,7 +281,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotEscalateViaEmptyGlob
 	})
 	var modResp modifyUserResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", globalAdmin.ID), map[string]any{
-		"teams": []map[string]any{{"id": team.ID, "role": fleet.RoleObserver}},
+		"fleets": []map[string]any{{"id": team.ID, "role": fleet.RoleObserver}},
 	}, http.StatusForbidden, &modResp)
 	globalAdmin, err = s.ds.UserByID(ctx, globalAdmin.ID)
 	require.NoError(t, err)
@@ -593,7 +593,7 @@ func (s *integrationEnterpriseTestSuite) TestCreateAPIOnlyUserPremium() {
 			APIOnly      bool          `json:"api_only"`
 			GlobalRole   *string       `json:"global_role"`
 			APIEndpoints []apiEndpoint `json:"api_endpoints"`
-			Teams        []teamEntry   `json:"teams"` //nolint:apiparamcheck // test helper; matches server response shape
+			Teams        []teamEntry   `json:"fleets"` //nolint:apiparamcheck // test helper; matches server response shape
 		} `json:"user"`
 		Token  string              `json:"token"`
 		Err    string              `json:"error,omitempty"`
@@ -768,7 +768,7 @@ func (s *integrationEnterpriseTestSuite) TestModifyAPIOnlyUserPremium() {
 			Teams []struct {
 				ID   uint   `json:"id"`
 				Role string `json:"role"`
-			} `json:"teams"` //nolint:apiparamcheck // test helper; matches server response shape
+			} `json:"fleets"` //nolint:apiparamcheck // test helper; matches server response shape
 		} `json:"user"`
 		Err string `json:"error,omitempty"`
 	}
@@ -1224,7 +1224,7 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserCanReachGitOpsEndpoints(
 	assertNot403("GET", "/api/latest/fleet/spec/enroll_secret", nil)
 	assertNot403("GET", "/api/latest/fleet/spec/certificate_authorities", nil)
 	assertNot403("POST", "/api/latest/fleet/spec/certificate_authorities", emptySpecs)
-	assertNot403("GET", "/api/latest/fleet/abm_tokens/count", nil)
+	assertNot403("GET", "/api/latest/fleet/ab_tokens/count", nil)
 	assertNot403("POST", "/api/latest/fleet/spec/policies", emptySpecs)
 	assertNot403("POST", "/api/latest/fleet/spec/reports", emptySpecs)
 	assertNot403("POST", "/api/latest/fleet/spec/fleets", emptySpecs)
@@ -1247,7 +1247,7 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyGitOpsUserWithEndpointRestri
 		{"method": "GET", "path": "/api/v1/fleet/me"},
 		{"method": "GET", "path": "/api/v1/fleet/config"},
 		{"method": "GET", "path": "/api/v1/fleet/spec/labels"},
-		{"method": "GET", "path": "/api/v1/fleet/abm_tokens/count"},
+		{"method": "GET", "path": "/api/v1/fleet/ab_tokens/count"},
 		{"method": "POST", "path": "/api/v1/fleet/spec/policies"},
 	}
 
@@ -1266,7 +1266,7 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyGitOpsUserWithEndpointRestri
 	s.Do("GET", "/api/latest/fleet/me", nil, http.StatusOK)
 	s.Do("GET", "/api/latest/fleet/config", nil, http.StatusOK)
 	s.Do("GET", "/api/latest/fleet/spec/labels", nil, http.StatusOK)
-	s.Do("GET", "/api/latest/fleet/abm_tokens/count", nil, http.StatusOK)
+	s.Do("GET", "/api/latest/fleet/ab_tokens/count", nil, http.StatusOK)
 	// Apply a real policy spec; an empty specs list short-circuits before authz
 	// in checkPolicySpecAuthorization and surfaces as 500, which would mask the
 	// middleware behavior we want to verify.

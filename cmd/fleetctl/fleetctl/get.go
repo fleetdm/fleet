@@ -20,7 +20,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -232,13 +231,13 @@ type UserRoles struct {
 }
 
 type TeamRole struct {
-	Team string `json:"team" renameto:"fleet"` // renameto doesn't actually do anything here but adding for visibility
+	Team string `json:"fleet"`
 	Role string `json:"role"`
 }
 
 type UserRole struct {
 	GlobalRole *string    `json:"global_role"`
-	Teams      []TeamRole `json:"teams" renameto:"fleets"` // renameto doesn't actually do anything here but adding for visibility
+	Teams      []TeamRole `json:"fleets"`
 }
 
 func usersToUserRoles(users []fleet.User) UserRoles {
@@ -328,7 +327,6 @@ func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSp
 	// The setup experience membership is the source of truth in the setup
 	// experience tables, exposed via the setup experience endpoint.
 	setupSoftwareByTitleID := make(map[uint]struct{})
-	setupAppsByName := make(map[string]struct{})
 	setupSoftware, err := client.GetSetupExperienceSoftware("macos,windows,linux,ios,ipados,android", teamID)
 	if err != nil {
 		return nil, fmt.Errorf("could not get setup experience software for fleet %d: %w", teamID, err)
@@ -337,8 +335,8 @@ func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSp
 		if pkg := sw.SoftwarePackage; pkg != nil && pkg.InstallDuringSetup != nil && *pkg.InstallDuringSetup {
 			setupSoftwareByTitleID[sw.ID] = struct{}{}
 		}
-		if app := sw.AppStoreApp; app != nil && app.InstallDuringSetup != nil && *app.InstallDuringSetup {
-			setupAppsByName[app.FullyQualifiedName()] = struct{}{}
+		if len(sw.AppStoreApps) > 0 && sw.AppStoreApps[0].InstallDuringSetup != nil && *sw.AppStoreApps[0].InstallDuringSetup {
+			setupSoftwareByTitleID[sw.ID] = struct{}{}
 		}
 	}
 
@@ -404,16 +402,12 @@ func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSp
 				Categories:         optjson.SetSlice(pkg.Categories),
 				InstallDuringSetup: setupExperienceValue(setupSoftwareByTitleID, title.ID),
 			})
-		case detail.AppStoreApp != nil:
-			app := detail.AppStoreApp
-			var installDuringSetup optjson.Bool
-			if _, ok := setupAppsByName[app.VPPAppID.String()]; ok {
-				installDuringSetup = optjson.SetBool(true)
-			}
+		case len(detail.AppStoreApps) > 0:
+			app := detail.AppStoreApps[0]
 			appStoreAppSpec := fleet.TeamSpecAppStoreApp{
-				AppStoreID:         app.AdamID,
+				AppStoreID:         app.AppStoreID,
 				Platform:           string(app.Platform),
-				InstallDuringSetup: installDuringSetup,
+				InstallDuringSetup: setupExperienceValue(setupSoftwareByTitleID, title.ID),
 			}
 			// Output one object instead of a versions array when the app only has one version
 			if len(detail.AppStoreApps) > 1 || (len(detail.AppStoreApps) == 1 && detail.AppStoreApps[0].Name != fleet.DefaultAppStoreAppVersionName) {
@@ -522,7 +516,6 @@ func getCommand() *cli.Command {
 			getSoftwareCommand(),
 			getMDMAppleCommand(),
 			getMDMABCommand(),
-			getMDMAppleBMCommand(),
 			getMDMCommandResultsCommand(),
 			getMDMCommandsCommand(),
 		}),
@@ -540,7 +533,8 @@ func queryToTableRow(query fleet.Query, teamName string) []string {
 		minOsqueryVersion = query.MinOsqueryVersion
 	}
 
-	scheduleInfo := fmt.Sprintf("interval: %d\nplatform: %s\nmin_osquery_version: %s\nautomations_enabled: %t\nlogging: %s\ndiscard_data: %t",
+	scheduleInfo := fmt.Sprintf(
+		"interval: %d\nplatform: %s\nmin_osquery_version: %s\nautomations_enabled: %t\nlogging: %s\ndiscard_data: %t",
 		query.Interval,
 		platform,
 		minOsqueryVersion,
@@ -1674,21 +1668,6 @@ func getMDMABCommand() *cli.Command {
 	}
 }
 
-func getMDMAppleBMCommand() *cli.Command {
-	return &cli.Command{
-		Name:    "mdm-apple-bm",
-		Aliases: []string{"mdm_apple_bm"},
-		Usage:   "Deprecated. Use mdm-ab instead.",
-		Flags:   getMDMABFlags(),
-		Action: func(c *cli.Context) error {
-			if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
-				fmt.Fprintf(c.App.ErrWriter, "[!] 'fleetctl get mdm-apple-bm' is deprecated; use 'fleetctl get mdm-ab' instead\n")
-			}
-			return runGetMDMAB(c)
-		},
-	}
-}
-
 func getMDMABFlags() []cli.Flag {
 	return []cli.Flag{
 		configFlag(),
@@ -1705,34 +1684,55 @@ func runGetMDMAB(c *cli.Context) error {
 		return err
 	}
 
-	bm, err := client.GetAppleBM()
+	tokens, err := client.ListABTokens()
 	if err != nil {
-		if _, ok := errors.AsType[service.NotFoundErr](err); ok {
-			log(c, "Error: No Apple Business (AB) server token found. Use `fleetctl generate mdm-ab` and then `fleet serve` with `mdm` configuration to automatically enroll macOS hosts to Fleet.\n")
-			return nil
+		return fmt.Errorf("could not list AB tokens: %w", err)
+	}
+
+	if len(tokens) == 0 {
+		log(c, "Error: No Apple Business (AB) server token found. Use `fleetctl generate mdm-ab` and follow the steps to automatically enroll Apple hosts to Fleet.\n")
+		return nil
+	}
+
+	for i, token := range tokens {
+		fleetName := func(assignment fleet.ABMTokenTeam) string {
+			if assignment.ID == 0 {
+				return fleet.DisplayNameNoTeam
+			}
+			return assignment.Name
 		}
-		return fmt.Errorf("could not get Apple Business information: %w", err)
-	}
 
-	defaultTeam := bm.DefaultTeam
-	if defaultTeam == "" {
-		defaultTeam = "Unassigned"
-	}
-	printKeyValueTable(c, [][]string{
-		{"Apple ID:", bm.AppleID},
-		{"Organization name:", bm.OrgName},
-		{"MDM server URL:", bm.MDMServerURL},
-		{"Renew date:", bm.RenewDate.Format("January 2, 2006")},
-		{"Default fleet:", defaultTeam},
-	})
+		defaultTokenOutput := func(isDefaultToken bool) string {
+			if isDefaultToken {
+				return "Yes"
+			}
+			return "No"
+		}
 
-	warnDate := time.Now().Add(expirationWarning)
-	if bm.RenewDate.Before(time.Now()) {
-		// certificate is expired, print an error
-		color.New(color.FgRed).Fprintln(c.App.Writer, "\nERROR: Your Apple Business (AB) server token is expired. Laptops newly purchased via Apple Business will not automatically enroll in Fleet. To renew your AB server token, follow these instructions: https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token")
-	} else if bm.RenewDate.Before(warnDate) {
-		// certificate will soon expire, print a warning
-		color.New(color.FgYellow).Fprintln(c.App.Writer, "\nWARNING: Your Apple Business (AB) server token is less than 30 days from expiration. If it expires, laptops newly purchased via Apple Business will not automatically enroll in Fleet. To renew your AB server token, follow these instructions: https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token")
+		printKeyValueTable(c, [][]string{
+			{"Organization name:", token.OrganizationName},
+			{"Apple ID:", token.AppleID},
+			{"MDM server URL:", token.MDMServerURL},
+			{"Renew date:", token.RenewAt.Format("January 2, 2006")},
+			{"Default token:", defaultTokenOutput(token.IsDefault)},
+			{"macOS fleet:", fleetName(token.MacOSTeam)},
+			{"iOS fleet:", fleetName(token.IOSTeam)},
+			{"iPadOS fleet:", fleetName(token.IPadOSTeam)},
+			{"BYOD fleet:", fleetName(token.BYODTeam)},
+		})
+
+		warnDate := time.Now().Add(expirationWarning)
+		if token.RenewAt.Before(time.Now()) {
+			// certificate is expired, print an error
+			color.New(color.FgRed).Fprintln(c.App.Writer, "\nERROR: Your Apple Business (AB) server token is expired. Laptops newly purchased via Apple Business will not automatically enroll in Fleet. To renew your AB server token, follow these instructions: https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token")
+		} else if token.RenewAt.Before(warnDate) {
+			// certificate will soon expire, print a warning
+			color.New(color.FgYellow).Fprintln(c.App.Writer, "\nWARNING: Your Apple Business (AB) server token is less than 30 days from expiration. If it expires, laptops newly purchased via Apple Business will not automatically enroll in Fleet. To renew your AB server token, follow these instructions: https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token")
+		}
+
+		if i < len(tokens)-1 {
+			fmt.Fprintln(c.App.Writer)
+		}
 	}
 
 	return nil

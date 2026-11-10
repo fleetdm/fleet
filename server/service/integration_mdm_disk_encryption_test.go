@@ -1312,9 +1312,8 @@ func (s *integrationMDMTestSuite) TestTeamPatchPerPlatformDiskEncryption() {
 	patch(`{"mdm":{"windows_settings":{"enable_disk_encryption": true}}}`, http.StatusOK)
 	require.Equal(t, before, s.lastActivityMatches("", "", 0))
 
-	// the GET response carries every per-platform key, so a GET-modify-PATCH
-	// round trip can see them. The macOS object comes back under its new
-	// apple_settings name only, though requests accept either name.
+	// the GET response carries every per-platform key. The macOS object comes back under both its new apple_settings name and
+	// its deprecated macos_settings name, and requests accept either name (but not both).
 	res = s.Do("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID), nil, http.StatusOK)
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
@@ -1345,7 +1344,8 @@ func (s *integrationMDMTestSuite) TestTeamPatchPerPlatformDiskEncryption() {
 	require.NotNil(t, gotMDM.AppleSettings)
 	require.NotNil(t, gotMDM.AppleSettings.EnableDiskEncryption)
 	require.NotNil(t, gotMDM.AppleSettings.EnableEscrowDiskEncryptionKey)
-	require.Nil(t, gotMDM.MacOSSettings, "the response uses the apple_settings name only")
+	require.NotNil(t, gotMDM.MacOSSettings, "the response also carries the deprecated macos_settings name")
+	require.Equal(t, gotMDM.AppleSettings.EnableDiskEncryption, gotMDM.MacOSSettings.EnableDiskEncryption)
 	require.NotNil(t, gotMDM.WindowsSettings)
 	require.NotNil(t, gotMDM.WindowsSettings.EnableDiskEncryption)
 	require.NotNil(t, gotMDM.WindowsSettings.RequireBitLockerPIN)

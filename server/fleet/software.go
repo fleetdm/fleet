@@ -621,7 +621,8 @@ type SoftwareTitleListResult struct {
 
 	// AppStoreApp provides VPP app information, it is only present if a VPP app
 	// is available for the software title.
-	AppStoreApp *SoftwarePackageOrApp `json:"app_store_app"`
+	AppStoreApp  *SoftwarePackageOrApp `json:"app_store_app"`
+	AppStoreApps []AppStoreAppListItem `json:"app_store_apps"`
 	// BundleIdentifier is used by Apple installers to uniquely identify
 	// the software installed. It's surfaced in software_titles to match
 	// with existing software entries.
@@ -1084,14 +1085,6 @@ type VPPBatchPayload struct {
 	AutoUpdateEnabled   *bool                     `json:"auto_update_enabled,omitempty"`
 	AutoUpdateStartTime *string                   `json:"auto_update_window_start,omitempty"`
 	AutoUpdateEndTime   *string                   `json:"auto_update_window_end,omitempty"`
-}
-
-func (v VPPBatchPayload) GetPlatform() string {
-	return string(v.Platform)
-}
-
-func (v VPPBatchPayload) GetAppStoreID() string {
-	return v.AppStoreID
 }
 
 type VPPBatchPayloadWithPlatform struct {

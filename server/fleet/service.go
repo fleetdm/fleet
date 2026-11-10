@@ -1003,7 +1003,6 @@ type Service interface {
 	// Apple MDM
 
 	GetAppleMDM(ctx context.Context) (*AppleMDM, error)
-	GetAppleBM(ctx context.Context) (*AppleBM, error)
 	RequestMDMAppleCSR(ctx context.Context, email, org string) (*AppleCSR, error)
 
 	// GetMDMAppleCSR returns a signed CSR as base64 encoded bytes for Apple MDM. The first time

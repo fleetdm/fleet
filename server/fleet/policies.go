@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"golang.org/x/text/unicode/norm"
 )
 
 // PolicyPayload holds data for policy creation.
@@ -950,13 +951,15 @@ func (p PolicySpec) VerifyLabelScopes() error {
 func FirstDuplicatePolicySpecName(specs []*PolicySpec) string {
 	teams := make(map[string]map[string]struct{})
 	for _, spec := range specs {
-		if team, ok := teams[spec.Team]; ok {
-			if _, ok = team[spec.Name]; ok {
+		// Names are stored NFC-normalized, so names that differ only in normalization are the same policy.
+		teamName, name := norm.NFC.String(spec.Team), norm.NFC.String(spec.Name)
+		if team, ok := teams[teamName]; ok {
+			if _, ok = team[name]; ok {
 				return spec.Name
 			}
-			team[spec.Name] = struct{}{}
+			team[name] = struct{}{}
 		} else {
-			teams[spec.Team] = map[string]struct{}{spec.Name: {}}
+			teams[teamName] = map[string]struct{}{name: {}}
 		}
 	}
 	return ""
