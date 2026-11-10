@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -404,4 +405,38 @@ func TestWorkerWithRealDatastore(t *testing.T) {
 	})
 	require.Equal(t, 3, failedJob.Retries)
 	require.WithinDuration(t, beforeThirdTime.Add(time.Hour), failedJob.NotBefore, time.Minute)
+}
+
+// With a read replica, the queue must be read from the primary: UpdateJob
+// writes to the primary, so a lagging replica would keep returning jobs that
+// were already processed, ending the run after the first batch.
+func TestWorkerBatchesWithReplica(t *testing.T) {
+	ctx := t.Context()
+	opts := &testing_utils.DatastoreTestOptions{DummyReplica: true}
+	ds := mysqltest.CreateMySQLDSWithOptions(t, opts)
+	// a DB migration may create jobs
+	mysqltest.TruncateTables(t, ds)
+
+	w := NewWorker(ds, slog.New(slog.DiscardHandler))
+
+	var processed int
+	w.Register(testJob{
+		name: "test",
+		run: func(ctx context.Context, argsJSON json.RawMessage) error {
+			processed++
+			return nil
+		},
+	})
+
+	const numJobs = 250
+	for i := 0; i < numJobs; i++ {
+		args := json.RawMessage(`"job"`)
+		_, err := ds.NewJob(ctx, &fleet.Job{Name: "test", Args: &args, State: fleet.JobStateQueued})
+		require.NoError(t, err)
+	}
+	// replicate the queued jobs once, then let the replica lag behind
+	opts.RunReplication()
+
+	require.NoError(t, w.ProcessJobs(ctx))
+	require.Equal(t, numJobs, processed)
 }
