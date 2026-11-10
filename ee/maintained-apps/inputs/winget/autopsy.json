@@ -3,6 +3,7 @@
   "slug": "autopsy/windows",
   "package_identifier": "SleuthKit.Autopsy",
   "unique_identifier": "Autopsy",
+  "open_process_names": ["autopsy.exe", "autopsy64.exe"],
   "installer_arch": "x64",
   "installer_type": "msi",
   "installer_scope": "machine",
