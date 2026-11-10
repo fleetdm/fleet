@@ -115,7 +115,7 @@ const DeployModal = ({
             return;
           }
           await teamPoliciesAPI.create({
-            team_id: teamId,
+            fleet_id: teamId,
             name: getFleetAppPolicyName(softwareTitle.name),
             description: getFleetAppPolicyDescription(softwareTitle.name),
             query: fleetMaintainedApp.automatic_install_query,
@@ -131,7 +131,7 @@ const DeployModal = ({
       if (patch !== !!patchPolicy) {
         if (patch) {
           await teamPoliciesAPI.create({
-            team_id: teamId,
+            fleet_id: teamId,
             type: "patch",
             patch_software_title_id: softwareTitle.id,
             ...(patchOption !== "manual" && {
@@ -162,7 +162,7 @@ const DeployModal = ({
             patchFlags.continuous_automations_enabled)
       ) {
         await teamPoliciesAPI.update(patchPolicy.id, {
-          team_id: teamId,
+          fleet_id: teamId,
           software_title_id: patchOption === "manual" ? null : softwareTitle.id,
           ...patchFlags,
         });

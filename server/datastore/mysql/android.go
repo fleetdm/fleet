@@ -769,7 +769,10 @@ UPDATE android_devices
 	SET last_pubsub_message_id = IF(? = '', last_pubsub_message_id, ?),
 		last_pubsub_event_time = CASE
 			WHEN ? IS NULL THEN last_pubsub_event_time
-			WHEN last_pubsub_event_time IS NULL OR ? > last_pubsub_event_time THEN ?
+			-- A recorded time this far ahead cannot be a real event time; replace it so the host
+			-- regains staleness protection. Matches maxPubSubEventSkew in the Android service.
+			WHEN last_pubsub_event_time IS NULL OR ? > last_pubsub_event_time
+				OR last_pubsub_event_time > NOW(6) + INTERVAL 5 MINUTE THEN ?
 			ELSE last_pubsub_event_time
 		END
 	WHERE host_id = ?`,
@@ -2838,44 +2841,6 @@ WHERE
 	return hasChanged, nil
 }
 
-// GetAndroidAppConfiguration retrieves the configuration for an Android app by app ID and team
-func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) ([]byte, error) {
-	stmt := `SELECT configuration FROM vpp_apps_teams WHERE adam_id = ? AND global_or_team_id = ? AND platform = 'android' ORDER BY id LIMIT 1`
-
-	var config []byte
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, applicationID, teamID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("AndroidAppConfiguration"))
-		}
-		return nil, ctxerr.Wrap(ctx, err, "get android app configuration")
-	}
-	if config == nil {
-		return nil, ctxerr.Wrap(ctx, notFound("AndroidAppConfiguration"))
-	}
-
-	return config, nil
-}
-
-func (ds *Datastore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) ([]byte, error) {
-	stmt := `
-	SELECT configuration
-	FROM vpp_apps_teams
-	WHERE id = ? AND configuration IS NOT NULL
-`
-
-	var config []byte
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, vppAppTeamID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("AndroidAppConfiguration"))
-		}
-		return nil, ctxerr.Wrap(ctx, err, "get android app configuration")
-	}
-
-	return config, nil
-}
-
 func (ds *Datastore) BulkGetAndroidAppConfigurations(ctx context.Context, vppAppTeamIDs []uint) (map[string][]byte, error) {
 	const bulkGetStmt = `
 	SELECT
@@ -2934,30 +2899,6 @@ WHERE
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "set android app install pending apply config")
 	}
-	return nil
-}
-
-// DeleteAndroidAppConfiguration removes an Android app configuration.
-func (ds *Datastore) DeleteAndroidAppConfiguration(ctx context.Context, appID string, teamID uint) error {
-	stmt := `
-		UPDATE vpp_apps_teams SET configuration = NULL, configuration_updated_at = NOW(6)
-		WHERE adam_id = ? AND global_or_team_id = ? AND platform = 'android' AND configuration IS NOT NULL
-	`
-
-	result, err := ds.writer(ctx).ExecContext(ctx, stmt, appID, teamID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete android app configuration")
-	}
-
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete android app configuration rows affected")
-	}
-
-	if rows == 0 {
-		return ctxerr.Wrap(ctx, notFound("AndroidAppConfiguration"))
-	}
-
 	return nil
 }
 
@@ -3251,6 +3192,8 @@ func (ds *Datastore) BulkUpsertHostAndroidSoftwareInstalls(ctx context.Context, 
 				-- Don't clear a resend flag set after the policy was built, because the sent
 				-- policy doesn't have that change
 				needs_resend = IF(needs_resend = 1 AND updated_at > VALUES(policy_built_at), 1, VALUES(needs_resend)),
+				-- Set explicitly so the next retry will be sent an hour after the latest request failure
+				updated_at = CURRENT_TIMESTAMP(6),
 				vpp_app_team_id = VALUES(vpp_app_team_id),
 				install_type = VALUES(install_type),
 				status = VALUES(status),
