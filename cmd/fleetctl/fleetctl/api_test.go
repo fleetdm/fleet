@@ -39,11 +39,10 @@ func TestRunApiCommand(t *testing.T) {
   "scripts": [
     {
       "id": 23,
-      "team_id": null,
+      "fleet_id": null,
       "name": "get_my_device_page.sh",
       "created_at": "%s",
-      "updated_at": "%s",
-      "fleet_id": null
+      "updated_at": "%s"
     }
   ]
 }
@@ -68,7 +67,7 @@ func TestRunApiCommand(t *testing.T) {
     "author_id": 1,
     "author_name": "",
     "author_email": "",
-    "team_id": null,
+    "fleet_id": null,
     "resolution": "",
     "platform": "darwin,windows,linux,chrome",
     "calendar_events_enabled": false,
@@ -83,8 +82,7 @@ func TestRunApiCommand(t *testing.T) {
     "updated_at": "0001-01-01T00:00:00Z",
     "passing_host_count": 0,
     "failing_host_count": 0,
-    "host_count_updated_at": null,
-    "fleet_id": null
+    "host_count_updated_at": null
   }
 }
 `
@@ -129,12 +127,12 @@ func TestRunApiCommand(t *testing.T) {
 		},
 		{
 			name:         "get scripts team",
-			args:         []string{"-F", "team_id=1", "scripts"},
+			args:         []string{"-F", "fleet_id=1", "scripts"},
 			expectOutput: expectedEmptyScripts,
 		},
 		{
 			name:         "get scripts team no cache",
-			args:         []string{"-H", "cache-control:no-cache", "-F", "team_id=1", "scripts"},
+			args:         []string{"-H", "cache-control:no-cache", "-F", "fleet_id=1", "scripts"},
 			expectOutput: expectedEmptyScripts,
 		},
 		{
