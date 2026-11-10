@@ -31,6 +31,7 @@ var removedPathTemplates = []string{
 	"/api/_version_/fleet/mdm/apple_bm",
 	"/api/_version_/fleet/mdm/apple/abm_public_key",
 	"/api/_version_/fleet/scripts/batch/summary/{batch_execution_id}",
+	"/api/_version_/fleet/hosts/identifier/{identifier}",
 	"/api/_version_/fleet/queries/{name}",
 }
 
@@ -43,7 +44,23 @@ var removedPathOverlaps = map[string]endpointer.RemovedPathOverlap{
 	"/api/_version_/fleet/scripts/batch/summary/{batch_execution_id}": {
 		Method:            http.MethodGet,
 		RouteTemplate:     "/api/_version_/fleet/scripts/batch/{summary_segment}/{batch_execution_id}",
-		WrongMethodRoutes: map[string]string{"/api/_version_/fleet/scripts/batch/{batch_execution_id}/cancel": http.MethodPost},
+		WrongMethodRoutes: map[string][]string{"/api/_version_/fleet/scripts/batch/{batch_execution_id}/cancel": {http.MethodPost}},
+	},
+	"/api/_version_/fleet/hosts/identifier/{identifier}": {
+		Method:        http.MethodGet,
+		RouteTemplate: "/api/_version_/fleet/hosts/{identifier_segment}/{identifier}",
+		WrongMethodRoutes: map[string][]string{
+			"/api/_version_/fleet/hosts/transfer/filter":       {http.MethodPost},
+			"/api/_version_/fleet/hosts/{id}/apns_ping":        {http.MethodPost},
+			"/api/_version_/fleet/hosts/{id}/clear_passcode":   {http.MethodPost},
+			"/api/_version_/fleet/hosts/{id}/google_device_id": {http.MethodPut, http.MethodDelete},
+			"/api/_version_/fleet/hosts/{id}/labels":           {http.MethodPost, http.MethodDelete},
+			"/api/_version_/fleet/hosts/{id}/lock":             {http.MethodPost},
+			"/api/_version_/fleet/hosts/{id}/query":            {http.MethodPost},
+			"/api/_version_/fleet/hosts/{id}/refetch":          {http.MethodPost},
+			"/api/_version_/fleet/hosts/{id}/unlock":           {http.MethodPost},
+			"/api/_version_/fleet/hosts/{id}/wipe":             {http.MethodPost},
+		},
 	},
 }
 
