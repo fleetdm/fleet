@@ -716,6 +716,11 @@ func TestWindowsOpenQuery(t *testing.T) {
 			prefix: "o'drive",
 			want:   "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) LIKE 'o''drive%');",
 		},
+		{
+			name:   "prefix LIKE wildcards match literally",
+			prefix: `Foo_Bar%\`,
+			want:   `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) LIKE 'foo\_bar\%\\%' ESCAPE '\');`,
+		},
 		{name: "blank name", names: []string{"studio64.exe", " "}, wantErr: "blank name"},
 		{name: "blank prefix", prefix: " ", wantErr: "is blank"},
 		{name: "names and prefix", names: []string{"studio64.exe"}, prefix: "studio", wantErr: "can't both be set"},

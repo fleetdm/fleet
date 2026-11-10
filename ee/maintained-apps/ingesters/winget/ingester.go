@@ -503,6 +503,8 @@ func escapeSQLParam(s string) string {
 	return strings.ReplaceAll(s, "'", "''")
 }
 
+var likeWildcardEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+
 // windowsOpenQuery returns the "app is open" query: a row only when no matching process
 // runs. Without an override it matches a process named "<name>.exe".
 func windowsOpenQuery(name string, processNames []string, processNamePrefix string) (string, error) {
@@ -516,7 +518,12 @@ func windowsOpenQuery(name string, processNames []string, processNamePrefix stri
 		if prefix == "" {
 			return "", errors.New("open_process_name_prefix is blank")
 		}
-		predicate = fmt.Sprintf("LIKE '%s%%'", escapeSQLParam(prefix))
+		// % and _ are LIKE wildcards; escape them so the prefix matches literally.
+		literal := likeWildcardEscaper.Replace(prefix)
+		predicate = fmt.Sprintf("LIKE '%s%%'", escapeSQLParam(literal))
+		if literal != prefix {
+			predicate += ` ESCAPE '\'`
+		}
 	case len(processNames) > 0:
 		quoted := make([]string, 0, len(processNames))
 		for _, n := range processNames {
