@@ -1204,6 +1204,23 @@ Remove it from your server configuration.
 
 GitHub issue: [#53787](https://github.com/fleetdm/fleet/issues/53787)
 
+### Performance tracing changes
+
+This only applies if you send Fleet server performance data (traces) to a monitoring tool like Elastic, Datadog, or Grafana. You'd know because you set `logging.tracing_enabled` (`FLEET_LOGGING_TRACING_ENABLED`) to `true`. It's off by default, so most deployments can skip this.
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| Setting `logging.tracing_type` to `elasticapm` sends traces to Elastic APM | Removed. Fleet stops sending traces and logs a warning at startup. [OpenTelemetry](https://fleetdm.com/docs/configuration/fleet-server-configuration#logging-tracing-enabled) is the only option. |
+| Trace names for API requests look like `GET /api/{fleetversion:(?:v1\|2022-04\|latest)}/fleet/hosts/{id:[0-9]+}` | Trace names are simpler, like `GET /api/_version_/fleet/hosts/{id}` |
+
+#### What to do
+
+1. If you use Elastic APM, remove `logging.tracing_type` and set `OTEL_EXPORTER_OTLP_ENDPOINT` to your OpenTelemetry collector.
+   - Elastic accepts OpenTelemetry data, so you can keep using Elastic.
+2. Update any dashboards or alerts in your monitoring tool that match on the old trace names.
+
+GitHub issue: [#58257](https://github.com/fleetdm/fleet/issues/58257)
+
 
 ## Single sign-on (SSO)
 
