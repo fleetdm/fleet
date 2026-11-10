@@ -894,6 +894,26 @@ describe("Activity Feed", () => {
     expect(screen.queryByText(/unmarked/)).not.toBeInTheDocument();
   });
 
+  it.each([
+    [
+      ActivityType.AddedConditionalAccessGoogle,
+      "configured Google conditional access.",
+    ],
+    [
+      ActivityType.EditedConditionalAccessGoogle,
+      "edited Google conditional access configuration.",
+    ],
+    [
+      ActivityType.DeletedConditionalAccessGoogle,
+      "deleted Google conditional access configuration.",
+    ],
+  ])("renders a '%s' activity", (type, text) => {
+    const activity = createMockActivity({ type });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(text, { exact: false })).toBeInTheDocument();
+  });
+
   it("renders a 'set_host_google_device_id' activity from a Google sign-in as Fleet with the account", () => {
     const activity = createMockActivity({
       type: ActivityType.SetHostGoogleDeviceId,
