@@ -1,0 +1,1 @@
+- Fixed `GET /api/v1/fleet/labels/:id/hosts` and the hosts CSV report filtered by a label returning no `orbit_version` and `fleet_desktop_version`. The Hosts page **Agent** column now shows the same version and tooltip with or without a label filter.

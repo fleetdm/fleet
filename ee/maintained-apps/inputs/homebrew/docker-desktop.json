@@ -6,7 +6,22 @@
   "installer_format": "dmg",
   "post_uninstall_scripts": [
     "sudo rm -rf '/Applications/Docker.app.back'",
-    "sudo rm -rf /Users/*/Library/'Application Support'/com.docker.install"
+    "# Root removes the per-user update staging from a pinned working directory after",
+    "# checking its kernel path (/bin/pwd): the home's owner controls this tree, so root",
+    "# following a symlink they swapped in could otherwise delete files anywhere.",
+    "for home in /Users/*; do",
+    "  staging_dir=\"$home/Library/Application Support/com.docker.install\"",
+    "  [[ -e \"$staging_dir\" ]] || continue",
+    "  real_home=$(cd \"$home\" && /bin/pwd -P) || continue",
+    "  (",
+    "    cd \"$home/Library/Application Support\" || exit 1",
+    "    if [[ \"$(/bin/pwd -P)\" != \"$real_home/Library/Application Support\" ]]; then",
+    "      echo \"refusing to remove $staging_dir: $home/Library/Application Support resolves to $(/bin/pwd -P)\"",
+    "      exit 1",
+    "    fi",
+    "    rm -rf com.docker.install",
+    "  ) || echo \"Failed to remove '$staging_dir'.\"",
+    "done"
   ],
   "default_categories": ["Developer tools"],
   "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/docker_desktop_install.sh"

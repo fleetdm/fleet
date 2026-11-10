@@ -193,7 +193,7 @@ spec:
         apple_enable_release_device_manually: false
         apple_setup_assistant: ""
         macos_manual_agent_install: false
-        require_all_software_macos: false
+        macos_require_all_software: false
         script: ""
         software: []
       macos_updates:
@@ -514,7 +514,7 @@ spec:
 
 ### Settings
 
-For possible options, see the parameter for the parameters of the [Modify configuration API endpoint](../REST%20API/rest-api.md#modify-configuration).
+For possible options, see the parameter for the parameters of the [Modify configuration API endpoint](../../../API/rest-api.md#modify-configuration).
 
 Each section's key must be one level below the `spec` key, indented with spaces (not `<tab>` characters) as required by the YAML format.
 

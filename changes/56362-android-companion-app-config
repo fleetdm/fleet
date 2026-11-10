@@ -1,0 +1,2 @@
+- Fixed Android app configuration accepting the `COMPANION_APP` role and `extensionConfig`, which Google always rejects because Fleet's agent is the companion app. Fleet now refuses them when the configuration is saved.
+- If you added `COMPANION_APP` or `extensionConfig` to an Android app's configuration in Fleet 4.94.0, remove them before upgrading. Otherwise, saving that configuration, including GitOps runs, will fail.

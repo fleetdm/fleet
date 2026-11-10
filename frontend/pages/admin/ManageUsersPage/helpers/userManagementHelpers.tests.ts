@@ -25,7 +25,7 @@ describe("userManagementHelpers module", () => {
         name: "Test User",
         newUserType: NewUserType.AdminCreated, // TODO revisit test
         global_role: "admin",
-        teams: [updatedTeam, newTeam],
+        fleets: [updatedTeam, newTeam],
       };
       const updatedData = userManagementHelpers.generateUpdateData(
         createMockUser({ role: "Observer", global_role: null }),
@@ -35,7 +35,7 @@ describe("userManagementHelpers module", () => {
       expect(updatedData).toEqual({
         email: "newemail@test.com",
         global_role: "admin",
-        teams: [updatedTeam, newTeam],
+        fleets: [updatedTeam, newTeam],
       });
     });
   });

@@ -1,41 +1,35 @@
-import { uniqueId } from "lodash";
 import React from "react";
 
-import { COLORS } from "styles/var/colors";
+import { COLORS, Colors } from "styles/var/colors";
 import { ICON_SIZES, IconSizes } from "styles/var/icon_sizes";
 
 interface IInstallSelfServiceProps {
+  color?: Colors;
   size?: IconSizes;
-  color?: keyof typeof COLORS;
 }
 
 const InstallSelfService = ({
-  size = "medium",
   color = "ui-fleet-black-50",
+  size = "medium",
 }: IInstallSelfServiceProps) => {
-  const clipPathId = uniqueId("clip-path-");
-
   return (
     <svg
-      xmlns="http://www.w3.org/2000/svg"
       width={ICON_SIZES[size]}
       height={ICON_SIZES[size]}
       viewBox="0 0 16 16"
       fill="none"
+      xmlns="http://www.w3.org/2000/svg"
     >
-      <g clipPath={`url(#${clipPathId})`}>
-        <path
-          fillRule="evenodd"
-          clipRule="evenodd"
-          d="M8 16C12.4183 16 16 12.4183 16 8C16 3.58172 12.4183 0 8 0C3.58172 0 0 3.58172 0 8C0 12.4183 3.58172 16 8 16ZM9.00002 4C9.00002 3.44772 8.55231 3 8.00002 3C7.44774 3 7.00003 3.44772 7.00003 4V9.86496L5.64021 8.73178C5.21593 8.37821 4.58537 8.43554 4.2318 8.85982C3.87824 9.28409 3.93556 9.91466 4.35984 10.2682L7.35984 12.7682C7.73069 13.0773 8.26936 13.0773 8.64021 12.7682L11.6402 10.2682C12.0645 9.91466 12.1218 9.28409 11.7682 8.85982C11.4147 8.43554 10.7841 8.37821 10.3598 8.73178L9.00002 9.86496V4Z"
-          fill={COLORS[color]}
-        />
-      </g>
-      <defs>
-        <clipPath id={clipPathId}>
-          <rect width="16" height="16" fill="white" />
-        </clipPath>
-      </defs>
+      <path
+        d="M8 4C8.414 4 8.75 4.335 8.75 4.75V9.937L10.659 8.029C10.952 7.736 11.426 7.736 11.719 8.029C12.012 8.322 12.012 8.796 11.719 9.089L8.53 12.28C8.481 12.328 8.426 12.366 8.369 12.398C8.341 12.413 8.315 12.43 8.286 12.442C8.254 12.455 8.22 12.464 8.187 12.472C8.174 12.476 8.161 12.481 8.148 12.484C8.142 12.485 8.137 12.486 8.131 12.487C8.088 12.494 8.045 12.5 8 12.5C7.954 12.5 7.91 12.495 7.867 12.487C7.861 12.486 7.856 12.485 7.85 12.484C7.765 12.467 7.687 12.433 7.616 12.39C7.564 12.359 7.514 12.324 7.469 12.28L4.279 9.089C3.986 8.796 3.986 8.322 4.279 8.029C4.572 7.736 5.046 7.736 5.339 8.029L7.25 9.939V4.75C7.25 4.335 7.585 4 8 4Z"
+        fill={COLORS[color]}
+      />
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M8 0C12.418 0 16 3.581 16 8C16 12.418 12.418 16 8 16C3.581 16 0 12.418 0 8C0 3.581 3.581 0 8 0ZM8 1.5C4.41 1.5 1.5 4.41 1.5 8C1.5 11.589 4.41 14.5 8 14.5C11.589 14.5 14.5 11.589 14.5 8C14.5 4.41 11.589 1.5 8 1.5Z"
+        fill={COLORS[color]}
+      />
     </svg>
   );
 };

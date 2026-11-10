@@ -73,6 +73,9 @@ const AndroidZeroTouchPage = () => {
       ...DEFAULT_USE_QUERY_OPTIONS,
       // The picker is locked while fetching, so fail fast instead of retrying.
       retry: false,
+      // Keeps the last DPC extras under the loading overlay so the box doesn't
+      // change height while the next fleet's extras load.
+      keepPreviousData: true,
       enabled:
         !!isPremiumTier && !!isAndroidMdmEnabledAndConfigured && !!currentUser,
     }
@@ -84,12 +87,12 @@ const AndroidZeroTouchPage = () => {
     : "";
 
   const renderCodeBlock = () => {
-    if (isFetching) {
+    if (isFetching && !hasConfig) {
       return (
         <div
           className={`${baseClass}__dpc-extras-code ${baseClass}__dpc-extras-code--loading`}
         >
-          <Spinner />
+          <Spinner centered={false} />
         </div>
       );
     }
@@ -99,9 +102,16 @@ const AndroidZeroTouchPage = () => {
     }
 
     return (
-      <pre className={`${baseClass}__dpc-extras-code`}>
-        <code>{dpcExtrasText}</code>
-      </pre>
+      <div className={`${baseClass}__dpc-extras`}>
+        {isFetching && (
+          <div className={`${baseClass}__loading-overlay`}>
+            <Spinner centered={false} />
+          </div>
+        )}
+        <pre className={`${baseClass}__dpc-extras-code`}>
+          <code>{dpcExtrasText}</code>
+        </pre>
+      </div>
     );
   };
 
@@ -161,6 +171,7 @@ const AndroidZeroTouchPage = () => {
             name="android-zero-touch-name"
             value={selectedFleetName}
             readOnly
+            disabled={isFetching}
             inputOptions={{ "aria-label": "Name" }}
             helpText={
               <>

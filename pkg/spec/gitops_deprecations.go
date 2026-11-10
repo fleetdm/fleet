@@ -1,18 +1,20 @@
 package spec
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 )
 
 // DeprecatedKeyMapping defines a mapping from an old YAML key path to a new one.
 // Paths use dot notation for nested keys, with [] to indicate "all array elements".
 // Examples:
-//   - "team_settings" -> "settings"
+//   - "controls.macos_settings" -> "controls.apple_settings"
 //   - "queries" -> "reports"
-//   - "org_settings.mdm.apple_business[].macos_team" -> "org_settings.mdm.apple_business[].macos_fleet"
+//   - "org_settings.mdm.apple_business_manager" -> "org_settings.mdm.apple_business"
 type DeprecatedKeyMapping struct {
 	OldPath string
 	NewPath string
@@ -24,10 +26,9 @@ type DeprecatedKeyMapping struct {
 //  2. buildAliasRules (in generate_gitops.go) extracts leaf key names to rename keys in
 //     serialized output for generate_gitops, fleetctl get, and fleetctl apply.
 //
-// When adding new deprecations, add them here.
+// When adding new deprecations, add them here. The team-related keys that Fleet 5 removed are in RemovedGitOpsKeys instead.
 var DeprecatedGitOpsKeyMappings = []DeprecatedKeyMapping{
 	// Top-level gitops keys
-	{"team_settings", "settings"},
 	{"queries", "reports"},
 
 	// Controls: macos_settings -> apple_settings (parent first, then children)
@@ -62,15 +63,6 @@ var DeprecatedGitOpsKeyMappings = []DeprecatedKeyMapping{
 	// runs before the nested children below so they resolve against the new
 	// parent name).
 	{"org_settings.mdm.apple_business_manager", "org_settings.mdm.apple_business"},
-
-	// Nested keys in org_settings.mdm.apple_business[]
-	{"org_settings.mdm.apple_business[].macos_team", "org_settings.mdm.apple_business[].macos_fleet"},
-	{"org_settings.mdm.apple_business[].ios_team", "org_settings.mdm.apple_business[].ios_fleet"},
-	{"org_settings.mdm.apple_business[].ipados_team", "org_settings.mdm.apple_business[].ipados_fleet"},
-	{"org_settings.mdm.apple_business[].byod_team", "org_settings.mdm.apple_business[].byod_fleet"},
-
-	// Nested keys in org_settings.mdm.volume_purchasing_program[]
-	{"org_settings.mdm.volume_purchasing_program[].teams", "org_settings.mdm.volume_purchasing_program[].fleets"},
 
 	// The following entries are renameto tags on struct fields that appear in serialized
 	// API output (fleetctl get and fleetctl apply) but are not gitops input keys. They are
@@ -108,6 +100,68 @@ var DeprecatedGitOpsKeyScopes = map[string][]string{
 	// Deprecated spelling of the Apple toggle under setup_experience, but the canonical name of the Windows toggle under
 	// windows_settings.
 	"enable_managed_local_account": {"macos_setup", "setup_experience"},
+}
+
+// RemovedGitOpsKeys are the team-related keys that Fleet 5 removed from GitOps files. They are rejected, not migrated
+// (RejectRemovedKeys), and buildAliasRules also reads them, because the structs that fleetctl serializes still carry the old names.
+// Every path has an entry in pkg/removednames, which supplies the error message.
+var RemovedGitOpsKeys = []DeprecatedKeyMapping{
+	{"team_settings", "settings"},
+	{"org_settings.mdm.apple_business[].macos_team", "org_settings.mdm.apple_business[].macos_fleet"},
+	{"org_settings.mdm.apple_business[].ios_team", "org_settings.mdm.apple_business[].ios_fleet"},
+	{"org_settings.mdm.apple_business[].ipados_team", "org_settings.mdm.apple_business[].ipados_fleet"},
+	{"org_settings.mdm.apple_business[].byod_team", "org_settings.mdm.apple_business[].byod_fleet"},
+	{"org_settings.mdm.volume_purchasing_program[].teams", "org_settings.mdm.volume_purchasing_program[].fleets"},
+}
+
+// removedKeyParents are the old spellings of a parent key in RemovedGitOpsKeys that ApplyDeprecatedKeyMappings renames, so a removed key
+// is found under either spelling, including in a file that ApplyDeprecatedKeyMappings never sees (a file-backed org_settings).
+var removedKeyParents = map[string][]string{"apple_business": {"apple_business", "apple_business_manager"}}
+
+// RejectRemovedKeys returns an error naming the file and the removed key for every key of RemovedGitOpsKeys found in the YAML data map.
+func RejectRemovedKeys(data map[string]any, filePath string) error {
+	var errs []error
+	for _, removed := range RemovedGitOpsKeys {
+		if hasKeyPath(data, strings.Split(removed.OldPath, ".")) {
+			message := fmt.Sprintf("%q is not available anymore", removed.OldPath)
+			if entry, ok := removednames.Find(removednames.KindYAMLKey, removed.OldPath, ""); ok {
+				message = entry.Message()
+			}
+			errs = append(errs, fmt.Errorf("%s: %s", filePath, message))
+		}
+	}
+	return errors.Join(errs...)
+}
+
+// hasKeyPath reports whether the dot-separated path, with [] for every element of an array, exists in data.
+func hasKeyPath(data map[string]any, parts []string) bool {
+	name, isArray := strings.CutSuffix(parts[0], "[]")
+	spellings, ok := removedKeyParents[name]
+	if !ok {
+		spellings = []string{name}
+	}
+	for _, key := range spellings {
+		value, ok := data[key]
+		if !ok {
+			continue
+		}
+		switch {
+		case len(parts) == 1 && !isArray:
+			return true
+		case isArray:
+			elements, _ := value.([]any)
+			for _, element := range elements {
+				if elementMap, ok := element.(map[string]any); ok && len(parts) > 1 && hasKeyPath(elementMap, parts[1:]) {
+					return true
+				}
+			}
+		default:
+			if nested, ok := value.(map[string]any); ok && hasKeyPath(nested, parts[1:]) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // ApplyDeprecatedKeyMappings walks the YAML data map and migrates deprecated keys to their new names.
