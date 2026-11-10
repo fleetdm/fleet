@@ -271,7 +271,7 @@ func TestGetSessionByKey(t *testing.T) {
 		{"real user, accessed recently", -1 * time.Hour, false, false},
 		{"real user, accessed too long ago", -(cfg.Session.Duration + time.Hour), false, true},
 		{"api-only, accessed recently", -1 * time.Hour, true, false},
-		{"api-only, accessed long ago", -(cfg.Session.Duration + time.Hour), true, true},
+		{"api-only, accessed long ago", -(cfg.Session.Duration + time.Hour), true, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {

@@ -79,7 +79,7 @@ After seeding users and fleets, check out [importing queries and policies](https
 
 ### Create an API-only user
 
-Like all regular users, seeded users' API tokens expire frequently. For a long-lived API token, create an [API-only user](https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-with-an-api-only-user). API-only sessions stay active as long as the token is used within the configured session duration (default: 5 days).
+Like all regular users, seeded users' API tokens expire frequently. For an API token that does not expire, create an [API-only user](https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-with-an-api-only-user).
 
 ### Create a single sign-on (SSO) user
 

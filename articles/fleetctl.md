@@ -118,9 +118,7 @@ contexts:
 
 ### Using fleetctl with an API-only user
 
-When running automated workflows using the Fleet API, we recommend using an API-only user's API key rather than a regular user's API key. A regular user's API key expires frequently for security purposes, requiring routine updates.
-
-API-only sessions follow the same session duration as regular sessions (default: 5 days). The session stays active as long as the token is used within that window, since each request resets the inactivity timer. For pipelines that run less frequently, increase the session duration by setting the `FLEET_SESSION_DURATION` environment variable (e.g. `FLEET_SESSION_DURATION=720h` for 30 days).
+When running automated workflows using the Fleet API, we recommend using an API-only user's API key rather than a regular user's API key. A regular user's API key expires frequently for security purposes, requiring routine updates. Meanwhile, an API-only user's key does not expire.
 
 An API-only user does not have access to the Fleet UI. Instead, it's only purpose is to interact with the API programmatically or from fleetctl.
 
