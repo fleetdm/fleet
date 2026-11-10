@@ -1,30 +1,32 @@
 package fleetctl
 
 import (
+	"bytes"
+	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/stretchr/testify/require"
 )
 
-func TestNameMatches(t *testing.T) {
-	cases := []struct {
-		name string
-		want bool
-	}{
-		{"orbit", true},
-		{"orbit.exe", true},
-		{"ORBIT.EXE", true},
-		{"Fleet", true},
-		{"fleet", false},
-		{"fleetctl", false},
-		{"fleet-desktop", false},
-		{"Fleet osquery", false},
-		{"osqueryd", false},
+func TestIsRenamedOrbit(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("orbit renames its process only on Linux")
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			require.Equal(t, tc.want, nameMatches(tc.name, "orbit", constant.AgentDisplayName))
-		})
-	}
+	pid := os.Getpid()
+	exe, err := os.Executable()
+	require.NoError(t, err)
+	exeDir := filepath.Dir(exe)
+	require.False(t, isRenamedOrbit(pid, exeDir), "not renamed")
+
+	// Rename this test process the way orbit renames itself.
+	orig, err := os.ReadFile("/proc/self/comm")
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile("/proc/self/comm", []byte(constant.AgentDisplayName), 0))
+	t.Cleanup(func() { _ = os.WriteFile("/proc/self/comm", bytes.TrimSpace(orig), 0) })
+
+	require.True(t, isRenamedOrbit(pid, exeDir))
+	require.False(t, isRenamedOrbit(pid, t.TempDir()), "another app named Fleet")
 }

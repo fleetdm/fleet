@@ -20,7 +20,6 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -879,10 +878,10 @@ func readPidFromFile(destDir string, what string) (int, error) {
 }
 
 // processNameMatches returns whether the process running with the given pid matches
-// the executable name (case insensitive), or has exactly one of exactNames.
+// the executable name (case insensitive).
 //
 // If there's no process running with the given pid then (false, nil) is returned.
-func processNameMatches(pid int, expectedPrefix string, exactNames ...string) (bool, error) {
+func processNameMatches(pid int, expectedPrefix string) (bool, error) {
 	process, err := ps.FindProcess(pid)
 	if err != nil {
 		return false, fmt.Errorf("find process: %d: %w", pid, err)
@@ -890,11 +889,28 @@ func processNameMatches(pid int, expectedPrefix string, exactNames ...string) (b
 	if process == nil {
 		return false, nil
 	}
-	return nameMatches(process.Executable(), expectedPrefix, exactNames...), nil
+	return strings.HasPrefix(strings.ToLower(process.Executable()), strings.ToLower(expectedPrefix)), nil
 }
 
-func nameMatches(name, expectedPrefix string, exactNames ...string) bool {
-	return strings.HasPrefix(strings.ToLower(name), strings.ToLower(expectedPrefix)) || slices.Contains(exactNames, name)
+// isRenamedOrbit returns whether pid is preview's orbit after it renamed its process to AgentDisplayName, which it
+// does on Linux once the server supports it. Other apps can have that name, so it must also run from destDir.
+func isRenamedOrbit(pid int, destDir string) bool {
+	if runtime.GOOS != "linux" {
+		return false
+	}
+	comm, err := os.ReadFile(fmt.Sprintf("/proc/%d/comm", pid))
+	if err != nil || strings.TrimSpace(string(comm)) != constant.AgentDisplayName {
+		return false
+	}
+	exe, err := os.Readlink(fmt.Sprintf("/proc/%d/exe", pid))
+	if err != nil {
+		return false
+	}
+	dir, err := filepath.Abs(destDir)
+	if err == nil {
+		dir, err = filepath.EvalSymlinks(dir)
+	}
+	return err == nil && strings.HasPrefix(exe, strings.TrimSuffix(dir, "/")+"/")
 }
 
 func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquerydChannel, updateURL, updateRoots string, debug bool) error {
@@ -994,24 +1010,18 @@ func cleanUpSocketFiles(path string) error {
 }
 
 func stopOrbit(destDir string) error {
-	err := killFromPIDFile(destDir, "osquery.pid", "osqueryd")
+	err := killFromPIDFile(destDir, "osquery.pid", "osqueryd", nil)
 	if err != nil {
 		return err
 	}
-	// On Linux, orbit renames its process to AgentDisplayName once the server supports it. That
-	// name is matched exactly, because a reused pid could belong to fleetctl or the Fleet server.
-	var renamedOrbit []string
-	if runtime.GOOS == "linux" {
-		renamedOrbit = []string{constant.AgentDisplayName}
-	}
-	err = killFromPIDFile(destDir, "orbit.pid", "orbit", renamedOrbit...)
+	err = killFromPIDFile(destDir, "orbit.pid", "orbit", isRenamedOrbit)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func killFromPIDFile(destDir string, pidFileName string, expectedExecName string, exactNames ...string) error {
+func killFromPIDFile(destDir string, pidFileName string, expectedExecName string, alsoMatches func(pid int, destDir string) bool) error {
 	pid, err := readPidFromFile(destDir, pidFileName)
 	switch {
 	case err == nil:
@@ -1021,9 +1031,12 @@ func killFromPIDFile(destDir string, pidFileName string, expectedExecName string
 	default:
 		return fmt.Errorf("reading pid from: %s: %w", destDir, err)
 	}
-	matches, err := processNameMatches(pid, expectedExecName, exactNames...)
+	matches, err := processNameMatches(pid, expectedExecName)
 	if err != nil {
 		return fmt.Errorf("inspecting process %d: %w", pid, err)
+	}
+	if !matches && alsoMatches != nil {
+		matches = alsoMatches(pid, destDir)
 	}
 	if !matches {
 		// Nothing to do, another process may be running with this pid

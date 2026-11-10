@@ -3,9 +3,11 @@
 package update
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 )
@@ -19,26 +21,26 @@ func applyAgentDisplayNames() error {
 	if err := os.WriteFile("/proc/self/comm", name, 0); err != nil {
 		return fmt.Errorf("set process name: %w", err)
 	}
-	// A new thread copies the name of the thread that creates it, so list again until no new thread shows up.
-	renamed := map[string]struct{}{}
+	// A new thread copies the name of the thread that creates it, so repeat until a pass finds none left to rename.
 	for range 3 {
 		tasks, err := os.ReadDir("/proc/self/task")
 		if err != nil {
 			return fmt.Errorf("list threads: %w", err)
 		}
-		done := true
+		left := 0
 		for _, task := range tasks {
-			if _, ok := renamed[task.Name()]; ok {
-				continue
+			comm := filepath.Join("/proc/self/task", task.Name(), "comm")
+			current, err := os.ReadFile(comm)
+			if err != nil || strings.TrimSpace(string(current)) == constant.AgentDisplayName {
+				continue // exited, or already renamed
 			}
-			renamed[task.Name()] = struct{}{}
-			done = false
-			// Best effort: the thread may have exited meanwhile.
-			_ = os.WriteFile(filepath.Join("/proc/self/task", task.Name(), "comm"), name, 0)
+			left++
+			// Best effort: the thread may have exited meanwhile; the next pass checks again.
+			_ = os.WriteFile(comm, name, 0)
 		}
-		if done {
-			break
+		if left == 0 {
+			return nil
 		}
 	}
-	return nil
+	return errors.New("set thread names: some threads still have the old name")
 }
