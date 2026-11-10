@@ -2310,15 +2310,18 @@ func (c *Client) DoGitOps(
 			changeManagementURL := strings.TrimRight(appConfig.ServerSettings.ServerURL, "/") + "/settings/integrations/change-management"
 			if exceptions.Labels && incoming.LabelsPresent {
 				return nil, fmt.Errorf(
-					`"labels" is excepted from GitOps management. Remove the "labels:" key from your GitOps file or disable the exception in Fleet settings at %s`, changeManagementURL)
+					`"labels" is excepted from GitOps management. Remove the "labels:" key from your GitOps file or disable the exception in Fleet settings at %s`, changeManagementURL,
+				)
 			}
 			if exceptions.Secrets && incoming.SecretsPresent {
 				return nil, fmt.Errorf(
-					`"secrets" is excepted from GitOps management. Remove the "secrets:" key from your GitOps file or disable the exception in Fleet settings at %s`, changeManagementURL)
+					`"secrets" is excepted from GitOps management. Remove the "secrets:" key from your GitOps file or disable the exception in Fleet settings at %s`, changeManagementURL,
+				)
 			}
 			if exceptions.Software && incoming.SoftwarePresent && incoming.TeamName != nil {
 				return nil, fmt.Errorf(
-					`"software" is excepted from GitOps management. Remove the "software:" key from your GitOps file or disable the exception in Fleet settings at %s`, changeManagementURL)
+					`"software" is excepted from GitOps management. Remove the "software:" key from your GitOps file or disable the exception in Fleet settings at %s`, changeManagementURL,
+				)
 			}
 		}
 	}
@@ -2513,7 +2516,7 @@ func (c *Client) DoGitOps(
 			return nil, errors.New("org_settings.mdm config is not a map")
 		}
 
-		if _, ok := mdmAppConfig["apple_bm_default_team"]; !ok && appConfig.License.IsPremium() {
+		if appConfig.License.IsPremium() {
 			if _, ok := mdmAppConfig["apple_business"]; !ok {
 				mdmAppConfig["apple_business"] = []any{}
 			}
@@ -4213,7 +4216,8 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, appConfig *fle
 	// Premium checks; reuse rather than refetch.
 	if numCerts > 0 && (appConfig == nil || appConfig.License == nil || !appConfig.License.IsPremium()) {
 		return newGitOpsValidationError(
-			"Android certificate templates require a custom SCEP CA, which is available in Fleet Premium only.")
+			"Android certificate templates require a custom SCEP CA, which is available in Fleet Premium only.",
+		)
 	}
 
 	if dryRun {
