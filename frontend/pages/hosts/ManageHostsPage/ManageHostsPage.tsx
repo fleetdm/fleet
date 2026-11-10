@@ -327,9 +327,6 @@ const ManageHostsPage = ({
     isRouteOk,
   ]);
 
-  // Redirect old ?software_id=N links to ?software_version_id=N. The old key
-  // identified a software version; the backend now rejects it. Preserves every
-  // other param; software_version_id wins when both are present.
   useEffect(() => {
     if (queryParams?.software_id === undefined) return;
     const nextQuery = omit(queryParams, "software_id");
