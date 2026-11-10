@@ -163,7 +163,7 @@ describe("ApiUserForm - component", () => {
 
     expect(onSubmit).toHaveBeenCalledWith({
       name: "CI token",
-      global_role: "gitops",
+      global_role: "observer",
       fleets: [],
       api_endpoints: undefined,
     });
