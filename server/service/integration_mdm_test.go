@@ -261,6 +261,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	androidMockClient.SetAuthenticationSecretFunc = func(secret string) error {
 		return nil
 	}
+	androidMockClient.InitDeviceLookupMocks()
 	androidSvc, err := android_service.NewServiceWithClient(wlog, s.ds, androidMockClient, "test-private-key", s.ds,
 		func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 			return s.fleetSvc.NewActivity(ctx, user, activity)
