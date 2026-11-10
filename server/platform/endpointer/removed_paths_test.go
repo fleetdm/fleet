@@ -43,7 +43,7 @@ func TestRegisterRemovedPaths(t *testing.T) {
 	}{
 		{"v1", http.MethodGet, "/api/v1/fleet/gone/1?token=secret", http.StatusGone, "gone via GET"},
 		{"dated version", http.MethodPost, "/api/2022-04/fleet/gone/abc", http.StatusGone, "gone via POST"},
-		{"head", http.MethodHead, "/api/v1/fleet/gone/1", http.StatusGone, ""},
+		{"head is not removed", http.MethodHead, "/api/v1/fleet/gone/1", http.StatusMethodNotAllowed, ""},
 		{"latest", http.MethodDelete, "/api/latest/fleet/gone/1", http.StatusGone, "gone via DELETE"},
 		{"unknown version", http.MethodGet, "/api/v9/fleet/gone/1", http.StatusNotFound, ""},
 		{"other path", http.MethodGet, "/api/v1/fleet/kept", http.StatusOK, ""},
@@ -88,8 +88,12 @@ func TestRegisterRemovedPathsWithOverlap(t *testing.T) {
 	r := mux.NewRouter()
 	var logs bytes.Buffer
 	RegisterRemovedPaths(r, []string{"v1"}, slog.New(slog.NewJSONHandler(&logs, nil)), []RemovedPath{{
-		Path:    "/api/_version_/fleet/items/{id}/old/{name}",
-		Overlap: RemovedPathOverlap{Method: http.MethodPost, RouteTemplate: "/api/_version_/fleet/items/{id}/{old_segment}/{name}"},
+		Path: "/api/_version_/fleet/items/{id}/old/{name}",
+		Overlap: RemovedPathOverlap{
+			Method:            http.MethodPost,
+			RouteTemplate:     "/api/_version_/fleet/items/{id}/{old_segment}/{name}",
+			WrongMethodRoutes: map[string][]string{"/api/_version_/fleet/items/{id}/live/{name}": {http.MethodGet}},
+		},
 		Message: func(method string) string { return "gone via " + method },
 	}})
 
@@ -100,6 +104,7 @@ func TestRegisterRemovedPathsWithOverlap(t *testing.T) {
 	}{
 		{"overlapping method", http.MethodPost, "/api/v1/fleet/items/1/old/abc", http.StatusGone, "gone via POST"},
 		{"other method", http.MethodGet, "/api/v1/fleet/items/1/old/abc", http.StatusGone, "gone via GET"},
+		{"live path on a method it does not serve", http.MethodPost, "/api/v1/fleet/items/1/live/abc", http.StatusMethodNotAllowed, ""},
 		{"other value is an unknown path", http.MethodPost, "/api/v1/fleet/items/1/other/abc", http.StatusNotFound, "404 page not found\n"},
 		{"other value on another method is a mismatch", http.MethodPut, "/api/v1/fleet/items/1/other/abc", http.StatusMethodNotAllowed, ""},
 	} {

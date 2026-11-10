@@ -24,6 +24,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/internal/homes"
+	"github.com/fleetdm/fleet/v4/pkg/str"
 )
 
 // Agent identifiers reported in the `agent` column.
@@ -297,7 +298,7 @@ func parse(src *source, r *recorder) (ok bool) {
 }
 
 // logField caps a value from a file before it goes in a log line.
-func logField(s string) string { return truncateUTF8(s, 128) }
+func logField(s string) string { return str.TruncateBytes(s, 128, "") }
 
 // set is the values of a column's equality constraints. Empty means the
 // column is unconstrained.

@@ -52,8 +52,7 @@ REMOVED_KEYS = [
 ]
 KEY_ALIASES = {"apple_business": ("apple_business", "apple_business_manager")}
 POLICY_PLATFORMS = {"darwin", "windows", "linux", "chrome"}
-LABEL_PLATFORMS = {"darwin", "windows", "linux", "ubuntu", "centos"}
-LABEL_PLATFORM_ALIASES = {"ubuntu": "linux", "centos": "linux"}
+LABEL_PLATFORMS = {"darwin", "windows", "linux"}
 REPORT_LOGGING = {"snapshot", "differential", "differential_ignore_removals"}
 LABEL_KEYS = ("labels_include_any", "labels_include_all", "labels_exclude_any", "labels_exclude_all")
 # Per item type: the label keys fleetctl accepts, and whether an include list may be paired with an exclude list.
@@ -421,7 +420,7 @@ def check_platform(ctx, src, item, what, allowed, required=False):
     bad = parts - allowed
     if bad:
         ctx.fail(src, f"{what}: unknown platform(s) {sorted(bad)}; allowed: {sorted(allowed)}")
-    return {LABEL_PLATFORM_ALIASES.get(x, x) for x in parts - bad}
+    return parts - bad
 
 
 # ---------------------------------------------------------------- osquery SQL
@@ -825,6 +824,9 @@ def check_software(ctx, fs, software):
                 data = load_yaml_file(ctx, f)
                 if data is None:
                     continue
+                if isinstance(data, dict):
+                    ctx.fail(f, f"The single package format in \"{ctx.rel(f)}\" is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration")
+                    continue
                 pkgs = data if isinstance(data, list) else [data]
                 for pkg in pkgs:
                     if not isinstance(pkg, dict):
@@ -1210,6 +1212,8 @@ def run_checks(ctx):
         if unknown:
             ctx.fail(src, f"unknown top-level key(s) {sorted(unknown)}; allowed: {sorted(TOP_LEVEL_KEYS)}")
         base = src.name
+        if base == "no-team.yml":
+            ctx.fail(src, f"no-team.yml was removed in Fleet 5. Use unassigned.yml instead. See {MIGRATION_GUIDE}")
         if "org_settings" in data:
             role, name = "global", "(global)"
             if "name" in data or "settings" in data:
@@ -1221,13 +1225,13 @@ def run_checks(ctx):
             if not isinstance(name, str) or not name.strip():
                 ctx.fail(src, "'name' must be a non-empty string")
                 name = base
-            role = "unassigned" if name.strip().lower() in ("unassigned", "no team") else "fleet"
-            if role == "unassigned" and base not in ("unassigned.yml", "no-team.yml"):
+            role = "unassigned" if name.strip().lower() == "unassigned" else "fleet"
+            if role == "unassigned" and base != "unassigned.yml":
                 ctx.fail(src, "a fleet named 'Unassigned' must live in fleets/unassigned.yml")
-            if role == "fleet" and base in ("unassigned.yml", "no-team.yml"):
+            if role == "fleet" and base == "unassigned.yml":
                 ctx.fail(src, f"{base} must have name: Unassigned")
-            if base == "no-team.yml":
-                ctx.warn(src, "no-team.yml is deprecated; rename to unassigned.yml with name: Unassigned")
+            if name.strip().lower() == "no team":
+                ctx.fail(src, f"name: No team was removed in Fleet 5. Use name: Unassigned instead. See {MIGRATION_GUIDE}")
             if role == "fleet":
                 if name in fleet_names:
                     ctx.fail(src, f"fleet name {name!r} is also used by {fleet_names[name]}")

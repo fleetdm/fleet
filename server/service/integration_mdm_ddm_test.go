@@ -102,7 +102,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	}}, http.StatusNoContent)
 
 	var resp listMDMConfigProfilesResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
 
 	require.Len(t, resp.Profiles, 2)
 	require.Equal(t, "N1", resp.Profiles[0].Name)
@@ -116,7 +116,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 		{Name: "N4", Contents: decls[3]},
 	}}, http.StatusNoContent)
 
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
 
 	require.Len(t, resp.Profiles, 2)
 	require.Equal(t, "N3", resp.Profiles[0].Name)
@@ -131,7 +131,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 		{Name: "N5", Contents: decls[4]},
 	}}, http.StatusNoContent)
 
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
 
 	require.Len(t, resp.Profiles, 2)
 	require.Equal(t, "N3", resp.Profiles[0].Name)
@@ -146,7 +146,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 		{Name: "N5", Contents: newDeclBytes(4, `"bing": "baz"`)},
 	}}, http.StatusNoContent)
 
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
 
 	require.Len(t, resp.Profiles, 2)
 	require.Equal(t, "N3", resp.Profiles[0].Name)
@@ -171,7 +171,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 		{Name: "N6", Contents: decls[6], LabelsIncludeAll: []string{lbl1.Name}},
 	}}, http.StatusNoContent)
 
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
 
 	require.Len(t, resp.Profiles, 2)
 	require.Equal(t, "N5", resp.Profiles[0].Name)
@@ -195,7 +195,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 		{Name: "DeviceScoped", Contents: deviceScoped},
 	}}, http.StatusNoContent)
 
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
 	require.Len(t, resp.Profiles, 2)
 	uuidByName := make(map[string]string, len(resp.Profiles))
 	for _, p := range resp.Profiles {
@@ -547,7 +547,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariables() {
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReq, http.StatusNoContent, "dry_run", "true")
 
 	var resp listMDMConfigProfilesResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
 	require.Empty(t, resp.Profiles)
 
 	// Add secrets to server
@@ -564,7 +564,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariables() {
 
 	// Now real run
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReq, http.StatusNoContent)
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
 
 	require.Len(t, resp.Profiles, len(decls))
 	checkedProfiles := 0
@@ -723,7 +723,7 @@ WHERE name = ?`
 	require.NoError(t, s.ds.SaveAppConfig(t.Context(), appCfg))
 	s.Do("DELETE", "/api/latest/fleet/configuration_profiles/"+nameToUUID["N1"], nil, http.StatusOK)
 
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
 	require.Empty(t, resp.Profiles)
 }
 

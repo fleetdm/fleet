@@ -17,7 +17,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"slices"
 	"strconv"
 	"strings"
@@ -63,7 +62,7 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 	}, http.StatusOK, &tmResp)
 	require.Equal(t, 5, tmResp.Team.Config.MDM.WindowsUpdates.DeadlineDays.Value)
 	require.Equal(t, 2, tmResp.Team.Config.MDM.WindowsUpdates.GracePeriodDays.Value)
-	s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "deadline_days": 5, "grace_period_days": 2}`, team.ID, team.Name, team.ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "deadline_days": 5, "grace_period_days": 2}`, team.ID, team.Name), 0)
 
 	checkWindowsOSUpdatesProfile(t, s.ds, &team.ID, &fleet.WindowsUpdates{
 		DeadlineDays:    optjson.SetInt(5),
@@ -126,7 +125,7 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 	}, http.StatusOK, &tmResp)
 	require.Equal(t, 6, tmResp.Team.Config.MDM.WindowsUpdates.DeadlineDays.Value)
 	require.Equal(t, 2, tmResp.Team.Config.MDM.WindowsUpdates.GracePeriodDays.Value)
-	lastActivity := s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "deadline_days": 6, "grace_period_days": 2}`, team.ID, team.Name, team.ID, team.Name), 0)
+	lastActivity := s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "deadline_days": 6, "grace_period_days": 2}`, team.ID, team.Name), 0)
 
 	checkWindowsOSUpdatesProfile(t, s.ds, &team.ID, &fleet.WindowsUpdates{
 		DeadlineDays:    optjson.SetInt(6),
@@ -188,7 +187,7 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 	}, http.StatusOK, &tmResp)
 	require.False(t, tmResp.Team.Config.MDM.WindowsUpdates.DeadlineDays.Valid)
 	require.False(t, tmResp.Team.Config.MDM.WindowsUpdates.GracePeriodDays.Valid)
-	s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "deadline_days": null, "grace_period_days": null}`, team.ID, team.Name, team.ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "deadline_days": null, "grace_period_days": null}`, team.ID, team.Name), 0)
 
 	checkWindowsOSUpdatesProfile(t, s.ds, &team.ID, nil)
 
@@ -309,13 +308,11 @@ func (s *integrationEnterpriseTestSuite) TestAppleOSUpdatesTeamConfig() {
 
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "minimum_version": "14.6.1", "deadline": "2021-01-01"}`, team.ID, team.Name, team.ID, team.Name), 0)
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "minimum_version": "14.6.1", "deadline": "2021-01-01"}`, team.ID, team.Name), 0)
 
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeEnabledMacosUpdateNewHosts{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`,
-			team.ID,
-			team.Name,
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q}`,
 			team.ID,
 			team.Name,
 		), 0)
@@ -356,9 +353,9 @@ func (s *integrationEnterpriseTestSuite) TestAppleOSUpdatesTeamConfig() {
 	// UpdateNewHosts values are ignored for iPadOS
 	require.Equal(t, optjson.Bool{Set: true}, tmResp.Team.Config.MDM.IPadOSUpdates.UpdateNewHosts)
 
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "minimum_version": "14.6.1", "deadline": "2021-01-01"}`, team.ID, team.Name, team.ID, team.Name), 0)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "minimum_version": "17.6.1", "deadline": "2022-02-02"}`, team.ID, team.Name, team.ID, team.Name), 0)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "minimum_version": "17.6.1", "deadline": "2023-03-03"}`, team.ID, team.Name, team.ID, team.Name), 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "minimum_version": "14.6.1", "deadline": "2021-01-01"}`, team.ID, team.Name), 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "minimum_version": "17.6.1", "deadline": "2022-02-02"}`, team.ID, team.Name), 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "minimum_version": "17.6.1", "deadline": "2023-03-03"}`, team.ID, team.Name), 0)
 
 	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetMacOSUpdatesProfileName, macOSUpdates)
 	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetIOSUpdatesProfileName, iOSUpdates)
@@ -397,9 +394,9 @@ func (s *integrationEnterpriseTestSuite) TestAppleOSUpdatesTeamConfig() {
 	require.Equal(t, "2024-03-03", tmResp.Team.Config.MDM.IPadOSUpdates.Deadline.Value)
 	require.Equal(t, optjson.Bool{Set: true}, tmResp.Team.Config.MDM.IPadOSUpdates.UpdateNewHosts)
 
-	macOSLastActivity := s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "minimum_version": "14.6.1", "deadline": "2025-10-01"}`, team.ID, team.Name, team.ID, team.Name), 0)
-	iOSLastActivity := s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "minimum_version": "17.6.1", "deadline": "2024-02-02"}`, team.ID, team.Name, team.ID, team.Name), 0)
-	iPadOSLastActivity := s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "minimum_version": "17.6.1", "deadline": "2024-03-03"}`, team.ID, team.Name, team.ID, team.Name), 0)
+	macOSLastActivity := s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "minimum_version": "14.6.1", "deadline": "2025-10-01"}`, team.ID, team.Name), 0)
+	iOSLastActivity := s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "minimum_version": "17.6.1", "deadline": "2024-02-02"}`, team.ID, team.Name), 0)
+	iPadOSLastActivity := s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "minimum_version": "17.6.1", "deadline": "2024-03-03"}`, team.ID, team.Name), 0)
 
 	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetMacOSUpdatesProfileName, macOSUpdates)
 	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetIOSUpdatesProfileName, iOSUpdates)
@@ -429,9 +426,7 @@ func (s *integrationEnterpriseTestSuite) TestAppleOSUpdatesTeamConfig() {
 	require.False(t, tmResp.Team.Config.MDM.MacOSUpdates.UpdateNewHosts.Value)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeDisabledMacosUpdateNewHosts{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`,
-			team.ID,
-			team.Name,
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q}`,
 			team.ID,
 			team.Name,
 		), 0)
@@ -526,9 +521,9 @@ func (s *integrationEnterpriseTestSuite) TestAppleOSUpdatesTeamConfig() {
 	require.Empty(t, tmResp.Team.Config.MDM.IOSUpdates.Deadline.Value)
 	require.Empty(t, tmResp.Team.Config.MDM.IPadOSUpdates.MinimumVersion.Value)
 	require.Empty(t, tmResp.Team.Config.MDM.IPadOSUpdates.Deadline.Value)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "minimum_version": "", "deadline": ""}`, team.ID, team.Name, team.ID, team.Name), 0)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "minimum_version": "", "deadline": ""}`, team.ID, team.Name, team.ID, team.Name), 0)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "minimum_version": "", "deadline": ""}`, team.ID, team.Name, team.ID, team.Name), 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "minimum_version": "", "deadline": ""}`, team.ID, team.Name), 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "minimum_version": "", "deadline": ""}`, team.ID, team.Name), 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "minimum_version": "", "deadline": ""}`, team.ID, team.Name), 0)
 
 	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetMacOSUpdatesProfileName, nil)
 	s.assertAppleOSUpdatesDeclaration(&team.ID, mdm.FleetIOSUpdatesProfileName, nil)
@@ -777,7 +772,6 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 
 	// encryption summary should succeed (Linux encryption doesn't require MDM)
 	var summary getMDMDiskEncryptionSummaryResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/disk_encryption/summary", getMDMDiskEncryptionSummaryRequest{}, http.StatusOK, &summary)
 	s.DoJSON("GET", "/api/latest/fleet/disk_encryption", getMDMDiskEncryptionSummaryRequest{}, http.StatusOK, &summary)
 	// disk is encrypted but key hasn't been escrowed yet
 	require.Equal(t, fleet.MDMDiskEncryptionSummary{ActionRequired: fleet.MDMPlatformsCounts{Linux: 1}}, *summary.MDMDiskEncryptionSummary)
@@ -884,7 +878,6 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 
 	// get passphrase back
 	var keyResponse getHostEncryptionKeyResponse
-	s.DoJSON("GET", fmt.Sprintf(`/api/latest/fleet/mdm/hosts/%d/encryption_key`, noTeamHost.ID), getHostEncryptionKeyRequest{}, http.StatusOK, &keyResponse)
 	s.DoJSON("GET", fmt.Sprintf(`/api/latest/fleet/hosts/%d/encryption_key`, noTeamHost.ID), getHostEncryptionKeyRequest{}, http.StatusOK, &keyResponse)
 	require.Equal(t, "whale makes pail rise", keyResponse.EncryptionKey.DecryptedValue)
 
@@ -1009,7 +1002,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMWindowsUpdates() {
 	})
 
 	// edited windows updates activity got created
-	s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), `{"deadline_days":5, "grace_period_days":1, "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+	s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), `{"deadline_days":5, "grace_period_days":1, "fleet_id": null, "fleet_name": null}`, 0)
 
 	// get the appconfig
 	acResp = appConfigResponse{}
@@ -1036,7 +1029,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMWindowsUpdates() {
 	})
 
 	// another edited windows updates activity got created
-	lastActivity = s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), `{"deadline_days":6, "grace_period_days":1, "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+	lastActivity = s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), `{"deadline_days":6, "grace_period_days":1, "fleet_id": null, "fleet_name": null}`, 0)
 
 	// update something unrelated - the transparency url
 	acResp = appConfigResponse{}
@@ -1066,7 +1059,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMWindowsUpdates() {
 	require.False(t, acResp.MDM.WindowsUpdates.GracePeriodDays.Valid)
 
 	// edited windows updates activity got created with empty requirement
-	lastActivity = s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), `{"deadline_days":null, "grace_period_days":null, "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+	lastActivity = s.lastActivityMatches(fleet.ActivityTypeEditedWindowsUpdates{}.ActivityName(), `{"deadline_days":null, "grace_period_days":null, "fleet_id": null, "fleet_name": null}`, 0)
 
 	checkWindowsOSUpdatesProfile(t, s.ds, nil, nil)
 
@@ -1248,9 +1241,9 @@ func (s *integrationEnterpriseTestSuite) TestMDMAppleOSUpdates() {
 	require.Equal(t, optjson.Bool{Set: true}, acResp.MDM.IPadOSUpdates.UpdateNewHosts) // posted value is ignored for iOS
 
 	// edited macos min version activity got created
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"2022-01-01", "minimum_version":"13.6.9", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), `{"deadline":"2023-03-03", "minimum_version":"17.6", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), `{"deadline":"2024-04-04", "minimum_version":"17.6", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"2022-01-01", "minimum_version":"13.6.9", "fleet_id": null, "fleet_name": null}`, 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), `{"deadline":"2023-03-03", "minimum_version":"17.6", "fleet_id": null, "fleet_name": null}`, 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), `{"deadline":"2024-04-04", "minimum_version":"17.6", "fleet_id": null, "fleet_name": null}`, 0)
 
 	// Activity for 'Update New Hosts checked' got created
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosUpdateNewHosts{}.ActivityName(), "", 0)
@@ -1313,9 +1306,9 @@ func (s *integrationEnterpriseTestSuite) TestMDMAppleOSUpdates() {
 
 	// another edited macos min version activity got created
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledMacosUpdateNewHosts{}.ActivityName(), "", 0)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"2024-01-01", "minimum_version":"13.6.9", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), `{"deadline":"2025-05-05", "minimum_version":"17.6", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
-	lastActivity = s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), `{"deadline":"2026-06-06", "minimum_version":"17.6", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"2024-01-01", "minimum_version":"13.6.9", "fleet_id": null, "fleet_name": null}`, 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), `{"deadline":"2025-05-05", "minimum_version":"17.6", "fleet_id": null, "fleet_name": null}`, 0)
+	lastActivity = s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), `{"deadline":"2026-06-06", "minimum_version":"17.6", "fleet_id": null, "fleet_name": null}`, 0)
 	s.assertAppleOSUpdatesDeclaration(nil, mdm.FleetMacOSUpdatesProfileName, &fleet.AppleOSUpdateSettings{
 		MinimumVersion: optjson.SetString("13.6.9"), Deadline: optjson.SetString("2024-01-01"),
 	})
@@ -1370,9 +1363,9 @@ func (s *integrationEnterpriseTestSuite) TestMDMAppleOSUpdates() {
 	require.Empty(t, acResp.MDM.IPadOSUpdates.Deadline.Value)
 
 	// edited macos min version activity got created with empty requirement
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"", "minimum_version":"", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), `{"deadline":"", "minimum_version":"", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
-	lastActivity = s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), `{"deadline":"", "minimum_version":"", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"", "minimum_version":"", "fleet_id": null, "fleet_name": null}`, 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIOSMinVersion{}.ActivityName(), `{"deadline":"", "minimum_version":"", "fleet_id": null, "fleet_name": null}`, 0)
+	lastActivity = s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedIPadOSMinVersion{}.ActivityName(), `{"deadline":"", "minimum_version":"", "fleet_id": null, "fleet_name": null}`, 0)
 
 	// check DDM profiles were removed
 	s.assertAppleOSUpdatesDeclaration(nil, mdm.FleetMacOSUpdatesProfileName, nil)
@@ -1451,7 +1444,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
 				"url":   {"https://example.com"},
 			})
 
-		case route.method == "PATCH" && (route.path == "/api/latest/fleet/setup_experience" || route.path == "/api/latest/fleet/mdm/apple/setup"):
+		case route.method == "PATCH" && route.path == "/api/latest/fleet/setup_experience":
 			// These routes don't require MDM if you're only changing end-user auth, so we'll set something else to check.
 			params = fleet.MDMAppleSetupPayload{EnableReleaseDeviceManually: new(true)}
 		}
@@ -1465,17 +1458,6 @@ func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
 		errMsg := extractServerErrorText(res.Body)
 		assert.Contains(t, errMsg, expectedErr.Error(), "%s %s", route.method, path)
 	}
-
-	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-	t.Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
-	t.Cleanup(fleetdmSrv.Close)
-
-	// Always accessible
-	var reqCSRResp requestMDMAppleCSRResponse
-	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: "test"}, http.StatusOK, &reqCSRResp)
-	s.Do("POST", "/api/latest/fleet/mdm/apple/dep/key_pair", nil, http.StatusOK)
 
 	// setting enable release device manually requires MDM
 	res := s.Do("PATCH", "/api/v1/fleet/setup_experience", fleet.MDMAppleSetupPayload{EnableReleaseDeviceManually: new(true)}, http.StatusBadRequest)
@@ -1585,7 +1567,7 @@ func (s *integrationEnterpriseTestSuite) TestWindowsMigrateMDMNotEnabled() {
 	t := s.T()
 
 	res := s.Do("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
-		"mdm": { "windows_migration_enabled": true }
+		"mdm": { "windows_mdm_migration_enabled": true }
 	}`), http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Windows MDM is not enabled")

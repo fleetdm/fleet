@@ -534,6 +534,36 @@ spec:
 `),
 			removedMessage(removednames.KindSpecKind, "team"),
 		},
+		{
+			"kind: user_roles with teams: key",
+			[]byte(`
+apiVersion: v1
+kind: user_roles
+spec:
+  roles:
+    user@example.com:
+      global_role: null
+      teams:
+      - role: maintainer
+        team: macOS
+`),
+			removedMessage(removednames.KindYAMLKey, "spec.roles.<email>.teams"),
+		},
+		{
+			"kind: user_roles with team: key in a fleets entry",
+			[]byte(`
+apiVersion: v1
+kind: user_roles
+spec:
+  roles:
+    user@example.com:
+      global_role: null
+      fleets:
+      - role: maintainer
+        team: macOS
+`),
+			removedMessage(removednames.KindYAMLKey, "spec.roles.<email>.fleets[].team"),
+		},
 	}
 
 	for _, tt := range tests {

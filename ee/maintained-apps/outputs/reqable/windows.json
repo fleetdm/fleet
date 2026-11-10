@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.3.10",
+      "version": "3.3.11",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Reqable %' AND publisher = 'Reqable Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Reqable %' AND publisher = 'Reqable Inc.' AND version_compare(version, '3.3.10') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Reqable %' AND publisher = 'Reqable Inc.' AND version_compare(version, '3.3.11') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'reqable.exe');"
       },
-      "installer_url": "https://github.com/reqable/reqable-app/releases/download/3.3.10/reqable-app-windows-x86_64.exe",
+      "installer_url": "https://github.com/reqable/reqable-app/releases/download/3.3.11/reqable-app-windows-x86_64.exe",
       "install_script_ref": "28d89c12",
       "uninstall_script_ref": "b33fc442",
-      "sha256": "cfbb3682c3f6469961acc665b1fa84b6b9f5f27bb3c1b7389fcdc91093e4d255",
+      "sha256": "d046d4d2eae43fbe7a70df2ee17ffb43dc95ffb477af71b233ad6674197a2b21",
       "default_categories": [
         "Developer tools"
       ]
