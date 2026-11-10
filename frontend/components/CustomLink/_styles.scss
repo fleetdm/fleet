@@ -90,6 +90,12 @@
       fill: $static-white;
     }
 
+    // The small icon is stroke-drawn with a themed color that turns dark in
+    // dark mode.
+    .external-link-icon--small {
+      stroke: $static-white;
+    }
+
     &:hover,
     &:focus-visible {
       // !important: same specificity as the `@include link` hover color above,
