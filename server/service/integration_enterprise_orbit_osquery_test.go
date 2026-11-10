@@ -180,6 +180,65 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAIToolsKeptWhenQueryDidNotR
 	require.Equal(t, []string{"Codex"}, aiToolNames())
 }
 
+func (s *integrationEnterpriseTestSuite) TestSoftwarePacmanPackagesKeptWhenQueryDidNotRun() {
+	t := s.T()
+	ctx := t.Context()
+
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	// t.Context() is already canceled when cleanups run.
+	t.Cleanup(func() { require.NoError(t, s.ds.SaveAppConfig(context.Background(), appCfg)) })
+	s.applyConfig([]byte(`
+  features:
+    enable_software_inventory: true
+`))
+	host := createOrbitEnrolledHost(t, "arch", "pacman", s.ds)
+	require.NoError(t, s.ds.SetOrUpdateHostOrbitInfo(ctx, host.ID, "1.48.1", sql.NullString{}, sql.NullBool{}))
+
+	linuxQuery := hostDetailQueryPrefix + "software_linux"
+	pacmanQuery := hostDetailQueryPrefix + "software_linux_fleetd_pacman"
+	requests := `{"name": "requests", "version": "2.32.3", "source": "python_packages", "installed_path": "/usr/lib/python3.13/site-packages"}`
+	pacman := `{"name": "pacman", "version": "7.0.0", "source": "pacman_packages", "release": "2", "arch": "x86_64"}`
+	zsh := `{"name": "zsh", "version": "5.9", "source": "pacman_packages", "release": "5", "arch": "x86_64"}`
+
+	submit := func(results map[string]json.RawMessage, statuses map[string]any) {
+		s.DoJSON("POST", "/api/osquery/distributed/write", submitDistributedQueryResultsRequestShim{
+			NodeKey:  *host.NodeKey,
+			Results:  results,
+			Statuses: statuses,
+			Messages: map[string]string{},
+			Stats:    map[string]*fleet.Stats{},
+		}, http.StatusOK, &submitDistributedQueryResultsResponse{})
+	}
+	softwareNames := func() []string {
+		var resp getHostSoftwareResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &resp)
+		names := make([]string, 0, len(resp.Software))
+		for _, sw := range resp.Software {
+			names = append(names, sw.Name)
+		}
+		sort.Strings(names)
+		return names
+	}
+
+	submit(
+		map[string]json.RawMessage{linuxQuery: json.RawMessage("[" + requests + "]"), pacmanQuery: json.RawMessage("[" + pacman + "," + zsh + "]")},
+		map[string]any{linuxQuery: 0, pacmanQuery: 0},
+	)
+	require.Equal(t, []string{"pacman", "requests", "zsh"}, softwareNames())
+
+	// Discovery found no fleetd_pacman_packages table: on Arch that is the whole package inventory.
+	submit(map[string]json.RawMessage{linuxQuery: json.RawMessage("[" + requests + "]")}, map[string]any{linuxQuery: 0})
+	require.Equal(t, []string{"pacman", "requests", "zsh"}, softwareNames())
+
+	// The query ran and reported fewer rows.
+	submit(
+		map[string]json.RawMessage{linuxQuery: json.RawMessage("[" + requests + "]"), pacmanQuery: json.RawMessage("[" + pacman + "]")},
+		map[string]any{linuxQuery: 0, pacmanQuery: 0},
+	)
+	require.Equal(t, []string{"pacman", "requests"}, softwareNames())
+}
+
 func (s *integrationEnterpriseTestSuite) TestOrbitConfigExtensions() {
 	t := s.T()
 	ctx := context.Background()
