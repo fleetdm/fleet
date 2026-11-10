@@ -37,6 +37,11 @@ const CHECKERBOARD_Y_AXIS_WIDTH = 40;
 const CHECKERBOARD_NUM_COLS = 30;
 const CHECKERBOARD_NUM_ROWS = 8;
 
+// Recharts' XAxis reserves space inside the ResponsiveContainer, so the bar
+// plot area = chartHeight - X_AXIS_HEIGHT. Add it back on top of the
+// checkerboard-matched plot height to keep plot ↔ cell-grid alignment.
+const X_AXIS_HEIGHT = 30;
+
 // ChromeOS is the widest y-axis label and clips at 12px medium weight without
 // the wider gutter. Width concern only, unrelated to cell-grid alignment.
 const WIDE_YAXIS_THRESHOLD = 700;
@@ -245,7 +250,8 @@ const HostsEnrolledCard = ({
 
   // Reproduce the sibling checkerboard's cellW clamp on its scroll-wrapper
   // width (our container width minus its y-axis gutter), then scale cellH
-  // proportionally and sum up the 8 rows + 7 gaps.
+  // proportionally and sum up the 8 rows + 7 gaps. The axis allocation is
+  // added on top so the plot area (not the whole container) matches the grid.
   const wrapperWidth = Math.max(0, containerWidth - CHECKERBOARD_Y_AXIS_WIDTH);
   const idealCellW =
     wrapperWidth > 0
@@ -254,8 +260,9 @@ const HostsEnrolledCard = ({
       : CELL_W;
   const cellW = Math.max(CELL_W, Math.min(idealCellW, CELL_W * CELL_MAX_SCALE));
   const cellH = cellW * (CELL_H / CELL_W);
-  const chartHeight =
+  const plotHeight =
     cellH * CHECKERBOARD_NUM_ROWS + CELL_GAP * (CHECKERBOARD_NUM_ROWS - 1);
+  const chartHeight = plotHeight + X_AXIS_HEIGHT;
 
   const tickFontSize = 12;
   const yAxisWidth = containerWidth >= WIDE_YAXIS_THRESHOLD ? 90 : 84;
@@ -289,6 +296,7 @@ const HostsEnrolledCard = ({
             />
             <XAxis
               type="number"
+              height={X_AXIS_HEIGHT}
               tickFormatter={formatTick}
               axisLine={false}
               tickLine={false}

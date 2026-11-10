@@ -136,8 +136,10 @@ describe("HostsEnrolledCard", () => {
   // Regression: the bar chart's plot height has to match the sibling
   // checkerboard's cell-grid height so the two dashboard cards stay aligned
   // as the column resizes. The formula and gutter below come from
-  // CheckerboardViz.tsx; keep them in sync if they change there.
-  it("sizes chart height from container width to match the sibling checkerboard", () => {
+  // CheckerboardViz.tsx; keep them in sync if they change there. Container
+  // height is plot + x-axis, so the component adds X_AXIS_HEIGHT on top of
+  // the grid-matched plot area.
+  it("sizes the plot area to match the sibling checkerboard", () => {
     const { container } = render(
       <HostsEnrolledCard
         counts={counts}
@@ -151,6 +153,7 @@ describe("HostsEnrolledCard", () => {
     const CELL_MAX_SCALE = 2;
     const CELL_GAP = 2;
     const Y_AXIS_WIDTH = 40;
+    const X_AXIS_HEIGHT = 30;
     const NUM_COLS = 30;
     const NUM_ROWS = 8;
 
@@ -161,12 +164,15 @@ describe("HostsEnrolledCard", () => {
       Math.min(idealCellW, CELL_W * CELL_MAX_SCALE)
     );
     const cellH = cellW * (CELL_H / CELL_W);
-    const expected = cellH * NUM_ROWS + CELL_GAP * (NUM_ROWS - 1);
+    const expectedPlot = cellH * NUM_ROWS + CELL_GAP * (NUM_ROWS - 1);
 
     const chartWrapper = container.querySelector(
       ".recharts-responsive-container"
     ) as HTMLElement;
-    expect(parseFloat(chartWrapper.style.height)).toBeCloseTo(expected, 1);
+    expect(parseFloat(chartWrapper.style.height)).toBeCloseTo(
+      expectedPlot + X_AXIS_HEIGHT,
+      1
+    );
   });
 
   // Regression: the per-platform labels must be keyboard-operable, not just
