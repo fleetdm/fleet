@@ -581,9 +581,9 @@ We track certain social posts from the [LinkedIn company page](https://www.linke
 
 ### Channel partner accounts
 
-Create a separate Salesforce account for each region or segment a channel partner operates in. Don't merge them into one account. Each region or segment has its own billing address, and quotes fill in the billing address from the account.
+Keep one Salesforce account per channel partner by default. Create a separate account only when a region or segment has a different billing address, because quotes fill in the billing address from the account.
 
-Name each account with the partner name followed by a short region or segment marker in parentheses, like "CDW (.gov)" or "CDW (CA)".
+When a separate account is needed, name it with the partner name followed by a short region or segment marker in parentheses, like "CDW (.gov)" or "CDW (CA)".
 
 
 ### SFDC access
