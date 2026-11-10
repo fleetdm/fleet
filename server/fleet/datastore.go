@@ -3233,10 +3233,9 @@ type Datastore interface {
 	// just the script to run information (result is not yet available).
 	NewHostScriptExecutionRequest(ctx context.Context, request *HostScriptRequestPayload) (*HostScriptResult, error)
 	// NewInternalHostScriptExecutionRequest is like NewHostScriptExecutionRequest
-	// but marks the request as internal (fleet-initiated), so it runs even when
-	// scripts are globally disabled and does not appear in the user-facing host
-	// activity feed. Use for server-driven follow-up actions (e.g. cleanup
-	// scripts after MDM events).
+	// but marks the request as internal (fleet-initiated), so it does not appear
+	// in the user-facing host activity feed. Use for server-driven follow-up
+	// actions (e.g. cleanup scripts after MDM events).
 	NewInternalHostScriptExecutionRequest(ctx context.Context, request *HostScriptRequestPayload) (*HostScriptResult, error)
 	// BatchNewInternalHostScriptExecutionRequests queues the same script as an
 	// internal run on each of the given hosts, and returns the execution ID it

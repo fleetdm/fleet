@@ -40,10 +40,9 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 }
 
 // NewInternalHostScriptExecutionRequest enqueues a host script run flagged
-// as internal (fleet-initiated). Internal scripts run even when scripts
-// are globally disabled and do not appear in the user-facing host activity
-// feed. Use for server-driven follow-up actions (e.g. cleanup scripts
-// after MDM events) rather than user-requested runs.
+// as internal (fleet-initiated). Internal scripts do not appear in the
+// user-facing host activity feed. Use for server-driven follow-up actions
+// (e.g. cleanup scripts after MDM events) rather than user-requested runs.
 func (ds *Datastore) NewInternalHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
 	return ds.newHostScriptExecutionRequestPublic(ctx, request, true)
 }

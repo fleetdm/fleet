@@ -76,6 +76,10 @@ func ExtractRemovedKeyRules(iface any) []RemovedKeyRule {
 	}
 
 	var rules []RemovedKeyRule
+	if deleted := deletedKeyRules.Load(); deleted != nil {
+		rules = slices.Clone(*deleted)
+	}
+
 	seen := make(map[string]struct{})
 	visited := make(map[reflect.Type]struct{})
 	var walk func(t reflect.Type)
@@ -117,3 +121,7 @@ func CheckRemovedKeys(data []byte, rules []RemovedKeyRule) error {
 	}
 	return newJSONKeyRewriter(nil, rules, "").rewrite(bytes.NewReader(data), io.Discard)
 }
+
+var deletedKeyRules atomic.Pointer[[]RemovedKeyRule]
+
+func SetDeletedKeyRules(rules []RemovedKeyRule) { deletedKeyRules.Store(&rules) }

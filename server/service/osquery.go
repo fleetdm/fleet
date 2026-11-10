@@ -3529,15 +3529,6 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 		return nil
 	}
 
-	// Bail if scripts are disabled globally
-	cfg, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return err
-	}
-	if cfg.ServerSettings.ScriptsDisabled {
-		return nil
-	}
-
 	var policyTeamID uint
 	if hostTeamID == nil {
 		policyTeamID = fleet.PolicyNoTeamID

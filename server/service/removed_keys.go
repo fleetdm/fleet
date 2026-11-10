@@ -7,6 +7,7 @@ import (
 
 func init() {
 	endpointer.SetRemovedKeyMessage(removedKeyMessage)
+	endpointer.SetDeletedKeyRules(deletedKeyRules())
 }
 
 // removedKeyMessage words a removed request key with its pkg/removednames entry.
@@ -17,4 +18,15 @@ func removedKeyMessage(key string) string {
 		entry = removednames.Entry{Kind: removednames.KindJSONKey, Old: key}
 	}
 	return entry.Message()
+}
+
+func deletedKeyRules() []endpointer.RemovedKeyRule {
+	var rules []endpointer.RemovedKeyRule
+	for _, entry := range removednames.Filter(removednames.KindJSONKey, removednames.ScopeRequest) {
+		if entry.New != "" {
+			continue
+		}
+		rules = append(rules, endpointer.RemovedKeyRule{Key: entry.Old})
+	}
+	return rules
 }

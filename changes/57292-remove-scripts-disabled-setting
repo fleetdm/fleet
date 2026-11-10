@@ -1,0 +1,1 @@
+- **Breaking change:** Removed the `server_settings.scripts_disabled` setting. Instances that had it turned on get script features back after the upgrade.

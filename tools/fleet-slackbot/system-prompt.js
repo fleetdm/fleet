@@ -260,7 +260,6 @@ org_settings:
     enable_analytics: true
     live_query_disabled: false
     query_reports_disabled: false
-    scripts_disabled: false
     server_url: URL
   sso_settings:
     enable_sso: false
