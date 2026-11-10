@@ -78,6 +78,7 @@ func CreateApp(
 		newCommand(),
 	}
 	registerRemovedCommands(app)
+	registerRemovedFlags(app)
 	return app
 }
 
