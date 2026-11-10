@@ -3,6 +3,7 @@
   "slug": "sonicwall-global-vpn-client/windows",
   "package_identifier": "SonicWall.GlobalVPNClient",
   "unique_identifier": "Global VPN Client",
+  "open_process_names": ["swgvc.exe"],
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "machine",
