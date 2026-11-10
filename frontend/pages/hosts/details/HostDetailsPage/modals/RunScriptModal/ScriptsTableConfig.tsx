@@ -2,9 +2,7 @@ import React from "react";
 
 import ActionsDropdown from "components/ActionsDropdown";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
-import TooltipWrapper from "components/TooltipWrapper";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { IHostScript, ILastExecution } from "interfaces/script";
 import { IUser } from "interfaces/user";
@@ -86,7 +84,6 @@ export const generateActionDropdownOptions = (
 export const generateTableColumnConfigs = (
   currentUser: IUser | null,
   hostTeamId: number | null,
-  scriptsDisabled: boolean,
   onClickViewScript: (scriptDetails: IHostScript) => void,
   onSelectAction: (value: string, script: IHostScript) => void
 ) => {
@@ -132,23 +129,6 @@ export const generateTableColumnConfigs = (
       disableSortBy: true,
       accessor: "actions",
       Cell: (cellProps: IActionsDropdownProps) => {
-        if (scriptsDisabled) {
-          // create a basic span that doesn't use the dropdown component (which relies on react-select
-          // and makes it difficult for us to style the disabled tooltip underline on the placeholder text.
-          return (
-            <span className="run-script-action--disabled">
-              <TooltipWrapper
-                tipContent={
-                  <>Running scripts is disabled in organization settings.</>
-                }
-              >
-                Actions
-              </TooltipWrapper>
-              <Icon name="chevron-down" color="ui-fleet-black-50" />
-            </span>
-          );
-        }
-
         const opts = generateActionDropdownOptions(
           currentUser,
           hostTeamId,
@@ -161,7 +141,6 @@ export const generateTableColumnConfigs = (
               onSelectAction(value, cellProps.row.original)
             }
             placeholder="Actions"
-            disabled={scriptsDisabled}
             menuAlign="right"
             variant="secondary"
           />

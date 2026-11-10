@@ -124,7 +124,7 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 	if label.LabelMembershipType == fleet.LabelMembershipTypeManual {
 		manualHostIDs = p.HostIDs
 		if len(p.Hosts) > 0 {
-			manualHostIDs, err = svc.ds.HostIDsByIdentifier(ctx, filter, p.Hosts)
+			manualHostIDs, err = svc.ds.HostIDsByLabelIdentifier(ctx, filter, p.Hosts)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -285,7 +285,7 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 	hostIDs := payload.HostIDs
 	if len(payload.Hosts) > 0 {
 		// If hosts were provided, convert them to IDs.
-		hostIDs, err = svc.ds.HostIDsByIdentifier(ctx, filter, payload.Hosts)
+		hostIDs, err = svc.ds.HostIDsByLabelIdentifier(ctx, filter, payload.Hosts)
 		if err != nil {
 			return nil, nil, err
 		}

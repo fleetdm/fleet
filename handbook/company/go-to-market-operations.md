@@ -490,6 +490,7 @@ The goal of a slide deck is not necessarily to walk every customer through it.  
 - [Leave behind (PDF)](https://fleetdm.com/pdfs/fleet-ai-device-management-patching-and-governance-for-every-os.pdf)
 - [Fleet Fast Track (PDF)](https://fleetdm.com/pdfs/fleet-fast-track.pdf)
 - [Fleet for partners (PDF)](https://docs.google.com/presentation/d/1iNvn5EYnkklKxguYzrOh6ZNvZee53OqAlF3rc_Da_Us/edit?slide=id.g3871afd58d8_0_0#slide=id.g3871afd58d8_0_0)
+- [Zero touch, $0 (PDF)](https://drive.google.com/file/d/1Vm2e1JXxe1MNrxm08YSeikFuYgq2mnTC/view)
 
 
 ## Go-To-Market runbook
@@ -790,7 +791,7 @@ Example:
 - Six months later, an SDR emails them (2026\_04-SDR-q2\_fintech\_sequence), and they reply to book a demo.   
   - Their Most Recent/Converting-Touch is Prospecting \> SDR Outbound.
   
-Converting-touch is always stamped fresh at the moment of opportunity creation. If a contact re-engages after a prior opportunity has closed, the new opportunity's Converting-touch reflects whatever campaign or activity drove the current re-engagement,not any historical value. The prior opportunity record retains its own Converting-touch data. If a closed-lost opportunity is re-engaged within 90 days, we typically should reopen the original opportunity rather than creating a new one.
+Converting-touch is always stamped fresh at the moment of opportunity creation. If a contact re-engages after a prior opportunity has closed, the new opportunity's Converting-touch reflects whatever campaign or activity drove the current re-engagement, not any historical value. The prior opportunity record retains its own Converting-touch data. If a closed-lost opportunity is re-engaged within 90 days, we typically should reopen the original opportunity rather than creating a new one.
 
 **Converting-touch** allows us to see that our webinars are great for *finding* contacts, and our SDR team is great at *converting* them.
 
