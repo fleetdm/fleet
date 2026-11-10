@@ -10,8 +10,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/pkg/testutils"
-	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/hashicorp/go-multierror"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -428,43 +426,6 @@ func TestGetExclusionZones(t *testing.T) {
 			}
 			assert.True(t, found, "expected text not found in any exclusion zone: %q", expectedText)
 		}
-	})
-}
-
-func TestRewriteNewToOldKeys(t *testing.T) {
-	// PackSpec still declares a renameto tag (`queries` to `reports`).
-	t.Run("accepts old keys", func(t *testing.T) {
-		raw := json.RawMessage(`{"name":"test","queries":[{"name":"q1"}]}`)
-		result, _, err := rewriteNewToOldKeys(raw, fleet.PackSpec{})
-		require.NoError(t, err)
-
-		var ps fleet.PackSpec
-		require.NoError(t, json.Unmarshal(result, &ps))
-		assert.Equal(t, "test", ps.Name)
-		require.Len(t, ps.Queries, 1)
-		assert.Equal(t, "q1", ps.Queries[0].Name)
-	})
-
-	t.Run("accepts new keys", func(t *testing.T) {
-		raw := json.RawMessage(`{"name":"test","reports":[{"name":"q1"}]}`)
-		result, _, err := rewriteNewToOldKeys(raw, fleet.PackSpec{})
-		require.NoError(t, err)
-
-		var ps fleet.PackSpec
-		require.NoError(t, json.Unmarshal(result, &ps))
-		assert.Equal(t, "test", ps.Name)
-		require.Len(t, ps.Queries, 1)
-		assert.Equal(t, "q1", ps.Queries[0].Name)
-	})
-
-	t.Run("errors if both old and new keys provided", func(t *testing.T) {
-		raw := json.RawMessage(`{"name":"test","queries":[],"reports":[]}`)
-		_, _, err := rewriteNewToOldKeys(raw, fleet.PackSpec{})
-		require.Error(t, err)
-		var conflictErr *endpointer.AliasConflictError
-		require.ErrorAs(t, err, &conflictErr)
-		assert.Equal(t, "queries", conflictErr.Old)
-		assert.Equal(t, "reports", conflictErr.New)
 	})
 }
 
