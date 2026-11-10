@@ -79,6 +79,7 @@ var fastPathExcluded = map[string]struct{}{
 	"GET /api/_version_/fleet/hosts/{id}/reports":                  {},
 	"GET /api/_version_/fleet/hosts/{id}/scripts":                  {},
 	"GET /api/_version_/fleet/hosts/{id}/software":                 {},
+	"HEAD /api/_version_/fleet/abm_tokens/{id}":                    {},
 }
 
 var (

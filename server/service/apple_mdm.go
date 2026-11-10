@@ -5608,7 +5608,8 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 			attrs = append(attrs, "token_update_tally", nanoEnroll.TokenUpdateTally)
 		}
 		if info != nil {
-			attrs = append(attrs,
+			attrs = append(
+				attrs,
 				"host_id", info.HostID,
 				"platform", info.Platform,
 				"team_id", info.TeamID,
@@ -9132,7 +9133,7 @@ func generateABMKeyPairEndpoint(ctx context.Context, request interface{}, svc fl
 }
 
 func (svc *Service) GenerateABMKeyPair(ctx context.Context) (*fleet.MDMAppleDEPKeyPair, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.ABMToken{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -9214,7 +9215,7 @@ func (uploadABMTokenRequest) DecodeRequest(ctx context.Context, r *http.Request)
 }
 
 type uploadABMTokenResponse struct {
-	Token *fleet.ABMToken `json:"abm_token,omitempty" renameto:"ab_token,inline"`
+	Token *fleet.ABMToken `json:"ab_token,omitempty"`
 	Err   error           `json:"error,omitempty"`
 }
 
@@ -9284,7 +9285,7 @@ func (svc *Service) DeleteABMToken(ctx context.Context, tokenID uint) error {
 
 type listABMTokensResponse struct {
 	Err    error             `json:"error,omitempty"`
-	Tokens []*fleet.ABMToken `json:"abm_tokens" renameto:"ab_tokens,inline"`
+	Tokens []*fleet.ABMToken `json:"ab_tokens"`
 }
 
 func (r listABMTokensResponse) Error() error { return r.Err }
@@ -9352,7 +9353,7 @@ type updateABMTokenTeamsRequest struct {
 }
 
 type updateABMTokenTeamsResponse struct {
-	ABMToken *fleet.ABMToken `json:"abm_token,omitempty" renameto:"ab_token,inline"`
+	ABMToken *fleet.ABMToken `json:"ab_token,omitempty"`
 	Err      error           `json:"error,omitempty"`
 }
 
@@ -9388,7 +9389,7 @@ type setABMTokenDefaultRequest struct {
 }
 
 type setABMTokenDefaultResponse struct {
-	ABMToken *fleet.ABMToken `json:"abm_token,omitempty" renameto:"ab_token,inline"`
+	ABMToken *fleet.ABMToken `json:"ab_token,omitempty"`
 	Err      error           `json:"error,omitempty"`
 }
 
@@ -9451,7 +9452,7 @@ func (renewABMTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) 
 }
 
 type renewABMTokenResponse struct {
-	ABMToken *fleet.ABMToken `json:"abm_token,omitempty" renameto:"ab_token,inline"`
+	ABMToken *fleet.ABMToken `json:"ab_token,omitempty"`
 	Err      error           `json:"error,omitempty"`
 }
 

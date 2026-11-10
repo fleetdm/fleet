@@ -583,8 +583,6 @@ type GetSoftwareInstallDetailsFunc func(ctx context.Context, installUUID string)
 
 type GetAppleMDMFunc func(ctx context.Context) (*fleet.AppleMDM, error)
 
-type GetAppleBMFunc func(ctx context.Context) (*fleet.AppleBM, error)
-
 type RequestMDMAppleCSRFunc func(ctx context.Context, email string, org string) (*fleet.AppleCSR, error)
 
 type GetMDMAppleCSRFunc func(ctx context.Context) ([]byte, error)
@@ -1900,9 +1898,6 @@ type Service struct {
 
 	GetAppleMDMFunc        GetAppleMDMFunc
 	GetAppleMDMFuncInvoked bool
-
-	GetAppleBMFunc        GetAppleBMFunc
-	GetAppleBMFuncInvoked bool
 
 	RequestMDMAppleCSRFunc        RequestMDMAppleCSRFunc
 	RequestMDMAppleCSRFuncInvoked bool
@@ -4580,13 +4575,6 @@ func (s *Service) GetAppleMDM(ctx context.Context) (*fleet.AppleMDM, error) {
 	s.GetAppleMDMFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetAppleMDMFunc(ctx)
-}
-
-func (s *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
-	s.mu.Lock()
-	s.GetAppleBMFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetAppleBMFunc(ctx)
 }
 
 func (s *Service) RequestMDMAppleCSR(ctx context.Context, email string, org string) (*fleet.AppleCSR, error) {

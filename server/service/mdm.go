@@ -102,34 +102,6 @@ func (svc *Service) GetAppleMDM(ctx context.Context) (*fleet.AppleMDM, error) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// GET /mdm/apple_bm
-////////////////////////////////////////////////////////////////////////////////
-
-type getAppleBMResponse struct {
-	*fleet.AppleBM
-	Err error `json:"error,omitempty"`
-}
-
-func (r getAppleBMResponse) Error() error { return r.Err }
-
-func getAppleBMEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	appleBM, err := svc.GetAppleBM(ctx)
-	if err != nil {
-		return getAppleBMResponse{Err: err}, nil
-	}
-
-	return getAppleBMResponse{AppleBM: appleBM}, nil
-}
-
-func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
-	// skipauth: No authorization check needed due to implementation returning
-	// only license error.
-	svc.authz.SkipAuthorization(ctx)
-
-	return nil, fleet.ErrMissingLicense
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // POST /mdm/apple/request_csr
 ////////////////////////////////////////////////////////////////////////////////
 
