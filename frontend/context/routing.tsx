@@ -16,7 +16,7 @@ const initialState = {
 
 const actions = {
   SET_REDIRECT_LOCATION: "SET_REDIRECT_LOCATION",
-};
+} as const;
 
 type Action = {
   type: typeof actions.SET_REDIRECT_LOCATION;

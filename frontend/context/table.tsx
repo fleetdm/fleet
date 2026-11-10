@@ -16,7 +16,7 @@ const initialState = {
 
 const actions = {
   RESET_SELECTED_ROWS: "RESET_SELECTED_ROWS",
-};
+} as const;
 
 type Action = {
   type: typeof actions.RESET_SELECTED_ROWS;
