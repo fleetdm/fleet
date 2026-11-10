@@ -228,8 +228,9 @@ const ConditionalAccess = () => {
         ) {
           notify.error(
             <>
-              Couldn&apos;t connect. Fleet didn&apos;t get permissions for Entra.
-              Please try again and accept the permissions. {troubleshootLink}
+              Couldn&apos;t connect. Fleet didn&apos;t get permissions for
+              Entra. Please try again and accept the permissions.{" "}
+              {troubleshootLink}
             </>
           );
         } else if (
