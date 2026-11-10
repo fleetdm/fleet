@@ -229,8 +229,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	logger := initLogger(config, loggerProvider)
 
 	if elasticAPMConfigured {
-		logger.WarnContext(cmd.Context(), "Elastic APM is no longer supported, so tracing is disabled. "+
-			"Remove logging.tracing_type=elasticapm, or set it to opentelemetry and configure an OpenTelemetry exporter.")
+		logger.WarnContext(cmd.Context(), `The "logging.tracing_type: elasticapm" value is not available anymore, so tracing is off. `+
+			"What to use instead: "+fleet.Fleet5MigrationGuide)
 	}
 
 	// If you want to disable any logs by default, this is where to do it.
