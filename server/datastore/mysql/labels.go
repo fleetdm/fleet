@@ -781,25 +781,15 @@ func (ds *Datastore) SaveLabel(ctx context.Context, label *fleet.Label, hostIDs 
 }
 
 // DeleteLabel deletes a fleet.Label
-func (ds *Datastore) DeleteLabel(ctx context.Context, name string, filter fleet.TeamFilter) error {
+func (ds *Datastore) DeleteLabel(ctx context.Context, labelID uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		query, params, err := applyLabelTeamFilter(`select l.id FROM labels l WHERE l.name = ?`, filter, name)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting label id to delete")
+		var name string
+		if err := sqlx.GetContext(ctx, tx, &name, `SELECT name FROM labels WHERE id = ?`, labelID); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return ctxerr.Wrap(ctx, notFound("Label").WithID(labelID))
+			}
+			return ctxerr.Wrap(ctx, err, "getting label to delete")
 		}
-
-		var labelIDs []uint
-		if err := sqlx.SelectContext(ctx, tx, &labelIDs, query, params...); err != nil {
-			return ctxerr.Wrap(ctx, err, "getting label id to delete")
-		}
-		switch len(labelIDs) {
-		case 0:
-			return ctxerr.Wrap(ctx, notFound("Label").WithName(name))
-		case 1:
-		default:
-			return ctxerr.Wrap(ctx, fleet.NewAmbiguousLabelNameError(name))
-		}
-		labelID := labelIDs[0]
 		var usedByProfile bool
 		if err := sqlx.GetContext(ctx, tx, &usedByProfile, `
 			SELECT EXISTS(

@@ -364,9 +364,14 @@ func gitopsCommand() *cli.Command {
 				return err
 			}
 
-			labelMoves, err := computeLabelMoves(labelChanges)
-			if err != nil {
-				return err
+			// Under the labels exception no label is managed here, so none moves. A labels key is an error then, and DoGitOps
+			// reports it; planning moves first would report a name conflict instead.
+			var labelMoves map[string][]spec.LabelMovement
+			if !appConfig.GitOpsConfig.Exceptions.Labels {
+				labelMoves, err = computeLabelMoves(labelChanges)
+				if err != nil {
+					return err
+				}
 			}
 			for _, teamMoves := range labelMoves {
 				for i := range teamMoves {
@@ -952,8 +957,7 @@ func computeLabelMoves(allChanges map[string][]spec.LabelChange) (map[string][]s
 					FromTeamName: spec.LabelAPIGlobalTeamName,
 					ToTeamName:   teamName,
 				})
-			// "~" is a label kept outside GitOps (labels exception), so it blocks the name like "=" does.
-			case globalChange.Op == "+" && (change.Op == "+" || change.Op == "=" || change.Op == "~"):
+			case globalChange.Op == "+" && (change.Op == "+" || change.Op == "="):
 				return nil, fmt.Errorf("can't add label %q to %q: %s", change.Name, globalChange.FileName, fleet.LabelNameInUseByFleetsErrMsg)
 			case change.Op == "+" && globalChange.Op == "=":
 				return nil, fmt.Errorf("can't add label %q to %q: %s", change.Name, change.FileName, fleet.LabelNameInUseGloballyErrMsg)

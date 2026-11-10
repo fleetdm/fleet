@@ -1007,7 +1007,6 @@ func (m *MemKeyValueStore) Get(ctx context.Context, key string) (*string, error)
 }
 
 func AddLabelMocks(ds *mock.Store) {
-	var deletedLabels []string
 	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 		return []*fleet.LabelSpec{
 			{
@@ -1031,10 +1030,7 @@ func AddLabelMocks(ds *mock.Store) {
 		return nil
 	}
 
-	ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
-		deletedLabels = append(deletedLabels, name)
-		return nil
-	}
+	ds.DeleteLabelFunc = func(ctx context.Context, id uint) error { return nil }
 	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
 		validLabels := map[string]*fleet.Label{
 			"a": {
@@ -1066,6 +1062,19 @@ func LabelsByID(specs ...*fleet.LabelSpec) func(context.Context, uint, fleet.Tea
 			}
 		}
 		return nil, nil, &notFoundError{}
+	}
+}
+
+// RecordDeletedLabelNames records the name of each label a test deletes. Labels are deleted by ID, so the name comes from the
+// test's Label mock.
+func RecordDeletedLabelNames(ds *mock.Store, names *[]string) mock.DeleteLabelFunc {
+	return func(ctx context.Context, id uint) error {
+		l, _, err := ds.LabelFunc(ctx, id, fleet.TeamFilter{})
+		if err != nil {
+			return err
+		}
+		*names = append(*names, l.Name)
+		return nil
 	}
 }
 

@@ -1571,7 +1571,7 @@ func testDeleteLabel(t *testing.T, db *Datastore) {
 	})
 	require.NoError(t, err)
 
-	require.NoError(t, db.DeleteLabel(ctx, l.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
+	require.NoError(t, db.DeleteLabel(ctx, l.ID))
 
 	newP, err := db.Pack(ctx, p.ID)
 	require.NoError(t, err)
@@ -1579,8 +1579,8 @@ func testDeleteLabel(t *testing.T, db *Datastore) {
 
 	require.NoError(t, db.DeletePack(ctx, newP.Name))
 
-	// delete a non-existing label
-	err = db.DeleteLabel(ctx, "no-such-label", fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	// delete a label that no longer exists
+	err = db.DeleteLabel(ctx, l.ID)
 	require.Error(t, err)
 	var nfe fleet.NotFoundError
 	require.ErrorAs(t, err, &nfe)
@@ -1614,55 +1614,48 @@ func testDeleteLabel(t *testing.T, db *Datastore) {
 	})
 
 	// try to delete that label referenced by software installer
-	err = db.DeleteLabel(ctx, l2.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	err = db.DeleteLabel(ctx, l2.ID)
 	require.Error(t, err)
 	require.True(t, fleet.IsForeignKey(err))
 
-	// Test team label filtering
+	// A label is deleted by its ID, so another label with the same name is left alone, whether it's on another fleet or
+	// was created in the same fleet after the label was renamed.
 	team1, err := db.NewTeam(ctx, &fleet.Team{Name: "team1_delete"})
 	require.NoError(t, err)
 	team2, err := db.NewTeam(ctx, &fleet.Team{Name: "team2_delete"})
 	require.NoError(t, err)
+	newTeamLabel := func(name string, teamID uint) *fleet.Label {
+		lbl, err := db.NewLabel(ctx, &fleet.Label{
+			Name: name, Query: "SELECT 1", TeamID: &teamID, LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		})
+		require.NoError(t, err)
+		return lbl
+	}
+	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}
+	requireLabel := func(id uint, exists bool) {
+		t.Helper()
+		_, _, err := db.Label(ctx, id, adminFilter)
+		if exists {
+			require.NoError(t, err)
+		} else {
+			require.True(t, fleet.IsNotFound(err), err)
+		}
+	}
 
-	// Create team labels
-	team1Label, err := db.NewLabel(ctx, &fleet.Label{
-		Name:                "team1-delete-label",
-		Query:               "SELECT 1",
-		TeamID:              &team1.ID,
-		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	team1Label := newTeamLabel("delete-label", team1.ID)
+	team2Label := newTeamLabel("delete-label", team2.ID)
+	require.NoError(t, db.DeleteLabel(ctx, team1Label.ID))
+	requireLabel(team1Label.ID, false)
+	requireLabel(team2Label.ID, true)
+
+	ExecAdhocSQL(t, db, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE labels SET name = 'renamed-label' WHERE id = ?`, team2Label.ID)
+		return err
 	})
-	require.NoError(t, err)
-	team2Label, err := db.NewLabel(ctx, &fleet.Label{
-		Name:                "team2-delete-label",
-		Query:               "SELECT 2",
-		TeamID:              &team2.ID,
-		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
-	})
-	require.NoError(t, err)
-
-	adminUser := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
-	team1User := &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleMaintainer}}}
-
-	// Global admin can delete team labels
-	err = db.DeleteLabel(ctx, team1Label.Name, fleet.TeamFilter{User: adminUser})
-	require.NoError(t, err)
-
-	// Verify it's deleted
-	_, err = db.LabelByName(ctx, team1Label.Name, fleet.TeamFilter{User: adminUser})
-	require.True(t, fleet.IsNotFound(err))
-
-	// Team user cannot delete label from another team (not found because not visible)
-	err = db.DeleteLabel(ctx, team2Label.Name, fleet.TeamFilter{User: team1User})
-	require.True(t, fleet.IsNotFound(err))
-
-	// Verify team2 label still exists
-	label, err := db.LabelByName(ctx, team2Label.Name, fleet.TeamFilter{User: adminUser})
-	require.NoError(t, err)
-	require.Equal(t, team2Label.ID, label.ID)
-
-	// Admin with team filter can delete
-	err = db.DeleteLabel(ctx, team2Label.Name, fleet.TeamFilter{User: adminUser, TeamID: &team2.ID})
-	require.NoError(t, err)
+	replacement := newTeamLabel("delete-label", team2.ID)
+	require.NoError(t, db.DeleteLabel(ctx, team2Label.ID))
+	requireLabel(team2Label.ID, false)
+	requireLabel(replacement.ID, true)
 
 	// create a label referenced by a configuration profile — deletion must be blocked
 	l3, err := db.NewLabel(ctx, &fleet.Label{
@@ -1682,7 +1675,7 @@ func testDeleteLabel(t *testing.T, db *Datastore) {
 		return err
 	})
 
-	err = db.DeleteLabel(ctx, l3.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	err = db.DeleteLabel(ctx, l3.ID)
 	require.Error(t, err)
 	require.True(t, fleet.IsForeignKey(err))
 
@@ -1708,7 +1701,7 @@ func testDeleteLabel(t *testing.T, db *Datastore) {
 		return err
 	})
 
-	err = db.DeleteLabel(ctx, l4.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	err = db.DeleteLabel(ctx, l4.ID)
 	require.Error(t, err)
 	require.True(t, fleet.IsForeignKey(err))
 }
@@ -4198,11 +4191,8 @@ func testLabelNamesSharedAcrossFleets(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("delete", func(t *testing.T) {
-		err := ds.DeleteLabel(ctx, "Engineering", adminFilter)
-		requireConflict(t, err, `More than one fleet has a label named "Engineering".`)
-
-		require.NoError(t, ds.DeleteLabel(ctx, "Engineering", scoped(team2.ID)))
-		_, err = ds.LabelByName(ctx, "Engineering", scoped(team2.ID))
+		require.NoError(t, ds.DeleteLabel(ctx, eng2.ID))
+		_, err := ds.LabelByName(ctx, "Engineering", scoped(team2.ID))
 		require.True(t, fleet.IsNotFound(err), err)
 		label, err := ds.LabelByName(ctx, "Engineering", scoped(team1.ID))
 		require.NoError(t, err)

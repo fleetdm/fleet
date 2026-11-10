@@ -590,7 +590,7 @@ func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
 		return fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot delete built-in label '%s'", reserved))
 	}
 
-	if err := svc.ds.DeleteLabel(ctx, label.Name, labelScopeFilter(vc.User, label.TeamID)); err != nil {
+	if err := svc.ds.DeleteLabel(ctx, label.ID); err != nil {
 		return err
 	}
 
@@ -856,15 +856,6 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 		}
 	}
 	return nil
-}
-
-// Fleets can share label names, so a lookup by name only covers the labels one fleet sees (or global labels only,
-// for a nil teamID).
-func labelScopeFilter(user *fleet.User, teamID *uint) fleet.TeamFilter {
-	if teamID == nil {
-		teamID = new(uint(0))
-	}
-	return fleet.TeamFilter{User: user, IncludeObserver: true, TeamID: teamID}
 }
 
 func labelMatchesTeamScope(l *fleet.Label, teamID *uint) bool {

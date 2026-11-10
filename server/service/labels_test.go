@@ -135,7 +135,7 @@ func TestLabelsAuth(t *testing.T) {
 	ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, hostIDs []uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
 		return &fleet.LabelWithTeamName{Label: *lbl}, nil, nil
 	}
-	ds.DeleteLabelFunc = func(ctx context.Context, nm string, filter fleet.TeamFilter) error {
+	ds.DeleteLabelFunc = func(ctx context.Context, id uint) error {
 		return nil
 	}
 	ds.ApplyLabelSpecsFunc = func(ctx context.Context, specs []*fleet.LabelSpec) error {
@@ -556,7 +556,7 @@ func TestBuiltInLabelNameCaseVariants(t *testing.T) {
 			Label: fleet.Label{ID: lid, Name: "a regular label", Query: "select 1;", LabelType: fleet.LabelTypeRegular},
 		}, nil, nil
 	}
-	ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
+	ds.DeleteLabelFunc = func(ctx context.Context, id uint) error {
 		return nil
 	}
 	ds.SaveLabelFunc = func(ctx context.Context, label *fleet.Label, hostIDs []uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
@@ -1073,25 +1073,18 @@ func TestDeleteLabelWithSharedNames(t *testing.T) {
 	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		return &fleet.TeamLite{ID: tid, Name: "team"}, nil
 	}
-	var deletedWith *fleet.TeamFilter
-	ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
-		deletedWith = &filter
+	var deletedID uint
+	ds.DeleteLabelFunc = func(ctx context.Context, id uint) error {
+		deletedID = id
 		return nil
 	}
-	requireScope := func(t *testing.T, filter *fleet.TeamFilter, want uint) {
-		t.Helper()
-		require.NotNil(t, filter)
-		require.NotNil(t, filter.TeamID)
-		require.Equal(t, want, *filter.TeamID)
-	}
 
-	t.Run("by ID deletes within the label's own fleet", func(t *testing.T) {
-		deletedWith = nil
+	t.Run("by ID deletes the requested label, not a label found by its name", func(t *testing.T) {
 		ds.LabelFunc = func(ctx context.Context, lid uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
 			return &fleet.LabelWithTeamName{ID: lid, Name: "shared", TeamID: new(teamID)}, nil, nil
 		}
 		require.NoError(t, svc.DeleteLabelByID(ctx, 2))
-		requireScope(t, deletedWith, teamID)
+		require.Equal(t, uint(2), deletedID)
 	})
 }
 
@@ -1682,7 +1675,7 @@ func TestLabelActivities(t *testing.T) {
 				TeamName: &teamName,
 			}, nil, nil
 		}
-		ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
+		ds.DeleteLabelFunc = func(ctx context.Context, id uint) error {
 			return nil
 		}
 		err := svc.DeleteLabelByID(ctx, 300)
