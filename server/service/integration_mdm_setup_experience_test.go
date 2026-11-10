@@ -206,7 +206,7 @@ func (s *integrationMDMTestSuite) createTeamDeviceForSetupExperienceWithProfileS
 
 	// add a team profile
 	teamProfile := mobileconfigForTest("N1", "I1")
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{teamProfile}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest([][]byte{teamProfile}), http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
 
 	// add a macOS software to install
 	payloadDummy := &fleet.UploadSoftwareInstallerPayload{
@@ -707,8 +707,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithFMAAndVersionRollba
 
 	// Add a team MDM profile so we can assert on the profile install commands.
 	teamProfile := mobileconfigForTest("N1", "I1")
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
-		batchSetMDMAppleProfilesRequest{Profiles: [][]byte{teamProfile}},
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+		appleProfilesBatchRequest([][]byte{teamProfile}),
 		http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
 
 	// -------------------------------------------------------------------------
@@ -1633,7 +1633,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequireSoftware() {
 	teamDevice, enrolledHost, _ := s.createTeamDeviceForSetupExperienceWithProfileSoftwareAndScript()
 
 	payload := map[string]any{
-		"require_all_software_macos": true,
+		"macos_require_all_software": true,
 		"team_id":                    enrolledHost.TeamID,
 	}
 	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
@@ -2464,7 +2464,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceInstallerEditAndDelete() {
 	}
 
 	// edits an installer while its SE row is pending and again while running, under
-	// require_all_software_macos=true. both edits must leave the SE rows as-is and
+	// macos_require_all_software=true. both edits must leave the SE rows as-is and
 	// must not flip the running row to failure on the next orbit poll.
 	tOuter.Run("edit installer leaves setup experience intact", func(t *testing.T) {
 		host, _, titleIDs := enrollHostWithSEInstallers(t, []struct{ Filename, Title string }{
@@ -2474,7 +2474,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceInstallerEditAndDelete() {
 		})
 
 		s.Do("PATCH", "/api/latest/fleet/setup_experience",
-			json.RawMessage(fmt.Sprintf(`{"require_all_software_macos": true, "team_id": %d}`, *host.TeamID)),
+			json.RawMessage(fmt.Sprintf(`{"macos_require_all_software": true, "team_id": %d}`, *host.TeamID)),
 			http.StatusNoContent)
 
 		// first poll: DummyApp runs (alphabetically first), EchoApp and NoVersion stay pending

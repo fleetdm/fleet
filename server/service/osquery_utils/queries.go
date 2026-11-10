@@ -24,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/contexts/preservedsources"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
@@ -272,14 +273,21 @@ var hostDetailQueries = map[string]DetailQuery{
 		// revision would make every fixed build in a security bulletin compare as newer
 		// than the host, reporting every CVE in it.
 		//
-		// display_version is not available in some versions of Windows (Server 2019). By
-		// including it using a JOIN it can return no rows and the query will still succeed.
+		// The DisplayVersion registry value was introduced in Windows 10 20H2. Older releases still in
+		// support (Windows 10 LTSC 2019 and LTSB 2016, Windows Server 2019 and 2016) only have ReleaseId,
+		// so it is the fallback. ReleaseId is frozen at "2009" from 20H2 onward, so it must not be preferred.
+		// Both are joined in so that a missing value returns no rows and the query still succeeds.
 		Description: "Reads the update build revision (UBR) from `os_version.revision`, which requires osquery 5.12.1 or later. Windows Server 2012 and 2012 R2 have no UBR and fall back to the `kernel_info` version.",
 		Query: `
 		WITH display_version_table AS (
 			SELECT data as display_version
 			FROM registry
 			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+		),
+		release_id_table AS (
+			SELECT data AS release_id
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\ReleaseId'
 		),
 		installation_type_table AS (
 			SELECT data AS installation_type
@@ -288,7 +296,7 @@ var hostDetailQueries = map[string]DetailQuery{
 		)
 		SELECT
 			os.name,
-			COALESCE(d.display_version, '') AS display_version,
+			COALESCE(NULLIF(d.display_version, ''), r.release_id, '') AS display_version,
 			CASE WHEN CAST(os.revision AS INTEGER) > 0 THEN os.version || '.' || os.revision ELSE k.version END AS version,
 			COALESCE(it.installation_type, '') AS installation_type
 		FROM
@@ -296,6 +304,8 @@ var hostDetailQueries = map[string]DetailQuery{
 			kernel_info k
 		LEFT JOIN
 			display_version_table d
+		LEFT JOIN
+			release_id_table r
 		LEFT JOIN
 			installation_type_table it`,
 		Platforms: []string{"windows"},
@@ -765,15 +775,18 @@ var extraDetailQueries = map[string]DetailQuery{
 		// `os_version_windows` detail queries above. See os_version_windows for why the
 		// UBR comes from os_version.revision and why it is cast before being compared.
 		//
-		// DisplayVersion doesn't exist on all versions of Windows (Server 2019). To prevent
-		// the query from failing in those cases, we join the values in when they exist,
-		// alternatively the column is just empty.
+		// See os_version_windows for why display_version falls back to ReleaseId.
 		Description: "Reads the update build revision (UBR) from `os_version.revision`, which requires osquery 5.12.1 or later. Windows Server 2012 and 2012 R2 have no UBR and fall back to the `kernel_info` version.",
 		Query: `
 		WITH display_version_table AS (
 			SELECT data as display_version
 			FROM registry
 			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+		),
+		release_id_table AS (
+			SELECT data AS release_id
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\ReleaseId'
 		),
 		installation_type_table AS (
 			SELECT data AS installation_type
@@ -786,13 +799,15 @@ var extraDetailQueries = map[string]DetailQuery{
 			os.arch,
 			k.version as kernel_version,
 			CASE WHEN CAST(os.revision AS INTEGER) > 0 THEN os.version || '.' || os.revision ELSE k.version END AS version,
-			COALESCE(d.display_version, '') AS display_version,
+			COALESCE(NULLIF(d.display_version, ''), r.release_id, '') AS display_version,
 			COALESCE(it.installation_type, '') AS installation_type
 		FROM
 			os_version os,
 			kernel_info k
 		LEFT JOIN
 			display_version_table d
+		LEFT JOIN
+			release_id_table r
 		LEFT JOIN
 			installation_type_table it`,
 		Platforms:        []string{"windows"},
@@ -2714,7 +2729,8 @@ func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.
 		}
 	}
 
-	result, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	result, err := ds.UpdateHostSoftware(ctx, host.ID, software,
+		fleet.PreserveSoftwareSources(preservedsources.FromContext(ctx)...))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "update host software")
 	}

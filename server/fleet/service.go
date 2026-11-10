@@ -423,7 +423,6 @@ type Service interface {
 	ListHostReports(ctx context.Context, hostID uint, opts ListHostReportsOptions) (rows []*HostReport, total int, metadata *PaginationMetadata, err error)
 	NewQuery(ctx context.Context, p QueryPayload) (*Query, error)
 	ModifyQuery(ctx context.Context, id uint, p QueryPayload) (*Query, error)
-	DeleteQuery(ctx context.Context, teamID *uint, name string) error
 	// DeleteQueryByID deletes a query by ID. For backwards compatibility with UI
 	DeleteQueryByID(ctx context.Context, id uint) error
 	// DeleteQueries deletes the existing query objects with the provided IDs. The number of deleted queries is returned
@@ -484,16 +483,6 @@ type Service interface {
 	GetHostHealth(ctx context.Context, id uint) (hostHealth *HostHealth, err error)
 	GetHostSummary(ctx context.Context, teamID *uint, platform *string, lowDiskSpace *int) (summary *HostSummary, err error)
 	DeleteHost(ctx context.Context, id uint) (err error)
-	// HostByIdentifier returns one host matching the provided identifier.
-	// Possible matches can be on osquery_host_identifier, node_key, UUID, or
-	// hostname.
-	//
-	// The return value can also include policy information and CVE scores based
-	// on the values provided to `opts`
-	//
-	// A caller allowed to resolve the identifier but not to read the host
-	// (GitOps) gets a result with HostDetail.IDOnly set, see that field.
-	HostByIdentifier(ctx context.Context, identifier string, opts HostDetailOptions) (*HostDetail, error)
 	// GetHostByIDOrIdentifier returns one host matching the provided value. A value that is a host id matches on id first, then
 	// any value matches as described on Datastore.HostByIdentifier.
 	GetHostByIDOrIdentifier(ctx context.Context, identifier string, opts HostDetailOptions) (*HostDetail, error)
@@ -1004,8 +993,6 @@ type Service interface {
 	// Apple MDM
 
 	GetAppleMDM(ctx context.Context) (*AppleMDM, error)
-	GetAppleBM(ctx context.Context) (*AppleBM, error)
-	RequestMDMAppleCSR(ctx context.Context, email, org string) (*AppleCSR, error)
 
 	// GetMDMAppleCSR returns a signed CSR as base64 encoded bytes for Apple MDM. The first time
 	// this method is called, it will create a SCEP certificate, a SCEP key, and an APNS key and
@@ -1043,20 +1030,12 @@ type Service interface {
 	// declaration; nil or empty means Fleet generates the activation.
 	NewMDMAppleDeclaration(ctx context.Context, teamID uint, data []byte, labelsInclude []string, name string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, activation []byte, description string, selfService, hidden bool) (*MDMAppleDeclaration, error)
 
-	// GetMDMAppleConfigProfileByDeprecatedID retrieves the specified Apple
-	// configuration profile via its numeric ID. This method is deprecated and
-	// should not be used for new endpoints.
-	GetMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) (*MDMAppleConfigProfile, error)
 	// GetMDMAppleConfigProfile retrieves the specified configuration profile.
 	GetMDMAppleConfigProfile(ctx context.Context, profileUUID string) (*MDMAppleConfigProfile, error)
 
 	// GetMDMAppleDeclaration retrieves the specified declaration.
 	GetMDMAppleDeclaration(ctx context.Context, declarationUUID string) (*MDMAppleDeclaration, error)
 
-	// DeleteMDMAppleConfigProfileByDeprecatedID deletes the specified Apple
-	// configuration profile via its numeric ID. This method is deprecated and
-	// should not be used for new endpoints.
-	DeleteMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) error
 	// DeleteMDMAppleConfigProfile deletes the specified configuration profile.
 	DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID string) error
 
@@ -1066,11 +1045,6 @@ type Service interface {
 	// ListMDMAppleConfigProfiles returns the list of all the configuration profiles for the
 	// specified team.
 	ListMDMAppleConfigProfiles(ctx context.Context, teamID uint) ([]*MDMAppleConfigProfile, error)
-
-	// GetMDMAppleFileVaultSummary summarizes the current state of Apple disk encryption profiles on
-	// each macOS host in the specified team (or, if no team is specified, each host that is not assigned
-	// to any team).
-	GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*MDMAppleFileVaultSummary, error)
 
 	// GetMDMAppleProfilesSummary summarizes the current state of MDM configuration profiles on
 	// each host in the specified team (or, if no team is specified, each host that is not assigned
@@ -1107,10 +1081,6 @@ type Service interface {
 	// profile for the currently authenticated device.
 	GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*url.URL, error)
 
-	// ListMDMAppleCommands returns a list of MDM Apple commands corresponding to
-	// the specified options.
-	ListMDMAppleCommands(ctx context.Context, opts *MDMCommandListOptions) ([]*MDMAppleCommand, error)
-
 	// UploadMDMAppleInstaller uploads an Apple installer to Fleet.
 	UploadMDMAppleInstaller(ctx context.Context, name string, size int64, installer io.Reader) (*MDMAppleInstaller, error)
 
@@ -1133,11 +1103,6 @@ type Service interface {
 
 	// ListMDMAppleDevices lists all the MDM enrolled Apple devices.
 	ListMDMAppleDevices(ctx context.Context) ([]MDMAppleDevice, error)
-
-	// NewMDMAppleDEPKeyPair creates a public private key pair for use with the Apple MDM DEP token.
-	//
-	// Deprecated: NewMDMAppleDEPKeyPair exists only to support a deprecated endpoint.
-	NewMDMAppleDEPKeyPair(ctx context.Context) (*MDMAppleDEPKeyPair, error)
 
 	// GenerateABMKeyPair generates and stores in the database public and
 	// private keys to use in ABM to generate an encrypted auth token.
@@ -1166,20 +1131,6 @@ type Service interface {
 
 	// RenewABMToken replaces the contents of the given ABM token with the given bytes.
 	RenewABMToken(ctx context.Context, token io.Reader, tokenID uint) (*ABMToken, error)
-
-	// EnqueueMDMAppleCommand enqueues a command for execution on the given
-	// devices. Note that a deviceID is the same as a host's UUID.
-	EnqueueMDMAppleCommand(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *CommandEnqueueResult, err error)
-
-	// BatchSetMDMAppleProfiles replaces the custom macOS profiles for a specified
-	// team or for hosts with no team.
-	BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool) error
-
-	// MDMAppleDeviceLock remote locks a host
-	MDMAppleDeviceLock(ctx context.Context, hostID uint) error
-
-	// MMDAppleEraseDevice erases a host
-	MDMAppleEraseDevice(ctx context.Context, hostID uint) error
 
 	// MDMListHostConfigurationProfiles returns configuration profiles for a given host
 	MDMListHostConfigurationProfiles(ctx context.Context, hostID uint) ([]*MDMAppleConfigProfile, error)
