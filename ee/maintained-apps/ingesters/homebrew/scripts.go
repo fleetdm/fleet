@@ -710,7 +710,9 @@ fi
 		// Zips built with `ditto -c -k` (no --sequesterRsrc) carry xattrs as inline
 		// ._ AppleDouble files. unzip writes those into the .app, which breaks its
 		// code signature; ditto merges them back into xattrs, as Homebrew does.
-		s.Write(`ditto -x -k "$INSTALLER_PATH" "$TMPDIR"`)
+		// A failed or truncated extraction would otherwise be copied over the working
+		// app, so stop before the existing app is backed up or replaced.
+		s.Write(`ditto -x -k "$INSTALLER_PATH" "$TMPDIR" || exit $?`)
 	}
 }
 

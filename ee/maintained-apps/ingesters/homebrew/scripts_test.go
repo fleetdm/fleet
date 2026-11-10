@@ -44,6 +44,26 @@ func TestInstallScriptDmgExtractUsesYesPipe(t *testing.T) {
 	require.Less(t, strings.Index(script, staging), strings.Index(script, "quit_and_track_application '"))
 }
 
+func TestInstallScriptZipExtractFailureStopsBeforeReplacingApp(t *testing.T) {
+	cask := &brewCask{
+		Artifacts: []*brewArtifact{
+			{App: []optjson.StringOr[*brewAppTarget]{{String: "Foo.app"}}},
+		},
+	}
+
+	script, err := installScriptForApp(inputApp{
+		Token:            "foo",
+		UniqueIdentifier: "com.example.Foo",
+		InstallerFormat:  "zip",
+	}, cask)
+	require.NoError(t, err)
+	// A failed or truncated extraction must stop the install before the existing
+	// app is backed up and replaced by a partial bundle.
+	extract := `ditto -x -k "$INSTALLER_PATH" "$TMPDIR" || exit $?`
+	require.Contains(t, script, extract)
+	require.Less(t, strings.Index(script, extract), strings.Index(script, "quit_and_track_application '"))
+}
+
 // TestInstallScriptPkgPropagatesInstallerExitCode guards against a regression
 // where a failing `installer -pkg` was reported as a successful install because
 // its exit code was discarded and the script ended on `relaunch_application`,
