@@ -1399,7 +1399,7 @@ type Datastore interface {
 	// slice, updating existing entries and inserting new entries.
 	// Returns a struct with the current installed software on the host (pre-mutations) plus all
 	// mutations performed: what was inserted and what was removed.
-	UpdateHostSoftware(ctx context.Context, hostID uint, software []Software) (*UpdateHostSoftwareDBResult, error)
+	UpdateHostSoftware(ctx context.Context, hostID uint, software []Software, opts ...UpdateHostSoftwareOption) (*UpdateHostSoftwareDBResult, error)
 
 	// MarkSoftwareAsAITool flags the stored software rows matching the given software (by
 	// checksum) as AI tools. It never clears the flag.
@@ -4769,7 +4769,7 @@ type AndroidDatastore interface {
 	// slice, updating existing entries and inserting new entries.
 	// Returns a struct with the current installed software on the host (pre-mutations) plus all
 	// mutations performed: what was inserted and what was removed.
-	UpdateHostSoftware(ctx context.Context, hostID uint, software []Software) (*UpdateHostSoftwareDBResult, error)
+	UpdateHostSoftware(ctx context.Context, hostID uint, software []Software, opts ...UpdateHostSoftwareOption) (*UpdateHostSoftwareDBResult, error)
 
 	// GetLatestAppleMDMCommandOfType retrieves the latest command of the given type for the host with the given UUID.
 	// If no such command exists, not found error is returned
