@@ -228,7 +228,7 @@ Fleet 4.96 supports the new `scripts/batch` and `configuration_profiles/resend` 
 1. Before you upgrade, search for `scripts/batch/summary/` and `configuration_profiles/resend/`, and replace each path.
 2. After you upgrade, search for `hosts/identifier/` and put the identifier where `:id` goes in `GET /hosts/:id` or `POST /hosts/:id/query`.
    - Until you do, `GET /hosts/identifier/:identifier` and `POST /hosts/identifier/:identifier/query` fail with a `410` error.
-   - Fleet looks for a host ID first, then a serial number, UUID, and hostname. An all-digit identifier is treated as a host ID.
+   - Fleet looks for a host ID first, then a serial number, UUID, and hostname. An all-digit identifier is used as a host ID if one exists, even if another host has that serial number. If no host has that ID, Fleet looks it up as a serial number, UUID, or hostname.
    - If more than one host matches an identifier, Fleet uses the newest host.
    - Every `GET /hosts/:id/…` endpoint accepts an identifier in `:id` too, except [Get host's device page URL](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-device-page-url).
 3. After you upgrade, update conditional access setups that followed the Google or PingFederate guides to call `GET /hosts/:id`.
