@@ -212,6 +212,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	elasticAPMConfigured := config.Logging.TracingEnabled && config.Logging.TracingType == "elasticapm"
 	if elasticAPMConfigured {
 		config.Logging.TracingEnabled = false
+		// OTEL logs require tracing, and the logger setup panics without a logger provider.
+		config.Logging.OtelLogsEnabled = false
 	}
 
 	// Trace sampler tier registry. Bounded contexts register their own route to tier classifications below. The
