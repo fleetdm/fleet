@@ -1,6 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
-import { InjectedRouter } from "react-router";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
@@ -31,6 +30,7 @@ import SectionCard from "../MdmSettings/components/SectionCard";
 
 import EntraConditionalAccessModal from "./components/EntraConditionalAccessModal";
 import OktaConditionalAccessModal from "./components/OktaConditionalAccessModal";
+import OktaProfilesModal from "./components/OktaProfilesModal";
 
 const baseClass = "conditional-access";
 
@@ -169,11 +169,7 @@ enum EntraPhase {
   ConsentMissing = "consent-missing",
 }
 
-interface IConditionalAccessProps {
-  router: InjectedRouter;
-}
-
-const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
+const ConditionalAccess = () => {
   // HOOKS
   const { isPremiumTier, setConfig, config } = useContext(AppContext);
 
@@ -184,6 +180,7 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
   // Modal states
   const [showEntraModal, setShowEntraModal] = useState(false);
   const [showOktaModal, setShowOktaModal] = useState(false);
+  const [showOktaProfilesModal, setShowOktaProfilesModal] = useState(false);
   const [providerToDelete, setProviderToDelete] = useState<
     "microsoft-entra" | "okta" | null
   >(null);
@@ -330,6 +327,10 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
     setShowOktaModal(!showOktaModal);
   };
 
+  const toggleOktaProfilesModal = () => {
+    setShowOktaProfilesModal(!showOktaProfilesModal);
+  };
+
   const handleOktaModalSuccess = (updatedConfig: IConfig) => {
     setShowOktaModal(false);
     setConfig(updatedConfig);
@@ -381,11 +382,12 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
         <div className={`${baseClass}__card-actions`}>
           <Button
             variant="subdued"
-            onClick={() =>
-              router.push(paths.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS_OKTA)
-            }
-            icon="pencil"
+            onClick={toggleOktaProfilesModal}
+            icon="settings"
           >
+            Profiles
+          </Button>
+          <Button variant="subdued" onClick={toggleOktaModal} icon="pencil">
             Edit
           </Button>
           <GitOpsModeTooltipWrapper
@@ -394,7 +396,6 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
                 variant="subdued"
                 onClick={handleOktaDelete}
                 icon="trash"
-                iconPosition="right"
                 disabled={disableChildren}
               >
                 Delete
@@ -555,6 +556,9 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
             onCancel={toggleOktaModal}
             onSuccess={handleOktaModalSuccess}
           />
+        )}
+        {showOktaProfilesModal && (
+          <OktaProfilesModal onExit={toggleOktaProfilesModal} />
         )}
         {providerToDelete && (
           <DeleteConditionalAccessModal
