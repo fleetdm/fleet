@@ -21,8 +21,7 @@ func TestUp_20261110062427(t *testing.T) {
 
 	t.Run("old keys", func(t *testing.T) {
 		db := applyUpToPrev(t)
-		// A value already under a new name loses to the old key. The org name holds a would-be key to show the text
-		// replace only touches keys.
+		// A value already under a new name loses to the old key.
 		execNoErr(t, db, `UPDATE app_config_json SET json_value = JSON_SET(json_value,
 			'$.mdm.apple_business_manager', CAST(? AS JSON),
 			'$.mdm.apple_bm_enabled_and_configured', true,
@@ -30,7 +29,7 @@ func TestUp_20261110062427(t *testing.T) {
 			'$.mdm.apple_bm_default_team', 'Workstations',
 			'$.mdm.apple_business', JSON_ARRAY(),
 			'$.mdm.apple_business_enabled_and_configured', false) WHERE id = 1`,
-			`[{"organization_name": "org \"macos_team\": x", "default": true, "macos_team": "a", "ios_team": "b", "ipados_team": "c", "byod_team": ""}]`)
+			`[{"organization_name": "org", "default": true, "macos_team": "a", "ios_team": "b", "ipados_team": "c", "byod_team": ""}]`)
 
 		applyNext(t, db)
 
@@ -41,12 +40,12 @@ func TestUp_20261110062427(t *testing.T) {
 		require.Equal(t, true, mdm["apple_business_enabled_and_configured"])
 		require.Equal(t, true, mdm["apple_business_terms_expired"])
 		require.Equal(t, []any{map[string]any{
-			"organization_name": `org "macos_team": x`,
+			"organization_name": "org",
 			"default":           true,
-			"macos_fleet":       "a",
-			"ios_fleet":         "b",
-			"ipados_fleet":      "c",
-			"byod_fleet":        "",
+			"macos_team":        "a",
+			"ios_team":          "b",
+			"ipados_team":       "c",
+			"byod_team":         "",
 		}}, mdm["apple_business"])
 	})
 

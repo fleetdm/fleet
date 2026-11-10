@@ -5296,37 +5296,19 @@ org_settings:
 		require.NoError(t, err)
 	})
 
-	t.Run("old_key_still_accepted", func(t *testing.T) {
+	t.Run("old_key_rejected", func(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
 		yaml := baseConfig(`
     apple_business_manager:
       - organization_name: Test Org
-        macos_fleet: "Workstations"
-        ios_fleet: "Phones"
-        ipados_fleet: "Tablets"`)
-		yamlPath := filepath.Join(dir, "gitops.yml")
-		require.NoError(t, os.WriteFile(yamlPath, []byte(yaml), 0o644))
-
-		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
-		require.NoError(t, err)
-	})
-
-	t.Run("both_keys_conflict", func(t *testing.T) {
-		t.Parallel()
-		dir := t.TempDir()
-		yaml := baseConfig(`
-    apple_business:
-      - organization_name: A
-    apple_business_manager:
-      - organization_name: B`)
+        macos_fleet: "Workstations"`)
 		yamlPath := filepath.Join(dir, "gitops.yml")
 		require.NoError(t, os.WriteFile(yamlPath, []byte(yaml), 0o644))
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "cannot specify both")
-		require.Contains(t, err.Error(), "org_settings.mdm.apple_business")
+		require.Contains(t, err.Error(), `The "org_settings.mdm.apple_business_manager" key is not available anymore`)
 	})
 }
 
@@ -5419,7 +5401,7 @@ org_info:
   org_name: Test Org
 secrets:
 mdm:
-  apple_business_manager:
+  apple_business:
     - organization_name: Test Org
       macos_team: Workstations
   volume_purchasing_program:

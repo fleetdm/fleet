@@ -25,4 +25,6 @@ var abmEntries = []Entry{
 	{Kind: KindJSONKey, Scope: ScopeRequest | ScopeResponse, Old: "apple_bm_terms_expired", New: "apple_business_terms_expired"},
 
 	yamlEntry("org_settings.mdm.apple_business_manager", "org_settings.mdm.apple_business"),
+	yamlEntry("org_settings.mdm.apple_bm_enabled_and_configured", "org_settings.mdm.apple_business_enabled_and_configured"),
+	yamlEntry("org_settings.mdm.apple_bm_terms_expired", "org_settings.mdm.apple_business_terms_expired"),
 }
