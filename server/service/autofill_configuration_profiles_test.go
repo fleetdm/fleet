@@ -399,13 +399,6 @@ func TestAutofillConfigProfileFleetFree(t *testing.T) {
 	gen := newFakeConfigProfileGenerator(t)
 	svc, ctx, ds := newAutofillTestService(t, fleet.TierFree, nil)
 
-	t.Run("fleet_id above 0 is rejected before calling fleetdm.com", func(t *testing.T) {
-		before := gen.calls.Load()
-		_, err := svc.AutofillConfigProfileContent(ctx, "Turn off AirDrop", "apple", 1)
-		require.ErrorIs(t, err, fleet.ErrMissingLicense)
-		assert.Equal(t, before, gen.calls.Load())
-	})
-
 	t.Run("an OS updates declaration gets the license message", func(t *testing.T) {
 		ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
 			return document, nil, nil

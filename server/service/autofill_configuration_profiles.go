@@ -116,7 +116,7 @@ func (svc *Service) AutofillConfigProfileNameDescription(ctx context.Context, in
 type autofillConfigProfileContentRequest struct {
 	NaturalLanguageInstructions string `json:"natural_language_instructions"`
 	Platform                    string `json:"platform"`
-	FleetID                     uint   `json:"fleet_id"`
+	FleetID                     uint   `json:"fleet_id" premium:"true"`
 }
 
 type autofillConfigProfileContentResponse struct {
@@ -145,18 +145,8 @@ func (svc *Service) AutofillConfigProfileContent(ctx context.Context, instructio
 		return nil, err
 	}
 
-	// Checked here rather than left to the profile checks below, which return the same license error for an OS
-	// updates profile on Fleet Free.  That one is about the generated content; this one is about the request, and
-	// is rejected the way Create configuration profile rejects it.  The checks repeat both lookups, but only after
-	// a generation that a missing fleet would have wasted.
 	if teamID > 0 {
-		lic, err := svc.License(ctx)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "checking license")
-		}
-		if lic == nil || !lic.IsPremium() {
-			return nil, ctxerr.Wrap(ctx, fleet.ErrMissingLicense)
-		}
+		// the request decoder checks the license if "fleet_id" is set
 		if _, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get fleet")
 		}

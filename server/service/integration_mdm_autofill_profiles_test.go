@@ -311,22 +311,26 @@ func (s *integrationMDMTestSuite) TestAutofillConfigProfiles() {
 			{
 				"wrong type", "mobileconfig",
 				autofillMobileconfig("com.apple.applicationaccess", `<key>allowAirDrop</key><string>no</string><key>allowCamera</key><string>no</string>`),
-				"apple", []string{`"allowAirDrop" expects a boolean.`, `"allowCamera" expects a boolean.`},
+				"apple",
+				[]string{`"allowAirDrop" expects a boolean.`, `"allowCamera" expects a boolean.`},
 			},
 			{
 				"unknown key", "mobileconfig",
 				autofillMobileconfig("com.apple.applicationaccess", `<key>allowSomethingMadeUp</key><true/>`),
-				"apple", []string{`"allowSomethingMadeUp" isn't valid for the "com.apple.applicationaccess" profile type.`},
+				"apple",
+				[]string{`"allowSomethingMadeUp" isn't valid for the "com.apple.applicationaccess" profile type.`},
 			},
 			{
 				"unknown payload type", "mobileconfig",
 				autofillMobileconfig("com.example.not.a.real.type", `<key>anything</key><string>x</string>`),
-				"apple", []string{`"com.example.not.a.real.type" isn't a valid profile type.`},
+				"apple",
+				[]string{`"com.example.not.a.real.type" isn't a valid profile type.`},
 			},
 			{
 				"unknown LocURI", "csp",
 				`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/MadeUpArea/MadeUpSetting</LocURI></Target><Meta><Format xmlns="syncml:metinf">int</Format></Meta><Data>1</Data></Item></Replace>`,
-				"windows", []string{`"./Device/Vendor/MSFT/Policy/Config/MadeUpArea/MadeUpSetting" isn't a valid Windows setting.`},
+				"windows",
+				[]string{`"./Device/Vendor/MSFT/Policy/Config/MadeUpArea/MadeUpSetting" isn't a valid Windows setting.`},
 			},
 		}
 		for _, on := range []bool{true, false} {
@@ -556,5 +560,25 @@ func (s *integrationMDMTestSuite) TestAutofillConfigProfiles() {
 		profilesAfter, activitiesAfter := countProfilesAndActivities()
 		assert.Equal(t, profilesBefore, profilesAfter)
 		assert.Equal(t, activitiesBefore, activitiesAfter)
+	})
+
+	t.Run("fleet_id requires premium license", func(t *testing.T) {
+		_, freeServer := RunServerForTestsWithDS(t, s.ds, &TestServerOpts{
+			License:             &fleet.LicenseInfo{Tier: fleet.TierFree},
+			FleetConfig:         &s.fleetCfg,
+			SkipCreateTestUsers: true,
+		})
+		before := registrationCount()
+		reqBody, err := json.Marshal(map[string]any{"natural_language_instructions": "Turn off AirDrop", "platform": "apple", "fleet_id": 1})
+		require.NoError(t, err)
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, freeServer.URL+"/api/latest/fleet/autofill/configuration_profile/content", bytes.NewReader(reqBody))
+		require.NoError(t, err)
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		errText := extractServerErrorText(resp.Body)
+		require.Contains(t, errText, "fleet_id requires a premium license")
+		assert.Equal(t, before, registrationCount())
 	})
 }
