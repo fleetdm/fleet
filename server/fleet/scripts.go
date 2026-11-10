@@ -301,9 +301,7 @@ type HostScriptResult struct {
 	// user-requested run. Not returned as part of any API endpoint.
 	IsInternal bool `json:"-" db:"is_internal"`
 
-	// TeamID is only used for authorization, it must be set to the team id of
-	// the host when checking authorization and is otherwise not set. It is not part of the JSON
-	// (see ExtraAuthz).
+	// TeamID carries the fleet of the host or script being authorized to the policy through ExtraAuthz. It is never serialized or stored.
 	TeamID *uint `json:"-" db:"-"`
 
 	// Message is the UserMessage associated with a response from an execution.
