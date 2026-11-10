@@ -80,7 +80,7 @@ jobs:
             has_google_chrome = (Test-Slug "google-chrome")
             has_7zip          = (Test-Slug "7-zip")
             has_firefox       = (Test-Slug "firefox", "firefox@esr")
-            has_nodejs        = (Test-Slug "nodejs")
+            has_nodejs        = (Test-Slug "nodejs", "nodejs-22")
             has_powershell    = (Test-Slug "powershell")
             has_r             = (Test-Slug "r")
             has_git           = (Test-Slug "git")
