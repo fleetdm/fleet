@@ -1195,14 +1195,6 @@ describe("ProfileFormPage", () => {
     const isAIView = () =>
       !!screen.queryByRole("button", { name: "Generate profile" });
 
-    // Built in only on request until the AI features are released.
-    beforeEach(() => {
-      featureFlags.showAIProfileBuilder = "true";
-    });
-    afterEach(() => {
-      delete featureFlags.showAIProfileBuilder;
-    });
-
     it("opens by default when adding", () => {
       renderAt(NEW_PATH);
       expect(isAIView()).toBe(true);
