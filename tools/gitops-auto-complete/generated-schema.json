@@ -4202,27 +4202,6 @@
           "$ref": "#/$defs/AppleAccountProvisioning",
           "description": "AppleAccountProvisioning holds the macOS local account provisioning /\nPlatform SSO password sync configuration. The IdP client secret is stored\nin mdm_config_assets, not in this JSON; only the masked value is returned.\n\ntype: `AppleAccountProvisioning`"
         },
-        "apple_bm_default_team": {
-          "description": "Deprecated: use AppleBusinessManager instead\n\ntype: `string`",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "apple_bm_enabled_and_configured": {
-          "description": "AppleBMEnabledAndConfigured is set to true if Fleet has been\nconfigured with the required Apple BM key pair or token. It can't be set\nmanually via the PATCH /config API, it's only set automatically when\nthe server starts.\n\ntype: `boolean`",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "apple_bm_terms_expired": {
-          "description": "AppleBMTermsExpired is set to true if an Apple Business request\nfailed due to Apple's terms and conditions having changed and need the\nuser to explicitly accept them. It cannot be set manually via the\nPATCH /config API, it is only set automatically, internally, by detecting\nthe 403 Forbidden error with body T_C_NOT_SIGNED returned by the Apple BM\nAPI.\n\nIt is set to true as soon as one of the ABM tokens receives this error\ncode, and is set to false only once all ABM tokens have agreed to the new\nterms.\n\ntype: `boolean`",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
         "apple_business": {
           "description": "AppleBusinessManager defines the associations between AB tokens\nand the fleets used to assign hosts when they're ingested from Apple\nBusiness.\n\ntype: `array\u003cobject\u003e`",
           "items": {
@@ -4236,18 +4215,17 @@
             "null"
           ]
         },
-        "apple_business_manager": {
-          "deprecated": true,
-          "deprecationMessage": "'apple_business_manager' is deprecated, use 'apple_business' instead",
-          "description": "AppleBusinessManager defines the associations between AB tokens\nand the fleets used to assign hosts when they're ingested from Apple\nBusiness.\n\ntype: `array\u003cobject\u003e`",
-          "items": {
-            "type": [
-              "object",
-              "null"
-            ]
-          },
+        "apple_business_enabled_and_configured": {
+          "description": "AppleBMEnabledAndConfigured is set to true if Fleet has been\nconfigured with the required Apple BM key pair or token. It can't be set\nmanually via the PATCH /config API, it's only set automatically when\nthe server starts.\n\ntype: `boolean`",
           "type": [
-            "array",
+            "boolean",
+            "null"
+          ]
+        },
+        "apple_business_terms_expired": {
+          "description": "AppleBMTermsExpired is set to true if an Apple Business request\nfailed due to Apple's terms and conditions having changed and need the\nuser to explicitly accept them. It cannot be set manually via the\nPATCH /config API, it is only set automatically, internally, by detecting\nthe 403 Forbidden error with body T_C_NOT_SIGNED returned by the Apple BM\nAPI.\n\nIt is set to true as soon as one of the ABM tokens receives this error\ncode, and is set to false only once all ABM tokens have agreed to the new\nterms.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
             "null"
           ]
         },

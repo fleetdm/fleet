@@ -220,7 +220,7 @@
   },
   "mdm": {
     "apple_server_url": "http://some-apple-server-url.com",
-    "apple_business_manager": [
+    "apple_business": [
       {
         "organization_name": "Fleet Device Management Inc.",
         "default": true,
@@ -234,8 +234,8 @@
         "macos_team": "💻 Workstations"
       }
     ],
-    "apple_bm_enabled_and_configured": true,
-    "apple_bm_terms_expired": false,
+    "apple_business_enabled_and_configured": true,
+    "apple_business_terms_expired": false,
     "enabled_and_configured": true,
     "macos_updates": {
       "minimum_version": "15.1",

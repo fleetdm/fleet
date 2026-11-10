@@ -37,12 +37,12 @@ spec:
     zendesk: null
   mdm:
     android_enabled_and_configured: false
-    apple_bm_terms_expired: false
+    apple_business_terms_expired: false
     apple_server_url: ""
-    apple_bm_enabled_and_configured: false
+    apple_business_enabled_and_configured: false
     enabled_and_configured: false
     apple_business: null
-    apple_business_manager: null
+    apple_business: null
     apple_account_provisioning:
       oauth_idp_token_url: null
       oauth_idp_client_id: null

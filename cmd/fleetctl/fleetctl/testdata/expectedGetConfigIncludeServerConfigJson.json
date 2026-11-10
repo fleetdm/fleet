@@ -68,7 +68,7 @@
     "mdm": {
       "android_enabled_and_configured": false,
       "apple_business": null,
-      "apple_business_manager": null,
+      "apple_business": null,
       "apple_account_provisioning": {
         "oauth_idp_token_url": null,
         "oauth_idp_client_id": null,
@@ -76,8 +76,8 @@
       },
       "apple_server_url": "",
       "volume_purchasing_program": null,
-      "apple_bm_terms_expired": false,
-      "apple_bm_enabled_and_configured": false,
+      "apple_business_terms_expired": false,
+      "apple_business_enabled_and_configured": false,
       "enabled_and_configured": false,
       "windows_mdm_enabled": false,
       "enable_disk_encryption": false,
