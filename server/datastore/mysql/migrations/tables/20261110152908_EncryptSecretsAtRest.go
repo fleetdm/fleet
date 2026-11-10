@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261109165642, Down_20261109165642)
+	MigrationClient.AddMigration(Up_20261110152908, Down_20261110152908)
 }
 
-func Up_20261109165642(tx *sql.Tx) error {
+func Up_20261110152908(tx *sql.Tx) error {
 	// Change proxy_server_secret from varchar(64) to blob to hold encrypted data.
 	if colType := columnDataType(tx, "microsoft_compliance_partner_integrations", "proxy_server_secret"); colType != "" && colType != "blob" {
 		if _, err := tx.Exec(`ALTER TABLE microsoft_compliance_partner_integrations MODIFY COLUMN proxy_server_secret blob NOT NULL`); err != nil {
@@ -44,6 +44,6 @@ WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
 	return dt
 }
 
-func Down_20261109165642(tx *sql.Tx) error {
+func Down_20261110152908(tx *sql.Tx) error {
 	return nil
 }
