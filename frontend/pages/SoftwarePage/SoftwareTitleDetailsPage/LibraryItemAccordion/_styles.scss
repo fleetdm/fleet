@@ -202,6 +202,13 @@
     }
   }
 
+  // The anchor is the full-width row, so react-tooltip centers the arrow
+  // under the bubble. Pin it over the row's chevron instead (`!important`
+  // beats react-tooltip's inline `left`).
+  &__inactive-tip .react-tooltip-arrow {
+    left: 20px !important;
+  }
+
   &--inactive {
     .library-item-accordion__header {
       cursor: default;

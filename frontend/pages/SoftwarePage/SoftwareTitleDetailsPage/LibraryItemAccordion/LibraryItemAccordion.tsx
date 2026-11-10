@@ -748,6 +748,7 @@ const LibraryItemAccordion = ({
       ) : (
         <TooltipWrapper
           className={`${baseClass}__inactive-tooltip`}
+          tooltipClass={`${baseClass}__inactive-tip`}
           tipContent={inactiveTooltip}
           showArrow
           underline={false}
