@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/activity"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
+	chartapi "github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -1360,6 +1361,9 @@ func TestAuthorizeActivityHost(t *testing.T) {
 	globalHost := &activity.Host{}
 	hostTeam1 := &activity.Host{ID: 10, TeamID: new(uint(1))}
 	hostTeam2 := &activity.Host{ID: 11, TeamID: new(uint(2))}
+	// The chart bounded context has its own host type, also authorized as "host".
+	chartHostTeam1 := &chartapi.Host{ID: 10, TeamID: new(uint(1))}
+	chartHostTeam2 := &chartapi.Host{ID: 11, TeamID: new(uint(2))}
 
 	runTestCases(t, []authTestCase{
 		// Global admin can read any host.
@@ -1371,6 +1375,8 @@ func TestAuthorizeActivityHost(t *testing.T) {
 		{user: teamAdmin, object: globalHost, action: list, allow: true},
 		{user: teamAdmin, object: hostTeam1, action: read, allow: true},
 		{user: teamAdmin, object: hostTeam2, action: read, allow: false},
+		{user: teamAdmin, object: chartHostTeam1, action: read, allow: true},
+		{user: teamAdmin, object: chartHostTeam2, action: read, allow: false},
 
 		// Team maintainer / observer can also read hosts on their team.
 		{user: teamMaintainer, object: hostTeam1, action: read, allow: true},

@@ -1197,7 +1197,7 @@ func (fc *FleetClient) GetHostCountWithFilters(ctx context.Context, teamName, pl
 	// team_id, status, query, and policy_id when no label is set).
 	params := url.Values{}
 	if teamIDStr != "" {
-		params.Set("team_id", teamIDStr)
+		params.Set("fleet_id", teamIDStr)
 	}
 	if status != "" {
 		params.Set("status", status)
@@ -1462,7 +1462,7 @@ func (fc *FleetClient) GetEndpointsWithFilters(ctx context.Context, teamName, pl
 			params.Set("per_page", fmt.Sprintf("%d", perPage))
 		}
 		if teamIDStr != "" {
-			params.Set("team_id", teamIDStr)
+			params.Set("fleet_id", teamIDStr)
 		}
 		if status != "" {
 			params.Set("status", status)
@@ -1492,7 +1492,7 @@ func (fc *FleetClient) GetEndpointsWithFilters(ctx context.Context, teamName, pl
 	labelParams := url.Values{}
 	labelParams.Set("populate_labels", "true")
 	if teamIDStr != "" {
-		labelParams.Set("team_id", teamIDStr)
+		labelParams.Set("fleet_id", teamIDStr)
 	}
 	if status != "" {
 		labelParams.Set("status", status)
@@ -1535,7 +1535,7 @@ func (fc *FleetClient) GetEndpointsWithFilters(ctx context.Context, teamName, pl
 		policyParams.Set("policy_response", policyResponse)
 	}
 	if teamIDStr != "" {
-		policyParams.Set("team_id", teamIDStr)
+		policyParams.Set("fleet_id", teamIDStr)
 	}
 	if status != "" {
 		policyParams.Set("status", status)
@@ -1868,7 +1868,7 @@ func (fc *FleetClient) GetHostsForCVE(ctx context.Context, cveID, teamName, plat
 	baseParams := url.Values{}
 	baseParams.Set("populate_labels", "true")
 	if teamIDStr != "" {
-		baseParams.Set("team_id", teamIDStr)
+		baseParams.Set("fleet_id", teamIDStr)
 	}
 	if status != "" {
 		baseParams.Set("status", status)
