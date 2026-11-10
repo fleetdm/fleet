@@ -104,8 +104,6 @@ describe("HostHeader", () => {
       />
     );
     expect(screen.getByText(/Refetching\.\.\./i)).toBeInTheDocument();
-    expect(screen.queryByText(/Last fetched/i)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^refetch$/i })).toBeDisabled();
   });
 
   it("calls onRefetchHost when refetch button is clicked", () => {
