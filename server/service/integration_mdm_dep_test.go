@@ -1185,7 +1185,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		Description: "desc team1",
 	}
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", team, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
 	team = createTeamResp.Team
 	var device1ID uint
@@ -1489,7 +1489,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 
 	// create a new team
 	var tmResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{
 		Name:        t.Name() + "dummy",
 		Description: "desc dummy",
 	}, http.StatusOK, &tmResp)
@@ -1526,7 +1526,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	checkNoJobsPending()
 
 	// // TODO: Restore this test when FIXME on DeleteTeam is addressed
-	// s.Do("DELETE", fmt.Sprintf("/api/v1/fleet/teams/%d", dummyTeam.ID), nil, http.StatusOK)
+	// s.Do("DELETE", fmt.Sprintf("/api/v1/fleet/fleets/%d", dummyTeam.ID), nil, http.StatusOK)
 	// checkPendingMacOSSetupAssistantJob("team_deleted", nil, []string{eHost.HardwareSerial}, 0)
 	// s.runIntegrationsSchedule()
 	// require.Empty(t, profileAssignmentReqs) // screened for cooldown
@@ -2405,7 +2405,7 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 		Description: "desc team1",
 	}
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", team, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
 	team = createTeamResp.Team
 	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team.ID, []uint{teamHost.ID})))
@@ -2596,7 +2596,7 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 			assert.NotNil(t, acResp.MDM.MacOSUpdates)
 		} else {
 			tcResp := teamResponse{}
-			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", *teamID), raw, http.StatusOK, &tcResp)
+			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", *teamID), raw, http.StatusOK, &tcResp)
 		}
 	}
 
@@ -2608,7 +2608,7 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 			s.DoJSON("PATCH", "/api/latest/fleet/config", raw, http.StatusOK, &acResp)
 		} else {
 			tcResp := teamResponse{}
-			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", *teamID), raw, http.StatusOK, &tcResp)
+			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", *teamID), raw, http.StatusOK, &tcResp)
 		}
 	}
 
@@ -2827,7 +2827,7 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 		require.NoError(t, err)
 
 		t.Run("unknown token", func(t *testing.T) {
-			res := s.DoRawWithHeaders("GET", apple_mdm.EnrollPath, nil, http.StatusUnauthorized,
+			res := s.DoRawWithHeaders("GET", apple_mdm.EnrollPath, nil, http.StatusForbidden,
 				map[string]string{"x-apple-aspen-deviceinfo": di}, "token", "unknown-token")
 			require.NoError(t, res.Body.Close())
 		})
@@ -2837,7 +2837,7 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 			unassigned.Serial = uuid.New().String()
 			di, err := mdmtest.EncodeDeviceInfo(unassigned)
 			require.NoError(t, err)
-			res := s.DoRawWithHeaders("GET", apple_mdm.EnrollPath, nil, http.StatusUnauthorized,
+			res := s.DoRawWithHeaders("GET", apple_mdm.EnrollPath, nil, http.StatusForbidden,
 				map[string]string{"x-apple-aspen-deviceinfo": di}, "token", loadEnrollmentProfileDEPToken(t, s.ds))
 			require.NoError(t, res.Body.Close())
 		})
@@ -3151,6 +3151,8 @@ func (s *integrationMDMTestSuite) TestSoftwareInventoryForADEMacOSAfterWipeAndRe
 		return map[string]*push.Response{}, nil
 	}
 
+	// a wiped device keeps its UDID when it re-enrolls
+	deviceUUID := strings.ToUpper(uuid.NewString())
 	performHostEnroll := func() *mdmtest.TestAppleMDMClient {
 		// the device must be known from ABM before it may enroll via ADE
 		s.runDEPSchedule()
@@ -3158,6 +3160,7 @@ func (s *integrationMDMTestSuite) TestSoftwareInventoryForADEMacOSAfterWipeAndRe
 		// Enroll the host via ADE
 		depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
 		mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
+		mdmDevice.UUID = deviceUUID
 		mdmDevice.SerialNumber = devices[0].SerialNumber
 		err = mdmDevice.Enroll()
 		require.NoError(t, err)
@@ -3834,7 +3837,7 @@ func (s *integrationMDMTestSuite) TestRotateAutomaticEnrollmentToken() {
 			s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{token: token, diParam: di})
 			return
 		}
-		s.DoRawNoAuth("GET", "/api/mdm/apple/enroll", nil, http.StatusUnauthorized, "token", token, "deviceinfo", di)
+		s.DoRawNoAuth("GET", "/api/mdm/apple/enroll", nil, http.StatusForbidden, "token", token, "deviceinfo", di)
 	}
 	updateAllProfilesJobs := func() int {
 		var n int
@@ -3953,8 +3956,8 @@ func (s *integrationMDMTestSuite) TestAutomaticEnrollmentTokenRefusedWithEndUser
 			s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{token: token, diParam: di})
 			return
 		}
-		res := s.DoRawNoAuth("GET", "/api/mdm/apple/enroll", nil, http.StatusUnauthorized, "token", token, "deviceinfo", di)
-		require.Contains(t, extractServerErrorText(res.Body), "Authentication failed")
+		res := s.DoRawNoAuth("GET", "/api/mdm/apple/enroll", nil, http.StatusForbidden, "token", token, "deviceinfo", di)
+		require.Contains(t, extractServerErrorText(res.Body), "can't enroll right now")
 	}
 	const rejectedActivity = "host_enrollment_rejected"
 	requireRejection := func(host *fleet.Host) {
@@ -4267,11 +4270,11 @@ func (s *integrationMDMTestSuite) TestBlockedEndpointsForABOnlyACMEConfig() {
 			// a serial with no DEP assignment is rejected by the automatic enrollment
 			// endpoint regardless of this setting
 			encodedSigned := base64.StdEncoding.EncodeToString(signedDeviceInfo)
-			resp = s.DoRawWithHeaders("GET", "/api/mdm/apple/enroll", nil, http.StatusUnauthorized, map[string]string{
+			resp = s.DoRawWithHeaders("GET", "/api/mdm/apple/enroll", nil, http.StatusForbidden, map[string]string{
 				"x-apple-aspen-deviceinfo": encodedSigned,
 			}, "token", depProfileToken)
 			require.NoError(t, resp.Body.Close())
-			resp = s.DoRawWithHeaders("POST", "/api/mdm/apple/enroll", nil, http.StatusUnauthorized, map[string]string{
+			resp = s.DoRawWithHeaders("POST", "/api/mdm/apple/enroll", nil, http.StatusForbidden, map[string]string{
 				"x-apple-aspen-deviceinfo": encodedSigned,
 			}, "token", depProfileToken)
 			require.NoError(t, resp.Body.Close())

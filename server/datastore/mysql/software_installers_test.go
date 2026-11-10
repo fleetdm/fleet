@@ -77,6 +77,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"GetSoftwareInstallerMetadataByStorageID", testGetSoftwareInstallerMetadataByStorageID},
 		{"SoftwareTitlePins", testSoftwareTitlePins},
 		{"SetFleetMaintainedAppActiveInstallerPin", testSetFleetMaintainedAppActiveInstallerPin},
+		{"UpdateInstallerScriptsAndQueries", testUpdateInstallerScriptsAndQueries},
 		{"RepointCustomPackagePolicyToNewInstaller", testRepointPolicyToNewInstaller},
 		{"CustomToFMAInstallerReplacement", testCustomToFMAInstallerReplacement},
 		{"GetInstallerByTeamAndURL", testGetInstallerByTeamAndURL},
@@ -355,13 +356,13 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	hostInstall4, err := ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID2, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
-	pendingHost1, err := ds.ListPendingSoftwareInstalls(ctx, host1.ID)
+	pendingHost1, err := ds.listUpcomingSoftwareInstalls(ctx, host1.ID, false)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(pendingHost1))
 	require.Equal(t, hostInstall1, pendingHost1[0])
 	require.Equal(t, hostInstall2, pendingHost1[1])
 
-	pendingHost2, err := ds.ListPendingSoftwareInstalls(ctx, host2.ID)
+	pendingHost2, err := ds.listUpcomingSoftwareInstalls(ctx, host2.ID, false)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(pendingHost2))
 	require.Equal(t, hostInstall3, pendingHost2[0])
@@ -394,11 +395,11 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 
-	installDetailsList1, err := ds.ListPendingSoftwareInstalls(ctx, host1.ID)
+	installDetailsList1, err := ds.listUpcomingSoftwareInstalls(ctx, host1.ID, false)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(installDetailsList1))
 
-	installDetailsList2, err := ds.ListPendingSoftwareInstalls(ctx, host2.ID)
+	installDetailsList2, err := ds.listUpcomingSoftwareInstalls(ctx, host2.ID, false)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(installDetailsList2))
 
@@ -460,7 +461,7 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	err = ds.RestoreMDMApplePendingDEPHost(ctx, host3)
 	require.NoError(t, err)
 
-	hostInstalls4, err := ds.ListPendingSoftwareInstalls(ctx, host3.ID)
+	hostInstalls4, err := ds.listUpcomingSoftwareInstalls(ctx, host3.ID, false)
 	require.NoError(t, err)
 	require.Empty(t, hostInstalls4)
 
@@ -1610,7 +1611,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	summary, err = ds.GetSummaryHostSoftwareInstalls(ctx, instDetails1.InstallerID)
 	require.NoError(t, err)
 	require.Equal(t, fleet.SoftwareInstallerStatusSummary{Installed: 0, PendingInstall: 0}, *summary)
-	pendingHost1, err := ds.ListPendingSoftwareInstalls(ctx, host1.ID)
+	pendingHost1, err := ds.listUpcomingSoftwareInstalls(ctx, host1.ID, false)
 	require.NoError(t, err)
 	require.Empty(t, pendingHost1)
 
@@ -1633,7 +1634,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 
-	pendingHost1, err = ds.ListPendingSoftwareInstalls(ctx, host1.ID)
+	pendingHost1, err = ds.listUpcomingSoftwareInstalls(ctx, host1.ID, false)
 	require.NoError(t, err)
 	require.Len(t, pendingHost1, 1)
 
@@ -1701,7 +1702,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	summary, err = ds.GetSummaryHostSoftwareInstalls(ctx, instDetails0.InstallerID)
 	require.NoError(t, err)
 	require.Equal(t, fleet.SoftwareInstallerStatusSummary{FailedInstall: 0, PendingInstall: 0}, *summary)
-	pendingHost1, err = ds.ListPendingSoftwareInstalls(ctx, host1.ID)
+	pendingHost1, err = ds.listUpcomingSoftwareInstalls(ctx, host1.ID, false)
 	require.NoError(t, err)
 	require.Empty(t, pendingHost1)
 
@@ -1940,7 +1941,7 @@ func testBatchSetSoftwareInstallersMultipleCustomPackages(t *testing.T, ds *Data
 	require.NoError(t, err)
 	require.NotNil(t, kept.SoftwareInstallerID)
 	require.Equal(t, firstID, *kept.SoftwareInstallerID)
-	pending, err := ds.ListPendingSoftwareInstalls(ctx, host.ID)
+	pending, err := ds.listUpcomingSoftwareInstalls(ctx, host.ID, false)
 	require.NoError(t, err)
 	require.Len(t, pending, 1)
 
@@ -7282,7 +7283,7 @@ func testMatchOrCreateSoftwareInstallerDuplicateConflicts(t *testing.T, ds *Data
 		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 		TeamID:          &team.ID,
 	})
-	require.ErrorContains(t, err, fmt.Sprintf("already has %d packages", fleet.MaxPackagesPerTitle))
+	require.ErrorContains(t, err, fmt.Sprintf("already has %d versions", fleet.MaxPackagesPerTitle))
 }
 
 func testGetSoftwareTitlesForInstallAll(t *testing.T, ds *Datastore) {
@@ -7551,19 +7552,19 @@ func testSoftwareTitlePins(t *testing.T, ds *Datastore) {
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	// A literal pin round-trips.
-	require.NoError(t, ds.SetPinnedVersion(ctx, noTeam, titleID, "1.0"))
+	require.NoError(t, setPinnedVersionDB(ctx, ds.writer(ctx), *noTeam, titleID, "1.0"))
 	pin, err := ds.GetPinnedVersion(ctx, noTeam, titleID)
 	require.NoError(t, err)
 	require.Equal(t, new("1.0"), pin)
 
 	// Upsert overwrites in place (literal -> caret).
-	require.NoError(t, ds.SetPinnedVersion(ctx, noTeam, titleID, "^1"))
+	require.NoError(t, setPinnedVersionDB(ctx, ds.writer(ctx), *noTeam, titleID, "^1"))
 	pin, err = ds.GetPinnedVersion(ctx, noTeam, titleID)
 	require.NoError(t, err)
 	require.Equal(t, new("^1"), pin)
 
 	// A different team's pin on the same title is independent.
-	require.NoError(t, ds.SetPinnedVersion(ctx, otherTeam, titleID, "2.0"))
+	require.NoError(t, setPinnedVersionDB(ctx, ds.writer(ctx), *otherTeam, titleID, "2.0"))
 	pin, err = ds.GetPinnedVersion(ctx, otherTeam, titleID)
 	require.NoError(t, err)
 	require.Equal(t, new("2.0"), pin)
@@ -7694,6 +7695,135 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 	require.Equal(t, v1Query, patchPolicy.Query)
 	_, err = ds.GetPinnedVersion(ctx, nil, titleID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
+}
+
+func testUpdateInstallerScriptsAndQueries(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	// A manifest fix that compares a different column without publishing a new version.
+	const shortVersionQuery = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'fleet.maintained1' AND version_compare(bundle_short_version, '1.0') < 0);"
+	const bundleVersionQuery = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'fleet.maintained1' AND version_compare(bundle_version, '100') < 0);"
+
+	fma, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Maintained1", Slug: "maintained1", Platform: "darwin", UniqueIdentifier: "fleet.maintained1",
+	})
+	require.NoError(t, err)
+
+	addInstaller := func(teamID *uint) (installerID, titleID uint) {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("file contents"), t.TempDir)
+		require.NoError(t, err)
+		installerID, titleID, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			TeamID: teamID, Title: "testpkg", Source: "apps", Platform: "darwin",
+			InstallScript: "echo install", UninstallScript: "echo uninstall",
+			InstallerFile: tfr, StorageID: "storageid1", Filename: "test.pkg", Version: "1.0",
+			UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{}, FleetMaintainedAppID: &fma.ID,
+			PatchQuery: shortVersionQuery,
+		})
+		require.NoError(t, err)
+		return installerID, titleID
+	}
+	installerID, titleID := addInstaller(&team.ID)
+	_, noTeamTitleID := addInstaller(nil)
+	require.Equal(t, titleID, noTeamTitleID)
+
+	refresh := func(installerID uint, version, installScript, patchQuery string) {
+		require.NoError(t, ds.UpdateInstallerScriptsAndQueries(ctx, installerID, version, installScript, "echo uninstall", patchQuery, ""))
+	}
+	installerPatchQuery := func(installerID uint) (query string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &query, `SELECT patch_query FROM software_installers WHERE id = ?`, installerID)
+		})
+		return query
+	}
+	policyQuery := func(policyID uint) string {
+		p, err := ds.Policy(ctx, policyID)
+		require.NoError(t, err)
+		return p.Query
+	}
+	policyResultCounts := func(policyID uint) (membership int, stats int) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if err := sqlx.GetContext(ctx, q, &membership, `SELECT COUNT(*) FROM policy_membership WHERE policy_id = ?`, policyID); err != nil {
+				return err
+			}
+			return sqlx.GetContext(ctx, q, &stats, `SELECT COUNT(*) FROM policy_stats WHERE policy_id = ?`, policyID)
+		})
+		return membership, stats
+	}
+
+	// No patch policy for the title yet: the refresh only touches the installer.
+	refresh(installerID, "1.0", "echo install", shortVersionQuery)
+
+	teamPolicy, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{Type: fleet.PolicyTypePatch, PatchSoftwareTitleID: &titleID})
+	require.NoError(t, err)
+	require.Equal(t, shortVersionQuery, teamPolicy.Query)
+	noTeamPolicy, err := ds.NewTeamPolicy(ctx, 0, &user.ID, fleet.PolicyPayload{Type: fleet.PolicyTypePatch, PatchSoftwareTitleID: &titleID})
+	require.NoError(t, err)
+	require.Equal(t, shortVersionQuery, noTeamPolicy.Query)
+
+	teamHost := test.NewHost(t, ds, "teamhost", "1", "teamhostkey", "teamhostuuid", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{teamHost.ID})))
+	noTeamHost := test.NewHost(t, ds, "noteamhost", "2", "noteamhostkey", "noteamhostuuid", time.Now())
+	recordResults := func() {
+		_, err := ds.RecordPolicyQueryExecutions(ctx, teamHost, map[uint]*bool{teamPolicy.ID: new(false)}, time.Now(), false, nil)
+		require.NoError(t, err)
+		_, err = ds.RecordPolicyQueryExecutions(ctx, noTeamHost, map[uint]*bool{noTeamPolicy.ID: new(false)}, time.Now(), false, nil)
+		require.NoError(t, err)
+		require.NoError(t, ds.UpdateHostPolicyCounts(ctx))
+	}
+	recordResults()
+
+	// The fix reaches the patch policy without a version flip, and the results the
+	// old query produced are cleared so hosts re-evaluate.
+	refresh(installerID, "1.0", "echo install", bundleVersionQuery)
+	require.Equal(t, bundleVersionQuery, installerPatchQuery(installerID))
+	require.Equal(t, bundleVersionQuery, policyQuery(teamPolicy.ID))
+	membership, stats := policyResultCounts(teamPolicy.ID)
+	require.Zero(t, membership, "a changed query must clear stale policy membership")
+	require.Zero(t, stats, "a changed query must clear stale policy stats")
+
+	// The no-team installer of the same title wasn't refreshed, so its policy is untouched.
+	require.Equal(t, shortVersionQuery, policyQuery(noTeamPolicy.ID))
+	membership, stats = policyResultCounts(noTeamPolicy.ID)
+	require.Equal(t, 1, membership)
+	require.Equal(t, 1, stats)
+
+	// A script-only refresh leaves the query, and so the results, alone.
+	recordResults()
+	refresh(installerID, "1.0", "echo install v2", bundleVersionQuery)
+	require.Equal(t, bundleVersionQuery, policyQuery(teamPolicy.ID))
+	membership, stats = policyResultCounts(teamPolicy.ID)
+	require.Equal(t, 1, membership)
+	require.Equal(t, 1, stats)
+
+	// A case-only change still counts, though the column's collation would call it equal.
+	upperCaseQuery := strings.Replace(bundleVersionQuery, "fleet.maintained1", "Fleet.Maintained1", 1)
+	refresh(installerID, "1.0", "echo install v2", upperCaseQuery)
+	require.Equal(t, upperCaseQuery, policyQuery(teamPolicy.ID))
+	refresh(installerID, "1.0", "echo install v2", bundleVersionQuery)
+	require.Equal(t, bundleVersionQuery, policyQuery(teamPolicy.ID))
+
+	// A row that has moved to another version isn't refreshed, so the policy isn't either.
+	recordResults()
+	refresh(installerID, "9.9", "echo install v2", shortVersionQuery)
+	require.Equal(t, bundleVersionQuery, installerPatchQuery(installerID))
+	require.Equal(t, bundleVersionQuery, policyQuery(teamPolicy.ID))
+
+	// An inactive cached version is refreshed, but the policy follows the active one.
+	v2ID, err := ds.InsertFleetMaintainedAppVersion(ctx, installerID, &fleet.UploadSoftwareInstallerPayload{
+		Version: "2.0", StorageID: "storageid2", Filename: "test2.pkg", Extension: "pkg",
+		InstallScript: "echo install", UninstallScript: "echo uninstall", PatchQuery: shortVersionQuery,
+	})
+	require.NoError(t, err)
+	const v2Query = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'fleet.maintained1' AND version_compare(bundle_version, '200') < 0);"
+	refresh(v2ID, "2.0", "echo install", v2Query)
+	require.Equal(t, v2Query, installerPatchQuery(v2ID))
+	require.Equal(t, bundleVersionQuery, policyQuery(teamPolicy.ID))
+	membership, stats = policyResultCounts(teamPolicy.ID)
+	require.Equal(t, 1, membership)
+	require.Equal(t, 1, stats)
 }
 
 // A host with two queued installs for the same installer (one lower priority,
@@ -7855,17 +7985,19 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 		return installerID, titleID
 	}
 
-	// option is "closed", "notify", or "" for neither.
+	// option is "closed", "notify", "deadline", or "" for none.
 	patchPolicy := func(t *testing.T, titleID uint, option string) *fleet.Policy {
 		p, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
 			Type:                 fleet.PolicyTypePatch,
 			PatchSoftwareTitleID: &titleID,
 			PatchWhenClosed:      option == "closed",
 			NotifyBeforePatching: option == "notify",
+			PatchDeadline:        option == "deadline",
 		})
 		require.NoError(t, err)
 		require.Equal(t, option == "closed", p.PatchWhenClosed)
 		require.Equal(t, option == "notify", p.NotifyBeforePatching)
+		require.Equal(t, option == "deadline", p.PatchDeadline)
 		if option != "" {
 			// The service does this after writing the policy; call it here to exercise the same effect.
 			require.NoError(t, ds.ClearPreInstallQueryForTitle(ctx, team.ID, titleID))
@@ -7873,9 +8005,9 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 		return p
 	}
 
-	// Both patch options swap the managed app-open query in as the install's pre-install condition,
+	// Every patch option swaps the managed app-open query in as the install's pre-install condition,
 	// on both UNION branches of the details query. A host each, so activation order is unambiguous.
-	for _, option := range []string{"closed", "notify"} {
+	for _, option := range []string{"closed", "notify", "deadline"} {
 		optHost := test.NewHost(t, ds, "pwc-host-"+option, "pwc-ip-"+option, "pwc-key-"+option, "pwc-uuid-"+option, time.Now())
 		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{optHost.ID})))
 
@@ -7888,6 +8020,12 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 		optDetails, err := ds.GetSoftwareInstallDetails(ctx, optExec)
 		require.NoError(t, err)
 		require.Equal(t, managedQuery, optDetails.PreInstallCondition, option)
+
+		// The upcoming branch reads the options live from the policy.
+		upcoming, err := ds.GetSoftwareInstallResults(ctx, optExec)
+		require.NoError(t, err)
+		require.Equal(t, option == "notify", upcoming.NotifyBeforePatching, option)
+		require.Equal(t, option == "deadline", upcoming.PatchDeadline, option)
 
 		// Activating the install moves it into host_software_installs, exercising the other UNION
 		// branch of the query, which must resolve the managed query the same way.
@@ -7917,16 +8055,36 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 		}, nil)
 		require.NoError(t, err)
 
+		// A completed row tells deadline from notify by reading the policy.
+		skipped, err := ds.GetSoftwareInstallResults(ctx, optExec)
+		require.NoError(t, err)
+		require.Equal(t, option == "notify", skipped.NotifyBeforePatching, option)
+		require.Equal(t, option == "deadline", skipped.PatchDeadline, option)
+
+		if option == "closed" {
+			// Switching the policy to Deadline afterwards doesn't relabel a patch-when-closed install.
+			optPol.PatchWhenClosed = false
+			optPol.PatchDeadline = true
+			require.NoError(t, ds.SavePolicy(ctx, optPol, false, false))
+			switched, err := ds.GetSoftwareInstallResults(ctx, optExec)
+			require.NoError(t, err)
+			require.True(t, switched.PatchWhenClosed)
+			require.False(t, switched.NotifyBeforePatching)
+			require.False(t, switched.PatchDeadline)
+		}
+
 		// Deleting the policy nulls host_software_installs.policy_id, and the recorded result still
 		// should report which patch option queued the install, to differentiate between them in details,
-		// rather than just use override pre install query.
+		// rather than just use override pre install query. A deadline install falls back to notify,
+		// which still warns before forcing.
 		_, err = ds.DeleteTeamPolicies(ctx, team.ID, []uint{optPol.ID})
 		require.NoError(t, err)
 		deletedPolicyResult, err := ds.GetSoftwareInstallResults(ctx, optExec)
 		require.NoError(t, err)
 		require.True(t, deletedPolicyResult.OverridePreInstallQuery, option)
 		require.Equal(t, option == "closed", deletedPolicyResult.PatchWhenClosed, option)
-		require.Equal(t, option == "notify", deletedPolicyResult.NotifyBeforePatching, option)
+		require.Equal(t, option == "notify" || option == "deadline", deletedPolicyResult.NotifyBeforePatching, option)
+		require.False(t, deletedPolicyResult.PatchDeadline, option)
 	}
 
 	// A patch policy with neither option keeps the user query on the policy path.
@@ -7978,7 +8136,7 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 	for _, tc := range []struct {
 		option string
 		want   bool
-	}{{"closed", true}, {"notify", true}, {"", false}} {
+	}{{"closed", true}, {"notify", true}, {"deadline", true}, {"", false}} {
 		legacyHost := test.NewHost(t, ds, "pwc-host-legacy-"+tc.option, "pwc-ip-legacy-"+tc.option, "pwc-key-legacy-"+tc.option, "pwc-uuid-legacy-"+tc.option, time.Now())
 		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{legacyHost.ID})))
 		legacyInstaller, legacyTitle := newInstaller(t, "pwc-legacy-"+tc.option)

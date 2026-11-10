@@ -208,7 +208,12 @@ func generateEditActivityForSoftwareTitleIcon(ctx context.Context, svc *Service,
 		if versionName == "" {
 			versionName = fleet.DefaultAppStoreAppVersionName
 		}
+		vppToken, err := fleet.ActivityVPPTokenByID(ctx, svc.ds, activityDetailsForSoftwareTitleIcon.VPPTokenID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting vpp token for software title icon activity")
+		}
 		if err := svc.NewActivity(ctx, user, fleet.ActivityEditedAppStoreApp{
+			VPPToken:            vppToken,
 			SoftwareTitle:       activityDetailsForSoftwareTitleIcon.SoftwareTitle,
 			SoftwareDisplayName: activityDetailsForSoftwareTitleIcon.SoftwareDisplayName,
 			SoftwareTitleID:     activityDetailsForSoftwareTitleIcon.SoftwareTitleID,

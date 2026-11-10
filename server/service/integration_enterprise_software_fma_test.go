@@ -134,7 +134,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 
 	// Create a team
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	// Check apps returned
@@ -368,7 +368,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	// Check activity
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeAddedSoftware{}.ActivityName(),
-		fmt.Sprintf(`{"software_title": "%[1]s", "software_package": "installer.zip", "team_name": "%s", "team_id": %d, "fleet_name": "%s", "fleet_id": %d, "self_service": true, "software_title_id": %d}`, mapp.Name, team.Name, team.ID, team.Name, team.ID, title.ID),
+		fmt.Sprintf(`{"software_title": "%[1]s", "software_package": "installer.zip", "fleet_name": "%s", "fleet_id": %d, "self_service": true, "software_title_id": %d}`, mapp.Name, team.Name, team.ID, title.ID),
 		0,
 	)
 
@@ -530,7 +530,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		TeamID:   &noTeamID,
 		TeamName: nil,
 	}
-	s.lastActivityMatches(wantAct.ActivityName(), fmt.Sprintf(`{"fleet_id":0, "policy_id":%d, "policy_name":"[Install software]", "team_id":0}`, gotPolicy.ID), 0)
+	s.lastActivityMatches(wantAct.ActivityName(), fmt.Sprintf(`{"fleet_id":0, "policy_id":%d, "policy_name":"[Install software]"}`, gotPolicy.ID), 0)
 
 	// First FMA added doesn't have automatic install policies
 	st = resp.SoftwareTitles[1] // sorted by ID above
@@ -736,7 +736,7 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 
 	// Create a team
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	// Add WARP for Windows
@@ -992,7 +992,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 
 	// --- setup: team with cloudflare-warp v1.0, self-service on ---
 	var teamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{
 		Name: new("team_" + t.Name()),
 	}, http.StatusOK, &teamResp)
 	team := *teamResp.Team
@@ -1205,6 +1205,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	require.Equal(t, patchedInstall, gotInstall, "the edited script is still left alone")
 	require.Equal(t, warp.installScript, gotUninstall, "the unedited script follows the manifest")
 	require.Equal(t, warp.patchQuery, activePatchQuery(), "the patch query follows the manifest too")
+	require.Equal(t, warp.patchQuery, patchPolicyQuery(), "so does the patch policy, without a version flip")
 
 	// The queued install would otherwise have run a script it was never queued against.
 	var canceled bool
@@ -1226,6 +1227,15 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 			WHERE host_id = ? ORDER BY created_at DESC LIMIT 1`, host.ID)
 	})
 	require.False(t, canceled)
+
+	// A patch policy left behind its installer, the way a refresh that didn't reach
+	// the policy leaves it, is caught up on the next run.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE policies SET query = ? WHERE id = ?`, warpQueryV1, patchPolicy.Policy.ID)
+		return err
+	})
+	runCron()
+	require.Equal(t, warp.patchQuery, patchPolicyQuery())
 }
 
 func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCronTimeBudget() {
@@ -1257,7 +1267,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCronTimeBudget() {
 	}
 
 	var teamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{
 		Name: new("team_" + t.Name()),
 	}, http.StatusOK, &teamResp)
 	team := *teamResp.Team
@@ -1413,7 +1423,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	// newTeam creates a new team with the given name and returns it.
 	newTeam := func(name string) fleet.Team {
 		var resp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
+		s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{
 			Name: new(name),
 		}, http.StatusOK, &resp)
 		return *resp.Team
@@ -3098,7 +3108,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		// A modify payload carries only the delta, so the stored flag still conflicts.
 		res := s.Do("PATCH", policyPath(policyID), map[string]any{"patch_when_closed": true}, http.StatusBadRequest)
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, `Only one of "patch_when_closed" or "notify_before_patching" can be set to true`)
+		require.Contains(t, errMsg, `Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`)
 		res.Body.Close()
 
 		// An explicit continuous_automations_enabled false is rejected while the flag is on.
@@ -3115,6 +3125,28 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		s.DoJSON("GET", policyPath(policyID), nil, http.StatusOK, &getPolicyResp)
 		require.True(t, getPolicyResp.Policy.NotifyBeforePatching)
 		require.True(t, getPolicyResp.Policy.ContinuousAutomationsEnabled)
+
+		// Switching to patch_deadline displaces notify_before_patching and reads back on the policy and the title.
+		s.Do("PATCH", policyPath(policyID), map[string]any{"notify_before_patching": false, "patch_deadline": true}, http.StatusOK).Body.Close()
+		getPolicyResp = fleet.GetTeamPolicyByIDResponse{}
+		s.DoJSON("GET", policyPath(policyID), nil, http.StatusOK, &getPolicyResp)
+		require.True(t, getPolicyResp.Policy.PatchDeadline)
+		require.False(t, getPolicyResp.Policy.NotifyBeforePatching)
+		require.True(t, getPolicyResp.Policy.ContinuousAutomationsEnabled)
+		titleResp = getSoftwareTitleResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
+			"fleet_id", fmt.Sprint(teamID))
+		require.True(t, titleResp.SoftwareTitle.SoftwarePackage.PatchPolicy.PatchDeadline)
+
+		res = s.Do("PATCH", policyPath(policyID), map[string]any{"notify_before_patching": true}, http.StatusBadRequest)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, `Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`)
+		res.Body.Close()
+
+		res = s.Do("PATCH", policyPath(policyID), map[string]any{"continuous_automations_enabled": false}, http.StatusBadRequest)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, `If "patch_deadline" is true, "continuous_automations_enabled" can't be set to false.`)
+		res.Body.Close()
 
 		// The flag is only for patch policies.
 		res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", teamID), map[string]any{
@@ -3420,7 +3452,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	})
 
 	var teamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{
 		Name: new("fma_pin_" + t.Name()),
 	}, http.StatusOK, &teamResp)
 	team := *teamResp.Team
@@ -3534,10 +3566,10 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 		pinnedVersion, err := json.Marshal(want)
 		require.NoError(t, err)
 		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), fmt.Sprintf(
-			`{"team_id": %d, "fleet_id": %d, "team_name": %q, "fleet_name": %q, "self_service": false, `+
+			`{"fleet_id": %d, "fleet_name": %q, "self_service": false, `+
 				`"software_title": "Zoom Workplace (X64)", "software_package": "zoom.msi", "software_icon_url": null, `+
 				`"software_title_id": %d, "software_display_name": "", "pinned_version": %s}`,
-			team.ID, team.ID, team.Name, team.Name, titleID, pinnedVersion), 0)
+			team.ID, team.Name, titleID, pinnedVersion), 0)
 	}
 
 	// --- UI (PATCH) pins, on the static 1.0/2.0 cache ---

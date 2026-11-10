@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "9.5.4.45528",
+      "version": "9.6.0.46406",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Cyberduck' AND publisher = 'iterate GmbH';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cyberduck' AND publisher = 'iterate GmbH' AND version_compare(version, '9.5.4.45528') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cyberduck' AND publisher = 'iterate GmbH' AND version_compare(version, '9.6.0.46406') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'cyberduck.exe');"
       },
-      "installer_url": "https://update.cyberduck.io//Cyberduck-Installer-9.5.4.45528.msi",
+      "installer_url": "https://update.cyberduck.io/release/Cyberduck-Installer-9.6.0.46406.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "3b278238",
-      "sha256": "082ed656a00c81516a8b7d3651d32aee8afb8963f7dced9b753ed0db204a0607",
+      "sha256": "a59c54fb56957c2451222b0f6ba5584ba159a4c2c75cfe89633856a64ba15aac",
       "default_categories": [
         "Productivity"
       ],
