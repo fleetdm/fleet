@@ -15,7 +15,7 @@ set -euo pipefail
 # Get repository root
 REPO_ROOT="${GITHUB_WORKSPACE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 APPS_JSON="${REPO_ROOT}/ee/maintained-apps/outputs/apps.json"
-YAML_FILE="${REPO_ROOT}/it-and-security/teams/testing-and-qa.yml"
+YAML_FILE="${REPO_ROOT}/it-and-security/fleets/testing-and-qa.yml"
 TEMP_FILE=$(mktemp)
 
 # Check if required files exist

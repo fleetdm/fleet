@@ -2030,15 +2030,17 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 
 // SetMDMWindowsHostProfileFailedOrRetry records a failure Fleet observed itself rather than one the host reported, which
 // today means only an error Fleet's SCEP proxy saw from the upstream CA. While the profile has retries left it is put
-// back in the pending state so the profile manager redelivers it on its next tick.
-func (ds *Datastore) SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, hostUUID string, profileUUID string, detail string) (bool, error) {
-	var retried bool
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		changed, r, err := failOrRetryWindowsHostProfileDB(ctx, tx, hostUUID, profileUUID, "", detail)
+// back in the pending state so the profile manager redelivers it on its next tick. With onlyIfVerifying, only a
+// delivery the host acknowledged and is still verifying is charged.
+func (ds *Datastore) SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, hostUUID string, profileUUID string, detail string,
+	onlyIfVerifying bool,
+) (changed bool, retried bool, err error) {
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		c, r, err := failOrRetryWindowsHostProfileDB(ctx, tx, hostUUID, profileUUID, "", onlyIfVerifying, detail)
 		if err != nil {
 			return err
 		}
-		retried = r
+		changed, retried = c, r
 		if !changed {
 			return nil
 		}
@@ -2049,27 +2051,32 @@ func (ds *Datastore) SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, 
 		return nil
 	})
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
-	return retried, nil
+	return changed, retried, nil
 }
 
 // failOrRetryWindowsHostProfileDB puts a failed install back in the pending state while it has retries left and marks
 // it failed otherwise. When verifyingCmdUUID is set, the row is only touched while it is still "verifying" for that
-// install command, so a failure reported about an earlier delivery can't charge a newer one. The caller refreshes the
-// rollup when changed is true.
-func failOrRetryWindowsHostProfileDB(ctx context.Context, tx sqlx.ExtContext, hostUUID, profileUUID, verifyingCmdUUID, detail string,
+// install command, so a failure reported about an earlier delivery can't charge a newer one. onlyIfVerifying requires
+// "verifying" without naming the command. The caller refreshes the rollup when changed is true.
+func failOrRetryWindowsHostProfileDB(ctx context.Context, tx sqlx.ExtContext, hostUUID, profileUUID, verifyingCmdUUID string,
+	onlyIfVerifying bool, detail string,
 ) (changed bool, retried bool, err error) {
 	// Only touch an existing install row (a removed profile is not resurrected). Never overwrite a row that already
 	// reached "verified" (the certificate was observed, so a late/stale upstream error must not regress it).
 	loadStmt := `
-		SELECT status, retries
+		SELECT status, retries, COALESCE(detail, '') AS detail
 		FROM host_mdm_windows_profiles
 		WHERE host_uuid = ? AND profile_uuid = ? AND operation_type = ?`
 	loadArgs := []any{hostUUID, profileUUID, fleet.MDMOperationTypeInstall}
 	if verifyingCmdUUID != "" {
-		loadStmt += ` AND command_uuid = ? AND status = ?`
-		loadArgs = append(loadArgs, verifyingCmdUUID, fleet.MDMDeliveryVerifying)
+		loadStmt += ` AND command_uuid = ?`
+		loadArgs = append(loadArgs, verifyingCmdUUID)
+	}
+	if verifyingCmdUUID != "" || onlyIfVerifying {
+		loadStmt += ` AND status = ?`
+		loadArgs = append(loadArgs, fleet.MDMDeliveryVerifying)
 	}
 	loadStmt += ` FOR UPDATE`
 
@@ -2086,6 +2093,7 @@ func failOrRetryWindowsHostProfileDB(ctx context.Context, tx sqlx.ExtContext, ho
 	var row struct {
 		Status  *fleet.MDMDeliveryStatus `db:"status"`
 		Retries uint                     `db:"retries"`
+		Detail  string                   `db:"detail"`
 	}
 	switch err := sqlx.GetContext(ctx, tx, &row, loadStmt, loadArgs...); {
 	case errors.Is(err, sql.ErrNoRows):
@@ -2105,6 +2113,8 @@ func failOrRetryWindowsHostProfileDB(ctx context.Context, tx sqlx.ExtContext, ho
 			return false, false, ctxerr.Wrap(ctx, err, "retrying windows host profile after failure")
 		}
 		return true, true, nil
+	case *row.Status == fleet.MDMDeliveryFailed && row.Detail == truncateMDMWindowsProfileDetail(detail):
+		return false, false, nil
 	default:
 		if _, err := tx.ExecContext(
 			ctx, failStmt,
@@ -2447,6 +2457,10 @@ func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fle
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, ctxerr.Wrap(ctx, err, "cannot get bitlocker status because mdm info lookup failed")
 	}
+	if mdmInfo == nil {
+		ds.logger.DebugContext(ctx, "no bitlocker status for host without mdm info", "host_id", host.ID)
+		return nil, nil
+	}
 
 	if mdmInfo.IsServer {
 		// It is currently expected that server hosts do not have a bitlocker status so we can skip
@@ -2460,6 +2474,12 @@ func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fle
 		return nil, err
 	}
 	if !diskEncryptionConfig.WindowsEnabled {
+		return nil, nil
+	}
+
+	// Like the summary and the list filters, ignore hosts that are not connected to Fleet MDM (for example, third-party MDM).
+	if !mdmInfo.ConnectedToFleet {
+		ds.logger.DebugContext(ctx, "no bitlocker status for host not connected to fleet mdm", "host_id", host.ID)
 		return nil, nil
 	}
 

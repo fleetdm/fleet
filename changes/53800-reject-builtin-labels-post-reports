@@ -1,0 +1,2 @@
+- **Breaking change:** `POST /api/v1/fleet/reports`, `PATCH /api/v1/fleet/reports/:id`, and `POST /api/v1/fleet/spec/reports` (`fleetctl apply`) now return an error when a built-in label is specified in `labels_include_any` or `labels_include_all`. Use `platform` to target specific platforms, or create a custom label.
+- **Breaking change:** Upgrading removes built-in labels from the targets of existing reports. Reports that targeted only built-in labels now target all hosts. The affected report IDs are logged during `fleet prepare db`.

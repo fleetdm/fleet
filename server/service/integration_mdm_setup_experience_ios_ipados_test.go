@@ -165,7 +165,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSAndIPadOS() {
 
 	// Add a profile
 	teamProfile := mobileconfigForTest("N1", "I1")
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{teamProfile}}, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest([][]byte{teamProfile}), http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
 
 	devices := []godep.Device{
 		{
@@ -290,7 +290,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSInHouseApp() {
 
 	// custom profile, expected by the enroll/release helper
 	teamProfile := mobileconfigForTest("N1", "I1")
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{teamProfile}}, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest([][]byte{teamProfile}), http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
 
 	device := godep.Device{
 		Model:        "iPhone 16 Pro",
@@ -326,7 +326,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSInHouseApp() {
 		for _, res := range results {
 			require.Equal(t, fleet.SetupExperienceStatusSuccess, res.Status)
 			switch {
-			case res.IsForInHouseApp():
+			case res.InHouseAppID != nil:
 				inHouseSeen = true
 				require.NotNil(t, res.NanoCommandUUID)
 			case res.IsForVPPApp():
@@ -868,7 +868,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceBYODiOS() {
 	// ListIOSAndIPadOSToRefetch, our brand-new host (its details_updated_at is
 	// set to the enroll time) gets picked up on this very first tick rather
 	// than waiting up to an hour.
-	require.NoError(t, apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, s.fleetSvc.NewActivity))
+	require.NoError(t, apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, s.fleetSvc.NewActivity, 1000))
 
 	tracked, err := s.ds.GetHostMDMCommands(ctx, enrolledHostID)
 	require.NoError(t, err)

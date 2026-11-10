@@ -61,6 +61,8 @@ type EnrollOrbitFunc func(ctx context.Context, hostInfo fleet.OrbitHostInfo, enr
 
 type GetOrbitConfigFunc func(ctx context.Context) (fleet.OrbitConfig, error)
 
+type SetHostEntraDeviceTokenFunc func(ctx context.Context, idToken string) error
+
 type LogFleetdErrorFunc func(ctx context.Context, errData fleet.FleetdError) error
 
 type SetOrUpdateDeviceAuthTokenFunc func(ctx context.Context, authToken string) error
@@ -211,8 +213,6 @@ type NewQueryFunc func(ctx context.Context, p fleet.QueryPayload) (*fleet.Query,
 
 type ModifyQueryFunc func(ctx context.Context, id uint, p fleet.QueryPayload) (*fleet.Query, error)
 
-type DeleteQueryFunc func(ctx context.Context, teamID *uint, name string) error
-
 type DeleteQueryByIDFunc func(ctx context.Context, id uint) error
 
 type DeleteQueriesFunc func(ctx context.Context, ids []uint) (uint, error)
@@ -247,13 +247,13 @@ type GetHostSummaryFunc func(ctx context.Context, teamID *uint, platform *string
 
 type DeleteHostFunc func(ctx context.Context, id uint) (err error)
 
-type HostByIdentifierFunc func(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error)
+type GetHostByIDOrIdentifierFunc func(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error)
 
 type RefetchHostFunc func(ctx context.Context, id uint) (err error)
 
 type CleanupExpiredHostsBatchFunc func(ctx context.Context, batchSize int) ([]fleet.DeletedHostDetails, error)
 
-type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error
+type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint) error
 
 type AddHostsToTeamByFilterFunc func(ctx context.Context, teamID *uint, filter *map[string]interface{}) error
 
@@ -579,10 +579,6 @@ type GetSoftwareInstallDetailsFunc func(ctx context.Context, installUUID string)
 
 type GetAppleMDMFunc func(ctx context.Context) (*fleet.AppleMDM, error)
 
-type GetAppleBMFunc func(ctx context.Context) (*fleet.AppleBM, error)
-
-type RequestMDMAppleCSRFunc func(ctx context.Context, email string, org string) (*fleet.AppleCSR, error)
-
 type GetMDMAppleCSRFunc func(ctx context.Context) ([]byte, error)
 
 type UploadMDMAppleAPNSCertFunc func(ctx context.Context, cert io.ReadSeeker) error
@@ -611,21 +607,15 @@ type NewMDMAppleConfigProfileFunc func(ctx context.Context, teamID uint, data []
 
 type NewMDMAppleDeclarationFunc func(ctx context.Context, teamID uint, data []byte, labelsInclude []string, name string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation []byte, description string, selfService bool, hidden bool) (*fleet.MDMAppleDeclaration, error)
 
-type GetMDMAppleConfigProfileByDeprecatedIDFunc func(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error)
-
 type GetMDMAppleConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMAppleConfigProfile, error)
 
 type GetMDMAppleDeclarationFunc func(ctx context.Context, declarationUUID string) (*fleet.MDMAppleDeclaration, error)
-
-type DeleteMDMAppleConfigProfileByDeprecatedIDFunc func(ctx context.Context, profileID uint) error
 
 type DeleteMDMAppleConfigProfileFunc func(ctx context.Context, profileUUID string) error
 
 type DeleteMDMAppleDeclarationFunc func(ctx context.Context, declarationUUID string) error
 
 type ListMDMAppleConfigProfilesFunc func(ctx context.Context, teamID uint) ([]*fleet.MDMAppleConfigProfile, error)
-
-type GetMDMAppleFileVaultSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error)
 
 type GetMDMAppleProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error)
 
@@ -641,8 +631,6 @@ type ReconcileMDMAppleEnrollRefFunc func(ctx context.Context, enrollRef string, 
 
 type GetDeviceMDMAppleEnrollmentProfileFunc func(ctx context.Context) (*url.URL, error)
 
-type ListMDMAppleCommandsFunc func(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMAppleCommand, error)
-
 type UploadMDMAppleInstallerFunc func(ctx context.Context, name string, size int64, installer io.Reader) (*fleet.MDMAppleInstaller, error)
 
 type GetMDMAppleInstallerByIDFunc func(ctx context.Context, id uint) (*fleet.MDMAppleInstaller, error)
@@ -656,8 +644,6 @@ type GetMDMAppleInstallerDetailsByTokenFunc func(ctx context.Context, token stri
 type ListMDMAppleInstallersFunc func(ctx context.Context) ([]fleet.MDMAppleInstaller, error)
 
 type ListMDMAppleDevicesFunc func(ctx context.Context) ([]fleet.MDMAppleDevice, error)
-
-type NewMDMAppleDEPKeyPairFunc func(ctx context.Context) (*fleet.MDMAppleDEPKeyPair, error)
 
 type GenerateABMKeyPairFunc func(ctx context.Context) (*fleet.MDMAppleDEPKeyPair, error)
 
@@ -674,18 +660,6 @@ type SetABMTokenDefaultFunc func(ctx context.Context, tokenID uint, isDefault *b
 type DeleteABMTokenFunc func(ctx context.Context, tokenID uint) error
 
 type RenewABMTokenFunc func(ctx context.Context, token io.Reader, tokenID uint) (*fleet.ABMToken, error)
-
-type EnqueueMDMAppleCommandFunc func(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error)
-
-type BatchSetMDMAppleProfilesFunc func(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool, skipBulkPending bool) error
-
-type MDMApplePreassignProfileFunc func(ctx context.Context, payload fleet.MDMApplePreassignProfilePayload) error
-
-type MDMAppleMatchPreassignmentFunc func(ctx context.Context, externalHostIdentifier string) error
-
-type MDMAppleDeviceLockFunc func(ctx context.Context, hostID uint) error
-
-type MDMAppleEraseDeviceFunc func(ctx context.Context, hostID uint) error
 
 type MDMListHostConfigurationProfilesFunc func(ctx context.Context, hostID uint) ([]*fleet.MDMAppleConfigProfile, error)
 
@@ -860,8 +834,6 @@ type GetHostScriptDetailsFunc func(ctx context.Context, hostID uint, opt fleet.L
 type BatchSetScriptsFunc func(ctx context.Context, maybeTmID *uint, maybeTmName *string, payloads []fleet.ScriptPayload, dryRun bool) ([]fleet.ScriptResponse, error)
 
 type BatchScriptExecuteFunc func(ctx context.Context, scriptID uint, hostIDs []uint, filters *map[string]any, notBefore *time.Time) (string, error)
-
-type BatchScriptExecutionSummaryFunc func(ctx context.Context, batchExecutionID string) (*fleet.BatchActivity, error)
 
 type BatchScriptExecutionStatusFunc func(ctx context.Context, batchExecutionID string) (*fleet.BatchActivity, error)
 
@@ -1120,6 +1092,9 @@ type Service struct {
 	GetOrbitConfigFunc        GetOrbitConfigFunc
 	GetOrbitConfigFuncInvoked bool
 
+	SetHostEntraDeviceTokenFunc        SetHostEntraDeviceTokenFunc
+	SetHostEntraDeviceTokenFuncInvoked bool
+
 	LogFleetdErrorFunc        LogFleetdErrorFunc
 	LogFleetdErrorFuncInvoked bool
 
@@ -1345,9 +1320,6 @@ type Service struct {
 	ModifyQueryFunc        ModifyQueryFunc
 	ModifyQueryFuncInvoked bool
 
-	DeleteQueryFunc        DeleteQueryFunc
-	DeleteQueryFuncInvoked bool
-
 	DeleteQueryByIDFunc        DeleteQueryByIDFunc
 	DeleteQueryByIDFuncInvoked bool
 
@@ -1399,8 +1371,8 @@ type Service struct {
 	DeleteHostFunc        DeleteHostFunc
 	DeleteHostFuncInvoked bool
 
-	HostByIdentifierFunc        HostByIdentifierFunc
-	HostByIdentifierFuncInvoked bool
+	GetHostByIDOrIdentifierFunc        GetHostByIDOrIdentifierFunc
+	GetHostByIDOrIdentifierFuncInvoked bool
 
 	RefetchHostFunc        RefetchHostFunc
 	RefetchHostFuncInvoked bool
@@ -1897,12 +1869,6 @@ type Service struct {
 	GetAppleMDMFunc        GetAppleMDMFunc
 	GetAppleMDMFuncInvoked bool
 
-	GetAppleBMFunc        GetAppleBMFunc
-	GetAppleBMFuncInvoked bool
-
-	RequestMDMAppleCSRFunc        RequestMDMAppleCSRFunc
-	RequestMDMAppleCSRFuncInvoked bool
-
 	GetMDMAppleCSRFunc        GetMDMAppleCSRFunc
 	GetMDMAppleCSRFuncInvoked bool
 
@@ -1945,17 +1911,11 @@ type Service struct {
 	NewMDMAppleDeclarationFunc        NewMDMAppleDeclarationFunc
 	NewMDMAppleDeclarationFuncInvoked bool
 
-	GetMDMAppleConfigProfileByDeprecatedIDFunc        GetMDMAppleConfigProfileByDeprecatedIDFunc
-	GetMDMAppleConfigProfileByDeprecatedIDFuncInvoked bool
-
 	GetMDMAppleConfigProfileFunc        GetMDMAppleConfigProfileFunc
 	GetMDMAppleConfigProfileFuncInvoked bool
 
 	GetMDMAppleDeclarationFunc        GetMDMAppleDeclarationFunc
 	GetMDMAppleDeclarationFuncInvoked bool
-
-	DeleteMDMAppleConfigProfileByDeprecatedIDFunc        DeleteMDMAppleConfigProfileByDeprecatedIDFunc
-	DeleteMDMAppleConfigProfileByDeprecatedIDFuncInvoked bool
 
 	DeleteMDMAppleConfigProfileFunc        DeleteMDMAppleConfigProfileFunc
 	DeleteMDMAppleConfigProfileFuncInvoked bool
@@ -1965,9 +1925,6 @@ type Service struct {
 
 	ListMDMAppleConfigProfilesFunc        ListMDMAppleConfigProfilesFunc
 	ListMDMAppleConfigProfilesFuncInvoked bool
-
-	GetMDMAppleFileVaultSummaryFunc        GetMDMAppleFileVaultSummaryFunc
-	GetMDMAppleFileVaultSummaryFuncInvoked bool
 
 	GetMDMAppleProfilesSummaryFunc        GetMDMAppleProfilesSummaryFunc
 	GetMDMAppleProfilesSummaryFuncInvoked bool
@@ -1990,9 +1947,6 @@ type Service struct {
 	GetDeviceMDMAppleEnrollmentProfileFunc        GetDeviceMDMAppleEnrollmentProfileFunc
 	GetDeviceMDMAppleEnrollmentProfileFuncInvoked bool
 
-	ListMDMAppleCommandsFunc        ListMDMAppleCommandsFunc
-	ListMDMAppleCommandsFuncInvoked bool
-
 	UploadMDMAppleInstallerFunc        UploadMDMAppleInstallerFunc
 	UploadMDMAppleInstallerFuncInvoked bool
 
@@ -2013,9 +1967,6 @@ type Service struct {
 
 	ListMDMAppleDevicesFunc        ListMDMAppleDevicesFunc
 	ListMDMAppleDevicesFuncInvoked bool
-
-	NewMDMAppleDEPKeyPairFunc        NewMDMAppleDEPKeyPairFunc
-	NewMDMAppleDEPKeyPairFuncInvoked bool
 
 	GenerateABMKeyPairFunc        GenerateABMKeyPairFunc
 	GenerateABMKeyPairFuncInvoked bool
@@ -2040,24 +1991,6 @@ type Service struct {
 
 	RenewABMTokenFunc        RenewABMTokenFunc
 	RenewABMTokenFuncInvoked bool
-
-	EnqueueMDMAppleCommandFunc        EnqueueMDMAppleCommandFunc
-	EnqueueMDMAppleCommandFuncInvoked bool
-
-	BatchSetMDMAppleProfilesFunc        BatchSetMDMAppleProfilesFunc
-	BatchSetMDMAppleProfilesFuncInvoked bool
-
-	MDMApplePreassignProfileFunc        MDMApplePreassignProfileFunc
-	MDMApplePreassignProfileFuncInvoked bool
-
-	MDMAppleMatchPreassignmentFunc        MDMAppleMatchPreassignmentFunc
-	MDMAppleMatchPreassignmentFuncInvoked bool
-
-	MDMAppleDeviceLockFunc        MDMAppleDeviceLockFunc
-	MDMAppleDeviceLockFuncInvoked bool
-
-	MDMAppleEraseDeviceFunc        MDMAppleEraseDeviceFunc
-	MDMAppleEraseDeviceFuncInvoked bool
 
 	MDMListHostConfigurationProfilesFunc        MDMListHostConfigurationProfilesFunc
 	MDMListHostConfigurationProfilesFuncInvoked bool
@@ -2319,9 +2252,6 @@ type Service struct {
 
 	BatchScriptExecuteFunc        BatchScriptExecuteFunc
 	BatchScriptExecuteFuncInvoked bool
-
-	BatchScriptExecutionSummaryFunc        BatchScriptExecutionSummaryFunc
-	BatchScriptExecutionSummaryFuncInvoked bool
 
 	BatchScriptExecutionStatusFunc        BatchScriptExecutionStatusFunc
 	BatchScriptExecutionStatusFuncInvoked bool
@@ -2758,6 +2688,13 @@ func (s *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, error)
 	s.GetOrbitConfigFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetOrbitConfigFunc(ctx)
+}
+
+func (s *Service) SetHostEntraDeviceToken(ctx context.Context, idToken string) error {
+	s.mu.Lock()
+	s.SetHostEntraDeviceTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetHostEntraDeviceTokenFunc(ctx, idToken)
 }
 
 func (s *Service) LogFleetdError(ctx context.Context, errData fleet.FleetdError) error {
@@ -3285,13 +3222,6 @@ func (s *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPayload
 	return s.ModifyQueryFunc(ctx, id, p)
 }
 
-func (s *Service) DeleteQuery(ctx context.Context, teamID *uint, name string) error {
-	s.mu.Lock()
-	s.DeleteQueryFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteQueryFunc(ctx, teamID, name)
-}
-
 func (s *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 	s.mu.Lock()
 	s.DeleteQueryByIDFuncInvoked = true
@@ -3411,11 +3341,11 @@ func (s *Service) DeleteHost(ctx context.Context, id uint) (err error) {
 	return s.DeleteHostFunc(ctx, id)
 }
 
-func (s *Service) HostByIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
+func (s *Service) GetHostByIDOrIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
 	s.mu.Lock()
-	s.HostByIdentifierFuncInvoked = true
+	s.GetHostByIDOrIdentifierFuncInvoked = true
 	s.mu.Unlock()
-	return s.HostByIdentifierFunc(ctx, identifier, opts)
+	return s.GetHostByIDOrIdentifierFunc(ctx, identifier, opts)
 }
 
 func (s *Service) RefetchHost(ctx context.Context, id uint) (err error) {
@@ -3432,11 +3362,11 @@ func (s *Service) CleanupExpiredHostsBatch(ctx context.Context, batchSize int) (
 	return s.CleanupExpiredHostsBatchFunc(ctx, batchSize)
 }
 
-func (s *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error {
+func (s *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error {
 	s.mu.Lock()
 	s.AddHostsToTeamFuncInvoked = true
 	s.mu.Unlock()
-	return s.AddHostsToTeamFunc(ctx, teamID, hostIDs, skipBulkPending)
+	return s.AddHostsToTeamFunc(ctx, teamID, hostIDs)
 }
 
 func (s *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, filter *map[string]interface{}) error {
@@ -4573,20 +4503,6 @@ func (s *Service) GetAppleMDM(ctx context.Context) (*fleet.AppleMDM, error) {
 	return s.GetAppleMDMFunc(ctx)
 }
 
-func (s *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
-	s.mu.Lock()
-	s.GetAppleBMFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetAppleBMFunc(ctx)
-}
-
-func (s *Service) RequestMDMAppleCSR(ctx context.Context, email string, org string) (*fleet.AppleCSR, error) {
-	s.mu.Lock()
-	s.RequestMDMAppleCSRFuncInvoked = true
-	s.mu.Unlock()
-	return s.RequestMDMAppleCSRFunc(ctx, email, org)
-}
-
 func (s *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 	s.mu.Lock()
 	s.GetMDMAppleCSRFuncInvoked = true
@@ -4685,13 +4601,6 @@ func (s *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, data 
 	return s.NewMDMAppleDeclarationFunc(ctx, teamID, data, labelsInclude, name, labelsMembershipMode, labelsExcludeAny, activation, description, selfService, hidden)
 }
 
-func (s *Service) GetMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
-	s.mu.Lock()
-	s.GetMDMAppleConfigProfileByDeprecatedIDFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetMDMAppleConfigProfileByDeprecatedIDFunc(ctx, profileID)
-}
-
 func (s *Service) GetMDMAppleConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMAppleConfigProfile, error) {
 	s.mu.Lock()
 	s.GetMDMAppleConfigProfileFuncInvoked = true
@@ -4704,13 +4613,6 @@ func (s *Service) GetMDMAppleDeclaration(ctx context.Context, declarationUUID st
 	s.GetMDMAppleDeclarationFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAppleDeclarationFunc(ctx, declarationUUID)
-}
-
-func (s *Service) DeleteMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) error {
-	s.mu.Lock()
-	s.DeleteMDMAppleConfigProfileByDeprecatedIDFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteMDMAppleConfigProfileByDeprecatedIDFunc(ctx, profileID)
 }
 
 func (s *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID string) error {
@@ -4732,13 +4634,6 @@ func (s *Service) ListMDMAppleConfigProfiles(ctx context.Context, teamID uint) (
 	s.ListMDMAppleConfigProfilesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListMDMAppleConfigProfilesFunc(ctx, teamID)
-}
-
-func (s *Service) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error) {
-	s.mu.Lock()
-	s.GetMDMAppleFileVaultSummaryFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetMDMAppleFileVaultSummaryFunc(ctx, teamID)
 }
 
 func (s *Service) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
@@ -4790,13 +4685,6 @@ func (s *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*url.
 	return s.GetDeviceMDMAppleEnrollmentProfileFunc(ctx)
 }
 
-func (s *Service) ListMDMAppleCommands(ctx context.Context, opts *fleet.MDMCommandListOptions) ([]*fleet.MDMAppleCommand, error) {
-	s.mu.Lock()
-	s.ListMDMAppleCommandsFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListMDMAppleCommandsFunc(ctx, opts)
-}
-
 func (s *Service) UploadMDMAppleInstaller(ctx context.Context, name string, size int64, installer io.Reader) (*fleet.MDMAppleInstaller, error) {
 	s.mu.Lock()
 	s.UploadMDMAppleInstallerFuncInvoked = true
@@ -4844,13 +4732,6 @@ func (s *Service) ListMDMAppleDevices(ctx context.Context) ([]fleet.MDMAppleDevi
 	s.ListMDMAppleDevicesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListMDMAppleDevicesFunc(ctx)
-}
-
-func (s *Service) NewMDMAppleDEPKeyPair(ctx context.Context) (*fleet.MDMAppleDEPKeyPair, error) {
-	s.mu.Lock()
-	s.NewMDMAppleDEPKeyPairFuncInvoked = true
-	s.mu.Unlock()
-	return s.NewMDMAppleDEPKeyPairFunc(ctx)
 }
 
 func (s *Service) GenerateABMKeyPair(ctx context.Context) (*fleet.MDMAppleDEPKeyPair, error) {
@@ -4907,48 +4788,6 @@ func (s *Service) RenewABMToken(ctx context.Context, token io.Reader, tokenID ui
 	s.RenewABMTokenFuncInvoked = true
 	s.mu.Unlock()
 	return s.RenewABMTokenFunc(ctx, token, tokenID)
-}
-
-func (s *Service) EnqueueMDMAppleCommand(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error) {
-	s.mu.Lock()
-	s.EnqueueMDMAppleCommandFuncInvoked = true
-	s.mu.Unlock()
-	return s.EnqueueMDMAppleCommandFunc(ctx, rawBase64Cmd, deviceIDs)
-}
-
-func (s *Service) BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool, skipBulkPending bool) error {
-	s.mu.Lock()
-	s.BatchSetMDMAppleProfilesFuncInvoked = true
-	s.mu.Unlock()
-	return s.BatchSetMDMAppleProfilesFunc(ctx, teamID, teamName, profiles, dryRun, skipBulkPending)
-}
-
-func (s *Service) MDMApplePreassignProfile(ctx context.Context, payload fleet.MDMApplePreassignProfilePayload) error {
-	s.mu.Lock()
-	s.MDMApplePreassignProfileFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMApplePreassignProfileFunc(ctx, payload)
-}
-
-func (s *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHostIdentifier string) error {
-	s.mu.Lock()
-	s.MDMAppleMatchPreassignmentFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMAppleMatchPreassignmentFunc(ctx, externalHostIdentifier)
-}
-
-func (s *Service) MDMAppleDeviceLock(ctx context.Context, hostID uint) error {
-	s.mu.Lock()
-	s.MDMAppleDeviceLockFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMAppleDeviceLockFunc(ctx, hostID)
-}
-
-func (s *Service) MDMAppleEraseDevice(ctx context.Context, hostID uint) error {
-	s.mu.Lock()
-	s.MDMAppleEraseDeviceFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMAppleEraseDeviceFunc(ctx, hostID)
 }
 
 func (s *Service) MDMListHostConfigurationProfiles(ctx context.Context, hostID uint) ([]*fleet.MDMAppleConfigProfile, error) {
@@ -5558,13 +5397,6 @@ func (s *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs
 	s.BatchScriptExecuteFuncInvoked = true
 	s.mu.Unlock()
 	return s.BatchScriptExecuteFunc(ctx, scriptID, hostIDs, filters, notBefore)
-}
-
-func (s *Service) BatchScriptExecutionSummary(ctx context.Context, batchExecutionID string) (*fleet.BatchActivity, error) {
-	s.mu.Lock()
-	s.BatchScriptExecutionSummaryFuncInvoked = true
-	s.mu.Unlock()
-	return s.BatchScriptExecutionSummaryFunc(ctx, batchExecutionID)
 }
 
 func (s *Service) BatchScriptExecutionStatus(ctx context.Context, batchExecutionID string) (*fleet.BatchActivity, error) {

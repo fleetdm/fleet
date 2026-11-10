@@ -50,7 +50,7 @@ describe("FleetMaintainedAppDetailsPage", () => {
         expect.objectContaining({ patch: true, patchOption: "closed" })
       );
       expect(teamPoliciesAPI.create).toHaveBeenCalledWith({
-        team_id: 3,
+        fleet_id: 3,
         type: "patch",
         patch_software_title_id: 99,
         software_title_id: 99,
@@ -99,7 +99,7 @@ describe("FleetMaintainedAppDetailsPage", () => {
 
     await waitFor(() => {
       expect(teamPoliciesAPI.create).toHaveBeenCalledWith({
-        team_id: 3,
+        fleet_id: 3,
         type: "patch",
         patch_software_title_id: 99,
         software_title_id: 99,

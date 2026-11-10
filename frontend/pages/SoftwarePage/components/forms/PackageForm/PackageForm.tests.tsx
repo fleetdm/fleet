@@ -1,8 +1,15 @@
-import { render as renderComponent, screen } from "@testing-library/react";
+import {
+  render as renderComponent,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 
-import { createMockSoftwarePackage } from "__mocks__/softwareMock";
+import {
+  createMockSoftwarePackage,
+  createMockSoftwarePackageIos,
+} from "__mocks__/softwareMock";
 import { notify } from "components/ToastNotification";
 import { AppContext, IAppContext } from "context/app";
 import { IConfig } from "interfaces/config";
@@ -55,6 +62,7 @@ const selectFileNamed = async (container: HTMLElement, name: string) => {
 };
 
 const TARGET_BANNER_COPY = /If multiple versions target the same host, Fleet will deploy the one that was added first\./i;
+const IPA_DUAL_PLATFORM_COPY = /Fleet adds this app for both iOS and iPadOS\. Edit each platform separately\. Changes to one don't apply to the other\./i;
 
 describe("PackageForm", () => {
   describe("Target section on the single-package Add flow", () => {
@@ -89,6 +97,24 @@ describe("PackageForm", () => {
       expect(screen.queryByText(TARGET_BANNER_COPY)).not.toBeInTheDocument();
       expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
       expect(screen.getByLabelText("Custom")).toBeInTheDocument();
+    });
+
+    it("swaps in the iOS/iPadOS banner for .ipa and suppresses the first-added banner", () => {
+      // One .ipa creates two titles (iOS + iPadOS) that must be edited
+      // independently, so the first-added copy doesn't apply.
+      renderForm({ defaultSoftware: createMockSoftwarePackageIos() });
+      expect(screen.getByText(IPA_DUAL_PLATFORM_COPY)).toBeInTheDocument();
+      expect(screen.queryByText(TARGET_BANNER_COPY)).not.toBeInTheDocument();
+    });
+
+    it("omits the iOS/iPadOS banner on the Edit flow", () => {
+      renderForm({
+        isEditingSoftware: true,
+        defaultSoftware: createMockSoftwarePackageIos(),
+      });
+      expect(
+        screen.queryByText(IPA_DUAL_PLATFORM_COPY)
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -268,18 +294,29 @@ describe("PackageForm", () => {
       expect(screen.getByRole("button", { name: "Add" })).not.toBeDisabled();
     });
 
-    it("keeps requiring labels for a Custom target when GitOps mode is off", async () => {
-      const { container } = renderForm({
+    it("surfaces an inline labels error on submit for a Custom target when GitOps mode is off", async () => {
+      const onSubmit = jest.fn();
+      const { container, user } = renderForm({
         multiPackageContext: true,
         initialTargetType: "Custom",
+        labels: [
+          { id: 1, name: "Engineering", label_type: "regular" } as never,
+        ],
+        onSubmit,
       });
 
       await selectFileOfSize(container, 1024);
 
-      // The selector is visible here, so the preselection stands and the
-      // existing "pick at least one label" rule still applies.
       expect(screen.getByLabelText("Custom")).toBeChecked();
-      expect(screen.getByRole("button", { name: "Add" })).toBeDisabled();
+      const submitButton = screen.getByRole("button", { name: "Add" });
+      expect(submitButton).toBeEnabled();
+      await user.click(submitButton);
+      expect(onSubmit).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Select at least one label/)
+        ).toBeInTheDocument();
+      });
     });
   });
 });

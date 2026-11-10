@@ -1,0 +1,1 @@
+- Hardened how fleetd reports the Entra device ID on macOS for Fleet's Microsoft Entra conditional access integration.

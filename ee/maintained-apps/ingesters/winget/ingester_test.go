@@ -360,6 +360,7 @@ func TestIngestValidations(t *testing.T) {
 		wantExists          string
 		wantPatched         string
 		wantPatchedContains string
+		wantOpen            string
 		inputApp            inputApp
 		cfg                 serverConfig
 	}{
@@ -573,6 +574,55 @@ func TestIngestValidations(t *testing.T) {
 				upgradeCode:       "{ABCDEF}",
 			},
 		},
+		{
+			name:     "open process names",
+			wantOpen: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('foo64.exe','foo-helper.exe'));",
+			inputApp: inputApp{
+				Name:                "Foo",
+				UniqueIdentifier:    "Foo",
+				PackageIdentifier:   "Foo",
+				InstallerArch:       "x64",
+				Slug:                "foo/windows",
+				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:       "msi",
+				InstallerScope:      "machine",
+				OpenProcessNames:    []string{"Foo64.exe", "foo-helper.exe"},
+			},
+			cfg: serverConfig{
+				productCode:       "{ABCDEF}",
+				installerType:     "msi",
+				installerScope:    "machine",
+				installerArch:     "x64",
+				installerProdCode: "{ACBDEF}",
+				upgradeCode:       "{ABCDEF}",
+			},
+		},
+		{
+			name:    "open process names with prefix",
+			wantErr: "can't both be set",
+			inputApp: inputApp{
+				Name:                  "Foo",
+				UniqueIdentifier:      "Foo",
+				PackageIdentifier:     "Foo",
+				InstallerArch:         "x64",
+				Slug:                  "foo/windows",
+				InstallScriptPath:     path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath:   path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:         "msi",
+				InstallerScope:        "machine",
+				OpenProcessNames:      []string{"foo64.exe"},
+				OpenProcessNamePrefix: "foo",
+			},
+			cfg: serverConfig{
+				productCode:       "{ABCDEF}",
+				installerType:     "msi",
+				installerScope:    "machine",
+				installerArch:     "x64",
+				installerProdCode: "{ACBDEF}",
+				upgradeCode:       "{ABCDEF}",
+			},
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -609,11 +659,81 @@ func TestIngestValidations(t *testing.T) {
 			} else {
 				require.Equal(t, c.cfg.upgradeCode, out.UpgradeCode)
 			}
-			// The managed "is app open" query matches a process named "<title>.exe".
-			require.Equal(t,
-				"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'foo.exe');",
-				out.Queries.Open,
-			)
+			wantOpen := c.wantOpen
+			if wantOpen == "" {
+				// The managed "is app open" query matches a process named "<title>.exe".
+				wantOpen = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'foo.exe');"
+			}
+			require.Equal(t, wantOpen, out.Queries.Open)
+		})
+	}
+}
+
+func TestWindowsOpenQuery(t *testing.T) {
+	cases := []struct {
+		name    string
+		names   []string
+		prefix  string
+		want    string
+		wantErr string
+	}{
+		{
+			name: "default is <name>.exe",
+			want: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'android studio.exe');",
+		},
+		{
+			name:  "empty list is the default",
+			names: []string{},
+			want:  "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'android studio.exe');",
+		},
+		{
+			name:  "single name",
+			names: []string{"studio64.exe"},
+			want:  "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'studio64.exe');",
+		},
+		{
+			name:  "names keep manifest order",
+			names: []string{"idea.exe", "idea64.exe"},
+			want:  "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('idea.exe','idea64.exe'));",
+		},
+		{
+			name:  "names are lowercased and escaped",
+			names: []string{"O'Reilly.exe"},
+			want:  "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'o''reilly.exe');",
+		},
+		{
+			name:  "names are trimmed",
+			names: []string{" studio64.exe "},
+			want:  "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'studio64.exe');",
+		},
+		{
+			name:   "prefix",
+			prefix: "OneDrive",
+			want:   "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) LIKE 'onedrive%');",
+		},
+		{
+			name:   "prefix is escaped",
+			prefix: "o'drive",
+			want:   "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) LIKE 'o''drive%');",
+		},
+		{
+			name:   "prefix LIKE wildcards match literally",
+			prefix: `Foo_Bar%\`,
+			want:   `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) LIKE 'foo\_bar\%\\%' ESCAPE '\');`,
+		},
+		{name: "blank name", names: []string{"studio64.exe", " "}, wantErr: "blank name"},
+		{name: "blank prefix", prefix: " ", wantErr: "is blank"},
+		{name: "names and prefix", names: []string{"studio64.exe"}, prefix: "studio", wantErr: "can't both be set"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := windowsOpenQuery("Android Studio", c.names, c.prefix)
+			if c.wantErr != "" {
+				require.ErrorContains(t, err, c.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, c.want, got)
 		})
 	}
 }

@@ -111,11 +111,11 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 		Platform:    "darwin",
 	}
 	tpResp := fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID), tpParams, http.StatusOK, &tpResp)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), tpParams, http.StatusOK, &tpResp)
 
 	// add a hidden policy to the team, failing on the host
 	hiddenResp := fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID), fleet.TeamPolicyRequest{
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.TeamPolicyRequest{
 		Name:     "TestQueryEnterpriseHiddenTeamPolicy",
 		Query:    "select * from osquery;",
 		Platform: "darwin",
