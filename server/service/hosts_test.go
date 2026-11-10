@@ -5953,7 +5953,7 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 		},
 		{
 			name: "removed team_id key",
-			filters: &map[string]interface{}{
+			filters: &map[string]any{
 				"team_id": float64(1),
 			},
 			has400Err: true,
