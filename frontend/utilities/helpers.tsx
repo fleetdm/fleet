@@ -192,20 +192,20 @@ export const formatSelectedTargetsForApi = (
   // TODO: can flatMap be removed?
   const hostIds = flatMap(targets, filterTarget("hosts"));
   const labelIds = flatMap(targets, filterTarget("labels"));
-  const teamIds = flatMap(targets, filterTarget("teams"));
+  const fleetIds = flatMap(targets, filterTarget("teams"));
 
   return {
     hosts: hostIds.sort(),
     labels: labelIds.sort(),
-    teams: teamIds.sort(),
+    fleets: fleetIds.sort(),
   };
 };
 
 export const formatPackTargetsForApi = (
   targets: ISelectTargetsEntity[]
 ): IPackTargets => {
-  const { hosts, labels, teams } = formatSelectedTargetsForApi(targets);
-  return { host_ids: hosts, label_ids: labels, team_ids: teams };
+  const { hosts, labels, fleets } = formatSelectedTargetsForApi(targets);
+  return { host_ids: hosts, label_ids: labels, fleet_ids: fleets };
 };
 
 export const formatScheduledQueryForServer = (
@@ -346,9 +346,9 @@ export const formatTeamScheduledQueryForServer = (
     platform,
     query_id: queryID,
     shard,
-    team_id: teamID,
+    fleet_id: teamID,
   } = scheduledQuery;
-  const result = omit(scheduledQuery, ["logging_type", "query_id", "team_id"]);
+  const result = omit(scheduledQuery, ["logging_type", "query_id", "fleet_id"]);
 
   if (platform === "all") {
     result.platform = "";
@@ -414,7 +414,7 @@ export const formatTeamForClient = (team: ITeam): ITeam => {
 export const formatPackForClient = (pack: IPack): IPack => {
   pack.host_ids ||= [];
   pack.label_ids ||= [];
-  pack.team_ids ||= [];
+  pack.fleet_ids ||= [];
   return pack;
 };
 
@@ -530,13 +530,7 @@ export const generateRoleGroups = (
 };
 
 export const greyCell = (roleOrTeamText: string): boolean => {
-  const GREYED_TEXT = [
-    ROLE_GLOBAL,
-    "Unassigned",
-    ROLE_VARIOUS,
-    "No team",
-    "Unknown",
-  ];
+  const GREYED_TEXT = [ROLE_GLOBAL, "Unassigned", ROLE_VARIOUS, "Unknown"];
 
   return (
     GREYED_TEXT.includes(roleOrTeamText) || roleOrTeamText.includes(" fleets")
@@ -647,6 +641,35 @@ export const internationalTimeOnlyFormat = (hhmm: string): string => {
 
 export const internationalNumberFormat = (number: number): string => {
   return new Intl.NumberFormat(navigator.language).format(number);
+};
+
+/** Renders a deadline like "Tue, Nov 10 at 5:00 PM" (en-US) or
+ * "Tue, 10 Nov at 17:00" (en-GB) in the host's timezone, with 12/24-hour
+ * following the viewer's browser locale. Returns null when the browser doesn't
+ * know the host's timezone, since Intl throws a RangeError for it. */
+export const formatHostLocalDeadline = (
+  deadlineISO: string,
+  hostTimezone: string
+): string | null => {
+  const date = new Date(deadlineISO);
+  const locale = navigator.language;
+  try {
+    const datePart = new Intl.DateTimeFormat(locale, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      timeZone: hostTimezone,
+    }).format(date);
+    const timePart = new Intl.DateTimeFormat(locale, {
+      hour: "numeric",
+      minute: "2-digit",
+      timeZone: hostTimezone,
+    }).format(date);
+    return `${datePart} at ${timePart}`;
+  } catch (e) {
+    if (e instanceof RangeError) return null;
+    throw e;
+  }
 };
 
 export const hostTeamName = (teamName: string | null): string => {

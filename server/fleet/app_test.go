@@ -3,12 +3,10 @@ package fleet
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"slices"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -448,7 +446,6 @@ func TestFeaturesCopy(t *testing.T) {
 		require.Equal(t, f.EnableHostUsers, clone.EnableHostUsers)
 		require.Equal(t, f.EnableSoftwareInventory, clone.EnableSoftwareInventory)
 		require.Nil(t, clone.AdditionalQueries)
-		require.Nil(t, clone.DetailQueryOverrides)
 	})
 
 	t.Run("copy AdditionalQueries", func(t *testing.T) {
@@ -460,25 +457,6 @@ func TestFeaturesCopy(t *testing.T) {
 		require.NotNil(t, clone.AdditionalQueries)
 		require.NotSame(t, f.AdditionalQueries, clone.AdditionalQueries)
 		require.Equal(t, *f.AdditionalQueries, *clone.AdditionalQueries)
-	})
-
-	t.Run("copy DetailQueryOverrides", func(t *testing.T) {
-		f := &Features{
-			DetailQueryOverrides: map[string]*string{
-				"foo": ptr.String("bar"),
-				"baz": nil,
-			},
-		}
-		clone := f.Copy()
-		require.NotNil(t, clone.DetailQueryOverrides)
-		require.NotEqual(t,
-			reflect.ValueOf(f.DetailQueryOverrides).Pointer(),
-			reflect.ValueOf(clone.DetailQueryOverrides).Pointer(),
-		)
-		// map values are pointers, check that they have been cloned
-		require.NotSame(t, f.DetailQueryOverrides["foo"], clone.DetailQueryOverrides["foo"])
-		// the map content itself is equal
-		require.Equal(t, f.DetailQueryOverrides, clone.DetailQueryOverrides)
 	})
 
 	t.Run("copy HistoricalData is independent", func(t *testing.T) {
@@ -514,6 +492,16 @@ func TestFeaturesApplyDefaults(t *testing.T) {
 		require.True(t, f.EnableHostUsers)
 		require.True(t, f.EnableSoftwareInventory)
 	})
+}
+
+func TestAppConfigApplyDefaultsEnableProfileValidation(t *testing.T) {
+	var c AppConfig
+	c.ApplyDefaults()
+	require.True(t, c.MDM.EnableProfileValidation)
+
+	var n AppConfig
+	n.ApplyDefaultsForNewInstalls()
+	require.True(t, n.MDM.EnableProfileValidation)
 }
 
 func TestHistoricalDataSettingsEnabled(t *testing.T) {
@@ -1021,6 +1009,9 @@ func TestMacOSSetupValidate(t *testing.T) {
 			{"empty", MacOSSetup{}, nil},
 			{"manual_agent_install without bootstrap package fails", MacOSSetup{ManualAgentInstall: optjson.SetBool(true)}, new("Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.")},
 			{"manual_agent_install with bootstrap package succeeds", MacOSSetup{ManualAgentInstall: optjson.SetBool(true), BootstrapPackage: optjson.SetString("https://example.com/bootstrap.pkg")}, nil},
+			{"bootstrap package during manual enrollment without bootstrap package fails", MacOSSetup{MacOSEnableBootstrapPackageDuringManualEnrollment: true}, new("setup_experience.macos_enable_bootstrap_package_during_manual_enrollment Couldn't enable macos_enable_bootstrap_package_during_manual_enrollment. To use this option, first specify a bootstrap package.")},
+			{"bootstrap package during migration without bootstrap package fails", MacOSSetup{MacOSEnableBootstrapPackageDuringMigration: true}, new("setup_experience.macos_enable_bootstrap_package_during_migration Couldn't enable macos_enable_bootstrap_package_during_migration. To use this option, first specify a bootstrap package.")},
+			{"bootstrap package settings with bootstrap package succeed", MacOSSetup{MacOSEnableBootstrapPackageDuringManualEnrollment: true, MacOSEnableBootstrapPackageDuringMigration: true, BootstrapPackage: optjson.SetString("https://example.com/bootstrap.pkg")}, nil},
 			{"end_user_local_account_type fails with non accepted value", MacOSSetup{EndUserLocalAccountType: optjson.SetString("invalid")}, new(`end_user_local_account_type only "admin", "standard", and "none" are supported`)},
 			{"end_user_local_account_type with accepted value succeeds", MacOSSetup{EndUserLocalAccountType: optjson.SetString("admin")}, nil},
 			{"end_user_local_account_type none fails with enable_end_user_local_account false", MacOSSetup{EndUserLocalAccountType: optjson.SetString("none"), EnableManagedLocalAccount: optjson.SetBool(false)}, new(`enable_create_local_admin_account enable_create_local_admin_account is required to be enabled when using "none" for the end_user_local_account_type`)},

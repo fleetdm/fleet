@@ -42,7 +42,6 @@
       - [Testing manual enrollment](#testing-manual-enrollment)
       - [Testing DEP enrollment](#testing-dep-enrollment)
         - [Gating the DEP profile behind SSO](#gating-the-dep-profile-behind-sso)
-    - [Nudge](#nudge)
       - [Debugging tips](#debugging-tips)
     - [Bootstrap package](#bootstrap-package)
     - [Puppet module](#puppet-module)

@@ -13,7 +13,7 @@
 			<key>IsRemovable</key>
 			<false />
 			<key>Label</key>
-			<string>Self-service</string>
+			<string>Self service</string>
 			<key>PayloadDisplayName</key>
 			<string>Web Clip #1</string>
 			<key>PayloadIdentifier</key>

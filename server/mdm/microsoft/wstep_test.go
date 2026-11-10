@@ -86,31 +86,7 @@ func TestNewCertManager(t *testing.T) {
 	require.Equal(t, wantIdentityFingerprint, m.identityFingerprint)
 }
 
-func TestSTSTokenSigningAndVerification(t *testing.T) {
-	var store CertStore
-
-	cm, err := NewCertManager(store, testCert, testKey)
-	require.NoError(t, err)
-	require.NotNil(t, cm)
-
-	// Get a New STS Auth token
-	upnEmail := "test@email.com"
-	stsToken, err := cm.NewSTSAuthToken(upnEmail)
-	require.NoError(t, err)
-	require.NotEmpty(t, stsToken)
-
-	// Verify the STS Auth token
-	upnToken, err := cm.GetSTSAuthTokenUPNClaim(stsToken)
-	require.NoError(t, err)
-	require.NotEmpty(t, upnToken)
-	require.Equal(t, upnEmail, upnToken)
-
-	// New invalid STS Auth token
-	_, err = cm.NewSTSAuthToken("")
-	require.ErrorContains(t, err, "invalid upn field")
-}
-
-func TestSTSTokenWithDeviceID(t *testing.T) {
+func TestEUATokenSigningAndVerification(t *testing.T) {
 	var store CertStore
 	cm, err := NewCertManager(store, testCert, testKey)
 	require.NoError(t, err)
@@ -137,10 +113,14 @@ func TestSTSTokenWithDeviceID(t *testing.T) {
 	_, err = cm.NewEUAToken(upn, "")
 	require.ErrorContains(t, err, "invalid device_id field")
 
-	// Token signed by NewSTSAuthToken (no device_id) is rejected — device_id is required
-	oldToken, err := cm.NewSTSAuthToken(upn)
+	// Token without a device_id is rejected
+	noDeviceIDToken, err := jwt.NewWithClaims(jwt.SigningMethodRS256, euaJWTClaims{
+		UPN:       upn,
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
+		Subject:   "EUAToken",
+	}).SignedString(cm.(*manager).identityPrivateKey)
 	require.NoError(t, err)
-	_, err = cm.GetEUATokenClaims(oldToken)
+	_, err = cm.GetEUATokenClaims(noDeviceIDToken)
 	require.ErrorContains(t, err, "issue with device_id token claim")
 
 	// Tampered token is rejected
@@ -159,17 +139,6 @@ func TestTokenRejectsNonRSAAlgorithms(t *testing.T) {
 	pubKeyBytes, err := x509.MarshalPKIXPublicKey(m.identityCert.PublicKey)
 	require.NoError(t, err)
 
-	stsClaims := func() STSClaims {
-		return STSClaims{
-			UPN: "attacker@example.com",
-			RegisteredClaims: jwt.RegisteredClaims{
-				ExpiresAt: jwt.NewNumericDate(time.Now().Add(10 * time.Minute)),
-				IssuedAt:  jwt.NewNumericDate(time.Now()),
-				NotBefore: jwt.NewNumericDate(time.Now()),
-				Subject:   "STSAuthToken",
-			},
-		}
-	}
 	euaClaims := func() euaJWTClaims {
 		return euaJWTClaims{
 			UPN:      "attacker@example.com",
@@ -182,24 +151,6 @@ func TestTokenRejectsNonRSAAlgorithms(t *testing.T) {
 			},
 		}
 	}
-
-	t.Run("STS rejects HS256", func(t *testing.T) {
-		signed, err := jwt.NewWithClaims(jwt.SigningMethodHS256, stsClaims()).SignedString(pubKeyBytes)
-		require.NoError(t, err)
-
-		_, err = cm.GetSTSAuthTokenUPNClaim(signed)
-		require.Error(t, err)
-		require.ErrorContains(t, err, "unexpected signing method")
-	})
-
-	t.Run("STS rejects none", func(t *testing.T) {
-		signed, err := jwt.NewWithClaims(jwt.SigningMethodNone, stsClaims()).SignedString(jwt.UnsafeAllowNoneSignatureType)
-		require.NoError(t, err)
-
-		_, err = cm.GetSTSAuthTokenUPNClaim(signed)
-		require.Error(t, err)
-		require.ErrorContains(t, err, "unexpected signing method")
-	})
 
 	t.Run("EUA rejects HS256", func(t *testing.T) {
 		signed, err := jwt.NewWithClaims(jwt.SigningMethodHS256, euaClaims()).SignedString(pubKeyBytes)

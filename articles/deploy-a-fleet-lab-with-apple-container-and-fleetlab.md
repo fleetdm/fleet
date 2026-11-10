@@ -19,7 +19,7 @@ You don't need to install Rosetta or Apple container ahead of time. `fleetlab` c
 Create a new directory for your Fleet lab:
 
 ```sh
-mkdir ~/fleet-lab
+mkdir -p ~/fleet-lab
 cd ~/fleet-lab
 ```
 

@@ -63,6 +63,13 @@ func (s *Service) NotificationAwaitingDisplay(ctx context.Context, hostID uint, 
 	return notification, nil
 }
 
+func (s *Service) RescheduleNotificationsAwaitingDispatch(ctx context.Context, hostID uint, kind string, nextAttemptAt, expiresAt time.Time) error {
+	if err := s.ds.RescheduleEndUserNotificationsAwaitingDispatch(ctx, hostID, kind, nextAttemptAt, expiresAt); err != nil {
+		return ctxerr.Wrap(ctx, err, "reschedule end user notifications awaiting dispatch")
+	}
+	return nil
+}
+
 func (s *Service) notificationForHost(ctx context.Context, hostID uint, notificationUUID string) (*api.EndUserNotification, error) {
 	notification, err := s.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
 	if err != nil {

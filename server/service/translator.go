@@ -86,7 +86,7 @@ func (svc *Service) Translate(ctx context.Context, payloads []fleet.TranslatePay
 				return nil, err
 			}
 			translateFunc = translateLabelToID
-		case fleet.TranslatorTypeTeam:
+		case fleet.TranslatorTypeTeam, fleet.TranslatorTypeFleet:
 			if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 				return nil, err
 			}

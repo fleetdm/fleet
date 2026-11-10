@@ -834,7 +834,7 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 					NotifyBeforePatching:         true,
 					ContinuousAutomationsEnabled: true,
 				},
-				wantErr: `Only one of "patch_when_closed" or "notify_before_patching" can be set to true`,
+				wantErr: `Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`,
 			},
 			{
 				name:              "windows app",
@@ -856,6 +856,62 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 					NotifyBeforePatching: true,
 				},
 				wantErr: `If "notify_before_patching" is true, "continuous_automations_enabled" can't be set to false.`,
+			},
+			{
+				name:              "deadline on a non-patch policy",
+				installerPlatform: "darwin",
+				payload: fleet.NewTeamPolicyPayload{
+					Name:                         "dynamic policy",
+					Query:                        "SELECT 1;",
+					PatchDeadline:                true,
+					ContinuousAutomationsEnabled: true,
+				},
+				wantErr: `"patch_deadline" is only supported for patch policies`,
+			},
+			{
+				name:              "deadline with patch_when_closed",
+				installerPlatform: "darwin",
+				payload: fleet.NewTeamPolicyPayload{
+					Type:                         &patchType,
+					PatchSoftwareTitleID:         new(patchSoftwareTitleID),
+					PatchWhenClosed:              true,
+					PatchDeadline:                true,
+					ContinuousAutomationsEnabled: true,
+				},
+				wantErr: `Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`,
+			},
+			{
+				name:              "deadline with notify_before_patching",
+				installerPlatform: "darwin",
+				payload: fleet.NewTeamPolicyPayload{
+					Type:                         &patchType,
+					PatchSoftwareTitleID:         new(patchSoftwareTitleID),
+					NotifyBeforePatching:         true,
+					PatchDeadline:                true,
+					ContinuousAutomationsEnabled: true,
+				},
+				wantErr: `Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`,
+			},
+			{
+				name:              "deadline on a windows app",
+				installerPlatform: "windows",
+				payload: fleet.NewTeamPolicyPayload{
+					Type:                         &patchType,
+					PatchSoftwareTitleID:         new(patchSoftwareTitleID),
+					PatchDeadline:                true,
+					ContinuousAutomationsEnabled: true,
+				},
+				wantErr: `"patch_deadline" is available for macOS Fleet-maintained apps. It's coming soon to Windows.`,
+			},
+			{
+				name:              "deadline with continuous automations off",
+				installerPlatform: "darwin",
+				payload: fleet.NewTeamPolicyPayload{
+					Type:                 &patchType,
+					PatchSoftwareTitleID: new(patchSoftwareTitleID),
+					PatchDeadline:        true,
+				},
+				wantErr: `If "patch_deadline" is true, "continuous_automations_enabled" can't be set to false.`,
 			},
 		}
 
@@ -893,13 +949,36 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 				name:      "stored patch_when_closed",
 				storedPWC: true,
 				payload:   fleet.ModifyPolicyPayload{NotifyBeforePatching: new(true)},
-				wantErr:   `Only one of "patch_when_closed" or "notify_before_patching" can be set to true`,
+				wantErr:   `Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`,
 			},
 			{
 				name:           "windows policy",
 				storedPlatform: "windows",
 				payload:        fleet.ModifyPolicyPayload{NotifyBeforePatching: new(true)},
 				wantErr:        `"notify_before_patching" is only available for macOS Fleet-maintained apps.`,
+			},
+			{
+				name:    "deadline with continuous automations off",
+				payload: fleet.ModifyPolicyPayload{PatchDeadline: new(true), ContinuousAutomationsEnabled: new(false)},
+				wantErr: `If "patch_deadline" is true, "continuous_automations_enabled" can't be set to false.`,
+			},
+			{
+				name:       "deadline on a non-patch policy",
+				storedType: fleet.PolicyTypeDynamic,
+				payload:    fleet.ModifyPolicyPayload{PatchDeadline: new(true)},
+				wantErr:    `"patch_deadline" is only supported for patch policies`,
+			},
+			{
+				name:      "deadline with stored patch_when_closed",
+				storedPWC: true,
+				payload:   fleet.ModifyPolicyPayload{PatchDeadline: new(true)},
+				wantErr:   `Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`,
+			},
+			{
+				name:           "deadline on a windows policy",
+				storedPlatform: "windows",
+				payload:        fleet.ModifyPolicyPayload{PatchDeadline: new(true)},
+				wantErr:        `"patch_deadline" is available for macOS Fleet-maintained apps. It's coming soon to Windows.`,
 			},
 		}
 
