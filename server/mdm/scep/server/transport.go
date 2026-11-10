@@ -171,7 +171,7 @@ func rawQueryParam(rawQuery, key string) (value string, ok bool) {
 // extract message from request
 func message(r *http.Request) ([]byte, error) {
 	switch r.Method {
-	case "GET":
+	case "GET", "HEAD": // ServeMux routes HEAD to GET patterns
 		var msg string
 		q := r.URL.Query()
 		op := q.Get("operation")

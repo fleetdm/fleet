@@ -41,6 +41,7 @@ func TestHTTPHandlerWithIdentifierRouting(t *testing.T) {
 			"host,profile,NDES"},
 		{"escaped slash stays in the identifier", http.MethodGet, "/mdm/scep/proxy/host%2Cprofile%2Cca%2Fname", http.StatusOK,
 			"host,profile,ca/name"},
+		{"head", http.MethodHead, "/mdm/scep/proxy/host%2Cprofile%2CNDES", http.StatusOK, "host,profile,NDES"},
 		{"missing identifier", http.MethodGet, "/mdm/scep/proxy/", http.StatusNotFound, ""},
 		{"unknown suffix", http.MethodGet, "/mdm/scep/proxy/host%2Cprofile%2CNDES/other", http.StatusNotFound, ""},
 		{"unsupported method", http.MethodPut, "/mdm/scep/proxy/host%2Cprofile%2CNDES", http.StatusMethodNotAllowed, ""},
