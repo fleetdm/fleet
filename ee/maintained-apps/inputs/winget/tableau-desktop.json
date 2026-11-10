@@ -2,7 +2,7 @@
   "name": "Tableau Desktop",
   "slug": "tableau-desktop/windows",
   "package_identifier": "Tableau.Desktop",
-  "unique_identifier": "Tableau",
+  "unique_identifier": "Tableau Desktop",
   "fuzzy_match_name": "Tableau 20%",
   "program_publisher": "Salesforce, Inc",
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/tableau_desktop_install.ps1",
