@@ -327,6 +327,18 @@ const ManageHostsPage = ({
     isRouteOk,
   ]);
 
+  // Redirect old ?software_id=N links to ?software_version_id=N. The old key
+  // identified a software version; the backend now rejects it. Preserves every
+  // other param; software_version_id wins when both are present.
+  useEffect(() => {
+    if (queryParams?.software_id === undefined) return;
+    const nextQuery = omit(queryParams, "software_id");
+    if (nextQuery.software_version_id === undefined) {
+      nextQuery.software_version_id = queryParams.software_id;
+    }
+    router.replace({ pathname: location.pathname, query: nextQuery });
+  }, [queryParams, location.pathname, router]);
+
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(
     (userSettings?.hidden_host_columns || defaultHiddenColumns).map(
       toFleetColumnId
@@ -351,10 +363,6 @@ const ManageHostsPage = ({
   const policyResponse: PolicyResponse = queryParams?.policy_response;
   const macSettingsStatus =
     queryParams?.apple_settings ?? queryParams?.macos_settings;
-  const softwareId =
-    queryParams?.software_id !== undefined
-      ? parseInt(queryParams.software_id, 10)
-      : undefined;
   const softwareVersionId =
     queryParams?.software_version_id !== undefined
       ? parseInt(queryParams.software_version_id, 10)
@@ -431,7 +439,6 @@ const ManageHostsPage = ({
   //   policyId ||
   //   macSettingsStatus ||
   //   policyResponse ||
-  //   softwareId ||
   //   softwareTitleId ||
   //   softwareVersionId ||
   //   softwareStatus ||
@@ -462,7 +469,6 @@ const ManageHostsPage = ({
       policyId ||
       macSettingsStatus ||
       policyResponse ||
-      softwareId ||
       softwareTitleId ||
       softwareVersionId ||
       softwareStatus ||
@@ -689,7 +695,6 @@ const ManageHostsPage = ({
         teamId: teamIdForApi,
         policyId,
         policyResponse,
-        softwareId,
         softwareTitleId,
         softwareVersionId,
         softwareStatus,
@@ -740,7 +745,6 @@ const ManageHostsPage = ({
         teamId: teamIdForApi,
         policyId,
         policyResponse,
-        softwareId,
         softwareTitleId,
         softwareVersionId,
         softwareStatus,
@@ -927,11 +931,11 @@ const ManageHostsPage = ({
   useEffect(() => {
     if (
       location.search.match(
-        /software_id|software_version_id|software_title_id|software_status/gi
+        /software_version_id|software_title_id|software_status|software_id/gi
       )
     ) {
-      // regex matches any of "software_id", "software_version_id", "software_title_id", or "software_status"
-      // so we don't set the filtered hosts path in those cases
+      // Match the legacy `software_id` too so the one-frame overlap before the
+      // software_id → software_version_id redirect doesn't stash a stale URL.
       return;
     }
     const path = location.pathname + location.search;
@@ -1251,8 +1255,6 @@ const ManageHostsPage = ({
         newQueryParams.policy_response = policyResponse;
       } else if (macSettingsStatus) {
         newQueryParams.apple_settings = macSettingsStatus;
-      } else if (softwareId) {
-        newQueryParams.software_id = softwareId;
       } else if (softwareVersionId) {
         newQueryParams.software_version_id = softwareVersionId;
         // Software version can be combined with os name and os version
@@ -1329,7 +1331,6 @@ const ManageHostsPage = ({
       policyId,
       policyResponse,
       macSettingsStatus,
-      softwareId,
       softwareVersionId,
       softwareTitleId,
       mdmId,
@@ -1535,7 +1536,6 @@ const ManageHostsPage = ({
           currentTeam: teamIdForApi,
           policyId,
           policyResponse,
-          softwareId,
           softwareTitleId,
           softwareVersionId,
           softwareStatus,
@@ -1592,7 +1592,6 @@ const ManageHostsPage = ({
             labelId: selectedLabel?.id,
             policyId,
             policyResponse,
-            softwareId,
             softwareTitleId,
             softwareVersionId,
             softwareStatus,
@@ -1822,7 +1821,6 @@ const ManageHostsPage = ({
         policyId,
         policyResponse,
         macSettingsStatus,
-        softwareId,
         softwareTitleId,
         softwareVersionId,
         softwareStatus,
@@ -1889,7 +1887,6 @@ const ManageHostsPage = ({
       policyId,
       policyResponse,
       macSettingsStatus,
-      softwareId,
       softwareTitleId,
       softwareVersionId,
       softwareStatus,
@@ -2111,7 +2108,6 @@ const ManageHostsPage = ({
     const unsupportedFilter = !!(
       policyId ||
       policyResponse ||
-      softwareId ||
       softwareTitleId ||
       softwareVersionId ||
       osName ||
@@ -2286,7 +2282,6 @@ const ManageHostsPage = ({
             policyId,
             policy,
             macSettingsStatus,
-            softwareId,
             softwareTitleId,
             softwareVersionId,
             softwareStatus,
