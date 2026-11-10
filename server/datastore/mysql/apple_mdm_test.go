@@ -12166,6 +12166,33 @@ func testGetNanoMDMEnrollmentDetails(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, details)
 	assert.True(t, details.BootstrapTokenEscrowed)
+
+	// unlock token: not set by default
+	assert.Nil(t, details.UnlockToken)
+
+	// set an unlock token and verify it round-trips
+	unlockTokenValue := "test-unlock-token-bytes"
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE nano_devices SET unlock_token=?, unlock_token_at=CURRENT_TIMESTAMP WHERE id = ?`, []byte(unlockTokenValue), host.UUID)
+		return err
+	})
+
+	details, err = ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, details)
+	require.NotNil(t, details.UnlockToken)
+	assert.Equal(t, unlockTokenValue, *details.UnlockToken)
+
+	// NULL unlock token returns nil
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE nano_devices SET unlock_token=NULL WHERE id = ?`, host.UUID)
+		return err
+	})
+
+	details, err = ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, details)
+	assert.Nil(t, details.UnlockToken)
 }
 
 func testGetNanoMDMUserEnrollment(t *testing.T, ds *Datastore) {
