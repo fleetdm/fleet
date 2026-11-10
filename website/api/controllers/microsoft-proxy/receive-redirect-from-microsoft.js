@@ -201,6 +201,12 @@ module.exports = {
         }
         createdPolicyId = parsedPoliciesResponse.value[0].Id;
       }
+      // The nil GUID is the default ‘no ID’ value, not a generated policy ID, so don’t try to assign it.”
+      if(createdPolicyId === '00000000-0000-0000-0000-000000000000') {
+        sails.log.warn(`Microsoft's PartnerCompliancePolicies API returned an all-zero policy ID for tenant ${informationAboutThisTenant.entraTenantId}. Status: ${createPolicyResponse.statusCode}. Response headers: ${require('util').inspect(createPolicyResponse.headers, {depth: 1})}`);
+        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError: `Microsoft's PartnerCompliancePolicies API returned an all-zero compliance policy ID (HTTP ${createPolicyResponse.statusCode}).`});
+        throw {redirect: fleetInstanceUrlToRedirectTo };
+      }
 
       // Use the Microsoft Graph API to retreive the ID of the "Fleet conditional access" Entra ID group that the customer created to assign the policy to.
       let groupResponse = await sails.helpers.http.sendHttpRequest.with({
