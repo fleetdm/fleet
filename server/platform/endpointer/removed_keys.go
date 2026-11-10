@@ -76,10 +76,6 @@ func ExtractRemovedKeyRules(iface any) []RemovedKeyRule {
 	}
 
 	var rules []RemovedKeyRule
-	if deleted := deletedKeyRules.Load(); deleted != nil {
-		rules = slices.Clone(*deleted)
-	}
-
 	seen := make(map[string]struct{})
 	visited := make(map[reflect.Type]struct{})
 	var walk func(t reflect.Type)
@@ -116,6 +112,9 @@ func ExtractRemovedKeyRules(iface any) []RemovedKeyRule {
 // captured as json.RawMessage, which the request decoder does not inspect. Input it cannot parse returns the parse
 // error rather than nil, since a more lenient decoder could still read a removed key past where parsing stopped.
 func CheckRemovedKeys(data []byte, rules []RemovedKeyRule) error {
+	if deleted := deletedKeyRules.Load(); deleted != nil {
+		rules = slices.Concat(rules, *deleted)
+	}
 	if len(rules) == 0 || len(data) == 0 {
 		return nil
 	}
