@@ -114,7 +114,7 @@ const HostActionsDropdown = ({
     isDEPAssignedToFleet,
     isMacMdmEnabledAndConfigured,
     isAppleBusinessEnabledAndConfigured:
-      globalConfig?.mdm?.apple_bm_enabled_and_configured ?? false,
+      globalConfig?.mdm?.apple_business_enabled_and_configured ?? false,
     isWindowsMdmEnabledAndConfigured,
     isAndroidMdmEnabledAndConfigured,
     isEncryptionKeyAvailable: isEncryptionKeyAvailable ?? false,
