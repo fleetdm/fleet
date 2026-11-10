@@ -79,11 +79,14 @@ interface IDeleteSoftwareModalProps {
   gitOpsModeEnabled?: boolean;
   isAppStoreApp?: boolean;
   isAndroidApp?: boolean;
-  /** When true, the modal title reads "Delete package" instead of "Delete
+  /** When true, the modal title reads "Delete version" instead of "Delete
    * software" and the title-level metadata warning is suppressed — we're
    * deleting one specific installer on a title that can hold several, not
    * the title itself. */
   canActivateMultiplePackages?: boolean;
+  /** File name of the package being deleted, shown in the success toast on
+   * multi-package titles. */
+  packageName?: string;
 }
 
 const DeleteSoftwareModal = ({
@@ -98,6 +101,7 @@ const DeleteSoftwareModal = ({
   isAppStoreApp = false,
   isAndroidApp = false,
   canActivateMultiplePackages = false,
+  packageName,
 }: IDeleteSoftwareModalProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const isVersionDelete = versionId !== undefined;
@@ -111,7 +115,15 @@ const DeleteSoftwareModal = ({
         installerId,
         versionId
       );
-      notify.success("Successfully deleted software.");
+      notify.success(
+        canActivateMultiplePackages && packageName ? (
+          <>
+            Successfully deleted <b>{packageName}</b> version.
+          </>
+        ) : (
+          "Successfully deleted software."
+        )
+      );
       onSuccess();
     } catch (error) {
       const reason = getErrorReason(error);
@@ -133,10 +145,19 @@ const DeleteSoftwareModal = ({
     }
     setIsDeleting(false);
     onExit();
-  }, [softwareId, teamId, installerId, versionId, onSuccess, onExit]);
+  }, [
+    softwareId,
+    teamId,
+    installerId,
+    versionId,
+    canActivateMultiplePackages,
+    packageName,
+    onSuccess,
+    onExit,
+  ]);
 
   const getModalTitle = (): string => {
-    if (canActivateMultiplePackages) return "Delete package";
+    if (canActivateMultiplePackages) return "Delete version";
     if (isVersionDelete) return "Delete version";
     return "Delete software";
   };

@@ -3,10 +3,10 @@ import { IConfig, ILicense, IMdmConfig } from "interfaces/config";
 const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   apple_server_url: "",
   enable_disk_encryption: false,
-  enable_recovery_lock_password: false,
+  macos_recovery_lock_password_enabled: false,
   windows_require_bitlocker_pin: false,
   enable_turn_on_windows_mdm_manually: false,
-  windows_enabled_and_configured: true,
+  windows_mdm_enabled: true,
   windows_entra_tenant_ids: [],
   windows_entra_client_ids: [],
   microsoft_graph_credential_invalid: false,
@@ -46,12 +46,14 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   },
   setup_experience: {
     macos_bootstrap_package: "",
+    macos_enable_bootstrap_package_during_manual_enrollment: false,
+    macos_enable_bootstrap_package_during_migration: false,
     macos_manual_agent_install: false,
     enable_end_user_authentication: false,
     apple_setup_assistant: null,
     apple_enable_release_device_manually: false,
-    require_all_software_macos: false,
-    require_all_software_windows: false,
+    macos_require_all_software: false,
+    windows_require_all_software: false,
     lock_end_user_info: false,
   },
   macos_migration: {
@@ -63,7 +65,7 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
     deadline_days: null,
     grace_period_days: null,
   },
-  windows_migration_enabled: false,
+  windows_mdm_migration_enabled: false,
   end_user_authentication: {
     entity_id: "",
     issuer_uri: "",
@@ -71,6 +73,7 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
     metadata_url: "",
     idp_name: "",
   },
+  enable_profile_validation: true,
 };
 
 export const createMockMdmConfig = (
@@ -101,8 +104,8 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     enable_analytics: true,
     deferred_save_host: false,
     query_reports_disabled: false,
-    scripts_disabled: false,
     ai_features_disabled: false,
+    mcp_disabled: false,
   },
   smtp_settings: {
     enable_smtp: false,

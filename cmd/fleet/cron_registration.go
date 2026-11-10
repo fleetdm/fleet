@@ -269,6 +269,7 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 			deps.config.License.Key, // NOTE: this requires the license key, not the parsed *LicenseInfo available in the ctx
 			deps.config.MDM.AndroidAgent,
 			deps.config.MDM.AndroidBatchSize,
+			deps.redisPool,
 		)
 	})
 
@@ -345,7 +346,8 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 	// CertificateList) and BYOD-enrolled device APNs revival, both of which the
 	// BYOD enrollment flow (a Free feature) depends on.
 	deps.register("failed to register apple_mdm_iphone_ipad_refetcher schedule", func() (fleet.CronSchedule, error) {
-		return newIPhoneIPadRefetcher(ctx, deps.instanceID, 10*time.Minute, deps.ds, deps.commander, deps.logger, deps.svc.NewActivity)
+		return newIPhoneIPadRefetcher(ctx, deps.instanceID, time.Minute, deps.ds, deps.commander, deps.logger, deps.svc.NewActivity,
+			deps.config.MDM.IOSIPadOSRefetchBatchSize)
 	})
 
 	deps.register("failed to register apple_mdm_iphone_ipad_reviver schedule", func() (fleet.CronSchedule, error) {

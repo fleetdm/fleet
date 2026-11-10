@@ -48,3 +48,34 @@ func TestSignx509CSRCopiesSubjectAndSANs(t *testing.T) {
 	require.Equal(t, []string{"host.example.com"}, cert.DNSNames)
 	require.Equal(t, []*url.URL{uri}, cert.URIs)
 }
+
+func TestSignx509CSRInvalidSignature(t *testing.T) {
+	caCert, caKey, err := depot.NewSCEPCACertKey()
+	require.NoError(t, err)
+	putCalled := false
+	signer := depot.NewSigner(&scepmock.Depot{
+		CAFunc: func([]byte) ([]*x509.Certificate, *rsa.PrivateKey, error) {
+			return []*x509.Certificate{caCert}, caKey, nil
+		},
+		SerialFunc: func() (*big.Int, error) { return big.NewInt(1), nil },
+		PutFunc: func(string, *x509.Certificate) error {
+			putCalled = true
+			return nil
+		},
+	})
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	der, err := x509.CreateCertificateRequest(rand.Reader, &x509.CertificateRequest{
+		Subject: pkix.Name{CommonName: "host-identifier"},
+	}, key)
+	require.NoError(t, err)
+	csr, err := x509.ParseCertificateRequest(der)
+	require.NoError(t, err)
+	csr.Signature[len(csr.Signature)-1] ^= 0xff
+
+	cert, err := signer.Signx509CSR(csr)
+	require.ErrorContains(t, err, "checking CSR signature")
+	require.Nil(t, cert)
+	require.False(t, putCalled)
+}

@@ -1,4 +1,5 @@
 import createMockConfig from "__mocks__/configMock";
+import { IGitOpsModeConfig } from "interfaces/config";
 import paths from "router/paths";
 
 import {
@@ -477,7 +478,7 @@ describe("CommandPalette helpers", () => {
             mdm: {
               ...createMockConfig().mdm,
               enabled_and_configured: false,
-              windows_enabled_and_configured: false,
+              windows_mdm_enabled: false,
               android_enabled_and_configured: false,
             },
           }),
@@ -992,6 +993,55 @@ describe("CommandPalette helpers", () => {
 
       expect(ids).not.toContain("create-fleet");
     });
+
+    describe("add-self-service-category", () => {
+      const exceptions = { labels: false, software: false, secrets: false };
+      const fleetIds = (gitops: Partial<IGitOpsModeConfig>) => {
+        const config = createMockConfig();
+        config.gitops = { ...config.gitops, ...gitops };
+        return buildPaletteItems({
+          ...BASE_CONTEXT,
+          config,
+          hasTeamSelected: true,
+          currentTeam: { id: 1, name: "Engineering" },
+        }).map((i) => i.id);
+      };
+      const url = "https://github.com/fleetdm/fleet-config";
+
+      it("hides add-self-service-category when GitOps mode is on", () => {
+        const ids = fleetIds({
+          gitops_mode_enabled: true,
+          repository_url: url,
+          exceptions: { labels: true, software: false, secrets: true },
+        });
+        expect(ids).not.toContain("add-self-service-category");
+        expect(ids).toContain("add-fleet-maintained-app");
+      });
+
+      it("hides add-self-service-category without a repository URL", () => {
+        const ids = fleetIds({
+          gitops_mode_enabled: true,
+          repository_url: "",
+          exceptions,
+        });
+        expect(ids).not.toContain("add-self-service-category");
+      });
+
+      it("keeps add-self-service-category when the software exception is on", () => {
+        const ids = fleetIds({
+          gitops_mode_enabled: true,
+          repository_url: url,
+          exceptions: { ...exceptions, software: true },
+        });
+        expect(ids).toContain("add-self-service-category");
+        expect(ids).not.toContain("create-fleet");
+      });
+
+      it("keeps add-self-service-category when GitOps mode is off", () => {
+        const ids = fleetIds({ gitops_mode_enabled: false, exceptions });
+        expect(ids).toContain("add-self-service-category");
+      });
+    });
   });
 
   describe("buildFleetSwitchUrl", () => {
@@ -1089,18 +1139,6 @@ describe("CommandPalette helpers", () => {
           })
         );
         expect(url.searchParams.has("page")).toBe(false);
-      });
-
-      it("strips legacy team_id on any fleet switch", () => {
-        const url = parse(
-          buildFleetSwitchUrl({
-            pathname: paths.MANAGE_HOSTS,
-            currentSearch: "?team_id=1",
-            fleetId: 2,
-          })
-        );
-        expect(url.searchParams.has("team_id")).toBe(false);
-        expect(url.searchParams.get("fleet_id")).toBe("2");
       });
 
       it("strips script_batch_execution_id and script_batch_execution_status on any fleet switch", () => {

@@ -91,7 +91,7 @@ Please do not add any text outside of the JSON or wrap it in a code fence.  Neve
     // Anthropic API  [?]: https://docs.anthropic.com/en/api/messages
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     if (!sails.config.custom.anthropicSecret) {
-      throw new Error('sails.config.custom.anthropicSecret not set.  (To play around, run `sails_custom__anthropicSecret=\'…\' sails console`.  You can get your API secret at https://console.anthropic.com/settings/keys.)');
+      throw _.extend(new Error('sails.config.custom.anthropicSecret not set.  (To play around, run `sails_custom__anthropicSecret=\'…\' sails console`.  You can get your API secret at https://console.anthropic.com/settings/keys.)'), { llmDidNotAnswer: true });
     }//•
 
     let requestData = {
@@ -151,10 +151,14 @@ Please do not add any text outside of the JSON or wrap it in a code fence.  Neve
       let err = new Error(`Failed to generate result.  The LLM API responded with a ${non200Error.raw.statusCode} status code: ${non200Error.raw.body}`);
       // So a caller can tell a rate limit (429) or an overloaded API (529) from a request that was wrong.
       err.statusCode = non200Error.raw.statusCode;
+      // So a caller can tell a failure that produced no answer from an answer it could not use.
+      err.llmDidNotAnswer = true;
       return err;
     })
     .intercept((err)=>{
-      return new Error('Failed to generate result.  Error communicating with LLM: '+err.stack);
+      let communicationErr = new Error('Failed to generate result.  Error communicating with LLM: '+err.stack);
+      communicationErr.llmDidNotAnswer = true;
+      return communicationErr;
     });
 
     if (anthropicResponse.stop_reason === 'refusal') {

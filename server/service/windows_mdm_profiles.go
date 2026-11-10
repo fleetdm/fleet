@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/pkg/mdm/profilevalidation"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -33,9 +34,13 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 	if err := validateProfileDeployFlags(ctx, selfService, hidden, false, "Couldn't add. "); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	cp, usesFleetVars, teamName, err := svc.parseAndValidateWindowsConfigProfile(ctx, teamID, profileName, data, labelsInclude, labelsMembershipMode, labelsExcludeAny, "Couldn't add. ")
+	validation, err := svc.lenientProfileValidationMode(ctx)
 	if err != nil {
 		return nil, err
+	}
+	cp, usesFleetVars, teamName, err := svc.parseAndValidateWindowsConfigProfile(ctx, teamID, profileName, data, labelsInclude, labelsMembershipMode, labelsExcludeAny, "Couldn't add. ", validation)
+	if err != nil {
+		return nil, profileValidationUserError(err, false)
 	}
 	cp.Description = description
 	cp.Hidden = hidden
@@ -74,7 +79,7 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 // create and update paths. It returns the constructed profile (with labels
 // set), the Fleet variable names it uses, and the team's name (empty string
 // for no team).
-func (svc *Service) parseAndValidateWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, errPrefix string) (*fleet.MDMWindowsConfigProfile, []fleet.FleetVarName, string, error) {
+func (svc *Service) parseAndValidateWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, errPrefix string, validation *profilevalidation.Mode) (*fleet.MDMWindowsConfigProfile, []fleet.FleetVarName, string, error) {
 	// check that Windows MDM is enabled - the middleware of that endpoint checks
 	// only that any MDM is enabled, maybe it's just macOS
 	if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
@@ -156,7 +161,17 @@ func (svc *Service) parseAndValidateWindowsConfigProfile(ctx context.Context, te
 		return nil, nil, "", ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
 	}
 
-	foundVars, err := validateWindowsProfileFleetVariables(string(cp.SyncML), lic, groupedCAs)
+	// Validated expanded, like the batch path, so a secret's value is checked (a SCEP challenge's characters, a
+	// schema's types); the expanded copy stays local and cp.SyncML is stored unexpanded.
+	expanded := string(cp.SyncML)
+	if len(fleet.ContainsPrefixVars(expanded, fleet.ServerSecretPrefix)) > 0 {
+		expanded, err = svc.ds.ExpandEmbeddedSecrets(ctx, expanded)
+		if err != nil {
+			return nil, nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
+		}
+	}
+
+	foundVars, err := validateWindowsProfileFleetVariables(expanded, lic, groupedCAs)
 	if err != nil {
 		return nil, nil, "", ctxerr.Wrap(ctx, err)
 	}
@@ -165,6 +180,12 @@ func (svc *Service) parseAndValidateWindowsConfigProfile(ctx context.Context, te
 	var usesFleetVars []fleet.FleetVarName
 	for _, varName := range foundVars {
 		usesFleetVars = append(usesFleetVars, fleet.FleetVarName(varName))
+	}
+
+	if validation != nil {
+		if err := svc.validateProfileSchema(ctx, profileSchemaWindowsProfile, []byte(expanded), validation, cp.Name, teamID); err != nil {
+			return nil, nil, "", err
+		}
 	}
 
 	if err := svc.handleWindowsProfileSoftwareUpdate(ctx, cp.SyncML, teamID); err != nil {
@@ -232,9 +253,15 @@ func (svc *Service) updateMDMWindowsConfigProfile(ctx context.Context, profileUU
 	var cp *fleet.MDMWindowsConfigProfile
 	var usesFleetVars []fleet.FleetVarName
 	if len(profile) > 0 {
-		cp, usesFleetVars, _, err = svc.parseAndValidateWindowsConfigProfile(ctx, teamID, name, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny, "Couldn't edit. ")
+		var validation *profilevalidation.Mode
+		if !bytes.Equal(profile, existing.SyncML) {
+			if validation, err = svc.lenientProfileValidationMode(ctx); err != nil {
+				return err
+			}
+		}
+		cp, usesFleetVars, _, err = svc.parseAndValidateWindowsConfigProfile(ctx, teamID, name, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny, "Couldn't edit. ", validation)
 		if err != nil {
-			return err
+			return profileValidationUserError(err, true)
 		}
 	} else {
 		// no new content -- only labels are being changed.
@@ -365,6 +392,7 @@ var fleetVarsSupportedInWindowsProfiles = []fleet.FleetVarName{
 	fleet.FleetVarHostPlatform,
 	fleet.FleetVarNDESSCEPChallenge,
 	fleet.FleetVarNDESSCEPProxyURL,
+	fleet.FleetVarConditionalAccessSCEPURL,
 }
 
 var (
@@ -449,7 +477,11 @@ func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInf
 		}
 	}
 
-	err := validateProfileCertificateAuthorityVariables(contents, lic, groupedCAs, nil, additionalCustomSCEPValidationForWindowsProfiles, additionalNDESValidationForWindowsProfiles, nil)
+	err := validateProfileCertificateAuthorityVariables(contents, lic, groupedCAs, caVarValidators{
+		customSCEP:        additionalCustomSCEPValidationForWindowsProfiles,
+		ndes:              additionalNDESValidationForWindowsProfiles,
+		conditionalAccess: additionalConditionalAccessValidationForWindowsProfiles,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -489,7 +521,91 @@ func additionalNDESValidationForWindowsProfiles(contents string, ndesVars *NDESV
 	if ndesVars == nil {
 		return nil
 	}
+	return validateWindowsSCEPURLAndChallengePlacement(contents, "NDES", fleet.FleetVarNDESSCEPProxyURL, fleet.FleetVarNDESSCEPChallenge)
+}
 
+// conditionalAccessChallengeInvalidMsg is the upload error when the challenge of a conditional access SCEP profile is
+// missing, empty, or has characters Windows can't encode as a PrintableString.
+const conditionalAccessChallengeInvalidMsg = `The SCEP certificate's "Challenge" field must contain a global enroll secret made of letters, numbers, spaces, and ' ( ) + , - . / : = ?`
+
+// additionalConditionalAccessValidationForWindowsProfiles checks that the conditional access SCEP URL variable is in,
+// and only in, the SCEP node's ServerURL, that the SubjectName carries the renewal ID, and that the challenge, which the
+// admin writes in (secret variables are expanded before validation), is one Windows can send. The variable scan that
+// gets us here reads raw XML, comments included, so the ServerURL item must be seen in the parsed items too.
+func additionalConditionalAccessValidationForWindowsProfiles(contents string, conditionalAccessVars *ConditionalAccessVarsFound) error {
+	if conditionalAccessVars == nil {
+		return nil
+	}
+	urlVar := fleet.FleetVarConditionalAccessSCEPURL
+
+	var cmdMsg *fleet.SyncMLCmd
+	// An admin's upload, already parsed as SyncML by the profile validators; encoding/xml resolves no external entities.
+	dec := xml.NewDecoder(bytes.NewReader(bytes.TrimSpace([]byte(contents)))) //nolint:gosec // G709: see above
+	urlMissingErr := &fleet.BadRequestError{
+		Message: fmt.Sprintf("Variable %q must be in the SCEP certificate's \"ServerURL\" field.", urlVar.WithPrefix()),
+	}
+	challengeFound, serverURLFound := false, false
+	for {
+		if err := dec.Decode(&cmdMsg); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return fmt.Errorf("The payload isn't valid XML: %w", err)
+		}
+		if cmdMsg == nil {
+			break
+		}
+
+		for _, cmd := range collectAllSyncMLItems(cmdMsg) {
+			if cmd.Target == nil {
+				continue
+			}
+			target := strings.TrimSpace(*cmd.Target)
+			dataContent := ""
+			if cmd.Data != nil {
+				dataContent = cmd.Data.Content
+			}
+
+			if containsFleetVar(target, urlVar) {
+				return &fleet.BadRequestError{Message: "Conditional access Fleet variables must not appear in LocURI target paths."}
+			}
+			isServerURL := strings.HasSuffix(target, "/Install/ServerURL")
+			if !isServerURL && containsFleetVar(dataContent, urlVar) {
+				return &fleet.BadRequestError{
+					Message: fmt.Sprintf("Variable %q must only be in the SCEP certificate's \"ServerURL\" field.", urlVar.WithPrefix()),
+				}
+			}
+			if isServerURL {
+				if !isFleetVar(dataContent, urlVar) {
+					return urlMissingErr
+				}
+				serverURLFound = true
+			}
+			if strings.HasSuffix(target, "/Install/Challenge") {
+				challengeFound = true
+				if dataContent == "" || !microsoft_mdm.IsValidWindowsSCEPChallenge(dataContent) {
+					return &fleet.BadRequestError{Message: conditionalAccessChallengeInvalidMsg}
+				}
+			}
+			if strings.HasSuffix(target, fleet.WindowsSCEPSubjectNameSuffix) {
+				if err := validateSubjectNameRenewalID(dataContent); err != nil {
+					return &fleet.BadRequestError{Message: err.Error()}
+				}
+			}
+		}
+	}
+	if !serverURLFound {
+		return urlMissingErr
+	}
+	if !challengeFound {
+		return &fleet.BadRequestError{Message: conditionalAccessChallengeInvalidMsg}
+	}
+	return nil
+}
+
+// validateWindowsSCEPURLAndChallengePlacement checks that a certificate authority's SCEP URL and challenge variables
+// are each in, and only in, their own SCEP node, and that the SubjectName carries the renewal ID in its OU or CN.
+func validateWindowsSCEPURLAndChallengePlacement(contents, groupName string, urlVar, challengeVar fleet.FleetVarName) error {
 	var cmdMsg *fleet.SyncMLCmd
 	dec := xml.NewDecoder(bytes.NewReader(bytes.TrimSpace([]byte(contents))))
 	for {
@@ -519,44 +635,43 @@ func additionalNDESValidationForWindowsProfiles(contents string, ndesVars *NDESV
 			isServerURL := strings.HasSuffix(target, "/Install/ServerURL")
 			isSubjectName := strings.HasSuffix(target, fleet.WindowsSCEPSubjectNameSuffix)
 
-			// Verify that each NDES variable appears ONLY in its expected field.
-			// This prevents the one-time challenge or proxy URL from being placed in an unexpected field
+			// Verify that each variable appears ONLY in its expected field.
+			// This prevents the challenge or URL from being placed in an unexpected field
 			// where it could be exfiltrated, since variable replacement is a global string substitution.
-			if !isChallenge && containsFleetVar(dataContent, fleet.FleetVarNDESSCEPChallenge) {
+			if !isChallenge && containsFleetVar(dataContent, challengeVar) {
 				return &fleet.BadRequestError{
 					Message: fmt.Sprintf(
-						"Variable %q must only be in the SCEP certificate's \"Challenge\" field.", fleet.FleetVarNDESSCEPChallenge.WithPrefix(),
+						"Variable %q must only be in the SCEP certificate's \"Challenge\" field.", challengeVar.WithPrefix(),
 					),
 				}
 			}
-			if !isServerURL && containsFleetVar(dataContent, fleet.FleetVarNDESSCEPProxyURL) {
+			if !isServerURL && containsFleetVar(dataContent, urlVar) {
 				return &fleet.BadRequestError{
 					Message: fmt.Sprintf(
-						"Variable %q must only be in the SCEP certificate's \"ServerURL\" field.", fleet.FleetVarNDESSCEPProxyURL.WithPrefix(),
+						"Variable %q must only be in the SCEP certificate's \"ServerURL\" field.", urlVar.WithPrefix(),
 					),
 				}
 			}
 
 			// Variables must not appear in LocURI target paths.
-			if containsFleetVar(target, fleet.FleetVarNDESSCEPChallenge) ||
-				containsFleetVar(target, fleet.FleetVarNDESSCEPProxyURL) {
+			if containsFleetVar(target, challengeVar) || containsFleetVar(target, urlVar) {
 				return &fleet.BadRequestError{
-					Message: "NDES Fleet variables must not appear in LocURI target paths.",
+					Message: groupName + " Fleet variables must not appear in LocURI target paths.",
 				}
 			}
 
 			// Verify the expected fields contain the correct variables.
-			if isChallenge && !isFleetVar(dataContent, fleet.FleetVarNDESSCEPChallenge) {
+			if isChallenge && !isFleetVar(dataContent, challengeVar) {
 				return &fleet.BadRequestError{
 					Message: fmt.Sprintf(
-						"Variable %q must be in the SCEP certificate's \"Challenge\" field.", fleet.FleetVarNDESSCEPChallenge.WithPrefix(),
+						"Variable %q must be in the SCEP certificate's \"Challenge\" field.", challengeVar.WithPrefix(),
 					),
 				}
 			}
-			if isServerURL && !isFleetVar(dataContent, fleet.FleetVarNDESSCEPProxyURL) {
+			if isServerURL && !isFleetVar(dataContent, urlVar) {
 				return &fleet.BadRequestError{
 					Message: fmt.Sprintf(
-						"Variable %q must be in the SCEP certificate's \"ServerURL\" field.", fleet.FleetVarNDESSCEPProxyURL.WithPrefix(),
+						"Variable %q must be in the SCEP certificate's \"ServerURL\" field.", urlVar.WithPrefix(),
 					),
 				}
 			}

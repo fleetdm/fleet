@@ -1,6 +1,6 @@
 {
   "name": "Audacity",
-  "unique_identifier": "org.audacityteam.audacity",
+  "unique_identifier": "org.audacityteam.audacity4",
   "token": "audacity",
   "installer_format": "dmg",
   "slug": "audacity/darwin",

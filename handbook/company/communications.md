@@ -18,7 +18,6 @@ This is the _single source of truth_ for Fleet's strategy, positioning, past, an
   - The full, actualized roadmap is [public on GitHub (anonymized customer labels)](https://github.com/fleetdm/fleet).
 - See current and upcoming strategic initiatives and press releases for the next 18-36 months in [🌄 Horizons](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=2104067010#gid=2104067010).
   - You can read the [Fleet ideal customer profile (ICP) and core personas doc (confidential)](https://docs.google.com/document/d/1ffsPCS6KGrHQFF7EgRLz1z2mOvtZwMSGyfDezOuOUwc/edit?tab=t.0#heading=h.xbsablobgthj) to understand how we identify our customers.
-  - You can read the [Fleet ideal customer profile (ICP) and core personas doc (confidential)](https://docs.google.com/document/d/1ffsPCS6KGrHQFF7EgRLz1z2mOvtZwMSGyfDezOuOUwc/edit?tab=t.0#heading=h.xbsablobgthj) to understand how we identify our customers.
   - Find all planned events for the next few quarters in the ["🎪 Events" (private Google doc)](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?gid=1931288160#gid=1931288160).
     - Fleet covers every "big 5" conference (there are more than 5), every time. Covering a conference means that at each one we always sponsor, submit a talk, host or submit a workshop, and host a dinner. Sponsorship-only events and sponsored commitments listed under "Big 5" are also part of what we always do. We don't attend every sponsorship-only event, but we always deploy the money. The number of workshops and webinars per quarter is set in [OKRs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=1846478041).
     - Event budget for upcoming quarters is defined as part of the marketing program spend. Find quarterly event budgets in the confidential marketing budget Google doc. <!-- TODO: add link to confidential marketing budget doc, and a short note on how to read it -->
@@ -267,11 +266,11 @@ Fleet uses these levels to standardize a commitment to minimal esotericism acros
 When sharing access to a Google Doc outside of the company, first prefix the name of the Google Doc with `[shared externally to the company] `. This makes it easier for others to notice when a doc is shared externally as they open it up, and easier to notice when something is shared externally which no longer should be (for example, after a consultant is no longer working with the company and should no longer have access).
 
 
-## Company database
+## The archives
 
-Fleet uses Google Drive to keep files correctly bucketed and accessible for team members. When adding a file, you can: 
-- Check for existing files to avoid duplication.
-- Avoid breaking Google Drive links. In some cases, you can update files by using the "Manage versions" option (in the right-click menu) so that links continue to work.
+The files in Google Drive are our history, our unfiltered treasure trove, and our archives of thousands of call transcripts and meeting notes. That makes them extremely useful with AI. For example, generate a NotebookLM podcast from Google Docs.
+
+Before adding a file, check for duplicates. Update files with "Manage versions" so links keep working.
 
 
 ## Communicating with team members
