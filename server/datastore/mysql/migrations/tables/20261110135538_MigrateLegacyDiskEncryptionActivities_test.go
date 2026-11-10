@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20261109135014(t *testing.T) {
+func TestUp_20261110135538(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	execNoErr(t, db, `INSERT INTO users (id, name, email, password, salt) VALUES (1, 'Admin', 'admin@example.com', 'x', 'x')`)
