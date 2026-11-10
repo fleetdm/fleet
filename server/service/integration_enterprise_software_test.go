@@ -1769,12 +1769,12 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	var labelResp fleet.CreateLabelResponse
 	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{
 		Name:  "label1",
-		Hosts: []string{host.Hostname}}, http.StatusOK, &labelResp)
+		Hosts: []string{host.UUID}}, http.StatusOK, &labelResp)
 	require.NotZero(t, labelResp.Label.ID)
 
 	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{
 		Name:  "label2",
-		Hosts: []string{host.Hostname}}, http.StatusOK, &labelResp)
+		Hosts: []string{host.UUID}}, http.StatusOK, &labelResp)
 	require.NotZero(t, labelResp.Label.ID)
 
 	// Set to "exclude any". Installer should be missing from the response for both host details and
@@ -2393,7 +2393,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftwareWithLabelScoping() 
 	var labelResp fleet.CreateLabelResponse
 	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{
 		Name:  "label1",
-		Hosts: []string{host.Hostname}}, http.StatusOK, &labelResp)
+		Hosts: []string{host.UUID}}, http.StatusOK, &labelResp)
 	require.NotZero(t, labelResp.Label.ID)
 	lbl1 := labelResp.Label
 
@@ -3151,7 +3151,7 @@ func (s *integrationEnterpriseTestSuite) TestAIToolFilter() {
 		return s.Do("GET", path, nil, http.StatusOK, params...)
 	}
 	require.Equal(t, teamHostAITool, aiToolByName(t, get(fmt.Sprintf("/api/latest/fleet/hosts/%d", teamHost.ID)), "host", "software"))
-	require.Equal(t, teamHostAITool, aiToolByName(t, get("/api/latest/fleet/hosts/identifier/"+teamHost.UUID), "host", "software"))
+	require.Equal(t, teamHostAITool, aiToolByName(t, get("/api/latest/fleet/hosts/"+teamHost.UUID), "host", "software"))
 	require.Equal(t, teamHostAITool, aiToolByName(t,
 		s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK), "host", "software"))
 	var hostsResp listHostsResponse

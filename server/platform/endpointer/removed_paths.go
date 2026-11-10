@@ -32,9 +32,9 @@ type RemovedPathOverlap struct {
 	// Method and RouteTemplate are the wildcard route registered in place of the removed path.
 	Method        string
 	RouteTemplate string
-	// WrongMethodRoutes are live routes on another method that the wildcard also catches, mapped to the method they serve. A request to one
-	// gets a 405 with that method in its Allow header.
-	WrongMethodRoutes map[string]string
+	// WrongMethodRoutes are live routes on another method that the wildcard also catches, mapped to the methods they serve. A request to
+	// one gets a 405 with those methods in its Allow header.
+	WrongMethodRoutes map[string][]string
 }
 
 // removedPathMethods are the methods that get 410. They are listed, not left open, because every route in the API has methods, and
@@ -79,7 +79,7 @@ func removedPathHandler(removed RemovedPath, logger *slog.Logger) http.Handler {
 		if removed.Overlap.RouteTemplate != "" && !literalSegmentsMatch(removed.Path, r.URL.Path) {
 			for live, allow := range removed.Overlap.WrongMethodRoutes {
 				if literalSegmentsMatch(live, r.URL.Path) {
-					w.Header().Set("Allow", allow)
+					w.Header().Set("Allow", strings.Join(allow, ", "))
 					w.WriteHeader(http.StatusMethodNotAllowed)
 					return
 				}

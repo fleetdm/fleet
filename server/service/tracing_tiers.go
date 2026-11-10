@@ -45,7 +45,6 @@ func RegisterTracingTiers(registry *tracing.Registry) {
 	registry.Register(http.MethodGet, "/api/_version_/fleet/hosts", tracing.TierStandard)
 	registry.Register(http.MethodGet, "/api/_version_/fleet/hosts/{id}", tracing.TierStandard)
 	registry.Register(http.MethodGet, "/api/_version_/fleet/hosts/count", tracing.TierStandard)
-	registry.Register(http.MethodGet, "/api/_version_/fleet/hosts/identifier/{identifier}", tracing.TierStandard)
 	registry.Register(http.MethodGet, "/api/_version_/fleet/hosts/summary/mdm", tracing.TierStandard)
 	registry.Register(http.MethodGet, "/api/_version_/fleet/labels", tracing.TierStandard)
 	registry.Register(http.MethodGet, "/api/_version_/fleet/me", tracing.TierStandard)

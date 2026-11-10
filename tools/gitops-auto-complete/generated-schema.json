@@ -2960,7 +2960,7 @@
             "null"
           ]
         },
-        "enable_recovery_lock_password": {
+        "enable_profile_validation": {
           "description": "type: `boolean`",
           "type": [
             "boolean",
@@ -2981,6 +2981,13 @@
           "description": "type: `LinuxSettings`"
         },
         "macos_migration": true,
+        "macos_recovery_lock_password_enabled": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "macos_settings": {
           "$ref": "#/$defs/MacOSSettings",
           "deprecated": true,
@@ -3031,16 +3038,16 @@
           "$ref": "#/$defs/MacOSSetup",
           "description": "type: `MacOSSetup`"
         },
-        "windows_enabled_and_configured": {
+        "windows_entra_client_ids": true,
+        "windows_entra_tenant_ids": true,
+        "windows_mdm_enabled": {
           "description": "type: `boolean`",
           "type": [
             "boolean",
             "null"
           ]
         },
-        "windows_entra_client_ids": true,
-        "windows_entra_tenant_ids": true,
-        "windows_migration_enabled": true,
+        "windows_mdm_migration_enabled": true,
         "windows_require_bitlocker_pin": {
           "description": "type: `boolean`",
           "type": [
@@ -4276,13 +4283,6 @@
             "null"
           ]
         },
-        "enable_recovery_lock_password": {
-          "description": "type: `boolean`",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
         "enable_turn_on_windows_mdm_manually": {
           "description": "type: `boolean`",
           "type": [
@@ -4317,6 +4317,13 @@
         "macos_migration": {
           "$ref": "#/$defs/MacOSMigration",
           "description": "type: `MacOSMigration`"
+        },
+        "macos_recovery_lock_password_enabled": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "macos_settings": {
           "$ref": "#/$defs/MacOSSettings",
@@ -4379,13 +4386,6 @@
             "null"
           ]
         },
-        "windows_enabled_and_configured": {
-          "description": "WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.\nThere is no other configuration required for Windows other than enabling\nthe support, but it is still called \"EnabledAndConfigured\" for consistency\nwith the similarly named macOS-specific fields.\n\ntype: `boolean`",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
         "windows_entra_client_ids": {
           "description": "WindowsEntraClientIDs is the allowlist of Entra application client IDs (GUIDs) whose tokens are accepted for\nWindows automatic enrollment.\n\ntype: `array\u003cstring\u003e`",
           "items": {
@@ -4413,7 +4413,14 @@
           ]
         },
         "windows_eula": true,
-        "windows_migration_enabled": {
+        "windows_mdm_enabled": {
+          "description": "WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.\nThere is no other configuration required for Windows other than enabling\nthe support, but it is still called \"EnabledAndConfigured\" for consistency\nwith the similarly named macOS-specific fields.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "windows_mdm_migration_enabled": {
           "description": "type: `boolean`",
           "type": [
             "boolean",
@@ -4785,6 +4792,13 @@
             "null"
           ]
         },
+        "macos_require_all_software": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "macos_script": {
           "description": "type: `string`",
           "type": [
@@ -4810,20 +4824,6 @@
             "null"
           ]
         },
-        "require_all_software_macos": {
-          "description": "type: `boolean`",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "require_all_software_windows": {
-          "description": "type: `boolean`",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
         "script": {
           "deprecated": true,
           "deprecationMessage": "'script' is deprecated, use 'macos_script' instead",
@@ -4843,6 +4843,13 @@
           },
           "type": [
             "array",
+            "null"
+          ]
+        },
+        "windows_require_all_software": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
             "null"
           ]
         }
@@ -5850,13 +5857,6 @@
             "null"
           ]
         },
-        "enable_recovery_lock_password": {
-          "description": "type: `boolean`",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
         "ios_updates": {
           "$ref": "#/$defs/AppleOSUpdateSettings",
           "description": "type: `AppleOSUpdateSettings`"
@@ -5868,6 +5868,13 @@
         "linux_settings": {
           "$ref": "#/$defs/LinuxSettings",
           "description": "type: `LinuxSettings`"
+        },
+        "macos_recovery_lock_password_enabled": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "macos_settings": {
           "$ref": "#/$defs/MacOSSettings",

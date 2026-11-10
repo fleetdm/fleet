@@ -31,13 +31,22 @@ func TestRemovedPaths(t *testing.T) {
 	pathVar := regexp.MustCompile(`\{\w+(:[^}]+)?\}`)
 	// Aliases write a variable as {id:[0-9]+} and the table as {id}, and mux treats differently named variables as the same route.
 	shape := func(path string) string { return pathVar.ReplaceAllString(path, "{}") }
-	var removedShapes []string
-	for _, template := range removedPathTemplates {
-		removedShapes = append(removedShapes, shape(template))
+	allMethods := []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodHead, http.MethodOptions}
+	// A removed path limited to some methods only collides with aliases of those methods.
+	removedRoutes := make(map[string]struct{})
+	for _, removed := range removedPaths() {
+		methods := removed.Methods
+		if len(methods) == 0 {
+			methods = allMethods
+		}
+		for _, method := range methods {
+			removedRoutes[method+" "+shape(removed.Path)] = struct{}{}
+		}
 	}
 	for _, alias := range deprecatedPathAliases {
 		for _, deprecated := range alias.DeprecatedPaths {
-			assert.NotContains(t, removedShapes, shape(deprecated), "a removed path must not also be served as an alias of %s", alias.PrimaryPath)
+			assert.NotContains(t, removedRoutes, alias.Method+" "+shape(deprecated),
+				"a removed path must not also be served as an alias of %s %s", alias.Method, alias.PrimaryPath)
 		}
 	}
 
@@ -99,6 +108,9 @@ func TestRemovedPathOverlaps(t *testing.T) {
 		{http.MethodGet, "/api/v1/fleet/scripts/batch/abc/cancel", http.StatusMethodNotAllowed, http.MethodPost},
 		{http.MethodGet, "/api/v1/fleet/scripts/batch/abc/foo", http.StatusNotFound, ""},
 		{http.MethodPost, "/api/v1/fleet/hosts/1/configuration_profiles/foo/bar", http.StatusNotFound, ""},
+		{http.MethodGet, "/api/v1/fleet/hosts/1/refetch", http.StatusMethodNotAllowed, http.MethodPost},
+		{http.MethodGet, "/api/v1/fleet/hosts/1/labels", http.StatusMethodNotAllowed, "POST, DELETE"},
+		{http.MethodGet, "/api/v1/fleet/hosts/1/nothing", http.StatusNotFound, ""},
 	} {
 		t.Run(c.method+" "+c.path, func(t *testing.T) {
 			t.Parallel()

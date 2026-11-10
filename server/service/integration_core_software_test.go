@@ -1315,7 +1315,7 @@ func (s *integrationTestSuite) TestAIToolFieldOmittedOnFree() {
 	require.Equal(t, want, aiToolByName(t,
 		s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK), "software"))
 	require.Equal(t, want, aiToolByName(t, get(fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID)), "host", "software"))
-	require.Equal(t, want, aiToolByName(t, get("/api/latest/fleet/hosts/identifier/"+host.UUID), "host", "software"))
+	require.Equal(t, want, aiToolByName(t, get("/api/latest/fleet/hosts/"+host.UUID), "host", "software"))
 	require.Equal(t, want, aiToolByName(t,
 		s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK), "host", "software"))
 

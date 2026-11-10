@@ -12,6 +12,7 @@ export interface ISideNavItem<T> {
   urlSection: string;
   path: string;
   Card: React.ComponentType<T>;
+  // exclude indicates whether the nav item should be hidden from the side navigation but still accessible if set as current active card.
   exclude?: boolean;
 }
 
@@ -35,14 +36,16 @@ function SideNav<T = IAppConfigFormProps>({
       <div className={`${baseClass}__container`}>
         <nav aria-label="settings">
           <ul className={`${baseClass}__nav-list`}>
-            {navItems.map((navItem) => (
-              <SideNavItem
-                key={navItem.title}
-                title={navItem.title}
-                path={navItem.path}
-                isActive={navItem.urlSection === activeItem}
-              />
-            ))}
+            {navItems
+              .filter((navItem) => !navItem.exclude) // We filter out the Side nav item, but that allows the route to match in callers.
+              .map((navItem) => (
+                <SideNavItem
+                  key={navItem.title}
+                  title={navItem.title}
+                  path={navItem.path}
+                  isActive={navItem.urlSection === activeItem}
+                />
+              ))}
           </ul>
         </nav>
         <div className={`${baseClass}__card-container`}>{CurrentCard}</div>
