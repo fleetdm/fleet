@@ -17901,7 +17901,7 @@ This also applies to `DELETE /api/v1/fleet/fleets/:id/users` (remove users from 
         "enable_escrow_disk_encryption_key": true
       },
       "setup_experience": {
-        "bootstrap_package": "",
+        "macos_bootstrap_package": "",
         "enable_end_user_authentication": false,
         "apple_setup_assistant": "path/to/config.json"
       }
