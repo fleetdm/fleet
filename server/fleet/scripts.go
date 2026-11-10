@@ -340,8 +340,8 @@ func (hsr HostScriptResult) AuthzType() string {
 }
 
 // ExtraAuthz implements authz.ExtraAuthzer so the policy reads team_id without it being in the response.
-func (hsr HostScriptResult) ExtraAuthz() (map[string]interface{}, error) {
-	return map[string]interface{}{"team_id": hsr.TeamID}, nil
+func (hsr HostScriptResult) ExtraAuthz() (map[string]any, error) {
+	return map[string]any{"team_id": hsr.TeamID}, nil
 }
 
 type BatchScriptHost struct {
