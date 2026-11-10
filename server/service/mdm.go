@@ -627,7 +627,7 @@ func (svc *Service) enqueueAndroidMDMCommand(ctx context.Context, rawJSON []byte
 			return nil, ctxerr.Wrap(ctx, err, "get host lock/wipe status")
 		}
 		if err := fleet.ValidateWipeLockWipeStatus(lockWipe); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "validate android wipe request")
+			return nil, ctxerr.Wrap(ctx, err, "validate host lock/wipe status")
 		}
 	}
 

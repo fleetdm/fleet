@@ -2241,7 +2241,8 @@ func (svc *Service) clearPasscodeAndroid(ctx context.Context, host *fleet.Host, 
 		})
 	}
 
-	lockWipe, err := svc.ds.GetHostLockWipeStatus(ctx, host)
+	// Read from the primary so a Clear passcode right after a Wipe sees the wipe_ref it wrote.
+	lockWipe, err := svc.ds.GetHostLockWipeStatus(ctxdb.RequirePrimary(ctx, true), host)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host lock/wipe status")
 	}

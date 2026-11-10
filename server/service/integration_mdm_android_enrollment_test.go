@@ -380,6 +380,35 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 		assertHostMDMStatus(t, byoHostID, "", "unlocked")
 	})
 
+	t.Run("Custom WIPE and Clear passcode on BYO with a pending wipe are refused", func(t *testing.T) {
+		pendingWipeHostID := createAndroidHostForTest(t, s.ds, nil, false)
+		var hostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", pendingWipeHostID), nil, http.StatusOK, &hostResp)
+
+		var wipeResp fleet.WipeHostResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", pendingWipeHostID), nil, http.StatusOK, &wipeResp)
+		_, _, wipeOpName := lastIssue()
+		wipeActID := s.lastHostActivityMatches(pendingWipeHostID, fleet.ActivityTypeWipedHost{}.ActivityName(), "", 0)
+
+		for _, payload := range []string{`{"type":"WIPE","wipeParams":{}}`, `{"wipeParams":{}}`} {
+			res := s.Do("POST", "/api/latest/fleet/commands/run", &runMDMCommandRequest{
+				Command:   base64.StdEncoding.EncodeToString([]byte(payload)),
+				HostUUIDs: []string{hostResp.Host.UUID},
+			}, http.StatusUnprocessableEntity)
+			require.Contains(t, extractServerErrorText(res.Body), "Host has pending wipe request. The host will be wiped when it comes online.")
+		}
+
+		res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/clear_passcode", pendingWipeHostID), nil, http.StatusUnprocessableEntity)
+		require.Contains(t, extractServerErrorText(res.Body), "Host has pending wipe request. Cannot process clear passcode requests once host is wiped.")
+
+		_, _, lastOpName := lastIssue()
+		require.Equal(t, wipeOpName, lastOpName, "a refused request must not issue an AMAPI command")
+		s.lastHostActivityMatches(pendingWipeHostID, fleet.ActivityTypeWipedHost{}.ActivityName(), "", wipeActID)
+
+		deliverPubSubCommand(t, androidmanagement.Operation{Name: wipeOpName, Done: true})
+		assertHostMDMStatus(t, pendingWipeHostID, "", "unlocked")
+	})
+
 	t.Run("Custom WIPE command on BYO unenrolls via Pub/Sub ack", func(t *testing.T) {
 		customByoHostID := createAndroidHostForTest(t, s.ds, nil, false)
 		var hostResp getHostResponse
