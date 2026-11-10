@@ -20,6 +20,7 @@ func removedKeyMessage(key string) string {
 	return entry.Message()
 }
 
+// deletedKeyRules rejects request keys that were removed without a replacement.
 func deletedKeyRules() []endpointer.RemovedKeyRule {
 	var rules []endpointer.RemovedKeyRule
 	for _, entry := range removednames.Filter(removednames.KindJSONKey, removednames.ScopeRequest) {

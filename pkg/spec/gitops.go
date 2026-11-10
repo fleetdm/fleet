@@ -808,25 +808,6 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 			// This error is currently unreachable because we know the file is valid YAML when we checked for nested path
 			multiError = multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"org_settings"}, err))
 		} else {
-			// Drop the removed scripts_disabled setting. Only warn when it's false, every Fleet 4 generate-gitops export has it.
-			serverSettings, _ := result.OrgSettings["server_settings"].(map[string]any)
-			for key, value := range serverSettings {
-				if !strings.EqualFold(key, "scripts_disabled") {
-					continue
-				}
-				removedKeyErr := &ParseRemovedKeyError{Filename: settingsFilePath, Path: "org_settings.server_settings", Field: "scripts_disabled"}
-				if value == false {
-					logFn("[!] %s\n", removedKeyErr.Error())
-				} else {
-					multiError = multierror.Append(multiError, removedKeyErr)
-				}
-				delete(serverSettings, key)
-				raw, err = json.Marshal(result.OrgSettings)
-				if err != nil {
-					multiError = multierror.Append(multiError, fmt.Errorf("failed to marshal org settings from %s: %w", settingsFilePath, err))
-				}
-			}
-
 			// Anchor relative paths from a nested org_settings file to its own directory;
 			// otherwise they'd later resolve against the main file's baseDir and fail.
 			if orgSettingsTop.Path != nil {
@@ -840,6 +821,27 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 			multiError = validateSSOConfig(result.OrgSettings, multiError)
 			multiError = normalizeMDMSSOConfig(result.OrgSettings, multiError)
 		}
+
+		// Drop the removed scripts_disabled setting before the unknown-key check. Only warn when it's false.
+		serverSettings, _ := result.OrgSettings["server_settings"].(map[string]any)
+		for key, value := range serverSettings {
+			if !strings.EqualFold(key, "scripts_disabled") {
+				continue
+			}
+			removedKeyErr := &ParseRemovedKeyError{Filename: settingsFilePath, Path: "org_settings.server_settings", Field: "scripts_disabled"}
+			if value == false {
+				logFn("[!] %s\n", removedKeyErr.Error())
+			} else {
+				multiError = multierror.Append(multiError, removedKeyErr)
+			}
+			delete(serverSettings, key)
+			var err error
+			raw, err = json.Marshal(result.OrgSettings)
+			if err != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to marshal org settings from %s: %w", settingsFilePath, err))
+			}
+		}
+
 		// Validate unknown keys in org_settings section.
 		multiError = multierror.Append(multiError, validateYAMLKeys(raw, reflect.TypeFor[GitOpsOrgSettings](), settingsFilePath, []string{"org_settings"})...)
 		// TODO: Validate that integrations.(jira|zendesk)[].api_token is not empty or fleet.MaskedPassword
