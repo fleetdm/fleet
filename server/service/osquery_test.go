@@ -3215,6 +3215,9 @@ func TestDetailQueries(t *testing.T) {
 	) error {
 		return nil
 	}
+	ds.GetHostOrbitInfoFunc = func(ctx context.Context, hostID uint) (*fleet.HostOrbitInfo, error) {
+		return nil, newNotFoundError()
+	}
 
 	// Verify that results are ingested properly
 	require.NoError(
