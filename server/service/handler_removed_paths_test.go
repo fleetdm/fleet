@@ -79,12 +79,16 @@ func TestRemovedPaths(t *testing.T) {
 	}
 }
 
-// TestRemovedPathsThroughHandler sends requests through the assembled API handler, fast path included. TestRemovedPaths uses a router of
-// its own, which cannot show another route answering a removed path first or a path the fast path serves differently.
+// TestRemovedPathsThroughHandler sends requests through the stdlib fast path built over the removed paths. TestRemovedPaths uses the gorilla
+// router alone, which cannot show a path the fast path serves differently. It does not use MakeHandler, whose metrics are global counters
+// that TestAPIRoutesMetrics asserts exactly; TestAPIRoutesConflicts checks these routes against the real router.
 func TestRemovedPathsThroughHandler(t *testing.T) {
 	t.Parallel()
 
-	handler, _ := newAPIHandler(t, config.TestConfig(), nil)
+	router := mux.NewRouter()
+	endpointer.RegisterRemovedPaths(router, []string{"v1", "2022-04"}, slog.New(slog.DiscardHandler), removedPaths())
+	handler, err := newFastPathHandler(router, nil, config.TestConfig())
+	require.NoError(t, err)
 
 	for _, c := range []struct{ path, template string }{
 		{"/api/v1/fleet/team/1/policies", "/team/{fleet_id}/policies"},
