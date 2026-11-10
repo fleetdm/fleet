@@ -751,7 +751,7 @@ const LibraryItemAccordion = ({
           tipContent={inactiveTooltip}
           showArrow
           underline={false}
-          position="top"
+          position="top-start"
           tipOffset={8}
           disableTooltip={!canEditSoftware}
         >
