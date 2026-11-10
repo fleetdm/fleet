@@ -1,0 +1,1 @@
+- Fixed Android hosts accepting a WIPE through `POST /api/v1/fleet/commands/run`, or a Clear passcode request, while a wipe was already pending. `/commands/run` WIPE now gets the same refusals as the wipe endpoint (pending lock, pending wipe, already wiped).
