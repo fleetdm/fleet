@@ -92,8 +92,6 @@ func (s *integrationEnterpriseTestSuite) TestPackageUploadPreAuthAndTempFileClea
 		{"POST", "/api/latest/fleet/software/package"},
 		{"PATCH", "/api/latest/fleet/software/titles/1/package"},
 		{"POST", "/api/latest/fleet/bootstrap"},
-		{"POST", "/api/latest/fleet/mdm/bootstrap"},
-		{"POST", "/api/latest/fleet/mdm/apple/bootstrap"},
 	} {
 		res := s.DoRawWithHeaders(r.method, r.path, body.Bytes(), http.StatusUnauthorized, map[string]string{"Content-Type": contentType})
 		res.Body.Close()

@@ -107,7 +107,7 @@ func buildFastPathMux(r *mux.Router, middlewares []mux.MiddlewareFunc, cfg confi
 			varNames = append(varNames, m[1])
 		}
 
-		for _, method := range methods {
+		for _, method := range fastPathMethods(methods) {
 			for _, pattern := range expandToStdlibPatterns(tpl) {
 				full := method + " " + pattern
 				if _, taken := claimed[full]; taken {
@@ -291,6 +291,16 @@ func versionSegment(tpl, pattern string) string {
 		return segments[2]
 	}
 	return ""
+}
+
+// fastPathMethods are the methods of a route that get a stdlib pattern. A stdlib GET pattern also matches HEAD, and newFastPathRoute
+// hands a HEAD request back to gorilla, so a route with both doesn't register HEAD: that pattern would be ambiguous next to the GET
+// pattern of a more specific path, such as a removed /x/summary next to a removed /x/{id}, both registered for every method.
+func fastPathMethods(methods []string) []string {
+	if !slices.Contains(methods, http.MethodGet) {
+		return methods
+	}
+	return slices.DeleteFunc(slices.Clone(methods), func(method string) bool { return method == http.MethodHead })
 }
 
 // isCanonicalPath reports whether p is already in the form both routers would clean it to. It mirrors the cleanPath helper

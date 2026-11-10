@@ -110,17 +110,16 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 	s.Do("PATCH", "/api/latest/fleet/setup_experience",
 		fleet.MDMAppleSetupPayload{TeamID: new(uint(0)), EnableEndUserAuthentication: new(true)}, http.StatusUnprocessableEntity)
 
-	// Attempt to update the Apple MDM settings but with no change, just to
+	// Attempt to update the disk encryption settings but with no change, just to
 	// validate the access.
-	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings",
-		fleet.MDMAppleSettingsPayload{}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{}, http.StatusNoContent)
 
 	// Attempt to set profile batch globally, should allow.
 	globalProfiles := [][]byte{
 		mobileconfigForTest("N1", "I1"),
 		mobileconfigForTest("N2", "I2"),
 	}
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest(globalProfiles), http.StatusNoContent)
 
 	// Attempt to edit team MDM settings, should allow.
 	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
@@ -139,9 +138,7 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 		mobileconfigForTest("N3", "I3"),
 		mobileconfigForTest("N4", "I4"),
 	}
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{
-		Profiles: teamProfiles,
-	}, http.StatusNoContent, "team_id", fmt.Sprint(t1.ID))
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest(teamProfiles), http.StatusNoContent, "team_id", fmt.Sprint(t1.ID))
 
 	//
 	// Start running permission tests with user gitops2-mdm,
@@ -166,18 +163,14 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 		mobileconfigForTest("N5", "I5"),
 		mobileconfigForTest("N6", "I6"),
 	}
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{
-		Profiles: teamProfiles,
-	}, http.StatusNoContent, "team_id", fmt.Sprint(t1.ID))
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest(teamProfiles), http.StatusNoContent, "team_id", fmt.Sprint(t1.ID))
 
 	// Attempt to set profile batch for team t2, should not allow.
 	teamProfiles = [][]byte{
 		mobileconfigForTest("N7", "I7"),
 		mobileconfigForTest("N8", "I8"),
 	}
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{
-		Profiles: teamProfiles,
-	}, http.StatusForbidden, "team_id", fmt.Sprint(t2.ID))
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest(teamProfiles), http.StatusForbidden, "team_id", fmt.Sprint(t2.ID))
 
 	// Attempt to retrieve host profiles fails if the host doesn't belong to the team
 	h1, err := s.ds.NewHost(ctx, &fleet.Host{
@@ -186,11 +179,11 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 		Hostname: t.Name() + "foo.local",
 	})
 	require.NoError(t, err)
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/profiles", h1.ID), getHostRequest{}, http.StatusForbidden, &getHostResponse{})
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles", h1.ID), getHostRequest{}, http.StatusForbidden, &getHostResponse{})
 
 	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&t1.ID, []uint{h1.ID}))
 	require.NoError(t, err)
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/profiles", h1.ID), getHostRequest{}, http.StatusOK, &getHostResponse{})
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles", h1.ID), getHostRequest{}, http.StatusOK, &getHostResponse{})
 
 	// GitOps users can't run MDM commands, even on hosts of their fleets.
 	const gitOpsMDMCommandMsg = "Users with the GitOps role can no longer run MDM commands. " +
@@ -1001,7 +994,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 		s.token,
 		map[string][]string{"team_id": {fmt.Sprint(t1.ID)}},
 	)
-	s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", profileBody.Bytes(), http.StatusForbidden, profileHeaders)
+	s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", profileBody.Bytes(), http.StatusForbidden, profileHeaders)
 
 	// Attempt to resend a profile.
 	// First set the profile to failed, so that we can resend.
@@ -1384,7 +1377,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 		s.token,
 		map[string][]string{"team_id": {fmt.Sprint(t1.ID)}},
 	)
-	s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", profileBody.Bytes(), http.StatusForbidden, profileHeaders)
+	s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", profileBody.Bytes(), http.StatusForbidden, profileHeaders)
 
 	// Attempt to resend a profile on t1, should allow.
 	// First set the profile to failed, so that we can resend.
