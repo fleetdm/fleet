@@ -68,6 +68,16 @@ export interface IInitiateDeviceSSOResponse {
   url: string;
 }
 
+export interface IGetDeviceGoogleConditionalAccessResponse {
+  enabled: boolean;
+  eligible: boolean;
+  registered: boolean;
+  managed: boolean;
+  retry_blocked: boolean;
+  /** fleetdm.com's sign-in page, present only when the host should sign in. */
+  sign_in_url?: string;
+}
+
 export default {
   loadHostDetails: ({
     token,
@@ -116,6 +126,16 @@ export default {
     const path = `${DEVICE_USER_DETAILS}/${deviceAuthToken}/sso`;
 
     return sendRequest("POST", path);
+  },
+
+  getGoogleConditionalAccessStatus: (
+    deviceAuthToken: string
+  ): Promise<IGetDeviceGoogleConditionalAccessResponse> => {
+    const { DEVICE_GOOGLE_CONDITIONAL_ACCESS } = endpoints;
+    return sendRequest(
+      "GET",
+      DEVICE_GOOGLE_CONDITIONAL_ACCESS(deviceAuthToken)
+    );
   },
 
   getDeviceSoftware: (
