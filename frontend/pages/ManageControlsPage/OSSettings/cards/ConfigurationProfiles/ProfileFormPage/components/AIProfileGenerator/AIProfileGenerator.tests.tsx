@@ -90,7 +90,7 @@ const apiError = (name: string, reason: string) => ({
 const appleOnly = {
   ...createMockConfig().mdm,
   enabled_and_configured: true,
-  windows_enabled_and_configured: false,
+  windows_mdm_enabled: false,
 };
 
 const MANUAL_LOCATION = {
@@ -185,6 +185,14 @@ describe("AIProfileGenerator", () => {
     expect(screen.getByText("Apple (macOS, iOS, iPadOS)")).toBeInTheDocument();
     await user.click(screen.getByRole("combobox"));
     expect(screen.queryByText("Windows")).not.toBeInTheDocument();
+  });
+
+  it("offers Windows when Windows MDM is on", async () => {
+    const { user } = renderGenerator({
+      mdm: { ...appleOnly, windows_mdm_enabled: true },
+    });
+    await user.click(screen.getByRole("combobox"));
+    expect(screen.getByText("Windows")).toBeInTheDocument();
   });
 
   it("names the fleet the profile is added to", () => {

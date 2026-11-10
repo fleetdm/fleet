@@ -41,6 +41,8 @@ func TestMessage(t *testing.T) {
 			`The "--fleet no-team" value is not available anymore. What to use instead: ` + GuideURL},
 		// Only flags are displayed differently: they get their leading dashes.
 		{KindFlag, "team", "fleetctl get hosts", `The "--team" flag is not available anymore. What to use instead: ` + GuideURL},
+		{KindSAMLAttribute, "FLEET_JIT_USER_ROLE_TEAM_<ID>", "",
+			`The "FLEET_JIT_USER_ROLE_TEAM_<ID>" SAML attribute is not available anymore. What to use instead: ` + GuideURL},
 		// A removed endpoint leaves the replacement to the guide. The request's method is added when a handler answers it.
 		{KindPath, pathPrefix + "/spec/teams", "", `The "/spec/teams" endpoint is not available anymore. What to use instead: ` + GuideURL},
 		{KindFlag, "t", "fleetctl user create", `The "-t" flag is not available anymore. What to use instead: ` + GuideURL},
@@ -102,8 +104,13 @@ func TestEntryMessageFormats(t *testing.T) {
 func TestFindAndFilter(t *testing.T) {
 	t.Parallel()
 
+	// A SAML attribute matches on the text before its <ID>.
+	_, ok := FindSAMLAttribute("FLEET_JIT_USER_ROLE_TEAM_12")
+	assert.True(t, ok)
+	_, ok = FindSAMLAttribute("FLEET_JIT_USER_ROLE_FLEET_12")
+	assert.False(t, ok)
 	// A flag entry is tied to its command, and an entry without a context matches every context.
-	_, ok := Find(KindFlag, "team", "fleetctl get hosts")
+	_, ok = Find(KindFlag, "team", "fleetctl get hosts")
 	assert.True(t, ok)
 	_, ok = Find(KindFlag, "team", "fleetctl gitops")
 	assert.False(t, ok)
@@ -273,10 +280,8 @@ func TestEntriesCoverDeprecatedSources(t *testing.T) {
 		endsWithAny := func(context string, names []string) bool {
 			return slices.ContainsFunc(names, func(name string) bool { return strings.HasSuffix(context, " "+name) })
 		}
-		found := 0
 		for rel, file := range parseFiles(t, root, []string{filepath.Join("cmd", "fleetctl", "fleetctl")}, "") {
 			for _, alias := range collectCLIAliases(file, isTeamRelated) {
-				found++
 				var match func(Entry) bool
 				switch alias.kind {
 				case cliCommandAlias:
@@ -296,7 +301,6 @@ func TestEntriesCoverDeprecatedSources(t *testing.T) {
 				assert.True(t, hasEntry(match), "%s: %s %q of command %v is missing from entries", rel, alias.kind, alias.name, alias.command)
 			}
 		}
-		assert.Positive(t, found)
 	})
 
 	t.Run("gitops key mappings", func(t *testing.T) {

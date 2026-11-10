@@ -310,7 +310,7 @@ spec:
       - %s
     macos_setup:
       macos_setup_assistant: %s
-    windows_enabled_and_configured: true
+    windows_mdm_enabled: true
 `, mobileConfigPath, emptySetupAsst))
 
 	// first apply with dry-run
@@ -860,7 +860,7 @@ spec:
 `
 		team1EnableReleaseSpec = team1Spec + `
         enable_release_device_manually: %s
-        require_all_software_macos: %s
+        macos_require_all_software: %s
 `
 		team1NoKeySpec = `
 apiVersion: v1
@@ -1033,7 +1033,7 @@ spec:
 		require.NoError(t, err)
 		expectedTm1Set := fmt.Sprintf(string(b), "", "")
 		expectedTm1SetReleaseAndRequireEnabled := strings.ReplaceAll(expectedTm1Set, `enable_release_device_manually: false`, `enable_release_device_manually: true`)
-		expectedTm1SetReleaseAndRequireEnabled = strings.ReplaceAll(expectedTm1SetReleaseAndRequireEnabled, `require_all_software_macos: false`, `require_all_software_macos: true`)
+		expectedTm1SetReleaseAndRequireEnabled = strings.ReplaceAll(expectedTm1SetReleaseAndRequireEnabled, `macos_require_all_software: false`, `macos_require_all_software: true`)
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1And2Empty.yml"))
 		require.NoError(t, err)
@@ -1045,7 +1045,7 @@ spec:
 
 		// get without setup assistant set
 		assert.YAMLEq(t, expectedEmptyAppCfg, runAppForTestDeprecated(t, []string{"get", "config", "--yaml"}))
-		assert.YAMLEq(t, expectedEmptyTm1, runAppForTestDeprecated(t, []string{"get", "teams", "--yaml"}))
+		assert.YAMLEq(t, expectedEmptyTm1, runAppForTestDeprecated(t, []string{"get", "fleets", "--yaml"}))
 
 		// apply with dry-run, appconfig
 		name := writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", emptyMacosSetup))
@@ -1061,7 +1061,7 @@ spec:
 
 		// get, setup assistant still not set
 		assert.YAMLEq(t, expectedEmptyAppCfg, runAppForTestDeprecated(t, []string{"get", "config", "--yaml"}))
-		assert.YAMLEq(t, expectedEmptyTm1, runAppForTestDeprecated(t, []string{"get", "teams", "--yaml"}))
+		assert.YAMLEq(t, expectedEmptyTm1, runAppForTestDeprecated(t, []string{"get", "fleets", "--yaml"}))
 
 		// apply appconfig for real, and enable release device
 		name = writeTmpYml(t, fmt.Sprintf(appConfigEnableReleaseSpec, "", emptyMacosSetup, "true"))
@@ -1078,7 +1078,7 @@ spec:
 
 		// get, setup assistant is now set
 		assert.YAMLEq(t, expectedAppCfgSetReleaseEnabled, runAppForTestDeprecated(t, []string{"get", "config", "--yaml"}))
-		assert.YAMLEq(t, expectedTm1And2Set, runAppForTestDeprecated(t, []string{"get", "teams", "--yaml"}))
+		assert.YAMLEq(t, expectedTm1And2Set, runAppForTestDeprecated(t, []string{"get", "fleets", "--yaml"}))
 
 		// clear with dry-run, appconfig
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", ""))
@@ -1114,7 +1114,7 @@ spec:
 
 		// get, results unchanged
 		assert.YAMLEq(t, expectedAppCfgSetReleaseEnabled, runAppForTestDeprecated(t, []string{"get", "config", "--yaml"}))
-		assert.YAMLEq(t, expectedTm1And2Set, runAppForTestDeprecated(t, []string{"get", "teams", "--yaml"}))
+		assert.YAMLEq(t, expectedTm1And2Set, runAppForTestDeprecated(t, []string{"get", "fleets", "--yaml"}))
 
 		// clear appconfig for real
 		name = writeTmpYml(t, fmt.Sprintf(appConfigEnableReleaseSpec, "", "", "false"))
@@ -1134,7 +1134,7 @@ spec:
 
 		// get, results now empty
 		assert.YAMLEq(t, expectedEmptyAppCfg, runAppForTestDeprecated(t, []string{"get", "config", "--yaml"}))
-		assert.YAMLEq(t, expectedEmptyTm1And2, runAppForTestDeprecated(t, []string{"get", "teams", "--yaml"}))
+		assert.YAMLEq(t, expectedEmptyTm1And2, runAppForTestDeprecated(t, []string{"get", "fleets", "--yaml"}))
 
 		// apply team 1 without the setup assistant key but enable device release
 		name = writeTmpYml(t, fmt.Sprintf(team1EnableReleaseSpec, "", "", "true", "true"))
@@ -1146,7 +1146,7 @@ spec:
 		assert.False(t, ds.DeleteMDMAppleSetupAssistantFuncInvoked)
 		assert.True(t, ds.SaveTeamFuncInvoked)
 
-		assert.YAMLEq(t, expectedTm1SetReleaseAndRequireEnabled, runAppForTestDeprecated(t, []string{"get", "teams", "--yaml"}))
+		assert.YAMLEq(t, expectedTm1SetReleaseAndRequireEnabled, runAppForTestDeprecated(t, []string{"get", "fleets", "--yaml"}))
 
 		// apply appconfig with invalid URL key
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", invalidURLMacosSetup))
@@ -1407,7 +1407,7 @@ spec:
 	// 	b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1Empty.yml"))
 	// 	require.NoError(t, err)
 	// 	expectedNotSetTeam1 := string(b)
-	// 	assert.YAMLEq(t, expectedNotSetTeam1, runAppForTest(t, []string{"get", "teams", "--yaml"}))
+	// 	assert.YAMLEq(t, expectedNotSetTeam1, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
 
 	// 	// enable end user auth in team config
 	// 	name = writeTmpYml(t, fmt.Sprintf(team1SpecEnableEndUserAuth, "true"))
@@ -1422,7 +1422,7 @@ spec:
 	// 	expectedSetTeam1 := strings.ReplaceAll(expectedNotSetTeam1, "enable_end_user_authentication: false", "enable_end_user_authentication: true")
 	// 	expectedSetTeam1 = strings.ReplaceAll(expectedSetTeam1, "enable_host_users: false", "enable_host_users: true")
 	// 	expectedSetTeam1 = strings.ReplaceAll(expectedSetTeam1, "enable_software_inventory: false", "enable_software_inventory: true")
-	// 	assert.YAMLEq(t, expectedSetTeam1, runAppForTest(t, []string{"get", "teams", "--yaml"}))
+	// 	assert.YAMLEq(t, expectedSetTeam1, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
 	// 	ds.SaveTeamFuncInvoked = false
 
 	// 	// disable end user auth in team config
@@ -1436,7 +1436,7 @@ spec:
 	// 	assert.False(t, ds.SaveAppConfigFuncInvoked)
 	// 	assert.True(t, ds.SaveTeamFuncInvoked)
 	// 	expectedSetTeam1 = strings.ReplaceAll(expectedSetTeam1, "enable_end_user_authentication: true", "enable_end_user_authentication: false")
-	// 	assert.YAMLEq(t, expectedSetTeam1, runAppForTest(t, []string{"get", "teams", "--yaml"}))
+	// 	assert.YAMLEq(t, expectedSetTeam1, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
 	// 	ds.SaveTeamFuncInvoked = false
 	// })
 }
@@ -2573,7 +2573,7 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    windows_enabled_and_configured: true
+    windows_mdm_enabled: true
 `,
 			wantErr: `422 Validation Failed: Couldn't turn on Windows MDM. Please configure Fleet with a certificate and key pair first.`,
 		},
