@@ -3,6 +3,7 @@
   "slug": "clion/windows",
   "package_identifier": "JetBrains.CLion",
   "unique_identifier": "CLion",
+  "open_process_names": ["clion.exe", "clion64.exe"],
   "fuzzy_match_name": true,
   "use_display_version_for_patch": true,
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/clion_install.ps1",

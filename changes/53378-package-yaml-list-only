@@ -1,0 +1,1 @@
+- **Breaking change:** Removed support for a single package YAML file reference in `software.packages`.
