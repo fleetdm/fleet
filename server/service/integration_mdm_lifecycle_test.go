@@ -919,8 +919,8 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	}
 	s.Do(
 		"POST",
-		"/api/v1/fleet/mdm/apple/profiles/batch",
-		batchSetMDMAppleProfilesRequest{Profiles: globalProfiles},
+		"/api/v1/fleet/mdm/profiles/batch",
+		appleProfilesBatchRequest(globalProfiles),
 		http.StatusNoContent,
 	)
 	expectedProfiles := 4 // Fleetd configuration, Fleet root cert, N1, N2
@@ -955,7 +955,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 					require.NotNil(t, manifest)
 					require.Len(t, manifest.ManifestItems, 1)
 					require.Len(t, manifest.ManifestItems[0].Assets, 1)
-					require.Contains(t, manifest.ManifestItems[0].Assets[0].URL, "fleet/mdm/bootstrap")
+					require.Contains(t, manifest.ManifestItems[0].Assets[0].URL, "/api/latest/fleet/bootstrap?token=")
 					foundBootstrapInstall = true
 				}
 			case "InstallProfile":
@@ -1472,7 +1472,7 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 	// mu.Unlock()
 
 	hostByIdentifierResp := getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
 	require.Equal(t, hwModel, hostByIdentifierResp.Host.HardwareModel)
 	require.Equal(t, "ipados", hostByIdentifierResp.Host.Platform)
 	// iOS/iPadOS enrollment sets refetch_requested=true so the iphone_ipad_refetcher
@@ -1484,7 +1484,7 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 	awaitRefetchCommands(hostID, 3) // expect three commands: refetch UUID, apps, certs
 
 	hostByIdentifierResp = getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
 	// The cron queues commands but doesn't clear refetch_requested — that happens
 	// only after the device acks the DeviceInformation command below.
 	require.True(t, hostByIdentifierResp.Host.RefetchRequested)
@@ -1517,7 +1517,7 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", hostID), nil, http.StatusOK)
 	hostByIdentifierResp = getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
 	require.True(t, hostByIdentifierResp.Host.RefetchRequested)
 
 	awaitRefetchCommands(hostID, 3) // expect three commands: refetch UUID, apps, certs
@@ -1532,7 +1532,7 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 	require.Len(t, commands, 0)
 
 	hostByIdentifierResp = getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
 	// Re-enrollment re-flags iOS/iPadOS hosts with refetch_requested=true so the cron
 	// will pick them up again; the flag is cleared by the next DeviceInformation ack.
 	require.True(t, hostByIdentifierResp.Host.RefetchRequested)
@@ -1561,7 +1561,7 @@ func (s *integrationMDMTestSuite) TestMDMLockHostUnenrolled() {
 	require.NoError(t, mdmDevice.Enroll())
 
 	hostByIdentifierResp := getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
 	require.Equal(t, hwModel, hostByIdentifierResp.Host.HardwareModel)
 	hostID := hostByIdentifierResp.Host.ID
 

@@ -206,7 +206,7 @@ func (s *integrationMDMTestSuite) createTeamDeviceForSetupExperienceWithProfileS
 
 	// add a team profile
 	teamProfile := mobileconfigForTest("N1", "I1")
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{teamProfile}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest([][]byte{teamProfile}), http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
 
 	// add a macOS software to install
 	payloadDummy := &fleet.UploadSoftwareInstallerPayload{
@@ -707,8 +707,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithFMAAndVersionRollba
 
 	// Add a team MDM profile so we can assert on the profile install commands.
 	teamProfile := mobileconfigForTest("N1", "I1")
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
-		batchSetMDMAppleProfilesRequest{Profiles: [][]byte{teamProfile}},
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+		appleProfilesBatchRequest([][]byte{teamProfile}),
 		http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
 
 	// -------------------------------------------------------------------------

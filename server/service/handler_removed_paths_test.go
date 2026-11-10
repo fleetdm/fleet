@@ -105,6 +105,9 @@ func TestRemovedPathOverlaps(t *testing.T) {
 		{http.MethodGet, "/api/v1/fleet/scripts/batch/abc/cancel", http.StatusMethodNotAllowed, http.MethodPost},
 		{http.MethodGet, "/api/v1/fleet/scripts/batch/abc/foo", http.StatusNotFound, ""},
 		{http.MethodPost, "/api/v1/fleet/hosts/1/configuration_profiles/foo/bar", http.StatusNotFound, ""},
+		{http.MethodGet, "/api/v1/fleet/hosts/1/refetch", http.StatusMethodNotAllowed, http.MethodPost},
+		{http.MethodGet, "/api/v1/fleet/hosts/1/labels", http.StatusMethodNotAllowed, "POST, DELETE"},
+		{http.MethodGet, "/api/v1/fleet/hosts/1/nothing", http.StatusNotFound, ""},
 	} {
 		t.Run(c.method+" "+c.path, func(t *testing.T) {
 			t.Parallel()
