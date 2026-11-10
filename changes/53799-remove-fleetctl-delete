@@ -1,0 +1,1 @@
+- Breaking change: Removed `fleetctl delete`. It now fails with a link to the Fleet 5 upgrade guide. Delete reports and labels in the UI, with the REST API, or with GitOps instead.

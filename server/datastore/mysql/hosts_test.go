@@ -118,6 +118,7 @@ func TestHosts(t *testing.T) {
 		{"MarkSeenMany", testHostsMarkSeenMany},
 		{"CleanupIncoming", testHostsCleanupIncoming},
 		{"IDsByIdentifier", testHostIDsByIdentifier},
+		{"IDsByLabelIdentifier", testHostIDsByLabelIdentifier},
 		{"Additional", testHostsAdditional},
 		{"ByIdentifier", testHostsByIdentifier},
 		{"ByUUID", testHostsByUUID},
@@ -4520,6 +4521,37 @@ func testHostIDsByIdentifier(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, hostsByIdentifier, 1)
 	assert.Equal(t, hostsByIdentifier[0], hosts[0].ID)
+}
+
+func testHostIDsByLabelIdentifier(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	hosts := make([]*fleet.Host, 3)
+	for i := range hosts {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID:  new(fmt.Sprintf("osq.host%d", i)),
+			NodeKey:        new(fmt.Sprintf("nk.%d", i)),
+			UUID:           fmt.Sprintf("uuid.%d", i),
+			HardwareSerial: fmt.Sprintf("hws.%d", i),
+			Hostname:       fmt.Sprintf("foo.%d.local", i),
+		})
+		require.NoError(t, err)
+		hosts[i] = h
+	}
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	ids, err := ds.HostIDsByLabelIdentifier(ctx, filter, []string{"foo.0.local", "nk.1", "osq.host2"})
+	require.NoError(t, err)
+	assert.NotNil(t, ids)
+	assert.Empty(t, ids)
+
+	ids, err = ds.HostIDsByLabelIdentifier(ctx, filter, []string{"foo.0.local", "uuid.1", "hws.2"})
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []uint{hosts[1].ID, hosts[2].ID}, ids)
+
+	// HostIDsByIdentifier still matches them, for live queries and profile variables.
+	ids, err = ds.HostIDsByIdentifier(ctx, filter, []string{"foo.0.local", "nk.1", "osq.host2"})
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID}, ids)
 }
 
 func testLoadHostByNodeKeyLoadsDisk(t *testing.T, ds *Datastore) {
@@ -11056,7 +11088,6 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	_, _, err = ds.insertInHouseApp(ctx, &fleet.InHouseAppPayload{
 		Filename:        "test.ipa",
 		StorageID:       uuid.NewString(),
-		Platform:        string(fleet.MacOSPlatform),
 		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
@@ -16116,7 +16147,7 @@ func testHostTimeZone(t *testing.T, ds *Datastore) {
 		Name:                "foobar",
 		LabelType:           fleet.LabelTypeRegular,
 		LabelMembershipType: fleet.LabelMembershipTypeManual,
-		Hosts:               []string{host.Hostname},
+		Hosts:               []string{host.UUID},
 	}
 	err = ds.ApplyLabelSpecs(t.Context(), []*fleet.LabelSpec{l1s})
 	require.NoError(t, err)

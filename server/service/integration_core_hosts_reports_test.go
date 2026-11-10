@@ -463,13 +463,13 @@ func (s *integrationTestSuite) TestGetHostSoftwareUpdatedAt() {
 	require.Greater(t, getHostResp.Host.SoftwareUpdatedAt, getHostResp.Host.CreatedAt)
 
 	getHostResp = getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", *host.NodeKey), nil, http.StatusOK, &getHostResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", *host.NodeKey), nil, http.StatusOK, &getHostResp)
 	require.Equal(t, host.ID, getHostResp.Host.ID)
 	require.Len(t, getHostResp.Host.Software, len(software))
 	require.Greater(t, getHostResp.Host.SoftwareUpdatedAt, getHostResp.Host.CreatedAt)
 
 	getHostResp = getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", *host.NodeKey), nil, http.StatusOK, &getHostResp, "exclude_software", "true")
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", *host.NodeKey), nil, http.StatusOK, &getHostResp, "exclude_software", "true")
 	require.Equal(t, host.ID, getHostResp.Host.ID)
 	require.Empty(t, getHostResp.Host.Software)
 	require.Greater(t, getHostResp.Host.SoftwareUpdatedAt, getHostResp.Host.CreatedAt)
@@ -482,7 +482,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	// create 3 hosts (deb, rhel, linux)
 	hosts := s.createHosts(t)
 	err := s.ds.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{
-		{Name: t.Name(), LabelMembershipType: fleet.LabelMembershipTypeManual, Query: "select 1", Hosts: []string{hosts[2].Hostname}},
+		{Name: t.Name(), LabelMembershipType: fleet.LabelMembershipTypeManual, Query: "select 1", Hosts: []string{hosts[2].UUID}},
 	})
 	require.NoError(t, err)
 	lids, err := s.ds.LabelIDsByName(context.Background(), []string{t.Name()}, fleet.TeamFilter{})
@@ -853,7 +853,7 @@ func (s *integrationTestSuite) TestGetHostBatteries() {
 	}, *getHostResp.Host.Batteries)
 
 	// same for get host by identifier
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", *host.NodeKey), nil, http.StatusOK, &getHostResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", *host.NodeKey), nil, http.StatusOK, &getHostResp)
 	require.Equal(t, host.ID, getHostResp.Host.ID)
 	// only cycle count and health are returned
 	require.ElementsMatch(t, []*fleet.HostBattery{
@@ -965,7 +965,7 @@ func (s *integrationTestSuite) TestHostByIdentifierSoftwareUpdatedAt() {
 	require.NoError(t, err)
 
 	var getHostResp getHostResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", *host.NodeKey), nil, http.StatusOK, &getHostResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", *host.NodeKey), nil, http.StatusOK, &getHostResp)
 	require.Equal(t, host.ID, getHostResp.Host.ID)
 	require.Equal(t, getHostResp.Host.SoftwareUpdatedAt, getHostResp.Host.CreatedAt)
 
@@ -978,7 +978,7 @@ func (s *integrationTestSuite) TestHostByIdentifierSoftwareUpdatedAt() {
 	require.NoError(t, err)
 
 	getHostResp = getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", *host.NodeKey), nil, http.StatusOK, &getHostResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", *host.NodeKey), nil, http.StatusOK, &getHostResp)
 	require.Greater(t, getHostResp.Host.SoftwareUpdatedAt, getHostResp.Host.CreatedAt)
 }
 
@@ -1094,7 +1094,6 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	// should succeed as we no longer require MDM to access this endpoint, as Linux encryption doesn't require MDM
 	var profiles getMDMProfilesSummaryResponse
 	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/summary", getMDMProfilesSummaryRequest{}, http.StatusOK, &profiles)
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles/summary", getMDMProfilesSummaryRequest{}, http.StatusOK, &profiles)
 
 	// set unencrypted for all hosts
 	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), hostWin.ID, false, nil))
@@ -1221,13 +1220,13 @@ func (s *integrationTestSuite) TestGetHostIOSVitals() {
 	// display label.
 	assert.Equal(t, "GSM", hostJSON["cellular_technology"])
 
-	// GET /hosts/identifier/:identifier funnels through the same datastore
+	// GET /hosts/:id with an identifier funnels through the same datastore
 	// loading path and must behave identically.
 	var getByIdentifierResp getHostResponse
-	s.DoJSON("GET", "/api/latest/fleet/hosts/identifier/"+fullHost.UUID, nil, http.StatusOK, &getByIdentifierResp)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/"+fullHost.UUID, nil, http.StatusOK, &getByIdentifierResp)
 	require.Equal(t, "00008030-AAA", *getByIdentifierResp.Host.UDID)
 
-	identifierJSON := s.getHostJSON("/api/latest/fleet/hosts/identifier/" + fullHost.UUID)
+	identifierJSON := s.getHostJSON("/api/latest/fleet/hosts/" + fullHost.UUID)
 	for _, key := range hostIOSVitalsJSONKeys {
 		assert.Contains(t, identifierJSON, key, "expected key %q in identifier response for fully populated iOS host", key)
 	}
@@ -1344,13 +1343,13 @@ func (s *integrationTestSuite) TestGetHostAndroidVitals() {
 	assert.Equal(t, "ACTIVE", hostJSON["encryption_type"])
 	assert.Equal(t, "POTENTIALLY_COMPROMISED", hostJSON["security_posture"])
 
-	// GET /hosts/identifier/:identifier funnels through the same datastore
+	// GET /hosts/:id with an identifier funnels through the same datastore
 	// loading path and must behave identically.
 	var getByIdentifierResp getHostResponse
-	s.DoJSON("GET", "/api/latest/fleet/hosts/identifier/"+fullHost.UUID, nil, http.StatusOK, &getByIdentifierResp)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/"+fullHost.UUID, nil, http.StatusOK, &getByIdentifierResp)
 	require.Equal(t, "Google", *getByIdentifierResp.Host.Manufacturer)
 
-	identifierJSON := s.getHostJSON("/api/latest/fleet/hosts/identifier/" + fullHost.UUID)
+	identifierJSON := s.getHostJSON("/api/latest/fleet/hosts/" + fullHost.UUID)
 	for _, key := range hostAndroidVitalsJSONKeys {
 		assert.Contains(t, identifierJSON, key, "expected key %q in identifier response for fully populated Android host", key)
 	}
@@ -2608,7 +2607,7 @@ func (s *integrationTestSuite) TestHostsMDMPersonalEnrollmentFilters() {
 		require.Equal(t, wantStatus[h.ID], *hostResp.Host.MDM.EnrollmentStatus)
 
 		hostResp = getHostResponse{}
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", h.UUID), nil, http.StatusOK, &hostResp)
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", h.UUID), nil, http.StatusOK, &hostResp)
 		require.Equal(t, wantStatus[h.ID], *hostResp.Host.MDM.EnrollmentStatus)
 
 		if h.Platform == "ios" {

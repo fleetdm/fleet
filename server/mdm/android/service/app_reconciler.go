@@ -28,7 +28,8 @@ type androidAppList struct {
 	installsToUpsert             []fleet.HostAndroidSoftwareInstall
 	installsToRemove             []fleet.HostAndroidSoftwareInstall
 	setupAppIDsWithChangedConfig []string
-	retriesFailedRequest         bool
+	// set when the list is sent only to retry a failed request
+	isFailedRequestRetry bool
 }
 
 func (r *profileReconciler) buildAppListsToSend(
@@ -123,6 +124,7 @@ func (r *profileReconciler) prepareHostAppList(
 
 	var err error
 	var needsSend bool
+	var needsRemoval bool
 	var needsRetry bool
 	var lastFailedAt time.Time
 	var installsToRemove []fleet.HostAndroidSoftwareInstall
@@ -140,7 +142,7 @@ func (r *profileReconciler) prepareHostAppList(
 		installsToRemove = append(installsToRemove, *install)
 		// Send the removal in this run, unless its last request failed and the retry below will send it
 		if install.Status != fleet.AndroidSoftwareInstallStatusRequestFailed {
-			needsSend = true
+			needsRemoval = true
 		}
 	}
 	var installsWithNewVersion []fleet.HostAndroidSoftwareInstall
@@ -197,7 +199,7 @@ func (r *profileReconciler) prepareHostAppList(
 		}
 	}
 
-	var retriesFailedRequest bool
+	var isFailedRequestRetry bool
 	// Retry a failed request after 1 hour, like the App Store app configuration reconciler
 	if !needsSend && needsRetry && time.Since(lastFailedAt) >= fleet.VPPAutomaticInstallWaitSeconds*time.Second {
 		var retries int
@@ -211,11 +213,14 @@ func (r *profileReconciler) prepareHostAppList(
 		// Retry at most twice until the count expires
 		if retries < fleet.MaxVPPAutomaticInstallRetries {
 			needsSend = true
-			retriesFailedRequest = true
+			isFailedRequestRetry = true
 		}
 	}
 	if !needsSend {
 		r.appInstallsToUpsert = append(r.appInstallsToUpsert, installsWithNewVersion...)
+		if needsRemoval {
+			return &androidAppList{host: host, installsToRemove: installsToRemove}, nil
+		}
 		return nil, nil
 	}
 
@@ -286,13 +291,18 @@ func (r *profileReconciler) prepareHostAppList(
 		}
 	}
 
+	// Add the removed apps back to the patch, so the removal sent after it will uninstall them
+	for _, install := range installsToRemove {
+		appPolicies = append(appPolicies, &androidmanagement.ApplicationPolicy{PackageName: install.AdamID, InstallType: install.InstallType})
+	}
+
 	return &androidAppList{
 		host:                         host,
 		applicationsWithoutAgent:     append(appPolicies, preinstalledAppPolicies...),
 		installsToUpsert:             installsToUpsert,
 		installsToRemove:             installsToRemove,
 		setupAppIDsWithChangedConfig: setupAppIDsWithChangedConfig,
-		retriesFailedRequest:         retriesFailedRequest,
+		isFailedRequestRetry:         isFailedRequestRetry,
 	}, nil
 }
 
@@ -305,19 +315,27 @@ func (r *profileReconciler) sendHostApps(ctx context.Context, appListsByHostUUID
 			return nil
 		}
 
+		hostUUID := appList.host.UUID
+		policyName := fmt.Sprintf("%s/policies/%s", r.Enterprise.Name(), hostUUID)
+		if len(appList.installsToUpsert) == 0 {
+			err := r.removeAppsAndRecordAppListRequest(ctx, appList, &android.MDMAndroidPolicyRequest{RequestName: policyName, PolicyID: hostUUID}, true)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
 		applications, err := r.buildApplicationsWithAgent(ctx, appList)
 		if err != nil {
 			r.Logger.ErrorContext(ctx, "failed to build android app list for host", "host_id", appList.host.ID, "err", err)
 			continue
 		}
-		hostUUID := appList.host.UUID
-		policyName := fmt.Sprintf("%s/policies/%s", r.Enterprise.Name(), hostUUID)
 		policy := &androidmanagement.Policy{Applications: applications}
 		policyReq, skip, err := r.patchPolicy(ctx, hostUUID, policyName, policy, nil, androidmgmt.PoliciesPatchOpts{OnlyUpdateApps: true})
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "patch app list for host %s", hostUUID)
 		}
-		err = r.recordAppListRequest(ctx, appList, policyReq, skip)
+		err = r.removeAppsAndRecordAppListRequest(ctx, appList, policyReq, skip)
 		if err != nil {
 			return err
 		}
@@ -348,13 +366,46 @@ func (r *profileReconciler) buildApplicationsWithAgent(
 	return applications, nil
 }
 
-func (r *profileReconciler) recordAppListRequest(
+func (r *profileReconciler) removeAppsAndRecordAppListRequest(
 	ctx context.Context,
 	appList *androidAppList,
 	policyRequest *android.MDMAndroidPolicyRequest,
 	skip bool,
 ) error {
 	host := appList.host
+
+	if (skip || policyRequest.StatusCode == http.StatusOK) && len(appList.installsToRemove) > 0 {
+		policyName := policyRequest.RequestName
+		removedPackageNames := make([]string, 0, len(appList.installsToRemove))
+		for _, install := range appList.installsToRemove {
+			removedPackageNames = append(removedPackageNames, install.AdamID)
+		}
+
+		removeRequest, err := newAndroidPolicyRemoveApplicationsRequest(host.UUID, policyName, removedPackageNames)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare remove policy applications request")
+		}
+
+		removeResponse, removeErr := r.Client.EnterprisesPoliciesRemovePolicyApplications(ctx, policyName, removedPackageNames)
+		removeNotModified, err := recordAndroidRequestResult(ctx, r.DS, removeRequest, removeResponse, nil, removeErr)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "record remove policy applications request")
+		}
+
+		switch {
+		case removeRequest.StatusCode == http.StatusTooManyRequests:
+			r.appSendsStoppedByQuota = true
+			appList.installsToRemove = nil
+			appList.isFailedRequestRetry = false
+		case !removeNotModified && removeRequest.StatusCode != http.StatusOK:
+			// Set the removed apps to request failed instead of deleting them, so the retry will send their removal again
+			for _, install := range appList.installsToRemove {
+				install.Status = fleet.AndroidSoftwareInstallStatusRequestFailed
+				appList.installsToUpsert = append(appList.installsToUpsert, install)
+			}
+			appList.installsToRemove = nil
+		}
+	}
 
 	// Stop sending app lists on a quota error and don't save this list, so the
 	// next run will send it again without waiting to retry
@@ -364,7 +415,7 @@ func (r *profileReconciler) recordAppListRequest(
 	}
 
 	// Count a retry only once its request is sent, because the batch size can delay the host to the next run
-	if appList.retriesFailedRequest && r.RetryCounter != nil {
+	if appList.isFailedRequestRetry && r.RetryCounter != nil {
 		_, err := r.RetryCounter.RecordAttempt(ctx, host.ID, 0, fleet.VPPAutomaticInstallRetryTimeout)
 		if err != nil {
 			r.Logger.ErrorContext(ctx, "failed to record android app list retry", "host_id", host.ID, "err", err)

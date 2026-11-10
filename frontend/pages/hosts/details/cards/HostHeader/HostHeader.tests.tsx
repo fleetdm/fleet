@@ -378,6 +378,64 @@ describe("HostHeader", () => {
       ).not.toBeInTheDocument();
     });
 
+    describe("host not fetched yet", () => {
+      const NEVER_FETCHED = "2000-01-01T00:00:00Z";
+      const neverFetchedSummary = {
+        ...defaultSummaryData,
+        detail_updated_at: NEVER_FETCHED,
+        policy_updated_at: NEVER_FETCHED,
+      };
+
+      it("shows the last MDM check-in instead, with 'never' as last fetched in the tooltip", async () => {
+        const { user } = renderWithSetup(
+          <HostHeader
+            summaryData={{
+              ...neverFetchedSummary,
+              last_mdm_checked_in_at: LAST_CHECK_IN,
+            }}
+            showRefetchSpinner={false}
+            onRefetchHost={jest.fn()}
+            renderActionsDropdown={renderActionDropdown}
+            hostMdmEnrollmentStatus="On (automatic)"
+          />
+        );
+
+        const subtitle = screen.getByText(/^Last MDM check-in .+ ago$/);
+        expect(screen.queryByText(/Last fetched/i)).not.toBeInTheDocument();
+
+        await user.hover(subtitle);
+
+        expect(await screen.findByText("Last fetched:")).toBeInTheDocument();
+        expect(screen.getByText("never")).toBeInTheDocument();
+        expect(screen.getByText("Last MDM check-in:")).toBeInTheDocument();
+        expect(
+          screen.getByText(internationalTimeFormat(new Date(LAST_CHECK_IN)))
+        ).toBeInTheDocument();
+        expect(
+          screen.queryByText(internationalTimeFormat(new Date(NEVER_FETCHED)))
+        ).not.toBeInTheDocument();
+      });
+
+      it("keeps 'Last fetched' without a placeholder-based time when the host has no MDM check-in", () => {
+        render(
+          <HostHeader
+            summaryData={{
+              ...neverFetchedSummary,
+              last_mdm_checked_in_at: DEFAULT_EMPTY_CELL_VALUE,
+            }}
+            showRefetchSpinner={false}
+            onRefetchHost={jest.fn()}
+            renderActionsDropdown={renderActionDropdown}
+            hostMdmEnrollmentStatus={null}
+          />
+        );
+
+        expect(screen.getByText(/Last fetched/i)).toBeInTheDocument();
+        expect(screen.queryByText(/Last MDM check-in/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/years ago/)).not.toBeInTheDocument();
+      });
+    });
+
     it("renders last fetched without a check-in tooltip when the platform reports no check-in field at all", async () => {
       // lodash `pick` drops the key entirely for platforms whose API response
       // omits it, so the header gets `undefined` rather than "---".

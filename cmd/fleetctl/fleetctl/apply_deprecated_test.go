@@ -310,7 +310,7 @@ spec:
       - %s
     macos_setup:
       macos_setup_assistant: %s
-    windows_enabled_and_configured: true
+    windows_mdm_enabled: true
 `, mobileConfigPath, emptySetupAsst))
 
 	// first apply with dry-run
@@ -860,7 +860,7 @@ spec:
 `
 		team1EnableReleaseSpec = team1Spec + `
         enable_release_device_manually: %s
-        require_all_software_macos: %s
+        macos_require_all_software: %s
 `
 		team1NoKeySpec = `
 apiVersion: v1
@@ -1033,7 +1033,7 @@ spec:
 		require.NoError(t, err)
 		expectedTm1Set := fmt.Sprintf(string(b), "", "")
 		expectedTm1SetReleaseAndRequireEnabled := strings.ReplaceAll(expectedTm1Set, `enable_release_device_manually: false`, `enable_release_device_manually: true`)
-		expectedTm1SetReleaseAndRequireEnabled = strings.ReplaceAll(expectedTm1SetReleaseAndRequireEnabled, `require_all_software_macos: false`, `require_all_software_macos: true`)
+		expectedTm1SetReleaseAndRequireEnabled = strings.ReplaceAll(expectedTm1SetReleaseAndRequireEnabled, `macos_require_all_software: false`, `macos_require_all_software: true`)
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1And2Empty.yml"))
 		require.NoError(t, err)
@@ -2573,7 +2573,7 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    windows_enabled_and_configured: true
+    windows_mdm_enabled: true
 `,
 			wantErr: `422 Validation Failed: Couldn't turn on Windows MDM. Please configure Fleet with a certificate and key pair first.`,
 		},

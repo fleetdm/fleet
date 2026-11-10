@@ -470,7 +470,7 @@ describe("DiskEncryption", () => {
     ],
     [
       "windows",
-      { windows_enabled_and_configured: false },
+      { windows_mdm_enabled: false },
       /You must turn on Windows MDM/,
       `${LEARN_MORE_ABOUT_BASE_LINK}/setup-windows-mdm`,
     ],
@@ -517,7 +517,7 @@ describe("DiskEncryption", () => {
       urlPlatformParam: "linux",
       mdm: {
         enabled_and_configured: false,
-        windows_enabled_and_configured: false,
+        windows_mdm_enabled: false,
       },
     });
     expect(await findEscrowCheckbox()).toHaveAttribute(
