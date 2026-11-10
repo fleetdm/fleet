@@ -19,6 +19,7 @@ module.exports = {
   fn: async function () {
 
     let integrationCategories = [
+      { slug: 'ai', name: 'AI', shortName: 'AI' },
       { slug: 'identity', name: 'Identity & access', shortName: 'Identity' },
       { slug: 'security', name: 'Security & logging', shortName: 'Security' },
       { slug: 'automation', name: 'Automation & alerts', shortName: 'Automation' },
@@ -31,10 +32,12 @@ module.exports = {
 
     // `logoType: 'icon'` logos are a square mark, so the page shows the name next to them.
     // `summary` is a short version of `description` for compact layouts.
-    let aiIntegrations = [
+    let integrations = [
+      // AI
       {
         slug: 'claude',
         name: 'Claude',
+        category: 'ai',
         logo: '/images/ai-demo/icon-claude-logo-16x16.svg',
         logoType: 'icon',
         summary: 'Write policies, reports, and configuration profiles with Claude Code, checked against Fleet’s schema.',
@@ -46,6 +49,7 @@ module.exports = {
       {
         slug: 'codex',
         name: 'Codex',
+        category: 'ai',
         logo: '/images/ai-demo/icon-codex-logo-16x16.svg',
         logoType: 'icon',
         summary: 'Codex reads AGENTS.md and the fleet-gitops skill to write changes and validate them before a pull request.',
@@ -57,6 +61,7 @@ module.exports = {
       {
         slug: 'gemini',
         name: 'Gemini',
+        category: 'ai',
         logo: '/images/app-icon-google-gemini-60x60@2x.png',
         logoType: 'icon',
         summary: 'Gemini CLI reads GEMINI.md and the fleet-gitops skill to write changes and validate them before a pull request.',
@@ -68,6 +73,7 @@ module.exports = {
       {
         slug: 'github-copilot',
         name: 'GitHub Copilot',
+        category: 'ai',
         logo: '/images/ai-demo/icon-github-copilot-logo-16x16.svg',
         logoType: 'icon',
         summary: 'Copilot discovers the fleet-gitops skill in your repository to write changes and validate them before a pull request.',
@@ -76,9 +82,7 @@ module.exports = {
         docsUrl: 'https://github.com/fleetdm/fleet/blob/main/cmd/fleetctl/fleetctl/templates/new/README.md',
         docsLabel: 'Docs',
       },
-    ];
 
-    let integrations = [
       // Identity & access
       {
         slug: 'okta',
@@ -461,7 +465,7 @@ module.exports = {
     ];
 
     // Respond with view.
-    return { integrationCategories, aiIntegrations, integrations, buildingBlocks };
+    return { integrationCategories, integrations, buildingBlocks };
 
   }
 

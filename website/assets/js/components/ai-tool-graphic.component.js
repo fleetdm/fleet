@@ -2,9 +2,7 @@
  * <ai-tool-graphic>
  * -----------------------------------------------------------------------------
  * Animated mockups of Slack, Claude Code, Cursor, GitHub Copilot, and Codex
- * working with Fleet, with buttons to switch between them. Pages that also
- * want a Microsoft Teams mockup pass `include-teams`. The conversation and
- * the window controls follow `platform`, which defaults to macOS.
+ * working with Fleet, with buttons to switch between them.
  *
  * @type {Component}
  * -----------------------------------------------------------------------------
@@ -14,18 +12,14 @@ parasails.registerComponent('aiToolGraphic', {
   //  ╔═╗╦═╗╔═╗╔═╗╔═╗
   //  ╠═╝╠╦╝║ ║╠═╝╚═╗
   //  ╩  ╩╚═╚═╝╩  ╚═╝
-  props: [
-    'includeTeams',// Adds a Microsoft Teams mockup next to Slack. e.g., :include-teams="true"
-    'platform',// Which devices the conversation is about: 'macos' (default), 'windows', or 'linux'.
-    'initialTool',// The tool to show first, e.g., initial-tool="teams". Defaults to Slack.
-  ],
+  props: [],
 
   //  ╦╔╗╔╦╔╦╗╦╔═╗╦    ╔═╗╔╦╗╔═╗╔╦╗╔═╗
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: function() {
     return {
-      selectedAiTool: this.initialTool || 'slack',
+      selectedAiTool: 'slack',
       demoStep: 0,
       demoComposerText: '',
       demoScrollOffset: 0,
@@ -40,13 +34,6 @@ parasails.registerComponent('aiToolGraphic', {
       // Every timeline has the admin's "Yes", which lines them up when the visitor switches tools.
       demoTimelines: {
         slack: [
-          [null, 1200],
-          [2, 3000],
-          ['Yes', 400],
-          [3, 1600],
-          [4, 4500],
-        ],
-        teams: [
           [null, 1200],
           [2, 3000],
           ['Yes', 400],
@@ -115,60 +102,6 @@ parasails.registerComponent('aiToolGraphic', {
       },
       // Bumped to cancel a running animation when the visitor switches tools.
       demoRunId: 0,
-      // The parts of the conversation that depend on the platform. Every tool shows the same numbers.
-      demoContentByPlatform: {
-        macos: {
-          devicesInQuestion: 'Macs',
-          devicesInCount: 'Macs',
-          sessionTitle: 'CIS Level 2 for Macs',
-          gapsSentence: 'iCloud Drive sync, telemetry limits, and unneeded services',
-          gaps: [
-            { setting: 'iCloud Drive sync', failing: '1,406', fix: 'Restrictions profile' },
-            { setting: 'Telemetry limits', failing: '2,031', fix: 'Diagnostics profile' },
-            { setting: 'Unneeded services', failing: '1,872', fix: 'Sharing profile' },
-          ],
-          policiesPath: 'lib/macos/policies/',
-          remediations: 'profiles',
-          proposal: '3 new profiles and 38 policies',
-          localMachineName: 'This Mac',
-          windowControls: '/images/ai-demo/icon-macos-window-controls-47x11.svg',
-        },
-        windows: {
-          devicesInQuestion: 'Windows devices',
-          devicesInCount: 'Windows hosts',
-          sessionTitle: 'CIS Level 2 for Windows',
-          gapsSentence: 'Credential Guard, telemetry limits, and unneeded services',
-          gaps: [
-            { setting: 'Credential Guard', failing: '1,406', fix: 'Device Guard profile' },
-            { setting: 'Telemetry limits', failing: '2,031', fix: 'Telemetry profile' },
-            { setting: 'Unneeded services', failing: '1,872', fix: 'Services profile' },
-          ],
-          policiesPath: 'lib/windows/policies/',
-          remediations: 'profiles',
-          proposal: '3 new profiles and 38 policies',
-          localMachineName: 'This PC',
-          windowControls: '/images/ai-demo/icon-windows-window-controls-80x20.svg',
-          windowControlsOnRight: true,
-        },
-        // Fleet doesn't send configuration profiles to Linux, so the fixes are scripts.
-        linux: {
-          devicesInQuestion: 'Linux hosts',
-          devicesInCount: 'Linux hosts',
-          sessionTitle: 'CIS Level 2 for Linux',
-          gapsSentence: 'AppArmor enforcement, audit logging, and unneeded services',
-          gaps: [
-            { setting: 'AppArmor enforcement', failing: '1,406', fix: 'AppArmor script' },
-            { setting: 'Audit logging', failing: '2,031', fix: 'auditd script' },
-            { setting: 'Unneeded services', failing: '1,872', fix: 'Services script' },
-          ],
-          policiesPath: 'lib/linux/policies/',
-          remediations: 'scripts',
-          proposal: '3 new scripts and 38 policies',
-          localMachineName: 'This computer',
-          windowControls: '/images/ai-demo/icon-linux-window-controls-80x20.svg',
-          windowControlsOnRight: true,
-        },
-      },
     };
   },
 
@@ -176,18 +109,17 @@ parasails.registerComponent('aiToolGraphic', {
   //  ╠═╣ ║ ║║║║
   //  ╩ ╩ ╩ ╩ ╩╩═╝
   template: `
-  <div purpose="ai-tool-graphic" id="ai-tool-graphic-component" :class="{'right-window-controls': demoContent.windowControlsOnRight}">
+  <div purpose="ai-tool-graphic" id="ai-tool-graphic-component">
     <div purpose="ai-tool-switcher" role="group" aria-label="AI tool">
       <button type="button" purpose="ai-tool-button" :class="{selected: selectedAiTool === 'slack'}" :aria-pressed="selectedAiTool === 'slack' ? 'true' : 'false'" @click="clickSelectAiTool('slack')"><img alt="" src="/images/ai-demo/icon-slack-logo-16x16.svg">Slack</button>
-      <button type="button" purpose="ai-tool-button" v-if="includeTeams" :class="{selected: selectedAiTool === 'teams'}" :aria-pressed="selectedAiTool === 'teams' ? 'true' : 'false'" @click="clickSelectAiTool('teams')"><img alt="" src="/images/ai-demo/icon-teams-logo-16x16.svg">Teams</button>
       <button type="button" purpose="ai-tool-button" :class="{selected: selectedAiTool === 'claude'}" :aria-pressed="selectedAiTool === 'claude' ? 'true' : 'false'" @click="clickSelectAiTool('claude')"><img alt="" src="/images/ai-demo/icon-claude-logo-16x16.svg">Claude</button>
       <button type="button" purpose="ai-tool-button" :class="{selected: selectedAiTool === 'cursor'}" :aria-pressed="selectedAiTool === 'cursor' ? 'true' : 'false'" @click="clickSelectAiTool('cursor')"><img alt="" src="/images/ai-demo/icon-cursor-logo-16x16.svg">Cursor</button>
       <button type="button" purpose="ai-tool-button" :class="{selected: selectedAiTool === 'github-copilot'}" :aria-pressed="selectedAiTool === 'github-copilot' ? 'true' : 'false'" @click="clickSelectAiTool('github-copilot')"><img alt="" src="/images/ai-demo/icon-github-copilot-logo-16x16.svg">GitHub Copilot</button>
       <button type="button" purpose="ai-tool-button" :class="{selected: selectedAiTool === 'codex'}" :aria-pressed="selectedAiTool === 'codex' ? 'true' : 'false'" @click="clickSelectAiTool('codex')"><img alt="" src="/images/ai-demo/icon-codex-logo-16x16.svg">Codex</button>
     </div>
-    <div purpose="cursor-animation" role="img" :aria-label="'A Cursor agent connected to Fleet. An admin asks what it takes to meet CIS Level 2 on their ' + demoContent.devicesInQuestion + '. Cursor checks with Fleet and reports that 2,184 of 2,350 ' + demoContent.devicesInCount + ' pass Level 1, that Level 2 adds 38 settings, and that the biggest gaps are ' + demoContent.gapsSentence + ', then offers to propose changes to close those gaps. The admin says yes, and Cursor writes the changes and opens a pull request that proposes ' + demoContent.proposal + ' for their review.'" :class="{'reduced-motion': demoReducedMotion}" v-if="selectedAiTool === 'cursor'">
+    <div purpose="cursor-animation" role="img" aria-label="A Cursor agent connected to Fleet. An admin asks what it takes to meet CIS Level 2 on their Macs. Cursor checks with Fleet and reports that 2,184 of 2,350 Macs pass Level 1, that Level 2 adds 38 settings, and that the biggest gaps are iCloud Drive sync, telemetry limits, and unneeded services, then offers to propose changes to close those gaps. The admin says yes, and Cursor writes the changes and opens a pull request that proposes 3 new profiles and 38 policies for their review." :class="{'reduced-motion': demoReducedMotion}" v-if="selectedAiTool === 'cursor'">
       <div purpose="cursor-window" aria-hidden="true">
-        <img purpose="ai-demo-window-controls" alt="" :src="demoContent.windowControls">
+        <img purpose="ai-demo-window-controls" alt="" src="/images/ai-demo/icon-macos-window-controls-47x11.svg">
         <div purpose="cursor-sidebar">
           <div purpose="cursor-window-controls">
             <img alt="" src="/images/ai-demo/icon-cursor-panel-left-15x15.svg">
@@ -204,7 +136,7 @@ parasails.registerComponent('aiToolGraphic', {
             <img alt="" src="/images/ai-demo/icon-cursor-folder-plus-14x14.svg">
           </div>
           <div purpose="cursor-sidebar-item"><img alt="" src="/images/ai-demo/icon-cursor-folder-14x14.svg"><span purpose="cursor-repo-name">fleet-gitops</span></div>
-          <div purpose="cursor-sidebar-item" class="selected"><img alt="" src="/images/ai-demo/icon-cursor-dot-14x14.svg"><span purpose="cursor-session-name">{{demoContent.sessionTitle}}</span></div>
+          <div purpose="cursor-sidebar-item" class="selected"><img alt="" src="/images/ai-demo/icon-cursor-dot-14x14.svg"><span purpose="cursor-session-name">CIS Level 2 for Macs</span></div>
           <div purpose="cursor-sidebar-item"><img alt="" src="/images/ai-demo/icon-cursor-dot-14x14.svg"><span purpose="cursor-placeholder-bar"></span></div>
           <div purpose="cursor-sidebar-item"><img alt="" src="/images/ai-demo/icon-cursor-dot-14x14.svg"><span purpose="cursor-placeholder-bar"></span></div>
           <div purpose="cursor-sidebar-item"><img alt="" src="/images/ai-demo/icon-cursor-dot-14x14.svg"><span purpose="cursor-placeholder-bar"></span></div>
@@ -216,7 +148,7 @@ parasails.registerComponent('aiToolGraphic', {
         </div>
         <div purpose="cursor-content">
           <div purpose="cursor-header">
-            <span purpose="cursor-tab">{{demoContent.sessionTitle}}</span>
+            <span purpose="cursor-tab">CIS Level 2 for Macs</span>
             <img purpose="cursor-ellipsis" alt="" src="/images/ai-demo/icon-cursor-ellipsis-16x16.svg">
             <img alt="" src="/images/ai-demo/icon-cursor-panel-right-15x15.svg">
           </div>
@@ -224,21 +156,23 @@ parasails.registerComponent('aiToolGraphic', {
             <div purpose="cursor-main">
               <div purpose="cursor-conversation" ref="demoConversation">
                 <div purpose="cursor-thread" ref="demoThread" :class="{resetting: demoResetting, 'fading-out': demoFadingOut}" :style="{transform: 'translateY(-' + demoScrollOffset + 'px)'}">
-                  <div purpose="cursor-card"><p>What do we need for CIS Level 2 on our {{demoContent.devicesInQuestion}}?</p><img alt="" src="/images/ai-demo/icon-cursor-undo-14x14.svg"></div>
+                  <div purpose="cursor-card"><p>What do we need for CIS Level 2 on our Macs?</p><img alt="" src="/images/ai-demo/icon-cursor-undo-14x14.svg"></div>
                   <div purpose="cursor-steps" v-show="demoStep >= 2">
                     <p purpose="cursor-step"><span>Called</span>&nbsp; fleet.get_policy_results · 2,350 hosts</p>
                     <p purpose="cursor-step" v-show="demoStep >= 3"><span>Called</span>&nbsp; fleet.get_cis_benchmark · 38 settings</p>
                   </div>
-                  <p v-show="demoStep >= 4"><strong>2,184 of 2,350</strong> {{demoContent.devicesInCount}} pass Level 1. Level 2 adds <strong>38</strong> settings. The biggest gaps are:</p>
+                  <p v-show="demoStep >= 4"><strong>2,184 of 2,350</strong> Macs pass Level 1. Level 2 adds <strong>38</strong> settings. The biggest gaps are:</p>
                   <div purpose="cursor-table" v-show="demoStep >= 5">
                     <div purpose="cursor-table-header"><span>Setting</span><span>Failing</span><span>Fix</span></div>
-                    <div purpose="cursor-table-row" v-for="gap in demoContent.gaps" :key="gap.setting"><span>{{gap.setting}}</span><span>{{gap.failing}}</span><span>{{gap.fix}}</span></div>
+                    <div purpose="cursor-table-row"><span>iCloud Drive sync</span><span>1,406</span><span>Restrictions profile</span></div>
+                    <div purpose="cursor-table-row"><span>Telemetry limits</span><span>2,031</span><span>Diagnostics profile</span></div>
+                    <div purpose="cursor-table-row"><span>Unneeded services</span><span>1,872</span><span>Sharing profile</span></div>
                   </div>
                   <p v-show="demoStep >= 6">Want me to propose changes that close those gaps?</p>
                   <div purpose="cursor-card" v-show="demoStep >= 7"><p>Yes</p><img alt="" src="/images/ai-demo/icon-cursor-undo-14x14.svg"></div>
                   <div purpose="cursor-file-card" v-show="demoStep >= 8">
                     <img alt="" src="/images/ai-demo/icon-cursor-file-diff-15x15.svg">
-                    <span purpose="cursor-file-path">{{demoContent.policiesPath}}cis-level-2.yml</span>
+                    <span purpose="cursor-file-path">lib/macos/policies/cis-level-2.yml</span>
                     <span purpose="cursor-added">+412</span>
                     <span purpose="cursor-removed">-0</span>
                   </div>
@@ -249,7 +183,7 @@ parasails.registerComponent('aiToolGraphic', {
                     <span purpose="cursor-removed">-0</span>
                   </div>
                   <p purpose="cursor-step" v-show="demoStep >= 10"><span>Ran</span>&nbsp; gh pr create --base main</p>
-                  <p v-show="demoStep >= 11">Done. I’ve proposed {{demoContent.proposal}} <span purpose="cursor-link">for your review</span>.</p>
+                  <p v-show="demoStep >= 11">Done. I’ve proposed 3 new profiles and 38 policies <span purpose="cursor-link">for your review</span>.</p>
                   <div purpose="cursor-feedback" v-show="demoStep >= 11">
                     <img alt="" src="/images/ai-demo/icon-cursor-thumbs-up-13x13.svg">
                     <img alt="" src="/images/ai-demo/icon-cursor-thumbs-down-13x13.svg">
@@ -270,7 +204,7 @@ parasails.registerComponent('aiToolGraphic', {
                 </div>
                 <div purpose="cursor-environment">
                   <img alt="" src="/images/ai-demo/icon-cursor-laptop-13x13.svg">
-                  <span>{{demoContent.localMachineName}}</span>
+                  <span>This Mac</span>
                   <img alt="" src="/images/ai-demo/icon-cursor-chevron-down-12x12.svg">
                   <img purpose="cursor-context" alt="" src="/images/ai-demo/icon-cursor-context-12x12.svg">
                 </div>
@@ -280,9 +214,9 @@ parasails.registerComponent('aiToolGraphic', {
         </div>
       </div>
     </div>
-    <div purpose="copilot-animation" role="img" :aria-label="'A GitHub Copilot session connected to Fleet. An admin asks what it takes to meet CIS Level 2 on their ' + demoContent.devicesInQuestion + '. Copilot checks with Fleet and reports that 2,184 of 2,350 ' + demoContent.devicesInCount + ' pass Level 1, that Level 2 adds 38 settings, and that the biggest gaps are ' + demoContent.gapsSentence + ', then offers to propose changes to close those gaps. The admin says yes, and Copilot commits the changes and opens a pull request that proposes ' + demoContent.proposal + ' for their review.'" :class="{'reduced-motion': demoReducedMotion}" v-else-if="selectedAiTool === 'github-copilot'">
+    <div purpose="copilot-animation" role="img" aria-label="A GitHub Copilot session connected to Fleet. An admin asks what it takes to meet CIS Level 2 on their Macs. Copilot checks with Fleet and reports that 2,184 of 2,350 Macs pass Level 1, that Level 2 adds 38 settings, and that the biggest gaps are iCloud Drive sync, telemetry limits, and unneeded services, then offers to propose changes to close those gaps. The admin says yes, and Copilot commits the changes and opens a pull request that proposes 3 new profiles and 38 policies for their review." :class="{'reduced-motion': demoReducedMotion}" v-else-if="selectedAiTool === 'github-copilot'">
       <div purpose="copilot-window" aria-hidden="true">
-        <img purpose="ai-demo-window-controls" alt="" :src="demoContent.windowControls">
+        <img purpose="ai-demo-window-controls" alt="" src="/images/ai-demo/icon-macos-window-controls-47x11.svg">
         <div purpose="copilot-sidebar">
           <div purpose="copilot-title-bar">
             <img alt="" src="/images/ai-demo/icon-github-copilot-panel-left-16x16.svg">
@@ -300,7 +234,7 @@ parasails.registerComponent('aiToolGraphic', {
           </div>
           <div purpose="copilot-nav-item"><img alt="" src="/images/ai-demo/icon-github-copilot-message-square-16x16.svg"><span purpose="copilot-placeholder-bar"></span></div>
           <div purpose="copilot-nav-item"><img alt="" src="/images/ai-demo/icon-github-copilot-folder-16x16.svg"><span purpose="copilot-repo-name">fleet-gitops</span></div>
-          <div purpose="copilot-nav-item" class="nested selected"><span purpose="copilot-session-name">{{demoContent.sessionTitle}}</span></div>
+          <div purpose="copilot-nav-item" class="nested selected"><span purpose="copilot-session-name">CIS Level 2 for Macs</span></div>
           <div purpose="copilot-nav-item" class="nested"><span purpose="copilot-placeholder-bar"></span></div>
           <div purpose="copilot-nav-item" class="nested"><span purpose="copilot-placeholder-bar"></span></div>
           <div purpose="copilot-nav-item" class="nested"><span purpose="copilot-placeholder-bar"></span></div>
@@ -311,35 +245,37 @@ parasails.registerComponent('aiToolGraphic', {
         </div>
         <div purpose="copilot-main">
           <div purpose="copilot-header">
-            <span purpose="copilot-session-title">{{demoContent.sessionTitle}}</span>
+            <span purpose="copilot-session-title">CIS Level 2 for Macs</span>
             <span purpose="copilot-run-button"><span><img alt="" src="/images/ai-demo/icon-github-copilot-play-14x14.svg"></span><span><img alt="" src="/images/ai-demo/icon-github-copilot-chevron-down-14x14.svg"></span></span>
             <img purpose="copilot-panel-icon" alt="" src="/images/ai-demo/icon-github-copilot-panel-right-18x18.svg">
           </div>
           <div purpose="copilot-conversation" ref="demoConversation">
             <div purpose="copilot-thread" ref="demoThread" :class="{resetting: demoResetting, 'fading-out': demoFadingOut}" :style="{transform: 'translateY(-' + demoScrollOffset + 'px)'}">
-              <div purpose="copilot-bubble"><p>What do we need for CIS Level 2 on our {{demoContent.devicesInQuestion}}?</p></div>
+              <div purpose="copilot-bubble"><p>What do we need for CIS Level 2 on our Macs?</p></div>
               <div purpose="copilot-activity-group" v-show="demoStep >= 2">
                 <div purpose="copilot-activity"><img alt="" src="/images/ai-demo/icon-github-copilot-terminal-16x16.svg"><span>Get policy results</span><code>CIS Level 1</code><span purpose="copilot-activity-meta">· 2,350 hosts</span></div>
                 <div purpose="copilot-activity" v-show="demoStep >= 3"><img alt="" src="/images/ai-demo/icon-github-copilot-terminal-16x16.svg"><span>Compare benchmark</span><code>CIS Level 2</code><span purpose="copilot-activity-meta">· 38 settings</span></div>
               </div>
-              <p v-show="demoStep >= 4"><strong>2,184 of 2,350</strong> {{demoContent.devicesInCount}} pass Level 1. Level 2 adds <strong>38</strong> settings. The biggest gaps are:</p>
+              <p v-show="demoStep >= 4"><strong>2,184 of 2,350</strong> Macs pass Level 1. Level 2 adds <strong>38</strong> settings. The biggest gaps are:</p>
               <div purpose="copilot-table" v-show="demoStep >= 5">
                 <div purpose="copilot-table-header"><span>Setting</span><span>Failing</span><span>Fix</span></div>
-                <div purpose="copilot-table-row" v-for="gap in demoContent.gaps" :key="gap.setting"><span>{{gap.setting}}</span><span>{{gap.failing}}</span><span>{{gap.fix}}</span></div>
+                <div purpose="copilot-table-row"><span>iCloud Drive sync</span><span>1,406</span><span>Restrictions profile</span></div>
+                <div purpose="copilot-table-row"><span>Telemetry limits</span><span>2,031</span><span>Diagnostics profile</span></div>
+                <div purpose="copilot-table-row"><span>Unneeded services</span><span>1,872</span><span>Sharing profile</span></div>
               </div>
               <p v-show="demoStep >= 6">Want me to propose changes that close those gaps?</p>
               <div purpose="copilot-bubble" v-show="demoStep >= 7"><p>Yes</p></div>
               <div purpose="copilot-activity-group" v-show="demoStep >= 8">
-                <div purpose="copilot-activity"><img alt="" src="/images/ai-demo/icon-github-copilot-file-diff-16x16.svg"><span>Create</span><span>{{demoContent.policiesPath}}cis-level-2.yml</span><span purpose="copilot-added">+412</span><span purpose="copilot-removed">-0</span></div>
+                <div purpose="copilot-activity"><img alt="" src="/images/ai-demo/icon-github-copilot-file-diff-16x16.svg"><span>Create</span><span>lib/macos/policies/cis-level-2.yml</span><span purpose="copilot-added">+412</span><span purpose="copilot-removed">-0</span></div>
                 <div purpose="copilot-activity" v-show="demoStep >= 9"><img alt="" src="/images/ai-demo/icon-github-copilot-file-diff-16x16.svg"><span>Edit</span><span>fleets/workstations.yml</span><span purpose="copilot-added">+9</span><span purpose="copilot-removed">-0</span></div>
-                <div purpose="copilot-activity" v-show="demoStep >= 10"><img alt="" src="/images/ai-demo/icon-github-copilot-terminal-16x16.svg"><span>Commit changes</span><code>git commit -m "Add CIS Level 2 {{demoContent.remediations}} and policies"</code><span purpose="copilot-activity-meta">· 2 files</span></div>
+                <div purpose="copilot-activity" v-show="demoStep >= 10"><img alt="" src="/images/ai-demo/icon-github-copilot-terminal-16x16.svg"><span>Commit changes</span><code>git commit -m "Add CIS Level 2 profiles and policies"</code><span purpose="copilot-activity-meta">· 2 files</span></div>
                 <div purpose="copilot-activity" v-show="demoStep >= 11"><img alt="" src="/images/ai-demo/icon-github-copilot-terminal-16x16.svg"><span>Push branch</span><code>git push -u origin HEAD</code></div>
               </div>
               <div purpose="copilot-pull-request" v-show="demoStep >= 12">
                 <div purpose="copilot-pull-request-title"><img alt="" src="/images/ai-demo/icon-github-copilot-pull-request-green-16x16.svg"><span>Pull request created</span><span purpose="copilot-added">+421</span><span purpose="copilot-removed">-0</span></div>
                 <span purpose="copilot-pull-request-branches">cis-level-2 → origin/main</span>
               </div>
-              <p v-show="demoStep >= 13">Done. I’ve proposed {{demoContent.proposal}} <span purpose="copilot-link">for your review</span>.</p>
+              <p v-show="demoStep >= 13">Done. I’ve proposed 3 new profiles and 38 policies <span purpose="copilot-link">for your review</span>.</p>
             </div>
           </div>
           <div purpose="copilot-composer">
@@ -357,16 +293,16 @@ parasails.registerComponent('aiToolGraphic', {
         </div>
       </div>
     </div>
-    <div purpose="codex-animation" role="img" :aria-label="'A Codex session connected to Fleet. An admin asks what it takes to meet CIS Level 2 on their ' + demoContent.devicesInQuestion + '. Codex checks with Fleet and reports that 2,184 of 2,350 ' + demoContent.devicesInCount + ' pass Level 1, that Level 2 adds 38 settings, and that the biggest gaps are ' + demoContent.gapsSentence + ', then offers to propose changes to close those gaps. The admin says yes, and Codex edits the files and opens a pull request that proposes ' + demoContent.proposal + ' for their review.'" :class="{'reduced-motion': demoReducedMotion}" v-else-if="selectedAiTool === 'codex'">
+    <div purpose="codex-animation" role="img" aria-label="A Codex session connected to Fleet. An admin asks what it takes to meet CIS Level 2 on their Macs. Codex checks with Fleet and reports that 2,184 of 2,350 Macs pass Level 1, that Level 2 adds 38 settings, and that the biggest gaps are iCloud Drive sync, telemetry limits, and unneeded services, then offers to propose changes to close those gaps. The admin says yes, and Codex edits the files and opens a pull request that proposes 3 new profiles and 38 policies for their review." :class="{'reduced-motion': demoReducedMotion}" v-else-if="selectedAiTool === 'codex'">
       <div purpose="codex-window" aria-hidden="true">
-        <img purpose="ai-demo-window-controls" alt="" :src="demoContent.windowControls">
+        <img purpose="ai-demo-window-controls" alt="" src="/images/ai-demo/icon-macos-window-controls-47x11.svg">
         <div purpose="codex-title-bar">
           <div purpose="codex-window-controls">
             <img alt="" src="/images/ai-demo/icon-codex-arrow-left-15x15.svg">
             <img alt="" src="/images/ai-demo/icon-codex-arrow-right-disabled-15x15.svg">
             <img alt="" src="/images/ai-demo/icon-codex-panel-left-15x15.svg">
           </div>
-          <span purpose="codex-window-title">{{demoContent.sessionTitle}}</span>
+          <span purpose="codex-window-title">CIS Level 2 for Macs</span>
           <div purpose="codex-window-actions">
             <img purpose="codex-ellipsis" alt="" src="/images/ai-demo/icon-codex-ellipsis-16x16.svg">
             <img alt="" src="/images/ai-demo/icon-codex-list-checks-15x15.svg">
@@ -397,7 +333,7 @@ parasails.registerComponent('aiToolGraphic', {
               <span purpose="codex-sidebar-label">Projects</span>
               <div purpose="codex-sidebar-item"><img alt="" src="/images/ai-demo/icon-codex-folder-15x15.svg"><span>fleet-gitops</span></div>
               <span purpose="codex-sidebar-label">Recents</span>
-              <div purpose="codex-sidebar-item" class="selected"><span purpose="codex-session-name">{{demoContent.sessionTitle}}</span></div>
+              <div purpose="codex-sidebar-item" class="selected"><span purpose="codex-session-name">CIS Level 2 for Macs</span></div>
               <div purpose="codex-sidebar-item"><span purpose="codex-placeholder-bar" style="width: 99em;"></span></div>
               <div purpose="codex-sidebar-item"><span purpose="codex-placeholder-bar" style="width: 119em;"></span></div>
               <div purpose="codex-sidebar-item"><span purpose="codex-placeholder-bar" style="width: 86em;"></span></div>
@@ -407,16 +343,18 @@ parasails.registerComponent('aiToolGraphic', {
             <div purpose="codex-main">
               <div purpose="codex-conversation" ref="demoConversation">
                 <div purpose="codex-thread" ref="demoThread" :class="{resetting: demoResetting, 'fading-out': demoFadingOut}" :style="{transform: 'translateY(-' + demoScrollOffset + 'px)'}">
-                  <div purpose="codex-bubble"><p>What do we need for CIS Level 2 on our {{demoContent.devicesInQuestion}}?</p></div>
+                  <div purpose="codex-bubble"><p>What do we need for CIS Level 2 on our Macs?</p></div>
                   <div purpose="codex-work" v-show="demoStep >= 2">
                     <div purpose="codex-worked-for"><span>Worked for 14s</span><img alt="" src="/images/ai-demo/icon-codex-chevron-right-14x14.svg"></div>
                     <p purpose="codex-call">Called <code>fleet.get_policy_results</code>&nbsp; · 2,350 hosts</p>
                     <p purpose="codex-call" v-show="demoStep >= 3">Called <code>fleet.get_cis_benchmark</code>&nbsp; · 38 settings</p>
                   </div>
-                  <p v-show="demoStep >= 4"><strong>2,184 of 2,350</strong> {{demoContent.devicesInCount}} pass Level 1. Level 2 adds <strong>38</strong> settings. The biggest gaps are:</p>
+                  <p v-show="demoStep >= 4"><strong>2,184 of 2,350</strong> Macs pass Level 1. Level 2 adds <strong>38</strong> settings. The biggest gaps are:</p>
                   <div purpose="codex-table" v-show="demoStep >= 5">
                     <div purpose="codex-table-header"><span>Setting</span><span>Failing</span><span>Fix</span></div>
-                    <div purpose="codex-table-row" v-for="gap in demoContent.gaps" :key="gap.setting"><span>{{gap.setting}}</span><span>{{gap.failing}}</span><span>{{gap.fix}}</span></div>
+                    <div purpose="codex-table-row"><span>iCloud Drive sync</span><span>1,406</span><span>Restrictions profile</span></div>
+                    <div purpose="codex-table-row"><span>Telemetry limits</span><span>2,031</span><span>Diagnostics profile</span></div>
+                    <div purpose="codex-table-row"><span>Unneeded services</span><span>1,872</span><span>Sharing profile</span></div>
                   </div>
                   <p v-show="demoStep >= 6">Want me to propose changes that close those gaps?</p>
                   <div purpose="codex-bubble" v-show="demoStep >= 7"><p>Yes</p></div>
@@ -430,11 +368,11 @@ parasails.registerComponent('aiToolGraphic', {
                       </div>
                       <span purpose="codex-review-button">Review</span>
                     </div>
-                    <div purpose="codex-edited-file"><span><span purpose="codex-path">{{demoContent.policiesPath}}</span>cis-level-2.yml</span><span><span purpose="codex-added">+412</span> <span purpose="codex-removed">−0</span></span></div>
+                    <div purpose="codex-edited-file"><span><span purpose="codex-path">lib/macos/policies/</span>cis-level-2.yml</span><span><span purpose="codex-added">+412</span> <span purpose="codex-removed">−0</span></span></div>
                     <div purpose="codex-edited-file"><span><span purpose="codex-path">fleets/</span>workstations.yml</span><span><span purpose="codex-added">+9</span> <span purpose="codex-removed">−0</span></span></div>
                   </div>
                   <div purpose="codex-pull-request" v-show="demoStep >= 10"><img alt="" src="/images/ai-demo/icon-codex-pull-request-14x14.svg"><span>Opened pull request</span><code>cis-level-2 → main</code></div>
-                  <p v-show="demoStep >= 11">Done. I’ve proposed {{demoContent.proposal}} <span purpose="codex-link">for your review</span>.</p>
+                  <p v-show="demoStep >= 11">Done. I’ve proposed 3 new profiles and 38 policies <span purpose="codex-link">for your review</span>.</p>
                 </div>
               </div>
               <div purpose="codex-composer">
@@ -455,73 +393,9 @@ parasails.registerComponent('aiToolGraphic', {
         </div>
       </div>
     </div>
-    <div purpose="teams-animation" role="img" :aria-label="'A Microsoft Teams chat with Fleet. An admin asks what it takes to meet CIS Level 2 on their ' + demoContent.devicesInQuestion + '. Fleet reports that 2,184 of 2,350 ' + demoContent.devicesInCount + ' pass Level 1, that Level 2 adds 38 settings, and that the biggest gaps are ' + demoContent.gapsSentence + ', then offers to propose changes to close those gaps. The admin says yes, and Fleet proposes ' + demoContent.proposal + ' for their review.'" :class="{'reduced-motion': demoReducedMotion}" v-else-if="selectedAiTool === 'teams'">
-      <div purpose="teams-window" aria-hidden="true">
-        <img purpose="ai-demo-window-controls" alt="" :src="demoContent.windowControls">
-        <div purpose="teams-title-bar">
-          <img alt="" src="/images/ai-demo/icon-teams-back-16x16.svg">
-          <img alt="" src="/images/ai-demo/icon-teams-forward-16x16.svg">
-          <span purpose="teams-search"><img alt="" src="/images/ai-demo/icon-teams-search-16x16.svg"><span>Search</span></span>
-          <img purpose="teams-profile" alt="" src="/images/ai-demo/avatar-slack-mike-32x32@2x.png">
-        </div>
-        <div purpose="teams-body">
-          <div purpose="teams-rail">
-            <span purpose="teams-rail-item"><img alt="" src="/images/ai-demo/icon-teams-activity-20x20.svg"></span>
-            <span purpose="teams-rail-item" class="selected"><img alt="" src="/images/ai-demo/icon-teams-chat-selected-20x20.svg"></span>
-            <span purpose="teams-rail-item"><img alt="" src="/images/ai-demo/icon-teams-calendar-20x20.svg"></span>
-            <span purpose="teams-rail-item"><img alt="" src="/images/ai-demo/icon-teams-calls-20x20.svg"></span>
-            <span purpose="teams-rail-item"><img alt="" src="/images/ai-demo/icon-teams-files-20x20.svg"></span>
-            <span purpose="teams-rail-item"><img alt="" src="/images/ai-demo/icon-teams-more-20x20.svg"></span>
-            <span purpose="teams-rail-item"><img alt="" src="/images/ai-demo/icon-teams-apps-20x20.svg"></span>
-          </div>
-          <div purpose="teams-chat-list">
-            <div purpose="teams-chat-list-header">
-              <span>Chat</span>
-              <img alt="" src="/images/ai-demo/icon-teams-filter-16x16.svg">
-              <img alt="" src="/images/ai-demo/icon-teams-compose-16x16.svg">
-            </div>
-            <div purpose="teams-chat-list-item"><img alt="" src="/images/ai-demo/avatar-slack-allen-28x28@2x.png"><span purpose="teams-placeholder-bar"></span></div>
-            <div purpose="teams-chat-list-item" class="selected"><img alt="" src="/images/icon-fleet-avatar-28x28.svg"><span purpose="teams-chat-list-name">Fleet</span></div>
-            <div purpose="teams-chat-list-item"><img alt="" src="/images/ai-demo/avatar-slack-zay-28x28@2x.png"><span purpose="teams-placeholder-bar"></span></div>
-            <div purpose="teams-chat-list-item"><img alt="" src="/images/ai-demo/avatar-slack-mike-m-28x28@2x.png"><span purpose="teams-placeholder-bar"></span></div>
-          </div>
-          <div purpose="teams-chat">
-            <div purpose="teams-chat-header">
-              <img alt="" src="/images/icon-fleet-avatar-28x28.svg">
-              <span purpose="teams-chat-name">Fleet</span>
-              <span purpose="teams-chat-tab">Chat</span>
-            </div>
-            <div purpose="teams-conversation" ref="demoConversation">
-              <div purpose="teams-thread" ref="demoThread" :class="{resetting: demoResetting, 'fading-out': demoFadingOut}" :style="{transform: 'translateY(-' + demoScrollOffset + 'px)'}">
-                <div purpose="teams-sent"><p><span purpose="teams-mention">Fleet</span> what do we need for CIS Level 2 on our {{demoContent.devicesInQuestion}}?</p></div>
-                <div purpose="teams-received" v-show="demoStep >= 2">
-                  <img purpose="teams-avatar" alt="" src="/images/icon-fleet-avatar-28x28.svg">
-                  <div purpose="teams-received-body">
-                    <span purpose="teams-sender">Fleet</span>
-                    <div purpose="teams-bubble"><p>2,184 of 2,350 {{demoContent.devicesInCount}} pass Level 1. Level 2 adds 38 settings. The biggest gaps are {{demoContent.gapsSentence}}. Want me to propose changes that close those gaps?</p></div>
-                  </div>
-                </div>
-                <div purpose="teams-sent" v-show="demoStep >= 3"><p>Yes</p></div>
-                <div purpose="teams-received" v-show="demoStep >= 4">
-                  <img purpose="teams-avatar" alt="" src="/images/icon-fleet-avatar-28x28.svg">
-                  <div purpose="teams-received-body">
-                    <span purpose="teams-sender">Fleet</span>
-                    <div purpose="teams-bubble"><p>Done. I’ve proposed {{demoContent.proposal}} <span purpose="teams-link">for your review</span>.</p></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div purpose="teams-composer">
-              <span purpose="teams-input-text" v-if="demoComposerText">{{demoComposerText}}<span purpose="ai-demo-caret"></span></span>
-              <span purpose="teams-placeholder" v-else>Type a message</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div purpose="slack-animation" role="img" :aria-label="'A Slack thread in the #ask-fleet channel. An admin asks what it takes to meet CIS Level 2 on their ' + demoContent.devicesInQuestion + '. Fleet reports that 2,184 of 2,350 ' + demoContent.devicesInCount + ' pass Level 1, that Level 2 adds 38 settings, and that the biggest gaps are ' + demoContent.gapsSentence + ', then offers to propose changes to close those gaps. The admin says yes, and Fleet proposes ' + demoContent.proposal + ' for their review.'" :class="{'reduced-motion': demoReducedMotion}" v-else-if="selectedAiTool === 'slack'">
+    <div purpose="slack-animation" role="img" aria-label="A Slack thread in the #ask-fleet channel. An admin asks what it takes to meet CIS Level 2 on their Macs. Fleet reports that 2,184 of 2,350 Macs pass Level 1, that Level 2 adds 38 settings, and that the biggest gaps are iCloud Drive sync, telemetry limits, and unneeded services, then offers to propose changes to close those gaps. The admin says yes, and Fleet proposes 3 new profiles and 38 policies for their review." :class="{'reduced-motion': demoReducedMotion}" v-else-if="selectedAiTool === 'slack'">
       <div purpose="slack-window" aria-hidden="true">
-        <img purpose="ai-demo-window-controls" alt="" :src="demoContent.windowControls">
+        <img purpose="ai-demo-window-controls" alt="" src="/images/ai-demo/icon-macos-window-controls-47x11.svg">
         <div purpose="slack-title-bar">
           <img alt="" src="/images/ai-demo/icon-slack-back-20x20.svg">
           <img alt="" src="/images/ai-demo/icon-slack-forward-20x20.svg">
@@ -572,7 +446,7 @@ parasails.registerComponent('aiToolGraphic', {
                     <img purpose="slack-avatar" alt="" src="/images/ai-demo/avatar-slack-mike-32x32@2x.png">
                     <div purpose="slack-message-content">
                       <span purpose="slack-sender">Mike</span>
-                      <p><span purpose="slack-mention">@fleet</span> what do we need for CIS Level 2 on our {{demoContent.devicesInQuestion}}?</p>
+                      <p><span purpose="slack-mention">@fleet</span> what do we need for CIS Level 2 on our Macs?</p>
                       <div purpose="slack-reactions"><span purpose="slack-reaction"><span>✅</span><span>1</span></span><span purpose="slack-reaction"><img alt="" src="/images/ai-demo/icon-slack-add-reaction-14x14.svg"></span></div>
                     </div>
                   </div>
@@ -580,7 +454,7 @@ parasails.registerComponent('aiToolGraphic', {
                     <img purpose="slack-avatar" alt="" src="/images/ai-demo/icon-slack-fleet-avatar-32x32.svg">
                     <div purpose="slack-message-content">
                       <span purpose="slack-sender">Fleet <span purpose="slack-app-badge">APP</span></span>
-                      <p>2,184 of 2,350 {{demoContent.devicesInCount}} pass Level 1. Level 2 adds 38 settings. The biggest gaps are {{demoContent.gapsSentence}}. Want me to propose changes that close those gaps?</p>
+                      <p>2,184 of 2,350 Macs pass Level 1. Level 2 adds 38 settings. The biggest gaps are iCloud Drive sync, telemetry limits, and unneeded services. Want me to propose changes that close those gaps?</p>
                     </div>
                   </div>
                   <div purpose="slack-message" v-show="demoStep >= 3">
@@ -595,7 +469,7 @@ parasails.registerComponent('aiToolGraphic', {
                     <img purpose="slack-avatar" alt="" src="/images/ai-demo/icon-slack-fleet-avatar-32x32.svg">
                     <div purpose="slack-message-content">
                       <span purpose="slack-sender">Fleet <span purpose="slack-app-badge">APP</span></span>
-                      <p>Done. I’ve proposed {{demoContent.proposal}} <span purpose="slack-link">for your review</span>.</p>
+                      <p>Done. I’ve proposed 3 new profiles and 38 policies <span purpose="slack-link">for your review</span>.</p>
                     </div>
                   </div>
                 </div>
@@ -605,9 +479,9 @@ parasails.registerComponent('aiToolGraphic', {
         </div>
       </div>
     </div>
-    <div purpose="claude-code-animation" role="img" :aria-label="'A Claude Code session connected to Fleet. An admin asks what it takes to meet CIS Level 2 on their ' + demoContent.devicesInQuestion + '. Claude checks with Fleet and reports that 2,184 of 2,350 ' + demoContent.devicesInCount + ' pass Level 1, that Level 2 adds 38 settings, and that the biggest gaps are ' + demoContent.gapsSentence + ', then offers to propose changes to close those gaps. The admin says yes, and Claude opens a pull request that proposes ' + demoContent.proposal + ' for their review.'" :class="{'reduced-motion': demoReducedMotion}" v-else>
+    <div purpose="claude-code-animation" role="img" aria-label="A Claude Code session connected to Fleet. An admin asks what it takes to meet CIS Level 2 on their Macs. Claude checks with Fleet and reports that 2,184 of 2,350 Macs pass Level 1, that Level 2 adds 38 settings, and that the biggest gaps are iCloud Drive sync, telemetry limits, and unneeded services, then offers to propose changes to close those gaps. The admin says yes, and Claude opens a pull request that proposes 3 new profiles and 38 policies for their review." :class="{'reduced-motion': demoReducedMotion}" v-else>
       <div purpose="claude-code-window" aria-hidden="true">
-        <img purpose="ai-demo-window-controls" alt="" :src="demoContent.windowControls">
+        <img purpose="ai-demo-window-controls" alt="" src="/images/ai-demo/icon-macos-window-controls-47x11.svg">
         <div purpose="claude-code-sidebar">
           <div purpose="claude-code-title-bar">
             <img alt="" src="/images/ai-demo/icon-claude-code-sidebar-18x18.svg">
@@ -631,7 +505,7 @@ parasails.registerComponent('aiToolGraphic', {
             <img alt="" src="/images/ai-demo/icon-claude-code-plus-16x16.svg">
           </div>
           <div purpose="claude-code-sessions">
-            <div purpose="claude-code-session" class="selected"><span purpose="claude-code-session-name">{{demoContent.sessionTitle}}</span><img purpose="claude-code-session-icon" alt="" src="/images/ai-demo/icon-claude-code-pull-request-16x16.svg"></div>
+            <div purpose="claude-code-session" class="selected"><span purpose="claude-code-session-name">CIS Level 2 for Macs</span><img purpose="claude-code-session-icon" alt="" src="/images/ai-demo/icon-claude-code-pull-request-16x16.svg"></div>
             <div purpose="claude-code-session"><span purpose="claude-code-placeholder-bar"></span><img purpose="claude-code-session-icon" alt="" src="/images/ai-demo/icon-claude-code-branch-14x14.svg"></div>
             <div purpose="claude-code-session"><span purpose="claude-code-placeholder-bar"></span><img purpose="claude-code-session-icon" alt="" src="/images/ai-demo/icon-claude-code-branch-14x14.svg"></div>
             <div purpose="claude-code-session"><span purpose="claude-code-placeholder-bar"></span><img purpose="claude-code-session-icon" alt="" src="/images/ai-demo/icon-claude-code-pull-request-16x16.svg"></div>
@@ -644,7 +518,7 @@ parasails.registerComponent('aiToolGraphic', {
         </div>
         <div purpose="claude-code-main">
           <div purpose="claude-code-header">
-            <span purpose="claude-code-session-title"><span>{{demoContent.sessionTitle}}</span><img alt="" src="/images/ai-demo/icon-claude-code-chevron-down-14x14.svg"></span>
+            <span purpose="claude-code-session-title"><span>CIS Level 2 for Macs</span><img alt="" src="/images/ai-demo/icon-claude-code-chevron-down-14x14.svg"></span>
             <span purpose="claude-code-panel-toggle"><img alt="" src="/images/ai-demo/icon-claude-code-panel-list-15x15.svg"></span>
             <img alt="" src="/images/ai-demo/icon-claude-code-terminal-18x18.svg">
             <img alt="" src="/images/ai-demo/icon-claude-code-diff-16x16.svg">
@@ -654,7 +528,7 @@ parasails.registerComponent('aiToolGraphic', {
           </div>
           <div purpose="claude-code-conversation" ref="demoConversation">
             <div purpose="claude-code-thread" ref="demoThread" :class="{resetting: demoResetting, 'fading-out': demoFadingOut}" :style="{transform: 'translateY(-' + demoScrollOffset + 'px)'}">
-              <div purpose="claude-code-user-message"><p>What do we need for CIS Level 2 on our {{demoContent.devicesInQuestion}}?</p></div>
+              <div purpose="claude-code-user-message"><p>What do we need for CIS Level 2 on our Macs?</p></div>
               <p v-show="demoStep >= 2">I’ll check with Fleet.</p>
               <div purpose="claude-code-tool-calls" v-show="demoStep >= 3">
                 <div purpose="claude-code-tool-row" v-show="demoStep >= 3">
@@ -670,10 +544,12 @@ parasails.registerComponent('aiToolGraphic', {
                   <span purpose="claude-code-tool-meta">· 38 settings</span>
                 </div>
               </div>
-              <p v-show="demoStep >= 5"><strong>2,184 of 2,350</strong> {{demoContent.devicesInCount}} pass Level 1. Level 2 adds <strong>38</strong> settings. The biggest gaps are:</p>
+              <p v-show="demoStep >= 5"><strong>2,184 of 2,350</strong> Macs pass Level 1. Level 2 adds <strong>38</strong> settings. The biggest gaps are:</p>
               <div purpose="claude-code-table" v-show="demoStep >= 6">
                 <div purpose="claude-code-table-header"><span>Setting</span><span>Failing</span><span>Fix</span></div>
-                <div purpose="claude-code-table-row" v-for="gap in demoContent.gaps" :key="gap.setting"><span>{{gap.setting}}</span><span>{{gap.failing}}</span><span>{{gap.fix}}</span></div>
+                <div purpose="claude-code-table-row"><span>iCloud Drive sync</span><span>1,406</span><span>Restrictions profile</span></div>
+                <div purpose="claude-code-table-row"><span>Telemetry limits</span><span>2,031</span><span>Diagnostics profile</span></div>
+                <div purpose="claude-code-table-row"><span>Unneeded services</span><span>1,872</span><span>Sharing profile</span></div>
               </div>
               <p v-show="demoStep >= 7">Want me to propose changes that close those gaps?</p>
               <div purpose="claude-code-user-message" v-show="demoStep >= 8"><p>Yes</p></div>
@@ -681,7 +557,7 @@ parasails.registerComponent('aiToolGraphic', {
                 <div purpose="claude-code-tool-row" v-show="demoStep >= 9">
                   <img alt="" src="/images/ai-demo/icon-claude-code-edit-16x16.svg">
                   <span purpose="claude-code-tool-label">Write</span>
-                  <code>{{demoContent.policiesPath}}cis-level-2.yml</code>
+                  <code>lib/macos/policies/cis-level-2.yml</code>
                   <span purpose="claude-code-tool-added">+412</span>
                 </div>
                 <div purpose="claude-code-tool-row" v-show="demoStep >= 10">
@@ -698,7 +574,7 @@ parasails.registerComponent('aiToolGraphic', {
                   <span purpose="claude-code-pull-request-branch">cis-level-2 → main</span>
                 </div>
               </div>
-              <p v-show="demoStep >= 12">Done. I’ve proposed {{demoContent.proposal}} <span purpose="claude-code-link">for your review</span>.</p>
+              <p v-show="demoStep >= 12">Done. I’ve proposed 3 new profiles and 38 policies <span purpose="claude-code-link">for your review</span>.</p>
             </div>
           </div>
           <div purpose="claude-code-composer">
@@ -719,15 +595,6 @@ parasails.registerComponent('aiToolGraphic', {
     </div>
   </div>
   `,
-
-  //  ╔═╗╔═╗╔╦╗╔═╗╦ ╦╔╦╗╔═╗╔╦╗
-  //  ║  ║ ║║║║╠═╝║ ║ ║ ║╣  ║║
-  //  ╚═╝╚═╝╩ ╩╩  ╚═╝ ╩ ╚═╝═╩╝
-  computed: {
-    demoContent: function() {
-      return this.demoContentByPlatform[this.platform] || this.demoContentByPlatform.macos;
-    },
-  },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣

@@ -5,24 +5,13 @@ parasails.registerPage('integrations', {
   data: {
     selectedCategory: 'all',
     searchQuery: '',
-    visitorPlatform: 'macos',
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-    // Set before the AI demo mounts, so its animation starts with the visitor's own OS.
-    // Everyone else (macOS, iOS, Android, ChromeOS) sees the macOS example.
-    if (bowser.windows) {
-      this.visitorPlatform = 'windows';
-    } else if (bowser.linux) {
-      this.visitorPlatform = 'linux';
-    }
-    // e.g., /integrations#linux previews another platform's example.
-    if (['#macos', '#windows', '#linux'].includes(window.location.hash)) {
-      this.visitorPlatform = window.location.hash.slice(1);
-    }
+    //…
   },
   mounted: async function() {
     //…

@@ -192,44 +192,6 @@
     }
   }
 
-  // AI-native device management
-  [purpose='ai-section'] {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 48px;
-    [purpose='section-heading'] {
-      align-items: center;
-      text-align: center;
-    }
-  }
-  [purpose='ai-tools'] {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 32px;
-    width: 100%;
-    padding-top: 16px;
-  }
-  [purpose='ai-tool'] {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    p {
-      .body-m();
-      flex-grow: 1;
-      margin-bottom: 4px;
-    }
-  }
-  [purpose='ai-tool-heading'] {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    img {
-      width: 20px;
-      height: 20px;
-    }
-  }
-
   // Directory
   [purpose='directory'] {
     display: flex;
@@ -468,11 +430,6 @@
     }
   }
 
-  @media (max-width: 1199px) {
-    [purpose='ai-tools'] {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-  }
   @media (max-width: 991px) {
     [purpose='page-hero'] {
       grid-template-columns: 1fr;
@@ -488,9 +445,6 @@
       [purpose='cta-button'] {
         width: 100%;
       }
-    }
-    [purpose='ai-tools'] {
-      grid-template-columns: 1fr;
     }
     [purpose='integration-grid'] {
       grid-template-columns: 1fr;

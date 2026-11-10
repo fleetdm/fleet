@@ -18,7 +18,7 @@
           let hubWidth = 520;
           let hubHeight = 460;
           let hubNodes = [];
-          aiIntegrations.forEach((integration, index)=>{
+          integrations.filter((integration)=> integration.category === 'ai').forEach((integration, index)=>{
             let angle = (45 + index * 90) * Math.PI / 180;
             hubNodes.push({ integration, ring: 'inner', x: hubWidth / 2 + 118 * Math.cos(angle), y: hubHeight / 2 + 118 * Math.sin(angle) });
           });
@@ -43,27 +43,6 @@
             <img src="<%- node.integration.logo %>" alt="">
           </div>
           <% }); %>
-        </div>
-      </div>
-
-      <div purpose="ai-section">
-        <div purpose="section-heading">
-          <h4>AI-native device management</h4>
-          <h2>Use the AI you already trust</h2>
-          <p>Fleet works natively with your team’s AI tools, like Claude, Copilot, or any AI harness. Use it to propose changes, with a human review between it and your devices.</p>
-        </div>
-        <ai-tool-graphic :include-teams="true" :platform="visitorPlatform" :initial-tool="visitorPlatform === 'windows' ? 'teams' : 'slack'"></ai-tool-graphic>
-        <div purpose="ai-tools">
-          <% for (let integration of aiIntegrations) { %>
-          <div purpose="ai-tool">
-            <div purpose="ai-tool-heading">
-              <img src="<%- integration.logo %>" alt="<%- integration.name %> logo">
-              <h5><%- integration.name %></h5>
-            </div>
-            <p><%- integration.summary %></p>
-            <animated-arrow-button href="<%- integration.docsUrl %>" target="<%- integration.docsUrl.startsWith('http') ? '_blank' : '_self' %>"><%- integration.docsLabel %></animated-arrow-button>
-          </div>
-          <% } %>
         </div>
       </div>
 
