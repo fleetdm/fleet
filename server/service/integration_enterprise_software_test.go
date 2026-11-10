@@ -1856,12 +1856,12 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	var labelResp fleet.CreateLabelResponse
 	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{
 		Name:  "label1",
-		Hosts: []string{host.Hostname}}, http.StatusOK, &labelResp)
+		Hosts: []string{host.UUID}}, http.StatusOK, &labelResp)
 	require.NotZero(t, labelResp.Label.ID)
 
 	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{
 		Name:  "label2",
-		Hosts: []string{host.Hostname}}, http.StatusOK, &labelResp)
+		Hosts: []string{host.UUID}}, http.StatusOK, &labelResp)
 	require.NotZero(t, labelResp.Label.ID)
 
 	// Set to "exclude any". Installer should be missing from the response for both host details and
@@ -2480,7 +2480,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftwareWithLabelScoping() 
 	var labelResp fleet.CreateLabelResponse
 	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{
 		Name:  "label1",
-		Hosts: []string{host.Hostname}}, http.StatusOK, &labelResp)
+		Hosts: []string{host.UUID}}, http.StatusOK, &labelResp)
 	require.NotZero(t, labelResp.Label.ID)
 	lbl1 := labelResp.Label
 

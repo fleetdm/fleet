@@ -456,7 +456,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 		"install_uuid": "%s",
 		"self_service": false,
 		"software_title": "%s",
-		"software_display_name": null,
+		"software_display_name": "",
 		"software_package": "%s",
 		"source": "apps",
 		"host_display_name": "%s"
@@ -544,6 +544,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
   "host_id": %d,
   "host_display_name": "%s",
   "software_title": "%s",
+  "software_display_name": "",
   "software_package": "%s",
   "hash_sha256": "%s",
   "self_service": false,
@@ -979,6 +980,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithFMAAndVersionRollba
   "host_id": %d,
   "host_display_name": "%s",
   "software_title": "1Password",
+  "software_display_name": "",
   "software_package": "%s",
   "hash_sha256": "%s",
   "self_service": false,
@@ -1631,7 +1633,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequireSoftware() {
 	teamDevice, enrolledHost, _ := s.createTeamDeviceForSetupExperienceWithProfileSoftwareAndScript()
 
 	payload := map[string]any{
-		"require_all_software_macos": true,
+		"macos_require_all_software": true,
 		"team_id":                    enrolledHost.TeamID,
 	}
 	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
@@ -2462,7 +2464,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceInstallerEditAndDelete() {
 	}
 
 	// edits an installer while its SE row is pending and again while running, under
-	// require_all_software_macos=true. both edits must leave the SE rows as-is and
+	// macos_require_all_software=true. both edits must leave the SE rows as-is and
 	// must not flip the running row to failure on the next orbit poll.
 	tOuter.Run("edit installer leaves setup experience intact", func(t *testing.T) {
 		host, _, titleIDs := enrollHostWithSEInstallers(t, []struct{ Filename, Title string }{
@@ -2472,7 +2474,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceInstallerEditAndDelete() {
 		})
 
 		s.Do("PATCH", "/api/latest/fleet/setup_experience",
-			json.RawMessage(fmt.Sprintf(`{"require_all_software_macos": true, "team_id": %d}`, *host.TeamID)),
+			json.RawMessage(fmt.Sprintf(`{"macos_require_all_software": true, "team_id": %d}`, *host.TeamID)),
 			http.StatusNoContent)
 
 		// first poll: DummyApp runs (alphabetically first), EchoApp and NoVersion stay pending

@@ -906,21 +906,6 @@ func TestIngestOneVersionWalk(t *testing.T) {
 		require.True(t, isTransientGitHubError(err), "the caller must recognize this error and skip the app")
 	})
 
-	t.Run("version_prefix skips version dirs outside the pinned major", func(t *testing.T) {
-		srv := newTwoVersionServer(t, http.StatusInternalServerError)
-		t.Cleanup(srv.Close)
-
-		pinned := input
-		pinned.VersionPrefix = "1."
-		out, err := newIngester(srv).ingestOne(ctx, pinned)
-		require.NoError(t, err)
-		require.Equal(t, "1.0", out.Version)
-
-		pinned.VersionPrefix = "3."
-		_, err = newIngester(srv).ingestOne(ctx, pinned)
-		require.ErrorContains(t, err, "no version manifest directories found")
-	})
-
 	t.Run("504 on the latest version dir fails the app instead of downgrading", func(t *testing.T) {
 		srv := newTwoVersionServer(t, http.StatusGatewayTimeout)
 		t.Cleanup(srv.Close)

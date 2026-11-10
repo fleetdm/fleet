@@ -199,7 +199,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotEscalateViaEmptyGlob
 		"email":                       t.Name() + "_svc@example.com",
 		"password":                    test.GoodPassword,
 		"global_role":                 "",
-		"teams":                       []map[string]any{{"id": team.ID, "role": fleet.RoleAdmin}},
+		"fleets":                      []map[string]any{{"id": team.ID, "role": fleet.RoleAdmin}},
 		"api_only":                    true,
 		"admin_forced_password_reset": false,
 	}, http.StatusUnprocessableEntity, &createResp)
@@ -218,7 +218,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotEscalateViaEmptyGlob
 	var selfModResp modifyUserResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", teamAdmin.ID), map[string]any{
 		"global_role": "",
-		"teams":       []map[string]any{{"id": team.ID, "role": fleet.RoleAdmin}},
+		"fleets":      []map[string]any{{"id": team.ID, "role": fleet.RoleAdmin}},
 	}, http.StatusUnprocessableEntity, &selfModResp)
 
 	plantedEmail := t.Name() + "_planted@example.com"
@@ -281,7 +281,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotEscalateViaEmptyGlob
 	})
 	var modResp modifyUserResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", globalAdmin.ID), map[string]any{
-		"teams": []map[string]any{{"id": team.ID, "role": fleet.RoleObserver}},
+		"fleets": []map[string]any{{"id": team.ID, "role": fleet.RoleObserver}},
 	}, http.StatusForbidden, &modResp)
 	globalAdmin, err = s.ds.UserByID(ctx, globalAdmin.ID)
 	require.NoError(t, err)
@@ -593,7 +593,7 @@ func (s *integrationEnterpriseTestSuite) TestCreateAPIOnlyUserPremium() {
 			APIOnly      bool          `json:"api_only"`
 			GlobalRole   *string       `json:"global_role"`
 			APIEndpoints []apiEndpoint `json:"api_endpoints"`
-			Teams        []teamEntry   `json:"teams"` //nolint:apiparamcheck // test helper; matches server response shape
+			Teams        []teamEntry   `json:"fleets"` //nolint:apiparamcheck // test helper; matches server response shape
 		} `json:"user"`
 		Token  string              `json:"token"`
 		Err    string              `json:"error,omitempty"`
@@ -768,7 +768,7 @@ func (s *integrationEnterpriseTestSuite) TestModifyAPIOnlyUserPremium() {
 			Teams []struct {
 				ID   uint   `json:"id"`
 				Role string `json:"role"`
-			} `json:"teams"` //nolint:apiparamcheck // test helper; matches server response shape
+			} `json:"fleets"` //nolint:apiparamcheck // test helper; matches server response shape
 		} `json:"user"`
 		Err string `json:"error,omitempty"`
 	}
@@ -1101,6 +1101,75 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserEndpointMiddleware() {
 	})
 }
 
+func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserDeleteReportGrants() {
+	t := s.T()
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	const (
+		byID         = "/api/v1/fleet/reports/:id"
+		deprecatedID = "/api/v1/fleet/reports/id/:id"
+	)
+
+	createAPIOnlyMaintainer := func(name string, paths ...string) string {
+		s.token = s.getTestAdminToken()
+		eps := make([]map[string]any, 0, len(paths))
+		for _, p := range paths {
+			eps = append(eps, map[string]any{"method": "DELETE", "path": p})
+		}
+		var resp struct {
+			Token string `json:"token"`
+		}
+		s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
+			"name":          name,
+			"global_role":   fleet.RoleMaintainer,
+			"api_endpoints": eps,
+		}, http.StatusOK, &resp)
+		require.NotEmpty(t, resp.Token)
+		return resp.Token
+	}
+	var reportCount int
+	createReport := func() *fleet.Query {
+		prev := s.token
+		s.token = s.getTestAdminToken()
+		defer func() { s.token = prev }()
+		reportCount++
+		name := fmt.Sprintf("api-only delete report grants %d", reportCount)
+		var resp fleet.CreateQueryResponse
+		s.DoJSON("POST", "/api/latest/fleet/reports", &fleet.QueryPayload{Name: new(name), Query: new("select 1")}, http.StatusOK, &resp)
+		return resp.Query
+	}
+	requireDenied := func(path string) {
+		res := s.Do("DELETE", path, nil, http.StatusForbidden)
+		body, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		require.Contains(t, string(body), auth.EndpointRestrictionDeniedMessage)
+	}
+	byIDURL := func(r *fleet.Query) string { return fmt.Sprintf("/api/latest/fleet/reports/%d", r.ID) }
+	deprecatedIDURL := func(r *fleet.Query) string { return fmt.Sprintf("/api/latest/fleet/reports/id/%d", r.ID) }
+
+	t.Run("by-ID grant", func(t *testing.T) {
+		s.token = createAPIOnlyMaintainer("api-only-delete-report-by-id", byID)
+		r := createReport()
+		requireDenied(deprecatedIDURL(r))
+		s.Do("DELETE", byIDURL(r), nil, http.StatusOK)
+	})
+
+	t.Run("deprecated by-ID grant", func(t *testing.T) {
+		s.token = createAPIOnlyMaintainer("api-only-delete-report-deprecated-id", deprecatedID)
+		r := createReport()
+		requireDenied(byIDURL(r))
+		s.Do("DELETE", deprecatedIDURL(r), nil, http.StatusOK)
+	})
+
+	t.Run("both by-ID grants", func(t *testing.T) {
+		s.token = createAPIOnlyMaintainer("api-only-delete-report-both", byID, deprecatedID)
+		for _, del := range []func(*fleet.Query) string{byIDURL, deprecatedIDURL} {
+			r := createReport()
+			s.Do("DELETE", del(r), nil, http.StatusOK)
+		}
+	})
+}
+
 // TestAPIOnlyUserCanReachGitOpsEndpoints verifies that the API endpoint
 // catalog includes every route invoked by fleetctl gitops and
 // fleetctl generate-gitops. The test runs as an api-only admin user so any
@@ -1155,7 +1224,7 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserCanReachGitOpsEndpoints(
 	assertNot403("GET", "/api/latest/fleet/spec/enroll_secret", nil)
 	assertNot403("GET", "/api/latest/fleet/spec/certificate_authorities", nil)
 	assertNot403("POST", "/api/latest/fleet/spec/certificate_authorities", emptySpecs)
-	assertNot403("GET", "/api/latest/fleet/abm_tokens/count", nil)
+	assertNot403("GET", "/api/latest/fleet/ab_tokens/count", nil)
 	assertNot403("POST", "/api/latest/fleet/spec/policies", emptySpecs)
 	assertNot403("POST", "/api/latest/fleet/spec/reports", emptySpecs)
 	assertNot403("POST", "/api/latest/fleet/spec/fleets", emptySpecs)
@@ -1178,7 +1247,7 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyGitOpsUserWithEndpointRestri
 		{"method": "GET", "path": "/api/v1/fleet/me"},
 		{"method": "GET", "path": "/api/v1/fleet/config"},
 		{"method": "GET", "path": "/api/v1/fleet/spec/labels"},
-		{"method": "GET", "path": "/api/v1/fleet/abm_tokens/count"},
+		{"method": "GET", "path": "/api/v1/fleet/ab_tokens/count"},
 		{"method": "POST", "path": "/api/v1/fleet/spec/policies"},
 	}
 
@@ -1197,7 +1266,7 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyGitOpsUserWithEndpointRestri
 	s.Do("GET", "/api/latest/fleet/me", nil, http.StatusOK)
 	s.Do("GET", "/api/latest/fleet/config", nil, http.StatusOK)
 	s.Do("GET", "/api/latest/fleet/spec/labels", nil, http.StatusOK)
-	s.Do("GET", "/api/latest/fleet/abm_tokens/count", nil, http.StatusOK)
+	s.Do("GET", "/api/latest/fleet/ab_tokens/count", nil, http.StatusOK)
 	// Apply a real policy spec; an empty specs list short-circuits before authz
 	// in checkPolicySpecAuthorization and surfaces as 500, which would mask the
 	// middleware behavior we want to verify.

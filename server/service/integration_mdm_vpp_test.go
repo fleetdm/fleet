@@ -41,11 +41,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type appStoreApp interface {
-	GetPlatform() string
-	GetAppStoreID() string
-}
-
 func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	t := s.T()
 	s.setSkipWorkerJobs(t)
@@ -486,6 +481,12 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		}
 		return &androidmanagement.Policy{}, nil
 	}
+	// sorted packages last removed from each host's policy, by host UUID
+	removedApps := map[string][]string{}
+	s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFunc = func(ctx context.Context, policyName string, packageNames []string) (*androidmanagement.Policy, error) {
+		removedApps[policyName[strings.LastIndex(policyName, "/")+1:]] = slices.Sorted(slices.Values(packageNames))
+		return &androidmanagement.Policy{}, nil
+	}
 
 	// set the device's applied policy to its own policy, so the app reconciler sends to it
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -542,10 +543,11 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		assert.Contains(t, assoc, a)
 	}
 
-	// run the Android profile schedule, the host should get an app list without Chrome
+	// run the Android profile schedule, the host should get only a removal of Chrome
 	s.awaitTriggerAndroidProfileSchedule(t)
-	require.Equal(t, map[string][]string{enterpriseSpecificID1: {"com.fleetdm.agent", driveAppID}}, sentAppLists)
-	clear(sentAppLists)
+	require.Empty(t, sentAppLists)
+	require.Equal(t, map[string][]string{enterpriseSpecificID1: {chromeAppID}}, removedApps)
+	clear(removedApps)
 
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSwTitles, "team_id", fmt.Sprint(tmGood.ID))
 
@@ -563,21 +565,16 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 
 	// change display names
 	setDisplayNames := func(expectedAppCount int, expectedApps ...fleet.VPPBatchPayload) {
-		displayNameToAppStoreID := make(map[string]string)
-
-		// Make a unique key that uses the id + the platform
-		key := func(v appStoreApp) string {
-			return fmt.Sprintf(`%s_%s`, v.GetAppStoreID(), v.GetPlatform())
-		}
+		displayNameToAppStoreID := make(map[fleet.VPPAppID]string)
 
 		for _, e := range expectedApps {
 			if e.Platform == "" {
 				for _, p := range []fleet.InstallableDevicePlatform{fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform} {
 					e.Platform = p
-					displayNameToAppStoreID[key(e)] = e.DisplayName
+					displayNameToAppStoreID[fleet.VPPAppID{AdamID: e.AppStoreID, Platform: e.Platform}] = e.DisplayName
 				}
 			}
-			displayNameToAppStoreID[key(e)] = e.DisplayName
+			displayNameToAppStoreID[fleet.VPPAppID{AdamID: e.AppStoreID, Platform: e.Platform}] = e.DisplayName
 		}
 
 		s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: expectedApps}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name)
@@ -587,8 +584,8 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		require.NoError(t, err)
 		require.Len(t, assoc, expectedAppCount)
 
-		for _, a := range assoc {
-			assert.Contains(t, displayNameToAppStoreID, key(a))
+		for appID := range assoc {
+			assert.Contains(t, displayNameToAppStoreID, appID)
 		}
 
 		// run the Android profile schedule, the host's Android apps are unchanged, so it should get no request
@@ -599,7 +596,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 
 		s.Len(listSwTitles.SoftwareTitles, expectedAppCount)
 		for _, sw := range listSwTitles.SoftwareTitles {
-			id, ok := displayNameToAppStoreID[key(sw.AppStoreApp)]
+			id, ok := displayNameToAppStoreID[fleet.VPPAppID{AdamID: sw.AppStoreApps[0].AppStoreID, Platform: sw.AppStoreApps[0].Platform}]
 			s.True(ok)
 			s.Equal(id, sw.DisplayName)
 		}
@@ -1425,7 +1422,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.lastActivityMatches(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
 		withVPPToken(t, fmt.Sprintf(
-			`{"version_name": "Default version", "host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s", "from_setup_experience": false, "from_auto_update": false, "from_configuration_resend": false}`,
+			`{"version_name": "Default version", "host_id": %d, "host_display_name": "%s", "software_title": "%s", "software_display_name": "", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s", "from_setup_experience": false, "from_auto_update": false, "from_configuration_resend": false}`,
 			mdmHost.ID,
 			mdmHost.DisplayName(),
 			errApp.Name,
@@ -1511,7 +1508,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.lastActivityMatches(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
 		withVPPToken(t, fmt.Sprintf(
-			`{"version_name": "Default version", "host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s", "from_setup_experience": false, "from_auto_update": false, "from_configuration_resend": false}`,
+			`{"version_name": "Default version", "host_id": %d, "host_display_name": "%s", "software_title": "%s", "software_display_name": "", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s", "from_setup_experience": false, "from_auto_update": false, "from_configuration_resend": false}`,
 			mdmHost.ID,
 			mdmHost.DisplayName(),
 			macOSApp.Name,
@@ -1587,7 +1584,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.lastActivityMatches(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
 		withVPPToken(t, fmt.Sprintf(
-			`{"version_name": "Default version", "host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s", "from_setup_experience": false, "from_auto_update": false, "from_configuration_resend": false}`,
+			`{"version_name": "Default version", "host_id": %d, "host_display_name": "%s", "software_title": "%s", "software_display_name": "", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "policy_id": null, "policy_name": null, "host_platform": "%s", "from_setup_experience": false, "from_auto_update": false, "from_configuration_resend": false}`,
 			mdmHost.ID,
 			mdmHost.DisplayName(),
 			addedApp.Name,
@@ -1788,7 +1785,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			require.JSONEq(
 				t,
 				withVPPToken(t, fmt.Sprintf(
-					`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "software_display_name": null, "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "host_platform": "%s"}`,
+					`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "software_display_name": "", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "host_platform": "%s"}`,
 					installHost.ID,
 					installHost.DisplayName(),
 					app.Name,
@@ -1846,7 +1843,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			s.lastActivityMatches(
 				fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
 				withVPPToken(t, fmt.Sprintf(
-					`{"version_name": "Default version", "host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "policy_id": null, "policy_name": null, "host_platform": "%s", "from_setup_experience": false, "from_auto_update": false, "from_configuration_resend": false}`,
+					`{"version_name": "Default version", "host_id": %d, "host_display_name": "%s", "software_title": "%s", "software_display_name": "", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "policy_id": null, "policy_name": null, "host_platform": "%s", "from_setup_experience": false, "from_auto_update": false, "from_configuration_resend": false}`,
 					installHost.ID,
 					installHost.DisplayName(),
 					app.Name,
