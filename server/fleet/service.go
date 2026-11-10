@@ -171,6 +171,11 @@ type Service interface {
 	// to fleetd (formerly orbit).
 	GetOrbitConfig(ctx context.Context) (OrbitConfig, error)
 
+	// SetHostEntraDeviceToken verifies an Entra ID token reported by a macOS host and stores
+	// the Entra device ID and user principal name it proves, for the Microsoft "Conditional
+	// access" integration.
+	SetHostEntraDeviceToken(ctx context.Context, idToken string) error
+
 	// LogFleetdError logs an error report from a `fleetd` component
 	LogFleetdError(ctx context.Context, errData FleetdError) error
 
@@ -489,13 +494,16 @@ type Service interface {
 	// A caller allowed to resolve the identifier but not to read the host
 	// (GitOps) gets a result with HostDetail.IDOnly set, see that field.
 	HostByIdentifier(ctx context.Context, identifier string, opts HostDetailOptions) (*HostDetail, error)
+	// GetHostByIDOrIdentifier returns one host matching the provided value. A value that is a host id matches on id first, then
+	// any value matches as described on Datastore.HostByIdentifier.
+	GetHostByIDOrIdentifier(ctx context.Context, identifier string, opts HostDetailOptions) (*HostDetail, error)
 	// RefetchHost requests a refetch of host details for the provided host.
 	RefetchHost(ctx context.Context, id uint) (err error)
 	// CleanupExpiredHostsBatch deletes up to batchSize hosts that have exceeded the expiry window and
 	// creates an activity for each deletion. Callers loop until it returns no hosts.
 	CleanupExpiredHostsBatch(ctx context.Context, batchSize int) ([]DeletedHostDetails, error)
 	// AddHostsToTeam adds hosts to an existing team, clearing their team settings if teamID is nil.
-	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error
+	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error
 	// AddHostsToTeamByFilter adds hosts to an existing team, clearing their team settings if teamID is nil. Hosts are
 	// selected by the label and HostListOptions provided.
 	AddHostsToTeamByFilter(ctx context.Context, teamID *uint, filter *map[string]interface{}) error
@@ -996,7 +1004,6 @@ type Service interface {
 	// Apple MDM
 
 	GetAppleMDM(ctx context.Context) (*AppleMDM, error)
-	GetAppleBM(ctx context.Context) (*AppleBM, error)
 	RequestMDMAppleCSR(ctx context.Context, email, org string) (*AppleCSR, error)
 
 	// GetMDMAppleCSR returns a signed CSR as base64 encoded bytes for Apple MDM. The first time
@@ -1165,17 +1172,7 @@ type Service interface {
 
 	// BatchSetMDMAppleProfiles replaces the custom macOS profiles for a specified
 	// team or for hosts with no team.
-	BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool, skipBulkPending bool) error
-
-	// MDMApplePreassignProfile preassigns a profile to a host, pending the match
-	// request that will match the profiles to a team (or create one if needed),
-	// assign the host to that team and assign the profiles to the host.
-	MDMApplePreassignProfile(ctx context.Context, payload MDMApplePreassignProfilePayload) error
-
-	// MDMAppleMatchPreassignment matches the existing preassigned profiles to a
-	// team, creating one if none match, assigns the corresponding host to that
-	// team and assigns the matched team's profiles to the host.
-	MDMAppleMatchPreassignment(ctx context.Context, externalHostIdentifier string) error
+	BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool) error
 
 	// MDMAppleDeviceLock remote locks a host
 	MDMAppleDeviceLock(ctx context.Context, hostID uint) error
@@ -1529,8 +1526,6 @@ type Service interface {
 
 	// BatchScriptExecute runs a script on many hosts. It creates and returns a batch execution ID
 	BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs []uint, filters *map[string]any, notBefore *time.Time) (string, error)
-
-	BatchScriptExecutionSummary(ctx context.Context, batchExecutionID string) (*BatchActivity, error)
 
 	BatchScriptExecutionStatus(ctx context.Context, batchExecutionID string) (*BatchActivity, error)
 

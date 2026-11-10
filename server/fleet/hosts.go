@@ -53,10 +53,10 @@ const (
 	// hosts are queued for a refetch this often (see fleet.RefetchIOSHostInterval).
 	MobileRefetchInterval = time.Hour
 
-	// MobileCronTickPeriod is the apple_mdm_iphone_ipad_refetcher cron tick.
-	// A refetch queued at t may not be dispatched until the next tick, so the
-	// online window must cover a full tick of dispatch latency on top of the
-	// refetch interval.
+	// MobileCronTickPeriod is the dispatch latency budget for the
+	// apple_mdm_iphone_ipad_refetcher cron. The cron ticks every minute but
+	// sends a bounded batch per tick, so a due host may wait several ticks;
+	// the online window must cover that on top of the refetch interval.
 	MobileCronTickPeriod = 10 * time.Minute
 
 	// MobileOnlineWindow bounds the MDM activity signal for mobile hosts to
@@ -1378,10 +1378,7 @@ type HostDetail struct {
 	// PatchDeadlineAt is when Fleet next forces a patch deadline install on this host, or nil.
 	PatchDeadlineAt *time.Time `json:"patch_deadline_at"`
 
-	// IDOnly marks a result where the caller was allowed to resolve the host but
-	// not to read it, so only ID is populated. Handlers must render it as an
-	// id-only response rather than a full one with everything zeroed out, which
-	// would advertise fields the caller never had access to.
+	// IDOnly marks a result where the caller was allowed to resolve the host but not to read it, so only ID is populated.
 	IDOnly bool `json:"-"`
 }
 
@@ -1418,7 +1415,6 @@ type HostSummary struct {
 	MIACount            uint                   `json:"mia_count" db:"mia"`
 	Missing30DaysCount  uint                   `json:"missing_30_days_count" db:"missing_30_days_count"`
 	NewCount            uint                   `json:"new_count" db:"new"`
-	AllLinuxCount       uint                   `json:"all_linux_count" db:"-"`
 	LowDiskSpaceCount   *uint                  `json:"low_disk_space_count,omitempty" db:"low_disk_space"`
 	BuiltinLabels       []*LabelSummary        `json:"builtin_labels" db:"-"`
 	Platforms           []*HostSummaryPlatform `json:"platforms" db:"-"`
@@ -2117,10 +2113,14 @@ type HostMDMCheckinInfo struct {
 	TeamID             uint   `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	DEPAssignedToFleet bool   `json:"dep_assigned_to_fleet" db:"dep_assigned_to_fleet"`
 	OsqueryEnrolled    bool   `json:"osquery_enrolled" db:"osquery_enrolled"`
+	// FleetEnrolledCorporate is true while the host is enrolled in Fleet's MDM as a non-personal host.
+	FleetEnrolledCorporate bool `json:"-" db:"fleet_enrolled_corporate"`
 
-	SCEPRenewalInProgress bool   `json:"-" db:"scep_renewal_in_progress"`
-	MigrationInProgress   bool   `json:"-" db:"migration_in_progress"`
-	Platform              string `json:"-" db:"platform"`
+	SCEPRenewalInProgress bool       `json:"-" db:"scep_renewal_in_progress"`
+	MigrationInProgress   bool       `json:"-" db:"migration_in_progress"`
+	MDMMigrationDeadline  *time.Time `json:"-" db:"mdm_migration_deadline"`
+	MDMMigrationCompleted *time.Time `json:"-" db:"mdm_migration_completed"`
+	Platform              string     `json:"-" db:"platform"`
 }
 
 // HostEscrowState is where a Linux host's LUKS escrow request stands.

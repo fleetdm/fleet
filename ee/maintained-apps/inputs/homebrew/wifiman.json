@@ -1,10 +1,11 @@
 {
   "name": "WiFiman Desktop",
-  "unique_identifier": "ui.wifiman-desktop",
+  "unique_identifier": "ui.wifiman.desktop",
   "token": "wifiman",
   "installer_format": "pkg",
   "slug": "wifiman/darwin",
   "default_categories": [
     "Productivity"
-  ]
+  ],
+  "frozen": true
 }

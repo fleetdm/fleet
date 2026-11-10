@@ -952,7 +952,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequiredSoftwareVPP
 	teamDevice, enrolledHost, team := s.createTeamDeviceForSetupExperienceWithProfileSoftwareAndScript()
 
 	payload := map[string]any{
-		"require_all_software_macos": true,
+		"macos_require_all_software": true,
 		"team_id":                    enrolledHost.TeamID,
 	}
 	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
@@ -1184,7 +1184,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequiredSoftwareVPP
 	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
 	// App 4 (display name "VPP AAA No License") has no licenses available, so
-	// it should fail immediately. Because we have "require_all_software_macos"
+	// it should fail immediately. Because we have "macos_require_all_software"
 	// set, the remaining software (App 5) and the script should be marked as
 	// failed too.
 	require.Equal(t, "App 4", statusResp.Results.Software[1].Name)

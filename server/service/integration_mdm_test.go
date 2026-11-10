@@ -181,6 +181,8 @@ var defaultVPPAssetList = []vpp.Asset{
 
 const defaultFakeJWTKeyID = "fleetdefaultkeyid"
 
+const vppVerifyTimeout = 10 * time.Minute
+
 // requireTrackedRefetchCommands asserts the host's tracking rows cover exactly
 // the given refetch command types, each recording the full prefixed UUID of
 // the command it tracks (the exact UUIDs are random).
@@ -220,7 +222,8 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	config.SetTestMDMConfig(s.T(), &fleetCfg, testCertPEM, testKeyPEM, "../../server/service/testdata")
 	fleetCfg.Osquery.EnrollCooldown = 0
 	fleetCfg.Server.VPPVerifyRequestDelay = 0 * time.Second // Remove the delay to speed up tests
-	fleetCfg.Server.VPPVerifyTimeout = fleet.DefaultVPPInstallVerifyTimeout
+	fleetCfg.Server.VPPVerifyTimeout = vppVerifyTimeout
+	fleetCfg.MDM.AppleSCEPStaticChallengeEnabled = true // Enable static challenge for SCEP in integration tests
 
 	mdmStorage, err := s.ds.NewMDMAppleMDMStorage()
 	require.NoError(s.T(), err)
@@ -543,7 +546,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
 						schedule.WithLogger(logger),
 						schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
-							return apple_mdm.IOSiPadOSRefetch(ctx, ds, mdmCommander, logger, s.fleetSvc.NewActivity)
+							return apple_mdm.IOSiPadOSRefetch(ctx, ds, mdmCommander, logger, s.fleetSvc.NewActivity, 1000)
 						}),
 					)
 					return refetcherSchedule, nil
@@ -2535,7 +2538,7 @@ func (s *integrationMDMTestSuite) uploadABMToken(encryptedToken []byte, expected
 		"Authorization": fmt.Sprintf("Bearer %s", s.token),
 	}
 
-	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/abm_tokens", b.Bytes(), expectedStatus, headers)
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/ab_tokens", b.Bytes(), expectedStatus, headers)
 	if wantErr != "" {
 		errMsg := extractServerErrorText(res.Body)
 		assert.Contains(t, errMsg, wantErr)

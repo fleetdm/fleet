@@ -142,15 +142,6 @@ export interface IScriptBatchHostCountsV1 {
 export type ScriptBatchHostCountV1 = keyof IScriptBatchHostCountsV1;
 // 200 successful response
 
-export interface IScriptBatchSummaryV1 extends IScriptBatchHostCountsV1 {
-  team_id: number;
-  script_name: string;
-  created_at: string;
-  // below fields not yet used by the UI
-  targeted: number;
-  script_id: number;
-}
-
 export interface IScriptBatchHostCountsV2 {
   targeted_host_count: number;
   ran_host_count: number;
@@ -167,7 +158,7 @@ export interface IScriptBatchSummaryV2 extends IScriptBatchHostCountsV2 {
   created_at: string;
   script_id: number;
   script_name: string;
-  team_id: number;
+  fleet_id: number;
   status: ScriptBatchStatus;
   canceled: boolean;
   /** ISO 8601 date-time string. Always present as of Fleet 4.73.0 - `null`able for backwards compatibility with older batch runs. */
@@ -300,15 +291,6 @@ export default {
   cancelScriptBatch(batchExecutionId: string) {
     const { SCRIPT_CANCEL_BATCH } = endpoints;
     return sendRequest("POST", SCRIPT_CANCEL_BATCH(batchExecutionId));
-  },
-  /** calls the deprecated endpoint */
-  getRunScriptBatchSummaryV1({
-    batch_execution_id,
-  }: IScriptBatchSummaryParams): Promise<IScriptBatchSummaryV1> {
-    return sendRequest(
-      "GET",
-      `${endpoints.SCRIPT_RUN_BATCH_SUMMARY_V1(batch_execution_id)}`
-    );
   },
   getRunScriptBatchSummaryV2({
     batch_execution_id,

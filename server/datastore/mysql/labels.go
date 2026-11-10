@@ -31,6 +31,7 @@ var labelsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"author_id":             "l.author_id",
 	"criteria":              "l.criteria",
 	"team_id":               "l.team_id",
+	"fleet_id":              "l.team_id",
 
 	// dependent on include_host_counts being set on request
 	// (checked on transport layer).
@@ -980,32 +981,21 @@ func applyLabelTeamFilter(query string, filter fleet.TeamFilter, initialParams .
 	return maybeIn(query)
 }
 
-// platformsForHost returns the label platform values that match the given
-// host. A host matches labels with its specific platform (with rhel hosts
-// running CentOS matching "centos"), and Linux hosts additionally match the
-// generic "linux" platform regardless of distribution.
-func platformsForHost(host *fleet.Host) []string {
-	specific := host.Platform
-	if host.Platform == "rhel" && strings.Contains(strings.ToLower(host.OSVersion), "centos") {
-		specific = "centos"
+// labelPlatformForHost returns the label platform value that matches a host platform. Linux
+// hosts match the generic "linux" platform regardless of distribution.
+func labelPlatformForHost(hostPlatform string) string {
+	if fleet.IsLinux(hostPlatform) {
+		return "linux"
 	}
-	if fleet.IsLinux(specific) && specific != "linux" {
-		return []string{specific, "linux"}
-	}
-	return []string{specific}
+	return hostPlatform
 }
 
 func (ds *Datastore) LabelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
-	platforms := platformsForHost(host)
 	query := `SELECT id, query FROM labels WHERE
-		(platform IN (?) OR platform = '') AND
+		(platform = ? OR platform = '') AND
 		label_membership_type = ? AND
 		(team_id IS NULL OR team_id = ?)`
-	query, args, err := sqlx.In(query, platforms, fleet.LabelMembershipTypeDynamic, host.TeamID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building label queries for host")
-	}
-	rows, err := ds.reader(ctx).QueryContext(ctx, query, args...)
+	rows, err := ds.reader(ctx).QueryContext(ctx, query, labelPlatformForHost(host.Platform), fleet.LabelMembershipTypeDynamic, host.TeamID)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, err, "selecting label queries for host")
 	}
@@ -1186,6 +1176,7 @@ var hostsInLabelAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"refetch_requested":              "h.refetch_requested",
 	"refetch_critical_queries_until": "h.refetch_critical_queries_until",
 	"team_id":                        "h.team_id",
+	"fleet_id":                       "h.team_id",
 	"policy_updated_at":              "h.policy_updated_at",
 	"public_ip":                      "h.public_ip",
 
@@ -1204,7 +1195,8 @@ var hostsInLabelAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"timezone":          "h.timezone",
 	// must match SELECT clause subquery so cursor pagination (WHERE) and
 	// ORDER BY are consistent — MySQL disallows SELECT aliases in WHERE.
-	"team_name": "(SELECT name FROM teams t WHERE t.id = h.team_id)",
+	"team_name":  "(SELECT name FROM teams t WHERE t.id = h.team_id)",
+	"fleet_name": "(SELECT name FROM teams t WHERE t.id = h.team_id)",
 
 	// COALESCE required on the following:
 	// must match SELECT clause so cursor pagination (WHERE) and ORDER BY are consistent
@@ -1285,6 +1277,8 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
       COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
       h.last_restarted_at,
       h.timezone,
+      hoi.version AS orbit_version,
+      hoi.desktop_version AS fleet_desktop_version,
       (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
       %s
       %s
@@ -1294,6 +1288,7 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
     LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)` + hostMobileMDMSeenTimeJoin + `
     LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN host_disks hd ON (h.id=hd.host_id)
+    LEFT JOIN host_orbit_info hoi ON (h.id = hoi.host_id)
     %s
     %s
 		%s
@@ -1358,9 +1353,6 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 
 	if opt.ListOptions.OrderKey == "display_name" {
 		query += ` JOIN host_display_names hdn ON h.id = hdn.host_id `
-	}
-	if opt.ListOptions.OrderKey == "agent" {
-		query += ` LEFT JOIN host_orbit_info hoi ON hoi.host_id = h.id `
 	}
 
 	softwareStatusJoin := ""
@@ -1481,6 +1473,7 @@ func (ds *Datastore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFil
     JOIN hosts h ON (lm.host_id = h.id)
 	LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)` + hostMobileMDMSeenTimeJoin + `
 	LEFT JOIN host_disks hd ON (h.id=hd.host_id)
+	LEFT JOIN host_orbit_info hoi ON (h.id = hoi.host_id)
  	`
 
 	query += hostMDMJoin

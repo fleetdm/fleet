@@ -465,7 +465,9 @@ func testDeleteUsedCustomHostVital(t *testing.T, ds *Datastore) {
 		require.Equal(t, "Firefox", useErr.Entity.Name)
 		require.Equal(t, "Foobar", useErr.Entity.FleetName)
 
-		require.NoError(t, ds.DeleteAndroidAppConfiguration(ctx, appID, foobarTeam.ID))
+		// replace the configuration with one that doesn't use the host vital, so the final delete succeeds
+		require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), uint(appTeamID), //nolint:gosec // dismiss G115
+			[]byte(`{"managedConfiguration":{"assetTag":"static"}}`)))
 	})
 
 	t.Run("scripts", func(t *testing.T) {

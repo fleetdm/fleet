@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
@@ -65,6 +66,18 @@ func createTempFile(t *testing.T, pattern, contents string) (filePath string, ba
 	require.NoError(t, err)
 	require.NoError(t, tmpFile.Close())
 	return tmpFile.Name(), filepath.Dir(tmpFile.Name())
+}
+
+func removedNoTeamFileMessage(t *testing.T) string {
+	entry, ok := removednames.Find(removednames.KindFileName, "no-team.yml", "")
+	require.True(t, ok)
+	return entry.Message()
+}
+
+func removedNoTeamNameMessage(t *testing.T) string {
+	entry, ok := removednames.Find(removednames.KindYAMLValue, "name: No team", "")
+	require.True(t, ok)
+	return entry.Message()
 }
 
 func createNamedFileOnTempDir(t *testing.T, name string, contents string) (filePath string, baseDir string) {
@@ -332,7 +345,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 				_, ok = gitops.Controls.EnableDiskEncryption.(bool)
 				assert.True(t, ok, "enable_disk_encryption not found")
 				_, ok = gitops.Controls.EnableRecoveryLockPassword.(bool)
-				assert.True(t, ok, "enable_recovery_lock_password not found")
+				assert.True(t, ok, "macos_recovery_lock_password_enabled not found")
 				_, ok = gitops.Controls.MacOSMigration.(map[string]interface{})
 				assert.True(t, ok, "macos_migration not found")
 				assert.NotNil(t, gitops.Controls.MacOSSetup, "macos_setup not found")
@@ -343,9 +356,9 @@ func TestValidGitOpsYaml(t *testing.T) {
 				_, ok = gitops.Controls.IPadOSUpdates.(map[string]interface{})
 				assert.True(t, ok, "ipados_updates not found")
 				_, ok = gitops.Controls.WindowsEnabledAndConfigured.(bool)
-				assert.True(t, ok, "windows_enabled_and_configured not found")
+				assert.True(t, ok, "windows_mdm_enabled not found")
 				_, ok = gitops.Controls.WindowsMigrationEnabled.(bool)
-				assert.True(t, ok, "windows_migration_enabled not found")
+				assert.True(t, ok, "windows_mdm_migration_enabled not found")
 				_, ok = gitops.Controls.EnableTurnOnWindowsMDMManually.(bool)
 				assert.True(t, ok, "enable_turn_on_windows_mdm_manually not found")
 				_, ok = gitops.Controls.WindowsEntraTenantIDs.([]any)
@@ -481,7 +494,7 @@ func TestGitOpsHostNameTemplate(t *testing.T) {
 func TestGitOpsControlsBooleanKeys(t *testing.T) {
 	t.Parallel()
 
-	for _, key := range []string{"enable_disk_encryption", "enable_recovery_lock_password", "windows_require_bitlocker_pin"} {
+	for _, key := range []string{"enable_disk_encryption", "macos_recovery_lock_password_enabled", "windows_require_bitlocker_pin"} {
 		t.Run(key, func(t *testing.T) {
 			t.Parallel()
 
@@ -853,11 +866,11 @@ func TestMissingNameErrorMessages(t *testing.T) {
 	assert.Contains(t, err.Error(), "add `org_settings:` as a top-level key.")
 	assert.Contains(t, err.Error(), "Otherwise, use `name` to specify the fleet name.")
 
-	// Empty no-team.yml should report the No Team name requirement.
+	// Empty no-team.yml should report the removed file name.
 	noTeamPath, noTeamBase := createNamedFileOnTempDir(t, "no-team.yml", "")
 	_, err = GitOpsFromFile(noTeamPath, noTeamBase, nil, nopLogf)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "`name` must be `No Team` for `no-team.yml`")
+	assert.Contains(t, err.Error(), removedNoTeamFileMessage(t))
 
 	// Empty unassigned.yml should report the Unassigned name requirement.
 	unassignedPath, unassignedBase := createNamedFileOnTempDir(t, "unassigned.yml", "")
@@ -1022,99 +1035,104 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					_, err = gitOpsFromString(t, config)
 					assert.NoError(t, err)
 
-					// settings is now allowed on "no-team.yml" for webhook settings
+					// settings is now allowed on "unassigned.yml" for webhook settings
 					config = getConfig([]string{"name", "settings"}) // Exclude settings with secrets
-					config += "name: No team\n"
-					noTeamPath1, noTeamBasePath1 := createNamedFileOnTempDir(t, "no-team.yml", config)
+					config += "name: Unassigned\n"
+					noTeamPath1, noTeamBasePath1 := createNamedFileOnTempDir(t, "unassigned.yml", config)
 					gitops, err := GitOpsFromFile(noTeamPath1, noTeamBasePath1, nil, nopLogf)
 					assert.NoError(t, err)
 					assert.NotNil(t, gitops)
 
 					// No team with valid webhook_settings should work
 					config = getConfig([]string{"name", "settings"})
-					config += "name: No team\nsettings:\n  webhook_settings:\n    failing_policies_webhook:\n      enable_failing_policies_webhook: true\n"
-					noTeamPath2, noTeamBasePath2 := createNamedFileOnTempDir(t, "no-team.yml", config)
+					config += "name: Unassigned\nsettings:\n  webhook_settings:\n    failing_policies_webhook:\n      enable_failing_policies_webhook: true\n"
+					noTeamPath2, noTeamBasePath2 := createNamedFileOnTempDir(t, "unassigned.yml", config)
 					gitops, err = GitOpsFromFile(noTeamPath2, noTeamBasePath2, nil, nopLogf)
 					assert.NoError(t, err)
 					assert.NotNil(t, gitops)
 
 					// No team with invalid settings option should fail
 					config = getConfig([]string{"name", "settings"})
-					config += "name: No team\nsettings:\n  features:\n    enable_host_users: false\n"
-					noTeamPath3, noTeamBasePath3 := createNamedFileOnTempDir(t, "no-team.yml", config)
+					config += "name: Unassigned\nsettings:\n  features:\n    enable_host_users: false\n"
+					noTeamPath3, noTeamBasePath3 := createNamedFileOnTempDir(t, "unassigned.yml", config)
 					_, err = GitOpsFromFile(noTeamPath3, noTeamBasePath3, nil, nopLogf)
-					assert.ErrorContains(t, err, "unsupported settings option 'features' in no-team.yml - only 'webhook_settings' is allowed")
+					require.ErrorContains(t, err, "unsupported settings option 'features' in unassigned.yml - only 'webhook_settings' is allowed")
 
 					// No team with multiple settings options (one valid, one invalid) should fail
 					config = getConfig([]string{"name", "settings"})
-					config += "name: No team\nsettings:\n  webhook_settings:\n    failing_policies_webhook:\n      enable_failing_policies_webhook: true\n  secrets:\n    - secret: test\n"
-					noTeamPath4, noTeamBasePath4 := createNamedFileOnTempDir(t, "no-team.yml", config)
+					config += "name: Unassigned\nsettings:\n  webhook_settings:\n    failing_policies_webhook:\n      enable_failing_policies_webhook: true\n  secrets:\n    - secret: test\n"
+					noTeamPath4, noTeamBasePath4 := createNamedFileOnTempDir(t, "unassigned.yml", config)
 					_, err = GitOpsFromFile(noTeamPath4, noTeamBasePath4, nil, nopLogf)
-					assert.ErrorContains(t, err, "unsupported settings option 'secrets' in no-team.yml - only 'webhook_settings' is allowed")
+					require.ErrorContains(t, err, "unsupported settings option 'secrets' in unassigned.yml - only 'webhook_settings' is allowed")
 
 					// No team with host_status_webhook in webhook_settings should fail
 					config = getConfig([]string{"name", "settings"})
-					config += "name: No team\nsettings:\n  webhook_settings:\n    host_status_webhook:\n      enable_host_status_webhook: true\n    failing_policies_webhook:\n      enable_failing_policies_webhook: true\n"
-					noTeamPath5a, noTeamBasePath5a := createNamedFileOnTempDir(t, "no-team.yml", config)
+					config += "name: Unassigned\nsettings:\n  webhook_settings:\n    host_status_webhook:\n      enable_host_status_webhook: true\n    failing_policies_webhook:\n      enable_failing_policies_webhook: true\n"
+					noTeamPath5a, noTeamBasePath5a := createNamedFileOnTempDir(t, "unassigned.yml", config)
 					_, err = GitOpsFromFile(noTeamPath5a, noTeamBasePath5a, nil, nopLogf)
-					require.ErrorContains(t, err, "unsupported webhook_settings option 'host_status_webhook' in no-team.yml - only 'failing_policies_webhook' and 'host_activities_webhook' are allowed")
+					require.ErrorContains(t, err, "unsupported webhook_settings option 'host_status_webhook' in unassigned.yml - only 'failing_policies_webhook' and 'host_activities_webhook' are allowed")
 
 					// No team with vulnerabilities_webhook in webhook_settings should fail
 					config = getConfig([]string{"name", "settings"})
-					config += "name: No team\nsettings:\n  webhook_settings:\n    vulnerabilities_webhook:\n      enable_vulnerabilities_webhook: true\n"
-					noTeamPath5b, noTeamBasePath5b := createNamedFileOnTempDir(t, "no-team.yml", config)
+					config += "name: Unassigned\nsettings:\n  webhook_settings:\n    vulnerabilities_webhook:\n      enable_vulnerabilities_webhook: true\n"
+					noTeamPath5b, noTeamBasePath5b := createNamedFileOnTempDir(t, "unassigned.yml", config)
 					_, err = GitOpsFromFile(noTeamPath5b, noTeamBasePath5b, nil, nopLogf)
-					require.ErrorContains(t, err, "unsupported webhook_settings option 'vulnerabilities_webhook' in no-team.yml - only 'failing_policies_webhook' and 'host_activities_webhook' are allowed")
+					require.ErrorContains(t, err, "unsupported webhook_settings option 'vulnerabilities_webhook' in unassigned.yml - only 'failing_policies_webhook' and 'host_activities_webhook' are allowed")
 
 					// No team with valid host_activities_webhook should work
 					config = getConfig([]string{"name", "settings"})
-					config += "name: No team\nsettings:\n  webhook_settings:\n    host_activities_webhook:\n      enable_host_activities_webhook: true\n      destination_url: https://example.com/webhook\n"
-					noTeamPath5c, noTeamBasePath5c := createNamedFileOnTempDir(t, "no-team.yml", config)
+					config += "name: Unassigned\nsettings:\n  webhook_settings:\n    host_activities_webhook:\n      enable_host_activities_webhook: true\n      destination_url: https://example.com/webhook\n"
+					noTeamPath5c, noTeamBasePath5c := createNamedFileOnTempDir(t, "unassigned.yml", config)
 					gitops, err = GitOpsFromFile(noTeamPath5c, noTeamBasePath5c, nil, nopLogf)
 					require.NoError(t, err)
 					assert.NotNil(t, gitops)
 
 					// No team with non-object host_activities_webhook should fail
 					config = getConfig([]string{"name", "settings"})
-					config += "name: No team\nsettings:\n  webhook_settings:\n    host_activities_webhook: bad\n"
-					noTeamPath5d, noTeamBasePath5d := createNamedFileOnTempDir(t, "no-team.yml", config)
+					config += "name: Unassigned\nsettings:\n  webhook_settings:\n    host_activities_webhook: bad\n"
+					noTeamPath5d, noTeamBasePath5d := createNamedFileOnTempDir(t, "unassigned.yml", config)
 					_, err = GitOpsFromFile(noTeamPath5d, noTeamBasePath5d, nil, nopLogf)
 					require.ErrorContains(t, err, "'settings.webhook_settings.host_activities_webhook' must be an object or null")
 
 					// No team with a string-valued enable flag should fail instead of silently disabling
 					config = getConfig([]string{"name", "settings"})
-					config += "name: No team\nsettings:\n  webhook_settings:\n    host_activities_webhook:\n      enable_host_activities_webhook: \"true\"\n      destination_url: https://example.com/webhook\n"
-					noTeamPath5e, noTeamBasePath5e := createNamedFileOnTempDir(t, "no-team.yml", config)
+					config += "name: Unassigned\nsettings:\n  webhook_settings:\n    host_activities_webhook:\n      enable_host_activities_webhook: \"true\"\n      destination_url: https://example.com/webhook\n"
+					noTeamPath5e, noTeamBasePath5e := createNamedFileOnTempDir(t, "unassigned.yml", config)
 					_, err = GitOpsFromFile(noTeamPath5e, noTeamBasePath5e, nil, nopLogf)
 					require.ErrorContains(t, err, "'settings.webhook_settings.host_activities_webhook.enable_host_activities_webhook' must be a boolean")
 
 					// No team with a misspelled key should fail instead of silently disabling
 					config = getConfig([]string{"name", "settings"})
-					config += "name: No team\nsettings:\n  webhook_settings:\n    host_activities_webhook:\n      enable_host_activity_webhook: true\n      destination_url: https://example.com/webhook\n"
-					noTeamPath5f, noTeamBasePath5f := createNamedFileOnTempDir(t, "no-team.yml", config)
+					config += "name: Unassigned\nsettings:\n  webhook_settings:\n    host_activities_webhook:\n      enable_host_activity_webhook: true\n      destination_url: https://example.com/webhook\n"
+					noTeamPath5f, noTeamBasePath5f := createNamedFileOnTempDir(t, "unassigned.yml", config)
 					_, err = GitOpsFromFile(noTeamPath5f, noTeamBasePath5f, nil, nopLogf)
 					require.ErrorContains(t, err, "unsupported option 'enable_host_activity_webhook' in settings.webhook_settings.host_activities_webhook")
 
 					// No team with a non-string destination_url should fail
 					config = getConfig([]string{"name", "settings"})
-					config += "name: No team\nsettings:\n  webhook_settings:\n    host_activities_webhook:\n      enable_host_activities_webhook: true\n      destination_url: 123\n"
-					noTeamPath5g, noTeamBasePath5g := createNamedFileOnTempDir(t, "no-team.yml", config)
+					config += "name: Unassigned\nsettings:\n  webhook_settings:\n    host_activities_webhook:\n      enable_host_activities_webhook: true\n      destination_url: 123\n"
+					noTeamPath5g, noTeamBasePath5g := createNamedFileOnTempDir(t, "unassigned.yml", config)
 					_, err = GitOpsFromFile(noTeamPath5g, noTeamBasePath5g, nil, nopLogf)
 					require.ErrorContains(t, err, "'settings.webhook_settings.host_activities_webhook.destination_url' must be a string")
 
-					// 'No team' file with invalid name.
+					// The removed name "No team" fails in any file.
 					config = getConfig([]string{"name", "settings"})
 					config += "name: No team\n"
 					noTeamPath6, noTeamBasePath6 := createNamedFileOnTempDir(t, "foobar.yml", config)
 					_, err = GitOpsFromFile(noTeamPath6, noTeamBasePath6, nil, nopLogf)
-					assert.ErrorContains(t, err, fmt.Sprintf("file `%s` for No Team must be named `no-team.yml`", noTeamPath6))
+					require.ErrorContains(t, err, removedNoTeamNameMessage(t))
 
-					// no-team.yml with a non-"No Team" name should fail.
+					// The removed file name fails whatever the fleet name is.
 					config = getConfig([]string{"name", "settings"})
 					config += "name: SomeOtherTeam\nsettings:\n  secrets:\n"
 					noTeamPath7, noTeamBasePath7 := createNamedFileOnTempDir(t, "no-team.yml", config)
 					_, err = GitOpsFromFile(noTeamPath7, noTeamBasePath7, nil, nopLogf)
-					require.ErrorContains(t, err, "`name` must be `No Team` for `no-team.yml`")
+					require.ErrorContains(t, err, removedNoTeamFileMessage(t))
+
+					// ... and whether the file defines org settings instead of a fleet.
+					noTeamPath7Org, noTeamBasePath7Org := createNamedFileOnTempDir(t, "no-team.yml", "org_settings: {}\n")
+					_, err = GitOpsFromFile(noTeamPath7Org, noTeamBasePath7Org, nil, nopLogf)
+					require.ErrorContains(t, err, removedNoTeamFileMessage(t))
 
 					// unassigned.yml with a non-"Unassigned" name should fail.
 					config = getConfig([]string{"name", "settings"})
@@ -1123,19 +1141,13 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					_, err = GitOpsFromFile(unassignedPathBadName, unassignedBasePathBadName, nil, nopLogf)
 					require.ErrorContains(t, err, "`name` must be `Unassigned` for `unassigned.yml`")
 
-					// no-team.yml with "Unassigned" name should fail (wrong name for this file).
-					config = getConfig([]string{"name", "settings"})
-					config += "name: Unassigned\n"
-					noTeamPath8, noTeamBasePath8 := createNamedFileOnTempDir(t, "no-team.yml", config)
-					_, err = GitOpsFromFile(noTeamPath8, noTeamBasePath8, nil, nopLogf)
-					require.ErrorContains(t, err, "`name` must be `No Team` for `no-team.yml`")
-
-					// unassigned.yml with "No team" name should fail (wrong name for this file).
+					// Both removed names in one file are reported together.
 					config = getConfig([]string{"name", "settings"})
 					config += "name: No team\n"
-					unassignedPathNoTeam, unassignedBasePathNoTeam := createNamedFileOnTempDir(t, "unassigned.yml", config)
-					_, err = GitOpsFromFile(unassignedPathNoTeam, unassignedBasePathNoTeam, nil, nopLogf)
-					require.ErrorContains(t, err, "`name` must be `Unassigned` for `unassigned.yml`")
+					noTeamPath8, noTeamBasePath8 := createNamedFileOnTempDir(t, "no-team.yml", config)
+					_, err = GitOpsFromFile(noTeamPath8, noTeamBasePath8, nil, nopLogf)
+					require.ErrorContains(t, err, removedNoTeamFileMessage(t))
+					require.ErrorContains(t, err, removedNoTeamNameMessage(t))
 
 					// 'Unassigned' team in unassigned.yml should work and coerce to "No team" internally.
 					config = getConfig([]string{"name", "settings"})
@@ -1667,7 +1679,7 @@ func TestGitOpsControlsResolveFilePathsAbs(t *testing.T) {
 	})
 
 	t.Run("same-dir relative path is anchored exactly once", func(t *testing.T) {
-		// Reproduces the user's error: default.yml and no-team.yml both in generated/,
+		// Reproduces the user's error: default.yml and unassigned.yml both in generated/,
 		// path lib/no-team/... — before the fix this double-anchored to
 		// generated/generated/lib/no-team/macos_enrollment.json at apply time.
 		controls := GitOpsControls{
@@ -1890,7 +1902,7 @@ func TestGitOpsPaths(t *testing.T) {
 		},
 		"controls": {
 			isArray:    false,
-			goodConfig: "windows_enabled_and_configured: true\n",
+			goodConfig: "windows_mdm_enabled: true\n",
 		},
 		"reports": {
 			isArray:    true,
@@ -2130,7 +2142,7 @@ policies:
     app_store_id: "123456"
 `
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "not found on team")
+	require.ErrorContains(t, err, "not found on fleet")
 
 	// Policy references a software installer not present in the team.
 	config = getTeamConfig([]string{"policies"})
@@ -2159,7 +2171,7 @@ software:
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
 	require.ErrorContains(
 		t, err,
-		"install_software.package_path URL https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg not found on team",
+		"install_software.package_path URL https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg not found on fleet",
 	)
 
 	// Policy references a software installer file that has an invalid yaml.
@@ -2873,7 +2885,7 @@ func TestWebhookPolicyIDsValidation(t *testing.T) {
 
 	t.Run("no_team_invalid_policy_ids_as_number", func(t *testing.T) {
 		config := getTeamConfig([]string{"name", "settings"})
-		config += `name: No team
+		config += `name: Unassigned
 settings:
   webhook_settings:
     failing_policies_webhook:
@@ -2885,14 +2897,14 @@ software:
   packages: []
 policies: []
 `
-		noTeamPath, noTeamBasePath := createNamedFileOnTempDir(t, "no-team.yml", config)
+		noTeamPath, noTeamBasePath := createNamedFileOnTempDir(t, "unassigned.yml", config)
 		_, err := GitOpsFromFile(noTeamPath, noTeamBasePath, appConfig, nopLogf)
 		assert.ErrorContains(t, err, "policy_ids' must be an array")
 	})
 
 	t.Run("no_team_invalid_policy_ids_as_string", func(t *testing.T) {
 		config := getTeamConfig([]string{"name", "settings"})
-		config += `name: No team
+		config += `name: Unassigned
 settings:
   webhook_settings:
     failing_policies_webhook:
@@ -2904,14 +2916,14 @@ software:
   packages: []
 policies: []
 `
-		noTeamPath, noTeamBasePath := createNamedFileOnTempDir(t, "no-team.yml", config)
+		noTeamPath, noTeamBasePath := createNamedFileOnTempDir(t, "unassigned.yml", config)
 		_, err := GitOpsFromFile(noTeamPath, noTeamBasePath, appConfig, nopLogf)
 		assert.ErrorContains(t, err, "policy_ids' must be an array")
 	})
 
 	t.Run("no_team_valid_policy_ids_as_array", func(t *testing.T) {
 		config := getTeamConfig([]string{"name", "settings"})
-		config += `name: No team
+		config += `name: Unassigned
 settings:
   webhook_settings:
     failing_policies_webhook:
@@ -2923,7 +2935,7 @@ software:
   packages: []
 policies: []
 `
-		noTeamPath, noTeamBasePath := createNamedFileOnTempDir(t, "no-team.yml", config)
+		noTeamPath, noTeamBasePath := createNamedFileOnTempDir(t, "unassigned.yml", config)
 		gitops, err := GitOpsFromFile(noTeamPath, noTeamBasePath, appConfig, nopLogf)
 		assert.NoError(t, err)
 		assert.NotNil(t, gitops)
@@ -2932,7 +2944,7 @@ policies: []
 
 	t.Run("no_team_valid_policy_ids_as_empty_array", func(t *testing.T) {
 		config := getTeamConfig([]string{"name", "settings"})
-		config += `name: No team
+		config += `name: Unassigned
 settings:
   webhook_settings:
     failing_policies_webhook:
@@ -2944,7 +2956,7 @@ software:
   packages: []
 policies: []
 `
-		noTeamPath, noTeamBasePath := createNamedFileOnTempDir(t, "no-team.yml", config)
+		noTeamPath, noTeamBasePath := createNamedFileOnTempDir(t, "unassigned.yml", config)
 		gitops, err := GitOpsFromFile(noTeamPath, noTeamBasePath, appConfig, nopLogf)
 		assert.NoError(t, err)
 		assert.NotNil(t, gitops)
@@ -2952,7 +2964,7 @@ policies: []
 
 	t.Run("no_team_valid_policy_ids_as_yaml_list", func(t *testing.T) {
 		config := getTeamConfig([]string{"name", "settings"})
-		config += `name: No team
+		config += `name: Unassigned
 settings:
   webhook_settings:
     failing_policies_webhook:
@@ -2966,7 +2978,7 @@ software:
   packages: []
 policies: []
 `
-		noTeamPath, noTeamBasePath := createNamedFileOnTempDir(t, "no-team.yml", config)
+		noTeamPath, noTeamBasePath := createNamedFileOnTempDir(t, "unassigned.yml", config)
 		gitops, err := GitOpsFromFile(noTeamPath, noTeamBasePath, appConfig, nopLogf)
 		assert.NoError(t, err)
 		assert.NotNil(t, gitops)
@@ -3375,28 +3387,6 @@ labels:
 
 func TestLabelsIgnoredInNoTeamFile(t *testing.T) {
 	t.Parallel()
-
-	t.Run("no-team.yml", func(t *testing.T) {
-		t.Parallel()
-
-		config := "name: No team\nlabels:\n  - name: test-label\n    query: \"SELECT 1;\"\n    description: test\nsoftware:\npolicies:\n"
-		noTeamPath, noTeamBasePath := createNamedFileOnTempDir(t, "no-team.yml", config)
-
-		var logMessages []string
-		captureLogf := func(format string, a ...any) {
-			logMessages = append(logMessages, fmt.Sprintf(format, a...))
-		}
-
-		gitops, err := GitOpsFromFile(noTeamPath, noTeamBasePath, nil, captureLogf)
-		require.NoError(t, err)
-
-		// LabelsPresent should be true (the key was in the YAML), but labels should not be parsed.
-		assert.True(t, gitops.LabelsPresent, "labels should be marked as present when explicitly set in no-team file")
-		assert.Empty(t, gitops.Labels, "labels should not be parsed in no-team file")
-
-		// A warning should have been logged.
-		assert.Contains(t, strings.Join(logMessages, "\n"), "'labels' is not supported in no-team.yml")
-	})
 
 	t.Run("unassigned.yml", func(t *testing.T) {
 		t.Parallel()
@@ -4176,16 +4166,14 @@ func TestGitOpsEnableProfileValidation(t *testing.T) {
 		assert.Nil(t, gitops.Controls.EnableProfileValidation)
 	})
 
-	for file, name := range map[string]string{"no-team.yml": "No team", "unassigned.yml": "Unassigned"} {
-		t.Run("accepted in "+file, func(t *testing.T) {
-			t.Parallel()
-			config := getTeamConfig([]string{"name", "settings", "controls"}) + "name: " + name + "\n" + controls
-			path, basePath := createNamedFileOnTempDir(t, file, config)
-			gitops, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
-			require.NoError(t, err)
-			assert.Equal(t, false, gitops.Controls.EnableProfileValidation)
-		})
-	}
+	t.Run("accepted in unassigned.yml", func(t *testing.T) {
+		t.Parallel()
+		config := getTeamConfig([]string{"name", "settings", "controls"}) + "name: Unassigned\n" + controls
+		path, basePath := createNamedFileOnTempDir(t, "unassigned.yml", config)
+		gitops, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.NoError(t, err)
+		assert.Equal(t, false, gitops.Controls.EnableProfileValidation)
+	})
 
 	t.Run("rejected in a specific team's file", func(t *testing.T) {
 		t.Parallel()
@@ -4454,15 +4442,129 @@ software:
 		assert.True(t, sawExpectErrorMsg, "expected warning about unknown_control_field in log messages: %v", logMessages)
 	})
 
+	t.Run("removed keys fail even when unknown keys are allowed", func(t *testing.T) {
+		t.Parallel()
+		fleetFile := func(controls, settings string) string {
+			return "name: TeamName\nsettings:\n  secrets:\n" + settings + "agent_options:\ncontrols:\n" + controls + "reports:\npolicies:\nsoftware:\n"
+		}
+		globalFile := func(mdm string) string {
+			return "org_settings:\n  server_settings:\n    server_url: https://fleet.example.com\n" +
+				"  org_info:\n    org_name: Test Org\n  secrets:\n  mdm:\n" + mdm +
+				"controls:\nagent_options:\nreports:\npolicies:\n"
+		}
+		for _, tc := range []struct {
+			name, file, config string
+			// other files next to it, by name
+			extra map[string]string
+			want  []string
+			// a differently cased parent is also reported as unknown
+			alsoUnknown bool
+		}{
+			{
+				name: "fleet controls", file: "workstations.yml",
+				config: fleetFile("  enable_recovery_lock_password: true\n"+
+					"  windows_enabled_and_configured: true\n  windows_migration_enabled: false\n"+
+					"  macos_setup:\n    require_all_software_macos: true\n    require_all_software_windows: false\n", ""),
+				want: []string{
+					`The "controls.enable_recovery_lock_password" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+					// the path names the parent by its current name, not the file's alias
+					`The "controls.setup_experience.require_all_software_macos" key is not available anymore.`,
+					`The "controls.setup_experience.require_all_software_windows" key is not available anymore.`,
+					`The "controls.windows_enabled_and_configured" key is not available anymore.`,
+					`The "controls.windows_migration_enabled" key is not available anymore.`,
+				},
+			},
+			{
+				// GitOps used to match keys in any letter case, so these once set the setting.
+				// The message names the registered key.
+				name: "fleet controls in another letter case", file: "workstations.yml",
+				config: fleetFile("  Enable_Recovery_Lock_Password: true\n"+
+					"  Windows_Enabled_And_Configured: true\n  WINDOWS_MIGRATION_ENABLED: true\n"+
+					"  setup_experience:\n    REQUIRE_ALL_SOFTWARE_MACOS: true\n", ""),
+				want: []string{
+					`The "controls.enable_recovery_lock_password" key is not available anymore.`,
+					`The "controls.setup_experience.require_all_software_macos" key is not available anymore.`,
+					`The "controls.windows_enabled_and_configured" key is not available anymore.`,
+					`The "controls.windows_migration_enabled" key is not available anymore.`,
+				},
+			},
+			{
+				// the block under a differently cased parent still decodes, so its old keys must not slip through
+				name: "fleet controls parent in another letter case", file: "workstations.yml",
+				config: fleetFile("  Macos_Setup:\n    require_all_software_macos: true\n    require_all_software_windows: true\n", ""),
+				want: []string{
+					`The "controls.setup_experience.require_all_software_macos" key is not available anymore.`,
+					`The "controls.setup_experience.require_all_software_windows" key is not available anymore.`,
+				},
+				alsoUnknown: true,
+			},
+			{
+				name: "controls file parent in another letter case", file: "workstations.yml",
+				config:      fleetFile("  path: ./controls.yml\n", ""),
+				extra:       map[string]string{"controls.yml": "Macos_Setup:\n  require_all_software_macos: true\n"},
+				want:        []string{`The "controls.setup_experience.require_all_software_macos" key is not available anymore.`},
+				alsoUnknown: true,
+			},
+			{
+				name: "unassigned parent with a Unicode case variant", file: "unassigned.yml",
+				config:      "name: Unassigned\ncontrols:\n  macoſ_setup:\n    require_all_software_windows: true\npolicies:\nsoftware:\n",
+				want:        []string{`The "controls.setup_experience.require_all_software_windows" key is not available anymore.`},
+				alsoUnknown: true,
+			},
+			{
+				name: "fleet settings in another letter case", file: "workstations.yml",
+				config: fleetFile("", "  mdm:\n    Enable_Recovery_Lock_Password: true\n"),
+				want:   []string{`The "settings.mdm.enable_recovery_lock_password" key is not available anymore.`},
+			},
+			{
+				name: "org_settings", file: "default.yml",
+				config: globalFile("    windows_enabled_and_configured: true\n    windows_migration_enabled: true\n"),
+				want: []string{
+					`The "org_settings.mdm.windows_enabled_and_configured" key is not available anymore.`,
+					`The "org_settings.mdm.windows_migration_enabled" key is not available anymore.`,
+				},
+			},
+			{
+				name: "org_settings in another letter case", file: "default.yml",
+				config: globalFile("    ENABLE_RECOVERY_LOCK_PASSWORD: true\n    Windows_Enabled_And_Configured: true\n"),
+				want: []string{
+					`The "org_settings.mdm.enable_recovery_lock_password" key is not available anymore.`,
+					`The "org_settings.mdm.windows_enabled_and_configured" key is not available anymore.`,
+				},
+			},
+		} {
+			for _, allowUnknown := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s allow unknown keys %t", tc.name, allowUnknown), func(t *testing.T) {
+					t.Parallel()
+					path, basePath := createNamedFileOnTempDir(t, tc.file, tc.config)
+					for name, contents := range tc.extra {
+						require.NoError(t, os.WriteFile(filepath.Join(basePath, name), []byte(contents), 0o644))
+					}
+					_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf, GitOpsOptions{AllowUnknownKeys: allowUnknown})
+					require.Error(t, err)
+					for _, want := range tc.want {
+						if tc.extra == nil {
+							want = `in "` + path + `": ` + want
+						}
+						assert.Contains(t, err.Error(), want)
+					}
+					if !tc.alsoUnknown {
+						assert.NotContains(t, err.Error(), "unknown key")
+					}
+				})
+			}
+		}
+	})
+
 	t.Run("unknown key in controls on no-team path", func(t *testing.T) {
 		t.Parallel()
 		config := `
-name: No team
+name: Unassigned
 controls:
   unknown_control_field: true
 policies:
 `
-		path, basePath := createNamedFileOnTempDir(t, "no-team.yml", config)
+		path, basePath := createNamedFileOnTempDir(t, "unassigned.yml", config)
 		_, err := GitOpsFromFile(path, basePath, nil, nopLogf)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unknown_control_field")
@@ -4770,7 +4872,7 @@ controls:
   macos_updates:
     deadline: null
     minimum_version: null
-  windows_enabled_and_configured: true
+  windows_mdm_enabled: true
 reports:
 policies:
 agent_options:
@@ -4791,6 +4893,7 @@ org_settings:
 		require.NoError(t, err)
 
 		// Verify controls parsed correctly with new key names
+		require.Equal(t, true, gitops.Controls.WindowsEnabledAndConfigured)
 		macSettings, ok := gitops.Controls.MacOSSettings.(fleet.MacOSSettings)
 		require.True(t, ok, "macos_settings (via apple_settings) not parsed")
 		require.Len(t, macSettings.CustomSettings, 1)
@@ -4837,7 +4940,7 @@ setup_experience:
 macos_updates:
   deadline: null
   minimum_version: null
-windows_enabled_and_configured: true
+windows_mdm_enabled: true
 `
 		controlsPath := filepath.Join(dir, "controls.yml")
 		require.NoError(t, os.WriteFile(controlsPath, []byte(controlsYAML), 0o644))
@@ -4865,6 +4968,7 @@ org_settings:
 		require.NoError(t, err)
 
 		// Verify controls parsed correctly from external file with new key names
+		require.Equal(t, true, gitops.Controls.WindowsEnabledAndConfigured)
 		macSettings, ok := gitops.Controls.MacOSSettings.(fleet.MacOSSettings)
 		require.True(t, ok, "macos_settings (via apple_settings in external file) not parsed")
 		require.Len(t, macSettings.CustomSettings, 1)
@@ -5223,6 +5327,111 @@ org_settings:
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "org_settings.mdm.apple_business")
+	})
+}
+
+// TestRemovedTeamKeys checks that the team-related keys removed in Fleet 5 fail with their message and the file name, and that every
+// removed key in a file is reported in one run.
+func TestRemovedTeamKeys(t *testing.T) {
+	t.Parallel()
+
+	globalConfig := func(mdmSection string) string {
+		return `
+controls:
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: Test Org
+  secrets:
+  mdm:` + mdmSection + `
+`
+	}
+	removed := func(path string) string {
+		entry, ok := removednames.Find(removednames.KindYAMLKey, path, "")
+		require.True(t, ok, path)
+		return entry.Message()
+	}
+	for _, key := range RemovedGitOpsKeys {
+		removed(key.OldPath)
+	}
+	const abmPath = "org_settings.mdm.apple_business[]."
+
+	tests := []struct {
+		name string
+		yaml string
+		want []string
+	}{
+		{"team_settings", "name: Workstations\nteam_settings:\n  secrets:\n    - secret: abc\n", []string{removed("team_settings")}},
+		{"ABM and VPP keys", globalConfig(`
+    apple_business:
+      - organization_name: Test Org
+        macos_team: Workstations
+        ios_team: Phones
+        ipados_team: Tablets
+        byod_team: Personal
+    volume_purchasing_program:
+      - location: Earth
+        teams: [Workstations]`), []string{
+			removed(abmPath + "macos_team"), removed(abmPath + "ios_team"), removed(abmPath + "ipados_team"), removed(abmPath + "byod_team"),
+			removed("org_settings.mdm.volume_purchasing_program[].teams"),
+		}},
+		{"new keys are accepted", globalConfig(`
+    apple_business:
+      - organization_name: Test Org
+        macos_fleet: Workstations
+    volume_purchasing_program:
+      - location: Earth
+        fleets: [Workstations]`), nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			yamlPath := filepath.Join(dir, "gitops.yml")
+			require.NoError(t, os.WriteFile(yamlPath, []byte(tt.yaml), 0o644))
+
+			_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+			if len(tt.want) == 0 {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			for _, message := range tt.want {
+				assert.ErrorContains(t, err, yamlPath+": "+message)
+			}
+		})
+	}
+
+	// The file that org_settings references is parsed on its own, so it is checked on its own and the error names it.
+	t.Run("keys in a file-backed org_settings", func(t *testing.T) {
+		dir := t.TempDir()
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte("controls:\nreports:\npolicies:\nagent_options:\norg_settings:\n  path: org.yml\n"), 0o644))
+		orgFile := `
+server_settings:
+  server_url: https://fleet.example.com
+org_info:
+  contact_url: https://example.com/contact
+  org_name: Test Org
+secrets:
+mdm:
+  apple_business_manager:
+    - organization_name: Test Org
+      macos_team: Workstations
+  volume_purchasing_program:
+    - location: Earth
+      teams: [Workstations]
+`
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "org.yml"), []byte(orgFile), 0o644))
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "org.yml: "+removed(abmPath+"macos_team"))
+		require.ErrorContains(t, err, "org.yml: "+removed("org_settings.mdm.volume_purchasing_program[].teams"))
 	})
 }
 
@@ -5717,7 +5926,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		assert.Equal(t, sha2, policy.InstallSoftware.Other.HashSHA256)
 	})
 
-	t.Run("bare hash_sha256 not found on team errors", func(t *testing.T) {
+	t.Run("bare hash_sha256 not found on fleet errors", func(t *testing.T) {
 		t.Parallel()
 
 		bogusSHA := "cccc999999999999999999999999999999999999999999999999999999999999"
@@ -5734,7 +5943,36 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		packages := []*fleet.SoftwarePackageSpec{{URL: url1, SHA256: sha1}}
 		errs := parsePolicyInstallSoftware(".", &teamName, policy, packages, nil, nil)
 		require.Len(t, errs, 1)
-		assert.Contains(t, errs[0].Error(), fmt.Sprintf("install_software.hash_sha256 %s not found on team", bogusSHA))
+		assert.Contains(t, errs[0].Error(), fmt.Sprintf("install_software.hash_sha256 %s not found on fleet", bogusSHA))
+	})
+
+	t.Run("software not found on fleet errors say fleet", func(t *testing.T) {
+		t.Parallel()
+
+		bogusSHA := "dddd999999999999999999999999999999999999999999999999999999999999"
+		dir := t.TempDir()
+		shaOnlyPath := filepath.Join(dir, "sha.yml")
+		require.NoError(t, os.WriteFile(shaOnlyPath, []byte("hash_sha256: "+bogusSHA+"\n"), 0o644))
+
+		cases := []struct {
+			name     string
+			software *PolicyInstallSoftware
+			wantErr  string
+		}{
+			{"package_path SHA256", &PolicyInstallSoftware{PackagePath: shaOnlyPath}, fmt.Sprintf("install_software.package_path SHA256 %s not found on fleet: %s", bogusSHA, shaOnlyPath)},
+			{"app_store_id", &PolicyInstallSoftware{AppStoreID: "123"}, fmt.Sprintf("install_software.app_store_id 123 not found on fleet %s", teamName)},
+			{"fleet_maintained_app_slug", &PolicyInstallSoftware{FleetMaintainedAppSlug: "1password/darwin"}, fmt.Sprintf(`install_software.fleet_maintained_app_slug "1password/darwin" not found in software.fleet_maintained_apps for fleet %s`, teamName)},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+				installSoftware.Other = tc.software
+				policy := &Policy{Name: "missing software policy", InstallSoftware: installSoftware}
+				errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, nil)
+				require.Len(t, errs, 1)
+				assert.Contains(t, errs[0].Error(), tc.wantErr)
+			})
+		}
 	})
 
 	t.Run("package_path pointing at a multi-package file errors with hash_sha256 hint", func(t *testing.T) {
