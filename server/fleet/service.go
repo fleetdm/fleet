@@ -423,7 +423,6 @@ type Service interface {
 	ListHostReports(ctx context.Context, hostID uint, opts ListHostReportsOptions) (rows []*HostReport, total int, metadata *PaginationMetadata, err error)
 	NewQuery(ctx context.Context, p QueryPayload) (*Query, error)
 	ModifyQuery(ctx context.Context, id uint, p QueryPayload) (*Query, error)
-	DeleteQuery(ctx context.Context, teamID *uint, name string) error
 	// DeleteQueryByID deletes a query by ID. For backwards compatibility with UI
 	DeleteQueryByID(ctx context.Context, id uint) error
 	// DeleteQueries deletes the existing query objects with the provided IDs. The number of deleted queries is returned
@@ -1004,7 +1003,6 @@ type Service interface {
 	// Apple MDM
 
 	GetAppleMDM(ctx context.Context) (*AppleMDM, error)
-	GetAppleBM(ctx context.Context) (*AppleBM, error)
 	RequestMDMAppleCSR(ctx context.Context, email, org string) (*AppleCSR, error)
 
 	// GetMDMAppleCSR returns a signed CSR as base64 encoded bytes for Apple MDM. The first time
@@ -1527,8 +1525,6 @@ type Service interface {
 
 	// BatchScriptExecute runs a script on many hosts. It creates and returns a batch execution ID
 	BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs []uint, filters *map[string]any, notBefore *time.Time) (string, error)
-
-	BatchScriptExecutionSummary(ctx context.Context, batchExecutionID string) (*BatchActivity, error)
 
 	BatchScriptExecutionStatus(ctx context.Context, batchExecutionID string) (*BatchActivity, error)
 

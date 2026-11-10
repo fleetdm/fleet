@@ -621,7 +621,8 @@ type SoftwareTitleListResult struct {
 
 	// AppStoreApp provides VPP app information, it is only present if a VPP app
 	// is available for the software title.
-	AppStoreApp *SoftwarePackageOrApp `json:"app_store_app"`
+	AppStoreApp  *SoftwarePackageOrApp `json:"app_store_app"`
+	AppStoreApps []AppStoreAppListItem `json:"app_store_apps"`
 	// BundleIdentifier is used by Apple installers to uniquely identify
 	// the software installed. It's surfaced in software_titles to match
 	// with existing software entries.
@@ -1110,14 +1111,6 @@ type VPPBatchPayload struct {
 	AutoUpdateEndTime   *string                   `json:"auto_update_window_end,omitempty"`
 }
 
-func (v VPPBatchPayload) GetPlatform() string {
-	return string(v.Platform)
-}
-
-func (v VPPBatchPayload) GetAppStoreID() string {
-	return v.AppStoreID
-}
-
 type VPPBatchPayloadWithPlatform struct {
 	AppStoreID         string                    `json:"app_store_id"`
 	VersionName        string                    `json:"name"`
@@ -1129,9 +1122,7 @@ type VPPBatchPayloadWithPlatform struct {
 	LabelsIncludeAny   []string                  `json:"labels_include_any"`
 	LabelsIncludeAll   []string                  `json:"labels_include_all"`
 	// Categories is the list of names of software categories associated with this VPP app.
-	Categories []string `json:"categories"`
-	// CategoryIDs is the list of IDs of software categories associated with this VPP app.
-	CategoryIDs         []uint          `json:"-"`
+	Categories          []string        `json:"categories"`
 	DisplayName         string          `json:"display_name"`
 	Configuration       json.RawMessage `json:"configuration,omitempty"`
 	AutoUpdateEnabled   *bool           `json:"auto_update_enabled,omitempty"`

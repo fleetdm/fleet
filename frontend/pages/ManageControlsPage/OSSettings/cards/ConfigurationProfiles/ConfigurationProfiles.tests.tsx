@@ -38,7 +38,7 @@ const mdmEnabledConfig = {
 const mdmDisabledConfig = {
   mdm: {
     enabled_and_configured: false,
-    windows_enabled_and_configured: false,
+    windows_mdm_enabled: false,
     android_enabled_and_configured: false,
   },
 } as any;

@@ -57,7 +57,7 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 	// First ensure the user has access to list hosts, then check the specific
 	// host once team_id is loaded.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return "", err
+		return "", authz.GitOpsHostListError(ctx, err)
 	}
 	host, err := svc.ds.Host(ctx, hostID)
 	if err != nil {
@@ -71,7 +71,7 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 	// host IDs outside their visibility can't be probed.
 	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "lock host")
 	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
-		return "", err
+		return "", authz.GitOpsMDMCommandError(ctx, host.TeamID, err)
 	}
 
 	// locking validations are based on the platform of the host
@@ -194,7 +194,7 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 	// First ensure the user has access to list hosts, then check the specific
 	// host once team_id is loaded.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return "", err
+		return "", authz.GitOpsHostListError(ctx, err)
 	}
 	host, err := svc.ds.HostLite(ctx, hostID)
 	if err != nil {
@@ -208,7 +208,7 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 	// be probed.
 	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "unlock host")
 	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
-		return "", err
+		return "", authz.GitOpsMDMCommandError(ctx, host.TeamID, err)
 	}
 
 	// locking validations are based on the platform of the host
@@ -278,7 +278,7 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.M
 	// First ensure the user has access to list hosts, then check the specific
 	// host once team_id is loaded.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return err
+		return authz.GitOpsHostListError(ctx, err)
 	}
 	host, err := svc.ds.Host(ctx, hostID)
 	if err != nil {
@@ -292,7 +292,7 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.M
 	// host IDs outside their visibility can't be probed.
 	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "wipe host")
 	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
-		return err
+		return authz.GitOpsMDMCommandError(ctx, host.TeamID, err)
 	}
 
 	// wipe validations are based on the platform of the host, Windows and macOS
@@ -599,7 +599,7 @@ func (svc *Service) enqueueWipeHostRequest(
 
 func (svc *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return err
+		return authz.GitOpsHostListError(ctx, err)
 	}
 	host, err := svc.ds.Host(ctx, hostID)
 	if err != nil {
@@ -613,7 +613,7 @@ func (svc *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint)
 	// be probed.
 	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "rotate recovery lock password")
 	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
-		return err
+		return authz.GitOpsMDMCommandError(ctx, host.TeamID, err)
 	}
 
 	// Validate: must be Apple Silicon Mac (macOS with ARM CPU)
@@ -976,7 +976,7 @@ func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID ui
 // flight is rejected with 400 BadRequest.
 func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostID uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return err
+		return authz.GitOpsHostListError(ctx, err)
 	}
 	host, err := svc.ds.HostLite(ctx, hostID)
 	if err != nil {
@@ -989,7 +989,7 @@ func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostI
 	// be probed.
 	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "rotate managed local account password")
 	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
-		return err
+		return authz.GitOpsMDMCommandError(ctx, host.TeamID, err)
 	}
 	isWindows := fleet.IsWindowsPlatform(host.Platform)
 	if !fleet.IsMacOSPlatform(host.Platform) && !isWindows {

@@ -6756,11 +6756,16 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 	// Enable auto-updates for the VPP title and confirm hydration surfaces the
 	// window on the host-software list. This is the plumbing that lets the
 	// FE host software / device software tables render the auto-update icon.
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, va1.TitleID, tm.ID, fleet.SoftwareAutoUpdateConfig{
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		AdamID:              "adam_vpp_1",
+		Platform:            fleet.MacOSPlatform,
 		AutoUpdateEnabled:   new(true),
 		AutoUpdateStartTime: new("02:00"),
 		AutoUpdateEndTime:   new("04:00"),
-	})
+		Name:                "vpp1",
+		BundleIdentifier:    "com.app.vpp1",
+		LatestVersion:       "1.0.0",
+	}, &tm.ID, nil)
 	require.NoError(t, err)
 
 	sw, _, err = ds.ListHostSoftware(ctx, anotherHost, opts)
@@ -8595,10 +8600,10 @@ func testListHostSoftwareHostVitalsExcludeAnyLabel(t *testing.T, ds *Datastore) 
 	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, dynInstallerID, nonMember.ID)
 	require.NoError(t, err)
 	require.False(t, scoped)
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppAppTeamID, nonMember.ID)
+	scoped, err = ds.isSoftwareLabelScoped(ctx, vppAppTeamID, nonMember.ID, softwareTypeVPP)
 	require.NoError(t, err)
 	require.True(t, scoped)
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppAppTeamID, member.ID)
+	scoped, err = ds.isSoftwareLabelScoped(ctx, vppAppTeamID, member.ID, softwareTypeVPP)
 	require.NoError(t, err)
 	require.False(t, scoped)
 	scoped, err = ds.IsInHouseAppLabelScoped(ctx, inHouseAppID, iosNonMember.ID)
@@ -10100,7 +10105,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.True(t, scoped)
 
 	// vppApp should be in scope since it has no labels
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
+	scoped, err = ds.isSoftwareLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID, softwareTypeVPP)
 	require.NoError(t, err)
 	require.True(t, scoped)
 
@@ -10193,7 +10198,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	time.Sleep(time.Second)
 
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, fourthHost.ID)
+	scoped, err = ds.isSoftwareLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, fourthHost.ID, softwareTypeVPP)
 	require.NoError(t, err)
 	require.True(t, scoped)
 
@@ -10308,7 +10313,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checkSoftware(software, vppApp.Name)
 
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
+	scoped, err = ds.isSoftwareLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID, softwareTypeVPP)
 	require.NoError(t, err)
 	require.False(t, scoped)
 
@@ -10322,7 +10327,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checkSoftware(software)
 
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
+	scoped, err = ds.isSoftwareLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID, softwareTypeVPP)
 	require.NoError(t, err)
 	require.True(t, scoped)
 
@@ -10343,7 +10348,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checkSoftware(software, vppApp.Name)
 
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
+	scoped, err = ds.isSoftwareLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID, softwareTypeVPP)
 	require.NoError(t, err)
 	require.False(t, scoped)
 
@@ -10357,7 +10362,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checkSoftware(software)
 
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
+	scoped, err = ds.isSoftwareLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID, softwareTypeVPP)
 	require.NoError(t, err)
 	require.True(t, scoped)
 
@@ -10373,7 +10378,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 
 	// The host need not update its LabelUpdatedAt because the label is manually scoped and not applied,
 	// so it is immediately resolvable (and the host doesn't have the excluded label applied to it)
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
+	scoped, err = ds.isSoftwareLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID, softwareTypeVPP)
 	require.NoError(t, err)
 	require.True(t, scoped)
 
@@ -10396,7 +10401,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// host has neither required label — out of scope
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
+	scoped, err = ds.isSoftwareLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID, softwareTypeVPP)
 	require.NoError(t, err)
 	require.False(t, scoped)
 
@@ -10411,7 +10416,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	time.Sleep(time.Second)
 
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
+	scoped, err = ds.isSoftwareLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID, softwareTypeVPP)
 	require.NoError(t, err)
 	require.False(t, scoped)
 
@@ -10426,7 +10431,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	time.Sleep(time.Second)
 
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
+	scoped, err = ds.isSoftwareLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID, softwareTypeVPP)
 	require.NoError(t, err)
 	require.True(t, scoped)
 
@@ -10676,7 +10681,7 @@ func testListHostSoftwareSelfServiceWithLabelScopingHostInstalled(t *testing.T, 
 	require.NoError(t, err)
 	require.Contains(t, hostsInScope, host.ID)
 	// vppApp should be in scope since it has no labels
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vPPApp.VPPAppTeam.AppTeamID, host.ID)
+	scoped, err = ds.isSoftwareLabelScoped(ctx, vPPApp.VPPAppTeam.AppTeamID, host.ID, softwareTypeVPP)
 	require.NoError(t, err)
 	require.True(t, scoped)
 	hostsInScope, err = ds.GetIncludedHostIDMapForVPPApp(ctx, vPPApp.VPPAppTeam.AppTeamID)
@@ -10714,7 +10719,7 @@ func testListHostSoftwareSelfServiceWithLabelScopingHostInstalled(t *testing.T, 
 	require.Empty(t, hostsInScope)
 
 	// vppApp should not be in scope since it has exclude any label
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vPPApp.VPPAppTeam.AppTeamID, host.ID)
+	scoped, err = ds.isSoftwareLabelScoped(ctx, vPPApp.VPPAppTeam.AppTeamID, host.ID, softwareTypeVPP)
 	require.NoError(t, err)
 	require.False(t, scoped)
 	hostsInScope, err = ds.GetIncludedHostIDMapForVPPApp(ctx, vPPApp.VPPAppTeam.AppTeamID)
@@ -10801,7 +10806,7 @@ func testListHostSoftwareSelfServiceVPPAppOutOfScopeWhileSameAdamIDIsInScopeForA
 		}, softwareTypeVPP)
 		require.NoError(t, err, c.name)
 
-		scoped, err := ds.IsVPPAppLabelScoped(ctx, macOSApp.VPPAppTeam.AppTeamID, host.ID)
+		scoped, err := ds.isSoftwareLabelScoped(ctx, macOSApp.VPPAppTeam.AppTeamID, host.ID, softwareTypeVPP)
 		require.NoError(t, err, c.name)
 		require.False(t, scoped, c.name)
 
@@ -10913,11 +10918,12 @@ func testSoftwareCategories(t *testing.T, ds *Datastore) {
 	require.Equal(t, "category2", cat2.Name)
 
 	// get the IDs
-	ids, err := ds.GetSoftwareCategoryIDs(ctx, 0, []string{cat1.Name, cat2.Name})
+	idsByName, err := ds.GetSoftwareCategoryNameToIDMap(ctx, 0, []string{cat1.Name, cat2.Name})
 	require.NoError(t, err)
-	require.Len(t, ids, 2)
-	require.Contains(t, ids, cat1.ID)
-	require.Contains(t, ids, cat2.ID)
+	require.Len(t, idsByName, 2)
+	require.Equal(t, cat1.ID, idsByName[cat1.Name])
+	require.Equal(t, cat2.ID, idsByName[cat2.Name])
+	ids := []uint{cat1.ID, cat2.ID}
 
 	// create a software installer for no team
 	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)

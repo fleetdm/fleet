@@ -79,7 +79,7 @@ import {
 import policiesAPI from "services/entities/policies";
 import scriptsAPI, {
   IScriptBatchSummaryQueryKey,
-  IScriptBatchSummaryV1,
+  IScriptBatchSummaryV2,
   ScriptBatchHostCountV1,
 } from "services/entities/scripts";
 import teamsAPI, {
@@ -602,7 +602,7 @@ const ManageHostsPage = ({
     }
   );
   const hostActivityAutomations =
-    teamResponse?.team?.webhook_settings?.host_activities_webhook;
+    teamResponse?.fleet?.webhook_settings?.host_activities_webhook;
 
   const {
     data: policy,
@@ -622,9 +622,9 @@ const ManageHostsPage = ({
     isLoading: isLoadingScriptBatchSummary,
     isError: isErrorScriptBatchSummary,
   } = useQuery<
-    IScriptBatchSummaryV1,
+    IScriptBatchSummaryV2,
     Error,
-    IScriptBatchSummaryV1,
+    IScriptBatchSummaryV2,
     IScriptBatchSummaryQueryKey[]
   >(
     [
@@ -634,7 +634,7 @@ const ManageHostsPage = ({
       },
     ],
     ({ queryKey: [{ batch_execution_id }] }) =>
-      scriptsAPI.getRunScriptBatchSummaryV1({ batch_execution_id }),
+      scriptsAPI.getRunScriptBatchSummaryV2({ batch_execution_id }),
     {
       enabled: !!scriptBatchExecutionId && isRouteOk,
       ...DEFAULT_USE_QUERY_OPTIONS,
@@ -2011,11 +2011,7 @@ const ManageHostsPage = ({
     }
 
     let disableRunScriptBatchTooltipContent: React.ReactNode;
-    if (config?.server_settings?.scripts_disabled) {
-      disableRunScriptBatchTooltipContent = (
-        <>Running scripts is disabled in organization settings.</>
-      );
-    } else if (isAllTeamsSelected && isPremiumTier) {
+    if (isAllTeamsSelected && isPremiumTier) {
       disableRunScriptBatchTooltipContent = "Select a fleet to run a script.";
     } else if (isAllMatchingHostsSelected) {
       if (runScriptBatchFilterNotSupported) {

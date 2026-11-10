@@ -43,47 +43,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// Deprecated: use the new GetABMTokens API endpoint.
-func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	appCfg, err := svc.AppConfigObfuscated(ctx)
-	if err != nil {
-		return nil, err
-	}
-	mdmServerURL, err := apple_mdm.ResolveAppleMDMURL(appCfg.ServerSettings.ServerURL)
-	if err != nil {
-		return nil, err
-	}
-
-	tokens, err := svc.ds.ListABMTokens(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "GetAppleBM: listing ABM tokens")
-	}
-
-	if len(tokens) == 0 {
-		return nil, &notFoundError{}
-	}
-
-	if len(tokens) > 1 {
-		return nil, errors.New("This API endpoint has been deprecated. Please use the new GET /ab_tokens API endpoint documented here: https://fleetdm.com/learn-more-about/apple-business-manager-tokens-api")
-	}
-
-	abmToken := tokens[0]
-
-	var appleBM fleet.AppleBM
-	// transfer the abmToken metadata info to the appleBM struct
-	appleBM.AppleID = abmToken.AppleID
-	appleBM.OrgName = abmToken.OrganizationName
-	appleBM.RenewDate = abmToken.RenewAt
-	appleBM.DefaultTeam = appCfg.MDM.DeprecatedAppleBMDefaultTeam
-	appleBM.MDMServerURL = mdmServerURL
-
-	return &appleBM, nil
-}
-
 func (svc *Service) MDMAppleDeviceLock(ctx context.Context, hostID uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return err
@@ -1885,7 +1844,7 @@ func (svc *Service) UploadABMToken(ctx context.Context, token io.Reader) (*fleet
 		return nil, ctxerr.Wrap(ctx, err, "decrypting uploaded ABM token")
 	}
 
-	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.ABMToken{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -1920,7 +1879,7 @@ func (svc *Service) UploadABMToken(ctx context.Context, token io.Reader) (*fleet
 }
 
 func (svc *Service) DeleteABMToken(ctx context.Context, tokenID uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.ABMToken{}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
@@ -1972,7 +1931,7 @@ func (svc *Service) DeleteABMToken(ctx context.Context, tokenID uint) error {
 }
 
 func (svc *Service) ListABMTokens(ctx context.Context) ([]*fleet.ABMToken, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionList); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.ABMToken{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
 
@@ -2001,7 +1960,7 @@ func (svc *Service) CountABMTokens(ctx context.Context) (int, error) {
 }
 
 func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID, byodTeamID *uint) (*fleet.ABMToken, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.ABMToken{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -2093,7 +2052,7 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 }
 
 func (svc *Service) SetABMTokenDefault(ctx context.Context, tokenID uint, isDefault *bool) (*fleet.ABMToken, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.ABMToken{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -2154,7 +2113,7 @@ func (svc *Service) SetABMTokenDefault(ctx context.Context, tokenID uint, isDefa
 }
 
 func (svc *Service) RenewABMToken(ctx context.Context, token io.Reader, tokenID uint) (*fleet.ABMToken, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.ABMToken{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -2182,7 +2141,7 @@ func (svc *Service) RenewABMToken(ctx context.Context, token io.Reader, tokenID 
 }
 
 func (svc *Service) decryptUploadedABMToken(ctx context.Context, token io.Reader) (encryptedToken []byte, decryptedToken *client.OAuth1Tokens, err error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.ABMToken{}, fleet.ActionRead); err != nil {
 		return nil, nil, err
 	}
 
@@ -2266,11 +2225,8 @@ func (svc *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.Comm
 }
 
 func (svc *Service) CancelHostMDMCommand(ctx context.Context, hostID uint, commandUUID string) error {
-	// The selective-list gate (rather than host read) admits gitops, which can
-	// send raw MDM commands via POST /commands/run — whoever can send a
-	// command can cancel one. Mirrors authorizeAllHostsTeams on that endpoint.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
-		return err
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return authz.GitOpsHostListError(ctx, err)
 	}
 
 	host, err := svc.ds.HostLite(ctx, hostID)
@@ -2282,7 +2238,7 @@ func (svc *Service) CancelHostMDMCommand(ctx context.Context, hostID uint, comma
 	// MDM commands, so host IDs outside their visibility can't be probed.
 	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "cancel host mdm command")
 	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
-		return err
+		return authz.GitOpsMDMCommandError(ctx, host.TeamID, err)
 	}
 
 	// Non-Apple hosts have no nano queue rows; without this guard they would

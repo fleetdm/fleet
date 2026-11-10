@@ -2186,34 +2186,6 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 	}
 }
 
-func TestAppConfigReplaceQuery(t *testing.T) {
-	queries := GetDetailQueries(t.Context(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true}, Integrations{}, nil)
-	originalQuery := queries["users"].Query
-
-	replacementMap := make(map[string]*string)
-	replacementMap["users"] = ptr.String("select 1 from blah")
-	queries = GetDetailQueries(t.Context(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap}, Integrations{}, nil)
-	assert.NotEqual(t, originalQuery, queries["users"].Query)
-	assert.Equal(t, "select 1 from blah", queries["users"].Query)
-
-	replacementMap["users"] = nil
-	queries = GetDetailQueries(t.Context(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap}, Integrations{}, nil)
-	_, exists := queries["users"]
-	assert.False(t, exists)
-
-	// put the query back again
-	replacementMap["users"] = ptr.String("select 1 from blah")
-	queries = GetDetailQueries(t.Context(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap}, Integrations{}, nil)
-	assert.NotEqual(t, originalQuery, queries["users"].Query)
-	assert.Equal(t, "select 1 from blah", queries["users"].Query)
-
-	// empty strings are also ignored
-	replacementMap["users"] = ptr.String("")
-	queries = GetDetailQueries(t.Context(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap}, Integrations{}, nil)
-	_, exists = queries["users"]
-	assert.False(t, exists)
-}
-
 func TestDirectIngestSoftware(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := t.Context()

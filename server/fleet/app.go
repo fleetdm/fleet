@@ -19,7 +19,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 // SMTP settings names returned from API, these map to SMTPAuthType and
@@ -282,7 +281,7 @@ type MDM struct {
 	MacOSSettings                  MacOSSettings            `json:"macos_settings" renameto:"apple_settings"`
 	MacOSSetup                     MacOSSetup               `json:"macos_setup" renameto:"setup_experience"`
 	MacOSMigration                 MacOSMigration           `json:"macos_migration"`
-	WindowsMigrationEnabled        bool                     `json:"windows_migration_enabled"`
+	WindowsMigrationEnabled        bool                     `json:"windows_mdm_migration_enabled" removedkey:"windows_migration_enabled" renamescope:"mdm"`
 	EnableTurnOnWindowsMDMManually bool                     `json:"enable_turn_on_windows_mdm_manually"`
 	EndUserAuthentication          MDMEndUserAuthentication `json:"end_user_authentication"`
 
@@ -316,13 +315,13 @@ type MDM struct {
 	// There is no other configuration required for Windows other than enabling
 	// the support, but it is still called "EnabledAndConfigured" for consistency
 	// with the similarly named macOS-specific fields.
-	WindowsEnabledAndConfigured bool `json:"windows_enabled_and_configured"`
+	WindowsEnabledAndConfigured bool `json:"windows_mdm_enabled" removedkey:"windows_enabled_and_configured" renamescope:"mdm"`
 
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
 
 	HostNameTemplate optjson.String `json:"name_template"`
 
-	EnableRecoveryLockPassword optjson.Bool `json:"enable_recovery_lock_password"`
+	EnableRecoveryLockPassword optjson.Bool `json:"macos_recovery_lock_password_enabled" removedkey:"enable_recovery_lock_password" renamescope:"mdm"`
 
 	// RequireBitLockerPIN is deprecated: use
 	// WindowsSettings.RequireBitLockerPIN, which it mirrors.
@@ -1036,8 +1035,8 @@ type MacOSSetup struct {
 	Script                                            optjson.String                     `json:"script" renameto:"macos_script"`
 	Software                                          optjson.Slice[*MacOSSetupSoftware] `json:"software"`
 	ManualAgentInstall                                optjson.Bool                       `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
-	RequireAllSoftware                                bool                               `json:"require_all_software_macos"`
-	RequireAllSoftwareWindows                         bool                               `json:"require_all_software_windows"`
+	RequireAllSoftware                                bool                               `json:"macos_require_all_software" removedkey:"require_all_software_macos" renamescope:"macos_setup,setup_experience"`
+	RequireAllSoftwareWindows                         bool                               `json:"windows_require_all_software" removedkey:"require_all_software_windows" renamescope:"macos_setup,setup_experience"`
 	MacOSEnableBootstrapPackageDuringManualEnrollment bool                               `json:"macos_enable_bootstrap_package_during_manual_enrollment"`
 	MacOSEnableBootstrapPackageDuringMigration        bool                               `json:"macos_enable_bootstrap_package_during_migration"`
 	EnableManagedLocalAccount                         optjson.Bool                       `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account" renamescope:"macos_setup,setup_experience"`
@@ -1347,16 +1346,6 @@ func (c *AppConfig) Copy() *AppConfig {
 		aq := make(json.RawMessage, len(*c.Features.AdditionalQueries))
 		copy(aq, *c.Features.AdditionalQueries)
 		clone.Features.AdditionalQueries = &aq
-	}
-	if c.Features.DetailQueryOverrides != nil {
-		clone.Features.DetailQueryOverrides = make(map[string]*string, len(c.Features.DetailQueryOverrides))
-		for k, v := range c.Features.DetailQueryOverrides {
-			var s *string
-			if v != nil {
-				s = ptr.String(*v)
-			}
-			clone.Features.DetailQueryOverrides[k] = s
-		}
 	}
 	clone.Features.VulnerabilityExposureHistoricalReporting = c.Features.VulnerabilityExposureHistoricalReporting.Copy()
 	if c.AgentOptions != nil {
@@ -1948,8 +1937,7 @@ type ActivityExpirySettings struct {
 type Features struct {
 	EnableHostUsers         bool                   `json:"enable_host_users"`
 	EnableSoftwareInventory bool                   `json:"enable_software_inventory"`
-	AdditionalQueries       *json.RawMessage       `json:"additional_queries,omitempty"`     //nolint:apiparamcheck // osquery host-details queries
-	DetailQueryOverrides    map[string]*string     `json:"detail_query_overrides,omitempty"` //nolint:apiparamcheck // osquery detail-query overrides
+	AdditionalQueries       *json.RawMessage       `json:"additional_queries,omitempty"` //nolint:apiparamcheck // osquery host-details queries
 	HistoricalData          HistoricalDataSettings `json:"historical_data"`
 
 	// VulnerabilityExposureHistoricalReporting holds the GitOps-managed default
@@ -2052,16 +2040,6 @@ func (f *Features) Copy() *Features {
 		aq := make(json.RawMessage, len(*f.AdditionalQueries))
 		copy(aq, *f.AdditionalQueries)
 		clone.AdditionalQueries = &aq
-	}
-	if f.DetailQueryOverrides != nil {
-		clone.DetailQueryOverrides = make(map[string]*string, len(f.DetailQueryOverrides))
-		for k, v := range f.DetailQueryOverrides {
-			var s *string
-			if v != nil {
-				s = ptr.String(*v)
-			}
-			clone.DetailQueryOverrides[k] = s
-		}
 	}
 
 	clone.VulnerabilityExposureHistoricalReporting = f.VulnerabilityExposureHistoricalReporting.Copy()
@@ -2605,7 +2583,7 @@ type DeviceGlobalConfig struct {
 // the device endpoints
 type DeviceGlobalMDMConfig struct {
 	EnabledAndConfigured             bool `json:"enabled_and_configured"`
-	RequireAllSoftware               bool `json:"require_all_software_macos"`
+	RequireAllSoftware               bool `json:"macos_require_all_software"`
 	OnlyAllowAppleBusinessEnrollment bool `json:"only_allow_apple_business_enrollment"`
 }
 

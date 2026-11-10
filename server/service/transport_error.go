@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -33,6 +34,10 @@ func FleetErrorEncoder(ctx context.Context, err error, w http.ResponseWriter, en
 		return true
 
 	case *fleet.AutofillConfigProfileError:
+		// Set here because this case returns before EncodeError's generic Retry-After handling.
+		if e.RetryAfterSeconds > 0 {
+			w.Header().Set("Retry-After", strconv.Itoa(e.RetryAfterSeconds))
+		}
 		w.WriteHeader(e.StatusCode())
 		jsonErr.Message = e.Message
 		jsonErr.Errors = []map[string]string{

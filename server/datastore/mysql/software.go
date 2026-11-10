@@ -8200,28 +8200,6 @@ WHERE id = ?
 	return &category, nil
 }
 
-func (ds *Datastore) GetSoftwareCategoryIDs(ctx context.Context, teamID uint, names []string) ([]uint, error) {
-	if len(names) == 0 {
-		return []uint{}, nil
-	}
-	names = fleet.TranslateLegacySoftwareCategoryNames(names)
-
-	stmt := `SELECT id FROM software_categories WHERE team_id = ? AND name IN (?)`
-	stmt, args, err := sqlx.In(stmt, teamID, names)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "sqlx.In for get software category ids")
-	}
-
-	var ids []uint
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, stmt, args...); err != nil {
-		if !errors.Is(err, sql.ErrNoRows) {
-			return nil, ctxerr.Wrap(ctx, err, "get software category ids")
-		}
-	}
-
-	return ids, nil
-}
-
 // GetSoftwareCategoryNameToIDMap returns a map of software category names to their IDs for the given names on a team.
 // Only categories that exist in the database are included in the map, but outdated default categories that were renamed
 // get matched to their new names.

@@ -824,9 +824,6 @@ func TestQueryAuth(t *testing.T) {
 			_, err = svc.ModifyQuery(ctx, tt.qid, fleet.QueryPayload{})
 			checkQueryWriteAuthErr(t, tt.shouldFailWrite, tt.shouldFailRead, err)
 
-			err = svc.DeleteQuery(ctx, query.TeamID, query.Name)
-			checkQueryWriteAuthErr(t, tt.shouldFailWrite, tt.shouldFailRead, err)
-
 			err = svc.DeleteQueryByID(ctx, tt.qid)
 			checkQueryWriteAuthErr(t, tt.shouldFailWrite, tt.shouldFailRead, err)
 
@@ -977,7 +974,6 @@ func TestDeleteQueryClearsReportState(t *testing.T) {
 
 	query := &fleet.Query{ID: 7, Name: "q"}
 	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) { return query, nil }
-	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) { return query, nil }
 	ds.DeleteQueryFunc = func(ctx context.Context, teamID *uint, name string) error { return nil }
 	ds.DeleteQueriesFunc = func(ctx context.Context, ids []uint) (uint, error) { return uint(len(ids)), nil }
 
@@ -991,12 +987,11 @@ func TestDeleteQueryClearsReportState(t *testing.T) {
 		return nil
 	}
 
-	require.NoError(t, svc.DeleteQuery(ctx, nil, query.Name))
 	require.NoError(t, svc.DeleteQueryByID(ctx, query.ID))
 	_, err := svc.DeleteQueries(ctx, []uint{query.ID, 8})
 	require.NoError(t, err)
 
-	require.Equal(t, []uint{7, 7, 7, 8}, deletedCounts)
+	require.Equal(t, []uint{7, 7, 8}, deletedCounts)
 	require.Equal(t, deletedCounts, clearedMarkers)
 }
 

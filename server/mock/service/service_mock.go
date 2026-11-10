@@ -213,8 +213,6 @@ type NewQueryFunc func(ctx context.Context, p fleet.QueryPayload) (*fleet.Query,
 
 type ModifyQueryFunc func(ctx context.Context, id uint, p fleet.QueryPayload) (*fleet.Query, error)
 
-type DeleteQueryFunc func(ctx context.Context, teamID *uint, name string) error
-
 type DeleteQueryByIDFunc func(ctx context.Context, id uint) error
 
 type DeleteQueriesFunc func(ctx context.Context, ids []uint) (uint, error)
@@ -583,8 +581,6 @@ type GetSoftwareInstallDetailsFunc func(ctx context.Context, installUUID string)
 
 type GetAppleMDMFunc func(ctx context.Context) (*fleet.AppleMDM, error)
 
-type GetAppleBMFunc func(ctx context.Context) (*fleet.AppleBM, error)
-
 type RequestMDMAppleCSRFunc func(ctx context.Context, email string, org string) (*fleet.AppleCSR, error)
 
 type GetMDMAppleCSRFunc func(ctx context.Context) ([]byte, error)
@@ -860,8 +856,6 @@ type GetHostScriptDetailsFunc func(ctx context.Context, hostID uint, opt fleet.L
 type BatchSetScriptsFunc func(ctx context.Context, maybeTmID *uint, maybeTmName *string, payloads []fleet.ScriptPayload, dryRun bool) ([]fleet.ScriptResponse, error)
 
 type BatchScriptExecuteFunc func(ctx context.Context, scriptID uint, hostIDs []uint, filters *map[string]any, notBefore *time.Time) (string, error)
-
-type BatchScriptExecutionSummaryFunc func(ctx context.Context, batchExecutionID string) (*fleet.BatchActivity, error)
 
 type BatchScriptExecutionStatusFunc func(ctx context.Context, batchExecutionID string) (*fleet.BatchActivity, error)
 
@@ -1347,9 +1341,6 @@ type Service struct {
 
 	ModifyQueryFunc        ModifyQueryFunc
 	ModifyQueryFuncInvoked bool
-
-	DeleteQueryFunc        DeleteQueryFunc
-	DeleteQueryFuncInvoked bool
 
 	DeleteQueryByIDFunc        DeleteQueryByIDFunc
 	DeleteQueryByIDFuncInvoked bool
@@ -1903,9 +1894,6 @@ type Service struct {
 	GetAppleMDMFunc        GetAppleMDMFunc
 	GetAppleMDMFuncInvoked bool
 
-	GetAppleBMFunc        GetAppleBMFunc
-	GetAppleBMFuncInvoked bool
-
 	RequestMDMAppleCSRFunc        RequestMDMAppleCSRFunc
 	RequestMDMAppleCSRFuncInvoked bool
 
@@ -2319,9 +2307,6 @@ type Service struct {
 
 	BatchScriptExecuteFunc        BatchScriptExecuteFunc
 	BatchScriptExecuteFuncInvoked bool
-
-	BatchScriptExecutionSummaryFunc        BatchScriptExecutionSummaryFunc
-	BatchScriptExecutionSummaryFuncInvoked bool
 
 	BatchScriptExecutionStatusFunc        BatchScriptExecutionStatusFunc
 	BatchScriptExecutionStatusFuncInvoked bool
@@ -3290,13 +3275,6 @@ func (s *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPayload
 	s.ModifyQueryFuncInvoked = true
 	s.mu.Unlock()
 	return s.ModifyQueryFunc(ctx, id, p)
-}
-
-func (s *Service) DeleteQuery(ctx context.Context, teamID *uint, name string) error {
-	s.mu.Lock()
-	s.DeleteQueryFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteQueryFunc(ctx, teamID, name)
 }
 
 func (s *Service) DeleteQueryByID(ctx context.Context, id uint) error {
@@ -4587,13 +4565,6 @@ func (s *Service) GetAppleMDM(ctx context.Context) (*fleet.AppleMDM, error) {
 	return s.GetAppleMDMFunc(ctx)
 }
 
-func (s *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
-	s.mu.Lock()
-	s.GetAppleBMFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetAppleBMFunc(ctx)
-}
-
 func (s *Service) RequestMDMAppleCSR(ctx context.Context, email string, org string) (*fleet.AppleCSR, error) {
 	s.mu.Lock()
 	s.RequestMDMAppleCSRFuncInvoked = true
@@ -5558,13 +5529,6 @@ func (s *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs
 	s.BatchScriptExecuteFuncInvoked = true
 	s.mu.Unlock()
 	return s.BatchScriptExecuteFunc(ctx, scriptID, hostIDs, filters, notBefore)
-}
-
-func (s *Service) BatchScriptExecutionSummary(ctx context.Context, batchExecutionID string) (*fleet.BatchActivity, error) {
-	s.mu.Lock()
-	s.BatchScriptExecutionSummaryFuncInvoked = true
-	s.mu.Unlock()
-	return s.BatchScriptExecutionSummaryFunc(ctx, batchExecutionID)
 }
 
 func (s *Service) BatchScriptExecutionStatus(ctx context.Context, batchExecutionID string) (*fleet.BatchActivity, error) {
