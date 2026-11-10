@@ -606,9 +606,8 @@ func getReportsCommand() *cli.Command {
 		},
 		Flags: []cli.Flag{
 			&cli.UintFlag{
-				Name:    fleetFlagName,
-				Aliases: []string{"team"},
-				Usage:   "filter reports by fleet_id (0 means global)",
+				Name:  fleetFlagName,
+				Usage: "filter reports by fleet_id (0 means global)",
 			},
 			jsonFlag(),
 			yamlFlag(),
@@ -902,10 +901,9 @@ func getLabelsCommand() *cli.Command {
 			contextFlag(),
 			debugFlag(),
 			&cli.UintFlag{
-				Name:    fleetFlagName,
-				Aliases: []string{"team"},
-				Usage:   "Return labels specific to this fleet ID; default global labels only when viewing multiple labels",
-				Value:   0,
+				Name:  fleetFlagName,
+				Usage: "Return labels specific to this fleet ID; default global labels only when viewing multiple labels",
+				Value: 0,
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -1052,7 +1050,6 @@ func getHostsCommand() *cli.Command {
 		Flags: []cli.Flag{
 			&cli.UintFlag{
 				Name:     fleetFlagName,
-				Aliases:  []string{"team"},
 				Usage:    "filter hosts by fleet_id",
 				Required: false,
 			},
@@ -1472,9 +1469,8 @@ func getSoftwareCommand() *cli.Command {
 		Usage:   "List software titles",
 		Flags: []cli.Flag{
 			&cli.UintFlag{
-				Name:    fleetFlagName,
-				Aliases: []string{"team"},
-				Usage:   "Only list software of hosts that belong to the specified fleet",
+				Name:  fleetFlagName,
+				Usage: "Only list software of hosts that belong to the specified fleet",
 			},
 			&cli.BoolFlag{
 				Name:  "versions",

@@ -131,33 +131,29 @@ const EditQueryPage = ({
 
   // disabled on page load so we can control the number of renders
   // else it will re-populate the context on occasion
-  const {
-    isLoading: isStoredQueryLoading,
-    data: storedQuery,
-    refetch: refetchStoredQuery,
-  } = useQuery<IGetQueryResponse, Error, ISchedulableQuery>(
-    ["query", queryId],
-    () => queryAPI.load(queryId as number),
-    {
-      enabled: !!queryId && !editingExistingQuery,
-      refetchOnWindowFocus: false,
-      select: (data) => data.query,
-      onSuccess: (returnedQuery) => {
-        setLastEditedQueryId(returnedQuery.id);
-        setLastEditedQueryName(returnedQuery.name);
-        setLastEditedQueryDescription(returnedQuery.description);
-        setLastEditedQueryBody(returnedQuery.query);
-        setLastEditedQueryObserverCanRun(returnedQuery.observer_can_run);
-        setLastEditedQueryFrequency(returnedQuery.interval);
-        setLastEditedQueryAutomationsEnabled(returnedQuery.automations_enabled);
-        setLastEditedQueryPlatforms(returnedQuery.platform);
-        setLastEditedQueryLoggingType(returnedQuery.logging);
-        setLastEditedQueryMinOsqueryVersion(returnedQuery.min_osquery_version);
-        setLastEditedQueryDiscardData(returnedQuery.discard_data);
-      },
-      onError: (error) => handlePageError(error),
-    }
-  );
+  const { isLoading: isStoredQueryLoading, data: storedQuery } = useQuery<
+    IGetQueryResponse,
+    Error,
+    ISchedulableQuery
+  >(["query", queryId], () => queryAPI.load(queryId as number), {
+    enabled: !!queryId && !editingExistingQuery,
+    refetchOnWindowFocus: false,
+    select: (data) => data.query,
+    onSuccess: (returnedQuery) => {
+      setLastEditedQueryId(returnedQuery.id);
+      setLastEditedQueryName(returnedQuery.name);
+      setLastEditedQueryDescription(returnedQuery.description);
+      setLastEditedQueryBody(returnedQuery.query);
+      setLastEditedQueryObserverCanRun(returnedQuery.observer_can_run);
+      setLastEditedQueryFrequency(returnedQuery.interval);
+      setLastEditedQueryAutomationsEnabled(returnedQuery.automations_enabled);
+      setLastEditedQueryPlatforms(returnedQuery.platform);
+      setLastEditedQueryLoggingType(returnedQuery.logging);
+      setLastEditedQueryMinOsqueryVersion(returnedQuery.min_osquery_version);
+      setLastEditedQueryDiscardData(returnedQuery.discard_data);
+    },
+    onError: (error) => handlePageError(error),
+  });
 
   /** Pesky bug affecting team level users:
    - Navigating to queries/:id immediately defaults the user to the first team they're on

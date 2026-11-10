@@ -21,7 +21,6 @@ import {
   IAppStoreAppVersion,
   ISoftwareTitle,
   ISoftwareInstallPolicyUI,
-  ISoftwareInstallPolicy,
   SCRIPT_PACKAGE_SOURCES,
   SoftwareInstallPolicyTypeSet,
 } from "interfaces/software";

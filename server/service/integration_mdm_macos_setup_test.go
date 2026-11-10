@@ -450,7 +450,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		require.Nil(t, hostResp.Host.MDM.MacOSSetup.Result)
 
 		var hostByIdentifierResp getHostResponse
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", hostUUID), nil, http.StatusOK, &hostByIdentifierResp)
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", hostUUID), nil, http.StatusOK, &hostByIdentifierResp)
 		require.NotNil(t, hostByIdentifierResp.Host)
 		require.NotNil(t, hostByIdentifierResp.Host.MDM.MacOSSetup)
 		require.Equal(t, expectedStatus, hostByIdentifierResp.Host.MDM.MacOSSetup.BootstrapPackageStatus)

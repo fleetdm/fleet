@@ -52,38 +52,6 @@ func (g gorillaFallback) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // validation, keep working once the fast path is installed.
 func (h *fastPathHandler) Router() *mux.Router { return h.router }
 
-// fastPathExcluded lists method and path templates that have to stay on gorilla. Each is one half of a pair that gorilla tells
-// apart only through a regex constraint on a path variable, which a stdlib pattern cannot express and which the stdlib mux
-// rejects as an ambiguous registration:
-//
-//   - "/hosts/identifier/{identifier}" against "/hosts/{id:[0-9]+}/<subresource>", including the subresource the activity
-//     bounded context registers rather than the core handler
-//   - the removed "DELETE /reports/{name}" against "DELETE /reports/{id:[0-9]+}"
-//
-// Both halves are listed. Excluding only the half the stdlib mux rejected would leave the other half free to claim requests
-// that belong to the one that left. TestFastPathExclusionsCoverEveryAmbiguousRoute keeps the list in sync with the route table.
-var fastPathExcluded = map[string]struct{}{
-	"GET /api/_version_/fleet/hosts/identifier/{identifier}":       {},
-	"GET /api/_version_/fleet/hosts/{id}/activities":               {},
-	"GET /api/_version_/fleet/hosts/{id}/certificates":             {},
-	"GET /api/_version_/fleet/hosts/{id}/configuration_profiles":   {},
-	"GET /api/_version_/fleet/hosts/{id}/dep_assignment":           {},
-	"GET /api/_version_/fleet/hosts/{id}/device_mapping":           {},
-	"GET /api/_version_/fleet/hosts/{id}/device_url":               {},
-	"GET /api/_version_/fleet/hosts/{id}/encryption_key":           {},
-	"GET /api/_version_/fleet/hosts/{id}/health":                   {},
-	"GET /api/_version_/fleet/hosts/{id}/macadmins":                {},
-	"GET /api/_version_/fleet/hosts/{id}/managed_account_password": {},
-	"GET /api/_version_/fleet/hosts/{id}/mdm":                      {},
-	"GET /api/_version_/fleet/hosts/{id}/queries":                  {},
-	"GET /api/_version_/fleet/hosts/{id}/recovery_lock_password":   {},
-	"GET /api/_version_/fleet/hosts/{id}/reports":                  {},
-	"GET /api/_version_/fleet/hosts/{id}/scripts":                  {},
-	"GET /api/_version_/fleet/hosts/{id}/software":                 {},
-	"DELETE /api/_version_/fleet/reports/{id}":                     {},
-	"DELETE /api/_version_/fleet/reports/{name}":                   {},
-}
-
 var (
 	fleetVersionVar = regexp.MustCompile(`{fleetversion:\(\?:([^)]*)\)}`)
 	constrainedVar  = regexp.MustCompile(`{([a-zA-Z_][a-zA-Z0-9_]*):([^}]*)}`)
@@ -147,9 +115,6 @@ func buildFastPathMux(r *mux.Router, middlewares []mux.MiddlewareFunc, cfg confi
 			}
 		}
 		for _, method := range patternMethods {
-			if _, excluded := fastPathExcluded[unversionedKey(method, tpl)]; excluded {
-				continue
-			}
 			for _, pattern := range expandToStdlibPatterns(tpl) {
 				full := method + " " + pattern
 				if _, taken := claimed[full]; taken {
@@ -192,7 +157,7 @@ func tryRegister(m *http.ServeMux, pattern string, h http.Handler) (err error) {
 			panic(r)
 		}
 		// recover into a named return
-		err = fmt.Errorf("%q is ambiguous on a stdlib ServeMux and needs an entry in fastPathExcluded: %w", pattern, panicErr)
+		err = fmt.Errorf("%q is ambiguous on a stdlib ServeMux; change the route's path so it no longer conflicts: %w", pattern, panicErr)
 	}()
 	m.Handle(pattern, h)
 	return nil
@@ -343,12 +308,6 @@ func fastPathMethods(methods []string) []string {
 		return methods
 	}
 	return slices.DeleteFunc(slices.Clone(methods), func(method string) bool { return method == http.MethodHead })
-}
-
-// unversionedKey renders a route in the method and path form used by fastPathExcluded.
-func unversionedKey(method, tpl string) string {
-	p := fleetVersionVar.ReplaceAllString(tpl, "_version_")
-	return method + " " + constrainedVar.ReplaceAllString(p, "{$1}")
 }
 
 // isCanonicalPath reports whether p is already in the form both routers would clean it to. It mirrors the cleanPath helper

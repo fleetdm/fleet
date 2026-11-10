@@ -628,7 +628,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 	t.Run("succeeds", func(t *testing.T) {
 		verifySuccessfulOTAEnrollment := func(mdmDevice *mdmtest.TestAppleMDMClient, hwModel, platform string, enrollTime time.Time) getHostResponse {
 			var hostByIdentifierResp getHostResponse
-			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
 			require.Equal(t, hwModel, hostByIdentifierResp.Host.HardwareModel)
 			require.Equal(t, platform, hostByIdentifierResp.Host.Platform)
 			require.NotNil(t, hostByIdentifierResp.Host.LastMDMEnrolledAt)
