@@ -2402,6 +2402,9 @@ func (svc *Service) parseAndValidateAndroidConfigProfile(ctx context.Context, te
 		RawJSON: data,
 	}
 	if err := cp.ValidateUserProvided(license.IsPremium(ctx)); err != nil {
+		if _, ok := errors.AsType[*fleet.RemovedFleetVariableError](err); ok {
+			return nil, "", ctxerr.Wrap(ctx, err, "validate profile")
+		}
 		err := &fleet.BadRequestError{Message: errPrefix + err.Error()}
 		return nil, "", ctxerr.Wrap(ctx, err, "validate profile")
 	}

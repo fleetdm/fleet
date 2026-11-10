@@ -1052,6 +1052,31 @@ export const generateGenericLearnMoreErrMsg = (errMsg: string) => {
   return errMsg;
 };
 
+const FLEET_5_REMOVAL_MESSAGE = /^(.*? What to use instead: )(https:\/\/\S+)(.*)$/;
+
+/**
+ * Formats any Fleet 5 removal message from the API ("The ... is not available anymore. What to use
+ * instead: <guide URL>") with the guide URL as a link. Returns null for any other message. Pass the
+ * "default" link variant outside toasts.
+ */
+export const formatFleet5RemovalMessage = (
+  message: string,
+  linkVariant: "flash-message-link" | "default" = "flash-message-link"
+) => {
+  const match = message.match(FLEET_5_REMOVAL_MESSAGE);
+  if (!match) {
+    return null;
+  }
+  const [, before, url, after] = match;
+  return (
+    <>
+      {before}
+      <CustomLink url={url} text={url} variant={linkVariant} newTab />
+      {after}
+    </>
+  );
+};
+
 export default {
   addGravatarUrlToResource,
   removeOSPrefix,

@@ -1013,8 +1013,8 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 		URL:                           digiCertServer.server.URL,
 		APIToken:                      "api_token",
 		ProfileID:                     "profile_id",
-		CertificateCommonName:         "$FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + " $FLEET_VAR_" + string(fleet.FleetVarHostEndUserEmailIDP),
-		CertificateUserPrincipalNames: []string{"_${FLEET_VAR_" + string(fleet.FleetVarHostEndUserEmailIDP) + "}_"},
+		CertificateCommonName:         "$FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + " $FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsername),
+		CertificateUserPrincipalNames: []string{"_${FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsername) + "}_"},
 		CertificateSeatID:             "_${FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + "}_",
 	}
 	certPayload = createCertificateAuthorityRequest{
@@ -1337,6 +1337,93 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegrationWithHostPlatform() {
 	// ////////////////////////////////
 	// Modify the CN/UPN/Seat ID of the profile -- DigiCert verification should not happen
 	digiCertServer.server.Close() // so that verify fails if attempted
+}
+
+// TestRemovedFleetVariableSavedBeforeUpgrade covers a server upgraded with $FLEET_VAR_HOST_END_USER_EMAIL_IDP still saved in a profile
+// and in a DigiCert CA: uploads reject it, and what is already saved fails on delivery instead of reaching the host or DigiCert.
+func (s *integrationMDMTestSuite) TestRemovedFleetVariableSavedBeforeUpgrade() {
+	t := s.T()
+	ctx := t.Context()
+	s.setSkipWorkerJobs(t)
+	digiCertServer := createMockDigiCertServer(t)
+	t.Cleanup(digiCertServer.server.Close)
+
+	const removedVarMsg = `The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. ` +
+		`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+
+	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setupPusher(s, t, mdmDevice)
+	s.awaitTriggerProfileSchedule(t)
+	s.awaitRunAppleMDMWorkerSchedule()
+	for {
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		if cmd == nil {
+			break
+		}
+		_, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+	require.NoError(t, s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID))
+
+	body, headers := generateNewProfileMultipartRequest(t, "removed.mobileconfig",
+		mobileconfigForTest("N1", "I1", "HOST_END_USER_EMAIL_IDP"), s.token, nil)
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusUnprocessableEntity, headers)
+	require.Equal(t, "Validation Failed: "+removedVarMsg, extractServerErrorText(res.Body))
+	res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: mobileconfigForTest("N1", "I1", "HOST_END_USER_EMAIL_IDP")},
+	}}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), removedVarMsg)
+
+	// A DigiCert CA and a profile saved with the variable, the way a Fleet 4 server stored them.
+	ca := newMockDigicertCA(digiCertServer.server.URL, "StoredVar")
+	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &createCertificateAuthorityRequest{DigiCert: &ca}, http.StatusOK,
+		&createCertificateAuthorityResponse{})
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE certificate_authorities SET certificate_common_name = ? WHERE name = ?`,
+			"$FLEET_VAR_HOST_END_USER_EMAIL_IDP", ca.Name)
+		return err
+	})
+	t.Cleanup(func() {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(context.Background(), `DELETE FROM certificate_authorities WHERE name = ?`, ca.Name)
+			return err
+		})
+	})
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N2", Contents: digiCertForTest("N2", "I2", ca.Name)},
+	}}, http.StatusNoContent)
+	stored, err := fleet.NewMDMAppleConfigProfile(mobileconfigForTest("N3", "I3", "HOST_END_USER_EMAIL_IDP"), nil)
+	require.NoError(t, err)
+	_, err = s.ds.NewMDMAppleConfigProfile(ctx, *stored, nil)
+	require.NoError(t, err)
+
+	s.awaitTriggerProfileSchedule(t)
+
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+	require.NotNil(t, hostResp.Host.MDM.Profiles)
+	details := map[string]string{}
+	for _, prof := range *hostResp.Host.MDM.Profiles {
+		if prof.Name != "N2" && prof.Name != "N3" {
+			continue // Fleet's own profiles
+		}
+		require.NotNil(t, prof.Status, prof.Name)
+		assert.EqualValues(t, fleet.MDMDeliveryFailed, *prof.Status, prof.Name)
+		details[prof.Name] = prof.Detail
+	}
+	assert.Equal(t, map[string]string{
+		"N2": removedVarMsg + " The variable is used in the DigiCert certificate authority, not in the profile.",
+		"N3": removedVarMsg,
+	}, details)
+
+	// Nothing reached DigiCert or the host.
+	digiCertServer.certReqMu.Lock()
+	assert.Empty(t, digiCertServer.certReq.CSR)
+	digiCertServer.certReqMu.Unlock()
+	cmd, err := mdmDevice.Idle()
+	require.NoError(t, err)
+	assert.Nil(t, cmd)
 }
 
 //go:embed testdata/profiles/digicert.mobileconfig

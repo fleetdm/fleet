@@ -33,6 +33,7 @@ const (
 	KindYAMLValue     Kind = "yaml_value"     // value of a YAML key, written "key: value" and compared without regard to case
 	KindActivityType  Kind = "activity_type"  // activity type name
 	KindSAMLAttribute Kind = "saml_attribute" // SAML attribute an identity provider sends, written with <ID> where a suffix varies
+	KindFleetVariable Kind = "fleet_variable" // Fleet variable, written with its $FLEET_VAR_ prefix
 )
 
 // Scope says where a removed name appears, so each consumer loads only the entries it needs.
@@ -59,7 +60,7 @@ type Entry struct {
 	Context string
 	// Format builds the error message. Nil means the default for the Kind: EndpointFormat for a path, ParameterFormat for a query
 	// parameter, form field, JSON key, sort key, or target type, KeyFormat for a YAML key, NounFormat for a flag, command, environment
-	// variable, or flag value, and ReplacedFormat for the rest.
+	// variable, flag value, SAML attribute, or Fleet variable, and ReplacedFormat for the rest.
 	Format Format
 }
 

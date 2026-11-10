@@ -2227,6 +2227,20 @@ func TestDigicertFieldsAcceptIdPVariables(t *testing.T) {
 	}
 }
 
+func TestDigicertFieldsRejectRemovedVariable(t *testing.T) {
+	const errPrefix = "Couldn't add certificate authority. "
+	const removed = "${FLEET_VAR_HOST_END_USER_EMAIL_IDP}"
+	for field, err := range map[string]error{
+		"certificate_common_name":          validateDigicertCACN(removed, errPrefix),
+		"certificate_seat_id":              validateDigicertSeatID(removed, errPrefix),
+		"certificate_user_principal_names": validateDigicertUserPrincipalNames([]string{removed}, errPrefix),
+	} {
+		var iae *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &iae, field)
+		require.Equal(t, []map[string]string{{"name": field, "reason": errPrefix + removedEmailIDPVarMsg}}, iae.Invalid(), field)
+	}
+}
+
 type recordingESTService struct {
 	fleet.ESTService
 	record func(url string) error

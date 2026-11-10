@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	platform_errors "github.com/fleetdm/fleet/v4/server/platform/errors"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/rs/zerolog"
@@ -206,6 +207,33 @@ func (e *ParamRequiredDeprecationError) BadRequestError() []map[string]string { 
 
 // IsClientError implements ErrWithIsClientError.
 func (e *ParamRequiredDeprecationError) IsClientError() bool { return true }
+
+// RemovedFleetVariableError is a Fleet variable that Fleet 5 removed. It renders as a 422 with the variable's removal message, which is
+// also the failure detail when a profile, app configuration, or certificate authority saved before the upgrade still uses it.
+type RemovedFleetVariableError struct {
+	message string
+}
+
+// FindRemovedFleetVariable returns a *RemovedFleetVariableError for the first of names that Fleet 5 removed, and nil if there is none.
+// Names are without the FLEET_VAR_ prefix, as variables.Find returns them.
+func FindRemovedFleetVariable(names ...string) error {
+	for _, name := range names {
+		if entry, ok := removednames.Find(removednames.KindFleetVariable, FleetVarName(name).WithPrefix(), ""); ok {
+			return &RemovedFleetVariableError{message: entry.Message()}
+		}
+	}
+	return nil
+}
+
+func (e *RemovedFleetVariableError) Error() string { return e.message }
+
+// Invalid makes the error encoder return a 422.
+func (e *RemovedFleetVariableError) Invalid() []map[string]string {
+	return []map[string]string{{"name": "base", "reason": e.message}}
+}
+
+// IsClientError implements ErrWithIsClientError.
+func (e *RemovedFleetVariableError) IsClientError() bool { return true }
 
 // AuthFailedError is an alias for platform_http.AuthFailedError.
 type AuthFailedError = platform_http.AuthFailedError

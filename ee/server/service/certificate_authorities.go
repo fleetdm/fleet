@@ -295,7 +295,11 @@ func validateDigicertCACN(cn string, errPrefix string) error {
 
 // validateCAFleetVariables rejects a Fleet variable in the value of a CA field that is not one of the allowed ones.
 func validateCAFleetVariables(field, where, value string, allowed []fleet.FleetVarName, errPrefix string) error {
-	for _, fleetVar := range variables.Find(value) {
+	fleetVars := variables.Find(value)
+	if err := fleet.FindRemovedFleetVariable(fleetVars...); err != nil {
+		return fleet.NewInvalidArgumentError(field, errPrefix+err.Error())
+	}
+	for _, fleetVar := range fleetVars {
 		if !slices.Contains(allowed, fleet.FleetVarName(fleetVar)) {
 			return fleet.NewInvalidArgumentError(field, fmt.Sprintf("%sFLEET_VAR_%s is not allowed in %s", errPrefix, fleetVar, where))
 		}
