@@ -412,8 +412,8 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		if payload.MDM.EnableRecoveryLockPassword.Valid {
 			recoveryLockPasswordUpdated = team.Config.MDM.EnableRecoveryLockPassword != payload.MDM.EnableRecoveryLockPassword.Value
 			if recoveryLockPasswordUpdated && !appCfg.MDM.EnabledAndConfigured {
-				return nil, fleet.NewInvalidArgumentError("mdm.enable_recovery_lock_password",
-					`Couldn't update enable_recovery_lock_password because MDM features aren't turned on in Fleet.`)
+				return nil, fleet.NewInvalidArgumentError("mdm.macos_recovery_lock_password_enabled",
+					`Couldn't update macos_recovery_lock_password_enabled because MDM features aren't turned on in Fleet.`)
 			}
 			team.Config.MDM.EnableRecoveryLockPassword = payload.MDM.EnableRecoveryLockPassword.Value
 		}
@@ -873,16 +873,20 @@ func (svc *Service) rewriteAppConfigTeamNames(
 		}
 	}
 
-	vppToken, err := svc.ds.GetVPPTokenByTeamID(ctx, &teamID)
-	if err != nil && !fleet.IsNotFound(err) {
-		return ctxerr.Wrap(ctx, err, "get VPP token by team ID")
+	vppTokens, err := svc.ds.ListVPPTokens(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list VPP tokens")
 	}
-	if vppToken != nil {
-		for i := range appCfg.MDM.VolumePurchasingProgram.Value {
-			programInfo := &appCfg.MDM.VolumePurchasingProgram.Value[i]
-			if programInfo.Location == vppToken.Location && vpp(programInfo) {
-				updated = true
-			}
+	locations := make(map[string]struct{})
+	for _, tok := range vppTokens {
+		if slices.ContainsFunc(tok.Teams, func(tt fleet.TeamTuple) bool { return tt.ID == teamID }) {
+			locations[tok.Location] = struct{}{}
+		}
+	}
+	for i := range appCfg.MDM.VolumePurchasingProgram.Value {
+		programInfo := &appCfg.MDM.VolumePurchasingProgram.Value[i]
+		if _, ok := locations[programInfo.Location]; ok && vpp(programInfo) {
+			updated = true
 		}
 	}
 
@@ -1754,7 +1758,8 @@ func (svc *Service) createTeamFromSpec(
 	}
 
 	if macOSSetup.MacOSSetupAssistant.Value != "" || macOSSetup.BootstrapPackage.Value != "" ||
-		macOSSetup.EnableReleaseDeviceManually.Value || macOSSetup.ManualAgentInstall.Value {
+		macOSSetup.EnableReleaseDeviceManually.Value || macOSSetup.ManualAgentInstall.Value ||
+		macOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment || macOSSetup.MacOSEnableBootstrapPackageDuringMigration {
 		if !appCfg.MDM.EnabledAndConfigured {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience",
 				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
@@ -1766,8 +1771,8 @@ func (svc *Service) createTeamFromSpec(
 	}
 
 	if macOSSetup.RequireAllSoftwareWindows && !appCfg.MDM.WindowsEnabledAndConfigured {
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.require_all_software_windows",
-			`Couldn't update setup_experience.require_all_software_windows. `+fleet.ErrWindowsMDMNotConfigured.Error()))
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.windows_require_all_software",
+			`Couldn't update setup_experience.windows_require_all_software. `+fleet.ErrWindowsMDMNotConfigured.Error()))
 	}
 
 	// Default the value of "lock_end_user_info" to the value of "enable_end_user_authentication" if not explicitly set in the spec to keep prior
@@ -2204,8 +2209,8 @@ func (svc *Service) editTeamFromSpec(
 	if spec.MDM.EnableRecoveryLockPassword.Valid {
 		didUpdateRecoveryLockPassword = team.Config.MDM.EnableRecoveryLockPassword != spec.MDM.EnableRecoveryLockPassword.Value
 		if didUpdateRecoveryLockPassword && !appCfg.MDM.EnabledAndConfigured {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm.enable_recovery_lock_password",
-				`Couldn't update enable_recovery_lock_password because MDM features aren't turned on in Fleet.`))
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm.macos_recovery_lock_password_enabled",
+				`Couldn't update macos_recovery_lock_password_enabled because MDM features aren't turned on in Fleet.`))
 		}
 		team.Config.MDM.EnableRecoveryLockPassword = spec.MDM.EnableRecoveryLockPassword.Value
 	}
@@ -2311,11 +2316,29 @@ func (svc *Service) editTeamFromSpec(
 	didUpdateMacOSRequireAllSoftware := spec.MDM.MacOSSetup.RequireAllSoftware != oldMacOSSetup.RequireAllSoftware
 	if didUpdateMacOSRequireAllSoftware && spec.MDM.MacOSSetup.RequireAllSoftware {
 		if !appCfg.MDM.EnabledAndConfigured {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.require_all_software",
-				`Couldn't update setup_experience.require_all_software because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.macos_require_all_software",
+				`Couldn't update setup_experience.macos_require_all_software because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 		}
 	}
 	team.Config.MDM.MacOSSetup.RequireAllSoftware = spec.MDM.MacOSSetup.RequireAllSoftware
+
+	didUpdateBootstrapManualEnrollment := spec.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment != oldMacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment
+	if didUpdateBootstrapManualEnrollment && spec.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment {
+		if !appCfg.MDM.EnabledAndConfigured {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.macos_enable_bootstrap_package_during_manual_enrollment",
+				`Couldn't update setup_experience.macos_enable_bootstrap_package_during_manual_enrollment because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
+		}
+	}
+	team.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment = spec.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment
+
+	didUpdateBootstrapMigration := spec.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration != oldMacOSSetup.MacOSEnableBootstrapPackageDuringMigration
+	if didUpdateBootstrapMigration && spec.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration {
+		if !appCfg.MDM.EnabledAndConfigured {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.macos_enable_bootstrap_package_during_migration",
+				`Couldn't update setup_experience.macos_enable_bootstrap_package_during_migration because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
+		}
+	}
+	team.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration = spec.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration
 
 	didUpdateWindowsRequireAllSoftware := spec.MDM.MacOSSetup.RequireAllSoftwareWindows != oldMacOSSetup.RequireAllSoftwareWindows
 	windowsEnabledAndConfigured := appCfg.MDM.WindowsEnabledAndConfigured
@@ -2324,8 +2347,8 @@ func (svc *Service) editTeamFromSpec(
 	}
 	if didUpdateWindowsRequireAllSoftware && spec.MDM.MacOSSetup.RequireAllSoftwareWindows {
 		if !windowsEnabledAndConfigured {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.require_all_software_windows",
-				`Couldn't update setup_experience.require_all_software_windows. `+fleet.ErrWindowsMDMNotConfigured.Error()))
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.windows_require_all_software",
+				`Couldn't update setup_experience.windows_require_all_software. `+fleet.ErrWindowsMDMNotConfigured.Error()))
 		}
 	}
 	team.Config.MDM.MacOSSetup.RequireAllSoftwareWindows = spec.MDM.MacOSSetup.RequireAllSoftwareWindows
@@ -2895,17 +2918,36 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 		didUpdate = true
 	}
 
+	requireBootstrapPackage := svc.bootstrapPackageRequirement(ctx, tm.ID)
+
+	if payload.MacOSEnableBootstrapPackageDuringManualEnrollment != nil &&
+		tm.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment != *payload.MacOSEnableBootstrapPackageDuringManualEnrollment {
+		if *payload.MacOSEnableBootstrapPackageDuringManualEnrollment {
+			if err := requireBootstrapPackage("Couldn't enable macos_enable_bootstrap_package_during_manual_enrollment. To use this option, first specify a macos_bootstrap_package."); err != nil {
+				return err
+			}
+		}
+		tm.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment = *payload.MacOSEnableBootstrapPackageDuringManualEnrollment
+		didUpdate = true
+	}
+
+	if payload.MacOSEnableBootstrapPackageDuringMigration != nil &&
+		tm.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration != *payload.MacOSEnableBootstrapPackageDuringMigration {
+		if *payload.MacOSEnableBootstrapPackageDuringMigration {
+			if err := requireBootstrapPackage("Couldn't enable macos_enable_bootstrap_package_during_migration. To use this option, first specify a macos_bootstrap_package."); err != nil {
+				return err
+			}
+		}
+		tm.Config.MDM.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration = *payload.MacOSEnableBootstrapPackageDuringMigration
+		didUpdate = true
+	}
+
 	if payload.ManualAgentInstall != nil {
 		if tm.Config.MDM.MacOSSetup.ManualAgentInstall.Value != *payload.ManualAgentInstall {
-			// Try to load the bootstrap package to verify it exists.
-			_, err := svc.GetMDMAppleBootstrapPackageMetadata(ctx, tm.ID, false)
-			// If we got an error other than not found, return it.
-			if err != nil && !fleet.IsNotFound(err) {
-				return ctxerr.Wrap(ctx, err, "checking bootstrap package")
-			}
-			// Otherwise if we got a not found error, we can't enable manual agent install.
-			if *payload.ManualAgentInstall && err != nil {
-				return fleet.NewUserMessageError(errors.New("Couldn’t enable macos_manual_agent_install. To use this option, first specify a macos_bootstrap_package."), http.StatusUnprocessableEntity)
+			if *payload.ManualAgentInstall {
+				if err := requireBootstrapPackage("Couldn’t enable macos_manual_agent_install. To use this option, first specify a macos_bootstrap_package."); err != nil {
+					return err
+				}
 			}
 			sec, err := svc.ds.GetSetupExperienceCount(ctx, string(fleet.MacOSPlatform), &tm.ID)
 			if err != nil {

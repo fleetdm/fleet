@@ -1,0 +1,2 @@
+- Added a built-in MCP server to Fleet Premium at `/api/v1/fleet/mcp`, on by default and turned off with `server_settings.mcp_disabled`. AI harnesses connect with an API-only user's token and only get the tools that user's API endpoints allow.
+- Added Streamable HTTP transport to the standalone `fleet-mcp` server.

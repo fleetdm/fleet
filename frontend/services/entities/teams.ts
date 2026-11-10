@@ -26,12 +26,11 @@ interface ILoadTeamsParams {
  * See https://fleetdm.com/docs/using-fleet/rest-api#get-team
  */
 export interface ILoadTeamResponse {
-  team: ITeamConfig;
   fleet: ITeamConfig;
 }
 
 export interface ILoadTeamsResponse {
-  teams: ITeamConfig[];
+  fleets: ITeamConfig[];
 }
 
 export interface ITeamFormData {
@@ -92,7 +91,7 @@ export default {
     if (teamId === undefined || teamId < API_NO_TEAM_ID) {
       return Promise.reject(
         new Error(
-          `Invalid team id: ${teamId} must be greater than or equal to ${API_NO_TEAM_ID}`
+          `Invalid fleet id: ${teamId} must be greater than or equal to ${API_NO_TEAM_ID}`
         )
       );
     }
@@ -126,7 +125,7 @@ export default {
     teamId?: number
   ): Promise<ILoadTeamResponse> => {
     if (typeof teamId === "undefined") {
-      return Promise.reject("Invalid usage: missing team id");
+      return Promise.reject("Invalid usage: missing fleet id");
     }
 
     const { TEAMS } = endpoints;
@@ -184,7 +183,7 @@ export default {
     if (!teamId || teamId <= API_NO_TEAM_ID) {
       return Promise.reject(
         new Error(
-          `Invalid team id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
+          `Invalid fleet id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
         )
       );
     }
@@ -200,7 +199,7 @@ export default {
     if (!teamId || teamId <= API_NO_TEAM_ID) {
       return Promise.reject(
         new Error(
-          `Invalid team id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
+          `Invalid fleet id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
         )
       );
     }

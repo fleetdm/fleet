@@ -5,7 +5,10 @@ import {
   PRE_INSTALL_QUERY_FAIL_OUTPUT,
   SKIPPED_INSTALL_DETAILS,
 } from "components/ActivityDetails/InstallDetails/constants";
-import { SKIPPED_INSTALL_NOTIFY_EXPLANATION } from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
+import {
+  SKIPPED_INSTALL_DEADLINE_EXPLANATION,
+  SKIPPED_INSTALL_NOTIFY_EXPLANATION,
+} from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
 import { ActivityType } from "interfaces/activity";
 import { IPolicy, IPolicyAutomationActivity } from "interfaces/policy";
 import policiesAPI from "services/entities/policies";
@@ -30,7 +33,7 @@ const mockPolicy: IPolicy = {
   author_email: "test@example.com",
   resolution: "",
   platform: "",
-  team_id: null,
+  fleet_id: null,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
   critical: false,
@@ -236,13 +239,13 @@ describe("getAutomationStatusIcon", () => {
           },
         })
       )
-    ).toEqual({ name: "error-outline", color: "ui-fleet-black-50" });
+    ).toEqual({ name: "error", color: "ui-fleet-black-50" });
     expect(getAutomationStatusIcon(mockActivity({ status: "error" }))).toEqual({
-      name: "error-outline",
+      name: "error",
     });
     expect(
       getAutomationStatusIcon(mockActivity({ status: "success" }))
-    ).toEqual({ name: "success-outline" });
+    ).toEqual({ name: "success" });
   });
 
   it("uses the grey error glyph for a successful 'end user notified' row and red for the failure row", () => {
@@ -253,7 +256,7 @@ describe("getAutomationStatusIcon", () => {
           status: "success",
         })
       )
-    ).toEqual({ name: "error-outline", color: "ui-fleet-black-50" });
+    ).toEqual({ name: "error", color: "ui-fleet-black-50" });
     expect(
       getAutomationStatusIcon(
         mockActivity({
@@ -261,7 +264,7 @@ describe("getAutomationStatusIcon", () => {
           status: "error",
         })
       )
-    ).toEqual({ name: "error-outline" });
+    ).toEqual({ name: "error" });
   });
 });
 
@@ -410,6 +413,46 @@ describe("getDetailOutputText", () => {
   });
 
   it("explains a notify-before-patching skip with the notification sentence", () => {
+    // pre_install_output is empty on this endpoint — the booleans discriminate.
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          status: "error",
+          pre_install_output: "",
+          details: {
+            policy_id: 123,
+            software_title: "1Password",
+            skipped_install: true,
+            patch_when_closed: false,
+            notify_before_patching: true,
+          },
+        })
+      )
+    ).toBe(SKIPPED_INSTALL_NOTIFY_EXPLANATION);
+  });
+
+  it("explains a deadline skip with the deadline sentence", () => {
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          status: "error",
+          pre_install_output: "",
+          details: {
+            policy_id: 123,
+            software_title: "1Password",
+            skipped_install: true,
+            patch_when_closed: false,
+            patch_deadline: true,
+          },
+        })
+      )
+    ).toBe(SKIPPED_INSTALL_DEADLINE_EXPLANATION);
+  });
+
+  // Legacy fallback: on activity rows written before the booleans landed,
+  // patch_when_closed === false still implies notify (deadline didn't exist
+  // yet in that window).
+  it("falls back to notify copy when only patch_when_closed:false is present", () => {
     expect(
       getDetailOutputText(
         mockActivity({

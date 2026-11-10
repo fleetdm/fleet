@@ -1231,6 +1231,54 @@ func TestModifyAppConfigFleetDesktopSSOActivities(t *testing.T) {
 	})
 }
 
+func TestModifyAppConfigEnableProfileValidation(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	newSvc := func(t *testing.T, initial bool) (fleet.Service, context.Context, *fleet.AppConfig) {
+		ds := new(mock.Store)
+		dsAppConfig := &fleet.AppConfig{
+			OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+		}
+		dsAppConfig.MDM.EnableProfileValidation = initial
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig.Copy(), nil }
+		ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+			*dsAppConfig = *conf
+			return nil
+		}
+		ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+
+		opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		opts.ActivityMock.NewActivityFunc = func(context.Context, *activity_api.User, activity_api.ActivityDetails) error { return nil }
+		return svc, viewer.NewContext(ctx, viewer.Viewer{User: admin}), dsAppConfig
+	}
+
+	cases := []struct {
+		name      string
+		initial   bool
+		body      string
+		overwrite bool
+		want      bool
+	}{
+		{"patch false persists", true, `{"mdm":{"enable_profile_validation":false}}`, false, false},
+		{"patch without key keeps false", false, `{"org_info":{"org_name":"Renamed"}}`, false, false},
+		{"overwrite without key sets true", false, `{"org_info":{"org_name":"Renamed"}}`, true, true},
+		{"overwrite without mdm keeps true", true, `{"org_info":{"org_name":"Renamed"}}`, true, true},
+		{"overwrite false sets false", true, `{"mdm":{"enable_profile_validation":false}}`, true, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			svc, ctx, dsAppConfig := newSvc(t, c.initial)
+			modified, err := svc.ModifyAppConfig(ctx, []byte(c.body), fleet.ApplySpecOptions{Overwrite: c.overwrite})
+			require.NoError(t, err)
+			require.Equal(t, c.want, modified.MDM.EnableProfileValidation)
+			require.Equal(t, c.want, dsAppConfig.MDM.EnableProfileValidation)
+		})
+	}
+}
+
 // TestModifyAppConfigHostNameTemplateDowngrade verifies that a host name
 // template stored while premium is cleared on a Free-tier ModifyAppConfig (so
 // the cron, which enforces on MDM.EnabledAndConfigured rather than the license,
@@ -1478,6 +1526,8 @@ func TestMDMConfig(t *testing.T) {
 		expectedMDM   fleet.MDM
 		expectedError string
 		findTeam      bool
+		// hasBootstrapPackage is whether the no team bootstrap package was uploaded (e.g. via the UI)
+		hasBootstrapPackage bool
 	}{
 		{
 			name:        "nochange",
@@ -1754,6 +1804,76 @@ func TestMDMConfig(t *testing.T) {
 			expectedError: "setup_experience.macos_manual_agent_install Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.",
 		},
 		{
+			name:        "bootstrap package for manual enrollment enabled without bootstrap package",
+			licenseTier: "premium",
+			oldMDM:      fleet.MDM{EnabledAndConfigured: true},
+			newMDM: fleet.MDM{
+				EnabledAndConfigured: true,
+				MacOSSetup:           fleet.MacOSSetup{MacOSEnableBootstrapPackageDuringManualEnrollment: true},
+			},
+			expectedError: "setup_experience.macos_enable_bootstrap_package_during_manual_enrollment Couldn't enable macos_enable_bootstrap_package_during_manual_enrollment. To use this option, first specify a bootstrap package.",
+		},
+		{
+			name:                "bootstrap package settings enabled with a bootstrap package uploaded via the UI",
+			licenseTier:         "premium",
+			hasBootstrapPackage: true,
+			oldMDM:              fleet.MDM{EnabledAndConfigured: true},
+			newMDM: fleet.MDM{
+				EnabledAndConfigured: true,
+				MacOSSetup: fleet.MacOSSetup{
+					MacOSEnableBootstrapPackageDuringManualEnrollment: true,
+					MacOSEnableBootstrapPackageDuringMigration:        true,
+				},
+			},
+			expectedMDM: defaultMDMAppConfig(func(m *fleet.MDM) {
+				m.EnabledAndConfigured = true
+				m.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment = true
+				m.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration = true
+			}),
+		},
+		{
+			name:        "bootstrap package for migration enabled without bootstrap package",
+			licenseTier: "premium",
+			oldMDM:      fleet.MDM{EnabledAndConfigured: true},
+			newMDM: fleet.MDM{
+				EnabledAndConfigured: true,
+				MacOSSetup:           fleet.MacOSSetup{MacOSEnableBootstrapPackageDuringMigration: true},
+			},
+			expectedError: "setup_experience.macos_enable_bootstrap_package_during_migration Couldn't enable macos_enable_bootstrap_package_during_migration. To use this option, first specify a bootstrap package.",
+		},
+		{
+			name:        "bootstrap package for manual enrollment requires premium",
+			licenseTier: "free",
+			newMDM: fleet.MDM{
+				MacOSSetup: fleet.MacOSSetup{MacOSEnableBootstrapPackageDuringManualEnrollment: true},
+			},
+			expectedError: "setup_experience.macos_enable_bootstrap_package_during_manual_enrollment " + licenseErr,
+		},
+		{
+			name:        "bootstrap package for manual enrollment requires MDM enabled",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				MacOSSetup: fleet.MacOSSetup{MacOSEnableBootstrapPackageDuringManualEnrollment: true},
+			},
+			expectedError: "setup_experience.macos_enable_bootstrap_package_during_manual_enrollment Couldn't update setup_experience because MDM features aren't turned on in Fleet.",
+		},
+		{
+			name:        "bootstrap package for migration requires premium",
+			licenseTier: "free",
+			newMDM: fleet.MDM{
+				MacOSSetup: fleet.MacOSSetup{MacOSEnableBootstrapPackageDuringMigration: true},
+			},
+			expectedError: "setup_experience.macos_enable_bootstrap_package_during_migration " + licenseErr,
+		},
+		{
+			name:        "bootstrap package for migration requires MDM enabled",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				MacOSSetup: fleet.MacOSSetup{MacOSEnableBootstrapPackageDuringMigration: true},
+			},
+			expectedError: "setup_experience.macos_enable_bootstrap_package_during_migration Couldn't update setup_experience because MDM features aren't turned on in Fleet.",
+		},
+		{
 			name:        "windows entra client IDs require premium",
 			licenseTier: "free",
 			newMDM: fleet.MDM{
@@ -1901,6 +2021,12 @@ func TestMDMConfig(t *testing.T) {
 			}
 			ds.NewMDMAppleEnrollmentProfileFunc = func(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error) {
 				return &fleet.MDMAppleEnrollmentProfile{}, nil
+			}
+			ds.GetMDMAppleBootstrapPackageMetaFunc = func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
+				if tt.hasBootstrapPackage {
+					return &fleet.MDMAppleBootstrapPackage{TeamID: teamID}, nil
+				}
+				return nil, &notFoundError{}
 			}
 			ds.GetMDMAppleEnrollmentProfileByTypeFunc = func(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error) {
 				raw := json.RawMessage("{}")
@@ -3533,6 +3659,56 @@ func TestModifyAppConfigGitOpsHistoricalDataDefaults(t *testing.T) {
 	}
 }
 
+// server_settings is merged rather than replaced in overwrite mode, so a GitOps
+// payload without mcp_disabled keeps the server's value.
+func TestModifyAppConfigGitOpsMCPDisabled(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	testCases := []struct {
+		name     string
+		initial  bool
+		payload  string
+		expected bool
+	}{
+		{"omitted keeps it disabled", true, `{"server_settings":{"server_url":"https://example.org"}}`, true},
+		{"omitted keeps it enabled", false, `{"server_settings":{"server_url":"https://example.org"}}`, false},
+		{"no server_settings keeps it disabled", true, `{"org_info":{"org_name":"Renamed"}}`, true},
+		{"explicit true disables it", false, `{"server_settings":{"server_url":"https://example.org","mcp_disabled":true}}`, true},
+		{"explicit false enables it", true, `{"server_settings":{"server_url":"https://example.org","mcp_disabled":false}}`, false},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+			svc, ctx := newTestService(t, ds, nil, nil, opts)
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+			dsAppConfig := &fleet.AppConfig{
+				OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+				ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org", MCPDisabled: tt.initial},
+			}
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
+			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+				*dsAppConfig = *conf
+				return nil
+			}
+			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+			ds.HasQueuedJobWithArgsFunc = func(ctx context.Context, name string, args json.RawMessage) (bool, error) {
+				return false, nil
+			}
+			ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) { return job, nil }
+
+			updated, err := svc.ModifyAppConfig(ctx, []byte(tt.payload), fleet.ApplySpecOptions{Overwrite: true})
+			require.NoError(t, err)
+			require.Equal(t, tt.expected, updated.ServerSettings.MCPDisabled)
+			require.Equal(t, tt.expected, dsAppConfig.ServerSettings.MCPDisabled)
+		})
+	}
+}
+
 // TestDiffStringSlices covers the helper that computes per-value added/removed activity emissions for the Entra
 // tenant ID and client ID allowlists, including the deduplication that prevents a repeated config entry from
 // producing duplicate activities.
@@ -4345,4 +4521,36 @@ func TestStagedUploadAvailable(t *testing.T) {
 		svc, ctx := newTestServiceWithConfig(t, new(mock.Store), cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: c.tier}})
 		require.Equal(t, c.want, svc.StagedUploadAvailable(ctx), "%+v", c)
 	}
+}
+
+func TestValidateVPPAssignmentsManyTokensPerFleet(t *testing.T) {
+	ds := new(mock.Store)
+	ds.TeamsSummaryFunc = func(context.Context) ([]*fleet.TeamSummary, error) {
+		return []*fleet.TeamSummary{{ID: 1, Name: "Workstations"}}, nil
+	}
+	ds.ListVPPTokensFunc = func(context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{{ID: 1, Location: "HQ"}, {ID: 2, Location: "EU"}}, nil
+	}
+	svc := &Service{ds: ds}
+	lic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+
+	t.Run("a fleet under two tokens passes", func(t *testing.T) {
+		invalid := &fleet.InvalidArgumentError{}
+		got, err := svc.validateVPPAssignments(t.Context(), []fleet.MDMAppleVolumePurchasingProgramInfo{
+			{Location: "HQ", Teams: []string{"Workstations", fleet.TeamNameNoTeam}},
+			{Location: "EU", Teams: []string{"Workstations", fleet.TeamNameNoTeam}},
+		}, invalid, lic)
+		require.NoError(t, err)
+		require.False(t, invalid.HasErrors())
+		require.Equal(t, map[uint][]uint{1: {1, 0}, 2: {1, 0}}, got)
+	})
+
+	t.Run("All fleets can't mix with other fleets on one token", func(t *testing.T) {
+		invalid := &fleet.InvalidArgumentError{}
+		_, err := svc.validateVPPAssignments(t.Context(), []fleet.MDMAppleVolumePurchasingProgramInfo{
+			{Location: "HQ", Teams: []string{fleet.DisplayNameAllTeams, "Workstations"}},
+		}, invalid, lic)
+		require.NoError(t, err)
+		require.True(t, invalid.HasErrors())
+	})
 }

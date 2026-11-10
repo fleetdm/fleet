@@ -501,6 +501,12 @@
                 "null"
               ]
             },
+            "config_tls_etag": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
             "config_tls_max_attempts": {
               "type": [
                 "integer",
@@ -1446,6 +1452,12 @@
             "tls_session_timeout": {
               "type": [
                 "integer",
+                "null"
+              ]
+            },
+            "tls_user_agent": {
+              "type": [
+                "string",
                 "null"
               ]
             },
@@ -2800,7 +2812,7 @@
       "description": "AppleOSUpdateSettings is the common type that contains the settings for OS updates on Apple devices.",
       "properties": {
         "deadline": {
-          "description": "Deadline the required installation date for Nudge to enforce the required\noperating system version.\n\ntype: `string`",
+          "description": "Deadline is the required installation date to enforce the required\noperating system version.\n\ntype: `string`",
           "type": [
             "string",
             "null"
@@ -2948,7 +2960,7 @@
             "null"
           ]
         },
-        "enable_recovery_lock_password": {
+        "enable_profile_validation": {
           "description": "type: `boolean`",
           "type": [
             "boolean",
@@ -2969,6 +2981,13 @@
           "description": "type: `LinuxSettings`"
         },
         "macos_migration": true,
+        "macos_recovery_lock_password_enabled": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "macos_settings": {
           "$ref": "#/$defs/MacOSSettings",
           "deprecated": true,
@@ -3019,16 +3038,16 @@
           "$ref": "#/$defs/MacOSSetup",
           "description": "type: `MacOSSetup`"
         },
-        "windows_enabled_and_configured": {
+        "windows_entra_client_ids": true,
+        "windows_entra_tenant_ids": true,
+        "windows_mdm_enabled": {
           "description": "type: `boolean`",
           "type": [
             "boolean",
             "null"
           ]
         },
-        "windows_entra_client_ids": true,
-        "windows_entra_tenant_ids": true,
-        "windows_migration_enabled": true,
+        "windows_mdm_migration_enabled": true,
         "windows_require_bitlocker_pin": {
           "description": "type: `boolean`",
           "type": [
@@ -3089,19 +3108,6 @@
       "additionalProperties": false,
       "properties": {
         "additional_queries": true,
-        "detail_query_overrides": {
-          "additionalProperties": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "description": "type: `object`",
-          "type": [
-            "object",
-            "null"
-          ]
-        },
         "enable_host_users": {
           "description": "type: `boolean`",
           "type": [
@@ -3406,6 +3412,45 @@
         "null"
       ]
     },
+    "GitOpsPatchDeadlineSettings": {
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "errorMessage": "patch_deadline_settings must set days and time.",
+          "required": [
+            "days",
+            "time"
+          ]
+        }
+      ],
+      "description": "GitOpsPatchDeadlineSettings has no fleet ID, since the fleet comes from the file.",
+      "properties": {
+        "days": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "time": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
     "GitOpsPolicySpec": {
       "additionalProperties": false,
       "anyOf": [
@@ -3565,6 +3610,13 @@
             "null"
           ]
         },
+        "patch_deadline": {
+          "description": "PatchDeadline skips the install while the app is open, and notifies the end user before the fleet's next patch deadline.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "patch_when_closed": {
           "description": "PatchWhenClosed skips the install while the app is open, via the managed pre-install query.\n\ntype: `boolean`",
           "type": [
@@ -3693,6 +3745,10 @@
             "array",
             "null"
           ]
+        },
+        "patch_deadline_settings": {
+          "$ref": "#/$defs/GitOpsPatchDeadlineSettings",
+          "description": "PatchDeadlineSettings is nil when the file omits the key.\n\ntype: `GitOpsPatchDeadlineSettings`"
         }
       },
       "type": [
@@ -4220,8 +4276,8 @@
             "null"
           ]
         },
-        "enable_recovery_lock_password": {
-          "description": "type: `boolean`",
+        "enable_profile_validation": {
+          "description": "EnableProfileValidation turns on schema validation of admin-uploaded\nconfiguration profiles. Defaults to true.\n\ntype: `boolean`",
           "type": [
             "boolean",
             "null"
@@ -4261,6 +4317,13 @@
         "macos_migration": {
           "$ref": "#/$defs/MacOSMigration",
           "description": "type: `MacOSMigration`"
+        },
+        "macos_recovery_lock_password_enabled": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "macos_settings": {
           "$ref": "#/$defs/MacOSSettings",
@@ -4323,13 +4386,6 @@
             "null"
           ]
         },
-        "windows_enabled_and_configured": {
-          "description": "WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.\nThere is no other configuration required for Windows other than enabling\nthe support, but it is still called \"EnabledAndConfigured\" for consistency\nwith the similarly named macOS-specific fields.\n\ntype: `boolean`",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
         "windows_entra_client_ids": {
           "description": "WindowsEntraClientIDs is the allowlist of Entra application client IDs (GUIDs) whose tokens are accepted for\nWindows automatic enrollment.\n\ntype: `array\u003cstring\u003e`",
           "items": {
@@ -4357,7 +4413,14 @@
           ]
         },
         "windows_eula": true,
-        "windows_migration_enabled": {
+        "windows_mdm_enabled": {
+          "description": "WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.\nThere is no other configuration required for Windows other than enabling\nthe support, but it is still called \"EnabledAndConfigured\" for consistency\nwith the similarly named macOS-specific fields.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "windows_mdm_migration_enabled": {
           "description": "type: `boolean`",
           "type": [
             "boolean",
@@ -4441,6 +4504,20 @@
             "null"
           ]
         },
+        "description": {
+          "description": "Description is free text shown next to the profile name.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "hidden": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "labels": {
           "description": "Deprecated: the Labels field is now deprecated, it is superseded by\nLabelsIncludeAll, so any value set via this field will be transferred to\nLabelsIncludeAll.\n\ntype: `array\u003cstring\u003e`",
           "items": {
@@ -4493,6 +4570,13 @@
             "null"
           ]
         },
+        "name": {
+          "description": "Name overrides the name derived from the file (PayloadDisplayName or\nfile name). Only valid for a single file, so not with a multi-file glob.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "path": {
           "description": "type: `string`",
           "type": [
@@ -4504,6 +4588,13 @@
           "description": "type: `string`",
           "type": [
             "string",
+            "null"
+          ]
+        },
+        "self_service": {
+          "description": "SelfService is only valid for .mobileconfig profiles.\n\ntype: `boolean`",
+          "type": [
+            "boolean",
             "null"
           ]
         }
@@ -4680,7 +4771,28 @@
             "null"
           ]
         },
+        "macos_enable_bootstrap_package_during_manual_enrollment": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "macos_enable_bootstrap_package_during_migration": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "macos_manual_agent_install": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "macos_require_all_software": {
           "description": "type: `boolean`",
           "type": [
             "boolean",
@@ -4712,20 +4824,6 @@
             "null"
           ]
         },
-        "require_all_software_macos": {
-          "description": "type: `boolean`",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "require_all_software_windows": {
-          "description": "type: `boolean`",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
         "script": {
           "deprecated": true,
           "deprecationMessage": "'script' is deprecated, use 'macos_script' instead",
@@ -4745,6 +4843,13 @@
           },
           "type": [
             "array",
+            "null"
+          ]
+        },
+        "windows_require_all_software": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
             "null"
           ]
         }
@@ -5372,6 +5477,13 @@
             "null"
           ]
         },
+        "mcp_disabled": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "query_report_cap": {
           "deprecated": true,
           "deprecationMessage": "'query_report_cap' is deprecated, use 'report_cap' instead",
@@ -5745,13 +5857,6 @@
             "null"
           ]
         },
-        "enable_recovery_lock_password": {
-          "description": "type: `boolean`",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
         "ios_updates": {
           "$ref": "#/$defs/AppleOSUpdateSettings",
           "description": "type: `AppleOSUpdateSettings`"
@@ -5763,6 +5868,13 @@
         "linux_settings": {
           "$ref": "#/$defs/LinuxSettings",
           "description": "type: `LinuxSettings`"
+        },
+        "macos_recovery_lock_password_enabled": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "macos_settings": {
           "$ref": "#/$defs/MacOSSettings",
@@ -5927,6 +6039,13 @@
             "null"
           ]
         },
+        "location": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "path": {
           "type": [
             "string",
@@ -5955,6 +6074,116 @@
         },
         "setup_experience": {
           "description": "InstallDuringSetup indicates whether a package should be incorporated into setup experience;\nif not supplied (Valid field is false) then the server-side value for setup experience membership\nis not changed, for compatibility with the old fleetctl apply format\n\ntype: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "versions": {
+          "description": "type: `array\u003cTeamSpecAppStoreAppVersion\u003e`",
+          "items": {
+            "$ref": "#/$defs/TeamSpecAppStoreAppVersion"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "TeamSpecAppStoreAppVersion": {
+      "additionalProperties": false,
+      "properties": {
+        "auto_update_enabled": {
+          "description": "type: `boolean`",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "auto_update_window_end": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "auto_update_window_start": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "categories": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "configuration": {
+          "$ref": "#/$defs/TeamSpecSoftwareAsset",
+          "description": "type: `TeamSpecSoftwareAsset`"
+        },
+        "labels_exclude_any": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_include_all": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "labels_include_any": {
+          "description": "type: `array\u003cstring\u003e`",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "self_service": {
+          "description": "type: `boolean`",
           "type": [
             "boolean",
             "null"

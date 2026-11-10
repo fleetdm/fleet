@@ -36,6 +36,11 @@ const AgentWSMessageTypeDistributedRead = "distributed/read"
 // at its next poll.
 const AgentWSMessageTypeOrbitConfig = "orbit/config"
 
+// AgentWSMessageTypeOsqueryConfig tells the agent its osquery config may have
+// changed and should be fetched now (POST /api/osquery/config) instead of at
+// its next poll.
+const AgentWSMessageTypeOsqueryConfig = "osquery/config"
+
 // Reasons for an orbit/config notification.
 const (
 	AgentWSReasonActivity       = "activity"        // a script, software install or uninstall was activated
@@ -43,6 +48,13 @@ const (
 	AgentWSReasonDiskEncryption = "disk-encryption" // disk encryption escrow, key rotation or BitLocker PIN
 	AgentWSReasonSettings       = "settings"        // fleet-wide or global settings, or the host's fleet
 	AgentWSReasonEnroll         = "enroll"          // osquery enrolled, enabling flags gated on it
+)
+
+// Reasons for an osquery/config notification, besides AgentWSReasonSettings
+// (agent options or features, or the host's fleet).
+const (
+	AgentWSReasonReports = "reports" // scheduled reports or 2017 packs
+	AgentWSReasonLabels  = "labels"  // labels that reports may be scoped to
 )
 
 // Reasons for a distributed/read notification triggered by interval work,
@@ -112,4 +124,10 @@ type AgentCheckInNotifier interface {
 	// NotifyOrbitConfigScope tells every host in scope to fetch its orbit
 	// config. Receiving instances pace the resulting fetches.
 	NotifyOrbitConfigScope(ctx context.Context, scope AgentNotificationScope, reason string) error
+	// NotifyOsqueryConfigHosts tells the given hosts to fetch their osquery
+	// config.
+	NotifyOsqueryConfigHosts(ctx context.Context, hostIDs []uint, reason string) error
+	// NotifyOsqueryConfigScope tells every host in scope to fetch its osquery
+	// config. Receiving instances pace the resulting fetches.
+	NotifyOsqueryConfigScope(ctx context.Context, scope AgentNotificationScope, reason string) error
 }

@@ -31,7 +31,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 
 	// Create a team
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("team_" + t.Name())}}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("team_" + t.Name())}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	// Enroll a host
@@ -45,7 +45,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		HostIDs: []uint{host.ID},
 	}, http.StatusOK, &addResp)
 
-	s.setVPPTokenForTeam(team.ID)
+	tok := s.setVPPTokenForTeam(team.ID)
 
 	// =========================================
 	//           CUSTOM PACKAGES
@@ -106,15 +106,13 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		"software_package": "ruby.deb",
 		"software_icon_url": null,
 		"fleet_name": "%s",
-		"team_name": "%s",
 	    "fleet_id": %d,
-	    "team_id": %d,
 		"self_service": false,
 		"software_title_id": %d,
 		"software_display_name": "%s",
 		"pinned_version": null
 	}`,
-		team.Name, team.Name, team.ID, team.ID, titleID, "RubyUpdate1")
+		team.Name, team.ID, titleID, "RubyUpdate1")
 	s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 
 	// Entity has display name
@@ -163,15 +161,13 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		"software_package": "ruby.deb",
 		"software_icon_url": null,
 		"fleet_name": "%s",
-		"team_name": "%s",
 	    "fleet_id": %d,
-	    "team_id": %d,
 		"self_service": true,
 		"software_title_id": %d,
 		"software_display_name": "%s",
 		"pinned_version": null
 	}`,
-		team.Name, team.Name, team.ID, team.ID, titleID, "RubyUpdate1")
+		team.Name, team.ID, titleID, "RubyUpdate1")
 	s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 
 	// My device self service has display name
@@ -325,15 +321,13 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		"software_icon_url": "%s",
 		"platform": "%s",
 		"fleet_name": "%s",
-		"team_name": "%s",
 	    "fleet_id": %d,
-	    "team_id": %d,
 		"self_service": false,
 		"software_title_id": %d,
 		"software_display_name": "%s"
 	}`,
-		macOSApp.AdamID, stResp.SoftwareTitle.Name, macOSApp.IconURL, string(macOSApp.Platform), team.Name, team.Name, team.ID, team.ID, stResp.SoftwareTitle.ID, *updateAppReq.DisplayName)
-	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), activityData, 0)
+		macOSApp.AdamID, stResp.SoftwareTitle.Name, macOSApp.IconURL, string(macOSApp.Platform), team.Name, team.ID, stResp.SoftwareTitle.ID, *updateAppReq.DisplayName)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), withVPPToken(t, activityData, tok), 0)
 
 	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), DisplayName: ptr.String("MacOSAppStoreAppUpdated2")}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", macOSTitleID), updateAppReq, http.StatusOK, &updateAppResp)
@@ -472,15 +466,13 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 			"software_package": "ipa_test.ipa",
 			"software_icon_url": null,
 			"fleet_name": "%s",
-			"team_name": "%s",
 		    "fleet_id": %d,
-		    "team_id": %d,
 			"self_service": true,
 			"software_title_id": %d,
 			"software_display_name": "%s",
 			"pinned_version": null
 		}`,
-		team.Name, team.Name, team.ID, team.ID, titleID, "InHouseAppUpdate2")
+		team.Name, team.ID, titleID, "InHouseAppUpdate2")
 	s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 
 	// Omitting the field is a no-op
@@ -620,9 +612,9 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 
 	// Create two teams
 	var team1Resp, team2Resp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("team1_" + t.Name())}}, http.StatusOK, &team1Resp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("team1_" + t.Name())}, http.StatusOK, &team1Resp)
 	team1 := team1Resp.Team
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("team2_" + t.Name())}}, http.StatusOK, &team2Resp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("team2_" + t.Name())}, http.StatusOK, &team2Resp)
 	team2 := team2Resp.Team
 
 	// Upload a software installer to team1
@@ -803,7 +795,7 @@ func (s *integrationMDMTestSuite) TestSoftwarePackageTitleValidation() {
 	ctx := t.Context()
 
 	var teamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: new("team_" + t.Name())}}, http.StatusOK, &teamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("team_" + t.Name())}, http.StatusOK, &teamResp)
 	team := teamResp.Team
 
 	type counts struct {
@@ -904,11 +896,11 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 
 	// Create a team
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("team_" + t.Name())}}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("team_" + t.Name())}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	var newTeam2Resp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: new("team_2_" + t.Name())}}, http.StatusOK, &newTeam2Resp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("team_2_" + t.Name())}, http.StatusOK, &newTeam2Resp)
 	team2 := newTeam2Resp.Team
 
 	// Enroll a host
@@ -1135,7 +1127,7 @@ func (s *integrationMDMTestSuite) TestGitopsInstallableSoftwareRetries() {
 
 	newTeam := func(name string) fleet.Team {
 		var resp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
+		s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{
 			TeamPayload: fleet.TeamPayload{Name: ptr.String(name)},
 		}, http.StatusOK, &resp)
 		return *resp.Team
