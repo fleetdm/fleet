@@ -24,8 +24,8 @@ func TestUp_20261110062427(t *testing.T) {
 		// A value already under a new name loses to the old key.
 		execNoErr(t, db, `UPDATE app_config_json SET json_value = JSON_SET(json_value,
 			'$.mdm.apple_business_manager', CAST(? AS JSON),
-			'$.mdm.apple_bm_enabled_and_configured', true,
-			'$.mdm.apple_bm_terms_expired', true,
+			'$.mdm.apple_bm_enabled_and_configured', CAST('true' AS JSON),
+			'$.mdm.apple_bm_terms_expired', CAST('true' AS JSON),
 			'$.mdm.apple_bm_default_team', 'Workstations',
 			'$.mdm.apple_business', JSON_ARRAY(),
 			'$.mdm.apple_business_enabled_and_configured', false) WHERE id = 1`,

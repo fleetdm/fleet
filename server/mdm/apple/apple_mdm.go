@@ -1195,7 +1195,7 @@ func NewDEPClient(storage godep.ClientStorage, updater fleet.ABMTermsUpdater, lo
 					logger.ErrorContext(ctx, "Apple DEP client: failed to save app config", "err", err)
 				}
 				logger.InfoContext(ctx, "Apple DEP client: updated app config Terms Expired flag",
-					"apple_bm_terms_expired", appCfg.MDM.AppleBMTermsExpired)
+					"apple_business_terms_expired", appCfg.MDM.AppleBMTermsExpired)
 			}
 		}
 
