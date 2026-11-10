@@ -3,10 +3,7 @@ package mysql
 import (
 	"bytes"
 	"context"
-	"crypto/aes"
-	"crypto/cipher"
 	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons
-	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
@@ -29,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	fleetcrypto "github.com/fleetdm/fleet/v4/server/platform/crypto"
 
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -6661,61 +6659,16 @@ VALUES
 	return nil
 }
 
-func encrypt(plainText []byte, privateKey string) ([]byte, error) {
-	block, err := aes.NewCipher([]byte(privateKey))
-	if err != nil {
-		return nil, fmt.Errorf("create new cipher: %w", err)
-	}
-
-	aesGCM, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, fmt.Errorf("create new gcm: %w", err)
-	}
-
-	nonce := make([]byte, aesGCM.NonceSize())
-	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-		return nil, fmt.Errorf("generate nonce: %w", err)
-	}
-
-	return aesGCM.Seal(nonce, nonce, plainText, nil), nil
+func encrypt(plainText []byte, key string) ([]byte, error) {
+	return fleetcrypto.Encrypt(plainText, key)
 }
 
-func decrypt(encrypted []byte, privateKey string) ([]byte, error) {
-	block, err := aes.NewCipher([]byte(privateKey))
-	if err != nil {
-		return nil, fmt.Errorf("create new cipher: %w", err)
-	}
-
-	aesGCM, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, fmt.Errorf("create new gcm: %w", err)
-	}
-
-	// Get the nonce size
-	nonceSize := aesGCM.NonceSize()
-
-	// Extract the nonce from the encrypted data
-	nonce, ciphertext := encrypted[:nonceSize], encrypted[nonceSize:]
-
-	decrypted, err := aesGCM.Open(nil, nonce, ciphertext, nil)
-	if err != nil {
-		return nil, fmt.Errorf("decrypting: %w", err)
-	}
-
-	return decrypted, nil
+func decrypt(encrypted []byte, key string) ([]byte, error) {
+	return fleetcrypto.Decrypt(encrypted, key)
 }
 
-// decryptOrPassthrough attempts to decrypt the data. If decryption fails
-// (e.g. because the data is legacy cleartext), it returns the data as-is.
-func decryptOrPassthrough(data []byte, privateKey string) []byte {
-	if len(privateKey) == 0 || len(data) == 0 {
-		return data
-	}
-	decrypted, err := decrypt(data, privateKey)
-	if err != nil {
-		return data
-	}
-	return decrypted
+func decryptOrPassthrough(data []byte, key string) []byte {
+	return fleetcrypto.DecryptOrPassthrough(data, key)
 }
 
 func (ds *Datastore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset, tx sqlx.ExtContext) error {

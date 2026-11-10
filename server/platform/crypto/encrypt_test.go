@@ -1,4 +1,4 @@
-package mysql
+package crypto
 
 import (
 	"testing"
@@ -12,25 +12,25 @@ const testKey = "aaaaaaaaaabbbbbbbbbbccccccccccdd"
 
 func TestEncryptDecryptRoundTrip(t *testing.T) {
 	plaintext := []byte("my-secret-value-1234")
-	encrypted, err := encrypt(plaintext, testKey)
+	encrypted, err := Encrypt(plaintext, testKey)
 	require.NoError(t, err)
 	assert.NotEqual(t, plaintext, encrypted, "encrypted should differ from plaintext")
 
-	decrypted, err := decrypt(encrypted, testKey)
+	decrypted, err := Decrypt(encrypted, testKey)
 	require.NoError(t, err)
 	assert.Equal(t, plaintext, decrypted)
 }
 
 func TestDecryptWrongKey(t *testing.T) {
-	encrypted, err := encrypt([]byte("secret"), testKey)
+	encrypted, err := Encrypt([]byte("secret"), testKey)
 	require.NoError(t, err)
 
-	_, err = decrypt(encrypted, "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz")
+	_, err = Decrypt(encrypted, "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz")
 	require.Error(t, err, "decrypting with wrong key should fail")
 }
 
 func TestDecryptCiphertextTooShort(t *testing.T) {
-	_, err := decrypt([]byte("short"), testKey)
+	_, err := Decrypt([]byte("short"), testKey)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "ciphertext too short")
 }
@@ -38,32 +38,32 @@ func TestDecryptCiphertextTooShort(t *testing.T) {
 func TestDecryptOrPassthrough(t *testing.T) {
 	t.Run("decrypts encrypted data", func(t *testing.T) {
 		plaintext := []byte("bootstrap-token-value")
-		encrypted, err := encrypt(plaintext, testKey)
+		encrypted, err := Encrypt(plaintext, testKey)
 		require.NoError(t, err)
 
-		result := decryptOrPassthrough(encrypted, testKey)
+		result := DecryptOrPassthrough(encrypted, testKey)
 		assert.Equal(t, plaintext, result)
 	})
 
 	t.Run("passes through cleartext data", func(t *testing.T) {
 		cleartext := []byte("legacy-cleartext-value")
-		result := decryptOrPassthrough(cleartext, testKey)
+		result := DecryptOrPassthrough(cleartext, testKey)
 		assert.Equal(t, cleartext, result)
 	})
 
 	t.Run("empty data returns empty", func(t *testing.T) {
-		result := decryptOrPassthrough([]byte{}, testKey)
+		result := DecryptOrPassthrough([]byte{}, testKey)
 		assert.Empty(t, result)
 	})
 
 	t.Run("nil data returns nil", func(t *testing.T) {
-		result := decryptOrPassthrough(nil, testKey)
+		result := DecryptOrPassthrough(nil, testKey)
 		assert.Nil(t, result)
 	})
 
 	t.Run("empty key returns data as-is", func(t *testing.T) {
 		data := []byte("some-data")
-		result := decryptOrPassthrough(data, "")
+		result := DecryptOrPassthrough(data, "")
 		assert.Equal(t, data, result)
 	})
 }
