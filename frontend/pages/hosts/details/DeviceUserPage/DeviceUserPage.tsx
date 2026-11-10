@@ -813,7 +813,7 @@ const DeviceUserPage = ({
         <SettingUpYourDevice
           setupSteps={setupStepStatuses || []}
           requireAllSoftware={
-            (isAppleHost && globalConfig?.mdm?.require_all_software_macos) ??
+            (isAppleHost && globalConfig?.mdm?.macos_require_all_software) ??
             false
           }
           toggleInfoModal={toggleInfoModal}

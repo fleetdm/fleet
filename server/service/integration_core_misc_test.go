@@ -14,8 +14,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -237,20 +239,15 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	s.DoJSON("PATCH", "/api/latest/fleet/fleets/123/secrets", modifyTeamEnrollSecretsRequest{Secrets: []fleet.EnrollSecret{{Secret: "DEF"}}}, http.StatusPaymentRequired, &secResp)
 	assert.Empty(t, secResp.Secrets)
 
-	// get apple BM configuration
-	var appleBMResp getAppleBMResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusPaymentRequired, &appleBMResp)
-	assert.Nil(t, appleBMResp.AppleBM)
-
 	// batch-apply an empty set of MDM profiles succeeds even though MDM is not
 	// enabled, because it wouldn't change anything (and it needs to support the
 	// case where `fleetctl get config`'s output is used as input to `fleetctl
 	// apply`).
-	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/batch", nil, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", appleProfilesBatchRequest(nil), http.StatusNoContent)
 
 	// batch-apply a non-empty set of MDM profiles fails
-	res := s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/batch",
-		map[string]any{"profiles": [][]byte{[]byte(`xyz`)}}, http.StatusUnprocessableEntity)
+	res := s.Do("POST", "/api/latest/fleet/mdm/profiles/batch",
+		appleProfilesBatchRequest([][]byte{mobileconfigForTest("N1", "I1")}), http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
 
@@ -387,10 +384,12 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	require.Contains(t, errMsg, "missing or invalid license")
 
 	res = s.Do("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
-		"mdm": { "windows_migration_enabled": true }
+		"mdm": { "windows_mdm_migration_enabled": true }
 	}`), http.StatusUnprocessableEntity)
-	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "missing or invalid license")
+	// the Windows MDM page shows the reason only for an error under this name
+	licenseErrName, licenseErrReason := extractServerErrorNameReason(res.Body)
+	require.Equal(t, "mdm.windows_mdm_migration_enabled", licenseErrName)
+	require.Contains(t, licenseErrReason, "missing or invalid license")
 
 	// list API endpoints requires premium license
 	var listAPIEndpointsResp listAPIEndpointsResponse
@@ -562,7 +561,7 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 				"url":   {"https://example.com"},
 			})
 
-		case route.method == "PATCH" && (route.path == "/api/latest/fleet/setup_experience" || route.path == "/api/latest/fleet/mdm/apple/setup"):
+		case route.method == "PATCH" && route.path == "/api/latest/fleet/setup_experience":
 			// These routes don't require MDM because they can be used to change end-user auth, but they do require a license.
 			expectedErr = fleet.ErrMissingLicense
 		}
@@ -577,16 +576,35 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 		assert.Contains(t, errMsg, expectedErr.Error(), "%s %s", route.method, path)
 	}
 
+	// The routes that set up Apple MDM work before it's configured, and they store the keys they generate. Run them with no keys, as
+	// on a new server, and put back the assets that other tests left.
+	setupAssets := []fleet.MDMAssetName{
+		fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey, fleet.MDMAssetABMCert, fleet.MDMAssetABMKey,
+	}
+	savedAssets, err := s.ds.GetAllMDMConfigAssetsByName(t.Context(), setupAssets, nil)
+	if !fleet.IsNotFound(err) && !errors.Is(err, mysql.ErrPartialResult) {
+		require.NoError(t, err)
+	}
+	removeSetupAssets := func(ctx context.Context) {
+		for _, name := range setupAssets {
+			require.NoError(t, s.ds.HardDeleteMDMConfigAsset(ctx, name))
+		}
+	}
+	removeSetupAssets(t.Context())
+	t.Cleanup(func() {
+		removeSetupAssets(context.Background())
+		if len(savedAssets) > 0 {
+			require.NoError(t, s.ds.InsertMDMConfigAssets(context.Background(), slices.Collect(maps.Values(savedAssets)), nil))
+		}
+	})
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"csr": "Y3Ny"}`))
 	}))
 	t.Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
 	t.Cleanup(fleetdmSrv.Close)
 
-	// Always accessible
-	var reqCSRResp requestMDMAppleCSRResponse
-	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: "test"}, http.StatusOK, &reqCSRResp)
-	s.Do("POST", "/api/latest/fleet/mdm/apple/dep/key_pair", nil, http.StatusOK)
+	s.Do("GET", "/api/latest/fleet/mdm/apple/request_csr", nil, http.StatusOK)
+	s.Do("GET", "/api/latest/fleet/mdm/apple/ab_public_key", nil, http.StatusOK)
 }
 
 // this test can be deleted once the "v1" version is removed.

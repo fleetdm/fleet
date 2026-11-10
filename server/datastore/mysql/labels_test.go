@@ -88,7 +88,6 @@ func TestLabels(t *testing.T) {
 		{"ByName", testLabelsByName},
 		{"SingleByName", testLabelByName},
 		{"Save", testLabelsSave},
-		{"QueriesForCentOSHost", testLabelsQueriesForCentOSHost},
 		{"QueriesForLinuxPlatformLabel", testLabelsQueriesForLinuxPlatformLabel},
 		{"RecordNonExistentQueryLabelExecution", testLabelsRecordNonexistentQueryLabelExecution},
 		{"RecordLabelQueryExecutionsQueryErrorKeepsMembership", testRecordLabelQueryExecutionsQueryErrorKeepsMembership},
@@ -138,6 +137,7 @@ func testLabelsAddAllHosts(deferred bool, t *testing.T, db *Datastore) {
 		require.Nil(t, err, "enrollment should succeed")
 		hosts = append(hosts, *host)
 	}
+	require.NotNil(t, host)
 
 	host.Platform = "darwin"
 	err = db.UpdateHost(context.Background(), host)
@@ -486,8 +486,20 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 		_, err = db.writer(ctx).Exec(`UPDATE hosts SET osquery_version = ? WHERE id = ?`, v, id)
 		require.NoError(t, err)
 	}
-	_, err = db.writer(ctx).Exec(`INSERT INTO host_orbit_info (host_id, version) VALUES (?, '1.0.0'), (?, '')`, h2.ID, h3.ID)
+	_, err = db.writer(ctx).Exec(`INSERT INTO host_orbit_info (host_id, version, desktop_version) VALUES (?, '1.0.0', '1.0.1'), (?, '', NULL)`, h2.ID, h3.ID)
 	require.NoError(t, err)
+
+	hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{}, 3)
+	versions := make(map[uint][2]*string, len(hosts))
+	for _, h := range hosts {
+		versions[h.ID] = [2]*string{h.OrbitVersion, h.DesktopVersion}
+	}
+	require.Equal(t, map[uint][2]*string{
+		h1.ID: {nil, nil},
+		h2.ID: {new("1.0.0"), new("1.0.1")},
+		h3.ID: {new(""), nil},
+	}, versions)
+
 	hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OrderKey: "agent"}, 3)
 	require.Equal(t, []uint{h2.ID, h3.ID, h1.ID}, hostIDs(hosts))
 	hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OrderKey: "agent", OrderDirection: fleet.OrderDescending}, 3)
@@ -1346,86 +1358,38 @@ func testLabelsSave(t *testing.T, db *Datastore) {
 	assert.Equal(t, label.Name, configProfileLabelName)
 }
 
-func testLabelsQueriesForCentOSHost(t *testing.T, db *Datastore) {
-	host, err := db.EnrollOsquery(context.Background(),
-		fleet.WithEnrollOsqueryHostID("0"),
-		fleet.WithEnrollOsqueryNodeKey("0"),
-	)
-	require.NoError(t, err, "enrollment should succeed")
-
-	host.Platform = "rhel"
-	host.OSVersion = "CentOS 6"
-	err = db.UpdateHost(context.Background(), host)
-	require.NoError(t, err)
-
-	label, err := db.NewLabel(context.Background(), &fleet.Label{
-		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
-			CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
-			UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Now()},
-		},
-		ID:                  42,
-		Name:                "centos labe",
-		Query:               "select 1;",
-		Platform:            "centos",
-		LabelType:           fleet.LabelTypeRegular,
-		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
-	})
-	require.NoError(t, err)
-
-	queries, err := db.LabelQueriesForHost(context.Background(), host)
-	require.NoError(t, err)
-	require.Len(t, queries, 1)
-	assert.Equal(t, "select 1;", queries[fmt.Sprint(label.ID)])
-}
-
 func testLabelsQueriesForLinuxPlatformLabel(t *testing.T, db *Datastore) {
 	ctx := t.Context()
 
-	// A label with the generic "linux" platform matches hosts on any Linux
-	// distribution.
-	linuxLabel, err := db.NewLabel(ctx, &fleet.Label{
-		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
-			CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
-			UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Now()},
-		},
-		Name:                "linux label",
-		Query:               "select 1;",
-		Platform:            "linux",
-		LabelType:           fleet.LabelTypeRegular,
-		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
-	})
-	require.NoError(t, err)
-
-	// A distro-specific label keeps matching only that distro.
-	ubuntuLabel, err := db.NewLabel(ctx, &fleet.Label{
-		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
-			CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
-			UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Now()},
-		},
-		Name:                "ubuntu label",
-		Query:               "select 2;",
-		Platform:            "ubuntu",
-		LabelType:           fleet.LabelTypeRegular,
-		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
-	})
-	require.NoError(t, err)
+	newDynamicLabel := func(name, platform string) *fleet.Label {
+		label, err := db.NewLabel(ctx, &fleet.Label{
+			Name:                name,
+			Query:               "select 1;",
+			Platform:            platform,
+			LabelType:           fleet.LabelTypeRegular,
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		})
+		require.NoError(t, err)
+		return label
+	}
+	allLabel := newDynamicLabel("all platforms label", "")
+	linuxLabel := newDynamicLabel("linux label", "linux")
+	darwinLabel := newDynamicLabel("darwin label", "darwin")
+	windowsLabel := newDynamicLabel("windows label", "windows")
 
 	cases := []struct {
-		name       string
-		platform   string
-		osVersion  string
-		wantLinux  bool
-		wantUbuntu bool
+		name      string
+		platform  string
+		osVersion string
+		want      *fleet.Label
 	}{
-		{"ubuntu host matches linux and ubuntu labels", "ubuntu", "Ubuntu 22.04", true, true},
-		{"debian host matches linux label only", "debian", "Debian GNU/Linux 12", true, false},
-		{"rhel host matches linux label only", "rhel", "Red Hat Enterprise Linux 9", true, false},
-		// CentOS reports platform "rhel"; matching centos-specific labels is
-		// covered by testLabelsQueriesForCentOSHost.
-		{"centos host matches linux label", "rhel", "CentOS 7", true, false},
-		{"generic linux host matches linux label", "linux", "Linux 6.1", true, false},
-		{"darwin host matches neither", "darwin", "macOS 14.0", false, false},
-		{"windows host matches neither", "windows", "Windows 11", false, false},
+		{"ubuntu host", "ubuntu", "Ubuntu 22.04", linuxLabel},
+		{"debian host", "debian", "Debian GNU/Linux 12", linuxLabel},
+		{"rhel host", "rhel", "Red Hat Enterprise Linux 9", linuxLabel},
+		{"centos host", "rhel", "CentOS 7", linuxLabel},
+		{"generic linux host", "linux", "Linux 6.1", linuxLabel},
+		{"darwin host", "darwin", "macOS 14.0", darwinLabel},
+		{"windows host", "windows", "Windows 11", windowsLabel},
 	}
 
 	for i, tc := range cases {
@@ -1444,19 +1408,11 @@ func testLabelsQueriesForLinuxPlatformLabel(t *testing.T, db *Datastore) {
 			queries, err := db.LabelQueriesForHost(ctx, host)
 			require.NoError(t, err)
 
-			linuxKey := fmt.Sprint(linuxLabel.ID)
-			ubuntuKey := fmt.Sprint(ubuntuLabel.ID)
-
-			if tc.wantLinux {
-				assert.Contains(t, queries, linuxKey, "expected linux label for %s host", tc.platform)
-			} else {
-				assert.NotContains(t, queries, linuxKey, "did not expect linux label for %s host", tc.platform)
+			got := make([]string, 0, len(queries))
+			for id := range queries {
+				got = append(got, id)
 			}
-			if tc.wantUbuntu {
-				assert.Contains(t, queries, ubuntuKey, "expected ubuntu label for %s host", tc.platform)
-			} else {
-				assert.NotContains(t, queries, ubuntuKey, "did not expect ubuntu label for %s host", tc.platform)
-			}
+			assert.ElementsMatch(t, []string{fmt.Sprint(allLabel.ID), fmt.Sprint(tc.want.ID)}, got)
 		})
 	}
 }
@@ -2895,7 +2851,7 @@ func testApplyLabelSpecsForSerialUUID(t *testing.T, ds *Datastore) {
 			Name:                "label1",
 			LabelMembershipType: fleet.LabelMembershipTypeManual,
 			Hosts: []string{
-				"foo.local",
+				"foo.local", // host1's hostname, which isn't a label host identifier
 				"hwd2",
 				"uuid3",
 				strconv.Itoa(int(host4.ID)), //nolint:gosec // dismiss G115
@@ -2906,11 +2862,23 @@ func testApplyLabelSpecsForSerialUUID(t *testing.T, ds *Datastore) {
 
 	hosts, err := ds.ListHostsInLabel(ctx, fleet.TeamFilter{User: test.UserAdmin}, 1, fleet.HostListOptions{})
 	require.NoError(t, err)
-	require.Len(t, hosts, 4)
+	require.Len(t, hosts, 3)
+	require.Equal(t, host2.ID, hosts[0].ID)
+	require.Equal(t, host3.ID, hosts[1].ID)
+	require.Equal(t, host4.ID, hosts[2].ID)
+
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "label1",
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+			Hosts:               []string{"hwd1"},
+		},
+	})
+	require.NoError(t, err)
+	hosts, err = ds.ListHostsInLabel(ctx, fleet.TeamFilter{User: test.UserAdmin}, 1, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
 	require.Equal(t, host1.ID, hosts[0].ID)
-	require.Equal(t, host2.ID, hosts[1].ID)
-	require.Equal(t, host3.ID, hosts[2].ID)
-	require.Equal(t, host4.ID, hosts[3].ID)
 }
 
 func testApplyLabelSpecsWithPlatformChange(t *testing.T, ds *Datastore) {
@@ -4086,11 +4054,11 @@ func testApplyLabelSpecsWithManualTeamLabels(t *testing.T, ds *Datastore) {
 			Name:                "global1",
 			LabelMembershipType: fleet.LabelMembershipTypeManual,
 			Hosts: fleet.HostsSlice{
-				h1t1.Hostname,
+				h1t1.UUID,
 				h2t2.HardwareSerial,
 				h3t3.UUID,
 				fmt.Sprint(h4t4.ID),
-				h5Global.Hostname,
+				h5Global.HardwareSerial,
 			},
 		},
 	})
@@ -4104,7 +4072,7 @@ func testApplyLabelSpecsWithManualTeamLabels(t *testing.T, ds *Datastore) {
 
 	// Attempt to create team label, make sure we can only add hosts on that team.
 	for _, hostIdentifier := range []string{
-		h2t2.Hostname,
+		h2t2.UUID,
 		h3t3.UUID,
 		h4t4.HardwareSerial,
 		fmt.Sprint(h5Global.ID),
@@ -4114,7 +4082,7 @@ func testApplyLabelSpecsWithManualTeamLabels(t *testing.T, ds *Datastore) {
 				Name:                "l1t1",
 				LabelMembershipType: fleet.LabelMembershipTypeManual,
 				Hosts: fleet.HostsSlice{
-					h1t1.Hostname,
+					h1t1.UUID,
 					hostIdentifier, // conflicting host identifier.
 				},
 				TeamID: &t1.ID,
@@ -4125,7 +4093,6 @@ func testApplyLabelSpecsWithManualTeamLabels(t *testing.T, ds *Datastore) {
 	}
 	// Create team label with team host identifiers should work.
 	for _, hostIdentifier := range []string{
-		h1t1.Hostname,
 		h1t1.UUID,
 		h1t1.HardwareSerial,
 		fmt.Sprint(h1t1.ID),
@@ -4179,7 +4146,7 @@ func testApplyLabelSpecsManualNilHosts(t *testing.T, ds *Datastore) {
 		{
 			Name:                "nilhosts-label",
 			LabelMembershipType: fleet.LabelMembershipTypeManual,
-			Hosts:               []string{"nilhosts1.local", "nilhosts2.local"},
+			Hosts:               []string{"nilhosts-serial-1", "nilhosts-serial-2"},
 		},
 	})
 	require.NoError(t, err)
@@ -4226,7 +4193,7 @@ func testApplyLabelSpecsManualNilHosts(t *testing.T, ds *Datastore) {
 		{
 			Name:                "nilhosts-label",
 			LabelMembershipType: fleet.LabelMembershipTypeManual,
-			Hosts:               []string{"nilhosts1.local"},
+			Hosts:               []string{"nilhosts-serial-1"},
 		},
 	})
 	require.NoError(t, err)
@@ -4317,7 +4284,7 @@ func testLabelMembershipHostIDs(t *testing.T, ds *Datastore) {
 		{
 			Name:                "memb-label",
 			LabelMembershipType: fleet.LabelMembershipTypeManual,
-			Hosts:               []string{"memb-team-host.local", "memb-global-host.local"},
+			Hosts:               []string{"memb-serial-team", "memb-serial-global"},
 		},
 	}))
 

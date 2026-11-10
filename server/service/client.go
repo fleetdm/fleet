@@ -830,7 +830,7 @@ func (c *Client) ApplyGroup(
 			// This cast is safe because we've already checked AppConfig when extracting custom settings
 			mdmConfigMap, ok := specs.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
 			if ok {
-				mdmEnabled, ok := mdmConfigMap["windows_enabled_and_configured"]
+				mdmEnabled, ok := mdmConfigMap["windows_mdm_enabled"]
 				if ok {
 					assumeEnabled, ok = mdmEnabled.(bool)
 					assumeEnabled = ok && assumeEnabled
@@ -2541,17 +2541,17 @@ func (c *Client) DoGitOps(
 		} else {
 			mdmAppConfig["apple_account_provisioning"] = map[string]any{}
 		}
-		// Put in default values for windows_enabled_and_configured
-		mdmAppConfig["windows_enabled_and_configured"] = incoming.Controls.WindowsEnabledAndConfigured
+		// Put in default values for windows_mdm_enabled
+		mdmAppConfig["windows_mdm_enabled"] = incoming.Controls.WindowsEnabledAndConfigured
 		if incoming.Controls.WindowsEnabledAndConfigured != nil {
-			mdmAppConfig["windows_enabled_and_configured"] = incoming.Controls.WindowsEnabledAndConfigured
+			mdmAppConfig["windows_mdm_enabled"] = incoming.Controls.WindowsEnabledAndConfigured
 		} else {
-			mdmAppConfig["windows_enabled_and_configured"] = false
+			mdmAppConfig["windows_mdm_enabled"] = false
 		}
-		// Put in default values for windows_migration_enabled
-		mdmAppConfig["windows_migration_enabled"] = incoming.Controls.WindowsMigrationEnabled
+		// Put in default values for windows_mdm_migration_enabled
+		mdmAppConfig["windows_mdm_migration_enabled"] = incoming.Controls.WindowsMigrationEnabled
 		if incoming.Controls.WindowsMigrationEnabled == nil {
-			mdmAppConfig["windows_migration_enabled"] = false
+			mdmAppConfig["windows_mdm_migration_enabled"] = false
 		}
 		mdmAppConfig["windows_entra_tenant_ids"] = incoming.Controls.WindowsEntraTenantIDs
 		if incoming.Controls.WindowsEntraTenantIDs == nil {
@@ -2566,7 +2566,7 @@ func (c *Client) DoGitOps(
 		if incoming.Controls.EnableTurnOnWindowsMDMManually == nil {
 			mdmAppConfig["enable_turn_on_windows_mdm_manually"] = false
 		}
-		if windowsEnabledAndConfiguredAssumption, ok := mdmAppConfig["windows_enabled_and_configured"].(bool); ok {
+		if windowsEnabledAndConfiguredAssumption, ok := mdmAppConfig["windows_mdm_enabled"].(bool); ok {
 			teamAssumptions = &fleet.TeamSpecsDryRunAssumptions{
 				WindowsEnabledAndConfigured: optjson.SetBool(windowsEnabledAndConfiguredAssumption),
 			}
@@ -2932,7 +2932,7 @@ func (c *Client) DoGitOps(
 		}
 		enableRecoveryLockPassword, ok := incoming.Controls.EnableRecoveryLockPassword.(bool)
 		if incoming.Controls.EnableRecoveryLockPassword != nil && !ok {
-			return nil, errors.New("controls.enable_recovery_lock_password must be a boolean")
+			return nil, errors.New("controls.macos_recovery_lock_password_enabled must be a boolean")
 		}
 		requireBitLockerPIN := windowsSettings.RequireBitLockerPIN.Value
 		if incoming.Controls.RequireBitLockerPIN != nil {
@@ -2977,7 +2977,7 @@ func (c *Client) DoGitOps(
 		mdmAppConfig["windows_settings"] = windowsSettings
 		mdmAppConfig["linux_settings"] = linuxSettings
 
-		mdmAppConfig["enable_recovery_lock_password"] = enableRecoveryLockPassword
+		mdmAppConfig["macos_recovery_lock_password_enabled"] = enableRecoveryLockPassword
 
 		if incoming.TeamName != nil {
 			team["gitops_filename"] = filename

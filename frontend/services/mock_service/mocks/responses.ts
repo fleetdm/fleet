@@ -10633,11 +10633,12 @@ const variables = (url: string) => {
   };
 };
 
-const addVariable = (url: string, variable: any) => {
-  if (variable.name === "DUPE") {
+const addVariable = (url: string, variable?: unknown) => {
+  const { name } = (variable ?? {}) as { name?: string };
+  if (name === "DUPE") {
     return Promise.reject({ status: 409, message: "Conflict" });
   }
-  if (variable.name === "ERR") {
+  if (name === "ERR") {
     return Promise.reject({ status: 500, message: "Internal Server Error" });
   }
 
@@ -10645,7 +10646,7 @@ const addVariable = (url: string, variable: any) => {
   mockVariables = [
     ...mockVariables,
     {
-      name: variable.name,
+      name: name ?? "",
       id: nextVariableId,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

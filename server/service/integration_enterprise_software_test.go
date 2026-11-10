@@ -1856,12 +1856,12 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	var labelResp fleet.CreateLabelResponse
 	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{
 		Name:  "label1",
-		Hosts: []string{host.Hostname}}, http.StatusOK, &labelResp)
+		Hosts: []string{host.UUID}}, http.StatusOK, &labelResp)
 	require.NotZero(t, labelResp.Label.ID)
 
 	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{
 		Name:  "label2",
-		Hosts: []string{host.Hostname}}, http.StatusOK, &labelResp)
+		Hosts: []string{host.UUID}}, http.StatusOK, &labelResp)
 	require.NotZero(t, labelResp.Label.ID)
 
 	// Set to "exclude any". Installer should be missing from the response for both host details and
@@ -2480,7 +2480,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftwareWithLabelScoping() 
 	var labelResp fleet.CreateLabelResponse
 	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{
 		Name:  "label1",
-		Hosts: []string{host.Hostname}}, http.StatusOK, &labelResp)
+		Hosts: []string{host.UUID}}, http.StatusOK, &labelResp)
 	require.NotZero(t, labelResp.Label.ID)
 	lbl1 := labelResp.Label
 
@@ -2575,7 +2575,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 		AutoUpdateEndTime:   new("04:00"),
 	}, http.StatusOK, &titlesResp)
 
-	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1", "auto_update_enabled":true, "auto_update_window_end":"04:00", "auto_update_window_start":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), tok), 0)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1", "auto_update_enabled":true, "auto_update_window_end":"04:00", "auto_update_window_start":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), tok), 0)
 
 	// Get the software title again.
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppApp.TitleID), nil, http.StatusOK, &titlesResp, "team_id", fmt.Sprintf("%d", teamID))
@@ -2592,7 +2592,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 		DisplayName: new("New Display Name"),
 	}, http.StatusOK, &titlesResp)
 
-	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1",  "auto_update_enabled":true, "auto_update_window_end":"04:00", "auto_update_window_start":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"New Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), tok), 0)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1",  "auto_update_enabled":true, "auto_update_window_end":"04:00", "auto_update_window_start":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"New Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), tok), 0)
 
 	// Disable the auto-update config
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", vppApp.TitleID), updateAppStoreAppRequest{
@@ -2600,7 +2600,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 		AutoUpdateEnabled: new(false),
 	}, http.StatusOK, &titlesResp)
 
-	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"New Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), tok), 0)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"New Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), tok), 0)
 
 	// Do an update without auto-update fields to check that it still includes the auto-update values.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", vppApp.TitleID), updateAppStoreAppRequest{
@@ -2608,7 +2608,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 		DisplayName: new("Updated Display Name"),
 	}, http.StatusOK, &titlesResp)
 
-	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"Updated Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), tok), 0)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"Updated Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), tok), 0)
 }
 
 func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
@@ -2624,7 +2624,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 	require.Equal(t, uint(0), addResp.SelfServiceCategory.TeamID)
 	catID := addResp.SelfServiceCategory.ID
 	s.lastActivityMatches(fleet.ActivityTypeAddedSelfServiceCategory{}.ActivityName(),
-		`{"self_service_category_name":"💼 Engineering","team_id":0,"team_name":null,"fleet_id":0,"fleet_name":null}`, 0)
+		`{"self_service_category_name":"💼 Engineering","fleet_id":0,"fleet_name":null}`, 0)
 
 	// list includes new category
 	var listResp getSelfServiceCategoriesResponse
@@ -2641,7 +2641,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 	require.Equal(t, catID, patchResp.SelfServiceCategory.ID)
 	require.Equal(t, "💼 Engineering tools", patchResp.SelfServiceCategory.Name)
 	editActID := s.lastActivityMatches(fleet.ActivityTypeEditedSelfServiceCategory{}.ActivityName(),
-		`{"self_service_category_name":"💼 Engineering tools","team_id":0,"team_name":null,"fleet_id":0,"fleet_name":null}`, 0)
+		`{"self_service_category_name":"💼 Engineering tools","fleet_id":0,"fleet_name":null}`, 0)
 
 	// patch with the same name is a no-op — no new activity emitted
 	s.DoJSON("PATCH", fmt.Sprintf("%s/%d", path, catID), map[string]any{"name": "💼 Engineering tools"}, http.StatusOK, &patchResp)
@@ -2651,7 +2651,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 	// delete + activity
 	s.Do("DELETE", fmt.Sprintf("%s/%d", path, catID), nil, http.StatusNoContent)
 	s.lastActivityMatches(fleet.ActivityTypeDeletedSelfServiceCategory{}.ActivityName(),
-		`{"self_service_category_name":"💼 Engineering tools","team_id":0,"team_name":null,"fleet_id":0,"fleet_name":null}`, 0)
+		`{"self_service_category_name":"💼 Engineering tools","fleet_id":0,"fleet_name":null}`, 0)
 
 	// post without name returns 422
 	s.Do("POST", path, map[string]any{"fleet_id": 0}, http.StatusUnprocessableEntity)
@@ -2688,7 +2688,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 	s.DoJSON("POST", path, map[string]any{"fleet_id": teamResp.Team.ID, "name": "CrossFleet"}, http.StatusOK, &cf1)
 	require.NotEqual(t, cf0.SelfServiceCategory.ID, cf1.SelfServiceCategory.ID)
 	s.lastActivityMatches(fleet.ActivityTypeAddedSelfServiceCategory{}.ActivityName(),
-		fmt.Sprintf(`{"self_service_category_name":"CrossFleet","team_id":%d,"team_name":%q,"fleet_id":%d,"fleet_name":%q}`, teamResp.Team.ID, teamResp.Team.Name, teamResp.Team.ID, teamResp.Team.Name), 0)
+		fmt.Sprintf(`{"self_service_category_name":"CrossFleet","fleet_id":%d,"fleet_name":%q}`, teamResp.Team.ID, teamResp.Team.Name), 0)
 
 	// list scoped to the new fleet returns its seeded defaults plus the added category
 	s.DoJSON("GET", path, nil, http.StatusOK, &listResp, "fleet_id", fmt.Sprint(teamResp.Team.ID))
@@ -2804,10 +2804,10 @@ func (s *integrationEnterpriseTestSuite) TestPatchDeadlineSettings() {
 	patch(tm.ID, []string{"wednesday"}, "18:30")
 	require.Equal(t, activitiesBefore+1, countActivities())
 	s.lastActivityMatches(activityName,
-		fmt.Sprintf(`{"team_id": %d, "fleet_id": %d, "team_name": %q, "fleet_name": %q, "days": ["wednesday"], "time": "18:30"}`, tm.ID, tm.ID, tm.Name, tm.Name), 0)
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "days": ["wednesday"], "time": "18:30"}`, tm.ID, tm.Name), 0)
 	patch(0, []string{"sunday", "saturday"}, "06:05")
 	lastActivityID := s.lastActivityMatches(activityName,
-		`{"team_id": null, "fleet_id": null, "team_name": null, "fleet_name": null, "days": ["saturday", "sunday"], "time": "06:05"}`, 0)
+		`{"fleet_id": null, "fleet_name": null, "days": ["saturday", "sunday"], "time": "06:05"}`, 0)
 
 	// no activity for a PATCH with the stored values, even in a different spelling
 	patch(0, []string{"sunday", "saturday"}, "6:05")
@@ -3241,7 +3241,7 @@ func (s *integrationEnterpriseTestSuite) TestAIToolFilter() {
 		return s.Do("GET", path, nil, http.StatusOK, params...)
 	}
 	require.Equal(t, teamHostAITool, aiToolByName(t, get(fmt.Sprintf("/api/latest/fleet/hosts/%d", teamHost.ID)), "host", "software"))
-	require.Equal(t, teamHostAITool, aiToolByName(t, get("/api/latest/fleet/hosts/identifier/"+teamHost.UUID), "host", "software"))
+	require.Equal(t, teamHostAITool, aiToolByName(t, get("/api/latest/fleet/hosts/"+teamHost.UUID), "host", "software"))
 	require.Equal(t, teamHostAITool, aiToolByName(t,
 		s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK), "host", "software"))
 	var hostsResp listHostsResponse

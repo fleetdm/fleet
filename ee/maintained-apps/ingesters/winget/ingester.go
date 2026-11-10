@@ -180,11 +180,6 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	}
 
 	versionDirs := wingetVersionManifestDirs(repoContents)
-	if input.VersionPrefix != "" {
-		versionDirs = slices.DeleteFunc(versionDirs, func(c *github.RepositoryContent) bool {
-			return !strings.HasPrefix(c.GetName(), input.VersionPrefix)
-		})
-	}
 	if len(versionDirs) == 0 {
 		return nil, ctxerr.NewWithData(ctx, "no version manifest directories found under package path", map[string]any{
 			"path": dirPath,
@@ -489,7 +484,10 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
 	}
 
-	out.Queries.Open = patch_policy.GenerateOpenQuery("windows", "", out.Name)
+	out.Queries.Open, err = windowsOpenQuery(out.Name, input.OpenProcessNames, input.OpenProcessNamePrefix)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating open query")
+	}
 
 	// arm64 builds can't run on x64 hosts, so their policies must pass there. The open
 	// query stays as-is: it only runs on a host already queued for the install.
@@ -503,6 +501,47 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 
 func escapeSQLParam(s string) string {
 	return strings.ReplaceAll(s, "'", "''")
+}
+
+var likeWildcardEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+
+// windowsOpenQuery returns the "app is open" query: a row only when no matching process
+// runs. Without an override it matches a process named "<name>.exe".
+func windowsOpenQuery(name string, processNames []string, processNamePrefix string) (string, error) {
+	if len(processNames) > 0 && processNamePrefix != "" {
+		return "", errors.New("open_process_names and open_process_name_prefix can't both be set")
+	}
+	var predicate string
+	switch {
+	case processNamePrefix != "":
+		prefix := strings.ToLower(strings.TrimSpace(processNamePrefix))
+		if prefix == "" {
+			return "", errors.New("open_process_name_prefix is blank")
+		}
+		// % and _ are LIKE wildcards; escape them so the prefix matches literally.
+		literal := likeWildcardEscaper.Replace(prefix)
+		predicate = fmt.Sprintf("LIKE '%s%%'", escapeSQLParam(literal))
+		if literal != prefix {
+			predicate += ` ESCAPE '\'`
+		}
+	case len(processNames) > 0:
+		quoted := make([]string, 0, len(processNames))
+		for _, n := range processNames {
+			n = strings.ToLower(strings.TrimSpace(n))
+			if n == "" {
+				return "", errors.New("open_process_names contains a blank name")
+			}
+			quoted = append(quoted, "'"+escapeSQLParam(n)+"'")
+		}
+		if len(quoted) == 1 {
+			predicate = "= " + quoted[0]
+		} else {
+			predicate = "IN (" + strings.Join(quoted, ",") + ")"
+		}
+	default:
+		return patch_policy.GenerateOpenQuery("windows", "", name), nil
+	}
+	return fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) %s);", predicate), nil
 }
 
 // firstDisplayVersion returns the first non-empty DisplayVersion from a set of
@@ -654,10 +693,6 @@ type inputApp struct {
 	// PackageIdentifier is the identifier used by winget. It's composed of a vendor part (e.g.
 	// AgileBits) and an app part (e.g. 1Password), joined by a "."
 	PackageIdentifier string `json:"package_identifier"`
-	// VersionPrefix limits ingestion to winget version directories starting with this
-	// string (e.g. "18."), for packages that publish several side-by-side majors under
-	// one identifier (e.g. Microsoft.SQLServer.OLEDBDriver ships OLE DB 18 and 19).
-	VersionPrefix string `json:"version_prefix"`
 	// The value matching programs.name for the primary app package in osquery
 	UniqueIdentifier    string     `json:"unique_identifier"`
 	InstallScriptPath   string     `json:"install_script_path"`
@@ -671,6 +706,11 @@ type inputApp struct {
 	FuzzyMatchName      fuzzyMatch `json:"fuzzy_match_name"`
 	// ExistsQuery overrides the default programs-table exists query (e.g. portable zip installs).
 	ExistsQuery string `json:"exists_query,omitempty"`
+	// OpenProcessNames lists the process names the "app is open" query matches (e.g.
+	// ["studio64.exe"]) for apps whose process isn't "<name>.exe". OpenProcessNamePrefix
+	// instead matches any process whose name starts with it (e.g. "onedrive"). Set at most one.
+	OpenProcessNames      []string `json:"open_process_names"`
+	OpenProcessNamePrefix string   `json:"open_process_name_prefix"`
 	// UseDisplayVersionForPatch makes the patch policy compare against the
 	// installer's registry DisplayVersion (from AppsAndFeaturesEntries) instead of
 	// the winget PackageVersion. Needed when the registry version format differs

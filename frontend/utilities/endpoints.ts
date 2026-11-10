@@ -281,7 +281,6 @@ export default {
   SETUP: `/v1/setup`, // not a typo - hasn't been updated yet
 
   // Software endpoints
-  SOFTWARE: `/${API_VERSION}/fleet/software`,
   SOFTWARE_TITLES: `/${API_VERSION}/fleet/software/titles`, // Powers software/inventory and software/library pages
   SOFTWARE_TITLE: (id: number) => `/${API_VERSION}/fleet/software/titles/${id}`,
   EDIT_SOFTWARE_PACKAGE: (id: number) =>
@@ -363,8 +362,6 @@ export default {
   SCRIPT_RUN_BATCH: `/${API_VERSION}/fleet/scripts/run/batch`,
   SCRIPT_CANCEL_BATCH: (executionId: string) =>
     `/${API_VERSION}/fleet/scripts/batch/${executionId}/cancel`,
-  SCRIPT_RUN_BATCH_SUMMARY_V1: (id: string) =>
-    `/${API_VERSION}/fleet/scripts/batch/summary/${id}`,
   SCRIPT_RUN_BATCH_SUMMARY_V2: (id: string) =>
     `/${API_VERSION}/fleet/scripts/batch/${id}`,
   SCRIPT_RUN_BATCH_SUMMARIES: `/${API_VERSION}/fleet/scripts/batch`,
