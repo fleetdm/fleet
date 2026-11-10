@@ -29,6 +29,18 @@ func TestDecryptWrongKey(t *testing.T) {
 	require.Error(t, err, "decrypting with wrong key should fail")
 }
 
+func TestEncryptInvalidKeyLength(t *testing.T) {
+	_, err := Encrypt([]byte("data"), "too-short")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "create new cipher")
+}
+
+func TestDecryptInvalidKeyLength(t *testing.T) {
+	_, err := Decrypt([]byte("some-long-enough-data-for-nonce-check"), "too-short")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "create new cipher")
+}
+
 func TestDecryptCiphertextTooShort(t *testing.T) {
 	_, err := Decrypt([]byte("short"), testKey)
 	require.Error(t, err)
