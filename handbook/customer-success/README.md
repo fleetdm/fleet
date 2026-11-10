@@ -15,7 +15,8 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Manager of Customer Support and Solutions Architecture | [Dale Ribeiro](https://www.linkedin.com/in/daleribeiro/) _([@ddribeiro](https://github.com/ddribeiro))_
 | Customer Solutions Architect (CSA)    | [Jake Stenger](https://www.linkedin.com/in/jakestenger) _([@jakestenger](https://github.com/jakestenger))_ <br> [Adam Baali](https://uk.linkedin.com/in/adambaali) _([@AdamBaali](https://github.com/AdamBaali))_ <br> [Kitzy](https://linkedin.com/in/kitzy) _([@kitzy](https://github.com/kitzy))_ <br> [Jonathan Porter](https://linkedin.com/in/jp-cpe) _([@jp-cpe](https://github.com/jp-cpe))_
 | Customer Success Manager (CSM)        | [Josh Roskos](https://www.linkedin.com/in/jroskos/) <br> [Mike Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) <br> [Andreas Najjar](https://www.linkedin.com/in/andreasnajjar/) <br> [Sean Hannon](https://www.linkedin.com/in/sean-hannon-73b603105/) <br> [Kelly Kroening](https://www.linkedin.com/in/kelly-kroening)
-| Customer Support Engineer (CSE)       | [Ryn Satterlee](https://www.linkedin.com/in/rynsatterlee/) _([@rynsatterlee](https://github.com/rynsatterlee))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> [Gray Williams](https://linkedin.com/in/gwilliamsuk) _([@grayw](https://github.com/grayw))_ <br> [Matthew Thomas](https://linkedin.com/in/mthomas172) _([@adriant172](https://github.com/adriant172))_ <br> [Noel Rodriguez-Lebron](https://www.linkedin.com/in/noel-w-rl) _([@MrNRod](https://github.com/MrNRod))_
+| Customer Support Engineer Team Lead | [Ryn Satterlee](https://www.linkedin.com/in/rynsatterlee/) _([@rynsatterlee](https://github.com/rynsatterlee))_
+| Customer Support Engineer (CSE)       |  [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> [Gray Williams](https://linkedin.com/in/gwilliamsuk) _([@grayw](https://github.com/grayw))_ <br> [Matthew Thomas](https://linkedin.com/in/mthomas172) _([@adriant172](https://github.com/adriant172))_ <br> [Noel Rodriguez-Lebron](https://www.linkedin.com/in/noel-w-rl) _([@MrNRod](https://github.com/MrNRod))_
 
 ## Contact us
 
@@ -127,7 +128,7 @@ To monitor and respond to LinkedIn comments:
 
 ### Schedule a Fast-track engagement
 
-Fast-track is Fleet's service delivery package for new MDM customers. Check with your team to learn about the options available and the differences between them (virtual vs on site, migration vs no migration). If your customer has a Fast-track engagement, it will be included in their contract. Follow the directions below to get a Fast-track set up and collect the training pre-requisites.
+Fast-track is Fleet's service delivery package for new MDM customers. Check with your team to learn about the options available and the differences between them (virtual vs on site, migration vs no migration). If your customer has a Fast-track engagement, it will be included in their contract. Follow the directions below to get a Fast-track set up and collect the training prerequisites.
 
 1. When a deal including Fast-track closes, add a TODO on the final page of the partnership kickoff presentation, to confirm the details around their services purchase and to coordinate scheduling. Be sure to make the customer aware that delays in confirming service delivery date can cause the date to move out further.
 2. Create a Fast-track issue on the help-customers board for tracking.
@@ -202,7 +203,7 @@ Submit a feature request to the CSA team for review following these steps:
     - What is the specific feature being requested?
     - Why is this impactful to the customer?
     - What priority is this issue to the customer?
-    - Any additional infromation that may be helpful for the CSA to understand your customer's request
+    - Any additional information that may be helpful for the CSA to understand your customer's request
 - Before pressing "Create", check the URL at the top of the submission box, and confirm you are submitting the issue to our confidential repo
 - Press the "Create" button to generate your request for a feature to the CSA team, who will then review and create the public FR for your customer
 
@@ -263,6 +264,21 @@ A single issue can sprawl across the customer channel, #help-customers, #help-en
 - **Talk to the customer** in the customer channel thread.
 - **Coordinate internally** in a single #help-customers thread. This is the source of truth for the issue.
 - **When asking for help** in any channel other than #help-customers (e.g., #help-engineering or a product group channel), keep the post short: summarize the ask and link to the #help-customers thread. Ask responders to reply in the #help-customers thread, not in the post, so everyone has the most context at all times.
+
+### Escalate an issue to Apple
+
+Fleet has an AppleCare cooperative support agreement with Apple. It lets Fleet work a support case together with Apple for a customer we share. It does not let Fleet open cases for customers who don't have their own support agreement with Apple.
+
+When a customer reports a problem that's caused by Apple (for example, Setup Assistant behavior, Apple Business device assignment, or an OS bug), follow these steps:
+
+1. **Confirm it's an Apple issue.** If Fleet could be involved, [file a customer bug report](#file-a-customer-bug-report) first. Use the `~applecare-cooperative-support` label for these issues.
+2. **Ask if the customer has an AppleCare Enterprise (AppleCare OS Support) agreement.** Ask before you offer a cooperative case.
+   - **If they do:** Ask the customer to open a case at [enterprise.apple.com](https://enterprise.apple.com) and share the case number with Fleet. Fleet can then link a cooperative case to theirs and give Apple technical details from the Fleet side. If Apple asks for a Fleet reference, give them the related GitHub issue number.
+   - **If they don't:** Ask the customer to file a report with the Feedback Assistant app, ideally from an affected Mac right after the issue happens, and to share the feedback number with Fleet.
+3. **Decide whether Fleet should open a linked case.** Usually Apple contacts Fleet if it needs more information. Open a cooperative case from Fleet's side when Apple asks for one, or when Fleet can reproduce the issue, because a second reproduction strengthens the customer's case. The Customer Support Engineer Team Lead will coordinate opening the case.
+4. **File Fleet's own feedback when we can reproduce the issue.** Sign in to Feedback Assistant with your Fleet Apple Account so you can track its status. Contacts at Apple generally won't look into an issue that doesn't have a feedback number.
+5. **Collect logs remotely if Apple asks for them.** On iOS and iPadOS 27, customers can [trigger AppleCare log collection](https://fleetdm.com/guides/trigger-applecare-log-collection) with a custom MDM command in Fleet.
+6. **Track the Apple case and feedback numbers** in the #help-customers thread and on the GitHub issue.
 
 ### Troubleshooting a managed cloud or self-hosted customer suspected infrastructure issue
 

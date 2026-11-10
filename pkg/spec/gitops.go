@@ -23,6 +23,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
 	"github.com/hashicorp/go-multierror"
@@ -207,8 +208,8 @@ type GitOpsControls struct {
 
 	WindowsUpdates                 any `json:"windows_updates"`
 	WindowsSettings                any `json:"windows_settings"`
-	WindowsEnabledAndConfigured    any `json:"windows_enabled_and_configured"`
-	WindowsMigrationEnabled        any `json:"windows_migration_enabled"`
+	WindowsEnabledAndConfigured    any `json:"windows_mdm_enabled" removedkey:"windows_enabled_and_configured"`
+	WindowsMigrationEnabled        any `json:"windows_mdm_migration_enabled" removedkey:"windows_migration_enabled"`
 	EnableTurnOnWindowsMDMManually any `json:"enable_turn_on_windows_mdm_manually"`
 	WindowsEntraTenantIDs          any `json:"windows_entra_tenant_ids"`
 	WindowsEntraClientIDs          any `json:"windows_entra_client_ids"`
@@ -1429,6 +1430,13 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 			logFn("[!] 'controls.setup_experience.software / controls.macos_setup.software' is deprecated; set 'setup_experience: true' on individual items under 'software.packages', 'software.app_store_apps', or 'software.fleet_maintained_apps' instead.\n")
 		}
 		if result.Controls.MacOSSetup.Script.Set {
+			if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
+				teamName := unassignedTeamName
+				if !result.IsGlobal() && !result.IsNoTeam() {
+					teamName = *result.TeamName
+				}
+				logFn("[!] The setup experience script (controls.setup_experience.macos_script) is deprecated for fleet %q. Use a script-only package instead.\n", teamName)
+			}
 			startupScriptPath := resolveApplyRelativePath(controlsDir, result.Controls.MacOSSetup.Script.Value)
 			fileBytes, err := os.ReadFile(startupScriptPath)
 			if err != nil {
@@ -2309,11 +2317,13 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				if slugIsKnownFMA && !strings.HasSuffix(item.FleetMaintainedAppSlug, "/darwin") {
 					if item.NotifyBeforePatching {
 						multiError = multierror.Append(multiError, fmt.Errorf(
-							"Couldn't apply policy %q: %w", item.Name, fleet.ErrPolicyNotifyBeforePatchingRequiresMacOS))
+							"Couldn't apply policy %q: %w", item.Name, fleet.ErrPolicyNotifyBeforePatchingRequiresMacOS,
+						))
 					}
 					if item.PatchDeadline {
 						multiError = multierror.Append(multiError, fmt.Errorf(
-							"Couldn't apply policy %q: %w", item.Name, fleet.ErrPolicyPatchDeadlineRequiresMacOS))
+							"Couldn't apply policy %q: %w", item.Name, fleet.ErrPolicyPatchDeadlineRequiresMacOS,
+						))
 					}
 				}
 				patchOption := "patch_when_closed"
@@ -2327,7 +2337,8 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				// force it on; auto-set when omitted.
 				if item.ContinuousAutomations.Valid && !item.ContinuousAutomations.Value {
 					multiError = multierror.Append(multiError, fmt.Errorf(
-						`Couldn't apply policy %q: If %q is true, "continuous_automations_enabled" can't be set to false.`, item.Name, patchOption))
+						`Couldn't apply policy %q: If %q is true, "continuous_automations_enabled" can't be set to false.`, item.Name, patchOption,
+					))
 				} else {
 					item.ContinuousAutomationsEnabled = true
 				}
@@ -2335,7 +2346,8 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				if fma, ok := fmasBySlug[item.FleetMaintainedAppSlug]; ok && fma.PreInstallQuery.Path != "" {
 					multiError = multierror.Append(multiError, fmt.Errorf(
 						`Couldn't apply policy %q: "pre_install_query" can't be set on Fleet-maintained app %q when %q is true; Fleet manages this query.`,
-						item.Name, item.FleetMaintainedAppSlug, patchOption))
+						item.Name, item.FleetMaintainedAppSlug, patchOption,
+					))
 				}
 			}
 		}
@@ -2482,21 +2494,25 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 			return wrapErrs(fmt.Errorf("failed to expand environment in file %q: %v", installSoftwareObj.PackagePath, err))
 		}
 		var policyInstallSoftwareSpec fleet.SoftwarePackageSpec
-		if err := YamlUnmarshal(fileBytes, &policyInstallSoftwareSpec); err != nil {
-			// Fall back to array shape: the file may define multiple packages for one title.
-			var multiplePackages []fleet.SoftwarePackageSpec
-			if err := YamlUnmarshal(fileBytes, &multiplePackages); err != nil || len(multiplePackages) == 0 {
-				return wrapErrs(fmt.Errorf("file %q does not contain a valid software package definition", installSoftwareObj.PackagePath))
+		var multiplePackages []fleet.SoftwarePackageSpec
+		var singlePackage map[string]any
+		if err := YamlUnmarshal(fileBytes, &multiplePackages); err != nil {
+			if err := YamlUnmarshal(fileBytes, &singlePackage); err == nil {
+				return []error{fmt.Errorf("install_software.package_path: The single package format in %q is not available anymore. What to use instead: %s", installSoftwareObj.PackagePath, removednames.GuideURL)}
 			}
+			return wrapErrs(fmt.Errorf("file %q does not contain a valid software package definition", installSoftwareObj.PackagePath))
+		}
+		if multiplePackages != nil && len(multiplePackages) == 0 {
+			return wrapErrs(fmt.Errorf("file %q does not contain a valid software package definition", installSoftwareObj.PackagePath))
+		}
 
-			errs = append(errs, validateYAMLKeys(fileBytes, reflect.TypeFor[[]fleet.SoftwarePackageSpec](), installSoftwareObj.PackagePath, []string{"software", "packages"})...)
+		errs = append(errs, validateYAMLKeys(fileBytes, reflect.TypeFor[[]fleet.SoftwarePackageSpec](), installSoftwareObj.PackagePath, []string{"software", "packages"})...)
 
-			if len(multiplePackages) > 1 {
-				return wrapErrs(fmt.Errorf("file %q contains multiple packages; use install_software.hash_sha256 to select one, or split the packages into single-package YAML files", installSoftwareObj.PackagePath))
-			}
+		if len(multiplePackages) > 1 {
+			return wrapErrs(fmt.Errorf("file %q contains multiple packages; use install_software.hash_sha256 to select one, or split the packages into single-package YAML files", installSoftwareObj.PackagePath))
+		}
+		if len(multiplePackages) == 1 {
 			policyInstallSoftwareSpec = multiplePackages[0]
-		} else {
-			errs = append(errs, validateYAMLKeys(fileBytes, reflect.TypeFor[fleet.SoftwarePackageSpec](), installSoftwareObj.PackagePath, []string{"software", "packages"})...)
 		}
 		installerOnTeamFound := false
 		for _, pkg := range packages {
@@ -2995,15 +3011,13 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 					continue
 				}
 
-				// A package YAML file is a list of packages. A file written as a single
-				// object is treated as a one-element list.
-				var singlePackageSpec fleet.SoftwarePackageSpec
+				var singlePackage map[string]any
 				listErr := YamlUnmarshal(fileBytes, &softwarePackageSpecs)
 				if listErr == nil {
 					multiError = multierror.Append(multiError, validateYAMLKeys(fileBytes, reflect.TypeFor[[]fleet.SoftwarePackageSpec](), *teamLevelPackage.Path, []string{"software", "packages"})...)
-				} else if err := YamlUnmarshal(fileBytes, &singlePackageSpec); err == nil {
-					multiError = multierror.Append(multiError, validateYAMLKeys(fileBytes, reflect.TypeFor[fleet.SoftwarePackageSpec](), *teamLevelPackage.Path, []string{"software", "packages"})...)
-					softwarePackageSpecs = append(softwarePackageSpecs, &singlePackageSpec)
+				} else if err := YamlUnmarshal(fileBytes, &singlePackage); err == nil {
+					multiError = multierror.Append(multiError, fmt.Errorf("The single package format in %q is not available anymore. What to use instead: %s", *teamLevelPackage.Path, removednames.GuideURL))
+					continue
 				} else {
 					// couldn't unmarshal as a list or a single object
 					multiError = multierror.Append(multiError, MaybeParseTypeError(*teamLevelPackage.Path, []string{"software", "packages"}, listErr))

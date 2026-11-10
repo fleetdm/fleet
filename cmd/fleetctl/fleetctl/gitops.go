@@ -50,8 +50,7 @@ func gitopsCommand() *cli.Command {
 			},
 			&cli.BoolFlag{
 				Name:        "delete-other-fleets",
-				Aliases:     []string{"delete-other-teams"},
-				EnvVars:     []string{"DELETE_OTHER_FLEETS", "DELETE_OTHER_TEAMS"},
+				EnvVars:     []string{"DELETE_OTHER_FLEETS"},
 				Destination: &flDeleteOtherTeams,
 				Usage:       "Delete other fleets not present in the GitOps configuration",
 			},
@@ -92,9 +91,6 @@ func gitopsCommand() *cli.Command {
 		Action: func(c *cli.Context) error {
 			// Apply log topic overrides from CLI flags.
 			applyLogTopicFlags(c)
-
-			logDeprecatedFlagName(c, "delete-other-teams", "delete-other-fleets")
-			logDeprecatedEnvVar(c, "DELETE_OTHER_TEAMS", "DELETE_OTHER_FLEETS")
 
 			gitOpsOpts := spec.GitOpsOptions{AllowUnknownKeys: flAllowUnknownKeys}
 
@@ -405,7 +401,8 @@ func gitopsCommand() *cli.Command {
 						if len(parsed) > 0 {
 							return fmt.Errorf(
 								"Couldn't edit %q at \"microsoft_graph_credentials\": Missing or invalid license. Microsoft Graph credentials are available in Fleet Premium only.",
-								filepath.Base(flFilename))
+								filepath.Base(flFilename),
+							)
 						}
 					}
 
@@ -1328,7 +1325,7 @@ func vppConfigWithoutMissingFleets(vppSettings []any, missingTeams []string) []a
 // setupAssistantABMChecker is the subset of the API client used by
 // warnSetupAssistantsWithoutABMTokens, split out for testing.
 type setupAssistantABMChecker interface {
-	ListABMTokens() ([]*fleet.ABMToken, error)
+	ListABTokens() ([]*fleet.ABMToken, error)
 	CountHosts(query string) (int, error)
 }
 
@@ -1339,7 +1336,7 @@ type setupAssistantABMChecker interface {
 // must never fail the run, and it runs after the deferred token assignments so the
 // server-side state it reads is final.
 func warnSetupAssistantsWithoutABMTokens(fleetClient setupAssistantABMChecker, fleets map[string]uint, logf func(format string, a ...any)) {
-	tokens, err := fleetClient.ListABMTokens()
+	tokens, err := fleetClient.ListABTokens()
 	if err != nil {
 		logf("[!] skipping setup assistant ABM coverage check: %s\n", err)
 		return

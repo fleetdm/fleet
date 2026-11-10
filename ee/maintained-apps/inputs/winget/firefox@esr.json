@@ -3,6 +3,7 @@
   "slug": "firefox@esr/windows",
   "package_identifier": "Mozilla.Firefox.ESR",
   "unique_identifier": "Mozilla Firefox ESR",
+  "open_process_names": ["firefox.exe"],
   "fuzzy_match_name": "Mozilla Firefox%ESR%",
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/firefox_esr_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/firefox_esr_uninstall.ps1",

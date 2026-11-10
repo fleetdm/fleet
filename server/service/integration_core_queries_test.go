@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -404,12 +405,12 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	// modify a non-existing query
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", query.ID+1), fleet.QueryPayload{Description: new("updated")}, http.StatusNotFound, &modQryResp)
 
-	// delete the query by name
-	var delByNameResp fleet.DeleteQueryResponse
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/%s", query.Name), nil, http.StatusOK, &delByNameResp)
+	// delete the query
+	var delQueryResp fleet.DeleteQueryByIDResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/reports/%d", query.ID), nil, http.StatusOK, &delQueryResp)
 
-	// delete unknown query by name (i.e. the same, now deleted)
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/%s", query.Name), nil, http.StatusNotFound, &delByNameResp)
+	// delete unknown query (i.e. the same, now deleted)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/reports/%d", query.ID), nil, http.StatusNotFound, &delQueryResp)
 
 	// create another query
 	reqQuery = &fleet.QueryPayload{
@@ -447,6 +448,86 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 		"ids": []uint{query.ID, query2.ID, query3.ID},
 	}, http.StatusNotFound, &delBatchResp)
 	assert.Equal(t, uint(0), delBatchResp.Deleted)
+}
+
+func (s *integrationTestSuite) TestDeleteReportURLs() {
+	t := s.T()
+	prefix := strings.ReplaceAll(t.Name(), "/", "_")
+
+	createReport := func(name string) *fleet.Query {
+		var resp fleet.CreateQueryResponse
+		s.DoJSON("POST", "/api/latest/fleet/reports", &fleet.QueryPayload{Name: new(name), Query: new("select 1")}, http.StatusOK, &resp)
+		return resp.Query
+	}
+	requireReportExists := func(id uint, exists bool) {
+		status := http.StatusNotFound
+		if exists {
+			status = http.StatusOK
+		}
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/reports/%d", id), nil, status)
+	}
+	byIDPath := func(id uint) string { return fmt.Sprintf("/api/latest/fleet/reports/%d", id) }
+
+	t.Run("by ID", func(t *testing.T) {
+		r := createReport(prefix + " by ID")
+		s.Do("DELETE", byIDPath(r.ID), nil, http.StatusOK)
+		requireReportExists(r.ID, false)
+		s.Do("DELETE", byIDPath(r.ID), nil, http.StatusNotFound)
+	})
+
+	t.Run("delete by name is gone", func(t *testing.T) {
+		r := createReport(prefix + "_by_name")
+		for _, c := range []struct{ prefix, endpoint string }{
+			{"/api/latest/fleet/queries/", "DELETE /queries/{name}"},
+		} {
+			res := s.Do("DELETE", c.prefix+url.PathEscape(r.Name), nil, http.StatusGone)
+			var body struct {
+				Message string              `json:"message"`
+				Errors  []map[string]string `json:"errors"`
+			}
+			require.NoError(t, json.NewDecoder(res.Body).Decode(&body))
+			assert.Equal(t, "Gone", body.Message)
+			require.Len(t, body.Errors, 1)
+			assert.Equal(t, `The "`+c.endpoint+`" endpoint is not available anymore. What to use instead: `+removednames.GuideURL,
+				body.Errors[0]["reason"])
+		}
+		// Nothing is registered for a report name under /reports.
+		s.Do("DELETE", "/api/latest/fleet/reports/"+url.PathEscape(r.Name), nil, http.StatusNotFound)
+		requireReportExists(r.ID, true)
+
+		// Unlike /reports, /queries has no DELETE route for a bare ID, so an all-digits value is gone too.
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/queries/%d", r.ID), nil, http.StatusGone)
+		requireReportExists(r.ID, true)
+
+		s.Do("DELETE", byIDPath(r.ID), nil, http.StatusOK)
+	})
+
+	t.Run("routes sharing the removed paths' shape still work", func(t *testing.T) {
+		r := createReport(prefix + " shared shape")
+		s.Do("PATCH", byIDPath(r.ID), fleet.QueryPayload{Description: new("updated")}, http.StatusOK)
+		s.Do("GET", byIDPath(r.ID), nil, http.StatusOK)
+
+		// The removed path is DELETE-only, so other methods on its shape get the router's 405, not a 410 naming an endpoint
+		// that never existed.
+		s.Do("GET", "/api/latest/fleet/reports/"+url.PathEscape(r.Name), nil, http.StatusNotFound)
+		s.Do("GET", "/api/latest/fleet/queries/"+url.PathEscape(r.Name), nil, http.StatusMethodNotAllowed)
+		s.Do("PUT", byIDPath(r.ID), nil, http.StatusMethodNotAllowed)
+		s.Do("GET", "/api/latest/fleet/reports/delete", nil, http.StatusMethodNotAllowed)
+
+		var delResp fleet.DeleteQueriesResponse
+		s.DoJSON("POST", "/api/latest/fleet/reports/delete", map[string]any{"ids": []uint{r.ID}}, http.StatusOK, &delResp)
+		assert.Equal(t, uint(1), delResp.Deleted)
+	})
+
+	t.Run("deprecated by-ID aliases", func(t *testing.T) {
+		r := createReport(prefix + " reports id alias")
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/reports/id/%d", r.ID), nil, http.StatusOK)
+		requireReportExists(r.ID, false)
+
+		r = createReport(prefix + " queries id alias")
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", r.ID), nil, http.StatusOK)
+		requireReportExists(r.ID, false)
+	})
 }
 
 func (s *integrationTestSuite) TestScheduledQueriesInPackOrderKey() {
@@ -560,6 +641,7 @@ func (s *integrationTestSuite) TestQueriesPaginationAndPlatformFilter() {
 		s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
 		require.Equal(t, createQueryResp.Query.Name, q.Name)
 		require.Equal(t, createQueryResp.Query.Platform, q.Platform)
+		q.ID = createQueryResp.Query.ID
 	}
 
 	var listQryResp fleet.ListQueriesResponse
@@ -648,11 +730,9 @@ func (s *integrationTestSuite) TestQueriesPaginationAndPlatformFilter() {
 
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusBadRequest, &listQryResp, "platform", "lucas", "per_page", "1", "page", "1")
 
-	// delete them by name
-	var delByNameResp fleet.DeleteQueryResponse
-	// for _, qId := range testQueryIds {
+	var delQueryResp fleet.DeleteQueryByIDResponse
 	for _, q := range testQueries {
-		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/%s", q.Name), nil, http.StatusOK, &delByNameResp)
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/reports/%d", q.ID), nil, http.StatusOK, &delQueryResp)
 	}
 }
 

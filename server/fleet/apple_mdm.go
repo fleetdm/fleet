@@ -763,8 +763,7 @@ type MDMCustomEnrollmentProfileItem struct {
 	EndUserEmail string
 }
 
-// MDMAppleSettingsPayload describes the payload accepted by the endpoint to
-// update specific MDM macos settings for a team (or no team).
+// MDMAppleSettingsPayload is the authorization subject for updating disk encryption settings of a fleet (or "No fleet").
 type MDMAppleSettingsPayload struct {
 	TeamID               *uint `json:"team_id" renameto:"fleet_id"`
 	EnableDiskEncryption *bool `json:"enable_disk_encryption"`
@@ -826,7 +825,7 @@ type HostDEPAssignment struct {
 	// MDM server in Apple Business (AB).
 	DeletedAt *time.Time `db:"deleted_at" json:"deleted_at"`
 	// ABMTokenID is the ID of the AB token that was used to make this DEP assignment.
-	ABMTokenID *uint `db:"abm_token_id" json:"abm_token_id" renameto:"ab_token_id"`
+	ABMTokenID *uint `db:"abm_token_id" json:"ab_token_id"`
 	// MDMMigrationDeadline is the deadline for the MDM migration received from ABM on the host's
 	// most recent sync.
 	MDMMigrationDeadline *time.Time `db:"mdm_migration_deadline" json:"mdm_migration_deadline,omitempty"`
@@ -923,38 +922,6 @@ type NanoUser struct {
 	DeviceID      string `json:"-" db:"device_id"`
 	UserShortName string `json:"-" db:"user_short_name"`
 	UserLongName  string `json:"-" db:"user_long_name"`
-}
-
-// MDMAppleCommand represents an MDM Apple command that has been enqueued for
-// execution. It is similar to MDMAppleCommandResult, but a separate struct is
-// used as there are plans to evolve the `fleetctl get mdm-commands` command
-// output in the future to list one row per command instead of one per
-// command-host combination, and this fleetctl command is the only use of this
-// struct at the moment. Also, it is filled a bit differently than what we do
-// in MDMAppleCommandResult, since it needs to join with the hosts in the
-// query to make authorization (retrieving the team id) manageable.
-//
-// https://github.com/fleetdm/fleet/issues/11008#issuecomment-1503466119
-type MDMAppleCommand struct {
-	// DeviceID is the MDM enrollment ID. This is the same as the host UUID.
-	DeviceID string `json:"device_id" db:"device_id"`
-	// CommandUUID is the unique identifier of the command.
-	CommandUUID string `json:"command_uuid" db:"command_uuid"`
-	// UpdatedAt is the last update timestamp of the command result.
-	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
-	// RequestType is the command's request type, which is basically the
-	// command name.
-	RequestType string `json:"request_type" db:"request_type"`
-	// Status is the command status. One of Acknowledged, Error, or NotNow.
-	Status string `json:"status" db:"status"`
-	// Hostname is the hostname of the host that executed the command.
-	Hostname string `json:"hostname" db:"hostname"`
-	// TeamID is the host's team, null if the host is in no team. This is used
-	// to authorize the user to see the command, it is not returned as part of
-	// the response payload.
-	TeamID *uint `json:"-" db:"team_id"`
-	// Name is the optional human-readable name of the command, used for indicating the profile added/removed, if any.
-	Name *string `json:"name" db:"name"`
 }
 
 // MDMAppleSetupAssistant represents the setup assistant set for a given team

@@ -921,7 +921,8 @@ const HostDetailsPage = ({
       // sharing the URL won't reopen the modal. Opening never adds the param
       // — it's only set by external deep-links.
       if (closing && location.query.show_mdm_status === "true") {
-        const { show_mdm_status: _, ...rest } = location.query;
+        const rest = { ...location.query };
+        delete rest.show_mdm_status;
         router.replace({ pathname: location.pathname, query: rest });
       }
       return !prev;
@@ -1542,7 +1543,7 @@ const HostDetailsPage = ({
     hasControls: controls.length > 0,
     isPlatformMdmEnabled:
       (isAppleDeviceHost && !!config?.mdm.enabled_and_configured) ||
-      (isWindowsHost && !!config?.mdm.windows_enabled_and_configured) ||
+      (isWindowsHost && !!config?.mdm.windows_mdm_enabled) ||
       (isAndroidHost && !!config?.mdm.android_enabled_and_configured),
   });
 

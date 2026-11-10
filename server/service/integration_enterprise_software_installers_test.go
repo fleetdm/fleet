@@ -92,8 +92,6 @@ func (s *integrationEnterpriseTestSuite) TestPackageUploadPreAuthAndTempFileClea
 		{"POST", "/api/latest/fleet/software/package"},
 		{"PATCH", "/api/latest/fleet/software/titles/1/package"},
 		{"POST", "/api/latest/fleet/bootstrap"},
-		{"POST", "/api/latest/fleet/mdm/bootstrap"},
-		{"POST", "/api/latest/fleet/mdm/apple/bootstrap"},
 	} {
 		res := s.DoRawWithHeaders(r.method, r.path, body.Bytes(), http.StatusUnauthorized, map[string]string{"Content-Type": contentType})
 		res.Body.Close()
@@ -1342,8 +1340,8 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	// create a label to test also the counts per label with the software install status filter
 	var labelResp fleet.CreateLabelResponse
 	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{
-		Name:  "test",
-		Hosts: []string{h.Hostname, h2.Hostname, h3.Hostname, h4.Hostname}}, http.StatusOK, &labelResp)
+		Name:    "test",
+		HostIDs: []uint{h.ID, h2.ID, h3.ID, h4.ID}}, http.StatusOK, &labelResp)
 	require.NotZero(t, labelResp.Label.ID)
 
 	cases := []struct {
@@ -3723,7 +3721,7 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticPolicies() {
 
 	// Check no policies were created.
 	ts := fleet.ListTeamPoliciesResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &ts)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team1.ID), nil, http.StatusOK, &ts)
 	require.Empty(t, ts.Policies)
 	require.Empty(t, ts.InheritedPolicies)
 
@@ -3758,7 +3756,7 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticPolicies() {
 
 	// Check a policy was created on team1.
 	ts = fleet.ListTeamPoliciesResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &ts)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team1.ID), nil, http.StatusOK, &ts)
 	require.Len(t, ts.Policies, 1)
 	require.Empty(t, ts.InheritedPolicies)
 	require.Equal(t, "[Install software] DummyApp (pkg)", ts.Policies[0].Name)
@@ -3774,7 +3772,7 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticPolicies() {
 
 	// Check a policy was created on team2.
 	ts = fleet.ListTeamPoliciesResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team2.ID), nil, http.StatusOK, &ts)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team2.ID), nil, http.StatusOK, &ts)
 	require.Len(t, ts.Policies, 1)
 	require.Empty(t, ts.InheritedPolicies)
 	require.Equal(t, "[Install software] DummyApp (pkg)", ts.Policies[0].Name)
@@ -3804,7 +3802,7 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticPolicies() {
 
 	// Check policies were created on team1.
 	ts = fleet.ListTeamPoliciesResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &ts)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team1.ID), nil, http.StatusOK, &ts)
 	require.Len(t, ts.Policies, 4)
 	require.Empty(t, ts.InheritedPolicies)
 	require.Equal(t, "[Install software] ruby (deb)", ts.Policies[1].Name)

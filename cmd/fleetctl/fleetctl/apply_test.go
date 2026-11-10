@@ -130,56 +130,15 @@ spec:
 	assert.Equal(t, "[+] applied user roles\n", runAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
 	require.Len(t, userRoleSpecList[1].Teams, 1)
 	assert.Equal(t, fleet.RoleMaintainer, userRoleSpecList[1].Teams[0].Role)
-}
 
-func TestApplyUserRolesDeprecated(t *testing.T) {
-	t.Setenv("FLEET_ENABLE_LOG_TOPICS", logging.DeprecatedFieldTopic)
-	_, ds := testing_utils.RunServerWithMockedDS(t)
-
-	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
-		return userRoleSpecList, nil
-	}
-
-	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
-		if email == "admin1@example.com" {
-			return userRoleSpecList[0], nil
-		}
-		return userRoleSpecList[1], nil
-	}
-
-	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
-		return &fleet.Team{
-			ID:        1,
-			CreatedAt: time.Now(),
-			Name:      "team1",
-		}, nil
-	}
-
-	ds.SaveUsersFunc = func(ctx context.Context, users []*fleet.User) error {
-		for _, u := range users {
-			switch u.Email {
-			case "admin1@example.com":
-				userRoleList[0] = u
-			case "admin2@example.com":
-				userRoleList[1] = u
-			}
-		}
-		return nil
-	}
-
-	tmpFile, err := os.CreateTemp(os.TempDir(), "*.yml")
+	removedKeysFile, err := os.CreateTemp(os.TempDir(), "*.yml")
 	require.NoError(t, err)
-	defer os.Remove(tmpFile.Name())
-
-	_, err = tmpFile.WriteString(`
----
+	defer os.Remove(removedKeysFile.Name())
+	_, err = removedKeysFile.WriteString(`
 apiVersion: v1
 kind: user_roles
 spec:
   roles:
-    admin1@example.com:
-      global_role: admin
-      teams: null
     admin2@example.com:
       global_role: null
       teams:
@@ -187,29 +146,7 @@ spec:
         team: team1
 `)
 	require.NoError(t, err)
-	expected := "[!] In user_roles: `team` is deprecated, please use `fleet` instead.\n[!] In user_roles: `teams` is deprecated, please use `fleets` instead.\n[+] applied user roles\n"
-	assert.Equal(t, expected, runAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
-	require.Len(t, userRoleSpecList[1].Teams, 1)
-	assert.Equal(t, fleet.RoleMaintainer, userRoleSpecList[1].Teams[0].Role)
-
-	_, err = tmpFile.WriteString(`
----
-apiVersion: v1
-kind: user_roles
-spec:
-  roles:
-    admin1@example.com:
-      global_role: admin
-      teams: null
-    admin2@example.com:
-      global_role: null
-      teams:
-      - role: maintainer
-        team: team1
-        fleet: team1
-`)
-	require.NoError(t, err)
-	runAppCheckErr(t, []string{"apply", "-f", tmpFile.Name()}, "in user_roles spec: Conflicting field names: cannot specify both `team` (deprecated) and `fleet` in the same request")
+	runAppCheckErr(t, []string{"apply", "-f", removedKeysFile.Name()}, "is not available anymore")
 }
 
 // withDiskEncryptionDefaults fills in the explicit per-platform disk
@@ -1659,7 +1596,7 @@ spec:
       - %s
     setup_experience:
       apple_setup_assistant: %s
-    windows_enabled_and_configured: true
+    windows_mdm_enabled: true
 `, mobileConfigPath, emptySetupAsst))
 
 	// first apply with dry-run
@@ -4352,9 +4289,31 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    windows_enabled_and_configured: true
+    windows_mdm_enabled: true
 `,
 			wantErr: `422 Validation Failed: Couldn't turn on Windows MDM. Please configure Fleet with a certificate and key pair first.`,
+		},
+		{
+			desc: "app config removed windows mdm key",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_migration_enabled: true
+`,
+			wantErr: `422 Validation Failed: The "windows_migration_enabled" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+		},
+		{
+			desc: "app config removed windows mdm enabled key",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_enabled_and_configured: true
+`,
+			wantErr: `422 Validation Failed: The "windows_enabled_and_configured" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
 		},
 		{
 			desc: "activities_webhook empty destination_url",

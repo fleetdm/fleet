@@ -21,6 +21,10 @@ var scdOpenSentinel = time.Date(9999, 12, 31, 0, 0, 0, 0, time.UTC)
 // scdUpsertBatch caps how many entity rows are written per INSERT statement.
 const scdUpsertBatch = 200
 
+// scdCloseBatch caps how many entity IDs go into one snapshot close UPDATE. A few thousand IDs exceed
+// range_optimizer_max_mem_size, so MySQL falls back to a full table scan. var (not const) so tests can shrink it.
+var scdCloseBatch = 500
+
 // scdCleanupBatch caps how many rows CleanupSCDData deletes per statement, so
 // each batch's lock window is short and concurrent writers can interleave.
 // var (not const) so tests can shrink it to exercise multi-batch behavior.
@@ -237,11 +241,12 @@ func (ds *Datastore) recordSnapshot(
 		}
 	}
 
-	if len(toClose) > 0 {
+	for i := 0; i < len(toClose); i += scdCloseBatch {
+		batch := toClose[i:min(i+scdCloseBatch, len(toClose))]
 		closeQuery, closeArgs, err := sqlx.In(
 			`UPDATE host_scd_data SET valid_to = ?
 			 WHERE dataset = ? AND valid_to = ? AND entity_id IN (?)`,
-			bucketStart, dataset, scdOpenSentinel, toClose)
+			bucketStart, dataset, scdOpenSentinel, batch)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "expand close SCD query args")
 		}

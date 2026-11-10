@@ -86,7 +86,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMRecoveryLockPassword() {
 	assert.False(t, acResp.MDM.EnableRecoveryLockPassword.Value)
 }
 
-func (s *integrationMDMTestSuite) TestRemovedPlatformSuffixKeys() {
+func (s *integrationMDMTestSuite) TestRemovedMDMConfigKeys() {
 	t := s.T()
 
 	team, err := s.ds.NewTeam(t.Context(), &fleet.Team{Name: t.Name()})
@@ -98,6 +98,8 @@ func (s *integrationMDMTestSuite) TestRemovedPlatformSuffixKeys() {
 	recoveryLockMsg := removedMsg("enable_recovery_lock_password")
 	macOSMsg := removedMsg("require_all_software_macos")
 	windowsMsg := removedMsg("require_all_software_windows")
+	windowsMDMMsg := removedMsg("windows_enabled_and_configured")
+	windowsMigrationMsg := removedMsg("windows_migration_enabled")
 
 	for _, tc := range []struct {
 		name, method, path, body, want string
@@ -110,6 +112,12 @@ func (s *integrationMDMTestSuite) TestRemovedPlatformSuffixKeys() {
 		{
 			"config old and new together", "PATCH", "/api/latest/fleet/config",
 			`{"mdm": {"macos_recovery_lock_password_enabled": true, "enable_recovery_lock_password": true}}`, recoveryLockMsg,
+		},
+		{"config windows mdm", "PATCH", "/api/latest/fleet/config", `{"mdm": {"windows_enabled_and_configured": false}}`, windowsMDMMsg},
+		{"config windows migration", "PATCH", "/api/latest/fleet/config", `{"mdm": {"windows_migration_enabled": true}}`, windowsMigrationMsg},
+		{
+			"config with another setting", "PATCH", "/api/latest/fleet/config",
+			`{"org_info": {"org_name": "set by a rejected request"}, "mdm": {"windows_migration_enabled": true}}`, windowsMigrationMsg,
 		},
 		{"fleet recovery lock", "PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), `{"mdm": {"enable_recovery_lock_password": "yes"}}`, recoveryLockMsg},
 		{"fleet macos_setup", "PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), `{"mdm": {"macos_setup": {"require_all_software_macos": true}}}`, macOSMsg},
@@ -130,7 +138,7 @@ func (s *integrationMDMTestSuite) TestRemovedPlatformSuffixKeys() {
 			fmt.Sprintf(`{"specs": [{"name": %q, "mdm": {"enable_recovery_lock_password": true}}]}`, team.Name), recoveryLockMsg,
 		},
 		{"setup experience", "PATCH", "/api/latest/fleet/setup_experience", `{"require_all_software_macos": true}`, macOSMsg},
-		{"setup experience legacy path", "PATCH", "/api/latest/fleet/mdm/apple/setup", fmt.Sprintf(`{"fleet_id": %d, "require_all_software_windows": true}`, team.ID), windowsMsg},
+		{"setup experience fleet", "PATCH", "/api/latest/fleet/setup_experience", fmt.Sprintf(`{"fleet_id": %d, "require_all_software_windows": true}`, team.ID), windowsMsg},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			res := s.DoRaw(tc.method, tc.path, []byte(tc.body), http.StatusUnprocessableEntity)
@@ -144,6 +152,8 @@ func (s *integrationMDMTestSuite) TestRemovedPlatformSuffixKeys() {
 	require.False(t, acResp.MDM.EnableRecoveryLockPassword.Value)
 	require.False(t, acResp.MDM.MacOSSetup.RequireAllSoftware)
 	require.False(t, acResp.MDM.MacOSSetup.RequireAllSoftwareWindows)
+	require.False(t, acResp.MDM.WindowsMigrationEnabled)
+	require.NotEqual(t, "set by a rejected request", acResp.OrgInfo.OrgName)
 	teamResp := getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.False(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
@@ -151,7 +161,8 @@ func (s *integrationMDMTestSuite) TestRemovedPlatformSuffixKeys() {
 	require.False(t, teamResp.Team.Config.MDM.MacOSSetup.RequireAllSoftwareWindows)
 
 	// nor does a rejected request clear a setting that is on
-	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": {"macos_recovery_lock_password_enabled": true}}`), http.StatusOK)
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": {"macos_recovery_lock_password_enabled": true, "windows_mdm_enabled": true}}`),
+		http.StatusOK)
 	t.Cleanup(func() {
 		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": {"macos_recovery_lock_password_enabled": false}}`), http.StatusOK)
 	})
@@ -159,11 +170,14 @@ func (s *integrationMDMTestSuite) TestRemovedPlatformSuffixKeys() {
 		http.StatusOK)
 	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{"mdm": {"macos_recovery_lock_password_enabled": false, "enable_recovery_lock_password": false}}`),
 		http.StatusUnprocessableEntity)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{"mdm": {"windows_mdm_enabled": false, "windows_enabled_and_configured": false}}`),
+		http.StatusUnprocessableEntity)
 	s.DoRaw("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), []byte(`{"mdm": {"enable_recovery_lock_password": false}}`),
 		http.StatusUnprocessableEntity)
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.True(t, acResp.MDM.EnableRecoveryLockPassword.Value)
+	require.True(t, acResp.MDM.WindowsEnabledAndConfigured)
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.True(t, teamResp.Team.Config.MDM.EnableRecoveryLockPassword)
@@ -178,9 +192,13 @@ func (s *integrationMDMTestSuite) TestRemovedPlatformSuffixKeys() {
 	require.Contains(t, string(body), `"macos_recovery_lock_password_enabled"`)
 	require.Contains(t, string(body), `"macos_require_all_software"`)
 	require.Contains(t, string(body), `"windows_require_all_software"`)
+	require.Contains(t, string(body), `"windows_mdm_enabled"`)
+	require.Contains(t, string(body), `"windows_mdm_migration_enabled"`)
 	require.NotContains(t, string(body), `"require_all_software_macos"`)
 	require.NotContains(t, string(body), `"require_all_software_windows"`)
 	require.NotContains(t, string(body), `"enable_recovery_lock_password"`)
+	require.NotContains(t, string(body), `"windows_enabled_and_configured"`)
+	require.NotContains(t, string(body), `"windows_migration_enabled"`)
 }
 
 func (s *integrationMDMTestSuite) TestTeamsMDMRecoveryLockPassword() {
@@ -1302,8 +1320,8 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		require.NotNil(t, rlpStatus.Status)
 		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
 
-		// PATCH /mdm/hosts/:id/unenroll → UnenrollMDM → MDMTurnOff.
-		s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/unenroll", host.ID), nil, http.StatusNoContent)
+		// DELETE /hosts/:id/mdm → UnenrollMDM → MDMTurnOff.
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", host.ID), nil, http.StatusNoContent)
 
 		// Host detail API now reports no recovery lock; view-password endpoint 404s.
 		rlpStatus = getHostRecoveryLockStatus(host.ID)

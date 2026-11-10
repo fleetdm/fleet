@@ -147,19 +147,13 @@ spec:
     admin1@example.com:
       global_role: admin
       fleets: null
-      teams: null
     admin2@example.com:
       global_role: null
       fleets:
       - role: maintainer
         fleet: team1
-        team: team1
-      teams:
-      - role: maintainer
-        fleet: team1
-        team: team1
 `
-	expectedJson := `{"kind":"user_roles","apiVersion":"v1","spec":{"roles":{"admin1@example.com":{"global_role":"admin","fleets":null,"teams":null},"admin2@example.com":{"global_role":null,"fleets":[{"fleet":"team1","role":"maintainer","team":"team1"}],"teams":[{"fleet":"team1","role":"maintainer","team":"team1"}]}}}}
+	expectedJson := `{"kind":"user_roles","apiVersion":"v1","spec":{"roles":{"admin1@example.com":{"global_role":"admin","fleets":null},"admin2@example.com":{"global_role":null,"fleets":[{"fleet":"team1","role":"maintainer"}]}}}}
 `
 
 	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "user_roles"}))
@@ -534,23 +528,26 @@ func TestGetHosts(t *testing.T) {
 	}
 
 	// these are run when host is specified `fleetctl get hosts --json test_host`
-	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+	testHost := &fleet.Host{
+		CreatedAt:       time.Time{},
+		UpdatedAt:       time.Time{},
+		Software:        []fleet.HostSoftwareEntry{},
+		DetailUpdatedAt: time.Time{},
+		LabelUpdatedAt:  time.Time{},
+		LastEnrolledAt:  time.Time{},
+		SeenTime:        time.Time{},
+		ComputerName:    "test_host",
+		Hostname:        "test_host",
+	}
+	ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
 		require.NotEmpty(t, identifier)
-		return &fleet.Host{
-			UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
-				CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Time{}},
-				UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Time{}},
-			},
-			HostSoftware: fleet.HostSoftware{
-				Software: []fleet.HostSoftwareEntry{},
-			},
-			DetailUpdatedAt: time.Time{},
-			LabelUpdatedAt:  time.Time{},
-			LastEnrolledAt:  time.Time{},
-			SeenTime:        time.Time{},
-			ComputerName:    "test_host",
-			Hostname:        "test_host",
-		}, nil
+		return &fleet.HostLite{ID: testHost.ID}, nil
+	}
+	ds.HostFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+		return testHost, nil
+	}
+	ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostID uint) (time.Time, error) {
+		return time.Now(), nil
 	}
 
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
@@ -2626,8 +2623,8 @@ func TestGetAppleBM(t *testing.T) {
 	t.Run("free license", func(t *testing.T) {
 		testing_utils.RunServerWithMockedDS(t)
 
-		expected := `could not get Apple Business information: missing or invalid license`
-		_, err := runAppNoChecks([]string{"get", "mdm_apple_bm"})
+		expected := `could not list AB tokens: missing or invalid license`
+		_, err := runAppNoChecks([]string{"get", "mdm-ab"})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), expected)
 	})
@@ -2641,12 +2638,11 @@ func TestGetAppleBM(t *testing.T) {
 			}, nil
 		}
 
-		out := runAppForTest(t, []string{"get", "mdm_apple_bm"})
+		out := runAppForTest(t, []string{"get", "mdm-ab"})
 		assert.Contains(t, out, "Apple ID:")
 		assert.Contains(t, out, "Organization name:")
 		assert.Contains(t, out, "MDM server URL:")
 		assert.Contains(t, out, "Renew date:")
-		assert.Contains(t, out, "Default fleet:")
 	})
 
 	t.Run("premium license, no token", func(t *testing.T) {
@@ -2656,22 +2652,8 @@ func TestGetAppleBM(t *testing.T) {
 			return nil, nil
 		}
 
-		out := runAppForTest(t, []string{"get", "mdm_apple_bm"})
+		out := runAppForTest(t, []string{"get", "mdm-ab"})
 		assert.Contains(t, out, "No Apple Business (AB) server token found.")
-	})
-
-	t.Run("premium license, multiple tokens", func(t *testing.T) {
-		_, ds := testing_utils.RunServerWithMockedDS(t,
-			&service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, DEPStorage: depStorage})
-		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
-			return []*fleet.ABMToken{
-				{ID: 1},
-				{ID: 2},
-			}, nil
-		}
-
-		_, err := runAppNoChecks([]string{"get", "mdm_apple_bm"})
-		assert.ErrorContains(t, err, "This API endpoint has been deprecated. Please use the new GET /ab_tokens API endpoint")
 	})
 }
 
