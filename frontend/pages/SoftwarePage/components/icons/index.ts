@@ -1111,6 +1111,7 @@ import Winlogbeat from "./png/Winlogbeat.png";
 import Winrar from "./png/Winrar.png";
 import Wins from "./png/Wins.png";
 import Winscp from "./png/Winscp.png";
+import Winzip from "./png/Winzip.png";
 import Wireguard from "./png/Wireguard.png";
 import Wireshark from "./png/Wireshark.png";
 import WisprFlow from "./png/WisprFlow.png";
@@ -2315,6 +2316,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   winrar: Winrar,
   wins: Wins,
   winscp: Winscp,
+  winzip: Winzip,
   wireguard: Wireguard,
   wireshark: Wireshark,
   "wispr flow": WisprFlow,

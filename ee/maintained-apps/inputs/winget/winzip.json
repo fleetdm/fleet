@@ -1,0 +1,11 @@
+{
+  "name": "WinZip",
+  "slug": "winzip/windows",
+  "package_identifier": "Corel.WinZip",
+  "unique_identifier": "WinZip",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'WinZip _%.%' AND name NOT LIKE 'WinZip % %' AND publisher = 'Corel Corporation';",
+  "default_categories": ["Productivity"]
+}
