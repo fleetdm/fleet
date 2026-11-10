@@ -579,6 +579,13 @@ We track certain social posts from the [LinkedIn company page](https://www.linke
 
 
 
+### Channel partner accounts
+
+Create a separate Salesforce account for each region or segment a channel partner operates in. Don't merge them into one account. Each region or segment has its own billing address, and quotes fill in the billing address from the account.
+
+Name each account with the partner name followed by a short region or segment marker in parentheses, like "CDW (.gov)" or "CDW (CA)".
+
+
 ### SFDC access
 
 Fleet uses Okta SSO for Salesforce authentication. All Fleet employees (`@fleetdm.com`) authenticate through Okta — Salesforce credential login is disabled for SSO-enabled profiles. All Fleet employees must login at our custom domain [fleetdm.my.salesforce.com](https://fleetdm.my.salesforce.com) or by clicking the Salesforce app tile in Okta. For users and accounts that cannot use SSO (e.g., integration users, external collaborators), Fleet has created custom cloned profiles with SSO disabled that must login at [login.salesforce.com](login.salesforce.com).
