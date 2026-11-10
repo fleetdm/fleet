@@ -272,13 +272,10 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 	req := request.(*listHostsRequest)
 
 	var software *fleet.Software
-	if req.Opts.SoftwareVersionIDFilter != nil || req.Opts.SoftwareIDFilter != nil {
+	if req.Opts.SoftwareVersionIDFilter != nil {
 		var err error
 
 		id := req.Opts.SoftwareVersionIDFilter
-		if id == nil {
-			id = req.Opts.SoftwareIDFilter
-		}
 
 		sw, err := svc.SoftwareByID(ctx, *id, req.Opts.TeamFilter, false)
 		switch {

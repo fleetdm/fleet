@@ -155,7 +155,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		},
 		"all params defined": {
 			url: "/foo?order_key=foo&order_direction=asc&page=10&per_page=1&device_mapping=T&additional_info_filters" +
-				"=filter1,filter2&status=new&fleet_id=2&policy_id=3&policy_response=passing&software_id=4&os_id=5" +
+				"=filter1,filter2&status=new&fleet_id=2&policy_id=3&policy_response=passing&software_version_id=4&os_id=5" +
 				"&os_name=osName&os_version=osVersion&os_version_id=5&disable_failing_policies=0&disable_issues=1&macos_settings=verified" +
 				"&macos_settings_disk_encryption=enforcing&os_settings=pending&os_settings_disk_encryption=failed" +
 				"&bootstrap_package=installed&mdm_id=6&mdm_name=mdmName&mdm_enrollment_status=automatic" +
@@ -175,7 +175,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				TeamFilter:                        ptr.Uint(2),
 				PolicyIDFilter:                    ptr.Uint(3),
 				PolicyResponseFilter:              ptr.Bool(true),
-				SoftwareIDFilter:                  ptr.Uint(4),
+				SoftwareVersionIDFilter:           ptr.Uint(4),
 				OSIDFilter:                        ptr.Uint(5),
 				OSVersionIDFilter:                 ptr.Uint(5),
 				OSNameFilter:                      ptr.String("osName"),
@@ -204,7 +204,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		},
 		"all params defined (deprecated)": {
 			url: "/foo?order_key=foo&order_direction=asc&page=10&per_page=1&device_mapping=T&additional_info_filters" +
-				"=filter1,filter2&status=new&team_id=2&policy_id=3&policy_response=passing&software_id=4&os_id=5" +
+				"=filter1,filter2&status=new&team_id=2&policy_id=3&policy_response=passing&software_version_id=4&os_id=5" +
 				"&os_name=osName&os_version=osVersion&os_version_id=5&disable_failing_policies=0&disable_issues=1&macos_settings=verified" +
 				"&macos_settings_disk_encryption=enforcing&os_settings=pending&os_settings_disk_encryption=failed" +
 				"&bootstrap_package=installed&mdm_id=6&mdm_name=mdmName&mdm_enrollment_status=automatic" +
@@ -224,7 +224,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				TeamFilter:                        ptr.Uint(2),
 				PolicyIDFilter:                    ptr.Uint(3),
 				PolicyResponseFilter:              ptr.Bool(true),
-				SoftwareIDFilter:                  ptr.Uint(4),
+				SoftwareVersionIDFilter:           ptr.Uint(4),
 				OSIDFilter:                        ptr.Uint(5),
 				OSVersionIDFilter:                 ptr.Uint(5),
 				OSNameFilter:                      ptr.String("osName"),
@@ -284,10 +284,6 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		"error in policy_response (invalid option)": {
 			url:          "/foo?policy_id=1&policy_response=foo",
 			errorMessage: "Invalid policy_response",
-		},
-		"error in software_id": {
-			url:          "/foo?software_id=foo",
-			errorMessage: "Invalid software_id",
 		},
 		"error in os_id": {
 			url:          "/foo?os_id=foo",
@@ -454,10 +450,6 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 			url:          "/foo?dep_assign_profile_response=INVALID",
 			errorMessage: "Invalid dep_assign_profile_response",
 		},
-		"negative software_id": {
-			url:          "/foo?software_id=-10",
-			errorMessage: "Invalid software_id",
-		},
 		"negative software_version_id": {
 			url:          "/foo?software_version_id=-10",
 			errorMessage: "Invalid software_version_id",
@@ -491,10 +483,6 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		"invalid combination software_title_id and software_version_id": {
 			url:          "/foo?software_title_id=1&software_version_id=2",
 			errorMessage: "The combination of software_version_id and software_title_id is not allowed",
-		},
-		"invalid combination software_id and software_version_id": {
-			url:          "/foo?software_id=1&software_version_id=2",
-			errorMessage: "The combination of software_id and software_version_id is not allowed",
 		},
 		"invalid populate_policies": {
 			url:          "/foo?populate_policies=foo",
@@ -605,6 +593,33 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 			},
 		)
 	}
+
+	removedSoftwareIDMessage := `The "software_id" parameter is not available anymore. ` +
+		`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+
+	// send software_id alone, the request should be rejected with the Fleet 5 message
+	softwareIDURL, err := url.Parse("/foo?software_id=1")
+	require.NoError(t, err)
+	_, err = hostListOptionsFromRequest(&http.Request{URL: softwareIDURL})
+	var invalidArgumentErr *fleet.InvalidArgumentError
+	require.ErrorAs(t, err, &invalidArgumentErr)
+	require.Len(t, invalidArgumentErr.Invalid(), 1)
+	require.Equal(t, "software_id", invalidArgumentErr.Invalid()[0]["name"])
+	require.Equal(t, removedSoftwareIDMessage, invalidArgumentErr.Invalid()[0]["reason"])
+
+	// send software_id with software_version_id, the request should be rejected with the Fleet 5 message
+	softwareIDAndVersionIDURL, err := url.Parse("/foo?software_id=1&software_version_id=2")
+	require.NoError(t, err)
+	_, err = hostListOptionsFromRequest(&http.Request{URL: softwareIDAndVersionIDURL})
+	require.ErrorAs(t, err, &invalidArgumentErr)
+	require.Equal(t, removedSoftwareIDMessage, invalidArgumentErr.Invalid()[0]["reason"])
+
+	// send software_id with an empty value, the request should be rejected with the Fleet 5 message
+	emptySoftwareIDURL, err := url.Parse("/foo?software_id=")
+	require.NoError(t, err)
+	_, err = hostListOptionsFromRequest(&http.Request{URL: emptySoftwareIDURL})
+	require.ErrorAs(t, err, &invalidArgumentErr)
+	require.Equal(t, removedSoftwareIDMessage, invalidArgumentErr.Invalid()[0]["reason"])
 }
 
 func TestCarveListOptionsFromRequest(t *testing.T) {

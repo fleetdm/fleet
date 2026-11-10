@@ -523,7 +523,7 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	// foo v0.0.1 is only installed on host2
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(fooV1ID))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_version_id", fmt.Sprint(fooV1ID))
 	require.Len(t, resp.Hosts, 1)
 	assert.Equal(t, host2.ID, resp.Hosts[0].ID)
 	assert.Equal(t, "foo", resp.Software.Name)
@@ -531,7 +531,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	assert.Nil(t, resp.SoftwareTitle)
 
 	var countResp countHostsResponse
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_id", fmt.Sprint(fooV1ID))
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_version_id", fmt.Sprint(fooV1ID))
 	require.Equal(t, 1, countResp.Count)
 
 	// foo v0.0.2 is installed on hosts 0 and 1
@@ -568,14 +568,31 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.Equal(t, 3, countResp.Count)
 
 	// verify invalid combinations of software filters
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, &resp, "software_title_id", fmt.Sprint(fooTitleID), "software_id", fmt.Sprint(fooV1ID))
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, &resp, "software_title_id", fmt.Sprint(fooTitleID), "software_version_id", fmt.Sprint(fooV1ID))
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, &resp, "software_id", fmt.Sprint(fooV1ID), "software_version_id", fmt.Sprint(fooV1ID))
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, &resp, "software_id", fmt.Sprint(fooV1ID), "software_version_id", fmt.Sprint(fooV1ID), "software_title_id", fmt.Sprint(fooTitleID))
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusBadRequest, &countResp, "software_title_id", fmt.Sprint(fooTitleID), "software_id", fmt.Sprint(fooV1ID))
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusBadRequest, &countResp, "software_title_id", fmt.Sprint(fooTitleID), "software_version_id", fmt.Sprint(fooV1ID))
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusBadRequest, &countResp, "software_id", fmt.Sprint(fooV1ID), "software_version_id", fmt.Sprint(fooV1ID))
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusBadRequest, &countResp, "software_id", fmt.Sprint(fooV1ID), "software_version_id", fmt.Sprint(fooV1ID), "software_title_id", fmt.Sprint(fooTitleID))
+
+	removedSoftwareIDMessage := `The "software_id" parameter is not available anymore. ` +
+		`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+	allHostsLabelIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"}, fleet.TeamFilter{})
+	require.NoError(t, err)
+	labelHostsPath := fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", allHostsLabelIDs["All Hosts"])
+	idParam := fmt.Sprint(fooV1ID)
+	getUnprocessableErrorText := func(path string, queryParams ...string) string {
+		res := s.DoRaw("GET", path, nil, http.StatusUnprocessableEntity, queryParams...)
+		return extractServerErrorText(res.Body)
+	}
+
+	// send software_id to each hosts endpoint, the request should be rejected with the Fleet 5 message
+	require.Contains(t, getUnprocessableErrorText("/api/latest/fleet/hosts", "software_id", idParam), removedSoftwareIDMessage)
+	require.Contains(t, getUnprocessableErrorText("/api/latest/fleet/hosts/count", "software_id", idParam), removedSoftwareIDMessage)
+	require.Contains(t, getUnprocessableErrorText("/api/latest/fleet/hosts/report", "software_id", idParam, "format", "csv"), removedSoftwareIDMessage)
+	require.Contains(t, getUnprocessableErrorText(labelHostsPath, "software_id", idParam), removedSoftwareIDMessage)
+
+	// send software_id with software_version_id to each hosts endpoint, the request should be rejected with the Fleet 5 message
+	require.Contains(t, getUnprocessableErrorText("/api/latest/fleet/hosts", "software_id", idParam, "software_version_id", idParam), removedSoftwareIDMessage)
+	require.Contains(t, getUnprocessableErrorText("/api/latest/fleet/hosts/count", "software_id", idParam, "software_version_id", idParam), removedSoftwareIDMessage)
+	require.Contains(t, getUnprocessableErrorText("/api/latest/fleet/hosts/report", "software_id", idParam, "software_version_id", idParam, "format", "csv"), removedSoftwareIDMessage)
+	require.Contains(t, getUnprocessableErrorText(labelHostsPath, "software_id", idParam, "software_version_id", idParam), removedSoftwareIDMessage)
 
 	user1 := test.NewUser(t, s.ds, "Alice", "alice@example.com", true)
 	q := test.NewQuery(t, s.ds, nil, "query1", "select 1", 0, true)
@@ -593,7 +610,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	)
 
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(fooV1ID))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_version_id", fmt.Sprint(fooV1ID))
 	require.Len(t, resp.Hosts, 1)
 	assert.Equal(t, uint64(1), resp.Hosts[0].HostIssues.FailingPoliciesCount)
 	assert.Equal(t, uint64(1), resp.Hosts[0].HostIssues.TotalIssuesCount)
@@ -714,11 +731,6 @@ func (s *integrationTestSuite) TestListHosts() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, &resp, "mdm_enrollment_status", "invalid-status")
 
 	// Filter by inexistent software.
-	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(9999))
-	require.Empty(t, resp.Hosts)
-	assert.Nil(t, resp.Software)
-
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_version_id", fmt.Sprint(9999))
 	require.Empty(t, resp.Hosts)

@@ -5310,21 +5310,11 @@ func testHostsListBySoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1, false))
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2, false))
 
-	// software_id is foo v0.0.2
-	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareIDFilter: &fooV002ID}, 2)
+	// software_version_id is foo v0.0.2
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareVersionIDFilter: &fooV002ID}, 2)
 	require.Len(t, hosts, 2)
 	got := []uint{hosts[0].ID, hosts[1].ID}
 	require.ElementsMatch(t, []uint{host1.ID, host2.ID}, got)
-
-	// software_version_id is foo v0.0.2 (works exacty the same)
-	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareVersionIDFilter: &fooV002ID}, 2)
-	require.Len(t, hosts, 2)
-	got = []uint{hosts[0].ID, hosts[1].ID}
-	require.ElementsMatch(t, []uint{host1.ID, host2.ID}, got)
-
-	// unknown software_id
-	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareIDFilter: ptr.Uint(fooV002ID + 100)}, 0)
-	require.Len(t, hosts, 0)
 
 	// unknown software_version_id
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareVersionIDFilter: ptr.Uint(fooV002ID + 100)}, 0)

@@ -1431,15 +1431,9 @@ func (ds *Datastore) applyHostFilters(
 
 	softwareStatusJoin := ""
 	softwareFilter := "TRUE"
-	var softwareIDFilter *uint
 	if opt.SoftwareVersionIDFilter != nil {
-		softwareIDFilter = opt.SoftwareVersionIDFilter
-	} else if opt.SoftwareIDFilter != nil {
-		softwareIDFilter = opt.SoftwareIDFilter
-	}
-	if softwareIDFilter != nil {
 		softwareFilter = "EXISTS (SELECT 1 FROM host_software hs WHERE hs.host_id = h.id AND hs.software_id = ?)"
-		whereParams = append(whereParams, *softwareIDFilter)
+		whereParams = append(whereParams, *opt.SoftwareVersionIDFilter)
 	} else if opt.SoftwareTitleIDFilter != nil {
 		// Reject a version or package filter that isn't one of the title's in the fleet
 		if opt.AppStoreAppVersionIDFilter != nil {
