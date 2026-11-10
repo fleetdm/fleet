@@ -2410,7 +2410,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestAddManualLabels() {
 	require.NoError(t, err)
 	// Add a host whose UUID starts with the ID of host4 (probably ID 4,
 	// but get it from the record just in case.)
-	// host4 should _not_ be added to the label (see issue #34236).
+	// host4 should _not_ be added to the label (see issue #34236), and listing its hostname doesn't add it either.
 	host5, err := s.DS.NewHost(context.Background(), &fleet.Host{
 		UUID:           fmt.Sprintf("%duuid-5", host4.ID),
 		Hostname:       "dummy",
@@ -2438,8 +2438,9 @@ labels:
     - %s
     - %d
     - %s
+    - %s
     - dummy
-`, host1.Hostname, host2.HardwareSerial, host3.ID, host5.UUID))
+`, host1.UUID, host2.HardwareSerial, host3.ID, host5.UUID, host4.Hostname))
 	require.NoError(t, err)
 
 	// Apply the configs
@@ -2513,7 +2514,7 @@ labels:
     hosts:
     - %s
     - %s
-`, host1.Hostname, host2.Hostname))
+`, host1.HardwareSerial, host2.HardwareSerial))
 	require.NoError(t, err)
 
 	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}))

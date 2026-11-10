@@ -2726,7 +2726,7 @@ func TestAuthorizeMDMAppleManualEnrollmentProfile(t *testing.T) {
 func TestAuthorizeAppleBM(t *testing.T) {
 	t.Parallel()
 
-	abm := &fleet.AppleBM{}
+	abm := &fleet.ABMToken{}
 	runTestCases(t, []authTestCase{
 		{user: nil, object: abm, action: list, allow: false},
 		{user: test.UserNoRoles, object: abm, action: list, allow: false},
@@ -2984,9 +2984,9 @@ func TestAuthorizeMDMCommand(t *testing.T) {
 		{user: test.UserTechnician, object: team1Command, action: write, allow: false},
 		{user: test.UserTechnician, object: team1Command, action: read, allow: true},
 
-		{user: test.UserGitOps, object: globalCommand, action: write, allow: true},
+		{user: test.UserGitOps, object: globalCommand, action: write, allow: false},
 		{user: test.UserGitOps, object: globalCommand, action: read, allow: false},
-		{user: test.UserGitOps, object: team1Command, action: write, allow: true},
+		{user: test.UserGitOps, object: team1Command, action: write, allow: false},
 		{user: test.UserGitOps, object: team1Command, action: read, allow: false},
 
 		{user: test.UserTeamAdminTeam1, object: globalCommand, action: write, allow: false},
@@ -3031,7 +3031,7 @@ func TestAuthorizeMDMCommand(t *testing.T) {
 
 		{user: test.UserTeamGitOpsTeam1, object: globalCommand, action: write, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: globalCommand, action: read, allow: false},
-		{user: test.UserTeamGitOpsTeam1, object: team1Command, action: write, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: team1Command, action: write, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: team1Command, action: read, allow: false},
 
 		{user: test.UserTeamGitOpsTeam2, object: globalCommand, action: write, allow: false},
@@ -3421,7 +3421,7 @@ func TestJSONToInterfaceUser(t *testing.T) {
 	{
 		subject := subject.(map[string]interface{})
 		assert.Equal(t, fleet.RoleAdmin, subject["global_role"])
-		assert.Nil(t, subject["teams"])
+		assert.Nil(t, subject["fleets"])
 	}
 
 	subject, err = jsonToInterface(&fleet.User{
@@ -3434,11 +3434,11 @@ func TestJSONToInterfaceUser(t *testing.T) {
 	{
 		subject := subject.(map[string]interface{})
 		assert.Equal(t, nil, subject["global_role"])
-		assert.Len(t, subject["teams"], 2)
-		assert.Equal(t, fleet.RoleObserver, subject["teams"].([]interface{})[0].(map[string]interface{})["role"])
-		assert.Equal(t, json.Number("3"), subject["teams"].([]interface{})[0].(map[string]interface{})["id"])
-		assert.Equal(t, fleet.RoleMaintainer, subject["teams"].([]interface{})[1].(map[string]interface{})["role"])
-		assert.Equal(t, json.Number("42"), subject["teams"].([]interface{})[1].(map[string]interface{})["id"])
+		assert.Len(t, subject["fleets"], 2)
+		assert.Equal(t, fleet.RoleObserver, subject["fleets"].([]any)[0].(map[string]any)["role"])
+		assert.Equal(t, json.Number("3"), subject["fleets"].([]any)[0].(map[string]any)["id"])
+		assert.Equal(t, fleet.RoleMaintainer, subject["fleets"].([]any)[1].(map[string]any)["role"])
+		assert.Equal(t, json.Number("42"), subject["fleets"].([]any)[1].(map[string]any)["id"])
 	}
 }
 

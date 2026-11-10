@@ -594,7 +594,6 @@ func TestCachedTeamFeatures(t *testing.T) {
 		EnableHostUsers:         false,
 		EnableSoftwareInventory: true,
 		AdditionalQueries:       &aq,
-		DetailQueryOverrides:    map[string]*string{"a": ptr.String("A"), "b": ptr.String("B")},
 	}
 
 	testTeam := fleet.Team{
@@ -637,11 +636,9 @@ func TestCachedTeamFeatures(t *testing.T) {
 	require.NotSame(t, &testFeatures, features)
 	require.False(t, mockedDS.TeamFeaturesFuncInvoked)
 
-	// changing e.g. the DetailQueryOverrides map doesn't affect the stored value
-	ptrA := features.DetailQueryOverrides["a"]
-	*ptrA = "AAA"
-	features.DetailQueryOverrides["c"] = ptr.String("C")
-	require.NotEqual(t, testFeatures.DetailQueryOverrides, features.DetailQueryOverrides)
+	// changing e.g. the AdditionalQueries bytes doesn't affect the stored value
+	(*features.AdditionalQueries)[0] = '['
+	require.NotEqual(t, testFeatures.AdditionalQueries, features.AdditionalQueries)
 
 	// saving a team updates features in cache
 	aq = json.RawMessage(`{"bar": "baz"}`)
@@ -649,7 +646,6 @@ func TestCachedTeamFeatures(t *testing.T) {
 		EnableHostUsers:         true,
 		EnableSoftwareInventory: false,
 		AdditionalQueries:       &aq,
-		DetailQueryOverrides:    map[string]*string{"c": ptr.String("C")},
 	}
 	updateTeam := &fleet.Team{
 		ID:        testTeam.ID,

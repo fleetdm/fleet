@@ -383,6 +383,9 @@ type Datastore interface {
 	// HostIDsByIdentifier retrieves the IDs associated with the given hostnames, UUIDs, hardware serials, node keys or osquery host IDs.
 	// Empty and whitespace-only identifiers are ignored.
 	HostIDsByIdentifier(ctx context.Context, filter TeamFilter, hostnames []string) ([]uint, error)
+	// HostIDsByLabelIdentifier retrieves the IDs of hosts matching a manual label's host identifiers: UUIDs or hardware serials.
+	// Empty and whitespace-only identifiers are ignored.
+	HostIDsByLabelIdentifier(ctx context.Context, filter TeamFilter, hostIdentifiers []string) ([]uint, error)
 
 	// HostIDsByOSID retrieves the IDs of all host for the given OS ID
 	HostIDsByOSID(ctx context.Context, osID uint, offset int, limit int) ([]uint, error)
@@ -1349,6 +1352,9 @@ type Datastore interface {
 
 	UpdateQueryAggregatedStats(ctx context.Context) error
 
+	// DeleteOrphanedQueryStats deletes the stats of reports that no longer exist.
+	DeleteOrphanedQueryStats(ctx context.Context) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Following are the set of APIs used by osquery hosts:
 	// TODO(lucas): Move them to a separate datastore or abstraction, to avoid
@@ -2086,7 +2092,7 @@ type Datastore interface {
 	GetHostRecoveryLockPasswordStatus(ctx context.Context, hostUUID string) (*HostMDMRecoveryLockPassword, error)
 
 	// GetHostsForRecoveryLockAction returns host UUIDs that need recovery lock password action mapped to a bool if a password is already saved:
-	// - Teams with enable_recovery_lock_password = true
+	// - Teams with macos_recovery_lock_password_enabled = true
 	// - macOS Apple Silicon hosts that are MDM enrolled
 	// - No password saved or status is NULL (ready for command)
 	GetHostsForRecoveryLockAction(ctx context.Context) (map[string]bool, error)
@@ -2130,7 +2136,7 @@ type Datastore interface {
 
 	// ClaimHostsForRecoveryLockClear returns host UUIDs that need their recovery lock
 	// cleared and marks them as pending. Returns hosts where the team/appconfig has
-	// enable_recovery_lock_password=false and either:
+	// macos_recovery_lock_password_enabled=false and either:
 	// - operation_type='install' and status='verified' (new clears), or
 	// - operation_type='remove' and status=NULL (retries after failed enqueue)
 	ClaimHostsForRecoveryLockClear(ctx context.Context, clearCommandUUID string) ([]string, error)

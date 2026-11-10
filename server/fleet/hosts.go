@@ -1415,7 +1415,6 @@ type HostSummary struct {
 	MIACount            uint                   `json:"mia_count" db:"mia"`
 	Missing30DaysCount  uint                   `json:"missing_30_days_count" db:"missing_30_days_count"`
 	NewCount            uint                   `json:"new_count" db:"new"`
-	AllLinuxCount       uint                   `json:"all_linux_count" db:"-"`
 	LowDiskSpaceCount   *uint                  `json:"low_disk_space_count,omitempty" db:"low_disk_space"`
 	BuiltinLabels       []*LabelSummary        `json:"builtin_labels" db:"-"`
 	Platforms           []*HostSummaryPlatform `json:"platforms" db:"-"`
