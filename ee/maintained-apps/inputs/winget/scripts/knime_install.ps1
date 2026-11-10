@@ -34,8 +34,17 @@ function Remove-ExistingKnime {
   }
   Write-Host "Removing existing install: $displayName $($entry.DisplayVersion)"
 
-  Stop-Process -Name "knime" -Force -ErrorAction SilentlyContinue
-  Start-Sleep -Seconds 2
+  # Only stop processes from the install being removed, not a separate zip install.
+  $installDir = "$($entry.InstallLocation)".TrimEnd('\')
+  if ($installDir) {
+    $running = @(Get-Process -ErrorAction SilentlyContinue | Where-Object {
+      $_.Path -and $_.Path.StartsWith("$installDir\", [System.StringComparison]::OrdinalIgnoreCase)
+    })
+  } else {
+    $running = @(Get-Process -Name "knime" -ErrorAction SilentlyContinue)
+  }
+  $running | Stop-Process -Force -ErrorAction SilentlyContinue
+  $running | Wait-Process -Timeout 30 -ErrorAction SilentlyContinue
 
   $uninstallCommand = $entry.UninstallString
   if ($uninstallCommand -match '^\s*"([^"]+)"\s*(.*)$') {
@@ -50,23 +59,33 @@ function Remove-ExistingKnime {
   $uninstallArgs = "$uninstallArgs /VERYSILENT /SUPPRESSMSGBOXES /NORESTART".Trim()
 
   Write-Host "Uninstall command: $exePath $uninstallArgs"
-  $process = Start-Process -FilePath $exePath -ArgumentList $uninstallArgs -NoNewWindow -PassThru -Wait
-  Write-Host "Uninstall exit code: $($process.ExitCode)"
-  if ($process.ExitCode -ne 0) {
-    Throw "Uninstalling $displayName $($entry.DisplayVersion) failed with exit code $($process.ExitCode)."
-  }
+  $started = Get-Date
+  $process = Start-Process -FilePath $exePath -ArgumentList $uninstallArgs -NoNewWindow -PassThru
+  $null = $process.Handle  # keeps ExitCode readable after the process exits
 
-  # unins000.exe hands off to a temporary copy of itself (_iu*.tmp) and exits
-  # before the removal finishes.
-  $deadline = (Get-Date).AddMinutes(5)
+  # unins000.exe hands off to a temporary copy of itself (_iu*.tmp) and can exit
+  # before the removal finishes, so also wait for the processes it started and
+  # for the registry entry to go. The start-time check skips unrelated processes
+  # that reuse a tracked process ID.
+  $tree = @($process.Id)
+  $deadline = $started.AddMinutes(5)
   do {
     Start-Sleep -Seconds 2
-    $pending = (Get-KnimeEntry) -or (Get-Process -ErrorAction SilentlyContinue |
-      Where-Object { $_.Path -and (Split-Path $_.Path -Leaf) -like '_iu*.tmp' })
+    $running = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+      $_.CreationDate -ge $started -and ($tree -contains $_.ProcessId -or $tree -contains $_.ParentProcessId)
+    })
+    foreach ($p in $running) { if ($tree -notcontains $p.ProcessId) { $tree += $p.ProcessId } }
+    if ($process.HasExited -and $process.ExitCode -ne 0) {
+      Throw "Uninstalling $displayName $($entry.DisplayVersion) failed with exit code $($process.ExitCode)."
+    }
+    $pending = $running.Count -gt 0 -or [bool](Get-KnimeEntry)
   } while ($pending -and (Get-Date) -lt $deadline)
+
   if ($pending) {
+    foreach ($p in $running) { Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue }
     Throw "Timed out removing $displayName $($entry.DisplayVersion)."
   }
+  Write-Host "Uninstall exit code: $($process.ExitCode)"
 }
 
 try {
