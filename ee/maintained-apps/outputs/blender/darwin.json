@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.2.3",
+      "version": "5.3.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.blenderfoundation.blender';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.blenderfoundation.blender' AND version_compare(bundle_short_version, '5.2.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.blenderfoundation.blender' AND version_compare(bundle_short_version, '5.3.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.blenderfoundation.blender' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.blender.org/release/Blender5.2/blender-5.2.3-macos-arm64.dmg",
+      "installer_url": "https://download.blender.org/release/Blender5.3/blender-5.3.0-macos-arm64.dmg",
       "install_script_ref": "0672232c",
       "uninstall_script_ref": "39117f04",
-      "sha256": "acc05374485a272342d4b323c15ac01953e7f697da2f1bad8af9c3bf087267a4",
+      "sha256": "2d802b54766741e612cead50b03ebbc8eb64dadc71eda932573d256b8a784720",
       "default_categories": [
         "Productivity"
       ]
