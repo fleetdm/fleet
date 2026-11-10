@@ -709,7 +709,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerified, nil, label)
 	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{
 		Verified: 1,
-	}, nil)
+	})
 
 	// another sync shouldn't return profiles
 	verifyProfiles(mdmDevice, 0, false)
@@ -730,7 +730,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerified, nil, label)
 	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{
 		Verified: 1,
-	}, nil)
+	})
 	// force os updates profile to failed, doesn't impact filtered hosts results or summaries
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `UPDATE host_mdm_windows_profiles SET status = 'failed' WHERE profile_uuid = ?`
@@ -741,7 +741,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerified, nil, label)
 	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{
 		Verified: 1,
-	}, nil)
+	})
 	// force another profile to failed, does impact filtered hosts results and summaries
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `UPDATE host_mdm_windows_profiles SET status = 'failed' WHERE profile_uuid = ?`
@@ -754,7 +754,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{
 		Failed:   1,
 		Verified: 0,
-	}, nil)
+	})
 
 	// add the host to a team
 	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{host.ID}))
@@ -838,7 +838,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerified, &tm.ID, label)
 	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{
 		Verified: 1,
-	}, nil)
+	})
 	// force os updates profile to failed, doesn't impact filtered hosts results or summaries
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `UPDATE host_mdm_windows_profiles SET status = 'failed' WHERE profile_uuid = ?`
@@ -849,7 +849,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerified, &tm.ID, label)
 	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{
 		Verified: 1,
-	}, nil)
+	})
 	// force another profile to failed, does impact filtered hosts results and summaries
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `UPDATE host_mdm_windows_profiles SET status = 'failed' WHERE profile_uuid = ?`
@@ -862,13 +862,13 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{
 		Failed:   1,
 		Verified: 0,
-	}, nil)
+	})
 
 	// Resend the failed profile. Should succeed
 	s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, teamProfiles[0]), nil, http.StatusAccepted)
 	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{
 		Pending: 1,
-	}, nil)
+	})
 	// Try resending, should fail since it's pending
 	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, teamProfiles[0]), nil, http.StatusConflict)
 	errMsg = extractServerErrorText(res.Body)

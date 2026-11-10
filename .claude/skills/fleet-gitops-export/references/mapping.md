@@ -22,9 +22,9 @@ Every API call below is a GET made through `fleetctl api` (the paths are the `/a
 | Setup experience settings | `GET /fleets/{id}` (`mdm.setup_experience`) | `controls.setup_experience`, with Apple or Windows MDM on (`lock_end_user_info` is always written: unset, it follows `enable_end_user_authentication`) |
 | Automatic enrollment (ADE) profile | `GET /enrollment_profiles/automatic[?fleet_id=]` | `platforms/macos/enrollment-profiles/<name>`, keeping the stored file name (Fleet records it) |
 | Setup experience script | `GET /setup_experience/script[?fleet_id=]` (+ `alt=media`) | `platforms/macos/setup-experience/<name>` |
-| Bootstrap package | `GET /mdm/bootstrap/{id}/metadata` | not exported (see below) |
-| Apple configuration profiles (`.mobileconfig`) | `GET /configuration_profiles?fleet_id=`, `GET /mdm/profiles/{uuid}?alt=media` | `platforms/macos/configuration-profiles/` (`ios/` for mobile-only fleets) |
-| Apple declarations (DDM `.json`) and their activations | same, plus `GET /mdm/profiles/{uuid}` for the activation | `platforms/macos/declaration-profiles/<name>.json`; activation in `declaration-profiles/activations/` |
+| Bootstrap package | `GET /bootstrap/{id}/metadata` | not exported (see below) |
+| Apple configuration profiles (`.mobileconfig`) | `GET /configuration_profiles?fleet_id=`, `GET /configuration_profiles/{uuid}?alt=media` | `platforms/macos/configuration-profiles/` (`ios/` for mobile-only fleets) |
+| Apple declarations (DDM `.json`) and their activations | same, plus `GET /configuration_profiles/{uuid}` for the activation | `platforms/macos/declaration-profiles/<name>.json`; activation in `declaration-profiles/activations/` |
 | DDM assets | `GET /assets?fleet_id=`, `GET /assets/{uuid}?alt=media` | `platforms/macos/assets/<name>.json` + `controls.apple_settings.assets` |
 | Windows profiles | profiles endpoints | `platforms/windows/configuration-profiles/<name>.xml` |
 | Android profiles | profiles endpoints | `platforms/android/configuration-profiles/<name>.json` |
