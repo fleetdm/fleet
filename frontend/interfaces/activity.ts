@@ -180,6 +180,7 @@ export enum ActivityType {
   ConfiguredMSEntraConditionalAccess = "added_conditional_access_integration_microsoft",
   DeletedMSEntraConditionalAccess = "deleted_conditional_access_integration_microsoft",
   AddedConditionalAccessGoogle = "added_conditional_access_integration_google",
+  EditedConditionalAccessGoogle = "edited_conditional_access_integration_google",
   DeletedConditionalAccessGoogle = "deleted_conditional_access_integration_google",
   AddedConditionalAccessOkta = "added_conditional_access_okta",
   DeletedConditionalAccessOkta = "deleted_conditional_access_okta",
@@ -690,6 +691,8 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "Deleted conditional access integration: Microsoft",
   [ActivityType.AddedConditionalAccessGoogle]:
     "Added conditional access integration: Google",
+  [ActivityType.EditedConditionalAccessGoogle]:
+    "Edited conditional access integration: Google",
   [ActivityType.DeletedConditionalAccessGoogle]:
     "Deleted conditional access integration: Google",
   escrowed_disk_encryption_key: "Escrowed disk encryption key",

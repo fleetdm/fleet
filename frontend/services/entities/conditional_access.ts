@@ -1,4 +1,3 @@
-import { IConditionalAccessGoogleStatus } from "interfaces/config";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 
@@ -18,11 +17,6 @@ export interface IGoogleConditionalAccessFormData {
   admin_email: string;
   service_account_key: Record<string, unknown>;
 }
-export interface IGoogleConditionalAccessResponse
-  extends IConditionalAccessGoogleStatus {
-  customer_id: string;
-  admin_email: string;
-}
 
 const conditionalAccessService = {
   triggerMicrosoftConditionalAccess: (
@@ -40,12 +34,12 @@ const conditionalAccessService = {
   },
   connectGoogleConditionalAccess: (
     formData: IGoogleConditionalAccessFormData
-  ): Promise<IGoogleConditionalAccessResponse> => {
+  ) => {
     return sendRequest("POST", endpoints.CONDITIONAL_ACCESS_GOOGLE, formData);
   },
   updateGoogleConditionalAccess: (
     formData: Partial<IGoogleConditionalAccessFormData>
-  ): Promise<IGoogleConditionalAccessResponse> => {
+  ) => {
     return sendRequest("PATCH", endpoints.CONDITIONAL_ACCESS_GOOGLE, formData);
   },
   deleteGoogleConditionalAccess: () => {

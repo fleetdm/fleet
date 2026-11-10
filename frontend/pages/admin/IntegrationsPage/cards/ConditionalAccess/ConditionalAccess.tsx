@@ -48,6 +48,24 @@ const PROVIDER_NAMES: Record<ConditionalAccessProvider, string> = {
   google: "Google",
 };
 
+const PROVIDER_PLATFORMS: Record<
+  ConditionalAccessProvider,
+  { icons: IconNames[]; tip: string }
+> = {
+  "microsoft-entra": {
+    icons: ["darwin", "windows"],
+    tip: "Supported for macOS and Windows",
+  },
+  okta: {
+    icons: ["darwin", "windows"],
+    tip: "Supported for macOS and Windows",
+  },
+  google: {
+    icons: ["android", "ios", "ipados"],
+    tip: "Supported for Android, iOS, and iPadOS",
+  },
+};
+
 interface IDeleteConditionalAccessModal {
   toggleDeleteConditionalAccessModal: () => void;
   onDelete: (config: IConfig) => void;
@@ -110,6 +128,15 @@ const DeleteConditionalAccessModal = ({
         `Could not disconnect from ${providerName}, please try again.`,
         { response: e }
       );
+      if (provider === "google") {
+        // The server removes the registration before the settings, so a
+        // failed delete can leave the integration half removed.
+        try {
+          onDelete(await configAPI.loadAll());
+        } catch {
+          // The failed delete is already reported.
+        }
+      }
     }
     setIsDeleting(false);
   };
@@ -427,16 +454,17 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
 
   // RENDER
 
-  const renderCardHeader = (
-    name: string,
-    platforms: IconNames[],
-    platformsTip: string
-  ) => (
+  const renderCardHeader = (provider: ConditionalAccessProvider) => (
     <span className={`${baseClass}__card-header`}>
-      {name}
-      <TooltipWrapper tipContent={platformsTip} showArrow position="right">
+      {PROVIDER_NAMES[provider]}
+      <TooltipWrapper
+        tipContent={PROVIDER_PLATFORMS[provider].tip}
+        showArrow
+        position="right"
+        underline={false}
+      >
         <span className={`${baseClass}__platforms`}>
-          {platforms.map((platform) => (
+          {PROVIDER_PLATFORMS[provider].icons.map((platform) => (
             <Icon
               key={platform}
               name={platform}
@@ -485,15 +513,7 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
 
     return (
       <SectionCard
-        header={
-          oktaConfigured
-            ? undefined
-            : renderCardHeader(
-                "Okta",
-                ["darwin", "windows"],
-                "Supported for macOS and Windows"
-              )
-        }
+        header={oktaConfigured ? undefined : renderCardHeader("okta")}
         iconName={oktaConfigured ? "success" : undefined}
         cta={oktaCta}
       >
@@ -520,7 +540,7 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
   const renderEntraContent = () => {
     if (entraPhase === EntraPhase.ConfirmationError) {
       return (
-        <SectionCard header="Microsoft Entra">
+        <SectionCard header={renderCardHeader("microsoft-entra")}>
           <DataError />
         </SectionCard>
       );
@@ -529,7 +549,7 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
     if (entraPhase === EntraPhase.ConfirmingConfigured) {
       return (
         <SectionCard
-          header="Microsoft Entra"
+          header={renderCardHeader("microsoft-entra")}
           cta={
             <Button isLoading disabled>
               Connect
@@ -598,11 +618,7 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
         header={
           entraIsConfigured || entraIsAwaitingOAuth
             ? undefined
-            : renderCardHeader(
-                "Microsoft Entra",
-                ["darwin", "windows"],
-                "Supported for macOS and Windows"
-              )
+            : renderCardHeader("microsoft-entra")
         }
         iconName={entraIconName}
         cta={entraCta}
@@ -613,11 +629,7 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
   };
 
   const renderGoogleContent = () => {
-    const header = renderCardHeader(
-      "Google",
-      ["android", "ios", "ipados"],
-      "Supported for Android, iOS, and iPadOS"
-    );
+    const header = renderCardHeader("google");
 
     if (!googleConfigured) {
       return (
@@ -671,6 +683,27 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
             </TooltipWrapper>{" "}
             conditional access connected.
           </span>
+        </SectionCard>
+      );
+    }
+
+    // Saved while a connection is in flight, and left behind if it never
+    // finished.
+    if (googleStatus?.state === "pending") {
+      return (
+        <SectionCard header={header} iconName="pending-outline" cta={googleCta}>
+          Fleet is connecting to Google. If this doesn&apos;t change, edit the
+          settings and save to try again.
+        </SectionCard>
+      );
+    }
+
+    // A delete that failed after removing the registration keeps the settings.
+    if (googleStatus?.state === "deleted") {
+      return (
+        <SectionCard header={header} iconName="error" cta={googleCta}>
+          Fleet couldn&apos;t finish deleting Google conditional access. Delete
+          it again, or edit the settings and save to reconnect.
         </SectionCard>
       );
     }

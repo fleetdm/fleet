@@ -1980,6 +1980,9 @@ const TAGGED_TEMPLATES = {
   addedConditionalAccessGoogle: () => (
     <> configured Google conditional access.</>
   ),
+  editedConditionalAccessGoogle: () => (
+    <> edited Google conditional access configuration.</>
+  ),
   deletedConditionalAccessGoogle: () => (
     <> deleted Google conditional access configuration.</>
   ),
@@ -3158,6 +3161,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.AddedConditionalAccessGoogle: {
       return TAGGED_TEMPLATES.addedConditionalAccessGoogle();
+    }
+    case ActivityType.EditedConditionalAccessGoogle: {
+      return TAGGED_TEMPLATES.editedConditionalAccessGoogle();
     }
     case ActivityType.DeletedConditionalAccessGoogle: {
       return TAGGED_TEMPLATES.deletedConditionalAccessGoogle();

@@ -139,29 +139,26 @@ const GoogleConditionalAccessModal = ({
     data: IFormData,
     key: Record<string, unknown> | null
   ) => {
-    if (isEditing) {
-      // Only what changed, so the server keeps the rest, including the
-      // stored key. An empty PATCH retries a connection that didn't complete.
-      const changes: Partial<IGoogleConditionalAccessFormData> = {};
-      if (data[CUSTOMER_ID] !== savedSettings?.customer_id) {
-        changes.customer_id = data[CUSTOMER_ID];
-      }
-      if (data[ADMIN_EMAIL] !== savedSettings?.admin_email) {
-        changes.admin_email = data[ADMIN_EMAIL];
-      }
-      if (key) {
-        changes.service_account_key = key;
-      }
-      return conditionalAccessAPI.updateGoogleConditionalAccess(changes);
+    if (!isEditing && key) {
+      return conditionalAccessAPI.connectGoogleConditionalAccess({
+        customer_id: data[CUSTOMER_ID],
+        admin_email: data[ADMIN_EMAIL],
+        service_account_key: key,
+      });
     }
-    if (!key) {
-      return Promise.reject(new Error("missing service account key"));
+    // Only what changed, so the server keeps the rest, including the stored
+    // key. An empty PATCH retries a connection that didn't complete.
+    const changes: Partial<IGoogleConditionalAccessFormData> = {};
+    if (data[CUSTOMER_ID] !== savedSettings?.customer_id) {
+      changes.customer_id = data[CUSTOMER_ID];
     }
-    return conditionalAccessAPI.connectGoogleConditionalAccess({
-      customer_id: data[CUSTOMER_ID],
-      admin_email: data[ADMIN_EMAIL],
-      service_account_key: key,
-    });
+    if (data[ADMIN_EMAIL] !== savedSettings?.admin_email) {
+      changes.admin_email = data[ADMIN_EMAIL];
+    }
+    if (key) {
+      changes.service_account_key = key;
+    }
+    return conditionalAccessAPI.updateGoogleConditionalAccess(changes);
   };
 
   const onValidSubmit = async (data: IFormData) => {
@@ -183,13 +180,25 @@ const GoogleConditionalAccessModal = ({
         e,
         SERVER_ERROR_NAMES
       );
+      const failedValidation = Object.keys(fieldErrors).length > 0;
       // useFormValidation shows field errors inline and toasts them, so only
       // toast here what has no field to show on.
-      const mounted = isMountedRef.current;
-      if (mounted) {
+      let toast: string | undefined;
+      const keyError = fieldErrors[SERVICE_ACCOUNT_KEY];
+      if (keyError && !key) {
+        // The server reports a failed delegation check on the key whatever
+        // caused it, which would land on a field the admin left empty.
+        delete fieldErrors[SERVICE_ACCOUNT_KEY];
+        toast = keyError;
+      } else if (otherReasons.length > 0) {
+        toast = `Couldn't connect to Google: ${otherReasons.join(" ")}`;
+      } else if (!failedValidation) {
+        toast = "Couldn't connect to Google. Please try again.";
+      }
+      if (isMountedRef.current) {
         setServerErrors(fieldErrors);
       }
-      if (Object.keys(fieldErrors).length === 0) {
+      if (!failedValidation) {
         // The server saves the settings before registering, so a failure past
         // validation can leave a failed integration for the card to show.
         try {
@@ -198,17 +207,8 @@ const GoogleConditionalAccessModal = ({
           // The original failure is reported below.
         }
       }
-      if (!mounted) {
-        return;
-      }
-      if (otherReasons.length > 0) {
-        notify.error(`Couldn't connect to Google: ${otherReasons.join(" ")}`, {
-          response: e,
-        });
-      } else if (Object.keys(fieldErrors).length === 0) {
-        notify.error("Couldn't connect to Google. Please try again.", {
-          response: e,
-        });
+      if (toast && isMountedRef.current) {
+        notify.error(toast, { response: e });
       }
     }
   };
