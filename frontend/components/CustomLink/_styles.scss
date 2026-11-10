@@ -35,13 +35,13 @@
   }
 
   // Offset each icon's built-in inset (2.5px at 16px, 1px at 12px) so the
-  // visible gap is 4px next to regular text and 2px next to small text.
+  // visible gap is 4px next to both regular and small text.
   .external-link-icon {
     margin-left: -0.5px;
   }
 
   .external-link-icon--small {
-    margin-left: -1px;
+    margin-left: 1px;
   }
 
   &__last-word {
