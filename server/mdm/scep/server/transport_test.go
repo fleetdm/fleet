@@ -18,7 +18,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	filedepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/file"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
-	"github.com/gorilla/mux"
 	"github.com/smallstep/scep"
 )
 
@@ -293,7 +292,7 @@ func newServer(t *testing.T, opts ...scepserver.ServiceOption) (*httptest.Server
 	slogLogger := slog.New(slog.DiscardHandler)
 	e := scepserver.MakeServerEndpoints(svc)
 	scepHandler := scepserver.MakeHTTPHandler(e, svc, slogLogger)
-	r := mux.NewRouter()
+	r := http.NewServeMux()
 	r.Handle("/scep", scepHandler)
 	server := httptest.NewServer(r)
 	teardown := func() {

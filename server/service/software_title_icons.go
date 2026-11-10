@@ -14,8 +14,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
-
-	"github.com/gorilla/mux"
 )
 
 type getSoftwareTitleIconsRequest struct {
@@ -114,8 +112,7 @@ func (r putSoftwareTitleIconResponse) Error() error {
 }
 
 func (putSoftwareTitleIconRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	urlVars := mux.Vars(r)
-	titleID, ok := urlVars["title_id"]
+	titleID, ok := platform_http.PathVar(r, "title_id")
 	if !ok {
 		return nil, &fleet.BadRequestError{Message: "title_id is required"}
 	}

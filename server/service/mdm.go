@@ -41,7 +41,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	"github.com/gorilla/mux"
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -2045,7 +2044,7 @@ type updateMDMConfigProfileRequest struct {
 func (updateMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	decoded := updateMDMConfigProfileRequest{}
 
-	profileUUID, ok := mux.Vars(r)["profile_uuid"]
+	profileUUID, ok := platform_http.PathVar(r, "profile_uuid")
 	if !ok || profileUUID == "" {
 		return nil, &fleet.BadRequestError{Message: "profile_uuid is required"}
 	}
