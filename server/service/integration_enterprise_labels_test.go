@@ -80,7 +80,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabelsShareNames() {
 
 	// A fleet's resources resolve the shared name to that fleet's label.
 	var tpResp fleet.TeamPolicyResponse
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team2.ID), fleet.TeamPolicyRequest{
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team2.ID), fleet.TeamPolicyRequest{
 		Name: t.Name() + "_policy", Query: "select 1", LabelsIncludeAny: []string{shared, globalName},
 	}, http.StatusOK, &tpResp)
 	require.Len(t, tpResp.Policy.LabelsIncludeAny, 2)
