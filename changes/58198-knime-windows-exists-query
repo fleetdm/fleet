@@ -1,1 +1,0 @@
-- Fixed the KNIME Analytics Platform (Windows) Fleet-maintained app never being detected as installed (and its patch policy always passing). The app registers as exactly "KNIME Analytics Platform", but the `exists` and `patched` queries required a trailing space after the name.
