@@ -56,6 +56,25 @@ type fieldPair struct {
 }
 
 // allFields returns all the fields for a struct, including the ones from embedded structs
+// expectsJSONBody reports whether a request field makes the JSON body (and its
+// cross-site Content-Type check) required. A field tagged only `json:"-"` is
+// server-internal state shielded from the body, not a request input, so it
+// must not force GET requests to carry one. `json:"-"` combined with a url or
+// query tag keeps counting, since some requests rely on it for the
+// Content-Type check.
+func expectsJSONBody(sf reflect.StructField) bool {
+	jsonTag, ok := sf.Tag.Lookup("json")
+	if !ok {
+		return false
+	}
+	if jsonTag != "-" {
+		return true
+	}
+	_, hasURL := sf.Tag.Lookup("url")
+	_, hasQuery := sf.Tag.Lookup("query")
+	return hasURL || hasQuery
+}
+
 func allFields(ifv reflect.Value) []fieldPair {
 	if ifv.Kind() == reflect.Ptr {
 		ifv = ifv.Elem()
@@ -743,7 +762,7 @@ func MakeDecoder(
 
 			}
 
-			_, jsonExpected := fp.Sf.Tag.Lookup("json")
+			jsonExpected := expectsJSONBody(fp.Sf)
 			if jsonExpected && nilBody {
 				return nil, &platform_http.BadRequestError{Message: "Expected JSON Body"}
 			}

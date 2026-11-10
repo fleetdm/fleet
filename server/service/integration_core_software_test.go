@@ -790,6 +790,11 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	// Exploit is an EE only filter
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusPaymentRequired, &resp, "exploit", "true")
 
+	// Server-internal options can't be set through the request body.
+	internalOpts := map[string]any{"IsEE": true, "ValidSortColumns": []string{"cvss_score"}}
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", internalOpts, http.StatusPaymentRequired, &resp, "exploit", "true")
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", internalOpts, http.StatusBadRequest, &resp, "order_key", "cvss_score", "order_direction", "asc")
+
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp)
 	s.Require().Empty(resp.Vulnerabilities)
 
