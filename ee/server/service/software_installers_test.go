@@ -257,9 +257,7 @@ func TestInstallUninstallAuth(t *testing.T) {
 	svc := newTestService(t, ds)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{
-			ServerSettings: fleet.ServerSettings{ScriptsDisabled: true},
-		}, nil
+		return &fleet.AppConfig{}, nil
 	}
 	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return &fleet.Host{
@@ -361,11 +359,7 @@ func TestUninstallSoftwareTitle(t *testing.T) {
 	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{
-			ServerSettings: fleet.ServerSettings{
-				ScriptsDisabled: true,
-			},
-		}, nil
+		return &fleet.AppConfig{}, nil
 	}
 
 	host.ScriptsEnabled = ptr.Bool(false)

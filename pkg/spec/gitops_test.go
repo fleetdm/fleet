@@ -1,6 +1,7 @@
 package spec
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -4426,6 +4427,11 @@ software:
 				"  org_info:\n    org_name: Test Org\n  secrets:\n  mdm:\n" + mdm +
 				"controls:\nagent_options:\nreports:\npolicies:\n"
 		}
+		scriptsDisabledFile := func(serverSettings string) string {
+			return "org_settings:\n  server_settings:\n    server_url: https://fleet.example.com\n" + serverSettings +
+				"  org_info:\n    org_name: Test Org\n  secrets:\n" +
+				"controls:\nagent_options:\nreports:\npolicies:\n"
+		}
 		for _, tc := range []struct {
 			name, file, config string
 			// other files next to it, by name
@@ -4499,6 +4505,23 @@ software:
 				},
 			},
 			{
+				name: "org_settings scripts_disabled set to true", file: "default.yml",
+				config: scriptsDisabledFile("    scripts_disabled: true\n"),
+				want:   []string{`The "org_settings.server_settings.scripts_disabled" key is not available anymore.`},
+			},
+			{
+				name: "org_settings scripts_disabled in another letter case", file: "default.yml",
+				config: scriptsDisabledFile("    Scripts_Disabled: true\n"),
+				want:   []string{`The "org_settings.server_settings.scripts_disabled" key is not available anymore.`},
+			},
+			{
+				name: "org_settings file with scripts_disabled set to true", file: "default.yml",
+				config: "org_settings:\n  path: ./org-settings.yml\ncontrols:\nagent_options:\nreports:\npolicies:\n",
+				extra: map[string]string{"org-settings.yml": "server_settings:\n  server_url: https://fleet.example.com\n  scripts_disabled: true\n" +
+					"org_info:\n  org_name: Test Org\nsecrets:\n"},
+				want: []string{`in "./org-settings.yml": The "org_settings.server_settings.scripts_disabled" key is not available anymore.`},
+			},
+			{
 				name: "org_settings in another letter case", file: "default.yml",
 				config: globalFile("    ENABLE_RECOVERY_LOCK_PASSWORD: true\n    Windows_Enabled_And_Configured: true\n"),
 				want: []string{
@@ -4525,6 +4548,50 @@ software:
 					if !tc.alsoUnknown {
 						assert.NotContains(t, err.Error(), "unknown key")
 					}
+				})
+			}
+		}
+	})
+
+	t.Run("removed scripts_disabled set to false logs a warning", func(t *testing.T) {
+		t.Parallel()
+		inlineFile := "org_settings:\n  server_settings:\n    server_url: https://fleet.example.com\n    scripts_disabled: false\n" +
+			"  org_info:\n    org_name: Test Org\n  secrets:\ncontrols:\nagent_options:\nreports:\npolicies:\n"
+		referencingFile := "org_settings:\n  path: ./org-settings.yml\ncontrols:\nagent_options:\nreports:\npolicies:\n"
+		orgSettingsFile := "server_settings:\n  server_url: https://fleet.example.com\n  scripts_disabled: false\n" +
+			"org_info:\n  org_name: Test Org\nsecrets:\n"
+		for _, tc := range []struct {
+			name, config, warningFile string
+			extra                     map[string]string
+		}{
+			{name: "inline", config: inlineFile},
+			{name: "org_settings file", config: referencingFile, warningFile: "./org-settings.yml", extra: map[string]string{"org-settings.yml": orgSettingsFile}},
+		} {
+			for _, allowUnknown := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s allow unknown keys %t", tc.name, allowUnknown), func(t *testing.T) {
+					t.Parallel()
+					path, basePath := createNamedFileOnTempDir(t, "default.yml", tc.config)
+					for name, contents := range tc.extra {
+						require.NoError(t, os.WriteFile(filepath.Join(basePath, name), []byte(contents), 0o644))
+					}
+					warningFile := cmp.Or(tc.warningFile, path)
+					var logMessages []string
+					logFn := func(format string, a ...any) {
+						logMessages = append(logMessages, fmt.Sprintf(format, a...))
+					}
+
+					// parse the file, it should succeed and log the removal message as a warning
+					result, err := GitOpsFromFile(path, basePath, premiumAppConfig(), logFn, GitOpsOptions{AllowUnknownKeys: allowUnknown})
+					require.NoError(t, err)
+					expectedWarning := `[!] in "` + warningFile + `": The "org_settings.server_settings.scripts_disabled" key is not available anymore. ` +
+						"What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration\n"
+					require.Contains(t, logMessages, expectedWarning)
+
+					// read the parsed org settings, the removed key should be dropped and the rest kept
+					serverSettings, ok := result.OrgSettings["server_settings"].(map[string]any)
+					require.True(t, ok)
+					require.NotContains(t, serverSettings, "scripts_disabled")
+					require.Equal(t, "https://fleet.example.com", serverSettings["server_url"])
 				})
 			}
 		}
