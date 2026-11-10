@@ -333,11 +333,17 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 			installer.InstallerLocale = ""
 		}
 
+		nestedType := installer.NestedInstallerType
+		if nestedType == "" {
+			nestedType = m.NestedInstallerType
+		}
+
 		// Check if this installer matches our criteria
 		matches := installer.Architecture == input.InstallerArch &&
 			scope == input.InstallerScope &&
 			installer.InstallerLocale == input.InstallerLocale &&
-			installerType == input.InstallerType
+			installerType == input.InstallerType &&
+			(input.NestedInstallerType == "" || nestedType == input.NestedInstallerType)
 
 		if matches {
 			// Prefer installers where the URL extension matches the desired installer type
@@ -704,6 +710,9 @@ type inputApp struct {
 	ProgramPublisher    string     `json:"program_publisher"`
 	UninstallType       string     `json:"uninstall_type"`
 	FuzzyMatchName      fuzzyMatch `json:"fuzzy_match_name"`
+	// NestedInstallerType picks among zip installers that differ only by what the zip
+	// holds (e.g. Paint.NET ships "exe" and "wix" zips for the same arch and scope).
+	NestedInstallerType string `json:"nested_installer_type"`
 	// ExistsQuery overrides the default programs-table exists query (e.g. portable zip installs).
 	ExistsQuery string `json:"exists_query,omitempty"`
 	// OpenProcessNames lists the process names the "app is open" query matches (e.g.
@@ -738,6 +747,7 @@ type installerManifest struct {
 	PackageVersion         string                   `yaml:"PackageVersion"`
 	Installers             []installer              `yaml:"Installers"`
 	InstallerType          string                   `yaml:"InstallerType"`
+	NestedInstallerType    string                   `yaml:"NestedInstallerType,omitempty"`
 	AppsAndFeaturesEntries []appsAndFeaturesEntries `yaml:"AppsAndFeaturesEntries,omitempty"`
 	ProductCode            string                   `yaml:"ProductCode"`
 	Scope                  string                   `yaml:"Scope"`
@@ -747,6 +757,7 @@ type installer struct {
 	Architecture string `yaml:"Architecture"`
 	// InstallerType is the filetype of the installer. Either "exe" or "msi".
 	InstallerType          string                   `yaml:"InstallerType"`
+	NestedInstallerType    string                   `yaml:"NestedInstallerType,omitempty"`
 	Scope                  string                   `yaml:"Scope"`
 	InstallerURL           string                   `yaml:"InstallerUrl"`
 	InstallerSha256        string                   `yaml:"InstallerSha256"`

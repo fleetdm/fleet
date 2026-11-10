@@ -922,6 +922,88 @@ func TestIngestOneVersionWalk(t *testing.T) {
 	})
 }
 
+func TestIngestNestedInstallerType(t *testing.T) {
+	ctx := context.Background()
+	tempDir := t.TempDir()
+	installScript := path.Join(tempDir, "install_script.ps1")
+	uninstallScript := path.Join(tempDir, "uninstall_script.ps1")
+	require.NoError(t, os.WriteFile(installScript, []byte("install"), 0o644))
+	require.NoError(t, os.WriteFile(uninstallScript, []byte("uninstall"), 0o644))
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeYAMLContent := func(v any) {
+			bytes, err := yaml.Marshal(v)
+			if err != nil {
+				t.Errorf("marshaling fixture: %v", err)
+				return
+			}
+			str := string(bytes)
+			content := &github.RepositoryContent{Name: new("Foo"), Content: &str}
+			if err := json.NewEncoder(w).Encode(content); err != nil {
+				t.Errorf("encoding fixture: %v", err)
+			}
+		}
+
+		switch r.URL.Path {
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo":
+			content := []github.RepositoryContent{{Name: new("1.0"), Type: new("dir")}}
+			if err := json.NewEncoder(w).Encode(content); err != nil {
+				t.Errorf("encoding fixture: %v", err)
+			}
+
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/1.0/Foo.installer.yaml":
+			writeYAMLContent(installerManifest{
+				InstallerType:  "zip",
+				PackageVersion: "1.0",
+				Installers: []installer{
+					{Architecture: "x64", NestedInstallerType: "exe", Scope: "machine", InstallerURL: "https://example.com/foo.install.zip", InstallerSha256: "AAAA"},
+					{Architecture: "x64", NestedInstallerType: "wix", Scope: "machine", InstallerURL: "https://example.com/foo.msi.zip", InstallerSha256: "BBBB"},
+				},
+			})
+
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/1.0/Foo.locale.en-US.yaml":
+			writeYAMLContent(localeManifest{PackageName: "foo", Publisher: "Bar, Inc."})
+
+		default:
+			w.WriteHeader(http.StatusBadRequest)
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	gc := github.NewClient(srv.Client())
+	u, err := url.Parse(srv.URL + "/")
+	require.NoError(t, err)
+	gc.BaseURL = u
+	i := &wingetIngester{logger: slog.New(slog.DiscardHandler), githubClient: gc}
+
+	input := inputApp{
+		Name:                "Foo",
+		UniqueIdentifier:    "Foo",
+		PackageIdentifier:   "Foo",
+		Slug:                "foo/windows",
+		InstallerArch:       "x64",
+		InstallerType:       "zip",
+		InstallerScope:      "machine",
+		InstallScriptPath:   installScript,
+		UninstallScriptPath: uninstallScript,
+	}
+
+	out, err := i.ingestOne(ctx, input)
+	require.NoError(t, err)
+	require.Equal(t, "https://example.com/foo.install.zip", out.InstallerURL, "without a filter the first match wins")
+
+	input.NestedInstallerType = "wix"
+	out, err = i.ingestOne(ctx, input)
+	require.NoError(t, err)
+	require.Equal(t, "https://example.com/foo.msi.zip", out.InstallerURL)
+	require.Equal(t, "bbbb", out.SHA256)
+
+	input.NestedInstallerType = "msix"
+	_, err = i.ingestOne(ctx, input)
+	require.ErrorContains(t, err, "failed to find installer for app")
+}
+
 func TestNormalizeSourceForgeURL(t *testing.T) {
 	tests := []struct {
 		name string
