@@ -31,9 +31,7 @@ on:
     paths:
       - '.github/workflows/e2e-agent.yml'
 
-permissions:
-  contents: read
-  actions: read
+permissions: {}
 
 # Each cron schedule gets its own concurrency group. workflow_dispatch and pull_request also get their own.
 concurrency:
@@ -70,6 +68,8 @@ jobs:
         echo "address=https://fleet-test-$UUID.fleetuem.com" >> $GITHUB_OUTPUT
 
   run-server:
+    permissions:
+      actions: read
     timeout-minutes: 240
     runs-on: ubuntu-8core
     needs: gen
@@ -235,6 +235,9 @@ jobs:
         echo "token=$TOKEN" >> $GITHUB_OUTPUT
 
   fleetd-macos:
+    permissions:
+      contents: read
+      actions: read
     timeout-minutes: 10
     strategy:
       matrix:
@@ -429,6 +432,9 @@ jobs:
         sudo apt remove fleet-osquery -y
 
   fleetd-windows:
+    permissions:
+      contents: read
+      actions: read
     timeout-minutes: 10
     strategy:
       matrix:

@@ -18,11 +18,12 @@ defaults:
     # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
     shell: bash
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   sanity-check:
+    permissions:
+      contents: read
     strategy:
       matrix:
         kube-version: [1.16.0, 1.17.0, 1.18.0] # kubeval is currently lagging behind the active schema versions, so these are the ones we can test against. see https://github.com/instrumenta/kubernetes-json-schema/issues/26

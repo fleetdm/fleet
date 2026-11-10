@@ -35,8 +35,7 @@ defaults:
     # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
     shell: bash
 
-permissions:
-  contents: read
+permissions: {}
 
 env:
   R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
@@ -49,6 +48,8 @@ env:
 
 jobs:
   check-for-fleetd-component-updates:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     outputs:
       date_dir: ${{ steps.check-for-fleetd-component-updates.outputs.date_dir }}
@@ -129,6 +130,8 @@ jobs:
           path: latest-tuf-meta.json
 
   update-fleetd-base-pkg:
+    permissions:
+      contents: read
     needs: [check-for-fleetd-component-updates]
     if: needs.check-for-fleetd-component-updates.outputs.update_needed == 'true'
     runs-on: macos-latest
@@ -265,7 +268,6 @@ jobs:
     needs: build-fleetd-base-msi
     uses: ./.github/workflows/code-sign-windows.yml
     permissions:
-      contents: read
       id-token: write # required for code-sign-windows
       attestations: write # required for code-sign-windows
     with:
@@ -280,6 +282,8 @@ jobs:
       DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT }}
 
   update-fleetd-base-msi:
+    permissions:
+      contents: read
     needs: [code-sign-windows, check-for-fleetd-component-updates]
     runs-on: ubuntu-latest
     outputs:
@@ -322,6 +326,8 @@ jobs:
           filenames: stable/fleetd-base.msi,${{ env.FULL_DATE_DIR }}/fleetd-base.msi
 
   update-meta-files:
+    permissions:
+      contents: read
     needs: [check-for-fleetd-component-updates, update-fleetd-base-pkg, update-fleetd-base-msi]
     runs-on: ubuntu-latest
     env:

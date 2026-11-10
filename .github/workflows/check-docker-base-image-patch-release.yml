@@ -21,8 +21,7 @@ defaults:
     # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
     shell: bash
 
-permissions:
-  contents: read
+permissions: {}
 
 env:
   # Source of truth for the current base image version.
@@ -30,13 +29,12 @@ env:
 
 jobs:
   check-docker-base-image-patch-release:
+    permissions:
+      contents: read
     # Only run from main: a manual dispatch from a feature branch would check
     # out that branch and open a PR against main from stale/unrelated content.
     if: github.repository == 'fleetdm/fleet' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    permissions:
-      contents: write # for peter-evans/create-pull-request to create branch
-      pull-requests: write # for peter-evans/create-pull-request to create a PR
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4

@@ -39,8 +39,7 @@ defaults:
   run:
     shell: bash
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   close-stale-fleetie-issues:

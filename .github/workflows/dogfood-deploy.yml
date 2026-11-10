@@ -48,12 +48,13 @@ env:
   TF_VAR_cloudfront_private_key: ${{ secrets.CLOUDFRONT_SIGNING_PRIVATE_KEY }}
   TF_VAR_entra_api_key: ${{ secrets.DOGFOOD_FLEET_MICROSOFT_COMPLIANCE_PARTNER_PROXY_API_KEY }}
 
-permissions:
-  id-token: write
-  contents: read    # This is required for actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+permissions: {}
 
 jobs:
   deploy:
+    permissions:
+      contents: read
+      id-token: write
     name: Deploy Fleet Dogfood Environment
     runs-on: ubuntu-latest
     steps:

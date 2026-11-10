@@ -11,11 +11,12 @@ on:
     branches: [ "main" ]
 
 # Declare least-privilege default permissions; the analysis job grants what it needs at the job level.
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   gradle-wrapper-validation:
+    permissions:
+      contents: read
     name: Validate Gradle wrapper
     runs-on: ubuntu-latest
     steps:

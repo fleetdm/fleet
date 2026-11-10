@@ -23,8 +23,7 @@ defaults:
   run:
     shell: bash
 
-permissions:
-  contents: read
+permissions: {}
 
 env:
   R2_BUCKET: "maintained-apps"
@@ -41,6 +40,8 @@ env:
 
 jobs:
   sync-to-r2:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
 
     steps:

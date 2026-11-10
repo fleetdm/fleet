@@ -32,11 +32,12 @@ defaults:
     shell: bash
 
 # Limit permissions of GITHUB_TOKEN.
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   fleet-gitops:
+    permissions:
+      contents: read
     timeout-minutes: 30
     runs-on: ubuntu-latest
     # Fork PRs get no secrets under pull_request; keep that true under

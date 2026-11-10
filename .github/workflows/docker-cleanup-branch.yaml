@@ -3,8 +3,7 @@ name: Docker cleanup (branch deletion)
 on:
   delete:
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   cleanup:

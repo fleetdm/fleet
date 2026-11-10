@@ -10,14 +10,13 @@ on:
   schedule:
     - cron: '0 */4 * * *'
 
-permissions:
-  contents: read
-  pull-requests: read
+permissions: {}
 
 jobs:
   build:
     permissions:
-      contents: write         # Required to push new branch
+      contents: read
+      issues: write           # Required to comment on existing PRs
       pull-requests: write    # Required to open PRs
     runs-on: ubuntu-latest
     timeout-minutes: 180

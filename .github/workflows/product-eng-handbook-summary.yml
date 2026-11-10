@@ -5,10 +5,7 @@ on:
     - cron: '0 13 * * 1' # Every Monday at 8am EST (1pm UTC)
   workflow_dispatch:
 
-permissions:
-  contents: read
-  models: read
-  pull-requests: read
+permissions: {}
 
 defaults:
   run:
@@ -16,6 +13,10 @@ defaults:
 
 jobs:
   summarize:
+    permissions:
+      contents: read
+      models: read
+      pull-requests: read
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner

@@ -9,11 +9,12 @@
 name: 'Dependency Review'
 on: [pull_request]
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   dependency-review:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner

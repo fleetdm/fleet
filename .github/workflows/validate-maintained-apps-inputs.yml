@@ -5,15 +5,12 @@ on:
     paths:
       - 'ee/maintained-apps/inputs/homebrew/*.json'
 
-permissions:
-  contents: read
-  pull-requests: read
+permissions: {}
 
 jobs:
   build:
     permissions:
-      contents: write         # Required to push new branch
-      pull-requests: write    # Required to open PRs
+      contents: read
     runs-on: ubuntu-latest
     timeout-minutes: 180
 

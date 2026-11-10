@@ -27,11 +27,12 @@ defaults:
     # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
     shell: bash
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   build:
+    permissions:
+      contents: read
     name: Build and test
     runs-on: ubuntu-8core
 
@@ -141,6 +142,8 @@ jobs:
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
 
   instrumented-tests:
+    permissions:
+      contents: read
     name: Instrumented tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -245,6 +248,8 @@ jobs:
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
 
   scep-integration-test:
+    permissions:
+      contents: read
     name: SCEP integration test
     runs-on: ubuntu-8core
     timeout-minutes: 15
@@ -359,6 +364,8 @@ jobs:
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
 
   upload-coverage:
+    permissions:
+      contents: read
     needs: [build, instrumented-tests, scep-integration-test]
     runs-on: ubuntu-latest
     steps:

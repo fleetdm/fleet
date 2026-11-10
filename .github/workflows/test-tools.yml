@@ -34,11 +34,12 @@ defaults:
     # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
     shell: bash
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   test:
+    permissions:
+      contents: read
     name: Test ${{ matrix.tool }}
     runs-on: ubuntu-latest
     timeout-minutes: 15

@@ -8,10 +8,12 @@ on:
       - "go.mod"
       - "go.sum"
       - ".github/workflows/check-pr-template.yml"
-permissions:
-  pull-requests: read
+permissions: {}
+
 jobs:
   check-template:
+    permissions:
+      pull-requests: read
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
@@ -46,6 +48,8 @@ jobs:
   # Separate job so a missing screenshot reads as its own signal rather than
   # "you didn't paste the template."
   check-frontend-screenshot:
+    permissions:
+      pull-requests: read
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}

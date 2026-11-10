@@ -25,8 +25,7 @@ on:
           - warn
           - error
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   # Detect which apps changed and shard them on a cheap Linux runner. The
@@ -35,6 +34,8 @@ jobs:
   # runner just to discover there is nothing to do. Large PRs are split into
   # shards that validate in parallel.
   detect-changed-apps:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     outputs:
       has_darwin_apps: ${{ steps.partition.outputs.has_apps }}

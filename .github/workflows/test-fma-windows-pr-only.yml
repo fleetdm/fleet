@@ -25,8 +25,7 @@ on:
           - warn
           - error
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   # Detect which apps changed and partition them by installer architecture on a
@@ -37,6 +36,8 @@ jobs:
   # requires_client_os always go to windows-11-arm (the x64 runner is Windows
   # Server). Large PRs are split into shards that validate in parallel.
   detect-changed-apps:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     outputs:
       has_windows_apps: ${{ steps.partition.outputs.has_apps }}
