@@ -19,6 +19,16 @@ func TestPreservedSoftwareSources(t *testing.T) {
 		"software_ai_tools": {Platforms: []string{"darwin"}},
 	}}
 	notSent := &hostDetailQueryConfig{detailQueries: map[string]osquery_utils.DetailQuery{}}
+	sentToLinux := &hostDetailQueryConfig{detailQueries: map[string]osquery_utils.DetailQuery{
+		"software_linux_fleetd_pacman": {Platforms: []string{"arch", "nixos"}},
+		"software_go_binaries":         {Platforms: []string{"arch", "nixos"}},
+		"software_adobe_plugins":       {Platforms: []string{"darwin", "windows"}},
+		"software_ai_tools":            {Platforms: []string{"arch", "nixos"}},
+		"software_linux_fleetd_nix":    {Platforms: []string{"nixos"}},
+	}}
+	allOrbitQueries := []string{
+		"software_linux_fleetd_pacman", "software_go_binaries", "software_adobe_plugins", "software_ai_tools", "software_linux_fleetd_nix",
+	}
 
 	for _, tc := range []struct {
 		name          string
@@ -106,6 +116,26 @@ func TestPreservedSoftwareSources(t *testing.T) {
 			skipped:       []string{"software_ai_tools"},
 			orbitInfo:     &fleet.HostOrbitInfo{Version: "1.62.1"},
 			expected:      aiSources,
+			expectLookup:  true,
+			expectLogging: true,
+		},
+		{
+			name:          "every orbit query skipped: each is gated by its own platform and fleetd version",
+			cfg:           sentToLinux,
+			platform:      "arch",
+			skipped:       allOrbitQueries,
+			orbitInfo:     &fleet.HostOrbitInfo{Version: "1.56.2"},
+			expected:      []string{"pacman_packages", "go_binaries"},
+			expectLookup:  true,
+			expectLogging: true,
+		},
+		{
+			name:          "every orbit query skipped on a NixOS host with the newest fleetd",
+			cfg:           sentToLinux,
+			platform:      "nixos",
+			skipped:       allOrbitQueries,
+			orbitInfo:     &fleet.HostOrbitInfo{Version: "1.63.0"},
+			expected:      []string{"pacman_packages", "go_binaries", "ai_clis", "mcp_servers", "ai_skills", "nix_packages"},
 			expectLookup:  true,
 			expectLogging: true,
 		},
