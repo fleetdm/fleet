@@ -128,10 +128,10 @@ Fleet can be configured to use authentik as an identity provider. To continue, y
     - For **Name**, enter "Fleet".
     - For **Authorization flow**, choose `default-provider-authorization-implicit-consent (Authorize Application)`.
     - In the **Protocol settings** section, configure the following:
-      - For **Assertion Consumer Service URL** depends on which connection you're configuring:
-     - For Fleet users, use `https://<your_fleet_url>/api/v1/fleet/sso/callback`
-     - If you're configuring [Require IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback`
-      - For **Issuer**, use `authentik`.
+      - The **Assertion Consumer Service URL** depends on which connection you're configuring:
+        - For Fleet users, use `https://<your_fleet_url>/api/v1/fleet/sso/callback`
+        - If you're configuring [Require IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback`
+      - For **Issuer**, leave the default if you're on authentik 2026.5 or later, which sets it automatically. On older versions, use `https://<your_authentik_url>/application/saml/<application_slug>/metadata/`, replacing `<application_slug>` with your application's slug.
       - For **Service Provider Binding**, choose `Post`.
       - For **audience**, use `https://<your_fleet_url>`.
     - In the **Advanced protocol settings** section, configure the following:
