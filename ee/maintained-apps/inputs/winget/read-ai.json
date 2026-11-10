@@ -3,6 +3,7 @@
   "slug": "read-ai/windows",
   "package_identifier": "ReadAI.ReadAI",
   "unique_identifier": "Read AI",
+  "open_process_names": ["read_ai_desktop.exe"],
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "user",
