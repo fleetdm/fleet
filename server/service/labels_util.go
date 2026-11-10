@@ -44,13 +44,13 @@ func loadLabelsFromNames(ctx context.Context, ds fleet.Datastore, labelNames []s
 }
 
 func verifyLabelsToAssociate(ctx context.Context, ds fleet.Datastore, entityTeamID *uint, labelNames []string, user *fleet.User) error {
-	_, err := labelsToAssociate(ctx, ds, entityTeamID, labelNames, user)
+	_, err := loadLabelsToAssociate(ctx, ds, entityTeamID, labelNames, user)
 	return err
 }
 
-// labelsToAssociate resolves label names the way the entity sees them (global labels plus its fleet's labels). Fleets
-// can share label names, so IDs must come from this lookup rather than one across every fleet the user can see.
-func labelsToAssociate(ctx context.Context, ds fleet.Datastore, entityTeamID *uint, labelNames []string, user *fleet.User) (map[string]*fleet.Label, error) {
+// loadLabelsToAssociate is verifyLabelsToAssociate that also returns the verified labels by name. Fleets can share
+// label names, so IDs must come from this lookup rather than one across every fleet the user can see.
+func loadLabelsToAssociate(ctx context.Context, ds fleet.Datastore, entityTeamID *uint, labelNames []string, user *fleet.User) (map[string]*fleet.Label, error) {
 	if len(labelNames) == 0 {
 		return nil, nil
 	}
@@ -83,4 +83,17 @@ func labelsToAssociate(ctx context.Context, ds fleet.Datastore, entityTeamID *ui
 	}
 
 	return labels, nil
+}
+
+// verifyNoBuiltInLabels rejects built-in labels used as custom targets; platform targeting should be used instead.
+func verifyNoBuiltInLabels(ctx context.Context, labelNames []string, labels map[string]*fleet.Label) error {
+	for _, name := range labelNames {
+		if label, ok := labels[name]; ok && label.LabelType == fleet.LabelTypeBuiltIn {
+			return ctxerr.Wrap(ctx, badRequestf(
+				"'%s' label is built-in. Only custom labels are supported. If you want to target a specific platform please use 'platform' instead. If not, please create a custom label and try again.",
+				label.Name,
+			))
+		}
+	}
+	return nil
 }

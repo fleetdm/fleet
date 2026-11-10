@@ -3277,7 +3277,7 @@ software:
 
 	// Dry run, deleting other teams
 	savedAppConfig = &fleet.AppConfig{}
-	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run", "--delete-other-teams"})
+	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run", "--delete-other-fleets"})
 	assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
 	assert.True(t, ds.ListTeamsFuncInvoked)
 
@@ -3325,7 +3325,7 @@ software:
 		return nil
 	}
 	// Real run, deleting other teams
-	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--delete-other-teams"})
+	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--delete-other-fleets"})
 	assert.True(t, ds.ListTeamsFuncInvoked)
 	assert.True(t, ds.DeleteTeamFuncInvoked)
 }
@@ -4030,16 +4030,11 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 			t.Setenv("WINDOWS_REQUIRE_BITLOCKER_PIN", "true")
 			t.Setenv("FLEET_ENABLE_LOG_TOPICS", "deprecated-field-names")
 
-			flagName := "--delete-other-fleets"
-			if useDeprecatedKeys {
-				flagName = "--delete-other-teams"
-			}
+			const flagName = "--delete-other-fleets"
 
 			// Dry run
 			logs := runAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, "--dry-run", flagName})
 			if useDeprecatedKeys {
-				// The test harness doesn't capture stderr output, so we miss this warning in the test.
-				// assert.Contains(t, logs, "'--delete-other-teams' is deprecated; use '--delete-other-fleets' instead")
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
 				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
 				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
@@ -4070,8 +4065,6 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 			// Real run
 			logs = runAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, flagName})
 			if useDeprecatedKeys {
-				// The test harness doesn't capture stderr output, so we miss this warning in the test.
-				// assert.Contains(t, logs, "'--delete-other-teams' is deprecated; use '--delete-other-fleets' instead")
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
 				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
 				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")

@@ -3,6 +3,7 @@
   "slug": "directory-opus/windows",
   "package_identifier": "GPSoftware.DirectoryOpus",
   "unique_identifier": "Directory Opus",
+  "open_process_names": ["dopus.exe"],
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "machine",

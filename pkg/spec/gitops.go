@@ -2497,21 +2497,25 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 			return wrapErrs(fmt.Errorf("failed to expand environment in file %q: %v", installSoftwareObj.PackagePath, err))
 		}
 		var policyInstallSoftwareSpec fleet.SoftwarePackageSpec
-		if err := YamlUnmarshal(fileBytes, &policyInstallSoftwareSpec); err != nil {
-			// Fall back to array shape: the file may define multiple packages for one title.
-			var multiplePackages []fleet.SoftwarePackageSpec
-			if err := YamlUnmarshal(fileBytes, &multiplePackages); err != nil || len(multiplePackages) == 0 {
-				return wrapErrs(fmt.Errorf("file %q does not contain a valid software package definition", installSoftwareObj.PackagePath))
+		var multiplePackages []fleet.SoftwarePackageSpec
+		var singlePackage map[string]any
+		if err := YamlUnmarshal(fileBytes, &multiplePackages); err != nil {
+			if err := YamlUnmarshal(fileBytes, &singlePackage); err == nil {
+				return []error{fmt.Errorf("install_software.package_path: The single package format in %q is not available anymore. What to use instead: %s", installSoftwareObj.PackagePath, removednames.GuideURL)}
 			}
+			return wrapErrs(fmt.Errorf("file %q does not contain a valid software package definition", installSoftwareObj.PackagePath))
+		}
+		if multiplePackages != nil && len(multiplePackages) == 0 {
+			return wrapErrs(fmt.Errorf("file %q does not contain a valid software package definition", installSoftwareObj.PackagePath))
+		}
 
-			errs = append(errs, validateYAMLKeys(fileBytes, reflect.TypeFor[[]fleet.SoftwarePackageSpec](), installSoftwareObj.PackagePath, []string{"software", "packages"})...)
+		errs = append(errs, validateYAMLKeys(fileBytes, reflect.TypeFor[[]fleet.SoftwarePackageSpec](), installSoftwareObj.PackagePath, []string{"software", "packages"})...)
 
-			if len(multiplePackages) > 1 {
-				return wrapErrs(fmt.Errorf("file %q contains multiple packages; use install_software.hash_sha256 to select one, or split the packages into single-package YAML files", installSoftwareObj.PackagePath))
-			}
+		if len(multiplePackages) > 1 {
+			return wrapErrs(fmt.Errorf("file %q contains multiple packages; use install_software.hash_sha256 to select one, or split the packages into single-package YAML files", installSoftwareObj.PackagePath))
+		}
+		if len(multiplePackages) == 1 {
 			policyInstallSoftwareSpec = multiplePackages[0]
-		} else {
-			errs = append(errs, validateYAMLKeys(fileBytes, reflect.TypeFor[fleet.SoftwarePackageSpec](), installSoftwareObj.PackagePath, []string{"software", "packages"})...)
 		}
 		installerOnTeamFound := false
 		for _, pkg := range packages {
@@ -3010,15 +3014,13 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 					continue
 				}
 
-				// A package YAML file is a list of packages. A file written as a single
-				// object is treated as a one-element list.
-				var singlePackageSpec fleet.SoftwarePackageSpec
+				var singlePackage map[string]any
 				listErr := YamlUnmarshal(fileBytes, &softwarePackageSpecs)
 				if listErr == nil {
 					multiError = multierror.Append(multiError, validateYAMLKeys(fileBytes, reflect.TypeFor[[]fleet.SoftwarePackageSpec](), *teamLevelPackage.Path, []string{"software", "packages"})...)
-				} else if err := YamlUnmarshal(fileBytes, &singlePackageSpec); err == nil {
-					multiError = multierror.Append(multiError, validateYAMLKeys(fileBytes, reflect.TypeFor[fleet.SoftwarePackageSpec](), *teamLevelPackage.Path, []string{"software", "packages"})...)
-					softwarePackageSpecs = append(softwarePackageSpecs, &singlePackageSpec)
+				} else if err := YamlUnmarshal(fileBytes, &singlePackage); err == nil {
+					multiError = multierror.Append(multiError, fmt.Errorf("The single package format in %q is not available anymore. What to use instead: %s", *teamLevelPackage.Path, removednames.GuideURL))
+					continue
 				} else {
 					// couldn't unmarshal as a list or a single object
 					multiError = multierror.Append(multiError, MaybeParseTypeError(*teamLevelPackage.Path, []string{"software", "packages"}, listErr))

@@ -3241,7 +3241,7 @@ func (s *integrationEnterpriseTestSuite) TestAIToolFilter() {
 		return s.Do("GET", path, nil, http.StatusOK, params...)
 	}
 	require.Equal(t, teamHostAITool, aiToolByName(t, get(fmt.Sprintf("/api/latest/fleet/hosts/%d", teamHost.ID)), "host", "software"))
-	require.Equal(t, teamHostAITool, aiToolByName(t, get("/api/latest/fleet/hosts/identifier/"+teamHost.UUID), "host", "software"))
+	require.Equal(t, teamHostAITool, aiToolByName(t, get("/api/latest/fleet/hosts/"+teamHost.UUID), "host", "software"))
 	require.Equal(t, teamHostAITool, aiToolByName(t,
 		s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK), "host", "software"))
 	var hostsResp listHostsResponse

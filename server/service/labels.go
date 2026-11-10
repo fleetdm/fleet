@@ -1011,7 +1011,7 @@ func (svc *Service) BatchValidateLabels(ctx context.Context, teamID *uint, label
 		return nil, fleet.NewMissingLabelError(uniqueNames, found)
 	}
 
-	scoped, err := labelsToAssociate(ctx, svc.ds, teamID, labelNames, authz.UserFromContext(ctx))
+	scoped, err := loadLabelsToAssociate(ctx, svc.ds, teamID, labelNames, authz.UserFromContext(ctx))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}

@@ -3,6 +3,7 @@
   "slug": "virtualbox/windows",
   "package_identifier": "Oracle.VirtualBox",
   "unique_identifier": "Oracle VirtualBox",
+  "open_process_name_prefix": "virtualbox",
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/virtualbox_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/virtualbox_uninstall.ps1",
   "installer_arch": "x64",
