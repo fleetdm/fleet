@@ -11,7 +11,9 @@ import (
 
 // removedPathTemplates are the paths that Fleet 5 removed, as they appear in pkg/removednames. A request to one gets 410 Gone with the
 // message of its table entry, for every method, or only for the entry's Context when it names one. A path moves here from
-// deprecatedPathAliases in the change that stops serving it. A path variable can add a regex constraint that the table entry leaves out.
+// deprecatedPathAliases, or from its own route, in the change that stops serving it. A path that a later template also matches
+// (/mdm/profiles/summary and /mdm/profiles/{profile_uuid}) must come first to get its own message. A path variable can add a regex
+// constraint that the table entry leaves out.
 var removedPathTemplates = []string{
 	"/api/_version_/fleet/spec/teams",
 	"/api/_version_/fleet/teams",
@@ -37,6 +39,47 @@ var removedPathTemplates = []string{
 	"/api/_version_/fleet/software/{id:[0-9]+}",
 	"/api/_version_/fleet/hosts/identifier/{identifier}",
 	"/api/_version_/fleet/queries/{name}",
+
+	"/api/_version_/fleet/mdm/commands",
+	"/api/_version_/fleet/mdm/apple/commands",
+	"/api/_version_/fleet/mdm/commandresults",
+	"/api/_version_/fleet/mdm/commands/run",
+	"/api/_version_/fleet/mdm/apple/enqueue",
+	"/api/_version_/fleet/mdm/hosts/{id}/lock",
+	"/api/_version_/fleet/mdm/hosts/{id}/wipe",
+	"/api/_version_/fleet/mdm/hosts/{id}/unenroll",
+	"/api/_version_/fleet/mdm/hosts/{id}/profiles",
+	"/api/_version_/fleet/mdm/hosts/{id}/encryption_key",
+	"/api/_version_/fleet/mdm/disk_encryption/summary",
+	"/api/_version_/fleet/mdm/apple/filevault/summary",
+	"/api/_version_/fleet/mdm/apple/settings",
+	"/api/_version_/fleet/mdm/profiles",
+	"/api/_version_/fleet/mdm/profiles/summary",
+	"/api/_version_/fleet/mdm/profiles/{profile_uuid}",
+	"/api/_version_/fleet/mdm/apple/profiles",
+	"/api/_version_/fleet/mdm/apple/profiles/summary",
+	"/api/_version_/fleet/mdm/apple/profiles/batch",
+	"/api/_version_/fleet/mdm/apple/profiles/{profile_id}",
+	"/api/_version_/fleet/mdm/apple",
+	"/api/_version_/fleet/mdm/apple/setup",
+	"/api/_version_/fleet/mdm/apple/enrollment_profile",
+	"/api/_version_/fleet/mdm/manual_enrollment_profile",
+	"/api/_version_/fleet/mdm/apple/request_csr",
+	"/api/_version_/fleet/mdm/apple/dep/key_pair",
+	"/api/_version_/fleet/mdm/bootstrap",
+	"/api/_version_/fleet/mdm/apple/bootstrap",
+	"/api/_version_/fleet/mdm/bootstrap/summary",
+	"/api/_version_/fleet/mdm/apple/bootstrap/summary",
+	"/api/_version_/fleet/mdm/bootstrap/{fleet_id}/metadata",
+	"/api/_version_/fleet/mdm/apple/bootstrap/{fleet_id}/metadata",
+	"/api/_version_/fleet/mdm/bootstrap/{fleet_id}",
+	"/api/_version_/fleet/mdm/apple/bootstrap/{fleet_id}",
+	"/api/_version_/fleet/mdm/setup/eula",
+	"/api/_version_/fleet/mdm/apple/setup/eula",
+	"/api/_version_/fleet/mdm/setup/eula/metadata",
+	"/api/_version_/fleet/mdm/apple/setup/eula/metadata",
+	"/api/_version_/fleet/mdm/setup/eula/{token}",
+	"/api/_version_/fleet/mdm/apple/setup/eula/{token}",
 }
 
 // removedPathOverlaps has the removed paths that a stdlib ServeMux cannot register next to a live route.

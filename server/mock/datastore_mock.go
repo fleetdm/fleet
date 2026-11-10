@@ -1142,8 +1142,6 @@ type UpdateMDMAppleConfigProfileFunc func(ctx context.Context, p fleet.MDMAppleC
 
 type BulkUpsertMDMAppleConfigProfilesFunc func(ctx context.Context, payload []*fleet.MDMAppleConfigProfile) error
 
-type GetMDMAppleConfigProfileByDeprecatedIDFunc func(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error)
-
 type GetMDMAppleConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMAppleConfigProfile, error)
 
 type GetMDMAppleConfigProfileByTeamAndIdentifierFunc func(ctx context.Context, teamID *uint, profileIdentifier string) (*fleet.MDMAppleConfigProfile, error)
@@ -1151,8 +1149,6 @@ type GetMDMAppleConfigProfileByTeamAndIdentifierFunc func(ctx context.Context, t
 type GetMDMAppleDeclarationFunc func(ctx context.Context, declUUID string) (*fleet.MDMAppleDeclaration, error)
 
 type ListMDMAppleConfigProfilesFunc func(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error)
-
-type DeleteMDMAppleConfigProfileByDeprecatedIDFunc func(ctx context.Context, profileID uint) error
 
 type DeleteMDMAppleConfigProfileFunc func(ctx context.Context, profileUUID string) error
 
@@ -1184,8 +1180,6 @@ type GetMDMAppleCommandResultsFunc func(ctx context.Context, commandUUID string,
 
 type GetVPPCommandResultsFunc func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error)
 
-type ListMDMAppleCommandsFunc func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMAppleCommand, error)
-
 type NewMDMAppleInstallerFunc func(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*fleet.MDMAppleInstaller, error)
 
 type MDMAppleInstallerFunc func(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error)
@@ -1197,8 +1191,6 @@ type DeleteMDMAppleInstallerFunc func(ctx context.Context, id uint) error
 type MDMAppleInstallerDetailsByTokenFunc func(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error)
 
 type ListMDMAppleInstallersFunc func(ctx context.Context) ([]fleet.MDMAppleInstaller, error)
-
-type BatchSetMDMAppleProfilesFunc func(ctx context.Context, tmID *uint, profiles []*fleet.MDMAppleConfigProfile) error
 
 type MDMAppleListDevicesFunc func(ctx context.Context) ([]fleet.MDMAppleDevice, error)
 
@@ -4324,9 +4316,6 @@ type DataStore struct {
 	BulkUpsertMDMAppleConfigProfilesFunc        BulkUpsertMDMAppleConfigProfilesFunc
 	BulkUpsertMDMAppleConfigProfilesFuncInvoked bool
 
-	GetMDMAppleConfigProfileByDeprecatedIDFunc        GetMDMAppleConfigProfileByDeprecatedIDFunc
-	GetMDMAppleConfigProfileByDeprecatedIDFuncInvoked bool
-
 	GetMDMAppleConfigProfileFunc        GetMDMAppleConfigProfileFunc
 	GetMDMAppleConfigProfileFuncInvoked bool
 
@@ -4338,9 +4327,6 @@ type DataStore struct {
 
 	ListMDMAppleConfigProfilesFunc        ListMDMAppleConfigProfilesFunc
 	ListMDMAppleConfigProfilesFuncInvoked bool
-
-	DeleteMDMAppleConfigProfileByDeprecatedIDFunc        DeleteMDMAppleConfigProfileByDeprecatedIDFunc
-	DeleteMDMAppleConfigProfileByDeprecatedIDFuncInvoked bool
 
 	DeleteMDMAppleConfigProfileFunc        DeleteMDMAppleConfigProfileFunc
 	DeleteMDMAppleConfigProfileFuncInvoked bool
@@ -4387,9 +4373,6 @@ type DataStore struct {
 	GetVPPCommandResultsFunc        GetVPPCommandResultsFunc
 	GetVPPCommandResultsFuncInvoked bool
 
-	ListMDMAppleCommandsFunc        ListMDMAppleCommandsFunc
-	ListMDMAppleCommandsFuncInvoked bool
-
 	NewMDMAppleInstallerFunc        NewMDMAppleInstallerFunc
 	NewMDMAppleInstallerFuncInvoked bool
 
@@ -4407,9 +4390,6 @@ type DataStore struct {
 
 	ListMDMAppleInstallersFunc        ListMDMAppleInstallersFunc
 	ListMDMAppleInstallersFuncInvoked bool
-
-	BatchSetMDMAppleProfilesFunc        BatchSetMDMAppleProfilesFunc
-	BatchSetMDMAppleProfilesFuncInvoked bool
 
 	MDMAppleListDevicesFunc        MDMAppleListDevicesFunc
 	MDMAppleListDevicesFuncInvoked bool
@@ -10496,13 +10476,6 @@ func (s *DataStore) BulkUpsertMDMAppleConfigProfiles(ctx context.Context, payloa
 	return s.BulkUpsertMDMAppleConfigProfilesFunc(ctx, payload)
 }
 
-func (s *DataStore) GetMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
-	s.mu.Lock()
-	s.GetMDMAppleConfigProfileByDeprecatedIDFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetMDMAppleConfigProfileByDeprecatedIDFunc(ctx, profileID)
-}
-
 func (s *DataStore) GetMDMAppleConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMAppleConfigProfile, error) {
 	s.mu.Lock()
 	s.GetMDMAppleConfigProfileFuncInvoked = true
@@ -10529,13 +10502,6 @@ func (s *DataStore) ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint
 	s.ListMDMAppleConfigProfilesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListMDMAppleConfigProfilesFunc(ctx, teamID)
-}
-
-func (s *DataStore) DeleteMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) error {
-	s.mu.Lock()
-	s.DeleteMDMAppleConfigProfileByDeprecatedIDFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteMDMAppleConfigProfileByDeprecatedIDFunc(ctx, profileID)
 }
 
 func (s *DataStore) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID string) error {
@@ -10643,13 +10609,6 @@ func (s *DataStore) GetVPPCommandResults(ctx context.Context, commandUUID string
 	return s.GetVPPCommandResultsFunc(ctx, commandUUID, hostUUID)
 }
 
-func (s *DataStore) ListMDMAppleCommands(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMAppleCommand, error) {
-	s.mu.Lock()
-	s.ListMDMAppleCommandsFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListMDMAppleCommandsFunc(ctx, tmFilter, listOpts)
-}
-
 func (s *DataStore) NewMDMAppleInstaller(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*fleet.MDMAppleInstaller, error) {
 	s.mu.Lock()
 	s.NewMDMAppleInstallerFuncInvoked = true
@@ -10690,13 +10649,6 @@ func (s *DataStore) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMAppl
 	s.ListMDMAppleInstallersFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListMDMAppleInstallersFunc(ctx)
-}
-
-func (s *DataStore) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
-	s.mu.Lock()
-	s.BatchSetMDMAppleProfilesFuncInvoked = true
-	s.mu.Unlock()
-	return s.BatchSetMDMAppleProfilesFunc(ctx, tmID, profiles)
 }
 
 func (s *DataStore) MDMAppleListDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {

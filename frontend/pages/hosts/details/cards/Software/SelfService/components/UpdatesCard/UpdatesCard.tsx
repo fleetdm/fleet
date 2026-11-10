@@ -140,23 +140,25 @@ const UpdatesCard = ({
   };
 
   return (
-    <Card className={baseClass} paddingSize="xlarge">
-      <div className={`${baseClass}__header`}>
-        <CardHeader
-          header="Updates"
-          subheader={
-            <>
-              Your device has outdated software. Update to address potential
-              security vulnerabilities or compatibility issues.
-            </>
-          }
-        />
-        <Button disabled={disableUpdateAllButton} onClick={onClickUpdateAll}>
-          Update all
-        </Button>
-      </div>
-      {renderUpdatesContent()}
-    </Card>
+    <div data-testid={baseClass}>
+      <Card className={baseClass} paddingSize="xlarge">
+        <div className={`${baseClass}__header`}>
+          <CardHeader
+            header="Updates"
+            subheader={
+              <>
+                Your device has outdated software. Update to address potential
+                security vulnerabilities or compatibility issues.
+              </>
+            }
+          />
+          <Button disabled={disableUpdateAllButton} onClick={onClickUpdateAll}>
+            Update all
+          </Button>
+        </div>
+        {renderUpdatesContent()}
+      </Card>
+    </div>
   );
 };
 
