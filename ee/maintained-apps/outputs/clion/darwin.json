@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.3",
+      "version": "2026.3.0.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.CLion';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.CLion' AND version_compare(bundle_short_version, '2026.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.CLion' AND version_compare(bundle_short_version, '2026.3.0.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.jetbrains.CLion' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.jetbrains.com/cpp/CLion-2026.3-aarch64.dmg",
+      "installer_url": "https://download.jetbrains.com/cpp/CLion-2026.3.0.1-aarch64.dmg",
       "install_script_ref": "2299f589",
       "uninstall_script_ref": "22dd4ea5",
-      "sha256": "af62fec6fe5acc793f18680376deaaa2ad6ae70eeb98d349102fddd46b41ee7e",
+      "sha256": "8ce475f2713ce7302dc5da583aa7a417492605a14928b06f9939b128a92d3415",
       "default_categories": [
         "Developer tools"
       ]
