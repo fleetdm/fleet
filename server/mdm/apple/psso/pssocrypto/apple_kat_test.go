@@ -7,7 +7,7 @@ import (
 	"math/big"
 	"testing"
 
-	josecipher "github.com/go-jose/go-jose/v3/cipher"
+	josecipher "github.com/go-jose/go-jose/v4/cipher"
 	"github.com/stretchr/testify/require"
 )
 
