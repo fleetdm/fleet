@@ -23,7 +23,6 @@ var removedPathTemplates = []string{
 	"/api/_version_/fleet/hosts/{host_id}/configuration_profiles/resend/{profile_uuid}",
 	"/api/_version_/fleet/abm",
 	"/api/_version_/fleet/abm_tokens",
-	"/api/_version_/fleet/abm_tokens/count",
 	"/api/_version_/fleet/abm_tokens/{id}",
 	"/api/_version_/fleet/abm_tokens/{id}/renew",
 	"/api/_version_/fleet/ab_tokens/{id}/teams",
@@ -32,8 +31,6 @@ var removedPathTemplates = []string{
 	"/api/_version_/fleet/mdm/apple_bm",
 	"/api/_version_/fleet/mdm/apple/abm_public_key",
 	"/api/_version_/fleet/scripts/batch/summary/{batch_execution_id}",
-	// DELETE /reports/{id:[0-9]+} is registered first, so this only answers non-numeric names.
-	"/api/_version_/fleet/reports/{name}",
 	"/api/_version_/fleet/queries/{name}",
 }
 

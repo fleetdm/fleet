@@ -478,7 +478,6 @@ func (s *integrationTestSuite) TestDeleteReportURLs() {
 	t.Run("delete by name is gone", func(t *testing.T) {
 		r := createReport(prefix + "_by_name")
 		for _, c := range []struct{ prefix, endpoint string }{
-			{"/api/latest/fleet/reports/", "DELETE /reports/{name}"},
 			{"/api/latest/fleet/queries/", "DELETE /queries/{name}"},
 		} {
 			res := s.Do("DELETE", c.prefix+url.PathEscape(r.Name), nil, http.StatusGone)
@@ -492,6 +491,8 @@ func (s *integrationTestSuite) TestDeleteReportURLs() {
 			assert.Equal(t, `The "`+c.endpoint+`" endpoint is not available anymore. What to use instead: `+removednames.GuideURL,
 				body.Errors[0]["reason"])
 		}
+		// Nothing is registered for a report name under /reports.
+		s.Do("DELETE", "/api/latest/fleet/reports/"+url.PathEscape(r.Name), nil, http.StatusNotFound)
 		requireReportExists(r.ID, true)
 
 		// Unlike /reports, /queries has no DELETE route for a bare ID, so an all-digits value is gone too.
@@ -506,9 +507,9 @@ func (s *integrationTestSuite) TestDeleteReportURLs() {
 		s.Do("PATCH", byIDPath(r.ID), fleet.QueryPayload{Description: new("updated")}, http.StatusOK)
 		s.Do("GET", byIDPath(r.ID), nil, http.StatusOK)
 
-		// The removed paths are DELETE-only, so other methods on their shape get the router's 405, not a 410 naming an endpoint
+		// The removed path is DELETE-only, so other methods on its shape get the router's 405, not a 410 naming an endpoint
 		// that never existed.
-		s.Do("GET", "/api/latest/fleet/reports/"+url.PathEscape(r.Name), nil, http.StatusMethodNotAllowed)
+		s.Do("GET", "/api/latest/fleet/reports/"+url.PathEscape(r.Name), nil, http.StatusNotFound)
 		s.Do("GET", "/api/latest/fleet/queries/"+url.PathEscape(r.Name), nil, http.StatusMethodNotAllowed)
 		s.Do("PUT", byIDPath(r.ID), nil, http.StatusMethodNotAllowed)
 		s.Do("GET", "/api/latest/fleet/reports/delete", nil, http.StatusMethodNotAllowed)
