@@ -2686,7 +2686,7 @@ func TestAuthorizeMDMAppleManualEnrollmentProfile(t *testing.T) {
 func TestAuthorizeAppleBM(t *testing.T) {
 	t.Parallel()
 
-	abm := &fleet.AppleBM{}
+	abm := &fleet.ABMToken{}
 	runTestCases(t, []authTestCase{
 		{user: nil, object: abm, action: list, allow: false},
 		{user: test.UserNoRoles, object: abm, action: list, allow: false},

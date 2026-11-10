@@ -737,6 +737,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /cybersecurity': {
+    action: 'view-cybersecurity',
+    locals: {
+      pageTitleForMeta: 'Device management for cybersecurity',
+      pageDescriptionForMeta: 'See which AI agents and apps are running on every Mac, PC, and Linux machine, and check that your security controls are working. Device management built for security teams.',
+    }
+  },
+
   'GET /pharma': {
     action: 'view-pharma',
     locals: {
@@ -1527,6 +1535,8 @@ module.exports.routes = {
   'GET /learn-more-about/vpp-tokens-best-practice': '/guides/apple-mdm-setup#best-practice',
   'GET /learn-more-about/mdm-migration': '/guides/mdm-migration#migrate-hosts',
   'GET /learn-more-about/android-zero-touch': '/guides/android-zero-touch-enrollment',
+  'GET /learn-more-about/fleet-5-upgrade': '/guides/upgrade-to-fleet-5',
+  'GET /learn-more-about/fleet-5-migration': '/guides/upgrade-to-fleet-5',
 
 
   // Sitemap

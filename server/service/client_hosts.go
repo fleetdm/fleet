@@ -71,7 +71,7 @@ func (c *Client) translateTransferHostsToIDs(hosts []string, label string, team 
 	}
 
 	if team != "" {
-		translatedPayload, err := encodeTranslatedPayload(fleet.TranslatorTypeTeam, team)
+		translatedPayload, err := encodeTranslatedPayload(fleet.TranslatorTypeFleet, team)
 		if err != nil {
 			return nil, 0, 0, err
 		}
@@ -96,7 +96,7 @@ func (c *Client) translateTransferHostsToIDs(hosts []string, label string, team 
 		switch payload.Type {
 		case fleet.TranslatorTypeLabel:
 			labelID = payload.Payload.ID
-		case fleet.TranslatorTypeTeam:
+		case fleet.TranslatorTypeFleet:
 			teamID = payload.Payload.ID
 		case fleet.TranslatorTypeHost:
 			hostIDs = append(hostIDs, payload.Payload.ID)

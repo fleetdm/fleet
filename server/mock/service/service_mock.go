@@ -213,8 +213,6 @@ type NewQueryFunc func(ctx context.Context, p fleet.QueryPayload) (*fleet.Query,
 
 type ModifyQueryFunc func(ctx context.Context, id uint, p fleet.QueryPayload) (*fleet.Query, error)
 
-type DeleteQueryFunc func(ctx context.Context, teamID *uint, name string) error
-
 type DeleteQueryByIDFunc func(ctx context.Context, id uint) error
 
 type DeleteQueriesFunc func(ctx context.Context, ids []uint) (uint, error)
@@ -580,8 +578,6 @@ type GetHostLocationDataFunc func(ctx context.Context, hostID uint) (*fleet.GeoL
 type GetSoftwareInstallDetailsFunc func(ctx context.Context, installUUID string) (*fleet.SoftwareInstallDetails, error)
 
 type GetAppleMDMFunc func(ctx context.Context) (*fleet.AppleMDM, error)
-
-type GetAppleBMFunc func(ctx context.Context) (*fleet.AppleBM, error)
 
 type RequestMDMAppleCSRFunc func(ctx context.Context, email string, org string) (*fleet.AppleCSR, error)
 
@@ -1344,9 +1340,6 @@ type Service struct {
 	ModifyQueryFunc        ModifyQueryFunc
 	ModifyQueryFuncInvoked bool
 
-	DeleteQueryFunc        DeleteQueryFunc
-	DeleteQueryFuncInvoked bool
-
 	DeleteQueryByIDFunc        DeleteQueryByIDFunc
 	DeleteQueryByIDFuncInvoked bool
 
@@ -1895,9 +1888,6 @@ type Service struct {
 
 	GetAppleMDMFunc        GetAppleMDMFunc
 	GetAppleMDMFuncInvoked bool
-
-	GetAppleBMFunc        GetAppleBMFunc
-	GetAppleBMFuncInvoked bool
 
 	RequestMDMAppleCSRFunc        RequestMDMAppleCSRFunc
 	RequestMDMAppleCSRFuncInvoked bool
@@ -3282,13 +3272,6 @@ func (s *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPayload
 	return s.ModifyQueryFunc(ctx, id, p)
 }
 
-func (s *Service) DeleteQuery(ctx context.Context, teamID *uint, name string) error {
-	s.mu.Lock()
-	s.DeleteQueryFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteQueryFunc(ctx, teamID, name)
-}
-
 func (s *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 	s.mu.Lock()
 	s.DeleteQueryByIDFuncInvoked = true
@@ -4568,13 +4551,6 @@ func (s *Service) GetAppleMDM(ctx context.Context) (*fleet.AppleMDM, error) {
 	s.GetAppleMDMFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetAppleMDMFunc(ctx)
-}
-
-func (s *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
-	s.mu.Lock()
-	s.GetAppleBMFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetAppleBMFunc(ctx)
 }
 
 func (s *Service) RequestMDMAppleCSR(ctx context.Context, email string, org string) (*fleet.AppleCSR, error) {

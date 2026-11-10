@@ -333,11 +333,10 @@ DELETE FROM label_membership WHERE label_id = ?
 					}
 				}
 
-				hostsFilterClause := `(hostname IN (?) OR hardware_serial IN (?) OR uuid IN (?) OR id IN (?))`
+				hostsFilterClause := `(hardware_serial IN (?) OR uuid IN (?) OR id IN (?))`
 
 				if s.TeamID != nil {
 					// Team labels can only be applied to hosts on that team.
-					hostnames := stringIdents
 					serialNumbers := stringIdents
 					uuids := stringIdents
 					hostIDs := intIdents
@@ -345,7 +344,6 @@ DELETE FROM label_membership WHERE label_id = ?
 						*s.TeamID,
 						hostsFilterClause,
 						[]any{
-							hostnames,
 							serialNumbers,
 							uuids,
 							hostIDs,
@@ -361,7 +359,7 @@ DELETE FROM label_membership WHERE label_id = ?
 					`INSERT IGNORE INTO label_membership (label_id, host_id) (SELECT DISTINCT ?, id FROM hosts WHERE %s)`,
 					hostsFilterClause,
 				)
-				sql, args, err := sqlx.In(sql, labelID, stringIdents, stringIdents, stringIdents, intIdents)
+				sql, args, err := sqlx.In(sql, labelID, stringIdents, stringIdents, intIdents)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "build membership IN statement")
 				}
