@@ -16,8 +16,7 @@ jobs:
   build:
     permissions:
       contents: read
-      issues: write           # Required to comment on existing PRs
-      pull-requests: write    # Required to open PRs
+      pull-requests: write    # Required to comment on and close existing PRs
     runs-on: ubuntu-latest
     timeout-minutes: 180
 
