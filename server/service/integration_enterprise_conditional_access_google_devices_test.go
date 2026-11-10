@@ -5,16 +5,23 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"log/slog"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/service/conditional_access_google"
+	"github.com/fleetdm/fleet/v4/server/service/conditional_access_google/mockserver"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -750,4 +757,97 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleCleanup() {
 	require.True(t, fleet.IsNotFound(err))
 	require.False(t, g.hasDevice(takeover))
 	require.Zero(t, g.client.devCalls().googleCalls)
+}
+
+// TestConditionalAccessGoogleMockServer runs the real fleetdm.com relay client and Cloud
+// Identity client against the mock server.
+func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleMockServer() {
+	t := s.T()
+	g := s.newGoogleDeviceTest()
+
+	var handler http.Handler
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { handler.ServeHTTP(w, r) }))
+	t.Cleanup(srv.Close)
+	mock := mockserver.New(mockserver.Config{
+		Relay: true, Google: true, PublicURL: srv.URL, FleetURL: s.server.URL,
+		CustomerIDs: []string{googleTestCustomer}, FakeEmail: "ann@example.com",
+	})
+	handler = mock
+	dev_mode.SetOverride(conditional_access_google.EndpointOverrideEnv, srv.URL+"/", t)
+	g.client.passThrough(t, &GoogleConditionalAccessClient{
+		Relay:         conditional_access_google.NewRelay(srv.URL, conditional_access_google.AllowHTTP()),
+		CloudIdentity: conditional_access_google.NewCloudIdentityFactory(slog.New(slog.DiscardHandler)),
+	})
+	httpClient := fleethttp.NewClient(fleethttp.WithFollowRedir(false))
+	get := func(rawURL string) (*http.Response, string) {
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, rawURL, nil)
+		require.NoError(t, err)
+		res, err := httpClient.Do(req)
+		require.NoError(t, err)
+		defer res.Body.Close()
+		b, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		return res, string(b)
+	}
+
+	// Connect: the delegation check and the registration go to the mock.
+	g.connect(googleTestCustomer, "admin@example.com", newGoogleCATestKey(t, "sa@example.iam.gserviceaccount.com"), http.StatusOK)
+	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, g.status().State)
+	require.Len(t, mock.State().Registrations, 1)
+
+	// Status, the fake sign-in, the callback and the register call.
+	host := g.newIOSHost("ipados", true)
+	st := g.iosStatus(host)
+	require.True(t, strings.HasPrefix(st.SignInURL, srv.URL+"/"), st.SignInURL)
+	res, body := get(st.SignInURL)
+	require.Equal(t, http.StatusOK, res.StatusCode, body)
+	m := regexp.MustCompile(`id="continue" href="([^"]+)"`).FindStringSubmatch(body)
+	require.Len(t, m, 2, body)
+	res, body = get(html.UnescapeString(m[1]))
+	require.Equal(t, http.StatusFound, res.StatusCode, body)
+	require.Equal(t, "/google-conditional-access/done", res.Header.Get("Location"))
+	require.True(t, g.iosStatus(host).Registered)
+
+	// Every name is MANAGED in the mock with the host UUID.
+	names := g.states(host)
+	require.NotEmpty(t, names)
+	var devices []mockserver.Device
+	for _, d := range mock.State().Devices {
+		for _, u := range d.Users {
+			if _, ok := names[u.Name]; ok {
+				cs := u.ClientStates[strings.TrimPrefix(googleTestCustomer, "C")+conditional_access_google.ClientStateSuffix]
+				require.NotNil(t, cs, u.Name)
+				require.Equal(t, "MANAGED", cs.Managed)
+				require.Equal(t, host.UUID, cs.CustomID)
+				devices = append(devices, d)
+			}
+		}
+	}
+	require.Len(t, devices, len(names))
+	require.NotEmpty(t, devices)
+	require.Equal(t, strings.TrimPrefix(devices[0].Name, "devices/"), g.googleDeviceID(host))
+
+	// The hourly check drops the names of a record deleted in Google.
+	require.True(t, mock.SetDeviceState(devices[0].Name, mockserver.DeviceDeleted))
+	require.NoError(t, g.syncer.CheckDevices(t.Context()))
+	require.Empty(t, g.states(host))
+	require.Empty(t, g.googleDeviceID(host))
+
+	// An Android host is registered by the cron once Google has a record with its
+	// Android Management API device ID.
+	android := g.newAndroidHost(true)
+	g.sync()
+	require.Empty(t, g.states(android))
+	seeded := mock.Seed(mockserver.SeedDevice{
+		CustomerID: googleTestCustomer, DeviceID: g.androidDeviceID(android), DeviceType: "android", Emails: []string{"ann@example.com"},
+	})
+	g.sync()
+	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{
+		seeded.Users[0].Name: fleet.GoogleConditionalAccessDeviceUserManaged,
+	}, g.states(android))
+	require.Equal(t, strings.TrimPrefix(seeded.Name, "devices/"), g.googleDeviceID(android))
+
+	// Removing the integration deregisters from the mock.
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusOK, &deleteGoogleConditionalAccessResponse{})
+	require.Empty(t, mock.State().Registrations)
 }

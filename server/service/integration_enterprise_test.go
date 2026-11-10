@@ -562,6 +562,26 @@ type mockedGoogleConditionalAccessClient struct {
 	deregSecrets    []string // secret passed to each Deregister
 	checkErr        error
 	dev             googleDeviceMock
+	// real, when set, takes every call instead, so a test can run the real clients.
+	real *GoogleConditionalAccessClient
+}
+
+// passThrough sends every call to real until the test ends.
+func (m *mockedGoogleConditionalAccessClient) passThrough(t *testing.T, rc *GoogleConditionalAccessClient) {
+	m.mu.Lock()
+	m.real = rc
+	m.mu.Unlock()
+	t.Cleanup(func() {
+		m.mu.Lock()
+		m.real = nil
+		m.mu.Unlock()
+	})
+}
+
+func (m *mockedGoogleConditionalAccessClient) realClient() *GoogleConditionalAccessClient {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.real
 }
 
 // googleDeviceMock is the device side of the mock: the DeviceUsers in Google.
@@ -581,6 +601,9 @@ type googleDeviceMock struct {
 }
 
 func (m *mockedGoogleConditionalAccessClient) SignInURL(customerID, hostUUID, token string) (string, error) {
+	if rc := m.realClient(); rc != nil {
+		return rc.Relay.SignInURL(customerID, hostUUID, token)
+	}
 	return conditional_access_google.NewRelay("https://fleetdm.example.com").SignInURL(customerID, hostUUID, token)
 }
 
@@ -603,7 +626,10 @@ type googleAuthError struct{}
 func (googleAuthError) Error() string     { return "unauthorized_client: Client is unauthorized" }
 func (googleAuthError) IsAuthError() bool { return true }
 
-func (m *mockedGoogleConditionalAccessClient) Register(_ context.Context, serverURL, customerID string) (*conditional_access_google.Registration, error) {
+func (m *mockedGoogleConditionalAccessClient) Register(ctx context.Context, serverURL, customerID string) (*conditional_access_google.Registration, error) {
+	if rc := m.realClient(); rc != nil {
+		return rc.Relay.Register(ctx, serverURL, customerID)
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.registers = append(m.registers, customerID)
@@ -620,7 +646,10 @@ func (m *mockedGoogleConditionalAccessClient) Register(_ context.Context, server
 	}, nil
 }
 
-func (m *mockedGoogleConditionalAccessClient) Deregister(_ context.Context, serverURL, customerID, secret string) error {
+func (m *mockedGoogleConditionalAccessClient) Deregister(ctx context.Context, serverURL, customerID, secret string) error {
+	if rc := m.realClient(); rc != nil {
+		return rc.Relay.Deregister(ctx, serverURL, customerID, secret)
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.deregisters = append(m.deregisters, customerID)
@@ -631,7 +660,10 @@ func (m *mockedGoogleConditionalAccessClient) Deregister(_ context.Context, serv
 
 // cloudIdentity is the mock's CloudIdentityFactory: each client records its calls with
 // the credentials it was built for.
-func (m *mockedGoogleConditionalAccessClient) cloudIdentity(_ context.Context, creds conditional_access_google.Credentials) (conditional_access_google.CloudIdentity, error) {
+func (m *mockedGoogleConditionalAccessClient) cloudIdentity(ctx context.Context, creds conditional_access_google.Credentials) (conditional_access_google.CloudIdentity, error) {
+	if rc := m.realClient(); rc != nil {
+		return rc.CloudIdentity(ctx, creds)
+	}
 	return &mockedGoogleCloudIdentity{m: m, creds: creds}, nil
 }
 
