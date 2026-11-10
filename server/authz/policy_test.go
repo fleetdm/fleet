@@ -1326,7 +1326,7 @@ func TestAuthorizeHost(t *testing.T) {
 
 // TestAuthorizeActivityHost verifies that the bounded-context activity.Host
 // type is serialized with the json field names the OPA policy expects
-// (object.team_id, object.id). Without those tags, team-scoped users get a
+// (object.fleet_id, object.id). Without those tags, team-scoped users get a
 // 403 when listing host past activities (issue #46009).
 func TestAuthorizeActivityHost(t *testing.T) {
 	t.Parallel()

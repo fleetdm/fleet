@@ -1393,12 +1393,12 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	// Check if the host is listed as pending
 	var listResp listHostsResponse
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "pending", "team_id", fmt.Sprint(team.ID),
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "pending", "fleet_id", fmt.Sprint(team.ID),
 		"software_title_id", fmt.Sprint(errTitleID))
 	require.Len(t, listResp.Hosts, 1)
 	require.Equal(t, listResp.Hosts[0].ID, mdmHost.ID)
 	var countResp countHostsResponse
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "fleet_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(errTitleID))
 	require.Equal(t, 1, countResp.Count)
 
@@ -1410,12 +1410,12 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	}
 
 	listResp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", fmt.Sprint(team.ID),
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "fleet_id", fmt.Sprint(team.ID),
 		"software_title_id", fmt.Sprint(errTitleID))
 	require.Len(t, listResp.Hosts, 1)
 	require.Equal(t, listResp.Hosts[0].ID, mdmHost.ID)
 	countResp = countHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "failed", "team_id",
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "failed", "fleet_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(errTitleID))
 	require.Equal(t, 1, countResp.Count)
 
@@ -1442,7 +1442,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &installSoftwareRequest{},
 		http.StatusAccepted, &installResp)
 	countResp = countHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "fleet_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Equal(t, 1, countResp.Count)
 
@@ -1459,11 +1459,11 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Equal(t, 1, retryCount)
 
 	listResp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", fmt.Sprint(team.ID),
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "fleet_id", fmt.Sprint(team.ID),
 		"software_title_id", fmt.Sprint(macOSTitleID))
 	require.Empty(t, listResp.Hosts)
 	countResp = countHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "failed", "team_id",
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "failed", "fleet_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Equal(t, 0, countResp.Count)
 
@@ -1496,12 +1496,12 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Equal(t, 3, retryCount)
 
 	listResp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", fmt.Sprint(team.ID),
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "fleet_id", fmt.Sprint(team.ID),
 		"software_title_id", fmt.Sprint(macOSTitleID))
 	require.Len(t, listResp.Hosts, 1)
 	require.Equal(t, listResp.Hosts[0].ID, mdmHost.ID)
 	countResp = countHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "failed", "team_id",
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "failed", "fleet_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Equal(t, 1, countResp.Count)
 
@@ -1528,7 +1528,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &installSoftwareRequest{},
 		http.StatusAccepted, &installResp)
 	countResp = countHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "fleet_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Equal(t, 1, countResp.Count)
 
@@ -1566,7 +1566,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	}
 
 	listResp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "fleet_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var types []string
@@ -1577,7 +1577,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	})
 	require.Len(t, listResp.Hosts, 1)
 	countResp = countHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "installed", "team_id",
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "installed", "fleet_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Equal(t, 1, countResp.Count)
 
@@ -1749,7 +1749,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 					&installSoftwareRequest{}, http.StatusAccepted, &installResp)
 			}
 			countResp = countHostsResponse{}
-			s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+			s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "fleet_id",
 				fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(titleID))
 			require.Equal(t, 1, countResp.Count)
 
@@ -1832,11 +1832,11 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			}
 
 			listResp = listHostsResponse{}
-			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
+			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "fleet_id",
 				fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(titleID))
 			require.Len(t, listResp.Hosts, install.hostCount)
 			countResp = countHostsResponse{}
-			s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "installed", "team_id",
+			s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "installed", "fleet_id",
 				fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(titleID))
 			require.Equal(t, install.hostCount, countResp.Count)
 

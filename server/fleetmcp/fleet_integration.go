@@ -301,8 +301,8 @@ type Endpoint struct {
 	Version        string      `json:"osquery_version"`
 	HardwareSerial string      `json:"hardware_serial"`
 	PrimaryIP      string      `json:"primary_ip"`
-	TeamID         *uint       `json:"team_id"`
-	TeamName       string      `json:"team_name"`
+	TeamID         *uint       `json:"fleet_id"`
+	TeamName       string      `json:"fleet_name"`
 	Labels         []HostLabel `json:"labels"`
 }
 
