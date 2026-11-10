@@ -207,7 +207,7 @@
 #    - 💭 3-5 years' of experience in cloud infrastructure (AWS/GCP/Azure).
 #    - 🦉 Proficient in infrastructure as code and container deployments.
 
-- jobTitle: 🚀 Quality Assurance Engineer
+- jobTitle: 🚀 Quality Assurance Engineer, Automation
   department: Engineering
   hiringManagerName: Andrey Kizimenko
   hiringManagerGithubUsername: AndreyKizimenko
@@ -233,6 +233,37 @@
     - 🛠️ Technical: You understand the software development processes.
     - 🟣 Openness: You are flexible and open to new ideas and ways of working.
     - ➕ Bonus: Experience with AWS.
+    - ➕ Bonus: Cybersecurity or IT background.
+
+- jobTitle: 🚀 Quality Assurance Engineer, First Impressions
+  department: Engineering
+  hiringManagerName: Andrey Kizimenko
+  hiringManagerGithubUsername: AndreyKizimenko
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/andrey-kizimenko-988900214/
+  onTargetEarnings: "$80,000 - $160,000"
+  responsibilities: |
+    - 🤝 Work closely with the GTM engineer, marketing, and design to understand upcoming changes to fleetdm.com and Fleet's go-to-market operations, and identify what needs testing.
+    - 🧪 Develop and execute testing plans based on designs and wireframes, outlining step-by-step actions to confirm that pages, forms, and flows function as intended.
+    - 🌐 Perform manual testing of fleetdm.com on desktop and mobile across browsers, comparing each page with its original design.
+    - 🔍 Verify that Fleet's go-to-market systems work as intended: forms, tracking, lead routing, and the data that flows from the website into the CRM.
+    - 🧹 Help keep marketing operations data accurate: find and merge duplicate CRM records, and trace bad data back to its root cause.
+    - 🚀 Test changes to the core Fleet product that improve first impressions at workshops, conferences, and demos.
+    - 🐞 Identify, document, and report any bugs or unusual behavior, and create tickets for the right owner.
+    - 🔧 Verify that bugs have been resolved after they've been addressed, repeating the testing process as needed.
+  experience: |
+    - 💭 Experience in a QA, testing, or quality-focused role.
+    - 💖 Proficient in creating clear, step-by-step testing plans.
+    - 🎯 Strong attention to detail and ability to identify inconsistencies or deviations from designs and specifications.
+    - 🌐 Experience in manual testing across devices and browsers, including mobile.
+    - 🔍 Comfortable working with data: spreadsheets, CRM records, and tracking down why something looks wrong.
+    - 🔭 You don't need a marketing background, but you want to figure marketing out and learn it by doing.
+    - 💡 Excellent communication and collaboration skills, with the ability to work closely with marketing, sales, design, and engineering.
+    - 👥 A customer-centric mindset, focusing on a positive experience for everyone who visits fleetdm.com or tries Fleet for the first time.
+    - 🤖 You use AI tools (Claude, Copilot, etc.) in your daily workflow to move faster and produce better work.
+    - 🧢 Many hats: You're comfortable switching between website, product, and operations work, and stepping outside of QA when the team needs help.
+    - 🤝 Collaboration: You work best in a participatory, team-based environment.
+    - 🟣 Openness: You are flexible and open to new ideas and ways of working.
+    - ➕ Bonus: Experience with a CRM, Google Analytics, or marketing operations.
     - ➕ Bonus: Cybersecurity or IT background.
 
 - jobTitle: 🐋 Customer Solutions Architect

@@ -137,7 +137,7 @@ const diskEncryptionFailedMessage: ControlMessage = ({ hostDisplayName }) => (
 // Profiles for iOS and iPadOS skip the verifying step
 const APPLE_PROFILE_VERIFIED_DISPLAY_CONFIG: ProfileDisplayOption = {
   statusText: "Verified",
-  iconName: "success",
+  iconName: "success-filled",
   message: (props) =>
     props.isDiskEncryptionProfile ? (
       diskEncryptionVerifiedMessage(props)
@@ -151,7 +151,7 @@ const APPLE_PROFILE_VERIFIED_DISPLAY_CONFIG: ProfileDisplayOption = {
 
 const MAC_PROFILE_VERIFYING_DISPLAY_CONFIG: ProfileDisplayOption = {
   statusText: "Verifying",
-  iconName: "success-outline",
+  iconName: "success",
   message: (props) =>
     props.isDiskEncryptionProfile ? (
       diskEncryptionVerifyingMessage(props)
@@ -174,7 +174,7 @@ export const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
     acknowledged: MAC_PROFILE_VERIFYING_DISPLAY_CONFIG,
     pending: {
       statusText: "Enforcing",
-      iconName: "pending-outline",
+      iconName: "pending",
       message: (props) =>
         props.isDiskEncryptionProfile ? (
           diskEncryptionEnforcingMessage(props)
@@ -188,7 +188,7 @@ export const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
     },
     action_required: {
       statusText: "Action required",
-      iconName: "pending-outline",
+      iconName: "pending",
       message: actionRequiredMessage,
     },
     failed: {
@@ -208,7 +208,7 @@ export const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
   remove: {
     pending: {
       statusText: "Removing enforcement",
-      iconName: "pending-outline",
+      iconName: "pending",
       message: (props) =>
         props.isDiskEncryptionProfile ? (
           <>
@@ -260,22 +260,22 @@ type WindowsDiskEncryptionDisplayConfig = Pick<
 export const WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG: WindowsDiskEncryptionDisplayConfig = {
   verified: {
     statusText: "Verified",
-    iconName: "success",
+    iconName: "success-filled",
     message: diskEncryptionVerifiedMessage,
   },
   verifying: {
     statusText: "Verifying",
-    iconName: "success-outline",
+    iconName: "success",
     message: diskEncryptionVerifyingMessage,
   },
   pending: {
     statusText: "Enforcing",
-    iconName: "pending-outline",
+    iconName: "pending",
     message: diskEncryptionEnforcingMessage,
   },
   action_required: {
     statusText: "Action required",
-    iconName: "pending-outline",
+    iconName: "pending",
     // Defensive fallback only. The server always sends a reason for this status and the details modal prefers it, so
     // this renders only if that reason is ever missing.
     message: ({ hostDisplayName }) => (
@@ -299,7 +299,7 @@ type LinuxDiskEncryptionDisplayConfig = Omit<
 export const LINUX_DISK_ENCRYPTION_DISPLAY_CONFIG: LinuxDiskEncryptionDisplayConfig = {
   verified: {
     statusText: "Verified",
-    iconName: "success",
+    iconName: "success-filled",
     message: diskEncryptionVerifiedMessage,
   },
   failed: {
@@ -309,7 +309,7 @@ export const LINUX_DISK_ENCRYPTION_DISPLAY_CONFIG: LinuxDiskEncryptionDisplayCon
   },
   action_required: {
     statusText: "Action required",
-    iconName: "pending-outline",
+    iconName: "pending",
     message: actionRequiredMessage,
   },
 };
@@ -320,7 +320,7 @@ export const HOST_NAME_DISPLAY_CONFIG: Record<
 > = {
   pending: {
     statusText: "Enforcing",
-    iconName: "pending-outline",
+    iconName: "pending",
     message: ({ hostDisplayName }) => (
       <>
         <b>{hostDisplayName}</b> will be renamed to match this fleet&apos;s host
@@ -330,7 +330,7 @@ export const HOST_NAME_DISPLAY_CONFIG: Record<
   },
   verifying: {
     statusText: "Verifying",
-    iconName: "success-outline",
+    iconName: "success",
     message: ({ hostDisplayName }) => (
       <>
         <b>{hostDisplayName}</b> acknowledged the MDM command to rename it.
@@ -340,7 +340,7 @@ export const HOST_NAME_DISPLAY_CONFIG: Record<
   },
   verified: {
     statusText: "Verified",
-    iconName: "success",
+    iconName: "success-filled",
     message: ({ hostDisplayName }) => (
       <>
         <b>{hostDisplayName}</b> was renamed to match this fleet&apos;s host
@@ -366,7 +366,7 @@ export const RECOVERY_LOCK_PASSWORD_DISPLAY_CONFIG: Record<
 > = {
   verified: {
     statusText: "Verified",
-    iconName: "success",
+    iconName: "success-filled",
     message: ({ hostDisplayName }) => (
       <>
         Fleet set a recovery lock password for <b>{hostDisplayName}</b>.
@@ -375,7 +375,7 @@ export const RECOVERY_LOCK_PASSWORD_DISPLAY_CONFIG: Record<
   },
   pending: {
     statusText: "Enforcing",
-    iconName: "pending-outline",
+    iconName: "pending",
     message: ({ hostDisplayName }) => (
       <>
         Fleet is setting a recovery lock password for <b>{hostDisplayName}</b>.
@@ -384,7 +384,7 @@ export const RECOVERY_LOCK_PASSWORD_DISPLAY_CONFIG: Record<
   },
   removing_enforcement: {
     statusText: "Removing enforcement",
-    iconName: "pending-outline",
+    iconName: "pending",
     message: ({ hostDisplayName }) => (
       <>
         Fleet is unsetting the recovery lock password for{" "}
@@ -409,7 +409,7 @@ export const ANDROID_CERT_RETRYING_DISPLAY_CONFIG: ProfileDisplayOption = {
   // Deliberately the same icon the in-progress statuses use, rather than a warning icon: a retry
   // is still in flight, and a new status icon would have to be introduced across the rest of the
   // controls UI. The status text and message carry the difference.
-  iconName: "pending-outline",
+  iconName: "pending",
   // Filled in per row, see getAndroidCertificateRetryMessage.
   message: null,
 };
@@ -435,7 +435,7 @@ const getAndroidCertificateDisplayOption = (
       return operationType === "install"
         ? {
             statusText: "Enforcing",
-            iconName: "pending-outline",
+            iconName: "pending",
             // Android goes over the Management API, not an MDM command.
             message: ({ hostDisplayName, settingName }) => (
               <>
@@ -446,7 +446,7 @@ const getAndroidCertificateDisplayOption = (
           }
         : {
             statusText: "Removing enforcement",
-            iconName: "pending-outline",
+            iconName: "pending",
             message: ({ hostDisplayName, settingName }) => (
               <>
                 <b>{hostDisplayName}</b> is running the command to remove{" "}
@@ -457,7 +457,7 @@ const getAndroidCertificateDisplayOption = (
     case "verified":
       return {
         statusText: "Verified",
-        iconName: "success",
+        iconName: "success-filled",
         message: ({ hostDisplayName, settingName }) => (
           <>
             <b>{hostDisplayName}</b> applied <b>{settingName}</b>. Fleet

@@ -231,7 +231,7 @@ const SoftwareSummaryCard = ({
         {installerKindLabel && <Chip text={installerKindLabel} />}
         {showSelfServiceChip && (
           <Chip
-            icon="user"
+            icon="self-service"
             text="Self service"
             tooltip={getSelfServiceTooltip(
               isIpadOrIphoneSoftwareSource(softwareTitle.source),
@@ -242,7 +242,7 @@ const SoftwareSummaryCard = ({
         )}
         {showAutoInstallChip && (
           <Chip
-            icon={isPatchPolicyOnly ? undefined : "refresh"}
+            icon={isPatchPolicyOnly ? undefined : "install-auto"}
             text={isPatchPolicyOnly ? "Patch policy" : "Auto install"}
             onClick={() => {
               // Single-policy case: jump straight to the policy. The modal
@@ -266,7 +266,7 @@ const SoftwareSummaryCard = ({
         )}
         {showAutoUpdateChip && (
           <Chip
-            icon="refresh"
+            icon="install-auto"
             text="Auto updates"
             onClick={
               canEditAutoUpdateConfig
@@ -426,6 +426,11 @@ const SoftwareSummaryCard = ({
           headerPills={headerPills}
           fleetMaintainedAppSlug={fleetMaintainedAppSlug}
           appStoreId={appStoreId}
+          vppToken={
+            isPremiumTier && isAppleVpp
+              ? softwareTitle.app_store_app?.vpp_token ?? undefined
+              : undefined
+          }
           googlePlayId={googlePlayId}
         />
       </Card>

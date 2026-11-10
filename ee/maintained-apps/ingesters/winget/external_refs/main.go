@@ -9,20 +9,23 @@ import (
 // Funcs is a registry of enrichment functions keyed by app slug.
 // Each slug can have multiple enricher functions that run sequentially.
 var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error){
-	"1password/windows": {OnePasswordVersionShortener},
+	"1password/windows":    {OnePasswordVersionShortener},
+	"anyburn/windows":      {AnyBurnVersionShortener},
+	"geany/windows":        {GeanyVersionShortener},
+	"sublime-text/windows": {SublimeTextFileVersion},
 }
 
 // EnrichManifest applies all registered enrichment functions for the given app.
-// Enrichers are looked up by app.Slug and run sequentially.
-// Errors are logged but do not stop the enrichment pipeline.
-func EnrichManifest(app *maintained_apps.FMAManifestApp) {
-	if enrichers, ok := Funcs[app.Slug]; ok {
-		for _, enricher := range enrichers {
-			var err error
-			app, err = enricher(app)
-			if err != nil {
-				fmt.Printf("Error enriching app %s: %v\n", app.UniqueIdentifier, err)
-			}
+// Enrichers are looked up by app.Slug and run sequentially. An enricher error
+// stops ingestion: enrichers set the version the patch policy compares, so
+// skipping one would ship a policy that passes outdated hosts.
+func EnrichManifest(app *maintained_apps.FMAManifestApp) error {
+	for _, enricher := range Funcs[app.Slug] {
+		var err error
+		app, err = enricher(app)
+		if err != nil {
+			return fmt.Errorf("enriching app %s: %w", app.Slug, err)
 		}
 	}
+	return nil
 }

@@ -95,7 +95,7 @@ describe("AddHostsModal", () => {
     await user.click(screen.getByRole("tab", { name: "Advanced" }));
     const advancedText = screen.getByText(/--type=YOUR_TYPE/i);
     expect(advancedText).toBeInTheDocument();
-    expect(screen.queryByText(/--enable-scripts/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/--enable-scripts/i)).toBeInTheDocument();
 
     await user.click(screen.getByText(/Plain osquery/i));
     const downloadEnrollSecret = screen.getByText(
@@ -106,7 +106,9 @@ describe("AddHostsModal", () => {
       /osqueryd --flagfile=flagfile.txt --verbose/i
     );
     expect(osquerydCommand).toBeInTheDocument();
-    expect(screen.queryByText(/--enable-scripts/i)).not.toBeInTheDocument();
+    // Plain osquery reveals extra content inside the Advanced tab; the
+    // fleetctl command above it (with --enable-scripts) stays on screen.
+    expect(screen.queryByText(/--enable-scripts/i)).toBeInTheDocument();
   });
 
   it("renders enroll url input for macOS if mac mdm is enabled", async () => {
@@ -459,67 +461,5 @@ describe("AddHostsModal", () => {
         screen.getByRole("button", { name: /add enroll secret/i })
       ).toBeInTheDocument();
     });
-  });
-
-  it("excludes `--enable-scripts` flag if `config.server_settings.scripts-disabled` is `true`", async () => {
-    const mockConfig = createMockConfig();
-    mockConfig.server_settings.scripts_disabled = true;
-
-    const render = createCustomRenderer({
-      withBackendMock: true,
-      context: {
-        app: {
-          isPreviewMode: false,
-          config: mockConfig,
-        },
-      },
-    });
-
-    const { user } = render(
-      <AddHostsModal
-        isAnyTeamSelected
-        enrollSecret={ENROLL_SECRET}
-        isLoading={false}
-        onCancel={noop}
-      />
-    );
-
-    await user.click(screen.getByRole("tab", { name: "macOS" }));
-    const macOSText = screen.getByText(/--type=pkg/i);
-    expect(macOSText).toBeInTheDocument();
-    expect(screen.queryByText(/--enable-scripts/i)).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("tab", { name: "Windows" }));
-    const windowsText = screen.getByText(/--type=msi/i);
-    expect(windowsText).toBeInTheDocument();
-    expect(screen.queryByText(/--enable-scripts/i)).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("tab", { name: "Linux" }));
-    const linuxRPMText = screen.getByText(/--type=rpm/i);
-    expect(linuxRPMText).toBeInTheDocument();
-    expect(screen.queryByText(/--enable-scripts/i)).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("tab", { name: "ChromeOS" }));
-    const extensionId = screen.getByDisplayValue(
-      /fleeedmmihkfkeemmipgmhhjemlljidg/i
-    );
-    expect(extensionId).toBeInTheDocument();
-    expect(screen.queryByText(/--enable-scripts/i)).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("tab", { name: "Advanced" }));
-    const advancedText = screen.getByText(/--type=YOUR_TYPE/i);
-    expect(advancedText).toBeInTheDocument();
-    expect(screen.queryByText(/--enable-scripts/i)).not.toBeInTheDocument();
-
-    await user.click(screen.getByText(/Plain osquery/i));
-    const downloadEnrollSecret = screen.getByText(
-      /Download your enroll secret/i
-    );
-    expect(downloadEnrollSecret).toBeInTheDocument();
-    const osquerydCommand = screen.getByDisplayValue(
-      /osqueryd --flagfile=flagfile.txt --verbose/i
-    );
-    expect(osquerydCommand).toBeInTheDocument();
-    expect(screen.queryByText(/--enable-scripts/i)).not.toBeInTheDocument();
   });
 });

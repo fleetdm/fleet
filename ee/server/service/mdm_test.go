@@ -658,8 +658,6 @@ func TestCancelHostMDMCommand(t *testing.T) {
 	}
 
 	t.Run("authorization", func(t *testing.T) {
-		// The selective-list gate admits gitops (which can send raw MDM
-		// commands via POST /commands/run); mdm_command write then decides.
 		cases := []struct {
 			desc              string
 			user              *fleet.User
@@ -669,7 +667,7 @@ func TestCancelHostMDMCommand(t *testing.T) {
 			{"observer", test.UserObserver, true},
 			{"observer+", test.UserObserverPlus, true},
 			{"technician", test.UserTechnician, true},
-			{"gitops", test.UserGitOps, false},
+			{"gitops", test.UserGitOps, true},
 			{"maintainer", test.UserMaintainer, false},
 			{"admin", test.UserAdmin, false},
 		}

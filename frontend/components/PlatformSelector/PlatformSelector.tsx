@@ -2,6 +2,7 @@ import classNames from "classnames";
 import React from "react";
 
 import CustomLink from "components/CustomLink";
+import CustomLinkSizeContext from "components/CustomLink/CustomLinkSizeContext";
 import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IPolicySoftwareToInstall } from "interfaces/policy";
@@ -22,6 +23,8 @@ interface IPlatformSelectorProps {
   disabled?: boolean;
   installSoftware?: IPolicySoftwareToInstall;
   currentTeamId?: number;
+  /** Replaces the "Target" label with a red validation message. */
+  error?: string | null;
 }
 
 export const PlatformSelector = ({
@@ -37,11 +40,13 @@ export const PlatformSelector = ({
   disabled = false,
   installSoftware,
   currentTeamId,
+  error,
 }: IPlatformSelectorProps): JSX.Element => {
   const baseClass = "platform-selector";
 
   const labelClasses = classNames("form-field__label", {
     [`form-field__label--disabled`]: disabled,
+    [`form-field__label--error`]: !!error,
   });
 
   const renderInstallSoftwareHelpText = () => {
@@ -60,29 +65,31 @@ export const PlatformSelector = ({
 
     return (
       <div className="form-field__help-text">
-        <span className={`${baseClass}__install-software`}>
-          <CustomLink text={softwareName} url={softwareLink} /> will only
-          install on{" "}
-          <TooltipWrapper
-            tipContent={
-              <>
-                To see targets, select{" "}
-                <b>{softwareName} &gt; Actions &gt; Edit</b>. Currently, hosts
-                that aren&apos;t targeted show an empty (---) policy status.
-              </>
-            }
-          >
-            targeted hosts
-          </TooltipWrapper>
-          .
-        </span>
+        <CustomLinkSizeContext.Provider value="small">
+          <span className={`${baseClass}__install-software`}>
+            <CustomLink text={softwareName} url={softwareLink} /> will only
+            install on{" "}
+            <TooltipWrapper
+              tipContent={
+                <>
+                  To see targets, select{" "}
+                  <b>{softwareName} &gt; Actions &gt; Edit</b>. Currently, hosts
+                  that aren&apos;t targeted show an empty (---) policy status.
+                </>
+              }
+            >
+              targeted hosts
+            </TooltipWrapper>
+            .
+          </span>
+        </CustomLinkSizeContext.Provider>
       </div>
     );
   };
 
   return (
     <div className={`${parentClass}__${baseClass} ${baseClass} form-field`}>
-      <span className={labelClasses}>Target</span>
+      <span className={labelClasses}>{error || "Target"}</span>
       <span className={`${baseClass}__checkboxes`}>
         <Checkbox
           value={checkDarwin}
