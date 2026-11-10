@@ -760,7 +760,7 @@ GitHub issues: [#53272](https://github.com/fleetdm/fleet/issues/53272), [#52795]
 
 #### What to do
 
-Fleet 4.96 already supports `setup_experience` and the new key names, so change them before you upgrade.
+Fleet 4.95 already supports `setup_experience` and the new key names, so change them before you upgrade.
 
 1. Rename `macos_setup` to `setup_experience` in your YAML files.
 2. Under `setup_experience`, rename the keys in the table above. To replace `script`, see [Setup experience script key removed](#setup-experience-script-key-removed).
