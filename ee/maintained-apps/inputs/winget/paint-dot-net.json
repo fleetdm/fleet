@@ -3,6 +3,7 @@
   "slug": "paint-dot-net/windows",
   "package_identifier": "dotPDN.PaintDotNet",
   "unique_identifier": "Paint.NET",
+  "open_process_names": ["paintdotnet.exe"],
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/paint_dot_net_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/paint_dot_net_uninstall.ps1",
   "installer_arch": "x64",
