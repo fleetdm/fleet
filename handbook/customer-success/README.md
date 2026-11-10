@@ -203,7 +203,7 @@ Submit a feature request to the CSA team for review following these steps:
     - What is the specific feature being requested?
     - Why is this impactful to the customer?
     - What priority is this issue to the customer?
-    - Any additional infromation that may be helpful for the CSA to understand your customer's request
+    - Any additional information that may be helpful for the CSA to understand your customer's request
 - Before pressing "Create", check the URL at the top of the submission box, and confirm you are submitting the issue to our confidential repo
 - Press the "Create" button to generate your request for a feature to the CSA team, who will then review and create the public FR for your customer
 
