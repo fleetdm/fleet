@@ -213,8 +213,6 @@ type NewQueryFunc func(ctx context.Context, p fleet.QueryPayload) (*fleet.Query,
 
 type ModifyQueryFunc func(ctx context.Context, id uint, p fleet.QueryPayload) (*fleet.Query, error)
 
-type DeleteQueryFunc func(ctx context.Context, teamID *uint, name string) error
-
 type DeleteQueryByIDFunc func(ctx context.Context, id uint) error
 
 type DeleteQueriesFunc func(ctx context.Context, ids []uint) (uint, error)
@@ -1343,9 +1341,6 @@ type Service struct {
 
 	ModifyQueryFunc        ModifyQueryFunc
 	ModifyQueryFuncInvoked bool
-
-	DeleteQueryFunc        DeleteQueryFunc
-	DeleteQueryFuncInvoked bool
 
 	DeleteQueryByIDFunc        DeleteQueryByIDFunc
 	DeleteQueryByIDFuncInvoked bool
@@ -3280,13 +3275,6 @@ func (s *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPayload
 	s.ModifyQueryFuncInvoked = true
 	s.mu.Unlock()
 	return s.ModifyQueryFunc(ctx, id, p)
-}
-
-func (s *Service) DeleteQuery(ctx context.Context, teamID *uint, name string) error {
-	s.mu.Lock()
-	s.DeleteQueryFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteQueryFunc(ctx, teamID, name)
 }
 
 func (s *Service) DeleteQueryByID(ctx context.Context, id uint) error {
