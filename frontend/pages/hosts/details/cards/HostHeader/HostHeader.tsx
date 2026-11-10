@@ -277,7 +277,7 @@ const HostHeader = ({
 
           <div className={`${baseClass}__last-fetched`}>
             {showRefetchSpinner
-              ? "Refetching... This may take a few minutes"
+              ? "Refetching... This may take a few minutes."
               : withTooltip(
                   <>
                     {"Last fetched"} {lastFetched}
