@@ -32,6 +32,10 @@ const wixDownload = "https://github.com/wixtoolset/wix3/releases/download/wix314
 // BuildMSI builds a Windows .msi.
 // Note: this function is not safe for concurrent use
 func BuildMSI(opt Options) (string, error) {
+	// fleetctl's default, so the update targets below and the file name agree.
+	if opt.Architecture == "" {
+		opt.Architecture = ArchAmd64
+	}
 	tmpDir, err := initializeTempDir()
 	if err != nil {
 		return "", err
@@ -235,13 +239,7 @@ func BuildMSI(opt Options) (string, error) {
 		return "", fmt.Errorf("build package: %w", err)
 	}
 
-	filename := "fleet-osquery.msi"
-	if opt.CustomOutfile != "" {
-		filename = opt.CustomOutfile
-	}
-	if opt.Architecture == ArchArm64 {
-		filename = "fleet-osquery-arm64.msi"
-	}
+	filename := msiFilename(opt)
 	if opt.NativeTooling {
 		filename = filepath.Join("build", filename)
 	}
@@ -251,6 +249,17 @@ func BuildMSI(opt Options) (string, error) {
 	log.Info().Str("path", filename).Msg("wrote msi package")
 
 	return filename, nil
+}
+
+func msiFilename(opt Options) string {
+	if opt.CustomOutfile != "" {
+		return opt.CustomOutfile
+	}
+	arch := opt.Architecture
+	if arch == "" {
+		arch = ArchAmd64
+	}
+	return outputFilename("windows", arch, "msi", opt)
 }
 
 func checkWine(wineChecked bool) error {

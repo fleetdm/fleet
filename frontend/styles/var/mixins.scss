@@ -78,15 +78,12 @@ $max-width: 2560px;
   &__list-item-actions {
     display: flex;
     justify-content: flex-end;
+    gap: $pad-medium;
   }
 
   &__list-item-button {
     width: 40px;
     height: 40px;
-  }
-
-  &__list-item-button:not(:last-child) {
-    margin-right: $pad-medium;
   }
 }
 
@@ -374,7 +371,7 @@ $max-width: 2560px;
 
     &:not(.is-open) {
       .Select-control:hover .Select-arrow {
-        content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
+        content: url("./assets/images/icon-chevron-blue-16x16@2x.png");
       }
     }
 

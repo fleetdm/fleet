@@ -82,7 +82,6 @@ type TestServerOpts struct {
 	StartCronSchedules              []TestNewScheduleFunc
 	UseMailService                  bool
 	APNSTopic                       string
-	ProfileMatcher                  fleet.ProfileMatcher
 	EnableCachedDS                  bool
 	NoCacheDatastore                bool
 	SoftwareInstallStore            fleet.SoftwareInstallerStore
@@ -95,6 +94,7 @@ type TestServerOpts struct {
 	FeatureRoutes                   []endpointer.HandlerRoutesFunc
 	SCEPConfigService               fleet.SCEPConfigService
 	DigiCertService                 fleet.DigiCertService
+	GoogleCASService                fleet.GoogleCASService
 	EnableSCIM                      bool
 	ConditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
 	HostIdentity                    *HostIdentity

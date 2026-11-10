@@ -6,8 +6,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/gorilla/mux"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -156,4 +158,29 @@ func TestCatalogBlocklist(t *testing.T) {
 		violations := findBlocklistViolations(ok)
 		require.Empty(t, violations, "expected these entries to pass: %v", violations)
 	})
+}
+
+// TestCatalogHasNoRemovedPaths fails when api_endpoints.yml offers a path that Fleet removed. Validate doesn't catch it, because a
+// removed path still has a route: the one that answers 410.
+func TestCatalogHasNoRemovedPaths(t *testing.T) {
+	loaded, err := loadAPIEndpoints()
+	require.NoError(t, err)
+	catalog := make(map[string]struct{}, len(loaded))
+	for _, e := range loaded {
+		catalog[e.Fingerprint()] = struct{}{}
+	}
+
+	allMethods := []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete}
+	removedPaths := removednames.Filter(removednames.KindPath, removednames.ScopeRequest)
+	require.NotEmpty(t, removedPaths)
+	for _, entry := range removedPaths {
+		methods := allMethods
+		if entry.Context != "" {
+			methods = []string{entry.Context}
+		}
+		for _, method := range methods {
+			_, listed := catalog[fleet.NewAPIEndpointFromTpl(method, entry.Old).Fingerprint()]
+			assert.False(t, listed, "api_endpoints.yml lists %s %s, which was removed", method, entry.Old)
+		}
+	}
 }

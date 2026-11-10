@@ -1,29 +1,48 @@
-# Tableau Desktop is a WiX Burn bundle. After install, the bundle EXE is cached
-# at C:\ProgramData\Package Cache\<bundle-guid>\tableau-setup-std-tableau-*.exe.
-# Running the cached bundle with /uninstall removes the product AND its ARP
-# registration in one shot. This avoids hunting the registry (per-machine vs
-# per-user hives, SYSTEM-context HKCU mismatch, etc.).
-#
-# Reference: https://silentinstallhq.com/tableau-desktop-2024-silent-uninstall-powershell/
+# Tableau Desktop is a per-machine WiX Burn bundle. Each release family
+# (2024.2, 2024.3, ...) has its own upgrade code and installs side by side, and
+# Fleet reports every "Tableau 20*" release as one title. Run each bundle's
+# cached copy recorded in its HKLM ARP entry (BundleCachePath) with /uninstall,
+# which removes the product and its ARP registration. The inner MSI's hidden ARP
+# entry has the same DisplayName but no BundleCachePath, so it is skipped.
+
+$arpPaths = @(
+    'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+    'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
+)
 
 try {
-    $bundle = Get-ChildItem -Path "$env:ProgramData\Package Cache" `
-        -Recurse -Filter 'tableau-setup-std-tableau*.exe' -ErrorAction SilentlyContinue |
-        Select-Object -First 1
+    $bundles = @(foreach ($arpPath in $arpPaths) {
+        Get-ItemProperty "$arpPath\*" -ErrorAction SilentlyContinue | Where-Object {
+            $_.DisplayName -like 'Tableau 20*' -and $_.BundleCachePath
+        }
+    })
 
-    if (-not $bundle) {
-        Write-Host "Tableau Desktop bundle not found in Package Cache."
+    if ($bundles.Count -eq 0) {
+        Write-Host "Tableau Desktop bundle not found in the uninstall registry."
         Exit 1
     }
 
-    Write-Host "Uninstalling: $($bundle.FullName)"
-    $p = Start-Process -FilePath $bundle.FullName `
-        -ArgumentList '/uninstall', '/quiet', '/norestart' `
-        -PassThru -Wait
-    $exitCode = $p.ExitCode
-    Write-Host "Uninstall exit code: $exitCode"
+    # A release that can't be removed (including one whose cached bundle is gone)
+    # fails the uninstall, but the remaining releases are still removed.
+    $exitCode = 0
+    foreach ($bundle in $bundles) {
+        $bundlePath = $bundle.BundleCachePath
+        try {
+            if (-not (Test-Path -LiteralPath $bundlePath)) {
+                throw "cached bundle not found: $bundlePath"
+            }
+            Write-Host "Uninstalling: $bundlePath"
+            $p = Start-Process -FilePath $bundlePath `
+                -ArgumentList '/uninstall', '/quiet', '/norestart' `
+                -PassThru -Wait
+            Write-Host "Uninstall exit code: $($p.ExitCode)"
+            if ($p.ExitCode -notin 0, 3010, 1641) { $exitCode = $p.ExitCode }
+        } catch {
+            Write-Host "Failed to uninstall $($bundle.DisplayName): $_"
+            $exitCode = 1
+        }
+    }
 
-    if ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }
     Exit $exitCode
 
 } catch {

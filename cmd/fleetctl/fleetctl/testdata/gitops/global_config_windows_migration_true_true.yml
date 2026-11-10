@@ -14,8 +14,8 @@ controls:
   macos_updates:
     deadline: null
     minimum_version: null
-  windows_enabled_and_configured: true
-  windows_migration_enabled: true
+  windows_mdm_enabled: true
+  windows_mdm_migration_enabled: true
   enable_turn_on_windows_mdm_manually: false
   apple_require_hardware_attestation: false
   only_allow_apple_business_enrollment: false

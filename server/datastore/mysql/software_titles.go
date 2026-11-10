@@ -134,6 +134,13 @@ GROUP BY
 		title.DisplayName = displayName
 	}
 
+	aiToolTitles, err := ds.aiToolTitleIDs(ctx, ds.reader(ctx), []uint{id})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get ai tool software title")
+	}
+	_, isAITool := aiToolTitles[id]
+	title.AITool = new(isAITool)
+
 	title.VersionsCount = uint(len(title.Versions))
 
 	return &title, nil
@@ -474,6 +481,22 @@ func (ds *Datastore) processSoftwareTitleResults(
 		titleIndex[title.ID] = i
 	}
 
+	if opt.AITool {
+		// The filter already excluded every title that isn't an AI tool.
+		for _, title := range softwareList {
+			title.AITool = new(true)
+		}
+	} else {
+		aiToolTitles, err := ds.aiToolTitleIDs(ctx, dbReader, titleIDs)
+		if err != nil {
+			return nil, 0, nil, ctxerr.Wrap(ctx, err, "get ai tool software titles")
+		}
+		for _, title := range softwareList {
+			_, ok := aiToolTitles[title.ID]
+			title.AITool = new(ok)
+		}
+	}
+
 	// Fetch automatic install policies, icons, and display names for team-scoped queries.
 	// Skip for "All teams" because automatic install policies are set on teams/No-team,
 	// and icons/display names also require a team id.
@@ -535,11 +558,14 @@ func (ds *Datastore) processSoftwareTitleResults(
 		// always carry a non-nil InstallerID; VPP-backed policies do not
 		// (they're already attached above via softwareList[i].AppStoreApp).
 		policiesByInstaller := make(map[uint][]fleet.AutomaticInstallPolicy)
+		policiesByVersionID := make(map[uint][]fleet.AutomaticInstallPolicy)
 		for _, p := range policies {
-			if p.InstallerID == nil {
-				continue
+			if p.InstallerID != nil {
+				policiesByInstaller[*p.InstallerID] = append(policiesByInstaller[*p.InstallerID], p)
 			}
-			policiesByInstaller[*p.InstallerID] = append(policiesByInstaller[*p.InstallerID], p)
+			if p.VPPAppsTeamsID != nil {
+				policiesByVersionID[*p.VPPAppsTeamsID] = append(policiesByVersionID[*p.VPPAppsTeamsID], p)
+			}
 		}
 		for titleID, pkgs := range packagesByTitle {
 			i, ok := titleIndex[titleID]
@@ -550,6 +576,33 @@ func (ds *Datastore) processSoftwareTitleResults(
 				pkgs[j].AutomaticInstallPolicies = policiesByInstaller[pkgs[j].InstallerID]
 			}
 			softwareList[i].Packages = pkgs
+		}
+
+		var appStoreAppTitleIDs []uint
+		for _, title := range softwareList {
+			if title.AppStoreApp != nil {
+				appStoreAppTitleIDs = append(appStoreAppTitleIDs, title.ID)
+			}
+		}
+		appStoreApps, err := ds.getAppStoreAppVersionsForTitles(ctx, opt.TeamID, appStoreAppTitleIDs)
+		if err != nil {
+			return nil, 0, nil, ctxerr.Wrap(ctx, err, "get app store apps for software titles")
+		}
+		for _, appStoreApp := range appStoreApps {
+			title := softwareList[titleIndex[appStoreApp.TitleID]]
+			listItem := fleet.AppStoreAppListItem{
+				ID:                       appStoreApp.VPPAppsTeamsID,
+				Name:                     appStoreApp.VersionName,
+				AppStoreID:               appStoreApp.AdamID,
+				Platform:                 appStoreApp.Platform,
+				Version:                  appStoreApp.LatestVersion,
+				SelfService:              appStoreApp.SelfService,
+				AutomaticInstallPolicies: policiesByVersionID[appStoreApp.VPPAppsTeamsID],
+			}
+			if opt.ForSetupExperience {
+				listItem.InstallDuringSetup = appStoreApp.InstallDuringSetup
+			}
+			title.AppStoreApps = append(title.AppStoreApps, listItem)
 		}
 	}
 
@@ -834,6 +887,9 @@ WHERE
 		{{with $typeFilter := typeFilter}}
 		  {{$additionalWhere = printf "%s AND %s" $additionalWhere $typeFilter}}
 		{{end}}
+		{{if $.AITool}}
+		  {{$additionalWhere = printf "%s AND %s" $additionalWhere aiToolFilter}}
+		{{end}}
 		{{$additionalWhere}}
 	{{end}}
 	-- If teamID is set, defaults to "a software installer, in-house app or VPP app exists", and see next condition.
@@ -937,7 +993,8 @@ GROUP BY
 	args = append(args, typeFilterArgs...)
 
 	t, err := template.New("stm").Funcs(map[string]any{
-		"typeFilter": func() string { return typeFilterSQL },
+		"typeFilter":   func() string { return typeFilterSQL },
+		"aiToolFilter": func() string { return aiToolTitleFilterSQL("st.id") },
 		"yesNo": func(b bool, yes string, no string) string {
 			if b {
 				return yes
@@ -1158,19 +1215,39 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) (s
 //	                -> Covering index scan on st using idx_sw_titles  (rows=200000)
 //	            -> Single-row index lookup on sthc using PRIMARY      (loops=19897)
 //
+// The AI tool filter is appended to both arms. MySQL drives that semi-join from the flagged rows of
+// idx_software_ai_tool_title_id and joins them to the host counts by primary key, so the list and the
+// count cost about the number of AI tools rather than the number of titles. EXPLAIN ANALYZE of the
+// all-fleets list with ai_tool=true, page 5, on 200k titles (750 AI titles):
+//
+//	-> Limit/Offset: 21/100 row(s)
+//	    -> Sort: sthc.hosts_count DESC, sthc.software_title_id DESC, limit input to 121 row(s) per chunk
+//	        -> Nested loop inner join                                                                  (rows=750)
+//	            -> Remove duplicates from input sorted on idx_software_ai_tool_title_id                 (rows=750)
+//	                -> Covering index lookup on sai using idx_software_ai_tool_title_id (ai_tool=1)    (rows=1023)
+//	            -> Single-row index lookup on sthc using PRIMARY                                        (loops=750)
+//
 // args cover the host counts arm, plus the installer-only arm when a team is set.
 func optimizedTitlesTypeFilterSQL(opts fleet.SoftwareTitleListOptions) (hostCounts, installerOnly string, args []any) {
-	filterSQL, filterArgs := softwareTypeFilterSQL(opts.TypeFilter, "st")
-	if filterSQL == "" {
-		return "", "", nil
+	if filterSQL, filterArgs := softwareTypeFilterSQL(opts.TypeFilter, "st"); filterSQL != "" {
+		hostCounts = " AND EXISTS (SELECT 1 FROM software_titles st WHERE st.id = sthc.software_title_id AND " + filterSQL + ")"
+		installerOnly = " AND EXISTS (SELECT 1 FROM software_titles st WHERE st.id = t.title_id AND " + filterSQL + ")"
+		args = filterArgs
+		if opts.TeamID != nil {
+			args = slices.Concat(filterArgs, filterArgs)
+		}
 	}
-	hostCounts = " AND EXISTS (SELECT 1 FROM software_titles st WHERE st.id = sthc.software_title_id AND " + filterSQL + ")"
-	installerOnly = " AND EXISTS (SELECT 1 FROM software_titles st WHERE st.id = t.title_id AND " + filterSQL + ")"
-	args = filterArgs
-	if opts.TeamID != nil {
-		args = slices.Concat(filterArgs, filterArgs)
+	if opts.AITool {
+		hostCounts += " AND " + aiToolTitleFilterSQL("sthc.software_title_id")
+		installerOnly += " AND " + aiToolTitleFilterSQL("t.title_id")
 	}
 	return hostCounts, installerOnly, args
+}
+
+// aiToolTitleFilterSQL is a predicate matching titles, identified by titleIDColumn, that have at
+// least one software row flagged as an AI tool.
+func aiToolTitleFilterSQL(titleIDColumn string) string {
+	return "EXISTS (SELECT 1 FROM software sai WHERE sai.title_id = " + titleIDColumn + " AND sai.ai_tool = 1)"
 }
 
 // countSoftwareTitlesOptimized builds a dedicated count query that avoids the expensive
@@ -1517,44 +1594,6 @@ func (ds *Datastore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time
 		}
 		return nil
 	})
-}
-
-func (ds *Datastore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error {
-	// Validate schedule if enabled.
-	if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled {
-		schedule := fleet.SoftwareAutoUpdateSchedule{
-			SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
-				AutoUpdateEnabled:   config.AutoUpdateEnabled,
-				AutoUpdateStartTime: config.AutoUpdateStartTime,
-				AutoUpdateEndTime:   config.AutoUpdateEndTime,
-			},
-		}
-		if err := schedule.WindowIsValid(); err != nil {
-			return ctxerr.Wrap(ctx, err, "validating auto-update schedule")
-		}
-	}
-	var startTime, endTime string
-	if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled && config.AutoUpdateStartTime != nil {
-		startTime = *config.AutoUpdateStartTime
-	}
-	if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled && config.AutoUpdateEndTime != nil {
-		endTime = *config.AutoUpdateEndTime
-	}
-
-	stmt := `
-UPDATE vpp_apps_teams vat
-JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
-SET
-	vat.update_schedule_enabled = ?,
-	vat.start_time = IF(? = '', vat.start_time, ?),
-	vat.end_time = IF(? = '', vat.end_time, ?)
-WHERE va.title_id = ? AND vat.global_or_team_id = ?
-`
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, config.AutoUpdateEnabled, startTime, startTime, endTime, endTime, titleID, teamID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "updating software title auto update config")
-	}
-	return nil
 }
 
 func (ds *Datastore) ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {

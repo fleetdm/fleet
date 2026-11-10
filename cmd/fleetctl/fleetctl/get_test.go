@@ -147,19 +147,13 @@ spec:
     admin1@example.com:
       global_role: admin
       fleets: null
-      teams: null
     admin2@example.com:
       global_role: null
       fleets:
       - role: maintainer
         fleet: team1
-        team: team1
-      teams:
-      - role: maintainer
-        fleet: team1
-        team: team1
 `
-	expectedJson := `{"kind":"user_roles","apiVersion":"v1","spec":{"roles":{"admin1@example.com":{"global_role":"admin","fleets":null,"teams":null},"admin2@example.com":{"global_role":null,"fleets":[{"fleet":"team1","role":"maintainer","team":"team1"}],"teams":[{"fleet":"team1","role":"maintainer","team":"team1"}]}}}}
+	expectedJson := `{"kind":"user_roles","apiVersion":"v1","spec":{"roles":{"admin1@example.com":{"global_role":"admin","fleets":null},"admin2@example.com":{"global_role":null,"fleets":[{"fleet":"team1","role":"maintainer"}]}}}}
 `
 
 	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "user_roles"}))
@@ -392,9 +386,9 @@ func TestGetTeamsSoftwareFromSourceOfTruth(t *testing.T) {
 		require.NotNil(t, opt.TeamID)
 		require.EqualValues(t, 1, *opt.TeamID)
 		return []fleet.SoftwareTitleListResult{
-			{ID: 10, Name: "VPPApp", AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: "123", Platform: "darwin"}},
+			{ID: 10, Name: "VPPApp", AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "123", Platform: fleet.MacOSPlatform}}},
 			{ID: 20, Name: "Pkg", SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "pkg.pkg", PackageURL: new("https://example.com/pkg.pkg")}},
-			{ID: 30, Name: "VersionsApp", AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: "456", Platform: "ios"}},
+			{ID: 30, Name: "VersionsApp", AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "456", Platform: fleet.IOSPlatform}}},
 		}, 3, &fleet.PaginationMetadata{}, nil
 	}
 
@@ -419,16 +413,17 @@ func TestGetTeamsSoftwareFromSourceOfTruth(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.GetSummaryHostVPPAppInstallsFunc = func(ctx context.Context, vppAppTeamID uint) (*fleet.VPPAppStatusSummary, error) {
-		return &fleet.VPPAppStatusSummary{}, nil
+	ds.GetSummaryHostVPPAppInstallsFunc = func(ctx context.Context, versions []*fleet.VPPAppStoreApp) (map[uint]*fleet.VPPAppStatusSummary, error) {
+		return map[uint]*fleet.VPPAppStatusSummary{1: {}}, nil
 	}
 
 	// The VPP app is part of the setup experience; this is the source of truth
 	// for the setup_experience flag, not the team config.
 	ds.ListSetupExperienceSoftwareTitlesFunc = func(ctx context.Context, platform string, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
 		return []fleet.SoftwareTitleListResult{
-			{ID: 10, AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: "123", Platform: "darwin", InstallDuringSetup: new(true)}},
-		}, 1, &fleet.PaginationMetadata{}, nil
+			{ID: 10, AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "123", Platform: fleet.MacOSPlatform, InstallDuringSetup: new(true)}}},
+			{ID: 30, AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "456", Platform: fleet.IOSPlatform, InstallDuringSetup: new(true)}}},
+		}, 2, &fleet.PaginationMetadata{}, nil
 	}
 
 	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
@@ -437,10 +432,12 @@ func TestGetTeamsSoftwareFromSourceOfTruth(t *testing.T) {
 			return &fleet.SoftwareTitle{
 				ID:   10,
 				Name: "VPPApp",
-				AppStoreApp: &fleet.VPPAppStoreApp{
-					VPPAppID:    fleet.VPPAppID{AdamID: "123", Platform: "darwin"},
+				AppStoreApps: []fleet.AppStoreAppVersion{{
+					Name:        fleet.DefaultAppStoreAppVersionName,
+					AppStoreID:  "123",
+					Platform:    fleet.MacOSPlatform,
 					SelfService: true,
-				},
+				}},
 			}, nil
 		case 20:
 			return &fleet.SoftwareTitle{
@@ -475,6 +472,9 @@ func TestGetTeamsSoftwareFromSourceOfTruth(t *testing.T) {
 	require.Contains(t, out, "name: Test")
 	require.Contains(t, out, "labels_exclude_any:\n          - IT team")
 	require.Contains(t, out, "labels_include_any:\n          - IT team")
+	// count setup_experience in the output, the macOS app and the iOS app with two versions should both have it
+	setupExperienceCount := strings.Count(out, "setup_experience: true")
+	require.Equal(t, 2, setupExperienceCount)
 
 	require.True(t, ds.ListSoftwareTitlesFuncInvoked)
 	require.True(t, ds.ListSetupExperienceSoftwareTitlesFuncInvoked)
@@ -528,23 +528,26 @@ func TestGetHosts(t *testing.T) {
 	}
 
 	// these are run when host is specified `fleetctl get hosts --json test_host`
-	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+	testHost := &fleet.Host{
+		CreatedAt:       time.Time{},
+		UpdatedAt:       time.Time{},
+		Software:        []fleet.HostSoftwareEntry{},
+		DetailUpdatedAt: time.Time{},
+		LabelUpdatedAt:  time.Time{},
+		LastEnrolledAt:  time.Time{},
+		SeenTime:        time.Time{},
+		ComputerName:    "test_host",
+		Hostname:        "test_host",
+	}
+	ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
 		require.NotEmpty(t, identifier)
-		return &fleet.Host{
-			UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
-				CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Time{}},
-				UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Time{}},
-			},
-			HostSoftware: fleet.HostSoftware{
-				Software: []fleet.HostSoftwareEntry{},
-			},
-			DetailUpdatedAt: time.Time{},
-			LabelUpdatedAt:  time.Time{},
-			LastEnrolledAt:  time.Time{},
-			SeenTime:        time.Time{},
-			ComputerName:    "test_host",
-			Hostname:        "test_host",
-		}, nil
+		return &fleet.HostLite{ID: testHost.ID}, nil
+	}
+	ds.HostFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+		return testHost, nil
+	}
+	ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostID uint) (time.Time, error) {
+		return time.Now(), nil
 	}
 
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
@@ -1057,6 +1060,7 @@ apiVersion: "1"
 kind: software_title
 spec:
 - app_store_app: null
+  app_store_apps: null
   hosts_count: 2
   icon_url: null
   id: 0
@@ -1083,6 +1087,7 @@ spec:
     - cve-123-456-003
   versions_count: 3
 - app_store_app: null
+  app_store_apps: null
   hosts_count: 0
   icon_url: null
   id: 0
@@ -1141,7 +1146,8 @@ spec:
       ],
       "software_package": null,
       "packages": null,
-      "app_store_app": null
+      "app_store_app": null,
+      "app_store_apps": null
     },
     {
       "id": 0,
@@ -1162,7 +1168,8 @@ spec:
       ],
       "software_package": null,
       "packages": null,
-      "app_store_app": null
+      "app_store_app": null,
+      "app_store_apps": null
     }
   ]
 }
@@ -2616,8 +2623,8 @@ func TestGetAppleBM(t *testing.T) {
 	t.Run("free license", func(t *testing.T) {
 		testing_utils.RunServerWithMockedDS(t)
 
-		expected := `could not get Apple Business information: missing or invalid license`
-		_, err := runAppNoChecks([]string{"get", "mdm_apple_bm"})
+		expected := `could not list AB tokens: missing or invalid license`
+		_, err := runAppNoChecks([]string{"get", "mdm-ab"})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), expected)
 	})
@@ -2631,12 +2638,11 @@ func TestGetAppleBM(t *testing.T) {
 			}, nil
 		}
 
-		out := runAppForTest(t, []string{"get", "mdm_apple_bm"})
+		out := runAppForTest(t, []string{"get", "mdm-ab"})
 		assert.Contains(t, out, "Apple ID:")
 		assert.Contains(t, out, "Organization name:")
 		assert.Contains(t, out, "MDM server URL:")
 		assert.Contains(t, out, "Renew date:")
-		assert.Contains(t, out, "Default fleet:")
 	})
 
 	t.Run("premium license, no token", func(t *testing.T) {
@@ -2646,22 +2652,8 @@ func TestGetAppleBM(t *testing.T) {
 			return nil, nil
 		}
 
-		out := runAppForTest(t, []string{"get", "mdm_apple_bm"})
+		out := runAppForTest(t, []string{"get", "mdm-ab"})
 		assert.Contains(t, out, "No Apple Business (AB) server token found.")
-	})
-
-	t.Run("premium license, multiple tokens", func(t *testing.T) {
-		_, ds := testing_utils.RunServerWithMockedDS(t,
-			&service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, DEPStorage: depStorage})
-		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
-			return []*fleet.ABMToken{
-				{ID: 1},
-				{ID: 2},
-			}, nil
-		}
-
-		_, err := runAppNoChecks([]string{"get", "mdm_apple_bm"})
-		assert.ErrorContains(t, err, "This API endpoint has been deprecated. Please use the new GET /ab_tokens API endpoint")
 	})
 }
 
@@ -2857,6 +2849,9 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 			return team2, nil
 		}
 		return nil, fmt.Errorf("team not found: %s", name)
+	}
+	ds.GetMDMProfileChecksumsFunc = func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+		return &fleet.MDMProfileChecksums{}, nil
 	}
 	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
 		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
@@ -4148,4 +4143,42 @@ func TestFormatCommandOutput(t *testing.T) {
 		require.NoError(t, json.Unmarshal(got, &after))
 		require.Equal(t, before, after)
 	})
+}
+
+func TestGetSoftwareVersionsTruncated(t *testing.T) {
+	_, ds := testing_utils.RunServerWithMockedDS(t)
+
+	listed := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "apps"},
+		{Name: "foo", Version: "0.0.2", Source: "apps"},
+	}
+	total := len(listed)
+	ds.ListSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, *fleet.PaginationMetadata, error) {
+		return listed, &fleet.PaginationMetadata{HasNextResults: total > len(listed)}, nil
+	}
+	ds.CountSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {
+		return total, nil
+	}
+
+	var stderr bytes.Buffer
+	out, err := runWithErrWriter([]string{"get", "software", "--versions"}, &stderr)
+	require.NoError(t, err)
+	require.Contains(t, out.String(), "0.0.2")
+	require.Empty(t, stderr.String())
+
+	total = 12345
+	for _, args := range [][]string{
+		{"get", "software", "--versions"},
+		{"get", "software", "--versions", "--json"},
+		{"get", "software", "--versions", "--yaml"},
+	} {
+		stderr.Reset()
+		out, err := runWithErrWriter(args, &stderr)
+		require.NoError(t, err)
+		require.Contains(t, out.String(), "0.0.2")
+		// On stderr only, so --json and --yaml output stays parseable.
+		require.NotContains(t, out.String(), "Showing")
+		require.Contains(t, stderr.String(), "Showing 2 of 12345 software versions")
+		require.Contains(t, stderr.String(), "per_page")
+	}
 }

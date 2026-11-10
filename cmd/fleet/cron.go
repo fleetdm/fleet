@@ -39,6 +39,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
+	"github.com/fleetdm/fleet/v4/server/service/redis_install_attempts"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	androidvuln "github.com/fleetdm/fleet/v4/server/vulnerabilities/android"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/customcve"
@@ -1133,7 +1134,6 @@ func newWorkerIntegrationsSchedule(
 	chartSvc chart_api.Service,
 	androidBatchSize int,
 	newActivitySvc activity_api.NewActivityService,
-	vppInstaller fleet.AppleMDMVPPInstaller,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronWorkerIntegrations)
@@ -1198,7 +1198,6 @@ func newWorkerIntegrationsSchedule(
 		Log:              logger,
 		AndroidModule:    androidModule,
 		AndroidBatchSize: androidBatchSize,
-		VPPInstaller:     vppInstaller,
 	}
 	chartScrubGlobal := &worker.ChartScrubGlobal{
 		ChartService: chartSvc,
@@ -1498,6 +1497,12 @@ func newCleanupsAndAggregationSchedule(
 			func(ctx context.Context) error {
 				_, err := ds.CleanupHostOneTimeEnrollSecrets(ctx)
 				return err
+			},
+		),
+		schedule.WithJob(
+			"cleanup_orphaned_query_stats",
+			func(ctx context.Context) error {
+				return ds.DeleteOrphanedQueryStats(ctx)
 			},
 		),
 		// Run aggregation jobs after cleanups.
@@ -2293,6 +2298,7 @@ func newAndroidMDMProfileManagerSchedule(
 	licenseKey string,
 	androidAgentConfig config.AndroidAgentConfig,
 	batchSize int,
+	redisPool fleet.RedisPool,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronMDMAndroidProfileManager)
@@ -2300,11 +2306,12 @@ func newAndroidMDMProfileManagerSchedule(
 	)
 
 	logger = logger.With("cron", name)
+	retryCounter := redis_install_attempts.New(redisPool, redis_install_attempts.AppStoreAppPrefix)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_android_profiles", func(ctx context.Context) error {
-			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey, androidAgentConfig, batchSize)
+			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey, androidAgentConfig, batchSize, retryCounter)
 		}),
 	)
 
@@ -2630,6 +2637,7 @@ func newIPhoneIPadRefetcher(
 	commander *apple_mdm.MDMAppleCommander,
 	logger *slog.Logger,
 	newActivityFn apple_mdm.NewActivityFunc,
+	batchSize int,
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMIPhoneIPadRefetcher)
 	logger = logger.With("cron", name, "component", "iphone-ipad-refetcher")
@@ -2637,7 +2645,7 @@ func newIPhoneIPadRefetcher(
 		ctx, name, instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
-			return apple_mdm.IOSiPadOSRefetch(ctx, ds, commander, logger, newActivityFn)
+			return apple_mdm.IOSiPadOSRefetch(ctx, ds, commander, logger, newActivityFn, batchSize)
 		}),
 	)
 
@@ -3095,6 +3103,36 @@ func cronMigrateToPerHostPolicy(
 	return s, nil
 }
 
+// newReencryptWindowsDiskEncryptionKeysSchedule moves legacy Windows recovery keys, encrypted to the WSTEP certificate
+// by older releases, onto the server private key. It is an online migration: the first run starts ten minutes after
+// startup, once the agents that were waiting for the server have checked in, and runs hourly from then on. It is not
+// run-once because customers upgrade from any version, so legacy rows can appear at any upgrade; a run that finds
+// none costs one index probe.
+func newReencryptWindowsDiskEncryptionKeysSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	config *config.FleetConfig,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronReencryptWindowsDiskEncryptionKeys)
+		defaultInterval = 1 * time.Hour
+		priorJobDiff    = -(defaultInterval - 10*time.Minute)
+	)
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		// ensures it runs ten minutes after Fleet is started
+		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
+		schedule.WithJob(name, func(ctx context.Context) error {
+			return service.ReencryptWSTEPDiskEncryptionKeys(ctx, logger, ds, config)
+		}),
+	)
+	return s, nil
+}
+
 func newRecoveryLockPasswordSchedule(
 	ctx context.Context,
 	instanceID string,
@@ -3229,6 +3267,35 @@ func newAppleMDMOSUpdatesSchedule(
 		schedule.WithLogger(logger),
 		schedule.WithJob("apple_mdm_os_updates", func(ctx context.Context) error {
 			return apple_mdm.HandleAppleMDMOSUpdates(ctx, ds, logger)
+		}),
+	)
+
+	return s, nil
+}
+
+func newAppStoreAppConfigurationReconcilerSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	vppInstaller fleet.AppleMDMVPPInstaller,
+	redisPool fleet.RedisPool,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronAppStoreAppConfigurationReconciler)
+		defaultInterval = 1 * time.Minute
+		maxRunTime      = 5 * time.Minute
+	)
+
+	logger = logger.With("cron", name)
+	retryCounter := redis_install_attempts.New(redisPool, redis_install_attempts.AppStoreAppPrefix)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("reconcile_apple_app_store_app_configurations", func(ctx context.Context) error {
+			workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
+			defer cancel()
+			return eeservice.ReconcileAppStoreAppConfigurations(workCtx, ds, vppInstaller, retryCounter, logger)
 		}),
 	)
 

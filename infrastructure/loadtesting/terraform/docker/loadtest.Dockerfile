@@ -1,4 +1,4 @@
-FROM golang:1.27.2-alpine3.23@sha256:2ac5c2a64f1f970b5120fe21c6a5e3d9190b196a9ead95797564738ecd07a8a2
+FROM golang:1.27.3-alpine3.23@sha256:895e5feab11a4b3774d24ee3c9579028456b82ad37f42a9eb6f82adaf776a201
 ARG TAG
 RUN apk add git sqlite gcc musl-dev sqlite-dev
 RUN git clone -b $TAG --depth=1 --no-tags --progress --no-recurse-submodules https://github.com/fleetdm/fleet.git
@@ -24,7 +24,7 @@ RUN cd /go/fleet/cmd/osquery-perf/software-library && \
     sqlite3 software.db "SELECT COUNT(*) FROM software;" && \
     echo "Successfully generated software.db ($(du -h software.db | cut -f1))"
 
-FROM alpine:3.23.4@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11
+FROM alpine:3.23.8@sha256:5c216c9767869f6ec7c4718977601d52f087c5c7bf2fdfb198e403f6b48ec40d
 LABEL maintainer="Fleet Developers"
 
 # Create FleetDM group and user

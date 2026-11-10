@@ -89,7 +89,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationEnterpriseTestSuite")
 
 	s.redisPool = redistest.SetupRedis(s.T(), s.T().Name(), false, false, false)
-	s.attemptCounter = redis_install_attempts.NewTest(s.T(), s.redisPool)
+	s.attemptCounter = redis_install_attempts.NewTest(s.T(), s.redisPool, redis_install_attempts.SoftwareInstallerPrefix)
 	s.lq = live_query_mock.New(s.T())
 	var calendarSchedule *schedule.Schedule
 
@@ -111,6 +111,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 	fleetCfg := config.TestConfig()
 	fleetCfg.MDM.WindowsWSTEPIdentityCert = "testdata/server.pem"
 	fleetCfg.MDM.WindowsWSTEPIdentityKey = "testdata/server.key"
+	fleetCfg.MicrosoftCompliancePartner.ClientID = testEntraClientID
 
 	config := TestServerOpts{
 		License: &fleet.LicenseInfo{

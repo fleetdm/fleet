@@ -62,10 +62,19 @@ jobs:
         all_migrations=($(ls server/datastore/mysql/migrations/tables/20*_*.go | sort -r | grep -v '_test.go'))
         new_migrations=($(git diff --find-renames --name-only --diff-filter=A $base_ref -- server/datastore/mysql/migrations/tables/20\*_\*.go ':(exclude,glob)server/datastore/mysql/migrations/tables/20*_*_test.go' | sort -r))
 
+        # The Fleet 5 baseline must sort before every Fleet 5 migration, so it is
+        # exempt from the ordering check (but not from the retry check below).
+        baseline=server/datastore/mysql/migrations/tables/20261103120000_Fleet5Baseline.go
+        ordered_all=($(printf '%s\n' "${all_migrations[@]}" | grep -vxF "$baseline"))
+        ordered_new=($(printf '%s\n' "${new_migrations[@]:-}" | grep -vxF "$baseline" || true))
+
         index=0
-        for migration in "${new_migrations[@]}"; do
-          if [ "$migration" != "${all_migrations[$index]}" ]; then
-            echo "❌ fail: $migration has an older timestamp than ${all_migrations[$index]}"
+        for migration in "${ordered_new[@]:-}"; do
+          if [ -z "$migration" ]; then
+            continue
+          fi
+          if [ "$migration" != "${ordered_all[$index]}" ]; then
+            echo "❌ fail: $migration has an older timestamp than ${ordered_all[$index]}"
             echo "this might cause problems if this change is merged"
             echo "please update the timestamp of $migration"
             exit 1

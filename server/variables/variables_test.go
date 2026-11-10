@@ -206,3 +206,22 @@ func TestPythonEscape(t *testing.T) {
 		})
 	}
 }
+
+func TestSecretRegex(t *testing.T) {
+	cases := []struct {
+		in   string
+		want []string
+	}{
+		{in: "$FLEET_SECRET_X", want: []string{"$FLEET_SECRET_X"}},
+		{in: "${FLEET_SECRET_X}", want: []string{"${FLEET_SECRET_X}"}},
+		{in: "pre$FLEET_SECRET_A-${FLEET_SECRET_B}post", want: []string{"$FLEET_SECRET_A", "${FLEET_SECRET_B}"}},
+		{in: "$FLEET_VAR_X"},
+		{in: "${FLEET_SECRET_}"},
+		{in: "FLEET_SECRET_X"},
+	}
+	for _, c := range cases {
+		t.Run(c.in, func(t *testing.T) {
+			assert.Equal(t, c.want, SecretRegex.FindAllString(c.in, -1))
+		})
+	}
+}

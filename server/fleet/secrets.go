@@ -34,7 +34,7 @@ const (
 	// HostSecretPSSODeviceRegistrationToken is the host secret type for the Apple
 	// Platform SSO device registration token. The token is not stored: it is a
 	// Fleet-signed JWT minted on the fly for the requesting host at command
-	// delivery time, so it never appears in the database or on /mdm/commands.
+	// delivery time, so it never appears in the database or on /commands.
 	HostSecretPSSODeviceRegistrationToken = "PSSO_DEVICE_REGISTRATION_TOKEN" // nolint:gosec // G101: this is a constant identifier, not a credential
 
 	// HostSecretEnrollSecret is the host secret type for the per-device,
@@ -72,6 +72,23 @@ func ValidateNoHostSecretVariables(document string) error {
 	return &BadRequestError{Message: fmt.Sprintf("Variable %s is reserved for profiles managed by Fleet and can't be used.", HostSecretPlaceholder(vars[0]))}
 }
 
+// ValidateNoHostSecretVariablesAdded rejects $FLEET_HOST_SECRET_* placeholders in expanded beyond those in original,
+// counting each occurrence. Custom variables are expanded before host secrets at delivery, so one whose value is a
+// host-secret placeholder would otherwise be expanded like the placeholders Fleet writes.
+func ValidateNoHostSecretVariablesAdded(original, expanded string) error {
+	written := make(map[string]int)
+	for _, v := range ContainsPrefixVars(original, HostSecretPrefix) {
+		written[v]++
+	}
+	for _, v := range ContainsPrefixVars(expanded, HostSecretPrefix) {
+		if written[v] == 0 {
+			return fmt.Errorf("variable %s comes from a custom variable and can't be used", HostSecretPlaceholder(v))
+		}
+		written[v]--
+	}
+	return nil
+}
+
 type MissingSecretsError struct {
 	MissingSecrets []string
 }
@@ -91,7 +108,17 @@ func (e MissingSecretsError) Error() string {
 // IsMissingSecretsError reports whether err is (or wraps) a MissingSecretsError,
 // i.e. a reference to a secret variable that doesn't exist.
 func IsMissingSecretsError(err error) bool {
-	var valErr MissingSecretsError
-	var ptrErr *MissingSecretsError
-	return errors.As(err, &valErr) || errors.As(err, &ptrErr)
+	_, ok := MissingSecretNames(err)
+	return ok
+}
+
+// MissingSecretNames returns the names a MissingSecretsError in err reports, as a value or a pointer.
+func MissingSecretNames(err error) ([]string, bool) {
+	if valErr, ok := errors.AsType[MissingSecretsError](err); ok {
+		return valErr.MissingSecrets, true
+	}
+	if ptrErr, ok := errors.AsType[*MissingSecretsError](err); ok {
+		return ptrErr.MissingSecrets, true
+	}
+	return nil, false
 }

@@ -19,7 +19,7 @@ parasails.registerPage('configuration-generator', {
     formErrors: { /* … */ },
     // Form rules
     formRules: {
-      naturalLanguageInstructions: {required: true},
+      naturalLanguageInstructions: {required: true, maxLength: 2000},
       profileType: {required: true},
     },
     // Syncing / loading state
@@ -71,13 +71,12 @@ parasails.registerPage('configuration-generator', {
       io.socket.request({
         method: 'post',
         url: '/api/v1/get-llm-generated-configuration-profile',
+        // Unlike Cloud.*() calls, a socket request does not send the CSRF token on its own.
+        headers: { 'x-csrf-token': SAILS_LOCALS._csrf },
         data: {
           profileType: this.formData.profileType,
           naturalLanguageInstructions: this.formData.naturalLanguageInstructions,
         },
-        // Socket requests go through the same CSRF check as any other non-GET request, and the
-        // sails.io.js client doesn't attach the token on its own the way the Cloud SDK does.
-        headers: { 'x-csrf-token': window.SAILS_LOCALS._csrf },
       }, (unusedData, jwr)=>{
         // The generated profile arrives as a broadcast, not as this response, so the only thing
         // worth reading here is a failure -- without it, a rejected request spins forever.

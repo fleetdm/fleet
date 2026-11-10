@@ -78,20 +78,6 @@ SELECT
 SELECT email FROM users
 ```
 
-## conditional_access_microsoft_device_id
-
-- Platforms: darwin
-
-- Discovery query:
-```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'app_sso_platform'
-```
-
-- Query:
-```sql
-SELECT * FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM';
-```
-
 ## conditional_access_microsoft_device_id_windows
 
 - Platforms: windows
@@ -610,6 +596,11 @@ WITH display_version_table AS (
 			FROM registry
 			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
 		),
+		release_id_table AS (
+			SELECT data AS release_id
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\ReleaseId'
+		),
 		installation_type_table AS (
 			SELECT data AS installation_type
 			FROM registry
@@ -617,7 +608,7 @@ WITH display_version_table AS (
 		)
 		SELECT
 			os.name,
-			COALESCE(d.display_version, '') AS display_version,
+			COALESCE(NULLIF(d.display_version, ''), r.release_id, '') AS display_version,
 			CASE WHEN CAST(os.revision AS INTEGER) > 0 THEN os.version || '.' || os.revision ELSE k.version END AS version,
 			COALESCE(it.installation_type, '') AS installation_type
 		FROM
@@ -625,6 +616,8 @@ WITH display_version_table AS (
 			kernel_info k
 		LEFT JOIN
 			display_version_table d
+		LEFT JOIN
+			release_id_table r
 		LEFT JOIN
 			installation_type_table it
 ```
@@ -642,6 +635,11 @@ WITH display_version_table AS (
 			FROM registry
 			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
 		),
+		release_id_table AS (
+			SELECT data AS release_id
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\ReleaseId'
+		),
 		installation_type_table AS (
 			SELECT data AS installation_type
 			FROM registry
@@ -653,13 +651,15 @@ WITH display_version_table AS (
 			os.arch,
 			k.version as kernel_version,
 			CASE WHEN CAST(os.revision AS INTEGER) > 0 THEN os.version || '.' || os.revision ELSE k.version END AS version,
-			COALESCE(d.display_version, '') AS display_version,
+			COALESCE(NULLIF(d.display_version, ''), r.release_id, '') AS display_version,
 			COALESCE(it.installation_type, '') AS installation_type
 		FROM
 			os_version os,
 			kernel_info k
 		LEFT JOIN
 			display_version_table d
+		LEFT JOIN
+			release_id_table r
 		LEFT JOIN
 			installation_type_table it
 ```
@@ -715,6 +715,41 @@ SELECT
   '' AS last_opened_at,
   path AS installed_path
 FROM adobe_plugins
+```
+
+## software_ai_tools
+
+- Platforms: linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin, windows
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'ai_tools'
+```
+
+- Query:
+```sql
+SELECT
+  name,
+  version,
+  '' AS bundle_identifier,
+  '' AS extension_id,
+  '' AS extension_for,
+  CASE type
+    WHEN 'agents' THEN 'ai_clis'
+    WHEN 'mcp_server' THEN 'mcp_servers'
+    WHEN 'agent_instruction' THEN 'ai_skills'
+    WHEN 'skill' THEN 'ai_skills'
+    ELSE 'ai_tools'
+  END AS source,
+  '' AS vendor,
+  '' AS last_opened_at,
+  path AS installed_path,
+  type AS ai_type,
+  source AS ai_install_method
+FROM ai_tools
+WHERE type IN ('agents', 'mcp_server', 'agent_instruction', 'skill', 'apps', 'ide_plugins', 'browser_extension')
+  AND NOT (type = 'agents' AND evidence NOT LIKE '%catalog%')
+  AND NOT (type = 'mcp_server' AND source = 'process')
 ```
 
 ## software_chrome
@@ -1393,6 +1428,33 @@ WHERE (
 - Query:
 ```sql
 select * from system_info limit 1
+```
+
+## timezone_unix
+
+- Description: Reads the target of the `/etc/localtime` symlink, which requires osquery 5.17.0 or later. Hosts where `/etc/localtime` is a copied file report no timezone.
+
+- Platforms: linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin
+
+- Discovery query:
+```sql
+SELECT 1 FROM pragma_table_info('file') WHERE name = 'symlink_target_path'
+```
+
+- Query:
+```sql
+SELECT symlink_target_path FROM file WHERE path = '/etc/localtime'
+```
+
+## timezone_windows
+
+- Description: Reads the Windows time zone name from the registry and maps it to an IANA name using the CLDR windowsZones table.
+
+- Platforms: windows
+
+- Query:
+```sql
+SELECT data FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\TimeZoneInformation\\TimeZoneKeyName'
 ```
 
 ## uptime
