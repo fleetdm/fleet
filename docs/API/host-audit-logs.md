@@ -983,7 +983,7 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "patch_notification_uuid": ID of the patch notification.
-- "software_titles": Names of the software that will be patched.
+- "software": Software titles included in the notification. Each entry has `title` (raw name), `title_id`, and `display_name` (set only when an admin picked a per-team override).
 - "policy_ids": IDs of the patch policies that triggered the notification.
 - "time_before": Seconds between the notification and the scheduled install.
 - "install_at": When the install is scheduled to start. `null` if the notification wasn't displayed.
@@ -998,7 +998,10 @@ This activity contains the following fields:
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "patch_notification_uuid": "ece8d99d-4313-446a-9af2-e152cd1bad1e",
-  "software_titles": ["Firefox.app"],
+  "software": [
+    { "title": "1Password", "title_id": 42, "display_name": "1Password 8" },
+    { "title": "Slack", "title_id": 57 }
+  ],
   "policy_ids": [1337],
   "time_before": 3600,
   "install_at": "2026-10-02T09:00:00Z",
