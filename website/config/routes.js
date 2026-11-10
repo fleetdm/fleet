@@ -737,6 +737,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /cybersecurity': {
+    action: 'view-cybersecurity',
+    locals: {
+      pageTitleForMeta: 'Device management for cybersecurity',
+      pageDescriptionForMeta: 'See which AI agents and apps are running on every Mac, PC, and Linux machine, and check that your security controls are working. Device management built for security teams.',
+    }
+  },
+
   'GET /pharma': {
     action: 'view-pharma',
     locals: {
