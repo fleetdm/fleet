@@ -30,6 +30,10 @@
     }
   }
 
+  &__apple-manual-enrollment-disabled {
+    @include flex-column-16px-gap;
+  }
+
   &__advanced--fleet-certificate {
     @include flex-column-8px-gap;
   }

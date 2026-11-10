@@ -78,18 +78,20 @@ func (s *integrationTestSuite) TestLabels() {
 			s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: strings.ToUpper(n), Query: "select 1"}, http.StatusUnprocessableEntity, &createResp)
 		}
 
-		// try to create a label with an invalid platform
-		s.DoJSON(
-			"POST",
-			"/api/latest/fleet/labels",
-			&fleet.LabelPayload{
-				Name:     "amazing label",
-				Query:    "select 1",
-				Platform: "bados",
-			},
-			http.StatusUnprocessableEntity,
-			&createResp,
-		)
+		// try to create a label with an invalid platform; ubuntu and centos were replaced by linux
+		for _, platform := range []string{"bados", "ubuntu", "centos"} {
+			s.DoJSON(
+				"POST",
+				"/api/latest/fleet/labels",
+				&fleet.LabelPayload{
+					Name:     "amazing label",
+					Query:    "select 1",
+					Platform: platform,
+				},
+				http.StatusUnprocessableEntity,
+				&createResp,
+			)
+		}
 
 		// create a label with the generic "linux" platform (matches all Linux distros)
 		s.DoJSON(
@@ -423,10 +425,10 @@ func (s *integrationTestSuite) TestLabels() {
 			"computer_name", "primary_ip_id", "distributed_interval", "logger_tls_period",
 			"config_tls_refresh", "primary_ip", "primary_mac", "label_updated_at",
 			"last_enrolled_at", "refetch_requested", "refetch_critical_queries_until",
-			"team_id", "policy_updated_at", "public_ip",
+			"team_id", "fleet_id", "policy_updated_at", "public_ip",
 			"gigs_disk_space_available", "percent_disk_space_available",
 			"gigs_total_disk_space", "seen_time", "software_updated_at",
-			"last_restarted_at", "timezone", "team_name",
+			"last_restarted_at", "timezone", "team_name", "fleet_name",
 			"failing_policies_count", "critical_vulnerabilities_count",
 			"total_issues_count",
 			"issues", // supported as alias for "total_issues_count"
@@ -982,11 +984,11 @@ func (s *integrationTestSuite) TestLabels() {
 			"hardware_vendor", "hardware_model", "hardware_version", "hardware_serial",
 			"computer_name", "primary_ip_id", "distributed_interval", "logger_tls_period",
 			"config_tls_refresh", "primary_ip", "primary_mac", "label_updated_at",
-			"last_enrolled_at", "refetch_critical_queries_until", "team_id",
+			"last_enrolled_at", "refetch_critical_queries_until", "team_id", "fleet_id",
 			"policy_updated_at", "public_ip",
 			"gigs_disk_space_available", "percent_disk_space_available",
 			"gigs_total_disk_space", "seen_time", "software_updated_at",
-			"last_restarted_at", "timezone", "team_name",
+			"last_restarted_at", "timezone", "team_name", "fleet_name",
 			"failing_policies_count", "critical_vulnerabilities_count",
 			"total_issues_count", "issues",
 			"device_mapping",
@@ -1231,23 +1233,25 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 		require.Equal(t, fleet.LabelTypeBuiltIn, spec.LabelType)
 	}
 
-	// apply an invalid label spec - invalid platform
-	s.DoJSON(
-		"POST",
-		"/api/latest/fleet/spec/labels",
-		fleet.ApplyLabelSpecsRequest{
-			Specs: []*fleet.LabelSpec{
-				{
-					Name:                name,
-					Query:               "select 1",
-					Platform:            "bados",
-					LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	// apply an invalid label spec - invalid platform; ubuntu and centos were replaced by linux
+	for _, platform := range []string{"bados", "ubuntu", "centos"} {
+		s.DoJSON(
+			"POST",
+			"/api/latest/fleet/spec/labels",
+			fleet.ApplyLabelSpecsRequest{
+				Specs: []*fleet.LabelSpec{
+					{
+						Name:                name,
+						Query:               "select 1",
+						Platform:            platform,
+						LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+					},
 				},
 			},
-		},
-		http.StatusUnprocessableEntity,
-		&applyResp,
-	)
+			http.StatusUnprocessableEntity,
+			&applyResp,
+		)
+	}
 
 	// apply a valid label spec - generic "linux" platform
 	s.DoJSON(
@@ -1312,7 +1316,7 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 			{
 				Name:                name,
 				Query:               "select 1",
-				Platform:            "centos",
+				Platform:            "darwin",
 				LabelMembershipType: fleet.LabelMembershipTypeDynamic,
 			},
 		},

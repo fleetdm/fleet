@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.0.933",
+      "version": "6.0.934",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'GeoGebra Classic' AND publisher = 'International GeoGebra Institute';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GeoGebra Classic' AND publisher = 'International GeoGebra Institute' AND version_compare(version, '6.0.933') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GeoGebra Classic' AND publisher = 'International GeoGebra Institute' AND version_compare(version, '6.0.934') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'geogebra classic.exe');"
       },
-      "installer_url": "https://download.geogebra.org/installers/6.0/GeoGebra-Windows-Installer-6-0-933-1.msi",
+      "installer_url": "https://download.geogebra.org/installers/6.0/GeoGebra-Windows-Installer-6-0-934-0.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "3b39b830",
-      "sha256": "acae26314038df80bb1f47f8781c4b67a5a34ac58a0490c91c1fc5b72159e8bf",
+      "sha256": "4c17ad3fe5cfe997b5ee65fa7e3e62e08cf8674b18535dc8449bb11b98e6615e",
       "default_categories": [
         "Productivity"
       ],

@@ -12,7 +12,6 @@ import Button from "components/buttons/Button";
 import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import InfoBanner from "components/InfoBanner";
 import PageDescription from "components/PageDescription";
 import Pagination from "components/Pagination";
 import SectionHeader from "components/SectionHeader";
@@ -183,15 +182,6 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
     );
   };
 
-  const renderScriptsDisabledBanner = () => (
-    <InfoBanner color="yellow">
-      <div>
-        <b>Running scripts is disabled in organization settings.</b> You can
-        still manage your library of macOS and Windows scripts below.
-      </div>
-    </InfoBanner>
-  );
-
   const canUploadScripts = !isTechnician;
 
   return (
@@ -219,11 +209,10 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
           />
         )}
       </div>
-      {config.server_settings.scripts_disabled && renderScriptsDisabledBanner()}
       {renderScriptsList()}
       {!isLoading && !isError && currentPage === 0 && !scripts?.length && (
         <EmptyState
-          variant="header-list"
+          variant="list"
           header="No scripts"
           info={canUploadScripts ? SCRIPT_UPLOADER_EMPTY_STATE_TEXT : undefined}
           primaryButton={

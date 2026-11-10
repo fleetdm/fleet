@@ -23,11 +23,6 @@ module.exports = {
       isIn: ['apple', 'windows'],
       description: 'The platform to generate a profile for, leaving the kind of profile to be decided.  Pass this or a profileType, not both.'
     },
-    forFleet: {
-      type: 'boolean',
-      defaultsTo: false,
-      description: 'Whether Fleet is asking, rather than someone using the profile generator page.'
-    },
     naturalLanguageInstructions: {
       type: 'string',
       required: true
@@ -50,7 +45,7 @@ module.exports = {
   },
 
 
-  fn: async function ({profileType, platform, forFleet, naturalLanguageInstructions}) {
+  fn: async function ({profileType, platform, naturalLanguageInstructions}) {
 
     if(!profileType === !platform) {
       throw {invalidInput: {error: 'invalidInput', reason: 'Pass a profileType or a platform, but not both.'}};
@@ -137,7 +132,6 @@ Respond in JSON with this data shape:
     let generationResult = await sails.helpers.generateConfigurationProfile.with({
       profileType,
       platform,
-      forFleet,
       naturalLanguageInstructions,
     })
     .intercept((err)=>{

@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -27,6 +28,8 @@ type VPPAppTeam struct {
 
 	AppTeamID   uint `db:"id" json:"-"`
 	SelfService bool `db:"self_service" json:"self_service"`
+	// VPPTokenID is the VPP token the app was added from on this fleet. Nil for Google Play apps.
+	VPPTokenID *uint `db:"vpp_token_id" json:"-"`
 	// VersionName is the name of this version of the app on the fleet. Empty means DefaultAppStoreAppVersionName.
 	VersionName string `db:"version_name" json:"-"`
 
@@ -68,14 +71,6 @@ type VPPAppTeam struct {
 	AutoUpdateEnabled   *bool   `db:"auto_update_enabled" json:"-"`
 	AutoUpdateStartTime *string `db:"auto_update_window_start" json:"-"`
 	AutoUpdateEndTime   *string `db:"auto_update_window_end" json:"-"`
-}
-
-func (v VPPAppTeam) GetPlatform() string {
-	return string(v.Platform)
-}
-
-func (v VPPAppTeam) GetAppStoreID() string {
-	return v.AdamID
 }
 
 // VPPApp represents a VPP (Volume Purchase Program) application,
@@ -123,12 +118,17 @@ type VPPAppStoreApp struct {
 	Status        *VPPAppStatusSummary `db:"-" json:"status"`
 	SelfService   bool                 `db:"self_service" json:"self_service"`
 	// only filled by GetVPPAppMetadataByTeamAndTitleID
-	VPPAppsTeamsID uint `db:"vpp_apps_teams_id" json:"-"`
+	VPPAppsTeamsID uint `db:"vpp_apps_teams_id" json:"id"`
+	// VPPTokenID is the token the app was added from on this fleet. Nil for Google Play apps.
+	VPPTokenID *uint            `db:"vpp_token_id" json:"-"`
+	VPPToken   *VPPTokenSummary `db:"-" json:"vpp_token"`
 
 	VersionName         string  `db:"version_name" json:"-"`
-	AutoUpdateEnabled   *bool   `db:"auto_update_enabled" json:"-"`
-	AutoUpdateStartTime *string `db:"auto_update_window_start" json:"-"`
-	AutoUpdateEndTime   *string `db:"auto_update_window_end" json:"-"`
+	AutoUpdateEnabled   *bool   `db:"auto_update_enabled" json:"auto_update_enabled"`
+	AutoUpdateStartTime *string `db:"auto_update_window_start" json:"auto_update_window_start"`
+	AutoUpdateEndTime   *string `db:"auto_update_window_end" json:"auto_update_window_end"`
+	InstallDuringSetup  *bool   `db:"install_during_setup" json:"-"`
+	TitleID             uint    `db:"title_id" json:"-"`
 	// AutomaticInstallPolicies is the list of policies that trigger automatic
 	// installation of this software.
 	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies" db:"-"`
@@ -164,6 +164,7 @@ const (
 	MaxAppStoreAppVersionNameLength = 255
 )
 
+// TODO: replace with VPPAppStoreApp once app_store_app is removed from software title responses.
 // AppStoreAppVersion is one version of an App Store app on a fleet, as returned in the app_store_apps list of a software title.
 type AppStoreAppVersion struct {
 	ID                       uint                      `json:"id"`
@@ -184,6 +185,18 @@ type AppStoreAppVersion struct {
 	Categories               []string                  `json:"categories"`
 	DisplayName              string                    `json:"display_name"`
 	Configuration            json.RawMessage           `json:"configuration,omitempty"`
+	VPPToken                 *VPPTokenSummary          `json:"vpp_token"`
+}
+
+type AppStoreAppListItem struct {
+	ID                       uint                      `json:"id"`
+	Name                     string                    `json:"name"`
+	AppStoreID               string                    `json:"app_store_id"`
+	Platform                 InstallableDevicePlatform `json:"platform"`
+	Version                  string                    `json:"version"`
+	SelfService              bool                      `json:"self_service"`
+	AutomaticInstallPolicies []AutomaticInstallPolicy  `json:"automatic_install_policies"`
+	InstallDuringSetup       *bool                     `json:"install_during_setup,omitempty"`
 }
 
 func (v *VPPAppStoreApp) AppStoreAppVersion() AppStoreAppVersion {
@@ -206,6 +219,7 @@ func (v *VPPAppStoreApp) AppStoreAppVersion() AppStoreAppVersion {
 		Categories:               v.Categories,
 		DisplayName:              v.DisplayName,
 		Configuration:            v.Configuration,
+		VPPToken:                 v.VPPToken,
 	}
 }
 
@@ -217,15 +231,6 @@ type VPPAppStatusSummary struct {
 	Pending uint `json:"pending" db:"pending"`
 	// Failed is the number of hosts that have the VPP app installation failed.
 	Failed uint `json:"failed" db:"failed"`
-}
-
-type ErrVPPTokenTeamConstraint struct {
-	Name string
-	ID   *uint
-}
-
-func (e ErrVPPTokenTeamConstraint) Error() string {
-	return fmt.Sprintf("Error: %q team already has a VPP token. Each team can only have one VPP token.", e.Name)
 }
 
 // HostVPPSoftwareInstall represents a VPP software install attempt on a host.
@@ -271,9 +276,34 @@ type HostAndroidVPPSoftwareInstall struct {
 	CreatedAt         *time.Time `db:"created_at"` // read-only, the column is nullable
 }
 
+// HostAndroidSoftwareInstall is the app Fleet last put in an Android host's policy, one per host and app.
+type HostAndroidSoftwareInstall struct {
+	HostID          uint      `db:"host_id"`
+	AdamID          string    `db:"adam_id"`
+	VPPAppTeamID    *uint     `db:"vpp_app_team_id"`
+	InstallType     string    `db:"install_type"`
+	Status          string    `db:"status"`
+	NeedsResend     bool      `db:"needs_resend"`
+	InPolicyVersion *int64    `db:"in_policy_version"`
+	PolicyBuiltAt   time.Time `db:"policy_built_at"`
+	CreatedAt       time.Time `db:"created_at"`
+	UpdatedAt       time.Time `db:"updated_at"`
+}
+
 const (
-	DefaultVPPInstallVerifyTimeout = 10 * time.Minute
-	DefaultVPPVerifyRequestDelay   = 5 * time.Second
+	// AndroidSoftwareInstallStatusPending means the app was sent in the host's
+	// policy and the device hasn't applied that policy version yet.
+	AndroidSoftwareInstallStatusPending = "pending"
+	// AndroidSoftwareInstallStatusVerified means the device applied a policy version that includes the app.
+	AndroidSoftwareInstallStatusVerified = "verified"
+	// AndroidSoftwareInstallStatusFailed means Fleet couldn't send the app to the host, e.g. because its
+	// configuration uses a Fleet variable that has no value for the host.
+	AndroidSoftwareInstallStatusFailed = "failed"
+	// AndroidSoftwareInstallStatusRequestFailed means the request that sent the host's app list failed.
+	AndroidSoftwareInstallStatusRequestFailed = "request_failed"
+)
+
+const (
 	// Time to wait between auto-update or configuration resend attempts (1 hour)
 	VPPAutomaticInstallWaitSeconds = 3600
 	MaxVPPAutomaticInstallRetries  = 2
@@ -417,6 +447,39 @@ type VPPInstallReleaseInfo struct {
 	AdamID                string
 	AssociatedEventID     string
 	HasOtherActiveInstall bool
+	// VPPTokenID is the token that assigned the license. Nil when unknown.
+	VPPTokenID *uint
+}
+
+// VPPTokenSummary is the VPP token an App Store app was added from, in the software title response.
+type VPPTokenSummary struct {
+	ID          uint   `json:"id"`
+	OrgName     string `json:"org_name"`
+	Location    string `json:"location"`
+	CountryCode string `json:"country_code"`
+}
+
+// ActivityVPPToken is the VPP token snapshot in App Store app activities.
+type ActivityVPPToken struct {
+	ID          uint   `json:"id"`
+	Location    string `json:"location"`
+	CountryCode string `json:"country_code"`
+}
+
+// ActivityVPPTokenByID returns the activity snapshot of the token with id, or
+// nil when id is nil or the token was deleted.
+func ActivityVPPTokenByID(ctx context.Context, ds Datastore, id *uint) (*ActivityVPPToken, error) {
+	if id == nil {
+		return nil, nil
+	}
+	tok, err := ds.GetVPPToken(ctx, *id)
+	if err != nil {
+		if IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &ActivityVPPToken{ID: tok.ID, Location: tok.Location, CountryCode: tok.CountryCode}, nil
 }
 
 type DuplicateStringGroup struct {

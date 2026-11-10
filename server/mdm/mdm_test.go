@@ -432,7 +432,7 @@ func TestDecryptBase64CMSWithKey(t *testing.T) {
 	craftedMsg, err := asn1.Marshal(cmsContentInfo{ContentType: pkcs7.OIDEnvelopedData, Content: asn1.RawValue{Class: 2, Tag: 0, IsCompound: true, Bytes: crafted}})
 	require.NoError(t, err)
 	_, err = DecryptBase64CMSWithKey(base64.StdEncoding.EncodeToString(craftedMsg), key)
-	require.ErrorContains(t, err, "parse CMS message")
+	require.ErrorContains(t, err, "end of ber data reached")
 
 	// A message with two recipients does not identify which one the key belongs to.
 	other, err := tokenpki.SelfSignedCertForKey(otherKey, "Fleet WSTEP test", 3)

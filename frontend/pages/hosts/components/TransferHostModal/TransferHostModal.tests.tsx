@@ -96,6 +96,28 @@ describe("TransferHostModal", () => {
     expect(screen.getByText("Team Beta")).toBeInTheDocument();
   });
 
+  it("lists fleets alphabetically, ignoring case, with Unassigned last", async () => {
+    const { user } = setup({
+      teams: [
+        { id: 1, name: "Zeta" },
+        { id: 2, name: "alpha" },
+        { id: 3, name: "Beta" },
+        { id: 4, name: "Current" },
+      ],
+      hostsTeamId: 4,
+    });
+
+    await user.click(screen.getByText(/Select a fleet/i));
+
+    const options = await screen.findAllByTestId("dropdown-option");
+    expect(options.map((option) => option.textContent)).toEqual([
+      "alpha",
+      "Beta",
+      "Zeta",
+      "Unassigned",
+    ]);
+  });
+
   it("enables Transfer after selecting a team and calls onSubmit with selected team", async () => {
     const { user, onSubmit } = setup({ hostsTeamId: 1 });
 

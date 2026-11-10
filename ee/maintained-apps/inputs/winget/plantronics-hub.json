@@ -4,7 +4,6 @@
   "package_identifier": "Poly.PlantronicsHub",
   "unique_identifier": "Plantronics Hub",
   "fuzzy_match_name": true,
-  "program_publisher": "Plantronics",
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "machine",

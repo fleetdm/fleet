@@ -42,6 +42,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 | [Power to the PC](#power-to-the-pc-group)  | Empower Windows users to fully leverage Fleet as an MDM. Measured by Windows devices enrolled with MDM turned on. |
 | [BYOD](#byod-group)                        | The goal of BYOD product group is to increase enrollment of Android devices in Fleet. Measured by Android devices enrolled. |
 | [Website](#website-group)                  | Increase and exceed Fleet's product maturity goals for fleetdm.com. |
+| [First Impressions](#first-impressions-group) | Improve first impressions of Fleet. Primary focus is the Fleet website, landing pages, and marketing operations, followed by core product improvements. |
 
 
 ### Orchestration group
@@ -185,22 +186,18 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 > The [Slack channel](https://fleetdm.slack.com/archives/C097P4TAPRR), [kanban board](https://github.com/orgs/fleetdm/projects/92), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-website) for this product group is `#g-website`.
 
 
-<!--
-Paused as of the 4.89.0 release cycle.
-
 ### First Impressions group
 
-The goal of the First Impressions product group is to make changes to the core Fleet product that improve first impressions of Fleet at workshops, conferences, and demos.
+The goal of the First Impressions product group is to improve first impressions of Fleet. The primary focus is the Fleet website, landing pages, and marketing operations, followed by core product improvements.
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
-| Product Designer                  | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/noahtalerman))_, [Mike McNeil](https://www.linkedin.com/in/mikermcneil/) _([@mikermcneil](https://github.com/mikermcneil))_
+| Product Designer                  | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
 | Engineering Manager               | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
-| Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
-| Software Engineer                 | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
+| Tech Lead                         | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
+| Quality Assurance                 | [Quality Assurance Engineer, First Impressions](https://fleetdm.com/handbook/company/open-positions/quality-assurance-engineer-first-impressions) _(open position)_
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C0ACJ8L1FD0), [kanban board](https://github.com/orgs/fleetdm/projects/105/), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-first-impressions) for this product group is `#g-first-impressions`.
--->
+> The [Slack channel](https://fleetdm.slack.com/archives/C097P4TAPRR), [kanban board](https://github.com/orgs/fleetdm/projects/105), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-first-impressions) for this product group is `#g-first-impressions`.
 
 
 <!--
@@ -361,7 +358,9 @@ During the call, contributors (PD and EM) present all user stories that have com
 
 The purpose of the review is to familiarize the EM, TL, and QA Engineer with the user story, and provide an opportunity to ask questions, clarify requirements, and highlight potential implementation issues. The first draft of the test plan produced by the Product Designer is reviewed and revised as needed during the call. The QA Engineer is the DRI for finalizing the test plan.
 
-The purpose of the user story review is to align product, engineering, and QA on functionality and implementation details. Wireframe reviews occur daily during [design reviews](https://fleetdm.com/handbook/company/product-groups#design-reviews) where contributors are welcome to join and provide design feedback in the agenda document. However, sometimes there are design changes needed if a gap is discovered or an implementation issue is raised during user story review. If there are design changes, the user story stays in drafting to address the gap. If there are no design changes, the story is assigned to the Tech Lead to [complete the drafting process](#defining-done) before bringing to estimation. If no Engineering DRI is assigned, the ticket is assigned to the Engineering Manager.
+The purpose of the user story review is to align product, engineering, and QA on functionality and implementation details. Wireframe reviews occur daily during [design reviews](https://fleetdm.com/handbook/company/product-groups#design-reviews) where contributors are welcome to join and provide design feedback in the agenda document. However, sometimes there are design changes needed if a gap is discovered or an implementation issue is raised during user story review. 
+
+If there are design changes, the user story stays in drafting to address the gap. If there are no design changes, the story is assigned to the Tech Lead to [complete the drafting process](#defining-done).
 
 ### Release demo (every 3 weeks)
 
@@ -442,8 +441,6 @@ The website team will [periodically](https://fleetdm.com/handbook/marketing/webs
 cd website
 ./node_modules/sails/bin/sails.js run generate-merged-schema
 ```
-
-This updates both `schema/osquery_fleet_schema.json` and the copy for [Fleet's MCP](https://fleetdm.com/guides/fleet-mcp) (`cmd/fleet-mcp/osquery_fleet_schema.json`). Commit both files. The MCP needs its own copy because it builds the schema into its binary as an offline fallback for air-gapped deployments of the MCP server.
 
 > When adding a new table, make sure it does not already exist with the same name. If it does, consider changing the new table name or merge the two tables if it makes sense.
 
@@ -703,9 +700,7 @@ Anyone in the company is invited to submit requests or simply listen in on the �
 
 To make a feature request or advocate for a feature request from a customer or community member, [create an issue](https://github.com/fleetdm/fleet/issues/new/choose) using the feature request template. If you found that an issue already exists, add the `:product` label to it.
 
-New requests are [triaged daily](https://fleetdm.com/handbook/product-design#triage-new-requests) by the Head of Product Design. If the request meets the [criteria for prioritization](#criteria-for-prioritization), the request will be added to the upcoming feature fest (`~feature fest` label). If it doesn't, the request will be put to the side and the requester will be notified.
-
-> **Fast for Fleeties:** Fleeties do not have to wait for "Unpacking the why" to add a request to feature fest. If you think Fleet is missing something and have described in detail what you already tried, it can be moved directly to the [🎁 Feature fest board](https://github.com/orgs/fleetdm/projects/72). Just add the `~feature fest` label, remove the `:product` label, and remove the issue from the 🦢📨🎉 Product design intake & outtake project.
+New requests are reviewed daily by the Head of Product Design and [unpacked](https://fleetdm.com/handbook/product-design#unpacking-the-why) within one week. To expedite a request, @mention the Head of Product Design in [#help-design](https://fleetdm.slack.com/archives/C02A8BRABB5). If the Head of Product Design is out of office, @mention the [VP of IT Strategy](https://fleetdm.com/handbook/it#team). 
 
 
 ### Criteria for prioritization
@@ -798,7 +793,7 @@ If reproduction steps are missing, add them, ask for more reproduction details f
 
 When more information is needed, it's up to the EM to gather information from the reporter. Reporters are encouraged to provide timely follow-up information for each report. At one week since last communication, the EM will close the issue. Reporters are welcome to re-open the closed issue if more investigation is warranted.
 
-If the bug is actually expected behavior (not a bug), the Product Designer converts the issue to a feature request by removing the `bug` label, triages the issue as a [new request](https://fleetdm.com/handbook/product-design#triage-new-requests), and @ mentions the reporter in the issue.
+If the bug is actually expected behavior (not a bug), the Product Designer converts the issue to a feature request by removing the `bug` label, unpacks the issue as a [new request](https://fleetdm.com/handbook/product-design#unpacking-the-why), and @ mentions the reporter in the issue.
 
 For bugs that may require fixes from a partner (e.g. osquery, Apple, Microsoft, etc.), a Fleet issue is always filed with the `~3rd-party` label. For Apple and Microsoft bugs, the EM should file a support case with the partner and add a screenshot of the support case to the issue. For Apple bugs, @ mention the [DRI of Customer support](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) to file an Apple support case.
 

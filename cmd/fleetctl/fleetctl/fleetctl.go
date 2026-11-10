@@ -37,7 +37,6 @@ func CreateApp(
 	app.Commands = []*cli.Command{
 		apiCommand(),
 		applyCommand(),
-		deleteCommand(),
 		setupCommand(),
 		loginCommand(),
 		logoutCommand(),
@@ -78,6 +77,7 @@ func CreateApp(
 		generateGitopsCommand(),
 		newCommand(),
 	}
+	registerRemovedCommands(app)
 	return app
 }
 
