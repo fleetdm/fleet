@@ -1315,7 +1315,7 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 	}
 
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", team, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
 	team.ID = createTeamResp.Team.ID
 
@@ -1401,11 +1401,27 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{host.ID}}, http.StatusOK, &addHostsToTeamResponse{})
 	s.awaitTriggerProfileSchedule(t)
 
-	// confirm that we remove the failed profile
+	// the failed install may have left an older version on the host, so a removal
+	// is sent and the profile stays listed as a pending removal until the device answers
 	getHostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
 	require.NotNil(t, getHostResp.Host.MDM.Profiles)
-	require.Len(t, *getHostResp.Host.MDM.Profiles, 3) // This would be 4 if we hadn't deleted the profile that failed to install.
+	var failedProf *fleet.HostMDMProfile
+	for i, hm := range *getHostResp.Host.MDM.Profiles {
+		if hm.Name == "N1" {
+			failedProf = &(*getHostResp.Host.MDM.Profiles)[i]
+		}
+	}
+	require.NotNil(t, failedProf)
+	require.Equal(t, fleet.MDMOperationTypeRemove, failedProf.OperationType)
+	require.EqualValues(t, fleet.MDMDeliveryPending, *failedProf.Status)
+
+	// confirm that we remove the failed profile once the device acknowledges the removal
+	mdmDeviceRespond(mdmDevice)
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.Profiles)
+	require.Len(t, *getHostResp.Host.MDM.Profiles, 2) // the fleet's fleetd and CA profiles
 	for _, hm := range *getHostResp.Host.MDM.Profiles {
 		require.NotEqual(t, "N1", hm.Name)
 	}

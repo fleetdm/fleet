@@ -11,7 +11,7 @@ import {
 
 import ConfigurationProfiles from "./ConfigurationProfiles";
 
-const emptyProfilesHandler = http.get(baseUrl("/mdm/profiles"), () =>
+const emptyProfilesHandler = http.get(baseUrl("/configuration_profiles"), () =>
   HttpResponse.json({
     profiles: [],
     meta: { has_next_results: false, has_previous_results: false },
@@ -38,7 +38,7 @@ const mdmEnabledConfig = {
 const mdmDisabledConfig = {
   mdm: {
     enabled_and_configured: false,
-    windows_enabled_and_configured: false,
+    windows_mdm_enabled: false,
     android_enabled_and_configured: false,
   },
 } as any;
@@ -193,7 +193,7 @@ describe("ConfigurationProfiles add and edit", () => {
 
   it("opens a profile's edit page for the current fleet", async () => {
     mockServer.use(
-      http.get(baseUrl("/mdm/profiles"), () =>
+      http.get(baseUrl("/configuration_profiles"), () =>
         HttpResponse.json({
           profiles: [profile],
           meta: { has_next_results: false, has_previous_results: false },
@@ -230,7 +230,7 @@ describe("ConfigurationProfiles assets", () => {
 
   it("lists assets alongside profiles in a single list", async () => {
     mockServer.use(
-      http.get(baseUrl("/mdm/profiles"), () =>
+      http.get(baseUrl("/configuration_profiles"), () =>
         HttpResponse.json({
           profiles: [
             {

@@ -490,7 +490,7 @@ const HostDetailsPage = ({
   >("teams", () => teamAPI.loadAll(), {
     enabled: !!hostIdFromURL && !!isPremiumTier,
     retry: false,
-    select: (data: ILoadTeamsResponse) => data.teams,
+    select: (data: ILoadTeamsResponse) => data.fleets,
   });
 
   const { data: macadmins, refetch: refetchMacadmins } = useQuery(
@@ -792,7 +792,7 @@ const HostDetailsPage = ({
       return commandAPI.getCommands({
         page: pageIndex,
         per_page: perPage,
-        host_identifier: hostUUID,
+        host_identifier: hostUUID ?? "",
         command_status: commandStatus,
       });
     },
@@ -824,7 +824,7 @@ const HostDetailsPage = ({
       return commandAPI.getCommands({
         page: pageIndex,
         per_page: perPage,
-        host_identifier: hostUUID,
+        host_identifier: hostUUID ?? "",
         command_status: commandStatus,
       });
     },
@@ -921,7 +921,8 @@ const HostDetailsPage = ({
       // sharing the URL won't reopen the modal. Opening never adds the param
       // — it's only set by external deep-links.
       if (closing && location.query.show_mdm_status === "true") {
-        const { show_mdm_status: _, ...rest } = location.query;
+        const rest = { ...location.query };
+        delete rest.show_mdm_status;
         router.replace({ pathname: location.pathname, query: rest });
       }
       return !prev;
@@ -947,6 +948,10 @@ const HostDetailsPage = ({
       try {
         await hostAPI.destroy(host);
         queryClient.invalidateQueries(["hosts_count_for_license"]);
+        // Removed rather than invalidated so the Hosts page doesn't render the
+        // cached list, which still includes the deleted host.
+        queryClient.removeQueries([{ scope: "hosts" }]);
+        queryClient.removeQueries([{ scope: "hosts_count" }]);
         notify.success(`Host "${host.display_name}" was successfully deleted.`);
         router.push(PATHS.MANAGE_HOSTS);
       } catch (error) {
@@ -1083,6 +1088,7 @@ const HostDetailsPage = ({
               actorFullName: actor_full_name,
               fleetInitiated: fleet_initiated,
               selfService: details?.self_service,
+              activityCreatedAt: created_at,
             });
           } else if (SCRIPT_PACKAGE_SOURCES.includes(details?.source || "")) {
             setScriptPackageDetails({
@@ -1092,6 +1098,7 @@ const HostDetailsPage = ({
               // the host object if it's available.
               host_display_name:
                 host?.display_name || details?.host_display_name || "",
+              activity_created_at: created_at,
             });
           } else {
             setPackageInstallDetails({
@@ -1101,6 +1108,7 @@ const HostDetailsPage = ({
               // the host object if it's available.
               host_display_name:
                 host?.display_name || details?.host_display_name || "",
+              activity_created_at: created_at,
             });
           }
           break;
@@ -1136,6 +1144,7 @@ const HostDetailsPage = ({
             fleetInitiated: fleet_initiated,
             selfService: details?.self_service,
             vppTokenLocation: details?.vpp_token?.location,
+            activityCreatedAt: created_at,
           });
           break;
         case "installed_certificate":
@@ -1371,7 +1380,7 @@ const HostDetailsPage = ({
         isDEPAssignedToFleet={host.dep_assigned_to_fleet}
         hostScriptsEnabled={host.scripts_enabled}
         isRecoveryLockPasswordEnabled={
-          mdmConfig?.enable_recovery_lock_password ?? false
+          mdmConfig?.macos_recovery_lock_password_enabled ?? false
         }
         diskEncryptionProfileStatus={diskEncryptionProfile?.status}
         recoveryLockPasswordAvailable={
@@ -1534,7 +1543,7 @@ const HostDetailsPage = ({
     hasControls: controls.length > 0,
     isPlatformMdmEnabled:
       (isAppleDeviceHost && !!config?.mdm.enabled_and_configured) ||
-      (isWindowsHost && !!config?.mdm.windows_enabled_and_configured) ||
+      (isWindowsHost && !!config?.mdm.windows_mdm_enabled) ||
       (isAndroidHost && !!config?.mdm.android_enabled_and_configured),
   });
 
@@ -2295,6 +2304,7 @@ const HostDetailsPage = ({
                   "pending_install") as SoftwareInstallUninstallStatus,
                 hostDisplayName: ipaPackageInstallDetails.hostDisplayName || "",
                 commandUuid: ipaPackageInstallDetails.commandUuid || "",
+                activityCreatedAt: ipaPackageInstallDetails.activityCreatedAt,
               }}
               onCancel={onCancelIpaSoftwareInstallDetailsModal}
             />
@@ -2328,8 +2338,7 @@ const HostDetailsPage = ({
             <CommandResultsModal
               command={activityCommandDetails}
               contentBody={(cls, result) => {
-                const isPending =
-                  getIconName(result.status) === "pending-outline";
+                const isPending = getIconName(result.status) === "pending";
                 const cmdDisplayName = getMdmCommandDisplayName(
                   result.request_type
                 );

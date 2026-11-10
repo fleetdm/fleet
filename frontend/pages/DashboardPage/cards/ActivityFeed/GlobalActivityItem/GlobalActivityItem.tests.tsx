@@ -220,9 +220,9 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders an applied_spec_team type activity for a single team", () => {
+  it("renders an applied_spec_fleet type activity for a single team", () => {
     const activity = createMockActivity({
-      type: ActivityType.AppliedSpecTeam,
+      type: ActivityType.AppliedSpecFleet,
       details: { fleets: [createMockTeamSummary()] },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
@@ -233,9 +233,9 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Team 1")).toBeInTheDocument();
   });
 
-  it("renders an applied_spec_team type activity for multiple team", () => {
+  it("renders an applied_spec_fleet type activity for multiple team", () => {
     const activity = createMockActivity({
-      type: ActivityType.AppliedSpecTeam,
+      type: ActivityType.AppliedSpecFleet,
       details: {
         fleets: [createMockTeamSummary(), createMockTeamSummary()],
       },
@@ -555,12 +555,12 @@ describe("Activity Feed", () => {
   });
 
   // // // // // // // // // // // //
-  // changed_user_team_role  tests
+  // changed_user_fleet_role  tests
   // // // // // //// // // // // //
 
-  it("renders a changed_user_team_role type activity", () => {
+  it("renders a changed_user_fleet_role type activity", () => {
     const activity = createMockActivity({
-      type: ActivityType.UserChangedTeamRole,
+      type: ActivityType.UserChangedFleetRole,
       details: {
         user_email: "newuser@example.com",
         role: "maintainer",
@@ -575,10 +575,10 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Test Team")).toBeInTheDocument();
   });
 
-  it("correctly renders a changed_user_team_role type activity when a new SSO team user is created via JIT provisioning", () => {
+  it("correctly renders a changed_user_fleet_role type activity when a new SSO team user is created via JIT provisioning", () => {
     const activity = createMockActivity({
       actor_full_name: "Ally Admin",
-      type: ActivityType.UserChangedTeamRole,
+      type: ActivityType.UserChangedFleetRole,
       details: {
         user_email: "jit@sso.com",
         role: "maintainer",
@@ -602,10 +602,10 @@ describe("Activity Feed", () => {
     expect(forAllTeams).toBeNull();
   });
 
-  it("renders passive voice without JIT suffix for changed_user_team_role when actor_id === user_id (invite flow)", () => {
+  it("renders passive voice without JIT suffix for changed_user_fleet_role when actor_id === user_id (invite flow)", () => {
     const activity = createMockActivity({
       actor_id: 5,
-      type: ActivityType.UserChangedTeamRole,
+      type: ActivityType.UserChangedFleetRole,
       details: {
         user_id: 5,
         user_email: "invited@example.com",
@@ -622,11 +622,11 @@ describe("Activity Feed", () => {
     expect(screen.queryByText(/via just-in-time/)).toBeNull();
   });
 
-  it("correctly renders a changed_user_team_role type activity when changing an existing user's team role", () => {
+  it("correctly renders a changed_user_fleet_role type activity when changing an existing user's team role", () => {
     const activity = createMockActivity({
       actor_id: 1,
       actor_full_name: "Ally Admin",
-      type: ActivityType.UserChangedTeamRole,
+      type: ActivityType.UserChangedFleetRole,
       details: {
         user_id: 3,
         user_email: "user@example.com",
@@ -651,9 +651,9 @@ describe("Activity Feed", () => {
 
   // // // // // // // // // // // //
 
-  it("renders a deleted_user_team_role type activity globally", () => {
+  it("renders a deleted_user_fleet_role type activity globally", () => {
     const activity = createMockActivity({
-      type: ActivityType.UserDeletedTeamRole,
+      type: ActivityType.UserDeletedFleetRole,
       details: {
         user_email: "newuser@example.com",
         fleet_name: "Test Team",
@@ -666,10 +666,10 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Test Team")).toBeInTheDocument();
   });
 
-  it("renders a deleted_user_team_role via JIT provisioning", () => {
+  it("renders a deleted_user_fleet_role via JIT provisioning", () => {
     const activity = createMockActivity({
       actor_full_name: "Jit User",
-      type: ActivityType.UserDeletedTeamRole,
+      type: ActivityType.UserDeletedFleetRole,
       details: {
         user_email: "jit@sso.com",
         fleet_name: "Test Team",

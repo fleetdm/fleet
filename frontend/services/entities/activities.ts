@@ -38,40 +38,6 @@ export interface IHostUpcomingActivitiesResponse {
   };
 }
 
-const LEGACY_DETAIL_KEYS = {
-  team_id: "fleet_id",
-  team_name: "fleet_name",
-  teams: "fleets",
-} as const;
-
-/** Activities recorded before the team to fleet rename only carry the old detail keys. */
-export const withFleetDetailKeys = <T extends { details?: object | null }>(
-  activity: T
-): T => {
-  if (!activity.details) {
-    return activity;
-  }
-  const details: Record<string, unknown> = { ...activity.details };
-  Object.entries(LEGACY_DETAIL_KEYS).forEach(([oldKey, newKey]) => {
-    if (oldKey in details) {
-      if (!(newKey in details)) {
-        details[newKey] = details[oldKey];
-      }
-      delete details[oldKey];
-    }
-  });
-  return { ...activity, details };
-};
-
-const withFleetDetailKeysInResponse = <
-  R extends { activities: { details?: object | null }[] | null }
->(
-  response: R
-): R => ({
-  ...response,
-  activities: response.activities?.map(withFleetDetailKeys) ?? null,
-});
-
 export default {
   loadNext: (
     page = DEFAULT_PAGE,
@@ -99,7 +65,7 @@ export default {
 
     const path = `${ACTIVITIES}?${queryString}`;
 
-    return sendRequest("GET", path).then(withFleetDetailKeysInResponse);
+    return sendRequest("GET", path);
   },
 
   getHostPastActivities: (
@@ -118,7 +84,7 @@ export default {
 
     const path = `${HOST_PAST_ACTIVITIES(id)}?${queryString}`;
 
-    return sendRequest("GET", path).then(withFleetDetailKeysInResponse);
+    return sendRequest("GET", path);
   },
 
   getHostUpcomingActivities: (
@@ -137,7 +103,7 @@ export default {
 
     const path = `${HOST_UPCOMING_ACTIVITIES(id)}?${queryString}`;
 
-    return sendRequest("GET", path).then(withFleetDetailKeysInResponse);
+    return sendRequest("GET", path);
   },
 
   cancelHostActivity: (hostId: number, uuid: string) => {

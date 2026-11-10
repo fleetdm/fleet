@@ -725,11 +725,8 @@ type UploadSoftwareInstallerPayload struct {
 	// automatically created when a software installer is added to Fleet. This field should be set
 	// after software installer creation if AutomaticInstall is true.
 	AddedAutomaticInstallPolicy *Policy
-	// AlwaysDownload disables conditional HTTP downloads using ETag. When false
-	// (the default), the download request includes If-None-Match with the stored ETag.
-	AlwaysDownload bool
 	// HTTPETag stores the ETag from the last download response, used for
-	// conditional GET requests when AlwaysDownload is false.
+	// conditional GET requests when always_download is false.
 	HTTPETag   *string
 	PatchQuery string
 	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only).
@@ -764,26 +761,6 @@ func (p UploadSoftwareInstallerPayload) UniqueIdentifier() string {
 		return p.UpgradeCode
 	}
 	return p.Title
-}
-
-// GetBundleIdentifierForDB returns a pointer to the bundle identifier if it's
-// non-empty (after trimming whitespace), or nil otherwise. This is used when
-// inserting into the database where NULL is preferred over empty string.
-func (p UploadSoftwareInstallerPayload) GetBundleIdentifierForDB() *string {
-	if strings.TrimSpace(p.BundleIdentifier) != "" {
-		return &p.BundleIdentifier
-	}
-	return nil
-}
-
-// GetUpgradeCodeForDB returns a pointer to the upgrade code if the source is
-// "programs", or nil otherwise. This is used when inserting into the database
-// where NULL is preferred for non-Windows installers.
-func (p UploadSoftwareInstallerPayload) GetUpgradeCodeForDB() *string {
-	if p.Source != "programs" {
-		return nil
-	}
-	return &p.UpgradeCode
 }
 
 type ExistingSoftwareInstaller struct {
@@ -1022,8 +999,9 @@ type AutomaticInstallPolicy struct {
 	// InstallerID is nil for VPP-app-backed policies (they carry
 	// vpp_apps_teams_id instead). For custom-package-backed policies it
 	// points at the specific package the policy triggers install on.
-	InstallerID *uint  `json:"-" db:"software_installer_id"`
-	Type        string `json:"type" db:"type"`
+	InstallerID    *uint  `json:"-" db:"software_installer_id"`
+	VPPAppsTeamsID *uint  `json:"-" db:"vpp_apps_teams_id"`
+	Type           string `json:"type" db:"type"`
 }
 
 type PatchPolicyData struct {
@@ -1083,25 +1061,6 @@ type SoftwarePackageListItem struct {
 	UploadedAt               time.Time                `json:"uploaded_at"`
 }
 
-func (s *SoftwarePackageOrApp) GetPlatform() string {
-	return s.Platform
-}
-
-func (s *SoftwarePackageOrApp) GetAppStoreID() string {
-	return s.AppStoreID
-}
-
-// Returns unique name by Platform + AppStoreID/Name
-func (s *SoftwarePackageOrApp) FullyQualifiedName() string {
-	if s.AppStoreID != "" {
-		return fmt.Sprintf(`%s_%s`, s.AppStoreID, s.Platform)
-	}
-	if s.Name != "" {
-		return fmt.Sprintf(`%s_%s`, s.Name, s.Platform)
-	}
-	return ""
-}
-
 type SoftwarePackageSpec struct {
 	URL                string                `json:"url"`
 	SelfService        bool                  `json:"self_service"`
@@ -1158,12 +1117,6 @@ func (spec SoftwarePackageSpec) ResolveSoftwarePackagePaths(baseDir string) Soft
 	spec.Configuration.Path = resolveApplyRelativePath(baseDir, spec.Configuration.Path)
 
 	return spec
-}
-
-func (spec SoftwarePackageSpec) IncludesFieldsDisallowedInPackageFile() bool {
-	return len(spec.LabelsExcludeAny) > 0 || len(spec.LabelsIncludeAny) > 0 || len(spec.LabelsIncludeAll) > 0 ||
-		len(spec.Categories.Value) > 0 || spec.SelfService || spec.InstallDuringSetup.Valid ||
-		spec.SetupExperiencePlatform.Set
 }
 
 func resolveApplyRelativePath(baseDir string, path string) string {

@@ -89,7 +89,6 @@ const PlatformCompatibility = ({
               isCompatible ? "compatible-platform" : "incompatible-platform"
             }
             color={isCompatible ? "status-success" : "status-error"}
-            size="small"
           />
           {platform === "ChromeOS" ? liveQueryOnlyPlatform : platform}
         </span>

@@ -19,6 +19,11 @@ func TestExtractServerErrorText(t *testing.T) {
 			expected: "Something went wrong: invalid input",
 		},
 		{
+			name:     "JSON error with reason repeating the message",
+			body:     `{"message": "forbidden", "errors": [{"name": "base", "reason": "forbidden"}]}`,
+			expected: "forbidden",
+		},
+		{
 			name:     "403 Forbidden HTML",
 			body:     `<!DOCTYPE html><html><head><title>403 Forbidden</title></head><body><h1>403 Forbidden</h1><p>You don't have permission to access this resource.</p></body></html>`,
 			expected: "server returned HTML instead of JSON response, body: <!DOCTYPE html><html><head><title>403 Forbidden</title></head><body><h1>403 Forbidden</h1><p>You don't have permission to access this resource.</p></body></html>",

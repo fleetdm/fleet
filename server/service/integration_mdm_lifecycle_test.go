@@ -217,7 +217,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 		// reload the host by identifier, tests might
 		// delete hosts and create new records with different IDs
 		var err error
-		host, err = s.ds.HostByIdentifier(context.Background(), host.UUID)
+		host, err = s.ds.HostByIdentifier(t.Context(), device.UUID)
 		require.NoError(t, err)
 
 		sCmds, sSumm, sHostMDM := s.recordAppleHostStatus(host, device)
@@ -1236,7 +1236,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	// enqueue refetch commands and report results
 	require.NoError(t, apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
-	}))
+	}, 1000))
 	require.True(t, existsRefetchCmd(iPadMdmDevice.UUID))
 	reportResultsRefetchCmds(iPadMdmDevice)
 
@@ -1332,7 +1332,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	// enqueue refetch commands and report results
 	require.NoError(t, apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
-	}))
+	}, 1000))
 	require.True(t, existsRefetchCmd(iPadMdmDevice.UUID))
 	reportResultsRefetchCmds(iPadMdmDevice)
 
@@ -1472,7 +1472,7 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 	// mu.Unlock()
 
 	hostByIdentifierResp := getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
 	require.Equal(t, hwModel, hostByIdentifierResp.Host.HardwareModel)
 	require.Equal(t, "ipados", hostByIdentifierResp.Host.Platform)
 	// iOS/iPadOS enrollment sets refetch_requested=true so the iphone_ipad_refetcher
@@ -1484,7 +1484,7 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 	awaitRefetchCommands(hostID, 3) // expect three commands: refetch UUID, apps, certs
 
 	hostByIdentifierResp = getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
 	// The cron queues commands but doesn't clear refetch_requested — that happens
 	// only after the device acks the DeviceInformation command below.
 	require.True(t, hostByIdentifierResp.Host.RefetchRequested)
@@ -1517,7 +1517,7 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", hostID), nil, http.StatusOK)
 	hostByIdentifierResp = getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
 	require.True(t, hostByIdentifierResp.Host.RefetchRequested)
 
 	awaitRefetchCommands(hostID, 3) // expect three commands: refetch UUID, apps, certs
@@ -1532,7 +1532,7 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 	require.Len(t, commands, 0)
 
 	hostByIdentifierResp = getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
 	// Re-enrollment re-flags iOS/iPadOS hosts with refetch_requested=true so the cron
 	// will pick them up again; the flag is cleared by the next DeviceInformation ack.
 	require.True(t, hostByIdentifierResp.Host.RefetchRequested)
@@ -1561,7 +1561,7 @@ func (s *integrationMDMTestSuite) TestMDMLockHostUnenrolled() {
 	require.NoError(t, mdmDevice.Enroll())
 
 	hostByIdentifierResp := getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
 	require.Equal(t, hwModel, hostByIdentifierResp.Host.HardwareModel)
 	hostID := hostByIdentifierResp.Host.ID
 

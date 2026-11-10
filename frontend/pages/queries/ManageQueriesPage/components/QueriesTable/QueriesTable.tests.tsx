@@ -161,9 +161,6 @@ describe("QueriesTable", () => {
         curTeamScopeQueriesPresent: true,
         isLoading: false,
         onDeleteQueryClick: jest.fn(),
-        isOnlyObserver: false,
-        isObserverPlus: false,
-        isAnyTeamObserverPlus: false,
         currentTeamId: undefined,
       },
     ];
@@ -185,9 +182,6 @@ describe("QueriesTable", () => {
         curTeamScopeQueriesPresent: true,
         isLoading: false,
         onDeleteQueryClick: jest.fn(),
-        isOnlyObserver: false,
-        isObserverPlus: false,
-        isAnyTeamObserverPlus: false,
         currentTeamId: undefined,
         isPremiumTier: true,
       },
@@ -212,9 +206,6 @@ describe("QueriesTable", () => {
         curTeamScopeQueriesPresent: true,
         isLoading: false,
         onDeleteQueryClick: jest.fn(),
-        isOnlyObserver: false,
-        isObserverPlus: false,
-        isAnyTeamObserverPlus: false,
         isPremiumTier: true,
         currentTeamId: 1,
       },
@@ -248,9 +239,6 @@ describe("QueriesTable", () => {
         curTeamScopeQueriesPresent
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
-        isOnlyObserver={false}
-        isObserverPlus={false}
-        isAnyTeamObserverPlus={false}
         currentTeamId={undefined}
         isPremiumTier
       />
@@ -282,9 +270,6 @@ describe("QueriesTable", () => {
         curTeamScopeQueriesPresent
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
-        isOnlyObserver={false}
-        isObserverPlus={false}
-        isAnyTeamObserverPlus={false}
         currentTeamId={1}
         isPremiumTier
       />
@@ -305,9 +290,6 @@ describe("QueriesTable", () => {
         curTeamScopeQueriesPresent: true,
         isLoading: false,
         onDeleteQueryClick: jest.fn(),
-        isOnlyObserver: false,
-        isObserverPlus: false,
-        isAnyTeamObserverPlus: false,
         currentTeamId: 1,
       },
     ];
@@ -335,9 +317,6 @@ describe("QueriesTable", () => {
       curTeamScopeQueriesPresent: true,
       isLoading: false,
       onDeleteQueryClick: jest.fn(),
-      isOnlyObserver: false,
-      isObserverPlus: false,
-      isAnyTeamObserverPlus: false,
       currentTeamId: 1,
       queryParams: {
         query: "dont match me bro",
@@ -373,9 +352,6 @@ describe("QueriesTable", () => {
         curTeamScopeQueriesPresent
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
-        isOnlyObserver={false}
-        isObserverPlus={false}
-        isAnyTeamObserverPlus={false}
         currentTeamId={1}
       />
     );
@@ -413,9 +389,6 @@ describe("QueriesTable", () => {
         curTeamScopeQueriesPresent
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
-        isOnlyObserver={false}
-        isObserverPlus={false}
-        isAnyTeamObserverPlus={false}
         currentTeamId={1}
       />
     );
@@ -452,9 +425,6 @@ describe("QueriesTable", () => {
         curTeamScopeQueriesPresent
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
-        isOnlyObserver={false}
-        isObserverPlus={false}
-        isAnyTeamObserverPlus={false}
         currentTeamId={undefined}
       />
     );
@@ -480,9 +450,6 @@ describe("QueriesTable", () => {
         curTeamScopeQueriesPresent
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
-        isOnlyObserver={false}
-        isObserverPlus={false}
-        isAnyTeamObserverPlus={false}
         currentTeamId={1}
       />
     );

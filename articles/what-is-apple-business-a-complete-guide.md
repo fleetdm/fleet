@@ -89,7 +89,17 @@ Fleet pairs well with AB. Fleet's MDM features are built on top of [osquery](htt
 
 ## What about Apple devices in education and the public sector?
 
-Educational institutions should use Apple School Manager (ASM) instead of AB. ASM has all the features of AB with additional features designed for K-12 and higher education like Shared iPad management, student information management tools, and student account provisioning. Schools don't need both portals and only need to pair ASM with a third-party MDM solution like [Fleet](http://fleetdm.com/).
+Educational institutions use Apple School Manager (ASM) instead of AB. ASM includes the features of AB, plus features designed for K-12 and higher education like Shared iPad, Apple Classroom and Schoolwork, and Managed Apple Account provisioning for students and teachers. Schools don't need both portals and only need to pair ASM with an MDM solution.
+
+Fleet's support for ASM is minimal today. Fleet supports:
+
+- **Automated Device Enrollment (ADE):** Devices purchased for your school enroll through ASM the same way they do through AB.
+- **Apps and licensing:** Most of the app licensing functionality (formerly VPP) that Fleet supports with AB, except books.
+
+Fleet doesn't support:
+
+- **Apple Classroom and Schoolwork:** Features for managing teachers, students, classes, and Managed Apple Account roles for education.
+- **Books:** Distributing books purchased through ASM.
 
 AB works with all MDM solutions and provides detailed procurement, enrollment and compliance data. Government and public sector agencies managing Apple devices that:
 

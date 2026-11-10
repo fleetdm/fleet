@@ -61,6 +61,8 @@ type EnrollOrbitFunc func(ctx context.Context, hostInfo fleet.OrbitHostInfo, enr
 
 type GetOrbitConfigFunc func(ctx context.Context) (fleet.OrbitConfig, error)
 
+type SetHostEntraDeviceTokenFunc func(ctx context.Context, idToken string) error
+
 type LogFleetdErrorFunc func(ctx context.Context, errData fleet.FleetdError) error
 
 type SetOrUpdateDeviceAuthTokenFunc func(ctx context.Context, authToken string) error
@@ -211,8 +213,6 @@ type NewQueryFunc func(ctx context.Context, p fleet.QueryPayload) (*fleet.Query,
 
 type ModifyQueryFunc func(ctx context.Context, id uint, p fleet.QueryPayload) (*fleet.Query, error)
 
-type DeleteQueryFunc func(ctx context.Context, teamID *uint, name string) error
-
 type DeleteQueryByIDFunc func(ctx context.Context, id uint) error
 
 type DeleteQueriesFunc func(ctx context.Context, ids []uint) (uint, error)
@@ -247,13 +247,13 @@ type GetHostSummaryFunc func(ctx context.Context, teamID *uint, platform *string
 
 type DeleteHostFunc func(ctx context.Context, id uint) (err error)
 
-type HostByIdentifierFunc func(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error)
+type GetHostByIDOrIdentifierFunc func(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error)
 
 type RefetchHostFunc func(ctx context.Context, id uint) (err error)
 
 type CleanupExpiredHostsBatchFunc func(ctx context.Context, batchSize int) ([]fleet.DeletedHostDetails, error)
 
-type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error
+type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint) error
 
 type AddHostsToTeamByFilterFunc func(ctx context.Context, teamID *uint, filter *map[string]interface{}) error
 
@@ -579,8 +579,6 @@ type GetSoftwareInstallDetailsFunc func(ctx context.Context, installUUID string)
 
 type GetAppleMDMFunc func(ctx context.Context) (*fleet.AppleMDM, error)
 
-type GetAppleBMFunc func(ctx context.Context) (*fleet.AppleBM, error)
-
 type RequestMDMAppleCSRFunc func(ctx context.Context, email string, org string) (*fleet.AppleCSR, error)
 
 type GetMDMAppleCSRFunc func(ctx context.Context) ([]byte, error)
@@ -677,11 +675,7 @@ type RenewABMTokenFunc func(ctx context.Context, token io.Reader, tokenID uint) 
 
 type EnqueueMDMAppleCommandFunc func(ctx context.Context, rawBase64Cmd string, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error)
 
-type BatchSetMDMAppleProfilesFunc func(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool, skipBulkPending bool) error
-
-type MDMApplePreassignProfileFunc func(ctx context.Context, payload fleet.MDMApplePreassignProfilePayload) error
-
-type MDMAppleMatchPreassignmentFunc func(ctx context.Context, externalHostIdentifier string) error
+type BatchSetMDMAppleProfilesFunc func(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool) error
 
 type MDMAppleDeviceLockFunc func(ctx context.Context, hostID uint) error
 
@@ -860,8 +854,6 @@ type GetHostScriptDetailsFunc func(ctx context.Context, hostID uint, opt fleet.L
 type BatchSetScriptsFunc func(ctx context.Context, maybeTmID *uint, maybeTmName *string, payloads []fleet.ScriptPayload, dryRun bool) ([]fleet.ScriptResponse, error)
 
 type BatchScriptExecuteFunc func(ctx context.Context, scriptID uint, hostIDs []uint, filters *map[string]any, notBefore *time.Time) (string, error)
-
-type BatchScriptExecutionSummaryFunc func(ctx context.Context, batchExecutionID string) (*fleet.BatchActivity, error)
 
 type BatchScriptExecutionStatusFunc func(ctx context.Context, batchExecutionID string) (*fleet.BatchActivity, error)
 
@@ -1120,6 +1112,9 @@ type Service struct {
 	GetOrbitConfigFunc        GetOrbitConfigFunc
 	GetOrbitConfigFuncInvoked bool
 
+	SetHostEntraDeviceTokenFunc        SetHostEntraDeviceTokenFunc
+	SetHostEntraDeviceTokenFuncInvoked bool
+
 	LogFleetdErrorFunc        LogFleetdErrorFunc
 	LogFleetdErrorFuncInvoked bool
 
@@ -1345,9 +1340,6 @@ type Service struct {
 	ModifyQueryFunc        ModifyQueryFunc
 	ModifyQueryFuncInvoked bool
 
-	DeleteQueryFunc        DeleteQueryFunc
-	DeleteQueryFuncInvoked bool
-
 	DeleteQueryByIDFunc        DeleteQueryByIDFunc
 	DeleteQueryByIDFuncInvoked bool
 
@@ -1399,8 +1391,8 @@ type Service struct {
 	DeleteHostFunc        DeleteHostFunc
 	DeleteHostFuncInvoked bool
 
-	HostByIdentifierFunc        HostByIdentifierFunc
-	HostByIdentifierFuncInvoked bool
+	GetHostByIDOrIdentifierFunc        GetHostByIDOrIdentifierFunc
+	GetHostByIDOrIdentifierFuncInvoked bool
 
 	RefetchHostFunc        RefetchHostFunc
 	RefetchHostFuncInvoked bool
@@ -1897,9 +1889,6 @@ type Service struct {
 	GetAppleMDMFunc        GetAppleMDMFunc
 	GetAppleMDMFuncInvoked bool
 
-	GetAppleBMFunc        GetAppleBMFunc
-	GetAppleBMFuncInvoked bool
-
 	RequestMDMAppleCSRFunc        RequestMDMAppleCSRFunc
 	RequestMDMAppleCSRFuncInvoked bool
 
@@ -2046,12 +2035,6 @@ type Service struct {
 
 	BatchSetMDMAppleProfilesFunc        BatchSetMDMAppleProfilesFunc
 	BatchSetMDMAppleProfilesFuncInvoked bool
-
-	MDMApplePreassignProfileFunc        MDMApplePreassignProfileFunc
-	MDMApplePreassignProfileFuncInvoked bool
-
-	MDMAppleMatchPreassignmentFunc        MDMAppleMatchPreassignmentFunc
-	MDMAppleMatchPreassignmentFuncInvoked bool
 
 	MDMAppleDeviceLockFunc        MDMAppleDeviceLockFunc
 	MDMAppleDeviceLockFuncInvoked bool
@@ -2319,9 +2302,6 @@ type Service struct {
 
 	BatchScriptExecuteFunc        BatchScriptExecuteFunc
 	BatchScriptExecuteFuncInvoked bool
-
-	BatchScriptExecutionSummaryFunc        BatchScriptExecutionSummaryFunc
-	BatchScriptExecutionSummaryFuncInvoked bool
 
 	BatchScriptExecutionStatusFunc        BatchScriptExecutionStatusFunc
 	BatchScriptExecutionStatusFuncInvoked bool
@@ -2758,6 +2738,13 @@ func (s *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, error)
 	s.GetOrbitConfigFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetOrbitConfigFunc(ctx)
+}
+
+func (s *Service) SetHostEntraDeviceToken(ctx context.Context, idToken string) error {
+	s.mu.Lock()
+	s.SetHostEntraDeviceTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetHostEntraDeviceTokenFunc(ctx, idToken)
 }
 
 func (s *Service) LogFleetdError(ctx context.Context, errData fleet.FleetdError) error {
@@ -3285,13 +3272,6 @@ func (s *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPayload
 	return s.ModifyQueryFunc(ctx, id, p)
 }
 
-func (s *Service) DeleteQuery(ctx context.Context, teamID *uint, name string) error {
-	s.mu.Lock()
-	s.DeleteQueryFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteQueryFunc(ctx, teamID, name)
-}
-
 func (s *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 	s.mu.Lock()
 	s.DeleteQueryByIDFuncInvoked = true
@@ -3411,11 +3391,11 @@ func (s *Service) DeleteHost(ctx context.Context, id uint) (err error) {
 	return s.DeleteHostFunc(ctx, id)
 }
 
-func (s *Service) HostByIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
+func (s *Service) GetHostByIDOrIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
 	s.mu.Lock()
-	s.HostByIdentifierFuncInvoked = true
+	s.GetHostByIDOrIdentifierFuncInvoked = true
 	s.mu.Unlock()
-	return s.HostByIdentifierFunc(ctx, identifier, opts)
+	return s.GetHostByIDOrIdentifierFunc(ctx, identifier, opts)
 }
 
 func (s *Service) RefetchHost(ctx context.Context, id uint) (err error) {
@@ -3432,11 +3412,11 @@ func (s *Service) CleanupExpiredHostsBatch(ctx context.Context, batchSize int) (
 	return s.CleanupExpiredHostsBatchFunc(ctx, batchSize)
 }
 
-func (s *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error {
+func (s *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error {
 	s.mu.Lock()
 	s.AddHostsToTeamFuncInvoked = true
 	s.mu.Unlock()
-	return s.AddHostsToTeamFunc(ctx, teamID, hostIDs, skipBulkPending)
+	return s.AddHostsToTeamFunc(ctx, teamID, hostIDs)
 }
 
 func (s *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, filter *map[string]interface{}) error {
@@ -4573,13 +4553,6 @@ func (s *Service) GetAppleMDM(ctx context.Context) (*fleet.AppleMDM, error) {
 	return s.GetAppleMDMFunc(ctx)
 }
 
-func (s *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
-	s.mu.Lock()
-	s.GetAppleBMFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetAppleBMFunc(ctx)
-}
-
 func (s *Service) RequestMDMAppleCSR(ctx context.Context, email string, org string) (*fleet.AppleCSR, error) {
 	s.mu.Lock()
 	s.RequestMDMAppleCSRFuncInvoked = true
@@ -4916,25 +4889,11 @@ func (s *Service) EnqueueMDMAppleCommand(ctx context.Context, rawBase64Cmd strin
 	return s.EnqueueMDMAppleCommandFunc(ctx, rawBase64Cmd, deviceIDs)
 }
 
-func (s *Service) BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool, skipBulkPending bool) error {
+func (s *Service) BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool) error {
 	s.mu.Lock()
 	s.BatchSetMDMAppleProfilesFuncInvoked = true
 	s.mu.Unlock()
-	return s.BatchSetMDMAppleProfilesFunc(ctx, teamID, teamName, profiles, dryRun, skipBulkPending)
-}
-
-func (s *Service) MDMApplePreassignProfile(ctx context.Context, payload fleet.MDMApplePreassignProfilePayload) error {
-	s.mu.Lock()
-	s.MDMApplePreassignProfileFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMApplePreassignProfileFunc(ctx, payload)
-}
-
-func (s *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHostIdentifier string) error {
-	s.mu.Lock()
-	s.MDMAppleMatchPreassignmentFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMAppleMatchPreassignmentFunc(ctx, externalHostIdentifier)
+	return s.BatchSetMDMAppleProfilesFunc(ctx, teamID, teamName, profiles, dryRun)
 }
 
 func (s *Service) MDMAppleDeviceLock(ctx context.Context, hostID uint) error {
@@ -5558,13 +5517,6 @@ func (s *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs
 	s.BatchScriptExecuteFuncInvoked = true
 	s.mu.Unlock()
 	return s.BatchScriptExecuteFunc(ctx, scriptID, hostIDs, filters, notBefore)
-}
-
-func (s *Service) BatchScriptExecutionSummary(ctx context.Context, batchExecutionID string) (*fleet.BatchActivity, error) {
-	s.mu.Lock()
-	s.BatchScriptExecutionSummaryFuncInvoked = true
-	s.mu.Unlock()
-	return s.BatchScriptExecutionSummaryFunc(ctx, batchExecutionID)
 }
 
 func (s *Service) BatchScriptExecutionStatus(ctx context.Context, batchExecutionID string) (*fleet.BatchActivity, error) {
