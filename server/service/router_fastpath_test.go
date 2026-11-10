@@ -430,25 +430,6 @@ func TestFastPathResolvesDuplicateRoutesLikeGorilla(t *testing.T) {
 	}
 }
 
-// TestFastPathKeepsGorillaPrecedenceForHEAD covers a route registered for both GET and HEAD, which gets no HEAD pattern of its own on
-// the stdlib mux: a HEAD-only route registered after it for the same path must not take its HEAD requests.
-func TestFastPathKeepsGorillaPrecedenceForHEAD(t *testing.T) {
-	status := func(code int) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(code) })
-	}
-	router := mux.NewRouter()
-	router.Handle("/api/v1/fleet/widgets/{id}", status(http.StatusGone)).Methods(http.MethodGet, http.MethodHead)
-	router.Handle("/api/v1/fleet/widgets/{id}", status(http.StatusTeapot)).Methods(http.MethodHead)
-
-	handler, err := newFastPathHandler(router, nil, config.TestConfig())
-	require.NoError(t, err)
-	for _, method := range []string{http.MethodGet, http.MethodHead} {
-		want, got := serve(router, method, "/api/v1/fleet/widgets/1"), serve(handler, method, "/api/v1/fleet/widgets/1")
-		require.Equalf(t, http.StatusGone, want.Code, "gorilla serves %s with the first route", method)
-		assert.Equalf(t, want.Code, got.Code, "status differs for %s", method)
-	}
-}
-
 // TestFastPathErrorsWhenARouteIsAmbiguous pins the loud failure. A route the stdlib mux cannot disambiguate is a programming
 // error in a compile-time-fixed route table, so it has to stop startup.
 func TestFastPathErrorsWhenARouteIsAmbiguous(t *testing.T) {

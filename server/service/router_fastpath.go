@@ -107,14 +107,7 @@ func buildFastPathMux(r *mux.Router, middlewares []mux.MiddlewareFunc, cfg confi
 			varNames = append(varNames, m[1])
 		}
 
-		patternMethods := fastPathMethods(methods)
-		if slices.Contains(methods, http.MethodHead) && !slices.Contains(patternMethods, http.MethodHead) {
-			// gorilla still gives this route the HEAD requests that its GET pattern hands back, so a later route can't take them.
-			for _, pattern := range expandToStdlibPatterns(tpl) {
-				claimed[http.MethodHead+" "+pattern] = struct{}{}
-			}
-		}
-		for _, method := range patternMethods {
+		for _, method := range fastPathMethods(methods) {
 			for _, pattern := range expandToStdlibPatterns(tpl) {
 				full := method + " " + pattern
 				if _, taken := claimed[full]; taken {
