@@ -378,7 +378,7 @@ func maybeCancelPendingSetupExperienceSteps(ctx context.Context, ds fleet.Datast
 					HostID:              host.ID,
 					HostDisplayName:     host.DisplayName(),
 					SoftwareTitle:       s.Name,
-					SoftwareDisplayName: softwareDisplayName,
+					SoftwareDisplayName: ptr.ValOrZero(softwareDisplayName),
 					SoftwareTitleID:     ptr.ValOrZero(s.SoftwareTitleID),
 				}); err != nil {
 					return ctxerr.Wrap(ctx, err, "creating canceled setup experience activity")

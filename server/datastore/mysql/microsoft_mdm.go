@@ -2457,6 +2457,10 @@ func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fle
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, ctxerr.Wrap(ctx, err, "cannot get bitlocker status because mdm info lookup failed")
 	}
+	if mdmInfo == nil {
+		ds.logger.DebugContext(ctx, "no bitlocker status for host without mdm info", "host_id", host.ID)
+		return nil, nil
+	}
 
 	if mdmInfo.IsServer {
 		// It is currently expected that server hosts do not have a bitlocker status so we can skip
@@ -2470,6 +2474,12 @@ func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fle
 		return nil, err
 	}
 	if !diskEncryptionConfig.WindowsEnabled {
+		return nil, nil
+	}
+
+	// Like the summary and the list filters, ignore hosts that are not connected to Fleet MDM (for example, third-party MDM).
+	if !mdmInfo.ConnectedToFleet {
+		ds.logger.DebugContext(ctx, "no bitlocker status for host not connected to fleet mdm", "host_id", host.ID)
 		return nil, nil
 	}
 

@@ -468,7 +468,7 @@ export const HOST_SUMMARY_DATA: (keyof IHost)[] = [
   "platform",
   "detail_updated_at",
   "policy_updated_at",
-  "team_name",
+  "fleet_name",
   "display_name",
   "maintenance_window",
   "os_version",
@@ -535,7 +535,7 @@ export const HOST_OSQUERY_DATA = [
 export const DEFAULT_USE_QUERY_OPTIONS = {
   refetchOnWindowFocus: false,
   retry: (failureCount: number, error: unknown) => {
-    const err = error as any;
+    const err = error as { status?: number };
     let isBadRequestErr = false;
     if (err.status !== undefined) {
       isBadRequestErr = err.status >= 400 && err.status < 500;

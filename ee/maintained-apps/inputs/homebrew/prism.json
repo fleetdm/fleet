@@ -1,6 +1,6 @@
 {
   "name": "GraphPad Prism",
-  "unique_identifier": "com.GraphPad.Prism.autocomplete",
+  "unique_identifier": "com.GraphPad.Prism",
   "token": "prism",
   "installer_format": "dmg",
   "slug": "prism/darwin",

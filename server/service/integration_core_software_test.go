@@ -176,7 +176,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	resp = s.Do("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
 	bodyBytes, err = io.ReadAll(resp.Body)
 	require.NoError(t, err)
-	assert.Contains(t, string(bodyBytes), `"counts_updated_at": null`)
+	assert.Contains(t, string(bodyBytes), `"counts_updated_at":null`)
 	require.NoError(t, json.Unmarshal(bodyBytes, &versionsResp))
 	require.Empty(t, versionsResp.Software)
 	require.Equal(t, 0, versionsResp.Count)
@@ -1479,7 +1479,7 @@ func (s *integrationTestSuite) TestAIToolFieldOmittedOnFree() {
 	require.Equal(t, want, aiToolByName(t,
 		s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK), "software"))
 	require.Equal(t, want, aiToolByName(t, get(fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID)), "host", "software"))
-	require.Equal(t, want, aiToolByName(t, get("/api/latest/fleet/hosts/identifier/"+host.UUID), "host", "software"))
+	require.Equal(t, want, aiToolByName(t, get("/api/latest/fleet/hosts/"+host.UUID), "host", "software"))
 	require.Equal(t, want, aiToolByName(t,
 		s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK), "host", "software"))
 

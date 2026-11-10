@@ -91,7 +91,7 @@ the repo without adding dependencies to the root `go.mod`.
 ## Known limitations
 
 - The schema is filename-agnostic, but Fleet applies some keys differently by file.
-  For example, `agent_options` and `reports` are rejected in `no-team.yml` and the
+  For example, `agent_options` and `reports` are rejected in the
   unassigned file. The schema still accepts them there, so that mistake shows up at
   `fleetctl` apply time, not in the editor.
 - `GitOpsSpec` and `ControlsWithTypes` are hand-written mirrors of `spec.GitOps` and

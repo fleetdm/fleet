@@ -580,6 +580,7 @@ func MakeDecoder(
 ) kithttp.DecodeRequestFunc {
 	// Infer alias rules from `renameto` struct tags on the request type.
 	aliasRules := ExtractAliasRules(iface)
+	removedRules := ExtractRemovedKeyRules(iface)
 	if iface == nil {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
 			return nil, nil
@@ -674,9 +675,9 @@ func MakeDecoder(
 
 			// Insert the JSON key rewriter into the reader pipeline
 			// (after gzip decompression, before JSON decoding) to rename
-			// deprecated field names and detect alias conflicts.
-			if len(aliasRules) > 0 {
-				rewriter = NewJSONKeyRewriteReader(body, aliasRules)
+			// deprecated field names, detect alias conflicts and reject removed keys.
+			if len(aliasRules) > 0 || len(removedRules) > 0 {
+				rewriter = NewJSONKeyRewriteReader(body, aliasRules, removedRules...)
 				//nolint:errcheck // nothing to do on .Close() error.
 				defer rewriter.Close()
 				body = rewriter
@@ -686,6 +687,9 @@ func MakeDecoder(
 				req := v.Interface()
 				err := jsonUnmarshal(body, req)
 				if err != nil {
+					if rke, ok := errors.AsType[*RemovedKeyError](err); ok {
+						return nil, rke
+					}
 					// Check for alias conflict errors from the rewriter.
 					var ace *AliasConflictError
 					if errors.As(err, &ace) {
@@ -759,6 +763,9 @@ func MakeDecoder(
 		if isBodyDecoder != nil && isBodyDecoder(v) {
 			err := decodeBody(ctx, r, v, body)
 			if err != nil {
+				if rke, ok := errors.AsType[*RemovedKeyError](err); ok {
+					return nil, rke
+				}
 				// Check for alias conflict errors from the rewriter.
 				var ace *AliasConflictError
 				if errors.As(err, &ace) {

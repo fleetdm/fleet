@@ -14,8 +14,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -119,6 +121,18 @@ func (s *integrationTestSuite) TestTranslator() {
 
 	assert.Equal(t, s.users[payload.List[0].Payload.Identifier].ID, payload.List[0].Payload.ID)
 
+	tm, err := s.ds.NewTeam(t.Context(), &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, s.ds.DeleteTeam(context.Background(), tm.ID)) })
+	for _, typ := range []string{fleet.TranslatorTypeTeam, fleet.TranslatorTypeFleet} {
+		payload = translatorResponse{}
+		params = translatorRequest{List: []fleet.TranslatePayload{{Type: typ, Payload: fleet.StringIdentifierToIDPayload{Identifier: tm.Name}}}}
+		s.DoJSON("POST", "/api/latest/fleet/translate", &params, http.StatusOK, &payload)
+		require.Len(t, payload.List, 1)
+		assert.Equal(t, typ, payload.List[0].Type)
+		assert.Equal(t, tm.ID, payload.List[0].Payload.ID)
+	}
+
 	// empty body
 	s.DoJSON("POST", "/api/latest/fleet/translate", &translatorRequest{}, http.StatusBadRequest, &payload)
 
@@ -173,72 +187,67 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 
 	// list teams, none
 	var listResp listTeamsResponse
-	s.DoJSON("GET", "/api/latest/fleet/teams", nil, http.StatusPaymentRequired, &listResp)
+	s.DoJSON("GET", "/api/latest/fleet/fleets", nil, http.StatusPaymentRequired, &listResp)
 	assert.Empty(t, listResp.Teams)
 
 	// get team
 	var getResp getTeamResponse
-	s.DoJSON("GET", "/api/latest/fleet/teams/123", nil, http.StatusPaymentRequired, &getResp)
+	s.DoJSON("GET", "/api/latest/fleet/fleets/123", nil, http.StatusPaymentRequired, &getResp)
 	assert.Nil(t, getResp.Team)
 
 	// create team
 	var tmResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{}, http.StatusPaymentRequired, &tmResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{}, http.StatusPaymentRequired, &tmResp)
 	assert.Nil(t, tmResp.Team)
 
 	// modify team
-	s.DoJSON("PATCH", "/api/latest/fleet/teams/123", fleet.TeamPayload{}, http.StatusPaymentRequired, &tmResp)
+	s.DoJSON("PATCH", "/api/latest/fleet/fleets/123", fleet.TeamPayload{}, http.StatusPaymentRequired, &tmResp)
 	assert.Nil(t, tmResp.Team)
 
 	// delete team
 	var delResp deleteTeamResponse
-	s.DoJSON("DELETE", "/api/latest/fleet/teams/123", nil, http.StatusPaymentRequired, &delResp)
+	s.DoJSON("DELETE", "/api/latest/fleet/fleets/123", nil, http.StatusPaymentRequired, &delResp)
 
 	// apply team specs
 	var specResp applyTeamSpecsResponse
 	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "newteam", Secrets: &[]fleet.EnrollSecret{{Secret: "ABC"}}}}}
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusPaymentRequired, &specResp)
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusPaymentRequired, &specResp)
 
 	// modify team agent options
-	s.DoJSON("POST", "/api/latest/fleet/teams/123/agent_options", nil, http.StatusPaymentRequired, &tmResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets/123/agent_options", nil, http.StatusPaymentRequired, &tmResp)
 	assert.Nil(t, tmResp.Team)
 
 	// list team users
 	var usersResp listUsersResponse
-	s.DoJSON("GET", "/api/latest/fleet/teams/123/users", nil, http.StatusPaymentRequired, &usersResp, "page", "1")
+	s.DoJSON("GET", "/api/latest/fleet/fleets/123/users", nil, http.StatusPaymentRequired, &usersResp, "page", "1")
 	assert.Empty(t, usersResp.Users)
 
 	// add team users
-	s.DoJSON("PATCH", "/api/latest/fleet/teams/123/users", modifyTeamUsersRequest{Users: []fleet.TeamUser{{User: fleet.User{ID: 1}}}}, http.StatusPaymentRequired, &tmResp)
+	s.DoJSON("PATCH", "/api/latest/fleet/fleets/123/users", modifyTeamUsersRequest{Users: []fleet.TeamUser{{ID: 1}}}, http.StatusPaymentRequired, &tmResp)
 	assert.Nil(t, tmResp.Team)
 
 	// delete team users
-	s.DoJSON("DELETE", "/api/latest/fleet/teams/123/users", modifyTeamUsersRequest{Users: []fleet.TeamUser{{User: fleet.User{ID: 1}}}}, http.StatusPaymentRequired, &tmResp)
+	s.DoJSON("DELETE", "/api/latest/fleet/fleets/123/users", modifyTeamUsersRequest{Users: []fleet.TeamUser{{ID: 1}}}, http.StatusPaymentRequired, &tmResp)
 	assert.Nil(t, tmResp.Team)
 
 	// get team enroll secrets
 	var secResp teamEnrollSecretsResponse
-	s.DoJSON("GET", "/api/latest/fleet/teams/123/secrets", nil, http.StatusPaymentRequired, &secResp)
+	s.DoJSON("GET", "/api/latest/fleet/fleets/123/secrets", nil, http.StatusPaymentRequired, &secResp)
 	assert.Empty(t, secResp.Secrets)
 
 	// modify team enroll secrets
-	s.DoJSON("PATCH", "/api/latest/fleet/teams/123/secrets", modifyTeamEnrollSecretsRequest{Secrets: []fleet.EnrollSecret{{Secret: "DEF"}}}, http.StatusPaymentRequired, &secResp)
+	s.DoJSON("PATCH", "/api/latest/fleet/fleets/123/secrets", modifyTeamEnrollSecretsRequest{Secrets: []fleet.EnrollSecret{{Secret: "DEF"}}}, http.StatusPaymentRequired, &secResp)
 	assert.Empty(t, secResp.Secrets)
-
-	// get apple BM configuration
-	var appleBMResp getAppleBMResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusPaymentRequired, &appleBMResp)
-	assert.Nil(t, appleBMResp.AppleBM)
 
 	// batch-apply an empty set of MDM profiles succeeds even though MDM is not
 	// enabled, because it wouldn't change anything (and it needs to support the
 	// case where `fleetctl get config`'s output is used as input to `fleetctl
 	// apply`).
-	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/batch", nil, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", appleProfilesBatchRequest(nil), http.StatusNoContent)
 
 	// batch-apply a non-empty set of MDM profiles fails
-	res := s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/batch",
-		map[string]any{"profiles": [][]byte{[]byte(`xyz`)}}, http.StatusUnprocessableEntity)
+	res := s.Do("POST", "/api/latest/fleet/mdm/profiles/batch",
+		appleProfilesBatchRequest([][]byte{mobileconfigForTest("N1", "I1")}), http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
 
@@ -375,10 +384,12 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	require.Contains(t, errMsg, "missing or invalid license")
 
 	res = s.Do("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
-		"mdm": { "windows_migration_enabled": true }
+		"mdm": { "windows_mdm_migration_enabled": true }
 	}`), http.StatusUnprocessableEntity)
-	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "missing or invalid license")
+	// the Windows MDM page shows the reason only for an error under this name
+	licenseErrName, licenseErrReason := extractServerErrorNameReason(res.Body)
+	require.Equal(t, "mdm.windows_mdm_migration_enabled", licenseErrName)
+	require.Contains(t, licenseErrReason, "missing or invalid license")
 
 	// list API endpoints requires premium license
 	var listAPIEndpointsResp listAPIEndpointsResponse
@@ -550,7 +561,7 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 				"url":   {"https://example.com"},
 			})
 
-		case route.method == "PATCH" && (route.path == "/api/latest/fleet/setup_experience" || route.path == "/api/latest/fleet/mdm/apple/setup"):
+		case route.method == "PATCH" && route.path == "/api/latest/fleet/setup_experience":
 			// These routes don't require MDM because they can be used to change end-user auth, but they do require a license.
 			expectedErr = fleet.ErrMissingLicense
 		}
@@ -565,16 +576,35 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 		assert.Contains(t, errMsg, expectedErr.Error(), "%s %s", route.method, path)
 	}
 
+	// The routes that set up Apple MDM work before it's configured, and they store the keys they generate. Run them with no keys, as
+	// on a new server, and put back the assets that other tests left.
+	setupAssets := []fleet.MDMAssetName{
+		fleet.MDMAssetCACert, fleet.MDMAssetCAKey, fleet.MDMAssetAPNSKey, fleet.MDMAssetABMCert, fleet.MDMAssetABMKey,
+	}
+	savedAssets, err := s.ds.GetAllMDMConfigAssetsByName(t.Context(), setupAssets, nil)
+	if !fleet.IsNotFound(err) && !errors.Is(err, mysql.ErrPartialResult) {
+		require.NoError(t, err)
+	}
+	removeSetupAssets := func(ctx context.Context) {
+		for _, name := range setupAssets {
+			require.NoError(t, s.ds.HardDeleteMDMConfigAsset(ctx, name))
+		}
+	}
+	removeSetupAssets(t.Context())
+	t.Cleanup(func() {
+		removeSetupAssets(context.Background())
+		if len(savedAssets) > 0 {
+			require.NoError(t, s.ds.InsertMDMConfigAssets(context.Background(), slices.Collect(maps.Values(savedAssets)), nil))
+		}
+	})
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"csr": "Y3Ny"}`))
 	}))
 	t.Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
 	t.Cleanup(fleetdmSrv.Close)
 
-	// Always accessible
-	var reqCSRResp requestMDMAppleCSRResponse
-	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: "test"}, http.StatusOK, &reqCSRResp)
-	s.Do("POST", "/api/latest/fleet/mdm/apple/dep/key_pair", nil, http.StatusOK)
+	s.Do("GET", "/api/latest/fleet/mdm/apple/request_csr", nil, http.StatusOK)
+	s.Do("GET", "/api/latest/fleet/mdm/apple/ab_public_key", nil, http.StatusOK)
 }
 
 // this test can be deleted once the "v1" version is removed.

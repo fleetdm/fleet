@@ -14,6 +14,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime/debug"
 	"slices"
 	"strconv"
 	"strings"
@@ -437,8 +438,10 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		return nil, err
 	}
 
-	// get software by ID, fail if it does not exist or does not have an existing installer
-	software, err := svc.ds.SoftwareTitleByID(ctx, payload.TitleID, payload.TeamID, fleet.TeamFilter{
+	// get software by ID, fail if it does not exist or does not have an existing installer.
+	// Force the primary DB so the display name reflects any override set by a prior
+	// edit in the same session (replica lag would otherwise emit a stale value in the activity).
+	software, err := svc.ds.SoftwareTitleByID(ctxdb.RequirePrimary(ctx, true), payload.TitleID, payload.TeamID, fleet.TeamFilter{
 		User:            vc.User,
 		IncludeObserver: true,
 	})
@@ -968,6 +971,10 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		if payload.SelfService != nil {
 			activity.SelfService = *payload.SelfService
 		}
+		// Carry the stored display name on every edit so edits that don't touch
+		// it still record the current override, instead of emitting an empty
+		// string (which reads as "cleared" to downstream consumers).
+		activity.SoftwareDisplayName = software.DisplayName
 		if payload.DisplayName != nil {
 			activity.SoftwareDisplayName = *payload.DisplayName
 		}
@@ -2726,6 +2733,12 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 				InternalErr: ctxerr.Wrap(ctx, err, "extracting metadata from installer"),
 			}
 		}
+		if errors.Is(err, file.ErrInvalidInstaller) {
+			return "", &fleet.BadRequestError{
+				Message:     "Uploaded file is not a valid installer package.",
+				InternalErr: ctxerr.Wrap(ctx, err, "extracting metadata from installer"),
+			}
+		}
 		return "", ctxerr.Wrap(ctx, err, "extracting metadata from installer")
 	}
 
@@ -3253,6 +3266,28 @@ const (
 	batchSetFailedPrefix = "failed:"
 )
 
+// installerDownloadStallTimeout fails a download that receives no bytes for this long, counted from the request
+// start or the last byte read. Any byte resets it, so slow downloads still finish. Matches the agent's
+// downloadStallTimeout in client/orbit_client.go.
+var installerDownloadStallTimeout = 60 * time.Second
+
+var errInstallerDownloadStalled = errors.New("installer download stalled")
+
+// stallResetReader pushes the download stall timer back on every read that returns bytes.
+type stallResetReader struct {
+	r       io.Reader
+	timer   *time.Timer
+	timeout time.Duration
+}
+
+func (s stallResetReader) Read(p []byte) (int, error) {
+	n, err := s.r.Read(p)
+	if n > 0 {
+		s.timer.Reset(s.timeout)
+	}
+	return n, err
+}
+
 // downloadInstallerURL downloads an installer from a URL. If ifNoneMatch is
 // non-empty, the request includes an If-None-Match header for conditional GET.
 //
@@ -3260,6 +3295,20 @@ const (
 // closed body, tfr is nil. Callers MUST check resp.StatusCode before using tfr.
 func downloadInstallerURL(ctx context.Context, downloadURL string, ifNoneMatch string, maxInstallerSize int64) (*http.Response, *fleet.TempFileReader, error) {
 	client := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithMaxResponseSize(maxInstallerSize))
+
+	// The client has no timeout so large installers can finish, which leaves a server that stops sending free to
+	// hang the batch. The stall timer cancels the request instead, before or after the headers arrive.
+	timeout := installerDownloadStallTimeout
+	ctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+	stall := time.AfterFunc(timeout, func() { cancel(errInstallerDownloadStalled) })
+	defer stall.Stop()
+	stalledErr := func() error {
+		if !errors.Is(context.Cause(ctx), errInstallerDownloadStalled) {
+			return nil
+		}
+		return fmt.Errorf("downloading %q: no data received for %s: %w", downloadURL, timeout, errInstallerDownloadStalled)
+	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
 	if err != nil {
@@ -3271,6 +3320,9 @@ func downloadInstallerURL(ctx context.Context, downloadURL string, ifNoneMatch s
 
 	resp, err := client.Do(req)
 	if err != nil {
+		if stallErr := stalledErr(); stallErr != nil {
+			return nil, nil, stallErr
+		}
 		var maxBytesErr *http.MaxBytesError
 		if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
 			return nil, nil, fleet.NewInvalidArgumentError(
@@ -3307,8 +3359,11 @@ func downloadInstallerURL(ctx context.Context, downloadURL string, ifNoneMatch s
 		)
 	}
 
-	tfr, err := fleet.NewTempFileReader(resp.Body, nil)
+	tfr, err := fleet.NewTempFileReader(stallResetReader{r: resp.Body, timer: stall, timeout: timeout}, nil)
 	if err != nil {
+		if stallErr := stalledErr(); stallErr != nil {
+			return nil, nil, stallErr
+		}
 		// the max size error can be received either at client.Do or here when
 		// reading the body if it's caught via a limited body reader.
 		var maxBytesErr *http.MaxBytesError
@@ -3549,7 +3604,17 @@ func (svc *Service) softwareBatchUpload(
 	for i, p := range payloads {
 		i, p := i, p
 
-		g.Go(func() error {
+		g.Go(func() (retErr error) {
+			// errgroup doesn't recover, and installer parsers can panic on crafted
+			// input, which would end the process from this goroutine.
+			defer func() {
+				if r := recover(); r != nil {
+					svc.logger.ErrorContext(ctx, "panic processing software package",
+						"request_uuid", requestUUID, "url", p.URL, "panic", fmt.Sprint(r), "stack", string(debug.Stack()))
+					retErr = fmt.Errorf("Couldn't process software package %s: unexpected error.", p.URL)
+				}
+			}()
+
 			// A single failure fails the whole batch, so don't process (and download)
 			// the remaining payloads. With the limit of 1 above, gctx is always
 			// cancelled before the next goroutine starts; in-flight work isn't
@@ -3582,7 +3647,6 @@ func (svc *Service) softwareBatchUpload(
 				Categories:               p.Categories.Value,
 				DisplayName:              p.DisplayName,
 				RollbackVersion:          p.RollbackVersion,
-				AlwaysDownload:           p.AlwaysDownload,
 				Configuration:            p.Configuration,
 			}
 
@@ -3922,6 +3986,12 @@ func (svc *Service) softwareBatchUpload(
 				if !fmaVersionCached && installer.Version == "latest" && installer.InstallerFile != nil {
 					meta, err := file.ExtractInstallerMetadata(installer.InstallerFile)
 					if err != nil {
+						if errors.Is(err, file.ErrInvalidInstaller) {
+							return &fleet.BadRequestError{
+								Message:     "Uploaded file is not a valid installer package.",
+								InternalErr: ctxerr.Wrap(ctx, err, "extracting installer metadata"),
+							}
+						}
 						return ctxerr.Wrap(ctx, err, "extracting installer metadata")
 					}
 
@@ -3950,14 +4020,21 @@ func (svc *Service) softwareBatchUpload(
 
 			var ext string
 			if installer.FleetMaintainedAppID == nil && installer.InstallerFile != nil {
+				// Check the pin before parsing, so bytes that aren't the pinned
+				// installer never reach the parsers.
+				if p.SHA256 != "" {
+					gotHash, err := file.SHA256FromTempFileReader(installer.InstallerFile)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "hashing downloaded installer")
+					}
+					if gotHash != p.SHA256 {
+						return fmt.Errorf("downloaded installer hash does not match provided hash for installer with url %s", p.URL)
+					}
+				}
+
 				ext, err = svc.addMetadataToSoftwarePayload(ctx, installer, true)
 				if err != nil {
 					return err
-				}
-
-				if p.SHA256 != "" && p.SHA256 != installer.StorageID {
-					// this isn't the specified installer, so return an error
-					return fmt.Errorf("downloaded installer hash does not match provided hash for installer with url %s", p.URL)
 				}
 			}
 

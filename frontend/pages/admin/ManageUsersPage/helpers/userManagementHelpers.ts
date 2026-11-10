@@ -10,7 +10,7 @@ import { IUserFormData } from "../components/UserForm/UserForm";
 
 type ICurrentUserData = Pick<
   IUser,
-  "global_role" | "teams" | "name" | "email" | "sso_enabled" | "mfa_enabled"
+  "global_role" | "fleets" | "name" | "email" | "sso_enabled" | "mfa_enabled"
 >;
 
 export interface IRoleOptionsParams {
@@ -31,7 +31,7 @@ const generateUpdateData = (
 ): IUpdateUserFormData => {
   const updatableFields = [
     "global_role",
-    "teams",
+    "fleets",
     "name",
     "email",
     "sso_enabled",
