@@ -529,6 +529,23 @@ func (s *integrationTestSuite) TestGitOpsRoleOnFree() {
 	}, http.StatusOK, &modifyResp)
 	require.NotNil(t, modifyResp.User.GlobalRole)
 	require.Equal(t, fleet.RoleGitOps, *modifyResp.User.GlobalRole)
+
+	// A non-API-only user cannot be changed to GitOps.
+	var regularResp createUserResponse
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
+		Name:       new("regular-to-gitops-free"),
+		Email:      new("regular-to-gitops-free@example.com"),
+		Password:   new(test.GoodPassword),
+		GlobalRole: new(fleet.RoleObserver),
+	}, http.StatusOK, &regularResp)
+	res := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", regularResp.User.ID), fleet.UserPayload{
+		GlobalRole: new(fleet.RoleGitOps),
+	}, http.StatusUnprocessableEntity)
+	assertBodyContains(t, res, "role GitOps can only be set for API only users")
+	regularUser, err := s.ds.UserByID(t.Context(), regularResp.User.ID)
+	require.NoError(t, err)
+	require.NotNil(t, regularUser.GlobalRole)
+	require.Equal(t, fleet.RoleObserver, *regularUser.GlobalRole)
 }
 
 func (s *integrationTestSuite) TestUserRolesSpec() {
