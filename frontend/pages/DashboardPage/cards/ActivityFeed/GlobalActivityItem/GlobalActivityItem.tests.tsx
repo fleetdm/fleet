@@ -894,6 +894,27 @@ describe("Activity Feed", () => {
     expect(screen.queryByText(/unmarked/)).not.toBeInTheDocument();
   });
 
+  it("renders a 'set_host_google_device_id' activity from a Google sign-in as Fleet with the account", () => {
+    const activity = createMockActivity({
+      type: ActivityType.SetHostGoogleDeviceId,
+      actor_full_name: undefined,
+      fleet_initiated: true,
+      details: {
+        host_display_name: "Anna's iPhone",
+        google_device_id: "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12",
+        google_email: "anna@example.com",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText("Fleet")).toBeInTheDocument();
+    expect(screen.getByText("Anna's iPhone")).toBeInTheDocument();
+    expect(screen.getByText("anna@example.com")).toBeInTheDocument();
+    expect(
+      screen.getByText("signed in.", { exact: false })
+    ).toBeInTheDocument();
+  });
+
   it("renders a 'deleted_host_google_device_id' type activity", () => {
     const activity = createMockActivity({
       type: ActivityType.DeletedHostGoogleDeviceId,

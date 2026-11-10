@@ -29,6 +29,30 @@ describe("SetHostGoogleDeviceIdActivityItem", () => {
     ).toBeVisible();
   });
 
+  it("renders a Google sign-in as Fleet with the Google account", () => {
+    const signInActivity = createMockHostPastActivity({
+      type: ActivityType.SetHostGoogleDeviceId,
+      actor_full_name: undefined,
+      fleet_initiated: true,
+      details: {
+        host_display_name: "Anna's iPhone",
+        google_device_id: "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12",
+        google_email: "anna@example.com",
+      },
+    });
+    render(
+      <SetHostGoogleDeviceIdActivityItem activity={signInActivity} tab="past" />
+    );
+
+    expect(screen.getByText("Fleet")).toBeVisible();
+    expect(screen.getByText("anna@example.com")).toBeVisible();
+    expect(
+      screen.getByText("marked this host as company-owned in Google when", {
+        exact: false,
+      })
+    ).toBeVisible();
+  });
+
   it("does not render the cancel or show details icons", () => {
     render(
       <SetHostGoogleDeviceIdActivityItem activity={activity} tab="past" />

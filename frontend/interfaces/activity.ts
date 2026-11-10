@@ -179,6 +179,8 @@ export enum ActivityType {
   EditedAppleAccountProvisioning = "edited_apple_account_provisioning",
   ConfiguredMSEntraConditionalAccess = "added_conditional_access_integration_microsoft",
   DeletedMSEntraConditionalAccess = "deleted_conditional_access_integration_microsoft",
+  AddedConditionalAccessGoogle = "added_conditional_access_integration_google",
+  DeletedConditionalAccessGoogle = "deleted_conditional_access_integration_google",
   AddedConditionalAccessOkta = "added_conditional_access_okta",
   DeletedConditionalAccessOkta = "deleted_conditional_access_okta",
   HostBypassedConditionalAccess = "host_bypassed_conditional_access",
@@ -488,6 +490,7 @@ export interface IActivityDetails {
   domain?: string;
   host_idp_username?: string;
   google_device_id?: string;
+  google_email?: string;
   idp_full_name?: string;
   idp_email?: string;
   replaced_idp_email?: string;
@@ -685,6 +688,10 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "Added conditional access integration: Microsoft",
   deleted_conditional_access_integration_microsoft:
     "Deleted conditional access integration: Microsoft",
+  [ActivityType.AddedConditionalAccessGoogle]:
+    "Added conditional access integration: Google",
+  [ActivityType.DeletedConditionalAccessGoogle]:
+    "Deleted conditional access integration: Google",
   escrowed_disk_encryption_key: "Escrowed disk encryption key",
   [ActivityType.RotatedDiskEncryptionKey]:
     "Triggered disk encryption key rotation",

@@ -1,0 +1,12 @@
+.google-conditional-access-modal {
+  form {
+    @include vertical-form-layout;
+  }
+
+  &__service-account-key {
+    font-family: "SourceCodePro", $monospace;
+    width: 100%;
+    height: 294px;
+    font-size: $x-small;
+  }
+}

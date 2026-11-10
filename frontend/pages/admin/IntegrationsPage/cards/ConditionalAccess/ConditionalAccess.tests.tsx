@@ -1,11 +1,13 @@
 import { render as rtlRender, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import React from "react";
+import React, { useState } from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
 
 import createMockConfig from "__mocks__/configMock";
+import { notify } from "components/ToastNotification";
 import { AppContext, IAppContext, initialState } from "context/app";
+import { IConfig } from "interfaces/config";
 import mockServer from "test/mock-server";
 import {
   baseUrl,
@@ -14,6 +16,14 @@ import {
 } from "test/test-utils";
 
 import ConditionalAccess from "./ConditionalAccess";
+
+jest.mock("components/ToastNotification", () => ({
+  notify: {
+    success: jest.fn(),
+    error: jest.fn(),
+    batch: jest.fn(),
+  },
+}));
 
 const triggerConditionalAccessHandler = http.post(
   baseUrl("/conditional-access/microsoft"),
@@ -59,9 +69,108 @@ const createEmptyConditionalAccessConfig = () =>
 
 const mockRouter = createMockRouter();
 
+const GOOGLE_CUSTOMER_ID = "C01234abc";
+const GOOGLE_ADMIN_EMAIL = "fleet-admin@example.com";
+const SERVICE_ACCOUNT_JSON = `{
+  "type": "service_account",
+  "client_email": "fleet@example.iam.gserviceaccount.com",
+  "private_key": "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----\\n"
+}`;
+const REGISTRATION_ERROR = "Couldn't register with fleetdm.com: timeout";
+const GOOGLE_ERROR_MESSAGES: Record<string, string> = {
+  delegation_failed: "Google rejected the service account key.",
+  registration_failed: REGISTRATION_ERROR,
+};
+const GITOPS_ON = {
+  gitops_mode_enabled: true,
+  repository_url: "https://github.com/example/fleet-gitops",
+  exceptions: { labels: false, software: false, secrets: true },
+};
+
+const createGoogleConfig = (
+  state: "connected" | "delegation_failed" | "registration_failed" | null,
+  overrides?: Partial<IConfig>
+): IConfig => {
+  const base = createEmptyConditionalAccessConfig();
+  return createMockConfig({
+    ...base,
+    integrations: {
+      ...base.integrations,
+      google_conditional_access: state
+        ? {
+            customer_id: GOOGLE_CUSTOMER_ID,
+            admin_email: GOOGLE_ADMIN_EMAIL,
+          }
+        : null,
+    },
+    conditional_access: {
+      microsoft_entra_tenant_id: "",
+      microsoft_entra_connection_configured: false,
+      okta_idp_id: "",
+      okta_assertion_consumer_service_url: "",
+      okta_audience_uri: "",
+      okta_certificate: "",
+      bypass_disabled: false,
+      google: {
+        service_account_key_configured: !!state,
+        state: state ?? "",
+        error_message: GOOGLE_ERROR_MESSAGES[state ?? ""] ?? null,
+      },
+    },
+    ...overrides,
+  });
+};
+
+// Keeps the config in state so the card re-renders after setConfig.
+const StatefulHarness = ({ initialConfig }: { initialConfig: IConfig }) => {
+  const [config, setConfig] = useState<IConfig | null>(initialConfig);
+  const [client] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: { queries: { retry: false, cacheTime: 0 } },
+      })
+  );
+  return (
+    <QueryClientProvider client={client}>
+      <AppContext.Provider
+        value={{ ...initialState, isPremiumTier: true, config, setConfig }}
+      >
+        <ConditionalAccess router={mockRouter} />
+      </AppContext.Provider>
+    </QueryClientProvider>
+  );
+};
+
+const renderGoogle = (initialConfig: IConfig) => {
+  const user = userEvent.setup();
+  rtlRender(<StatefulHarness initialConfig={initialConfig} />);
+  return { user };
+};
+
+const openGoogleModal = async (user: ReturnType<typeof userEvent.setup>) => {
+  const connect = screen.getAllByRole("button", { name: "Connect" })[2];
+  await user.click(connect);
+  expect(screen.getByText("Google conditional access")).toBeInTheDocument();
+};
+
+const fillGoogleForm = async (
+  user: ReturnType<typeof userEvent.setup>,
+  json = SERVICE_ACCOUNT_JSON
+) => {
+  const [customerID, adminEmail, key] = screen.getAllByRole("textbox");
+  await user.type(customerID, GOOGLE_CUSTOMER_ID);
+  await user.type(adminEmail, GOOGLE_ADMIN_EMAIL);
+  await user.click(key);
+  await user.paste(json);
+};
+
 describe("Conditional access", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   describe("Not configured", () => {
-    it("Renders both integration cards when nothing is configured", () => {
+    it("Renders all integration cards when nothing is configured", () => {
       const mockConfig = createEmptyConditionalAccessConfig();
 
       const render = createCustomRenderer({
@@ -84,8 +193,11 @@ describe("Conditional access", () => {
       expect(
         screen.getByText("Connect Entra to enable conditional access.")
       ).toBeInTheDocument();
-      // Should have two Connect buttons
-      expect(screen.getAllByText("Connect")).toHaveLength(2);
+      expect(screen.getByText("Google")).toBeInTheDocument();
+      expect(
+        screen.getByText("Connect Google to enable conditional access.")
+      ).toBeInTheDocument();
+      expect(screen.getAllByText("Connect")).toHaveLength(3);
     });
 
     it("Opens the Entra modal when clicking Connect on Entra card", async () => {
@@ -688,7 +800,7 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
       render(<ConditionalAccess router={mockRouter} />);
 
       const connectButtons = screen.getAllByRole("button", { name: "Connect" });
-      expect(connectButtons).toHaveLength(2);
+      expect(connectButtons).toHaveLength(3);
       connectButtons.forEach((btn) => expect(btn).toBeEnabled());
     });
 
@@ -840,6 +952,30 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         name: "Delete",
       });
       deleteButtonsAfter.forEach((btn) => expect(btn).toBeDisabled());
+    });
+
+    it("Disables the customer ID, admin email and Delete in GitOps mode but keeps the key editable", async () => {
+      const { user } = renderGoogle(
+        createGoogleConfig("connected", { gitops: GITOPS_ON })
+      );
+
+      expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled();
+
+      await user.click(screen.getByRole("button", { name: "Edit" }));
+      const [customerID, adminEmail, key] = screen.getAllByRole("textbox");
+      expect(customerID).toBeDisabled();
+      expect(adminEmail).toBeDisabled();
+      expect(key).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+    });
+
+    it("Disables Save in GitOps mode when the YAML hasn't configured Google", async () => {
+      const { user } = renderGoogle(
+        createGoogleConfig(null, { gitops: GITOPS_ON })
+      );
+      await openGoogleModal(user);
+
+      expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
     });
   });
 
@@ -1039,6 +1175,352 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
       expect(
         await screen.findByText("Enter a valid tenant ID (GUID format)")
       ).toBeInTheDocument();
+    });
+  });
+
+  describe("Google", () => {
+    it("Shows inline errors and makes no request when submitting empty fields", async () => {
+      let posted = false;
+      mockServer.use(
+        http.post(baseUrl("/conditional_access/google"), () => {
+          posted = true;
+          return HttpResponse.json({});
+        })
+      );
+      const { user } = renderGoogle(createGoogleConfig(null));
+      await openGoogleModal(user);
+
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(
+        await screen.findByText("Enter Google customer ID")
+      ).toBeInTheDocument();
+      expect(screen.getByText("Enter admin email")).toBeInTheDocument();
+      expect(
+        screen.getByText("Paste the service account JSON")
+      ).toBeInTheDocument();
+      expect(posted).toBe(false);
+    });
+
+    it("Shows an inline error for invalid service account JSON", async () => {
+      let posted = false;
+      mockServer.use(
+        http.post(baseUrl("/conditional_access/google"), () => {
+          posted = true;
+          return HttpResponse.json({});
+        })
+      );
+      const { user } = renderGoogle(createGoogleConfig(null));
+      await openGoogleModal(user);
+      await fillGoogleForm(user, "not json");
+
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(
+        await screen.findByText("Paste valid service account JSON")
+      ).toBeInTheDocument();
+      expect(posted).toBe(false);
+      expect(notify.error).not.toHaveBeenCalled();
+    });
+
+    it("Connects once with the pasted key and shows the connected card", async () => {
+      const bodies: unknown[] = [];
+      mockServer.use(
+        http.post(
+          baseUrl("/conditional_access/google"),
+          async ({ request }) => {
+            bodies.push(await request.json());
+            return HttpResponse.json({
+              customer_id: GOOGLE_CUSTOMER_ID,
+              admin_email: GOOGLE_ADMIN_EMAIL,
+              service_account_key_configured: true,
+              state: "connected",
+              error_message: null,
+            });
+          }
+        ),
+        http.get(baseUrl("/config"), () =>
+          HttpResponse.json(createGoogleConfig("connected"))
+        )
+      );
+      const { user } = renderGoogle(createGoogleConfig(null));
+      await openGoogleModal(user);
+      await fillGoogleForm(user);
+
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(
+        await screen.findByText(/conditional access connected/)
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText("Google conditional access")
+      ).not.toBeInTheDocument();
+      expect(bodies).toEqual([
+        {
+          customer_id: GOOGLE_CUSTOMER_ID,
+          admin_email: GOOGLE_ADMIN_EMAIL,
+          service_account_key: JSON.parse(SERVICE_ACCOUNT_JSON),
+        },
+      ]);
+      expect(notify.success).toHaveBeenCalledWith(
+        "Successfully connected to Google."
+      );
+    });
+
+    it("Keeps the form and shows the server's reason on a 422", async () => {
+      const reason =
+        "Google refused the delegation: unauthorized_client for this scope";
+      mockServer.use(
+        http.post(baseUrl("/conditional_access/google"), () =>
+          HttpResponse.json(
+            {
+              message: "Validation Failed",
+              errors: [{ name: "service_account_key", reason }],
+            },
+            { status: 422 }
+          )
+        )
+      );
+      const { user } = renderGoogle(createGoogleConfig(null));
+      await openGoogleModal(user);
+      await fillGoogleForm(user);
+
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(await screen.findByText(reason)).toBeInTheDocument();
+      expect(screen.getByText("Google conditional access")).toBeInTheDocument();
+      expect(notify.error).toHaveBeenCalledWith(reason);
+      expect(notify.success).not.toHaveBeenCalled();
+    });
+
+    it("Shows the connection error when the integration isn't connected", () => {
+      renderGoogle(createGoogleConfig("delegation_failed"));
+
+      expect(
+        screen.getByText("Google rejected the service account key.")
+      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Edit" })).toBeEnabled();
+    });
+
+    it("Shows an inline error for a customer ID that isn't a Google customer ID", async () => {
+      let posted = false;
+      mockServer.use(
+        http.post(baseUrl("/conditional_access/google"), () => {
+          posted = true;
+          return HttpResponse.json({});
+        })
+      );
+      const { user } = renderGoogle(createGoogleConfig(null));
+      await openGoogleModal(user);
+      const [customerID, adminEmail, key] = screen.getAllByRole("textbox");
+      await user.type(customerID, "01234abc");
+      await user.type(adminEmail, GOOGLE_ADMIN_EMAIL);
+      await user.click(key);
+      await user.paste(SERVICE_ACCOUNT_JSON);
+
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(
+        await screen.findByText("Enter a valid Google customer ID")
+      ).toBeInTheDocument();
+      expect(posted).toBe(false);
+    });
+
+    describe("Edit", () => {
+      const useEditHandlers = () => {
+        const patches: Array<Record<string, unknown>> = [];
+        let posted = false;
+        mockServer.use(
+          http.patch(
+            baseUrl("/conditional_access/google"),
+            async ({ request }) => {
+              patches.push((await request.json()) as Record<string, unknown>);
+              return HttpResponse.json({});
+            }
+          ),
+          http.post(baseUrl("/conditional_access/google"), () => {
+            posted = true;
+            return HttpResponse.json({});
+          }),
+          http.get(baseUrl("/config"), () =>
+            HttpResponse.json(createGoogleConfig("connected"))
+          )
+        );
+        return { patches, wasPosted: () => posted };
+      };
+
+      it("Prefills the saved settings and patches only a new key", async () => {
+        const { patches, wasPosted } = useEditHandlers();
+        const { user } = renderGoogle(createGoogleConfig("connected"));
+
+        await user.click(screen.getByRole("button", { name: "Edit" }));
+        const [customerID, adminEmail, key] = screen.getAllByRole("textbox");
+        expect(customerID).toHaveValue(GOOGLE_CUSTOMER_ID);
+        expect(adminEmail).toHaveValue(GOOGLE_ADMIN_EMAIL);
+        expect(key).toHaveValue("");
+        expect(
+          screen.getByText(
+            "Service account key is configured. Paste a new key to replace it."
+          )
+        ).toBeInTheDocument();
+        await user.click(key);
+        await user.paste(SERVICE_ACCOUNT_JSON);
+        await user.click(screen.getByRole("button", { name: "Save" }));
+
+        await waitFor(() => expect(patches).toHaveLength(1));
+        expect(patches[0]).toEqual({
+          service_account_key: JSON.parse(SERVICE_ACCOUNT_JSON),
+        });
+        expect(wasPosted()).toBe(false);
+        expect(notify.success).toHaveBeenCalledWith(
+          "Successfully connected to Google."
+        );
+      });
+
+      it("Patches a changed admin email without asking for the key again", async () => {
+        const { patches } = useEditHandlers();
+        const { user } = renderGoogle(createGoogleConfig("connected"));
+
+        await user.click(screen.getByRole("button", { name: "Edit" }));
+        const [, adminEmail] = screen.getAllByRole("textbox");
+        await user.clear(adminEmail);
+        await user.type(adminEmail, "new-admin@example.com");
+        await user.click(screen.getByRole("button", { name: "Save" }));
+
+        await waitFor(() => expect(patches).toHaveLength(1));
+        expect(patches[0]).toEqual({ admin_email: "new-admin@example.com" });
+        expect(
+          screen.queryByText("Paste the service account JSON")
+        ).not.toBeInTheDocument();
+      });
+
+      it("Allows saving with no changes to retry the connection", async () => {
+        const { patches } = useEditHandlers();
+        const { user } = renderGoogle(
+          createGoogleConfig("registration_failed")
+        );
+
+        await user.click(screen.getByRole("button", { name: "Edit" }));
+        await user.click(screen.getByRole("button", { name: "Save" }));
+
+        await waitFor(() => expect(patches).toHaveLength(1));
+        expect(patches[0]).toEqual({});
+      });
+
+      it("Still asks for the key when none is stored", async () => {
+        const { patches } = useEditHandlers();
+        const config = createGoogleConfig("delegation_failed");
+        if (config.conditional_access?.google) {
+          config.conditional_access.google.service_account_key_configured = false;
+        }
+        const { user } = renderGoogle(config);
+
+        await user.click(screen.getByRole("button", { name: "Edit" }));
+        await user.click(screen.getByRole("button", { name: "Save" }));
+
+        expect(
+          await screen.findByText("Paste the service account JSON")
+        ).toBeInTheDocument();
+        expect(patches).toHaveLength(0);
+      });
+    });
+
+    it("Drops the toasts of a save that finishes after Cancel", async () => {
+      let release: () => void = () => undefined;
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      let requested = false;
+      mockServer.use(
+        http.post(baseUrl("/conditional_access/google"), async () => {
+          requested = true;
+          await gate;
+          return HttpResponse.json({}, { status: 500 });
+        }),
+        http.get(baseUrl("/config"), () =>
+          HttpResponse.json(createGoogleConfig(null))
+        )
+      );
+      const { user } = renderGoogle(createGoogleConfig(null));
+      await openGoogleModal(user);
+      await fillGoogleForm(user);
+
+      await user.click(screen.getByRole("button", { name: "Save" }));
+      await waitFor(() => expect(requested).toBe(true));
+      await user.click(screen.getByRole("button", { name: "Cancel" }));
+      release();
+
+      await waitFor(() =>
+        expect(
+          screen.getByText("Connect Google to enable conditional access.")
+        ).toBeInTheDocument()
+      );
+      // Let the rejected request settle before asserting nothing was toasted.
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(notify.error).not.toHaveBeenCalled();
+    });
+
+    it("Shows the failed integration on the card when the server saves the settings but can't register", async () => {
+      const reason = "Couldn't register with fleetdm.com";
+      mockServer.use(
+        http.post(baseUrl("/conditional_access/google"), () =>
+          HttpResponse.json(
+            { message: "Bad Gateway", errors: [{ name: "base", reason }] },
+            { status: 502 }
+          )
+        ),
+        http.get(baseUrl("/config"), () =>
+          HttpResponse.json(createGoogleConfig("registration_failed"))
+        )
+      );
+      const { user } = renderGoogle(createGoogleConfig(null));
+      await openGoogleModal(user);
+      await fillGoogleForm(user);
+
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      await waitFor(() =>
+        expect(notify.error).toHaveBeenCalledWith(
+          `Couldn't connect to Google: ${reason}`,
+          expect.anything()
+        )
+      );
+      expect(notify.success).not.toHaveBeenCalled();
+      await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+      expect(await screen.findByText(REGISTRATION_ERROR)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Edit" })).toBeEnabled();
+    });
+
+    it("Deletes the integration and returns the card to Connect", async () => {
+      let deleted = false;
+      mockServer.use(
+        http.delete(baseUrl("/conditional_access/google"), () => {
+          deleted = true;
+          return HttpResponse.json({});
+        }),
+        http.get(baseUrl("/config"), () =>
+          HttpResponse.json(createGoogleConfig(null))
+        )
+      );
+      const { user } = renderGoogle(createGoogleConfig("connected"));
+
+      await user.click(screen.getByRole("button", { name: "Delete" }));
+      expect(
+        screen.getByText(
+          /Before you delete, first unmark devices as managed in Google/
+        )
+      ).toBeInTheDocument();
+      const deleteButtons = screen.getAllByRole("button", { name: "Delete" });
+      await user.click(deleteButtons[deleteButtons.length - 1]);
+
+      expect(
+        await screen.findByText("Connect Google to enable conditional access.")
+      ).toBeInTheDocument();
+      expect(deleted).toBe(true);
+      expect(notify.success).toHaveBeenCalledWith(
+        "Successfully disconnected from Google."
+      );
     });
   });
 });
