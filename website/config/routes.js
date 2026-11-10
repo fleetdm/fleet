@@ -506,6 +506,16 @@ module.exports.routes = {
     }
   },
 
+  'GET /software-inventory': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'more',
+      markdownPageUrl: '/guides/software-inventory-reference',
+      docsNavSection: 'software-inventory',
+    }
+  },
+
   'GET /software-catalog/:appIdentifier': {
     action: 'docs/view-app-details',// Meta title and description set in view action
   },
@@ -719,6 +729,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /aviation': {
+    action: 'view-aviation',
+    locals: {
+      pageTitleForMeta: 'Device management for aviation',
+      pageDescriptionForMeta: 'More efficient, lower cost, and more secure. Fleet is AI-native device management for all your endpoints.',
+    }
+  },
+
   'GET /pharma': {
     action: 'view-pharma',
     locals: {
@@ -733,6 +751,15 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'AI-native Windows management',
       pageDescriptionForMeta: 'Patch apps, answer questions in seconds, and manage every Windows setting. Say what you need done, approve the change, and Fleet handles the rest.',
+      currentSection: 'platform',
+    }
+  },
+
+  'GET /apple': {
+    action: 'view-apple',
+    locals: {
+      pageTitleForMeta: 'AI-native Apple device management',
+      pageDescriptionForMeta: 'Patch apps, answer questions in seconds, and manage every Mac, iPhone, and iPad. Say what you need done, approve the change, and Fleet handles the rest.',
       currentSection: 'platform',
     }
   },
@@ -833,6 +860,7 @@ module.exports.routes = {
   // 'GET /docs/using-fleet/learn-how-to-use-fleet': '/docs/using-fleet/fleet-for-beginners',
   // ```
   'GET /jamf-alternative': '/replace-jamf',
+  'GET /linux': '/linux-management',
   'GET /customer-stories': '/customers',
   'GET /testimonials': '/customers',
   // 'GET /try': '/get-started',
@@ -850,6 +878,7 @@ module.exports.routes = {
   'GET /use-cases/import-and-export-queries-and-packs-in-fleet': '/guides/import-and-export-queries-and-packs-in-fleet',
   'GET /guides/import-and-export-queries-and-packs-in-fleet': '/guides/import-and-export-queries-in-fleet',
   'GET /guides/deploy-security-agents': '/guides/deploy-software-packages',
+  'GET /guides/software-inventory-reference': '/software-inventory',
   'GET /guides/manage-boostrap-package-with-gitops': '/guides/manage-bootstrap-package-with-gitops',
   'GET /use-cases/locate-assets-with-osquery': '/guides/locate-assets-with-osquery',
   'GET /use-cases/osquery-a-tool-to-easily-ask-questions-about-operating-systems': '/guides/osquery-a-tool-to-easily-ask-questions-about-operating-systems',
@@ -895,7 +924,8 @@ module.exports.routes = {
 
   'GET /docs': '/docs/get-started/why-fleet',
   'GET /docs/get-started': '/docs/get-started/why-fleet',
-  'GET /docs/rest-api': '/docs/rest-api/rest-api',
+  'GET /docs/rest-api': '/docs/api/rest-api',
+  'GET /docs/rest-api/rest-api': '/docs/api/rest-api',
   'GET /docs/configuration': '/docs/configuration/fleet-server-configuration',
   'GET /docs/contributing': 'https://github.com/fleetdm/fleet/tree/main/docs/Contributing',
   'GET /docs/deploy': '/docs/deploy/introduction',
@@ -906,7 +936,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/teams': '/docs/using-fleet/segment-hosts',
   'GET /docs/using-fleet/permissions': '/docs/using-fleet/manage-access',
   'GET /docs/using-fleet/chromeos': '/docs/using-fleet/enroll-chromebooks',
-  'GET /docs/using-fleet/rest-api': '/docs/rest-api/rest-api',
+  'GET /docs/using-fleet/rest-api': '/docs/api/rest-api',
   'GET /docs/using-fleet/configuration-files': '/docs/configuration/configuration-files/',
   'GET /docs/using-fleet/application-security': '/handbook/finance/application-security',
   'GET /docs/using-fleet/security-audits': '/handbook/it/security-audits',
@@ -999,7 +1029,6 @@ module.exports.routes = {
   'GET /docs/using-fleet/mdm-macos-setup-experience': (req, res) => { return res.redirect(301, '/guides/macos-setup-experience'); },
   'GET /docs/using-fleet/scripts': (req, res) => { return res.redirect(301, '/guides/scripts'); },
   'GET /docs/using-fleet/automations': (req, res) => { return res.redirect(301, '/guides/automations'); },
-  'GET /docs/using-fleet/puppet-module': (req, res) => { return res.redirect(301, '/guides/puppet-module'); },
   'GET /docs/using-fleet/vulnerability-processing': (req, res) => { return res.redirect(301, '/guides/vulnerability-processing'); },
   'GET /docs/using-fleet/cis-benchmarks': (req, res) => { return res.redirect(301, '/guides/cis-benchmarks'); },
   'GET /docs/using-fleet/osquery-process': (req, res) => { return res.redirect(301, '/guides/osquery-watchdog'); },
@@ -1007,7 +1036,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/usage-statistics': (req, res) => { return res.redirect(301, '/guides/fleet-usage-statistics'); },
   'GET /docs/using-fleet/downgrading-fleet': (req, res) => { return res.redirect(301, '/guides/downgrade-fleet'); },
   'GET /docs/using-fleet/enroll-chromebooks': (req, res) => { return res.redirect(301, '/guides/chrome-os'); },
-  'GET /docs/using-fleet/audit-logs': (req, res) => { return res.redirect(301, 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/audit-logs.md'); },
+  'GET /docs/using-fleet/audit-logs': '/docs/api/global-audit-logs',
   'GET /docs/using-fleet/understanding-host-vitals': (req, res) => { return res.redirect(301, 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/host-vitals/understanding-host-vitals.md'); },
   'GET /docs/using-fleet/standard-query-library': (req, res) => { return res.redirect(301, '/guides/report-library'); },
   'GET /docs/using-fleet/mdm-commands': (req, res) => { return res.redirect(301, '/guides/mdm-commands'); },
@@ -1268,6 +1297,7 @@ module.exports.routes = {
   // For example, a clever user might try to visit fleetdm.com/documentation, not knowing that Fleet's website
   // puts this kind of thing under /docs, NOT /documentation.  These "convenience" redirects are to help them out.
   'GET /admin': '/admin/email-preview',
+  'GET /demo': '/contact?talkToUs',
   'GET /renew': 'https://calendly.com/zayhanlon/fleet-renewal-discussion',
   'GET /documentation': '/docs',
   'GET /contribute': '/docs/contributing',
@@ -1310,6 +1340,7 @@ module.exports.routes = {
 
   'GET /downloads': '/download',
   'GET /deals': '/partners#deals',
+  'GET /partner': '/partners',
 
   // Shortlinks for texting friends, radio ads, etc
   'GET /mdm': '/device-management?utm_content=mdm',// « alias for radio ad
@@ -1341,7 +1372,7 @@ module.exports.routes = {
   'GET /learn-more-about/ndes': 'https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview', // TODO: Confirm URL
   'GET /learn-more-about/setup-ndes': '/guides/ndes-scep-proxy',
   'GET /learn-more-about/certificate-authorities': '/guides/connect-end-user-to-wifi-with-certificate',
-  'GET /learn-more-about/idp-email': 'https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping',
+  'GET /learn-more-about/idp-email': 'https://fleetdm.com/docs/api/rest-api#get-human-device-mapping',
   'GET /learn-more-about/enrolling-hosts': '/docs/using-fleet/adding-hosts',
   'GET /learn-more-about/setup-assistant': '/guides/setup-experience',
   'GET /learn-more-about/policy-automations': '/docs/using-fleet/automations#policy-automations',
@@ -1354,7 +1385,8 @@ module.exports.routes = {
   'GET /learn-more-about/add-hosts-to-license': '/guides/add-hosts-to-your-fleet-premium-license',
   'GET /learn-more-about/fleetd': '/docs/get-started/anatomy#fleetd',
   'GET /learn-more-about/rotating-enroll-secrets': 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/cli/fleetctl-apply.md#rotating-enroll-secrets',
-  'GET /learn-more-about/audit-logs': '/docs/using-fleet/audit-logs',
+  'GET /learn-more-about/audit-logs': '/docs/api/global-audit-logs',
+  'GET /learn-more-about/host-audit-logs': '/docs/api/host-audit-logs',
   'GET /learn-more-about/calendar-events': '/announcements/fleet-in-your-calendar-introducing-maintenance-windows',
   'GET /learn-more-about/setup-windows-mdm': '/guides/windows-mdm-setup',
   'GET /learn-more-about/end-user-migration-workflow': '/guides/mdm-migration#end-user-workflow',
@@ -1368,11 +1400,11 @@ module.exports.routes = {
   'GET /learn-more-about/fleet-server-private-key': '/docs/configuration/fleet-server-configuration#server-private-key',
   'GET /learn-more-about/agent-options': '/docs/configuration/agent-configuration',
   'GET /learn-more-about/enable-user-collection': '/docs/using-fleet/gitops#features',
-  'GET /learn-more-about/host-identifiers': '/docs/rest-api/rest-api#get-host-by-identifier',
+  'GET /learn-more-about/host-identifiers': '/docs/api/rest-api#get-host-by-identifier',
   'GET /learn-more-about/uninstall-fleetd': '/guides/how-to-uninstall-fleetd',
   'GET /learn-more-about/vulnerability-processing': '/docs/using-fleet/vulnerability-processing',
   'GET /learn-more-about/dep-profile': 'https://developer.apple.com/documentation/devicemanagement/define_a_profile',
-  'GET /learn-more-about/apple-business-manager-tokens-api': '/docs/rest-api/rest-api#list-apple-business-ab-tokens',
+  'GET /learn-more-about/apple-business-manager-tokens-api': '/docs/api/rest-api#list-apple-business-ab-tokens',
   'GET /learn-more-about/apple-business-manager-teams-api': 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#update-abm-tokens-teams',
   'GET /learn-more-about/apple-business-manager-gitops': '/docs/using-fleet/gitops#apple-business',
   'GET /learn-more-about/s3-bootstrap-package': '/docs/configuration/fleet-server-configuration#s-3-software-installers-bucket',
@@ -1415,7 +1447,7 @@ module.exports.routes = {
   'GET /learn-more-about/sign-bootstrap-package': '/guides/setup-experience#step-2-sign-the-package',
   'GET /learn-more-about/self-service-software': '/guides/software-self-service',
   'GET /learn-more-about/self-service-software-categories': '/guides/software-self-service#manage-self-service-categories',
-  'GET /learn-more-about/request-hydrant-certificate': '/docs/rest-api#request-certificate',
+  'GET /learn-more-about/request-hydrant-certificate': '/docs/api/rest-api#request-certificate',
   'GET /learn-more-about/yaml-software-setup-experience': '/docs/configuration/yaml-files#self-service-labels-categories-and-setup-experience',
   'GET /learn-more-about/microsoft-compliance-partner': '/guides/entra-conditional-access-integration',
   'GET /learn-more-about/microsoft-entra-setup': 'https://entra.microsoft.com/#view/Microsoft_AAD_IAM/TenantProperties.ReactView',
@@ -1432,7 +1464,7 @@ module.exports.routes = {
   'GET /learn-more-about/android-profile-errors': '/guides/custom-os-settings#special-android-behavior',
   'GET /learn-more-about/how-to-craft-android-profile': '/guides/custom-os-settings#create-configuration-profile',
   'GET /learn-more-about/example-android-profile': 'https://gist.github.com/marko-lisica/45ee31f6850e1f002141c1b5b43ce519',
-  'GET /learn-more-about/manual-enrollment-profile': '/docs/rest-api/rest-api#get-manual-enrollment-profile',
+  'GET /learn-more-about/manual-enrollment-profile': '/docs/api/rest-api#get-manual-enrollment-profile',
   'GET /learn-more-about/deleting-android-enterprise': '/guides/android-mdm-setup#deleting-android-enterprise-in-google-admin',
   'GET /learn-more-about/google-admin-emm': 'https://admin.google.com/ac/devices/settings/thirdparty',
   'GET /learn-more-about/setup-experience/install-software': '/guides/setup-experience',
@@ -1494,6 +1526,8 @@ module.exports.routes = {
   'GET /learn-more-about/google-play-automatic-app-updates': 'https://support.google.com/googleplay/answer/113412?hl=en',
   'GET /learn-more-about/vpp-tokens-best-practice': '/guides/apple-mdm-setup#best-practice',
   'GET /learn-more-about/mdm-migration': '/guides/mdm-migration#migrate-hosts',
+  'GET /learn-more-about/android-zero-touch': '/guides/android-zero-touch-enrollment',
+
 
   // Sitemap
   // =============================================================================================================
@@ -1590,8 +1624,10 @@ module.exports.routes = {
   '/api/v1/unsubscribe-from-marketing-emails': { action: 'unsubscribe-from-marketing-emails' },
   'POST /api/v1/customers/get-stripe-checkout-session-url': { action: 'customers/get-stripe-checkout-session-url' },
   '/api/v1/query-generator/get-llm-generated-sql': { action: 'query-generator/get-llm-generated-sql' },
-  'POST /api/v1/get-llm-generated-configuration-profile': { action: 'get-llm-generated-configuration-profile', hasSocketFeatures: true, csrf: false },
-  'POST /api/v1/get-llm-generated-configuration-profile-name-and-description': { action: 'get-llm-generated-configuration-profile-name-and-description', csrf: false },
+  'POST /api/v1/get-llm-generated-configuration-profile': { action: 'get-llm-generated-configuration-profile', hasSocketFeatures: true },
+  'POST /api/profile-generator/v1/register': { action: 'profile-generator/register-one-fleet-instance', csrf: false },
+  'POST /api/profile-generator/v1/name-and-description': { action: 'profile-generator/generate-one-name-and-description', csrf: false },
+  'POST /api/profile-generator/v1/profile': { action: 'profile-generator/generate-one-profile', csrf: false },
   'POST /api/v1/deliver-application-submission': { action: 'deliver-application-submission' },
   'POST /api/v1/deliver-gitops-request': { action: 'deliver-gitops-workshop-request' },
   'POST /api/v1/admin/reset-one-fleet-premium-local-trial': { action: 'admin/reset-one-fleet-premium-local-trial' },

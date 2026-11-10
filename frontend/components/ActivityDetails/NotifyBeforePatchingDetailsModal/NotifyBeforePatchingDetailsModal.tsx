@@ -109,7 +109,7 @@ const NotifyBeforePatchingDetailsModal = ({
       <div className={`${baseClass}__content`}>
         <IconStatusMessage
           className={`${baseClass}__status-message`}
-          iconName={failed ? "error-outline" : "success-outline"}
+          iconName={failed ? "error" : "success"}
           message={
             <span>
               Fleet {verb} end user {timeLabel} before patching
@@ -141,6 +141,7 @@ const NotifyBeforePatchingDetailsModal = ({
               .map(toSoftwareTitle)
               .map((t) => getDisplayedSoftwareName(t.title, t.display_name))
               .join(", ")}
+            multiline
           />
         )}
         {hasDetailsContent && (

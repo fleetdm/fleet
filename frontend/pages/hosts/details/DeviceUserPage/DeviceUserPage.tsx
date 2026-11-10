@@ -813,7 +813,7 @@ const DeviceUserPage = ({
         <SettingUpYourDevice
           setupSteps={setupStepStatuses || []}
           requireAllSoftware={
-            (isAppleHost && globalConfig?.mdm?.require_all_software_macos) ??
+            (isAppleHost && globalConfig?.mdm?.macos_require_all_software) ??
             false
           }
           toggleInfoModal={toggleInfoModal}
@@ -1022,7 +1022,7 @@ const DeviceUserPage = ({
                     isMyDevicePage
                     isPremiumTier={isPremiumTier}
                     platform={host.platform}
-                    hostTeamId={host.team_id || 0}
+                    hostTeamId={host.fleet_id || 0}
                     isSoftwareEnabled={isSoftwareEnabled}
                     onShowInventoryVersions={setHostSWForInventoryVersions}
                   />

@@ -128,6 +128,15 @@ Fleet's Head of Marketing is directly responsible for the accuracy of event loca
 > LinkedIn's campaign manager does not allow you to truly delete old or failed creatives from evergreen campaigns, which clutters performance data and makes reporting unreliable. To work around this, always create new ad creatives and boosted posts as new campaigns inside the "Targeting experiments" campaign group. Name each campaign with a date prefix (YYYY-MM-DD) and set a lifetime budget (not daily) to cap spend on each experiment. Boosted posts follow the same process since they are also temporary and experimental. If a creative performs well (good CTR), move it into the appropriate pre-existing evergreen awareness campaign to run on a daily budget until performance drops. Never create new LinkedIn "campaigns" outside the "Targeting experiments" campaign group.
 
 
+### Review competitor exclusion list
+
+Paid ads should never spend money on companies that compete with Fleet. Every active LinkedIn ad set applies the competitor exclusion list, and the list itself stays current (see ["Update competitor database"](https://fleetdm.com/handbook/marketing#update-competitor-database)). Each quarter, the GTM Engineer, the CEO, the CTO, and the Head of GTM Architecture review it together:
+
+1. For each competitor on the competitor exclusion list, search the company name in the [dynamic company list segment builder](https://www.linkedin.com/campaignmanager/accounts/509911695/companies/?businessId=personal&companyNameSearch=tanium&crmFilters=%7B%22openOpportunityCountFilter%22%3A%22ALL%22%2C%22pipelineValueFilter%22%3A%22ALL%22%2C%22revenueWonFilter%22%3A%22ALL%22%2C%22closedLostValueFilter%22%3A%22ALL%22%7D&lookbackWindow=LAST_30_DAYS) in LinkedIn Campaign Manager (the example link searches "tanium"; change `companyNameSearch` to the competitor's name).
+2. Confirm that the competitor received no paid impressions, clicks, or engagements over the last 30 days.
+3. If a competitor did, find the active ad sets that skipped the exclusion list and fix them. Add any missing company to the list.
+
+
 ### Promote a workshop on LinkedIn
 
 1. Create an ad set under ["Drives"](https://www.linkedin.com/campaignmanager/accounts/509911695/campaigns?campaignGroupIds=%5B678398233%5D). Name it with an ISO date prefix, the type of workshop, and the city (e.g., "2026-10-03 - Apple certified (Denver)").
@@ -178,6 +187,17 @@ Once events have been settled for the upcoming quarter, Fleet does not make chan
 2. Attend the 30m quarterly event strategy meeting. During this meeting, we will decide which events (conferences, field/sales events, and GitOps workshops) Fleet will execute in the **following quarter**.
 3. After the meeting, the Content Specialist will communicate the settled events by moving all settled events to the "All 🎪 Official (planned & settled events)" tab of the 🎪 Events spreadsheet (confidential doc) and removing any proposed that were not prioritized.
 -->
+
+#### Track program spend
+
+Marketing program spend (events, sponsorships, digital ads, PR, and miscellaneous costs like website swag fulfillment) is budgeted each quarter. The single source of truth for the current budget is the "Budgets" tab in the [OKR spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?pli=1&gid=1137119307#gid=1137119307). Event budgets include all related costs: travel, swag, sponsorship, and venue.
+
+To keep finance's projections accurate:
+
+1. When an event is confirmed or its costs change, the Marketing Coordinator updates column W in the [event spreadsheet](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?pli=1&gid=692710204#gid=692710204).
+2. Finance updates actual spend in the Budgets tab every month, after the books close.
+3. If a change in plans affects the quarterly budget, ping the CFO in the [#help-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) channel so the Budgets tab can be updated.
+
 
 ### Settle content strategy
 
@@ -455,7 +475,7 @@ Although details on how to format and meta tag a blog are in [the writing handbo
 
 To add a company as a competitor, e.g. so that we don't spend money to advertise to them unnecessarily:
 
-1. Update [this spreadsheet in Fleet's feature chart / competitors database](https://docs.google.com/spreadsheets/d/1zwr59MpruIw4dsV-Qbk8xFbMrbHAV3qaRJDWM7-YrwU/edit?gid=611626809#gid=611626809) so that the team is aware of subsidaries, parent companies, and which category this company competes in.
+1. Update [this spreadsheet in Fleet's feature chart / competitors database](https://docs.google.com/spreadsheets/d/1zwr59MpruIw4dsV-Qbk8xFbMrbHAV3qaRJDWM7-YrwU/edit?gid=611626809#gid=611626809) so that the team is aware of subsidiaries, parent companies, and which category this company competes in.
 2. Update LinkedIn ads so that we don't advertise to this competitor by updating [this spreadsheet used for uploading to LI ads](https://docs.google.com/spreadsheets/d/1VqG87Jxtwn7dX94yJW2E2338zBtVrg9hLXSiBLtFhPA/edit?gid=1226811520#gid=1226811520) and then reupload it to the [matched audience for competitors](https://www.linkedin.com/campaignmanager/accounts/509911695/audiences/matched/88570054/matched-companies?businessId=personal).
 
 

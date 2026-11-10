@@ -34,7 +34,14 @@ func TestInstallScriptDmgExtractUsesYesPipe(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, script, "yes | hdiutil attach -plist -nobrowse -readonly -mountpoint")
 	require.Contains(t, script, `|| exit 1`)
-	require.Contains(t, script, `hdiutil detach "$MOUNT_POINT" || true`)
+	detach := `hdiutil detach "$MOUNT_POINT" || { sleep 2; hdiutil detach "$MOUNT_POINT"; } || hdiutil detach -force "$MOUNT_POINT" || true`
+	// A busy volume is retried and then forced on both the failure and success paths.
+	require.Equal(t, 2, strings.Count(script, detach))
+	// A failed staging copy detaches and exits before the existing app is backed up;
+	// a successful one falls through to the same detach.
+	staging := "if ! sudo cp -R \"$MOUNT_POINT\"/* \"$TMPDIR\"; then\n\t" + detach + "\n\texit 1\nfi\n"
+	require.Contains(t, script, staging+detach+"\n")
+	require.Less(t, strings.Index(script, staging), strings.Index(script, "quit_and_track_application '"))
 }
 
 // TestInstallScriptPkgPropagatesInstallerExitCode guards against a regression
@@ -140,28 +147,47 @@ func TestInstallScriptStopsWhenAppWontQuit(t *testing.T) {
 	}
 
 	// mode is how the app responds: "not-running", "quits", "ignores" (accepts
-	// the quit event but keeps running), or "cancels" (the user cancels a save
-	// prompt, so the quit event fails). sleep advances SECONDS so the timeout
-	// loop doesn't take real time.
+	// the quit event but keeps running), "cancels" (the user cancels a save
+	// prompt, so the quit event fails), "gone" ('is running' reports an app
+	// with no process, so every quit fails with -600), "exits" (accepts the
+	// first quit, then fails later ones with -600 while it exits), "lingers"
+	// (every quit fails with -600, and its process is gone only after the
+	// first one), or "unreachable" (every quit fails with -600 while its
+	// process keeps running). sleep advances SECONDS so the timeout loop
+	// doesn't take real time. The helper runs the quit in a command
+	// substitution, so the stub counts quits in a file rather than a variable.
 	run := func(t *testing.T, script, mode string) (string, error) {
 		stubs := `mode=` + mode + `
-running=true
-[[ "$mode" == not-running ]] && running=false
+quit_file=` + shellSingleQuote(filepath.Join(t.TempDir(), "quits")) + `
 stat() { echo alice; }
 realpath() { echo /tmp/fleet-test/installer; }
-unzip() { :; }
+ditto() { :; }
 sleep() { SECONDS=$((SECONDS + $1)); }
 sudo() { echo "sudo $*"; }
 open() { :; }
+ps() {
+  local quits=0
+  [[ -e "$quit_file" ]] && quits=$(grep -c . "$quit_file")
+  if [[ "$mode" == unreachable || ( "$mode" == lingers && $quits -lt 2 ) ]]; then
+    echo /Applications/Foo.app/Contents/MacOS/Foo
+  fi
+}
+defaults() { [[ "$*" == "read /Applications/Foo.app/Contents/Info CFBundleIdentifier" ]] && echo com.example.Foo; }
 osascript() {
-  case "$2" in
+  local quits=0
+  [[ -e "$quit_file" ]] && quits=$(grep -c . "$quit_file")
+  case "$4" in
     *" to quit")
-      [[ "$mode" == quits ]] && running=false
+      echo quit >> "$quit_file"
       [[ "$mode" == cancels ]] && return 1
+      if [[ "$mode" == gone || "$mode" == lingers || "$mode" == unreachable || ( "$mode" == exits && $quits -gt 0 ) ]]; then
+        echo "36:76: execution error: Application isn’t running. (-600)" >&2
+        return 1
+      fi
       return 0
       ;;
     *" is running")
-      echo "$running"
+      if [[ "$mode" == not-running || ( "$mode" == quits && $quits -gt 0 ) ]]; then echo false; else echo true; fi
       ;;
   esac
 }
@@ -185,13 +211,22 @@ osascript() {
 			require.NotContains(t, out, "Quitting application")
 			require.NotContains(t, out, "Relaunching application")
 
-			out, err = run(t, script, "quits")
-			require.NoError(t, err, out)
-			require.Contains(t, out, "Application 'com.example.Foo' quit successfully.")
-			require.Contains(t, out, installer.replace)
-			require.Contains(t, out, "Relaunching application 'com.example.Foo'...")
+			for _, mode := range []string{"quits", "exits", "lingers"} {
+				out, err = run(t, script, mode)
+				require.NoError(t, err, out)
+				require.Contains(t, out, "Application 'com.example.Foo' quit successfully.")
+				require.Contains(t, out, installer.replace)
+				require.Contains(t, out, "Relaunching application 'com.example.Foo'...")
+			}
 
-			for _, mode := range []string{"ignores", "cancels"} {
+			out, err = run(t, script, "gone")
+			require.NoError(t, err, out)
+			require.Contains(t, out, "Application 'com.example.Foo' isn't running; it won't be relaunched.")
+			require.NotContains(t, out, "did not quit")
+			require.Contains(t, out, installer.replace)
+			require.NotContains(t, out, "Relaunching application")
+
+			for _, mode := range []string{"ignores", "cancels", "unreachable"} {
 				out, err = run(t, script, mode)
 				var exitErr *exec.ExitError
 				require.ErrorAs(t, err, &exitErr, out)
@@ -240,6 +275,576 @@ func TestCustomInstallScriptsStopWhenAppWontQuit(t *testing.T) {
 			require.True(t, ok, "%s: %q carries on when the app won't quit", name, strings.TrimSpace(line))
 		}
 	}
+}
+
+// TestCustomScriptsCountNoProcessAsQuit checks that custom scripts with a quit
+// loop count a -600 quit as quit, like the generated helpers. Without it, an
+// app that 'is running' keeps reporting after its process is gone blocks the
+// install or uninstall. Like the generated helpers, they only do so when
+// app_process_running finds no process, and a missing or stale copy of it
+// would let a -600 through while the app still runs.
+func TestCustomScriptsCountNoProcessAsQuit(t *testing.T) {
+	bestEffort := map[string]string{
+		"adobe-cc-uninstall.sh": "quit_app never fails; kill_app_at_path stops what's left",
+	}
+	paths, err := filepath.Glob("../../inputs/homebrew/scripts/*.sh")
+	require.NoError(t, err)
+	require.NotEmpty(t, paths)
+	for _, path := range paths {
+		name := filepath.Base(path)
+		b, err := os.ReadFile(path)
+		require.NoError(t, err)
+		script := string(b)
+		if _, ok := bestEffort[name]; ok || !strings.Contains(script, "tell application id (item 1 of argv) to quit") {
+			continue
+		}
+		require.Contains(t, script, `== *"(-600)" ]] && ! app_process_running "$bundle_id"; then`, "%s doesn't count a -600 quit as quit, or doesn't check for a process first", name)
+		require.Contains(t, script, appProcessRunningFunc, "%s has a missing or stale copy of app_process_running", name)
+	}
+}
+
+// TestCustomScriptsSkipRelaunchWhenAppWasntRunning runs the custom install
+// scripts that track whether the app was running themselves. Like
+// quit_and_track_application, an app whose first quit gets -600 with no
+// process left wasn't running, so it isn't relaunched; one that gets -600 after
+// a quit went through is exiting, so it is.
+func TestCustomScriptsSkipRelaunchWhenAppWasntRunning(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("as root gyazo_install.sh relaunches through /bin/launchctl asuser, which can't be stubbed")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+
+	relaunched := map[string]string{
+		"google_chrome_install.sh": "Restarting Chrome for user: alice",
+		"zoom_install.sh":          "Restarting Zoom for user: alice",
+		"gyazo_install.sh":         "Relaunching application 'com.gyazo.menu'...",
+	}
+	// mode is "gone" (every quit fails with -600) or "exits" (accepts the first
+	// quit, then fails later ones with -600).
+	stubs := func(t *testing.T, mode string) string {
+		return `mode=` + mode + `
+quit_file=` + shellSingleQuote(filepath.Join(t.TempDir(), "quits")) + `
+INSTALLER_PATH=/tmp/fleet-test/installer.pkg
+stat() { echo alice; }
+sleep() { SECONDS=$((SECONDS + $1)); }
+sudo() { echo "sudo $*"; }
+open() { :; }
+installer() { :; }
+ps() { :; }
+osascript() {
+  local quits=0
+  [[ -e "$quit_file" ]] && quits=$(grep -c . "$quit_file")
+  case "$*" in
+    *" to quit"*)
+      echo quit >> "$quit_file"
+      if [[ "$mode" == gone || $quits -gt 0 ]]; then
+        echo "36:76: execution error: Application isn’t running. (-600)" >&2
+        return 1
+      fi
+      ;;
+    *" is running"*) echo true ;;
+  esac
+}
+`
+	}
+	for name, relaunch := range relaunched {
+		t.Run(name, func(t *testing.T) {
+			b, err := os.ReadFile(filepath.Join("../../inputs/homebrew/scripts", name))
+			require.NoError(t, err)
+
+			out, err := exec.Command(bash, "-c", stubs(t, "gone")+string(b)).CombinedOutput()
+			require.NoError(t, err, string(out))
+			require.Contains(t, string(out), "isn't running; it won't be relaunched.")
+			require.NotContains(t, string(out), relaunch)
+
+			out, err = exec.Command(bash, "-c", stubs(t, "exits")+string(b)).CombinedOutput()
+			require.NoError(t, err, string(out))
+			require.Contains(t, string(out), "quit successfully.")
+			require.Contains(t, string(out), relaunch)
+		})
+	}
+}
+
+// TestMozillaVPNScriptsStopOnlyTheGUI runs the Mozilla VPN scripts against a
+// fake process table. They signal only the GUI, never the browsers' native
+// messaging hosts (same executable) or the daemon, force-quit a GUI that
+// ignores SIGTERM, and stop before installing or removing anything if it
+// survives that.
+func TestMozillaVPNScriptsStopOnlyTheGUI(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+
+	readScript := func(name string) string {
+		b, err := os.ReadFile(filepath.Join("../../inputs/homebrew/scripts", name))
+		require.NoError(t, err)
+		return string(b)
+	}
+	install := readScript("mozilla-vpn-install.sh")
+	uninstall := readScript("mozilla-vpn-uninstall.sh")
+
+	// The install script cases cover the helpers, so both copies must match.
+	helpers := regexp.MustCompile(`(?s)\nmozilla_vpn_pids\(\) \{.*?\nquit_mozilla_vpn\(\) \{.*?\n\}\n`)
+	require.NotEmpty(t, helpers.FindString(install))
+	require.Equal(t, helpers.FindString(install), helpers.FindString(uninstall))
+
+	// Everything after the quit call removes files, so it's replaced with a marker.
+	quitCall := "\nquit_mozilla_vpn || exit 1\n"
+	i := strings.Index(uninstall, quitCall)
+	require.Positive(t, i)
+	uninstall = uninstall[:i+len(quitCall)] + "echo 'Removing Mozilla VPN.'\n"
+
+	// Each process is "<pid> <behavior> <args>". It exits on SIGTERM ("exits"),
+	// only on SIGKILL ("stubborn"), or never ("unkillable").
+	run := func(t *testing.T, script string, procs ...string) (out, signals string, err error) {
+		dir := t.TempDir()
+		procFile := filepath.Join(dir, "procs")
+		sigFile := filepath.Join(dir, "signals")
+		require.NoError(t, os.WriteFile(procFile, []byte(strings.Join(procs, "\n")+"\n"), 0o600))
+		require.NoError(t, os.WriteFile(sigFile, nil, 0o600))
+		stubs := `procs=` + shellSingleQuote(procFile) + `
+signals=` + shellSingleQuote(sigFile) + `
+INSTALLER_PATH=/tmp/fleet-test/MozillaVPN.pkg
+sleep() { :; }
+scutil() { :; }
+sudo() { echo "sudo $*"; }
+installer() { echo "installer $*"; }
+ps() { grep . "$procs" | cut -d' ' -f1,3-; }
+kill() {
+  local sig="$1" pid behavior
+  shift
+  for pid in "$@"; do
+    echo "$sig $pid" >> "$signals"
+    behavior=$(awk -v p="$pid" '$1 == p { print $2 }' "$procs")
+    case "$sig $behavior" in
+      "-TERM exits" | "-KILL exits" | "-KILL stubborn")
+        awk -v p="$pid" '$1 != p' "$procs" > "$procs.new" && command mv "$procs.new" "$procs" ;;
+    esac
+  done
+}
+`
+		b, err := exec.Command(bash, "-c", stubs+script).CombinedOutput()
+		sigs, readErr := os.ReadFile(sigFile)
+		require.NoError(t, readErr)
+		return string(b), string(sigs), err
+	}
+	requireExit1 := func(t *testing.T, err error, out string) {
+		var exitErr *exec.ExitError
+		require.ErrorAs(t, err, &exitErr, out)
+		require.Equal(t, 1, exitErr.ExitCode(), out)
+	}
+
+	const exe = "/Applications/Mozilla VPN.app/Contents/MacOS/Mozilla VPN"
+	others := []string{
+		"201 unkillable " + exe + " /Library/Application Support/Mozilla/NativeMessagingHosts/mozillavpn.json vpn@mozilla.com",
+		"202 unkillable " + exe + " chrome-extension://abcdefghijklmnop/",
+		"203 unkillable /Applications/Mozilla VPN.app/Contents/Library/LaunchServices/org.mozilla.macos.FirefoxVPN.daemon",
+	}
+
+	t.Run("not running", func(t *testing.T) {
+		out, signals, err := run(t, install, others...)
+		require.NoError(t, err, out)
+		require.Empty(t, signals)
+		require.NotContains(t, out, "Quitting Mozilla VPN")
+		require.Contains(t, out, "installer -pkg /tmp/fleet-test/MozillaVPN.pkg -target /")
+	})
+
+	t.Run("quits on SIGTERM", func(t *testing.T) {
+		procs := append([]string{"101 exits " + exe, "102 exits " + exe + " ui --updated"}, others...)
+		out, signals, err := run(t, install, procs...)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 101\n-TERM 102\n", signals)
+		require.Contains(t, out, "Mozilla VPN quit successfully.")
+		require.Contains(t, out, "installer -pkg")
+	})
+
+	t.Run("force-quit after SIGTERM", func(t *testing.T) {
+		out, signals, err := run(t, install, append([]string{"101 stubborn " + exe}, others...)...)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 101\n-KILL 101\n", signals)
+		require.Contains(t, out, "Mozilla VPN didn't quit; forcing it to quit.")
+		require.Contains(t, out, "installer -pkg")
+	})
+
+	t.Run("install stops when the GUI survives", func(t *testing.T) {
+		out, signals, err := run(t, install, "101 unkillable "+exe)
+		requireExit1(t, err, out)
+		require.Equal(t, "-TERM 101\n-KILL 101\n", signals)
+		require.Contains(t, out, "Mozilla VPN did not quit.")
+		require.NotContains(t, out, "installer")
+	})
+
+	t.Run("uninstall", func(t *testing.T) {
+		out, _, err := run(t, uninstall, "101 unkillable "+exe)
+		requireExit1(t, err, out)
+		require.NotContains(t, out, "Removing Mozilla VPN.")
+
+		out, signals, err := run(t, uninstall, append([]string{"101 exits " + exe}, others...)...)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 101\n", signals)
+		require.Contains(t, out, "Removing Mozilla VPN.")
+	})
+}
+
+// TestTailscaleScriptsStopOnlyTheGUI runs the Tailscale scripts against a fake
+// process table. They signal only the GUI, never the CLI (same executable,
+// with arguments), the network extension or the login item. The install
+// relaunches the app only when it was running and the pkg's postinstall didn't
+// reopen it.
+func TestTailscaleScriptsStopOnlyTheGUI(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("as root the relaunch goes through /bin/launchctl asuser, which can't be stubbed")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+
+	readScript := func(name string) string {
+		b, err := os.ReadFile(filepath.Join("../../inputs/homebrew/scripts", name))
+		require.NoError(t, err)
+		return string(b)
+	}
+	install := readScript("tailscale-install.sh")
+	uninstall := readScript("tailscale-uninstall.sh")
+
+	// The install script cases cover the helpers, so both copies must match.
+	helpers := regexp.MustCompile(`(?s)\ntailscale_pids\(\) \{.*?\nquit_tailscale\(\) \{.*?\n\}\n`)
+	require.NotEmpty(t, helpers.FindString(install))
+	require.Equal(t, helpers.FindString(install), helpers.FindString(uninstall))
+
+	// Everything after the quit call removes files, so it's replaced with a marker.
+	quitCall := "\nquit_tailscale || exit 1\n"
+	i := strings.Index(uninstall, quitCall)
+	require.Positive(t, i)
+	uninstall = uninstall[:i+len(quitCall)] + "echo 'Removing Tailscale.'\n"
+
+	const exe = "/Applications/Tailscale.app/Contents/MacOS/Tailscale"
+
+	// Each process is "<pid> <behavior> <args>". It exits on SIGTERM ("exits"),
+	// only on SIGKILL ("stubborn"), or never ("unkillable"). With reopen set,
+	// the installer stub starts the GUI again, as the pkg's postinstall does.
+	// opens records the arguments of each open call.
+	run := func(t *testing.T, script string, reopen bool, procs ...string) (out, signals, opens string, err error) {
+		dir := t.TempDir()
+		procFile := filepath.Join(dir, "procs")
+		sigFile := filepath.Join(dir, "signals")
+		openFile := filepath.Join(dir, "opens")
+		require.NoError(t, os.WriteFile(procFile, []byte(strings.Join(procs, "\n")+"\n"), 0o600))
+		require.NoError(t, os.WriteFile(sigFile, nil, 0o600))
+		require.NoError(t, os.WriteFile(openFile, nil, 0o600))
+		reopenProc := ""
+		if reopen {
+			reopenProc = "301 exits " + exe
+		}
+		stubs := `procs=` + shellSingleQuote(procFile) + `
+signals=` + shellSingleQuote(sigFile) + `
+reopen=` + shellSingleQuote(reopenProc) + `
+opens=` + shellSingleQuote(openFile) + `
+INSTALLER_PATH=/tmp/fleet-test/Tailscale.pkg
+sleep() { :; }
+scutil() { :; }
+stat() { echo alice; }
+sudo() { echo "sudo $*"; }
+open() { echo "$*" >> "$opens"; }
+installer() {
+  echo "installer $*"
+  [[ -z "$reopen" ]] || echo "$reopen" >> "$procs"
+}
+ps() { grep . "$procs" | sed -E 's/^([0-9]+) [a-z]+ /  \1 /'; }
+kill() {
+  local sig="$1" pid behavior
+  shift
+  for pid in "$@"; do
+    echo "$sig $pid" >> "$signals"
+    behavior=$(awk -v p="$pid" '$1 == p { print $2 }' "$procs")
+    case "$sig $behavior" in
+      "-TERM exits" | "-KILL exits" | "-KILL stubborn")
+        awk -v p="$pid" '$1 != p' "$procs" > "$procs.new" && command mv "$procs.new" "$procs" ;;
+    esac
+  done
+}
+`
+		b, err := exec.Command(bash, "-c", stubs+script).CombinedOutput()
+		sigs, readErr := os.ReadFile(sigFile)
+		require.NoError(t, readErr)
+		opened, readErr := os.ReadFile(openFile)
+		require.NoError(t, readErr)
+		return string(b), string(sigs), string(opened), err
+	}
+	requireExit1 := func(t *testing.T, err error, out string) {
+		var exitErr *exec.ExitError
+		require.ErrorAs(t, err, &exitErr, out)
+		require.Equal(t, 1, exitErr.ExitCode(), out)
+	}
+
+	others := []string{
+		"201 unkillable " + exe + " status",
+		"202 unkillable " + exe + " serve 3000",
+		"203 unkillable /Library/SystemExtensions/0A1B2C3D-4E5F-6789-ABCD-EF0123456789/io.tailscale.ipn.macsys.network-extension.systemextension/Contents/MacOS/io.tailscale.ipn.macsys.network-extension",
+		"204 unkillable " + strings.TrimSuffix(exe, "MacOS/Tailscale") + "Library/LoginItems/TailscaleLoginItemHelper-macsys.app/Contents/MacOS/TailscaleLoginItemHelper-macsys",
+	}
+	const relaunch = "Relaunching application 'io.tailscale.ipn.macsys'..."
+
+	t.Run("not running", func(t *testing.T) {
+		for _, reopen := range []bool{false, true} {
+			out, signals, opens, err := run(t, install, reopen, others...)
+			require.NoError(t, err, out)
+			require.Empty(t, signals)
+			require.Empty(t, opens)
+			require.NotContains(t, out, "Quitting Tailscale")
+			require.Contains(t, out, "installer -pkg /tmp/fleet-test/Tailscale.pkg -target /")
+			require.NotContains(t, out, relaunch)
+		}
+	})
+
+	t.Run("quits on SIGTERM, postinstall reopens it", func(t *testing.T) {
+		out, signals, opens, err := run(t, install, true, append([]string{"101 exits " + exe}, others...)...)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 101\n", signals)
+		require.Empty(t, opens)
+		require.Contains(t, out, "Tailscale quit successfully.")
+		require.Contains(t, out, "installer -pkg")
+		require.NotContains(t, out, relaunch)
+	})
+
+	t.Run("quits on SIGTERM, relaunched when postinstall doesn't reopen it", func(t *testing.T) {
+		out, signals, opens, err := run(t, install, false, append([]string{"101 exits " + exe}, others...)...)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 101\n", signals)
+		require.Equal(t, "-b io.tailscale.ipn.macsys\n", opens)
+		require.Contains(t, out, "installer -pkg")
+		require.Contains(t, out, relaunch)
+		require.Less(t, strings.Index(out, "installer -pkg"), strings.Index(out, relaunch))
+	})
+
+	t.Run("force-quit after SIGTERM", func(t *testing.T) {
+		out, signals, _, err := run(t, install, true, append([]string{"101 stubborn " + exe}, others...)...)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 101\n-KILL 101\n", signals)
+		require.Contains(t, out, "Tailscale didn't quit; forcing it to quit.")
+		require.Contains(t, out, "installer -pkg")
+	})
+
+	t.Run("install stops when the GUI survives", func(t *testing.T) {
+		out, signals, opens, err := run(t, install, true, "101 unkillable "+exe)
+		requireExit1(t, err, out)
+		require.Empty(t, opens)
+		require.Equal(t, "-TERM 101\n-KILL 101\n", signals)
+		require.Contains(t, out, "Tailscale did not quit.")
+		require.NotContains(t, out, "installer")
+		require.NotContains(t, out, relaunch)
+	})
+
+	t.Run("uninstall", func(t *testing.T) {
+		out, _, _, err := run(t, uninstall, false, "101 unkillable "+exe)
+		requireExit1(t, err, out)
+		require.NotContains(t, out, "Removing Tailscale.")
+
+		out, signals, opens, err := run(t, uninstall, false, append([]string{"101 exits " + exe}, others...)...)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 101\n", signals)
+		require.Empty(t, opens)
+		require.Contains(t, out, "Removing Tailscale.")
+		require.NotContains(t, out, relaunch)
+	})
+}
+
+// TestWezTermScriptsQuitWithSIGTERM runs the WezTerm scripts against a fake
+// process table. WezTerm prompts before it quits, so they send SIGTERM to the
+// console user's WezTerm GUI processes only, found by bundle ID, relaunch it
+// after an install, and stop before installing or removing anything if it
+// survives or the process lookup fails.
+func TestWezTermScriptsQuitWithSIGTERM(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("as root the relaunch goes through /bin/launchctl asuser, which can't be stubbed")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+
+	readScript := func(name string) string {
+		b, err := os.ReadFile(filepath.Join("../../inputs/homebrew/scripts", name))
+		require.NoError(t, err)
+		return string(b)
+	}
+	install := readScript("wezterm-install.sh")
+	uninstall := readScript("wezterm-uninstall.sh")
+
+	pidsHelper := regexp.MustCompile(`(?s)\nwezterm_pids\(\) \{.*?\n\}\n`)
+	require.NotEmpty(t, pidsHelper.FindString(install))
+	require.Equal(t, pidsHelper.FindString(install), pidsHelper.FindString(uninstall))
+
+	// Everything between the quit and the relaunch changes files, so it's
+	// replaced with a marker.
+	cut := func(script, quitCall, marker, tail string) string {
+		i := strings.Index(script, quitCall)
+		require.Positive(t, i)
+		require.True(t, strings.HasSuffix(script, tail))
+		return script[:i+len(quitCall)] + marker + tail
+	}
+	install = cut(install, "\nquit_and_track_wezterm || exit 1\n", "echo 'Installing WezTerm.'\n", "\nrelaunch_application 'com.github.wez.wezterm'\n")
+	uninstall = cut(uninstall, "\nquit_wezterm || exit 1\n", "echo 'Removing WezTerm.'\n", "")
+
+	type result struct {
+		out, signals, opened string
+		err                  error
+	}
+	// Each process is "<pid> <behavior> <user> <path>". It exits on SIGTERM
+	// ("exits") or ignores it ("stubborn"). psFails is "always" or
+	// "after-signal" to make ps fail.
+	run := func(t *testing.T, script, consoleUser, psFails string, procs ...string) result {
+		dir := t.TempDir()
+		procFile := filepath.Join(dir, "procs")
+		sigFile := filepath.Join(dir, "signals")
+		openFile := filepath.Join(dir, "opened")
+		require.NoError(t, os.WriteFile(procFile, []byte(strings.Join(procs, "\n")+"\n"), 0o600))
+		require.NoError(t, os.WriteFile(sigFile, nil, 0o600))
+		require.NoError(t, os.WriteFile(openFile, nil, 0o600))
+		stubs := `procs=` + shellSingleQuote(procFile) + `
+signals=` + shellSingleQuote(sigFile) + `
+opened=` + shellSingleQuote(openFile) + `
+ps_fails=` + psFails + `
+INSTALLER_PATH=/tmp/fleet-test/WezTerm.zip
+stat() { echo ` + consoleUser + `; }
+realpath() { echo "$1"; }
+unzip() { :; }
+find() { echo /tmp/fleet-test/WezTerm-macos/WezTerm.app; }
+scutil() { :; }
+sleep() { :; }
+open() { echo "$*" >> "$opened"; }
+uid_of() { case "$1" in alice) echo 501 ;; bob) echo 502 ;; *) return 1 ;; esac; }
+id() { [[ "$1" == -u ]] && uid_of "$2"; }
+ps() {
+  [[ "$ps_fails" == always || ( "$ps_fails" == after-signal && -s "$signals" ) ]] && return 1
+  local pid behavior user exe
+  while read -r pid behavior user exe; do
+    [[ -n "$pid" ]] && echo "$pid $(uid_of "$user") $exe"
+  done < "$procs"
+}
+defaults() {
+  case "$2" in
+    */Other.app/Contents/Info) echo com.example.Other ;;
+    *) echo com.github.wez.wezterm ;;
+  esac
+}
+kill() {
+  local sig="$1" pid behavior
+  shift
+  for pid in "$@"; do
+    echo "$sig $pid" >> "$signals"
+    behavior=$(awk -v p="$pid" '$1 == p { print $2 }' "$procs")
+    if [[ "$sig $behavior" == "-TERM exits" ]]; then
+      awk -v p="$pid" '$1 != p' "$procs" > "$procs.new" && command mv "$procs.new" "$procs"
+    fi
+  done
+}
+`
+		b, err := exec.Command(bash, "-c", stubs+script).CombinedOutput()
+		sigs, readErr := os.ReadFile(sigFile)
+		require.NoError(t, readErr)
+		opened, readErr := os.ReadFile(openFile)
+		require.NoError(t, readErr)
+		return result{string(b), string(sigs), string(opened), err}
+	}
+	requireExit1 := func(t *testing.T, r result) {
+		var exitErr *exec.ExitError
+		require.ErrorAs(t, r.err, &exitErr, r.out)
+		require.Equal(t, 1, exitErr.ExitCode(), r.out)
+	}
+
+	const macOS = "/Contents/MacOS/"
+	others := []string{
+		"201 exits bob /Applications/WezTerm.app" + macOS + "wezterm-gui",
+		"202 exits alice /Applications/WezTerm.app" + macOS + "wezterm-mux-server",
+		"203 exits alice /Applications/WezTerm.app" + macOS + "wezterm",
+		"204 exits alice /Applications/Other.app" + macOS + "wezterm-gui",
+	}
+	running := append([]string{
+		"101 exits alice /Applications/WezTerm.app" + macOS + "wezterm-gui",
+		"102 exits alice /Users/alice/Download Folder/WezTerm-old.app" + macOS + "wezterm-gui",
+	}, others...)
+	stubborn := "101 stubborn alice /Applications/WezTerm.app" + macOS + "wezterm-gui"
+
+	t.Run("not running", func(t *testing.T) {
+		r := run(t, install, "alice", "", others...)
+		require.NoError(t, r.err, r.out)
+		require.Empty(t, r.signals)
+		require.NotContains(t, r.out, "Quitting application")
+		require.Contains(t, r.out, "Installing WezTerm.")
+		require.Empty(t, r.opened)
+	})
+
+	t.Run("quits and relaunches", func(t *testing.T) {
+		r := run(t, install, "alice", "", running...)
+		require.NoError(t, r.err, r.out)
+		require.Equal(t, "-TERM 101\n-TERM 102\n", r.signals)
+		require.Contains(t, r.out, "Application 'com.github.wez.wezterm' quit successfully.")
+		require.Contains(t, r.out, "Installing WezTerm.")
+		require.Equal(t, "-b com.github.wez.wezterm\n", r.opened)
+	})
+
+	t.Run("install stops when it won't quit", func(t *testing.T) {
+		r := run(t, install, "alice", "", stubborn)
+		requireExit1(t, r)
+		require.Equal(t, "-TERM 101\n", r.signals)
+		require.Contains(t, r.out, "Application 'com.github.wez.wezterm' did not quit.")
+		require.NotContains(t, r.out, "Installing WezTerm.")
+		require.Empty(t, r.opened)
+	})
+
+	t.Run("install stops when the process lookup fails", func(t *testing.T) {
+		r := run(t, install, "alice", "always", running...)
+		requireExit1(t, r)
+		require.Empty(t, r.signals)
+		require.Contains(t, r.out, "Couldn't check whether application 'com.github.wez.wezterm' is running.")
+		require.NotContains(t, r.out, "Installing WezTerm.")
+
+		r = run(t, install, "alice", "after-signal", running...)
+		requireExit1(t, r)
+		require.Equal(t, "-TERM 101\n-TERM 102\n", r.signals)
+		require.Contains(t, r.out, "Application 'com.github.wez.wezterm' did not quit.")
+		require.NotContains(t, r.out, "Installing WezTerm.")
+		require.Empty(t, r.opened)
+	})
+
+	t.Run("login window", func(t *testing.T) {
+		r := run(t, install, "root", "", running...)
+		require.NoError(t, r.err, r.out)
+		require.Empty(t, r.signals)
+		require.Contains(t, r.out, "Installing WezTerm.")
+		require.Empty(t, r.opened)
+	})
+
+	t.Run("uninstall", func(t *testing.T) {
+		r := run(t, uninstall, "alice", "", running...)
+		require.NoError(t, r.err, r.out)
+		require.Equal(t, "-TERM 101\n-TERM 102\n", r.signals)
+		require.Contains(t, r.out, "Removing WezTerm.")
+
+		for _, tc := range []struct{ psFails, proc string }{{"", stubborn}, {"always", stubborn}, {"after-signal", running[0]}} {
+			r = run(t, uninstall, "alice", tc.psFails, tc.proc)
+			requireExit1(t, r)
+			require.NotContains(t, r.out, "Removing WezTerm.")
+		}
+	})
 }
 
 func TestShellDoubleQuoteEscape(t *testing.T) {
@@ -524,6 +1129,35 @@ func TestUninstallScriptScriptDirectiveEscapesApostrophe(t *testing.T) {
 	require.NotContains(t, script, `/opt/x'; touch /tmp/pwned; '`)
 }
 
+func TestUninstallScriptPrePostScriptsWithoutUninstallStanza(t *testing.T) {
+	app := inputApp{UniqueIdentifier: "com.example.app"}
+	cask := &brewCask{
+		Artifacts: []*brewArtifact{
+			{App: []optjson.StringOr[*brewAppTarget]{{String: "Example.app"}}},
+			{Zap: []*brewUninstall{{Trash: optjson.StringOr[[]string]{String: "~/Library/Caches/com.example.app"}}}},
+		},
+		PreUninstallScripts:  []string{"echo pre"},
+		PostUninstallScripts: []string{"echo post"},
+	}
+
+	script := uninstallScriptForApp(app, cask)
+	pre := strings.Index(script, "\necho pre\n")
+	removeApp := strings.Index(script, `sudo rm -rf "$APPDIR/Example.app"`)
+	trash := strings.Index(script, `trash "$LOGGED_IN_USER" '~/Library/Caches/com.example.app'`)
+	post := strings.Index(script, "\necho post\n")
+	require.True(t, pre >= 0 && removeApp >= 0 && trash >= 0 && post >= 0, script)
+	require.Less(t, pre, removeApp, script)
+	require.Less(t, pre, trash, script)
+	require.Less(t, removeApp, post, script)
+	require.Less(t, trash, post, script)
+
+	// With an uninstall stanza they run there, once.
+	cask.Artifacts = append([]*brewArtifact{{Uninstall: []*brewUninstall{{Quit: optjson.StringOr[[]string]{String: "com.example.app"}}}}}, cask.Artifacts...)
+	script = uninstallScriptForApp(app, cask)
+	require.Equal(t, 1, strings.Count(script, "\necho pre\n"), script)
+	require.Equal(t, 1, strings.Count(script, "\necho post\n"), script)
+}
+
 func TestShellSingleQuote(t *testing.T) {
 	for in, want := range map[string]string{
 		"":                      `''`,
@@ -562,11 +1196,13 @@ func TestUninstallScriptEscapesApostrophe(t *testing.T) {
 	require.NotContains(t, script, `Cycling '74'`)
 }
 
-// TestUninstallScriptTrashWithoutGUIUser runs generated trash calls in bash with
-// the console user stubbed. Fleet also runs uninstalls at the login window,
-// where there's no user Trash: moving into /Users/loginwindow/.Trash left system
-// paths behind, and an empty user shifted the arguments so nothing was removed.
-func TestUninstallScriptTrashWithoutGUIUser(t *testing.T) {
+// TestUninstallScriptTrash runs generated trash calls in bash with the console
+// user stubbed and the user's home under a temp dir. Fleet also runs uninstalls
+// at the login window, where there's no user Trash: moving into
+// /Users/loginwindow/.Trash left system paths behind, and an empty user shifted
+// the arguments so nothing was removed. With a user logged in, root must never
+// move files into ~/.Trash, which the user can redirect with a symlink.
+func TestUninstallScriptTrash(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("requires bash")
 	}
@@ -576,19 +1212,33 @@ func TestUninstallScriptTrashWithoutGUIUser(t *testing.T) {
 	}
 
 	type paths struct {
-		dir, helper1, helper2 string
+		pref, cache, trash, dir, helper1, helper2 string
+		// vendor is a symlink a user planted in a shared folder, pointing at
+		// the folder that holds protected1 and protected2.
+		vendor, protected1, protected2 string
 	}
-	run := func(t *testing.T, consoleUser string, rmFails bool) (string, paths) {
+	// fail is "rm" to make rm fail, or "sudo" to make the user's move fail.
+	run := func(t *testing.T, consoleUser string, fail string) (string, paths) {
 		tmp := t.TempDir()
+		home := filepath.Join(tmp, "Users", "alice")
 		p := paths{
-			dir:     filepath.Join(tmp, "Shared", "Foo"),
-			helper1: filepath.Join(tmp, "Library", "Foo Helper 1"),
-			helper2: filepath.Join(tmp, "Library", "Foo Helper 2"),
+			pref:       filepath.Join(home, "Library", "Preferences", "com.example.foo.plist"),
+			cache:      filepath.Join(home, "Library", "Caches", "com.example.foo.cache"),
+			trash:      filepath.Join(home, ".Trash"),
+			dir:        filepath.Join(tmp, "Shared", "Foo"),
+			helper1:    filepath.Join(tmp, "Library", "Foo Helper 1"),
+			helper2:    filepath.Join(tmp, "Library", "Foo Helper 2"),
+			vendor:     filepath.Join(tmp, "Shared", "Vendor"),
+			protected1: filepath.Join(tmp, "Protected", "Bar"),
+			protected2: filepath.Join(tmp, "Protected", "Baz 1"),
 		}
-		require.NoError(t, os.MkdirAll(filepath.Join(p.dir, "data"), 0o755))
-		require.NoError(t, os.MkdirAll(filepath.Dir(p.helper1), 0o755))
-		require.NoError(t, os.WriteFile(p.helper1, nil, 0o644))
-		require.NoError(t, os.WriteFile(p.helper2, nil, 0o644))
+		for _, dir := range []string{filepath.Join(p.dir, "data"), filepath.Dir(p.pref), filepath.Dir(p.cache), p.trash, filepath.Dir(p.helper1), filepath.Dir(p.protected1)} {
+			require.NoError(t, os.MkdirAll(dir, 0o755))
+		}
+		for _, file := range []string{p.pref, p.cache, p.helper1, p.helper2, p.protected1, p.protected2} {
+			require.NoError(t, os.WriteFile(file, nil, 0o644))
+		}
+		require.NoError(t, os.Symlink(filepath.Dir(p.protected1), p.vendor))
 
 		cask := &brewCask{
 			Artifacts: []*brewArtifact{
@@ -601,6 +1251,8 @@ func TestUninstallScriptTrashWithoutGUIUser(t *testing.T) {
 									"~/Library/Preferences/com.example.foo.plist",
 									"~/Library/Caches/com.example.foo*",
 									filepath.Join(tmp, "Library", "Foo Helper*"),
+									filepath.Join(p.vendor, "Bar"),
+									filepath.Join(p.vendor, "Baz*"),
 									p.dir,
 								},
 							},
@@ -609,29 +1261,57 @@ func TestUninstallScriptTrashWithoutGUIUser(t *testing.T) {
 				},
 			},
 		}
-		// mv is stubbed so the logged-in case doesn't touch /Users; rm is real
-		// unless it's made to fail.
+		script := uninstallScriptForApp(inputApp{}, cask)
+		require.Contains(t, script, `"/Users/$logged_in_user`)
+		script = strings.ReplaceAll(script, `"/Users/$logged_in_user`, `"$users_dir/$logged_in_user`)
+
+		// A bare mv runs as root, so it's stubbed to fail loudly. sudo -u runs the
+		// real mv as the test user.
 		stubs := `console_user=` + shellSingleQuote(consoleUser) + `
-rm_fails=` + strconv.FormatBool(rmFails) + `
+users_dir=` + shellSingleQuote(filepath.Join(tmp, "Users")) + `
+fail=` + shellSingleQuote(fail) + `
 scutil() { [[ -z "$console_user" ]] || echo "  Name : $console_user"; }
 jot() { echo 42; }
-mv() { echo "mv $*"; }
+mv() { echo "mv as root: $*"; return 1; }
+sudo() {
+  if [[ "$1" != -u || "$2" != "$console_user" ]]; then
+    echo "unexpected sudo $*"
+    return 1
+  fi
+  shift 2
+  echo "as $console_user: $*"
+  if [[ "$fail" == sudo ]]; then
+    echo "mv: rename: Permission denied" >&2
+    return 1
+  fi
+  command "$@"
+}
 rm() {
-  if [[ "$rm_fails" == true ]]; then
+  if [[ "$fail" == rm ]]; then
     echo "rm: $2: Operation not permitted" >&2
     return 1
   fi
   command rm "$@"
 }
 `
-		out, err := exec.Command(bash, "-c", stubs+uninstallScriptForApp(inputApp{}, cask)).CombinedOutput()
+		out, err := exec.Command(bash, "-c", stubs+script).CombinedOutput()
 		require.NoError(t, err, string(out))
+		require.NotContains(t, string(out), "mv as root")
+		require.NotContains(t, string(out), "unexpected sudo")
 		return string(out), p
+	}
+
+	// A symlinked parent folder can't redirect a delete as root.
+	requireNotRedirected := func(t *testing.T, out string, p paths) {
+		require.Contains(t, out, "Skipped "+filepath.Join(p.vendor, "Bar")+": a folder in its path is a symlink.\n")
+		require.Contains(t, out, "Skipped "+filepath.Join(p.vendor, "Baz 1")+": a folder in its path is a symlink.\n")
+		require.FileExists(t, p.protected1)
+		require.FileExists(t, p.protected2)
 	}
 
 	for name, user := range map[string]string{"loginwindow": "loginwindow", "empty": "", "root": "root"} {
 		t.Run(name, func(t *testing.T) {
-			out, p := run(t, user, false)
+			out, p := run(t, user, "")
 			require.Contains(t, out, "Not logged into a non-root GUI; skipping ~/Library/Preferences/com.example.foo.plist.\n")
 			require.Contains(t, out, "Not logged into a non-root GUI; skipping ~/Library/Caches/com.example.foo*.\n")
 			require.Contains(t, out, "removing "+p.dir+".\n")
@@ -639,27 +1319,45 @@ rm() {
 			require.NoFileExists(t, p.helper1)
 			require.NoFileExists(t, p.helper2)
 			require.NotContains(t, out, "mv ")
+			requireNotRedirected(t, out, p)
 		})
 	}
 
 	t.Run("normal user", func(t *testing.T) {
-		out, p := run(t, "alice", false)
-		require.Contains(t, out, "/Users/alice/Library/Preferences/com.example.foo.plist doesn't exist.\n")
-		require.Contains(t, out, "/Users/alice/Library/Caches/com.example.foo* doesn't exist.\n")
-		require.Contains(t, out, "mv -f "+p.dir+" /Users/alice/.Trash/Foo_")
-		require.Contains(t, out, "mv -f "+p.helper1+" /Users/alice/.Trash/Foo Helper 1_")
-		require.Contains(t, out, "mv -f "+p.helper2+" /Users/alice/.Trash/Foo Helper 2_")
+		out, p := run(t, "alice", "")
+		require.Contains(t, out, "as alice: mv -f "+p.pref+" "+p.trash+"/com.example.foo.plist_")
+		require.Contains(t, out, "as alice: mv -f "+p.cache+" "+p.trash+"/com.example.foo.cache_")
+		require.NoFileExists(t, p.pref)
+		require.NoFileExists(t, p.cache)
+		trashed, err := os.ReadDir(p.trash)
+		require.NoError(t, err)
+		require.Len(t, trashed, 2)
+		// System paths aren't moved into the user's Trash.
+		require.Contains(t, out, "removing "+p.dir+".\n")
+		require.NoDirExists(t, p.dir)
+		require.NoFileExists(t, p.helper1)
+		require.NoFileExists(t, p.helper2)
 		require.NotContains(t, out, "Not logged into")
-		require.DirExists(t, p.dir)
+		requireNotRedirected(t, out, p)
 	})
 
 	// Cleanup is best-effort: a path that can't be removed is reported but
 	// doesn't fail the uninstall, even when it's the script's last command.
 	t.Run("removal fails", func(t *testing.T) {
-		out, p := run(t, "loginwindow", true)
+		out, p := run(t, "loginwindow", "rm")
 		require.Contains(t, out, "Failed to remove "+p.helper1+".\n")
 		require.True(t, strings.HasSuffix(out, "Failed to remove "+p.dir+".\n"), out)
 		require.DirExists(t, p.dir)
+		requireNotRedirected(t, out, p)
+	})
+
+	// Root doesn't take over a move the user can't make.
+	t.Run("move as user fails", func(t *testing.T) {
+		out, p := run(t, "alice", "sudo")
+		require.Contains(t, out, "Failed to move "+p.pref+" to the Trash.\n")
+		require.Contains(t, out, "Failed to move "+p.cache+" to the Trash.\n")
+		require.FileExists(t, p.pref)
+		require.FileExists(t, p.cache)
 	})
 }
 
@@ -677,7 +1375,25 @@ func TestCustomUninstallScriptsUseCurrentTrash(t *testing.T) {
 			continue
 		}
 		require.Contains(t, script, trashFunc, "%s has a stale copy of trash()", filepath.Base(path))
+		require.Contains(t, script, removeSystemPathFunc, "%s is missing remove_system_path(), which trash() calls", filepath.Base(path))
 		require.NotContains(t, script, "trash $LOGGED_IN_USER", "%s passes $LOGGED_IN_USER to trash unquoted", filepath.Base(path))
+	}
+}
+
+// Custom uninstall scripts carry their own copy of remove_launchctl_service().
+func TestCustomUninstallScriptsUseCurrentLaunchctlHelper(t *testing.T) {
+	paths, err := filepath.Glob("../../inputs/homebrew/scripts/*.sh")
+	require.NoError(t, err)
+	require.NotEmpty(t, paths)
+
+	for _, path := range paths {
+		b, err := os.ReadFile(path)
+		require.NoError(t, err)
+		script := string(b)
+		if !strings.Contains(script, "\nremove_launchctl_service() {") {
+			continue
+		}
+		require.Contains(t, script, removeLaunchctlServiceFunc, "%s has a stale copy of remove_launchctl_service()", filepath.Base(path))
 	}
 }
 
@@ -718,6 +1434,73 @@ func TestUninstallScriptExpandsLaunchctlWildcard(t *testing.T) {
 	require.Contains(t, script, `while read -r _ _ id; do`)
 	require.NotContains(t, script, `[[ "$pid" =~ ^[0-9]+$ ]]`)
 	require.NotContains(t, script, `(( pid != 0 ))`)
+}
+
+// TestUninstallScriptRemovesConsoleUserLaunchctlService covers user launch
+// agents and login items. As root, launchctl list and remove only see the
+// system domain, so the helper must remove them from the console user's GUI
+// domain, including when expanding a wildcard label.
+func TestUninstallScriptRemovesConsoleUserLaunchctlService(t *testing.T) {
+	stubs := `id() { echo 501; }
+system=" com.example.Foo.daemon "
+gui=" com.example.Foo.agent com.example.Foo.helper com.other.agent "
+launchctl() {
+  case "$1 $2" in
+    "list ")
+      printf 'PID\tStatus\tLabel\n'
+      for l in $system; do printf -- '-\t0\t%s\n' "$l"; done
+      ;;
+    "list "*) [[ "$system" == *" $2 "* ]] && echo '{' ;;
+    "remove "*) echo "launchctl remove $2" ;;
+    "print gui/501")
+      printf 'gui/501 = {\n\tservices = {\n'
+      for l in $gui; do printf '\t\t       0      - \t%s\n' "$l"; done
+      printf '\t}\n\tendpoints = {\n\t\t0 - com.example.Foo.endpoint\n\t}\n}\n'
+      ;;
+    "print gui/501/"*) [[ "$gui" == *" ${2#gui/501/} "* ]] ;;
+    "bootout "*) echo "launchctl bootout $2" ;;
+  esac
+}
+`
+	run := func(t *testing.T, asRoot bool, labels ...string) string {
+		script := uninstallScriptForApp(inputApp{}, &brewCask{Artifacts: []*brewArtifact{{
+			Uninstall: []*brewUninstall{{LaunchCtl: optjson.StringOr[[]string]{IsOther: true, Other: labels}}},
+		}}})
+		if asRoot {
+			// bash's EUID is read-only, so take the root branch directly.
+			require.Contains(t, script, "if [[ $EUID -eq 0 ]]; then")
+			script = strings.ReplaceAll(script, "if [[ $EUID -eq 0 ]]; then", "if true; then")
+		}
+		out, code := runStubbedUninstallScript(t, stubs+script, "", "", "")
+		require.Zero(t, code, out)
+		return out
+	}
+
+	t.Run("root", func(t *testing.T) {
+		out := run(t, true, "com.example.Foo.agent", "com.example.Foo.daemon")
+		require.Contains(t, out, "launchctl bootout gui/501/com.example.Foo.agent\n")
+		require.Contains(t, out, "sudo launchctl remove com.example.Foo.daemon\n")
+		require.NotContains(t, out, "bootout gui/501/com.example.Foo.daemon")
+		require.NotContains(t, out, "\nlaunchctl remove")
+	})
+
+	t.Run("root wildcard", func(t *testing.T) {
+		out := run(t, true, "com.example.Foo*")
+		require.Contains(t, out, "sudo launchctl remove com.example.Foo.daemon\n")
+		require.Contains(t, out, "launchctl bootout gui/501/com.example.Foo.agent\n")
+		require.Contains(t, out, "launchctl bootout gui/501/com.example.Foo.helper\n")
+		require.NotContains(t, out, "com.other.agent")
+		require.NotContains(t, out, "com.example.Foo.endpoint")
+	})
+
+	t.Run("not root", func(t *testing.T) {
+		if os.Geteuid() == 0 {
+			t.Skip("running as root")
+		}
+		out := run(t, false, "com.example.Foo.daemon")
+		require.Contains(t, out, "sudo launchctl remove com.example.Foo.daemon\nlaunchctl remove com.example.Foo.daemon\n")
+		require.NotContains(t, out, "bootout")
+	})
 }
 
 // TestUninstallScriptExpandsQuitWildcard guards against a regression where a
@@ -822,9 +1605,10 @@ func TestQuitMatchingApplicationsRunsMatches(t *testing.T) {
 		// Shell functions take precedence over the real commands. The running
 		// list includes a duplicate, a differently-cased match, IDs that only
 		// match as a substring or not at all, and a matching ID that carries
-		// AppleScript (a running app can report any bundle ID).
+		// AppleScript (a running app can report any bundle ID). The quit runs
+		// in a command substitution, so the stub records it in a file.
 		stubs := `list_fails=` + strconv.FormatBool(listFails) + `
-quit=" "
+quit_file=` + shellSingleQuote(filepath.Join(t.TempDir(), "quit")) + `
 stat() { echo ` + consoleUser + `; }
 sleep() { :; }
 osascript() {
@@ -836,11 +1620,10 @@ osascript() {
       'com.elgato.WaveLink" is running or (do shell script "id") is "" or application id "com.elgato.WaveLink'
     return
   fi
-  local id=${2#*\"}
-  id=${id%%\"*}
-  case "$2" in
-    *" to quit") quit+="$id " ;;
-    *" is running") if [[ "$quit" == *" $id "* ]]; then echo false; else echo true; fi ;;
+  local id=$8
+  case "$4" in
+    *" to quit") printf '%s\n' "$id" >> "$quit_file" ;;
+    *" is running") if grep -qxF -- "$id" "$quit_file" 2>/dev/null; then echo false; else echo true; fi ;;
   esac
 }
 `
@@ -905,6 +1688,70 @@ func TestQuitTargetsApp(t *testing.T) {
 	require.Contains(t, script, "quit_application 'com.docker.docker' || exit 1\nquit_application 'com.electron.dockerdesktop'\nquit_application 'com.docker.helper'\n")
 }
 
+// TestValidateQuitIDs checks that the ingest rejects cask quit values that
+// aren't bundle IDs, such as ones built to break out of an AppleScript string.
+func TestValidateQuitIDs(t *testing.T) {
+	stanza := func(quit optjson.StringOr[[]string]) []*brewUninstall {
+		return []*brewUninstall{{Quit: quit}}
+	}
+	list := func(id string) optjson.StringOr[[]string] {
+		return optjson.StringOr[[]string]{IsOther: true, Other: []string{"com.example.Foo", id}}
+	}
+	single := func(id string) optjson.StringOr[[]string] {
+		return optjson.StringOr[[]string]{String: id}
+	}
+
+	// Values from real casks, including IDs with a space and dotless app names.
+	for _, id := range []string{"com.example.Foo", "com.microsoft.*", "Cisco-Systems.Spark", "com.x-rite.i1Profiler", "org.mozilla.pale moon", "com.native-instruments.Native Access", "Fathom Helper"} {
+		require.NoError(t, validateQuitIDs(&brewCask{Artifacts: []*brewArtifact{{Uninstall: stanza(list(id))}, {Zap: stanza(single(id))}}}), id)
+	}
+
+	for _, id := range []string{
+		"com.x\" to quit\ndo shell script \"id > /tmp/p\"\ntell application \"x",
+		`com.x" & (do shell script "id") & ".y`,
+		`com.x\" & "y`,
+		"com.x\ny",
+	} {
+		for _, cask := range []*brewCask{
+			{Artifacts: []*brewArtifact{{Uninstall: stanza(list(id))}}},
+			{Artifacts: []*brewArtifact{{Uninstall: stanza(single(id))}}},
+			{Artifacts: []*brewArtifact{{Zap: stanza(list(id))}}},
+		} {
+			require.ErrorContains(t, validateQuitIDs(cask), "isn't a bundle ID", "%q", id)
+		}
+	}
+}
+
+// TestQuitHelpersPassBundleIDAsData checks the generated quit helpers and the
+// custom scripts. A bundle ID spliced into an AppleScript string runs any
+// AppleScript it carries as root, and one passed without '--' can be parsed
+// as an osascript option such as -e.
+func TestQuitHelpersPassBundleIDAsData(t *testing.T) {
+	spliced := regexp.MustCompile(`osascript.*\\"\$`)
+	scripts := map[string]string{
+		"quit_application":           quitApplicationFunc,
+		"quit_matching_applications": quitMatchingApplicationsFunc,
+		"quit_and_track_application": quitAndTrackApplicationFunc,
+		"relaunch_application":       relaunchApplicationFunc,
+	}
+	paths, err := filepath.Glob("../../inputs/homebrew/scripts/*.sh")
+	require.NoError(t, err)
+	require.NotEmpty(t, paths)
+	for _, path := range paths {
+		b, err := os.ReadFile(path)
+		require.NoError(t, err)
+		scripts[filepath.Base(path)] = string(b)
+	}
+	for name, script := range scripts {
+		for line := range strings.SplitSeq(script, "\n") {
+			require.False(t, spliced.MatchString(line), "%s: %q splices a variable into AppleScript", name, strings.TrimSpace(line))
+			if strings.Contains(line, "on run argv") {
+				require.Contains(t, line, `-e 'end run' -- "$`, "%s: %q doesn't end osascript's options before the ID", name, strings.TrimSpace(line))
+			}
+		}
+	}
+}
+
 // runStubbedUninstallScript runs a generated uninstall script in bash with
 // osascript and friends stubbed out. running lists the running apps; stuck ones
 // accept the quit event but keep running, and canceled ones fail it, as when
@@ -920,23 +1767,30 @@ func runStubbedUninstallScript(t *testing.T, script, running, stuck, canceled st
 		t.Skip("bash not found")
 	}
 
+	// The quit runs in a command substitution, so the stub records quit apps in
+	// quit_file and drops them from running on each call.
 	stubs := `running=" ` + running + ` "
 stuck=" ` + stuck + ` "
 canceled=" ` + canceled + ` "
+quit_file=` + shellSingleQuote(filepath.Join(t.TempDir(), "quit")) + `
 stat() { echo alice; }
 sleep() { SECONDS=$((SECONDS + $1)); }
 sudo() { echo "sudo $*"; }
+ps() { :; }
 osascript() {
+  if [[ -e "$quit_file" ]]; then
+    local q
+    while IFS= read -r q; do running=${running/ $q / }; done < "$quit_file"
+  fi
   if [[ "$1" == "-l" ]]; then
     printf '%s\n' $running
     return
   fi
-  local id=${2#*\"}
-  id=${id%%\"*}
-  case "$2" in
+  local id=$8
+  case "$4" in
     *" to quit")
       [[ "$canceled" == *" $id "* ]] && return 1
-      [[ "$stuck" == *" $id "* ]] || running=${running/ $id / }
+      [[ "$stuck" == *" $id "* ]] || printf '%s\n' "$id" >> "$quit_file"
       return 0
       ;;
     *" is running")
@@ -1011,6 +1865,47 @@ func TestUninstallScriptStopsWhenAppWontQuit(t *testing.T) {
 	require.Contains(t, out, remove)
 }
 
+// TestUninstallScriptCountsNoProcessAsQuit covers an app that 'is running'
+// keeps reporting after its process is gone, so every quit fails with -600.
+// The uninstall carries on instead of timing out, unless the app's process is
+// still there.
+func TestUninstallScriptCountsNoProcessAsQuit(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("as root the wildcard helper lists apps through /bin/launchctl asuser, which can't be stubbed")
+	}
+	const remove = "sudo rm -rf /Applications//Foo.app"
+	gone := `eval "orig_$(declare -f osascript)"
+osascript() {
+  if [[ "$4" == *" to quit" && "$8" == com.example.Foo ]]; then
+    echo "36:76: execution error: Application isn’t running. (-600)" >&2
+    return 1
+  fi
+  orig_osascript "$@"
+}
+`
+	// Bundle IDs compare case-insensitively, as in 'is running'.
+	live := `ps() { echo "/Users/alice/Applications/Foo.app/Contents/MacOS/Foo"; }
+defaults() { [[ "$*" == "read /Users/alice/Applications/Foo.app/Contents/Info CFBundleIdentifier" ]] && echo com.example.foo; }
+`
+	for _, quitIDs := range [][]string{{"com.example.Foo"}, {"com.example.Foo*"}} {
+		script := uninstallScriptForApp(inputApp{UniqueIdentifier: "com.example.Foo"}, &brewCask{Artifacts: []*brewArtifact{
+			{Uninstall: []*brewUninstall{{Quit: optjson.StringOr[[]string]{IsOther: true, Other: quitIDs}}}},
+			{App: []optjson.StringOr[*brewAppTarget]{{String: "Foo.app"}}},
+		}})
+		out, code := runStubbedUninstallScript(t, gone+script, "com.example.Foo", "", "")
+		require.Zero(t, code, out)
+		require.Contains(t, out, "Application 'com.example.Foo' isn't running.")
+		require.NotContains(t, out, "did not quit")
+		require.Contains(t, out, remove)
+
+		out, code = runStubbedUninstallScript(t, gone+live+script, "com.example.Foo", "", "")
+		require.Equal(t, 1, code, out)
+		require.NotContains(t, out, "isn't running")
+		require.Contains(t, out, "Application 'com.example.Foo' did not quit.")
+		require.NotContains(t, out, remove)
+	}
+}
+
 // TestUninstallScriptQuitsAppCaskDoesNotName covers casks whose uninstall quit
 // doesn't name the app, which is most of them: the script still quits the app
 // before removing anything, and stops if the app won't quit.
@@ -1065,6 +1960,89 @@ func TestUninstallScriptQuitsAppCaskDoesNotName(t *testing.T) {
 	require.Contains(t, out, "Application 'com.example.Updater' did not quit.")
 	require.Contains(t, out, "Application 'com.example.Foo' quit successfully.")
 	require.Contains(t, out, "sudo rm -rf /Applications//Foo.app")
+}
+
+// TestUninstallScriptChecksAppAfterSignal covers casks that signal the app,
+// either alone or if a quit fails: the signal runs, and the app isn't removed
+// if it's still running afterward.
+func TestUninstallScriptChecksAppAfterSignal(t *testing.T) {
+	strs := func(s ...string) optjson.StringOr[[]string] {
+		return optjson.StringOr[[]string]{IsOther: true, Other: s}
+	}
+	// send_signal finds the app's PID with launchctl list unless it's unlisted,
+	// and the signal stops the app unless it's ignored.
+	stubs := `scutil() { echo "  Name : alice"; }
+id() { echo 501; }
+/bin/launchctl() {
+  [[ -z "$unlisted" && "$running" == *" com.example.Foo "* ]] && printf '123\t0\tapplication.com.example.Foo.1.2\n'
+}
+kill() { [[ -n "$ignored" ]] || running=${running/ com.example.Foo / }; }
+`
+	const remove = "sudo rm -rf /Applications//Foo.app"
+
+	for name, uninstall := range map[string]*brewUninstall{
+		"quit and signal": {Quit: strs("com.example.Foo"), Signal: strs("KILL", "com.example.Foo")},
+		"signal only":     {Signal: strs("TERM", "com.example.Foo")},
+	} {
+		t.Run(name, func(t *testing.T) {
+			script := uninstallScriptForApp(inputApp{UniqueIdentifier: "com.example.Foo"}, &brewCask{Artifacts: []*brewArtifact{
+				{Uninstall: []*brewUninstall{uninstall}},
+				{App: []optjson.StringOr[*brewAppTarget]{{String: "Foo.app"}}},
+			}})
+			signaled := "Successfully signaled PID 123 with signal " + uninstall.Signal.Other[0] + "."
+
+			out, code := runStubbedUninstallScript(t, stubs+script, "com.example.Foo", "com.example.Foo", "")
+			require.Zero(t, code, out)
+			require.Contains(t, out, signaled)
+			require.Contains(t, out, remove)
+
+			out, code = runStubbedUninstallScript(t, "unlisted=1\n"+stubs+script, "com.example.Foo", "com.example.Foo", "")
+			require.Equal(t, 1, code, out)
+			require.Contains(t, out, "No processes found for bundle ID 'com.example.Foo'.")
+			require.Contains(t, out, "Application 'com.example.Foo' did not quit.")
+			require.NotContains(t, out, remove)
+
+			out, code = runStubbedUninstallScript(t, "ignored=1\n"+stubs+script, "com.example.Foo", "com.example.Foo", "")
+			require.Equal(t, 1, code, out)
+			require.Contains(t, out, signaled)
+			require.Contains(t, out, "Application 'com.example.Foo' did not quit.")
+			require.NotContains(t, out, remove)
+
+			out, code = runStubbedUninstallScript(t, stubs+script, "", "", "")
+			require.Zero(t, code, out)
+			require.NotContains(t, out, "Quitting application")
+			require.Contains(t, out, remove)
+		})
+	}
+
+	// Like parallels: the stanza's script stops the app by process name when the
+	// signal finds no PID. The script runs in a subshell, so the stand-in leaves
+	// a file instead of changing $running.
+	t.Run("script stops the app the signal missed", func(t *testing.T) {
+		pkill := filepath.Join(t.TempDir(), "pkill")
+		stopped := pkill + ".stopped"
+		require.NoError(t, os.WriteFile(pkill, []byte("#!/bin/bash\necho \"pkill $*\"\ntouch "+shellSingleQuote(stopped)+"\n"), 0o755)) //nolint:gosec // G306: the test executes it
+		script := uninstallScriptForApp(inputApp{UniqueIdentifier: "com.example.Foo"}, &brewCask{Artifacts: []*brewArtifact{
+			{Uninstall: []*brewUninstall{{
+				Signal: strs("TERM", "com.example.Foo"),
+				Script: optjson.StringOr[map[string]any]{IsOther: true, Other: map[string]any{
+					"executable": pkill, "args": []any{"-TERM", "Foo"}, "must_succeed": false,
+				}},
+			}}},
+			{App: []optjson.StringOr[*brewAppTarget]{{String: "Foo.app"}}},
+		}})
+		stoppedStub := `eval "orig_$(declare -f osascript)"
+osascript() { [[ ! -e ` + shellSingleQuote(stopped) + ` ]] || running=${running/ com.example.Foo / }; orig_osascript "$@"; }
+`
+
+		out, code := runStubbedUninstallScript(t, "unlisted=1\n"+stubs+stoppedStub+script, "com.example.Foo", "com.example.Foo", "")
+		require.Zero(t, code, out)
+		require.Contains(t, out, "No processes found for bundle ID 'com.example.Foo'.")
+		require.Contains(t, out, "pkill -TERM Foo")
+		require.NotContains(t, out, "Quitting application")
+		require.Contains(t, out, remove)
+		require.Less(t, strings.Index(out, "pkill -TERM Foo"), strings.Index(out, remove))
+	})
 }
 
 // TestUninstallScriptQuitsAppOnce checks where the generated quit goes and when
@@ -1146,8 +2124,56 @@ func TestUninstallScriptQuitsAppOnce(t *testing.T) {
 			{Uninstall: []*brewUninstall{{Signal: strs("TERM", "com.example.Foo")}}},
 			appArtifact,
 		}})
-		require.NotContains(t, script, "quit_application")
-		require.Contains(t, script, `send_signal 'TERM' 'com.example.Foo' "$LOGGED_IN_USER"`)
+		require.Len(t, stoppingQuit.FindAllString(script, -1), 1, script)
+		var prev string
+		for _, s := range []string{`send_signal 'TERM' 'com.example.Foo' "$LOGGED_IN_USER"`, quit, removeApp} {
+			require.Contains(t, script, s)
+			if prev != "" {
+				require.Less(t, strings.Index(script, prev), strings.Index(script, s), "%q before %q", prev, s)
+			}
+			prev = s
+		}
+	})
+
+	// Like parallels: a script stops the app by process name when the signal
+	// finds no PID, so it runs before the check.
+	t.Run("cask signals the app and runs a script", func(t *testing.T) {
+		script := uninstallScriptForApp(app, &brewCask{Artifacts: []*brewArtifact{
+			{Uninstall: []*brewUninstall{{
+				Signal: strs("TERM", "com.example.Foo"),
+				Script: optjson.StringOr[map[string]any]{IsOther: true, Other: map[string]any{
+					"executable": "/usr/bin/pkill", "args": []any{"-TERM", "Foo"}, "must_succeed": false,
+				}},
+				Delete: strs("/usr/local/bin/foo"),
+			}}},
+			appArtifact,
+		}})
+		require.Len(t, stoppingQuit.FindAllString(script, -1), 1, script)
+		var prev string
+		for _, s := range []string{"send_signal 'TERM'", "'/usr/bin/pkill' '-TERM' 'Foo'", quit, "sudo rm -rf '/usr/local/bin/foo'", removeApp} {
+			require.Contains(t, script, s)
+			if prev != "" {
+				require.Less(t, strings.Index(script, prev), strings.Index(script, s), "%q before %q", prev, s)
+			}
+			prev = s
+		}
+	})
+
+	// Like busycontacts: the signal is the fallback for a quit that fails.
+	t.Run("cask quits and signals the app", func(t *testing.T) {
+		script := uninstallScriptForApp(app, &brewCask{Artifacts: []*brewArtifact{
+			{Uninstall: []*brewUninstall{{Quit: strs("com.example.Foo"), Signal: strs("KILL", "com.example.Foo")}}},
+			appArtifact,
+		}})
+		require.Len(t, stoppingQuit.FindAllString(script, -1), 1, script)
+		var prev string
+		for _, s := range []string{"quit_application 'com.example.Foo'\n", "send_signal 'KILL'", quit, removeApp} {
+			require.Contains(t, script, s)
+			if prev != "" {
+				require.Less(t, strings.Index(script, prev), strings.Index(script, s), "%q before %q", prev, s)
+			}
+			prev = s
+		}
 	})
 
 	t.Run("cask signals something else", func(t *testing.T) {
@@ -1398,6 +2424,207 @@ func TestUninstallScriptSkipsHomebrewPrefixScript(t *testing.T) {
 	script := uninstallScriptForApp(inputApp{}, cask)
 	require.NotContains(t, script, "$HOMEBREW_PREFIX")
 	require.NotContains(t, script, "/usr/sbin/installer")
+}
+
+// TestUninstallScriptRmdirResolvesHome guards against emitting a single-quoted
+// "~" path to rmdir, where it never expands and the directory is always left
+// behind.
+func TestUninstallScriptRmdirResolvesHome(t *testing.T) {
+	newCask := func(dirs ...string) *brewCask {
+		return &brewCask{
+			Artifacts: []*brewArtifact{
+				{
+					Zap: []*brewUninstall{
+						{RmDir: optjson.StringOr[[]string]{IsOther: true, Other: dirs}},
+					},
+				},
+			},
+		}
+	}
+
+	script := uninstallScriptForApp(inputApp{}, newCask("~/Library/Application Support/Cycling '74", "/Library/Google"))
+	require.Contains(t, script, `LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ { print $3 }')`)
+	require.Contains(t, script, `remove_empty_dir "$LOGGED_IN_USER" '~/Library/Application Support/Cycling '\''74'`)
+	require.Contains(t, script, `remove_empty_dir "$LOGGED_IN_USER" '/Library/Google'`)
+	require.NotContains(t, script, "sudo rmdir '")
+
+	// Casks trash a vendor folder's contents and rmdir the folder itself, often
+	// from another entry or stanza, so every trash has to run first.
+	script = uninstallScriptForApp(inputApp{}, &brewCask{
+		Artifacts: []*brewArtifact{
+			{
+				Uninstall: []*brewUninstall{
+					{RmDir: optjson.StringOr[[]string]{String: "~/Library/Application Support/Vendor"}},
+				},
+			},
+			{
+				Zap: []*brewUninstall{
+					{
+						Trash: optjson.StringOr[[]string]{String: "~/Library/Application Support/Vendor/App"},
+						RmDir: optjson.StringOr[[]string]{String: "~/Library/Caches/Vendor"},
+					},
+					{Trash: optjson.StringOr[[]string]{String: "~/Library/Caches/Vendor/App"}},
+				},
+			},
+		},
+	})
+	require.True(t, strings.HasSuffix(script, `
+trash "$LOGGED_IN_USER" '~/Library/Application Support/Vendor/App'
+trash "$LOGGED_IN_USER" '~/Library/Caches/Vendor/App'
+remove_empty_dir "$LOGGED_IN_USER" '~/Library/Application Support/Vendor'
+remove_empty_dir "$LOGGED_IN_USER" '~/Library/Caches/Vendor'
+`), script)
+
+	// Children go before their parents, so nested folders that end up empty are
+	// all removed.
+	script = uninstallScriptForApp(inputApp{}, newCask("~/Library/Caches/Mozilla", "~/Library/Caches/Mozilla/updates", "~/Library/Caches/Mozilla/updates/Applications", "/Library/Vendor"))
+	require.True(t, strings.HasSuffix(script, `
+remove_empty_dir "$LOGGED_IN_USER" '~/Library/Caches/Mozilla/updates/Applications'
+remove_empty_dir "$LOGGED_IN_USER" '~/Library/Caches/Mozilla/updates'
+remove_empty_dir "$LOGGED_IN_USER" '~/Library/Caches/Mozilla'
+remove_empty_dir "$LOGGED_IN_USER" '/Library/Vendor'
+`), script)
+
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+
+	run := func(t *testing.T, stubs string, dirs ...string) string {
+		out, err := exec.Command(bash, "-c", stubs+uninstallScriptForApp(inputApp{}, newCask(dirs...))).CombinedOutput()
+		require.NoError(t, err, string(out))
+		return string(out)
+	}
+
+	t.Run("expands tilde to the console user's home", func(t *testing.T) {
+		stubs := `scutil() { echo "  Name : alice"; }
+sudo() { echo "$*"; }
+`
+		out := run(t, stubs, "~/Zotero", "~/Library/Caches/Foo Bar", "~", "/Library/Google", "/tmp/~/x")
+		require.Equal(t, "rmdir /Users/alice/Library/Caches/Foo Bar\nrmdir /tmp/~/x\nrmdir /Library/Google\nrmdir /Users/alice/Zotero\nrmdir /Users/alice\n", out)
+	})
+
+	t.Run("skips home paths without a console user", func(t *testing.T) {
+		stubs := `scutil() { :; }
+sudo() { echo "$*"; }
+`
+		out := run(t, stubs, "~/Zotero", "/Library/Google")
+		require.Equal(t, "rmdir /Library/Google\n", out)
+
+		stubs = `scutil() { echo "  Name : loginwindow"; }
+sudo() { echo "$*"; }
+`
+		out = run(t, stubs, "~/Zotero", "/Library/Google")
+		require.Equal(t, "rmdir /Library/Google\n", out)
+	})
+
+	t.Run("removes only empty directories, quietly", func(t *testing.T) {
+		tmp := t.TempDir()
+		empty := filepath.Join(tmp, "empty dir")
+		full := filepath.Join(tmp, "full")
+		require.NoError(t, os.Mkdir(empty, 0o755))
+		require.NoError(t, os.Mkdir(full, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(full, "data"), []byte("keep"), 0o600))
+		nested := filepath.Join(tmp, "nested")
+		require.NoError(t, os.MkdirAll(filepath.Join(nested, "a", "b"), 0o755))
+
+		stubs := `scutil() { echo "  Name : alice"; }
+sudo() { "$@"; }
+`
+		out := run(t, stubs, nested, filepath.Join(nested, "a"), filepath.Join(nested, "a", "b"), empty, full, filepath.Join(tmp, "missing"))
+		require.Empty(t, out)
+		require.NoDirExists(t, empty)
+		require.NoDirExists(t, nested)
+		require.FileExists(t, filepath.Join(full, "data"))
+	})
+}
+
+// TestUninstallScriptDeleteResolvesHome guards against emitting a single-quoted
+// "~" path to rm, where it never expands and the file is always left behind.
+func TestUninstallScriptDeleteResolvesHome(t *testing.T) {
+	newCask := func(paths ...string) *brewCask {
+		return &brewCask{
+			Artifacts: []*brewArtifact{
+				{
+					Uninstall: []*brewUninstall{
+						{Delete: optjson.StringOr[[]string]{IsOther: true, Other: paths}},
+					},
+				},
+			},
+		}
+	}
+
+	script := uninstallScriptForApp(inputApp{}, newCask(
+		"~/Library/LaunchAgents/com.example.Foo.plist",
+		"~/Library/Application Support/Cycling '74/Foo",
+		"/Library/LaunchDaemons/com.example.Foo.plist",
+	))
+	require.Contains(t, script, `LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ { print $3 }')`)
+	require.Contains(t, script, `delete_user_path "$LOGGED_IN_USER" '~/Library/LaunchAgents/com.example.Foo.plist'`)
+	require.Contains(t, script, `delete_user_path "$LOGGED_IN_USER" '~/Library/Application Support/Cycling '\''74/Foo'`)
+	require.Contains(t, script, `sudo rm -rf '/Library/LaunchDaemons/com.example.Foo.plist'`)
+	require.NotContains(t, script, "sudo rm -rf '~")
+
+	// The home folder itself and paths that could leave it are never deleted.
+	script = uninstallScriptForApp(inputApp{}, newCask("~", "~/", "~//", "~/../Shared", "~/Library/./..", "~other/Library/Foo"))
+	require.NotContains(t, script, "delete_user_path")
+	require.NotContains(t, script, "rm -rf")
+
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+
+	run := func(t *testing.T, stubs string, paths ...string) string {
+		out, err := exec.Command(bash, "-c", stubs+uninstallScriptForApp(inputApp{}, newCask(paths...))).CombinedOutput()
+		require.NoError(t, err, string(out))
+		return string(out)
+	}
+
+	t.Run("deletes home paths as the console user", func(t *testing.T) {
+		stubs := `scutil() { echo "  Name : alice"; }
+sudo() { echo "$*"; }
+`
+		out := run(t, stubs, "~/Library/LaunchAgents/com.example.Foo.plist", "~/Library/Application Support/Foo Bar", "/Library/Foo")
+		require.Equal(t, "-u alice rm -rf /Users/alice/Library/LaunchAgents/com.example.Foo.plist\n-u alice rm -rf /Users/alice/Library/Application Support/Foo Bar\nrm -rf /Library/Foo\n", out)
+	})
+
+	t.Run("reports a failed delete without retrying as root", func(t *testing.T) {
+		stubs := `scutil() { echo "  Name : alice"; }
+sudo() { echo "$*"; [[ "$1" != "-u" ]]; }
+`
+		out := run(t, stubs, "~/Library/Foo")
+		require.Equal(t, "-u alice rm -rf /Users/alice/Library/Foo\nFailed to remove /Users/alice/Library/Foo.\n", out)
+	})
+
+	t.Run("skips home paths without a GUI user", func(t *testing.T) {
+		for _, scutil := range []string{`:`, `echo "  Name : root"`, `echo "  Name : loginwindow"`} {
+			stubs := "scutil() { " + scutil + "; }\n" + `sudo() { echo "$*"; }
+`
+			out := run(t, stubs, "~/Library/LaunchAgents/com.example.Foo.plist", "/Library/Foo")
+			require.Equal(t, "rm -rf /Library/Foo\n", out, scutil)
+		}
+	})
+
+	t.Run("helper only deletes below the home folder", func(t *testing.T) {
+		stubs := `sudo() { echo "$*"; }
+`
+		cmd := stubs + deleteUserPathFunc + `
+delete_user_path alice '~'
+delete_user_path alice '~/'
+delete_user_path alice '/Library/Foo'
+delete_user_path alice '~/Foo'
+`
+		out, err := exec.Command(bash, "-c", cmd).CombinedOutput()
+		require.NoError(t, err, string(out))
+		require.Equal(t, "-u alice rm -rf /Users/alice/Foo\n", string(out))
+	})
 }
 
 // varNameDerivation is the line both generated functions share.

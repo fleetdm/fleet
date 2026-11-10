@@ -79,7 +79,6 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		mdmStorage             fleet.MDMAppleStore
 		mdmPusher              nanomdm_push.Pusher
 		ssoStore               sso.SessionStore
-		profMatcher            fleet.ProfileMatcher
 		softwareInstallStore   fleet.SoftwareInstallerStore
 		bootstrapPackageStore  fleet.MDMBootstrapPackageStore
 		softwareTitleIconStore fleet.SoftwareTitleIconStore
@@ -117,13 +116,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		}
 		if opts[0].Pool != nil {
 			ssoStore = sso.NewSessionStore(opts[0].Pool)
-			profMatcher = apple_mdm.NewProfileMatcher(opts[0].Pool)
 			distributedLock = redis_lock.NewLock(opts[0].Pool)
 			keyValueStore = redis_key_value.New(opts[0].Pool)
-			installAttemptCounter = redis_install_attempts.New(opts[0].Pool)
-		}
-		if opts[0].ProfileMatcher != nil {
-			profMatcher = opts[0].ProfileMatcher
+			installAttemptCounter = redis_install_attempts.New(opts[0].Pool, redis_install_attempts.SoftwareInstallerPrefix)
 		}
 		if opts[0].FailingPolicySet != nil {
 			failingPolicySet = opts[0].FailingPolicySet
@@ -270,7 +265,6 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			depStorage,
 			apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher),
 			ssoStore,
-			profMatcher,
 			softwareInstallStore,
 			bootstrapPackageStore,
 			softwareTitleIconStore,

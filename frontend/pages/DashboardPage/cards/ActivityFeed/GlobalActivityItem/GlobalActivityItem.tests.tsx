@@ -31,7 +31,7 @@ describe("Activity Feed", () => {
   it("renders a policy-wide reset_policy activity", () => {
     const activity = createMockActivity({
       type: ActivityType.ResetPolicy,
-      details: { policy_name: "Test policy", team_id: -1 },
+      details: { policy_name: "Test policy", fleet_id: -1 },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
@@ -50,8 +50,8 @@ describe("Activity Feed", () => {
       type: ActivityType.ResetPolicy,
       details: {
         policy_name: "Test policy",
-        team_id: 1,
-        team_name: "Workstations",
+        fleet_id: 1,
+        fleet_name: "Workstations",
         host_id: 42,
         host_display_name: "Anna's MacBook",
       },
@@ -220,10 +220,10 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders an applied_spec_team type activity for a single team", () => {
+  it("renders an applied_spec_fleet type activity for a single team", () => {
     const activity = createMockActivity({
-      type: ActivityType.AppliedSpecTeam,
-      details: { teams: [createMockTeamSummary()] },
+      type: ActivityType.AppliedSpecFleet,
+      details: { fleets: [createMockTeamSummary()] },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
@@ -233,11 +233,11 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Team 1")).toBeInTheDocument();
   });
 
-  it("renders an applied_spec_team type activity for multiple team", () => {
+  it("renders an applied_spec_fleet type activity for multiple team", () => {
     const activity = createMockActivity({
-      type: ActivityType.AppliedSpecTeam,
+      type: ActivityType.AppliedSpecFleet,
       details: {
-        teams: [createMockTeamSummary(), createMockTeamSummary()],
+        fleets: [createMockTeamSummary(), createMockTeamSummary()],
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
@@ -260,8 +260,8 @@ describe("Activity Feed", () => {
     const activity = createMockActivity({
       type: ActivityType.EditedMacosMinVersion,
       details: {
-        team_id: 1,
-        team_name: "Workstations",
+        fleet_id: 1,
+        fleet_name: "Workstations",
         minimum_version: "14.6.1",
         deadline: "2026-09-01",
       },
@@ -281,8 +281,8 @@ describe("Activity Feed", () => {
     const activity = createMockActivity({
       type: ActivityType.EditedMacosMinVersion,
       details: {
-        team_id: 1,
-        team_name: "Workstations",
+        fleet_id: 1,
+        fleet_name: "Workstations",
         minimum_version: "latest",
         deadline: "",
       },
@@ -299,7 +299,7 @@ describe("Activity Feed", () => {
   it("renders an edited_agent_options type activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.EditedAgentOptions,
-      details: { team_name: "Test Team 1" },
+      details: { fleet_name: "Test Team 1" },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
@@ -555,16 +555,16 @@ describe("Activity Feed", () => {
   });
 
   // // // // // // // // // // // //
-  // changed_user_team_role  tests
+  // changed_user_fleet_role  tests
   // // // // // //// // // // // //
 
-  it("renders a changed_user_team_role type activity", () => {
+  it("renders a changed_user_fleet_role type activity", () => {
     const activity = createMockActivity({
-      type: ActivityType.UserChangedTeamRole,
+      type: ActivityType.UserChangedFleetRole,
       details: {
         user_email: "newuser@example.com",
         role: "maintainer",
-        team_name: "Test Team",
+        fleet_name: "Test Team",
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
@@ -575,20 +575,20 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Test Team")).toBeInTheDocument();
   });
 
-  it("correctly renders a changed_user_team_role type activity when a new SSO team user is created via JIT provisioning", () => {
+  it("correctly renders a changed_user_fleet_role type activity when a new SSO team user is created via JIT provisioning", () => {
     const activity = createMockActivity({
       actor_full_name: "Ally Admin",
-      type: ActivityType.UserChangedTeamRole,
+      type: ActivityType.UserChangedFleetRole,
       details: {
         user_email: "jit@sso.com",
         role: "maintainer",
-        team_name: "Test Team",
+        fleet_name: "Test Team",
         jit: true,
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
-    // "<user_email> was assigned the <role> role for the <team_name> fleet via just-in-time (JIT) provisioning."
+    // "<user_email> was assigned the <role> role for the <fleet_name> fleet via just-in-time (JIT) provisioning."
     expect(screen.getByText("jit@sso.com")).toBeInTheDocument();
     expect(screen.getByText(/was assigned the/)).toBeInTheDocument();
     expect(screen.getByText("maintainer")).toBeInTheDocument();
@@ -602,15 +602,15 @@ describe("Activity Feed", () => {
     expect(forAllTeams).toBeNull();
   });
 
-  it("renders passive voice without JIT suffix for changed_user_team_role when actor_id === user_id (invite flow)", () => {
+  it("renders passive voice without JIT suffix for changed_user_fleet_role when actor_id === user_id (invite flow)", () => {
     const activity = createMockActivity({
       actor_id: 5,
-      type: ActivityType.UserChangedTeamRole,
+      type: ActivityType.UserChangedFleetRole,
       details: {
         user_id: 5,
         user_email: "invited@example.com",
         role: "observer",
-        team_name: "Test Team",
+        fleet_name: "Test Team",
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
@@ -622,22 +622,22 @@ describe("Activity Feed", () => {
     expect(screen.queryByText(/via just-in-time/)).toBeNull();
   });
 
-  it("correctly renders a changed_user_team_role type activity when changing an existing user's team role", () => {
+  it("correctly renders a changed_user_fleet_role type activity when changing an existing user's team role", () => {
     const activity = createMockActivity({
       actor_id: 1,
       actor_full_name: "Ally Admin",
-      type: ActivityType.UserChangedTeamRole,
+      type: ActivityType.UserChangedFleetRole,
       details: {
         user_id: 3,
         user_email: "user@example.com",
         role: "maintainer",
-        team_name: "Test Team",
+        fleet_name: "Test Team",
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     //  If actor_id is different from user_id:
-    // "<actor_full_name> changed <user_email> to <role> for the <team_name> fleet."
+    // "<actor_full_name> changed <user_email> to <role> for the <fleet_name> fleet."
     expect(screen.getByText("Ally Admin")).toBeInTheDocument();
     expect(screen.getByText(/changed/)).toBeInTheDocument();
     expect(screen.getByText("user@example.com")).toBeInTheDocument();
@@ -651,12 +651,12 @@ describe("Activity Feed", () => {
 
   // // // // // // // // // // // //
 
-  it("renders a deleted_user_team_role type activity globally", () => {
+  it("renders a deleted_user_fleet_role type activity globally", () => {
     const activity = createMockActivity({
-      type: ActivityType.UserDeletedTeamRole,
+      type: ActivityType.UserDeletedFleetRole,
       details: {
         user_email: "newuser@example.com",
-        team_name: "Test Team",
+        fleet_name: "Test Team",
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
@@ -666,19 +666,19 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Test Team")).toBeInTheDocument();
   });
 
-  it("renders a deleted_user_team_role via JIT provisioning", () => {
+  it("renders a deleted_user_fleet_role via JIT provisioning", () => {
     const activity = createMockActivity({
       actor_full_name: "Jit User",
-      type: ActivityType.UserDeletedTeamRole,
+      type: ActivityType.UserDeletedFleetRole,
       details: {
         user_email: "jit@sso.com",
-        team_name: "Test Team",
+        fleet_name: "Test Team",
         jit: true,
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
-    // "<user_email> was removed from the <team_name> fleet via just-in-time (JIT) provisioning."
+    // "<user_email> was removed from the <fleet_name> fleet via just-in-time (JIT) provisioning."
     expect(screen.getByText("jit@sso.com")).toBeInTheDocument();
     expect(screen.getByText(/was removed from the/)).toBeInTheDocument();
     expect(screen.getByText("Test Team")).toBeInTheDocument();
@@ -790,7 +790,7 @@ describe("Activity Feed", () => {
     // Test deprecated activity type
     const activity = createMockActivity({
       type: ActivityType.EnabledMacDiskEncryption,
-      details: { team_name: "Alphas" },
+      details: { fleet_name: "Alphas" },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
@@ -808,7 +808,7 @@ describe("Activity Feed", () => {
   it("renders a 'disabled_macos_disk_encryption' type activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.DisabledMacDiskEncryption,
-      details: { team_name: "Alphas" },
+      details: { fleet_name: "Alphas" },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
@@ -876,6 +876,41 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Anna's MacBook Pro")).toBeInTheDocument();
   });
 
+  it("renders a 'set_host_google_device_id' type activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.SetHostGoogleDeviceId,
+      details: {
+        host_display_name: "Anna's iPhone",
+        google_device_id: "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText("marked", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("Anna's iPhone")).toBeInTheDocument();
+    expect(
+      screen.getByText("as company-owned in Google.", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/unmarked/)).not.toBeInTheDocument();
+  });
+
+  it("renders a 'deleted_host_google_device_id' type activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedHostGoogleDeviceId,
+      details: {
+        host_display_name: "Anna's iPhone",
+        google_device_id: "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText("unmarked", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("Anna's iPhone")).toBeInTheDocument();
+    expect(
+      screen.getByText("as company-owned in Google.", { exact: false })
+    ).toBeInTheDocument();
+  });
+
   it("renders a 'set_host_recovery_lock_password' type activity", () => {
     const activity = createMockActivity({
       type: ActivityType.SetHostRecoveryLockPassword,
@@ -909,7 +944,7 @@ describe("Activity Feed", () => {
   it("renders an 'enabled_managed_local_account' activity with the platform, defaulting to macOS", () => {
     const windowsActivity = createMockActivity({
       type: ActivityType.EnabledManagedLocalAccount,
-      details: { team_name: "Workstations", platform: "windows" },
+      details: { fleet_name: "Workstations", platform: "windows" },
     });
     const { unmount } = render(
       <GlobalActivityItem activity={windowsActivity} isPremiumTier />
@@ -1042,7 +1077,7 @@ describe("Activity Feed", () => {
   it("renders an 'enabled_recovery_lock_passwords' type activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.EnabledRecoveryLockPasswords,
-      details: { team_name: "Alphas" },
+      details: { fleet_name: "Alphas" },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
@@ -1076,7 +1111,7 @@ describe("Activity Feed", () => {
   it("renders a 'disabled_recovery_lock_passwords' type activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.DisabledRecoveryLockPasswords,
-      details: { team_name: "Alphas" },
+      details: { fleet_name: "Alphas" },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
@@ -1130,7 +1165,7 @@ describe("Activity Feed", () => {
   it("renders a 'changed_macos_setup_assistant' type activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.ChangedMacOSSetupAssistant,
-      details: { name: "dep-profile.json", team_name: "Workstations" },
+      details: { name: "dep-profile.json", fleet_name: "Workstations" },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
@@ -1164,7 +1199,7 @@ describe("Activity Feed", () => {
   it("renders a 'deleted_macos_setup_assistant' type activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.DeletedMacOSSetupAssistant,
-      details: { name: "dep-profile.json", team_name: "Workstations" },
+      details: { name: "dep-profile.json", fleet_name: "Workstations" },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
@@ -1184,7 +1219,7 @@ describe("Activity Feed", () => {
       details: {
         profile_name: "Test Profile",
         profile_identifier: "com.example.test",
-        team_name: "Workstations",
+        fleet_name: "Workstations",
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
@@ -1203,7 +1238,7 @@ describe("Activity Feed", () => {
     const activity = createMockActivity({
       type: ActivityType.EditedAppleOSProfile,
       details: {
-        team_name: "Workstations",
+        fleet_name: "Workstations",
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
@@ -1242,7 +1277,7 @@ describe("Activity Feed", () => {
       type: ActivityType.EditedAndroidProfile,
       details: {
         profile_name: "Test Profile",
-        team_name: "Mobile",
+        fleet_name: "Mobile",
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
@@ -1263,7 +1298,7 @@ describe("Activity Feed", () => {
       details: {
         profile_name: "Test Declaration",
         profile_identifier: "com.example.decl",
-        team_name: "Workstations",
+        fleet_name: "Workstations",
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
@@ -1281,7 +1316,7 @@ describe("Activity Feed", () => {
   it("renders a 'added_bootstrap_package' type activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.AddedBootstrapPackage,
-      details: { bootstrap_package_name: "foo.pkg", team_name: "Alphas" },
+      details: { bootstrap_package_name: "foo.pkg", fleet_name: "Alphas" },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
@@ -1336,7 +1371,7 @@ describe("Activity Feed", () => {
   it("renders a 'deleted_bootstrap_package' type activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.DeletedBootstrapPackage,
-      details: { bootstrap_package_name: "foo.pkg", team_name: "Alphas" },
+      details: { bootstrap_package_name: "foo.pkg", fleet_name: "Alphas" },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
@@ -1396,7 +1431,7 @@ describe("Activity Feed", () => {
   it("renders a 'enabled_macos_setup_end_user_auth' type activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.EnabledMacOSSetupEndUserAuth,
-      details: { team_name: "Alphas" },
+      details: { fleet_name: "Alphas" },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
@@ -1428,7 +1463,7 @@ describe("Activity Feed", () => {
   it("renders a 'disabled_macos_setup_end_user_auth' type activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.DisabledMacOSSetupEndUserAuth,
-      details: { team_name: "Alphas" },
+      details: { fleet_name: "Alphas" },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
@@ -1561,7 +1596,7 @@ describe("Activity Feed", () => {
       details: {
         host_ids: [1],
         host_display_names: ["foo"],
-        team_name: "Alphas",
+        fleet_name: "Alphas",
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
@@ -1600,7 +1635,7 @@ describe("Activity Feed", () => {
       details: {
         host_ids: [1, 2, 3],
         host_display_names: ["foo", "bar", "baz"],
-        team_name: "Alphas",
+        fleet_name: "Alphas",
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
@@ -1997,7 +2032,7 @@ describe("Activity Feed", () => {
   it("renders an 'added_script' type activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.AddedScript,
-      details: { script_name: "foo.sh", team_name: "Alphas" },
+      details: { script_name: "foo.sh", fleet_name: "Alphas" },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
@@ -2019,7 +2054,7 @@ describe("Activity Feed", () => {
   it("renders an 'edited_script' type activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.EditedScript,
-      details: { team_name: "Alphas" },
+      details: { fleet_name: "Alphas" },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
@@ -2042,7 +2077,7 @@ describe("Activity Feed", () => {
   it("renders a 'deleted_script' type activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.DeletedScript,
-      details: { script_name: "foo.sh", team_name: "Alphas" },
+      details: { script_name: "foo.sh", fleet_name: "Alphas" },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
@@ -2114,7 +2149,7 @@ describe("Activity Feed", () => {
       details: {
         software_title: "Foo bar",
         software_package: "foobar.pkg",
-        team_name: "Alphas",
+        fleet_name: "Alphas",
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
@@ -2140,7 +2175,7 @@ describe("Activity Feed", () => {
       details: {
         software_title: "Foo bar",
         software_package: "foobar.pkg",
-        team_name: "Alphas",
+        fleet_name: "Alphas",
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
@@ -2163,7 +2198,7 @@ describe("Activity Feed", () => {
       details: {
         software_title: "Foo bar",
         software_package: "foobar.pkg",
-        team_name: "Alphas",
+        fleet_name: "Alphas",
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
@@ -2656,7 +2691,7 @@ describe("Activity Feed", () => {
         software_title: "Logic Pro",
         software_display_name: "Logic Pro (approved)",
         platform: "darwin",
-        team_name: "Workstations",
+        fleet_name: "Workstations",
       },
     });
 
@@ -2673,7 +2708,7 @@ describe("Activity Feed", () => {
         software_title: "Logic Pro",
         software_display_name: "Logic Pro (approved)",
         platform: "darwin",
-        team_name: "Workstations",
+        fleet_name: "Workstations",
       },
     });
 
@@ -2886,6 +2921,21 @@ describe("Activity Feed", () => {
     expect(screen.getByText(/NDES/)).toBeInTheDocument();
   });
 
+  it.each([
+    [ActivityType.AddedGoogleCAS, /added a certificate authority/],
+    [ActivityType.EditedGoogleCAS, /edited a certificate authority/],
+    [ActivityType.DeletedGoogleCAS, /deleted a certificate authority/],
+  ])("renders %s activity with the CA's name", (type, text) => {
+    const activity = createMockActivity({
+      type,
+      details: { name: "GOOGLE_WIFI" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(text)).toBeInTheDocument();
+    expect(screen.getByText("GOOGLE_WIFI")).toBeInTheDocument();
+  });
+
   it("renders addedCustomScepProxy activity correctly", () => {
     const activity = createMockActivity({
       type: ActivityType.AddedCustomScepProxy,
@@ -2982,6 +3032,22 @@ describe("Activity Feed", () => {
     expect(screen.getByText(/DIGICERT_TEST/)).toBeInTheDocument();
   });
 
+  it.each([
+    [ActivityType.AddedEJBCA, /added a certificate authority/],
+    [ActivityType.EditedEJBCA, /edited a certificate authority/],
+    [ActivityType.DeletedEJBCA, /deleted a certificate authority/],
+  ])("renders %s activity correctly", (type, text) => {
+    const activity = createMockActivity({
+      type,
+      details: { name: "EJBCA_TEST" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(screen.getByText(text)).toBeInTheDocument();
+    expect(screen.getByText(/EJBCA_TEST/)).toBeInTheDocument();
+  });
+
   it("renders addedHydrant activity correctly", () => {
     const activity = createMockActivity({
       type: ActivityType.AddedHydrant,
@@ -3065,8 +3131,8 @@ describe("Activity Feed", () => {
       type: ActivityType.EditedSetupExperienceSoftware,
       details: {
         platform: "darwin", // macOS
-        team_name: "Bears",
-        team_id: 1,
+        fleet_name: "Bears",
+        fleet_id: 1,
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
@@ -3114,8 +3180,8 @@ describe("Activity Feed", () => {
     const activity = createMockActivity({
       type: ActivityType.EnabledMacosUpdateNewHosts,
       details: {
-        team_name: "Lions",
-        team_id: 1,
+        fleet_name: "Lions",
+        fleet_id: 1,
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
@@ -3130,8 +3196,8 @@ describe("Activity Feed", () => {
     const activity = createMockActivity({
       type: ActivityType.DisabledMacosUpdateNewHosts,
       details: {
-        team_name: "Lions",
-        team_id: 1,
+        fleet_name: "Lions",
+        fleet_id: 1,
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
@@ -3202,6 +3268,31 @@ describe("Activity Feed", () => {
     expect(screen.getByText("deleted the label .")).toBeInTheDocument();
     expect(screen.getByText("Workstations")).toBeInTheDocument();
   });
+
+  it.each([
+    [ActivityType.AddedSelfServiceCategory, "added", "to"],
+    [ActivityType.EditedSelfServiceCategory, "edited", "in"],
+    [ActivityType.DeletedSelfServiceCategory, "deleted", "from"],
+  ] as const)(
+    "renders a %s activity with the category and fleet names",
+    (type, action, preposition) => {
+      const activity = createMockActivity({
+        type,
+        actor_full_name: "E2E",
+        details: {
+          self_service_category_name: "🛠️ Utilities",
+          fleet_name: "qa-fma-gitops-1028",
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+
+      expect(container).toHaveTextContent(
+        `E2E ${action} 🛠️ Utilities self-service category ${preposition} the qa-fma-gitops-1028 fleet.`
+      );
+    }
+  );
 
   it("renders an un-scoped installed_all_self_service_software activity", () => {
     const activity = createMockActivity({
@@ -3631,5 +3722,75 @@ describe("opt-in configuration profile activities", () => {
     expect(container).toHaveTextContent(
       "End user uninstalled the opt-in Wi-Fi profile on Foo Host."
     );
+  });
+
+  describe("edited_patch_deadline_settings activity", () => {
+    it("renders fleet name, Oxford-comma'd day list, and time", () => {
+      const activity = createMockActivity({
+        type: ActivityType.EditedPatchDeadlineSettings,
+        details: {
+          fleet_name: "Workstations",
+          days: ["monday", "wednesday", "friday"],
+          time: "17:00",
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+      expect(container).toHaveTextContent(
+        "edited patch deadline for Workstations fleet to Monday, Wednesday, and Friday at 17:00."
+      );
+    });
+
+    it("falls back to 'Unassigned' when fleet_name is null", () => {
+      const activity = createMockActivity({
+        type: ActivityType.EditedPatchDeadlineSettings,
+        details: {
+          fleet_name: null,
+          days: ["tuesday"],
+          time: "17:00",
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+      expect(container).toHaveTextContent(
+        "edited patch deadline for Unassigned to Tuesday at 17:00."
+      );
+    });
+
+    it("joins two days with 'and' (no Oxford comma)", () => {
+      const activity = createMockActivity({
+        type: ActivityType.EditedPatchDeadlineSettings,
+        details: {
+          fleet_name: "Workstations",
+          days: ["friday", "tuesday"],
+          time: "09:30",
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+      // Sorted Mon-first regardless of input order.
+      expect(container).toHaveTextContent("to Tuesday and Friday at 09:30.");
+    });
+
+    it("drops unknown weekdays rather than splicing them into the copy", () => {
+      // A malformed BE row (should never happen) must not leak "Fooday" into
+      // the activity feed. Known days render normally; unknowns are filtered.
+      const activity = createMockActivity({
+        type: ActivityType.EditedPatchDeadlineSettings,
+        details: {
+          fleet_name: "Workstations",
+          days: ["monday", "fooday", "friday"],
+          time: "17:00",
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+      expect(container).toHaveTextContent("to Monday and Friday at 17:00.");
+      expect(container).not.toHaveTextContent("Fooday");
+    });
   });
 });

@@ -482,6 +482,12 @@ func TestUpdateEJBCACertificateAuthority(t *testing.T) {
 			wantNotUpdated: true,
 		},
 		{
+			name:           "the name of the NDES CA, in any case",
+			update:         fleet.EJBCAUpdatePayload{Name: new("ndes")},
+			wantErr:        "CA name cannot be NDES",
+			wantNotUpdated: true,
+		},
+		{
 			name:           "only masked credentials",
 			update:         fleet.EJBCAUpdatePayload{ClientP12: new(fleet.MaskedPassword), Password: new(fleet.MaskedPassword)},
 			wantErr:        "EJBCA CA update payload is empty",

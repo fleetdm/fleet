@@ -42,6 +42,13 @@
     }
   }
 
+  // Secondary tabs' 10px bottom padding assumes the fixed 33px row height. With
+  // `height: auto` the row already fits the tabs, so that padding would float the
+  // selected underline above the border.
+  &__background &__modal_container .tab-nav--secondary .react-tabs__tab-list {
+    padding-bottom: 1px;
+  }
+
   &__content-wrapper {
     margin-top: $pad-large;
     font-size: $x-small;

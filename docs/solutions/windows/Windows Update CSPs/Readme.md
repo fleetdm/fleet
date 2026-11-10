@@ -13,7 +13,7 @@ and tested on a Windows 11 24H2 VM enrolled in Fleet 4.83.
     > Fleet server (requires restart)
 
 3.  Fleet\'s built-in Windows OS update enforcement **disabled** for any
-    > team these profiles are applied to (Controls \> OS updates \>
+    > fleet these profiles are applied to (Controls \> OS updates \>
     > remove any Windows deadline/grace period). The custom CSP profiles
     > take over update management and will conflict with Fleet\'s
     > built-in controls if both are active.
@@ -97,7 +97,7 @@ for restart warnings. Requires Windows 11 22H2 or later.
 **Individual profiles:\
 **Upload each XML file separately via Controls \> OS settings \> Custom
 settings. This gives you granular control to enable/disable specific
-behaviors per team.
+behaviors per fleet.
 
 **Combined profile:\
 **Combine all \<Replace\> blocks from the individual files into a single
@@ -108,7 +108,7 @@ XML file. Upload as one profile if you want everything applied at once.
 -   UI: Controls \> OS settings \> Custom settings \> Upload
 
 -   GitOps: Add to controls.windows_settings.configuration_profiles in
-    > team YAML
+    > fleet YAML
 
 -   API: POST /api/v1/fleet/configuration_profiles with XML content
 
