@@ -38,7 +38,7 @@ const getDefaultSelectedPlatform = (
 
   // Default to the first tab (macOS) unless only Windows MDM is turned on.
   return !appConfig.mdm.enabled_and_configured &&
-    appConfig.mdm.windows_enabled_and_configured
+    appConfig.mdm.windows_mdm_enabled
     ? "windows"
     : "darwin";
 };
@@ -84,7 +84,7 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
     {
       refetchOnWindowFocus: false,
       enabled: !!teamIdForApi,
-      select: (data) => data.team,
+      select: (data) => data.fleet,
     }
   );
 

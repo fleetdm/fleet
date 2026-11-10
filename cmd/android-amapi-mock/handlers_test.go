@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -30,7 +32,7 @@ func testPolicyName(esid string) string {
 func newTestMux(t *testing.T) (*http.ServeMux, *deviceStore) {
 	t.Helper()
 	store := newDeviceStore()
-	return newMux(store, nil, 0, 0), store
+	return newMux(store, nil, 0, 0, policyOptions{}), store
 }
 
 // registerTestDevice registers a fake device through the coordination API the way
@@ -183,7 +185,7 @@ func TestPolicyActionRequiresExistingPolicy(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			store := newDeviceStore()
 			store.requirePolicies = tc.requirePolicies
-			mux := newMux(store, nil, 0, 0)
+			mux := newMux(store, nil, 0, 0, policyOptions{})
 			registerTestDevice(t, mux, defaultRegisterRequest(), http.StatusOK)
 			if tc.setup != nil {
 				tc.setup(t, mux)
@@ -750,7 +752,7 @@ func TestNoteEnterpriseIgnoresEmptyID(t *testing.T) {
 
 	assert.Empty(t, store.knownEnterprises())
 
-	mux := newMux(store, nil, 0, 0)
+	mux := newMux(store, nil, 0, 0, policyOptions{})
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, httptest.NewRequest("GET", "/v1/enterprises", nil))
 	assert.Equal(t, http.StatusServiceUnavailable, rr.Code)
@@ -789,4 +791,138 @@ func TestDevicesListIncludesFakeDevices(t *testing.T) {
 	require.Len(t, resp.Devices, 1)
 	assert.Equal(t, testDeviceName, resp.Devices[0].Name)
 	assert.Empty(t, resp.NextPageToken)
+}
+
+func TestPolicyRequestGuard(t *testing.T) {
+	const hostPolicyID = "host-policy-uuid"
+	policyPath := func(pid string) string {
+		return fmt.Sprintf("/v1/enterprises/%s/policies/%s", testEnterpriseID, pid)
+	}
+	serve := func(mux *http.ServeMux, method, path string) int {
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, httptest.NewRequest(method, path, bytes.NewReader([]byte(`{}`))))
+		return rr.Code
+	}
+
+	cases := []struct {
+		name   string
+		opts   policyOptions
+		method string
+		path   string
+		want   int
+	}{
+		{"empty policy ID in an app action is rejected", policyOptions{}, "POST", policyPath(":modifyPolicyApplications"), http.StatusBadRequest},
+		{"empty policy ID in a remove action is rejected", policyOptions{}, "POST", policyPath(":removePolicyApplications"), http.StatusBadRequest},
+		{"empty policy ID in a patch is rejected", policyOptions{}, "PATCH", policyPath("") + "?updateMask=applications", http.StatusBadRequest},
+		{"default policy app action is accepted by default", policyOptions{}, "POST", policyPath("1:modifyPolicyApplications"), http.StatusOK},
+		{"default policy app action is rejected", policyOptions{rejectDefaultPolicyApps: true}, "POST", policyPath("1:modifyPolicyApplications"), http.StatusBadRequest},
+		{"default policy app removal is rejected", policyOptions{rejectDefaultPolicyApps: true}, "POST", policyPath("1:removePolicyApplications"), http.StatusBadRequest},
+		{"default policy apps patch is rejected", policyOptions{rejectDefaultPolicyApps: true}, "PATCH", policyPath("1") + "?updateMask=applications", http.StatusBadRequest},
+		{"default policy full patch is rejected", policyOptions{rejectDefaultPolicyApps: true}, "PATCH", policyPath("1"), http.StatusBadRequest},
+		{"default policy patch without apps is accepted", policyOptions{rejectDefaultPolicyApps: true}, "PATCH", policyPath("1") + "?updateMask=statusReportingSettings,kioskCustomization", http.StatusOK},
+		{"host policy app action is accepted", policyOptions{rejectDefaultPolicyApps: true}, "POST", policyPath(hostPolicyID + ":modifyPolicyApplications"), http.StatusOK},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			mux := newMux(newDeviceStore(), nil, 0, 0, c.opts)
+			require.Equal(t, c.want, serve(mux, c.method, c.path))
+		})
+	}
+}
+
+// Fleet's zero-touch configuration parses the expiration timestamp of the
+// token it just created, so a response without one failed that request with a
+// time-parsing error that named neither the mock nor the missing field.
+func TestEnrollmentTokenCreate(t *testing.T) {
+	create := func(t *testing.T, body string) androidmanagement.EnrollmentToken {
+		t.Helper()
+		mux, _ := newTestMux(t)
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, httptest.NewRequest("POST",
+			"/v1/enterprises/"+testEnterpriseID+"/enrollmentTokens", bytes.NewReader([]byte(body))))
+		require.Equal(t, http.StatusOK, rr.Code)
+
+		var token androidmanagement.EnrollmentToken
+		require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &token))
+		return token
+	}
+
+	t.Run("the expiry is set and readable as RFC 3339", func(t *testing.T) {
+		token := create(t, `{"duration":"2592000s"}`)
+		require.NotEmpty(t, token.Value)
+		require.NotEmpty(t, token.ExpirationTimestamp)
+
+		expiry, err := time.Parse(time.RFC3339, token.ExpirationTimestamp)
+		require.NoError(t, err, "Fleet parses this exact way")
+		assert.WithinDuration(t, time.Now().Add(30*24*time.Hour), expiry, time.Minute)
+	})
+
+	// The name is stored against the token Fleet created, so it has to be the
+	// enterprise that was asked for rather than a literal "mock".
+	t.Run("the name carries the enterprise from the path", func(t *testing.T) {
+		token := create(t, `{}`)
+		assert.True(t,
+			strings.HasPrefix(token.Name, "enterprises/"+testEnterpriseID+"/enrollmentTokens/"),
+			"got %q", token.Name)
+	})
+
+	t.Run("no duration gets AMAPI's default of an hour", func(t *testing.T) {
+		token := create(t, `{}`)
+		expiry, err := time.Parse(time.RFC3339, token.ExpirationTimestamp)
+		require.NoError(t, err)
+		assert.WithinDuration(t, time.Now().Add(time.Hour), expiry, time.Minute)
+	})
+
+	t.Run("an empty body is not an error", func(t *testing.T) {
+		require.NotEmpty(t, create(t, "").ExpirationTimestamp)
+	})
+
+	t.Run("malformed JSON is a bad request", func(t *testing.T) {
+		mux, _ := newTestMux(t)
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, httptest.NewRequest("POST",
+			"/v1/enterprises/"+testEnterpriseID+"/enrollmentTokens", bytes.NewReader([]byte("{"))))
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
+	})
+}
+
+func TestEnrollmentTokenExpiry(t *testing.T) {
+	now := time.Date(2026, time.October, 28, 12, 0, 0, 0, time.UTC)
+
+	for _, tc := range []struct {
+		name     string
+		duration string
+		want     time.Time
+	}{
+		{name: "an hour", duration: "3600s", want: now.Add(time.Hour)},
+		{name: "thirty days", duration: "2592000s", want: now.Add(30 * 24 * time.Hour)},
+		// Fleet's own zero-touch duration. A thousand years overflows
+		// time.Duration, so time.ParseDuration rejects the one value this has
+		// to handle; the seconds are added as seconds for that reason.
+		{
+			name:     "the zero-touch duration Fleet asks for",
+			duration: "31536000000s",
+			want:     time.Unix(now.Unix()+31536000000, 0).UTC(),
+		},
+		{name: "a fractional duration keeps its whole seconds", duration: "90.5s", want: now.Add(90 * time.Second)},
+		{name: "absent", duration: "", want: now.Add(time.Hour)},
+		{name: "not a duration at all", duration: "soon", want: now.Add(time.Hour)},
+		{name: "missing its unit", duration: "3600", want: now.Add(time.Hour)},
+		{name: "zero", duration: "0s", want: now.Add(time.Hour)},
+		{name: "negative", duration: "-60s", want: now.Add(time.Hour)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want.UTC(), enrollmentTokenExpiry(now, tc.duration))
+		})
+	}
+
+	// RFC 3339 has no year past 9999, and a timestamp Fleet cannot parse back
+	// is the failure this whole handler exists to avoid.
+	t.Run("an absurd duration still formats as RFC 3339", func(t *testing.T) {
+		expiry := enrollmentTokenExpiry(now, "9223372036854775807s")
+		formatted := expiry.Format(time.RFC3339)
+		parsed, err := time.Parse(time.RFC3339, formatted)
+		require.NoError(t, err, "formatted as %q", formatted)
+		require.Equal(t, 9999, parsed.Year())
+	})
 }

@@ -1,0 +1,8 @@
+<svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="icon/file-diff">
+<path id="Vector" d="M9.375 1.25H3.75C3.41848 1.25 3.10054 1.3817 2.86612 1.61612C2.6317 1.85054 2.5 2.16848 2.5 2.5V12.5C2.5 12.8315 2.6317 13.1495 2.86612 13.3839C3.10054 13.6183 3.41848 13.75 3.75 13.75H11.25C11.5815 13.75 11.8995 13.6183 12.1339 13.3839C12.3683 13.1495 12.5 12.8315 12.5 12.5V4.375L9.375 1.25Z" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" stroke="#6E6E6E"/>
+<path id="Vector_2" d="M5.625 6.25H9.375" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" stroke="#6E6E6E"/>
+<path id="Vector_3" d="M7.5 8.125V4.375" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" stroke="#6E6E6E"/>
+<path id="Vector_4" d="M5.625 10.625H9.375" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" stroke="#6E6E6E"/>
+</g>
+</svg>
