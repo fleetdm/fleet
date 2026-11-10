@@ -1,1 +1,0 @@
-- Fixed a bug where installing a zip-based macOS Fleet-maintained app reported success when the archive failed to extract, replacing the existing app with a partial copy. The install now fails and leaves the existing app in place.
