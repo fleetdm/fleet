@@ -24,7 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
-	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/contexts/preservedsources"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
@@ -2726,7 +2726,8 @@ func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.
 		}
 	}
 
-	result, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	result, err := ds.UpdateHostSoftware(ctx, host.ID, software,
+		fleet.PreserveSoftwareSources(preservedsources.FromContext(ctx)...))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "update host software")
 	}

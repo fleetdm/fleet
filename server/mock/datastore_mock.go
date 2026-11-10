@@ -926,7 +926,7 @@ type SaveHostPackStatsFunc func(ctx context.Context, teamID *uint, hostID uint, 
 
 type AsyncBatchSaveHostsScheduledQueryStatsFunc func(ctx context.Context, stats map[uint][]fleet.ScheduledQueryStats, batchSize int) (int, error)
 
-type UpdateHostSoftwareFunc func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error)
+type UpdateHostSoftwareFunc func(ctx context.Context, hostID uint, software []fleet.Software, opts ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error)
 
 type MarkSoftwareAsAIToolFunc func(ctx context.Context, software []fleet.Software) error
 
@@ -9805,11 +9805,11 @@ func (s *DataStore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context, 
 	return s.AsyncBatchSaveHostsScheduledQueryStatsFunc(ctx, stats, batchSize)
 }
 
-func (s *DataStore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+func (s *DataStore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software, opts ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error) {
 	s.mu.Lock()
 	s.UpdateHostSoftwareFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateHostSoftwareFunc(ctx, hostID, software)
+	return s.UpdateHostSoftwareFunc(ctx, hostID, software, opts...)
 }
 
 func (s *DataStore) MarkSoftwareAsAITool(ctx context.Context, software []fleet.Software) error {
