@@ -439,6 +439,27 @@ func TestIngestValidations(t *testing.T) {
 			},
 		},
 		{
+			name:    "enricher failure stops ingestion",
+			wantErr: "enriching manifest",
+			inputApp: inputApp{
+				Name:                "Sublime Text",
+				UniqueIdentifier:    "Sublime Text",
+				PackageIdentifier:   "Foo",
+				InstallerArch:       "x64",
+				Slug:                "sublime-text/windows",
+				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:       "exe",
+				InstallerScope:      "machine",
+			},
+			cfg: serverConfig{
+				installerType:  "exe",
+				installerScope: "machine",
+				installerArch:  "x64",
+				installerURL:   "https://download.sublimetext.com/latest/windows",
+			},
+		},
+		{
 			name: "arm64 scopes policy queries to ARM hosts",
 			// An arm64 build can't run on x64, so both policy queries pass on non-ARM
 			// hosts. The open query runs only on a host already queued, so it is unscoped.

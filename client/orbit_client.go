@@ -330,7 +330,11 @@ func (oc *OrbitClient) TransportConnected() {
 
 // TransportDisconnected tells ExecuteConfigReceivers that the WebSocket transport disconnected, so changes are no
 // longer nudged: a slow fallback poll is shortened to DefaultConfigPollInterval. Non-blocking.
+//
+// It also drops pooled HTTP connections: a drop often follows sleep or a network change, which leaves them bound
+// to a dead local address, so reusing them would stall the next request.
 func (oc *OrbitClient) TransportDisconnected() {
+	oc.CloseIdleConnections()
 	select {
 	case oc.disconnectedCh <- struct{}{}:
 	default:
@@ -382,18 +386,7 @@ func (oc *OrbitClient) closeIdleConnections() {
 	}
 
 	oc.lastIdleConnectionsCleanup = time.Now()
-
-	rawClient := oc.GetRawHTTPClient()
-	c, ok := rawClient.(*http.Client)
-	if !ok {
-		return
-	}
-	t, ok := c.Transport.(*http.Transport)
-	if !ok {
-		return
-	}
-
-	t.CloseIdleConnections()
+	oc.CloseIdleConnections()
 }
 
 func (oc *OrbitClient) RunConfigReceivers() error {
@@ -1177,6 +1170,13 @@ func (oc *OrbitClient) SendLinuxKeyEscrowResponse(lr luks.LuksResponse) error {
 		return err
 	}
 	return nil
+}
+
+// SendEntraDeviceToken reports the Entra ID token that proves the host's Entra device ID.
+func (oc *OrbitClient) SendEntraDeviceToken(idToken string) error {
+	verb, path := "POST", "/api/fleet/orbit/entra_device_token"
+	var resp fleet.OrbitPostEntraDeviceTokenResponse
+	return oc.authenticatedRequest(verb, path, &fleet.OrbitPostEntraDeviceTokenRequest{IDToken: idToken}, &resp)
 }
 
 // SendLinuxKeyEscrowStatus reports progress on a LUKS escrow request.

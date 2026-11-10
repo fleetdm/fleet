@@ -11,7 +11,7 @@
 # The added post-install block reads these from the installer's environment, falling back to
 # KEY=value lines in /etc/default/fleetd-proxy (for tools that can drop a file but not set env):
 #   FLEET_URL        e.g. https://fleet.example.com (optional if baked in at build time)
-#   FLEET_SECRET     enroll secret (team secret picks the team)
+#   FLEET_SECRET     enroll secret (fleet secret picks the fleet)
 #   ORBIT_PROXY_URL  e.g. http://proxy.example.internal:3128
 #   OSQUERY_PROXY    host:port for osquery; optional, derived from ORBIT_PROXY_URL when unset
 #   NO_PROXY         optional; defaults to localhost,127.0.0.1 when a proxy is set
@@ -22,7 +22,7 @@
 # can be rewritten by Fleet's agent options).
 #
 # Install example:
-#   sudo env FLEET_SECRET=<team-secret> ORBIT_PROXY_URL=http://proxy.example.internal:3128 \
+#   sudo env FLEET_SECRET=<fleet-secret> ORBIT_PROXY_URL=http://proxy.example.internal:3128 \
 #     apt-get install -y ./fleetd-proxy_amd64.deb        # or: dnf install -y ./fleetd-proxy.x86_64.rpm
 #
 # Knobs (env vars):

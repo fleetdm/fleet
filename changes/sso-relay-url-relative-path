@@ -1,0 +1,1 @@
+- Single sign-on now only accepts a relative path for `relay_url` when initiating a login, as the REST API documents. Absolute URLs and protocol-relative values are rejected with a 400 instead of being used as the post-login destination.
