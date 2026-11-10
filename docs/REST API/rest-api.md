@@ -4147,7 +4147,7 @@ Returns the information of the host specified using its `id`, `hardware_serial`,
 
 > If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
 
-If the value is a number, Fleet first looks for a host with that `id`. Otherwise, or if no host has that `id`, Fleet matches `hardware_serial`, then `uuid`, then `hostname`. If more than one host matches the same field, the endpoint returns the one with the lowest `id`.
+If the value is a number, Fleet first looks for a host with that `id`. Otherwise, or if no host has that `id`, Fleet matches `hardware_serial`, then `uuid`, then `hostname`. If more than one host matches the same field, the endpoint returns the newest host.
 
 > In Fleet, hostnames are fully qualified domain names (FQDNs). `hostname` (e.g. johns-macbook-air.local) is **not** the same as `display_name` (e.g. John's MacBook Air).
 
@@ -6868,7 +6868,7 @@ The live report will stop if the targeted host is offline, or if the query times
 | identifier       | integer or string   | path | **Required**. The host's `hardware_serial`, `uuid`, `osquery_host_id`, `hostname`, or `node_key`. |
 | query            | string   | body | **Required**. The query SQL. |
 
-Fleet matches `hardware_serial`, then `uuid`, then `hostname`, then `osquery_host_id`, then `node_key`. If more than one host matches the same field, the report runs on the one with the lowest host `id`.
+Fleet matches `hardware_serial`, then `uuid`, then `hostname`, then `osquery_host_id`, then `node_key`. If more than one host matches the same field, the report runs on the newest host.
 
 
 #### Example
