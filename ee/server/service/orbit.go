@@ -258,7 +258,7 @@ func (svc *Service) recordCanceledSetupExperienceSoftwareActivities(
 				HostID:              hostID,
 				HostDisplayName:     hostDisplayName,
 				SoftwareTitle:       r.Name,
-				SoftwareDisplayName: softwareDisplayName,
+				SoftwareDisplayName: ptr.ValOrZero(softwareDisplayName),
 				SoftwareTitleID:     ptr.ValOrZero(r.SoftwareTitleID),
 				FromSetupExperience: true,
 			}); err != nil {
@@ -269,7 +269,7 @@ func (svc *Service) recordCanceledSetupExperienceSoftwareActivities(
 				HostID:              hostID,
 				HostDisplayName:     hostDisplayName,
 				SoftwareTitle:       r.Name,
-				SoftwareDisplayName: softwareDisplayName,
+				SoftwareDisplayName: ptr.ValOrZero(softwareDisplayName),
 				SoftwareTitleID:     ptr.ValOrZero(r.SoftwareTitleID),
 				FromSetupExperience: true,
 			}); err != nil {

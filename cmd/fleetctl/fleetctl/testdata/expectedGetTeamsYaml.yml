@@ -24,7 +24,6 @@ spec:
         enable_disk_encryption: false
         enable_escrow_disk_encryption_key: false
       enable_disk_encryption: false
-      enable_recovery_lock_password: false
       ios_updates:
         deadline: null
         deadline_days: null
@@ -37,6 +36,7 @@ spec:
         update_new_hosts: null
       linux_settings:
         enable_escrow_disk_encryption_key: false
+      macos_recovery_lock_password_enabled: false
       macos_updates:
         deadline: null
         deadline_days: null
@@ -54,10 +54,10 @@ spec:
         macos_enable_bootstrap_package_during_manual_enrollment: false
         macos_enable_bootstrap_package_during_migration: false
         macos_manual_agent_install: null
+        macos_require_all_software: false
         macos_script: null
-        require_all_software_macos: false
-        require_all_software_windows: false
         software: null
+        windows_require_all_software: false
       windows_require_bitlocker_pin: null
       windows_settings:
         configuration_profiles: null
@@ -109,7 +109,6 @@ spec:
         enable_disk_encryption: false
         enable_escrow_disk_encryption_key: false
       enable_disk_encryption: false
-      enable_recovery_lock_password: true
       ios_updates:
         deadline: null
         deadline_days: null
@@ -122,6 +121,7 @@ spec:
         update_new_hosts: null
       linux_settings:
         enable_escrow_disk_encryption_key: false
+      macos_recovery_lock_password_enabled: true
       macos_updates:
         deadline: "2021-12-14"
         deadline_days: null
@@ -139,10 +139,10 @@ spec:
         macos_enable_bootstrap_package_during_manual_enrollment: false
         macos_enable_bootstrap_package_during_migration: false
         macos_manual_agent_install: null
+        macos_require_all_software: false
         macos_script: null
-        require_all_software_macos: false
-        require_all_software_windows: false
         software: null
+        windows_require_all_software: false
       windows_require_bitlocker_pin: null
       windows_settings:
         configuration_profiles: null

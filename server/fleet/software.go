@@ -621,7 +621,8 @@ type SoftwareTitleListResult struct {
 
 	// AppStoreApp provides VPP app information, it is only present if a VPP app
 	// is available for the software title.
-	AppStoreApp *SoftwarePackageOrApp `json:"app_store_app"`
+	AppStoreApp  *SoftwarePackageOrApp `json:"app_store_app"`
+	AppStoreApps []AppStoreAppListItem `json:"app_store_apps"`
 	// BundleIdentifier is used by Apple installers to uniquely identify
 	// the software installed. It's surfaced in software_titles to match
 	// with existing software entries.
@@ -938,6 +939,30 @@ type UpdateHostSoftwareDBResult struct {
 	Deleted []Software
 	// What software was inserted
 	Inserted []Software
+	// Preserved is the software kept as installed although absent from the reported list, see
+	// PreserveSoftwareSources.
+	Preserved []Software
+}
+
+// UpdateHostSoftwareOptions configures UpdateHostSoftware.
+type UpdateHostSoftwareOptions struct {
+	// PreserveSources lists software sources whose absence from the report means "not reported"
+	// rather than "not installed". The host's current rows with these sources are kept, with
+	// their installed paths, as if the report had included them. Rows of these sources the
+	// report does include are ingested as usual, and no row is ever created from the list
+	// alone. The datastore applies this without judgement: the caller passes a source only when
+	// the query that reports it did not run. See preservedSoftwareSources in the service package.
+	PreserveSources []string
+}
+
+// UpdateHostSoftwareOption is a functional option for UpdateHostSoftware.
+type UpdateHostSoftwareOption func(*UpdateHostSoftwareOptions)
+
+// PreserveSoftwareSources keeps the host's current rows with these sources.
+func PreserveSoftwareSources(sources ...string) UpdateHostSoftwareOption {
+	return func(o *UpdateHostSoftwareOptions) {
+		o.PreserveSources = append(o.PreserveSources, sources...)
+	}
 }
 
 // CurrInstalled returns all software that should be currently installed on the host by looking at
@@ -1086,14 +1111,6 @@ type VPPBatchPayload struct {
 	AutoUpdateEndTime   *string                   `json:"auto_update_window_end,omitempty"`
 }
 
-func (v VPPBatchPayload) GetPlatform() string {
-	return string(v.Platform)
-}
-
-func (v VPPBatchPayload) GetAppStoreID() string {
-	return v.AppStoreID
-}
-
 type VPPBatchPayloadWithPlatform struct {
 	AppStoreID         string                    `json:"app_store_id"`
 	VersionName        string                    `json:"name"`
@@ -1105,9 +1122,7 @@ type VPPBatchPayloadWithPlatform struct {
 	LabelsIncludeAny   []string                  `json:"labels_include_any"`
 	LabelsIncludeAll   []string                  `json:"labels_include_all"`
 	// Categories is the list of names of software categories associated with this VPP app.
-	Categories []string `json:"categories"`
-	// CategoryIDs is the list of IDs of software categories associated with this VPP app.
-	CategoryIDs         []uint          `json:"-"`
+	Categories          []string        `json:"categories"`
 	DisplayName         string          `json:"display_name"`
 	Configuration       json.RawMessage `json:"configuration,omitempty"`
 	AutoUpdateEnabled   *bool           `json:"auto_update_enabled,omitempty"`

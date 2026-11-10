@@ -3,6 +3,7 @@ import { isEmpty } from "lodash";
 import React from "react";
 import { PlacesType } from "react-tooltip-5";
 
+import CustomLinkSizeContext from "components/CustomLink/CustomLinkSizeContext";
 import TooltipWrapper from "components/TooltipWrapper";
 
 // all form-field styles are defined in _global.scss, which apply here and elsewhere
@@ -67,7 +68,13 @@ const FormField = ({
 
   const renderHelpText = () => {
     if (helpText) {
-      return <span className={`${baseClass}__help-text`}>{helpText}</span>;
+      return (
+        <span className={`${baseClass}__help-text`}>
+          <CustomLinkSizeContext.Provider value="small">
+            {helpText}
+          </CustomLinkSizeContext.Provider>
+        </span>
+      );
     }
 
     return false;

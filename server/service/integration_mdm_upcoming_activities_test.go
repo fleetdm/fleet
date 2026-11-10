@@ -315,7 +315,7 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 	// cancel the uninstall, confirm canceled activity
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", mdmHost.ID, hostActivitiesResp.Activities[1].UUID), nil, http.StatusNoContent)
 	lastCanceledActID = s.lastActivityOfTypeMatches(fleet.ActivityTypeCanceledUninstallSoftware{}.ActivityName(),
-		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "software_title": "DummyApp", "software_title_id": %d}`, mdmHost.ID, mdmHost.DisplayName(), swTitleID), 0)
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "software_title": "DummyApp", "software_display_name": "", "software_title_id": %d}`, mdmHost.ID, mdmHost.DisplayName(), swTitleID), 0)
 
 	// record an uninstall result post-cancelation
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
@@ -338,7 +338,7 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 	// cancel the VPP app install, confirm canceled activity
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", mdmHost.ID, hostActivitiesResp.Activities[0].UUID), nil, http.StatusNoContent)
 	lastCanceledActID = s.lastActivityOfTypeMatches(fleet.ActivityTypeCanceledInstallAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "software_title": "App 1", "software_title_id": %d, "from_setup_experience": false}`, mdmHost.ID, mdmHost.DisplayName(), vppAppTitleID), 0)
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "software_title": "App 1", "software_display_name": "", "software_title_id": %d, "from_setup_experience": false}`, mdmHost.ID, mdmHost.DisplayName(), vppAppTitleID), 0)
 
 	// to be able to simulate the host sending a MDM result post-cancelation,
 	// we need to re-activate the MDM command.
@@ -372,7 +372,7 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 	// cancel the software install, confirm canceled activity
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", mdmHost.ID, hostActivitiesResp.Activities[1].UUID), nil, http.StatusNoContent)
 	lastCanceledActID = s.lastActivityOfTypeMatches(fleet.ActivityTypeCanceledInstallSoftware{}.ActivityName(),
-		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "software_title": "DummyApp", "software_title_id": %d, "from_setup_experience": false}`, mdmHost.ID, mdmHost.DisplayName(), swTitleID), 0)
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "software_title": "DummyApp", "software_display_name": "", "software_title_id": %d, "from_setup_experience": false}`, mdmHost.ID, mdmHost.DisplayName(), swTitleID), 0)
 
 	// record a software install result post-cancelation
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
