@@ -400,7 +400,7 @@ type CreateQueryRequest struct {
 	Description string `json:"description,omitempty"`
 	Query       string `json:"query"`
 	Platform    string `json:"platform,omitempty"`
-	TeamID      *uint  `json:"team_id,omitempty"`
+	TeamID      *uint  `json:"fleet_id,omitempty"`
 }
 
 // linuxPlatforms mirrors fleet.HostLinuxOSs in server/fleet/hosts.go (plus

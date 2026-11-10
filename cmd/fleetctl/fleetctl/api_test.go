@@ -182,7 +182,7 @@ func TestRunApiCommand(t *testing.T) {
 			args: []string{
 				"-X", "POST",
 				"-F", "script=@testdata/testscript.sh",
-				"-F", "team_id=0",
+				"-F", "fleet_id=0",
 				"/api/latest/fleet/scripts",
 			},
 			expectOutput: expectedNewScript,

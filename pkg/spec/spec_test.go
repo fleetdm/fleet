@@ -432,36 +432,39 @@ func TestGetExclusionZones(t *testing.T) {
 }
 
 func TestRewriteNewToOldKeys(t *testing.T) {
+	// PackSpec still declares a renameto tag (`queries` to `reports`).
 	t.Run("accepts old keys", func(t *testing.T) {
-		raw := json.RawMessage(`{"name":"test","team":"myteam"}`)
-		result, _, err := rewriteNewToOldKeys(raw, fleet.QuerySpec{})
+		raw := json.RawMessage(`{"name":"test","queries":[{"name":"q1"}]}`)
+		result, _, err := rewriteNewToOldKeys(raw, fleet.PackSpec{})
 		require.NoError(t, err)
 
-		var qs fleet.QuerySpec
-		require.NoError(t, json.Unmarshal(result, &qs))
-		assert.Equal(t, "test", qs.Name)
-		assert.Equal(t, "myteam", qs.TeamName)
+		var ps fleet.PackSpec
+		require.NoError(t, json.Unmarshal(result, &ps))
+		assert.Equal(t, "test", ps.Name)
+		require.Len(t, ps.Queries, 1)
+		assert.Equal(t, "q1", ps.Queries[0].Name)
 	})
 
 	t.Run("accepts new keys", func(t *testing.T) {
-		raw := json.RawMessage(`{"name":"test","fleet":"myteam"}`)
-		result, _, err := rewriteNewToOldKeys(raw, fleet.QuerySpec{})
+		raw := json.RawMessage(`{"name":"test","reports":[{"name":"q1"}]}`)
+		result, _, err := rewriteNewToOldKeys(raw, fleet.PackSpec{})
 		require.NoError(t, err)
 
-		var qs fleet.QuerySpec
-		require.NoError(t, json.Unmarshal(result, &qs))
-		assert.Equal(t, "test", qs.Name)
-		assert.Equal(t, "myteam", qs.TeamName)
+		var ps fleet.PackSpec
+		require.NoError(t, json.Unmarshal(result, &ps))
+		assert.Equal(t, "test", ps.Name)
+		require.Len(t, ps.Queries, 1)
+		assert.Equal(t, "q1", ps.Queries[0].Name)
 	})
 
 	t.Run("errors if both old and new keys provided", func(t *testing.T) {
-		raw := json.RawMessage(`{"name":"test","team":"old","fleet":"new"}`)
-		_, _, err := rewriteNewToOldKeys(raw, fleet.QuerySpec{})
+		raw := json.RawMessage(`{"name":"test","queries":[],"reports":[]}`)
+		_, _, err := rewriteNewToOldKeys(raw, fleet.PackSpec{})
 		require.Error(t, err)
 		var conflictErr *endpointer.AliasConflictError
 		require.ErrorAs(t, err, &conflictErr)
-		assert.Equal(t, "team", conflictErr.Old)
-		assert.Equal(t, "fleet", conflictErr.New)
+		assert.Equal(t, "queries", conflictErr.Old)
+		assert.Equal(t, "reports", conflictErr.New)
 	})
 }
 
