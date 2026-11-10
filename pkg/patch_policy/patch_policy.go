@@ -16,6 +16,10 @@ type PolicyData struct {
 	Query       string
 	ExistsQuery string
 	Version     string
+	// ParenthesizedBuild marks a macOS app whose bundle_short_version carries its
+	// build in parentheses (e.g. Ableton Live's "12.4.16 (2026-10-30_e33287a1c7)")
+	// and whose manifest version is the release alone.
+	ParenthesizedBuild bool
 }
 
 const (
@@ -36,7 +40,7 @@ func GenerateQueryForManifest(p PolicyData) (string, error) {
 		return "", ErrNoExistsQuery
 	}
 
-	suffix, err := versionCompareSuffix(p.Platform, p.ExistsQuery, p.Version)
+	suffix, err := versionCompareSuffix(p.Platform, p.ExistsQuery, p.Version, p.ParenthesizedBuild)
 	if err != nil {
 		return "", err
 	}
@@ -68,12 +72,37 @@ func parenthesizeWhereClause(existsQuery string) string {
 	return existsPrefix + table + " WHERE (" + conditions + ")"
 }
 
-func versionCompareSuffix(platform, existsQuery, version string) (string, error) {
+func versionCompareSuffix(platform, existsQuery, version string, parenthesizedBuild bool) (string, error) {
 	column, err := versionCompareColumn(platform, existsQuery)
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf(" AND version_compare(%s, '%s') < 0);", column, escapeSQLLiteral(version)), nil
+	if platform == "darwin" && (parenthesizedBuild || strings.Contains(version, "(")) {
+		column, version = stripParenthesizedBuild(column, version)
+	}
+	return fmt.Sprintf(" AND %s < 0);", versionCompare(column, version)), nil
+}
+
+// stripParenthesizedBuild compares only the release before a parenthesized build
+// ("7.2.2 (88465)" and "2.4.3(2EEA)" become "7.2.2" and "2.4.3"). version_compare
+// doesn't split on spaces or parentheses, and a build kept as a dotted segment would
+// rank "5.8(0920)" above "5.8.2". Unlike split, regex_match returns an empty string,
+// not NULL, for an empty version; version_compare rejects NULL and fails the query.
+func stripParenthesizedBuild(column, version string) (string, string) {
+	if i := strings.IndexAny(version, " ("); i > 0 {
+		version = version[:i]
+	}
+	return fmt.Sprintf("regex_match(%s, '^[^ (]*', 0)", column), version
+}
+
+// versionCompare returns a version_compare call for column against version. osquery
+// doesn't treat "+" as a delimiter, so a "+build" segment compares by string length
+// ("0.4.25+10" sorts above "0.4.26+4"); make "+" a dot on both sides instead.
+func versionCompare(column, version string) string {
+	if strings.Contains(version, "+") {
+		return fmt.Sprintf("version_compare(REPLACE(%s, '+', '.'), '%s')", column, escapeSQLLiteral(strings.ReplaceAll(version, "+", ".")))
+	}
+	return fmt.Sprintf("version_compare(%s, '%s')", column, escapeSQLLiteral(version))
 }
 
 func versionCompareColumn(platform, existsQuery string) (string, error) {
@@ -141,13 +170,17 @@ func GenerateFromInstaller(p PolicyData, installer *fleet.SoftwareInstaller) (*P
 }
 
 func defaultMacOSQuery(bundleIdentifier string, version string) string {
-	patchTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0);"
-	return fmt.Sprintf(patchTemplate, escapeSQLLiteral(bundleIdentifier), escapeSQLLiteral(version))
+	column := "bundle_short_version"
+	if strings.Contains(version, "(") {
+		column, version = stripParenthesizedBuild(column, version)
+	}
+	patchTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND %s < 0);"
+	return fmt.Sprintf(patchTemplate, escapeSQLLiteral(bundleIdentifier), versionCompare(column, version))
 }
 
 func defaultWindowsQuery(softwareTitle string, version string) string {
-	patchTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '%s' AND version_compare(version, '%s') < 0);"
-	return fmt.Sprintf(patchTemplate, escapeSQLLiteral(softwareTitle), escapeSQLLiteral(version))
+	patchTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '%s' AND %s < 0);"
+	return fmt.Sprintf(patchTemplate, escapeSQLLiteral(softwareTitle), versionCompare("version", version))
 }
 
 // GenerateOpenQuery returns a pre-install query that returns a row only when the app is closed.
