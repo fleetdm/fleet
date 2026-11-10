@@ -273,13 +273,13 @@ GitHub issue: [#53272](https://github.com/fleetdm/fleet/issues/53272)
 
 #### What to do
 
-Fleet 4.96 already supports `setup_experience` and the new key names in Get configuration, Update configuration, Get fleet, Update setup experience, and host responses, so change them before you upgrade.
+Fleet 4.95 already supports `setup_experience` and the new key names in Get configuration, Update configuration, Get fleet, Update setup experience, and host responses, so change them before you upgrade.
 
 1. Search for `macos_setup` and rename it to `setup_experience`.
 2. Under `setup_experience`, rename the keys in the table above.
 3. In host responses, read the bootstrap package status from `mdm.setup_experience` instead of `mdm.macos_setup`.
 
-Fleet 4.96 doesn't read `setup_experience` in Update fleet (`PATCH /fleets/:id`). It only reads `mdm.macos_setup` and ignores `mdm.setup_experience` without an error. So keep using `macos_setup` and the old key names in Update fleet until you upgrade:
+Fleet 4.95 doesn't read `setup_experience` in Update fleet (`PATCH /fleets/:id`). It only reads `mdm.macos_setup` and ignores `mdm.setup_experience` without an error. So keep using `macos_setup` and the old key names in Update fleet until you upgrade:
 
 1. Right after you upgrade, rename them in your Update fleet calls.
    - Until you do, calls that use the old names fail with a `422` error like: `The "macos_setup" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
