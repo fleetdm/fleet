@@ -38,7 +38,6 @@ spec:
   mdm:
     android_enabled_and_configured: false
     apple_business: null
-    apple_business: null
     apple_account_provisioning:
       oauth_idp_token_url: null
       oauth_idp_client_id: null
