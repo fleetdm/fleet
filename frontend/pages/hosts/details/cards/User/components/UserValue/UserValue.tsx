@@ -35,32 +35,29 @@ const UserValue = ({ values }: IUserValueProps) => {
       </TooltipWrapper>
     );
   } else {
-    // multiple values content. dont include the first value in the tooltip.
-    const tipContent = values.slice(1).map((value) => (
-      <div key={value} className={`${baseClass}__tooltip-item`}>
-        {value}
+    const tipContent = (
+      <div className={`${baseClass}__tooltip-list`}>
+        {values.map((value) => (
+          <div key={value}>{value}</div>
+        ))}
       </div>
-    ));
+    );
     content = (
-      <>
-        <TooltipWrapper
-          tipContent={values[0]}
-          underline={false}
-          disableTooltip={!isTruncated}
-          position="top"
-          showArrow
-        >
+      <TooltipWrapper
+        tipContent={tipContent}
+        underline={false}
+        position="bottom"
+        showArrow
+      >
+        <span className={`${baseClass}__multi-wrapper`}>
           <span ref={displayNameRef} className={`${baseClass}__multi`}>
             {values[0]}
           </span>
-        </TooltipWrapper>
-        {/* conditionally render the space character as it only is needed when the
-        value text is not truncated */}
-        {!isTruncated ? " " : null}
-        <TooltipWrapper tipContent={tipContent} position="bottom-start">
+          {/* the ellipsis already separates truncated text from "+ N more" */}
+          {!isTruncated ? " " : null}
           <span>+ {values.length - 1} more</span>
-        </TooltipWrapper>
-      </>
+        </span>
+      </TooltipWrapper>
     );
   }
 
