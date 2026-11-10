@@ -7891,13 +7891,6 @@
       "description": "Simple Comic is a comic viewer/reader."
     },
     {
-      "name": "SiriMote",
-      "slug": "sirimote/darwin",
-      "platform": "darwin",
-      "unique_identifier": "at.EternalStorms.SiriMote-nonappstore",
-      "description": "SiriMote is a tool to control your computer with your Apple TV Siri Remote."
-    },
-    {
       "name": "Sketch",
       "slug": "sketch/darwin",
       "platform": "darwin",
