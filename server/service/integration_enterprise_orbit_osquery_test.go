@@ -12,11 +12,13 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -103,6 +105,79 @@ func (s *integrationEnterpriseTestSuite) TestDistributedReadWithFeatures() {
 	require.NotContains(t, dqResp.Queries, "fleet_detail_query_software_macos")
 	require.NotContains(t, dqResp.Queries, "fleet_detail_query_software_ai_tools")
 	require.Contains(t, dqResp.Queries, "fleet_additional_query_time")
+}
+
+func (s *integrationEnterpriseTestSuite) TestSoftwareAIToolsKeptWhenQueryDidNotRun() {
+	t := s.T()
+	ctx := t.Context()
+
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	// t.Context() is already canceled when cleanups run.
+	t.Cleanup(func() { require.NoError(t, s.ds.SaveAppConfig(context.Background(), appCfg)) })
+	s.applyConfig([]byte(`
+  features:
+    enable_software_inventory: true
+`))
+	host := createOrbitEnrolledHost(t, "darwin", "aitools", s.ds)
+
+	macOSQuery := hostDetailQueryPrefix + "software_macos"
+	aiToolsQuery := hostDetailQueryPrefix + "software_ai_tools"
+	safari := `{"name": "Safari", "version": "18.0", "source": "apps", "bundle_identifier": "com.apple.Safari", "installed_path": "/Applications/Safari.app", "last_opened_at": ""}`
+	codex := `{"name": "codex", "version": "0.46.0", "source": "ai_clis", "ai_type": "agents", "installed_path": "/usr/local/bin/codex"}`
+	github := `{"name": "github", "version": "", "source": "mcp_servers", "ai_type": "mcp_server", "installed_path": "/Users/a/.cursor/mcp.json"}`
+
+	submit := func(results map[string]json.RawMessage, statuses map[string]any) {
+		s.DoJSON("POST", "/api/osquery/distributed/write", submitDistributedQueryResultsRequestShim{
+			NodeKey:  *host.NodeKey,
+			Results:  results,
+			Statuses: statuses,
+			Messages: map[string]string{},
+			Stats:    map[string]*fleet.Stats{},
+		}, http.StatusOK, &submitDistributedQueryResultsResponse{})
+	}
+	aiToolNames := func() []string {
+		var resp getHostSoftwareResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &resp, "ai_tool", "true")
+		names := make([]string, 0, len(resp.Software))
+		for _, sw := range resp.Software {
+			names = append(names, sw.Name)
+		}
+		sort.Strings(names)
+		return names
+	}
+
+	withAITools := map[string]json.RawMessage{macOSQuery: json.RawMessage("[" + safari + "]"), aiToolsQuery: json.RawMessage("[" + codex + "," + github + "]")}
+	withoutAITools := map[string]json.RawMessage{macOSQuery: json.RawMessage("[" + safari + "]")}
+
+	// A fleetd older than the ai_tools table never ran the query, so nothing is kept.
+	require.NoError(t, s.ds.SetOrUpdateHostOrbitInfo(ctx, host.ID, "1.58.2", sql.NullString{}, sql.NullBool{}))
+	submit(withAITools, map[string]any{macOSQuery: 0, aiToolsQuery: 0})
+	require.Equal(t, []string{"Codex", "github"}, aiToolNames())
+	submit(withoutAITools, map[string]any{macOSQuery: 0})
+	require.Empty(t, aiToolNames())
+
+	require.NoError(t, s.ds.SetOrUpdateHostOrbitInfo(ctx, host.ID, "1.59.0", sql.NullString{}, sql.NullBool{}))
+	submit(withAITools, map[string]any{macOSQuery: 0, aiToolsQuery: 0})
+	require.Equal(t, []string{"Codex", "github"}, aiToolNames())
+
+	// Discovery found no ai_tools table: osquery sends neither a status nor rows.
+	submit(withoutAITools, map[string]any{macOSQuery: 0})
+	require.Equal(t, []string{"Codex", "github"}, aiToolNames())
+
+	// The query ran but failed.
+	submit(
+		map[string]json.RawMessage{macOSQuery: json.RawMessage("[" + safari + "]"), aiToolsQuery: json.RawMessage("[]")},
+		map[string]any{macOSQuery: 0, aiToolsQuery: 1},
+	)
+	require.Equal(t, []string{"Codex", "github"}, aiToolNames())
+
+	// The query ran and reported fewer rows.
+	submit(
+		map[string]json.RawMessage{macOSQuery: json.RawMessage("[" + safari + "]"), aiToolsQuery: json.RawMessage("[" + codex + "]")},
+		map[string]any{macOSQuery: 0, aiToolsQuery: 0},
+	)
+	require.Equal(t, []string{"Codex"}, aiToolNames())
 }
 
 func (s *integrationEnterpriseTestSuite) TestOrbitConfigExtensions() {
