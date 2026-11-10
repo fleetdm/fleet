@@ -68,7 +68,7 @@ export interface ILibraryItemAccordionProps {
    * maintainer. Compute with `permissions.canWriteSoftware(user, teamId)`.
    * Gates every edit/delete affordance on the row: the label-count badge
    * (button → static span), the expanded-panel labels-click handler, the
-   * inactive-row "Select Actions > Versions and pin this version to rollback"
+   * inactive-row "Select Actions > Versions and pin it to deploy this version instead"
    * hover tooltip, and the trash button (hidden entirely when false). */
   canEditSoftware: boolean;
 
@@ -232,8 +232,8 @@ const LibraryItemAccordion = ({
 
   const inactiveTooltip = (
     <>
-      Select <strong>Actions &gt; Versions</strong> and pin this version to
-      rollback.
+      Select <strong>Actions &gt; Versions</strong> and pin it to deploy this
+      version instead.
     </>
   );
 
@@ -696,6 +696,28 @@ const LibraryItemAccordion = ({
     }
   };
 
+  const installerDetails = (
+    <InstallerDetailsWidget
+      className={`${baseClass}__installer-details`}
+      softwareName={filename}
+      installerType={installerType}
+      version={version}
+      addedTimestamp={addedAt}
+      isFma={isFma}
+      isLatestFmaVersion={isLatestFmaVersion}
+      isScriptPackage={isScriptPackage}
+      source={source}
+      androidPlayStoreId={androidPlayStoreId}
+      hideInstallerType
+      graphicOverride={graphicOverride}
+      hideVersion={hideVersion}
+      // Inactive rows surface a single hover tooltip (the rollback hint);
+      // suppress the widget's tooltips to avoid stacking two on the same
+      // target. See `InstallerDetailsWidget` for the full set silenced.
+      disableTooltips={!isActive}
+    />
+  );
+
   const headerButton = (
     <div
       role="button"
@@ -713,25 +735,21 @@ const LibraryItemAccordion = ({
       >
         <Icon name="chevron-right" color="ui-fleet-black-75" />
       </span>
-      <InstallerDetailsWidget
-        className={`${baseClass}__installer-details`}
-        softwareName={filename}
-        installerType={installerType}
-        version={version}
-        addedTimestamp={addedAt}
-        isFma={isFma}
-        isLatestFmaVersion={isLatestFmaVersion}
-        isScriptPackage={isScriptPackage}
-        source={source}
-        androidPlayStoreId={androidPlayStoreId}
-        hideInstallerType
-        graphicOverride={graphicOverride}
-        hideVersion={hideVersion}
-        // Inactive rows surface a single hover tooltip (the rollback hint);
-        // suppress the widget's tooltips to avoid stacking two on the same
-        // target. See `InstallerDetailsWidget` for the full set silenced.
-        disableTooltips={!isActive}
-      />
+      {isActive ? (
+        installerDetails
+      ) : (
+        <TooltipWrapper
+          className={`${baseClass}__inactive-tooltip`}
+          tipContent={inactiveTooltip}
+          showArrow
+          underline={false}
+          position="right"
+          tipOffset={8}
+          disableTooltip={!canEditSoftware}
+        >
+          {installerDetails}
+        </TooltipWrapper>
+      )}
       <div className={`${baseClass}__header-right`}>{renderHeaderBadges()}</div>
     </div>
   );
@@ -743,22 +761,7 @@ const LibraryItemAccordion = ({
         [`${baseClass}--expanded`]: isExpanded,
       })}
     >
-      {isActive ? (
-        headerButton
-      ) : (
-        <TooltipWrapper
-          className={`${baseClass}__inactive-tooltip`}
-          tooltipClass={`${baseClass}__inactive-tip`}
-          tipContent={inactiveTooltip}
-          showArrow
-          underline={false}
-          position="top-start"
-          tipOffset={8}
-          disableTooltip={!canEditSoftware}
-        >
-          {headerButton}
-        </TooltipWrapper>
-      )}
+      {headerButton}
 
       {isExpanded && (
         <div className={`${baseClass}__panel`}>
