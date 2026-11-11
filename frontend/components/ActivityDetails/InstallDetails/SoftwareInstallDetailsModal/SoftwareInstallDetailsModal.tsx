@@ -24,11 +24,16 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner/Spinner";
 import Textarea from "components/Textarea";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
+import TooltipWrapper from "components/TooltipWrapper";
 import {
   IHostSoftware,
   ISoftwareInstallResult,
   ISoftwareInstallResults,
 } from "interfaces/software";
+import {
+  compareVersions,
+  getInstallerVersion,
+} from "pages/hosts/details/cards/Software/helpers";
 import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import deviceUserAPI from "services/entities/device_user";
@@ -36,7 +41,10 @@ import softwareAPI from "services/entities/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { timeAgo } from "utilities/date_format";
 
-import { isNotifyBeforePatchingSkip } from "../../NotifyBeforePatchingDetailsModal/helpers";
+import {
+  isNotifyBeforePatchingSkip,
+  isPatchDeadlineSkip,
+} from "../../NotifyBeforePatchingDetailsModal/helpers";
 import {
   INSTALL_DETAILS_STATUS_ICONS,
   SKIPPED_INSTALL_DETAILS,
@@ -53,6 +61,7 @@ export type IPackageInstallDetails = {
   host_display_name?: string;
   install_uuid?: string; // not actually optional
   skipped_install?: boolean;
+  activity_created_at?: string;
 };
 
 export const renderContactOption = (url?: string) => (
@@ -78,6 +87,7 @@ interface IInstallStatusMessage {
    Parity with VPPInstallDetailsModal/SoftwareIpaInstallDetailsModal */
   canOverrideFailureWithInstalled?: boolean;
   skippedInstall?: boolean;
+  activityCreatedAt?: string;
 }
 
 // TODO - match VppInstallDetailsModal status to this, still accounting for MDM-specific cases
@@ -89,6 +99,7 @@ export const StatusMessage = ({
   contactUrl,
   canOverrideFailureWithInstalled = false,
   skippedInstall = false,
+  activityCreatedAt,
 }: IInstallStatusMessage) => {
   // the case when software is installed by the user and not by Fleet
   if (!installResult) {
@@ -109,10 +120,14 @@ export const StatusMessage = ({
     host_display_name,
     software_package,
     software_title,
+    software_display_name,
     status,
-    updated_at,
     created_at,
   } = installResult;
+  const displayedTitle = getDisplayedSoftwareName(
+    software_title,
+    software_display_name
+  );
 
   const formattedHost = host_display_name ? (
     <b>{host_display_name}</b>
@@ -120,22 +135,43 @@ export const StatusMessage = ({
     "the host"
   );
 
+  const timeAgoText = timeAgo(new Date(activityCreatedAt || created_at), {
+    includeSeconds: true,
+    addSuffix: true,
+  });
   const displayTimeStamp = ["failed_install", "installed"].includes(
     status || ""
-  )
-    ? ` (${timeAgo(new Date(updated_at || created_at), {
-        includeSeconds: true,
-        addSuffix: true,
-      })})`
-    : "";
+  ) ? (
+    <>
+      {" ("}
+      {activityCreatedAt ? (
+        timeAgoText
+      ) : (
+        <TooltipWrapper
+          tipContent="Time when Fleet sent install command. If the host was offline, the install finished after it came online."
+          position="top"
+          showArrow
+        >
+          {timeAgoText}
+        </TooltipWrapper>
+      )}
+      {")"}
+    </>
+  ) : (
+    ""
+  );
 
   // A patch-when-closed skip must render its own message even when the host
   // currently reports the app as installed. The skip is the load-bearing state
   // (deferred update); collapsing it into "is installed" would hide the
   // reason the row is flagged.
   if (skippedInstall && status === "failed_install") {
-    // Notify variant appends "Fleet notifies the end user..." to
-    // pre_install_query_output; patch_when_closed doesn't.
+    // Three skip variants share the same payload shape; the pre_install_query_output
+    // substring is the only reliable discriminator today. Check deadline first
+    // because the notify marker is a strict substring of the deadline copy.
+    const isDeadlineVariant = isPatchDeadlineSkip(
+      installResult.pre_install_query_output
+    );
     const isNotifyVariant = isNotifyBeforePatchingSkip(
       installResult.pre_install_query_output
     );
@@ -155,6 +191,16 @@ export const StatusMessage = ({
       </>
     );
 
+    const getSkipCopy = () => {
+      if (isDeadlineVariant) {
+        return "The app was open. Fleet will notify the end user 1 hour before the patch deadline.";
+      }
+      if (isNotifyVariant) {
+        return "The app was open. Fleet notifies the end user 1 hour before the patch is forced.";
+      }
+      return skippedDetails;
+    };
+
     return (
       <IconStatusMessage
         className={`${baseClass}__status-message`}
@@ -162,12 +208,9 @@ export const StatusMessage = ({
         iconColor="ui-fleet-black-50"
         message={
           <span>
-            Fleet skipped install of <b>{software_title}</b> ({software_package}
+            Fleet skipped install of <b>{displayedTitle}</b> ({software_package}
             ) on {formattedHost}
-            {displayTimeStamp}.{" "}
-            {isNotifyVariant
-              ? "The app was open. Fleet notifies the end user 1 hour before the patch is forced."
-              : skippedDetails}
+            {displayTimeStamp}. {getSkipCopy()}
           </span>
         }
       />
@@ -198,7 +241,7 @@ export const StatusMessage = ({
   const renderStatusCopy = () => {
     const prefix = (
       <>
-        Fleet {getInstallDetailsStatusPredicate(status)} <b>{software_title}</b>
+        Fleet {getInstallDetailsStatusPredicate(status)} <b>{displayedTitle}</b>
       </>
     );
 
@@ -233,8 +276,7 @@ export const StatusMessage = ({
     <IconStatusMessage
       className={`${baseClass}__status-message`}
       iconName={
-        INSTALL_DETAILS_STATUS_ICONS[status || "pending_install"] ??
-        "pending-outline"
+        INSTALL_DETAILS_STATUS_ICONS[status || "pending_install"] ?? "pending"
       }
       message={renderStatusCopy()}
     />
@@ -409,6 +451,18 @@ export const SoftwareInstallDetailsModal = ({
   // True when host inventory reports at least one installed version for this app.
   const inventoryReportsInstalled = !!hostSoftware?.installed_versions?.length;
 
+  // True when inventory has a version strictly older than the installer version
+  // (i.e. ui_status is `failed_install_update_available`). In that case the row
+  // reads "Failed" and must open to the failure, not an "is installed" override.
+  const installerVersion = hostSoftware
+    ? getInstallerVersion(hostSoftware)
+    : null;
+  const hasAvailableUpdate =
+    !!installerVersion &&
+    !!hostSoftware?.installed_versions?.some(
+      (iv) => compareVersions(iv.version, installerVersion) === -1
+    );
+
   // This modal is opened in three contexts:
   // - Admin Host -> Software: hostSoftware defined, no deviceAuthToken.
   // - End-user My device: hostSoftware defined, deviceAuthToken present.
@@ -416,13 +470,15 @@ export const SoftwareInstallDetailsModal = ({
   const openedFromHostSoftwarePage = !!hostSoftware;
 
   // Used only for overriding failed_install/failed_uninstall -> "is installed."
-  // - Admin Host -> Software: override based on inventory (4.82 #31663).
-  // - My device: never override — the end user just triggered Update and needs
-  //   to see the failure + Details + Retry (#52017).
+  // - Admin Host -> Software: override only when inventory is on the installer
+  //   version. If an update is still available the row says "Failed" and the
+  //   modal must mirror that; otherwise keep the installed override.
+  // - My device: never override. The end user just triggered Update and needs
+  //   to see the failure + Details + Retry.
   // - Activity feed: never override (always show the failure).
   const canOverrideFailureWithInstalled =
     openedFromHostSoftwarePage && !deviceAuthToken
-      ? inventoryReportsInstalled
+      ? inventoryReportsInstalled && !hasAvailableUpdate
       : false;
 
   // Treat failed_install / failed_uninstall with installed versions as installed.
@@ -517,6 +573,7 @@ export const SoftwareInstallDetailsModal = ({
           isMyDevicePage={!!deviceAuthToken}
           contactUrl={contactUrl}
           canOverrideFailureWithInstalled={canOverrideFailureWithInstalled}
+          activityCreatedAt={detailsFromProps.activity_created_at}
           skippedInstall={detailsFromProps.skipped_install}
         />
 

@@ -28,10 +28,6 @@ func NewDatastore(conns *platform_mysql.DBConnections, logger *slog.Logger) *Dat
 	return &Datastore{primary: conns.Primary, replica: conns.Replica, logger: logger}
 }
 
-func (ds *Datastore) reader(_ context.Context) *sqlx.DB {
-	return ds.replica
-}
-
 var _ types.Datastore = (*Datastore)(nil)
 
 const endUserNotificationColumns = `
@@ -72,8 +68,14 @@ INSERT INTO notifications_end_user (
 	if notification.ExpiresAt == nil {
 		return nil, ctxerr.New(ctx, "end user notification needs an expiry")
 	}
+	// A notification first attempted days from now would expire before its first attempt, so the
+	// cap counts from then.
 	expiresAt := *notification.ExpiresAt
-	if latest := time.Now().UTC().Add(api.EndUserNotificationMaxLifetime); expiresAt.After(latest) {
+	start := time.Now().UTC()
+	if notification.NextAttemptAt != nil && notification.NextAttemptAt.After(start) {
+		start = *notification.NextAttemptAt
+	}
+	if latest := start.Add(api.EndUserNotificationMaxLifetime); expiresAt.After(latest) {
 		expiresAt = latest
 	}
 
@@ -102,7 +104,9 @@ func (ds *Datastore) GetEndUserNotificationByUUID(ctx context.Context, notificat
 	const getStmt = `SELECT ` + endUserNotificationColumns + ` FROM notifications_end_user eun WHERE eun.uuid = ?`
 
 	var notification api.EndUserNotification
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &notification, getStmt, notificationUUID); err != nil {
+	// Read the primary, orbit's script fetch writes the payload about a second before the device fetches this view,
+	// and a stale replica copy would show the end user a different notice than the outcome records.
+	if err := sqlx.GetContext(ctx, ds.primary, &notification, getStmt, notificationUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ctxerr.Wrap(ctx, &types.NotFoundError{Identifier: notificationUUID})
 		}
@@ -129,7 +133,8 @@ LIMIT 1
 `
 
 	var notification api.EndUserNotification
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &notification, getStmt, hostID, kind,
+	// Read the primary, the caller decides whether to join a row it may have just rescheduled there.
+	if err := sqlx.GetContext(ctx, ds.primary, &notification, getStmt, hostID, kind,
 		api.EndUserNotificationPending, api.EndUserNotificationDispatched,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -138,6 +143,31 @@ LIMIT 1
 		return nil, ctxerr.Wrap(ctx, err, "get end user notification awaiting display")
 	}
 	return &notification, nil
+}
+
+// RescheduleEndUserNotificationsAwaitingDispatch moves the first attempt of a host's notifications of this
+// kind that were never dispatched. Rows already due are left alone, so a skip landing between the
+// notice time and the next cron pass can't push the notice to the following deadline.
+func (ds *Datastore) RescheduleEndUserNotificationsAwaitingDispatch(ctx context.Context, hostID uint, kind string,
+	nextAttemptAt, expiresAt time.Time,
+) error {
+	// attempt_count is incremented by every dispatch, so zero means no toast was ever sent and the
+	// row isn't in retry backoff or an offline re-delay.
+	const updateStmt = `
+UPDATE notifications_end_user
+SET next_attempt_at = ?, expires_at = ?
+WHERE host_id = ?
+	AND kind = ?
+	AND status = ?
+	AND attempt_count = 0
+	AND next_attempt_at > NOW(6)
+	AND expires_at > NOW(6)
+`
+	if _, err := ds.primary.ExecContext(ctx, updateStmt, nextAttemptAt, expiresAt, hostID, kind,
+		api.EndUserNotificationPending); err != nil {
+		return ctxerr.Wrap(ctx, err, "reschedule end user notifications awaiting dispatch")
+	}
+	return nil
 }
 
 func (ds *Datastore) GetEndUserNotificationByExecutionID(ctx context.Context, executionID string) (*api.EndUserNotification, error) {
@@ -369,6 +399,20 @@ WHERE uuid = ?
 		api.EndUserNotificationExpired, api.EndUserNotificationFailed, api.EndUserNotificationActed,
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "delay end user notification")
+	}
+	return nil
+}
+
+func (ds *Datastore) SetEndUserNotificationPayload(ctx context.Context, notificationUUID string, payload json.RawMessage) error {
+	const updateStmt = `
+UPDATE notifications_end_user
+SET payload = ?
+WHERE uuid = ? AND status = ?
+`
+
+	_, err := ds.primary.ExecContext(ctx, updateStmt, payload, notificationUUID, api.EndUserNotificationDispatched)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set end user notification payload")
 	}
 	return nil
 }

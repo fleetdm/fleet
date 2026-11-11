@@ -30,7 +30,7 @@ func TestAPNsSweep(t *testing.T) {
 		return h
 	}
 	setHostMDMOn := func(h *fleet.Host) {
-		err := ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, "", false)
+		err := ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 		require.NoError(t, err)
 	}
 	setLastSeen := func(enrollmentID string, silentFor time.Duration) {

@@ -89,7 +89,7 @@ func TestSavedLiveQuery(t *testing.T) {
 		},
 		nil,
 	)
-	lq.On("QueryCompletedByHost", "42", 99).Return(nil)
+	lq.On("QueryCompletedByHost", "42", 99).Return(true, nil)
 	lq.On("RunQuery", "321", queryString, []uint{1}).Return(nil)
 
 	ds.DistributedQueryCampaignTargetIDsFunc = func(ctx context.Context, id uint) (targets *fleet.HostTargets, err error) {
@@ -253,7 +253,7 @@ func TestAdHocLiveQuery(t *testing.T) {
 		},
 		nil,
 	)
-	lq.On("QueryCompletedByHost", "42", 99).Return(nil)
+	lq.On("QueryCompletedByHost", "42", 99).Return(true, nil)
 	lq.On("RunQuery", "321", "select 42, * from time", []uint{1}).Return(nil)
 
 	ds.DistributedQueryCampaignTargetIDsFunc = func(ctx context.Context, id uint) (targets *fleet.HostTargets, err error) {
@@ -310,4 +310,99 @@ func TestAdHocLiveQuery(t *testing.T) {
 	expected := `{"host":"somehostname","rows":[{"bing":"fds","host_display_name":"somehostname","host_hostname":"somehostname"}]}
 `
 	assert.Equal(t, expected, runAppForTest(t, []string{"report", "--hosts", "1234", "--query", "select 42, * from time"}))
+}
+
+func TestLiveQueryLabelsWithoutHosts(t *testing.T) {
+	rs := pubsub.NewInmemQueryResults()
+	lq := live_query_mock.New(t)
+
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
+		Rs:     rs,
+		Lq:     lq,
+		Logger: slog.New(slog.DiscardHandler),
+	})
+
+	users, err := ds.ListUsersFunc(t.Context(), fleet.UserListOptions{})
+	require.NoError(t, err)
+	var admin *fleet.User
+	for _, user := range users {
+		if user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin {
+			admin = user
+		}
+	}
+	require.NotNil(t, admin)
+
+	const queryString = "select 1"
+	var (
+		mu                 sync.Mutex
+		gotHostIdentifiers []string
+		gotLabelNames      []string
+	)
+	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		gotHostIdentifiers = hostIdentifiers
+		return nil, nil
+	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		gotLabelNames = names
+		return map[string]uint{"label1": 1}, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+		query.ID = 42
+		return query, nil
+	}
+	ds.NewDistributedQueryCampaignFunc = func(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
+		camp.ID = 321
+		return camp, nil
+	}
+	ds.NewDistributedQueryCampaignTargetFunc = func(ctx context.Context, target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
+		return target, nil
+	}
+	ds.HostIDsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
+		return []uint{1}, nil
+	}
+	ds.CountHostsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
+		return fleet.TargetMetrics{TotalHosts: 1, OnlineHosts: 1}, nil
+	}
+	ds.DistributedQueryCampaignTargetIDsFunc = func(ctx context.Context, id uint) (*fleet.HostTargets, error) {
+		return &fleet.HostTargets{LabelIDs: []uint{1}}, nil
+	}
+	ds.DistributedQueryCampaignFunc = func(ctx context.Context, id uint) (*fleet.DistributedQueryCampaign, error) {
+		return &fleet.DistributedQueryCampaign{ID: 321, UserID: admin.ID}, nil
+	}
+	ds.SaveDistributedQueryCampaignFunc = func(ctx context.Context, camp *fleet.DistributedQueryCampaign) error {
+		return nil
+	}
+	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
+		return &fleet.Query{ID: id, Query: queryString}, nil
+	}
+	ds.IsSavedQueryFunc = func(ctx context.Context, queryID uint) (bool, error) {
+		return false, nil
+	}
+	lq.On("RunQuery", "321", queryString, []uint{1}).Return(nil)
+
+	go func() {
+		result := fleet.DistributedQueryResult{
+			DistributedQueryCampaignID: 321,
+			Rows:                       []map[string]string{{"1": "1"}},
+			Host:                       fleet.ResultHostData{ID: 1, Hostname: "labeled-host", DisplayName: "labeled-host"},
+		}
+		// Writing fails until fleetctl subscribes to the campaign results.
+		assert.Eventually(t, func() bool { return rs.WriteResult(result) == nil }, 10*time.Second, 50*time.Millisecond)
+	}()
+
+	expected := `{"host":"labeled-host","rows":[{"1":"1","host_display_name":"labeled-host","host_hostname":"labeled-host"}]}
+`
+	assert.Equal(t, expected, runAppForTest(t, []string{"report", "--labels", "label1, ", "--query", queryString}))
+
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Empty(t, gotHostIdentifiers, "host identifiers %q", gotHostIdentifiers)
+	assert.Equal(t, []string{"label1"}, gotLabelNames)
 }

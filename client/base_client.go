@@ -47,6 +47,8 @@ type BaseClient struct {
 	// This list is given when the client is instantiated and shouldn't be
 	// modified afterwards.
 	ClientCapabilities fleet.CapabilityMap
+
+	idleConnCloser interface{ CloseIdleConnections() }
 }
 
 // ParseResponse processes the status code and parses the response body.
@@ -164,6 +166,7 @@ func NewBaseClient(
 	fleetClientCert *tls.Certificate,
 	capabilities fleet.CapabilityMap,
 	signerWrapper func(*http.Client) *http.Client,
+	httpOpts ...fleethttp.ClientOpt,
 ) (*BaseClient, error) {
 	baseURL, err := url.Parse(addr)
 	if err != nil {
@@ -210,7 +213,10 @@ func NewBaseClient(
 		tlsConfig.RootCAs = rootCAPool
 	}
 
-	httpClient := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithTLSClientConfig(tlsConfig))
+	httpOpts = append([]fleethttp.ClientOpt{fleethttp.WithNoTimeout(), fleethttp.WithTLSClientConfig(tlsConfig), fleethttp.WithoutOTEL()}, httpOpts...)
+	httpClient := fleethttp.NewClient(httpOpts...)
+	// Kept before signerWrapper, whose transport doesn't forward CloseIdleConnections.
+	idleConnCloser, _ := httpClient.Transport.(interface{ CloseIdleConnections() })
 	if signerWrapper != nil {
 		httpClient = signerWrapper(httpClient)
 	}
@@ -222,6 +228,7 @@ func NewBaseClient(
 		URLPrefix:          urlPrefix,
 		ClientCapabilities: capabilities,
 		ServerCapabilities: fleet.CapabilityMap{},
+		idleConnCloser:     idleConnCloser,
 	}
 	return client, nil
 }
@@ -371,6 +378,13 @@ func (pr *progressReader) Read(p []byte) (int, error) {
 // DoHTTPRequest performs an HTTP request using the underlying HTTP client.
 func (bc *BaseClient) DoHTTPRequest(req *http.Request) (*http.Response, error) {
 	return bc.HTTP.Do(req)
+}
+
+// CloseIdleConnections closes the HTTP client's pooled idle connections.
+func (bc *BaseClient) CloseIdleConnections() {
+	if bc.idleConnCloser != nil {
+		bc.idleConnCloser.CloseIdleConnections()
+	}
 }
 
 // GetRawHTTPClient returns the underlying HTTP client for type assertions (e.g., idle connection cleanup).

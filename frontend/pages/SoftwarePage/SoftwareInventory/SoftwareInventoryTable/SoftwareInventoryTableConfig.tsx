@@ -10,13 +10,18 @@ import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import {
   ISoftwareTitle,
   NO_VERSION_OR_HOST_DATA_SOURCES,
+  NO_VULNERABILITIES_TOOLTIP_BY_SOURCE,
   formatSoftwareType,
   isIpadOrIphoneSoftwareSource,
 } from "interfaces/software";
-import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
+import {
+  getAutomaticInstallPoliciesCount,
+  getSoftwareListName,
+} from "pages/SoftwarePage/helpers";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 
+import EmptyCellWithTooltip from "../../components/tables/EmptyCellWithTooltip";
 import { VersionsColumnCell } from "../../components/tables/VersionCell";
 import VulnerabilitiesCell from "../../components/tables/VulnerabilitiesCell";
 
@@ -84,7 +89,7 @@ const getSoftwareNameCellData = (
 
   return {
     name: softwareTitle.name,
-    displayName: softwareTitle.display_name,
+    displayName: getSoftwareListName(softwareTitle),
     bundleIdentifier: softwareTitle.bundle_identifier,
     source: softwareTitle.source,
     path: softwareTitleDetailsPath,
@@ -167,6 +172,11 @@ const generateTableHeaders = (
       Header: "Vulnerabilities",
       disableSortBy: true,
       Cell: (cellProps: IVulnerabilitiesCellProps) => {
+        const noVulnerabilitiesTip =
+          NO_VULNERABILITIES_TOOLTIP_BY_SOURCE[cellProps.row.original.source];
+        if (noVulnerabilitiesTip) {
+          return <EmptyCellWithTooltip tipContent={noVulnerabilitiesTip} />;
+        }
         const vulnDetectionNotSupported =
           isIpadOrIphoneSoftwareSource(cellProps.row.original.source) ||
           cellProps.row.original.source === "tgz_packages";

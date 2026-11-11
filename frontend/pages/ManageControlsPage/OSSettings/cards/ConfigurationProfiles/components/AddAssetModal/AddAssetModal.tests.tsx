@@ -33,6 +33,9 @@ describe("AddAssetModal", () => {
       )
     ).toBeInTheDocument();
     expect(screen.getByText("Upload asset")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Assets are reusable data or credentials/i)
+    ).toBeInTheDocument();
 
     expect(screen.getByRole("button", { name: "Add asset" })).toBeDisabled();
   });
@@ -45,7 +48,9 @@ describe("AddAssetModal", () => {
     const file = new File(["{}"], "my-asset.json", {
       type: "application/json",
     });
-    const input = container.querySelector("#upload-asset") as HTMLInputElement;
+    const input = container.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement;
     await user.upload(input, file);
 
     expect(await screen.findByText("my-asset")).toBeInTheDocument();
@@ -65,7 +70,9 @@ describe("AddAssetModal", () => {
     const file = new File(['{"Type":"com.apple.asset.data"}'], "asset.json", {
       type: "application/json",
     });
-    const input = container.querySelector("#upload-asset") as HTMLInputElement;
+    const input = container.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement;
     await user.upload(input, file);
 
     const addButton = screen.getByRole("button", { name: "Add asset" });
@@ -95,7 +102,9 @@ describe("AddAssetModal", () => {
     );
 
     const file = new File(["{}"], "asset.json", { type: "application/json" });
-    const input = container.querySelector("#upload-asset") as HTMLInputElement;
+    const input = container.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement;
     await user.upload(input, file);
     await user.click(screen.getByRole("button", { name: "Add asset" }));
 

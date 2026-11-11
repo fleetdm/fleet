@@ -28,6 +28,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -59,25 +60,73 @@ func (s *integrationTestSuite) TestAppConfigAdditionalQueriesCanBeRemoved() {
 	assert.True(t, config.HostExpirySettings.HostExpiryEnabled)
 }
 
-func (s *integrationTestSuite) TestAppConfigDetailQueriesOverrides() {
+func (s *integrationTestSuite) TestAppConfigDetailQueryOverridesRemoved() {
 	t := s.T()
+	ctx := t.Context()
 
-	spec := []byte(`
+	res := s.Do("PATCH", "/api/latest/fleet/config", map[string]any{
+		"features": map[string]any{"detail_query_overrides": map[string]any{"users": nil}},
+	}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), `unsupported key provided: "detail_query_overrides"`)
+
+	s.applyConfig([]byte(`
   features:
-    additional_queries:
-      time: SELECT * FROM time
+    enable_software_inventory: true
     enable_host_users: true
-    detail_query_overrides:
-      users: null
-      software_linux: "select * from blah;"
-`)
-	s.applyConfig(spec)
+`))
 
-	config := s.getConfig()
-	require.NotNil(t, config.Features.DetailQueryOverrides)
-	require.Nil(t, config.Features.DetailQueryOverrides["users"])
-	require.NotNil(t, config.Features.DetailQueryOverrides["software_linux"])
-	require.Equal(t, "select * from blah;", *config.Features.DetailQueryOverrides["software_linux"])
+	// Configs saved by an older Fleet can still hold overrides, so seed them directly.
+	var previousRawConfig string
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		if err := sqlx.GetContext(ctx, q, &previousRawConfig, "SELECT json_value FROM app_config_json"); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(ctx, `UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.features.detail_query_overrides',
+			JSON_OBJECT('users', NULL, 'software_macos', 'SELECT * FROM foo;'))`)
+		return err
+	})
+	t.Cleanup(func() {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(context.Background(), "UPDATE app_config_json SET json_value = ?", previousRawConfig)
+			return err
+		})
+	})
+
+	var rawConfig map[string]any
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &rawConfig)
+	require.NotContains(t, rawConfig["features"], "detail_query_overrides")
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+	s.lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
+	require.NoError(t, s.ds.UpdateHostRefetchRequested(ctx, host.ID, true))
+
+	var dqResp getDistributedQueriesResponse
+	s.DoJSON("POST", "/api/osquery/distributed/read", getDistributedQueriesRequest{NodeKey: *host.NodeKey}, http.StatusOK, &dqResp)
+	require.Contains(t, dqResp.Queries["fleet_detail_query_users"], "FROM users")
+	require.Contains(t, dqResp.Queries["fleet_detail_query_software_macos"], "FROM apps")
+
+	// Saves re-marshal the whole config from the struct, so the stale key disappears without a migration.
+	s.applyConfig([]byte(`
+  features:
+    enable_host_users: true
+`))
+	var stillStored bool
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &stillStored,
+			`SELECT JSON_CONTAINS_PATH(json_value, 'one', '$.features.detail_query_overrides') FROM app_config_json`)
+	})
+	require.False(t, stillStored)
 }
 
 func (s *integrationTestSuite) TestAppConfigDefaultValues() {
@@ -1433,6 +1482,8 @@ func (s *integrationTestSuite) TestAppConfig() {
 	assert.Empty(t, acResp.GitOpsConfig.RepositoryURL)
 	expectedMaxPackageSize := config.TestConfig().Server.MaxInstallerSizeBytes
 	assert.Equal(t, expectedMaxPackageSize, acResp.MaxSoftwarePackageSize)
+	assert.False(t, acResp.StagedUploadAvailable)
+	s.Do("POST", "/api/latest/fleet/staged_upload", createStagedUploadRequest{Target: fleet.StagedUploadTargetBootstrapPackage, Size: 1}, http.StatusPaymentRequired)
 
 	// set the apple BM terms expired flag, and the enabled and configured flags,
 	// we'll check again at the end of this test to make sure they weren't
@@ -1604,7 +1655,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 	require.Greater(t, len(listActivities.Activities), 1)
 	require.Equal(t, fleet.ActivityTypeEditedAgentOptions{}.ActivityName(), listActivities.Activities[0].Type)
 	require.NotNil(t, listActivities.Activities[0].Details)
-	assert.JSONEq(t, `{"global": true, "fleet_id": null, "fleet_name": null, "team_id": null, "team_name": null}`, string(*listActivities.Activities[0].Details))
+	assert.JSONEq(t, `{"global": true, "fleet_id": null, "fleet_name": null}`, string(*listActivities.Activities[0].Details))
 
 	// try to set invalid agent options
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -1820,7 +1871,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 	// try to enable Windows MDM, impossible without the WSTEP certs
 	// (only set in mdm integrations tests)
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "windows_enabled_and_configured": true }
+		"mdm": { "windows_mdm_enabled": true }
   }`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, "Please configure Fleet with a certificate and key pair first.")

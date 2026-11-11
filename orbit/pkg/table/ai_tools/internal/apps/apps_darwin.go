@@ -3,12 +3,13 @@
 package apps
 
 import (
+	"cmp"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/fsutil"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/internal/fsutil"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/internal/homes"
 	"howett.net/plist"
 )
 
@@ -49,9 +50,9 @@ func scanApps(homesList []homes.Home) []App {
 			}
 			out = append(out, App{
 				Name:           k.name,
-				DisplayName:    firstNonEmpty(info.BundleName, strings.TrimSuffix(e.Name(), ".app")),
+				DisplayName:    cmp.Or(info.BundleName, strings.TrimSuffix(e.Name(), ".app")),
 				BundleID:       info.BundleID,
-				Version:        firstNonEmpty(info.ShortVersion, info.BundleVersion),
+				Version:        cmp.Or(info.ShortVersion, info.BundleVersion),
 				Path:           appPath,
 				PlatformSource: "applications",
 				Scope:          scope,

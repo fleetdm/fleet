@@ -73,9 +73,8 @@ module.exports = {
       });
     }//ﬁ
 
-
     return {
-      testimonialsForScrollableTweets
+      testimonialsForScrollableTweets,
     };
 
   }

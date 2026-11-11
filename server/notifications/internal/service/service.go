@@ -63,6 +63,13 @@ func (s *Service) NotificationAwaitingDisplay(ctx context.Context, hostID uint, 
 	return notification, nil
 }
 
+func (s *Service) RescheduleNotificationsAwaitingDispatch(ctx context.Context, hostID uint, kind string, nextAttemptAt, expiresAt time.Time) error {
+	if err := s.ds.RescheduleEndUserNotificationsAwaitingDispatch(ctx, hostID, kind, nextAttemptAt, expiresAt); err != nil {
+		return ctxerr.Wrap(ctx, err, "reschedule end user notifications awaiting dispatch")
+	}
+	return nil
+}
+
 func (s *Service) notificationForHost(ctx context.Context, hostID uint, notificationUUID string) (*api.EndUserNotification, error) {
 	notification, err := s.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
 	if err != nil {
@@ -128,6 +135,14 @@ func (s *Service) FailNotificationsForHost(ctx context.Context, hostID uint, rea
 	err := s.ds.FailEndUserNotificationsForHost(ctx, hostID, reason)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fail end user notifications for host")
+	}
+	return nil
+}
+
+func (s *Service) SetNotificationPayload(ctx context.Context, notificationUUID string, payload json.RawMessage) error {
+	err := s.ds.SetEndUserNotificationPayload(ctx, notificationUUID, payload)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set end user notification payload")
 	}
 	return nil
 }

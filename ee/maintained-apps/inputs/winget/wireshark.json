@@ -3,6 +3,7 @@
   "slug": "wireshark/windows",
   "package_identifier": "WiresharkFoundation.Wireshark",
   "unique_identifier": "Wireshark",
+  "program_publisher": "The Wireshark developer community, https://www.wireshark.org/",
   "installer_arch": "x64",
   "installer_type": "msi",
   "installer_scope": "machine",

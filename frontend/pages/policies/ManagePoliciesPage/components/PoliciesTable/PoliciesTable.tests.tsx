@@ -247,6 +247,71 @@ describe("Policies table", () => {
     });
   });
 
+  it("Renders a hidden badge and tooltip for a policy hidden from end users", async () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    const hiddenPolicy = createMockPolicy({ fleet_id: 2, hidden: true });
+
+    const { user } = render(
+      <PoliciesTable
+        policiesList={[hiddenPolicy]}
+        isLoading={false}
+        onDeletePoliciesClick={noop}
+        onAddPolicyClick={noop}
+        currentTeam={{ id: 2, name: "Workstations" }}
+        isPremiumTier
+        searchQuery=""
+        page={0}
+        onQueryChange={noop}
+        router={mockRouter}
+        renderPoliciesCount={() => null}
+        count={1}
+      />
+    );
+
+    await user.hover(screen.getByTestId("eye-slash-icon"));
+    await waitFor(() => {
+      expect(screen.getByText("Hidden from end users")).toBeInTheDocument();
+    });
+  });
+
+  it("Does not render a hidden badge for a visible policy", () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    render(
+      <PoliciesTable
+        policiesList={[createMockPolicy({ fleet_id: 2, hidden: false })]}
+        isLoading={false}
+        onDeletePoliciesClick={noop}
+        onAddPolicyClick={noop}
+        currentTeam={{ id: 2, name: "Workstations" }}
+        isPremiumTier
+        searchQuery=""
+        page={0}
+        onQueryChange={noop}
+        router={mockRouter}
+        renderPoliciesCount={() => null}
+        count={1}
+      />
+    );
+
+    expect(screen.queryByTestId("eye-slash-icon")).not.toBeInTheDocument();
+  });
+
   it("Renders an inherited badge and tooltip for inherited policy on a team's policies page", async () => {
     const render = createCustomRenderer({
       context: {
@@ -257,7 +322,7 @@ describe("Policies table", () => {
       },
     });
 
-    const testInheritedPolicy = createMockPolicy({ team_id: null });
+    const testInheritedPolicy = createMockPolicy({ fleet_id: null });
 
     const { user } = render(
       <PoliciesTable
@@ -297,7 +362,7 @@ describe("Policies table", () => {
       },
     });
 
-    const testGlobalPolicy = createMockPolicy({ team_id: null });
+    const testGlobalPolicy = createMockPolicy({ fleet_id: null });
 
     render(
       <PoliciesTable
@@ -330,14 +395,14 @@ describe("Policies table", () => {
     });
 
     const testInheritedPolicies = [
-      createMockPolicy({ team_id: null, name: "Inherited policy 1" }),
-      createMockPolicy({ id: 2, team_id: null, name: "Inherited policy 2" }),
-      createMockPolicy({ id: 3, team_id: null, name: "Inherited policy 3" }),
+      createMockPolicy({ fleet_id: null, name: "Inherited policy 1" }),
+      createMockPolicy({ id: 2, fleet_id: null, name: "Inherited policy 2" }),
+      createMockPolicy({ id: 3, fleet_id: null, name: "Inherited policy 3" }),
     ];
 
     const testTeamPolicies = [
-      createMockPolicy({ id: 4, team_id: 2, name: "Team policy 1" }),
-      createMockPolicy({ id: 5, team_id: 2, name: "Team policy 2" }),
+      createMockPolicy({ id: 4, fleet_id: 2, name: "Team policy 1" }),
+      createMockPolicy({ id: 5, fleet_id: 2, name: "Team policy 2" }),
     ];
 
     const policiesList = [...testInheritedPolicies, ...testTeamPolicies];

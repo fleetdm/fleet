@@ -19,7 +19,7 @@ export default PropTypes.shape({
   resolution: PropTypes.string.isRequired,
   critical: PropTypes.bool,
   response: PropTypes.string,
-  team_id: PropTypes.number,
+  fleet_id: PropTypes.number,
   updated_at: PropTypes.string.isRequired,
 });
 
@@ -62,13 +62,15 @@ export interface IPolicy {
   author_email: string;
   resolution: string;
   platform: CommaSeparatedPlatformString;
-  team_id: number | null;
+  fleet_id: number | null;
   created_at: string;
   updated_at: string;
   // A critical policy cannot be "resolved later" if Okta conditional access is enabled for it
   critical: boolean;
   calendar_events_enabled: boolean;
   conditional_access_enabled: boolean;
+  /** Hidden from end users in Fleet Desktop. Absent on device (My device) policies. */
+  hidden?: boolean;
   type: string;
   install_software?: IPolicySoftwareToInstall;
   run_script?: Pick<IScript, "id" | "name">;
@@ -77,6 +79,7 @@ export interface IPolicy {
   continuous_automations_enabled?: boolean;
   patch_when_closed?: boolean;
   notify_before_patching?: boolean;
+  patch_deadline?: boolean;
   labels_include_any?: ILabelPolicy[];
   labels_include_all?: ILabelPolicy[];
   labels_exclude_any?: ILabelPolicy[];
@@ -151,13 +154,15 @@ export interface IPolicyFormData {
   platform?: CommaSeparatedPlatformString;
   name?: string | number | boolean | undefined;
   query?: string | number | boolean | undefined;
-  team_id?: number | null;
+  fleet_id?: number | null;
   id?: number;
   calendar_events_enabled?: boolean;
   conditional_access_enabled?: boolean;
+  hidden?: boolean;
   continuous_automations_enabled?: boolean;
   patch_when_closed?: boolean;
   notify_before_patching?: boolean;
+  patch_deadline?: boolean;
   software_title_id?: number | null;
   /** Pins the policy to a specific package on a multi-package title. `null`
    * on PATCH clears the pinned package (mirrors `software_title_id`'s unset

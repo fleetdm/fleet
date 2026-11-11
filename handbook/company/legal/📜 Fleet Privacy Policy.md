@@ -1,6 +1,6 @@
 # Fleet Privacy Policy
 
-**Effective Date:** 08/17/2026
+**Effective Date:** 11/03/2026
 
 At Fleet, we take your privacy and data protection seriously. This Privacy Policy explains how Fleet Device Management Inc. (“Fleet,” “we,” “our,” or “us”) collects, uses, shares, and protects personal information across our services, websites, and products. It also explains your rights and choices regarding your information.
 
@@ -152,6 +152,7 @@ Fleet uses cookies and other tracking technologies for:
 
 Users can manage or disable cookies via their browser settings and may opt out of interest-based advertising through our Cookie Policy. Please note that Fleet's website does not currently recognize or respond to browser-initiated Do Not Track (DNT) signals.
 
+
 ### **Third-Party Tools and Platforms**
 
 Fleet uses third-party tools on our websites to support analytics, marketing, and visitor engagement. These tools may collect, process, and enrich data about your visit, including identifying your company or inferred identity based on your IP address or browsing activity. Current tools include, but are not limited to:
@@ -208,7 +209,7 @@ Workstreet, Bahnhofstraße 8, 30159 Hanover, Germany
 **UK representative**  
 Rebecca Sham, Workstreet  
 [rebecca@workstreet.com](mailto:rebecca@workstreet.com)  
-Workstreet, Regus Exeter Business Park, 1 Emperor Way, Exeter, Devon, EX1 3QS, United Kingdom
+Workstreet, Abbey House, 83 Princes Street, Edinburgh, EH2 2ER, Scotland, UK
 
 **Data Protection Officer**  
 Graham Reilly, Workstreet  

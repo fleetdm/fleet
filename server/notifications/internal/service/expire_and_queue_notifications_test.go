@@ -77,6 +77,10 @@ func (m *mockDatastore) SetEndUserNotificationStatus(context.Context, string, st
 	return nil
 }
 
+func (m *mockDatastore) SetEndUserNotificationPayload(context.Context, string, json.RawMessage) error {
+	return nil
+}
+
 func (m *mockDatastore) FailEndUserNotificationsForHost(context.Context, uint, string) error {
 	return nil
 }
@@ -91,6 +95,10 @@ func (m *mockDatastore) NewEndUserNotification(context.Context, *api.EndUserNoti
 
 func (m *mockDatastore) GetNotificationAwaitingDisplay(context.Context, uint, string) (*api.EndUserNotification, error) {
 	return nil, nil
+}
+
+func (m *mockDatastore) RescheduleEndUserNotificationsAwaitingDispatch(context.Context, uint, string, time.Time, time.Time) error {
+	return nil
 }
 
 // mockScriptQueue returns the execution IDs it was built with, so a test can

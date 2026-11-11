@@ -103,10 +103,17 @@
     }
   }
 
-  /* Ensures table doesn't bleed over 100% */
   .data-table__table {
-    table-layout: fixed;
+    // Auto layout so the version columns can shrink to their content
+    // (width: max-content, below) and Name absorbs the slack instead of the
+    // two version columns carrying a bunch of trailing whitespace at wide
+    // viewports.
+    table-layout: auto;
     width: 100%;
+    // Below this width the flex columns squeeze their headers into each
+    // other, so fall back to horizontal scroll inside .data-table__wrapper
+    // (which already has overflow-x: auto).
+    min-width: 900px;
   }
 
   /* Override any defaults for fixed column width */
@@ -127,6 +134,15 @@
     min-width: 230px;
     white-space: nowrap;
     text-overflow: ellipsis;
+  }
+
+  // Size the version columns to their widest content (usually the header
+  // label) so Name absorbs any remaining space at wider viewports.
+  .data-table__table th.version__header,
+  .data-table__table td.version__cell,
+  .data-table__table th.available_version__header,
+  .data-table__table td.available_version__cell {
+    width: max-content;
   }
 
   .data-table-block .data-table tbody {

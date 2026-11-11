@@ -2,11 +2,14 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -66,6 +69,74 @@ type listSoftwareVersionsResponse struct {
 
 func (r listSoftwareVersionsResponse) Error() error { return r.Err }
 
+// streamSoftwareVersionsResponse writes the software one version at a time. Encoding the whole
+// response at once holds several copies of it in memory, which runs to gigabytes for pages of
+// versions with thousands of CVEs each.
+//
+// Rendering here bypasses EncodeCommonResponse, so renameto key aliasing does not apply: a
+// renameto tag added to the types in this response must be handled here.
+type streamSoftwareVersionsResponse struct {
+	listSoftwareVersionsResponse
+}
+
+func (r streamSoftwareVersionsResponse) HijackRender(_ context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	// From here on the response is a 200, so errors are reported in the body's "error" key.
+	w.WriteHeader(http.StatusOK)
+
+	// No flushing per version: the writer sends its buffer as it fills, and with gzip_responses
+	// every flush ends a deflate block, which made pages of small versions 50% larger.
+	writeError := func(msg string) {
+		data, err := json.Marshal(msg)
+		if err != nil {
+			data = []byte(`"unknown error"`)
+		}
+		fmt.Fprintf(w, `"error":%s}`, data)
+	}
+
+	// The other fields, from the response struct itself so they keep its tags.
+	head := r.listSoftwareVersionsResponse
+	head.Software = nil
+	data, err := json.Marshal(head)
+	if err != nil {
+		_, _ = io.WriteString(w, `{`)
+		writeError(fmt.Sprintf("marshaling software versions response: %s", err))
+		return
+	}
+	if len(r.Software) == 0 {
+		_, _ = w.Write(data)
+		return
+	}
+
+	// A failed write means the client is gone, so stop rather than encode the rest for nobody.
+	var writeErr error
+	write := func(b []byte) {
+		if writeErr == nil {
+			_, writeErr = w.Write(b)
+		}
+	}
+
+	write(data[:len(data)-1]) // without the closing brace
+	write([]byte(`,"software":[`))
+	for i := range r.Software {
+		if writeErr != nil {
+			return
+		}
+		// By pointer, so that fleet.Software's MarshalJSON is used.
+		sw, err := json.Marshal(&r.Software[i])
+		if err != nil {
+			write([]byte(`],`))
+			writeError(fmt.Sprintf("marshaling software %d: %s", r.Software[i].ID, err))
+			return
+		}
+		if i > 0 {
+			write([]byte(`,`))
+		}
+		write(sw)
+	}
+	write([]byte(`]}`))
+}
+
 func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listSoftwareRequest)
 
@@ -103,7 +174,7 @@ func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc 
 	}
 	listResp.Count = c
 
-	return listResp, nil
+	return streamSoftwareVersionsResponse{listSoftwareVersionsResponse: listResp}, nil
 }
 
 func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, *fleet.PaginationMetadata, error) {
@@ -118,8 +189,13 @@ func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 	if err != nil {
 		return nil, nil, err
 	}
-	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit) {
+	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit || opt.AITool) {
 		return nil, nil, fleet.ErrMissingLicense
+	}
+
+	opt.TypeFilter, err = fleet.ParseSoftwareTypeFilter(opt.Source, opt.ExtensionFor)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	// default sort order to hosts_count descending
@@ -132,6 +208,13 @@ func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 	softwares, meta, err := svc.ds.ListSoftware(ctx, opt)
 	if err != nil {
 		return nil, nil, err
+	}
+	// ai_tool is Fleet Premium, so it's omitted on Free. That also hides software flagged before a
+	// downgrade, since the flag is never reset in the database.
+	if !lic.IsPremium() {
+		for i := range softwares {
+			softwares[i].AITool = nil
+		}
 	}
 
 	return softwares, meta, nil
@@ -216,6 +299,9 @@ func (svc *Service) SoftwareByID(ctx context.Context, id uint, teamID *uint, inc
 		}
 		return nil, ctxerr.Wrap(ctx, err, "getting software version by id")
 	}
+	if !license.IsPremium(ctx) {
+		software.AITool = nil
+	}
 
 	return software, nil
 }
@@ -274,8 +360,13 @@ func (svc Service) CountSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 	}
 
 	// Vulnerability filters are only available in premium
-	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit) {
+	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit || opt.AITool) {
 		return 0, fleet.ErrMissingLicense
+	}
+
+	opt.TypeFilter, err = fleet.ParseSoftwareTypeFilter(opt.Source, opt.ExtensionFor)
+	if err != nil {
+		return 0, err
 	}
 
 	// required for vulnerability filters

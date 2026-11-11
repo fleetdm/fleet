@@ -49,23 +49,35 @@
     .display-name-container {
       display: flex;
       align-items: baseline; // Align text to bottom
+      // Wrap "Last fetched..." below the h1 when the refetch button expands
+      // and squeezes the row.
+      flex-wrap: wrap;
+      column-gap: $pad-medium;
+      row-gap: $pad-xsmall;
+
+      // TooltipWrapper's <span> and inner __element div both sit in flex
+      // contexts; both need min-width: 0 for the h1's ellipsis to engage.
+      > * {
+        min-width: 0;
+      }
+
+      .component__tooltip-wrapper__element {
+        min-width: 0;
+        overflow: hidden;
+      }
+    }
+
+    // Let .title__inner shrink so the h1 can truncate.
+    .title__inner {
+      flex: 1 1 0;
+      min-width: 0;
     }
 
     .display-name {
       font-size: $large;
-      @include ellipse-text(300px);
-
-      @media (min-width: $break-md) {
-        @include ellipse-text(500px);
-      }
-
-      @media (min-width: $break-lg) {
-        @include ellipse-text(800px);
-      }
-
-      @media (min-width: $break-xxl) {
-        @include ellipse-text(1000px);
-      }
+      // No max-width: truncate only when the row runs out of room.
+      @include ellipse-text;
+      min-width: 0;
     }
   }
 

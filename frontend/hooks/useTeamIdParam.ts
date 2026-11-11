@@ -62,7 +62,7 @@ const splitQueryStringParts = (queryString: string) =>
 const joinQueryStringParts = (parts: string[]) =>
   parts.length ? `?${parts.join("&")}` : "";
 
-const rebuildQueryStringWithTeamId = (
+export const rebuildQueryStringWithTeamId = (
   queryString: string,
   newTeamId: number,
   curTeamId: number | undefined,
@@ -74,16 +74,6 @@ const rebuildQueryStringWithTeamId = (
   const pageIndex = parts.findIndex((p) => p.startsWith("page="));
   if (pageIndex !== -1) {
     parts.splice(pageIndex, 1, "page=0");
-  }
-
-  // Backward compat: rewrite legacy team_id= to fleet_id=
-  const legacyIndex = parts.findIndex((p) => p.startsWith("team_id="));
-  if (legacyIndex !== -1) {
-    parts.splice(
-      legacyIndex,
-      1,
-      parts[legacyIndex].replace("team_id=", "fleet_id=")
-    );
   }
 
   const teamIndex = parts.findIndex((p) => p.startsWith("fleet_id="));
@@ -181,7 +171,7 @@ const getUserTeams = ({
 
   return permissions.isOnGlobalTeam(currentUser)
     ? availableTeams
-    : filterUserTeamsByRole(currentUser.teams, permittedAccessByTeamRole);
+    : filterUserTeamsByRole(currentUser.fleets, permittedAccessByTeamRole);
 };
 
 // Prefer a fleet named "Workstations" (with or without emoji prefix),
@@ -364,7 +354,7 @@ export const useTeamIdParam = ({
   location?: {
     pathname: string;
     search: string;
-    query: { fleet_id?: string; team_id?: string };
+    query: { fleet_id?: string };
     hash?: string;
     [key: string]: any; // for other location properties that may be passed in
   };
@@ -376,8 +366,6 @@ export const useTeamIdParam = ({
   overrideParamsOnTeamChange?: IConfigOverrideParamsOnTeamChange;
 }) => {
   const { hash, pathname, query, search } = location;
-
-  const hasLegacyTeamIdParam = search.includes("team_id=");
 
   const {
     availableTeams,
@@ -412,11 +400,8 @@ export const useTeamIdParam = ({
 
   const currentTeam = useMemo(
     () =>
-      userTeams?.find(
-        (t) =>
-          t.id === coerceAllTeamsId(query?.fleet_id || query?.team_id || "")
-      ),
-    [query?.fleet_id, query?.team_id, userTeams]
+      userTeams?.find((t) => t.id === coerceAllTeamsId(query?.fleet_id || "")),
+    [query?.fleet_id, userTeams]
   );
 
   const handleTeamChange = useCallback(
@@ -457,15 +442,7 @@ export const useTeamIdParam = ({
 
   // reconcile router location and redirect to default team as applicable
   let isRouteOk = false;
-  if (hasLegacyTeamIdParam) {
-    // Backward compat: redirect legacy ?team_id= URLs to ?fleet_id=
-    // Skip other reconciliation to avoid a second redirect overwriting this one.
-    router.replace(
-      pathname
-        .concat(search.replace(/\bteam_id=/g, "fleet_id="))
-        .concat(hash || "")
-    );
-  } else if (isFreeTier) {
+  if (isFreeTier) {
     // free tier should never have fleet_id param, so change to "All teams"
     if (query.fleet_id) {
       handleTeamChange(-1); // -1 because all pages on Free actually function as if on "All teams", even when not supported e.g. Controls
@@ -522,7 +499,7 @@ export const useTeamIdParam = ({
       !!currentTeam?.id &&
       permissions.isTeamObserver(currentUser, currentTeam.id),
     isObserverPlus:
-      !!currentTeam?.id &&
+      currentTeam?.id !== undefined &&
       !!currentUser &&
       permissions.isObserverPlus(currentUser, currentTeam.id),
     teamIdForApi: getTeamIdForApi({ currentTeam, includeNoTeam }), // for everywhere except AppContext: fleet_id=0 for No team (same as currentTeamId), undefined for All teams

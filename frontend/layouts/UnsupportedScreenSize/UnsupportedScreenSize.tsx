@@ -1,6 +1,6 @@
 import React from "react";
 
-import smallScreenImage from "../../../assets/images/small-screen-160x80@2x.png";
+import smallScreenImage from "../../assets/images/small-screen-160x80@2x.png";
 
 const baseClass = "unsupported-screen-size";
 

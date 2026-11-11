@@ -29,9 +29,11 @@ var (
 	AppleOSVersionDeadlineInvalidMessage         = "The deadline isn't a valid date."
 	CantDeleteHostUnverifiedABMMessage           = "Couldn't delete host. Fleet couldn't reach Apple Business to check whether this host is still assigned. Please try again."
 	MyDeviceURLUnsupportedPlatformMessage        = "The My device page is only supported for macOS, Windows, Linux, and iOS/iPadOS hosts."
+	MyDeviceURLNotEnrolledMessage                = "The My device page isn't available until this host enrolls in MDM."
 	CantTurnOffMDMForWindowsHostsMessage         = "Can't turn off MDM for Windows hosts."
 	CantTurnOffMDMAlreadyTurnedOffMessage        = "Couldn't turn off MDM. This host already has MDM turned off."
 	CantTurnOffMDMForPersonalHostsMessage        = "Couldn't turn off MDM. This command isn't available for personal hosts."
+	CantUnenrollPendingUnenrollMessage           = "Couldn't unenroll. This host already has a pending unenroll. It will unenroll when it comes online."
 	CantWipePersonalHostsMessage                 = "Couldn't wipe. This command isn't available for personal hosts."
 	CantLockPersonalHostsMessage                 = "Couldn't lock. This command isn't available for personal hosts."
 	CantClearPasscodePersonalHostsMessage        = "Unlock token is not available for this device. Unable to issue ClearPasscode command."
@@ -43,6 +45,8 @@ var (
 	CantAddSoftwareConflictMessage               = "Couldn't add software. %s already has an installer available for the %s fleet."
 	// Args: the two conflicting app names (order not significant).
 	CantAddConflictingFMAMessage = "Couldn't add software. Only one of %s or %s can be added to the same fleet."
+	// Args: the Fleet-maintained app name.
+	FleetMaintainedAppManifestUnreachableMessage = "Fleet couldn't fetch the manifest for %s. Please try again."
 	// AddMaintainedAppTimeoutErrMsg is returned when Fleet's own 15-minute installer
 	// download timeout is exceeded (context.DeadlineExceeded).
 	AddMaintainedAppTimeoutErrMsg = "Couldn't add. Downloading the installer took longer than Fleet's 15-minute limit. This can happen with very large installers or a slow connection to the vendor's content delivery network (CDN). Try again, and make sure any proxy, gateway, or load balancer in front of Fleet allows the request to run at least that long."
@@ -54,7 +58,7 @@ var (
 	SoftwareAlreadyHasVPPAppMessage              = "%s already has an Apple App Store (VPP) on the %s fleet."
 	SoftwareAlreadyHasFleetMaintainedAppMessage  = "%s already has a Fleet-maintained app on the %s fleet."
 	SoftwareAlreadyHasPackageMessage             = "%s already has a software package on the %s fleet."
-	SoftwarePackageLimitMessage                  = "%s already has %d packages. Before adding, delete one you no longer use."
+	SoftwarePackageLimitMessage                  = "%s already has %d versions. Before adding, delete one you no longer use."
 	SoftwareSelfServiceCategoriesConflictMessage = "Couldn't add software (%q). self_service and categories can be specified either in the fleet-level file or in the package YAML file."
 	SoftwareSetupExperienceFleetLevelOnlyMessage = "Couldn't add software (%q). setup_experience can be specified only in the fleet-level file."
 	SoftwareLabelsPackageLevelOnlyMessage        = "Couldn't add software (%q). Labels can be specified only in the package-level file when adding multiple packages of the same software."
@@ -62,6 +66,8 @@ var (
 	ConfigProfileLabelScopingPremiumCauseMsg     = "Scoping configuration profiles with labels"
 	DDMCustomActivationPremiumCauseMsg           = "Custom activations for declaration (DDM) profiles"
 )
+
+const Fleet5MigrationGuide = "https://fleetdm.com/learn-more-about/fleet-5-migration"
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP
 // status code.
@@ -176,6 +182,31 @@ func (e *InvalidArgumentError) Invalid() []map[string]string {
 // BadRequestError is an alias for platform_http.BadRequestError.
 type BadRequestError = platform_http.BadRequestError
 
+// ParamRequiredDeprecationError is a bad request for a parameter that Fleet 5 made required, so that every
+// such change returns the same message and migration link.
+type ParamRequiredDeprecationError struct {
+	Param string
+}
+
+// NewParamRequiredDeprecationError returns a ParamRequiredDeprecationError for the named parameter.
+func NewParamRequiredDeprecationError(param string) *ParamRequiredDeprecationError {
+	return &ParamRequiredDeprecationError{Param: param}
+}
+
+func (e *ParamRequiredDeprecationError) Error() string {
+	return fmt.Sprintf(`The %q parameter is now required. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration`, e.Param)
+}
+
+// GitOpsMDMCommandErrorMessage is returned to GitOps users, who can't run MDM commands since Fleet 5.
+const GitOpsMDMCommandErrorMessage = "Users with the GitOps role can no longer run MDM commands. What to use instead: " +
+	Fleet5MigrationGuide
+
+// BadRequestError makes the error encoder return a 400.
+func (e *ParamRequiredDeprecationError) BadRequestError() []map[string]string { return nil }
+
+// IsClientError implements ErrWithIsClientError.
+func (e *ParamRequiredDeprecationError) IsClientError() bool { return true }
+
 // AuthFailedError is an alias for platform_http.AuthFailedError.
 type AuthFailedError = platform_http.AuthFailedError
 
@@ -187,6 +218,12 @@ type AuthRequiredError = platform_http.AuthRequiredError
 
 // NewAuthRequiredError is an alias for platform_http.NewAuthRequiredError.
 var NewAuthRequiredError = platform_http.NewAuthRequiredError
+
+// AuthUnavailableError is an alias for platform_http.AuthUnavailableError.
+type AuthUnavailableError = platform_http.AuthUnavailableError
+
+// NewAuthUnavailableError is an alias for platform_http.NewAuthUnavailableError.
+var NewAuthUnavailableError = platform_http.NewAuthUnavailableError
 
 // DeviceSSORequiredError is an alias for platform_http.DeviceSSORequiredError.
 type DeviceSSORequiredError = platform_http.DeviceSSORequiredError
@@ -521,11 +558,22 @@ func (e OrbitError) IsClientError() bool {
 	return code >= 400 && code < 500
 }
 
+// OrbitIDPAuthRequiredMessage is matched verbatim by fleetd to decide it must
+// open the IdP sign-in window, so it must not change.
+const OrbitIDPAuthRequiredMessage = "END_USER_AUTH_REQUIRED"
+
 func NewOrbitIDPAuthRequiredError() *OrbitError {
 	return &OrbitError{
-		Message: "END_USER_AUTH_REQUIRED",
+		Message: OrbitIDPAuthRequiredMessage,
 		code:    http.StatusUnauthorized,
 	}
+}
+
+// IsOrbitIDPAuthRequired reports whether err is the response EnrollOrbit
+// returns when the device's end user must authenticate before enrolling.
+func IsOrbitIDPAuthRequired(err error) bool {
+	orbitErr, ok := errors.AsType[*OrbitError](err)
+	return ok && orbitErr.Message == OrbitIDPAuthRequiredMessage
 }
 
 // Messages that may be surfaced by the server or the fleetctl client.
@@ -571,12 +619,19 @@ const (
 
 	// Invalid list options combinations
 	FilterTitlesByPlatformNeedsTeamIdErrMsg = "The 'platform' and 'team_id' parameters must be used together to filter the software available for install."
+
+	softwareTypeFilterDocsURL                   = "https://fleetdm.com/docs/rest-api/rest-api#list-software"
+	InvalidSoftwareSourceErrMsg                 = "Invalid source: %q isn't a valid source. See the options: " + softwareTypeFilterDocsURL
+	InvalidSoftwareExtensionForErrMsg           = "Invalid extension_for: %q isn't a valid browser or IDE. See the options: " + softwareTypeFilterDocsURL
+	SoftwareExtensionForRequiresSourceErrMsg    = "extension_for requires source. Specify a browser or IDE extension source, like source=chrome_extensions&extension_for=brave."
+	SoftwareExtensionForSourceNotSelectedErrMsg = "%q is a %q value, but source doesn't include %[2]q."
 )
 
 // Error message variables
 var (
-	NDESSCEPVariablesMissingErrMsg         = fmt.Sprintf("SCEP profile for NDES certificate authority requires: $FLEET_VAR_%s, $FLEET_VAR_%s, and $FLEET_VAR_%s variables.", FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarCertificateRenewalID)
-	SCEPRenewalIDWithoutURLChallengeErrMsg = "Variable \"$FLEET_VAR_" + string(FleetVarCertificateRenewalID) + "\" can't be used if variables for SCEP URL and Challenge are not specified."
+	NDESSCEPVariablesMissingErrMsg              = fmt.Sprintf("SCEP profile for NDES certificate authority requires: $FLEET_VAR_%s, $FLEET_VAR_%s, and $FLEET_VAR_%s variables.", FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarCertificateRenewalID)
+	SCEPRenewalIDWithoutURLChallengeErrMsg      = "Variable \"$FLEET_VAR_" + string(FleetVarCertificateRenewalID) + "\" can't be used if variables for SCEP URL and Challenge are not specified."
+	ConditionalAccessSCEPVariablesMissingErrMsg = fmt.Sprintf("SCEP profile for conditional access requires: $FLEET_VAR_%s and $FLEET_VAR_%s variables.", FleetVarConditionalAccessSCEPURL, FleetVarCertificateRenewalID)
 )
 
 const (
@@ -598,6 +653,55 @@ func (e ConflictError) Error() string {
 func (e ConflictError) StatusCode() int {
 	return http.StatusConflict
 }
+
+// HostGoogleDeviceIDConflictError is returned when a host is already bound to a different Google device ID.
+type HostGoogleDeviceIDConflictError struct {
+	StoredID string
+}
+
+func (e *HostGoogleDeviceIDConflictError) Error() string {
+	return "This host already has a different Google device ID."
+}
+
+func (e *HostGoogleDeviceIDConflictError) Invalid() []map[string]string {
+	return []map[string]string{{"name": "google_device_id", "reason": e.Error()}}
+}
+
+func (e *HostGoogleDeviceIDConflictError) Status() int { return http.StatusConflict }
+
+func (e *HostGoogleDeviceIDConflictError) IsClientError() bool { return true }
+
+// EJBCANameInUseError is returned when a certificate authority name would be shared by an EJBCA certificate authority and another
+// certificate authority. The name of an EJBCA CA has to be unique among all the CAs.
+type EJBCANameInUseError struct {
+	Name string
+}
+
+func (e EJBCANameInUseError) Error() string {
+	return fmt.Sprintf("%q name is already used by another certificate authority, and the name of an EJBCA certificate authority can't be shared. "+
+		"Please choose a different name and try again.", e.Name)
+}
+
+// StatusCode implements the kithttp.StatusCoder interface.
+func (e EJBCANameInUseError) StatusCode() int {
+	return http.StatusConflict
+}
+
+// CertificateAuthorityTransientError is the 503 for a certificate request the CA could not
+// serve for a reason expected to clear on its own, such as no response or an HTTP 5xx.
+// Retry-After tells callers such as curl --retry when to try again.
+type CertificateAuthorityTransientError struct {
+	Message           string
+	RetryAfterSeconds int
+}
+
+func (e CertificateAuthorityTransientError) Error() string { return e.Message }
+
+// StatusCode implements the kithttp.StatusCoder interface.
+func (e CertificateAuthorityTransientError) StatusCode() int { return http.StatusServiceUnavailable }
+
+// RetryAfter implements platform_http.ErrWithRetryAfter.
+func (e CertificateAuthorityTransientError) RetryAfter() int { return e.RetryAfterSeconds }
 
 // LinuxEscrowInFlightError is the 409 for a LUKS escrow request refused because fleetd is already
 // handling one. Retry-After is how long until that state expires if fleetd sends nothing further.
@@ -654,4 +758,35 @@ func (e *ABOnlyEnrollmentForbiddenError) Internal() string {
 	return ""
 }
 
+// AutomaticEnrollmentRefusedError is returned when the Apple automatic enrollment profile request is refused. Setup
+// Assistant treats a 401 there as a request for a username and password, so it's a 403, and the reason is only logged.
+type AutomaticEnrollmentRefusedError struct {
+	ErrorWithUUID
+	Reason string
+}
+
+func (e *AutomaticEnrollmentRefusedError) Error() string {
+	return "This device can't enroll right now. Please contact your IT administrator."
+}
+
+func (e *AutomaticEnrollmentRefusedError) StatusCode() int { return http.StatusForbidden }
+
+func (e *AutomaticEnrollmentRefusedError) Internal() string { return e.Reason }
+
+func (e *AutomaticEnrollmentRefusedError) IsClientError() bool { return true }
+
 const AdminOnlyEnrollmentForbiddenErrMsg = "Manual enrollment is not available because only Apple Business enrollment is allowed for this organization."
+
+// This is a unique deprecation notice only used very few places, where a default was changed and thereby blocked, therefore not part of the pkg/removednames
+type NotAllowedByDefaultDeprecationError struct {
+	Method   string
+	Endpoint string
+}
+
+func (e *NotAllowedByDefaultDeprecationError) Error() string {
+	return fmt.Sprintf(`The "%s %s" endpoint is not available anymore by default. What to use instead: %s`, e.Method, e.Endpoint, Fleet5MigrationGuide)
+}
+
+func (e *NotAllowedByDefaultDeprecationError) StatusCode() int { return http.StatusGone }
+
+func (e *NotAllowedByDefaultDeprecationError) IsClientError() bool { return true }

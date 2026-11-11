@@ -73,7 +73,7 @@ const validatePolicyName = (name: string) => {
   const errors: { [key: string]: string } = {};
 
   if (!name) {
-    errors.name = "Policy name must be present";
+    errors.name = "Enter a policy name";
   }
 
   const valid = !size(errors);
@@ -107,12 +107,14 @@ const SaveNewPolicyModal = ({
     lastEditedQueryDescription,
     lastEditedQueryResolution,
     lastEditedQueryCritical,
+    lastEditedQueryHidden,
     setLastEditedQueryName,
     setLastEditedQueryPlatform,
     // TODO: Keep last edited query platform from resetting when cancelling out of modal and clicking save again
     setLastEditedQueryDescription,
     setLastEditedQueryResolution,
     setLastEditedQueryCritical,
+    setLastEditedQueryHidden,
   } = useContext(PolicyContext);
 
   const [errors, setErrors] = useState<{ [key: string]: string }>(
@@ -128,12 +130,19 @@ const SaveNewPolicyModal = ({
 
   const [showAutomations, setShowAutomations] = useState(false);
   const automationsRef = useRef<IPolicyAutomationsFieldsHandle>(null);
+  const [conditionalAccessOn, setConditionalAccessOn] = useState(false);
+
+  useEffect(() => {
+    if (conditionalAccessOn) {
+      setLastEditedQueryHidden(false);
+    }
+  }, [conditionalAccessOn, setLastEditedQueryHidden]);
 
   const newPolicyStub = useMemo(
     () =>
       ({
         id: -1,
-        team_id: policyTeamId ?? null,
+        fleet_id: policyTeamId ?? null,
         calendar_events_enabled: false,
         conditional_access_enabled: false,
         continuous_automations_enabled: false,
@@ -141,12 +150,27 @@ const SaveNewPolicyModal = ({
     [policyTeamId]
   );
 
+  const [platformError, setPlatformError] = useState<string | null>(null);
+  const [showLabelsError, setShowLabelsError] = useState(false);
+
   const disableForm =
     isFetchingAutofillDescription || isFetchingAutofillResolution;
-  const disableSave =
-    !platformSelector.isAnyPlatformSelected ||
-    disableForm ||
-    (selectedTargetType === "Custom" && !hasCustomLabels);
+
+  const labelsRequired = selectedTargetType === "Custom" && !hasCustomLabels;
+  const labelsError =
+    showLabelsError && labelsRequired ? "Select at least one label" : null;
+
+  useEffect(() => {
+    if (platformSelector.isAnyPlatformSelected) {
+      setPlatformError(null);
+    }
+  }, [platformSelector.isAnyPlatformSelected]);
+
+  useEffect(() => {
+    if (!labelsRequired) {
+      setShowLabelsError(false);
+    }
+  }, [labelsRequired]);
 
   useDeepEffect(() => {
     if (lastEditedQueryName) {
@@ -164,7 +188,11 @@ const SaveNewPolicyModal = ({
     const newPlatformString = platformSelector
       .getSelectedPlatforms()
       .join(",") as CommaSeparatedPlatformString;
-    setLastEditedQueryPlatform(newPlatformString);
+    // Empty string in platformContext is a legacy "no restriction → check
+    // all four" signal in usePlatformSelector. Persist null so clicking Save
+    // with zero platforms doesn't flip to "all platforms" instead of
+    // surfacing the inline error.
+    setLastEditedQueryPlatform(newPlatformString || null);
 
     const { valid: validName, errors: newErrors } = validatePolicyName(
       lastEditedQueryName
@@ -174,7 +202,11 @@ const SaveNewPolicyModal = ({
       ...newErrors,
     });
 
-    if (disableSave || !validName) {
+    const hasPlatform = platformSelector.isAnyPlatformSelected;
+    setPlatformError(hasPlatform ? null : "Select at least one platform");
+    setShowLabelsError(labelsRequired);
+
+    if (disableForm || !validName || !hasPlatform || labelsRequired) {
       return;
     }
 
@@ -195,6 +227,7 @@ const SaveNewPolicyModal = ({
     };
     if (isPremiumTier) {
       Object.assign(payload, getLabelsPayload());
+      payload.hidden = lastEditedQueryHidden;
     }
 
     // The create endpoint deliberately ignores automation fields (see the
@@ -207,7 +240,7 @@ const SaveNewPolicyModal = ({
           if (automations.policyUpdate && !isGlobalPolicy) {
             requests.push(
               teamPoliciesAPI.update(newPolicy.id, {
-                team_id: policyTeamId,
+                fleet_id: policyTeamId,
                 ...automations.policyUpdate,
               })
             );
@@ -362,7 +395,7 @@ const SaveNewPolicyModal = ({
           helpText="If this policy fails, what should the end user expect?"
           disabled={disableForm}
         />
-        {platformSelector.render()}
+        {platformSelector.render(platformError)}
         {isPremiumTier && (
           <TargetLabelSelector
             {...selectorProps}
@@ -370,6 +403,7 @@ const SaveNewPolicyModal = ({
             emptyStateDescription={POLICY_TARGET_EMPTY_STATE_DESCRIPTION}
             onAddLabel={() => router.push(PATHS.LABEL_NEW_DYNAMIC)}
             disableOptions={disableForm}
+            labelsError={labelsError}
           />
         )}
         {showAutomations ? (
@@ -384,6 +418,7 @@ const SaveNewPolicyModal = ({
               globalConfig={globalConfig}
               fleetName={fleetName}
               selectedPlatforms={platformSelector.getSelectedPlatforms()}
+              onConditionalAccessChange={setConditionalAccessOn}
             />
           </div>
         ) : (
@@ -420,35 +455,35 @@ const SaveNewPolicyModal = ({
             </Checkbox>
           </div>
         )}
-        <div className="modal-cta-wrap">
-          <TooltipWrapper
-            tipContent={
-              <>
-                Select the platforms this
-                <br />
-                policy will be checked on
-                <br />
-                to save the policy.
-              </>
-            }
-            tooltipClass={`${baseClass}__button--modal-save-tooltip`}
-            position="top"
-            disableTooltip={!disableSave}
-            underline={false}
-            showArrow
-            tipOffset={8}
-          >
-            <span className={`${baseClass}__button-wrap--modal-save`}>
-              <Button
-                type="submit"
-                disabled={disableSave}
-                className="save-policy-loading"
-                isLoading={isUpdatingPolicy}
+        {isPremiumTier && (
+          <div className="hidden-checkbox-wrapper">
+            <Checkbox
+              name="hidden-policy"
+              onChange={(value: boolean) => setLastEditedQueryHidden(value)}
+              value={lastEditedQueryHidden}
+              disabled={disableForm || conditionalAccessOn}
+            >
+              <TooltipWrapper
+                tipContent={
+                  conditionalAccessOn
+                    ? "This setting is not compatible with the conditional access automation."
+                    : "Does not require action from the end user and is hidden in Fleet Desktop."
+                }
               >
-                Save
-              </Button>
-            </span>
-          </TooltipWrapper>
+                Hide from end user
+              </TooltipWrapper>
+            </Checkbox>
+          </div>
+        )}
+        <div className="modal-cta-wrap">
+          <Button
+            type="submit"
+            className="save-policy-loading"
+            isLoading={isUpdatingPolicy}
+            disabled={disableForm}
+          >
+            Save
+          </Button>
           <Button
             className={`${baseClass}__button--modal-cancel`}
             type="button"

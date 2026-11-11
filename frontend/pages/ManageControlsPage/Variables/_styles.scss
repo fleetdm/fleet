@@ -10,13 +10,6 @@
     @include tab-header;
   }
 
-  &__token {
-    display: flex;
-    align-items: center;
-    gap: $pad-xsmall;
-    width: fit-content;
-  }
-
   &__actions {
     display: flex;
     align-items: center;
@@ -34,15 +27,6 @@
 
   &__tab-header {
     @include tab-header;
-  }
-
-  &__token {
-    display: flex;
-    align-items: center;
-    gap: $pad-xsmall;
-    // Shrink to content so the copy button sits next to the token value
-    // instead of being pushed to the right edge of the (wider) cell.
-    width: fit-content;
   }
 
   &__actions {

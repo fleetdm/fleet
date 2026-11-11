@@ -6,6 +6,7 @@ import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio";
+import useApiEndpoints from "hooks/useApiEndpoints";
 import useFormValidation from "hooks/useFormValidation";
 import { IApiEndpointRef } from "interfaces/api_endpoint";
 import { ITeam } from "interfaces/team";
@@ -16,7 +17,11 @@ import { roleOptions } from "../../helpers/userManagementHelpers";
 import ApiAccessSection from "../ApiAccessSection";
 import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 
-import { ApiUserFormState, validateApiUserForm } from "./helpers";
+import {
+  ApiUserFormState,
+  dropUnlistedEndpoints,
+  validateApiUserForm,
+} from "./helpers";
 
 export interface IApiUserFormData {
   name: string;
@@ -49,16 +54,20 @@ const ApiUserForm = ({
 }: IApiUserFormProps) => {
   const isNewUser = defaultData === undefined;
 
+  // Only stored grants can be missing from the catalog; anything picked in the
+  // selector comes from it.
+  const { data: apiEndpointCatalog } = useApiEndpoints({
+    enabled: !!isPremiumTier && !!defaultData?.api_endpoints?.length,
+  });
+
   const validate = (data: ApiUserFormState) =>
-    validateApiUserForm(data, { isPremiumTier });
+    validateApiUserForm(data, { isPremiumTier, apiEndpointCatalog });
 
   const {
     formData,
-    setField,
     commitFields,
     getError,
-    clearFieldError,
-    validateField,
+    getTextFieldProps,
     handleSubmit,
     isSubmitting,
   } = useFormValidation<ApiUserFormState>({
@@ -82,7 +91,9 @@ const ApiUserForm = ({
     // instance. When "All" is selected, send null to signal full access.
     let apiEndpoints: IApiEndpointRef[] | null | undefined;
     if (isPremiumTier) {
-      apiEndpoints = data.isSpecificEndpoints ? data.api_endpoints : null;
+      apiEndpoints = data.isSpecificEndpoints
+        ? dropUnlistedEndpoints(data.api_endpoints, apiEndpointCatalog)
+        : null;
     }
 
     return onSubmit({
@@ -174,13 +185,8 @@ const ApiUserForm = ({
     <div>
       <form autoComplete="off" onSubmit={handleSubmit(onValidSubmit)}>
         <InputField
-          name="name"
+          {...getTextFieldProps("name")}
           label="Name"
-          value={formData.name}
-          onChange={(value: string) => setField("name", value)}
-          onFocus={() => clearFieldError("name")}
-          onBlur={() => validateField("name")}
-          error={getError("name")}
           disabled={isSubmitting}
           autofocus
           inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}

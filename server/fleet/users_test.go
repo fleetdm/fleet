@@ -436,3 +436,9 @@ func TestUserComputeStatus(t *testing.T) {
 		})
 	}
 }
+
+func TestHasAnyGlobalRole(t *testing.T) {
+	require.False(t, (&User{}).HasAnyGlobalRole())
+	require.False(t, (&User{GlobalRole: new("")}).HasAnyGlobalRole())
+	require.True(t, (&User{GlobalRole: new(RoleObserver)}).HasAnyGlobalRole())
+}

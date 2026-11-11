@@ -5,6 +5,7 @@ import Button from "components/buttons/Button";
 import CopyButton from "components/buttons/CopyButton";
 import CustomLink from "components/CustomLink";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { GraphicNames } from "components/graphics";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
@@ -12,7 +13,10 @@ import TooltipWrapper from "components/TooltipWrapper";
 import TruncatedTextList from "components/TruncatedTextList";
 import { ILabelSoftwareTitle } from "interfaces/label";
 import { InstallerType, SoftwareSource } from "interfaces/software";
-import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
+import {
+  getAutoUpdateTooltip,
+  getSelfServiceTooltip,
+} from "pages/SoftwarePage/helpers";
 import InstallerDetailsWidget from "pages/SoftwarePage/SoftwareTitleDetailsPage/SoftwareInstallerCard/InstallerDetailsWidget";
 
 const baseClass = "library-item-accordion";
@@ -34,8 +38,8 @@ export interface ILibraryItemAccordionProps {
   /** Software title display name (or package filename for custom packages). */
   filename: string;
   version?: string | null;
-  /** ISO timestamp. Rendered as "Added X ago". */
-  addedAt: string;
+  /** ISO timestamp. Rendered as "Added X ago". Omit to hide it. */
+  addedAt?: string;
 
   /** Drives the file/store icon and the version-row treatment.
    * - "package" (default): file-pkg graphic, plain version text
@@ -138,6 +142,31 @@ export interface ILibraryItemAccordionProps {
    * navigate straight to the single linked policy or open the PoliciesModal,
    * scoped to THIS package's policies. */
   onAutoInstallClick?: () => void;
+
+  /** Parallel of `canActivateMultiplePackages` for App Store app titles that
+   * can hold multiple versions (iOS, iPadOS, Android). Drives the per-row
+   * self-service and auto-update icons. */
+  canActivateMultipleVersions?: boolean;
+  /** Drives the auto-update icon's visibility on multi-version App Store
+   * rows. Mirrors the version's `auto_update_enabled`. */
+  isAutoUpdateEnabled?: boolean;
+  /** Daily maintenance window shown in the auto-update icon's tooltip, in
+   * the host's local time (e.g. `"00:00"` to `"04:00"`). */
+  autoUpdateWindowStart?: string | null;
+  autoUpdateWindowEnd?: string | null;
+  /** Click handler for the auto-update icon — opens the per-version Edit
+   * version modal (same target as the labels-count badge). */
+  onAutoUpdateClick?: () => void;
+
+  /** Override the row's auto-picked icon with a specific graphic. Used by
+   * App Store app version rows to show a configuration-profile glyph (the
+   * row represents a configuration, not an app). */
+  graphicOverride?: GraphicNames;
+
+  /** Suppress the version chip's "Updated every hour." / Play Store tooltip
+   * on this row. Used by App Store app version rows where the app metadata
+   * header above the list already surfaces that tooltip. */
+  hideVersion?: boolean;
 }
 
 const ALL_HOSTS_LABEL = "All hosts";
@@ -179,6 +208,13 @@ const LibraryItemAccordion = ({
   isAndroidPlayStoreApp = false,
   onSelfServiceClick,
   onAutoInstallClick,
+  canActivateMultipleVersions = false,
+  isAutoUpdateEnabled = false,
+  autoUpdateWindowStart,
+  autoUpdateWindowEnd,
+  onAutoUpdateClick,
+  graphicOverride,
+  hideVersion = false,
 }: ILibraryItemAccordionProps) => {
   const [expanded, setExpanded] = useState(false);
 
@@ -278,11 +314,11 @@ const LibraryItemAccordion = ({
       underline={false}
       position="top"
       tipOffset={8}
-      textBalanced={false}
     >
       {onClick && canClick ? (
         <Button
           variant="subdued"
+          size="small"
           onClick={handleBadgeClick(onClick)}
           className={`${baseClass}__icon-button`}
           ariaLabel={ariaLabel}
@@ -298,17 +334,33 @@ const LibraryItemAccordion = ({
   // per-row indicator says the same thing the title-level chip would.
   const renderSelfServiceIcon = () =>
     renderRowActionIcon({
-      iconName: "user",
+      iconName: "self-service",
       tooltipContent: getSelfServiceTooltip(
         !!isIosOrIpadosApp,
         !!isAndroidPlayStoreApp
       ),
-      // Same modal opens regardless of which icon is clicked; the icon glyph
-      // carries the contextual signal ("self-service is on for this package").
-      ariaLabel: "Edit package",
+      // Opens the row's Edit version modal; the glyph is the context cue.
+      ariaLabel: "Edit version",
       onClick: onSelfServiceClick,
       canClick: canEditSoftware,
     });
+
+  // Auto-update icon on multi-version App Store rows. Opens the Edit version
+  // modal (same target as the labels-count badge). Tooltip surfaces the
+  // maintenance window when both ends are set.
+  const renderAutoUpdateIcon = () => {
+    const tooltipContent =
+      autoUpdateWindowStart && autoUpdateWindowEnd
+        ? getAutoUpdateTooltip(autoUpdateWindowStart, autoUpdateWindowEnd)
+        : "Auto updates on.";
+    return renderRowActionIcon({
+      iconName: "install-auto",
+      tooltipContent,
+      ariaLabel: "Edit version",
+      onClick: onAutoUpdateClick,
+      canClick: canEditSoftware,
+    });
+  };
 
   // Auto-install icon navigates rather than edits — its label is verb-forward
   // ("View") so it doesn't read as a state toggle. Custom packages only
@@ -316,7 +368,7 @@ const LibraryItemAccordion = ({
   // variant here.
   const renderAutoInstallIcon = () =>
     renderRowActionIcon({
-      iconName: "refresh",
+      iconName: "install-auto",
       tooltipContent: <>Policy triggers install.</>,
       ariaLabel: "View auto-install policies",
       onClick: onAutoInstallClick,
@@ -335,13 +387,16 @@ const LibraryItemAccordion = ({
             construction (only FMA exposes version pinning). */}
         {isFma &&
           badgeState === "latest" &&
-          renderStatusBadge("refresh", "Latest")}
-        {canActivateMultiplePackages &&
+          renderStatusBadge("update", "Latest")}
+        {(canActivateMultiplePackages || canActivateMultipleVersions) &&
           isSelfService &&
           renderSelfServiceIcon()}
         {canActivateMultiplePackages &&
           hasAutoInstallPolicy &&
           renderAutoInstallIcon()}
+        {canActivateMultipleVersions &&
+          isAutoUpdateEnabled &&
+          renderAutoUpdateIcon()}
         {badgeState === "pinned" && renderStatusBadge("pin", "Pinned")}
         {badgeState === "majorVersion" &&
           renderStatusBadge("pin", "Major version")}
@@ -397,7 +452,7 @@ const LibraryItemAccordion = ({
   };
 
   const renderStatusCount = (
-    iconName: "success" | "pending-outline" | "error",
+    iconName: "success" | "pending" | "error",
     count: number,
     label: string,
     iconTooltip: React.ReactNode,
@@ -436,7 +491,12 @@ const LibraryItemAccordion = ({
 
   const getStatusCountTooltip = () => {
     if (isAndroidApp) {
-      return <>Latest status from the Google Play Store</>;
+      return (
+        <>
+          Latest status from setup experience. Doesn&apos;t include apps
+          installed via self service.
+        </>
+      );
     }
 
     if (isTarballPackage) {
@@ -577,12 +637,22 @@ const LibraryItemAccordion = ({
     );
   };
 
+  // Aria-labels mirror the modal titles so screen readers announce what the
+  // button actually opens. Multi-package custom titles and multi-version App
+  // Store titles both target one version within the title (Edit/Delete
+  // version); every other shape edits/deletes the title itself (Edit/Delete
+  // software). See EditSoftwareModal / DeleteSoftwareModal / EditVersionModal.
+  const isPerVersionRow =
+    canActivateMultiplePackages || canActivateMultipleVersions;
+  const editAriaLabel = isPerVersionRow ? "Edit version" : "Edit software";
+  const trashAriaLabel = isPerVersionRow ? "Delete version" : "Delete software";
+
   const renderTrashButtonBody = (disabled: boolean) => (
     <Button
       variant="secondary"
       disabled={disabled}
       onClick={onTrashClick}
-      ariaLabel="Delete this version"
+      ariaLabel={trashAriaLabel}
       className={`${baseClass}__trash-button`}
       icon="trash"
     />
@@ -655,6 +725,8 @@ const LibraryItemAccordion = ({
         source={source}
         androidPlayStoreId={androidPlayStoreId}
         hideInstallerType
+        graphicOverride={graphicOverride}
+        hideVersion={hideVersion}
         // Inactive rows surface a single hover tooltip (the rollback hint);
         // suppress the widget's tooltips to avoid stacking two on the same
         // target. See `InstallerDetailsWidget` for the full set silenced.
@@ -705,11 +777,11 @@ const LibraryItemAccordion = ({
                   position="top"
                   tipOffset={8}
                 >
-                  <Icon name="info-outline" color="ui-fleet-black-50" />
+                  <Icon name="info" color="ui-fleet-black-50" />
                 </TooltipWrapper>
               )}
               {renderStatusCount(
-                "pending-outline",
+                "pending",
                 pending,
                 "pending",
                 pendingIconTooltip,
@@ -735,7 +807,7 @@ const LibraryItemAccordion = ({
               <Button
                 variant="secondary"
                 onClick={onEditClick}
-                ariaLabel="Edit software"
+                ariaLabel={editAriaLabel}
                 className={`${baseClass}__edit-button`}
                 icon="pencil"
               />

@@ -574,12 +574,11 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Download package using a token](#download-package-using-a-token)
 - [Initiate SSO during DEP enrollment](#initiate-sso-during-dep-enrollment)
 - [Complete SSO during DEP enrollment](#complete-sso-during-dep-enrollment)
+- [Rotate automatic enrollment token](#rotate-automatic-enrollment-token)
 - [Over the air enrollment](#over-the-air-enrollment)
 - [Preassign profiles to devices](#preassign-profiles-to-devices)
 - [Match preassigned profiles](#match-preassigned-profiles)
 - [Get FileVault statistics](#get-filevault-statistics)
-- [Upload VPP content token](#upload-vpp-content-token)
-- [Disable VPP](#disable-vpp)
 - [Get host's DEP assignment](#get-hosts-dep-assignment)
 - [SCEP proxy](#scep-proxy)
 - [Get Android Enterprise signup URL](#get-android-enterprise-signup-url)
@@ -710,7 +709,9 @@ Content-Type: application/octet-stream
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
     "renew_date": "2024-10-20T00:00:00Z",
+    "default": true,
     "terms_expired": false,
     "token_invalid": false,
     "macos_fleet": null,
@@ -723,7 +724,9 @@ Content-Type: application/octet-stream
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
     "renew_date": "2024-10-20T00:00:00Z",
+    "default": true,
     "terms_expired": false,
     "token_invalid": false,
     "macos_fleet": null,
@@ -814,7 +817,9 @@ None.
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
     "renew_date": "2024-11-29T00:00:00Z",
+    "default": true,
     "terms_expired": false,
     "token_invalid": false,
     "macos_fleet": 1,
@@ -827,7 +832,9 @@ None.
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
     "renew_date": "2024-11-29T00:00:00Z",
+    "default": true,
     "terms_expired": false,
     "token_invalid": false,
     "macos_fleet": 1,
@@ -837,6 +844,64 @@ None.
     "ios_team": 2,
     "ipados_team": 3,
     "byod_team": 3
+  }
+}
+```
+
+### Set AB token as default
+
+`PATCH /api/v1/fleet/ab_tokens/:id/default`
+
+Fleet uses the default AB token to verify Managed Apple Account sign-in on hosts that aren't in Apple Business. Hosts that are in Apple Business use their own AB token. If you have one AB token, it's always the default. Setting a new default clears the previous one.
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id | integer | path | *Required* The AB token's ID |
+
+#### Example
+
+`PATCH /api/v1/fleet/ab_tokens/2/default`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "ab_token": {
+    "id": 2,
+    "apple_id": "apple@example.com",
+    "org_name": "Fleet Device Management Inc.",
+    "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
+    "renew_date": "2025-10-20T00:00:00Z",
+    "default": true,
+    "terms_expired": false,
+    "token_invalid": false,
+    "macos_fleet": null,
+    "ios_fleet": null,
+    "ipados_fleet": null,
+    "byod_fleet": null
+  },
+  "abm_token": {
+    "id": 2,
+    "apple_id": "apple@example.com",
+    "org_name": "Fleet Device Management Inc.",
+    "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
+    "renew_date": "2025-10-20T00:00:00Z",
+    "default": true,
+    "terms_expired": false,
+    "token_invalid": false,
+    "macos_fleet": null,
+    "ios_fleet": null,
+    "ipados_fleet": null,
+    "macos_team": null,
+    "ios_team": null,
+    "ipados_team": null,
+    "byod_team": null
   }
 }
 ```
@@ -885,7 +950,9 @@ Content-Type: application/octet-stream
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
     "renew_date": "2025-10-20T00:00:00Z",
+    "default": true,
     "terms_expired": false,
     "token_invalid": false,
     "macos_fleet": null,
@@ -898,7 +965,9 @@ Content-Type: application/octet-stream
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "mdm_server_uuid": "8b8a8f1e-3c2d-4e5f-9a6b-7c8d9e0f1a2b",
     "renew_date": "2025-10-20T00:00:00Z",
+    "default": true,
     "terms_expired": false,
     "token_invalid": false,
     "macos_fleet": null,
@@ -1089,7 +1158,7 @@ Content-Type: application/octet-stream
 
 ### Delete VPP token
 
-`DELETE /api/v1/fleet/vpp_token/:id`
+`DELETE /api/v1/fleet/vpp_tokens/:id`
 
 #### Parameters
 
@@ -1228,6 +1297,56 @@ following query parameters:
   `auth.sso_session_validity_period` to authenticate with the IdP, when the session cookie expires,
   or when the callback is replayed (the session is single use).
 
+### Rotate automatic enrollment token
+
+_Available in Fleet Premium_
+
+Replaces the automatic enrollment token. Fleet puts this token in the `url` of the automatic enrollment profile for fleets without end user authentication. The previous token keeps working for a grace period. Only global admins can rotate the token.
+
+`POST /api/v1/fleet/enrollment_profiles/automatic/rotate_token`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| grace_period_hours | integer | body | How long the previous token keeps working, in hours. Default: `24`. Must be between `0` and `720`. `0` stops accepting the previous token immediately. |
+
+#### Example
+
+`POST /api/v1/fleet/enrollment_profiles/automatic/rotate_token`
+
+##### Request body
+
+```json
+{
+  "grace_period_hours": 24
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "previous_token_expires_at": "2026-10-01T15:04:05Z"
+}
+```
+
+`previous_token_expires_at` is `null` when `grace_period_hours` is `0`. Token values are never returned.
+
+After rotating, Fleet updates every fleet's automatic enrollment profile in Apple Business (AB) with the new `url`, and reassigns the fleet's devices to it. Rotating again during a grace period ends the earlier grace period.
+
+Devices keep the automatic enrollment configuration they got when they were activated. A device that was activated before the rotation, but hasn't enrolled yet, can't enroll with the old token once the grace period ends. To fix it, erase and reactivate it.
+
+##### Error responses
+
+- `400` when Apple MDM isn't turned on.
+- `402` on Fleet Free.
+- `403` for any role other than global admin.
+- `404` when there's no automatic enrollment profile yet (no AB token has synced).
+- `422` when `grace_period_hours` is out of range.
+
 ### Over the air enrollment
 
 This endpoint handles over the air (OTA) MDM enrollments
@@ -1361,54 +1480,6 @@ This endpoint uses the profiles stored by the [Preassign profiles to devices](#p
   "external_host_identifier": "id-01234"
 }
 ```
-
-##### Default response
-
-`Status: 204`
-
-### Upload VPP content token
-
-`POST /api/v1/fleet/mdm/apple/vpp_token`
-
-#### Parameters
-
-| Name | Type | In | Description |
-| ---- | ---- | -- | ----------- |
-| token | file | form | *Required* The file containing the content token (.vpptoken) from Apple Business |
-
-#### Example
-
-`POST /api/v1/fleet/mdm/apple/vpp_token`
-
-##### Request header
-
-```http
-Content-Length: 850
-Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
-```
-
-##### Request body
-
-```http
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="token"; filename="sToken_for_Acme.vpptoken"
-Content-Type: application/octet-stream
-<TOKEN_DATA>
---------------------------f02md47480und42y
-```
-
-##### Default response
-
-`Status: 200`
-
-
-### Disable VPP
-
-`DELETE /api/v1/fleet/mdm/apple/vpp_token`
-
-#### Example
-
-`DELETE /api/v1/fleet/mdm/apple/vpp_token`
 
 ##### Default response
 
@@ -2219,9 +2290,9 @@ If the `name` is not already associated with an existing fleet, this API route c
 | features                                  | object | body  | The features that are applied to the hosts assigned to the specified fleet. These features completely override the global features specified in the [`GET /api/v1/fleet/config API route`](#get-configuration)                       |
 | secrets                                   | array   | body  | A list of plain text strings is used as the enroll secrets. Existing secrets are replaced with this list, or left unmodified if this list is empty. Note that there is a limit of 50 secrets allowed.                               |
 | mdm                                       | object | body  | The fleet's MDM configuration options.                                                                                                                                                                                              |
-| mdm.macos_updates                         | object | body  | The OS updates macOS configuration options for Nudge.                                                                                                                                                                               |
+| mdm.macos_updates                         | object | body  | The OS updates macOS configuration options.                                                                                                                                                                               |
 | mdm.macos_updates.minimum_version         | string | body  | The required minimum operating system version.                                                                                                                                                                                      |
-| mdm.macos_updates.deadline                | string | body  | The required installation date for Nudge to enforce the operating system version.                                                                                                                                                   |
+| mdm.macos_updates.deadline                | string | body  | The required installation date to enforce the operating system version.                                                                                                                                                   |
 | mdm.apple_settings                        | object | body  | The Apple-specific MDM settings.                                                                                                                                                                                                    |
 | mdm.apple_settings.configuration_profiles        | array   | body  | The list of objects consists of a `path` to a .mobileconfig or JSON file and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.  |
 | mdm.apple_settings.assets                 | array   | body  | The list of objects consists of a `path` to a JSON asset declaration (`com.apple.asset`) file.   |
@@ -2732,6 +2803,7 @@ for which the user has an observer role.
 | query             | string  | body | The query used to identify hosts to target. Searchable items include a `display_name`, `hostname`, `hardware_serial`, `uuid` or `primary_ip`. |
 | query_id          | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query and the user's roles affect which targets are included. |
 | excluded_host_ids | array   | body | The list of host ids to omit from the search results.                                                                                           |
+| exclude_mobile_hosts | boolean | body | If `true`, iOS, iPadOS, and Android hosts are omitted from the search results. Used when targeting live reports, which mobile hosts can't run. Default is `false`. |
 
 #### Example
 
@@ -2876,7 +2948,7 @@ currently pending.
 
 ## Fleet-desktop-token-authenticated routes
 
-Fleet-desktop-token-authenticated routes are routes used by the [Fleet Desktop](https://fleetdm.com/guides/fleet-desktop). Unlike most other routes, an API token does not authenticate them. They use a Fleet Desktop token.
+Fleet-desktop-token-authenticated routes are routes used by the [Fleet Desktop](https://fleetdm.com/guides/fleet-desktop). application, and on iOS and iPadOS by the self-service Web Clip. Unlike most other routes, an API token does not authenticate them. They use a Fleet Desktop token.
 
 If you're using Fleet Premium, you can require single sign-on (SSO) in front of these routes.
 
@@ -2976,6 +3048,7 @@ Gets all information required by Fleet Desktop, this includes things like the nu
 ```json
 {
   "failing_policies_count": 3,
+  "failing_unhidden_policies_count": 1, // Available in Fleet Premium
   "self_service": true,
   "notifications": {
     "needs_mdm_migration": true,
@@ -2996,6 +3069,8 @@ Gets all information required by Fleet Desktop, this includes things like the nu
   }
 }
 ```
+
+`failing_policies_count` counts all failing policies, including those marked `hidden`. `failing_unhidden_policies_count` (_Available in Fleet Premium_) counts only failing policies that aren't hidden, i.e. the failing policies that will actually be shown to the end user on the **Policies** page in Fleet Desktop.
 
 In regards to the `notifications` key:
 
@@ -3084,16 +3159,6 @@ Lists the software installed on the current device.
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`. Must be provided with `vulnerable=true`. |
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page.|
-
-#### Request headers
-
-This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
-
-The `Authorization` header must be formatted as follows:
-
-```
-X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
-```
 
 ##### Example
 
@@ -3208,16 +3273,6 @@ Retrieve the icon added via Fleet or icon from App Store (VPP).
 | ----            | ------- | ---- | ----------------------------------------- |
 | id              | integer | path | ID of the software title to get icon for. |
 
-#### Request headers
-
-This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
-
-The `Authorization` header must be formatted as follows:
-
-```
-X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
-```
-
 This endpoint will redirect (302) to the Apple-hosted URL of an icon if an icon override isn't set and a VPP app is added for the title on the host's fleet.
 
 #### Example
@@ -3259,18 +3314,19 @@ Get the results of a Fleet-maintained app or custom package install if it was pe
 `Status: 200`
 
 ```json
- {
-   "install_uuid": "b15ce221-e22e-4c6a-afe7-5b3400a017da",
-   "software_title": "Falcon.app",
-   "software_title_id": 8353,
-   "software_package": "FalconSensor-6.44.pkg",
-   "host_id": 123,
-   "host_display_name": "Marko's MacBook Pro",
-   "status": "failed_install",
-   "output": "Installing software...\nError: The operation can’t be completed because the item “Falcon” is in use.",
-   "pre_install_query_output": "Query returned result\nSuccess",
-   "post_install_script_output": "Running script...\nExit code: 1 (Failed)\nRolling back software install...\nSuccess"
- }
+{
+  "results": {
+    "install_uuid": "b15ce221-e22e-4c6a-afe7-5b3400a017da",
+    "software_title": "Falcon.app",
+    "software_title_id": 8353,
+    "software_package": "FalconSensor-6.44.pkg",
+    "host_id": 123,
+    "status": "failed_install",
+    "output": "Installing software...\nError: The operation can’t be completed because the item “Falcon” is in use.",
+    "pre_install_query_output": "Query returned result\nSuccess",
+    "post_install_script_output": "Running script...\nExit code: 1 (Failed)\nRolling back software install...\nSuccess"
+  }
+}
 ```
 
 ### Get device's software MDM command results
@@ -3361,16 +3417,6 @@ Uninstalls software from a host via the My device page.
 | token | string | path | **Required**. The device's authentication token. |
 | software_title_id | integer    | path | **Required**. The software title's ID.           |
 
-#### Request headers
-
-This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
-
-The `Authorization` header must be formatted as follows:
-
-```
-X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
-```
-
 #### Example
 
 `POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/uninstall/123`
@@ -3427,6 +3473,7 @@ Lists the policies applied to the current device. Policies are returned in a dev
 | Name  | Type   | In   | Description                        |
 | ----- | ------ | ---- | ---------------------------------- |
 | token | string | path | The device's authentication token. |
+| include_hidden_policies | boolean | query | If `true`, the response includes policies marked `hidden`. Hidden policies are omitted by default. |
 
 ##### Example
 
@@ -3548,16 +3595,6 @@ Returns the URL to open when clicking the "About Fleet" menu item in Fleet Deskt
 | ----- | ------ | ---- | ---------------------------------- |
 | token | string | path | The device's authentication token. |
 
-#### Request headers
-
-This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
-
-The `Authorization` header must be formatted as follows:
-
-```
-X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
-```
-
 ##### Example
 
 `GET /api/v1/fleet/device/abcdef012456789/transparency`
@@ -3668,6 +3705,64 @@ Signals the Fleet server to queue up the LUKS disk encryption escrow process (LU
 
 `Status: 204`
 
+##### Escrow already in progress
+
+Orbit is already handling an earlier request for this host, so nothing was queued. The end user has a passphrase prompt open, or dismissed the one they were given, rather than having one on the way. The `Retry-After` header carries the number of seconds until a new request is accepted if Orbit reports nothing further.
+
+`Status: 409`
+
+`Retry-After: 287`
+
+```json
+{
+  "message": "A disk encryption key is already being created for this host.",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "A disk encryption key is already being created for this host."
+    }
+  ]
+}
+```
+
+---
+
+### Submit a BitLocker PIN
+
+_Available in Fleet Premium_
+
+Submits the end user's BitLocker startup PIN for a Windows host whose fleet requires one. Fleet stores the PIN
+encrypted, hands it to the host's fleetd on its next config poll, and deletes its copy at that point.
+
+Poll `GET /api/v1/fleet/device/{token}` for the outcome, reading
+`host.mdm.os_settings.disk_encryption.pin_request.status`: `pending`, `delivered`, `set`, or `failed`. When it is
+`failed`, `pin_request.error` carries the agent's reason.
+
+`POST /api/v1/fleet/device/{token}/disk_encryption_pin`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                                          |
+| ----- | ------ | ---- | ---------------------------------------------------- |
+| token | string | path | The device's authentication token.                   |
+| pin   | string | body | **Required.** 6 to 20 printable ASCII characters.    |
+
+##### Example
+
+`POST /api/v1/fleet/device/abcdef012456789/disk_encryption_pin`
+
+##### Request body
+
+```json
+{
+  "pin": "my-pin-1234"
+}
+```
+
+##### Default response
+
+`Status: 204`
+
 ---
 
 ### Get the setup experience status for the device
@@ -3770,6 +3865,7 @@ Notifies the server about an agent error, resulting in two outcomes:
 | passphrase | string | body | The LUKS passphrase generated for Fleet (the end user's existing passphrase is not transmitted) |
 | key_slot | int | body | The LUKS key slot ID corresponding to the provided passphrase |
 | salt | string | body | The salt corresponding to the specified LUKS key slot. Provided to track cases where an end user rotates LUKS credentials (at which point we'll no longer be able to decrypt data with the escrowed passphrase). |
+| status | string | body | Progress on the escrow request instead of a result: `prompting` and `escrowing` keep the request marked as in progress while the end user is at the passphrase prompt and while the key slot is created, so a second **Create key** on the My device page does not queue a duplicate; `canceled` and `timed_out` end it without recording a key or an error. If provided, all other request parameters are ignored. Only sent to servers advertising the `linux_escrow_status` capability. |
 
 ##### Example
 
@@ -3784,6 +3880,15 @@ Notifies the server about an agent error, resulting in two outcomes:
   "salt": "d34db33f",
   "key_slot": 1,
   "client_error": ""
+}
+```
+
+##### Request body (status report)
+
+```json
+{
+  "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "status": "prompting"
 }
 ```
 
@@ -3972,37 +4077,6 @@ On Windows and Linux hosts, if any queued software has associated policies (poli
       "platform": "linux"
     }
   },
-  "nudge_config": {
-    "osVersionRequirements": [
-      {
-        "requiredInstallationDate": "2024-12-04T20:00:00Z",
-        "requiredMinimumOSVersion": "15.1.1",
-        "aboutUpdateURLs": [
-          {
-            "_language": "en",
-            "aboutUpdateURL": "https://fleetdm.com/learn-more-about/os-updates"
-          }
-        ]
-      }
-    ],
-    "userInterface": {
-      "simpleMode": true,
-      "showDeferralCount": false,
-      "updateElements": [
-        {
-          "_language": "en",
-          "actionButtonText": "Update",
-          "mainHeader": "Your device requires an update"
-        }
-      ]
-    },
-    "userExperience": {
-      "initialRefreshCycle": 86400,
-      "approachingRefreshCycle": 86400,
-      "imminentRefreshCycle": 7200,
-      "elapsedRefreshCycle": 3600
-    }
-  },
   "notifications": {
     "renew_enrollment_profile": true,
     "rotate_disk_encryption_key": true,
@@ -4071,6 +4145,82 @@ On Windows and Linux hosts, if any queued software has associated policies (poli
   "message": ""
 }
 ```
+
+### Collect the BitLocker startup PIN
+
+Collects the BitLocker startup PIN an end user submitted from the **My device** page, so the agent can apply it to the
+volume.
+
+The response is the only place Fleet ever hands the PIN back out, and it can only be read once: the server deletes its
+encrypted copy as it responds and marks the submission `delivered`. A host with no pending submission gets an empty
+response.
+
+An uncollected submission expires after 15 minutes, and a collected one the agent never reports on expires after an hour.
+
+`POST /api/fleet/orbit/disk_encryption_pin/details`
+
+##### Parameters
+
+| Name           | Type   | In   | Description                            |
+| -------------- | ------ | ---- | -------------------------------------- |
+| orbit_node_key | string | body | The Orbit node key for authentication. |
+
+##### Example
+
+`POST /api/fleet/orbit/disk_encryption_pin/details`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key": "FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "pin": "my-pin-1234",
+  "request_uuid": "006112E7-7383-4F21-999C-8FA74BB3F573"
+}
+```
+
+### Upload the BitLocker startup PIN result
+
+Reports whether the agent applied the PIN it collected.
+
+`POST /api/fleet/orbit/disk_encryption_pin/result`
+
+##### Parameters
+
+| Name           | Type   | In   | Description                                                                           |
+| -------------- | ------ | ---- | ------------------------------------------------------------------------------------- |
+| orbit_node_key | string | body | The Orbit node key for authentication.                                                 |
+| request_uuid   | string | body | The id returned with the PIN the agent collected.                                      |
+| outcome        | string | body | `set` or `failed`.                                                                     |
+| client_error   | string | body | The reason the PIN could not be applied. Required when `outcome` is `failed`.          |
+
+##### Example
+
+`POST /api/fleet/orbit/disk_encryption_pin/result`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key": "FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "request_uuid": "006112E7-7383-4F21-999C-8FA74BB3F573",
+  "outcome": "failed",
+  "client_error": "PIN already set"
+}
+```
+
+##### Default response
+
+`Status: 204`
 
 ### Upload Orbit script result
 
@@ -4296,6 +4446,42 @@ Body: <blob>
 
 ---
 
+### Report disk encryption protection outcome
+
+Reports what the agent did about a Windows volume that is encrypted but whose BitLocker protection is off. The agent only calls this endpoint when the server asked it to act, via the `enable_bitlocker_protection` notification in the orbit config.
+
+This endpoint never touches the escrowed recovery key. It records what happened so the host's disk encryption details can tell an admin whether Fleet is still working on the host, what is blocking it, or that a restart is needed.
+
+`POST /api/fleet/orbit/disk_encryption_protection`
+
+##### Parameters
+
+| Name           | Type   | In   | Description                                                                                                                                      |
+| -------------- | ------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| orbit_node_key | string | body | The Orbit node key for authentication.                                                                                                           |
+| outcome        | string | body | What the agent did. One of `restored`, `deferred`, or `failed`.                                                                                    |
+| client_error   | string | body | Why protection was not turned back on. Required for `deferred` and `failed`, ignored for `restored`. |
+
+##### Example
+
+`POST /api/fleet/orbit/disk_encryption_protection`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key": "FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "outcome": "failed",
+  "client_error": "BitLocker policy does not allow a TPM-only protector"
+}
+```
+
+##### Default response
+
+`Status: 204`
+
+---
+
 ## Setup
 
 Sets up a new Fleet instance with the given parameters.
@@ -4457,23 +4643,6 @@ Run a live script and get results back (5 minute timeout). Live scripts only run
 ```
 ## Software
 
-### Confirm installer hashes exist
-
-`GET /api/v1/fleet/software/package_hashes`
-
-| Name              | Type    | In   | Description                                        |
-|-------------------|---------|------|----------------------------------------------------|
-| team_name | string | query | The name of the fleet to filter the check to. If not supplied, the user must have global access, and hashes are checked across the entire instance. |
-| sha256              | string  | query | **Required**. A comma-separated list of SHA256 hashes, (64 hex characters apiece) to check. Endpoint returns 200 if all specified hashes exist, 404 otherwise. |
-
-#### Example
-
-`GET /api/v1/fleet/software/package_hashes?sha256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef`
-
-##### Default response
-
-`200 OK`
-
 ### Update software title name
 
 `PATCH /api/v1/fleet/software/titles/:software_title_id/name`
@@ -4556,7 +4725,7 @@ _Available in Fleet Premium._
 `GET /api/v1/fleet/software/batch/:request_uuid`
 
 This endpoint allows querying the status of a batch-apply software request (`POST /api/v1/fleet/software/batch`).
-Returns `"status"` field that can be one of `"processing"`, `"complete"` or `"failed"`.
+Returns `"status"` field that can be one of `"processing"`, `"completed"` or `"failed"`.
 If `"status"` is `"completed"` then the `"packages"` field contains the applied packages.
 If `"status"` is `"processing"` then the operation is ongoing and the request should be retried.
 If `"status"` is `"failed"` then the `"message"` field contains the error message.
@@ -4720,12 +4889,12 @@ The returned token is a one-time use token that expires after 10 minutes.
 | Name              | Type    | In    | Description                                                      |
 |-------------------|---------|-------|------------------------------------------------------------------|
 | software_title_id | integer | path  | **Required**. The ID of the software title for software package. |
-| team_id           | integer | query | **Required**. The fleet ID containing the software package.      |
+| fleet_id           | integer | query | **Required**. The fleet ID containing the software package.      |
 | alt               | integer | query | **Required**. Must be specified and set to "media".              |
 
 #### Example
 
-`POST /api/v1/fleet/software/titles/123/package/token?alt=media&team_id=2`
+`POST /api/v1/fleet/software/titles/123/package/token?alt=media&fleet_id=2`
 
 ##### Default response
 
@@ -5091,7 +5260,7 @@ Response format varies by operation according to the SCEP protocol specification
 
 ## Android fleetdm.com proxy
 
-The following endpoints are exposed on fleetdm.com to proxy Google Android Management API.
+The following endpoints are exposed on fleetdm.com to proxy Google Android Management API. For what customers need to allowlist, see [Android MDM](https://fleetdm.com/docs/deploy/reference-architectures#android-mdm).
 
 ### Create Android signup URL
 

@@ -208,6 +208,46 @@ func (s *integrationTestSuite) TestBulkDeleteHostsErrors() {
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusBadRequest, &resp)
 }
 
+func (s *integrationTestSuite) TestTechnicianCannotDeleteHostsOnFree() {
+	t := s.T()
+	ctx := t.Context()
+
+	hosts := s.createHosts(t)
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hosts[1].ID})))
+
+	newTechnicianSession := func(email string, globalRole *string, teams []fleet.UserTeam) string {
+		u := &fleet.User{Name: email, Email: email, GlobalRole: globalRole, Teams: teams}
+		require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
+		u, err := s.ds.NewUser(ctx, u)
+		require.NoError(t, err)
+		return createSession(t, u.ID, s.ds).Key
+	}
+	globalTechnician := newTechnicianSession("free.global.technician@example.com", new(fleet.RoleTechnician), nil)
+	teamTechnician := newTechnicianSession("free.team.technician@example.com", nil,
+		[]fleet.UserTeam{{Team: *team, Role: fleet.RoleTechnician}})
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	teamFilter := &map[string]any{"team_id": float64(team.ID)}
+
+	s.token = globalTechnician
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusPaymentRequired)
+	s.Do("POST", "/api/latest/fleet/hosts/delete", deleteHostsRequest{IDs: []uint{hosts[0].ID}}, http.StatusPaymentRequired)
+	s.Do("POST", "/api/latest/fleet/hosts/delete", deleteHostsRequest{Filters: teamFilter}, http.StatusPaymentRequired)
+
+	s.token = teamTechnician
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[1].ID), nil, http.StatusPaymentRequired)
+	s.Do("POST", "/api/latest/fleet/hosts/delete", deleteHostsRequest{IDs: []uint{hosts[1].ID}}, http.StatusPaymentRequired)
+	s.Do("POST", "/api/latest/fleet/hosts/delete", deleteHostsRequest{Filters: teamFilter}, http.StatusPaymentRequired)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusNotFound)
+
+	for _, h := range hosts {
+		_, err := s.ds.HostLite(ctx, h.ID)
+		require.NoError(t, err)
+	}
+}
+
 func (s *integrationTestSuite) TestHostsCount() {
 	t := s.T()
 
@@ -312,9 +352,9 @@ func (s *integrationTestSuite) TestHostsCount() {
 	require.Equal(t, 0, resp.Count)
 
 	// set MDM information on a host
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[1].ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[1].ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", fleet.PersonalEnrollmentTypeNone))
 	// also create server with MDM information, which is ignored.
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[2].ID, true, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[2].ID, true, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", fleet.PersonalEnrollmentTypeNone))
 	var mdmID uint
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &mdmID,
@@ -328,7 +368,7 @@ func (s *integrationTestSuite) TestHostsCount() {
 		HardwareModel:  "MacBook Pro",
 	})
 	require.NoError(t, err)
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), pendingMDMHost.ID, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet, "", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), pendingMDMHost.ID, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone))
 
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(mdmID))
 	require.Equal(t, 1, resp.Count)
@@ -397,6 +437,30 @@ func (s *integrationTestSuite) TestListHosts() {
 	// invalid order_key returns 422
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusUnprocessableEntity, &resp, "order_key", "invalid_column")
+
+	t.Run("order by fleet_name", func(t *testing.T) {
+		ctx := t.Context()
+		// created in reverse name order, so that sorting by fleet_id or by name gives different results
+		fleetB, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-b"})
+		require.NoError(t, err)
+		fleetA, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-a"})
+		require.NoError(t, err)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&fleetB.ID, []uint{hosts[0].ID})))
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&fleetA.ID, []uint{hosts[1].ID})))
+
+		// hosts[2] has no fleet, which sorts first
+		for direction, want := range map[string][]uint{
+			"asc":  {hosts[2].ID, hosts[1].ID, hosts[0].ID},
+			"desc": {hosts[0].ID, hosts[1].ID, hosts[2].ID},
+		} {
+			var sorted listHostsResponse
+			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &sorted, "order_key", "fleet_name", "order_direction", direction)
+			require.Len(t, sorted.Hosts, len(hosts))
+			for i, h := range sorted.Hosts {
+				assert.Equal(t, want[i], h.ID, "order_direction=%s, position %d", direction, i)
+			}
+		}
+	})
 
 	time.Sleep(1 * time.Second)
 
@@ -574,7 +638,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	assert.Nil(t, resp.MunkiIssue)
 
 	// set MDM information on a host
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), host2.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), host2.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", fleet.PersonalEnrollmentTypeNone))
 	var mdmID uint
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &mdmID,
@@ -595,7 +659,7 @@ func (s *integrationTestSuite) TestListHosts() {
 		require.NoError(t, err)
 		return err
 	})
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), pendingMDMHost.ID, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet, "", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), pendingMDMHost.ID, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone))
 
 	// generate aggregated stats
 	require.NoError(t, s.ds.GenerateAggregatedMunkiAndMDM(context.Background()))
@@ -1126,8 +1190,11 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	}
 	require.ElementsMatch(t, wantPlatforms, gotPlatforms)
 	require.Nil(t, resp.TeamID)
-	require.Equal(t, uint(3), resp.AllLinuxCount)
 	assert.NotEmpty(t, resp.BuiltinLabels)
+	// the Linux total was removed; the "All Linux" label count replaces it
+	rawSummary, err := io.ReadAll(s.DoRaw("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK).Body)
+	require.NoError(t, err)
+	require.NotContains(t, string(rawSummary), "all_linux_count")
 	for _, lbl := range resp.BuiltinLabels {
 		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
 	}
@@ -1165,7 +1232,6 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team2.ID))
 	require.Equal(t, uint(0), resp.TotalsHostsCount)
 	require.Empty(t, resp.Platforms)
-	require.Equal(t, uint(0), resp.AllLinuxCount)
 	require.Equal(t, team2.ID, *resp.TeamID)
 
 	// team filter, one host, low_disk_count is ignored as not premium
@@ -1175,22 +1241,18 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	require.Len(t, resp.Platforms, 1)
 	require.Equal(t, "debian", resp.Platforms[0].Platform)
 	require.Equal(t, uint(1), resp.Platforms[0].HostsCount)
-	require.Equal(t, uint(1), resp.AllLinuxCount)
 	require.Equal(t, team1.ID, *resp.TeamID)
 
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team1.ID), "platform", "linux")
 	require.Equal(t, uint(1), resp.TotalsHostsCount)
 	require.Equal(t, "debian", resp.Platforms[0].Platform)
-	require.Equal(t, uint(1), resp.AllLinuxCount)
 
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "platform", "rhel")
 	require.Equal(t, uint(1), resp.TotalsHostsCount)
 	require.Equal(t, "rhel", resp.Platforms[0].Platform)
-	require.Equal(t, uint(1), resp.AllLinuxCount)
 
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "platform", "linux")
 	require.Equal(t, uint(3), resp.TotalsHostsCount)
-	require.Equal(t, uint(3), resp.AllLinuxCount)
 	require.Len(t, resp.Platforms, 3)
 	for i, p := range resp.Platforms {
 		gotPlatforms[i] = p.Platform
@@ -1201,7 +1263,6 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "platform", "darwin")
 	require.Equal(t, uint(0), resp.TotalsHostsCount)
-	require.Equal(t, uint(0), resp.AllLinuxCount)
 	require.Empty(t, resp.Platforms)
 
 	// invalid low_disk_space value is still validated and results in error
@@ -1266,10 +1327,10 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 
 	// get by identifier unknown
 	var getResp getHostResponse
-	s.DoJSON("GET", "/api/latest/fleet/hosts/identifier/no-such-host", nil, http.StatusNotFound, &getResp)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/no-such-host", nil, http.StatusNotFound, &getResp)
 
 	// get by identifier valid
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", hosts[0].UUID), nil, http.StatusOK, &getResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", hosts[0].UUID), nil, http.StatusOK, &getResp)
 	require.Equal(t, hosts[0].ID, getResp.Host.ID)
 	require.Nil(t, getResp.Host.TeamID)
 
@@ -1281,8 +1342,8 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	}, http.StatusOK, &addResp)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(),
-		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q, "host_ids": [%d, %d], "host_display_names": [%q, %q]}`,
-			tm1.ID, tm1.Name, tm1.ID, tm1.Name, hosts[0].ID, hosts[1].ID, hosts[0].DisplayName(), hosts[1].DisplayName()),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "host_ids": [%d, %d], "host_display_names": [%q, %q]}`,
+			tm1.ID, tm1.Name, hosts[0].ID, hosts[1].ID, hosts[0].DisplayName(), hosts[1].DisplayName()),
 		0,
 	)
 
@@ -1304,12 +1365,24 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	}, http.StatusNotFound, &addResp)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(), "", lastTransferActivityID)
 
+	// a host listed more than once is recorded once
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+		TeamID:  &tm1.ID,
+		HostIDs: []uint{hosts[0].ID, hosts[0].ID, hosts[1].ID, hosts[0].ID},
+	}, http.StatusOK, &addResp)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "host_ids": [%d, %d], "host_display_names": [%q, %q]}`,
+			tm1.ID, tm1.Name, hosts[0].ID, hosts[1].ID, hosts[0].DisplayName(), hosts[1].DisplayName()),
+		0,
+	)
+
 	// check that hosts are now part of team 1
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &getResp)
 	require.NotNil(t, getResp.Host.TeamID)
 	require.Equal(t, tm1.ID, *getResp.Host.TeamID)
 
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", hosts[0].UUID), nil, http.StatusOK, &getResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", hosts[0].UUID), nil, http.StatusOK, &getResp)
 	require.NotNil(t, getResp.Host.TeamID)
 	require.Equal(t, tm1.ID, *getResp.Host.TeamID)
 	require.NotNil(t, getResp.Host.TeamName)
@@ -1331,8 +1404,8 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer/filter", req, http.StatusOK, &addfResp)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "host_ids": [%d], "host_display_names": [%q]}`,
-			tm2.ID, tm2.Name, tm2.ID, tm2.Name, hosts[2].ID, hosts[2].DisplayName()),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "host_ids": [%d], "host_display_names": [%q]}`,
+			tm2.ID, tm2.Name, hosts[2].ID, hosts[2].DisplayName()),
 		0,
 	)
 
@@ -1401,7 +1474,7 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	}, http.StatusOK, &addResp)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null, "host_ids": [%d], "host_display_names": [%q]}`,
+		fmt.Sprintf(`{"fleet_id": null, "fleet_name": null, "host_ids": [%d], "host_display_names": [%q]}`,
 			hosts[1].ID, hosts[1].DisplayName()),
 		0,
 	)
@@ -1414,41 +1487,122 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	require.ElementsMatch(t, ids, []uint{hosts[1].ID, hosts[2].ID})
 }
 
-func (s *integrationTestSuite) TestGetHostByIdentifier() {
+func (s *integrationTestSuite) TestHostsAddToTeamByFilterActivityNames() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
-	hosts := make([]*fleet.Host, 6)
-	for i := range hosts {
-		h, err := s.ds.NewHost(ctx, &fleet.Host{
-			Hostname:       fmt.Sprintf("test-host%d-name", i),
-			OsqueryHostID:  new(fmt.Sprintf("osquery-%d", i)),
-			NodeKey:        new(fmt.Sprintf("nodekey-%d", i)),
-			UUID:           fmt.Sprintf("test-uuid-%d", i),
-			Platform:       "darwin",
-			HardwareSerial: fmt.Sprintf("serial-%d", i),
-		})
-		require.NoError(t, err)
-		hosts[i] = h
+	tmA, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "A"})
+	require.NoError(t, err)
+	tmB, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "B"})
+	require.NoError(t, err)
+
+	// alternate fleets so a user on both lists the hosts out of ID order
+	hosts := s.createHosts(t, "debian", "debian", "debian", "debian")
+	nameByID := make(map[uint]string, len(hosts))
+	for i, h := range hosts {
+		tm := tmA.ID
+		if i%2 == 0 {
+			tm = tmB.ID
+		}
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm, []uint{h.ID})))
+		nameByID[h.ID] = h.DisplayName()
 	}
 
-	var resp getHostResponse
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/osquery-1", nil, http.StatusOK, &resp)
-	require.Equal(t, hosts[1].ID, resp.Host.ID)
+	password := test.GoodPassword
+	admin := &fleet.User{
+		Name:  "two fleets admin",
+		Email: t.Name() + "_admin@example.com",
+		Teams: []fleet.UserTeam{{Team: *tmA, Role: fleet.RoleAdmin}, {Team: *tmB, Role: fleet.RoleAdmin}},
+	}
+	require.NoError(t, admin.SetPassword(password, 10, 10))
+	_, err = s.ds.NewUser(ctx, admin)
+	require.NoError(t, err)
+	s.setTokenForTest(t, admin.Email, password)
 
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/serial-2", nil, http.StatusOK, &resp)
-	require.Equal(t, hosts[2].ID, resp.Host.ID)
+	var resp addHostsToTeamByFilterResponse
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer/filter", addHostsToTeamByFilterRequest{
+		TeamID:  &tmA.ID,
+		Filters: &map[string]any{"query": t.Name() + "foo.local"},
+	}, http.StatusOK, &resp)
 
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/nodekey-3", nil, http.StatusOK, &resp)
-	require.Equal(t, hosts[3].ID, resp.Host.ID)
+	s.token = s.getTestAdminToken()
+	var listActivities listActivitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities,
+		"order_key", "id", "order_direction", "desc", "per_page", "1")
+	require.Len(t, listActivities.Activities, 1)
+	require.Equal(t, fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(), listActivities.Activities[0].Type)
+	var details fleet.ActivityTypeTransferredHostsToTeam
+	require.NoError(t, json.Unmarshal(*listActivities.Activities[0].Details, &details))
 
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/test-uuid-4", nil, http.StatusOK, &resp)
-	require.Equal(t, hosts[4].ID, resp.Host.ID)
+	require.Len(t, details.HostIDs, len(hosts))
+	require.Len(t, details.HostDisplayNames, len(hosts))
+	for i, id := range details.HostIDs {
+		require.Equal(t, nameByID[id], details.HostDisplayNames[i], "host %d listed with the wrong name", id)
+	}
+}
 
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/test-host5-name", nil, http.StatusOK, &resp)
-	require.Equal(t, hosts[5].ID, resp.Host.ID)
+func (s *integrationTestSuite) TestGetHostByIDOrIdentifier() {
+	t := s.T()
+	ctx := t.Context()
 
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/no-such-host", nil, http.StatusNotFound, &resp)
+	newHost := func(name string, mutate func(*fleet.Host)) *fleet.Host {
+		host := &fleet.Host{
+			Hostname:       "any-identifier-hostname-" + name,
+			OsqueryHostID:  new("any-identifier-osquery-" + name),
+			NodeKey:        new("any-identifier-nodekey-" + name),
+			UUID:           "any-identifier-uuid-" + name,
+			Platform:       "darwin",
+			HardwareSerial: "any-identifier-serial-" + name,
+		}
+		if mutate != nil {
+			mutate(host)
+		}
+		created, err := s.ds.NewHost(ctx, host)
+		require.NoError(t, err)
+		return created
+	}
+	target := newHost("target", nil)
+	// Another host whose serial is the target's ID: the ID has to win.
+	newHost("numeric-serial", func(h *fleet.Host) { h.HardwareSerial = fmt.Sprint(target.ID) })
+	// A blank or zero width identifier must not match this host's empty serial.
+	newHost("empty-serial", func(h *fleet.Host) { h.HardwareSerial = "" })
+	// A numeric hostname that no host ID uses resolves as a hostname.
+	const unusedHostID = "4294967295"
+	numericHostname := newHost("numeric-hostname", func(h *fleet.Host) { h.Hostname = unusedHostID })
+	// A serial with leading zeros resolves as a serial when the number is not a host ID.
+	const leadingZerosSerial = "0004294967293"
+	leadingZeros := newHost("leading-zeros", func(h *fleet.Host) { h.HardwareSerial = leadingZerosSerial })
+
+	testCases := []struct {
+		name       string
+		identifier string
+		wantHostID uint
+	}{
+		{name: "id beats a matching serial", identifier: fmt.Sprint(target.ID), wantHostID: target.ID},
+		{name: "serial", identifier: target.HardwareSerial, wantHostID: target.ID},
+		{name: "uuid", identifier: target.UUID, wantHostID: target.ID},
+		{name: "hostname", identifier: target.Hostname, wantHostID: target.ID},
+		{name: "osquery host id", identifier: *target.OsqueryHostID, wantHostID: target.ID},
+		{name: "node key", identifier: *target.NodeKey, wantHostID: target.ID},
+		{name: "numeric hostname that is not an id", identifier: unusedHostID, wantHostID: numericHostname.ID},
+		{name: "id with leading zeros", identifier: fmt.Sprintf("000%d", target.ID), wantHostID: target.ID},
+		{name: "serial with leading zeros that is not an id", identifier: leadingZerosSerial, wantHostID: leadingZeros.ID},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var resp getHostResponse
+			s.DoJSON("GET", "/api/latest/fleet/hosts/"+tc.identifier, nil, http.StatusOK, &resp)
+			require.Equal(t, tc.wantHostID, resp.Host.ID)
+		})
+	}
+
+	t.Run("not found", func(t *testing.T) {
+		s.Do("GET", "/api/latest/fleet/hosts/no-such-host", nil, http.StatusNotFound)
+		s.Do("GET", "/api/latest/fleet/hosts/4294967294", nil, http.StatusNotFound)
+		s.Do("GET", "/api/latest/fleet/hosts/%20", nil, http.StatusNotFound)
+		s.Do("GET", "/api/latest/fleet/hosts/%E2%80%8B", nil, http.StatusNotFound)
+		s.Do("GET", "/api/latest/fleet/hosts/99999999999999999999", nil, http.StatusNotFound)
+	})
 }
 
 func (s *integrationTestSuite) TestHostDeviceMapping() {
@@ -1466,7 +1620,7 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[0].ID), nil, http.StatusOK, &listResp)
 	require.Empty(t, listResp.DeviceMapping)
 	var hostResp getHostResponse
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+hosts[0].UUID, nil, http.StatusOK, &hostResp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/"+hosts[0].UUID, nil, http.StatusOK, &hostResp)
 	assert.Empty(t, hostResp.Host.EndUsers)
 	hostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &hostResp)
@@ -1500,7 +1654,7 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	})
 	// Check that mappings show up in host details
 	hostResp = getHostResponse{}
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+hosts[0].UUID, nil, http.StatusOK, &hostResp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/"+hosts[0].UUID, nil, http.StatusOK, &hostResp)
 	checkEndUser := func() {
 		require.Len(t, hostResp.Host.EndUsers, 1)
 		endUser := hostResp.Host.EndUsers[0]
@@ -1666,7 +1820,7 @@ func (s *integrationTestSuite) TestHostDeviceMappingIDP() {
 
 	// Test 4: Verify custom mappings appear in host details via getHostEndpoint
 	var hostResp getHostResponse
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+host.UUID, nil, http.StatusOK, &hostResp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/"+host.UUID, nil, http.StatusOK, &hostResp)
 
 	// Should have at least 1 end user with device mappings
 	require.GreaterOrEqual(t, len(hostResp.Host.EndUsers), 1)
@@ -1823,6 +1977,28 @@ func (s *integrationTestSuite) TestSearchHosts() {
 
 	// search for non-existent email, shouldn't get anything back
 	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{MatchQuery: "not@found.com"}, http.StatusOK, &searchResp)
+	require.Empty(t, searchResp.Hosts)
+
+	iosHost, err := s.ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "search-ios-host",
+		Platform:        "ios",
+		OsqueryHostID:   new(t.Name() + "-ios"),
+		NodeKey:         new(t.Name() + "-ios"),
+		UUID:            t.Name() + "-ios",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+
+	searchResp = searchHostsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{MatchQuery: "search-ios-host"}, http.StatusOK, &searchResp)
+	require.Len(t, searchResp.Hosts, 1)
+	require.Equal(t, iosHost.ID, searchResp.Hosts[0].ID)
+
+	searchResp = searchHostsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{MatchQuery: "search-ios-host", ExcludeMobileHosts: true}, http.StatusOK, &searchResp)
 	require.Empty(t, searchResp.Hosts)
 }
 
@@ -2040,6 +2216,26 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	require.Len(t, getHostSoftwareResp.Software[3].InstalledVersions, 1)
 	require.Equal(t, []string{"/some/path/axios"}, getHostSoftwareResp.Software[3].InstalledVersions[0].InstalledPaths)
 	require.Nil(t, getHostSoftwareResp.Software[3].InstalledVersions[0].SignatureInformation)
+
+	// filter by source
+	for _, c := range softwareTypeFilterErrorCases {
+		res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusUnprocessableEntity, c.params...)
+		require.Contains(t, extractServerErrorText(res.Body), c.reason)
+	}
+	res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusPaymentRequired, "ai_tool", "true")
+	require.NoError(t, res.Body.Close())
+	res = s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, "source", "mcp_servers")
+	require.NoError(t, res.Body.Close())
+	getHostSoftwareResp = getHostSoftwareResponse{}
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID),
+		nil, http.StatusOK, &getHostSoftwareResp,
+		"source", "homebrew_packages,npm_packages", "order_key", "name", "order_direction", "desc",
+	)
+	require.Equal(t, 2, getHostSoftwareResp.Count)
+	require.Len(t, getHostSoftwareResp.Software, 2)
+	require.Equal(t, "gh", getHostSoftwareResp.Software[0].Name)
+	require.Equal(t, "axios", getHostSoftwareResp.Software[1].Name)
 }
 
 func (s *integrationTestSuite) TestHostReenrollWithSameHostRowRefetchOsquery() {
@@ -2206,6 +2402,16 @@ func (s *integrationTestSuite) TestHostDeviceURL() {
 	var ipadResp getHostDeviceURLResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", ipadHost.ID), nil, http.StatusOK, &ipadResp)
 	require.Equal(t, "https://fleet.example.com/device/"+ipadHost.UUID+"/self-service", ipadResp.DeviceURL)
+
+	// An iOS host assigned in Apple Business but not yet enrolled has no UUID to
+	// build the URL from.
+	pendingIOSHost := createOrbitEnrolledHost(t, "ios", "device-url-ios-pending", s.ds)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE hosts SET uuid = '' WHERE id = ?`, pendingIOSHost.ID)
+		return err
+	})
+	res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", pendingIOSHost.ID), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.MyDeviceURLNotEnrolledMessage)
 
 	// Android and ChromeOS have no My device page at all, so the endpoint explains
 	// that rather than minting a URL that leads nowhere. See #48439.

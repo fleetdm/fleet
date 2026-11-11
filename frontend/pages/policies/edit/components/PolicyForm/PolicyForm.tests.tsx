@@ -5,9 +5,8 @@ import React from "react";
 
 import createMockConfig from "__mocks__/configMock";
 import createMockPolicy from "__mocks__/policyMock";
-import { createMockTeamSummary } from "__mocks__/teamMock";
+import createMockTeam, { createMockTeamSummary } from "__mocks__/teamMock";
 import createMockUser from "__mocks__/userMock";
-import { expectedSelectErr } from "components/forms/validators/validate_query";
 import { ILabelSummary } from "interfaces/label";
 import teamPoliciesAPI from "services/entities/team_policies";
 import teamsAPI from "services/entities/teams";
@@ -139,7 +138,131 @@ describe("PolicyForm - component", () => {
       mockServer.use(labelSummariesHandler);
     });
 
-    it("disables save button for missing policy name", async () => {
+    const renderEditForm = (
+      storedPolicy: ReturnType<typeof createMockPolicy>,
+      lastEditedQueryHidden: boolean,
+      extraProps: Partial<React.ComponentProps<typeof PolicyForm>> = {}
+    ) => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          policy: {
+            policyTeamId: storedPolicy.fleet_id ?? undefined,
+            lastEditedQueryId: storedPolicy.id,
+            lastEditedQueryName: storedPolicy.name,
+            lastEditedQueryDescription: storedPolicy.description,
+            lastEditedQueryBody: storedPolicy.query,
+            lastEditedQueryResolution: storedPolicy.resolution,
+            lastEditedQueryCritical: storedPolicy.critical,
+            lastEditedQueryHidden,
+            lastEditedQueryPlatform: storedPolicy.platform,
+            lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
+            lastEditedQueryLabelsExcludeAny: [],
+            defaultPolicy: false,
+            setLastEditedQueryName: jest.fn(),
+            setLastEditedQueryDescription: jest.fn(),
+            setLastEditedQueryBody: jest.fn(),
+            setLastEditedQueryResolution: jest.fn(),
+            setLastEditedQueryCritical: jest.fn(),
+            setLastEditedQueryHidden: jest.fn(),
+            setLastEditedQueryPlatform: jest.fn(),
+          },
+          app: {
+            currentUser: createMockUser(),
+            isGlobalAdmin: true,
+            isOnGlobalTeam: true,
+            isPremiumTier: true,
+            config: createMockConfig(),
+          },
+        },
+      });
+      return render(
+        <PolicyForm
+          {...defaultProps}
+          teamIdForApi={storedPolicy.fleet_id ?? undefined}
+          policyIdForEdit={storedPolicy.id}
+          storedPolicy={storedPolicy}
+          {...extraProps}
+        />
+      );
+    };
+
+    it("shows Hide from end user checked for a hidden fleet policy", async () => {
+      renderEditForm(createMockPolicy({ fleet_id: 2, hidden: true }), true);
+
+      const hiddenCheckbox = await screen.findByRole("checkbox", {
+        name: "hidden-policy",
+      });
+      expect(hiddenCheckbox).toBeChecked();
+      expect(hiddenCheckbox).toHaveAttribute("aria-disabled", "false");
+    });
+
+    it("disables Hide from end user when the policy uses conditional access", async () => {
+      renderEditForm(
+        createMockPolicy({ fleet_id: 2, conditional_access_enabled: true }),
+        false
+      );
+
+      const hiddenCheckbox = await screen.findByRole("checkbox", {
+        name: "hidden-policy",
+      });
+      expect(hiddenCheckbox).toHaveAttribute("aria-disabled", "true");
+      expect(hiddenCheckbox).not.toBeChecked();
+    });
+
+    it("sends the conditional access disable together with hidden in the core update", async () => {
+      // The core PATCH runs before the automations PATCH; without carrying the
+      // disable along, the backend rejects hidden against the stored value.
+      // The team response carries `integrations` at the top level, which the
+      // ITeam type doesn't declare, so build the mock as a plain object.
+      jest.spyOn(teamsAPI, "load").mockResolvedValue({
+        fleet: {
+          ...createMockTeam({ id: 2 }),
+          integrations: {
+            jira: [],
+            zendesk: [],
+            conditional_access_enabled: true,
+          },
+        },
+      } as never);
+      jest.spyOn(teamPoliciesAPI, "update").mockResolvedValue({} as never);
+      const onUpdate = jest.fn().mockResolvedValue({});
+
+      const { user } = renderEditForm(
+        createMockPolicy({
+          fleet_id: 2,
+          platform: "darwin",
+          conditional_access_enabled: true,
+        }),
+        true,
+        { onUpdate }
+      );
+
+      const conditionalAccess = await screen.findByRole("checkbox", {
+        name: "conditional_access",
+      });
+      expect(conditionalAccess).toBeChecked();
+      await user.click(conditionalAccess);
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      await waitFor(() => expect(onUpdate).toHaveBeenCalledTimes(1));
+      expect(onUpdate.mock.calls[0][0]).toMatchObject({
+        hidden: true,
+        conditional_access_enabled: false,
+      });
+    });
+
+    it("offers Hide from end user for an All fleets policy", async () => {
+      renderEditForm(createMockPolicy({ fleet_id: null, hidden: true }), true);
+
+      const hiddenCheckbox = await screen.findByRole("checkbox", {
+        name: "hidden-policy",
+      });
+      expect(hiddenCheckbox).toBeChecked();
+    });
+
+    it("surfaces an inline name error on Save click when the name is blank", async () => {
       const render = createCustomRenderer({
         withBackendMock: true,
         context: {
@@ -176,7 +299,7 @@ describe("PolicyForm - component", () => {
         },
       });
 
-      render(
+      const { user } = render(
         <PolicyForm
           router={createMockRouter()}
           teamIdForApi={3}
@@ -201,7 +324,10 @@ describe("PolicyForm - component", () => {
         />
       );
 
-      expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+      const saveButton = screen.getByRole("button", { name: "Save" });
+      expect(saveButton).toBeEnabled();
+      await user.click(saveButton);
+      expect(screen.getByText("Enter a policy name")).toBeInTheDocument();
     });
 
     // Regression test for #38348: clicking Save with an empty query body must
@@ -352,12 +478,14 @@ describe("PolicyForm - component", () => {
         />
       );
 
-      // Wait past the 500ms debounce so the SQL validator runs and flags the
-      // syntax error. The error surfaces as SQLEditor's label text.
-      await waitFor(() => {
-        expect(screen.getByText(expectedSelectErr(1))).toBeInTheDocument();
-      });
+      // Validation runs on editor blur / submit, not on mount: the user
+      // should not see a syntax error before they interact with the editor.
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      expect(
+        screen.queryByText(/Syntax error\. Please review before saving\./)
+      ).not.toBeInTheDocument();
 
+      // Save stays enabled for syntactically invalid (but non-empty) SQL.
       const saveButton = screen.getByRole("button", { name: "Save" });
       expect(saveButton).toBeEnabled();
       await user.click(saveButton);
@@ -366,7 +494,7 @@ describe("PolicyForm - component", () => {
       expect(onUpdate.mock.calls[0][0].query).toBe(invalidSQL);
     });
 
-    it("disables save and run button with tooltip for missing policy platforms", async () => {
+    it("surfaces an inline platform error on Save click when no platforms are selected", async () => {
       const render = createCustomRenderer({
         withBackendMock: true,
         context: {
@@ -403,6 +531,7 @@ describe("PolicyForm - component", () => {
         },
       });
 
+      const onUpdate = jest.fn();
       const { user } = render(
         <PolicyForm
           router={createMockRouter()}
@@ -416,7 +545,7 @@ describe("PolicyForm - component", () => {
           onCreatePolicy={jest.fn()}
           onOsqueryTableSelect={jest.fn()}
           goToSelectTargets={jest.fn()}
-          onUpdate={jest.fn()}
+          onUpdate={onUpdate}
           onOpenSchemaSidebar={jest.fn()}
           renderLiveQueryWarning={jest.fn()}
           backendValidators={{}}
@@ -428,13 +557,14 @@ describe("PolicyForm - component", () => {
         />
       );
 
-      expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
-      expect(screen.getByRole("button", { name: "Run policy" })).toBeDisabled();
-      await user.hover(screen.getByRole("button", { name: "Save" }));
+      const saveButton = screen.getByRole("button", { name: "Save" });
+      expect(saveButton).toBeEnabled();
+      await user.click(saveButton);
 
+      expect(onUpdate).not.toHaveBeenCalled();
       await waitFor(() => {
         expect(
-          screen.getByText(/to save or run the policy/i)
+          screen.getByText("Select at least one platform")
         ).toBeInTheDocument();
       });
     });
@@ -614,8 +744,9 @@ describe("PolicyForm - component", () => {
         ).toBeChecked();
       });
 
-      it("should disable the save button in Custom target mode when no labels are selected, and enable it once labels are selected", async () => {
-        render(<PolicyForm {...defaultProps} />);
+      it("surfaces an inline labels error on Save click in Custom target mode when no labels are selected", async () => {
+        const onUpdate = jest.fn();
+        render(<PolicyForm {...defaultProps} onUpdate={onUpdate} />);
         let allHosts;
         let custom;
         await waitFor(() => {
@@ -625,17 +756,21 @@ describe("PolicyForm - component", () => {
           expect(custom).toBeInTheDocument();
         });
         custom && (await userEvent.click(custom));
-        const saveButton = screen.getByRole("button", { name: "Save" });
-        expect(saveButton).toBeDisabled();
 
-        const funButton = await screen.findByRole("checkbox", {
-          name: "Fun",
-        });
-        expect(funButton).not.toBeChecked();
+        const saveButton = screen.getByRole("button", { name: "Save" });
+        expect(saveButton).toBeEnabled();
+        await userEvent.click(saveButton);
+
+        expect(onUpdate).not.toHaveBeenCalled();
+        expect(
+          screen.getByText(/Select at least one label/)
+        ).toBeInTheDocument();
+
+        const funButton = await screen.findByRole("checkbox", { name: "Fun" });
         await userEvent.click(funButton);
-        await waitFor(() => {
-          expect(saveButton).toBeEnabled();
-        });
+        expect(
+          screen.queryByText(/Select at least one label/)
+        ).not.toBeInTheDocument();
       });
 
       it("should send labels when saving a new query in Custom target mode (include any)", async () => {
@@ -802,6 +937,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryBody: patchPolicy.query,
             lastEditedQueryResolution: patchPolicy.resolution,
             lastEditedQueryCritical: patchPolicy.critical,
+            lastEditedQueryHidden: true,
             lastEditedQueryPlatform: patchPolicy.platform,
             lastEditedQueryLabelsIncludeAny: [],
             lastEditedQueryLabelsIncludeAll: [],
@@ -812,6 +948,7 @@ describe("PolicyForm - component", () => {
             setLastEditedQueryBody: jest.fn(),
             setLastEditedQueryResolution: jest.fn(),
             setLastEditedQueryCritical: jest.fn(),
+            setLastEditedQueryHidden: jest.fn(),
             setLastEditedQueryPlatform: jest.fn(),
           },
         },
@@ -916,7 +1053,7 @@ describe("PolicyForm - component", () => {
           .mockResolvedValue({} as never);
         const teamPatchPolicy = {
           ...patchPolicy,
-          team_id: 1,
+          fleet_id: 1,
           patch_when_closed: false,
           continuous_automations_enabled: false,
         };
@@ -932,16 +1069,62 @@ describe("PolicyForm - component", () => {
         await user.click(screen.getByRole("radio", { name: "Force patch" }));
         await user.click(screen.getByRole("button", { name: "Save" }));
 
+        // Clicking Force patch (re)defaults the end-user experience to
+        // Deadline per the Figma dev note, so a user who flips the radio and
+        // hits Save gets patch_deadline: true + continuous automations locked
+        // on. This fallback path fires before the automations config loads;
+        // the Patch radio click still has to carry the deadline flag through
+        // the synthesized automations payload.
         await waitFor(() =>
           expect(updatePolicySpy).toHaveBeenCalledWith(teamPatchPolicy.id, {
-            team_id: 1,
+            fleet_id: 1,
             software_title_id: 42,
             patch_when_closed: false,
             notify_before_patching: false,
-            continuous_automations_enabled: false,
+            patch_deadline: true,
+            continuous_automations_enabled: true,
           })
         );
         expect(onUpdate).toHaveBeenCalledTimes(1);
+      });
+
+      it("saves Force patch with Deadline through the loaded automation configuration", async () => {
+        jest.spyOn(teamsAPI, "load").mockResolvedValue({
+          fleet: createMockTeam({ id: 1 }),
+        } as never);
+        const updatePolicySpy = jest
+          .spyOn(teamPoliciesAPI, "update")
+          .mockResolvedValue({} as never);
+        const teamPatchPolicy = {
+          ...patchPolicy,
+          fleet_id: 1,
+          patch_when_closed: false,
+          continuous_automations_enabled: false,
+        };
+        const onUpdate = jest.fn().mockResolvedValue({});
+        const { user } = renderPatchPolicy(
+          <PolicyForm
+            {...patchPolicyProps}
+            teamIdForApi={1}
+            storedPolicy={teamPatchPolicy}
+            onUpdate={onUpdate}
+          />
+        );
+
+        // The conditional access checkbox renders once the configuration loads.
+        await screen.findByRole("checkbox", { name: "conditional_access" });
+        await user.click(screen.getByRole("radio", { name: "Force patch" }));
+        await user.click(screen.getByRole("button", { name: "Save" }));
+
+        await waitFor(() =>
+          expect(updatePolicySpy).toHaveBeenCalledWith(
+            teamPatchPolicy.id,
+            expect.objectContaining({
+              patch_deadline: true,
+              continuous_automations_enabled: true,
+            })
+          )
+        );
       });
 
       it("shows Patch when app is closed (not Force + Notify) for a legacy policy with both flags set", () => {
@@ -980,7 +1163,7 @@ describe("PolicyForm - component", () => {
           .mockResolvedValue({} as never);
         const windowsPatchPolicy = {
           ...patchPolicy,
-          team_id: 1,
+          fleet_id: 1,
           platform: "windows" as const,
           patch_when_closed: false,
           notify_before_patching: false,
@@ -1032,6 +1215,57 @@ describe("PolicyForm - component", () => {
         ).toBeChecked();
       });
 
+      it("offers Hide from end user for patch policies", async () => {
+        renderPatchPolicy(<PolicyForm {...patchPolicyProps} />);
+
+        const hiddenCheckbox = await screen.findByRole("checkbox", {
+          name: "hidden-policy",
+        });
+        expect(hiddenCheckbox).toBeChecked();
+        expect(hiddenCheckbox).toHaveAttribute("aria-disabled", "false");
+      });
+
+      it("sends the conditional access disable together with hidden for a patch policy", async () => {
+        jest.spyOn(teamsAPI, "load").mockResolvedValue({
+          fleet: {
+            ...createMockTeam({ id: 2 }),
+            integrations: {
+              jira: [],
+              zendesk: [],
+              conditional_access_enabled: true,
+            },
+          },
+        } as never);
+        jest.spyOn(teamPoliciesAPI, "update").mockResolvedValue({} as never);
+        const onUpdate = jest.fn().mockResolvedValue({});
+
+        const { user } = renderPatchPolicy(
+          <PolicyForm
+            {...patchPolicyProps}
+            teamIdForApi={2}
+            storedPolicy={{
+              ...patchPolicy,
+              fleet_id: 2,
+              conditional_access_enabled: true,
+            }}
+            onUpdate={onUpdate}
+          />
+        );
+
+        const conditionalAccess = await screen.findByRole("checkbox", {
+          name: "conditional_access",
+        });
+        expect(conditionalAccess).toBeChecked();
+        await user.click(conditionalAccess);
+        await user.click(screen.getByRole("button", { name: "Save" }));
+
+        await waitFor(() => expect(onUpdate).toHaveBeenCalledTimes(1));
+        expect(onUpdate.mock.calls[0][0]).toMatchObject({
+          hidden: true,
+          conditional_access_enabled: false,
+        });
+      });
+
       it("submits only editable fields on save", async () => {
         const onUpdate = jest.fn();
         renderPatchPolicy(
@@ -1047,6 +1281,7 @@ describe("PolicyForm - component", () => {
         expect(payload).toHaveProperty("description");
         expect(payload).toHaveProperty("resolution");
         expect(payload).toHaveProperty("critical");
+        expect(payload).toHaveProperty("hidden", true);
         expect(payload).not.toHaveProperty("query");
         expect(payload).not.toHaveProperty("platform");
         expect(payload).not.toHaveProperty("labels_include_any");
@@ -1180,7 +1415,7 @@ describe("PolicyForm - component", () => {
           {...defaultProps}
           storedPolicy={createMockPolicy({
             name: "Foo",
-            team_id: createMockTeamSummary().id,
+            fleet_id: createMockTeamSummary().id,
           })}
         />
       );
@@ -1233,12 +1468,12 @@ describe("PolicyForm - component", () => {
         },
       });
 
-      // The stored policy is global (team_id === null) — the form must show
+      // The stored policy is global (fleet_id === null) — the form must show
       // "All fleets", not the URL team's name.
       render(
         <PolicyForm
           {...defaultProps}
-          storedPolicy={createMockPolicy({ name: "Foo", team_id: null })}
+          storedPolicy={createMockPolicy({ name: "Foo", fleet_id: null })}
         />
       );
 

@@ -40,6 +40,13 @@ locals {
     }
   )
 
+  # Orbit and osquery config notifications require the transport, so they are switched together.
+  websocket_environment_variables = var.enable_websocket_transport ? {
+    FLEET_WEBSOCKET_TRANSPORT_ENABLED      = "true"
+    FLEET_WEBSOCKET_ORBIT_CONFIG_ENABLED   = "true"
+    FLEET_WEBSOCKET_OSQUERY_CONFIG_ENABLED = "true"
+  } : {}
+
   extra_environment_variables = merge(
     {
       CLOUDWATCH_NAMESPACE = "fleet-loadtest-migration"
@@ -61,8 +68,8 @@ locals {
       FLEET_MYSQL_CONN_MAX_LIFETIME                  = "1800"
       FLEET_MYSQL_READ_REPLICA_CONN_MAX_LIFETIME     = "1800"
       FLEET_OSQUERY_ASYNC_HOST_REDIS_SCAN_KEYS_COUNT = "10000"
-      FLEET_REDIS_MAX_OPEN_CONNS                     = "500"
-      FLEET_REDIS_MAX_IDLE_CONNS                     = "500"
+      FLEET_REDIS_MAX_OPEN_CONNS                     = tostring(var.redis_max_open_conns)
+      FLEET_REDIS_MAX_IDLE_CONNS                     = tostring(var.redis_max_open_conns)
       FLEET_AUTH_SSO_SESSION_VALIDITY_PERIOD         = "15m"
       FLEET_MDM_SSO_RATE_LIMIT_PER_MINUTE            = "500"
       FLEET_SERVER_GZIP_RESPONSES                    = "true"
@@ -75,9 +82,12 @@ locals {
 
       # Skip backfilling S3 config with dev values for load testing
       FLEET_DEV_SKIP_S3_CONFIG = "1"
+
+      FLEET_MDM_APPLE_SCEP_STATIC_CHALLENGE_ENABLED = "true"
     },
     local.otel_environment_variables,
-    local.mdm_apple_environment_variables
+    local.mdm_apple_environment_variables,
+    local.websocket_environment_variables
   )
   extra_secrets = {
     FLEET_LICENSE_KEY = data.aws_secretsmanager_secret.license.arn

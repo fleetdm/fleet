@@ -17,6 +17,7 @@ type Datastore interface {
 	GetEndUserNotificationByUUID(ctx context.Context, notificationUUID string) (*api.EndUserNotification, error)
 	GetEndUserNotificationByExecutionID(ctx context.Context, executionID string) (*api.EndUserNotification, error)
 	GetNotificationAwaitingDisplay(ctx context.Context, hostID uint, kind string) (*api.EndUserNotification, error)
+	RescheduleEndUserNotificationsAwaitingDispatch(ctx context.Context, hostID uint, kind string, nextAttemptAt, expiresAt time.Time) error
 	ListEndUserNotificationsToDispatch(ctx context.Context, limit int) ([]*api.EndUserNotification, error)
 	SetEndUserNotificationsDispatched(ctx context.Context, notifications []*api.EndUserNotification) error
 	DeferEndUserNotificationsForHosts(ctx context.Context, hostIDs []uint) error
@@ -28,6 +29,7 @@ type Datastore interface {
 	// terminal, so only the first call gets true.
 	ActOnEndUserNotification(ctx context.Context, notificationUUID string) (bool, error)
 	SetEndUserNotificationStatus(ctx context.Context, notificationUUID string, status string, reason *string, whereStatusIn []string) error
+	SetEndUserNotificationPayload(ctx context.Context, notificationUUID string, payload json.RawMessage) error
 	FailEndUserNotificationsForHost(ctx context.Context, hostID uint, reason string) error
 	SetEndUserNotificationOutcome(ctx context.Context, notificationUUID string, outcome api.NotificationOutcome, nextAttemptAt *time.Time) error
 }

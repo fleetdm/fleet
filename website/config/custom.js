@@ -42,6 +42,16 @@ module.exports.custom = {
 
   /**************************************************************************
   *                                                                         *
+  * How many requests each Fleet Free registration can make to the          *
+  * configuration profile generator in a UTC calendar month.  Fleet         *
+  * Premium is not limited.                                                 *
+  *                                                                         *
+  **************************************************************************/
+  profileGeneratorMonthlyProfileLimit: 15,
+  profileGeneratorMonthlyNameAndDescriptionLimit: 45,
+
+  /**************************************************************************
+  *                                                                         *
   * Automated email configuration                                           *
   *                                                                         *
   * Sandbox Sendgrid credentials for use during development, as well as any *
@@ -120,7 +130,6 @@ module.exports.custom = {
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     // 🚀 Code for core product and integrations
-    'ee/tools/puppet': 'georgekarrv', //« Puppet integration (especially useful with macOS MDM turned on) -- FYI: Originally developed by request from "customer-eponym"
     'tools/api': 'lukeheath', //« Scripts used to interact with the Fleet API
 
     // ⚗️ Reference, config surface, built-in queries, API, and other documentation
@@ -129,6 +138,7 @@ module.exports.custom = {
     'schema': 'rachaelshaw',                               // Data tables (osquery/fleetd schema) documentation
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'rachaelshaw', //« Built-in queries
     'docs/get-started/faq': 'zayhanlon',
+    'docs/solutions': 'ddribeiro',
     'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
 
     // Fleet's internal IT and security (+dogfooding)
@@ -169,6 +179,7 @@ module.exports.custom = {
     'handbook/company/product-maturity-assessment.md': 'allenhouchins',
     'handbook/company/testimonials.yml': 'mike-j-thomas',
     'handbook/company/product-groups.md': 'lukeheath',
+    'handbook/company/legal': 'mikermcneil',
     'handbook/company/writing.md': 'mike-j-thomas',
     'handbook/engineering': 'lukeheath',
     'handbook/product-design': 'noahtalerman',
@@ -226,7 +237,6 @@ module.exports.custom = {
   githubRepoMaintainersByPath: {// fleetdm/fleet
 
     // Code for core product and integrations
-    'ee/tools/puppet': ['lukeheath', 'mna', 'georgekarrv'],
     'tools/api': ['lukeheath', 'georgekarrv', 'sharon-fdm'],//« Scripts for interacting with the Fleet API
 
     // Reference, config surface, built-in queries, API, and other documentation
@@ -234,7 +244,7 @@ module.exports.custom = {
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['rachaelshaw', 'noahtalerman', 'eashaw'],// (standard query library)
     '/docs/get-started/faq': ['rynsatterlee', 'ddribeiro', 'zayhanlon'],
     'docs/solutions': ['ddribeiro', 'allenhouchins'],
-    'docs/REST API/rest-api.md': ['rachaelshaw', 'lukeheath'],// (standard query library)
+    'docs/API/rest-api.md': ['rachaelshaw', 'lukeheath'],// (REST API reference)
     'schema': ['eashaw', 'lukeheath'],// (Osquery table schema)
     'ee/cis': ['lukeheath', 'sharon-fdm', 'lucasmrod', 'rachelElysia', 'rachaelshaw'],
     'server/api_endpoints/api_endpoints.yml': 'rachaelshaw',// « API endpoint display names in the Fleet UI (API-only users)
@@ -252,9 +262,16 @@ module.exports.custom = {
     'website/views': ['eashaw', 'mike-j-thomas'],
     'website/generators': 'eashaw',
     'website/assets': 'eashaw',
+    'website/assets/js/pages': ['eashaw','mike-j-thomas'],
+    'website/assets/styles': ['eashaw','mike-j-thomas'],
+    'website/assets/images': ['eashaw','mike-j-thomas','allenhouchins'],
+    'website/assets/videos': ['eashaw','mike-j-thomas'],
+    'website/assets/pdfs': ['eashaw','mike-j-thomas'],
     'website/package.json': 'eashaw',
     'website/config/routes.js': ['eashaw', 'mike-j-thomas'],// (for managing website URLs)
     'website/config/policies.js': ['eashaw', 'mikermcneil'],// (for adding new pages and managing permissions)
+    'website/api/controllers': ['eashaw', 'mike-j-thomas'],
+    'website/api/controllers/landing-pages': ['eashaw', 'mike-j-thomas', 'thomcrowe'],
     'website/api/controllers/webhooks/receive-from-clay.js': ['sampfluger88'],
     'website/api/helpers/salesforce': ['sampfluger88'],
 
@@ -271,8 +288,8 @@ module.exports.custom = {
     // FMA and icons
     'frontend/pages/SoftwarePage/components/icons': 'allenhouchins',
     'ee/maintained-apps': 'allenhouchins',
+    'cmd/maintained-apps/validate': 'allenhouchins',
     'pkg/patch_policy': 'allenhouchins',
-    'website/assets/images': 'allenhouchins',
 
     // Other brandfronts
     'README.md': ['mikermcneil', 'mike-j-thomas', 'lukeheath'],//« github brandfront (github.com/fleetdm/fleet)
@@ -335,6 +352,7 @@ module.exports.custom = {
     'mdm_profiles': ['lukeheath'],//« for dogfood.fleetdm.com, this is the required OS settings applied to contributor Macs
     'vpn': ['rfairburn', 'lukeheath'],// « for managing VPN rules for accessing customer and Fleet Sandbox infrastructure
     '.github/workflows': ['lukeheath'],//« CI/CD workflows
+    '.claude': ['lukeheath'],//« Claude Code skills and settings
 
     // Issue templates
     '.github/ISSUE_TEMPLATE/3-sale.md': ['sampfluger88'],
@@ -372,7 +390,7 @@ module.exports.custom = {
   //
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
-  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.23.1',
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.24.1',
 
 
   //  ███╗   ███╗██╗███████╗ ██████╗
@@ -489,6 +507,11 @@ module.exports.custom = {
   // Metrics:
   // engMetricsGcpServiceAccountKey: '…',
   // datadogApiKey: '…',
+
+  // Usage statistics Google sheet:
+  // usageStatisticsServiceAccountEmailAddress: '…',
+  // usageStatisticsServiceAccountPrivateKey: '…',
+  // usageStatisticsSpreadsheetId: '…',
 
   // For receive-from-customer-fleet-instance webhook.
   // customerWorkspaceOneBaseUrl: '…',

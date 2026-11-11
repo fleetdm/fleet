@@ -63,8 +63,10 @@ func testEnqueueDeviceLockCommand(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	nanoEnroll(t, ds, host, false)
 
+	listOpts := &fleet.MDMCommandListOptions{PerPage: 10, Filters: fleet.MDMCommandFilters{HostIdentifier: host.UUID}}
+
 	// no commands yet
-	res, err := ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
+	res, _, _, err := ds.ListMDMCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, listOpts)
 	require.NoError(t, err)
 	require.Empty(t, res)
 
@@ -77,23 +79,17 @@ func testEnqueueDeviceLockCommand(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// command has no results yet, so the status is empty
-	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
+	res, _, _, err = ds.ListMDMCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, listOpts)
 	require.NoError(t, err)
 	require.Len(t, res, 1)
 
 	require.NotZero(t, res[0].UpdatedAt)
-	res[0].UpdatedAt = time.Time{}
-
-	require.ElementsMatch(t, []*fleet.MDMAppleCommand{
-		{
-			DeviceID:    host.UUID,
-			CommandUUID: "cmd-uuid",
-			Status:      "Pending",
-			RequestType: "DeviceLock",
-			Hostname:    host.Hostname,
-			TeamID:      nil,
-		},
-	}, res)
+	require.Equal(t, host.UUID, res[0].HostUUID)
+	require.Equal(t, "cmd-uuid", res[0].CommandUUID)
+	require.Equal(t, "Pending", res[0].Status)
+	require.Equal(t, "DeviceLock", res[0].RequestType)
+	require.Equal(t, host.Hostname, res[0].Hostname)
+	require.Nil(t, res[0].TeamID)
 
 	status, err := ds.GetHostLockWipeStatus(ctx, host)
 	require.NoError(t, err)
@@ -117,8 +113,10 @@ func testEnqueueDeviceUnlockCommand(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	nanoEnroll(t, ds, host, false)
 
+	listOpts := &fleet.MDMCommandListOptions{PerPage: 10, Filters: fleet.MDMCommandFilters{HostIdentifier: host.UUID}}
+
 	// no commands yet
-	res, err := ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
+	res, _, _, err := ds.ListMDMCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, listOpts)
 	require.NoError(t, err)
 	require.Empty(t, res)
 
@@ -131,23 +129,17 @@ func testEnqueueDeviceUnlockCommand(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// command has no results yet, so the status is empty
-	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
+	res, _, _, err = ds.ListMDMCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, listOpts)
 	require.NoError(t, err)
 	require.Len(t, res, 1)
 
 	require.NotZero(t, res[0].UpdatedAt)
-	res[0].UpdatedAt = time.Time{}
-
-	require.ElementsMatch(t, []*fleet.MDMAppleCommand{
-		{
-			DeviceID:    host.UUID,
-			CommandUUID: "cmd-uuid",
-			Status:      "Pending",
-			RequestType: "DisableLostMode",
-			Hostname:    host.Hostname,
-			TeamID:      nil,
-		},
-	}, res)
+	require.Equal(t, host.UUID, res[0].HostUUID)
+	require.Equal(t, "cmd-uuid", res[0].CommandUUID)
+	require.Equal(t, "Pending", res[0].Status)
+	require.Equal(t, "DisableLostMode", res[0].RequestType)
+	require.Equal(t, host.Hostname, res[0].Hostname)
+	require.Nil(t, res[0].TeamID)
 
 	status, err := ds.GetHostLockWipeStatus(ctx, host)
 	require.NoError(t, err)
@@ -447,7 +439,7 @@ func testEnqueueDeviceLockCommandRaceCondition(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Enable MDM for the host
-	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://test.local", false, "test-ref", "", false)
+	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://test.local", false, "test-ref", "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	// Create nano_devices record first

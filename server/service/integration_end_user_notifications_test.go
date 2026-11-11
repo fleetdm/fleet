@@ -89,6 +89,17 @@ func setTestInstallAt(t *testing.T, ds *mysql.Datastore, notificationUUID string
 	})
 }
 
+// markTestHostSeen puts the host inside its online window, which the deadline pass requires before
+// it closes the end user's apps. The fixtures leave a host a minute behind, outside that window.
+func markTestHostSeen(t *testing.T, ds *mysql.Datastore, hostID uint) {
+	t.Helper()
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(),
+			`UPDATE host_seen_times SET seen_time = NOW(6) WHERE host_id = ?`, hostID)
+		return err
+	})
+}
+
 // getTestNotification reads a notification row directly, for asserting on
 // state the bounded context's own HTTP API doesn't expose (e.g. status,
 // execution_id).
@@ -309,6 +320,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.NotEmpty(t, resp.Items[0].Name)
 		require.NotNil(t, resp.Items[0].IconURL, "the fixture gave this title an icon")
 		require.Contains(t, *resp.Items[0].IconURL, token, "the icon URL carries the device token")
+		require.Nil(t, resp.InstallAt, "install_at is set when the notification is displayed")
 	})
 
 	t.Run("GET renders the plural form for more than one app", func(t *testing.T) {
@@ -572,8 +584,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		dispatched := getTestNotification(t, s.ds, notificationUUID)
 		require.NotNil(t, dispatched.ExecutionID)
 
-		// a re-dispatch moves execution_id on, so nothing points at the script
-		// already on the host
+		// move execution_id on as a delay and the next dispatch would, so nothing points at the script already on the host
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx,
 				`UPDATE notifications_end_user SET execution_id = ? WHERE uuid = ?`,
@@ -804,6 +815,10 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 			Name: "Deadline App up to date", Query: "SELECT 1;",
 		})
 		require.NoError(t, err)
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE policies SET notify_before_patching = 1 WHERE id = ?`, policy.ID)
+			return err
+		})
 
 		notificationUUID := newTestNotification(t, s.ds, host.ID, fleet.PatchNotificationKind, `{"reminder": false}`)
 		require.NoError(t, s.ds.NewPatchNotification(ctx, notificationUUID))
@@ -879,12 +894,12 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 
 		reminded := getTestNotification(t, s.ds, notificationUUID)
 		require.Equal(t, notifications_api.EndUserNotificationPending, reminded.Status)
-		require.Nil(t, reminded.DisplayedAt, "the re-dispatch clears displayed_at so the reminder records its own")
+		require.Nil(t, reminded.DisplayedAt, "the delay clears displayed_at so the reminder records its own")
 		require.NotNil(t, reminded.LastReason)
 		require.Equal(t, notifications_api.EndUserNotificationReasonDelayed, *reminded.LastReason)
 		require.NotNil(t, reminded.ExecutionID, "execution_id is kept so a late script result still resolves the notification")
 		require.Equal(t, *dispatched.ExecutionID, *reminded.ExecutionID)
-		require.JSONEq(t, `{"reminder": true}`, string(reminded.Payload))
+		require.JSONEq(t, `{"reminder": false}`, string(reminded.Payload), "the delay records the 1 hour notice, and the toast picks its notice from install_at when it renders")
 
 		untouched := getTestNotification(t, s.ds, otherUUID)
 		require.Equal(t, notifications_api.EndUserNotificationDispatched, untouched.Status,
@@ -897,9 +912,9 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 
 		// the reminder goes out on the next dispatch, rendering the 5 minute copy
 		dispatch(t)
-		redispatched := getTestNotification(t, s.ds, notificationUUID)
-		require.NotNil(t, redispatched.ExecutionID)
-		_, reminderToken := fetchScript(t, host, *redispatched.ExecutionID)
+		delayedAndDispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, delayedAndDispatched.ExecutionID)
+		_, reminderToken := fetchScript(t, host, *delayedAndDispatched.ExecutionID)
 
 		var view notifications_api.NotificationView
 		s.DoJSONWithoutAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s", reminderToken, notificationUUID),
@@ -909,11 +924,15 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 			{ID: "dismiss", Label: "Hide"},
 			{ID: "update_now", Label: "Update now"},
 		}, view.Actions, "the reminder swaps Remind for Hide")
+		require.NotNil(t, view.InstallAt)
+		require.WithinDuration(t, *shortened, *view.InstallAt, time.Second)
 
 		// a late reminder moves install_at out rather than losing part of its 5 minutes
-		postScriptResult(host, *redispatched.ExecutionID, 0)
+		postScriptResult(host, *delayedAndDispatched.ExecutionID, 0)
 		reminderDisplayed := getTestNotification(t, s.ds, notificationUUID)
 		require.NotNil(t, reminderDisplayed.DisplayedAt)
+		require.JSONEq(t, `{"reminder": true}`, string(reminderDisplayed.Payload),
+			"the 5 minute toast reaching the screen is what records the reminder")
 		afterReminder := getTestInstallAt(t, s.ds, notificationUUID)
 		require.NotNil(t, afterReminder)
 		require.False(t, afterReminder.Before(reminderDisplayed.DisplayedAt.Add(5*time.Minute)),
@@ -923,6 +942,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 
 		// one pass over both: the first is past install_at and installs, the second has just reached
 		// its reminder window
+		markTestHostSeen(t, s.ds, host.ID)
 		setTestInstallAt(t, s.ds, notificationUUID, "NOW(6) - INTERVAL 1 MINUTE")
 		setTestInstallAt(t, s.ds, otherUUID, "NOW(6) + INTERVAL 4 MINUTE")
 		require.NoError(t, s.patchNotificationKind.RemindAndInstallDuePatches(ctx))
@@ -933,8 +953,8 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 
 		otherReminded := getTestNotification(t, s.ds, otherUUID)
 		require.Equal(t, notifications_api.EndUserNotificationPending, otherReminded.Status)
-		require.JSONEq(t, `{"reminder": true}`, string(otherReminded.Payload))
-		require.Empty(t, queuedInstalls(otherHost.ID), "the other host is re-dispatched, not installed")
+		require.JSONEq(t, `{"reminder": false}`, string(otherReminded.Payload), "the delay records the 1 hour notice, and the toast picks its notice from install_at when it renders")
+		require.Empty(t, queuedInstalls(otherHost.ID), "the other host's notification is delayed, not installed")
 
 		installs := queuedInstalls(host.ID)
 		require.Len(t, installs, 1, "the notification's one software title gets one install request")
@@ -950,6 +970,117 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		// acted is the guard against a second install request
 		require.NoError(t, s.patchNotificationKind.RemindAndInstallDuePatches(ctx))
 		require.Len(t, queuedInstalls(host.ID), 1)
+	})
+
+	t.Run("apps Fleet installs or the inventory shows updated while the reminder is on screen show as updated after the deadline", func(t *testing.T) {
+		host := newNotifiableHost(t, "notif-updated-during-reminder")
+		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "updated-during-reminder-team"})
+		require.NoError(t, err)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+		// add two installers on version 2.0.0 to the host's fleet, Fleet installs the first app and the second is updated outside Fleet
+		installerID, _, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript: "echo", Filename: "updated-during-reminder.pkg", StorageID: uuid.NewString(),
+			Title: "Updated During Reminder App", Version: "2.0.0", Source: "apps", Platform: "darwin",
+			UserID: s.users["admin1@example.com"].ID,
+			TeamID: &team.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+
+		var titleID uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &titleID,
+				`SELECT title_id FROM software_installers WHERE id = ?`, installerID)
+		})
+
+		inventoryInstallerID, _, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript: "echo", Filename: "updated-in-inventory.pkg", StorageID: uuid.NewString(),
+			Title: "Updated In Inventory App", Version: "2.0.0", Source: "apps", Platform: "darwin",
+			UserID: s.users["admin1@example.com"].ID,
+			TeamID: &team.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+
+		var inventoryTitleID uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &inventoryTitleID,
+				`SELECT title_id FROM software_installers WHERE id = ?`, inventoryInstallerID)
+		})
+
+		// create a patch notification for the host that lists both apps
+		notificationUUID := newTestNotification(t, s.ds, host.ID, fleet.PatchNotificationKind, `{"reminder": false}`)
+		require.NoError(t, s.ds.NewPatchNotification(ctx, notificationUUID))
+		require.NoError(t, s.ds.AddPatchNotificationApp(ctx, notificationUUID, fleet.PatchNotificationApp{
+			SoftwareTitleID: titleID, SoftwareInstallerID: &installerID,
+		}))
+		require.NoError(t, s.ds.AddPatchNotificationApp(ctx, notificationUUID, fleet.PatchNotificationApp{
+			SoftwareTitleID: inventoryTitleID, SoftwareInstallerID: &inventoryInstallerID,
+		}))
+
+		// move install_at inside the reminder window and display the notification, so the host shows the 5 minute reminder
+		setTestInstallAt(t, s.ds, notificationUUID, "NOW(6) + INTERVAL 4 MINUTE")
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, dispatched.ExecutionID)
+		_, token := fetchScript(t, host, *dispatched.ExecutionID)
+		postScriptResult(host, *dispatched.ExecutionID, 0)
+		reminderDisplayed := getTestNotification(t, s.ds, notificationUUID)
+		require.JSONEq(t, `{"reminder": true}`, string(reminderDisplayed.Payload))
+
+		// install the app from Fleet while the reminder is on screen
+		executionID, err := s.ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{})
+		require.NoError(t, err)
+		s.Do("POST", "/api/fleet/orbit/software_install/result", fleet.OrbitPostSoftwareInstallResultRequest{
+			OrbitNodeKey: *host.OrbitNodeKey,
+			HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
+				HostID: host.ID, InstallUUID: executionID, InstallScriptExitCode: new(0), InstallScriptOutput: new("ok"),
+			},
+		}, http.StatusNoContent)
+
+		// update the second app outside Fleet while the reminder is on screen, so only the host's software inventory shows the installer's version
+		_, err = s.ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+			{Name: "Updated In Inventory App", Version: "2.0.0", Source: "apps"},
+		})
+		require.NoError(t, err)
+
+		// move the deadline into the past and run the deadline pass, neither app should get an install
+		markTestHostSeen(t, s.ds, host.ID)
+		setTestInstallAt(t, s.ds, notificationUUID, "NOW(6) - INTERVAL 1 MINUTE")
+		require.NoError(t, s.patchNotificationKind.RemindAndInstallDuePatches(ctx))
+
+		acted := getTestNotification(t, s.ds, notificationUUID)
+		require.Equal(t, notifications_api.EndUserNotificationActed, acted.Status)
+
+		var upcomingInstalls int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &upcomingInstalls,
+				`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, host.ID)
+		})
+		require.Zero(t, upcomingInstalls)
+
+		apps, err := s.ds.ListPatchNotificationApps(ctx, notificationUUID)
+		require.NoError(t, err)
+		// apps are listed by display name, so the Fleet installed app comes first
+		require.Len(t, apps, 2)
+		require.Equal(t, titleID, apps[0].SoftwareTitleID)
+		require.True(t, apps[0].InstallQueued)
+		require.False(t, apps[0].UpdatedInInventory)
+		require.Equal(t, inventoryTitleID, apps[1].SoftwareTitleID)
+		require.False(t, apps[1].InstallQueued)
+		require.True(t, apps[1].UpdatedInInventory)
+
+		// refetch the reminder as the open toast does, both apps should show as updated
+		var view notifications_api.NotificationView
+		s.DoJSONWithoutAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s", token, notificationUUID),
+			nil, http.StatusOK, &view)
+		require.Len(t, view.Items, 2)
+		require.Equal(t, titleID, view.Items[0].SoftwareTitleID)
+		require.Equal(t, string(fleet.SoftwareInstalled), view.Items[0].InstallStatus)
+		require.Equal(t, "Updated", view.Items[0].Status)
+		require.Equal(t, inventoryTitleID, view.Items[1].SoftwareTitleID)
+		require.Equal(t, string(fleet.SoftwareInstalled), view.Items[1].InstallStatus)
+		require.Equal(t, "Updated", view.Items[1].Status)
+		require.Equal(t, []notifications_api.NotificationAction{{ID: "dismiss", Label: "Hide"}}, view.Actions)
 	})
 
 	// One policy run queues installs for two apps: the open app skips and opens a notification, the closed
@@ -1215,7 +1346,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		reminding := getTestNotification(t, s.ds, firstUUID)
 		require.Equal(t, notifications_api.EndUserNotificationPending, reminding.Status)
 		require.Nil(t, reminding.DisplayedAt)
-		require.JSONEq(t, `{"reminder": true}`, string(reminding.Payload))
+		require.JSONEq(t, `{"reminder": false}`, string(reminding.Payload), "the delay records the 1 hour notice, and the toast picks its notice from install_at when it renders")
 		firstDeadline := getTestInstallAt(t, s.ds, firstUUID)
 		require.NotNil(t, firstDeadline)
 
@@ -1385,7 +1516,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		firstReminder := getTestNotification(t, s.ds, firstUUID)
 		require.Equal(t, notifications_api.EndUserNotificationPending, firstReminder.Status)
 		require.Nil(t, firstReminder.DisplayedAt)
-		require.JSONEq(t, `{"reminder": true}`, string(firstReminder.Payload))
+		require.JSONEq(t, `{"reminder": false}`, string(firstReminder.Payload), "the delay records the 1 hour notice, and the toast picks its notice from install_at when it renders")
 
 		dispatch(t)
 		require.Equal(t, notifications_api.EndUserNotificationDispatched,
@@ -1406,6 +1537,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		// the first reminder is displayed, which sets its displayed_at and ends the first reason to wait
 		firstDispatched := getTestNotification(t, s.ds, firstUUID)
 		require.NotNil(t, firstDispatched.ExecutionID)
+		fetchScript(t, host, *firstDispatched.ExecutionID)
 		postScriptResult(host, *firstDispatched.ExecutionID, 0)
 		firstShown := getTestNotification(t, s.ds, firstUUID)
 		require.NotNil(t, firstShown.DisplayedAt)
@@ -1423,6 +1555,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.Equal(t, notifications_api.EndUserNotificationDispatched, secondDispatched.Status,
 			"the second reminder is sent once the first reminder's toast has closed")
 		require.NotNil(t, secondDispatched.ExecutionID)
+		fetchScript(t, host, *secondDispatched.ExecutionID)
 		postScriptResult(host, *secondDispatched.ExecutionID, 0)
 		secondShown := getTestNotification(t, s.ds, secondUUID)
 		require.NotNil(t, secondShown.DisplayedAt, "the second reminder reaches the end user rather than being lost")
@@ -1432,6 +1565,7 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 			"the second reminder gets its own five minutes, counted from when it was displayed")
 
 		// the five minutes are up on the first notification, whose reminder had the screen to itself
+		markTestHostSeen(t, s.ds, host.ID)
 		setTestInstallAt(t, s.ds, firstUUID, "NOW(6) - INTERVAL 1 MINUTE")
 		require.NoError(t, s.patchNotificationKind.RemindAndInstallDuePatches(ctx))
 		require.Equal(t, notifications_api.EndUserNotificationActed,
@@ -1464,5 +1598,335 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 				WHERE ua.host_id = ? AND siua.software_installer_id = ?`, host.ID, secondInstallerID)
 		})
 		require.Equal(t, 1, secondQueued, "the second app gets its own forced install, not the first app's")
+	})
+
+	t.Run("a host offline through a deadline gets the 1 hour notification again each time it comes back", func(t *testing.T) {
+		host, teamID := notifyTeamAndHost(t, "notif-offline-cycle")
+		policyID, installerID := newNotifyPatchPolicy(t, teamID, "Offline Cycle App")
+
+		// display the 1 hour notification
+		notificationUUID := skipAndDisplay(t, host, map[uint]*bool{policyID: new(false)}, installerID)
+
+		// queue the reminder without the host fetching it, then move the deadline into the past
+		expireTestToast(t, notificationUUID)
+		setTestInstallAt(t, s.ds, notificationUUID, "NOW(6) + INTERVAL 4 MINUTE")
+		require.NoError(t, s.patchNotificationKind.RemindAndInstallDuePatches(ctx))
+		dispatch(t)
+		setTestInstallAt(t, s.ds, notificationUUID, "NOW(6) - INTERVAL 1 MINUTE")
+
+		// set the host to online and display the notification, it should be the 1 hour notification again
+		markTestHostSeen(t, s.ds, host.ID)
+		firstReturn := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, firstReturn.ExecutionID)
+
+		_, firstReturnToken := fetchScript(t, host, *firstReturn.ExecutionID)
+		var firstReturnView notifications_api.NotificationView
+		s.DoJSONWithoutAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s", firstReturnToken, notificationUUID),
+			nil, http.StatusOK, &firstReturnView)
+		postScriptResult(host, *firstReturn.ExecutionID, 0)
+
+		require.Contains(t, firstReturnView.Description, "**1 hour**")
+		firstReturnDeadline := getTestInstallAt(t, s.ds, notificationUUID)
+		require.NotNil(t, firstReturnDeadline)
+		require.WithinDuration(t, time.Now().UTC().Add(time.Hour), *firstReturnDeadline, time.Minute)
+
+		// move the deadline to 4 minutes away and display the notification, it should be the 5 minute reminder
+		expireTestToast(t, notificationUUID)
+		setTestInstallAt(t, s.ds, notificationUUID, "NOW(6) + INTERVAL 4 MINUTE")
+		require.NoError(t, s.patchNotificationKind.RemindAndInstallDuePatches(ctx))
+		dispatch(t)
+		reminder := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, reminder.ExecutionID)
+
+		_, reminderToken := fetchScript(t, host, *reminder.ExecutionID)
+		var reminderView notifications_api.NotificationView
+		s.DoJSONWithoutAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s", reminderToken, notificationUUID),
+			nil, http.StatusOK, &reminderView)
+		postScriptResult(host, *reminder.ExecutionID, 0)
+
+		require.Contains(t, reminderView.Description, "**5 minutes**")
+		reminderDisplayed := getTestNotification(t, s.ds, notificationUUID)
+		require.JSONEq(t, `{"reminder": true}`, string(reminderDisplayed.Payload))
+
+		// set the host to offline and move the reminder's deadline into the past, the notification should be delayed instead of installing
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE host_seen_times SET seen_time = NOW(6) - INTERVAL 1 HOUR WHERE host_id = ?`, host.ID)
+			return err
+		})
+		setTestInstallAt(t, s.ds, notificationUUID, "NOW(6) - INTERVAL 1 MINUTE")
+		require.NoError(t, s.patchNotificationKind.RemindAndInstallDuePatches(ctx))
+
+		delayedOffline := getTestNotification(t, s.ds, notificationUUID)
+		require.Equal(t, notifications_api.EndUserNotificationPending, delayedOffline.Status)
+		require.JSONEq(t, `{"reminder": false}`, string(delayedOffline.Payload))
+		var queued int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &queued, `
+				SELECT COUNT(*)
+				FROM upcoming_activities ua
+					JOIN software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+				WHERE ua.host_id = ? AND siua.software_installer_id = ?`, host.ID, installerID)
+		})
+		require.Zero(t, queued, "nothing installs on a host that is offline at the deadline")
+
+		// set the host to online and display the notification, it should be the 1 hour notification again
+		markTestHostSeen(t, s.ds, host.ID)
+		dispatch(t)
+		secondReturn := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, secondReturn.ExecutionID)
+
+		_, secondReturnToken := fetchScript(t, host, *secondReturn.ExecutionID)
+		var secondReturnView notifications_api.NotificationView
+		s.DoJSONWithoutAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s", secondReturnToken, notificationUUID),
+			nil, http.StatusOK, &secondReturnView)
+		postScriptResult(host, *secondReturn.ExecutionID, 0)
+
+		require.Contains(t, secondReturnView.Description, "**1 hour**")
+		secondReturnDeadline := getTestInstallAt(t, s.ds, notificationUUID)
+		require.NotNil(t, secondReturnDeadline)
+		require.WithinDuration(t, time.Now().UTC().Add(time.Hour), *secondReturnDeadline, time.Minute)
+
+		// move the deadline to 4 minutes away and display the notification, it should be the 5 minute reminder
+		expireTestToast(t, notificationUUID)
+		setTestInstallAt(t, s.ds, notificationUUID, "NOW(6) + INTERVAL 4 MINUTE")
+		require.NoError(t, s.patchNotificationKind.RemindAndInstallDuePatches(ctx))
+		dispatch(t)
+		onlineReminder := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, onlineReminder.ExecutionID)
+
+		_, onlineReminderToken := fetchScript(t, host, *onlineReminder.ExecutionID)
+		var onlineReminderView notifications_api.NotificationView
+		s.DoJSONWithoutAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s", onlineReminderToken, notificationUUID),
+			nil, http.StatusOK, &onlineReminderView)
+		postScriptResult(host, *onlineReminder.ExecutionID, 0)
+
+		require.Contains(t, onlineReminderView.Description, "**5 minutes**")
+
+		// set the host to online and move the reminder's deadline into the past, the install should be queued
+		markTestHostSeen(t, s.ds, host.ID)
+		setTestInstallAt(t, s.ds, notificationUUID, "NOW(6) - INTERVAL 1 MINUTE")
+		require.NoError(t, s.patchNotificationKind.RemindAndInstallDuePatches(ctx))
+
+		installed := getTestNotification(t, s.ds, notificationUUID)
+		require.Equal(t, notifications_api.EndUserNotificationActed, installed.Status)
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &queued, `
+				SELECT COUNT(*)
+				FROM upcoming_activities ua
+					JOIN software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+				WHERE ua.host_id = ? AND siua.software_installer_id = ?`, host.ID, installerID)
+		})
+		require.Equal(t, 1, queued, "the install is queued once the host is online at the reminder's deadline")
+	})
+
+	// A deadline policy on a host whose fleet has a deadline every day at 09:30, local time
+	newDeadlinePolicy := func(t *testing.T, host *fleet.Host, teamID uint, timezone, name string) (uint, uint) {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE hosts SET timezone = ? WHERE id = ?`, timezone, host.ID)
+			return err
+		})
+		require.NoError(t, s.ds.SetPatchDeadlineSettings(ctx, fleet.PatchDeadlineSettings{
+			TeamID: teamID,
+			Days:   []string{"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"},
+			Time:   "09:30",
+		}))
+
+		policyID, installerID := newNotifyPatchPolicy(t, teamID, name)
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE policies SET notify_before_patching = 0, patch_deadline = 1 WHERE id = ?`, policyID)
+			return err
+		})
+		return policyID, installerID
+	}
+
+	notificationsForHost := func(t *testing.T, hostID uint) []notifications_api.EndUserNotification {
+		var rows []notifications_api.EndUserNotification
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &rows,
+				`SELECT `+endUserNotificationColumns+` FROM notifications_end_user WHERE host_id = ? ORDER BY id`, hostID)
+		})
+		return rows
+	}
+
+	hostPatchDeadlineAt := func(t *testing.T, hostID uint) *time.Time {
+		var resp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &resp)
+		return resp.Host.PatchDeadlineAt
+	}
+
+	t.Run("a deadline policy that skips with the app open notifies an hour before the deadline and installs an hour after the display", func(t *testing.T) {
+		host, teamID := notifyTeamAndHost(t, "notif-deadline-policy")
+		const timezone = "America/New_York"
+		policyID, installerID := newDeadlinePolicy(t, host, teamID, timezone, "Deadline Policy App")
+
+		// the next 09:30 whose notice, an hour earlier, is still ahead
+		loc, err := time.LoadLocation(timezone)
+		require.NoError(t, err)
+		nextDeadline := func() time.Time {
+			local := time.Now().In(loc)
+			deadline := time.Date(local.Year(), local.Month(), local.Day(), 9, 30, 0, 0, loc)
+			if !deadline.Add(-time.Hour).After(local) {
+				deadline = time.Date(local.Year(), local.Month(), local.Day()+1, 9, 30, 0, 0, loc)
+			}
+			return deadline
+		}
+		deadline := nextDeadline()
+		firstNotice := deadline.Add(-time.Hour)
+
+		var distributedResp submitDistributedQueryResultsResponse
+		s.DoJSON("POST", "/api/osquery/distributed/write",
+			genDistributedReqWithPolicyResults(host, map[uint]*bool{policyID: new(false)}), http.StatusOK, &distributedResp)
+		executionID, activatedInstallerID := activatedInstallFor(t, host.ID)
+		require.Equal(t, installerID, activatedInstallerID)
+		postSkippedInstall(t, host, executionID)
+		if !deadline.Equal(nextDeadline()) {
+			t.Skip("the run crossed the notice time")
+		}
+
+		// the skip shows the deadline copy and doesn't count as an attempt
+		result, err := s.ds.GetSoftwareInstallResults(ctx, executionID)
+		require.NoError(t, err)
+		require.NotNil(t, result.AttemptNumber)
+		require.Zero(t, *result.AttemptNumber)
+		result.EnhanceOutputDetails()
+		require.NotNil(t, result.PreInstallQueryOutput)
+		require.Equal(t, fleet.SoftwareInstallerAppOpenDeadlineCopy, *result.PreInstallQueryOutput)
+
+		rows := notificationsForHost(t, host.ID)
+		require.Len(t, rows, 1)
+		notification := rows[0]
+		require.Equal(t, fleet.PatchDeadlineNotificationKind, notification.Kind)
+		require.Equal(t, notifications_api.EndUserNotificationPending, notification.Status)
+		require.NotNil(t, notification.NextAttemptAt)
+		require.WithinDuration(t, firstNotice, *notification.NextAttemptAt, time.Second)
+		require.NotNil(t, notification.ExpiresAt)
+		require.WithinDuration(t, notification.NextAttemptAt.Add(24*time.Hour), *notification.ExpiresAt, time.Second)
+
+		// the host's deadline is an hour after its first notice
+		pendingDeadline := hostPatchDeadlineAt(t, host.ID)
+		require.NotNil(t, pendingDeadline)
+		require.WithinDuration(t, notification.NextAttemptAt.Add(time.Hour), *pendingDeadline, time.Second)
+
+		// nothing goes out before the first notice
+		dispatch(t)
+		waiting := getTestNotification(t, s.ds, notification.UUID)
+		require.Equal(t, notifications_api.EndUserNotificationPending, waiting.Status)
+		require.Nil(t, waiting.ExecutionID)
+
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`UPDATE notifications_end_user SET next_attempt_at = NOW(6) - INTERVAL 1 MINUTE WHERE uuid = ?`, notification.UUID)
+			return err
+		})
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notification.UUID)
+		require.Equal(t, notifications_api.EndUserNotificationDispatched, dispatched.Status)
+		require.NotNil(t, dispatched.ExecutionID)
+		fetchScript(t, host, *dispatched.ExecutionID)
+		postScriptResult(host, *dispatched.ExecutionID, 0)
+
+		displayed := getTestNotification(t, s.ds, notification.UUID)
+		require.NotNil(t, displayed.DisplayedAt)
+		installAt := getTestInstallAt(t, s.ds, notification.UUID)
+		require.NotNil(t, installAt)
+		require.WithinDuration(t, displayed.DisplayedAt.Add(time.Hour), *installAt, time.Minute)
+
+		var hostFeed listActivitiesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host.ID), nil, http.StatusOK, &hostFeed)
+		var notified bool
+		for _, activity := range hostFeed.Activities {
+			notified = notified || activity.Type == "notified_end_user_before_patching"
+		}
+		require.True(t, notified, "the 1 hour notice records its activity")
+
+		displayedDeadline := hostPatchDeadlineAt(t, host.ID)
+		require.NotNil(t, displayedDeadline)
+		require.WithinDuration(t, *installAt, *displayedDeadline, time.Second)
+
+		// the 5 minute reminder goes out, then the deadline passes and the install is queued
+		expireTestToast(t, notification.UUID)
+		setTestInstallAt(t, s.ds, notification.UUID, "NOW(6) + INTERVAL 4 MINUTE")
+		require.NoError(t, s.patchNotificationKind.RemindAndInstallDuePatches(ctx))
+		dispatch(t)
+		reminder := getTestNotification(t, s.ds, notification.UUID)
+		require.NotNil(t, reminder.ExecutionID)
+		fetchScript(t, host, *reminder.ExecutionID)
+		postScriptResult(host, *reminder.ExecutionID, 0)
+
+		markTestHostSeen(t, s.ds, host.ID)
+		setTestInstallAt(t, s.ds, notification.UUID, "NOW(6) - INTERVAL 1 MINUTE")
+		require.NoError(t, s.patchNotificationKind.RemindAndInstallDuePatches(ctx))
+		require.Equal(t, notifications_api.EndUserNotificationActed, getTestNotification(t, s.ds, notification.UUID).Status)
+
+		var queued []struct {
+			ExecutionID string `db:"execution_id"`
+			PolicyID    *uint  `db:"policy_id"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &queued, `
+				SELECT ua.execution_id, siua.policy_id
+				FROM upcoming_activities ua
+					JOIN software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+				WHERE ua.host_id = ? AND siua.software_installer_id = ?`, host.ID, installerID)
+		})
+		require.Len(t, queued, 1)
+		require.NotNil(t, queued[0].PolicyID)
+		require.Equal(t, policyID, *queued[0].PolicyID)
+	})
+
+	t.Run("a second deadline app skipped on the same host joins the first app's notification", func(t *testing.T) {
+		host, teamID := notifyTeamAndHost(t, "notif-deadline-two-apps")
+		firstPolicyID, firstInstallerID := newDeadlinePolicy(t, host, teamID, "America/New_York", "Deadline First App")
+		secondPolicyID, secondInstallerID := newDeadlinePolicy(t, host, teamID, "America/New_York", "Deadline Second App")
+
+		var distributedResp submitDistributedQueryResultsResponse
+		s.DoJSON("POST", "/api/osquery/distributed/write",
+			genDistributedReqWithPolicyResults(host, map[uint]*bool{firstPolicyID: new(false), secondPolicyID: new(false)}),
+			http.StatusOK, &distributedResp)
+
+		// the queue activates one install at a time
+		skipped := map[uint]bool{}
+		for range 2 {
+			executionID, installerID := activatedInstallFor(t, host.ID)
+			skipped[installerID] = true
+			postSkippedInstall(t, host, executionID)
+		}
+		require.Equal(t, map[uint]bool{firstInstallerID: true, secondInstallerID: true}, skipped)
+
+		rows := notificationsForHost(t, host.ID)
+		require.Len(t, rows, 1)
+		require.Equal(t, fleet.PatchDeadlineNotificationKind, rows[0].Kind)
+
+		var apps int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &apps, `SELECT COUNT(*) FROM patch_notification_apps WHERE notification_uuid = ?`, rows[0].UUID)
+		})
+		require.Equal(t, 2, apps)
+	})
+
+	t.Run("a deadline policy installs on the policy run when the app is closed and opens no notification", func(t *testing.T) {
+		host, teamID := notifyTeamAndHost(t, "notif-deadline-closed")
+		policyID, installerID := newDeadlinePolicy(t, host, teamID, "America/New_York", "Deadline Closed App")
+
+		var distributedResp submitDistributedQueryResultsResponse
+		s.DoJSON("POST", "/api/osquery/distributed/write",
+			genDistributedReqWithPolicyResults(host, map[uint]*bool{policyID: new(false)}), http.StatusOK, &distributedResp)
+		executionID, activatedInstallerID := activatedInstallFor(t, host.ID)
+		require.Equal(t, installerID, activatedInstallerID)
+
+		// a non-empty pre install condition output means the app was closed
+		s.Do("POST", "/api/fleet/orbit/software_install/result", fleet.OrbitPostSoftwareInstallResultRequest{
+			OrbitNodeKey: *host.OrbitNodeKey,
+			HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
+				HostID: host.ID, InstallUUID: executionID, PreInstallConditionOutput: new("1"),
+				InstallScriptExitCode: new(0), InstallScriptOutput: new("ok"),
+			},
+		}, http.StatusNoContent)
+
+		result, err := s.ds.GetSoftwareInstallResults(ctx, executionID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.SoftwareInstalled, result.Status)
+		require.Empty(t, notificationsForHost(t, host.ID))
+		require.Nil(t, hostPatchDeadlineAt(t, host.ID))
 	})
 }

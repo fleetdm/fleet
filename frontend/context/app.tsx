@@ -30,8 +30,10 @@ enum ACTIONS {
   SET_ABM_EXPIRY = "SET_ABM_EXPIRY",
   SET_APNS_EXPIRY = "SET_APNS_EXPIRY",
   SET_VPP_EXPIRY = "SET_VPP_EXPIRY",
+  SET_EJBCA_EXPIRY = "SET_EJBCA_EXPIRY",
   SET_SANDBOX_EXPIRY = "SET_SANDBOX_EXPIRY",
   SET_NO_SANDBOX_HOSTS = "SET_NO_SANDBOX_HOSTS",
+  SET_HOST_COUNT = "SET_HOST_COUNT",
   SET_FILTERED_HOSTS_PATH = "SET_FILTERED_HOSTS_PATH",
   SET_FILTERED_SOFTWARE_PATH = "SET_FILTERED_SOFTWARE_PATH",
   SET_FILTERED_QUERIES_PATH = "SET_FILTERED_QUERIES_PATH",
@@ -94,6 +96,11 @@ interface ISetVppExpiryAction {
   vppExpiry: string;
 }
 
+interface ISetEJBCAExpiryAction {
+  type: ACTIONS.SET_EJBCA_EXPIRY;
+  ejbcaExpiry: string;
+}
+
 interface ISetSandboxExpiryAction {
   type: ACTIONS.SET_SANDBOX_EXPIRY;
   sandboxExpiry: string;
@@ -102,6 +109,11 @@ interface ISetSandboxExpiryAction {
 interface ISetNoSandboxHostsAction {
   type: ACTIONS.SET_NO_SANDBOX_HOSTS;
   noSandboxHosts: boolean;
+}
+
+interface ISetHostCountAction {
+  type: ACTIONS.SET_HOST_COUNT;
+  hostCount?: number;
 }
 
 interface ISetFilteredHostsPathAction {
@@ -135,8 +147,10 @@ type IAction =
   | ISetABMExpiryAction
   | ISetAPNsExpiryAction
   | ISetVppExpiryAction
+  | ISetEJBCAExpiryAction
   | ISetSandboxExpiryAction
   | ISetNoSandboxHostsAction
+  | ISetHostCountAction
   | ISetFilteredHostsPathAction
   | ISetFilteredSoftwarePathAction
   | ISetFilteredQueriesPathAction
@@ -183,17 +197,22 @@ type InitialStateType = {
   isAppleBmExpired: boolean;
   isApplePnsExpired: boolean;
   isVppExpired: boolean;
+  isEJBCACertExpired: boolean;
   needsAbmTermsRenewal: boolean;
   hasInvalidABMToken: boolean;
   invalidAbmTokenOrgNames: string[];
   willAppleBmExpire: boolean;
   willApplePnsExpire: boolean;
   willVppExpire: boolean;
+  willEJBCACertExpire: boolean;
   abmExpiry?: IAbmExpiry;
   apnsExpiry?: string;
   vppExpiry?: string;
+  ejbcaExpiry?: string;
   sandboxExpiry?: string;
   noSandboxHosts?: boolean;
+  /** Total hosts across all fleets. Only loaded for global users on Fleet Premium. */
+  hostCount?: number;
   filteredHostsPath?: string;
   filteredSoftwarePath?: string;
   filteredQueriesPath?: string;
@@ -212,8 +231,10 @@ type InitialStateType = {
   setAPNsExpiry: (apnsExpiry: string) => void;
   setABMExpiry: (abmExpiry: IAbmExpiry) => void;
   setVppExpiry: (vppExpiry: string) => void;
+  setEJBCAExpiry: (ejbcaExpiry: string) => void;
   setSandboxExpiry: (sandboxExpiry: string) => void;
   setNoSandboxHosts: (noSandboxHosts: boolean) => void;
+  setHostCount: (hostCount?: number) => void;
   setFilteredHostsPath: (filteredHostsPath: string) => void;
   setFilteredSoftwarePath: (filteredSoftwarePath: string) => void;
   setFilteredQueriesPath: (filteredQueriesPath: string) => void;
@@ -263,12 +284,14 @@ export const initialState = {
   isAppleBmExpired: false,
   isApplePnsExpired: false,
   isVppExpired: false,
+  isEJBCACertExpired: false,
   needsAbmTermsRenewal: false,
   hasInvalidABMToken: false,
   invalidAbmTokenOrgNames: [],
   willAppleBmExpire: false,
   willApplePnsExpire: false,
   willVppExpire: false,
+  willEJBCACertExpire: false,
   setAvailableTeams: () => null,
   setUserSettings: () => null,
   setCurrentUser: () => null,
@@ -279,8 +302,10 @@ export const initialState = {
   setAPNsExpiry: () => null,
   setABMExpiry: () => null,
   setVppExpiry: () => null,
+  setEJBCAExpiry: () => null,
   setSandboxExpiry: () => null,
   setNoSandboxHosts: () => null,
+  setHostCount: () => null,
   setFilteredHostsPath: () => null,
   setFilteredSoftwarePath: () => null,
   setFilteredQueriesPath: () => null,
@@ -453,6 +478,15 @@ const reducer = (state: InitialStateType, action: IAction) => {
         willVppExpire: willExpireWithinXDays(vppExpiry, 30),
       };
     }
+    case ACTIONS.SET_EJBCA_EXPIRY: {
+      const { ejbcaExpiry } = action;
+      return {
+        ...state,
+        ejbcaExpiry,
+        isEJBCACertExpired: hasLicenseExpired(ejbcaExpiry),
+        willEJBCACertExpire: willExpireWithinXDays(ejbcaExpiry, 30),
+      };
+    }
     case ACTIONS.SET_SANDBOX_EXPIRY: {
       const { sandboxExpiry } = action;
       return {
@@ -465,6 +499,13 @@ const reducer = (state: InitialStateType, action: IAction) => {
       return {
         ...state,
         noSandboxHosts,
+      };
+    }
+    case ACTIONS.SET_HOST_COUNT: {
+      const { hostCount } = action;
+      return {
+        ...state,
+        hostCount,
       };
     }
     case ACTIONS.SET_FILTERED_HOSTS_PATH: {
@@ -552,12 +593,20 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     dispatch({ type: ACTIONS.SET_VPP_EXPIRY, vppExpiry });
   }, []);
 
+  const setEJBCAExpiry = useCallback((ejbcaExpiry: string) => {
+    dispatch({ type: ACTIONS.SET_EJBCA_EXPIRY, ejbcaExpiry });
+  }, []);
+
   const setSandboxExpiry = useCallback((sandboxExpiry: string) => {
     dispatch({ type: ACTIONS.SET_SANDBOX_EXPIRY, sandboxExpiry });
   }, []);
 
   const setNoSandboxHosts = useCallback((noSandboxHosts: boolean) => {
     dispatch({ type: ACTIONS.SET_NO_SANDBOX_HOSTS, noSandboxHosts });
+  }, []);
+
+  const setHostCount = useCallback((hostCount?: number) => {
+    dispatch({ type: ACTIONS.SET_HOST_COUNT, hostCount });
   }, []);
 
   const setFilteredHostsPath = useCallback((filteredHostsPath: string) => {
@@ -600,17 +649,21 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       abmExpiry: state.abmExpiry,
       apnsExpiry: state.apnsExpiry,
       vppExpiry: state.vppExpiry,
+      ejbcaExpiry: state.ejbcaExpiry,
       isAndroidEnterpriseDeleted: state.isAndroidEnterpriseDeleted,
       isAppleBmExpired: state.isAppleBmExpired,
       isApplePnsExpired: state.isApplePnsExpired,
       isVppExpired: state.isVppExpired,
+      isEJBCACertExpired: state.isEJBCACertExpired,
       needsAbmTermsRenewal: state.needsAbmTermsRenewal,
       hasInvalidABMToken: state.hasInvalidABMToken,
       invalidAbmTokenOrgNames: state.invalidAbmTokenOrgNames,
       willAppleBmExpire: state.willAppleBmExpire,
       willApplePnsExpire: state.willApplePnsExpire,
       willVppExpire: state.willVppExpire,
+      willEJBCACertExpire: state.willEJBCACertExpire,
       noSandboxHosts: state.noSandboxHosts,
+      hostCount: state.hostCount,
       filteredHostsPath: state.filteredHostsPath,
       filteredSoftwarePath: state.filteredSoftwarePath,
       filteredQueriesPath: state.filteredQueriesPath,
@@ -657,8 +710,10 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       setABMExpiry,
       setAPNsExpiry,
       setVppExpiry,
+      setEJBCAExpiry,
       setSandboxExpiry,
       setNoSandboxHosts,
+      setHostCount,
       setFilteredHostsPath,
       setFilteredSoftwarePath,
       setFilteredQueriesPath,
@@ -703,17 +758,21 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       state.isTeamMaintainerOrTeamAdmin,
       state.isTeamObserver,
       state.isVppExpired,
+      state.isEJBCACertExpired,
       state.isWindowsMdmEnabledAndConfigured,
       state.isAndroidMdmEnabledAndConfigured,
       state.needsAbmTermsRenewal,
       state.hasInvalidABMToken,
       state.invalidAbmTokenOrgNames,
       state.noSandboxHosts,
+      state.hostCount,
       state.sandboxExpiry,
       state.vppExpiry,
+      state.ejbcaExpiry,
       state.willAppleBmExpire,
       state.willApplePnsExpire,
       state.willVppExpire,
+      state.willEJBCACertExpire,
       // Stable setters (useCallback with empty deps)
       setAvailableTeams,
       setUserSettings,
@@ -725,8 +784,10 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       setABMExpiry,
       setAPNsExpiry,
       setVppExpiry,
+      setEJBCAExpiry,
       setSandboxExpiry,
       setNoSandboxHosts,
+      setHostCount,
       setFilteredHostsPath,
       setFilteredSoftwarePath,
       setFilteredQueriesPath,

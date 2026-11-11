@@ -28,7 +28,7 @@ interface IHostActionsDropdownProps {
   onSelect: (value: string) => void;
   hostScriptsEnabled: boolean | null;
   isRecoveryLockPasswordEnabled?: boolean;
-  diskEncryptionProfileStatus?: string;
+  diskEncryptionProfileStatus?: string | null;
   recoveryLockPasswordAvailable?: boolean;
   recoveryLockPasswordStatus?: RecoveryLockPasswordStatus;
   isManagedLocalAccountEnabled?: boolean;
@@ -121,8 +121,6 @@ const HostActionsDropdown = ({
     isEncryptionKeyArchived: isEncryptionKeyArchived ?? false,
     hostMdmDeviceStatus,
     hostScriptsEnabled,
-    scriptsGloballyDisabled:
-      globalConfig?.server_settings?.scripts_disabled ?? false,
     isPrimoMode: globalConfig?.partnerships?.enable_primo ?? false,
     hostMdmEnrollmentStatus,
     isRecoveryLockPasswordEnabled,

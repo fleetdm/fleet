@@ -3,17 +3,21 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
+	"google.golang.org/api/googleapi"
 )
 
 const (
@@ -30,7 +34,7 @@ func testPolicyName(esid string) string {
 func newTestMux(t *testing.T) (*http.ServeMux, *deviceStore) {
 	t.Helper()
 	store := newDeviceStore()
-	return newMux(store, nil, 0, 0), store
+	return newMux(store, nil, 0, 0, policyOptions{}), store
 }
 
 // registerTestDevice registers a fake device through the coordination API the way
@@ -116,6 +120,90 @@ func TestHandlePolicyActionStoresPendingCertificates(t *testing.T) {
 			// the version the device reports never matches what Fleet recorded.
 			assert.Positive(t, store.getPolicyVersion(testPolicyName(testESID)))
 			assert.Zero(t, store.getPolicyVersion(testPolicyName(testESID+":"+action)))
+		})
+	}
+}
+
+// TestPolicyActionRequiresExistingPolicy covers --require-policies: AMAPI answers a policy
+// action on a policy that was never created with 404, which is how Fleet's certificate
+// delivery failed for hosts whose host-specific policy didn't exist yet.
+func TestPolicyActionRequiresExistingPolicy(t *testing.T) {
+	testCases := []struct {
+		name            string
+		requirePolicies bool
+		setup           func(t *testing.T, mux *http.ServeMux)
+		policyID        string
+		wantStatus      int
+	}{
+		{
+			name:            "missing policy is not found",
+			requirePolicies: true,
+			policyID:        testESID,
+			wantStatus:      http.StatusNotFound,
+		},
+		{
+			name:            "patched policy exists",
+			requirePolicies: true,
+			setup: func(t *testing.T, mux *http.ServeMux) {
+				require.Equal(t, http.StatusOK, patchPolicy(t, mux, testESID).Code)
+			},
+			policyID:   testESID,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:            "policy restored by a device registering again exists",
+			requirePolicies: true,
+			setup: func(t *testing.T, mux *http.ServeMux) {
+				req := defaultRegisterRequest()
+				req.PolicyName = testPolicyName(testESID)
+				req.PolicyVersion = 5
+				registerTestDevice(t, mux, req, http.StatusOK)
+			},
+			policyID:   testESID,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:            "another host's policy does not make this one exist",
+			requirePolicies: true,
+			setup: func(t *testing.T, mux *http.ServeMux) {
+				require.Equal(t, http.StatusOK, patchPolicy(t, mux, "other-host").Code)
+			},
+			policyID:   testESID,
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:            "a policy for a device the mock doesn't simulate is not checked",
+			requirePolicies: true,
+			policyID:        "real-device",
+			wantStatus:      http.StatusOK,
+		},
+		{
+			name:       "missing policy is accepted by default",
+			policyID:   testESID,
+			wantStatus: http.StatusOK,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			store := newDeviceStore()
+			store.requirePolicies = tc.requirePolicies
+			mux := newMux(store, nil, 0, 0, policyOptions{})
+			registerTestDevice(t, mux, defaultRegisterRequest(), http.StatusOK)
+			if tc.setup != nil {
+				tc.setup(t, mux)
+			}
+			versionBefore := store.getPolicyVersion(testPolicyName(tc.policyID))
+
+			body := certChangesBody(t, certConfig(certTemplate(7, fleet.MDMOperationTypeInstall)))
+			rr := postPolicyAction(t, mux, fmt.Sprintf("/v1/enterprises/%s/policies/%s:modifyPolicyApplications", testEnterpriseID, tc.policyID), body)
+			require.Equal(t, tc.wantStatus, rr.Code, "policy action response: %s", rr.Body.String())
+
+			if tc.wantStatus == http.StatusNotFound {
+				assert.Equal(t, "Not Found\n", rr.Body.String())
+				assert.Empty(t, store.getByESID(testESID).PendingCertificates, "a rejected action must not deliver certificates")
+				assert.Equal(t, versionBefore, store.getPolicyVersion(testPolicyName(tc.policyID)), "a rejected action must not issue a version")
+				assert.False(t, store.policyExists(testPolicyName(tc.policyID)), "a rejected action must not create the policy")
+			}
 		})
 	}
 }
@@ -322,7 +410,7 @@ func TestRegisterRestoresPolicyState(t *testing.T) {
 
 		d := store.getByESID(testESID)
 		require.NotNil(t, d)
-		assert.Equal(t, "enterprises/LC01/policies/default", d.PolicyName)
+		assert.Equal(t, "enterprises/LC01/policies/1", d.PolicyName)
 		assert.Zero(t, d.PolicyVersion)
 	})
 
@@ -340,7 +428,7 @@ func TestRegisterRestoresPolicyState(t *testing.T) {
 			d := store.getByESID(testESID)
 			require.NotNil(t, d)
 			assert.Zero(t, d.PolicyVersion, "the bogus version must not be kept on the device")
-			assert.Equal(t, "enterprises/LC01/policies/default", d.PolicyName,
+			assert.Equal(t, "enterprises/LC01/policies/1", d.PolicyName,
 				"the device falls back to a fresh registration")
 
 			// And it must not be reported to Fleet either.
@@ -559,6 +647,10 @@ func TestStoreConcurrentAccess(t *testing.T) {
 		func() *http.Request {
 			return httptest.NewRequest("POST", policyActionPath, bytes.NewReader(certBody))
 		},
+		// Reads the enterprise set the policy routes above are writing to.
+		func() *http.Request {
+			return httptest.NewRequest("GET", "/v1/enterprises", nil)
+		},
 	}
 
 	var wg sync.WaitGroup
@@ -585,6 +677,108 @@ func TestGetStateUnknownDeviceReturns404(t *testing.T) {
 
 // TestDevicesListIncludesFakeDevices pins what the reconciler reads: a registered device must
 // be listed, since Fleet marks any enrolled device missing from this list as unenrolled.
+// TestEnterprisesListReportsEnterpriseWithoutRegisteredDevices checks that an enterprise in
+// use is reported even with no fake device registered against it. Fleet reads its enterprise
+// missing from a successful list as proof of deletion, and reacts by deleting its enterprise
+// records, turning Android MDM off and unenrolling every Android host.
+func TestEnterprisesListReportsEnterpriseWithoutRegisteredDevices(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	// Any request naming the enterprise is enough; none of these register a device.
+	for _, req := range []*http.Request{
+		httptest.NewRequest("POST", "/v1/enterprises/"+testEnterpriseID+"/enrollmentTokens",
+			bytes.NewReader([]byte(`{}`))),
+		httptest.NewRequest("GET", "/v1/enterprises/"+testEnterpriseID+"/devices", nil),
+	} {
+		t.Run(req.Method+" "+req.URL.Path, func(t *testing.T) {
+			mux, store := newTestMux(t)
+			mux.ServeHTTP(httptest.NewRecorder(), req)
+			require.Empty(t, store.byESID, "this request must not register a device")
+
+			rr := httptest.NewRecorder()
+			mux.ServeHTTP(rr, httptest.NewRequest("GET", "/v1/enterprises", nil))
+			require.Equal(t, http.StatusOK, rr.Code)
+
+			var resp androidmanagement.ListEnterprisesResponse
+			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+			require.Len(t, resp.Enterprises, 1)
+			assert.Equal(t, "enterprises/"+testEnterpriseID, resp.Enterprises[0].Name)
+		})
+	}
+
+	// A registered device still reports its enterprise, as before.
+	registerTestDevice(t, mux, defaultRegisterRequest(), http.StatusOK)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, httptest.NewRequest("GET", "/v1/enterprises", nil))
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	var resp androidmanagement.ListEnterprisesResponse
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	require.Len(t, resp.Enterprises, 1)
+	assert.Equal(t, "enterprises/"+testEnterpriseID, resp.Enterprises[0].Name)
+}
+
+// TestEnterprisesListRefusesToConfirmAnEmptyListItCannotKnow checks that with nothing observed
+// the answer is "unknown", not "empty". Fleet treats a failed list as a technical problem and
+// leaves its enterprise alone; an empty one it would act on.
+func TestEnterprisesListRefusesToConfirmAnEmptyListItCannotKnow(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, httptest.NewRequest("GET", "/v1/enterprises", nil))
+	assert.Equal(t, http.StatusServiceUnavailable, rr.Code)
+}
+
+// TestEnterprisesListRecordsEnterpriseFromFailedDeviceRequest checks that the enterprise an
+// addressed request names is recorded even when that request fails, so a call for an unknown
+// device does not leave the enterprise unreported.
+func TestEnterprisesListRecordsEnterpriseFromFailedDeviceRequest(t *testing.T) {
+	mux, store := newTestMux(t)
+
+	mux.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET",
+		"/v1/enterprises/"+testEnterpriseID+"/devices/nope", nil))
+	require.Empty(t, store.byESID)
+
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, httptest.NewRequest("GET", "/v1/enterprises", nil))
+	require.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, rr.Body.String(), "enterprises/"+testEnterpriseID)
+}
+
+// TestNoteEnterpriseIgnoresEmptyID checks that an empty path value is not recorded as an
+// enterprise. Recording it would leave the set non-empty and holding a meaningless ID, which
+// would both report "enterprises/" to Fleet and stop the unknown state from answering 503.
+func TestNoteEnterpriseIgnoresEmptyID(t *testing.T) {
+	store := newDeviceStore()
+	store.noteEnterprise("")
+
+	assert.Empty(t, store.knownEnterprises())
+
+	mux := newMux(store, nil, 0, 0, policyOptions{})
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, httptest.NewRequest("GET", "/v1/enterprises", nil))
+	assert.Equal(t, http.StatusServiceUnavailable, rr.Code)
+}
+
+// TestNoteEnterpriseIsBounded checks that enterprise IDs taken from request paths cannot grow
+// the set without limit, and that an enterprise recorded before the limit is still reported.
+func TestNoteEnterpriseIsBounded(t *testing.T) {
+	store := newDeviceStore()
+
+	store.noteEnterprise(testEnterpriseID)
+	for i := range maxTrackedEnterprises + 100 {
+		store.noteEnterprise(fmt.Sprintf("junk-%d", i))
+	}
+
+	store.entMu.RLock()
+	got := len(store.enterprises)
+	store.entMu.RUnlock()
+	assert.Equal(t, maxTrackedEnterprises, got)
+
+	// The enterprise seen first is still there, so the report Fleet depends on is unaffected.
+	assert.Contains(t, store.knownEnterprises(), testEnterpriseID)
+}
+
 func TestDevicesListIncludesFakeDevices(t *testing.T) {
 	mux, _ := newTestMux(t)
 	registerTestDevice(t, mux, defaultRegisterRequest(), http.StatusOK)
@@ -599,4 +793,193 @@ func TestDevicesListIncludesFakeDevices(t *testing.T) {
 	require.Len(t, resp.Devices, 1)
 	assert.Equal(t, testDeviceName, resp.Devices[0].Name)
 	assert.Empty(t, resp.NextPageToken)
+}
+
+func TestPolicyRequestGuard(t *testing.T) {
+	const hostPolicyID = "host-policy-uuid"
+	policyPath := func(pid string) string {
+		return fmt.Sprintf("/v1/enterprises/%s/policies/%s", testEnterpriseID, pid)
+	}
+	serve := func(mux *http.ServeMux, method, path string) int {
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, httptest.NewRequest(method, path, bytes.NewReader([]byte(`{}`))))
+		return rr.Code
+	}
+
+	cases := []struct {
+		name   string
+		opts   policyOptions
+		method string
+		path   string
+		want   int
+	}{
+		{"empty policy ID in an app action is rejected", policyOptions{}, "POST", policyPath(":modifyPolicyApplications"), http.StatusBadRequest},
+		{"empty policy ID in a remove action is rejected", policyOptions{}, "POST", policyPath(":removePolicyApplications"), http.StatusBadRequest},
+		{"empty policy ID in a patch is rejected", policyOptions{}, "PATCH", policyPath("") + "?updateMask=applications", http.StatusBadRequest},
+		{"default policy app action is accepted by default", policyOptions{}, "POST", policyPath("1:modifyPolicyApplications"), http.StatusOK},
+		{"default policy app action is rejected", policyOptions{rejectDefaultPolicyApps: true}, "POST", policyPath("1:modifyPolicyApplications"), http.StatusBadRequest},
+		{"default policy app removal is rejected", policyOptions{rejectDefaultPolicyApps: true}, "POST", policyPath("1:removePolicyApplications"), http.StatusBadRequest},
+		{"default policy apps patch is rejected", policyOptions{rejectDefaultPolicyApps: true}, "PATCH", policyPath("1") + "?updateMask=applications", http.StatusBadRequest},
+		{"default policy full patch is rejected", policyOptions{rejectDefaultPolicyApps: true}, "PATCH", policyPath("1"), http.StatusBadRequest},
+		{"default policy patch without apps is accepted", policyOptions{rejectDefaultPolicyApps: true}, "PATCH", policyPath("1") + "?updateMask=statusReportingSettings,kioskCustomization", http.StatusOK},
+		{"host policy app action is accepted", policyOptions{rejectDefaultPolicyApps: true}, "POST", policyPath(hostPolicyID + ":modifyPolicyApplications"), http.StatusOK},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			mux := newMux(newDeviceStore(), nil, 0, 0, c.opts)
+			require.Equal(t, c.want, serve(mux, c.method, c.path))
+		})
+	}
+}
+
+// Fleet's zero-touch configuration parses the expiration timestamp of the
+// token it just created, so a response without one failed that request with a
+// time-parsing error that named neither the mock nor the missing field.
+func TestEnrollmentTokenCreate(t *testing.T) {
+	create := func(t *testing.T, body string) androidmanagement.EnrollmentToken {
+		t.Helper()
+		mux, _ := newTestMux(t)
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, httptest.NewRequest("POST",
+			"/v1/enterprises/"+testEnterpriseID+"/enrollmentTokens", bytes.NewReader([]byte(body))))
+		require.Equal(t, http.StatusOK, rr.Code)
+
+		var token androidmanagement.EnrollmentToken
+		require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &token))
+		return token
+	}
+
+	t.Run("the expiry is set and readable as RFC 3339", func(t *testing.T) {
+		token := create(t, `{"duration":"2592000s"}`)
+		require.NotEmpty(t, token.Value)
+		require.NotEmpty(t, token.ExpirationTimestamp)
+
+		expiry, err := time.Parse(time.RFC3339, token.ExpirationTimestamp)
+		require.NoError(t, err, "Fleet parses this exact way")
+		assert.WithinDuration(t, time.Now().Add(30*24*time.Hour), expiry, time.Minute)
+	})
+
+	// The name is stored against the token Fleet created, so it has to be the
+	// enterprise that was asked for rather than a literal "mock".
+	t.Run("the name carries the enterprise from the path", func(t *testing.T) {
+		token := create(t, `{}`)
+		assert.True(t,
+			strings.HasPrefix(token.Name, "enterprises/"+testEnterpriseID+"/enrollmentTokens/"),
+			"got %q", token.Name)
+	})
+
+	t.Run("no duration gets AMAPI's default of an hour", func(t *testing.T) {
+		token := create(t, `{}`)
+		expiry, err := time.Parse(time.RFC3339, token.ExpirationTimestamp)
+		require.NoError(t, err)
+		assert.WithinDuration(t, time.Now().Add(time.Hour), expiry, time.Minute)
+	})
+
+	t.Run("an empty body is not an error", func(t *testing.T) {
+		require.NotEmpty(t, create(t, "").ExpirationTimestamp)
+	})
+
+	t.Run("malformed JSON is a bad request", func(t *testing.T) {
+		mux, _ := newTestMux(t)
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, httptest.NewRequest("POST",
+			"/v1/enterprises/"+testEnterpriseID+"/enrollmentTokens", bytes.NewReader([]byte("{"))))
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
+	})
+}
+
+func TestEnrollmentTokenExpiry(t *testing.T) {
+	now := time.Date(2026, time.October, 28, 12, 0, 0, 0, time.UTC)
+
+	for _, tc := range []struct {
+		name     string
+		duration string
+		want     time.Time
+	}{
+		{name: "an hour", duration: "3600s", want: now.Add(time.Hour)},
+		{name: "thirty days", duration: "2592000s", want: now.Add(30 * 24 * time.Hour)},
+		// Fleet's own zero-touch duration. A thousand years overflows
+		// time.Duration, so time.ParseDuration rejects the one value this has
+		// to handle; the seconds are added as seconds for that reason.
+		{
+			name:     "the zero-touch duration Fleet asks for",
+			duration: "31536000000s",
+			want:     time.Unix(now.Unix()+31536000000, 0).UTC(),
+		},
+		{name: "a fractional duration keeps its whole seconds", duration: "90.5s", want: now.Add(90 * time.Second)},
+		{name: "absent", duration: "", want: now.Add(time.Hour)},
+		{name: "not a duration at all", duration: "soon", want: now.Add(time.Hour)},
+		{name: "missing its unit", duration: "3600", want: now.Add(time.Hour)},
+		{name: "zero", duration: "0s", want: now.Add(time.Hour)},
+		{name: "negative", duration: "-60s", want: now.Add(time.Hour)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want.UTC(), enrollmentTokenExpiry(now, tc.duration))
+		})
+	}
+
+	// RFC 3339 has no year past 9999, and a timestamp Fleet cannot parse back
+	// is the failure this whole handler exists to avoid.
+	t.Run("an absurd duration still formats as RFC 3339", func(t *testing.T) {
+		expiry := enrollmentTokenExpiry(now, "9223372036854775807s")
+		formatted := expiry.Format(time.RFC3339)
+		parsed, err := time.Parse(time.RFC3339, formatted)
+		require.NoError(t, err, "formatted as %q", formatted)
+		require.Equal(t, 9999, parsed.Year())
+	})
+}
+
+// TestDeviceAndOperationLookupsForPubSubVerification checks the lookups Fleet makes when it
+// handles a Pub/Sub notification: a fake device reports its hardware identity, and its
+// operations report as done.
+func TestDeviceAndOperationLookupsForPubSubVerification(t *testing.T) {
+	mux, _ := newTestMux(t)
+	registerTestDevice(t, mux, defaultRegisterRequest(), http.StatusOK)
+
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, httptest.NewRequest("GET", "/v1/"+testDeviceName, nil))
+	require.Equal(t, http.StatusOK, rr.Code)
+	var device androidmanagement.Device
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &device))
+	require.NotNil(t, device.HardwareInfo)
+	assert.Equal(t, testESID, device.HardwareInfo.EnterpriseSpecificId)
+
+	rr = httptest.NewRecorder()
+	mux.ServeHTTP(rr, httptest.NewRequest("GET", "/v1/"+testDeviceName+"/operations/op-1", nil))
+	require.Equal(t, http.StatusOK, rr.Code)
+	var op androidmanagement.Operation
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &op))
+	assert.Equal(t, testDeviceName+"/operations/op-1", op.Name)
+	assert.True(t, op.Done)
+
+	rr = httptest.NewRecorder()
+	mux.ServeHTTP(rr, httptest.NewRequest("GET", "/v1/enterprises/"+testEnterpriseID+"/devices/unknown/operations/op-1", nil))
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
+
+func TestWriteGoogleError(t *testing.T) {
+	notFoundBody := `{"error":{"code":404,"message":"Requested entity was not found.","status":"NOT_FOUND"}}`
+	cases := []struct {
+		name     string
+		err      error
+		wantCode int
+		wantBody string
+	}{
+		{"google 404 passes through", &googleapi.Error{Code: http.StatusNotFound, Body: notFoundBody}, http.StatusNotFound, notFoundBody},
+		{"wrapped google 429 passes through", fmt.Errorf("get: %w", &googleapi.Error{Code: http.StatusTooManyRequests, Body: `{"error":{"code":429}}`}), http.StatusTooManyRequests, `{"error":{"code":429}}`},
+		{"google error without a body is a 502", &googleapi.Error{Code: http.StatusNotFound}, http.StatusBadGateway, ""},
+		{"non-google error is a 502", errors.New("dial tcp: connection refused"), http.StatusBadGateway, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			rr := httptest.NewRecorder()
+			writeGoogleError(rr, c.err)
+			require.Equal(t, c.wantCode, rr.Code)
+			if c.wantBody != "" {
+				assert.Equal(t, c.wantBody, rr.Body.String())
+			} else {
+				assert.Contains(t, rr.Body.String(), `"BAD_GATEWAY"`)
+			}
+		})
+	}
 }

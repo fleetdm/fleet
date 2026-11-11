@@ -12,6 +12,7 @@ type GlobalPolicyRequest struct {
 	Resolution       string   `json:"resolution"`
 	Platform         string   `json:"platform"`
 	Critical         bool     `json:"critical" premium:"true"`
+	Hidden           bool     `json:"hidden" premium:"true"`
 	LabelsIncludeAny []string `json:"labels_include_any" premium:"true"`
 	LabelsIncludeAll []string `json:"labels_include_all" premium:"true"`
 	LabelsExcludeAny []string `json:"labels_exclude_any" premium:"true"`
@@ -123,7 +124,7 @@ func (r ResetPolicyResponse) Error() error { return r.Err }
 /////////////////////////////////////////////////////////////////////////////////
 
 type ResetAutomationRequest struct {
-	TeamIDs   []uint `json:"team_ids" premium:"true" renameto:"fleet_ids"`
+	TeamIDs   []uint `json:"fleet_ids" premium:"true"`
 	PolicyIDs []uint `json:"policy_ids"`
 }
 
@@ -190,11 +191,13 @@ type TeamPolicyRequest struct {
 	LabelsExcludeAny             []string `json:"labels_exclude_any" premium:"true"`
 	LabelsExcludeAll             []string `json:"labels_exclude_all" premium:"true"`
 	ConditionalAccessEnabled     bool     `json:"conditional_access_enabled"`
+	Hidden                       bool     `json:"hidden" premium:"true"`
 	ContinuousAutomationsEnabled bool     `json:"continuous_automations_enabled" premium:"true"`
 	Type                         *string  `json:"type"`
 	PatchSoftwareTitleID         *uint    `json:"patch_software_title_id"`
 	PatchWhenClosed              bool     `json:"patch_when_closed" premium:"true"`
 	NotifyBeforePatching         bool     `json:"notify_before_patching" premium:"true"`
+	PatchDeadline                bool     `json:"patch_deadline" premium:"true"`
 }
 
 type TeamPolicyResponse struct {

@@ -20,6 +20,8 @@ interface ICheckboxPropsBase {
   /** disabled displays a greyed out non-editable field */
   disabled?: boolean;
   name?: string;
+  /** Accessible name for the checkbox; defaults to `name`. */
+  ariaLabel?: string;
   onBlur?: (event: React.FocusEvent<HTMLDivElement>) => void;
   value?: boolean;
   wrapperClassName?: string;
@@ -60,6 +62,7 @@ const Checkbox = (props: ICheckboxProps) => {
     readOnly = false,
     disabled = false,
     name,
+    ariaLabel,
     onChange = noop,
     onBlur = noop,
     value = false,
@@ -192,7 +195,7 @@ const Checkbox = (props: ICheckboxProps) => {
         />
         <div
           role="checkbox"
-          aria-label={name}
+          aria-label={ariaLabel ?? name}
           aria-checked={indeterminate ? "mixed" : value ?? undefined}
           aria-readonly={readOnly}
           aria-disabled={disabled}

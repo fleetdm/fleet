@@ -146,6 +146,7 @@ const ManagePolicyPage = ({
     setLastEditedQueryDescription,
     setLastEditedQueryResolution,
     setLastEditedQueryCritical,
+    setLastEditedQueryHidden,
     setLastEditedQueryPlatform,
     setLastEditedQueryBody,
     setLastEditedQueryId,
@@ -426,7 +427,7 @@ const ManagePolicyPage = ({
     staleTime: 5000,
     refetchOnWindowFocus: false,
   });
-  const teamConfig = teamData?.team;
+  const teamConfig = teamData?.fleet;
 
   const automationsConfig = isAllTeamsSelected ? globalConfig : teamConfig;
 
@@ -526,6 +527,7 @@ const ManagePolicyPage = ({
     setLastEditedQueryDescription("");
     setLastEditedQueryResolution("");
     setLastEditedQueryCritical(false);
+    setLastEditedQueryHidden(false);
     setPolicyTeamId(
       currentTeamId === API_ALL_TEAMS_ID
         ? APP_CONTEXT_ALL_TEAMS_ID
@@ -559,7 +561,7 @@ const ManagePolicyPage = ({
           (acc, policy) => {
             if (selectedSet.has(policy.id)) {
               // need to compare policy team id
-              if (policy.team_id === null) {
+              if (policy.fleet_id === null) {
                 // note `null` not `undefined` here
                 acc[0].push(policy.id);
               } else {
@@ -661,7 +663,8 @@ const ManagePolicyPage = ({
     if (canEditAutomationsSettings && hasPoliciesToAutomate) {
       setShowAutomationsModal(true);
     }
-    const { manage_automations, ...rest } = location.query;
+    const rest = { ...location.query };
+    delete rest.manage_automations;
     router.replace({ pathname: location.pathname, query: rest });
   }, [
     location.query,
@@ -1038,11 +1041,11 @@ const ManagePolicyPage = ({
         )}
         {selectedPolicyForAutomations &&
           (() => {
-            // An inherited policy (team_id === null) is global even when viewed
+            // An inherited policy (fleet_id === null) is global even when viewed
             // from within a fleet's list — its automations live on the global
             // config, so route the modal there.
             const isInheritedGlobal =
-              selectedPolicyForAutomations.team_id === null;
+              selectedPolicyForAutomations.fleet_id === null;
             const modalAutomationsConfig = isInheritedGlobal
               ? globalConfig
               : automationsConfig;

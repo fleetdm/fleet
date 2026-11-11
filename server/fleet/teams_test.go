@@ -233,6 +233,18 @@ func TestValidateUserRoles(t *testing.T) {
 			checkErr: checkErrCode(ErrNoRoleNeeded),
 		},
 		{
+			name:   "empty-global-role-with-team-role",
+			create: true,
+			payload: UserPayload{
+				GlobalRole: new(""),
+				Teams:      &[]UserTeam{{Role: RoleAdmin}},
+			},
+			license: LicenseInfo{
+				Tier: TierPremium,
+			},
+			checkErr: checkErrCode(ErrNoRoleNeeded),
+		},
+		{
 			name:   "no-roles-set",
 			create: true,
 			payload: UserPayload{
@@ -367,10 +379,6 @@ func TestTeamConfigCopy(t *testing.T) {
 				EnableHostUsers:         true,
 				EnableSoftwareInventory: true,
 				AdditionalQueries:       ptr.RawMessage([]byte(`{"query": "test"}`)),
-				DetailQueryOverrides: map[string]*string{
-					"key1": ptr.String("value1"),
-					"key2": ptr.String("value2"),
-				},
 			},
 		}
 
@@ -382,18 +390,11 @@ func TestTeamConfigCopy(t *testing.T) {
 		require.NotSame(t, tc.Features.AdditionalQueries, clone.Features.AdditionalQueries)
 		require.Equal(t, tc.Features.AdditionalQueries, clone.Features.AdditionalQueries)
 
-		// Verify deep copy of DetailQueryOverrides map
-		require.NotEqual(t,
-			reflect.ValueOf(tc.Features.DetailQueryOverrides).Pointer(),
-			reflect.ValueOf(clone.Features.DetailQueryOverrides).Pointer(),
-		)
-		require.Equal(t, tc.Features.DetailQueryOverrides, clone.Features.DetailQueryOverrides)
-
 		// Modify original and verify clone is unaffected
 		tc.Features.EnableHostUsers = false
-		*tc.Features.DetailQueryOverrides["key1"] = "modified"
+		(*tc.Features.AdditionalQueries)[0] = 'X'
 		require.True(t, clone.Features.EnableHostUsers)
-		require.Equal(t, "value1", *clone.Features.DetailQueryOverrides["key1"])
+		require.JSONEq(t, `{"query": "test"}`, string(*clone.Features.AdditionalQueries))
 	})
 }
 

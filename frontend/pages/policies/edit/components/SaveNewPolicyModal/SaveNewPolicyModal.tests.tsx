@@ -88,6 +88,33 @@ describe("SaveNewPolicyModal", () => {
     expect(screen.queryByText("All hosts")).not.toBeInTheDocument();
   });
 
+  it("does not show the Hide from end user checkbox in the free tier", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          currentUser: createMockUser(),
+          config: createMockConfig(),
+          isPremiumTier: false,
+        },
+      },
+    });
+
+    render(
+      <SaveNewPolicyModal
+        {...defaultProps}
+        isGlobalPolicy={false}
+        policyTeamId={1}
+      />
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    expect(
+      screen.queryByRole("checkbox", { name: "hidden-policy" })
+    ).not.toBeInTheDocument();
+  });
+
   it("caps the policy name input at 255 characters", () => {
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -136,8 +163,11 @@ describe("SaveNewPolicyModal", () => {
       });
     });
 
-    it("should disable the save button in Custom target mode when no labels are selected, and enable it once labels are selected", async () => {
-      render(<SaveNewPolicyModal {...defaultProps} />);
+    it("surfaces an inline labels error on Save click in Custom target mode when no labels are selected", async () => {
+      const onCreatePolicy = jest.fn();
+      render(
+        <SaveNewPolicyModal {...defaultProps} onCreatePolicy={onCreatePolicy} />
+      );
       let allHosts;
       let custom;
       await waitFor(() => {
@@ -147,15 +177,78 @@ describe("SaveNewPolicyModal", () => {
         expect(custom).toBeInTheDocument();
       });
       custom && (await userEvent.click(custom));
-      const saveButton = screen.getByRole("button", { name: "Save" });
-      expect(saveButton).toBeDisabled();
 
-      const funButton = await screen.findByRole("checkbox", {
-        name: "Fun",
-      });
-      expect(funButton).not.toBeChecked();
-      await userEvent.click(funButton);
+      await userEvent.type(screen.getByLabelText("Name"), "name");
+      const saveButton = screen.getByRole("button", { name: "Save" });
       expect(saveButton).toBeEnabled();
+      await userEvent.click(saveButton);
+
+      expect(onCreatePolicy).not.toHaveBeenCalled();
+      expect(screen.getByText(/Select at least one label/)).toBeInTheDocument();
+
+      const funButton = await screen.findByRole("checkbox", { name: "Fun" });
+      await userEvent.click(funButton);
+      expect(
+        screen.queryByText(/Select at least one label/)
+      ).not.toBeInTheDocument();
+    });
+
+    it("sends hidden when Hide from end user is checked on a fleet policy", async () => {
+      const onCreatePolicy = jest.fn();
+      render(
+        <PolicyProvider>
+          <SaveNewPolicyModal
+            {...defaultProps}
+            onCreatePolicy={onCreatePolicy}
+            isGlobalPolicy={false}
+            policyTeamId={1}
+            fleetName="Workstations"
+          />
+        </PolicyProvider>
+      );
+      await waitFor(() => {
+        expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+      });
+
+      await userEvent.type(
+        screen.getByLabelText("Name"),
+        "A Brand New Policy!"
+      );
+
+      const hiddenCheckbox = screen.getByRole("checkbox", {
+        name: "hidden-policy",
+      });
+      expect(hiddenCheckbox).not.toBeChecked();
+      await userEvent.click(hiddenCheckbox);
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(onCreatePolicy.mock.calls[0][0].hidden).toBe(true);
+    });
+
+    it("sends hidden for an All fleets policy too", async () => {
+      const onCreatePolicy = jest.fn();
+      render(
+        <PolicyProvider>
+          <SaveNewPolicyModal
+            {...defaultProps}
+            onCreatePolicy={onCreatePolicy}
+          />
+        </PolicyProvider>
+      );
+      await waitFor(() => {
+        expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+      });
+
+      await userEvent.type(
+        screen.getByLabelText("Name"),
+        "A Brand New Policy!"
+      );
+      await userEvent.click(
+        screen.getByRole("checkbox", { name: "hidden-policy" })
+      );
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(onCreatePolicy.mock.calls[0][0].hidden).toBe(true);
     });
 
     it("should send labels when saving a new policy in Custom target mode (include any)", async () => {

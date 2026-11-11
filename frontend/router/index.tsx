@@ -217,6 +217,12 @@ const LazyScriptBatchDetailsPage = lazyPage(
       /* webpackChunkName: "controls" */ "pages/ManageControlsPage/Scripts/ScriptBatchDetailsPage"
     )
 );
+const LazyProfileFormPage = lazyPage(
+  () =>
+    import(
+      /* webpackChunkName: "controls" */ "pages/ManageControlsPage/OSSettings/cards/ConfigurationProfiles/ProfileFormPage"
+    )
+);
 const LazySoftwarePage = lazyPage(
   () => import(/* webpackChunkName: "software" */ "pages/SoftwarePage")
 );
@@ -242,10 +248,10 @@ const LazySoftwareLibrary = lazyPage(
       /* webpackChunkName: "software" */ "pages/SoftwarePage/SoftwareLibrary"
     )
 );
-const LazySelfServiceCategoriesPage = lazyPage(
+const LazySoftwareLibrarySettingsPage = lazyPage(
   () =>
     import(
-      /* webpackChunkName: "software" */ "pages/SoftwarePage/SoftwareLibrary/SelfServiceCategoriesPage"
+      /* webpackChunkName: "software" */ "pages/SoftwarePage/SoftwareLibrary/SoftwareLibrarySettingsPage"
     )
 );
 const LazySoftwareTitleDetailsPage = lazyPage(
@@ -559,7 +565,6 @@ const routes = (
                   <Route path="users" component={LazyAdminManageUsersPage} />
                 </Route>
                 <Route component={PremiumRoutes}>
-                  <Redirect from="teams" to="fleets" />
                   <Route path="fleets" component={LazyAdminManageFleetsPage} />
                 </Route>
               </Route>
@@ -599,6 +604,10 @@ const routes = (
             {/* This redirect is used to handle old vpp setup page */}
             <Redirect from="integrations/vpp/setup" to="integrations/mdm/vpp" />
             <Route path="integrations/mdm/vpp" component={LazyVppPage} />
+            <Redirect
+              from="integrations/conditional-access/okta"
+              to="integrations/conditional-access"
+            />
             <Route component={ExcludeInSandboxRoutes}>
               <Route component={AuthGlobalAdminRoutes}>
                 <Route path="users/new/human" component={LazyCreateUserPage} />
@@ -610,19 +619,12 @@ const routes = (
               </Route>
             </Route>
 
-            <Redirect from="teams" to="fleets" />
-            <Redirect from="teams/users" to="fleets/users" />
-            <Redirect from="teams/options" to="fleets/options" />
-            <Redirect from="teams/settings" to="fleets/settings" />
             <Route path="fleets" component={LazyTeamDetailsWrapper}>
               <Redirect from="members" to="users" />
               <Route path="users" component={LazyUsersPage} />
               <Route path="options" component={LazyAgentOptionsPage} />
               <Route path="settings" component={LazyTeamSettings} />
             </Route>
-            <Redirect from="teams/:team_id" to="fleets" />
-            <Redirect from="teams/:team_id/users" to="fleets" />
-            <Redirect from="teams/:team_id/options" to="fleets" />
           </Route>
           <Route path="labels">
             <IndexRedirect to="manage" />
@@ -666,6 +668,22 @@ const routes = (
             />
           </Route>
           <Route component={ExcludeInSandboxRoutes}>
+            {/* Before the controls group, whose os-settings/:section/:platform
+                route would otherwise match these. */}
+            <Route component={AuthAnyMaintainerAdminTechnicianRoutes}>
+              <Route
+                path="controls/os-settings/configuration-profiles/new"
+                component={LazyProfileFormPage}
+              />
+              <Route
+                path="controls/os-settings/configuration-profiles/new/manual"
+                component={LazyProfileFormPage}
+              />
+              <Route
+                path="controls/os-settings/configuration-profiles/:profile_uuid"
+                component={LazyProfileFormPage}
+              />
+            </Route>
             <Route
               path="controls"
               component={AuthAnyMaintainerAdminTechnicianRoutes}
@@ -747,8 +765,26 @@ const routes = (
               <Redirect from=":id" to="versions/:id" />
             </Route>
             <Route
+              path="library/settings"
+              component={LazySoftwareLibrarySettingsPage}
+            />
+            <Route
+              path="library/settings/:section"
+              component={LazySoftwareLibrarySettingsPage}
+            />
+            {/*
+              Static <Redirect to="/path"> strips the query. Use onEnter so
+              fleet_id (and any deep-link params like add_category=1) survive
+              the hop from the pre-rename URL.
+            */}
+            <Route
               path="library/categories"
-              component={LazySelfServiceCategoriesPage}
+              onEnter={(nextState, replace) =>
+                replace({
+                  pathname: PATHS.SOFTWARE_LIBRARY_SETTINGS_CATEGORIES,
+                  query: nextState.location.query,
+                })
+              }
             />
             <Route path="titles/:id" component={LazySoftwareTitleDetailsPage} />
             <Route
@@ -814,7 +850,7 @@ const routes = (
         </Route>
       </Route>
       <Route path="device">
-        <IndexRedirect to=":device_auth_token" />
+        <IndexRedirect to={PATHS.FLEET_404} />
         {/* Standalone toast route — kept outside the DeviceUserPage wrapper so
         the Fleet Desktop notification window doesn't inherit the My device
         header, nav, or chrome. */}

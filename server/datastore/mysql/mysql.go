@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -23,7 +24,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/rdsauth"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -47,16 +47,6 @@ const (
 	// `IN (?)` statement, well under MySQL's 65,535 placeholder limit. It
 	// matches the batch size AddHostsToTeam uses for the writes on the same path.
 	hostIDsFanoutBatchSize = 10_000
-
-	// Migration IDs needed for fixing broken migrations that some customers encountered with fleet v4.73.2
-	// See https://github.com/fleetdm/fleet/issues/33562
-	fleet4732BadMigrationID1  = 20250918154557 // was 20250918154557_AddKernelHostCountsIndexForVulnQueries.go
-	fleet4732GoodMigrationID1 = 20250817154557 // 20250817154557_AddKernelHostCountsIndexForVulnQueries.go
-
-	fleet4732BadMigrationID2  = 20250904115553 // was 20250904115553_OptimizeHostScriptResultsIndex.go
-	fleet4732GoodMigrationID2 = 20250816115553 // 20250816115553_OptimizeHostScriptResultsIndex.go
-
-	fleet4731GoodMigrationID = 20250815130115
 )
 
 // Datastore is an implementation of fleet.Datastore interface backed by
@@ -65,10 +55,17 @@ type Datastore struct {
 	replica fleet.DBReader // so it cannot be used to perform writes
 	primary *sqlx.DB
 
+	// Pools reserved for HealthCheck, so it doesn't wait behind requests for a connection.
+	healthPrimary *sqlx.DB
+	healthReplica *sqlx.DB
+
 	logger *slog.Logger
 	clock  clock.Clock
 	config config.MysqlConfig
 	pusher nano_push.Pusher
+	// orbitConfigNotifier is nil unless orbit config nudges are enabled (see
+	// WithOrbitConfigNotifier).
+	orbitConfigNotifier fleet.AgentCheckInNotifier
 	android.Datastore
 
 	// nil if no read replica
@@ -289,11 +286,26 @@ func NewDBConnections(cfg config.MysqlConfig, opts ...DBOption) (*common_mysql.D
 		return nil, err
 	}
 
+	// Pools opened so far, closed if a later step fails since the caller gets no handle to them. Cleared on success.
+	var closeOnFailure []*sqlx.DB
+	defer func() {
+		for _, db := range closeOnFailure {
+			_ = db.Close()
+		}
+	}()
+
 	dbWriter, err := NewDB(&cfg, options)
 	if err != nil {
 		return nil, err
 	}
+	closeOnFailure = append(closeOnFailure, dbWriter)
+	healthWriter, err := newHealthCheckDB(cfg, *options)
+	if err != nil {
+		return nil, fmt.Errorf("health check: %w", err)
+	}
+	closeOnFailure = append(closeOnFailure, healthWriter)
 	dbReader := dbWriter
+	var healthReader *sqlx.DB
 	if replicaConf != nil {
 		// Set up IAM auth for replica if needed (may have different region/credentials)
 		replicaOptions := *options
@@ -306,9 +318,31 @@ func NewDBConnections(cfg config.MysqlConfig, opts ...DBOption) (*common_mysql.D
 		if err != nil {
 			return nil, err
 		}
+		closeOnFailure = append(closeOnFailure, dbReader)
+		healthReader, err = newHealthCheckDB(*replicaConf, replicaOptions)
+		if err != nil {
+			return nil, fmt.Errorf("replica health check: %w", err)
+		}
 	}
 
-	return &common_mysql.DBConnections{Primary: dbWriter, Replica: dbReader, Options: options}, nil
+	closeOnFailure = nil
+	return &common_mysql.DBConnections{
+		Primary:       dbWriter,
+		Replica:       dbReader,
+		Options:       options,
+		HealthPrimary: healthWriter,
+		HealthReplica: healthReader,
+	}, nil
+}
+
+// newHealthCheckDB opens a single-connection pool for HealthCheck. A health check runs two trivial queries.
+func newHealthCheckDB(conf config.MysqlConfig, opts common_mysql.DBOptions) (*sqlx.DB, error) {
+	conf.MaxOpenConns = 1
+	conf.MaxIdleConns = 1
+	// Health checks aren't traced with OTEL/telemetry.
+	opts.Interceptor = nil
+	opts.TracingConfig = nil
+	return NewDB(&conf, &opts)
 }
 
 // NewDatastore creates a Datastore using existing database connections.
@@ -317,6 +351,8 @@ func NewDatastore(conns *common_mysql.DBConnections, cfg config.MysqlConfig, c c
 	ds := &Datastore{
 		primary:             conns.Primary,
 		replica:             conns.Replica,
+		healthPrimary:       conns.HealthPrimary,
+		healthReplica:       conns.HealthReplica,
 		logger:              conns.Options.Logger,
 		clock:               c,
 		config:              cfg,
@@ -525,40 +561,25 @@ func (ds *Datastore) MigrateTables(ctx context.Context) error {
 	return tables.MigrationClient.Up(ds.writer(ctx).DB, "")
 }
 
-func (ds *Datastore) MigrateData(ctx context.Context) error {
-	return data.MigrationClient.Up(ds.writer(ctx).DB, "")
-}
-
 // loadMigrations manually loads the applied migrations in ascending
 // order (goose doesn't provide such functionality).
-//
-// Returns two lists of version IDs (one for "table" and one for "data").
 func (ds *Datastore) loadMigrations(
 	ctx context.Context,
 	writer *sql.DB,
 	reader fleet.DBReader,
-) (tableRecs []int64, dataRecs []int64, err error) {
-	// We need to run the following to trigger the creation of the migration status tables.
+) (tableRecs []int64, err error) {
+	// We need to run the following to trigger the creation of the migration status table.
 	_, err = tables.MigrationClient.GetDBVersion(writer)
 	if err != nil {
-		return nil, nil, err
-	}
-	_, err = data.MigrationClient.GetDBVersion(writer)
-	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	// version_id > 0 to skip the bootstrap migration that creates the migration tables.
 	if err := sqlx.SelectContext(ctx, reader, &tableRecs,
 		"SELECT version_id FROM "+tables.MigrationClient.TableName+" WHERE version_id > 0 AND is_applied ORDER BY id ASC",
 	); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	if err := sqlx.SelectContext(ctx, reader, &dataRecs,
-		"SELECT version_id FROM "+data.MigrationClient.TableName+" WHERE version_id > 0 AND is_applied ORDER BY id ASC",
-	); err != nil {
-		return nil, nil, err
-	}
-	return tableRecs, dataRecs, nil
+	return tableRecs, nil
 }
 
 // MigrationStatus will return the current status of the migrations
@@ -566,150 +587,54 @@ func (ds *Datastore) loadMigrations(
 //
 // It assumes some deployments may have performed migrations out of order.
 func (ds *Datastore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus, error) {
-	if tables.MigrationClient.Migrations == nil || data.MigrationClient.Migrations == nil {
+	if tables.MigrationClient.Migrations == nil {
 		return nil, errors.New("unexpected nil migrations list")
 	}
-	appliedTable, appliedData, err := ds.loadMigrations(ctx, ds.primary.DB, ds.replica)
+	appliedTable, err := ds.loadMigrations(ctx, ds.primary.DB, ds.replica)
 	if err != nil {
 		return nil, fmt.Errorf("cannot load migrations: %w", err)
 	}
-	// This will only return a non-nil status if we detect the specific broken state from v4.73.2
-	status := ds.CheckFleetv4732BadMigrations(appliedTable)
-	if status != nil {
-		return status, nil
-	}
-	return compareMigrations(
-		tables.MigrationClient.Migrations,
-		data.MigrationClient.Migrations,
-		appliedTable,
-		appliedData,
-	), nil
-}
-
-// Checks for misnumbered migrations introduced in some released fleet v4.73.2 versions
-func (ds *Datastore) CheckFleetv4732BadMigrations(appliedTable []int64) *fleet.MigrationStatus {
-	if len(appliedTable) == 0 {
-		return nil
-	}
-	// If the last 3 migrations are the "bad" 4.73.2 migrations and then the good 4.73.1 migration, in that order,
-	// we are in the known-bad 4.73.2 state and should apply the fix
-	if len(appliedTable) > 2 &&
-		appliedTable[len(appliedTable)-1] == fleet4732BadMigrationID1 &&
-		appliedTable[len(appliedTable)-2] == fleet4732BadMigrationID2 &&
-		appliedTable[len(appliedTable)-3] == fleet4731GoodMigrationID {
-		return &fleet.MigrationStatus{
-			StatusCode: fleet.NeedsFleetv4732Fix,
-		}
-	}
-	for _, v := range appliedTable {
-		if v == fleet4732BadMigrationID1 || v == fleet4732BadMigrationID2 {
-			return &fleet.MigrationStatus{
-				StatusCode: fleet.UnknownFleetv4732State,
-			}
-		}
-	}
-	return nil
-}
-
-func (ds *Datastore) FixFleetv4732Migrations(ctx context.Context) error {
-	// Update version ID of the bad migrations to the renumbered version IDs. Exactly 1 row should be affected
-	// by each query
-	stmt := `UPDATE ` + tables.MigrationClient.TableName + ` SET version_id = ? WHERE version_id = ?`
-	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		result, err := tx.ExecContext(ctx, stmt, fleet4732GoodMigrationID1, fleet4732BadMigrationID1)
-		if err != nil {
-			return err
-		}
-		affected, err := result.RowsAffected()
-		if err != nil {
-			return err
-		}
-		if affected != 1 {
-			return ctxerr.Errorf(ctx, "expected to affect 1 row for migration %d, affected %d", fleet4732BadMigrationID1, affected)
-		}
-		result, err = tx.ExecContext(ctx, stmt, fleet4732GoodMigrationID2, fleet4732BadMigrationID2)
-		if err != nil {
-			return err
-		}
-		affected, err = result.RowsAffected()
-		if err != nil {
-			return err
-		}
-		if affected != 1 {
-			return ctxerr.Errorf(ctx, "expected to affect 1 row for migration %d, affected %d", fleet4732BadMigrationID2, affected)
-		}
-		return nil
-	})
+	return compareMigrations(tables.MigrationClient.Migrations, appliedTable), nil
 }
 
 // It assumes some deployments may have performed migrations out of order.
-func compareMigrations(knownTable goose.Migrations, knownData goose.Migrations, appliedTable, appliedData []int64) *fleet.MigrationStatus {
-	if len(appliedTable) == 0 && len(appliedData) == 0 {
+func compareMigrations(knownTable goose.Migrations, appliedTable []int64) *fleet.MigrationStatus {
+	if len(appliedTable) == 0 {
 		return &fleet.MigrationStatus{
 			StatusCode: fleet.NoMigrationsCompleted,
 		}
 	}
 
+	// Databases upgraded from Fleet 4.95 keep their Fleet 4 migration records.
+	fleet4 := make(map[int64]struct{}, len(tables.Fleet4Migrations)+len(tables.Fleet4OptionalMigrations))
+	for _, v := range slices.Concat(tables.Fleet4Migrations, tables.Fleet4OptionalMigrations) {
+		fleet4[v] = struct{}{}
+	}
 	missingTable, unknownTable, equalTable := compareVersions(
 		getVersionsFromMigrations(knownTable),
 		appliedTable,
-		knownUnknownTableMigrations,
+		fleet4,
 	)
-
-	missingData, unknownData, equalData := compareVersions(
-		getVersionsFromMigrations(knownData),
-		appliedData,
-		knownUnknownDataMigrations,
-	)
-
-	if equalData && equalTable {
+	if equalTable {
 		return &fleet.MigrationStatus{
 			StatusCode: fleet.AllMigrationsCompleted,
 		}
 	}
 
-	//
-	// The following code assumes there cannot be migrations missing on
-	// "table" and database being ahead on "data" (and vice-versa).
-	//
-
 	// Check for missing migrations first, as these are more important
 	// to detect than the unknown migrations.
-	if len(missingTable) > 0 || len(missingData) > 0 {
+	if len(missingTable) > 0 {
 		return &fleet.MigrationStatus{
 			StatusCode:   fleet.SomeMigrationsCompleted,
 			MissingTable: missingTable,
-			MissingData:  missingData,
 		}
 	}
 
-	// len(unknownTable) > 0 || len(unknownData) > 0
 	return &fleet.MigrationStatus{
 		StatusCode:   fleet.UnknownMigrations,
 		UnknownTable: unknownTable,
-		UnknownData:  unknownData,
 	}
 }
-
-var (
-	knownUnknownTableMigrations = map[int64]struct{}{
-		// This migration was introduced incorrectly in fleet-v4.4.0 and its
-		// timestamp was changed in fleet-v4.4.1.
-		20210924114500: {},
-	}
-	knownUnknownDataMigrations = map[int64]struct{}{
-		// This migration was present in 2.0.0, and was removed on a subsequent release.
-		// Was basically running `DELETE FROM packs WHERE deleted = 1`, (such `deleted`
-		// column doesn't exist anymore).
-		20171212182459: {},
-		// Deleted in
-		// https://github.com/fleetdm/fleet/commit/fd61dcab67f341c9e47fb6cb968171650c19a681
-		20161223115449: {},
-		20170309091824: {},
-		20171027173700: {},
-		20171212182458: {},
-	}
-)
 
 func unknownUnknowns(in []int64, knownUnknowns map[int64]struct{}) []int64 {
 	var result []int64
@@ -757,17 +682,27 @@ func getVersionsFromMigrations(migrations goose.Migrations) []int64 {
 	return versions
 }
 
+// healthCheckTimeout bounds the whole MySQL health check, so a slow or hung database fails the check with a logged
+// reason instead of leaving the load balancer to time out.
+const healthCheckTimeout = 3 * time.Second
+
 // HealthCheck returns an error if the MySQL backend is not healthy.
 func (ds *Datastore) HealthCheck() error {
 	// NOTE: does not receive a context as argument here, because the HealthCheck
 	// interface potentially affects more than the datastore layer, and I'm not
 	// sure we can safely identify and change them all at this moment.
+	ctx, cancel := context.WithTimeout(context.Background(), healthCheckTimeout)
+	defer cancel()
 
+	primary := ds.primary
+	if ds.healthPrimary != nil {
+		primary = ds.healthPrimary
+	}
 	// Check that the primary is reachable and not in read-only mode.
 	// After an AWS Aurora failover the old writer is demoted to a reader;
 	// detecting this lets the health check fail so the orchestrator can restart Fleet.
 	var readOnly int
-	if err := ds.primary.QueryRowContext(context.Background(), "SELECT @@read_only").Scan(&readOnly); err != nil {
+	if err := primary.QueryRowContext(ctx, "SELECT @@read_only").Scan(&readOnly); err != nil {
 		return err
 	}
 	if readOnly == 1 {
@@ -777,8 +712,12 @@ func (ds *Datastore) HealthCheck() error {
 	}
 
 	if ds.readReplicaConfig != nil {
+		var replica fleet.DBReader = ds.replica
+		if ds.healthReplica != nil {
+			replica = ds.healthReplica
+		}
 		var dst int
-		if err := sqlx.GetContext(context.Background(), ds.replica, &dst, "select 1"); err != nil {
+		if err := sqlx.GetContext(ctx, replica, &dst, "select 1"); err != nil {
 			return err
 		}
 	}
@@ -811,6 +750,14 @@ func (ds *Datastore) Close() error {
 	if ds.readReplicaConfig != nil {
 		if errRead := ds.replica.Close(); errRead != nil {
 			err = multierror.Append(err, errRead)
+		}
+	}
+	for _, healthDB := range []*sqlx.DB{ds.healthPrimary, ds.healthReplica} {
+		if healthDB == nil {
+			continue
+		}
+		if errHealth := healthDB.Close(); errHealth != nil {
+			err = multierror.Append(err, errHealth)
 		}
 	}
 	return err

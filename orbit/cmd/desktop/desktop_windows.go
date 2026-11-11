@@ -1,3 +1,4 @@
+//nolint:gosec // G103: unsafe required for Windows API calls.
 package main
 
 import (

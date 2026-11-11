@@ -35,7 +35,7 @@ The following areas have their own conventions and aren't covered by the current
 - **`ee/vulnerability-dashboard/`** — Vulnerability dashboard (Sails.js/Grunt, legacy patterns)
 - **`android/`** — Android app (Kotlin/Gradle, separate build system)
 - **`third_party/`** — Forked external code (not Fleet's conventions)
-- **Documentation** — Guides, API docs, and handbook documentation workflows
+- **Documentation** — Guides and API docs workflows (handbook changes are covered by `/handbook-pr`)
 - **Fleet-maintained apps (FMA)** — FMA catalog workflows, maintained-app packaging, and `ee/maintained-apps/` conventions
 - **MDM-specific patterns** — `server/mdm/` has complex multi-platform patterns (Apple, Windows, Android) beyond what the Go backend rule covers
 
@@ -156,13 +156,13 @@ Your local settings override project settings, so you can always customize witho
 │   ├── fleet-database.md      #   MySQL: migrations, goqu, reader/writer
 │   ├── fleet-api.md           #   API: endpoint registration, versioning, error responses
 │   └── fleet-orbit.md         #   Orbit: agent packaging, TUF updates, platform-specific code
-├── skills/                    # 30 workflow skills (invoke with /) — see "Skills reference" below
+├── skills/                    # 31 workflow skills (invoke with /) — see "Skills reference" below
 │   ├── review-pr/             #   Review a PR
 │   ├── test/                  #   Run tests for recent changes
 │   ├── fix-ci/                #   Diagnose CI failures
 │   ├── spec-story/            #   Break a story into sub-issues
 │   ├── new-migration/         #   Scaffold a DB migration
-│   └── ...                    #   + 25 more (lint, fleet-gitops, vuln-triage, content-style, …)
+│   └── ...                    #   + 26 more (lint, fleet-gitops, vuln-triage, content-style, …)
 ├── agents/                    # Specialized AI agents
 │   ├── go-reviewer.md         #   Go reviewer (proactive, sonnet)
 │   ├── frontend-reviewer.md   #   Frontend reviewer (proactive, sonnet)
@@ -185,6 +185,8 @@ Several skills use the `gh` CLI for GitHub operations (PR review, CI diagnosis, 
 | `/test` | `/test` or `/test TestFoo` | Detects which packages changed via `git diff` and runs their tests with the correct env vars (`MYSQL_TEST`, `REDIS_TEST`). |
 | `/find-related-tests` | `/find-related-tests` | Maps changed files to their `_test.go` files, integration tests, and test helpers. Outputs exact `go test` commands. |
 | `/fleet-gitops` | `/fleet-gitops` | Validates GitOps YAML: osquery queries against Fleet schema, Apple/Windows/Android profiles against upstream references, and software against the Fleet-maintained app catalog. |
+| `/fleet-gitops-export` | `/fleet-gitops-export ~/acme-gitops` | Exports a live Fleet instance into a GitOps repo laid out the way `fleetctl new` scaffolds it, with secrets as environment variables, then proves it matches Fleet with a reconcile check and a read-only `fleetctl gitops --dry-run`. Replaces `fleetctl generate-gitops`. Also discoverable by other agents through `.agents/skills/`. Requires `fleetctl` 4.84.0+ and Python 3.9+. Step-by-step guide: [skills/fleet-gitops-export/README.md](skills/fleet-gitops-export/README.md). |
+| `/security-triage` | `/security-triage` | Runbook for the security triage DRI: daily intake pass over Bugbop, GitHub advisory submissions, and the security inbox; dedup sweep, severity rubric, reporter reply templates, and filing to fleetdm/security through hand-off to an EM. Requires `gh` with maintainer access to the private security repos; Bugbop writes use the `bugbop` plugin or web UI. |
 | `/project` | `/project android-mdm` | Loads or creates a workstream context file in your Claude memory directory. Includes a minimal self-improvement mechanism — Claude adds discoveries, gotchas, and key file paths as you work, so each session starts with slightly richer context than the last. |
 | `/new-endpoint` | `/new-endpoint` | Scaffolds a Fleet API endpoint: request/response structs, endpoint function, service method, datastore interface, handler registration, and test stubs. User-invoked only (no auto-trigger). |
 | `/new-migration` | `/new-migration` | Creates a timestamped migration file and test file with proper naming, init registration, and Up function (Down is always a no-op). |
@@ -204,6 +206,7 @@ Several skills use the `gh` CLI for GitHub operations (PR review, CI diagnosis, 
 | `/fleet-article-formatting` | `/fleet-article-formatting` | Applies Fleet's house article format and article-specific voice to articles (`category` `articles` or `comparison`) — title → dek → key takeaways → CTA button → body → closing. Pairs with `/content-style` for word-level voice. |
 | `/fleet-guide-formatting` | `/fleet-guide-formatting` | Applies Fleet's how-to guide structure to guides (`category` `guides`) — problem statement, prerequisites, inline gotcha callouts, task-based or numbered steps, optional verify/troubleshoot sections. Pairs with `/content-style` for word-level voice. |
 | `/fleet-case-study-formatting` | `/fleet-case-study-formatting` | Applies Fleet's customer case study structure to case studies (`category` `case study`) — challenge → choosing Fleet → results, the `attribution-quote`/`checklist` custom syntax, and the build-enforced summary/quote/company meta tags. Pairs with `/content-style` for word-level voice. |
+| `/handbook-pr` | `/handbook-pr` | Makes a handbook change and opens the PR: reads Fleet's writing guidelines, finds the right page, follows the build and link rules, keeps private details off the public page, writes a handbook-specific PR description, and requests the page maintainer as the one reviewer. Includes a checker script for build errors, broken anchors, and relative links. Also triggers on handbook requests from Slack. Requires `gh`. |
 | `/aikido-tickets` | `/aikido-tickets` | Creates GitHub issues in `fleetdm/confidential` from Aikido pen test PDF reports. Reads findings, synthesizes attack path and fix recommendations, preserves full Aikido evidence in a collapsible section. Supports batch creation via parallel agents. Requires `gh` with `project` scope for board placement. |
 | `/openspec-*` | `/openspec-propose` | OpenSpec spec-driven workflow for larger changes (explore → propose → apply → archive). Four skills: `openspec-explore`, `openspec-propose`, `openspec-apply-change`, `openspec-archive-change`. Vendored by the `openspec` CLI — see `openspec/README.md`. |
 

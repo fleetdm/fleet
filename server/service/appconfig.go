@@ -63,6 +63,9 @@ type appConfigResponseFields struct {
 	Auth *fleet.AuthSettings `json:"auth,omitempty"`
 	// Maximum software package size is loaded from the service.
 	MaxSoftwarePackageSize int64 `json:"max_software_package_size"`
+	// StagedUploadAvailable reports whether clients can upload package bytes
+	// straight to object storage instead of through Fleet.
+	StagedUploadAvailable bool `json:"staged_upload_available"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
@@ -251,6 +254,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			Partnerships:           partnerships,
 			Auth:                   authSettings,
 			MaxSoftwarePackageSize: svc.MaxInstallerSizeBytes(),
+			StagedUploadAvailable:  svc.StagedUploadAvailable(ctx),
 		},
 	}
 	return response, nil
@@ -365,6 +369,7 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 			License:                lic,
 			Logging:                loggingConfig,
 			MaxSoftwarePackageSize: svc.MaxInstallerSizeBytes(),
+			StagedUploadAvailable:  svc.StagedUploadAvailable(ctx),
 		},
 	}
 
@@ -557,6 +562,43 @@ func (svc *Service) appleAccountProvisioningSecret(ctx context.Context) (string,
 	return string(assets[fleet.MDMAssetAppleAccountProvisioningIdPClientSecret].Value), nil
 }
 
+// verifyChangedAppleAccountProvisioning checks Apple account provisioning
+// settings with the IdP, but only when the token URL, client ID, or secret
+// changed: GitOps resends the same secret on every run and must not contact
+// the IdP each time. A stored secret is never sent to a new token URL because
+// ModifyAppConfig already requires a new secret when the URL changes.
+func (svc *Service) verifyChangedAppleAccountProvisioning(ctx context.Context, old, merged fleet.AppleAccountProvisioning, newSecretProvided bool, newSecret string) error {
+	if !merged.Configured() || svc.EnterpriseOverrides == nil || svc.EnterpriseOverrides.VerifyAppleAccountProvisioning == nil {
+		return nil
+	}
+	changed := merged.OAuthIdPTokenURL.Value != old.OAuthIdPTokenURL.Value ||
+		merged.OAuthIdPClientID.Value != old.OAuthIdPClientID.Value
+	if !changed && !newSecretProvided {
+		return nil
+	}
+
+	stored, err := svc.appleAccountProvisioningSecret(ctx)
+	if err != nil {
+		return err
+	}
+	secret := stored
+	if newSecretProvided {
+		changed = changed || newSecret != stored
+		secret = newSecret
+	}
+	if !changed {
+		return nil
+	}
+
+	if err := svc.EnterpriseOverrides.VerifyAppleAccountProvisioning(ctx, merged, secret); err != nil {
+		if invalid, ok := errors.AsType[*fleet.InvalidArgumentError](err); ok {
+			return ctxerr.Wrap(ctx, invalid)
+		}
+		return ctxerr.Wrap(ctx, err, "verify apple account provisioning settings")
+	}
+	return nil
+}
+
 func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fleet.ApplySpecOptions) (*fleet.AppConfig, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
 		return nil, err
@@ -606,6 +648,15 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	storedZendeskByGroupID, err := fleet.IndexZendeskIntegrations(appConfig.Integrations.Zendesk)
 	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "modify AppConfig")
+	}
+
+	// The request decoder's rewriter didn't see the raw body, so removed keys are rejected here, before strict decoding
+	// would report them as unknown fields.
+	if err := endpointer.CheckRemovedKeys(p, endpointer.ExtractRemovedKeyRules(fleet.AppConfig{})); err != nil {
+		if _, ok := errors.AsType[*endpointer.RemovedKeyError](err); !ok {
+			err = &fleet.BadRequestError{Message: "failed to decode app config", InternalErr: err}
+		}
 		return nil, ctxerr.Wrap(ctx, err, "modify AppConfig")
 	}
 
@@ -693,6 +744,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.SSOSettings = newAppConfig.SSOSettings
 		appConfig.MDM.EndUserAuthentication = newAppConfig.MDM.EndUserAuthentication
 		appConfig.FleetDesktop.SSOEnabled = newAppConfig.FleetDesktop.SSOEnabled
+		// absent means true, so an older fleetctl that doesn't send the key
+		// can't turn validation off; the unmarshal below applies it if present
+		appConfig.MDM.EnableProfileValidation = true
 	}
 
 	// We apply the config that is incoming to the old one
@@ -826,7 +880,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			// both the deprecated toggle and this per-platform setting are
 			// being changed, to disagreeing values
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(
-				"mdm.enable_disk_encryption", "conflicts with per-platform disk encryption settings"))
+				"mdm.enable_disk_encryption", "conflicts with per-platform disk encryption settings",
+			))
 		case incomingChanged:
 			*f.merged = f.incoming
 		case legacyDiskEncryption.Valid && (legacyDiskEncryptionChanged || !f.incoming.Valid):
@@ -1048,7 +1103,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	if appConfig.HostExpirySettings.HostExpiryEnabled && appConfig.HostExpirySettings.HostExpiryWindow < 1 {
-		invalid.Append("host_expiry_settings.host_expiry_window", "must be greater than 0")
+		invalid.Append("host_expiry_settings.host_expiry_window", "When enabling host expiry, host expiry window must be a positive number.")
 	}
 
 	if appConfig.OrgInfo.ContactURL == "" {
@@ -1143,6 +1198,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
+	}
+
+	if err := svc.verifyChangedAppleAccountProvisioning(ctx, oldAAP, mergedAAP, newAAPSecretProvided, newAAPSecret); err != nil {
+		return nil, err
 	}
 
 	// Normalize the stored JSON to the canonical fleet name, or to "" when the default was cleared.
@@ -1647,9 +1706,6 @@ func (svc *Service) applyVPPTokenAssignments(
 	// 2. Set VPP assignments that are defined in the config.
 	for tokenID, tokenTeams := range vppAssignments {
 		if _, err := svc.ds.UpdateVPPTokenTeams(ctx, tokenID, tokenTeams); err != nil {
-			if errTokConstraint, ok := errors.AsType[fleet.ErrVPPTokenTeamConstraint](err); ok {
-				return ctxerr.Wrap(ctx, fleet.NewUserMessageError(errTokConstraint, http.StatusConflict))
-			}
 			return ctxerr.Wrap(ctx, err, "saving ABM token assignments")
 		}
 	}
@@ -1700,19 +1756,22 @@ func (svc *Service) processSavedAppConfigChanges(
 	//
 	// Process OS updates config changes for Apple devices.
 	//
-	if err := svc.processAppleOSUpdateSettings(ctx, lic, fleet.MacOS,
+	if err := svc.processAppleOSUpdateSettings(
+		ctx, lic, fleet.MacOS,
 		oldAppConfig.MDM.MacOSUpdates,
 		appConfig.MDM.MacOSUpdates,
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "process macOS OS updates config change")
 	}
-	if err := svc.processAppleOSUpdateSettings(ctx, lic, fleet.IOS,
+	if err := svc.processAppleOSUpdateSettings(
+		ctx, lic, fleet.IOS,
 		oldAppConfig.MDM.IOSUpdates,
 		appConfig.MDM.IOSUpdates,
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "process iOS OS updates config change")
 	}
-	if err := svc.processAppleOSUpdateSettings(ctx, lic, fleet.IPadOS,
+	if err := svc.processAppleOSUpdateSettings(
+		ctx, lic, fleet.IPadOS,
 		oldAppConfig.MDM.IPadOSUpdates,
 		appConfig.MDM.IPadOSUpdates,
 	); err != nil {
@@ -2291,12 +2350,18 @@ func (svc *Service) validateMDM(
 	if mdm.MacOSSetup.ManualAgentInstall.Valid && oldMdm.MacOSSetup.ManualAgentInstall.Value != mdm.MacOSSetup.ManualAgentInstall.Value && !lic.IsPremium() {
 		invalid.Append("setup_experience.macos_manual_agent_install", ErrMissingLicense.Error())
 	}
+	if mdm.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment && oldMdm.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment != mdm.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment && !lic.IsPremium() {
+		invalid.Append("setup_experience.macos_enable_bootstrap_package_during_manual_enrollment", ErrMissingLicense.Error())
+	}
+	if mdm.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration && oldMdm.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration != mdm.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration && !lic.IsPremium() {
+		invalid.Append("setup_experience.macos_enable_bootstrap_package_during_migration", ErrMissingLicense.Error())
+	}
 	if mdm.WindowsSettings.EnableManagedLocalAccount.Value &&
 		mdm.WindowsSettings.EnableManagedLocalAccount.Value != oldMdm.WindowsSettings.EnableManagedLocalAccount.Value && !lic.IsPremium() {
 		invalid.Append("windows_settings.enable_managed_local_account", ErrMissingLicense.Error())
 	}
 	if mdm.WindowsMigrationEnabled && !lic.IsPremium() {
-		invalid.Append("windows_migration_enabled", ErrMissingLicense.Error())
+		invalid.Append("mdm.windows_mdm_migration_enabled", ErrMissingLicense.Error())
 	}
 	if mdm.EnableTurnOnWindowsMDMManually && !lic.IsPremium() {
 		invalid.Append("enable_turn_on_windows_mdm_manually", ErrMissingLicense.Error())
@@ -2349,6 +2414,16 @@ func (svc *Service) validateMDM(
 
 		if mdm.MacOSSetup.BootstrapPackage.Value != "" && oldMdm.MacOSSetup.BootstrapPackage.Value != mdm.MacOSSetup.BootstrapPackage.Value {
 			invalid.Append("setup_experience.macos_bootstrap_package",
+				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
+		}
+
+		if mdm.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment && oldMdm.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment != mdm.MacOSSetup.MacOSEnableBootstrapPackageDuringManualEnrollment {
+			invalid.Append("setup_experience.macos_enable_bootstrap_package_during_manual_enrollment",
+				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
+		}
+
+		if mdm.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration && oldMdm.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration != mdm.MacOSSetup.MacOSEnableBootstrapPackageDuringMigration {
+			invalid.Append("setup_experience.macos_enable_bootstrap_package_during_migration",
 				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 
@@ -2461,6 +2536,20 @@ func (svc *Service) validateMDM(
 	}
 	if v, ok := m["ipados"]; ok && updatingIPadOSVersion {
 		invalid.Append("ipados_updates.minimum_version", v)
+	}
+
+	// The bootstrap package can come from the payload's URL (GitOps uploads it before applying the
+	// config, and dry runs don't upload it at all) or from a package already uploaded via the UI/API.
+	if keys := mdm.MacOSSetup.NewlyEnabledBootstrapPackageSettings(oldMdm.MacOSSetup); len(keys) > 0 && mdm.MacOSSetup.BootstrapPackage.Value == "" {
+		_, err := svc.ds.GetMDMAppleBootstrapPackageMeta(ctx, 0)
+		switch {
+		case fleet.IsNotFound(err):
+			for _, arg := range fleet.BootstrapPackageRequiredError(keys).Errors {
+				invalid.AppendInvalidArgument(arg)
+			}
+		case err != nil:
+			return ctxerr.Wrap(ctx, err, "checking bootstrap package")
+		}
 	}
 
 	if err := mdm.MacOSSetup.ValidateAgainst(oldMdm.MacOSSetup); err != nil {
@@ -2577,12 +2666,12 @@ func (svc *Service) validateMDM(
 	// Windows validation
 	if !svc.config.MDM.IsMicrosoftWSTEPSet() {
 		if mdm.WindowsEnabledAndConfigured {
-			invalid.Append("mdm.windows_enabled_and_configured", "Couldn't turn on Windows MDM. Please configure Fleet with a certificate and key pair first.")
+			invalid.Append("mdm.windows_mdm_enabled", "Couldn't turn on Windows MDM. Please configure Fleet with a certificate and key pair first.")
 			return nil
 		}
 	}
 	if !mdm.WindowsEnabledAndConfigured && mdm.WindowsMigrationEnabled {
-		invalid.Append("mdm.windows_migration_enabled", "Couldn't enable Windows MDM migration, Windows MDM is not enabled.")
+		invalid.Append("mdm.windows_mdm_migration_enabled", "Couldn't enable Windows MDM migration, Windows MDM is not enabled.")
 	}
 
 	if !mdm.WindowsEnabledAndConfigured && mdm.EnableTurnOnWindowsMDMManually {
@@ -2783,10 +2872,9 @@ func (svc *Service) validateABMAssignments(
 			tok.IOSDefaultTeamID = teamsByName[norm.NFC.String(bm.IOSTeam)]
 			tok.IPadOSDefaultTeamID = teamsByName[norm.NFC.String(bm.IpadOSTeam)]
 			tok.BYODDefaultTeamID = teamsByName[norm.NFC.String(bm.BYODTeam)]
-			tokensToSave = append(tokensToSave, tok)
 		}
 
-		return tokensToSave, defaultTokenID, nil
+		return tokens, defaultTokenID, nil
 	}
 
 	return nil, nil, nil
@@ -2856,7 +2944,7 @@ func (svc *Service) validateVPPAssignments(
 			}
 			if teamName == fleet.TeamNameAllTeams {
 				if len(vpp.Teams) > 1 {
-					invalid.Appendf("mdm.volume_purchasing_program", "token cannot belong to %s and other fleets", fleet.DisplayNameAllTeams)
+					invalid.Appendf("mdm.volume_purchasing_program", "Couldn't apply. VPP token %q can't be assigned to All fleets and specific fleets at the same time.", vpp.Location)
 					return nil, nil
 				}
 				tokenTeams = []uint{}
@@ -3323,4 +3411,8 @@ func isValidHostname(h string) bool {
 
 func (svc *Service) MaxInstallerSizeBytes() int64 {
 	return svc.config.Server.MaxInstallerSizeBytes
+}
+
+func (svc *Service) StagedUploadAvailable(ctx context.Context) bool {
+	return svc.config.StagedUploadAvailable() && license.IsPremium(ctx)
 }

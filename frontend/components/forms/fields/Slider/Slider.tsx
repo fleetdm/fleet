@@ -11,6 +11,8 @@ interface ISliderProps {
   value: boolean;
   inactiveText: JSX.Element | string;
   activeText: JSX.Element | string;
+  /** Accessible name for the switch; the visible text is a sibling, not a label. */
+  ariaLabel?: string;
   /** Use to display slider label tooltip, compatible with disabled state */
   labelTooltip?: JSX.Element | string;
   className?: string;
@@ -27,6 +29,7 @@ const Slider = (props: ISliderProps): JSX.Element => {
     value,
     inactiveText,
     activeText,
+    ariaLabel,
     labelTooltip,
     autoFocus,
     disabled,
@@ -48,8 +51,7 @@ const Slider = (props: ISliderProps): JSX.Element => {
     [`${baseClass}__dot--active`]: value,
   });
 
-  const handleClick = (evt: React.MouseEvent) => {
-    evt.preventDefault();
+  const handleClick = () => {
     if (disabled) return;
 
     onChange();
@@ -73,8 +75,10 @@ const Slider = (props: ISliderProps): JSX.Element => {
     <FormField {...formFieldProps} type="slider">
       <div className={wrapperClassNames}>
         <button
+          type="button"
           role="switch"
           aria-checked={value}
+          aria-label={ariaLabel}
           className={`button button--unstyled ${sliderBtnClass}`}
           onClick={handleClick}
           disabled={disabled}

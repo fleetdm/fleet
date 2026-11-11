@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.10.0.252.41",
+      "version": "6.11.0.478.6",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Adobe Creative Cloud' AND publisher = 'Adobe Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Adobe Creative Cloud' AND publisher = 'Adobe Inc.' AND version_compare(version, '6.10.0.252.41') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Adobe Creative Cloud' AND publisher = 'Adobe Inc.' AND version_compare(version, '6.11.0.478.6') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'adobe creative cloud.exe');"
       },
       "installer_url": "https://prod-rel-ffc-ccm.oobesaas.adobe.com/adobe-ffc-external/core/v1/wam/download?sapCode=KCCC&wamFeature=nuj-live",
       "install_script_ref": "a4660692",
       "uninstall_script_ref": "756b1d8c",
-      "sha256": "d93547039f2838a39e1a3440eca4c486026a8a8892c35887345cd918695136bf",
+      "sha256": "bf7e929294f116077806470c0b0cfb2be0c689db653d56b3d19c14ef878b485c",
       "default_categories": [
         "Productivity"
       ]

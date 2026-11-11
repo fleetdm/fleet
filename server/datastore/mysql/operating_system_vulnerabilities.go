@@ -1213,7 +1213,7 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 				// Since os_version_id uniquely maps to name+version, there should be exactly one ID per key
 				for _, osVersionID := range osVersionIDs {
 					if totalCount, ok := totalCountByOSVersionID[osVersionID]; ok {
-						count = int(totalCount) //nolint:gosec,G115
+						count = int(totalCount) //nolint:gosec // G115
 						break                   // Only one os_version_id per key
 					}
 				}

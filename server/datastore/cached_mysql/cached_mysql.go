@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/patrickmn/go-cache"
 )
@@ -74,6 +75,12 @@ const (
 	// osquery-reported names with the FMA canonical name.
 	fmaNamesByIdentifierKey               = "FMANamesByIdentifier"
 	defaultFMANamesByIdentifierExpiration = 5 * time.Minute
+
+	// The Windows terms page reads this on every request, unauthenticated. It
+	// is kept as short as the app config so a replaced agreement shows on other
+	// instances almost immediately.
+	eulaMetadataKey               = "EULAMetadata:%s"
+	defaultEULAMetadataExpiration = 1 * time.Second
 )
 
 // MaxConfigInputTTL is the longest default expiration among the cached items
@@ -88,6 +95,19 @@ func MaxConfigInputTTL() time.Duration {
 		defaultPacksExpiration,
 		defaultScheduledQueriesExpiration,
 		defaultTeamAgentOptionsExpiration,
+	)
+}
+
+// MaxOrbitConfigInputTTL is the longest default expiration among the cached
+// fleet-wide and global items that GetOrbitConfig reads. A notification
+// telling agents to fetch their orbit config after such an item changed must
+// be delayed by at least this long, or instances may still serve the stale
+// cached item.
+func MaxOrbitConfigInputTTL() time.Duration {
+	return max(
+		defaultAppConfigExpiration,
+		defaultTeamAgentOptionsExpiration,
+		defaultTeamMDMConfigExpiration,
 	)
 }
 
@@ -150,6 +170,7 @@ type cachedMysql struct {
 	yaraRuleByNameExp       time.Duration
 	mdmConfigAssetExp       time.Duration
 	fmaNamesByIdentifierExp time.Duration
+	eulaMetadataExp         time.Duration
 }
 
 type Option func(*cachedMysql)
@@ -226,6 +247,12 @@ func WithFMANamesByIdentifierExpiration(d time.Duration) Option {
 	}
 }
 
+func WithEULAMetadataExpiration(d time.Duration) Option {
+	return func(o *cachedMysql) {
+		o.eulaMetadataExp = d
+	}
+}
+
 func New(ds fleet.Datastore, opts ...Option) fleet.Datastore {
 	c := &cachedMysql{
 		Datastore:               ds,
@@ -242,6 +269,7 @@ func New(ds fleet.Datastore, opts ...Option) fleet.Datastore {
 		yaraRuleByNameExp:       defaultYaraRuleByNameExpiration,
 		mdmConfigAssetExp:       defaultMDMConfigAssetExpiration,
 		fmaNamesByIdentifierExp: defaultFMANamesByIdentifierExpiration,
+		eulaMetadataExp:         defaultEULAMetadataExpiration,
 	}
 	for _, fn := range opts {
 		fn(c)
@@ -648,4 +676,42 @@ func (ds *cachedMysql) ClearRemovedFleetMaintainedApps(ctx context.Context, slug
 	ds.c.Delete(fmaNamesByIdentifierKey)
 
 	return nil
+}
+
+func (ds *cachedMysql) MDMGetEULAMetadata(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
+	key := fmt.Sprintf(eulaMetadataKey, platform)
+	if x, found := ds.c.Get(ctx, key); found {
+		if lookup, ok := x.(*fleet.MDMEULAMetadataLookup); ok {
+			if lookup.EULA == nil {
+				return nil, common_mysql.NotFound("MDMEULA")
+			}
+			return lookup.EULA, nil
+		}
+	}
+
+	eula, err := ds.Datastore.MDMGetEULAMetadata(ctx, platform)
+	switch {
+	case fleet.IsNotFound(err):
+		ds.c.Set(ctx, key, &fleet.MDMEULAMetadataLookup{}, ds.eulaMetadataExp)
+		return nil, err
+	case err != nil:
+		return nil, err
+	}
+
+	ds.c.Set(ctx, key, &fleet.MDMEULAMetadataLookup{EULA: eula}, ds.eulaMetadataExp)
+	return eula, nil
+}
+
+func (ds *cachedMysql) MDMInsertEULA(ctx context.Context, eula *fleet.MDMEULA) error {
+	err := ds.Datastore.MDMInsertEULA(ctx, eula)
+	// Invalidate even on failure: a duplicate means another instance wrote one
+	// that this cache may not know about yet.
+	ds.c.Delete(fmt.Sprintf(eulaMetadataKey, eula.Platform))
+	return err
+}
+
+func (ds *cachedMysql) MDMDeleteEULA(ctx context.Context, platform fleet.MDMEULAPlatform, token string) error {
+	err := ds.Datastore.MDMDeleteEULA(ctx, platform, token)
+	ds.c.Delete(fmt.Sprintf(eulaMetadataKey, platform))
+	return err
 }

@@ -123,7 +123,6 @@ func main() {
 	signer := scepserver.SignCSRAdapter(scepdepot.NewSigner(
 		depot,
 		scepdepot.WithValidityDays(*validity),
-		scepdepot.WithAllowRenewalDays(14),
 	))
 
 	store := &challengeStore{
@@ -361,7 +360,8 @@ func loggingMiddleware(logger *slog.Logger, next http.Handler) http.Handler {
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(rec, r)
 
-		logger.InfoContext(r.Context(), "<-- response",
+		logger.InfoContext(
+			r.Context(), "<-- response",
 			"method", r.Method,
 			"path", r.URL.Path,
 			"status", rec.status,
@@ -488,7 +488,8 @@ func printBanner(ctx context.Context, logger *slog.Logger, scheme, addr string, 
 		host = "localhost" + addr
 	}
 	base := fmt.Sprintf("%s://%s", scheme, host)
-	logger.InfoContext(ctx, "mock NDES server starting",
+	logger.InfoContext(
+		ctx, "mock NDES server starting",
 		"scep_url", base+defaultSCEPPath,
 		"admin_url", base+defaultAdminPath,
 		"admin_username", admin.username,

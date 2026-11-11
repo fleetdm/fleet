@@ -1,4 +1,5 @@
 import classnames from "classnames";
+import { toZonedTime } from "date-fns-tz";
 import React, { useEffect, useRef, useState } from "react";
 
 import Button from "components/buttons/Button";
@@ -13,7 +14,7 @@ import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRo
 import { IHostCustomVital } from "interfaces/custom_host_vitals";
 import { IHostMdmData, IMunkiData } from "interfaces/host";
 import {
-  isBYODAccountDrivenUserEnrollment,
+  isPersonalEnrollment,
   wasBYODEnrolled,
   MDM_ENROLLMENT_STATUS_UI_MAP,
 } from "interfaces/mdm";
@@ -33,6 +34,7 @@ import {
   wrapFleetHelper,
   removeOSPrefix,
   compareVersions,
+  internationalTimeFormat,
 } from "utilities/helpers";
 
 import { getCityCountryLocation } from "../../modals/LocationModal/LocationModal";
@@ -113,26 +115,14 @@ const OS_UPDATE_REQUIREMENT_PENDING = "Pending";
 
 const DISK_ENCRYPTION_MESSAGES = {
   darwin: {
-    enabled: (
-      <>
-        The disk is encrypted. The user must enter their
-        <br /> password when they start their computer.
-      </>
-    ),
-    disabled: (
-      <>
-        The disk might be encrypted, but FileVault is off. The
-        <br /> disk can be accessed without entering a password.
-      </>
-    ),
+    enabled:
+      "The disk is encrypted. The user must enter their password when they start their computer.",
+    disabled:
+      "The disk might be encrypted, but FileVault is off. The disk can be accessed without entering a password.",
   },
   windows: {
-    enabled: (
-      <>
-        The disk is encrypted. If recently turned on,
-        <br /> encryption could take awhile.
-      </>
-    ),
+    enabled:
+      "The disk is encrypted. If recently turned on, encryption could take awhile.",
     disabled: "The disk is unencrypted.",
   },
   linux: {
@@ -402,6 +392,27 @@ export const buildHostVitals = ({
     });
   }
 
+  if (
+    (isIosOrIpadosHost || isAndroidHost) &&
+    vitalsData.google_device_id &&
+    vitalsData.google_device_id !== DEFAULT_EMPTY_CELL_VALUE
+  ) {
+    vitals.push({
+      sortKey: "Google device ID",
+      element: (
+        <DataSet
+          key="google-device-id"
+          title={
+            <TooltipWrapper tipContent="The host's device ID in Google, used for conditional access.">
+              Google device ID
+            </TooltipWrapper>
+          }
+          value={<TooltipTruncatedText value={vitalsData.google_device_id} />}
+        />
+      ),
+    });
+  }
+
   // Hardware model
   const hardwareModelDisplay = getHardwareModelDisplay(
     vitalsData.platform,
@@ -642,7 +653,7 @@ export const buildHostVitals = ({
           value={
             <span className={`${baseClass}__os-version`}>
               {!osVersionRequirementMet && (
-                <Icon name="error-outline" color="ui-fleet-black-75" />
+                <Icon name="error" color="ui-fleet-black-75" />
               )}
               <TooltipWrapper
                 className={`${baseClass}__ellipsis-tooltip`}
@@ -717,7 +728,27 @@ export const buildHostVitals = ({
     });
   }
 
-  if (isIosOrIpadosHost && vitalsData?.timezone) {
+  const hasValidTimezone =
+    !!vitalsData?.timezone && vitalsData.timezone !== DEFAULT_EMPTY_CELL_VALUE;
+  // Android and Chrome don't report a timezone. iOS/iPadOS report one only
+  // after MDM check-in, so the row stays hidden until that lands. macOS,
+  // Windows, and Linux always show the row, with "---" until osquery fills
+  // it in.
+  const showTimezone =
+    !isAndroidHost && !isChromeHost && (!isIosOrIpadosHost || hasValidTimezone);
+  if (showTimezone) {
+    // toZonedTime shifts the instant so its epoch value reads as the host's
+    // timezone under the system's own default-timezone formatting, letting
+    // internationalTimeFormat run unmodified/as-is elsewhere. It returns an
+    // Invalid Date for a zone the browser doesn't know, which would throw.
+    const hostNow = hasValidTimezone
+      ? toZonedTime(new Date(), vitalsData.timezone)
+      : null;
+    const localTime =
+      hostNow && !Number.isNaN(hostNow.getTime())
+        ? internationalTimeFormat(hostNow)
+        : DEFAULT_EMPTY_CELL_VALUE;
+
     vitals.push({
       sortKey: "Timezone",
       element: (
@@ -725,9 +756,21 @@ export const buildHostVitals = ({
           key="timezone"
           title="Timezone"
           value={
-            <TooltipTruncatedText
-              value={vitalsData.timezone || DEFAULT_EMPTY_CELL_VALUE}
-            />
+            hasValidTimezone ? (
+              <TooltipTruncatedText
+                value={vitalsData.timezone}
+                tooltip={
+                  <>
+                    <b>Local time:</b> {localTime}
+                  </>
+                }
+                alwaysShowTooltip
+                showArrow={false}
+                tooltipPosition="bottom-start"
+              />
+            ) : (
+              DEFAULT_EMPTY_CELL_VALUE
+            )
           }
         />
       ),
@@ -795,8 +838,7 @@ const Vitals = ({
   // purpose: the cap exists because a personally-enrolled device reports few vitals
   // right now, not because of how it was once enrolled.
   const showExpandedVitals =
-    isIosOrIpadosHost &&
-    !isBYODAccountDrivenUserEnrollment(mdm?.enrollment_status ?? null);
+    isIosOrIpadosHost && !isPersonalEnrollment(mdm?.enrollment_status ?? null);
 
   const gridRef = useRef<HTMLDivElement>(null);
   const [columnCount, setColumnCount] = useState(FALLBACK_COLUMN_COUNT);

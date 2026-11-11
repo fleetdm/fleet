@@ -9,9 +9,9 @@ This applies to Apple hosts (macOS, iOS, iPadOS) only. Windows and Android hosts
 ## Prerequisites
 
 - Fleet Premium.
-- Fleet's MDM [turned on](https://fleetdm.com/guides/macos-mdm-setup).
-- Hosts enrolled in Fleet's MDM. Personally enrolled (BYOD) hosts are skipped and never renamed.
-- iOS and iPadOS hosts must be supervised. Apple only applies a name change to supervised iPhones and iPads; unsupervised hosts receive the command once and land on **Failed**.
+- MDM [turned on](https://fleetdm.com/guides/macos-mdm-setup) in Fleet.
+- Hosts enrolled to Fleet with MDM turned on. Personally enrolled (BYOD) hosts are skipped and never renamed.
+- iOS and iPadOS hosts must be supervised. Apple only applies a name change to supervised iPhones and iPads. Unsupervised hosts reject the command and land on **Failed** right away, without automatic retries.
 
 ## Set a name template
 
@@ -57,11 +57,17 @@ The custom variable must already exist when you save the template, or the save f
 
 Certificate authority variables — for example `$FLEET_VAR_NDES_SCEP_CHALLENGE`, `$FLEET_VAR_DIGICERT_DATA_<CA>`, `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA>`, `$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID`, and `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` — and the Platform SSO device registration token can't be used in a name template. They resolve to one-time challenges, proxy URLs, or certificate data: values that are meaningless as a device name and would expose secrets in a name that's visible on the device, in reports, and in the Fleet UI. Fleet rejects a template that references them.
 
-The deprecated `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` variable also isn't supported; use the `HOST_END_USER_IDP_*` variables above instead.
-
 ### Renaming when a variable's value changes
 
 Fleet keeps host names in sync with their variables. When a host's IdP data changes (for example, the end user's department is updated) or a custom variable's value changes, Fleet resolves the template again and renames the hosts that use that variable.
+
+### Renaming when a host is renamed on the device
+
+If an end user renames a host on the device, Fleet renames it back. Fleet detects the change the next time the host reports its name, about every hour. Fleet also tries again when a device rejects the rename command.
+
+Fleet tries up to 3 times. After that, the host lands on **Failed** until you select **Resend** or change the template, which restores the 3 retries.
+
+> **Note:** On macOS, Fleet detects a rename through fleetd. If fleetd isn't installed and running on a host, Fleet doesn't notice when that host is renamed.
 
 ## Set a name template with GitOps
 
@@ -93,7 +99,7 @@ Controls > OS settings also rolls host name statuses into the **Verified**, **Ve
 
 ## Troubleshoot
 
-**A host's Host name row shows Failed.** The status is Failed when the device rejected the command, the resolved name was too long, the host is missing IdP data a variable in the template needs, a custom variable in the template is no longer defined, or an end user renamed the device off-template. The row's tooltip shows the error. Select **Resend** on the row to try again.
+**A host's Host name row shows Failed.** The status is Failed when the resolved name was too long, the host is missing IdP data a variable in the template needs, a custom variable in the template is no longer defined, or Fleet used up its 3 automatic retries because the device kept rejecting the command or kept being renamed off-template. The row's tooltip shows the error. Select **Resend** on the row to try again.
 
 **An iPhone or iPad shows Failed with a supervision error.** Apple only applies MDM name changes to supervised iOS and iPadOS hosts. Supervise the host (for example, by enrolling it through Apple Business Manager), then select **Resend**.
 

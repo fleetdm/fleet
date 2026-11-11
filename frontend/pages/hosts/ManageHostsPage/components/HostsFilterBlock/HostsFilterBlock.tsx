@@ -677,6 +677,9 @@ const HostsFilterBlock = ({
     selectedLabel.type !== "all" &&
     selectedLabel.type !== "platform";
 
+  // The request only filters on "true" (see strToBool), so "false" must not show a pill.
+  const showDepProfileError = depProfileError === "true";
+
   if (
     showSelectedLabel ||
     policyId ||
@@ -697,14 +700,15 @@ const HostsFilterBlock = ({
     vulnerability ||
     (configProfileStatus && configProfileUUID && configProfile) ||
     (scriptBatchExecutionStatus && scriptBatchExecutionId) ||
-    depProfileError ||
+    showDepProfileError ||
     depAssignProfileResponse
   ) {
     const renderFilterPill = () => {
       switch (true) {
         // backend allows for pill combos (label + low disk space) OR
         // (label + mdm solution) OR (label + mdm enrollment status) OR
-        // (label + os settings) OR (label + disk encryption)
+        // (label + os settings) OR (label + disk encryption) OR
+        // (label + DEP profile status)
         case showSelectedLabel && !!lowDiskSpaceHosts:
           return (
             <>
@@ -734,6 +738,18 @@ const HostsFilterBlock = ({
           return (
             <>
               {renderLabelFilterPill()} {renderDiskEncryptionStatusBlock()}
+            </>
+          );
+        case showSelectedLabel && showDepProfileError:
+          return (
+            <>
+              {renderLabelFilterPill()} {renderDepProfileError()}
+            </>
+          );
+        case showSelectedLabel && !!depAssignProfileResponse:
+          return (
+            <>
+              {renderLabelFilterPill()} {renderDepAssignProfileResponse()}
             </>
           );
         case showSelectedLabel:
@@ -779,7 +795,7 @@ const HostsFilterBlock = ({
           return renderConfigProfileStatusBlock();
         case !!scriptBatchExecutionStatus && !!scriptBatchExecutionId:
           return renderScriptBatchExecutionBlock();
-        case !!depProfileError:
+        case showDepProfileError:
           return renderDepProfileError();
         case !!depAssignProfileResponse:
           return renderDepAssignProfileResponse();

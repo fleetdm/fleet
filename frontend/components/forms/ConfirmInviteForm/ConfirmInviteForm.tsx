@@ -2,8 +2,7 @@ import React from "react";
 
 import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
-import validateEquality from "components/forms/validators/validate_equality";
-import validatePresence from "components/forms/validators/validate_presence";
+import { isEqual, isPresent } from "components/forms/validators";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
 
 const baseClass = "confirm-invite-page__form";
@@ -23,17 +22,17 @@ const validate = (formData: IConfirmInviteFormData): IFormErrors => {
   const errors: IFormErrors = {};
   const { name, password, password_confirmation: confirmation } = formData;
 
-  if (!validatePresence(name)) {
+  if (!isPresent(name)) {
     errors.name = "Enter your full name";
   }
 
-  if (!validatePresence(password)) {
+  if (!isPresent(password)) {
     errors.password = "Enter a password";
   }
 
-  if (!validatePresence(confirmation)) {
+  if (!isPresent(confirmation)) {
     errors.password_confirmation = "Confirm your password";
-  } else if (password && !validateEquality(password, confirmation)) {
+  } else if (password && !isEqual(password, confirmation)) {
     errors.password_confirmation = "Match the password above";
   }
 
@@ -45,11 +44,7 @@ const ConfirmInviteForm = ({
   handleSubmit,
 }: IConfirmInviteFormProps) => {
   const {
-    formData,
-    setField,
-    getError,
-    clearFieldError,
-    validateField,
+    getTextFieldProps,
     handleSubmit: onSubmit,
     isSubmitting,
   } = useFormValidation<IConfirmInviteFormData>({
@@ -71,12 +66,7 @@ const ConfirmInviteForm = ({
       <InputField
         label="Full name"
         autofocus
-        name="name"
-        value={formData.name}
-        onChange={(value: string) => setField("name", value)}
-        onFocus={() => clearFieldError("name")}
-        onBlur={() => validateField("name")}
-        error={getError("name")}
+        {...getTextFieldProps("name")}
         inputOptions={{ maxLength: 80 }}
         ignore1password={false}
         disabled={isSubmitting}
@@ -86,12 +76,7 @@ const ConfirmInviteForm = ({
         type="password"
         placeholder="Password"
         helpText="Must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)"
-        name="password"
-        value={formData.password}
-        onChange={(value: string) => setField("password", value)}
-        onFocus={() => clearFieldError("password")}
-        onBlur={() => validateField("password")}
-        error={getError("password")}
+        {...getTextFieldProps("password")}
         ignore1password={false}
         disabled={isSubmitting}
       />
@@ -99,12 +84,7 @@ const ConfirmInviteForm = ({
         label="Confirm password"
         type="password"
         placeholder="Confirm password"
-        name="password_confirmation"
-        value={formData.password_confirmation}
-        onChange={(value: string) => setField("password_confirmation", value)}
-        onFocus={() => clearFieldError("password_confirmation")}
-        onBlur={() => validateField("password_confirmation")}
-        error={getError("password_confirmation")}
+        {...getTextFieldProps("password_confirmation")}
         ignore1password={false}
         disabled={isSubmitting}
       />

@@ -1,13 +1,14 @@
-import classnames from "classnames";
 import { format } from "date-fns";
 import FileSaver from "file-saver";
-import React from "react";
+import React, { useRef } from "react";
 
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import Graphic from "components/Graphic";
 import Icon from "components/Icon";
+import ListItem from "components/ListItem";
+import Tag from "components/Tag";
 import TooltipWrapper from "components/TooltipWrapper";
+import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 import { IMdmProfile, ProfilePlatform } from "interfaces/mdm";
 import { isAppleDevice, isIPadOrIPhone } from "interfaces/platform";
 import mdmAPI, { isDDMProfile } from "services/entities/mdm";
@@ -112,8 +113,12 @@ const ProfileListItem = ({
     name,
     platform,
     scope,
+    hidden,
   } = profile;
   const subClass = "list-item";
+
+  const nameRef = useRef<HTMLSpanElement>(null);
+  const isNameTruncated = useCheckTruncatedElement(nameRef);
 
   // iOS/iPadOS don't support user channels, so never show the user-scope icon
   // for them (matches the host details OS settings table).
@@ -147,120 +152,127 @@ const ProfileListItem = ({
     );
   };
 
-  return (
-    // TODO - refactor to use ListItem
-    <div className={classnames(subClass, baseClass)}>
-      <div className={`${subClass}__main-content`}>
-        <Graphic name="file-configuration-profile" />
-        <div className={`${subClass}__info`}>
-          <div className={`${baseClass}__title-row`}>
-            <TooltipWrapper
-              tipContent={`UUID: ${profile.profile_uuid}`}
-              underline={false}
-              position="top"
-              showArrow
-            >
-              <span className={`${subClass}__title`}>{name}</span>
-            </TooltipWrapper>
-            {isUserScoped && (
+  const actions = (
+    // keep action clicks from also opening the details modal
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+    <div
+      className={`${baseClass}__actions-wrap`}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {renderLabelInfo()}
+      <div className={`${baseClass}__actions`}>
+        {!isTechnician && (
+          // stays enabled in GitOps mode -- the modal is the only place to
+          // see a profile's label targeting; it blocks saving instead
+          <TooltipWrapper
+            tipContent="Edit"
+            underline={false}
+            position="top"
+            showArrow
+            tipOffset={8}
+          >
+            <Button
+              className={`${subClass}__action-button`}
+              variant="secondary"
+              onClick={() => onClickEdit(profile)}
+              ariaLabel={`Edit ${profile.name}`}
+              icon="pencil"
+            />
+          </TooltipWrapper>
+        )}
+        <TooltipWrapper
+          tipContent="Download"
+          underline={false}
+          position="top"
+          showArrow
+          tipOffset={8}
+        >
+          <Button
+            className={`${subClass}__action-button`}
+            variant="secondary"
+            onClick={onClickDownload}
+            icon="download"
+            ariaLabel={`Download ${profile.name}`}
+          />
+        </TooltipWrapper>
+        {!isTechnician && (
+          <GitOpsModeTooltipWrapper
+            renderChildren={(disableChildren) => (
               <TooltipWrapper
-                className={`${baseClass}__scope-tooltip`}
-                tipContent="Scoped to the user channel."
+                tipContent="Delete"
                 underline={false}
                 position="top"
                 showArrow
+                tipOffset={8}
+                disableTooltip={disableChildren}
               >
-                <Icon name="user" />
+                <Button
+                  disabled={disableChildren}
+                  className={`${subClass}__action-button`}
+                  variant="secondary"
+                  onClick={() => onClickDelete(profile)}
+                  icon="trash"
+                  ariaLabel={`Delete ${profile.name}`}
+                />
               </TooltipWrapper>
             )}
-          </div>
-          <div className={`${subClass}__details`}>
-            <ProfileDetails
-              platform={platform}
-              uploadedAt={updated_at}
-              isDDM={isDDMProfile(profile)}
-            />
-          </div>
-        </div>
-      </div>
-      <div className={`${subClass}__actions-wrap`}>
-        {renderLabelInfo()}
-        <div className={`${subClass}__actions`}>
-          <TooltipWrapper
-            tipContent="Details"
-            underline={false}
-            position="top"
-            showArrow
-            tipOffset={8}
-          >
-            <Button
-              className={`${subClass}__action-button`}
-              variant="secondary"
-              onClick={() => onClickInfo(profile)}
-              icon="info"
-              ariaLabel={`View ${profile.name} details`}
-            />
-          </TooltipWrapper>
-          {!isTechnician && (
-            // stays enabled in GitOps mode -- the modal is the only place to
-            // see a profile's label targeting; it blocks saving instead
-            <TooltipWrapper
-              tipContent="Edit"
-              underline={false}
-              position="top"
-              showArrow
-              tipOffset={8}
-            >
-              <Button
-                className={`${subClass}__action-button`}
-                variant="secondary"
-                onClick={() => onClickEdit(profile)}
-                ariaLabel={`Edit ${profile.name}`}
-                icon="pencil"
-              />
-            </TooltipWrapper>
-          )}
-          <TooltipWrapper
-            tipContent="Download"
-            underline={false}
-            position="top"
-            showArrow
-            tipOffset={8}
-          >
-            <Button
-              className={`${subClass}__action-button`}
-              variant="secondary"
-              onClick={onClickDownload}
-              icon="download"
-              ariaLabel={`Download ${profile.name}`}
-            />
-          </TooltipWrapper>
-          {!isTechnician && (
-            <GitOpsModeTooltipWrapper
-              renderChildren={(disableChildren) => (
-                <TooltipWrapper
-                  tipContent="Delete"
-                  underline={false}
-                  position="top"
-                  showArrow
-                  tipOffset={8}
-                  disableTooltip={disableChildren}
-                >
-                  <Button
-                    disabled={disableChildren}
-                    className={`${subClass}__action-button`}
-                    variant="secondary"
-                    onClick={() => onClickDelete(profile)}
-                    icon="trash"
-                    ariaLabel={`Delete ${profile.name}`}
-                  />
-                </TooltipWrapper>
-              )}
-            />
-          )}
-        </div>
+          />
+        )}
       </div>
     </div>
+  );
+
+  return (
+    <ListItem
+      className={baseClass}
+      graphic="file-configuration-profile"
+      title={
+        <div className={`${baseClass}__title-row`}>
+          <TooltipWrapper
+            tipContent={
+              <>
+                Name: <b className={`${baseClass}__full-name`}>{name}</b>
+              </>
+            }
+            tooltipClass={`${baseClass}__name-tooltip`}
+            disableTooltip={!isNameTruncated}
+            underline={false}
+            position="top"
+            showArrow
+          >
+            <span className={`${baseClass}__name`} ref={nameRef}>
+              {name}
+            </span>
+          </TooltipWrapper>
+          {isUserScoped && (
+            <Tag size="xsmall" tooltip="Scoped to the user channel">
+              User-scoped
+            </Tag>
+          )}
+          {hidden && (
+            <TooltipWrapper
+              tipContent="Hidden from end user"
+              position="top"
+              underline={false}
+              showArrow
+            >
+              <Icon name="eye-slash" color="ui-fleet-black-33" />
+            </TooltipWrapper>
+          )}
+        </div>
+      }
+      details={
+        <ProfileDetails
+          platform={platform}
+          uploadedAt={updated_at}
+          isDDM={isDDMProfile(profile)}
+        />
+      }
+      actions={actions}
+      onClick={() => onClickInfo(profile)}
+      // no action button opens the details modal, so the row must be focusable
+      isInteractiveRow
+    />
   );
 };
 

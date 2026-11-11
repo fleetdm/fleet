@@ -80,10 +80,11 @@ export default {
       name,
       description,
       query,
-      team_id,
+      fleet_id,
       resolution,
       platform,
       critical,
+      hidden,
       software_title_id,
       labels_include_any,
       labels_include_all,
@@ -94,9 +95,10 @@ export default {
       continuous_automations_enabled,
       patch_when_closed,
       notify_before_patching,
+      patch_deadline,
     } = data;
     const { TEAMS } = endpoints;
-    const path = `${TEAMS}/${team_id}/policies`;
+    const path = `${TEAMS}/${fleet_id}/policies`;
 
     return sendRequest("POST", path, {
       name,
@@ -105,6 +107,7 @@ export default {
       resolution,
       platform,
       critical,
+      hidden,
       software_title_id,
       labels_include_any,
       labels_include_all,
@@ -115,6 +118,7 @@ export default {
       continuous_automations_enabled,
       patch_when_closed,
       notify_before_patching,
+      patch_deadline,
     });
   },
   // TODO - response type Promise<IPolicy>
@@ -123,16 +127,18 @@ export default {
       name,
       description,
       query,
-      team_id,
+      fleet_id,
       resolution,
       platform,
       critical,
+      hidden,
       // automations-related fields
       calendar_events_enabled,
       conditional_access_enabled,
       continuous_automations_enabled,
       patch_when_closed,
       notify_before_patching,
+      patch_deadline,
       software_title_id,
       software_package_id,
       script_id,
@@ -143,7 +149,7 @@ export default {
       labels_exclude_all,
     } = data;
     const { TEAMS } = endpoints;
-    const path = `${TEAMS}/${team_id}/policies/${id}`;
+    const path = `${TEAMS}/${fleet_id}/policies/${id}`;
 
     return sendRequest("PATCH", path, {
       name,
@@ -152,11 +158,13 @@ export default {
       resolution,
       platform,
       critical,
+      hidden,
       calendar_events_enabled,
       conditional_access_enabled,
       continuous_automations_enabled,
       patch_when_closed,
       notify_before_patching,
+      patch_deadline,
       software_title_id,
       software_package_id,
       script_id,
@@ -171,7 +179,7 @@ export default {
     if (teamId === undefined || teamId < API_NO_TEAM_ID) {
       return Promise.reject(
         new Error(
-          `Invalid team id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
+          `Invalid fleet id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
         )
       );
     }

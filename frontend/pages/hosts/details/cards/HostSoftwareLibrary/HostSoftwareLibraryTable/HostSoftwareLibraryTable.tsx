@@ -192,6 +192,7 @@ const HostSoftwareLibraryTable = ({
       <>
         <div className={`${baseClass}__filter-controls`}>
           <DropdownWrapper
+            ariaLabel="Filter host library"
             name="host-library-filter"
             value={selfService ? "selfService" : "available"}
             className={`${baseClass}__host-library-filter`}

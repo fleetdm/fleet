@@ -1,4 +1,4 @@
-import valid_url from "components/forms/validators/valid_url";
+import { isValidURL } from "components/forms/validators";
 import { ICertificateAuthorityPartial } from "interfaces/certificates";
 
 import { ICustomSCEPFormData } from "./CustomSCEPForm";
@@ -75,7 +75,7 @@ export const generateFormValidations = (
         {
           name: "validUrl",
           isValid: (formData: ICustomSCEPFormData) => {
-            return valid_url({ url: formData.scepURL });
+            return isValidURL({ url: formData.scepURL });
           },
           message: "Must be a valid URL.",
         },

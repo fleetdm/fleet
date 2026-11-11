@@ -5,13 +5,8 @@ import EmptyState from "components/EmptyState";
 const OSVersionsEmptyState = () => {
   return (
     <EmptyState
-      header="No OS versions detected"
-      info={
-        <>
-          This report is updated every hour to protect
-          <br /> the performance of your devices.
-        </>
-      }
+      header="No operating systems detected"
+      info="Operating system data will appear after the next scheduled check-in."
     />
   );
 };

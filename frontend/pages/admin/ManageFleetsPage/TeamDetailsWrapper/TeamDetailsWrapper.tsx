@@ -13,6 +13,7 @@ import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import {
   IEnrollSecret,
@@ -102,6 +103,11 @@ const TeamDetailsWrapper = ({
     config,
   } = useContext(AppContext);
 
+  const { gitOpsModeEnabled } = useGitOpsMode();
+  const { gitOpsModeEnabled: secretsGitOpsModeEnabled } = useGitOpsMode(
+    "secrets"
+  );
+
   const {
     currentTeamId,
     currentTeamName,
@@ -143,9 +149,9 @@ const TeamDetailsWrapper = ({
 
   const { refetch: refetchMe } = useQuery(["me"], () => usersAPI.me(), {
     enabled: false,
-    onSuccess: ({ user, available_teams, settings }: IGetMeResponse) => {
+    onSuccess: ({ user, available_fleets, settings }: IGetMeResponse) => {
       setCurrentUser(user);
-      setAvailableTeams(user, available_teams);
+      setAvailableTeams(user, available_fleets);
       setUserSettings(settings);
     },
   });
@@ -160,7 +166,9 @@ const TeamDetailsWrapper = ({
     {
       enabled: isRouteOk,
       select: (data: ILoadTeamsResponse) =>
-        data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
+        data.fleets.sort((a, b) =>
+          sortUtils.caseInsensitiveAsc(a.name, b.name)
+        ),
       onSuccess: (responseTeams: ITeam[]) => {
         if (!responseTeams?.find((team) => team.id === teamIdForApi)) {
           handlePageError({ status: 404 });
@@ -430,6 +438,7 @@ const TeamDetailsWrapper = ({
                 buttonVariant: "secondary",
                 onClick: toggleManageEnrollSecretsModal,
                 gitOpsModeCompatible: true,
+                disabled: secretsGitOpsModeEnabled,
               },
               {
                 type: "secondary",
@@ -437,6 +446,7 @@ const TeamDetailsWrapper = ({
                 buttonVariant: "secondary",
                 onClick: toggleRenameFleetModal,
                 gitOpsModeCompatible: true,
+                disabled: gitOpsModeEnabled,
               },
               {
                 type: "secondary",
@@ -445,6 +455,7 @@ const TeamDetailsWrapper = ({
                 hideAction: !isGlobalAdmin,
                 onClick: toggleDeleteFleetModal,
                 gitOpsModeCompatible: true,
+                disabled: gitOpsModeEnabled,
               },
             ]}
           />

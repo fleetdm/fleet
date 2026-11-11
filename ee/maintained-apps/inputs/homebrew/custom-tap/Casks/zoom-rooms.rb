@@ -1,6 +1,6 @@
 cask "zoom-rooms" do
-  version "7.1.7.13891"
-  sha256 "536588928c08c76a66c1fe6f6bea47a91164fcbc4e5f2ee5567c438da3daea0a"
+  version "7.2.5.14499"
+  sha256 "961d4b3c546cbfa967d596e8cdd514a30b040ae2c7800f6b4f7ed55bbef886b2"
 
   url "https://cdn.zoom.us/prod/#{version}/ZoomRooms.pkg"
   name "Zoom Rooms"
@@ -10,8 +10,6 @@ cask "zoom-rooms" do
   livecheck do
     skip "Zoom does not expose a parseable Zoom Rooms version feed; bump manually"
   end
-
-  depends_on macos: ">= :catalina"
 
   pkg "ZoomRooms.pkg"
 

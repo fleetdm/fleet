@@ -66,6 +66,7 @@ const PolicyPage = ({
     setLastEditedQueryBody,
     setLastEditedQueryResolution,
     setLastEditedQueryCritical,
+    setLastEditedQueryHidden,
     setLastEditedQueryPlatform,
     setLastEditedQueryLabelsIncludeAny,
     setLastEditedQueryLabelsIncludeAll,
@@ -132,6 +133,7 @@ const PolicyPage = ({
     // cleanup when component unmounts
     return () => {
       setLastEditedQueryCritical(false);
+      setLastEditedQueryHidden(false);
       setLastEditedQueryPlatform(null);
     };
   }, []);
@@ -155,7 +157,7 @@ const PolicyPage = ({
       retry: false,
       select: (data: IStoredPolicyResponse) => data.policy,
       onSuccess: (returnedQuery) => {
-        const deNulledReturnedQueryTeamId = returnedQuery.team_id ?? undefined;
+        const deNulledReturnedQueryTeamId = returnedQuery.fleet_id ?? undefined;
 
         setLastEditedQueryId(returnedQuery.id);
         setLastEditedQueryName(returnedQuery.name);
@@ -163,6 +165,7 @@ const PolicyPage = ({
         setLastEditedQueryBody(returnedQuery.query);
         setLastEditedQueryResolution(returnedQuery.resolution);
         setLastEditedQueryCritical(returnedQuery.critical);
+        setLastEditedQueryHidden(returnedQuery.hidden ?? false);
         setLastEditedQueryPlatform(returnedQuery.platform);
         setLastEditedQueryLabelsIncludeAny(
           returnedQuery.labels_include_any || []
@@ -198,13 +201,13 @@ const PolicyPage = ({
   if (
     !isOnGlobalTeam &&
     !isStoredPolicyLoading &&
-    storedPolicy?.team_id !== undefined &&
-    storedPolicy?.team_id !== null &&
-    !(storedPolicy?.team_id?.toString() === location.query.fleet_id)
+    storedPolicy?.fleet_id !== undefined &&
+    storedPolicy?.fleet_id !== null &&
+    !(storedPolicy?.fleet_id?.toString() === location.query.fleet_id)
   ) {
     router.push(
       getPathWithQueryParams(location.pathname, {
-        fleet_id: storedPolicy?.team_id?.toString(),
+        fleet_id: storedPolicy?.fleet_id?.toString(),
       })
     );
   }
@@ -212,7 +215,7 @@ const PolicyPage = ({
   // this function is passed way down, wrapped and ultimately called by SaveNewPolicyModal
   const { mutateAsync: createPolicy } = useMutation(
     (formData: IPolicyFormData) => {
-      return formData.team_id !== undefined
+      return formData.fleet_id !== undefined
         ? teamPoliciesAPI.create(formData)
         : globalPoliciesAPI.create(formData);
     }
@@ -291,6 +294,7 @@ const PolicyPage = ({
       goToSelectTargets: () =>
         router.push(
           getPathWithQueryParams(PATHS.LIVE_POLICY(policyId), {
+            from: "edit",
             fleet_id: teamIdForApi,
           })
         ),

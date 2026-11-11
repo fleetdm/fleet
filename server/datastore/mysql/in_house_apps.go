@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -377,7 +378,7 @@ func (ds *Datastore) DeleteInHouseApp(ctx context.Context, id uint) error {
 		}
 
 		err := ds.RemovePendingInHouseAppInstalls(ctx, id)
-		if err != nil && !fleet.IsNotFound(err) {
+		if err != nil {
 			return ctxerr.Wrap(ctx, err, "delete in house app: remove pending in house app installs")
 		}
 
@@ -434,7 +435,8 @@ func (ds *Datastore) RemovePendingInHouseAppInstalls(ctx context.Context, inHous
 
 	for _, in := range installs {
 		_, err := ds.CancelHostUpcomingActivity(ctx, in.HostID, in.ExecutionID)
-		if err != nil {
+		// Ignore the not found error for installs that finished or were canceled since the select above, their upcoming activity is already deleted
+		if err != nil && !fleet.IsNotFound(err) {
 			return err
 		}
 	}
@@ -663,7 +665,7 @@ func (ds *Datastore) SetInHouseAppInstallAsFailed(ctx context.Context, hostID ui
 	stmt := `
 UPDATE host_in_house_software_installs
 SET verification_failed_at = CURRENT_TIMESTAMP(6),
-verification_command_uuid = ?
+verification_command_uuid = NULLIF(?, '')
 WHERE command_uuid = ?
 	`
 
@@ -710,6 +712,7 @@ WHERE ncr.id = ?
 AND ncr.status = 'Acknowledged'
 AND hihsi.verification_at IS NULL
 AND hihsi.verification_failed_at IS NULL
+AND hihsi.canceled = 0
 		`
 
 	var result []*fleet.HostVPPSoftwareInstall
@@ -721,6 +724,11 @@ AND hihsi.verification_failed_at IS NULL
 }
 
 func (ds *Datastore) GetPastActivityDataForInHouseAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityTypeInstalledSoftware, error) {
+	// Called at activity-write time to snapshot the software display name
+	// override (and adjacent fields) into the activity JSON blob. Reading from
+	// a lagging replica could miss a rename an admin committed to the primary
+	// moments before the install ack landed, defeating the write-time freeze.
+	ctx = ctxdb.RequirePrimary(ctx, true)
 	return ds.getPastActivityDataForInHouseAppInstallDB(ctx, ds.reader(ctx), commandResults)
 }
 
@@ -737,28 +745,34 @@ SELECT
 	hihsi.host_id AS host_id,
 	hdn.display_name AS host_display_name,
 	st.name AS software_title,
+	stdn.display_name AS software_display_name,
 	hihsi.command_uuid AS command_uuid,
 	hihsi.self_service AS self_service
 FROM
 	host_in_house_software_installs hihsi
 	LEFT OUTER JOIN users u ON hihsi.user_id = u.id
 	LEFT OUTER JOIN host_display_names hdn ON hdn.host_id = hihsi.host_id
+	LEFT OUTER JOIN hosts h ON h.id = hihsi.host_id
 	LEFT OUTER JOIN in_house_apps iha ON hihsi.in_house_app_id = iha.id
 	LEFT OUTER JOIN software_titles st ON st.id = iha.title_id
+	LEFT OUTER JOIN software_title_display_names stdn
+		ON stdn.software_title_id = iha.title_id
+		AND stdn.team_id = COALESCE(h.team_id, 0)
 WHERE
 	hihsi.command_uuid = :command_uuid AND
 	hihsi.canceled = 0
 	`
 
 	type result struct {
-		HostID          uint    `db:"host_id"`
-		HostDisplayName string  `db:"host_display_name"`
-		SoftwareTitle   string  `db:"software_title"`
-		CommandUUID     string  `db:"command_uuid"`
-		UserName        *string `db:"user_name"`
-		UserID          *uint   `db:"user_id"`
-		UserEmail       *string `db:"user_email"`
-		SelfService     bool    `db:"self_service"`
+		HostID              uint    `db:"host_id"`
+		HostDisplayName     string  `db:"host_display_name"`
+		SoftwareTitle       string  `db:"software_title"`
+		SoftwareDisplayName *string `db:"software_display_name"`
+		CommandUUID         string  `db:"command_uuid"`
+		UserName            *string `db:"user_name"`
+		UserID              *uint   `db:"user_id"`
+		UserEmail           *string `db:"user_email"`
+		SelfService         bool    `db:"self_service"`
 	}
 
 	listStmt, args, err := sqlx.Named(stmt, map[string]any{
@@ -801,12 +815,13 @@ WHERE
 	}
 
 	act := &fleet.ActivityTypeInstalledSoftware{
-		HostID:          res.HostID,
-		HostDisplayName: res.HostDisplayName,
-		SoftwareTitle:   res.SoftwareTitle,
-		CommandUUID:     res.CommandUUID,
-		Status:          status,
-		SelfService:     res.SelfService,
+		HostID:              res.HostID,
+		HostDisplayName:     res.HostDisplayName,
+		SoftwareTitle:       res.SoftwareTitle,
+		SoftwareDisplayName: ptr.ValOrZero(res.SoftwareDisplayName),
+		CommandUUID:         res.CommandUUID,
+		Status:              status,
+		SelfService:         res.SelfService,
 	}
 
 	return user, act, nil
@@ -1729,27 +1744,6 @@ LIMIT 1
 	return true, title, nil
 }
 
-func (ds *Datastore) HasInHouseAppConfigurationChanged(ctx context.Context, inHouseAppID uint, newConfig []byte) (bool, error) {
-	const stmt = `
-SELECT
-	BINARY COALESCE(?, '') != configuration AS has_changed
-FROM
-	in_house_app_configurations
-WHERE
-	in_house_app_id = ?
-`
-
-	var hasChanged bool
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, newConfig, inHouseAppID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return len(newConfig) > 0, nil
-		}
-		return false, ctxerr.Wrap(ctx, err, "compare in-house app configuration")
-	}
-	return hasChanged, nil
-}
-
 func (ds *Datastore) GetInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) ([]byte, error) {
 	const stmt = `SELECT configuration FROM in_house_app_configurations WHERE in_house_app_id = ?`
 
@@ -1763,10 +1757,6 @@ func (ds *Datastore) GetInHouseAppConfiguration(ctx context.Context, inHouseAppI
 	}
 
 	return config, nil
-}
-
-func (ds *Datastore) BulkGetInHouseAppConfigurations(ctx context.Context, inHouseAppIDs []uint) (map[uint][]byte, error) {
-	return ds.bulkGetInHouseAppConfigurations(ctx, ds.reader(ctx), inHouseAppIDs)
 }
 
 func (ds *Datastore) BulkGetInHouseAppConfigurationsTx(ctx context.Context, tx sqlx.QueryerContext, inHouseAppIDs []uint) (map[uint][]byte, error) {
@@ -1805,26 +1795,6 @@ WHERE in_house_app_id IN (?)
 		m[c.InHouseAppID] = c.Configuration
 	}
 	return m, nil
-}
-
-func (ds *Datastore) DeleteInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) error {
-	const stmt = `DELETE FROM in_house_app_configurations WHERE in_house_app_id = ?`
-
-	result, err := ds.writer(ctx).ExecContext(ctx, stmt, inHouseAppID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete in-house app configuration")
-	}
-
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete in-house app configuration rows affected")
-	}
-
-	if rows == 0 {
-		return ctxerr.Wrap(ctx, notFound("InHouseAppConfiguration"))
-	}
-
-	return nil
 }
 
 func (ds *Datastore) updateInHouseAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, inHouseAppID uint, config []byte) error {

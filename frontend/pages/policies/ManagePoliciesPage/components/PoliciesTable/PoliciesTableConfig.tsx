@@ -11,6 +11,7 @@ import CriticalPolicyBadge from "components/CriticalPolicyBadge";
 import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Graphic from "components/Graphic";
+import HiddenPolicyBadge from "components/HiddenPolicyBadge";
 import Icon from "components/Icon";
 import { PATCH_TOOLTIP_CONTENT } from "components/SoftwareInstallPolicyBadges/SoftwareInstallPolicyBadges";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -286,7 +287,7 @@ const generateTableHeaders = (
       ),
       accessor: "name",
       Cell: (cellProps: ICellProps): JSX.Element => {
-        const { critical, id, team_id, type } = cellProps.row.original;
+        const { critical, hidden, id, fleet_id, type } = cellProps.row.original;
         return (
           <LinkCell
             className="w250"
@@ -295,12 +296,13 @@ const generateTableHeaders = (
             suffix={
               <>
                 {isPremiumTier && critical && <CriticalPolicyBadge />}
+                {isPremiumTier && hidden && <HiddenPolicyBadge />}
                 {type === "patch" && (
                   <Tag tooltip={PATCH_TOOLTIP_CONTENT} size="small">
                     Patch
                   </Tag>
                 )}
-                {viewingTeamPolicies && team_id === null && (
+                {viewingTeamPolicies && fleet_id === null && (
                   <Tag tooltip="This policy runs on all hosts." size="small">
                     Inherited
                   </Tag>
@@ -308,11 +310,11 @@ const generateTableHeaders = (
               </>
             }
             path={getPathWithQueryParams(PATHS.POLICY_DETAILS(id), {
-              // Inherited policies show team_id === null; preserve the
+              // Inherited policies show fleet_id === null; preserve the
               // current team context so back nav returns to the same list
               // instead of "All teams".
               fleet_id:
-                team_id ?? (selectedTeamId !== -1 ? selectedTeamId : null),
+                fleet_id ?? (selectedTeamId !== -1 ? selectedTeamId : null),
             })}
           />
         );
@@ -444,7 +446,7 @@ const generateTableHeaders = (
           headerProps,
           checkIfRowIsSelectable: (row) =>
             // allow selecting inherited policies in primo mode
-            isPrimoMode || row.original.team_id !== null,
+            isPrimoMode || row.original.fleet_id !== null,
         });
 
         // Regular table selection logic
@@ -481,7 +483,7 @@ const generateTableHeaders = (
         );
       },
       Cell: (cellProps: ICellProps): JSX.Element => {
-        const inheritedPolicy = cellProps.row.original.team_id === null;
+        const inheritedPolicy = cellProps.row.original.fleet_id === null;
         const props = cellProps.row.getToggleRowSelectedProps();
         const checkboxProps = {
           value: props.checked,

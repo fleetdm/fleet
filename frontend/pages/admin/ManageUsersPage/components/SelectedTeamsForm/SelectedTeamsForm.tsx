@@ -137,6 +137,7 @@ const SelectedTeamsForm = ({
             </Checkbox>
             {isChecked && (
               <DropdownWrapper
+                ariaLabel={`Role for ${name}`}
                 name={name}
                 value={role}
                 className={`${baseClass}__role-dropdown`}

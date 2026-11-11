@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -125,8 +126,15 @@ func (s *integrationMDMTestSuite) createTestCertificateAuthority(t *testing.T, c
 }
 
 // createEnrolledAndroidHost creates an enrolled Android host in a team and returns the host and orbit node key.
-func (s *integrationMDMTestSuite) createEnrolledAndroidHost(t *testing.T, ctx context.Context, enterpriseID string, teamID *uint, suffix string) (*fleet.Host, string) {
+// createEnrolledAndroidHost creates an enrolled Android host whose device is on its host-specific
+// policy if hostPolicyApplied, or else still on the default policy it enrolled with, waiting for
+// the setup experience.
+func (s *integrationMDMTestSuite) createEnrolledAndroidHost(t *testing.T, ctx context.Context, enterpriseID string, teamID *uint, suffix string, hostPolicyApplied bool) (*fleet.Host, string) {
 	hostUUID := uuid.NewString()
+	appliedPolicyID := "1"
+	if hostPolicyApplied {
+		appliedPolicyID = hostUUID
+	}
 	androidHostInput := &fleet.AndroidHost{
 		Host: &fleet.Host{
 			Hostname:       t.Name() + "-host-" + suffix,
@@ -142,7 +150,7 @@ func (s *integrationMDMTestSuite) createEnrolledAndroidHost(t *testing.T, ctx co
 		Device: &android.Device{
 			DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""),
 			EnterpriseSpecificID: ptr.String(enterpriseID),
-			AppliedPolicyID:      ptr.String("1"),
+			AppliedPolicyID:      &appliedPolicyID,
 		},
 	}
 	androidHostInput.SetNodeKey("android/" + hostUUID)
@@ -167,6 +175,14 @@ func (s *integrationMDMTestSuite) createEnrolledAndroidHost(t *testing.T, ctx co
 	return host, orbitNodeKey
 }
 
+// applyHostSpecificPolicy records that the host's device applied the host-specific policy the
+// setup experience assigned it. Until then, the profile cron leaves certificate delivery to the
+// setup experience.
+func (s *integrationMDMTestSuite) applyHostSpecificPolicy(t *testing.T, host *fleet.AndroidHost) {
+	host.Device.AppliedPolicyID = &host.Host.UUID
+	require.NoError(t, s.ds.UpdateAndroidHost(t.Context(), host, false, false))
+}
+
 // TestCertificateTemplateLifecycle tests the full Android certificate template lifecycle.
 func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 	t := s.T()
@@ -176,7 +192,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 	// Create a test team
 	teamName := t.Name() + "-team"
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+	s.DoJSON("POST", "/api/latest/fleet/fleets", createTeamRequest{
 		TeamPayload: fleet.TeamPayload{
 			Name: ptr.String(teamName),
 		},
@@ -210,7 +226,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 		Device: &android.Device{
 			DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""), // Remove dashes to fit in VARCHAR(37)
 			EnterpriseSpecificID: ptr.String(enterpriseID),
-			AppliedPolicyID:      ptr.String("1"),
+			AppliedPolicyID:      new(hostUUID),
 		},
 	}
 	androidHostInput.SetNodeKey(enterpriseID)
@@ -249,9 +265,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeAddedCertificate{}.ActivityName(),
 		fmt.Sprintf(
-			`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q, "name": %q}`,
-			teamID,
-			teamName,
+			`{"fleet_id": %d, "fleet_name": %q, "name": %q}`,
 			teamID,
 			teamName,
 			certTemplateName,
@@ -319,9 +333,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeDeletedCertificate{}.ActivityName(),
 		fmt.Sprintf(
-			`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q, "name": %q}`,
-			teamID,
-			teamName,
+			`{"fleet_id": %d, "fleet_name": %q, "name": %q}`,
 			teamID,
 			teamName,
 			certTemplateName,
@@ -346,7 +358,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateSpecEndpointAndAMAPIFai
 	// Step: Create a test team
 	teamName := t.Name() + "-team"
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+	s.DoJSON("POST", "/api/latest/fleet/fleets", createTeamRequest{
 		TeamPayload: fleet.TeamPayload{
 			Name: ptr.String(teamName),
 		},
@@ -379,7 +391,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateSpecEndpointAndAMAPIFai
 
 	// Step: Get the certificate template ID
 	var listResp listCertificateTemplatesResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", teamID), nil, http.StatusOK, &listResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?fleet_id=%d", teamID), nil, http.StatusOK, &listResp)
 	require.Len(t, listResp.Certificates, 1)
 	certificateTemplateID := listResp.Certificates[0].ID
 
@@ -455,6 +467,14 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateSpecEndpointAndAMAPIFai
 	// Step: Verify AMAPI was called once (during worker) and status reverted to 'pending' after failure
 	require.Equal(t, 1, amapiCallCount, "AMAPI should have been called once by worker")
 	s.verifyCertificateStatusWithSubject(t, host, orbitNodeKey, certificateTemplateID, certTemplateName, caID, fleet.CertificateTemplatePending, "", expectedSubjectName)
+
+	// Step: Until the device reports its host-specific policy, the cron leaves the certificate pending
+	s.awaitTriggerAndroidProfileSchedule(t)
+	require.Equal(t, 1, amapiCallCount, "AMAPI should not be called before the device applies its host policy")
+	s.verifyCertificateStatusWithSubject(t, host, orbitNodeKey, certificateTemplateID, certTemplateName, caID, fleet.CertificateTemplatePending, "", expectedSubjectName)
+
+	// Step: The worker assigned the host-specific policy, which the device reports applying
+	s.applyHostSpecificPolicy(t, createdAndroidHost)
 
 	// Step: Trigger reconciliation again (second attempt - should succeed)
 	s.awaitTriggerAndroidProfileSchedule(t)
@@ -622,8 +642,9 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateWithSANIDPVariable() {
 	certificateTemplateID := createResp.ID
 
 	// Enroll an Android host with no team and link it to the IdP account.
-	host, orbitNodeKey := s.createEnrolledAndroidHost(t, ctx, enterpriseID, nil, "san")
-	require.NoError(t, s.ds.AssociateHostMDMIdPAccount(ctx, host.UUID, insertedIdP.UUID))
+	host, orbitNodeKey := s.createEnrolledAndroidHost(t, ctx, enterpriseID, nil, "san", false)
+	_, err = s.ds.AssociateHostMDMIdPAccount(ctx, host.UUID, insertedIdP.UUID)
+	require.NoError(t, err)
 
 	// Create pending certificate templates for the host (simulating what the pubsub handler does
 	// during enrollment).
@@ -673,7 +694,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateUnenrollReenroll() {
 	// Step: Create a test team
 	teamName := t.Name() + "-team"
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+	s.DoJSON("POST", "/api/latest/fleet/fleets", createTeamRequest{
 		TeamPayload: fleet.TeamPayload{
 			Name: ptr.String(teamName),
 		},
@@ -817,7 +838,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 	// Create two teams with different certificate templates
 	teamAName := t.Name() + "-teamA"
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+	s.DoJSON("POST", "/api/latest/fleet/fleets", createTeamRequest{
 		TeamPayload: fleet.TeamPayload{
 			Name: ptr.String(teamAName),
 		},
@@ -825,7 +846,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 	teamAID := createTeamResp.Team.ID
 
 	teamBName := t.Name() + "-teamB"
-	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+	s.DoJSON("POST", "/api/latest/fleet/fleets", createTeamRequest{
 		TeamPayload: fleet.TeamPayload{
 			Name: ptr.String(teamBName),
 		},
@@ -833,10 +854,10 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 	teamBID := createTeamResp.Team.ID
 
 	// Create enroll secrets for both teams
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", teamAID), modifyTeamEnrollSecretsRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/secrets", teamAID), modifyTeamEnrollSecretsRequest{
 		Secrets: []fleet.EnrollSecret{{Secret: "teamA-secret"}},
 	}, http.StatusOK, &teamEnrollSecretsResponse{})
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", teamBID), modifyTeamEnrollSecretsRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/secrets", teamBID), modifyTeamEnrollSecretsRequest{
 		Secrets: []fleet.EnrollSecret{{Secret: "teamB-secret"}},
 	}, http.StatusOK, &teamEnrollSecretsResponse{})
 
@@ -911,7 +932,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 	t.Run("host with certs in all status/operation combinations transfers to team without certs", func(t *testing.T) {
 		// Create a team with 9 certificate templates to test all status/operation combinations
 		teamEName := t.Name() + "-teamE"
-		s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+		s.DoJSON("POST", "/api/latest/fleet/fleets", createTeamRequest{
 			TeamPayload: fleet.TeamPayload{
 				Name: ptr.String(teamEName),
 			},
@@ -919,13 +940,13 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 		teamEID := createTeamResp.Team.ID
 
 		// Create enroll secret for team E
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", teamEID), modifyTeamEnrollSecretsRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/secrets", teamEID), modifyTeamEnrollSecretsRequest{
 			Secrets: []fleet.EnrollSecret{{Secret: "teamE-secret"}},
 		}, http.StatusOK, &teamEnrollSecretsResponse{})
 
 		// Create a team without certificate templates for transfer target
 		teamFName := t.Name() + "-teamF"
-		s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+		s.DoJSON("POST", "/api/latest/fleet/fleets", createTeamRequest{
 			TeamPayload: fleet.TeamPayload{
 				Name: ptr.String(teamFName),
 			},
@@ -933,7 +954,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 		teamFID := createTeamResp.Team.ID
 
 		// Create enroll secret for team F
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", teamFID), modifyTeamEnrollSecretsRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/secrets", teamFID), modifyTeamEnrollSecretsRequest{
 			Secrets: []fleet.EnrollSecret{{Secret: "teamF-secret"}},
 		}, http.StatusOK, &teamEnrollSecretsResponse{})
 
@@ -976,7 +997,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 		}
 
 		// Create host in Team E
-		host, _ := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamEID, "all-statuses")
+		host, _ := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamEID, "all-statuses", false)
 
 		// Insert certificate template records with all status/operation combinations
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -1039,7 +1060,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 	t.Run("host without certs transfers to team with certs", func(t *testing.T) {
 		// Create a team without certificate templates
 		teamDName := t.Name() + "-teamD"
-		s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+		s.DoJSON("POST", "/api/latest/fleet/fleets", createTeamRequest{
 			TeamPayload: fleet.TeamPayload{
 				Name: ptr.String(teamDName),
 			},
@@ -1047,12 +1068,12 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 		teamDID := createTeamResp.Team.ID
 
 		// Create enroll secret for team D
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", teamDID), modifyTeamEnrollSecretsRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/secrets", teamDID), modifyTeamEnrollSecretsRequest{
 			Secrets: []fleet.EnrollSecret{{Secret: "teamD-secret"}},
 		}, http.StatusOK, &teamEnrollSecretsResponse{})
 
 		// Create host in Team D (no certs)
-		host, _ := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamDID, "no-certs")
+		host, _ := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamDID, "no-certs", false)
 
 		// Verify no certificate templates for this host
 		statuses := getCertTemplateStatuses(host.UUID)
@@ -1076,7 +1097,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 
 	t.Run("host with certs transfers to team with different certs", func(t *testing.T) {
 		// Create host in Team A
-		host, orbitNodeKey := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamAID, "transfer-certs")
+		host, orbitNodeKey := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamAID, "transfer-certs", false)
 
 		// Create pending certificate templates for this host (Team A certs)
 		_, err := s.ds.CreatePendingCertificateTemplatesForNewHost(ctx, host.UUID, teamAID)
@@ -1160,7 +1181,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateRenewal() {
 	// Create a test team
 	teamName := t.Name() + "-team"
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+	s.DoJSON("POST", "/api/latest/fleet/fleets", createTeamRequest{
 		TeamPayload: fleet.TeamPayload{
 			Name: ptr.String(teamName),
 		},
@@ -1253,7 +1274,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateRenewal() {
 	for i, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create an enrolled Android host for this test case
-			host, orbitNodeKey := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamID, fmt.Sprintf("renewal-%d", i))
+			host, orbitNodeKey := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamID, fmt.Sprintf("renewal-%d", i), true)
 
 			// Create a certificate template
 			certTemplateName := strings.ReplaceAll(t.Name(), "/", "_") + "_CertTemplate"
@@ -1357,7 +1378,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateRenewal() {
 // TestCertificateTemplateAuthorizationForTeamUsers tests authorization for certificate templates with team-level users.
 // This test covers the bug fix where team admins/maintainers/gitops can read certificate templates for their own teams.
 // The bug was that CertificateTemplate struct was missing JSON tags, causing TeamID to serialize as "TeamID"
-// instead of "team_id", which prevented the OPA policy from matching correctly.
+// instead of "fleet_id", which prevented the OPA policy from matching correctly.
 func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUsers() {
 	t := s.T()
 	ctx := context.Background()
@@ -1365,7 +1386,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUse
 	// Create a team
 	teamName := t.Name() + "-team"
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+	s.DoJSON("POST", "/api/latest/fleet/fleets", createTeamRequest{
 		TeamPayload: fleet.TeamPayload{
 			Name: ptr.String(teamName),
 		},
@@ -1437,7 +1458,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUse
 		s.token = teamAdminToken
 
 		var listResp listCertificateTemplatesResponse
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", teamID), nil, http.StatusOK, &listResp)
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?fleet_id=%d", teamID), nil, http.StatusOK, &listResp)
 		require.Len(t, listResp.Certificates, 1)
 		require.Equal(t, teamCertID, listResp.Certificates[0].ID)
 		require.Equal(t, certTemplateTeamName, listResp.Certificates[0].Name)
@@ -1449,7 +1470,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUse
 		s.token = originalToken
 		otherTeamName := t.Name() + "-other-team"
 		var createTeamResp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+		s.DoJSON("POST", "/api/latest/fleet/fleets", createTeamRequest{
 			TeamPayload: fleet.TeamPayload{
 				Name: ptr.String(otherTeamName),
 			},
@@ -1471,7 +1492,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUse
 		s.token = teamAdminToken
 
 		// Team admin should get 403 forbidden when trying to list other team's certificates
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", otherTeamID), nil, http.StatusForbidden, &listCertificateTemplatesResponse{})
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?fleet_id=%d", otherTeamID), nil, http.StatusForbidden, &listCertificateTemplatesResponse{})
 	})
 
 	// Reading and deleting hide the existence of templates the team admin can't reach.
@@ -1481,7 +1502,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUse
 		s.token = originalToken
 		deleteOtherTeamName := t.Name() + "-other-team"
 		var createTeamResp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+		s.DoJSON("POST", "/api/latest/fleet/fleets", createTeamRequest{
 			TeamPayload: fleet.TeamPayload{
 				Name: &deleteOtherTeamName,
 			},
@@ -1509,7 +1530,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUse
 		// The other team's template is still there.
 		s.token = originalToken
 		var listResp listCertificateTemplatesResponse
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", otherTeamID), nil, http.StatusOK, &listResp)
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?fleet_id=%d", otherTeamID), nil, http.StatusOK, &listResp)
 		require.Len(t, listResp.Certificates, 1)
 		require.Equal(t, createResp.ID, listResp.Certificates[0].ID)
 	})
@@ -1532,7 +1553,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 	// Create a test team
 	teamName := t.Name() + "-team"
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+	s.DoJSON("POST", "/api/latest/fleet/fleets", createTeamRequest{
 		TeamPayload: fleet.TeamPayload{
 			Name: ptr.String(teamName),
 		},
@@ -1551,7 +1572,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 	caID := ca.ID
 
 	// Create an enrolled Android host in the team
-	host, orbitNodeKey := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamID, "1")
+	host, orbitNodeKey := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamID, "1", true)
 
 	// Create a certificate template for the team
 	certTemplateName := strings.ReplaceAll(t.Name(), "/", "-") + "-CertTemplate"
@@ -1934,7 +1955,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 func (s *integrationMDMTestSuite) TestONCProfileWithheldUntilCertReady() {
 	t := s.T()
 	ctx := t.Context()
-	s.enableAndroidMDM(t)
+	enterpriseID := s.enableAndroidMDM(t)
 	s.setSkipWorkerJobs(t)
 
 	// Create team with enroll secret
@@ -1966,7 +1987,19 @@ func (s *integrationMDMTestSuite) TestONCProfileWithheldUntilCertReady() {
 
 	// Enroll the Android host through the real PubSub enrollment path.
 	// This exercises CreatePendingCertificateTemplatesForNewHost automatically.
-	host, _, _ := s.createAndEnrollAndroidDevice(t, "onc-test", &team.ID, true)
+	host, deviceInfo, pubSubToken := s.createAndEnrollAndroidDevice(t, "onc-test", &team.ID, true)
+
+	// The device reports the host-specific policy the setup experience assigned it, after which
+	// the profile cron delivers its certificate.
+	reportMsg := statusReportMessageWithSerialNumber(t, androidmanagement.Device{
+		Name:                 deviceInfo.Name,
+		EnrollmentTokenData:  deviceInfo.EnrollmentTokenData,
+		AppliedPolicyName:    fmt.Sprintf("enterprises/%s/policies/%s", enterpriseID, host.UUID),
+		AppliedPolicyVersion: 1,
+		LastPolicySyncTime:   time.Now().Format(time.RFC3339Nano),
+	}, host.HardwareSerial)
+	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &android_service.PubSubPushRequest{PubSubMessage: *reportMsg},
+		http.StatusOK, "token", string(pubSubToken.Value))
 
 	// Set orbit_node_key so the host can authenticate to the cert status API.
 	// In production, Orbit enrollment sets this; PubSub enrollment only sets node_key.

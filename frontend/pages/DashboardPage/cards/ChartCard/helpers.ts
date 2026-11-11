@@ -15,7 +15,7 @@ import {
 } from "interfaces/charts";
 import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 
-import { IChartFilterState } from "./ChartFilterModal";
+import type { IChartFilterState } from "./ChartFilterModal";
 import { isEpssActive } from "./ChartFilterModal/SoftwareFilters/helpers";
 
 const DEFAULT_CHART_FILTERS: IChartFilterState = {

@@ -1,0 +1,1 @@
+- Fixed Okta FastPass sign-in when Fleet Desktop SSO is enabled. Okta launches Okta Verify through its `com-okta-authenticator` URL scheme, which the in-app browser now hands to the app instead of abandoning the sign-in and showing "Couldn't sign in."

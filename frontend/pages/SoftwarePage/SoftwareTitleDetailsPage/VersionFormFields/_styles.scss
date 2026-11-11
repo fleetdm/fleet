@@ -1,0 +1,23 @@
+.version-form-fields {
+  @include vertical-form-layout;
+
+  &__auto-update-window {
+    display: flex;
+    gap: $pad-medium;
+
+    > * {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+
+  &__auto-updates,
+  &__target {
+    @include flex-column-8px-gap;
+  }
+
+  &__auto-updates-help {
+    margin: 0;
+    color: $core-fleet-black;
+  }
+}

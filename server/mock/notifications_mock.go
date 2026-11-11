@@ -2,7 +2,9 @@ package mock
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
@@ -17,7 +19,11 @@ type CreateNotificationFunc func(ctx context.Context, notification *notification
 
 type NotificationAwaitingDisplayFunc func(ctx context.Context, hostID uint, kind string) (*notifications_api.EndUserNotification, error)
 
+type RescheduleNotificationsAwaitingDispatchFunc func(ctx context.Context, hostID uint, kind string, nextAttemptAt, expiresAt time.Time) error
+
 type SetNotificationStatusFunc func(ctx context.Context, notificationUUID string, status string, reason *string, whereStatusIn []string) error
+
+type SetNotificationPayloadFunc func(ctx context.Context, notificationUUID string, payload json.RawMessage) error
 
 type FailNotificationsForHostFunc func(ctx context.Context, hostID uint, reason string) error
 
@@ -48,8 +54,14 @@ type MockNotificationsService struct {
 	NotificationAwaitingDisplayFunc        NotificationAwaitingDisplayFunc
 	NotificationAwaitingDisplayFuncInvoked bool
 
+	RescheduleNotificationsAwaitingDispatchFunc        RescheduleNotificationsAwaitingDispatchFunc
+	RescheduleNotificationsAwaitingDispatchFuncInvoked bool
+
 	SetNotificationStatusFunc        SetNotificationStatusFunc
 	SetNotificationStatusFuncInvoked bool
+
+	SetNotificationPayloadFunc        SetNotificationPayloadFunc
+	SetNotificationPayloadFuncInvoked bool
 
 	FailNotificationsForHostFunc        FailNotificationsForHostFunc
 	FailNotificationsForHostFuncInvoked bool
@@ -101,6 +113,16 @@ func (m *MockNotificationsService) NotificationAwaitingDisplay(ctx context.Conte
 	return m.NotificationAwaitingDisplayFunc(ctx, hostID, kind)
 }
 
+func (m *MockNotificationsService) RescheduleNotificationsAwaitingDispatch(ctx context.Context, hostID uint, kind string, nextAttemptAt, expiresAt time.Time) error {
+	m.mu.Lock()
+	m.RescheduleNotificationsAwaitingDispatchFuncInvoked = true
+	m.mu.Unlock()
+	if m.RescheduleNotificationsAwaitingDispatchFunc == nil {
+		return nil
+	}
+	return m.RescheduleNotificationsAwaitingDispatchFunc(ctx, hostID, kind, nextAttemptAt, expiresAt)
+}
+
 func (m *MockNotificationsService) SetNotificationStatus(ctx context.Context, notificationUUID string, status string, reason *string, whereStatusIn []string) error {
 	m.mu.Lock()
 	m.SetNotificationStatusFuncInvoked = true
@@ -109,6 +131,16 @@ func (m *MockNotificationsService) SetNotificationStatus(ctx context.Context, no
 		return nil
 	}
 	return m.SetNotificationStatusFunc(ctx, notificationUUID, status, reason, whereStatusIn)
+}
+
+func (m *MockNotificationsService) SetNotificationPayload(ctx context.Context, notificationUUID string, payload json.RawMessage) error {
+	m.mu.Lock()
+	m.SetNotificationPayloadFuncInvoked = true
+	m.mu.Unlock()
+	if m.SetNotificationPayloadFunc == nil {
+		return nil
+	}
+	return m.SetNotificationPayloadFunc(ctx, notificationUUID, payload)
 }
 
 func (m *MockNotificationsService) FailNotificationsForHost(ctx context.Context, hostID uint, reason string) error {

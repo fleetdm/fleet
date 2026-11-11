@@ -50,6 +50,7 @@ type cronSchedulesDeps struct {
 	softwareInstallStore   fleet.SoftwareInstallerStore
 	bootstrapPackageStore  fleet.MDMBootstrapPackageStore
 	softwareTitleIconStore fleet.SoftwareTitleIconStore
+	stagedUploadStore      fleet.StagedUploadStore
 	androidSvc             android.Service
 	activitySvc            activity_api.Service
 	notificationsSvc       notifications_api.Service
@@ -143,7 +144,7 @@ func registerCleanupAndMaintenanceCrons(ctx context.Context, deps cronSchedulesD
 
 	deps.register("failed to register cleanups_then_aggregations schedule", func() (fleet.CronSchedule, error) {
 		return newCleanupsAndAggregationSchedule(
-			ctx, deps.instanceID, deps.ds, deps.carveStore, deps.svc, deps.logger, deps.enrollHostLimiter, deps.cleanupStateStore, deps.config, deps.commander, deps.softwareInstallStore, deps.bootstrapPackageStore, deps.softwareTitleIconStore, deps.androidSvc, deps.activitySvc, deps.notificationsSvc, deps.acmeSvc, deps.chartSvc,
+			ctx, deps.instanceID, deps.ds, deps.carveStore, deps.svc, deps.logger, deps.enrollHostLimiter, deps.cleanupStateStore, deps.config, deps.commander, deps.softwareInstallStore, deps.bootstrapPackageStore, deps.softwareTitleIconStore, deps.stagedUploadStore, deps.androidSvc, deps.activitySvc, deps.notificationsSvc, deps.acmeSvc, deps.chartSvc,
 		)
 	})
 
@@ -245,7 +246,7 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 			redis_key_value.New(deps.redisPool),
 			deps.logger,
 			deps.config.MDM.CertificateProfilesLimit,
-			deps.config.Auth.UseOneTimeEnrollSecrets,
+			deps.config.MDM.AppleOneTimeEnrollSecrets,
 		)
 	})
 
@@ -255,6 +256,7 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 			deps.instanceID,
 			deps.ds,
 			deps.logger,
+			deps.config.MDM.WindowsOneTimeEnrollSecrets,
 		)
 	})
 
@@ -267,6 +269,7 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 			deps.config.License.Key, // NOTE: this requires the license key, not the parsed *LicenseInfo available in the ctx
 			deps.config.MDM.AndroidAgent,
 			deps.config.MDM.AndroidBatchSize,
+			deps.redisPool,
 		)
 	})
 
@@ -300,6 +303,10 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 
 	deps.register("failed to register migrate_to_per_host_policy cron", func() (fleet.CronSchedule, error) {
 		return cronMigrateToPerHostPolicy(ctx, deps.instanceID, deps.ds, deps.logger, deps.androidSvc)
+	})
+
+	deps.register("failed to register reencrypt_windows_disk_encryption_keys cron", func() (fleet.CronSchedule, error) {
+		return newReencryptWindowsDiskEncryptionKeysSchedule(ctx, deps.instanceID, deps.ds, deps.config, deps.logger)
 	})
 
 	// The APNs sweep replaces the legacy per-minute pending-commands pusher;
@@ -339,7 +346,8 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 	// CertificateList) and BYOD-enrolled device APNs revival, both of which the
 	// BYOD enrollment flow (a Free feature) depends on.
 	deps.register("failed to register apple_mdm_iphone_ipad_refetcher schedule", func() (fleet.CronSchedule, error) {
-		return newIPhoneIPadRefetcher(ctx, deps.instanceID, 10*time.Minute, deps.ds, deps.commander, deps.logger, deps.svc.NewActivity)
+		return newIPhoneIPadRefetcher(ctx, deps.instanceID, time.Minute, deps.ds, deps.commander, deps.logger, deps.svc.NewActivity,
+			deps.config.MDM.IOSIPadOSRefetchBatchSize)
 	})
 
 	deps.register("failed to register apple_mdm_iphone_ipad_reviver schedule", func() (fleet.CronSchedule, error) {
@@ -348,6 +356,10 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 
 	deps.register("failed to register Apple MDM OS updates schedule", func() (fleet.CronSchedule, error) {
 		return newAppleMDMOSUpdatesSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
+	})
+
+	deps.register("failed to register app store app configuration reconciler schedule", func() (fleet.CronSchedule, error) {
+		return newAppStoreAppConfigurationReconcilerSchedule(ctx, deps.instanceID, deps.ds, deps.svc.(fleet.AppleMDMVPPInstaller), deps.redisPool, deps.logger)
 	})
 }
 

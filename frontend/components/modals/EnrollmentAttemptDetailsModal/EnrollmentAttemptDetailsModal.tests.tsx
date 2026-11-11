@@ -30,6 +30,26 @@ describe("EnrollmentAttemptDetailsModal", () => {
     expect(screen.getByText("Host details > Controls")).toBeInTheDocument();
   });
 
+  it.each([
+    { platform: "darwin", profile: "Fleetd configuration" },
+    { platform: "windows", profile: "Fleetd enroll secret" },
+  ])(
+    "names the $profile profile for a spent secret on $platform",
+    ({ platform, profile }) => {
+      renderModal({
+        hostDisplayName: "Anna's laptop",
+        reason: "one_time_secret_spent",
+        platform,
+      });
+      expect(screen.getByText(profile)).toBeInTheDocument();
+      const otherProfile =
+        profile === "Fleetd configuration"
+          ? "Fleetd enroll secret"
+          : "Fleetd configuration";
+      expect(screen.queryByText(otherProfile)).not.toBeInTheDocument();
+    }
+  );
+
   it("describes an identifier mismatch in the headline with a support link", () => {
     renderModal({
       hostDisplayName: "Anna's MacBook Pro",
@@ -63,6 +83,39 @@ describe("EnrollmentAttemptDetailsModal", () => {
       "href",
       expect.stringMatching(/learn-more-about\/enrollment-troubleshooting$/)
     );
+  });
+
+  it("explains an automatic enrollment rejected because IdP authentication is required", () => {
+    renderModal({
+      hostDisplayName: "Anna's MacBook Pro",
+      reason: "end_user_authentication_required",
+    });
+    expect(
+      screen.getByText(/Fleet rejected an automatic enrollment for/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/requires IdP authentication, but the host tried/i)
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /learn more/i })).toHaveAttribute(
+      "href",
+      "https://fleetdm.com/learn-more-about/rejected-automatic-enrollment"
+    );
+  });
+
+  it("explains an enrollment that presented the UUID of a host with MDM turned on", () => {
+    renderModal({
+      hostDisplayName: "Anna's MacBook Pro",
+      reason: "uuid_of_another_mdm_host",
+    });
+    expect(
+      screen.getByText(/Fleet rejected an enrollment for/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/presented this host's hardware UUID/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/not valid for this host/i)
+    ).not.toBeInTheDocument();
   });
 
   it("falls back to the serial number when there is no display name", () => {

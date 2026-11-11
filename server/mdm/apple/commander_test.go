@@ -626,6 +626,58 @@ func TestMDMAppleCommanderSetRecoveryLock(t *testing.T) {
 	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
 }
 
+func TestMDMAppleCommanderRotateFileVaultKey(t *testing.T) {
+	ctx := context.Background()
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushFactory, stdlogfmt.New())
+	cmdr := NewMDMAppleCommander(mdmStorage, pusher)
+
+	hostUUID := "host-uuid-1"
+	cmdUUID := uuid.New().String()
+	replyCert := []byte("reply-cert-der")
+
+	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+		require.Equal(t, []string{hostUUID}, id)
+		require.Equal(t, fleet.RotateFileVaultKeyCmdName, cmd.Command.Command.RequestType)
+		require.Equal(t, cmdUUID, cmd.CommandUUID)
+
+		var payload struct {
+			Command struct {
+				KeyType         string
+				FileVaultUnlock struct {
+					Password string
+				}
+				ReplyEncryptionCertificate []byte
+			}
+		}
+		err := plist.Unmarshal(cmd.Raw, &payload)
+		require.NoError(t, err)
+		require.Equal(t, "personal", payload.Command.KeyType)
+		require.Equal(t, "$FLEET_HOST_SECRET_FILEVAULT_KEY", payload.Command.FileVaultUnlock.Password)
+		require.Equal(t, replyCert, payload.Command.ReplyEncryptionCertificate)
+		require.Contains(t, string(cmd.Raw), "<data>")
+		return nil, nil
+	}
+	mdmStorage.RetrievePushInfoFunc = func(ctx context.Context, targetUUIDs []string) (map[string]*mdm.Push, error) {
+		pushes := make(map[string]*mdm.Push, len(targetUUIDs))
+		for _, uuid := range targetUUIDs {
+			pushes[uuid] = &mdm.Push{PushMagic: "magic" + uuid, Token: []byte("token" + uuid), Topic: "topic" + uuid}
+		}
+		return pushes, nil
+	}
+	mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+		cert, err := tls.LoadX509KeyPair("../../service/testdata/server.pem", "../../service/testdata/server.key")
+		return &cert, "", err
+	}
+	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
+		return false, nil
+	}
+
+	require.NoError(t, cmdr.RotateFileVaultKey(ctx, hostUUID, cmdUUID, replyCert))
+	require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+}
+
 func TestMDMAppleCommanderSetAutoAdminPassword(t *testing.T) {
 	ctx := context.Background()
 	mdmStorage := &mdmmock.MDMAppleStore{}

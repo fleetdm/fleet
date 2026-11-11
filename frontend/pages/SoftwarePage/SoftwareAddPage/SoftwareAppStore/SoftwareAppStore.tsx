@@ -14,6 +14,7 @@ const baseClass = "software-app-store";
 
 interface ISoftwareAppStoreProps {
   currentTeamId: number;
+  currentTeamName?: string;
   router: InjectedRouter;
   location: {
     pathname: string;
@@ -32,6 +33,7 @@ const platformOptions = [
 
 const SoftwareAppStore = ({
   currentTeamId,
+  currentTeamName,
   router,
   location,
 }: ISoftwareAppStoreProps) => {
@@ -50,6 +52,7 @@ const SoftwareAppStore = ({
 
   const renderDropdown = () => (
     <DropdownWrapper
+      ariaLabel="Select platform"
       name="platform"
       label="Platform"
       onChange={onDestinationChange}
@@ -62,7 +65,11 @@ const SoftwareAppStore = ({
 
   const renderContent = () =>
     platform === "apple" ? (
-      <SoftwareAppStoreVpp currentTeamId={currentTeamId} router={router} />
+      <SoftwareAppStoreVpp
+        currentTeamId={currentTeamId}
+        currentTeamName={currentTeamName}
+        router={router}
+      />
     ) : (
       <SoftwareAppStoreAndroid currentTeamId={currentTeamId} router={router} />
     );

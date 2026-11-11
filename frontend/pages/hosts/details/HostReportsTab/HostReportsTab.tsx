@@ -232,12 +232,14 @@ const HostReportsTab = ({
         </div>
         <div className={`${baseClass}__controls-right`}>
           <DropdownWrapper
+            ariaLabel="Sort reports"
             name="sort-reports"
             options={SORT_OPTIONS}
             value={sortOption}
             onChange={onSortChange}
             className={`${baseClass}__sort-dropdown`}
             variant="table-filter"
+            iconName="sort"
             isDisabled={isTrulyEmpty}
           />
           <SearchField

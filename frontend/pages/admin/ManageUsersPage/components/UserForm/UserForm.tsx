@@ -49,7 +49,7 @@ export interface IUserFormData {
   sso_enabled: boolean;
   mfa_enabled?: boolean;
   global_role: UserRole | null;
-  teams: ITeam[];
+  fleets: ITeam[];
   currentUserId?: number;
   invited_by?: number;
   role?: UserRole;
@@ -130,11 +130,9 @@ const UserForm = ({
 
   const {
     formData,
-    setField,
     commitFields,
     getError,
-    clearFieldError,
-    validateField,
+    getTextFieldProps,
     handleSubmit,
     isSubmitting,
   } = useFormValidation<UserFormState>({
@@ -146,7 +144,7 @@ const UserForm = ({
       sso_enabled: isSsoEnabled || false,
       mfa_enabled: isMfaEnabled || false,
       global_role: defaultGlobalRole || null,
-      teams: defaultTeams || [],
+      fleets: defaultTeams || [],
     },
     validate,
     serverErrors,
@@ -161,7 +159,7 @@ const UserForm = ({
   // `hydrate` setter.
   useEffect(() => {
     if (isPrimoMode) {
-      commitFields({ global_role: "observer", teams: [] });
+      commitFields({ global_role: "observer", fleets: [] });
     }
   }, [isPrimoMode, commitFields]);
 
@@ -196,7 +194,7 @@ const UserForm = ({
       sso_enabled: data.sso_enabled,
       mfa_enabled: data.mfa_enabled,
       global_role: data.global_role,
-      teams: data.teams,
+      fleets: data.fleets,
       currentUserId,
     };
 
@@ -225,8 +223,8 @@ const UserForm = ({
     }
 
     return data.global_role !== null
-      ? { ...submitData, global_role: data.global_role, teams: [] }
-      : { ...submitData, global_role: null, teams: data.teams };
+      ? { ...submitData, global_role: data.global_role, fleets: [] }
+      : { ...submitData, global_role: null, fleets: data.fleets };
   };
 
   const onValidSubmit = (data: UserFormState) =>
@@ -306,25 +304,25 @@ const UserForm = ({
               </InfoBanner>
               <SelectedTeamsForm
                 availableTeams={availableTeams}
-                usersCurrentTeams={formData.teams}
-                onFormChange={(teams: ITeam[]) => commitFields({ teams })}
+                usersCurrentTeams={formData.fleets}
+                onFormChange={(fleets: ITeam[]) => commitFields({ fleets })}
                 isApiOnly={isApiOnly}
                 disabled={isSubmitting}
               />
             </>
           ) : (
             <SelectRoleForm
-              currentTeam={currentTeam || formData.teams[0]}
-              teams={formData.teams}
+              currentTeam={currentTeam || formData.fleets[0]}
+              teams={formData.fleets}
               defaultTeamRole={defaultTeamRole || "Observer"}
-              onFormChange={(teams: ITeam[]) => commitFields({ teams })}
+              onFormChange={(fleets: ITeam[]) => commitFields({ fleets })}
               isApiOnly={isApiOnly}
               disabled={isSubmitting}
             />
           ))}
-        {getError("teams") && (
+        {getError("fleets") && (
           <div className="form-field__label form-field__label--error">
-            {getError("teams")}
+            {getError("fleets")}
           </div>
         )}
         {!availableTeams.length && renderNoTeamsMessage()}
@@ -398,13 +396,8 @@ const UserForm = ({
       <InputField
         label="Full name"
         autofocus
-        error={getError("name")}
-        name="name"
-        onChange={(value: string) => setField("name", value)}
-        onFocus={() => clearFieldError("name")}
-        onBlur={() => validateField("name")}
+        {...getTextFieldProps("name")}
         placeholder="Full name"
-        value={formData.name}
         disabled={isSubmitting}
         inputOptions={{
           maxLength: 80,
@@ -412,14 +405,9 @@ const UserForm = ({
       />
       <InputField
         label="Email"
-        error={getError("email")}
-        name="email"
+        {...getTextFieldProps("email")}
         type="email"
-        onChange={(value: string) => setField("email", value)}
-        onFocus={() => clearFieldError("email")}
-        onBlur={() => validateField("email")}
         placeholder="Email"
-        value={formData.email}
         disabled={isSubmitting}
         readOnly={isEmailReadOnly}
         tooltip={
@@ -483,13 +471,8 @@ const UserForm = ({
     <div className={`${baseClass}__${isNewUser ? "" : "edit-"}password`}>
       <InputField
         label="Password"
-        error={getError("password")}
-        name="password"
-        onChange={(value: string) => setField("password", value)}
-        onFocus={() => clearFieldError("password")}
-        onBlur={() => validateField("password")}
+        {...getTextFieldProps("password")}
         placeholder={isNewUser ? "Password" : "••••••••"}
-        value={formData.password}
         type="password"
         disabled={isSubmitting}
         helpText="12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#)."

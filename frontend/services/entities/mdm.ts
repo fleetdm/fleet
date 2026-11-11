@@ -1,3 +1,5 @@
+import { ResponseType as AxiosResponseType } from "axios";
+
 import {
   EndUserLocalAccountType,
   IBootstrapPackageAggregate,
@@ -10,7 +12,7 @@ import {
 import { SetupExperiencePlatform } from "interfaces/platform";
 import { ISoftwareTitle } from "interfaces/software";
 import { API_NO_TEAM_ID } from "interfaces/team";
-import sendRequest from "services";
+import sendRequest, { uploadToStorage } from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 
@@ -21,6 +23,7 @@ export interface IEulaMetadataResponse {
   name: string;
   token: string;
   created_at: string;
+  platform?: "darwin" | "windows";
 }
 
 export type ProfileStatusSummaryResponse = Record<MdmProfileStatus, number>;
@@ -42,9 +45,14 @@ export interface IMdmProfilesResponse {
 export interface IUploadProfileApiParams {
   file: File;
   teamId?: number;
+  /** Omit to let the server derive the name from the file. */
+  name?: string;
+  description?: string;
   labelsIncludeAll?: string[];
   labelsIncludeAny?: string[];
   labelsExcludeAny?: string[];
+  selfService?: boolean;
+  hidden?: boolean;
 }
 
 export interface IUpdateProfileApiParams {
@@ -52,9 +60,16 @@ export interface IUpdateProfileApiParams {
   /** replacement profile contents. Omit to keep the current contents and only
    * update label targeting. */
   profile?: File;
+  /** Omit to keep the current name; a replacement file never renames. */
+  name?: string;
+  /** Omit to keep the current description; an empty string clears it. */
+  description?: string;
   labelsIncludeAll?: string[];
   labelsIncludeAny?: string[];
   labelsExcludeAny?: string[];
+  /** Omit to keep the current deploy mode. */
+  selfService?: boolean;
+  hidden?: boolean;
 }
 
 export interface IGetAssetsApiParams {
@@ -83,13 +98,15 @@ interface IUpdateSetupExperienceFormData {
   enable_end_user_authentication?: boolean;
   lock_end_user_info?: boolean;
   apple_enable_release_device_manually?: boolean;
+  macos_enable_bootstrap_package_during_manual_enrollment?: boolean;
+  macos_enable_bootstrap_package_during_migration?: boolean;
   macos_manual_agent_install?: boolean;
   enable_managed_local_account?: boolean;
   end_user_local_account_type?: EndUserLocalAccountType;
 }
 
 export interface IAppleSetupEnrollmentProfileResponse {
-  team_id: number | null;
+  fleet_id: number | null;
   name: string;
   uploaded_at: string;
   // enrollment profile is an object with keys found here https://developer.apple.com/documentation/devicemanagement/profile.
@@ -118,7 +135,7 @@ export interface IMDMAppleEnrollmentProfileParams {
 
 export interface IGetSetupExperienceScriptResponse {
   id: number;
-  team_id: number | null; // The API return null for no team in this case.
+  fleet_id: number | null; // The API return null for no team in this case.
   name: string;
   created_at: string;
   updated_at: string;
@@ -165,9 +182,13 @@ const mdmService = {
   uploadProfile: ({
     file,
     teamId,
+    name,
+    description,
     labelsIncludeAll,
     labelsIncludeAny,
     labelsExcludeAny,
+    selfService,
+    hidden,
   }: IUploadProfileApiParams) => {
     const { MDM_PROFILES } = endpoints;
 
@@ -176,6 +197,12 @@ const mdmService = {
 
     if (teamId) {
       formData.append("fleet_id", teamId.toString());
+    }
+    if (name !== undefined) {
+      formData.append("name", name);
+    }
+    if (description !== undefined) {
+      formData.append("description", description);
     }
 
     labelsIncludeAll?.forEach((label) => {
@@ -189,6 +216,13 @@ const mdmService = {
     labelsExcludeAny?.forEach((label) => {
       formData.append("labels_exclude_any", label);
     });
+
+    if (selfService !== undefined) {
+      formData.append("self_service", String(selfService));
+    }
+    if (hidden !== undefined) {
+      formData.append("hidden", String(hidden));
+    }
 
     return sendRequest("POST", MDM_PROFILES, formData);
   },
@@ -199,9 +233,13 @@ const mdmService = {
   updateProfile: ({
     profileUUID,
     profile,
+    name,
+    description,
     labelsIncludeAll,
     labelsIncludeAny,
     labelsExcludeAny,
+    selfService,
+    hidden,
   }: IUpdateProfileApiParams) => {
     const { CONFIG_PROFILE } = endpoints;
 
@@ -209,6 +247,12 @@ const mdmService = {
 
     if (profile) {
       formData.append("profile", profile);
+    }
+    if (name !== undefined) {
+      formData.append("name", name);
+    }
+    if (description !== undefined) {
+      formData.append("description", description);
     }
 
     labelsIncludeAll?.forEach((label) => {
@@ -223,15 +267,25 @@ const mdmService = {
       formData.append("labels_exclude_any", label);
     });
 
+    if (selfService !== undefined) {
+      formData.append("self_service", String(selfService));
+    }
+    if (hidden !== undefined) {
+      formData.append("hidden", String(hidden));
+    }
+
     return sendRequest("PATCH", CONFIG_PROFILE(profileUUID), formData);
   },
 
-  downloadProfile: (profileId: string) => {
+  downloadProfile: (
+    profileId: string,
+    responseType: AxiosResponseType = "json"
+  ) => {
     const { MDM_PROFILE } = endpoints;
     const path = `${MDM_PROFILE(profileId)}?${buildQueryStringFromParams({
       alt: "media",
     })}`;
-    return sendRequest("GET", path);
+    return sendRequest("GET", path, undefined, responseType);
   },
 
   deleteProfile: (profileId: string) => {
@@ -300,11 +354,23 @@ const mdmService = {
     return sendRequest("GET", MDM_BOOTSTRAP_PACKAGE_METADATA(teamId));
   },
 
-  uploadBootstrapPackage: (file: File, teamId?: number) => {
+  uploadBootstrapPackage: async (
+    file: File,
+    teamId?: number,
+    directUpload = false
+  ) => {
     const { MDM_BOOTSTRAP_PACKAGE } = endpoints;
 
     const formData = new FormData();
-    formData.append("package", file);
+    if (directUpload) {
+      formData.append(
+        "upload_id",
+        await uploadToStorage({ target: "bootstrap_package", file, teamId })
+      );
+      formData.append("filename", file.name);
+    } else {
+      formData.append("package", file);
+    }
 
     if (teamId) {
       formData.append("fleet_id", teamId.toString());
@@ -354,11 +420,27 @@ const mdmService = {
     return sendRequest("GET", MDM_EULA(token));
   },
 
+  getWindowsEULAMetadata: () => {
+    const { MDM_EULA_METADATA } = endpoints;
+    const query = buildQueryStringFromParams({ platform: "windows" });
+    return sendRequest("GET", `${MDM_EULA_METADATA}?${query}`);
+  },
+
+  uploadWindowsEULA: (file: File) => {
+    const { MDM_EULA_UPLOAD } = endpoints;
+
+    const formData = new FormData();
+    formData.append("platform", "windows");
+    formData.append("eula", file);
+
+    return sendRequest("POST", MDM_EULA_UPLOAD, formData);
+  },
+
   updateRequireAllSoftwareMacOS: (teamId: number, isEnabled: boolean) => {
     const { MDM_SETUP_EXPERIENCE } = endpoints;
     return sendRequest("PATCH", MDM_SETUP_EXPERIENCE, {
       fleet_id: teamId,
-      require_all_software_macos: isEnabled,
+      macos_require_all_software: isEnabled,
     });
   },
 
@@ -366,7 +448,7 @@ const mdmService = {
     const { MDM_SETUP_EXPERIENCE } = endpoints;
     return sendRequest("PATCH", MDM_SETUP_EXPERIENCE, {
       fleet_id: teamId,
-      require_all_software_windows: isEnabled,
+      windows_require_all_software: isEnabled,
     });
   },
 

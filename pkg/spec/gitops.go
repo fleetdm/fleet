@@ -2,6 +2,7 @@ package spec
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,10 +18,12 @@ import (
 
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
 	"github.com/hashicorp/go-multierror"
@@ -139,6 +142,27 @@ func (e *ParseUnknownKeyError) Error() string {
 	return fmt.Sprintf("unknown key %q in %q%s", key, e.Filename, suffix)
 }
 
+// ParseRemovedKeyError is a key that Fleet no longer accepts in GitOps YAML. Unlike ParseUnknownKeyError, it stays an
+// error when unknown keys are allowed.
+type ParseRemovedKeyError struct {
+	Filename string
+	Path     string // dot-separated path of the object holding the key, e.g. "controls.setup_experience"
+	Field    string
+}
+
+func (e *ParseRemovedKeyError) Error() string {
+	key := e.Field
+	if e.Path != "" {
+		key = e.Path + "." + e.Field
+	}
+	entry, ok := removednames.Find(removednames.KindYAMLKey, key, "")
+	if !ok {
+		// An unregistered key still gets the Fleet 5 wording; TestRemovedKeysRegistered catches the missing entry.
+		entry = removednames.Entry{Kind: removednames.KindYAMLKey, Old: key}
+	}
+	return fmt.Sprintf("in %q: %s", e.Filename, entry.Message())
+}
+
 func MaybeParseTypeError(filename string, keysPath []string, err error) error {
 	unmarshallErr := &json.UnmarshalTypeError{}
 	if errors.As(err, &unmarshallErr) {
@@ -184,8 +208,8 @@ type GitOpsControls struct {
 
 	WindowsUpdates                 any `json:"windows_updates"`
 	WindowsSettings                any `json:"windows_settings"`
-	WindowsEnabledAndConfigured    any `json:"windows_enabled_and_configured"`
-	WindowsMigrationEnabled        any `json:"windows_migration_enabled"`
+	WindowsEnabledAndConfigured    any `json:"windows_mdm_enabled" removedkey:"windows_enabled_and_configured"`
+	WindowsMigrationEnabled        any `json:"windows_mdm_migration_enabled" removedkey:"windows_migration_enabled"`
 	EnableTurnOnWindowsMDMManually any `json:"enable_turn_on_windows_mdm_manually"`
 	WindowsEntraTenantIDs          any `json:"windows_entra_tenant_ids"`
 	WindowsEntraClientIDs          any `json:"windows_entra_client_ids"`
@@ -195,9 +219,10 @@ type GitOpsControls struct {
 
 	AppleRequireHardwareAttestation  any `json:"apple_require_hardware_attestation"`
 	OnlyAllowAppleBusinessEnrollment any `json:"only_allow_apple_business_enrollment"`
+	EnableProfileValidation          any `json:"enable_profile_validation"`
 
 	EnableDiskEncryption       any              `json:"enable_disk_encryption"`
-	EnableRecoveryLockPassword any              `json:"enable_recovery_lock_password"`
+	EnableRecoveryLockPassword any              `json:"macos_recovery_lock_password_enabled" removedkey:"enable_recovery_lock_password"`
 	RequireBitLockerPIN        any              `json:"windows_require_bitlocker_pin,omitempty"`
 	NameTemplate               any              `json:"name_template"`
 	Scripts                    []fleet.BaseItem `json:"scripts"`
@@ -215,7 +240,7 @@ func (c GitOpsControls) Set() bool {
 		c.AppleRequireHardwareAttestation != nil || c.EnableTurnOnWindowsMDMManually != nil ||
 		c.WindowsEntraTenantIDs != nil || c.WindowsEntraClientIDs != nil || c.RequireBitLockerPIN != nil ||
 		c.AppleAccountProvisioning != nil ||
-		c.OnlyAllowAppleBusinessEnrollment != nil ||
+		c.OnlyAllowAppleBusinessEnrollment != nil || c.EnableProfileValidation != nil ||
 		c.NameTemplate != nil || c.LinuxSettings != nil
 }
 
@@ -377,15 +402,33 @@ func validatePackageFieldPlacement(teamLevel SoftwarePackage, pkg *fleet.Softwar
 }
 
 type Software struct {
-	Packages            []SoftwarePackage           `json:"packages"`
-	AppStoreApps        []fleet.TeamSpecAppStoreApp `json:"app_store_apps"`
-	FleetMaintainedApps []fleet.MaintainedAppSpec   `json:"fleet_maintained_apps"`
+	Packages            []SoftwarePackage    `json:"packages"`
+	AppStoreApps        []AppStoreApp        `json:"app_store_apps"`
+	FleetMaintainedApps []FleetMaintainedApp `json:"fleet_maintained_apps"`
+	// PatchDeadlineSettings holds the values as YAML gave them, so the validator can tell a number from a string.
+	PatchDeadlineSettings *PatchDeadlineSettingsSpec `json:"patch_deadline_settings"`
+}
+
+type PatchDeadlineSettingsSpec struct {
+	Days any `json:"days"`
+	Time any `json:"time"`
+}
+
+type AppStoreApp struct {
+	fleet.BaseItem
+	fleet.TeamSpecAppStoreApp
+}
+
+type FleetMaintainedApp struct {
+	fleet.BaseItem
+	fleet.MaintainedAppSpec
 }
 
 // GitOpsMDM extends fleet.MDM with gitops-only fields that are not part of the server type.
 type GitOpsMDM struct {
 	fleet.MDM
 	EndUserLicenseAgreement any `json:"end_user_license_agreement,omitempty"`
+	WindowsEULA             any `json:"windows_eula,omitempty"`
 }
 
 // GitOpsOrgSettings defines the valid keys for the top-level `org_settings:` section.
@@ -465,6 +508,14 @@ type GitOpsSoftware struct {
 	Packages            []*fleet.SoftwarePackageSpec
 	AppStoreApps        []*fleet.TeamSpecAppStoreApp
 	FleetMaintainedApps []*fleet.MaintainedAppSpec
+	// PatchDeadlineSettings is nil when the file omits the key.
+	PatchDeadlineSettings *GitOpsPatchDeadlineSettings `json:"patch_deadline_settings"`
+}
+
+// GitOpsPatchDeadlineSettings has no fleet ID, since the fleet comes from the file.
+type GitOpsPatchDeadlineSettings struct {
+	Days []string `json:"days"`
+	Time string   `json:"time"`
 }
 
 type Logf func(format string, a ...interface{})
@@ -508,9 +559,12 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		return nil, fmt.Errorf("failed to unmarshal file %w: \n", err)
 	}
 
-	// Apply deprecated key mappings (e.g., team_settings -> settings, queries -> reports)
+	// Apply deprecated key mappings (e.g., queries -> reports), then reject the keys that Fleet 5 removed
 	if err := ApplyDeprecatedKeyMappings(rawData, logFn); err != nil {
 		return nil, fmt.Errorf("failed to process deprecated keys in file %s: %w", filePath, err)
+	}
+	if err := RejectRemovedKeys(rawData, filePath); err != nil {
+		return nil, err
 	}
 
 	// Re-marshal and unmarshal to map[string]json.RawMessage for existing parsing logic
@@ -539,6 +593,12 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		}
 	}
 
+	// The removed file name fails whatever the file contains.
+	removedFile := filepath.Base(filePath) == "no-team.yml"
+	if removedFile {
+		multiError = multierror.Append(multiError, removedNameError(removednames.KindFileName, "no-team.yml"))
+	}
+
 	// Figure out if this is an org or fleet settings file
 	teamRaw, teamOk := top["name"]
 	settingsRaw, settingsOk := top["settings"]
@@ -552,24 +612,21 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		}
 	case teamOk:
 		multiError = parseName(teamRaw, result, filePath, multiError)
-		// If the file is no-team.yml, the name must be "No team".
+		// Report both removed names in one run.
+		if result.IsNoTeam() {
+			multiError = multierror.Append(multiError, removedNameError(removednames.KindYAMLValue, "name: No team"))
+		}
 		switch {
-		case filepath.Base(filePath) == "no-team.yml" && !result.IsNoTeam():
-			multiError = multierror.Append(multiError, errors.New("`name` must be `No Team` for `no-team.yml`"))
+		case removedFile || result.IsNoTeam():
 			return result, multiError.ErrorOrNil()
 		case filepath.Base(filePath) == "unassigned.yml" && !result.IsUnassignedTeam():
 			multiError = multierror.Append(multiError, errors.New("`name` must be `Unassigned` for `unassigned.yml`"))
 			return result, multiError.ErrorOrNil()
-		case result.IsNoTeam() && filepath.Base(filePath) != "no-team.yml":
-			multiError = multierror.Append(multiError, fmt.Errorf("file `%s` for No Team must be named `no-team.yml`", filePath))
-			multiError = multierror.Append(multiError, errors.New("no-team.yml is deprecated; please ensure the fleet name has been updated to 'Unassigned' and rename the file to 'unassigned.yml'."))
-			return result, multiError.ErrorOrNil()
 		case result.IsUnassignedTeam() && filepath.Base(filePath) != "unassigned.yml":
 			multiError = multierror.Append(multiError, fmt.Errorf("file `%s` for unassigned hosts must be named `unassigned.yml`", filePath))
 			return result, multiError.ErrorOrNil()
-		case result.IsNoTeam() || result.IsUnassignedTeam():
-			// Coerce to "No Team" for easier processing.
-			// TODO - Remove No Team in Fleet 5
+		case result.IsUnassignedTeam():
+			// The rest of the processing uses the internal name "No team" for unassigned hosts.
 			result.TeamName = ptr.String(noTeam)
 			// For No Team, we allow settings but only process webhook_settings from it
 			if settingsOk {
@@ -585,7 +642,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	default:
 		switch filepath.Base(filePath) {
 		case "no-team.yml":
-			multiError = multierror.Append(multiError, errors.New("`name` must be `No Team` for `no-team.yml`"))
+			// Reported above.
 		case "unassigned.yml":
 			multiError = multierror.Append(multiError, errors.New("`name` must be `Unassigned` for `unassigned.yml`"))
 		default:
@@ -639,7 +696,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	multiError = parseReports(top, result, baseDir, logFn, filePath, multiError)
 
 	if appConfig != nil && appConfig.License.IsPremium() {
-		multiError = parseSoftware(top, result, baseDir, filePath, options, multiError)
+		multiError = parseSoftware(top, result, baseDir, logFn, filePath, options, multiError)
 	}
 
 	// Policies can reference software installers and scripts, thus we parse them after parseSoftware and parseControls.
@@ -734,6 +791,13 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 						)
 					} else {
 						raw = fileBytes
+						var fileOrgSettings map[string]any
+						if err := YamlUnmarshal(fileBytes, &fileOrgSettings); err == nil {
+							if err := RejectRemovedKeys(map[string]any{"org_settings": fileOrgSettings}, *orgSettingsTop.Path); err != nil {
+								noError = false
+								multiError = multierror.Append(multiError, err)
+							}
+						}
 					}
 				}
 			}
@@ -780,7 +844,7 @@ func absPathFrom(baseDir, p string) string {
 
 // ResolveFilePathsAbs rewrites the controls' file-path fields that are resolved at
 // APPLY time to absolute paths against baseDir. Used when controls from
-// no-team.yml/unassigned.yml are applied onto the global config, which is applied
+// unassigned.yml is applied onto the global config, which is applied
 // under a different (global) baseDir — making these paths absolute means the
 // apply-side resolveApplyRelativePath becomes a no-op, so paths authored relative to
 // the no-team file (e.g. ../lib/...) keep working.
@@ -833,6 +897,9 @@ func reanchorOrgSettingsPaths(orgSettings map[string]any, orgSettingsDir string)
 	if mdm, ok := orgSettings["mdm"].(map[string]any); ok {
 		if eula, ok := mdm["end_user_license_agreement"].(string); ok && eula != "" {
 			mdm["end_user_license_agreement"] = anchor(eula)
+		}
+		if winEULA, ok := mdm["windows_eula"].(string); ok && winEULA != "" {
+			mdm["windows_eula"] = anchor(winEULA)
 		}
 	}
 }
@@ -1318,16 +1385,25 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 	multiError = multierror.Append(multiError, validateRawKeys(controlsRaw, reflect.TypeFor[GitOpsControls](), yamlFilename, []string{"controls"})...)
 	controlsTop.Defined = true
 
-	// apple_account_provisioning is a global-only MDM setting (it maps to global
-	// AppConfig.MDM). Reject it in a specific team's file; it belongs in the
-	// global configuration (or the no-team/unassigned file).
-	if controlsTop.AppleAccountProvisioning != nil && !result.global() && !result.IsNoTeam() && !result.IsUnassignedTeam() {
-		multiError = multierror.Append(multiError, fmt.Errorf(
-			"%s: apple_account_provisioning can only be configured in the global configuration, not for a specific team", yamlFilename,
-		))
-	}
 	controlsFilePath := yamlFilename
 	multiError = multierror.Append(multiError, processControlsPathIfNeeded(controlsTop, result, &controlsFilePath)...)
+
+	// apple_account_provisioning and enable_profile_validation are global-only MDM
+	// settings (they map to global AppConfig.MDM). Reject them in a specific team's
+	// file; they belong in the global configuration (or the no-team/unassigned file).
+	// Checked after path resolution, so a referenced controls file can't bypass it.
+	if !result.global() && !result.IsNoTeam() && !result.IsUnassignedTeam() {
+		if result.Controls.AppleAccountProvisioning != nil {
+			multiError = multierror.Append(multiError, fmt.Errorf(
+				"%s: apple_account_provisioning can only be configured in the global configuration, not for a specific team", yamlFilename,
+			))
+		}
+		if result.Controls.EnableProfileValidation != nil {
+			multiError = multierror.Append(multiError, fmt.Errorf(
+				"%s: enable_profile_validation can only be configured in the global configuration, not for a specific team", yamlFilename,
+			))
+		}
+	}
 
 	controlsDir := filepath.Dir(controlsFilePath)
 	var scriptErrs []error
@@ -1354,6 +1430,13 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 			logFn("[!] 'controls.setup_experience.software / controls.macos_setup.software' is deprecated; set 'setup_experience: true' on individual items under 'software.packages', 'software.app_store_apps', or 'software.fleet_maintained_apps' instead.\n")
 		}
 		if result.Controls.MacOSSetup.Script.Set {
+			if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
+				teamName := unassignedTeamName
+				if !result.IsGlobal() && !result.IsNoTeam() {
+					teamName = *result.TeamName
+				}
+				logFn("[!] The setup experience script (controls.setup_experience.macos_script) is deprecated for fleet %q. Use a script-only package instead.\n", teamName)
+			}
 			startupScriptPath := resolveApplyRelativePath(controlsDir, result.Controls.MacOSSetup.Script.Value)
 			fileBytes, err := os.ReadFile(startupScriptPath)
 			if err != nil {
@@ -1377,6 +1460,19 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 		}
 	}
 
+	for _, c := range []struct {
+		key   string
+		value any
+	}{
+		{"enable_disk_encryption", result.Controls.EnableDiskEncryption},
+		{"macos_recovery_lock_password_enabled", result.Controls.EnableRecoveryLockPassword},
+		{"windows_require_bitlocker_pin", result.Controls.RequireBitLockerPIN},
+	} {
+		if _, ok := c.value.(bool); c.value != nil && !ok {
+			multiError = multierror.Append(multiError, fmt.Errorf("'controls.%s' must be a boolean in %s", c.key, controlsFilePath))
+		}
+	}
+
 	// Find Fleet secrets in profiles
 	if result.Controls.MacOSSettings != nil {
 		macOSSettings, err := reparseSettings[fleet.MacOSSettings](result.Controls.MacOSSettings, controlsFilePath, "macos_settings")
@@ -1395,10 +1491,12 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 
 		// Expand globs in profile paths.
 		var errs []error
-		macOSSettings.CustomSettings, errs = expandBaseItems(macOSSettings.CustomSettings, controlsDir, "profile", GlobExpandOptions{
+		macGlobOpts := GlobExpandOptions{
 			AllowedExtensions: map[string]bool{".mobileconfig": true, ".json": true},
 			LogFn:             logFn,
-		})
+		}
+		multiError = multierror.Append(multiError, validateProfileSpecNames(macOSSettings.CustomSettings, controlsDir, "apple_settings", macGlobOpts)...)
+		macOSSettings.CustomSettings, errs = expandBaseItems(macOSSettings.CustomSettings, controlsDir, "profile", macGlobOpts)
 		multiError = multierror.Append(multiError, errs...)
 		// Then resolve the paths to absolute and find Fleet secrets in the profile files.
 		for i := range macOSSettings.CustomSettings {
@@ -1439,11 +1537,12 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 
 		if windowsSettings.CustomSettings.Valid {
 			var errs []error
-			windowsSettings.CustomSettings.Value, errs = expandBaseItems(windowsSettings.CustomSettings.Value, controlsDir, "profile", GlobExpandOptions{
+			winGlobOpts := GlobExpandOptions{
 				AllowedExtensions: map[string]bool{".xml": true},
-
-				LogFn: logFn,
-			})
+				LogFn:             logFn,
+			}
+			multiError = multierror.Append(multiError, validateProfileSpecNames(windowsSettings.CustomSettings.Value, controlsDir, "windows_settings", winGlobOpts)...)
+			windowsSettings.CustomSettings.Value, errs = expandBaseItems(windowsSettings.CustomSettings.Value, controlsDir, "profile", winGlobOpts)
 			multiError = multierror.Append(multiError, errs...)
 
 			for i := range windowsSettings.CustomSettings.Value {
@@ -1473,10 +1572,12 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 
 		if androidSettings.CustomSettings.Valid {
 			var errs []error
-			androidSettings.CustomSettings.Value, errs = expandBaseItems(androidSettings.CustomSettings.Value, controlsDir, "profile", GlobExpandOptions{
+			androidGlobOpts := GlobExpandOptions{
 				AllowedExtensions: map[string]bool{".json": true},
 				LogFn:             logFn,
-			})
+			}
+			multiError = multierror.Append(multiError, validateProfileSpecNames(androidSettings.CustomSettings.Value, controlsDir, "android_settings", androidGlobOpts)...)
+			androidSettings.CustomSettings.Value, errs = expandBaseItems(androidSettings.CustomSettings.Value, controlsDir, "profile", androidGlobOpts)
 			multiError = multierror.Append(multiError, errs...)
 			for i := range androidSettings.CustomSettings.Value {
 				err := resolveAndUpdateProfilePath(&androidSettings.CustomSettings.Value[i], result)
@@ -1668,6 +1769,31 @@ func resolveAndUpdateActivationPath(profile *fleet.MDMProfileSpec, baseDir strin
 		return fmt.Errorf("failed to read activation file %s: %v", resolved, err)
 	}
 	return LookupEnvSecrets(string(fileBytes), result.FleetSecrets)
+}
+
+// validateProfileSpecNames rejects a "name" on a "paths" glob that matches
+// more than one file: the glob expands to one profile per file and names are
+// unique per fleet, so a single name can't cover them. A description can, like
+// labels. Runs before expansion, which is the last point the pattern is known.
+func validateProfileSpecNames(specs []fleet.MDMProfileSpec, baseDir, settingsKey string, opts GlobExpandOptions) []error {
+	// the expansion that follows logs the same skipped files
+	opts.LogFn = func(string, ...any) {}
+	var errs []error
+	for _, spec := range specs {
+		if strings.TrimSpace(spec.Name) == "" || spec.Paths == "" || !containsGlobMeta(spec.Paths) {
+			continue
+		}
+		matches, err := expandGlobPattern(spec.Paths, baseDir, "profile", opts)
+		if err != nil {
+			// reported again, with context, by the expansion that follows
+			continue
+		}
+		if len(matches) > 1 {
+			errs = append(errs, fmt.Errorf(`controls.%s.configuration_profiles[]: "name" can't be used with a "paths" glob that matches more than one file (%q matched %d); use "path" for a single profile`,
+				settingsKey, spec.Paths, len(matches)))
+		}
+	}
+	return errs
 }
 
 func resolveAndUpdateProfilePath(profile *fleet.MDMProfileSpec, result *GitOps) error {
@@ -1951,6 +2077,11 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 				multiError = multierror.Append(multiError, fmt.Errorf("%s", inv["reason"]))
 			}
 		}
+		if err := fleet.ValidateLabelFieldLengths(l.Name, l.Description); err != nil {
+			for _, inv := range err.Invalid() {
+				multiError = multierror.Append(multiError, fmt.Errorf("%s", inv["reason"]))
+			}
+		}
 
 		// Don't use non-ASCII
 		if !isASCII(l.Name) {
@@ -1972,10 +2103,10 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 			}
 		}
 	}
-	duplicates := getDuplicateNames(
+	duplicates := getDuplicateNamesBy(
 		result.Labels, func(l *fleet.LabelSpec) string {
 			return l.Name
-		},
+		}, nameCollationKey,
 	)
 	if len(duplicates) > 0 {
 		multiError = multierror.Append(multiError, fmt.Errorf("duplicate label names: %v", duplicates))
@@ -2046,6 +2177,13 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				continue
 			}
 
+			// an explicit name replaces the PayloadDisplayName, as on apply,
+			// where it is stored trimmed
+			if n := strings.TrimSpace(item.Name); n != "" {
+				definedProfileNames[n] = struct{}{}
+				continue
+			}
+
 			// parse the file into XML .mobileconfig struct and lookup `PayloadDisplayName`
 			mc := mobileconfig.Mobileconfig(expanded)
 			parsed, err := mc.ParseConfigProfile()
@@ -2074,7 +2212,12 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				continue
 			}
 
-			// windows profile names come from the file name without the extension
+			// windows profile names come from the file name without the
+			// extension, unless the YAML names the profile
+			if n := strings.TrimSpace(item.Name); n != "" {
+				definedProfileNames[n] = struct{}{}
+				continue
+			}
 			base := filepath.Base(item.Path)
 			definedProfileNames[strings.TrimSuffix(base, filepath.Ext(base))] = struct{}{}
 		}
@@ -2169,21 +2312,33 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			if item.FleetMaintainedAppSlug != "" {
 				patchSlugs = append(patchSlugs, item.FleetMaintainedAppSlug)
 			}
-			if item.PatchWhenClosed || item.NotifyBeforePatching {
+			if item.PatchWhenClosed || item.NotifyBeforePatching || item.PatchDeadline {
 				// Key off the slug suffix because a patch policy's platform field is ignored, the datastore takes the platform from the installer.
-				if item.NotifyBeforePatching && slugIsKnownFMA && !strings.HasSuffix(item.FleetMaintainedAppSlug, "/darwin") {
-					multiError = multierror.Append(multiError, fmt.Errorf(
-						"Couldn't apply policy %q: %w", item.Name, fleet.ErrPolicyNotifyBeforePatchingRequiresMacOS))
+				if slugIsKnownFMA && !strings.HasSuffix(item.FleetMaintainedAppSlug, "/darwin") {
+					if item.NotifyBeforePatching {
+						multiError = multierror.Append(multiError, fmt.Errorf(
+							"Couldn't apply policy %q: %w", item.Name, fleet.ErrPolicyNotifyBeforePatchingRequiresMacOS,
+						))
+					}
+					if item.PatchDeadline {
+						multiError = multierror.Append(multiError, fmt.Errorf(
+							"Couldn't apply policy %q: %w", item.Name, fleet.ErrPolicyPatchDeadlineRequiresMacOS,
+						))
+					}
 				}
 				patchOption := "patch_when_closed"
 				if item.NotifyBeforePatching {
 					patchOption = "notify_before_patching"
 				}
+				if item.PatchDeadline {
+					patchOption = "patch_deadline"
+				}
 				// Declarative: reject an explicit false instead of letting the datastore silently
 				// force it on; auto-set when omitted.
 				if item.ContinuousAutomations.Valid && !item.ContinuousAutomations.Value {
 					multiError = multierror.Append(multiError, fmt.Errorf(
-						`Couldn't apply policy %q: If %q is true, "continuous_automations_enabled" can't be set to false.`, item.Name, patchOption))
+						`Couldn't apply policy %q: If %q is true, "continuous_automations_enabled" can't be set to false.`, item.Name, patchOption,
+					))
 				} else {
 					item.ContinuousAutomationsEnabled = true
 				}
@@ -2191,7 +2346,8 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				if fma, ok := fmasBySlug[item.FleetMaintainedAppSlug]; ok && fma.PreInstallQuery.Path != "" {
 					multiError = multierror.Append(multiError, fmt.Errorf(
 						`Couldn't apply policy %q: "pre_install_query" can't be set on Fleet-maintained app %q when %q is true; Fleet manages this query.`,
-						item.Name, item.FleetMaintainedAppSlug, patchOption))
+						item.Name, item.FleetMaintainedAppSlug, patchOption,
+					))
 				}
 			}
 		}
@@ -2227,7 +2383,7 @@ func parsePolicyRunScript(baseDir string, parentFilePath string, teamName *strin
 		return nil
 	}
 	if policy.RunScript != nil && policy.RunScript.Path != "" && teamName == nil {
-		return errors.New("run_script can only be set on team policies")
+		return errors.New("run_script can only be set on fleet-level policies")
 	}
 
 	if policy.RunScript.Path == "" {
@@ -2262,7 +2418,7 @@ func parsePolicyRunScript(baseDir string, parentFilePath string, teamName *strin
 
 func parsePolicyResendConfigurationProfile(parentFilePath string, teamName *string, policy *Policy, definedProfiles map[string]struct{}) error {
 	if teamName == nil && policy.ResendConfigurationProfile != "" {
-		return errors.New("resend_configuration_profile can only be set on team policies")
+		return errors.New("resend_configuration_profile can only be set on fleet-level policies")
 	}
 
 	name := strings.TrimSpace(policy.ResendConfigurationProfile)
@@ -2297,7 +2453,7 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 	hasHash := installSoftwareObj.HashSHA256 != ""
 
 	if (hasPath || hasAppStore || hasHash || hasFMA) && teamName == nil {
-		return wrapErrs(errors.New("install_software can only be set on team policies"))
+		return wrapErrs(errors.New("install_software can only be set on fleet-level policies"))
 	}
 	if !hasPath && !hasAppStore && !hasHash && !hasFMA {
 		return wrapErrs(errors.New("install_software must include either a package_path, an app_store_id, a hash_sha256 or a fleet_maintained_app_slug"))
@@ -2338,21 +2494,25 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 			return wrapErrs(fmt.Errorf("failed to expand environment in file %q: %v", installSoftwareObj.PackagePath, err))
 		}
 		var policyInstallSoftwareSpec fleet.SoftwarePackageSpec
-		if err := YamlUnmarshal(fileBytes, &policyInstallSoftwareSpec); err != nil {
-			// Fall back to array shape: the file may define multiple packages for one title.
-			var multiplePackages []fleet.SoftwarePackageSpec
-			if err := YamlUnmarshal(fileBytes, &multiplePackages); err != nil || len(multiplePackages) == 0 {
-				return wrapErrs(fmt.Errorf("file %q does not contain a valid software package definition", installSoftwareObj.PackagePath))
+		var multiplePackages []fleet.SoftwarePackageSpec
+		var singlePackage map[string]any
+		if err := YamlUnmarshal(fileBytes, &multiplePackages); err != nil {
+			if err := YamlUnmarshal(fileBytes, &singlePackage); err == nil {
+				return []error{fmt.Errorf("install_software.package_path: The single package format in %q is not available anymore. What to use instead: %s", installSoftwareObj.PackagePath, removednames.GuideURL)}
 			}
+			return wrapErrs(fmt.Errorf("file %q does not contain a valid software package definition", installSoftwareObj.PackagePath))
+		}
+		if multiplePackages != nil && len(multiplePackages) == 0 {
+			return wrapErrs(fmt.Errorf("file %q does not contain a valid software package definition", installSoftwareObj.PackagePath))
+		}
 
-			errs = append(errs, validateYAMLKeys(fileBytes, reflect.TypeFor[[]fleet.SoftwarePackageSpec](), installSoftwareObj.PackagePath, []string{"software", "packages"})...)
+		errs = append(errs, validateYAMLKeys(fileBytes, reflect.TypeFor[[]fleet.SoftwarePackageSpec](), installSoftwareObj.PackagePath, []string{"software", "packages"})...)
 
-			if len(multiplePackages) > 1 {
-				return wrapErrs(fmt.Errorf("file %q contains multiple packages; use install_software.hash_sha256 to select one, or split the packages into single-package YAML files", installSoftwareObj.PackagePath))
-			}
+		if len(multiplePackages) > 1 {
+			return wrapErrs(fmt.Errorf("file %q contains multiple packages; use install_software.hash_sha256 to select one, or split the packages into single-package YAML files", installSoftwareObj.PackagePath))
+		}
+		if len(multiplePackages) == 1 {
 			policyInstallSoftwareSpec = multiplePackages[0]
-		} else {
-			errs = append(errs, validateYAMLKeys(fileBytes, reflect.TypeFor[fleet.SoftwarePackageSpec](), installSoftwareObj.PackagePath, []string{"software", "packages"})...)
 		}
 		installerOnTeamFound := false
 		for _, pkg := range packages {
@@ -2363,9 +2523,9 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 		}
 		if !installerOnTeamFound {
 			if policyInstallSoftwareSpec.URL != "" {
-				errs = append(errs, wrapErr(fmt.Errorf("install_software.package_path URL %s not found on team: %s", policyInstallSoftwareSpec.URL, installSoftwareObj.PackagePath)))
+				errs = append(errs, wrapErr(fmt.Errorf("install_software.package_path URL %s not found on fleet: %s", policyInstallSoftwareSpec.URL, installSoftwareObj.PackagePath)))
 			} else {
-				errs = append(errs, wrapErr(fmt.Errorf("install_software.package_path SHA256 %s not found on team: %s", policyInstallSoftwareSpec.SHA256, installSoftwareObj.PackagePath)))
+				errs = append(errs, wrapErr(fmt.Errorf("install_software.package_path SHA256 %s not found on fleet: %s", policyInstallSoftwareSpec.SHA256, installSoftwareObj.PackagePath)))
 			}
 			return errs
 		}
@@ -2387,7 +2547,7 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 			}
 		}
 		if !matched {
-			errs = append(errs, wrapErr(fmt.Errorf("install_software.hash_sha256 %s not found on team", installSoftwareObj.HashSHA256)))
+			errs = append(errs, wrapErr(fmt.Errorf("install_software.hash_sha256 %s not found on fleet", installSoftwareObj.HashSHA256)))
 		}
 	}
 
@@ -2400,13 +2560,13 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 			}
 		}
 		if !appOnTeamFound {
-			errs = append(errs, wrapErr(fmt.Errorf("install_software.app_store_id %s not found on team %s", policy.InstallSoftware.Other.AppStoreID, *teamName)))
+			errs = append(errs, wrapErr(fmt.Errorf("install_software.app_store_id %s not found on fleet %s", policy.InstallSoftware.Other.AppStoreID, *teamName)))
 		}
 	}
 
 	if installSoftwareObj.FleetMaintainedAppSlug != "" {
 		if _, ok := fmasBySlug[installSoftwareObj.FleetMaintainedAppSlug]; !ok {
-			errs = append(errs, wrapErr(fmt.Errorf("install_software.fleet_maintained_app_slug %q not found in software.fleet_maintained_apps for team %s", installSoftwareObj.FleetMaintainedAppSlug, *teamName)))
+			errs = append(errs, wrapErr(fmt.Errorf("install_software.fleet_maintained_app_slug %q not found in software.fleet_maintained_apps for fleet %s", installSoftwareObj.FleetMaintainedAppSlug, *teamName)))
 		}
 		policy.InstallSoftware.Other.FleetMaintainedAppSlug = installSoftwareObj.FleetMaintainedAppSlug
 	}
@@ -2497,10 +2657,10 @@ func parseReports(top map[string]json.RawMessage, result *GitOps, baseDir string
 			}
 		}
 	}
-	duplicates := getDuplicateNames(
+	duplicates := getDuplicateNamesBy(
 		result.Queries, func(q *fleet.QuerySpec) string {
 			return q.Name
-		},
+		}, nameCollationKey,
 	)
 	if len(duplicates) > 0 {
 		multiError = multierror.Append(multiError, fmt.Errorf("duplicate report names: %v", duplicates))
@@ -2510,7 +2670,141 @@ func parseReports(top map[string]json.RawMessage, result *GitOps, baseDir string
 
 var validSHA256Value = regexp.MustCompile(`\b[a-f0-9]{64}\b`)
 
-func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir string, filePath string, options GitOpsOptions, multiError *multierror.Error) *multierror.Error {
+// validateAppStoreApp validates a single app_store_apps entry and resolves its
+// icon/configuration asset paths relative to resolveDir (the team file's
+// directory for inline entries, or the referenced file's directory when the
+// entry came from a "path"/"paths" reference).
+func validateAppStoreApp(item fleet.TeamSpecAppStoreApp, resolveDir string) (fleet.TeamSpecAppStoreApp, error) {
+	if item.AppStoreID == "" {
+		return item, errors.New("software app store id required")
+	}
+
+	if len(item.Versions) > 0 {
+		if item.SelfService || len(item.LabelsIncludeAny) > 0 || len(item.LabelsExcludeAny) > 0 || len(item.LabelsIncludeAll) > 0 ||
+			item.Categories != nil || item.Configuration.Path != "" ||
+			item.AutoUpdateEnabled != nil || item.AutoUpdateStartTime != nil || item.AutoUpdateEndTime != nil {
+			return item, fmt.Errorf("Couldn't add software (%q). self_service, labels, categories, configuration, and auto-update settings can be specified only in each version when the app has versions.", item.AppStoreID)
+		}
+		if len(item.Versions) > fleet.MaxAppStoreAppVersions {
+			return item, fmt.Errorf("Couldn't add software (%q). An app can have at most %d versions.", item.AppStoreID, fleet.MaxAppStoreAppVersions)
+		}
+		if item.Platform == string(fleet.MacOSPlatform) && len(item.Versions) > 1 {
+			return item, fmt.Errorf("Couldn't add software (%q). macOS App Store apps can have only one version.", item.AppStoreID)
+		}
+	}
+
+	// Validate the version names of the app
+	var versionNames []string
+	for i, version := range item.Versions {
+		name := strings.TrimSpace(version.Name)
+		if name == "" {
+			return item, fmt.Errorf("Couldn't add software (%q). Version %d is missing a name.", item.AppStoreID, i+1)
+		}
+		if utf8.RuneCountInString(name) > fleet.MaxAppStoreAppVersionNameLength {
+			return item, fmt.Errorf("Couldn't add software (%q). The version name %q can't be longer than %d characters.", item.AppStoreID, name, fleet.MaxAppStoreAppVersionNameLength)
+		}
+		if slices.ContainsFunc(versionNames, func(versionName string) bool {
+			return strings.EqualFold(versionName, name)
+		}) {
+			return item, fmt.Errorf("Couldn't add software (%q). More than one version is named %q.", item.AppStoreID, name)
+		}
+		versionNames = append(versionNames, name)
+	}
+
+	for _, version := range item.ListVersions() {
+		var count int
+		for _, set := range [][]string{version.LabelsExcludeAny, version.LabelsIncludeAny, version.LabelsIncludeAll} {
+			if len(set) > 0 {
+				count++
+			}
+		}
+		if count > 1 {
+			var versionSuffix string
+			if version.Name != "" {
+				versionSuffix = fmt.Sprintf(" version %q", version.Name)
+			}
+			return item, fmt.Errorf(`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for app store app %q%s`, item.AppStoreID, versionSuffix)
+		}
+	}
+
+	// Validate display_name length (matches database VARCHAR(255))
+	if utf8.RuneCountInString(item.DisplayName) > 255 {
+		return item, fmt.Errorf("app_store_id %q display_name is too long (max 255 characters)", item.AppStoreID)
+	}
+
+	return item.ResolvePaths(resolveDir), nil
+}
+
+// validateFleetMaintainedApp validates a single fleet_maintained_apps entry and
+// resolves its icon/script/query asset paths relative to resolveDir (the team
+// file's directory for inline entries, or the referenced file's directory when
+// the entry came from a "path"/"paths" reference).
+func validateFleetMaintainedApp(spec fleet.MaintainedAppSpec, resolveDir string) (fleet.MaintainedAppSpec, error) {
+	if spec.Slug == "" {
+		return spec, errors.New("fleet maintained app slug is required")
+	}
+
+	var count int
+	for _, set := range [][]string{spec.LabelsExcludeAny, spec.LabelsIncludeAny, spec.LabelsIncludeAll} {
+		if len(set) > 0 {
+			count++
+		}
+	}
+	if count > 1 {
+		return spec, fmt.Errorf(`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for fleet maintained app %q`, spec.Slug)
+	}
+
+	// Validate display_name length (matches database VARCHAR(255))
+	if utf8.RuneCountInString(spec.DisplayName) > 255 {
+		return spec, fmt.Errorf("fleet maintained app %q display_name is too long (max 255 characters)", spec.Slug)
+	}
+
+	return spec.ResolveSoftwarePackagePaths(resolveDir), nil
+}
+
+// gatherFleetMaintainedAppSecrets scans a fleet_maintained_apps entry's scripts
+// for $FLEET_SECRET_* references so they can be validated/expanded later.
+func gatherFleetMaintainedAppSecrets(result *GitOps, spec fleet.MaintainedAppSpec) error {
+	for _, scriptPath := range []string{spec.InstallScript.Path, spec.PostInstallScript.Path, spec.UninstallScript.Path} {
+		if scriptPath == "" {
+			continue
+		}
+		if err := gatherFileSecrets(result, scriptPath); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// fieldsBesideFileReference reports entries that set "path" or "paths" alongside
+// other keys, which the referenced file would silently override.
+func fieldsBesideFileReference(entries []map[string]json.RawMessage, entityType string) []error {
+	var errs []error
+	for _, entry := range entries {
+		refKey := "path"
+		ref, ok := entry[refKey]
+		if !ok {
+			refKey = "paths"
+			if ref, ok = entry[refKey]; !ok {
+				continue
+			}
+		}
+		extra := make([]string, 0, len(entry))
+		for k := range entry {
+			if k != "path" && k != "paths" {
+				extra = append(extra, k)
+			}
+		}
+		if len(extra) > 0 {
+			slices.Sort(extra)
+			errs = append(errs, fmt.Errorf("%s entry %q %s cannot set other fields: %s",
+				entityType, refKey, ref, strings.Join(extra, ", ")))
+		}
+	}
+	return errs
+}
+
+func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir string, logFn Logf, filePath string, options GitOpsOptions, multiError *multierror.Error) *multierror.Error {
 	softwareRaw, ok := top["software"]
 	if ok {
 		result.SoftwarePresent = true
@@ -2535,87 +2829,138 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		}
 	}
 	var software Software
+	// Raw keys tell an absent field from one set to its zero value; the typed structs can't.
+	var rawSoftware struct {
+		AppStoreApps        []map[string]json.RawMessage `json:"app_store_apps"`
+		FleetMaintainedApps []map[string]json.RawMessage `json:"fleet_maintained_apps"`
+	}
 	if len(softwareRaw) > 0 {
 		if err := json.Unmarshal(softwareRaw, &software); err != nil {
 			return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"software"}, err))
 		}
+		// Cannot fail: the typed unmarshal above already rejected any shape this would.
+		_ = json.Unmarshal(softwareRaw, &rawSoftware)
 		// Validate unknown keys in software section.
 		multiError = multierror.Append(multiError, validateRawKeys(softwareRaw, reflect.TypeFor[Software](), filePath, []string{"software"})...)
+		multiError = multierror.Append(multiError, fieldsBesideFileReference(rawSoftware.AppStoreApps, "app_store_app")...)
+		multiError = multierror.Append(multiError, fieldsBesideFileReference(rawSoftware.FleetMaintainedApps, "fleet_maintained_app")...)
+	}
+	if raw := software.PatchDeadlineSettings; raw != nil {
+		days, tm, err := fleet.ValidatePatchDeadlineSettings(raw.Days, raw.Time)
+		if err != nil {
+			multiError = multierror.Append(multiError, err)
+		} else {
+			result.Software.PatchDeadlineSettings = &GitOpsPatchDeadlineSettings{Days: days, Time: tm}
+		}
 	}
 
+	var pathErrs []error
+	if software.AppStoreApps, pathErrs = expandBaseItems(software.AppStoreApps, baseDir, "app_store_app", GlobExpandOptions{
+		LogFn: logFn,
+	}); len(pathErrs) > 0 {
+		multiError = multierror.Append(multiError, pathErrs...)
+	}
 	for _, item := range software.AppStoreApps {
-		if item.AppStoreID == "" {
-			multiError = multierror.Append(multiError, errors.New("software app store id required"))
-			continue
-		}
-
-		var count int
-		for _, set := range [][]string{item.LabelsExcludeAny, item.LabelsIncludeAny, item.LabelsIncludeAll} {
-			if len(set) > 0 {
-				count++
+		if item.Path == nil {
+			resolved, err := validateAppStoreApp(item.TeamSpecAppStoreApp, baseDir)
+			if err != nil {
+				multiError = multierror.Append(multiError, err)
+				continue
 			}
-		}
-		if count > 1 {
-			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for app store app %q`, item.AppStoreID))
+			result.Software.AppStoreApps = append(result.Software.AppStoreApps, &resolved)
 			continue
 		}
 
-		// Validate display_name length (matches database VARCHAR(255))
-		if utf8.RuneCountInString(item.DisplayName) > 255 {
-			multiError = multierror.Append(multiError, fmt.Errorf("app_store_id %q display_name is too long (max 255 characters)", item.AppStoreID))
+		fileBytes, err := os.ReadFile(*item.Path)
+		if err != nil {
+			multiError = multierror.Append(multiError, fmt.Errorf("failed to read app_store_apps file %s: %v", *item.Path, err))
 			continue
 		}
-
-		item = item.ResolvePaths(baseDir)
-
-		result.Software.AppStoreApps = append(result.Software.AppStoreApps, &item)
+		// Replace $var and ${var} with env values.
+		if fileBytes, err = ExpandEnvBytes(fileBytes); err != nil {
+			multiError = multierror.Append(multiError, fmt.Errorf("failed to expand environment in file %s: %v", *item.Path, err))
+			continue
+		}
+		var pathApps []*AppStoreApp
+		if err := YamlUnmarshal(fileBytes, &pathApps); err != nil {
+			multiError = multierror.Append(multiError, MaybeParseTypeError(*item.Path, []string{"software", "app_store_apps"}, err))
+			continue
+		}
+		// Validate unknown keys in path-referenced app_store_apps file.
+		multiError = multierror.Append(multiError, validateYAMLKeys(fileBytes, reflect.TypeFor[[]AppStoreApp](), *item.Path, []string{"software", "app_store_apps"})...)
+		for _, pa := range pathApps {
+			if pa == nil {
+				continue
+			}
+			if nested := cmp.Or(pa.Path, pa.Paths); nested != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("nested paths are not supported: %s in %s", *nested, *item.Path))
+				continue
+			}
+			resolved, err := validateAppStoreApp(pa.TeamSpecAppStoreApp, filepath.Dir(*item.Path))
+			if err != nil {
+				multiError = multierror.Append(multiError, err)
+				continue
+			}
+			result.Software.AppStoreApps = append(result.Software.AppStoreApps, &resolved)
+		}
 	}
-	for _, maintainedAppSpec := range software.FleetMaintainedApps {
-		if maintainedAppSpec.Slug == "" {
-			multiError = multierror.Append(multiError, errors.New("fleet maintained app slug is required"))
-			continue
-		}
 
-		var count int
-		for _, set := range [][]string{maintainedAppSpec.LabelsExcludeAny, maintainedAppSpec.LabelsIncludeAny, maintainedAppSpec.LabelsIncludeAll} {
-			if len(set) > 0 {
-				count++
-			}
-		}
-		if count > 1 {
-			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for fleet maintained app %q`, maintainedAppSpec.Slug))
-			continue
-		}
-
-		// Validate display_name length (matches database VARCHAR(255))
-		if utf8.RuneCountInString(maintainedAppSpec.DisplayName) > 255 {
-			multiError = multierror.Append(multiError, fmt.Errorf("fleet maintained app %q display_name is too long (max 255 characters)", maintainedAppSpec.Slug))
-			continue
-		}
-
-		maintainedAppSpec = maintainedAppSpec.ResolveSoftwarePackagePaths(baseDir)
-
-		// handle secrets
-		if maintainedAppSpec.InstallScript.Path != "" {
-			if err := gatherFileSecrets(result, maintainedAppSpec.InstallScript.Path); err != nil {
+	if software.FleetMaintainedApps, pathErrs = expandBaseItems(software.FleetMaintainedApps, baseDir, "fleet_maintained_app", GlobExpandOptions{
+		LogFn: logFn,
+	}); len(pathErrs) > 0 {
+		multiError = multierror.Append(multiError, pathErrs...)
+	}
+	for _, item := range software.FleetMaintainedApps {
+		if item.Path == nil {
+			resolved, err := validateFleetMaintainedApp(item.MaintainedAppSpec, baseDir)
+			if err != nil {
 				multiError = multierror.Append(multiError, err)
 				continue
 			}
-		}
-		if maintainedAppSpec.PostInstallScript.Path != "" {
-			if err := gatherFileSecrets(result, maintainedAppSpec.PostInstallScript.Path); err != nil {
+			if err := gatherFleetMaintainedAppSecrets(result, resolved); err != nil {
 				multiError = multierror.Append(multiError, err)
 				continue
 			}
-		}
-		if maintainedAppSpec.UninstallScript.Path != "" {
-			if err := gatherFileSecrets(result, maintainedAppSpec.UninstallScript.Path); err != nil {
-				multiError = multierror.Append(multiError, err)
-				continue
-			}
+			result.Software.FleetMaintainedApps = append(result.Software.FleetMaintainedApps, &resolved)
+			continue
 		}
 
-		result.Software.FleetMaintainedApps = append(result.Software.FleetMaintainedApps, &maintainedAppSpec)
+		fileBytes, err := os.ReadFile(*item.Path)
+		if err != nil {
+			multiError = multierror.Append(multiError, fmt.Errorf("failed to read fleet_maintained_apps file %s: %v", *item.Path, err))
+			continue
+		}
+		// Replace $var and ${var} with env values.
+		if fileBytes, err = ExpandEnvBytes(fileBytes); err != nil {
+			multiError = multierror.Append(multiError, fmt.Errorf("failed to expand environment in file %s: %v", *item.Path, err))
+			continue
+		}
+		var pathFMAs []*FleetMaintainedApp
+		if err := YamlUnmarshal(fileBytes, &pathFMAs); err != nil {
+			multiError = multierror.Append(multiError, MaybeParseTypeError(*item.Path, []string{"software", "fleet_maintained_apps"}, err))
+			continue
+		}
+		// Validate unknown keys in path-referenced fleet_maintained_apps file.
+		multiError = multierror.Append(multiError, validateYAMLKeys(fileBytes, reflect.TypeFor[[]FleetMaintainedApp](), *item.Path, []string{"software", "fleet_maintained_apps"})...)
+		for _, pf := range pathFMAs {
+			if pf == nil {
+				continue
+			}
+			if nested := cmp.Or(pf.Path, pf.Paths); nested != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("nested paths are not supported: %s in %s", *nested, *item.Path))
+				continue
+			}
+			resolved, err := validateFleetMaintainedApp(pf.MaintainedAppSpec, filepath.Dir(*item.Path))
+			if err != nil {
+				multiError = multierror.Append(multiError, err)
+				continue
+			}
+			if err := gatherFleetMaintainedAppSecrets(result, resolved); err != nil {
+				multiError = multierror.Append(multiError, err)
+				continue
+			}
+			result.Software.FleetMaintainedApps = append(result.Software.FleetMaintainedApps, &resolved)
+		}
 	}
 	for _, teamLevelPackage := range software.Packages {
 		// A single item in Packages can result in multiple SoftwarePackageSpecs being generated
@@ -2666,15 +3011,13 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 					continue
 				}
 
-				// A package YAML file is a list of packages. A file written as a single
-				// object is treated as a one-element list.
-				var singlePackageSpec fleet.SoftwarePackageSpec
+				var singlePackage map[string]any
 				listErr := YamlUnmarshal(fileBytes, &softwarePackageSpecs)
 				if listErr == nil {
 					multiError = multierror.Append(multiError, validateYAMLKeys(fileBytes, reflect.TypeFor[[]fleet.SoftwarePackageSpec](), *teamLevelPackage.Path, []string{"software", "packages"})...)
-				} else if err := YamlUnmarshal(fileBytes, &singlePackageSpec); err == nil {
-					multiError = multierror.Append(multiError, validateYAMLKeys(fileBytes, reflect.TypeFor[fleet.SoftwarePackageSpec](), *teamLevelPackage.Path, []string{"software", "packages"})...)
-					softwarePackageSpecs = append(softwarePackageSpecs, &singlePackageSpec)
+				} else if err := YamlUnmarshal(fileBytes, &singlePackage); err == nil {
+					multiError = multierror.Append(multiError, fmt.Errorf("The single package format in %q is not available anymore. What to use instead: %s", *teamLevelPackage.Path, removednames.GuideURL))
+					continue
 				} else {
 					// couldn't unmarshal as a list or a single object
 					multiError = multierror.Append(multiError, MaybeParseTypeError(*teamLevelPackage.Path, []string{"software", "packages"}, listErr))
@@ -2815,22 +3158,38 @@ func gatherFileSecrets(result *GitOps, filePath string) error {
 }
 
 func getDuplicateNames[T any](slice []T, getComparableString func(T) string) []string {
-	// We are using the allKeys map as a set here. True means the item is a duplicate.
-	allKeys := make(map[string]bool)
+	return getDuplicateNamesBy(slice, getComparableString, func(name string) string { return name })
+}
+
+// getDuplicateNamesBy groups items by key(getName(item)) and reports the first name as written for each group with duplicates.
+func getDuplicateNamesBy[T any](slice []T, getName func(T) string, key func(string) string) []string {
+	// idx is the position in duplicates, or -1 if the key hasn't been reported yet.
+	type entry struct {
+		name string
+		idx  int
+	}
+	seen := make(map[string]entry)
 	var duplicates []string
 	for _, item := range slice {
-		name := getComparableString(item)
-		if isDuplicate, exists := allKeys[name]; exists {
-			// If this name hasn't already been marked as a duplicate.
-			if !isDuplicate {
-				duplicates = append(duplicates, name)
-			}
-			allKeys[name] = true
-		} else {
-			allKeys[name] = false
+		name := getName(item)
+		k := key(name)
+		e, exists := seen[k]
+		if !exists {
+			seen[k] = entry{name: name, idx: -1}
+			continue
+		}
+		if e.idx == -1 {
+			duplicates = append(duplicates, e.name)
+			seen[k] = entry{name: e.name, idx: len(duplicates) - 1}
 		}
 	}
 	return duplicates
+}
+
+// nameCollationKey matches how MySQL compares label and report names (case-insensitive, trailing spaces ignored), so duplicates fail
+// before anything is applied.
+func nameCollationKey(name string) string {
+	return strings.ToLower(strings.TrimRight(name, " "))
 }
 
 func isASCII(s string) bool {

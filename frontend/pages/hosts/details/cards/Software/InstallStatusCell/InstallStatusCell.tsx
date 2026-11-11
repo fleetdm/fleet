@@ -55,12 +55,7 @@ interface TooltipArgs {
 }
 
 export type IStatusDisplayConfig = {
-  iconName?:
-    | "success"
-    | "pending-outline"
-    | "error"
-    | "install"
-    | "error-outline";
+  iconName?: "success" | "pending" | "error" | "install" | "error";
   iconColor?: Colors;
   displayText: string | ((args: DisplayTextArgs) => React.ReactNode);
   tooltip: (args: TooltipArgs) => ReactNode;
@@ -149,7 +144,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
     },
   },
   installing: {
-    iconName: "pending-outline",
+    iconName: "pending",
     displayText: ({ isSelfService, isHostOnline }) =>
       isSelfService || isHostOnline ? "Installing..." : "Install (pending)",
     tooltip: ({ isSelfService, isHostOnline }) =>
@@ -163,7 +158,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
       ),
   },
   pending_install: {
-    iconName: "pending-outline",
+    iconName: "pending",
     displayText: ({ isSelfService, isHostOnline }) =>
       isSelfService || isHostOnline ? "Installing..." : "Install (pending)",
     tooltip: ({ isSelfService, isHostOnline }) =>
@@ -177,7 +172,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
       ),
   },
   pending_uninstall: {
-    iconName: "pending-outline",
+    iconName: "pending",
     displayText: ({ isSelfService, isHostOnline }) =>
       isSelfService || isHostOnline ? "Uninstalling..." : "Uninstall (pending)",
     tooltip: ({ isSelfService, isHostOnline }) =>
@@ -192,7 +187,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
       ),
   },
   uninstalling: {
-    iconName: "pending-outline",
+    iconName: "pending",
     displayText: ({ isSelfService, isHostOnline }) =>
       isSelfService || isHostOnline ? "Uninstalling..." : "Uninstall (pending)",
     tooltip: ({ isSelfService, isHostOnline }) =>
@@ -212,7 +207,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
     tooltip: failedInstallTooltip,
   },
   skipped_install: {
-    iconName: "error-outline",
+    iconName: "error",
     iconColor: "ui-fleet-black-50",
     displayText: "Patch skipped",
     tooltip: () => SKIPPED_INSTALL_DETAILS,
@@ -223,7 +218,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
     tooltip: failedUninstallTooltip,
   },
   pending_update: {
-    iconName: "pending-outline",
+    iconName: "pending",
     displayText: ({ isSelfService, isHostOnline }) =>
       isSelfService || isHostOnline ? "Updating..." : "Update (pending)",
     tooltip: ({ isSelfService, isHostOnline }) =>
@@ -237,7 +232,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
       ),
   },
   updating: {
-    iconName: "pending-outline",
+    iconName: "pending",
     displayText: ({ isSelfService, isHostOnline }) =>
       isSelfService || isHostOnline ? "Updating..." : "Update (pending)",
     tooltip: ({ isSelfService, isHostOnline }) =>
@@ -251,7 +246,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
       ),
   },
   update_available: {
-    iconName: "error-outline",
+    iconName: "error",
     iconColor: "ui-fleet-black-50",
     displayText: "Update available",
     tooltip: ({ isSelfService, isHostOnline }) =>
@@ -265,14 +260,12 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
       ),
   },
   failed_install_update_available: {
-    iconName: "error-outline", // Match update available icon and not failed install icon
-    iconColor: "ui-fleet-black-50",
-    displayText: "Update available", // Shows "Update available" modal instead of "Failed" modal as of 4.82 #31663
-    // Tooltip indicates failure info in host activity logs
+    iconName: "error",
+    displayText: "Failed", // Opens Install details modal
     tooltip: failedInstallTooltip,
   },
   failed_uninstall_update_available: {
-    iconName: "error-outline", // Match update available icon and not failed uninstall icon
+    iconName: "error", // Match update available icon and not failed uninstall icon
     iconColor: "ui-fleet-black-50",
     displayText: "Update available", // Shows "Update available" modal instead of "Failed (uninstall)" modal as of 4.82 #31663
     // Tooltip indicates failure info in host activity logs
@@ -311,12 +304,12 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
     ),
   },
   running_script: {
-    iconName: "pending-outline",
+    iconName: "pending",
     displayText: "Running...",
     tooltip: () => "Fleet is running the script.",
   },
   pending_script: {
-    iconName: "pending-outline",
+    iconName: "pending",
     displayText: "Run (pending)",
     tooltip: ({ isSelfService, isHostOnline }) =>
       isSelfService || isHostOnline ? (
@@ -591,7 +584,7 @@ const InstallStatusCell = ({
         fixedPositionStrategy
       >
         {(isSelfService || isHostOnline) &&
-        displayConfig.iconName === "pending-outline" ? (
+        displayConfig.iconName === "pending" ? (
           <Spinner size="x-small" centered={false} delay={0} />
         ) : (
           displayConfig?.iconName && (

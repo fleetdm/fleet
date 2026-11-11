@@ -28,6 +28,8 @@ func TestPatchNotifications(t *testing.T) {
 		{"DeleteApps", testPatchNotificationDeleteApps},
 		{"InstallAt", testPatchNotificationInstallAt},
 		{"ListDue", testPatchNotificationListDue},
+		{"HostPatchDeadlineAt", testPatchNotificationHostPatchDeadlineAt},
+		{"PolicyOptionChanged", testPatchNotificationPolicyOptionChanged},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -52,6 +54,25 @@ func newPatchNotification(t *testing.T, ds *Datastore, hostID uint, status strin
 		return err
 	})
 	return notificationUUID
+}
+
+// newPatchDeadlinePolicy returns a policy with patch_deadline set as given, or notify_before_patching
+// when not, for a notification app to point at.
+func newPatchDeadlinePolicy(t *testing.T, ds *Datastore, name string, deadline bool) uint {
+	t.Helper()
+	policy, err := ds.NewGlobalPolicy(t.Context(), nil, fleet.PolicyPayload{Name: name, Query: "SELECT 1"})
+	require.NoError(t, err)
+	setPolicyPatchDeadline(t, ds, policy.ID, deadline)
+	return policy.ID
+}
+
+func setPolicyPatchDeadline(t *testing.T, ds *Datastore, policyID uint, deadline bool) {
+	t.Helper()
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(), `UPDATE policies SET patch_deadline = ?, notify_before_patching = ? WHERE id = ?`,
+			deadline, !deadline, policyID)
+		return err
+	})
 }
 
 func newTestSoftwareTitle(t *testing.T, ds *Datastore, name string) uint {
@@ -202,6 +223,7 @@ func testPatchNotificationAddAndListApps(t *testing.T, ds *Datastore) {
 	require.Equal(t, installerID, *apps[0].SoftwareInstallerID)
 	require.Equal(t, "Notified App", apps[0].Name)
 	require.Equal(t, "Notified App", apps[0].DisplayName)
+	require.Nil(t, apps[0].DisplayNameOverride)
 	require.False(t, apps[0].HasIcon)
 	// created_at is what tells a later install that the app no longer needs updating
 	require.WithinDuration(t, time.Now().UTC(), apps[0].CreatedAt, time.Minute)
@@ -222,7 +244,42 @@ func testPatchNotificationAddAndListApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, apps, 1)
 	require.Equal(t, "Notified App (renamed)", apps[0].DisplayName)
+	require.NotNil(t, apps[0].DisplayNameOverride)
+	require.Equal(t, "Notified App (renamed)", *apps[0].DisplayNameOverride)
 	require.True(t, apps[0].HasIcon)
+	require.False(t, apps[0].UpdatedInInventory)
+
+	// An override explicitly equal to the raw title must still be captured as
+	// an override; the write site uses DisplayNameOverride (not a DisplayName
+	// vs Name comparison) so the admin's pinned value survives the FE's
+	// WELL_KNOWN normalization.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE software_title_display_names SET display_name = ? WHERE team_id = ? AND software_title_id = ?`,
+			"Notified App", team.ID, titleID)
+		return err
+	})
+	apps, err = ds.ListPatchNotificationApps(ctx, notificationUUID)
+	require.NoError(t, err)
+	require.Len(t, apps, 1)
+	require.Equal(t, "Notified App", apps[0].DisplayName)
+	require.NotNil(t, apps[0].DisplayNameOverride)
+	require.Equal(t, "Notified App", *apps[0].DisplayNameOverride)
+
+	// Restore the renamed override so later cases below see the expected state.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE software_title_display_names SET display_name = ? WHERE team_id = ? AND software_title_id = ?`,
+			"Notified App (renamed)", team.ID, titleID)
+		return err
+	})
+
+	// set the app as updated in inventory, the listed app should report it
+	require.NoError(t, ds.SetPatchNotificationAppsUpdatedInInventory(ctx, notificationUUID, []uint{titleID}))
+	apps, err = ds.ListPatchNotificationApps(ctx, notificationUUID)
+	require.NoError(t, err)
+	require.Len(t, apps, 1)
+	require.True(t, apps[0].UpdatedInInventory)
 
 	// deleting the policy sets patch_notification_apps.policy_id to null, and the app stays listed
 	_, err = ds.DeleteTeamPolicies(ctx, team.ID, []uint{policy.ID})
@@ -369,11 +426,28 @@ func testPatchNotificationInstallAt(t *testing.T, ds *Datastore) {
 	host := test.NewHost(t, ds, "install-at-host", "", "install-at-key", "install-at-uuid", time.Now())
 	notificationUUID := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationDispatched, 1)
 
+	// a notification nobody has seen has no deadline, which is what makes its next toast the 1 hour one
+	read, err := ds.GetPatchNotification(ctx, notificationUUID)
+	require.NoError(t, err)
+	require.NotNil(t, read)
+	require.Nil(t, read.InstallAt)
+
 	// the first displayed_at sets install_at
 	deadline := time.Now().UTC().Add(time.Hour).Truncate(time.Second)
 	stored, err := ds.SetPatchNotificationInstallAt(ctx, notificationUUID, deadline)
 	require.NoError(t, err)
 	require.WithinDuration(t, deadline, stored, time.Second)
+
+	read, err = ds.GetPatchNotification(ctx, notificationUUID)
+	require.NoError(t, err)
+	require.NotNil(t, read)
+	require.NotNil(t, read.InstallAt)
+	require.WithinDuration(t, deadline, *read.InstallAt, time.Second)
+
+	// a uuid with no patch_notifications row reads as nothing rather than an error
+	read, err = ds.GetPatchNotification(ctx, "no-such-notification")
+	require.NoError(t, err)
+	require.Nil(t, read)
 
 	// an earlier install_at is ignored, so a duplicate script result or a retry cannot shorten the
 	// lead time
@@ -430,6 +504,12 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 
 	host := test.NewHost(t, ds, "due-host", "", "due-key", "due-uuid", now)
 
+	// a host last seen an hour ago is past its check-in window, so the batch reports it offline
+	awayHost := test.NewHost(t, ds, "away-host", "", "away-key", "away-uuid", now.Add(-time.Hour))
+	hostAway := newPatchNotification(t, ds, awayHost.ID, notifications_api.EndUserNotificationDispatched, 1)
+	setInstallAt(hostAway, now.Add(-time.Minute))
+	markDisplayed(hostAway)
+
 	// A deadline 6 minutes out is outside the reminder window, one exactly 5 minutes out sits on its
 	// edge and is included, and one already past is due to install.
 	tooEarly := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationDispatched, 1)
@@ -457,7 +537,7 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 		terminal = append(terminal, notificationUUID)
 	}
 
-	// a re-dispatched reminder has a null displayed_at until it is displayed, so it stays out of the
+	// a delayed reminder has a null displayed_at until it is displayed, so it stays out of the
 	// batch either side of install_at
 	notDisplayed := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationPending, 1)
 	setInstallAt(notDisplayed, now.Add(-time.Minute))
@@ -483,6 +563,16 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 	}))
 	require.NoError(t, ds.SetPatchNotificationAppsQueued(ctx, actedHandled, []uint{handledTitleID}))
 
+	// add an acted notification whose only unqueued app the inventory showed as updated, the notification should not be listed
+	actedUpdatedInInventory := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationActed, 1)
+	setInstallAt(actedUpdatedInInventory, now.Add(-time.Minute))
+	markDisplayed(actedUpdatedInInventory)
+	updatedInInventoryTitleID := newTestSoftwareTitle(t, ds, "Updated In Inventory App")
+	require.NoError(t, ds.AddPatchNotificationApp(ctx, actedUpdatedInInventory, fleet.PatchNotificationApp{
+		SoftwareTitleID: updatedInInventoryTitleID,
+	}))
+	require.NoError(t, ds.SetPatchNotificationAppsUpdatedInInventory(ctx, actedUpdatedInInventory, []uint{updatedInInventoryTitleID}))
+
 	due, err := ds.ListPatchNotificationsDue(ctx, now.Add(5*time.Minute), 500)
 	require.NoError(t, err)
 
@@ -490,12 +580,13 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 	for _, notification := range due {
 		byUUID[notification.NotificationUUID] = notification
 	}
-	require.Len(t, byUUID, 3)
+	require.Len(t, byUUID, 4)
 	require.NotContains(t, byUUID, tooEarly)
 	require.NotContains(t, byUUID, noDeadline)
 	require.NotContains(t, byUUID, reminderQueued)
 	require.NotContains(t, byUUID, notDisplayed)
 	require.NotContains(t, byUUID, actedHandled)
+	require.NotContains(t, byUUID, actedUpdatedInInventory)
 	require.Contains(t, byUUID, actedUnhandled)
 	for _, notificationUUID := range terminal {
 		require.NotContains(t, byUUID, notificationUUID)
@@ -508,9 +599,13 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 
 	require.Contains(t, byUUID, pastDeadline)
 	require.NotNil(t, byUUID[pastDeadline].DisplayedAt)
+	require.True(t, byUUID[pastDeadline].HostOnline, "a host seen just now is inside its check-in window")
+
+	require.Contains(t, byUUID, hostAway)
+	require.False(t, byUUID[hostAway].HostOnline)
 
 	// the batch is ordered by deadline, so the oldest deadline is handled first
-	require.Len(t, due, 3)
+	require.Len(t, due, 4)
 	require.True(t, due[0].InstallAt.Before(due[len(due)-1].InstallAt))
 
 	// the limit caps the batch
@@ -629,4 +724,185 @@ func testPatchNotificationAppInstallStatuses(t *testing.T, ds *Datastore) {
 	statuses, err = ds.ListPatchNotificationAppInstallStatuses(ctx, notificationUUID)
 	require.NoError(t, err)
 	require.Equal(t, map[uint]fleet.SoftwareInstallerStatus{titleID: "canceled_install"}, statuses)
+
+	// add an install carrying the app open query that ran with the app closed, the app should report installed
+	installedWithAppOpenQueryAt := appJoinedAt.Add(5 * time.Minute)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_software_installs
+				(execution_id, host_id, software_installer_id, pre_install_query_output, install_script_exit_code,
+				override_pre_install_query, created_at, updated_at)
+			VALUES (?, ?, ?, '1', 0, 1, ?, ?)`,
+			uuid.NewString(), host.ID, secondInstallerID, installedWithAppOpenQueryAt, installedWithAppOpenQueryAt)
+		return err
+	})
+	statuses, err = ds.ListPatchNotificationAppInstallStatuses(ctx, notificationUUID)
+	require.NoError(t, err)
+	require.Equal(t, map[uint]fleet.SoftwareInstallerStatus{titleID: fleet.SoftwareInstalled}, statuses)
+}
+
+func testPatchNotificationHostPatchDeadlineAt(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "deadline-host", "", "deadline-key", "deadline-uuid", time.Now())
+	otherHost := test.NewHost(t, ds, "deadline-other-host", "", "deadline-other-key", "deadline-other-uuid", time.Now())
+	policyID := newPatchDeadlinePolicy(t, ds, "deadline-at-policy", true)
+
+	newRow := func(hostID uint, kind, status string, nextAttemptAt time.Time) string {
+		notificationUUID := uuid.NewString()
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx, `
+				INSERT INTO notifications_end_user (uuid, host_id, status, kind, payload, next_attempt_at, expires_at)
+				VALUES (?, ?, ?, ?, '{}', ?, NOW(6) + INTERVAL 7 DAY)`,
+				notificationUUID, hostID, status, kind, nextAttemptAt); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx, `INSERT INTO patch_notifications (notification_uuid) VALUES (?)`, notificationUUID)
+			return err
+		})
+		require.NoError(t, ds.AddPatchNotificationApp(ctx, notificationUUID, fleet.PatchNotificationApp{
+			PolicyID: &policyID, SoftwareTitleID: newTestSoftwareTitle(t, ds, notificationUUID),
+		}))
+		return notificationUUID
+	}
+
+	at, err := ds.GetHostPatchDeadlineAt(ctx, host.ID)
+	require.NoError(t, err)
+	require.Nil(t, at)
+
+	// rows that don't count: a notify patch row, rows that are no longer open, and another host's row
+	soon := time.Now().UTC().Add(time.Hour).Truncate(time.Second)
+	newRow(host.ID, fleet.PatchNotificationKind, notifications_api.EndUserNotificationPending, soon)
+	for _, status := range []string{
+		notifications_api.EndUserNotificationActed,
+		notifications_api.EndUserNotificationFailed,
+		notifications_api.EndUserNotificationExpired,
+	} {
+		newRow(host.ID, fleet.PatchDeadlineNotificationKind, status, soon)
+	}
+	newRow(otherHost.ID, fleet.PatchDeadlineNotificationKind, notifications_api.EndUserNotificationPending, soon)
+	at, err = ds.GetHostPatchDeadlineAt(ctx, host.ID)
+	require.NoError(t, err)
+	require.Nil(t, at)
+
+	// a pending row's deadline is 1 hour after its first attempt
+	later := soon.Add(48 * time.Hour)
+	laterUUID := newRow(host.ID, fleet.PatchDeadlineNotificationKind, notifications_api.EndUserNotificationPending, later)
+	at, err = ds.GetHostPatchDeadlineAt(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, at)
+	require.WithinDuration(t, later.Add(time.Hour), *at, time.Second)
+
+	// the earliest of two open rows wins
+	earlierUUID := newRow(host.ID, fleet.PatchDeadlineNotificationKind, notifications_api.EndUserNotificationDispatched, soon)
+	at, err = ds.GetHostPatchDeadlineAt(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, at)
+	require.WithinDuration(t, soon.Add(time.Hour), *at, time.Second)
+
+	// install_at takes over once the toast has displayed, even when it is later than the other row
+	installAt := later.Add(24 * time.Hour)
+	_, err = ds.SetPatchNotificationInstallAt(ctx, earlierUUID, installAt)
+	require.NoError(t, err)
+	at, err = ds.GetHostPatchDeadlineAt(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, at)
+	require.WithinDuration(t, later.Add(time.Hour), *at, time.Second)
+
+	_, err = ds.SetPatchNotificationInstallAt(ctx, laterUUID, installAt.Add(time.Hour))
+	require.NoError(t, err)
+	at, err = ds.GetHostPatchDeadlineAt(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, at)
+	require.WithinDuration(t, installAt, *at, time.Second)
+
+	// a row with no app left to patch has no deadline
+	earlierApps, err := ds.ListPatchNotificationApps(ctx, earlierUUID)
+	require.NoError(t, err)
+	require.Len(t, earlierApps, 1)
+	require.NoError(t, ds.DeletePatchNotificationApps(ctx, earlierUUID, []uint{earlierApps[0].SoftwareTitleID}))
+	at, err = ds.GetHostPatchDeadlineAt(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, at)
+	require.WithinDuration(t, installAt.Add(time.Hour), *at, time.Second)
+
+	// nor does one whose app's policy turned Deadline off
+	setPolicyPatchDeadline(t, ds, policyID, false)
+	at, err = ds.GetHostPatchDeadlineAt(ctx, host.ID)
+	require.NoError(t, err)
+	require.Nil(t, at)
+}
+
+func testPatchNotificationPolicyOptionChanged(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "option-host", "", "option-key", "option-uuid", time.Now())
+
+	// A notification only patches an app while the app's policy still uses its patch option. A deleted
+	// policy leaves policy_id null, which a notify notification keeps patching and a deadline one doesn't.
+	cases := []struct {
+		name        string
+		kind        string
+		deadline    bool
+		change      func(policyID uint)
+		wantChanged bool
+	}{
+		{"deadline unchanged", fleet.PatchDeadlineNotificationKind, true, nil, false},
+		{"deadline turned off", fleet.PatchDeadlineNotificationKind, true, func(id uint) { setPolicyPatchDeadline(t, ds, id, false) }, true},
+		{"deadline policy deleted", fleet.PatchDeadlineNotificationKind, true, func(id uint) {
+			_, err := ds.DeleteGlobalPolicies(ctx, []uint{id})
+			require.NoError(t, err)
+		}, true},
+		{"notify unchanged", fleet.PatchNotificationKind, false, nil, false},
+		{"notify turned to deadline", fleet.PatchNotificationKind, false, func(id uint) { setPolicyPatchDeadline(t, ds, id, true) }, true},
+		{"notify turned to patch when closed", fleet.PatchNotificationKind, false, func(id uint) {
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `UPDATE policies SET notify_before_patching = 0, patch_when_closed = 1 WHERE id = ?`, id)
+				return err
+			})
+		}, true},
+		{"notify policy deleted", fleet.PatchNotificationKind, false, func(id uint) {
+			_, err := ds.DeleteGlobalPolicies(ctx, []uint{id})
+			require.NoError(t, err)
+		}, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			titleID := newTestSoftwareTitle(t, ds, c.name)
+			policyID := newPatchDeadlinePolicy(t, ds, c.name, c.deadline)
+			notificationUUID := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationPending, 0)
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `UPDATE notifications_end_user SET kind = ? WHERE uuid = ?`, c.kind, notificationUUID)
+				return err
+			})
+			require.NoError(t, ds.AddPatchNotificationApp(ctx, notificationUUID,
+				fleet.PatchNotificationApp{PolicyID: &policyID, SoftwareTitleID: titleID}))
+			if c.change != nil {
+				c.change(policyID)
+			}
+
+			apps, err := ds.ListPatchNotificationApps(ctx, notificationUUID)
+			require.NoError(t, err)
+			require.Len(t, apps, 1)
+			require.Equal(t, c.wantChanged, apps[0].PolicyOptionChanged)
+
+			byNotification, err := ds.ListPatchNotificationAppsForNotifications(ctx, []string{notificationUUID})
+			require.NoError(t, err)
+			require.Len(t, byNotification[notificationUUID], 1)
+			require.Equal(t, c.wantChanged, byNotification[notificationUUID][0].PolicyOptionChanged)
+
+			// a skip for the app starts a notification of its policy's new kind rather than stopping at this one
+			exists, err := ds.PatchNotificationExistsForApp(ctx, host.ID, titleID)
+			require.NoError(t, err)
+			require.Equal(t, !c.wantChanged, exists)
+
+			// once displayed, it holds back the policy automation install only while it still patches the app
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `UPDATE notifications_end_user SET status = ?, displayed_at = NOW(6) WHERE uuid = ?`,
+					notifications_api.EndUserNotificationDispatched, notificationUUID)
+				return err
+			})
+			exists, err = ds.DisplayedPatchNotificationExistsForApp(ctx, host.ID, titleID)
+			require.NoError(t, err)
+			require.Equal(t, !c.wantChanged, exists)
+		})
+	}
 }

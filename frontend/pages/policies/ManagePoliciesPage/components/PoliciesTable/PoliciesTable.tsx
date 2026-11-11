@@ -143,6 +143,7 @@ const PoliciesTable = ({
   const renderPlatformDropdown = useCallback(() => {
     return (
       <DropdownWrapper
+        ariaLabel="Filter by platform"
         name="platform-dropdown"
         value={platform}
         className={`${baseClass}__platform-dropdown`}
@@ -206,7 +207,7 @@ const PoliciesTable = ({
   const pageHasSelectableRows =
     !viewingTeamPolicies ||
     isPrimoMode ||
-    policiesList.some((p) => p.team_id !== null);
+    policiesList.some((p) => p.fleet_id !== null);
 
   const hasPermissionAndPoliciesToDelete =
     canAddOrDeletePolicies && hasPoliciesToDelete && pageHasSelectableRows;

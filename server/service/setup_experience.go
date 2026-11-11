@@ -20,7 +20,7 @@ import (
 
 type putSetupExperienceSoftwareRequest struct {
 	Platform string `json:"platform"`
-	TeamID   uint   `json:"team_id" renameto:"fleet_id"`
+	TeamID   uint   `json:"fleet_id"`
 	TitleIDs []uint `json:"software_title_ids"`
 }
 
@@ -56,7 +56,7 @@ type getSetupExperienceSoftwareRequest struct {
 	// Platforms can be a comma separated list
 	Platforms string `query:"platform,optional"`
 	fleet.ListOptions
-	TeamID uint `query:"team_id" renameto:"fleet_id"`
+	TeamID uint `query:"fleet_id"`
 }
 
 func (r *getSetupExperienceSoftwareRequest) ValidateRequest() error {
@@ -91,7 +91,7 @@ func (svc *Service) ListSetupExperienceSoftware(ctx context.Context, platform st
 }
 
 type getSetupExperienceScriptRequest struct {
-	TeamID *uint  `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint  `query:"fleet_id,optional"`
 	Alt    string `query:"alt,optional"`
 }
 
@@ -197,7 +197,7 @@ func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, 
 }
 
 type deleteSetupExperienceScriptRequest struct {
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"fleet_id,optional"`
 }
 
 type deleteSetupExperienceScriptResponse struct {
@@ -366,11 +366,20 @@ func maybeCancelPendingSetupExperienceSteps(ctx context.Context, ds fleet.Datast
 	if newActivityFn != nil {
 		for _, s := range statuses {
 			if s.Status == fleet.SetupExperienceStatusFailure && s.IsForSoftware() {
+				var softwareDisplayName *string
+				if s.SoftwareTitleID != nil {
+					// Best-effort lookup: if the display-name query fails, emit the
+					// activity with the raw title. The activity still records
+					// correctly; the FE falls back to `software_title`.
+					dn, _ := ds.GetSoftwareTitleDisplayName(ctx, host.TeamID, *s.SoftwareTitleID)
+					softwareDisplayName = dn
+				}
 				if err := newActivityFn(ctx, nil, fleet.ActivityTypeCanceledSetupExperience{
-					HostID:          host.ID,
-					HostDisplayName: host.DisplayName(),
-					SoftwareTitle:   s.Name,
-					SoftwareTitleID: ptr.ValOrZero(s.SoftwareTitleID),
+					HostID:              host.ID,
+					HostDisplayName:     host.DisplayName(),
+					SoftwareTitle:       s.Name,
+					SoftwareDisplayName: ptr.ValOrZero(softwareDisplayName),
+					SoftwareTitleID:     ptr.ValOrZero(s.SoftwareTitleID),
 				}); err != nil {
 					return ctxerr.Wrap(ctx, err, "creating canceled setup experience activity")
 				}

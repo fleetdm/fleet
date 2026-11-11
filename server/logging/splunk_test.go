@@ -19,10 +19,6 @@ func TestSplunkWrite(t *testing.T) {
 
 	var receivedBody []byte
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == splunkHealthPath {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
 		assert.Equal(t, splunkHECPath, r.URL.Path)
 		assert.Equal(t, "Splunk test-token", r.Header.Get("Authorization"))
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
@@ -34,10 +30,9 @@ func TestSplunkWrite(t *testing.T) {
 	}))
 	defer server.Close()
 
-	writer, err := NewSplunkLogWriter(server.URL, "test-token", "main", "fleet", "fleet:json", false, slog.Default())
-	require.NoError(t, err)
+	writer := NewSplunkLogWriter(server.URL, "test-token", "main", "fleet", "fleet:json", false, slog.Default())
 
-	err = writer.Write(ctx, logs)
+	err := writer.Write(ctx, logs)
 	require.NoError(t, err)
 	require.NotEmpty(t, receivedBody)
 
@@ -65,18 +60,13 @@ func TestSplunkWriteEmpty(t *testing.T) {
 	ctx := t.Context()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == splunkHealthPath {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
 		t.Fatal("should not send request for empty logs")
 	}))
 	defer server.Close()
 
-	writer, err := NewSplunkLogWriter(server.URL, "test-token", "", "", "", false, slog.Default())
-	require.NoError(t, err)
+	writer := NewSplunkLogWriter(server.URL, "test-token", "", "", "", false, slog.Default())
 
-	err = writer.Write(ctx, []json.RawMessage{})
+	err := writer.Write(ctx, []json.RawMessage{})
 	require.NoError(t, err)
 }
 
@@ -84,31 +74,15 @@ func TestSplunkServerError(t *testing.T) {
 	ctx := t.Context()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == splunkHealthPath {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
 		http.Error(w, `{"text":"Invalid token","code":4}`, http.StatusForbidden)
 	}))
 	defer server.Close()
 
-	writer, err := NewSplunkLogWriter(server.URL, "test-token", "", "", "", false, slog.Default())
-	require.NoError(t, err)
+	writer := NewSplunkLogWriter(server.URL, "test-token", "", "", "", false, slog.Default())
 
-	err = writer.Write(ctx, logs)
+	err := writer.Write(ctx, logs)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "403")
-}
-
-func TestSplunkHealthCheckFailure(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
-	}))
-	defer server.Close()
-
-	_, err := NewSplunkLogWriter(server.URL, "test-token", "", "", "", false, slog.Default())
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "health check")
 }
 
 func TestSplunkRecordTooBig(t *testing.T) {
@@ -116,10 +90,6 @@ func TestSplunkRecordTooBig(t *testing.T) {
 
 	var receivedBody []byte
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == splunkHealthPath {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
 		var err error
 		receivedBody, err = io.ReadAll(r.Body)
 		assert.NoError(t, err)
@@ -127,8 +97,7 @@ func TestSplunkRecordTooBig(t *testing.T) {
 	}))
 	defer server.Close()
 
-	writer, err := NewSplunkLogWriter(server.URL, "test-token", "", "", "", false, slog.Default())
-	require.NoError(t, err)
+	writer := NewSplunkLogWriter(server.URL, "test-token", "", "", "", false, slog.Default())
 
 	// Create one normal log and one oversized log (>1MB)
 	normalLog := json.RawMessage(`{"normal":"event"}`)
@@ -138,7 +107,7 @@ func TestSplunkRecordTooBig(t *testing.T) {
 	}
 	oversizedLog := json.RawMessage(`{"big":"` + string(bigPayload) + `"}`)
 
-	err = writer.Write(ctx, []json.RawMessage{normalLog, oversizedLog})
+	err := writer.Write(ctx, []json.RawMessage{normalLog, oversizedLog})
 	require.NoError(t, err)
 
 	// Only the normal event should have been sent; the oversized one should be dropped
@@ -158,17 +127,12 @@ func TestSplunkSplitBatchBySize(t *testing.T) {
 
 	var batchCount int
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == splunkHealthPath {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
 		batchCount++
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
 
-	writer, err := NewSplunkLogWriter(server.URL, "test-token", "", "", "", false, slog.Default())
-	require.NoError(t, err)
+	writer := NewSplunkLogWriter(server.URL, "test-token", "", "", "", false, slog.Default())
 
 	// Create logs that together exceed splunkMaxBatchSize (1MB).
 	// Each log wraps to ~10KB after HEC envelope, so ~120 logs should exceed 1MB.
@@ -181,7 +145,7 @@ func TestSplunkSplitBatchBySize(t *testing.T) {
 		largeLogs = append(largeLogs, json.RawMessage(`{"data":"`+string(payload)+`"}`))
 	}
 
-	err = writer.Write(ctx, largeLogs)
+	err := writer.Write(ctx, largeLogs)
 	require.NoError(t, err)
 	assert.Greater(t, batchCount, 1, "should split into multiple batches")
 }
@@ -194,10 +158,6 @@ func TestSplunkRetryOnServiceUnavailable(t *testing.T) {
 
 	callCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == splunkHealthPath {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
 		callCount++
 		if callCount <= 2 {
 			w.WriteHeader(http.StatusServiceUnavailable)
@@ -207,10 +167,9 @@ func TestSplunkRetryOnServiceUnavailable(t *testing.T) {
 	}))
 	defer server.Close()
 
-	writer, err := NewSplunkLogWriter(server.URL, "test-token", "", "", "", false, slog.Default())
-	require.NoError(t, err)
+	writer := NewSplunkLogWriter(server.URL, "test-token", "", "", "", false, slog.Default())
 
-	err = writer.Write(ctx, logs)
+	err := writer.Write(ctx, logs)
 	require.NoError(t, err)
 	assert.Equal(t, 3, callCount, "should retry twice then succeed on third attempt")
 }
@@ -223,19 +182,14 @@ func TestSplunkRetryExhausted(t *testing.T) {
 
 	callCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == splunkHealthPath {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
 		callCount++
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}))
 	defer server.Close()
 
-	writer, err := NewSplunkLogWriter(server.URL, "test-token", "", "", "", false, slog.Default())
-	require.NoError(t, err)
+	writer := NewSplunkLogWriter(server.URL, "test-token", "", "", "", false, slog.Default())
 
-	err = writer.Write(ctx, logs)
+	err := writer.Write(ctx, logs)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "503")
 	// 1 initial attempt + 8 retries = 9 total
@@ -250,10 +204,6 @@ func TestSplunkRetryBodyIntegrity(t *testing.T) {
 
 	var bodies [][]byte
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == splunkHealthPath {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
 		b, _ := io.ReadAll(r.Body)
 		bodies = append(bodies, b)
 		if len(bodies) <= 2 {
@@ -264,10 +214,9 @@ func TestSplunkRetryBodyIntegrity(t *testing.T) {
 	}))
 	defer server.Close()
 
-	writer, err := NewSplunkLogWriter(server.URL, "test-token", "", "", "", false, slog.Default())
-	require.NoError(t, err)
+	writer := NewSplunkLogWriter(server.URL, "test-token", "", "", "", false, slog.Default())
 
-	err = writer.Write(ctx, logs)
+	err := writer.Write(ctx, logs)
 	require.NoError(t, err)
 	require.Len(t, bodies, 3)
 	// Every retry must send the exact same payload
@@ -284,17 +233,12 @@ func TestSplunkRetryNoNestedRetries(t *testing.T) {
 
 	callCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == splunkHealthPath {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
 		callCount++
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}))
 	defer server.Close()
 
-	writer, err := NewSplunkLogWriter(server.URL, "test-token", "", "", "", false, slog.Default())
-	require.NoError(t, err)
+	writer := NewSplunkLogWriter(server.URL, "test-token", "", "", "", false, slog.Default())
 
 	_ = writer.Write(ctx, logs)
 	// Must be exactly splunkMaxRetries+1, not exponentially more.

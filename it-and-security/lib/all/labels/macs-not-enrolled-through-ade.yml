@@ -1,0 +1,5 @@
+- name: Macs not enrolled through ADE
+  description: macOS hosts enrolled to MDM without Automated Device Enrollment. macOS doesn't supervise these hosts.
+  query: SELECT 1 FROM mdm WHERE enrolled = 'true' AND installed_from_dep = 'false';
+  label_membership_type: dynamic
+  platform: darwin

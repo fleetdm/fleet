@@ -104,7 +104,7 @@ func seedVulnPerfData(tb testing.TB, ds *Datastore, sz benchSize) {
 		}
 	}()
 
-	r := rand.New(rand.NewPCG(1, 2)) // nolint:gosec,G404 // benchmark seed, not security-sensitive
+	r := rand.New(rand.NewPCG(1, 2)) //nolint:gosec // G404: benchmark seed, not security-sensitive
 	start := time.Now()
 
 	// software_titles — one per software for simplicity
@@ -317,7 +317,7 @@ func BenchmarkListVulnerabilities(b *testing.B) {
 			},
 		},
 		{
-			name: "created_at_page0_legacy",
+			name: "created_at_page0",
 			opt: fleet.VulnListOptions{
 				IsEE: true,
 				ListOptions: fleet.ListOptions{

@@ -33,6 +33,11 @@ func TestScripts(t *testing.T) {
 		{"ListScripts", testListScripts},
 		{"GetHostScriptDetails", testGetHostScriptDetails},
 		{"BatchSetScripts", testBatchSetScripts},
+		{"BatchSetScriptsDoesNotLockOtherPolicies", testBatchSetScriptsDoesNotLockOtherPolicies},
+		{"BatchSetScriptsUnsetsScriptAddedMidApply", testBatchSetScriptsUnsetsScriptAddedMidApply},
+		{"BatchSetScriptsLocksUnsetPolicyAtEnd", testBatchSetScriptsLocksUnsetPolicyAtEnd},
+		{"BatchSetScriptsUnchangedDoesNotBlockScriptRuns", testBatchSetScriptsUnchangedDoesNotBlockScriptRuns},
+		{"BatchSetScriptsCancelsRunQueuedMidApply", testBatchSetScriptsCancelsRunQueuedMidApply},
 		{"TestLockHostViaScript", testLockHostViaScript},
 		{"TestUnlockHostViaScript", testUnlockHostViaScript},
 		{"TestLockUnlockWipeViaScripts", testLockUnlockWipeViaScripts},
@@ -47,17 +52,19 @@ func TestScripts(t *testing.T) {
 		{"UpdateSharedScriptContent", testUpdateSharedScriptContent},
 		{"UpdateScriptToSameContent", testUpdateScriptToSameContent},
 		{"UpdateDeletingUpcomingScriptExecutions", testUpdateDeletingUpcomingScriptExecutions},
-		{"BatchExecute", testBatchExecute},
 		{"BatchExecuteWithStatus", testBatchExecuteWithStatus},
 		{"BatchScriptSchedule", testBatchScriptSchedule},
 		{"BatchScriptScheduleTeamTransfer", testBatchScriptScheduleTeamTransfer},
 		{"BatchScriptCancel", testBatchScriptCancel},
+		{"NewBatchScriptExecution", testNewBatchScriptExecution},
 		{"TestMarkActivitiesAsCompleted", testMarkActivitiesAsCompleted},
 		{"DeleteScriptActivatesNextActivity", testDeleteScriptActivatesNextActivity},
 		{"BatchSetScriptActivatesNextActivity", testBatchSetScriptActivatesNextActivity},
 		{"CountHostScriptAttempts", testCountHostScriptAttempts},
 		{"ScriptModificationResetsAttemptNumber", testScriptModificationResetsAttemptNumber},
 		{"NewInternalHostScriptExecutionRequest", testNewInternalHostScriptExecutionRequest},
+		{"CleanupHostScriptResults", testCleanupHostScriptResults},
+		{"CleanupHostScriptResultsQueryPlan", testCleanupHostScriptResultsQueryPlan},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -146,7 +153,11 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	// the script result can be retrieved
 	script, err := ds.GetHostScriptExecutionResult(ctx, createdScript1.ExecutionID)
 	require.NoError(t, err)
+	var scriptContentID uint
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &scriptContentID, `SELECT id FROM script_contents WHERE contents = ?`, "echo"))
+	require.Equal(t, scriptContentID, script.ScriptContentID)
 	expectScript := *createdScript1
+	expectScript.ScriptContentID = scriptContentID
 	expectScript.Output = "foo"
 	expectScript.Runtime = 2
 	expectScript.ExitCode = ptr.Int64(0)
@@ -173,10 +184,24 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	require.Len(t, pending, 1)
 	require.Equal(t, createdScript2.ID, pending[0].ID)
 
+	// Keep this request queued to exercise upcoming result retrieval.
+	queuedScript, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         1,
+		ScriptContents: "echo3",
+	})
+	require.NoError(t, err)
+	script, err = ds.GetHostScriptExecutionResult(ctx, queuedScript.ExecutionID)
+	require.NoError(t, err)
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &scriptContentID, `SELECT id FROM script_contents WHERE contents = ?`, "echo3"))
+	require.Equal(t, scriptContentID, script.ScriptContentID)
+
 	// the script result can be retrieved even if it has no result yet
 	script, err = ds.GetHostScriptExecutionResult(ctx, createdScript2.ExecutionID)
 	require.NoError(t, err)
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &scriptContentID, `SELECT id FROM script_contents WHERE contents = ?`, "echo2"))
+	require.Equal(t, scriptContentID, script.ScriptContentID)
 	expectedScript := *createdScript2
+	expectedScript.ScriptContentID = scriptContentID
 	expectedScript.CreatedAt, script.CreatedAt = time.Time{}, time.Time{}
 	require.Equal(t, &expectedScript, script)
 
@@ -218,6 +243,8 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	script, err = ds.GetHostScriptExecutionResult(ctx, createdScript2.ExecutionID)
 	require.NoError(t, err)
 	require.Equal(t, expectedOutput, script.Output)
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{HostID: 1, ExecutionID: queuedScript.ExecutionID}, nil)
+	require.NoError(t, err)
 
 	// create an async execution request
 	time.Sleep(time.Millisecond) // ensure a different timestamp
@@ -825,6 +852,299 @@ func testGetHostScriptDetails(t *testing.T, ds *Datastore) {
 		_, _, err := ds.GetHostScriptDetails(ctx, 42, nil, fleet.ListOptions{OrderKey: "h.node_key"}, "darwin")
 		require.Error(t, err)
 	})
+}
+
+func testBatchSetScriptsDoesNotLockOtherPolicies(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	scripts := make([]*fleet.Script, 0, 12)
+	for i := range 12 {
+		scripts = append(scripts, &fleet.Script{Name: fmt.Sprintf("s%d.sh", i), ScriptContents: fmt.Sprintf("echo %d", i)})
+	}
+	set, err := ds.BatchSetScripts(ctx, &tm.ID, scripts)
+	require.NoError(t, err)
+	scriptIDs := make(map[string]uint)
+	for _, s := range set {
+		scriptIDs[s.Name] = s.ID
+	}
+
+	kept, err := ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{Name: t.Name() + " kept", Query: "SELECT 1", ScriptID: new(scriptIDs["s0.sh"])})
+	require.NoError(t, err)
+	removed, err := ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{Name: t.Name() + " removed", Query: "SELECT 1", ScriptID: new(scriptIDs["s11.sh"])})
+	require.NoError(t, err)
+	global, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: t.Name() + " global", Query: "SELECT 1"})
+	require.NoError(t, err)
+	noScript, err := ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{Name: t.Name() + " no script", Query: "SELECT 1"})
+	require.NoError(t, err)
+
+	// Hold the lock a host's policy_membership write takes on its policy.
+	hostTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	defer func() { _ = hostTx.Rollback() }()
+	for _, id := range []uint{global.ID, noScript.ID} {
+		_, err = hostTx.ExecContext(ctx, `SELECT id FROM policies WHERE id = ? FOR SHARE`, id)
+		require.NoError(t, err)
+	}
+
+	apply := func(batch []*fleet.Script) {
+		applyCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		_, err := ds.BatchSetScripts(applyCtx, &tm.ID, batch)
+		require.NoError(t, err)
+	}
+	apply(scripts)
+	apply(scripts[:1])
+
+	kept, err = ds.Policy(ctx, kept.ID)
+	require.NoError(t, err)
+	require.Equal(t, scriptIDs["s0.sh"], *kept.ScriptID)
+	removed, err = ds.Policy(ctx, removed.ID)
+	require.NoError(t, err)
+	require.Nil(t, removed.ScriptID)
+
+	// GitOps sends an empty list on every run for a fleet with no scripts.
+	apply(nil)
+	apply(nil)
+	apply(scripts)
+	require.NoError(t, hostTx.Rollback())
+}
+
+func testBatchSetScriptsLocksUnsetPolicyAtEnd(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	kept := []*fleet.Script{{Name: "a.sh", ScriptContents: "echo a"}, {Name: "b.sh", ScriptContents: "echo b"}}
+	set, err := ds.BatchSetScripts(ctx, &tm.ID, append(kept, &fleet.Script{Name: "gone.sh", ScriptContents: "echo gone"}))
+	require.NoError(t, err)
+	var goneID uint
+	for _, s := range set {
+		if s.Name == "gone.sh" {
+			goneID = s.ID
+		}
+	}
+	policy, err := ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{Name: t.Name(), Query: "SELECT 1", ScriptID: &goneID})
+	require.NoError(t, err)
+
+	// Park the apply inside its per-script loop by holding the script contents row an edited script
+	// upserts. Unchanged scripts are skipped, so the edit is what puts it in the loop.
+	blockTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	defer func() { _ = blockTx.Rollback() }()
+	_, err = blockTx.ExecContext(ctx, `SELECT id FROM script_contents WHERE md5_checksum = UNHEX(?) FOR UPDATE`, md5ChecksumScriptContent("echo a2"))
+	require.NoError(t, err)
+
+	applyErr := make(chan error, 1)
+	go func() {
+		_, err := ds.BatchSetScripts(ctx, &tm.ID, []*fleet.Script{{Name: "a.sh", ScriptContents: "echo a2"}, kept[1]})
+		applyErr <- err
+	}()
+	// innodb_trx only refreshes when it hasn't been read for 100ms, so poll slower than that.
+	require.Eventually(t, func() bool {
+		var waiting int
+		err := sqlx.GetContext(ctx, ds.writer(ctx), &waiting, `SELECT COUNT(*) FROM information_schema.innodb_trx WHERE trx_state = 'LOCK WAIT'`)
+		return err == nil && waiting > 0
+	}, 5*time.Second, 250*time.Millisecond)
+
+	// A host writing that policy's result isn't blocked while the apply is still working.
+	probeCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	probeTx, err := ds.writer(ctx).BeginTxx(probeCtx, nil)
+	require.NoError(t, err)
+	_, err = probeTx.ExecContext(probeCtx, `SELECT id FROM policies WHERE id = ? FOR SHARE`, policy.ID)
+	require.NoError(t, err)
+	require.NoError(t, probeTx.Rollback())
+
+	require.NoError(t, blockTx.Rollback())
+	require.NoError(t, <-applyErr)
+	policy, err = ds.Policy(ctx, policy.ID)
+	require.NoError(t, err)
+	require.Nil(t, policy.ScriptID)
+}
+
+func testBatchSetScriptsUnchangedDoesNotBlockScriptRuns(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tmA, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + " A"})
+	require.NoError(t, err)
+	tmB, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + " B"})
+	require.NoError(t, err)
+	scriptsA := make([]*fleet.Script, 0, 12)
+	for i := range 12 {
+		scriptsA = append(scriptsA, &fleet.Script{Name: fmt.Sprintf("a%d.sh", i), ScriptContents: fmt.Sprintf("echo a%d", i)})
+	}
+	setA, err := ds.BatchSetScripts(ctx, &tmA.ID, scriptsA)
+	require.NoError(t, err)
+	setB, err := ds.BatchSetScripts(ctx, &tmB.ID, []*fleet.Script{{Name: "b.sh", ScriptContents: "echo b"}})
+	require.NoError(t, err)
+	require.Len(t, setA, 12)
+	require.Len(t, setB, 1)
+	var scriptA fleet.ScriptResponse
+	for _, s := range setA {
+		if s.Name == "a0.sh" {
+			scriptA = s
+		}
+	}
+	scriptB := setB[0]
+	contentsA, contentsB := "echo a0", "echo b"
+
+	h1 := test.NewHost(t, ds, "h1", "10.0.0.1", "1", "uuid1", time.Now())
+	h2 := test.NewHost(t, ds, "h2", "10.0.0.2", "2", "uuid2", time.Now())
+	enqueue := func(ctx context.Context, tx sqlx.ExtContext, hostID uint, s fleet.ScriptResponse, contents string) error {
+		req := &fleet.HostScriptRequestPayload{HostID: hostID, ScriptID: &s.ID, ScriptContents: contents}
+		if tx == nil {
+			_, err := ds.NewHostScriptExecutionRequest(ctx, req)
+			return err
+		}
+		res, err := insertScriptContents(ctx, tx, contents)
+		if err != nil {
+			return err
+		}
+		id, _ := res.LastInsertId()
+		req.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
+		_, err = ds.newHostScriptExecutionRequest(ctx, tx, req, false)
+		return err
+	}
+	require.NoError(t, enqueue(ctx, nil, h1.ID, scriptA, contentsA))
+
+	// Script runs being queued, not yet committed, in this fleet and another one.
+	enqTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	defer func() { _ = enqTx.Rollback() }()
+	require.NoError(t, enqueue(ctx, enqTx, h2.ID, scriptA, contentsA))
+	require.NoError(t, enqueue(ctx, enqTx, h2.ID, scriptB, contentsB))
+
+	applyCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	_, err = ds.BatchSetScripts(applyCtx, &tmA.ID, scriptsA)
+	require.NoError(t, err)
+	require.NoError(t, enqTx.Rollback())
+
+	// Park an apply that edits one script, then queue runs of an unchanged script and of another
+	// fleet's script. Neither waits on the apply.
+	blockTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	defer func() { _ = blockTx.Rollback() }()
+	edited := append([]*fleet.Script{{Name: scriptsA[11].Name, ScriptContents: "echo edited"}}, scriptsA[:11]...)
+	_, err = blockTx.ExecContext(ctx, `SELECT id FROM script_contents WHERE md5_checksum = UNHEX(?) FOR UPDATE`, md5ChecksumScriptContent("echo edited"))
+	require.NoError(t, err)
+	applyErr := make(chan error, 1)
+	go func() {
+		_, err := ds.BatchSetScripts(ctx, &tmA.ID, edited)
+		applyErr <- err
+	}()
+	// innodb_trx only refreshes when it hasn't been read for 100ms, so poll slower than that.
+	require.Eventually(t, func() bool {
+		var waiting int
+		err := sqlx.GetContext(ctx, ds.writer(ctx), &waiting, `SELECT COUNT(*) FROM information_schema.innodb_trx WHERE trx_state = 'LOCK WAIT'`)
+		return err == nil && waiting > 0
+	}, 5*time.Second, 250*time.Millisecond)
+	for _, s := range []struct {
+		script   fleet.ScriptResponse
+		contents string
+	}{{scriptA, contentsA}, {scriptB, contentsB}} {
+		enqCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		require.NoError(t, enqueue(enqCtx, nil, h2.ID, s.script, s.contents), s.script.Name)
+		cancel()
+	}
+	require.NoError(t, blockTx.Rollback())
+	require.NoError(t, <-applyErr)
+
+	pending, err := ds.ListPendingHostScriptExecutions(ctx, h1.ID, false)
+	require.NoError(t, err)
+	require.Len(t, pending, 1, "unchanged script keeps its pending run")
+}
+
+func testBatchSetScriptsCancelsRunQueuedMidApply(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	set, err := ds.BatchSetScripts(ctx, &tm.ID, []*fleet.Script{{Name: "kept.sh", ScriptContents: "echo kept"}, {Name: "gone.sh", ScriptContents: "echo gone"}})
+	require.NoError(t, err)
+	var gone fleet.ScriptResponse
+	for _, s := range set {
+		if s.Name == "gone.sh" {
+			gone = s
+		}
+	}
+	host := test.NewHost(t, ds, "h1", "10.0.0.1", "1", "uuid1", time.Now())
+
+	// Park an apply that removes gone.sh inside its per-script loop, after its snapshot is taken.
+	blockTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	defer func() { _ = blockTx.Rollback() }()
+	_, err = blockTx.ExecContext(ctx, `SELECT id FROM script_contents WHERE md5_checksum = UNHEX(?) FOR UPDATE`, md5ChecksumScriptContent("echo kept2"))
+	require.NoError(t, err)
+	applyErr := make(chan error, 1)
+	go func() {
+		_, err := ds.BatchSetScripts(ctx, &tm.ID, []*fleet.Script{{Name: "kept.sh", ScriptContents: "echo kept2"}})
+		applyErr <- err
+	}()
+	// innodb_trx only refreshes when it hasn't been read for 100ms, so poll slower than that.
+	require.Eventually(t, func() bool {
+		var waiting int
+		err := sqlx.GetContext(ctx, ds.writer(ctx), &waiting, `SELECT COUNT(*) FROM information_schema.innodb_trx WHERE trx_state = 'LOCK WAIT'`)
+		return err == nil && waiting > 0
+	}, 5*time.Second, 250*time.Millisecond)
+
+	enqCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	_, err = ds.NewHostScriptExecutionRequest(enqCtx, &fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &gone.ID, ScriptContents: "echo gone"})
+	require.NoError(t, err)
+
+	require.NoError(t, blockTx.Rollback())
+	require.NoError(t, <-applyErr)
+
+	var orphaned int
+	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &orphaned, `SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, host.ID))
+	require.Zero(t, orphaned)
+}
+
+func testBatchSetScriptsUnsetsScriptAddedMidApply(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	kept := []*fleet.Script{{Name: "kept.sh", ScriptContents: "echo kept"}}
+	_, err = ds.BatchSetScripts(ctx, &tm.ID, kept)
+	require.NoError(t, err)
+	policy, err := ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{Name: t.Name(), Query: "SELECT 1"})
+	require.NoError(t, err)
+
+	// Another request adds a script to the fleet and assigns it to the policy, committing after the
+	// apply has started.
+	otherTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	defer func() { _ = otherTx.Rollback() }()
+	res, err := insertScriptContents(ctx, otherTx, "echo late")
+	require.NoError(t, err)
+	contentID, _ := res.LastInsertId()
+	res, err = otherTx.ExecContext(ctx, `INSERT INTO scripts (team_id, global_or_team_id, name, script_content_id) VALUES (?, ?, 'late.sh', ?)`, tm.ID, tm.ID, contentID)
+	require.NoError(t, err)
+	lateID, _ := res.LastInsertId()
+	_, err = otherTx.ExecContext(ctx, `UPDATE policies SET script_id = ? WHERE id = ?`, lateID, policy.ID)
+	require.NoError(t, err)
+
+	applyErr := make(chan error, 1)
+	go func() {
+		_, err := ds.BatchSetScripts(ctx, &tm.ID, kept)
+		applyErr <- err
+	}()
+	// innodb_trx only refreshes when it hasn't been read for 100ms, so poll slower than that.
+	require.Eventually(t, func() bool {
+		var waiting int
+		err := sqlx.GetContext(ctx, ds.writer(ctx), &waiting, `SELECT COUNT(*) FROM information_schema.innodb_trx WHERE trx_state = 'LOCK WAIT'`)
+		return err == nil && waiting > 0
+	}, 5*time.Second, 250*time.Millisecond)
+	require.NoError(t, otherTx.Commit())
+	require.NoError(t, <-applyErr)
+
+	policy, err = ds.Policy(ctx, policy.ID)
+	require.NoError(t, err)
+	require.Nil(t, policy.ScriptID)
 }
 
 func testBatchSetScripts(t *testing.T, ds *Datastore) {
@@ -1851,150 +2171,6 @@ func testUpdateDeletingUpcomingScriptExecutions(t *testing.T, ds *Datastore) {
 	require.Equal(t, script2.ID, *upcoming2[0].ScriptID)
 }
 
-func testBatchExecute(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-
-	user := test.NewUser(t, ds, "user1", "user@example.com", true)
-
-	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
-	require.NoError(t, err)
-
-	hostNoScripts := test.NewHost(t, ds, "hostNoScripts", "10.0.0.1", "hostnoscripts", "hostnoscriptsuuid", time.Now())
-	hostWindows := test.NewHost(t, ds, "hostWin", "10.0.0.2", "hostWinKey", "hostWinUuid", time.Now(), test.WithPlatform("windows"))
-	host1 := test.NewHost(t, ds, "host1", "10.0.0.3", "host1key", "host1uuid", time.Now())
-	host2 := test.NewHost(t, ds, "host2", "10.0.0.4", "host2key", "host2uuid", time.Now())
-	host3 := test.NewHost(t, ds, "host3", "10.0.0.4", "host3key", "host3uuid", time.Now())
-	hostTeam1 := test.NewHost(t, ds, "hostTeam1", "10.0.0.5", "hostTeam1key", "hostTeam1uuid", time.Now(), test.WithTeamID(team1.ID))
-
-	test.SetOrbitEnrollment(t, hostWindows, ds)
-	test.SetOrbitEnrollment(t, host1, ds)
-	test.SetOrbitEnrollment(t, host2, ds)
-	test.SetOrbitEnrollment(t, host3, ds)
-	test.SetOrbitEnrollment(t, hostTeam1, ds)
-
-	script, err := ds.NewScript(ctx, &fleet.Script{
-		Name:           "script1.sh",
-		ScriptContents: "echo hi",
-	})
-	require.NoError(t, err)
-
-	// Hosts all have to be on the same team as the script
-	execID, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostTeam1.ID})
-	require.Empty(t, execID)
-	require.ErrorContains(t, err, "same fleet")
-
-	// Actual good execution
-	execID, err = ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
-	require.NoError(t, err)
-
-	summary, err := ds.BatchExecuteSummary(ctx, execID)
-	require.NoError(t, err)
-	require.Equal(t, script.ID, *summary.ScriptID)
-	require.Equal(t, script.Name, summary.ScriptName)
-	require.Equal(t, uint(0), *summary.TeamID)
-	require.NotNil(t, summary.CreatedAt)
-
-	// The summary should have two pending hosts and two errored ones, because
-	// the script is not compatible with the hostNoScripts and hostWindows.
-	require.Equal(t, *summary.NumPending, uint(3))
-	require.Equal(t, *summary.NumErrored, uint(2))
-	require.Equal(t, *summary.NumRan, uint(0))
-	require.Equal(t, *summary.NumCanceled, uint(0))
-	// Host 1 should have an upcoming execution
-	host1Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host1.ID, false, false)
-	require.NoError(t, err)
-	require.Len(t, host1Upcoming, 1)
-	require.Equal(t, summary.ScriptID, host1Upcoming[0].ScriptID)
-	// Host 2 should have an upcoming execution
-	host2Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host2.ID, false, false)
-	require.NoError(t, err)
-	require.Len(t, host2Upcoming, 1)
-	require.Equal(t, summary.ScriptID, host2Upcoming[0].ScriptID)
-	// Host 3 should have an upcoming execution
-	host3Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host3.ID, false, false)
-	require.NoError(t, err)
-	require.Len(t, host3Upcoming, 1)
-	require.Equal(t, summary.ScriptID, host3Upcoming[0].ScriptID)
-	// Host Windows should not have an upcoming execution
-	hostWindowsUpcoming, err := ds.listUpcomingHostScriptExecutions(ctx, hostWindows.ID, false, false)
-	require.NoError(t, err)
-	require.Len(t, hostWindowsUpcoming, 0)
-	// Host No Scripts should not have an upcoming execution
-	hostNoScriptsUpcoming, err := ds.listUpcomingHostScriptExecutions(ctx, hostNoScripts.ID, false, false)
-	require.NoError(t, err)
-	require.Len(t, hostNoScriptsUpcoming, 0)
-	// Host Windows should have an error in its `batch_activity_host_results` row
-	var exec_error string
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		db := q.(*sqlx.DB)
-		err := db.Get(&exec_error, "SELECT error FROM batch_activity_host_results WHERE host_id = ? AND batch_execution_id = ?", hostWindows.ID, execID)
-		require.NoError(t, err)
-		return nil
-	})
-	require.Equal(t, fleet.BatchExecuteIncompatiblePlatform, exec_error)
-	// Host No Scripts should have an error in its `batch_activity_host_results` row
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		db := q.(*sqlx.DB)
-		err := db.Get(&exec_error, "SELECT error FROM batch_activity_host_results WHERE host_id = ? AND batch_execution_id = ?", hostNoScripts.ID, execID)
-		require.NoError(t, err)
-		return nil
-	})
-	require.Equal(t, fleet.BatchExecuteIncompatibleFleetd, exec_error)
-
-	// Set host 1 to have a successful script result
-	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
-		HostID:      host1.ID,
-		ExecutionID: host1Upcoming[0].ExecutionID,
-		Output:      "foo",
-		ExitCode:    0,
-	}, nil)
-	require.NoError(t, err)
-	// Get the summary again
-	summary, err = ds.BatchExecuteSummary(ctx, execID)
-	require.NoError(t, err)
-	// The summary should have one pending host, one run host and two errored ones.
-	require.Equal(t, *summary.NumPending, uint(2))
-	require.Equal(t, *summary.NumErrored, uint(2))
-	require.Equal(t, *summary.NumRan, uint(1))
-	require.Equal(t, *summary.NumCanceled, uint(0))
-
-	// Set host 1 to have a failed script result
-	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
-		HostID:      host2.ID,
-		ExecutionID: host2Upcoming[0].ExecutionID,
-		Output:      "bar",
-		ExitCode:    1,
-	}, nil)
-	require.NoError(t, err)
-
-	// Get the summary again
-	summary, err = ds.BatchExecuteSummary(ctx, execID)
-	require.NoError(t, err)
-	// The summary should have one pending host, one run host and two errored ones.
-	require.Equal(t, *summary.NumPending, uint(1))
-	require.Equal(t, *summary.NumErrored, uint(3))
-	require.Equal(t, *summary.NumRan, uint(1))
-	require.Equal(t, *summary.NumCanceled, uint(0))
-
-	// Cancel the execution
-	_, err = ds.CancelHostUpcomingActivity(ctx, host3.ID, host3Upcoming[0].ExecutionID)
-	require.NoError(t, err)
-	// Get the summary again
-	summary, err = ds.BatchExecuteSummary(ctx, execID)
-	require.NoError(t, err)
-	// The summary should have no pending hosts, one run host, three errored ones and one canceled.
-	require.Equal(t, *summary.NumPending, uint(0))
-	require.Equal(t, *summary.NumErrored, uint(3))
-	require.Equal(t, *summary.NumRan, uint(1))
-	require.Equal(t, *summary.NumCanceled, uint(1))
-
-	// Get summary for nonexistent execution ID
-	summary, err = ds.BatchExecuteSummary(ctx, "fake-bogus-id")
-	require.Nil(t, summary)
-	require.True(t, fleet.IsNotFound(err))
-	require.ErrorContains(t, err, "fake-bogus-id")
-}
-
 func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -2022,13 +2198,10 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// Hosts all have to be on the same team as the script
-	execID, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostTeam1.ID})
-	require.Empty(t, execID)
-	require.ErrorContains(t, err, "same fleet")
-
 	// Actual good execution
-	execID, err = ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
+	execID, err := ds.NewBatchScriptExecution(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
+	require.NoError(t, err)
+	err = ds.RunScheduledBatchActivity(ctx, execID)
 	require.NoError(t, err)
 
 	// Update the batch to have a pending status
@@ -2286,6 +2459,9 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.ScheduledBatchExecutionScheduled, batchActivity.Status)
 	require.Equal(t, uint(3), *batchActivity.NumTargeted)
 
+	_, err = ds.GetBatchActivity(ctx, "missing")
+	require.True(t, fleet.IsNotFound(err))
+
 	hostResults, err := ds.GetBatchActivityHostResults(ctx, execID)
 	require.NoError(t, err)
 	require.Len(t, hostResults, 3)
@@ -2420,6 +2596,78 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 	require.Equal(t, *summary.NumCanceled, uint(5))
 }
 
+func testNewBatchScriptExecution(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "user1", "user@example.com", true)
+
+	host1 := test.NewHost(t, ds, "host1", "10.0.0.1", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "10.0.0.2", "host2key", "host2uuid", time.Now())
+	test.SetOrbitEnrollment(t, host1, ds)
+	test.SetOrbitEnrollment(t, host2, ds)
+
+	script, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script1.sh",
+		ScriptContents: "echo hi",
+	})
+	require.NoError(t, err)
+
+	// create the batch, it should be scheduled without a job and without queueing any script
+	execID, err := ds.NewBatchScriptExecution(ctx, &user.ID, script.ID, []uint{host1.ID, host2.ID})
+	require.NoError(t, err)
+	require.NotEmpty(t, execID)
+
+	batchActivity, err := ds.GetBatchActivity(ctx, execID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.ScheduledBatchExecutionScheduled, batchActivity.Status)
+	require.Nil(t, batchActivity.JobID)
+	require.Nil(t, batchActivity.StartedAt)
+	require.Equal(t, user.ID, *batchActivity.UserID)
+	require.Equal(t, script.ID, *batchActivity.ScriptID)
+	require.Equal(t, uint(2), *batchActivity.NumTargeted)
+
+	hostResults, err := ds.GetBatchActivityHostResults(ctx, execID)
+	require.NoError(t, err)
+	require.Len(t, hostResults, 2)
+	for _, hostResult := range hostResults {
+		require.Nil(t, hostResult.HostExecutionID)
+		require.Nil(t, hostResult.Error)
+	}
+
+	// delete host2 before running the batch, host2 should be removed from the batch and host1
+	// should get the script
+	err = ds.DeleteHost(ctx, host2.ID)
+	require.NoError(t, err)
+
+	err = ds.RunScheduledBatchActivity(ctx, execID)
+	require.NoError(t, err)
+
+	batchActivity, err = ds.GetBatchActivity(ctx, execID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.ScheduledBatchExecutionStarted, batchActivity.Status)
+	require.NotNil(t, batchActivity.StartedAt)
+
+	hostResults, err = ds.GetBatchActivityHostResults(ctx, execID)
+	require.NoError(t, err)
+	require.Len(t, hostResults, 1)
+	require.Equal(t, host1.ID, hostResults[0].HostID)
+	require.NotNil(t, hostResults[0].HostExecutionID)
+	require.Nil(t, hostResults[0].Error)
+
+	upcomingScripts, err := ds.ListPendingHostScriptExecutions(ctx, host1.ID, false)
+	require.NoError(t, err)
+	require.Len(t, upcomingScripts, 1)
+	require.Equal(t, *hostResults[0].HostExecutionID, upcomingScripts[0].ExecutionID)
+
+	executions, err := ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
+		ExecutionID: &execID,
+	})
+	require.NoError(t, err)
+	require.Len(t, executions, 1)
+	require.Equal(t, uint(0), *executions[0].NumIncompatible)
+	require.Equal(t, uint(1), *executions[0].NumPending)
+}
+
 func testBatchScriptScheduleTeamTransfer(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -2520,14 +2768,18 @@ func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Actual good execution
-	execID, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
+	execID, err := ds.NewBatchScriptExecution(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
 	require.NoError(t, err)
 	require.NotEmpty(t, execID)
+	err = ds.RunScheduledBatchActivity(ctx, execID)
+	require.NoError(t, err)
 
 	// Schedule another one
-	execID2, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
+	execID2, err := ds.NewBatchScriptExecution(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
 	require.NoError(t, err)
 	require.NotEmpty(t, execID2)
+	err = ds.RunScheduledBatchActivity(ctx, execID2)
+	require.NoError(t, err)
 
 	// Get the upcoming activities for each host
 	host1Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host1.ID, false, false)
@@ -2586,9 +2838,11 @@ func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.ScheduledBatchExecutionStarted, batchActivity2.Status)
 
 	// Schedule another batch that we will cancel.
-	execID3, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
+	execID3, err := ds.NewBatchScriptExecution(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
 	require.NoError(t, err)
 	require.NotEmpty(t, execID3)
+	err = ds.RunScheduledBatchActivity(ctx, execID3)
+	require.NoError(t, err)
 
 	// Update the batch activity status to "started"
 	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
@@ -2662,9 +2916,11 @@ func testBatchScriptCancel(t *testing.T, ds *Datastore) {
 	////
 	// Immediate execution
 	//
-	execID1, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{host1.ID, host2.ID})
+	execID1, err := ds.NewBatchScriptExecution(ctx, &user.ID, script.ID, []uint{host1.ID, host2.ID})
 	require.NoError(t, err)
 	require.NotEmpty(t, execID1)
+	err = ds.RunScheduledBatchActivity(ctx, execID1)
+	require.NoError(t, err)
 
 	summary1, err := ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{ExecutionID: &execID1})
 	require.NoError(t, err)
@@ -3444,4 +3700,211 @@ func testNewInternalHostScriptExecutionRequest(t *testing.T, ds *Datastore) {
 	upcomingForHost3, _, err := ds.ListHostUpcomingActivities(ctx, 3, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, upcomingForHost3, 2)
+}
+
+// A materialized guard makes a batch cost what the referenced table costs, so
+// the hints have to hold under an optimizer that would otherwise choose it.
+func testCleanupHostScriptResultsQueryPlan(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	conn, err := ds.primary.Connx(ctx)
+	require.NoError(t, err)
+	defer conn.Close() //nolint:errcheck
+
+	// Materialization left as the only antijoin strategy.
+	_, err = conn.ExecContext(ctx, `SET SESSION optimizer_switch = 'firstmatch=off,loosescan=off,duplicateweedout=off'`)
+	require.NoError(t, err)
+
+	cutoff := time.Now().UTC()
+
+	// MySQL folds a guard away when its table, or the outer row, is a const.
+	old := cutoff.Add(-48 * time.Hour)
+	var deletableIDs []uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		for range 3 {
+			if _, err := q.ExecContext(ctx,
+				`INSERT INTO host_software_installs (host_id, execution_id) VALUES (?, ?)`, 1, uuid.NewString()); err != nil {
+				return err
+			}
+			res, err := q.ExecContext(ctx, `
+				INSERT INTO host_script_results (host_id, execution_id, output, exit_code, created_at, updated_at)
+				VALUES (?, ?, '', 0, ?, ?)`, 1, uuid.NewString(), old, old)
+			if err != nil {
+				return err
+			}
+			id, err := res.LastInsertId()
+			if err != nil {
+				return err
+			}
+			deletableIDs = append(deletableIDs, uint(id)) //nolint:gosec // test-only, ids fit
+		}
+		return nil
+	})
+
+	deleteStmt, deleteArgs, err := sqlx.In(deleteExpiredHostScriptResultsStmt, deletableIDs, cutoff, cutoff)
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		name string
+		stmt string
+		args []any
+	}{
+		{"select", expiredHostScriptResultsStmt, []any{time.Unix(0, 0).UTC(), time.Unix(0, 0).UTC(), uint(0), cutoff, cutoff, 500}},
+		{"delete", deleteStmt, deleteArgs},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var plan string
+			require.NoError(t, sqlx.GetContext(ctx, conn, &plan, "EXPLAIN FORMAT=TREE "+tc.stmt, tc.args...))
+
+			for _, alias := range []string{"sesr", "hsi", "bahr"} {
+				assert.Contains(t, plan, "lookup on "+alias, "%s must resolve by index lookup, plan was:\n%s", alias, plan)
+				assert.NotContains(t, plan, "scan on "+alias, "%s must not be materialized, plan was:\n%s", alias, plan)
+			}
+
+			// A malformed hint is a warning, not an error, and leaves the old plan.
+			var warnings []struct {
+				Level   string `db:"Level"`
+				Code    int    `db:"Code"`
+				Message string `db:"Message"`
+			}
+			require.NoError(t, sqlx.SelectContext(ctx, conn, &warnings, "SHOW WARNINGS"))
+			assert.Empty(t, warnings)
+		})
+	}
+}
+
+func testCleanupHostScriptResults(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	now := time.Now().UTC()
+	old := now.Add(-48 * time.Hour)
+	recent := now.Add(-2 * time.Hour)
+	cutoff := now.Add(-24 * time.Hour)
+
+	host := test.NewHost(t, ds, "script-retention", "10.0.0.1", "srkey", uuid.NewString(), now)
+	script, err := ds.NewScript(ctx, &fleet.Script{Name: "retention.sh", ScriptContents: "echo retention"})
+	require.NoError(t, err)
+
+	// The insert paths stamp both with NOW() and the sweep bounds both.
+	// updatedAt is when the host reported, so never older than createdAt.
+	seedAt := func(createdAt, updatedAt time.Time, exitCode *int, canceled bool) string {
+		execID := uuid.NewString()
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				INSERT INTO host_script_results (host_id, execution_id, output, exit_code, canceled, created_at, updated_at)
+				VALUES (?, ?, '', ?, ?, ?, ?)`, host.ID, execID, exitCode, canceled, createdAt, updatedAt)
+			return err
+		})
+		return execID
+	}
+	seed := func(createdAt time.Time, exitCode *int, canceled bool) string {
+		return seedAt(createdAt, createdAt, exitCode, canceled)
+	}
+	exists := func(execID string) bool {
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, `SELECT COUNT(*) FROM host_script_results WHERE execution_id = ?`, execID)
+		})
+		return n == 1
+	}
+	exec := func(stmt string, args ...any) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, stmt, args...)
+			return err
+		})
+	}
+
+	oldDone := seed(old, new(0), false)
+	oldCanceled := seed(old, nil, true)
+	recentDone := seed(recent, new(0), false)
+	oldPending := seed(old, nil, false)
+	// Handed to the host before the cutoff, answered after it.
+	lateReport := seedAt(old, recent, new(0), false)
+	lockRef := seed(old, new(0), false)
+	unlockRef := seed(old, new(0), false)
+	wipeRef := seed(old, new(0), false)
+	setupRef := seed(old, new(0), false)
+	uninstallRef := seed(old, new(0), false)
+	batchRef := seed(old, new(0), false)
+
+	exec(`INSERT INTO host_mdm_actions (host_id, lock_ref, unlock_ref, wipe_ref) VALUES (?, ?, ?, ?)`,
+		host.ID, lockRef, unlockRef, wipeRef)
+	exec(`INSERT INTO setup_experience_status_results (host_uuid, name, status, script_execution_id) VALUES (?, ?, 'success', ?)`,
+		host.UUID, script.Name, setupRef)
+	exec(`INSERT INTO host_software_installs (host_id, execution_id, uninstall) VALUES (?, ?, 1)`, host.ID, uninstallRef)
+	batchExecID := uuid.NewString()
+	exec(`INSERT INTO batch_activities (script_id, execution_id) VALUES (?, ?)`, script.ID, batchExecID)
+	exec(`INSERT INTO batch_activity_host_results (batch_execution_id, host_id, host_execution_id) VALUES (?, ?, ?)`,
+		batchExecID, host.ID, batchRef)
+
+	deleted, err := ds.CleanupHostScriptResults(ctx, cutoff)
+	require.NoError(t, err)
+	assert.EqualValues(t, 2, deleted, "oldDone and oldCanceled")
+
+	assert.False(t, exists(oldDone))
+	assert.False(t, exists(oldCanceled))
+	assert.True(t, exists(recentDone))
+	assert.True(t, exists(oldPending))
+	assert.True(t, exists(lateReport))
+	assert.True(t, exists(lockRef))
+	assert.True(t, exists(unlockRef))
+	assert.True(t, exists(wipeRef))
+	assert.True(t, exists(setupRef))
+	assert.True(t, exists(uninstallRef))
+	assert.True(t, exists(batchRef))
+
+	// A second pass finds nothing.
+	deleted, err = ds.CleanupHostScriptResults(ctx, cutoff)
+	require.NoError(t, err)
+	assert.Zero(t, deleted)
+
+	// The cap stops a run partway and the next one drains the rest.
+	stale := make([]string, 0, 3)
+	for range 3 {
+		stale = append(stale, seed(old, new(0), false))
+	}
+	deleted, err = cleanupHostScriptResultsDB(ctx, ds, cutoff, 1, 1)
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, deleted)
+
+	deleted, err = cleanupHostScriptResultsDB(ctx, ds, cutoff, 1, 10)
+	require.NoError(t, err)
+	assert.EqualValues(t, 2, deleted)
+	for _, execID := range stale {
+		assert.False(t, exists(execID))
+	}
+
+	// A row referenced between select and delete is saved by the re-check on
+	// the primary.
+	raced := seed(old, new(0), false)
+	var racedID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &racedID, `SELECT id FROM host_script_results WHERE execution_id = ?`, raced)
+	})
+	lateBatchExecID := uuid.NewString()
+	exec(`INSERT INTO batch_activities (script_id, execution_id) VALUES (?, ?)`, script.ID, lateBatchExecID)
+	exec(`INSERT INTO batch_activity_host_results (batch_execution_id, host_id, host_execution_id) VALUES (?, ?, ?)`,
+		lateBatchExecID, host.ID, raced)
+
+	n, err := deleteHostScriptResultsByIDs(ctx, ds.writer(ctx), []uint{racedID}, cutoff)
+	require.NoError(t, err)
+	assert.Zero(t, n)
+	assert.True(t, exists(raced))
+
+	// Deleting a host soft-deletes its results, and that write refreshes
+	// updated_at, so they outlive the window by one retention period.
+	deletedHost := seed(old, new(0), false)
+	exec(`UPDATE host_script_results SET host_deleted_at = NOW() WHERE execution_id = ?`, deletedHost)
+	deleted, err = ds.CleanupHostScriptResults(ctx, cutoff)
+	require.NoError(t, err)
+	assert.Zero(t, deleted)
+	assert.True(t, exists(deletedHost))
+
+	// A deleted host's pending run can never report, so it goes once the window passes.
+	deletedHostPending := seed(old, nil, false)
+	exec(`UPDATE host_script_results SET host_deleted_at = ?, updated_at = ? WHERE execution_id = ?`, old, old, deletedHostPending)
+	deleted, err = ds.CleanupHostScriptResults(ctx, cutoff)
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, deleted)
+	assert.False(t, exists(deletedHostPending))
 }

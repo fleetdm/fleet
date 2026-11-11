@@ -31,6 +31,9 @@ interface IHostOnlineHistoryModalProps {
   // setting for a teamed host). Modal shows a spinner and defers the chart
   // query until the effective value is known.
   uptimeCollectionEnabled: boolean | undefined;
+  // Org-level setting only. Used to decide who can turn collection back on
+  // when the effective value is disabled.
+  uptimeGloballyEnabled: boolean;
   onExit: () => void;
 }
 
@@ -38,6 +41,7 @@ const HostOnlineHistoryModal = ({
   hostId,
   fleetId,
   uptimeCollectionEnabled,
+  uptimeGloballyEnabled,
   onExit,
 }: IHostOnlineHistoryModalProps): JSX.Element => {
   const queryParams: IChartApiParams = useMemo(
@@ -88,6 +92,7 @@ const HostOnlineHistoryModal = ({
       return (
         <DataCollectionDisabledState
           datasetLabel={DATASET_LABEL.uptime}
+          globallyEnabled={uptimeGloballyEnabled}
           currentTeamId={fleetId}
         />
       );

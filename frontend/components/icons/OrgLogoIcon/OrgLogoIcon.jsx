@@ -2,7 +2,7 @@ import classnames from "classnames";
 import PropTypes from "prop-types";
 import React, { Component } from "react";
 
-import fleetAvatar from "../../../../assets/images/fleet-avatar-24x24@2x.png";
+import fleetAvatar from "../../../assets/images/fleet-avatar-24x24@2x.png";
 
 const baseClass = "org-logo-icon";
 

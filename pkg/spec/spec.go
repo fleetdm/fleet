@@ -12,10 +12,12 @@ import (
 	"maps"
 	"os"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
@@ -214,6 +216,9 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 			specs.EnrollSecret = enrollSecretSpec
 
 		case fleet.UserRolesKind:
+			if err := rejectRemovedUserRoleKeys(s.Spec); err != nil {
+				return nil, err
+			}
 			var err error
 			s.Spec, deprecatedKeysMap, err = rewriteNewToOldKeys(s.Spec, fleet.UsersRoleSpec{})
 			if err != nil {
@@ -225,25 +230,26 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 			}
 			specs.UsersRoles = userRoleSpec
 
-		case fleet.TeamKind, fleet.FleetKind:
-			if logFn != nil && kind == fleet.TeamKind {
-				logFn("[!] `kind: team` is deprecated, please use `kind: fleet` instead.\n")
-			}
+		case fleet.TeamKind:
+			return nil, removedNameError(removednames.KindSpecKind, "team")
+
+		case fleet.FleetKind:
 			// unmarshal to a raw map as we don't want to strip away unknown/invalid
-			// fields at this point - that validation is done in the apply spec/teams
+			// fields at this point - that validation is done in the apply spec/fleets
 			// endpoint so that it is enforced for both the API and the CLI.
 			rawTeam := make(map[string]json.RawMessage)
 			if err := yaml.Unmarshal(s.Spec, &rawTeam); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
 			}
-			// Support `team` (for backwards compatibility) but defer to `fleet` if available.
-			teamRaw := rawTeam["team"]
-			if fleetRaw, ok := rawTeam["fleet"]; ok {
-				teamRaw = fleetRaw
+			if _, ok := rawTeam["team"]; ok {
+				return nil, removedNameError(removednames.KindYAMLKey, "spec.team")
 			}
 
-			var err error
-			teamRaw, deprecatedKeysMap, err = rewriteNewToOldKeys(teamRaw, fleet.TeamSpec{})
+			var (
+				teamRaw json.RawMessage
+				err     error
+			)
+			teamRaw, deprecatedKeysMap, err = rewriteNewToOldKeys(rawTeam["fleet"], fleet.TeamSpec{})
 			if err != nil {
 				return nil, fmt.Errorf("in %s spec: %w", kind, err)
 			}
@@ -265,6 +271,41 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 		}
 	}
 	return specs, nil
+}
+
+// rejectRemovedUserRoleKeys fails a user_roles spec that uses the removed teams or team keys. Decoding ignores them, which leaves the user
+// with no fleet roles and a misleading error from the server.
+func rejectRemovedUserRoleKeys(raw json.RawMessage) error {
+	var spec struct {
+		Roles map[string]map[string]json.RawMessage `json:"roles"`
+	}
+	if err := yaml.Unmarshal(raw, &spec); err != nil {
+		return nil // the decoding that follows reports a malformed spec
+	}
+	for _, email := range slices.Sorted(maps.Keys(spec.Roles)) {
+		role := spec.Roles[email]
+		if _, ok := role["teams"]; ok {
+			return removedNameError(removednames.KindYAMLKey, "spec.roles.<email>.teams")
+		}
+		var fleets []map[string]json.RawMessage
+		if json.Unmarshal(role["fleets"], &fleets) != nil {
+			continue
+		}
+		for _, userFleet := range fleets {
+			if _, ok := userFleet["team"]; ok {
+				return removedNameError(removednames.KindYAMLKey, "spec.roles.<email>.fleets[].team")
+			}
+		}
+	}
+	return nil
+}
+
+// removedNameError is the error for a removed name found in a spec file, with its Fleet 5 message.
+func removedNameError(kind removednames.Kind, name string) error {
+	if entry, ok := removednames.Find(kind, name, ""); ok {
+		return errors.New(entry.Message())
+	}
+	return fmt.Errorf("%q is not available anymore", name)
 }
 
 // SplitYaml splits a text file into separate yaml documents divided by ---

@@ -1,12 +1,18 @@
 package live_query
 
 import (
+	"fmt"
 	"log/slog"
+	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
 	redigo "github.com/gomodule/redigo/redis"
 	"github.com/stretchr/testify/assert"
@@ -208,7 +214,8 @@ func TestReverseIndexQueryCompletedByHost(t *testing.T) {
 			require.NoError(t, store.RunQuery("small", "SELECT 1", []uint{1, 2}))
 
 			// Host 1 completes the query.
-			require.NoError(t, store.QueryCompletedByHost("small", 1))
+			_, err := store.QueryCompletedByHost("small", 1)
+			require.NoError(t, err)
 
 			// Host 1's per-host membership is removed, host 2's remains.
 			isMember, err := redigo.Bool(conn.Do("SISMEMBER", reverseHostKey(1), "small"))
@@ -328,4 +335,141 @@ func TestReverseIndexKillSwitch(t *testing.T) {
 			assert.Equal(t, map[string]string{"q": "SELECT 1"}, queries)
 		})
 	}
+}
+
+// StopQuery deletes the bitfield but leaves reverse per-host entries to expire,
+// so the reverse model needs the SQL key check to reject late results.
+func TestQueryCompletedByHostAfterStopQuery(t *testing.T) {
+	for _, cluster := range []bool{false, true} {
+		clusterName := "standalone"
+		if cluster {
+			clusterName = "cluster"
+		}
+		t.Run(clusterName, func(t *testing.T) {
+			store := setupRedisLiveQueryThreshold(t, cluster, 2)
+			conn := redis.ConfigureDoer(store.pool, store.pool.Get())
+			defer conn.Close()
+
+			require.NoError(t, store.RunQuery("small", "SELECT 1", []uint{1, 2}))
+			require.NoError(t, store.RunQuery("large", "SELECT 2", []uint{1, 2, 3}))
+
+			// While active, each mode authorizes its own targets through its own storage.
+			for _, name := range []string{"small", "large"} {
+				targeted, err := store.QueryCompletedByHost(name, 2)
+				require.NoError(t, err)
+				require.True(t, targeted, "campaign %s host 2", name)
+				targeted, err = store.QueryCompletedByHost(name, 4)
+				require.NoError(t, err)
+				require.False(t, targeted, "campaign %s host 4", name)
+			}
+
+			require.NoError(t, store.StopQuery("small"))
+			require.NoError(t, store.StopQuery("large"))
+
+			// The stale entry the check must not trust is still there.
+			isMember, err := redigo.Bool(conn.Do("SISMEMBER", reverseHostKey(1), "small"))
+			require.NoError(t, err)
+			require.True(t, isMember)
+
+			for _, tc := range []struct {
+				name   string
+				hostID uint
+			}{
+				{"small", 1}, {"small", 3},
+				{"large", 1}, {"large", 4},
+			} {
+				targeted, err := store.QueryCompletedByHost(tc.name, tc.hostID)
+				require.NoError(t, err)
+				require.False(t, targeted, "campaign %s host %d", tc.name, tc.hostID)
+			}
+
+			// Restoring after a stop must not resurrect the bitfield key, nor make a
+			// stopped campaign authorize a host again in either mode.
+			for _, name := range []string{"small", "large"} {
+				require.NoError(t, store.RestoreQueryTargetForHost(name, 1))
+				targeted, err := store.QueryCompletedByHost(name, 1)
+				require.NoError(t, err)
+				require.False(t, targeted, "campaign %s host 1 after restore", name)
+			}
+			exists, err := redigo.Int(conn.Do("EXISTS", queryKeyPrefix+"{large}"))
+			require.NoError(t, err)
+			require.Zero(t, exists)
+		})
+	}
+}
+
+func TestConcurrentCacheReloadsCoalesce(t *testing.T) {
+	// Redis's commandstats are server-wide and other packages' tests share the
+	// instance, so count this store's GETs at the client instead.
+	pool := &countingPool{RedisPool: redistest.SetupRedis(t, "*livequery", false, true, true)}
+	store := NewRedisLiveQuery(pool, slog.New(slog.DiscardHandler), time.Minute, 1)
+
+	const numQueries = 20
+	want := make(map[string]string)
+	for i := range numQueries {
+		name := strconv.Itoa(i + 1)
+		hosts := []uint{1}
+		if i%2 == 0 {
+			hosts = []uint{1, 2}
+		}
+		require.NoError(t, store.RunQuery(name, "SELECT "+name, hosts))
+		want[name] = "SELECT " + name
+	}
+	pool.gets.Store(0)
+
+	const checkins = 50
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	errs := make(chan error, checkins)
+	for range checkins {
+		wg.Go(func() {
+			<-start
+			queries, err := store.QueriesForHost(1)
+			if err == nil && len(queries) != numQueries {
+				err = fmt.Errorf("got %d queries, want %d", len(queries), numQueries)
+			}
+			errs <- err
+		})
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		require.NoError(t, err)
+	}
+
+	queries, err := store.QueriesForHost(1)
+	require.NoError(t, err)
+	require.Equal(t, want, queries)
+
+	assert.EqualValues(t, numQueries, pool.gets.Load(),
+		"concurrent checkins on an expired cache should share a single reload")
+}
+
+type countingPool struct {
+	fleet.RedisPool
+	gets atomic.Int64
+}
+
+func (p *countingPool) Get() redigo.Conn {
+	return &countingConn{Conn: p.RedisPool.Get(), gets: &p.gets}
+}
+
+type countingConn struct {
+	redigo.Conn
+	gets *atomic.Int64
+}
+
+func (c *countingConn) Do(cmd string, args ...any) (any, error) {
+	if strings.EqualFold(cmd, "GET") {
+		c.gets.Add(1)
+	}
+	return c.Conn.Do(cmd, args...)
+}
+
+func (c *countingConn) Send(cmd string, args ...any) error {
+	if strings.EqualFold(cmd, "GET") {
+		c.gets.Add(1)
+	}
+	return c.Conn.Send(cmd, args...)
 }

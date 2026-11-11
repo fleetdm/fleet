@@ -3,6 +3,7 @@
   "slug": "certify-the-web/windows",
   "package_identifier": "CertifyTheWeb.CertifySSLManager",
   "unique_identifier": "Certify Certificate Manager",
+  "open_process_names": ["certify.ui.desktop.exe"],
   "fuzzy_match_name": true,
   "installer_arch": "x64",
   "installer_type": "exe",

@@ -167,6 +167,12 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
 		return nil
 	}
+	ds.GetPatchDeadlineSettingsFunc = func(ctx context.Context, teamID uint) (*fleet.PatchDeadlineSettings, error) {
+		return fleet.DefaultPatchDeadlineSettings(teamID), nil
+	}
+	ds.SetPatchDeadlineSettingsFunc = func(ctx context.Context, settings fleet.PatchDeadlineSettings) error {
+		return nil
+	}
 	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 		return nil, nil
 	}
@@ -184,6 +190,9 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	}
 	ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
 		return []fleet.VPPAppResponse{}, nil
+	}
+	ds.GetDuplicateStringGroupsUnderCollationFunc = func(ctx context.Context, values []string) ([]fleet.DuplicateStringGroup, error) {
+		return nil, nil
 	}
 	ds.GetEnterpriseFunc = func(ctx context.Context) (*android.Enterprise, error) {
 		return nil, nil
@@ -399,11 +408,19 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	) error {
 		return nil
 	}
+	ds.GetMDMProfileChecksumsFunc = func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+		return &fleet.MDMProfileChecksums{}, nil
+	}
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
 		macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.ListMDMConfigProfilesFunc = func(
+		ctx context.Context, teamID *uint, opt fleet.ListOptions,
+	) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
+		return nil, &fleet.PaginationMetadata{}, nil
 	}
 	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
 		return []fleet.ScriptResponse{}, nil
@@ -617,6 +634,9 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 		return nil, nil
 	}
+	ds.GetAssignedVPPAppsFunc = func(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error) {
+		return map[fleet.VPPAppID]fleet.VPPAppTeam{}, nil
+	}
 	ds.UpdateVPPTokenTeamsFunc = func(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error) {
 		return &fleet.VPPTokenDB{}, nil
 	}
@@ -665,8 +685,17 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
 		return document, nil, nil
 	}
-	ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+	ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 		return nil, &notFoundError{} // No existing EULA
+	}
+	// A token's platform is whichever EULA the test's metadata mock gives that token, so tests only mock the metadata.
+	ds.MDMGetEULAPlatformFunc = func(ctx context.Context, token string) (fleet.MDMEULAPlatform, error) {
+		for _, platform := range []fleet.MDMEULAPlatform{fleet.MDMEULAPlatformDarwin, fleet.MDMEULAPlatformWindows} {
+			if eula, err := ds.MDMGetEULAMetadataFunc(ctx, platform); err == nil && eula != nil && eula.Token == token {
+				return platform, nil
+			}
+		}
+		return "", &notFoundError{}
 	}
 	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {
 		return nil
@@ -692,8 +721,12 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 }
 
 type AppleVPPConfigSrvConf struct {
-	Assets        []vpp.Asset
-	SerialNumbers []string
+	Assets []vpp.Asset
+	// AssetsByBearer overrides Assets for requests whose Authorization header
+	// is "Bearer <key>". The bearer Fleet sends is the uploaded token's base64
+	// content.
+	AssetsByBearer map[string][]vpp.Asset
+	SerialNumbers  []string
 }
 
 func StartVPPApplyServer(t *testing.T, config *AppleVPPConfigSrvConf) {
@@ -795,7 +828,11 @@ func StartVPPApplyServer(t *testing.T, config *AppleVPPConfigSrvConf) {
 			// Then we're responding to GetAssets
 			w.Header().Set("Content-Type", "application/json")
 			encoder := json.NewEncoder(w)
-			err := encoder.Encode(map[string][]vpp.Asset{"assets": config.Assets})
+			assets, ok := config.AssetsByBearer[strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")]
+			if !ok {
+				assets = config.Assets
+			}
+			err := encoder.Encode(map[string][]vpp.Asset{"assets": assets})
 			if err != nil {
 				panic(err)
 			}
@@ -826,7 +863,14 @@ func StartVPPApplyServer(t *testing.T, config *AppleVPPConfigSrvConf) {
 }
 
 func StartAndServeVPPServer(t *testing.T) {
+	StartAndServeVPPServerWithAssets(t, nil)
+}
+
+// StartAndServeVPPServerWithAssets is StartAndServeVPPServer with per-token
+// assets, keyed by the bearer Fleet sends for each token.
+func StartAndServeVPPServerWithAssets(t *testing.T, assetsByBearer map[string][]vpp.Asset) {
 	config := &AppleVPPConfigSrvConf{
+		AssetsByBearer: assetsByBearer,
 		Assets: []vpp.Asset{
 			{
 				AdamID:         "1",

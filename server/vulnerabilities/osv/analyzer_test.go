@@ -653,6 +653,7 @@ func TestIsVulnerableRPM(t *testing.T) {
 		name     string
 		version  string
 		release  string
+		epoch    *uint32
 		vuln     OSVVulnerability
 		expected bool
 	}{
@@ -704,11 +705,41 @@ func TestIsVulnerableRPM(t *testing.T) {
 			vuln:     OSVVulnerability{Fixed: "0:5.14.0-611.8.1.el9_7", Introduced: "0"},
 			expected: false,
 		},
+		{
+			name:    "not vulnerable - epoch package newer than epoch fix",
+			version: "9.0.117", release: "2.el9_8", epoch: new(uint32(1)),
+			vuln:     OSVVulnerability{Fixed: "1:9.0.62-11.el9_2.3", Introduced: "0"},
+			expected: false,
+		},
+		{
+			name:    "vulnerable - epoch package older than epoch fix",
+			version: "9.0.50", release: "1.el9", epoch: new(uint32(1)),
+			vuln:     OSVVulnerability{Fixed: "1:9.0.62-11.el9_2.3", Introduced: "0"},
+			expected: true,
+		},
+		{
+			name:    "not vulnerable - higher epoch wins over lower version",
+			version: "1.0.0", release: "1.el9", epoch: new(uint32(2)),
+			vuln:     OSVVulnerability{Fixed: "1:9.0.0-1.el9", Introduced: "0"},
+			expected: false,
+		},
+		{
+			name:    "vulnerable - epoch package between epoch introduced and fix",
+			version: "9.0.50", release: "1.el9", epoch: new(uint32(1)),
+			vuln:     OSVVulnerability{Fixed: "1:9.0.62-11.el9_2.3", Introduced: "1:9.0.0-1.el9"},
+			expected: true,
+		},
+		{
+			name:    "vulnerable - no epoch is epoch 0, below an epoch fix",
+			version: "9.0.117", release: "2.el9_8",
+			vuln:     OSVVulnerability{Fixed: "1:9.0.62-11.el9_2.3", Introduced: "0"},
+			expected: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			require.Equal(t, tt.expected, isVulnerableRPM(tt.version, tt.release, tt.vuln))
+			require.Equal(t, tt.expected, isVulnerableRPM(buildRPMVer(fleet.Software{Version: tt.version, Release: tt.release, Epoch: tt.epoch}), tt.vuln))
 		})
 	}
 }
@@ -722,6 +753,9 @@ func TestMatchSoftwareToRHELOSV(t *testing.T) {
 			},
 			"kernel": {
 				{CVE: "CVE-2025-5678", Fixed: "0:5.14.0-611.8.1.el9_7", Introduced: "0"},
+			},
+			"mod_ssl": {
+				{CVE: "CVE-2024-38475", Fixed: "1:2.4.57-11.el9_4", Introduced: "0"},
 			},
 		},
 	}
@@ -778,6 +812,14 @@ func TestMatchSoftwareToRHELOSV(t *testing.T) {
 	t.Run("patched kernel not vulnerable", func(t *testing.T) {
 		software := []fleet.Software{
 			{ID: 6, Name: "kernel-core", Version: "5.14.0", Release: "611.8.1.el9_7"},
+		}
+		result := matchSoftwareToRHELOSV(software, artifact)
+		require.Empty(t, result)
+	})
+
+	t.Run("patched package with epoch not vulnerable", func(t *testing.T) {
+		software := []fleet.Software{
+			{ID: 8, Name: "mod_ssl", Version: "2.4.62", Release: "13.el9_8.1", Epoch: new(uint32(1))},
 		}
 		result := matchSoftwareToRHELOSV(software, artifact)
 		require.Empty(t, result)

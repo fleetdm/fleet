@@ -1,4 +1,5 @@
 import createMockConfig from "__mocks__/configMock";
+import { IGitOpsModeConfig } from "interfaces/config";
 import paths from "router/paths";
 
 import {
@@ -35,6 +36,7 @@ const BASE_CONTEXT: ICommandPaletteContext = {
   canManageReportAutomations: true,
   canEditCustomVariable: true,
   canAddSoftware: true,
+  canAddConfigurationProfile: true,
   isAdminOrMaintainer: true,
   isTechnician: false,
   isPremiumTier: true,
@@ -413,6 +415,90 @@ describe("CommandPalette helpers", () => {
       expect(keywords).toContain("google calendar");
       expect(keywords).toContain("conditional access");
       expect(keywords).toContain("sso");
+    });
+
+    it("shows Add profile to admins and maintainers once some MDM is on", () => {
+      const items = buildPaletteItems({
+        ...BASE_CONTEXT,
+        canAddConfigurationProfile: true,
+      });
+      const addProfile = items.find((i) => i.id === "add-profile");
+      expect(addProfile?.path).toContain(
+        "/controls/os-settings/configuration-profiles/new"
+      );
+    });
+
+    it("gives Add profile single-word keywords that don't repeat the label", () => {
+      const keywords =
+        buildPaletteItems(BASE_CONTEXT).find((i) => i.id === "add-profile")
+          ?.keywords ?? [];
+      expect(keywords).toEqual(
+        expect.arrayContaining(["create", "new", "csp", "windows"])
+      );
+      keywords.forEach((keyword) => {
+        expect(keyword).not.toMatch(/\s/);
+        expect(["add", "profile"]).not.toContain(keyword);
+      });
+    });
+
+    it("shows which fleet Add profile lands on from All fleets", () => {
+      const availableTeams = [
+        { id: -1, name: "All fleets" },
+        { id: 3, name: "Servers" },
+        { id: 5, name: "Workstations" },
+      ];
+      const fromAllFleets = buildPaletteItems({
+        ...BASE_CONTEXT,
+        availableTeams,
+      }).find((i) => i.id === "add-profile");
+      expect(fromAllFleets?.teamName).toBe("Workstations");
+
+      const fromFleet = buildPaletteItems({
+        ...BASE_CONTEXT,
+        availableTeams,
+        hasTeamSelected: true,
+        currentTeam: { id: 3, name: "Servers" },
+      }).find((i) => i.id === "add-profile");
+      expect(fromFleet?.teamName).toBeUndefined();
+    });
+
+    it.each([
+      [
+        "users who aren't admins or maintainers",
+        { canAddConfigurationProfile: false, isAdminOrMaintainer: false },
+      ],
+      [
+        "an admin elsewhere who is a technician of the current fleet",
+        { canAddConfigurationProfile: false, isAdminOrMaintainer: true },
+      ],
+      [
+        "everyone when no MDM is on",
+        {
+          config: createMockConfig({
+            mdm: {
+              ...createMockConfig().mdm,
+              enabled_and_configured: false,
+              windows_mdm_enabled: false,
+              android_enabled_and_configured: false,
+            },
+          }),
+        },
+      ],
+      [
+        "everyone in GitOps mode",
+        {
+          config: createMockConfig({
+            gitops: {
+              ...createMockConfig().gitops,
+              gitops_mode_enabled: true,
+              repository_url: "https://github.com/fleetdm/fleet-config",
+            },
+          }),
+        },
+      ],
+    ])("hides Add profile from %s", (_, overrides) => {
+      const items = buildPaletteItems({ ...BASE_CONTEXT, ...overrides });
+      expect(items.find((i) => i.id === "add-profile")).toBeUndefined();
     });
 
     it("excludes certificates and passwords for technicians", () => {
@@ -907,6 +993,55 @@ describe("CommandPalette helpers", () => {
 
       expect(ids).not.toContain("create-fleet");
     });
+
+    describe("add-self-service-category", () => {
+      const exceptions = { labels: false, software: false, secrets: false };
+      const fleetIds = (gitops: Partial<IGitOpsModeConfig>) => {
+        const config = createMockConfig();
+        config.gitops = { ...config.gitops, ...gitops };
+        return buildPaletteItems({
+          ...BASE_CONTEXT,
+          config,
+          hasTeamSelected: true,
+          currentTeam: { id: 1, name: "Engineering" },
+        }).map((i) => i.id);
+      };
+      const url = "https://github.com/fleetdm/fleet-config";
+
+      it("hides add-self-service-category when GitOps mode is on", () => {
+        const ids = fleetIds({
+          gitops_mode_enabled: true,
+          repository_url: url,
+          exceptions: { labels: true, software: false, secrets: true },
+        });
+        expect(ids).not.toContain("add-self-service-category");
+        expect(ids).toContain("add-fleet-maintained-app");
+      });
+
+      it("hides add-self-service-category without a repository URL", () => {
+        const ids = fleetIds({
+          gitops_mode_enabled: true,
+          repository_url: "",
+          exceptions,
+        });
+        expect(ids).not.toContain("add-self-service-category");
+      });
+
+      it("keeps add-self-service-category when the software exception is on", () => {
+        const ids = fleetIds({
+          gitops_mode_enabled: true,
+          repository_url: url,
+          exceptions: { ...exceptions, software: true },
+        });
+        expect(ids).toContain("add-self-service-category");
+        expect(ids).not.toContain("create-fleet");
+      });
+
+      it("keeps add-self-service-category when GitOps mode is off", () => {
+        const ids = fleetIds({ gitops_mode_enabled: false, exceptions });
+        expect(ids).toContain("add-self-service-category");
+      });
+    });
   });
 
   describe("buildFleetSwitchUrl", () => {
@@ -1006,18 +1141,6 @@ describe("CommandPalette helpers", () => {
         expect(url.searchParams.has("page")).toBe(false);
       });
 
-      it("strips legacy team_id on any fleet switch", () => {
-        const url = parse(
-          buildFleetSwitchUrl({
-            pathname: paths.MANAGE_HOSTS,
-            currentSearch: "?team_id=1",
-            fleetId: 2,
-          })
-        );
-        expect(url.searchParams.has("team_id")).toBe(false);
-        expect(url.searchParams.get("fleet_id")).toBe("2");
-      });
-
       it("strips script_batch_execution_id and script_batch_execution_status on any fleet switch", () => {
         const url = parse(
           buildFleetSwitchUrl({
@@ -1042,6 +1165,37 @@ describe("CommandPalette helpers", () => {
           })
         );
         expect(url.searchParams.has("software_status")).toBe(false);
+      });
+
+      it.each([
+        "os_settings=pending",
+        "apple_settings=failing",
+        "macos_settings=latest",
+        "os_settings_disk_encryption=verified",
+        "macos_bootstrap_package=failed",
+        "bootstrap_package=pending",
+      ])("strips %s when switching to All fleets", (filter) => {
+        const [name] = filter.split("=");
+        const url = parse(
+          buildFleetSwitchUrl({
+            pathname: paths.MANAGE_HOSTS,
+            currentSearch: `?fleet_id=1&${filter}&query=mac`,
+            fleetId: -1,
+          })
+        );
+        expect(url.searchParams.has(name)).toBe(false);
+        expect(url.searchParams.get("query")).toBe("mac");
+      });
+
+      it("preserves fleet-scoped filters when switching between specific fleets", () => {
+        const url = parse(
+          buildFleetSwitchUrl({
+            pathname: paths.MANAGE_HOSTS,
+            currentSearch: "?fleet_id=1&os_settings=pending",
+            fleetId: 2,
+          })
+        );
+        expect(url.searchParams.get("os_settings")).toBe("pending");
       });
 
       it("preserves software_status when switching between specific fleets", () => {

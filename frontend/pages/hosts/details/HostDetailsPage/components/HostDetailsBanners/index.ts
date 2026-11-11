@@ -1,1 +1,1 @@
-export { default } from "./HostDetailsBanners";
+export { default, useHostDetailsBanner } from "./HostDetailsBanners";

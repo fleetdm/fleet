@@ -1,0 +1,13 @@
+{
+  "provider": "Okta",
+  "cases": [
+    {"name": "test user rejected", "source": "observed (#54133 QA)", "status": 400, "body": "{\"error\":\"invalid_grant\",\"error_description\":\"The credentials provided were invalid.\"}", "want": "ok"},
+    {"name": "wrong client secret", "source": "observed (#54133 QA)", "status": 401, "body": "{\"error\":\"invalid_client\",\"error_description\":\"The client secret supplied for a confidential client is invalid.\"}", "want": "client_credentials"},
+    {"name": "unknown client ID (Okta error format)", "source": "observed (#54133 QA)", "status": 400, "body": "{\"errorCode\":\"invalid_client\",\"errorSummary\":\"Invalid value for 'client_id' parameter.\",\"errorLink\":\"invalid_client\",\"errorId\":\"oae1\",\"errorCauses\":[]}", "want": "client_credentials"},
+    {"name": "URL isn't the token endpoint (wrong path)", "source": "observed (#55366 QA)", "status": 405, "body": "{\"errorCode\":\"E0000022\",\"errorSummary\":\"The endpoint does not support the provided HTTP method\",\"errorLink\":\"E0000022\",\"errorId\":\"oae2\",\"errorCauses\":[]}", "want": "token_url_endpoint"},
+    {"name": "URL not found", "source": "Okta API error codes", "status": 404, "body": "{\"errorCode\":\"E0000007\",\"errorSummary\":\"Not found: Resource not found\",\"errorLink\":\"E0000007\",\"errorId\":\"oae3\",\"errorCauses\":[]}", "want": "token_url_endpoint"},
+    {"name": "app not granted Resource Owner Password", "source": "Okta docs", "status": 400, "body": "{\"error\":\"unauthorized_client\",\"error_description\":\"The client is not authorized to use the provided grant type. Configured grant types: [authorization_code].\"}", "want": "app_setup"},
+    {"name": "no access policy rule for the password grant", "source": "docs/Contributing/guides/platform-sso-local-development.md", "status": 400, "body": "{\"error\":\"no_matching_policy\",\"error_description\":\"The client request did not match any policy.\"}", "want": "app_setup"},
+    {"name": "authentication policy denies password", "source": "docs/Contributing/guides/platform-sso-local-development.md", "status": 400, "body": "{\"error\":\"password_auth_denied_policy\",\"error_description\":\"Password authentication is denied by policy.\"}", "want": "app_setup"}
+  ]
+}

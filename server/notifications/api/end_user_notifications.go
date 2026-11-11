@@ -109,6 +109,7 @@ type NotificationView struct {
 	Description         string               `json:"description"`
 	Items               []NotificationItem   `json:"items"`
 	Actions             []NotificationAction `json:"actions"`
+	InstallAt           *time.Time           `json:"install_at"`
 }
 
 // NotificationOutcome is how an attempt to put a notification on screen ended.

@@ -21,8 +21,11 @@ var testFunctions = [...]func(*testing.T, fleet.LiveQueryStore){
 	testLiveQueryCleanupInactive,
 	testLiveQuerySetBitOnlyIfKeyExists,
 	testLiveQueryResultsCounts,
+	testLiveQueryCompletionReportsTarget,
 	testLiveQueryReportsHostCount,
 	testLiveQueryReportClipped,
+	testLiveQueryQueryResultsLastFetched,
+	testLiveQueryQueryReportWriteSlots,
 }
 
 func testLiveQuery(t *testing.T, store fleet.LiveQueryStore) {
@@ -60,8 +63,12 @@ func testLiveQuery(t *testing.T, store fleet.LiveQueryStore) {
 		queries,
 	)
 
-	assert.NoError(t, store.QueryCompletedByHost("test", 1))
-	assert.NoError(t, store.QueryCompletedByHost("test2", 3))
+	targeted, err := store.QueryCompletedByHost("test", 1)
+	require.NoError(t, err)
+	assert.True(t, targeted)
+	targeted, err = store.QueryCompletedByHost("test2", 3)
+	require.NoError(t, err)
+	assert.True(t, targeted)
 
 	queries, err = store.QueriesForHost(1)
 	assert.NoError(t, err)
@@ -242,8 +249,9 @@ func testLiveQuerySetBitOnlyIfKeyExists(t *testing.T, store fleet.LiveQueryStore
 	)
 
 	// Mark query as completed by host.
-	err = store.QueryCompletedByHost("test", 1)
+	targeted, err := store.QueryCompletedByHost("test", 1)
 	require.NoError(t, err)
+	require.True(t, targeted)
 
 	// Query should not be returned anymore as it was marked as completed for this host.
 	queries, err = store.QueriesForHost(1)
@@ -251,8 +259,9 @@ func testLiveQuerySetBitOnlyIfKeyExists(t *testing.T, store fleet.LiveQueryStore
 	require.Empty(t, queries)
 
 	// A host could be attempting to write a result for a query that was already deleted.
-	err = store.QueryCompletedByHost("test-2", 1)
+	targeted, err = store.QueryCompletedByHost("test-2", 1)
 	require.NoError(t, err)
+	require.False(t, targeted)
 
 	// Let's test that such key was not created.
 
@@ -337,6 +346,40 @@ func testLiveQueryResultsCounts(t *testing.T, store fleet.LiveQueryStore) {
 	require.Empty(t, counts)
 }
 
+func testLiveQueryCompletionReportsTarget(t *testing.T, store fleet.LiveQueryStore) {
+	targeted, err := store.QueryCompletedByHost("test", 1)
+	require.NoError(t, err)
+	assert.False(t, targeted, "unknown campaign")
+
+	require.NoError(t, store.RunQuery("test", "select 1", []uint{1, 3}))
+
+	targeted, err = store.QueryCompletedByHost("test", 2)
+	require.NoError(t, err)
+	assert.False(t, targeted, "host not in targets")
+	targeted, err = store.QueryCompletedByHost("other", 1)
+	require.NoError(t, err)
+	assert.False(t, targeted, "targeted host, different campaign")
+
+	targeted, err = store.QueryCompletedByHost("test", 1)
+	require.NoError(t, err)
+	assert.True(t, targeted, "targeted host")
+	targeted, err = store.QueryCompletedByHost("test", 1)
+	require.NoError(t, err)
+	assert.False(t, targeted, "host that already completed the query")
+
+	require.NoError(t, store.RestoreQueryTargetForHost("test", 1))
+	queries, err := store.QueriesForHost(1)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{"test": "select 1"}, queries, "restored host receives the query again")
+	targeted, err = store.QueryCompletedByHost("test", 1)
+	require.NoError(t, err)
+	assert.True(t, targeted, "restored host")
+
+	targeted, err = store.QueryCompletedByHost("test", 3)
+	require.NoError(t, err)
+	assert.True(t, targeted, "other host unaffected")
+}
+
 func testLiveQueryReportsHostCount(t *testing.T, store fleet.LiveQueryStore) {
 	// The key is not covered by the test cleanup key prefix, so remove it before and after.
 	cleanup := func() {
@@ -416,4 +459,105 @@ func testLiveQueryReportClipped(t *testing.T, store fleet.LiveQueryStore) {
 		clipped, err := store.QueryReportsClipped([]uint{2})
 		return err == nil && !clipped[2]
 	}, 5*time.Second, 100*time.Millisecond)
+}
+
+func testLiveQueryQueryResultsLastFetched(t *testing.T, store fleet.LiveQueryStore) {
+	drain := func() {
+		_, err := store.LoadQueryResultsLastFetched()
+		require.NoError(t, err)
+		require.NoError(t, store.ClearProcessedQueryResultsLastFetched())
+	}
+	drain()
+	t.Cleanup(drain)
+
+	t1 := time.Unix(1_700_000_000, 0).UTC()
+	t2 := t1.Add(time.Minute)
+
+	got, err := store.LoadQueryResultsLastFetched()
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	require.NoError(t, store.RecordQueryResultsLastFetched(nil, t1))
+	require.NoError(t, store.RecordQueryResultsLastFetched([]uint{1, 2}, t1))
+	// A later fetch of the same row keeps the latest time.
+	require.NoError(t, store.RecordQueryResultsLastFetched([]uint{2, 3}, t2))
+
+	got, err = store.LoadQueryResultsLastFetched()
+	require.NoError(t, err)
+	require.Equal(t, map[uint]time.Time{1: t1, 2: t2, 3: t2}, got)
+
+	// Without a clear (a failed run), the processing set is merged with newly recorded rows,
+	// keeping the latest time of each.
+	require.NoError(t, store.RecordQueryResultsLastFetched([]uint{1}, t2))
+	require.NoError(t, store.RecordQueryResultsLastFetched([]uint{3}, t1))
+	require.NoError(t, store.RecordQueryResultsLastFetched([]uint{4}, t1))
+	got, err = store.LoadQueryResultsLastFetched()
+	require.NoError(t, err)
+	require.Equal(t, map[uint]time.Time{1: t2, 2: t2, 3: t2, 4: t1}, got)
+
+	require.NoError(t, store.ClearProcessedQueryResultsLastFetched())
+	got, err = store.LoadQueryResultsLastFetched()
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	// Rows past the cap are rejected.
+	oldMax := queryResultsLastFetchedMaxPending
+	queryResultsLastFetchedMaxPending = 2
+	t.Cleanup(func() { queryResultsLastFetchedMaxPending = oldMax })
+	require.NoError(t, store.RecordQueryResultsLastFetched([]uint{5, 6}, t1))
+	require.ErrorIs(t, store.RecordQueryResultsLastFetched([]uint{7}, t1), fleet.ErrQueryResultsLastFetchedFull)
+	got, err = store.LoadQueryResultsLastFetched()
+	require.NoError(t, err)
+	require.Equal(t, map[uint]time.Time{5: t1, 6: t1}, got)
+}
+
+func testLiveQueryQueryReportWriteSlots(t *testing.T, store fleet.LiveQueryStore) {
+	release := func(tokens ...string) {
+		for _, token := range tokens {
+			require.NoError(t, store.ReleaseQueryReportWriteSlot(token))
+		}
+	}
+	t.Cleanup(func() { release("a", "b", "c", "d") })
+
+	ok, err := store.AcquireQueryReportWriteSlot("a", 2, time.Minute)
+	require.NoError(t, err)
+	require.True(t, ok)
+	ok, err = store.AcquireQueryReportWriteSlot("b", 2, time.Minute)
+	require.NoError(t, err)
+	require.True(t, ok)
+	ok, err = store.AcquireQueryReportWriteSlot("c", 2, time.Minute)
+	require.NoError(t, err)
+	require.False(t, ok)
+
+	release("a")
+	ok, err = store.AcquireQueryReportWriteSlot("c", 2, time.Minute)
+	require.NoError(t, err)
+	require.True(t, ok)
+	release("b", "c")
+
+	// A shorter lease doesn't expire slots with longer ones.
+	ok, err = store.AcquireQueryReportWriteSlot("a", 2, time.Minute)
+	require.NoError(t, err)
+	require.True(t, ok)
+	ok, err = store.AcquireQueryReportWriteSlot("b", 2, 10*time.Millisecond)
+	require.NoError(t, err)
+	require.True(t, ok)
+	time.Sleep(50 * time.Millisecond)
+	ok, err = store.AcquireQueryReportWriteSlot("c", 1, time.Minute)
+	require.NoError(t, err)
+	require.False(t, ok, "slot a must still be held")
+	release("a", "b")
+
+	// A slot that is never released frees itself once its lease expires.
+	ok, err = store.AcquireQueryReportWriteSlot("a", 1, 100*time.Millisecond)
+	require.NoError(t, err)
+	require.True(t, ok)
+	ok, err = store.AcquireQueryReportWriteSlot("d", 1, time.Minute)
+	require.NoError(t, err)
+	require.False(t, ok)
+	require.Eventually(t, func() bool {
+		ok, err := store.AcquireQueryReportWriteSlot("d", 1, time.Minute)
+		require.NoError(t, err)
+		return ok
+	}, 5*time.Second, 50*time.Millisecond)
 }

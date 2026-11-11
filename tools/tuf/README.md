@@ -224,7 +224,10 @@ TIMESTAMP_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES TIMESTAMP/password" \
 2. Smoke test release on staging.
 3. Push to production:
 ```sh
-ACTION=release-to-production ./tools/tuf/releaser.sh
+ACTION=release-to-production \
+COMPONENT=fleetd \
+VERSION=1.23.0 \
+./tools/tuf/releaser.sh
 ```
 4. Smoke test release on production.
 
@@ -277,19 +280,6 @@ SWIFT_DIALOG_PATH=/path/to/swiftDialog.app.tar.gz \
 ```sh
 ACTION=release-to-production ./tools/tuf/releaser.sh
 ``` 
-
-#### Releasing `nudge` to `stable`
-
-> `releaser.sh` doesn't support `nudge` yet.
-> macOS only component
-
-The `nudge` executable can be generated from a macOS host by running:
-```sh
-make nudge-app-tar-gz version=1.1.10.81462 out-path=.
-```
-```sh
-fleetctl updates add --target /path/to/macos/nudge.app.tar.gz --platform macos --name nudge --version 1.1.10.81462 -t edge
-```
 
 #### Releasing `Escrow Buddy` to `stable`
 
@@ -360,7 +350,7 @@ GIT_REPOSITORY_DIRECTORY=<SOME_DIRECTORY>
 
 ## TODOs to improve releaser.sh
 
-- Support releasing `nudge` and `swiftDialog`. 
+- Support releasing `swiftDialog`.
 
 ## Troubleshooting
 

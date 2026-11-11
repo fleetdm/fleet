@@ -234,6 +234,7 @@ const SoftwareVulnerabilitiesTable = ({
   const renderExploitedVulnerabilitiesDropdown = () => {
     return (
       <DropdownWrapper
+        ariaLabel="Filter by exploit status"
         name="exploited-vuln-filter"
         value={showExploitedVulnerabilitiesOnly.toString()}
         className={`${baseClass}__exploited-vulnerabilities-filter`}

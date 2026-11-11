@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -14,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 const (
@@ -30,12 +32,84 @@ const (
 	duePatchNotificationBatchSize = 500
 )
 
-// Which of the two notices the notification is for. In the payload because that
-// is what Render is handed, and what DelayNotification replaces on a resend.
+// Which of the two notices the host displays, set when orbit fetches the notification script.
 var (
 	patchNotificationFirstNoticePayload = json.RawMessage(`{"reminder":false}`)
 	patchNotificationReminderPayload    = json.RawMessage(`{"reminder":true}`)
 )
+
+func shouldNotificationBeReminder(patchNotification *fleet.PatchNotification, now time.Time) bool {
+	if patchNotification == nil || patchNotification.InstallAt == nil {
+		return false
+	}
+	// If the deadline is more than 5 minutes away, the notification should be the 1 hour notice.
+	if patchNotification.InstallAt.Sub(now) > patchNotificationReminderBefore {
+		return false
+	}
+	// If the deadline has not passed and is within 5 minutes, the notification should be the 5 minute reminder.
+	if now.Before(*patchNotification.InstallAt) {
+		return true
+	}
+	// If the deadline has passed, the host ran the script late, so the notification should be the 1 hour notice.
+	return false
+}
+
+func (svc *Service) setPatchNotificationPayloadForDisplay(ctx context.Context, hostID uint, notificationUUID string) (failureMessage string) {
+	patchNotification, err := svc.ds.GetPatchNotification(ctx, notificationUUID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "failed to get the patch notification a script belongs to", "notification_uuid", notificationUUID, "err", err)
+		return "Fleet couldn't load the notification this script belongs to."
+	}
+	if patchNotification == nil {
+		return ""
+	}
+
+	payload := patchNotificationFirstNoticePayload
+	if shouldNotificationBeReminder(patchNotification, time.Now().UTC()) {
+		payload = patchNotificationReminderPayload
+	} else if err := svc.prunePatchNotificationApps(ctx, hostID, notificationUUID); err != nil {
+		svc.logger.ErrorContext(ctx, "failed to prune the apps a patch notification no longer needs to update", "notification_uuid", notificationUUID, "err", err)
+		return "Fleet couldn't remove the apps that are already updated from the notification."
+	}
+	err = svc.notificationsSvc.SetNotificationPayload(ctx, notificationUUID, payload)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "failed to set the patch notification payload", "notification_uuid", notificationUUID, "err", err)
+		return "Fleet couldn't record which notice this script shows."
+	}
+	return ""
+}
+
+// A notification can wait days for its 1 hour notice, so remove apps the host updated in the
+// meantime before the notice names them. If that leaves no apps, renderView fails the notification.
+func (svc *Service) prunePatchNotificationApps(ctx context.Context, hostID uint, notificationUUID string) error {
+	appsByNotification, err := svc.ds.ListPatchNotificationAppsForNotifications(ctx, []string{notificationUUID})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list patch notification apps")
+	}
+	apps := appsByNotification[notificationUUID]
+	if len(apps) == 0 {
+		return nil
+	}
+
+	softwareTitleIDs := make([]uint, 0, len(apps))
+	for _, app := range apps {
+		softwareTitleIDs = append(softwareTitleIDs, app.SoftwareTitleID)
+	}
+	versions, err := svc.ds.ListSoftwareTitleVersionsForHosts(ctx, []uint{hostID}, softwareTitleIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list host software versions")
+	}
+	installsByTitle, err := svc.ds.ListLastTitleInstallDataForHosts(ctx, []uint{hostID}, softwareTitleIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list host last title install data")
+	}
+
+	_, updatedTitleIDs, _ := splitUpdatedPatchNotificationApps(hostID, apps, installedVersionsByTitle(versions), installsByTitle)
+	if len(updatedTitleIDs) == 0 {
+		return nil
+	}
+	return ctxerr.Wrap(ctx, svc.ds.DeletePatchNotificationApps(ctx, notificationUUID, updatedTitleIDs), "delete patch notification apps that no longer need updating")
+}
 
 func patchNotificationIsReminder(payload json.RawMessage) (bool, error) {
 	var decoded struct {
@@ -60,6 +134,7 @@ type patchNotificationService interface {
 }
 
 type patchNotificationKind struct {
+	name            string
 	ds              fleet.Datastore
 	activities      patchNotificationActivityWriter
 	notificationSvc patchNotificationService
@@ -72,12 +147,14 @@ type PatchNotificationKind interface {
 }
 
 func NewPatchNotificationKind(
+	name string,
 	ds fleet.Datastore,
 	activities patchNotificationActivityWriter,
 	notificationSvc patchNotificationService,
 	logger *slog.Logger,
 ) PatchNotificationKind {
 	return &patchNotificationKind{
+		name:            name,
 		ds:              ds,
 		activities:      activities,
 		notificationSvc: notificationSvc,
@@ -86,7 +163,26 @@ func NewPatchNotificationKind(
 }
 
 func (k *patchNotificationKind) Name() string {
-	return fleet.PatchNotificationKind
+	return k.name
+}
+
+// nextPatchDeadline returns the first deadline whose 1 hour notice is still after now, in UTC.
+// It returns false when days is empty.
+func nextPatchDeadline(now time.Time, loc *time.Location, days []string, hour, minute int) (time.Time, bool) {
+	local := now.In(loc)
+	// 0 through 7 so today's weekday a week out is a candidate when today's deadline is too close.
+	// Noon keeps a midnight DST gap from moving the day back.
+	for i := 0; i <= 7; i++ {
+		day := time.Date(local.Year(), local.Month(), local.Day()+i, 12, 0, 0, 0, loc)
+		if !slices.Contains(days, strings.ToLower(day.Weekday().String())) {
+			continue
+		}
+		deadline := time.Date(day.Year(), day.Month(), day.Day(), hour, minute, 0, 0, loc)
+		if deadline.Add(-patchNotificationFirstNoticeBefore).After(now) {
+			return deadline.UTC(), true
+		}
+	}
+	return time.Time{}, false
 }
 
 func (svc *Service) createPatchNotificationForEndUser(ctx context.Context, host *fleet.Host, install *fleet.HostSoftwareInstallerResult) error {
@@ -94,6 +190,41 @@ func (svc *Service) createPatchNotificationForEndUser(ctx context.Context, host 
 		svc.logger.InfoContext(ctx, "not notifying about a skipped patch for software with no title",
 			"host_id", host.ID, "install_uuid", install.InstallUUID)
 		return nil
+	}
+
+	kind := fleet.PatchNotificationKind
+	var nextAttemptAt *time.Time
+	if install.PatchDeadline {
+		kind = fleet.PatchDeadlineNotificationKind
+		if host.TimeZone == nil || *host.TimeZone == "" {
+			svc.logger.DebugContext(ctx, "not scheduling patch deadline, host timezone unknown",
+				"host_id", host.ID, "install_uuid", install.InstallUUID)
+			return nil
+		}
+		loc, err := time.LoadLocation(*host.TimeZone)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "load host timezone")
+		}
+		settings, err := svc.ds.GetPatchDeadlineSettings(ctx, ptr.ValOrZero(host.TeamID))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get patch deadline settings")
+		}
+		hour, minute, err := parseHHMM(settings.Time)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "parse patch deadline time")
+		}
+		deadline, ok := nextPatchDeadline(time.Now().UTC(), loc, settings.Days, hour, minute)
+		if !ok {
+			return nil
+		}
+		firstNotice := deadline.Add(-patchNotificationFirstNoticeBefore)
+		nextAttemptAt = &firstNotice
+
+		// Re-skips arrive every policy run, so a timezone or settings change reaches undispatched rows before the notice.
+		if err := svc.notificationsSvc.RescheduleNotificationsAwaitingDispatch(ctx, host.ID, kind,
+			firstNotice, firstNotice.Add(notifications_api.EndUserNotificationMaxLifetime)); err != nil {
+			return ctxerr.Wrap(ctx, err, "reschedule patch deadline notifications")
+		}
 	}
 
 	exists, err := svc.ds.PatchNotificationExistsForApp(ctx, host.ID, *install.SoftwareTitleID)
@@ -122,17 +253,22 @@ func (svc *Service) createPatchNotificationForEndUser(ctx context.Context, host 
 		return nil
 	}
 
-	awaiting, err := svc.notificationsSvc.NotificationAwaitingDisplay(ctx, host.ID, fleet.PatchNotificationKind)
+	awaiting, err := svc.notificationsSvc.NotificationAwaitingDisplay(ctx, host.ID, kind)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get patch notification awaiting first dispatch for host")
 	}
+	// A deadline skip joins only a row scheduled for the same notice time.
+	if awaiting != nil && nextAttemptAt != nil &&
+		(awaiting.NextAttemptAt == nil || !awaiting.NextAttemptAt.Equal(*nextAttemptAt)) {
+		awaiting = nil
+	}
 	if awaiting != nil {
-		// Create a new notification rather than join an existing reminder notification.
-		awaitingIsReminder, err := patchNotificationIsReminder(awaiting.Payload)
+		// Create a new notification rather than join one whose next toast is the 5 minute reminder.
+		patchNotification, err := svc.ds.GetPatchNotification(ctx, awaiting.UUID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "read patch notification payload")
+			return ctxerr.Wrap(ctx, err, "get patch notification")
 		}
-		if awaitingIsReminder {
+		if shouldNotificationBeReminder(patchNotification, time.Now().UTC()) {
 			awaiting = nil
 		}
 	}
@@ -142,12 +278,16 @@ func (svc *Service) createPatchNotificationForEndUser(ctx context.Context, host 
 		notificationUUID = awaiting.UUID
 	} else {
 		expiresAt := time.Now().UTC().Add(notifications_api.EndUserNotificationMaxLifetime)
+		if nextAttemptAt != nil {
+			expiresAt = nextAttemptAt.Add(notifications_api.EndUserNotificationMaxLifetime)
+		}
 
 		created, err := svc.notificationsSvc.CreateNotification(ctx, &notifications_api.EndUserNotification{
-			HostID:    host.ID,
-			Kind:      fleet.PatchNotificationKind,
-			Payload:   patchNotificationFirstNoticePayload,
-			ExpiresAt: &expiresAt,
+			HostID:        host.ID,
+			Kind:          kind,
+			Payload:       patchNotificationFirstNoticePayload,
+			NextAttemptAt: nextAttemptAt,
+			ExpiresAt:     &expiresAt,
 		})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "create patch notification")
@@ -237,11 +377,15 @@ func (k *patchNotificationKind) renderView(ctx context.Context, notification *no
 			iconURL := icon.IconUrlWithDeviceToken(deviceToken)
 			item.IconURL = &iconURL
 		}
-		if installsQueued {
+		// an app whose policy changed patch option is never installed, so it shows no progress
+		if installsQueued && !app.PolicyOptionChanged {
 			installStatus := installStatusesByTitle[app.SoftwareTitleID]
 			// Fail an app whose installer was deleted, because no install was ever queued for it.
 			if app.SoftwareInstallerID == nil {
 				installStatus = fleet.SoftwareInstallFailed
+			}
+			if app.UpdatedInInventory {
+				installStatus = fleet.SoftwareInstalled
 			}
 
 			switch installStatus {
@@ -287,6 +431,15 @@ func (k *patchNotificationKind) renderView(ctx context.Context, notification *no
 
 	serverURL := appConfig.ServerSettings.ServerURL
 
+	patchNotification, err := k.ds.GetPatchNotification(ctx, notification.UUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get patch notification")
+	}
+	var installAt *time.Time
+	if patchNotification != nil {
+		installAt = patchNotification.InstallAt
+	}
+
 	return &notifications_api.NotificationView{
 		UUID:                notification.UUID,
 		OrgLogoURLLightMode: fleet.AbsolutizeLogoURL(appConfig.OrgInfo.OrgLogoURLLightMode, serverURL),
@@ -295,6 +448,7 @@ func (k *patchNotificationKind) renderView(ctx context.Context, notification *no
 		Description:         description,
 		Items:               items,
 		Actions:             actions,
+		InstallAt:           installAt,
 	}, nil
 }
 
@@ -348,11 +502,7 @@ func (k *patchNotificationKind) RemindAndInstallDuePatches(ctx context.Context) 
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list host software versions for the batch")
 	}
-	installedVersions := make(map[fleet.HostSoftwareTitleKey][]string, len(versions))
-	for _, version := range versions {
-		key := fleet.HostSoftwareTitleKey{HostID: version.HostID, SoftwareTitleID: version.SoftwareTitleID}
-		installedVersions[key] = append(installedVersions[key], version.Version)
-	}
+	installedVersions := installedVersionsByTitle(versions)
 
 	installsByTitle, err := k.ds.ListLastTitleInstallDataForHosts(ctx, hostIDs, softwareTitleIDs)
 	if err != nil {
@@ -378,38 +528,128 @@ func (k *patchNotificationKind) remindOrInstallDuePatch(
 	installsByTitle map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData,
 	now time.Time,
 ) error {
-	// A re-dispatch clears displayed_at, so a null one means the reminder has been queued but not
-	// displayed yet.
-	if duePatch.DisplayedAt == nil {
-		return nil
-	}
-
 	notificationIsReminder, err := patchNotificationIsReminder(duePatch.Payload)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "read patch notification payload")
 	}
 
-	// Which notice was displayed last decides what happens next.
-	if !notificationIsReminder {
-		if duePatch.Status != notifications_api.EndUserNotificationDispatched {
-			return nil
-		}
-	} else if now.Before(duePatch.InstallAt) {
-		// the reminder was displayed and its five minutes are not up
+	// Skip a notification not displayed since its last delay, a delay clears displayed_at.
+	if duePatch.DisplayedAt == nil {
 		return nil
 	}
 
-	// leave out the apps updated since the notification was created, so the reminder stops naming them and nothing is queued for them
-	var alreadyUpdatedTitleIDs []uint
-	remaining := make([]fleet.PatchNotificationAppDetail, 0, len(apps))
+	// Handle an acted notification like a reminder even with the 1 hour notice payload, since Update now can be pressed on either notice.
+	if !notificationIsReminder && duePatch.Status != notifications_api.EndUserNotificationActed {
+		if duePatch.Status != notifications_api.EndUserNotificationDispatched {
+			return nil
+		}
+	} else {
+		if now.Before(duePatch.InstallAt) {
+			// the reminder was displayed and its five minutes are not up
+			return nil
+		}
+
+		// Delay an offline host instead of installing, and set the 1 hour notice payload so a reminder toast still open switches to the 1 hour copy.
+		// Skip this for an acted notification, its installs were only partly queued and the rest are queued below.
+		if !duePatch.HostOnline && duePatch.Status == notifications_api.EndUserNotificationDispatched {
+			err = k.notificationSvc.DelayNotification(ctx, duePatch.NotificationUUID, now, patchNotificationFirstNoticePayload)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "send the patch notification again to an offline host")
+			}
+			return nil
+		}
+	}
+
+	remaining, alreadyUpdatedTitleIDs, updatedInInventoryTitleIDs := splitUpdatedPatchNotificationApps(duePatch.HostID, apps, installedVersions, installsByTitle)
+
+	if !notificationIsReminder && duePatch.Status != notifications_api.EndUserNotificationActed {
+		// Render builds the toast from these rows, so updated apps stop being named
+		if len(alreadyUpdatedTitleIDs) > 0 {
+			err := k.ds.DeletePatchNotificationApps(ctx, duePatch.NotificationUUID, alreadyUpdatedTitleIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "delete patch notification apps that no longer need updating")
+			}
+		}
+
+		// nothing left to update, so the notification closes instead of reminding
+		if len(remaining) == 0 {
+			_, err := k.notificationSvc.ActOnNotification(ctx, duePatch.NotificationUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "act on a patch notification with nothing left to update")
+			}
+		} else {
+			// Delay to send the 5 minute reminder.
+			err := k.notificationSvc.DelayNotification(ctx, duePatch.NotificationUUID, now, nil)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "send patch notification reminder")
+			}
+		}
+		return nil
+	}
+
+	// Set the notification to acted before queueing, so an Update now press and this pass don't both queue the same installs
+	actedInThisPass, err := k.notificationSvc.ActOnNotification(ctx, duePatch.NotificationUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "act on patch notification")
+	}
+	// Return when an Update now press acted first, it queues the installs itself. Carry on when an earlier pass acted and stopped part way, to queue the installs it left.
+	if !actedInThisPass && duePatch.Status != notifications_api.EndUserNotificationActed {
+		return nil
+	}
+
+	// Record the apps the inventory shows as updated instead of deleting them, so the reminder on screen still lists them as updated
+	err = k.ds.SetPatchNotificationAppsUpdatedInInventory(ctx, duePatch.NotificationUUID, updatedInInventoryTitleIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set patch notification apps updated in inventory")
+	}
+
+	// Queue every other app, an app Fleet installed since it joined is set as queued without a new install.
+	// Skip an app an earlier pass recorded as updated in inventory even if the inventory changed since, the toast already shows it as updated.
+	appsToQueue := make([]fleet.PatchNotificationAppDetail, 0, len(apps))
 	for _, app := range apps {
+		if app.UpdatedInInventory || slices.Contains(updatedInInventoryTitleIDs, app.SoftwareTitleID) {
+			continue
+		}
+		appsToQueue = append(appsToQueue, app)
+	}
+	_, err = k.queuePatchNotificationInstalls(ctx, duePatch.NotificationUUID, duePatch.HostID, appsToQueue, installsByTitle)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "queue patch notification installs at the deadline")
+	}
+	return nil
+}
+
+func installedVersionsByTitle(versions []fleet.HostSoftwareTitleVersion) map[fleet.HostSoftwareTitleKey][]string {
+	installedVersions := make(map[fleet.HostSoftwareTitleKey][]string, len(versions))
+	for _, version := range versions {
+		key := fleet.HostSoftwareTitleKey{HostID: version.HostID, SoftwareTitleID: version.SoftwareTitleID}
+		installedVersions[key] = append(installedVersions[key], version.Version)
+	}
+	return installedVersions
+}
+
+// splitUpdatedPatchNotificationApps leaves out the apps the host already updated, Fleet installed since they joined the notification,
+// or whose policy no longer uses this notification's patch option, so nothing is queued for them
+func splitUpdatedPatchNotificationApps(
+	hostID uint,
+	apps []fleet.PatchNotificationAppDetail,
+	installedVersions map[fleet.HostSoftwareTitleKey][]string,
+	installsByTitle map[fleet.HostSoftwareTitleKey][]*fleet.HostLastInstallData,
+) (remaining []fleet.PatchNotificationAppDetail, alreadyUpdatedTitleIDs, updatedInInventoryTitleIDs []uint) {
+	remaining = make([]fleet.PatchNotificationAppDetail, 0, len(apps))
+	for _, app := range apps {
+		if app.PolicyOptionChanged {
+			alreadyUpdatedTitleIDs = append(alreadyUpdatedTitleIDs, app.SoftwareTitleID)
+			continue
+		}
 		if app.SoftwareInstallerID == nil {
 			remaining = append(remaining, app)
 			continue
 		}
 
-		appKey := fleet.HostSoftwareTitleKey{HostID: duePatch.HostID, SoftwareTitleID: app.SoftwareTitleID}
+		appKey := fleet.HostSoftwareTitleKey{HostID: hostID, SoftwareTitleID: app.SoftwareTitleID}
 
+		// Count the app as updated when every version of it in the host's software inventory matches the installer's version
 		installed := installedVersions[appKey]
 		upToDate := len(installed) > 0
 		for _, installedVersion := range installed {
@@ -420,6 +660,7 @@ func (k *patchNotificationKind) remindOrInstallDuePatch(
 		}
 		if upToDate {
 			alreadyUpdatedTitleIDs = append(alreadyUpdatedTitleIDs, app.SoftwareTitleID)
+			updatedInInventoryTitleIDs = append(updatedInInventoryTitleIDs, app.SoftwareTitleID)
 			continue
 		}
 
@@ -436,51 +677,7 @@ func (k *patchNotificationKind) remindOrInstallDuePatch(
 		}
 		remaining = append(remaining, app)
 	}
-
-	// Render builds the toast from these rows, so updated apps stop being named
-	if len(alreadyUpdatedTitleIDs) > 0 {
-		err := k.ds.DeletePatchNotificationApps(ctx, duePatch.NotificationUUID, alreadyUpdatedTitleIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "delete patch notification apps that no longer need updating")
-		}
-	}
-
-	if !notificationIsReminder {
-		// nothing left to update, so the notification closes instead of reminding
-		if len(remaining) == 0 {
-			_, err := k.notificationSvc.ActOnNotification(ctx, duePatch.NotificationUUID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "act on a patch notification with nothing left to update")
-			}
-		} else {
-			// re-send the notification with the reminder payload, so the end user gets the 5 minute notice
-			err := k.notificationSvc.DelayNotification(ctx, duePatch.NotificationUUID, now, patchNotificationReminderPayload)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "send patch notification reminder")
-			}
-		}
-		return nil
-	}
-
-	// Moving the status to acted is what claims the queueing, so an Update now press and this pass
-	// cannot both send the same installs.
-	isStatusActed := duePatch.Status == notifications_api.EndUserNotificationActed
-	actedInThisPass, err := k.notificationSvc.ActOnNotification(ctx, duePatch.NotificationUUID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "act on patch notification")
-	}
-	// Not claiming the queueing has two causes. Acted at read time is an earlier pass that stopped
-	// part way, which this one finishes. Acted only now is an Update now press, which queues the
-	// installs instead. Or verify dropped every app.
-	if (!actedInThisPass && !isStatusActed) || len(remaining) == 0 {
-		return nil
-	}
-
-	_, err = k.queuePatchNotificationInstalls(ctx, duePatch.NotificationUUID, duePatch.HostID, remaining, installsByTitle)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "queue patch notification installs at the deadline")
-	}
-	return nil
+	return remaining, alreadyUpdatedTitleIDs, updatedInInventoryTitleIDs
 }
 
 func (k *patchNotificationKind) OnAction(ctx context.Context, notification *notifications_api.EndUserNotification, actionID string) (*notifications_api.NotificationView, error) {
@@ -578,6 +775,12 @@ func (k *patchNotificationKind) queuePatchNotificationInstalls(
 		if app.InstallQueued {
 			continue
 		}
+		if app.PolicyOptionChanged {
+			k.logger.InfoContext(ctx, "not installing a patch notification app whose policy changed its patch option",
+				"notification_uuid", notificationUUID, "software_title_id", app.SoftwareTitleID)
+			queuedTitleIDs = append(queuedTitleIDs, app.SoftwareTitleID)
+			continue
+		}
 
 		// an install carrying override_pre_install_query would skip while the app is open, so it needs to be queued again
 		titleKey := fleet.HostSoftwareTitleKey{HostID: hostID, SoftwareTitleID: app.SoftwareTitleID}
@@ -640,10 +843,25 @@ func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *not
 	}
 
 	// A policy that was deleted leaves patch_notification_apps.policy_id null.
+	// Snapshot the admin's raw per-team override via DisplayNameOverride, which
+	// is nil only when no override exists. Checking app.DisplayName != app.Name
+	// would conflate "no override" with "override explicitly equal to the raw
+	// title" (e.g. the admin pinned "Microsoft.CompanyPortal" to preserve the
+	// dotted form against the FE's WELL_KNOWN normalization) and silently drop
+	// the admin's choice.
 	softwareTitles := make([]string, 0, len(apps))
+	software := make([]fleet.NotifySoftwareTitle, 0, len(apps))
 	policyIDs := make([]uint, 0, len(apps))
 	for _, app := range apps {
 		softwareTitles = append(softwareTitles, app.Name)
+		item := fleet.NotifySoftwareTitle{
+			Title:   app.Name,
+			TitleID: app.SoftwareTitleID,
+		}
+		if app.DisplayNameOverride != nil {
+			item.DisplayName = new(*app.DisplayNameOverride)
+		}
+		software = append(software, item)
 		if app.PolicyID != nil {
 			policyIDs = append(policyIDs, *app.PolicyID)
 		}
@@ -680,11 +898,13 @@ func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *not
 		HostDisplayName:       host.DisplayName(),
 		PatchNotificationUUID: notification.UUID,
 		SoftwareTitles:        softwareTitles,
+		Software:              software,
 		PolicyIDs:             policyIDs,
 		TimeBefore:            int(timeBefore.Seconds()),
 		InstallAt:             installAt,
 		Status:                status,
 		ScriptExecutionID:     outcome.ExecutionID,
+		ExitCode:              &outcome.ExitCode,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for patch notification")
 	}

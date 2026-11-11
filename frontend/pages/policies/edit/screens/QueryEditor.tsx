@@ -62,6 +62,7 @@ const QueryEditor = ({
     lastEditedQueryBody,
     lastEditedQueryResolution,
     lastEditedQueryCritical,
+    lastEditedQueryHidden,
     lastEditedQueryPlatform,
     policyTeamId,
     setLastEditedQueryDescription,
@@ -147,7 +148,7 @@ const QueryEditor = ({
       saveAutomations?: (newPolicy: IPolicy) => Promise<void>
     ) => {
       if (policyTeamId !== APP_CONTEXT_ALL_TEAMS_ID) {
-        formData.team_id = policyTeamId;
+        formData.fleet_id = policyTeamId;
       }
       setIsUpdatingPolicy(true);
       const payload: IPolicyFormData = {
@@ -163,7 +164,8 @@ const QueryEditor = ({
       };
       if (isPremiumTier) {
         payload.critical = formData.critical;
-        payload.team_id = formData.team_id;
+        payload.hidden = formData.hidden;
+        payload.fleet_id = formData.fleet_id;
       }
 
       try {
@@ -183,7 +185,7 @@ const QueryEditor = ({
         notify.success("Policy created.");
         router.push(
           getPathWithQueryParams(PATHS.POLICY_DETAILS(policy.id), {
-            fleet_id: policy.team_id,
+            fleet_id: policy.fleet_id,
           })
         );
       } catch (createError) {
@@ -216,6 +218,7 @@ const QueryEditor = ({
       lastEditedQueryBody,
       lastEditedQueryResolution,
       lastEditedQueryCritical,
+      lastEditedQueryHidden,
       lastEditedQueryPlatform,
     });
 
@@ -226,13 +229,13 @@ const QueryEditor = ({
     }
 
     const updateAPIRequest = () => {
-      // storedPolicy.team_id is used for existing policies because selectedTeamId is subject to change
-      const team_id = storedPolicy?.team_id ?? undefined;
+      // storedPolicy.fleet_id is used for existing policies because selectedTeamId is subject to change
+      const fleet_id = storedPolicy?.fleet_id ?? undefined;
 
-      return team_id !== undefined
+      return fleet_id !== undefined
         ? teamPoliciesAPI.update(policyIdForEdit, {
             ...updatedPolicy,
-            team_id,
+            fleet_id,
           })
         : globalPoliciesAPI.update(policyIdForEdit, updatedPolicy);
     };

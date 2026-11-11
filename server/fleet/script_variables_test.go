@@ -38,7 +38,7 @@ func TestValidateFleetVariablesInScript(t *testing.T) {
 		unsupported := []FleetVarName{
 			"NONEXISTENT",
 			FleetVarHostEndUserEmailIDP,
-			FleetVarNDESSCEPChallenge,
+			FleetVarNDESSCEPProxyURL,
 			FleetVarPSSODeviceRegistrationToken,
 			"CUSTOM_SCEP_CHALLENGE_FOO",
 			"DIGICERT_DATA_FOO",

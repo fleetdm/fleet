@@ -79,6 +79,21 @@ func (svc *Service) GetZeroTouchConfiguration(ctx context.Context, teamID *uint)
 			"Android MDM is NOT configured").WithStatus(http.StatusNotFound)
 	}
 
+	// 0 means Unassigned; storing it as team_id would violate the fleets foreign key.
+	if teamID != nil && *teamID == 0 {
+		teamID = nil
+	}
+	if teamID != nil {
+		exists, err := svc.fleetDS.TeamExists(ctx, *teamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "checking if fleet exists")
+		}
+		if !exists {
+			return nil, fleet.NewInvalidArgumentError("fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
+				WithStatus(http.StatusNotFound)
+		}
+	}
+
 	ctx = ctxdb.RequirePrimary(ctx, true)
 
 	// Check if a token already exists
@@ -153,15 +168,21 @@ func (svc *Service) getClientAuthenticationSecret(ctx context.Context) (string, 
 	return string(assets[fleet.MDMAssetAndroidFleetServerSecret].Value), nil
 }
 
-func buildDPCExtrasResponse(token *android.ZeroTouchToken) *android.ZeroTouchConfigurationResponse {
-	dpcExtras := fmt.Sprintf(`{
-  "android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE": {
-    "com.google.android.apps.work.clouddpc.EXTRA_ENROLLMENT_TOKEN": %q
-  }
-}`, token.TokenValue)
+type dpcExtras struct {
+	AdminExtrasBundle adminExtrasBundle `json:"android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE"`
+}
 
+type adminExtrasBundle struct {
+	EnrollmentToken string `json:"com.google.android.apps.work.clouddpc.EXTRA_ENROLLMENT_TOKEN"`
+}
+
+func buildDPCExtrasResponse(token *android.ZeroTouchToken) *android.ZeroTouchConfigurationResponse {
+	raw, _ := json.Marshal(dpcExtras{
+		AdminExtrasBundle: adminExtrasBundle{
+			EnrollmentToken: token.TokenValue,
+		},
+	})
 	return &android.ZeroTouchConfigurationResponse{
-		DPCExtras: dpcExtras,
-		ExpiresAt: token.ExpiresAt.Format(time.RFC3339),
+		DPCExtras: raw,
 	}
 }
