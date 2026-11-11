@@ -32,15 +32,23 @@ $running = @(Get-CimInstance Win32_Process -ErrorAction Stop | Where-Object {
     ($_.CommandLine -match '\s--system-level\b' -and (Get-ProductName $path) -eq 'Vivaldi Installer')
   )
 })
-foreach ($proc in $running) {
-  Write-Host "Stopping $($proc.Name) (PID $($proc.ProcessId)) before installing."
-  Stop-Process -Id $proc.ProcessId -Force -ErrorAction SilentlyContinue
-}
 if ($running) {
-  Wait-Process -Id $running.ProcessId -Timeout 30 -ErrorAction SilentlyContinue
-  $survivors = @(Get-Process -Id $running.ProcessId -ErrorAction SilentlyContinue)
+  Write-Host "Stopping $(($running.Name | Sort-Object -Unique) -join ', ') ($($running.Count) processes) before installing."
+  $stopped = @{}
+  foreach ($proc in $running) {
+    $stopped["$($proc.ProcessId)|$($proc.CreationDate.Ticks)"] = $true
+    Stop-Process -Id $proc.ProcessId -Force -ErrorAction SilentlyContinue
+  }
+  # Wait-Process can return while stopped processes are still exiting, so poll.
+  # Match on start time too, since Windows reuses PIDs.
+  $sw = [Diagnostics.Stopwatch]::StartNew()
+  do {
+    Start-Sleep -Milliseconds 500
+    $survivors = @(Get-CimInstance Win32_Process -ErrorAction Stop |
+      Where-Object { $stopped["$($_.ProcessId)|$($_.CreationDate.Ticks)"] })
+  } while ($survivors -and $sw.Elapsed.TotalSeconds -lt 30)
   if ($survivors) {
-    Write-Host "Couldn't stop $($survivors.Name -join ', ') (PID $($survivors.Id -join ', ')), so not installing."
+    Write-Host "Couldn't stop $(($survivors.Name | Sort-Object -Unique) -join ', ') (PID $($survivors.ProcessId -join ', ')), so not installing."
     Exit 1
   }
 }
