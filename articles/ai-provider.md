@@ -66,9 +66,11 @@ If your account doesn't have billing set up, OpenAI might not let you create or 
 
 3. Enter your API key.
 
-4. Enter a model ID for each complexity level. Use the model ID from your provider's documentation, like `claude-opus-5-5`, not the model's display name.
+4. Enter a model ID for each complexity level, like claude-opus-5-5. Use the model ID, not the model’s display name. Find current model IDs on the [Anthropic models page](https://platform.claude.com/docs/en/models/overview) or the [OpenAI models page](https://developers.openai.com/api/docs/models/all).
 
 5. Select **Save**.
+
+> OpenAI’s models page also lists image, video, and audio models, and models meant for ChatGPT. These won’t work with Fleet. Use a text model, such as a GPT-5 model.
 
 Fleet checks your model IDs when you save. If a model isn't found, the field is shown in red with an error.
 
