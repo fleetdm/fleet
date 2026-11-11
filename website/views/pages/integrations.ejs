@@ -36,7 +36,7 @@
             <% } %>
           </svg>
           <div purpose="hub-center">
-            <img src="/images/icon-fleet-avatar-28x28.svg" alt="">
+            <img src="/images/icon-fleet-avatar-borderless-28x28.svg" alt="">
           </div>
           <% hubNodes.forEach((node, index)=>{ %>
           <div purpose="hub-node" ring="<%- node.ring %>" style="left: <%- (node.x / hubWidth * 100).toFixed(2) %>%; top: <%- (node.y / hubHeight * 100).toFixed(2) %>%; animation-delay: -<%- index * 0.7 %>s;">
@@ -47,51 +47,46 @@
       </div>
 
       <div purpose="directory">
-        <div purpose="directory-toolbar">
-          <div purpose="directory-heading">
-            <h2>All integrations</h2>
-            <div purpose="search">
-              <img src="/images/icon-search-16x16@2x.png" alt="">
-              <input type="text" v-model="searchQuery" placeholder="Search integrations" aria-label="Search integrations">
-            </div>
+        <div purpose="directory-heading">
+          <h2>All integrations</h2>
+          <div purpose="search">
+            <img src="/images/icon-search-16x16@2x.png" alt="">
+            <input type="text" v-model="searchQuery" placeholder="Search integrations" aria-label="Search integrations">
           </div>
-          <div purpose="category-filters" role="group" aria-label="Filter by category">
+        </div>
+
+        <div purpose="directory-body">
+          <div purpose="category-nav" role="group" aria-label="Filter by category">
             <button type="button" purpose="category-filter" :class="{selected: selectedCategory === 'all'}" :aria-pressed="selectedCategory === 'all' ? 'true' : 'false'" @click="clickSelectCategory('all')">All</button>
             <% for (let category of integrationCategories) { %>
             <button type="button" purpose="category-filter" :class="{selected: selectedCategory === '<%- category.slug %>'}" :aria-pressed="selectedCategory === '<%- category.slug %>' ? 'true' : 'false'" @click="clickSelectCategory('<%- category.slug %>')"><%- category.shortName %></button>
             <% } %>
           </div>
-        </div>
 
-        <% for (let category of integrationCategories) { %>
-        <div purpose="category-section" v-if="countVisibleIntegrations('<%- category.slug %>') > 0">
-          <div purpose="category-heading">
-            <h3><%- category.name %></h3>
-            <span>{{countVisibleIntegrations('<%- category.slug %>')}}</span>
-          </div>
-          <div purpose="integration-grid">
-            <% for (let integration of integrations.filter((integration)=> integration.category === category.slug)) { %>
-            <div purpose="integration-card" v-if="isIntegrationVisible('<%- integration.slug %>')">
-              <a purpose="card-link" href="<%- integration.docsUrl || integration.learnMoreUrl %>" target="<%- (integration.docsUrl || integration.learnMoreUrl).startsWith('http') ? '_blank' : '_self' %>" no-icon aria-label="<%- integration.name %>"></a>
-              <div purpose="integration-logo" class="<%- integration.logoType === 'icon' ? 'with-name' : '' %>">
-                <img src="<%- integration.logo %>" alt="<%- integration.name %> logo">
-                <% if (integration.logoType === 'icon') { %><span><%- integration.name %></span><% } %>
+          <div purpose="directory-results">
+            <div purpose="integration-grid" v-if="countVisibleIntegrations() > 0">
+              <% for (let integration of integrations) { %>
+              <div purpose="integration-card" v-if="isIntegrationVisible('<%- integration.slug %>')">
+                <a purpose="card-link" href="<%- integration.docsUrl || integration.learnMoreUrl %>" target="<%- (integration.docsUrl || integration.learnMoreUrl).startsWith('http') ? '_blank' : '_self' %>" no-icon aria-label="<%- integration.name %>"></a>
+                <div purpose="integration-logo" class="<%- integration.logoType === 'icon' ? 'with-name' : '' %>">
+                  <img src="<%- integration.logo %>" alt="<%- integration.name %> logo">
+                  <% if (integration.logoType === 'icon') { %><span><%- integration.name %></span><% } %>
+                </div>
+                <p><%- integration.summary %></p>
+                <div purpose="integration-links">
+                  <% if (integration.docsUrl) { %>
+                  <animated-arrow-button href="<%- integration.docsUrl %>" target="<%- integration.docsUrl.startsWith('http') ? '_blank' : '_self' %>"><%- integration.docsLabel %></animated-arrow-button>
+                  <% } %>
+                  <a purpose="learn-more-link" href="<%- integration.learnMoreUrl %>" target="_blank">Learn more</a>
+                </div>
               </div>
-              <p><%- integration.summary %></p>
-              <div purpose="integration-links">
-                <% if (integration.docsUrl) { %>
-                <animated-arrow-button href="<%- integration.docsUrl %>" target="<%- integration.docsUrl.startsWith('http') ? '_blank' : '_self' %>"><%- integration.docsLabel %></animated-arrow-button>
-                <% } %>
-                <a purpose="learn-more-link" href="<%- integration.learnMoreUrl %>" target="_blank">Learn more</a>
-              </div>
+              <% } %>
             </div>
-            <% } %>
+            <div purpose="no-results" v-else>
+              <p>No integrations match “{{searchQuery}}”.</p>
+              <button type="button" purpose="clear-filters-button" @click="clickClearFilters()">Clear filters</button>
+            </div>
           </div>
-        </div>
-        <% } %>
-        <div purpose="no-results" v-if="countVisibleIntegrations() === 0">
-          <p>No integrations match “{{searchQuery}}”.</p>
-          <button type="button" purpose="clear-filters-button" @click="clickClearFilters()">Clear filters</button>
         </div>
       </div>
 

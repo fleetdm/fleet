@@ -196,12 +196,7 @@
   [purpose='directory'] {
     display: flex;
     flex-direction: column;
-    gap: 48px;
-  }
-  [purpose='directory-toolbar'] {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
+    gap: 40px;
   }
   [purpose='directory-heading'] {
     display: flex;
@@ -241,73 +236,59 @@
       }
     }
   }
-  [purpose='category-filters'] {
+  [purpose='directory-body'] {
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+    align-items: flex-start;
+    gap: 48px;
+  }
+  // Sticks below the site header so the filters stay in reach while the grid scrolls.
+  [purpose='category-nav'] {
+    position: sticky;
+    top: ~'calc(81px + var(--announcement-banner-height, 0px) + 24px)';
+    flex-shrink: 0;
+    width: 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: transform 500ms cubic-bezier(0.4, 0, 0.2, 1);
+    &.header-hidden {
+      transform: translateY(~'calc(-81px - var(--announcement-banner-height, 0px))');
+    }
   }
   [purpose='category-filter'] {
     .btn-reset();
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    height: 32px;
-    padding: 0px 14px;
-    border: 1px solid @core-fleet-black-10;
-    border-radius: 100px;
-    background: #FFF;
+    width: 100%;
+    padding: 8px 12px;
+    border-radius: 8px;
     font-size: 14px;
-    color: @core-fleet-black;
+    line-height: 150%;
+    text-align: left;
+    color: @core-fleet-black-75;
     white-space: nowrap;
     cursor: pointer;
-    transition: border-color 0.2s ease, background-color 0.2s ease;
-    span {
-      font-size: 12px;
-      color: @core-fleet-black-50;
-    }
+    transition: background-color 0.2s ease, color 0.2s ease;
     &:hover {
-      border-color: @core-fleet-black-25;
+      background: @core-fleet-black-5;
+      color: @core-fleet-black;
     }
     &.selected {
-      background: @core-fleet-black;
-      border-color: @core-fleet-black;
-      color: #FFF;
-      span {
-        color: fade(#FFF, 60%);
-      }
+      background: @core-fleet-black-5;
+      color: @core-fleet-black;
+      font-weight: @bold;
     }
-    // .btn-reset() removes the focus outline. The offset keeps the ring visible around the dark selected pill.
+    // .btn-reset() removes the focus outline.
     &:focus-visible {
       outline: 2px solid @core-fleet-black;
       outline-offset: 2px;
     }
   }
-  [purpose='category-section'] {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-  }
-  [purpose='category-heading'] {
-    display: flex;
-    align-items: baseline;
-    gap: 12px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid @core-fleet-black-10;
-    h3 {
-      .title-m();
-      font-size: 20px;
-      color: @core-fleet-black;
-      margin-bottom: 0px;
-    }
-    span {
-      font-family: @kicker-font;
-      font-size: 13px;
-      color: @core-fleet-black-50;
-    }
+  [purpose='directory-results'] {
+    flex-grow: 1;
+    min-width: 0;
   }
   [purpose='integration-grid'] {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 16px;
   }
   [purpose='integration-card'] {
@@ -434,8 +415,25 @@
     [purpose='page-hero'] {
       grid-template-columns: 1fr;
     }
-    [purpose='integration-grid'] {
-      grid-template-columns: repeat(2, 1fr);
+    [purpose='directory-body'] {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 24px;
+    }
+    // A single scrolling row keeps the filters from pushing the results off screen.
+    [purpose='category-nav'] {
+      position: static;
+      width: auto;
+      flex-direction: row;
+      overflow-x: auto;
+      margin: 0px -@page-padding-tablet;
+      padding: 0px @page-padding-tablet 4px;
+      &.header-hidden {
+        transform: none;
+      }
+    }
+    [purpose='category-filter'] {
+      width: auto;
     }
   }
   @media (max-width: 767px) {
@@ -455,12 +453,11 @@
     [purpose='search'] {
       max-width: none;
     }
-    // A single scrolling row keeps the filters from pushing the results off screen.
-    [purpose='category-filters'] {
-      flex-wrap: nowrap;
-      overflow-x: auto;
-      margin: 0px -24px;
-      padding: 0px 24px 4px;
+  }
+  @media (max-width: 575px) {
+    [purpose='category-nav'] {
+      margin: 0px -@page-padding-mobile;
+      padding: 0px @page-padding-mobile 4px;
     }
   }
   @media (prefers-reduced-motion: reduce) {

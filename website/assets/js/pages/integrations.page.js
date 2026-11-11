@@ -5,6 +5,8 @@ parasails.registerPage('integrations', {
   data: {
     selectedCategory: 'all',
     searchQuery: '',
+    scrollDistance: 0,
+    lastScrollTop: 0,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -14,7 +16,7 @@ parasails.registerPage('integrations', {
     //…
   },
   mounted: async function() {
-    //…
+    window.addEventListener('scroll', this.handleScrollingCategoryNav);
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
@@ -44,15 +46,27 @@ parasails.registerPage('integrations', {
       return this.doesIntegrationMatchSearch(integrationSlug);
     },
 
-    countVisibleIntegrations: function(categorySlug) {
-      return this.integrations.filter((integration)=>{
-        return (!categorySlug || integration.category === categorySlug) && this.isIntegrationVisible(integration.slug);
-      }).length;
+    countVisibleIntegrations: function() {
+      return this.integrations.filter((integration)=> this.isIntegrationVisible(integration.slug)).length;
     },
 
     clickClearFilters: function() {
       this.selectedCategory = 'all';
       this.searchQuery = '';
+    },
+
+    // Uses the same thresholds as the layout's header, so the sticky nav moves up when the header hides.
+    handleScrollingCategoryNav: function() {
+      let categoryNav = document.querySelector('[purpose="category-nav"]');
+      let scrollTop = window.pageYOffset;
+      if (scrollTop > this.scrollDistance && scrollTop > window.innerHeight * 1.5) {
+        categoryNav.classList.add('header-hidden');
+        this.lastScrollTop = scrollTop;
+      } else if (scrollTop < this.lastScrollTop - 60) {
+        categoryNav.classList.remove('header-hidden');
+        this.lastScrollTop = scrollTop;
+      }
+      this.scrollDistance = scrollTop;
     },
 
   }

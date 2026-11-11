@@ -18,16 +18,17 @@ module.exports = {
 
   fn: async function () {
 
+    // Alphabetical by `shortName`, which is the label in the side nav.
     let integrationCategories = [
       { slug: 'ai', name: 'AI', shortName: 'AI' },
-      { slug: 'identity', name: 'Identity & access', shortName: 'Identity' },
-      { slug: 'security', name: 'Security & logging', shortName: 'Security' },
       { slug: 'automation', name: 'Automation & alerts', shortName: 'Automation' },
-      { slug: 'configuration', name: 'Configuration management', shortName: 'Configuration' },
       { slug: 'certificates', name: 'Certificates', shortName: 'Certificates' },
-      { slug: 'gitops', name: 'GitOps & CI/CD', shortName: 'GitOps' },
       { slug: 'cloud', name: 'Cloud hosting', shortName: 'Cloud' },
       { slug: 'compliance', name: 'Assets & compliance', shortName: 'Compliance' },
+      { slug: 'configuration', name: 'Configuration management', shortName: 'Configuration' },
+      { slug: 'gitops', name: 'GitOps & CI/CD', shortName: 'GitOps' },
+      { slug: 'identity', name: 'Identity & access', shortName: 'Identity' },
+      { slug: 'security', name: 'Security & logging', shortName: 'Security' },
     ];
 
     // `logoType: 'icon'` logos are a square mark, so the page shows the name next to them.
