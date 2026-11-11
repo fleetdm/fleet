@@ -48,12 +48,10 @@ type unlockPasswordSpec struct {
 func generateUnlockPassword(policies []*androidmanagement.PasswordRequirements) (string, error) {
 	spec := mergeUnlockPasswordPolicies(policies)
 
-	var classes []string
-	var counts []int
+	classes, counts := []string{unlockPasswordDigits}, []int{spec.length}
 	fill := unlockPasswordDigits
 	switch spec.kind {
 	case unlockPasswordNumeric:
-		classes, counts = []string{unlockPasswordDigits}, []int{spec.length}
 	case unlockPasswordAlphanumeric:
 		classes, counts = []string{unlockPasswordLower, unlockPasswordDigits}, []int{1, 1}
 		fill = unlockPasswordLower + unlockPasswordDigits

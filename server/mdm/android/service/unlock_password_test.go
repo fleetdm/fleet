@@ -191,7 +191,7 @@ func TestGenerateUnlockPassword(t *testing.T) {
 		{
 			name: "unknown quality falls back to a complex password",
 			policies: []*androidmanagement.PasswordRequirements{
-				{PasswordQuality: "SOME_FUTURE_QUALITY"},
+				{PasswordQuality: "SOME_FUTURE_QUALITY"}, //nolint:gosec // G101: test data, not a credential
 			},
 			minLength:  8,
 			want:       unlockPasswordCounts{digits: 1, symbols: 1},
@@ -212,7 +212,7 @@ func TestGenerateUnlockPassword(t *testing.T) {
 				got := countUnlockPasswordChars(t, pw)
 				if tc.digitsOnly {
 					require.Equal(t, len(pw), got.digits, "expected a PIN, got %q", pw)
-					require.Equal(t, tc.minLength, len(pw), "a PIN should be exactly the required length")
+					require.Len(t, pw, tc.minLength, "a PIN should be exactly the required length")
 					continue
 				}
 				assert.GreaterOrEqual(t, got.digits, tc.want.digits, pw)
