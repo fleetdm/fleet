@@ -493,7 +493,7 @@ spec:
       host_batch_size: 0
   mdm:
     apple_bm_default_fleet: ""
-    windows_enabled_and_configured: false
+    windows_mdm_enabled: false
     macos_updates:
       minimum_version: ""
       deadline: ""
