@@ -434,10 +434,10 @@ func (svc *Service) enqueueLockHostRequest(ctx context.Context, host *fleet.Host
 			return "", err
 		}
 	case "android":
-		if err := svc.androidModule.LockAndroidHost(ctx, host.ID); err != nil {
+		if unlockPIN, err = svc.androidModule.LockAndroidHost(ctx, host.ID); err != nil {
 			return "", ctxerr.Wrap(ctx, err, "enqueuing lock request for android")
 		}
-		activity.ViewPIN = false
+		activity.ViewPIN = viewPIN
 	}
 
 	if err := svc.NewActivity(

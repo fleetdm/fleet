@@ -2296,7 +2296,7 @@ type ListPendingMDMAndroidCommandsFunc func(ctx context.Context, operationNamePr
 
 type FailPendingMDMAndroidCommandsOutsidePrefixFunc func(ctx context.Context, operationNamePrefix string, createdBefore time.Time, errorMessage string, limit int) (int64, error)
 
-type LockHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error
+type LockHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand, unlockPIN string) error
 
 type WipeHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error
 
@@ -14515,11 +14515,11 @@ func (s *DataStore) FailPendingMDMAndroidCommandsOutsidePrefix(ctx context.Conte
 	return s.FailPendingMDMAndroidCommandsOutsidePrefixFunc(ctx, operationNamePrefix, createdBefore, errorMessage, limit)
 }
 
-func (s *DataStore) LockHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error {
+func (s *DataStore) LockHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand, unlockPIN string) error {
 	s.mu.Lock()
 	s.LockHostViaAndroidMDMFuncInvoked = true
 	s.mu.Unlock()
-	return s.LockHostViaAndroidMDMFunc(ctx, host, cmd)
+	return s.LockHostViaAndroidMDMFunc(ctx, host, cmd, unlockPIN)
 }
 
 func (s *DataStore) WipeHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error {

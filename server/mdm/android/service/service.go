@@ -1155,44 +1155,66 @@ func (svc *Service) resolveAndroidCommandTarget(ctx context.Context, hostID uint
 	return host, deviceName, nil
 }
 
-// LockAndroidHost issues an AMAPI LOCK command and persists state. The Pub/Sub COMMAND
-// notification (see ProcessPubSubPush) transitions the row from pending to acknowledged/error.
-func (svc *Service) LockAndroidHost(ctx context.Context, hostID uint) error {
+// LockAndroidHost issues an AMAPI RESET_PASSWORD command with a Fleet-generated password and the LOCK_NOW flag, and
+// persists state. The Pub/Sub COMMAND notification (see ProcessPubSubPush) transitions the row from pending to
+// acknowledged/error.
+func (svc *Service) LockAndroidHost(ctx context.Context, hostID uint) (string, error) {
 	host, deviceName, err := svc.resolveAndroidCommandTarget(ctx, hostID, "lock")
 	if err != nil {
-		return err
+		return "", err
 	}
 
+	// appliedPasswordPolicies is what the device actually enforces, including Google's mapping of device-scoped
+	// policies onto personally-owned work profiles, so it's read from AMAPI rather than rebuilt from Fleet's profiles.
+	var policies []*androidmanagement.PasswordRequirements
+	device, err := svc.androidAPIClient.EnterprisesDevicesGet(ctx, deviceName)
+	if err != nil {
+		svc.logger.WarnContext(ctx, "android lock: couldn't read applied password policies, using default PIN",
+			"host_id", host.ID, "err", err)
+	} else if device != nil {
+		policies = device.AppliedPasswordPolicies
+	}
+	unlockPIN, err := generateUnlockPassword(policies)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "generate android unlock password")
+	}
+
+	cmdType := string(android.MDMAndroidCommandTypeResetPassword)
+	// No REQUIRE_ENTRY: it would block Clear passcode and a re-lock with a new PIN until the user enters this one.
+	flags := []string{"LOCK_NOW"}
 	op, err := svc.androidAPIClient.EnterprisesDevicesIssueCommand(ctx, deviceName, &androidmanagement.Command{
-		Type:     string(android.MDMAndroidCommandTypeLock),
-		Duration: longCommandDuration,
+		Type:               cmdType,
+		NewPassword:        unlockPIN,
+		ResetPasswordFlags: flags,
+		Duration:           longCommandDuration,
 	})
 	if err != nil {
 		if fleetErr := androidmgmt.FleetErrFromAMAPI(err); fleetErr != nil {
-			return fleetErr
+			return "", fleetErr
 		}
-		return ctxerr.Wrap(ctx, err, "amapi issue lock command")
+		return "", ctxerr.Wrap(ctx, err, "amapi issue lock command")
 	}
 
 	cmd := &android.MDMAndroidCommand{
 		CommandUUID:   uuid.NewString(),
 		HostUUID:      host.UUID,
 		OperationName: op.Name,
-		CommandType:   string(android.MDMAndroidCommandTypeLock),
-		RawCommand:    marshalRawCommand(&androidmanagement.Command{Type: string(android.MDMAndroidCommandTypeLock), Duration: longCommandDuration}),
-		Status:        string(android.MDMAndroidCommandStatusPending),
+		CommandType:   cmdType,
+		// newPassword is left out because raw_command is served by the MDM commands API.
+		RawCommand: marshalRawCommand(&androidmanagement.Command{Type: cmdType, ResetPasswordFlags: flags, Duration: longCommandDuration}),
+		Status:     string(android.MDMAndroidCommandStatusPending),
 	}
-	if err := svc.fleetDS.LockHostViaAndroidMDM(ctx, host, cmd); err != nil {
+	if err := svc.fleetDS.LockHostViaAndroidMDM(ctx, host, cmd, unlockPIN); err != nil {
 		// AMAPI already accepted the command at this point; log the orphan but surface the error
 		// so the caller knows the local state is out of sync.
 		svc.logger.ErrorContext(ctx, "amapi lock issued but local state write failed",
 			"host_id", host.ID, "operation_name", op.Name, "err", err)
-		return ctxerr.Wrap(ctx, err, "persist android lock command")
+		return "", ctxerr.Wrap(ctx, err, "persist android lock command")
 	}
 
 	svc.logger.InfoContext(ctx, "android lock command issued",
 		"host_id", host.ID, "command_uuid", cmd.CommandUUID, "operation_name", op.Name)
-	return nil
+	return unlockPIN, nil
 }
 
 // ClearAndroidPasscode issues an AMAPI RESET_PASSWORD with newPassword="" and persists the row plus host_mdm_actions.clear_passcode_ref.
