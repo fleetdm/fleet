@@ -1,15 +1,8 @@
 # Connect Fleet to ServiceNow
 
-<!--
-DRAFT for review. Tracks https://github.com/fleetdm/fleet/issues/38864 (milestone 5.2.0).
-Open product decisions are marked with "TODO(product)" comments. Resolve or remove them before publishing.
--->
-
 _Available in Fleet Premium._
 
-> **Coming soon:** The ServiceNow integration is planned for Fleet 5.2.0. Some fields in this guide depend on other features that are also coming soon. See [What's available and what's coming soon](#whats-available-and-whats-coming-soon).
-
-<!-- TODO(product): Confirm Premium-only. Confirm the 5.2.0 release date before publishing (customers were told Q1 2027). -->
+> **Coming soon:** The ServiceNow integration is planned for [Fleet 5.2.0](https://github.com/fleetdm/fleet/issues/38864). Some fields in this guide depend on other features that are also coming soon. See [What's available and what's coming soon](#whats-available-and-whats-coming-soon).
 
 Fleet can sync host vitals (hardware, end user, and software inventory) to ServiceNow so your configuration management database (CMDB) and software asset management (SAM) records stay current without a custom integration.
 
@@ -39,18 +32,9 @@ This guide covers:
 
 Until publisher and install date ship, the integration leaves those ServiceNow fields blank (or partially filled) instead of guessing. Learn more in [Software installations](#software-installations).
 
-<!-- TODO(product): #54912 and #54914 are tentatively P2 for 5.2.0. Update this table if they move. -->
-
 ## How the integration works
 
 In Fleet, head to **Settings > Integrations > Asset management**, select **Add tool**, choose **ServiceNow**, and enter your ServiceNow instance URL and API key. Fleet syncs host vitals every hour.
-
-<!--
-TODO(product): Decide the direction of the integration before publishing.
-- The Figma wireframes show a Fleet-side "Add asset management tool" form (ServiceNow URL + API key), so Fleet pushes to ServiceNow.
-- The #38864 user story is written for "an IT admin in ServiceNow" adding a Fleet connector, so ServiceNow pulls from Fleet.
-This changes which credentials the customer creates (a ServiceNow integration user vs. a Fleet API-only user) and where the setup steps live.
--->
 
 Fleet writes every record through ServiceNow's [Identification and Reconciliation Engine (IRE)](https://www.servicenow.com/docs/csh?topicname=identification-reconciliation.html) with **Fleet** as the discovery source. IRE matches Fleet's data to existing configuration items (CIs) instead of creating duplicates, and lets Fleet run alongside other discovery sources such as SCCM, Intune, or Jamf.
 
