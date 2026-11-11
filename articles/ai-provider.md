@@ -60,7 +60,7 @@ If your account doesn't have billing set up, OpenAI might not let you create or 
 
 ## Connect a custom AI provider
 
-1. In Fleet, go to **Settings** > **Organization settings** > **AI and MCP**.
+1. In Fleet, go to **Organization settings** > **AI and MCP**.
 
 2. Select your provider: **Anthropic** or **OpenAI**.
 
@@ -101,6 +101,10 @@ org_settings:
       low: claude-haiku-5-5
       high: claude-opus-5-5
 ```
+
+## Switch back to Fleet's built-in AI
+
+To stop using your custom AI provider, go to **Organization settings** > **AI and MCP** and TODO. Fleet uses its built-in AI for all new requests.
 
 ## Troubleshooting
 
