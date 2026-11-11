@@ -3,7 +3,6 @@
   "slug": "wacom-tablet/windows",
   "package_identifier": "Wacom.WacomTabletDriver",
   "unique_identifier": "Wacom Tablet",
-  "fuzzy_match_name": true,
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/wacom_tablet_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/wacom_tablet_uninstall.ps1",
   "installer_arch": "x64",

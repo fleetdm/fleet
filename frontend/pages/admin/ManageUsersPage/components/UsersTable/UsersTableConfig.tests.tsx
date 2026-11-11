@@ -41,7 +41,7 @@ const createMockInvite = (overrides?: Partial<IInvite>): IInvite => ({
   name: "Invited User",
   sso_enabled: false,
   global_role: "observer",
-  teams: [],
+  fleets: [],
   ...overrides,
 });
 
@@ -77,7 +77,7 @@ describe("UsersTableConfig - combineDataSets", () => {
   });
 
   it("returns 'No access' for invites without a role", () => {
-    const invites = [createMockInvite({ global_role: null, teams: [] })];
+    const invites = [createMockInvite({ global_role: null, fleets: [] })];
     const [row] = combineDataSets([], invites, 99);
     expect(row.status).toBe("No access");
   });

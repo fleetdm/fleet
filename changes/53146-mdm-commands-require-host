@@ -1,0 +1,1 @@
+- Breaking change: `GET /api/v1/fleet/commands` (and `GET /api/v1/fleet/mdm/commands`) now requires `host_identifier` and returns a 400 error without it.

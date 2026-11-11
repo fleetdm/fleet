@@ -42,12 +42,12 @@ const createUrl = (baseUrl: string, input: string) => {
 };
 
 const generateOptionLabel = (user: IUser, team: ITeam): string => {
-  const userTeamIds = user.teams.map((currentTeam) => currentTeam.id);
+  const userTeamIds = user.fleets.map((currentTeam) => currentTeam.id);
   if (permissionUtils.isOnGlobalTeam(user)) {
     return `${user.name} - Global user`;
     // User is already in this team
   } else if (userTeamIds.includes(team.id)) {
-    const teamName = user.teams.find(
+    const teamName = user.fleets.find(
       (currentTeam) => currentTeam.id === team.id
     )?.name;
     return `${user.name} - Already has access to ${teamName}`;
