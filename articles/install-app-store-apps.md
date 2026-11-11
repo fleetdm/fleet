@@ -6,6 +6,8 @@ In Fleet, you can install Apple App Store apps on your macOS, iOS, and iPadOS ho
 
 You can also manage which Google Play Store apps are available for self-service in your end user's Android work profiles. Google only allows free Google Play Store apps. [Paid apps aren't supported](https://www.androidenterprise.community/discussions/conversations/distributing-paid-apps/653).
 
+On Windows hosts, you can install Microsoft Store apps.
+
 ## Add an app
 
 ### Apple (VPP)
@@ -60,6 +62,20 @@ curl -X POST https://<your_fleet_server_url>/api/v1/fleet/software/web_apps \
   -F 'icon=@/path/to/app-icon.png'
 ```
 
+### Microsoft Store (Windows)
+
+1. Head to the [Microsoft Store](https://apps.microsoft.com), find the app, and copy the ID at the end of the URL (e.g. "9PLM9XGG6VKS" from `https://apps.microsoft.com/detail/9PLM9XGG6VKS`).
+
+2. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
+
+3. Select **Add software > App store**, choose the Windows platform, then enter the application ID.
+
+4. Optionally, turn on **Self-service**, use the **Target** option to limit which hosts can install the app, and expand **Advanced options** to edit the pre-install query and the install, post-install, and uninstall scripts.
+
+Fleet adds default install and uninstall scripts that use `winget` to install the app from the Microsoft Store. In the scripts, Fleet replaces `$MICROSOFT_STORE_ID` with the app's Microsoft Store ID and `$PACKAGE_ID` with its package family name. `$PACKAGE_ID` is empty for apps that aren't MSIX apps (see [Update Microsoft Store apps](#update-microsoft-store-apps)). To go back to the default scripts, delete the app and add it again.
+
+> Some Microsoft Store listings can't be installed by Fleet because Microsoft doesn't provide a package for them. This is common for games and for apps that are no longer available in the Microsoft Store.
+
 ## Edit or delete the app
 
 1. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
@@ -84,7 +100,20 @@ curl -X POST https://<your_fleet_server_url>/api/v1/fleet/software/web_apps \
 
 4. In the modal dialog that opens, click **Enable auto updates** and configure an update window of at least one hour.
 
+## Update Microsoft Store apps
+
+The Microsoft Store doesn't share version numbers for most apps, so Fleet shows **Latest** as the app's version. Each install gets the latest version available in the Microsoft Store.
+
+How an app is updated depends on how it's packaged:
+
+- **MSIX apps** (most apps built for the Microsoft Store) are updated by the Microsoft Store automatically. To make sure automatic updates stay on, deploy a [Windows configuration profile](https://fleetdm.com/guides/custom-os-settings) that sets the [ApplicationManagement/AllowAppStoreAutoUpdate](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-applicationmanagement#allowappstoreautoupdate) policy to `1`.
+- **Apps with their own installer** (MSI or EXE) aren't updated by the Microsoft Store. They update with the app's own updater, or when you select **Reinstall** in Fleet. Reinstall installs the version listed in the Microsoft Store, which can be older than the version the app already updated itself to.
+
+To check how an app is packaged, run `winget show --id <app ID> --source msstore` on a Windows host. MSIX apps show `msstore` as the installer type.
+
 ## Managed configuration
+
+Currently, managed configuration isn't supported for Microsoft Store apps.
 
 ### Apple (VPP)
 
@@ -217,6 +246,25 @@ If the app is in the foreground when the configuration is sent and a newer versi
 
 Android apps can be installed via self-service in the end user's managed Google Play Store (work profile).
 
+### Microsoft Store (Windows)
+
+Apps can be installed and uninstalled manually on each host's **Host details** page, via self-service on the end user's **Fleet Desktop > My device** page, or [automatically via policy automation](https://fleetdm.com/guides/automatic-software-install-in-fleet). Currently, Microsoft Store apps aren't available in setup experience.
+
+Fleet runs the install, post-install, and uninstall scripts as the user who's logged in to the host, because the Microsoft Store installs apps for each user. If no user is logged in, the install fails.
+
+If the app is open during a reinstall, Fleet closes it, installs the latest version, and opens it again. Apps with their own installer (MSI or EXE) are closed by their installer instead, and might not open again.
+
+Before you deploy an app to many hosts, test it on a host with a standard (non-admin) user account. Microsoft Store apps behave differently depending on how they're packaged:
+
+- **Apps install for one user.** Other users on the same host don't get the app. Fleet's software inventory lists an app installed for one user only while that user is logged in.
+- **Apps that install for all users need administrator approval.** Some apps with their own installer (MSI or EXE) install for everyone on the host. Windows asks a standard user for administrator credentials, and asks an admin to confirm. If the prompt is canceled, the install fails. Uninstalling these apps works the same way.
+- **Apps installed for all users show up for every user.** After one user installs the app, other users might see it as installed, even though they never installed it.
+- **Some installers aren't silent.** Some apps with their own installer show their own windows during install or uninstall, like a progress window or a confirmation dialog.
+- **Paid apps:** paid MSIX apps fail to install with a licensing error. Paid apps with their own installer install, and then show the publisher's license or trial screen when the end user opens them.
+- **Region:** the Microsoft Store uses the region set on the host (**Settings > Time & language > Language & region > Country or region**). If the app isn't available in that region, the install fails with a licensing error.
+
+> For apps with their own installer, the publisher provides some of the details the Microsoft Store uses, like whether the app installs for all users and what its error codes mean. These details can be wrong, so an error message like "already installed" might not match what happened.
+
 ## API and GitOps
 
 Fleet also provides a REST API for managing app store apps programmatically. Learn more in the API [reference docs](https://fleetdm.com/docs/rest-api/rest-api#add-app-store-app).
@@ -228,4 +276,4 @@ To manage App Store apps using Fleet's best practice GitOps, check out the `app_
 <meta name="authorGitHubUsername" value="jahzielv">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-01-08">
-<meta name="description" value="This guide will walk you through installing Apple App Store and Google Play Store apps on macOS, iOS, iPadOS, and Android hosts.">
+<meta name="description" value="This guide will walk you through installing Apple App Store, Google Play Store, and Microsoft Store apps on macOS, iOS, iPadOS, Android, and Windows hosts.">
