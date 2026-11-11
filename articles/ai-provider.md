@@ -13,9 +13,13 @@ We recommend creating a dedicated key for Fleet, so you can track its usage and 
 ### Anthropic
 
 1. Sign in to the [Claude Console](https://platform.claude.com/).
+
 2. Go to the [API keys](https://platform.claude.com/settings/keys) page.
+
 3. Select **Create key** and name the key (for example, "Fleet").
+
 4. Set **Linked account** to a service account and select a workspace to scope the key to.
+
 5. Copy the key, which starts with `sk-ant-`, and store it somewhere safe, like a secrets manager.
 
 Use a service account key instead of a personal key. Personal keys stop working if the person who created them leaves your organization.
@@ -25,9 +29,13 @@ If **Create key** is disabled, your role might not allow you to create keys. Ask
 ### OpenAI
 
 1. Sign in to the [OpenAI Platform](https://platform.openai.com/).
+
 2. Select the project you want Fleet to use from the project selector. To keep Fleet's usage separate, create a new project.
+
 3. Go to organization settings, select the project, and open **Members**.
+
 4. Select **+ Service account**, enter an ID (for example, "fleet"), and select **Create**.
+
 5. Copy the secret key and store it somewhere safe, like a secrets manager.
 
 Creating service accounts requires the organization owner or project owner role. If you don't see the option, ask an owner to create the key for you.
@@ -37,9 +45,13 @@ If your account doesn't have billing set up, OpenAI might not let you create or 
 ## Connect your provider
 
 1. In Fleet, go to **Settings** > **Organization settings** > **AI and MCP**.
+
 2. Select your provider: **Anthropic** or **OpenAI**.
+
 3. Enter your API key.
+
 4. Enter a model ID for each complexity level. Use the model ID from your provider's documentation, like `claude-opus-5-5`, not the model's display name.
+
 5. Select **Save**.
 
 Fleet checks your Anthropic model IDs when you save. If a model isn't found, the field is shown in red with an error.
@@ -84,8 +96,8 @@ If profile generation fails, Fleet shows an error explaining why:
 Only global admins can change AI provider settings. If you're a maintainer, contact your Fleet administrator.
 
 <meta name="category" value="guides">
-<meta name="authorGitHubUsername" value="TODO">
-<meta name="authorFullName" value="TODO">
-<meta name="publishedOn" value="TODO">
+<meta name="authorGitHubUsername" value="melpike">
+<meta name="authorFullName" value="Mel Pike">
+<meta name="publishedOn" value="2026-11-11">
 <meta name="articleTitle" value="Use your own AI provider">
 <meta name="description" value="Learn how to connect Anthropic or OpenAI to Fleet's AI profile builder.">
