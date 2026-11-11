@@ -74,6 +74,8 @@ curl -X POST https://<your_fleet_server_url>/api/v1/fleet/software/web_apps \
 
 Fleet adds default install and uninstall scripts that use `winget` to install the app from the Microsoft Store. In the scripts, Fleet replaces `$MICROSOFT_STORE_ID` with the app's Microsoft Store ID and `$PACKAGE_ID` with its package family name. `$PACKAGE_ID` is empty for apps that aren't MSIX apps (see [Update Microsoft Store apps](#update-microsoft-store-apps)). To go back to the default scripts, delete the app and add it again.
 
+> If an app is also available as a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps) (e.g. OBS Studio), use the Fleet-maintained app. It installs for all users, and Fleet knows its version.
+
 > Some Microsoft Store listings can't be installed by Fleet because Microsoft doesn't provide a package for them. This is common for games and for apps that are no longer available in the Microsoft Store.
 
 ## Edit or delete the app
@@ -122,7 +124,7 @@ How an app is updated depends on how it's packaged:
   </Replace>
   ```
 
-  After the profile is applied, **App updates** in the Microsoft Store's **Settings** is turned on and grayed out, so end users can't turn it off.
+  After the profile is applied, **App updates** in the Microsoft Store's **Settings** is turned on and grayed out, so end users can't turn it off. To let end users turn automatic updates on or off again, delete the profile.
 - **Apps with their own installer** (MSI or EXE) aren't updated by the Microsoft Store. They update with the app's own updater, or when you select **Reinstall** in Fleet. Reinstall installs the version listed in the Microsoft Store, which can be older than the version the app already updated itself to.
 
 To check how an app is packaged, run `winget show --id <app ID> --source msstore` on a Windows host. MSIX apps show `msstore` as the installer type.
@@ -266,7 +268,9 @@ Android apps can be installed via self-service in the end user's managed Google 
 
 Apps can be installed and uninstalled manually on each host's **Host details** page, via self-service on the end user's **Fleet Desktop > My device** page, or [automatically via policy automation](https://fleetdm.com/guides/automatic-software-install-in-fleet). Currently, Microsoft Store apps aren't available in setup experience.
 
-Fleet runs the install, post-install, and uninstall scripts as the user who's logged in to the host, because the Microsoft Store installs apps for each user. If no user is logged in, the install fails.
+Fleet runs the install, post-install, and uninstall scripts as the user who's logged in to the host, because the Microsoft Store installs apps for each user. If no user is logged in, the install fails. Currently, other scripts and custom packages run as the system.
+
+If the end user already installed the app themselves, Fleet installs it again over the existing app, so you don't need to uninstall it first. The end user's app settings and data are kept.
 
 If the app is open during a reinstall, Fleet closes it, installs the latest version, and opens it again. Apps with their own installer (MSI or EXE) are closed by their installer instead, and might not open again.
 
