@@ -3,8 +3,8 @@
     {
       "version": "35.0.3",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Pale Moon' AND publisher = 'Moonchild Productions';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Pale Moon' AND publisher = 'Moonchild Productions' AND version_compare(version, '35.0.3') < 0);",
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Pale Moon %' AND publisher = 'Moonchild Productions';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Pale Moon %' AND publisher = 'Moonchild Productions' AND version_compare(version, '35.0.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'palemoon.exe');"
       },
       "installer_url": "https://rm-eu.palemoon.org/release/palemoon-35.0.3.win64.installer.exe",
