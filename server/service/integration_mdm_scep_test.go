@@ -1377,16 +1377,16 @@ func (s *integrationMDMTestSuite) TestRemovedFleetVariableSavedBeforeUpgrade() {
 
 	// A DigiCert CA and a profile saved with the variable, the way a Fleet 4 server stored them.
 	ca := newMockDigicertCA(digiCertServer.server.URL, "StoredVar")
-	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &createCertificateAuthorityRequest{DigiCert: &ca}, http.StatusOK,
-		&createCertificateAuthorityResponse{})
+	var caResp createCertificateAuthorityResponse
+	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &createCertificateAuthorityRequest{DigiCert: &ca}, http.StatusOK, &caResp)
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `UPDATE certificate_authorities SET certificate_common_name = ? WHERE name = ?`,
-			"$FLEET_VAR_HOST_END_USER_EMAIL_IDP", ca.Name)
+		_, err := q.ExecContext(ctx, `UPDATE certificate_authorities SET certificate_common_name = ? WHERE id = ?`,
+			"$FLEET_VAR_HOST_END_USER_EMAIL_IDP", caResp.ID)
 		return err
 	})
 	t.Cleanup(func() {
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(context.WithoutCancel(ctx), `DELETE FROM certificate_authorities WHERE name = ?`, ca.Name)
+			_, err := q.ExecContext(context.WithoutCancel(ctx), `DELETE FROM certificate_authorities WHERE id = ?`, caResp.ID)
 			return err
 		})
 	})
