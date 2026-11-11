@@ -138,6 +138,7 @@ func TestHosts(t *testing.T) {
 		{"HostsListBySoftwareChangedAt", testHostsListBySoftwareChangedAt},
 		{"HostsListByOperatingSystemID", testHostsListByOperatingSystemID},
 		{"HostsListByOSNameAndVersion", testHostsListByOSNameAndVersion},
+		{"HostsOSNameAndVersionLoaders", testHostsOSNameAndVersionLoaders},
 		{"HostsListByVulnerability", testHostsListByVulnerability},
 		{"HostsListByDiskEncryptionStatus", testHostsListMacOSSettingsDiskEncryptionStatus},
 		{"HostsListFailingPolicies", printReadsInTest(testHostsListFailingPolicies)},
@@ -5827,6 +5828,126 @@ func testHostsListByOSNameAndVersion(t *testing.T, ds *Datastore) {
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{OSNameFilter: ptr.String("macOS"), OSVersionFilter: ptr.String("12.5.2")}, 3)
 	for _, h := range hosts {
 		require.Contains(t, hostIDs_12_5_2_X86, h.ID)
+	}
+}
+
+func testHostsOSNameAndVersionLoaders(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newHost := func(name, platform, osVersion string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   new(name),
+			NodeKey:         new(name),
+			UUID:            name,
+			Hostname:        name + ".local",
+			Platform:        platform,
+			OSVersion:       osVersion,
+		})
+		require.NoError(t, err)
+		return h
+	}
+	// The OS row keeps "Microsoft" in Windows names (vulnerability matching uses it); the API drops it.
+	win := newHost("win", "windows", "Windows 11 Pro 24H2 10.0.26100.1742")
+	require.NoError(t, ds.UpdateHostOperatingSystem(ctx, win.ID, fleet.OperatingSystem{
+		Name: "Microsoft Windows 11 Pro 24H2", Version: "10.0.26100.1742", Arch: "64-bit", KernelVersion: "10.0.26100.1742",
+		Platform: "windows", DisplayVersion: "24H2",
+	}))
+	// The OS inventory records Omarchy as "Arch Linux" "rolling"; the API returns the host's own name and version.
+	arch := newHost("arch", "arch", "Arch Linux rolling")
+	omarchy := newHost("omarchy", "omarchy", "Omarchy 4.0.0")
+	for _, h := range []*fleet.Host{arch, omarchy} {
+		require.NoError(t, ds.UpdateHostOperatingSystem(ctx, h.ID, fleet.OperatingSystem{
+			Name: "Arch Linux", Version: "rolling", Arch: "x86_64", KernelVersion: "6.12.1-arch1-1", Platform: h.Platform,
+		}))
+	}
+	// Hosts without an OS row yet: an Android device that reports no version, and an Omarchy host before its inventory
+	// comes in, which the Omarchy filter must not match.
+	android := newHost("android", "android", "Android")
+	omarchyNoOS := newHost("omarchy-no-os", "omarchy", "Omarchy 4.0.0")
+	all := []*fleet.Host{win, arch, omarchy, android, omarchyNoOS}
+
+	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "os name and version", Query: "select 1"})
+	require.NoError(t, err)
+	for _, h := range all {
+		require.NoError(t, ds.RecordLabelQueryExecutions(ctx, h, map[uint]*bool{label.ID: new(true)}, time.Now(), false))
+	}
+
+	type osFields struct{ combined, name, version string }
+	want := map[uint]osFields{
+		win.ID:         {"Windows 11 Pro 24H2 10.0.26100.1742", "Windows 11 Pro 24H2", "10.0.26100.1742"},
+		arch.ID:        {"Arch Linux rolling", "Arch Linux", "rolling"},
+		omarchy.ID:     {"Omarchy 4.0.0", "Omarchy", "4.0.0"},
+		android.ID:     {"Android", "", ""},
+		omarchyNoOS.ID: {"Omarchy 4.0.0", "", ""},
+	}
+	checkHosts := func(t *testing.T, hosts ...*fleet.Host) {
+		t.Helper()
+		require.Len(t, hosts, len(want))
+		for _, h := range hosts {
+			w, ok := want[h.ID]
+			require.True(t, ok, "unexpected host %d", h.ID)
+			assert.Equal(t, w.combined, h.OSVersion)
+			assert.Equal(t, w.name, h.OSName)
+			assert.Equal(t, w.version, h.OSVersionOnly)
+		}
+	}
+
+	adminFilter := fleet.TeamFilter{User: test.UserAdmin}
+
+	hosts, err := ds.ListHosts(ctx, adminFilter, fleet.HostListOptions{})
+	require.NoError(t, err)
+	checkHosts(t, hosts...)
+
+	hosts, err = ds.ListHostsInLabel(ctx, adminFilter, label.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	checkHosts(t, hosts...)
+
+	hosts, err = ds.SearchHosts(ctx, adminFilter, "", false)
+	require.NoError(t, err)
+	checkHosts(t, hosts...)
+
+	var byID, byIdentifier []*fleet.Host
+	for _, h := range all {
+		got, err := ds.Host(ctx, h.ID)
+		require.NoError(t, err)
+		byID = append(byID, got)
+		got, err = ds.HostByIdentifier(ctx, h.UUID)
+		require.NoError(t, err)
+		byIdentifier = append(byIdentifier, got)
+	}
+	checkHosts(t, byID...)
+	checkHosts(t, byIdentifier...)
+
+	for _, h := range all {
+		health, err := ds.GetHostHealth(ctx, h.ID)
+		require.NoError(t, err)
+		assert.Equal(t, want[h.ID].name, health.OSName)
+		assert.Equal(t, want[h.ID].version, health.OsVersion)
+	}
+
+	// The returned values round-trip into the os_name and os_version filters. Windows names also match with
+	// "Microsoft", and the inventory's "Arch Linux" "rolling" still matches every host it groups.
+	for _, tc := range []struct {
+		name, version string
+		wantIDs       []uint
+	}{
+		{"Windows 11 Pro 24H2", "10.0.26100.1742", []uint{win.ID}},
+		{"Microsoft Windows 11 Pro 24H2", "10.0.26100.1742", []uint{win.ID}},
+		{"Omarchy", "4.0.0", []uint{omarchy.ID}},
+		{"Arch Linux", "rolling", []uint{arch.ID, omarchy.ID}},
+	} {
+		hosts = listHostsCheckCount(t, ds, adminFilter, fleet.HostListOptions{
+			OSNameFilter: new(tc.name), OSVersionFilter: new(tc.version),
+		}, len(tc.wantIDs))
+		var gotIDs []uint
+		for _, h := range hosts {
+			gotIDs = append(gotIDs, h.ID)
+		}
+		assert.ElementsMatch(t, tc.wantIDs, gotIDs, tc.name)
 	}
 }
 
@@ -14331,6 +14452,9 @@ func testHostHealth(t *testing.T, ds *Datastore) {
 		CPUType: "cpuType",
 	})
 	require.NoError(t, err)
+	require.NoError(t, ds.UpdateHostOperatingSystem(t.Context(), 1, fleet.OperatingSystem{
+		Name: "macOS", Version: "15.2", Arch: "arm64", KernelVersion: "24.2.0", Platform: "darwin",
+	}))
 	h, err := ds.Host(context.Background(), 1)
 	require.NoError(t, err)
 
@@ -14416,7 +14540,8 @@ func testHostHealth(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, h.Platform, hh.Platform)
 	require.Equal(t, h.DiskEncryptionEnabled, hh.DiskEncryptionEnabled)
-	require.Equal(t, h.OSVersion, hh.OsVersion)
+	require.Equal(t, "macOS", hh.OSName)
+	require.Equal(t, "15.2", hh.OsVersion)
 	require.Equal(t, ptr.Uint(team.ID), hh.TeamID)
 	require.Equal(t, h.UpdatedAt, hh.UpdatedAt)
 	require.Len(t, hh.FailingPolicies, 1)
@@ -14455,7 +14580,8 @@ func testHostHealth(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, h.Platform, hh.Platform)
 	require.Equal(t, h.DiskEncryptionEnabled, hh.DiskEncryptionEnabled)
-	require.Equal(t, h.OSVersion, hh.OsVersion)
+	require.Empty(t, hh.OSName)
+	require.Empty(t, hh.OsVersion)
 	require.Empty(t, hh.FailingPolicies)
 	require.Empty(t, hh.VulnerableSoftware)
 	require.Equal(t, h.TeamID, hh.TeamID)

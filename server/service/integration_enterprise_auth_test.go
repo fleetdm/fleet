@@ -238,7 +238,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotEscalateViaEmptyGlob
 	s.token = s.getTestToken(planted.Email, test.GoodPassword)
 
 	var labelsResp fleet.ListLabelsResponse
-	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusForbidden, &labelsResp, "team_id", fmt.Sprint(otherTeam.ID))
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusForbidden, &labelsResp, "fleet_id", fmt.Sprint(otherTeam.ID))
 	labelsResp = fleet.ListLabelsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &labelsResp)
 	for _, lbl := range labelsResp.Labels {

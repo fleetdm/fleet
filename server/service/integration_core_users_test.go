@@ -438,7 +438,7 @@ func (s *integrationTestSuite) TestActivityUserEmailPersistsAfterDeletion() {
 func (s *integrationTestSuite) TestPremiumOnlyRoles() {
 	t := s.T()
 
-	for _, role := range []string{fleet.RoleTechnician, fleet.RoleGitOps, fleet.RoleObserverPlus} {
+	for _, role := range []string{fleet.RoleTechnician, fleet.RoleObserverPlus} {
 		t.Run(role, func(t *testing.T) {
 			t.Run("login", func(t *testing.T) {
 				user := &fleet.User{
@@ -470,6 +470,82 @@ func (s *integrationTestSuite) TestPremiumOnlyRoles() {
 			})
 		})
 	}
+}
+
+func (s *integrationTestSuite) TestGitOpsRoleOnFree() {
+	t := s.T()
+
+	var createResp struct {
+		User struct {
+			ID         uint    `json:"id"`
+			GlobalRole *string `json:"global_role"`
+		} `json:"user"`
+		Token string `json:"token"`
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
+		"name":        "gitops-free",
+		"global_role": fleet.RoleGitOps,
+	}, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.User.ID)
+	require.NotEmpty(t, createResp.Token)
+	require.NotNil(t, createResp.User.GlobalRole)
+	require.Equal(t, fleet.RoleGitOps, *createResp.User.GlobalRole)
+
+	// The GitOps user can authenticate and use a GitOps endpoint.
+	s.token = createResp.Token
+	s.Do("PUT", "/api/latest/fleet/spec/secret_variables", fleet.CreateSecretVariablesRequest{
+		SecretVariables: []fleet.SecretVariable{{Name: "FLEET_SECRET_GITOPS_FREE", Value: "v"}},
+		DryRun:          true,
+	}, http.StatusOK)
+	s.token = s.getTestAdminToken()
+
+	// Fleet-level GitOps role still requires Premium.
+	s.Do("POST", "/api/latest/fleet/users/api_only", map[string]any{
+		"name":   "gitops-free-fleet",
+		"fleets": []map[string]any{{"id": 9999, "role": fleet.RoleGitOps}},
+	}, http.StatusPaymentRequired)
+
+	// GitOps is still API-only.
+	s.Do("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
+		Name:       new("gitops-free-not-api-only"),
+		Email:      new("gitops-free-not-api-only@example.com"),
+		Password:   new(test.GoodPassword),
+		GlobalRole: new(fleet.RoleGitOps),
+	}, http.StatusUnprocessableEntity)
+
+	// An existing API-only user can be changed to GitOps.
+	var observerResp struct {
+		User struct {
+			ID uint `json:"id"`
+		} `json:"user"`
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
+		"name":        "observer-to-gitops-free",
+		"global_role": fleet.RoleObserver,
+	}, http.StatusOK, &observerResp)
+	var modifyResp modifyUserResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", observerResp.User.ID), fleet.UserPayload{
+		GlobalRole: new(fleet.RoleGitOps),
+	}, http.StatusOK, &modifyResp)
+	require.NotNil(t, modifyResp.User.GlobalRole)
+	require.Equal(t, fleet.RoleGitOps, *modifyResp.User.GlobalRole)
+
+	// A non-API-only user cannot be changed to GitOps.
+	var regularResp createUserResponse
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
+		Name:       new("regular-to-gitops-free"),
+		Email:      new("regular-to-gitops-free@example.com"),
+		Password:   new(test.GoodPassword),
+		GlobalRole: new(fleet.RoleObserver),
+	}, http.StatusOK, &regularResp)
+	res := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", regularResp.User.ID), fleet.UserPayload{
+		GlobalRole: new(fleet.RoleGitOps),
+	}, http.StatusUnprocessableEntity)
+	assertBodyContains(t, res, "role GitOps can only be set for API only users")
+	regularUser, err := s.ds.UserByID(t.Context(), regularResp.User.ID)
+	require.NoError(t, err)
+	require.NotNil(t, regularUser.GlobalRole)
+	require.Equal(t, fleet.RoleObserver, *regularUser.GlobalRole)
 }
 
 func (s *integrationTestSuite) TestUserRolesSpecRemoved() {

@@ -685,6 +685,24 @@ fleetctl mdm unlock --host=%s
 	}
 
 	runTestCases(t, ds, "lock", successfulOutput, cases)
+
+	t.Run("gitops user", func(t *testing.T) {
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return appCfgAllMDM, nil
+		}
+		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return &fleet.User{ID: id, GlobalRole: new(fleet.RoleGitOps)}, nil
+		}
+		ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+			return nil, nil
+		}
+		for _, action := range []string{"lock", "unlock", "clear-passcode", "wipe"} {
+			t.Run(action, func(t *testing.T) {
+				_, err := runAppNoChecks([]string{"mdm", action, "--host", macEnrolled.host.UUID})
+				require.ErrorContains(t, err, fleet.GitOpsMDMCommandErrorMessage)
+			})
+		}
+	})
 }
 
 func TestMDMUnlockCommand(t *testing.T) {
