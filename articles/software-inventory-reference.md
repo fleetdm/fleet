@@ -1,7 +1,5 @@
 # Software inventory
 
-Each software type below lists its `source`, and browser and IDE extensions also list `extension_for` (the browser or IDE the extension belongs to). Use these values to filter software in [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#list-software).
-
 ## Apps
 
 | Type | Name | Version | Vendor | Identifier | Install path | File hashes | Last opened | Vulnerabilities | Caveats |
