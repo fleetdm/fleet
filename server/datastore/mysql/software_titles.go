@@ -586,7 +586,7 @@ func (ds *Datastore) processSoftwareTitleResults(
 			}
 			for j := range pkgs {
 				pkgs[j].AutomaticInstallPolicies = policiesByInstaller[pkgs[j].InstallerID]
-				// Selecting a title for setup experience selects all of its packages, except ones added afterwards.
+				// Selecting a title for setup experience selects all of the packages it has at that time.
 				pkgs[j].InstallDuringSetup = softwareList[i].PackageInstallDuringSetup
 			}
 			softwareList[i].Packages = pkgs
