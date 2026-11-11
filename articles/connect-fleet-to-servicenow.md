@@ -45,7 +45,7 @@ Before you connect Fleet, a ServiceNow admin should complete these steps. Field 
 1. **Create a discovery source** named `Fleet` (the `discovery_source` choice list on `cmdb_ci`).
 2. **Confirm the identification rule for computers** includes `serial_number`. Fleet uses serial number as the primary match and hardware UUID as the fallback.
 3. **Add a custom field** on `cmdb_ci_computer`: `u_fleet_host_id` (Fleet's host ID, used to link back to the host in Fleet).
-4. **Add custom fields** on the software installation table (see [Software installations](#software-installations)): `u_bundle_identifier` and `u_apple_team_id`.
+4. **Add custom fields** on the software installation table (`cmdb_sam_sw_install`): `u_bundle_identifier` and `u_apple_team_id`.
 5. **Store your IdP's user ID on `sys_user`**, for example the Okta user ID, if it isn't there already. Fleet matches end users by this ID first.
 6. **Create a model alias table** (for example, `u_fleet_model_alias`) with three columns: manufacturer, Fleet model string, and a reference to `cmdb_hardware_product_model`. Learn more in [Hardware models](#hardware-models).
 7. **Create a placeholder hardware model** named `Unmapped (Fleet)`.
@@ -109,9 +109,7 @@ If your current integration created a model for each Fleet string, you can conso
 
 ## Software installations
 
-Fleet writes one software installation record per software version installed on each host, using data from the [Get host's software](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-software) API endpoint. If you use ServiceNow SAM, Fleet writes to SAM software installations (`cmdb_sam_sw_install`). Otherwise, it writes to software instances (`cmdb_software_instance`). ServiceNow SAM normalization matches or creates the discovery model from the name, version, and publisher.
-
-<!-- TODO(product): Confirm target tables and whether Fleet detects SAM automatically or the admin chooses. -->
+Fleet writes one software installation record per software version installed on each host, using data from the [Get host's software](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-software) API endpoint. Fleet always writes to the software installation table (`cmdb_sam_sw_install`). If you have ServiceNow SAM Professional, its normalization matches or creates the discovery model from the name, version, and publisher.
 
 Two fields are limited until other features ship:
 
@@ -153,7 +151,7 @@ Learn which software Fleet collects on each platform in the [software inventory 
 | Software installations | `name`, `display_name` | `display_name` | Attribute | | Coming soon (5.2.0) |
 | Software installations | `installed_versions[].version` | `version` | Attribute | One record per installed version. | Coming soon (5.2.0) |
 | Software installations | The host's computer record | `installed_on` | Reference | | Coming soon (5.2.0) |
-| Software installations | `name`, `version`, and publisher | `discovery_model` | Reference lookup | ServiceNow SAM normalization matches or creates the discovery model. | Coming soon (5.2.0) |
+| Software installations | `name`, `version`, and publisher | `discovery_model` | Reference lookup | Requires SAM Professional. Its normalization matches or creates the discovery model. | Coming soon (5.2.0) |
 | Software installations | `vendor` | `publisher` | Attribute | Windows apps, RPM packages, and VS Code extensions only. More platforms in [#54914](https://github.com/fleetdm/fleet/issues/54914). | Coming soon (5.2.0). Partial until #54914 ships. |
 | Software installations | `installed_versions[].signature_information[].team_identifier` | `u_apple_team_id` (custom) | Attribute | macOS Apple Developer Team ID. | Coming soon (5.2.0) |
 | Software installations | `installed_versions[].installed_paths` | `install_location` | Attribute | | Coming soon (5.2.0) |
