@@ -256,6 +256,11 @@ try {
         }
 
         if (-not $hasUninstaller) {
+            if (-not $installDir) {
+                Write-Host "  Leaving this copy registered: can't tell where it's installed from '$($entry.Command)'."
+                if ($exitCode -eq 0) { $exitCode = 1 }
+                continue
+            }
             Write-Host "  Uninstaller is missing; removing what's left of this copy."
             if ($installDir -and (Test-Path -LiteralPath $installDir) -and
                 -not ($isAppDir -and (Remove-AppDir $installDir $entry.Sid))) {
