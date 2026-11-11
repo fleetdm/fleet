@@ -793,6 +793,8 @@ This activity contains the following fields:
 - [unlocked_host](#unlocked-host)
 - [wiped_host](#wiped-host)
 - [failed_wipe](#failed-wipe)
+- [reset_host](#reset-host)
+- [failed_reset](#failed-reset)
 - [escrowed_disk_encryption_key](#escrowed-disk-encryption-key)
 - [rotated_disk_encryption_key](#rotated-disk-encryption-key)
 - [failed_to_rotate_disk_encryption_key](#failed-to-rotate-disk-encryption-key)
@@ -1063,19 +1065,57 @@ Generated when a user sends a request to wipe a host.
 This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
+- "host_platform": Platform of the host.
 
 #### Example
 
 ```json
 {
   "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro"
+  "host_display_name": "Anna's MacBook Pro",
+  "host_platform": "darwin"
 }
 ```
 
 ### failed_wipe
 
 Generated when a Windows host reports that a wipe MDM command failed.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "host_platform": Platform of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "DESKTOP-1C3ARC1",
+  "host_platform": "windows"
+}
+```
+
+### reset_host
+
+Generated when a user sends a request to reset a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "DESKTOP-1C3ARC1"
+}
+```
+
+### failed_reset
+
+Generated when a Windows host reports that a reset MDM command failed.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
