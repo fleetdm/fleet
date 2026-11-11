@@ -154,10 +154,10 @@ type OSVulnerabilitiesWithCount struct {
 type VulnListOptions struct {
 	// ListOptions cannot be embedded in order to unmarshall with validation.
 	ListOptions      ListOptions `url:"list_options"`
-	IsEE             bool
-	ValidSortColumns []string
-	TeamID           *uint `query:"team_id,optional" renameto:"fleet_id"`
-	KnownExploit     bool  `query:"exploit,optional"`
+	IsEE             bool        `json:"-"`
+	ValidSortColumns []string    `json:"-"`
+	TeamID           *uint       `query:"team_id,optional" renameto:"fleet_id"`
+	KnownExploit     bool        `query:"exploit,optional"`
 }
 
 func (opt VulnListOptions) HasValidSortColumn() bool {

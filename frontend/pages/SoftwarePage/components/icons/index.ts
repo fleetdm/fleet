@@ -923,7 +923,6 @@ import Sidenotes from "./png/Sidenotes.png";
 import Sigmaos from "./png/Sigmaos.png";
 import Signal from "./png/Signal.png";
 import SimpleComic from "./png/SimpleComic.png";
-import Sirimote from "./png/Sirimote.png";
 import Sketch from "./png/Sketch.png";
 import Slab from "./png/Slab.png";
 import Slicer from "./png/Slicer.png";
@@ -2115,7 +2114,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   sigmaos: Sigmaos,
   signal: Signal,
   "simple comic": SimpleComic,
-  sirimote: Sirimote,
   sketch: Sketch,
   slab: Slab,
   slack: Slack,
@@ -2131,6 +2129,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   snowsql: SnowflakeSnowsql,
   sococo: Sococo,
   "sonic visualiser": SonicVisualiser,
+  "sonicwall global vpn client": SonicwallNetextender,
   "sonicwall netextender": SonicwallNetextender,
   sonobus: Sonobus,
   sonos: Sonos,

@@ -138,7 +138,7 @@ func (s *integrationMDMTestSuite) TestRemovedMDMConfigKeys() {
 			fmt.Sprintf(`{"specs": [{"name": %q, "mdm": {"enable_recovery_lock_password": true}}]}`, team.Name), recoveryLockMsg,
 		},
 		{"setup experience", "PATCH", "/api/latest/fleet/setup_experience", `{"require_all_software_macos": true}`, macOSMsg},
-		{"setup experience legacy path", "PATCH", "/api/latest/fleet/mdm/apple/setup", fmt.Sprintf(`{"fleet_id": %d, "require_all_software_windows": true}`, team.ID), windowsMsg},
+		{"setup experience fleet", "PATCH", "/api/latest/fleet/setup_experience", fmt.Sprintf(`{"fleet_id": %d, "require_all_software_windows": true}`, team.ID), windowsMsg},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			res := s.DoRaw(tc.method, tc.path, []byte(tc.body), http.StatusUnprocessableEntity)
@@ -1320,8 +1320,8 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		require.NotNil(t, rlpStatus.Status)
 		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
 
-		// PATCH /mdm/hosts/:id/unenroll → UnenrollMDM → MDMTurnOff.
-		s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/unenroll", host.ID), nil, http.StatusNoContent)
+		// DELETE /hosts/:id/mdm → UnenrollMDM → MDMTurnOff.
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", host.ID), nil, http.StatusNoContent)
 
 		// Host detail API now reports no recovery lock; view-password endpoint 404s.
 		rlpStatus = getHostRecoveryLockStatus(host.ID)

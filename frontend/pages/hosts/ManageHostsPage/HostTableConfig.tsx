@@ -34,6 +34,7 @@ import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
 import PATHS from "router/paths";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import {
+  getHostOSDisplayName,
   humanHostMemory,
   humanHostLastSeen,
   hostTeamName,
@@ -220,17 +221,18 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     id: "os_version",
     // TODO(android): is Android supported? what about the os versions endpoint and dashboard card?
     Cell: (cellProps: IHostTableStringCellProps) => {
-      const os_version = cellProps.cell.value;
+      const { os_name, os_version } = cellProps.row.original;
+      const osDisplayName = getHostOSDisplayName(os_name, os_version);
       const versionForRender = ROLLING_ARCH_LINUX_VERSIONS.includes(
-        os_version
+        osDisplayName
       ) ? (
         // wrap a tooltip around the "rolling" suffix
         <>
-          {os_version.slice(0, -8)}&nbsp;
+          {osDisplayName.slice(0, -8)}&nbsp;
           <TooltipWrapperArchLinuxRolling />
         </>
       ) : (
-        os_version
+        osDisplayName
       );
       return <TooltipTruncatedTextCell value={versionForRender} />;
     },

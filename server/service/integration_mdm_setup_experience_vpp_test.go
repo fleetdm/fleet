@@ -867,7 +867,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPCRUD() {
 			http.StatusOK,
 			&respGetSetupExperience,
 			"platform", platform,
-			"team_id", fmt.Sprint(teamID),
+			"fleet_id", fmt.Sprint(teamID),
 		)
 		assert.ElementsMatch(t, getReturnedSetupExperienceTitleIDs(respGetSetupExperience.SoftwareTitles), expectedTitleIDs)
 	}
@@ -918,12 +918,12 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPCRUD() {
 	checkSetupExperienceSoftware(t, "macos", otherTeam.ID, []uint{})
 
 	// try to add an ipadOS app to macOS and iOS, both should fail
-	res := s.DoRaw("PUT", "/api/v1/fleet/setup_experience/software", []byte(fmt.Sprintf(`{"platform": "macos", "team_id": %d, "software_title_ids": [%d]}`, team.ID, titleIDsByApp[iPadOSApp2])), http.StatusBadRequest)
+	res := s.DoRaw("PUT", "/api/v1/fleet/setup_experience/software", []byte(fmt.Sprintf(`{"platform": "macos", "fleet_id": %d, "software_title_ids": [%d]}`, team.ID, titleIDsByApp[iPadOSApp2])), http.StatusBadRequest)
 	errMsg := extractServerErrorText(res.Body)
 	require.NoError(t, res.Body.Close())
 	assert.Contains(t, errMsg, "invalid platform for requested AppStoreApp")
 
-	res = s.DoRaw("PUT", "/api/v1/fleet/setup_experience/software", []byte(fmt.Sprintf(`{"platform": "ios", "team_id": %d, "software_title_ids": [%d]}`, team.ID, titleIDsByApp[iPadOSApp2])), http.StatusBadRequest)
+	res = s.DoRaw("PUT", "/api/v1/fleet/setup_experience/software", []byte(fmt.Sprintf(`{"platform": "ios", "fleet_id": %d, "software_title_ids": [%d]}`, team.ID, titleIDsByApp[iPadOSApp2])), http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
 	require.NoError(t, res.Body.Close())
 	assert.Contains(t, errMsg, "invalid platform for requested AppStoreApp")

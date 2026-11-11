@@ -25,7 +25,8 @@ const hosts = {
       uuid: "09b244f8-0000-0000-b5cc-791a15f11073",
       platform: "ubuntu",
       osquery_version: "4.9.0",
-      os_version: "Ubuntu 18.4.0",
+      os_name: "Ubuntu",
+      os_version: "18.4.0",
       build: "",
       platform_like: "debian",
       code_name: "",
@@ -75,7 +76,8 @@ const hosts = {
       uuid: "09b244f8-0000-0000-b5cc-791a15f11073",
       platform: "rhel",
       osquery_version: "4.9.0",
-      os_version: "CentOS 6.10.0",
+      os_name: "CentOS",
+      os_version: "6.10.0",
       build: "",
       platform_like: "rhel",
       code_name: "",
@@ -125,7 +127,8 @@ const hosts = {
       uuid: "09b244f8-0000-0000-b5cc-791a15f11073",
       platform: "ubuntu",
       osquery_version: "4.9.0",
-      os_version: "Ubuntu 16.4.0",
+      os_name: "Ubuntu",
+      os_version: "16.4.0",
       build: "",
       platform_like: "debian",
       code_name: "",
@@ -175,7 +178,8 @@ const hosts = {
       uuid: "09b244f8-0000-0000-b5cc-791a15f11073",
       platform: "rhel",
       osquery_version: "4.9.0",
-      os_version: "CentOS Linux 7.9.2009",
+      os_name: "CentOS Linux",
+      os_version: "7.9.2009",
       build: "",
       platform_like: "rhel",
       code_name: "",
@@ -225,7 +229,8 @@ const hosts = {
       uuid: "09b244f8-0000-0000-b5cc-791a15f11073",
       platform: "ubuntu",
       osquery_version: "4.9.0",
-      os_version: "Ubuntu 20.4.0",
+      os_name: "Ubuntu",
+      os_version: "20.4.0",
       build: "",
       platform_like: "debian",
       code_name: "",
@@ -275,7 +280,8 @@ const hosts = {
       uuid: "09b244f8-0000-0000-b5cc-791a15f11073",
       platform: "rhel",
       osquery_version: "4.9.0",
-      os_version: "CentOS Linux 8.3.2011",
+      os_name: "CentOS Linux",
+      os_version: "8.3.2011",
       build: "",
       platform_like: "rhel",
       code_name: "",
@@ -10633,11 +10639,12 @@ const variables = (url: string) => {
   };
 };
 
-const addVariable = (url: string, variable: any) => {
-  if (variable.name === "DUPE") {
+const addVariable = (url: string, variable?: unknown) => {
+  const { name } = (variable ?? {}) as { name?: string };
+  if (name === "DUPE") {
     return Promise.reject({ status: 409, message: "Conflict" });
   }
-  if (variable.name === "ERR") {
+  if (name === "ERR") {
     return Promise.reject({ status: 500, message: "Internal Server Error" });
   }
 
@@ -10645,7 +10652,7 @@ const addVariable = (url: string, variable: any) => {
   mockVariables = [
     ...mockVariables,
     {
-      name: variable.name,
+      name: name ?? "",
       id: nextVariableId,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

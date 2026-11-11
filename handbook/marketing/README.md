@@ -9,6 +9,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Product Marketing Manager | Allen Houchins <sup><sub> See [🌐 IT](https://fleetdm.com/handbook/it#team) </sup></sub>
 | Marketing Coordinator | Irena Reedy <sup><sub> See [🌐 IT](https://fleetdm.com/handbook/it#team) </sup></sub>
 | GTM Engineer | Eric Shaw <sup><sub> See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#website-group) </sup></sub>
+| VP of Security Solutions | Dhruv Majumdar <sup><sub> See [🌦️ Customer Success](https://fleetdm.com/handbook/customer-success#team) </sup></sub>
 | Social media strategy and management (Consultant) | [Thomas Basgil Jr.](https://www.linkedin.com/in/tombasgil/)  · [*@tombasgil*](https://github.com/tombasgil) · Establish, manage and grow Fleet’s social media presence across all appropriate channels. Monitor and respond to comments on company page posts (e.g., LinkedIn); comments on tracked posts are surfaced in the [#_linkedin-comments-from-tracked-posts](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel |
 | Public relations (Consultant) | [Alyssa Pallotti](https://www.linkedin.com/in/alyssapallotti/) · Establish Fleet AR & PR program Identify and train key Fleet employees on AR & PR interactions Establish, measure and improve Fleet share of voice with press, analysts, and media.   Manage Fleet submissions for industry awards |
 
@@ -130,11 +131,20 @@ Fleet's Head of Marketing is directly responsible for the accuracy of event loca
 
 ### Review competitor exclusion list
 
-Paid ads should never spend money on companies that compete with Fleet. Every active LinkedIn ad set applies the competitor exclusion list, and the list itself stays current (see ["Update competitor database"](https://fleetdm.com/handbook/marketing#update-competitor-database)). Each quarter, the GTM Engineer, the CEO, the CTO, and the Head of GTM Architecture review it together:
+Paid ads should never spend money on companies that compete with Fleet. Every active LinkedIn ad set applies the competitor exclusion list, and the list itself stays current (see ["Update list of competitors"](https://fleetdm.com/handbook/marketing#update-list-of-competitors)). Each quarter, the GTM Engineer, the CEO, the CTO, and the Head of GTM Architecture review it together:
 
 1. For each competitor on the competitor exclusion list, search the company name in the [dynamic company list segment builder](https://www.linkedin.com/campaignmanager/accounts/509911695/companies/?businessId=personal&companyNameSearch=tanium&crmFilters=%7B%22openOpportunityCountFilter%22%3A%22ALL%22%2C%22pipelineValueFilter%22%3A%22ALL%22%2C%22revenueWonFilter%22%3A%22ALL%22%2C%22closedLostValueFilter%22%3A%22ALL%22%7D&lookbackWindow=LAST_30_DAYS) in LinkedIn Campaign Manager (the example link searches "tanium"; change `companyNameSearch` to the competitor's name).
 2. Confirm that the competitor received no paid impressions, clicks, or engagements over the last 30 days.
 3. If a competitor did, find the active ad sets that skipped the exclusion list and fix them. Add any missing company to the list.
+
+
+### Update list of competitors
+
+When a new competitor or category of competitors is identified (for example, through a market mapping exercise with the VP of Security Solutions), update Fleet's records so that Fleet doesn't spend time or money on those competitors:
+
+1. Update [Competition](https://docs.google.com/spreadsheets/d/1zwr59MpruIw4dsV-Qbk8xFbMrbHAV3qaRJDWM7-YrwU/edit?gid=611626809#gid=611626809) (Fleet's feature chart / competitors database) with the players in the new category and make sure all details are filled out for each product, including subsidiaries, parent companies, and the category each competes in.
+2. Ask the GTM Engineer to update ads so that Fleet doesn't accidentally advertise to those competitors: update [this spreadsheet used for uploading to LI ads](https://docs.google.com/spreadsheets/d/1VqG87Jxtwn7dX94yJW2E2338zBtVrg9hLXSiBLtFhPA/edit?gid=1226811520#gid=1226811520) and reupload it to the [matched audience for competitors](https://www.linkedin.com/campaignmanager/accounts/509911695/audiences/matched/88570054/matched-companies?businessId=personal).
+3. Ask the Head of GTM Architecture to update Salesforce so that Fleet doesn't accidentally take calls with those competitors, as if they were prospective customers.
 
 
 ### Promote a workshop on LinkedIn
@@ -452,7 +462,7 @@ Fleet regularly uploads a variety of content to YouTube such as podcast episodes
 - Share video link on social media.
 
 
-## Post a blog article
+### Post a blog article
 
 Although details on how to format and meta tag a blog are in [the writing handbook page](https://fleetdm.com/handbook/company/writing#articles), it does not give the step-by-step, so to a new person how exactly to get a blog published is not clear. Here is how you do it.
 
@@ -470,14 +480,6 @@ Although details on how to format and meta tag a blog are in [the writing handbo
     - VS Code: right click on filename tab and select **Open Preview**
     - Or if local, [follow this setup to view your changes locally](https://fleetdm.com/handbook/engineering#test-fleetdm-com-locally) - this provides the most true to reality check
 11. When ready, submit a PR to get it reviewed and merged
-
-## Update competitor database
-
-To add a company as a competitor, e.g. so that we don't spend money to advertise to them unnecessarily:
-
-1. Update [this spreadsheet in Fleet's feature chart / competitors database](https://docs.google.com/spreadsheets/d/1zwr59MpruIw4dsV-Qbk8xFbMrbHAV3qaRJDWM7-YrwU/edit?gid=611626809#gid=611626809) so that the team is aware of subsidiaries, parent companies, and which category this company competes in.
-2. Update LinkedIn ads so that we don't advertise to this competitor by updating [this spreadsheet used for uploading to LI ads](https://docs.google.com/spreadsheets/d/1VqG87Jxtwn7dX94yJW2E2338zBtVrg9hLXSiBLtFhPA/edit?gid=1226811520#gid=1226811520) and then reupload it to the [matched audience for competitors](https://www.linkedin.com/campaignmanager/accounts/509911695/audiences/matched/88570054/matched-companies?businessId=personal).
-
 
 ## Rituals
 <rituals :rituals="rituals['handbook/marketing/marketing.rituals.yml']"></rituals>

@@ -18,7 +18,7 @@ export interface ISchedulableQuery {
   name: string;
   description: string;
   query: string;
-  team_id: number | null;
+  fleet_id: number | null;
   interval: number;
   platform: CommaSeparatedPlatformString; // Might more accurately be called `platforms_to_query` or `targeted_platforms` – comma-separated string of platforms to query, default all platforms if omitted
   min_osquery_version: string;
@@ -85,7 +85,7 @@ export interface IGetQueryResponse {
 }
 
 // List global or team queries
-/**  GET /api/v1/fleet/queries?order_key={column_from_queries_table}&order_direction={asc|desc}&team_id={team_id} */
+/**  GET /api/v1/fleet/queries?order_key={column_from_queries_table}&order_direction={asc|desc}&fleet_id={fleet_id} */
 export interface IListQueriesResponse {
   queries: ISchedulableQuery[];
 }

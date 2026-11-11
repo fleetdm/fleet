@@ -17,7 +17,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"slices"
 	"strconv"
 	"strings"
@@ -773,7 +772,6 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 
 	// encryption summary should succeed (Linux encryption doesn't require MDM)
 	var summary getMDMDiskEncryptionSummaryResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/disk_encryption/summary", getMDMDiskEncryptionSummaryRequest{}, http.StatusOK, &summary)
 	s.DoJSON("GET", "/api/latest/fleet/disk_encryption", getMDMDiskEncryptionSummaryRequest{}, http.StatusOK, &summary)
 	// disk is encrypted but key hasn't been escrowed yet
 	require.Equal(t, fleet.MDMDiskEncryptionSummary{ActionRequired: fleet.MDMPlatformsCounts{Linux: 1}}, *summary.MDMDiskEncryptionSummary)
@@ -880,7 +878,6 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 
 	// get passphrase back
 	var keyResponse getHostEncryptionKeyResponse
-	s.DoJSON("GET", fmt.Sprintf(`/api/latest/fleet/mdm/hosts/%d/encryption_key`, noTeamHost.ID), getHostEncryptionKeyRequest{}, http.StatusOK, &keyResponse)
 	s.DoJSON("GET", fmt.Sprintf(`/api/latest/fleet/hosts/%d/encryption_key`, noTeamHost.ID), getHostEncryptionKeyRequest{}, http.StatusOK, &keyResponse)
 	require.Equal(t, "whale makes pail rise", keyResponse.EncryptionKey.DecryptedValue)
 
@@ -1447,7 +1444,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
 				"url":   {"https://example.com"},
 			})
 
-		case route.method == "PATCH" && (route.path == "/api/latest/fleet/setup_experience" || route.path == "/api/latest/fleet/mdm/apple/setup"):
+		case route.method == "PATCH" && route.path == "/api/latest/fleet/setup_experience":
 			// These routes don't require MDM if you're only changing end-user auth, so we'll set something else to check.
 			params = fleet.MDMAppleSetupPayload{EnableReleaseDeviceManually: new(true)}
 		}
@@ -1461,17 +1458,6 @@ func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
 		errMsg := extractServerErrorText(res.Body)
 		assert.Contains(t, errMsg, expectedErr.Error(), "%s %s", route.method, path)
 	}
-
-	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-	t.Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
-	t.Cleanup(fleetdmSrv.Close)
-
-	// Always accessible
-	var reqCSRResp requestMDMAppleCSRResponse
-	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: "test"}, http.StatusOK, &reqCSRResp)
-	s.Do("POST", "/api/latest/fleet/mdm/apple/dep/key_pair", nil, http.StatusOK)
 
 	// setting enable release device manually requires MDM
 	res := s.Do("PATCH", "/api/v1/fleet/setup_experience", fleet.MDMAppleSetupPayload{EnableReleaseDeviceManually: new(true)}, http.StatusBadRequest)

@@ -1093,6 +1093,8 @@ Fleet automatically retries each failed macOS, iOS, iPadOS, and Android certific
 > Fleet ignores vendor-specific renewal keys in a profile (e.g. `RedeployProfileBeforeCertificateExpiresInDays`) and always uses the renewal timing described above.
 >
 > If automatic renewal fails, you can resend the configuration profile manually on the host's **Host details** page, the end user's **Fleet Desktop > My Device** page, or via [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#resend-configuration-profile).
+>
+> `$FLEET_VAR_SCEP_RENEWAL_ID` is deprecated as of Fleet 4.86.0. It's maintained for backwards compatibility. Please use `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` instead.
 
 ## Advanced
 
@@ -1225,13 +1227,13 @@ When Fleet proxies SCEP certificate issuance for a Windows host (Custom SCEP pro
 
 - **Pending**: the profile is queued for delivery to the host. A profile that is being retried also shows **Pending**, with no error in **Details**.
 - **Verifying**: the host acknowledged the profile and the SCEP exchange is in progress. Fleet has not yet observed the issued certificate on the host.
-- **Verified**: Fleet observed the issued certificate on the host. Fleet matches the certificate to the profile using the `$FLEET_VAR_SCEP_RENEWAL_ID` value in the certificate's OU or CN.
+- **Verified**: Fleet observed the issued certificate on the host. Fleet matches the certificate to the profile using the `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` value in the certificate's OU or CN.
 - **Failed**: the profile ran out of retries. **Details** shows the last error Fleet saw, either an error the SCEP proxy observed from the upstream CA (for example, `SCEP PKIOperation failed: HTTP 500`) or a certificate that never arrived (`Fleet did not detect the SCEP certificate on the host after profile was delivered.`).
 
 To verify Windows SCEP certificates, Fleet requires:
 
 - Fleet's agent (fleetd) with **osquery 5.23.1 or later** on the host, so Fleet can read the host's installed certificates.
-- The `$FLEET_VAR_SCEP_RENEWAL_ID` variable in the profile's `SubjectName` OU or CN (also required for [renewal](#renewal)), so Fleet can match the issued certificate to the profile.
+- The `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` variable in the profile's `SubjectName` OU or CN (also required for [renewal](#renewal)), so Fleet can match the issued certificate to the profile.
 
 For [user-scoped certificates](#user-scoped-certificates), Fleet can only observe the certificate while the target user is signed in, so the profile stays **Verifying** until the user logs in. Fleet assumes a single primary user per Windows host.
 

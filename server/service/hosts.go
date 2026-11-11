@@ -1129,80 +1129,6 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *
 // Get Host By Identifier
 ////////////////////////////////////////////////////////////////////////////////
 
-type hostByIdentifierRequest struct {
-	Identifier      string `url:"identifier"`
-	ExcludeSoftware bool   `query:"exclude_software,optional"`
-}
-
-type hostIDOnly struct {
-	ID uint `json:"id"`
-}
-
-type hostIDOnlyResponse struct {
-	Host hostIDOnly `json:"host"`
-	Err  error      `json:"error,omitempty"`
-}
-
-func (r hostIDOnlyResponse) Error() error { return r.Err }
-
-func hostByIdentifierEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*hostByIdentifierRequest)
-	opts := fleet.HostDetailOptions{
-		IncludeCVEScores: false,
-		IncludePolicies:  true, // intentionally true to preserve existing behavior
-		ExcludeSoftware:  req.ExcludeSoftware,
-	}
-	host, err := svc.HostByIdentifier(ctx, req.Identifier, opts)
-	if err != nil {
-		return getHostResponse{Err: err}, nil
-	}
-
-	if host.IDOnly {
-		return hostIDOnlyResponse{Host: hostIDOnly{ID: host.ID}}, nil
-	}
-
-	resp, err := hostDetailResponseForHost(ctx, svc, host)
-	if err != nil {
-		return getHostResponse{Err: err}, nil
-	}
-
-	return getHostResponse{
-		Host: resp,
-	}, nil
-}
-
-func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
-	// Coarse gate before the host's team is known. selective_list admits GitOps,
-	// which the team-scoped check below then limits to the host's id.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
-		return nil, err
-	}
-
-	host, err := svc.ds.HostByIdentifier(ctx, identifier)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get host by identifier")
-	}
-
-	// Authorize again with team loaded now that we have team_id
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
-		// GitOps has no host read access, but it is granted selective_read here so it
-		// can resolve a host identifier to a host id, a documented permission kept for
-		// compatibility. Such a caller gets that id and nothing else: host details are
-		// read data it isn't entitled to.
-		if selectiveErr := svc.authz.Authorize(ctx, host, fleet.ActionSelectiveRead); selectiveErr != nil {
-			return nil, selectiveErr
-		}
-		return &fleet.HostDetail{ID: host.ID, IDOnly: true}, nil
-	}
-
-	hostDetails, err := svc.getHostDetails(ctx, host, opts)
-	if err != nil {
-		return nil, err
-	}
-
-	return hostDetails, nil
-}
-
 // GetHostByIDOrIdentifier returns the host matching a value that is either a host id or another host identifier. The id takes
 // priority, then the order documented on Datastore.HostByIdentifier. A host matched by id that the caller can't read is a denial.
 func (svc *Service) GetHostByIDOrIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
@@ -3964,6 +3890,9 @@ func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	if err != nil {
 		return &osVersionsResponse{Err: err}, nil
 	}
+	for i := range osVersions.OSVersions {
+		osVersions.OSVersions[i].UseAPINames()
+	}
 
 	return &osVersionsResponse{
 		CountsUpdatedAt: &osVersions.CountsUpdatedAt,
@@ -4322,6 +4251,7 @@ func getOSVersionEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	if osVersion == nil {
 		osVersion = &fleet.OSVersion{}
 	}
+	osVersion.UseAPINames()
 
 	return getOSVersionResponse{CountsUpdatedAt: updateTime, OSVersion: osVersion}, nil
 }
