@@ -1142,6 +1142,20 @@ func (a ActivityTypeUnlockedHost) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
+type ActivityTypeViewedHostUnlockPIN struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	HostPlatform    string `json:"host_platform"`
+}
+
+func (a ActivityTypeViewedHostUnlockPIN) ActivityName() string {
+	return "viewed_host_unlock_pin"
+}
+
+func (a ActivityTypeViewedHostUnlockPIN) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
 type ActivityTypeWipedHost struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`

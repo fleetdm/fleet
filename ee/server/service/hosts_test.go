@@ -13,11 +13,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	svcmock "github.com/fleetdm/fleet/v4/server/mock/service"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
@@ -551,4 +553,157 @@ func TestLockWipeRejectPersonalAppleHosts(t *testing.T) {
 			})
 		}
 	}
+}
+
+func TestUnlockHostAndroid(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc, baseSvc := newTestServiceWithMock(t, ds)
+
+	ackedAt := time.Date(2026, 11, 11, 10, 30, 0, 0, time.UTC)
+	resetPassword := &fleet.MDMCommand{RequestType: string(android.MDMAndroidCommandTypeResetPassword)}
+	acked := &fleet.MDMCommandResult{Status: string(android.MDMAndroidCommandStatusAcknowledged), UpdatedAt: ackedAt}
+	lockedStatus := func() *fleet.HostLockWipeStatus {
+		return &fleet.HostLockWipeStatus{
+			HostFleetPlatform: "android", UnlockPIN: "135792", LockMDMCommand: resetPassword, LockMDMCommandResult: acked,
+		}
+	}
+
+	var hostTeamID *uint
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return &fleet.Host{ID: id, Platform: "android", Hostname: "pixel", TeamID: hostTeamID}, nil
+	}
+	// Unlock only reads the stored PIN, so it must not depend on the host still being connected to Fleet MDM.
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return false, nil
+	}
+	status := lockedStatus()
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+		return status, nil
+	}
+	baseSvc.VerifyMDMAndroidConfiguredFunc = func(ctx context.Context) error { return nil }
+	var activities []fleet.ActivityDetails
+	var activityErr error
+	baseSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		if activityErr != nil {
+			return activityErr
+		}
+		activities = append(activities, activity)
+		return nil
+	}
+	reset := func() {
+		hostTeamID = nil
+		status = lockedStatus()
+		activities = nil
+		activityErr = nil
+		baseSvc.VerifyMDMAndroidConfiguredFunc = func(ctx context.Context) error { return nil }
+	}
+	adminCtx := test.UserContext(t.Context(), test.UserAdmin)
+
+	t.Run("returns the PIN and lock time and logs a view", func(t *testing.T) {
+		reset()
+		res, err := svc.UnlockHost(adminCtx, 1)
+		require.NoError(t, err)
+		require.Equal(t, "135792", res.UnlockPIN)
+		require.NotNil(t, res.LockedAt)
+		require.Equal(t, ackedAt, *res.LockedAt)
+		require.Equal(t, fleet.DeviceStatusUnlocked, res.DeviceStatus)
+		require.Equal(t, fleet.PendingActionNone, res.PendingAction)
+		require.False(t, ds.IsHostConnectedToFleetMDMFuncInvoked)
+
+		require.Equal(t, []fleet.ActivityDetails{fleet.ActivityTypeViewedHostUnlockPIN{
+			HostID: 1, HostDisplayName: "pixel", HostPlatform: "android",
+		}}, activities)
+	})
+
+	t.Run("doesn't return the PIN when the activity can't be logged", func(t *testing.T) {
+		reset()
+		activityErr = errors.New("activity insert failed")
+		res, err := svc.UnlockHost(adminCtx, 1)
+		require.ErrorContains(t, err, "activity insert failed")
+		require.Nil(t, res)
+	})
+
+	t.Run("lock states", func(t *testing.T) {
+		pendingWipe := lockedStatus()
+		pendingWipe.WipeMDMCommand = &fleet.MDMCommand{RequestType: string(android.MDMAndroidCommandTypeWipe)}
+		wiped := lockedStatus()
+		wiped.WipeMDMCommand = &fleet.MDMCommand{RequestType: string(android.MDMAndroidCommandTypeWipe)}
+		wiped.WipeMDMCommandResult = acked
+		pendingLock := lockedStatus()
+		pendingLock.LockMDMCommandResult = nil
+		failedLock := lockedStatus()
+		failedLock.LockMDMCommandResult = &fleet.MDMCommandResult{Status: string(android.MDMAndroidCommandStatusError)}
+		legacyLock := lockedStatus()
+		legacyLock.UnlockPIN = ""
+		legacyLock.LockMDMCommand = &fleet.MDMCommand{RequestType: string(android.MDMAndroidCommandTypeLock)}
+
+		cases := []struct {
+			name       string
+			status     *fleet.HostLockWipeStatus
+			wantErr    string
+			wantStatus int
+		}{
+			{"pending lock", pendingLock, "Host has pending lock request. Host cannot be unlocked until lock is complete.", http.StatusUnprocessableEntity},
+			{"pending wipe", pendingWipe, "Host has pending wipe request. Cannot process unlock requests once host is wiped.", http.StatusUnprocessableEntity},
+			{"wiped", wiped, "Host is wiped. Cannot process unlock requests once host is wiped.", http.StatusUnprocessableEntity},
+			{"failed lock", failedLock, "Host is already unlocked.", http.StatusConflict},
+			{"lock from before Fleet 5", legacyLock, "Host is already unlocked.", http.StatusConflict},
+			{"never locked", &fleet.HostLockWipeStatus{HostFleetPlatform: "android"}, "Host is already unlocked.", http.StatusConflict},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				reset()
+				status = tc.status
+				res, err := svc.UnlockHost(adminCtx, 1)
+				require.ErrorContains(t, err, tc.wantErr)
+				require.Nil(t, res)
+				// Invalid argument errors are 422 unless WithStatus overrides it.
+				gotStatus := http.StatusUnprocessableEntity
+				var statusErr interface{ Status() int }
+				if errors.As(err, &statusErr) {
+					gotStatus = statusErr.Status()
+				}
+				require.Equal(t, tc.wantStatus, gotStatus)
+				require.Empty(t, activities)
+			})
+		}
+	})
+
+	t.Run("Android MDM not configured", func(t *testing.T) {
+		reset()
+		baseSvc.VerifyMDMAndroidConfiguredFunc = func(ctx context.Context) error { return fleet.ErrMDMNotConfigured }
+		_, err := svc.UnlockHost(adminCtx, 1)
+		require.ErrorContains(t, err, fleet.AndroidMDMNotConfiguredMessage)
+		require.Empty(t, activities)
+	})
+
+	t.Run("authorization", func(t *testing.T) {
+		team1 := new(uint(1))
+		cases := []struct {
+			desc       string
+			user       *fleet.User
+			hostTeamID *uint
+			wantErr    error
+		}{
+			{"observer", test.UserObserver, nil, test.ErrForbidden},
+			{"observer+", test.UserObserverPlus, nil, test.ErrForbidden},
+			{"gitops", test.UserGitOps, nil, test.ErrForbidden},
+			{"maintainer", test.UserMaintainer, nil, nil},
+			{"team 1 admin", test.UserTeamAdminTeam1, team1, nil},
+			{"team 1 observer", test.UserTeamObserverTeam1, team1, test.ErrForbidden},
+			{"team 2 admin", test.UserTeamAdminTeam2, team1, test.ErrNotFound},
+		}
+		for _, c := range cases {
+			t.Run(c.desc, func(t *testing.T) {
+				reset()
+				hostTeamID = c.hostTeamID
+				_, err := svc.UnlockHost(test.UserContext(t.Context(), c.user), 1)
+				test.RequireErrKind(t, c.wantErr, err)
+				if c.wantErr != nil {
+					require.Empty(t, activities)
+				}
+			})
+		}
+	})
 }

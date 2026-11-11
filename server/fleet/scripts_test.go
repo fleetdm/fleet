@@ -7,6 +7,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
 )
@@ -500,4 +501,67 @@ func TestUserMessage(t *testing.T) {
 	hsr.ExitCode = ptr.Int64(-2)
 	m = hsr.UserMessage(false, ptr.Int(0))
 	require.Equal(t, RunScriptDisabledErrMsg, m)
+}
+
+func TestHostLockWipeStatusAndroidUnlockPIN(t *testing.T) {
+	ackedAt := time.Date(2026, 11, 11, 10, 30, 0, 0, time.UTC)
+	resetPassword := &MDMCommand{RequestType: string(android.MDMAndroidCommandTypeResetPassword)}
+	acked := &MDMCommandResult{Status: string(android.MDMAndroidCommandStatusAcknowledged), UpdatedAt: ackedAt}
+
+	cases := []struct {
+		name   string
+		status HostLockWipeStatus
+		want   bool
+	}{
+		{
+			name:   "acknowledged lock with a PIN",
+			status: HostLockWipeStatus{HostFleetPlatform: "android", UnlockPIN: "135792", LockMDMCommand: resetPassword, LockMDMCommandResult: acked},
+			want:   true,
+		},
+		{
+			name:   "pending lock",
+			status: HostLockWipeStatus{HostFleetPlatform: "android", UnlockPIN: "135792", LockMDMCommand: resetPassword},
+		},
+		{
+			name: "failed lock",
+			status: HostLockWipeStatus{
+				HostFleetPlatform: "android", UnlockPIN: "135792", LockMDMCommand: resetPassword,
+				LockMDMCommandResult: &MDMCommandResult{Status: string(android.MDMAndroidCommandStatusError), UpdatedAt: ackedAt},
+			},
+		},
+		{
+			name: "lock from before Fleet 5",
+			status: HostLockWipeStatus{
+				HostFleetPlatform: "android", LockMDMCommand: &MDMCommand{RequestType: string(android.MDMAndroidCommandTypeLock)},
+				LockMDMCommandResult: acked,
+			},
+		},
+		{
+			name:   "no PIN",
+			status: HostLockWipeStatus{HostFleetPlatform: "android", LockMDMCommand: resetPassword, LockMDMCommandResult: acked},
+		},
+		{
+			name:   "never locked",
+			status: HostLockWipeStatus{HostFleetPlatform: "android"},
+		},
+		{
+			name:   "macOS lock with a PIN",
+			status: HostLockWipeStatus{HostFleetPlatform: "darwin", UnlockPIN: "135792", LockMDMCommand: resetPassword, LockMDMCommandResult: acked},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, tc.status.IsAndroidUnlockPINAvailable())
+			if tc.want {
+				require.Equal(t, ackedAt, tc.status.AndroidLockedAt())
+			} else {
+				require.True(t, tc.status.AndroidLockedAt().IsZero())
+			}
+			// Android is never reported as locked, so Lock and Wipe stay available.
+			if tc.status.HostFleetPlatform == "android" {
+				require.False(t, tc.status.IsLocked())
+				require.Equal(t, DeviceStatusUnlocked, tc.status.DeviceStatus())
+			}
+		})
+	}
 }

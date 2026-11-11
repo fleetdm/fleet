@@ -382,6 +382,7 @@ var activityTemplatesByCategory = map[string][]fleet.ActivityDetails{
 		fleet.ActivityTypeFailedToRotateDiskEncryptionKey{},
 		fleet.ActivityTypeCreatedManagedLocalAccount{},
 		fleet.ActivityTypeViewedManagedLocalAccount{},
+		fleet.ActivityTypeViewedHostUnlockPIN{},
 		fleet.ActivityTypeEnabledManagedLocalAccount{},
 		fleet.ActivityTypeDisabledManagedLocalAccount{},
 		fleet.ActivityTypeRotatedManagedLocalAccountPassword{},
