@@ -16,11 +16,13 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
@@ -31,6 +33,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -309,24 +312,64 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 	coboHostID := createAndroidHostForTest(t, s.ds, nil, true)
 	byoHostID := createAndroidHostForTest(t, s.ds, nil, false)
 
-	t.Run("Lock COBO transitions to pending then locked via Pub/Sub ack", func(t *testing.T) {
+	assertUnlockPINAvailable := func(t *testing.T, hostID uint, want bool) {
+		t.Helper()
+		var resp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &resp)
+		require.NotNil(t, resp.Host.MDM.UnlockPINAvailable)
+		require.Equal(t, want, *resp.Host.MDM.UnlockPINAvailable)
+	}
+	countHostActivities := func(t *testing.T, hostID uint, activityType string) int {
+		t.Helper()
+		var listActivities listActivitiesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", hostID), nil, http.StatusOK, &listActivities, "per_page", "100")
+		n := 0
+		for _, act := range listActivities.Activities {
+			if act.Type == activityType {
+				n++
+			}
+		}
+		return n
+	}
+	issueCount := func() int {
+		issueCallsMu.Lock()
+		defer issueCallsMu.Unlock()
+		return len(issueCalls)
+	}
+	sixDigitPIN := regexp.MustCompile(`^[0-9]{6}$`)
+
+	t.Run("Lock COBO resets the PIN, and unlock returns it once the device acknowledges", func(t *testing.T) {
 		var lockResp fleet.LockHostResponse
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", coboHostID), nil, http.StatusOK, &lockResp)
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", coboHostID), nil, http.StatusOK, &lockResp, "view_pin", "true")
 		require.Equal(t, fleet.PendingActionLock, lockResp.PendingAction)
 		require.Equal(t, fleet.DeviceStatusUnlocked, lockResp.DeviceStatus)
+		// The device isn't registered with the AMAPI mock, so devices.get fails and the default PIN is used.
+		require.Regexp(t, sixDigitPIN, lockResp.UnlockPIN)
+		pin := lockResp.UnlockPIN
 
 		cmd, _, opName := lastIssue()
-		require.Equal(t, string(android.MDMAndroidCommandTypeLock), cmd.Type)
+		require.Equal(t, string(android.MDMAndroidCommandTypeResetPassword), cmd.Type)
+		require.Equal(t, pin, cmd.NewPassword)
+		require.Equal(t, []string{"LOCK_NOW"}, cmd.ResetPasswordFlags)
 		require.Equal(t, longCommandDuration, cmd.Duration)
 		require.Nil(t, cmd.WipeParams)
 
 		row, err := s.ds.GetMDMAndroidCommandByOperationName(ctx, opName)
 		require.NoError(t, err)
 		require.Equal(t, string(android.MDMAndroidCommandStatusPending), row.Status)
-		require.Equal(t, string(android.MDMAndroidCommandTypeLock), row.CommandType)
+		require.Equal(t, string(android.MDMAndroidCommandTypeResetPassword), row.CommandType)
+		require.True(t, row.RawCommand.Valid)
+		require.NotContains(t, row.RawCommand.V, "newPassword")
+		require.NotContains(t, row.RawCommand.V, pin)
+		s.lastHostActivityMatches(coboHostID, fleet.ActivityTypeLockedHost{}.ActivityName(),
+			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "view_pin": true}`, coboHostID, "Android Storage Test Device"), 0)
 
 		// host_mdm_actions.lock_ref is the link the host page reads to surface PendingAction=lock.
 		assertHostMDMStatus(t, coboHostID, "lock", "unlocked")
+		assertUnlockPINAvailable(t, coboHostID, false)
+
+		res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", coboHostID), nil, http.StatusUnprocessableEntity)
+		require.Contains(t, extractServerErrorText(res.Body), "Host has pending lock request. Host cannot be unlocked until lock is complete.")
 
 		// Simulate the AMAPI Pub/Sub COMMAND notification reporting a successful device ack.
 		deliverPubSubCommand(t, androidmanagement.Operation{Name: opName, Done: true})
@@ -335,9 +378,192 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 		require.NoError(t, err)
 		require.Equal(t, string(android.MDMAndroidCommandStatusAcknowledged), row.Status)
 
-		// After ack, the host page surfaces DeviceStatus=unlocked: Fleet can't observe the device-side unlock (no AMAPI signal), so we
-		// never report "locked" -- only "pending lock" during the brief window before the ack. See HostLockWipeStatus.IsLocked.
+		// Fleet can't observe the device-side unlock (no AMAPI signal), so the host is never reported as "locked", which keeps
+		// Lock (for a new PIN) and Wipe available. See HostLockWipeStatus.IsLocked.
 		assertHostMDMStatus(t, coboHostID, "", "unlocked")
+		assertUnlockPINAvailable(t, coboHostID, true)
+
+		// The command results API serves raw_command and raw_result, which must never contain the PIN.
+		var resultsResp getMDMCommandResultsResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/commands/results?command_uuid=%s", row.CommandUUID), nil, http.StatusOK, &resultsResp)
+		require.Len(t, resultsResp.Results, 1)
+		require.NotContains(t, string(resultsResp.Results[0].Payload), pin)
+		require.NotContains(t, string(resultsResp.Results[0].Result), pin)
+
+		issuedBefore := issueCount()
+		for range 2 {
+			var unlockResp fleet.UnlockHostResponse
+			s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", coboHostID), nil, http.StatusOK, &unlockResp)
+			require.Equal(t, pin, unlockResp.UnlockPIN)
+			require.NotNil(t, unlockResp.LockedAt)
+			require.True(t, row.UpdatedAt.Equal(*unlockResp.LockedAt), "locked_at %s, ack %s", unlockResp.LockedAt, row.UpdatedAt)
+			require.Equal(t, fleet.DeviceStatusUnlocked, unlockResp.DeviceStatus)
+			require.Empty(t, unlockResp.PendingAction)
+			require.NotNil(t, unlockResp.HostID)
+			require.Equal(t, coboHostID, *unlockResp.HostID)
+		}
+		require.Equal(t, issuedBefore, issueCount(), "unlock must not issue an AMAPI command")
+		require.Equal(t, 2, countHostActivities(t, coboHostID, fleet.ActivityTypeViewedHostUnlockPIN{}.ActivityName()))
+		require.Zero(t, countHostActivities(t, coboHostID, fleet.ActivityTypeUnlockedHost{}.ActivityName()))
+		s.lastHostActivityMatches(coboHostID, fleet.ActivityTypeViewedHostUnlockPIN{}.ActivityName(),
+			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "host_platform": "android"}`, coboHostID, "Android Storage Test Device"), 0)
+	})
+
+	t.Run("Lock again replaces the PIN and lock time", func(t *testing.T) {
+		var before fleet.UnlockHostResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", coboHostID), nil, http.StatusOK, &before)
+
+		// Without view_pin, the PIN isn't returned and the activity says so.
+		var lockResp fleet.LockHostResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", coboHostID), nil, http.StatusOK, &lockResp)
+		require.Empty(t, lockResp.UnlockPIN)
+		s.lastHostActivityMatches(coboHostID, fleet.ActivityTypeLockedHost{}.ActivityName(),
+			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "view_pin": false}`, coboHostID, "Android Storage Test Device"), 0)
+
+		cmd, _, opName := lastIssue()
+		require.Regexp(t, sixDigitPIN, cmd.NewPassword)
+		newPIN := cmd.NewPassword
+		assertUnlockPINAvailable(t, coboHostID, false)
+
+		deliverPubSubCommand(t, androidmanagement.Operation{Name: opName, Done: true})
+		row, err := s.ds.GetMDMAndroidCommandByOperationName(ctx, opName)
+		require.NoError(t, err)
+
+		var after fleet.UnlockHostResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", coboHostID), nil, http.StatusOK, &after)
+		require.Equal(t, newPIN, after.UnlockPIN)
+		require.NotNil(t, after.LockedAt)
+		require.True(t, row.UpdatedAt.Equal(*after.LockedAt))
+		require.True(t, after.LockedAt.After(*before.LockedAt))
+	})
+
+	t.Run("Unlock works for a locked host no longer connected to Fleet MDM", func(t *testing.T) {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE host_mdm SET enrolled = 0 WHERE host_id = ?`, coboHostID)
+			return err
+		})
+		t.Cleanup(func() {
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `UPDATE host_mdm SET enrolled = 1 WHERE host_id = ?`, coboHostID)
+				return err
+			})
+		})
+
+		var unlockResp fleet.UnlockHostResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", coboHostID), nil, http.StatusOK, &unlockResp)
+		require.Regexp(t, sixDigitPIN, unlockResp.UnlockPIN)
+	})
+
+	t.Run("Lock fits the password policy the device enforces", func(t *testing.T) {
+		policyHostID := createAndroidHostForTest(t, s.ds, nil, true)
+		prevGet := s.androidAPIClient.EnterprisesDevicesGetFunc
+		t.Cleanup(func() { s.androidAPIClient.EnterprisesDevicesGetFunc = prevGet })
+		s.androidAPIClient.EnterprisesDevicesGetFunc = func(_ context.Context, _ string) (*androidmanagement.Device, error) {
+			return &androidmanagement.Device{AppliedPasswordPolicies: []*androidmanagement.PasswordRequirements{
+				{PasswordQuality: "ALPHANUMERIC", PasswordMinimumLength: 12, PasswordScope: "SCOPE_PROFILE"},
+				{PasswordQuality: "NUMERIC_COMPLEX", PasswordMinimumLength: 6, PasswordScope: "SCOPE_DEVICE"},
+			}}, nil
+		}
+
+		var lockResp fleet.LockHostResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", policyHostID), nil, http.StatusOK, &lockResp, "view_pin", "true")
+		require.GreaterOrEqual(t, len(lockResp.UnlockPIN), 12)
+		require.Regexp(t, `[a-z]`, lockResp.UnlockPIN)
+		require.Regexp(t, `[0-9]`, lockResp.UnlockPIN)
+
+		cmd, _, opName := lastIssue()
+		require.Equal(t, lockResp.UnlockPIN, cmd.NewPassword)
+		deliverPubSubCommand(t, androidmanagement.Operation{Name: opName, Done: true})
+
+		var unlockResp fleet.UnlockHostResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", policyHostID), nil, http.StatusOK, &unlockResp)
+		require.Equal(t, lockResp.UnlockPIN, unlockResp.UnlockPIN)
+	})
+
+	t.Run("Locking two hosts stores a separate PIN for each", func(t *testing.T) {
+		hostA := createAndroidHostForTest(t, s.ds, nil, true)
+		hostB := createAndroidHostForTest(t, s.ds, nil, false)
+
+		var respA, respB fleet.LockHostResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", hostA), nil, http.StatusOK, &respA, "view_pin", "true")
+		_, _, opA := lastIssue()
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", hostB), nil, http.StatusOK, &respB, "view_pin", "true")
+		_, _, opB := lastIssue()
+		// 1 in ~10^6 chance of a false failure.
+		require.NotEqual(t, respA.UnlockPIN, respB.UnlockPIN)
+
+		deliverPubSubCommand(t, androidmanagement.Operation{Name: opA, Done: true})
+		deliverPubSubCommand(t, androidmanagement.Operation{Name: opB, Done: true})
+
+		var unlockA, unlockB fleet.UnlockHostResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", hostA), nil, http.StatusOK, &unlockA)
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", hostB), nil, http.StatusOK, &unlockB)
+		require.Equal(t, respA.UnlockPIN, unlockA.UnlockPIN)
+		require.Equal(t, respB.UnlockPIN, unlockB.UnlockPIN)
+	})
+
+	t.Run("Wipe is accepted after an acknowledged lock", func(t *testing.T) {
+		lockedHostID := createAndroidHostForTest(t, s.ds, nil, true)
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", lockedHostID), nil, http.StatusOK)
+		_, _, opName := lastIssue()
+		deliverPubSubCommand(t, androidmanagement.Operation{Name: opName, Done: true})
+
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", lockedHostID), nil, http.StatusOK)
+		assertHostMDMStatus(t, lockedHostID, "wipe", "unlocked")
+
+		res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", lockedHostID), nil, http.StatusUnprocessableEntity)
+		require.Contains(t, extractServerErrorText(res.Body), "Host has pending wipe request. Cannot process unlock requests once host is wiped.")
+
+		_, _, wipeOp := lastIssue()
+		deliverPubSubCommand(t, androidmanagement.Operation{Name: wipeOp, Done: true})
+		res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", lockedHostID), nil, http.StatusUnprocessableEntity)
+		require.Contains(t, extractServerErrorText(res.Body), "Host is wiped. Cannot process unlock requests once host is wiped.")
+	})
+
+	t.Run("Lock and Clear passcode can't overlap", func(t *testing.T) {
+		guardHostID := createAndroidHostForTest(t, s.ds, nil, true)
+
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/clear_passcode", guardHostID), nil, http.StatusOK)
+		_, _, clearOp := lastIssue()
+		issuedBefore := issueCount()
+		res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", guardHostID), nil, http.StatusUnprocessableEntity)
+		require.Contains(t, extractServerErrorText(res.Body),
+			"Host has pending clear passcode request. Host cannot be locked until clear passcode is complete.")
+		require.Equal(t, issuedBefore, issueCount())
+		deliverPubSubCommand(t, androidmanagement.Operation{Name: clearOp, Done: true})
+
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", guardHostID), nil, http.StatusOK)
+		issuedBefore = issueCount()
+		res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/clear_passcode", guardHostID), nil, http.StatusUnprocessableEntity)
+		require.Contains(t, extractServerErrorText(res.Body), "Host has pending lock request. Passcode cannot be cleared until lock is complete.")
+		require.Equal(t, issuedBefore, issueCount())
+	})
+
+	t.Run("No PIN to show for a never-locked host or a lock from before Fleet 5", func(t *testing.T) {
+		neverLockedID := createAndroidHostForTest(t, s.ds, nil, true)
+		assertUnlockPINAvailable(t, neverLockedID, false)
+		res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", neverLockedID), nil, http.StatusConflict)
+		require.Contains(t, extractServerErrorText(res.Body), "Host is already unlocked.")
+
+		legacyHostID := createAndroidHostForTest(t, s.ds, nil, true)
+		legacyHost, err := s.ds.HostLite(ctx, legacyHostID)
+		require.NoError(t, err)
+		legacyCmdUUID := uuid.NewString()
+		require.NoError(t, s.ds.NewMDMAndroidCommand(ctx, &android.MDMAndroidCommand{
+			CommandUUID:   legacyCmdUUID,
+			HostUUID:      legacyHost.UUID,
+			OperationName: "enterprises/ultimate-fake/devices/legacy/operations/legacy-lock",
+			CommandType:   string(android.MDMAndroidCommandTypeLock),
+			Status:        string(android.MDMAndroidCommandStatusAcknowledged),
+		}))
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_actions (host_id, lock_ref, fleet_platform) VALUES (?, ?, 'android')`,
+				legacyHostID, legacyCmdUUID)
+			return err
+		})
+		assertUnlockPINAvailable(t, legacyHostID, false)
+		res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", legacyHostID), nil, http.StatusConflict)
+		require.Contains(t, extractServerErrorText(res.Body), "Host is already unlocked.")
 	})
 
 	t.Run("Wipe BYO issues WIPE and unenrolls via Pub/Sub ack", func(t *testing.T) {
@@ -508,6 +734,33 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 		require.Equal(t, "13", row.ErrorCode.V)
 		require.True(t, row.ErrorMessage.Valid)
 		require.Equal(t, "internal error executing command", row.ErrorMessage.V)
+
+		// A failed lock leaves no PIN to show.
+		assertUnlockPINAvailable(t, errHostID, false)
+		res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", errHostID), nil, http.StatusConflict)
+		require.Contains(t, extractServerErrorText(res.Body), "Host is already unlocked.")
+	})
+
+	t.Run("A re-lock the device rejects hides the previous PIN", func(t *testing.T) {
+		// Accepted behavior: lock_ref moves to the new command, so once it fails (e.g. INVALID_VALUE) there's no PIN to show
+		// even though the previous one may still work on the device.
+		relockHostID := createAndroidHostForTest(t, s.ds, nil, true)
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", relockHostID), nil, http.StatusOK)
+		_, _, firstOp := lastIssue()
+		deliverPubSubCommand(t, androidmanagement.Operation{Name: firstOp, Done: true})
+		assertUnlockPINAvailable(t, relockHostID, true)
+
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", relockHostID), nil, http.StatusOK)
+		_, _, secondOp := lastIssue()
+		deliverPubSubCommand(t, androidmanagement.Operation{
+			Name:  secondOp,
+			Done:  true,
+			Error: &androidmanagement.Status{Code: 3, Message: "INVALID_VALUE"},
+		})
+
+		assertUnlockPINAvailable(t, relockHostID, false)
+		res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", relockHostID), nil, http.StatusConflict)
+		require.Contains(t, extractServerErrorText(res.Body), "Host is already unlocked.")
 	})
 }
 
