@@ -189,7 +189,7 @@ function Remove-AppDir {
         $holders = @(Get-AppDirProcesses $Path)
         if ($holders.Count) {
             $names = ($holders | ForEach-Object { "$($_.Name) ($($_.Id))" }) -join ', '
-            Write-Host "  It's held by $names, which won't stop. Restart the host, then run the uninstall again."
+            Write-Host "  It's held by $names, which won't stop. Restarting the host releases it."
         }
         return $false
     }
