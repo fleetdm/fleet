@@ -1068,8 +1068,8 @@ func (e *CommonEndpointer[H]) handleEndpoint(path string, f H, v interface{}, ve
 }
 
 func (e *CommonEndpointer[H]) makeEndpoint(f H, v any, path string) http.Handler {
-	// Capture only the Endpointer: capturing e would make the handler hold e.Router, and the router's RouteTable holds the
-	// handler, so the router could never be collected.
+	// Capture only the Endpointer, not e, to avoid a memory leak: the global route table holds this handler, so referencing
+	// e.Router here would keep the router alive forever.
 	ep := e.EP
 	next := func(ctx context.Context, request interface{}) (interface{}, error) {
 		return ep.CallHandlerFunc(f, ctx, request, ep.Service())

@@ -63,7 +63,8 @@ func (t *RouteTable) add(rt Route) {
 // routeTables maps each gorilla router to its RouteTable. The registration functions and the feature route functions only
 // receive the *mux.Router, so this is how they reach the table without changing their signatures. The key is weak, and the
 // entry is dropped when its router is collected, because tests build many routers. That only works while no recorded handler
-// references its own router.
+// references its own router. This lookup is TEMPORARY: once a Fleet router type replaces *mux.Router, the router holds its own
+// table and this map goes away.
 var routeTables sync.Map // weak.Pointer[mux.Router] -> *RouteTable
 
 // RoutesOf returns the table of the routes registered through the endpointer on r.
