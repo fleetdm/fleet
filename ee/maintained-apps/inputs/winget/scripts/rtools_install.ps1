@@ -17,10 +17,16 @@ $installArgs = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART"
 $machineKey = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
 $machineKey32on64 = 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
 
-function Get-RtoolsKeys {
-    Get-ChildItem -Path @($machineKey, $machineKey32on64) -ErrorAction SilentlyContinue |
+function Get-RtoolsKeys($paths = @($machineKey, $machineKey32on64)) {
+    Get-ChildItem -Path $paths -ErrorAction SilentlyContinue |
         ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue } |
         Where-Object { $_.DisplayName -like "Rtools*" -and $_.Publisher -eq "The R Foundation" }
+}
+
+function Test-InInstallDir($location) {
+    if (-not $location) { return $false }
+    $location = $location.TrimEnd('\')
+    $location -eq $installDir -or $location -like "$installDir\*"
 }
 
 function Get-RtoolsEntries {
@@ -50,7 +56,21 @@ $installerInfo = (Get-Item $exeFilePath).VersionInfo
 $installDir = "C:\rtools$($installerInfo.FileMajorPart)$($installerInfo.FileMinorPart)"
 
 $release = "$($installerInfo.FileMajorPart).$($installerInfo.FileMinorPart)"
-$existingKeys = @(Get-RtoolsKeys | Where-Object { $_.InstallLocation -and $_.InstallLocation.TrimEnd('\') -eq $installDir })
+
+# Per-user installs can't be removed from here. Only signed-in users' registry
+# hives are loaded, so one belonging to a signed-out user isn't seen.
+$userRoots = @(Get-ChildItem 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue |
+  Where-Object { $_.PSChildName -match '^(S-1-5-21-[\d-]+|S-1-12-1-[\d-]+)$' } |
+  ForEach-Object { "Registry::$($_.Name)\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*" })
+if ($userRoots.Count -gt 0) {
+  $userKey = Get-RtoolsKeys $userRoots | Where-Object { Test-InInstallDir $_.InstallLocation } | Select-Object -First 1
+  if ($userKey) {
+    Write-Host "$installDir holds $($userKey.DisplayName), installed for a single user; not removing it."
+    Exit 1
+  }
+}
+
+$existingKeys = @(Get-RtoolsKeys | Where-Object { Test-InInstallDir $_.InstallLocation })
 foreach ($key in $existingKeys) {
   if ($key.DisplayVersion -notlike "$release.*") {
     Write-Host "$installDir holds $($key.DisplayName), not Rtools $release; not removing it."
