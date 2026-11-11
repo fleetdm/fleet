@@ -36,7 +36,7 @@ Until publisher and install date ship, the integration leaves those ServiceNow f
 
 In Fleet, head to **Settings > Integrations > Asset management**, select **Add tool**, choose **ServiceNow**, and enter your ServiceNow instance URL and API key. Fleet syncs host vitals every hour.
 
-Fleet writes every record through ServiceNow's [Identification and Reconciliation Engine (IRE)](https://www.servicenow.com/docs/csh?topicname=identification-reconciliation.html) with **Fleet** as the discovery source. IRE matches Fleet's data to existing configuration items (CIs) instead of creating duplicates, and lets Fleet run alongside other discovery sources such as SCCM, Intune, or Jamf.
+Fleet writes every record through ServiceNow's [Identification and Reconciliation Engine (IRE)](https://www.servicenow.com/docs/csh?topicname=identification-reconciliation.html) with **Fleet** as the discovery source. IRE matches Fleet's data to existing configuration items (CIs) instead of creating duplicates. A CI is ServiceNow's record for a computer, software install, or other asset. IRE also lets Fleet run alongside other discovery sources such as SCCM, Intune, or Jamf.
 
 ## Prepare ServiceNow
 
