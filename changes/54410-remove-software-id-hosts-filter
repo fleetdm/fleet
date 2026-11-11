@@ -1,1 +1,1 @@
-- **Breaking change:** Removed the deprecated `software_id` filter from `GET /api/v1/fleet/hosts`, `GET /api/v1/fleet/hosts/count`, `GET /api/v1/fleet/hosts/report`, and `GET /api/v1/fleet/labels/:id/hosts`. Requests that send it now return a 422 error. Use `software_version_id` or `software_title_id` instead.
+- **Breaking change:** Removed the deprecated `software_id` filter from `GET /api/v1/fleet/hosts`, `GET /api/v1/fleet/hosts/count`, `GET /api/v1/fleet/hosts/report`, and `GET /api/v1/fleet/labels/:id/hosts` in favor of `software_version_id`.
