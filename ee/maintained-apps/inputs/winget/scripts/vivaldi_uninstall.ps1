@@ -37,19 +37,29 @@ $installDirs = @("${env:ProgramFiles}\Vivaldi\Application\")
 if ($uninstall.InstallLocation) {
   $installDirs += $uninstall.InstallLocation.Trim('"').TrimEnd('\') + '\'
 }
-$running = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
-  $path = $_.ExecutablePath
-  $path -and (
-    ($installDirs | Where-Object { $path.StartsWith($_, [StringComparison]::OrdinalIgnoreCase) }) -or
-    ($_.CommandLine -match '\s--system-level\b' -and (Get-ProductName $path) -eq 'Vivaldi Installer')
-  )
-})
+try {
+  $running = @(Get-CimInstance Win32_Process -ErrorAction Stop | Where-Object {
+    $path = $_.ExecutablePath
+    $path -and (
+      ($installDirs | Where-Object { $path.StartsWith($_, [StringComparison]::OrdinalIgnoreCase) }) -or
+      ($_.CommandLine -match '\s--system-level\b' -and (Get-ProductName $path) -eq 'Vivaldi Installer')
+    )
+  })
+} catch {
+  Write-Host "Error listing running processes: $_"
+  Exit 1
+}
 foreach ($proc in $running) {
   Write-Host "Stopping $($proc.Name) (PID $($proc.ProcessId)) before uninstalling."
   Stop-Process -Id $proc.ProcessId -Force -ErrorAction SilentlyContinue
 }
 if ($running) {
   Wait-Process -Id $running.ProcessId -Timeout 30 -ErrorAction SilentlyContinue
+  $survivors = @(Get-Process -Id $running.ProcessId -ErrorAction SilentlyContinue)
+  if ($survivors) {
+    Write-Host "Couldn't stop $($survivors.Name -join ', ') (PID $($survivors.Id -join ', ')), so not uninstalling."
+    Exit 1
+  }
 }
 
 $uninstallCommand = if ($uninstall.QuietUninstallString) {
