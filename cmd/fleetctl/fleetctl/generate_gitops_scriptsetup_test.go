@@ -38,9 +38,9 @@ func (c *MockClientScriptSetup) listed() []fleet.SoftwareTitleListResult {
 			ID:         tt.id,
 			Name:       tt.filename,
 			HashSHA256: new(tt.filename + "-hash"),
-			SoftwarePackage: &fleet.SoftwarePackageOrApp{
+			Packages: []fleet.SoftwarePackageListItem{{
 				Name: tt.filename, Platform: "linux", Version: "1.0",
-			},
+			}},
 		})
 	}
 	return out
@@ -64,7 +64,7 @@ func (c *MockClientScriptSetup) GetSoftwareTitleByID(id uint, teamID *uint) (*fl
 			URL:           "https://example.com/download/" + tt.filename,
 			Name:          tt.filename,
 		}
-		title := &fleet.SoftwareTitle{ID: tt.id, SoftwarePackage: pkg}
+		title := &fleet.SoftwareTitle{ID: tt.id, Packages: []fleet.SoftwareInstaller{*pkg}}
 		if tt.multi {
 			title.Packages = []fleet.SoftwareInstaller{*pkg, *pkg}
 		}
@@ -87,7 +87,7 @@ func (c *MockClientScriptSetup) GetSetupExperienceSoftware(platform string, team
 		if platform == "macos" {
 			selected = tt.cross
 		}
-		out[i].SoftwarePackage.InstallDuringSetup = new(selected)
+		out[i].Packages[0].InstallDuringSetup = new(selected)
 	}
 	return out, nil
 }

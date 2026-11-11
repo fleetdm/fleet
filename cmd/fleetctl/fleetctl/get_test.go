@@ -387,7 +387,7 @@ func TestGetTeamsSoftwareFromSourceOfTruth(t *testing.T) {
 		require.EqualValues(t, 1, *opt.TeamID)
 		return []fleet.SoftwareTitleListResult{
 			{ID: 10, Name: "VPPApp", AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "123", Platform: fleet.MacOSPlatform}}},
-			{ID: 20, Name: "Pkg", SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "pkg.pkg", PackageURL: new("https://example.com/pkg.pkg")}},
+			{ID: 20, Name: "Pkg", Packages: []fleet.SoftwarePackageListItem{{Name: "pkg.pkg", PackageURL: new("https://example.com/pkg.pkg")}}},
 			{ID: 30, Name: "VersionsApp", AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "456", Platform: fleet.IOSPlatform}}},
 		}, 3, &fleet.PaginationMetadata{}, nil
 	}
@@ -443,10 +443,10 @@ func TestGetTeamsSoftwareFromSourceOfTruth(t *testing.T) {
 			return &fleet.SoftwareTitle{
 				ID:   20,
 				Name: "Pkg",
-				SoftwarePackage: &fleet.SoftwareInstaller{
+				Packages: []fleet.SoftwareInstaller{{
 					URL:       "https://example.com/pkg.pkg",
 					StorageID: "abc123",
-				},
+				}},
 			}, nil
 		case 30:
 			return &fleet.SoftwareTitle{

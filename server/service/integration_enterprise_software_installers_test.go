@@ -4072,6 +4072,84 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
 	})
 }
 
+func (s *integrationEnterpriseTestSuite) TestSoftwarePackagesForInHouseAppsAndHostSoftware() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team"})
+	require.NoError(t, err)
+
+	for _, fleetID := range []uint{0, team.ID} {
+		t.Logf("fleet %d", fleetID)
+
+		// upload an in-house app and a self-service custom package
+		s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+			TeamID:    &fleetID,
+			Filename:  "ipa_test2.ipa",
+			Version:   "1.0.0",
+			StorageID: uuid.New().String(),
+		}, http.StatusOK, "")
+		s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+			TeamID:      &fleetID,
+			Filename:    "dummy_installer.pkg",
+			Title:       "DummyApp",
+			SelfService: true,
+		}, http.StatusOK, "")
+
+		var inHouseTitleID uint
+		var packageTitleID uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			err := sqlx.GetContext(ctx, q, &inHouseTitleID, `SELECT title_id FROM in_house_apps WHERE filename = ? AND global_or_team_id = ? AND platform = 'ios'`, "ipa_test2.ipa", fleetID)
+			if err != nil {
+				return err
+			}
+			return sqlx.GetContext(ctx, q, &packageTitleID, `SELECT title_id FROM software_installers WHERE filename = ? AND global_or_team_id = ?`, "dummy_installer.pkg", fleetID)
+		})
+
+		// get the in-house app title, packages should list the .ipa with the same installer as software_package
+		var titleResp getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", inHouseTitleID), nil, http.StatusOK, &titleResp, "fleet_id", fmt.Sprint(fleetID))
+		require.Len(t, titleResp.SoftwareTitle.Packages, 1)
+		require.Equal(t, "ipa_test2.ipa", titleResp.SoftwareTitle.Packages[0].Name)
+		require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage)
+		require.Equal(t, titleResp.SoftwareTitle.SoftwarePackage.InstallerID, titleResp.SoftwareTitle.Packages[0].InstallerID)
+
+		// list hosts filtered by the in-house app title, the title's packages should list the .ipa
+		var listHostsResp listHostsResponse
+		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsResp, "fleet_id", fmt.Sprint(fleetID), "software_title_id", fmt.Sprint(inHouseTitleID))
+		require.NotNil(t, listHostsResp.SoftwareTitle)
+		require.Len(t, listHostsResp.SoftwareTitle.Packages, 1)
+		require.Equal(t, "ipa_test2.ipa", listHostsResp.SoftwareTitle.Packages[0].Name)
+
+		// add a macOS host to the fleet with a device token
+		host := createOrbitEnrolledHost(t, "darwin", fmt.Sprintf("packages-host-%d", fleetID), s.ds)
+		if fleetID != 0 {
+			require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&fleetID, []uint{host.ID})))
+		}
+		token := fmt.Sprintf("packages-token-%d", fleetID)
+		createDeviceTokenForHost(t, s.ds, host.ID, token)
+
+		// get the host's software, the custom package should have package and software_package with the same value
+		var hostSoftwareResp getHostSoftwareResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &hostSoftwareResp, "include_available_for_install", "true")
+		require.Len(t, hostSoftwareResp.Software, 1)
+		require.Equal(t, packageTitleID, hostSoftwareResp.Software[0].ID)
+		require.NotNil(t, hostSoftwareResp.Software[0].Package)
+		require.Equal(t, "dummy_installer.pkg", hostSoftwareResp.Software[0].Package.Name)
+		require.Equal(t, hostSoftwareResp.Software[0].SoftwarePackage, hostSoftwareResp.Software[0].Package)
+
+		// get the device's self-service software, the custom package should have package and software_package with the same value
+		var deviceSoftwareResp getDeviceSoftwareResponse
+		res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
+		err = json.NewDecoder(res.Body).Decode(&deviceSoftwareResp)
+		require.NoError(t, err)
+		require.Len(t, deviceSoftwareResp.Software, 1)
+		require.NotNil(t, deviceSoftwareResp.Software[0].Package)
+		require.Equal(t, "dummy_installer.pkg", deviceSoftwareResp.Software[0].Package.Name)
+		require.Equal(t, deviceSoftwareResp.Software[0].SoftwarePackage, deviceSoftwareResp.Software[0].Package)
+	}
+}
+
 func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 	t := s.T()
 	ctx := context.Background()

@@ -955,8 +955,10 @@ type HostSoftwareWithInstaller struct {
 	// field: the service clears it on Free so it's omitted from responses.
 	AITool *bool `json:"ai_tool,omitempty" db:"-"`
 
-	// SoftwarePackage provides software installer package information, it is
+	// Package provides software installer package information, it is
 	// only present if a software installer is available for the software title.
+	Package *SoftwarePackageOrApp `json:"package"`
+	// SoftwarePackage is kept for backwards compatibility and is set to the same value as Package.
 	SoftwarePackage *SoftwarePackageOrApp `json:"software_package"`
 
 	// AppStoreApp provides VPP app information, it is only present if a VPP app
@@ -1059,6 +1061,8 @@ type SoftwarePackageListItem struct {
 	SelfService              *bool                    `json:"self_service,omitempty"`
 	PackageURL               *string                  `json:"package_url"`
 	UploadedAt               time.Time                `json:"uploaded_at"`
+	FleetMaintainedAppID     *uint                    `json:"fleet_maintained_app_id"`
+	InstallDuringSetup       *bool                    `json:"install_during_setup,omitempty"`
 }
 
 type SoftwarePackageSpec struct {
