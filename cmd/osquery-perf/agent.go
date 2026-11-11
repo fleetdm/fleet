@@ -3323,7 +3323,7 @@ func (a *agent) goBinDir() string {
 	switch a.os {
 	case "windows":
 		return `C:\Users\fleet\go\bin\`
-	case "darwin":
+	case "macos":
 		return "/Users/fleet/go/bin/"
 	default:
 		return "/home/fleet/go/bin/"
@@ -3383,7 +3383,7 @@ func (a *agent) aiHomeDir() string {
 	switch a.os {
 	case "windows":
 		return `C:\Users\fleet\`
-	case "darwin":
+	case "macos":
 		return "/Users/fleet/"
 	default:
 		return "/home/fleet/"
@@ -3447,7 +3447,7 @@ func (a *agent) softwareAITools() []map[string]string {
 	}
 
 	// Template apps are reported identically by every simulated Mac, so their paths always match.
-	if a.os == "darwin" {
+	if a.os == "macos" {
 		marked := 0
 		for _, app := range macOSSoftware {
 			if marked >= c.markedApps {
