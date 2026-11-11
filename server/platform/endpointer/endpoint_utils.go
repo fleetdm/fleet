@@ -1068,8 +1068,11 @@ func (e *CommonEndpointer[H]) handleEndpoint(path string, f H, v interface{}, ve
 }
 
 func (e *CommonEndpointer[H]) makeEndpoint(f H, v any, path string) http.Handler {
+	// Capture only the Endpointer: capturing e would make the handler hold e.Router, and the router's RouteTable holds the
+	// handler, so the router could never be collected.
+	ep := e.EP
 	next := func(ctx context.Context, request interface{}) (interface{}, error) {
-		return e.EP.CallHandlerFunc(f, ctx, request, e.EP.Service())
+		return ep.CallHandlerFunc(f, ctx, request, ep.Service())
 	}
 
 	// Apply "after auth" middleware (in reverse order so that the first wraps

@@ -80,4 +80,12 @@ func TestRouteTableRecordsEveryRegistration(t *testing.T) {
 	assert.Equal(t, walked, recorded)
 
 	assert.Empty(t, RoutesOf(mux.NewRouter()).Routes(), "each router has its own table")
+
+	snapshot := RoutesOf(r).Routes()
+	snapshot[0].Methods[0] = http.MethodDelete
+	snapshot[0].Versions[0] = "v9"
+	unchanged := RoutesOf(r).Routes()[0]
+	assert.Equal(t, []string{http.MethodGet}, unchanged.Methods, "editing a snapshot must not change the table")
+	assert.Equal(t, "/api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/{id:[0-9]+}", unchanged.Template(),
+		"editing a snapshot must not change the table")
 }

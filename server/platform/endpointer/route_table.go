@@ -41,7 +41,17 @@ type RouteTable struct {
 func (t *RouteTable) Routes() []Route {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	return slices.Clone(t.routes)
+	routes := make([]Route, 0, len(t.routes))
+	for _, rt := range t.routes {
+		routes = append(routes, rt.clone())
+	}
+	return routes
+}
+
+func (rt Route) clone() Route {
+	rt.Methods = slices.Clone(rt.Methods)
+	rt.Versions = slices.Clone(rt.Versions)
+	return rt
 }
 
 func (t *RouteTable) add(rt Route) {
@@ -52,7 +62,8 @@ func (t *RouteTable) add(rt Route) {
 
 // routeTables maps each gorilla router to its RouteTable. The registration functions and the feature route functions only
 // receive the *mux.Router, so this is how they reach the table without changing their signatures. The key is weak, and the
-// entry is dropped when its router is collected, because tests build many routers.
+// entry is dropped when its router is collected, because tests build many routers. That only works while no recorded handler
+// references its own router.
 var routeTables sync.Map // weak.Pointer[mux.Router] -> *RouteTable
 
 // RoutesOf returns the table of the routes registered through the endpointer on r.
@@ -76,6 +87,8 @@ func handleRoute(r *mux.Router, rt Route) {
 	} else {
 		route = r.Handle(rt.Template(), rt.Handler)
 	}
-	route.Name(rt.Name).Methods(rt.Methods...)
+	rt = rt.clone()
+	// gorilla keeps, and uppercases in place, the slice it is given.
+	route.Name(rt.Name).Methods(slices.Clone(rt.Methods)...)
 	RoutesOf(r).add(rt)
 }
