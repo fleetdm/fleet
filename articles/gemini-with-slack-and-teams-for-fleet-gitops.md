@@ -6,12 +6,12 @@ This guide picks up where Fleet's GitOps level 1 certification leaves off: a rep
 
 ## Prerequisites
 
-- A Fleet GitOps repository on GitHub, created with `fleetctl new`, with the `FLEET_URL` and `FLEET_API_TOKEN` secrets set and the **Apply latest configuration to Fleet** workflow passing.
+- A Fleet GitOps repository on GitHub, created with [`fleetctl new`](https://github.com/fleetdm/fleet/blob/main/cmd/fleetctl/fleetctl/templates/new/README.md), with the `FLEET_URL` and `FLEET_API_TOKEN` secrets set and the **Apply latest configuration to Fleet** workflow passing.
 - A Gemini API key with billing turned on, or a Google Cloud project with Vertex AI and Workload Identity Federation set up for GitHub Actions.
 - An owner of the GitHub organization that owns the repository, to create and install a GitHub App.
 - For Slack: a Slack workspace admin to install the GitHub app.
 - For Microsoft Teams: a Teams admin, if your organization restricts third-party apps.
-- To connect Fleet's MCP server: Fleet 4.95 or later, and `fleetctl` logged in as a Fleet admin.
+- To connect Fleet's MCP server: Fleet 4.95 or later, and `fleetctl` logged in as a Fleet admin. Fleet 4.95 is [coming soon](https://github.com/fleetdm/fleet/issues/44448).
 - To use Gemini on your computer: Antigravity CLI, with a Gemini Enterprise Standard, Plus, or Pay-as-you-go plan, or a Gemini API key.
 
 ## Add the fleet-gitops skill to your repository

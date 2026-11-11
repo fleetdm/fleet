@@ -6,12 +6,12 @@ This guide picks up where Fleet's GitOps level 1 certification leaves off: a rep
 
 ## Prerequisites
 
-- A Fleet GitOps repository on GitHub, created with `fleetctl new`, with the `FLEET_URL` and `FLEET_API_TOKEN` secrets set and the **Apply latest configuration to Fleet** workflow passing.
+- A Fleet GitOps repository on GitHub, created with [`fleetctl new`](https://github.com/fleetdm/fleet/blob/main/cmd/fleetctl/fleetctl/templates/new/README.md), with the `FLEET_URL` and `FLEET_API_TOKEN` secrets set and the **Apply latest configuration to Fleet** workflow passing.
 - A ChatGPT Enterprise workspace, and the owner or admin role in it. Handing work from Slack and Teams to Codex Cloud requires Enterprise.
 - An owner of the GitHub organization that owns the repository, to approve the ChatGPT app on GitHub.
 - For Slack: a Slack workspace owner or app manager to approve the ChatGPT app.
 - For Microsoft Teams: a Microsoft account with the Global Administrator or Privileged Role Administrator role, and a Teams admin to install the app.
-- To connect Fleet's MCP server: Fleet 4.95 or later, `fleetctl` logged in as a Fleet admin, and the Codex app, CLI, or IDE extension.
+- To connect Fleet's MCP server: Fleet 4.95 or later, `fleetctl` logged in as a Fleet admin, and the Codex app, CLI, or IDE extension. Fleet 4.95 is [coming soon](https://github.com/fleetdm/fleet/issues/44448).
 
 ## Add the fleet-gitops skill to your repository
 

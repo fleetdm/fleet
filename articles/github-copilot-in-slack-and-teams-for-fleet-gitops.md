@@ -6,11 +6,11 @@ This guide picks up where Fleet's GitOps level 1 certification leaves off: a rep
 
 ## Prerequisites
 
-- A Fleet GitOps repository on GitHub, created with `fleetctl new`, with the `FLEET_URL` and `FLEET_API_TOKEN` secrets set and the **Apply latest configuration to Fleet** workflow passing.
+- A Fleet GitOps repository on GitHub, created with [`fleetctl new`](https://github.com/fleetdm/fleet/blob/main/cmd/fleetctl/fleetctl/templates/new/README.md), with the `FLEET_URL` and `FLEET_API_TOKEN` secrets set and the **Apply latest configuration to Fleet** workflow passing.
 - GitHub Copilot Business or Enterprise for the GitHub organization that owns the repository, and organization owner access to change its Copilot settings.
 - For Slack: a Slack workspace admin to install the GitHub app.
 - For Microsoft Teams: a Teams admin, if your organization restricts third-party apps.
-- To connect Fleet's MCP server: Fleet 4.95 or later, and `fleetctl` logged in as a Fleet admin.
+- To connect Fleet's MCP server: Fleet 4.95 or later, and `fleetctl` logged in as a Fleet admin. Fleet 4.95 is [coming soon](https://github.com/fleetdm/fleet/issues/44448).
 
 ## Add the fleet-gitops skill to your repository
 

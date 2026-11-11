@@ -11,9 +11,9 @@ Fleet lets your AI tool look up hosts, policies, and software in Fleet, so you c
 
 ## Prerequisites
 
-- Fleet 4.95 or later. The MCP server is at `https://<your-fleet-url>/api/mcp`.
+- Fleet 4.95 or later. Fleet 4.95 is [coming soon](https://github.com/fleetdm/fleet/issues/44448). The MCP server is at `https://<your-fleet-url>/api/mcp`.
 - `fleetctl` logged in as a Fleet admin, to create a read-only API user for your AI tool.
-- To request changes from chat: a Fleet GitOps repository on GitHub, created with `fleetctl new`.
+- To request changes from chat: a Fleet GitOps repository on GitHub, created with [`fleetctl new`](https://github.com/fleetdm/fleet/blob/main/cmd/fleetctl/fleetctl/templates/new/README.md).
 
 ## Pick your guide
 
