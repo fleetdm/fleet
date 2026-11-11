@@ -20,7 +20,7 @@ module.exports = {
 
     // Alphabetical by `shortName`, which is the label in the side nav.
     let integrationCategories = [
-      { slug: 'ai', name: 'AI', shortName: 'AI' },
+      { slug: 'ai', name: 'AI tools', shortName: 'AI tools' },
       { slug: 'automation', name: 'Automation & alerts', shortName: 'Automation' },
       { slug: 'certificates', name: 'Certificates', shortName: 'Certificates' },
       { slug: 'cloud', name: 'Cloud hosting', shortName: 'Cloud' },
