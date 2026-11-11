@@ -16,10 +16,9 @@ This guide picks up where Fleet's GitOps level 1 certification leaves off: a rep
 
 Copilot reads `AGENTS.md` and discovers skills in `.agents/skills/` on its own. Recent versions of `fleetctl new` create both, along with the `fleet-gitops` skill. If your repository already has `AGENTS.md` and `.agents/skills/fleet-gitops/SKILL.md`, skip to the next step.
 
-1. Update `fleetctl` and create a fresh template in a temporary folder:
+1. Download the latest `fleetctl` from [fleetdm.com/download](https://fleetdm.com/download), then create a fresh template in a temporary folder:
 
 ```bash
-npm install -g fleetctl@latest
 fleetctl new --dir /tmp/fleet-template --org-name "Acme"
 ```
 
@@ -86,19 +85,19 @@ Choose your GitOps repository.
 
 ## Connect Copilot to Fleet's MCP server
 
-Fleet 4.95 and later include a read-only MCP server at `https://<your-fleet-url>/api/mcp`. Connect it so Copilot can check what's already in Fleet before it writes a change, for example which fleets already have a FileVault policy.
+Fleet 4.95 and later include an MCP server, the `POST /mcp` endpoint. Connect it so Copilot can check what's already in Fleet before it writes a change, for example which fleets already have a FileVault policy.
 
-### Create a read-only API user
+### Create an API-only user
 
-Create a dedicated API-only user with the Observer role. The connection can read but never change anything, and its activity is easy to spot in Fleet's activity feed:
+Create a dedicated API-only user with the Observer+ role, the least privileged role that can run live reports. It can't change anything in Fleet, and its activity is easy to spot in Fleet's activity feed:
 
 ```bash
-fleetctl user create --name "AI assistant (read-only)" --api-only --global-role observer
+fleetctl user create --name "AI assistant" --api-only --global-role observer_plus
 ```
 
 `fleetctl` prints the user's API token once. Copy it.
 
-> **Note:** To limit the user to specific fleets, replace `--global-role observer` with `--fleet <fleet_id>:observer`, once per fleet.
+> **Note:** To limit the user to specific fleets, replace `--global-role observer_plus` with `--fleet <fleet_id>:observer_plus`, once per fleet. To limit it to only the API endpoints Fleet's MCP server needs, see [Create an API-only user](https://fleetdm.com/guides/fleet-mcp#create-an-api-only-user).
 
 ### Store the token as an Agents secret
 
@@ -119,7 +118,7 @@ fleetctl user create --name "AI assistant (read-only)" --api-only --global-role 
   "mcpServers": {
     "fleet": {
       "type": "http",
-      "url": "https://fleet.example.com/api/mcp",
+      "url": "https://fleet.example.com/api/v1/fleet/mcp",
       "headers": {
         "Authorization": "$COPILOT_MCP_FLEET_AUTHORIZATION"
       },
@@ -132,7 +131,7 @@ fleetctl user create --name "AI assistant (read-only)" --api-only --global-role 
 4. Select **Save MCP configuration**.
 5. Go to **Settings > Copilot > Internet access**, add your Fleet server's host under **Custom allowlist**, and select **Save changes**.
 
-Copilot runs MCP tools without asking first. That's why the token above belongs to a read-only user.
+Copilot runs MCP tools without asking first. That's why the token above belongs to an Observer+ user, which can't change anything in Fleet.
 
 ## Make your first change
 
@@ -179,7 +178,7 @@ Check the **Start MCP Servers** step in the session logs. A `401` means the secr
 
 ## Further reading
 
-- [Connect your AI tool to Fleet's MCP server](https://fleetdm.com/guides/connect-your-ai-tool-to-fleet-mcp)
+- [Connect your AI tool to Fleet](https://fleetdm.com/guides/connect-your-ai-tool-to-fleet)
 - [Integrate Copilot cloud agent with Slack](https://docs.github.com/en/copilot/how-tos/copilot-integrations/integrate-cloud-agent-with-slack)
 - [Integrate Copilot cloud agent with Microsoft Teams](https://docs.github.com/en/copilot/how-tos/copilot-integrations/integrate-cloud-agent-with-teams)
 - [Configure MCP servers for Copilot](https://docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/configure-mcp-servers)

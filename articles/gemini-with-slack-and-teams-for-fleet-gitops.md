@@ -18,10 +18,9 @@ This guide picks up where Fleet's GitOps level 1 certification leaves off: a rep
 
 Gemini CLI, which runs inside the Action, reads `GEMINI.md` and discovers skills in `.agents/skills/`. Recent versions of `fleetctl new` create a `GEMINI.md` that imports `AGENTS.md`, along with the `fleet-gitops` skill. Antigravity CLI reads `AGENTS.md` and `.agents/skills/` directly. If your repository already has `GEMINI.md`, `AGENTS.md`, and `.agents/skills/fleet-gitops/SKILL.md`, skip to the next step.
 
-1. Update `fleetctl` and create a fresh template in a temporary folder:
+1. Download the latest `fleetctl` from [fleetdm.com/download](https://fleetdm.com/download), then create a fresh template in a temporary folder:
 
 ```bash
-npm install -g fleetctl@latest
 fleetctl new --dir /tmp/fleet-template --org-name "Acme"
 ```
 
@@ -99,19 +98,19 @@ curl -o .github/workflows/gemini-plan-execute.yml $base/gemini-assistant/gemini-
 
 ## Connect Gemini to Fleet's MCP server
 
-Fleet 4.95 and later include a read-only MCP server at `https://<your-fleet-url>/api/mcp`. Connect it so Gemini can check what's already in Fleet before it plans a change, for example which fleets already have a FileVault policy.
+Fleet 4.95 and later include an MCP server, the `POST /mcp` endpoint. Connect it so Gemini can check what's already in Fleet before it plans a change, for example which fleets already have a FileVault policy.
 
-### Create a read-only API user
+### Create an API-only user
 
-Create a dedicated API-only user with the Observer role. The connection can read but never change anything, and its activity is easy to spot in Fleet's activity feed:
+Create a dedicated API-only user with the Observer+ role, the least privileged role that can run live reports. It can't change anything in Fleet, and its activity is easy to spot in Fleet's activity feed:
 
 ```bash
-fleetctl user create --name "AI assistant (read-only)" --api-only --global-role observer
+fleetctl user create --name "AI assistant" --api-only --global-role observer_plus
 ```
 
 `fleetctl` prints the user's API token once. Copy it.
 
-> **Note:** To limit the user to specific fleets, replace `--global-role observer` with `--fleet <fleet_id>:observer`, once per fleet.
+> **Note:** To limit the user to specific fleets, replace `--global-role observer_plus` with `--fleet <fleet_id>:observer_plus`, once per fleet. To limit it to only the API endpoints Fleet's MCP server needs, see [Create an API-only user](https://fleetdm.com/guides/fleet-mcp#create-an-api-only-user).
 
 ### Connect it in GitHub Actions
 
@@ -126,7 +125,7 @@ FLEET_MCP_TOKEN: '${{ secrets.FLEET_MCP_TOKEN }}'
 
 ```json
 "fleet": {
-  "httpUrl": "https://fleet.example.com/api/mcp",
+  "httpUrl": "https://fleet.example.com/api/v1/fleet/mcp",
   "headers": {
     "Authorization": "Bearer ${FLEET_MCP_TOKEN}"
   }
@@ -135,7 +134,7 @@ FLEET_MCP_TOKEN: '${{ secrets.FLEET_MCP_TOKEN }}'
 
 4. Make the same two changes in `.github/workflows/gemini-plan-execute.yml`, then commit and push.
 
-The Action runs Gemini CLI without asking before each tool call, including MCP tools. That's why the token belongs to a read-only user.
+The Action runs Gemini CLI without asking before each tool call, including MCP tools. That's why the token belongs to an Observer+ user, which can't change anything in Fleet.
 
 ### Connect it in Antigravity CLI
 
@@ -153,7 +152,7 @@ curl -fsSL https://antigravity.google/cli/install.sh | bash
 {
   "mcpServers": {
     "fleet": {
-      "serverUrl": "https://fleet.example.com/api/mcp",
+      "serverUrl": "https://fleet.example.com/api/v1/fleet/mcp",
       "headers": {
         "Authorization": "Bearer <token>"
       }
@@ -224,7 +223,7 @@ Check that `FLEET_MCP_TOKEN` is under the step's `env:` block in both workflows,
 
 ## Further reading
 
-- [Connect your AI tool to Fleet's MCP server](https://fleetdm.com/guides/connect-your-ai-tool-to-fleet-mcp)
+- [Connect your AI tool to Fleet](https://fleetdm.com/guides/connect-your-ai-tool-to-fleet)
 - [run-gemini-cli GitHub Action](https://github.com/google-github-actions/run-gemini-cli)
 - [Antigravity CLI MCP servers](https://antigravity.google/docs/mcp)
 - [Create GitHub issues from Slack](https://docs.github.com/en/integrations/tutorials/slack/create-issues)

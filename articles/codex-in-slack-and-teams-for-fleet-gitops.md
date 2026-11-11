@@ -17,10 +17,9 @@ This guide picks up where Fleet's GitOps level 1 certification leaves off: a rep
 
 Codex reads `AGENTS.md` before it works and discovers skills in `.agents/skills/`, including in Codex Cloud. Recent versions of `fleetctl new` create both, along with the `fleet-gitops` skill. If your repository already has `AGENTS.md` and `.agents/skills/fleet-gitops/SKILL.md`, skip to the next step.
 
-1. Update `fleetctl` and create a fresh template in a temporary folder:
+1. Download the latest `fleetctl` from [fleetdm.com/download](https://fleetdm.com/download), then create a fresh template in a temporary folder:
 
 ```bash
-npm install -g fleetctl@latest
 fleetctl new --dir /tmp/fleet-template --org-name "Acme"
 ```
 
@@ -76,21 +75,21 @@ A merge to your default branch is a deploy: the **Apply latest configuration to 
 
 ## Connect Codex to Fleet's MCP server
 
-Fleet 4.95 and later include a read-only MCP server at `https://<your-fleet-url>/api/mcp`.
+Fleet 4.95 and later include an MCP server, the `POST /mcp` endpoint.
 
 Codex Cloud tasks, including the ones `@ChatGPT` starts from Slack and Teams, don't load MCP servers yet. ChatGPT's custom MCP plugins support OAuth or no authentication, and can't send an API token. So connect Fleet's MCP server where your admins review and refine changes: the Codex app, CLI, or IDE extension.
 
-### Create a read-only API user
+### Create an API-only user
 
-Create a dedicated API-only user with the Observer role. The connection can read but never change anything, and its activity is easy to spot in Fleet's activity feed:
+Create a dedicated API-only user with the Observer+ role, the least privileged role that can run live reports. It can't change anything in Fleet, and its activity is easy to spot in Fleet's activity feed:
 
 ```bash
-fleetctl user create --name "AI assistant (read-only)" --api-only --global-role observer
+fleetctl user create --name "AI assistant" --api-only --global-role observer_plus
 ```
 
 `fleetctl` prints the user's API token once. Copy it.
 
-> **Note:** To limit the user to specific fleets, replace `--global-role observer` with `--fleet <fleet_id>:observer`, once per fleet.
+> **Note:** To limit the user to specific fleets, replace `--global-role observer_plus` with `--fleet <fleet_id>:observer_plus`, once per fleet. To limit it to only the API endpoints Fleet's MCP server needs, see [Create an API-only user](https://fleetdm.com/guides/fleet-mcp#create-an-api-only-user).
 
 ### Add the server to your repository
 
@@ -98,7 +97,7 @@ fleetctl user create --name "AI assistant (read-only)" --api-only --global-role 
 
 ```toml
 [mcp_servers.fleet]
-url = "https://fleet.example.com/api/mcp"
+url = "https://fleet.example.com/api/v1/fleet/mcp"
 bearer_token_env_var = "FLEET_MCP_TOKEN"
 ```
 
@@ -151,7 +150,7 @@ Run `echo $FLEET_MCP_TOKEN` in a new terminal to confirm the token loads. A `401
 
 ## Further reading
 
-- [Connect your AI tool to Fleet's MCP server](https://fleetdm.com/guides/connect-your-ai-tool-to-fleet-mcp)
+- [Connect your AI tool to Fleet](https://fleetdm.com/guides/connect-your-ai-tool-to-fleet)
 - [ChatGPT in Slack and Microsoft Teams](https://learn.chatgpt.com/docs/enterprise/chatgpt-slack-and-teams)
 - [Codex Cloud environments](https://learn.chatgpt.com/docs/environments/cloud-environments)
 - [Codex MCP servers](https://learn.chatgpt.com/docs/extend/mcp)

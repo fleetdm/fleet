@@ -17,10 +17,9 @@ This guide picks up where Fleet's GitOps level 1 certification leaves off: a rep
 
 When Claude clones your repository, it loads `CLAUDE.md` and the skills in `.claude/skills/`. Recent versions of `fleetctl new` create both, with a `CLAUDE.md` that imports `AGENTS.md` and a `fleet-gitops` skill that points Claude at the full skill in `.agents/skills/`. If your repository already has `CLAUDE.md`, `AGENTS.md`, and `.agents/skills/fleet-gitops/SKILL.md`, skip to the next step.
 
-1. Update `fleetctl` and create a fresh template in a temporary folder:
+1. Download the latest `fleetctl` from [fleetdm.com/download](https://fleetdm.com/download), then create a fresh template in a temporary folder:
 
 ```bash
-npm install -g fleetctl@latest
 fleetctl new --dir /tmp/fleet-template --org-name "Acme"
 ```
 
@@ -99,19 +98,19 @@ Read the latest message in the IT requests channel in Teams and make that change
 
 ## Connect Claude to Fleet's MCP server
 
-Fleet 4.95 and later include a read-only MCP server at `https://<your-fleet-url>/api/mcp`. Connect it so Claude can check what's already in Fleet before it writes a change, for example which fleets already have a FileVault policy.
+Fleet 4.95 and later include an MCP server, the `POST /mcp` endpoint. Connect it so Claude can check what's already in Fleet before it writes a change, for example which fleets already have a FileVault policy.
 
-### Create a read-only API user
+### Create an API-only user
 
-Create a dedicated API-only user with the Observer role. The connection can read but never change anything, and its activity is easy to spot in Fleet's activity feed:
+Create a dedicated API-only user with the Observer+ role, the least privileged role that can run live reports. It can't change anything in Fleet, and its activity is easy to spot in Fleet's activity feed:
 
 ```bash
-fleetctl user create --name "AI assistant (read-only)" --api-only --global-role observer
+fleetctl user create --name "AI assistant" --api-only --global-role observer_plus
 ```
 
 `fleetctl` prints the user's API token once. Copy it.
 
-> **Note:** To limit the user to specific fleets, replace `--global-role observer` with `--fleet <fleet_id>:observer`, once per fleet.
+> **Note:** To limit the user to specific fleets, replace `--global-role observer_plus` with `--fleet <fleet_id>:observer_plus`, once per fleet. To limit it to only the API endpoints Fleet's MCP server needs, see [Create an API-only user](https://fleetdm.com/guides/fleet-mcp#create-an-api-only-user).
 
 ### Connect it in Slack
 
@@ -124,7 +123,7 @@ Claude Tag doesn't load MCP servers from a repository's `.mcp.json`. Instead, yo
 ```json
 {
   "name": "fleet-mcp",
-  "description": "Read-only access to Fleet through Fleet's MCP server",
+  "description": "Access to Fleet through Fleet's MCP server",
   "version": "1.0.0"
 }
 ```
@@ -136,7 +135,7 @@ Claude Tag doesn't load MCP servers from a repository's `.mcp.json`. Instead, yo
   "mcpServers": {
     "fleet": {
       "type": "http",
-      "url": "https://fleet.example.com/api/mcp"
+      "url": "https://fleet.example.com/api/v1/fleet/mcp"
     }
   }
 }
@@ -154,7 +153,7 @@ cd fleet-mcp && zip -r ../fleet-mcp.zip .claude-plugin .mcp.json
    - **Name**: Fleet MCP
    - **Credential type**: **Bearer**, with the token from `fleetctl`
    - **Allowed websites**: your Fleet server's host, for example `fleet.example.com`
-   - **Path prefixes**: `/api/mcp`
+   - **Path prefixes**: `/api/v1/fleet/mcp`
 6. Save the connector.
 
 ### Connect it in Claude Code on the web
@@ -208,7 +207,7 @@ Reply in the thread: `The dry run failed. Run python3 .agents/skills/fleet-gitop
 
 ## Further reading
 
-- [Connect your AI tool to Fleet's MCP server](https://fleetdm.com/guides/connect-your-ai-tool-to-fleet-mcp)
+- [Connect your AI tool to Fleet](https://fleetdm.com/guides/connect-your-ai-tool-to-fleet)
 - [Set up Claude Tag](https://claude.com/docs/claude-tag/admins/setup-overview)
 - [Configure GitHub access for Claude Tag](https://claude.com/docs/claude-tag/admins/configure-github)
 - [Connect a custom MCP server to Claude Tag](https://claude.com/docs/claude-tag/admins/connections/custom)

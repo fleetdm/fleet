@@ -11,8 +11,8 @@ Fleet lets your AI tool look up hosts, policies, and software in Fleet, so you c
 
 ## Prerequisites
 
-- Fleet 4.95 or later. Fleet 4.95 is [coming soon](https://github.com/fleetdm/fleet/issues/44448). The MCP server is at `https://<your-fleet-url>/api/mcp`.
-- `fleetctl` logged in as a Fleet admin, to create a read-only API user for your AI tool.
+- Fleet 4.95 or later. Fleet 4.95 is [coming soon](https://github.com/fleetdm/fleet/issues/44448). The MCP server is the `POST /mcp` endpoint.
+- `fleetctl` logged in as a Fleet admin, to create an API-only user for your AI tool.
 - To request changes from chat: a Fleet GitOps repository on GitHub, created with [`fleetctl new`](https://github.com/fleetdm/fleet/blob/main/cmd/fleetctl/fleetctl/templates/new/README.md).
 
 ## Pick your guide
@@ -39,10 +39,10 @@ Each guide follows the same five steps, so switching tools later means redoing o
 1. Add `AGENTS.md` and the `fleet-gitops` skill to your repository, so the AI tool checks its work against Fleet's GitOps format.
 2. Protect your default branch, so a person approves every merge and a failed dry run blocks it.
 3. Connect the AI tool to GitHub, and to Slack or Microsoft Teams.
-4. Connect it to Fleet's MCP server with a read-only API user.
+4. Connect it to Fleet's MCP server with an Observer+ API-only user.
 5. Make your first change and verify it in Fleet.
 
-> **Warning:** Never give an AI tool your GitOps `FLEET_API_TOKEN`. That token can apply changes to Fleet. Each guide creates a separate API-only user with the Observer role, which can read but not change anything.
+> **Warning:** Never give an AI tool your GitOps `FLEET_API_TOKEN`. That token can apply changes to Fleet. Each guide creates a separate API-only user with the Observer+ role, which can run live reports but can't change anything.
 
 ## Ask your first questions
 
@@ -64,16 +64,16 @@ Which hosts in the Workstations fleet have software with known vulnerabilities?
 Which policies fail on the most hosts, and which fleets are those hosts in?
 ```
 
-The AI tool connects as an observer, so asking questions never changes anything in Fleet.
+The AI tool connects as an Observer+ user, so asking questions never changes anything in Fleet.
 
 ## Use another AI tool
 
 Fleet's MCP server works with other AI tools too, as long as they support remote MCP servers over HTTP and let you set a request header.
 
-1. Create a read-only API user and copy the token that `fleetctl` prints:
+1. Create an API-only user with the Observer+ role and copy the token that `fleetctl` prints:
 
 ```bash
-fleetctl user create --name "AI assistant (read-only)" --api-only --global-role observer
+fleetctl user create --name "AI assistant" --api-only --global-role observer_plus
 ```
 
 2. Add Fleet to your tool's MCP configuration. Replace `fleet.example.com` with your Fleet server's host. Many tools use this format:
@@ -83,7 +83,7 @@ fleetctl user create --name "AI assistant (read-only)" --api-only --global-role 
   "mcpServers": {
     "fleet": {
       "type": "http",
-      "url": "https://fleet.example.com/api/mcp",
+      "url": "https://fleet.example.com/api/v1/fleet/mcp",
       "headers": {
         "Authorization": "Bearer <token>"
       }
