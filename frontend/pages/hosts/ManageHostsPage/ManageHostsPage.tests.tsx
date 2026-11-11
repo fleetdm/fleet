@@ -723,4 +723,88 @@ describe("ManageHostsPage", () => {
     expect(columns).not.toContain("agent");
     expect(columns).not.toContain("selection");
   });
+
+  describe("software_id → software_version_id redirect", () => {
+    it("rewrites ?software_id=N to ?software_version_id=N", async () => {
+      setupHandlers(0);
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: { app: mockAppContext },
+      });
+
+      const props = createMockProps({
+        location: {
+          pathname: "/hosts/manage",
+          search: "?software_id=42",
+          query: { software_id: "42" },
+        },
+      }) as any;
+      render(<ManageHostsPage {...props} />);
+
+      await waitFor(() =>
+        expect(props.router.replace).toHaveBeenCalledWith({
+          pathname: "/hosts/manage",
+          query: { software_version_id: "42" },
+        })
+      );
+    });
+
+    it("preserves every other query param through the redirect", async () => {
+      setupHandlers(0);
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: { app: mockAppContext },
+      });
+
+      const props = createMockProps({
+        location: {
+          pathname: "/hosts/manage",
+          search: "?software_id=42&fleet_id=7&os_name=Ubuntu&os_version=22.04",
+          query: {
+            software_id: "42",
+            fleet_id: "7",
+            os_name: "Ubuntu",
+            os_version: "22.04",
+          },
+        },
+      }) as any;
+      render(<ManageHostsPage {...props} />);
+
+      await waitFor(() =>
+        expect(props.router.replace).toHaveBeenCalledWith({
+          pathname: "/hosts/manage",
+          query: {
+            software_version_id: "42",
+            fleet_id: "7",
+            os_name: "Ubuntu",
+            os_version: "22.04",
+          },
+        })
+      );
+    });
+
+    it("drops software_id and keeps software_version_id when both are present", async () => {
+      setupHandlers(0);
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: { app: mockAppContext },
+      });
+
+      const props = createMockProps({
+        location: {
+          pathname: "/hosts/manage",
+          search: "?software_id=42&software_version_id=99",
+          query: { software_id: "42", software_version_id: "99" },
+        },
+      }) as any;
+      render(<ManageHostsPage {...props} />);
+
+      await waitFor(() =>
+        expect(props.router.replace).toHaveBeenCalledWith({
+          pathname: "/hosts/manage",
+          query: { software_version_id: "99" },
+        })
+      );
+    });
+  });
 });
