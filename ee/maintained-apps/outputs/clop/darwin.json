@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.6.7",
+      "version": "3.7.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.lowtechguys.Clop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.lowtechguys.Clop' AND version_compare(bundle_short_version, '3.6.7') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.lowtechguys.Clop' AND version_compare(bundle_short_version, '3.7.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.lowtechguys.Clop' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://files.lowtechguys.com/releases/Clop-3.6.7.dmg",
+      "installer_url": "https://files.lowtechguys.com/releases/Clop-3.7.0.dmg",
       "install_script_ref": "4792c482",
       "uninstall_script_ref": "d542d0bd",
-      "sha256": "3e6ce7c31cb02437abd0192008925a2681ab6fddbd9630a8c03550d26198767e",
+      "sha256": "53859999a79e6434d0d1944bbdc33319811fb2f406041ca9d72025c521e6fab9",
       "default_categories": [
         "Developer tools"
       ]
