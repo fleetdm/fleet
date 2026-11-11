@@ -1108,6 +1108,91 @@ kill() {
 	})
 }
 
+// TestAffinityInstallRelaunchesByPath runs the Affinity install script with
+// osascript and open stubbed out. Opening Affinity by bundle ID right after
+// it's replaced fails, so the script opens the new copy by path, retries, and
+// logs open's error. A relaunch that keeps failing doesn't fail the install.
+func TestAffinityInstallRelaunchesByPath(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("as root the relaunch goes through /bin/launchctl asuser, which can't be stubbed")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+	b, err := os.ReadFile("../../inputs/homebrew/scripts/affinity-install.sh")
+	require.NoError(t, err)
+
+	// open fails its first openFailures calls. running is whether Affinity is
+	// open before the install; it quits on the first quit event.
+	run := func(t *testing.T, running bool, openFailures int) (string, []string) {
+		dir := t.TempDir()
+		openFile := filepath.Join(dir, "opened")
+		stubs := `running=` + strconv.FormatBool(running) + `
+open_failures=` + strconv.Itoa(openFailures) + `
+opened=` + shellSingleQuote(openFile) + `
+quits=` + shellSingleQuote(filepath.Join(dir, "quits")) + `
+stat() { echo alice; }
+realpath() { echo /tmp/fleet-test/installer; }
+ditto() { :; }
+sleep() { SECONDS=$((SECONDS + $1)); }
+sudo() { echo "sudo $*"; }
+ps() { :; }
+open() {
+  echo "$*" >> "$opened"
+  if (( $(grep -c . "$opened") <= open_failures )); then
+    echo "LSOpenURLsWithRole() failed with error -10810." >&2
+    return 1
+  fi
+}
+osascript() {
+  case "$4" in
+    *" to quit") echo quit >> "$quits" ;;
+    *" is running") if [[ "$running" == true && ! -e "$quits" ]]; then echo true; else echo false; fi ;;
+  esac
+}
+`
+		out, err := exec.Command(bash, "-c", stubs+string(b)).CombinedOutput()
+		require.NoError(t, err, string(out))
+		opened, err := os.ReadFile(openFile)
+		if !os.IsNotExist(err) {
+			require.NoError(t, err)
+		}
+		return string(out), strings.Fields(string(opened))
+	}
+	const (
+		appPath = "/Applications/Affinity.app"
+		success = "Application 'com.canva.affinity' relaunched successfully."
+		failure = "Failed to relaunch application 'com.canva.affinity'."
+	)
+
+	out, opened := run(t, false, 0)
+	require.Contains(t, out, "sudo cp -R")
+	require.NotContains(t, out, "Relaunching application")
+	require.Empty(t, opened)
+
+	out, opened = run(t, true, 0)
+	require.Contains(t, out, "Application 'com.canva.affinity' quit successfully.")
+	require.Less(t, strings.Index(out, "sudo cp -R"), strings.Index(out, success))
+	require.Equal(t, []string{appPath}, opened)
+
+	out, opened = run(t, true, 2)
+	require.Contains(t, out, "Attempt 1 to relaunch application 'com.canva.affinity' failed (exit 1): LSOpenURLsWithRole() failed with error -10810.")
+	require.Contains(t, out, "Attempt 2 to relaunch application 'com.canva.affinity' failed")
+	require.Contains(t, out, success)
+	require.NotContains(t, out, failure)
+	require.Equal(t, []string{appPath, appPath, appPath}, opened)
+
+	out, opened = run(t, true, 3)
+	require.Contains(t, out, "Attempt 3 to relaunch application 'com.canva.affinity' failed")
+	require.Contains(t, out, failure)
+	require.NotContains(t, out, success)
+	require.Len(t, opened, 3)
+}
+
 func TestShellDoubleQuoteEscape(t *testing.T) {
 	// Values without shell metacharacters (the common case) must pass through
 	// unchanged so the generated scripts stay byte-identical to before.
