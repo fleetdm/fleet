@@ -19,6 +19,8 @@ If you see an endpoint documented here that you'd like to use, please [file a fe
 - [Software](#software)
 - [Certificates](#certificates)
 - [Users](#users)
+- [Organization logo](#organization-logo)
+- [Calendar webhook](#calendar-webhook)
 - [Conditional access](#conditional-access)
 - [Host identity](#host-identity)
 
@@ -5109,6 +5111,98 @@ param, this endpoint is considered a documented REST API endpoint
   "settings": {"hidden_host_columns": ["hostname"]},
 }
 ```
+
+### Confirm email change
+
+Confirms a pending email address change and updates the user's email. When a user's email is changed with [Update user](https://fleetdm.com/docs/rest-api/rest-api#update-user), Fleet emails a confirmation link to the new address. The Fleet UI calls this endpoint when the user opens that link.
+
+The token only works for the user whose email is changing, so the request must be authenticated as that user.
+
+`GET /api/v1/fleet/email/change/:token`
+
+#### Parameters
+
+| Name  | Type   | In   | Description |
+| ----- | ------ | ---- | ----------- |
+| token | string | path | **Required.** The token from the confirmation link. |
+
+#### Example
+
+`GET /api/v1/fleet/email/change/aGVsbG8td29ybGQtdG9rZW4=`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "new_email": "janedoe@example.com"
+}
+```
+
+If the token doesn't match a pending email change for the authenticated user, Fleet returns `404`.
+
+---
+
+## Organization logo
+
+### Get organization logo
+
+Returns the custom logo uploaded with [Update organization logo](https://fleetdm.com/docs/rest-api/rest-api#update-organization-logo) as raw image bytes. The Fleet UI and `fleetctl` use this endpoint.
+
+This endpoint doesn't require authentication. It's rate limited to 60 requests per minute.
+
+`GET /api/v1/fleet/logo`
+
+#### Parameters
+
+| Name | Type   | In    | Description |
+| ---- | ------ | ----- | ----------- |
+| mode | string | query | **Required.** Which logo to return. Either `"light"` for the logo displayed in light mode or `"dark"` for the logo displayed in dark mode. |
+
+#### Example
+
+`GET /api/v1/fleet/logo?mode=light`
+
+##### Default response
+
+`Status: 200`
+
+The response body is the image file. The `Content-Type` header is `image/png`, `image/jpeg`, `image/webp`, or `image/svg+xml`, depending on the uploaded file.
+
+If no logo was uploaded for that mode, Fleet returns `404`.
+
+---
+
+## Calendar webhook
+
+### Receive Google Calendar event notification
+
+_Available in Fleet Premium_
+
+Google Calendar calls this endpoint when a calendar event that Fleet created for a host's end user changes. Fleet then re-checks the event and updates it if needed. Fleet registers the webhook URL with Google when it creates the event.
+
+Google doesn't send a Fleet API token. Instead, Fleet authenticates the request by comparing the `X-Goog-Channel-Id` header to the channel ID it saved for the event. Notifications with `X-Goog-Resource-State: sync` are ignored.
+
+`POST /api/v1/fleet/calendar/webhook/:event_uuid`
+
+#### Parameters
+
+| Name                  | Type   | In     | Description |
+| --------------------- | ------ | ------ | ----------- |
+| event_uuid            | string | path   | **Required.** The UUID of the calendar event in Fleet. |
+| X-Goog-Channel-Id     | string | header | **Required.** The ID of the Google Calendar notification channel. |
+| X-Goog-Resource-State | string | header | The type of notification, set by Google. |
+
+#### Example
+
+`POST /api/v1/fleet/calendar/webhook/a7d2b3c4-1e5f-4a6b-9c8d-0e1f2a3b4c5d`
+
+##### Default response
+
+`Status: 200`
+
+If the Google Calendar integration isn't configured, or Fleet doesn't find the event, Fleet ignores the notification and returns `200`. If the channel ID doesn't match, Fleet returns `403`.
 
 ---
 
