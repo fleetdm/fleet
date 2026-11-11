@@ -850,6 +850,7 @@ import RapidApi from "./png/RapidApi.png";
 import Rapidweaver from "./png/Rapidweaver.png";
 import RaspberryPiImager from "./png/RaspberryPiImager.png";
 import Raycast from "./png/Raycast.png";
+import ReadAI from "./png/ReadAI.png";
 import Readest from "./png/Readest.png";
 import RealVncServer from "./png/RealVncServer.png";
 import Reaper from "./png/Reaper.png";
@@ -922,7 +923,6 @@ import Sidenotes from "./png/Sidenotes.png";
 import Sigmaos from "./png/Sigmaos.png";
 import Signal from "./png/Signal.png";
 import SimpleComic from "./png/SimpleComic.png";
-import Sirimote from "./png/Sirimote.png";
 import Sketch from "./png/Sketch.png";
 import Slab from "./png/Slab.png";
 import Slicer from "./png/Slicer.png";
@@ -2037,6 +2037,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   rapidweaver: Rapidweaver,
   "raspberry pi imager": RaspberryPiImager,
   raycast: Raycast,
+  "read ai": ReadAI,
   readest: Readest,
   "realvnc connect viewer": VncViewer,
   "realvnc server": RealVncServer,
@@ -2113,7 +2114,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   sigmaos: Sigmaos,
   signal: Signal,
   "simple comic": SimpleComic,
-  sirimote: Sirimote,
   sketch: Sketch,
   slab: Slab,
   slack: Slack,
@@ -2129,6 +2129,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   snowsql: SnowflakeSnowsql,
   sococo: Sococo,
   "sonic visualiser": SonicVisualiser,
+  "sonicwall global vpn client": SonicwallNetextender,
   "sonicwall netextender": SonicwallNetextender,
   sonobus: Sonobus,
   sonos: Sonos,

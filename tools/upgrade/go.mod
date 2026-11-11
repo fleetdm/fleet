@@ -1,6 +1,6 @@
 module github.com/fleetdm/fleet/v4/tools/upgrade
 
-go 1.27.3
+go 1.27.4
 
 // The parent fleet module is pinned to the local checkout so this
 // standalone upgrade test can import fleethttp and the service client.
@@ -130,7 +130,7 @@ require (
 	github.com/microcosm-cc/bluemonday v1.0.27 // indirect
 	github.com/micromdm/micromdm v1.9.0 // indirect
 	github.com/micromdm/nanolib v0.2.0 // indirect
-	github.com/micromdm/plist v0.3.0 // indirect
+	github.com/micromdm/plist v0.4.0 // indirect
 	github.com/mna/redisc v1.3.2 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/moby/api v1.55.0 // indirect

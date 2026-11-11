@@ -5,7 +5,7 @@ APPDIR="/Applications/"
 TMPDIR=$(dirname "$(realpath "$INSTALLER_PATH")")
 
 # extract contents
-unzip "$INSTALLER_PATH" -d "$TMPDIR"
+unzip "$INSTALLER_PATH" -d "$TMPDIR" || exit 1
 
 # discover the installer app by finding any .app that contains the installer binary
 INSTALLER_APP=""

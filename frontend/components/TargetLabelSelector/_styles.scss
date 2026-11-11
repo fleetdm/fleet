@@ -129,6 +129,11 @@
       margin-top: -$pad-xsmall;
     }
 
+    &--error {
+      color: $core-vibrant-red !important;
+      font-size: $xx-small;
+    }
+
     .button {
       margin-top: $pad-small;
     }

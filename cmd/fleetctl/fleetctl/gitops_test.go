@@ -820,7 +820,7 @@ func TestGitOpsWindowsEntraIDs(t *testing.T) {
 		_, err = f.WriteString(fmt.Sprintf(`
 controls:
 %s
-  windows_enabled_and_configured: true
+  windows_mdm_enabled: true
   android_enabled_and_configured: true
   windows_entra_tenant_ids:
     - 1a86b496-e2a4-43ef-ba00-20004e29b13b
@@ -1053,7 +1053,7 @@ software:
 		mdm.RequireBitLockerPIN = optjson.SetBool(true)
 		mdm.LinuxSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(true)
 
-		_ = runAppForTest(t, []string{"gitops", "-f", writeGlobalFile(t, "  windows_enabled_and_configured: true")})
+		_ = runAppForTest(t, []string{"gitops", "-f", writeGlobalFile(t, "  windows_mdm_enabled: true")})
 
 		mdm = &(*savedAppConfigPtr).MDM
 		require.False(t, mdm.MacOSSettings.EnableDiskEncryption.Value)
@@ -1069,7 +1069,7 @@ software:
 		testing_utils.SetupFullGitOpsPremiumServer(t)
 		t.Setenv("FLEET_SERVER_URL", fleetServerURL)
 
-		_, err := runAppNoChecks([]string{"gitops", "-f", writeGlobalFile(t, "  windows_enabled_and_configured: true")})
+		_, err := runAppNoChecks([]string{"gitops", "-f", writeGlobalFile(t, "  windows_mdm_enabled: true")})
 		require.NoError(t, err)
 	})
 }
@@ -1592,12 +1592,9 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 				},
 			},
 			{
-				ID:   20,
-				Name: "VPP App",
-				AppStoreApp: &fleet.SoftwarePackageOrApp{
-					AppStoreID: "5128675309",
-					Platform:   string(fleet.MacOSPlatform),
-				},
+				ID:           20,
+				Name:         "VPP App",
+				AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "5128675309", Platform: fleet.MacOSPlatform}},
 			},
 			{
 				ID:         40,
@@ -3275,7 +3272,7 @@ software:
 
 	// Dry run, deleting other teams
 	savedAppConfig = &fleet.AppConfig{}
-	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run", "--delete-other-teams"})
+	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run", "--delete-other-fleets"})
 	assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
 	assert.True(t, ds.ListTeamsFuncInvoked)
 
@@ -3323,7 +3320,7 @@ software:
 		return nil
 	}
 	// Real run, deleting other teams
-	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--delete-other-teams"})
+	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--delete-other-fleets"})
 	assert.True(t, ds.ListTeamsFuncInvoked)
 	assert.True(t, ds.DeleteTeamFuncInvoked)
 }
@@ -4028,16 +4025,11 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 			t.Setenv("WINDOWS_REQUIRE_BITLOCKER_PIN", "true")
 			t.Setenv("FLEET_ENABLE_LOG_TOPICS", "deprecated-field-names")
 
-			flagName := "--delete-other-fleets"
-			if useDeprecatedKeys {
-				flagName = "--delete-other-teams"
-			}
+			const flagName = "--delete-other-fleets"
 
 			// Dry run
 			logs := runAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, "--dry-run", flagName})
 			if useDeprecatedKeys {
-				// The test harness doesn't capture stderr output, so we miss this warning in the test.
-				// assert.Contains(t, logs, "'--delete-other-teams' is deprecated; use '--delete-other-fleets' instead")
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
 				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
 				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
@@ -4068,8 +4060,6 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 			// Real run
 			logs = runAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, flagName})
 			if useDeprecatedKeys {
-				// The test harness doesn't capture stderr output, so we miss this warning in the test.
-				// assert.Contains(t, logs, "'--delete-other-teams' is deprecated; use '--delete-other-fleets' instead")
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
 				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
 				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
@@ -4117,7 +4107,7 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 controls:
   scripts:
     - path: ./script.sh
-  windows_enabled_and_configured: true
+  windows_mdm_enabled: true
   android_enabled_and_configured: true
   macos_settings:
     custom_settings:
@@ -5297,20 +5287,25 @@ func TestGitOpsWindowsMigration(t *testing.T) {
 	cases := []struct {
 		file    string
 		wantErr string
+		// saved values when the run succeeds
+		wantMDM, wantMigration bool
 	}{
 		// booleans are Windows MDM enabled and Windows migration enabled
-		{"testdata/gitops/global_config_windows_migration_true_true.yml", ""},
-		{"testdata/gitops/global_config_windows_migration_false_true.yml", "Windows MDM is not enabled"},
-		{"testdata/gitops/global_config_windows_migration_true_false.yml", ""},
-		{"testdata/gitops/global_config_windows_migration_false_false.yml", ""},
+		{"testdata/gitops/global_config_windows_migration_true_true.yml", "", true, true},
+		{"testdata/gitops/global_config_windows_migration_false_true.yml", "Windows MDM is not enabled", false, false},
+		{"testdata/gitops/global_config_windows_migration_true_false.yml", "", true, false},
+		{"testdata/gitops/global_config_windows_migration_false_false.yml", "", false, false},
 	}
 	for _, c := range cases {
 		t.Run(filepath.Base(c.file), func(t *testing.T) {
-			testing_utils.SetupFullGitOpsPremiumServer(t)
+			_, savedAppConfigPtr, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 
 			_, err := runAppNoChecks([]string{"gitops", "-f", c.file})
 			if c.wantErr == "" {
 				require.NoError(t, err)
+				mdm := (*savedAppConfigPtr).MDM
+				require.Equal(t, c.wantMDM, mdm.WindowsEnabledAndConfigured)
+				require.Equal(t, c.wantMigration, mdm.WindowsMigrationEnabled)
 			} else {
 				require.ErrorContains(t, err, c.wantErr)
 			}
@@ -5706,10 +5701,6 @@ func TestGitOpsFeatures(t *testing.T) {
 			EnableHostUsers:         true,
 			EnableSoftwareInventory: true,
 			AdditionalQueries:       ptr.RawMessage(json.RawMessage(`{"query_a": "SELECT 1", "query_b": "SELECT 2"}`)),
-			DetailQueryOverrides: map[string]*string{
-				"detail_query_a": ptr.String("SELECT a"),
-				"detail_query_b": nil,
-			},
 		},
 	}
 
@@ -5727,8 +5718,6 @@ org_settings:
     enable_software_inventory: false
     additional_queries:
       query_a: "SELECT 1"
-    detail_query_overrides:
-      detail_query_a: "SELECT it_works"
   server_settings:
     server_url: %s
   org_info:
@@ -5764,8 +5753,6 @@ software:
 	require.NoError(t, err)
 	require.Equal(t, 1, len(additionalQueries))
 	require.Equal(t, "SELECT 1", additionalQueries["query_a"])
-	require.Equal(t, 1, len(appConfig.Features.DetailQueryOverrides))
-	require.Equal(t, "SELECT it_works", *appConfig.Features.DetailQueryOverrides["detail_query_a"])
 
 	// Do a GitOps run with no feature settings.
 	_, err = runAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
@@ -5774,7 +5761,32 @@ software:
 	require.True(t, appConfig.Features.EnableHostUsers)
 	require.True(t, appConfig.Features.EnableSoftwareInventory)
 	require.Nil(t, appConfig.Features.AdditionalQueries)
-	require.Nil(t, appConfig.Features.DetailQueryOverrides)
+
+	globalFileDetailQueryOverrides, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFileDetailQueryOverrides.WriteString(fmt.Sprintf(
+		`
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  features:
+    detail_query_overrides:
+      users: null
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: %s
+  secrets:
+    - secret: globalSecret
+software:
+`, fleetServerURL, orgName),
+	)
+	require.NoError(t, err)
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFileDetailQueryOverrides.Name()})
+	require.ErrorContains(t, err, `unknown key "org_settings.features.detail_query_overrides"`)
 }
 
 func TestGitOpsHistoricalData(t *testing.T) {
@@ -6662,7 +6674,7 @@ func TestGitOpsWindowsEULASetting(t *testing.T) {
 			if strings.Contains(setting, "%s") {
 				setting = fmt.Sprintf(setting, mdPath)
 			}
-			cfgPath := writeGitOpsFile(t, dir, eulaGitOpsConfig(fmt.Sprintf("windows_enabled_and_configured: %t", tt.windowsInFile), setting))
+			cfgPath := writeGitOpsFile(t, dir, eulaGitOpsConfig(fmt.Sprintf("windows_mdm_enabled: %t", tt.windowsInFile), setting))
 
 			// Turning Windows MDM off through the config cleans up profiles, which
 			// the shared gitops mocks do not cover.
@@ -6731,7 +6743,7 @@ func TestGitOpsWindowsEULAFreeTierWarns(t *testing.T) {
 	dir := t.TempDir()
 	mdPath := filepath.Join(dir, "terms.md")
 	require.NoError(t, os.WriteFile(mdPath, []byte("# Terms\n"), 0o600))
-	cfgPath := writeGitOpsFile(t, dir, eulaGitOpsConfig("windows_enabled_and_configured: false", fmt.Sprintf(`windows_eula: "%s"`, mdPath)))
+	cfgPath := writeGitOpsFile(t, dir, eulaGitOpsConfig("windows_mdm_enabled: false", fmt.Sprintf(`windows_eula: "%s"`, mdPath)))
 
 	out, err := runAppNoChecks([]string{"gitops", "-f", cfgPath})
 	require.NoError(t, err, out.String())
@@ -6868,7 +6880,7 @@ policies:
 agent_options:
 `, fleetName, profiles)
 			} else {
-				cfg = eulaGitOpsConfig(fmt.Sprintf(`windows_enabled_and_configured: %t
+				cfg = eulaGitOpsConfig(fmt.Sprintf(`windows_mdm_enabled: %t
   windows_settings:
     configuration_profiles: %s`, tt.windowsInFile, profiles), "")
 			}
@@ -6933,7 +6945,7 @@ func TestGitOpsWarnsOnDeletedWindowsProfilesFreeTier(t *testing.T) {
 		return []*fleet.MDMConfigProfilePayload{{ProfileUUID: "wgone", Name: "gone", Platform: "windows"}}, &fleet.PaginationMetadata{}, nil
 	}
 
-	cfgPath := writeGitOpsFile(t, t.TempDir(), eulaGitOpsConfig(`windows_enabled_and_configured: true
+	cfgPath := writeGitOpsFile(t, t.TempDir(), eulaGitOpsConfig(`windows_mdm_enabled: true
   windows_settings:
     configuration_profiles: []`, ""))
 	out, err := runAppNoChecks([]string{"gitops", "-f", cfgPath})
@@ -8077,11 +8089,8 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 		// Return a software title that matches the app_store_id we're testing (app_store_id "2" is defined in the mock VPP server)
 		return []fleet.SoftwareTitleListResult{
 			{
-				ID: 100,
-				AppStoreApp: &fleet.SoftwarePackageOrApp{
-					AppStoreID: "2",
-					Platform:   "ios",
-				},
+				ID:           100,
+				AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "2", Platform: fleet.IOSPlatform}},
 			},
 		}, 1, nil, nil
 	}
@@ -10162,7 +10171,7 @@ func TestGitOpsMicrosoftGraphCredentials(t *testing.T) {
 		require.NoError(t, err)
 		_, err = f.WriteString(fmt.Sprintf(`
 controls:
-  windows_enabled_and_configured: true
+  windows_mdm_enabled: true
 queries:
 policies:
 agent_options:

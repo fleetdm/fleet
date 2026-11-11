@@ -573,7 +573,17 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 	where := ` WHERE TRUE`
 	var whereArgs []any
 	if match := opt.MatchQuery; match != "" {
-		where += ` AND fma.name LIKE ?`
+		// Match the name the UI shows: when an app's macOS and Windows entries
+		// differ only by a platform suffix ("R for macOS"/"R for Windows"), the
+		// row drops it, so search must ignore it too. A single-platform app keeps
+		// its suffix ("Google Credential Provider for Windows").
+		// ponytail: correlated subquery per row; fine for the few hundred FMAs.
+		where += ` AND (CASE WHEN EXISTS (
+			SELECT 1 FROM fleet_maintained_apps sib
+			WHERE SUBSTRING_INDEX(sib.slug, '/', 1) = SUBSTRING_INDEX(fma.slug, '/', 1)
+				AND sib.id <> fma.id
+				AND REGEXP_REPLACE(sib.name, ' for (macOS|Mac|Windows)$', '') = REGEXP_REPLACE(fma.name, ' for (macOS|Mac|Windows)$', '')
+		) THEN REGEXP_REPLACE(fma.name, ' for (macOS|Mac|Windows)$', '') ELSE fma.name END) LIKE ?`
 		whereArgs = append(whereArgs, likePattern(match))
 	}
 	if opt.Platform == "darwin" || opt.Platform == "windows" {

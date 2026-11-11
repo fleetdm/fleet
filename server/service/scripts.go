@@ -99,18 +99,6 @@ func (svc *Service) GetScriptIDByName(ctx context.Context, scriptName string, te
 const maxPendingScripts = 1000
 
 func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScriptRequestPayload, waitForResult time.Duration) (*fleet.HostScriptResult, error) {
-	// First check if scripts are disabled globally. If so, no need for further processing.
-	cfg, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		svc.authz.SkipAuthorization(ctx)
-		return nil, err
-	}
-
-	if cfg.ServerSettings.ScriptsDisabled {
-		svc.authz.SkipAuthorization(ctx)
-		return nil, fleet.NewUserMessageError(errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg), http.StatusForbidden)
-	}
-
 	// Must check for presence of mutually exclusive parameters before
 	// authorization, as the permissions are not the same in all cases.
 	// There's no harm in returning the error if this validation fails,
@@ -240,7 +228,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		return nil, fleet.NewInvalidArgumentError("host_id", fleet.RunScriptHostOfflineErrMsg)
 	}
 
-	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, request.HostID, false)
+	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, request.HostID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list host pending script executions")
 	}
@@ -1089,18 +1077,6 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		return "", fleet.NewInvalidArgumentError("filters", "cannot specify both host_ids and filters")
 	}
 
-	// First check if scripts are disabled globally. If so, no need for further processing.
-	cfg, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		svc.authz.SkipAuthorization(ctx)
-		return "", err
-	}
-
-	if cfg.ServerSettings.ScriptsDisabled {
-		svc.authz.SkipAuthorization(ctx)
-		return "", fleet.NewUserMessageError(errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg), http.StatusForbidden)
-	}
-
 	// Use the authorize script by ID to handle authz
 	script, err := svc.authorizeScriptByID(ctx, scriptID, fleet.ActionWrite)
 	if err != nil {
@@ -1297,7 +1273,7 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, _ *fleet.MDMWipeM
 	// First ensure the user has access to list hosts, then check the specific
 	// host once team_id is loaded.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return err
+		return authz.GitOpsHostListError(ctx, err)
 	}
 	host, err := svc.ds.Host(ctx, hostID)
 	if err != nil {
@@ -1309,7 +1285,7 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, _ *fleet.MDMWipeM
 	// requirement and is what happens for macOS platforms.
 	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "wipe host")
 	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
-		return err
+		return authz.GitOpsMDMCommandError(ctx, host.TeamID, err)
 	}
 
 	// On Fleet Free, Wipe is only available for Android hosts. Wipe for macOS, Windows, Linux and iOS/iPadOS

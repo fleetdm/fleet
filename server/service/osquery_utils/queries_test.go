@@ -2186,34 +2186,6 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 	}
 }
 
-func TestAppConfigReplaceQuery(t *testing.T) {
-	queries := GetDetailQueries(t.Context(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true}, Integrations{}, nil)
-	originalQuery := queries["users"].Query
-
-	replacementMap := make(map[string]*string)
-	replacementMap["users"] = ptr.String("select 1 from blah")
-	queries = GetDetailQueries(t.Context(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap}, Integrations{}, nil)
-	assert.NotEqual(t, originalQuery, queries["users"].Query)
-	assert.Equal(t, "select 1 from blah", queries["users"].Query)
-
-	replacementMap["users"] = nil
-	queries = GetDetailQueries(t.Context(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap}, Integrations{}, nil)
-	_, exists := queries["users"]
-	assert.False(t, exists)
-
-	// put the query back again
-	replacementMap["users"] = ptr.String("select 1 from blah")
-	queries = GetDetailQueries(t.Context(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap}, Integrations{}, nil)
-	assert.NotEqual(t, originalQuery, queries["users"].Query)
-	assert.Equal(t, "select 1 from blah", queries["users"].Query)
-
-	// empty strings are also ignored
-	replacementMap["users"] = ptr.String("")
-	queries = GetDetailQueries(t.Context(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap}, Integrations{}, nil)
-	_, exists = queries["users"]
-	assert.False(t, exists)
-}
-
 func TestDirectIngestSoftware(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := t.Context()
@@ -2240,7 +2212,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 			},
 		}
 
-		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software, _ ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error) {
 			return nil, nil
 		}
 
@@ -2276,7 +2248,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 			{"name": "github", "version": "", "source": "mcp_servers", "ai_tool": "1"},
 		}
 		var ingested []fleet.Software
-		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software, _ ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error) {
 			ingested = software
 			return nil, nil
 		}
@@ -2306,7 +2278,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 		// Software the host already reports flagged needs no lookup.
 		flaggedClaude, unflaggedGithub := first[0], first[2]
 		unflaggedGithub.AITool = nil
-		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software, _ ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error) {
 			return &fleet.UpdateHostSoftwareDBResult{WasCurrInstalled: []fleet.Software{flaggedClaude, first[1], unflaggedGithub}}, nil
 		}
 		ds.MarkSoftwareAsAIToolFuncInvoked = false
@@ -2314,14 +2286,14 @@ func TestDirectIngestSoftware(t *testing.T) {
 		require.True(t, ds.MarkSoftwareAsAIToolFuncInvoked)
 		require.Equal(t, []fleet.Software{first[2]}, marked)
 
-		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software, _ ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error) {
 			return &fleet.UpdateHostSoftwareDBResult{WasCurrInstalled: []fleet.Software{flaggedClaude, first[1], first[2]}}, nil
 		}
 		ds.MarkSoftwareAsAIToolFuncInvoked = false
 		require.NoError(t, directIngestSoftware(ctx, logger, &host, ds, data))
 		require.False(t, ds.MarkSoftwareAsAIToolFuncInvoked)
 
-		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software, _ ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error) {
 			return nil, nil
 		}
 		ds.MarkSoftwareAsAIToolFuncInvoked = false
@@ -2365,7 +2337,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 				expected: `oFZTwTV5WxJt02EVHEBcnhLzuJ8wnxKwfbabPWy7yTSiQbabEcAGDVmoXKZEZJLWObGD0cVfYptInHYgKjtDeDsBh2a8669EnyAqyBECXbFjSh1...`,
 			},
 		} {
-			ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+			ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software, _ ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error) {
 				require.Len(t, software, 1)
 				require.Equal(t, tc.expected, software[0].Vendor)
 				return nil, nil
@@ -2420,7 +2392,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 			dataAsSoftware = append(dataAsSoftware, software)
 		}
 
-		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software, _ ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error) {
 			return nil, nil
 		}
 		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]fleet.ExecutableHashes, result *fleet.UpdateHostSoftwareDBResult) error {
@@ -2482,7 +2454,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 		}
 		keg := fleet.Software{Name: "git", Version: "2.46.0", Source: "homebrew_packages"}
 
-		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software, _ ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error) {
 			// The fanned out rows all describe the same software.
 			require.Len(t, software, len(binaries))
 			for _, s := range software {
@@ -2529,7 +2501,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 		}
 
 		var capturedSoftware []fleet.Software
-		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software, _ ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error) {
 			capturedSoftware = make([]fleet.Software, len(software))
 			copy(capturedSoftware, software)
 			return nil, nil
@@ -2571,7 +2543,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 		}
 
 		var got []fleet.Software
-		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software, _ ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error) {
 			got = software
 			return nil, nil
 		}
@@ -4719,7 +4691,7 @@ func TestDirectIngestSoftwareAdobePlugins(t *testing.T) {
 	}
 
 	var gotSoftware []fleet.Software
-	ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+	ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software, _ ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error) {
 		gotSoftware = software
 		return nil, nil
 	}

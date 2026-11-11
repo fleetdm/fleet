@@ -34,6 +34,8 @@ After this is done, the "Fleet partner" will be shown with a "Pending activation
 
 Now we need to connect and provision Fleet to operate on your Entra ID tenant (activate partner).
 
+> This step must be completed by someone who is both an Entra admin who can grant admin consent (for example, a Global Administrator) and a Fleet admin. Have that person sign in to Fleet and finish the whole step in one browser session. Don't start the flow and then send Microsoft's consent link to someone else. Fleet creates a new consent link each time you select **Save** or open **Settings > Integrations > Conditional access** while setup is incomplete, and only the newest link works. A link you forwarded earlier may be out of date by the time it's used.
+
 To connect Fleet to your Entra account you need your "Microsoft Entra tenant ID", which can be found in https://entra.microsoft.com. You can follow the steps in https://learn.microsoft.com/en-us/entra/fundamentals/how-to-find-tenant to get your tenant ID.
 
 Once you have your tenant ID, in Fleet, head to **Settings > Integrations > Conditional access** and enter the tenant ID.
@@ -42,7 +44,7 @@ Once you have your tenant ID, in Fleet, head to **Settings > Integrations > Cond
 
 After clicking **Save** you will be redirected to https://login.microsoftonline.com to consent to the permissions for Fleet's multi-tenant application. 
 
-After consenting you will be redirected back to Fleet (to `/settings/integrations/conditional-access`). If you don't see a green checkmark in Fleet, please verify that you have a "Fleet conditional access" [group in Entra](#step-3-connect-fleet-to-entra). If you do and you still don't see a green checkmark, please [reach out to support](https://fleetdm.com/support).
+After consenting you will be redirected back to Fleet (to `/settings/integrations/conditional-access`). If you don't see a green checkmark in Fleet, verify that you have a "Fleet conditional access" [group in Entra](#step-1-create-a-fleet-conditional-access-group-in-entra). If you do and you still don't see a green checkmark, see [Troubleshooting](#troubleshooting).
 
 ## Step 4: Deploy Company Portal and the Platform SSO configuration profile
 
@@ -189,6 +191,24 @@ As an example, you can create a policy to "block access to Office 365 on macOS d
 ![Entra ID Conditional Access policy example](../website/assets/images/articles/entra-conditional-access-policy-554x506@2x.png)
 
 Make sure to assign the "Fleet conditional access" group to the Entra policy.
+
+## Troubleshooting
+
+### "Couldn't connect. Please contact your Fleet administrator."
+
+Fleet shows this message when Microsoft returned an error while Fleet was setting up the integration (step 3), and Fleet has no specific message for that error.
+
+To fix it:
+
+1. Have an Entra admin who can grant admin consent, and who is also a Fleet admin, sign in to Fleet.
+2. In Fleet, go to **Settings > Integrations > Conditional access** and select **Connect**. Enter the tenant ID, select **Save**, and approve the permissions in Microsoft in the same session. Don't use a consent link someone sent you earlier.
+3. In Entra, confirm admin consent was granted for Fleet's enterprise application and that the "Fleet conditional access" group exists.
+
+To see the underlying error, check the Fleet server logs for the `setup is not done` message, or the `setup_error` field in the response to the `POST /api/latest/fleet/conditional-access/microsoft/confirm` request (visible in your browser's developer tools).
+
+### "Couldn't update. Fleet didn't get permissions for Entra."
+
+Fleet didn't receive admin consent. This happens if the person approving the permissions isn't an Entra admin, cancels the Microsoft consent page, or uses a consent link that's out of date. Select **Connect** again and approve the permissions as described above.
 
 ## Disable
 
