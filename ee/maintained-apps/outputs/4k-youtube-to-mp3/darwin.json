@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "26.3.5",
+      "version": "26.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.openmedia.4kyoutubetomp3';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.openmedia.4kyoutubetomp3' AND version_compare(bundle_version, '26.3.5') < 0);",
