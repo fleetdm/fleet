@@ -5,7 +5,6 @@ func init() { register(abmEntries...) }
 // abmEntries are the endpoints removed because, they mention the deprecated name ABM over AB.
 var abmEntries = []Entry{
 	pathEntry("/abm_tokens", "/ab_tokens"),
-	pathEntry("/abm_tokens/count", "/ab_tokens/count"),
 	pathEntry("/abm_tokens/{id}", "/ab_tokens/{id}"),
 	pathEntry("/abm_tokens/{id}/renew", "/ab_tokens/{id}/renew"),
 	pathEntry("/abm_tokens/{id}/fleets", "/ab_tokens/{id}/fleets"),

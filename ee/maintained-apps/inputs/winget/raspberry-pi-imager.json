@@ -3,6 +3,7 @@
   "slug": "raspberry-pi-imager/windows",
   "package_identifier": "RaspberryPiFoundation.RaspberryPiImager",
   "unique_identifier": "Raspberry Pi Imager",
+  "open_process_names": ["rpi-imager.exe"],
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "machine",

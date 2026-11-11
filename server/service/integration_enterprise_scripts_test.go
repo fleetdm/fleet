@@ -535,7 +535,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 
 	// Check with the list endpoint
 	var batchListResp fleet.BatchScriptExecutionListResponse
-	s.DoJSON("GET", "/api/latest/fleet/scripts/batch?team_id=0&per_page=1", nil, http.StatusOK, &batchListResp)
+	s.DoJSON("GET", "/api/latest/fleet/scripts/batch?fleet_id=0&per_page=1", nil, http.StatusOK, &batchListResp)
 	require.Len(t, batchListResp.BatchScriptExecutions, 1)
 	require.Equal(t, uint(2), batchListResp.Count)
 	require.True(t, batchListResp.Meta.HasNextResults)
@@ -545,7 +545,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	require.Equal(t, uint(1), *batchListResp.BatchScriptExecutions[0].NumTargeted)
 	require.Equal(t, uint(1), *batchListResp.BatchScriptExecutions[0].NumPending)
 
-	s.DoJSON("GET", "/api/latest/fleet/scripts/batch?team_id=0&page=1&per_page=1", nil, http.StatusOK, &batchListResp)
+	s.DoJSON("GET", "/api/latest/fleet/scripts/batch?fleet_id=0&page=1&per_page=1", nil, http.StatusOK, &batchListResp)
 	require.Len(t, batchListResp.BatchScriptExecutions, 1)
 	require.Equal(t, uint(2), batchListResp.Count)
 	require.False(t, batchListResp.Meta.HasNextResults)
@@ -1336,7 +1336,7 @@ func (s *integrationEnterpriseTestSuite) TestListSavedScripts() {
 			var listResp fleet.ListScriptsResponse
 			queryArgs := c.queries
 			if c.teamID != nil {
-				queryArgs = append(queryArgs, "team_id", fmt.Sprint(*c.teamID))
+				queryArgs = append(queryArgs, "fleet_id", fmt.Sprint(*c.teamID))
 			}
 			s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusOK, &listResp, queryArgs...)
 
@@ -1990,7 +1990,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchApplyScriptsEndpoints() {
 
 		// create, check activities, and check scripts response
 		var scriptsBatchResponse fleet.BatchSetScriptsResponse
-		s.DoJSON("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: scripts}, http.StatusOK, &scriptsBatchResponse, "team_id", teamIDStr)
+		s.DoJSON("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: scripts}, http.StatusOK, &scriptsBatchResponse, "fleet_id", teamIDStr)
 		s.lastActivityMatches(
 			fleet.ActivityTypeEditedScript{}.ActivityName(),
 			teamActivity,
@@ -2000,7 +2000,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchApplyScriptsEndpoints() {
 
 		// check that the right values got stored in the db
 		var listResp fleet.ListScriptsResponse
-		s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusOK, &listResp, "team_id", teamIDStr)
+		s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusOK, &listResp, "fleet_id", teamIDStr)
 		require.Len(t, listResp.Scripts, len(scripts))
 
 		got := make([]fleet.ScriptPayload, len(scripts))
@@ -2029,39 +2029,39 @@ func (s *integrationEnterpriseTestSuite) TestBatchApplyScriptsEndpoints() {
 
 	// apply to both team id and name
 	s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: nil},
-		http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID), "team_name", tm.Name)
+		http.StatusUnprocessableEntity, "fleet_id", fmt.Sprint(tm.ID), "fleet_name", tm.Name)
 
 	// invalid team name
 	s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: nil},
-		http.StatusNotFound, "team_name", uuid.New().String())
+		http.StatusNotFound, "fleet_name", uuid.New().String())
 
 	// duplicate script names
 	s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
 		{Name: "N1.sh", ScriptContents: []byte("foo")},
 		{Name: "N1.sh", ScriptContents: []byte("bar")},
-	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
+	}}, http.StatusUnprocessableEntity, "fleet_id", fmt.Sprint(tm.ID))
 
 	// script names that differ by case and accent are the same name to the database
 	res := s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
 		{Name: "Bêta.sh", ScriptContents: []byte("foo")},
 		{Name: "beta.sh", ScriptContents: []byte("bar")},
-	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
+	}}, http.StatusUnprocessableEntity, "fleet_id", fmt.Sprint(tm.ID))
 	require.Contains(t, extractServerErrorText(res.Body), `More than one script has the same file name: "beta.sh"`)
 
 	// invalid script name
 	s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
 		{Name: "N1", ScriptContents: []byte("foo")},
-	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
+	}}, http.StatusUnprocessableEntity, "fleet_id", fmt.Sprint(tm.ID))
 
 	// empty script name
 	s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
 		{Name: "", ScriptContents: []byte("foo")},
-	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
+	}}, http.StatusUnprocessableEntity, "fleet_id", fmt.Sprint(tm.ID))
 
 	// invalid secret
 	s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
 		{Name: "N2.sh", ScriptContents: []byte("echo $FLEET_SECRET_INVALID")},
-	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
+	}}, http.StatusUnprocessableEntity, "fleet_id", fmt.Sprint(tm.ID))
 
 	// successfully apply a scripts for the team
 	saveAndCheckScripts(tm, []fleet.ScriptPayload{
@@ -2265,23 +2265,23 @@ func (s *integrationEnterpriseTestSuite) TestScriptFleetVariables() {
 		for _, dryRun := range []string{"true", "false"} {
 			res := s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
 				{Name: "vars.sh", ScriptContents: []byte(unsupportedVarContents)},
-			}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID), "dry_run", dryRun)
+			}}, http.StatusUnprocessableEntity, "fleet_id", fmt.Sprint(tm.ID), "dry_run", dryRun)
 			require.Contains(t, extractServerErrorText(res.Body), unsupportedVarErrMsg, "dry_run=%s", dryRun)
 		}
 
 		// supported variables pass a dry run without being saved
 		s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
 			{Name: "vars.sh", ScriptContents: []byte(supportedVarContents)},
-		}}, http.StatusOK, "team_id", fmt.Sprint(tm.ID), "dry_run", "true")
+		}}, http.StatusOK, "fleet_id", fmt.Sprint(tm.ID), "dry_run", "true")
 		var listResp fleet.ListScriptsResponse
-		s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusOK, &listResp, "team_id", fmt.Sprint(tm.ID))
+		s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusOK, &listResp, "fleet_id", fmt.Sprint(tm.ID))
 		require.Empty(t, listResp.Scripts)
 
 		// and are saved unexpanded on a real apply
 		s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
 			{Name: "vars.sh", ScriptContents: []byte(supportedVarContents)},
-		}}, http.StatusOK, "team_id", fmt.Sprint(tm.ID))
-		s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusOK, &listResp, "team_id", fmt.Sprint(tm.ID))
+		}}, http.StatusOK, "fleet_id", fmt.Sprint(tm.ID))
+		s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusOK, &listResp, "fleet_id", fmt.Sprint(tm.ID))
 		require.Len(t, listResp.Scripts, 1)
 		res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", listResp.Scripts[0].ID), nil, http.StatusOK, "alt", "media")
 		b, err := io.ReadAll(res.Body)

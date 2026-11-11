@@ -356,9 +356,9 @@ class Collector:
 
         def body(p):
             p = dict(p)
-            p["content"] = self.api.raw(f"{F}/mdm/profiles/{p['profile_uuid']}", {"alt": "media"})
+            p["content"] = self.api.raw(f"{F}/configuration_profiles/{p['profile_uuid']}", {"alt": "media"})
             if p.get("platform") == "darwin" and p["content"].lstrip().startswith(b"{"):
-                full = self.api.json(f"{F}/mdm/profiles/{p['profile_uuid']}")
+                full = self.api.json(f"{F}/configuration_profiles/{p['profile_uuid']}")
                 act = (full.get("profile") or full).get("activation")
                 p["activation"] = base64.b64decode(act) if act else b""
             return p
@@ -411,7 +411,7 @@ class Collector:
         if script:
             content = api.raw(f"{F}/setup_experience/script", dict(params, alt="media"))
             out["script"] = {"name": script.get("name", "setup-script.sh"), "content": content}
-        boot = api.maybe_json(f"{F}/mdm/bootstrap/{tid}/metadata", missing=(404, 400))
+        boot = api.maybe_json(f"{F}/bootstrap/{tid}/metadata", missing=(404, 400))
         if boot:
             out["bootstrap"] = {"name": boot.get("name"), "sha256": boot.get("sha256")}
         return out
