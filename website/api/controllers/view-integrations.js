@@ -439,7 +439,7 @@ module.exports = {
         slug: 'mcp-server',
         name: 'MCP server',
         logo: '/images/icon-mcp-28x28@2x.png',
-        description: 'Fleet’s MCP server lets AI tools like Claude Code, Claude Desktop, and Cursor interact directly with your Fleet instance — querying endpoints, running live osquery, checking policies, and investigating CVEs.',
+        description: 'Connect AI tools like Claude Code, Claude Desktop, and Cursor to your Fleet server. They can look up hosts, run live reports, check policies, and investigate CVEs.',
         docsUrl: '/guides/fleet-mcp',
       },
       {
