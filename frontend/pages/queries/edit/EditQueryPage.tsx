@@ -165,12 +165,12 @@ const EditQueryPage = ({
   if (
     !isOnGlobalTeam &&
     !isStoredQueryLoading &&
-    storedQuery?.team_id &&
-    !(storedQuery?.team_id?.toString() === location.query.fleet_id)
+    storedQuery?.fleet_id &&
+    !(storedQuery?.fleet_id?.toString() === location.query.fleet_id)
   ) {
     router.push(
       getPathWithQueryParams(location.pathname, {
-        fleet_id: storedQuery?.team_id?.toString(),
+        fleet_id: storedQuery?.fleet_id?.toString(),
         host_id: hostId,
       })
     );
@@ -178,9 +178,9 @@ const EditQueryPage = ({
 
   // Used to set host's team in AppContext for RBAC actions
   useEffect(() => {
-    if (storedQuery?.team_id) {
+    if (storedQuery?.fleet_id) {
       const querysTeam = availableTeams?.find(
-        (team) => team.id === storedQuery.team_id
+        (team) => team.id === storedQuery.fleet_id
       );
       setCurrentTeam(querysTeam);
     }
@@ -199,7 +199,7 @@ const EditQueryPage = ({
     const canEditExistingQuery =
       isGlobalAdmin ||
       isGlobalMaintainer ||
-      (isTeamMaintainerOrTeamAdmin && storedQuery?.team_id);
+      (isTeamMaintainerOrTeamAdmin && storedQuery?.fleet_id);
 
     if (
       !isStoredQueryLoading && // Confirms teamId for storedQuery before RBAC reroute
@@ -262,7 +262,7 @@ const EditQueryPage = ({
       notify.success("Report created.");
       router.push(
         getPathWithQueryParams(PATHS.REPORT_DETAILS(query.id), {
-          fleet_id: query.team_id,
+          fleet_id: query.fleet_id,
           host_id: hostId,
         })
       );

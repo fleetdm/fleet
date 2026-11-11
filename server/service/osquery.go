@@ -3529,15 +3529,6 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 		return nil
 	}
 
-	// Bail if scripts are disabled globally
-	cfg, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return err
-	}
-	if cfg.ServerSettings.ScriptsDisabled {
-		return nil
-	}
-
 	var policyTeamID uint
 	if hostTeamID == nil {
 		policyTeamID = fleet.PolicyNoTeamID
@@ -3594,7 +3585,7 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 			"script_name", scriptMetadata.Name,
 		)
 
-		allScriptsExecutionPending, err := svc.ds.ListPendingHostScriptExecutions(ctx, hostID, false)
+		allScriptsExecutionPending, err := svc.ds.ListPendingHostScriptExecutions(ctx, hostID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "list host pending script executions")
 		}

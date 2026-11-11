@@ -1,6 +1,6 @@
 module github.com/fleetdm/fleet/v4
 
-go 1.27.3
+go 1.27.4
 
 require (
 	cloud.google.com/go/auth v0.18.2
@@ -102,7 +102,7 @@ require (
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/micromdm/micromdm v1.9.0
 	github.com/micromdm/nanolib v0.2.0
-	github.com/micromdm/plist v0.3.0
+	github.com/micromdm/plist v0.4.0
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/mitchellh/gon v0.2.6-0.20231031204852-2d4f161ccecd
 	github.com/mna/redisc v1.3.2

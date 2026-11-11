@@ -21,6 +21,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
@@ -73,44 +74,11 @@ var userRoleSpecList = []*fleet.User{
 	},
 }
 
-func TestApplyUserRoles(t *testing.T) {
-	_, ds := testing_utils.RunServerWithMockedDS(t)
+func TestApplyUserRolesRemoved(t *testing.T) {
+	testing_utils.RunServerWithMockedDS(t)
 
-	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
-		return userRoleSpecList, nil
-	}
-
-	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
-		if email == "admin1@example.com" {
-			return userRoleSpecList[0], nil
-		}
-		return userRoleSpecList[1], nil
-	}
-
-	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
-		return &fleet.Team{
-			ID:        1,
-			CreatedAt: time.Now(),
-			Name:      "team1",
-		}, nil
-	}
-
-	ds.SaveUsersFunc = func(ctx context.Context, users []*fleet.User) error {
-		for _, u := range users {
-			switch u.Email {
-			case "admin1@example.com":
-				userRoleList[0] = u
-			case "admin2@example.com":
-				userRoleList[1] = u
-			}
-		}
-		return nil
-	}
-
-	tmpFile, err := os.CreateTemp(os.TempDir(), "*.yml")
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	defer os.Remove(tmpFile.Name())
-
 	_, err = tmpFile.WriteString(`
 ---
 apiVersion: v1
@@ -119,34 +87,13 @@ spec:
   roles:
     admin1@example.com:
       global_role: admin
-      fleets: null
-    admin2@example.com:
-      global_role: null
-      fleets:
-      - role: maintainer
-        fleet: team1
 `)
 	require.NoError(t, err)
-	assert.Equal(t, "[+] applied user roles\n", runAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
-	require.Len(t, userRoleSpecList[1].Teams, 1)
-	assert.Equal(t, fleet.RoleMaintainer, userRoleSpecList[1].Teams[0].Role)
+	require.NoError(t, tmpFile.Close())
 
-	removedKeysFile, err := os.CreateTemp(os.TempDir(), "*.yml")
-	require.NoError(t, err)
-	defer os.Remove(removedKeysFile.Name())
-	_, err = removedKeysFile.WriteString(`
-apiVersion: v1
-kind: user_roles
-spec:
-  roles:
-    admin2@example.com:
-      global_role: null
-      teams:
-      - role: maintainer
-        team: team1
-`)
-	require.NoError(t, err)
-	runAppCheckErr(t, []string{"apply", "-f", removedKeysFile.Name()}, "is not available anymore")
+	entry, ok := removednames.Find(removednames.KindSpecKind, fleet.UserRolesKind, "")
+	require.True(t, ok)
+	runAppCheckErr(t, []string{"apply", "-f", tmpFile.Name()}, entry.Message())
 }
 
 // withDiskEncryptionDefaults fills in the explicit per-platform disk

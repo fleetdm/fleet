@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "16.0",
+      "version": "16.0.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.torproject.torbrowser';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.torproject.torbrowser' AND version_compare(bundle_short_version, '16.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.torproject.torbrowser' AND version_compare(bundle_short_version, '16.0.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.torproject.torbrowser' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://www.torproject.org/dist/torbrowser/16.0/tor-browser-macos-16.0.dmg",
+      "installer_url": "https://www.torproject.org/dist/torbrowser/16.0.1/tor-browser-macos-16.0.1.dmg",
       "install_script_ref": "c872b3a4",
       "uninstall_script_ref": "d3fea950",
-      "sha256": "b482caf66f2e2435b27c1714820991c3f5588653a5ca17f500c9cef99a7ba799",
+      "sha256": "f7c1f995969e6588a770d2096591ac397cd2cbb8a85b8c0c30ec206290ec2b90",
       "default_categories": [
         "Browsers"
       ]

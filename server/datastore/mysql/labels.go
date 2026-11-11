@@ -1367,7 +1367,7 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
       h.timezone,
       hoi.version AS orbit_version,
       hoi.desktop_version AS fleet_desktop_version,
-      (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
+      (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name,` + hostOSSelect + `
       %s
       %s
 			%s
@@ -1376,7 +1376,7 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
     LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)` + hostMobileMDMSeenTimeJoin + `
     LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN host_disks hd ON (h.id=hd.host_id)
-    LEFT JOIN host_orbit_info hoi ON (h.id = hoi.host_id)
+    LEFT JOIN host_orbit_info hoi ON (h.id = hoi.host_id)` + hostOSJoin + `
     %s
     %s
 		%s
@@ -1424,6 +1424,9 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, query, params...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting label query executions")
+	}
+	for _, host := range hosts {
+		setHostAPIOS(host)
 	}
 	return hosts, nil
 }

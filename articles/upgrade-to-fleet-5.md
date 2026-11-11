@@ -2,16 +2,16 @@
 
 Fleet 5 introduces a cleaner, more consistent API and GitOps (YAML) by removing deprecated API endpoints and parameters, YAML (GitOps) keys, and more. This guide lists [every breaking change](#breaking-changes) and what you need to do.
 
-> **Note:** Fleet 4.96 is coming [late November](https://github.com/fleetdm/fleet/milestone/239) and Fleet 5 is coming [early December](https://github.com/fleetdm/fleet/milestone/295). This guide is published early so you can plan your upgrade.
+> **Note:** Fleet 5 is coming in [early December](https://github.com/fleetdm/fleet/milestone/295). This guide is published early so you can plan your upgrade.
 
 Fleet will support Fleet 4.96 with security fixes through June 30, 2027.
 
 #### How to upgrade
 
-1. [Upgrade](https://fleetdm.com/docs/deploy/upgrading-fleet#upgrading-fleet) to Fleet 4.96.
+1. [Upgrade](https://fleetdm.com/docs/deploy/upgrading-fleet#upgrading-fleet) to the **latest Fleet 4 release**.
 2. Work through the list of [breaking changes](#breaking-changes).
 3. Back up your Fleet database. If you need to go back to Fleet 4 after upgrading, restore this backup. Fleet 4 can't read the settings Fleet 5 renames, so it would turn off features like Windows MDM.
-4. Upgrade to Fleet 5. If you're using the [fleetctl CLI](https://fleetdm.com/guides/fleetctl) or [GitOps](https://fleetdm.com/docs/configuration/yaml-files) (fleetctl runs in CI/CD) remember to upgrade fleetctl to 5.
+5. Upgrade to the **latest Fleet 5 release**. Why? If you upgrade to an earlier version of Fleet 5, you'll miss database migrations included in later Fleet 4 releases (e.g. 4.96.0 or 4.96.1).
 
 #### Why are we doing this?
 
@@ -69,7 +69,7 @@ You'll be missed, and we'll keep saying "teams" out of muscle memory.
 
 #### What to do
 
-Fleet 4.96 already supports the `/fleets` endpoints and `fleet_id`, so change them before you upgrade.
+Fleet 4 already supports the `/fleets` endpoints and `fleet_id`, so change them before you upgrade.
 
 1. Search your scripts and integrations for the old names:
    ```sh
@@ -94,7 +94,7 @@ The `/team/...` and `/teams/...` policy paths are also removed.
 
 #### What to do
 
-Fleet 4.96 already supports `/policies`, so change them before you upgrade.
+Fleet 4 already supports `/policies`, so change them before you upgrade.
 
 1. Search for the old paths: `grep -rnE '/fleet/global/policies|/(teams?|fleets)/[^/]+/policies' .`
 2. Use `/policies`. To work with a fleet's policies, pass `fleet_id`. Without it, you get global policies.
@@ -129,7 +129,7 @@ The `/schedule`, `/team/:id/schedule`, and `/teams/:id/schedule` paths are also 
 
 #### What to do
 
-Fleet 4.96 already supports reports with an `interval`, so change them before you upgrade.
+Fleet 4 already supports reports with an `interval`, so change them before you upgrade.
 
 1. Search for the old paths: `grep -rnE '/schedule\b' .`
 2. Create or update reports with an `interval` instead. To unschedule a report and keep it, [update the report](https://fleetdm.com/docs/rest-api/rest-api#update-report) with `interval` set to `0`.
@@ -191,7 +191,7 @@ GitHub issue: [#53800](https://github.com/fleetdm/fleet/issues/53800)
 
 #### What to do
 
-Fleet 4.96 already supports the new paths, so change them before you upgrade.
+Fleet 4 already supports the new paths, so change them before you upgrade.
 
 1. Search for `/fleet/mdm/` in your scripts and integrations, and replace each path with its Fleet 5 path. Where a row has a note, also update the request and the code that reads the response.
 2. If a proxy or firewall in front of Fleet only allows some paths, also allow `/api/*/fleet/bootstrap` and `/api/*/fleet/setup_experience/eula/*`. Hosts download the bootstrap package and end users see the EULA from these paths during setup. Keep `/api/*/fleet/mdm/bootstrap` allowed for hosts that started setup before the upgrade. Learn more about [which API endpoints to expose](https://fleetdm.com/guides/what-api-endpoints-to-expose-to-the-public-internet).
@@ -206,7 +206,7 @@ GitHub issue: [#53563](https://github.com/fleetdm/fleet/issues/53563)
 
 #### What to do
 
-Fleet 4.96 already supports `host_identifier`, so add it before you upgrade.
+Fleet 4 already supports `host_identifier`, so add it before you upgrade.
 
 Pass `host_identifier` on every call.
 
@@ -223,17 +223,17 @@ GitHub issue: [#53146](https://github.com/fleetdm/fleet/issues/53146)
 
 #### What to do
 
-Fleet 4.96 supports the new `scripts/batch` and `configuration_profiles/resend` paths, so change them before you upgrade. It doesn't accept an identifier in `GET /hosts/:id` or `POST /hosts/:id/query`, so you can't switch `hosts/identifier` early. Instead:
+Fleet 4 supports the new `scripts/batch` and `configuration_profiles/resend` paths, so change them before you upgrade. It doesn't accept an identifier in `GET /hosts/:id` or `POST /hosts/:id/query`, so you can't switch `hosts/identifier` early. Instead:
 
 1. Before you upgrade, search for `scripts/batch/summary/` and `configuration_profiles/resend/`, and replace each path.
 2. After you upgrade, search for `hosts/identifier/` and put the identifier where `:id` goes in `GET /hosts/:id` or `POST /hosts/:id/query`.
    - Until you do, `GET /hosts/identifier/:identifier` and `POST /hosts/identifier/:identifier/query` fail with a `410` error.
-   - Fleet looks for a host ID first, then a serial number, UUID, and hostname. An all-digit identifier is treated as a host ID.
-   - If more than one host matches an identifier, Fleet uses the newest host.
+   - Fleet looks for a host ID first, then a serial number, UUID, and hostname. An all-digit identifier is used as a host ID if one exists, even if another host has that serial number. If no host has that ID, Fleet looks it up as a serial number, UUID, or hostname.
+   - If more than one host matches an identifier, Fleet now returns the newest host instead of the oldest (the one with the lowest ID). This applies to `GET /hosts/:id`, the other `GET /hosts/:id/…` endpoints, `POST /hosts/:id/query`, and [Translate IDs](https://fleetdm.com/docs/rest-api/rest-api#translate-ids).
    - Every `GET /hosts/:id/…` endpoint accepts an identifier in `:id` too, except [Get host's device page URL](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-device-page-url).
 3. After you upgrade, update conditional access setups that followed the Google or PingFederate guides to call `GET /hosts/:id`.
 
-GitHub issue: [#53080](https://github.com/fleetdm/fleet/issues/53080)
+GitHub issues: [#53080](https://github.com/fleetdm/fleet/issues/53080), [#58203](https://github.com/fleetdm/fleet/issues/58203)
 
 ### Apple Business Manager endpoints and keys renamed
 
@@ -251,10 +251,10 @@ GitHub issue: [#53080](https://github.com/fleetdm/fleet/issues/53080)
 
 #### What to do
 
-Fleet 4.96 already supports the new endpoints and keys, so change them before you upgrade.
+Fleet 4 already supports the new endpoints and keys, so change them before you upgrade.
 
 1. Search for `abm`, `apple_bm`, and `apple_business_manager` in your scripts and integrations, and replace each match with its Fleet 5 name.
-   - The exceptions are `mdm.apple_business_enabled_and_configured` and `mdm.apple_business_terms_expired`, which Fleet 4.96 doesn't return.
+   - The exceptions are `mdm.apple_business_enabled_and_configured` and `mdm.apple_business_terms_expired`, which Fleet 4 doesn't return.
 2. Have your code read the new key when it's there and fall back to the old one.
 
 GitHub issue: [#53272](https://github.com/fleetdm/fleet/issues/53272)
@@ -267,7 +267,7 @@ GitHub issue: [#53272](https://github.com/fleetdm/fleet/issues/53272)
 
 #### What to do
 
-Fleet 4.96 already supports `setup_experience`, so change it before you upgrade.
+Fleet 4 already supports `setup_experience`, so change it before you upgrade.
 
 Search for `macos_setup` and rename it to `setup_experience`.
 
@@ -282,7 +282,7 @@ GitHub issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 
 #### What to do
 
-Fleet 4.96 doesn't support the new names, so you can't change them before you upgrade.
+Fleet 4 doesn't support the new names, so you can't change them before you upgrade.
 
 1. Right after you upgrade, search for these keys in your scripts and integrations, and rename them.
    - Until you do, calls that use the old names fail with a `422` error like: `The "enable_recovery_lock_password" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
@@ -298,7 +298,7 @@ GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 
 #### What to do
 
-Fleet 4.96 doesn't support the new names, so you can't change them before you upgrade.
+Fleet 4 doesn't support the new names, so you can't change them before you upgrade.
 
 1. Right after you upgrade, search for these keys in your scripts and integrations, and rename them.
    - Until you do, calls that use the old names fail with a `422` error like: `The "windows_enabled_and_configured" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
@@ -329,7 +329,7 @@ GitHub issue: [#50084](https://github.com/fleetdm/fleet/issues/50084)
 
 #### What to do
 
-Fleet 4.96 already supports the new names, so change them before you upgrade.
+Fleet 4 already supports the new names, so change them before you upgrade.
 
 Rename both keys.
 
@@ -343,7 +343,7 @@ GitHub issue: [#52800](https://github.com/fleetdm/fleet/issues/52800)
 
 #### What to do
 
-Fleet 4.96 already supports this, so change it before you upgrade.
+Fleet 4 already supports this, so change it before you upgrade.
 
 Get the "All Linux" label's ID from `builtin_labels` in the Get hosts summary response, then call Count hosts with it.
 
@@ -358,7 +358,7 @@ GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 
 #### What to do
 
-Fleet 4.96 doesn't return `os_name`, so you can't switch to it early. Instead:
+Fleet 4 doesn't return `os_name`, so you can't switch to it early. Instead:
 
 1. Before you upgrade, update code that splits the OS name out of `os_version`. When a host has `os_name`, read the name from `os_name` and the version from `os_version`. When it doesn't, keep splitting `os_version`. This works on both versions.
 2. After you upgrade, remove "Microsoft " from any Windows OS name you filter by or compare against.
@@ -374,7 +374,7 @@ GitHub issue: [#53877](https://github.com/fleetdm/fleet/issues/53877)
 
 #### What to do
 
-Fleet 4.96 doesn't support `POST /hosts/:id/reset`, so you can't switch to it early. Instead:
+Fleet 4 doesn't support `POST /hosts/:id/reset`, so you can't switch to it early. Instead:
 
 1. Before you upgrade, remove the `windows` object from any request that sends `"doWipeProtected"`.
    - Wiping works the same.
@@ -426,7 +426,7 @@ GitHub issue: [#33769](https://github.com/fleetdm/fleet/issues/33769)
 
 #### What to do
 
-Fleet 4.96 already supports the new endpoints, filters, and keys, so change them before you upgrade.
+Fleet 4 already supports the new endpoints, filters, and keys, so change them before you upgrade.
 
 Search for `/fleet/software`, `software_id`, `software_package`, `app_store_app`, and `browser`, and update each request and the code that reads responses.
 
@@ -496,7 +496,7 @@ GitHub issue: [#53801](https://github.com/fleetdm/fleet/issues/53801)
 
 Make these changes before you upgrade.
 
-1. Delete reports with `DELETE /reports/id/:id`, which works in Fleet 4.96 and Fleet 5. Get a report's ID from [List reports](https://fleetdm.com/docs/rest-api/rest-api#list-reports), with `fleet_id` for a fleet's reports. After you upgrade, you can switch to `DELETE /reports/:id`.
+1. Delete reports with `DELETE /reports/id/:id`, which works in Fleet 4 and Fleet 5. Get a report's ID from [List reports](https://fleetdm.com/docs/rest-api/rest-api#list-reports), with `fleet_id` for a fleet's reports. After you upgrade, you can switch to `DELETE /reports/:id`.
 2. If an API-only user can only call "Delete report by name", give it "Delete report by ID" instead. If you don't, Fleet does this when you upgrade.
 
 GitHub issue: [#53799](https://github.com/fleetdm/fleet/issues/53799)
@@ -713,7 +713,7 @@ GitHub issue: [#54190](https://github.com/fleetdm/fleet/issues/54190)
 
 #### What to do
 
-Fleet 4.96 already supports the new names, so change them before you upgrade.
+Fleet 4 already supports the new names, so change them before you upgrade.
 
 Rename these keys in your YAML files.
 
@@ -729,7 +729,7 @@ GitHub issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
 
 #### What to do
 
-Fleet 4.96 already supports the new names, so change them before you upgrade.
+Fleet 4 already supports the new names, so change them before you upgrade.
 
 Rename these keys in your YAML files.
 
@@ -743,7 +743,7 @@ GitHub issues: [#53272](https://github.com/fleetdm/fleet/issues/53272), [#52795]
 
 #### What to do
 
-Fleet 4.96 already supports `setup_experience`, so change it before you upgrade.
+Fleet 4 already supports `setup_experience`, so change it before you upgrade.
 
 Rename `macos_setup` to `setup_experience` in your YAML files.
 
@@ -758,7 +758,7 @@ GitHub issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 
 #### What to do
 
-Fleet 4.96 doesn't support the new names, so you can't change them before you upgrade.
+Fleet 4 doesn't support the new names, so you can't change them before you upgrade.
 
 1. After you upgrade, rename these keys before your next GitOps run.
    - Until you do, your GitOps run fails with an error like: `The "controls.enable_recovery_lock_password" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
@@ -773,7 +773,7 @@ GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 
 #### What to do
 
-Fleet 4.96 already supports script-only packages in setup experience and `macos_script`, so change this before you upgrade.
+Fleet 4 already supports script-only packages in setup experience and `macos_script`, so change this before you upgrade.
 
 Move the script to a script-only package. Add the .sh file to `software.packages` with `setup_experience_platform: darwin` ([docs](https://fleetdm.com/docs/configuration/yaml-files#packages)), then remove `script`. Setup experience software installs in alphabetical order, and the setup script runs after all software. To run the package last, give it a name that sorts after your other setup experience software. If you can't move the script yet, rename `script` to `macos_script`. `macos_script` keeps working in Fleet 5 and is removed in Fleet 6. See [Setup experience script deprecated](#setup-experience-script-deprecated).
 
@@ -788,7 +788,7 @@ GitHub issues: [#53274](https://github.com/fleetdm/fleet/issues/53274), [#53894]
 
 #### What to do
 
-Fleet 4.96 doesn't support the new names, so you can't change them before you upgrade.
+Fleet 4 doesn't support the new names, so you can't change them before you upgrade.
 
 1. After you upgrade, rename these keys before your next GitOps run.
    - `fleetctl generate-gitops` writes the new names.
@@ -820,7 +820,7 @@ GitHub issue: [#50084](https://github.com/fleetdm/fleet/issues/50084)
 
 #### What to do
 
-Fleet 4.96 already supports the new names, so change them before you upgrade.
+Fleet 4 already supports the new names, so change them before you upgrade.
 
 Rename both keys in your YAML files.
 
@@ -834,7 +834,7 @@ GitHub issue: [#52800](https://github.com/fleetdm/fleet/issues/52800)
 
 #### What to do
 
-Fleet 4.96 already supports `webhooks_and_tickets_enabled`, so change this before you upgrade.
+Fleet 4 already supports `webhooks_and_tickets_enabled`, so change this before you upgrade.
 
 Move the IDs in `policy_ids` to `webhooks_and_tickets_enabled: true` on each policy.
 
@@ -942,7 +942,7 @@ GitHub issue: [#53897](https://github.com/fleetdm/fleet/issues/53897)
 
 #### What to do
 
-Fleet 4.96 already supports lists in package YAML files, so change them before you upgrade.
+Fleet 4 already supports lists in package YAML files, so change them before you upgrade.
 
 In each package YAML file, put packages in a list, even if there's only one.
 
@@ -995,7 +995,7 @@ GitHub issue: [#57603](https://github.com/fleetdm/fleet/issues/57603)
 #### What to do
 
 1. Search your scripts and CI for `--team`, `-t`, `--policies-team`, `--delete-other-teams`, `DELETE_OTHER_TEAMS`, `no-team`, and `get teams`, and replace each match.
-   - The new flags already work in Fleet 4.96.
+   - The new flags already work in Fleet 4.
 
 GitHub issue: [#52795](https://github.com/fleetdm/fleet/issues/52795)
 
@@ -1021,7 +1021,7 @@ GitHub issue: [#53146](https://github.com/fleetdm/fleet/issues/53146)
 #### What to do
 
 1. Replace `mdm-apple-bm` with `mdm-ab`.
-   - It already works in Fleet 4.96.
+   - It already works in Fleet 4.
 
 GitHub issue: [#53272](https://github.com/fleetdm/fleet/issues/53272)
 
@@ -1082,7 +1082,7 @@ GitHub issue: [#49909](https://github.com/fleetdm/fleet/issues/49909)
 
 #### What to do
 
-1. Before you upgrade, run `fleetctl upgrade-packs -o packs-to-reports.yml` on Fleet 4.96 and review the file.
+1. Before you upgrade, run `fleetctl upgrade-packs -o packs-to-reports.yml` on Fleet 4 and review the file.
    - 2017 packs stop running on hosts after the upgrade.
 2. Add the reports to Fleet with [GitOps (YAML)](https://fleetdm.com/docs/configuration/yaml-files#reports) or [Create report](https://fleetdm.com/docs/rest-api/rest-api#create-report) (API).
    - With GitOps, copy each report's settings from under `spec:` into `reports` in `default.yml` or the fleet's YAML file.
@@ -1204,6 +1204,23 @@ Remove it from your server configuration.
 
 GitHub issue: [#53787](https://github.com/fleetdm/fleet/issues/53787)
 
+### Performance tracing changes
+
+This only applies if you send Fleet server performance data (traces) to a monitoring tool like Elastic, Datadog, or Grafana. You'd know because you set `logging.tracing_enabled` (`FLEET_LOGGING_TRACING_ENABLED`) to `true`. It's off by default, so most deployments can skip this.
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| Setting `logging.tracing_type` to `elasticapm` sends traces to Elastic APM | Removed. Fleet stops sending traces and logs a warning at startup. [OpenTelemetry](https://fleetdm.com/docs/configuration/fleet-server-configuration#logging-tracing-enabled) is the only option. |
+| Trace names for API requests look like `GET /api/{fleetversion:(?:v1\|2022-04\|latest)}/fleet/hosts/{id:[0-9]+}` | Trace names are simpler, like `GET /api/_version_/fleet/hosts/{id}` |
+
+#### What to do
+
+1. If you use Elastic APM, remove `logging.tracing_type` and set `OTEL_EXPORTER_OTLP_ENDPOINT` to your OpenTelemetry collector.
+   - Elastic accepts OpenTelemetry data, so you can keep using Elastic.
+2. Update any dashboards or alerts in your monitoring tool that match on the old trace names.
+
+GitHub issue: [#58257](https://github.com/fleetdm/fleet/issues/58257)
+
 
 ## Single sign-on (SSO)
 
@@ -1216,7 +1233,7 @@ GitHub issue: [#53787](https://github.com/fleetdm/fleet/issues/53787)
 #### What to do
 
 1. Rename the attribute in your IdP before you upgrade.
-   - Fleet 4.96 already accepts the new name.
+   - Fleet 4 already accepts the new name.
    - Fleet 5 ignores the old one. A new user whose fleet roles come only from the old attribute gets the global Observer role.
    - An existing user whose login has only old attributes keeps their roles. If the login mixes old and new attributes, they lose the fleets sent only through the old one.
 

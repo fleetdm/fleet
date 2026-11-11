@@ -125,7 +125,6 @@ org_settings:
     live_reporting_disabled: false
     report_cap: 2000
     discard_reports_data: false
-    scripts_disabled: false
     server_url: $FLEET_SERVER_URL
     ai_features_disabled: true
   org_info:

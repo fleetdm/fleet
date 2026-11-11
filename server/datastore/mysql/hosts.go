@@ -886,6 +886,22 @@ func omitUnknownLinuxDiskEncryption(host *fleet.Host) {
 	}
 }
 
+// hostOSSelect and hostOSJoin load the host's operating_systems row into Host.OSName and Host.OSVersionOnly, the
+// values the os_name and os_version host filters match. Only loaders whose host reaches the API need them.
+const (
+	hostOSSelect = `
+  COALESCE(os.name, '') AS os_name,
+  COALESCE(os.version, '') AS os_version_only`
+	hostOSJoin = `
+  LEFT JOIN host_operating_system hos ON hos.host_id = h.id
+  LEFT JOIN operating_systems os ON os.id = hos.os_id`
+)
+
+// setHostAPIOS turns the OS inventory row loaded by hostOSSelect into the os_name and os_version the API returns.
+func setHostAPIOS(h *fleet.Host) {
+	h.OSName, h.OSVersionOnly = fleet.HostAPIOS(h.OSName, h.OSVersionOnly, h.OSVersion)
+}
+
 func (ds *Datastore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
 	sqlStatement := `
 SELECT
@@ -955,12 +971,12 @@ SELECT
   hoi.desktop_version AS fleet_desktop_version,
   hoi.scripts_enabled AS scripts_enabled,
   IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
-  had.group_tag AS group_tag
+  had.group_tag AS group_tag,` + hostOSSelect + `
   ` + hostMDMSelect + `
 FROM
   hosts h
   LEFT JOIN teams t ON (h.team_id = t.id)
-  LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
+  LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)` + hostOSJoin + `
   LEFT JOIN host_updates hu ON (h.id = hu.host_id)
   LEFT JOIN host_disks hd ON hd.host_id = h.id
   LEFT JOIN host_orbit_info hoi ON hoi.host_id = h.id
@@ -983,6 +999,7 @@ LIMIT
 		return nil, ctxerr.Wrap(ctx, err, "get host by id")
 	}
 	omitUnknownLinuxDiskEncryption(&host)
+	setHostAPIOS(&host)
 
 	packStats, err := loadHostPackStatsDB(ctx, ds.reader(ctx), host.ID, host.Platform)
 	if err != nil {
@@ -1240,7 +1257,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     h.timezone,
     hoi.version AS orbit_version,
     hoi.desktop_version AS fleet_desktop_version,
-    had.group_tag AS group_tag
+    had.group_tag AS group_tag,` + hostOSSelect + `
 	`
 
 	sql += hostMDMSelect
@@ -1303,6 +1320,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 	}
 	for _, host := range hosts {
 		omitUnknownLinuxDiskEncryption(host)
+		setHostAPIOS(host)
 	}
 
 	return hosts, nil
@@ -1561,7 +1579,11 @@ func (ds *Datastore) applyHostFilters(
 	}
 
 	operatingSystemJoin := ""
-	if opt.OSIDFilter != nil || (opt.OSNameFilter != nil && opt.OSVersionFilter != nil) || opt.OSVersionIDFilter != nil {
+	switch {
+	case mode == hostFilterList:
+		// The list SELECT returns the OS row; the OS filters below reuse its hos alias.
+		operatingSystemJoin = hostOSJoin
+	case opt.OSIDFilter != nil || (opt.OSNameFilter != nil && opt.OSVersionFilter != nil) || opt.OSVersionIDFilter != nil:
 		operatingSystemJoin = `JOIN host_operating_system hos ON h.id = hos.host_id`
 	}
 
@@ -1852,8 +1874,17 @@ func filterHostsByOS(sql string, opt fleet.HostListOptions, params []interface{}
 		sql += ` AND hos.os_id = ?`
 		params = append(params, *opt.OSIDFilter)
 	} else if opt.OSNameFilter != nil && opt.OSVersionFilter != nil {
-		sql += ` AND hos.os_id IN (SELECT id FROM operating_systems WHERE name = ? AND version = ?)`
-		params = append(params, *opt.OSNameFilter, *opt.OSVersionFilter)
+		if fleet.IsArchGroupedOSName(*opt.OSNameFilter) {
+			// The OS inventory records these hosts as "Arch Linux"; only their display string has their own name and version.
+			// Requiring the inventory row matches what fleet.HostAPIOS returns and keeps list and count in step.
+			inventoryName, _ := fleet.InventoryOSName(*opt.OSNameFilter)
+			sql += ` AND h.os_version = ? AND hos.os_id IN (SELECT id FROM operating_systems WHERE name = ?)`
+			params = append(params, *opt.OSNameFilter+" "+*opt.OSVersionFilter, inventoryName)
+		} else {
+			names := fleet.InventoryOSNames(*opt.OSNameFilter)
+			sql += ` AND hos.os_id IN (SELECT id FROM operating_systems WHERE name IN (?, ?) AND version = ?)`
+			params = append(params, names[0], names[len(names)-1], *opt.OSVersionFilter)
+		}
 	} else if opt.OSVersionIDFilter != nil {
 		sql += ` AND hos.os_id IN (SELECT id FROM operating_systems WHERE os_version_id = ?)`
 		params = append(params, *opt.OSVersionIDFilter)
@@ -3768,12 +3799,12 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
     COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
     hd.gigs_all_disk_space as gigs_all_disk_space,
     COALESCE(hst.seen_time, h.created_at) AS seen_time,
-	COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
+	COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,` + hostOSSelect + `
 	` + hostMDMSelect + `
   FROM hosts h
   LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
   LEFT JOIN host_updates hu ON (h.id = hu.host_id)
-  LEFT JOIN host_disks hd ON hd.host_id = h.id
+  LEFT JOIN host_disks hd ON hd.host_id = h.id` + hostOSJoin + `
   ` + hostMDMJoin + `
   WHERE ` + platformFilter + ` AND `
 
@@ -3807,11 +3838,11 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 	var args []interface{}
 	if len(matchingHostIDs) > 0 {
 		args = append(args, matchingHostIDs)
-		query += " id IN (?) AND "
+		query += " h.id IN (?) AND "
 	}
 	if len(omit) > 0 {
 		args = append(args, omit)
-		query += " id NOT IN (?) AND "
+		query += " h.id NOT IN (?) AND "
 	}
 	query += ds.whereFilterHostsByTeams(filter, "h")
 	query += ` ORDER BY h.id DESC LIMIT 10`
@@ -3828,6 +3859,9 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 	var hosts []*fleet.Host
 	if err = sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, query, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "searching hosts")
+	}
+	for _, host := range hosts {
+		setHostAPIOS(host)
 	}
 
 	return hosts, nil
@@ -4060,13 +4094,13 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
       COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
       COALESCE(hst.seen_time, h.created_at) AS seen_time,
-      COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
+      COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,` + hostOSSelect + `
     ` + hostMDMSelect + `
     FROM hosts h
     LEFT JOIN teams t ON t.id = h.team_id
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
     LEFT JOIN host_updates hu ON (h.id = hu.host_id)
-    LEFT JOIN host_disks hd ON hd.host_id = h.id
+    LEFT JOIN host_disks hd ON hd.host_id = h.id` + hostOSJoin + `
     ` + hostMDMJoin + `
     ` + hostByIdentifierWhere + `
 	`
@@ -4078,6 +4112,7 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get host by identifier")
 	}
+	setHostAPIOS(host)
 
 	packStats, err := loadHostPackStatsDB(ctx, ds.reader(ctx), host.ID, host.Platform)
 	if err != nil {
@@ -6958,9 +6993,17 @@ func (ds *Datastore) OSVersions(
 	}
 
 	// filter by platform, name, and version
+	var inventoryNames []string
+	if name != nil {
+		inventoryNames = fleet.InventoryOSNames(*name)
+	}
+	// Ignores case, like the os_name hosts filter (a SQL comparison on a case-insensitive column).
+	matchesName := func(nameOnly string) bool {
+		return slices.ContainsFunc(inventoryNames, func(n string) bool { return strings.EqualFold(n, nameOnly) })
+	}
 	var filtered []fleet.OSVersion
 	for _, os := range counts {
-		if (platform == nil || *platform == os.Platform || (*platform == "linux" && fleet.IsLinux(os.Platform))) && (name == nil || version == nil || (*name == os.NameOnly && *version == os.Version)) {
+		if (platform == nil || *platform == os.Platform || (*platform == "linux" && fleet.IsLinux(os.Platform))) && (name == nil || version == nil || (matchesName(os.NameOnly) && *version == os.Version)) {
 			filtered = append(filtered, os)
 		}
 	}
@@ -7468,19 +7511,28 @@ WHERE
 
 func (ds *Datastore) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHealth, error) {
 	sqlStmt := `
-		SELECT h.os_version, h.updated_at, h.platform, h.team_id, hd.encrypted as disk_encryption_enabled FROM hosts h
+		SELECT COALESCE(os.name, '') AS os_name, COALESCE(os.version, '') AS os_version, h.os_version AS os_display,
+			h.updated_at, h.platform, h.team_id, hd.encrypted as disk_encryption_enabled
+		FROM hosts h
 		LEFT JOIN host_disks hd ON hd.host_id = h.id
-		WHERE id = ?
+		LEFT JOIN host_operating_system hos ON hos.host_id = h.id
+		LEFT JOIN operating_systems os ON os.id = hos.os_id
+		WHERE h.id = ?
 	`
 
-	var hh fleet.HostHealth
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hh, sqlStmt, id); err != nil {
+	var row struct {
+		fleet.HostHealth
+		OSDisplay string `db:"os_display"`
+	}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, sqlStmt, id); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("Host Health").WithID(id))
 		}
 
 		return nil, ctxerr.Wrap(ctx, err, "loading host health")
 	}
+	hh := row.HostHealth
+	hh.OSName, hh.OsVersion = fleet.HostAPIOS(hh.OSName, hh.OsVersion, row.OSDisplay)
 
 	// LoadHostSoftware joins full CVE metadata, which is costly on a frequently polled endpoint.
 	// NO_SEMIJOIN keeps the plan host-driven; as a semijoin MySQL may full-scan software_cve.
