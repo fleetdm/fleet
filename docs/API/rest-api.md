@@ -781,7 +781,7 @@ Object with the following structure:
 | url | string | **Required** DigiCert instance URL, used as base URL for DigiCert API requests. |
 | api_token | string | **Required** API token used to authenticate requests to DigiCert. |
 | profile_id | string | **Required** The ID of certificate profile in DigiCert. |
-| certificate_common_name | string | **Required** The certificate's common name. Supports these [built-in variables](https://fleetdm.com/guides/fleet-variables): `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_PLATFORM`, `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`, `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART`, `$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME`, `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`, `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT`, and the legacy `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. |
+| certificate_common_name | string | **Required** The certificate's common name. Supports these [built-in variables](https://fleetdm.com/guides/fleet-variables): `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_PLATFORM`, `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`, `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART`, `$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME`, `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`, and `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT`. |
 | certificate_user_principal_names | array | Use with type `digicert`. The certificate's user principal names (UPN) attribute in Subject Alternative Name (SAN). Supports the same variables as `certificate_common_name`. |
 | certificate_seat_id | string | **Required** The ID of the DigiCert seat. Seats are license units in DigiCert. Supports the same variables as `certificate_common_name`. |
 
@@ -869,7 +869,7 @@ Object with the following structure:
     "certificate_user_principal_names": [
       "$FLEET_VAR_HOST_HARDWARE_SERIAL"
     ],
-    "certificate_seat_id": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
+    "certificate_seat_id": "$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
   }
 },
 {
@@ -1071,7 +1071,7 @@ Get details of the certificate authority.
   "certificate_user_principal_names": [
     "$FLEET_VAR_HOST_HARDWARE_SERIAL"
   ],
-  "certificate_seat_id": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
+  "certificate_seat_id": "$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
 }
 ```
 
@@ -1819,7 +1819,7 @@ None.
   },
   "mdm": {
     "android_enabled_and_configured": true,
-    "windows_enabled_and_configured": true,
+    "windows_mdm_enabled": true,
     "windows_entra_tenant_ids": [
       "fec37e96-3615-4e37-8fac-445d5328af3c"
     ],
@@ -1828,6 +1828,7 @@ None.
     ],
     "microsoft_graph_credential_invalid": false,
     "enable_turn_on_windows_mdm_manually": false,
+    "windows_mdm_migration_enabled": false,
     "apple_require_hardware_attestation": false,
     "only_allow_apple_business_enrollment": false,
     "enable_profile_validation": true,
@@ -2225,7 +2226,7 @@ Modifies the Fleet's configuration with the supplied information.
   "mdm": {
     "enabled_and_configured": false,
     "android_enabled_and_configured": false,
-    "windows_enabled_and_configured": false,
+    "windows_mdm_enabled": false,
     "windows_entra_tenant_ids": [
       "26ac824d-0d5e-4f0c-a202-1c29d5a48e43"
     ],
@@ -2234,10 +2235,11 @@ Modifies the Fleet's configuration with the supplied information.
     ],
     "microsoft_graph_credential_invalid": false,
     "enable_turn_on_windows_mdm_manually": false,
+    "windows_mdm_migration_enabled": false,
     "apple_require_hardware_attestation": false,
     "only_allow_apple_business_enrollment": false,
     "enable_profile_validation": true,
-    "macos_enable_recovery_lock_password": true,
+    "macos_recovery_lock_password_enabled": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01",
@@ -2917,16 +2919,17 @@ When updating conditional access config, all `conditional_access` fields must ei
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| windows_enabled_and_configured    | boolean | Enables Windows MDM support. |
+| windows_mdm_enabled               | boolean | Enables Windows MDM support. |
 | windows_entra_tenant_ids          | array | _Available in Fleet Premium._ IDs of Microsoft Entra tenants to connect to Fleet, to enable automatic (Autopilot) and manual enrollment by end users (**Settings** > **Accounts** > **Access work or school** on Windows). Not needed to enroll hosts with Fleet's agent (fleetd). Find your **Tenant ID**, on [**Microsoft Entra ID** > **Home**](https://entra.microsoft.com/#home). |
 | windows_entra_client_ids          | array | _Available in Fleet Premium._ Microsoft Entra application (client) IDs for the applications used to enroll Windows hosts via Microsoft Entra. Set this when you set up Entra enrollment: Microsoft Entra issues v2 access tokens whose audience is the application's client ID, so Fleet needs the client ID to authorize enrollment. Find your **Application (client) ID** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Overview**. |
 | microsoft_graph_credential_invalid | boolean | _Available in Fleet Premium._ Read-only. `true` when at least one Microsoft Graph credential has been rejected by Microsoft Entra or denied by Microsoft Graph, so Windows Autopilot devices are no longer syncing. Resolve it by supplying a new client secret, or granting admin consent, with [Modify Microsoft Graph credentials](#modify-microsoft-graph-credentials). Fleet computes this field, so it's ignored if you try to set it. |
 | enable_turn_on_windows_mdm_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
+| windows_mdm_migration_enabled     | boolean | _Available in Fleet Premium._ Specifies whether or not to automatically migrate Windows hosts connected to another MDM solution. If `false`, MDM is only turned on after hosts are unenrolled from your old MDM solution. `enable_turn_on_windows_mdm_manually` must be set to `false`. |
 | windows_require_bitlocker_pin           | boolean | _Deprecated at this level._ Use `windows_settings.require_bitlocker_pin` instead. |
 | apple_require_hardware_attestation | boolean | _Available in Fleet Premium._ Specifies whether or not to require Apple hosts with supported hardware (Apple Silicon Macs, and iPhones and iPads with an A11 Bionic or later chip running iOS/iPadOS 16 or later) to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment. Hosts without supported hardware (for example, Intel Macs) enroll with SCEP and aren't attested, unless `only_allow_apple_business_enrollment` is also enabled. In that case, they can't enroll. |
 | only_allow_apple_business_enrollment | boolean | _Available in Fleet Premium._ Specifies whether or not to allow only Apple hosts that are assigned to Fleet in Apple Business (AB) to turn on MDM, through Automated Device Enrollment (ADE). When enabled, manual enrollment, over-the-air (OTA) enrollment, and account-driven user enrollment (BYOD) are blocked. Fleet also stops renewing MDM certificates for enrolled hosts that aren't in AB, so those hosts lose MDM when their certificate expires. If `apple_require_hardware_attestation` is also enabled, only hosts with supported hardware can enroll (SCEP isn't used as a fallback), and enrolled hosts without supported hardware also stop renewing. |
 | enable_profile_validation          | boolean | Specifies whether or not to check that recognized settings in Apple and Windows configuration profiles have values of the expected type when profiles are added or edited. Settings and payload types Fleet doesn't recognize are always allowed. Default is `true`. Set to `false` to skip this check. |
-| macos_enable_recovery_lock_password | boolean | _Available in Fleet Premium._ Unassigned hosts will have Recovery Lock password enabled if set to true. |
+| macos_recovery_lock_password_enabled | boolean | _Available in Fleet Premium._ Unassigned hosts will have Recovery Lock password enabled if set to true. |
 | name_template                     | string  | _Available in Fleet Premium._ Naming convention applied to "Unassigned" macOS, iOS, and iPadOS hosts. Supports the built-in host identity and IdP end-user variables and custom (`$FLEET_SECRET_*`) variables; certificate authority variables aren't supported. See the [Update host name template](#update-host-name-template) endpoint for the full list. An empty string clears the template. To set the template for a fleet, use that endpoint. |
 | macos_updates            | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
 | ios_updates              | object  | See [`mdm.ios_updates`](#mdm-ios-updates). |
@@ -3111,11 +3114,12 @@ _Available in Fleet Premium._
 ```json
 {
   "mdm": {
-    "windows_enabled_and_configured": false,
+    "windows_mdm_enabled": false,
     "enable_turn_on_windows_mdm_manually": false,
+    "windows_mdm_migration_enabled": false,
     "apple_require_hardware_attestation": false,
     "only_allow_apple_business_enrollment": false,
-    "macos_enable_recovery_lock_password": true,
+    "macos_recovery_lock_password_enabled": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01",
@@ -3553,6 +3557,7 @@ None.
 - [Lock host](#lock-host)
 - [Unlock host](#unlock-host)
 - [Wipe host](#wipe-host)
+- [Reset host](#reset-host)
 - [Send APNs ping to host](#send-apns-ping-to-host)
 - [Get host's past activity](#get-hosts-past-activity)
 - [Get host's upcoming activity](#get-hosts-upcoming-activity)
@@ -3666,7 +3671,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
 
 If `order_key` is `os_version`, hosts are sorted by operating system name, then version, and `after` takes both together (for example, `macOS 15.2`), not the `os_version` value alone.
 
-If `include_device_status` is set to `true`, `device_status` and `pending_action` are included in the MDM information for each host. `device_status` indicates the current lock/wipe state of the device with possible values: `unlocked`, `locked`, `locking`, `unlocking`, `wiped`, `wiping`. `pending_action` indicates if a lock, unlock, or wipe command is pending with possible values: `lock`, `unlock`, `wipe`, or an empty string (no pending action).
+If `include_device_status` is set to `true`, `device_status` and `pending_action` are included in the MDM information for each host. `device_status` indicates the current lock/wipe/reset state of the device with possible values: `unlocked`, `locked`, `locking`, `unlocking`, `wiped`, `wiping`, `reset`, `resetting`. `pending_action` indicates if a lock, unlock, wipe, or reset command is pending with possible values: `lock`, `unlock`, `wipe`, `reset`, or an empty string (no pending action).
 
 To filter hosts by platform (macOS, Windows, Linux), use the ["List label's hosts" API endpoint](https://fleetdm.com/docs/rest-api/rest-api#list-labels-hosts). Find the label ID by filtering in the **Hosts** page of the Fleet UI and copying the ID from the URL (for example: `7` for `/hosts/manage/labels/7`).
 
@@ -7506,6 +7511,8 @@ Wiping a macOS, iOS, iPadOS, Linux, or Windows host is available in Fleet Premiu
 
 To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on. To wipe a Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
 
+To repurpose a Windows host for another end user, use [Reset host](#reset-host).
+
 `POST /api/v1/fleet/hosts/:id/wipe`
 
 #### Parameters
@@ -7513,18 +7520,10 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 | Name         | Type       | In   | Description                                                                                          |
 |--------------| ---------- | ---- |------------------------------------------------------------------------------------------------------|
 | id           | integer    | path | **Required**. ID of the host to be wiped. |
-| windows      | object     | body | Optional metadata used when wiping Windows hosts. The object includes a `wipe_type` property that can be used for specifying what type of remote wipe to perform. Allowed values are `"doWipe"` and `"doWipeProtected"`. |
 
 #### Example
 
 `POST /api/v1/fleet/hosts/123/wipe`
-
-##### Optional request body
-
-```json
-{ "windows": { "wipe_type": "doWipe" } }
-```
-
 
 ##### Default response
 
@@ -7538,6 +7537,46 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 ```
 
 > To verify the host was successfully wiped, you can use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint to retrieve the host's `mdm.device_status`.
+
+
+### Reset host
+
+_Available in Fleet Premium._
+
+Sends a command to reset the specified Windows host so it can be repurposed for another end user. The host is reset once it comes online.
+
+To reset a Windows host, the host must have MDM turned on.
+
+To wipe a lost or stolen host instead, use [Wipe host](#wipe-host).
+
+`POST /api/v1/fleet/hosts/:id/reset`
+
+
+#### Parameters
+
+| Name         | Type       | In   | Description                                                                                          |
+|--------------| ---------- | ---- |------------------------------------------------------------------------------------------------------|
+| id           | integer    | path | **Required**. ID of the host to be reset. |
+
+
+#### Example
+
+`POST /api/v1/fleet/hosts/123/reset`
+
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "device_status": "unlocked",
+  "pending_action": "reset"
+}
+```
+
+> To verify the host was successfully reset, you can use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint to retrieve the host's `mdm.device_status`.
+
 
 ### Send APNs ping to host
 
@@ -9722,7 +9761,7 @@ Sending an empty `name_template` clears the template. Clearing the template stop
 | fleet_id      | integer | body | The fleet ID to apply the host name template to. The template is applied to "Unassigned" hosts if the value is absent or `0`. |
 | name_template | string  | body | The host name template. Send an empty string to clear the template.                                                            |
 
-The template supports the built-in host identity variables (`$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_PLATFORM`), the IdP end-user variables (`$FLEET_VAR_HOST_END_USER_IDP_USERNAME`, `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART`, `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`, `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT`, `$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME`), and custom (`$FLEET_SECRET_*`) variables; each also works in its `${...}` form. Certificate authority variables (SCEP challenges and proxy URLs, DigiCert data, certificate renewal IDs, the Platform SSO device registration token) and the deprecated `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` variable aren't supported and return a `422` — they resolve to secrets or certificate data that are meaningless and unsafe as a host name.
+The template supports the built-in host identity variables (`$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_PLATFORM`), the IdP end-user variables (`$FLEET_VAR_HOST_END_USER_IDP_USERNAME`, `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART`, `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`, `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT`, `$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME`), and custom (`$FLEET_SECRET_*`) variables; each also works in its `${...}` form. Certificate authority variables (SCEP challenges and proxy URLs, DigiCert data, certificate renewal IDs, the Platform SSO device registration token) aren't supported and return a `422` — they resolve to secrets or certificate data that are meaningless and unsafe as a host name.
 
 If a host is missing the IdP data a variable needs, that host's rename fails. A referenced custom variable must already exist (an undefined one returns a `422`); custom variables are global, and a custom variable's value becomes the host's (publicly visible) name, so it isn't kept hidden as it is in scripts and configuration profiles.
 
@@ -13087,7 +13126,6 @@ Generates a human-readable description and resolution for a policy query using A
 - [Get host's report data](#get-hosts-report-data)
 - [Create report](#create-report)
 - [Update report](#update-report)
-- [Delete report by name](#delete-report-by-name)
 - [Delete report by ID](#delete-report-by-id)
 - [Delete reports](#delete-reports)
 - [Run live report](#run-live-report)
@@ -13792,28 +13830,6 @@ Only one of  `labels_include_any` or `labels_include_all` can be specified. If n
   }
 }
 ```
-
-### Delete report by name
-
-Deletes the report specified by name.
-
-`DELETE /api/v1/fleet/reports/name/:name`
-
-#### Parameters
-
-| Name | Type       | In   | Description                          |
-| ---- | ---------- | ---- | ------------------------------------ |
-| name | string     | path | **Required.** The name of the report. |
-| fleet_id | integer | body | _Available in Fleet Premium_. The ID of the report's fleet. If omitted, Fleet will search among only global reports. |
-
-#### Example
-
-`DELETE /api/v1/fleet/reports/name/foo`
-
-##### Default response
-
-`Status: 200`
-
 
 ### Delete report by ID
 
