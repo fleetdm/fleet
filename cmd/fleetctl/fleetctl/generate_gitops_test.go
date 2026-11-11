@@ -1869,6 +1869,36 @@ func TestGenerateOrgSettingsMaskedGoogleWorkspaceApiKey(t *testing.T) {
 	require.True(t, foundWarning, "expected SecretWarning for integrations.google_workspace.api_key_json")
 }
 
+func TestGenerateOrgSettingsOmitsLinear(t *testing.T) {
+	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+
+	appConfig.Integrations.Linear = []*fleet.LinearIntegration{
+		{APIKey: "secret-key", TeamID: "team-1"},
+	}
+
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(&cli.App{}, nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+	}
+
+	orgSettingsRaw, err := cmd.generateOrgSettings()
+	require.NoError(t, err)
+
+	b, err := yamlMarshalRenamed(orgSettingsRaw)
+	require.NoError(t, err)
+	require.NotContains(t, string(b), "secret-key")
+
+	var orgSettings map[string]any
+	require.NoError(t, yaml.Unmarshal(b, &orgSettings))
+	integrations := orgSettings["integrations"].(map[string]any)
+	require.NotContains(t, integrations, "linear")
+}
+
 func TestGeneratedOrgSettingsNoSSO(t *testing.T) {
 	// Get the test app config.
 	fleetClient := &MockClient{}

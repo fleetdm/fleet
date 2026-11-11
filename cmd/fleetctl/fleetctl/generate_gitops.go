@@ -1028,6 +1028,10 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 		if !cmd.AppConfig.License.IsPremium() {
 			delete(result, "google_workspace")
 		}
+
+		// Linear destinations are not exported. Reapplying a file
+		// that holds them can overwrite destinations added in the UI.
+		delete(result, "linear")
 	} else {
 		result = result["team_integrations"].(map[string]interface{})
 
