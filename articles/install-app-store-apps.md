@@ -106,7 +106,21 @@ The Microsoft Store doesn't share version numbers for most apps, so Fleet shows 
 
 How an app is updated depends on how it's packaged:
 
-- **MSIX apps** (most apps built for the Microsoft Store) are updated by the Microsoft Store automatically. To make sure automatic updates stay on, deploy a [Windows configuration profile](https://fleetdm.com/guides/custom-os-settings) that sets the [ApplicationManagement/AllowAppStoreAutoUpdate](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-applicationmanagement#allowappstoreautoupdate) policy to `1`.
+- **MSIX apps** (most apps built for the Microsoft Store) are updated by the Microsoft Store automatically. To make sure automatic updates stay on, deploy a [Windows configuration profile](https://fleetdm.com/guides/custom-os-settings) that sets the [ApplicationManagement/AllowAppStoreAutoUpdate](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-applicationmanagement#allowappstoreautoupdate) policy to `1`. Save the profile below as an `.xml` file and add it in Fleet:
+
+  ```xml
+  <Replace>
+    <Item>
+      <Meta>
+        <Format xmlns="syncml:metinf">int</Format>
+      </Meta>
+      <Target>
+        <LocURI>./Device/Vendor/MSFT/Policy/Config/ApplicationManagement/AllowAppStoreAutoUpdate</LocURI>
+      </Target>
+      <Data>1</Data>
+    </Item>
+  </Replace>
+  ```
 - **Apps with their own installer** (MSI or EXE) aren't updated by the Microsoft Store. They update with the app's own updater, or when you select **Reinstall** in Fleet. Reinstall installs the version listed in the Microsoft Store, which can be older than the version the app already updated itself to.
 
 To check how an app is packaged, run `winget show --id <app ID> --source msstore` on a Windows host. MSIX apps show `msstore` as the installer type.
