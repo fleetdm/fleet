@@ -1192,7 +1192,7 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'npm_packages' AS source,
   '' AS vendor,
   0 AS last_opened_at,
