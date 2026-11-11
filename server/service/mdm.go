@@ -2908,6 +2908,16 @@ func (svc *Service) BatchSetMDMProfiles(
 		}
 	}
 
+	// Also checked before the dry run drops profiles with secrets, so a dry run reports a removed Fleet variable like a real run.
+	for _, p := range profiles {
+		if !isMobileconfigContents(p.Contents) && mdm.GetRawProfilePlatform(p.Contents) != "android" {
+			continue
+		}
+		if err := fleet.FindRemovedFleetVariable(variables.Find(string(p.Contents))...); err != nil {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", p.Name), err.Error()))
+		}
+	}
+
 	// We will not validate the profiles containing secret variables during dry run.
 	// This is because the secret variables may not be available (or correct) in the gitops dry run.
 	if dryRun {

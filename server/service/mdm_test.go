@@ -2381,6 +2381,20 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			false,
 		},
 		{
+			"dry run of profiles with a removed Fleet variable and a secret",
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			true,
+			nil,
+			nil,
+			[]fleet.MDMProfileBatchPayload{
+				{Name: "N1", Contents: androidConfigProfileForTest(t, "A1 $FLEET_SECRET_X $FLEET_VAR_HOST_END_USER_EMAIL_IDP", nil).RawJSON},
+				{Name: "N2", Contents: []byte(strings.ReplaceAll(string(mobileconfigForTest("N2", "I2", "HOST_END_USER_EMAIL_IDP")),
+					"$FLEET_VAR_HOST_END_USER_EMAIL_IDP", "$FLEET_SECRET_X ${FLEET_VAR_HOST_END_USER_EMAIL_IDP}"))},
+			},
+			`The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore.`,
+			true,
+		},
+		{
 			"Android profile with a removed Fleet variable",
 			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
 			true,
