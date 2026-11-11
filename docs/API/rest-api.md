@@ -3664,7 +3664,7 @@ If `munki_issue_id` is specified, an additional top-level key `munki_issue` is r
 
 If `after` is being used with `created_at` or `updated_at`, the table must be specified in `order_key`. Those columns become `h.created_at` and `h.updated_at`.
 
-If `order_key` is `os_version`, hosts are sorted by operating system name, then version.
+If `order_key` is `os_version`, hosts are sorted by operating system name, then version, and `after` takes both together (for example, `macOS 15.2`), not the `os_version` value alone.
 
 For Arch Linux ARM, CachyOS, and Omarchy hosts, `os_name` and `os_version` are the distribution's own name and version (for example, `Omarchy` and `4.0.0`). [List operating systems](#list-operating-systems) groups these hosts under `Arch Linux` and `rolling`. Filtering by either pair returns the host.
 
