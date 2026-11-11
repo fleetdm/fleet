@@ -36,3 +36,28 @@ func TestAgentNamesReceiver(t *testing.T) {
 	require.NoError(t, r.Run(&fleet.OrbitConfig{}))
 	require.Equal(t, 3, calls)
 }
+
+func TestUndoAgentNames(t *testing.T) {
+	t.Cleanup(func() { agentNamesUndone = false })
+	var applied, restored int
+	r := &AgentNamesReceiver{
+		serverCapabilities: func() fleet.CapabilityMap {
+			return fleet.CapabilityMap{fleet.CapabilityFleetAgentNames: struct{}{}}
+		},
+		apply: func() error {
+			applied++
+			return errors.New("apply failed")
+		},
+	}
+	require.NoError(t, r.Run(&fleet.OrbitConfig{}))
+	require.Equal(t, 1, applied)
+
+	// Once a downgrade restored the installer's name, a receiver that is still retrying doesn't rename it back.
+	undoAgentNames(func() error {
+		restored++
+		return nil
+	})
+	require.Equal(t, 1, restored)
+	require.NoError(t, r.Run(&fleet.OrbitConfig{}))
+	require.Equal(t, 1, applied)
+}

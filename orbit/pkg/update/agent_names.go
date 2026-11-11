@@ -14,10 +14,15 @@ type AgentNamesReceiver struct {
 	serverCapabilities func() fleet.CapabilityMap
 	apply              func() error
 
-	mu     sync.Mutex
 	done   bool
 	failed bool
 }
+
+// agentNamesMu serializes the receiver's renames with undoAgentNames, after which this orbit run doesn't rename again.
+var (
+	agentNamesMu     sync.Mutex
+	agentNamesUndone bool
+)
 
 func NewAgentNamesReceiver(serverCapabilities func() fleet.CapabilityMap) *AgentNamesReceiver {
 	return &AgentNamesReceiver{serverCapabilities: serverCapabilities, apply: applyAgentDisplayNames}
@@ -28,9 +33,9 @@ func (r *AgentNamesReceiver) Run(*fleet.OrbitConfig) error {
 	if !r.serverCapabilities().Has(fleet.CapabilityFleetAgentNames) {
 		return nil
 	}
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if r.done {
+	agentNamesMu.Lock()
+	defer agentNamesMu.Unlock()
+	if r.done || agentNamesUndone {
 		return nil
 	}
 	if err := r.apply(); err != nil {
@@ -45,4 +50,15 @@ func (r *AgentNamesReceiver) Run(*fleet.OrbitConfig) error {
 	}
 	r.done = true
 	return nil
+}
+
+// undoAgentNames runs before a downgrade and restores the installer's name: an older fleetd finds its Windows Installed apps
+// entry only by that name, and without it doesn't restart into its next update. A version that renames does so again.
+func undoAgentNames(restore func() error) {
+	agentNamesMu.Lock()
+	defer agentNamesMu.Unlock()
+	agentNamesUndone = true
+	if err := restore(); err != nil {
+		log.Error().Err(err).Msg("restore the agent's installer name before the downgrade")
+	}
 }

@@ -55,16 +55,21 @@ func renameUninstallFleetdRegistryEntry(name string) error {
 		return fmt.Errorf(`couldn't open key handle for '%v\%v': %w`, HKEY_LOCAL_MACHINE_PATH, uninstallFleetdRegRelPath, err)
 	}
 	defer key.Close()
-	if publisher, _, _ := key.GetStringValue("Publisher"); publisher != fleetdPublisher {
-		return fmt.Errorf(`not renaming '%v\%v': publisher is %q`, HKEY_LOCAL_MACHINE_PATH, uninstallFleetdRegRelPath, publisher)
-	}
 	if current, _, err := key.GetStringValue("DisplayName"); err == nil && current == name {
 		return nil
+	}
+	if publisher, _, _ := key.GetStringValue("Publisher"); publisher != fleetdPublisher {
+		return fmt.Errorf(`not renaming '%v\%v': publisher is %q`, HKEY_LOCAL_MACHINE_PATH, uninstallFleetdRegRelPath, publisher)
 	}
 	if err := key.SetStringValue("DisplayName", name); err != nil {
 		return fmt.Errorf(`couldn't set value 'DisplayName' for '%v\%v': %w`, HKEY_LOCAL_MACHINE_PATH, uninstallFleetdRegRelPath, err)
 	}
 	return nil
+}
+
+// restoreUninstallFleetdRegistryName gives fleetd's Installed apps entry back the installer's name.
+func restoreUninstallFleetdRegistryName() error {
+	return renameUninstallFleetdRegistryEntry(fleetdInstallerName)
 }
 
 func findUninstallFleetdRegKeyRelPath() (string, error) {
