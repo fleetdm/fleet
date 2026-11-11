@@ -1,8 +1,8 @@
-# Use your own AI provider
+# Use a custom AI provider
 
-By default, Fleet's [AI profile builder](https://fleetdm.com/guides/custom-os-settings) uses Fleet's built-in AI. If your organization requires an approved AI provider, you can connect your own Anthropic or OpenAI account instead.
+By default, Fleet's [AI profile builder](https://fleetdm.com/guides/custom-os-settings) uses Fleet's built-in AI. If your organization requires an approved AI provider, you can connect a custom AI provider, Anthropic or OpenAI, instead.
 
-When a provider is configured, Fleet only uses that provider. If the provider is unavailable, profile generation fails with an error. Fleet doesn't fall back to its built-in AI.
+When a custom AI provider is configured, Fleet only uses that provider. If the provider is unavailable, profile generation fails with an error. Fleet doesn't fall back to its built-in AI.
 
 ## Get an API key
 
@@ -58,7 +58,7 @@ Creating service account keys requires the organization owner or project owner r
 
 If your account doesn't have billing set up, OpenAI might not let you create or use a key. Check **Billing** in the OpenAI Platform.
 
-## Connect your provider
+## Connect a custom AI provider
 
 1. In Fleet, go to **Settings** > **Organization settings** > **AI and MCP**.
 
@@ -111,11 +111,11 @@ If profile generation fails, Fleet shows an error explaining why:
 - **Model wasn't found**: The provider may have retired the model. Update the model ID in Fleet.
 - **Couldn't connect** or **rate limiting requests**: The provider is temporarily unavailable. Try again later.
 
-Only global admins can change AI provider settings. If you're a maintainer, contact your Fleet administrator.
+Only global admins can change custom AI provider settings. If you're a maintainer, contact your Fleet administrator.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="melpike">
 <meta name="authorFullName" value="Mel Pike">
 <meta name="publishedOn" value="2026-11-11">
 <meta name="articleTitle" value="Use your own AI provider">
-<meta name="description" value="Learn how to connect Anthropic or OpenAI to Fleet's AI profile builder.">
+<meta name="description" value="Learn how to connect a custom AI provider, Anthropic or OpenAI, to Fleet's AI profile builder.">
