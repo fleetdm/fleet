@@ -954,7 +954,8 @@ func TestI1ProfilerScriptsForceQuitWhenQuitIsRefused(t *testing.T) {
 	require.NotEmpty(t, helpers.FindString(install))
 	require.Equal(t, helpers.FindString(install), helpers.FindString(uninstall))
 
-	// Everything after the quit call removes files, so it's replaced with a marker.
+	// Everything after the quit call removes services and files, so it's
+	// replaced with a marker.
 	quitCall := "\nquit_application 'com.x-rite.i1Profiler' || force_quit_i1profiler || exit 1\n"
 	i := strings.Index(uninstall, quitCall)
 	require.Positive(t, i)
@@ -1080,6 +1081,7 @@ kill() {
 	t.Run("uninstall", func(t *testing.T) {
 		out, _, _, err := run(t, uninstall, "101 unkillable "+exe, tray)
 		requireExit1(t, err, out)
+		require.NotContains(t, out, "Removing launchctl service")
 		require.NotContains(t, out, "Removing i1Profiler.")
 
 		out, signals, opens, err := run(t, uninstall, "101 exits "+exe, tray)

@@ -344,9 +344,9 @@ force_quit_i1profiler() {
   echo "i1Profiler quit."
 }
 
+quit_application 'com.x-rite.i1Profiler' || force_quit_i1profiler || exit 1
 remove_launchctl_service 'com.aladdin.aksusbd'
 remove_launchctl_service 'com.aladdin.hasplmd'
-quit_application 'com.x-rite.i1Profiler' || force_quit_i1profiler || exit 1
 remove_pkg_files 'com.xrite.hasp.installer.*'
 forget_pkg 'com.xrite.hasp.installer.*'
 remove_pkg_files 'com.xrite.i1profiler.*'
