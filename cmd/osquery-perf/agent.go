@@ -1117,6 +1117,9 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		if initialConfigErr == nil {
 			lastFetch = time.Now()
 		}
+		// jitter randomizes each fallback poll interval by ±50%, as orbit
+		// does (see wstransport.jitterFallbackInterval).
+		jitter := 0.5 + rand.Float64() //nolint:gosec // jitter does not need cryptographic randomness
 		for {
 			fallback := false
 			select {
@@ -1124,7 +1127,7 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 				// With orbit serving the config over a connected WebSocket,
 				// ticks are only the fallback poll.
 				if poll := a.osqueryConfigFallbackInterval(); poll > 0 {
-					if time.Since(lastFetch) < poll {
+					if time.Since(lastFetch) < max(a.ConfigInterval, time.Duration(float64(poll)*jitter)) {
 						continue
 					}
 					fallback = true
@@ -1136,6 +1139,7 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 			} else {
 				lastFetch = time.Now()
 			}
+			jitter = 0.5 + rand.Float64() //nolint:gosec // jitter does not need cryptographic randomness
 		}
 	}()
 

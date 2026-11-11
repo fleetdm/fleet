@@ -41,6 +41,12 @@ const DefaultOsqueryConfigPollInterval = 10 * time.Minute
 // restart disconnects every agent at once.
 const disconnectSpread = 30 * time.Second
 
+// fallbackJitter is the fraction by which each fallback poll interval is
+// randomized either way. Without it, agents that fetched together (after a
+// server restart or a global nudge) keep polling together; ±50% spreads them
+// over the whole interval by their next poll, keeping the mean interval.
+const fallbackJitter = 0.5
+
 // configUnchangedETag is the etag of the server's response to a current etag,
 // {"etag":"ok"}.
 const configUnchangedETag = "ok"
@@ -58,6 +64,8 @@ type ConfigFetcher struct {
 	client    configClient
 	connected func() bool
 	now       func() time.Time
+	// jitter randomizes a fallback poll interval.
+	jitter func(time.Duration) time.Duration
 	// fetched is notified after each fetch attempt, once the fetcher's state
 	// reflects it, for tests.
 	fetched func()
@@ -96,6 +104,7 @@ func NewConfigFetcher(client configClient, connected func() bool, serverRefresh 
 		client:        client,
 		connected:     connected,
 		now:           time.Now,
+		jitter:        jitterFallbackInterval,
 		serverRefresh: serverRefresh,
 		pollInterval:  DefaultOsqueryConfigPollInterval,
 	}
@@ -294,7 +303,7 @@ func (f *ConfigFetcher) scheduleNextLocked(ok bool) {
 	interval := f.serverRefresh
 	f.nextIsFallback = ok && f.connected()
 	if f.nextIsFallback {
-		interval = f.fallbackIntervalLocked()
+		interval = max(f.serverRefresh, f.jitter(f.fallbackIntervalLocked()))
 	}
 	f.nextFetch = f.now().Add(interval)
 }
@@ -304,6 +313,11 @@ func (f *ConfigFetcher) scheduleNextLocked(ok bool) {
 // server load. f.mu must be held.
 func (f *ConfigFetcher) fallbackIntervalLocked() time.Duration {
 	return max(f.serverRefresh, f.pollInterval)
+}
+
+// jitterFallbackInterval returns d randomized by ±fallbackJitter.
+func jitterFallbackInterval(d time.Duration) time.Duration {
+	return time.Duration(float64(d) * (1 - fallbackJitter + 2*fallbackJitter*rand.Float64())) //nolint:gosec // jitter does not need cryptographic randomness
 }
 
 // prepareConfig turns the server's config response into the config handed to

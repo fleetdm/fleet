@@ -67,6 +67,7 @@ func newFetcherTest(t *testing.T, client *fakeConfigClient) *fetcherTest {
 		defer ft.nowMu.Unlock()
 		return ft.now
 	}
+	ft.f.jitter = func(d time.Duration) time.Duration { return d }
 	ft.f.fetched = func() { ft.fetched <- struct{}{} }
 	return ft
 }
@@ -463,4 +464,50 @@ func TestConfigFetcherDueFetchDoesNotQueue(t *testing.T) {
 	ft.waitFetch(t)
 	ft.noFetch(t)
 	assert.Len(t, client.getCalls(), 2)
+}
+
+func TestJitterFallbackInterval(t *testing.T) {
+	const d = 10 * time.Minute
+	lo, hi := d, time.Duration(0)
+	for range 1000 {
+		j := jitterFallbackInterval(d)
+		require.GreaterOrEqual(t, j, d/2)
+		require.Less(t, j, d*3/2)
+		lo, hi = min(lo, j), max(hi, j)
+	}
+	// Spread over most of the range, not stuck near d.
+	assert.Less(t, lo, d*3/5)
+	assert.Greater(t, hi, d*7/5)
+}
+
+func TestConfigFetcherFallbackPollJitter(t *testing.T) {
+	client := &fakeConfigClient{responses: []string{`{"etag":"v1","options":{}}`, `{"etag":"ok"}`}}
+	ft := newFetcherTest(t, client)
+	ft.connected.Store(true)
+	ft.f.SetPollInterval(10 * time.Minute)
+	ft.f.jitter = func(d time.Duration) time.Duration { return d - 3*time.Minute }
+
+	ft.genConfig(t)
+	ft.waitFetch(t)
+
+	ft.advance(7*time.Minute - time.Second)
+	ft.genConfig(t)
+	ft.noFetch(t)
+	ft.advance(time.Second)
+	ft.genConfig(t)
+	ft.waitFetch(t)
+	assert.Len(t, client.getCalls(), 2)
+
+	// Never shorter than the disconnected interval.
+	ft.f.jitter = func(time.Duration) time.Duration { return time.Second }
+	ft.advance(7 * time.Minute)
+	ft.genConfig(t)
+	ft.waitFetch(t)
+	ft.advance(DefaultServerConfigRefresh - time.Second)
+	ft.genConfig(t)
+	ft.noFetch(t)
+	ft.advance(time.Second)
+	ft.genConfig(t)
+	ft.waitFetch(t)
+	assert.Len(t, client.getCalls(), 4)
 }
