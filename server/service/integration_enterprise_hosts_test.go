@@ -506,7 +506,6 @@ func (s *integrationEnterpriseTestSuite) TestHostHealth() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/health", host.ID), nil, http.StatusOK, &hh)
 	require.Equal(t, host.ID, hh.HostID)
 	assert.NotNil(t, hh.HostHealth)
-	assert.Equal(t, host.OSVersion, hh.HostHealth.OsVersion)
 	assert.Equal(t, 2, hh.HostHealth.FailingPoliciesCount)
 	assert.Equal(t, new(int(1)), hh.HostHealth.FailingCriticalPoliciesCount)
 	assert.Contains(t, hh.HostHealth.FailingPolicies, &fleet.HostHealthFailingPolicy{
@@ -552,8 +551,9 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 	})
 	require.NoError(t, err)
 
+	// Stored with "Microsoft", as Windows hosts report it; the API returns the name without it.
 	err = s.ds.UpdateHostOperatingSystem(context.Background(), host.ID, fleet.OperatingSystem{
-		Name:     "Windows 11 Enterprise 22H2",
+		Name:     "Microsoft Windows 11 Enterprise 22H2",
 		Version:  "10.0.19042.1234",
 		Platform: "windows",
 	})

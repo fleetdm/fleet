@@ -17,10 +17,7 @@ import {
   IMdmProfile,
   MdmEnrollmentFilterValue,
 } from "interfaces/mdm";
-import {
-  formatOperatingSystemDisplayName,
-  IOperatingSystemVersion,
-} from "interfaces/operating_system";
+import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { IPolicy } from "interfaces/policy";
 import {
   formatSoftwareVersion,
@@ -275,18 +272,28 @@ const HostsFilterBlock = ({
       );
     }
 
-    if (!os) return null;
+    // Some name and version filters match hosts but no OS version entry:
+    // Arch-based distros the OS inventory groups under "Arch Linux", and saved
+    // links with a Windows name that starts with "Microsoft". Label from the URL.
+    const fallback =
+      osName && osVersion
+        ? {
+            name: `${osName} ${osVersion}`,
+            name_only: osName,
+            version: osVersion,
+          }
+        : undefined;
+    const match = os ?? fallback;
+    if (!match) return null;
 
-    const { name, name_only, version } = os;
-    // TODO: Move formatOperatingSystemDisplayName into utils file
-    const label = formatOperatingSystemDisplayName(
+    const { name, name_only, version } = match;
+    const label =
       name_only || version
         ? `${name_only || ""} ${version || ""}`
-        : `${name || ""}`
-    );
+        : `${name || ""}`;
     const TooltipDescription = (
       <span>
-        Hosts with {formatOperatingSystemDisplayName(name_only || name)},
+        Hosts with {name_only || name},
         <br />
         {version && `${version} installed`}
       </span>
