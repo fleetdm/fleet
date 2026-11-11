@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "1.43.5.11079",
+      "version": "1.43.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.plexapp.plexmediaserver';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.plexapp.plexmediaserver' AND version_compare(bundle_version, '1.43.5.11079') < 0);",

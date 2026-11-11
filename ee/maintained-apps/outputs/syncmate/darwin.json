@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "8.11.604",
+      "version": "8.11",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.eltima.SyncMate';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.eltima.SyncMate' AND version_compare(bundle_version, '8.11.604') < 0);",

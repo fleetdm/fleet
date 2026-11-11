@@ -812,6 +812,54 @@ func TestWeChatPatchedQueryBuild(t *testing.T) {
 	}
 }
 
+// TestBundleVersionPatchedQueryUsesCaskVersion verifies that the bundle_version
+// patched query keeps the full cask version when a shortener cuts the manifest
+// version down to bundle_short_version.
+func TestBundleVersionPatchedQueryUsesCaskVersion(t *testing.T) {
+	cases := []struct {
+		token       string
+		bundleID    string
+		caskVersion string
+		wantVersion string
+		wantPatched string
+	}{
+		{"sigmaos", "com.sigmaos.sigmaos.macos", "1.19.0.4", "1.19.0", "1.19.0.4"},
+		{"malwarebytes", "com.malwarebytes.mbam.frontend.application", "5.29.2.4310", "5.29.2", "5.29.2.4310"},
+		{"plex-media-server", "com.plexapp.plexmediaserver", "1.43.5.11079,b3b13e506", "1.43.5", "1.43.5.11079"},
+		{"axure-rp", "com.axure.AxureRP11", "11.0.0.4150", "11.0.0.4150", "11.0.0.4150"},
+	}
+	tempDir := t.TempDir()
+	i := &brewIngester{logger: slog.New(slog.DiscardHandler)}
+	for _, c := range cases {
+		t.Run(c.token, func(t *testing.T) {
+			caskJSON, err := json.Marshal(brewCask{
+				Token:   c.token,
+				Name:    []string{c.token},
+				URL:     "https://example.com/app.dmg",
+				Version: c.caskVersion,
+			})
+			require.NoError(t, err)
+			caskPath := path.Join(tempDir, c.token+".json")
+			require.NoError(t, os.WriteFile(caskPath, caskJSON, 0o644))
+
+			out, err := i.ingestOne(t.Context(), inputApp{
+				Token:            c.token,
+				Slug:             c.token + "/darwin",
+				UniqueIdentifier: c.bundleID,
+				InstallerFormat:  "dmg",
+				Name:             c.token,
+				CaskPath:         caskPath,
+			})
+			require.NoError(t, err)
+			require.Equal(t, c.wantVersion, out.Version)
+			require.Equal(t, fmt.Sprintf(
+				"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
+				c.bundleID, c.wantPatched,
+			), out.Queries.Patched)
+		})
+	}
+}
+
 // TestFirefoxDevEditionBuildhubFallback verifies that a buildhub failure falls
 // back to a base-version patch comparison instead of failing ingestion.
 func TestFirefoxDevEditionBuildhubFallback(t *testing.T) {
