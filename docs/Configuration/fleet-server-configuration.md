@@ -4159,24 +4159,6 @@ When you turn this setting off, Fleet removes the "Fleetd enroll secret" profile
     windows_one_time_enroll_secrets: true
   ```
 
-### mdm.android_one_time_enroll_secrets
-
-When enabled, Fleet delivers a one-time enroll secret for each Android host to the Fleet Android agent, in the agent's managed configuration, instead of the fleet's enroll secret. The secret is bound to the host and can be used once.
-
-- Recovery: after the agent uses its secret, the next managed configuration Fleet sends the host carries a new one. If the agent has to enroll again before that, for example because its node key was deleted, Fleet refuses it and sends the host a new secret. The agent picks the new secret up the next time the app starts.
-- Deleted hosts: a deleted Android host comes back when the device next reports to Fleet, and Fleet then sends the agent a new secret.
-- Shared enroll secrets: Fleet doesn't let a global or fleet-level enroll secret enroll as an existing Android host, or with the ID of an Android device Fleet manages, including a device whose host was deleted. Refused attempts are recorded as `host_enrollment_rejected` activities.
-
-When you turn this setting off, Fleet stops accepting the one-time enroll secrets it delivered, and sends the fleet's enroll secret the next time it updates a host's agent configuration (when the host's apps or certificates change). Until then, an Android host whose agent has to enroll again, for example because its node key was deleted, can't enroll.
-
-- Default value: `false`
-- Environment variable: `FLEET_MDM_ANDROID_ONE_TIME_ENROLL_SECRETS`
-- Config file format:
-  ```yaml
-  mdm:
-    android_one_time_enroll_secrets: true
-  ```
-
 ### mdm.apple_one_time_enroll_secrets
 
 When enabled, Fleet delivers a one-time, device-scoped enroll secret to each macOS host enrolled in Fleet MDM instead of a global or fleet-level enroll secret. The secret is embedded in the "Fleetd configuration" profile and is bound to the host's hardware UUID and serial number. Orbit and osquery can each use it once.
