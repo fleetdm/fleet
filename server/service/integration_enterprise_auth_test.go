@@ -238,7 +238,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotEscalateViaEmptyGlob
 	s.token = s.getTestToken(planted.Email, test.GoodPassword)
 
 	var labelsResp fleet.ListLabelsResponse
-	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusForbidden, &labelsResp, "team_id", fmt.Sprint(otherTeam.ID))
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusForbidden, &labelsResp, "fleet_id", fmt.Sprint(otherTeam.ID))
 	labelsResp = fleet.ListLabelsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &labelsResp)
 	for _, lbl := range labelsResp.Labels {
@@ -1098,6 +1098,75 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserEndpointMiddleware() {
 		s.Do("GET", "/api/latest/fleet/version", nil, http.StatusOK)
 		s.Do("GET", "/api/latest/fleet/config", nil, http.StatusOK)
 		s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusOK)
+	})
+}
+
+func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserDeleteReportGrants() {
+	t := s.T()
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	const (
+		byID         = "/api/v1/fleet/reports/:id"
+		deprecatedID = "/api/v1/fleet/reports/id/:id"
+	)
+
+	createAPIOnlyMaintainer := func(name string, paths ...string) string {
+		s.token = s.getTestAdminToken()
+		eps := make([]map[string]any, 0, len(paths))
+		for _, p := range paths {
+			eps = append(eps, map[string]any{"method": "DELETE", "path": p})
+		}
+		var resp struct {
+			Token string `json:"token"`
+		}
+		s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
+			"name":          name,
+			"global_role":   fleet.RoleMaintainer,
+			"api_endpoints": eps,
+		}, http.StatusOK, &resp)
+		require.NotEmpty(t, resp.Token)
+		return resp.Token
+	}
+	var reportCount int
+	createReport := func() *fleet.Query {
+		prev := s.token
+		s.token = s.getTestAdminToken()
+		defer func() { s.token = prev }()
+		reportCount++
+		name := fmt.Sprintf("api-only delete report grants %d", reportCount)
+		var resp fleet.CreateQueryResponse
+		s.DoJSON("POST", "/api/latest/fleet/reports", &fleet.QueryPayload{Name: new(name), Query: new("select 1")}, http.StatusOK, &resp)
+		return resp.Query
+	}
+	requireDenied := func(path string) {
+		res := s.Do("DELETE", path, nil, http.StatusForbidden)
+		body, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		require.Contains(t, string(body), auth.EndpointRestrictionDeniedMessage)
+	}
+	byIDURL := func(r *fleet.Query) string { return fmt.Sprintf("/api/latest/fleet/reports/%d", r.ID) }
+	deprecatedIDURL := func(r *fleet.Query) string { return fmt.Sprintf("/api/latest/fleet/reports/id/%d", r.ID) }
+
+	t.Run("by-ID grant", func(t *testing.T) {
+		s.token = createAPIOnlyMaintainer("api-only-delete-report-by-id", byID)
+		r := createReport()
+		requireDenied(deprecatedIDURL(r))
+		s.Do("DELETE", byIDURL(r), nil, http.StatusOK)
+	})
+
+	t.Run("deprecated by-ID grant", func(t *testing.T) {
+		s.token = createAPIOnlyMaintainer("api-only-delete-report-deprecated-id", deprecatedID)
+		r := createReport()
+		requireDenied(byIDURL(r))
+		s.Do("DELETE", deprecatedIDURL(r), nil, http.StatusOK)
+	})
+
+	t.Run("both by-ID grants", func(t *testing.T) {
+		s.token = createAPIOnlyMaintainer("api-only-delete-report-both", byID, deprecatedID)
+		for _, del := range []func(*fleet.Query) string{byIDURL, deprecatedIDURL} {
+			r := createReport()
+			s.Do("DELETE", del(r), nil, http.StatusOK)
+		}
 	})
 }
 

@@ -381,6 +381,9 @@ type Datastore interface {
 	// HostIDsByIdentifier retrieves the IDs associated with the given hostnames, UUIDs, hardware serials, node keys or osquery host IDs.
 	// Empty and whitespace-only identifiers are ignored.
 	HostIDsByIdentifier(ctx context.Context, filter TeamFilter, hostnames []string) ([]uint, error)
+	// HostIDsByLabelIdentifier retrieves the IDs of hosts matching a manual label's host identifiers: UUIDs or hardware serials.
+	// Empty and whitespace-only identifiers are ignored.
+	HostIDsByLabelIdentifier(ctx context.Context, filter TeamFilter, hostIdentifiers []string) ([]uint, error)
 
 	// HostIDsByOSID retrieves the IDs of all host for the given OS ID
 	HostIDsByOSID(ctx context.Context, osID uint, offset int, limit int) ([]uint, error)
@@ -1402,7 +1405,7 @@ type Datastore interface {
 	// slice, updating existing entries and inserting new entries.
 	// Returns a struct with the current installed software on the host (pre-mutations) plus all
 	// mutations performed: what was inserted and what was removed.
-	UpdateHostSoftware(ctx context.Context, hostID uint, software []Software) (*UpdateHostSoftwareDBResult, error)
+	UpdateHostSoftware(ctx context.Context, hostID uint, software []Software, opts ...UpdateHostSoftwareOption) (*UpdateHostSoftwareDBResult, error)
 
 	// MarkSoftwareAsAITool flags the stored software rows matching the given software (by
 	// checksum) as AI tools. It never clears the flag.
@@ -1794,10 +1797,6 @@ type Datastore interface {
 	// this is mainly aimed to internal usage within the Fleet server.
 	BulkUpsertMDMAppleConfigProfiles(ctx context.Context, payload []*MDMAppleConfigProfile) error
 
-	// GetMDMAppleConfigProfileByDeprecatedID returns the mdm config profile
-	// corresponding to the specified numeric profile id. This is deprecated and
-	// should not be used for new endpoints.
-	GetMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) (*MDMAppleConfigProfile, error)
 	// GetMDMAppleConfigProfile returns the mdm config profile corresponding to the specified
 	// profile uuid.
 	GetMDMAppleConfigProfile(ctx context.Context, profileUUID string) (*MDMAppleConfigProfile, error)
@@ -1813,10 +1812,6 @@ type Datastore interface {
 	// For global config profiles, specify nil as the team id.
 	ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*MDMAppleConfigProfile, error)
 
-	// DeleteMDMAppleConfigProfileByDeprecatedID deletes the mdm config profile
-	// corresponding to the specified numeric profile id. This is deprecated and
-	// should not be used for new endpoints.
-	DeleteMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) error
 	// DeleteMDMAppleConfigProfile deletes the mdm config profile corresponding
 	// to the specified profile uuid.
 	DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID string) error
@@ -1880,10 +1875,6 @@ type Datastore interface {
 	// only if the command corresponds to a VPP software (un)install for the specified host (else error notFound)
 	GetVPPCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)
 
-	// ListMDMAppleCommands returns a list of MDM Apple commands that have been
-	// executed, based on the provided options.
-	ListMDMAppleCommands(ctx context.Context, tmFilter TeamFilter, listOpts *MDMCommandListOptions) ([]*MDMAppleCommand, error)
-
 	// NewMDMAppleInstaller creates and stores an Apple installer to Fleet.
 	NewMDMAppleInstaller(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*MDMAppleInstaller, error)
 
@@ -1903,10 +1894,6 @@ type Datastore interface {
 
 	// ListMDMAppleInstallers list all the uploaded installers.
 	ListMDMAppleInstallers(ctx context.Context) ([]MDMAppleInstaller, error)
-
-	// BatchSetMDMAppleProfiles sets the MDM Apple profiles for the given team or
-	// no team.
-	BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, profiles []*MDMAppleConfigProfile) error
 
 	// MDMAppleListDevices lists all the MDM enrolled devices.
 	MDMAppleListDevices(ctx context.Context) ([]MDMAppleDevice, error)
@@ -4772,7 +4759,7 @@ type AndroidDatastore interface {
 	// slice, updating existing entries and inserting new entries.
 	// Returns a struct with the current installed software on the host (pre-mutations) plus all
 	// mutations performed: what was inserted and what was removed.
-	UpdateHostSoftware(ctx context.Context, hostID uint, software []Software) (*UpdateHostSoftwareDBResult, error)
+	UpdateHostSoftware(ctx context.Context, hostID uint, software []Software, opts ...UpdateHostSoftwareOption) (*UpdateHostSoftwareDBResult, error)
 
 	// GetLatestAppleMDMCommandOfType retrieves the latest command of the given type for the host with the given UUID.
 	// If no such command exists, not found error is returned

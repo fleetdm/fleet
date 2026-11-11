@@ -102,7 +102,7 @@ const (
 	// v2) payload. It resolves to the FLEET_HOST_SECRET_ placeholder of the same
 	// name at profile-send time and is expanded to a per-host, Fleet-signed JWT
 	// at command-fetch time (so the token is never stored and never visible on
-	// the /mdm/commands endpoint).
+	// the /commands endpoint).
 	FleetVarPSSODeviceRegistrationToken FleetVarName = "PSSO_DEVICE_REGISTRATION_TOKEN" // nolint:gosec // G101: variable name, not a credential
 
 	// FleetVarSilentMigrationSCEPChallenge marks the SCEP challenge in the FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE
@@ -265,12 +265,8 @@ type ABMTokenTeam struct {
 	ID   uint   `json:"team_id" renameto:"fleet_id"`
 }
 
-type AppleCSR struct {
-	// NOTE: []byte automatically JSON-encodes as a base64-encoded string
-	APNsKey  []byte `json:"apns_key"`
-	SCEPCert []byte `json:"scep_cert"`
-	SCEPKey  []byte `json:"scep_key"`
-}
+// AppleCSR is the authorization subject of the Apple MDM setup endpoints.
+type AppleCSR struct{}
 
 func (a AppleCSR) AuthzType() string {
 	return "mdm_apple"
@@ -320,7 +316,7 @@ func (bp *MDMAppleBootstrapPackage) URL(host string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	pkgURL.Path = "/api/latest/fleet/mdm/bootstrap"
+	pkgURL.Path = "/api/latest/fleet/bootstrap"
 	pkgURL.RawQuery = fmt.Sprintf("token=%s", bp.Token)
 	return pkgURL.String(), nil
 }
@@ -606,7 +602,7 @@ type MDMCommandListOptions struct {
 	Filters MDMCommandFilters
 }
 
-// Pagination bounds for the list-MDM-commands endpoints (GET /api/v1/fleet/commands and GET /api/v1/fleet/mdm/commands).
+// Pagination bounds for the list-MDM-commands endpoint (GET /api/v1/fleet/commands).
 const (
 	// DefaultMDMCommandsPerPage is the per_page value used when none is specified on the request.
 	DefaultMDMCommandsPerPage uint = 10
@@ -1292,6 +1288,9 @@ const (
 
 	// MDMAssetVPPProxyBearerToken is the bearer token Fleet uses to communicate with the fleetdm.com VPP metadata proxy
 	MDMAssetVPPProxyBearerToken MDMAssetName = "vpp_proxy_bearer_token" //nolint:gosec // no, this is not a credential
+	// MDMAssetProfileGeneratorFleetServerSecret is the bearer token Fleet sends to the fleetdm.com configuration
+	// profile generator when it has no unexpired Premium license to send instead.
+	MDMAssetProfileGeneratorFleetServerSecret MDMAssetName = "profile_generator_fleet_server_secret" //nolint:gosec // no, this is not a credential
 	// MDMAssetPSSOSigningKey is the EC P-256 private key Fleet uses to sign Platform SSO responses
 	// and publishes via the PSSO JWKS endpoint for the Mac extension to verify.
 	MDMAssetPSSOSigningKey MDMAssetName = "psso_signing_key" //nolint:gosec // private key, not a credential string

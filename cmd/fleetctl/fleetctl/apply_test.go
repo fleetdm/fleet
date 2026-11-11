@@ -132,6 +132,23 @@ spec:
 	assert.Equal(t, "[+] applied user roles\n", runAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
 	require.Len(t, userRoleSpecList[1].Teams, 1)
 	assert.Equal(t, fleet.RoleMaintainer, userRoleSpecList[1].Teams[0].Role)
+
+	removedKeysFile, err := os.CreateTemp(os.TempDir(), "*.yml")
+	require.NoError(t, err)
+	defer os.Remove(removedKeysFile.Name())
+	_, err = removedKeysFile.WriteString(`
+apiVersion: v1
+kind: user_roles
+spec:
+  roles:
+    admin2@example.com:
+      global_role: null
+      teams:
+      - role: maintainer
+        team: team1
+`)
+	require.NoError(t, err)
+	runAppCheckErr(t, []string{"apply", "-f", removedKeysFile.Name()}, "is not available anymore")
 }
 
 // withDiskEncryptionDefaults fills in the explicit per-platform disk

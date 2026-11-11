@@ -2323,35 +2323,6 @@ func getBaseConfig(options map[string]string, optsToExclude []string) string {
 	return config
 }
 
-func TestSoftwarePackagesUnmarshalMulti(t *testing.T) {
-	t.Parallel()
-	config := getTeamConfig([]string{"software"})
-	config += `
-software:
-  packages:
-    - path: software/single-package.yml
-    - path: software/multiple-packages.yml
-`
-
-	path, basePath := createTempFile(t, "", config)
-
-	for _, f := range []string{"single-package.yml", "multiple-packages.yml"} {
-		err := file.Copy(
-			filepath.Join("testdata", "software", f),
-			filepath.Join(basePath, "software", f),
-			os.FileMode(0o755),
-		)
-		require.NoError(t, err)
-	}
-
-	appConfig := fleet.EnrichedAppConfig{}
-	appConfig.License = &fleet.LicenseInfo{
-		Tier: fleet.TierPremium,
-	}
-	_, err := GitOpsFromFile(path, basePath, &appConfig, nopLogf)
-	require.NoError(t, err)
-}
-
 func TestMultiPackageFieldPlacement(t *testing.T) {
 	t.Parallel()
 
@@ -2496,17 +2467,20 @@ func TestMultiPackageFieldPlacement(t *testing.T) {
 		assert.Equal(t, []string{"macOS"}, pkg.LabelsIncludeAll)
 	})
 
-	// A package file written as a single object is just a one-element list, so its
-	// per-package fields are preserved the same way.
-	t.Run("single object file keeps its per-package fields", func(t *testing.T) {
-		gitops, err := setup(t, "", fmt.Sprintf(`hash_sha256: %s
+	// Write one package as a bare object, parsing should fail with the Fleet 5 error naming the file.
+	t.Run("package file with one package not in a list fails with the Fleet 5 error", func(t *testing.T) {
+		_, err := setup(t, "", fmt.Sprintf(`hash_sha256: %s
 self_service: true
-labels_include_all: [macOS]
 `, hashA))
-		require.NoError(t, err)
-		require.Len(t, gitops.Software.Packages, 1)
-		assert.True(t, gitops.Software.Packages[0].SelfService)
-		assert.Equal(t, []string{"macOS"}, gitops.Software.Packages[0].LabelsIncludeAll)
+		expectedErr := `The single package format in "software/pkgs.yml" is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+		require.ErrorContains(t, err, expectedErr)
+	})
+
+	// Write a string as the whole package file, parsing should fail with the list type error.
+	t.Run("package file with a string at the top level fails with the type error", func(t *testing.T) {
+		_, err := setup(t, "", "just-a-string\n")
+		expectedErr := `Couldn't edit "software/pkgs.yml" at "software.packages", expected type []*fleet.SoftwarePackageSpec but got string`
+		require.ErrorContains(t, err, expectedErr)
 	})
 
 	// A hash-only package (no URL) is identified by its hash, not an empty string.
@@ -4570,26 +4544,6 @@ policies:
 		assert.Contains(t, err.Error(), "unknown_control_field")
 	})
 
-	t.Run("unknown key in software package via path", func(t *testing.T) {
-		t.Parallel()
-		config := getTeamConfig([]string{"software"})
-		config += `
-software:
-  packages:
-    - path: pkg.yml
-`
-		path, basePath := createTempFile(t, "", config)
-		pkgYAML := `
-url: https://example.com/pkg.pkg
-hash_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-unknown_pkg_field: bad
-`
-		require.NoError(t, os.WriteFile(filepath.Join(basePath, "pkg.yml"), []byte(pkgYAML), 0o644))
-		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "unknown_pkg_field")
-	})
-
 	t.Run("unknown key in software package array via path", func(t *testing.T) {
 		t.Parallel()
 		config := getTeamConfig([]string{"software"})
@@ -4780,9 +4734,9 @@ policies:
 `
 		path, basePath := createTempFile(t, "", config)
 		pkgYAML := `
-url: https://example.com/pkg.pkg
-hash_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-unknown_policy_pkg_field: bad
+- url: https://example.com/pkg.pkg
+  hash_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  unknown_policy_pkg_field: bad
 `
 		require.NoError(t, os.WriteFile(filepath.Join(basePath, "pkg.yml"), []byte(pkgYAML), 0o644))
 		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
@@ -5747,7 +5701,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
 		sha := "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-		content := fmt.Sprintf("hash_sha256: %s\nbad_field: oops\n", sha)
+		content := fmt.Sprintf("- hash_sha256: %s\n  bad_field: oops\n", sha)
 		path := filepath.Join(dir, "pkg.yml")
 		require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
 
@@ -5766,6 +5720,43 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		var unknownErr *ParseUnknownKeyError
 		require.ErrorAs(t, errs[0], &unknownErr)
 		assert.Equal(t, "bad_field", unknownErr.Field)
+	})
+
+	// Point package_path at a file with one package not in a list, the Fleet 5 error should
+	// name the file after the install_software.package_path key.
+	t.Run("package_path file with one package not in a list fails with the Fleet 5 error", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		sha := "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+		path := filepath.Join(dir, "pkg.yml")
+		require.NoError(t, os.WriteFile(path, []byte("hash_sha256: "+sha+"\n"), 0o644))
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{PackagePath: path}
+
+		policy := &Policy{Name: "bare policy", InstallSoftware: installSoftware}
+		packages := []*fleet.SoftwarePackageSpec{{SHA256: sha}}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, packages, nil, nil)
+		require.Len(t, errs, 1)
+		expectedErr := fmt.Sprintf(`install_software.package_path: The single package format in %q is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`, path)
+		assert.Equal(t, expectedErr, errs[0].Error())
+	})
+
+	// Point package_path at an empty file, parsing should fail with the not found error and an empty hash.
+	t.Run("empty package_path file fails with the not found error", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		path := filepath.Join(dir, "pkg.yml")
+		require.NoError(t, os.WriteFile(path, []byte(""), 0o644))
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{PackagePath: path}
+
+		policy := &Policy{Name: "empty policy", InstallSoftware: installSoftware}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, nil)
+		require.Len(t, errs, 1)
+		expectedErr := fmt.Sprintf(`failed to parse policy install_software "empty policy": install_software.package_path SHA256  not found on fleet: %s`, path)
+		assert.Equal(t, expectedErr, errs[0].Error())
 	})
 	t.Run("fleet_maintained_app_slug valid", func(t *testing.T) {
 		t.Parallel()
@@ -5952,7 +5943,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		bogusSHA := "dddd999999999999999999999999999999999999999999999999999999999999"
 		dir := t.TempDir()
 		shaOnlyPath := filepath.Join(dir, "sha.yml")
-		require.NoError(t, os.WriteFile(shaOnlyPath, []byte("hash_sha256: "+bogusSHA+"\n"), 0o644))
+		require.NoError(t, os.WriteFile(shaOnlyPath, []byte("- hash_sha256: "+bogusSHA+"\n"), 0o644))
 
 		cases := []struct {
 			name     string

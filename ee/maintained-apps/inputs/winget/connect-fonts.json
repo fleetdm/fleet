@@ -3,6 +3,7 @@
   "slug": "connect-fonts/windows",
   "package_identifier": "MonotypeImaging.Extensis.ConnectFonts",
   "unique_identifier": "Monotype Connect",
+  "open_process_names": ["monotype connect.exe"],
   "exists_query": "SELECT 1 FROM programs WHERE name = 'Monotype Connect' AND publisher LIKE '%Monotype%';",
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/connect_fonts_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/connect_fonts_uninstall.ps1",

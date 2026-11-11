@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
@@ -370,6 +371,7 @@ func TestUpdateHostPersistsVitals(t *testing.T) {
 		LastStatusReportTime: "2026-05-02T12:00:00Z",
 	}
 
+	android_mock.RegisterDevice(*device)
 	deviceBytes, err := json.Marshal(device)
 	require.NoError(t, err)
 	require.NoError(t, svc.ProcessPubSubPush(t.Context(), "value", &android.PubSubMessage{

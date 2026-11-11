@@ -9,8 +9,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 |:--------------------------------------|:------------------------------------------------------------------------------------------------------------------------|
 | SVP of Customer Success                | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
 | VP of Security Solutions              | [Dhruv Majumdar](https://www.linkedin.com/in/neondhruv/) _([@karmine05](https://github.com/karmine05))_
-| Infrastructure Engineer               | [Robert Fairburn](https://www.linkedin.com/in/robert-fairburn/) _([@rfairburn](https://github.com/rfairburn))_
-| Infrastructure Engineer               | [Fevzi Sahinler]() _([@fsahinler](https://github.com/fsahinler))_
+| Infrastructure Engineer               | [Robert Fairburn](https://www.linkedin.com/in/robert-fairburn/) _([@rfairburn](https://github.com/rfairburn))_ <br> [Fevzi Sahinler]() _([@fsahinler](https://github.com/fsahinler))_ <br> [Trai Compton](https://www.linkedin.com/in/trailynne/) _([@TraiLynne](https://github.com/trailynne))_
 | Technical Evangelist                  | [Zach Wasserman](https://www.linkedin.com/in/zacharywasserman/) _([@zwass](https://github.com/zwass))_
 | Manager of Customer Support and Solutions Architecture | [Dale Ribeiro](https://www.linkedin.com/in/daleribeiro/) _([@ddribeiro](https://github.com/ddribeiro))_
 | Customer Solutions Architect (CSA)    | [Jake Stenger](https://www.linkedin.com/in/jakestenger) _([@jakestenger](https://github.com/jakestenger))_ <br> [Adam Baali](https://uk.linkedin.com/in/adambaali) _([@AdamBaali](https://github.com/AdamBaali))_ <br> [Kitzy](https://linkedin.com/in/kitzy) _([@kitzy](https://github.com/kitzy))_ <br> [Jonathan Porter](https://linkedin.com/in/jp-cpe) _([@jp-cpe](https://github.com/jp-cpe))_
@@ -128,7 +127,7 @@ To monitor and respond to LinkedIn comments:
 
 ### Schedule a Fast-track engagement
 
-Fast-track is Fleet's service delivery package for new MDM customers. Check with your team to learn about the options available and the differences between them (virtual vs on site, migration vs no migration). If your customer has a Fast-track engagement, it will be included in their contract. Follow the directions below to get a Fast-track set up and collect the training pre-requisites.
+Fast-track is Fleet's service delivery package for new MDM customers. Check with your team to learn about the options available and the differences between them (virtual vs on site, migration vs no migration). If your customer has a Fast-track engagement, it will be included in their contract. Follow the directions below to get a Fast-track set up and collect the training prerequisites.
 
 1. When a deal including Fast-track closes, add a TODO on the final page of the partnership kickoff presentation, to confirm the details around their services purchase and to coordinate scheduling. Be sure to make the customer aware that delays in confirming service delivery date can cause the date to move out further.
 2. Create a Fast-track issue on the help-customers board for tracking.
@@ -203,7 +202,7 @@ Submit a feature request to the CSA team for review following these steps:
     - What is the specific feature being requested?
     - Why is this impactful to the customer?
     - What priority is this issue to the customer?
-    - Any additional infromation that may be helpful for the CSA to understand your customer's request
+    - Any additional information that may be helpful for the CSA to understand your customer's request
 - Before pressing "Create", check the URL at the top of the submission box, and confirm you are submitting the issue to our confidential repo
 - Press the "Create" button to generate your request for a feature to the CSA team, who will then review and create the public FR for your customer
 

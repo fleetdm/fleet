@@ -9,53 +9,11 @@ import (
 // the deprecated path(s) to serve the same handler as the primary path.
 //
 // These are organized by category:
-//   - team/teams → fleets: policies, schedule (both singular and plural deprecated)
 //   - queries → reports: query CRUD, spec, report data
 //   - host queries → reports
 //   - live queries → reports: run, run_by_identifiers, run_by_names
 //   - ABM/VPP token teams → fleets
 var deprecatedPathAliases = []eu.DeprecatedPathAlias{
-	// ---- team/teams → fleets (policies) ----
-	{
-		Method: "POST", PrimaryPath: "/api/_version_/fleet/fleets/{fleet_id}/policies",
-		DeprecatedPaths: []string{
-			"/api/_version_/fleet/team/{fleet_id}/policies",
-			"/api/_version_/fleet/teams/{fleet_id}/policies",
-		},
-	},
-	{
-		Method: "GET", PrimaryPath: "/api/_version_/fleet/fleets/{fleet_id}/policies",
-		DeprecatedPaths: []string{
-			"/api/_version_/fleet/team/{fleet_id}/policies",
-			"/api/_version_/fleet/teams/{fleet_id}/policies",
-		},
-	},
-	{
-		Method: "GET", PrimaryPath: "/api/_version_/fleet/fleets/{fleet_id}/policies/count",
-		DeprecatedPaths: []string{
-			"/api/_version_/fleet/team/{fleet_id}/policies/count",
-			"/api/_version_/fleet/teams/{fleet_id}/policies/count",
-		},
-	},
-	{
-		Method: "GET", PrimaryPath: "/api/_version_/fleet/fleets/{fleet_id}/policies/{policy_id}",
-		DeprecatedPaths: []string{
-			"/api/_version_/fleet/team/{fleet_id}/policies/{policy_id}",
-			"/api/_version_/fleet/teams/{fleet_id}/policies/{policy_id}",
-		},
-	},
-	{
-		Method: "POST", PrimaryPath: "/api/_version_/fleet/fleets/{fleet_id}/policies/delete",
-		DeprecatedPaths: []string{
-			"/api/_version_/fleet/team/{fleet_id}/policies/delete",
-			"/api/_version_/fleet/teams/{fleet_id}/policies/delete",
-		},
-	},
-	{
-		Method: "PATCH", PrimaryPath: "/api/_version_/fleet/fleets/{fleet_id}/policies/{policy_id}",
-		DeprecatedPaths: []string{"/api/_version_/fleet/teams/{fleet_id}/policies/{policy_id}"},
-	},
-
 	// ---- queries → reports ----
 	{
 		Method: "GET", PrimaryPath: "/api/_version_/fleet/reports/{id:[0-9]+}",
@@ -78,12 +36,11 @@ var deprecatedPathAliases = []eu.DeprecatedPathAlias{
 		DeprecatedPaths: []string{"/api/_version_/fleet/queries/{id:[0-9]+}"},
 	},
 	{
-		Method: "DELETE", PrimaryPath: "/api/_version_/fleet/reports/{name}",
-		DeprecatedPaths: []string{"/api/_version_/fleet/queries/{name}"},
-	},
-	{
-		Method: "DELETE", PrimaryPath: "/api/_version_/fleet/reports/id/{id:[0-9]+}",
-		DeprecatedPaths: []string{"/api/_version_/fleet/queries/id/{id:[0-9]+}"},
+		Method: "DELETE", PrimaryPath: "/api/_version_/fleet/reports/{id:[0-9]+}",
+		DeprecatedPaths: []string{
+			"/api/_version_/fleet/reports/id/{id:[0-9]+}",
+			"/api/_version_/fleet/queries/id/{id:[0-9]+}",
+		},
 	},
 	{
 		Method: "POST", PrimaryPath: "/api/_version_/fleet/reports/delete",
@@ -128,36 +85,6 @@ var deprecatedPathAliases = []eu.DeprecatedPathAlias{
 	{
 		Method: "POST", PrimaryPath: "/api/_version_/fleet/reports/run_by_names",
 		DeprecatedPaths: []string{"/api/_version_/fleet/queries/run_by_names"},
-	},
-
-	// ---- team/teams → fleets (schedule) ----
-	{
-		Method: "GET", PrimaryPath: "/api/_version_/fleet/fleets/{fleet_id}/schedule",
-		DeprecatedPaths: []string{
-			"/api/_version_/fleet/team/{fleet_id}/schedule",
-			"/api/_version_/fleet/teams/{fleet_id}/schedule",
-		},
-	},
-	{
-		Method: "POST", PrimaryPath: "/api/_version_/fleet/fleets/{fleet_id}/schedule",
-		DeprecatedPaths: []string{
-			"/api/_version_/fleet/team/{fleet_id}/schedule",
-			"/api/_version_/fleet/teams/{fleet_id}/schedule",
-		},
-	},
-	{
-		Method: "PATCH", PrimaryPath: "/api/_version_/fleet/fleets/{fleet_id}/schedule/{report_id}",
-		DeprecatedPaths: []string{
-			"/api/_version_/fleet/team/{fleet_id}/schedule/{report_id}",
-			"/api/_version_/fleet/teams/{fleet_id}/schedule/{report_id}",
-		},
-	},
-	{
-		Method: "DELETE", PrimaryPath: "/api/_version_/fleet/fleets/{fleet_id}/schedule/{report_id}",
-		DeprecatedPaths: []string{
-			"/api/_version_/fleet/team/{fleet_id}/schedule/{report_id}",
-			"/api/_version_/fleet/teams/{fleet_id}/schedule/{report_id}",
-		},
 	},
 
 	// ---- ABM/VPP token teams → fleets ----

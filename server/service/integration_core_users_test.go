@@ -117,7 +117,10 @@ func (s *integrationTestSuite) TestUserCreationWrongTeamErrors() {
 		Teams:    &teams,
 	}
 	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
-	assertBodyContains(t, resp, `fleet with id 9999 does not exist`)
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(body), `"name": "fleets.id"`)
+	assert.Contains(t, string(body), `fleet with id 9999 does not exist`)
 }
 
 func (s *integrationTestSuite) TestCreateUserAPIEndpointsRejected() {
