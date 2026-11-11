@@ -13,7 +13,8 @@ import (
 )
 
 // Route is one route registered through the endpointer. It keeps what the caller registered, before the version placeholder is
-// expanded into a gorilla regex, so the route list can be read without walking the gorilla router.
+// expanded into a gorilla regex, so the route list can be read without walking the gorilla router. It holds no handler, so
+// nothing in the route tables can reference a router and keep it from being collected.
 type Route struct {
 	Name    string
 	Methods []string
@@ -23,8 +24,7 @@ type Route struct {
 	// Versions are the API versions the route serves, "latest" included. They only apply to a Path with the placeholder.
 	Versions []string
 	// Prefix routes match the whole subtree under Path.
-	Prefix  bool
-	Handler http.Handler
+	Prefix bool
 }
 
 // Template returns the gorilla route template the route is registered with.
@@ -63,9 +63,8 @@ func (t *RouteTable) add(rt Route) {
 
 // routeTables maps each gorilla router to its RouteTable. The registration functions and the feature route functions only
 // receive the *mux.Router, so this is how they reach the table without changing their signatures. The key is weak, and the
-// entry is dropped when its router is collected, because tests build many routers. That only works while no recorded handler
-// references its own router. This lookup is TEMPORARY: once a Fleet router type replaces *mux.Router, the router holds its own
-// table and this map goes away.
+// entry is dropped when its router is collected, because tests build many routers. This lookup is TEMPORARY: once a Fleet router
+// type replaces *mux.Router, the router holds its own table and this map goes away.
 var routeTables sync.Map // weak.Pointer[mux.Router] -> *RouteTable
 
 // RoutesOf returns the table of the routes registered through the endpointer on r.
@@ -81,13 +80,13 @@ func RoutesOf(r *mux.Router) *RouteTable {
 	return t.(*RouteTable)
 }
 
-// handleRoute registers rt on r and records it in the router's RouteTable.
-func handleRoute(r *mux.Router, rt Route) {
+// handleRoute registers handler for rt on r and records rt in the router's RouteTable.
+func handleRoute(r *mux.Router, rt Route, handler http.Handler) {
 	var route *mux.Route
 	if rt.Prefix {
-		route = r.PathPrefix(rt.Template()).Handler(rt.Handler)
+		route = r.PathPrefix(rt.Template()).Handler(handler)
 	} else {
-		route = r.Handle(rt.Template(), rt.Handler)
+		route = r.Handle(rt.Template(), handler)
 	}
 	rt = rt.clone()
 	// gorilla keeps, and uppercases in place, the slice it is given.

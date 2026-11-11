@@ -63,8 +63,7 @@ func RegisterRemovedPaths(r *mux.Router, versions []string, logger *slog.Logger,
 				Methods:  []string{overlap.Method},
 				Path:     overlap.RouteTemplate,
 				Versions: allVersions,
-				Handler:  handler,
-			})
+			}, handler)
 		}
 		if len(methods) == 0 {
 			continue // the overlap route took the only removed method
@@ -78,8 +77,7 @@ func RegisterRemovedPaths(r *mux.Router, versions []string, logger *slog.Logger,
 			Methods:  methods,
 			Path:     removed.Path,
 			Versions: allVersions,
-			Handler:  handler,
-		})
+		}, handler)
 	}
 }
 

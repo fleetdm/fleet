@@ -992,8 +992,7 @@ func RegisterDeprecatedPathAliases(r *mux.Router, versions []string, registry *H
 				Methods:  []string{alias.Method},
 				Path:     path,
 				Versions: allVersions,
-				Handler:  wrappedHandler,
-			})
+			}, wrappedHandler)
 		}
 	}
 }
@@ -1068,11 +1067,8 @@ func (e *CommonEndpointer[H]) handleEndpoint(path string, f H, v interface{}, ve
 }
 
 func (e *CommonEndpointer[H]) makeEndpoint(f H, v any, path string) http.Handler {
-	// Capture only the Endpointer, not e, to avoid a memory leak: the global route table holds this handler, so referencing
-	// e.Router here would keep the router alive forever.
-	ep := e.EP
 	next := func(ctx context.Context, request interface{}) (interface{}, error) {
-		return ep.CallHandlerFunc(f, ctx, request, ep.Service())
+		return e.EP.CallHandlerFunc(f, ctx, request, e.EP.Service())
 	}
 
 	// Apply "after auth" middleware (in reverse order so that the first wraps
@@ -1278,17 +1274,16 @@ func (e *CommonEndpointer[H]) HandlePathHandler(path string, pathHandler func(pa
 		Versions: slices.Clone(versions), // versions can share e.Versions' backing array
 		Prefix:   e.usePathPrefix,
 	}
-	route.Handler = pathHandler(route.Template())
-	handleRoute(e.Router, route)
+	handler := pathHandler(route.Template())
+	handleRoute(e.Router, route, handler)
 	if e.HandlerRegistry != nil {
-		e.HandlerRegistry.handlers[handlerKey{verb, path}] = route.Handler
+		e.HandlerRegistry.handlers[handlerKey{verb, path}] = handler
 	}
 	for _, alias := range e.alternativePaths {
 		aliasRoute := route
 		aliasRoute.Name = getNameFromPathAndVerb(verb, alias, e.startingAtVersion)
 		aliasRoute.Path = alias
-		aliasRoute.Handler = pathHandler(aliasRoute.Template())
-		handleRoute(e.Router, aliasRoute)
+		handleRoute(e.Router, aliasRoute, pathHandler(aliasRoute.Template()))
 	}
 }
 
