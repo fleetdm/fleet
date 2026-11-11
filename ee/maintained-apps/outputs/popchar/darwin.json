@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "10.5",
+      "version": "11.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.macility.popchar3';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.macility.popchar3' AND version_compare(bundle_short_version, '10.5') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.macility.popchar3' AND version_compare(bundle_short_version, '11.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.macility.popchar3' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://www.ergonis.com/downloads/products/popcharx/PopCharX105-Install.dmg",
+      "installer_url": "https://storage.ergonis.com/apps/production/popchar/archive/PopChar_110.zip",
       "install_script_ref": "a3a87a4e",
       "uninstall_script_ref": "07636a5c",
-      "sha256": "c9c5fbc5cca8250445232d6118b79ae64d188b30a2f7bcf13f765f13f1825a92",
+      "sha256": "ef47095bd1f8aac4419f10d23ed071b9b8475bb13322cc9c1ca91f54461002b7",
       "default_categories": [
         "Utilities"
       ]
