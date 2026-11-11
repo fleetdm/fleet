@@ -15014,9 +15014,8 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get operating system version](#get-operating-system-version)
 - [Add package](#add-package)
 - [Update package](#update-package)
-- [Update software icon](#update-software-icon)
+- [Update software appearance](#update-software-appearance)
 - [Download software icon](#download-software-icon)
-- [Delete software icon](#delete-software-icon)
 - [List Apple App Store apps](#list-apple-app-store-apps)
 - [Add app store app](#add-app-store-app)
 - [Update app store app](#update-app-store-app)
@@ -16038,7 +16037,6 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | upload_id       | string  | body | The `upload_id` from [Create staged upload](https://fleetdm.com/docs/rest-api/rest-api#create-staged-upload). Use instead of `software` to replace the package with one uploaded directly to GCS. |
 | filename        | string  | body | The package's file name, including its extension. Required with `upload_id`. |
 | fleet_id         | integer | body | **Required**. The fleet ID. Updates a software package in the specified fleet. |
-| display_name    | string  | body | Optional override for the default `name`. |
 | categories        | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**. |
 | install_script  | string | body | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type. Not supported for `.sh`, `.py`, and `.ps1`. |
 | uninstall_script  | string | body | Script that Fleet runs to uninstall software. If set to an empty string, Fleet runs the [default uninstall script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). |
@@ -16121,33 +16119,37 @@ post_install_script="sudo /Applications/Falcon.app/Contents/Resources/falconctl 
 }
 ```
 
-### Update software icon
+### Update software appearance
 
 _Available in Fleet Premium._
 
-Icon will be displayed in Fleet and on **Fleet Desktop > Self-service**. In the UI for the specified team, overriding the default icon built into Fleet, as well as the Apple-sourced icon if the software has an associated VPP app.
+Update how a software title looks in Fleet and on **Fleet Desktop > Self-service** for the specified fleet: its display name and icon. The icon overrides the default icon built into Fleet, as well as the Apple-sourced icon if the software has an associated VPP app.
+
+Only the fields included in the request are updated.
 
 > You need to send a request of type `multipart/form-data`.
 
-`PUT /api/v1/fleet/software/titles/:id/icon`
+`PATCH /api/v1/fleet/software/titles/:software_title_id/appearance`
 
 #### Parameters
 
 | Name        | Type    | In   | Description                                      |
 | ----        | ------- | ---- | --------------------------------------------     |
-| id          | integer | path | ID of the software title being updated. |
-| fleet_id     | integer | query | **Required**. The fleet ID. Updates a software icon in the specified fleet. |
-| icon        | file    | body | Must be PNG format. It must be square with dimensions between 120x120 px and 1024x1024 px, and 100 KB or smaller. |
+| software_title_id | integer | path | **Required**. The ID of the software title. |
+| fleet_id     | integer | query | **Required**. The fleet ID. Updates the software title's appearance in the specified fleet. |
+| display_name | string | body | Override for the software title's default `name`. Set to `""` to use the default `name`. |
+| icon        | file    | body | Must be PNG format. It must be square with dimensions between 120x120 px and 1024x1024 px, and 100 KB or smaller. Set to an empty value (`icon=""`) to remove the custom icon and go back to the default icon. |
 | hash_sha256 | string  | body | SHA256 hash of an already-uploaded icon to use. If provided, `filename` is required and `icon` should be omitted. |
 | filename    | string  | body | Filename to record for the icon image, if `hash_sha256` was supplied. |
 
 #### Example
 
-`PUT /api/v1/fleet/software/titles/33/icon?fleet_id=2`
+`PATCH /api/v1/fleet/software/titles/33/appearance?fleet_id=2`
 
 ##### Request body
 
 ```http
+display_name="CrowdStrike Falcon"
 icon="crowdstrike-icon-512x512.png"
 ```
 
@@ -16157,6 +16159,7 @@ icon="crowdstrike-icon-512x512.png"
 
 ```json
 {
+  "display_name": "CrowdStrike Falcon",
   "icon_url": "/api/latest/fleet/software/titles/33/icon?fleet_id=2"
 }
 ```
@@ -16165,7 +16168,7 @@ icon="crowdstrike-icon-512x512.png"
 
 _Available in Fleet Premium._
 
-Download the icon added via [Update software icon](#update-software-icon) or icon from the Apple App Store (VPP). **This endpoint requires authentication.**
+Download the icon added via [Update software appearance](#update-software-appearance) or icon from the Apple App Store (VPP). **This endpoint requires authentication.**
 
 `GET /api/v1/fleet/software/titles/:id/icon`
 
@@ -16194,29 +16197,6 @@ Content-Length: 124567
 
 <BINARY_IMAGE_DATA>
 ```
-
-### Delete software icon
-
-_Available in Fleet Premium._
-
-Delete a custom icon added via [Update software icon](#update-software-icon). This will revert to using the software title's built-in icon.
-
-`DELETE /api/v1/fleet/software/titles/:id/icon`
-
-#### Parameters
-
-| Name            | Type    | In   | Description                                      |
-| ----            | ------- | ---- | --------------------------------------------     |
-| id              | integer | path | ID of the software title being updated. |
-| fleet_id         | integer | query | **Required**. The fleet ID. Deletes the software icon in the specified fleet. |
-
-#### Example
-
-`DELETE /api/v1/fleet/software/titles/33/icon?fleet_id=2`
-
-##### Default response
-
-`Status: 204`
 
 ### List Apple App Store apps
 
@@ -16377,7 +16357,6 @@ A software title can have more than one version of the same App Store app on a f
 | version_id | integer | path | **Required**. The ID of the App Store app version. This is the `id` of the app in the `app_store_apps` array returned by [Get software title](#get-software-title). |
 | fleet_id       | integer | body | **Required**. The fleet ID. Edits Apple App Store or Android Play store app from the specified fleet.  |
 | name | string | body | The version's name (e.g. `"Production"`). Must be unique for the software title on the fleet. |
-| display_name    | string  | body | Optional override for the default `name`. |
 | self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, and for Android in **Play Store** app in end user's work profile.  |
 | categories | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**. |
 | auto_update_enabled | boolean | body | Whether to enable automatic updates for iOS/iPadOS App Store (VPP) apps. |
