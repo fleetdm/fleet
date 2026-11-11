@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/spf13/cobra"
@@ -102,15 +104,23 @@ To setup Fleet infrastructure, use one of the available commands.
 	return prepareCmd
 }
 
-func printUnknownMigrationsMessage(tables []int64) {
+func printUnknownMigrationsMessage(versions []int64) {
+	explanation := "#   Your Fleet database has unrecognized migrations. This could happen when\n" +
+		"#   running an older version of Fleet on a newer migrated database.\n"
+	// Migrations newer than the baseline also come from 4.95.x patches, which
+	// can be released after the Fleet 5 version an admin upgrades to.
+	if len(versions) > 0 && slices.Min(versions) > tables.Fleet5BaselineVersion {
+		explanation = "#   Your Fleet database has migrations from a newer Fleet release, such as a\n" +
+			"#   newer Fleet 5 release or a Fleet 4.95.x patch released after this version.\n" +
+			"#   Upgrade to the latest Fleet 5 release.\n"
+	}
 	fmt.Printf("################################################################################\n"+
 		"# WARNING:\n"+
-		"#   Your Fleet database has unrecognized migrations. This could happen when\n"+
-		"#   running an older version of Fleet on a newer migrated database.\n"+
+		explanation+
 		"#\n"+
 		"#   Unknown migrations: %s.\n"+
 		"################################################################################\n",
-		migrationsToString(tables))
+		migrationsToString(versions))
 }
 
 func printMissingMigrationsPrompt(tables []int64) {
