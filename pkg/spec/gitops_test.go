@@ -4464,7 +4464,7 @@ software:
 			{
 				// the block under a differently cased parent still decodes, so its old keys must not slip through
 				name: "fleet controls parent in another letter case", file: "workstations.yml",
-				config: fleetFile("  Macos_Setup:\n    require_all_software_macos: true\n    require_all_software_windows: true\n", ""),
+				config: fleetFile("  Setup_Experience:\n    require_all_software_macos: true\n    require_all_software_windows: true\n", ""),
 				want: []string{
 					`The "controls.setup_experience.require_all_software_macos" key is not available anymore.`,
 					`The "controls.setup_experience.require_all_software_windows" key is not available anymore.`,
@@ -4474,13 +4474,13 @@ software:
 			{
 				name: "controls file parent in another letter case", file: "workstations.yml",
 				config:      fleetFile("  path: ./controls.yml\n", ""),
-				extra:       map[string]string{"controls.yml": "Macos_Setup:\n  require_all_software_macos: true\n"},
+				extra:       map[string]string{"controls.yml": "Setup_Experience:\n  require_all_software_macos: true\n"},
 				want:        []string{`The "controls.setup_experience.require_all_software_macos" key is not available anymore.`},
 				alsoUnknown: true,
 			},
 			{
 				name: "unassigned parent with a Unicode case variant", file: "unassigned.yml",
-				config:      "name: Unassigned\ncontrols:\n  macoſ_setup:\n    require_all_software_windows: true\npolicies:\nsoftware:\n",
+				config:      "name: Unassigned\ncontrols:\n  ſetup_experience:\n    require_all_software_windows: true\npolicies:\nsoftware:\n",
 				want:        []string{`The "controls.setup_experience.require_all_software_windows" key is not available anymore.`},
 				alsoUnknown: true,
 			},
