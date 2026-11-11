@@ -18,6 +18,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
@@ -323,9 +324,8 @@ func generateGitopsCommand() *cli.Command {
 				Usage: "A key to output the config value for.",
 			},
 			&cli.StringFlag{
-				Name:    fleetFlagName,
-				Aliases: []string{"team"},
-				Usage:   "(Premium only) The fleet to output configuration for.  Omit to export all configuration.  Use 'global' to export global settings, or 'unassigned' to export settings for unassigned hosts.",
+				Name:  fleetFlagName,
+				Usage: "(Premium only) The fleet to output configuration for.  Omit to export all configuration.  Use 'global' to export global settings, or 'unassigned' to export settings for unassigned hosts.",
 			},
 			&cli.StringFlag{
 				Name:  "dir",
@@ -346,6 +346,10 @@ func generateGitopsCommand() *cli.Command {
 // Create the action for the generate-gitops command, using a provided fleetClient.
 func createGenerateGitopsAction(fleetClient generateGitopsClient) func(*cli.Context) error {
 	return func(c *cli.Context) error {
+		// Reject no-team
+		if entry, ok := removednames.Find(removednames.KindFlagValue, "--"+fleetFlagName+" "+c.String(fleetFlagName), "fleetctl generate-gitops"); ok {
+			return errors.New(entry.Message())
+		}
 		var err error
 		if fleetClient == nil {
 			fleetClient, err = clientFromCLI(c)
@@ -448,10 +452,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 	switch {
 	case cmd.CLI.String(fleetFlagName) == "global" || !cmd.AppConfig.License.IsPremium():
 		teamsToProcess = []teamToProcess{globalTeam}
-	case cmd.CLI.String("team") == "no-team":
-		fmt.Fprintf(cmd.CLI.App.ErrWriter, "[!] '--team no-team' is deprecated. Use '--fleet unassigned' instead.\n")
-		teamsToProcess = []teamToProcess{noTeam}
-	case cmd.CLI.String("team") == "unassigned":
+	case cmd.CLI.String(fleetFlagName) == "unassigned":
 		teamsToProcess = []teamToProcess{noTeam}
 	default:
 		// Get the list of teams.
@@ -664,7 +665,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			fileName = "default.yml"
 		case "":
 			fileName = "default.yml"
-		case "no-team", "unassigned":
+		case "unassigned":
 			fileName = "fleets/unassigned.yml"
 		default:
 			teamFileName := generateFilename(cmd.CLI.String(fleetFlagName))
@@ -2278,13 +2279,13 @@ func generateSoftwareForValidation(client generateGitopsClient, appConfig *fleet
 			}
 			installers = append(installers, installer)
 
-		case sw.AppStoreApp != nil:
-			spec["app_store_id"] = sw.AppStoreApp.AppStoreID
+		case len(sw.AppStoreApps) > 0:
+			spec["app_store_id"] = sw.AppStoreApps[0].AppStoreID
 			appStoreApps = append(appStoreApps, spec)
 			vppApps = append(vppApps, fleet.VPPAppResponse{
 				TitleID:    &titleID,
-				AppStoreID: sw.AppStoreApp.AppStoreID,
-				Platform:   fleet.InstallableDevicePlatform(sw.AppStoreApp.Platform),
+				AppStoreID: sw.AppStoreApps[0].AppStoreID,
+				Platform:   sw.AppStoreApps[0].Platform,
 			})
 		}
 	}
@@ -2340,7 +2341,6 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 	}
 
 	setupSoftwareBySoftwareTitle := make(map[uint]struct{})
-	setupSoftwareByPlatformAndAppID := make(map[string]struct{})
 	// Emitted as setup_experience_platform (comma-separated) so a UI-set
 	// non-native selection round-trips through generate → apply unchanged.
 	crossPlatformSelectionsByTitleID := make(map[uint][]string)
@@ -2366,11 +2366,8 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				setupSoftwareBySoftwareTitle[software.ID] = struct{}{}
 			}
 		}
-		if software.AppStoreApp != nil {
-			appStoreApp := software.AppStoreApp
-			if appStoreApp != nil && appStoreApp.InstallDuringSetup != nil && *appStoreApp.InstallDuringSetup {
-				setupSoftwareByPlatformAndAppID[appStoreApp.FullyQualifiedName()] = struct{}{}
-			}
+		if len(software.AppStoreApps) > 0 && software.AppStoreApps[0].InstallDuringSetup != nil && *software.AppStoreApps[0].InstallDuringSetup {
+			setupSoftwareBySoftwareTitle[software.ID] = struct{}{}
 		}
 	}
 
@@ -2455,10 +2452,10 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 				cmd.SoftwareList[sw.ID] = swEntry
 			}
-		case sw.AppStoreApp != nil:
-			softwareSpec["app_store_id"] = sw.AppStoreApp.AppStoreID
+		case len(sw.AppStoreApps) > 0:
+			softwareSpec["app_store_id"] = sw.AppStoreApps[0].AppStoreID
 			cmd.SoftwareList[sw.ID] = Software{
-				AppStoreId: sw.AppStoreApp.AppStoreID,
+				AppStoreId: sw.AppStoreApps[0].AppStoreID,
 			}
 		default:
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error: software %s has no software package or app store app\n", sw.Name)
@@ -2618,11 +2615,12 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			}
 		}
 
-		if softwareTitle.AppStoreApp != nil {
-			filenamePrefix := generateFilename(sw.Name) + "-" + sw.AppStoreApp.Platform
-			softwareSpec["platform"] = softwareTitle.AppStoreApp.Platform
+		if len(softwareTitle.AppStoreApps) > 0 {
+			firstAppStoreApp := softwareTitle.AppStoreApps[0]
+			filenamePrefix := generateFilename(sw.Name) + "-" + string(firstAppStoreApp.Platform)
+			softwareSpec["platform"] = firstAppStoreApp.Platform
 
-			if tok := softwareTitle.AppStoreApp.VPPToken; tok != nil && softwareTitle.AppStoreApp.Platform != fleet.AndroidPlatform {
+			if tok := firstAppStoreApp.VPPToken; tok != nil && firstAppStoreApp.Platform != fleet.AndroidPlatform {
 				tokenCount, err := cmd.vppTokenCount(teamID)
 				if err != nil {
 					return nil, err
@@ -2652,7 +2650,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				cmd.FilesToWrite[fileName] = icon
 			}
 
-			flatVersion := softwareTitle.AppStoreApp.AppStoreAppVersion()
+			flatVersion := firstAppStoreApp
 			flatVersion.AutoUpdateEnabled = softwareTitle.AutoUpdateEnabled
 			flatVersion.AutoUpdateStartTime = softwareTitle.AutoUpdateStartTime
 			flatVersion.AutoUpdateEndTime = softwareTitle.AutoUpdateEndTime
@@ -2767,8 +2765,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				softwareSpec["setup_experience_platform"] = strings.Join(inHousePlatforms, ",")
 			}
 		} else {
-			app := softwareTitle.AppStoreApp
-			if _, exists := setupSoftwareByPlatformAndAppID[app.VPPAppID.String()]; exists {
+			if _, exists := setupSoftwareBySoftwareTitle[softwareTitle.ID]; exists {
 				softwareSpec["setup_experience"] = true
 			}
 		}
@@ -2787,7 +2784,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			}
 		case sw.SoftwarePackage != nil:
 			packages = append(packages, softwareSpec)
-		case sw.AppStoreApp != nil:
+		case len(sw.AppStoreApps) > 0:
 			appStoreApps = append(appStoreApps, softwareSpec)
 		}
 	}

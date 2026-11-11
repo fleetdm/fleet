@@ -41,7 +41,6 @@ const Statistics = ({
         enable_analytics: enableUsageStatistics,
         deferred_save_host: appConfig.server_settings.deferred_save_host,
         discard_reports_data: appConfig.server_settings.query_reports_disabled,
-        scripts_disabled: appConfig.server_settings.scripts_disabled,
       },
     };
 

@@ -495,7 +495,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		SoftwareTitleID: &addMAResp.SoftwareTitleID,
 	}
 	tpResp := fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", tpParams, http.StatusOK, &tpResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies", tpParams, http.StatusOK, &tpResp)
 	require.NotNil(t, tpResp.Policy)
 	require.NotEmpty(t, tpResp.Policy.ID)
 
@@ -556,7 +556,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	// Policy should appear in the list of policies
 	var listPolResp fleet.ListTeamPoliciesResponse
 	s.DoJSON(
-		"GET", "/api/latest/fleet/teams/0/policies",
+		"GET", "/api/latest/fleet/fleets/0/policies",
 		fleet.ListTeamPoliciesRequest{},
 		http.StatusOK, &listPolResp,
 		"page", "0",
@@ -1205,6 +1205,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	require.Equal(t, patchedInstall, gotInstall, "the edited script is still left alone")
 	require.Equal(t, warp.installScript, gotUninstall, "the unedited script follows the manifest")
 	require.Equal(t, warp.patchQuery, activePatchQuery(), "the patch query follows the manifest too")
+	require.Equal(t, warp.patchQuery, patchPolicyQuery(), "so does the patch policy, without a version flip")
 
 	// The queued install would otherwise have run a script it was never queued against.
 	var canceled bool
@@ -1226,6 +1227,15 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 			WHERE host_id = ? ORDER BY created_at DESC LIMIT 1`, host.ID)
 	})
 	require.False(t, canceled)
+
+	// A patch policy left behind its installer, the way a refresh that didn't reach
+	// the policy leaves it, is caught up on the next run.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE policies SET query = ? WHERE id = ?`, warpQueryV1, patchPolicy.Policy.ID)
+		return err
+	})
+	runCron()
+	require.Equal(t, warp.patchQuery, patchPolicyQuery())
 }
 
 func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCronTimeBudget() {
@@ -3750,7 +3760,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	require.Equal(t, 1, pinRowCount())
 
 	// The policies attached above block a delete, so remove them first.
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", team.ID),
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/delete", team.ID),
 		fleet.DeleteTeamPoliciesRequest{IDs: []uint{installPol.Policy.ID, patchPol.Policy.ID}},
 		http.StatusOK, &fleet.DeleteTeamPoliciesResponse{})
 

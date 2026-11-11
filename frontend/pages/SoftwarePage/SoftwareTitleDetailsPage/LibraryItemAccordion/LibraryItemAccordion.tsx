@@ -637,12 +637,22 @@ const LibraryItemAccordion = ({
     );
   };
 
+  // Aria-labels mirror the modal titles so screen readers announce what the
+  // button actually opens. Multi-package custom titles and multi-version App
+  // Store titles both target one version within the title (Edit/Delete
+  // version); every other shape edits/deletes the title itself (Edit/Delete
+  // software). See EditSoftwareModal / DeleteSoftwareModal / EditVersionModal.
+  const isPerVersionRow =
+    canActivateMultiplePackages || canActivateMultipleVersions;
+  const editAriaLabel = isPerVersionRow ? "Edit version" : "Edit software";
+  const trashAriaLabel = isPerVersionRow ? "Delete version" : "Delete software";
+
   const renderTrashButtonBody = (disabled: boolean) => (
     <Button
       variant="secondary"
       disabled={disabled}
       onClick={onTrashClick}
-      ariaLabel="Delete this version"
+      ariaLabel={trashAriaLabel}
       className={`${baseClass}__trash-button`}
       icon="trash"
     />
@@ -797,7 +807,7 @@ const LibraryItemAccordion = ({
               <Button
                 variant="secondary"
                 onClick={onEditClick}
-                ariaLabel="Edit software"
+                ariaLabel={editAriaLabel}
                 className={`${baseClass}__edit-button`}
                 icon="pencil"
               />

@@ -22,7 +22,7 @@ func TestGenerateMDMAppleBM(t *testing.T) {
 	_, _ = testing_utils.RunServerWithMockedDS(t)
 
 	out := runAppForTest(t, []string{
-		"generate", "mdm-apple-bm",
+		"generate", "mdm-ab",
 		"--public-key", publicKeyPath,
 	})
 

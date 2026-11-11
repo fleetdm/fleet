@@ -66,7 +66,7 @@ func (r GetLabelResponse) Error() error { return r.Err }
 
 type ListLabelsRequest struct {
 	ListOptions       ListOptions `url:"label_list_options"`
-	TeamID            *string     `query:"team_id,optional" renameto:"fleet_id"` // string because it's an int or "global"
+	TeamID            *string     `query:"fleet_id,optional"` // string because it's an int or "global"
 	IncludeHostCounts *bool       `query:"include_host_counts,optional"`
 }
 
@@ -82,7 +82,7 @@ func (r ListLabelsResponse) Error() error { return r.Err }
 ////////////////////////////////////////////////////////////////////////////////
 
 type GetLabelsSummaryRequest struct {
-	TeamID *string `query:"team_id,optional" renameto:"fleet_id"` // string because it's an int or "global"
+	TeamID *string `query:"fleet_id,optional"` // string because it's an int or "global"
 }
 
 type GetLabelsSummaryResponse struct {
@@ -135,7 +135,7 @@ func (r DeleteLabelByIDResponse) Error() error { return r.Err }
 
 type ApplyLabelSpecsRequest struct {
 	Specs       []*LabelSpec `json:"specs"`
-	TeamID      *uint        `json:"-" query:"team_id,optional" renameto:"fleet_id"`
+	TeamID      *uint        `json:"-" query:"fleet_id,optional"`
 	NamesToMove []string     `json:"names_to_move,omitempty"`
 }
 
@@ -150,7 +150,7 @@ func (r ApplyLabelSpecsResponse) Error() error { return r.Err }
 ////////////////////////////////////////////////////////////////////////////////
 
 type GetLabelSpecsRequest struct {
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"fleet_id,optional"`
 }
 
 type GetLabelSpecsResponse struct {

@@ -3,6 +3,7 @@
   "slug": "dataspell/windows",
   "package_identifier": "JetBrains.DataSpell",
   "unique_identifier": "DataSpell",
+  "open_process_names": ["dataspell.exe", "dataspell64.exe"],
   "fuzzy_match_name": true,
   "use_display_version_for_patch": true,
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/dataspell_install.ps1",

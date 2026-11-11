@@ -116,6 +116,7 @@ import HostsFilterBlock from "./components/HostsFilterBlock";
 import LabelFilterSelect from "./components/LabelFilterSelect";
 import RunScriptBatchModal from "./components/RunScriptBatchModal";
 import {
+  getHostsReportColumns,
   isAcceptableStatus,
   STRIP_FLEET_SCOPED_FILTERS_ON_ALL_FLEETS,
 } from "./helpers";
@@ -267,7 +268,8 @@ const ManageHostsPage = ({
     if (canEnrollHosts) {
       setShowAddHostsModal(true);
     }
-    const { add_hosts, ...rest } = queryParams;
+    const rest = { ...queryParams };
+    delete rest.add_hosts;
     router.replace({ pathname: location.pathname, query: rest });
   }, [
     queryParams,
@@ -286,7 +288,8 @@ const ManageHostsPage = ({
     if (canEnrollHosts) {
       setShowEnrollSecretModal(true);
     }
-    const { manage_enroll_secrets, ...rest } = queryParams;
+    const rest = { ...queryParams };
+    delete rest.manage_enroll_secrets;
     router.replace({ pathname: location.pathname, query: rest });
   }, [
     queryParams,
@@ -602,7 +605,7 @@ const ManageHostsPage = ({
     }
   );
   const hostActivityAutomations =
-    teamResponse?.team?.webhook_settings?.host_activities_webhook;
+    teamResponse?.fleet?.webhook_settings?.host_activities_webhook;
 
   const {
     data: policy,
@@ -1789,27 +1792,9 @@ const ManageHostsPage = ({
           teamId: teamIdForApi,
         });
 
-        const columnIds = tableColumns
-          .map((column) => (column.id ? column.id : ""))
-          // "selection" column does not include any relevant data for the CSV
-          // so we filter it out.
-          .filter((element) => element !== "" && element !== "selection")
-          // "agent" is a display-only column that coalesces orbit and osquery
-          // versions; it has no corresponding CSV field on the backend, so we
-          // substitute the real fields it's derived from. Likewise, the
-          // "hardware_model" column also surfaces the Apple marketing name in
-          // the UI, so we export both fields separately.
-          .reduce((acc: string[], element) => {
-            if (element === "agent") {
-              acc.push("orbit_version", "osquery_version");
-            } else if (element === "hardware_model") {
-              acc.push("hardware_model", "hardware_marketing_name");
-            } else {
-              acc.push(element);
-            }
-            return acc;
-          }, []);
-        visibleColumns = columnIds.join(",");
+        visibleColumns = getHostsReportColumns(
+          tableColumns.map((column) => column.id ?? "")
+        ).join(",");
       }
 
       let options = {
@@ -2011,11 +1996,7 @@ const ManageHostsPage = ({
     }
 
     let disableRunScriptBatchTooltipContent: React.ReactNode;
-    if (config?.server_settings?.scripts_disabled) {
-      disableRunScriptBatchTooltipContent = (
-        <>Running scripts is disabled in organization settings.</>
-      );
-    } else if (isAllTeamsSelected && isPremiumTier) {
+    if (isAllTeamsSelected && isPremiumTier) {
       disableRunScriptBatchTooltipContent = "Select a fleet to run a script.";
     } else if (isAllMatchingHostsSelected) {
       if (runScriptBatchFilterNotSupported) {

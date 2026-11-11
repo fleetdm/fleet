@@ -69,7 +69,6 @@ type Group struct {
 	// server like the user explicitly set the zero values.
 	AppConfig              interface{}
 	EnrollSecret           *fleet.EnrollSecretSpec
-	UsersRoles             *fleet.UsersRoleSpec
 	TeamsDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions
 	CertificateAuthorities *fleet.GroupedCertificateAuthorities
 	// MicrosoftGraphCredentials is applied through its own endpoint rather than the app config.
@@ -215,16 +214,7 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 			specs.EnrollSecret = enrollSecretSpec
 
 		case fleet.UserRolesKind:
-			var err error
-			s.Spec, deprecatedKeysMap, err = rewriteNewToOldKeys(s.Spec, fleet.UsersRoleSpec{})
-			if err != nil {
-				return nil, fmt.Errorf("in %s spec: %w", kind, err)
-			}
-			var userRoleSpec *fleet.UsersRoleSpec
-			if err := yaml.Unmarshal(s.Spec, &userRoleSpec); err != nil {
-				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
-			}
-			specs.UsersRoles = userRoleSpec
+			return nil, removedNameError(removednames.KindSpecKind, fleet.UserRolesKind)
 
 		case fleet.TeamKind:
 			return nil, removedNameError(removednames.KindSpecKind, "team")

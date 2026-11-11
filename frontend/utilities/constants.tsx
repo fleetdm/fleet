@@ -189,7 +189,7 @@ export const DEFAULT_QUERY: ISchedulableQuery = {
   saved: false,
   author_id: 0,
   packs: [],
-  team_id: 0,
+  fleet_id: 0,
   author_email: "",
   stats: {},
   editingExistingQuery: false,
@@ -471,6 +471,7 @@ export const HOST_SUMMARY_DATA: (keyof IHost)[] = [
   "fleet_name",
   "display_name",
   "maintenance_window",
+  "os_name",
   "os_version",
   "mdm",
   "last_mdm_checked_in_at",
@@ -503,6 +504,7 @@ export const HOST_VITALS_DATA = [
   "fleet_desktop_version",
   "memory",
   "cpu_type",
+  "os_name",
   "os_version",
   "timezone",
   "mdm_enrollment_hardware_attested",
@@ -535,7 +537,7 @@ export const HOST_OSQUERY_DATA = [
 export const DEFAULT_USE_QUERY_OPTIONS = {
   refetchOnWindowFocus: false,
   retry: (failureCount: number, error: unknown) => {
-    const err = error as any;
+    const err = error as { status?: number };
     let isBadRequestErr = false;
     if (err.status !== undefined) {
       isBadRequestErr = err.status >= 400 && err.status < 500;
