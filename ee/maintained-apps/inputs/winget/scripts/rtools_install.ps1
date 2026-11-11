@@ -38,14 +38,18 @@ $process = Start-Process -FilePath "$exeFilePath" `
 # Keeps .ExitCode readable after the process ends.
 $null = $process.Handle
 
-$elapsed = 0
-while (-not $process.HasExited -and ($elapsed -lt $installTimeoutSeconds)) {
+# Wall-clock time, since polling falls behind on a busy host.
+$stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+$nextLogSeconds = 60
+while (-not $process.HasExited -and ($stopwatch.Elapsed.TotalSeconds -lt $installTimeoutSeconds)) {
   Start-Sleep -Seconds $pollSeconds
-  $elapsed += $pollSeconds
-  if ($elapsed % 60 -eq 0) {
+  $elapsed = [int]$stopwatch.Elapsed.TotalSeconds
+  if ($elapsed -ge $nextLogSeconds) {
     Write-Host "Installing... ($elapsed seconds, registered: $(Test-RtoolsRegisteredByThisInstall))"
+    $nextLogSeconds = $elapsed + 60
   }
 }
+$elapsed = [int]$stopwatch.Elapsed.TotalSeconds
 
 if (-not $process.HasExited) {
   # Registered means the files are in place and only a lingering process remains.
