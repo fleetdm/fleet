@@ -670,6 +670,11 @@ func (ds *Datastore) processSoftwareTitleResults(
 					if softwareList[i].SoftwarePackage != nil {
 						softwareList[i].SoftwarePackage.FleetMaintainedVersions = fmaVers
 					}
+					for j := range softwareList[i].Packages {
+						if softwareList[i].Packages[j].FleetMaintainedAppID != nil {
+							softwareList[i].Packages[j].FleetMaintainedVersions = fmaVers
+						}
+					}
 				}
 			}
 		}

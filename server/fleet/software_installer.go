@@ -1062,6 +1062,7 @@ type SoftwarePackageListItem struct {
 	PackageURL               *string                  `json:"package_url"`
 	UploadedAt               time.Time                `json:"uploaded_at"`
 	FleetMaintainedAppID     *uint                    `json:"fleet_maintained_app_id"`
+	FleetMaintainedVersions  []FleetMaintainedVersion `json:"fleet_maintained_versions,omitempty"`
 	InstallDuringSetup       *bool                    `json:"install_during_setup,omitempty"`
 }
 

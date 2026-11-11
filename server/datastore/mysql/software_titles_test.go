@@ -1242,6 +1242,7 @@ func testListSoftwareTitlesPackages(t *testing.T, ds *Datastore) {
 		require.Len(t, customTitle.Packages[0].AutomaticInstallPolicies, 1)
 		require.Equal(t, policy.ID, customTitle.Packages[0].AutomaticInstallPolicies[0].ID)
 		require.Nil(t, customTitle.Packages[0].FleetMaintainedAppID)
+		require.Nil(t, customTitle.Packages[0].FleetMaintainedVersions)
 		require.Equal(t, new(false), customTitle.Packages[0].InstallDuringSetup)
 
 		// read the Fleet-maintained app package, it should have the Fleet-maintained app id
@@ -1249,6 +1250,8 @@ func testListSoftwareTitlesPackages(t *testing.T, ds *Datastore) {
 		require.Len(t, maintainedAppTitle.Packages, 1)
 		require.Equal(t, new(maintainedApp.ID), maintainedAppTitle.Packages[0].FleetMaintainedAppID)
 		require.Equal(t, maintainedAppTitle.SoftwarePackage.FleetMaintainedAppID, maintainedAppTitle.Packages[0].FleetMaintainedAppID)
+		require.Len(t, maintainedAppTitle.Packages[0].FleetMaintainedVersions, 1)
+		require.Equal(t, maintainedAppTitle.SoftwarePackage.FleetMaintainedVersions, maintainedAppTitle.Packages[0].FleetMaintainedVersions)
 
 		// read the in-house app titles, each should list the .ipa once without the custom package's policy
 		require.Len(t, inHouseTitlesByPlatform, 2)
