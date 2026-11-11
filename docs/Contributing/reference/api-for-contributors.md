@@ -568,6 +568,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Renew VPP token](#renew-vpp-token)
 - [Delete VPP token](#delete-vpp-token)
 - [Batch-apply MDM custom settings](#batch-apply-mdm-custom-settings)
+- [Batch-apply Apple asset declarations](#batch-apply-apple-asset-declarations)
 - [Batch-apply packages](#batch-apply-packages)
 - [Batch-apply App Store apps](#batch-apply-app-store-apps)
 - [Get token to download package](#get-token-to-download-package)
@@ -580,6 +581,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Match preassigned profiles](#match-preassigned-profiles)
 - [Get FileVault statistics](#get-filevault-statistics)
 - [Get host's DEP assignment](#get-hosts-dep-assignment)
+- [List Apple MDM devices](#list-apple-mdm-devices)
 - [SCEP proxy](#scep-proxy)
 - [Get Android Enterprise signup URL](#get-android-enterprise-signup-url)
 - [Connect Android Enterprise](#connect-android-enterprise)
@@ -1199,6 +1201,50 @@ If no fleet (id or name) is provided, the profiles are applied for all hosts (fo
 
 `204`
 
+### Batch-apply Apple asset declarations
+
+_Available in Fleet Premium_
+
+Replace a fleet's Apple asset declarations with the provided list. `fleetctl gitops` uses this endpoint to apply the `assets` in the YAML file.
+
+> This endpoint accepts a maximum request body size of 25MiB.
+
+`POST /api/v1/fleet/assets/batch`
+
+#### Parameters
+
+| Name       | Type    | In    | Description                                                                                                                       |
+| ---------- | ------- | ----- | --------------------------------------------------------------------------------------------------------------------------------- |
+| fleet_id   | integer | query | The fleet ID to apply the assets to. Only one of `fleet_id` or `fleet_name` can be included in the request. |
+| fleet_name | string  | query | The name of the fleet to apply the assets to. Only one of `fleet_id` or `fleet_name` can be included in the request. |
+| dry_run    | boolean | query | Validate the provided assets and return any validation errors, but do not apply the changes. Assets that reference a `$FLEET_SECRET_` variable aren't validated. |
+| assets     | array   | body  | An array of objects. Each object has a `name` (the asset's name) and `contents` (the Base64-encoded JSON asset declaration). |
+
+If neither `fleet_id` nor `fleet_name` is provided, the assets are applied to "Unassigned" hosts.
+
+Fleet matches assets by the `Identifier` in their contents. Existing assets with the same identifier are updated, new ones are added, and existing assets that aren't in the list are deleted. Each `name` and each identifier must be unique in the request, and an existing asset's `Type` can't be changed. An empty list deletes all of the fleet's assets. If a configuration profile references an asset that would be deleted, the request fails.
+
+#### Example
+
+`POST /api/v1/fleet/assets/batch?fleet_id=1`
+
+##### Request body
+
+```json
+{
+  "assets": [
+    {
+      "name": "my-asset",
+      "contents": "eyJUeXBlIjoiY29tLmFwcGxlLmFzc2V0LmRhdGEiLC..."
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 204`
+
 ### Initiate SSO for IdP authentication during macOS, Windows or Linux setup
 
 This endpoint initiates the SSO flow, the response contains an URL that the client can use to redirect the user to initiate the SSO flow in the configured IdP.
@@ -1538,6 +1584,41 @@ Returns the raw data about a DEP device's current state from the [Get Device Det
   "dep_device_error": null
 }
 ```
+
+### List Apple MDM devices
+
+Returns the Apple hosts that have a device enrollment in Fleet's MDM, including hosts that have since turned off MDM. Requires a global admin.
+
+`GET /api/v1/fleet/mdm/apple/devices`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple/devices`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "devices": [
+    {
+      "id": "8F4F6A0B-6E2B-4D4B-9C1A-2B3C4D5E6F70",
+      "serial_number": "C02XL0ABCDEF",
+      "enabled": true
+    }
+  ]
+}
+```
+
+In the response above:
+
+- `id` is the host's hardware UUID.
+- `enabled` is `false` if the host turned off MDM.
 
 
 ### SCEP proxy
@@ -5116,23 +5197,26 @@ param, this endpoint is considered a documented REST API endpoint
 
 ### Initiate Microsoft Entra conditional access
 
+_Available in Fleet Premium_
+
 Kick off authentication with Microsoft Entra to configure conditional access.
 
-`POST /api/v1/conditional-access/microsoft`
+`POST /api/v1/fleet/conditional-access/microsoft`
 
 #### Parameters
 
 | Name       | Type   | In   | Description                                                                                                                 |
 | ---------- | ------ | ---- | --------------------------------------------------------------------------------------------------------------------------- |
-| microsoft_tenant_id      | string | body | **Required.** The Microsoft Entra tenant ID. |
+| microsoft_tenant_id      | string | body | **Required.** The Microsoft Entra tenant ID, in GUID format. |
 
+#### Example
 
+`POST /api/v1/fleet/conditional-access/microsoft`
 
 ##### Request body
 
 ```json
 {
-  "fleet_license_key": "<LICENSE KEY>",
   "microsoft_tenant_id": "<TENANT ID>"
 }
 ```
@@ -5151,14 +5235,19 @@ Kick off authentication with Microsoft Entra to configure conditional access.
 
 ### Confirm Microsoft Entra conditional access configuration
 
-`POST /api/v1/conditional-access/confirm`
+_Available in Fleet Premium_
 
 Confirm whether admin consent has been granted in Microsoft Entra.
+
+`POST /api/v1/fleet/conditional-access/microsoft/confirm`
 
 #### Parameters
 
 None.
 
+#### Example
+
+`POST /api/v1/fleet/conditional-access/microsoft/confirm`
 
 ##### Default response
 
@@ -5166,9 +5255,14 @@ None.
 
 ```json
 {
-  "configuration_completed": false
+  "configuration_completed": false,
+  "setup_error": ""
 }
 ```
+
+In the response above:
+
+- `setup_error` is the error Microsoft reported if setup isn't complete, or an empty string otherwise.
 
 ### Get Okta conditional access SAML IdP metadata
 

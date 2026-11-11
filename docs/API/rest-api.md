@@ -8634,11 +8634,12 @@ Add a configuration profile to enforce custom settings on macOS and Windows host
 | labels_include_all        | array    | body | _Available in Fleet Premium_. Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array    | body | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any        | array    | body | _Available in Fleet Premium_. Target hosts that that don't have any label, specified by label name, in the array. |
+| labels                    | array    | body | _Available in Fleet Premium_. _Deprecated._ Use `labels_include_all` instead. Behaves the same as `labels_include_all`. |
 | activation                | file     | body | _Available in Fleet Premium_. The activation criteria for the profile as a JSON file. Only supported for declaration (DDM) profiles. For all other profile types, this value is `null`. |
 | self_service              | boolean  | body | _Available in Fleet Premium_. If `true`, the profile is opt-in: Fleet doesn't install it automatically, and end users install it from **My device > Controls**. Only supported for `.mobileconfig` profiles. Default is `false`. |
 | hidden                    | boolean  | body | _Available in Fleet Premium_. If `true`, the profile is hidden by default on **My device > Controls**. Supported for all profile types. `self_service` must be `false`. Default is `false`. |
 
-`labels_exclude_any` can be combined with either `labels_include_all` or `labels_include_any`, but `labels_include_all` and `labels_include_any` cannot be combined with each other. If none are specified, all hosts are targeted.
+`labels_exclude_any` can be combined with either `labels_include_all` or `labels_include_any`, but `labels_include_all` and `labels_include_any` cannot be combined with each other. `labels` can't be combined with `labels_include_all` or `labels_include_any`. If none are specified, all hosts are targeted.
 
 For a self-service profile, labels decide which hosts can see the profile. The profile is only installed on hosts that opt in.
 
@@ -8868,6 +8869,8 @@ Update an existing configuration profile. Use this endpoint to change which host
 | ------------------------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | profile_uuid              | string  | url  | **Required.** The UUID of the configuration profile to update. |
 | profile                   | file    | form | A replacement profile file (`.mobileconfig`, `.json`, or `.xml`). See requirements below. |
+| name                      | string  | body | The display name for the profile. If omitted, the current name is kept, even if you upload a new profile file. |
+| description               | string  | body | The description for the profile. If omitted, the current description is kept. An empty string clears it. |
 | labels_include_all        | array   | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array   | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any        | array   | body | Target hosts that don't have any label, specified by label name, in the array. |
@@ -8877,24 +8880,22 @@ Update an existing configuration profile. Use this endpoint to change which host
 
 Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, the profile targets all hosts.
 
-Unlike the label fields, `self_service` and `hidden` keep their current values when omitted.
+Unlike the label fields, `name`, `description`, `self_service`, and `hidden` keep their current values when omitted.
 
 Changing `self_service` from `false` to `true` opts in every host that already has the profile, so nothing is removed. Changing it from `true` to `false` installs the profile on all targeted hosts that don't have it.
 
 ##### Uploading a new profile file
 
-You can upload a new profile file to replace the contents of the existing profile. What the new file must match, and how the profile is renamed, depends on the profile type:
+You can upload a new profile file to replace the contents of the existing profile. Uploading a new file doesn't rename the profile. To rename it, use `name`. What the new file must match depends on the profile type:
 
-- **.mobileconfig profiles**: The new file must have the same **PayloadIdentifier** as the existing profile. The profile is renamed to the new file's **PayloadDisplayName**.
-- **DDM (declarative management) profiles** (`.json`): The new file must have the same **Identifier** as the existing profile. The profile keeps its current name.
-- **Windows profiles** (`.xml`): There's no identifier to match, so the new file's settings can differ completely from the ones it replaces. The profile is renamed to the uploaded file's name, without its extension.
-- **Android profiles** (`.json`): There's no identifier to match, so the new file's settings can differ completely from the ones it replaces. The profile keeps its current name.
+- **.mobileconfig profiles**: The new file must have the same **PayloadIdentifier** as the existing profile.
+- **DDM (declarative management) profiles** (`.json`): The new file must have the same **Identifier** as the existing profile.
+- **Windows profiles** (`.xml`): There's no identifier to match, so the new file's settings can differ completely from the ones it replaces.
+- **Android profiles** (`.json`): There's no identifier to match, so the new file's settings can differ completely from the ones it replaces.
 
 If a `.mobileconfig` or DDM profile doesn't have the required identifier, the request is rejected.
 
 Renaming a profile doesn't change its `profile_uuid` or which hosts it targets, and doesn't reinstall it on hosts unless the contents changed too. If another configuration profile in the same fleet already uses the new name, the request is rejected with a `409` status.
-
-Requests that only update labels don't include a file, so the profile's name is left unchanged.
 
 #### Example
 
@@ -9779,6 +9780,7 @@ If the `only_allow_apple_business_enrollment` setting is enabled, this endpoint 
 | Name              | Type    | In    | Description                                                                      |
 |-------------------|---------|-------|----------------------------------------------------------------------------------|
 | enroll_secret     | string  | query | **Required**. The enroll secret of the fleet this host will be assigned to.       |
+| byod              | boolean | query | If `true` (or `1`), the host enrolls as a personal (BYOD) host, and Fleet can't lock or wipe it. Ignored if the host is assigned to Fleet in Apple Business or is already enrolled as company-owned. Default is `false`. |
 
 #### Example
 
@@ -9885,6 +9887,7 @@ Upload a bootstrap package that will be automatically installed during DEP setup
 | upload_id | string | body | The `upload_id` from [Create staged upload](https://fleetdm.com/docs/rest-api/rest-api#create-staged-upload). Use instead of `package` for a package uploaded directly to GCS. |
 | filename | string | body | The package's file name, for example `bootstrap-package.pkg`. Required with `upload_id`. |
 | fleet_id | string | body | The fleet ID for the package. If specified, the package will be installed to hosts that are assigned to the specified fleet. If not specified, the package will be installed on "Unassigned" hosts. |
+| dry_run | boolean | query | Validate the bootstrap package and return any validation errors, but don't save it. Default is `false`. |
 
 #### Example
 
@@ -9979,6 +9982,7 @@ Delete a fleet's bootstrap package.
 | Name    | Type   | In  | Description                                                                                                                                               |
 | ------- | ------ | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | fleet_id | string | url | **Required** The fleet ID for the package. Zero (0) can be specified to get information about the bootstrap package for "Unassigned" hosts. |
+| dry_run | boolean | query | Validate the request and return any errors, but don't delete the package. Default is `false`. |
 
 
 #### Example
@@ -10109,6 +10113,7 @@ Upload an EULA that will be shown during the macOS DEP flow or Windows enrollmen
 | -------- | ------ | ---- | ------------------------------------------------- |
 | platform | string | body | The platform of the EULA. Options are `darwin` and `windows`. Defaults to `darwin`. Returns 422 if the value is not `darwin` or `windows`. |
 | eula     | file   | body | **Required**. A PDF document containing the EULA (`darwin`), or a markdown file containing the terms and conditions (`windows`). |
+| dry_run  | boolean | query | Validate the EULA and return any validation errors, but don't save it. Default is `false`. |
 
 #### Example
 
@@ -10173,6 +10178,7 @@ Delete an EULA file.
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
 | token | string | path  | **Required** The token of the EULA file. |
+| dry_run | boolean | query | Validate the request and return any errors, but don't delete the EULA. Default is `false`. |
 
 #### Example
 
