@@ -26,9 +26,31 @@ if (-not $uninstall -or (-not $uninstall.UninstallString -and -not $uninstall.Qu
   Exit 0
 }
 
-# Kill any running Vivaldi processes before uninstalling
-Stop-Process -Name "vivaldi" -Force -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 2
+function Get-ProductName($path) {
+  try { [Diagnostics.FileVersionInfo]::GetVersionInfo($path).ProductName } catch { $null }
+}
+
+# Stop Vivaldi and the helpers it runs from its install directory. Also stop any
+# Vivaldi installer left running by an install that never finished: while it
+# runs, the uninstaller fails with exit code 60.
+$installDirs = @("${env:ProgramFiles}\Vivaldi\Application\")
+if ($uninstall.InstallLocation) {
+  $installDirs += $uninstall.InstallLocation.Trim('"').TrimEnd('\') + '\'
+}
+$running = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+  $path = $_.ExecutablePath
+  $path -and (
+    ($installDirs | Where-Object { $path.StartsWith($_, [StringComparison]::OrdinalIgnoreCase) }) -or
+    ($_.CommandLine -match '\s--system-level\b' -and (Get-ProductName $path) -eq 'Vivaldi Installer')
+  )
+})
+foreach ($proc in $running) {
+  Write-Host "Stopping $($proc.Name) (PID $($proc.ProcessId)) before uninstalling."
+  Stop-Process -Id $proc.ProcessId -Force -ErrorAction SilentlyContinue
+}
+if ($running) {
+  Wait-Process -Id $running.ProcessId -Timeout 30 -ErrorAction SilentlyContinue
+}
 
 $uninstallCommand = if ($uninstall.QuietUninstallString) {
   $uninstall.QuietUninstallString
