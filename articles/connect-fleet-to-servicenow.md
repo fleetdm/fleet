@@ -59,8 +59,6 @@ If you already sync Fleet data to ServiceNow with your own integration, you can 
 - **Existing CIs are updated, not duplicated.** IRE matches Fleet's records to your existing computers by serial number, so the CIs your integration created are updated in place.
 - **Both integrations can run at once.** Each writes with its own discovery source. Use IRE [reconciliation rules](https://www.servicenow.com/docs/csh?topicname=reconciliation-rules.html) to decide which source owns each field while you compare results.
 
-<!-- TODO(product): Confirm the flag/opt-in behavior proposed in #g-orchestration so existing integrations aren't affected on upgrade. -->
-
 To switch over:
 
 1. Complete [Prepare ServiceNow](#prepare-servicenow).
