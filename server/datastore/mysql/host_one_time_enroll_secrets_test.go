@@ -1483,6 +1483,25 @@ func testOneTimeEnrollSecretAndroidMint(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotEqual(t, secret, fresh)
 
+	t.Run("a host whose UUID changed gets a secret bound to the new one", func(t *testing.T) {
+		other := newOneTimeSecretAndroidHost(t, ds, nil)
+		stale, err := ds.MintAndroidOneTimeEnrollSecret(ctx, other.ID)
+		require.NoError(t, err)
+		newUUID := uuid.NewString()
+		_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET uuid = ? WHERE id = ?`, newUUID, other.ID)
+		require.NoError(t, err)
+
+		current, err := ds.MintAndroidOneTimeEnrollSecret(ctx, other.ID)
+		require.NoError(t, err)
+		require.NotEqual(t, stale, current)
+		row, err := ds.GetHostOneTimeEnrollSecret(ctx, current)
+		require.NoError(t, err)
+		require.Equal(t, newUUID, row.HardwareUUID)
+		again, err := ds.MintAndroidOneTimeEnrollSecret(ctx, other.ID)
+		require.NoError(t, err)
+		require.Equal(t, current, again)
+	})
+
 	t.Run("cleanup keeps a spent secret until its successor is used", func(t *testing.T) {
 		other := newOneTimeSecretAndroidHost(t, ds, nil)
 		spent, err := ds.MintAndroidOneTimeEnrollSecret(ctx, other.ID)

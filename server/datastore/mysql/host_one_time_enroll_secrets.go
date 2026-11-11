@@ -768,56 +768,60 @@ func rejectSharedSecretForMDMManagedWindowsHost(
 // again later.
 func (ds *Datastore) MintAndroidOneTimeEnrollSecret(ctx context.Context, hostID uint) (string, error) {
 	// Most builds find a live secret, so check without locking the host row first. The primary, because a replica could still
-	// show a secret the agent just used.
-	var live []string
-	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &live, `
+	// show a secret the agent just used. A secret bound to an earlier UUID of the host could never match the agent, so it isn't
+	// reused.
+	var live string
+	err := sqlx.GetContext(ctx, ds.writer(ctx), &live, `
 		SELECT s.secret FROM host_one_time_enroll_secrets s
-		JOIN hosts h ON h.id = s.host_id AND h.platform = 'android' AND h.team_id <=> s.team_id
+		JOIN hosts h ON h.id = s.host_id AND h.platform = 'android' AND h.team_id <=> s.team_id AND h.uuid = s.hardware_uuid
 		WHERE s.host_id = ? AND s.consumed_at IS NULL
-		ORDER BY s.id DESC LIMIT 1`, hostID); err != nil {
+		ORDER BY s.id DESC LIMIT 1`, hostID)
+	switch {
+	case err == nil:
+		return live, nil
+	case !errors.Is(err, sql.ErrNoRows):
 		return "", ctxerr.Wrap(ctx, err, "load live android one-time enroll secret")
-	}
-	if len(live) == 1 {
-		return live[0], nil
 	}
 
 	var secret string
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		var hosts []struct {
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var host struct {
 			UUID           string `db:"uuid"`
 			TeamID         *uint  `db:"team_id"`
 			HardwareSerial string `db:"hardware_serial"`
 		}
 		// FOR UPDATE on the hosts row serializes concurrent mints for the same host, as in mintHostOneTimeEnrollSecret.
-		if err := sqlx.SelectContext(ctx, tx, &hosts,
-			`SELECT uuid, team_id, hardware_serial FROM hosts WHERE id = ? AND platform = 'android' FOR UPDATE`, hostID); err != nil {
+		err := sqlx.GetContext(ctx, tx, &host,
+			`SELECT uuid, team_id, hardware_serial FROM hosts WHERE id = ? AND platform = 'android' FOR UPDATE`, hostID)
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return ctxerr.Wrap(ctx, notFound("Host").WithID(hostID), "minting android one-time enroll secret")
+		case err != nil:
 			return ctxerr.Wrap(ctx, err, "load android host for one-time enroll secret")
 		}
-		if len(hosts) == 0 {
-			return ctxerr.Wrap(ctx, notFound("Host").WithID(hostID), "minting android one-time enroll secret")
-		}
-		host := hosts[0]
 		if host.UUID == "" {
 			return ctxerr.Errorf(ctx, "android host %d has no uuid to bind a one-time enroll secret to", hostID)
 		}
 
-		var existing []struct {
+		var existing struct {
 			ID     uint   `db:"id"`
 			Secret string `db:"secret"`
 		}
-		if err := sqlx.SelectContext(ctx, tx, &existing,
-			`SELECT id, secret FROM host_one_time_enroll_secrets WHERE host_id = ? AND consumed_at IS NULL ORDER BY id DESC LIMIT 1`,
-			hostID); err != nil {
-			return ctxerr.Wrap(ctx, err, "load unconsumed android one-time enroll secret")
-		}
-		if len(existing) == 1 {
+		err = sqlx.GetContext(ctx, tx, &existing, `
+			SELECT id, secret FROM host_one_time_enroll_secrets
+			WHERE host_id = ? AND hardware_uuid = ? AND consumed_at IS NULL ORDER BY id DESC LIMIT 1`,
+			hostID, host.UUID)
+		switch {
+		case err == nil:
 			// The host may have moved fleets since the secret was minted, and the secret's fleet is the one enrollment uses.
 			if _, err := tx.ExecContext(ctx, `UPDATE host_one_time_enroll_secrets SET team_id = ? WHERE id = ?`,
-				host.TeamID, existing[0].ID); err != nil {
+				host.TeamID, existing.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "update fleet of android one-time enroll secret")
 			}
-			secret = existing[0].Secret
+			secret = existing.Secret
 			return nil
+		case !errors.Is(err, sql.ErrNoRows):
+			return ctxerr.Wrap(ctx, err, "load unconsumed android one-time enroll secret")
 		}
 
 		tok, err := fleet.GenerateRandom32ByteEntropyURLSafeToken()
@@ -853,11 +857,15 @@ func rejectSharedSecretForMDMManagedAndroidHost(ctx context.Context, hostID uint
 
 // isAndroidOneTimeEnrollSecret reports whether the one-time enroll secret was minted for an Android host.
 func isAndroidOneTimeEnrollSecret(ctx context.Context, tx sqlx.QueryerContext, secretID uint) (bool, error) {
-	var platforms []string
-	if err := sqlx.SelectContext(ctx, tx, &platforms, `SELECT platform FROM host_one_time_enroll_secrets WHERE id = ?`, secretID); err != nil {
+	var platform string
+	err := sqlx.GetContext(ctx, tx, &platform, `SELECT platform FROM host_one_time_enroll_secrets WHERE id = ?`, secretID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return false, nil
+	case err != nil:
 		return false, ctxerr.Wrap(ctx, err, "load one-time enroll secret platform")
 	}
-	return len(platforms) == 1 && platforms[0] == "android", nil
+	return platform == "android", nil
 }
 
 // androidOneTimeSecretHost returns the Android host an Android one-time enroll secret is bound to, which the orbit enrollment
@@ -870,7 +878,7 @@ func isAndroidOneTimeEnrollSecret(ctx context.Context, tx sqlx.QueryerContext, s
 func (ds *Datastore) androidOneTimeSecretHost(
 	ctx context.Context, tx sqlx.ExtContext, secretID uint, osqueryIdentifier string,
 ) (*enrolledHostInfo, bool, error) {
-	var rows []struct {
+	var row struct {
 		SecretPlatform string     `db:"secret_platform"`
 		SecretUUID     string     `db:"secret_uuid"`
 		ID             *uint      `db:"id"`
@@ -878,18 +886,21 @@ func (ds *Datastore) androidOneTimeSecretHost(
 		NodeKeySet     bool       `db:"node_key_set"`
 		HasUUID        bool       `db:"has_uuid"`
 	}
-	if err := sqlx.SelectContext(ctx, tx, &rows, `
+	err := sqlx.GetContext(ctx, tx, &row, `
 		SELECT s.platform AS secret_platform, s.hardware_uuid AS secret_uuid, h.id, h.last_enrolled_at,
 			COALESCE(h.orbit_node_key IS NOT NULL, FALSE) AS node_key_set, COALESCE(h.uuid <> '', FALSE) AS has_uuid
 		FROM host_one_time_enroll_secrets s
 		LEFT JOIN hosts h ON h.id = s.host_id AND h.platform = 'android'
-		WHERE s.id = ?`, secretID); err != nil {
+		WHERE s.id = ?`, secretID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil, false, nil
+	case err != nil:
 		return nil, false, ctxerr.Wrap(ctx, err, "load host of android one-time enroll secret")
 	}
-	if len(rows) == 0 || rows[0].SecretPlatform != "android" {
+	if row.SecretPlatform != "android" {
 		return nil, false, nil
 	}
-	row := rows[0]
 	if row.ID == nil {
 		return nil, true, nil
 	}

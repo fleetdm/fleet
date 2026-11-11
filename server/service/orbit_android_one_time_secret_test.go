@@ -16,51 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestEnrollRejectSharedSecretForAndroidMDMHosts(t *testing.T) {
-	for _, tc := range []struct {
-		name                        string
-		androidOneTimeEnrollSecrets bool
-		androidMDMEnabled           bool
-		wantReject                  bool
-	}{
-		{name: "enabled, Android MDM on", androidOneTimeEnrollSecrets: true, androidMDMEnabled: true, wantReject: true},
-		{name: "enabled, Android MDM off", androidOneTimeEnrollSecrets: true, androidMDMEnabled: false},
-		{name: "disabled", androidOneTimeEnrollSecrets: false, androidMDMEnabled: true},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			f := newOneTimeEnrollFixtureWithMDM(t, func(mdmConfig *config.MDMConfig) {
-				mdmConfig.AndroidOneTimeEnrollSecrets = tc.androidOneTimeEnrollSecrets
-			})
-			f.ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-				ac := &fleet.AppConfig{}
-				ac.MDM.EnabledAndConfigured = true
-				ac.MDM.AndroidEnabledAndConfigured = tc.androidMDMEnabled
-				return ac, nil
-			}
-			var orbitCfg *fleet.DatastoreEnrollOrbitConfig
-			f.ds.EnrollOrbitFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
-				orbitCfg = orbitEnrollConfig(opts)
-				return &fleet.Host{ID: 1, UUID: "other", Platform: "darwin"}, nil
-			}
-			var osqueryCfg *fleet.DatastoreEnrollOsqueryConfig
-			f.ds.EnrollOsqueryFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error) {
-				osqueryCfg = osqueryEnrollConfig(opts)
-				return &fleet.Host{ID: 1, OsqueryHostID: new(osqueryCfg.OsqueryHostID), NodeKey: new(osqueryCfg.NodeKey)}, nil
-			}
-
-			_, err := f.svc.EnrollOrbit(f.ctx, f.orbitInfo(), "shared-secret", "")
-			require.NoError(t, err)
-			require.Equal(t, tc.wantReject, orbitCfg.RejectSharedSecretForAndroidMDMHosts)
-			require.False(t, orbitCfg.RejectSharedSecretForAppleMDMHosts)
-			require.False(t, orbitCfg.RejectSharedSecretForWindowsMDMHosts)
-
-			_, err = f.svc.EnrollOsquery(f.ctx, "shared-secret", f.row.HardwareUUID, f.osqueryDetails())
-			require.NoError(t, err)
-			require.Equal(t, tc.wantReject, osqueryCfg.RejectSharedSecretForAndroidMDMHosts)
-		})
-	}
-}
-
 func TestEnrollOrbitAndroidOneTimeSecret(t *testing.T) {
 	const esid = "esid-1"
 	androidHostID := uint(42)
