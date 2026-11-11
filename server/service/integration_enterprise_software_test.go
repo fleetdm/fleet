@@ -704,7 +704,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		"GET", "/api/latest/fleet/software/titles",
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
-		"team_id", fmt.Sprintf("%d", team1.ID),
+		"fleet_id", fmt.Sprintf("%d", team1.ID),
 	)
 	require.Equal(t, 0, resp.Count)
 	require.Empty(t, resp.CountsUpdatedAt)
@@ -729,7 +729,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		"GET", "/api/latest/fleet/software/titles",
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
-		"team_id", fmt.Sprintf("%d", team1.ID),
+		"fleet_id", fmt.Sprintf("%d", team1.ID),
 		"order_key", "name",
 		"order_direction", "desc",
 	)
@@ -964,7 +964,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
 		"query", "baz",
-		"team_id", fmt.Sprintf("%d", team1.ID),
+		"fleet_id", fmt.Sprintf("%d", team1.ID),
 	)
 	require.Equal(t, 1, resp.Count)
 	require.Len(t, resp.SoftwareTitles, 1)
@@ -997,7 +997,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	stResp = getSoftwareTitleResponse{}
 	s.DoJSON(
 		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", fooTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &stResp,
-		"team_id", fmt.Sprintf("%d", team1.ID),
+		"fleet_id", fmt.Sprintf("%d", team1.ID),
 	)
 	softwareTitlesMatch(
 		[]fleet.SoftwareTitle{
@@ -1050,21 +1050,21 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	// No Team
 	stResp = getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &stResp,
-		"team_id", "0")
+		"fleet_id", "0")
 	softwareTitlesMatch(expected, []fleet.SoftwareTitle{*stResp.SoftwareTitle})
 
 	// invalid title for team
 	stResp = getSoftwareTitleResponse{}
 	s.DoJSON(
 		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &stResp,
-		"team_id", fmt.Sprintf("%d", team1.ID),
+		"fleet_id", fmt.Sprintf("%d", team1.ID),
 	)
 
 	// invalid title for no team
 	stResp = getSoftwareTitleResponse{}
 	s.DoJSON(
 		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", bazTitle.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &stResp,
-		"team_id", "0")
+		"fleet_id", "0")
 
 	// add bar tmHost
 	software = []fleet.Software{
@@ -1082,7 +1082,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	stResp = getSoftwareTitleResponse{}
 	s.DoJSON(
 		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &stResp,
-		"team_id", fmt.Sprintf("%d", team1.ID),
+		"fleet_id", fmt.Sprintf("%d", team1.ID),
 	)
 	softwareTitlesMatch(
 		[]fleet.SoftwareTitle{
@@ -1105,13 +1105,13 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	// Team without hosts
 	s.DoJSON(
 		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &stResp,
-		"team_id", fmt.Sprintf("%d", team2.ID),
+		"fleet_id", fmt.Sprintf("%d", team2.ID),
 	)
 
 	// Non-existent team
 	s.DoJSON(
 		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &stResp,
-		"team_id", "99999",
+		"fleet_id", "99999",
 	)
 
 	// verify that software installers contain SoftwarePackage field
@@ -1181,7 +1181,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
 		"query", "ruby",
-		"team_id", fmt.Sprintf("%d", team1.ID),
+		"fleet_id", fmt.Sprintf("%d", team1.ID),
 	)
 
 	require.Len(t, resp.SoftwareTitles, 1)
@@ -1205,7 +1205,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
 		"query", "ruby",
-		"team_id", fmt.Sprintf("%d", team1.ID),
+		"fleet_id", fmt.Sprintf("%d", team1.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
@@ -1213,7 +1213,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	// software installer not returned with self-service only (not marked as such)
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp,
-		"self_service", "1", "query", "ruby", "team_id", fmt.Sprint(team1.ID))
+		"self_service", "1", "query", "ruby", "fleet_id", fmt.Sprint(team1.ID))
 	require.Empty(t, resp.SoftwareTitles)
 
 	// update it to be self-service, check that it gets returned
@@ -1223,7 +1223,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	})
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp,
-		"self_service", "1", "query", "ruby", "team_id", fmt.Sprint(team1.ID))
+		"self_service", "1", "query", "ruby", "fleet_id", fmt.Sprint(team1.ID))
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage.SelfService)
@@ -1247,7 +1247,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
 		"self_service", "true",
-		"team_id", "0",
+		"fleet_id", "0",
 	)
 
 	require.Len(t, resp.SoftwareTitles, 2)
@@ -1287,7 +1287,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
 		"platform", "darwin",
-		"team_id", fmt.Sprint(team2.ID))
+		"fleet_id", fmt.Sprint(team2.ID))
 
 	require.Len(t, resp.SoftwareTitles, 1)
 	dummyTitleId := resp.SoftwareTitles[0].ID
@@ -2149,7 +2149,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 	// PUT: create new software title icon
 	resp := s.DoRawWithHeaders(
 		"PUT",
-		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?fleet_id=%d", titleID, tm.ID),
 		buf.Bytes(),
 		http.StatusOK,
 		headers,
@@ -2228,7 +2228,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 	}
 	resp = s.DoRawWithHeaders(
 		"PUT",
-		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?fleet_id=%d", titleID, tm.ID),
 		bufInvalid.Bytes(),
 		http.StatusBadRequest,
 		headers,
@@ -2274,7 +2274,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 	}
 	resp = s.DoRawWithHeaders(
 		"PUT",
-		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?fleet_id=%d", titleID, tm.ID),
 		buf2.Bytes(),
 		http.StatusOK,
 		headers,
@@ -2313,7 +2313,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 	}
 	resp = s.DoRawWithHeaders(
 		"GET",
-		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?fleet_id=%d", titleID, tm.ID),
 		nil,
 		http.StatusOK,
 		headers,
@@ -2325,7 +2325,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 	// DELETE software title icon
 	s.DoRawWithHeaders(
 		"DELETE",
-		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?fleet_id=%d", titleID, tm.ID),
 		nil,
 		http.StatusOK,
 		headers,
@@ -2578,7 +2578,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1", "auto_update_enabled":true, "auto_update_window_end":"04:00", "auto_update_window_start":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), tok), 0)
 
 	// Get the software title again.
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppApp.TitleID), nil, http.StatusOK, &titlesResp, "team_id", fmt.Sprintf("%d", teamID))
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppApp.TitleID), nil, http.StatusOK, &titlesResp, "fleet_id", fmt.Sprintf("%d", teamID))
 	require.NotNil(t, titlesResp.SoftwareTitle.AutoUpdateEnabled)
 	require.True(t, *titlesResp.SoftwareTitle.AutoUpdateEnabled)
 	require.NotNil(t, titlesResp.SoftwareTitle.AutoUpdateStartTime)
@@ -2725,13 +2725,13 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 	}, http.StatusOK, "")
 
 	var titleResp getSoftwareTitleResponse
-	s.DoJSON("GET", titlePath, nil, http.StatusOK, &titleResp, "team_id", "0")
+	s.DoJSON("GET", titlePath, nil, http.StatusOK, &titleResp, "fleet_id", "0")
 	require.ElementsMatch(t, []string{cat1.Name, cat2.Name}, titleResp.SoftwareTitle.SoftwarePackage.Categories)
 
 	// deleting a category cascades the link
 	s.Do("DELETE", fmt.Sprintf("%s/%d", path, cat1.ID), nil, http.StatusNoContent)
 	titleResp = getSoftwareTitleResponse{}
-	s.DoJSON("GET", titlePath, nil, http.StatusOK, &titleResp, "team_id", "0")
+	s.DoJSON("GET", titlePath, nil, http.StatusOK, &titleResp, "fleet_id", "0")
 	require.ElementsMatch(t, []string{cat2.Name}, titleResp.SoftwareTitle.SoftwarePackage.Categories)
 
 	// deleting a team cascades to its categories
@@ -3208,10 +3208,10 @@ func (s *integrationEnterpriseTestSuite) TestAIToolFilter() {
 		}
 	}
 
-	got, count := listTitles("ai_tool", "true", "team_id", fmt.Sprint(tm.ID))
+	got, count := listTitles("ai_tool", "true", "fleet_id", fmt.Sprint(tm.ID))
 	require.Equal(t, map[string]bool{"AIToolClaude": true, "aitool-codex": true}, got)
 	require.Equal(t, 2, count)
-	got, count = listVersions("ai_tool", "true", "team_id", fmt.Sprint(tm.ID))
+	got, count = listVersions("ai_tool", "true", "fleet_id", fmt.Sprint(tm.ID))
 	require.Equal(t, map[string]bool{"AIToolClaude": true, "aitool-codex": true}, got)
 	require.Equal(t, 2, count)
 

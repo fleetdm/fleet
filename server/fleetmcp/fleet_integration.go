@@ -816,7 +816,7 @@ func (fc *FleetClient) ListSoftwareTitles(ctx context.Context, teamName, platfor
 		params.Set("per_page", strconv.Itoa(apiPerPage))
 		params.Set("page", strconv.Itoa(page))
 		if teamIDStr != "" {
-			params.Set("team_id", teamIDStr)
+			params.Set("fleet_id", teamIDStr)
 		}
 		if p := strings.TrimSpace(platform); p != "" {
 			params.Set("platform", p)
@@ -1777,7 +1777,7 @@ func (fc *FleetClient) GetHostsForCVE(ctx context.Context, cveID, teamName, plat
 	titleParams.Set("query", strings.TrimSpace(cveID))
 	titleParams.Set("per_page", strconv.Itoa(titlesPerPage))
 	if teamIDStr != "" {
-		titleParams.Set("team_id", teamIDStr)
+		titleParams.Set("fleet_id", teamIDStr)
 	}
 	titleIDs := make([]uint, 0)
 	for page := 0; ; page++ {
@@ -1825,7 +1825,7 @@ func (fc *FleetClient) GetHostsForCVE(ctx context.Context, cveID, teamName, plat
 	for _, tID := range titleIDs {
 		detailURL := fmt.Sprintf("/api/v1/fleet/software/titles/%d", tID)
 		if teamIDStr != "" {
-			detailURL += "?team_id=" + teamIDStr
+			detailURL += "?fleet_id=" + teamIDStr
 		}
 		// Honor caller cancellation between fan-out iterations: a slow CVE with
 		// many vulnerable titles can issue dozens of HTTP calls, so checking

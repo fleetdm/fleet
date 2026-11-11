@@ -426,7 +426,7 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 		// fields that may be present in the response (e.g., vulnerabilities)
 		for _, sw := range expectedSoftware {
 			var detailsResp getSoftwareResponse
-			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", sw.ID), nil, http.StatusOK, &detailsResp, "team_id", team)
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", sw.ID), nil, http.StatusOK, &detailsResp, "fleet_id", team)
 			assert.Equal(t, sw.ID, detailsResp.Software.ID)
 			assert.Equal(t, sw.Name, detailsResp.Software.Name)
 			assert.Equal(t, sw.Version, detailsResp.Software.Version)
@@ -440,7 +440,7 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 			}
 
 			detailsResp = getSoftwareResponse{}
-			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", sw.ID), nil, http.StatusOK, &detailsResp, "team_id", team)
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", sw.ID), nil, http.StatusOK, &detailsResp, "fleet_id", team)
 			assert.Equal(t, sw.ID, detailsResp.Software.ID)
 			assert.Equal(t, sw.Name, detailsResp.Software.Name)
 			assert.Equal(t, sw.Version, detailsResp.Software.Version)
@@ -537,14 +537,14 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	teamStr := fmt.Sprintf("%d", tm.ID)
 	lsResp = listSoftwareResponse{}
 	s.DoJSON(
-		"GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "order_key", "hosts_count", "order_direction", "desc", "team_id",
+		"GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "order_key", "hosts_count", "order_direction", "desc", "fleet_id",
 		teamStr,
 	)
 	assertResp(lsResp, nil, time.Time{}, teamStr)
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "order_key", "hosts_count", "order_direction", "desc",
-		"team_id", teamStr,
+		"fleet_id", teamStr,
 	)
 	assertVersionsResp(versResp, nil, time.Time{}, teamStr, 0)
 
@@ -716,13 +716,13 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	lsResp = listSoftwareResponse{}
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "2", "page", "0", "order_key", "hosts_count",
-		"order_direction", "desc", "team_id", teamStr,
+		"order_direction", "desc", "fleet_id", teamStr,
 	)
 	assertResp(lsResp, []fleet.Software{sws[19], sws[18]}, hostsCountTs, teamStr, 3, 2)
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "2", "page", "0", "order_key",
-		"hosts_count", "order_direction", "desc", "team_id", teamStr,
+		"hosts_count", "order_direction", "desc", "fleet_id", teamStr,
 	)
 	assertVersionsResp(versResp, []fleet.Software{sws[19], sws[18]}, hostsCountTs, teamStr, expectedTeamVersionsCount, 3, 2)
 
@@ -730,13 +730,13 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	lsResp = listSoftwareResponse{}
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "2", "page", "1", "order_key", "hosts_count",
-		"order_direction", "desc", "team_id", teamStr,
+		"order_direction", "desc", "fleet_id", teamStr,
 	)
 	assertResp(lsResp, []fleet.Software{sws[17]}, hostsCountTs, teamStr, 1)
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "2", "page", "1", "order_key",
-		"hosts_count", "order_direction", "desc", "team_id", teamStr,
+		"hosts_count", "order_direction", "desc", "fleet_id", teamStr,
 	)
 	assertVersionsResp(versResp, []fleet.Software{sws[17]}, hostsCountTs, teamStr, expectedTeamVersionsCount, 1)
 
@@ -744,7 +744,7 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	lsResp = listSoftwareResponse{}
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "2", "page", "0", "order_key", "name",
-		"order_direction", "desc", "team_id", "0",
+		"order_direction", "desc", "fleet_id", "0",
 	)
 	fmt.Printf("lsResp: %+v\n", lsResp)
 	assertResp(lsResp, []fleet.Software{sws[19], sws[18]}, hostsCountTs, "", 17, 17)
@@ -753,7 +753,7 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	detailsResp := getSoftwareResponse{}
 	s.DoJSON(
 		"GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", versResp.Software[0].ID), nil, http.StatusNotFound, &detailsResp,
-		"team_id", "999999",
+		"fleet_id", "999999",
 	)
 
 	// a request with without_vulnerability_details set to false does not return extra details

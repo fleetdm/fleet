@@ -321,7 +321,7 @@ func (s *integrationInstallTestSuite) TestGetInHouseAppManifestSignedURL() {
 	var titleResp listSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{
 		SoftwareTitleListOptions: fleet.SoftwareTitleListOptions{Platform: "ios"},
-	}, http.StatusOK, &titleResp, "team_id", "0")
+	}, http.StatusOK, &titleResp, "fleet_id", "0")
 	require.Len(t, titleResp.SoftwareTitles, 1)
 	require.Equal(t, "ipa_test", titleResp.SoftwareTitles[0].Name)
 	titleID := titleResp.SoftwareTitles[0].ID

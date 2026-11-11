@@ -771,7 +771,15 @@ func TestAuthorizeSoftwareInstaller(t *testing.T) {
 	noTeamInstaller := &fleet.SoftwareInstaller{}
 	team1Installer := &fleet.SoftwareInstaller{TeamID: new(uint(1))}
 	team2Installer := &fleet.SoftwareInstaller{TeamID: new(uint(2))}
+	// VPP apps and title icons are authorized as the same rego type (installable_entity).
+	team1VPPApp := &fleet.VPPApp{TeamID: new(uint(1))}
+	team1Icon := &fleet.SoftwareTitleIcon{TeamID: 1}
 	runTestCases(t, []authTestCase{
+		{user: test.UserTeamAdminTeam1, object: team1VPPApp, action: write, allow: true},
+		{user: test.UserTeamAdminTeam2, object: team1VPPApp, action: write, allow: false},
+		{user: test.UserTeamAdminTeam1, object: team1Icon, action: write, allow: true},
+		{user: test.UserTeamAdminTeam2, object: team1Icon, action: write, allow: false},
+
 		{user: nil, object: noTeamInstaller, action: read, allow: false},
 		{user: nil, object: noTeamInstaller, action: write, allow: false},
 		{user: nil, object: team1Installer, action: read, allow: false},
@@ -2427,10 +2435,14 @@ func TestAuthorizeMDMAppleSettings(t *testing.T) {
 	t.Parallel()
 
 	globalSettings := &fleet.MDMAppleSettingsPayload{}
+	team1SetupSettings := &fleet.MDMAppleSetupPayload{TeamID: new(uint(1))}
 	team1Settings := &fleet.MDMAppleSettingsPayload{
 		TeamID: new(uint(1)),
 	}
 	runTestCases(t, []authTestCase{
+		{user: test.UserTeamAdminTeam1, object: team1SetupSettings, action: write, allow: true},
+		{user: test.UserTeamAdminTeam2, object: team1SetupSettings, action: write, allow: false},
+
 		{user: test.UserNoRoles, object: globalSettings, action: write, allow: false},
 		{user: test.UserNoRoles, object: globalSettings, action: read, allow: false},
 		{user: test.UserNoRoles, object: team1Settings, action: write, allow: false},
