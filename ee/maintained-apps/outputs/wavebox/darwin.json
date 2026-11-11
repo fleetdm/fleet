@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "157.3.25.2",
+      "version": "157.3.32.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.bookry.wavebox';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bookry.wavebox' AND version_compare(bundle_short_version, '157.3.25.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bookry.wavebox' AND version_compare(bundle_short_version, '157.3.32.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.bookry.wavebox' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.wavebox.app/stable/macarm64/Wavebox_157.3.25.2.zip",
+      "installer_url": "https://download.wavebox.app/stable/macarm64/Wavebox_157.3.32.2.zip",
       "install_script_ref": "8f6f4ad3",
       "uninstall_script_ref": "8719f881",
-      "sha256": "73a441204a2f43db105a0ff4a33b7e2cede24b4198ffeac6d4cf41fc0ec3eb4c",
+      "sha256": "460065a8cf1b1caf68070a14eb46c7db72fab288f2bf36651b4e9248681eb735",
       "default_categories": [
         "Browsers"
       ]

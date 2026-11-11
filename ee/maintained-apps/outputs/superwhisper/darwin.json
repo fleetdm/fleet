@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.2.1",
+      "version": "3.2.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.superduper.superwhisper';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.superduper.superwhisper' AND version_compare(bundle_short_version, '3.2.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.superduper.superwhisper' AND version_compare(bundle_short_version, '3.2.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.superduper.superwhisper' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://builds.superwhisper.com/v3.2.1/superwhisper.zip",
+      "installer_url": "https://builds.superwhisper.com/v3.2.2/superwhisper.zip",
       "install_script_ref": "0769bb20",
       "uninstall_script_ref": "282a5591",
-      "sha256": "24a73e68f7e4b022d9e337993cb3897b7bf998b57c0be6bbeb2bd12f36f32c7e",
+      "sha256": "d6d54e579ed3ff55c2c839fa1639897e730db3b81bdfe22d611ff006d00d9898",
       "default_categories": [
         "Productivity"
       ]
