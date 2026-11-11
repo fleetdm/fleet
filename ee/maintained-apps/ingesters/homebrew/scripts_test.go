@@ -515,14 +515,19 @@ INSTALLER_PATH=/tmp/fleet-test/MozillaVPN.pkg
 sleep() { /bin/sleep 0.01; }
 scutil() { :; }
 sudo() { echo "sudo $*"; }
+# The waits are bounded, so a script that never stops the installer fails the
+# test instead of hanging it.
 installer() {
   echo "installer $*"
   case "$installer_mode" in
     opens-gui)
       echo "301 exits /Applications/Mozilla VPN.app/Contents/MacOS/Mozilla VPN" >> "$procs"
-      while grep -q '^301 ' "$procs"; do /bin/sleep 0.01; done ;;
+      for _ in {1..3000}; do
+        grep -q '^301 ' "$procs" || return 0
+        /bin/sleep 0.01
+      done ;;
     hangs)
-      while :; do /bin/sleep 0.01; done ;;
+      for _ in {1..3000}; do /bin/sleep 0.01; done ;;
   esac
 }
 ps() { grep . "$procs" | cut -d' ' -f1,3-; }
