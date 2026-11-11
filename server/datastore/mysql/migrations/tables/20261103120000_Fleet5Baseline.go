@@ -42,7 +42,7 @@ func Up_20261103120000(tx *sql.Tx) error {
 		return fmt.Errorf("checking for Fleet 4 data migrations table: %w", err)
 	}
 	if len(legacyMigrations) > 0 || legacyDataTable > 0 {
-		// A 4.95.x database already has the baseline schema. Running the
+		// A 4.95.0 or later database already has the baseline schema. Running the
 		// baseline on any other Fleet 4 database would fill in missing tables
 		// and leave a mix of both schemas.
 		var dataMigrations []int64
@@ -78,7 +78,7 @@ func Up_20261103120000(tx *sql.Tx) error {
 }
 
 // fleet495Mismatches returns why a database's applied Fleet 4 table and data
-// migrations aren't exactly those of 4.95, ignoring Fleet4OptionalMigrations,
+// migrations aren't exactly those of 4.95.0, ignoring Fleet4OptionalMigrations,
 // or nil if they are.
 func fleet495Mismatches(tableMigrations, dataMigrations []int64) []string {
 	var unknown []int64
