@@ -112,4 +112,3 @@ Route failures to the package's owners in [CODEOWNERS](../../CODEOWNERS).
 When adding a target, use the conventional `func FuzzXxx(f *testing.F)` signature in a `*_test.go` file.
 Targets in listed packages are discovered automatically.
 For a new package, add it to the workflow matrix and seed replay command above.
-After merging, check the [Scorecard workflow](./scorecards-analysis.yml) for native Go fuzzing detection.
