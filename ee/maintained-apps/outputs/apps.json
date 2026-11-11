@@ -4786,7 +4786,7 @@
       "name": "Klokki",
       "slug": "klokki/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.klokki-launcher",
+      "unique_identifier": "com.klokki.macos",
       "description": "Klokki is an automatic time-tracking solution."
     },
     {
