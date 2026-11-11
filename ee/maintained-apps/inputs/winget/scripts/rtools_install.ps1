@@ -49,7 +49,16 @@ $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 $installerInfo = (Get-Item $exeFilePath).VersionInfo
 $installDir = "C:\rtools$($installerInfo.FileMajorPart)$($installerInfo.FileMinorPart)"
 
-foreach ($key in @(Get-RtoolsKeys | Where-Object { $_.InstallLocation -and $_.InstallLocation.TrimEnd('\') -eq $installDir })) {
+$release = "$($installerInfo.FileMajorPart).$($installerInfo.FileMinorPart)"
+$existingKeys = @(Get-RtoolsKeys | Where-Object { $_.InstallLocation -and $_.InstallLocation.TrimEnd('\') -eq $installDir })
+foreach ($key in $existingKeys) {
+  if ($key.DisplayVersion -notlike "$release.*") {
+    Write-Host "$installDir holds $($key.DisplayName), not Rtools $release; not removing it."
+    Exit 1
+  }
+}
+
+foreach ($key in $existingKeys) {
   $uninstallCommand = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }
   if ($uninstallCommand -match '^\s*"([^"]+)"') {
     $uninstaller = $Matches[1]
