@@ -975,24 +975,25 @@ func LogDeprecatedPathAlias(ctx context.Context, _ *http.Request) context.Contex
 // can log deprecation warnings.
 func RegisterDeprecatedPathAliases(r *mux.Router, versions []string, registry *HandlerRegistry, aliases []DeprecatedPathAlias) {
 	allVersions := append(append([]string{}, versions...), "latest")
-	versionRegex := strings.Join(allVersions, "|")
 	for _, alias := range aliases {
 		handler := registry.handlers[handlerKey{alias.Method, alias.PrimaryPath}]
 		if handler == nil {
 			panic(fmt.Sprintf("deprecated alias: no handler registered for %s %s", alias.Method, alias.PrimaryPath))
 		}
 		for _, path := range alias.DeprecatedPaths {
-			// Replace the version placeholder in the deprecated path with a regex that matches all versions,
-			// so that the same handler can be used for all versions of the deprecated path.
-			pathForHandler := strings.Replace(path, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", versionRegex), 1)
 			info := deprecatedPathInfo{deprecatedPath: path, primaryPath: alias.PrimaryPath}
 			// Wrap the handler to inject deprecation info into the context for logging.
 			wrappedHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				ctx := context.WithValue(r.Context(), deprecatedPathInfoKey{}, info)
 				handler.ServeHTTP(w, r.WithContext(ctx))
 			})
-			nameAndVerb := getNameFromPathAndVerb(alias.Method, path, "")
-			r.Handle(pathForHandler, wrappedHandler).Name(nameAndVerb).Methods(alias.Method)
+			handleRoute(r, Route{
+				Name:     getNameFromPathAndVerb(alias.Method, path, ""),
+				Methods:  []string{alias.Method},
+				Path:     path,
+				Versions: allVersions,
+				Handler:  wrappedHandler,
+			})
 		}
 	}
 }
@@ -1267,25 +1268,24 @@ func (e *CommonEndpointer[H]) HandlePathHandler(path string, pathHandler func(pa
 		versions = append(versions, "latest")
 	}
 
-	versionedPath := strings.Replace(path, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
-	nameAndVerb := getNameFromPathAndVerb(verb, path, e.startingAtVersion)
-	handler := pathHandler(versionedPath)
-	if e.usePathPrefix {
-		e.Router.PathPrefix(versionedPath).Handler(handler).Name(nameAndVerb).Methods(verb)
-	} else {
-		e.Router.Handle(versionedPath, handler).Name(nameAndVerb).Methods(verb)
+	route := Route{
+		Name:     getNameFromPathAndVerb(verb, path, e.startingAtVersion),
+		Methods:  []string{verb},
+		Path:     path,
+		Versions: slices.Clone(versions), // versions can share e.Versions' backing array
+		Prefix:   e.usePathPrefix,
 	}
+	route.Handler = pathHandler(route.Template())
+	handleRoute(e.Router, route)
 	if e.HandlerRegistry != nil {
-		e.HandlerRegistry.handlers[handlerKey{verb, path}] = handler
+		e.HandlerRegistry.handlers[handlerKey{verb, path}] = route.Handler
 	}
 	for _, alias := range e.alternativePaths {
-		nameAndVerb := getNameFromPathAndVerb(verb, alias, e.startingAtVersion)
-		versionedPath := strings.Replace(alias, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
-		if e.usePathPrefix {
-			e.Router.PathPrefix(versionedPath).Handler(pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
-		} else {
-			e.Router.Handle(versionedPath, pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
-		}
+		aliasRoute := route
+		aliasRoute.Name = getNameFromPathAndVerb(verb, alias, e.startingAtVersion)
+		aliasRoute.Path = alias
+		aliasRoute.Handler = pathHandler(aliasRoute.Template())
+		handleRoute(e.Router, aliasRoute)
 	}
 }
 
