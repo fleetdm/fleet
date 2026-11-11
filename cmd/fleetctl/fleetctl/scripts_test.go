@@ -58,7 +58,7 @@ func TestRunScriptCommand(t *testing.T) {
 		return nil, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: false}}, nil
+		return &fleet.AppConfig{}, nil
 	}
 	ds.GetScriptIDByNameFunc = func(ctx context.Context, name string, teamID *uint) (uint, error) {
 		return 1, nil
@@ -326,7 +326,6 @@ Fleet records the last 10,000 characters to prevent downtime.
 		//	scriptPath:   generateValidPath,
 		//	expectErrMsg: fleet.RunScriptHostTimeoutErrMsg,
 		// },
-		{name: "disabled scripts globally", scriptPath: generateValidPath, expectErrMsg: fleet.RunScriptScriptsDisabledGloballyErrMsg},
 		{
 			name:         "technician cannot run script from path",
 			user:         technician,
@@ -378,7 +377,7 @@ Fleet records the last 10,000 characters to prevent downtime.
 			}
 			return &h, nil
 		}
-		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hid uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostScriptResult, error) {
 			require.Equal(t, uint(42), hid)
 			if c.expectPending {
 				return []*fleet.HostScriptResult{{HostID: uint(42)}}, nil
@@ -413,14 +412,8 @@ Fleet records the last 10,000 characters to prevent downtime.
 		ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 			return nil, nil
 		}
-		if c.name == "disabled scripts globally" {
-			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-				return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: true}}, nil
-			}
-		} else {
-			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-				return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: false}}, nil
-			}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
 		}
 		if c.savedScriptContents != nil {
 			ds.GetScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) {

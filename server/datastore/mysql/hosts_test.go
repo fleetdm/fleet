@@ -6152,7 +6152,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.Contains(t, expectedHostIds, hosts[1].ID)
 
 	// Simulate that host1 ran the script successfully
-	host1Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host1.ID, false, false)
+	host1Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host1.ID, false)
 	require.NoError(t, err)
 	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID:      host1.ID,
@@ -6163,7 +6163,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Simulate that host2 errored out
-	host2Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host2.ID, false, false)
+	host2Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host2.ID, false)
 	require.NoError(t, err)
 	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID:      host2.ID,
@@ -6174,7 +6174,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Simulate that host3 cancelled the script execution
-	host3Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host3.ID, false, false)
+	host3Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host3.ID, false)
 	require.NoError(t, err)
 
 	// Cancel the execution

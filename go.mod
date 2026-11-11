@@ -1,6 +1,6 @@
 module github.com/fleetdm/fleet/v4
 
-go 1.27.3
+go 1.27.4
 
 require (
 	cloud.google.com/go/auth v0.18.2

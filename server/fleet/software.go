@@ -754,13 +754,13 @@ type SoftwareTitleListOptions struct {
 	AITool              bool    `query:"ai_tool,optional"`
 
 	// TypeFilter is the validated form of Source and ExtensionFor, set by the service layer.
-	TypeFilter SoftwareTypeFilter
+	TypeFilter SoftwareTypeFilter `json:"-"`
 
 	// ForSetupExperience is an internal flag set when listing software via the
 	// setup experience endpoint, so that it filters out any software available
 	// for install that is not supported for setup experience. It cannot be set
 	// via the query parameters.
-	ForSetupExperience bool
+	ForSetupExperience bool `json:"-"`
 }
 
 type HostSoftwareTitleListOptions struct {
@@ -777,7 +777,7 @@ type HostSoftwareTitleListOptions struct {
 	// In order not to introduce a breaking change we have to mark this parameter as optional.
 	// However, instead of using *bool and modifying a lot of downstream code and tests
 	// Use this indicator
-	IncludeAvailableForInstallExplicitlySet bool
+	IncludeAvailableForInstallExplicitlySet bool `json:"-"`
 
 	// OnlyAvailableForInstall is set via a query argument that limits the
 	// returned software titles to only those that are available for install on
@@ -798,10 +798,10 @@ type HostSoftwareTitleListOptions struct {
 	AITool       bool   `query:"ai_tool,optional"`
 
 	// TypeFilter is the validated form of Source and ExtensionFor, set by the service layer.
-	TypeFilter SoftwareTypeFilter
+	TypeFilter SoftwareTypeFilter `json:"-"`
 
 	// Non-MDM-enabled hosts cannot install VPP apps
-	IsMDMEnrolled bool
+	IsMDMEnrolled bool `json:"-"`
 }
 
 // AuthzSoftwareInventory is used for access controls on software inventory.
@@ -896,11 +896,11 @@ type SoftwareListOptions struct {
 	ListOptions ListOptions `url:"list_options"`
 
 	// HostID filters software to the specified host if not nil.
-	HostID                      *uint
-	TeamID                      *uint `query:"fleet_id,optional"`
-	VulnerableOnly              bool  `query:"vulnerable,optional"`
-	WithoutVulnerabilityDetails bool  `query:"without_vulnerability_details,optional"`
-	IncludeCVEScores            bool
+	HostID                      *uint   `json:"-"`
+	TeamID                      *uint   `query:"fleet_id,optional"`
+	VulnerableOnly              bool    `query:"vulnerable,optional"`
+	WithoutVulnerabilityDetails bool    `query:"without_vulnerability_details,optional"`
+	IncludeCVEScores            bool    `json:"-"`
 	KnownExploit                bool    `query:"exploit,optional"`
 	MinimumCVSS                 float64 `query:"min_cvss_score,optional"`
 	MaximumCVSS                 float64 `query:"max_cvss_score,optional"`
@@ -909,12 +909,12 @@ type SoftwareListOptions struct {
 	AITool                      bool    `query:"ai_tool,optional"`
 
 	// TypeFilter is the validated form of Source and ExtensionFor, set by the service layer.
-	TypeFilter SoftwareTypeFilter
+	TypeFilter SoftwareTypeFilter `json:"-"`
 
 	// WithHostCounts indicates that the list of software should include the
 	// counts of hosts per software, and include only those software that have
 	// a count of hosts > 0.
-	WithHostCounts bool
+	WithHostCounts bool `json:"-"`
 }
 
 type SoftwareIterQueryOptions struct {

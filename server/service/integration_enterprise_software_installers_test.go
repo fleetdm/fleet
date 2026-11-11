@@ -1077,19 +1077,9 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	appConf, err := s.ds.AppConfig(context.Background())
 	s.Require().NoError(err)
 	appConf.Features.EnableSoftwareInventory = true
-	appConf.ServerSettings.ScriptsDisabled = true // shouldn't stop installs/uninstalls
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	s.Require().NoError(err)
 	time.Sleep(2 * time.Second) // Wait for the app config cache to clear
-
-	t.Cleanup(func() {
-		acr := appConfigResponse{}
-		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"server_settings": {
-			"scripts_disabled": false
-		}
-	}`), http.StatusOK, &acr)
-	})
 
 	var createTeamResp teamResponse
 	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{
@@ -1646,10 +1636,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	assert.EqualValues(t, 1, *scriptResultResp.ExitCode)
 	assert.Equal(t, "not ok", scriptResultResp.Output)
 	assert.Less(t, beforeUninstall, scriptResultResp.CreatedAt)
-
-	appConf.ServerSettings.ScriptsDisabled = false // set back to normal
-	err = s.ds.SaveAppConfig(context.Background(), appConf)
-	s.Require().NoError(err)
 }
 
 func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall() {
