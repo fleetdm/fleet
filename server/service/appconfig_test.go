@@ -4553,4 +4553,16 @@ func TestValidateVPPAssignmentsManyTokensPerFleet(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, invalid.HasErrors())
 	})
+
+	t.Run("a token listed twice is rejected", func(t *testing.T) {
+		invalid := &fleet.InvalidArgumentError{}
+		got, err := svc.validateVPPAssignments(t.Context(), []fleet.MDMAppleVolumePurchasingProgramInfo{
+			{Location: "HQ", Teams: []string{"Workstations"}},
+			{Location: "EU", Teams: []string{fleet.TeamNameNoTeam}},
+			{Location: "HQ", Teams: []string{fleet.TeamNameNoTeam}},
+		}, invalid, lic)
+		require.NoError(t, err)
+		require.Nil(t, got)
+		require.ErrorContains(t, invalid, `VPP token "HQ" is listed more than once`)
+	})
 }
