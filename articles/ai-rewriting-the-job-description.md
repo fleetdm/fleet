@@ -53,7 +53,7 @@ For IT teams and client platform engineers, a few things matter in concrete term
 
 Get hands-on with AI in real work, not toy examples. Understand what these tools do well (syntax, boilerplate, querying structured schemas) and where they fail (organizational context, recognizing when technically correct is operationally wrong).
 
-Build config that AI can work with. If your device management configuration lives in a GUI, you're not positioned to benefit from AI-assisted authoring. Structured, version-controlled config isn't only good engineering practice anymore. It's the surface AI needs to produce useful output.
+Build config that AI can work with. If your device management configuration lives in a GUI, you're not positioned to benefit from AI-assisted authoring. Structured, version-controlled config isn't only good engineering practice anymore. It's the surface AI needs to produce useful output. To get started, [connect your AI tool to Fleet](https://fleetdm.com/guides/connect-your-ai-tool-to-fleet).
 
 Invest in judgment over syntax. The skills that hold their value are the ones AI doesn't substitute for well: knowing which policies actually matter for your environment, understanding your org's specific risk tolerance, designing systems that are reviewable and maintainable by people who weren't in the room when they were built. Those remain human problems.
 
