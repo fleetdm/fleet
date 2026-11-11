@@ -5,11 +5,22 @@ try {
     $installDir = Join-Path $env:ProgramFiles "BurpSuiteCommunity"
 
     # Setup exits with code 1 while Burp Suite is running. Fleet runs as SYSTEM,
-    # outside the user's session, so it can't ask the app to close: stop it
-    # first, along with anything else running from its install directory, such
-    # as Burp's browser or the bundled Java runtime. Unsaved changes are lost.
+    # outside the user's session, so it can't ask the app to close: stop Burp,
+    # its browser, and its bundled Java runtime first, wherever Burp is
+    # installed. Unsaved changes are lost.
+    $burpDirs = @($installDir) + @(Get-ItemProperty -Path @(
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+        'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+    ) -ErrorAction SilentlyContinue | Where-Object {
+        $_.DisplayName -like "Burp Suite Community*" -and $_.Publisher -like "*PortSwigger*" -and $_.InstallLocation
+    } | ForEach-Object { $_.InstallLocation.Trim('"').TrimEnd('\') })
+    # Only Burp's own files, in case it was installed into a shared folder.
+    $burpPaths = foreach ($dir in $burpDirs) {
+        "$dir\BurpSuiteCommunity.exe", "$dir\jre\", "$dir\burpbrowser\", "$dir\.install4j\"
+    }
     $running = @(Get-Process -ErrorAction SilentlyContinue | Where-Object {
-        $_.Path -and $_.Path.StartsWith("$installDir\", [StringComparison]::OrdinalIgnoreCase)
+        $path = $_.Path
+        $path -and ($burpPaths | Where-Object { $path.StartsWith($_, [StringComparison]::OrdinalIgnoreCase) })
     })
     foreach ($proc in $running) {
         Write-Host "Stopping $($proc.Name) (PID $($proc.Id)) before installing."
