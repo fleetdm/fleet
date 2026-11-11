@@ -456,7 +456,7 @@ $ fleetctl get hosts --json | jq '.spec .os_version' | sort | uniq -c
 
 **Back up your users and update all team-level users to global users**
 
-1. Run the `fleetctl get user_roles > user_roles.yml` command. Save the `user_roles.yml` file so that, if you choose to upgrade later, you have a record of each user's roles. To restore them, edit each user in the Fleet UI or use the [Update user](https://fleetdm.com/docs/rest-api/rest-api#update-user) API endpoint.
+1. Run the `fleetctl get user_roles > user_roles.yml` command. Save the `user_roles.yml` file so that, if you choose to upgrade later, you can restore user roles.
 2. Head to the **Settings > Users** page in the Fleet UI.
 3. For each user that has any team listed under the **Teams** column, select **Actions > Edit**, then select **Global user**, and then select **Save**. If a user shouldn't have global access, delete this user.
 
