@@ -3,9 +3,9 @@ package tables
 import (
 	"database/sql"
 	_ "embed"
-	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
@@ -51,8 +51,8 @@ func Up_20261103120000(tx *sql.Tx) error {
 				return fmt.Errorf("loading Fleet 4 data migrations: %w", err)
 			}
 		}
-		if !isFleet495Database(legacyMigrations, dataMigrations) {
-			return errors.New("this database is not on Fleet 4.95; upgrade to the latest Fleet 4.95.x before upgrading to Fleet 5")
+		if reasons := fleet495Mismatches(legacyMigrations, dataMigrations); len(reasons) > 0 {
+			return fmt.Errorf("this database is not on Fleet 4.95, upgrade to the latest Fleet 4.95.x before upgrading to Fleet 5: %s", strings.Join(reasons, "; "))
 		}
 		return nil
 	}
@@ -77,33 +77,61 @@ func Up_20261103120000(tx *sql.Tx) error {
 	return nil
 }
 
-// isFleet495Database reports whether a database's applied Fleet 4 table and
-// data migrations are exactly those of 4.95, ignoring Fleet4OptionalMigrations.
-func isFleet495Database(tableMigrations, dataMigrations []int64) bool {
-	required := make(map[int64]struct{}, len(Fleet4Migrations))
-	for _, v := range Fleet4Migrations {
-		required[v] = struct{}{}
-	}
+// fleet495Mismatches returns why a database's applied Fleet 4 table and data
+// migrations aren't exactly those of 4.95, ignoring Fleet4OptionalMigrations,
+// or nil if they are.
+func fleet495Mismatches(tableMigrations, dataMigrations []int64) []string {
+	var unknown []int64
+	applied := make(map[int64]struct{}, len(tableMigrations))
 	for _, v := range tableMigrations {
-		if slices.Contains(Fleet4OptionalMigrations, v) {
-			continue
+		applied[v] = struct{}{}
+		if !slices.Contains(Fleet4Migrations, v) && !slices.Contains(Fleet4OptionalMigrations, v) {
+			unknown = append(unknown, v)
 		}
-		if _, ok := required[v]; !ok {
-			return false
-		}
-		delete(required, v)
 	}
-	if len(required) > 0 {
-		return false
+	var missing []int64
+	for _, v := range Fleet4Migrations {
+		if _, ok := applied[v]; !ok {
+			missing = append(missing, v)
+		}
 	}
 	// Fleet 4 also accepted data migrations removed in old releases, so only
 	// the current ones are required.
+	var missingData []int64
 	for _, v := range fleet4DataMigrations {
 		if !slices.Contains(dataMigrations, v) {
-			return false
+			missingData = append(missingData, v)
 		}
 	}
-	return true
+
+	var reasons []string
+	if len(missing) > 0 {
+		reason := fmt.Sprintf("%d of %d Fleet 4.95 migrations not applied (first missing %d", len(missing), len(Fleet4Migrations), missing[0])
+		if len(tableMigrations) > 0 {
+			reason += fmt.Sprintf(", latest applied %d", slices.Max(tableMigrations))
+		}
+		reasons = append(reasons, reason+")")
+	}
+	if len(unknown) > 0 {
+		slices.Sort(unknown)
+		reasons = append(reasons, fmt.Sprintf("applied migrations not part of Fleet 4.95 (%s)", formatVersions(unknown)))
+	}
+	if len(missingData) > 0 {
+		reasons = append(reasons, fmt.Sprintf("Fleet 4 data migrations not applied (%s)", formatVersions(missingData)))
+	}
+	return reasons
+}
+
+func formatVersions(versions []int64) string {
+	const maxShown = 3
+	parts := make([]string, 0, maxShown+1)
+	for _, v := range versions[:min(len(versions), maxShown)] {
+		parts = append(parts, strconv.FormatInt(v, 10))
+	}
+	if len(versions) > maxShown {
+		parts = append(parts, fmt.Sprintf("and %d more", len(versions)-maxShown))
+	}
+	return strings.Join(parts, ", ")
 }
 
 func execBaselineStatements(tx *sql.Tx) error {
