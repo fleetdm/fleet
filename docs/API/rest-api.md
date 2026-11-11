@@ -13124,7 +13124,6 @@ Generates a human-readable description and resolution for a policy query using A
 - [Get host's report data](#get-hosts-report-data)
 - [Create report](#create-report)
 - [Update report](#update-report)
-- [Delete report by name](#delete-report-by-name)
 - [Delete report by ID](#delete-report-by-id)
 - [Delete reports](#delete-reports)
 - [Run live report](#run-live-report)
@@ -13829,28 +13828,6 @@ Only one of  `labels_include_any` or `labels_include_all` can be specified. If n
   }
 }
 ```
-
-### Delete report by name
-
-Deletes the report specified by name.
-
-`DELETE /api/v1/fleet/reports/name/:name`
-
-#### Parameters
-
-| Name | Type       | In   | Description                          |
-| ---- | ---------- | ---- | ------------------------------------ |
-| name | string     | path | **Required.** The name of the report. |
-| fleet_id | integer | body | _Available in Fleet Premium_. The ID of the report's fleet. If omitted, Fleet will search among only global reports. |
-
-#### Example
-
-`DELETE /api/v1/fleet/reports/name/foo`
-
-##### Default response
-
-`Status: 200`
-
 
 ### Delete report by ID
 
