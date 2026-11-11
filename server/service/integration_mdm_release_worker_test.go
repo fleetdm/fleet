@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -72,9 +73,12 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 		})
 	}
 
+	// the same device keeps its UDID each time it enrolls
+	deviceUUID := strings.ToUpper(uuid.NewString())
 	enrollAppleDevice := func(t *testing.T, device godep.Device) *mdmtest.TestAppleMDMClient {
 		depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
 		mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
+		mdmDevice.UUID = deviceUUID
 		mdmDevice.SerialNumber = device.SerialNumber
 		err := mdmDevice.Enroll()
 		require.NoError(t, err)
@@ -150,7 +154,7 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 			// Simulate profile reconciler running at least once before enrollment, and adds fleet profiles to the team
 			s.awaitTriggerProfileSchedule(t)
 			config := mobileconfigForTest("N1", "I1")
-			s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{config}}, http.StatusNoContent)
+			s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest([][]byte{config}), http.StatusNoContent)
 
 			// enroll the host
 			mdmDevice := enrollAppleDevice(t, device)
@@ -196,7 +200,7 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 			systemScopedConfig := mobileconfigForTest("N1", "I1")
 			userScope := fleet.PayloadScopeUser
 			userScopedConfig := scopedMobileconfigForTest("N-USER-SCOPED", "I-USER-SCOPED", &userScope)
-			s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{systemScopedConfig, userScopedConfig}}, http.StatusNoContent)
+			s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest([][]byte{systemScopedConfig, userScopedConfig}), http.StatusNoContent)
 
 			// enroll the host
 			mdmDevice := enrollAppleDevice(t, device)

@@ -29,7 +29,6 @@ controls:
       path: "../lib/team-a-👍/profiles/team-macos-mobileconfig-profile.mobileconfig"
     enable_disk_encryption: true
     enable_escrow_disk_encryption_key: true
-  enable_recovery_lock_password: false
   ios_updates:
     deadline: "2021-12-31"
     deadline_days:
@@ -42,6 +41,7 @@ controls:
     update_new_hosts:
   linux_settings:
     enable_escrow_disk_encryption_key: true
+  macos_recovery_lock_password_enabled: false
   macos_updates:
     deadline: "2020-12-31"
     deadline_days:
@@ -76,10 +76,11 @@ policies:
   continuous_automations_enabled: false
   critical: false
   description: This is a team patch policy
-  fleet_maintained_app_slug: foo/darwin
+  fleet_maintained_app_slug: fma1/darwin
   hidden: false
   name: Team patch policy
   notify_before_patching: false
+  patch_deadline: false
   patch_when_closed: true
   platform: linux,windows
   resolution: Do a team thing
@@ -90,10 +91,26 @@ policies:
   continuous_automations_enabled: true
   critical: false
   description: This is a team patch policy that notifies before patching
-  fleet_maintained_app_slug: foo/darwin
+  fleet_maintained_app_slug: fma4/darwin
   hidden: false
   name: My Notify FMA up to date
   notify_before_patching: true
+  patch_deadline: false
+  patch_when_closed: false
+  platform: darwin
+  resolution: Install the latest version from self-service
+  type: patch
+  webhooks_and_tickets_enabled: false
+- calendar_events_enabled: false
+  conditional_access_enabled: false
+  continuous_automations_enabled: true
+  critical: false
+  description: This is a team patch policy with a patch deadline
+  fleet_maintained_app_slug: fma5/darwin
+  hidden: false
+  name: My Deadline FMA up to date
+  notify_before_patching: false
+  patch_deadline: true
   patch_when_closed: false
   platform: darwin
   resolution: Install the latest version from self-service
@@ -232,6 +249,26 @@ software:
     - Label C
     - Label D
     platform: ios
+  - app_store_id: "4444333322"
+    platform: ios
+    setup_experience: true
+    versions:
+    - auto_update_enabled: true
+      auto_update_window_end: "03:00"
+      auto_update_window_start: "01:00"
+      categories:
+      - Productivity
+      configuration:
+        path: "../lib/team-a-👍/software/my-multi-version-app-ios-production-config.xml"
+      labels_exclude_any:
+      - Label C
+      name: Production
+      self_service: true
+    - configuration:
+        path: "../lib/team-a-👍/software/my-multi-version-app-ios-test-config.xml"
+      labels_include_any:
+      - Label C
+      name: Test
   fleet_maintained_apps:
   - categories:
     - Browsers
@@ -259,6 +296,7 @@ software:
     slug: fma3/windows
     version: "^123"
   - slug: fma4/darwin
+  - slug: fma5/darwin
   packages:
   - categories:
     - Browsers
@@ -279,3 +317,8 @@ software:
     uninstall_script:
       path: "../lib/team-a-👍/scripts/my-software-package-darwin-uninstall.sh"
     url: https://example.com/download/my-software.pkg
+  patch_deadline_settings:
+    days:
+    - monday
+    - thursday
+    time: "09:30"

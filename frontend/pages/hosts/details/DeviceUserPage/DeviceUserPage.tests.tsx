@@ -279,7 +279,7 @@ describe("Device User Page", () => {
 
       expect(screen.queryByText(REGULAR_DUP_MATCHER)).toBeNull();
     });
-    it("renders the regular setup experience page if some software failed and require_all_software_macos is not true", async () => {
+    it("renders the regular setup experience page if some software failed and macos_require_all_software is not true", async () => {
       const host = createMockHost() as IHostDevice;
       host.platform = "darwin";
 
@@ -317,7 +317,7 @@ describe("Device User Page", () => {
 
       expect(screen.queryByText(REGULAR_DUP_MATCHER)).toBeNull();
     });
-    it("renders the regular setup experience page if some software failed and require_all_software_macos is true but the device is not on macos", async () => {
+    it("renders the regular setup experience page if some software failed and macos_require_all_software is true but the device is not on macos", async () => {
       const host = createMockHost() as IHostDevice;
       host.platform = "linux";
 
@@ -332,7 +332,7 @@ describe("Device User Page", () => {
             },
             mdm: {
               enabled_and_configured: true,
-              require_all_software_macos: true,
+              macos_require_all_software: true,
               only_allow_apple_business_enrollment: false,
             },
           },
@@ -369,7 +369,7 @@ describe("Device User Page", () => {
 
       expect(screen.queryByText(REGULAR_DUP_MATCHER)).toBeNull();
     });
-    it("renders the setup experience failure page if some software failed and require_all_software_macos is true and the host is a mac", async () => {
+    it("renders the setup experience failure page if some software failed and macos_require_all_software is true and the host is a mac", async () => {
       const host = createMockHost() as IHostDevice;
       host.platform = "darwin";
 
@@ -384,7 +384,7 @@ describe("Device User Page", () => {
             },
             mdm: {
               enabled_and_configured: true,
-              require_all_software_macos: true,
+              macos_require_all_software: true,
               only_allow_apple_business_enrollment: false,
             },
           },
@@ -482,12 +482,19 @@ describe("Device User Page", () => {
         devicePolicy(2, "Hidden policy A"),
         devicePolicy(3, "Hidden policy B"),
       ];
+      let releaseHiddenResponse!: () => void;
+      const hiddenResponseGate = new Promise<void>((resolve) => {
+        releaseHiddenResponse = resolve;
+      });
       mockServer.use(
-        http.get(baseUrl("/device/:token"), ({ request }) => {
+        http.get(baseUrl("/device/:token"), async ({ request }) => {
           requestedUrls.push(request.url);
           const includeHidden = request.url.includes(
             "include_hidden_policies=true"
           );
+          if (includeHidden) {
+            await hiddenResponseGate;
+          }
           return HttpResponse.json({
             ...response,
             host: {
@@ -532,6 +539,10 @@ describe("Device User Page", () => {
           )
         ).toBe(true);
       });
+      expect(screen.getAllByText("Visible policy").length).toBeGreaterThan(0);
+      expect(policiesTab).toHaveTextContent(/Policies\s*1$/);
+
+      releaseHiddenResponse();
       await waitFor(() => {
         expect(policiesTab).toHaveTextContent(/Policies\s*3$/);
       });
@@ -622,7 +633,7 @@ describe("Device User Page", () => {
         global_config: {
           mdm: {
             enabled_and_configured: true,
-            require_all_software_macos: false,
+            macos_require_all_software: false,
             only_allow_apple_business_enrollment: false,
           },
           features: {
@@ -647,7 +658,7 @@ describe("Device User Page", () => {
         global_config: {
           mdm: {
             enabled_and_configured: true,
-            require_all_software_macos: false,
+            macos_require_all_software: false,
             only_allow_apple_business_enrollment: false,
           },
           features: {
@@ -672,7 +683,7 @@ describe("Device User Page", () => {
         global_config: {
           mdm: {
             enabled_and_configured: false,
-            require_all_software_macos: false,
+            macos_require_all_software: false,
             only_allow_apple_business_enrollment: false,
           },
           features: {
@@ -698,7 +709,7 @@ describe("Device User Page", () => {
         global_config: {
           mdm: {
             enabled_and_configured: true,
-            require_all_software_macos: false,
+            macos_require_all_software: false,
             only_allow_apple_business_enrollment: false,
           },
           features: {
@@ -727,7 +738,7 @@ describe("Device User Page", () => {
       author_email: "test@example.com",
       resolution: "Fix the issue",
       platform: "darwin",
-      team_id: null,
+      fleet_id: null,
       created_at: "2022-01-01T12:00:00Z",
       updated_at: "2022-01-02T12:00:00Z",
       critical: false,
@@ -844,9 +855,9 @@ describe("Device User Page", () => {
 
     it.each([
       {
-        name: "reports a host that has reported vitals as offline",
+        name: "doesn't report a host that has reported vitals as offline",
         detailUpdatedAt: REPORTED,
-        expectedErrors: [[OFFLINE_MESSAGE]],
+        expectedErrors: [],
       },
       {
         name: "doesn't report a host that has never reported vitals as offline",
@@ -867,10 +878,9 @@ describe("Device User Page", () => {
 
     it.each([
       {
-        name:
-          "shows an uncertain 'taking longer than expected' message instead of claiming failure once the poll window is exceeded",
+        name: "shows no timeout message for a host that has reported vitals",
         detailUpdatedAt: REPORTED,
-        expectedErrors: [[TIMEOUT_MESSAGE]],
+        expectedErrors: [],
       },
       {
         name:
@@ -904,28 +914,40 @@ describe("Device User Page", () => {
       10000
     );
 
-    it("reports a host that has never reported vitals as offline when the user asked for the refetch", async () => {
-      const { user } = renderWithHost(
-        mockHost({ status: "online", detail_updated_at: NEVER_REPORTED })
-      );
+    it.each([
+      { status: "offline" as const, elapsed: 0, message: OFFLINE_MESSAGE },
+      { status: "online" as const, elapsed: 200000, message: TIMEOUT_MESSAGE },
+    ])(
+      "shows '$message' for a refetch the user asked for",
+      async ({ status, elapsed, message }) => {
+        const { user } = renderWithHost(
+          mockHost({ status: "online", detail_updated_at: NEVER_REPORTED })
+        );
 
-      await user.click(await screen.findByRole("button", { name: /refetch/i }));
-      await waitFor(() => expect(refetchSpy).toHaveBeenCalled());
-      mockServer.use(
-        customDeviceHandler({
-          host: mockHost({
-            refetch_requested: true,
-            status: "offline",
-            detail_updated_at: NEVER_REPORTED,
-          }),
-        })
-      );
+        await user.click(
+          await screen.findByRole("button", { name: /refetch/i })
+        );
+        await waitFor(() => expect(refetchSpy).toHaveBeenCalled());
+        mockServer.use(
+          customDeviceHandler({
+            host: mockHost({
+              refetch_requested: true,
+              status,
+              detail_updated_at: NEVER_REPORTED,
+            }),
+          })
+        );
+        // The refetch start is stamped once the refetch call resolves, so move the clock only after that.
+        await refetchSpy.mock.results[0].value;
+        mockNow += elapsed;
 
-      await waitFor(
-        () => expect(notify.error).toHaveBeenCalledWith(OFFLINE_MESSAGE),
-        { timeout: 5000 }
-      );
-    }, 10000);
+        await waitFor(
+          () => expect(notify.error).toHaveBeenCalledWith(message),
+          { timeout: 5000 }
+        );
+      },
+      10000
+    );
   });
 });
 
@@ -1332,5 +1354,144 @@ describe("BitLocker PIN deep link", () => {
     expect(screen.queryByLabelText("BitLocker PIN")).toBeNull();
     expect(screen.queryByText(INSTRUCTIONS)).toBeNull();
     await expectParamDropped(router);
+  });
+});
+
+describe("Mobile UI gating", () => {
+  const originalMatchMedia = window.matchMedia;
+
+  afterEach(() => {
+    window.matchMedia = originalMatchMedia;
+  });
+
+  it("does not render the mobile UI on a non-iOS host when the viewport is narrow", async () => {
+    // Simulate a shrunk desktop browser: matchMedia reports the mobile breakpoint matches.
+    window.matchMedia = jest.fn().mockImplementation((query) => ({
+      matches: true,
+      media: query,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      onchange: null,
+      dispatchEvent: jest.fn(),
+    })) as typeof window.matchMedia;
+
+    const host = createMockHost() as IHostDevice;
+    host.platform = "darwin";
+    mockServer.use(customDeviceHandler({ host }));
+    mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(emptySetupExperienceHandler);
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    const { container } = render(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: "testToken" }}
+        location={mockLocation}
+      />
+    );
+
+    await screen.findByText(/Details/);
+    expect(container.querySelector(".device-user-mobile")).toBeNull();
+  });
+
+  it("renders the unsupported-screen overlay on a narrow desktop viewport over a device path", async () => {
+    window.matchMedia = jest.fn().mockImplementation((query) => ({
+      matches: true,
+      media: query,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      onchange: null,
+      dispatchEvent: jest.fn(),
+    })) as typeof window.matchMedia;
+
+    const host = createMockHost() as IHostDevice;
+    host.platform = "darwin";
+    mockServer.use(customDeviceHandler({ host }));
+    mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(emptySetupExperienceHandler);
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: "testToken" }}
+        location={{
+          ...mockLocation,
+          pathname: PATHS.DEVICE_USER_DETAILS_SELF_SERVICE("testToken"),
+        }}
+      />
+    );
+
+    expect(
+      await screen.findByText(/This screen size is not supported yet/i)
+    ).toBeInTheDocument();
+  });
+
+  it("renders the mobile UI when ?mobile=1 is present (dev override)", async () => {
+    const host = createMockHost() as IHostDevice;
+    host.platform = "darwin";
+    mockServer.use(customDeviceHandler({ host }));
+    mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(emptySetupExperienceHandler);
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    const { container } = render(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: "testToken" }}
+        location={{
+          ...mockLocation,
+          pathname: PATHS.DEVICE_USER_DETAILS_SELF_SERVICE("testToken"),
+          query: { ...mockLocation.query, mobile: "1" },
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector(".device-user-mobile")).not.toBeNull();
+    });
+  });
+
+  it("keeps the mobile UI when a SelfService navigation drops ?mobile=1 from the URL", async () => {
+    const host = createMockHost() as IHostDevice;
+    host.platform = "darwin";
+    mockServer.use(customDeviceHandler({ host }));
+    mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(emptySetupExperienceHandler);
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    const { container, rerender } = render(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: "testToken" }}
+        location={{
+          ...mockLocation,
+          pathname: PATHS.DEVICE_USER_DETAILS_SELF_SERVICE("testToken"),
+          query: { ...mockLocation.query, mobile: "1" },
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector(".device-user-mobile")).not.toBeNull();
+    });
+
+    rerender(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: "testToken" }}
+        location={{
+          ...mockLocation,
+          pathname: PATHS.DEVICE_USER_DETAILS_SELF_SERVICE("testToken"),
+          query: { ...mockLocation.query, query: "chrome" },
+        }}
+      />
+    );
+
+    expect(container.querySelector(".device-user-mobile")).not.toBeNull();
   });
 });

@@ -1,12 +1,13 @@
 package apps
 
 import (
+	"cmp"
 	"encoding/xml"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/fsutil"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/internal/fsutil"
 )
 
 // This file holds everything about MSIX/Appx detection that is not a Windows
@@ -159,7 +160,7 @@ func scanAppxDirs(c *appCollector, installRoot string, userPkgDirs []string) {
 		}
 		c.add(appCandidate{
 			MatchTokens: []string{pkg.Name, appxLiteral(man.Properties.DisplayName)},
-			DisplayName: firstNonEmpty(appxLiteral(man.Properties.DisplayName), pkg.Name),
+			DisplayName: cmp.Or(appxLiteral(man.Properties.DisplayName), pkg.Name),
 			Vendor:      appxVendor(man.Properties.PublisherDisplayName, man.Identity.Publisher),
 			Version:     pkg.Version,
 			Path:        dir,

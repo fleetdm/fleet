@@ -27,6 +27,7 @@ func TestMaintainedApps(t *testing.T) {
 		{"ListAndGetAvailableApps", testListAndGetAvailableApps},
 		{"ListAvailableAppsByNameAndFilters", testListAvailableAppsByNameAndFilters},
 		{"ListAvailableAppsSharedName", testListAvailableAppsSharedName},
+		{"ListAvailableAppsSearchIgnoresPlatformSuffix", testListAvailableAppsSearchIgnoresPlatformSuffix},
 		{"SyncAndRemoveApps", testSyncAndRemoveApps},
 		{"GetMaintainedAppBySlug", testGetMaintainedAppBySlug},
 		{"ListAvailableAppsWindows", testListAvailableAppsWindows},
@@ -399,7 +400,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 		},
 		BundleIdentifier: "irrelevant_2",
 	}
-	_, err = ds.InsertVPPAppWithTeam(ctx, vppIrrelevant, &team1.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppIrrelevant, &team1.ID, nil)
 	require.NoError(t, err)
 
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})
@@ -419,7 +420,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 		},
 		BundleIdentifier: "fleet.maintained2",
 	}
-	vppApp, err := ds.InsertVPPAppWithTeam(ctx, vppMaintained2, &team2.ID)
+	vppApp, err := ds.InsertVPPAppWithTeam(ctx, vppMaintained2, &team2.ID, nil)
 	require.NoError(t, err)
 
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})
@@ -440,7 +441,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 		BundleIdentifier: "fleet.maintained3",
 	}
 
-	_, err = ds.InsertVPPAppWithTeam(ctx, vppMaintained3, &team1.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppMaintained3, &team1.ID, nil)
 	require.NoError(t, err)
 
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})
@@ -454,7 +455,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	require.Equal(t, maintained3, gotApp)
 
 	// right vpp app, right team
-	_, err = ds.InsertVPPAppWithTeam(ctx, vppMaintained2, &team1.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppMaintained2, &team1.ID, nil)
 	require.NoError(t, err)
 
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})
@@ -881,6 +882,41 @@ func testListAvailableAppsSharedName(t *testing.T, ds *Datastore) {
 	require.True(t, meta1.HasPreviousResults)
 	// The two pages cover the two distinct apps.
 	require.NotEqual(t, page0[0].Slug, page1[0].Slug)
+}
+
+func testListAvailableAppsSearchIgnoresPlatformSuffix(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team Suffix Search"})
+	require.NoError(t, err)
+
+	mkApp := func(name, slug, platform, ident string) {
+		_, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+			Name: name, Slug: slug, Platform: platform, UniqueIdentifier: ident,
+		})
+		require.NoError(t, err)
+	}
+	mkApp("R for macOS", "r/darwin", "darwin", "org.R-project.R")
+	mkApp("R for Windows", "r/windows", "windows", "R for Windows")
+	mkApp("WeChat for Mac", "wechat/darwin", "darwin", "com.tencent.xinWeChat")
+	mkApp("WeChat", "wechat/windows", "windows", "WeChat")
+	mkApp("Google Credential Provider for Windows", "gcpw/windows", "windows", "GCPW")
+
+	search := func(q string) []string {
+		apps, _, err := ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, fleet.MaintainedAppListOptions{MatchQuery: q, IncludeMetadata: true})
+		require.NoError(t, err)
+		var slugs []string
+		for _, a := range apps {
+			slugs = append(slugs, a.Slug)
+		}
+		return slugs
+	}
+
+	require.Subset(t, search("R"), []string{"r/darwin", "r/windows"})
+	require.Empty(t, search("for macOS"))
+	require.Empty(t, search("for Mac"))
+	require.ElementsMatch(t, []string{"gcpw/windows"}, search("for Windows"))
+	require.ElementsMatch(t, []string{"wechat/darwin", "wechat/windows"}, search("WeChat"))
 }
 
 func testSoftwareTitleRenamingWindows(t *testing.T, ds *Datastore) {
@@ -2336,12 +2372,6 @@ func testWindowsFMAMergeMovesAllReferences(t *testing.T, ds *Datastore) {
 	})
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
-			INSERT INTO software_update_schedules (team_id, title_id, start_time, end_time)
-			VALUES (0, ?, '01:00', '02:00')`, staleTitleID)
-		return err
-	})
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `
 			INSERT INTO software_title_display_names (team_id, software_title_id, display_name)
 			VALUES (0, ?, 'Granola (custom)')`, staleTitleID)
 		return err
@@ -2372,7 +2402,6 @@ func testWindowsFMAMergeMovesAllReferences(t *testing.T, ds *Datastore) {
 		{"host software installs", "host_software_installs", "software_title_id"},
 		{"upcoming install activities", "software_install_upcoming_activities", "software_title_id"},
 		{"patch policies", "policies", "patch_software_title_id"},
-		{"update schedules", "software_update_schedules", "title_id"},
 		{"display names", "software_title_display_names", "software_title_id"},
 		{"icons", "software_title_icons", "software_title_id"},
 		{"team pins", "software_title_team_pins", "title_id"},

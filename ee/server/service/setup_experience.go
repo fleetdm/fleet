@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -12,7 +13,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_logging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -177,6 +180,8 @@ func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, 
 		return ctxerr.Wrap(ctx, err, "create setup experience script")
 	}
 
+	logSetupExperienceScriptDeprecation(ctx)
+
 	if !changed {
 		return nil
 	}
@@ -194,6 +199,14 @@ func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, 
 	}
 
 	return nil
+}
+
+// logSetupExperienceScriptDeprecation adds the deprecation warning to the request log entry.
+func logSetupExperienceScriptDeprecation(ctx context.Context) {
+	if platform_logging.TopicEnabled(platform_logging.DeprecatedFieldTopic) {
+		logging.WithLevel(ctx, slog.LevelWarn)
+		logging.WithExtras(ctx, "deprecation_warning", "The setup experience script is deprecated. Use a script-only package instead.")
+	}
 }
 
 func (svc *Service) DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error {
@@ -223,6 +236,7 @@ func (svc *Service) DeleteSetupExperienceScript(ctx context.Context, teamID *uin
 	if err := svc.ds.DeleteSetupExperienceScript(ctx, teamID); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete setup experience script")
 	}
+	logSetupExperienceScriptDeprecation(ctx)
 
 	if err := svc.NewActivity(
 		ctx,
@@ -282,7 +296,13 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 			case fleet.SetupExperienceStatusPending:
 				scriptsPending = append(scriptsPending, status)
 			case fleet.SetupExperienceStatusRunning:
-				scriptsRunning++
+				finished, err := svc.syncSetupExperienceScriptResult(ctx, hostUUID, status)
+				if err != nil {
+					return false, err
+				}
+				if !finished {
+					scriptsRunning++
+				}
 			}
 		}
 	}
@@ -359,7 +379,9 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 			vppApp := &fleet.VPPApp{
 				TitleID: *sw.SoftwareTitleID,
 				VPPAppTeam: fleet.VPPAppTeam{
-					VPPAppID: *vppAppID,
+					VPPAppID:   *vppAppID,
+					AppTeamID:  ptr.ValOrZero(sw.VPPAppTeamID),
+					VPPTokenID: sw.VPPAppVPPTokenID,
 				},
 			}
 
@@ -389,15 +411,21 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 					}
 					softwareDisplayName = dn
 				}
+				vppToken, tokErr := fleet.ActivityVPPTokenByID(ctx, svc.ds, sw.VPPAppVPPTokenID)
+				if tokErr != nil {
+					svc.logger.WarnContext(ctx, "failed to look up VPP token for VPP install failure activity", "err", tokErr)
+				}
 				failActivity := fleet.ActivityInstalledAppStoreApp{
+					VPPToken:            vppToken,
 					HostID:              host.ID,
 					HostDisplayName:     host.DisplayName(),
 					SoftwareTitle:       sw.Name,
-					SoftwareDisplayName: softwareDisplayName,
+					SoftwareDisplayName: ptr.ValOrZero(softwareDisplayName),
 					AppStoreID:          ptr.ValOrZero(sw.VPPAppAdamID),
 					Status:              string(fleet.SoftwareInstallFailed),
 					HostPlatform:        host.Platform,
 					FromSetupExperience: true,
+					VersionName:         ptr.ValOrZero(sw.VPPAppVersionName),
 				}
 				if actErr := svc.NewActivity(ctx, nil, failActivity); actErr != nil {
 					svc.logger.WarnContext(ctx, "failed to create activity for VPP app install failure during setup experience", "err", actErr)
@@ -468,6 +496,36 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 	}
 
 	return false, nil
+}
+
+// syncSetupExperienceScriptResult marks a running setup experience script step finished if its result is already
+// recorded. Saving the result and updating the step are separate writes, and fleetd doesn't resend a result whose
+// save request failed, so a failure between them would otherwise leave the step running forever.
+func (svc *Service) syncSetupExperienceScriptResult(ctx context.Context, hostUUID string, step *fleet.SetupExperienceStatusResult) (bool, error) {
+	if step.ScriptExecutionID == nil {
+		return false, nil
+	}
+	res, err := svc.ds.GetHostScriptExecutionResult(ctx, *step.ScriptExecutionID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return false, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "get setup experience script result")
+	}
+	if res.ExitCode == nil {
+		return false, nil
+	}
+	status := fleet.SetupExperienceScriptResult{ExitCode: int(*res.ExitCode)}.SetupExperienceStatus()
+	updated, err := svc.ds.MaybeUpdateSetupExperienceScriptStatus(ctx, hostUUID, *step.ScriptExecutionID, status)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "update setup experience script status from recorded result")
+	}
+	if !updated {
+		// The step moved to another execution or finished concurrently; re-read it on the next poll.
+		return false, nil
+	}
+	step.Status = status
+	return true, nil
 }
 
 // advancePolicyGatedSetupExperienceItem drives a policy-gated Windows/Linux setup-experience software item. The item's installer

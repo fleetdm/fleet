@@ -2,6 +2,7 @@ import React from "react";
 
 import Icon from "components/Icon";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
+import Tag from "components/Tag";
 import TooltipWrapper from "components/TooltipWrapper";
 import { ProfileScope } from "interfaces/mdm";
 
@@ -30,21 +31,18 @@ const OSSettingsNameCell = ({
         className={`${baseClass}__name-tooltip`}
       />
       {scope === "user" && (
-        <TooltipWrapper
-          className={`${baseClass}__scope-tooltip`}
-          tipContent={
+        <Tag
+          size="xsmall"
+          tooltip={
             <>
               Scoped to local user account:
               <br />
               <strong>{managedAccount}</strong>
             </>
           }
-          position="top"
-          underline={false}
-          showArrow
         >
-          <Icon name="user" color="ui-fleet-black-33" />
-        </TooltipWrapper>
+          User-scoped
+        </Tag>
       )}
       {hidden && !isDeviceUser && (
         <TooltipWrapper

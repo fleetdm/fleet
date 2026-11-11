@@ -493,6 +493,22 @@ func (c *captureAgentNotifier) NotifyAgentsForLiveQuery(ctx context.Context, hos
 	return c.err
 }
 
+func (c *captureAgentNotifier) NotifyOrbitConfigHosts(ctx context.Context, hostIDs []uint, reason string) error {
+	return nil
+}
+
+func (c *captureAgentNotifier) NotifyOrbitConfigScope(ctx context.Context, scope fleet.AgentNotificationScope, reason string) error {
+	return nil
+}
+
+func (c *captureAgentNotifier) NotifyOsqueryConfigHosts(ctx context.Context, hostIDs []uint, reason string) error {
+	return nil
+}
+
+func (c *captureAgentNotifier) NotifyOsqueryConfigScope(ctx context.Context, scope fleet.AgentNotificationScope, reason string) error {
+	return nil
+}
+
 func TestNewDistributedQueryCampaignNotifiesAgents(t *testing.T) {
 	setup := func(t *testing.T) (fleet.Service, context.Context) {
 		ds := new(mock.Store)

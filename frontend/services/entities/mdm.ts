@@ -23,6 +23,7 @@ export interface IEulaMetadataResponse {
   name: string;
   token: string;
   created_at: string;
+  platform?: "darwin" | "windows";
 }
 
 export type ProfileStatusSummaryResponse = Record<MdmProfileStatus, number>;
@@ -97,13 +98,15 @@ interface IUpdateSetupExperienceFormData {
   enable_end_user_authentication?: boolean;
   lock_end_user_info?: boolean;
   apple_enable_release_device_manually?: boolean;
+  macos_enable_bootstrap_package_during_manual_enrollment?: boolean;
+  macos_enable_bootstrap_package_during_migration?: boolean;
   macos_manual_agent_install?: boolean;
   enable_managed_local_account?: boolean;
   end_user_local_account_type?: EndUserLocalAccountType;
 }
 
 export interface IAppleSetupEnrollmentProfileResponse {
-  team_id: number | null;
+  fleet_id: number | null;
   name: string;
   uploaded_at: string;
   // enrollment profile is an object with keys found here https://developer.apple.com/documentation/devicemanagement/profile.
@@ -132,7 +135,7 @@ export interface IMDMAppleEnrollmentProfileParams {
 
 export interface IGetSetupExperienceScriptResponse {
   id: number;
-  team_id: number | null; // The API return null for no team in this case.
+  fleet_id: number | null; // The API return null for no team in this case.
   name: string;
   created_at: string;
   updated_at: string;
@@ -417,11 +420,27 @@ const mdmService = {
     return sendRequest("GET", MDM_EULA(token));
   },
 
+  getWindowsEULAMetadata: () => {
+    const { MDM_EULA_METADATA } = endpoints;
+    const query = buildQueryStringFromParams({ platform: "windows" });
+    return sendRequest("GET", `${MDM_EULA_METADATA}?${query}`);
+  },
+
+  uploadWindowsEULA: (file: File) => {
+    const { MDM_EULA_UPLOAD } = endpoints;
+
+    const formData = new FormData();
+    formData.append("platform", "windows");
+    formData.append("eula", file);
+
+    return sendRequest("POST", MDM_EULA_UPLOAD, formData);
+  },
+
   updateRequireAllSoftwareMacOS: (teamId: number, isEnabled: boolean) => {
     const { MDM_SETUP_EXPERIENCE } = endpoints;
     return sendRequest("PATCH", MDM_SETUP_EXPERIENCE, {
       fleet_id: teamId,
-      require_all_software_macos: isEnabled,
+      macos_require_all_software: isEnabled,
     });
   },
 
@@ -429,7 +448,7 @@ const mdmService = {
     const { MDM_SETUP_EXPERIENCE } = endpoints;
     return sendRequest("PATCH", MDM_SETUP_EXPERIENCE, {
       fleet_id: teamId,
-      require_all_software_windows: isEnabled,
+      windows_require_all_software: isEnabled,
     });
   },
 

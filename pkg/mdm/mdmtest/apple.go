@@ -56,12 +56,6 @@ type TestAppleMDMClient struct {
 	// EnrollInfo holds the information necessary to enroll to an MDM server.
 	EnrollInfo AppleEnrollInfo
 
-	// SimulateSCEPRenewal, when true, makes the device omit the new-enrollment Subject OU from its SCEP
-	// CSR even if the fetched profile carries one. Real SCEP renewals re-key from a pushed renewal
-	// profile (which never carries the marker), so tests set this to exercise renewal (rather than
-	// fresh-enrollment) checkin behavior while still replaying the full re-enroll flow.
-	SimulateSCEPRenewal bool
-
 	// UserUUID is a random fake unique ID of a simulated user. Only filled in if a user enrollment
 	// is done
 	UserUUID string
@@ -103,6 +97,8 @@ type TestAppleMDMClient struct {
 	// otaIdpSession is the optional BYOD IdP session cookie value, as minted by
 	// the SSO callback, that associates the enrolling host with an idp account.
 	otaIdpSession string
+	// otaPersonal requests the OTA profile for a personal (BYOD) enrollment, like the /enroll page does.
+	otaPersonal bool
 
 	// fetchEnrollmentProfileFromMDMBYOD indicates whether this simulated device will fetch
 	// the enrollment profile from Fleet as if it were a device running the Account Driven User
@@ -145,6 +141,10 @@ type TestAppleMDMClient struct {
 	// skipParseEnrollProf, when set to true, will skip parsing the enrollment profile after
 	// fetching it. Instead, the raw profile bytes will still be stored in enrollProfBytes.
 	skipParseEnrollProf bool
+
+	// pushTopic is the APNs topic sent in check-in messages. When empty, a topic unique to the
+	// device is sent instead (see PushTopic).
+	pushTopic string
 }
 
 // TestMDMAppleClientOption allows configuring a TestMDMClient.
@@ -171,6 +171,13 @@ func WithOTAIdpSession(sessionID string) TestMDMAppleClientOption {
 	}
 }
 
+// WithOTAPersonal requests the OTA enrollment profile for a personal (BYOD) enrollment.
+func WithOTAPersonal() TestMDMAppleClientOption {
+	return func(c *TestAppleMDMClient) {
+		c.otaPersonal = true
+	}
+}
+
 func WithSkipParseEnrollProf(skip bool) TestMDMAppleClientOption {
 	return func(c *TestAppleMDMClient) {
 		c.skipParseEnrollProf = skip
@@ -192,6 +199,16 @@ func WithACMECerts(certCA *x509.Certificate, certKey *ecdsa.PrivateKey) TestMDMA
 func WithLegacyIDeviceEnrollRef(enrollRef string) TestMDMAppleClientOption {
 	return func(c *TestAppleMDMClient) {
 		c.legacyIDeviceEnrollRef = enrollRef
+	}
+}
+
+// WithPushTopic makes the device send topic as its APNs topic in check-in messages, like a real
+// device sends the topic of the server's APNs certificate. Fleet's push service caches one push
+// provider per topic, so simulating many devices without this option makes it build one provider
+// per device.
+func WithPushTopic(topic string) TestMDMAppleClientOption {
+	return func(c *TestAppleMDMClient) {
+		c.pushTopic = topic
 	}
 }
 
@@ -340,6 +357,15 @@ func (c *TestAppleMDMClient) Identifier() string {
 	return c.secretUUID
 }
 
+// PushTopic returns the APNs topic the device sends in check-in messages: the one set with
+// WithPushTopic, or else a topic unique to the device.
+func (c *TestAppleMDMClient) PushTopic() string {
+	if c.pushTopic != "" {
+		return c.pushTopic
+	}
+	return "com.apple.mgmt.External." + c.Identifier()
+}
+
 func (c *TestAppleMDMClient) EnrollmentID() string {
 	return "testenrollmentid-" + c.Identifier()
 }
@@ -350,6 +376,17 @@ func (c *TestAppleMDMClient) SetDesktopToken(tok string) {
 
 func (c *TestAppleMDMClient) SetDEPToken(tok string) {
 	c.depURLToken = tok
+}
+
+// SetAuthorizationBearerToken sets the bearer token an account-driven user enrollment sends with its check-ins.
+func (c *TestAppleMDMClient) SetAuthorizationBearerToken(tok string) {
+	c.authorizationBearerToken = tok
+}
+
+// FetchAccountDrivenEnrollmentProfile runs only the profile step of Enroll for an account-driven user enrollment, so
+// tests can run SCEPEnroll, Authenticate and TokenUpdate themselves.
+func (c *TestAppleMDMClient) FetchAccountDrivenEnrollmentProfile() error {
+	return c.fetchEnrollmentProfileFromMDMBYODURL()
 }
 
 // Enroll runs the MDM enroll protocol on the simulated device. It fetches the enrollment
@@ -423,6 +460,40 @@ func (c *TestAppleMDMClient) enrollDevice(awaitingConfiguration bool) error {
 // Re-enroll runs the MDM enroll protocol on the simulated device, but TokenUpdate is not set as AwaitingConfiguration
 func (c *TestAppleMDMClient) Reenroll() error {
 	return c.enrollDevice(false)
+}
+
+// Renew installs a renewal enrollment profile the device received in the InstallProfile command cmdUUID (signed or
+// not): it re-keys with the profile's SCEP challenge or ACME directory, checks in again without fetching a new
+// profile, and then acknowledges the command with its new identity, like a real device. It returns the server's
+// response to that acknowledgment.
+func (c *TestAppleMDMClient) Renew(cmdUUID string, profile []byte) (*mdm.Command, error) {
+	if p7, err := pkcs7.Parse(profile); err == nil {
+		profile = p7.Content
+	}
+	enrollInfo, err := ParseEnrollmentProfile(profile)
+	if err != nil {
+		return nil, fmt.Errorf("parse renewal profile: %w", err)
+	}
+	enrollInfo.RawProfile = profile
+	c.EnrollInfo = *enrollInfo
+
+	if enrollInfo.ACMEURL != "" {
+		if err := c.UseACMEDirectory(enrollInfo.ACMEURL); err != nil {
+			return nil, err
+		}
+		if err := c.ACMEEnroll(); err != nil {
+			return nil, fmt.Errorf("ACME enroll: %w", err)
+		}
+	} else if err := c.SCEPEnroll(); err != nil {
+		return nil, fmt.Errorf("scep enroll: %w", err)
+	}
+	if err := c.Authenticate(); err != nil {
+		return nil, fmt.Errorf("authenticate: %w", err)
+	}
+	if err := c.TokenUpdate(false); err != nil {
+		return nil, fmt.Errorf("token update: %w", err)
+	}
+	return c.Acknowledge(cmdUUID)
 }
 
 func (c *TestAppleMDMClient) UserEnroll() error {
@@ -555,9 +626,11 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURLUsingPost() error {
 }
 
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromOTAURL() error {
-	return c.fetchOTAProfile(
-		"/api/latest/fleet/enrollment_profiles/ota?enroll_secret=" + url.QueryEscape(c.otaEnrollSecret),
-	)
+	path := "/api/latest/fleet/enrollment_profiles/ota?enroll_secret=" + url.QueryEscape(c.otaEnrollSecret)
+	if c.otaPersonal {
+		path += "&byod=1"
+	}
+	return c.fetchOTAProfile(path)
 }
 
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromMDMBYODURL() error {
@@ -813,26 +886,25 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfile(path string, body []byte) (e
 	c.EnrollInfo = *enrollInfo
 
 	if enrollInfo.ACMEURL != "" {
-		if c.acmeCertCA == nil || c.acmeCertCAKey == nil {
-			return errors.New("ACME enrollment requested but no cert/key provided")
-		}
-		c.acmeClient = &acme.Client{
-			Key:          c.acmeCertCAKey,
-			DirectoryURL: enrollInfo.ACMEURL,
-			HTTPClient:   fleethttp.NewClient(fleethttp.WithNoTimeout()),
-		}
+		return c.UseACMEDirectory(enrollInfo.ACMEURL)
 	}
 
 	return nil
 }
 
-// enrollmentSubjectOUs returns the Subject OUs to place in the device's CSR (SCEP or ACME). It honors
-// SimulateSCEPRenewal by omitting them, since a renewal profile carries no new-enrollment marker OU.
-func (c *TestAppleMDMClient) enrollmentSubjectOUs() []string {
-	if c.SimulateSCEPRenewal {
-		return nil
+// UseACMEDirectory points the device's next ACMEEnroll at directoryURL, as installing a profile with that ACME
+// payload would.
+func (c *TestAppleMDMClient) UseACMEDirectory(directoryURL string) error {
+	if c.acmeCertCA == nil || c.acmeCertCAKey == nil {
+		return errors.New("ACME enrollment requested but no cert/key provided")
 	}
-	return c.EnrollInfo.SCEPSubjectOUs
+	c.EnrollInfo.ACMEURL = directoryURL
+	c.acmeClient = &acme.Client{
+		Key:          c.acmeCertCAKey,
+		DirectoryURL: directoryURL,
+		HTTPClient:   fleethttp.NewClient(fleethttp.WithNoTimeout()),
+	}
+	return nil
 }
 
 func (c *TestAppleMDMClient) doSCEP(url, challenge string) (*x509.Certificate, *rsa.PrivateKey, error) {
@@ -848,7 +920,7 @@ func (c *TestAppleMDMClient) doSCEP(url, challenge string) (*x509.Certificate, *
 		Subject: pkix.Name{
 			CommonName:         cn,
 			Organization:       []string{"fleet-organization"},
-			OrganizationalUnit: c.enrollmentSubjectOUs(),
+			OrganizationalUnit: c.EnrollInfo.SCEPSubjectOUs,
 		},
 		Challenge: challenge,
 	}, logger)
@@ -940,7 +1012,7 @@ func (c *TestAppleMDMClient) ACMEEnroll() error {
 		return fmt.Errorf("challenge not valid after acceptance, status: %s", challenge.Status)
 	}
 
-	encoded, err := testhelpers.GenerateCSRDERWithKey(acmeKey, c.SerialNumber, c.enrollmentSubjectOUs()...)
+	encoded, err := testhelpers.GenerateCSRDERWithKey(acmeKey, c.SerialNumber, c.EnrollInfo.SCEPSubjectOUs...)
 	if err != nil {
 		return fmt.Errorf("generate CSR DER: %w", err)
 	}
@@ -982,7 +1054,7 @@ func (c *TestAppleMDMClient) Authenticate() error {
 	payload := map[string]any{
 		"MessageType":  "Authenticate",
 		"Model":        c.Model,
-		"Topic":        "com.apple.mgmt.External." + c.Identifier(),
+		"Topic":        c.PushTopic(),
 		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
 	}
 	if !c.fetchEnrollmentProfileFromMDMBYOD {
@@ -1009,7 +1081,7 @@ func (c *TestAppleMDMClient) TokenUpdate(awaitingConfiguration bool) error {
 	}
 	payload := map[string]any{
 		"MessageType":  "TokenUpdate",
-		"Topic":        "com.apple.mgmt.External." + c.Identifier(),
+		"Topic":        c.PushTopic(),
 		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
 		"NotOnConsole": "false",
 		"PushMagic":    pushMagic,
@@ -1054,7 +1126,7 @@ func (c *TestAppleMDMClient) UserTokenUpdate() error {
 	}
 	payload := map[string]any{
 		"MessageType":   "TokenUpdate",
-		"Topic":         "com.apple.mgmt.External." + c.Identifier(),
+		"Topic":         c.PushTopic(),
 		"EnrollmentID":  "testenrollmentid-" + c.Identifier(),
 		"NotOnConsole":  "false",
 		"PushMagic":     pushMagic,
@@ -1098,7 +1170,7 @@ func (c *TestAppleMDMClient) UserAuthenticate() error {
 func (c *TestAppleMDMClient) DeclarativeManagement(endpoint string, data ...fleet.MDMAppleDDMStatusReport) (*http.Response, error) {
 	payload := map[string]any{
 		"MessageType":  "DeclarativeManagement",
-		"Topic":        "com.apple.mgmt.External." + c.Identifier(),
+		"Topic":        c.PushTopic(),
 		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
 		"Endpoint":     endpoint,
 	}
@@ -1120,7 +1192,7 @@ func (c *TestAppleMDMClient) DeclarativeManagement(endpoint string, data ...flee
 func (c *TestAppleMDMClient) Checkout() error {
 	payload := map[string]any{
 		"MessageType":  "CheckOut",
-		"Topic":        "com.apple.mgmt.External." + c.Identifier(),
+		"Topic":        c.PushTopic(),
 		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
 	}
 	if c.UUID != "" {
@@ -1139,7 +1211,7 @@ func (c *TestAppleMDMClient) Checkout() error {
 func (c *TestAppleMDMClient) Idle() (*mdm.Command, error) {
 	payload := map[string]any{
 		"Status":       "Idle",
-		"Topic":        "com.apple.mgmt.External." + c.Identifier(),
+		"Topic":        c.PushTopic(),
 		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
 	}
 	if c.UUID != "" {
@@ -1157,9 +1229,26 @@ func (c *TestAppleMDMClient) Idle() (*mdm.Command, error) {
 func (c *TestAppleMDMClient) Acknowledge(cmdUUID string) (*mdm.Command, error) {
 	payload := map[string]any{
 		"Status":       "Acknowledged",
-		"Topic":        "com.apple.mgmt.External." + c.Identifier(),
+		"Topic":        c.PushTopic(),
 		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
 		"CommandUUID":  cmdUUID,
+	}
+	if c.UUID != "" {
+		payload["UDID"] = c.UUID
+	}
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
+// AcknowledgeSettings acknowledges a Settings command and reports a per-item
+// result for each entry in settings. A device can acknowledge the command while
+// individual items fail.
+func (c *TestAppleMDMClient) AcknowledgeSettings(cmdUUID string, settings []map[string]any) (*mdm.Command, error) {
+	payload := map[string]any{
+		"Status":       "Acknowledged",
+		"Topic":        c.PushTopic(),
+		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
+		"CommandUUID":  cmdUUID,
+		"Settings":     settings,
 	}
 	if c.UUID != "" {
 		payload["UDID"] = c.UUID
@@ -1173,7 +1262,7 @@ func (c *TestAppleMDMClient) Acknowledge(cmdUUID string) (*mdm.Command, error) {
 func (c *TestAppleMDMClient) AcknowledgeVerifyRecoveryLock(cmdUUID string, passwordVerified bool) (*mdm.Command, error) {
 	payload := map[string]any{
 		"Status":           "Acknowledged",
-		"Topic":            "com.apple.mgmt.External." + c.Identifier(),
+		"Topic":            c.PushTopic(),
 		"EnrollmentID":     "testenrollmentid-" + c.Identifier(),
 		"CommandUUID":      cmdUUID,
 		"PasswordVerified": passwordVerified,
@@ -1189,7 +1278,7 @@ func (c *TestAppleMDMClient) AcknowledgeVerifyRecoveryLock(cmdUUID string, passw
 func (c *TestAppleMDMClient) AcknowledgeRotateFileVaultKey(cmdUUID string, encryptedNewRecoveryKey []byte) (*mdm.Command, error) {
 	payload := map[string]any{
 		"Status":       "Acknowledged",
-		"Topic":        "com.apple.mgmt.External." + c.Identifier(),
+		"Topic":        c.PushTopic(),
 		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
 		"CommandUUID":  cmdUUID,
 		"RotateResult": map[string]any{
@@ -1211,7 +1300,7 @@ func (c *TestAppleMDMClient) AcknowledgeRotateFileVaultKey(cmdUUID string, encry
 func (c *TestAppleMDMClient) NotNow(cmdUUID string) (*mdm.Command, error) {
 	payload := map[string]any{
 		"Status":       "NotNow",
-		"Topic":        "com.apple.mgmt.External." + c.Identifier(),
+		"Topic":        c.PushTopic(),
 		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
 		"CommandUUID":  cmdUUID,
 	}
@@ -1568,7 +1657,7 @@ func buildCertificateList(certTemplates []*x509.Certificate) ([]fleet.MDMAppleCe
 func (c *TestAppleMDMClient) GetBootstrapToken() ([]byte, error) {
 	payload := map[string]any{
 		"MessageType":  "GetBootstrapToken",
-		"Topic":        "com.apple.mgmt.External." + c.Identifier(),
+		"Topic":        c.PushTopic(),
 		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
 	}
 	if c.UUID != "" {
@@ -1612,7 +1701,7 @@ func (c *TestAppleMDMClient) GetBootstrapToken() ([]byte, error) {
 func (c *TestAppleMDMClient) Err(cmdUUID string, errChain []mdm.ErrorChain) (*mdm.Command, error) {
 	payload := map[string]any{
 		"Status":       "Error",
-		"Topic":        "com.apple.mgmt.External." + c.Identifier(),
+		"Topic":        c.PushTopic(),
 		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
 		"CommandUUID":  cmdUUID,
 		"ErrorChain":   errChain,
@@ -1631,7 +1720,7 @@ func (c *TestAppleMDMClient) UserChannelErr(cmdUUID string, errChain []mdm.Error
 	}
 	payload := map[string]any{
 		"Status":       "Error",
-		"Topic":        "com.apple.mgmt.External." + c.Identifier(),
+		"Topic":        c.PushTopic(),
 		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
 		"CommandUUID":  cmdUUID,
 		"ErrorChain":   errChain,

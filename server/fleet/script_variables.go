@@ -16,6 +16,7 @@ var FleetVarsSupportedInScripts = []FleetVarName{
 	FleetVarHostEndUserIDPFullname,
 	FleetVarHostEndUserIDPGroups,
 	FleetVarHostEndUserIDPDepartment,
+	FleetVarHostEndUserIDPExternalID,
 	FleetVarHostHardwareSerial,
 	FleetVarHostUUID,
 	FleetVarHostPlatform,

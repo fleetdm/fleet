@@ -769,7 +769,6 @@ type WindowsMDMAccessTokenPayload struct {
 	Type    WindowsMDMEnrollmentType `json:"type"`
 	Payload struct {
 		OrbitNodeKey string `json:"orbit_node_key"`
-		AuthToken    string `json:"auth_token"`
 	} `json:"payload"`
 }
 
@@ -779,21 +778,16 @@ type WindowsMDMEnrollmentType int
 
 const (
 	WindowsMDMProgrammaticEnrollmentType WindowsMDMEnrollmentType = 1
-	WindowsMDMAutomaticEnrollmentType    WindowsMDMEnrollmentType = 2
 )
 
 func (t *WindowsMDMAccessTokenPayload) IsValidToken() error {
 	// Only BSProgrammaticEnrollment are supported for now
-	if t.Type != WindowsMDMProgrammaticEnrollmentType && t.Type != WindowsMDMAutomaticEnrollmentType {
+	if t.Type != WindowsMDMProgrammaticEnrollmentType {
 		return errors.New("invalid binary security payload type")
 	}
 
-	if t.Type == WindowsMDMProgrammaticEnrollmentType && len(t.Payload.OrbitNodeKey) == 0 {
+	if len(t.Payload.OrbitNodeKey) == 0 {
 		return errors.New("invalid binary security payload content")
-	}
-
-	if t.Type == WindowsMDMAutomaticEnrollmentType && len(t.Payload.AuthToken) == 0 {
-		return errors.New("invalid STS auth token payload content")
 	}
 
 	return nil
@@ -871,8 +865,7 @@ type WindowsMDMEnrollType int
 const (
 	// WindowsMDMEnrollTypeProgrammatic is enrollment via fleetd/orbit using an orbit node key.
 	WindowsMDMEnrollTypeProgrammatic WindowsMDMEnrollType = iota
-	// WindowsMDMEnrollTypeAutomatic is enrollment via Azure JWT or WSTEP STS auth token (Autopilot, Entra join,
-	// Settings app).
+	// WindowsMDMEnrollTypeAutomatic is enrollment via Azure JWT (Autopilot, Entra join, Settings app).
 	WindowsMDMEnrollTypeAutomatic
 )
 
@@ -970,8 +963,12 @@ type MDMWindowsEnrolledDevice struct {
 	HardwareSerial *string `db:"hardware_serial"`
 	// EnrolledActivityAt is when the mdm_enrolled activity was recorded for this enrollment, and nil until it has been.
 	EnrolledActivityAt *time.Time `db:"enrolled_activity_at"`
-	CreatedAt          time.Time  `db:"created_at"`
-	UpdatedAt          time.Time  `db:"updated_at"`
+	// DeletedHostTeamID is set when the enrollment's host was deleted. It is cleared when the host is linked again.
+	DeletedHostTeamID *uint `db:"deleted_host_team_id"`
+	// FleetdPresentAt is when fleetd was first seen present for this enrollment, and nil until it has been or after its host is deleted.
+	FleetdPresentAt *time.Time `db:"fleetd_present_at"`
+	CreatedAt       time.Time  `db:"created_at"`
+	UpdatedAt       time.Time  `db:"updated_at"`
 
 	// LinkedHostID is the host that has HostUUID
 	LinkedHostID *uint `db:"linked_host_id"`
@@ -1154,6 +1151,34 @@ const FleetInternalCmdIDPrefix = "fleet-internal-"
 // windows_mdm_commands.
 func IsFleetInternalCmdID(cmdID string) bool {
 	return strings.HasPrefix(cmdID, FleetInternalCmdIDPrefix)
+}
+
+// WindowsSCEPStatusProbeCmdUUIDPrefix marks the queued <Get> commands that read a proxied SCEP profile's
+// ClientCertificateInstall status after the host ACKs the install.
+const WindowsSCEPStatusProbeCmdUUIDPrefix = "scep-status-"
+
+// WindowsSCEPStatusProbeDelay is how long a SCEP status probe stays queued before it is sent, which gives the device's
+// SCEP enrollment time to finish and spaces consecutive probes.
+const WindowsSCEPStatusProbeDelay = 30 * time.Second
+
+// IsWindowsSCEPStatusProbeCmdUUID reports whether a Windows MDM command is a SCEP status probe.
+func IsWindowsSCEPStatusProbeCmdUUID(cmdUUID string) bool {
+	return strings.HasPrefix(cmdUUID, WindowsSCEPStatusProbeCmdUUIDPrefix)
+}
+
+// WindowsESPReleaseCmdIDPrefix marks the CmdID of every user-scope ESP release attempt Fleet sends (the initial finalize's
+// Replace and each retry).
+const WindowsESPReleaseCmdIDPrefix = "esp-release-"
+
+// ValidateWindowsMDMCommandID rejects a CmdID that starts with a prefix Fleet reserves for the commands it sends itself.
+// Fleet recognizes those commands by their CmdID, and a command an admin runs keeps the CmdID it was given.
+func ValidateWindowsMDMCommandID(cmdID string) error {
+	for _, prefix := range []string{FleetInternalCmdIDPrefix, WindowsSCEPStatusProbeCmdUUIDPrefix, WindowsESPReleaseCmdIDPrefix} {
+		if strings.HasPrefix(cmdID, prefix) {
+			return NewInvalidArgumentError("command", fmt.Sprintf("CmdID can't start with %q. This prefix is reserved for commands Fleet sends.", prefix))
+		}
+	}
+	return nil
 }
 
 // ProtoCmdOperation is the abstraction to represent a SyncML Protocol Command
@@ -1695,8 +1720,6 @@ func GetEncodedBinarySecurityToken(typeID WindowsMDMEnrollmentType, payload stri
 	switch typeID {
 	case WindowsMDMProgrammaticEnrollmentType:
 		pld.Payload.OrbitNodeKey = payload
-	case WindowsMDMAutomaticEnrollmentType:
-		pld.Payload.AuthToken = payload
 	default:
 		return "", fmt.Errorf("invalid enrollment type: %v", typeID)
 	}
@@ -2285,7 +2308,8 @@ func ProfileTargetsReservedLocURI(profileBytes []byte, reservedLocURI string) bo
 	// Quick reject without parsing: the reserved node name (minus the "/" anchors) must appear literally somewhere for any
 	// LocURI form, scoped or scope-less, to target it. Most Windows profiles don't reference it, so this avoids the XML parse
 	// below for the common case (this helper runs in loops over every profile during profile set/update flows).
-	if !bytes.Contains(profileBytes, []byte(strings.Trim(reservedLocURI, "/"))) {
+	// XML references (e.g. "&#101;") only decode to the node name when parsed, so any "&" takes the slow path.
+	if !bytes.Contains(profileBytes, []byte(strings.Trim(reservedLocURI, "/"))) && !bytes.Contains(profileBytes, []byte("&")) {
 		return false
 	}
 	// Confirm a real Add/Replace Target LocURI targets the node

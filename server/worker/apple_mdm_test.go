@@ -21,7 +21,6 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	mock "github.com/fleetdm/fleet/v4/server/mock/mdm"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -54,15 +53,12 @@ type mockVPPInstaller struct {
 	ds                  *mysql.Datastore
 	installedApps       []*fleet.VPPApp
 	appInstallResponses map[string]installAppResponse
-	getTokenErr         error
+	checkErr            error
 }
 
-func (m *mockVPPInstaller) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
+func (m *mockVPPInstaller) CheckCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) error {
 	require.True(m.t, appleDevice)
-	if m.getTokenErr != nil {
-		return "", m.getTokenErr
-	}
-	return "valid-token", nil
+	return m.checkErr
 }
 
 type mockInHouseInstall struct {
@@ -85,7 +81,7 @@ func (m *mockInHouseAppInstaller) InstallInHouseAppForSetupExperience(ctx contex
 	return m.cmdUUID, nil
 }
 
-func (m *mockVPPInstaller) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
+func (m *mockVPPInstaller) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, opts fleet.HostSoftwareInstallOptions) (string, error) {
 	require.True(m.t, opts.ForSetupExperience)
 	resp, ok := m.appInstallResponses[vppApp.AdamID]
 	require.True(m.t, ok)
@@ -129,56 +125,11 @@ func TestAppleMDM(t *testing.T) {
 	testOrgName := "fleet-test"
 
 	createEnrolledHost := func(t *testing.T, i int, teamID *uint, depAssignedToFleet bool, platform string) *fleet.Host {
-		// create the host
-		h, err := ds.NewHost(ctx, &fleet.Host{
-			Hostname:       fmt.Sprintf("test-host%d-name", i),
-			OsqueryHostID:  ptr.String(fmt.Sprintf("osquery-%d", i)),
-			NodeKey:        ptr.String(fmt.Sprintf("nodekey-%d", i)),
-			UUID:           uuid.New().String(),
-			Platform:       platform,
-			HardwareSerial: fmt.Sprintf("serial-%d", i),
-			TeamID:         teamID,
-		})
-		require.NoError(t, err)
-
-		// create the nano_device and enrollment
-		var abmTokenID uint
-		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `INSERT INTO nano_devices (id, serial_number, authenticate) VALUES (?, ?, ?)`, h.UUID, h.HardwareSerial, "test")
-			if err != nil {
-				return err
-			}
-			_, err = q.ExecContext(ctx, `INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex)
-				VALUES (?, ?, ?, ?, ?, ?)`, h.UUID, h.UUID, "device", "topic", "push_magic", "token_hex")
-			if err != nil {
-				return err
-			}
-
-			encTok := uuid.NewString()
-			abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{
-				OrganizationName: "unused",
-				EncryptedToken:   []byte(encTok),
-				RenewAt:          time.Now().Add(30 * 24 * time.Hour), // 30 days from now
-			})
-			abmTokenID = abmToken.ID
-
-			return err
-		})
-		if depAssignedToFleet {
-			err := ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmTokenID, make(map[uint]time.Time))
-			require.NoError(t, err)
-		}
-		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "http://example.com", depAssignedToFleet, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
-		require.NoError(t, err)
-		return h
+		return createEnrolledAppleHost(t, ds, i, teamID, depAssignedToFleet, platform)
 	}
 
 	getEnqueuedCommandTypes := func(t *testing.T) []string {
-		var commands []string
-		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.SelectContext(ctx, q, &commands, "SELECT request_type FROM nano_commands")
-		})
-		return commands
+		return getEnqueuedAppleCommandTypes(t, ds)
 	}
 
 	enableManualRelease := func(t *testing.T, teamID *uint) {
@@ -563,208 +514,6 @@ func TestAppleMDM(t *testing.T) {
 		require.Equal(t, "custom-team-bootstrap", ms.BootstrapPackageName)
 	})
 
-	t.Run("skips install of custom bootstrap manifest during migration", func(t *testing.T) {
-		mysqltest.SetTestABMAssets(t, ds, testOrgName)
-		defer mysqltest.TruncateTables(t, ds)
-
-		h := createEnrolledHost(t, 1, nil, true, "darwin")
-		err := ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{
-			Name:   "custom-bootstrap",
-			TeamID: 0, // no-team
-			Bytes:  []byte("test"),
-			Sha256: []byte("test"),
-			Token:  "token",
-		}, nil)
-		require.NoError(t, err)
-
-		mdmWorker := &AppleMDM{
-			Datastore: ds,
-			Log:       slogLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
-		}
-		w := NewWorker(ds, slogLog)
-		w.Register(mdmWorker)
-
-		err = QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", false, true)
-		require.NoError(t, err)
-
-		// run the worker, should succeed
-		err = w.ProcessJobs(ctx)
-		require.NoError(t, err)
-
-		// ensure the job's not_before allows it to be returned if it were to run
-		// again
-		time.Sleep(time.Second)
-
-		jobs, err := ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute)) // look in the future to catch any delayed job
-		require.NoError(t, err)
-
-		// the post-DEP release device job is not queued anymore
-		require.Len(t, jobs, 0)
-
-		// Only the fleetd install is enqueued
-		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
-
-		var nfe fleet.NotFoundError
-		_, err = ds.GetHostMDMMacOSSetup(ctx, h.ID)
-		require.ErrorAs(t, err, &nfe)
-	})
-
-	t.Run("skips install of custom bootstrap manifest of a team during migration", func(t *testing.T) {
-		mysqltest.SetTestABMAssets(t, ds, testOrgName)
-		defer mysqltest.TruncateTables(t, ds)
-
-		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
-		require.NoError(t, err)
-
-		h := createEnrolledHost(t, 1, &tm.ID, true, "darwin")
-		err = ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{
-			Name:   "custom-team-bootstrap",
-			TeamID: tm.ID,
-			Bytes:  []byte("test"),
-			Sha256: []byte("test"),
-			Token:  "token",
-		}, nil)
-		require.NoError(t, err)
-
-		mdmWorker := &AppleMDM{
-			Datastore: ds,
-			Log:       slogLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
-		}
-		w := NewWorker(ds, slogLog)
-		w.Register(mdmWorker)
-
-		err = QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, "", false, true)
-		require.NoError(t, err)
-
-		// run the worker, should succeed
-		err = w.ProcessJobs(ctx)
-		require.NoError(t, err)
-
-		// ensure the job's not_before allows it to be returned if it were to run
-		// again
-		time.Sleep(time.Second)
-
-		jobs, err := ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute)) // look in the future to catch any delayed job
-		require.NoError(t, err)
-
-		// the post-DEP release device job is not queued anymore
-		require.Len(t, jobs, 0)
-
-		// Only the fleetd install is enqueued
-		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
-
-		var nfe fleet.NotFoundError
-		_, err = ds.GetHostMDMMacOSSetup(ctx, h.ID)
-		require.ErrorAs(t, err, &nfe)
-	})
-
-	t.Run("installs custom bootstrap package during migration when FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION is set", func(t *testing.T) {
-		t.Cleanup(func() {
-			os.Unsetenv("FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION")
-		})
-		os.Setenv("FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION", "1")
-		mysqltest.SetTestABMAssets(t, ds, testOrgName)
-		defer mysqltest.TruncateTables(t, ds)
-
-		h := createEnrolledHost(t, 1, nil, true, "darwin")
-		err := ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{
-			Name:   "custom-bootstrap",
-			TeamID: 0, // no-team
-			Bytes:  []byte("test"),
-			Sha256: []byte("test"),
-			Token:  "token",
-		}, nil)
-		require.NoError(t, err)
-
-		mdmWorker := &AppleMDM{
-			Datastore: ds,
-			Log:       slogLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
-		}
-		w := NewWorker(ds, slogLog)
-		w.Register(mdmWorker)
-
-		err = QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", false, true)
-		require.NoError(t, err)
-
-		// run the worker, should succeed
-		err = w.ProcessJobs(ctx)
-		require.NoError(t, err)
-
-		// ensure the job's not_before allows it to be returned if it were to run
-		// again
-		time.Sleep(time.Second)
-
-		jobs, err := ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute)) // look in the future to catch any delayed job
-		require.NoError(t, err)
-
-		// the post-DEP release device job is not queued anymore
-		require.Len(t, jobs, 0)
-
-		// The fleetd install and bootstrap package install are enqueued
-		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
-
-		setup, err := ds.GetHostMDMMacOSSetup(ctx, h.ID)
-		require.Nil(t, err)
-		require.Equal(t, "custom-bootstrap", setup.BootstrapPackageName)
-	})
-
-	t.Run("installs custom bootstrap package of a team during migration when FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION is set", func(t *testing.T) {
-		t.Cleanup(func() {
-			os.Unsetenv("FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION")
-		})
-		os.Setenv("FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION", "1")
-		mysqltest.SetTestABMAssets(t, ds, testOrgName)
-		defer mysqltest.TruncateTables(t, ds)
-
-		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
-		require.NoError(t, err)
-
-		h := createEnrolledHost(t, 1, &tm.ID, true, "darwin")
-		err = ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{
-			Name:   "custom-team-bootstrap",
-			TeamID: tm.ID,
-			Bytes:  []byte("test"),
-			Sha256: []byte("test"),
-			Token:  "token",
-		}, nil)
-		require.NoError(t, err)
-
-		mdmWorker := &AppleMDM{
-			Datastore: ds,
-			Log:       slogLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
-		}
-		w := NewWorker(ds, slogLog)
-		w.Register(mdmWorker)
-
-		err = QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, "", false, true)
-		require.NoError(t, err)
-
-		// run the worker, should succeed
-		err = w.ProcessJobs(ctx)
-		require.NoError(t, err)
-
-		// ensure the job's not_before allows it to be returned if it were to run
-		// again
-		time.Sleep(time.Second)
-
-		jobs, err := ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute)) // look in the future to catch any delayed job
-		require.NoError(t, err)
-
-		// the post-DEP release device job is not queued anymore
-		require.Len(t, jobs, 0)
-
-		// Fleetd install and bootstrap package install are enqueued
-		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
-
-		setup, err := ds.GetHostMDMMacOSSetup(ctx, h.ID)
-		require.Nil(t, err)
-		require.Equal(t, "custom-team-bootstrap", setup.BootstrapPackageName)
-	})
-
 	t.Run("unknown enroll reference", func(t *testing.T) {
 		mysqltest.SetTestABMAssets(t, ds, testOrgName)
 		defer mysqltest.TruncateTables(t, ds)
@@ -970,6 +719,46 @@ func TestAppleMDM(t *testing.T) {
 		require.NoError(t, err)
 		require.Empty(t, jobs)
 		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
+	})
+
+	t.Run("fleetd comes before profiles for manual enrollments", func(t *testing.T) {
+		mysqltest.SetTestABMAssets(t, ds, testOrgName)
+		defer mysqltest.TruncateTables(t, ds)
+
+		for i := 1; i <= 3; i++ {
+			_, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+				Mobileconfig: fmt.Appendf(nil, "profile%d", i),
+				Identifier:   fmt.Sprintf("profile%d", i),
+				Name:         fmt.Sprintf("Profile %d", i),
+			}, nil)
+			require.NoError(t, err)
+		}
+
+		h := createEnrolledHost(t, 1, nil, true, "darwin")
+
+		mdmWorker := &AppleMDM{
+			Datastore: ds,
+			Log:       slogLog,
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+		w := NewWorker(ds, slogLog)
+		w.Register(mdmWorker)
+
+		err := QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostManualEnrollmentTask, h.UUID, "darwin", nil, "", false, false)
+		require.NoError(t, err)
+
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		var requestTypes []string
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &requestTypes, "SELECT request_type FROM nano_enrollment_queue neq INNER JOIN nano_commands nc ON neq.command_uuid = nc.command_uuid WHERE neq.id = ? ORDER BY neq.priority DESC, neq.created_at", h.UUID)
+		})
+		require.Greater(t, len(requestTypes), 1, "expected fleetd and profile commands to be enqueued")
+		require.Equal(t, "InstallEnterpriseApplication", requestTypes[0], "fleetd install must be the device's first command")
+		for _, rt := range requestTypes[1:] {
+			require.Contains(t, []string{"InstallProfile", "DeclarativeManagement"}, rt)
+		}
 	})
 
 	t.Run("use worker for automatic release", func(t *testing.T) {
@@ -1186,7 +975,7 @@ func TestAppleMDM(t *testing.T) {
 				Name: "vpp_worker-" + idx, LatestVersion: "1.0.0", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "depworker-" + idx, Platform: fleet.IOSPlatform}},
 				BundleIdentifier: "b" + idx,
 			}
-			vppAppWithTeam, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &tm.ID)
+			vppAppWithTeam, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &tm.ID, nil)
 			require.NoError(t, err)
 			expectedAppInstalls = append(expectedAppInstalls, vppAppWithTeam)
 		}
@@ -1343,7 +1132,7 @@ INSERT INTO setup_experience_status_results (
 				Name: "vpp_worker-" + idx, LatestVersion: "1.0.0", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "depworker-" + idx, Platform: fleet.IOSPlatform}},
 				BundleIdentifier: "b" + idx,
 			}
-			vppAppWithTeam, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &tm.ID)
+			vppAppWithTeam, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &tm.ID, nil)
 			require.NoError(t, err)
 			expectedAppInstalls = append(expectedAppInstalls, vppAppWithTeam)
 		}
@@ -1503,7 +1292,7 @@ INSERT INTO setup_experience_status_results (
 
 	t.Run("emits activity on VPP install failure during setup experience", func(t *testing.T) {
 		mysqltest.SetTestABMAssets(t, ds, testOrgName)
-		test.CreateInsertGlobalVPPToken(t, ds)
+		vppToken := test.CreateInsertGlobalVPPToken(t, ds)
 		defer mysqltest.TruncateTables(t, ds)
 
 		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
@@ -1516,7 +1305,7 @@ INSERT INTO setup_experience_status_results (
 			VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "fail-adam-id", Platform: fleet.IOSPlatform}},
 			BundleIdentifier: "com.example.fail",
 		}
-		vppAppWithTeam, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &tm.ID)
+		vppAppWithTeam, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &tm.ID, nil)
 		require.NoError(t, err)
 
 		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -1564,6 +1353,7 @@ VALUES (?, ?, ?, ?)`, h.UUID, vppAppWithTeam.Name, fleet.SetupExperienceStatusPe
 		assert.Equal(t, h.Platform, act.HostPlatform)
 		assert.True(t, act.FromSetupExperience)
 		assert.False(t, act.SelfService)
+		assert.Equal(t, &fleet.ActivityVPPToken{ID: vppToken.ID, Location: vppToken.Location, CountryCode: vppToken.CountryCode}, act.VPPToken)
 	})
 
 	t.Run("installs in-house apps during iOS setup experience", func(t *testing.T) {
@@ -2132,4 +1922,462 @@ func TestGetSignedURL(t *testing.T) {
 	assert.Contains(t, buf.String(), "test error")
 	assert.True(t, mockStore.SignFuncInvoked)
 	assert.False(t, mockStore.ExistsFuncInvoked)
+}
+
+func createEnrolledAppleHost(t *testing.T, ds *mysql.Datastore, i int, teamID *uint, depAssignedToFleet bool, platform string) *fleet.Host {
+	ctx := t.Context()
+	// create the host
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       fmt.Sprintf("test-host%d-name", i),
+		OsqueryHostID:  new(fmt.Sprintf("osquery-%d", i)),
+		NodeKey:        new(fmt.Sprintf("nodekey-%d", i)),
+		UUID:           uuid.New().String(),
+		Platform:       platform,
+		HardwareSerial: fmt.Sprintf("serial-%d", i),
+		TeamID:         teamID,
+	})
+	require.NoError(t, err)
+
+	// create the nano_device and enrollment
+	var abmTokenID uint
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO nano_devices (id, serial_number, authenticate) VALUES (?, ?, ?)`, h.UUID, h.HardwareSerial, "test")
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx, `INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex)
+			VALUES (?, ?, ?, ?, ?, ?)`, h.UUID, h.UUID, "device", "topic", "push_magic", "token_hex")
+		if err != nil {
+			return err
+		}
+
+		encTok := uuid.NewString()
+		abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{
+			OrganizationName: "unused",
+			EncryptedToken:   []byte(encTok),
+			RenewAt:          time.Now().Add(30 * 24 * time.Hour), // 30 days from now
+		})
+		abmTokenID = abmToken.ID
+
+		return err
+	})
+	if depAssignedToFleet {
+		err := ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmTokenID, make(map[uint]time.Time))
+		require.NoError(t, err)
+	}
+	err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "http://example.com", depAssignedToFleet, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
+	require.NoError(t, err)
+	return h
+}
+
+func getEnqueuedAppleCommandTypes(t *testing.T, ds *mysql.Datastore) []string {
+	ctx := t.Context()
+	var commands []string
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &commands, "SELECT request_type FROM nano_commands")
+	})
+	return commands
+}
+
+// setTestMacOSSetup applies fn to the macOS setup of the team (or no team),
+// restoring the app config when the test ends. Teams are removed by
+// TruncateTables, so they don't need restoring.
+func setTestMacOSSetup(t *testing.T, ds *mysql.Datastore, teamID *uint, fn func(*fleet.MacOSSetup)) {
+	ctx := t.Context()
+	if teamID != nil {
+		tm, err := ds.TeamWithExtras(ctx, *teamID)
+		require.NoError(t, err)
+		fn(&tm.Config.MDM.MacOSSetup)
+		_, err = ds.SaveTeam(ctx, tm)
+		require.NoError(t, err)
+		return
+	}
+
+	ac, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	orig := ac.MDM.MacOSSetup
+	fn(&ac.MDM.MacOSSetup)
+	require.NoError(t, ds.SaveAppConfig(ctx, ac))
+	t.Cleanup(func() {
+		ac, err := ds.AppConfig(context.Background())
+		require.NoError(t, err)
+		ac.MDM.MacOSSetup = orig
+		require.NoError(t, ds.SaveAppConfig(context.Background(), ac))
+	})
+}
+
+func insertTestBootstrapPackage(t *testing.T, ds *mysql.Datastore, name string, teamID uint) {
+	require.NoError(t, ds.InsertMDMAppleBootstrapPackage(t.Context(), &fleet.MDMAppleBootstrapPackage{
+		Name:   name,
+		TeamID: teamID,
+		Bytes:  []byte("test"),
+		Sha256: []byte("test"),
+		Token:  "token",
+	}, nil))
+}
+
+func runTestAppleMDMJob(ctx context.Context, t *testing.T, ds *mysql.Datastore, task AppleMDMTask, h *fleet.Host, platform string, teamID *uint, fromMDMMigration bool) {
+	mdmStorage, err := ds.NewMDMAppleMDMStorage()
+	require.NoError(t, err)
+	log := slog.New(slog.DiscardHandler)
+	w := NewWorker(ds, log)
+	w.Register(&AppleMDM{
+		Datastore: ds,
+		Log:       log,
+		Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+	})
+	require.NoError(t, QueueAppleMDMJob(ctx, ds, log, task, h.UUID, platform, teamID, "", false, fromMDMMigration))
+	require.NoError(t, w.ProcessJobs(ctx))
+}
+
+func TestAppleMDMBootstrapPackageManualEnrollment(t *testing.T) {
+	ds := mysqltest.CreateMySQLDS(t)
+	mysqltest.TruncateTables(t, ds)
+	const testOrgName = "fleet-test"
+	premiumCtx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+
+	enable := func(t *testing.T, teamID *uint, manualAgentInstall bool) {
+		setTestMacOSSetup(t, ds, teamID, func(s *fleet.MacOSSetup) {
+			s.MacOSEnableBootstrapPackageDuringManualEnrollment = true
+			s.ManualAgentInstall = optjson.SetBool(manualAgentInstall)
+		})
+	}
+
+	requireBootstrapPending := func(t *testing.T, h *fleet.Host, name string) {
+		ms, err := ds.GetHostMDMMacOSSetup(t.Context(), h.ID)
+		require.NoError(t, err)
+		require.Equal(t, name, ms.BootstrapPackageName)
+		require.Equal(t, fleet.MDMBootstrapPackagePending, ms.BootstrapPackageStatus)
+	}
+
+	requireNoBootstrap := func(t *testing.T, h *fleet.Host) {
+		_, err := ds.GetHostMDMMacOSSetup(t.Context(), h.ID)
+		require.True(t, fleet.IsNotFound(err))
+	}
+
+	t.Run("installs fleetd and bootstrap package when enabled", func(t *testing.T) {
+		mysqltest.SetTestABMAssets(t, ds, testOrgName)
+		defer mysqltest.TruncateTables(t, ds)
+
+		h := createEnrolledAppleHost(t, ds, 1, nil, false, "darwin")
+		insertTestBootstrapPackage(t, ds, "manual-bootstrap", 0)
+		enable(t, nil, false)
+
+		runTestAppleMDMJob(premiumCtx, t, ds, AppleMDMPostManualEnrollmentTask, h, "darwin", nil, false)
+
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "InstallEnterpriseApplication"}, getEnqueuedAppleCommandTypes(t, ds))
+		requireBootstrapPending(t, h, "manual-bootstrap")
+	})
+
+	t.Run("installs fleetd and bootstrap package of a team when enabled", func(t *testing.T) {
+		mysqltest.SetTestABMAssets(t, ds, testOrgName)
+		defer mysqltest.TruncateTables(t, ds)
+
+		tm, err := ds.NewTeam(t.Context(), &fleet.Team{Name: "test"})
+		require.NoError(t, err)
+		h := createEnrolledAppleHost(t, ds, 1, &tm.ID, false, "darwin")
+		insertTestBootstrapPackage(t, ds, "manual-team-bootstrap", tm.ID)
+		enable(t, &tm.ID, false)
+
+		runTestAppleMDMJob(premiumCtx, t, ds, AppleMDMPostManualEnrollmentTask, h, "darwin", &tm.ID, false)
+
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "InstallEnterpriseApplication"}, getEnqueuedAppleCommandTypes(t, ds))
+		requireBootstrapPending(t, h, "manual-team-bootstrap")
+	})
+
+	t.Run("skips fleetd when manual agent install is enabled", func(t *testing.T) {
+		mysqltest.SetTestABMAssets(t, ds, testOrgName)
+		defer mysqltest.TruncateTables(t, ds)
+
+		h := createEnrolledAppleHost(t, ds, 1, nil, false, "darwin")
+		insertTestBootstrapPackage(t, ds, "manual-bootstrap", 0)
+		enable(t, nil, true)
+
+		runTestAppleMDMJob(premiumCtx, t, ds, AppleMDMPostManualEnrollmentTask, h, "darwin", nil, false)
+
+		// only the bootstrap package, which has an embedded manifest
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedAppleCommandTypes(t, ds))
+		requireBootstrapPending(t, h, "manual-bootstrap")
+	})
+
+	t.Run("installs only fleetd when enabled without a bootstrap package", func(t *testing.T) {
+		mysqltest.SetTestABMAssets(t, ds, testOrgName)
+		defer mysqltest.TruncateTables(t, ds)
+
+		h := createEnrolledAppleHost(t, ds, 1, nil, false, "darwin")
+		enable(t, nil, false)
+
+		runTestAppleMDMJob(premiumCtx, t, ds, AppleMDMPostManualEnrollmentTask, h, "darwin", nil, false)
+
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedAppleCommandTypes(t, ds))
+		requireNoBootstrap(t, h)
+	})
+
+	t.Run("installs nothing with manual agent install and no bootstrap package", func(t *testing.T) {
+		mysqltest.SetTestABMAssets(t, ds, testOrgName)
+		defer mysqltest.TruncateTables(t, ds)
+
+		h := createEnrolledAppleHost(t, ds, 1, nil, false, "darwin")
+		enable(t, nil, true)
+
+		runTestAppleMDMJob(premiumCtx, t, ds, AppleMDMPostManualEnrollmentTask, h, "darwin", nil, false)
+
+		require.Empty(t, getEnqueuedAppleCommandTypes(t, ds))
+		requireNoBootstrap(t, h)
+	})
+
+	t.Run("does not install bootstrap package when disabled", func(t *testing.T) {
+		mysqltest.SetTestABMAssets(t, ds, testOrgName)
+		defer mysqltest.TruncateTables(t, ds)
+
+		h := createEnrolledAppleHost(t, ds, 1, nil, false, "darwin")
+		insertTestBootstrapPackage(t, ds, "manual-bootstrap", 0)
+
+		runTestAppleMDMJob(premiumCtx, t, ds, AppleMDMPostManualEnrollmentTask, h, "darwin", nil, false)
+
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedAppleCommandTypes(t, ds))
+		requireNoBootstrap(t, h)
+	})
+
+	t.Run("does not install bootstrap package without a premium license", func(t *testing.T) {
+		mysqltest.SetTestABMAssets(t, ds, testOrgName)
+		defer mysqltest.TruncateTables(t, ds)
+
+		h := createEnrolledAppleHost(t, ds, 1, nil, false, "darwin")
+		insertTestBootstrapPackage(t, ds, "manual-bootstrap", 0)
+		enable(t, nil, false)
+
+		runTestAppleMDMJob(t.Context(), t, ds, AppleMDMPostManualEnrollmentTask, h, "darwin", nil, false)
+
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedAppleCommandTypes(t, ds))
+		requireNoBootstrap(t, h)
+	})
+
+	t.Run("installs fleetd with manual agent install when the bootstrap package is disabled for manual enrollments", func(t *testing.T) {
+		mysqltest.SetTestABMAssets(t, ds, testOrgName)
+		defer mysqltest.TruncateTables(t, ds)
+
+		h := createEnrolledAppleHost(t, ds, 1, nil, false, "darwin")
+		insertTestBootstrapPackage(t, ds, "manual-bootstrap", 0)
+		// manual agent install only used for automatic enrollments
+		setTestMacOSSetup(t, ds, nil, func(s *fleet.MacOSSetup) { s.ManualAgentInstall = optjson.SetBool(true) })
+
+		runTestAppleMDMJob(premiumCtx, t, ds, AppleMDMPostManualEnrollmentTask, h, "darwin", nil, false)
+
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedAppleCommandTypes(t, ds))
+		requireNoBootstrap(t, h)
+	})
+
+	t.Run("installs fleetd with manual agent install without a premium license", func(t *testing.T) {
+		mysqltest.SetTestABMAssets(t, ds, testOrgName)
+		defer mysqltest.TruncateTables(t, ds)
+
+		h := createEnrolledAppleHost(t, ds, 1, nil, false, "darwin")
+		insertTestBootstrapPackage(t, ds, "manual-bootstrap", 0)
+		enable(t, nil, true)
+
+		runTestAppleMDMJob(t.Context(), t, ds, AppleMDMPostManualEnrollmentTask, h, "darwin", nil, false)
+
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedAppleCommandTypes(t, ds))
+		requireNoBootstrap(t, h)
+	})
+
+	t.Run("installs fleetd when the bootstrap package fails", func(t *testing.T) {
+		mysqltest.SetTestABMAssets(t, ds, testOrgName)
+		defer mysqltest.TruncateTables(t, ds)
+
+		h := createEnrolledAppleHost(t, ds, 1, nil, false, "darwin")
+		insertTestBootstrapPackage(t, ds, "manual-bootstrap", 0)
+		enable(t, nil, false)
+		// an unparseable server URL makes the bootstrap package fail before its command is queued
+		setTestAppleServerURL(t, ds, "http://%zz")
+
+		runTestAppleMDMJob(premiumCtx, t, ds, AppleMDMPostManualEnrollmentTask, h, "darwin", nil, false)
+
+		// fleetd was still sent, and the job is queued to retry the bootstrap package
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedAppleCommandTypes(t, ds))
+		requireNoBootstrap(t, h)
+		jobs, err := ds.GetQueuedJobs(t.Context(), 1, time.Now().UTC().Add(time.Minute))
+		require.NoError(t, err)
+		require.Len(t, jobs, 1)
+		require.Contains(t, jobs[0].Error, "installing bootstrap package")
+		require.Equal(t, 1, jobs[0].Retries)
+	})
+
+	for _, platform := range []string{"ios", "ipados"} {
+		t.Run("does not install bootstrap package on "+platform, func(t *testing.T) {
+			mysqltest.SetTestABMAssets(t, ds, testOrgName)
+			defer mysqltest.TruncateTables(t, ds)
+
+			h := createEnrolledAppleHost(t, ds, 1, nil, false, platform)
+			insertTestBootstrapPackage(t, ds, "manual-bootstrap", 0)
+			enable(t, nil, false)
+
+			runTestAppleMDMJob(premiumCtx, t, ds, AppleMDMPostManualEnrollmentTask, h, platform, nil, false)
+
+			require.Empty(t, getEnqueuedAppleCommandTypes(t, ds))
+			requireNoBootstrap(t, h)
+		})
+	}
+}
+
+func setTestAppleServerURL(t *testing.T, ds *mysql.Datastore, url string) {
+	ac, err := ds.AppConfig(t.Context())
+	require.NoError(t, err)
+	orig := ac.MDM.AppleServerURL
+	ac.MDM.AppleServerURL = url
+	require.NoError(t, ds.SaveAppConfig(t.Context(), ac))
+	t.Cleanup(func() {
+		ac, err := ds.AppConfig(context.Background())
+		require.NoError(t, err)
+		ac.MDM.AppleServerURL = orig
+		require.NoError(t, ds.SaveAppConfig(context.Background(), ac))
+	})
+}
+
+func TestAppleMDMBootstrapPackageDuringMigration(t *testing.T) {
+	ds := mysqltest.CreateMySQLDS(t)
+	mysqltest.TruncateTables(t, ds)
+	const testOrgName = "fleet-test"
+	// the setting only applies with a premium license, unlike the env var
+	premiumCtx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+
+	requireSkipped := func(t *testing.T, h *fleet.Host) {
+		// the post-DEP release device job is not queued anymore
+		jobs, err := ds.GetQueuedJobs(t.Context(), 1, time.Now().UTC().Add(time.Minute))
+		require.NoError(t, err)
+		require.Empty(t, jobs)
+		// only the fleetd install is enqueued
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedAppleCommandTypes(t, ds))
+		_, err = ds.GetHostMDMMacOSSetup(t.Context(), h.ID)
+		require.True(t, fleet.IsNotFound(err))
+	}
+
+	t.Run("skips bootstrap package during migration by default", func(t *testing.T) {
+		mysqltest.SetTestABMAssets(t, ds, testOrgName)
+		defer mysqltest.TruncateTables(t, ds)
+
+		h := createEnrolledAppleHost(t, ds, 1, nil, true, "darwin")
+		insertTestBootstrapPackage(t, ds, "custom-bootstrap", 0)
+
+		runTestAppleMDMJob(t.Context(), t, ds, AppleMDMPostDEPEnrollmentTask, h, "darwin", nil, true)
+
+		requireSkipped(t, h)
+	})
+
+	t.Run("skips bootstrap package of a team during migration by default", func(t *testing.T) {
+		mysqltest.SetTestABMAssets(t, ds, testOrgName)
+		defer mysqltest.TruncateTables(t, ds)
+
+		tm, err := ds.NewTeam(t.Context(), &fleet.Team{Name: "test"})
+		require.NoError(t, err)
+		h := createEnrolledAppleHost(t, ds, 1, &tm.ID, true, "darwin")
+		insertTestBootstrapPackage(t, ds, "custom-team-bootstrap", tm.ID)
+
+		runTestAppleMDMJob(t.Context(), t, ds, AppleMDMPostDEPEnrollmentTask, h, "darwin", &tm.ID, true)
+
+		requireSkipped(t, h)
+	})
+
+	t.Run("installs bootstrap package during migration when enabled in config", func(t *testing.T) {
+		mysqltest.SetTestABMAssets(t, ds, testOrgName)
+		defer mysqltest.TruncateTables(t, ds)
+
+		h := createEnrolledAppleHost(t, ds, 1, nil, true, "darwin")
+		insertTestBootstrapPackage(t, ds, "custom-bootstrap", 0)
+		setTestMacOSSetup(t, ds, nil, func(s *fleet.MacOSSetup) { s.MacOSEnableBootstrapPackageDuringMigration = true })
+
+		runTestAppleMDMJob(premiumCtx, t, ds, AppleMDMPostDEPEnrollmentTask, h, "darwin", nil, true)
+
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "InstallEnterpriseApplication"}, getEnqueuedAppleCommandTypes(t, ds))
+		setup, err := ds.GetHostMDMMacOSSetup(t.Context(), h.ID)
+		require.NoError(t, err)
+		require.Equal(t, "custom-bootstrap", setup.BootstrapPackageName)
+	})
+
+	t.Run("installs bootstrap package of a team during migration when enabled in config", func(t *testing.T) {
+		mysqltest.SetTestABMAssets(t, ds, testOrgName)
+		defer mysqltest.TruncateTables(t, ds)
+
+		tm, err := ds.NewTeam(t.Context(), &fleet.Team{Name: "test"})
+		require.NoError(t, err)
+		h := createEnrolledAppleHost(t, ds, 1, &tm.ID, true, "darwin")
+		insertTestBootstrapPackage(t, ds, "custom-team-bootstrap", tm.ID)
+		setTestMacOSSetup(t, ds, &tm.ID, func(s *fleet.MacOSSetup) { s.MacOSEnableBootstrapPackageDuringMigration = true })
+
+		runTestAppleMDMJob(premiumCtx, t, ds, AppleMDMPostDEPEnrollmentTask, h, "darwin", &tm.ID, true)
+
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "InstallEnterpriseApplication"}, getEnqueuedAppleCommandTypes(t, ds))
+		setup, err := ds.GetHostMDMMacOSSetup(t.Context(), h.ID)
+		require.NoError(t, err)
+		require.Equal(t, "custom-team-bootstrap", setup.BootstrapPackageName)
+	})
+
+	t.Run("skips bootstrap package during migration when enabled in config without a premium license", func(t *testing.T) {
+		mysqltest.SetTestABMAssets(t, ds, testOrgName)
+		defer mysqltest.TruncateTables(t, ds)
+
+		h := createEnrolledAppleHost(t, ds, 1, nil, true, "darwin")
+		insertTestBootstrapPackage(t, ds, "custom-bootstrap", 0)
+		setTestMacOSSetup(t, ds, nil, func(s *fleet.MacOSSetup) { s.MacOSEnableBootstrapPackageDuringMigration = true })
+
+		runTestAppleMDMJob(t.Context(), t, ds, AppleMDMPostDEPEnrollmentTask, h, "darwin", nil, true)
+
+		requireSkipped(t, h)
+	})
+
+	t.Run("enabled config of another team does not apply", func(t *testing.T) {
+		mysqltest.SetTestABMAssets(t, ds, testOrgName)
+		defer mysqltest.TruncateTables(t, ds)
+
+		tm, err := ds.NewTeam(t.Context(), &fleet.Team{Name: "test"})
+		require.NoError(t, err)
+		h := createEnrolledAppleHost(t, ds, 1, &tm.ID, true, "darwin")
+		insertTestBootstrapPackage(t, ds, "custom-team-bootstrap", tm.ID)
+		setTestMacOSSetup(t, ds, nil, func(s *fleet.MacOSSetup) { s.MacOSEnableBootstrapPackageDuringMigration = true })
+
+		runTestAppleMDMJob(premiumCtx, t, ds, AppleMDMPostDEPEnrollmentTask, h, "darwin", &tm.ID, true)
+
+		// only fleetd, the bootstrap package is recorded as skipped
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedAppleCommandTypes(t, ds))
+		_, err = ds.GetHostMDMMacOSSetup(t.Context(), h.ID)
+		require.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("installs bootstrap package during migration when FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION is set", func(t *testing.T) {
+		// t.Setenv can't be used, CreateMySQLDS marks the test as parallel
+		os.Setenv("FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION", "1")
+		t.Cleanup(func() { os.Unsetenv("FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION") })
+		mysqltest.SetTestABMAssets(t, ds, testOrgName)
+		defer mysqltest.TruncateTables(t, ds)
+
+		h := createEnrolledAppleHost(t, ds, 1, nil, true, "darwin")
+		insertTestBootstrapPackage(t, ds, "custom-bootstrap", 0)
+
+		runTestAppleMDMJob(t.Context(), t, ds, AppleMDMPostDEPEnrollmentTask, h, "darwin", nil, true)
+
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "InstallEnterpriseApplication"}, getEnqueuedAppleCommandTypes(t, ds))
+		setup, err := ds.GetHostMDMMacOSSetup(t.Context(), h.ID)
+		require.NoError(t, err)
+		require.Equal(t, "custom-bootstrap", setup.BootstrapPackageName)
+	})
+
+	t.Run("installs bootstrap package of a team during migration when FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION is set", func(t *testing.T) {
+		os.Setenv("FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION", "1")
+		t.Cleanup(func() { os.Unsetenv("FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION") })
+		mysqltest.SetTestABMAssets(t, ds, testOrgName)
+		defer mysqltest.TruncateTables(t, ds)
+
+		tm, err := ds.NewTeam(t.Context(), &fleet.Team{Name: "test"})
+		require.NoError(t, err)
+		h := createEnrolledAppleHost(t, ds, 1, &tm.ID, true, "darwin")
+		insertTestBootstrapPackage(t, ds, "custom-team-bootstrap", tm.ID)
+
+		runTestAppleMDMJob(t.Context(), t, ds, AppleMDMPostDEPEnrollmentTask, h, "darwin", &tm.ID, true)
+
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "InstallEnterpriseApplication"}, getEnqueuedAppleCommandTypes(t, ds))
+		setup, err := ds.GetHostMDMMacOSSetup(t.Context(), h.ID)
+		require.NoError(t, err)
+		require.Equal(t, "custom-team-bootstrap", setup.BootstrapPackageName)
+	})
 }

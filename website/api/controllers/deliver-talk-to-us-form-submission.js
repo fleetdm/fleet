@@ -42,6 +42,12 @@ module.exports = {
       description: 'The organization of the user who submitted the "talk to us" form'
     },
 
+    submittedFromPage: {
+      type: 'string',
+      description: 'The URL path of the page where the form was submitted.',
+      example: '/windows'
+    },
+
   },
 
 
@@ -62,13 +68,14 @@ module.exports = {
   },
 
 
-  fn: async function ({emailAddress, firstName, lastName, organization, numberOfHosts}) {
+  fn: async function ({emailAddress, firstName, lastName, organization, numberOfHosts, submittedFromPage}) {
 
     let emailDomain = emailAddress.split('@')[1];
     if(_.includes(sails.config.custom.bannedEmailDomainsForWebsiteSubmissions, emailDomain.toLowerCase())){
       throw 'invalidEmailDomain';
     }
     let attributionCookieOrUndefined = this.req.cookies.marketingAttribution;
+    let formSubmittedText = submittedFromPage ? `Submitted the "Talk to us" form (on the ${submittedFromPage} page)` : 'Submitted the "Talk to us" form';
 
     let contactInformation = {
       emailAddress: emailAddress,
@@ -119,15 +126,15 @@ Only include a key when you are confident of its value. Omit any key you are uns
 
     let employeeCountFromEnrichmentHelper = (enrichmentInformation.employer || {}).numberOfEmployees;
 
-    // If we got a employer.numberOfEmployees value from the getEnriched helper, or the user entered more than 700 hosts, get the SF user who owns the territory that this user's company is in, and send them to a "Talk to us" calendly event.
-    if(numberOfHosts >= 700 || (employeeCountFromEnrichmentHelper && employeeCountFromEnrichmentHelper >= 700)) {
+    // If we got a employer.numberOfEmployees value from the getEnriched helper, or the user entered 500 or more employees, get the SF user who owns the territory that this user's company is in, and send them to a "Talk to us" calendly event.
+    if(numberOfHosts >= 500 || (employeeCountFromEnrichmentHelper && employeeCountFromEnrichmentHelper >= 500)) {
       contactInformation.contactSource = 'Website - Contact forms - Demo - ICP';
       let numberOfEmployeesToUseForTerritoryLookup;
-      if(employeeCountFromEnrichmentHelper && employeeCountFromEnrichmentHelper >= 700) {
-        contactInformation.description = `Submitted the "Talk to us" form and was taken to the Calendly page for the "Talk to us" event because of the number of employees (${employeeCountFromEnrichmentHelper}) returned by Coresignal. Provided organization name: ${organization}, Number of employees: ${numberOfHosts}`;
+      if(employeeCountFromEnrichmentHelper && employeeCountFromEnrichmentHelper >= 500) {
+        contactInformation.description = `${formSubmittedText} and was taken to the Calendly page for the "Talk to us" event because of the number of employees (${employeeCountFromEnrichmentHelper}) returned by Coresignal. Provided organization name: ${organization}, Number of employees: ${numberOfHosts}`;
         numberOfEmployeesToUseForTerritoryLookup = employeeCountFromEnrichmentHelper;
       } else {
-        contactInformation.description = `Submitted the "Talk to us" form and was taken to the Calendly page for the "Talk to us" event. Provided organization name: ${organization}, Number of employees: ${numberOfHosts}`;
+        contactInformation.description = `${formSubmittedText} and was taken to the Calendly page for the "Talk to us" event. Provided organization name: ${organization}, Number of employees: ${numberOfHosts}`;
         numberOfEmployeesToUseForTerritoryLookup = numberOfHosts;
       }
 
@@ -172,9 +179,9 @@ Only include a key when you are confident of its value. Omit any key you are uns
         eventUrl: eventUrlForThisUsersTerritory +`?email=${encodeURIComponent(emailAddress)}&name=${encodeURIComponent(firstName+' '+lastName)}`,
       };
     } else {
-      // If the enrichment helper didn't return a employer.numberOfEmployees value and this user has <700 hosts, send them to the "Let's get you set up!" Calendly event
+      // If the enrichment helper didn't return a employer.numberOfEmployees value and this user has <500 employees, send them to the "Let's get you set up!" Calendly event
       contactInformation.contactSource = 'Website - Contact forms - Demo';
-      contactInformation.description = `Submitted the "Talk to us" form and was taken to the Calendly page for the "Let\'s get you set up!" event. Provided organization name: ${organization}, Number of employees: ${numberOfHosts}`;
+      contactInformation.description = `${formSubmittedText} and was taken to the Calendly page for the "Let\'s get you set up!" event. Provided organization name: ${organization}, Number of employees: ${numberOfHosts}`;
       sails.helpers.salesforce.updateOrCreateContactAndAccount.with(contactInformation).exec((err)=>{
         if(err) {
           sails.log.warn(`Background task failed: When a user submitted the "Talk to us" form, a lead/contact could not be updated in the CRM for this email address: ${emailAddress}.`, err);

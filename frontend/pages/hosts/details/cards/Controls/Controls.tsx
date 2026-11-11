@@ -203,7 +203,7 @@ const Controls = ({
   };
 
   const onAddControls = useCallback(() => {
-    // A no-team host reports `team_id: null`, but the Controls page reads "No
+    // A no-team host reports `fleet_id: null`, but the Controls page reads "No
     // team" as fleet_id=0 — an absent param means "keep whatever fleet you were
     // on", which lands the user somewhere else entirely.
     router.push(
@@ -228,11 +228,8 @@ const Controls = ({
   }, [controls, isDeviceUser, showHiddenProfiles, typeFilter, searchQuery]);
 
   const tableCustomFilters = (): JSX.Element | null => {
-    if (!isMacOSHost) {
-      return null;
-    }
     if (isDeviceUser) {
-      if (!isPremiumTier) {
+      if (!isPremiumTier || !controls.some((control) => control.hidden)) {
         return null;
       }
 
@@ -247,6 +244,11 @@ const Controls = ({
         />
       );
     }
+
+    if (!isMacOSHost) {
+      return null;
+    }
+
     return (
       <>
         <DropdownWrapper
@@ -286,6 +288,7 @@ const Controls = ({
     <div
       className={classnames(baseClass, className, {
         [`${baseClass}--self-service`]: canManageSelfServiceProfiles,
+        [`${baseClass}--device-user`]: isDeviceUser,
       })}
     >
       <TableContainer

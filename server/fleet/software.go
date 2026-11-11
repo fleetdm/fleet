@@ -7,11 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
 
+	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -104,6 +106,10 @@ type Software struct {
 	ExtensionID string `json:"extension_id,omitempty" db:"extension_id"`
 	// ExtensionFor is the host software that this software is an extension for
 	ExtensionFor string `json:"extension_for" db:"extension_for"`
+	// AITool is true when fleetd's ai_tools table reported this software. It is not part of the
+	// software's identity (ToUniqueStr, ComputeRawChecksum), so the flag can be set on an existing row.
+	// It's a Premium field: the service clears it on Free so it's omitted from responses.
+	AITool *bool `json:"ai_tool,omitempty" db:"ai_tool"`
 	// Browser is the browser type this extension is for (deprecated, use extension_for instead)
 	Browser string `json:"browser"`
 
@@ -156,7 +162,17 @@ type Software struct {
 	// UpgradeCode is a GUID representing a related set of Windows software products. See https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
 	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 
+	SoftwareMetadata
+
 	DisplayName string `json:"display_name"`
+}
+
+// SoftwareMetadata holds per-software data, stored in the software_metadata table, that is the same
+// on every host with that software but is not part of its identity (not in ToUniqueStr or the
+// checksum), so that collecting a new field doesn't create new software rows.
+type SoftwareMetadata struct {
+	// Epoch is the RPM package epoch, only set when greater than 0.
+	Epoch *uint32 `json:"-" db:"epoch"`
 }
 
 func (Software) AuthzType() string {
@@ -393,8 +409,9 @@ type SoftwareAutoUpdateConfig struct {
 }
 
 type SoftwareAutoUpdateSchedule struct {
-	TitleID uint `json:"title_id" db:"title_id"`
-	TeamID  uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TitleID      uint `json:"title_id" db:"title_id"`
+	TeamID       uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	VPPAppTeamID uint `json:"-" db:"vpp_app_team_id"`
 	SoftwareAutoUpdateConfig
 }
 
@@ -508,8 +525,10 @@ type SoftwareTitle struct {
 	SoftwarePackage *SoftwareInstaller `json:"software_package" db:"-"`
 	// Packages holds every package, first-added first; nil (marshals to null) when none.
 	Packages []SoftwareInstaller `json:"packages" db:"-"`
-	// AppStoreApp is the VPP app information for this title.
+	// AppStoreApp holds the first-added App Store app version for backwards compatibility, nil when there is none.
 	AppStoreApp *VPPAppStoreApp `json:"app_store_app" db:"-"`
+	// AppStoreApps holds every App Store app version, first-added first, nil when there is none.
+	AppStoreApps []AppStoreAppVersion `json:"app_store_apps" db:"-"`
 	// BundleIdentifier is used by Apple installers to uniquely identify
 	// the software installed. It's surfaced in software_titles to match
 	// with existing software entries.
@@ -523,6 +542,9 @@ type SoftwareTitle struct {
 	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 	// DisplayName is an end-user friendly name.
 	DisplayName string `json:"display_name" db:"display_name"`
+	// AITool is true when any software row of this title is flagged as an AI tool. It's a Premium
+	// field: the service clears it on Free so it's omitted from responses.
+	AITool *bool `json:"ai_tool,omitempty" db:"-"`
 	SoftwareAutoUpdateConfig
 }
 
@@ -599,7 +621,8 @@ type SoftwareTitleListResult struct {
 
 	// AppStoreApp provides VPP app information, it is only present if a VPP app
 	// is available for the software title.
-	AppStoreApp *SoftwarePackageOrApp `json:"app_store_app"`
+	AppStoreApp  *SoftwarePackageOrApp `json:"app_store_app"`
+	AppStoreApps []AppStoreAppListItem `json:"app_store_apps"`
 	// BundleIdentifier is used by Apple installers to uniquely identify
 	// the software installed. It's surfaced in software_titles to match
 	// with existing software entries.
@@ -611,7 +634,104 @@ type SoftwareTitleListResult struct {
 	// https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
 	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 	DisplayName string  `json:"display_name" db:"display_name"`
+	// AITool is true when any software row of this title is flagged as an AI tool. It's a Premium
+	// field: the service clears it on Free so it's omitted from responses.
+	AITool *bool `json:"ai_tool,omitempty" db:"-"`
 	SoftwareAutoUpdateConfig
+}
+
+// softwareTypeFilterSources maps every source accepted by the `source` filter to the `extension_for`
+// values accepted for it.
+// IMPORTANT: When updating this, also make sure to update SOFTWARE_TYPE_VARIANTS in frontend code.
+var softwareTypeFilterSources = map[string][]string{
+	"adobe_plugins":       nil,
+	"ai_clis":             nil,
+	"ai_skills":           nil,
+	"android_apps":        nil,
+	"apps":                nil,
+	"chocolatey_packages": nil,
+	"deb_packages":        nil,
+	"go_binaries":         nil,
+	"homebrew_packages":   nil,
+	"ie_extensions":       nil,
+	"ios_apps":            nil,
+	"ipados_apps":         nil,
+	"mcp_servers":         nil,
+	"nix_packages":        nil,
+	"npm_packages":        nil,
+	"pacman_packages":     nil,
+	"pkg_packages":        nil,
+	"portage_packages":    nil,
+	"programs":            nil,
+	"ps1_packages":        nil,
+	"py_packages":         nil,
+	"python_packages":     nil,
+	"rpm_packages":        nil,
+	"safari_extensions":   nil,
+	"sh_packages":         nil,
+	"tgz_packages":        nil,
+	"chrome_extensions":   {"chrome", "chromium", "brave", "edge", "edge_beta", "opera", "yandex"},
+	"firefox_addons":      {"firefox"},
+	"vscode_extensions":   {"vscode", "vscode_insiders", "vscodium", "vscodium_insiders", "cursor", "windsurf", "trae"},
+	"jetbrains_plugins": {
+		"clion", "datagrip", "goland", "intellij_idea", "intellij_idea_community_edition", "phpstorm", "pycharm",
+		"pycharm_community_edition", "resharper", "rider", "rubymine", "rust_rov", "webstorm",
+	},
+}
+
+// softwareTypeFilterSourceByExtensionFor maps each accepted extension_for value back to its source. It
+// panics at startup if a value is listed under two sources, which would make the lookup ambiguous.
+var softwareTypeFilterSourceByExtensionFor = func() map[string]string {
+	bySource := make(map[string]string)
+	for source, exts := range softwareTypeFilterSources {
+		for _, ext := range exts {
+			if other, ok := bySource[ext]; ok {
+				panic(fmt.Sprintf("extension_for %q is listed under both %q and %q", ext, other, source))
+			}
+			bySource[ext] = source
+		}
+	}
+	return bySource
+}()
+
+// SoftwareTypeFilter is the validated form of the `source` and `extension_for` query parameters. It
+// maps each selected source to the extension_for values that narrow it; a source with no values
+// matches all of its rows.
+type SoftwareTypeFilter map[string][]string
+
+// ParseSoftwareTypeFilter validates the comma-separated `source` and `extension_for` query
+// parameters, trimming spaces and ignoring empty values. It returns nil when neither selects anything.
+// Values are checked against the allowlist before they're kept, so the result stays bounded whatever
+// the input size.
+func ParseSoftwareTypeFilter(source, extensionFor string) (SoftwareTypeFilter, error) {
+	filter := make(SoftwareTypeFilter)
+	for _, s := range str.ParseStringList(source) {
+		if _, ok := softwareTypeFilterSources[s]; !ok {
+			return nil, NewInvalidArgumentError("source", fmt.Sprintf(InvalidSoftwareSourceErrMsg, s))
+		}
+		filter[s] = nil
+	}
+
+	for _, ext := range str.ParseStringList(extensionFor) {
+		if len(filter) == 0 {
+			return nil, NewInvalidArgumentError("extension_for", SoftwareExtensionForRequiresSourceErrMsg)
+		}
+		extSource, ok := softwareTypeFilterSourceByExtensionFor[ext]
+		if !ok {
+			return nil, NewInvalidArgumentError("extension_for", fmt.Sprintf(InvalidSoftwareExtensionForErrMsg, ext))
+		}
+		if _, ok := filter[extSource]; !ok {
+			return nil, NewInvalidArgumentError("extension_for", fmt.Sprintf(SoftwareExtensionForSourceNotSelectedErrMsg, ext, extSource))
+		}
+		if !slices.Contains(filter[extSource], ext) {
+			filter[extSource] = append(filter[extSource], ext)
+		}
+	}
+
+	if len(filter) == 0 {
+		return nil, nil
+	}
+	return filter, nil
 }
 
 type SoftwareTitleListOptions struct {
@@ -629,12 +749,18 @@ type SoftwareTitleListOptions struct {
 	Platform            string  `query:"platform,optional"`
 	HashSHA256          string  `query:"hash_sha256,optional"`
 	PackageName         string  `query:"package_name,optional"`
+	Source              string  `query:"source,optional"`
+	ExtensionFor        string  `query:"extension_for,optional"`
+	AITool              bool    `query:"ai_tool,optional"`
+
+	// TypeFilter is the validated form of Source and ExtensionFor, set by the service layer.
+	TypeFilter SoftwareTypeFilter `json:"-"`
 
 	// ForSetupExperience is an internal flag set when listing software via the
 	// setup experience endpoint, so that it filters out any software available
 	// for install that is not supported for setup experience. It cannot be set
 	// via the query parameters.
-	ForSetupExperience bool
+	ForSetupExperience bool `json:"-"`
 }
 
 type HostSoftwareTitleListOptions struct {
@@ -651,7 +777,7 @@ type HostSoftwareTitleListOptions struct {
 	// In order not to introduce a breaking change we have to mark this parameter as optional.
 	// However, instead of using *bool and modifying a lot of downstream code and tests
 	// Use this indicator
-	IncludeAvailableForInstallExplicitlySet bool
+	IncludeAvailableForInstallExplicitlySet bool `json:"-"`
 
 	// OnlyAvailableForInstall is set via a query argument that limits the
 	// returned software titles to only those that are available for install on
@@ -667,8 +793,15 @@ type HostSoftwareTitleListOptions struct {
 	// top level of the macOS /Applications folder. Ignored for non-macOS hosts.
 	MacOSApplicationsOnly bool `query:"macos_applications,optional"`
 
+	Source       string `query:"source,optional"`
+	ExtensionFor string `query:"extension_for,optional"`
+	AITool       bool   `query:"ai_tool,optional"`
+
+	// TypeFilter is the validated form of Source and ExtensionFor, set by the service layer.
+	TypeFilter SoftwareTypeFilter `json:"-"`
+
 	// Non-MDM-enabled hosts cannot install VPP apps
-	IsMDMEnrolled bool
+	IsMDMEnrolled bool `json:"-"`
 }
 
 // AuthzSoftwareInventory is used for access controls on software inventory.
@@ -763,19 +896,25 @@ type SoftwareListOptions struct {
 	ListOptions ListOptions `url:"list_options"`
 
 	// HostID filters software to the specified host if not nil.
-	HostID                      *uint
-	TeamID                      *uint `query:"team_id,optional" renameto:"fleet_id"`
-	VulnerableOnly              bool  `query:"vulnerable,optional"`
-	WithoutVulnerabilityDetails bool  `query:"without_vulnerability_details,optional"`
-	IncludeCVEScores            bool
+	HostID                      *uint   `json:"-"`
+	TeamID                      *uint   `query:"team_id,optional" renameto:"fleet_id"`
+	VulnerableOnly              bool    `query:"vulnerable,optional"`
+	WithoutVulnerabilityDetails bool    `query:"without_vulnerability_details,optional"`
+	IncludeCVEScores            bool    `json:"-"`
 	KnownExploit                bool    `query:"exploit,optional"`
 	MinimumCVSS                 float64 `query:"min_cvss_score,optional"`
 	MaximumCVSS                 float64 `query:"max_cvss_score,optional"`
+	Source                      string  `query:"source,optional"`
+	ExtensionFor                string  `query:"extension_for,optional"`
+	AITool                      bool    `query:"ai_tool,optional"`
+
+	// TypeFilter is the validated form of Source and ExtensionFor, set by the service layer.
+	TypeFilter SoftwareTypeFilter `json:"-"`
 
 	// WithHostCounts indicates that the list of software should include the
 	// counts of hosts per software, and include only those software that have
 	// a count of hosts > 0.
-	WithHostCounts bool
+	WithHostCounts bool `json:"-"`
 }
 
 type SoftwareIterQueryOptions struct {
@@ -800,6 +939,30 @@ type UpdateHostSoftwareDBResult struct {
 	Deleted []Software
 	// What software was inserted
 	Inserted []Software
+	// Preserved is the software kept as installed although absent from the reported list, see
+	// PreserveSoftwareSources.
+	Preserved []Software
+}
+
+// UpdateHostSoftwareOptions configures UpdateHostSoftware.
+type UpdateHostSoftwareOptions struct {
+	// PreserveSources lists software sources whose absence from the report means "not reported"
+	// rather than "not installed". The host's current rows with these sources are kept, with
+	// their installed paths, as if the report had included them. Rows of these sources the
+	// report does include are ingested as usual, and no row is ever created from the list
+	// alone. The datastore applies this without judgement: the caller passes a source only when
+	// the query that reports it did not run. See preservedSoftwareSources in the service package.
+	PreserveSources []string
+}
+
+// UpdateHostSoftwareOption is a functional option for UpdateHostSoftware.
+type UpdateHostSoftwareOption func(*UpdateHostSoftwareOptions)
+
+// PreserveSoftwareSources keeps the host's current rows with these sources.
+func PreserveSoftwareSources(sources ...string) UpdateHostSoftwareOption {
+	return func(o *UpdateHostSoftwareOptions) {
+		o.PreserveSources = append(o.PreserveSources, sources...)
+	}
 }
 
 // CurrInstalled returns all software that should be currently installed on the host by looking at
@@ -861,7 +1024,7 @@ func ParseSoftwareLastOpenedAtRowValue(value string) (time.Time, error) {
 // The vendor field is currently trimmed by removing the extra characters and adding `...` at the end.
 func SoftwareFromOsqueryRow(
 	name, version, source, vendor, installedPath, release, arch,
-	bundleIdentifier, extensionId, extensionFor, lastOpenedAt, upgradeCode string,
+	bundleIdentifier, extensionId, extensionFor, lastOpenedAt, upgradeCode, epoch string,
 ) (*Software, error) {
 	if name == "" {
 		return nil, errors.New("host reported software with empty name")
@@ -917,12 +1080,19 @@ func SoftwareFromOsqueryRow(
 	if !lastOpenedAtTime.IsZero() {
 		software.LastOpenedAt = &lastOpenedAtTime
 	}
+	if truncatedSource == "rpm_packages" {
+		// osquery reports a missing epoch as empty; epoch 0 is equivalent for RPM comparisons.
+		if e, err := strconv.ParseUint(epoch, 10, 32); err == nil && e > 0 {
+			software.Epoch = new(uint32(e))
+		}
+	}
 
 	return &software, nil
 }
 
 type VPPBatchPayload struct {
 	AppStoreID         string   `json:"app_store_id"`
+	VersionName        string   `json:"name"`
 	SelfService        bool     `json:"self_service"`
 	InstallDuringSetup *bool    `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
 	LabelsExcludeAny   []string `json:"labels_exclude_any"`
@@ -934,32 +1104,25 @@ type VPPBatchPayload struct {
 	IconPath            string                    `json:"-"`
 	IconHash            string                    `json:"-"`
 	Platform            InstallableDevicePlatform `json:"platform"`
+	Location            string                    `json:"location,omitempty"`
 	Configuration       json.RawMessage           `json:"configuration,omitempty"`
 	AutoUpdateEnabled   *bool                     `json:"auto_update_enabled,omitempty"`
 	AutoUpdateStartTime *string                   `json:"auto_update_window_start,omitempty"`
 	AutoUpdateEndTime   *string                   `json:"auto_update_window_end,omitempty"`
 }
 
-func (v VPPBatchPayload) GetPlatform() string {
-	return string(v.Platform)
-}
-
-func (v VPPBatchPayload) GetAppStoreID() string {
-	return v.AppStoreID
-}
-
 type VPPBatchPayloadWithPlatform struct {
 	AppStoreID         string                    `json:"app_store_id"`
+	VersionName        string                    `json:"name"`
 	SelfService        bool                      `json:"self_service"`
 	Platform           InstallableDevicePlatform `json:"platform"`
+	Location           string                    `json:"location,omitempty"`
 	InstallDuringSetup *bool                     `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
 	LabelsExcludeAny   []string                  `json:"labels_exclude_any"`
 	LabelsIncludeAny   []string                  `json:"labels_include_any"`
 	LabelsIncludeAll   []string                  `json:"labels_include_all"`
 	// Categories is the list of names of software categories associated with this VPP app.
-	Categories []string `json:"categories"`
-	// CategoryIDs is the list of IDs of software categories associated with this VPP app.
-	CategoryIDs         []uint          `json:"-"`
+	Categories          []string        `json:"categories"`
 	DisplayName         string          `json:"display_name"`
 	Configuration       json.RawMessage `json:"configuration,omitempty"`
 	AutoUpdateEnabled   *bool           `json:"auto_update_enabled,omitempty"`

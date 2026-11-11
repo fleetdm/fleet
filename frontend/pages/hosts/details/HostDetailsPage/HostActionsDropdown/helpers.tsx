@@ -118,7 +118,6 @@ interface IHostActionConfigOptions {
   isEncryptionKeyArchived: boolean;
   hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
   hostScriptsEnabled: boolean | null;
-  scriptsGloballyDisabled: boolean | undefined;
   isPrimoMode: boolean;
   hostMdmEnrollmentStatus: MdmEnrollmentStatus | null;
   isRecoveryLockPasswordEnabled: boolean;
@@ -338,6 +337,7 @@ const canUnlock = ({
 
 const canDeleteHost = (config: IHostActionConfigOptions) => {
   const {
+    isPremiumTier,
     isGlobalAdmin,
     isGlobalMaintainer,
     isGlobalTechnician,
@@ -348,10 +348,10 @@ const canDeleteHost = (config: IHostActionConfigOptions) => {
   return (
     isGlobalAdmin ||
     isGlobalMaintainer ||
-    isGlobalTechnician ||
     isTeamAdmin ||
     isTeamMaintainer ||
-    isTeamTechnician
+    // Technician is a Premium-only role, but its sessions outlive a downgrade to Free.
+    (isPremiumTier && (isGlobalTechnician || isTeamTechnician))
   );
 };
 
@@ -666,7 +666,6 @@ const BYOD_DISABLED_TOOLTIPS: Record<string, JSX.Element> = {
 export const getDropdownOptionTooltipContent = (
   value: string | number,
   isHostOnline?: boolean,
-  scriptsGloballyDisabled?: boolean,
   byodDisabled?: boolean,
   hostMdmDeviceStatus?: HostMdmDeviceStatusUIState
 ) => {
@@ -676,10 +675,6 @@ export const getDropdownOptionTooltipContent = (
     BYOD_DISABLED_TOOLTIPS[value]
   ) {
     return BYOD_DISABLED_TOOLTIPS[value];
-  }
-
-  if (value === "runScript" && scriptsGloballyDisabled) {
-    return <>Running scripts is disabled in organization settings.</>;
   }
 
   const tooltipAction: Record<string, string> = {
@@ -740,7 +735,6 @@ const modifyOptions = (
     hostMdmDeviceStatus,
     hostScriptsEnabled,
     hostPlatform,
-    scriptsGloballyDisabled,
     diskEncryptionProfileStatus,
     recoveryLockPasswordAvailable,
     recoveryLockPasswordStatus,
@@ -758,7 +752,6 @@ const modifyOptions = (
       option.tooltipContent = getDropdownOptionTooltipContent(
         option.value,
         isHostOnline,
-        scriptsGloballyDisabled,
         false,
         hostMdmDeviceStatus
       );
@@ -774,7 +767,6 @@ const modifyOptions = (
       option.tooltipContent = getDropdownOptionTooltipContent(
         option.value,
         isHostOnline,
-        scriptsGloballyDisabled,
         true
       );
     });
@@ -810,13 +802,6 @@ const modifyOptions = (
       options.filter(
         (option) => option.value === "query" || option.value === "mdmOff"
       )
-    );
-  }
-
-  // Disable run script feature if scripts are globally disabled
-  if (scriptsGloballyDisabled) {
-    optionsToDisable = optionsToDisable.concat(
-      options.filter((option) => option.value === "runScript")
     );
   }
 

@@ -50,6 +50,8 @@ func (s *integrationInstallTestSuite) SetupSuite() {
 
 	fleetConfig := config.TestConfig()
 	signer, _ := rsa.GenerateKey(rand.Reader, 2048)
+	// Signing settings are only honored when S3 is the selected storage backend (bucket set).
+	fleetConfig.S3.SoftwareInstallersBucket = "test-bucket"
 	fleetConfig.S3.SoftwareInstallersCloudFrontSigner = signer
 	installConfig := TestServerOpts{
 		License: &fleet.LicenseInfo{
@@ -113,7 +115,7 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerSignedURL() {
 	}
 
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{
 		Name: t.Name(),
 	}, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
@@ -246,7 +248,7 @@ func (s *integrationInstallTestSuite) TestShScriptInstallOnDarwin() {
 
 	// Create a team
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{
 		Name: t.Name(),
 	}, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
@@ -361,7 +363,7 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerFleetVariables() {
 	}
 
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name()}, http.StatusOK, &createTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{Name: t.Name()}, http.StatusOK, &createTeamResp)
 	teamID := createTeamResp.Team.ID
 
 	const unsupportedVarErrMsg = "Fleet variable $FLEET_VAR_NONEXISTENT is not supported in scripts."

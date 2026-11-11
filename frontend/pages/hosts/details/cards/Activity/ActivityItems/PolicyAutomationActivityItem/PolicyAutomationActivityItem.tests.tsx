@@ -59,7 +59,7 @@ describe("PolicyAutomationActivityItem", () => {
   it("does not render the cancel or show-details icons", () => {
     renderItem(ActivityType.RanAutomationWebhook);
     expect(screen.queryByTestId("close-icon")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("info-outline-icon")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("info-icon")).not.toBeInTheDocument();
   });
 
   // These activities are always Fleet-initiated in practice; this documents the

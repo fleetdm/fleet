@@ -3,12 +3,13 @@
 package apps
 
 import (
+	"cmp"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/fsutil"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/internal/fsutil"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/internal/homes"
 )
 
 func scanApps(homesList []homes.Home) []App {
@@ -33,7 +34,7 @@ func scanApps(homesList []homes.Home) []App {
 			out = append(out, App{
 				Name:           ka.name,
 				DisplayName:    name,
-				Path:           firstNonEmpty(exec, e.Name()),
+				Path:           cmp.Or(exec, e.Name()),
 				PlatformSource: "desktop-file",
 				Scope:          scope,
 				execPath:       execBinary(exec),

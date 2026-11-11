@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "14.13.4.0",
+      "version": "14.14.2.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Google Ads Editor' AND publisher = 'Google';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Google Ads Editor' AND publisher = 'Google' AND version_compare(version, '14.13.4.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Google Ads Editor' AND publisher = 'Google' AND version_compare(version, '14.14.2.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'google ads editor.exe');"
       },
-      "installer_url": "https://dl.google.com/release2/misc/hivwi3fcrlby5z3l54a7b4ydbi_14.13.4.0/google_ads_editor.msi",
+      "installer_url": "https://dl.google.com/release2/misc/acdzgkls5qvdc5i7z5req4lcuyea_14.14.2.0/google_ads_editor.msi",
       "install_script_ref": "351845b5",
       "uninstall_script_ref": "36567b20",
-      "sha256": "413cd036cb85af9a5976e33a2843bf161f3aa5a5021cbeb61bc30104231ba00f",
+      "sha256": "deedef3c5434c51123b7b0086dc0da11324956cd44cc7c9ff3b5da00b5400c09",
       "default_categories": [
         "Productivity"
       ],

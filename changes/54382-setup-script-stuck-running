@@ -1,0 +1,1 @@
+- Fixed a macOS setup experience script step staying "running" (so the host was never released) when saving the script result partly failed.

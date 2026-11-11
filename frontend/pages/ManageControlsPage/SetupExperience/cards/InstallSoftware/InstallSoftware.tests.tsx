@@ -101,4 +101,90 @@ describe("InstallSoftware", () => {
       screen.getByText(/Install software on hosts that enroll to Fleet/)
     ).toBeVisible();
   });
+
+  describe("versioned App Store app helper suffix", () => {
+    it.each(["ios", "ipados", "android"] as const)(
+      "appends the first-added disclaimer on the %s tab when MDM is configured",
+      async (platform) => {
+        mockServer.use(createSetupExperienceSoftwareHandler());
+        // Default: Apple MDM on, Android MDM off; flip Android on so all three tabs render.
+        mockServer.use(
+          createGetConfigHandler({
+            mdm: createMockMdmConfig({ android_enabled_and_configured: true }),
+          })
+        );
+        mockServer.use(createGetTeamHandler({}));
+        const render = createCustomRenderer({ withBackendMock: true });
+
+        render(
+          <InstallSoftware
+            router={createMockRouter()}
+            currentTeamId={1}
+            urlPlatformParam={platform}
+          />
+        );
+
+        expect(
+          await screen.findByText(
+            /so the first-added version will always be installed/i
+          )
+        ).toBeVisible();
+      }
+    );
+
+    it("omits the suffix on macOS, Windows, and Linux tabs", async () => {
+      setupMdmConfigured();
+      const render = createCustomRenderer({ withBackendMock: true });
+
+      render(
+        <InstallSoftware
+          router={createMockRouter()}
+          currentTeamId={1}
+          urlPlatformParam="macos"
+        />
+      );
+
+      expect(await screen.findByRole("button", { name: "Save" })).toBeVisible();
+      expect(
+        screen.queryByText(
+          /so the first-added version will always be installed/i
+        )
+      ).toBeNull();
+    });
+  });
+
+  it.each(["macos", "windows"])(
+    "shows the saved 'Cancel setup if software fails' for unassigned hosts on %s",
+    async (platform) => {
+      const mdm = createMockMdmConfig();
+      mockServer.use(createSetupExperienceSoftwareHandler());
+      mockServer.use(
+        createGetConfigHandler({
+          mdm: {
+            ...mdm,
+            setup_experience: {
+              ...mdm.setup_experience,
+              macos_require_all_software: platform === "macos",
+              windows_require_all_software: platform === "windows",
+            },
+          },
+        })
+      );
+      const render = createCustomRenderer({ withBackendMock: true });
+
+      render(
+        <InstallSoftware
+          router={createMockRouter()}
+          currentTeamId={0}
+          urlPlatformParam={platform}
+        />
+      );
+
+      expect(
+        await screen.findByRole("checkbox", {
+          name: /Cancel setup if software fails/,
+        })
+      ).toBeChecked();
+    }
+  );
 });

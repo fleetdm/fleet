@@ -1838,4 +1838,9 @@ func testQueryResultRowsLargeRows(t *testing.T, ds *Datastore) {
 	require.Len(t, reports, 1)
 	assert.Equal(t, 1, reports[0].NHostResults)
 	assert.Equal(t, big, reports[0].FirstResult["big"])
+
+	stored, err := ds.QueryResultRowsForHostByQuery(ctx, hostA.ID, []uint{query.ID})
+	require.NoError(t, err)
+	require.Len(t, stored[query.ID], 1)
+	assert.Contains(t, string(*stored[query.ID][0].Data), big)
 }

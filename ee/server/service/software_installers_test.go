@@ -1,6 +1,7 @@
 package service
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"crypto/rand"
@@ -28,6 +29,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
@@ -110,6 +112,14 @@ quotes and braces for (
 	payload.UpgradeCode = "foo"
 	require.NoError(t, preProcessUninstallScript(&payload))
 	assert.Equal(t, `'foo'`, payload.UninstallScript)
+
+	payload = fleet.UploadSoftwareInstallerPayload{
+		Extension:       "msi",
+		UninstallScript: "$PACKAGE_ID $UPGRADE_CODE",
+		UpgradeCode:     "foo",
+	}
+	require.NoError(t, preProcessUninstallScript(&payload))
+	assert.Equal(t, `$PACKAGE_ID 'foo'`, payload.UninstallScript)
 }
 
 func TestPreProcessUninstallScriptMaliciousInput(t *testing.T) {
@@ -248,9 +258,7 @@ func TestInstallUninstallAuth(t *testing.T) {
 	svc := newTestService(t, ds)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{
-			ServerSettings: fleet.ServerSettings{ScriptsDisabled: true},
-		}, nil
+		return &fleet.AppConfig{}, nil
 	}
 	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return &fleet.Host{
@@ -352,11 +360,7 @@ func TestUninstallSoftwareTitle(t *testing.T) {
 	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{
-			ServerSettings: fleet.ServerSettings{
-				ScriptsDisabled: true,
-			},
-		}, nil
+		return &fleet.AppConfig{}, nil
 	}
 
 	host.ScriptsEnabled = ptr.Bool(false)
@@ -554,8 +558,8 @@ func TestInstallSoftwareTitleAllowsPersonallyEnrolledDevices(t *testing.T) {
 	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
 		return nil, nil
 	}
-	ds.GetVPPAppByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPApp, error) {
-		return nil, &notFoundError{}
+	ds.ListHostAppStoreAppVersionsFunc = func(ctx context.Context, host *fleet.Host) (map[uint]*fleet.HostAppStoreAppVersion, error) {
+		return map[uint]*fleet.HostAppStoreAppVersion{}, nil
 	}
 
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
@@ -643,7 +647,9 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 		}, nil
 	}
 	payload := fleet.SoftwareInstallerPayload{Slug: ptr.String("1password/darwin")}
-	err = svc.softwareInstallerPayloadFromSlug(context.Background(), &payload, nil)
+	err = svc.maintainedAppFromSlug(context.Background(), &payload, nil)
+	require.NoError(t, err)
+	err = svc.softwareInstallerPayloadFromMaintainedApp(context.Background(), &payload, nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, payload.URL)
 	assert.Equal(t, onePasswordSHA, payload.SHA256)
@@ -661,7 +667,9 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 		}, nil
 	}
 	payload = fleet.SoftwareInstallerPayload{Slug: ptr.String("google-chrome/darwin")}
-	err = svc.softwareInstallerPayloadFromSlug(context.Background(), &payload, nil)
+	err = svc.maintainedAppFromSlug(context.Background(), &payload, nil)
+	require.NoError(t, err)
+	err = svc.softwareInstallerPayloadFromMaintainedApp(context.Background(), &payload, nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, payload.URL)
 	assert.Empty(t, payload.SHA256)
@@ -670,9 +678,10 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 	assert.True(t, payload.FleetMaintained)
 
 	payload = fleet.SoftwareInstallerPayload{URL: "https://fleetdm.com"}
-	err = svc.softwareInstallerPayloadFromSlug(context.Background(), &payload, nil)
+	err = svc.maintainedAppFromSlug(context.Background(), &payload, nil)
 	require.NoError(t, err)
 	assert.Nil(t, payload.Slug)
+	assert.Nil(t, payload.MaintainedApp)
 	assert.Equal(t, "https://fleetdm.com", payload.URL)
 	assert.Empty(t, payload.SHA256)
 	assert.Empty(t, payload.InstallScript)
@@ -730,11 +739,13 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 	for _, vt := range versionPinValidationTests {
 		t.Run(vt.name, func(t *testing.T) {
 			payload := fleet.SoftwareInstallerPayload{Slug: ptr.String("1password/darwin"), RollbackVersion: vt.version}
-			err = svc.softwareInstallerPayloadFromSlug(context.Background(), &payload, nil)
+			err = svc.maintainedAppFromSlug(context.Background(), &payload, nil)
 			if vt.wantErr != "" {
 				require.Error(t, err)
 				require.ErrorContains(t, err, vt.wantErr)
 			} else {
+				require.NoError(t, err)
+				err = svc.softwareInstallerPayloadFromMaintainedApp(context.Background(), &payload, nil)
 				require.NoError(t, err)
 				// RollbackVersion must be left as the user typed it, including a caret, so the pin expression
 				// survives downstream and is persisted to software_title_team_pins.
@@ -843,6 +854,7 @@ func TestGetInHouseAppManifest(t *testing.T) {
 	require.ErrorAs(t, err, &permErr)
 
 	signer, _ := rsa.GenerateKey(rand.Reader, 2048)
+	svc.config.S3.SoftwareInstallersBucket = "test-bucket"
 	svc.config.S3.SoftwareInstallersCloudFrontSigner = signer
 	signerURL := "https://example.cloudfront.net"
 
@@ -1003,9 +1015,10 @@ func newTestService(t *testing.T, ds fleet.Datastore) *Service {
 	require.NoError(t, err)
 	defaultMockCustomHostVitalsValidation(ds)
 	svc := &Service{
-		authz:  authorizer,
-		ds:     ds,
-		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Service: &svcmock.Service{VerifyMDMAppleConfiguredFunc: func(context.Context) error { return nil }},
+		authz:   authorizer,
+		ds:      ds,
+		logger:  slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}
 	return svc
 }
@@ -1199,7 +1212,14 @@ func TestUpdateSoftwareInstallerMatchesSoftwareIdentity(t *testing.T) {
 			TeamID:  &state.teamID,
 			Patch:   new(true),
 		})
-		require.ErrorContains(t, err, "Fleet-maintained apps")
+		require.ErrorContains(t, err, `"patch", "patch_when_closed", "notify_before_patching", and "patch_deadline" are only available for Fleet-maintained apps.`)
+
+		_, err = state.svc.UpdateSoftwareInstaller(state.ctx, &fleet.UpdateSoftwareInstallerPayload{
+			TitleID:       titleID,
+			TeamID:        &state.teamID,
+			PatchDeadline: new(true),
+		})
+		require.ErrorContains(t, err, `"patch_deadline" are only available for Fleet-maintained apps.`)
 	})
 
 	t.Run("upgrade code allows a different title name", func(t *testing.T) {
@@ -1549,6 +1569,38 @@ func TestAddScriptPackageMetadata(t *testing.T) {
 		require.Equal(t, "linux", payload.Platform)
 	})
 
+	t.Run("ipa with oversized Info.plist is a bad request", func(t *testing.T) {
+		// Valid plist padded past the Info.plist cap; it compresses to a few
+		// hundred bytes, which is what the upload size limit sees.
+		plist := `<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict>` +
+			`<key>CFBundleIdentifier</key><string>com.example.big</string>` +
+			`<key>LSRequiresIPhoneOS</key><true/></dict></plist><!-- ` + strings.Repeat("x", 300<<10) + ` -->`
+		var ipa bytes.Buffer
+		zw := zip.NewWriter(&ipa)
+		w, err := zw.Create("Payload/Big.app/Info.plist")
+		require.NoError(t, err)
+		_, err = w.Write([]byte(plist))
+		require.NoError(t, err)
+		require.NoError(t, zw.Close())
+
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.ipa")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.Write(ipa.Bytes())
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{InstallerFile: tfr, Filename: "big.ipa"}
+		_, err = svc.addMetadataToSoftwarePayload(ctx, payload, false)
+		var badReq *fleet.BadRequestError
+		require.ErrorAs(t, err, &badReq)
+		require.ErrorIs(t, err, file.ErrInvalidInstaller)
+		require.Equal(t, "Uploaded file is not a valid installer package.", badReq.Message)
+	})
+
 	t.Run("valid powershell script", func(t *testing.T) {
 		scriptContents := "Write-Host 'Installing software'\n"
 		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.ps1")
@@ -1786,6 +1838,54 @@ func TestAddScriptPackageMetadata(t *testing.T) {
 		err = svc.addScriptPackageMetadata(ctx, payload, "sh")
 		require.NoError(t, err)
 		require.Equal(t, scriptContents, payload.InstallScript)
+	})
+
+	t.Run("ps1 with pwsh shebang returns powershell error", func(t *testing.T) {
+		scriptContents := "#!/usr/bin/pwsh\nWrite-Host hi\n"
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.ps1")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.WriteString(scriptContents)
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "test.ps1",
+		}
+
+		err = svc.addScriptPackageMetadata(ctx, payload, "ps1")
+		require.Error(t, err)
+		var bre *fleet.BadRequestError
+		require.ErrorAs(t, err, &bre)
+		require.Equal(t, `Script validation failed: PowerShell scripts must not start with a shebang ("#!").`, bre.Message)
+	})
+
+	t.Run("ps1 with env pwsh shebang returns powershell error", func(t *testing.T) {
+		scriptContents := "#!/usr/bin/env pwsh\nWrite-Host hi\n"
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.ps1")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.WriteString(scriptContents)
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "test.ps1",
+		}
+
+		err = svc.addScriptPackageMetadata(ctx, payload, "ps1")
+		require.Error(t, err)
+		var bre *fleet.BadRequestError
+		require.ErrorAs(t, err, &bre)
+		require.Equal(t, `Script validation failed: PowerShell scripts must not start with a shebang ("#!").`, bre.Message)
 	})
 }
 
@@ -2523,8 +2623,8 @@ func TestSelfServiceInstallSoftwareTitleAllowsPersonallyEnrolledDevices(t *testi
 	ds.GetSoftwarePackagesByTeamAndTitleIDFunc = func(_ context.Context, _ *uint, _ uint) ([]*fleet.SoftwareInstaller, error) {
 		return nil, nil
 	}
-	ds.GetVPPAppByTeamAndTitleIDFunc = func(_ context.Context, _ *uint, _ uint) (*fleet.VPPApp, error) {
-		return nil, &notFoundError{}
+	ds.ListHostAppStoreAppVersionsFunc = func(_ context.Context, _ *fleet.Host) (map[uint]*fleet.HostAppStoreAppVersion, error) {
+		return map[uint]*fleet.HostAppStoreAppVersion{}, nil
 	}
 	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(_ context.Context, _ *uint, _ uint) (*fleet.SoftwareInstaller, error) {
 		return nil, &notFoundError{}
@@ -2936,6 +3036,9 @@ func TestSelfServiceInstallAllSoftwareTitles(t *testing.T) {
 			}
 			return []*fleet.HostSoftwareWithInstaller{{ID: 10}, {ID: 11}}, nil, nil
 		}
+		ds.ListHostAppStoreAppVersionsFunc = func(ctx context.Context, host *fleet.Host) (map[uint]*fleet.HostAppStoreAppVersion, error) {
+			return map[uint]*fleet.HostAppStoreAppVersion{}, nil
+		}
 		ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
 			if fail.installTitle != nil {
 				return nil, fail.installTitle
@@ -2995,6 +3098,9 @@ func TestSelfServiceInstallAllSoftwareTitles(t *testing.T) {
 		ds.GetSoftwareTitlesForInstallAllFunc = func(ctx context.Context, host *fleet.Host, categoryID *uint, matchQuery string) ([]*fleet.HostSoftwareWithInstaller, *string, error) {
 			seenMatch = matchQuery
 			return nil, nil, nil
+		}
+		ds.ListHostAppStoreAppVersionsFunc = func(ctx context.Context, host *fleet.Host) (map[uint]*fleet.HostAppStoreAppVersion, error) {
+			return map[uint]*fleet.HostAppStoreAppVersion{}, nil
 		}
 		svc, _ := newTestServiceWithMock(t, ds)
 		require.NoError(t, svc.SelfServiceInstallAllSoftwareTitles(ctx, host, nil, "zoom"))
@@ -3127,12 +3233,9 @@ func TestBatchSetSoftwareInstallersSkipsURLValidationForScriptPackages(t *testin
 }
 
 func TestSoftwareBatchUploadFMAVersionCache(t *testing.T) {
-	t.Parallel()
-
 	const (
 		teamID         = uint(1)
 		cachedHash     = "1111111111111111111111111111111111111111111111111111111111111111"
-		otherHash      = "2222222222222222222222222222222222222222222222222222222222222222"
 		installerBytes = "installer bytes"
 	)
 	downloadedHash := fmt.Sprintf("%x", sha256.Sum256([]byte(installerBytes)))
@@ -3187,31 +3290,59 @@ func TestSoftwareBatchUploadFMAVersionCache(t *testing.T) {
 		},
 		{
 			name:          "hashed manifest reuses the cached version",
+			bytesInStore:  true,
 			manifestHash:  cachedHash,
 			versionExists: true,
 			cachedHash:    cachedHash,
 			wantStorageID: cachedHash,
 		},
 		{
+			name:          "hashed manifest downloads when the cached bytes are gone",
+			manifestHash:  downloadedHash,
+			versionExists: true,
+			cachedHash:    downloadedHash,
+			wantDownload:  true,
+			wantStorageID: downloadedHash,
+		},
+		{
 			name:          "hashed manifest downloads a rebuilt version",
-			manifestHash:  otherHash,
+			manifestHash:  downloadedHash,
 			versionExists: true,
 			cachedHash:    cachedHash,
 			wantDownload:  true,
-			wantStorageID: otherHash,
+			wantStorageID: downloadedHash,
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			t.Parallel()
-
 			var downloads atomic.Int32
 			installerSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				downloads.Add(1)
 				_, _ = w.Write([]byte(installerBytes))
 			}))
 			t.Cleanup(installerSrv.Close)
+
+			manifestSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				manifest := ma.FMAManifestFile{
+					Versions: []*ma.FMAManifestApp{{
+						Version:            "1.0",
+						Queries:            ma.FMAQueries{Exists: "SELECT 1 FROM osquery_info;"},
+						InstallerURL:       installerSrv.URL + "/zoom.pkg",
+						SHA256:             c.manifestHash,
+						InstallScriptRef:   "installscript",
+						UninstallScriptRef: "uninstallscript",
+					}},
+					Refs: map[string]string{
+						"installscript":   "echo install",
+						"uninstallscript": "echo uninstall",
+					},
+				}
+				_ = json.NewEncoder(w).Encode(manifest)
+			}))
+			t.Cleanup(manifestSrv.Close)
+			dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestSrv.URL, t)
+			dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", manifestSrv.URL, t)
 
 			ds := new(mock.Store)
 			ds.TeamLiteFunc = func(ctx context.Context, tmID uint) (*fleet.TeamLite, error) {
@@ -3242,30 +3373,24 @@ func TestSoftwareBatchUploadFMAVersionCache(t *testing.T) {
 			svc := newTestService(t, ds)
 			kvs, _ := inMemoryKeyValueStore()
 			svc.keyValueStore = kvs
-			svc.softwareInstallStore = &mocksoftware.SoftwareInstallerStore{
+			store := &mocksoftware.SoftwareInstallerStore{
 				ExistsFunc: func(ctx context.Context, id string) (bool, error) {
 					return id == c.cachedHash && c.bytesInStore, nil
 				},
 				PutFunc: func(context.Context, string, io.ReadSeeker) error { return nil },
 			}
 
+			svc.softwareInstallStore = store
+
 			payload := &fleet.SoftwareInstallerPayload{
 				Slug: new("zoom/darwin"),
-				URL:  installerSrv.URL + "/zoom.pkg",
 				MaintainedApp: &fleet.MaintainedApp{
 					ID:               7,
 					Name:             "Zoom",
+					Slug:             "zoom/darwin",
 					Platform:         "darwin",
 					UniqueIdentifier: "us.zoom.xos",
-					Version:          "1.0",
-					InstallerURL:     installerSrv.URL + "/zoom.pkg",
-					SHA256:           c.manifestHash,
-					InstallScript:    "echo install",
-					UninstallScript:  "echo uninstall",
 				},
-			}
-			if c.manifestHash != noCheckHash {
-				payload.SHA256 = c.manifestHash
 			}
 
 			svc.softwareBatchUpload("req-uuid", new(teamID), 1, []*fleet.SoftwareInstallerPayload{payload}, false)
@@ -3274,8 +3399,128 @@ func TestSoftwareBatchUploadFMAVersionCache(t *testing.T) {
 			require.Len(t, applied, 1)
 			require.Equal(t, c.wantStorageID, applied[0].StorageID)
 			require.Equal(t, !c.wantDownload, applied[0].FMAVersionCached)
+			require.Equal(t, c.wantDownload, store.PutFuncInvoked)
 		})
 	}
+}
+
+func TestBatchSetSoftwareInstallersStopsAfterFirstFailure(t *testing.T) {
+	dev_mode.SetOverride("FLEET_DEV_BATCH_RETRY_INTERVAL", "1ms", t)
+
+	kvs, getKey := inMemoryKeyValueStore()
+
+	var downloads [3]atomic.Int32
+	installerSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/a.pkg":
+			downloads[0].Add(1)
+		case "/b.pkg":
+			downloads[1].Add(1)
+		case "/c.pkg":
+			downloads[2].Add(1)
+		}
+		http.Error(w, "download failed", http.StatusInternalServerError)
+	}))
+	t.Cleanup(installerSrv.Close)
+
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+		return nil, nil
+	}
+
+	svc := newTestService(t, ds)
+	svc.keyValueStore = kvs
+	svc.logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{
+		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+	})
+
+	payloads := []*fleet.SoftwareInstallerPayload{
+		{URL: installerSrv.URL + "/a.pkg", AlwaysDownload: true},
+		{URL: installerSrv.URL + "/b.pkg", AlwaysDownload: true},
+		{URL: installerSrv.URL + "/c.pkg", AlwaysDownload: true},
+	}
+	requestUUID, err := svc.BatchSetSoftwareInstallers(ctx, "", payloads, true)
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool {
+		status := getKey(batchSoftwarePrefix + requestUUID)
+		return status != nil && strings.HasPrefix(*status, batchSetFailedPrefix)
+	}, 10*time.Second, 50*time.Millisecond, "batch never failed")
+	require.Positive(t, downloads[0].Load())
+	require.Zero(t, downloads[1].Load())
+	require.Zero(t, downloads[2].Load())
+}
+
+// Not parallel: it shortens the package-level stall timeout.
+func TestBatchSetSoftwareInstallersFailsOnStalledDownload(t *testing.T) {
+	dev_mode.SetOverride("FLEET_DEV_BATCH_RETRY_INTERVAL", "1ms", t)
+	orig := installerDownloadStallTimeout
+	installerDownloadStallTimeout = 300 * time.Millisecond
+	t.Cleanup(func() { installerDownloadStallTimeout = orig })
+
+	kvs, getKey := inMemoryKeyValueStore()
+
+	var downloads [3]atomic.Int32
+	installerSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/a.pkg":
+			// Headers and a few bytes, then nothing until the client gives up and closes the connection.
+			downloads[0].Add(1)
+			w.Header().Set("Content-Length", "1024")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("partial"))
+			w.(http.Flusher).Flush()
+			<-r.Context().Done()
+		case "/b.pkg":
+			downloads[1].Add(1)
+		case "/c.pkg":
+			downloads[2].Add(1)
+		}
+	}))
+	t.Cleanup(installerSrv.Close)
+
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+		return nil, nil
+	}
+
+	svc := newTestService(t, ds)
+	svc.keyValueStore = kvs
+	svc.logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{
+		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+	})
+
+	payloads := []*fleet.SoftwareInstallerPayload{
+		{URL: installerSrv.URL + "/a.pkg", AlwaysDownload: true},
+		{URL: installerSrv.URL + "/b.pkg", AlwaysDownload: true},
+		{URL: installerSrv.URL + "/c.pkg", AlwaysDownload: true},
+	}
+	requestUUID, err := svc.BatchSetSoftwareInstallers(ctx, "", payloads, true)
+	require.NoError(t, err)
+
+	var status string
+	require.Eventually(t, func() bool {
+		s := getKey(batchSoftwarePrefix + requestUUID)
+		if s == nil || !strings.HasPrefix(*s, batchSetFailedPrefix) {
+			return false
+		}
+		status = *s
+		return true
+	}, 10*time.Second, 50*time.Millisecond, "batch never failed")
+	require.Contains(t, status, "no data received")
+	require.EqualValues(t, fleet.BatchDownloadMaxRetries, downloads[0].Load())
+	require.Zero(t, downloads[1].Load())
+	require.Zero(t, downloads[2].Load())
 }
 
 func TestGetBatchSetSoftwareInstallersResultMissingDeletedKey(t *testing.T) {
@@ -3391,8 +3636,8 @@ func TestNormalizeSetupExperiencePlatforms(t *testing.T) {
 		{name: "sh dedupe", input: []string{"darwin", "DARWIN", "darwin"}, extension: "sh", want: []string{"darwin"}},
 		{name: "sh case + whitespace", input: []string{" Darwin ", "LINUX"}, extension: "sh", want: []string{"darwin", "linux"}},
 		{name: "sh macos rejected", input: []string{"macos"}, extension: "sh", wantErr: `platform "macos" is not a valid "setup_experience_platform" value for a .sh package`},
-		{name: "pkg any rejected", input: []string{"darwin"}, extension: "pkg", wantErr: `platform "darwin" is not a valid "setup_experience_platform" value for a .pkg package`},
-		{name: "msi any rejected", input: []string{"darwin"}, extension: "msi", wantErr: `platform "darwin" is not a valid "setup_experience_platform" value for a .msi package`},
+		{name: "pkg any rejected", input: []string{"darwin"}, extension: "pkg", wantErr: `setup_experience_platform is not supported for a .pkg package`},
+		{name: "msi any rejected", input: []string{"darwin"}, extension: "msi", wantErr: `setup_experience_platform is not supported for a .msi package`},
 		{name: "sh unsupported windows", input: []string{"windows"}, extension: "sh", wantErr: `platform "windows" is not a valid "setup_experience_platform" value for a .sh package`},
 		{name: "py darwin", input: []string{"darwin"}, extension: "py", want: []string{"darwin"}},
 		{name: "py linux", input: []string{"linux"}, extension: "py", want: []string{"linux"}},
@@ -3403,6 +3648,8 @@ func TestNormalizeSetupExperiencePlatforms(t *testing.T) {
 		{name: "ipa ipados", input: []string{"ipados"}, extension: "ipa", want: []string{"ipados"}},
 		{name: "ipa both platforms", input: []string{"ios", "ipados"}, extension: "ipa", want: []string{"ios", "ipados"}},
 		{name: "ipa darwin rejected", input: []string{"darwin"}, extension: "ipa", wantErr: `platform "darwin" is not a valid "setup_experience_platform" value for a .ipa package`},
+		{name: "ps1 unsupported entirely", input: []string{"darwin"}, extension: "ps1", wantErr: `setup_experience_platform is not supported for a .ps1 package`},
+		{name: "exe unsupported entirely", input: []string{"windows"}, extension: "exe", wantErr: `setup_experience_platform is not supported for a .exe package`},
 	}
 
 	for _, c := range cases {
@@ -3512,9 +3759,9 @@ func TestPlanPatchPolicy(t *testing.T) {
 	// patch_when_closed set without patch enabled is rejected, whether patch is omitted with no
 	// existing policy or explicitly disabled.
 	t.Run("rejects patch_when_closed without patch", func(t *testing.T) {
-		_, _, _, err := planPatchPolicy(payload(nil, new(true)), fmaInstaller, nil)
+		_, _, _, _, err := planPatchPolicy(payload(nil, new(true)), fmaInstaller, nil)
 		require.ErrorContains(t, err, `"patch" must be true`)
-		_, _, _, err = planPatchPolicy(payload(new(false), new(true)), fmaInstaller, nil)
+		_, _, _, _, err = planPatchPolicy(payload(new(false), new(true)), fmaInstaller, nil)
 		require.ErrorContains(t, err, `"patch" must be true`)
 	})
 
@@ -3522,7 +3769,7 @@ func TestPlanPatchPolicy(t *testing.T) {
 	t.Run("rejects pre-install edit while managed", func(t *testing.T) {
 		p := payload(nil, nil)
 		p.PreInstallQuery = new("SELECT changed;")
-		_, _, _, err := planPatchPolicy(p, fmaInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: true})
+		_, _, _, _, err := planPatchPolicy(p, fmaInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: true})
 		require.ErrorContains(t, err, "managed by Fleet")
 	})
 
@@ -3530,14 +3777,14 @@ func TestPlanPatchPolicy(t *testing.T) {
 	t.Run("allows pre-install edit on non-FMA package", func(t *testing.T) {
 		p := payload(nil, nil)
 		p.PreInstallQuery = new("SELECT changed;")
-		patchFlag, _, _, err := planPatchPolicy(p, nonFMAInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: true})
+		patchFlag, _, _, _, err := planPatchPolicy(p, nonFMAInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: true})
 		require.NoError(t, err)
 		assert.False(t, patchFlag)
 	})
 
 	// patch:true with no existing policy plans a create with patch_when_closed on.
 	t.Run("creates when no policy exists", func(t *testing.T) {
-		patchFlag, patchWhenClosedFlag, _, err := planPatchPolicy(payload(new(true), new(true)), fmaInstaller, nil)
+		patchFlag, patchWhenClosedFlag, _, _, err := planPatchPolicy(payload(new(true), new(true)), fmaInstaller, nil)
 		require.NoError(t, err)
 		assert.True(t, patchFlag)
 		assert.True(t, patchWhenClosedFlag)
@@ -3545,21 +3792,21 @@ func TestPlanPatchPolicy(t *testing.T) {
 
 	// patch:true with patch_when_closed omitted defaults a new policy to "only when closed".
 	t.Run("new policy defaults to patch_when_closed", func(t *testing.T) {
-		_, patchWhenClosedFlag, _, err := planPatchPolicy(payload(new(true), nil), fmaInstaller, nil)
+		_, patchWhenClosedFlag, _, _, err := planPatchPolicy(payload(new(true), nil), fmaInstaller, nil)
 		require.NoError(t, err)
 		assert.True(t, patchWhenClosedFlag)
 	})
 
 	// patch:false disables the existing patch policy.
 	t.Run("disables when patch off", func(t *testing.T) {
-		patchFlag, _, _, err := planPatchPolicy(payload(new(false), nil), fmaInstaller, &fleet.PatchPolicyData{ID: 9})
+		patchFlag, _, _, _, err := planPatchPolicy(payload(new(false), nil), fmaInstaller, &fleet.PatchPolicyData{ID: 9})
 		require.NoError(t, err)
 		assert.False(t, patchFlag)
 	})
 
 	// Toggling patch_when_closed on an existing policy keeps patch on and flips the value.
 	t.Run("updates patch_when_closed on existing policy", func(t *testing.T) {
-		patchFlag, patchWhenClosedFlag, _, err := planPatchPolicy(payload(nil, new(true)), fmaInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: false})
+		patchFlag, patchWhenClosedFlag, _, _, err := planPatchPolicy(payload(nil, new(true)), fmaInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: false})
 		require.NoError(t, err)
 		assert.True(t, patchFlag)
 		assert.True(t, patchWhenClosedFlag)
@@ -3569,7 +3816,7 @@ func TestPlanPatchPolicy(t *testing.T) {
 	t.Run("pre-install edit allowed when patch_when_closed is off", func(t *testing.T) {
 		p := payload(nil, nil)
 		p.PreInstallQuery = new("SELECT changed;")
-		_, patchWhenClosedFlag, _, err := planPatchPolicy(p, fmaInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: false})
+		_, patchWhenClosedFlag, _, _, err := planPatchPolicy(p, fmaInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: false})
 		require.NoError(t, err)
 		assert.False(t, patchWhenClosedFlag)
 	})
@@ -3579,7 +3826,7 @@ func TestPlanPatchPolicy(t *testing.T) {
 	t.Run("notify_before_patching displaces the patch_when_closed default", func(t *testing.T) {
 		p := payload(new(true), nil)
 		p.NotifyBeforePatching = new(true)
-		_, patchWhenClosedFlag, notifyFlag, err := planPatchPolicy(p, macFMAInstaller, nil)
+		_, patchWhenClosedFlag, notifyFlag, _, err := planPatchPolicy(p, macFMAInstaller, nil)
 		require.NoError(t, err)
 		assert.False(t, patchWhenClosedFlag)
 		assert.True(t, notifyFlag)
@@ -3590,7 +3837,7 @@ func TestPlanPatchPolicy(t *testing.T) {
 	t.Run("notify_before_patching displaces patch_when_closed on an existing policy", func(t *testing.T) {
 		p := payload(nil, nil)
 		p.NotifyBeforePatching = new(true)
-		patchFlag, patchWhenClosedFlag, notifyFlag, err := planPatchPolicy(p, macFMAInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: true})
+		patchFlag, patchWhenClosedFlag, notifyFlag, _, err := planPatchPolicy(p, macFMAInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: true})
 		require.NoError(t, err)
 		assert.True(t, patchFlag)
 		assert.False(t, patchWhenClosedFlag)
@@ -3601,10 +3848,10 @@ func TestPlanPatchPolicy(t *testing.T) {
 	t.Run("rejects notify_before_patching without patch", func(t *testing.T) {
 		p := payload(nil, nil)
 		p.NotifyBeforePatching = new(true)
-		_, _, _, err := planPatchPolicy(p, macFMAInstaller, nil)
+		_, _, _, _, err := planPatchPolicy(p, macFMAInstaller, nil)
 		require.ErrorContains(t, err, `"patch" must be true`)
 		p.NotifyBeforePatching = new(false)
-		_, _, _, err = planPatchPolicy(p, macFMAInstaller, nil)
+		_, _, _, _, err = planPatchPolicy(p, macFMAInstaller, nil)
 		require.ErrorContains(t, err, `"patch" must be true`)
 	})
 
@@ -3612,15 +3859,15 @@ func TestPlanPatchPolicy(t *testing.T) {
 	t.Run("rejects both patch options", func(t *testing.T) {
 		p := payload(new(true), new(true))
 		p.NotifyBeforePatching = new(true)
-		_, _, _, err := planPatchPolicy(p, macFMAInstaller, nil)
-		require.ErrorContains(t, err, `Only one of "patch_when_closed" or "notify_before_patching" can be set to true`)
+		_, _, _, _, err := planPatchPolicy(p, macFMAInstaller, nil)
+		require.ErrorContains(t, err, fleet.ErrPolicyPatchOptionsMutuallyExclusive.Error())
 	})
 
 	// Fleet Desktop has no notify command on Windows yet.
 	t.Run("rejects notify_before_patching on a windows app", func(t *testing.T) {
 		p := payload(new(true), nil)
 		p.NotifyBeforePatching = new(true)
-		_, _, _, err := planPatchPolicy(p, windowsFMAInstaller, nil)
+		_, _, _, _, err := planPatchPolicy(p, windowsFMAInstaller, nil)
 		require.ErrorContains(t, err, "only available for macOS Fleet-maintained apps")
 	})
 
@@ -3629,8 +3876,119 @@ func TestPlanPatchPolicy(t *testing.T) {
 	t.Run("rejects pre-install edit while notify_before_patching is on", func(t *testing.T) {
 		p := payload(nil, nil)
 		p.PreInstallQuery = new("SELECT changed;")
-		_, _, _, err := planPatchPolicy(p, macFMAInstaller, &fleet.PatchPolicyData{ID: 9, NotifyBeforePatching: true})
+		_, _, _, _, err := planPatchPolicy(p, macFMAInstaller, &fleet.PatchPolicyData{ID: 9, NotifyBeforePatching: true})
 		require.ErrorContains(t, err, "managed by Fleet")
+	})
+
+	t.Run("patch_deadline alone displaces the patch_when_closed default", func(t *testing.T) {
+		p := payload(new(true), nil)
+		p.PatchDeadline = new(true)
+		patchFlag, patchWhenClosedFlag, notifyFlag, deadlineFlag, err := planPatchPolicy(p, macFMAInstaller, nil)
+		require.NoError(t, err)
+		assert.True(t, patchFlag)
+		assert.False(t, patchWhenClosedFlag)
+		assert.False(t, notifyFlag)
+		assert.True(t, deadlineFlag)
+	})
+
+	t.Run("patch_deadline displaces patch_when_closed on an existing policy", func(t *testing.T) {
+		p := payload(nil, nil)
+		p.PatchDeadline = new(true)
+		_, patchWhenClosedFlag, _, deadlineFlag, err := planPatchPolicy(p, macFMAInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: true})
+		require.NoError(t, err)
+		assert.False(t, patchWhenClosedFlag)
+		assert.True(t, deadlineFlag)
+	})
+
+	t.Run("patch_deadline displaces notify_before_patching on an existing policy", func(t *testing.T) {
+		p := payload(nil, nil)
+		p.PatchDeadline = new(true)
+		_, patchWhenClosedFlag, notifyFlag, deadlineFlag, err := planPatchPolicy(p, macFMAInstaller, &fleet.PatchPolicyData{ID: 9, NotifyBeforePatching: true})
+		require.NoError(t, err)
+		assert.False(t, patchWhenClosedFlag)
+		assert.False(t, notifyFlag)
+		assert.True(t, deadlineFlag)
+	})
+
+	t.Run("notify_before_patching displaces patch_deadline on an existing policy", func(t *testing.T) {
+		p := payload(nil, nil)
+		p.NotifyBeforePatching = new(true)
+		_, patchWhenClosedFlag, notifyFlag, deadlineFlag, err := planPatchPolicy(p, macFMAInstaller, &fleet.PatchPolicyData{ID: 9, PatchDeadline: true})
+		require.NoError(t, err)
+		assert.False(t, patchWhenClosedFlag)
+		assert.True(t, notifyFlag)
+		assert.False(t, deadlineFlag)
+	})
+
+	t.Run("patch_when_closed displaces patch_deadline on an existing policy", func(t *testing.T) {
+		_, patchWhenClosedFlag, notifyFlag, deadlineFlag, err := planPatchPolicy(payload(nil, new(true)), macFMAInstaller, &fleet.PatchPolicyData{ID: 9, PatchDeadline: true})
+		require.NoError(t, err)
+		assert.True(t, patchWhenClosedFlag)
+		assert.False(t, notifyFlag)
+		assert.False(t, deadlineFlag)
+	})
+
+	t.Run("omitted patch_deadline keeps the existing value", func(t *testing.T) {
+		_, patchWhenClosedFlag, notifyFlag, deadlineFlag, err := planPatchPolicy(payload(nil, nil), macFMAInstaller, &fleet.PatchPolicyData{ID: 9, PatchDeadline: true})
+		require.NoError(t, err)
+		assert.False(t, patchWhenClosedFlag)
+		assert.False(t, notifyFlag)
+		assert.True(t, deadlineFlag)
+	})
+
+	t.Run("explicit patch_deadline false clears it", func(t *testing.T) {
+		p := payload(nil, new(true))
+		p.PatchDeadline = new(false)
+		_, patchWhenClosedFlag, _, deadlineFlag, err := planPatchPolicy(p, macFMAInstaller, &fleet.PatchPolicyData{ID: 9, PatchDeadline: true})
+		require.NoError(t, err)
+		assert.True(t, patchWhenClosedFlag)
+		assert.False(t, deadlineFlag)
+	})
+
+	t.Run("rejects patch_deadline with another option", func(t *testing.T) {
+		p := payload(new(true), new(true))
+		p.PatchDeadline = new(true)
+		_, _, _, _, err := planPatchPolicy(p, macFMAInstaller, nil)
+		require.ErrorContains(t, err, fleet.ErrPolicyPatchOptionsMutuallyExclusive.Error())
+
+		p = payload(new(true), nil)
+		p.NotifyBeforePatching = new(true)
+		p.PatchDeadline = new(true)
+		_, _, _, _, err = planPatchPolicy(p, macFMAInstaller, nil)
+		require.ErrorContains(t, err, fleet.ErrPolicyPatchOptionsMutuallyExclusive.Error())
+	})
+
+	t.Run("rejects patch_deadline without patch", func(t *testing.T) {
+		p := payload(nil, nil)
+		p.PatchDeadline = new(true)
+		_, _, _, _, err := planPatchPolicy(p, macFMAInstaller, nil)
+		require.ErrorContains(t, err, `If "patch_deadline" is set, "patch" must be true.`)
+		p.PatchDeadline = new(false)
+		_, _, _, _, err = planPatchPolicy(p, macFMAInstaller, nil)
+		require.ErrorContains(t, err, `If "patch_deadline" is set, "patch" must be true.`)
+	})
+
+	t.Run("rejects patch_deadline on a windows app", func(t *testing.T) {
+		p := payload(new(true), nil)
+		p.PatchDeadline = new(true)
+		_, _, _, _, err := planPatchPolicy(p, windowsFMAInstaller, nil)
+		require.ErrorContains(t, err, fleet.ErrPolicyPatchDeadlineRequiresMacOS.Error())
+	})
+
+	t.Run("rejects pre-install edit while patch_deadline is on", func(t *testing.T) {
+		p := payload(nil, nil)
+		p.PreInstallQuery = new("SELECT changed;")
+		_, _, _, _, err := planPatchPolicy(p, macFMAInstaller, &fleet.PatchPolicyData{ID: 9, PatchDeadline: true})
+		require.ErrorContains(t, err, `"pre_install_query" is managed by Fleet and can't be set directly while "patch_deadline" is enabled.`)
+	})
+
+	t.Run("patch_deadline on a non-FMA installer plans nothing", func(t *testing.T) {
+		p := payload(new(true), nil)
+		p.PatchDeadline = new(true)
+		patchFlag, _, _, deadlineFlag, err := planPatchPolicy(p, nonFMAInstaller, nil)
+		require.NoError(t, err)
+		assert.False(t, patchFlag)
+		assert.False(t, deadlineFlag)
 	})
 }
 
@@ -3838,4 +4196,581 @@ func TestDownloadInstallerURLBlocksPrivateNetworks(t *testing.T) {
 			require.Equal(t, tt.wantReach, hits.Load() > before)
 		})
 	}
+}
+
+// Not parallel: it shortens the package-level stall timeout.
+func TestDownloadInstallerURLStall(t *testing.T) {
+	orig := installerDownloadStallTimeout
+	installerDownloadStallTimeout = 500 * time.Millisecond
+	t.Cleanup(func() { installerDownloadStallTimeout = orig })
+
+	const maxSize = 512 * 1024 * 1024 // 512 MiB, generous for test payloads
+
+	// Stalled handlers return once the download gives up, which closes the connection and cancels r.Context().
+	newServer := func(t *testing.T, handler http.HandlerFunc) *httptest.Server {
+		srv := httptest.NewServer(handler)
+		t.Cleanup(srv.Close)
+		return srv
+	}
+
+	t.Run("stall after headers", func(t *testing.T) {
+		srv := newServer(t, func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Length", "1024")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("partial"))
+			w.(http.Flusher).Flush()
+			<-r.Context().Done()
+		})
+
+		start := time.Now()
+		_, tfr, err := downloadInstallerURL(t.Context(), srv.URL+"/installer.pkg", "", maxSize)
+		require.Nil(t, tfr)
+		require.ErrorIs(t, err, errInstallerDownloadStalled)
+		require.ErrorContains(t, err, "no data received")
+		require.Less(t, time.Since(start), 5*time.Second)
+	})
+
+	t.Run("stall before headers", func(t *testing.T) {
+		srv := newServer(t, func(_ http.ResponseWriter, r *http.Request) {
+			<-r.Context().Done()
+		})
+
+		start := time.Now()
+		_, tfr, err := downloadInstallerURL(t.Context(), srv.URL+"/installer.pkg", "", maxSize)
+		require.Nil(t, tfr)
+		require.ErrorIs(t, err, errInstallerDownloadStalled)
+		require.ErrorContains(t, err, "no data received")
+		require.Less(t, time.Since(start), 5*time.Second)
+	})
+
+	t.Run("slow but progressing", func(t *testing.T) {
+		// One byte every 50ms for 1s: twice the stall timeout in total, but never 500ms without bytes.
+		const size = 20
+		srv := newServer(t, func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Length", fmt.Sprint(size))
+			w.WriteHeader(http.StatusOK)
+			for range size {
+				time.Sleep(50 * time.Millisecond)
+				_, _ = w.Write([]byte("x"))
+				w.(http.Flusher).Flush()
+			}
+		})
+
+		resp, tfr, err := downloadInstallerURL(t.Context(), srv.URL+"/installer.pkg", "", maxSize)
+		require.NoError(t, err)
+		t.Cleanup(func() { tfr.Close() })
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		body, err := io.ReadAll(tfr)
+		require.NoError(t, err)
+		require.Len(t, body, size)
+	})
+}
+
+func TestFillSoftwareInstallerPayloadFromExistingUpgradeCode(t *testing.T) {
+	cases := []struct {
+		name, code, bundle, source, wantIdentity string
+	}{
+		{name: "coded msi", code: "code", source: "programs", wantIdentity: "code"},
+		{name: "no code", source: "programs", wantIdentity: "title"},
+		{name: "bundle wins", code: "code", bundle: "bundle", source: "programs", wantIdentity: "bundle"},
+		{name: "code ignored outside programs", code: "code", source: "apps", wantIdentity: "title"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			svc := newTestService(t, new(mock.Store))
+			existing := &fleet.ExistingSoftwareInstaller{Title: "title", Source: c.source, UpgradeCode: c.code, PackageIDs: []string{"product"}}
+			if c.bundle != "" {
+				existing.BundleIdentifier = &c.bundle
+			}
+			payload := &fleet.UploadSoftwareInstallerPayload{UninstallScript: "custom script"}
+			require.NoError(t, svc.fillSoftwareInstallerPayloadFromExisting(t.Context(), payload, existing, "hash"))
+			require.Equal(t, c.code, payload.UpgradeCode)
+			require.Equal(t, c.wantIdentity, payload.UniqueIdentifier())
+			require.Equal(t, "custom script", payload.UninstallScript)
+		})
+	}
+}
+
+func TestSoftwareBatchUploadMSIReuseUninstallScript(t *testing.T) {
+	const code = "{B681CB20-107E-428A-9B14-2D3C1AFED244}"
+	productDefault := file.GetUninstallScript("msi")
+	cases := []struct {
+		name, code, script, wantRaw string
+	}{
+		{name: "omitted with code", code: code, wantRaw: file.UninstallMsiWithUpgradeCodeScript},
+		{name: "omitted without code", wantRaw: productDefault},
+		{name: "custom script with upgrade code variable", code: code, script: "Write-Output $UPGRADE_CODE", wantRaw: "Write-Output $UPGRADE_CODE"},
+		// Fresh parsing normalizes this to the upgrade code script; reuse keeps explicit scripts as written.
+		{name: "explicit product code default", code: code, script: productDefault, wantRaw: productDefault},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.TeamLiteFunc = func(ctx context.Context, tmID uint) (*fleet.TeamLite, error) {
+				return &fleet.TeamLite{ID: tmID}, nil
+			}
+			ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+				return map[uint][]*fleet.ExistingSoftwareInstaller{1: {{
+					Title: "MSI", Extension: "msi", Filename: "test.msi", Platform: "windows", Source: "programs",
+					UpgradeCode: c.code, PackageIDs: []string{"product-id"},
+				}}}, nil
+			}
+			ds.GetSoftwareInstallersPendingDeletionFunc = func(ctx context.Context, tmID *uint, incoming []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+				return nil, nil
+			}
+			var applied []*fleet.UploadSoftwareInstallerPayload
+			ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) {
+				applied = installers
+				return nil, nil
+			}
+			ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+				return nil
+			}
+			ds.ReconcileWindowsMaintainedAppSoftwareTitlesFunc = func(ctx context.Context) error { return nil }
+
+			svc := newTestService(t, ds)
+			svc.keyValueStore, _ = inMemoryKeyValueStore()
+			svc.softwareInstallStore = &mocksoftware.SoftwareInstallerStore{
+				ExistsFunc: func(ctx context.Context, id string) (bool, error) { return true, nil },
+			}
+
+			svc.softwareBatchUpload("req-uuid", new(uint(1)), 1, []*fleet.SoftwareInstallerPayload{{SHA256: "hash", UninstallScript: c.script}}, false)
+
+			status, err := svc.keyValueStore.Get(t.Context(), batchSoftwarePrefix+"req-uuid")
+			require.NoError(t, err)
+			require.NotNil(t, status)
+			require.Equal(t, batchSetCompleted, *status)
+			require.Len(t, applied, 1)
+			require.Equal(t, c.code, applied[0].UpgradeCode)
+			want := &fleet.UploadSoftwareInstallerPayload{Extension: "msi", UpgradeCode: c.code, PackageIDs: []string{"product-id"}, UninstallScript: c.wantRaw}
+			require.NoError(t, preProcessUninstallScript(want))
+			require.Equal(t, want.UninstallScript, applied[0].UninstallScript)
+		})
+	}
+}
+
+func TestSoftwareBatchUploadKeepsTitleAttachedByName(t *testing.T) {
+	run := func(t *testing.T, dryRun bool, resolveErr error) (status string, deleted *string) {
+		ds := new(mock.Store)
+		ds.TeamLiteFunc = func(ctx context.Context, tmID uint) (*fleet.TeamLite, error) {
+			return &fleet.TeamLite{ID: tmID}, nil
+		}
+		ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+			title, bundle := "ForkLift", "com.example.forklift"
+			if sha256 == "new-hash" {
+				title, bundle = "New App", "com.example.new"
+			}
+			return map[uint][]*fleet.ExistingSoftwareInstaller{1: {{
+				Title: title, Extension: "pkg", Filename: title + ".pkg", Platform: "darwin", Source: "apps",
+				BundleIdentifier: &bundle, PackageIDs: []string{bundle},
+			}}}, nil
+		}
+		ds.GetExistingSoftwareInstallerTitleIDFunc = func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+			require.True(t, ctxdb.IsPrimaryRequired(ctx))
+			switch {
+			case payload.Title == "New App":
+				return 0, &notFoundError{}
+			case resolveErr != nil:
+				return 0, resolveErr
+			case payload.Title == "ForkLift" && payload.BundleIdentifier == "com.example.forklift":
+				return 20, nil
+			}
+			return 99, nil
+		}
+		// Title 20 came from inventory (lowercase name); title 5 is another title displayed as "ForkLift".
+		ds.GetSoftwareInstallersPendingDeletionFunc = func(ctx context.Context, tmID *uint, incoming []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+			return []fleet.DeletedSoftwarePackage{{TitleID: 20, DisplayName: "forklift"}, {TitleID: 5, DisplayName: "ForkLift"}}, nil
+		}
+		ds.BatchSetSoftwareInstallersFunc = func(context.Context, *uint, []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) { return nil, nil }
+		ds.BatchSetInHouseAppsInstallersFunc = func(context.Context, *uint, []*fleet.UploadSoftwareInstallerPayload) error { return nil }
+		ds.ReconcileWindowsMaintainedAppSoftwareTitlesFunc = func(context.Context) error { return nil }
+
+		svc := newTestService(t, ds)
+		svc.keyValueStore, _ = inMemoryKeyValueStore()
+		svc.softwareInstallStore = &mocksoftware.SoftwareInstallerStore{
+			ExistsFunc: func(ctx context.Context, id string) (bool, error) { return true, nil },
+		}
+		svc.softwareBatchUpload("req-uuid", new(uint(1)), 1, []*fleet.SoftwareInstallerPayload{{SHA256: "new-hash"}, {SHA256: "forklift-hash"}}, dryRun)
+
+		got, err := svc.keyValueStore.Get(t.Context(), batchSoftwarePrefix+"req-uuid")
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		deleted, err = svc.keyValueStore.Get(t.Context(), batchSoftwarePrefix+"req-uuid"+batchSoftwareDeletedSuffix)
+		require.NoError(t, err)
+		return *got, deleted
+	}
+
+	for _, dryRun := range []bool{true, false} {
+		t.Run(fmt.Sprintf("dry run %t reports only the title no payload resolves to", dryRun), func(t *testing.T) {
+			status, deleted := run(t, dryRun, nil)
+			require.Equal(t, batchSetCompleted, status)
+			require.NotNil(t, deleted)
+			var got []fleet.DeletedSoftwarePackage
+			require.NoError(t, json.Unmarshal([]byte(*deleted), &got))
+			require.Equal(t, []fleet.DeletedSoftwarePackage{{TitleID: 5, DisplayName: "ForkLift"}}, got)
+		})
+	}
+
+	t.Run("a resolver error fails the batch", func(t *testing.T) {
+		status, deleted := run(t, true, errors.New("boom"))
+		require.Contains(t, status, batchSetFailedPrefix)
+		require.Contains(t, status, "boom")
+		require.Nil(t, deleted)
+	})
+}
+
+func TestSoftwareBatchUploadWindowsFMAKeepsManifestUninstallScript(t *testing.T) {
+	const (
+		code       = "{B681CB20-107E-428A-9B14-2D3C1AFED244}"
+		cachedHash = "1111111111111111111111111111111111111111111111111111111111111111"
+		uninstall  = "msiexec /x '{B681CB20-107E-428A-9B14-2D3C1AFED244}' /qn"
+	)
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.NoError(t, json.NewEncoder(w).Encode(ma.FMAManifestFile{
+			Versions: []*ma.FMAManifestApp{{
+				Version:            "1.0",
+				InstallerURL:       "https://example.com/app.msi",
+				SHA256:             cachedHash,
+				UpgradeCode:        code,
+				InstallScriptRef:   "install",
+				UninstallScriptRef: "uninstall",
+			}},
+			Refs: map[string]string{"install": "msiexec /i app.msi", "uninstall": uninstall},
+		}))
+	}))
+	t.Cleanup(manifestServer.Close)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
+
+	ds := new(mock.Store)
+	ds.GetMaintainedAppBySlugFunc = func(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error) {
+		return &fleet.MaintainedApp{ID: 1, Name: "App", Platform: "windows", Slug: slug}, nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, tmID uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: tmID}, nil
+	}
+	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+		return nil, nil
+	}
+	ds.HasFMAInstallerVersionFunc = func(ctx context.Context, tmID *uint, fmaID uint, version string) (bool, string, error) {
+		return true, cachedHash, nil
+	}
+	ds.GetSoftwareInstallersPendingDeletionFunc = func(ctx context.Context, tmID *uint, incoming []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+		return nil, nil
+	}
+	var applied []*fleet.UploadSoftwareInstallerPayload
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) {
+		applied = installers
+		return nil, nil
+	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.ReconcileWindowsMaintainedAppSoftwareTitlesFunc = func(ctx context.Context) error { return nil }
+
+	svc := newTestService(t, ds)
+	svc.keyValueStore, _ = inMemoryKeyValueStore()
+	svc.softwareInstallStore = &mocksoftware.SoftwareInstallerStore{
+		ExistsFunc: func(ctx context.Context, id string) (bool, error) { return id == cachedHash, nil },
+	}
+
+	payload := &fleet.SoftwareInstallerPayload{Slug: new("app/windows")}
+	require.NoError(t, svc.maintainedAppFromSlug(t.Context(), payload, new(uint(1))))
+	svc.softwareBatchUpload("req-uuid", new(uint(1)), 1, []*fleet.SoftwareInstallerPayload{payload}, false)
+
+	status, err := svc.keyValueStore.Get(t.Context(), batchSoftwarePrefix+"req-uuid")
+	require.NoError(t, err)
+	require.NotNil(t, status)
+	require.Equal(t, batchSetCompleted, *status)
+	require.Len(t, applied, 1)
+	require.Empty(t, applied[0].PackageIDs)
+	require.Equal(t, code, applied[0].UpgradeCode)
+	require.Equal(t, uninstall, applied[0].UninstallScript)
+}
+
+type fmaRecoveryBatchOptions struct {
+	pin, hash, version, platform string
+	body                         []byte
+	dryRun, present, cached      bool
+	existsErr                    error
+}
+
+type fmaRecoveryBatchResult struct {
+	status    string
+	downloads int32
+	stored    []byte
+	applied   []*fleet.UploadSoftwareInstallerPayload
+	ds        *mock.Store
+	store     *mocksoftware.SoftwareInstallerStore
+}
+
+func runFMARecoveryBatch(t *testing.T, opts fmaRecoveryBatchOptions) *fmaRecoveryBatchResult {
+	t.Helper()
+	if opts.body == nil {
+		opts.body = []byte("installer bytes")
+	}
+	if opts.hash == "" {
+		opts.hash = fmt.Sprintf("%x", sha256.Sum256(opts.body))
+	}
+	if opts.version == "" {
+		opts.version = "1.0"
+	}
+	if opts.platform == "" {
+		opts.platform = "windows"
+	}
+	r := &fmaRecoveryBatchResult{ds: new(mock.Store)}
+	var downloads atomic.Int32
+	installer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		downloads.Add(1)
+		_, _ = w.Write(opts.body)
+	}))
+	t.Cleanup(installer.Close)
+	filename := "app.exe"
+	if opts.platform == "darwin" {
+		filename = "app.pkg"
+	}
+	url := installer.URL + "/" + filename
+	manifest := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		_ = json.NewEncoder(w).Encode(ma.FMAManifestFile{
+			Versions: []*ma.FMAManifestApp{{Version: opts.version, SHA256: opts.hash,
+				InstallerURL: url, InstallScriptRef: "i", UninstallScriptRef: "u",
+				Queries: ma.FMAQueries{Exists: "SELECT 1"}}},
+			Refs: map[string]string{"i": "echo install", "u": "echo uninstall"},
+		})
+	}))
+	t.Cleanup(manifest.Close)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifest.URL, t)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", manifest.URL, t)
+	ds := r.ds
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) { return &fleet.TeamLite{ID: id}, nil }
+	ds.GetTeamsWithInstallerByHashFunc = func(context.Context, string, string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+		return nil, nil
+	}
+	ds.GetInstallerByTeamAndURLFunc = func(context.Context, *uint, string) (*fleet.ExistingSoftwareInstaller, error) { return nil, nil }
+	ds.HasFMAInstallerVersionFunc = func(context.Context, *uint, uint, string) (bool, string, error) { return opts.cached, opts.hash, nil }
+	ds.GetCachedFMAInstallerMetadataFunc = func(context.Context, *uint, uint, string) (*fleet.MaintainedApp, error) {
+		return &fleet.MaintainedApp{Version: "1.0", SHA256: opts.hash, InstallerURL: url,
+			Platform: opts.platform, InstallScript: "echo install", UninstallScript: "echo uninstall"}, nil
+	}
+	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(context.Context, *uint, uint) ([]fleet.FleetMaintainedVersion, error) {
+		return []fleet.FleetMaintainedVersion{{ID: 9, Version: "1.0"}}, nil
+	}
+	ds.GetSoftwareInstallersPendingDeletionFunc = func(context.Context, *uint, []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+		return nil, nil
+	}
+	ds.BatchSetSoftwareInstallersFunc = func(_ context.Context, _ *uint, p []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) {
+		r.applied = p
+		return nil, nil
+	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(context.Context, *uint, []*fleet.UploadSoftwareInstallerPayload) error { return nil }
+	ds.ReconcileWindowsMaintainedAppSoftwareTitlesFunc = func(context.Context) error { return nil }
+	r.store = &mocksoftware.SoftwareInstallerStore{
+		ExistsFunc: func(context.Context, string) (bool, error) { return opts.present, opts.existsErr },
+		PutFunc: func(_ context.Context, id string, content io.ReadSeeker) error {
+			var err error
+			r.stored, err = io.ReadAll(content)
+			return err
+		},
+	}
+	svc := newTestService(t, ds)
+	svc.softwareInstallStore = r.store
+	kvs, _ := inMemoryKeyValueStore()
+	svc.keyValueStore = kvs
+	p := &fleet.SoftwareInstallerPayload{Slug: new("example/" + opts.platform), RollbackVersion: opts.pin,
+		MaintainedApp: &fleet.MaintainedApp{ID: 7, Name: "Example", Slug: "example/" + opts.platform,
+			Platform: opts.platform, UniqueIdentifier: "example", TitleID: new(uint(1))}}
+	svc.softwareBatchUpload("fma-recovery", new(uint(1)), 1, []*fleet.SoftwareInstallerPayload{p}, opts.dryRun)
+	status, err := kvs.Get(t.Context(), batchSoftwarePrefix+"fma-recovery")
+	require.NoError(t, err)
+	require.NotNil(t, status)
+	r.status, r.downloads = *status, downloads.Load()
+	return r
+}
+
+func TestSoftwareBatchUploadFMAMissingBytes(t *testing.T) {
+	for _, tc := range []struct{ name, pin, platform, version string }{
+		{name: "darwin", platform: "darwin"}, {name: "windows", platform: "windows"},
+		{name: "literal pin", pin: "1.0"}, {name: "caret fallback", pin: "^1", version: "2.0"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := runFMARecoveryBatch(t, fmaRecoveryBatchOptions{cached: true, pin: tc.pin, platform: tc.platform, version: tc.version})
+			require.Equal(t, batchSetCompleted, r.status)
+			require.EqualValues(t, 1, r.downloads)
+			require.Equal(t, []byte("installer bytes"), r.stored, "hashing must rewind before Put")
+			require.Len(t, r.applied, 1)
+			require.False(t, r.applied[0].FMAVersionCached)
+			require.Equal(t, "1.0", r.applied[0].Version)
+		})
+	}
+}
+
+func TestSoftwareBatchUploadFMAHashMismatch(t *testing.T) {
+	for _, tc := range []struct {
+		name, pin string
+		cached    bool
+	}{
+		{name: "uncached"}, {name: "cached", cached: true},
+		{name: "literal pin", pin: "1.0", cached: true},
+		{name: "caret fallback", pin: "^1", cached: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			version := "1.0"
+			if tc.pin == "^1" {
+				version = "2.0"
+			}
+			r := runFMARecoveryBatch(t, fmaRecoveryBatchOptions{cached: tc.cached, pin: tc.pin, version: version, hash: strings.Repeat("a", 64)})
+			require.Contains(t, r.status, batchSetFailedPrefix)
+			require.Contains(t, r.status, "mismatch in maintained app SHA256 hash")
+			require.False(t, r.store.PutFuncInvoked)
+			require.False(t, r.ds.BatchSetSoftwareInstallersFuncInvoked)
+			require.False(t, r.ds.BatchSetInHouseAppsInstallersFuncInvoked)
+		})
+	}
+}
+
+func TestSoftwareBatchUploadFMADryRunMissingBytes(t *testing.T) {
+	r := runFMARecoveryBatch(t, fmaRecoveryBatchOptions{cached: true, dryRun: true})
+	require.Equal(t, batchSetCompleted, r.status)
+	require.EqualValues(t, 1, r.downloads)
+	require.False(t, r.store.PutFuncInvoked)
+	require.False(t, r.ds.BatchSetSoftwareInstallersFuncInvoked)
+}
+
+func TestSoftwareBatchUploadFMAExistsError(t *testing.T) {
+	r := runFMARecoveryBatch(t, fmaRecoveryBatchOptions{cached: true, existsErr: errors.New("AccessDenied")})
+	require.Contains(t, r.status, "AccessDenied")
+	require.Zero(t, r.downloads)
+	require.False(t, r.store.PutFuncInvoked)
+	require.False(t, r.ds.BatchSetSoftwareInstallersFuncInvoked)
+}
+
+func TestSoftwareBatchUploadFMALatestHashRewinds(t *testing.T) {
+	body, err := os.ReadFile("testdata/dummy_installer.pkg")
+	require.NoError(t, err)
+	r := runFMARecoveryBatch(t, fmaRecoveryBatchOptions{body: body, version: "latest", platform: "darwin"})
+	require.Equal(t, batchSetCompleted, r.status)
+	require.Equal(t, body, r.stored)
+	require.Len(t, r.applied, 1)
+	require.Equal(t, "1.0.0", r.applied[0].Version)
+}
+
+func TestSoftwareBatchUploadFMALatestMalformedPackage(t *testing.T) {
+	body, err := os.ReadFile("testdata/xar_no_data.pkg")
+	require.NoError(t, err)
+	r := runFMARecoveryBatch(t, fmaRecoveryBatchOptions{body: body, hash: noCheckHash, version: "latest", platform: "darwin"})
+	require.Equal(t, batchSetFailedPrefix+"Uploaded file is not a valid installer package.", r.status)
+	require.False(t, r.store.PutFuncInvoked)
+}
+
+func TestSoftwareBatchUploadFMANoCheckLatestRewinds(t *testing.T) {
+	body, err := os.ReadFile("testdata/dummy_installer.pkg")
+	require.NoError(t, err)
+	r := runFMARecoveryBatch(t, fmaRecoveryBatchOptions{body: body, hash: noCheckHash, version: "latest", platform: "darwin"})
+	require.Equal(t, batchSetCompleted, r.status)
+	require.Equal(t, body, r.stored)
+	require.Len(t, r.applied, 1)
+	require.Equal(t, "1.0.0", r.applied[0].Version)
+	require.Equal(t, fmt.Sprintf("%x", sha256.Sum256(body)), r.applied[0].StorageID)
+}
+
+// runURLBatch serves body at a URL, runs a one-entry batch for it and returns the batch status and the service logs.
+func runURLBatch(t *testing.T, body []byte, sha256 string, prepare func(*mock.Store)) (status string, ds *mock.Store, logs string) {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(body)
+	}))
+	t.Cleanup(srv.Close)
+
+	ds = new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) { return &fleet.TeamLite{ID: id}, nil }
+	ds.GetTeamsWithInstallerByHashFunc = func(context.Context, string, string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+		return nil, nil
+	}
+	ds.GetInstallerByTeamAndURLFunc = func(context.Context, *uint, string) (*fleet.ExistingSoftwareInstaller, error) { return nil, nil }
+	ds.GetSoftwareInstallersPendingDeletionFunc = func(context.Context, *uint, []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+		return nil, nil
+	}
+	ds.BatchSetSoftwareInstallersFunc = func(context.Context, *uint, []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) {
+		return nil, nil
+	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(context.Context, *uint, []*fleet.UploadSoftwareInstallerPayload) error { return nil }
+	ds.ReconcileWindowsMaintainedAppSoftwareTitlesFunc = func(context.Context) error { return nil }
+	if prepare != nil {
+		prepare(ds)
+	}
+
+	var logBuf bytes.Buffer
+	svc := newTestService(t, ds)
+	svc.logger = slog.New(slog.NewTextHandler(&logBuf, nil))
+	svc.keyValueStore, _ = inMemoryKeyValueStore()
+	svc.softwareInstallStore = &mocksoftware.SoftwareInstallerStore{
+		ExistsFunc: func(context.Context, string) (bool, error) { return false, nil },
+		PutFunc:    func(context.Context, string, io.ReadSeeker) error { return nil },
+	}
+
+	svc.softwareBatchUpload("req-uuid", new(uint(1)), 1,
+		[]*fleet.SoftwareInstallerPayload{{URL: srv.URL + "/app.pkg", SHA256: sha256, AlwaysDownload: true}}, false)
+	got, err := svc.keyValueStore.Get(t.Context(), batchSoftwarePrefix+"req-uuid")
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	return *got, ds, logBuf.String()
+}
+
+func TestSoftwareBatchUploadMalformedPackage(t *testing.T) {
+	dev_mode.SetOverride("FLEET_DEV_BATCH_RETRY_INTERVAL", "1ms", t)
+
+	crafted, err := os.ReadFile("testdata/xar_no_data.pkg")
+	require.NoError(t, err)
+	valid, err := os.ReadFile("testdata/dummy_installer.pkg")
+	require.NoError(t, err)
+	validSum := sha256.Sum256(valid)
+	craftedSum := sha256.Sum256(crafted)
+
+	t.Run("crafted package fails the batch", func(t *testing.T) {
+		status, ds, _ := runURLBatch(t, crafted, "", nil)
+		require.Contains(t, status, batchSetFailedPrefix)
+		require.Contains(t, status, "not a valid installer package")
+		require.False(t, ds.BatchSetSoftwareInstallersFuncInvoked)
+	})
+
+	t.Run("pinned hash is checked before parsing", func(t *testing.T) {
+		// A parse failure would report an invalid package instead of a mismatch.
+		status, _, _ := runURLBatch(t, crafted, hex.EncodeToString(validSum[:]), nil)
+		require.Contains(t, status, "does not match provided hash")
+		require.NotContains(t, status, "not a valid installer package")
+	})
+
+	t.Run("pinned crafted package is still rejected", func(t *testing.T) {
+		status, _, _ := runURLBatch(t, crafted, hex.EncodeToString(craftedSum[:]), nil)
+		require.Contains(t, status, "not a valid installer package")
+	})
+
+	t.Run("valid package with matching pin", func(t *testing.T) {
+		status, ds, _ := runURLBatch(t, valid, hex.EncodeToString(validSum[:]), nil)
+		require.Equal(t, batchSetCompleted, status)
+		require.True(t, ds.BatchSetSoftwareInstallersFuncInvoked)
+	})
+
+	t.Run("valid package without pin", func(t *testing.T) {
+		status, _, _ := runURLBatch(t, valid, "", nil)
+		require.Equal(t, batchSetCompleted, status)
+	})
+}
+
+func TestSoftwareBatchUploadRecoversPanic(t *testing.T) {
+	valid, err := os.ReadFile("testdata/dummy_installer.pkg")
+	require.NoError(t, err)
+
+	status, _, logs := runURLBatch(t, valid, "", func(ds *mock.Store) {
+		ds.GetTeamsWithInstallerByHashFunc = func(context.Context, string, string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+			panic("boom")
+		}
+	})
+	require.Contains(t, status, batchSetFailedPrefix)
+	require.Contains(t, status, "Couldn't process software package http://")
+	require.Contains(t, status, "/app.pkg: unexpected error.")
+	require.NotContains(t, status, "boom")
+	require.NotContains(t, status, "goroutine")
+	require.Contains(t, logs, "panic processing software package")
+	require.Contains(t, logs, "stack=")
 }

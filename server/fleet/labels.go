@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // ModifyLabelPayload is used to change editable fields for a Label
@@ -147,8 +148,34 @@ var ValidLabelPlatformVariants = map[string]struct{}{
 	"darwin":  {},
 	"windows": {},
 	"linux":   {}, // matches hosts on any Linux distribution
-	"ubuntu":  {},
-	"centos":  {},
+}
+
+// LabelNameMaxLength and LabelDescriptionMaxLength match the varchar(255) size
+// of labels.name and labels.description in MySQL. Enforce them before
+// insert/update so callers get an InvalidArgumentError instead of a raw
+// "Data too long" MySQL error, and so GitOps dry runs catch them.
+const (
+	LabelNameMaxLength        = 255
+	LabelDescriptionMaxLength = 255
+)
+
+// ValidateLabelFieldLengths checks that a label's name and description fit
+// their database columns. It returns nil if both fit.
+func ValidateLabelFieldLengths(name, description string) *InvalidArgumentError {
+	var invalid InvalidArgumentError
+	label := name
+	if utf8.RuneCountInString(name) > LabelNameMaxLength {
+		// Show only the start of an over-long name so the message stays readable.
+		label = string([]rune(name)[:40]) + "..."
+		invalid.Append("name", fmt.Sprintf("label %q name may not exceed %d characters", label, LabelNameMaxLength))
+	}
+	if utf8.RuneCountInString(description) > LabelDescriptionMaxLength {
+		invalid.Append("description", fmt.Sprintf("label %q description may not exceed %d characters", label, LabelDescriptionMaxLength))
+	}
+	if invalid.HasErrors() {
+		return &invalid
+	}
+	return nil
 }
 
 // ValidateLabelMembershipFields checks that the fields on a label spec are
@@ -214,12 +241,12 @@ type Label struct {
 	LabelType           LabelType           `json:"label_type" db:"label_type"`
 	LabelMembershipType LabelMembershipType `json:"label_membership_type" db:"label_membership_type"`
 	HostCount           int                 `json:"host_count,omitempty" db:"host_count"`
-	TeamID              *uint               `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID              *uint               `json:"fleet_id" db:"team_id"`
 }
 
 type LabelWithTeamName struct {
 	Label
-	TeamName *string `json:"team_name" renameto:"fleet_name" db:"team_name"`
+	TeamName *string `json:"fleet_name" db:"team_name"`
 }
 
 // Implement the HostVitalsLabel interface.
@@ -231,7 +258,7 @@ type LabelSummary struct {
 	ID          uint      `json:"id"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
-	TeamID      *uint     `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID      *uint     `json:"fleet_id" db:"team_id"`
 	LabelType   LabelType `json:"label_type" db:"label_type"`
 }
 
@@ -293,7 +320,7 @@ type LabelSpec struct {
 	LabelMembershipType LabelMembershipType `json:"label_membership_type" db:"label_membership_type"`
 	Hosts               HostsSlice          `json:"hosts"`
 	HostVitalsCriteria  *json.RawMessage    `json:"criteria,omitempty" db:"criteria"`
-	TeamID              *uint               `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID              *uint               `json:"fleet_id" db:"team_id"`
 }
 
 const (

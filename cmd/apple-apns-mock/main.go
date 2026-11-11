@@ -35,6 +35,8 @@ func run() error {
 	redisPassword := flag.String("redis-password", "", "Redis password")
 	redisDatabase := flag.Int("redis-database", 0, "Redis database")
 	redisUseTLS := flag.Bool("redis-use-tls", false, "connect to Redis over TLS")
+	redisMaxOpenConns := flag.Int("redis-max-open-conns", 256, "maximum Redis connections per instance")
+	redisConnWaitTimeout := flag.Duration("redis-conn-wait-timeout", 5*time.Second, "how long a Redis call waits for a free connection when all are in use before failing. Set to 0 to fail immediately.")
 	keyPrefix := flag.String("redis-key-prefix", "apns:", "prefix for every Redis key and the push channel; give concurrent load tests different prefixes to isolate them")
 	nodeID := flag.String("node-id", "", "identifies this instance in cluster stats (default: hostname-pid)")
 	statsInterval := flag.Duration("stats-interval", 5*time.Second, "how often to publish this instance's counters for cluster-wide /stats")
@@ -57,7 +59,7 @@ func run() error {
 		logger.ErrorContext(ctx, err.Error())
 		return err
 	}
-	pool, err := newRedisPool(*redisAddress, *redisUsername, *redisPassword, *redisDatabase, *redisUseTLS)
+	pool, err := newRedisPool(*redisAddress, *redisUsername, *redisPassword, *redisDatabase, *redisUseTLS, *redisMaxOpenConns, *redisConnWaitTimeout)
 	if err != nil {
 		logger.ErrorContext(ctx, "connect to Redis", "address", *redisAddress, "error", err)
 		return err
@@ -107,7 +109,7 @@ func run() error {
 
 // newRedisPool builds the pool the way tools/redis-stress does: no
 // config.FleetConfig needed, and NewPool auto-detects cluster mode.
-func newRedisPool(address, username, password string, database int, useTLS bool) (fleet.RedisPool, error) {
+func newRedisPool(address, username, password string, database int, useTLS bool, maxOpenConns int, connWaitTimeout time.Duration) (fleet.RedisPool, error) {
 	return redis.NewPool(redis.PoolConfig{
 		Server:                    address,
 		Username:                  username,
@@ -121,8 +123,11 @@ func newRedisPool(address, username, password string, database int, useTLS bool)
 		MaxIdleConns:              8,
 		// Every SSE connect claims its pending push, so the pool has to widen
 		// at ramp-up rather than serialize.
-		MaxOpenConns: 256,
-		IdleTimeout:  240 * time.Second,
+		MaxOpenConns: maxOpenConns,
+		// Each call holds a connection for one round trip, so a burst of pushes
+		// beyond the pool is better queued briefly than answered with a 503.
+		ConnWaitTimeout: connWaitTimeout,
+		IdleTimeout:     240 * time.Second,
 		// Zero on purpose: the subscribe connection blocks until the next push
 		// arrives, and a read deadline would tear it down mid-wait.
 		ReadTimeout:  0,

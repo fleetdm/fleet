@@ -17,10 +17,7 @@ import {
   IMdmProfile,
   MdmEnrollmentFilterValue,
 } from "interfaces/mdm";
-import {
-  formatOperatingSystemDisplayName,
-  IOperatingSystemVersion,
-} from "interfaces/operating_system";
+import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { IPolicy } from "interfaces/policy";
 import {
   formatSoftwareVersion,
@@ -275,18 +272,28 @@ const HostsFilterBlock = ({
       );
     }
 
-    if (!os) return null;
+    // Some name and version filters match hosts but no OS version entry:
+    // Arch-based distros the OS inventory groups under "Arch Linux", and saved
+    // links with a Windows name that starts with "Microsoft". Label from the URL.
+    const fallback =
+      osName && osVersion
+        ? {
+            name: `${osName} ${osVersion}`,
+            name_only: osName,
+            version: osVersion,
+          }
+        : undefined;
+    const match = os ?? fallback;
+    if (!match) return null;
 
-    const { name, name_only, version } = os;
-    // TODO: Move formatOperatingSystemDisplayName into utils file
-    const label = formatOperatingSystemDisplayName(
+    const { name, name_only, version } = match;
+    const label =
       name_only || version
         ? `${name_only || ""} ${version || ""}`
-        : `${name || ""}`
-    );
+        : `${name || ""}`;
     const TooltipDescription = (
       <span>
-        Hosts with {formatOperatingSystemDisplayName(name_only || name)},
+        Hosts with {name_only || name},
         <br />
         {version && `${version} installed`}
       </span>
@@ -677,6 +684,9 @@ const HostsFilterBlock = ({
     selectedLabel.type !== "all" &&
     selectedLabel.type !== "platform";
 
+  // The request only filters on "true" (see strToBool), so "false" must not show a pill.
+  const showDepProfileError = depProfileError === "true";
+
   if (
     showSelectedLabel ||
     policyId ||
@@ -697,14 +707,15 @@ const HostsFilterBlock = ({
     vulnerability ||
     (configProfileStatus && configProfileUUID && configProfile) ||
     (scriptBatchExecutionStatus && scriptBatchExecutionId) ||
-    depProfileError ||
+    showDepProfileError ||
     depAssignProfileResponse
   ) {
     const renderFilterPill = () => {
       switch (true) {
         // backend allows for pill combos (label + low disk space) OR
         // (label + mdm solution) OR (label + mdm enrollment status) OR
-        // (label + os settings) OR (label + disk encryption)
+        // (label + os settings) OR (label + disk encryption) OR
+        // (label + DEP profile status)
         case showSelectedLabel && !!lowDiskSpaceHosts:
           return (
             <>
@@ -734,6 +745,18 @@ const HostsFilterBlock = ({
           return (
             <>
               {renderLabelFilterPill()} {renderDiskEncryptionStatusBlock()}
+            </>
+          );
+        case showSelectedLabel && showDepProfileError:
+          return (
+            <>
+              {renderLabelFilterPill()} {renderDepProfileError()}
+            </>
+          );
+        case showSelectedLabel && !!depAssignProfileResponse:
+          return (
+            <>
+              {renderLabelFilterPill()} {renderDepAssignProfileResponse()}
             </>
           );
         case showSelectedLabel:
@@ -779,7 +802,7 @@ const HostsFilterBlock = ({
           return renderConfigProfileStatusBlock();
         case !!scriptBatchExecutionStatus && !!scriptBatchExecutionId:
           return renderScriptBatchExecutionBlock();
-        case !!depProfileError:
+        case showDepProfileError:
           return renderDepProfileError();
         case !!depAssignProfileResponse:
           return renderDepAssignProfileResponse();

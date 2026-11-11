@@ -6,7 +6,6 @@ package packaging
 
 import (
 	"crypto/sha512"
-	_ "embed"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -16,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/cabundle"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
@@ -148,6 +148,13 @@ type Options struct {
 	NativePlatform string
 	// CustomOutfile is the custom output file name for the package.
 	CustomOutfile string
+	// FleetName is the name of the fleet the enroll secret belongs to, if known. It is added to the default output
+	// file name, cleaned up so it is safe in a file name.
+	FleetName string
+	// FleetID is that fleet's ID. It is added to the file name only when another fleet's name could give the same one.
+	FleetID uint
+	// OtherFleets are the other fleets the user can see.
+	OtherFleets []Fleet
 	// FleetManagedHostIdentityCertificate configures fleetd to use TPM-backed key to sign HTTP requests.
 	FleetManagedHostIdentityCertificate bool
 }
@@ -380,14 +387,11 @@ func writeOsqueryFlagfile(opt Options, orbitRoot string) error {
 	return nil
 }
 
-// Embed the certs file that osquery uses so that we can drop it into our installation packages.
-// This file is generated and updated by .github/workflows/update-certs.yml.
-//
-//go:embed certs.pem
-var OsqueryCerts []byte
+// OsqueryCerts is the CA bundle that osquery uses, dropped into our installation packages.
+var OsqueryCerts = cabundle.Bundle
 
 func writeOsqueryCertPEM(opt Options, orbitRoot string) error {
-	path := filepath.Join(orbitRoot, "certs.pem")
+	path := filepath.Join(orbitRoot, cabundle.FileName)
 	if err := secure.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
 		return fmt.Errorf("mkdir: %w", err)
 	}

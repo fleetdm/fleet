@@ -2,7 +2,6 @@ package gitops
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,10 +13,15 @@ import (
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/fleetctltest"
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/ghodss/yaml"
+	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -97,16 +101,16 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
 				return nil
 			}
-			ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
-				return &fleet.VPPTokenDB{
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+				return []*fleet.VPPTokenDB{{
 					ID:          1,
 					OrgName:     "Fleet",
 					Location:    "Earth",
 					RenewDate:   tokExpire,
 					Token:       string(token),
-					Teams:       nil,
+					Teams:       []fleet.TeamTuple{},
 					CountryCode: "us",
-				}, nil
+				}}, nil
 			}
 
 			ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
@@ -346,16 +350,16 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 			ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
 				return c.vppApps, nil
 			}
-			ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
-				return &fleet.VPPTokenDB{
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+				return []*fleet.VPPTokenDB{{
 					ID:          1,
 					OrgName:     "Fleet",
 					Location:    "Earth",
 					RenewDate:   tokExpire,
 					Token:       string(token),
-					Teams:       nil,
+					Teams:       []fleet.TeamTuple{},
 					CountryCode: "us",
-				}, nil
+				}}, nil
 			}
 			labelToIDs := map[string]uint{
 				fleet.BuiltinLabelMacOS14Plus: 1,
@@ -403,7 +407,7 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 
 			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
 			globalFile := "../../fleetctl/testdata/gitops/global_config_no_paths.yml"
-			dstPath := filepath.Join(filepath.Dir(c.noTeamFile), "no-team.yml")
+			dstPath := filepath.Join(filepath.Dir(c.noTeamFile), "unassigned.yml")
 			t.Cleanup(func() {
 				os.Remove(dstPath)
 			})
@@ -441,7 +445,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/no_team_software_installer_no_url.yml", "at least one of hash_sha256 or url is required for each software package"},
 		{
 			"testdata/gitops/no_team_software_installer_invalid_self_service_value.yml",
-			"Couldn't edit \"../../fleetctl/testdata/gitops/no-team.yml\" at \"software.packages.0.self_service\", expected type bool but got string",
+			"Couldn't edit \"../../fleetctl/testdata/gitops/unassigned.yml\" at \"software.packages.0.self_service\", expected type bool but got string",
 		},
 		{
 			"testdata/gitops/no_team_software_installer_invalid_both_include_exclude.yml",
@@ -479,16 +483,16 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 			ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
 				return []fleet.VPPAppResponse{}, nil
 			}
-			ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
-				return &fleet.VPPTokenDB{
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+				return []*fleet.VPPTokenDB{{
 					ID:          1,
 					OrgName:     "Fleet",
 					Location:    "Earth",
 					RenewDate:   tokExpire,
 					Token:       string(token),
-					Teams:       nil,
+					Teams:       []fleet.TeamTuple{},
 					CountryCode: "us",
-				}, nil
+				}}, nil
 			}
 			ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 				return []*fleet.LabelSpec{
@@ -550,7 +554,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 				// the controls section is in the no-team test file, so use a global file without that section
 				globalFile = "../../fleetctl/testdata/gitops/global_config_no_paths_no_controls.yml"
 			}
-			dstPath := filepath.Join(filepath.Dir(c.noTeamFile), "no-team.yml")
+			dstPath := filepath.Join(filepath.Dir(c.noTeamFile), "unassigned.yml")
 			t.Cleanup(func() {
 				os.Remove(dstPath)
 			})
@@ -574,51 +578,60 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 		wantErr         string
 		tokenExpiration time.Time
 		expectedLabels  map[string]uint
+		dryRun          bool
 	}{
-		{"testdata/gitops/team_vpp_valid_app.yml", "", time.Now().Add(24 * time.Hour), map[string]uint{}},
-		{"testdata/gitops/team_vpp_valid_app_self_service.yml", "", time.Now().Add(24 * time.Hour), map[string]uint{}},
-		{"testdata/gitops/team_vpp_valid_empty.yml", "", time.Now().Add(24 * time.Hour), map[string]uint{}},
-		{"testdata/gitops/team_vpp_valid_empty.yml", "", time.Now().Add(-24 * time.Hour), map[string]uint{}},
-		{"testdata/gitops/team_vpp_valid_app.yml", "VPP token expired", time.Now().Add(-24 * time.Hour), map[string]uint{}},
-		{"testdata/gitops/team_vpp_invalid_app.yml", "app not available on vpp account", time.Now().Add(24 * time.Hour), map[string]uint{}},
+		{"testdata/gitops/team_vpp_valid_app.yml", "", time.Now().Add(24 * time.Hour), map[string]uint{}, false},
+		{"testdata/gitops/team_vpp_valid_app_self_service.yml", "", time.Now().Add(24 * time.Hour), map[string]uint{}, false},
+		{"testdata/gitops/team_vpp_valid_empty.yml", "", time.Now().Add(24 * time.Hour), map[string]uint{}, false},
+		{"testdata/gitops/team_vpp_valid_empty.yml", "", time.Now().Add(-24 * time.Hour), map[string]uint{}, false},
+		{"testdata/gitops/team_vpp_valid_app.yml", `"Earth" VPP token is expired. Please renew it.`, time.Now().Add(-24 * time.Hour), map[string]uint{}, false},
+		{"testdata/gitops/team_vpp_invalid_app.yml", `isn't available in the "Earth" VPP token`, time.Now().Add(24 * time.Hour), map[string]uint{}, false},
 		{
 			"testdata/gitops/team_vpp_incorrect_type.yml", "Couldn't edit \"../../fleetctl/testdata/gitops/team_vpp_incorrect_type.yml\" at \"software.app_store_apps.0.app_store_id\", expected type string but got number",
 			time.Now().Add(24 * time.Hour),
-			map[string]uint{},
+			map[string]uint{}, false,
 		},
-		{"testdata/gitops/team_vpp_empty_adamid.yml", "software app store id required", time.Now().Add(24 * time.Hour), map[string]uint{}},
+		{"testdata/gitops/team_vpp_empty_adamid.yml", "software app store id required", time.Now().Add(24 * time.Hour), map[string]uint{}, false},
 		{
 			"testdata/gitops/team_vpp_valid_app_labels_exclude_any.yml", "", time.Now().Add(24 * time.Hour),
-			map[string]uint{"label 1": 1, "label 2": 2},
+			map[string]uint{"label 1": 1, "label 2": 2}, false,
 		},
 		{
 			"testdata/gitops/team_vpp_valid_app_labels_include_any.yml", "", time.Now().Add(24 * time.Hour),
-			map[string]uint{"label 1": 1, "label 2": 2},
+			map[string]uint{"label 1": 1, "label 2": 2}, false,
 		},
 		{
 			"testdata/gitops/team_vpp_valid_app_labels_include_all.yml", "", time.Now().Add(24 * time.Hour),
-			map[string]uint{"label 1": 1, "label 2": 2},
+			map[string]uint{"label 1": 1, "label 2": 2}, false,
 		},
 		{
 			"testdata/gitops/team_vpp_invalid_app_labels_exclude_any.yml",
 			"Please create the missing labels, or update your settings to not refer to these labels.", time.Now().Add(24 * time.Hour),
-			map[string]uint{"label 1": 1, "label 2": 2},
+			map[string]uint{"label 1": 1, "label 2": 2}, false,
 		},
 		{
 			"testdata/gitops/team_vpp_invalid_app_labels_include_any.yml",
 			"Please create the missing labels, or update your settings to not refer to these labels.", time.Now().Add(24 * time.Hour),
-			map[string]uint{"label 1": 1, "label 2": 2},
+			map[string]uint{"label 1": 1, "label 2": 2}, false,
 		},
 		{
 			"testdata/gitops/team_vpp_invalid_app_labels_both.yml",
 			`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for app store app`, time.Now().Add(24 * time.Hour),
-			map[string]uint{},
+			map[string]uint{}, false,
 		},
+		// The dry run must report an unavailable app the same way the real apply
+		// does, including for a team that does not exist yet.
+		{"testdata/gitops/team_vpp_invalid_app.yml", "app not available on vpp account", time.Now().Add(24 * time.Hour), map[string]uint{}, true},
+		{"testdata/gitops/team_vpp_valid_app.yml", "", time.Now().Add(24 * time.Hour), map[string]uint{}, true},
 	}
 
 	for _, c := range cases {
 		c.file = filepath.Join("../../fleetctl", c.file)
-		t.Run(filepath.Base(c.file), func(t *testing.T) {
+		name := filepath.Base(c.file)
+		if c.dryRun {
+			name += " (dry run)"
+		}
+		t.Run(name, func(t *testing.T) {
 			ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 			token, err := test.CreateVPPTokenEncoded(c.tokenExpiration, "fleet", "ca")
 			require.NoError(t, err)
@@ -633,16 +646,18 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 				return []fleet.VPPAppResponse{}, nil
 			}
 
-			ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
-				return &fleet.VPPTokenDB{
+			// On a dry run the team does not exist yet, so the server validates
+			// App Store apps against every token instead of the team's own.
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+				return []*fleet.VPPTokenDB{{
 					ID:          1,
 					OrgName:     "Fleet",
 					Location:    "Earth",
 					RenewDate:   c.tokenExpiration,
 					Token:       string(token),
-					Teams:       nil,
+					Teams:       []fleet.TeamTuple{},
 					CountryCode: "us",
-				}, nil
+				}}, nil
 			}
 
 			ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
@@ -700,7 +715,11 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 				return nil
 			}
 
-			_, err = fleetctltest.RunAppNoChecks([]string{"gitops", "-f", c.file})
+			args := []string{"gitops", "-f", c.file}
+			if c.dryRun {
+				args = append(args, "--dry-run")
+			}
+			_, err = fleetctltest.RunAppNoChecks(args)
 
 			if c.wantErr == "" {
 				require.NoError(t, err)
@@ -715,6 +734,156 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestGitOpsAppStoreAppLocation applies App Store apps bound to different VPP
+// tokens of one fleet, then round-trips them through generate-gitops.
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsAppStoreAppLocation() {
+	t := s.T()
+	ctx := t.Context()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+	admin := fleet.User{
+		Name:       "Admin " + uuid.NewString(),
+		Email:      uuid.NewString() + "@example.com",
+		GlobalRole: new(fleet.RoleAdmin),
+	}
+	require.NoError(t, admin.SetPassword(test.GoodPassword, 10, 10))
+	_, err := s.DS.NewUser(ctx, &admin)
+	require.NoError(t, err)
+	adminConfig := s.createFleetctlConfig(t, admin)
+
+	assetsByBearer := map[string][]vpp.Asset{}
+	testing_utils.StartAndServeVPPServerWithAssets(t, assetsByBearer)
+
+	teamName := uuid.NewString()
+	team, err := s.DS.NewTeam(ctx, &fleet.Team{Name: teamName})
+	require.NoError(t, err)
+
+	addToken := func(location string, adamIDs ...string) uint {
+		data, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Acme", location)
+		require.NoError(t, err)
+		inserted, err := s.DS.InsertVPPToken(ctx, data)
+		require.NoError(t, err)
+		_, err = s.DS.UpdateVPPTokenTeams(ctx, inserted.ID, []uint{team.ID})
+		require.NoError(t, err)
+		tok, err := s.DS.GetVPPToken(ctx, inserted.ID)
+		require.NoError(t, err)
+		var assets []vpp.Asset
+		for _, id := range adamIDs {
+			assets = append(assets, vpp.Asset{AdamID: id, PricingParam: "STDQ", AvailableCount: 5})
+		}
+		assetsByBearer[tok.Token] = assets
+		return tok.ID
+	}
+	usID := addToken("Acme US", "1", "2")
+	jpID := addToken("Acme Japan", "3")
+
+	teamFile := filepath.Join(t.TempDir(), "team.yml")
+	apply := func(file string) {
+		require.Contains(t, fleetctltest.RunAppForTest(t, []string{
+			"gitops", "--config", fleetctlConfig.Name(), "-f", file,
+		}), "gitops succeeded")
+	}
+	applyApps := func(apps string) {
+		require.NoError(t, os.WriteFile(teamFile, fmt.Appendf(nil, `
+controls:
+software:
+  app_store_apps:
+%s
+policies:
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+reports:
+`, apps, teamName), 0o644))
+		apply(teamFile)
+	}
+
+	type applied struct {
+		ID         uint   `db:"id"`
+		AdamID     string `db:"adam_id"`
+		Platform   string `db:"platform"`
+		VPPTokenID uint   `db:"vpp_token_id"`
+	}
+	assigned := func() []applied {
+		var out []applied
+		mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &out,
+				`SELECT id, adam_id, platform, vpp_token_id FROM vpp_apps_teams
+				 WHERE global_or_team_id = ? ORDER BY adam_id, platform`, team.ID)
+		})
+		return out
+	}
+	// requireTokens asserts every row of an app is on the given token.
+	requireTokens := func(rows []applied, want map[string]uint) {
+		got := map[string]uint{}
+		for _, r := range rows {
+			if prev, ok := got[r.AdamID]; ok {
+				require.Equal(t, prev, r.VPPTokenID, "app %s rows split across tokens", r.AdamID)
+			}
+			got[r.AdamID] = r.VPPTokenID
+		}
+		require.Equal(t, want, got)
+	}
+
+	const withLocation = `    - app_store_id: "1"
+    - app_store_id: "3"
+      platform: ipados
+      location: Acme Japan`
+
+	// App 1 has no location and binds to the first-added token, app 3 binds to the named one.
+	applyApps(withLocation)
+	first := assigned()
+	require.NotEmpty(t, first)
+	requireTokens(first, map[string]uint{"1": usID, "3": jpID})
+
+	// Re-running the same YAML changes nothing.
+	applyApps(withLocation)
+	require.Equal(t, first, assigned())
+
+	// generate-gitops writes each app's token location, and the output re-applies cleanly.
+	genDir := t.TempDir()
+	_, err = fleetctltest.RunAppNoChecks([]string{"generate-gitops", "--config", adminConfig.Name(), "--fleet", teamName, "--dir", genDir, "--insecure"})
+	require.NoError(t, err)
+	genTeamFiles, err := filepath.Glob(filepath.Join(genDir, "fleets", "*.yml"))
+	require.NoError(t, err)
+	require.Len(t, genTeamFiles, 1)
+	raw, err := os.ReadFile(genTeamFiles[0]) //nolint:gosec // reading a generated file under t.TempDir()
+	require.NoError(t, err)
+	var generated struct {
+		Software struct {
+			AppStoreApps []struct {
+				AppStoreID string `json:"app_store_id"`
+				Location   string `json:"location"`
+			} `json:"app_store_apps"`
+		} `json:"software"`
+	}
+	require.NoError(t, yaml.Unmarshal(raw, &generated))
+	locations := map[string]string{}
+	for _, app := range generated.Software.AppStoreApps {
+		locations[app.AppStoreID] = app.Location
+	}
+	require.Equal(t, map[string]string{"1": "Acme US", "3": "Acme Japan"}, locations, string(raw))
+
+	require.Contains(t, fleetctltest.RunAppForTest(t, []string{
+		"gitops", "--config", fleetctlConfig.Name(), "--dry-run", "-f", genTeamFiles[0],
+	}), "gitops dry run succeeded")
+	apply(genTeamFiles[0])
+	require.Equal(t, first, assigned())
+
+	// A third token on the fleet leaves both apps where they were.
+	addToken("Acme EU", "1", "2")
+	applyApps(withLocation)
+	require.Equal(t, first, assigned())
+
+	// An existing app without location stays on its token.
+	applyApps(`    - app_store_id: "1"
+    - app_store_id: "3"
+      platform: ipados`)
+	require.Equal(t, first, assigned())
 }
 
 // TestGitOpsTeamVPPAndApp tests the flow where a new team is created with VPP apps.
@@ -758,18 +927,15 @@ func TestGitOpsTeamVPPAndApp(t *testing.T) {
 		}
 		return vppToken, nil
 	}
+	// The server mutates the tokens it lists, and assignment decides which
+	// fleets a token serves, so list a copy that reflects tokensByTeams.
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
-		return []*fleet.VPPTokenDB{vppToken}, nil
-	}
-	ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
-		if teamID == nil {
-			return vppToken, nil
+		tok := *vppToken
+		tok.Teams = nil
+		for teamID := range tokensByTeams {
+			tok.Teams = append(tok.Teams, fleet.TeamTuple{ID: teamID})
 		}
-		token, ok := tokensByTeams[*teamID]
-		if !ok {
-			return nil, sql.ErrNoRows
-		}
-		return token, nil
+		return []*fleet.VPPTokenDB{&tok}, nil
 	}
 	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
 		return map[string]uint{}, nil
@@ -790,7 +956,7 @@ func TestGitOpsTeamVPPAndApp(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.True(t, ds.UpdateVPPTokenTeamsFuncInvoked)
-	assert.True(t, ds.GetVPPTokenByTeamIDFuncInvoked)
+	assert.True(t, ds.ListVPPTokensFuncInvoked)
 	assert.True(t, ds.SetTeamVPPAppsFuncInvoked)
 	assert.Contains(t, buf.String(), fmt.Sprintf(fleetctl.ReapplyingTeamForVPPAppsMsg, teamName))
 }
@@ -849,18 +1015,15 @@ func TestGitOpsExistingTeamVPPAppsWithMissingTeam(t *testing.T) {
 		}
 		return vppToken, nil
 	}
+	// The server mutates the tokens it lists, and assignment decides which
+	// fleets a token serves, so list a copy that reflects tokensByTeams.
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
-		return []*fleet.VPPTokenDB{vppToken}, nil
-	}
-	ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
-		if teamID == nil {
-			return vppToken, nil
+		tok := *vppToken
+		tok.Teams = nil
+		for teamID := range tokensByTeams {
+			tok.Teams = append(tok.Teams, fleet.TeamTuple{ID: teamID})
 		}
-		token, ok := tokensByTeams[*teamID]
-		if !ok {
-			return nil, sql.ErrNoRows
-		}
-		return token, nil
+		return []*fleet.VPPTokenDB{&tok}, nil
 	}
 	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
 		return map[string]uint{}, nil
@@ -884,7 +1047,7 @@ org_settings:
   mdm:
     volume_purchasing_program:
       - location: Earth
-        teams:
+        fleets:
           - %q
           - %q
   server_settings:
@@ -898,7 +1061,7 @@ org_settings:
 	teamCfg := func(name string) string {
 		return fmt.Sprintf(`
 name: %q
-team_settings:
+settings:
   secrets:
     - secret: "%s-secret"
   features:
@@ -930,7 +1093,7 @@ software:
 	})
 	require.NoError(t, err)
 	assert.True(t, ds.UpdateVPPTokenTeamsFuncInvoked)
-	assert.True(t, ds.GetVPPTokenByTeamIDFuncInvoked)
+	assert.True(t, ds.ListVPPTokensFuncInvoked)
 	assert.True(t, ds.SetTeamVPPAppsFuncInvoked)
 	// Both teams should have had their VPP apps deferred and re-applied.
 	assert.Contains(t, buf.String(), fmt.Sprintf(fleetctl.ReapplyingTeamForVPPAppsMsg, existingTeamName))
@@ -991,18 +1154,15 @@ func TestGitOpsVPPMissingTeamKeepsExistingAssignments(t *testing.T) {
 		}
 		return vppToken, nil
 	}
+	// The server mutates the tokens it lists, and assignment decides which
+	// fleets a token serves, so list a copy that reflects tokensByTeams.
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
-		return []*fleet.VPPTokenDB{vppToken}, nil
-	}
-	ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
-		if teamID == nil {
-			return vppToken, nil
+		tok := *vppToken
+		tok.Teams = nil
+		for teamID := range tokensByTeams {
+			tok.Teams = append(tok.Teams, fleet.TeamTuple{ID: teamID})
 		}
-		token, ok := tokensByTeams[*teamID]
-		if !ok {
-			return nil, sql.ErrNoRows
-		}
-		return token, nil
+		return []*fleet.VPPTokenDB{&tok}, nil
 	}
 	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
 		return map[string]uint{}, nil
@@ -1026,7 +1186,7 @@ org_settings:
   mdm:
     volume_purchasing_program:
       - location: Earth
-        teams:
+        fleets:
           - %q
           - %q
   server_settings:
@@ -1040,7 +1200,7 @@ org_settings:
 	teamCfg := func(name string) string {
 		return fmt.Sprintf(`
 name: %q
-team_settings:
+settings:
   secrets:
     - secret: "%s-secret"
   features:
@@ -1178,7 +1338,7 @@ org_settings:
 	teamCfg := func(name string) string {
 		return fmt.Sprintf(`
 name: %q
-team_settings:
+settings:
   secrets:
     - secret: "%s-secret"
   features:
@@ -1277,21 +1437,15 @@ func TestGitOpsNewTeamVPPSharedWithUnsuppliedExistingTeam(t *testing.T) {
 		}
 		return vppToken, nil
 	}
+	// The server mutates the tokens it lists, and assignment decides which
+	// fleets a token serves, so list a copy that reflects tokensByTeams.
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
-		return []*fleet.VPPTokenDB{vppToken}, nil
-	}
-	ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
-		if teamID == nil {
-			return vppToken, nil
+		tok := *vppToken
+		tok.Teams = nil
+		for teamID := range tokensByTeams {
+			tok.Teams = append(tok.Teams, fleet.TeamTuple{ID: teamID})
 		}
-		tok, ok := tokensByTeams[*teamID]
-		if !ok {
-			return nil, sql.ErrNoRows
-		}
-		return tok, nil
-	}
-	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, teamID uint, names []string) ([]uint, error) {
-		return []uint{}, nil
+		return []*fleet.VPPTokenDB{&tok}, nil
 	}
 	ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error { return nil }
 	ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error { return nil }
@@ -1319,7 +1473,7 @@ org_settings:
 
 	newTeamCfg := fmt.Sprintf(`
 name: %q
-team_settings:
+settings:
   secrets:
     - secret: "new-secret"
 agent_options:
@@ -1370,7 +1524,7 @@ org_settings:
 	team := func(name string) string {
 		return fmt.Sprintf(`
 name: %s
-team_settings:
+settings:
   secrets:
     - secret: "%s-secret"
 agent_options:
@@ -1397,7 +1551,7 @@ software:
 				global(`
                                   volume_purchasing_program:
                                     - location: Fleet Device Management Inc.
-                                      teams:
+                                      fleets:
                                         - "💻 Workstations"
                                         - "📱🏢 Company-owned iPhones"
                                         - "🔳🏢 Company-owned iPads"`),
@@ -1435,10 +1589,10 @@ software:
 				global(`
                                   volume_purchasing_program:
                                     - location: Acme Inc.
-                                      teams:
+                                      fleets:
                                         - "💻 Workstations"
                                     - location: Fleet Device Management Inc.
-                                      teams:
+                                      fleets:
                                         - "📱🏢 Company-owned iPhones"
                                         - "🔳🏢 Company-owned iPads"`),
 				workstations,
@@ -1480,7 +1634,7 @@ software:
 				global(`
                                   volume_purchasing_program:
                                     - location: Fleet Device Management Inc.
-                                      teams:
+                                      fleets:
                                         - "💻 Workstations"
                                         - "📱🏢 Company-owned iPhones"
                                         - "🔳🏢 Company-owned iPads"`),
@@ -1500,7 +1654,7 @@ software:
 				global(`
                                   volume_purchasing_program:
                                     - location: Fleet Device Management Inc.
-                                      teams:
+                                      fleets:
                                         - "💻 Workstations"
                                         - "📱🏢 Company-owned iPhones"
                                         - "No team"`),
@@ -1537,7 +1691,7 @@ software:
 				global(`
                         volume_purchasing_program:
                           - location: Fleet Device Management Inc.
-                            teams:
+                            fleets:
                               - "All teams"`),
 				workstations,
 				iosTeam,
@@ -1570,7 +1724,7 @@ software:
 				global(`
                         volume_purchasing_program:
                           - location: Fleet Device Management Inc.
-                            teams:
+                            fleets:
                               - "All fleets"`),
 				workstations,
 				iosTeam,
@@ -1603,7 +1757,7 @@ software:
 				global(`
                                   volume_purchasing_program:
                                     - location: Fleet Device Management Inc.
-                                      teams:`),
+                                      fleets:`),
 				workstations,
 				ipadTeam,
 			},
@@ -1633,7 +1787,7 @@ software:
 				global(`
                                   volume_purchasing_program:
                                     - location: Does not exist
-                                      teams:`),
+                                      fleets:`),
 				workstations,
 				ipadTeam,
 			},
@@ -1776,16 +1930,16 @@ func TestGitOpsTeamVPPAppleConfiguration(t *testing.T) {
 			ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
 				return []fleet.VPPAppResponse{}, nil
 			}
-			ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
-				return &fleet.VPPTokenDB{
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+				return []*fleet.VPPTokenDB{{
 					ID:          1,
 					OrgName:     "Fleet",
 					Location:    "Earth",
 					RenewDate:   renewDate,
 					Token:       string(token),
-					Teams:       nil,
+					Teams:       []fleet.TeamTuple{},
 					CountryCode: "us",
-				}, nil
+				}}, nil
 			}
 			ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
 				return map[string]uint{}, nil

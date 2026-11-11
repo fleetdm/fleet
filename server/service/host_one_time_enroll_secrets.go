@@ -26,8 +26,8 @@ const enrollmentRejectedActivityTTL = 12 * time.Hour
 // other Fleet key prefixes.
 const enrollmentRejectedKeyPrefix = "{enrollment_rejected}"
 
-// enrollmentAttempt carries the identifiers an agent presented, for logging and
-// the rejection activity.
+// enrollmentAttempt carries the identifiers an enrolling agent or device
+// presented, for logging and the rejection activity.
 type enrollmentAttempt struct {
 	plane          fleet.EnrollmentPlane
 	platform       string
@@ -171,7 +171,7 @@ func (svc *Service) expandWindowsHostSecrets(ctx context.Context, document strin
 	secretValues := make(map[string]string, len(hostSecrets))
 	for _, secretType := range hostSecrets {
 		if secretType != fleet.HostSecretEnrollSecret {
-			return "", ctxerr.Errorf(ctx, "host secret type %s is not supported on Windows", secretType)
+			return "", undeliverableWindowsCommandError{fmt.Errorf("host secret type %s is not supported on Windows", secretType)}
 		}
 		// Using primary: the fleetd install and the push to a deleted host's enrollment are minted and delivered in the same
 		// management session, so a replica even slightly behind would resolve to nothing.

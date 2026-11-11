@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { noop } from "lodash";
-import React from "react";
+import React, { useState } from "react";
 
 import Modal from "./Modal";
 
@@ -188,5 +188,77 @@ describe("Modal", () => {
     await clickBackground(background);
     act(() => jest.runAllTimers());
     expect(onExit).not.toHaveBeenCalled();
+  });
+
+  describe("page scroll lock", () => {
+    const PAGE_SCROLLBAR_WIDTH = 15;
+    let clientWidthSpy: jest.SpyInstance;
+
+    const getBodyPaddingRight = () => document.body.style.paddingRight;
+
+    beforeEach(() => {
+      clientWidthSpy = jest
+        .spyOn(document.documentElement, "clientWidth", "get")
+        .mockReturnValue(window.innerWidth - PAGE_SCROLLBAR_WIDTH);
+    });
+    afterEach(() => clientWidthSpy.mockRestore());
+
+    it("locks page scroll and pads the page by its scrollbar's width until the modal closes", () => {
+      const ClosableModal = () => {
+        const [isOpen, setIsOpen] = useState(true);
+        return isOpen ? (
+          <Modal title="Test" onExit={() => setIsOpen(false)}>
+            <div>content</div>
+          </Modal>
+        ) : null;
+      };
+      render(<ClosableModal />);
+
+      expect(document.body).toHaveClass("modal-open");
+      expect(getBodyPaddingRight()).toBe(`${PAGE_SCROLLBAR_WIDTH}px`);
+
+      fireEvent.keyDown(document, { key: "Escape" });
+      act(() => jest.runAllTimers());
+
+      expect(screen.queryByText("content")).not.toBeInTheDocument();
+      expect(document.body).not.toHaveClass("modal-open");
+      expect(getBodyPaddingRight()).toBe("");
+    });
+
+    it("adds no padding when the page has no scrollbar", () => {
+      clientWidthSpy.mockReturnValue(window.innerWidth);
+      render(
+        <Modal title="Test" onExit={noop}>
+          <div>content</div>
+        </Modal>
+      );
+
+      expect(document.body).toHaveClass("modal-open");
+      expect(getBodyPaddingRight()).toBe("0px");
+    });
+
+    it("keeps the first modal's padding while a second modal is stacked on it", () => {
+      const firstModal = render(
+        <Modal title="First" onExit={noop}>
+          <div>first</div>
+        </Modal>
+      );
+      // The first modal already hid the page scrollbar.
+      clientWidthSpy.mockReturnValue(window.innerWidth);
+      const secondModal = render(
+        <Modal title="Second" onExit={noop}>
+          <div>second</div>
+        </Modal>
+      );
+      expect(getBodyPaddingRight()).toBe(`${PAGE_SCROLLBAR_WIDTH}px`);
+
+      secondModal.unmount();
+      expect(document.body).toHaveClass("modal-open");
+      expect(getBodyPaddingRight()).toBe(`${PAGE_SCROLLBAR_WIDTH}px`);
+
+      firstModal.unmount();
+      expect(document.body).not.toHaveClass("modal-open");
+      expect(getBodyPaddingRight()).toBe("");
+    });
   });
 });

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "18.6.2.1",
+      "version": "18.7.1.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft ODBC Driver 18 for SQL Server' AND publisher = 'Microsoft Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Microsoft ODBC Driver 18 for SQL Server' AND publisher = 'Microsoft Corporation' AND version_compare(version, '18.6.2.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Microsoft ODBC Driver 18 for SQL Server' AND publisher = 'Microsoft Corporation' AND version_compare(version, '18.7.1.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'microsoft odbc driver 18 for sql server.exe');"
       },
-      "installer_url": "https://download.microsoft.com/download/7bf9fad4-0f21-486d-a750-fc990ded5624/amd64/1033/msodbcsql.msi",
+      "installer_url": "https://download.microsoft.com/download/d624e1c6-293b-4d6f-91b8-6e515a5d6a77/amd64/1033/msodbcsql.msi",
       "install_script_ref": "5a2f9a9f",
       "uninstall_script_ref": "28feb158",
-      "sha256": "20314529110da3365a252164a657bdc837a18be5839105aa5f5acf0a8d2f4b82",
+      "sha256": "21ef69e4b942f18aced55fa7c3a8d7263004e113a96690bac7509645e1b1a310",
       "default_categories": [
         "Developer tools"
       ],

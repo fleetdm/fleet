@@ -25,6 +25,17 @@ describe("CopyButton component", () => {
     expect(writeText).toHaveBeenCalledWith("hello");
   });
 
+  it("does not copy when disabled", async () => {
+    const writeText = jest
+      .spyOn(navigator.clipboard, "writeText")
+      .mockResolvedValue(undefined);
+    render(<CopyButton copyText="hello" disabled />);
+    const button = screen.getByRole("button");
+    expect(button).toBeDisabled();
+    await userEvent.click(button);
+    expect(writeText).not.toHaveBeenCalled();
+  });
+
   it('shows "Copied!" after a successful copy', async () => {
     render(<CopyButton copyText="hello" />);
     await userEvent.click(screen.getByRole("button"));
@@ -41,6 +52,29 @@ describe("CopyButton component", () => {
     await userEvent.click(screen.getByRole("button"));
     await waitFor(() =>
       expect(screen.getByText("Copy failed")).toBeInTheDocument()
+    );
+  });
+
+  it('hides the hover tooltip while "Copied!" shows', async () => {
+    render(<CopyButton copyText="hello" tooltip="Copy the variable" />);
+    await userEvent.hover(screen.getByRole("button"));
+    await waitFor(() =>
+      expect(screen.getByText("Copy the variable")).toBeInTheDocument()
+    );
+    await userEvent.click(screen.getByRole("button"));
+    await waitFor(() =>
+      expect(screen.getByText("Copied!")).toBeInTheDocument()
+    );
+    expect(screen.queryByText("Copy the variable")).not.toBeInTheDocument();
+
+    await waitFor(
+      () => expect(screen.queryByText("Copied!")).not.toBeInTheDocument(),
+      { timeout: 2000 }
+    );
+    await userEvent.unhover(screen.getByRole("button"));
+    await userEvent.hover(screen.getByRole("button"));
+    await waitFor(() =>
+      expect(screen.getByText("Copy the variable")).toBeInTheDocument()
     );
   });
 

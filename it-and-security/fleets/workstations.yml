@@ -108,6 +108,18 @@ controls:
       - path: ../lib/macos/configuration-profiles/ensure-show-status-bar-is-enabled.mobileconfig
       - path: ../lib/macos/declaration-profiles/Passcode settings.json
       - path: ../lib/macos/declaration-profiles/Software Update settings.json
+      # --- Nudge configuration ---
+      # Edit both nudge-preferences*.mobileconfig files together, commit, then re-pin the SHA in Nudge settings.json's ProfileURL.
+      - path: ../lib/macos/configuration-profiles/nudge-background-task.mobileconfig
+      - path: ../lib/macos/declaration-profiles/Nudge settings.json
+        activation: ../lib/macos/declaration-profiles/Nudge activation.json
+        labels_exclude_any:
+          - "macOS 15 and older hosts"
+          - "Macs not enrolled through ADE"
+      - path: ../lib/macos/configuration-profiles/nudge-preferences-ungated.mobileconfig
+        labels_include_any:
+          - "macOS 15 and older hosts"
+          - "Macs not enrolled through ADE"
       - path: ../lib/macos/declaration-profiles/Disk management settings.json
         labels_exclude_any:
           - "Macs excluded from external storage restrictions"
@@ -120,13 +132,13 @@ controls:
           - "Macs with 1Password installed"
       - path: ../lib/macos/configuration-profiles/santa-configuration.mobileconfig
       - path: ../lib/macos/configuration-profiles/santa-rules.mobileconfig
-      - path: ../lib/macos/configuration-profiles/nudge-configuration.mobileconfig
       - path: ../lib/macos/configuration-profiles/microsoft-autoupdate-settings.mobileconfig
         labels_include_any:
           - "Microsoft AutoUpdate installed"
       - path: ../lib/macos/configuration-profiles/fleet-desktop-launch-agent.mobileconfig
         labels_include_any:
           - "Macs with Fleet Desktop.app installed"
+      - path: ../lib/all/declaration-profiles/Inter font.json
   setup_experience:
     macos_bootstrap_package: ""
     enable_end_user_authentication: true
@@ -160,6 +172,7 @@ controls:
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
     - path: ../lib/macos/scripts/nudge-postinstall.sh
     - path: ../lib/macos/scripts/load-santa-system-extension.sh
+    - path: ../lib/macos/scripts/hide-fleet-desktop-menu-bar.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
     - path: ../lib/linux/scripts/install-readonly-removable-storage.sh
     - path: ../lib/linux/scripts/update-claude-desktop.sh
@@ -167,6 +180,16 @@ controls:
     - path: ../lib/linux/scripts/update-linux-os.sh
     - path: ../lib/all/scripts/configure-npmrc-min-release-age.sh
     - path: ../lib/all/scripts/configure-npmrc-min-release-age.ps1
+    - path: ../lib/all/scripts/remove-emudhra-roots-fleetd.sh
+    - path: ../lib/macos/scripts/remove-emudhra-roots-macos-system.sh
+    - path: ../lib/windows/scripts/remove-emudhra-roots-fleetd.ps1
+    - path: ../lib/macos/scripts/remediate-php2shell-macos.sh
+    - path: ../lib/linux/scripts/remediate-php2shell-linux.sh
+    - path: ../lib/windows/scripts/mitigate-php2shell-windows.ps1
+    - path: ../lib/macos/scripts/disable-tailscale-ssh-forwarding-macos.sh
+    - path: ../lib/linux/scripts/disable-tailscale-ssh-forwarding-linux.sh
+    - path: ../lib/all/scripts/install-inter-font.sh
+    - path: ../lib/all/scripts/install-inter-font.ps1
 policies:
   # macOS policies
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
@@ -176,7 +199,9 @@ policies:
   - path: ../lib/macos/policies/1password-installed.yml
   - path: ../lib/macos/policies/nudge-installed.yml
   - path: ../lib/macos/policies/install-nudge-assets.yml
+  - path: ../lib/macos/policies/fleet-desktop-installed.yml
   - path: ../lib/macos/policies/install-fleet-desktop-launch-agent.yml
+  - path: ../lib/macos/policies/fleet-desktop-menu-bar-hidden.yml
   - path: ../lib/macos/policies/santa-endpoint-security-extension-active.yml
   - path: ../lib/macos/policies/patch-fleet-maintained-apps.yml
   - path: ../lib/macos/policies/battery-health-check.yml
@@ -186,6 +211,7 @@ policies:
   - path: ../lib/macos/policies/remote-login-disabled.yml
   - path: ../lib/macos/policies/screen-lock-inactivity.yml
   - path: ../lib/macos/policies/local-admin-count-reasonable.yml
+  - path: ../lib/macos/policies/cli-trust-store-excludes-emudhra-roots.yml
   # Windows policies
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
@@ -207,6 +233,7 @@ policies:
   - path: ../lib/linux/policies/sshd-permitrootlogin-restricted.yml
   - path: ../lib/linux/policies/update-claude.yml
   - path: ../lib/all/policies/npm-user-npmrc-min-release-age.yml
+  - path: ../lib/all/policies/inter-font-installed.yml
 reports:
   - path: ../lib/macos/reports/detect-apple-intelligence.yml
   - path: ../lib/macos/reports/collect-default-browser.yml
@@ -226,7 +253,7 @@ software:
     - path: ../lib/macos/software/fleet-keynote-theme.yml # Fleet Keynote theme for macOS
       self_service: true
       labels_include_any:
-        - "Keynote 14 installed"
+        - "Keynote installed"
       categories:
         - Productivity
     - path: ../lib/macos/software/nudge-assets.yml # Nudge assets for macOS

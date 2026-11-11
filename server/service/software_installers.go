@@ -74,6 +74,9 @@ type updateSoftwareInstallerRequest struct {
 	// NotifyBeforePatching skips the install while the app is open and notifies the end user an hour
 	// before the patch is forced. Omitted leaves it unchanged. FMA-only.
 	NotifyBeforePatching *bool
+	// PatchDeadline skips the install while the app is open and notifies the end user an hour
+	// before the fleet's next patch deadline. Omitted leaves it unchanged. FMA-only.
+	PatchDeadline *bool
 }
 
 type uploadSoftwareInstallerResponse struct {
@@ -81,8 +84,7 @@ type uploadSoftwareInstallerResponse struct {
 	Err             error                    `json:"error,omitempty"`
 }
 
-// TODO: We parse the whole body before running svc.authz.Authorize.
-// An authenticated but unauthorized user could abuse this.
+// TODO: Per-fleet authorization still runs after parsing because fleet_id is in the body.
 func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := updateSoftwareInstallerRequest{}
 
@@ -200,6 +202,14 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode notify_before_patching bool in multipart form: %s", err.Error())}
 		}
 		decoded.NotifyBeforePatching = &parsed
+	}
+
+	if patchDeadlineVal, ok := r.MultipartForm.Value["patch_deadline"]; ok && len(patchDeadlineVal) > 0 && patchDeadlineVal[0] != "" {
+		parsed, err := strconv.ParseBool(patchDeadlineVal[0])
+		if err != nil {
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode patch_deadline bool in multipart form: %s", err.Error())}
+		}
+		decoded.PatchDeadline = &parsed
 	}
 
 	val, ok = r.MultipartForm.Value["self_service"]
@@ -322,6 +332,7 @@ func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		Patch:                req.Patch,
 		PatchWhenClosed:      req.PatchWhenClosed,
 		NotifyBeforePatching: req.NotifyBeforePatching,
+		PatchDeadline:        req.PatchDeadline,
 	}
 	if req.File != nil {
 		ff, err := req.File.Open()
@@ -360,8 +371,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	return nil, fleet.ErrMissingLicense
 }
 
-// TODO: We parse the whole body before running svc.authz.Authorize.
-// An authenticated but unauthorized user could abuse this.
+// TODO: Per-fleet authorization still runs after parsing because fleet_id is in the body.
 func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := uploadSoftwareInstallerRequest{}
 
@@ -602,7 +612,9 @@ type deleteSoftwareInstallerRequest struct {
 	TeamID *uint `query:"team_id" renameto:"fleet_id"`
 	// InstallerID deletes one package; omitted deletes all of the title's packages.
 	InstallerID *uint `query:"installer_id,optional"`
-	TitleID     uint  `url:"title_id"`
+	// VersionID deletes one App Store app version, omitting it deletes every version of the title.
+	VersionID *uint `query:"version_id,optional"`
+	TitleID   uint  `url:"title_id"`
 }
 
 type deleteSoftwareInstallerResponse struct {
@@ -614,14 +626,14 @@ func (r deleteSoftwareInstallerResponse) Status() int  { return http.StatusNoCon
 
 func deleteSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteSoftwareInstallerRequest)
-	err := svc.DeleteSoftwareInstaller(ctx, req.TitleID, req.TeamID, req.InstallerID)
+	err := svc.DeleteSoftwareInstaller(ctx, req.TitleID, req.TeamID, req.InstallerID, req.VersionID)
 	if err != nil {
 		return deleteSoftwareInstallerResponse{Err: err}, nil
 	}
 	return deleteSoftwareInstallerResponse{}, nil
 }
 
-func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint, installerID *uint) error {
+func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint, installerID *uint, appStoreAppVersionID *uint) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -799,11 +811,11 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 	return fleet.ErrMissingLicense
 }
 
-func (svc *Service) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
-	return "", fleet.ErrMissingLicense // called downstream of auth checks so doesn't need skipauth
+func (svc *Service) CheckCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) error {
+	return fleet.ErrMissingLicense // called downstream of auth checks so doesn't need skipauth
 }
 
-func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
+func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, opts fleet.HostSoftwareInstallOptions) (string, error) {
 	return "", fleet.ErrMissingLicense // called downstream of auth checks so doesn't need skipauth
 }
 

@@ -19,7 +19,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 // SMTP settings names returned from API, these map to SMTPAuthType and
@@ -282,7 +281,7 @@ type MDM struct {
 	MacOSSettings                  MacOSSettings            `json:"macos_settings" renameto:"apple_settings"`
 	MacOSSetup                     MacOSSetup               `json:"macos_setup" renameto:"setup_experience"`
 	MacOSMigration                 MacOSMigration           `json:"macos_migration"`
-	WindowsMigrationEnabled        bool                     `json:"windows_migration_enabled"`
+	WindowsMigrationEnabled        bool                     `json:"windows_mdm_migration_enabled" removedkey:"windows_migration_enabled" renamescope:"mdm"`
 	EnableTurnOnWindowsMDMManually bool                     `json:"enable_turn_on_windows_mdm_manually"`
 	EndUserAuthentication          MDMEndUserAuthentication `json:"end_user_authentication"`
 
@@ -294,6 +293,9 @@ type MDM struct {
 	// (BYOD) enrollment are blocked. When combined with AppleRequireHardwareAttestation,
 	// new SCEP issuance is also blocked so only ACME-attested devices can enroll or renew.
 	OnlyAllowAppleBusinessEnrollment bool `json:"only_allow_apple_business_enrollment"`
+	// EnableProfileValidation turns on schema validation of admin-uploaded
+	// configuration profiles. Defaults to true.
+	EnableProfileValidation bool `json:"enable_profile_validation"`
 
 	WindowsEntraTenantIDs optjson.Slice[string] `json:"windows_entra_tenant_ids"`
 
@@ -313,13 +315,13 @@ type MDM struct {
 	// There is no other configuration required for Windows other than enabling
 	// the support, but it is still called "EnabledAndConfigured" for consistency
 	// with the similarly named macOS-specific fields.
-	WindowsEnabledAndConfigured bool `json:"windows_enabled_and_configured"`
+	WindowsEnabledAndConfigured bool `json:"windows_mdm_enabled" removedkey:"windows_enabled_and_configured" renamescope:"mdm"`
 
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
 
 	HostNameTemplate optjson.String `json:"name_template"`
 
-	EnableRecoveryLockPassword optjson.Bool `json:"enable_recovery_lock_password"`
+	EnableRecoveryLockPassword optjson.Bool `json:"macos_recovery_lock_password_enabled" removedkey:"enable_recovery_lock_password" renamescope:"mdm"`
 
 	// RequireBitLockerPIN is deprecated: use
 	// WindowsSettings.RequireBitLockerPIN, which it mirrors.
@@ -556,7 +558,8 @@ func (m *MDM) normalizeDiskEncryptionSettings() {
 	)
 	m.EnableDiskEncryption = optjson.SetBool(flat)
 	m.RequireBitLockerPIN, m.WindowsSettings.RequireBitLockerPIN = normalizeBitLockerPINFields(
-		m.RequireBitLockerPIN, m.WindowsSettings.RequireBitLockerPIN)
+		m.RequireBitLockerPIN, m.WindowsSettings.RequireBitLockerPIN,
+	)
 }
 
 // normalizeBitLockerPINFields keeps the deprecated windows_require_bitlocker_pin
@@ -704,7 +707,7 @@ type AppleOSUpdateSettings struct {
 	UpdateNewHosts optjson.Bool `json:"update_new_hosts"`
 	// MinimumVersion is the required minimum operating system version.
 	MinimumVersion optjson.String `json:"minimum_version"`
-	// Deadline the required installation date for Nudge to enforce the required
+	// Deadline is the required installation date to enforce the required
 	// operating system version.
 	Deadline optjson.String `json:"deadline"`
 	// DeadlineDays is the number of days after an OS version's release date
@@ -897,20 +900,34 @@ var _ WithMDMProfileSpecs = MacOSSettings{}
 func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, error) {
 	set := make(map[string]bool)
 
-	extractLabelField := func(parentMap map[string]interface{}, fieldName string) []string {
-		var ret []string
-		if labels, ok := parentMap[fieldName].([]interface{}); ok {
-			for _, label := range labels {
-				if strLabel, ok := label.(string); ok {
-					ret = append(ret, strLabel)
-				}
+	extractLabelField := func(parentMap map[string]any, fieldName string) ([]string, error) {
+		v, ok := parentMap[fieldName]
+		if !ok || v == nil {
+			return nil, nil
+		}
+		labels, ok := v.([]any)
+		if !ok {
+			return nil, &json.UnmarshalTypeError{
+				Value: fmt.Sprintf("%T", v),
+				Type:  reflect.TypeFor[[]string](),
+				Field: "macos_settings.custom_settings." + fieldName,
 			}
 		}
-		return ret
+		var ret []string
+		for _, label := range labels {
+			strLabel, ok := label.(string)
+			if !ok {
+				return nil, &json.UnmarshalTypeError{
+					Value: fmt.Sprintf("%T", label),
+					Type:  reflect.TypeFor[string](),
+					Field: "macos_settings.custom_settings." + fieldName,
+				}
+			}
+			ret = append(ret, strLabel)
+		}
+		return ret, nil
 	}
 
-	// unlike a bad label, a wrong type here is an error: dropping it would
-	// clear the stored name or description
 	extractStringField := func(parentMap map[string]any, fieldName string) (string, error) {
 		v, ok := parentMap[fieldName]
 		if !ok || v == nil {
@@ -936,11 +953,10 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 			for _, v := range vals {
 				if m, ok := v.(map[string]interface{}); ok {
 					var spec MDMProfileSpec
-					// extract the Path field
-					if path, ok := m["path"].(string); ok {
-						spec.Path = path
-					}
 					var err error
+					if spec.Path, err = extractStringField(m, "path"); err != nil {
+						return nil, err
+					}
 					if spec.Name, err = extractStringField(m, "name"); err != nil {
 						return nil, err
 					}
@@ -948,10 +964,18 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 						return nil, err
 					}
 
-					spec.Labels = extractLabelField(m, "labels")
-					spec.LabelsIncludeAll = extractLabelField(m, "labels_include_all")
-					spec.LabelsExcludeAny = extractLabelField(m, "labels_exclude_any")
-					spec.LabelsIncludeAny = extractLabelField(m, "labels_include_any")
+					if spec.Labels, err = extractLabelField(m, "labels"); err != nil {
+						return nil, err
+					}
+					if spec.LabelsIncludeAll, err = extractLabelField(m, "labels_include_all"); err != nil {
+						return nil, err
+					}
+					if spec.LabelsExcludeAny, err = extractLabelField(m, "labels_exclude_any"); err != nil {
+						return nil, err
+					}
+					if spec.LabelsIncludeAny, err = extractLabelField(m, "labels_include_any"); err != nil {
+						return nil, err
+					}
 
 					csSpecs = append(csSpecs, spec)
 				} else if m, ok := v.(string); ok { // for backwards compatibility with the old way to define profiles
@@ -1003,18 +1027,53 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 
 // MacOSSetup contains settings related to the setup of DEP enrolled devices.
 type MacOSSetup struct {
-	BootstrapPackage            optjson.String                     `json:"bootstrap_package" renameto:"macos_bootstrap_package"`
-	EnableEndUserAuthentication bool                               `json:"enable_end_user_authentication"`
-	LockEndUserInfo             optjson.Bool                       `json:"lock_end_user_info"`
-	MacOSSetupAssistant         optjson.String                     `json:"macos_setup_assistant" renameto:"apple_setup_assistant"`
-	EnableReleaseDeviceManually optjson.Bool                       `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
-	Script                      optjson.String                     `json:"script" renameto:"macos_script"`
-	Software                    optjson.Slice[*MacOSSetupSoftware] `json:"software"`
-	ManualAgentInstall          optjson.Bool                       `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
-	RequireAllSoftware          bool                               `json:"require_all_software_macos"`
-	RequireAllSoftwareWindows   bool                               `json:"require_all_software_windows"`
-	EnableManagedLocalAccount   optjson.Bool                       `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account" renamescope:"macos_setup,setup_experience"`
-	EndUserLocalAccountType     optjson.String                     `json:"end_user_local_account_type"`
+	BootstrapPackage                                  optjson.String                     `json:"bootstrap_package" renameto:"macos_bootstrap_package"`
+	EnableEndUserAuthentication                       bool                               `json:"enable_end_user_authentication"`
+	LockEndUserInfo                                   optjson.Bool                       `json:"lock_end_user_info"`
+	MacOSSetupAssistant                               optjson.String                     `json:"macos_setup_assistant" renameto:"apple_setup_assistant"`
+	EnableReleaseDeviceManually                       optjson.Bool                       `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
+	Script                                            optjson.String                     `json:"script" renameto:"macos_script"`
+	Software                                          optjson.Slice[*MacOSSetupSoftware] `json:"software"`
+	ManualAgentInstall                                optjson.Bool                       `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
+	RequireAllSoftware                                bool                               `json:"macos_require_all_software" removedkey:"require_all_software_macos" renamescope:"macos_setup,setup_experience"`
+	RequireAllSoftwareWindows                         bool                               `json:"windows_require_all_software" removedkey:"require_all_software_windows" renamescope:"macos_setup,setup_experience"`
+	MacOSEnableBootstrapPackageDuringManualEnrollment bool                               `json:"macos_enable_bootstrap_package_during_manual_enrollment"`
+	MacOSEnableBootstrapPackageDuringMigration        bool                               `json:"macos_enable_bootstrap_package_during_migration"`
+	EnableManagedLocalAccount                         optjson.Bool                       `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account" renamescope:"macos_setup,setup_experience"`
+	EndUserLocalAccountType                           optjson.String                     `json:"end_user_local_account_type"`
+}
+
+// NewlyEnabledBootstrapPackageSettings returns the setup_experience keys of the settings that need a
+// bootstrap package and are turned on in s but not in old.
+func (mos MacOSSetup) NewlyEnabledBootstrapPackageSettings(old MacOSSetup) []string {
+	var keys []string
+	if mos.MacOSEnableBootstrapPackageDuringManualEnrollment && !old.MacOSEnableBootstrapPackageDuringManualEnrollment {
+		keys = append(keys, "macos_enable_bootstrap_package_during_manual_enrollment")
+	}
+	if mos.MacOSEnableBootstrapPackageDuringMigration && !old.MacOSEnableBootstrapPackageDuringMigration {
+		keys = append(keys, "macos_enable_bootstrap_package_during_migration")
+	}
+	return keys
+}
+
+// validateBootstrapPackageSettings checks that the bootstrap package settings turned on compared to
+// old come with a bootstrap package in the same payload.
+func (mos *MacOSSetup) validateBootstrapPackageSettings(old MacOSSetup) error {
+	keys := mos.NewlyEnabledBootstrapPackageSettings(old)
+	if len(keys) == 0 || (mos.BootstrapPackage.Valid && mos.BootstrapPackage.Value != "") {
+		return nil
+	}
+	return BootstrapPackageRequiredError(keys)
+}
+
+// BootstrapPackageRequiredError returns the error for bootstrap package settings (setup_experience
+// keys) that can't be turned on without a bootstrap package.
+func BootstrapPackageRequiredError(keys []string) *InvalidArgumentError {
+	invalid := &InvalidArgumentError{}
+	for _, key := range keys {
+		invalid.Append("setup_experience."+key, fmt.Sprintf("Couldn't enable %s. To use this option, first specify a bootstrap package.", key))
+	}
+	return invalid
 }
 
 // Validate checks the payload is in a valid state.
@@ -1026,6 +1085,10 @@ func (mos *MacOSSetup) Validate() error {
 
 	if mos.ManualAgentInstall.Valid && mos.ManualAgentInstall.Value && (!mos.BootstrapPackage.Valid || mos.BootstrapPackage.Value == "") {
 		return NewInvalidArgumentError("setup_experience.macos_manual_agent_install", `Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.`)
+	}
+
+	if err := mos.validateBootstrapPackageSettings(MacOSSetup{}); err != nil {
+		return err
 	}
 
 	if mos.EndUserLocalAccountType.Valid && !IsValidPrimaryAccountType(mos.EndUserLocalAccountType.Value) {
@@ -1283,16 +1346,6 @@ func (c *AppConfig) Copy() *AppConfig {
 		aq := make(json.RawMessage, len(*c.Features.AdditionalQueries))
 		copy(aq, *c.Features.AdditionalQueries)
 		clone.Features.AdditionalQueries = &aq
-	}
-	if c.Features.DetailQueryOverrides != nil {
-		clone.Features.DetailQueryOverrides = make(map[string]*string, len(c.Features.DetailQueryOverrides))
-		for k, v := range c.Features.DetailQueryOverrides {
-			var s *string
-			if v != nil {
-				s = ptr.String(*v)
-			}
-			clone.Features.DetailQueryOverrides[k] = s
-		}
 	}
 	clone.Features.VulnerabilityExposureHistoricalReporting = c.Features.VulnerabilityExposureHistoricalReporting.Copy()
 	if c.AgentOptions != nil {
@@ -1626,6 +1679,7 @@ func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 func (c *AppConfig) ApplyDefaults() {
 	c.Features.ApplyDefaults()
 	c.WebhookSettings.Interval.Duration = 24 * time.Hour
+	c.MDM.EnableProfileValidation = true
 }
 
 // EnableStrictDecoding enables strict decoding of the AppConfig struct.
@@ -1836,8 +1890,8 @@ type ServerSettings struct {
 	DebugHostIDs         []uint `json:"debug_host_ids,omitempty"`
 	DeferredSaveHost     bool   `json:"deferred_save_host"`
 	QueryReportsDisabled bool   `json:"query_reports_disabled" renameto:"discard_reports_data"`
-	ScriptsDisabled      bool   `json:"scripts_disabled"`
 	AIFeaturesDisabled   bool   `json:"ai_features_disabled"`
+	MCPDisabled          bool   `json:"mcp_disabled"`
 	QueryReportCap       int    `json:"query_report_cap" renameto:"report_cap"`
 }
 
@@ -1882,8 +1936,7 @@ type ActivityExpirySettings struct {
 type Features struct {
 	EnableHostUsers         bool                   `json:"enable_host_users"`
 	EnableSoftwareInventory bool                   `json:"enable_software_inventory"`
-	AdditionalQueries       *json.RawMessage       `json:"additional_queries,omitempty"`     //nolint:apiparamcheck // osquery host-details queries
-	DetailQueryOverrides    map[string]*string     `json:"detail_query_overrides,omitempty"` //nolint:apiparamcheck // osquery detail-query overrides
+	AdditionalQueries       *json.RawMessage       `json:"additional_queries,omitempty"` //nolint:apiparamcheck // osquery host-details queries
 	HistoricalData          HistoricalDataSettings `json:"historical_data"`
 
 	// VulnerabilityExposureHistoricalReporting holds the GitOps-managed default
@@ -1986,16 +2039,6 @@ func (f *Features) Copy() *Features {
 		aq := make(json.RawMessage, len(*f.AdditionalQueries))
 		copy(aq, *f.AdditionalQueries)
 		clone.AdditionalQueries = &aq
-	}
-	if f.DetailQueryOverrides != nil {
-		clone.DetailQueryOverrides = make(map[string]*string, len(f.DetailQueryOverrides))
-		for k, v := range f.DetailQueryOverrides {
-			var s *string
-			if v != nil {
-				s = ptr.String(*v)
-			}
-			clone.DetailQueryOverrides[k] = s
-		}
 	}
 
 	clone.VulnerabilityExposureHistoricalReporting = f.VulnerabilityExposureHistoricalReporting.Copy()
@@ -2159,7 +2202,7 @@ type ListOptions struct {
 	// If OrderKey is "id", it'll assume After is a number and will try to convert it.
 	After string `query:"after,optional"`
 	// Used to request the pagination metadata in the response.
-	IncludeMetadata bool
+	IncludeMetadata bool `json:"-"`
 
 	// The following fields are for tests, to ensure a deterministic sort order
 	// when the single-column order key is not unique.
@@ -2539,7 +2582,7 @@ type DeviceGlobalConfig struct {
 // the device endpoints
 type DeviceGlobalMDMConfig struct {
 	EnabledAndConfigured             bool `json:"enabled_and_configured"`
-	RequireAllSoftware               bool `json:"require_all_software_macos"`
+	RequireAllSoftware               bool `json:"macos_require_all_software"`
 	OnlyAllowAppleBusinessEnrollment bool `json:"only_allow_apple_business_enrollment"`
 }
 

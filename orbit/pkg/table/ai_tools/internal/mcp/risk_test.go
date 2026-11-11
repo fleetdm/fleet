@@ -7,7 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/internal/fsutil"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/internal/homes"
 )
 
 func TestIsPinned(t *testing.T) {
@@ -71,7 +72,7 @@ func TestEnrichRiskFlags(t *testing.T) {
 	}
 
 	by := map[string]Server{}
-	for _, s := range ScanConfigs(homes.Home{Dir: home, Username: "t"}) {
+	for _, s := range ScanConfigs(homes.Home{Dir: home, Username: "t"}, fsutil.WalkHome(home, WalkProbes())) {
 		by[s.ServerName] = s
 	}
 

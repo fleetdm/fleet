@@ -61,7 +61,6 @@ foreach ($key in $uninstallKeys) {
         $processOptions = @{
             FilePath = $uninstallCommand
             PassThru = $true
-            Wait = $true
         }
 
         if ($uninstallArgs -ne '') {
@@ -69,8 +68,36 @@ foreach ($key in $uninstallKeys) {
         }
 
         $process = Start-Process @processOptions
+        $null = $process.Handle
+        $process.WaitForExit()
         $exitCode = $process.ExitCode
         Write-Host "Uninstall exit code: $exitCode"
+
+        # helper.exe hands off to Un_A.exe and exits. Un_A's Default Browser
+        # Agent cleanup (firefox.exe --backgroundtask defaultagent) can hang
+        # when run as SYSTEM, so stop it after a grace period to let Un_A finish.
+        $uninstallDir = Split-Path $uninstallCommand
+        $graceEnd = (Get-Date).AddSeconds(30)
+        $deadline = (Get-Date).AddSeconds(300)
+        while ($true) {
+            $unA = Get-CimInstance Win32_Process -Filter "Name='Un_A.exe'" -ErrorAction SilentlyContinue |
+                Where-Object { $_.CommandLine -and $_.CommandLine.Contains("_?=$uninstallDir") }
+            if (-not $unA) { break }
+            if ((Get-Date) -gt $deadline) {
+                Write-Host "Timed out waiting for the Firefox ESR uninstaller to finish."
+                $exitCode = 1
+                break
+            }
+            if ((Get-Date) -gt $graceEnd) {
+                Get-CimInstance Win32_Process -Filter "Name='default-browser-agent.exe' OR Name='firefox.exe'" -ErrorAction SilentlyContinue |
+                    Where-Object { $_.CommandLine -match 'defaultagent|default-browser-agent\.exe"?\s+uninstall' } |
+                    ForEach-Object {
+                        Write-Host "Stopping hung Default Browser Agent cleanup (PID $($_.ProcessId))"
+                        Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+                    }
+            }
+            Start-Sleep -Seconds 2
+        }
         break
     }
 }

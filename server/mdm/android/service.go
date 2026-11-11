@@ -33,8 +33,8 @@ type Service interface {
 	// command_uuid so callers can correlate the API response with the persisted row via GetMDMAndroidCommandByUUID.
 	ClearAndroidPasscode(ctx context.Context, hostID uint) (commandUUID string, err error)
 
-	// WipeAndroidHost issues an AMAPI WIPE command. COBO-only; callers in the service layer reject BYO before reaching
-	// here. Persists the row in mdm_android_commands and writes host_mdm_actions.wipe_ref.
+	// WipeAndroidHost issues an AMAPI WIPE command. On a BYO host AMAPI only removes the work profile; on COBO it factory
+	// resets the device. Persists the row in mdm_android_commands and writes host_mdm_actions.wipe_ref.
 	WipeAndroidHost(ctx context.Context, hostID uint) error
 
 	// IssueCustomCommand issues an arbitrary AMAPI command (the raw JSON from the API request) against
@@ -51,7 +51,7 @@ type Service interface {
 	// SetAppsForAndroidPolicy sets the available apps for the given hosts' Android MDM policy to the given list of apps.
 	// Note that unlike AddAppsToAndroidPolicy, this method replaces the existing app list with the given one, it is
 	// not additive/PATCH semantics.
-	SetAppsForAndroidPolicy(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) error
+	SetAppsForAndroidPolicy(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*MDMAndroidPolicyRequest, error)
 	AddFleetAgentToAndroidPolicy(ctx context.Context, enterpriseName string, hostConfigs map[string]AgentManagedConfiguration) error
 	BuildFleetAgentApplicationPolicy(ctx context.Context, hostUUID string) (*androidmanagement.ApplicationPolicy, error)
 	// BuildAndSendFleetAgentConfig builds the complete AgentManagedConfiguration for the given hosts

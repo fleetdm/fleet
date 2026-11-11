@@ -1,0 +1,99 @@
+// Styles for the <demo-request-form> component.
+[purpose='demo-request-section'] {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 64px;
+  max-width: 1072px;
+  margin: 0 auto;
+  padding: 64px 24px 80px;
+  scroll-margin-top: 80px;
+
+  [purpose='demo-request-intro'] {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    h2 {
+      font-size: 40px;
+      font-weight: 800;
+      line-height: 120%;
+      margin-bottom: 0;
+    }
+    p {
+      font-size: 16px;
+      line-height: 150%;
+      color: @core-fleet-black-75;
+      margin-bottom: 0;
+    }
+  }
+
+  [purpose='demo-request-card'] {
+    flex: 1.2 1 0;
+    padding: 40px;
+    border: 1px solid @core-fleet-black-10;
+    border-radius: 16px;
+    background: #FFF;
+    box-shadow: 0 12px 32px rgba(25, 33, 71, 0.08);
+  }
+
+  [purpose='demo-request-grid'] {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px 16px;
+    margin-bottom: 24px;
+    .full-width {
+      grid-column: span 2;
+    }
+  }
+
+  [purpose='demo-request-field'] {
+    label {
+      font-size: 14px;
+      font-weight: 600;
+      color: @core-fleet-black;
+      margin-bottom: 6px;
+    }
+    .form-control {
+      height: 44px;
+      border: 1px solid @core-fleet-black-25;
+      border-radius: 8px;
+      font-size: 16px;
+      &:focus {
+        border-color: @core-fleet-black-50;
+        box-shadow: none;
+      }
+    }
+  }
+
+  [purpose='demo-request-submit'] {
+    width: 100%;
+    height: 44px;
+    // .btn-primary's default vertical padding is taller than this fixed
+    // height, which pushes the label below center.
+    padding: 0 12px;
+    line-height: 44px;
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  @media (max-width: 991px) {
+    flex-direction: column;
+    gap: 32px;
+    [purpose='demo-request-card'] {
+      width: 100%;
+    }
+  }
+
+  @media (max-width: 575px) {
+    [purpose='demo-request-card'] {
+      padding: 24px;
+    }
+    [purpose='demo-request-grid'] {
+      grid-template-columns: minmax(0, 1fr);
+      .full-width {
+        grid-column: auto;
+      }
+    }
+  }
+}

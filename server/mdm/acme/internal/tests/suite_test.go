@@ -35,6 +35,7 @@ import (
 type integrationTestSuite struct {
 	*testutils.TestDB
 	ds     *mysql.Datastore
+	svc    *service.Service
 	server *httptest.Server
 
 	attestCA    *x509.Certificate
@@ -100,6 +101,7 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 
 	suite.TestDB = tdb
 	suite.ds = ds
+	suite.svc = svc
 	suite.server = server
 	suite.attestCA = cert
 	suite.attestCAKey = key

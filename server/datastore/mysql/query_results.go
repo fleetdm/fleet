@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -401,11 +402,12 @@ func (ds *Datastore) QueryResultRowsForHostByQuery(ctx context.Context, hostID u
 	}
 	// Rows hidden by a results-clearing edit must not count as stored, or identical results from
 	// the new version would be skipped as unchanged and then deleted with the hidden rows.
+	// Sorted in Go: a filesort would copy data into each sort record, and a row larger than
+	// sort_buffer_size fails with "Out of sort memory".
 	stmt, args, err := sqlx.In(`
 		SELECT qr.id, qr.query_id, qr.host_id, qr.last_fetched, qr.data FROM query_results qr
 		JOIN queries q ON q.id = qr.query_id AND qr.id >= q.results_valid_from_id
-		WHERE qr.host_id = ? AND qr.query_id IN (?)
-		ORDER BY qr.id`, hostID, queryIDs)
+		WHERE qr.host_id = ? AND qr.query_id IN (?)`, hostID, queryIDs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building select query result rows for host")
 	}
@@ -413,6 +415,7 @@ func (ds *Datastore) QueryResultRowsForHostByQuery(ctx context.Context, hostID u
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting query result rows for host")
 	}
+	slices.SortFunc(rows, func(a, b *fleet.StoredQueryResultRow) int { return cmp.Compare(a.ID, b.ID) })
 	byQuery := make(map[uint][]*fleet.StoredQueryResultRow)
 	for _, row := range rows {
 		byQuery[row.QueryID] = append(byQuery[row.QueryID], row)

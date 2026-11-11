@@ -50,6 +50,7 @@ tests are failing, a release cannot proceed.
 - [ ] Software
 - [ ] Auto-updates disabled
 - [ ] Auto-update n+1
+- [ ] Downgrade
 - [ ] Self-healing
 
 <table>
@@ -136,6 +137,20 @@ tests are failing, a release cannot proceed.
 1. Conduct the [`fleetd` auto-update n+1 test](https://github.com/fleetdm/fleet/blob/main/tools/tuf/test/Fleetd-auto-update-test-guide.md).
 2. Agent successfully auto-updates.
 3. QA certifies new release by commenting in issue.
+
+</td>
+</tr>
+
+<tr>
+<td>Downgrade</td>
+<td>Verify Orbit still starts after downgrading from the new release.</td>
+<td>
+
+1. Install the new release of fleetd on a macOS, Windows, and Linux host.
+2. Downgrade each host to the previous released version.
+3. Confirm the Orbit service starts and the host stays enrolled — a flag written by the
+   newer version must not stop the older one from starting (e.g. `flag provided but not
+   defined`). Check the Orbit logs for startup errors, not just host online status.
 
 </td>
 </tr>

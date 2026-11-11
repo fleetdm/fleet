@@ -558,6 +558,32 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 			url:          "/foo?bootstrap_package=installed&macos_bootstrap_package=pending",
 			errorMessage: "Cannot specify both bootstrap_package and macos_bootstrap_package",
 		},
+		"good software_installer_id with required software_title_id": {
+			url: "/foo?software_title_id=1&software_installer_id=5",
+			hostListOptions: fleet.HostListOptions{
+				SoftwareTitleIDFilter:     new(uint(1)),
+				SoftwareInstallerIDFilter: new(uint(5)),
+			},
+		},
+		"good app_store_app_version_id with required software_title_id": {
+			url: "/foo?software_title_id=1&app_store_app_version_id=7",
+			hostListOptions: fleet.HostListOptions{
+				SoftwareTitleIDFilter:      new(uint(1)),
+				AppStoreAppVersionIDFilter: new(uint(7)),
+			},
+		},
+		"software_installer_id requires software_title_id": {
+			url:          "/foo?software_installer_id=5",
+			errorMessage: "Missing software_title_id (it must be present when software_installer_id is specified)",
+		},
+		"app_store_app_version_id requires software_title_id": {
+			url:          "/foo?app_store_app_version_id=7",
+			errorMessage: "Missing software_title_id (it must be present when app_store_app_version_id is specified)",
+		},
+		"software_installer_id and app_store_app_version_id are mutually exclusive": {
+			url:          "/foo?software_title_id=1&software_installer_id=5&app_store_app_version_id=7",
+			errorMessage: "software_installer_id and app_store_app_version_id are mutually exclusive",
+		},
 	}
 
 	for name, tt := range hostListOptionsTests {

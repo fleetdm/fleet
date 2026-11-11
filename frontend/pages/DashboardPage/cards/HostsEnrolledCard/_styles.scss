@@ -8,8 +8,9 @@
     align-items: center;
   }
 
-  // The bar chart's plot height is set inline to match the checkerboard's
-  // cell-grid height (see CHART_HEIGHT_* in HostsEnrolledCard.tsx).
+  // The bar chart's plot height (chartHeight in HostsEnrolledCard.tsx) is set
+  // inline from a container-width observer so it tracks the sibling
+  // checkerboard's cell-grid height as the card resizes.
   &__chart-container {
     min-height: 250px;
     display: flex;

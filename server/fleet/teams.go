@@ -54,14 +54,14 @@ func IsUnassignedFleetName(name string) bool {
 }
 
 type TeamPayload struct {
-	Name               *string              `json:"name"`
-	Description        *string              `json:"description"`
-	Secrets            []*EnrollSecret      `json:"secrets"`
-	WebhookSettings    *TeamWebhookSettings `json:"webhook_settings"`
-	Integrations       *TeamIntegrations    `json:"integrations"`
-	MDM                *TeamPayloadMDM      `json:"mdm"`
-	HostExpirySettings *HostExpirySettings  `json:"host_expiry_settings"`
-	Features           *TeamPayloadFeatures `json:"features"`
+	Name               *string                  `json:"name"`
+	Description        *string                  `json:"description"`
+	Secrets            []*EnrollSecret          `json:"secrets"`
+	WebhookSettings    *TeamSpecWebhookSettings `json:"webhook_settings"`
+	Integrations       *TeamIntegrations        `json:"integrations"`
+	MDM                *TeamPayloadMDM          `json:"mdm"`
+	HostExpirySettings *HostExpirySettings      `json:"host_expiry_settings"`
+	Features           *TeamPayloadFeatures     `json:"features"`
 	// Note AgentOptions must be set by a separate endpoint.
 }
 
@@ -70,7 +70,7 @@ type TeamPayload struct {
 // `features` shape so admins can use the same JSON path on both endpoints.
 //
 // Only the sub-fields defined here take effect; the broader Features
-// fields (enable_host_users, additional_queries, detail_query_overrides)
+// fields (enable_host_users, additional_queries)
 // remain settable per-fleet only via the `/spec/fleets` GitOps path.
 type TeamPayloadFeatures struct {
 	// EnableSoftwareInventory uses optjson.Bool so a key omitted from a
@@ -94,7 +94,7 @@ type HistoricalDataPayload struct {
 // so the fields are pointers to structs.
 type TeamPayloadMDM struct {
 	EnableDiskEncryption       optjson.Bool `json:"enable_disk_encryption"`
-	EnableRecoveryLockPassword optjson.Bool `json:"enable_recovery_lock_password"`
+	EnableRecoveryLockPassword optjson.Bool `json:"macos_recovery_lock_password_enabled" removedkey:"enable_recovery_lock_password" renamescope:"mdm"`
 	// RequireBitLockerPIN indicates whether BitLocker PIN is required for Windows devices
 	// in order for Fleet to consider them compliant.
 	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
@@ -442,24 +442,68 @@ type TeamSpecAppStoreApp struct {
 	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
 	Icon               TeamSpecSoftwareAsset `json:"icon"`
 	Platform           string                `json:"platform"`
+	Location           string                `json:"location,omitempty"`
 	DisplayName        string                `json:"display_name,omitempty"`
 	Configuration      TeamSpecSoftwareAsset `json:"configuration"`
 	// Auto-update fields for VPP apps
-	AutoUpdateEnabled   *bool   `json:"auto_update_enabled,omitempty"`
-	AutoUpdateStartTime *string `json:"auto_update_window_start,omitempty"`
-	AutoUpdateEndTime   *string `json:"auto_update_window_end,omitempty"`
+	AutoUpdateEnabled   *bool                        `json:"auto_update_enabled,omitempty"`
+	AutoUpdateStartTime *string                      `json:"auto_update_window_start,omitempty"`
+	AutoUpdateEndTime   *string                      `json:"auto_update_window_end,omitempty"`
+	Versions            []TeamSpecAppStoreAppVersion `json:"versions,omitempty"`
+}
+
+type TeamSpecAppStoreAppVersion struct {
+	Name                string                `json:"name"`
+	SelfService         bool                  `json:"self_service"`
+	LabelsIncludeAny    []string              `json:"labels_include_any"`
+	LabelsExcludeAny    []string              `json:"labels_exclude_any"`
+	LabelsIncludeAll    []string              `json:"labels_include_all"`
+	Categories          []string              `json:"categories"`
+	Configuration       TeamSpecSoftwareAsset `json:"configuration"`
+	AutoUpdateEnabled   *bool                 `json:"auto_update_enabled,omitempty"`
+	AutoUpdateStartTime *string               `json:"auto_update_window_start,omitempty"`
+	AutoUpdateEndTime   *string               `json:"auto_update_window_end,omitempty"`
 }
 
 func (spec TeamSpecAppStoreApp) ResolvePaths(baseDir string) TeamSpecAppStoreApp {
 	spec.Icon.Path = resolveApplyRelativePath(baseDir, spec.Icon.Path)
 	spec.Configuration.Path = resolveApplyRelativePath(baseDir, spec.Configuration.Path)
 
+	// Copy the versions so resolving their paths doesn't change the spec they came from
+	if spec.Versions != nil {
+		versions := make([]TeamSpecAppStoreAppVersion, len(spec.Versions))
+		copy(versions, spec.Versions)
+		for i := range versions {
+			versions[i].Configuration.Path = resolveApplyRelativePath(baseDir, versions[i].Configuration.Path)
+		}
+		spec.Versions = versions
+	}
+
 	return spec
+}
+
+func (spec TeamSpecAppStoreApp) ListVersions() []TeamSpecAppStoreAppVersion {
+	if len(spec.Versions) > 0 {
+		return spec.Versions
+	}
+	// Return the app's own fields as one version with no name, the server names it.
+	// Build the version here instead of filling Versions while parsing the GitOps YAML, fleetctl apply files reach the batch payload builders without going through that parser.
+	return []TeamSpecAppStoreAppVersion{{
+		SelfService:         spec.SelfService,
+		LabelsIncludeAny:    spec.LabelsIncludeAny,
+		LabelsExcludeAny:    spec.LabelsExcludeAny,
+		LabelsIncludeAll:    spec.LabelsIncludeAll,
+		Categories:          spec.Categories,
+		Configuration:       spec.Configuration,
+		AutoUpdateEnabled:   spec.AutoUpdateEnabled,
+		AutoUpdateStartTime: spec.AutoUpdateStartTime,
+		AutoUpdateEndTime:   spec.AutoUpdateEndTime,
+	}}
 }
 
 type TeamMDM struct {
 	EnableDiskEncryption       bool                  `json:"enable_disk_encryption"`
-	EnableRecoveryLockPassword bool                  `json:"enable_recovery_lock_password"`
+	EnableRecoveryLockPassword bool                  `json:"macos_recovery_lock_password_enabled" removedkey:"enable_recovery_lock_password" renamescope:"mdm"`
 	RequireBitLockerPIN        bool                  `json:"windows_require_bitlocker_pin"`
 	MacOSUpdates               AppleOSUpdateSettings `json:"macos_updates"`
 	IOSUpdates                 AppleOSUpdateSettings `json:"ios_updates"`
@@ -612,7 +656,7 @@ func (t *TeamMDM) Copy() *TeamMDM {
 
 type TeamSpecMDM struct {
 	EnableDiskEncryption       optjson.Bool `json:"enable_disk_encryption"`
-	EnableRecoveryLockPassword optjson.Bool `json:"enable_recovery_lock_password"`
+	EnableRecoveryLockPassword optjson.Bool `json:"macos_recovery_lock_password_enabled" removedkey:"enable_recovery_lock_password" renamescope:"mdm"`
 	// RequireBitLockerPIN indicates whether BitLocker PIN is required for Windows devices
 	// in order for Fleet to consider them compliant.
 	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
@@ -776,7 +820,6 @@ var globalRoles = map[string]struct{}{
 var premiumGlobalRoles = map[string]struct{}{
 	RoleTechnician:   {},
 	RoleObserverPlus: {},
-	RoleGitOps:       {},
 }
 
 // ValidGlobalRole returns whether the role provided is valid for a global user.
@@ -941,8 +984,10 @@ type TeamSpecIntegrations struct {
 
 // TeamSpecsDryRunAssumptions holds the assumptions that are made when applying team specs in dry-run mode.
 type TeamSpecsDryRunAssumptions struct {
+	// Keeps the Fleet 4 name: only fleetctl's GitOps dry run sends it, and it is never stored or returned.
 	WindowsEnabledAndConfigured optjson.Bool `json:"windows_enabled_and_configured,omitempty"`
 	AndroidEnabledAndConfigured optjson.Bool `json:"android_enabled_and_configured,omitempty"`
+	EnableProfileValidation     optjson.Bool `json:"enable_profile_validation,omitzero"`
 }
 
 // TeamSpecFromTeam returns a TeamSpec constructed from the given Team.

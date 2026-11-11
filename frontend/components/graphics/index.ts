@@ -17,6 +17,7 @@ import EmptyUsers from "./EmptyUsers";
 import FileCertificate from "./FileCertificate";
 import FileConfigurationProfile from "./FileConfigurationProfile";
 import FileJson from "./FileJson";
+import FileMd from "./FileMd";
 import FileP7m from "./FileP7m";
 import FilePdf from "./FilePdf";
 import FilePem from "./FilePem";
@@ -51,6 +52,7 @@ export const GRAPHIC_MAP = {
   "file-ps1": FilePs1,
   "file-py": FilePy,
   "file-script": FileScript,
+  "file-md": FileMd,
   "file-pdf": FilePdf,
   "file-pkg": FilePkg,
   "file-png": FilePng,

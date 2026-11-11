@@ -32,7 +32,7 @@ import { DEFAULT_EMPTY_CELL_VALUE, BATTERY_TOOLTIP } from "utilities/constants";
 import {
   humanHostMemory,
   wrapFleetHelper,
-  removeOSPrefix,
+  getHostOSDisplayName,
   compareVersions,
   internationalTimeFormat,
 } from "utilities/helpers";
@@ -115,26 +115,14 @@ const OS_UPDATE_REQUIREMENT_PENDING = "Pending";
 
 const DISK_ENCRYPTION_MESSAGES = {
   darwin: {
-    enabled: (
-      <>
-        The disk is encrypted. The user must enter their
-        <br /> password when they start their computer.
-      </>
-    ),
-    disabled: (
-      <>
-        The disk might be encrypted, but FileVault is off. The
-        <br /> disk can be accessed without entering a password.
-      </>
-    ),
+    enabled:
+      "The disk is encrypted. The user must enter their password when they start their computer.",
+    disabled:
+      "The disk might be encrypted, but FileVault is off. The disk can be accessed without entering a password.",
   },
   windows: {
-    enabled: (
-      <>
-        The disk is encrypted. If recently turned on,
-        <br /> encryption could take awhile.
-      </>
-    ),
+    enabled:
+      "The disk is encrypted. If recently turned on, encryption could take awhile.",
     disabled: "The disk is unencrypted.",
   },
   linux: {
@@ -197,6 +185,9 @@ export const buildHostVitals = ({
     mdm_enrollment_hardware_attested,
     disk_encryption_enabled: diskEncryptionEnabled,
   } = vitalsData;
+  const osDisplayName =
+    getHostOSDisplayName(vitalsData.os_name, os_version) ||
+    DEFAULT_EMPTY_CELL_VALUE;
 
   const vitals: VitalForSort[] = [];
 
@@ -285,7 +276,7 @@ export const buildHostVitals = ({
   }
 
   // Disk encryption
-  if (platformSupportsDiskEncryption(platform, os_version)) {
+  if (platformSupportsDiskEncryption(platform, osDisplayName)) {
     const tooltipMessage = getHostDiskEncryptionTooltipMessage(
       platform,
       diskEncryptionEnabled
@@ -304,7 +295,7 @@ export const buildHostVitals = ({
         break;
       case (diskEncryptionEnabled === null ||
         diskEncryptionEnabled === undefined) &&
-        platformSupportsDiskEncryption(platform, os_version):
+        platformSupportsDiskEncryption(platform, osDisplayName):
         statusText = "Unknown";
         break;
       default:
@@ -399,6 +390,27 @@ export const buildHostVitals = ({
           key="serial-number"
           title="Serial number"
           value={<TooltipTruncatedText value={vitalsData.hardware_serial} />}
+        />
+      ),
+    });
+  }
+
+  if (
+    (isIosOrIpadosHost || isAndroidHost) &&
+    vitalsData.google_device_id &&
+    vitalsData.google_device_id !== DEFAULT_EMPTY_CELL_VALUE
+  ) {
+    vitals.push({
+      sortKey: "Google device ID",
+      element: (
+        <DataSet
+          key="google-device-id"
+          title={
+            <TooltipWrapper tipContent="The host's device ID in Google, used for conditional access.">
+              Google device ID
+            </TooltipWrapper>
+          }
+          value={<TooltipTruncatedText value={vitalsData.google_device_id} />}
         />
       ),
     });
@@ -584,8 +596,8 @@ export const buildHostVitals = ({
 
   if (!osUpdateMinimumVersion) {
     const version = isAndroidHost
-      ? stripAndroidOSPatchLevel(vitalsData.os_version)
-      : vitalsData.os_version;
+      ? stripAndroidOSPatchLevel(osDisplayName) ?? osDisplayName
+      : osDisplayName;
     const versionForRender = ROLLING_ARCH_LINUX_VERSIONS.includes(version) ? (
       <>
         {version.slice(0, -8)}&nbsp;
@@ -630,10 +642,7 @@ export const buildHostVitals = ({
       osUpdateMinimumVersion === OS_UPDATE_REQUIREMENT_PENDING;
     const osVersionRequirementMet =
       isPendingRequirement ||
-      compareVersions(
-        removeOSPrefix(vitalsData.os_version),
-        osUpdateMinimumVersion
-      ) >= 0;
+      compareVersions(os_version, osUpdateMinimumVersion) >= 0;
 
     vitals.push({
       sortKey: "Operating system",
@@ -644,7 +653,7 @@ export const buildHostVitals = ({
           value={
             <span className={`${baseClass}__os-version`}>
               {!osVersionRequirementMet && (
-                <Icon name="error-outline" color="ui-fleet-black-75" />
+                <Icon name="error" color="ui-fleet-black-75" />
               )}
               <TooltipWrapper
                 className={`${baseClass}__ellipsis-tooltip`}
@@ -657,7 +666,7 @@ export const buildHostVitals = ({
                 }
               >
                 <span className={`${baseClass}__ellipsis-tooltip-text`}>
-                  {vitalsData.os_version}
+                  {osDisplayName}
                 </span>
               </TooltipWrapper>
             </span>
@@ -719,14 +728,26 @@ export const buildHostVitals = ({
     });
   }
 
-  if (isIosOrIpadosHost && vitalsData?.timezone) {
-    const hasValidTimezone = vitalsData.timezone !== DEFAULT_EMPTY_CELL_VALUE;
-    const localTime = hasValidTimezone
-      ? // toZonedTime shifts the instant so its epoch value reads as the
-        // host's timezone under the system's own default-timezone formatting,
-        // letting internationalTimeFormat run unmodified/as-is elsewhere.
-        internationalTimeFormat(toZonedTime(new Date(), vitalsData.timezone))
+  const hasValidTimezone =
+    !!vitalsData?.timezone && vitalsData.timezone !== DEFAULT_EMPTY_CELL_VALUE;
+  // Android and Chrome don't report a timezone. iOS/iPadOS report one only
+  // after MDM check-in, so the row stays hidden until that lands. macOS,
+  // Windows, and Linux always show the row, with "---" until osquery fills
+  // it in.
+  const showTimezone =
+    !isAndroidHost && !isChromeHost && (!isIosOrIpadosHost || hasValidTimezone);
+  if (showTimezone) {
+    // toZonedTime shifts the instant so its epoch value reads as the host's
+    // timezone under the system's own default-timezone formatting, letting
+    // internationalTimeFormat run unmodified/as-is elsewhere. It returns an
+    // Invalid Date for a zone the browser doesn't know, which would throw.
+    const hostNow = hasValidTimezone
+      ? toZonedTime(new Date(), vitalsData.timezone)
       : null;
+    const localTime =
+      hostNow && !Number.isNaN(hostNow.getTime())
+        ? internationalTimeFormat(hostNow)
+        : DEFAULT_EMPTY_CELL_VALUE;
 
     vitals.push({
       sortKey: "Timezone",

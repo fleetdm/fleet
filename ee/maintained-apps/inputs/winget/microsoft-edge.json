@@ -3,6 +3,7 @@
   "slug": "microsoft-edge/windows",
   "package_identifier": "Microsoft.Edge",
   "unique_identifier": "Microsoft Edge",
+  "open_process_names": ["msedge.exe"],
   "installer_arch": "x64",
   "installer_type": "msi",
   "installer_scope": "machine",

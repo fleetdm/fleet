@@ -6,7 +6,12 @@ const AppleAppStore = (props: SVGProps<SVGSVGElement>) => {
   const clipPathId = uniqueId("clip-path-");
   const pathFillId = uniqueId("path-fill");
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" {...props}>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 32 32"
+      {...props}
+    >
       <g clipPath={`url(#${clipPathId})`}>
         <path
           fill={`url(#${pathFillId})`}

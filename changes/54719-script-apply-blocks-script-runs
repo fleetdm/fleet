@@ -1,1 +1,0 @@
-- Re-applying scripts with `fleetctl gitops` or the batch scripts API no longer blocks or deadlocks with queued script runs. Unchanged scripts are skipped.

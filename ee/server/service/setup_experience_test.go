@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -358,6 +360,55 @@ func TestSetupExperienceScriptFleetVariables(t *testing.T) {
 	err = svc.SetSetupExperienceScript(ctx, nil, "potato.sh", bytes.NewReader([]byte("echo $FLEET_VAR_HOST_UUID")))
 	require.NoError(t, err)
 	require.True(t, ds.SetSetupExperienceScriptFuncInvoked)
+}
+
+func TestSetupExperienceScriptDeprecationWarning(t *testing.T) {
+	ctx := test.UserContext(t.Context(), test.UserAdmin)
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	ds := new(mock.Store)
+	svc, baseSvc := newTestServiceWithMock(t, ds)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error { return nil }
+	ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error { return nil }
+	// unchanged content: no activity, but the warning must still be logged
+	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) (bool, error) { return false, nil }
+
+	lc := &logging.LoggingContext{}
+	err := svc.SetSetupExperienceScript(logging.NewContext(ctx, lc), nil, "potato.sh", bytes.NewReader([]byte("echo hi")))
+	require.NoError(t, err)
+	require.NotNil(t, lc.ForceLevel)
+	assert.Equal(t, slog.LevelWarn, *lc.ForceLevel)
+	assert.Equal(t, []any{"deprecation_warning", "The setup experience script is deprecated. Use a script-only package instead."}, lc.Extras)
+
+	lc = &logging.LoggingContext{}
+	err = svc.SetSetupExperienceScript(logging.NewContext(ctx, lc), nil, "potato.txt", bytes.NewReader([]byte("echo hi")))
+	require.Error(t, err)
+	assert.Nil(t, lc.ForceLevel)
+	assert.Empty(t, lc.Extras)
+
+	// deleting when there is no script logs nothing
+	ds.GetSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) (*fleet.Script, error) {
+		return nil, NewNotFoundError("")
+	}
+	lc = &logging.LoggingContext{}
+	require.NoError(t, svc.DeleteSetupExperienceScript(logging.NewContext(ctx, lc), nil))
+	assert.Nil(t, lc.ForceLevel)
+	assert.Empty(t, lc.Extras)
+
+	// deleting an existing script logs the warning
+	ds.GetSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) (*fleet.Script, error) {
+		return &fleet.Script{Name: "potato.sh"}, nil
+	}
+	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error { return nil }
+	baseSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error { return nil }
+	lc = &logging.LoggingContext{}
+	require.NoError(t, svc.DeleteSetupExperienceScript(logging.NewContext(ctx, lc), nil))
+	require.NotNil(t, lc.ForceLevel)
+	assert.Equal(t, slog.LevelWarn, *lc.ForceLevel)
+	assert.Equal(t, []any{"deprecation_warning", "The setup experience script is deprecated. Use a script-only package instead."}, lc.Extras)
 }
 
 func TestSetupExperienceScriptCustomHostVitalInfraErrorPropagates(t *testing.T) {
@@ -765,5 +816,147 @@ func TestSetupExperienceNextStepPolicyGated(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, finished)
 		require.False(t, ds.ClearHostPolicyUpdatedAtFuncInvoked, "no gated item -> policy clock must not be reset")
+	})
+}
+
+func TestSetupExperienceNextStepRunningScriptResult(t *testing.T) {
+	ctx := t.Context()
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+
+	const hostUUID = "host-uuid"
+	host := &fleet.Host{ID: 1, UUID: hostUUID, Platform: "darwin"}
+	execID := "exec-1"
+
+	var step *fleet.SetupExperienceStatusResult
+	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+		return []*fleet.SetupExperienceStatusResult{step}, nil
+	}
+	var result *fleet.HostScriptResult
+	ds.GetHostScriptExecutionResultFunc = func(ctx context.Context, id string) (*fleet.HostScriptResult, error) {
+		if result == nil {
+			return nil, &notFoundError{}
+		}
+		return result, nil
+	}
+	var updatedTo []fleet.SetupExperienceStatusResultStatus
+	rowMatches := true
+	ds.MaybeUpdateSetupExperienceScriptStatusFunc = func(ctx context.Context, gotHostUUID, gotExecID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
+		assert.Equal(t, hostUUID, gotHostUUID)
+		assert.Equal(t, execID, gotExecID)
+		updatedTo = append(updatedTo, status)
+		return rowMatches, nil
+	}
+
+	runningStep := func(execID *string) *fleet.SetupExperienceStatusResult {
+		return &fleet.SetupExperienceStatusResult{
+			HostUUID:                hostUUID,
+			Name:                    "script.sh",
+			SetupExperienceScriptID: new(uint(1)),
+			ScriptContentID:         new(uint(2)),
+			ScriptExecutionID:       execID,
+			Status:                  fleet.SetupExperienceStatusRunning,
+		}
+	}
+
+	cases := []struct {
+		name         string
+		execID       *string
+		result       *fleet.HostScriptResult
+		rowChanged   bool
+		wantFinished bool
+		wantUpdate   []fleet.SetupExperienceStatusResultStatus
+	}{
+		{name: "no result yet", execID: &execID},
+		{name: "result without exit code", execID: &execID, result: &fleet.HostScriptResult{ExecutionID: execID}},
+		{name: "no execution id", execID: nil, result: &fleet.HostScriptResult{ExecutionID: execID, ExitCode: new(int64(0))}},
+		{
+			name: "recorded success", execID: &execID, result: &fleet.HostScriptResult{ExecutionID: execID, ExitCode: new(int64(0))},
+			wantFinished: true, wantUpdate: []fleet.SetupExperienceStatusResultStatus{fleet.SetupExperienceStatusSuccess},
+		},
+		{
+			name: "recorded failure", execID: &execID, result: &fleet.HostScriptResult{ExecutionID: execID, ExitCode: new(int64(1))},
+			wantFinished: true, wantUpdate: []fleet.SetupExperienceStatusResultStatus{fleet.SetupExperienceStatusFailure},
+		},
+		{
+			// the step points at another execution or already finished: keep waiting rather than finish from a stale read
+			name: "recorded result but step row no longer matches", execID: &execID, result: &fleet.HostScriptResult{ExecutionID: execID, ExitCode: new(int64(0))},
+			rowChanged: true, wantUpdate: []fleet.SetupExperienceStatusResultStatus{fleet.SetupExperienceStatusSuccess},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			step, result, updatedTo, rowMatches = runningStep(c.execID), c.result, nil, !c.rowChanged
+			finished, err := svc.SetupExperienceNextStep(ctx, host)
+			require.NoError(t, err)
+			assert.Equal(t, c.wantFinished, finished)
+			assert.Equal(t, c.wantUpdate, updatedTo)
+		})
+	}
+}
+
+func TestSetupExperienceNextStepVPPInstallFailureActivityToken(t *testing.T) {
+	ctx := context.Background()
+	host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "ios"}
+
+	setup := func(t *testing.T, tokenID *uint, getToken func(context.Context, uint) (*fleet.VPPTokenDB, error)) *fleet.ActivityInstalledAppStoreApp {
+		ds := new(mock.Store)
+		svc, baseSvc := newTestServiceWithMock(t, ds)
+		svc.logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+		ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+		}
+		// A host that isn't connected to Fleet MDM fails the install before anything is queued.
+		ds.IsHostConnectedToFleetMDMFunc = func(context.Context, *fleet.Host) (bool, error) { return false, nil }
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(context.Context, string, uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return []*fleet.SetupExperienceStatusResult{{
+				HostUUID:         host.UUID,
+				Name:             "Canva",
+				Status:           fleet.SetupExperienceStatusPending,
+				VPPAppTeamID:     new(uint(1)),
+				VPPAppAdamID:     new("100"),
+				VPPAppPlatform:   new(string(fleet.IOSPlatform)),
+				VPPAppVPPTokenID: tokenID,
+				SoftwareTitleID:  new(uint(9)),
+			}}, nil
+		}
+		ds.UpdateSetupExperienceStatusResultFunc = func(context.Context, *fleet.SetupExperienceStatusResult) error { return nil }
+		ds.GetSoftwareTitleDisplayNameFunc = func(context.Context, *uint, uint) (*string, error) { return nil, nil }
+		ds.GetVPPTokenFunc = getToken
+		baseSvc.IsAllSetupExperienceSoftwareRequiredFunc = func(context.Context, *fleet.Host) (bool, error) { return false, nil }
+		var got *fleet.ActivityInstalledAppStoreApp
+		baseSvc.NewActivityFunc = func(_ context.Context, _ *fleet.User, a fleet.ActivityDetails) error {
+			act, ok := a.(fleet.ActivityInstalledAppStoreApp)
+			require.True(t, ok)
+			got = &act
+			return nil
+		}
+
+		_, err := svc.SetupExperienceNextStep(ctx, host)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		require.Equal(t, string(fleet.SoftwareInstallFailed), got.Status)
+		return got
+	}
+
+	t.Run("carries the app's token", func(t *testing.T) {
+		act := setup(t, new(uint(7)), func(_ context.Context, id uint) (*fleet.VPPTokenDB, error) {
+			return &fleet.VPPTokenDB{ID: id, Location: "Acme Japan", CountryCode: "jp"}, nil
+		})
+		require.Equal(t, &fleet.ActivityVPPToken{ID: 7, Location: "Acme Japan", CountryCode: "jp"}, act.VPPToken)
+	})
+
+	t.Run("a deleted token gives null", func(t *testing.T) {
+		act := setup(t, new(uint(7)), func(context.Context, uint) (*fleet.VPPTokenDB, error) {
+			return nil, &notFoundError{}
+		})
+		require.Nil(t, act.VPPToken)
+	})
+
+	t.Run("a lookup error still emits the activity", func(t *testing.T) {
+		act := setup(t, new(uint(7)), func(context.Context, uint) (*fleet.VPPTokenDB, error) {
+			return nil, errors.New("db down")
+		})
+		require.Nil(t, act.VPPToken)
 	})
 }

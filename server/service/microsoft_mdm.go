@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	"html/template"
 	"io"
 	"log/slog"
 	"maps"
@@ -33,6 +34,7 @@ import (
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
@@ -959,8 +961,8 @@ func hasAuthorizedAzureTenant(tenantIDs []string, tokenTenant string) bool {
 }
 
 // authBinarySecurityToken checks if the provided token is valid. For programmatic enrollment, it
-// returns the orbit node key and host uuid. For automatic enrollment, it returns the UPN (the
-// host uuid will be an empty string), and for an Entra token also the Entra device ID signed into it.
+// returns the orbit node key and host uuid. For automatic enrollment with an Entra token, it returns
+// the UPN and the Entra device ID signed into it (the host uuid will be an empty string).
 func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *fleet.HeaderBinarySecurityToken) (claim string, hostUUID string,
 	entraDeviceID string, enrollType fleet.WindowsMDMEnrollType, err error,
 ) {
@@ -986,46 +988,32 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 			return "", "", "", 0, fmt.Errorf("token creation error %v", err)
 		}
 
-		// Validating the Binary Security Token Payload
+		// IsValidToken only accepts the programmatic enrollment type
 		err = binSecToken.IsValidToken()
 		if err != nil {
 			return "", "", "", 0, fmt.Errorf("invalid token data %v", err)
 		}
 
-		// Validating the Binary Security Token Type used on Programmatic Enrollments
-		if binSecToken.Type == mdm_types.WindowsMDMProgrammaticEnrollmentType {
-			host, err := svc.ds.LoadHostByOrbitNodeKey(ctx, binSecToken.Payload.OrbitNodeKey)
-			if err != nil {
-				return "", "", "", 0, fmt.Errorf("host data cannot be found %v", err)
-			}
-			if host == nil {
-				return "", "", "", 0, errors.New("host not found for orbit node key")
-			}
-
-			mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
-			if err != nil && !errors.Is(err, sql.ErrNoRows) {
-				return "", "", "", 0, errors.New("unable to retrieve host mdm info")
-			}
-
-			// This ensures that only hosts that are eligible for Windows enrollment can be enrolled
-			if !isEligibleForWindowsMDMEnrollment(host, mdmInfo) {
-				return "", "", "", 0, errors.New("host is not elegible for Windows MDM enrollment")
-			}
-
-			// No errors, token is authorized
-			return binSecToken.Payload.OrbitNodeKey, host.UUID, "", fleet.WindowsMDMEnrollTypeProgrammatic, nil
+		host, err := svc.ds.LoadHostByOrbitNodeKey(ctx, binSecToken.Payload.OrbitNodeKey)
+		if err != nil {
+			return "", "", "", 0, fmt.Errorf("host data cannot be found %v", err)
+		}
+		if host == nil {
+			return "", "", "", 0, errors.New("host not found for orbit node key")
 		}
 
-		// Validating the Binary Security Token Type used on Automatic Enrollments (returned by STS Auth Endpoint)
-		if binSecToken.Type == mdm_types.WindowsMDMAutomaticEnrollmentType {
-			upnToken, err := svc.wstepCertManager.GetSTSAuthTokenUPNClaim(binSecToken.Payload.AuthToken)
-			if err != nil {
-				return "", "", "", 0, ctxerr.Wrap(ctx, err, "issue retrieving UPN from Auth token")
-			}
-
-			// No errors, token is authorized
-			return upnToken, "", "", fleet.WindowsMDMEnrollTypeAutomatic, nil
+		mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return "", "", "", 0, errors.New("unable to retrieve host mdm info")
 		}
+
+		// This ensures that only hosts that are eligible for Windows enrollment can be enrolled
+		if !isEligibleForWindowsMDMEnrollment(host, mdmInfo) {
+			return "", "", "", 0, errors.New("host is not elegible for Windows MDM enrollment")
+		}
+
+		// No errors, token is authorized
+		return binSecToken.Payload.OrbitNodeKey, host.UUID, "", fleet.WindowsMDMEnrollTypeProgrammatic, nil
 	}
 
 	// Validating the Binary Security Token Type used on Automatic Enrollments
@@ -1269,8 +1257,8 @@ func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSync
 
 // allowedWindowsTOSRedirectSchemes is the set of URL schemes permitted for the Windows MDM enrollment Terms of Use
 // redirect_uri. Per Microsoft's "Terms of Use protocol semantics", the Windows enrollment client (not Fleet) chooses
-// this redirect_uri and Fleet only reflects it into a window.location assignment in the TOS page. We restrict it to the
-// schemes Windows enrollment clients use:
+// this redirect_uri and Fleet only reflects it into the TOS page's accept link. We restrict it to the schemes Windows
+// enrollment clients use:
 //   - ms-appx-web: the scheme in Microsoft's documented example, redirect_uri=ms-appx-web://<app>/ToUResponse, used by
 //     the native broker-hosted flows (Entra join from Settings > "Access work or school", and BYOD work-account add).
 //     https://learn.microsoft.com/en-us/windows/client-management/azure-active-directory-integration-with-mdm
@@ -1297,8 +1285,8 @@ func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri str
 	// skipauth: This endpoint does not use authentication
 	svc.authz.SkipAuthorization(ctx)
 
-	// redirectUri is reflected into a window.location assignment in the TOS page template, so validate its scheme to
-	// prevent reflected XSS via javascript:/data:/vbscript: URLs.
+	// redirectUri is reflected into the TOS page's accept link, so validate its scheme to prevent reflected XSS via
+	// javascript:/data:/vbscript: URLs.
 	if !windowsTOSRedirectURIAllowed(redirectUri) {
 		return "", &fleet.BadRequestError{Message: "invalid redirect_uri"}
 	}
@@ -1308,8 +1296,20 @@ func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri str
 		return "", ctxerr.Wrap(ctx, err, "issue generating TOS content")
 	}
 
+	cspNonce, err := endpointer.CSPNonce(ctx)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "generating CSP nonce for TOS content")
+	}
+
+	data := windowsTOSTemplateData{
+		RedirectURL: template.URL(redirectUri), //nolint:gosec // G203: scheme allowlisted by windowsTOSRedirectURIAllowed
+		ClientData:  reqID,
+		CSPNonce:    cspNonce,
+	}
+	data.Content = svc.customWindowsTOSContent(ctx)
+
 	var htmlBuf bytes.Buffer
-	err = tmpl.Execute(&htmlBuf, map[string]string{"RedirectURL": redirectUri, "ClientData": reqID})
+	err = tmpl.Execute(&htmlBuf, data)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "executing TOS template content")
 	}
@@ -1328,6 +1328,33 @@ const (
 )
 
 const windowsMDMAuthNonceTTL = 5 * time.Minute
+
+// windowsMDMRekeyMaxOffline is how long a host can go without an osquery check-in before its pre-credentials enrollment can no longer
+// be rekeyed.
+const windowsMDMRekeyMaxOffline = 180 * 24 * time.Hour
+
+// isWindowsRekeyAllowed reports whether a pre-credentials enrollment may still be rekeyed. The rekey is unauthenticated, so it is
+// refused when the host cannot be found or has not been seen recently.
+func (svc *Service) isWindowsRekeyAllowed(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice) (bool, error) {
+	if enrolledDevice.HostUUID == "" {
+		return false, nil
+	}
+
+	host, err := svc.ds.WindowsHostLiteByUUID(ctx, enrolledDevice.HostUUID)
+	switch {
+	case fleet.IsNotFound(err):
+		return false, nil
+	case err != nil:
+		return false, ctxerr.Wrap(ctx, err, "get host for windows rekey")
+	}
+
+	if svc.clock.Now().Sub(host.SeenTime) > windowsMDMRekeyMaxOffline {
+		svc.logger.WarnContext(ctx, "refusing Windows MDM rekey for host not seen recently",
+			"device_id", enrolledDevice.MDMDeviceID, "host_id", host.ID, "last_seen", host.SeenTime)
+		return false, nil
+	}
+	return true, nil
+}
 
 // isTrustedRequest checks if the incoming request was sent from an MDM-enrolled
 // device. It returns the matched enrollment (when the device was found), the
@@ -1354,6 +1381,14 @@ func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncM
 
 	if !enrolledDevice.CredentialsAcknowledged && enrolledDevice.CredentialsHash == nil {
 		// Device has not gotten new credentials, rekey the device only once
+		allowed, err := svc.isWindowsRekeyAllowed(ctx, enrolledDevice)
+		if err != nil {
+			return nil, RequestAuthStateUntrusted, ctxerr.Wrap(ctx, err, "check windows rekey eligibility")
+		}
+		if !allowed {
+			// Same message as an unknown device so a refused rekey is not distinguishable from a missing enrollment.
+			return nil, RequestAuthStateUntrusted, errors.New("device was not MDM enrolled")
+		}
 		return enrolledDevice, RequestAuthStateRekey, nil
 	}
 
@@ -1486,11 +1521,14 @@ func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, enrolledDevice 
 	// If user identity is a MS-MDM UPN it means that the device was enrolled through user-driven flow
 	// This means that fleetd might not be installed
 	if microsoft_mdm.IsValidUPN(enrolledDevice.MDMEnrollUserID) {
+		if enrolledDevice.FleetdPresentAt != nil {
+			return true, nil
+		}
 		var isPresent bool
 		if enrolledDevice.HostUUID != "" {
-			host, err := svc.ds.HostLiteByIdentifier(ctx, enrolledDevice.HostUUID)
+			host, err := svc.ds.WindowsHostLiteByUUID(ctx, enrolledDevice.HostUUID)
 			if err != nil && !fleet.IsNotFound(err) {
-				return false, ctxerr.Wrap(ctx, err, "get host lite by identifier")
+				return false, ctxerr.Wrap(ctx, err, "get windows host lite by uuid")
 			}
 			if host != nil {
 				orbitInfo, err := svc.ds.GetHostOrbitInfo(ctx, host.ID)
@@ -1514,6 +1552,13 @@ func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, enrolledDevice 
 				return false, ctxerr.Wrap(ctx, err, "check one-time enroll secret used by orbit")
 			}
 			isPresent = usedByOrbit
+		}
+		if isPresent {
+			// Best effort: if this fails, the next session checks again.
+			if err := svc.ds.MDMWindowsSetEnrollmentFleetdPresent(ctx, enrolledDevice.ID, enrolledDevice.HostUUID); err != nil {
+				svc.logger.ErrorContext(ctx, "windows mdm: failed to record fleetd present", "err", err, "device_id", enrolledDevice.MDMDeviceID)
+				ctxerr.Handle(ctx, err)
+			}
 		}
 		return isPresent, nil
 	}
@@ -1871,6 +1916,7 @@ scan:
 	// Always refresh in-memory HostUUID after a successful link attempt.
 	enrolledDevice.HostUUID = host.UUID
 	if updated {
+		enrolledDevice.FleetdPresentAt = nil // the relink cleared it
 		svc.releaseUnusedFleetdInstallSecret(ctx, enrolledDevice)
 	}
 	return updated
@@ -1931,6 +1977,7 @@ func (svc *Service) linkWindowsHostMDMEnrollmentByHostID(ctx context.Context, en
 	}
 	enrolledDevice.HostUUID = host.UUID
 	if updated {
+		enrolledDevice.FleetdPresentAt = nil // the relink cleared it
 		svc.releaseUnusedFleetdInstallSecret(ctx, enrolledDevice)
 	}
 	return updated
@@ -2179,8 +2226,12 @@ func handleResendingAlreadyExistsCommands(ctx context.Context, svc *Service, alr
 
 // getPendingMDMCmds returns the list of pending MDM commands for the given enrollment, plus onlyPollCmdsPending: true
 // when everything still pending (if anything) is an internal poll-schedule Replace.
-func (svc *Service) getPendingMDMCmds(ctx context.Context, enrollmentID uint) ([]*mdm_types.SyncMLCmd, bool, error) {
-	pendingCmds, err := svc.ds.MDMWindowsGetPendingCommands(ctx, enrollmentID)
+//
+// A SCEP status probe is held back until it has been queued for fleet.WindowsSCEPStatusProbeDelay, so it goes out on the
+// next MDM session after ACK. Held back, a probe still counts as pending, which keeps has_pending_commands set and has
+// fleetd wake the device again.
+func (svc *Service) getPendingMDMCmds(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice) ([]*mdm_types.SyncMLCmd, bool, error) {
+	pendingCmds, err := svc.ds.MDMWindowsGetPendingCommands(ctx, enrolledDevice.ID)
 	if err != nil {
 		return nil, false, fmt.Errorf("getting incoming cmds %w", err)
 	}
@@ -2190,29 +2241,27 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, enrollmentID uint) ([
 	onlyPollCmdsPending := true
 	for _, pendingCmd := range pendingCmds {
 		isPollCmd := pendingCmd.TargetLocURI == syncml.DMClientPollIntervalLocURI
+		if fleet.IsWindowsSCEPStatusProbeCmdUUID(pendingCmd.CommandUUID) &&
+			svc.clock.Now().Sub(pendingCmd.CreatedAt) < fleet.WindowsSCEPStatusProbeDelay {
+			onlyPollCmdsPending = false
+			continue
+		}
+		parsedCmds, err := svc.prepareWindowsPendingCommand(ctx, enrolledDevice.ID, pendingCmd)
+		if _, ok := errors.AsType[undeliverableWindowsCommandError](err); ok {
+			// Failing the command is permanent, so confirm on the primary: a custom variable created or changed moments ago
+			// may not be on the replica yet.
+			parsedCmds, err = svc.prepareWindowsPendingCommand(ctxdb.RequirePrimary(ctx, true), enrolledDevice.ID, pendingCmd)
+		}
+		if err != nil {
+			// Skipped rather than failing the session: one bad command must not hold back every other command pending for
+			// the device. A failed one is no longer pending.
+			if failed := svc.skipWindowsPendingCommand(ctx, enrolledDevice, pendingCmd.CommandUUID, err); !failed && !isPollCmd {
+				onlyPollCmdsPending = false
+			}
+			continue
+		}
 		if !isPollCmd {
 			onlyPollCmdsPending = false
-		}
-		// The raw MDM command may contain a $FLEET_SECRET_XXX, the value of which should never be exposed or stored unencrypted.
-		rawCommandWithSecret, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(pendingCmd.RawCommand))
-		if err != nil {
-			// This error should never happen since we validate the presence of needed secrets on profile upload.
-			return nil, false, ctxerr.Wrap(ctx, err, "expanding embedded secrets for Windows pending commands")
-		}
-		// Host-scoped secrets ($FLEET_HOST_SECRET_*) are resolved here rather than at enqueue, for security.
-		rawCommandWithSecret, err = svc.expandWindowsHostSecrets(ctx, rawCommandWithSecret, enrollmentID)
-		if err != nil {
-			// Skipped rather than failing the session, like a command that does not parse: one bad command must not hold
-			// back every other command pending for the device. It stays queued and is tried again next session.
-			err = ctxerr.Wrapf(ctx, err, "expanding host secrets for Windows pending command %s", pendingCmd.CommandUUID)
-			logging.WithErr(ctx, err)
-			ctxerr.Handle(ctx, err)
-			continue
-		}
-		parsedCmds, err := fleet.UnmarshallMultiTopLevelXMLProfile([]byte(rawCommandWithSecret))
-		if err != nil {
-			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "getPendingMDMCmds syncML cmd creation"))
-			continue
 		}
 		for _, pcmd := range parsedCmds {
 			cmds = append(cmds, &pcmd)
@@ -2220,6 +2269,73 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, enrollmentID uint) ([
 	}
 
 	return cmds, onlyPollCmdsPending, nil
+}
+
+// undeliverableWindowsCommandError is why a pending command can never be delivered as written, so it is failed instead of
+// tried again next session.
+type undeliverableWindowsCommandError struct{ err error }
+
+func (e undeliverableWindowsCommandError) Error() string { return e.err.Error() }
+func (e undeliverableWindowsCommandError) Unwrap() error { return e.err }
+
+// prepareWindowsPendingCommand expands the variables in a pending command and parses it for delivery.
+func (svc *Service) prepareWindowsPendingCommand(ctx context.Context, enrollmentID uint, pendingCmd *fleet.MDMWindowsCommand) ([]mdm_types.SyncMLCmd, error) {
+	// The raw MDM command may contain a $FLEET_SECRET_XXX, the value of which should never be exposed or stored unencrypted.
+	rawCommandWithSecret, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(pendingCmd.RawCommand))
+	if err != nil {
+		// Profiles are checked for missing secrets on upload, but custom commands aren't, and deleting a secret doesn't check
+		// queued commands.
+		if missing, ok := fleet.MissingSecretNames(err); ok {
+			names := make([]string, 0, len(missing))
+			for _, name := range missing {
+				names = append(names, "$"+fleet.ServerSecretPrefix+name)
+			}
+			return nil, undeliverableWindowsCommandError{fmt.Errorf("custom variable not found: %s", strings.Join(names, ", "))}
+		}
+		return nil, ctxerr.Wrap(ctx, err, "expanding embedded secrets")
+	}
+	if err := fleet.ValidateNoHostSecretVariablesAdded(string(pendingCmd.RawCommand), rawCommandWithSecret); err != nil {
+		// Its error quotes the placeholder as expanded, which can hold part of a variable's value.
+		return nil, undeliverableWindowsCommandError{errors.New("a $FLEET_HOST_SECRET_ variable comes from a custom variable and can't be used")}
+	}
+	// Host-scoped secrets ($FLEET_HOST_SECRET_*) are resolved here rather than at enqueue, for security.
+	rawCommandWithSecret, err = svc.expandWindowsHostSecrets(ctx, rawCommandWithSecret, enrollmentID)
+	if err != nil {
+		return nil, err
+	}
+	parsedCmds, err := fleet.UnmarshallMultiTopLevelXMLProfile([]byte(rawCommandWithSecret))
+	if err != nil {
+		// The parser quotes the document in its errors, and this one holds variable values, so only an error from the command
+		// as written is passed on.
+		if _, rawErr := fleet.UnmarshallMultiTopLevelXMLProfile(pendingCmd.RawCommand); rawErr != nil {
+			return nil, undeliverableWindowsCommandError{rawErr}
+		}
+		return nil, undeliverableWindowsCommandError{errors.New("the command isn't valid XML once its variables are expanded")}
+	}
+	return parsedCmds, nil
+}
+
+// skipWindowsPendingCommand logs why a pending command can't be delivered this session and, if it never can be, records
+// it as failed. It reports whether it did.
+func (svc *Service) skipWindowsPendingCommand(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, commandUUID string, cause error) bool {
+	err := ctxerr.Wrapf(ctx, cause, "skipping Windows pending command %s", commandUUID)
+	logging.WithErr(ctx, err)
+
+	// An undeliverable command is reported to the admin as its result, so only the other cases go to the error store.
+	undeliverable, ok := errors.AsType[undeliverableWindowsCommandError](cause)
+	if !ok {
+		ctxerr.Handle(ctx, err)
+		return false
+	}
+	reason := "Fleet couldn't deliver the command: " + undeliverable.Error()
+	if err := svc.ds.MDMWindowsFailUndeliverableCommand(ctx, enrolledDevice, commandUUID, reason); err != nil {
+		// It stays pending, so this is tried again next session.
+		err = ctxerr.Wrapf(ctx, err, "failing undeliverable Windows command %s", commandUUID)
+		logging.WithErr(ctx, err)
+		ctxerr.Handle(ctx, err)
+		return false
+	}
+	return true
 }
 
 // createResponseSyncML returns a valid SyncML message
@@ -2295,7 +2411,7 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 		}
 
 		// Process the pending operations and get the MDM response protocol commands
-		pendingCmds, onlyPollCmdsPending, err := svc.getPendingMDMCmds(ctx, enrolledDevice.ID)
+		pendingCmds, onlyPollCmdsPending, err := svc.getPendingMDMCmds(ctx, enrolledDevice)
 		if err != nil {
 			return nil, fmt.Errorf("message processing error %w", err)
 		}
@@ -2509,9 +2625,9 @@ func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet
 // handleESPRelease handles awaiting_configuration=Active. It waits for all profiles and setup experience items to reach
 // a terminal state, then finalizes the device down one of three paths:
 //
-//   - hard block (require_all_software_windows=true and any item failed, or the 3-hour timeout was hit): the ESP
+//   - hard block (windows_require_all_software=true and any item failed, or the 3-hour timeout was hit): the ESP
 //     failure screen is shown with only the "Reset device" recovery option, and remaining items are canceled.
-//   - soft block (require_all_software_windows=false and an item failed, or the 3-hour timeout was hit): the ESP
+//   - soft block (windows_require_all_software=false and an item failed, or the 3-hour timeout was hit): the ESP
 //     failure screen is shown with a "Continue anyway" option so the user can proceed to the desktop and install the
 //     missing software via self-service. It lists the failed software by name when any failed, otherwise (a timeout
 //     with nothing failed) shows the timeout message. Still-pending items are cancelled only on the timeout path.
@@ -2564,7 +2680,7 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	// loadHost lazily fetches the host (writer-routed) and memoizes for the rest of this checkin. Writer routing guards
 	// two replica-lag races: (1) spurious notFound during the brief gap between orbit's host registration and the next
 	// management session, and (2) stale team_id if a host transferred teams mid-enrollment, which could let
-	// require_all_software_windows be read from the wrong team and bypass the gate.
+	// windows_require_all_software be read from the wrong team and bypass the gate.
 	//
 	// We cache the full HostLite (not just team_id) because Stage 3 also needs OsqueryHostID: setup_experience_status_results
 	// is keyed by fleet.HostUUIDForSetupExperience, which on Windows resolves to OsqueryHostID -- not the Fleet host UUID
@@ -2631,7 +2747,7 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		return results, nil
 	}
 
-	// loadRequireAll memoizes the host -> team's require_all_software_windows lookup. It is consulted at most twice
+	// loadRequireAll memoizes the host -> team's windows_require_all_software lookup. It is consulted at most twice
 	// per checkin: once inside Stage 3 (to decide whether to short-circuit on a software failure) and once below
 	// (to drive the block/release decision).
 	var (
@@ -2774,7 +2890,7 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		}
 	}
 
-	// We're past the wait gate or timed out. Look up require_all_software_windows (memoized via loadRequireAll if
+	// We're past the wait gate or timed out. Look up windows_require_all_software (memoized via loadRequireAll if
 	// Stage 3 already consulted it) to decide between block and release. Return the error on lookup failure so the
 	// device stays Active and retries on the next management session: failing open here would permanently bypass
 	// the policy after the Active->None transition below.
@@ -2928,7 +3044,7 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 				HostID:              host.ID,
 				HostDisplayName:     host.DisplayName(),
 				SoftwareTitle:       softwareTitle,
-				SoftwareDisplayName: softwareDisplayName,
+				SoftwareDisplayName: ptr.ValOrZero(softwareDisplayName),
 				SoftwareTitleID:     softwareTitleID,
 			}); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "creating canceled setup experience activity on timeout")
@@ -2993,9 +3109,7 @@ func espUserReleaseLocURI(provID string) string {
 	return fmt.Sprintf("./User/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", provID)
 }
 
-// espReleaseAttemptCmdIDPrefix marks the CmdID of every user-scope ESP release attempt Fleet sends (the initial
-// finalize's Replace and each retry).
-const espReleaseAttemptCmdIDPrefix = "esp-release-"
+const espReleaseAttemptCmdIDPrefix = fleet.WindowsESPReleaseCmdIDPrefix
 
 // isOMADMSessionStart reports whether reqMsg opens an OMA-DM session: device MsgID 1 (auth) or 2 (trusted request). The
 // device acks message N's commands in message N+1, so a command re-sent on every message keeps the session open.
@@ -4713,6 +4827,18 @@ func executeWindowsProfileReconcileBatch(
 	// currentByHost is the host_mdm_windows_profiles rows as of the reconcile snapshot.
 	currentByHost map[string][]*fleet.MDMWindowsProfilePayload,
 ) error {
+	// The enqueues below leave the status rollup to us. Refresh it once for the batch's hosts, also after a partial failure since the
+	// earlier commands are already committed. A miss is healed by the hourly windows_profiles_status_reconcile cron.
+	defer func() {
+		hostUUIDs := make([]string, 0, len(toInstall)+len(toRemove))
+		for _, p := range slices.Concat(toInstall, toRemove) {
+			hostUUIDs = append(hostUUIDs, p.HostUUID)
+		}
+		if err := ds.RefreshMDMWindowsProfilesStatusRollup(ctx, hostUUIDs); err != nil {
+			logger.ErrorContext(ctx, "refreshing windows profiles status rollup after reconcile", "hosts", len(hostUUIDs), "err", err)
+		}
+	}()
+
 	// toGetContents contains the IDs of all the profiles from which we
 	// need to retrieve contents. Since the previous query returns one row
 	// per host, it would be too expensive to retrieve the profile contents

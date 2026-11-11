@@ -52,6 +52,7 @@ var cacheableItems = []fleet.Cloner{
 	&fleet.MDMConfigAsset{},
 	&fleet.YaraRule{},
 	&fleet.WindowsEnrollmentDefaultFleet{},
+	&fleet.MDMEULAMetadataLookup{},
 	// TeamAgentOptions is not in the list because it is a json.RawMessage, no fields can change.
 	// Same for ResultCountForQuery, it's just an int, and for QueriesPerHost, a []uint.
 }

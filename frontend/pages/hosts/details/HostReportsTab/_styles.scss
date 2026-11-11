@@ -77,15 +77,16 @@
 .host-report-card {
   &__header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: $pad-medium;
+    flex-direction: column;
+    gap: $pad-small;
     margin-bottom: px-to-rem(24);
   }
 
-  &__header-left {
-    flex: 1;
-    min-width: 0;
+  &__header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: $pad-medium;
   }
 
   &__header-right {
@@ -96,8 +97,11 @@
   }
 
   &__title-row {
+    flex: 1;
+    min-width: 0;
     display: flex;
-    align-items: baseline;
+    align-items: center;
+    min-height: 36px;
     gap: $pad-medium;
     flex-wrap: wrap;
   }
@@ -120,7 +124,7 @@
   &__description {
     font-size: $xx-small;
     color: $ui-fleet-black-75;
-    margin: $pad-xsmall 0 0;
+    margin: 0;
     overflow-wrap: anywhere;
   }
 

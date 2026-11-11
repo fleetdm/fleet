@@ -6,7 +6,7 @@ import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import Checkbox from "components/forms/fields/Checkbox";
 import InputField from "components/forms/fields/InputField";
-import validUrl from "components/forms/validators/valid_url";
+import { isValidURL } from "components/forms/validators";
 import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import SectionHeader from "components/SectionHeader";
@@ -42,7 +42,7 @@ const validate = (formData: IChangeManagementFormData) => {
     if (!repoURL) {
       errs.repository_url =
         "Git repository URL is required when GitOps mode is enabled";
-    } else if (!validUrl({ url: repoURL, protocols: ["http", "https"] })) {
+    } else if (!isValidURL({ url: repoURL, protocols: ["http", "https"] })) {
       errs.repository_url =
         "Git repository URL must include protocol (e.g. https://)";
     }

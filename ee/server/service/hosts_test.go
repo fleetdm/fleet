@@ -476,11 +476,14 @@ func TestRotateDiskEncryptionKey(t *testing.T) {
 		require.Empty(t, e.acts)
 	})
 
-	t.Run("push failure keeps the marker", func(t *testing.T) {
+	t.Run("push failure keeps the marker and does not fail", func(t *testing.T) {
 		e := setup(t)
 		e.commander.err = ctxerr.Wrap(context.Background(), &apple_mdm.NotificationFailedError{}, "sending notifications")
-		require.Error(t, e.svc.RotateDiskEncryptionKey(adminCtx(), 1))
+		require.NoError(t, e.svc.RotateDiskEncryptionKey(adminCtx(), 1), "push notification failures should not fail if we enqueued the command")
 		require.NotNil(t, e.marker)
+		require.Equal(t, []fleet.ActivityDetails{fleet.ActivityTypeRotatedDiskEncryptionKey{
+			HostID: 1, HostDisplayName: e.host.DisplayName(),
+		}}, e.acts)
 	})
 
 	t.Run("authorization", func(t *testing.T) {
@@ -492,7 +495,6 @@ func TestRotateDiskEncryptionKey(t *testing.T) {
 		}{
 			{"global admin", &fleet.User{ID: 42, GlobalRole: new(fleet.RoleAdmin)}, false, false},
 			{"global maintainer", &fleet.User{ID: 42, GlobalRole: new(fleet.RoleMaintainer)}, false, false},
-			// gitops may write MDM commands but not rotate keys
 			{"global gitops", &fleet.User{ID: 42, GlobalRole: new(fleet.RoleGitOps)}, true, false},
 			{"global observer", &fleet.User{ID: 42, GlobalRole: new(fleet.RoleObserver)}, true, false},
 			{"global observer+", &fleet.User{ID: 42, GlobalRole: new(fleet.RoleObserverPlus)}, true, false},
@@ -503,7 +505,7 @@ func TestRotateDiskEncryptionKey(t *testing.T) {
 			{"team technician", &fleet.User{ID: 42, Teams: []fleet.UserTeam{{ID: 1, Role: fleet.RoleTechnician}}}, true, false},
 			{"other team admin", &fleet.User{ID: 42, Teams: []fleet.UserTeam{{ID: 2, Role: fleet.RoleAdmin}}}, true, true},
 			{"team gitops", &fleet.User{ID: 42, Teams: []fleet.UserTeam{{ID: 1, Role: fleet.RoleGitOps}}}, true, false},
-			// can list hosts through the other team, and gitops may write the host's MDM commands
+			// can list hosts through the other team, but gitops can't read the host's MDM commands
 			{
 				"team gitops with another team's observer+",
 				&fleet.User{ID: 42, Teams: []fleet.UserTeam{{ID: 1, Role: fleet.RoleGitOps}, {ID: 2, Role: fleet.RoleObserverPlus}}},

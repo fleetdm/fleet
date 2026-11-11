@@ -3,7 +3,7 @@ import React from "react";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
-import { ISoftware } from "interfaces/software";
+import { ISoftwareVersion } from "interfaces/software";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -12,7 +12,7 @@ interface ICellProps {
     value: string;
   };
   row: {
-    original: ISoftware;
+    original: ISoftwareVersion;
   };
 }
 
