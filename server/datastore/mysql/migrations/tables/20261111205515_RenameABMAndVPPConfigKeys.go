@@ -29,7 +29,7 @@ var abmVPPConfigKeyRenames = map[string]map[string]string{
 // vpp_token_teams, but a GitOps run built from the empty mirror would clear every assignment. Other keys are kept as they are.
 func Up_20261111205515(tx *sql.Tx) error {
 	var raw []byte
-	if err := tx.QueryRow(`SELECT json_value FROM app_config_json WHERE id = 1`).Scan(&raw); err != nil {
+	if err := tx.QueryRow(`SELECT json_value FROM app_config_json WHERE id = 1 FOR UPDATE`).Scan(&raw); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil
 		}
