@@ -467,14 +467,14 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 	return true, "", nil
 }
 
-func executeScript(cfg *Config, scriptContents string) (string, error) {
+func executeScript(cfg *Config, slug, scriptContents string) (string, error) {
 	scriptExtension := ".sh"
 	scriptPath := filepath.Join(cfg.tmpDir, "script"+scriptExtension)
 	if err := os.WriteFile(scriptPath, []byte(scriptContents), constant.DefaultFileMode); err != nil {
 		return "", fmt.Errorf("writing script: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout(slug, 5*time.Minute))
 	defer cancel()
 
 	output, exitCode, err := scripts.ExecCmd(ctx, scriptPath, cfg.env)
