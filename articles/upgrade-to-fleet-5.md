@@ -8,10 +8,10 @@ Fleet will support Fleet 4.96 with security fixes through June 30, 2027.
 
 #### How to upgrade
 
-1. [Upgrade](https://fleetdm.com/docs/deploy/upgrading-fleet#upgrading-fleet) to the latest Fleet 4 release.
+1. [Upgrade](https://fleetdm.com/docs/deploy/upgrading-fleet#upgrading-fleet) to the **latest Fleet 4 release**.
 2. Work through the list of [breaking changes](#breaking-changes).
 3. Back up your Fleet database. If you need to go back to Fleet 4 after upgrading, restore this backup. Fleet 4 can't read the settings Fleet 5 renames, so it would turn off features like Windows MDM.
-4. Upgrade to the latest Fleet 5 release. Later Fleet 4 releases (e.g. 4.96.0 or 4.96.1) include database changes that earlier Fleet 5 releases don't have. If you're using the [fleetctl CLI](https://fleetdm.com/guides/fleetctl) or [GitOps](https://fleetdm.com/docs/configuration/yaml-files) (fleetctl runs in CI/CD) remember to upgrade fleetctl to 5.
+5. Upgrade to the **latest Fleet 5 release**. Why? If you upgrade to an earlier version of Fleet 5, you'll miss database migrations included in later Fleet 4 releases (e.g. 4.96.0 or 4.96.1).
 
 #### Why are we doing this?
 
@@ -69,7 +69,7 @@ You'll be missed, and we'll keep saying "teams" out of muscle memory.
 
 #### What to do
 
-Fleet 4.95 and higher already support the `/fleets` endpoints and `fleet_id`, so change them before you upgrade.
+Fleet 4 already support the `/fleets` endpoints and `fleet_id`, so change them before you upgrade.
 
 1. Search your scripts and integrations for the old names:
    ```sh
