@@ -24,9 +24,9 @@ try {
         [System.Security.Principal.SecurityIdentifier]).Value
     Write-Host "Installing Fellow for $userAccount."
 
-    # Setup replaces the user's Fellow folder, and while an earlier copy still runs out
-    # of it (on Windows on ARM a --squirrel-uninstall hook has kept running for hours),
-    # it fails behind an error dialog nobody sees until this script times out.
+    # Setup replaces the user's Fellow folder. While something it can't stop still runs
+    # out of it (on Windows on ARM a --squirrel-uninstall hook has kept running for
+    # hours), Setup fails and then waits on an error dialog until this script times out.
     $profilePath = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\$sid" -ErrorAction SilentlyContinue).ProfileImagePath
     if ($profilePath) {
         $appDir = Join-Path $profilePath "AppData\Local\Fellow"
