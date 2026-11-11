@@ -54,10 +54,9 @@ type routerProvider interface {
 	Router() *mux.Router
 }
 
-// Validate checks that every endpoint in the embedded catalog is registered
-// on the provided handler or one of the given feature routes, reading the
-// routes recorded by the endpointer. Feature routes are registered on a
-// throwaway router so callers can validate routes that are declared elsewhere.
+// Validate checks that every endpoint in the embedded catalog is registered on the provided handler or one of the given
+// feature routes, reading the routes recorded by the endpointer. Feature routes are registered on a throwaway router so
+// callers can validate routes that are declared elsewhere.
 func Validate(h http.Handler, featureRoutes ...FeatureRouteFunc) error {
 	r, ok := h.(*mux.Router)
 	if !ok {
