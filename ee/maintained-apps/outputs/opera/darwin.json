@@ -7,10 +7,10 @@
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.operasoftware.Opera' AND version_compare(bundle_short_version, '140.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat('%/', a.bundle_identifier, '.code_sign_clone/%/Contents/MacOS/', a.bundle_executable)) WHERE a.bundle_identifier = 'com.operasoftware.Opera' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://get.geo.opera.com/pub/opera/desktop/140.0.6074.17/mac/Opera_140.0.6074.17_Setup.dmg",
+      "installer_url": "https://get.geo.opera.com/pub/opera/desktop/140.0.6074.18/mac/Opera_140.0.6074.18_Setup.dmg",
       "install_script_ref": "6fe3f445",
       "uninstall_script_ref": "26225b45",
-      "sha256": "d2cdb1afc5db03c06c19d373acc614b2b5f626813a2099bf4325f05cce408912",
+      "sha256": "bf2df952ce93b91f91b2b3bc41173a5a6de013225bc91ad54c70a70aff9db032",
       "default_categories": [
         "Browsers"
       ]

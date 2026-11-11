@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.56.1",
+      "version": "1.56.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'company.thebrowser.dia';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'company.thebrowser.dia' AND version_compare(bundle_short_version, '1.56.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'company.thebrowser.dia' AND version_compare(bundle_short_version, '1.56.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'company.thebrowser.dia' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://releases.diabrowser.com/release/Dia-1.56.1-90733.zip",
+      "installer_url": "https://releases.diabrowser.com/release/Dia-1.56.2-90792.zip",
       "install_script_ref": "5b3b00cb",
       "uninstall_script_ref": "2f0d8765",
-      "sha256": "ae61eb2b3e9be851a506bf8ecaf31aa4a56d9157aa697288682006dbbbb4d79e",
+      "sha256": "eab47d4a1efef7f67908d075d429d1336e365896c22808fe68684fa97ad67d6a",
       "default_categories": [
         "Browsers"
       ]
