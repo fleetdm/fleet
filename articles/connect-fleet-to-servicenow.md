@@ -26,7 +26,7 @@ This guide covers:
 | ServiceNow integration (computers, end users, hardware models, software installations) | Coming soon in Fleet 5.2.0 | [#38864](https://github.com/fleetdm/fleet/issues/38864) |
 | Software publisher on every platform, shown in Fleet's UI, API, and CSV export | Coming soon in Fleet 5.2.0 | [#54914](https://github.com/fleetdm/fleet/issues/54914) |
 | Software install date (or "first seen" date) for each software item on each host | Coming soon in Fleet 5.2.0 | [#54912](https://github.com/fleetdm/fleet/issues/54912) |
-| Collect the end user's IdP information when they sign in to Fleet Desktop | Coming soon (not yet scheduled) | [#51472](https://github.com/fleetdm/fleet/issues/51472) |
+| Collect the end user's IdP information when they sign in to Fleet Desktop | Coming soon in Fleet 5.2.0 | [#51472](https://github.com/fleetdm/fleet/issues/51472) |
 | IdP user ID, custom emails, and Google Chrome profile emails used to match end users | Available now | |
 | Apple marketing names for hardware models (`hardware_marketing_name`) | Available now | |
 
@@ -80,16 +80,14 @@ Fleet sets **Assigned to** by matching the host's end user to a `sys_user` recor
 
 1. **IdP user ID**, for example an Okta user ID (`00u...`), matched to your IdP user ID field on `sys_user`. Requires [IdP host vitals](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts).
 2. **Custom email**, matched to `sys_user.email`. Set with the [Update human-device mapping](https://fleetdm.com/docs/rest-api/rest-api#update-human-device-mapping) API endpoint, or at install time with Fleet's agent (fleetd) `--end-user-email` flag on Windows and Linux.
-3. **Google Chrome profile email**, matched to `sys_user.email`. Fleet uses the first email that ends in your company's domain. Fleet lists these emails alphabetically, so "first" is alphabetical, not the most recently used.
+3. **Google Chrome profile email**, matched to `sys_user.email`. Fleet uses the first email in alphanumeric order, not the most recently used. For more reliable matches, use the IdP user ID (step 1).
 4. **No match:** **Assigned to** is left unchanged. Fleet never clears it.
 
 To improve match rates:
 
-- **Use IdP host vitals.** Fleet collects the IdP user ID when an end user authenticates during enrollment, and on Windows hosts joined to Microsoft Entra ID. Coming soon, Fleet will also collect it when an end user signs in to Fleet Desktop ([#51472](https://github.com/fleetdm/fleet/issues/51472)). Fleet only fills in IdP information when none exists, and never collects it from an admin previewing an end user's **My device** page.
+- **Use IdP host vitals (best practice).** Fleet collects the IdP user ID when an end user authenticates during enrollment, and on Windows hosts joined to Microsoft Entra ID. Coming soon in Fleet 5.2.0, Fleet will also collect it when an end user signs in to Fleet Desktop ([#51472](https://github.com/fleetdm/fleet/issues/51472)). Fleet only fills in IdP information when none exists, and never collects it from an admin previewing an end user's **My device** page.
 - **Backfill hosts that enrolled before you required IdP authentication.** On the **Host details** page, add the end user's IdP username. Fleet links the host to the IdP user and fills in the IdP user ID.
 - **Use one source for custom emails.** Emails set by the API and by fleetd both appear as `custom`, so if both set an email, Fleet can't tell which is more recent.
-
-<!-- TODO(product): Decide how the company domain for step 3 is configured (e.g. an allow-list in the integration settings). -->
 
 ## Hardware models
 
@@ -165,9 +163,9 @@ Learn which software Fleet collects on each platform in the [software inventory 
 | Software installations | `Fleet` | `discovery_source` | Attribute | | Coming soon (5.2.0) |
 | Software installations | `detail_updated_at` (host) | `last_scanned` | Attribute | When Fleet last refreshed the host's vitals. | Coming soon (5.2.0) |
 | Software installations | `bundle_identifier` | `u_bundle_identifier` (custom) | Attribute | macOS only. | Coming soon (5.2.0) |
-| End user, step 1 | `end_users[0].idp_id` | IdP user ID field on `sys_user` | First match | For example, an Okta user ID (`00u...`). Also collected at Fleet Desktop sign-in once [#51472](https://github.com/fleetdm/fleet/issues/51472) ships. | Coming soon (5.2.0) |
+| End user, step 1 | `end_users[0].idp_id` | IdP user ID field on `sys_user` | First match | For example, an Okta user ID (`00u...`). Also collected at Fleet Desktop sign-in in Fleet 5.2.0 ([#51472](https://github.com/fleetdm/fleet/issues/51472)). | Coming soon (5.2.0) |
 | End user, step 2 | `other_emails[]` with `source` set to `custom` | `sys_user.email` | If step 1 has no match | Set by the API or fleetd `--end-user-email`. Both appear as `custom`, so use one source. | Coming soon (5.2.0) |
-| End user, step 3 | `other_emails[]` with `source` set to `google_chrome_profiles` | `sys_user.email` | If step 2 has no match | First email ending in your company's domain. "First" is alphabetical. | Coming soon (5.2.0) |
+| End user, step 3 | `other_emails[]` with `source` set to `google_chrome_profiles` | `sys_user.email` | If step 2 has no match | First email in alphanumeric order. | Coming soon (5.2.0) |
 | End user, step 4 | None | | No match | **Assigned to** is left unchanged. Fleet never clears it. | Coming soon (5.2.0) |
 | Hardware models, step 1 | `hardware_vendor` and `hardware_model` | Alias table (for example, `u_fleet_model_alias`) | First lookup | Maps each Fleet string to a `cmdb_hardware_product_model` record. | Coming soon (5.2.0) |
 | Hardware models, step 2 | `hardware_marketing_name` or `hardware_model` | `cmdb_hardware_product_model` name or model number | Exact match | | Coming soon (5.2.0) |
