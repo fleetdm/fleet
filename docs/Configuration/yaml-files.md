@@ -666,10 +666,10 @@ Use `labels_include_all` to target hosts that have all labels, `labels_include_a
 
 ## software
 
-The `software` section allows you to configure packages, store apps (Apple App Store and Google Play Store), and Fleet-maintained apps that you want to install on your hosts.
+The `software` section allows you to configure packages, store apps (Apple App Store, Google Play Store, and Microsoft Store), and Fleet-maintained apps that you want to install on your hosts.
 
 - `packages` is a list of paths to custom packages (.pkg, .ipa, .msi, .exe, .deb, .rpm, .tar.gz, .sh, .py, or .ps1).
-- `app_store_apps` is a list of Apple App Store or Android Play Store apps.
+- `app_store_apps` is a list of Apple App Store, Android Play Store, or Microsoft Store apps.
 - `fleet_maintained_apps` is a list of Fleet-maintained apps.
 
 Currently, you can specify `install_software` in the [`policies` YAML](#policies) to automatically install software when a host fails a policy.
@@ -752,7 +752,7 @@ software:
 - `display_name` is a custom name that will be displayed in the UI. If not set, the default depends on the software type:
   - `packages`: the name [extracted from the package](https://fleetdm.com/guides/deploy-software-packages#package-metadata-extraction) is used. For script-only packages, the filename is used.
   - `fleet_maintained_apps`: the Fleet-maintained app name is used.
-  - `app_store_apps`: the App Store or Google Play app name is used.
+  - `app_store_apps`: the App Store, Google Play, or Microsoft Store app name is used.
 
 In all cases, once Fleet collects software inventory, the inventory name is used instead.
 
@@ -875,18 +875,25 @@ software:
 
 App Store apps support `path:` (single file) and `paths:` (glob pattern) references, so you can define an app once in a separate file and reference it from multiple fleets. See [`path:` vs `paths:`](#path-vs-paths-glob-patterns) for details. Filenames must not contain `*`, `?`, `[`, or `{` when using `path:`.
 
-- `app_store_id` is the ID of the Apple App Store or Android Play Store app. You can find this ID at the end of the app's URL. For example, "Bear - Markdown Notes" URL is [https://apps.apple.com/us/app/bear-markdown-notes/id1016366447](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) making the `app_store_id` is "1016366447". Similarly, the URL for "Google Chrome" on Android is [https://play.google.com/store/apps/details?id=com.android.chrome](https://play.google.com/store/apps/details?id=com.android.chrome), so the `app_store_id` is "com.android.chrome."
+- `app_store_id` is the ID of the Apple App Store, Android Play Store, or Microsoft Store app. You can find this ID at the end of the app's URL. For example, "Bear - Markdown Notes" URL is [https://apps.apple.com/us/app/bear-markdown-notes/id1016366447](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) making the `app_store_id` is "1016366447". Similarly, the URL for "Google Chrome" on Android is [https://play.google.com/store/apps/details?id=com.android.chrome](https://play.google.com/store/apps/details?id=com.android.chrome), so the `app_store_id` is "com.android.chrome."
   + For Apple App Store apps, make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
-- `platform` is the platform of the app (`darwin`, `ios`, `ipados`, or `android`). If not specified, and `app_store_id` is Apple App Store ID, one app for each of the Apple App Store app's supported platforms is added. For example, adding [Bear](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) (supported on iOS and iPadOS) adds both the iOS and iPadOS apps to your software that's available to install in Fleet.
+  + For Microsoft Store apps, the URL for "ChatGPT" is [https://apps.microsoft.com/detail/9PLM9XGG6VKS](https://apps.microsoft.com/detail/9PLM9XGG6VKS), so the `app_store_id` is "9PLM9XGG6VKS".
+- `platform` is the platform of the app (`darwin`, `ios`, `ipados`, `android`, or `windows`). Required for Microsoft Store apps (`windows`). If not specified, and `app_store_id` is Apple App Store ID, one app for each of the Apple App Store app's supported platforms is added. For example, adding [Bear](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) (supported on iOS and iPadOS) adds both the iOS and iPadOS apps to your software that's available to install in Fleet.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px, and 100 KB or smaller. Custom icons will only override the icon for the software title and fleet where they are added.
 - `configuration.path` is the app managed configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android.
   + Android: `managedConfiguration`, `workProfileWidgets`, and `credentialProviderPolicy` are supported from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy).
   + Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790), [Zoom's iOS managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064102), or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
+- `install_script.path` is the script Fleet runs on hosts to install the app. Only supported for Microsoft Store apps (`windows`). If omitted, Fleet uses the default install script. Fleet replaces `$MICROSOFT_STORE_ID` with the app's Microsoft Store ID and `$PACKAGE_ID` with its package family name (MSIX apps only).
+- `uninstall_script.path` is the script Fleet runs on hosts to uninstall the app. Only supported for Microsoft Store apps (`windows`). If omitted, Fleet uses the default uninstall script.
+- `pre_install_query.path` is the SQL query Fleet runs before installing the app. The app is installed only if the [query returns results](https://fleetdm.com/tables). Only supported for Microsoft Store apps (`windows`).
+- `post_install_script.path` is the script that, if supplied, Fleet runs on hosts after the app installs. Only supported for Microsoft Store apps (`windows`).
 - `auto_update_enabled` enables automatic updates for the app (default: `false`). Only supported for iOS and iPadOS App Store (VPP) apps.
 - `auto_update_window_start` is the start of the daily maintenance window during which Fleet will apply automatic updates, formatted as `HH:MM` in the host's local time (e.g. `"00:00"`). Required when `auto_update_enabled` is `true`. Must be wrapped in quotes so it is processed as a string.
 - `auto_update_window_end` is the end of the daily maintenance window, formatted as `HH:MM` in the host's local time (e.g. `"04:00"`). Required when `auto_update_enabled` is `true`. If the end time is earlier than the start time, the window wraps to the next day (e.g. `"22:00"` to `"02:00"`). Must be wrapped in quotes so it is processed as a string.
 
 To add the same App Store app for multiple platforms, specify the `app_store_id` multiple times, along with the `platform` you want. If you don't specify a platform, one app for each available platform will be added (macOS, iOS, and iPadOS).
+
+Microsoft Store apps are installed and uninstalled with scripts that Fleet runs as the logged-in user, so a user must be logged in to the Windows host. `setup_experience` isn't supported for Microsoft Store apps.
 
 When you update an Android app's configuration via GitOps, the app's settings are applied without reinstalling the app. The install status will show as "Pending" until the configuration is applied.
 
@@ -910,6 +917,16 @@ software:
     - "👬 Communication"
   configuration:
     path: zoom-config.xml
+```
+
+`lib/software/chatgpt.app-store-app.yml`
+
+```yaml
+- app_store_id: "9PLM9XGG6VKS"
+  platform: windows
+  self_service: true
+  post_install_script:
+    path: chatgpt-post-install-script.ps1
 ```
 
 ### fleet_maintained_apps

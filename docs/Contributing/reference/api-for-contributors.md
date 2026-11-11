@@ -4813,6 +4813,11 @@ _Available in Fleet Premium._
 | app_store_apps.auto_update_enabled | boolean | body | **Optional**. Whether automatic updates are enabled for this iOS/iPadOS VPP app. |
 | app_store_apps.auto_update_window_start | string | body | **Optional**. The start time (in HH:MM format, local time) of the window during which automatic updates can occur. Required if `auto_update_enabled` is `true`. |
 | app_store_apps.auto_update_window_end | string | body | **Optional**. The end time (in HH:MM format, local time) of the window during which automatic updates can occur. Required if `auto_update_enabled` is `true`. |
+| app_store_apps.platform | string | body | The platform of the app (`darwin`, `ios`, `ipados`, `android`, or `windows`). Required for Microsoft Store apps (`windows`). |
+| app_store_apps.install_script | string | body | **Optional**. Script that Fleet runs to install the app. Only supported for Microsoft Store apps (`windows`). If omitted, Fleet uses the default install script. |
+| app_store_apps.uninstall_script | string | body | **Optional**. Script that Fleet runs to uninstall the app. Only supported for Microsoft Store apps (`windows`). If omitted, Fleet uses the default uninstall script. |
+| app_store_apps.pre_install_query | string | body | **Optional**. Query that is pre-install condition. Only supported for Microsoft Store apps (`windows`). |
+| app_store_apps.post_install_script | string | body | **Optional**. Script that Fleet runs after the app installs. Only supported for Microsoft Store apps (`windows`). |
 
 #### Example
 

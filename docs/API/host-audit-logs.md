@@ -936,7 +936,7 @@ This activity contains the following fields:
 
 ### installed_software
 
-Generated when a Fleet-maintained app or custom package is installed on a host.
+Generated when a Fleet-maintained app, custom package, or Microsoft Store app is installed on a host.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
@@ -1010,7 +1010,7 @@ This activity contains the following fields:
 
 ### uninstalled_software
 
-Generated when a Fleet-maintained app or custom package is uninstalled on a host.
+Generated when a Fleet-maintained app, custom package, or Microsoft Store app is uninstalled on a host.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
