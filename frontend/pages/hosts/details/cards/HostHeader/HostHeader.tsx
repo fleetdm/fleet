@@ -291,7 +291,7 @@ const HostHeader = ({
           {renderDeviceStatusTag()}
 
           <div className={`${baseClass}__last-fetched`}>
-            {showRefetchSpinner && "Refetching... This may take a few minutes."}
+            {showRefetchSpinner && "Refetching... This can take up to 1 minute."}
             {!showRefetchSpinner &&
               withTooltip(
                 showMdmCheckIn ? (
