@@ -37,21 +37,6 @@ type Config struct {
 	outputsPath                 string
 }
 
-// scriptTimeoutOverrides lets an app whose install legitimately outlasts the
-// default validator cap run longer, still under Fleet's 1-hour script limit.
-var scriptTimeoutOverrides = map[string]time.Duration{
-	// Rtools extracts ~52,000 files; it took 13-22 minutes as SYSTEM on a VM and
-	// more than 10 minutes on a GitHub Windows runner.
-	"rtools/windows": 30 * time.Minute,
-}
-
-func scriptTimeout(slug string, defaultTimeout time.Duration) time.Duration {
-	if timeout, ok := scriptTimeoutOverrides[slug]; ok {
-		return timeout
-	}
-	return defaultTimeout
-}
-
 func detachAllDMGs(ctx context.Context, logger *slog.Logger, tmpDir string) {
 	if runtime.GOOS != "darwin" {
 		return
@@ -228,7 +213,7 @@ func run(cfg *Config) error {
 		appPath, changerError, listError := ac.expectToChangeFileSystem(ctx,
 			func() error {
 				appLogger.InfoContext(ctx, "Executing install script...")
-				output, err := executeScript(cfg, ac.Slug, ac.InstallScript)
+				output, err := executeScript(cfg, ac.InstallScript)
 				if err != nil {
 					appLogger.ErrorContext(ctx, fmt.Sprintf("Error executing install script: %v", err))
 					appLogger.ErrorContext(ctx, fmt.Sprintf("Output: %s", output))

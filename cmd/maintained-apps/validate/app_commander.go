@@ -88,7 +88,7 @@ func (ac *AppCommander) uninstallPreInstalled(ctx context.Context) {
 
 func (ac *AppCommander) uninstallApp(ctx context.Context) bool {
 	ac.appLogger.InfoContext(ctx, "Executing uninstall script for app...")
-	output, err := executeScript(ac.cfg, ac.Slug, ac.UninstallScript)
+	output, err := executeScript(ac.cfg, ac.UninstallScript)
 	if err != nil {
 		ac.appLogger.ErrorContext(ctx, fmt.Sprintf("Error uninstalling app: %v", err))
 		ac.appLogger.ErrorContext(ctx, fmt.Sprintf("Output: %s", output))

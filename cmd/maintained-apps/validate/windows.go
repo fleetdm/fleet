@@ -307,7 +307,7 @@ func codexCLIExistsFromFile(ctx context.Context, logger *slog.Logger, appVersion
 	return false, nil
 }
 
-func executeScript(cfg *Config, slug, scriptContents string) (string, error) {
+func executeScript(cfg *Config, scriptContents string) (string, error) {
 	scriptExtension := ".ps1"
 	scriptPath := filepath.Join(cfg.tmpDir, "script"+scriptExtension)
 	if err := os.WriteFile(scriptPath, []byte(scriptContents), constant.DefaultFileMode); err != nil {
@@ -319,9 +319,8 @@ func executeScript(cfg *Config, slug, scriptContents string) (string, error) {
 	// than a few minutes. Production allows up to 1 hour
 	// (pkgscripts.MaxHostSoftwareInstallExecutionTime); 10 minutes is a
 	// reasonable validator cap that covers large-payload installers without
-	// letting a hung script run indefinitely. scriptTimeoutOverrides raises it
-	// for specific apps.
-	ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout(slug, 10*time.Minute))
+	// letting a hung script run indefinitely.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
 	// Use custom execution with non-interactive flags for Windows

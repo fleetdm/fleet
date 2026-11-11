@@ -9,9 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
-	pkgscripts "github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/stretchr/testify/require"
 )
 
@@ -259,19 +257,5 @@ func TestCheckExistsQuery(t *testing.T) {
 				require.Equal(t, tc.existsQuery, gotQuery)
 			}
 		})
-	}
-}
-
-func TestScriptTimeout(t *testing.T) {
-	require.Equal(t, 10*time.Minute, scriptTimeout("firefox/windows", 10*time.Minute))
-	require.Equal(t, 5*time.Minute, scriptTimeout("firefox/darwin", 5*time.Minute))
-	require.Equal(t, 30*time.Minute, scriptTimeout("rtools/windows", 10*time.Minute))
-
-	appsJSON, err := os.ReadFile(filepath.Join("..", "..", "..", "ee", "maintained-apps", "outputs", "apps.json"))
-	require.NoError(t, err)
-	for slug, timeout := range scriptTimeoutOverrides {
-		// A stale slug would silently stop applying.
-		require.Contains(t, string(appsJSON), `"slug": "`+slug+`"`, slug)
-		require.Less(t, timeout, pkgscripts.MaxHostSoftwareInstallExecutionTime, slug)
 	}
 }
