@@ -15467,7 +15467,7 @@ A software title can have more than one app store app on the same fleet for iOS,
 
 For iOS, iPadOS, and Android apps, each version includes `configuration`, the version's managed app configuration. It's in XML format for iOS and iPadOS apps, and JSON format for Android apps.
 
-For Microsoft Store apps (`windows`), `version` is empty, the same as for Google Play apps, because the Microsoft Store doesn't share version numbers for most apps and Fleet always installs the latest version available in the store. Each version also includes `install_script`, `uninstall_script`, `pre_install_query`, and `post_install_script`. For example:
+For Microsoft Store apps (`windows`), `version` is empty, because the Microsoft Store doesn't share version numbers for most apps and Fleet always installs the latest version available in the store. Each version also includes `install_script`, `uninstall_script`, `pre_install_query`, and `post_install_script`. For example:
 
 ```json
 "app_store_apps": [
