@@ -175,31 +175,6 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.NotContains(t, scriptContents, "FLEET_VAR")
 	})
 
-	t.Run("orbit is told to run the notification even with scripts disabled", func(t *testing.T) {
-		host := newNotifiableHost(t, "notif-scripts-disabled")
-		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
-		dispatch(t)
-		dispatched := getTestNotification(t, s.ds, notificationUUID)
-		require.NotNil(t, dispatched.ExecutionID)
-
-		acr := appConfigResponse{}
-		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-			"server_settings": {"scripts_disabled": true}
-		}`), http.StatusOK, &acr)
-		require.True(t, acr.AppConfig.ServerSettings.ScriptsDisabled)
-		defer func() {
-			s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-				"server_settings": {"scripts_disabled": false}
-			}`), http.StatusOK, &appConfigResponse{})
-		}()
-
-		var orbitResp fleet.OrbitGetConfigResponse
-		s.DoJSON("POST", "/api/fleet/orbit/config",
-			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
-			http.StatusOK, &orbitResp)
-		require.Equal(t, []string{*dispatched.ExecutionID}, orbitResp.Notifications.PendingScriptExecutionIDs)
-	})
-
 	t.Run("a notify script that exits 0 marks the notification displayed", func(t *testing.T) {
 		host := newNotifiableHost(t, "notif-exit0")
 		notificationUUID := newTestNotification(t, s.ds, host.ID, "patch", `{"title": "hello"}`)
