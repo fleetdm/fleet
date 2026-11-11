@@ -15,6 +15,7 @@ Table of Contents
   - [Unbounded tables](#unbounded-tables)
   - [Data retention](#data-retention)
   - [Re-usable transactionable functions](#re-usable-transactionable-functions)
+  - [Replica lag](#replica-lag)
 - [Specific features](#specific-features)
   - [GitOps](#gitops)
 
