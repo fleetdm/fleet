@@ -4935,6 +4935,74 @@ Content-Length: <length>
 Body: <blob>
 ```
 
+### Download in-house app manifest using a token
+
+_Available in Fleet Premium._
+
+`GET /api/v1/fleet/software/titles/:software_title_id/in_house_app/manifest/:token`
+
+iOS and iPadOS hosts call this endpoint to install an in-house app (`.ipa`). When Fleet queues an in-house app install, it creates a token for that host and app, and includes this endpoint's URL as the `ManifestURL` in the `InstallApplication` MDM command. The token expires after 6 hours. The URL uses Fleet's Apple MDM URL (`apple_server_url` if set).
+
+The response is the app's manifest (plist). The manifest points the host to [Download in-house app using a token](#download-in-house-app-using-a-token), or to a signed URL that expires after 5 minutes if signed URLs for software installers are configured.
+
+This endpoint doesn't require authentication. If the token is invalid, expired, or belongs to a different software title, Fleet returns a `403` error.
+
+#### Parameters
+
+| Name              | Type    | In   | Description                                          |
+|-------------------|---------|------|------------------------------------------------------|
+| software_title_id | integer | path | **Required**. The ID of the in-house app's software title. |
+| token             | string  | path | **Required**. The install token Fleet created for the host. |
+
+#### Example
+
+`GET /api/v1/fleet/software/titles/123/in_house_app/manifest/e905e33e-07fe-4f82-889c-4848ed7eecb7`
+
+##### Default response
+
+`Status: 200`
+
+```http
+Status: 200
+Content-Type: application/x-apple-aspen-config; charset=utf-8
+Content-Disposition: attachment; filename="in-house-app-manifest.plist"
+Content-Length: <length>
+Body: <manifest plist>
+```
+
+### Download in-house app using a token
+
+_Available in Fleet Premium._
+
+`GET /api/v1/fleet/software/titles/:software_title_id/in_house_app/:token`
+
+iOS and iPadOS hosts call this endpoint to download the in-house app (`.ipa`) named in the manifest from [Download in-house app manifest using a token](#download-in-house-app-manifest-using-a-token). It uses the same token.
+
+This endpoint doesn't require authentication. If the token is invalid, expired, or belongs to a different software title, Fleet returns a `403` error.
+
+#### Parameters
+
+| Name              | Type    | In   | Description                                          |
+|-------------------|---------|------|------------------------------------------------------|
+| software_title_id | integer | path | **Required**. The ID of the in-house app's software title. |
+| token             | string  | path | **Required**. The install token Fleet created for the host. |
+
+#### Example
+
+`GET /api/v1/fleet/software/titles/123/in_house_app/e905e33e-07fe-4f82-889c-4848ed7eecb7`
+
+##### Default response
+
+`Status: 200`
+
+```http
+Status: 200
+Content-Type: application/octet-stream
+Content-Disposition: attachment;filename="installer.ipa"
+Content-Length: <length>
+Body: <blob>
+```
+
 ---
 
 ## Certificates
