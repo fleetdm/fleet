@@ -52,7 +52,7 @@ func Up_20261103120000(tx *sql.Tx) error {
 			}
 		}
 		if reasons := fleet495Mismatches(legacyMigrations, dataMigrations); len(reasons) > 0 {
-			return fmt.Errorf("this database is not on Fleet 4.95, upgrade to the latest Fleet 4.95.x before upgrading to Fleet 5: %s", strings.Join(reasons, "; "))
+			return fmt.Errorf("this database must be upgraded to Fleet 4.95.0 or later before upgrading to Fleet 5: %s", strings.Join(reasons, "; "))
 		}
 		return nil
 	}
@@ -106,7 +106,7 @@ func fleet495Mismatches(tableMigrations, dataMigrations []int64) []string {
 
 	var reasons []string
 	if len(missing) > 0 {
-		reason := fmt.Sprintf("%d of %d Fleet 4.95 migrations not applied (first missing %d", len(missing), len(Fleet4Migrations), missing[0])
+		reason := fmt.Sprintf("%d of %d Fleet 4.95.0 migrations not applied (first missing %d", len(missing), len(Fleet4Migrations), missing[0])
 		if len(tableMigrations) > 0 {
 			reason += fmt.Sprintf(", latest applied %d", slices.Max(tableMigrations))
 		}
@@ -114,7 +114,7 @@ func fleet495Mismatches(tableMigrations, dataMigrations []int64) []string {
 	}
 	if len(unknown) > 0 {
 		slices.Sort(unknown)
-		reasons = append(reasons, fmt.Sprintf("applied migrations not part of Fleet 4.95 (%s)", formatVersions(unknown)))
+		reasons = append(reasons, fmt.Sprintf("applied migrations not part of Fleet 4.95.0 (%s)", formatVersions(unknown)))
 	}
 	if len(missingData) > 0 {
 		reasons = append(reasons, fmt.Sprintf("Fleet 4 data migrations not applied (%s)", formatVersions(missingData)))
