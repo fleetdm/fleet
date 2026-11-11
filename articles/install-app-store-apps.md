@@ -121,6 +121,8 @@ How an app is updated depends on how it's packaged:
     </Item>
   </Replace>
   ```
+
+  After the profile is applied, **App updates** in the Microsoft Store's **Settings** is turned on and grayed out, so end users can't turn it off.
 - **Apps with their own installer** (MSI or EXE) aren't updated by the Microsoft Store. They update with the app's own updater, or when you select **Reinstall** in Fleet. Reinstall installs the version listed in the Microsoft Store, which can be older than the version the app already updated itself to.
 
 To check how an app is packaged, run `winget show --id <app ID> --source msstore` on a Windows host. MSIX apps show `msstore` as the installer type.
