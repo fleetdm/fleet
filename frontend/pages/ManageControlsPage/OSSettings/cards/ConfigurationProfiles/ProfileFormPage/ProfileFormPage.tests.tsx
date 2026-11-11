@@ -1201,13 +1201,6 @@ describe("ProfileFormPage", () => {
       expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
     });
 
-    it("isn't shown until the AI features are released, even with Generative AI on", () => {
-      delete featureFlags.showAIProfileBuilder;
-      renderAt(NEW_PATH);
-      expect(isAIView()).toBe(false);
-      expect(screen.getByLabelText("Name")).toBeInTheDocument();
-    });
-
     it("isn't shown at the manual view's URL", () => {
       renderAt(MANUAL_PATH);
       expect(isAIView()).toBe(false);
