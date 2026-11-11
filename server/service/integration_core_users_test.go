@@ -559,7 +559,7 @@ func (s *integrationTestSuite) TestUserRolesSpec() {
 		strings.ToUpper(email): {GlobalRole: new(fleet.RoleObserver)},
 	}}}
 	s.Do("POST", "/api/latest/fleet/users/roles/spec", &userRoleSpec, http.StatusOK)
-	user, err = s.ds.UserByEmail(context.Background(), email)
+	user, err = s.ds.UserByEmail(t.Context(), email)
 	require.NoError(t, err)
 	require.NotNil(t, user.GlobalRole)
 	s.lastActivityOfTypeMatches(changedGlobalRole, fmt.Sprintf(globalRoleDetails, *user.GlobalRole), 0)

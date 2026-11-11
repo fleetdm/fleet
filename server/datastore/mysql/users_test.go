@@ -482,7 +482,7 @@ func testUsersSaveMany(t *testing.T, ds *Datastore) {
 	u2.Email += "m"
 	u3.Email += "m"
 
-	_, err := ds.SaveUsers(context.Background(), []*fleet.User{u1, u2, u3})
+	_, err := ds.SaveUsers(t.Context(), []*fleet.User{u1, u2, u3})
 	require.NoError(t, err)
 
 	gotU1, err := ds.UserByID(context.Background(), u1.ID)
