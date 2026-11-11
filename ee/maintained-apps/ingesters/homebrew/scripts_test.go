@@ -924,6 +924,172 @@ kill() {
 	})
 }
 
+// TestI1ProfilerScriptsForceQuitWhenQuitIsRefused runs the i1Profiler scripts
+// against a fake process table. i1Profiler refuses a quit request while one of
+// its dialogs is open, so after the polite quit fails they signal the GUI only
+// (never the tray app), relaunch it after an install, and stop before
+// installing or removing anything if it survives SIGKILL.
+func TestI1ProfilerScriptsForceQuitWhenQuitIsRefused(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("as root the relaunch goes through /bin/launchctl asuser, which can't be stubbed")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+
+	readScript := func(name string) string {
+		b, err := os.ReadFile(filepath.Join("../../inputs/homebrew/scripts", name))
+		require.NoError(t, err)
+		return string(b)
+	}
+	install := readScript("i1profiler-install.sh")
+	uninstall := readScript("i1profiler-uninstall.sh")
+
+	// The install script cases cover the helpers, so both copies must match.
+	helpers := regexp.MustCompile(`(?s)\ni1profiler_pids\(\) \{.*?\nforce_quit_i1profiler\(\) \{.*?\n\}\n`)
+	require.NotEmpty(t, helpers.FindString(install))
+	require.Equal(t, helpers.FindString(install), helpers.FindString(uninstall))
+
+	// Everything after the quit call removes files, so it's replaced with a marker.
+	quitCall := "\nquit_application 'com.x-rite.i1Profiler' || force_quit_i1profiler || exit 1\n"
+	i := strings.Index(uninstall, quitCall)
+	require.Positive(t, i)
+	uninstall = uninstall[:i+len(quitCall)] + "echo 'Removing i1Profiler.'\n"
+
+	const exe = "/Applications/i1Profiler/i1Profiler.app/Contents/MacOS/i1Profiler"
+	const tray = "201 unkillable /Applications/i1Profiler/i1ProfilerTray.app/Contents/MacOS/i1ProfilerTray"
+
+	// Each process is "<pid> <behavior> <args>". The GUI quits when asked
+	// ("polite"), exits on SIGTERM ("exits"), only on SIGKILL ("stubborn"), or
+	// never ("unkillable"). opens records the arguments of each open call.
+	run := func(t *testing.T, script string, procs ...string) (out, signals, opens string, err error) {
+		dir := t.TempDir()
+		procFile := filepath.Join(dir, "procs")
+		sigFile := filepath.Join(dir, "signals")
+		openFile := filepath.Join(dir, "opens")
+		require.NoError(t, os.WriteFile(procFile, []byte(strings.Join(procs, "\n")+"\n"), 0o600))
+		require.NoError(t, os.WriteFile(sigFile, nil, 0o600))
+		require.NoError(t, os.WriteFile(openFile, nil, 0o600))
+		stubs := `procs=` + shellSingleQuote(procFile) + `
+signals=` + shellSingleQuote(sigFile) + `
+opens=` + shellSingleQuote(openFile) + `
+exe=` + shellSingleQuote(exe) + `
+INSTALLER_PATH=/tmp/fleet-test/i1Profiler.zip
+realpath() { echo "$1"; }
+ditto() { :; }
+sleep() { SECONDS=$((SECONDS + $1)); }
+scutil() { :; }
+launchctl() { :; }
+stat() { echo alice; }
+sudo() { echo "sudo $*"; }
+open() { echo "$*" >> "$opens"; }
+ps() { grep . "$procs" | sed -E 's/^([0-9]+) [a-z]+ /  \1 /'; }
+gui_running() { grep -qF " $exe" "$procs"; }
+osascript() {
+  case "$*" in
+    *" to quit"*)
+      if grep -q '^[0-9]* polite ' "$procs"; then
+        awk '$2 != "polite"' "$procs" > "$procs.new" && command mv "$procs.new" "$procs"
+      elif gui_running; then
+        echo "execution error: User canceled. (-128)" >&2
+        return 1
+      fi
+      ;;
+    *" is running"*) gui_running && echo true || echo false ;;
+  esac
+}
+kill() {
+  local sig="$1" pid behavior
+  shift
+  for pid in "$@"; do
+    echo "$sig $pid" >> "$signals"
+    behavior=$(awk -v p="$pid" '$1 == p { print $2 }' "$procs")
+    case "$sig $behavior" in
+      "-TERM exits" | "-KILL exits" | "-KILL stubborn")
+        awk -v p="$pid" '$1 != p' "$procs" > "$procs.new" && command mv "$procs.new" "$procs" ;;
+    esac
+  done
+}
+`
+		b, err := exec.Command(bash, "-c", stubs+script).CombinedOutput()
+		sigs, readErr := os.ReadFile(sigFile)
+		require.NoError(t, readErr)
+		opened, readErr := os.ReadFile(openFile)
+		require.NoError(t, readErr)
+		return string(b), string(sigs), string(opened), err
+	}
+	requireExit1 := func(t *testing.T, err error, out string) {
+		var exitErr *exec.ExitError
+		require.ErrorAs(t, err, &exitErr, out)
+		require.Equal(t, 1, exitErr.ExitCode(), out)
+	}
+	const installs = "sudo installer -pkg /tmp/fleet-test/i1Profiler.pkg -target /"
+	const relaunch = "Relaunching application 'com.x-rite.i1Profiler'..."
+
+	t.Run("not running", func(t *testing.T) {
+		out, signals, opens, err := run(t, install, tray)
+		require.NoError(t, err, out)
+		require.Empty(t, signals)
+		require.Empty(t, opens)
+		require.Contains(t, out, installs)
+		require.NotContains(t, out, relaunch)
+	})
+
+	t.Run("quits when asked", func(t *testing.T) {
+		out, signals, opens, err := run(t, install, "101 polite "+exe, tray)
+		require.NoError(t, err, out)
+		require.Empty(t, signals)
+		require.Equal(t, "-b com.x-rite.i1Profiler\n", opens)
+		require.Contains(t, out, "quit successfully.")
+		require.Contains(t, out, installs)
+		require.Contains(t, out, relaunch)
+	})
+
+	t.Run("quit refused, exits on SIGTERM", func(t *testing.T) {
+		out, signals, opens, err := run(t, install, "101 exits "+exe, tray)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 101\n", signals)
+		require.Equal(t, "-b com.x-rite.i1Profiler\n", opens)
+		require.Contains(t, out, "Forcing i1Profiler to quit...")
+		require.Less(t, strings.Index(out, "i1Profiler quit."), strings.Index(out, installs))
+		require.Less(t, strings.Index(out, installs), strings.Index(out, relaunch))
+	})
+
+	t.Run("quit refused, needs SIGKILL", func(t *testing.T) {
+		out, signals, _, err := run(t, install, "101 stubborn "+exe, tray)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 101\n-KILL 101\n", signals)
+		require.Contains(t, out, installs)
+		require.Contains(t, out, relaunch)
+	})
+
+	t.Run("install stops when the GUI survives", func(t *testing.T) {
+		out, signals, opens, err := run(t, install, "101 unkillable "+exe, tray)
+		requireExit1(t, err, out)
+		require.Equal(t, "-TERM 101\n-KILL 101\n", signals)
+		require.Empty(t, opens)
+		require.Contains(t, out, "i1Profiler did not quit.")
+		require.NotContains(t, out, "installer")
+		require.NotContains(t, out, relaunch)
+	})
+
+	t.Run("uninstall", func(t *testing.T) {
+		out, _, _, err := run(t, uninstall, "101 unkillable "+exe, tray)
+		requireExit1(t, err, out)
+		require.NotContains(t, out, "Removing i1Profiler.")
+
+		out, signals, opens, err := run(t, uninstall, "101 exits "+exe, tray)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 101\n", signals)
+		require.Empty(t, opens)
+		require.Contains(t, out, "Removing i1Profiler.")
+	})
+}
+
 // TestWezTermScriptsQuitWithSIGTERM runs the WezTerm scripts against a fake
 // process table. WezTerm prompts before it quits, so they send SIGTERM to the
 // console user's WezTerm GUI processes only, found by bundle ID, relaunch it
