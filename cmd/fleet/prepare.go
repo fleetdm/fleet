@@ -37,7 +37,10 @@ To setup Fleet infrastructure, use one of the available commands.
 		Short: "Given correct database configurations, prepare the databases for use",
 		Long:  ``,
 		Run: func(cmd *cobra.Command, args []string) {
-			config := configManager.LoadConfig()
+			config, err := configManager.LoadConfig()
+			if err != nil {
+				initFatal(err, "loading config")
+			}
 
 			if dev_mode.IsEnabled {
 				applyDevFlags(&config)
