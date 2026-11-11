@@ -511,3 +511,27 @@ func TestConfigFetcherFallbackPollJitter(t *testing.T) {
 	ft.waitFetch(t)
 	assert.Len(t, client.getCalls(), 4)
 }
+
+func TestConfigFetcherShorterPollIntervalJittered(t *testing.T) {
+	client := &fakeConfigClient{responses: []string{`{"etag":"v1","options":{}}`, `{"etag":"ok"}`}}
+	ft := newFetcherTest(t, client)
+	ft.connected.Store(true)
+	ft.f.jitter = func(d time.Duration) time.Duration { return d / 2 }
+
+	ft.genConfig(t)
+	ft.waitFetch(t)
+
+	// The default interval was jittered down to 5m; a 1m interval must not
+	// shift that into the past, only reschedule it from the last fetch.
+	ft.advance(30 * time.Second)
+	ft.f.SetPollInterval(time.Minute)
+	ft.genConfig(t)
+	ft.noFetch(t)
+	ft.advance(30*time.Second - time.Second)
+	ft.genConfig(t)
+	ft.noFetch(t)
+	ft.advance(time.Second)
+	ft.genConfig(t)
+	ft.waitFetch(t)
+	assert.Len(t, client.getCalls(), 2)
+}

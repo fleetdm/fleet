@@ -44,7 +44,8 @@ const disconnectSpread = 30 * time.Second
 // fallbackJitter is the fraction by which each fallback poll interval is
 // randomized either way. Without it, agents that fetched together (after a
 // server restart or a global nudge) keep polling together; ±50% spreads them
-// over the whole interval by their next poll, keeping the mean interval.
+// over the whole interval by their next poll. The mean interval is kept unless
+// the poll interval is close to the disconnected one, which floors it.
 const fallbackJitter = 0.5
 
 // configUnchangedETag is the etag of the server's response to a current etag,
@@ -81,6 +82,8 @@ type ConfigFetcher struct {
 	serverRefresh time.Duration
 	pollInterval  time.Duration
 	nextFetch     time.Time
+	// scheduledAt is when nextFetch was last scheduled after a fetch.
+	scheduledAt time.Time
 	// nextIsFallback reports whether the next fetch is the fallback poll of a
 	// connected agent.
 	nextIsFallback bool
@@ -128,10 +131,14 @@ func (f *ConfigFetcher) SetPollInterval(d time.Duration) {
 	defer f.mu.Unlock()
 	before := f.fallbackIntervalLocked()
 	f.pollInterval = d
-	// Bring a scheduled fallback poll forward to the shorter interval (the
+	// Reschedule a scheduled fallback poll at the shorter interval (the
 	// fetcher starts with the default one, before the server's arrives).
-	if delta := f.fallbackIntervalLocked() - before; f.nextIsFallback && delta < 0 {
-		f.nextFetch = f.nextFetch.Add(delta)
+	// It is redrawn rather than shifted: shifting a jittered schedule could
+	// put it in the past.
+	if f.nextIsFallback && f.fallbackIntervalLocked() < before {
+		if next := f.scheduledAt.Add(f.jitteredFallbackIntervalLocked()); next.Before(f.nextFetch) {
+			f.nextFetch = next
+		}
 	}
 }
 
@@ -303,9 +310,16 @@ func (f *ConfigFetcher) scheduleNextLocked(ok bool) {
 	interval := f.serverRefresh
 	f.nextIsFallback = ok && f.connected()
 	if f.nextIsFallback {
-		interval = max(f.serverRefresh, f.jitter(f.fallbackIntervalLocked()))
+		interval = f.jitteredFallbackIntervalLocked()
 	}
-	f.nextFetch = f.now().Add(interval)
+	f.scheduledAt = f.now()
+	f.nextFetch = f.scheduledAt.Add(interval)
+}
+
+// jitteredFallbackIntervalLocked returns a randomized fallback poll interval,
+// never shorter than the disconnected one. f.mu must be held.
+func (f *ConfigFetcher) jitteredFallbackIntervalLocked() time.Duration {
+	return max(f.serverRefresh, f.jitter(f.fallbackIntervalLocked()))
 }
 
 // fallbackIntervalLocked returns the fallback poll interval of a connected
