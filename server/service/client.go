@@ -1329,17 +1329,6 @@ func (c *Client) ApplyGroup(
 		}
 	}
 
-	if specs.UsersRoles != nil {
-		if opts.DryRun {
-			logfn("[!] ignoring user roles, dry run mode only supported for 'config' and 'fleet' specs\n")
-		} else {
-			if err := c.ApplyUsersRoleSecretSpec(specs.UsersRoles); err != nil {
-				return nil, nil, nil, nil, fmt.Errorf("applying user roles: %w", err)
-			}
-			logfn("[+] applied user roles\n")
-		}
-	}
-
 	return teamIDsByName, teamsSoftwareInstallers, teamsVPPApps, teamsScripts, nil
 }
 

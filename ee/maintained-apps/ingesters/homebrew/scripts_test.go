@@ -1,6 +1,7 @@
 package homebrew
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"os/exec"
@@ -119,6 +120,96 @@ func TestInstallScriptAppCopyPropagatesAndRestores(t *testing.T) {
 	fi
 	exit 1
 fi`)
+}
+
+// TestInstallScriptZipExtractStopsOnFailure runs a generated zip install script
+// with ditto failing. A partial extraction must not replace the existing app
+// or be reported as a successful install.
+func TestInstallScriptZipExtractStopsOnFailure(t *testing.T) {
+	script, err := installScriptForApp(inputApp{
+		Token:            "foo",
+		UniqueIdentifier: "com.example.Foo",
+		InstallerFormat:  "zip",
+	}, &brewCask{Artifacts: []*brewArtifact{{App: []optjson.StringOr[*brewAppTarget]{{String: "Foo.app"}}}}})
+	require.NoError(t, err)
+	require.Contains(t, script, "\nditto -x -k \"$INSTALLER_PATH\" \"$TMPDIR\" || exit 1\n")
+
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+	stubs := `stat() { echo alice; }
+realpath() { echo /tmp/fleet-test/installer; }
+ditto() { echo "ditto: Couldn't read pkzip signature." >&2; return 1; }
+sleep() { :; }
+sudo() { echo "sudo $*"; }
+open() { :; }
+ps() { :; }
+defaults() { :; }
+osascript() { echo true; }
+`
+	out, err := exec.Command(bash, "-c", stubs+script).CombinedOutput()
+	var exitErr *exec.ExitError
+	require.ErrorAs(t, err, &exitErr, string(out))
+	require.Equal(t, 1, exitErr.ExitCode(), string(out))
+	require.NotContains(t, string(out), "Quitting application")
+	require.NotContains(t, string(out), "sudo mv")
+	require.NotContains(t, string(out), "sudo cp")
+}
+
+// uncheckedExtractions returns archive extraction lines in install scripts
+// that carry on after a failed extraction, which would install a partial app
+// and report success.
+func uncheckedExtractions(script string) []string {
+	extract := regexp.MustCompile(`^\s*(sudo\s+)?(ditto\s+-x\S*|unzip|tar\s+-?[a-zA-Z]*x[a-zA-Z]*)\s`)
+	stops := regexp.MustCompile(`\|\|\s*exit(\s+(\$\?|[1-9][0-9]*))?\s*$`)
+	var unchecked []string
+	for line := range strings.SplitSeq(script, "\n") {
+		if extract.MatchString(line) && !stops.MatchString(line) {
+			unchecked = append(unchecked, strings.TrimSpace(line))
+		}
+	}
+	return unchecked
+}
+
+func TestCustomInstallScriptsStopWhenExtractionFails(t *testing.T) {
+	paths, err := filepath.Glob("../../inputs/homebrew/scripts/*.sh")
+	require.NoError(t, err)
+	require.NotEmpty(t, paths)
+	for _, path := range paths {
+		name := filepath.Base(path)
+		if strings.Contains(name, "uninstall") {
+			continue
+		}
+		b, err := os.ReadFile(path)
+		require.NoError(t, err)
+		require.Empty(t, uncheckedExtractions(string(b)), "%s carries on after a failed extraction", name)
+	}
+}
+
+// TestOutputInstallScriptsStopWhenExtractionFails covers the stored manifests,
+// including frozen ones the ingester doesn't rewrite.
+func TestOutputInstallScriptsStopWhenExtractionFails(t *testing.T) {
+	paths, err := filepath.Glob("../../outputs/*/darwin.json")
+	require.NoError(t, err)
+	require.NotEmpty(t, paths)
+	for _, path := range paths {
+		b, err := os.ReadFile(path)
+		require.NoError(t, err)
+		var manifest struct {
+			Versions []struct {
+				InstallScriptRef string `json:"install_script_ref"`
+			} `json:"versions"`
+			Refs map[string]string `json:"refs"`
+		}
+		require.NoError(t, json.Unmarshal(b, &manifest), path)
+		for _, v := range manifest.Versions {
+			require.Empty(t, uncheckedExtractions(manifest.Refs[v.InstallScriptRef]), "%s carries on after a failed extraction", path)
+		}
+	}
 }
 
 // TestInstallScriptStopsWhenAppWontQuit runs generated install scripts in bash
@@ -659,6 +750,176 @@ kill() {
 		require.Equal(t, "-TERM 101\n", signals)
 		require.Empty(t, opens)
 		require.Contains(t, out, "Removing Tailscale.")
+		require.NotContains(t, out, relaunch)
+	})
+}
+
+// TestPureVPNScriptsStopOnlyTheGUI runs the PureVPN scripts against a fake
+// process table. They signal only the GUI, never the helper tool, login item,
+// system extensions or autofill extension, force-quit a GUI that ignores
+// SIGTERM, and stop before installing or removing anything if it survives. The
+// install relaunches the app only when it was running and the pkg's
+// postinstall didn't reopen it.
+func TestPureVPNScriptsStopOnlyTheGUI(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("as root the relaunch goes through /bin/launchctl asuser, which can't be stubbed")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+
+	readScript := func(name string) string {
+		b, err := os.ReadFile(filepath.Join("../../inputs/homebrew/scripts", name))
+		require.NoError(t, err)
+		return string(b)
+	}
+	install := readScript("purevpn-install.sh")
+	uninstall := readScript("purevpn-uninstall.sh")
+
+	// The install script cases cover the helpers, so both copies must match.
+	helpers := regexp.MustCompile(`(?s)\npurevpn_pids\(\) \{.*?\nquit_purevpn\(\) \{.*?\n\}\n`)
+	require.NotEmpty(t, helpers.FindString(install))
+	require.Equal(t, helpers.FindString(install), helpers.FindString(uninstall))
+
+	// Everything after the quit call removes files, so it's replaced with a marker.
+	quitCall := "\nquit_purevpn || exit 1\n"
+	i := strings.Index(uninstall, quitCall)
+	require.Positive(t, i)
+	uninstall = uninstall[:i+len(quitCall)] + "echo 'Removing PureVPN.'\n"
+
+	const exe = "/Applications/PureVPN.app/Contents/MacOS/PureVPN"
+
+	// Each process is "<pid> <behavior> <args>". It exits on SIGTERM ("exits"),
+	// only on SIGKILL ("stubborn"), or never ("unkillable"). With reopen set,
+	// the installer stub starts the GUI again, as the pkg's postinstall does.
+	// opens records the arguments of each open call.
+	run := func(t *testing.T, script string, reopen bool, procs ...string) (out, signals, opens string, err error) {
+		dir := t.TempDir()
+		procFile := filepath.Join(dir, "procs")
+		sigFile := filepath.Join(dir, "signals")
+		openFile := filepath.Join(dir, "opens")
+		require.NoError(t, os.WriteFile(procFile, []byte(strings.Join(procs, "\n")+"\n"), 0o600))
+		require.NoError(t, os.WriteFile(sigFile, nil, 0o600))
+		require.NoError(t, os.WriteFile(openFile, nil, 0o600))
+		reopenProc := ""
+		if reopen {
+			reopenProc = "301 exits " + exe
+		}
+		stubs := `procs=` + shellSingleQuote(procFile) + `
+signals=` + shellSingleQuote(sigFile) + `
+reopen=` + shellSingleQuote(reopenProc) + `
+opens=` + shellSingleQuote(openFile) + `
+INSTALLER_PATH=/tmp/fleet-test/PureVPN.pkg
+sleep() { :; }
+scutil() { :; }
+stat() { echo alice; }
+sudo() { echo "sudo $*"; }
+open() { echo "$*" >> "$opens"; }
+installer() {
+  echo "installer $*"
+  [[ -z "$reopen" ]] || echo "$reopen" >> "$procs"
+}
+ps() { grep . "$procs" | sed -E 's/^([0-9]+) [a-z]+ /  \1 /'; }
+kill() {
+  local sig="$1" pid behavior
+  shift
+  for pid in "$@"; do
+    echo "$sig $pid" >> "$signals"
+    behavior=$(awk -v p="$pid" '$1 == p { print $2 }' "$procs")
+    case "$sig $behavior" in
+      "-TERM exits" | "-KILL exits" | "-KILL stubborn")
+        awk -v p="$pid" '$1 != p' "$procs" > "$procs.new" && command mv "$procs.new" "$procs" ;;
+    esac
+  done
+}
+`
+		b, err := exec.Command(bash, "-c", stubs+script).CombinedOutput()
+		sigs, readErr := os.ReadFile(sigFile)
+		require.NoError(t, readErr)
+		opened, readErr := os.ReadFile(openFile)
+		require.NoError(t, readErr)
+		return string(b), string(sigs), string(opened), err
+	}
+	requireExit1 := func(t *testing.T, err error, out string) {
+		var exitErr *exec.ExitError
+		require.ErrorAs(t, err, &exitErr, out)
+		require.Equal(t, 1, exitErr.ExitCode(), out)
+	}
+
+	others := []string{
+		"201 unkillable /Library/PrivilegedHelperTools/com.purevpn.app.mac.helpertool",
+		"202 unkillable /Applications/PureVPN.app/Contents/Library/LoginItems/PureVPNLauncher.app/Contents/MacOS/PureVPNLauncher",
+		"203 unkillable /Library/SystemExtensions/0A1B2C3D-4E5F-6789-ABCD-EF0123456789/com.purevpn.mac.packet-tunnel.systemextension/Contents/MacOS/com.purevpn.mac.packet-tunnel",
+		"204 unkillable /Library/SystemExtensions/1A1B2C3D-4E5F-6789-ABCD-EF0123456789/com.purevpn.app.mac.wireguard-packet-tunnel.systemextension/Contents/MacOS/com.purevpn.app.mac.wireguard-packet-tunnel",
+		"205 unkillable /Applications/PureVPN.app/Contents/PlugIns/autofill.appex/Contents/MacOS/autofill",
+	}
+	const relaunch = "Relaunching application 'com.purevpn.app.mac'..."
+
+	t.Run("not running", func(t *testing.T) {
+		for _, reopen := range []bool{false, true} {
+			out, signals, opens, err := run(t, install, reopen, others...)
+			require.NoError(t, err, out)
+			require.Empty(t, signals)
+			require.Empty(t, opens)
+			require.NotContains(t, out, "Quitting PureVPN")
+			require.Contains(t, out, "installer -pkg /tmp/fleet-test/PureVPN.pkg -target /")
+			require.NotContains(t, out, relaunch)
+		}
+	})
+
+	t.Run("quits on SIGTERM, postinstall reopens it", func(t *testing.T) {
+		procs := append([]string{"101 exits " + exe, "102 exits " + exe + " -NSDocumentRevisionsDebugMode YES"}, others...)
+		out, signals, opens, err := run(t, install, true, procs...)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 101\n-TERM 102\n", signals)
+		require.Empty(t, opens)
+		require.Contains(t, out, "PureVPN quit successfully.")
+		require.Contains(t, out, "installer -pkg")
+		require.NotContains(t, out, relaunch)
+	})
+
+	t.Run("quits on SIGTERM, relaunched when postinstall doesn't reopen it", func(t *testing.T) {
+		out, signals, opens, err := run(t, install, false, append([]string{"101 exits " + exe}, others...)...)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 101\n", signals)
+		require.Equal(t, "-b com.purevpn.app.mac\n", opens)
+		require.Contains(t, out, "installer -pkg")
+		require.Contains(t, out, relaunch)
+		require.Less(t, strings.Index(out, "installer -pkg"), strings.Index(out, relaunch))
+	})
+
+	t.Run("force-quit after SIGTERM", func(t *testing.T) {
+		out, signals, _, err := run(t, install, true, append([]string{"101 stubborn " + exe}, others...)...)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 101\n-KILL 101\n", signals)
+		require.Contains(t, out, "PureVPN didn't quit; forcing it to quit.")
+		require.Contains(t, out, "installer -pkg")
+	})
+
+	t.Run("install stops when the GUI survives", func(t *testing.T) {
+		out, signals, opens, err := run(t, install, true, "101 unkillable "+exe)
+		requireExit1(t, err, out)
+		require.Empty(t, opens)
+		require.Equal(t, "-TERM 101\n-KILL 101\n", signals)
+		require.Contains(t, out, "PureVPN did not quit.")
+		require.NotContains(t, out, "installer")
+		require.NotContains(t, out, relaunch)
+	})
+
+	t.Run("uninstall", func(t *testing.T) {
+		out, _, _, err := run(t, uninstall, false, "101 unkillable "+exe)
+		requireExit1(t, err, out)
+		require.NotContains(t, out, "Removing PureVPN.")
+
+		out, signals, opens, err := run(t, uninstall, false, append([]string{"101 exits " + exe}, others...)...)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 101\n", signals)
+		require.Empty(t, opens)
+		require.Contains(t, out, "Removing PureVPN.")
 		require.NotContains(t, out, relaunch)
 	})
 }
