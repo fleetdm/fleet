@@ -2721,6 +2721,57 @@ This activity contains the following fields:
 }
 ```
 
+## AI and MCP
+
+- [added_custom_ai_provider](#added-custom-ai-provider)
+- [edited_custom_ai_provider](#edited-custom-ai-provider)
+- [disabled_custom_ai_provider](#disabled-custom-ai-provider)
+
+### added_custom_ai_provider
+
+Generated when a custom AI provider is configured for the AI profile builder.
+
+This activity contains the following fields:
+- "provider": The AI provider. Either `"anthropic"` or `"openai"`.
+
+#### Example
+
+```json
+{
+  "provider": "anthropic"
+}
+```
+
+### edited_custom_ai_provider
+
+Generated when custom AI provider settings are edited, including switching between providers.
+
+This activity contains the following fields:
+- "provider": The AI provider after the edit. Either `"anthropic"` or `"openai"`.
+
+#### Example
+
+```json
+{
+  "provider": "openai"
+}
+```
+
+### disabled_custom_ai_provider
+
+Generated when the custom AI provider is turned off and Fleet uses its built-in AI.
+
+This activity contains the following fields:
+- "provider": The AI provider that was turned off. Either `"anthropic"` or `"openai"`.
+
+#### Example
+
+```json
+{
+  "provider": "anthropic"
+}
+```
+
 ## SCIM
 
 - [scim_user_deprovision_skipped](#scim-user-deprovision-skipped)
