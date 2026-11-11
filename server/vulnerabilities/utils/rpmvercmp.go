@@ -134,7 +134,7 @@ func nextSeg(ver string) segment {
 
 	// Skip over non-alphanumeric chars
 	// (except tildes)
-	if foundNonAlphaNum && !foundTilde {
+	if foundNonAlphaNum && !foundTilde && end < len(ver) {
 		r.offset++
 	}
 

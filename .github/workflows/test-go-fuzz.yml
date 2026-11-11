@@ -1,0 +1,168 @@
+name: Go fuzz tests
+
+on:
+  pull_request:
+    paths:
+      - "**.go"
+      - "**/testdata/**"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/test-go-fuzz.yml"
+  push:
+    branches: [main]
+    paths:
+      - "**.go"
+      - "**/testdata/**"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/test-go-fuzz.yml"
+  schedule:
+    - cron: "35 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  fuzz:
+    name: ${{ matrix.package }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        package:
+          - ./server/mdm/microsoft
+          - ./pkg/file
+          - ./server/vulnerabilities/utils
+          - ./server/mdm
+          - ./server/mdm/scep/x509util
+          - ./server/mdm/scep/server
+          - ./server/mdm/nanodep/tokenpki
+          - ./orbit/pkg/cryptoinfo
+          - ./server/mdm/apple/psso/pssocrypto
+          - ./server/mdm/acme/api/http
+          - ./server/mdm/nanomdm/cryptoutil
+          - ./server/mdm/apple
+    env:
+      GOMEMLIMIT: 1GiB
+      GOMAXPROCS: "4"
+      FUZZ_PACKAGE: ${{ matrix.package }}
+      FUZZ_TIME: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '15m' || '60s' }}
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Configure fuzz cache
+        id: config
+        run: |
+          echo "GOCACHE=$RUNNER_TEMP/go-fuzz-cache" >> "$GITHUB_ENV"
+          package="${FUZZ_PACKAGE#./}"
+          echo "package-key=${package//\//-}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore fuzz corpus
+        id: corpus
+        uses: actions/cache/restore@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        with:
+          path: ${{ env.GOCACHE }}/fuzz
+          key: go-fuzz-v1-${{ runner.os }}-${{ steps.config.outputs.package-key }}-${{ hashFiles('go.mod', 'go.sum') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            go-fuzz-v1-${{ runner.os }}-${{ steps.config.outputs.package-key }}-${{ hashFiles('go.mod', 'go.sum') }}-
+
+      - name: Run fuzz tests
+        id: fuzz
+        run: |
+          go test "$FUZZ_PACKAGE" -list '^Fuzz' 2>&1 | tee "$RUNNER_TEMP/fuzz-discovery.log"
+          if ! targets=$(grep '^Fuzz[^[:space:]]*$' "$RUNNER_TEMP/fuzz-discovery.log"); then
+            echo "::error::No fuzz targets found in $FUZZ_PACKAGE"
+            exit 1
+          fi
+
+          failed_targets=()
+          while IFS= read -r target; do
+            echo "::group::Fuzz $target"
+            if ! go test "$FUZZ_PACKAGE" -run '^$' -fuzz "^${target}$" \
+              -fuzztime="$FUZZ_TIME" -fuzzminimizetime=1s -parallel=4 -timeout=20m \
+              2>&1 | tee "$RUNNER_TEMP/fuzz-${target}.log"; then
+              failed_targets+=("$target")
+            fi
+            echo "::endgroup::"
+          done <<< "$targets"
+
+          echo "failed-targets=${failed_targets[*]}" >> "$GITHUB_OUTPUT"
+          if [[ "${#failed_targets[@]}" -gt 0 ]]; then
+            echo "::error::Fuzz targets failed: ${failed_targets[*]}"
+            exit 1
+          fi
+
+      - name: Save fuzz corpus
+        if: >-
+          ${{ !cancelled() &&
+              (steps.fuzz.outcome == 'success' || steps.fuzz.outcome == 'failure') &&
+              github.ref == 'refs/heads/main' &&
+              github.event_name != 'pull_request' }}
+        uses: actions/cache/save@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        with:
+          path: ${{ env.GOCACHE }}/fuzz
+          key: ${{ steps.corpus.outputs.cache-primary-key }}
+
+      - name: Upload fuzz logs and regression inputs
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fuzz-${{ steps.config.outputs.package-key || strategy.job-index }}
+          path: |
+            ${{ runner.temp }}/fuzz-*.log
+            ${{ matrix.package }}/testdata/fuzz/
+          retention-days: 7
+
+      - name: Slack Notification
+        if: ${{ failure() && steps.fuzz.outcome == 'failure' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload: |
+            {
+              "text": "Go fuzz tests failed: ${{ matrix.package }}. ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Go fuzz tests failed* in `${{ matrix.package }}`.\nFailed targets: `${{ steps.fuzz.outputs.failed-targets || 'Check discovery or build errors in the logs' }}`.\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Open the workflow run and logs>."
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "1. Download the `fuzz-${{ steps.config.outputs.package-key }}` artifact from the run, if available.\n2. Copy each minimized failing input into `${{ matrix.package }}/testdata/fuzz/TARGET/`.\n3. Reproduce locally: `go test ${{ matrix.package }} -run 'TARGET/INPUT_FILENAME'` (replace `TARGET` with the failed target and `INPUT_FILENAME` with its input filename).\n4. Fix the cause and commit the minimized inputs with the fix so regular Go tests replay them.\nIf there is no minimized input, check the logs for build errors, timeouts, or infrastructure failures.\nAsk the <${{ github.server_url }}/${{ github.repository }}/blob/${{ github.sha }}/CODEOWNERS|package owners> for help. See the <${{ github.server_url }}/${{ github.repository }}/blob/${{ github.sha }}/.github/workflows/README.md#go-fuzz-testing|Go fuzz testing instructions>."
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
