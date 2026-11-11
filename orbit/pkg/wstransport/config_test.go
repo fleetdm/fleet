@@ -67,7 +67,8 @@ func newFetcherTest(t *testing.T, client *fakeConfigClient) *fetcherTest {
 		defer ft.nowMu.Unlock()
 		return ft.now
 	}
-	ft.f.jitter = func(d time.Duration) time.Duration { return d }
+	// The middle of the jitter range: the poll interval itself.
+	ft.f.jitter = func() float64 { return 0.5 }
 	ft.f.fetched = func() { ft.fetched <- struct{}{} }
 	return ft
 }
@@ -466,18 +467,16 @@ func TestConfigFetcherDueFetchDoesNotQueue(t *testing.T) {
 	assert.Len(t, client.getCalls(), 2)
 }
 
-func TestJitterFallbackInterval(t *testing.T) {
+func TestFallbackPollInterval(t *testing.T) {
 	const d = 10 * time.Minute
-	lo, hi := d, time.Duration(0)
-	for range 1000 {
-		j := jitterFallbackInterval(d)
-		require.GreaterOrEqual(t, j, d/2)
-		require.Less(t, j, d*3/2)
-		lo, hi = min(lo, j), max(hi, j)
-	}
-	// Spread over most of the range, not stuck near d.
-	assert.Less(t, lo, d*3/5)
-	assert.Greater(t, hi, d*7/5)
+	assert.Equal(t, 5*time.Minute, fallbackPollInterval(d, time.Minute, 0))
+	assert.Equal(t, d, fallbackPollInterval(d, time.Minute, 0.5))
+	assert.Equal(t, 14*time.Minute, fallbackPollInterval(d, time.Minute, 0.9))
+
+	// A floor above the lower bound raises it: draws stay spread over
+	// [floor, 1.5d) instead of piling up on floor.
+	assert.Equal(t, time.Minute, fallbackPollInterval(time.Minute, time.Minute, 0))
+	assert.Equal(t, 75*time.Second, fallbackPollInterval(time.Minute, time.Minute, 0.5))
 }
 
 func TestConfigFetcherFallbackPollJitter(t *testing.T) {
@@ -485,7 +484,7 @@ func TestConfigFetcherFallbackPollJitter(t *testing.T) {
 	ft := newFetcherTest(t, client)
 	ft.connected.Store(true)
 	ft.f.SetPollInterval(10 * time.Minute)
-	ft.f.jitter = func(d time.Duration) time.Duration { return d - 3*time.Minute }
+	ft.f.jitter = func() float64 { return 0.2 } // 5m + 0.2*10m
 
 	ft.genConfig(t)
 	ft.waitFetch(t)
@@ -499,8 +498,9 @@ func TestConfigFetcherFallbackPollJitter(t *testing.T) {
 	assert.Len(t, client.getCalls(), 2)
 
 	// Never shorter than the disconnected interval.
-	ft.f.jitter = func(time.Duration) time.Duration { return time.Second }
-	ft.advance(7 * time.Minute)
+	ft.f.jitter = func() float64 { return 0 }
+	ft.f.SetPollInterval(time.Minute)
+	ft.advance(time.Minute)
 	ft.genConfig(t)
 	ft.waitFetch(t)
 	ft.advance(DefaultServerConfigRefresh - time.Second)
@@ -516,7 +516,7 @@ func TestConfigFetcherShorterPollIntervalJittered(t *testing.T) {
 	client := &fakeConfigClient{responses: []string{`{"etag":"v1","options":{}}`, `{"etag":"ok"}`}}
 	ft := newFetcherTest(t, client)
 	ft.connected.Store(true)
-	ft.f.jitter = func(d time.Duration) time.Duration { return d / 2 }
+	ft.f.jitter = func() float64 { return 0 }
 
 	ft.genConfig(t)
 	ft.waitFetch(t)

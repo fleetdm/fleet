@@ -45,7 +45,8 @@ const disconnectSpread = 30 * time.Second
 // randomized either way. Without it, agents that fetched together (after a
 // server restart or a global nudge) keep polling together; ±50% spreads them
 // over the whole interval by their next poll. The mean interval is kept unless
-// the poll interval is close to the disconnected one, which floors it.
+// the poll interval is close to the disconnected one, which raises the lower
+// bound (see fallbackPollInterval).
 const fallbackJitter = 0.5
 
 // configUnchangedETag is the etag of the server's response to a current etag,
@@ -65,8 +66,9 @@ type ConfigFetcher struct {
 	client    configClient
 	connected func() bool
 	now       func() time.Time
-	// jitter randomizes a fallback poll interval.
-	jitter func(time.Duration) time.Duration
+	// jitter returns a number in [0, 1) that randomizes a fallback poll
+	// interval.
+	jitter func() float64
 	// fetched is notified after each fetch attempt, once the fetcher's state
 	// reflects it, for tests.
 	fetched func()
@@ -107,7 +109,7 @@ func NewConfigFetcher(client configClient, connected func() bool, serverRefresh 
 		client:        client,
 		connected:     connected,
 		now:           time.Now,
-		jitter:        jitterFallbackInterval,
+		jitter:        rand.Float64,
 		serverRefresh: serverRefresh,
 		pollInterval:  DefaultOsqueryConfigPollInterval,
 	}
@@ -319,7 +321,7 @@ func (f *ConfigFetcher) scheduleNextLocked(ok bool) {
 // jitteredFallbackIntervalLocked returns a randomized fallback poll interval,
 // never shorter than the disconnected one. f.mu must be held.
 func (f *ConfigFetcher) jitteredFallbackIntervalLocked() time.Duration {
-	return max(f.serverRefresh, f.jitter(f.fallbackIntervalLocked()))
+	return fallbackPollInterval(f.fallbackIntervalLocked(), f.serverRefresh, f.jitter())
 }
 
 // fallbackIntervalLocked returns the fallback poll interval of a connected
@@ -329,9 +331,13 @@ func (f *ConfigFetcher) fallbackIntervalLocked() time.Duration {
 	return max(f.serverRefresh, f.pollInterval)
 }
 
-// jitterFallbackInterval returns d randomized by ±fallbackJitter.
-func jitterFallbackInterval(d time.Duration) time.Duration {
-	return time.Duration(float64(d) * (1 - fallbackJitter + 2*fallbackJitter*rand.Float64())) //nolint:gosec // jitter does not need cryptographic randomness
+// fallbackPollInterval returns d randomized by ±fallbackJitter, r in [0, 1)
+// picking where. The lower bound is raised to floor rather than clamping draws
+// below it, which would line those agents up on floor.
+func fallbackPollInterval(d, floor time.Duration, r float64) time.Duration {
+	lo := max(floor, time.Duration(float64(d)*(1-fallbackJitter)))
+	hi := time.Duration(float64(d) * (1 + fallbackJitter))
+	return lo + time.Duration(float64(hi-lo)*r)
 }
 
 // prepareConfig turns the server's config response into the config handed to
