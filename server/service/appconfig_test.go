@@ -4565,4 +4565,24 @@ func TestValidateVPPAssignmentsManyTokensPerFleet(t *testing.T) {
 		require.Nil(t, got)
 		require.ErrorContains(t, invalid, `VPP token "HQ" is listed more than once`)
 	})
+
+	t.Run("every repeated token is reported once", func(t *testing.T) {
+		invalid := &fleet.InvalidArgumentError{}
+		got, err := svc.validateVPPAssignments(t.Context(), []fleet.MDMAppleVolumePurchasingProgramInfo{
+			{Location: "HQ", Teams: []string{"Workstations"}},
+			{Location: "EU", Teams: []string{"Workstations"}},
+			{Location: "HQ", Teams: []string{fleet.TeamNameNoTeam}},
+			{Location: "EU", Teams: []string{fleet.TeamNameNoTeam}},
+			{Location: "HQ", Teams: []string{fleet.TeamNameNoTeam}},
+		}, invalid, lic)
+		require.NoError(t, err)
+		require.Nil(t, got)
+		reason := func(loc string) map[string]string {
+			return map[string]string{
+				"name":   "mdm.volume_purchasing_program",
+				"reason": fmt.Sprintf("Couldn't apply. VPP token %q is listed more than once. List each token once, with all of its fleets.", loc),
+			}
+		}
+		require.Equal(t, []map[string]string{reason("HQ"), reason("EU")}, invalid.Invalid())
+	})
 }
