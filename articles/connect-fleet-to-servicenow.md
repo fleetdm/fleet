@@ -51,8 +51,6 @@ Before you connect Fleet, a ServiceNow admin should complete these steps. Field 
 7. **Create a placeholder hardware model** named `Unmapped (Fleet)`.
 8. **Create a ServiceNow integration user** with permission to write to the tables above, and generate the API key you'll enter in Fleet.
 
-<!-- TODO(product): Confirm whether Fleet should create the custom fields and alias table itself (e.g. through a ServiceNow scoped app) so customers don't have to. -->
-
 ## Run alongside an existing integration
 
 If you already sync Fleet data to ServiceNow with your own integration, you can move to Fleet's integration without losing data.
