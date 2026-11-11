@@ -10403,6 +10403,7 @@ List software that can be automatically installed during setup. If `install_duri
 | ----- | ------ | ----- | ---------------------------------------- |
 | platform | string  | query | Filters software titles available for install by platforms. Options are `"macos"`, `"windows"`, `"linux"`, `"ios"`, `"ipados"`, and `"android"`. Defaults to `"macos"`. To show titles from multiple platforms, separate the platforms with commas (e.g. `?platform=macos,ios,android`). |
 | fleet_id | integer | query | _Available in Fleet Premium_. The ID of the fleet to filter software by. If not specified, it will filter only software that's available for "Unassigned" hosts. |
+| query | string | query | Search query keywords. Searchable fields include `name`, `display_name`, and `bundle_identifier`. |
 | page | integer | query | Page number of the results to fetch. |
 | per_page | integer | query | Results per page. |
 | order_key | string | query | What to order results by. Allowed fields are `name` and `hosts_count`. Default is `hosts_count` (descending). |
@@ -12322,7 +12323,7 @@ Returns the policy specified by ID.
 | type | string | body | The type of the policy. Options are `"dynamic"` (classic policy with an editable query) or `"patch"` (tied to `software_title_id` and automatically updated to include the newest Fleet-maintained app version). If not specified, defaults to `"dynamic"`. |
 | patch_when_closed | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch` and `automation_type` is `"software"`. If `true`, Fleet adds a read-only pre-install condition that skips the automated install while the app is open. Requires `continuous_automations_enabled` to be `true`. |
 | notify_before_patching | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch` and `automation_type` is `"software"`. If `true`, Fleet shows the end user a notification listing the apps that will be patched in 1 hour. A reminder is shown 5 minutes before the install. Requires `continuous_automations_enabled` to be `true`. Only supported on macOS hosts with Fleet Desktop installed (available as Fleet-maintained app). |
-| patch_deadline | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch` and `automation_type` is `"software"`. If `true`, Fleet patches the app right away when it isn't open. If the app is open, Fleet waits for the next deadline in the fleet's patch deadline settings. 1 hour before the deadline, Fleet shows the end user a notification listing the apps that will close and update. A reminder is shown 5 minutes before the install. Requires `continuous_automations_enabled` to be `true`. Only supported for macOS apps, on hosts with Fleet Desktop installed. |
+| patch_deadline | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch` and `automation_type` is `"software"`. If `true`, Fleet patches the app right away when it isn't open. If the app is open, Fleet waits for the next deadline in the fleet's [patch deadline settings](#update-patch-deadline-settings). 1 hour before the deadline, Fleet shows the end user a notification listing the apps that will close and update. A reminder is shown 5 minutes before the install. Requires `continuous_automations_enabled` to be `true`. Only supported for macOS apps, on hosts with Fleet Desktop installed. |
 | automation_type | string | body | The automation to run when a host fails this policy. Each policy can have one automation. For global ("All fleets") policies, this can be set to `"webhook_or_ticket"`. For fleet-level policies (_available in Fleet Premium_), there are additional options: `"calendar"`, `"configuration_profile"`, `"conditional_access"`, `"software"`, and `"script"`. `"calendar"` isn't supported for "Unassigned" policies. If omitted, the policy has no automation. |
 | software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. If `software_title_id` is specified and the software has `labels_include_any` or `labels_exclude_any` defined, the policy will inherit this target in addition to specified `platform`. If `type` is `patch`, this is the Fleet-maintained app the policy checks. **Required if `automation_type` is `"software"` or `type` is `"patch"`.** |
 | software_package_id | integer | body | _Available in Fleet Premium_. ID of the specific package to install when the software title has multiple packages. |
@@ -12445,7 +12446,7 @@ Only one set of label targets (`labels_include_any`/`labels_include_all`) and on
 | labels_exclude_all | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **all of these** labels. |
 | patch_when_closed | boolean | body | _Available in Fleet Premium_. Only applies to existing patch policies (`type` is `patch`) with `automation_type` set to `"software"`. If `true`, Fleet adds a read-only pre-install condition that skips the automated install while the app is open. Setting this to `true` also sets `continuous_automations_enabled` to `true`. |
 | notify_before_patching | boolean | body | _Available in Fleet Premium_. Only applies to existing patch policies (`type` is `patch`) with `automation_type` set to `"software"`. If `true`, Fleet shows the end user a notification listing the apps that will be updated, waits 1 hour, and then installs. A reminder is shown 5 minutes before the install. Nothing is installed until the end user has been notified and the hour has elapsed. Setting this to `true` also sets `continuous_automations_enabled` to `true`. Only supported on macOS hosts with Fleet Desktop installed. |
-| patch_deadline | boolean | body | _Available in Fleet Premium_. Only applies to existing patch policies (`type` is `patch`) with `automation_type` set to `"software"`. If `true`, Fleet patches the app right away when it isn't open. If the app is open, Fleet waits for the next deadline in the fleet's patch deadline settings. 1 hour before the deadline, Fleet shows the end user a notification listing the apps that will close and update. A reminder is shown 5 minutes before the install. Setting this to `true` also sets `continuous_automations_enabled` to `true`. Only supported for macOS apps, on hosts with Fleet Desktop installed. |
+| patch_deadline | boolean | body | _Available in Fleet Premium_. Only applies to existing patch policies (`type` is `patch`) with `automation_type` set to `"software"`. If `true`, Fleet patches the app right away when it isn't open. If the app is open, Fleet waits for the next deadline in the fleet's [patch deadline settings](#update-patch-deadline-settings). 1 hour before the deadline, Fleet shows the end user a notification listing the apps that will close and update. A reminder is shown 5 minutes before the install. Setting this to `true` also sets `continuous_automations_enabled` to `true`. Only supported for macOS apps, on hosts with Fleet Desktop installed. |
 | automation_type | string | body | The automation to run when a host fails this policy. Each policy can have one automation, so setting a new value replaces the policy's current automation. For global ("All fleets") policies, this can be set to `"webhook_or_ticket"`. For fleet-level policies (_available in Fleet Premium_), there are additional options: `"calendar"`, `"configuration_profile"`, `"conditional_access"`, `"software"`, and `"script"`. `"calendar"` isn't supported for "Unassigned" policies. Set this to `null` to remove the policy's automation. |
 | software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. **Required when setting `automation_type` to `"software"`**, except on a patch policy (`type` is `patch`), where it's the app the policy checks and can't be changed. |
 | software_package_id | integer | body | _Available in Fleet Premium_. ID of the specific package to install when the software title has multiple packages. Set to `null` to clear the pinned package. |
@@ -14625,6 +14626,8 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get software install result](#get-software-install-result)
 - [Download software](#download-package)
 - [Delete software](#delete-software)
+- [Get patch deadline settings](#get-patch-deadline-settings)
+- [Update patch deadline settings](#update-patch-deadline-settings)
 
 ### List software
 
@@ -15531,6 +15534,8 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .ipa) to install on Apple 
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
 | automatic_install | boolean | body | Specifies whether to create a policy that triggers a software install only on hosts missing the software. Not supported for iOS, iPadOS, Android, or for `.sh`, `.py`, and `.ps1`. |
+| software_title_id | integer | body | ID of an existing software title to add the package to. If specified, the package must match this title, or Fleet returns an error. A title can have up to 10 packages. |
+| configuration | string | body | Managed app configuration, as an XML plist. Only supported for `.ipa` packages (iOS and iPadOS). Ignored for other package types. |
 
 Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
@@ -15619,12 +15624,14 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. |
 | post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | body | Whether this is optional self-service software that can be installed by the end user. |
+| configuration | string | body | Managed app configuration, as an XML plist. Only supported for `.ipa` packages (iOS and iPadOS). Set to an empty string to remove the configuration. If omitted, the configuration isn't changed. |
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
 | patch | boolean | body | _Available for Fleet-maintained apps only._ Enables or disables "Patch": a policy that triggers a software install when the installed version is outdated. Set to `false` to remove the policy (and its managed `pre_install_query`, if `patch_when_closed` was enabled). |
 | patch_when_closed | boolean | body | _Available for Fleet-maintained apps only. Only applies when `patch` is `true`._ If `true` (default), Fleet adds a read-only pre-install condition that skips the automated install while the app is open. If `false` ("Force patch"), Fleet installs the update the next time the policy fails, whether or not the app is open. |
 | notify_before_patching | boolean | body |_Available for Fleet-maintained apps only. Only applies when `patch` is `true`. If `true`, Fleet shows the end user a notification listing the apps that will be patched in 1 hour. A reminder is shown 5 minutes before the install. Setting this to `true` also sets `continuous_automations_enabled` to `true`. Only supported on macOS hosts with Fleet Desktop installed (available as Fleet-maintained app). |
+| patch_deadline | boolean | body | _Available for Fleet-maintained apps only. Only applies when `patch` is `true`._ If `true`, Fleet patches the app right away when it isn't open. If the app is open, Fleet notifies the end user and patches it at the next deadline in the fleet's [patch deadline settings](#update-patch-deadline-settings). Only one of `patch_when_closed`, `notify_before_patching`, or `patch_deadline` can be `true`. Only supported for macOS apps, on hosts with Fleet Desktop installed. |
 | version | string | body | Only available for Fleet-maintained apps. Pins the app to a specific or major version. Available versions are listed in the Fleet UI under **Actions > Versions**. To pin to a major version, use a caret (`^`) constraint and specify only the major version, without the minor and patch versions. For example, `"^147"` means Fleet continuously updates to the latest version until the app reaches 148.0. Set `version` to an empty string (`""`) to switch back to automatically updating to the latest version found in [Fleet's catalog](https://fleetdm.com/software-catalog). `version` can't be changed in the same request as other fields; omit it to leave the current pin unchanged. |
 
 > `patch` and `patch_when_closed` are only available for Fleet-maintained apps.
@@ -16181,6 +16188,7 @@ Add Fleet-maintained app so it's available for install.
 | fleet_maintained_app_id   | integer | body | **Required.** The ID of Fleet-maintained app. |
 | fleet_id       | integer | body | **Required**. The fleet ID. Adds Fleet-maintained app to the specified fleet.  |
 | install_script  | string | body | Command that Fleet runs to install software. If not specified Fleet runs default install command for each Fleet-maintained app. |
+| uninstall_script  | string | body | Script that Fleet runs to uninstall software. If not specified Fleet runs default uninstall script for each Fleet-maintained app. |
 | pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
@@ -16436,6 +16444,82 @@ Deletes software that's available for install. For Android hosts, the software i
 ##### Default response
 
 `Status: 204`
+
+### Get patch deadline settings
+
+_Available in Fleet Premium._
+
+Returns the fleet's patch deadline settings. Fleet-maintained apps with a patch policy that has `patch_deadline` set to `true` are patched at these deadlines. If the settings were never updated, Fleet returns the default: Tuesday at `"17:00"`.
+
+`GET /api/v1/fleet/software/patch_deadline_settings`
+
+#### Parameters
+
+| Name     | Type    | In    | Description                                                    |
+| -------- | ------- | ----- | -------------------------------------------------------------- |
+| fleet_id | integer | query | **Required**. The fleet ID. Use `0` for "Unassigned" hosts.    |
+
+#### Example
+
+`GET /api/v1/fleet/software/patch_deadline_settings?fleet_id=3`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "patch_deadline_settings": {
+    "fleet_id": 3,
+    "days": ["monday", "wednesday", "friday"],
+    "time": "11:00"
+  }
+}
+```
+
+### Update patch deadline settings
+
+_Available in Fleet Premium._
+
+Sets the days and time when Fleet patches Fleet-maintained apps with a patch policy that has `patch_deadline` set to `true`. 1 hour before the deadline, Fleet shows the end user a notification listing the apps that will close and update. If the notification can't be shown (for example, the host is offline or the screen is locked), Fleet shows it as soon as it can and installs 1 hour later.
+
+`PATCH /api/v1/fleet/software/patch_deadline_settings`
+
+#### Parameters
+
+| Name     | Type    | In   | Description |
+| -------- | ------- | ---- | ----------- |
+| fleet_id | integer | body | **Required**. The fleet ID. Use `0` for "Unassigned" hosts. |
+| days     | array   | body | **Required**. Days of the week when the deadline applies. Options are `"monday"`, `"tuesday"`, `"wednesday"`, `"thursday"`, `"friday"`, `"saturday"`, and `"sunday"`. Must include at least one day, and each day only once. |
+| time     | string  | body | **Required**. The deadline in the host's local time, formatted as `HH:MM` (24-hour), for example `"17:00"`. Fleet doesn't patch a host until it has collected the host's timezone. |
+
+#### Example
+
+`PATCH /api/v1/fleet/software/patch_deadline_settings`
+
+##### Request body
+
+```json
+{
+  "fleet_id": 3,
+  "days": ["monday", "wednesday", "friday"],
+  "time": "11:00"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "patch_deadline_settings": {
+    "fleet_id": 3,
+    "days": ["monday", "wednesday", "friday"],
+    "time": "11:00"
+  }
+}
+```
 
 ## Self-service categories
 
