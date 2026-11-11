@@ -1,0 +1,65 @@
+{
+  "token": "multica",
+  "old_tokens": [],
+  "name": [
+    "Multica"
+  ],
+  "desc": "Workspace for people and AI agents with a bundled local daemon",
+  "homepage": "https://multica.ai/",
+  "url": "https://github.com/multica-ai/multica/releases/download/v0.8.2/multica-desktop-0.8.2-mac-arm64.dmg",
+  "url_specs": {},
+  "version": "0.8.2",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "sha256": "fd57dca1dc9299f1c36c888e9cb2271ee9deba0bf64e96984ea7cbcf9c9c7b77",
+  "artifacts": [
+    {
+      "uninstall": [
+        {
+          "quit": "ai.multica.desktop"
+        }
+      ]
+    },
+    {
+      "app": [
+        "Multica.app"
+      ],
+      "target": "/Applications/Multica.app"
+    }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+    "macos": {
+      ">=": [
+        "13"
+      ]
+    }
+  },
+  "conflicts_with": null,
+  "container": null,
+  "rename": [],
+  "auto_updates": true,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "languages": [],
+  "ruby_source_path": "Casks/multica.rb",
+  "ruby_source_checksum": {
+    "sha256": "dbe45c450f25f2a6d344c22c0784ee86bc46f6440e6ed9b943b8b28599315759"
+  }
+}

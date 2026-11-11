@@ -28,6 +28,7 @@ import iPadOS from "./iPadOS";
 import LinuxOS from "./LinuxOS";
 import MacOS from "./MacOS";
 import { TMatchedIcon } from "./MatchedIcon";
+import Multica from "./png/Multica.png";
 import OnePassword from "./OnePassword";
 import Package from "./Package";
 import ZeroOneZeroEditor from "./png/010Editor.png";
@@ -1868,6 +1869,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   mremoteng: Mremoteng,
   "mullvad browser": MullvadBrowser,
   "mullvad vpn": MullvadVpn,
+  multica: Multica,
   multitouch: Multitouch,
   mural: Mural,
   museeks: Museeks,

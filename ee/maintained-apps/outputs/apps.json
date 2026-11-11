@@ -5826,6 +5826,13 @@
       "description": "Mullvad VPN is a VPN client."
     },
     {
+      "name": "Multica",
+      "slug": "multica/darwin",
+      "platform": "darwin",
+      "unique_identifier": "ai.multica.desktop",
+      "description": "Multica is a workspace for people and AI agents with a bundled local daemon."
+    },
+    {
       "name": "Multitouch",
       "slug": "multitouch/darwin",
       "platform": "darwin",
