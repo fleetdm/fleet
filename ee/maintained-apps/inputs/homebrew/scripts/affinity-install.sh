@@ -95,10 +95,13 @@ relaunch_application() {
   # Use 'launchctl asuser' to bootstrap into the console user's Mach namespace
   # and GUI session — 'sudo -u' alone doesn't do this, which can cause
   # LSOpenURLsWithRole() failures even when 'open' exits 0.
-  # Opening Affinity by bundle ID right after it's replaced fails, so open the
-  # new copy by path, retry, and log open's error.
-  local attempt open_status open_output
-  for attempt in 1 2 3; do
+  # Opening Affinity by bundle ID right after it's replaced fails, and macOS can
+  # take a minute or more to check the new copy, so open it by path and retry
+  # for up to 2 minutes, logging open's error.
+  local attempt=0 open_status open_output
+  SECONDS=0
+  while true; do
+    attempt=$((attempt + 1))
     open_status=0
     if [[ $EUID -eq 0 ]]; then
       local console_uid
@@ -113,9 +116,10 @@ relaunch_application() {
       return
     fi
     echo "Attempt $attempt to relaunch application '$bundle_id' failed (exit $open_status): $open_output"
-    if (( attempt < 3 )); then
-      sleep 5
+    if (( SECONDS >= 120 )); then
+      break
     fi
+    sleep 10
   done
   echo "Failed to relaunch application '$bundle_id'."
 }

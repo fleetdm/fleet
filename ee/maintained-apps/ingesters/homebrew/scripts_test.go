@@ -1110,8 +1110,9 @@ kill() {
 
 // TestAffinityInstallRelaunchesByPath runs the Affinity install script with
 // osascript and open stubbed out. Opening Affinity by bundle ID right after
-// it's replaced fails, so the script opens the new copy by path, retries, and
-// logs open's error. A relaunch that keeps failing doesn't fail the install.
+// it's replaced fails, so the script opens the new copy by path, retries every
+// 10 seconds for up to 2 minutes, and logs open's error. A relaunch that keeps
+// failing doesn't fail the install.
 func TestAffinityInstallRelaunchesByPath(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("requires bash")
@@ -1186,11 +1187,13 @@ osascript() {
 	require.NotContains(t, out, failure)
 	require.Equal(t, []string{appPath, appPath, appPath}, opened)
 
-	out, opened = run(t, true, 3)
-	require.Contains(t, out, "Attempt 3 to relaunch application 'com.canva.affinity' failed")
+	// sleep advances SECONDS, so the last attempt starts at the 120-second
+	// deadline: 13 attempts in all.
+	out, opened = run(t, true, 100)
+	require.Contains(t, out, "Attempt 13 to relaunch application 'com.canva.affinity' failed")
 	require.Contains(t, out, failure)
 	require.NotContains(t, out, success)
-	require.Len(t, opened, 3)
+	require.Len(t, opened, 13)
 }
 
 func TestShellDoubleQuoteEscape(t *testing.T) {
