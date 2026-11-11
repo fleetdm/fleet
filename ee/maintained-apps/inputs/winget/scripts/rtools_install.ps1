@@ -3,7 +3,8 @@
 #
 # Rtools won't install into an existing folder (run silently, it waits on a
 # hidden error dialog), so an earlier install of the same release in
-# C:\rtools<version>, including MSYS2 home folders under it, is removed first.
+# C:\rtools<version> is removed first, including MSYS2 packages and home
+# folders added under it, as the Rtools uninstaller itself does.
 
 $exeFilePath = "${env:INSTALLER_PATH}"
 
@@ -117,15 +118,12 @@ while (-not $process.HasExited -and ($stopwatch.Elapsed.TotalSeconds -lt $timeou
 $elapsed = [int]$stopwatch.Elapsed.TotalSeconds
 
 if (-not $process.HasExited) {
-  # Registered means the files are in place and only a lingering process remains.
+  # Registration happens before the post-install steps, so it doesn't mean the install finished.
   if (Test-RtoolsRegisteredByThisInstall) {
-    Write-Host "Installer still running after ${elapsed}s but Rtools is registered; stopping the lingering process."
-    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-    Start-Sleep -Seconds 2
-    Exit 0
+    Write-Host "Installer did not finish within ${elapsed}s. Rtools is registered, but its post-install steps didn't complete."
+  } else {
+    Write-Host "Installer did not finish within ${elapsed}s and Rtools is not registered."
   }
-
-  Write-Host "Installer did not finish within ${elapsed}s and Rtools is not registered."
   Stop-ProcessTree $process.Id
   Exit 1
 }
