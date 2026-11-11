@@ -52,5 +52,20 @@ func TestLinuxWipeScriptDetachesOutsideOrbitCgroup(t *testing.T) {
 	// Keying the fallback off systemd-run failing rather than existing: old
 	// systemd and an unreachable bus must still reach it.
 	requireScriptContains(t, script, "if ! systemd-run", "linux_wipe.sh")
-	requireScriptContains(t, script, "/usr/bin/nohup sh", "linux_wipe.sh")
+	requireScriptContains(t, script, "(nohup sh", "linux_wipe.sh")
+}
+
+// NixOS has no /usr/bin or /sbin, and the systemd-run unit doesn't inherit
+// orbit's PATH, so the script has to find its tools in the system profile.
+func TestLinuxWipeScriptFindsToolsOnNixOS(t *testing.T) {
+	t.Parallel()
+	script := string(linuxWipeScript)
+	requireScriptContains(t, script, `PATH="$PATH:/run/current-system/sw/bin"`, "linux_wipe.sh")
+	require.NotContains(t, script, "/usr/bin/", "linux_wipe.sh must not hardcode /usr/bin paths")
+	require.NotContains(t, script, "/sbin/", "linux_wipe.sh must not hardcode /sbin paths")
+
+	// is_network_mount fails open without awk, so the child must check before deleting.
+	check := strings.Index(script, "\n    require_wipe_commands\n")
+	require.NotEqual(t, -1, check, "linux_wipe.sh must call require_wipe_commands")
+	require.Less(t, check, strings.Index(script, "\n    unmount_network_filesystems\n"), "require_wipe_commands must run before anything is unmounted or deleted")
 }
