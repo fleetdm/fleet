@@ -33,8 +33,8 @@ func (os OperatingSystem) IsWindows() bool {
 }
 
 // archGroupedOSNames are the OS names the OS inventory records as "Arch Linux", so these Arch-based distributions group
-// with it on the dashboard and in vulnerability matching. The value is whether the version is recorded as "rolling" no
-// matter what the host reports: Omarchy reports its own release number (e.g. "4.0.0"), which Arch Linux doesn't have.
+// with it in the OS list and on the dashboard. The value is whether the version is recorded as "rolling" no matter what
+// the host reports: Omarchy reports its own release number (e.g. "4.0.0"), which Arch Linux doesn't have.
 var archGroupedOSNames = map[string]bool{
 	"Arch Linux ARM": false,
 	"CachyOS Linux":  false,
