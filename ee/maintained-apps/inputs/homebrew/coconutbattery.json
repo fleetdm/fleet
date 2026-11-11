@@ -1,6 +1,6 @@
 {
   "name": "coconutBattery",
-  "unique_identifier": "com.coconut-flavour.coconutBattery-Menu",
+  "unique_identifier": "com.coconut-flavour.coconutBattery",
   "token": "coconutbattery",
   "installer_format": "zip",
   "slug": "coconutbattery/darwin",

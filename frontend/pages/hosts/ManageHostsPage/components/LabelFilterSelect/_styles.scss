@@ -9,7 +9,7 @@
     // no access to hover state from react-select in JS so this is done here.
     .custom-dropdown-indicator {
       & path {
-        stroke: $ui-fleet-black-75;
+        fill: $ui-fleet-black-75;
       }
     }
 

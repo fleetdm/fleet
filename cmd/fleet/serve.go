@@ -32,11 +32,14 @@ import (
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/condaccess"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
+	"github.com/fleetdm/fleet/v4/ee/server/service/ejbca"
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
+	"github.com/fleetdm/fleet/v4/ee/server/service/googlecas"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/mdm/profilevalidation"
 	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/acl/acmeacl"
@@ -61,6 +64,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis"
 	"github.com/fleetdm/fleet/v4/server/datastore/orbitconfig_notify"
+	"github.com/fleetdm/fleet/v4/server/datastore/osqueryconfig_notify"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
@@ -96,6 +100,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	otelmw "github.com/fleetdm/fleet/v4/server/service/middleware/otel"
+	"github.com/fleetdm/fleet/v4/server/service/redis_config_etag"
 	"github.com/fleetdm/fleet/v4/server/service/redis_install_attempts"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
@@ -270,6 +275,19 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	}
 
 	config.Server.ValidatePrivateKeyLength(initFatal)
+
+	// The embedded schema is checked by the generator and tests, so a failure here means a broken
+	// build; refuse to start rather than validate profiles against nothing. Tests start serve more
+	// than once per process, so only parse if nothing is loaded yet.
+	if profilevalidation.Current() == nil {
+		if err := profilevalidation.ParseProfileValidationSchema(); err != nil {
+			initFatal(err, "loading profile validation schema")
+		}
+	}
+	pvVersion := profilevalidation.Current().Version
+	logger.InfoContext(cmd.Context(), "profile validation schema loaded",
+		"apple_release", pvVersion.Apple.Release, "windows_release", pvVersion.Windows.Release)
+
 	if len(config.Server.PrivateKey) > 0 {
 		// Truncate to 32 bytes because AES-256 requires a 32 byte (256 bit) PK;
 		// some infra setups generate keys that are longer than 32 bytes.
@@ -325,19 +343,34 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	var delayedAgentNotifier *pubsub.DelayedAgentNotifier
 	if config.WebSocket.TransportEnabled {
 		agentNotifier = pubsub.NewRedisAgentNotifier(redisPool, logger.With("component", "agent-notifier"))
-		// Live query and scoped orbit config wake-ups are delayed by the TTL of
-		// the in-memory caches the notified agent's request reads, so it can't
-		// be served a snapshot predating the change. Host orbit config wake-ups
-		// read nothing cached; their delay only batches them (see
+		// A notified agent calls back within milliseconds, so wake-ups wait for
+		// the in-memory caches its request reads to expire; otherwise it can be
+		// served a snapshot predating the change (see
 		// pubsub.DelayedAgentNotifier).
 		delayedAgentNotifier = pubsub.NewDelayedAgentNotifier(agentNotifier, pubsub.AgentNotifierDelays{
-			LiveQuery:        liveQueryMemCacheDuration,
+			// The live query store's active-queries cache TTL (1s).
+			LiveQuery: liveQueryMemCacheDuration,
+			// Host orbit config changes are read uncached: the delay only
+			// batches the per-host wake-ups of one write (100ms).
 			OrbitConfigHosts: orbitConfigHostsBatchWindow,
+			// The longest TTL of the cached fleet and global orbit config
+			// inputs (1m).
 			OrbitConfigScope: cached_mysql.MaxOrbitConfigInputTTL(),
+			// A host moved to another fleet reads its packs from a per-host
+			// cache (1m).
+			OsqueryConfigHosts: cached_mysql.MaxConfigInputTTL(),
+			// The ETag write fence (3m), which outlasts the cached osquery
+			// config inputs plus the pack config cache built from them. Hosts
+			// nudged inside the fence each do a full config build that can't
+			// be stored as an ETag.
+			OsqueryConfigScope: redis_config_etag.DefaultFenceTTL,
 		}, logger.With("component", "agent-notifier"))
 		if config.WebSocket.OrbitConfigEnabled {
 			mds.WithOrbitConfigNotifier(delayedAgentNotifier)
 			ds = orbitconfig_notify.New(ds, delayedAgentNotifier, logger.With("component", "orbitconfig-notify"))
+		}
+		if config.WebSocket.OsqueryConfigEnabled {
+			ds = osqueryconfig_notify.New(ds, delayedAgentNotifier, logger.With("component", "osqueryconfig-notify"))
 		}
 	}
 
@@ -395,6 +428,17 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if !apple_mdm.MachineInfoVerificationEnabled() {
 		logger.WarnContext(cmd.Context(), "Apple MDM MachineInfo (deviceinfo) signature verification is disabled via "+
 			"mdm.apple_machineinfo_verify; verification failures during enrollment will be logged but not enforced")
+	}
+
+	if fleet.BootstrapPackageDuringMigrationEnvEnabled() {
+		logger.WarnContext(cmd.Context(), "FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION is deprecated and will be removed in a future release. "+
+			"Use the setup_experience.macos_enable_bootstrap_package_during_migration setting instead.")
+	}
+
+	if config.MDM.AppleSCEPStaticChallengeEnabled {
+		logger.WarnContext(cmd.Context(), "Apple MDM static SCEP challenges are enabled via mdm.apple_scep_static_challenge_enabled. "+
+			"Anyone with the static SCEP challenge can turn on MDM for any Apple host. "+
+			"Static SCEP challenges are deprecated and will be removed in a future release.")
 	}
 
 	mdmStorage, depStorage, scepStorage := initAppleMDMStorages(mds, initFatal)
@@ -509,12 +553,14 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 	scepConfigMgr := scep.NewSCEPConfigService(logger, nil)
 	digiCertService := digicert.NewService(digicert.WithLogger(logger))
+	ejbcaService := ejbca.NewService(ejbca.WithLogger(logger))
 	ctx = ctxerr.NewContext(ctx, eh)
 
 	// Declare svc early so the closure below can capture it.
 	var svc fleet.Service
 	config.MDM.AndroidAgent.Validate(initFatal)
 	config.MDM.ValidateAndroidBatchSize(initFatal)
+	config.MDM.ValidateAppleIOSIPadOSRefetchBatchSize(initFatal)
 	config.GoogleWorkspace.Validate(initFatal)
 	androidSvc, err := android_service.NewService(
 		ctx,
@@ -578,7 +624,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		digiCertService,
 		conditionalAccessMicrosoftProxy,
 		redis_key_value.New(redisPool),
-		redis_install_attempts.New(redisPool),
+		redis_install_attempts.New(redisPool, redis_install_attempts.SoftwareInstallerPrefix),
 		androidSvc,
 		orgLogoStore,
 	)
@@ -593,7 +639,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	var distributedLock fleet.Lock
 	if license.IsPremium() {
 		hydrantService := est.NewService(est.WithLogger(logger))
-		profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
+		googleCASService := googlecas.NewService(googlecas.WithLogger(logger))
 		var stores softwareInstallerStores
 		switch softwareInstallersBackend {
 		case configpkg.StorageBackendAzure:
@@ -619,18 +665,19 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			depStorage,
 			apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
 			ssoSessionStore,
-			profileMatcher,
 			softwareInstallStore,
 			bootstrapPackageStore,
 			softwareTitleIconStore,
 			stagedUploadStore,
 			distributedLock,
 			redis_key_value.New(redisPool),
-			redis_install_attempts.New(redisPool),
+			redis_install_attempts.New(redisPool, redis_install_attempts.SoftwareInstallerPrefix),
 			scepConfigMgr,
 			digiCertService,
+			ejbcaService,
 			androidSvc,
 			hydrantService,
+			googleCASService,
 			psso.NewRedisNonceStore(redisPool),
 			msgraph.NewClient,
 		)
@@ -689,8 +736,9 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Inject the notifications bounded context into the main service
 	svc.SetNotificationsService(notificationsSvc)
 	// Register kinds here, and nowhere else.
-	patchNotificationKind := service.NewPatchNotificationKind(ds, svc, notificationsSvc, logger)
+	patchNotificationKind := service.NewPatchNotificationKind(fleet.PatchNotificationKind, ds, svc, notificationsSvc, logger)
 	notificationsSvc.RegisterKind(patchNotificationKind)
+	notificationsSvc.RegisterKind(service.NewPatchNotificationKind(fleet.PatchDeadlineNotificationKind, ds, svc, notificationsSvc, logger))
 
 	// Bootstrap ACME service module
 	acmeSigner := &acmeCSRSigner{signer: scepdepot.NewSigner(scepStorage, scepdepot.WithValidityDays(config.MDM.AppleSCEPSignerValidityDays))}
@@ -712,16 +760,16 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		agentWSHub.InstanceID = instanceID
 		svc.SetAgentCheckInNotifier(delayedAgentNotifier)
 
-		if config.WebSocket.OrbitConfigEnabled {
+		if config.WebSocket.ScopedNotificationsEnabled() {
 			agentWSHub.EnableScopedNotifications(ctx, ds, config.WebSocket.CheckBatchSize, config.WebSocket.OrbitConfigSpread)
 		}
 		go agentNotifier.Subscribe(ctx, func(n pubsub.AgentNotification) {
 			switch {
 			case n.Scope != "":
 				agentWSHub.QueueScope(agentws.ScopedNotification{MsgType: n.Type, Reason: n.Reason, Scope: n.Scope})
-			case n.Type == fleet.AgentWSMessageTypeOrbitConfig:
+			case n.Type == fleet.AgentWSMessageTypeOrbitConfig, n.Type == fleet.AgentWSMessageTypeOsqueryConfig:
 				// Paced: a write can target thousands of hosts at once (e.g. a
-				// fleet-wide Windows MDM command).
+				// fleet-wide Windows MDM command, or hosts moved between fleets).
 				agentWSHub.NotifyPaced(n.Type, n.Reason, n.HostIDs)
 			default:
 				agentWSHub.Notify(n.Type, n.Reason, n.HostIDs)
@@ -832,7 +880,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	cspEV := os.Getenv("FLEET_SERVER_ENABLE_CSP")
 	serveCSP := cspEV == "1" || cspEV == "true"
 
-	var apiHandler, frontendHandler, endUserEnrollOTAHandler http.Handler
+	mcpConn := service.NewMCPConn()
+	var apiHandler, frontendHandler, endUserEnrollOTAHandler, endUserEnrollNextStepsHandler http.Handler
 	{
 		frontendHandler = service.PrometheusMetricsHandler(
 			"get_frontend",
@@ -852,6 +901,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		if agentWSHub != nil {
 			extra = append(extra, service.WithAgentWSHub(agentWSHub))
 		}
+		extra = append(extra, service.WithMCPConn(mcpConn))
 
 		apiHandler, err = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
 			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, eeAndroidSvc), activityRoutes, notificationsRoutes, acmeRoutes, chartRoutes}, extra...)
@@ -912,6 +962,12 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			logger,
 			serveCSP,
 		)
+
+		endUserEnrollNextStepsHandler = service.ServeEndUserEnrollNextSteps(
+			config.Server.URLPrefix,
+			logger,
+			serveCSP,
+		)
 	}
 
 	healthCheckers := make(map[string]health.Checker)
@@ -943,6 +999,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		),
 	), healthCheckers)
 
+	// Set below, before the server starts serving.
+	var srv *http.Server
 	rootMux := http.NewServeMux()
 	// Infra paths (liveness, version, metrics) are platform owned and have zero diagnostic value as traces once their metric
 	// counterparts exist. Drop them unconditionally, even under ForceFull, since a 100% debug window should not flood SigNoz
@@ -1089,7 +1147,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// See https://pkg.go.dev/net/http#NewResponseController which explains
 	// the Unwrap method that the prometheus wrapper of http.ResponseWriter
 	// does not implement.
-	rootMux.HandleFunc("/api/", apiTimeoutOverrideHandler(apiHandler, config, logger))
+	rootMux.HandleFunc("/api/", apiTimeoutOverrideHandler(apiHandler, config, logger, func() time.Duration { return srv.WriteTimeout }))
 	// The `/api/{version}/fleet/scim` base path is used by SCIM handler. In order to route the `details` route to the apiHandler,
 	// we have to explicitly handle that path at the root. The Go router takes precedence for a more specific path. The v1/latest are used in the path for it to be more specific.
 	// The Fleet API was designed this way for end-user simplicity.
@@ -1097,6 +1155,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	rootMux.Handle("/api/latest/fleet/scim/details", apiHandler)
 
 	rootMux.Handle("/enroll", otelmw.WrapHandler(endUserEnrollOTAHandler, "/enroll", config))
+	// Registered with and without the trailing slash: the design and any link
+	// written as /enroll/next-steps/ would otherwise fall through to the "/"
+	// catch-all and serve the admin UI to an enrolling end user.
+	rootMux.Handle("/enroll/next-steps", otelmw.WrapHandler(endUserEnrollNextStepsHandler, "/enroll/next-steps", config))
+	rootMux.Handle("/enroll/next-steps/", otelmw.WrapHandler(endUserEnrollNextStepsHandler, "/enroll/next-steps/", config))
 	rootMux.Handle("/", otelmw.WrapHandler(frontendHandler, "/", config))
 
 	debugHandler := &debugMux{
@@ -1151,10 +1214,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		handler = launcher.Handler(rootMux)
 	}
 
-	srv := config.Server.DefaultHTTPServer(ctx, handler)
+	srv = config.Server.DefaultHTTPServer(ctx, handler)
 	if liveQueryRestPeriod > srv.WriteTimeout {
 		srv.WriteTimeout = liveQueryRestPeriod
 	}
+	mcpConn.Start(ctx, handler)
 	srv.SetKeepAlivesEnabled(config.Server.Keepalive)
 	errs := make(chan error, 2)
 	go func() {
@@ -1213,7 +1277,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			if agentWSHub != nil {
 				agentWSHub.Shutdown()
 			}
-			return srv.Shutdown(ctx)
+			err := srv.Shutdown(ctx)
+			if mcpErr := mcpConn.Shutdown(ctx); mcpErr != nil {
+				logger.ErrorContext(ctx, "failed to shut down the embedded MCP connection", "err", mcpErr)
+			}
+			return err
 		}()
 	}()
 
@@ -1469,7 +1537,7 @@ func printDatabaseNotInitializedError() {
 		os.Args[0])
 }
 
-func printMissingMigrationsWarning(w io.Writer, tables []int64, data []int64) {
+func printMissingMigrationsWarning(w io.Writer, tables []int64) {
 	fmt.Fprintf(w, "################################################################################\n"+
 		"# WARNING:\n"+
 		"#   Your Fleet database is missing required migrations. This is likely to cause\n"+
@@ -1484,23 +1552,7 @@ func printMissingMigrationsWarning(w io.Writer, tables []int64, data []int64) {
 		"#     - Set config updates.allow_missing_migrations to true, or,\n"+
 		"#     - Use command line argument --upgrades_allow_missing_migrations=true\n"+
 		"################################################################################\n",
-		tablesAndDataToString(tables, data), os.Args[0])
-}
-
-func printFleetv4732FixNeededMessage() {
-	fmt.Printf("################################################################################\n"+
-		"# WARNING:\n"+
-		"#   Your Fleet database has misnumbered migrations introduced in some released\n"+
-		"#   v4.73.2 artifacts. Fleet will automatically perform this fix prior to database\n"+
-		"#   migrations. Please back up your data before continuing.\n"+
-		"#\n"+
-		"#   Run `%s prepare db` to perform migrations.\n"+
-		"#\n"+
-		"#   To run the server without performing migrations:\n"+
-		"#     - Set environment variable FLEET_UPGRADES_ALLOW_MISSING_MIGRATIONS=1, or,\n"+
-		"#     - Set config updates.allow_missing_migrations to true, or,\n"+
-		"#     - Use command line argument --upgrades_allow_missing_migrations=true\n"+
-		"################################################################################\n", os.Args[0])
+		migrationsToString(tables), os.Args[0])
 }
 
 func initLicense(config *configpkg.FleetConfig, devLicense, devExpiredLicense bool) (*fleet.LicenseInfo, error) {

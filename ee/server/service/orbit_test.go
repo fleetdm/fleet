@@ -25,7 +25,7 @@ func TestRecordCanceledSetupExperienceSoftwareActivities(t *testing.T) {
 	}
 
 	// No display-name override in these tests; the activity should carry
-	// a nil SoftwareDisplayName so the raw software_title is what renders.
+	// an empty SoftwareDisplayName so the raw software_title is what renders.
 	ds.GetSoftwareTitleDisplayNameFunc = func(ctx context.Context, teamID *uint, titleID uint) (*string, error) {
 		return nil, nil
 	}
@@ -399,8 +399,7 @@ func TestRecordCanceledSetupExperienceSoftwareActivities(t *testing.T) {
 		require.Len(t, createdActivities, 1)
 		act, ok := createdActivities[0].(fleet.ActivityTypeCanceledInstallSoftware)
 		require.True(t, ok)
-		require.NotNil(t, act.SoftwareDisplayName)
-		require.Equal(t, override, *act.SoftwareDisplayName)
+		require.Equal(t, override, act.SoftwareDisplayName)
 	})
 }
 

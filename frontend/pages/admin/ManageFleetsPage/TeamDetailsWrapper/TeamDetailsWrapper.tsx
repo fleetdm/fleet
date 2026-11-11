@@ -149,9 +149,9 @@ const TeamDetailsWrapper = ({
 
   const { refetch: refetchMe } = useQuery(["me"], () => usersAPI.me(), {
     enabled: false,
-    onSuccess: ({ user, available_teams, settings }: IGetMeResponse) => {
+    onSuccess: ({ user, available_fleets, settings }: IGetMeResponse) => {
       setCurrentUser(user);
-      setAvailableTeams(user, available_teams);
+      setAvailableTeams(user, available_fleets);
       setUserSettings(settings);
     },
   });
@@ -166,7 +166,9 @@ const TeamDetailsWrapper = ({
     {
       enabled: isRouteOk,
       select: (data: ILoadTeamsResponse) =>
-        data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
+        data.fleets.sort((a, b) =>
+          sortUtils.caseInsensitiveAsc(a.name, b.name)
+        ),
       onSuccess: (responseTeams: ITeam[]) => {
         if (!responseTeams?.find((team) => team.id === teamIdForApi)) {
           handlePageError({ status: 404 });

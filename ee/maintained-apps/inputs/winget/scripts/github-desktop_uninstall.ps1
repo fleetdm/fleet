@@ -16,8 +16,11 @@ function Get-GitHubDesktopEntries {
     $roots = [System.Collections.Generic.List[string]]::new()
     $roots.Add('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall')
     $roots.Add('HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall')
+    # Only SYSTEM's hive and user hives (S-1-5-21 local or AD, S-1-12-1 Entra ID).
+    # LocalService and NetworkService can write their own hives, and an entry
+    # there would run as SYSTEM.
     foreach ($hive in (Get-ChildItem 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue)) {
-        if ($hive.Name -match '_Classes$') { continue }
+        if ($hive.PSChildName -notmatch '^(S-1-5-18|S-1-5-21-[\d-]+|S-1-12-1-[\d-]+)$') { continue }
         $roots.Add("Registry::$($hive.Name)\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall")
     }
 
@@ -27,8 +30,7 @@ function Get-GitHubDesktopEntries {
             $key = Get-ItemProperty $sub.PSPath -ErrorAction SilentlyContinue
             if ($key.DisplayName -ne $displayName -or $key.Publisher -ne $publisher) { continue }
 
-            # S-1-5-21 is a local or AD user and S-1-12-1 an Entra ID user. Other
-            # hives belong to service accounts and users can't write to them.
+            # Entries from HKLM and SYSTEM's hive run as SYSTEM; the rest as their user.
             $sid = $null
             if ($sub.PSPath -match 'HKEY_USERS\\(S-1-5-21-[\d-]+|S-1-12-1-[\d-]+)\\') { $sid = $matches[1] }
 
@@ -101,7 +103,7 @@ function Invoke-UninstallerAsUser {
         Register-ScheduledTask -TaskName $taskName -InputObject $task -Force | Out-Null
 
         $startDate = Get-Date
-        $lastRun = (Get-ScheduledTaskInfo -TaskName $taskName).LastRunTime
+        $lastRun = (Get-ScheduledTaskInfo -TaskName $taskName -ErrorAction Stop).LastRunTime
         Start-ScheduledTask -TaskName $taskName
 
         # Wait for a result rather than for the "Running" state, which a fast task can
@@ -109,8 +111,8 @@ function Invoke-UninstallerAsUser {
         # LastRunTime yet.
         Start-Sleep -Seconds 2
         while ($true) {
-            $info = Get-ScheduledTaskInfo -TaskName $taskName
-            $state = (Get-ScheduledTask -TaskName $taskName).State
+            $info = Get-ScheduledTaskInfo -TaskName $taskName -ErrorAction Stop
+            $state = (Get-ScheduledTask -TaskName $taskName -ErrorAction Stop).State
             if ($info.LastRunTime -ne $lastRun -and $state -ne "Running" -and $info.LastTaskResult -ne $taskRunning) {
                 return $info.LastTaskResult
             }

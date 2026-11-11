@@ -203,3 +203,12 @@ Common issues and gotchas:
   to make adding future integration tests easier.
 - GitOps admin can define settings in `default.yml`, `fleets/fleet-name.yml`, or `fleets/unassigned.yml`. Create unit tests for all these cases
   for features that support them.
+
+#### Database work in batch operations
+
+GitOps endpoints receive a whole payload of profiles, software packages, reports, or policies at once, and a single change can touch rows for every affected host. A transaction or statement whose size grows with the payload or the host count holds row and gap locks for its full duration. That blocks host check-ins and other API requests, causes lock wait timeouts and deadlocks, and lags replicas.
+
+- **Split the work into chunks, each in its own transaction.** Process items in fixed-size batches (for example, 500 IDs per `INSERT`, `UPDATE`, or `DELETE`) instead of one statement or transaction covering the whole payload.
+- **Keep each transaction short.** Do validation, file hashing, network calls, and other slow work before opening the transaction. Inside it, run only the SQL statements that must be atomic together.
+- **Don't rely on context cancellation to stop a query.** When the request context is canceled (for example, `fleetctl gitops` times out or the client disconnects), the MySQL driver closes the connection but does not kill the query on the server. A large `DELETE` or `UPDATE` keeps running to completion, holding its locks, and inside a transaction it is then rolled back, which can take as long again. Bounding each statement's size is a reliable way to bound its cost.
+- **Plan for partial failure.** Chunking gives up all-or-nothing atomicity, so a failed run can leave partial changes. Re-running GitOps only redoes work it can derive from the config. Work triggered by a change detected in an earlier, committed chunk (such as cleaning up host rows after a policy's query changes) won't run again, because the next run sees no change. Either derive that work from the desired state on every run, or have a cron job pick up the leftovers, as `CleanupPolicyMembership` does for `ApplyPolicySpecs`.

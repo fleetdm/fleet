@@ -62,8 +62,10 @@ jobs:
       # VEX files yet. Mirrors check-vulnerabilities-in-released-docker-images.yml.
       - name: Run trivy vulnerability scanner on locally-built fleetdm/fleet image
         env:
-          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
-          TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
+          # Fallbacks: each registry throttles anonymous pulls per source IP, which
+          # GitHub-hosted runners share with every other tenant.
+          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db,mirror.gcr.io/aquasec/trivy-db,ghcr.io/aquasecurity/trivy-db
+          TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db,mirror.gcr.io/aquasec/trivy-java-db,ghcr.io/aquasecurity/trivy-java-db
           FLEET_VEX_FLAGS: ${{ steps.generate_fleet_vex_files.outputs.FLEET_VEX_FLAGS }}
         run: |
           mkdir trivy-download

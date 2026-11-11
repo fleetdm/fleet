@@ -279,7 +279,7 @@ describe("Device User Page", () => {
 
       expect(screen.queryByText(REGULAR_DUP_MATCHER)).toBeNull();
     });
-    it("renders the regular setup experience page if some software failed and require_all_software_macos is not true", async () => {
+    it("renders the regular setup experience page if some software failed and macos_require_all_software is not true", async () => {
       const host = createMockHost() as IHostDevice;
       host.platform = "darwin";
 
@@ -317,7 +317,7 @@ describe("Device User Page", () => {
 
       expect(screen.queryByText(REGULAR_DUP_MATCHER)).toBeNull();
     });
-    it("renders the regular setup experience page if some software failed and require_all_software_macos is true but the device is not on macos", async () => {
+    it("renders the regular setup experience page if some software failed and macos_require_all_software is true but the device is not on macos", async () => {
       const host = createMockHost() as IHostDevice;
       host.platform = "linux";
 
@@ -332,7 +332,7 @@ describe("Device User Page", () => {
             },
             mdm: {
               enabled_and_configured: true,
-              require_all_software_macos: true,
+              macos_require_all_software: true,
               only_allow_apple_business_enrollment: false,
             },
           },
@@ -369,7 +369,7 @@ describe("Device User Page", () => {
 
       expect(screen.queryByText(REGULAR_DUP_MATCHER)).toBeNull();
     });
-    it("renders the setup experience failure page if some software failed and require_all_software_macos is true and the host is a mac", async () => {
+    it("renders the setup experience failure page if some software failed and macos_require_all_software is true and the host is a mac", async () => {
       const host = createMockHost() as IHostDevice;
       host.platform = "darwin";
 
@@ -384,7 +384,7 @@ describe("Device User Page", () => {
             },
             mdm: {
               enabled_and_configured: true,
-              require_all_software_macos: true,
+              macos_require_all_software: true,
               only_allow_apple_business_enrollment: false,
             },
           },
@@ -633,7 +633,7 @@ describe("Device User Page", () => {
         global_config: {
           mdm: {
             enabled_and_configured: true,
-            require_all_software_macos: false,
+            macos_require_all_software: false,
             only_allow_apple_business_enrollment: false,
           },
           features: {
@@ -658,7 +658,7 @@ describe("Device User Page", () => {
         global_config: {
           mdm: {
             enabled_and_configured: true,
-            require_all_software_macos: false,
+            macos_require_all_software: false,
             only_allow_apple_business_enrollment: false,
           },
           features: {
@@ -683,7 +683,7 @@ describe("Device User Page", () => {
         global_config: {
           mdm: {
             enabled_and_configured: false,
-            require_all_software_macos: false,
+            macos_require_all_software: false,
             only_allow_apple_business_enrollment: false,
           },
           features: {
@@ -709,7 +709,7 @@ describe("Device User Page", () => {
         global_config: {
           mdm: {
             enabled_and_configured: true,
-            require_all_software_macos: false,
+            macos_require_all_software: false,
             only_allow_apple_business_enrollment: false,
           },
           features: {
@@ -738,7 +738,7 @@ describe("Device User Page", () => {
       author_email: "test@example.com",
       resolution: "Fix the issue",
       platform: "darwin",
-      team_id: null,
+      fleet_id: null,
       created_at: "2022-01-01T12:00:00Z",
       updated_at: "2022-01-02T12:00:00Z",
       critical: false,
@@ -1354,5 +1354,144 @@ describe("BitLocker PIN deep link", () => {
     expect(screen.queryByLabelText("BitLocker PIN")).toBeNull();
     expect(screen.queryByText(INSTRUCTIONS)).toBeNull();
     await expectParamDropped(router);
+  });
+});
+
+describe("Mobile UI gating", () => {
+  const originalMatchMedia = window.matchMedia;
+
+  afterEach(() => {
+    window.matchMedia = originalMatchMedia;
+  });
+
+  it("does not render the mobile UI on a non-iOS host when the viewport is narrow", async () => {
+    // Simulate a shrunk desktop browser: matchMedia reports the mobile breakpoint matches.
+    window.matchMedia = jest.fn().mockImplementation((query) => ({
+      matches: true,
+      media: query,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      onchange: null,
+      dispatchEvent: jest.fn(),
+    })) as typeof window.matchMedia;
+
+    const host = createMockHost() as IHostDevice;
+    host.platform = "darwin";
+    mockServer.use(customDeviceHandler({ host }));
+    mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(emptySetupExperienceHandler);
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    const { container } = render(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: "testToken" }}
+        location={mockLocation}
+      />
+    );
+
+    await screen.findByText(/Details/);
+    expect(container.querySelector(".device-user-mobile")).toBeNull();
+  });
+
+  it("renders the unsupported-screen overlay on a narrow desktop viewport over a device path", async () => {
+    window.matchMedia = jest.fn().mockImplementation((query) => ({
+      matches: true,
+      media: query,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      onchange: null,
+      dispatchEvent: jest.fn(),
+    })) as typeof window.matchMedia;
+
+    const host = createMockHost() as IHostDevice;
+    host.platform = "darwin";
+    mockServer.use(customDeviceHandler({ host }));
+    mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(emptySetupExperienceHandler);
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: "testToken" }}
+        location={{
+          ...mockLocation,
+          pathname: PATHS.DEVICE_USER_DETAILS_SELF_SERVICE("testToken"),
+        }}
+      />
+    );
+
+    expect(
+      await screen.findByText(/This screen size is not supported yet/i)
+    ).toBeInTheDocument();
+  });
+
+  it("renders the mobile UI when ?mobile=1 is present (dev override)", async () => {
+    const host = createMockHost() as IHostDevice;
+    host.platform = "darwin";
+    mockServer.use(customDeviceHandler({ host }));
+    mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(emptySetupExperienceHandler);
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    const { container } = render(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: "testToken" }}
+        location={{
+          ...mockLocation,
+          pathname: PATHS.DEVICE_USER_DETAILS_SELF_SERVICE("testToken"),
+          query: { ...mockLocation.query, mobile: "1" },
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector(".device-user-mobile")).not.toBeNull();
+    });
+  });
+
+  it("keeps the mobile UI when a SelfService navigation drops ?mobile=1 from the URL", async () => {
+    const host = createMockHost() as IHostDevice;
+    host.platform = "darwin";
+    mockServer.use(customDeviceHandler({ host }));
+    mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(emptySetupExperienceHandler);
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    const { container, rerender } = render(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: "testToken" }}
+        location={{
+          ...mockLocation,
+          pathname: PATHS.DEVICE_USER_DETAILS_SELF_SERVICE("testToken"),
+          query: { ...mockLocation.query, mobile: "1" },
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector(".device-user-mobile")).not.toBeNull();
+    });
+
+    rerender(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: "testToken" }}
+        location={{
+          ...mockLocation,
+          pathname: PATHS.DEVICE_USER_DETAILS_SELF_SERVICE("testToken"),
+          query: { ...mockLocation.query, query: "chrome" },
+        }}
+      />
+    );
+
+    expect(container.querySelector(".device-user-mobile")).not.toBeNull();
   });
 });

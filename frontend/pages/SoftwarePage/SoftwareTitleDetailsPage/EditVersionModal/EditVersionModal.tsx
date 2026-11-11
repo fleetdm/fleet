@@ -1,3 +1,4 @@
+import classnames from "classnames";
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "react-query";
 
@@ -6,6 +7,7 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { ILabelSummary } from "interfaces/label";
 import { IAppStoreAppVersion } from "interfaces/software";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
@@ -51,6 +53,7 @@ const EditVersionModal = ({
   onSuccess,
 }: IEditVersionModalProps) => {
   const queryClient = useQueryClient();
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
 
   // Submitting an unmodified scaffold is treated as "no configuration".
   const emptyScaffold = getEmptyConfigScaffold(version.platform);
@@ -163,19 +166,26 @@ const EditVersionModal = ({
           className={`${baseClass}__form`}
           onSubmit={handleSubmit(onValidSubmit)}
         >
-          <VersionFormFields
-            formData={formData}
-            getTextFieldProps={getTextFieldProps}
-            commitFields={commitFields}
-            getError={getError}
-            platform={version.platform}
-            appDisplayName={titleDisplayName}
-            labels={labels ?? []}
-            teamId={teamId}
-            onClickPreviewEndUserExperience={() =>
-              setShowPreviewEndUserExperience(true)
-            }
-          />
+          <div
+            className={classnames(`${baseClass}__form-content`, {
+              [`${baseClass}__form-content--disabled`]: gitOpsModeEnabled,
+            })}
+          >
+            <VersionFormFields
+              formData={formData}
+              getTextFieldProps={getTextFieldProps}
+              commitFields={commitFields}
+              getError={getError}
+              platform={version.platform}
+              appDisplayName={titleDisplayName}
+              labels={labels ?? []}
+              teamId={teamId}
+              onClickPreviewEndUserExperience={() =>
+                setShowPreviewEndUserExperience(true)
+              }
+              disabled={gitOpsModeEnabled}
+            />
+          </div>
 
           <div className="modal-cta-wrap">
             <GitOpsModeTooltipWrapper

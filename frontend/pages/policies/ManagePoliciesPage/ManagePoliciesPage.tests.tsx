@@ -40,7 +40,7 @@ const getFleetPoliciesHandler = () =>
             createMockPolicy({
               id: 1,
               name: "Software policy",
-              team_id: fleetId,
+              fleet_id: fleetId,
               install_software: { name: "Zoom", software_title_id: 1 },
             }),
           ]

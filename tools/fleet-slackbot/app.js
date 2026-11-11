@@ -16,6 +16,7 @@ const github = new GitHubClient({
 const mcpClient = new McpClient({
   url: config.mcp.url,
   authToken: config.mcp.authToken,
+  toolTimeoutMs: config.mcp.toolTimeoutMs,
 });
 
 // Register local tool: read_gitops_file

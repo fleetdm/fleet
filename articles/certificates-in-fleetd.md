@@ -49,7 +49,7 @@ fleetctl debug connection \
   https://fleet.example.com
 ```
 
-[0]: We have a Github CI action that runs daily that updates the [certs.pem on the repository](https://github.com/fleetdm/fleet/blob/main/orbit/pkg/packaging/certs.pem) whenever there's a new version of `cacert.pem` in https://curl.se/docs/caextract.html. Such file is embedded into the `fleetctl` executable and used when generating fleetd packages.
+[0]: We have a Github CI action that runs daily that updates the [certs.pem on the repository](https://github.com/fleetdm/fleet/blob/main/orbit/pkg/cabundle/certs.pem) whenever there's a new version of `cacert.pem` in https://curl.se/docs/caextract.html. Such file is embedded into the `fleetctl` executable and used when generating fleetd packages.
 [1]: The bundled certificate in fleetd is installed in `/opt/orbit` in macOS/Linux and `C:\Program Files\Orbit` on Windows. By default its name is `certs.pem`, but it will have a different name if the `--fleet-certificate` flag was used when generating the package (`fleetctl package`).
 
 

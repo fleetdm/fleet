@@ -30,7 +30,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSchedule() {
 	require.NoError(t, err)
 
 	ts := getTeamScheduleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", team1.ID), nil, http.StatusOK, &ts)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/schedule", team1.ID), nil, http.StatusOK, &ts)
 	require.Empty(t, ts.Scheduled)
 
 	qr, err := s.ds.NewQuery(
@@ -50,10 +50,10 @@ func (s *integrationEnterpriseTestSuite) TestTeamSchedule() {
 		QueryID:  &qr.ID,
 		Interval: new(uint(42))}
 	r := teamScheduleQueryResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", team1.ID), gsParams, http.StatusOK, &r)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/schedule", team1.ID), gsParams, http.StatusOK, &r)
 
 	ts = getTeamScheduleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", team1.ID), nil, http.StatusOK, &ts)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/schedule", team1.ID), nil, http.StatusOK, &ts)
 	require.Len(t, ts.Scheduled, 1)
 	assert.Equal(t, uint(42), ts.Scheduled[0].Interval)
 	assert.Contains(t, ts.Scheduled[0].Name, "Copy of TestQueryTeamPolicy")
@@ -62,21 +62,21 @@ func (s *integrationEnterpriseTestSuite) TestTeamSchedule() {
 
 	modifyResp := modifyTeamScheduleResponse{}
 	modifyParams := modifyTeamScheduleRequest{Interval: new(uint(55))}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule/%d", team1.ID, id), modifyParams, http.StatusOK, &modifyResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/schedule/%d", team1.ID, id), modifyParams, http.StatusOK, &modifyResp)
 
 	// just to satisfy my paranoia, wanted to make sure the contents of the json would work
-	s.DoRaw("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule/%d", team1.ID, id), []byte(`{"interval": 77}`), http.StatusOK)
+	s.DoRaw("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/schedule/%d", team1.ID, id), []byte(`{"interval": 77}`), http.StatusOK)
 
 	ts = getTeamScheduleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", team1.ID), nil, http.StatusOK, &ts)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/schedule", team1.ID), nil, http.StatusOK, &ts)
 	require.Len(t, ts.Scheduled, 1)
 	assert.Equal(t, uint(77), ts.Scheduled[0].Interval)
 
 	deleteResp := deleteTeamScheduleResponse{}
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule/%d", team1.ID, id), nil, http.StatusOK, &deleteResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d/schedule/%d", team1.ID, id), nil, http.StatusOK, &deleteResp)
 
 	ts = getTeamScheduleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", team1.ID), nil, http.StatusOK, &ts)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/schedule", team1.ID), nil, http.StatusOK, &ts)
 	require.Empty(t, ts.Scheduled)
 }
 
@@ -116,14 +116,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamQueries() {
 
 	// list team queries
 	var listQueriesResp fleet.ListQueriesResponse
-	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQueriesResp, "team_id", fmt.Sprint(team1.ID))
+	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQueriesResp, "fleet_id", fmt.Sprint(team1.ID))
 	require.Len(t, listQueriesResp.Queries, 1)
 	assert.Equal(t, "team1", listQueriesResp.Queries[0].Name)
 	assert.Equal(t, 1, listQueriesResp.Count)
 	assert.Equal(t, 0, listQueriesResp.InheritedQueryCount)
 
 	// list merged team queries
-	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQueriesResp, "team_id", fmt.Sprint(team1.ID), "merge_inherited", "true", "order_key", "team_id", "order_direction", "desc")
+	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQueriesResp, "fleet_id", fmt.Sprint(team1.ID), "merge_inherited", "true", "order_key", "fleet_id", "order_direction", "desc")
 	require.Len(t, listQueriesResp.Queries, 2)
 	assert.Equal(t, "team1", listQueriesResp.Queries[0].Name)
 	assert.Equal(t, "global1", listQueriesResp.Queries[1].Name)
@@ -175,6 +175,29 @@ func (s *integrationEnterpriseTestSuite) TestQueryLabelsIncludeAll() {
 		LabelsIncludeAny: []string{lblB.Name},
 	}, http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(rejCreateResp.Body), fleet.ErrQueryConflictingLabels.Error())
+
+	// Built-in labels can't be used as custom targets.
+	for _, payload := range []fleet.QueryPayload{
+		{LabelsIncludeAny: []string{fleet.BuiltinLabelNameMacOS}},
+		{LabelsIncludeAll: []string{lblA.Name, fleet.BuiltinLabelNameAllHosts}},
+	} {
+		payload.Name = new("q-builtin-" + t.Name())
+		payload.Query = new("SELECT 1")
+		res := s.Do("POST", "/api/latest/fleet/reports", payload, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), "label is built-in. Only custom labels are supported.")
+
+		payload.Name, payload.Query = nil, nil
+		res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/reports/%d", createResp.Query.ID), payload, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), "label is built-in. Only custom labels are supported.")
+
+		res = s.Do("POST", "/api/latest/fleet/spec/reports", fleet.ApplyQuerySpecsRequest{Specs: []*fleet.QuerySpec{{
+			Name:             "q-builtin-spec-" + t.Name(),
+			Query:            "SELECT 1",
+			LabelsIncludeAny: payload.LabelsIncludeAny,
+			LabelsIncludeAll: payload.LabelsIncludeAll,
+		}}}, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), "label is built-in. Only custom labels are supported.")
+	}
 
 	// PATCH: switch from include_all to include_any (clears include_all).
 	includeAny := []string{lblA.Name}

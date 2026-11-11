@@ -1,0 +1,1 @@
+- Fixed SSO login getting stuck on "Redirecting to Fleet..." and the Windows MDM enrollment terms of use page failing to continue when `FLEET_SERVER_ENABLE_CSP` is enabled.

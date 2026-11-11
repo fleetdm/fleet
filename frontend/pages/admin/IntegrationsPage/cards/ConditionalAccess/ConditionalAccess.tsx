@@ -13,6 +13,7 @@ import SectionHeader from "components/SectionHeader";
 import { notify } from "components/ToastNotification";
 import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { IConfig, isOktaConditionalAccessConfigured } from "interfaces/config";
 import SettingsSection from "pages/admin/components/SettingsSection";
 import paths from "router/paths";
@@ -29,6 +30,7 @@ import SectionCard from "../MdmSettings/components/SectionCard";
 
 import EntraConditionalAccessModal from "./components/EntraConditionalAccessModal";
 import OktaConditionalAccessModal from "./components/OktaConditionalAccessModal";
+import OktaProfilesModal from "./components/OktaProfilesModal";
 
 const baseClass = "conditional-access";
 
@@ -46,11 +48,21 @@ const DeleteConditionalAccessModal = ({
   config,
 }: IDeleteConditionalAccessModal) => {
   const [isDeleting, setIsDeleting] = useState(false);
+  const { gitOpsModeEnabled } = useGitOpsMode();
 
   const providerName =
     provider === "microsoft-entra" ? "Microsoft Entra" : "Okta";
 
+  // Okta deletion writes to AppConfig (GitOps-managed). If GitOps flips on
+  // while this confirmation is open, block the write here so a stale open
+  // modal can't bypass the card-level gate. Entra deletion hits a separate
+  // table, not AppConfig, so leave it alone.
+  const oktaBlockedByGitOps = provider === "okta" && gitOpsModeEnabled;
+
   const handleDelete = async () => {
+    if (oktaBlockedByGitOps) {
+      return;
+    }
     setIsDeleting(true);
     try {
       let updatedConfig;
@@ -132,7 +144,7 @@ const DeleteConditionalAccessModal = ({
           variant="alert"
           onClick={handleDelete}
           isLoading={isDeleting}
-          disabled={isDeleting}
+          disabled={isDeleting || oktaBlockedByGitOps}
         >
           Delete
         </Button>
@@ -168,6 +180,7 @@ const ConditionalAccess = () => {
   // Modal states
   const [showEntraModal, setShowEntraModal] = useState(false);
   const [showOktaModal, setShowOktaModal] = useState(false);
+  const [showOktaProfilesModal, setShowOktaProfilesModal] = useState(false);
   const [providerToDelete, setProviderToDelete] = useState<
     "microsoft-entra" | "okta" | null
   >(null);
@@ -314,6 +327,10 @@ const ConditionalAccess = () => {
     setShowOktaModal(!showOktaModal);
   };
 
+  const toggleOktaProfilesModal = () => {
+    setShowOktaProfilesModal(!showOktaProfilesModal);
+  };
+
   const handleOktaModalSuccess = (updatedConfig: IConfig) => {
     setShowOktaModal(false);
     setConfig(updatedConfig);
@@ -362,19 +379,30 @@ const ConditionalAccess = () => {
     let oktaCta: React.JSX.Element;
     if (oktaConfigured) {
       oktaCta = (
-        <GitOpsModeTooltipWrapper
-          renderChildren={(disableChildren) => (
-            <Button
-              variant="subdued"
-              onClick={handleOktaDelete}
-              icon="trash"
-              iconPosition="right"
-              disabled={disableChildren}
-            >
-              Delete
-            </Button>
-          )}
-        />
+        <div className={`${baseClass}__card-actions`}>
+          <Button
+            variant="subdued"
+            onClick={toggleOktaProfilesModal}
+            icon="settings"
+          >
+            Profiles
+          </Button>
+          <Button variant="subdued" onClick={toggleOktaModal} icon="pencil">
+            Edit
+          </Button>
+          <GitOpsModeTooltipWrapper
+            renderChildren={(disableChildren) => (
+              <Button
+                variant="subdued"
+                onClick={handleOktaDelete}
+                icon="trash"
+                disabled={disableChildren}
+              >
+                Delete
+              </Button>
+            )}
+          />
+        </div>
       );
     } else {
       // Connect stays enabled; the modal gates its own Save.
@@ -439,7 +467,7 @@ const ConditionalAccess = () => {
     if (entraIsConfigured) {
       entraIconName = "success";
     } else if (entraIsAwaitingOAuth) {
-      entraIconName = "pending-outline";
+      entraIconName = "pending";
     }
 
     let entraCta: React.JSX.Element | undefined;
@@ -528,6 +556,9 @@ const ConditionalAccess = () => {
             onCancel={toggleOktaModal}
             onSuccess={handleOktaModalSuccess}
           />
+        )}
+        {showOktaProfilesModal && (
+          <OktaProfilesModal onExit={toggleOktaProfilesModal} />
         )}
         {providerToDelete && (
           <DeleteConditionalAccessModal

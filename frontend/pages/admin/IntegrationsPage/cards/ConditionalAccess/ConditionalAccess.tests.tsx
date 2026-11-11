@@ -168,7 +168,12 @@ describe("Conditional access", () => {
       expect(
         screen.getByText("Identity provider (IdP) signature certificate")
       ).toBeInTheDocument();
-      expect(screen.getByText("User scope profile")).toBeInTheDocument();
+      // Profiles live in their own modal, not in the setup modal.
+      expect(screen.queryByText("User scope profile")).not.toBeInTheDocument();
+      expect(screen.queryByText("Windows profile")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Windows browser profile")
+      ).not.toBeInTheDocument();
       // Check for input fields
       expect(screen.getByText("IdP ID")).toBeInTheDocument();
       expect(
@@ -204,11 +209,10 @@ describe("Conditional access", () => {
         expect(screen.getByText("Okta conditional access")).toBeInTheDocument();
       });
 
-      // Fill in text fields. textboxes[0] is the read-only User scope profile.
       const textboxes = screen.getAllByRole("textbox");
-      await user.type(textboxes[1], TEST_OKTA_IDP_ID); // IdP ID
-      await user.type(textboxes[2], "https://example.com/acs"); // ACS URL
-      await user.type(textboxes[3], "https://example.com"); // Audience URI
+      await user.type(textboxes[0], TEST_OKTA_IDP_ID); // IdP ID
+      await user.type(textboxes[1], "https://example.com/acs"); // ACS URL
+      await user.type(textboxes[2], "https://example.com"); // Audience URI
 
       // Upload certificate file
       const certificateContent = `-----BEGIN CERTIFICATE-----
@@ -239,6 +243,62 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         expect(
           screen.queryByText("Okta conditional access")
         ).not.toBeInTheDocument();
+      });
+    });
+
+    it("Preserves the certificate's trailing newline on submit (OKTA_CERTIFICATE skipTrim)", async () => {
+      const mockConfig = createEmptyConditionalAccessConfig();
+
+      let capturedBody: {
+        conditional_access?: { okta_certificate?: string };
+      } | null = null;
+      mockServer.use(
+        http.patch(baseUrl("/config"), async ({ request }) => {
+          capturedBody = (await request.json()) as typeof capturedBody;
+          return HttpResponse.json(mockConfig);
+        })
+      );
+
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: { app: { isPremiumTier: true, config: mockConfig } },
+      });
+
+      const { user } = render(<ConditionalAccess />);
+      await user.click(screen.getAllByText("Connect")[0]);
+      await waitFor(() => {
+        expect(screen.getByText("Okta conditional access")).toBeInTheDocument();
+      });
+
+      const textboxes = screen.getAllByRole("textbox");
+      await user.type(textboxes[0], TEST_OKTA_IDP_ID);
+      await user.type(textboxes[1], "https://example.com/acs");
+      await user.type(textboxes[2], "https://example.com");
+
+      // Trailing newline after -----END CERTIFICATE----- is standard PEM output
+      // (e.g. from openssl). skipTrim keeps it intact; without the exemption,
+      // useFormValidation trims it and the backend may reject the blob.
+      const certificateContent = `-----BEGIN CERTIFICATE-----
+MIIDXTCCAkWgAwIBAgIJAKL0UG+mRKm7MA0GCSqGSIb3DQEBCwUAMEUxCzAJBgNV
+BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
+-----END CERTIFICATE-----
+`;
+      const file = new File([certificateContent], "certificate.pem", {
+        type: "application/x-pem-file",
+      });
+      const fileInput = document.querySelector(
+        'input[type="file"]'
+      ) as HTMLInputElement;
+      await user.upload(fileInput, file);
+      await waitFor(() => {
+        expect(screen.getByText("certificate.pem")).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole("button", { name: "Save" }));
+      await waitFor(() => {
+        expect(capturedBody?.conditional_access?.okta_certificate).toBe(
+          certificateContent
+        );
       });
     });
   });
@@ -351,6 +411,72 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
       await waitFor(() => {
         expect(screen.getByText(TEST_OKTA_IDP_ID)).toBeInTheDocument();
       });
+    });
+
+    it("Opens the Okta settings modal when clicking Edit on a configured Okta card", async () => {
+      const mockConfig = createMockConfig({
+        conditional_access: {
+          microsoft_entra_tenant_id: "",
+          microsoft_entra_connection_configured: false,
+          okta_idp_id: TEST_OKTA_IDP_ID,
+          okta_assertion_consumer_service_url: "https://example.com/acs",
+          okta_audience_uri: "https://example.com",
+          okta_certificate: "cert-data",
+          bypass_disabled: false,
+        },
+      });
+
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: { app: { isPremiumTier: true, config: mockConfig } },
+      });
+
+      const { user } = render(<ConditionalAccess />);
+
+      await user.click(screen.getByRole("button", { name: "Edit" }));
+
+      expect(screen.getByLabelText("IdP ID")).toHaveValue(TEST_OKTA_IDP_ID);
+    });
+
+    it("Opens the Okta profiles modal when clicking Profiles on a configured Okta card", async () => {
+      const mockConfig = createMockConfig({
+        conditional_access: {
+          microsoft_entra_tenant_id: "",
+          microsoft_entra_connection_configured: false,
+          okta_idp_id: TEST_OKTA_IDP_ID,
+          okta_assertion_consumer_service_url: "https://example.com/acs",
+          okta_audience_uri: "https://example.com",
+          okta_certificate: "cert-data",
+          bypass_disabled: false,
+        },
+      });
+      mockServer.use(
+        http.get(baseUrl("/conditional_access/idp/apple/profile"), () =>
+          HttpResponse.text("<plist>apple</plist>")
+        )
+      );
+
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: { app: { isPremiumTier: true, config: mockConfig } },
+      });
+
+      const { user } = render(<ConditionalAccess />);
+
+      await user.click(screen.getByRole("button", { name: "Profiles" }));
+
+      expect(
+        screen.getByText("Okta conditional access profiles")
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("tab", { name: "macOS", selected: true })
+      ).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Close" }));
+
+      expect(
+        screen.queryByText("Okta conditional access profiles")
+      ).not.toBeInTheDocument();
     });
 
     it("Shows both providers as configured when both are set up", async () => {
@@ -683,6 +809,70 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
       await user.type(screen.getByRole("textbox"), "test-tenant-id");
       expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
     });
+
+    it("Disables Okta delete confirmation if GitOps turns on while it's open", async () => {
+      const baseConditionalAccess = {
+        microsoft_entra_tenant_id: "",
+        microsoft_entra_connection_configured: false,
+        okta_idp_id: TEST_OKTA_IDP_ID,
+        okta_assertion_consumer_service_url: "https://example.com/acs",
+        okta_audience_uri: "https://example.com",
+        okta_certificate: "cert-data",
+        bypass_disabled: false,
+      };
+      const gitopsOffConfig = createMockConfig({
+        conditional_access: baseConditionalAccess,
+        gitops: {
+          gitops_mode_enabled: false,
+          repository_url: "https://github.com/example/fleet-gitops",
+          exceptions: { labels: false, software: false, secrets: true },
+        },
+      });
+      const gitopsOnConfig = createMockConfig({
+        conditional_access: baseConditionalAccess,
+        gitops: {
+          gitops_mode_enabled: true,
+          repository_url: "https://github.com/example/fleet-gitops",
+          exceptions: { labels: false, software: false, secrets: true },
+        },
+      });
+
+      const client = new QueryClient({
+        defaultOptions: { queries: { retry: false, cacheTime: 0 } },
+      });
+      const Harness = ({ app }: { app: Partial<IAppContext> }) => (
+        <QueryClientProvider client={client}>
+          <AppContext.Provider value={{ ...initialState, ...app }}>
+            <ConditionalAccess />
+          </AppContext.Provider>
+        </QueryClientProvider>
+      );
+
+      const user = userEvent.setup();
+      const { rerender } = rtlRender(
+        <Harness app={{ isPremiumTier: true, config: gitopsOffConfig }} />
+      );
+
+      // Open the Okta delete confirmation while GitOps is off.
+      const deleteButtons = screen.getAllByRole("button", { name: "Delete" });
+      await user.click(deleteButtons[0]);
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Before you delete, first unblock all end users/)
+        ).toBeInTheDocument();
+      });
+
+      // Flip GitOps on; both the card trigger and the open confirmation's
+      // Delete must disable so the write can't bypass the card-level gate.
+      rerender(
+        <Harness app={{ isPremiumTier: true, config: gitopsOnConfig }} />
+      );
+
+      const deleteButtonsAfter = screen.getAllByRole("button", {
+        name: "Delete",
+      });
+      deleteButtonsAfter.forEach((btn) => expect(btn).toBeDisabled());
+    });
   });
 
   describe("Premium tier", () => {
@@ -720,6 +910,166 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
           level: 2,
           name: /Conditional access/i,
         })
+      ).toBeInTheDocument();
+    });
+  });
+
+  describe("Okta modal validation", () => {
+    const renderOktaModal = async () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            isPremiumTier: true,
+            config: createEmptyConditionalAccessConfig(),
+          },
+        },
+      });
+      const utils = render(<ConditionalAccess />);
+      const connectButtons = screen.getAllByText("Connect");
+      await utils.user.click(connectButtons[0]);
+      await waitFor(() => {
+        expect(screen.getByText("Okta conditional access")).toBeInTheDocument();
+      });
+      return utils;
+    };
+
+    it("Shows no field errors on open", async () => {
+      await renderOktaModal();
+
+      expect(screen.queryByText("Enter IdP ID")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Enter assertion consumer service URL")
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText("Enter audience URI")).not.toBeInTheDocument();
+      expect(screen.queryByText("Upload certificate")).not.toBeInTheDocument();
+    });
+
+    it("Does not show an error while the user types and clears, before blur", async () => {
+      const { user } = await renderOktaModal();
+
+      const textboxes = screen.getAllByRole("textbox");
+      await user.type(textboxes[0], "x");
+      await user.clear(textboxes[0]);
+
+      expect(screen.queryByText("Enter IdP ID")).not.toBeInTheDocument();
+    });
+
+    it("Shows the IdP ID error on blur of a dirty-then-empty field", async () => {
+      const { user } = await renderOktaModal();
+
+      const textboxes = screen.getAllByRole("textbox");
+      await user.type(textboxes[0], "x");
+      await user.clear(textboxes[0]);
+      // Blur by tabbing to the next field.
+      await user.tab();
+
+      expect(await screen.findByText("Enter IdP ID")).toBeInTheDocument();
+    });
+
+    it("Clears the IdP ID error on focus after it was shown", async () => {
+      const { user } = await renderOktaModal();
+
+      const textboxes = screen.getAllByRole("textbox");
+      await user.type(textboxes[0], "x");
+      await user.clear(textboxes[0]);
+      await user.tab();
+      await screen.findByText("Enter IdP ID");
+
+      await user.click(textboxes[0]);
+
+      expect(screen.queryByText("Enter IdP ID")).not.toBeInTheDocument();
+    });
+
+    it("Reveals every field's error on submit of an empty form", async () => {
+      const { user } = await renderOktaModal();
+
+      const saveButton = screen.getByRole("button", { name: "Save" });
+      expect(saveButton).toBeEnabled();
+      await user.click(saveButton);
+
+      expect(await screen.findByText("Enter IdP ID")).toBeInTheDocument();
+      expect(
+        screen.getByText("Enter assertion consumer service URL")
+      ).toBeInTheDocument();
+      expect(screen.getByText("Enter audience URI")).toBeInTheDocument();
+      expect(screen.getByText("Upload certificate")).toBeInTheDocument();
+    });
+  });
+
+  describe("Entra modal validation", () => {
+    it("Shows 'Enter tenant ID' when submitting with an empty tenant", async () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            isPremiumTier: true,
+            config: createEmptyConditionalAccessConfig(),
+          },
+        },
+      });
+
+      const { user } = render(<ConditionalAccess />);
+
+      const connectButtons = screen.getAllByText("Connect");
+      await user.click(connectButtons[1]);
+
+      await waitFor(() => {
+        expect(
+          screen.getByText("Microsoft Entra conditional access")
+        ).toBeInTheDocument();
+      });
+
+      const saveButton = screen.getByRole("button", { name: "Save" });
+      expect(saveButton).toBeEnabled();
+      await user.click(saveButton);
+
+      expect(await screen.findByText("Enter tenant ID")).toBeInTheDocument();
+    });
+
+    it("Inlines the backend's microsoft_tenant_id GUID error on the tenant field", async () => {
+      mockServer.use(
+        http.post(baseUrl("/conditional-access/microsoft"), () => {
+          return HttpResponse.json(
+            {
+              message: "Validation Failed",
+              errors: [
+                {
+                  name: "microsoft_tenant_id",
+                  reason: "must be a valid Microsoft Entra tenant ID (GUID)",
+                },
+              ],
+            },
+            { status: 422 }
+          );
+        })
+      );
+
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            isPremiumTier: true,
+            config: createEmptyConditionalAccessConfig(),
+          },
+        },
+      });
+
+      const { user } = render(<ConditionalAccess />);
+
+      const connectButtons = screen.getAllByText("Connect");
+      await user.click(connectButtons[1]);
+      await waitFor(() => {
+        expect(
+          screen.getByText("Microsoft Entra conditional access")
+        ).toBeInTheDocument();
+      });
+
+      await user.type(screen.getByRole("textbox"), "not-a-guid");
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(
+        await screen.findByText("Enter a valid tenant ID (GUID format)")
       ).toBeInTheDocument();
     });
   });
