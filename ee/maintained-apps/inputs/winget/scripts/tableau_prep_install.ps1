@@ -28,6 +28,26 @@ function ConvertTo-FullVersion($text) {
 
 try {
 
+# The install fails (exit code 65535) while Tableau Prep Builder is open. Fleet
+# runs as SYSTEM, outside the user's session, so it can't ask the app to close:
+# stop it first, along with the Java, Hyper, and connector processes it runs
+# from its install directory, in every installed release (older ones are
+# removed below). Unsaved changes are lost.
+$installDirs = @("${env:ProgramFiles}\Tableau\Tableau Prep Builder ") + @(foreach ($arpPath in $arpPaths) {
+  Get-ItemProperty "$arpPath\*" -ErrorAction SilentlyContinue | Where-Object {
+    $_.DisplayName -like 'Tableau Prep Builder 20*' -and $_.InstallLocation
+  } | ForEach-Object { $_.InstallLocation.Trim('"').TrimEnd('\') + '\' }
+})
+$running = @(Get-Process -ErrorAction SilentlyContinue | Where-Object {
+  $path = $_.Path
+  $path -and ($installDirs | Where-Object { $path.StartsWith($_, [StringComparison]::OrdinalIgnoreCase) })
+})
+foreach ($proc in $running) {
+  Write-Host "Stopping $($proc.Name) (PID $($proc.Id)) before installing."
+  Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+}
+$running | Wait-Process -Timeout 30 -ErrorAction SilentlyContinue
+
 $vi = (Get-Item -LiteralPath $exeFilePath).VersionInfo
 $targetVersion = [version]::new($vi.ProductMajorPart, $vi.ProductMinorPart, $vi.ProductBuildPart, $vi.ProductPrivatePart)
 Write-Host "Installer version: $targetVersion"
