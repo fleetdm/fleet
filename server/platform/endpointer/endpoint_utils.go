@@ -55,7 +55,6 @@ type fieldPair struct {
 	V  reflect.Value
 }
 
-// allFields returns all the fields for a struct, including the ones from embedded structs
 // expectsJSONBody reports whether a request field makes the JSON body (and its
 // cross-site Content-Type check) required. A field tagged only `json:"-"` is
 // server-internal state shielded from the body, not a request input, so it
@@ -75,6 +74,7 @@ func expectsJSONBody(sf reflect.StructField) bool {
 	return hasURL || hasQuery
 }
 
+// allFields returns all the fields for a struct, including the ones from embedded structs
 func allFields(ifv reflect.Value) []fieldPair {
 	if ifv.Kind() == reflect.Ptr {
 		ifv = ifv.Elem()
