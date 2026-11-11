@@ -19,7 +19,7 @@ $machineKey32on64 = 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion
 function Get-RtoolsKeys {
     Get-ChildItem -Path @($machineKey, $machineKey32on64) -ErrorAction SilentlyContinue |
         ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue } |
-        Where-Object { $_.DisplayName -like "Rtools*" }
+        Where-Object { $_.DisplayName -like "Rtools*" -and $_.Publisher -eq "The R Foundation" }
 }
 
 function Get-RtoolsEntries {
@@ -71,8 +71,13 @@ foreach ($key in @(Get-RtoolsKeys | Where-Object { $_.InstallLocation -and $_.In
   }
   Write-Host "Uninstall exit code: $($uninstall.ExitCode)"
   # The uninstaller hands off to a copy of itself in a temp folder.
-  while ((Test-Path -LiteralPath $key.PSPath) -and ($stopwatch.Elapsed.TotalSeconds -lt $timeoutSeconds)) {
+  $removalDeadline = [Math]::Min($stopwatch.Elapsed.TotalSeconds + 300, $timeoutSeconds)
+  while ((Test-Path -LiteralPath $key.PSPath) -and ($stopwatch.Elapsed.TotalSeconds -lt $removalDeadline)) {
     Start-Sleep -Seconds $pollSeconds
+  }
+  if (Test-Path -LiteralPath $key.PSPath) {
+    Write-Host "$($key.DisplayName) is still registered after its uninstaller exited."
+    Exit 1
   }
 }
 
