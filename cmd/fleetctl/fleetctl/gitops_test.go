@@ -2116,9 +2116,7 @@ func TestGitOpsTeamLabelAndProfileSameApply(t *testing.T) {
 	}
 
 	ds.GetMDMProfileChecksumsFunc = func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
-
 		return &fleet.MDMProfileChecksums{}, nil
-
 	}
 
 	ds.BatchSetMDMProfilesFunc = func(
@@ -2472,9 +2470,6 @@ func TestGitOpsFullGlobal(t *testing.T) {
 				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
 				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
 				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'controls.macos_setup' is deprecated; use 'controls.setup_experience' instead")
-				assert.Contains(t, logs, "'controls.setup_experience.bootstrap_package' is deprecated; use 'controls.setup_experience.macos_bootstrap_package' instead")
-				assert.Contains(t, logs, "'controls.setup_experience.macos_setup_assistant' is deprecated; use 'controls.setup_experience.apple_setup_assistant' instead")
 				assert.Contains(t, logs, "'org_settings.server_settings.live_query_disabled' is deprecated; use 'org_settings.server_settings.live_reporting_disabled' instead")
 				assert.Contains(t, logs, "'org_settings.server_settings.query_reports_disabled' is deprecated; use 'org_settings.server_settings.discard_reports_data' instead")
 				assert.Contains(t, logs, "'org_settings.server_settings.query_report_cap' is deprecated; use 'org_settings.server_settings.report_cap' instead")
@@ -2496,9 +2491,6 @@ func TestGitOpsFullGlobal(t *testing.T) {
 				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
 				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
 				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'controls.macos_setup' is deprecated; use 'controls.setup_experience' instead")
-				assert.Contains(t, logs, "'controls.setup_experience.bootstrap_package' is deprecated; use 'controls.setup_experience.macos_bootstrap_package' instead")
-				assert.Contains(t, logs, "'controls.setup_experience.macos_setup_assistant' is deprecated; use 'controls.setup_experience.apple_setup_assistant' instead")
 				assert.Contains(t, logs, "'org_settings.server_settings.live_query_disabled' is deprecated; use 'org_settings.server_settings.live_reporting_disabled' instead")
 				assert.Contains(t, logs, "'org_settings.server_settings.query_reports_disabled' is deprecated; use 'org_settings.server_settings.discard_reports_data' instead")
 				assert.Contains(t, logs, "'org_settings.server_settings.query_report_cap' is deprecated; use 'org_settings.server_settings.report_cap' instead")
@@ -2821,12 +2813,6 @@ func TestGitOpsFullTeam(t *testing.T) {
 				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
 				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
 				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'controls.macos_setup' is deprecated; use 'controls.setup_experience' instead")
-				assert.Contains(t, logs, "'controls.setup_experience.bootstrap_package' is deprecated; use 'controls.setup_experience.macos_bootstrap_package' instead")
-				assert.Contains(t, logs, "'controls.setup_experience.macos_setup_assistant' is deprecated; use 'controls.setup_experience.apple_setup_assistant' instead")
-				assert.Contains(t, logs, "'controls.setup_experience.enable_release_device_manually' is deprecated; use 'controls.setup_experience.apple_enable_release_device_manually' instead")
-				assert.Contains(t, logs, "'controls.setup_experience.script' is deprecated; use 'controls.setup_experience.macos_script' instead")
-				assert.Contains(t, logs, "'controls.setup_experience.manual_agent_install' is deprecated; use 'controls.setup_experience.macos_manual_agent_install' instead")
 			}
 			assert.Nil(t, savedTeam)
 			assert.Empty(t, enrolledSecrets)
@@ -2848,12 +2834,6 @@ func TestGitOpsFullTeam(t *testing.T) {
 				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
 				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
 				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'controls.macos_setup' is deprecated; use 'controls.setup_experience' instead")
-				assert.Contains(t, logs, "'controls.setup_experience.bootstrap_package' is deprecated; use 'controls.setup_experience.macos_bootstrap_package' instead")
-				assert.Contains(t, logs, "'controls.setup_experience.macos_setup_assistant' is deprecated; use 'controls.setup_experience.apple_setup_assistant' instead")
-				assert.Contains(t, logs, "'controls.setup_experience.enable_release_device_manually' is deprecated; use 'controls.setup_experience.apple_enable_release_device_manually' instead")
-				assert.Contains(t, logs, "'controls.setup_experience.script' is deprecated; use 'controls.setup_experience.macos_script' instead")
-				assert.Contains(t, logs, "'controls.setup_experience.manual_agent_install' is deprecated; use 'controls.setup_experience.macos_manual_agent_install' instead")
 			}
 			require.NotNil(t, savedTeam)
 			assert.Equal(t, teamName, savedTeam.Name)
@@ -3475,8 +3455,9 @@ software:
 	t.Run("global defines software -- should fail", func(t *testing.T) {
 		globalFileWithSoftware, err := os.CreateTemp(t.TempDir(), "*.yml")
 		require.NoError(t, err)
-		_, err = globalFileWithSoftware.WriteString(fmt.Sprintf(
-			`
+		_, err = globalFileWithSoftware.WriteString(
+			fmt.Sprintf(
+				`
 controls:
 queries:
 policies:
@@ -3494,7 +3475,8 @@ org_settings:
 software:
   packages:
     - url: https://example.com
-`, fleetServerURL, orgName),
+`, fleetServerURL, orgName,
+			),
 		)
 		require.NoError(t, err)
 
@@ -3787,7 +3769,8 @@ software:
 func createTeamFileBasic(t *testing.T, secret string) *os.File {
 	teamFileBasic, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	_, err = teamFileBasic.WriteString(fmt.Sprintf(`
+	_, err = teamFileBasic.WriteString(
+		fmt.Sprintf(`
 controls:
 queries:
 policies:
@@ -3806,8 +3789,9 @@ software:
 func createGlobalFileBasic(t *testing.T, fleetServerURL string, orgName string) *os.File {
 	globalFileBasic, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	_, err = globalFileBasic.WriteString(fmt.Sprintf(
-		`
+	_, err = globalFileBasic.WriteString(
+		fmt.Sprintf(
+			`
 controls:
 queries:
 policies:
@@ -3823,7 +3807,8 @@ org_settings:
   secrets:
     - secret: globalSecret
 software:
-`, fleetServerURL, orgName),
+`, fleetServerURL, orgName,
+		),
 	)
 	require.NoError(t, err)
 	return globalFileBasic
@@ -3832,8 +3817,9 @@ software:
 func createGlobalFileWithoutControlsAndSoftwareKeys(t *testing.T, fleetServerURL string, orgName string) *os.File {
 	globalFileWithoutControlsAndSoftwareKeys, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	_, err = globalFileWithoutControlsAndSoftwareKeys.WriteString(fmt.Sprintf(
-		`
+	_, err = globalFileWithoutControlsAndSoftwareKeys.WriteString(
+		fmt.Sprintf(
+			`
 queries:
 policies:
 agent_options:
@@ -3847,7 +3833,8 @@ org_settings:
     org_name: %s
   secrets:
     - secret: globalSecret
-`, fleetServerURL, orgName),
+`, fleetServerURL, orgName,
+		),
 	)
 	require.NoError(t, err)
 	return globalFileWithoutControlsAndSoftwareKeys
@@ -3856,8 +3843,9 @@ org_settings:
 func createGlobalFileWithControls(t *testing.T, fleetServerURL string, orgName string) *os.File {
 	globalFileWithControls, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	_, err = globalFileWithControls.WriteString(fmt.Sprintf(
-		`
+	_, err = globalFileWithControls.WriteString(
+		fmt.Sprintf(
+			`
 controls:
   ios_updates:
     deadline: "2022-02-02"
@@ -3876,7 +3864,8 @@ org_settings:
   secrets:
     - secret: globalSecret
 software:
-`, fleetServerURL, orgName),
+`, fleetServerURL, orgName,
+		),
 	)
 	require.NoError(t, err)
 	return globalFileWithControls
@@ -4034,9 +4023,6 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
 				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
 				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'controls.macos_setup' is deprecated; use 'controls.setup_experience' instead")
-				assert.Contains(t, logs, "'controls.setup_experience.bootstrap_package' is deprecated; use 'controls.setup_experience.macos_bootstrap_package' instead")
-				assert.Contains(t, logs, "'controls.setup_experience.macos_setup_assistant' is deprecated; use 'controls.setup_experience.apple_setup_assistant' instead")
 				assert.Contains(t, logs, "'org_settings.server_settings.live_query_disabled' is deprecated; use 'org_settings.server_settings.live_reporting_disabled' instead")
 				assert.Contains(t, logs, "'org_settings.server_settings.query_reports_disabled' is deprecated; use 'org_settings.server_settings.discard_reports_data' instead")
 				assert.Contains(t, logs, "'org_settings.server_settings.query_report_cap' is deprecated; use 'org_settings.server_settings.report_cap' instead")
@@ -4044,12 +4030,6 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
 				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
 				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'controls.macos_setup' is deprecated; use 'controls.setup_experience' instead")
-				assert.Contains(t, logs, "'controls.setup_experience.bootstrap_package' is deprecated; use 'controls.setup_experience.macos_bootstrap_package' instead")
-				assert.Contains(t, logs, "'controls.setup_experience.macos_setup_assistant' is deprecated; use 'controls.setup_experience.apple_setup_assistant' instead")
-				assert.Contains(t, logs, "'controls.setup_experience.enable_release_device_manually' is deprecated; use 'controls.setup_experience.apple_enable_release_device_manually' instead")
-				assert.Contains(t, logs, "'controls.setup_experience.script' is deprecated; use 'controls.setup_experience.macos_script' instead")
-				assert.Contains(t, logs, "'controls.setup_experience.manual_agent_install' is deprecated; use 'controls.setup_experience.macos_manual_agent_install' instead")
 			}
 			assert.False(t, ds.SaveAppConfigFuncInvoked)
 			assert.Empty(t, enrolledSecrets)
@@ -4064,9 +4044,6 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
 				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
 				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'controls.macos_setup' is deprecated; use 'controls.setup_experience' instead")
-				assert.Contains(t, logs, "'controls.setup_experience.bootstrap_package' is deprecated; use 'controls.setup_experience.macos_bootstrap_package' instead")
-				assert.Contains(t, logs, "'controls.setup_experience.macos_setup_assistant' is deprecated; use 'controls.setup_experience.apple_setup_assistant' instead")
 				assert.Contains(t, logs, "'org_settings.server_settings.live_query_disabled' is deprecated; use 'org_settings.server_settings.live_reporting_disabled' instead")
 				assert.Contains(t, logs, "'org_settings.server_settings.query_reports_disabled' is deprecated; use 'org_settings.server_settings.discard_reports_data' instead")
 				assert.Contains(t, logs, "'org_settings.server_settings.query_report_cap' is deprecated; use 'org_settings.server_settings.report_cap' instead")
@@ -4074,12 +4051,6 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
 				assert.Contains(t, logs, "'controls.apple_settings.custom_settings' is deprecated; use 'controls.apple_settings.configuration_profiles' instead")
 				assert.Contains(t, logs, "'controls.windows_settings.custom_settings' is deprecated; use 'controls.windows_settings.configuration_profiles' instead")
-				assert.Contains(t, logs, "'controls.macos_setup' is deprecated; use 'controls.setup_experience' instead")
-				assert.Contains(t, logs, "'controls.setup_experience.bootstrap_package' is deprecated; use 'controls.setup_experience.macos_bootstrap_package' instead")
-				assert.Contains(t, logs, "'controls.setup_experience.macos_setup_assistant' is deprecated; use 'controls.setup_experience.apple_setup_assistant' instead")
-				assert.Contains(t, logs, "'controls.setup_experience.enable_release_device_manually' is deprecated; use 'controls.setup_experience.apple_enable_release_device_manually' instead")
-				assert.Contains(t, logs, "'controls.setup_experience.script' is deprecated; use 'controls.setup_experience.macos_script' instead")
-				assert.Contains(t, logs, "'controls.setup_experience.manual_agent_install' is deprecated; use 'controls.setup_experience.macos_manual_agent_install' instead")
 			}
 			assert.Equal(t, orgName, (*savedAppConfigPtr).OrgInfo.OrgName)
 			assert.Equal(t, fleetServerURL, (*savedAppConfigPtr).ServerSettings.ServerURL)
@@ -4154,7 +4125,8 @@ software:
 
 		// Validate that global config is required when running noTeam
 		_, err = runAppNoChecks(
-			[]string{"gitops", "-f", noTeamFile.Name(), "--dry-run"})
+			[]string{"gitops", "-f", noTeamFile.Name(), "--dry-run"},
+		)
 		assert.Error(t, err)
 
 		// Dry run
@@ -5706,8 +5678,9 @@ func TestGitOpsFeatures(t *testing.T) {
 
 	globalFileUpdatedFeatures, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	_, err = globalFileUpdatedFeatures.WriteString(fmt.Sprintf(
-		`
+	_, err = globalFileUpdatedFeatures.WriteString(
+		fmt.Sprintf(
+			`
 controls:
 queries:
 policies:
@@ -5728,7 +5701,8 @@ org_settings:
   secrets:
     - secret: globalSecret
 software:
-`, fleetServerURL, orgName),
+`, fleetServerURL, orgName,
+		),
 	)
 	require.NoError(t, err)
 
@@ -5764,8 +5738,9 @@ software:
 
 	globalFileDetailQueryOverrides, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	_, err = globalFileDetailQueryOverrides.WriteString(fmt.Sprintf(
-		`
+	_, err = globalFileDetailQueryOverrides.WriteString(
+		fmt.Sprintf(
+			`
 controls:
 queries:
 policies:
@@ -5782,7 +5757,8 @@ org_settings:
   secrets:
     - secret: globalSecret
 software:
-`, fleetServerURL, orgName),
+`, fleetServerURL, orgName,
+		),
 	)
 	require.NoError(t, err)
 	_, err = runAppNoChecks([]string{"gitops", "-f", globalFileDetailQueryOverrides.Name()})
@@ -5804,8 +5780,9 @@ func TestGitOpsHistoricalData(t *testing.T) {
 
 	globalFileWithHistoricalData, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	_, err = globalFileWithHistoricalData.WriteString(fmt.Sprintf(
-		`
+	_, err = globalFileWithHistoricalData.WriteString(
+		fmt.Sprintf(
+			`
 controls:
 queries:
 policies:
@@ -5825,7 +5802,8 @@ org_settings:
   secrets:
     - secret: globalSecret
 software:
-`, fleetServerURL, orgName),
+`, fleetServerURL, orgName,
+		),
 	)
 	require.NoError(t, err)
 
@@ -5857,8 +5835,9 @@ software:
 	// key, and verify that uptime is set to false but vulnerabilities remains true.
 	globalFileWithUptimeOnly, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	_, err = globalFileWithUptimeOnly.WriteString(fmt.Sprintf(
-		`
+	_, err = globalFileWithUptimeOnly.WriteString(
+		fmt.Sprintf(
+			`
 controls:
 queries:
 policies:
@@ -5877,7 +5856,8 @@ org_settings:
   secrets:
     - secret: globalSecret
 software:
-`, fleetServerURL, orgName),
+`, fleetServerURL, orgName,
+		),
 	)
 	require.NoError(t, err)
 	_, err = runAppNoChecks([]string{"gitops", "-f", globalFileWithUptimeOnly.Name()})
@@ -6238,7 +6218,6 @@ func writeGitOpsFile(t *testing.T, dir, cfg string) string {
 }
 
 func TestGitOpsEULASetting(t *testing.T) {
-
 	// Create a temporary PDF file
 	pdfContent := []byte("%PDF-1\npdf-test")
 	tmpPDF, err := os.CreateTemp(t.TempDir(), "*.pdf")
@@ -6989,9 +6968,7 @@ func setupAndroidCertificatesTestMocks(t *testing.T, ds *mock.Store) []*fleet.Ce
 	}
 
 	ds.GetMDMProfileChecksumsFunc = func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
-
 		return &fleet.MDMProfileChecksums{}, nil
-
 	}
 
 	ds.BatchSetMDMProfilesFunc = func(
@@ -7217,10 +7194,10 @@ settings:
       deadline: null
     macos_settings:
       custom_settings: null
-    macos_setup:
-      bootstrap_package: null
+    setup_experience:
+      macos_bootstrap_package: null
       enable_end_user_authentication: false
-      macos_setup_assistant: null
+      apple_setup_assistant: null
     windows_updates:
       deadline_days: null
       grace_period_days: null
@@ -7281,10 +7258,10 @@ settings:
       deadline: null
     macos_settings:
       custom_settings: null
-    macos_setup:
-      bootstrap_package: null
+    setup_experience:
+      macos_bootstrap_package: null
       enable_end_user_authentication: false
-      macos_setup_assistant: null
+      apple_setup_assistant: null
     windows_updates:
       deadline_days: null
       grace_period_days: null
@@ -7344,10 +7321,10 @@ settings:
       deadline: null
     macos_settings:
       custom_settings: null
-    macos_setup:
-      bootstrap_package: null
+    setup_experience:
+      macos_bootstrap_package: null
       enable_end_user_authentication: false
-      macos_setup_assistant: null
+      apple_setup_assistant: null
     windows_updates:
       deadline_days: null
       grace_period_days: null
@@ -7459,10 +7436,10 @@ settings:
       deadline: null
     macos_settings:
       custom_settings: null
-    macos_setup:
-      bootstrap_package: null
+    setup_experience:
+      macos_bootstrap_package: null
       enable_end_user_authentication: false
-      macos_setup_assistant: null
+      apple_setup_assistant: null
     windows_updates:
       deadline_days: null
       grace_period_days: null
@@ -7578,10 +7555,10 @@ settings:
       deadline: null
     macos_settings:
       custom_settings: null
-    macos_setup:
-      bootstrap_package: null
+    setup_experience:
+      macos_bootstrap_package: null
       enable_end_user_authentication: false
-      macos_setup_assistant: null
+      apple_setup_assistant: null
     windows_updates:
       deadline_days: null
       grace_period_days: null
@@ -8500,7 +8477,8 @@ software:
 			// "latest" has no deadline, so deriving from the deadline alone would
 			// leave new hosts unenforced.
 			_, err = teamFile.WriteString(teamYAML(
-				"  macos_updates:\n    minimum_version: \"latest\"\n    deadline_days: 7"))
+				"  macos_updates:\n    minimum_version: \"latest\"\n    deadline_days: 7",
+			))
 			require.NoError(t, err)
 
 			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})

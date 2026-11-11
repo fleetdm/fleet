@@ -878,7 +878,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
-			"macos_setup": {
+			"setup_experience": {
 				"enable_end_user_authentication": false
 			}
 		}
@@ -893,7 +893,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 				"idp_name": "SimpleSAML",
 				"metadata_url": "%s"
 			},
-			"macos_setup": {
+			"setup_experience": {
 				"enable_end_user_authentication": true
 			}
 		}
@@ -923,7 +923,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 				"idp_name": "",
 				"metadata_url": ""
 			},
-			"macos_setup": {
+			"setup_experience": {
 				"enable_end_user_authentication": false
 			}
 		}
@@ -958,7 +958,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 				"idp_name": "SimpleSAML",
 				"metadata_url": "%s"
 			},
-			"macos_setup": {
+			"setup_experience": {
 				"enable_end_user_authentication": true
 			}
 		}
@@ -970,7 +970,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 			map[string]any{
 				"name": t.Name(),
 				"mdm": map[string]any{
-					"macos_setup": map[string]any{
+					"setup_experience": map[string]any{
 						"enable_end_user_authentication": false,
 					},
 				},
@@ -998,7 +998,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 				"idp_name": "SimpleSAML",
 				"metadata_url": "%s"
 			},
-			"macos_setup": {
+			"setup_experience": {
 				"enable_end_user_authentication": true
 			}
 		}
@@ -1010,7 +1010,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 			map[string]any{
 				"name": t.Name(),
 				"mdm": map[string]any{
-					"macos_setup": map[string]any{
+					"setup_experience": map[string]any{
 						"enable_end_user_authentication": true,
 					},
 				},
@@ -1038,7 +1038,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 			map[string]any{
 				"name": t.Name(),
 				"mdm": map[string]any{
-					"macos_setup": map[string]any{
+					"setup_experience": map[string]any{
 						"enable_end_user_authentication": false,
 					},
 				},
@@ -1073,7 +1073,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 			map[string]any{
 				"name": t.Name(),
 				"mdm": map[string]any{
-					"macos_setup": map[string]any{
+					"setup_experience": map[string]any{
 						"enable_end_user_authentication": true,
 					},
 				},

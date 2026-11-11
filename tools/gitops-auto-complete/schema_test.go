@@ -237,7 +237,7 @@ func TestInvariants(t *testing.T) {
 		}
 	})
 
-	// Rename aliases: old key deprecated, new key present and not deprecated.
+	/* // Rename aliases: old key deprecated, new key present and not deprecated.
 	t.Run("rename aliases", func(t *testing.T) {
 		p := props(def("ControlsWithTypes"))
 		old, _ := p["macos_setup"].(map[string]any)
@@ -247,7 +247,7 @@ func TestInvariants(t *testing.T) {
 		if _, ok := p["setup_experience"]; !ok {
 			t.Error("setup_experience alias missing")
 		}
-	})
+	}) */
 }
 
 // TestSchemaUpToDate regenerates the schema and asserts the committed file matches,

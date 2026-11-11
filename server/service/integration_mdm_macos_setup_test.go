@@ -989,7 +989,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		},
 		{
 			raw: `"mdm": {
-				"macos_setup": {}
+				"setup_experience": {}
 			}`,
 			expectedEUA:    false,
 			expectedLEUI:   false,
@@ -997,7 +997,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		},
 		{
 			raw: `"mdm": {
-				"macos_setup": {
+				"setup_experience": {
 					"enable_end_user_authentication": true
 				}
 			}`,
@@ -1007,7 +1007,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		},
 		{
 			raw: `"mdm": {
-				"macos_setup": {
+				"setup_experience": {
 					"enable_end_user_authentication": true, "lock_end_user_info": false
 				}
 			}`,
@@ -1017,7 +1017,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		},
 		{
 			raw: `"mdm": {
-				"macos_setup": {
+				"setup_experience": {
 					"enable_end_user_authentication": true, "lock_end_user_info": true
 				}
 			}`,
@@ -1027,7 +1027,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		},
 		{
 			raw: `"mdm": {
-				"macos_setup": {
+				"setup_experience": {
 					"enable_end_user_authentication": false
 				}
 			}`,
@@ -1037,7 +1037,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		},
 		{
 			raw: `"mdm": {
-				"macos_setup": {
+				"setup_experience": {
 					"enable_end_user_authentication": false, "lock_end_user_info": true
 				}
 			}`,
@@ -1149,10 +1149,10 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 			t.Run(strconv.Itoa(i), func(t *testing.T) {
 				macSetup := map[string]any{}
 				if c.enableRelease != nil {
-					macSetup["enable_release_device_manually"] = *c.enableRelease
+					macSetup["apple_enable_release_device_manually"] = *c.enableRelease
 				}
 				if c.setupAssistant != "" {
-					macSetup["macos_setup_assistant"] = c.setupAssistant
+					macSetup["apple_setup_assistant"] = c.setupAssistant
 				}
 
 				uploadSucceeded := true
@@ -1169,7 +1169,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 				if uploadSucceeded {
 					acResp = appConfigResponse{}
 					s.DoJSON("PATCH", path,
-						json.RawMessage(jsonMustMarshal(t, map[string]any{"mdm": map[string]any{"macos_setup": macSetup}})),
+						json.RawMessage(jsonMustMarshal(t, map[string]any{"mdm": map[string]any{"setup_experience": macSetup}})),
 						c.expectedStatus, &acResp)
 					require.Equal(t, c.expectedRelease, acResp.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
 					require.Equal(t, c.expectedAssistant, acResp.MDM.MacOSSetup.MacOSSetupAssistant.Value)
@@ -1249,7 +1249,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 						"team_id": tm.ID,
 					}
 					if c.enableRelease != nil {
-						payload["enable_release_device_manually"] = *c.enableRelease
+						payload["apple_enable_release_device_manually"] = *c.enableRelease
 					}
 					s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), expectedPatchStatus)
 				}
@@ -1354,7 +1354,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 					"idp_name": "SimpleSAML",
 					"metadata_url": "%s"
 				},
-				"macos_setup": {
+				"setup_experience": {
 					"enable_end_user_authentication": true
 				}
 			}
@@ -1379,7 +1379,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		acResp = appConfigResponse{}
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"mdm": {
-				"macos_setup": {
+				"setup_experience": {
 					"enable_end_user_authentication": false
 				}
 			}
@@ -1416,7 +1416,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID), json.RawMessage(fmt.Sprintf(`{
 			"name": %q,
 			"mdm": {
-				"macos_setup": {
+				"setup_experience": {
 					"enable_end_user_authentication": true
 				}
 			}
@@ -1441,7 +1441,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID), json.RawMessage(fmt.Sprintf(`{
 			"name": %q,
 			"mdm": {
-				"macos_setup": {
+				"setup_experience": {
 					"enable_end_user_authentication": false
 				}
 			}
@@ -1466,7 +1466,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 					"idp_name": "",
 					"metadata_url": ""
 				},
-				"macos_setup": {
+				"setup_experience": {
 					"enable_end_user_authentication": true
 				}
 			}
@@ -1480,7 +1480,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID), json.RawMessage(fmt.Sprintf(`{
 			"name": %q,
 			"mdm": {
-				"macos_setup": {
+				"setup_experience": {
 					"enable_end_user_authentication": true
 				}
 			}

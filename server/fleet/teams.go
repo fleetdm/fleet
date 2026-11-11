@@ -108,7 +108,7 @@ type TeamPayloadMDM struct {
 	// WindowsUpdates defines the OS update settings for Windows devices.
 	WindowsUpdates *WindowsUpdates `json:"windows_updates"`
 
-	MacOSSetup       *MacOSSetup    `json:"macos_setup"`
+	MacOSSetup       *MacOSSetup    `json:"setup_experience" removedkey:"macos_setup" renamescope:"mdm"`
 	HostNameTemplate optjson.String `json:"name_template"`
 
 	// MacOSSettings exposes only the disk encryption surface on the team PATCH endpoint;
@@ -510,7 +510,7 @@ type TeamMDM struct {
 	IPadOSUpdates              AppleOSUpdateSettings `json:"ipados_updates"`
 	WindowsUpdates             WindowsUpdates        `json:"windows_updates"`
 	MacOSSettings              MacOSSettings         `json:"macos_settings" renameto:"apple_settings"`
-	MacOSSetup                 MacOSSetup            `json:"macos_setup" renameto:"setup_experience"`
+	MacOSSetup                 MacOSSetup            `json:"setup_experience" removedkey:"macos_setup" renamescope:"mdm"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
@@ -676,7 +676,7 @@ type TeamSpecMDM struct {
 	// value, but if it isn't provided, we need to leave the existing value
 	// unmodified.
 	MacOSSettings map[string]any `json:"macos_settings" renameto:"apple_settings"`
-	MacOSSetup    MacOSSetup     `json:"macos_setup" renameto:"setup_experience"`
+	MacOSSetup    MacOSSetup     `json:"setup_experience" removedkey:"macos_setup" renamescope:"mdm"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 

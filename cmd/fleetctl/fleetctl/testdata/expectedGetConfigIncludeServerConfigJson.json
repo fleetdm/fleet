@@ -129,22 +129,6 @@
         "enable_disk_encryption": false,
         "enable_escrow_disk_encryption_key": false
       },
-      "macos_setup": {
-        "bootstrap_package": null,
-        "enable_end_user_authentication": false,
-        "enable_managed_local_account": false,
-        "enable_release_device_manually": false,
-        "end_user_local_account_type": "admin",
-        "lock_end_user_info": false,
-        "macos_enable_bootstrap_package_during_manual_enrollment": false,
-        "macos_enable_bootstrap_package_during_migration": false,
-        "macos_setup_assistant": null,
-        "manual_agent_install": null,
-        "macos_require_all_software": false,
-        "windows_require_all_software": false,
-        "script": null,
-        "software": null
-      },
       "setup_experience": {
         "apple_enable_release_device_manually": false,
         "apple_setup_assistant": null,
@@ -159,7 +143,8 @@
         "macos_script": null,
         "macos_require_all_software": false,
         "windows_require_all_software": false,
-        "software": null
+        "software": null,
+        "enable_managed_local_account": false
       },
       "windows_automatic_enrollment": null,
       "windows_settings": {
