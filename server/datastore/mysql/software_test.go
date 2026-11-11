@@ -13253,7 +13253,7 @@ func TestMatchWindowsFMATitle(t *testing.T) {
 	}
 	notionCalendar := unadded("Notion Calendar", "Notion Calendar")
 	notionCalendarByIdentifier := unadded("Notion Cal", "Notion Calendar")
-	notionCalendarUnnormalized := unadded("NOTION‏ Calendar", "")
+	notionCalendarUnnormalized := unadded("NOTION\u200f Calendar", "")
 	notionCalendarAdded := win(11, "Notion Calendar", "Notion Calendar")
 	zoomRooms := unadded("Zoom Rooms", "Zoom Rooms")
 	acmeWriterUnadded := unadded("Acme Writer", "Acme")
