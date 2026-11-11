@@ -15490,7 +15490,7 @@ Returns a list of all operating systems.
 | max_vulnerabilities   | integer | query | Limits the number of `vulnerabilities` returned per OS version. (If omitted, returns all vulnerabilities.) |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
 | per_page                | integer | query | Results per page. Default is `20`. |
-| order_key               | string  | query | What to order results by. Allowed fields are: `hosts_count` and `version`. Default is `hosts_count` (descending).      |
+| order_key               | string  | query | What to order results by. Allowed fields are: `hosts_count` and `os_version`. Default is `hosts_count` (descending).      |
 | order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 
 
@@ -15506,9 +15506,8 @@ Returns a list of all operating systems.
     {
       "os_version_id": 123,
       "hosts_count": 21,
-      "name": "Windows 11 Pro 23H2 10.0.22621.1234",
-      "name_only": "Windows 11 Pro 23H2",
-      "version": "10.0.22621.1234",
+      "os_name": "Windows 11 Pro 23H2",
+      "os_version": "10.0.22621.1234",
       "platform": "windows",
       "generated_cpes": [],
       "vulnerabilities_count": 1,
@@ -15534,6 +15533,8 @@ Returns a list of all operating systems.
 ```
 
 Windows and macOS listed vulnerabilities are based on OS version-specific data. Linux vulnerabilities are based on kernel vulnerabilities for hosts running the specified OS version. Both active and inactive kernels on a host are accounted for in kernel vulnerability reporting. Other operating systems do not report vulnerabilities.
+
+If `order_key` is `os_version`, operating systems are grouped by platform, with the platform that has the most hosts first, and ordered by version within each platform. `order_direction` applies within each platform.
 
 ### Get software
 
@@ -15882,9 +15883,8 @@ Retrieves information about the specified operating system (OS) version.
   "os_version": {
     "os_version_id": 123,
     "hosts_count": 21,
-    "name": "Windows 11 Pro 23H2 10.0.22621.1234",
-    "name_only": "Windows 11 Pro 23H2",
-    "version": "10.0.22621.1234",
+    "os_name": "Windows 11 Pro 23H2",
+    "os_version": "10.0.22621.1234",
     "platform": "windows",
     "generated_cpes": [],
     "kernels": [], // empty for non-Linux
@@ -15915,9 +15915,8 @@ Linux vulnerabilities are based on kernel vulnerabilities for hosts running the 
   "os_version": {
     "os_version_id": 321,
     "hosts_count": 2,
-    "name": "Ubuntu 24.04.1 LTS",
-    "name_only": "Ubuntu",
-    "version": "24.04.1 LTS",
+    "os_name": "Ubuntu",
+    "os_version": "24.04.1 LTS",
     "platform": "ubuntu",
     "generated_cpes": [],
     "kernels": [
@@ -17172,9 +17171,8 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
     {
       "os_version_id": 6,
       "hosts_count": 200,
-      "name": "macOS 14.1.2",
-      "name_only": "macOS",
-      "version": "14.1.2",
+      "os_name": "macOS",
+      "os_version": "14.1.2",
       "resolved_in_version": "14.2",
       "generated_cpes": [
         "cpe:2.3:o:apple:macos:*:*:*:*:*:14.2:*:*",
