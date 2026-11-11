@@ -310,6 +310,21 @@ const DiskEncryption = ({
       onChange={onToggleSetting(key)}
       value={value}
       className={`${baseClass}__checkbox`}
+      labelTooltipContent={
+        platform === "macos" ? (
+          <>
+            Most users enable both. Check only this if another tool (like
+            XCreds) turns on FileVault and you only want Fleet to store the key.{" "}
+            <CustomLink
+              text="Learn more"
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/mdm-disk-encryption`}
+              variant="tooltip-link"
+              newTab
+            />
+          </>
+        ) : undefined
+      }
+      labelTooltipClickable={platform === "macos"}
       helpText={
         <>
           {ESCROW_HELP_TEXT}
