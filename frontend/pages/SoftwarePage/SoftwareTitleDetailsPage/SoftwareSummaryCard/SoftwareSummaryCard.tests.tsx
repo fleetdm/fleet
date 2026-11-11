@@ -67,10 +67,12 @@ describe("Software Summary Card", () => {
     });
     const fmaTitle = () =>
       createMockSoftwareTitle({
-        software_package: createMockSoftwarePackage({
-          fleet_maintained_app_id: 1,
-          fleet_maintained_app_slug: "zoom/darwin",
-        }),
+        packages: [
+          createMockSoftwarePackage({
+            fleet_maintained_app_id: 1,
+            fleet_maintained_app_slug: "zoom/darwin",
+          }),
+        ],
       });
     const renderCard = (
       renderFn: (ui: React.ReactElement) => unknown,
@@ -97,7 +99,7 @@ describe("Software Summary Card", () => {
       renderCard(
         renderPremium,
         createMockSoftwareTitle({
-          software_package: null,
+          packages: null,
           app_store_app: createMockAppStoreAppIos(),
         })
       );
@@ -110,7 +112,7 @@ describe("Software Summary Card", () => {
       renderCard(
         renderPremium,
         createMockSoftwareTitle({
-          software_package: null,
+          packages: null,
           app_store_app: createMockAppStoreAppAndroid(),
         })
       );
@@ -123,7 +125,7 @@ describe("Software Summary Card", () => {
       renderCard(
         renderPremium,
         createMockSoftwareTitle({
-          software_package: null,
+          packages: null,
           app_store_app: createMockAppStoreAppAndroid({
             app_store_id: "com.google.enterprise.webapp.abc123",
           }),
@@ -136,7 +138,7 @@ describe("Software Summary Card", () => {
       renderCard(
         renderPremium,
         createMockSoftwareTitle({
-          software_package: createMockSoftwarePackage(),
+          packages: [createMockSoftwarePackage()],
         })
       );
       expect(
@@ -187,7 +189,7 @@ describe("Software Summary Card", () => {
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage(),
+            packages: [createMockSoftwarePackage()],
           })}
           softwareId={1}
           teamId={1}
@@ -236,7 +238,7 @@ describe("Software Summary Card", () => {
           softwareTitle={createMockSoftwareTitle({
             source: "android_apps",
             app_store_app: createMockAppStoreAppAndroid(),
-            software_package: null,
+            packages: null,
           })}
           softwareId={1}
           teamId={1}
@@ -262,7 +264,7 @@ describe("Software Summary Card", () => {
             app_store_app: createMockAppStoreAppAndroid({
               app_store_id: "com.google.enterprise.webapp.myapp",
             }),
-            software_package: null,
+            packages: null,
           })}
           softwareId={1}
           teamId={1}
@@ -285,7 +287,7 @@ describe("Software Summary Card", () => {
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
             source: "ios_apps",
-            software_package: createMockSoftwarePackageIos(),
+            packages: [createMockSoftwarePackageIos()],
             app_store_app: null,
           })}
           softwareId={1}
@@ -308,7 +310,7 @@ describe("Software Summary Card", () => {
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
             source: "apps",
-            software_package: createMockSoftwarePackage(),
+            packages: [createMockSoftwarePackage()],
             app_store_app: null,
           })}
           softwareId={1}
@@ -336,7 +338,7 @@ describe("Software Summary Card", () => {
             // Explicit null — `createMockSoftwareTitle` defaults to a custom
             // package, which would otherwise hide the dropdown for
             // multi-package-capable titles.
-            software_package: null,
+            packages: null,
             app_store_app: createMockAppStoreApp({ platform: "darwin" }),
           })}
           softwareId={1}
@@ -358,9 +360,11 @@ describe("Software Summary Card", () => {
       const { user } = render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              fleet_maintained_app_id: 7,
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                fleet_maintained_app_id: 7,
+              }),
+            ],
           })}
           softwareId={1}
           teamId={1}
@@ -398,9 +402,11 @@ describe("Software Summary Card", () => {
       const { user } = freeRender(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              fleet_maintained_app_id: 7,
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                fleet_maintained_app_id: 7,
+              }),
+            ],
           })}
           softwareId={1}
           teamId={1}
@@ -419,7 +425,7 @@ describe("Software Summary Card", () => {
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage(),
+            packages: [createMockSoftwarePackage()],
           })}
           softwareId={1}
           teamId={1}
@@ -459,9 +465,11 @@ describe("Software Summary Card", () => {
       const { user } = gitopsRender(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              fleet_maintained_app_id: 7,
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                fleet_maintained_app_id: 7,
+              }),
+            ],
           })}
           softwareId={1}
           teamId={1}
@@ -499,7 +507,7 @@ describe("Software Summary Card", () => {
           softwareTitle={createMockSoftwareTitle({
             source: "apps",
             app_store_app: createMockAppStoreApp({ platform: "darwin" }),
-            software_package: null,
+            packages: null,
           })}
           softwareId={1}
           teamId={1}
@@ -534,7 +542,7 @@ describe("Software Summary Card", () => {
           softwareTitle={createMockSoftwareTitle({
             source: "apps",
             app_store_app: createMockAppStoreApp({ platform: "darwin" }),
-            software_package: null,
+            packages: null,
           })}
           softwareId={1}
           router={router}
@@ -565,9 +573,11 @@ describe("Software Summary Card", () => {
       const { user } = observerRender(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              fleet_maintained_app_id: 7,
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                fleet_maintained_app_id: 7,
+              }),
+            ],
           })}
           softwareId={1}
           teamId={1}
@@ -604,9 +614,11 @@ describe("Software Summary Card", () => {
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              fleet_maintained_app_id: 7,
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                fleet_maintained_app_id: 7,
+              }),
+            ],
           })}
           softwareId={1}
           teamId={1}
@@ -625,7 +637,7 @@ describe("Software Summary Card", () => {
           softwareTitle={createMockSoftwareTitle({
             source: "apps",
             app_store_app: createMockAppStoreApp({ platform: "darwin" }),
-            software_package: null,
+            packages: null,
           })}
           softwareId={1}
           teamId={1}
@@ -644,7 +656,7 @@ describe("Software Summary Card", () => {
           softwareTitle={createMockSoftwareTitle({
             source: "android_apps",
             app_store_app: createMockAppStoreAppAndroid(),
-            software_package: null,
+            packages: null,
           })}
           softwareId={1}
           teamId={1}
@@ -661,7 +673,7 @@ describe("Software Summary Card", () => {
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage(),
+            packages: [createMockSoftwarePackage()],
           })}
           softwareId={1}
           teamId={1}
@@ -681,10 +693,12 @@ describe("Software Summary Card", () => {
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              self_service: true,
-              fleet_maintained_app_id: 7,
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                self_service: true,
+                fleet_maintained_app_id: 7,
+              }),
+            ],
           })}
           softwareId={1}
           teamId={1}
@@ -701,18 +715,20 @@ describe("Software Summary Card", () => {
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              self_service: true,
-              automatic_install_policies: [
-                { id: 1, name: "Policy A", type: "dynamic" },
-              ],
-              patch_policy: {
-                id: 42,
-                name: "Outdated Postman",
-                patch_when_closed: false,
-                continuous_automations_enabled: false,
-              },
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                self_service: true,
+                automatic_install_policies: [
+                  { id: 1, name: "Policy A", type: "dynamic" },
+                ],
+                patch_policy: {
+                  id: 42,
+                  name: "Outdated Postman",
+                  patch_when_closed: false,
+                  continuous_automations_enabled: false,
+                },
+              }),
+            ],
           })}
           softwareId={1}
           teamId={1}
@@ -734,9 +750,11 @@ describe("Software Summary Card", () => {
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              self_service: false,
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                self_service: false,
+              }),
+            ],
           })}
           softwareId={1}
           teamId={1}
@@ -753,13 +771,15 @@ describe("Software Summary Card", () => {
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              fleet_maintained_app_id: 7,
-              automatic_install_policies: [
-                { id: 1, name: "Policy A", type: "dynamic" },
-                { id: 2, name: "Policy B", type: "dynamic" },
-              ],
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                fleet_maintained_app_id: 7,
+                automatic_install_policies: [
+                  { id: 1, name: "Policy A", type: "dynamic" },
+                  { id: 2, name: "Policy B", type: "dynamic" },
+                ],
+              }),
+            ],
           })}
           softwareId={1}
           teamId={1}
@@ -776,15 +796,17 @@ describe("Software Summary Card", () => {
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              fleet_maintained_app_id: 7,
-              patch_policy: {
-                id: 42,
-                name: "Outdated Postman",
-                patch_when_closed: false,
-                continuous_automations_enabled: false,
-              },
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                fleet_maintained_app_id: 7,
+                patch_policy: {
+                  id: 42,
+                  name: "Outdated Postman",
+                  patch_when_closed: false,
+                  continuous_automations_enabled: false,
+                },
+              }),
+            ],
           })}
           softwareId={1}
           teamId={1}
@@ -802,18 +824,20 @@ describe("Software Summary Card", () => {
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              fleet_maintained_app_id: 7,
-              automatic_install_policies: [
-                { id: 1, name: "Policy A", type: "dynamic" },
-              ],
-              patch_policy: {
-                id: 42,
-                name: "Outdated Postman",
-                patch_when_closed: false,
-                continuous_automations_enabled: false,
-              },
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                fleet_maintained_app_id: 7,
+                automatic_install_policies: [
+                  { id: 1, name: "Policy A", type: "dynamic" },
+                ],
+                patch_policy: {
+                  id: 42,
+                  name: "Outdated Postman",
+                  patch_when_closed: false,
+                  continuous_automations_enabled: false,
+                },
+              }),
+            ],
           })}
           softwareId={1}
           teamId={1}
@@ -831,7 +855,7 @@ describe("Software Summary Card", () => {
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage(),
+            packages: [createMockSoftwarePackage()],
           })}
           softwareId={1}
           teamId={1}
@@ -849,12 +873,14 @@ describe("Software Summary Card", () => {
       const { user } = render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              fleet_maintained_app_id: 7,
-              automatic_install_policies: [
-                { id: 99, name: "Solo policy", type: "dynamic" },
-              ],
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                fleet_maintained_app_id: 7,
+                automatic_install_policies: [
+                  { id: 99, name: "Solo policy", type: "dynamic" },
+                ],
+              }),
+            ],
           })}
           softwareId={1}
           teamId={3}
@@ -877,13 +903,15 @@ describe("Software Summary Card", () => {
       // false), but its show*Modal state must reset — otherwise it remounts
       // when the user returns to a specific fleet.
       const softwareTitle = createMockSoftwareTitle({
-        software_package: createMockSoftwarePackage({
-          fleet_maintained_app_id: 7,
-          automatic_install_policies: [
-            { id: 1, name: "Policy A", type: "dynamic" },
-            { id: 2, name: "Policy B", type: "dynamic" },
-          ],
-        }),
+        packages: [
+          createMockSoftwarePackage({
+            fleet_maintained_app_id: 7,
+            automatic_install_policies: [
+              { id: 1, name: "Policy A", type: "dynamic" },
+              { id: 2, name: "Policy B", type: "dynamic" },
+            ],
+          }),
+        ],
       });
       const { user, rerender } = render(
         <SoftwareSummaryCard
@@ -929,13 +957,15 @@ describe("Software Summary Card", () => {
       const { user } = render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              fleet_maintained_app_id: 7,
-              automatic_install_policies: [
-                { id: 1, name: "Policy A", type: "dynamic" },
-                { id: 2, name: "Policy B", type: "dynamic" },
-              ],
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                fleet_maintained_app_id: 7,
+                automatic_install_policies: [
+                  { id: 1, name: "Policy A", type: "dynamic" },
+                  { id: 2, name: "Policy B", type: "dynamic" },
+                ],
+              }),
+            ],
           })}
           softwareId={1}
           teamId={1}
@@ -957,7 +987,7 @@ describe("Software Summary Card", () => {
           softwareTitle={createMockSoftwareTitleDetails({
             source: "ios_apps",
             app_store_app: createMockAppStoreAppIos(),
-            software_package: null,
+            packages: null,
             auto_update_enabled: true,
             auto_update_window_start: "02:00",
             auto_update_window_end: "04:00",
@@ -979,7 +1009,7 @@ describe("Software Summary Card", () => {
           softwareTitle={createMockSoftwareTitleDetails({
             source: "ios_apps",
             app_store_app: createMockAppStoreAppIos(),
-            software_package: null,
+            packages: null,
             auto_update_enabled: false,
           })}
           softwareId={1}
@@ -1017,7 +1047,7 @@ describe("Software Summary Card", () => {
           softwareTitle={createMockSoftwareTitleDetails({
             source: "ios_apps",
             app_store_app: createMockAppStoreAppIos(),
-            software_package: null,
+            packages: null,
             auto_update_enabled: true,
             auto_update_window_start: "02:00",
             auto_update_window_end: "04:00",
@@ -1038,7 +1068,7 @@ describe("Software Summary Card", () => {
     });
 
     it("hides all header pills (kind + Self-service / Auto install / Auto updates) on 'All fleets'", () => {
-      // Every pill derives from `app_store_app` / `software_package`, which
+      // Every pill derives from `app_store_app` / `packages`, which
       // the backend fills from an arbitrary team on nil teamID; we hide the
       // row rather than mislabel one team's data as an "All fleets" fact.
       render(
@@ -1046,7 +1076,7 @@ describe("Software Summary Card", () => {
           softwareTitle={createMockSoftwareTitleDetails({
             source: "ios_apps",
             app_store_app: createMockAppStoreAppIos({ self_service: true }),
-            software_package: null,
+            packages: null,
             auto_update_enabled: true,
             auto_update_window_start: "02:00",
             auto_update_window_end: "04:00",
@@ -1068,7 +1098,7 @@ describe("Software Summary Card", () => {
       const { container } = render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: null,
+            packages: null,
             app_store_app: null,
           })}
           softwareId={1}

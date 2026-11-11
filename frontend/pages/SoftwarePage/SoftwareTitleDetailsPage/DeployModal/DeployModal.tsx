@@ -39,7 +39,7 @@ const DeployModal = ({
   onExit,
   onSuccess,
 }: IDeployModalProps) => {
-  const softwarePackage = softwareTitle.software_package;
+  const softwarePackage = softwareTitle.packages?.[0];
   const automaticInstallPolicies =
     softwarePackage?.automatic_install_policies ?? [];
   const patchPolicy = softwarePackage?.patch_policy;

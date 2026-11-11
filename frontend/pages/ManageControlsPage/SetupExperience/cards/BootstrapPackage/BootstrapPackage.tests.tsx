@@ -176,9 +176,9 @@ describe("BootstrapPackage", () => {
       createSetupExperienceSoftwareHandler({
         software_titles: [
           createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              install_during_setup: true,
-            }),
+            packages: [
+              createMockSoftwarePackage({ install_during_setup: true }),
+            ],
           }),
         ],
       })

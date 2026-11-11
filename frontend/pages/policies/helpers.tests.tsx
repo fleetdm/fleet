@@ -11,10 +11,12 @@ describe("generateSoftwareOptionHelpText", () => {
     const title = createMockSoftwareTitle({
       source: "programs",
       app_store_app: null,
-      software_package: createMockSoftwarePackage({
-        name: "Notepad++.exe",
-        version: "8.9.6.4",
-      }),
+      packages: [
+        createMockSoftwarePackage({
+          name: "Notepad++.exe",
+          version: "8.9.6.4",
+        }),
+      ],
     });
 
     expect(generateSoftwareOptionHelpText(title)).toBe(
@@ -26,10 +28,12 @@ describe("generateSoftwareOptionHelpText", () => {
     const title = createMockSoftwareTitle({
       source: "apps",
       app_store_app: null,
-      software_package: createMockSoftwarePackage({
-        name: "TestPackage-1.2.3.pkg",
-        version: "1.2.3",
-      }),
+      packages: [
+        createMockSoftwarePackage({
+          name: "TestPackage-1.2.3.pkg",
+          version: "1.2.3",
+        }),
+      ],
     });
 
     expect(generateSoftwareOptionHelpText(title)).toBe("macOS (.pkg) • 1.2.3");
@@ -42,10 +46,6 @@ describe("generateSoftwareOptionHelpText", () => {
     const title = createMockSoftwareTitle({
       source: "apps",
       app_store_app: null,
-      software_package: createMockSoftwarePackage({
-        name: "TestPackage-1.2.3.pkg",
-        version: "1.2.3",
-      }),
       packages: [
         createMockSoftwarePackage({
           installer_id: 1,
@@ -74,10 +74,6 @@ describe("generateSoftwareOptionHelpText", () => {
     const title = createMockSoftwareTitle({
       source: "apps",
       app_store_app: null,
-      software_package: createMockSoftwarePackage({
-        name: "TestPackage-1.2.3.pkg",
-        version: "1.2.3",
-      }),
       packages: [
         createMockSoftwarePackage({
           installer_id: 1,
@@ -115,10 +111,12 @@ describe("generateSoftwareOptionHelpText", () => {
     const title = createMockSoftwareTitle({
       source: "programs",
       app_store_app: null,
-      software_package: createMockSoftwarePackage({
-        name: "MyApp.exe",
-        version: "",
-      }),
+      packages: [
+        createMockSoftwarePackage({
+          name: "MyApp.exe",
+          version: "",
+        }),
+      ],
     });
 
     expect(generateSoftwareOptionHelpText(title)).toBe("Windows (.exe)");
@@ -129,10 +127,12 @@ describe("generateSoftwareOptionHelpText", () => {
       // null-platform source -> empty platform string, but the package has a version
       source: "go_binaries",
       app_store_app: null,
-      software_package: createMockSoftwarePackage({
-        name: "mytool",
-        version: "1.2.3",
-      }),
+      packages: [
+        createMockSoftwarePackage({
+          name: "mytool",
+          version: "1.2.3",
+        }),
+      ],
     });
 
     expect(generateSoftwareOptionHelpText(title)).toBe("1.2.3");
@@ -142,7 +142,7 @@ describe("generateSoftwareOptionHelpText", () => {
     const title = createMockSoftwareTitle({
       source: "programs",
       app_store_app: null,
-      software_package: null,
+      packages: null,
     });
 
     expect(generateSoftwareOptionHelpText(title)).toBe("");

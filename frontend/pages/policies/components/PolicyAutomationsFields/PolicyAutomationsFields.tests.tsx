@@ -92,12 +92,6 @@ const singlePackageTitle: ISoftwareTitle = createMockSoftwareTitle({
   id: 10,
   name: "Single App",
   source: "apps",
-  software_package: createMockSoftwarePackage({
-    installer_id: 100,
-    name: "single-app.pkg",
-    version: "1.0.0",
-    uploaded_at: "2026-06-01T00:00:00Z",
-  }),
   packages: [
     createMockSoftwarePackage({
       installer_id: 100,
@@ -112,12 +106,6 @@ const multiPackageTitle: ISoftwareTitle = createMockSoftwareTitle({
   id: 20,
   name: "Multi App",
   source: "apps",
-  software_package: createMockSoftwarePackage({
-    installer_id: 200,
-    name: "multi-app-1.0.0.pkg",
-    version: "1.0.0",
-    uploaded_at: "2026-06-01T00:00:00Z",
-  }),
   packages: [
     createMockSoftwarePackage({
       installer_id: 201,
@@ -145,7 +133,6 @@ const vppTitle: ISoftwareTitle = createMockSoftwareTitle({
   id: 30,
   name: "VPP App",
   source: "apps",
-  software_package: null,
   app_store_app: createMockAppStoreApp({ version: "5.0.0" }),
   packages: null,
 });

@@ -35,7 +35,7 @@ const VersionsModal = ({
   refetchSoftwareTitle,
   onExit,
 }: IVersionsModalProps) => {
-  const pkg = softwareTitle.software_package;
+  const pkg = softwareTitle.packages?.[0];
   const initialValue = getPreselectedVersionValue(pkg?.pinned_version);
 
   const options = useMemo(() => {

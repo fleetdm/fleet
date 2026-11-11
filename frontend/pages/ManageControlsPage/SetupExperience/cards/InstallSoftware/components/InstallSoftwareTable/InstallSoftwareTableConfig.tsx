@@ -83,7 +83,7 @@ const generateTableConfig = (
           [
             getDisplayedSoftwareName(original.name, original.display_name),
             original.name,
-            original.software_package?.name,
+            original.packages?.[0]?.name,
           ].some((field) => field?.toLowerCase().includes(q))
         );
       },
@@ -135,7 +135,7 @@ const generateTableConfig = (
 
         const title = cellProps.row.original;
         let displayedVersion =
-          title.software_package?.version || title.app_store_app?.version;
+          title.packages?.[0]?.version || title.app_store_app?.version;
 
         if (platform === "linux") {
           const packageTypeCopy = getSetupExperienceLinuxPackageCopy(

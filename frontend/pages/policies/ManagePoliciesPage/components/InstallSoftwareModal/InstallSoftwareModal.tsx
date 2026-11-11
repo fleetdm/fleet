@@ -74,8 +74,8 @@ const generateSoftwareOptionHelpText = (title: IEnhancedSoftwareTitle) => {
         title.extension
       })`;
     }
-    versionString = title.software_package?.version
-      ? ` • ${title.software_package?.version}`
+    versionString = title.packages?.[0]?.version
+      ? ` • ${title.packages[0].version}`
       : "";
   }
 
@@ -148,8 +148,8 @@ const InstallSoftwareModal = ({
       select: (data): IEnhancedSoftwareTitle[] =>
         data.software_titles.map((title) => {
           const extension =
-            (title.software_package &&
-              getExtensionFromFileName(title.software_package?.name)) ||
+            (title.packages?.[0] &&
+              getExtensionFromFileName(title.packages[0].name)) ||
             undefined;
 
           return {

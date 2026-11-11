@@ -56,7 +56,7 @@ export const useSoftwareInstaller = (
   const { gitOpsModeEnabled, repoURL } = useGitOpsMode("software");
 
   return useMemo(() => {
-    if (!softwareTitle.software_package && !softwareTitle.app_store_app) {
+    if (!softwareTitle.packages?.[0] && !softwareTitle.app_store_app) {
       return undefined;
     }
 

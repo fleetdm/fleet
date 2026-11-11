@@ -60,13 +60,13 @@ describe("Software inventory table", () => {
         id: 1,
         name: "hello",
         source: "py_packages",
-        software_package: createMockSoftwarePackage({ name: "hello.py" }),
+        packages: [createMockSoftwarePackage({ name: "hello.py" })],
       }),
       createMockSoftwareTitle({
         id: 2,
         name: "hello",
         source: "sh_packages",
-        software_package: createMockSoftwarePackage({ name: "hello.sh" }),
+        packages: [createMockSoftwarePackage({ name: "hello.sh" })],
       }),
     ];
 

@@ -60,15 +60,19 @@ describe("InstallSoftware", () => {
         currentTeamId={1}
         softwareTitles={[
           createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              install_during_setup: true,
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                install_during_setup: true,
+              }),
+            ],
           }),
           createMockSoftwareTitle(
             createMockSoftwareTitle({
-              software_package: createMockSoftwarePackage({
-                install_during_setup: true,
-              }),
+              packages: [
+                createMockSoftwarePackage({
+                  install_during_setup: true,
+                }),
+              ],
             })
           ),
           createMockSoftwareTitle(),
@@ -100,15 +104,19 @@ describe("InstallSoftware", () => {
         currentTeamId={1}
         softwareTitles={[
           createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              install_during_setup: true,
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                install_during_setup: true,
+              }),
+            ],
           }),
           createMockSoftwareTitle(
             createMockSoftwareTitle({
-              software_package: createMockSoftwarePackage({
-                install_during_setup: true,
-              }),
+              packages: [
+                createMockSoftwarePackage({
+                  install_during_setup: true,
+                }),
+              ],
             })
           ),
           createMockSoftwareTitle(),
@@ -140,15 +148,19 @@ describe("InstallSoftware", () => {
         currentTeamId={1}
         softwareTitles={[
           createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              install_during_setup: true,
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                install_during_setup: true,
+              }),
+            ],
           }),
           createMockSoftwareTitle(
             createMockSoftwareTitle({
-              software_package: createMockSoftwarePackage({
-                install_during_setup: true,
-              }),
+              packages: [
+                createMockSoftwarePackage({
+                  install_during_setup: true,
+                }),
+              ],
             })
           ),
           createMockSoftwareTitle(),
@@ -178,15 +190,19 @@ describe("InstallSoftware", () => {
         currentTeamId={1}
         softwareTitles={[
           createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              install_during_setup: true,
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                install_during_setup: true,
+              }),
+            ],
           }),
           createMockSoftwareTitle(
             createMockSoftwareTitle({
-              software_package: createMockSoftwarePackage({
-                install_during_setup: true,
-              }),
+              packages: [
+                createMockSoftwarePackage({
+                  install_during_setup: true,
+                }),
+              ],
             })
           ),
           createMockSoftwareTitle(),
@@ -215,9 +231,11 @@ describe("InstallSoftware", () => {
         currentTeamId={1}
         softwareTitles={[
           createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              install_during_setup: true,
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                install_during_setup: true,
+              }),
+            ],
           }),
           createMockSoftwareTitle(),
         ]}

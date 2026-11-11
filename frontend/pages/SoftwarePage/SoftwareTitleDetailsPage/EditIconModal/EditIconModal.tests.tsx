@@ -186,7 +186,7 @@ describe("EditIconModal", () => {
       expect(editSoftwarePackageSpy).toHaveBeenCalledWith({
         data: { displayName: "New Name" }, // whitespace was trimmed
         // Multi-package titles require installer_id on every PATCH; the modal
-        // targets `software_package` (mirror of `packages[0]`).
+        // targets `packages[0]`.
         installerId: softwarePackage.installer_id,
         softwareId: 123,
         teamId: 456,
@@ -231,7 +231,7 @@ describe("EditIconModal", () => {
       // Regression guard for the multi-package Edit-appearance flow: the
       // backend rejects display-name PATCHes without installer_id on titles
       // with multiple packages, so the modal must always send the id of the
-      // package it's targeting (software_package == packages[0]).
+      // package it's targeting (packages[0]).
       const editSoftwarePackageSpy = jest
         .spyOn(softwareAPI, "editSoftwarePackage")
         .mockResolvedValue({});

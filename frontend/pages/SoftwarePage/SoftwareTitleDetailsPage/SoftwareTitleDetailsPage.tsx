@@ -148,7 +148,7 @@ const SoftwareTitleDetailsPage = ({
   // Per-installer target for the currently-open Edit or Delete modal on a
   // multi-package title. `null` means "fall back to first-added", which keeps
   // single-package back-compat callers (and the page-level header Edit)
-  // pointing at `software_package` without any extra wiring.
+  // pointing at `packages[0]` without any extra wiring.
   const [selectedInstallerId, setSelectedInstallerId] = useState<number | null>(
     null
   );
@@ -203,7 +203,7 @@ const SoftwareTitleDetailsPage = ({
   );
 
   const isAvailableForInstall =
-    !!softwareTitle?.software_package || !!softwareTitle?.app_store_app;
+    !!softwareTitle?.packages?.[0] || !!softwareTitle?.app_store_app;
 
   const installerResult = useSoftwareInstaller(
     softwareTitle ?? ({} as ISoftwareTitleDetails)
@@ -266,14 +266,11 @@ const SoftwareTitleDetailsPage = ({
   // Mints a one-shot download token pinned to the clicked package and triggers
   // the browser download via a synthetic `<a download>` click. The token-based
   // URL is unauthenticated; we must build it client-side rather than
-  // redirecting. Falls back to the title's first-added `software_package` when
+  // redirecting. Falls back to the title's first-added package when
   // no per-row pkg is supplied (single-package titles / legacy callers).
   const onDownloadInstaller = useCallback(
     async (pkg?: ISoftwarePackage) => {
-      const target = resolveDownloadTarget(
-        pkg,
-        softwareTitle?.software_package
-      );
+      const target = resolveDownloadTarget(pkg, softwareTitle?.packages?.[0]);
       if (!target || typeof teamIdForApi !== "number") return;
       try {
         const resp = await softwareAPI.getSoftwarePackageToken(
@@ -332,13 +329,8 @@ const SoftwareTitleDetailsPage = ({
       return null;
     }
 
-    // `packages` is the source of truth. The `software_package` alias is
-    // still returned by the API (points at `packages[0]`, first-added) — the
-    // fallback here is defense against a title with no custom packages (e.g.
-    // FMA / app-store branch) so downstream code can treat this as an array.
-    const packages =
-      title.packages ??
-      (title.software_package ? [title.software_package] : []);
+    // `null` for a title with no custom packages (e.g. app-store branch).
+    const packages = title.packages ?? [];
     const appStore = title.app_store_app;
 
     // No installable to render at all.
@@ -751,7 +743,7 @@ const SoftwareTitleDetailsPage = ({
 
   // Resolves the targeted package on a multi-package title. Returns the
   // package matching `selectedInstallerId`, or `null` if none matches — in
-  // which case the caller falls back to the legacy `software_package` flow.
+  // which case the caller falls back to the first-added package.
   const findSelectedPackage = (
     title: ISoftwareTitleDetails
   ): ISoftwarePackage | null => {
@@ -892,11 +884,9 @@ const SoftwareTitleDetailsPage = ({
   const renderAddPackageModal = (title: ISoftwareTitleDetails) => {
     if (!showAddPackageModal || typeof teamIdForApi !== "number") return null;
     // First-added is the canonical source for the file-type restriction.
-    // Multi-package titles always have `packages[0]`; back-compat titles fall
-    // back to `software_package`. The "+ Add version" button is gated on the
-    // section being visible, so we always have a name here.
-    const existingPackageName =
-      title.packages?.[0]?.name ?? title.software_package?.name ?? "";
+    // The "+ Add version" button is gated on the section being visible, so we
+    // always have a name here.
+    const existingPackageName = title.packages?.[0]?.name ?? "";
     return (
       <AddPackageModal
         softwareTitleId={softwareId}
@@ -953,7 +943,7 @@ const SoftwareTitleDetailsPage = ({
     // -1 sentinel); guard so we never PATCH `fleet_id=-1`. Mirrors the delete modal.
     if (
       !showVersionsModal ||
-      !title.software_package ||
+      !title.packages?.[0] ||
       typeof teamIdForApi !== "number"
     ) {
       return null;

@@ -31,7 +31,7 @@ const manuallyInstallTooltipText = (
 const initializeSelectedSoftwareIds = (softwareTitles: ISoftwareTitle[]) => {
   return softwareTitles.reduce<number[]>((acc, software) => {
     if (
-      software.software_package?.install_during_setup ||
+      software.packages?.some((p) => p.install_during_setup) ||
       software.app_store_app?.install_during_setup
     ) {
       acc.push(software.id);

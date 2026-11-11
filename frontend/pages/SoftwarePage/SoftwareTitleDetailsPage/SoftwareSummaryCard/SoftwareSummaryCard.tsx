@@ -132,10 +132,10 @@ const SoftwareSummaryCard = ({
   // when both are nullish — `?? []` would mint a fresh array literal each
   // render and bust the cache (and cascade into `headerPills` below).
   const packageAutoInstallPolicies =
-    softwareTitle.software_package?.automatic_install_policies;
+    softwareTitle.packages?.[0]?.automatic_install_policies;
   const appStoreAutoInstallPolicies =
     softwareTitle.app_store_app?.automatic_install_policies;
-  const patchPolicy = softwareTitle.software_package?.patch_policy;
+  const patchPolicy = softwareTitle.packages?.[0]?.patch_policy;
   const mergedPolicies = useMemo(
     () =>
       mergePolicies({
@@ -146,10 +146,10 @@ const SoftwareSummaryCard = ({
     [packageAutoInstallPolicies, appStoreAutoInstallPolicies, patchPolicy]
   );
   const isSelfService =
-    !!softwareTitle.software_package?.self_service ||
+    !!softwareTitle.packages?.[0]?.self_service ||
     !!softwareTitle.app_store_app?.self_service;
   // Show the Auto install pill whenever the title has any linked policy —
-  // patch-only policies live under `software_package.patch_policy` (not in
+  // patch-only policies live under `packages[0].patch_policy` (not in
   // `automatic_install_policies`), so we key off the merged set.
   const hasLinkedPolicies = mergedPolicies.length > 0;
   // If every linked policy is patch-only, surface a "Patch policy" pill
@@ -471,7 +471,7 @@ const SoftwareSummaryCard = ({
           source={softwareTitle.source}
           iconUrl={softwareTitle.icon_url}
           preInstallQueryLocked={
-            softwareTitle.software_package?.patch_policy?.patch_when_closed
+            softwareTitle.packages?.[0]?.patch_policy?.patch_when_closed
           }
         />
       )}

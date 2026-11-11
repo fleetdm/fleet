@@ -1,4 +1,11 @@
-import { createMockRouter } from "test/test-utils";
+import { screen } from "@testing-library/react";
+import React from "react";
+
+import {
+  createMockSoftwarePackage,
+  createMockSoftwareTitle,
+} from "__mocks__/softwareMock";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import generateTableHeaders from "./SoftwareLibraryTableConfig";
 
@@ -56,5 +63,32 @@ describe("SoftwareLibraryTableConfig", () => {
     expect(nonSortableKeys).toContain("Installed version");
     expect(nonSortableKeys).toContain("Library version");
     expect(nonSortableKeys).toContain("Type");
+  });
+
+  it("shows the automatic install indicator when only a later package has automatic_install_policies", () => {
+    const title = createMockSoftwareTitle({
+      app_store_app: null,
+      packages: [
+        createMockSoftwarePackage({
+          installer_id: 1,
+          automatic_install_policies: null,
+        }),
+        createMockSoftwarePackage({
+          installer_id: 2,
+          automatic_install_policies: [
+            { id: 1, name: "Install it", type: "dynamic" },
+          ],
+        }),
+      ],
+    });
+    const nameColumn = headers.find((h) => h.accessor === "name");
+    const NameCell = nameColumn?.Cell as React.ComponentType<{
+      row: { original: typeof title };
+    }>;
+    const render = createCustomRenderer({ withBackendMock: true });
+
+    render(<NameCell row={{ original: title }} />);
+
+    expect(screen.getByTestId("install-auto-icon")).toBeInTheDocument();
   });
 });

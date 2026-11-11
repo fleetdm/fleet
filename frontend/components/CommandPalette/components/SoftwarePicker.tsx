@@ -35,7 +35,7 @@ type SoftwareScope = "inventory" | "library";
 // getSoftwareNameCellData in SoftwareLibraryTableConfig. Returns null when
 // the title has no installer attached (not in any library).
 const getInstallerProps = (title: ISoftwareTitle) => {
-  const installer = title.software_package || title.app_store_app;
+  const installer = title.packages?.[0] || title.app_store_app;
   if (!installer) {
     return null;
   }

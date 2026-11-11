@@ -287,12 +287,15 @@ export const getAutomaticInstallPoliciesCount = (
   softwareTitle: ISoftwareTitle | IHostSoftware
 ): number => {
   const { app_store_app } = softwareTitle;
-  const pkg =
-    "package" in softwareTitle
-      ? softwareTitle.package
-      : softwareTitle.software_package;
-  if (pkg) {
-    return pkg.automatic_install_policies?.length || 0;
+  const packages =
+    "packages" in softwareTitle
+      ? softwareTitle.packages
+      : [softwareTitle.package];
+  if (packages?.[0]) {
+    return packages.reduce(
+      (count, pkg) => count + (pkg?.automatic_install_policies?.length || 0),
+      0
+    );
   } else if (app_store_app) {
     return app_store_app.automatic_install_policies?.length || 0;
   }
@@ -373,7 +376,7 @@ export const getSoftwareListName = (title: ISoftwareTitle): string => {
     title.bundle_identifier
   );
   const filename = SCRIPT_PACKAGE_SOURCES.includes(title.source)
-    ? title.software_package?.name
+    ? title.packages?.[0]?.name
     : null;
   return filename && filename !== name ? `${name} (${filename})` : name;
 };

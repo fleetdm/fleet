@@ -39,7 +39,7 @@ it("keeps custom software names while identifying script filenames", () => {
     name: "hello",
     display_name: "Setup script",
     source: "py_packages",
-    software_package: createMockSoftwarePackage({ name: "hello.py" }),
+    packages: [createMockSoftwarePackage({ name: "hello.py" })],
   });
 
   expect(getSoftwareListName(title)).toBe("Setup script (hello.py)");
@@ -107,12 +107,14 @@ describe("getAutomaticInstallPoliciesCount", () => {
 
   policyCounts.forEach((count) => {
     describe(`when there are ${count} automatic install policies`, () => {
-      it(`returns ${count} for software_package (ISoftwareTitle)`, () => {
+      it(`returns ${count} for packages (ISoftwareTitle)`, () => {
         const softwareTitle = createMockSoftwareTitle({
-          software_package: {
-            ...createMockSoftwarePackage(),
-            automatic_install_policies: makePolicies(count),
-          },
+          packages: [
+            {
+              ...createMockSoftwarePackage(),
+              automatic_install_policies: makePolicies(count),
+            },
+          ],
           app_store_app: null,
         });
         expect(getAutomaticInstallPoliciesCount(softwareTitle)).toBe(count);
@@ -120,7 +122,7 @@ describe("getAutomaticInstallPoliciesCount", () => {
 
       it(`returns ${count} for app_store_app (ISoftwareTitle)`, () => {
         const softwareTitle = createMockSoftwareTitle({
-          software_package: null,
+          packages: null,
           app_store_app: {
             ...createMockAppStoreApp(),
             automatic_install_policies: makePolicies(count),
@@ -161,9 +163,9 @@ describe("getAutomaticInstallPoliciesCount", () => {
     expect(getAutomaticInstallPoliciesCount(hostSoftware)).toBe(0);
   });
 
-  it("returns 0 if neither software_package nor app_store_app is present (ISoftwareTitle)", () => {
+  it("returns 0 if neither packages nor app_store_app is present (ISoftwareTitle)", () => {
     const hostSoftware = createMockSoftwareTitle({
-      software_package: null,
+      packages: null,
       app_store_app: null,
     });
     expect(getAutomaticInstallPoliciesCount(hostSoftware)).toBe(0);

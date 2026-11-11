@@ -1,9 +1,10 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { noop } from "lodash";
 import React from "react";
 
 import {
   createMockSoftwarePackage,
+  createMockSoftwarePackageIos,
   createMockSoftwareTitle,
 } from "__mocks__/softwareMock";
 import { createCustomRenderer } from "test/test-utils";
@@ -30,13 +31,16 @@ const EXPECTED_ORDER = [
   "Superhuman Docs",
 ];
 
-const renderTable = (softwareTitles = TITLES) => {
+const renderTable = (
+  softwareTitles = TITLES,
+  platform: "macos" | "ios" = "macos"
+) => {
   const render = createCustomRenderer({ withBackendMock: true });
   return render(
     <InstallSoftwareTable
       softwareTitles={softwareTitles}
       onChangeSoftwareSelect={noop}
-      platform="macos"
+      platform={platform}
     />
   );
 };
@@ -54,13 +58,13 @@ describe("InstallSoftwareTable", () => {
         id: 1,
         name: "hello",
         source: "py_packages",
-        software_package: createMockSoftwarePackage({ name: "hello.py" }),
+        packages: [createMockSoftwarePackage({ name: "hello.py" })],
       }),
       createMockSoftwareTitle({
         id: 2,
         name: "hello",
         source: "sh_packages",
-        software_package: createMockSoftwarePackage({ name: "hello.sh" }),
+        packages: [createMockSoftwarePackage({ name: "hello.sh" })],
       }),
     ]);
 
@@ -95,5 +99,41 @@ describe("InstallSoftwareTable", () => {
     await user.type(screen.getByPlaceholderText(/search/i), "coda");
 
     await waitFor(() => expect(renderedNames()).toEqual(["Superhuman Docs"]));
+  });
+
+  it("checks a title when a package other than the first installs during setup", () => {
+    renderTable([
+      createMockSoftwareTitle({
+        id: 1,
+        name: "hello",
+        packages: [
+          createMockSoftwarePackage(),
+          createMockSoftwarePackage({ install_during_setup: true }),
+        ],
+      }),
+    ]);
+
+    expect(
+      within(screen.getByRole("row", { name: /hello/ })).getByRole("checkbox")
+    ).toBeChecked();
+  });
+
+  it("checks an in-house iOS title that installs during setup", () => {
+    renderTable(
+      [
+        createMockSoftwareTitle({
+          id: 1,
+          name: "hello",
+          packages: [
+            createMockSoftwarePackageIos({ install_during_setup: true }),
+          ],
+        }),
+      ],
+      "ios"
+    );
+
+    expect(
+      within(screen.getByRole("row", { name: /hello/ })).getByRole("checkbox")
+    ).toBeChecked();
   });
 });

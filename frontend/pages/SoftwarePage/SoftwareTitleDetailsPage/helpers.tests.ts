@@ -100,30 +100,31 @@ describe("SoftwareTitleDetailsPage helpers", () => {
         // display_name: undefined
         icon_url: "https://example.com/icon.png",
         versions: [{ id: 1, version: "1.0.0", vulnerabilities: [] }],
-        software_package: {
-          installer_id: 1,
-          labels_include_any: null,
-          labels_exclude_any: null,
-          labels_include_all: null,
-          name: "TestPackage.pkg",
-          title_id: 2,
-          version: "1.0.0",
-          self_service: true,
-          uploaded_at: "2021-01-01T00:00:00Z",
-          status: {
-            installed: 10,
-            pending_install: 5,
-            pending_uninstall: 3,
-            failed_install: 2,
-            failed_uninstall: 1,
+        packages: [
+          {
+            installer_id: 1,
+            labels_include_any: null,
+            labels_exclude_any: null,
+            labels_include_all: null,
+            name: "TestPackage.pkg",
+            title_id: 2,
+            version: "1.0.0",
+            self_service: true,
+            uploaded_at: "2021-01-01T00:00:00Z",
+            status: {
+              installed: 10,
+              pending_install: 5,
+              pending_uninstall: 3,
+              failed_install: 2,
+              failed_uninstall: 1,
+            },
+            install_script: "echo foo",
+            uninstall_script: "echo bar",
+            icon_url: "https://example.com/icon.png",
+            automatic_install_policies: [],
+            url: "",
           },
-          install_script: "echo foo",
-          uninstall_script: "echo bar",
-          icon_url: "https://example.com/icon.png",
-          automatic_install_policies: [],
-          url: "",
-        },
-        packages: null,
+        ],
         app_store_app: null,
         app_store_apps: null,
         source: "apps",
@@ -131,7 +132,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
       };
       const packageCardInfo = getInstallerCardInfo(softwareTitle);
       expect(packageCardInfo).toEqual({
-        softwareInstaller: softwareTitle.software_package,
+        softwareInstaller: softwareTitle.packages?.[0],
         displayName: undefined,
         iconUrl: "https://example.com/icon.png",
         name: "TestPackage.pkg", // packages should display the package name not the software title name
@@ -155,30 +156,31 @@ describe("SoftwareTitleDetailsPage helpers", () => {
         name: "Test Script",
         icon_url: null,
         versions: [],
-        software_package: {
-          labels_include_any: null,
-          labels_exclude_any: null,
-          labels_include_all: null,
-          name: "install.py",
-          installer_id: 1,
-          title_id: 2,
-          version: "",
-          self_service: false,
-          uploaded_at: "2021-01-01T00:00:00Z",
-          status: {
-            installed: 1,
-            pending_install: 0,
-            pending_uninstall: 0,
-            failed_install: 0,
-            failed_uninstall: 0,
+        packages: [
+          {
+            labels_include_any: null,
+            labels_exclude_any: null,
+            labels_include_all: null,
+            name: "install.py",
+            installer_id: 1,
+            title_id: 2,
+            version: "",
+            self_service: false,
+            uploaded_at: "2021-01-01T00:00:00Z",
+            status: {
+              installed: 1,
+              pending_install: 0,
+              pending_uninstall: 0,
+              failed_install: 0,
+              failed_uninstall: 0,
+            },
+            install_script: "#!/usr/bin/env python3\nprint('hi')",
+            uninstall_script: "",
+            icon_url: null,
+            automatic_install_policies: [],
+            url: "",
           },
-          install_script: "#!/usr/bin/env python3\nprint('hi')",
-          uninstall_script: "",
-          icon_url: null,
-          automatic_install_policies: [],
-          url: "",
-        },
-        packages: null,
+        ],
         app_store_app: null,
         app_store_apps: null,
         source: "py_packages",
@@ -196,7 +198,6 @@ describe("SoftwareTitleDetailsPage helpers", () => {
         display_name: "Test App",
         icon_url: "https://example.com/icon.png",
         versions: [{ id: 1, version: "1.0.0", vulnerabilities: [] }],
-        software_package: null,
         packages: null,
         app_store_app: {
           app_store_id: "1",
@@ -280,7 +281,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
       expect(resolveDownloadTarget(second, first)).toBe(second);
     });
 
-    it("falls back to the title's software_package when no row pkg is passed", () => {
+    it("falls back to the title's first package when no row pkg is passed", () => {
       expect(resolveDownloadTarget(undefined, first)).toBe(first);
     });
 
