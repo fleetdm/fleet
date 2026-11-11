@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -1413,9 +1414,16 @@ func TestReconcileWindowsProfilesWithFleetVariableError(t *testing.T) {
 		return nil
 	}
 
+	var rollupHosts []string
+	ds.RefreshMDMWindowsProfilesStatusRollupFunc = func(ctx context.Context, hostUUIDs []string) error {
+		rollupHosts = append(rollupHosts, hostUUIDs...)
+		return nil
+	}
+
 	// Run ReconcileWindowsProfiles
 	err := ReconcileWindowsProfiles(ctx, ds, logger, false)
 	require.NoError(t, err) // The function should not return an error even if insert fails
+	require.Equal(t, []string{testHostUUID}, rollupHosts, "the rollup is refreshed once for the hosts the window had work for")
 
 	// Verify the command was preprocessed (UUID should be substituted)
 	require.NotNil(t, receivedCommand, "Command should have been created")
@@ -1439,6 +1447,30 @@ func TestReconcileWindowsProfilesWithFleetVariableError(t *testing.T) {
 		}
 	}
 	require.True(t, foundError, "Should have found a failed status update")
+}
+
+func TestReconcileWindowsProfilesRefreshesRollupWhenBatchFails(t *testing.T) {
+	ds := new(mock.Store)
+	testProfile := &fleet.MDMWindowsConfigProfile{
+		ProfileUUID: "test-profile-uuid",
+		Name:        "Test Profile",
+		SyncML:      []byte(`<Replace><Item><Target><LocURI>./Test</LocURI></Target><Data>1</Data></Item></Replace>`),
+	}
+	setupReconcilerTest(ds, map[string]*fleet.MDMWindowsConfigProfile{"host-a": testProfile, "host-b": testProfile})
+
+	// The commands are enqueued (committed) before the final host profile upsert fails.
+	ds.BulkUpsertMDMWindowsHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+		return errors.New("upsert failed")
+	}
+	var rollupHosts []string
+	ds.RefreshMDMWindowsProfilesStatusRollupFunc = func(ctx context.Context, hostUUIDs []string) error {
+		rollupHosts = append(rollupHosts, hostUUIDs...)
+		return nil
+	}
+
+	err := ReconcileWindowsProfiles(t.Context(), ds, slog.New(slog.DiscardHandler), false)
+	require.ErrorContains(t, err, "upsert failed")
+	require.ElementsMatch(t, []string{"host-a", "host-b"}, rollupHosts)
 }
 
 func TestReconcileWindowsProfileWithCertificateFailureDoesNotAddManagedCertificate(t *testing.T) {
@@ -1592,6 +1624,53 @@ func TestReconcileWindowsProfilesWithOneHostFailingStillAddsManagedCertificate(t
 		}
 	}
 	require.EqualValues(t, 1, foundErrors, "Should have found one failed status update")
+}
+
+// TestReconcileWindowsProfilesConditionalAccessTracksCertificate covers a profile pointed at Fleet's conditional access
+// SCEP server: the URL is filled in, the admin's challenge passes through, and the certificate is tracked by type.
+func TestReconcileWindowsProfilesConditionalAccessTracksCertificate(t *testing.T) {
+	ctx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	ds := new(mock.Store)
+
+	profile := &fleet.MDMWindowsConfigProfile{
+		ProfileUUID: "conditional-access-profile",
+		Name:        "Conditional access",
+		SyncML: []byte(`<Add><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/ca/Install/ServerURL</LocURI></Target><Data>$FLEET_VAR_` +
+			string(fleet.FleetVarConditionalAccessSCEPURL) + `</Data></Item></Add>` +
+			`<Add><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/ca/Install/Challenge</LocURI></Target><Data>aB3+/= secret</Data></Item></Add>`),
+	}
+	hostUUIDs := []string{"host-1", "host-2"}
+	_, managedCerts := setupReconcilerTest(ds, map[string]*fleet.MDMWindowsConfigProfile{
+		hostUUIDs[0]: profile,
+		hostUUIDs[1]: profile,
+	})
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://fleet.example.com"},
+			MDM:            fleet.MDM{WindowsEnabledAndConfigured: true},
+		}, nil
+	}
+	commandsByHost := map[string]string{}
+	ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, updates []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+		for _, hostUUID := range hostUUIDs {
+			commandsByHost[hostUUID] = string(cmd.RawCommand)
+		}
+		return nil
+	}
+
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, slog.New(slog.DiscardHandler), false))
+
+	require.Len(t, commandsByHost, len(hostUUIDs))
+	for _, hostUUID := range hostUUIDs {
+		require.Contains(t, commandsByHost[hostUUID], "https://fleet.example.com"+fleet.ConditionalAccessSCEPPath)
+		require.Contains(t, commandsByHost[hostUUID], "<Data>aB3+/= secret</Data>")
+	}
+	require.Len(t, *managedCerts, len(hostUUIDs))
+	for _, cert := range *managedCerts {
+		require.Equal(t, fleet.CAConfigConditionalAccess, cert.Type)
+		require.Equal(t, fleet.ConditionalAccessManagedCertificateCAName, cert.CAName)
+	}
 }
 
 // TestReconcileWindowsProfilesSkipsDeletedProfile covers the race where an
@@ -2870,7 +2949,7 @@ func TestGetESPCommands(t *testing.T) {
 		ds.HasWindowsSetupExperienceItemsForTeamFunc = func(ctx context.Context, teamID uint) (bool, error) {
 			return false, nil
 		}
-		// require_all_software_windows defaults to false via the no-team / app-config path. setRequireAll(ds, true)
+		// windows_require_all_software defaults to false via the no-team / app-config path. setRequireAll(ds, true)
 		// flips it for tests that need require_all=true.
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{}, nil
@@ -3074,7 +3153,7 @@ func TestGetESPCommands(t *testing.T) {
 		assert.False(t, ds.GetHostMDMWindowsProfilesFuncInvoked, "should not evaluate delivery status when reconcile failed")
 	})
 
-	// setRequireAll flips the require_all_software_windows lookup to the given value via the no-team /
+	// setRequireAll flips the windows_require_all_software lookup to the given value via the no-team /
 	// app-config path. Default in newSvc is false; call this with true when a test needs require_all=true. The
 	// team-config path is covered explicitly by its own subtest.
 	setRequireAll := func(ds *mock.Store, requireAll bool) {
@@ -3236,7 +3315,7 @@ func TestGetESPCommands(t *testing.T) {
 
 	t.Run("profile failure alone does not block even with require_all=true", func(t *testing.T) {
 		// Profile delivery failures (e.g. CSP not supported on the host's edition) should not trigger the ESP
-		// block screen. The require_all_software_windows setting is software-scoped (matching macOS), so a
+		// block screen. The windows_require_all_software setting is software-scoped (matching macOS), so a
 		// failed profile with no software failure must release the device normally.
 		ds, svc := newSvc(t)
 		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
@@ -3303,7 +3382,7 @@ func TestGetESPCommands(t *testing.T) {
 		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
 			return &fleet.HostLite{ID: 1, UUID: identifier, OsqueryHostID: &osqueryHostID, TeamID: &hostTeamID}, nil
 		}
-		// require_all_software_windows stays false via the team path (zero-value team config).
+		// windows_require_all_software stays false via the team path (zero-value team config).
 		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 			return &fleet.TeamLite{ID: tid}, nil
 		}
@@ -3414,8 +3493,8 @@ func TestGetESPCommands(t *testing.T) {
 				"the rows and the next retry's pending check skips them")
 	})
 
-	t.Run("require_all read via team config blocks when team has require_all_software_windows=true", func(t *testing.T) {
-		// Covers the team-path branch of the require_all_software_windows lookup chain (HostLite returns
+	t.Run("require_all read via team config blocks when team has windows_require_all_software=true", func(t *testing.T) {
+		// Covers the team-path branch of the windows_require_all_software lookup chain (HostLite returns
 		// TeamID set -> TeamLite -> team config). Other tests use the no-team path via setRequireAll.
 		ds, svc := newSvc(t)
 		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
@@ -3424,7 +3503,7 @@ func TestGetESPCommands(t *testing.T) {
 			}, nil
 		}
 		// Team-path overrides: HostLite returns a host with TeamID set; TeamLite returns the team config with
-		// require_all_software_windows=true. AppConfig MUST NOT be consulted on the team path.
+		// windows_require_all_software=true. AppConfig MUST NOT be consulted on the team path.
 		teamID := uint(42)
 		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
 			return &fleet.HostLite{ID: 1, UUID: identifier, TeamID: &teamID}, nil
@@ -3449,7 +3528,7 @@ func TestGetESPCommands(t *testing.T) {
 		require.NotEmpty(t, cmds)
 		assert.True(t, ds.TeamLiteFuncInvoked, "TeamLite must be called on the team path")
 		assert.NotNil(t, findCmdByLocURI(cmds, "BlockInStatusPage"),
-			"team config require_all_software_windows=true must drive the block path")
+			"team config windows_require_all_software=true must drive the block path")
 	})
 
 	t.Run("persist failure aborts finalize without committing CAS", func(t *testing.T) {
@@ -4112,25 +4191,141 @@ func TestEnqueueInstallFleetdMintsOnlyWhenInstalling(t *testing.T) {
 	})
 }
 
-func TestGetPendingMDMCmdsSkipsCommandThatFailsExpansion(t *testing.T) {
-	ds := new(mock.Store)
-	ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
-		// An Apple-only host secret, which Windows expansion refuses.
-		return []*fleet.MDMWindowsCommand{
-			{CommandUUID: "bad", RawCommand: []byte(
-				`<Replace><CmdID>bad</CmdID><Item><Target><LocURI>./Device/A</LocURI></Target><Data>` +
-					fleet.HostSecretPlaceholder(fleet.HostSecretRecoveryLockPassword) + `</Data></Item></Replace>`)},
-			{CommandUUID: "good", RawCommand: []byte(
-				`<Replace><CmdID>good</CmdID><Item><Target><LocURI>./Device/B</LocURI></Target></Item></Replace>`)},
-		}, nil
+func TestGetPendingMDMCmdsFailsUndeliverableCommands(t *testing.T) {
+	pollCmd := &fleet.MDMWindowsCommand{
+		CommandUUID:  "poll",
+		RawCommand:   []byte(`<Replace><CmdID>poll</CmdID><Item><Target><LocURI>` + syncml.DMClientPollIntervalLocURI + `</LocURI></Target></Item></Replace>`),
+		TargetLocURI: syncml.DMClientPollIntervalLocURI,
 	}
-	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) { return document, nil }
-	svc, _ := newTestService(t, ds, nil, nil)
+	badCmd := func(data string) []byte {
+		return []byte(`<Replace><CmdID>bad</CmdID><Item><Target><LocURI>./Device/A</LocURI></Target><Data>` + data + `</Data></Item></Replace>`)
+	}
+	errStore := errors.New("store unavailable")
 
-	cmds, _, err := svc.(validationMiddleware).Service.(*Service).getPendingMDMCmds(t.Context(), 1)
-	require.NoError(t, err, "a failed expansion must not fail the whole management session")
-	require.Len(t, cmds, 1)
-	require.Equal(t, "good", cmds[0].CmdID.Value)
+	for _, c := range []struct {
+		name          string
+		raw           []byte
+		expandSecrets func(ctx context.Context, document string) (string, error)
+		lookupErr     error
+		failErr       error
+		// wantReason is empty when the command isn't failed.
+		wantReason string
+		delivered  bool
+		// stillPending is whether the bad command still counts as pending, which keeps has_pending_commands set.
+		stillPending bool
+	}{
+		{
+			name:       "host secret Windows doesn't support",
+			raw:        badCmd(fleet.HostSecretPlaceholder(fleet.HostSecretRecoveryLockPassword)),
+			wantReason: "host secret type RECOVERY_LOCK_PASSWORD is not supported on Windows",
+		},
+		{
+			name: "host secret from a custom variable",
+			raw:  badCmd("$FLEET_SECRET_ALIAS"),
+			// a value that runs into the placeholder name, which the validation error would quote
+			expandSecrets: func(_ context.Context, document string) (string, error) {
+				return strings.ReplaceAll(document, "$FLEET_SECRET_ALIAS", fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret)+"_v4lue"), nil
+			},
+			wantReason: "a $FLEET_HOST_SECRET_ variable comes from a custom variable",
+		},
+		{
+			name: "missing secret variable",
+			raw:  badCmd("$FLEET_SECRET_GONE"),
+			expandSecrets: func(_ context.Context, document string) (string, error) {
+				if strings.Contains(document, "$FLEET_SECRET_GONE") {
+					return "", fleet.MissingSecretsError{MissingSecrets: []string{"GONE"}}
+				}
+				return document, nil
+			},
+			wantReason: "custom variable not found: $FLEET_SECRET_GONE",
+		},
+		{
+			name: "custom variable fixed only on the primary so far",
+			raw:  badCmd("$FLEET_SECRET_FIXED"),
+			expandSecrets: func(ctx context.Context, document string) (string, error) {
+				value := "value"
+				if !ctxdb.IsPrimaryRequired(ctx) {
+					value = fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret)
+				}
+				return strings.ReplaceAll(document, "$FLEET_SECRET_FIXED", value), nil
+			},
+			delivered:    true,
+			stillPending: true,
+		},
+		{
+			name:       "doesn't parse",
+			raw:        []byte(`<Replace><CmdID>bad</CmdID>`),
+			wantReason: "XML syntax error",
+		},
+		{
+			name: "doesn't parse once expanded",
+			raw:  badCmd("$FLEET_SECRET_BREAKS"),
+			// an unescaped value, which the parser would quote in its error
+			expandSecrets: func(_ context.Context, document string) (string, error) {
+				return strings.ReplaceAll(document, "$FLEET_SECRET_BREAKS", "s3cr3t&v4lue"), nil
+			},
+			wantReason: "the command isn't valid XML once its variables are expanded",
+		},
+		{
+			name:         "enroll secret lookup fails",
+			raw:          badCmd(fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret)),
+			lookupErr:    errStore,
+			stillPending: true,
+		},
+		{
+			name:         "recording the failure fails",
+			raw:          badCmd(fleet.HostSecretPlaceholder(fleet.HostSecretRecoveryLockPassword)),
+			failErr:      errStore,
+			wantReason:   "host secret type RECOVERY_LOCK_PASSWORD is not supported on Windows",
+			stillPending: true,
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
+				return []*fleet.MDMWindowsCommand{{CommandUUID: "bad", RawCommand: c.raw}, pollCmd}, nil
+			}
+			ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
+				if c.expandSecrets != nil {
+					return c.expandSecrets(ctx, document)
+				}
+				return document, nil
+			}
+			ds.GetLiveWindowsMDMOneTimeEnrollSecretFunc = func(ctx context.Context, enrollmentID uint) (string, error) {
+				return "one-time-secret", c.lookupErr
+			}
+			var failedReason string
+			ds.MDMWindowsFailUndeliverableCommandFunc = func(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, commandUUID, reason string) error {
+				require.Equal(t, "bad", commandUUID)
+				failedReason = reason
+				return c.failErr
+			}
+			svc, _ := newTestService(t, ds, nil, nil)
+
+			cmds, onlyPollCmdsPending, err := svc.(validationMiddleware).Service.(*Service).getPendingMDMCmds(t.Context(),
+				&fleet.MDMWindowsEnrolledDevice{ID: 1})
+			require.NoError(t, err, "one bad command must not fail the whole management session")
+			wantSent := []string{"poll"}
+			if c.delivered {
+				wantSent = []string{"bad", "poll"}
+			}
+			sent := make([]string, 0, len(cmds))
+			for _, cmd := range cmds {
+				sent = append(sent, cmd.CmdID.Value)
+			}
+			require.Equal(t, wantSent, sent)
+			require.Equal(t, !c.stillPending, onlyPollCmdsPending)
+			// Only the lookup case resolves the one-time enroll secret. A host secret aliased by a custom variable must be refused
+			// before it's resolved.
+			require.Equal(t, c.lookupErr != nil, ds.GetLiveWindowsMDMOneTimeEnrollSecretFuncInvoked)
+			if c.wantReason == "" {
+				require.False(t, ds.MDMWindowsFailUndeliverableCommandFuncInvoked)
+				return
+			}
+			require.Contains(t, failedReason, c.wantReason)
+			require.NotContains(t, failedReason, "v4lue", "a variable's value must not reach the recorded reason")
+		})
+	}
 }
 
 func TestGetPendingMDMCmdsHoldsBackRecentSCEPStatusProbes(t *testing.T) {
@@ -4157,7 +4352,8 @@ func TestGetPendingMDMCmdsHoldsBackRecentSCEPStatusProbes(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			probeQueuedAt = time.Now().Add(-c.age)
-			cmds, onlyPollCmdsPending, err := svc.(validationMiddleware).Service.(*Service).getPendingMDMCmds(t.Context(), 1)
+			cmds, onlyPollCmdsPending, err := svc.(validationMiddleware).Service.(*Service).getPendingMDMCmds(t.Context(),
+				&fleet.MDMWindowsEnrolledDevice{ID: 1})
 			require.NoError(t, err)
 			require.Len(t, cmds, c.wantSent)
 			// A held-back probe is still pending, so the session must not clear has_pending_commands.

@@ -44,7 +44,7 @@ const IssuesIndicator = ({
       className={classNames}
       tipOffset={8}
     >
-      <Icon name="error-outline" color="ui-fleet-black-50" /> {totalIssuesCount}
+      <Icon name="error" color="ui-fleet-black-50" /> {totalIssuesCount}
     </TooltipWrapper>
   );
 };

@@ -1,6 +1,6 @@
 {
   "name": "LocationSimulator",
-  "unique_identifier": "com.schlaubi.LocationSimulator",
+  "unique_identifier": "de.davidklopp.locationsimulator",
   "token": "locationsimulator",
   "installer_format": "zip",
   "slug": "locationsimulator/darwin",

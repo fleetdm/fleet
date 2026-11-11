@@ -24,6 +24,7 @@ interface IAdvancedOptionsFieldsProps {
   className?: string;
   onClickShowSchema: () => void;
   onChangePreInstallQuery: (value?: string) => void;
+  onBlurPreInstallQuery?: () => void;
   onChangeInstallScript: (value: string) => void;
   onChangePostInstallScript: (value?: string) => void;
   onChangeUninstallScript: (value?: string) => void;
@@ -48,6 +49,7 @@ const AdvancedOptionsFields = ({
   className,
   onClickShowSchema,
   onChangePreInstallQuery,
+  onBlurPreInstallQuery,
   onChangeInstallScript,
   onChangePostInstallScript,
   onChangeUninstallScript,
@@ -88,6 +90,7 @@ const AdvancedOptionsFields = ({
         name="preInstallQuery"
         maxLines={10}
         onChange={onChangePreInstallQuery}
+        onBlur={onBlurPreInstallQuery}
         labelActionComponent={renderLabelComponent()}
         helpText={
           <>

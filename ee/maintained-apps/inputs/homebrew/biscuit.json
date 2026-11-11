@@ -1,6 +1,6 @@
 {
   "name": "Biscuit",
-  "unique_identifier": "com.eatbiscuit.biscuit",
+  "unique_identifier": "com.eatbiscult.biscult",
   "token": "biscuit",
   "installer_format": "dmg",
   "slug": "biscuit/darwin",

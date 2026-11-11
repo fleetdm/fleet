@@ -761,7 +761,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 		Name: teamName,
 	}
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", team, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
 	team = createTeamResp.Team
 
@@ -1654,7 +1654,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMFleetVariables() {
 	// Create a team and transfer host1 into it; host2 stays global (control)
 	team := &fleet.Team{Name: t.Name() + "team1"}
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", team, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
 	team = createTeamResp.Team
 
@@ -2515,7 +2515,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMOSUpdatesTargetVariables() {
 
 	team := &fleet.Team{Name: t.Name() + "-team"}
 	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", team, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
 	team = createTeamResp.Team
 	s.Do("POST", "/api/v1/fleet/hosts/transfer",
@@ -2530,7 +2530,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMOSUpdatesTargetVariables() {
 			},
 		},
 	}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), teamPayload, http.StatusOK, &modifyTeamRes)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), teamPayload, http.StatusOK, &modifyTeamRes)
 
 	// Fleet's macOS OS-updates declaration is scoped to the built-in "macOS 14+"
 	// dynamic label, so the host has to be a member of it for the reconciler to

@@ -1,0 +1,1 @@
+- Fixed the Krita (Windows) Fleet-maintained app's `exists` and `patched` queries so they match the installed app and the patch policy fails on hosts running an older version.

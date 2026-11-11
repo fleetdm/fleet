@@ -201,8 +201,8 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     Header: (cellProps: IHostTableHeaderProps) => (
       <HeaderCell value="Fleet" isSortedDesc={cellProps.column.isSortedDesc} />
     ),
-    accessor: "team_name",
-    id: "team_name",
+    accessor: "fleet_name",
+    id: "fleet_name",
     Cell: (cellProps) => (
       <TextCell value={cellProps.cell.value} formatter={hostTeamName} />
     ),
@@ -801,6 +801,10 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
   },
 ];
 
+/** The Fleet column used to be `team_name`; maps that id in saved settings and URLs to the current one. */
+const toFleetColumnId = (id: string) =>
+  id === "team_name" ? "fleet_name" : id;
+
 const defaultHiddenColumns = [
   "hostname",
   "computer_name",
@@ -841,13 +845,13 @@ const generateAvailableTableHeaders = ({
       if (isFreeTier) {
         if (
           isOnlyObserver &&
-          ["selection", "team_name"].includes(currentColumn.id || "")
+          ["selection", "fleet_name"].includes(currentColumn.id || "")
         ) {
           return columns;
           // skip over column headers that are not shown in free admin/maintainer
         }
         if (
-          currentColumn.id === "team_name" ||
+          currentColumn.id === "fleet_name" ||
           currentColumn.id === "mdm.server_url" ||
           currentColumn.id === "mdm.enrollment_status"
         ) {
@@ -891,6 +895,7 @@ const generateVisibleTableColumns = ({
 
 export {
   defaultHiddenColumns,
+  toFleetColumnId,
   generateAvailableTableHeaders,
   generateVisibleTableColumns,
   getPrimaryDeviceUser,

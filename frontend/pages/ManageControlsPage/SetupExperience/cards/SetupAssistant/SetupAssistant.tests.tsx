@@ -102,7 +102,7 @@ describe("SetupAssistant", () => {
     mockServer.use(
       http.get(enrollmentProfileUrl, () => {
         return HttpResponse.json({
-          team_id: 1,
+          fleet_id: 1,
           name: "test-profile.json",
           uploaded_at: "2024-01-01T00:00:00Z",
           enrollment_profile: {},

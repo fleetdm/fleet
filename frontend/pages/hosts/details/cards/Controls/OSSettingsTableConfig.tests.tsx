@@ -150,7 +150,7 @@ describe("generateTableData - Linux disk encryption row", () => {
     },
   });
 
-  it.each(["ubuntu", "zorin", "rhel"])(
+  it.each(["ubuntu", "zorin", "rhel", "omarchy"])(
     "builds the disk encryption row for %s hosts",
     (platform) => {
       const rows = generateTableData(mdmData, platform) ?? [];
@@ -160,7 +160,7 @@ describe("generateTableData - Linux disk encryption row", () => {
     }
   );
 
-  it.each(["arch", "omarchy", "cachyos", "manjaro", "debian"])(
+  it.each(["arch", "cachyos", "manjaro", "debian"])(
     "builds no rows for %s hosts, which Fleet cannot escrow keys for",
     (platform) => {
       expect(generateTableData(mdmData, platform)).toBeNull();

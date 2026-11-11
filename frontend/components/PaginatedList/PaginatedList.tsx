@@ -8,6 +8,7 @@ import React, {
   ReactElement,
 } from "react";
 
+import CustomLinkSizeContext from "components/CustomLink/CustomLinkSizeContext";
 import Checkbox from "components/forms/fields/Checkbox";
 import Pagination from "components/Pagination";
 import Spinner from "components/Spinner";
@@ -209,7 +210,13 @@ function PaginatedListInner<TItem extends Record<string, any>>(
           );
         })}
       </ul>
-      {helpText && <div className="form-field__help-text">{helpText}</div>}
+      {helpText && (
+        <div className="form-field__help-text">
+          <CustomLinkSizeContext.Provider value="small">
+            {helpText}
+          </CustomLinkSizeContext.Provider>
+        </div>
+      )}
       <Pagination
         disablePrev={currentPage === 0}
         disableNext={disableNext}
