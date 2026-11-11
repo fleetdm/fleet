@@ -93,7 +93,7 @@ export const filterSoftwareByCustomCategory = (
   const normalized = category.name.toLowerCase();
   return software.filter((item) => {
     const itemCategories = [
-      ...(item.software_package?.categories ?? []),
+      ...(item.package?.categories ?? []),
       ...(item.app_store_app?.categories ?? []),
     ];
     return itemCategories.some((c) => c.toLowerCase() === normalized);
@@ -127,7 +127,7 @@ export const filterCategoriesWithSoftware = (
   const categoryNamesInUse = new Set<string>();
   software.forEach((item) => {
     [
-      ...(item.software_package?.categories ?? []),
+      ...(item.package?.categories ?? []),
       ...(item.app_store_app?.categories ?? []),
     ].forEach((name) => categoryNamesInUse.add(name.toLowerCase()));
   });

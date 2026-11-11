@@ -988,7 +988,7 @@ describe("VPP Install Details Modal", () => {
           id: 99,
           name: "Logic Pro",
           source: "apps",
-          software_package: null,
+          package: null,
           app_store_app: createMockHostAppStoreApp({ version: "2.0.0" }),
           installed_versions: [
             { ...DEFAULT_INSTALLED_VERSION, version: "1.0.0" },

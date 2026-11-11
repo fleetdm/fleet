@@ -109,11 +109,11 @@ const SoftwareUpdateModal = ({
     name,
     display_name,
     installed_versions,
-    software_package,
+    package: pkg,
     app_store_app,
   } = software;
-  const installerName = software_package?.name || "";
-  const installerVersion = software_package?.version || app_store_app?.version;
+  const installerName = pkg?.name || "";
+  const installerVersion = pkg?.version || app_store_app?.version;
   const softwareDisplayName = getDisplayedSoftwareName(name, display_name);
 
   const onClickUpdate = () => {

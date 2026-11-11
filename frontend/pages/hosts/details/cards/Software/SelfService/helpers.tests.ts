@@ -182,11 +182,11 @@ describe("filterSoftwareByCustomCategory", () => {
 
   const browser = makeItem("uninstalled", {
     name: "browser",
-    software_package: browsersPackage,
+    package: browsersPackage,
   });
   const security = makeItem("uninstalled", {
     name: "security",
-    software_package: securityPackage,
+    package: securityPackage,
   });
 
   it("returns the unfiltered list when categoryId is undefined (`All` filter)", () => {
@@ -225,7 +225,7 @@ describe("filterSoftwareByCustomCategory", () => {
     });
     const item = makeItem("uninstalled", {
       name: "ohai",
-      software_package: utilitiesPackage,
+      package: utilitiesPackage,
     });
     const categories = [
       createMockSelfServiceCategory({ id: 1, name: "🛠️ utilities" }),
@@ -235,10 +235,10 @@ describe("filterSoftwareByCustomCategory", () => {
     ]);
   });
 
-  it("considers categories on app_store_app as well as software_package", () => {
+  it("considers categories on app_store_app as well as package", () => {
     const item = makeItem("uninstalled", {
       name: "vpp-app",
-      software_package: null,
+      package: null,
       app_store_app: {
         ...createMockHostSoftwarePackage(),
         categories: ["🌎 Browsers"],
@@ -322,11 +322,11 @@ describe("filterCategoriesWithSoftware", () => {
   });
   const browser = makeItem("uninstalled", {
     name: "browser",
-    software_package: browsersPackage,
+    package: browsersPackage,
   });
   const security = makeItem("uninstalled", {
     name: "security",
-    software_package: securityPackage,
+    package: securityPackage,
   });
 
   const browsers = createMockSelfServiceCategory({
@@ -371,10 +371,10 @@ describe("filterCategoriesWithSoftware", () => {
     ]);
   });
 
-  it("considers categories on app_store_app as well as software_package", () => {
+  it("considers categories on app_store_app as well as package", () => {
     const vppApp = makeItem("uninstalled", {
       name: "vpp-app",
-      software_package: null,
+      package: null,
       app_store_app: {
         ...createMockHostSoftwarePackage(),
         categories: ["🌎 Browsers"],

@@ -86,8 +86,7 @@ const SelfServiceTiles = ({
                 />
               </div>
               <div className={`${tileBaseClass}__item-version`}>
-                {software.software_package?.version ||
-                  software.app_store_app?.version}
+                {software.package?.version || software.app_store_app?.version}
               </div>
             </div>
           </div>

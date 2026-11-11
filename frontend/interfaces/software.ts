@@ -1206,7 +1206,7 @@ export interface IHostSoftware {
   /** Custom name set per team by admin */
   display_name?: string; // e.g. "Mock Software"
   icon_url: string | null;
-  software_package: IHostSoftwarePackage | null;
+  package: IHostSoftwarePackage | null;
   app_store_app: IHostAppStoreApp | null;
   source: SoftwareSource;
   extension_for?: SoftwareExtensionFor;
@@ -1474,9 +1474,9 @@ type IHostSoftwarePackageWithLastInstall = IHostSoftwarePackage & {
 export const hasHostSoftwarePackageLastInstall = (
   software: IHostSoftware
 ): software is IHostSoftware & {
-  software_package: IHostSoftwarePackageWithLastInstall;
+  package: IHostSoftwarePackageWithLastInstall;
 } => {
-  return !!software.software_package?.last_install;
+  return !!software.package?.last_install;
 };
 
 type IHostAppWithLastInstall = IHostAppStoreApp & {

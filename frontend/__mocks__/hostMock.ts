@@ -233,7 +233,7 @@ const DEFAULT_HOST_SOFTWARE_MOCK: IHostSoftware = {
   name: "mock software.app",
   display_name: "Mock Software",
   icon_url: null,
-  software_package: createMockHostSoftwarePackage(),
+  package: createMockHostSoftwarePackage(),
   app_store_app: null,
   source: "apps",
   bundle_identifier: "com.test.mock",

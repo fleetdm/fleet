@@ -286,9 +286,13 @@ export const getAutoUpdatesTooltip = (startTime: string, endTime: string) => {
 export const getAutomaticInstallPoliciesCount = (
   softwareTitle: ISoftwareTitle | IHostSoftware
 ): number => {
-  const { software_package, app_store_app } = softwareTitle;
-  if (software_package) {
-    return software_package.automatic_install_policies?.length || 0;
+  const { app_store_app } = softwareTitle;
+  const pkg =
+    "package" in softwareTitle
+      ? softwareTitle.package
+      : softwareTitle.software_package;
+  if (pkg) {
+    return pkg.automatic_install_policies?.length || 0;
   } else if (app_store_app) {
     return app_store_app.automatic_install_policies?.length || 0;
   }

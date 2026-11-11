@@ -719,7 +719,7 @@ describe("SoftwareInstallDetailsModal", () => {
           hostSoftware={createMockHostSoftware({
             id: 99,
             name: "CoolApp",
-            software_package: createMockHostSoftwarePackage({
+            package: createMockHostSoftwarePackage({
               version: "2.0.0",
             }),
             installed_versions: [

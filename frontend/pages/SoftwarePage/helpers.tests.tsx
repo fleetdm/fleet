@@ -129,9 +129,9 @@ describe("getAutomaticInstallPoliciesCount", () => {
         expect(getAutomaticInstallPoliciesCount(softwareTitle)).toBe(count);
       });
 
-      it(`returns ${count} for software_package (IHostSoftware)`, () => {
+      it(`returns ${count} for package (IHostSoftware)`, () => {
         const hostSoftware = createMockHostSoftware({
-          software_package: {
+          package: {
             ...createMockHostSoftwarePackage(),
             automatic_install_policies: makePolicies(count),
           },
@@ -142,7 +142,7 @@ describe("getAutomaticInstallPoliciesCount", () => {
 
       it(`returns ${count} for app_store_app (IHostSoftware)`, () => {
         const hostSoftware = createMockHostSoftware({
-          software_package: null,
+          package: null,
           app_store_app: {
             ...createMockHostAppStoreApp(),
             automatic_install_policies: makePolicies(count),
@@ -153,9 +153,9 @@ describe("getAutomaticInstallPoliciesCount", () => {
     });
   });
 
-  it("returns 0 if neither software_package nor app_store_app is present (IHostSoftware)", () => {
+  it("returns 0 if neither package nor app_store_app is present (IHostSoftware)", () => {
     const hostSoftware = createMockHostSoftware({
-      software_package: null,
+      package: null,
       app_store_app: null,
     });
     expect(getAutomaticInstallPoliciesCount(hostSoftware)).toBe(0);
