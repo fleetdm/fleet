@@ -3,20 +3,31 @@
 
 $exeFilePath = "${env:INSTALLER_PATH}"
 
-# Rtools unpacks a large toolchain (~460 MB) to C:\rtools45, not Program Files.
-# -Wait waits on descendants, so wait on the installer process alone and log
-# progress to tell a slow unpack apart from a stuck one.
-$installTimeoutSeconds = 480
+# Rtools extracts ~52,000 files to C:\rtools45, which can take well over 10
+# minutes with real-time antivirus scanning. The limit stays under Fleet's
+# 1-hour script timeout so a stuck install still reports why it failed.
+$installTimeoutSeconds = 3300
 $pollSeconds = 15
 
 $machineKey = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
 $machineKey32on64 = 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
 
-function Test-RtoolsRegistered {
-    $null -ne (Get-ChildItem -Path @($machineKey, $machineKey32on64) -ErrorAction SilentlyContinue |
+function Get-RtoolsEntries {
+    Get-ChildItem -Path @($machineKey, $machineKey32on64) -ErrorAction SilentlyContinue |
         ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue } |
         Where-Object { $_.DisplayName -like "Rtools*" } |
-        Select-Object -First 1)
+        ForEach-Object { "$($_.PSChildName)|$($_.DisplayVersion)" }
+}
+
+function Test-RtoolsRegistered {
+    $null -ne (Get-RtoolsEntries | Select-Object -First 1)
+}
+
+# An Rtools entry left by an earlier install doesn't mean this one finished.
+$preexistingEntries = @(Get-RtoolsEntries)
+
+function Test-RtoolsRegisteredByThisInstall {
+    $null -ne (Get-RtoolsEntries | Where-Object { $preexistingEntries -notcontains $_ } | Select-Object -First 1)
 }
 
 try {
@@ -31,12 +42,14 @@ $elapsed = 0
 while (-not $process.HasExited -and ($elapsed -lt $installTimeoutSeconds)) {
   Start-Sleep -Seconds $pollSeconds
   $elapsed += $pollSeconds
-  Write-Host "Installing... ($elapsed seconds, registered: $(Test-RtoolsRegistered))"
+  if ($elapsed % 60 -eq 0) {
+    Write-Host "Installing... ($elapsed seconds, registered: $(Test-RtoolsRegisteredByThisInstall))"
+  }
 }
 
 if (-not $process.HasExited) {
-  # Registered means the install finished and only a lingering child remains.
-  if (Test-RtoolsRegistered) {
+  # Registered means the files are in place and only a lingering process remains.
+  if (Test-RtoolsRegisteredByThisInstall) {
     Write-Host "Installer still running after ${installTimeoutSeconds}s but Rtools is registered; stopping the lingering process."
     Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 2
@@ -49,7 +62,7 @@ if (-not $process.HasExited) {
 }
 
 $exitCode = $process.ExitCode
-Write-Host "Install exit code: $exitCode"
+Write-Host "Install exit code: $exitCode after $elapsed seconds"
 
 # The parent can exit while a descendant is still writing the ARP entry.
 $settle = 0
