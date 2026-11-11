@@ -2,7 +2,7 @@
 
 Fleet 5 introduces a cleaner, more consistent API and GitOps (YAML) by removing deprecated API endpoints and parameters, YAML (GitOps) keys, and more. This guide lists [every breaking change](#breaking-changes) and what you need to do.
 
-> **Note:** Fleet 4.96 is coming [late November](https://github.com/fleetdm/fleet/milestone/239) and Fleet 5 is coming [early December](https://github.com/fleetdm/fleet/milestone/295). This guide is published early so you can plan your upgrade.
+> **Note:** Fleet 5 is coming in [early December](https://github.com/fleetdm/fleet/milestone/295). This guide is published early so you can plan your upgrade.
 
 Fleet will support Fleet 4.96 with security fixes through June 30, 2027.
 
