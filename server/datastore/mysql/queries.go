@@ -185,13 +185,11 @@ func (ds *Datastore) deleteMultipleQueryResults(ctx context.Context, queryIDs []
 		return nil
 	}
 
-	deleteQueryResultsStmt := `DELETE FROM query_results WHERE query_id IN (?)`
-	query, args, err := sqlx.In(deleteQueryResultsStmt, queryIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building delete query_results stmt")
-	}
-	if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "executing delete query_results")
+	// Delete per query in batches to avoid large row-lock holds.
+	for _, qid := range queryIDs {
+		if err := ds.batchDeleteQueryResults(ctx, qid); err != nil {
+			return ctxerr.Wrapf(ctx, err, "deleting results for query %d", qid)
+		}
 	}
 	return nil
 }
@@ -658,11 +656,7 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscar
 }
 
 func (ds *Datastore) deleteQueryResults(ctx context.Context, queryID uint) error {
-	resultsSQL := `DELETE FROM query_results WHERE query_id = ?`
-	if _, err := ds.writer(ctx).ExecContext(ctx, resultsSQL, queryID); err != nil {
-		return ctxerr.Wrap(ctx, err, "executing delete query_results")
-	}
-	return nil
+	return ds.batchDeleteQueryResults(ctx, queryID)
 }
 
 func (ds *Datastore) DeleteQuery(ctx context.Context, teamID *uint, name string) error {
@@ -1173,13 +1167,7 @@ func (ds *Datastore) HasLabelScopedScheduledQueries(ctx context.Context, teamID 
 }
 
 func (ds *Datastore) CleanupGlobalDiscardQueryResults(ctx context.Context) error {
-	deleteStmt := "DELETE FROM query_results"
-	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "delete all from query_results")
-	}
-
-	return nil
+	return ds.batchDeleteAllQueryResults(ctx)
 }
 
 // IsSavedQuery returns true if the given query is a saved query.

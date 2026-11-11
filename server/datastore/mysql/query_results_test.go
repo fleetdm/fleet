@@ -32,6 +32,7 @@ func TestQueryResults(t *testing.T) {
 		{"CleanupQueryResultRows", testCleanupQueryResultRows},
 		{"CleanupExcessQueryResultRows", testCleanupExcessQueryResultRows},
 		{"CleanupExcessQueryResultRowsManyQueries", testCleanupExcessQueryResultRowsManyQueries},
+		{"BatchDeleteQueryResults", testBatchDeleteQueryResults},
 		{"ListHostReports", testListHostReports},
 	}
 	for _, c := range cases {
@@ -816,6 +817,101 @@ func testCleanupExcessQueryResultRowsManyQueries(t *testing.T, ds *Datastore) {
 	queryCounts, err := ds.CleanupExcessQueryResultRows(t.Context(), fleet.DefaultMaxQueryReportRows)
 	require.NoError(t, err)
 	require.Len(t, queryCounts, numQueries)
+}
+
+func testBatchDeleteQueryResults(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Test User", "batch@example.com", true)
+
+	// Use a tiny batch size so we exercise the batching loop.
+	oldBatchSize := queryResultsDeleteBatchSize
+	queryResultsDeleteBatchSize = 3
+	t.Cleanup(func() { queryResultsDeleteBatchSize = oldBatchSize })
+
+	// Create two queries: one with discard_data, one without.
+	qKeep := test.NewQuery(t, ds, nil, "BatchKeep", "SELECT 1", user.ID, true)
+	qDiscard := test.NewQuery(t, ds, nil, "BatchDiscard", "SELECT 1", user.ID, true)
+	qDiscard.DiscardData = true
+	require.NoError(t, ds.SaveQuery(ctx, qDiscard, false, false))
+
+	mockTime := time.Now().UTC().Truncate(time.Second)
+
+	// Insert 10 rows across 10 hosts for each query (more than batch size of 3).
+	for i := range 10 {
+		host := test.NewHost(t, ds, "batchhost"+string(rune('a'+i)), "10.0.0.1", "bs"+string(rune('a'+i)), "bu"+string(rune('a'+i)), time.Now())
+		for _, q := range []*fleet.Query{qKeep, qDiscard} {
+			_, err := ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{{
+				QueryID:     q.ID,
+				HostID:      host.ID,
+				LastFetched: mockTime,
+				Data:        new(json.RawMessage([]byte(`{"i":1}`))),
+			}}, fleet.DefaultMaxQueryReportRows)
+			require.NoError(t, err)
+		}
+	}
+
+	countRows := func(queryID uint) int {
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, `SELECT COUNT(*) FROM query_results WHERE query_id = ?`, queryID)
+		})
+		return n
+	}
+
+	// Verify setup.
+	require.Equal(t, 10, countRows(qKeep.ID))
+	require.Equal(t, 10, countRows(qDiscard.ID))
+
+	t.Run("CleanupDiscardedQueryResults", func(t *testing.T) {
+		require.NoError(t, ds.CleanupDiscardedQueryResults(ctx))
+		assert.Equal(t, 10, countRows(qKeep.ID), "non-discarded rows should be untouched")
+		assert.Equal(t, 0, countRows(qDiscard.ID), "discarded rows should be deleted")
+	})
+
+	t.Run("deleteQueryResults", func(t *testing.T) {
+		require.NoError(t, ds.deleteQueryResults(ctx, qKeep.ID))
+		assert.Equal(t, 0, countRows(qKeep.ID))
+	})
+
+	// Re-insert rows for the global cleanup test.
+	for i := range 10 {
+		host := test.NewHost(t, ds, "batchhost2"+string(rune('a'+i)), "10.0.1.1", "bs2"+string(rune('a'+i)), "bu2"+string(rune('a'+i)), time.Now())
+		_, err := ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{{
+			QueryID:     qKeep.ID,
+			HostID:      host.ID,
+			LastFetched: mockTime,
+			Data:        new(json.RawMessage([]byte(`{"i":2}`))),
+		}}, fleet.DefaultMaxQueryReportRows)
+		require.NoError(t, err)
+	}
+	require.Equal(t, 10, countRows(qKeep.ID))
+
+	t.Run("CleanupGlobalDiscardQueryResults", func(t *testing.T) {
+		require.NoError(t, ds.CleanupGlobalDiscardQueryResults(ctx))
+		assert.Equal(t, 0, countRows(qKeep.ID), "all rows should be deleted")
+	})
+
+	t.Run("deleteMultipleQueryResults", func(t *testing.T) {
+		// Re-insert rows for both queries.
+		for i := range 10 {
+			host := test.NewHost(t, ds, "batchhost3"+string(rune('a'+i)), "10.0.2.1", "bs3"+string(rune('a'+i)), "bu3"+string(rune('a'+i)), time.Now())
+			for _, q := range []*fleet.Query{qKeep, qDiscard} {
+				_, err := ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{{
+					QueryID:     q.ID,
+					HostID:      host.ID,
+					LastFetched: mockTime,
+					Data:        new(json.RawMessage([]byte(`{"i":3}`))),
+				}}, fleet.DefaultMaxQueryReportRows)
+				require.NoError(t, err)
+			}
+		}
+		require.Equal(t, 10, countRows(qKeep.ID))
+		require.Equal(t, 10, countRows(qDiscard.ID))
+
+		require.NoError(t, ds.deleteMultipleQueryResults(ctx, []uint{qKeep.ID, qDiscard.ID}))
+		assert.Equal(t, 0, countRows(qKeep.ID))
+		assert.Equal(t, 0, countRows(qDiscard.ID))
+	})
 }
 
 func testListHostReports(t *testing.T, ds *Datastore) {

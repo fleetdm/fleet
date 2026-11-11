@@ -136,14 +136,63 @@ func (ds *Datastore) QueryResultRowsForHost(ctx context.Context, queryID, hostID
 }
 
 func (ds *Datastore) CleanupDiscardedQueryResults(ctx context.Context) error {
-	deleteStmt := `
-		DELETE FROM query_results
-		WHERE query_id IN
-			(SELECT id FROM queries WHERE discard_data = true)
-		`
-	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "cleaning up discarded query results")
+	// First, get the query IDs that have discard_data enabled.
+	var queryIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &queryIDs,
+		`SELECT id FROM queries WHERE discard_data = true`,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting discarded query IDs")
+	}
+	if len(queryIDs) == 0 {
+		return nil
+	}
+
+	// Delete results in batches to avoid large row-lock holds.
+	for _, qid := range queryIDs {
+		if err := ds.batchDeleteQueryResults(ctx, qid); err != nil {
+			return ctxerr.Wrapf(ctx, err, "cleaning up discarded results for query %d", qid)
+		}
+	}
+	return nil
+}
+
+// queryResultsDeleteBatchSize is the number of rows deleted per batch when
+// clearing query_results. A var so tests can override it.
+var queryResultsDeleteBatchSize = 500
+
+// batchDeleteQueryResults deletes all query_results rows for a single query_id
+// in batches to avoid holding row locks for too long.
+func (ds *Datastore) batchDeleteQueryResults(ctx context.Context, queryID uint) error {
+	for {
+		result, err := ds.writer(ctx).ExecContext(ctx,
+			`DELETE FROM query_results WHERE query_id = ? LIMIT ?`,
+			queryID, queryResultsDeleteBatchSize,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "batch delete query results")
+		}
+		rowsAffected, _ := result.RowsAffected()
+		if rowsAffected == 0 {
+			break
+		}
+	}
+	return nil
+}
+
+// batchDeleteAllQueryResults deletes all rows from query_results in batches.
+func (ds *Datastore) batchDeleteAllQueryResults(ctx context.Context) error {
+	for {
+		result, err := ds.writer(ctx).ExecContext(ctx,
+			`DELETE FROM query_results LIMIT ?`,
+			queryResultsDeleteBatchSize,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "batch delete all query results")
+		}
+		rowsAffected, _ := result.RowsAffected()
+		if rowsAffected == 0 {
+			break
+		}
 	}
 	return nil
 }
