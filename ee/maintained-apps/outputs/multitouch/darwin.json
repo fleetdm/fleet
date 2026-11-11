@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.0.5",
+      "version": "2.0.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.brassmonkery.Multitouch';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.brassmonkery.Multitouch' AND version_compare(bundle_short_version, '2.0.5') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.brassmonkery.Multitouch' AND version_compare(bundle_short_version, '2.0.6') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.brassmonkery.Multitouch' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://multitouch.app/downloads/multitouch2.0.5.dmg",
+      "installer_url": "https://multitouch.app/downloads/multitouch2.0.6.dmg",
       "install_script_ref": "24335b80",
       "uninstall_script_ref": "534a249f",
-      "sha256": "8b2f1b1036bb0ef29aa1daf9eeffc81981af60e2373dec8cd0968f42cf740639",
+      "sha256": "9e600b3d1c59296c2b003bf0eed783d5f2c95dd8542fb9552d8ba0dce0256011",
       "default_categories": [
         "Productivity"
       ]
