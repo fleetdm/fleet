@@ -125,7 +125,6 @@ Learn which software Fleet collects on each platform in the [software inventory 
 - **Deleted hosts:** When a host is deleted from Fleet, Fleet stops updating its CI but doesn't delete it, so your audit history stays intact. Use your normal CMDB process to retire it.
 - **Removed software:** When software is no longer installed, Fleet sets the installation record's `active` field to `false` instead of deleting it.
 
-<!-- TODO(product): Confirm deleted-host behavior (leave as-is vs. set install_status to Retired). -->
 <!-- TODO(product): Decide whether iOS, iPadOS, and Android hosts are in scope, and which CI class they use (e.g. cmdb_ci_comm / mobile devices). Android BYOD hosts have no serial number to match on. -->
 
 ## Field mapping reference
