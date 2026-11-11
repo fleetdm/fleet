@@ -71,14 +71,11 @@ export const generateTableHeaders = (
     },
     {
       Header: "OS",
-      accessor: "os_version",
-      Cell: (cellProps) => (
-        <TextCell
-          value={getHostOSDisplayName(
-            cellProps.row.original.os_name,
-            cellProps.row.original.os_version
-          )}
-        />
+      id: "os_version",
+      // These tables sort client-side, so sort on the name and version shown, not the bare version.
+      accessor: (host) => getHostOSDisplayName(host.os_name, host.os_version),
+      Cell: (cellProps: ITableStringCellProps) => (
+        <TextCell value={cellProps.cell.value} />
       ),
     },
     {

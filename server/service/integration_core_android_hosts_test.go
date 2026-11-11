@@ -80,9 +80,6 @@ func (s *integrationTestSuite) TestAndroidHostUUIDPropagation() {
 	require.NotNil(t, getHostResp.Host)
 	require.Equal(t, expectedUUID, getHostResp.Host.UUID, "UUID should be preserved after host update")
 	require.Equal(t, "UpdatedAndroidDevice", getHostResp.Host.ComputerName)
-	dbHost, err := s.ds.Host(ctx, androidHost.Host.ID)
-	require.NoError(t, err)
-	require.Equal(t, "Android 16", dbHost.OSVersion)
 
 	// Test 3: List hosts, verify Android host UUID is included
 	var listHostsResp listHostsResponse

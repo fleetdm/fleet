@@ -44,6 +44,7 @@ func TestHostAPIOS(t *testing.T) {
 
 func TestInventoryOSNames(t *testing.T) {
 	require.Equal(t, []string{"Windows 11 Pro 24H2", "Microsoft Windows 11 Pro 24H2"}, InventoryOSNames("Windows 11 Pro 24H2"))
+	require.Equal(t, []string{"windows 11 pro 24h2", "Microsoft windows 11 pro 24h2"}, InventoryOSNames("windows 11 pro 24h2"))
 	require.Equal(t, []string{"Microsoft Windows 11 Pro 24H2"}, InventoryOSNames("Microsoft Windows 11 Pro 24H2"))
 	require.Equal(t, []string{"macOS"}, InventoryOSNames("macOS"))
 }

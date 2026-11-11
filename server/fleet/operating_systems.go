@@ -74,9 +74,10 @@ func APIOSName(inventoryName string) string {
 }
 
 // InventoryOSNames returns the OS inventory names that an os_name filter value matches. A Windows name matches with or
-// without "Microsoft ", so filters written before Windows names dropped it keep working.
+// without "Microsoft ", so filters written before Windows names dropped it keep working. The prefix check ignores case,
+// like the name column does.
 func InventoryOSNames(name string) []string {
-	if strings.HasPrefix(name, "Windows") {
+	if strings.HasPrefix(strings.ToLower(name), "windows") {
 		return []string{name, "Microsoft " + name}
 	}
 	return []string{name}
