@@ -244,9 +244,9 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 			"mdm": {
 			       "apple_business_manager": [{
 			         "organization_name": %q,
-			         "macos_team": %q,
-			         "ios_team": %q,
-			         "ipados_team": %q
+			         "macos_fleet": %q,
+			         "ios_fleet": %q,
+			         "ipados_fleet": %q
 			       }],
 				"end_user_authentication": {
 					"entity_id": "https://localhost:8080",
@@ -385,9 +385,9 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseIphoneTeam() {
 			"mdm": {
 			       "apple_business_manager": [{
 			         "organization_name": %q,
-			         "macos_team": %q,
-			         "ios_team": %q,
-			         "ipados_team": %q
+			         "macos_fleet": %q,
+			         "ios_fleet": %q,
+			         "ipados_fleet": %q
 			       }]
 			}
 		}`, "fleet_ade_test", tm.Name, tm.Name, tm.Name)), http.StatusOK, &acResp)
@@ -1842,10 +1842,10 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignmentWithMultipleABMs() {
 		"mdm": {
 			"apple_business_manager": [{
 			  "organization_name": %q,
-			  "macos_team": %q,
-			  "ios_team": %q,
-			  "ipados_team": %q,
-			  "byod_team": %q
+			  "macos_fleet": %q,
+			  "ios_fleet": %q,
+			  "ipados_fleet": %q,
+			  "byod_fleet": %q
 			}]
 		}
 	}`, tmOrgName, tm.Name, tm.Name, tm.Name, tm.Name)), http.StatusOK, &acResp)

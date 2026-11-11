@@ -8595,10 +8595,10 @@ func (svc *Service) CountABMTokens(ctx context.Context) (int, error) {
 
 type updateABMTokenTeamsRequest struct {
 	TokenID      uint  `url:"id"`
-	MacOSTeamID  *uint `json:"macos_team_id" renameto:"macos_fleet_id"`
-	IOSTeamID    *uint `json:"ios_team_id" renameto:"ios_fleet_id"`
-	IPadOSTeamID *uint `json:"ipados_team_id" renameto:"ipados_fleet_id"`
-	BYODTeamID   *uint `json:"byod_team_id" renameto:"byod_fleet_id"`
+	MacOSTeamID  *uint `json:"macos_fleet_id"`
+	IOSTeamID    *uint `json:"ios_fleet_id"`
+	IPadOSTeamID *uint `json:"ipados_fleet_id"`
+	BYODTeamID   *uint `json:"byod_fleet_id"`
 }
 
 type updateABMTokenTeamsResponse struct {

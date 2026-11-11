@@ -347,9 +347,9 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		"mdm": {
 			"apple_business_manager": [{
 			  "organization_name": %q,
-			  "macos_team": %q,
-			  "ios_team": %q,
-			  "ipados_team": %q
+			  "macos_fleet": %q,
+			  "ios_fleet": %q,
+			  "ipados_fleet": %q
 			}]
 		}
 	}`, abmOrgName, team.Name, team.Name, team.Name)), http.StatusOK, &acResp)
@@ -1920,9 +1920,9 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		"mdm": {
 			"apple_business_manager": [{
 				"organization_name": %q,
-				"macos_team": %q,
-				"ios_team": "",
-				"ipados_team": ""
+				"macos_fleet": %q,
+				"ios_fleet": "",
+				"ipados_fleet": ""
 			}]
 		}
 	}`, abmOrgName, team.Name)), http.StatusOK, &acResp)
