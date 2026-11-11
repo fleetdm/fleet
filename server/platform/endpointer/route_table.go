@@ -1,6 +1,7 @@
 package endpointer
 
 import (
+	"fmt"
 	"net/http"
 	"runtime"
 	"slices"
@@ -91,5 +92,10 @@ func handleRoute(r *mux.Router, rt Route) {
 	rt = rt.clone()
 	// gorilla keeps, and uppercases in place, the slice it is given.
 	route.Name(rt.Name).Methods(slices.Clone(rt.Methods)...)
+	if err := route.GetError(); err != nil {
+		// Catches a developer mistake, such as a malformed regex in a route path, at startup. gorilla keeps a route it rejected
+		// but never matches it, so the route would be listed without being served.
+		panic(fmt.Sprintf("invalid route %s %s: %v", strings.Join(rt.Methods, ","), rt.Path, err))
+	}
 	RoutesOf(r).add(rt)
 }
