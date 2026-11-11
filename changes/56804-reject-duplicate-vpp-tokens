@@ -1,0 +1,1 @@
+- `fleetctl gitops` and `PATCH /api/latest/fleet/config` now reject a `volume_purchasing_program` that lists the same VPP token more than once. Previously, Fleet kept only the last entry, so fleets named only in earlier entries lost the token and their App Store apps from it.

@@ -2955,6 +2955,10 @@ func (svc *Service) validateVPPAssignments(
 		}
 
 		tok := tokensByLocation[loc]
+		if _, ok := tokensToSave[tok.ID]; ok {
+			invalid.Appendf("mdm.volume_purchasing_program", "Couldn't apply. VPP token %q is listed more than once. List each token once, with all of its fleets.", vpp.Location)
+			return nil, nil
+		}
 		tokensToSave[tok.ID] = tokenTeams
 	}
 
