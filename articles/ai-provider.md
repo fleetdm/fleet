@@ -6,7 +6,7 @@ When a provider is configured, Fleet only uses that provider. If the provider is
 
 ## Get an API key
 
-Fleet connects to your provider with an API key. Both Anthropic and OpenAI show the full key only once, when it's created. If you didn't save an existing key, create a new one.
+Fleet connects to your provider with an API key, the same way it connects to other third-party services. Both Anthropic and OpenAI show the full key only once, when it's created. If you didn't save an existing key, create a new one.
 
 We recommend creating a dedicated key for Fleet, so you can track its usage and revoke it without affecting other tools.
 
@@ -18,9 +18,13 @@ We recommend creating a dedicated key for Fleet, so you can track its usage and 
 
 3. Select **Create key** and name the key (for example, "Fleet").
 
-4. Set **Linked account** to a service account and select a workspace to scope the key to.
+4. Set **Expiration** to **Never**, so profile generation doesn't stop working when the key expires.
 
-5. Copy the key, which starts with `sk-ant-`, and store it somewhere safe, like a secrets manager.
+5. Set **Linked account** to a service account.
+
+6. Scope the key to **Default workspace**.
+
+7. Copy the key, which starts with `sk-ant-`, and store it somewhere safe, like a secrets manager.
 
 Use a service account key instead of a personal key. Personal keys stop working if the person who created them leaves your organization.
 
@@ -30,15 +34,27 @@ If **Create key** is disabled, your role might not allow you to create keys. Ask
 
 1. Sign in to the [OpenAI Platform](https://platform.openai.com/).
 
-2. Select the project you want Fleet to use from the project selector. To keep Fleet's usage separate, create a new project.
+2. Go to the **API keys** page.
 
-3. Go to organization settings, select the project, and open **Members**.
+3. Select **Create new secret key**.
 
-4. Select **+ Service account**, enter an ID (for example, "fleet"), and select **Create**.
+4. Set **Owned by** to **Service account**.
 
-5. Copy the secret key and store it somewhere safe, like a secrets manager.
+5. Enter a **Service Key Name** (for example, "Fleet").
 
-Creating service accounts requires the organization owner or project owner role. If you don't see the option, ask an owner to create the key for you.
+6. Set **Project** to **Default project**.
+
+7. Set **Expiration** to **Never**, so profile generation doesn't stop working when the key expires.
+
+8. Select **Create secret key**.
+
+9. Copy the key and store it somewhere safe, like a secrets manager.
+
+Use a service account key instead of a user key. User keys are tied to a person and must be revoked when they leave your organization.
+
+Service account keys have full access to their project. To limit what the key can access, create a separate project for Fleet and select it in step 6.
+
+Creating service account keys requires the organization owner or project owner role. If you don't see the option, ask an owner to create the key for you.
 
 If your account doesn't have billing set up, OpenAI might not let you create or use a key. Check **Billing** in the OpenAI Platform.
 
@@ -54,7 +70,7 @@ If your account doesn't have billing set up, OpenAI might not let you create or 
 
 5. Select **Save**.
 
-Fleet checks your Anthropic model IDs when you save. If a model isn't found, the field is shown in red with an error.
+Fleet checks your model IDs when you save. If a model isn't found, the field is shown in red with an error.
 
 After you save, the API key is hidden. To change it, enter a new key.
 
