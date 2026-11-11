@@ -148,7 +148,7 @@ Follow the [Okta conditional access integration guide](https://fleetdm.com/guide
 
 ## Step 7: Deploy the SCEP profile to a test host
 
-The profiles from the "Deploy the profiles" step of the public guide provision client certificates on hosts. Once Okta is connected, find them in **Settings > Integrations > Conditional access** by clicking **Edit** on the **Okta** card.
+The profiles from the "Deploy the profiles" step of the public guide provision client certificates on hosts. Once Okta is connected, find them in **Settings > Integrations > Conditional access** by clicking **Profiles** on the **Okta** card.
 
 - **macOS:** deploy the macOS profile to a macOS host enrolled in your Fleet server.
 - **Windows:** deploy the certificate profile (with the placeholder replaced by a global enroll secret) and the browser profile to a Windows host enrolled in Fleet's Windows MDM.
