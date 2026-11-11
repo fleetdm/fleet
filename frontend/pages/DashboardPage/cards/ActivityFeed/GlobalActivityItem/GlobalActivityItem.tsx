@@ -2799,7 +2799,7 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.RetrievedHostMyDeviceURL: {
       return TAGGED_TEMPLATES.retrievedHostMyDeviceURL(activity);
     }
-    case ActivityType.ViewedHostRecoveryLockPassword: {
+    case ActivityType.ReadHostRecoveryLockPassword: {
       return TAGGED_TEMPLATES.viewedHostRecoveryLockPassword(activity);
     }
     case ActivityType.SetHostRecoveryLockPassword: {

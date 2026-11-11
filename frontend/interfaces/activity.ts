@@ -51,7 +51,7 @@ export enum ActivityType {
   DisabledMacosUpdateNewHosts = "disabled_macos_update_new_hosts",
   ReadHostDiskEncryptionKey = "read_host_disk_encryption_key",
   RetrievedHostMyDeviceURL = "retrieved_host_my_device_url",
-  ViewedHostRecoveryLockPassword = "viewed_host_recovery_lock_password",
+  ReadHostRecoveryLockPassword = "read_host_recovery_lock_password",
   SetHostRecoveryLockPassword = "set_host_recovery_lock_password",
   SetHostGoogleDeviceId = "set_host_google_device_id",
   DeletedHostGoogleDeviceId = "deleted_host_google_device_id",
@@ -266,7 +266,7 @@ export type IHostPastActivityType =
   | ActivityType.MdmEnrolled
   | ActivityType.ReadHostDiskEncryptionKey
   | ActivityType.RetrievedHostMyDeviceURL
-  | ActivityType.ViewedHostRecoveryLockPassword
+  | ActivityType.ReadHostRecoveryLockPassword
   | ActivityType.SetHostRecoveryLockPassword
   | ActivityType.SetHostGoogleDeviceId
   | ActivityType.DeletedHostGoogleDeviceId
@@ -656,7 +656,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   canceled_script_batch: "Canceled script batch",
   read_host_disk_encryption_key: "Viewed disk encryption key",
   retrieved_host_my_device_url: "Retrieved My device URL",
-  viewed_host_recovery_lock_password: "Viewed Recovery Lock password",
+  read_host_recovery_lock_password: "Viewed Recovery Lock password",
   set_host_recovery_lock_password: "Set Recovery Lock password",
   set_host_google_device_id: "Marked as company-owned in Google",
   deleted_host_google_device_id: "Unmarked as company-owned in Google",

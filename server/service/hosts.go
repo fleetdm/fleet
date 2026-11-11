@@ -5282,12 +5282,12 @@ func (svc *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint
 	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeViewedHostRecoveryLockPassword{
+		fleet.ActivityTypeReadHostRecoveryLockPassword{
 			HostID:          host.ID,
 			HostDisplayName: host.DisplayName(),
 		},
 	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "create activity for viewed host recovery lock password")
+		return nil, ctxerr.Wrap(ctx, err, "create activity for read host recovery lock password")
 	}
 
 	// Schedule auto-rotation by marking the password as viewed.

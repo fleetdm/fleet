@@ -377,7 +377,7 @@ var activityTemplatesByCategory = map[string][]fleet.ActivityDetails{
 		fleet.ActivityTypeWipeFailedHost{},
 		fleet.ActivityTypeReadHostDiskEncryptionKey{},
 		fleet.ActivityTypeEscrowedDiskEncryptionKey{},
-		fleet.ActivityTypeViewedHostRecoveryLockPassword{},
+		fleet.ActivityTypeReadHostRecoveryLockPassword{},
 		fleet.ActivityTypeSetHostRecoveryLockPassword{},
 		fleet.ActivityTypeRotatedHostRecoveryLockPassword{},
 		fleet.ActivityTypeRotatedDiskEncryptionKey{},
