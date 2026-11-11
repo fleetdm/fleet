@@ -33,7 +33,8 @@ try {
 # stop it first, along with the Java, Hyper, and connector processes it runs
 # from its install directory, in every installed release (older ones are
 # removed below). Unsaved changes are lost.
-$installDirs = @("${env:ProgramFiles}\Tableau\Tableau Prep Builder ") + @(foreach ($arpPath in $arpPaths) {
+$installDirs = @(Get-ChildItem "${env:ProgramFiles}\Tableau" -Directory -Filter 'Tableau Prep Builder 20*' -ErrorAction SilentlyContinue |
+  ForEach-Object { $_.FullName + '\' }) + @(foreach ($arpPath in $arpPaths) {
   Get-ItemProperty "$arpPath\*" -ErrorAction SilentlyContinue | Where-Object {
     $_.DisplayName -like 'Tableau Prep Builder 20*' -and $_.InstallLocation
   } | ForEach-Object { $_.InstallLocation.Trim('"').TrimEnd('\') + '\' }
