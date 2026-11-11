@@ -102,10 +102,10 @@ type Datastore struct {
 	// certificates and keys.
 	serverPrivateKey string
 
-	// windowsFMAMatches caches the Windows Fleet-maintained apps that software ingestion
-	// matches reported program names against. The lookup joins software_installers and
-	// software_titles, and ingestion runs on every host software update, so it is held
-	// briefly rather than issued per check-in.
+	// windowsFMAMatches caches the prefixes, built from the Windows Fleet-maintained apps,
+	// that software ingestion matches reported program names against. The lookup joins
+	// software_installers and software_titles, and ingestion runs on every host software
+	// update, so it is held briefly rather than issued per check-in.
 	//
 	// Deliberately TTL-only, with no invalidation on installer or catalog changes. Fleet
 	// runs multiple server instances, so in-process invalidation would only clear the node
@@ -119,7 +119,7 @@ type Datastore struct {
 	//
 	// The cached slice is replaced, never mutated, so a reader may keep using the value it
 	// received after a refresh. Callers must not mutate it.
-	windowsFMAMatches       []fleet.MaintainedApp
+	windowsFMAMatches       []windowsFMAPrefix
 	windowsFMAMatchesExpiry time.Time
 	windowsFMAMatchesMu     sync.RWMutex
 	// windowsFMAMatchesSF collapses a cache-miss stampede into one query per node, which is

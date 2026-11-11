@@ -93,10 +93,10 @@ func softwareSliceToMap(softwareItems []fleet.Software) map[string]fleet.Softwar
 // collapsing titles; a var so tests can shorten it further.
 var windowsFMAMatchesCacheTTL = 30 * time.Second
 
-// getWindowsFMAMatchesCached returns the Windows FMAs to match reported program names
-// against, from a short-lived in-process cache. The returned slice is shared and must
-// not be mutated. See the field comments on Datastore for why this is TTL-only.
-func (ds *Datastore) getWindowsFMAMatchesCached(ctx context.Context) ([]fleet.MaintainedApp, error) {
+// getWindowsFMAMatchesCached returns the Windows FMA prefixes to match reported program
+// names against, from a short-lived in-process cache. The returned slice is shared and
+// must not be mutated. See the field comments on Datastore for why this is TTL-only.
+func (ds *Datastore) getWindowsFMAMatchesCached(ctx context.Context) ([]windowsFMAPrefix, error) {
 	ds.windowsFMAMatchesMu.RLock()
 	names, expiry := ds.windowsFMAMatches, ds.windowsFMAMatchesExpiry
 	ds.windowsFMAMatchesMu.RUnlock()
@@ -105,10 +105,11 @@ func (ds *Datastore) getWindowsFMAMatchesCached(ctx context.Context) ([]fleet.Ma
 	}
 
 	result, err, _ := ds.windowsFMAMatchesSF.Do("windowsFMANames", func() (any, error) {
-		fresh, err := ds.GetWindowsFMAMatches(ctx)
+		apps, err := ds.GetWindowsFMAMatches(ctx)
 		if err != nil {
 			return nil, err
 		}
+		fresh := windowsFMAPrefixes(apps)
 		ds.windowsFMAMatchesMu.Lock()
 		ds.windowsFMAMatches = fresh
 		ds.windowsFMAMatchesExpiry = time.Now().Add(windowsFMAMatchesCacheTTL)
@@ -118,7 +119,7 @@ func (ds *Datastore) getWindowsFMAMatchesCached(ctx context.Context) ([]fleet.Ma
 	if err != nil {
 		return nil, err
 	}
-	fresh, _ := result.([]fleet.MaintainedApp)
+	fresh, _ := result.([]windowsFMAPrefix)
 	return fresh, nil
 }
 
@@ -1343,6 +1344,9 @@ func longestCommonPrefix(strs []string) string {
 // changes, so resolving the destination from the catalog name could land software on a
 // title no installer owns, leaving the uninstall action hidden and the reconcile pass
 // unable to repair it.
+//
+// A zero titleID marks a claim: the name of a catalog app with no title to merge onto,
+// which only serves to outrank a shorter prefix (see windowsFMAPrefixes).
 type windowsFMAPrefix struct {
 	prefix    string
 	titleName string
@@ -1350,11 +1354,20 @@ type windowsFMAPrefix struct {
 }
 
 // windowsFMAPrefixes flattens Windows FMAs into their candidate prefixes. Computed
-// once per ingestion batch so the per-software-row match stays allocation-free.
+// once per cache refresh so the per-software-row match stays allocation-free.
+//
+// Apps without a title contribute their names as claims, so "Notion Calendar 1.133.0"
+// does not land on the "Notion" FMA's title just because Notion Calendar was never
+// added. Only a claim extending a titled prefix can outrank it, so the rest of the
+// catalog is dropped here rather than scanned for every software row.
 func windowsFMAPrefixes(fmas []fleet.MaintainedApp) []windowsFMAPrefix {
-	prefixes := make([]windowsFMAPrefix, 0, len(fmas)*3)
+	var prefixes []windowsFMAPrefix
+	var claims []string
 	for _, f := range fmas {
 		if f.TitleID == nil {
+			if f.Platform == "windows" {
+				claims = append(claims, f.Name, f.UniqueIdentifier)
+			}
 			continue
 		}
 		for _, p := range f.WinMatchPrefixes() {
@@ -1363,6 +1376,26 @@ func windowsFMAPrefixes(fmas []fleet.MaintainedApp) []windowsFMAPrefix {
 				titleName: f.TitleName,
 				titleID:   *f.TitleID,
 			})
+		}
+	}
+	if len(prefixes) == 0 {
+		return nil
+	}
+
+	titled := make(map[string]struct{}, len(prefixes))
+	for _, p := range prefixes {
+		titled[p.prefix] = struct{}{}
+	}
+	for _, c := range claims {
+		claim := normalizeSoftwareNameForMatch(c)
+		for i := range len(claim) {
+			if claim[i] != ' ' {
+				continue
+			}
+			if _, ok := titled[claim[:i]]; ok {
+				prefixes = append(prefixes, windowsFMAPrefix{prefix: claim})
+				break
+			}
 		}
 	}
 	return prefixes
@@ -1385,11 +1418,15 @@ func normalizeSoftwareNameForMatch(s string) string {
 // no match: there is no principled winner, and merging into the wrong app is worse
 // than leaving the title alone. This mirrors the rule the darwin reconcile passes
 // apply to a bundle identifier shared by more than one FMA.
+//
+// A claim longer than the best titled candidate makes it no match. One only as long
+// does not, or apps sharing an identifier (the Amazon Corretto versions) would stop
+// matching whenever just one of them is added.
 func matchWindowsFMATitle(name string, prefixes []windowsFMAPrefix) (windowsFMAPrefix, bool) {
 	normalized := normalizeSoftwareNameForMatch(name)
 
 	var best windowsFMAPrefix
-	var bestLen int
+	var bestLen, claimedLen int
 	ambiguous := false
 	for _, p := range prefixes {
 		if len(p.prefix) < bestLen {
@@ -1399,6 +1436,8 @@ func matchWindowsFMATitle(name string, prefixes []windowsFMAPrefix) (windowsFMAP
 			continue
 		}
 		switch {
+		case p.titleID == 0:
+			claimedLen = max(claimedLen, len(p.prefix))
 		case len(p.prefix) > bestLen:
 			best, bestLen, ambiguous = p, len(p.prefix), false
 		case p.titleID != best.titleID:
@@ -1406,7 +1445,7 @@ func matchWindowsFMATitle(name string, prefixes []windowsFMAPrefix) (windowsFMAP
 		}
 	}
 
-	if ambiguous || bestLen == 0 {
+	if ambiguous || bestLen == 0 || claimedLen > bestLen {
 		return windowsFMAPrefix{}, false
 	}
 	return best, true
@@ -1502,14 +1541,13 @@ func (ds *Datastore) preInsertSoftwareInventory(
 	// collapses versioned program names onto the canonical FMA title. Read through a
 	// short-lived cache: this runs on every host software update that reports something
 	// new, which a fleet-wide rollout makes simultaneous across hosts.
-	winFMANames, winFMAErr := ds.getWindowsFMAMatchesCached(ctx)
+	winFMAPrefixes, winFMAErr := ds.getWindowsFMAMatchesCached(ctx)
 	if winFMAErr != nil {
 		if ds.logger != nil {
 			ds.logger.WarnContext(ctx, "failed to get Windows FMA matches", "err", winFMAErr)
 		}
-		winFMANames = nil
+		winFMAPrefixes = nil
 	}
-	winFMAPrefixes := windowsFMAPrefixes(winFMANames)
 
 	// Process in smaller batches to reduce lock time
 	err := common_mysql.BatchProcessSimple(keys, softwareInventoryInsertBatchSize, func(batchKeys []string) error {

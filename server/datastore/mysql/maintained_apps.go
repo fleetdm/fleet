@@ -705,28 +705,29 @@ func (ds *Datastore) GetFMANamesByIdentifier(ctx context.Context) (map[string]st
 // GetWindowsFMAMatches returns the Windows FMAs that name matching should consider,
 // populated with only the fields MaintainedApp.WinMatchPrefixes needs.
 func (ds *Datastore) GetWindowsFMAMatches(ctx context.Context) ([]fleet.MaintainedApp, error) {
-	// Restricted to FMAs that are actually added somewhere, via their installer link.
+	// Only FMAs that are actually added somewhere, via their installer link, get a title.
 	// Prefix matching on a program name is only as precise as the name allows: the FMA
 	// manifests pair it with a publisher check, which fleet_maintained_apps does not
-	// carry, so requiring a deliberate install is what bounds the blast radius.
+	// carry, so requiring a deliberate install is what bounds the blast radius. Other
+	// catalog apps are returned for their names alone (see windowsFMAPrefixes).
 	//
 	// The installer link also supplies the title to merge onto. An app's per-team
 	// installer rows normally share one title, so they collapse here; an app somehow
-	// spanning several is ambiguous and excluded rather than guessed at, matching how
+	// spanning several is ambiguous and gets no title rather than a guess, matching how
 	// the darwin passes above handle a bundle identifier shared by multiple FMAs.
 	//
 	// platform is selected even though it is also filtered on, because WinMatchPrefixes
 	// checks it and would otherwise return nothing for every row.
 	query := `
 		SELECT fma.name, fma.unique_identifier, fma.platform,
-			MIN(si.title_id) AS software_title_id, MIN(st.name) AS title_name
+			IF(COUNT(DISTINCT si.title_id) = 1, MIN(si.title_id), NULL) AS software_title_id,
+			IF(COUNT(DISTINCT si.title_id) = 1, MIN(st.name), '') AS title_name
 		FROM fleet_maintained_apps fma
-		JOIN software_installers si
+		LEFT JOIN software_installers si
 			ON si.fleet_maintained_app_id = fma.id AND si.title_id IS NOT NULL
-		JOIN software_titles st ON st.id = si.title_id
+		LEFT JOIN software_titles st ON st.id = si.title_id
 		WHERE fma.platform = 'windows' AND fma.name != ''
-		GROUP BY fma.id, fma.name, fma.unique_identifier, fma.platform
-		HAVING COUNT(DISTINCT si.title_id) = 1`
+		GROUP BY fma.id, fma.name, fma.unique_identifier, fma.platform`
 
 	var apps []fleet.MaintainedApp
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &apps, query); err != nil {

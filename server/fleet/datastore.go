@@ -3979,12 +3979,13 @@ type Datastore interface {
 	// FMAs (e.g. Firefox and Firefox ESR) are omitted.
 	GetFMANamesByIdentifier(ctx context.Context) (map[string]string, error)
 
-	// GetWindowsFMAMatches returns the Windows Fleet-maintained apps that have been
-	// added as an installer, populated with just what name matching needs: the catalog
-	// name, unique identifier, platform, and the id and name of the software title the
-	// installer owns. Used during software ingestion to collapse versioned program names
-	// (e.g. "Granola 7.373.2") onto that title. See MaintainedApp.WinMatchPrefixes for how a
-	// reported name is matched against them.
+	// GetWindowsFMAMatches returns the Windows Fleet-maintained apps in the catalog,
+	// populated with just what name matching needs: the catalog name, unique identifier,
+	// platform, and, for apps added as an installer that owns a single title, that
+	// title's id and name. Used during software ingestion to collapse versioned program
+	// names (e.g. "Granola 7.373.2") onto that title. Apps without a title are returned
+	// so their names keep their own programs off a shorter-named app's title. See
+	// MaintainedApp.WinMatchPrefixes for how a reported name is matched against them.
 	GetWindowsFMAMatches(ctx context.Context) ([]MaintainedApp, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
