@@ -400,7 +400,7 @@ type CreateQueryRequest struct {
 	Description string `json:"description,omitempty"`
 	Query       string `json:"query"`
 	Platform    string `json:"platform,omitempty"`
-	TeamID      *uint  `json:"team_id,omitempty"`
+	TeamID      *uint  `json:"fleet_id,omitempty"`
 }
 
 // linuxPlatforms mirrors fleet.HostLinuxOSs in server/fleet/hosts.go (plus
@@ -920,7 +920,7 @@ func (fc *FleetClient) GetQueries(ctx context.Context) ([]Query, error) {
 		go func(idx int, team Team) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			teamResp, err := fc.makeFleetRequest(ctx, "GET", fmt.Sprintf("/api/v1/fleet/reports?team_id=%d", team.ID), nil)
+			teamResp, err := fc.makeFleetRequest(ctx, "GET", fmt.Sprintf("/api/v1/fleet/reports?fleet_id=%d", team.ID), nil)
 			if err != nil {
 				fc.logger.WarnContext(ctx, "team queries error", "team_id", team.ID, "err", err)
 				return

@@ -164,6 +164,9 @@ func getVulnerabilityEndpoint(ctx context.Context, req interface{}, svc fleet.Se
 	if err != nil {
 		return getVulnerabilityResponse{Err: err}, nil
 	}
+	for _, osVersion := range osVersions {
+		osVersion.UseAPINames()
+	}
 
 	software, _, err := svc.ListSoftwareByCVE(ctx, vuln.CVE.CVE, request.TeamID)
 	if err != nil {

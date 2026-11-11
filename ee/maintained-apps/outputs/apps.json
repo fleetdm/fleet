@@ -4786,7 +4786,7 @@
       "name": "Klokki",
       "slug": "klokki/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.klokki-launcher",
+      "unique_identifier": "com.klokki.macos",
       "description": "Klokki is an automatic time-tracking solution."
     },
     {
@@ -7803,7 +7803,7 @@
       "name": "ShareFile",
       "slug": "sharefile/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.citrixfiles.ens.service",
+      "unique_identifier": "com.sharefile.desktop.widget",
       "description": "ShareFile is a client for the Progress ShareFile storage service."
     },
     {
@@ -7896,13 +7896,6 @@
       "platform": "darwin",
       "unique_identifier": "com.ToWatchList.SimpleComic",
       "description": "Simple Comic is a comic viewer/reader."
-    },
-    {
-      "name": "SiriMote",
-      "slug": "sirimote/darwin",
-      "platform": "darwin",
-      "unique_identifier": "at.EternalStorms.SiriMote-nonappstore",
-      "description": "SiriMote is a tool to control your computer with your Apple TV Siri Remote."
     },
     {
       "name": "Sketch",

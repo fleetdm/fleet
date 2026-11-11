@@ -3607,6 +3607,8 @@ func TestAuthorizeCustomHostVitals(t *testing.T) {
 	t.Parallel()
 
 	customHostVital := &fleet.CustomHostVital{}
+	hostVitalValueTeam1 := &fleet.HostCustomHostVitalValue{TeamID: new(uint(1))}
+	hostVitalValueNoTeam := &fleet.HostCustomHostVitalValue{}
 	runTestCases(t, []authTestCase{
 		{user: nil, object: customHostVital, action: read, allow: false},
 
@@ -3643,6 +3645,14 @@ func TestAuthorizeCustomHostVitals(t *testing.T) {
 		{user: test.UserTeamObserverTeam1, object: customHostVital, action: write, allow: false},
 		{user: test.UserTeamTechnicianTeam1, object: customHostVital, action: read, allow: true},
 		{user: test.UserTeamTechnicianTeam1, object: customHostVital, action: write, allow: false},
+
+		// Setting a host's value is scoped by the host's fleet.
+		{user: test.UserAdmin, object: hostVitalValueTeam1, action: write, allow: true},
+		{user: test.UserTeamAdminTeam1, object: hostVitalValueTeam1, action: write, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: hostVitalValueTeam1, action: write, allow: true},
+		{user: test.UserTeamTechnicianTeam1, object: hostVitalValueTeam1, action: write, allow: false},
+		{user: test.UserTeamAdminTeam2, object: hostVitalValueTeam1, action: write, allow: false},
+		{user: test.UserTeamAdminTeam1, object: hostVitalValueNoTeam, action: write, allow: false},
 	})
 }
 
