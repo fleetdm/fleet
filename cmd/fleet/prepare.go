@@ -107,12 +107,12 @@ To setup Fleet infrastructure, use one of the available commands.
 func printUnknownMigrationsMessage(versions []int64) {
 	explanation := "#   Your Fleet database has unrecognized migrations. This could happen when\n" +
 		"#   running an older version of Fleet on a newer migrated database.\n"
-	// Migrations newer than the baseline also come from 4.95.x patches, which
-	// can be released after the Fleet 5 version an admin upgrades to.
+	// Migrations newer than the baseline also come from Fleet 4 releases after
+	// 4.95.0, which can be released after the Fleet 5 version an admin upgrades to.
 	if len(versions) > 0 && slices.Min(versions) > tables.Fleet5BaselineVersion {
 		explanation = "#   Your Fleet database has migrations from a newer Fleet release, such as a\n" +
-			"#   newer Fleet 5 release or a Fleet 4.95.x patch released after this version.\n" +
-			"#   Upgrade to the latest Fleet 5 release.\n"
+			"#   newer Fleet 5 release or a Fleet 4 release after 4.95.0 (4.95.1, 4.96.0,\n" +
+			"#   etc.). Upgrade to the latest Fleet 5 release.\n"
 	}
 	fmt.Printf("################################################################################\n"+
 		"# WARNING:\n"+
