@@ -27,10 +27,6 @@ function Get-RtoolsEntries {
     Get-RtoolsKeys | ForEach-Object { "$($_.PSChildName)|$($_.DisplayVersion)|$($_.InstallLocation)" }
 }
 
-function Test-RtoolsRegistered {
-    $null -ne (Get-RtoolsKeys | Select-Object -First 1)
-}
-
 function Stop-ProcessTree($processId) {
     Get-CimInstance Win32_Process -Filter "ParentProcessId=$processId" -ErrorAction SilentlyContinue |
         ForEach-Object { Stop-ProcessTree $_.ProcessId }
@@ -60,7 +56,8 @@ foreach ($key in @(Get-RtoolsKeys | Where-Object { $_.InstallLocation -and $_.In
   } elseif ($uninstallCommand -match '(?i)^\s*(.+?\.exe)') {
     $uninstaller = $Matches[1]
   } else {
-    continue
+    Write-Host "Couldn't read the uninstall command for $($key.DisplayName) in $installDir; not removing it."
+    Exit 1
   }
   Write-Host "Removing $($key.DisplayName) from $installDir before installing."
   $uninstall = Start-Process -FilePath $uninstaller -ArgumentList $installArgs -PassThru
@@ -133,13 +130,13 @@ Write-Host "Install exit code: $exitCode after $elapsed seconds"
 
 # The parent can exit while a descendant is still writing the ARP entry.
 $settle = 0
-while (-not (Test-RtoolsRegistered) -and ($settle -lt 90)) {
+while (-not (Test-RtoolsRegisteredByThisInstall) -and ($settle -lt 90)) {
   Start-Sleep -Seconds $pollSeconds
   $settle += $pollSeconds
   Write-Host "Waiting for Rtools to register... ($settle seconds)"
 }
 
-if (-not (Test-RtoolsRegistered)) {
+if (-not (Test-RtoolsRegisteredByThisInstall)) {
   Write-Host "Rtools did not register in Add/Remove Programs."
   Exit 1
 }
