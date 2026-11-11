@@ -7,10 +7,10 @@
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Notesnook %' AND publisher = 'Streetwriters' AND version_compare(version, '3.4.13') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'notesnook.exe');"
       },
-      "installer_url": "https://github.com/streetwriters/notesnook/releases/download/v3.4.13/notesnook_win_x64_portable.exe",
+      "installer_url": "https://github.com/streetwriters/notesnook/releases/download/v3.4.13/notesnook_win_x64.exe",
       "install_script_ref": "fae91a29",
       "uninstall_script_ref": "83cee2d6",
-      "sha256": "3564c6026ac102915b4c80c36d89569b54c857887ba8d5fbccce7bc372a39319",
+      "sha256": "b813b2f632b1a3c8ca441cc51c295199c0ae6f178b3bb84f56452c712e9e057d",
       "default_categories": [
         "Productivity"
       ]
