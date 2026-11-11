@@ -7803,7 +7803,7 @@
       "name": "ShareFile",
       "slug": "sharefile/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.citrixfiles.ens.service",
+      "unique_identifier": "com.sharefile.desktop.widget",
       "description": "ShareFile is a client for the Progress ShareFile storage service."
     },
     {
