@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.1.4",
+      "version": "6.1.7",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.bitwig.studio';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bitwig.studio' AND version_compare(bundle_short_version, '6.1.4') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bitwig.studio' AND version_compare(bundle_short_version, '6.1.7') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.bitwig.studio' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://www.bitwig.com/dl/Bitwig%20Studio/6.1.4/installer_mac",
+      "installer_url": "https://www.bitwig.com/dl/Bitwig%20Studio/6.1.7/installer_mac",
       "install_script_ref": "7be45e4f",
       "uninstall_script_ref": "fe9d57bd",
-      "sha256": "ab8d7d607cef75d4e341141c78c74717d181a2cab09e2f210883b3c47b251b9e",
+      "sha256": "a02c24432010b64ab2408e5798dc5ec4c38a8f32ddb0859a1e2d808831dbda00",
       "default_categories": [
         "Productivity"
       ]
