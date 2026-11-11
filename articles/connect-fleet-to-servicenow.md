@@ -43,7 +43,7 @@ Fleet writes every record through ServiceNow's [Identification and Reconciliatio
 Before you connect Fleet, a ServiceNow admin should complete these steps. Field and table names in this guide are ServiceNow defaults. If your instance uses different names, map Fleet's data to your fields instead.
 
 1. **Create a discovery source** named `Fleet` (the `discovery_source` choice list on `cmdb_ci`).
-2. **Confirm the identification rule for computers** includes `serial_number`. Fleet uses serial number as the primary match and hardware UUID as the fallback.
+2. **Confirm the identification rule for computers** includes `serial_number`. Fleet uses serial number as the primary match. The fallback is hardware UUID, or enrollment ID on personal (BYOD) iPhones, iPads, and Android hosts.
 3. **Add a custom field** on `cmdb_ci_computer`: `u_fleet_host_id` (Fleet's host ID, used to link back to the host in Fleet).
 4. **Add custom fields** on the software installation table (`cmdb_sam_sw_install`): `u_bundle_identifier` and `u_apple_team_id`.
 5. **Store your IdP's user ID on `sys_user`**, for example the Okta user ID, if it isn't there already. Fleet matches end users by this ID first.
@@ -70,7 +70,7 @@ To switch over:
 
 ## Computers
 
-Fleet writes one `cmdb_ci_computer` record per host, using data from the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) API endpoint. Fleet matches each host to an existing computer by serial number first, then by hardware UUID. Blank or placeholder serial numbers (common on virtual machines) aren't used for matching.
+Fleet writes one `cmdb_ci_computer` record per host, including iOS, iPadOS, and Android hosts, using data from the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) API endpoint. Fleet matches each host to an existing computer by serial number first, then by hardware UUID. Personal (BYOD) iPhones, iPads, and Android hosts have no serial number, so Fleet matches them by enrollment ID. Blank or placeholder serial numbers (common on virtual machines) aren't used for matching.
 
 See every field in the [field mapping reference](#field-mapping-reference).
 
@@ -125,14 +125,13 @@ Learn which software Fleet collects on each platform in the [software inventory 
 - **Deleted hosts:** When a host is deleted from Fleet, Fleet stops updating its CI but doesn't delete it, so your audit history stays intact. Use your normal CMDB process to retire it.
 - **Removed software:** When software is no longer installed, Fleet sets the installation record's `active` field to `false` instead of deleting it.
 
-<!-- TODO(product): Decide whether iOS, iPadOS, and Android hosts are in scope, and which CI class they use (e.g. cmdb_ci_comm / mobile devices). Android BYOD hosts have no serial number to match on. -->
 
 ## Field mapping reference
 
 | Section | Fleet field (API) | ServiceNow field | Role or match | Notes | Availability |
 | --- | --- | --- | --- | --- | --- |
 | Computers | `hardware_serial` | `serial_number` | Primary identifier | Blank or placeholder serials (virtual machines, some Linux hosts) aren't used for matching. | Coming soon (5.2.0) |
-| Computers | `uuid` | `correlation_id` | Secondary identifier | Used when the serial number is missing. | Coming soon (5.2.0) |
+| Computers | `uuid` | `correlation_id` | Secondary identifier | Used when the serial number is missing. On personal (BYOD) iPhones, iPads, and Android hosts, this is the enrollment ID. | Coming soon (5.2.0) |
 | Computers | `id` | `u_fleet_host_id` (custom) | Reference | Fleet host ID, used to link back to the host in Fleet. | Coming soon (5.2.0) |
 | Computers | `computer_name` | `name` | Attribute | | Coming soon (5.2.0) |
 | Computers | `hostname` | `host_name` / `fqdn` | Attribute | | Coming soon (5.2.0) |
