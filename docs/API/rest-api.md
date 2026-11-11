@@ -3669,6 +3669,8 @@ If `munki_issue_id` is specified, an additional top-level key `munki_issue` is r
 
 If `after` is being used with `created_at` or `updated_at`, the table must be specified in `order_key`. Those columns become `h.created_at` and `h.updated_at`.
 
+If `order_key` is `os_version`, hosts are sorted by operating system name, then version, and `after` takes both together (for example, `macOS 15.2`), not the `os_version` value alone.
+
 If `include_device_status` is set to `true`, `device_status` and `pending_action` are included in the MDM information for each host. `device_status` indicates the current lock/wipe/reset state of the device with possible values: `unlocked`, `locked`, `locking`, `unlocking`, `wiped`, `wiping`, `reset`, `resetting`. `pending_action` indicates if a lock, unlock, wipe, or reset command is pending with possible values: `lock`, `unlock`, `wipe`, `reset`, or an empty string (no pending action).
 
 To filter hosts by platform (macOS, Windows, Linux), use the ["List label's hosts" API endpoint](https://fleetdm.com/docs/rest-api/rest-api#list-labels-hosts). Find the label ID by filtering in the **Hosts** page of the Fleet UI and copying the ID from the URL (for example: `7` for `/hosts/manage/labels/7`).
