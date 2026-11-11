@@ -1,6 +1,6 @@
 module github.com/fleetdm/fleet/v4
 
-go 1.27.3
+go 1.27.4
 
 require (
 	cloud.google.com/go/auth v0.18.2
@@ -64,7 +64,7 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-git/go-git/v5 v5.19.2
 	github.com/go-ini/ini v1.67.0
-	github.com/go-jose/go-jose/v3 v3.0.5
+	github.com/go-jose/go-jose/v4 v4.1.8
 	github.com/go-kit/kit v0.12.0
 	github.com/go-ole/go-ole v1.3.1-0.20250305162226-6867ec158e36
 	github.com/go-sql-driver/mysql v1.9.3
@@ -102,7 +102,7 @@ require (
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/micromdm/micromdm v1.9.0
 	github.com/micromdm/nanolib v0.2.0
-	github.com/micromdm/plist v0.3.0
+	github.com/micromdm/plist v0.4.0
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/mitchellh/gon v0.2.6-0.20231031204852-2d4f161ccecd
 	github.com/mna/redisc v1.3.2
@@ -283,6 +283,7 @@ require (
 	github.com/garyburd/go-oauth v0.0.0-20180319155456-bca2e7f09a17 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.9.0 // indirect
+	github.com/go-jose/go-jose/v3 v3.0.5 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect

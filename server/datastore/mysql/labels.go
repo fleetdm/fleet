@@ -333,11 +333,10 @@ DELETE FROM label_membership WHERE label_id = ?
 					}
 				}
 
-				hostsFilterClause := `(hostname IN (?) OR hardware_serial IN (?) OR uuid IN (?) OR id IN (?))`
+				hostsFilterClause := `(hardware_serial IN (?) OR uuid IN (?) OR id IN (?))`
 
 				if s.TeamID != nil {
 					// Team labels can only be applied to hosts on that team.
-					hostnames := stringIdents
 					serialNumbers := stringIdents
 					uuids := stringIdents
 					hostIDs := intIdents
@@ -345,7 +344,6 @@ DELETE FROM label_membership WHERE label_id = ?
 						*s.TeamID,
 						hostsFilterClause,
 						[]any{
-							hostnames,
 							serialNumbers,
 							uuids,
 							hostIDs,
@@ -361,7 +359,7 @@ DELETE FROM label_membership WHERE label_id = ?
 					`INSERT IGNORE INTO label_membership (label_id, host_id) (SELECT DISTINCT ?, id FROM hosts WHERE %s)`,
 					hostsFilterClause,
 				)
-				sql, args, err := sqlx.In(sql, labelID, stringIdents, stringIdents, stringIdents, intIdents)
+				sql, args, err := sqlx.In(sql, labelID, stringIdents, stringIdents, intIdents)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "build membership IN statement")
 				}
@@ -981,32 +979,21 @@ func applyLabelTeamFilter(query string, filter fleet.TeamFilter, initialParams .
 	return maybeIn(query)
 }
 
-// platformsForHost returns the label platform values that match the given
-// host. A host matches labels with its specific platform (with rhel hosts
-// running CentOS matching "centos"), and Linux hosts additionally match the
-// generic "linux" platform regardless of distribution.
-func platformsForHost(host *fleet.Host) []string {
-	specific := host.Platform
-	if host.Platform == "rhel" && strings.Contains(strings.ToLower(host.OSVersion), "centos") {
-		specific = "centos"
+// labelPlatformForHost returns the label platform value that matches a host platform. Linux
+// hosts match the generic "linux" platform regardless of distribution.
+func labelPlatformForHost(hostPlatform string) string {
+	if fleet.IsLinux(hostPlatform) {
+		return "linux"
 	}
-	if fleet.IsLinux(specific) && specific != "linux" {
-		return []string{specific, "linux"}
-	}
-	return []string{specific}
+	return hostPlatform
 }
 
 func (ds *Datastore) LabelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
-	platforms := platformsForHost(host)
 	query := `SELECT id, query FROM labels WHERE
-		(platform IN (?) OR platform = '') AND
+		(platform = ? OR platform = '') AND
 		label_membership_type = ? AND
 		(team_id IS NULL OR team_id = ?)`
-	query, args, err := sqlx.In(query, platforms, fleet.LabelMembershipTypeDynamic, host.TeamID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building label queries for host")
-	}
-	rows, err := ds.reader(ctx).QueryContext(ctx, query, args...)
+	rows, err := ds.reader(ctx).QueryContext(ctx, query, labelPlatformForHost(host.Platform), fleet.LabelMembershipTypeDynamic, host.TeamID)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, err, "selecting label queries for host")
 	}
@@ -1288,7 +1275,9 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
       COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
       h.last_restarted_at,
       h.timezone,
-      (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
+      hoi.version AS orbit_version,
+      hoi.desktop_version AS fleet_desktop_version,
+      (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name,` + hostOSSelect + `
       %s
       %s
 			%s
@@ -1297,6 +1286,7 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
     LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)` + hostMobileMDMSeenTimeJoin + `
     LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN host_disks hd ON (h.id=hd.host_id)
+    LEFT JOIN host_orbit_info hoi ON (h.id = hoi.host_id)` + hostOSJoin + `
     %s
     %s
 		%s
@@ -1345,6 +1335,9 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting label query executions")
 	}
+	for _, host := range hosts {
+		setHostAPIOS(host)
+	}
 	return hosts, nil
 }
 
@@ -1361,9 +1354,6 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 
 	if opt.ListOptions.OrderKey == "display_name" {
 		query += ` JOIN host_display_names hdn ON h.id = hdn.host_id `
-	}
-	if opt.ListOptions.OrderKey == "agent" {
-		query += ` LEFT JOIN host_orbit_info hoi ON hoi.host_id = h.id `
 	}
 
 	softwareStatusJoin := ""
@@ -1484,6 +1474,7 @@ func (ds *Datastore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFil
     JOIN hosts h ON (lm.host_id = h.id)
 	LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)` + hostMobileMDMSeenTimeJoin + `
 	LEFT JOIN host_disks hd ON (h.id=hd.host_id)
+	LEFT JOIN host_orbit_info hoi ON (h.id = hoi.host_id)
  	`
 
 	query += hostMDMJoin

@@ -17,10 +17,7 @@ import {
   IMdmProfile,
   MdmEnrollmentFilterValue,
 } from "interfaces/mdm";
-import {
-  formatOperatingSystemDisplayName,
-  IOperatingSystemVersion,
-} from "interfaces/operating_system";
+import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { IPolicy } from "interfaces/policy";
 import {
   formatSoftwareVersion,
@@ -67,7 +64,6 @@ interface IHostsFilterBlockProps {
     policyId?: string | number;
     policy?: IPolicy;
     macSettingsStatus?: MacSettingsStatusQueryParam;
-    softwareId?: number;
     softwareTitleId?: number;
     softwareVersionId?: number;
     mdmId?: number;
@@ -133,7 +129,6 @@ const HostsFilterBlock = ({
   params: {
     policyId,
     macSettingsStatus,
-    softwareId,
     softwareTitleId,
     softwareVersionId,
     mdmId,
@@ -275,18 +270,28 @@ const HostsFilterBlock = ({
       );
     }
 
-    if (!os) return null;
+    // Some name and version filters match hosts but no OS version entry:
+    // Arch-based distros the OS inventory groups under "Arch Linux", and saved
+    // links with a Windows name that starts with "Microsoft". Label from the URL.
+    const fallback =
+      osName && osVersion
+        ? {
+            name: `${osName} ${osVersion}`,
+            name_only: osName,
+            version: osVersion,
+          }
+        : undefined;
+    const match = os ?? fallback;
+    if (!match) return null;
 
-    const { name, name_only, version } = os;
-    // TODO: Move formatOperatingSystemDisplayName into utils file
-    const label = formatOperatingSystemDisplayName(
+    const { name, name_only, version } = match;
+    const label =
       name_only || version
         ? `${name_only || ""} ${version || ""}`
-        : `${name || ""}`
-    );
+        : `${name || ""}`;
     const TooltipDescription = (
       <span>
-        Hosts with {formatOperatingSystemDisplayName(name_only || name)},
+        Hosts with {name_only || name},
         <br />
         {version && `${version} installed`}
       </span>
@@ -362,11 +367,7 @@ const HostsFilterBlock = ({
       label += ` ${formatSoftwareVersion({ ...softwareDetails, version })}`;
     }
 
-    const clearParams = [
-      "software_id",
-      "software_version_id",
-      "software_title_id",
-    ];
+    const clearParams = ["software_version_id", "software_title_id"];
 
     if (additionalClearParams?.length) {
       clearParams.push(...additionalClearParams);
@@ -684,7 +685,6 @@ const HostsFilterBlock = ({
     showSelectedLabel ||
     policyId ||
     macSettingsStatus ||
-    softwareId ||
     softwareTitleId ||
     softwareVersionId ||
     softwareStatus ||
@@ -760,7 +760,7 @@ const HostsFilterBlock = ({
           return renderMacSettingsStatusFilterBlock();
         case !!softwareStatus:
           return renderSoftwareInstallStatusBlock();
-        case !!softwareId || !!softwareVersionId || !!softwareTitleId:
+        case !!softwareVersionId || !!softwareTitleId:
           // Software version can be combined with os name and os version
           // e.g. Kernel version 6.8.0-71.71 (software version) on Ubuntu 24.04.2LTS (os name and os version)
           // Note: This is our only double filter available in the UI, are there others?

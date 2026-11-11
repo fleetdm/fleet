@@ -36,17 +36,14 @@ var ToolRoutes = map[string][]Route{
 	"get_host": {
 		{"GET", "/api/v1/fleet/hosts"},
 		{"GET", "/api/v1/fleet/hosts/:id"},
-		{"GET", "/api/v1/fleet/hosts/identifier/:identifier"},
 	},
 	"get_host_policies": {
 		{"GET", "/api/v1/fleet/hosts"},
 		{"GET", "/api/v1/fleet/hosts/:id"},
-		{"GET", "/api/v1/fleet/hosts/identifier/:identifier"},
 	},
 	"get_host_users": {
 		{"GET", "/api/v1/fleet/hosts"},
 		{"GET", "/api/v1/fleet/hosts/:id"},
-		{"GET", "/api/v1/fleet/hosts/identifier/:identifier"},
 	},
 	"get_labels":         {{"GET", "/api/v1/fleet/labels"}},
 	"get_osquery_schema": {},
@@ -75,7 +72,6 @@ var ToolRoutes = map[string][]Route{
 		{"GET", "/api/v1/fleet/hosts"},
 		{"GET", "/api/v1/fleet/hosts/:id"},
 		{"GET", "/api/v1/fleet/hosts/:id/software"},
-		{"GET", "/api/v1/fleet/hosts/identifier/:identifier"},
 		{"GET", "/api/v1/fleet/software/titles"},
 	},
 	"get_total_system_count": {{"GET", "/api/v1/fleet/hosts/count"}},
@@ -96,7 +92,6 @@ var ToolRoutes = map[string][]Route{
 		{"GET", "/api/v1/fleet/fleets"},
 		{"GET", "/api/v1/fleet/hosts"},
 		{"GET", "/api/v1/fleet/hosts/:id"},
-		{"GET", "/api/v1/fleet/hosts/identifier/:identifier"},
 		{"GET", "/api/v1/fleet/labels"},
 		{"GET", "/api/v1/fleet/labels/:id/hosts"},
 		{"GET", "/api/v1/fleet/software/titles"},
@@ -106,7 +101,6 @@ var ToolRoutes = map[string][]Route{
 		{"GET", "/api/v1/fleet/fleets"},
 		{"GET", "/api/v1/fleet/hosts"},
 		{"GET", "/api/v1/fleet/hosts/:id"},
-		{"GET", "/api/v1/fleet/hosts/identifier/:identifier"},
 		{"GET", "/api/v1/fleet/labels"},
 		{"GET", "/api/v1/fleet/labels/:id/hosts"},
 		{"GET", "/api/v1/fleet/software/titles"},
@@ -191,8 +185,9 @@ func pathSegment(name, value string) (string, error) {
 // identifiers callers pass in the path or query string.
 func routeForLog(endpoint string) string {
 	path, _, _ := strings.Cut(endpoint, "?")
-	if prefix := "/api/v1/fleet/hosts/identifier/"; strings.HasPrefix(path, prefix) {
-		return prefix + ":identifier"
+	// GET /hosts/:id also takes a hostname, UUID, or serial. /hosts/count is the only other single segment route the tools call.
+	if rest, ok := strings.CutPrefix(path, "/api/v1/fleet/hosts/"); ok && rest != "count" && !strings.Contains(rest, "/") {
+		return "/api/v1/fleet/hosts/:id"
 	}
 	return path
 }

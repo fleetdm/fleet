@@ -18,15 +18,6 @@ export default PropTypes.shape({
   vulnerabilities: PropTypes.arrayOf(vulnerabilityInterface),
 });
 
-export interface ISoftwareResponse {
-  counts_updated_at: string;
-  software: ISoftware[];
-}
-
-export interface ISoftwareCountResponse {
-  count: number;
-}
-
 export interface IGetSoftwareByIdResponse {
   software: ISoftware;
 }

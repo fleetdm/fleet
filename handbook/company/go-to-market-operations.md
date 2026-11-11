@@ -490,6 +490,7 @@ The goal of a slide deck is not necessarily to walk every customer through it.  
 - [Leave behind (PDF)](https://fleetdm.com/pdfs/fleet-ai-device-management-patching-and-governance-for-every-os.pdf)
 - [Fleet Fast Track (PDF)](https://fleetdm.com/pdfs/fleet-fast-track.pdf)
 - [Fleet for partners (PDF)](https://docs.google.com/presentation/d/1iNvn5EYnkklKxguYzrOh6ZNvZee53OqAlF3rc_Da_Us/edit?slide=id.g3871afd58d8_0_0#slide=id.g3871afd58d8_0_0)
+- [Zero touch, $0 (PDF)](https://drive.google.com/file/d/1Vm2e1JXxe1MNrxm08YSeikFuYgq2mnTC/view)
 
 
 ## Go-To-Market runbook
@@ -576,6 +577,13 @@ We track certain social posts from the [LinkedIn company page](https://www.linke
 1. Click `Setup` => `Object manager` => `Quote line item` => `Page layouts` => `Quote Line Item Layout` => `Edit Multi-Line Layout`
 2. Once here, arrange the available fields in the "Selected fields" column in the order you would like them to appear in SFDC and save.
 
+
+
+### Channel partner accounts
+
+Keep one Salesforce account per channel partner by default. Create a separate account only when a region or segment has a different billing address, because quotes fill in the billing address from the account.
+
+When a separate account is needed, name it with the partner name followed by a short region or segment marker in parentheses, like "CDW (.gov)" or "CDW (CA)".
 
 
 ### SFDC access

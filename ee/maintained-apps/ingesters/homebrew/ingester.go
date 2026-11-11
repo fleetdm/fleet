@@ -176,6 +176,13 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		// The patch policy generated below inherits this match.
 		out.Queries.Exists = fmt.Sprintf("SELECT 1 FROM apps WHERE %s;", chatGPTBundleMatch(""))
 	}
+	if input.Token == "syncovery" {
+		// Syncovery.app/Contents/MacOS/BackgroundScheduler.app shares the app's
+		// bundle identifier but has its own version ("9"), which always sorts below
+		// the cask version. Count only top-level bundles, as software inventory
+		// does. The patch policy generated below inherits this filter.
+		out.Queries.Exists = fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND path NOT LIKE '%%.app/Contents/%%';", out.UniqueIdentifier)
+	}
 	out.Slug = input.Slug
 	out.DefaultCategories = input.DefaultCategories
 
@@ -235,6 +242,7 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 	out.InstallScriptRef = maintained_apps.GetScriptRef(out.InstallScript)
 	out.Frozen = input.Frozen
 
+	caskVersion := out.Version
 	external_refs.EnrichManifest(out)
 
 	// create patch policy
@@ -372,10 +380,12 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		// "5.28.4" for Malwarebytes' "5.28.4.4244", "6.3" for Disk Drill's "6.3.2326"),
 		// which version_compare sorts below the cask version even for x.y.0 releases.
 		// Axure RP has no short version, and GoToMeeting's and MacVim's is a marketing
-		// version the cask doesn't track.
+		// version the cask doesn't track. Compare against caskVersion: a shortener in
+		// external_refs may have cut out.Version down to the short version inventory
+		// reports, which would let builds within the same short version pass.
 		out.Queries.Patched = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
-			out.UniqueIdentifier, out.Version,
+			out.UniqueIdentifier, caskVersion,
 		)
 	case "tableau", "tableau-prep":
 		// Each Tableau release installs as its own versioned .app (e.g. "Tableau
@@ -418,6 +428,15 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		out.Queries.Patched = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier GLOB 'com.mindjet.mindmanager.[0-9][0-9]' AND version_compare(bundle_short_version, '%s') < 0);",
 			out.Version,
+		)
+	}
+	if input.Token == "elgato-wave-link" {
+		// Wave Link 2 (com.elgato.WaveLink) installs to the same path, so the install
+		// replaces it. Flag it as outdated only there, and only on macOS 15+, which
+		// Wave Link 3 requires; a copy anywhere else would keep failing the policy.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE (bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0) OR (bundle_identifier = '%s' AND path = '%s' AND (SELECT major FROM os_version) >= 15));",
+			out.UniqueIdentifier, out.Version, waveLink2BundleID, waveLinkAppPath,
 		)
 	}
 	if input.Token == "xquartz" {
@@ -487,6 +506,12 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		// Match every major's bundle ID, like the patched query, so a running older major
 		// defers patching too.
 		out.Queries.Open = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier GLOB 'com.mindjet.mindmanager.[0-9][0-9]' AND a.bundle_executable != '');"
+	case "elgato-wave-link":
+		// A running Wave Link 2 defers patching too, since the patched query flags it.
+		out.Queries.Open = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier IN ('%s', '%s') AND a.bundle_executable != '');",
+			out.UniqueIdentifier, waveLink2BundleID,
+		)
 	case "xquartz":
 		// The X11 launcher execs X11.sh, which execs the X server, X11.bin.
 		out.Queries.Open = fmt.Sprintf(
@@ -530,6 +555,12 @@ var qgisPathFilters = map[string]string{
 	"qgis":     "path LIKE '/Applications/QGIS-final-%.app'",
 	"qgis@ltr": "path = '/Applications/QGIS-LTR.app'",
 }
+
+// Wave Link 2's bundle identifier, and the path both Wave Link 2 and 3 install to.
+const (
+	waveLink2BundleID = "com.elgato.WaveLink"
+	waveLinkAppPath   = "/Applications/Elgato Wave Link.app"
+)
 
 // chatGPTBundleMatch matches the ChatGPT app under both of its bundle identifiers.
 // OpenAI rebuilt ChatGPT on the Codex app, so current builds report com.openai.codex

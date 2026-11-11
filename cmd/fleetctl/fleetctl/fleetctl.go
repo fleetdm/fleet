@@ -37,7 +37,6 @@ func CreateApp(
 	app.Commands = []*cli.Command{
 		apiCommand(),
 		applyCommand(),
-		deleteCommand(),
 		setupCommand(),
 		loginCommand(),
 		logoutCommand(),
@@ -79,6 +78,7 @@ func CreateApp(
 		newCommand(),
 	}
 	registerRemovedCommands(app)
+	registerRemovedFlags(app)
 	return app
 }
 

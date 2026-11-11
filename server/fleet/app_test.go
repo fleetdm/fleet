@@ -3,12 +3,10 @@ package fleet
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"slices"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -448,7 +446,6 @@ func TestFeaturesCopy(t *testing.T) {
 		require.Equal(t, f.EnableHostUsers, clone.EnableHostUsers)
 		require.Equal(t, f.EnableSoftwareInventory, clone.EnableSoftwareInventory)
 		require.Nil(t, clone.AdditionalQueries)
-		require.Nil(t, clone.DetailQueryOverrides)
 	})
 
 	t.Run("copy AdditionalQueries", func(t *testing.T) {
@@ -460,25 +457,6 @@ func TestFeaturesCopy(t *testing.T) {
 		require.NotNil(t, clone.AdditionalQueries)
 		require.NotSame(t, f.AdditionalQueries, clone.AdditionalQueries)
 		require.Equal(t, *f.AdditionalQueries, *clone.AdditionalQueries)
-	})
-
-	t.Run("copy DetailQueryOverrides", func(t *testing.T) {
-		f := &Features{
-			DetailQueryOverrides: map[string]*string{
-				"foo": ptr.String("bar"),
-				"baz": nil,
-			},
-		}
-		clone := f.Copy()
-		require.NotNil(t, clone.DetailQueryOverrides)
-		require.NotEqual(t,
-			reflect.ValueOf(f.DetailQueryOverrides).Pointer(),
-			reflect.ValueOf(clone.DetailQueryOverrides).Pointer(),
-		)
-		// map values are pointers, check that they have been cloned
-		require.NotSame(t, f.DetailQueryOverrides["foo"], clone.DetailQueryOverrides["foo"])
-		// the map content itself is equal
-		require.Equal(t, f.DetailQueryOverrides, clone.DetailQueryOverrides)
 	})
 
 	t.Run("copy HistoricalData is independent", func(t *testing.T) {
