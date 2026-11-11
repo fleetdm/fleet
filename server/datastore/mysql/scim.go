@@ -1776,7 +1776,14 @@ func hostIDsWithoutScimUser(ctx context.Context, tx sqlx.ExtContext, hostIDs []u
 	if err := sqlx.SelectContext(ctx, tx, &linked, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select hosts with a scim user")
 	}
-	return slices.DeleteFunc(slices.Clone(hostIDs), func(id uint) bool { return slices.Contains(linked, id) }), nil
+	linkedSet := make(map[uint]struct{}, len(linked))
+	for _, id := range linked {
+		linkedSet[id] = struct{}{}
+	}
+	return slices.DeleteFunc(slices.Clone(hostIDs), func(id uint) bool {
+		_, ok := linkedSet[id]
+		return ok
+	}), nil
 }
 
 func triggerResendProfilesForIDPUserDeleted(ctx context.Context, tx sqlx.ExtContext, deletedScimUserID uint) ([]fleet.ActivityTypeResentCertificate, error) {

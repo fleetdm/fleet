@@ -1386,7 +1386,7 @@ func (s *integrationMDMTestSuite) TestRemovedFleetVariableSavedBeforeUpgrade() {
 	})
 	t.Cleanup(func() {
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(context.Background(), `DELETE FROM certificate_authorities WHERE name = ?`, ca.Name)
+			_, err := q.ExecContext(context.WithoutCancel(ctx), `DELETE FROM certificate_authorities WHERE name = ?`, ca.Name)
 			return err
 		})
 	})

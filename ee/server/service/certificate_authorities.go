@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net/url"
 	"regexp"
 	"slices"
@@ -302,6 +303,19 @@ func validateCAFleetVariables(field, where, value string, allowed []fleet.FleetV
 	for _, fleetVar := range fleetVars {
 		if !slices.Contains(allowed, fleet.FleetVarName(fleetVar)) {
 			return fleet.NewInvalidArgumentError(field, fmt.Sprintf("%sFLEET_VAR_%s is not allowed in %s", errPrefix, fleetVar, where))
+		}
+	}
+	return nil
+}
+
+// validateCARemovedFleetVariables rejects a Fleet variable that Fleet 5 removed in the given fields. The batch apply runs it on
+// unchanged CAs too: one saved before the upgrade that still uses the variable fails on delivery, so GitOps must not report it applied.
+func validateCARemovedFleetVariables(errPrefix string, fields map[string][]string) error {
+	for _, field := range slices.Sorted(maps.Keys(fields)) {
+		for _, value := range fields[field] {
+			if err := fleet.FindRemovedFleetVariable(variables.Find(value)...); err != nil {
+				return fleet.NewInvalidArgumentError(field, errPrefix+err.Error())
+			}
 		}
 	}
 	return nil
@@ -832,6 +846,13 @@ func (svc *Service) processDigiCertCAs(ctx context.Context, batchOps *fleet.Cert
 	}
 
 	for name, incoming := range incomingByName {
+		if err := validateCARemovedFleetVariables("certificate_authorities.digicert: ", map[string][]string{
+			"certificate_common_name":          {incoming.CertificateCommonName},
+			"certificate_seat_id":              {incoming.CertificateSeatID},
+			"certificate_user_principal_names": incoming.CertificateUserPrincipalNames,
+		}); err != nil {
+			return err
+		}
 		// check if incoming name matches existing
 		existing, ok := existingByName[name]
 		switch {
@@ -891,6 +912,13 @@ func (svc *Service) processEJBCACAs(ctx context.Context, batchOps *fleet.Certifi
 	// Note: caller is responsible for ensuring incoming list has no duplicates
 	for i := range incomingCAs {
 		incoming := &incomingCAs[i]
+		if err := validateCARemovedFleetVariables(errPrefix, map[string][]string{
+			"certificate_common_name":          {incoming.CertificateCommonName},
+			"username_template":                {incoming.UsernameTemplate},
+			"certificate_user_principal_names": incoming.CertificateUserPrincipalNames,
+		}); err != nil {
+			return err
+		}
 		existing, found := existingByName[caNameKey(incoming.Name)]
 		if found {
 			// An unchanged CA isn't validated, so a client certificate that expired after it was stored doesn't block the other changes.
