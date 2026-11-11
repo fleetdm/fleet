@@ -74,7 +74,7 @@ curl -X POST https://<your_fleet_server_url>/api/v1/fleet/software/web_apps \
 
 Fleet adds default install and uninstall scripts that use `winget` to install the app from the Microsoft Store. In the scripts, Fleet replaces `$MICROSOFT_STORE_ID` with the app's Microsoft Store ID and `$PACKAGE_ID` with its package family name. `$PACKAGE_ID` is empty for apps that aren't MSIX apps (see [Update Microsoft Store apps](#update-microsoft-store-apps)). To go back to the default scripts, delete the app and add it again.
 
-> If an app is also available as a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps) (e.g. OBS Studio), use the Fleet-maintained app. It installs for all users, and Fleet knows its version.
+> If an app is also available as a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps) (e.g. OBS Studio), use the Fleet-maintained app. It installs for all users, Fleet knows its version, and you can [patch it](https://fleetdm.com/guides/patching-end-user-experience).
 
 > Some Microsoft Store listings can't be installed by Fleet because Microsoft doesn't provide a package for them. This is common for games and for apps that are no longer available in the Microsoft Store.
 
@@ -270,7 +270,7 @@ Apps can be installed and uninstalled manually on each host's **Host details** p
 
 Fleet runs the install, post-install, and uninstall scripts as the user who's logged in to the host, because the Microsoft Store installs apps for each user. If no user is logged in, the install fails. Currently, other scripts and custom packages run as the system.
 
-If the end user already installed the app themselves, Fleet installs it again over the existing app, so you don't need to uninstall it first. The end user's app settings and data are kept.
+If the end user already installed the app themselves, Fleet installs it again over the existing app, so you don't need to uninstall it first. The same happens when you select **Reinstall**, which is how you update an app from Fleet. The end user's app settings and data are kept.
 
 If the app is open during a reinstall, Fleet closes it, installs the latest version, and opens it again. Apps with their own installer (MSI or EXE) are closed by their installer instead, and might not open again.
 
@@ -282,6 +282,28 @@ Before you deploy an app to many hosts, test it on a host with a standard (non-a
 - **Some installers aren't silent.** Some apps with their own installer show their own windows during install or uninstall, like a progress window or a confirmation dialog.
 - **Paid apps:** paid MSIX apps fail to install with a licensing error. Paid apps with their own installer install, and then show the publisher's license or trial screen when the end user opens them.
 - **Region:** the Microsoft Store uses the region set on the host (**Settings > Time & language > Language & region > Country or region**). If the app isn't available in that region, the install fails with a licensing error.
+
+#### Let end users install only the apps you allow
+
+To stop end users from installing apps from the Microsoft Store themselves, turn off the Microsoft Store app with the configuration profile below. Then add the apps you allow to self-service, so end users install them from **Fleet Desktop > My device**. Fleet can still install Microsoft Store apps, because turning off the Microsoft Store app doesn't affect `winget`.
+
+This profile is only supported on Windows Enterprise and Education.
+
+```xml
+<Replace>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/ADMX_WindowsStore/RemoveWindowsStore_2</LocURI>
+    </Target>
+    <Data><![CDATA[<enabled/>]]></Data>
+  </Item>
+</Replace>
+```
+
+> Microsoft's [documentation](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-admx-windowsstore#removewindowsstore_2) says access to the Microsoft Store is required to install app updates. Before you deploy this profile widely, check that installed apps still update automatically.
 
 > For apps with their own installer, the publisher provides some of the details the Microsoft Store uses, like whether the app installs for all users and what its error codes mean. These details can be wrong, so an error message like "already installed" might not match what happened.
 
