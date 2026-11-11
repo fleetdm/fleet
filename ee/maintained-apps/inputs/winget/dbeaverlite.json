@@ -3,6 +3,7 @@
   "slug": "dbeaverlite/windows",
   "package_identifier": "DBeaver.DBeaver.Lite",
   "unique_identifier": "DBeaverLite",
+  "open_process_names": ["dbeaver.exe"],
   "fuzzy_match_name": true,
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/dbeaverlite_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/dbeaverlite_uninstall.ps1",

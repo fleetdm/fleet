@@ -7279,7 +7279,14 @@
       "slug": "read-ai/darwin",
       "platform": "darwin",
       "unique_identifier": "com.readai.desktop",
-      "description": "Read AI is a meeting recorder, transcriber and summariser."
+      "description": "Read AI is a meeting recorder, transcriber, and summarizer."
+    },
+    {
+      "name": "Read AI",
+      "slug": "read-ai/windows",
+      "platform": "windows",
+      "unique_identifier": "Read AI",
+      "description": "Read AI is a meeting recorder, transcriber, and summarizer."
     },
     {
       "name": "Readest",
@@ -7999,7 +8006,7 @@
       "name": "Snagit",
       "slug": "snagit/windows",
       "platform": "windows",
-      "unique_identifier": "Snagit 2026",
+      "unique_identifier": "Snagit",
       "description": "Snagit is screen capture software."
     },
     {
@@ -8029,6 +8036,13 @@
       "platform": "darwin",
       "unique_identifier": "org.sonicvisualiser.SonicVisualiser",
       "description": "Sonic Visualiser is a visualisation, analysis, and annotation of music audio recordings."
+    },
+    {
+      "name": "SonicWall Global VPN Client",
+      "slug": "sonicwall-global-vpn-client/windows",
+      "platform": "windows",
+      "unique_identifier": "Global VPN Client",
+      "description": "SonicWall Global VPN Client is an IPsec VPN client for secure remote access to SonicWall-protected networks."
     },
     {
       "name": "SonicWall NetExtender",

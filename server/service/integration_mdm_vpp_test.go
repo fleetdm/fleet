@@ -333,7 +333,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 			http.StatusOK,
 			&respGetSetupExperience,
 			"platform", platform,
-			"team_id", fmt.Sprint(teamID),
+			"fleet_id", fmt.Sprint(teamID),
 		)
 		assert.ElementsMatch(t, getReturnedSetupExperienceAdamIDs(respGetSetupExperience.SoftwareTitles), expectedAdamIDs)
 	}
