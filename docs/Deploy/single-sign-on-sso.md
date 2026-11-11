@@ -289,7 +289,9 @@ Each IdP will have its own way of setting these SAML custom attributes, here are
 
 When SCIM is configured with your IdP, Fleet automatically deletes a user's Fleet account when the user is deleted or deactivated in the IdP.
 
-Fleet requires the `userName`, `email`, `givenName`, and `familyName` attributes to be mapped from your IdP for Fleet users. In Okta, are typically mapped from `userName`, `user.email`, `user.firstName`, and `user.lastName` respectively.
+To configure SCIM, follow the steps to connect your IdP to Fleet in the [foreign vitals guide](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts) (for example, [Okta](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts#step-2-connect-okta-to-fleet)). The same SCIM connection is used to map IdP users to hosts and to deprovision Fleet users.
+
+Fleet requires the `userName`, `email`, `givenName`, and `familyName` attributes to be mapped from your IdP for Fleet users. In Okta, these are typically mapped from `userName`, `user.email`, `user.firstName`, and `user.lastName` respectively.
 
 If the user is later reactivated in the IdP, Fleet will automatically recreate the account on the user’s next SSO login, as long as **Create user and sync permissions on login** in **Settings > Integrations > Authentication (SSO)** is enabled.
 
