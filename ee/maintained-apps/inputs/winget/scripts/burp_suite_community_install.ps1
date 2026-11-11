@@ -8,20 +8,8 @@ try {
     # outside the user's session, so it can't ask the app to close: stop it
     # first, along with anything else running from its install directory, such
     # as Burp's browser or the bundled Java runtime. Unsaved changes are lost.
-    $installDirs = @($installDir) + @(Get-ItemProperty -Path @(
-        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
-        'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
-    ) -ErrorAction SilentlyContinue | Where-Object {
-        $_.DisplayName -like "Burp Suite Community*" -and $_.Publisher -like "*PortSwigger*" -and $_.InstallLocation
-    } | ForEach-Object { $_.InstallLocation.Trim('"') })
-    # Only directories that hold Burp's launcher, so a bad InstallLocation can't
-    # match unrelated processes.
-    $installDirs = @($installDirs | Where-Object {
-        Test-Path -LiteralPath (Join-Path $_ "BurpSuiteCommunity.exe")
-    } | ForEach-Object { $_.TrimEnd('\') + '\' })
     $running = @(Get-Process -ErrorAction SilentlyContinue | Where-Object {
-        $path = $_.Path
-        $path -and ($installDirs | Where-Object { $path.StartsWith($_, [StringComparison]::OrdinalIgnoreCase) })
+        $_.Path -and $_.Path.StartsWith("$installDir\", [StringComparison]::OrdinalIgnoreCase)
     })
     foreach ($proc in $running) {
         Write-Host "Stopping $($proc.Name) (PID $($proc.Id)) before installing."
