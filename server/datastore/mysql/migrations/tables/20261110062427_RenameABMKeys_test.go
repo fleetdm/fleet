@@ -19,7 +19,7 @@ func TestUp_20261110062427(t *testing.T) {
 	}
 	oldKeys := []string{"apple_business_manager", "apple_bm_enabled_and_configured", "apple_bm_terms_expired", "apple_bm_default_team"}
 
-	t.Run("old keys", func(t *testing.T) {
+	t.Run("old keys are renamed to new keys", func(t *testing.T) {
 		db := applyUpToPrev(t)
 		// A value already under a new name loses to the old key.
 		execNoErr(t, db, `UPDATE app_config_json SET json_value = JSON_SET(json_value,
@@ -49,7 +49,7 @@ func TestUp_20261110062427(t *testing.T) {
 		}}, mdm["apple_business"])
 	})
 
-	t.Run("no old keys", func(t *testing.T) {
+	t.Run("missing old keys aren't created as new keys", func(t *testing.T) {
 		db := applyUpToPrev(t)
 		execNoErr(t, db, `UPDATE app_config_json SET json_value = JSON_REMOVE(json_value,
 			'$.mdm.apple_business_manager', '$.mdm.apple_bm_enabled_and_configured', '$.mdm.apple_bm_terms_expired',
