@@ -145,6 +145,26 @@ function Invoke-AsUser {
     }
 }
 
+function Get-AppDirProcesses {
+    param([string]$Dir)
+
+    @(Get-Process -ErrorAction SilentlyContinue |
+        Where-Object { $_.Path -and $_.Path.StartsWith("$Dir\", [System.StringComparison]::OrdinalIgnoreCase) })
+}
+
+function Stop-AppDirProcesses {
+    param([string]$Dir)
+
+    $running = @(Get-AppDirProcesses $Dir)
+    if ($running.Count -eq 0) { return }
+    Write-Host "  Stopping what's running from ${Dir}: $(($running | ForEach-Object { "$($_.Name) ($($_.Id))" }) -join ', ')"
+    $running | Stop-Process -Force -ErrorAction SilentlyContinue
+    for ($waited = 0; $waited -lt 10; $waited++) {
+        Start-Sleep -Seconds 1
+        if (@(Get-AppDirProcesses $Dir).Count -eq 0) { break }
+    }
+}
+
 # A user can write to their own profile, including swapping a folder for a link
 # elsewhere, so their folder is removed as them rather than as SYSTEM. cmd
 # expands %VAR% even inside quotes, so a path containing % is never passed to it.
@@ -166,6 +186,11 @@ function Remove-AppDir {
     }
     if (Test-Path -LiteralPath $Path) {
         Write-Host "  Could not remove $Path."
+        $holders = @(Get-AppDirProcesses $Path)
+        if ($holders.Count) {
+            $names = ($holders | ForEach-Object { "$($_.Name) ($($_.Id))" }) -join ', '
+            Write-Host "  It's held by $names, which won't stop. Restart the host, then run the uninstall again."
+        }
         return $false
     }
     return $true
@@ -250,9 +275,7 @@ try {
             # Anything running out of this install directory blocks removal. Matching on the
             # directory rather than a process name keeps another install of the same app,
             # in another user's profile, running.
-            Get-Process -ErrorAction SilentlyContinue |
-                Where-Object { $_.Path -and $_.Path.StartsWith("$installDir\", [System.StringComparison]::OrdinalIgnoreCase) } |
-                Stop-Process -Force -ErrorAction SilentlyContinue
+            Stop-AppDirProcesses $installDir
         }
 
         if (-not $hasUninstaller) {
@@ -308,15 +331,15 @@ try {
             Start-Sleep -Seconds 1
         }
 
-        # The uninstaller can't delete its own Update.exe, so let it exit before
-        # removing what's left.
+        # Update.exe can't delete itself, and the Fellow.exe --squirrel-uninstall it starts
+        # can outlive it (on Windows on ARM it has kept running for hours), holding the
+        # folder. Give them time to exit, then stop whatever is left.
         if ($isAppDir) {
             for ($waited = 0; $waited -lt 30; $waited++) {
-                $running = @(Get-Process -ErrorAction SilentlyContinue |
-                    Where-Object { $_.Path -and $_.Path.StartsWith("$installDir\", [System.StringComparison]::OrdinalIgnoreCase) })
-                if ($running.Count -eq 0) { break }
+                if (@(Get-AppDirProcesses $installDir).Count -eq 0) { break }
                 Start-Sleep -Seconds 1
             }
+            Stop-AppDirProcesses $installDir
         }
 
         if ($isAppDir -and (Test-Path -LiteralPath $installDir)) {

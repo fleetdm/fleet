@@ -24,6 +24,30 @@ try {
         [System.Security.Principal.SecurityIdentifier]).Value
     Write-Host "Installing Fellow for $userAccount."
 
+    # Setup replaces the user's Fellow folder, and while an earlier copy still runs out
+    # of it (on Windows on ARM a --squirrel-uninstall hook has kept running for hours),
+    # it fails behind an error dialog nobody sees until this script times out.
+    $profilePath = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\$sid" -ErrorAction SilentlyContinue).ProfileImagePath
+    if ($profilePath) {
+        $appDir = Join-Path $profilePath "AppData\Local\Fellow"
+        $running = @(Get-Process -ErrorAction SilentlyContinue |
+            Where-Object { $_.Path -and $_.Path.StartsWith("$appDir\", [System.StringComparison]::OrdinalIgnoreCase) })
+        if ($running.Count) {
+            Write-Host "Stopping what's running from ${appDir}: $(($running | ForEach-Object { "$($_.Name) ($($_.Id))" }) -join ', ')"
+            $running | Stop-Process -Force -ErrorAction SilentlyContinue
+            for ($waited = 0; $waited -lt 10; $waited++) {
+                Start-Sleep -Seconds 1
+                $running = @(Get-Process -ErrorAction SilentlyContinue |
+                    Where-Object { $_.Path -and $_.Path.StartsWith("$appDir\", [System.StringComparison]::OrdinalIgnoreCase) })
+                if ($running.Count -eq 0) { break }
+            }
+            if ($running.Count) {
+                $names = ($running | ForEach-Object { "$($_.Name) ($($_.Id))" }) -join ', '
+                Throw "$appDir is held by $names, which won't stop, so Setup can't replace it. Restart the host and try again."
+            }
+        }
+    }
+
     # Fleet's installer directory is not readable by that user, so stage a copy in
     # a new folder only SYSTEM and Administrators can write to.
     $security = New-Object System.Security.AccessControl.DirectorySecurity
