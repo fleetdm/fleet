@@ -15459,13 +15459,44 @@ For Fleet-maintained apps, software package objects include three additional fie
 
 For in-house iOS apps, the `software_package` field is populated with package information.
 
-For Apple App Store and Google Play apps, the `software_package` field is `null` and `app_store_apps` is populated with information from the store.
+For Apple App Store, Google Play, and Microsoft Store apps, the `software_package` field is `null` and `app_store_apps` is populated with information from the store.
 
-A software title can have more than one app store app on the same fleet for iOS, iPadOS, and Android. Each one is a *version* of the app, and the `app_store_apps` array lists all of them. Fleet always installs the latest version available in the Apple App Store or Google Play, so versions don't differ by the app version that's installed. Instead, each version carries its own settings: `name`, `self_service`, `categories`, labels (`labels_include_any`, `labels_exclude_any`, `labels_include_all`), automatic update settings, and managed app configuration.
+A software title can have more than one app store app on the same fleet for iOS, iPadOS, Android, and Windows. Each one is a *version* of the app, and the `app_store_apps` array lists all of them. Fleet always installs the latest version available in the Apple App Store or Google Play, so versions don't differ by the app version that's installed. Instead, each version carries its own settings: `name`, `self_service`, `categories`, labels (`labels_include_any`, `labels_exclude_any`, `labels_include_all`), automatic update settings, and managed app configuration.
 
 `app_store_app` is kept for backwards compatibility and contains the first-added version.
 
 For iOS, iPadOS, and Android apps, each version includes `configuration`, the version's managed app configuration. It's in XML format for iOS and iPadOS apps, and JSON format for Android apps.
+
+For Microsoft Store apps (`windows`), `version` is empty, because the Microsoft Store doesn't share version numbers for most apps and Fleet always installs the latest version available in the store. Each version also includes `install_script`, `uninstall_script`, `pre_install_query`, and `post_install_script`. For example:
+
+```json
+"app_store_apps": [
+  {
+    "id": 57,
+    "name": "Default version",
+    "app_store_id": "9PLM9XGG6VKS",
+    "platform": "windows",
+    "version": "",
+    "status": {
+      "installed": 13,
+      "pending": 0,
+      "failed": 2
+    },
+    "self_service": true,
+    "automatic_install_policies": null,
+    "labels_include_any": null,
+    "labels_exclude_any": null,
+    "labels_include_all": null,
+    "created_at": "2026-11-10T21:49:04.145909Z",
+    "categories": null,
+    "display_name": "",
+    "install_script": "# Installs a Microsoft Store app for the logged-in user...",
+    "uninstall_script": "# Uninstalls a Microsoft Store app for the logged-in user...",
+    "pre_install_query": "",
+    "post_install_script": ""
+  }
+]
+```
 
 If a host is in scope for more than one version, Fleet installs the one that was added first (the earliest `created_at`).
 
@@ -16143,7 +16174,9 @@ Returns the list of Apple App Store (VPP) apps that can be added to the specifie
 
 _Available in Fleet Premium._
 
-Add Apple App Store or Google Play store app. Apple apps must be added in Apple Business (AB) before adding them to Fleet.
+Add Apple App Store, Google Play, or Microsoft Store app. Apple apps must be added in Apple Business (AB) before adding them to Fleet.
+
+Microsoft Store apps are installed and uninstalled with scripts that Fleet runs as the logged-in user, so a user must be logged in to the Windows host. They aren't available in setup experience.
 
 You can add more than one version of the same app to a fleet. Fleet always installs the latest version available in the store, so versions don't differ by the app version that's installed. Instead, each version has its own `name`, `self_service`, `categories`, labels, automatic update settings, and managed app configuration. This lets you give different groups of hosts different settings (e.g. a different VPN configuration per IdP group) without creating a separate fleet.
 
@@ -16153,12 +16186,16 @@ You can add more than one version of the same app to a fleet. Fleet always insta
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| app_store_id   | string | body | **Required.** The ID of the Apple App Store app or Google Play app. |
+| app_store_id   | string | body | **Required.** The ID of the Apple App Store, Google Play, or Microsoft Store app. For Microsoft Store apps, this is the ID at the end of the app's Microsoft Store URL (e.g. `9PLM9XGG6VKS`). |
 | fleet_id       | integer | body | **Required**. The fleet ID. Adds app from the store to the specified fleet.  |
 | name | string | body | The version's name (e.g. `"Production"`). Must be unique for the software title on the fleet. |
-| platform | string | body | The platform of the app (`darwin`, `ios`, `ipados`, or `android`). Default is `darwin`. |
+| platform | string | body | The platform of the app (`darwin`, `ios`, `ipados`, `android`, or `windows`). Default is `darwin`. **Required** for Microsoft Store apps (`windows`). |
 | name | string | body | Admin-provided version name, unique per title per fleet. Defaults to `Default version` when omitted. Required if the title already has a version with the default name. |
-| self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, for Android in **Play Store** app in end user's work profile, and for iOS/iPadOS in [self-service web](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) app.  |
+| self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS, Windows, and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS and Windows shows up on **Fleet Desktop > My device** page, for Android in **Play Store** app in end user's work profile, and for iOS/iPadOS in [self-service web](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) app.  |
+| install_script | string | body | Script that Fleet runs to install the app. Only supported for Microsoft Store apps (`windows`). If not specified, Fleet runs the default install script. Fleet replaces `$MICROSOFT_STORE_ID` with the app's Microsoft Store ID and `$PACKAGE_ID` with its package family name (MSIX apps only). |
+| uninstall_script | string | body | Script that Fleet runs to uninstall the app. Only supported for Microsoft Store apps (`windows`). If not specified, Fleet runs the default uninstall script. Fleet replaces `$MICROSOFT_STORE_ID` with the app's Microsoft Store ID. |
+| pre_install_query | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. Only supported for Microsoft Store apps (`windows`). |
+| post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed. Only supported for Microsoft Store apps (`windows`). |
 | automatic_install | boolean | body | Specifies whether to create a policy that triggers a software install only on hosts missing the software. Only supported for `darwin`. |
 | categories | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**. |
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
@@ -16184,6 +16221,17 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
   "categories": ["Productivity"],
   "fleet_id": 2,
   "platform": "ipados",
+  "self_service": true
+}
+```
+
+##### Request body adding a Microsoft Store app
+
+```json
+{
+  "app_store_id": "9PLM9XGG6VKS",
+  "fleet_id": 2,
+  "platform": "windows",
   "self_service": true
 }
 ```
@@ -16229,7 +16277,7 @@ To add more than one version of the same app, call this endpoint once per versio
 
 _Available in Fleet Premium._
 
-Modify an Apple App Store (VPP) or a Google Play app's options.
+Modify an Apple App Store (VPP), Google Play, or Microsoft Store app's options.
 
 A software title can have more than one version of the same App Store app on a fleet. The `version_id` in the URL selects which version to update — the version's `name` is a mutable field, not its identifier.
 
@@ -16241,10 +16289,10 @@ A software title can have more than one version of the same App Store app on a f
 | ---- | ---- | -- | ----------- |
 | software_title_id | integer | path | **Required**. The ID of the software title. |
 | version_id | integer | path | **Required**. The ID of the App Store app version. This is the `id` of the app in the `app_store_apps` array returned by [Get software title](#get-software-title). |
-| fleet_id       | integer | body | **Required**. The fleet ID. Edits Apple App Store or Android Play store app from the specified fleet.  |
+| fleet_id       | integer | body | **Required**. The fleet ID. Edits Apple App Store, Google Play, or Microsoft Store app from the specified fleet.  |
 | name | string | body | The version's name (e.g. `"Production"`). Must be unique for the software title on the fleet. |
 | display_name    | string  | body | Optional override for the default `name`. |
-| self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, and for Android in **Play Store** app in end user's work profile.  |
+| self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS, Windows, and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS and Windows shows up on **Fleet Desktop > My device** page, and for Android in **Play Store** app in end user's work profile.  |
 | categories | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**. |
 | auto_update_enabled | boolean | body | Whether to enable automatic updates for iOS/iPadOS App Store (VPP) apps. |
 | auto_update_window_start | string | body | Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM. Required if `auto_update_enabled` is `true`. |
@@ -16253,6 +16301,10 @@ A software title can have more than one version of the same App Store app on a f
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
 | configuration | object | body | The version's managed app configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android. |
+| install_script | string | body | Script that Fleet runs to install the app. Only supported for Microsoft Store apps (`windows`). Fleet replaces `$MICROSOFT_STORE_ID` with the app's Microsoft Store ID and `$PACKAGE_ID` with its package family name (MSIX apps only). |
+| uninstall_script | string | body | Script that Fleet runs to uninstall the app. Only supported for Microsoft Store apps (`windows`). Fleet replaces `$MICROSOFT_STORE_ID` with the app's Microsoft Store ID. |
+| pre_install_query | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. Only supported for Microsoft Store apps (`windows`). |
+| post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed. Only supported for Microsoft Store apps (`windows`). |
 
 All settings are set per version, so updating one version doesn't change any other version of the same app.
 
@@ -16639,7 +16691,7 @@ _Available in Fleet Premium._
 
 `GET /api/v1/fleet/software/install/:install_uuid/results`
 
-Get the results of a Fleet-maintained app or custom package install. To get uninstall results, use the [List activities](#list-activities) and [Get script result](#get-script-result) API endpoints.
+Get the results of a Fleet-maintained app, custom package, or Microsoft Store app install. To get uninstall results, use the [List activities](#list-activities) and [Get script result](#get-script-result) API endpoints.
 
 To get the results of an Apple App Store app install, use the [List MDM commands](#list-mdm-commands) and [Get MDM command results](#get-mdm-command-results) API endpoints. Fleet uses an MDM command to install Apple App Store apps.
 
@@ -16701,7 +16753,7 @@ Deletes one package from a software title. The software isn't uninstalled from h
 
 _Available in Fleet Premium._
 
-Deletes one Apple App Store (VPP) or Google Play app version from a software title. For Android hosts, the app is also uninstalled. For all other hosts, the app isn't uninstalled.
+Deletes one Apple App Store (VPP), Google Play, or Microsoft Store app version from a software title. For Android hosts, the app is also uninstalled. For all other hosts, the app isn't uninstalled.
 
 `DELETE /api/v1/fleet/software/titles/:software_title_id/app_store_apps/:version_id`
 

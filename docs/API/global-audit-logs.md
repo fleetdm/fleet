@@ -3421,7 +3421,7 @@ This activity contains the following fields:
 
 ### installed_software
 
-Generated when a Fleet-maintained app or custom package is installed on a host.
+Generated when a Fleet-maintained app, custom package, or Microsoft Store app is installed on a host.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
@@ -3519,7 +3519,7 @@ This activity contains the following fields:
 
 ### uninstalled_software
 
-Generated when a Fleet-maintained app or custom package is uninstalled on a host.
+Generated when a Fleet-maintained app, custom package, or Microsoft Store app is uninstalled on a host.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
@@ -3674,8 +3674,8 @@ Generated when an App Store app is added to Fleet.
 This activity contains the following fields:
 - "software_title": Name of the App Store app.
 - "software_title_id": ID of the added software title.
-- "app_store_id": ID of the app on the Apple App Store or Google Play.
-- "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
+- "app_store_id": ID of the app on the Apple App Store, Google Play, or Microsoft Store.
+- "platform": Platform of the app (`android`, `darwin`, `ios`, `ipados`, or `windows`).
 - "self_service": App installation can be initiated by device owner.
 - "fleet_name": Name of the fleet to which this App Store app was added, or `null` if it was added to no fleet.
 - "fleet_id": ID of the fleet to which this App Store app was added, or `null` if it was added to no fleet.
@@ -3721,8 +3721,8 @@ Generated when an App Store app is deleted from Fleet.
 
 This activity contains the following fields:
 - "software_title": Name of the App Store app.
-- "app_store_id": ID of the app on the Apple App Store or Google Play.
-- "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
+- "app_store_id": ID of the app on the Apple App Store, Google Play, or Microsoft Store.
+- "platform": Platform of the app (`android`, `darwin`, `ios`, `ipados`, or `windows`).
 - "fleet_name": Name of the fleet from which this App Store app was deleted, or `null` if it was deleted from no fleet.
 - "fleet_id": ID of the fleet from which this App Store app was deleted, or `null` if it was deleted from no fleet.
 - "labels_include_any": Target hosts that have any label in the array.
@@ -3804,8 +3804,8 @@ Generated when an App Store app is updated in Fleet.
 This activity contains the following fields:
 - "software_title": Name of the App Store app.
 - "software_title_id": ID of the updated app's software title.
-- "app_store_id": ID of the app on the Apple App Store or Google Play.
-- "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
+- "app_store_id": ID of the app on the Apple App Store, Google Play, or Microsoft Store.
+- "platform": Platform of the app (`android`, `darwin`, `ios`, `ipados`, or `windows`).
 - "self_service": App installation can be initiated by device owner.
 - "fleet_name": Name of the fleet on which this App Store app was updated, or `null` if it was updated on no fleet.
 - "fleet_id": ID of the fleet on which this App Store app was updated, or `null` if it was updated on no fleet.
