@@ -617,8 +617,8 @@ Any fleetie can follow the process below to add a priority label to an issue.
 1. Add as much context as possible to the issue description and assign labels to help the team
    understand the problem and what is driving the urgency. 
 2. Add the `P0`, `P1`, or `P2` label based on the urgency of the issue. 
-3. Comment on the GitHub issue explaining why the issue is a priority, and assign the issue to the [Engineering Manager for the associated product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups). For immediate action, follow up with the EM via Slack DM or by phone.
-4. The EM will review the issue to determine if it meets the criteria for the assigned priority label. If so, they will triage as needed based on priority level. If not, they will remove the priority label and add a comment on the issue explaining why.
+3. Comment on the GitHub issue explaining why the issue is a priority, and assign the issue to the [Engineering Manager for the associated product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups). If the issue is a feature request (`:product` label), assign it to the [Head of Product Design](https://fleetdm.com/handbook/product-design#team) instead, as described in [how feature requests are prioritized](https://fleetdm.com/handbook/company/product-groups#how-feature-requests-are-prioritized). For immediate action, follow up with the EM or Head of Product Design via Slack DM or by phone.
+4. The EM (or Head of Product Design, for feature requests) will review the issue to determine if it meets the criteria for the assigned priority label. If so, they will triage as needed based on priority level. If not, they will remove the priority label and add a comment on the issue explaining why.
 
 
 ### Notify stakeholders when a user story is pushed
