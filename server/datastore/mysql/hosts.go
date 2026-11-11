@@ -6997,9 +6997,13 @@ func (ds *Datastore) OSVersions(
 	if name != nil {
 		inventoryNames = fleet.InventoryOSNames(*name)
 	}
+	// Ignores case, like the os_name hosts filter (a SQL comparison on a case-insensitive column).
+	matchesName := func(nameOnly string) bool {
+		return slices.ContainsFunc(inventoryNames, func(n string) bool { return strings.EqualFold(n, nameOnly) })
+	}
 	var filtered []fleet.OSVersion
 	for _, os := range counts {
-		if (platform == nil || *platform == os.Platform || (*platform == "linux" && fleet.IsLinux(os.Platform))) && (name == nil || version == nil || (slices.Contains(inventoryNames, os.NameOnly) && *version == os.Version)) {
+		if (platform == nil || *platform == os.Platform || (*platform == "linux" && fleet.IsLinux(os.Platform))) && (name == nil || version == nil || (matchesName(os.NameOnly) && *version == os.Version)) {
 			filtered = append(filtered, os)
 		}
 	}

@@ -1537,12 +1537,13 @@ func (s *integrationTestSuite) TestOSVersions() {
 	require.Equal(t, "Windows 11 Pro 21H2 10.0.22000.2", osVersionsResp.OSVersions[0].Name)
 	require.Len(t, osVersionsResp.OSVersions[0].Vulnerabilities, 2)
 
-	// Windows names are stored with "Microsoft" but returned without it; filters accept both forms.
-	osVersionsResp = osVersionsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "os_name", "Microsoft Windows 11 Pro 21H2", "os_version", "10.0.22000.2")
-	require.Len(t, osVersionsResp.OSVersions, 1)
-	require.Equal(t, "Windows 11 Pro 21H2", osVersionsResp.OSVersions[0].NameOnly)
-	for _, name := range []string{"Windows 11 Pro 21H2", "Microsoft Windows 11 Pro 21H2"} {
+	// Windows names are stored with "Microsoft" but returned without it; filters accept both forms, in any case.
+	for _, name := range []string{"Windows 11 Pro 21H2", "Microsoft Windows 11 Pro 21H2", "windows 11 pro 21h2"} {
+		osVersionsResp = osVersionsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "os_name", name, "os_version", "10.0.22000.2")
+		require.Len(t, osVersionsResp.OSVersions, 1, name)
+		require.Equal(t, "Windows 11 Pro 21H2", osVersionsResp.OSVersions[0].NameOnly, name)
+
 		resp = listHostsResponse{}
 		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_name", name, "os_version", "10.0.22000.2")
 		require.Len(t, resp.Hosts, 4, name)
