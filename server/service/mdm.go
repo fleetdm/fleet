@@ -3288,14 +3288,14 @@ func fmtDuplicateNameErrMsg(name string) string {
 func (svc *Service) authorizeBatchProfiles(ctx context.Context, tmID *uint, tmName *string) (*uint, *string, error) {
 	if tmID != nil && tmName != nil {
 		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-		return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "cannot specify both team_id and team_name"))
+		return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("fleet_name", "cannot specify both fleet_id and fleet_name"))
 	}
 	if tmID != nil || tmName != nil {
 		license, _ := license.FromContext(ctx)
 		if !license.IsPremium() {
-			field := "team_id"
+			field := "fleet_id"
 			if tmName != nil {
-				field = "team_name"
+				field = "fleet_name"
 			}
 			svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
 			return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(field, ErrMissingLicense.Error()))
