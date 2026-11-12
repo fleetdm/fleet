@@ -6,7 +6,7 @@
 	<array>
 		<dict>
 			<key>PayloadDescription</key>
-			<string>Grants full disk access to orbit and orbit edge</string>
+			<string>Grants full disk access to fleetd (orbit and Fleet, stable and edge)</string>
 			<key>PayloadDisplayName</key>
 			<string>Privacy Preferences Policy Control</string>
 			<key>PayloadIdentifier</key>
@@ -51,12 +51,40 @@
 						<key>StaticCode</key>
 						<false/>
 					</dict>
+					<dict>
+						<key>Allowed</key>
+						<true/>
+						<key>CodeRequirement</key>
+						<string>identifier "com.fleetdm.orbit" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = "8VBZ3948LU"</string>
+						<key>Comment</key>
+						<string></string>
+						<key>Identifier</key>
+						<string>/opt/orbit/bin/orbit/macos/edge/Fleet</string>
+						<key>IdentifierType</key>
+						<string>path</string>
+						<key>StaticCode</key>
+						<false/>
+					</dict>
+					<dict>
+						<key>Allowed</key>
+						<true/>
+						<key>CodeRequirement</key>
+						<string>identifier "com.fleetdm.orbit" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = "8VBZ3948LU"</string>
+						<key>Comment</key>
+						<string></string>
+						<key>Identifier</key>
+						<string>/opt/orbit/bin/orbit/macos/stable/Fleet</string>
+						<key>IdentifierType</key>
+						<string>path</string>
+						<key>StaticCode</key>
+						<false/>
+					</dict>
 				</array>
 			</dict>
 		</dict>
 	</array>
 	<key>PayloadDescription</key>
-	<string>Grants full disk access to orbit and orbit edge</string>
+	<string>Grants full disk access to fleetd (orbit and Fleet, stable and edge)</string>
 	<key>PayloadDisplayName</key>
 	<string>Allow fleetd Full Disk Access</string>
 	<key>PayloadIdentifier</key>
