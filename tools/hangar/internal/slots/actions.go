@@ -114,13 +114,16 @@ func (s *Sequencer) before() error {
 	return s.Before()
 }
 
-func (s *Sequencer) start(id string, a processes.StartArgs) (processes.Invocation, error) {
+func (s *Sequencer) start(ctx context.Context, id string, a processes.StartArgs) (processes.Invocation, error) {
 	if err := s.before(); err != nil {
 		return processes.Invocation{}, err
 	}
 	a.Cwd, a.Owner = s.worktree(), s.Owner
 	if a.LogChannel == "" {
 		a.LogChannel = AgentChannel(s.Slot.ID)
+	}
+	if err := ctx.Err(); err != nil {
+		return processes.Invocation{}, err
 	}
 	inv, err := s.Runner.Start(id, a)
 	if err != nil {
@@ -132,7 +135,7 @@ func (s *Sequencer) start(id string, a processes.StartArgs) (processes.Invocatio
 
 // step runs one process to completion. Only its own exit code 0 succeeds.
 func (s *Sequencer) step(ctx context.Context, id string, a processes.StartArgs) error {
-	inv, err := s.start(id, a)
+	inv, err := s.start(ctx, id, a)
 	if err != nil {
 		return err
 	}
@@ -227,7 +230,7 @@ func (s *Sequencer) serve(ctx context.Context) error {
 		}
 	}
 
-	inv, err := s.start(id, processes.StartArgs{
+	inv, err := s.start(ctx, id, processes.StartArgs{
 		Label: ServeLabel(s.Slot), Program: "./build/fleet",
 		Args: ServeArgs(s.Slot), Env: ServeEnv(s.Slot), LogChannel: ServeChannel(s.Slot.ID),
 	})

@@ -325,6 +325,18 @@ func TestCancelStopsCurrentStep(t *testing.T) {
 	}
 }
 
+func TestCancelledContextStartsNothing(t *testing.T) {
+	h := newHarness(t)
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if _, err := h.s.Run(ctx, ActionBuild, ""); !errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v", err)
+	}
+	if got := h.r.Calls(); len(got) != 0 {
+		t.Fatalf("calls = %v", got)
+	}
+}
+
 func TestDockerUpDownsFirst(t *testing.T) {
 	h := newHarness(t)
 	if _, err := h.s.Run(t.Context(), ActionDockerUp, ""); err != nil {
