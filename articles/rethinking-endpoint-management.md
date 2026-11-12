@@ -42,7 +42,7 @@ or
 
 `SELECT name, pid FROM processes WHERE name = 'suspicious_binary';`
 
-**The Value for IT Leaders:** `osquery` provides universal, kernel-level visibility that is vendor-agnostic. It turns endpoint telemetry into structured data that your team already knows how to get and, if they don’t, Fleet makes it easy to upload pre-built queries from trusted [sources](https://hub.com/palantir/osquery-configuration/tree/master/Fleet/Endpoints) based on security standards like [CIS](https://fleetdm.com/guides/cis-benchmarks#basic-article) & the NIST Security Compliance Project. It eliminates the reliance on proprietary vendor dashboards for basic truths about your infrastructure.
+**The Value for IT Leaders:** `osquery` provides universal, kernel-level visibility that is vendor-agnostic. It turns endpoint telemetry into structured data that your team already knows how to get and, if they don’t, Fleet makes it easy to upload pre-built queries from trusted [sources](https://github.com/palantir/osquery-configuration/tree/master/Fleet/Endpoints) based on security standards like [CIS](https://fleetdm.com/guides/cis-benchmarks#basic-article) & the NIST Security Compliance Project. It eliminates the reliance on proprietary vendor dashboards for basic truths about your infrastructure.
 
 ## The orchestration layer
 

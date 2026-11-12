@@ -14,7 +14,7 @@ The MDM protocol is built into Apple's operating systems. It allows organization
   - Device-level configurations can lock a device used as a kiosk to a single app
   - iPads in classrooms can be assigned to multiple users
 
-3rd party management services make use of the Apple MDM protocol, leveraging the [Apple Push Notification Service](https://developer.apple.com/documentation/devicemanagement/implementing-device-management) (APNS) to deliver MDM commands and configuration profiles from an MDM server to managed devices. Using this approach means devices can theoretically be reached anywhere they are connected on the internet to receive management actions without needing to connect to virtual private networks (VPN) or restricted local networks.
+3rd party management services make use of the Apple MDM protocol, leveraging the [Apple Push Notification Service](https://developer.apple.com/documentation/devicemanagement/#Implementing-device-management) (APNS) to deliver MDM commands and configuration profiles from an MDM server to managed devices. Using this approach means devices can theoretically be reached anywhere they are connected on the internet to receive management actions without needing to connect to virtual private networks (VPN) or restricted local networks.
 
 ABM or ASM can be set up at no cost. After [proof of your organization's identity](https://support.apple.com/guide/apple-business-manager/program-requirements-axm6d9dc7acf/1/web/1) is satisfied, an ABM / ASM web portal unique to your organization can be integrated with one or many management services (MDM servers) to automate device enrollment and provision apps and books.
 

@@ -131,7 +131,7 @@ This guide covered how to install Okta Verify on your macOS hosts, issue a SCEP 
 
 For more detailed information on managing devices and using Okta Verify, explore the Okta documentation and Fleet’s guides to optimize your device management strategy further.
 
-See Fleet's [documentation](https://fleetdm.com/docs/using-fleet) and additional [guides](https://fleetdm.com/guides) for more details on advanced setups, software features, and vulnerability detection.
+See Fleet's [documentation](https://fleetdm.com/docs/) and additional [guides](https://fleetdm.com/guides) for more details on advanced setups, software features, and vulnerability detection.
 
 <meta name="articleTitle" value="Enable Okta Verify on macOS using configuration profile">
 <meta name="authorFullName" value="Roberto Dip">
