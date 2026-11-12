@@ -41,18 +41,28 @@ describe("getDetailGuidance", () => {
     expect(result).toBeNull();
   });
 
-  it("renders a learn more link for IdP email errors", () => {
+  it("links the guide in a Fleet 5 removed variable error", () => {
     const guidance = getDetailGuidance(
       createMockHostMdmProfile({
         status: "failed",
-        detail: "There is no IdP email for this host.",
+        detail:
+          'The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration The variable is used in the DigiCert certificate authority, not in the profile.',
       })
     );
 
     renderGuidance(guidance);
 
-    expect(screen.getByText(/Learn more/)).toBeInTheDocument();
-    expect(screen.getByText(/Learn more/).tagName.toLowerCase()).toBe("a");
+    expect(
+      screen.getByRole("link", {
+        name: /fleetdm.com\/learn-more-about\/fleet-5-migration/,
+      })
+    ).toHaveAttribute(
+      "href",
+      "https://fleetdm.com/learn-more-about/fleet-5-migration"
+    );
+    expect(
+      screen.getByText(/used in the DigiCert certificate authority/)
+    ).toBeInTheDocument();
     // The message quotes the detail, so the copyable block would repeat it.
     expect(guidance?.supersedesDetail).toBe(true);
   });
@@ -149,22 +159,76 @@ describe("getDetailGuidance", () => {
   });
 });
 
+// Every reason the Fleet Android app reports gets restated without SCEP, CSR, or key pair
+// jargon, since these messages also reach the end user's My device page.
 describe("getDetailGuidance for android certificates", () => {
-  it("returns null, leaving the reported text to stand alone", () => {
+  const failedCert = (detail: string) =>
+    createMockHostMdmProfile({
+      profile_uuid: FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
+      name: "BeyondCorp",
+      platform: "android",
+      operation_type: "install",
+      status: "failed",
+      certificate_template_id: 4,
+      detail,
+    });
+
+  it.each([
+    [
+      "Network error during SCEP enrollment: Failed to communicate with SCEP server",
+      "Fleet couldn't reach the certificate authority.",
+    ],
+    [
+      "SCEP enrollment failed: challenge rejected",
+      "The certificate authority rejected the request.",
+    ],
+    [
+      "Certificate validation failed: bad chain",
+      "The host couldn't validate the certificate from the certificate authority.",
+    ],
+    [
+      "Failed to generate key pair: keystore error",
+      "The host couldn't generate a private key.",
+    ],
+    [
+      "Failed to create CSR: bad subject",
+      "The host couldn't create a certificate signing request.",
+    ],
+    [
+      "Invalid configuration: missing subject name",
+      "The certificate configuration isn't valid.",
+    ],
+    [
+      "Certificate installation failed for alias 'BeyondCorp': installKeyPair returned false",
+      "The host couldn't install the certificate.",
+    ],
+  ])("restates %j in plain language", (detail, message) => {
+    const guidance = getDetailGuidance(failedCert(detail));
+
+    renderGuidance(guidance);
+
+    expect(screen.getByText(message)).toBeInTheDocument();
+    // The rewrite drops the app's diagnostic text, so the raw detail stays below it.
+    expect(guidance?.supersedesDetail).toBe(false);
+  });
+
+  it("returns null for an unrecognized failure, leaving the reported text to stand alone", () => {
     expect(
-      getDetailGuidance(
-        createMockHostMdmProfile({
-          profile_uuid: FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
-          name: "BeyondCorp",
-          platform: "android",
-          operation_type: "install",
-          status: "failed",
-          certificate_template_id: 4,
-          detail:
-            "Couldn't reach the certificate authority. Failed to communicate with SCEP server",
-        })
-      )
+      getDetailGuidance(failedCert("Unexpected error during enrollment: null"))
     ).toBeNull();
+  });
+
+  it.each([
+    "Couldn't reach the certificate authority. Failed to communicate with SCEP server",
+    "The certificate authority didn't issue the certificate. Check your certificate authority configuration. challenge rejected",
+    "Couldn't process the certificate. bad chain",
+    "Couldn't generate a private key for the certificate on the host. keystore error",
+    "Couldn't create the certificate signing request (CSR). bad subject",
+    "The certificate's configuration isn't valid. missing subject name",
+    'Couldn\'t install the "BeyondCorp" certificate on the host.',
+    "Something went wrong while getting the certificate. null",
+  ])("leaves %j from newer app versions to stand alone", (detail) => {
+    expect(getDetailGuidance(failedCert(detail))).toBeNull();
   });
 });
 

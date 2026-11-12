@@ -523,7 +523,7 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	// foo v0.0.1 is only installed on host2
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(fooV1ID))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_version_id", fmt.Sprint(fooV1ID))
 	require.Len(t, resp.Hosts, 1)
 	assert.Equal(t, host2.ID, resp.Hosts[0].ID)
 	assert.Equal(t, "foo", resp.Software.Name)
@@ -531,7 +531,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	assert.Nil(t, resp.SoftwareTitle)
 
 	var countResp countHostsResponse
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_id", fmt.Sprint(fooV1ID))
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_version_id", fmt.Sprint(fooV1ID))
 	require.Equal(t, 1, countResp.Count)
 
 	// foo v0.0.2 is installed on hosts 0 and 1
@@ -568,14 +568,31 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.Equal(t, 3, countResp.Count)
 
 	// verify invalid combinations of software filters
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, &resp, "software_title_id", fmt.Sprint(fooTitleID), "software_id", fmt.Sprint(fooV1ID))
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, &resp, "software_title_id", fmt.Sprint(fooTitleID), "software_version_id", fmt.Sprint(fooV1ID))
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, &resp, "software_id", fmt.Sprint(fooV1ID), "software_version_id", fmt.Sprint(fooV1ID))
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, &resp, "software_id", fmt.Sprint(fooV1ID), "software_version_id", fmt.Sprint(fooV1ID), "software_title_id", fmt.Sprint(fooTitleID))
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusBadRequest, &countResp, "software_title_id", fmt.Sprint(fooTitleID), "software_id", fmt.Sprint(fooV1ID))
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusBadRequest, &countResp, "software_title_id", fmt.Sprint(fooTitleID), "software_version_id", fmt.Sprint(fooV1ID))
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusBadRequest, &countResp, "software_id", fmt.Sprint(fooV1ID), "software_version_id", fmt.Sprint(fooV1ID))
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusBadRequest, &countResp, "software_id", fmt.Sprint(fooV1ID), "software_version_id", fmt.Sprint(fooV1ID), "software_title_id", fmt.Sprint(fooTitleID))
+
+	removedSoftwareIDMessage := `The "software_id" parameter is not available anymore. ` +
+		`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+	allHostsLabelIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"}, fleet.TeamFilter{})
+	require.NoError(t, err)
+	labelHostsPath := fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", allHostsLabelIDs["All Hosts"])
+	idParam := fmt.Sprint(fooV1ID)
+	getUnprocessableErrorText := func(path string, queryParams ...string) string {
+		res := s.DoRaw("GET", path, nil, http.StatusUnprocessableEntity, queryParams...)
+		return extractServerErrorText(res.Body)
+	}
+
+	// send software_id to each hosts endpoint, the request should be rejected with the Fleet 5 message
+	require.Contains(t, getUnprocessableErrorText("/api/latest/fleet/hosts", "software_id", idParam), removedSoftwareIDMessage)
+	require.Contains(t, getUnprocessableErrorText("/api/latest/fleet/hosts/count", "software_id", idParam), removedSoftwareIDMessage)
+	require.Contains(t, getUnprocessableErrorText("/api/latest/fleet/hosts/report", "software_id", idParam, "format", "csv"), removedSoftwareIDMessage)
+	require.Contains(t, getUnprocessableErrorText(labelHostsPath, "software_id", idParam), removedSoftwareIDMessage)
+
+	// send software_id with software_version_id to each hosts endpoint, the request should be rejected with the Fleet 5 message
+	require.Contains(t, getUnprocessableErrorText("/api/latest/fleet/hosts", "software_id", idParam, "software_version_id", idParam), removedSoftwareIDMessage)
+	require.Contains(t, getUnprocessableErrorText("/api/latest/fleet/hosts/count", "software_id", idParam, "software_version_id", idParam), removedSoftwareIDMessage)
+	require.Contains(t, getUnprocessableErrorText("/api/latest/fleet/hosts/report", "software_id", idParam, "software_version_id", idParam, "format", "csv"), removedSoftwareIDMessage)
+	require.Contains(t, getUnprocessableErrorText(labelHostsPath, "software_id", idParam, "software_version_id", idParam), removedSoftwareIDMessage)
 
 	user1 := test.NewUser(t, s.ds, "Alice", "alice@example.com", true)
 	q := test.NewQuery(t, s.ds, nil, "query1", "select 1", 0, true)
@@ -593,7 +610,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	)
 
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(fooV1ID))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_version_id", fmt.Sprint(fooV1ID))
 	require.Len(t, resp.Hosts, 1)
 	assert.Equal(t, uint64(1), resp.Hosts[0].HostIssues.FailingPoliciesCount)
 	assert.Equal(t, uint64(1), resp.Hosts[0].HostIssues.TotalIssuesCount)
@@ -714,11 +731,6 @@ func (s *integrationTestSuite) TestListHosts() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, &resp, "mdm_enrollment_status", "invalid-status")
 
 	// Filter by inexistent software.
-	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(9999))
-	require.Empty(t, resp.Hosts)
-	assert.Nil(t, resp.Software)
-
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_version_id", fmt.Sprint(9999))
 	require.Empty(t, resp.Hosts)
@@ -1046,7 +1058,6 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 	assert.Equal(t, "chrome_extensions", sw.Source)
 	assert.Equal(t, "test-extension-id", sw.ExtensionID)
 	assert.Equal(t, "chrome", sw.ExtensionFor)
-	assert.Equal(t, "chrome", sw.Browser) // backward compatibility field
 	assert.Equal(t, "com.google.Chrome", sw.BundleIdentifier)
 
 	// Verify installed_paths is populated and not empty
@@ -1190,8 +1201,11 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	}
 	require.ElementsMatch(t, wantPlatforms, gotPlatforms)
 	require.Nil(t, resp.TeamID)
-	require.Equal(t, uint(3), resp.AllLinuxCount)
 	assert.NotEmpty(t, resp.BuiltinLabels)
+	// the Linux total was removed; the "All Linux" label count replaces it
+	rawSummary, err := io.ReadAll(s.DoRaw("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK).Body)
+	require.NoError(t, err)
+	require.NotContains(t, string(rawSummary), "all_linux_count")
 	for _, lbl := range resp.BuiltinLabels {
 		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
 	}
@@ -1229,7 +1243,6 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team2.ID))
 	require.Equal(t, uint(0), resp.TotalsHostsCount)
 	require.Empty(t, resp.Platforms)
-	require.Equal(t, uint(0), resp.AllLinuxCount)
 	require.Equal(t, team2.ID, *resp.TeamID)
 
 	// team filter, one host, low_disk_count is ignored as not premium
@@ -1239,22 +1252,18 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	require.Len(t, resp.Platforms, 1)
 	require.Equal(t, "debian", resp.Platforms[0].Platform)
 	require.Equal(t, uint(1), resp.Platforms[0].HostsCount)
-	require.Equal(t, uint(1), resp.AllLinuxCount)
 	require.Equal(t, team1.ID, *resp.TeamID)
 
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team1.ID), "platform", "linux")
 	require.Equal(t, uint(1), resp.TotalsHostsCount)
 	require.Equal(t, "debian", resp.Platforms[0].Platform)
-	require.Equal(t, uint(1), resp.AllLinuxCount)
 
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "platform", "rhel")
 	require.Equal(t, uint(1), resp.TotalsHostsCount)
 	require.Equal(t, "rhel", resp.Platforms[0].Platform)
-	require.Equal(t, uint(1), resp.AllLinuxCount)
 
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "platform", "linux")
 	require.Equal(t, uint(3), resp.TotalsHostsCount)
-	require.Equal(t, uint(3), resp.AllLinuxCount)
 	require.Len(t, resp.Platforms, 3)
 	for i, p := range resp.Platforms {
 		gotPlatforms[i] = p.Platform
@@ -1265,7 +1274,6 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "platform", "darwin")
 	require.Equal(t, uint(0), resp.TotalsHostsCount)
-	require.Equal(t, uint(0), resp.AllLinuxCount)
 	require.Empty(t, resp.Platforms)
 
 	// invalid low_disk_space value is still validated and results in error
@@ -1330,10 +1338,10 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 
 	// get by identifier unknown
 	var getResp getHostResponse
-	s.DoJSON("GET", "/api/latest/fleet/hosts/identifier/no-such-host", nil, http.StatusNotFound, &getResp)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/no-such-host", nil, http.StatusNotFound, &getResp)
 
 	// get by identifier valid
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", hosts[0].UUID), nil, http.StatusOK, &getResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", hosts[0].UUID), nil, http.StatusOK, &getResp)
 	require.Equal(t, hosts[0].ID, getResp.Host.ID)
 	require.Nil(t, getResp.Host.TeamID)
 
@@ -1385,7 +1393,7 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	require.NotNil(t, getResp.Host.TeamID)
 	require.Equal(t, tm1.ID, *getResp.Host.TeamID)
 
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", hosts[0].UUID), nil, http.StatusOK, &getResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", hosts[0].UUID), nil, http.StatusOK, &getResp)
 	require.NotNil(t, getResp.Host.TeamID)
 	require.Equal(t, tm1.ID, *getResp.Host.TeamID)
 	require.NotNil(t, getResp.Host.TeamName)
@@ -1544,43 +1552,6 @@ func (s *integrationTestSuite) TestHostsAddToTeamByFilterActivityNames() {
 	}
 }
 
-func (s *integrationTestSuite) TestGetHostByIdentifier() {
-	t := s.T()
-	ctx := context.Background()
-
-	hosts := make([]*fleet.Host, 6)
-	for i := range hosts {
-		h, err := s.ds.NewHost(ctx, &fleet.Host{
-			Hostname:       fmt.Sprintf("test-host%d-name", i),
-			OsqueryHostID:  new(fmt.Sprintf("osquery-%d", i)),
-			NodeKey:        new(fmt.Sprintf("nodekey-%d", i)),
-			UUID:           fmt.Sprintf("test-uuid-%d", i),
-			Platform:       "darwin",
-			HardwareSerial: fmt.Sprintf("serial-%d", i),
-		})
-		require.NoError(t, err)
-		hosts[i] = h
-	}
-
-	var resp getHostResponse
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/osquery-1", nil, http.StatusOK, &resp)
-	require.Equal(t, hosts[1].ID, resp.Host.ID)
-
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/serial-2", nil, http.StatusOK, &resp)
-	require.Equal(t, hosts[2].ID, resp.Host.ID)
-
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/nodekey-3", nil, http.StatusOK, &resp)
-	require.Equal(t, hosts[3].ID, resp.Host.ID)
-
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/test-uuid-4", nil, http.StatusOK, &resp)
-	require.Equal(t, hosts[4].ID, resp.Host.ID)
-
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/test-host5-name", nil, http.StatusOK, &resp)
-	require.Equal(t, hosts[5].ID, resp.Host.ID)
-
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/no-such-host", nil, http.StatusNotFound, &resp)
-}
-
 func (s *integrationTestSuite) TestGetHostByIDOrIdentifier() {
 	t := s.T()
 	ctx := t.Context()
@@ -1622,6 +1593,8 @@ func (s *integrationTestSuite) TestGetHostByIDOrIdentifier() {
 		{name: "serial", identifier: target.HardwareSerial, wantHostID: target.ID},
 		{name: "uuid", identifier: target.UUID, wantHostID: target.ID},
 		{name: "hostname", identifier: target.Hostname, wantHostID: target.ID},
+		{name: "osquery host id", identifier: *target.OsqueryHostID, wantHostID: target.ID},
+		{name: "node key", identifier: *target.NodeKey, wantHostID: target.ID},
 		{name: "numeric hostname that is not an id", identifier: unusedHostID, wantHostID: numericHostname.ID},
 		{name: "id with leading zeros", identifier: fmt.Sprintf("000%d", target.ID), wantHostID: target.ID},
 		{name: "serial with leading zeros that is not an id", identifier: leadingZerosSerial, wantHostID: leadingZeros.ID},
@@ -1658,7 +1631,7 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[0].ID), nil, http.StatusOK, &listResp)
 	require.Empty(t, listResp.DeviceMapping)
 	var hostResp getHostResponse
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+hosts[0].UUID, nil, http.StatusOK, &hostResp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/"+hosts[0].UUID, nil, http.StatusOK, &hostResp)
 	assert.Empty(t, hostResp.Host.EndUsers)
 	hostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &hostResp)
@@ -1692,7 +1665,7 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	})
 	// Check that mappings show up in host details
 	hostResp = getHostResponse{}
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+hosts[0].UUID, nil, http.StatusOK, &hostResp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/"+hosts[0].UUID, nil, http.StatusOK, &hostResp)
 	checkEndUser := func() {
 		require.Len(t, hostResp.Host.EndUsers, 1)
 		endUser := hostResp.Host.EndUsers[0]
@@ -1858,7 +1831,7 @@ func (s *integrationTestSuite) TestHostDeviceMappingIDP() {
 
 	// Test 4: Verify custom mappings appear in host details via getHostEndpoint
 	var hostResp getHostResponse
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+host.UUID, nil, http.StatusOK, &hostResp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/"+host.UUID, nil, http.StatusOK, &hostResp)
 
 	// Should have at least 1 end user with device mappings
 	require.GreaterOrEqual(t, len(hostResp.Host.EndUsers), 1)

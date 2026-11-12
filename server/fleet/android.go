@@ -31,7 +31,7 @@ type MDMAndroidConfigProfile struct {
 	// ProfileUUID is the unique identifier of the configuration profile in
 	// Fleet. For Android profiles, it is the letter "g" followed by a uuid.
 	ProfileUUID      string                      `db:"profile_uuid" json:"profile_uuid"`
-	TeamID           *uint                       `db:"team_id" json:"team_id" renameto:"fleet_id"`
+	TeamID           *uint                       `db:"team_id" json:"fleet_id"`
 	Name             string                      `db:"name" json:"name"`
 	Description      string                      `db:"description" json:"description"`
 	RawJSON          []byte                      `db:"raw_json" json:"-"`
@@ -183,6 +183,9 @@ func validateAndroidProfileFleetVariables(rawJSON []byte, decoded map[string]any
 	}
 
 	if len(varNames) > 0 {
+		if err := FindRemovedFleetVariable(varNames...); err != nil {
+			return err
+		}
 		if name := FindUnsupportedAndroidFleetVar(contents); name != "" {
 			return fmt.Errorf("Unsupported Fleet variable $FLEET_VAR_%s.", name)
 		}
@@ -357,7 +360,6 @@ var FleetVarsSupportedInAndroidAppConfig = []FleetVarName{
 	FleetVarHostUUID,
 	FleetVarHostHardwareSerial,
 	FleetVarHostPlatform,
-	FleetVarHostEndUserEmailIDP,
 	FleetVarHostEndUserIDPUsername,
 	FleetVarHostEndUserIDPUsernameLocalPart,
 	FleetVarHostEndUserIDPGroups,
@@ -629,6 +631,9 @@ func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 		return err
 	}
 
+	if err := FindRemovedFleetVariable(variables.Find(string(config))...); err != nil {
+		return err
+	}
 	if name := FindUnsupportedAndroidFleetVar(string(config)); name != "" {
 		return &BadRequestError{
 			Message: fmt.Sprintf("Couldn't update configuration. Unsupported variable $FLEET_VAR_%s.", name),

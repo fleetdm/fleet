@@ -46,13 +46,6 @@ func (c *Client) GetQueries(teamID *uint, name *string) ([]fleet.Query, error) {
 	return responseBody.Queries, nil
 }
 
-// DeleteQuery deletes the query with the matching name.
-func (c *Client) DeleteQuery(name string) error {
-	verb, path := "DELETE", "/api/latest/fleet/reports/"+url.PathEscape(name)
-	var responseBody fleet.DeleteQueryResponse
-	return c.authenticatedRequest(nil, verb, path, &responseBody)
-}
-
 // DeleteQueries deletes several queries.
 func (c *Client) DeleteQueries(ids []uint) error {
 	req := fleet.DeleteQueriesRequest{IDs: ids}

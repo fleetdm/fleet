@@ -346,7 +346,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 				_, ok = gitops.Controls.EnableDiskEncryption.(bool)
 				assert.True(t, ok, "enable_disk_encryption not found")
 				_, ok = gitops.Controls.EnableRecoveryLockPassword.(bool)
-				assert.True(t, ok, "enable_recovery_lock_password not found")
+				assert.True(t, ok, "macos_recovery_lock_password_enabled not found")
 				_, ok = gitops.Controls.MacOSMigration.(map[string]interface{})
 				assert.True(t, ok, "macos_migration not found")
 				assert.NotNil(t, gitops.Controls.MacOSSetup, "macos_setup not found")
@@ -357,9 +357,9 @@ func TestValidGitOpsYaml(t *testing.T) {
 				_, ok = gitops.Controls.IPadOSUpdates.(map[string]interface{})
 				assert.True(t, ok, "ipados_updates not found")
 				_, ok = gitops.Controls.WindowsEnabledAndConfigured.(bool)
-				assert.True(t, ok, "windows_enabled_and_configured not found")
+				assert.True(t, ok, "windows_mdm_enabled not found")
 				_, ok = gitops.Controls.WindowsMigrationEnabled.(bool)
-				assert.True(t, ok, "windows_migration_enabled not found")
+				assert.True(t, ok, "windows_mdm_migration_enabled not found")
 				_, ok = gitops.Controls.EnableTurnOnWindowsMDMManually.(bool)
 				assert.True(t, ok, "enable_turn_on_windows_mdm_manually not found")
 				_, ok = gitops.Controls.WindowsEntraTenantIDs.([]any)
@@ -495,7 +495,7 @@ func TestGitOpsHostNameTemplate(t *testing.T) {
 func TestGitOpsControlsBooleanKeys(t *testing.T) {
 	t.Parallel()
 
-	for _, key := range []string{"enable_disk_encryption", "enable_recovery_lock_password", "windows_require_bitlocker_pin"} {
+	for _, key := range []string{"enable_disk_encryption", "macos_recovery_lock_password_enabled", "windows_require_bitlocker_pin"} {
 		t.Run(key, func(t *testing.T) {
 			t.Parallel()
 
@@ -1968,7 +1968,7 @@ func TestGitOpsPaths(t *testing.T) {
 		},
 		"controls": {
 			isArray:    false,
-			goodConfig: "windows_enabled_and_configured: true\n",
+			goodConfig: "windows_mdm_enabled: true\n",
 		},
 		"reports": {
 			isArray:    true,
@@ -2389,35 +2389,6 @@ func getBaseConfig(options map[string]string, optsToExclude []string) string {
 	return config
 }
 
-func TestSoftwarePackagesUnmarshalMulti(t *testing.T) {
-	t.Parallel()
-	config := getTeamConfig([]string{"software"})
-	config += `
-software:
-  packages:
-    - path: software/single-package.yml
-    - path: software/multiple-packages.yml
-`
-
-	path, basePath := createTempFile(t, "", config)
-
-	for _, f := range []string{"single-package.yml", "multiple-packages.yml"} {
-		err := file.Copy(
-			filepath.Join("testdata", "software", f),
-			filepath.Join(basePath, "software", f),
-			os.FileMode(0o755),
-		)
-		require.NoError(t, err)
-	}
-
-	appConfig := fleet.EnrichedAppConfig{}
-	appConfig.License = &fleet.LicenseInfo{
-		Tier: fleet.TierPremium,
-	}
-	_, err := GitOpsFromFile(path, basePath, &appConfig, nopLogf)
-	require.NoError(t, err)
-}
-
 func TestMultiPackageFieldPlacement(t *testing.T) {
 	t.Parallel()
 
@@ -2562,17 +2533,20 @@ func TestMultiPackageFieldPlacement(t *testing.T) {
 		assert.Equal(t, []string{"macOS"}, pkg.LabelsIncludeAll)
 	})
 
-	// A package file written as a single object is just a one-element list, so its
-	// per-package fields are preserved the same way.
-	t.Run("single object file keeps its per-package fields", func(t *testing.T) {
-		gitops, err := setup(t, "", fmt.Sprintf(`hash_sha256: %s
+	// Write one package as a bare object, parsing should fail with the Fleet 5 error naming the file.
+	t.Run("package file with one package not in a list fails with the Fleet 5 error", func(t *testing.T) {
+		_, err := setup(t, "", fmt.Sprintf(`hash_sha256: %s
 self_service: true
-labels_include_all: [macOS]
 `, hashA))
-		require.NoError(t, err)
-		require.Len(t, gitops.Software.Packages, 1)
-		assert.True(t, gitops.Software.Packages[0].SelfService)
-		assert.Equal(t, []string{"macOS"}, gitops.Software.Packages[0].LabelsIncludeAll)
+		expectedErr := `The single package format in "software/pkgs.yml" is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+		require.ErrorContains(t, err, expectedErr)
+	})
+
+	// Write a string as the whole package file, parsing should fail with the list type error.
+	t.Run("package file with a string at the top level fails with the type error", func(t *testing.T) {
+		_, err := setup(t, "", "just-a-string\n")
+		expectedErr := `Couldn't edit "software/pkgs.yml" at "software.packages", expected type []*fleet.SoftwarePackageSpec but got string`
+		require.ErrorContains(t, err, expectedErr)
 	})
 
 	// A hash-only package (no URL) is identified by its hash, not an empty string.
@@ -4508,6 +4482,185 @@ software:
 		assert.True(t, sawExpectErrorMsg, "expected warning about unknown_control_field in log messages: %v", logMessages)
 	})
 
+	t.Run("removed keys fail even when unknown keys are allowed", func(t *testing.T) {
+		t.Parallel()
+		fleetFile := func(controls, settings string) string {
+			return "name: TeamName\nsettings:\n  secrets:\n" + settings + "agent_options:\ncontrols:\n" + controls + "reports:\npolicies:\nsoftware:\n"
+		}
+		globalFile := func(mdm string) string {
+			return "org_settings:\n  server_settings:\n    server_url: https://fleet.example.com\n" +
+				"  org_info:\n    org_name: Test Org\n  secrets:\n  mdm:\n" + mdm +
+				"controls:\nagent_options:\nreports:\npolicies:\n"
+		}
+		scriptsDisabledFile := func(serverSettings string) string {
+			return "org_settings:\n  server_settings:\n    server_url: https://fleet.example.com\n" + serverSettings +
+				"  org_info:\n    org_name: Test Org\n  secrets:\n" +
+				"controls:\nagent_options:\nreports:\npolicies:\n"
+		}
+		for _, tc := range []struct {
+			name, file, config string
+			// other files next to it, by name
+			extra map[string]string
+			want  []string
+			// a differently cased parent is also reported as unknown
+			alsoUnknown bool
+		}{
+			{
+				name: "fleet controls", file: "workstations.yml",
+				config: fleetFile("  enable_recovery_lock_password: true\n"+
+					"  windows_enabled_and_configured: true\n  windows_migration_enabled: false\n"+
+					"  macos_setup:\n    require_all_software_macos: true\n    require_all_software_windows: false\n", ""),
+				want: []string{
+					`The "controls.enable_recovery_lock_password" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+					// the path names the parent by its current name, not the file's alias
+					`The "controls.setup_experience.require_all_software_macos" key is not available anymore.`,
+					`The "controls.setup_experience.require_all_software_windows" key is not available anymore.`,
+					`The "controls.windows_enabled_and_configured" key is not available anymore.`,
+					`The "controls.windows_migration_enabled" key is not available anymore.`,
+				},
+			},
+			{
+				// GitOps used to match keys in any letter case, so these once set the setting.
+				// The message names the registered key.
+				name: "fleet controls in another letter case", file: "workstations.yml",
+				config: fleetFile("  Enable_Recovery_Lock_Password: true\n"+
+					"  Windows_Enabled_And_Configured: true\n  WINDOWS_MIGRATION_ENABLED: true\n"+
+					"  setup_experience:\n    REQUIRE_ALL_SOFTWARE_MACOS: true\n", ""),
+				want: []string{
+					`The "controls.enable_recovery_lock_password" key is not available anymore.`,
+					`The "controls.setup_experience.require_all_software_macos" key is not available anymore.`,
+					`The "controls.windows_enabled_and_configured" key is not available anymore.`,
+					`The "controls.windows_migration_enabled" key is not available anymore.`,
+				},
+			},
+			{
+				// the block under a differently cased parent still decodes, so its old keys must not slip through
+				name: "fleet controls parent in another letter case", file: "workstations.yml",
+				config: fleetFile("  Macos_Setup:\n    require_all_software_macos: true\n    require_all_software_windows: true\n", ""),
+				want: []string{
+					`The "controls.setup_experience.require_all_software_macos" key is not available anymore.`,
+					`The "controls.setup_experience.require_all_software_windows" key is not available anymore.`,
+				},
+				alsoUnknown: true,
+			},
+			{
+				name: "controls file parent in another letter case", file: "workstations.yml",
+				config:      fleetFile("  path: ./controls.yml\n", ""),
+				extra:       map[string]string{"controls.yml": "Macos_Setup:\n  require_all_software_macos: true\n"},
+				want:        []string{`The "controls.setup_experience.require_all_software_macos" key is not available anymore.`},
+				alsoUnknown: true,
+			},
+			{
+				name: "unassigned parent with a Unicode case variant", file: "unassigned.yml",
+				config:      "name: Unassigned\ncontrols:\n  macoſ_setup:\n    require_all_software_windows: true\npolicies:\nsoftware:\n",
+				want:        []string{`The "controls.setup_experience.require_all_software_windows" key is not available anymore.`},
+				alsoUnknown: true,
+			},
+			{
+				name: "fleet settings in another letter case", file: "workstations.yml",
+				config: fleetFile("", "  mdm:\n    Enable_Recovery_Lock_Password: true\n"),
+				want:   []string{`The "settings.mdm.enable_recovery_lock_password" key is not available anymore.`},
+			},
+			{
+				name: "org_settings", file: "default.yml",
+				config: globalFile("    windows_enabled_and_configured: true\n    windows_migration_enabled: true\n"),
+				want: []string{
+					`The "org_settings.mdm.windows_enabled_and_configured" key is not available anymore.`,
+					`The "org_settings.mdm.windows_migration_enabled" key is not available anymore.`,
+				},
+			},
+			{
+				name: "org_settings scripts_disabled set to true", file: "default.yml",
+				config: scriptsDisabledFile("    scripts_disabled: true\n"),
+				want:   []string{`The "org_settings.server_settings.scripts_disabled" key is not available anymore.`},
+			},
+			{
+				name: "org_settings scripts_disabled in another letter case", file: "default.yml",
+				config: scriptsDisabledFile("    Scripts_Disabled: true\n"),
+				want:   []string{`The "org_settings.server_settings.scripts_disabled" key is not available anymore.`},
+			},
+			{
+				name: "org_settings file with scripts_disabled set to true", file: "default.yml",
+				config: "org_settings:\n  path: ./org-settings.yml\ncontrols:\nagent_options:\nreports:\npolicies:\n",
+				extra: map[string]string{"org-settings.yml": "server_settings:\n  server_url: https://fleet.example.com\n  scripts_disabled: true\n" +
+					"org_info:\n  org_name: Test Org\nsecrets:\n"},
+				want: []string{`in "./org-settings.yml": The "org_settings.server_settings.scripts_disabled" key is not available anymore.`},
+			},
+			{
+				name: "org_settings in another letter case", file: "default.yml",
+				config: globalFile("    ENABLE_RECOVERY_LOCK_PASSWORD: true\n    Windows_Enabled_And_Configured: true\n"),
+				want: []string{
+					`The "org_settings.mdm.enable_recovery_lock_password" key is not available anymore.`,
+					`The "org_settings.mdm.windows_enabled_and_configured" key is not available anymore.`,
+				},
+			},
+		} {
+			for _, allowUnknown := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s allow unknown keys %t", tc.name, allowUnknown), func(t *testing.T) {
+					t.Parallel()
+					path, basePath := createNamedFileOnTempDir(t, tc.file, tc.config)
+					for name, contents := range tc.extra {
+						require.NoError(t, os.WriteFile(filepath.Join(basePath, name), []byte(contents), 0o644))
+					}
+					_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf, GitOpsOptions{AllowUnknownKeys: allowUnknown})
+					require.Error(t, err)
+					for _, want := range tc.want {
+						if tc.extra == nil {
+							want = `in "` + path + `": ` + want
+						}
+						assert.Contains(t, err.Error(), want)
+					}
+					if !tc.alsoUnknown {
+						assert.NotContains(t, err.Error(), "unknown key")
+					}
+				})
+			}
+		}
+	})
+
+	t.Run("removed scripts_disabled set to false logs a warning", func(t *testing.T) {
+		t.Parallel()
+		orgSettings := "server_settings:\n  server_url: https://fleet.example.com\n  scripts_disabled: false\norg_info:\n  org_name: Test Org\nsecrets:\n"
+		for _, tc := range []struct {
+			name, config, orgSettingsFile string
+		}{
+			{
+				name: "inline",
+				config: "org_settings:\n  server_settings:\n    server_url: https://fleet.example.com\n    scripts_disabled: false\n" +
+					"  org_info:\n    org_name: Test Org\n  secrets:\ncontrols:\nagent_options:\nreports:\npolicies:\n",
+			},
+			{
+				name:            "org_settings file",
+				config:          "org_settings:\n  path: ./org-settings.yml\ncontrols:\nagent_options:\nreports:\npolicies:\n",
+				orgSettingsFile: orgSettings,
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				path, basePath := createNamedFileOnTempDir(t, "default.yml", tc.config)
+				warningFile := path
+				if tc.orgSettingsFile != "" {
+					require.NoError(t, os.WriteFile(filepath.Join(basePath, "org-settings.yml"), []byte(tc.orgSettingsFile), 0o644))
+					warningFile = "./org-settings.yml"
+				}
+				var logMessages []string
+				logFn := func(format string, a ...any) { logMessages = append(logMessages, fmt.Sprintf(format, a...)) }
+
+				// parse the file, it should succeed and log the removal message as a warning
+				result, err := GitOpsFromFile(path, basePath, premiumAppConfig(), logFn)
+				require.NoError(t, err)
+				require.Contains(t, logMessages, `[!] in "`+warningFile+`": The "org_settings.server_settings.scripts_disabled" key is not available anymore. `+
+					"What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration\n")
+
+				// read the parsed org settings, the removed key should be dropped and the rest kept
+				serverSettings, ok := result.OrgSettings["server_settings"].(map[string]any)
+				require.True(t, ok)
+				require.NotContains(t, serverSettings, "scripts_disabled")
+				require.Equal(t, "https://fleet.example.com", serverSettings["server_url"])
+			})
+		}
+	})
+
 	t.Run("unknown key in controls on no-team path", func(t *testing.T) {
 		t.Parallel()
 		config := `
@@ -4520,26 +4673,6 @@ policies:
 		_, err := GitOpsFromFile(path, basePath, nil, nopLogf)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unknown_control_field")
-	})
-
-	t.Run("unknown key in software package via path", func(t *testing.T) {
-		t.Parallel()
-		config := getTeamConfig([]string{"software"})
-		config += `
-software:
-  packages:
-    - path: pkg.yml
-`
-		path, basePath := createTempFile(t, "", config)
-		pkgYAML := `
-url: https://example.com/pkg.pkg
-hash_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-unknown_pkg_field: bad
-`
-		require.NoError(t, os.WriteFile(filepath.Join(basePath, "pkg.yml"), []byte(pkgYAML), 0o644))
-		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "unknown_pkg_field")
 	})
 
 	t.Run("unknown key in software package array via path", func(t *testing.T) {
@@ -4732,9 +4865,9 @@ policies:
 `
 		path, basePath := createTempFile(t, "", config)
 		pkgYAML := `
-url: https://example.com/pkg.pkg
-hash_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-unknown_policy_pkg_field: bad
+- url: https://example.com/pkg.pkg
+  hash_sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  unknown_policy_pkg_field: bad
 `
 		require.NoError(t, os.WriteFile(filepath.Join(basePath, "pkg.yml"), []byte(pkgYAML), 0o644))
 		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
@@ -4824,7 +4957,7 @@ controls:
   macos_updates:
     deadline: null
     minimum_version: null
-  windows_enabled_and_configured: true
+  windows_mdm_enabled: true
 reports:
 policies:
 agent_options:
@@ -4845,6 +4978,7 @@ org_settings:
 		require.NoError(t, err)
 
 		// Verify controls parsed correctly with new key names
+		require.Equal(t, true, gitops.Controls.WindowsEnabledAndConfigured)
 		macSettings, ok := gitops.Controls.MacOSSettings.(fleet.MacOSSettings)
 		require.True(t, ok, "macos_settings (via apple_settings) not parsed")
 		require.Len(t, macSettings.CustomSettings, 1)
@@ -4891,7 +5025,7 @@ setup_experience:
 macos_updates:
   deadline: null
   minimum_version: null
-windows_enabled_and_configured: true
+windows_mdm_enabled: true
 `
 		controlsPath := filepath.Join(dir, "controls.yml")
 		require.NoError(t, os.WriteFile(controlsPath, []byte(controlsYAML), 0o644))
@@ -4919,6 +5053,7 @@ org_settings:
 		require.NoError(t, err)
 
 		// Verify controls parsed correctly from external file with new key names
+		require.Equal(t, true, gitops.Controls.WindowsEnabledAndConfigured)
 		macSettings, ok := gitops.Controls.MacOSSettings.(fleet.MacOSSettings)
 		require.True(t, ok, "macos_settings (via apple_settings in external file) not parsed")
 		require.Len(t, macSettings.CustomSettings, 1)
@@ -5697,7 +5832,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
 		sha := "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-		content := fmt.Sprintf("hash_sha256: %s\nbad_field: oops\n", sha)
+		content := fmt.Sprintf("- hash_sha256: %s\n  bad_field: oops\n", sha)
 		path := filepath.Join(dir, "pkg.yml")
 		require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
 
@@ -5716,6 +5851,43 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		var unknownErr *ParseUnknownKeyError
 		require.ErrorAs(t, errs[0], &unknownErr)
 		assert.Equal(t, "bad_field", unknownErr.Field)
+	})
+
+	// Point package_path at a file with one package not in a list, the Fleet 5 error should
+	// name the file after the install_software.package_path key.
+	t.Run("package_path file with one package not in a list fails with the Fleet 5 error", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		sha := "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+		path := filepath.Join(dir, "pkg.yml")
+		require.NoError(t, os.WriteFile(path, []byte("hash_sha256: "+sha+"\n"), 0o644))
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{PackagePath: path}
+
+		policy := &Policy{Name: "bare policy", InstallSoftware: installSoftware}
+		packages := []*fleet.SoftwarePackageSpec{{SHA256: sha}}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, packages, nil, nil)
+		require.Len(t, errs, 1)
+		expectedErr := fmt.Sprintf(`install_software.package_path: The single package format in %q is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`, path)
+		assert.Equal(t, expectedErr, errs[0].Error())
+	})
+
+	// Point package_path at an empty file, parsing should fail with the not found error and an empty hash.
+	t.Run("empty package_path file fails with the not found error", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		path := filepath.Join(dir, "pkg.yml")
+		require.NoError(t, os.WriteFile(path, []byte(""), 0o644))
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{PackagePath: path}
+
+		policy := &Policy{Name: "empty policy", InstallSoftware: installSoftware}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, nil)
+		require.Len(t, errs, 1)
+		expectedErr := fmt.Sprintf(`failed to parse policy install_software "empty policy": install_software.package_path SHA256  not found on fleet: %s`, path)
+		assert.Equal(t, expectedErr, errs[0].Error())
 	})
 	t.Run("fleet_maintained_app_slug valid", func(t *testing.T) {
 		t.Parallel()
@@ -5902,7 +6074,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		bogusSHA := "dddd999999999999999999999999999999999999999999999999999999999999"
 		dir := t.TempDir()
 		shaOnlyPath := filepath.Join(dir, "sha.yml")
-		require.NoError(t, os.WriteFile(shaOnlyPath, []byte("hash_sha256: "+bogusSHA+"\n"), 0o644))
+		require.NoError(t, os.WriteFile(shaOnlyPath, []byte("- hash_sha256: "+bogusSHA+"\n"), 0o644))
 
 		cases := []struct {
 			name     string

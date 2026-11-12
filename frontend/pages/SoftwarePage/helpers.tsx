@@ -21,12 +21,14 @@ import {
   IAppStoreAppVersion,
   ISoftwareTitle,
   ISoftwareInstallPolicyUI,
-  ISoftwareInstallPolicy,
   SCRIPT_PACKAGE_SOURCES,
   SoftwareInstallPolicyTypeSet,
 } from "interfaces/software";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-import { internationalTimeOnlyFormat } from "utilities/helpers";
+import {
+  formatFleet5RemovalMessage,
+  internationalTimeOnlyFormat,
+} from "utilities/helpers";
 
 /**
  * helper function to generate error message for secret variables based
@@ -503,7 +505,11 @@ const rewriteMissingFleetSecretReason = (reason: string): string | null => {
  * error, so callers can fall back to the raw reason or their own default. The
  * BE validates FLEET_VAR variables one at a time and returns on the first
  * unsupported one; FLEET_SECRET errors can carry multiple names. */
-export const rewriteVariableErrorReason = (reason: string): string | null => {
+export const rewriteVariableErrorReason = (reason: string): React.ReactNode => {
+  const fleet5Removal = formatFleet5RemovalMessage(reason);
+  if (fleet5Removal) {
+    return <>Couldn&apos;t edit. {fleet5Removal}</>;
+  }
   if (
     reason.includes("unsupported variable") &&
     reason.includes("$FLEET_VAR_")

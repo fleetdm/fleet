@@ -32,7 +32,7 @@ Unlike macOS and Windows where policies can be applied via MDM controls, Linux a
 - **Track changes or deviations from policy:** developers and engineers with root privileges can often bypass USB controls either intentionally or by error.
 - **Monitor and log usage for threat detection and auditability:** monitoring ensures visibility into USB connections. Who is using what class of devices where. It also allows for integrations into SIEM and other security tools. Safely capturing time-aggregated log data is critical for forensic anomaly and threat analysis.
 
-[Fleet](https://fleetdm.com/linux-management) has robust Policy enforcement via `osquery` for automated problem detection and remediation. 
+[Fleet](https://fleetdm.com/linux) has robust Policy enforcement via `osquery` for automated problem detection and remediation. 
 
 ## Bluetooth and other wireless connections
 
@@ -78,7 +78,7 @@ The question is whether the approach is consistent. If one team has tight contro
 
 ## Remote lock and wipe
 
-Unlike macOS and Windows, Linux has no native MDM protocol for remote lock and wipe. This has led many organizations to enact different controls around losing control of Linux devices than they do for Windows or macOS: revoking credentials, hoping disk encryption holds and moving on. Disk encryption only protects data at rest, not access to resources via login. Modern Linux management solutions like [Fleet](https://fleetdm.com/linux-management) now support remote lock and wipe, filling this gap. 
+Unlike macOS and Windows, Linux has no native MDM protocol for remote lock and wipe. This has led many organizations to enact different controls around losing control of Linux devices than they do for Windows or macOS: revoking credentials, hoping disk encryption holds and moving on. Disk encryption only protects data at rest, not access to resources via login. Modern Linux management solutions like [Fleet](https://fleetdm.com/linux) now support remote lock and wipe, filling this gap. 
 
 ### What remote lock and wipe protect
 

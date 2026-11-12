@@ -71,6 +71,8 @@ parasails.registerPage('configuration-generator', {
       io.socket.request({
         method: 'post',
         url: '/api/v1/get-llm-generated-configuration-profile',
+        // Unlike Cloud.*() calls, a socket request does not send the CSRF token on its own.
+        headers: { 'x-csrf-token': SAILS_LOCALS._csrf },
         data: {
           profileType: this.formData.profileType,
           naturalLanguageInstructions: this.formData.naturalLanguageInstructions,

@@ -60,7 +60,7 @@ func (c *Client) runMigration(db *sql.DB, m *Migration, direction bool) error {
 		if fn != nil {
 			if err := fn(tx); err != nil {
 				tx.Rollback() //nolint:errcheck
-				log.Fatalf("FAIL %s (%v), quitting migration.", filepath.Base(m.Source), err)
+				log.Fatalf("FAIL %s: %v", filepath.Base(m.Source), err)
 				return err
 			}
 		}

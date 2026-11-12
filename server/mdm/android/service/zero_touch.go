@@ -10,7 +10,7 @@ import (
 )
 
 type zeroTouchConfigurationRequest struct {
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"fleet_id,optional"`
 }
 
 func zeroTouchConfigurationEndpoint(ctx context.Context, request any, svc android.Service) fleet.Errorer {
