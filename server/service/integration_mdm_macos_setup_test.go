@@ -2510,7 +2510,7 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		// Enable via PATCH /teams/:id
 		var tmResp teamResponse
 		s.DoJSON("PATCH", tmConfigPath, fleet.TeamPayload{
-			MDM: &fleet.TeamPayloadMDM{MacOSSetup: &fleet.MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(true)}},
+			MDM: &fleet.TeamPayloadMDM{MacOSSetup: &fleet.TeamPayloadMacOSSetup{EnableManagedLocalAccount: optjson.SetBool(true)}},
 		}, http.StatusOK, &tmResp)
 		require.True(t, tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Valid)
 		require.True(t, tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
@@ -2519,14 +2519,14 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 
 		// Patching same value again should not create a new activity
 		s.DoJSON("PATCH", tmConfigPath, fleet.TeamPayload{
-			MDM: &fleet.TeamPayloadMDM{MacOSSetup: &fleet.MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(true)}},
+			MDM: &fleet.TeamPayloadMDM{MacOSSetup: &fleet.TeamPayloadMacOSSetup{EnableManagedLocalAccount: optjson.SetBool(true)}},
 		}, http.StatusOK, &tmResp)
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
 			``, lastActivityID)
 
 		// Disable
 		s.DoJSON("PATCH", tmConfigPath, fleet.TeamPayload{
-			MDM: &fleet.TeamPayloadMDM{MacOSSetup: &fleet.MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(false)}},
+			MDM: &fleet.TeamPayloadMDM{MacOSSetup: &fleet.TeamPayloadMacOSSetup{EnableManagedLocalAccount: optjson.SetBool(false)}},
 		}, http.StatusOK, &tmResp)
 		require.True(t, tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Valid)
 		require.False(t, tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)

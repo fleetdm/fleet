@@ -532,7 +532,8 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			var wantMacOSSetup fleet.MacOSSetup
 			if checkMDM != nil {
 				if checkMDM.MacOSSetup != nil {
-					wantMacOSSetup = *checkMDM.MacOSSetup
+					wantMacOSSetup = checkMDM.MacOSSetup.MacOSSetup
+					wantMacOSSetup.EnableEndUserAuthentication = checkMDM.MacOSSetup.EnableEndUserAuthentication.Value
 					// bootstrap package always ignored by modify team endpoint so expect original value
 					wantMacOSSetup.BootstrapPackage = team.Config.MDM.MacOSSetup.BootstrapPackage
 					// setup assistant always ignored by modify team endpoint so expect original value
@@ -588,9 +589,9 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 				"mdm all zero values",
 				&fleet.TeamPayloadMDM{
 					EnableDiskEncryption: optjson.SetBool(false),
-					MacOSSetup: &fleet.MacOSSetup{
+					MacOSSetup: &fleet.TeamPayloadMacOSSetup{
 						BootstrapPackage:            optjson.SetString(""),
-						EnableEndUserAuthentication: false,
+						EnableEndUserAuthentication: optjson.SetBool(false),
 						MacOSSetupAssistant:         optjson.SetString(""),
 					},
 				},
@@ -599,7 +600,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			{
 				"bootstrap package",
 				&fleet.TeamPayloadMDM{
-					MacOSSetup: &fleet.MacOSSetup{
+					MacOSSetup: &fleet.TeamPayloadMacOSSetup{
 						BootstrapPackage: optjson.SetString("some-package"),
 					},
 				},
@@ -609,7 +610,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			{
 				"setup assistant",
 				&fleet.TeamPayloadMDM{
-					MacOSSetup: &fleet.MacOSSetup{
+					MacOSSetup: &fleet.TeamPayloadMacOSSetup{
 						MacOSSetupAssistant: optjson.SetString("some-setup-assistant"),
 					},
 				},
@@ -627,8 +628,8 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			{
 				"enable end user auth",
 				&fleet.TeamPayloadMDM{
-					MacOSSetup: &fleet.MacOSSetup{
-						EnableEndUserAuthentication: true,
+					MacOSSetup: &fleet.TeamPayloadMacOSSetup{
+						EnableEndUserAuthentication: optjson.SetBool(true),
 					},
 				},
 				// disk encryption requires mdm enabled and configured
