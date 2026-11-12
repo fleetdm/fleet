@@ -780,8 +780,8 @@ module.exports.routes = {
     action: 'landing-pages/view-patch-faster',
     locals: {
       hideHeaderLinks: true,
-      pageTitleForMeta: 'Stop waiting on your MDM catalog. Fleet automated patch management.',
-      pageDescriptionForMeta: 'Fleet\'s maintained app catalog and automated patch policies push updates to every device on a regular, predictable cadence — no manual repackaging, no osquery queries to write.'
+      pageTitleForMeta: 'Stop waiting on your MDM catalog. Automated patch management with Fleet',
+      pageDescriptionForMeta: 'Fleet\'s maintained app catalog and automated patch policies update every device on a regular, predictable cadence, with no manual repackaging. Ask what\'s patched and get an answer in seconds.'
     }
   },
 
@@ -789,8 +789,8 @@ module.exports.routes = {
     action: 'landing-pages/view-replace-jamf',
     locals: {
       hideHeaderLinks: true,
-      pageTitleForMeta: 'Replace Jamf with confidence',
-      pageDescriptionForMeta: 'Replace Jamf with Fleet. Manage devices faster, review changes safely, and deploy across macOS, Windows, and Linux from one platform.'
+      pageTitleForMeta: 'Replace Jamf with AI-native device management',
+      pageDescriptionForMeta: 'Replace Jamf with Fleet, AI-native device management for Apple, Windows, and Linux. Make changes in plain language, review every change, and move Macs without a wipe.'
     }
   },
 
@@ -799,7 +799,7 @@ module.exports.routes = {
     locals: {
       hideHeaderLinks: true,
       pageTitleForMeta: 'Autonomous endpoint management',
-      pageDescriptionForMeta: 'Patch at exploit speed. The average time-to-exploitation is now 1.3 days. Fleet\'s autonomous endpoint management updates devices automatically across every major OS, with humans in the loop.',
+      pageDescriptionForMeta: 'Patch at exploit speed. The average time-to-exploitation is now 1.3 days. Fleet updates devices automatically across every major OS, and a person approves every change.',
     }
   },
 
@@ -807,8 +807,8 @@ module.exports.routes = {
     action: 'landing-pages/view-apple-mdm',
     locals: {
       hideHeaderLinks: true,
-      pageTitleForMeta: 'Apple MDM: open source Mac device management at enterprise scale',
-      pageDescriptionForMeta: 'Fleet is open source Apple MDM for modern IT and security teams. Enroll, configure, and secure Mac, iPhone, and iPad with Apple Business Manager, FileVault, DDM, and GitOps. Self-hosted or Fleet-hosted.',
+      pageTitleForMeta: 'Apple MDM: AI-native, open source Mac device management',
+      pageDescriptionForMeta: 'Fleet is AI-native, open source Apple MDM for modern IT and security teams. Enroll, configure, and secure Mac, iPhone, and iPad with Apple Business Manager, FileVault, and DDM. Self-hosted or Fleet-hosted.',
     }
   },
 
@@ -816,8 +816,8 @@ module.exports.routes = {
     action: 'landing-pages/view-android-mdm',
     locals: {
       hideHeaderLinks: true,
-      pageTitleForMeta: 'Android MDM: open source Android device management at enterprise scale',
-      pageDescriptionForMeta: 'Fleet is open source Android MDM for modern IT and security teams. Enroll, configure, and secure Android phones and tablets with Android Enterprise, Work Profile, managed Google Play, and GitOps. Self-hosted or Fleet-hosted.',
+      pageTitleForMeta: 'Android MDM: AI-native, open source Android device management',
+      pageDescriptionForMeta: 'Fleet is AI-native, open source Android MDM for modern IT and security teams. Enroll, configure, and secure Android phones and tablets with Android Enterprise, Work Profile, and managed Google Play. Self-hosted or Fleet-hosted.',
     }
   },
 
@@ -834,8 +834,8 @@ module.exports.routes = {
     action: 'landing-pages/view-on-premise',
     locals: {
       hideHeaderLinks: true,
-      pageTitleForMeta: 'On-premise device management',
-      pageDescriptionForMeta: 'Fleet is the only enterprise MDM that runs entirely on your infrastructure — full feature parity, air-gap ready, MIT licensed. Your data never leaves your network.',
+      pageTitleForMeta: 'On-premise device management: AI-native and self-hosted',
+      pageDescriptionForMeta: 'Fleet is AI-native, open source device management that runs entirely on your infrastructure, including air-gapped networks. Every feature ships to self-hosted on the same day as Fleet Cloud, and your data never leaves your network.',
     }
   },
 
@@ -852,7 +852,7 @@ module.exports.routes = {
     action: 'landing-pages/view-open-by-design',
     locals: {
       hideHeaderLinks: true,
-      pageTitleForMeta: 'Open MDM + patching + vuln management for every OS',
+      pageTitleForMeta: 'Open MDM, patching, and vulnerability management for every OS',
       pageDescriptionForMeta: 'Manage, update, and secure all your devices like it\'s the 2020s.',
     }
   },
