@@ -48,7 +48,7 @@ import {
   HOST_VITALS_DATA,
   HOST_SUMMARY_DATA,
 } from "utilities/constants";
-import { normalizeEmptyValues } from "utilities/helpers";
+import { getHostOSDisplayName, normalizeEmptyValues } from "utilities/helpers";
 import { isDarkMode } from "utilities/theme";
 import { getPathWithQueryParams } from "utilities/url";
 
@@ -736,7 +736,7 @@ const DeviceUserPage = ({
       !!host &&
       shouldShowControlsTab({
         platform: host.platform,
-        osVersion: host.os_version,
+        osVersion: getHostOSDisplayName(host.os_name, host.os_version),
         enrollmentStatus: host.mdm?.enrollment_status ?? null,
         hasControls: controls.length > 0,
       });
@@ -813,7 +813,7 @@ const DeviceUserPage = ({
         <SettingUpYourDevice
           setupSteps={setupStepStatuses || []}
           requireAllSoftware={
-            (isAppleHost && globalConfig?.mdm?.require_all_software_macos) ??
+            (isAppleHost && globalConfig?.mdm?.macos_require_all_software) ??
             false
           }
           toggleInfoModal={toggleInfoModal}
@@ -869,7 +869,7 @@ const DeviceUserPage = ({
         <div className={`${baseClass} main-content`}>
           <DeviceUserBanners
             hostPlatform={host.platform}
-            hostOsVersion={host.os_version}
+            hostOsVersion={getHostOSDisplayName(host.os_name, host.os_version)}
             mdmEnrollmentStatus={host.mdm.enrollment_status}
             mdmEnabledAndConfigured={!!globalConfig?.mdm.enabled_and_configured}
             connectedToFleetMdm={!!host.mdm.connected_to_fleet}

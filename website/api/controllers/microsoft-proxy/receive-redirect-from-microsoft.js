@@ -165,30 +165,48 @@ module.exports = {
       // }
 
       // Get the id of the new policy from the API response.
-
-
-      let parsedPoliciesResponse;
-      // If Microsoft returned an empty body, surface a friendlier error rather than blowing up on JSON.parse.
-      // This can happen when the tenant is in a partial-setup state from a previous attempt, or when required API permissions haven't been consented on the enterprise app registration.
-      if(!createPolicyResponse.body) {
-        sails.log.warn(`Microsoft's PartnerCompliancePolicies API returned an empty response body for tenant ${informationAboutThisTenant.entraTenantId}. Status: ${createPolicyResponse.statusCode}. Response headers: ${require('util').inspect(createPolicyResponse.headers, {depth: 1})}`);
-        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError: `Microsoft's PartnerCompliancePolicies API returned an empty response (HTTP ${createPolicyResponse.statusCode}). This may indicate a partial setup state from a previous attempt, or missing API permissions on the Fleet enterprise app registration.`});
+      let createdPolicyId;
+      if(createPolicyResponse.statusCode === 204) {
+        // Microsoft can answer this request with a 204 and no body, pointing to the created policy in the Location header instead.
+        // e.g., https://<tenantDataSyncUrl host>/StatelessPartnerTenantDataSyncService/PartnerCompliancePolicies(guid'<policy id>')
+        let locationHeader = createPolicyResponse.headers ? createPolicyResponse.headers.location : undefined;
+        let policyIdMatchFromLocationHeader = typeof locationHeader === 'string' ? locationHeader.match(/\/PartnerCompliancePolicies\(guid'([0-9a-fA-F-]{36})'\)$/) : null;
+        if(!policyIdMatchFromLocationHeader) {
+          sails.log.warn(`Microsoft's PartnerCompliancePolicies API returned a 204 response without a usable Location header for tenant ${informationAboutThisTenant.entraTenantId}. Location header: ${locationHeader}. Response headers: ${require('util').inspect(createPolicyResponse.headers, {depth: 1})}`);
+          await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError: `Microsoft's PartnerCompliancePolicies API returned an empty response (HTTP 204) without a Location header that identifies the created compliance policy.`});
+          throw {redirect: fleetInstanceUrlToRedirectTo };
+        }
+        createdPolicyId = policyIdMatchFromLocationHeader[1];
+      } else {
+        let parsedPoliciesResponse;
+        // If Microsoft returned an empty body, surface a friendlier error rather than blowing up on JSON.parse.
+        // This can happen when the tenant is in a partial-setup state from a previous attempt, or when required API permissions haven't been consented on the enterprise app registration.
+        if(!createPolicyResponse.body) {
+          sails.log.warn(`Microsoft's PartnerCompliancePolicies API returned an empty response body for tenant ${informationAboutThisTenant.entraTenantId}. Status: ${createPolicyResponse.statusCode}. Response headers: ${require('util').inspect(createPolicyResponse.headers, {depth: 1})}`);
+          await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError: `Microsoft's PartnerCompliancePolicies API returned an empty response (HTTP ${createPolicyResponse.statusCode}). This may indicate a partial setup state from a previous attempt, or missing API permissions on the Fleet enterprise app registration.`});
+          throw {redirect: fleetInstanceUrlToRedirectTo };
+        }
+        try {
+          parsedPoliciesResponse = JSON.parse(createPolicyResponse.body);
+        } catch(err){
+          sails.log.warn(`An error occured when parsing the JSON response body from the PartnerCompliancePolicies endpoint for a microsoft compliance tenant. Status: ${createPolicyResponse.statusCode}. Body length: ${createPolicyResponse.body.length}. Body snippet: ${String(createPolicyResponse.body).slice(0, 200)}. Full error:`, err);
+          await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `Could not parse response from Microsoft's PartnerCompliancePolicies API (HTTP ${createPolicyResponse.statusCode}). Underlying error: ${require('util').inspect(err, {depth: null})}`});
+          throw {redirect: fleetInstanceUrlToRedirectTo };
+        }
+        // Defensive check: Microsoft may return a well-formed but unexpected response shape (missing `value` array) for certain tenant configurations.
+        if(!parsedPoliciesResponse.value || !Array.isArray(parsedPoliciesResponse.value) || parsedPoliciesResponse.value.length === 0){
+          sails.log.warn(`The response body from PartnerCompliancePolicies did not contain the expected 'value' array for tenant ${informationAboutThisTenant.entraTenantId}. Parsed response: ${require('util').inspect(parsedPoliciesResponse, {depth: 2})}`);
+          await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError: `Microsoft's PartnerCompliancePolicies API returned an unexpected response shape (missing 'value' array). This may indicate a partial setup state or missing API permissions on the Fleet enterprise app registration.`});
+          throw {redirect: fleetInstanceUrlToRedirectTo };
+        }
+        createdPolicyId = parsedPoliciesResponse.value[0].Id;
+      }
+      // The nil GUID is the default ‘no ID’ value, not a generated policy ID, so don’t try to assign it.”
+      if(createdPolicyId === '00000000-0000-0000-0000-000000000000') {
+        sails.log.warn(`Microsoft's PartnerCompliancePolicies API returned an all-zero policy ID for tenant ${informationAboutThisTenant.entraTenantId}. Status: ${createPolicyResponse.statusCode}. Response headers: ${require('util').inspect(createPolicyResponse.headers, {depth: 1})}`);
+        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError: `Microsoft's PartnerCompliancePolicies API returned an all-zero compliance policy ID (HTTP ${createPolicyResponse.statusCode}).`});
         throw {redirect: fleetInstanceUrlToRedirectTo };
       }
-      try {
-        parsedPoliciesResponse = JSON.parse(createPolicyResponse.body);
-      } catch(err){
-        sails.log.warn(`An error occured when parsing the JSON response body from the PartnerCompliancePolicies endpoint for a microsoft compliance tenant. Status: ${createPolicyResponse.statusCode}. Body length: ${createPolicyResponse.body.length}. Body snippet: ${String(createPolicyResponse.body).slice(0, 200)}. Full error:`, err);
-        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `Could not parse response from Microsoft's PartnerCompliancePolicies API (HTTP ${createPolicyResponse.statusCode}). Underlying error: ${require('util').inspect(err, {depth: null})}`});
-        throw {redirect: fleetInstanceUrlToRedirectTo };
-      }
-      // Defensive check: Microsoft may return a well-formed but unexpected response shape (missing `value` array) for certain tenant configurations.
-      if(!parsedPoliciesResponse.value || !Array.isArray(parsedPoliciesResponse.value) || parsedPoliciesResponse.value.length === 0){
-        sails.log.warn(`The response body from PartnerCompliancePolicies did not contain the expected 'value' array for tenant ${informationAboutThisTenant.entraTenantId}. Parsed response: ${require('util').inspect(parsedPoliciesResponse, {depth: 2})}`);
-        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError: `Microsoft's PartnerCompliancePolicies API returned an unexpected response shape (missing 'value' array). This may indicate a partial setup state or missing API permissions on the Fleet enterprise app registration.`});
-        throw {redirect: fleetInstanceUrlToRedirectTo };
-      }
-      let createdPolicyId = parsedPoliciesResponse.value[0].Id;
 
       // Use the Microsoft Graph API to retreive the ID of the "Fleet conditional access" Entra ID group that the customer created to assign the policy to.
       let groupResponse = await sails.helpers.http.sendHttpRequest.with({

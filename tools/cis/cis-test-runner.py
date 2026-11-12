@@ -828,8 +828,8 @@ def get_host_by_hostname(
 
 
 def build_fleet_pkg(fleet_url: str, enroll_secret: str, fleetctl: str) -> Path:
-    """Build a fleet-osquery.pkg using fleetctl."""
-    pkg_path = Path("fleet-osquery.pkg")
+    """Build a fleetd .pkg using fleetctl."""
+    pkg_path = Path("fleet-macos.pkg")
     if pkg_path.exists():
         pkg_path.unlink()
 
@@ -842,10 +842,11 @@ def build_fleet_pkg(fleet_url: str, enroll_secret: str, fleetctl: str) -> Path:
         "--disable-open-folder",
         f"--fleet-url={fleet_url}",
         f"--enroll-secret={enroll_secret}",
+        f"--outfile={pkg_path}",
     ], timeout=300)
 
     if not pkg_path.exists():
-        raise RuntimeError("fleetctl package did not produce fleet-osquery.pkg")
+        raise RuntimeError(f"fleetctl package did not produce {pkg_path}")
 
     log(f"Package built: {pkg_path}")
     return pkg_path
@@ -944,12 +945,12 @@ def delete_vm(name: str) -> None:
 def install_agent(ip: str, pkg_path: Path) -> None:
     """Copy and install the fleet agent on the VM."""
     log("Copying agent package to VM...")
-    scp_to_vm(ip, pkg_path, "fleet-osquery.pkg")
+    scp_to_vm(ip, pkg_path, "fleet-macos.pkg")
 
     log("Installing agent...")
     result = ssh(
         ip,
-        f"echo {VM_PASS} | sudo -S installer -pkg fleet-osquery.pkg -target /",
+        f"echo {VM_PASS} | sudo -S installer -pkg fleet-macos.pkg -target /",
         timeout=120,
     )
     if result.returncode != 0:
@@ -1693,7 +1694,7 @@ Examples:
         "--pkg-path",
         metavar="PATH",
         help=(
-            "Path to a pre-built fleet-osquery.pkg. If provided, "
+            "Path to a pre-built fleetd .pkg. If provided, "
             "skips building a new package. WARNING: the pre-built "
             "package contains a baked-in enroll secret that may not "
             "match the test team this tool creates. The VM may enroll "

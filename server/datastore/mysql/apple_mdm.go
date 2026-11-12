@@ -537,10 +537,6 @@ ORDER BY name`
 	return res, nil
 }
 
-func (ds *Datastore) GetMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
-	return ds.getMDMAppleConfigProfileByIDOrUUID(ctx, profileID, "")
-}
-
 func (ds *Datastore) GetMDMAppleConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMAppleConfigProfile, error) {
 	return ds.getMDMAppleConfigProfileByIDOrUUID(ctx, 0, profileUUID)
 }
@@ -707,12 +703,6 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get declaration custom activation")
 	}
 	return &act, nil
-}
-
-func (ds *Datastore) DeleteMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return deleteMDMAppleConfigProfileByIDOrUUID(ctx, tx, profileID, "")
-	})
 }
 
 func (ds *Datastore) DeleteMDMAppleDeclaration(ctx context.Context, declUUID string) error {
@@ -1514,59 +1504,6 @@ WHERE
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get command results")
-	}
-	return results, nil
-}
-
-var mdmAppleCommandsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
-	"command_uuid": "nvq.command_uuid",
-	"request_type": "nvq.request_type",
-	"status":       "COALESCE(NULLIF(nvq.status, ''), 'Pending')",
-	"updated_at":   "COALESCE(nvq.result_updated_at, nvq.created_at)",
-	"hostname":     "h.hostname",
-	"device_id":    "ne.device_id",
-	"name":         "nvq.name",
-}
-
-func (ds *Datastore) ListMDMAppleCommands(
-	ctx context.Context,
-	tmFilter fleet.TeamFilter,
-	listOpts *fleet.MDMCommandListOptions,
-) ([]*fleet.MDMAppleCommand, error) {
-	// Note that right now we are explicitly filtering by ne.type IN ('Device', 'User Enrollment (Device)') but we may want to change
-	// the API to allow and show user channel commands in the future
-	stmt := fmt.Sprintf(`
-SELECT
-    ne.device_id as device_id,
-    nvq.command_uuid,
-    COALESCE(NULLIF(nvq.status, ''), 'Pending') as status,
-    COALESCE(nvq.result_updated_at, nvq.created_at) as updated_at,
-    nvq.request_type,
-    h.hostname,
-    h.team_id,
-    nvq.name
-FROM
-    nano_view_queue nvq
-INNER JOIN
-	nano_enrollments ne
-ON
-	nvq.id = ne.id AND ne.type IN ('Device', 'User Enrollment (Device)')
-INNER JOIN
-    hosts h
-ON
-    ne.id = h.uuid
-WHERE
-   nvq.active = 1 AND
-    %s
-`, ds.whereFilterHostsByTeams(tmFilter, "h"))
-	stmt, params, err := appendListOptionsWithCursorToSQLSecure(stmt, nil, &listOpts.ListOptions, mdmAppleCommandsAllowedOrderKeys)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list commands")
-	}
-
-	var results []*fleet.MDMAppleCommand
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, params...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list commands")
 	}
 	return results, nil
 }
@@ -3132,15 +3069,6 @@ func (ds *Datastore) GetNanoMDMUserEnrollmentUsernameAndUUID(ctx context.Context
 		ds.logger.DebugContext(ctx, "userID from nano does not match expected deviceID prefixed format", "deviceID", deviceID, "userID", nanoUser.ID)
 	}
 	return username, userID, nil
-}
-
-// NOTE: this is only called from a deprecated endpoint that does not support
-// Fleet variables in profiles.
-func (ds *Datastore) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := ds.batchSetMDMAppleProfilesDB(ctx, tx, tmID, profiles, nil)
-		return err
-	})
 }
 
 // seedSelfServiceProfileOptInsDB opts in every host that has the profiles installed.
@@ -6931,11 +6859,12 @@ func (ds *Datastore) ReplaceMDMConfigAssets(ctx context.Context, assets []fleet.
 	return ds.withRetryTxx(ctx, replaceFunc)
 }
 
-// ListIOSAndIPadOSToRefetch returns the UUIDs of iPhones/iPads that should be refetched
-// (their details haven't been updated in the given `interval`, or they were
-// just enrolled and have refetch_requested=1 still waiting to be cleared by
-// the DeviceInformation ack).
-func (ds *Datastore) ListIOSAndIPadOSToRefetch(ctx context.Context, interval time.Duration) (devices []fleet.AppleDevicesToRefetch,
+// ListIOSAndIPadOSToRefetch returns up to `limit` iPhones/iPads that should be
+// refetched (their details haven't been updated in the given `interval`, or
+// they were just enrolled and have refetch_requested=1 still waiting to be
+// cleared by the DeviceInformation ack), longest-waiting first. Hosts that
+// already have every refetch command outstanding are skipped.
+func (ds *Datastore) ListIOSAndIPadOSToRefetch(ctx context.Context, interval time.Duration, limit int) (devices []fleet.AppleDevicesToRefetch,
 	err error,
 ) {
 	// The detail_updated_at staleness check alone skips freshly-enrolled hosts
@@ -6945,33 +6874,61 @@ func (ds *Datastore) ListIOSAndIPadOSToRefetch(ctx context.Context, interval tim
 	// BYOD/manual iOS hosts (set during MDMAppleUpsertHost) and gets cleared
 	// by the DeviceInformation ack handler, so we don't end up resending on
 	// every tick after the first refetch.
-	hostsStmt := `
+	//
+	// Offline devices never ack, so they keep their tracking rows and stale
+	// detail_updated_at; without the "< 3 outstanding" filter they would fill
+	// every batch. Each branch is a single (platform, refetch_requested) range
+	// of idx_hosts_platform_refetch_detail read in detail_updated_at order, so
+	// it stops at the limit instead of scanning every mobile host.
+	const branchSelect = `
+	(SELECT h.id, h.uuid, h.refetch_requested, h.detail_updated_at
+	FROM hosts h FORCE INDEX (idx_hosts_platform_refetch_detail)
+		INNER JOIN nano_enrollments ne ON ne.id = h.uuid AND ne.enabled = 1
+	WHERE TRIM(h.uuid) != ''
+		AND (SELECT COUNT(*) FROM host_mdm_commands hmc
+			WHERE hmc.host_id = h.id AND hmc.command_type IN (?)) < ?`
+	const requestedBranch = branchSelect + `
+		AND h.platform = ? AND h.refetch_requested = 1
+	ORDER BY h.detail_updated_at
+	LIMIT ?)`
+	const staleBranch = branchSelect + `
+		AND h.platform = ? AND h.refetch_requested = 0
+		AND h.detail_updated_at < NOW() - INTERVAL ? SECOND
+	ORDER BY h.detail_updated_at
+	LIMIT ?)`
+	const hostsStmt = `
 SELECT
-	h.id as host_id,
-	h.uuid as uuid,
+	c.id as host_id,
+	c.uuid as uuid,
 	hmdm.installed_from_dep,
 	hmdm.is_personal_enrollment,
-	JSON_ARRAYAGG(hmc.command_type) as commands_already_sent
-FROM hosts h
-	INNER JOIN host_mdm hmdm ON hmdm.host_id = h.id
-	INNER JOIN nano_enrollments ne ON ne.id = h.uuid
-	LEFT JOIN host_mdm_commands hmc ON hmc.host_id = h.id AND hmc.command_type IN (?)
-WHERE
-	(h.platform = 'ios' OR h.platform = 'ipados')
-	AND TRIM(h.uuid) != ''
-	AND (
-		TIMESTAMPDIFF(SECOND, h.detail_updated_at, NOW()) > ?
-		OR h.refetch_requested = 1
-	)
-	AND ne.enabled = 1
-GROUP BY h.id`
-	args := []any{fleet.ListAppleRefetchCommandPrefixes(), interval.Seconds()}
-	hostsStmt, args, err = sqlx.In(hostsStmt, args...)
+	(SELECT JSON_ARRAYAGG(hmc.command_type) FROM host_mdm_commands hmc
+		WHERE hmc.host_id = c.id AND hmc.command_type IN (?)) as commands_already_sent
+FROM (` + requestedBranch + ` UNION ALL ` + staleBranch + ` UNION ALL ` + requestedBranch + ` UNION ALL ` + staleBranch + `
+) c
+	INNER JOIN host_mdm hmdm ON hmdm.host_id = c.id
+ORDER BY c.refetch_requested DESC, c.detail_updated_at, c.id
+LIMIT ?`
+
+	refetchTypes := []string{
+		fleet.RefetchAppsCommandUUIDPrefix,
+		fleet.RefetchCertsCommandUUIDPrefix,
+		fleet.RefetchDeviceCommandUUIDPrefix,
+	}
+	args := []any{refetchTypes}
+	for _, platform := range []string{"ios", "ipados"} {
+		args = append(args,
+			refetchTypes, len(refetchTypes), platform, limit,
+			refetchTypes, len(refetchTypes), platform, int(interval.Seconds()), limit,
+		)
+	}
+	args = append(args, limit)
+	stmt, args, err := sqlx.In(hostsStmt, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "sqlx.In for list iOS and iPadOS to refetch")
 	}
 
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &devices, hostsStmt, args...); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &devices, stmt, args...); err != nil {
 		return nil, err
 	}
 

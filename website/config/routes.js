@@ -617,7 +617,7 @@ module.exports.routes = {
     }
   },
 
-  'GET /linux-management': {
+  'GET /linux': {
     action: 'view-linux-management',
     locals: {
       pageTitleForMeta: 'Linux device management',
@@ -737,6 +737,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /cybersecurity': {
+    action: 'view-cybersecurity',
+    locals: {
+      pageTitleForMeta: 'Device management for cybersecurity',
+      pageDescriptionForMeta: 'See which AI agents and apps are running on every Mac, PC, and Linux machine, and check that your security controls are working. Device management built for security teams.',
+    }
+  },
+
   'GET /pharma': {
     action: 'view-pharma',
     locals: {
@@ -817,8 +825,8 @@ module.exports.routes = {
     action: 'landing-pages/view-windows-mdm',
     locals: {
       hideHeaderLinks: true,
-      pageTitleForMeta: 'Windows MDM: open source Windows device management at enterprise scale',
-      pageDescriptionForMeta: 'Fleet is open source Windows MDM for modern IT teams. Enroll, configure, and secure Windows 10 and 11 with Microsoft Entra ID, Windows Autopilot, BitLocker, and GitOps. Self-hosted or Fleet-hosted.',
+      pageTitleForMeta: 'Windows MDM: AI-native, open source Windows device management',
+      pageDescriptionForMeta: 'Fleet is AI-native, open source Windows MDM for modern IT teams. Enroll, configure, and secure Windows 10 and 11 with zero touch and no Microsoft license required. Self-hosted or Fleet-hosted.',
     }
   },
 
@@ -836,7 +844,7 @@ module.exports.routes = {
     locals: {
       hideHeaderLinks: true,
       pageTitleForMeta: 'Open source MDM | Self-hosted device management',
-      pageDescriptionForMeta: 'Fleet is open-source MDM for macOS, Windows, Linux, iOS, and Android. Self-hosted endpoint management with every line of code public on GitHub.',
+      pageDescriptionForMeta: 'Fleet is AI-native, open-source MDM for macOS, Windows, Linux, iOS, and Android. Self-hosted device management with every line of code public on GitHub.',
     }
   },
 
@@ -860,7 +868,7 @@ module.exports.routes = {
   // 'GET /docs/using-fleet/learn-how-to-use-fleet': '/docs/using-fleet/fleet-for-beginners',
   // ```
   'GET /jamf-alternative': '/replace-jamf',
-  'GET /linux': '/linux-management',
+  'GET /linux-management': (req, res) => { return res.redirect(301, '/linux' + (req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '')); },
   'GET /customer-stories': '/customers',
   'GET /testimonials': '/customers',
   // 'GET /try': '/get-started',
@@ -1527,6 +1535,8 @@ module.exports.routes = {
   'GET /learn-more-about/vpp-tokens-best-practice': '/guides/apple-mdm-setup#best-practice',
   'GET /learn-more-about/mdm-migration': '/guides/mdm-migration#migrate-hosts',
   'GET /learn-more-about/android-zero-touch': '/guides/android-zero-touch-enrollment',
+  'GET /learn-more-about/fleet-5-upgrade': '/guides/upgrade-to-fleet-5',
+  'GET /learn-more-about/fleet-5-migration': '/guides/upgrade-to-fleet-5',
 
 
   // Sitemap
@@ -1624,8 +1634,10 @@ module.exports.routes = {
   '/api/v1/unsubscribe-from-marketing-emails': { action: 'unsubscribe-from-marketing-emails' },
   'POST /api/v1/customers/get-stripe-checkout-session-url': { action: 'customers/get-stripe-checkout-session-url' },
   '/api/v1/query-generator/get-llm-generated-sql': { action: 'query-generator/get-llm-generated-sql' },
-  'POST /api/v1/get-llm-generated-configuration-profile': { action: 'get-llm-generated-configuration-profile', hasSocketFeatures: true, csrf: false },
-  'POST /api/v1/get-llm-generated-configuration-profile-name-and-description': { action: 'get-llm-generated-configuration-profile-name-and-description', csrf: false },
+  'POST /api/v1/get-llm-generated-configuration-profile': { action: 'get-llm-generated-configuration-profile', hasSocketFeatures: true },
+  'POST /api/profile-generator/v1/register': { action: 'profile-generator/register-one-fleet-instance', csrf: false },
+  'POST /api/profile-generator/v1/name-and-description': { action: 'profile-generator/generate-one-name-and-description', csrf: false },
+  'POST /api/profile-generator/v1/profile': { action: 'profile-generator/generate-one-profile', csrf: false },
   'POST /api/v1/deliver-application-submission': { action: 'deliver-application-submission' },
   'POST /api/v1/deliver-gitops-request': { action: 'deliver-gitops-workshop-request' },
   'POST /api/v1/admin/reset-one-fleet-premium-local-trial': { action: 'admin/reset-one-fleet-premium-local-trial' },

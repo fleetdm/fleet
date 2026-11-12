@@ -14,7 +14,6 @@ const FeaturesSection = ({
 }: IAdvancedSectionProps) => {
   const {
     disableLiveQuery,
-    disableScripts,
     disableAIFeatures,
     enableProfileValidation,
     disableMCP,
@@ -56,36 +55,6 @@ const FeaturesSection = ({
         )}
       />
 
-      <GitOpsModeTooltipWrapper
-        position="left"
-        renderChildren={(disableChildren) => (
-          <Checkbox
-            disabled={disableChildren}
-            onChange={() =>
-              onInputChange({ name: "disableScripts", value: !disableScripts })
-            }
-            name="disableScripts"
-            value={!disableScripts}
-            labelTooltipContent={
-              !disableChildren && (
-                <>
-                  Disabling script execution will block access to run scripts.
-                  Scripts may still be added and removed in the UI and API.
-                  Features that run scripts under-the-hood (e.g. software
-                  install, lock/wipe, script-only packages) will still be
-                  available.
-                  <br />
-                  <i>
-                    (Default: <b>On</b>)
-                  </i>
-                </>
-              )
-            }
-          >
-            Script execution
-          </Checkbox>
-        )}
-      />
       <GitOpsModeTooltipWrapper
         position="left"
         renderChildren={(disableChildren) => (

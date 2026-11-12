@@ -153,7 +153,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	// list the available setup experience software and verify that only app 1 is installed at setup
 	var getResp getSetupExperienceSoftwareResponse
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", nil, http.StatusOK, &getResp,
-		"team_id", "0", "platform", string(fleet.AndroidPlatform), "order_key", "name")
+		"fleet_id", "0", "platform", string(fleet.AndroidPlatform), "order_key", "name")
 	require.Len(t, getResp.SoftwareTitles, 2)
 	require.Equal(t, app1TitleID, getResp.SoftwareTitles[0].ID)
 	require.Equal(t, app1.Name, getResp.SoftwareTitles[0].Name)
@@ -222,7 +222,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	req := android_service.PubSubPushRequest{PubSubMessage: *reportMsg}
 	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubSubToken.Value))
 	s.lastActivityOfTypeMatches(fleet.ActivityInstalledAppStoreApp{}.ActivityName(), withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "app_store_id":%q,
-		"command_uuid":%q, "from_auto_update": false, "from_configuration_resend": false, "from_setup_experience": true, "host_display_name":%q, "host_id":%d, "host_platform":%q, "policy_id":null, "policy_name":null, "self_service":false, "software_title":%q,
+		"command_uuid":%q, "from_auto_update": false, "from_configuration_resend": false, "from_setup_experience": true, "host_display_name":%q, "host_id":%d, "host_platform":%q, "policy_id":null, "policy_name":null, "self_service":false, "software_title":%q, "software_display_name":"",
 		"status":%q}`, app1.AdamID, app1CmdUUID, host.DisplayName(), host.ID, host.Platform, app1.Name, fleet.SoftwareInstalled), nil), 0)
 
 	// the pending install should now be verified
@@ -434,7 +434,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidCancelOnUnenroll() {
 	{"host_id": %d, "enrollment_id": null, "host_display_name": %q, "host_serial": %q, "installed_from_dep": false, "platform": %q}`,
 		host1.ID, host1.DisplayName(), host1.HardwareSerial, host1.Platform), 0)
 	s.lastActivityOfTypeMatches(fleet.ActivityInstalledAppStoreApp{}.ActivityName(), withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "app_store_id":%q,
-		"command_uuid":%q, "from_auto_update": false, "from_configuration_resend": false, "from_setup_experience": true, "host_display_name":%q, "host_id":%d, "host_platform":%q, "policy_id":null, "policy_name":null, "self_service":false, "software_title":%q,
+		"command_uuid":%q, "from_auto_update": false, "from_configuration_resend": false, "from_setup_experience": true, "host_display_name":%q, "host_id":%d, "host_platform":%q, "policy_id":null, "policy_name":null, "self_service":false, "software_title":%q, "software_display_name":"",
 		"status":%q}`, app1.AdamID, app1CmdUUID, host1.DisplayName(), host1.ID, host1.Platform, app1.Name, fleet.SoftwareInstallFailed), nil), 0)
 
 	// host2 and host3 haven't been unenrolled, app install is still pending

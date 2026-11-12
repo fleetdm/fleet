@@ -118,10 +118,10 @@ if ! hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INST
 	exit 1
 fi
 if ! sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"; then
-	hdiutil detach "$MOUNT_POINT" || true
+	hdiutil detach "$MOUNT_POINT" || { sleep 2; hdiutil detach "$MOUNT_POINT"; } || hdiutil detach -force "$MOUNT_POINT" || true
 	exit 1
 fi
-hdiutil detach "$MOUNT_POINT"
+hdiutil detach "$MOUNT_POINT" || { sleep 2; hdiutil detach "$MOUNT_POINT"; } || hdiutil detach -force "$MOUNT_POINT" || true
 
 # Clean up any backup files that might exist from previous failed installations
 # This ensures we start with a clean slate

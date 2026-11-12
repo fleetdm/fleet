@@ -16,22 +16,24 @@ const pathPrefix = "/api/_version_/fleet"
 type Kind string
 
 const (
-	KindPath         Kind = "path"          // URL path template, starting with /api/_version_/fleet
-	KindQueryParam   Kind = "query_param"   // URL query parameter
-	KindJSONKey      Kind = "json_key"      // key in a JSON request or response body
-	KindFormField    Kind = "form_field"    // multipart form field
-	KindCSVColumn    Kind = "csv_column"    // column header of a CSV export
-	KindSortKey      Kind = "sort_key"      // value of an order_key parameter
-	KindTargetType   Kind = "target_type"   // value of a target type
-	KindFlag         Kind = "flag"          // fleetctl flag, without the leading dashes
-	KindFlagValue    Kind = "flag_value"    // fleetctl flag and value, verbatim
-	KindEnvVar       Kind = "env_var"       // environment variable read by fleetctl
-	KindCommand      Kind = "command"       // fleetctl command, verbatim
-	KindYAMLKey      Kind = "yaml_key"      // GitOps or apply YAML key path, dot notation, [] for array elements
-	KindSpecKind     Kind = "spec_kind"     // kind of a fleetctl apply spec
-	KindFileName     Kind = "file_name"     // name of a GitOps file, without its directory
-	KindYAMLValue    Kind = "yaml_value"    // value of a YAML key, written "key: value" and compared without regard to case
-	KindActivityType Kind = "activity_type" // activity type name
+	KindPath          Kind = "path"           // URL path template, starting with /api/_version_/fleet
+	KindQueryParam    Kind = "query_param"    // URL query parameter
+	KindJSONKey       Kind = "json_key"       // key in a JSON request or response body
+	KindFormField     Kind = "form_field"     // multipart form field
+	KindCSVColumn     Kind = "csv_column"     // column header of a CSV export
+	KindSortKey       Kind = "sort_key"       // value of an order_key parameter
+	KindTargetType    Kind = "target_type"    // value of a target type
+	KindFlag          Kind = "flag"           // fleetctl flag, without the leading dashes
+	KindFlagValue     Kind = "flag_value"     // fleetctl flag and value, verbatim
+	KindEnvVar        Kind = "env_var"        // environment variable read by fleetctl
+	KindCommand       Kind = "command"        // fleetctl command, verbatim
+	KindYAMLKey       Kind = "yaml_key"       // GitOps or apply YAML key path, dot notation, [] for array elements
+	KindSpecKind      Kind = "spec_kind"      // kind of a fleetctl apply spec
+	KindFileName      Kind = "file_name"      // name of a GitOps file, without its directory
+	KindYAMLValue     Kind = "yaml_value"     // value of a YAML key, written "key: value" and compared without regard to case
+	KindActivityType  Kind = "activity_type"  // activity type name
+	KindSAMLAttribute Kind = "saml_attribute" // SAML attribute an identity provider sends, written with <ID> where a suffix varies
+	KindConfigKey     Kind = "config"         // yaml configuration key in the Fleet server config (will also check it's env var and flag versions)
 )
 
 // Scope says where a removed name appears, so each consumer loads only the entries it needs.
@@ -98,6 +100,17 @@ func Filter(kind Kind, scope Scope) []Entry {
 // Find returns the entry for a removed name. An entry with an empty Context matches every context; otherwise the context must match.
 func Find(kind Kind, oldName, context string) (Entry, bool) {
 	return findIn(entries, kind, oldName, context)
+}
+
+// FindSAMLAttribute returns the entry for a removed SAML attribute. A KindSAMLAttribute entry is written with a trailing <ID> for the
+// part that varies (FLEET_JIT_USER_ROLE_TEAM_<ID>), so it matches any attribute name that starts with the text before it.
+func FindSAMLAttribute(name string) (Entry, bool) {
+	for _, e := range entries {
+		if prefix, ok := strings.CutSuffix(e.Old, "<ID>"); e.Kind == KindSAMLAttribute && ok && strings.HasPrefix(name, prefix) {
+			return e, true
+		}
+	}
+	return Entry{}, false
 }
 
 // sameName reports whether name is the old name of e. A KindYAMLValue entry is written "key: value": its value is compared without
