@@ -62,8 +62,8 @@ func DataDir() (string, error) { return ensureDir(appSupportDir, "") }
 // $HANGAR_DATA_DIR/logs), creating it if needed.
 func LogDir() (string, error) { return ensureDir(appLogDir, "logs") }
 
-// ReservationsFile returns the fleet-workflow runtime reservations path. It's
-// only read, so nothing is created.
+// ReservationsFile returns the slot reservations path:
+// $HANGAR_RESERVATIONS_FILE, else reservations.json in the data dir.
 func ReservationsFile() (string, error) {
 	if f := os.Getenv(reservationsEnv); f != "" {
 		if !filepath.IsAbs(f) {
@@ -71,11 +71,11 @@ func ReservationsFile() (string, error) {
 		}
 		return f, nil
 	}
-	home, err := os.UserHomeDir()
+	dir, err := DataDir()
 	if err != nil {
-		return "", fmt.Errorf("resolving home dir: %w", err)
+		return "", err
 	}
-	return filepath.Join(home, ".local", "share", "fleet-workflow", "runtime-reservations.json"), nil
+	return filepath.Join(dir, "reservations.json"), nil
 }
 
 // ensureDir resolves pick(home), or sub under $HANGAR_DATA_DIR when set, and

@@ -1,7 +1,6 @@
 // Package agentapi serves the agent HTTP API: slot listing, slot actions as
-// jobs, and job state and scrubbed logs. An agent holding a fleet-workflow
-// reservation for a slot can assign its worktree and run the slot lifecycle
-// without the GUI. Guards keep agents off s1 and off slots they don't hold.
+// jobs, and job state and scrubbed logs. An agent that reserves a slot can
+// assign its worktree and run the slot lifecycle without the GUI. Guards keep agents off s1 and off slots they don't hold.
 // They stop cooperating agents' mistakes; they aren't a security boundary.
 package agentapi
 
@@ -29,6 +28,7 @@ import (
 type SettingsStore interface {
 	Snapshot() settings.Settings
 	Update(fn func(*settings.Settings) error) (settings.Settings, error)
+	WithLocked(fn func(cur settings.Settings) error) error
 }
 
 // Holder claims slots for one job or assign at a time.
@@ -57,6 +57,8 @@ type Options struct {
 	PrimaryCheckout func(dir string) (string, error)
 	Probe           slots.Probe
 	BackupsDir      func(slotID string) (string, error)
+	// Emit sends a GUI event; nil drops it.
+	Emit func(event string)
 }
 
 const (
@@ -156,8 +158,9 @@ func (a *API) SlotUsage() map[string]SlotUsage {
 }
 
 func (a *API) ownerAction(owner string) string {
-	if strings.HasPrefix(owner, "assign:") {
-		return "assign"
+	// Inline actions hold as "<action>:<n>"; job ids have no colon.
+	if action, _, ok := strings.Cut(owner, ":"); ok {
+		return action
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -234,6 +237,22 @@ func (a *API) postAction(w http.ResponseWriter, r *http.Request) {
 	}
 	slotID := r.PathValue("id")
 	switch req.Action {
+	case "reserve":
+		res, err := a.reserve(slotID, req.Worktree)
+		if err != nil {
+			writeErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"slot": slotID, "reservation": map[string]any{
+			"worktree": res.Worktree, "previous_worktree": res.PreviousWorktree,
+			"ports": res.Ports, "compose_project": res.ComposeProject,
+		}})
+	case "release":
+		if err := a.release(r.Context(), slotID, req.Worktree); err != nil {
+			writeErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"slot": slotID, "released": true})
 	case "assign":
 		slot, err := a.assign(r.Context(), slotID, req)
 		if err != nil {
@@ -263,6 +282,111 @@ func (a *API) admit() (uint64, error) {
 	a.seq++
 	a.wg.Add(1)
 	return a.seq, nil
+}
+
+// reserve claims slotID for worktree, recording the slot's current worktree
+// as previous_worktree. It's idempotent for the same worktree.
+func (a *API) reserve(slotID, worktree string) (reservations.Reservation, error) {
+	if slotID == "s1" {
+		return reservations.Reservation{}, refuse(http.StatusForbidden, "s1 is never available to agents")
+	}
+	if _, err := a.admit(); err != nil {
+		return reservations.Reservation{}, err
+	}
+	defer a.wg.Done()
+	var res reservations.Reservation
+	var created bool
+	// Under the settings lock a GUI save lands wholly before (and is recorded)
+	// or after (and sees the reservation, which keeps the slot's identity).
+	err := a.opts.Store.WithLocked(func(cur settings.Settings) error {
+		slot, ok := findSlot(cur, slotID)
+		switch {
+		case !ok:
+			return refuse(http.StatusNotFound, "no slot %s", slotID)
+		case !slot.Enabled:
+			return refuse(http.StatusForbidden, "%s is disabled", slotID)
+		}
+		if err := a.checkS1(cur, slot, worktree); err != nil {
+			return err
+		}
+		if wt := slot.WorktreePath; wt != nil {
+			if err := a.checkS1(cur, slot, *wt); err != nil {
+				return refuse(http.StatusConflict, "%s is assigned to %s, which can't be restored by the API; reassign it in Hangar first: %v", slotID, *wt, err)
+			}
+		}
+		var err error
+		res, created, err = reservations.Reserve(a.opts.ReservationsPath, slotID, reservations.Reservation{
+			Worktree: filepath.Clean(worktree), PreviousWorktree: slot.WorktreePath,
+			Ports: slot.Ports, ComposeProject: slot.ComposeProject,
+		})
+		var other *reservations.OtherSlotError
+		switch {
+		case errors.Is(err, reservations.ErrHeld):
+			return refuse(http.StatusConflict, "%s is reserved by %s", slotID, res.Worktree)
+		case errors.As(err, &other):
+			return refuse(http.StatusConflict, "%s already holds %s; release it before reserving %s", worktree, other.Slot, slotID)
+		case err != nil:
+			return refuse(http.StatusInternalServerError, "%v", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return reservations.Reservation{}, err
+	}
+	if created {
+		slog.Info("agent api: reserved slot", "slot", slotID, "worktree", res.Worktree)
+		a.emit("agent:slots")
+	}
+	return res, nil
+}
+
+// release drops worktree's reservation once the slot is quiet and back on
+// the reservation's previous worktree.
+func (a *API) release(ctx context.Context, slotID, worktree string) error {
+	adm, err := a.check(slotID, worktree, false, "")
+	if err != nil {
+		return err
+	}
+	n, err := a.admit()
+	if err != nil {
+		return err
+	}
+	defer a.wg.Done()
+	owner := fmt.Sprintf("release:%d", n)
+	if err := a.opts.Manager.Hold(processes.HoldSpec{
+		Slot: slotID, Owner: owner, Project: adm.slot.ComposeProject, ServerPort: adm.slot.Ports.Server,
+	}); err != nil {
+		return refuse(http.StatusConflict, "%v", err)
+	}
+	defer a.opts.Manager.Release(slotID, owner)
+	if err := a.quiet(ctx, adm.slot); err != nil {
+		return err
+	}
+	if adm, err = a.check(slotID, worktree, false, adm.res.CreatedAt); err != nil {
+		return err
+	}
+	if cur, prev := adm.slot.WorktreePath, adm.res.PreviousWorktree; (cur == nil) != (prev == nil) || (cur != nil && !samePath(*cur, *prev)) {
+		return refuse(http.StatusConflict, "%s isn't back on previous_worktree %s; assign it back first", slotID, describe(prev))
+	}
+	if err := reservations.Release(a.opts.ReservationsPath, slotID, adm.res.Worktree, adm.res.CreatedAt); err != nil {
+		return refuse(http.StatusConflict, "releasing %s: %v", slotID, err)
+	}
+	slog.Info("agent api: released slot", "slot", slotID, "worktree", adm.res.Worktree)
+	a.emit("agent:slots")
+	return nil
+}
+
+func describe(p *string) string {
+	if p == nil {
+		return "null"
+	}
+	return *p
+}
+
+func (a *API) emit(event string) {
+	if a.opts.Emit != nil {
+		a.opts.Emit(event)
+	}
 }
 
 func (a *API) assign(ctx context.Context, slotID string, req actionRequest) (settings.ServerProfile, error) {

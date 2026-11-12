@@ -47,8 +47,8 @@ function subscribe(fn: () => void): () => void {
   };
 }
 
-/// Slot reservations and agent jobs, keyed by slot id. The helper writes
-/// reservations outside Hangar, so this also polls.
+/// Slot reservations and agent jobs, keyed by slot id. Other tools can write
+/// the reservations file too, so this also polls.
 export function useSlotUsage(): Usage {
   return useSyncExternalStore(subscribe, () => usage);
 }

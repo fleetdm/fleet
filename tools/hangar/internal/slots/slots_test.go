@@ -144,7 +144,8 @@ func inspectJSON(datadirArg string, mounts ...string) []byte {
 	return fmt.Appendf(nil, `[{"Path":"docker-entrypoint.sh","Args":%s,"Mounts":[%s]}]`, args, strings.Join(ms, ","))
 }
 
-// helperOverride is shaped like fleet-workflow's volume_override output.
+// helperOverride is a provisioned override: per-worktree volume names and an
+// optional data generation.
 func helperOverride(id, generation string) string {
 	suffix, x := "", ""
 	if generation != "" {
@@ -370,6 +371,33 @@ func TestPrepareDBCheckpoint(t *testing.T) {
 			t.Fatalf("dir = %v", got)
 		}
 	})
+	t.Run("no override still checkpoints", func(t *testing.T) {
+		h := newHarness(t)
+		if err := os.Remove(filepath.Join(h.wt, overrideFile)); err != nil {
+			t.Fatal(err)
+		}
+		h.p.inspect = inspectJSON("--datadir=/tmp/mysqldata", "/tmp=fleet-s2_mysql-persistent-volume")
+		h.p.tables = 5
+		if _, err := h.s.Run(t.Context(), ActionPrepareDB, ""); err != nil {
+			t.Fatal(err)
+		}
+		if got := h.r.Calls(); !slices.Equal(got, []string{"start s2:db-backup", "start s2:fleet-prepare-db"}) {
+			t.Fatalf("calls = %v", got)
+		}
+	})
+	t.Run("no override refuses another task's data", func(t *testing.T) {
+		h := newHarness(t)
+		if err := os.Remove(filepath.Join(h.wt, overrideFile)); err != nil {
+			t.Fatal(err)
+		}
+		h.p.tables = 5 // harness inspect mounts fleet-task-abc-mysql, not the project's volume
+		if _, err := h.s.Run(t.Context(), ActionPrepareDB, ""); err == nil {
+			t.Fatal("prepare-db ran against another task's volume")
+		}
+		if got := h.r.Calls(); len(got) != 0 {
+			t.Fatalf("calls = %v", got)
+		}
+	})
 	t.Run("empty schema", func(t *testing.T) {
 		h := newHarness(t)
 		if _, err := h.s.Run(t.Context(), ActionPrepareDB, ""); err != nil {
@@ -422,7 +450,15 @@ func TestCheckMount(t *testing.T) {
 		{name: "no mount above datadir", override: helperOverride("abc", ""),
 			inspect: inspectJSON("--datadir=/data/mysql", "/tmp=fleet-task-abc-mysql"), wantErr: "no mount"},
 		{name: "probe error", override: helperOverride("abc", ""), probeErr: errors.New("daemon down"), wantErr: "daemon down"},
-		{name: "missing override", inspect: inspectJSON("", "/var/lib/mysql=x"), wantErr: "override"},
+		{name: "no override, base project volume",
+			inspect: inspectJSON("--datadir=/tmp/mysqldata", "/tmp=fleet-s2_mysql-persistent-volume")},
+		{name: "no override, foreign volume", wantErr: "fleet-s2_mysql-persistent-volume",
+			inspect: inspectJSON("--datadir=/tmp/mysqldata", "/tmp=fleet-task-abc-mysql")},
+		{name: "no override, probe error", probeErr: errors.New("daemon down"), wantErr: "daemon down"},
+		{name: "no override, no container yet", probeErr: fmt.Errorf("%w: fleet-s2-mysql-1", ErrNoContainer)},
+		{name: "override, no container", override: helperOverride("abc", ""),
+			probeErr: fmt.Errorf("%w: fleet-s2-mysql-1", ErrNoContainer), wantErr: "no such container"},
+		{name: "unparseable override", override: "volumes: [", probeErr: errors.New("inspect must not run"), wantErr: "parsing"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -441,6 +477,15 @@ func TestCheckMount(t *testing.T) {
 			}
 		})
 	}
+	t.Run("unreadable override", func(t *testing.T) {
+		wt := t.TempDir()
+		if err := os.Mkdir(filepath.Join(wt, overrideFile), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := CheckMount(t.Context(), &fakeProbe{}, wt, "fleet-s2"); err == nil || !strings.Contains(err.Error(), "reading") {
+			t.Fatalf("err = %v", err)
+		}
+	})
 }
 
 func TestServe(t *testing.T) {

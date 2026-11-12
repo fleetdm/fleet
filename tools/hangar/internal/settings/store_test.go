@@ -7,6 +7,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 type storeFixture struct {
@@ -238,5 +239,45 @@ func TestUpdateErrorLeavesStateAlone(t *testing.T) {
 	}
 	if f.store.Snapshot().Theme == ThemeDark || f.events.Load() != 0 {
 		t.Error("failed update leaked")
+	}
+}
+
+func TestWithLockedHoldsOffGUISave(t *testing.T) {
+	f := newFixture(t)
+	f.reserved = map[string]bool{}
+	in := f.store.Snapshot()
+	server(in, "s2").WorktreePath = ptr("/wt/new")
+
+	entered, release := make(chan struct{}), make(chan struct{})
+	var seen string
+	locked := make(chan error, 1)
+	go func() {
+		locked <- f.store.WithLocked(func(cur Settings) error {
+			seen = *server(cur, "s2").WorktreePath
+			close(entered)
+			<-release
+			return errors.New("from fn")
+		})
+	}()
+	<-entered
+	saved := make(chan error, 1)
+	go func() {
+		_, err := f.store.SaveFromGUI(in)
+		saved <- err
+	}()
+	select {
+	case <-saved:
+		t.Fatal("GUI save landed while WithLocked held the store")
+	case <-time.After(50 * time.Millisecond):
+	}
+	close(release)
+	if err := <-locked; err == nil || err.Error() != "from fn" {
+		t.Fatalf("WithLocked = %v", err)
+	}
+	if err := <-saved; err != nil {
+		t.Fatal(err)
+	}
+	if seen != "/wt/task" {
+		t.Fatalf("fn saw %q", seen)
 	}
 }

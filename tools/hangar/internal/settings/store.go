@@ -38,6 +38,14 @@ func (s *Store) Snapshot() Settings {
 	return clone(s.cur)
 }
 
+// WithLocked runs fn on a copy of the current settings while holding the
+// store, so no save lands between fn reading them and acting on them.
+func (s *Store) WithLocked(fn func(cur Settings) error) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return fn(clone(s.cur))
+}
+
 // Update applies an agent change, saves, and emits settings:changed. A failing
 // fn leaves the store and the file untouched.
 func (s *Store) Update(fn func(*Settings) error) (Settings, error) {

@@ -3,7 +3,9 @@ package slots
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,33 +33,40 @@ type inspected struct {
 	}
 }
 
-// CheckMount refuses unless the slot's running MySQL keeps its data in a
-// volume the worktree's fleet-workflow override names. The data volume is the
-// one mounted at or above mysqld's --datadir (/tmp on older compose files,
-// /var/lib/mysql on newer ones). When the override carries a generation, the
+// CheckMount refuses unless the slot's MySQL keeps its data in a volume the
+// worktree's override names or, without an override, in the compose
+// project's own volume, as the GUI uses it. The data volume is the one
+// mounted at or above mysqld's --datadir (/tmp on older compose files,
+// /var/lib/mysql on newer ones). When the override records a generation, the
 // volume must belong to it, which catches a fresh-data override whose /tmp
 // volume still holds the previous DB.
 func CheckMount(ctx context.Context, p Probe, worktree, project string) error {
 	b, err := os.ReadFile(filepath.Join(worktree, overrideFile))
-	if err != nil {
-		return fmt.Errorf("mount check: worktree needs a fleet-workflow %s: %w", overrideFile, err)
+	hasOverride := !errors.Is(err, fs.ErrNotExist)
+	if hasOverride && err != nil {
+		return fmt.Errorf("mount check: reading %s: %w", overrideFile, err)
 	}
 	var ov override
-	if err := yaml.Unmarshal(b, &ov); err != nil {
-		return fmt.Errorf("mount check: parsing %s: %w", overrideFile, err)
-	}
 	named := map[string]bool{}
-	for _, v := range ov.Volumes {
-		if v.Name != "" {
-			named[v.Name] = true
+	if hasOverride {
+		if err := yaml.Unmarshal(b, &ov); err != nil {
+			return fmt.Errorf("mount check: parsing %s: %w", overrideFile, err)
 		}
-	}
-	if len(named) == 0 {
-		return fmt.Errorf("mount check: %s names no volumes", overrideFile)
+		for _, v := range ov.Volumes {
+			if v.Name != "" {
+				named[v.Name] = true
+			}
+		}
+		if len(named) == 0 {
+			return fmt.Errorf("mount check: %s names no volumes", overrideFile)
+		}
 	}
 
 	container := MySQLContainer(project)
 	raw, err := p.DockerInspect(ctx, container)
+	if !hasOverride && errors.Is(err, ErrNoContainer) {
+		return nil // nothing holds data yet; docker-up creates the project's volume
+	}
 	if err != nil {
 		return fmt.Errorf("mount check: %w", err)
 	}
@@ -85,6 +94,14 @@ func CheckMount(ctx context.Context, p Probe, worktree, project string) error {
 		return fmt.Errorf("mount check: no mount holds %s datadir %s", container, datadir)
 	}
 	m := c.Mounts[best]
+	if !hasOverride {
+		// Compose names an undeclared-name volume <project>_<key>; the key is
+		// docker-compose.yml's mysql-persistent-volume.
+		if want := project + "_mysql-persistent-volume"; m.Type != "volume" || m.Name != want {
+			return fmt.Errorf("mount check: %s datadir %s is on %s %q, not the project's %q", container, datadir, m.Type, m.Name, want)
+		}
+		return nil
+	}
 	if m.Type != "volume" || !named[m.Name] {
 		return fmt.Errorf("mount check: %s datadir %s is on %s %q, which %s doesn't name", container, datadir, m.Type, m.Name, overrideFile)
 	}

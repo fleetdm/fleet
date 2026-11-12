@@ -15,8 +15,6 @@ import (
 	"github.com/fleetdm/fleet/tools/hangar/internal/shellpath"
 )
 
-const recoveryDoc = ".claude/skills/fleet-parallel-task/references/runtime-recovery.md"
-
 // httpError is a refusal with the status the API returns for it.
 type httpError struct {
 	status int
@@ -57,7 +55,7 @@ func (a *API) check(slotID, worktree string, assigned bool, createdAt string) (a
 	res, ok := all[slotID]
 	switch {
 	case !ok:
-		return admitted{}, refuse(http.StatusForbidden, "%s has no fleet-workflow reservation", slotID)
+		return admitted{}, refuse(http.StatusForbidden, "%s has no reservation; reserve it first", slotID)
 	case !samePath(res.Worktree, worktree):
 		return admitted{}, refuse(http.StatusForbidden, "%s is reserved by %s", slotID, res.Worktree)
 	case createdAt != "" && res.CreatedAt != createdAt:
@@ -132,7 +130,7 @@ func (a *API) checkTarget(snap settings.Settings, adm admitted, target *string) 
 	case res.PreviousWorktree != nil && samePath(*target, *res.PreviousWorktree):
 		canon = *res.PreviousWorktree
 		if _, err := os.Stat(canon); errors.Is(err, fs.ErrNotExist) {
-			return nil, refuse(http.StatusConflict, "previous_worktree %s no longer exists; recover with the helper's adoption in %s", canon, recoveryDoc)
+			return nil, refuse(http.StatusConflict, "previous_worktree %s no longer exists; recreate that worktree to restore the slot", canon)
 		}
 	default:
 		return nil, refuse(http.StatusForbidden, "target must be the reservation's worktree or previous_worktree")

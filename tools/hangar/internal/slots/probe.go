@@ -13,10 +13,14 @@ import (
 	"github.com/fleetdm/fleet/tools/hangar/internal/shellpath"
 )
 
+// ErrNoContainer means docker inspect found no such container.
+var ErrNoContainer = errors.New("no such container")
+
 // Probe reads Docker and port state. Every guard treats a probe error as a
 // refusal.
 type Probe interface {
-	// DockerInspect returns `docker inspect <container>` JSON.
+	// DockerInspect returns `docker inspect <container>` JSON, or
+	// ErrNoContainer when the container doesn't exist.
 	DockerInspect(ctx context.Context, container string) ([]byte, error)
 	// FleetTableCount counts tables in the container's fleet schema.
 	FleetTableCount(ctx context.Context, container string) (int, error)
@@ -48,7 +52,11 @@ func (DockerProbe) run(ctx context.Context, args ...string) ([]byte, error) {
 }
 
 func (p DockerProbe) DockerInspect(ctx context.Context, container string) ([]byte, error) {
-	return p.run(ctx, "inspect", "--type", "container", container)
+	out, err := p.run(ctx, "inspect", "--type", "container", container)
+	if err != nil && strings.Contains(strings.ToLower(err.Error()), "no such container") {
+		return nil, fmt.Errorf("%w: %s", ErrNoContainer, container)
+	}
+	return out, err
 }
 
 func (p DockerProbe) FleetTableCount(ctx context.Context, container string) (int, error) {

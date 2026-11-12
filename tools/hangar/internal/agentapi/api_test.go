@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -44,6 +45,14 @@ func (f *fakeStore) Update(fn func(*settings.Settings) error) (settings.Settings
 	}
 	f.s = next
 	return next, nil
+}
+
+func (f *fakeStore) WithLocked(fn func(cur settings.Settings) error) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	c := f.s
+	c.Servers = slices.Clone(f.s.Servers)
+	return fn(c)
 }
 
 func (f *fakeStore) edit(fn func(*settings.ServerProfile)) {
@@ -264,6 +273,8 @@ type env struct {
 	primary  string
 	backups  string
 	s1Worktr string
+	// slotEvents counts agent:slots emits.
+	slotEvents atomic.Int32
 }
 
 func s2Ports() settings.ServerPorts {
@@ -298,6 +309,11 @@ func newEnv(t *testing.T) *env {
 			return e.primary, nil
 		},
 		BackupsDir: func(string) (string, error) { return e.backups, nil },
+		Emit: func(ev string) {
+			if ev == "agent:slots" {
+				e.slotEvents.Add(1)
+			}
+		},
 	})
 	e.srv = httptest.NewServer(e.api.Handler())
 	t.Cleanup(func() {
@@ -312,7 +328,7 @@ func portsJSON(p settings.ServerPorts) string {
 	return string(b)
 }
 
-// writeRes replaces the fixture atomically, like the helper, so a job's
+// writeRes replaces the fixture atomically, as Reserve does, so a job's
 // concurrent read never sees a truncated file.
 func (e *env) writeRes(body string) {
 	e.t.Helper()
@@ -482,7 +498,7 @@ func TestReservationGuards(t *testing.T) {
 		e := newEnv(t)
 		e.writeRes(`{"slots": {}}`)
 		code, out := e.act("s2", map[string]any{"action": "assign", "target": e.task})
-		expect(t, code, out, 403, "no fleet-workflow reservation")
+		expect(t, code, out, 403, "no reservation; reserve it first")
 	})
 	t.Run("malformed reservations", func(t *testing.T) {
 		e := newEnv(t)
@@ -559,7 +575,7 @@ func TestAssign(t *testing.T) {
 			t.Fatal(err)
 		}
 		code, out := e.act("s2", map[string]any{"action": "assign", "target": e.prev})
-		expect(t, code, out, 409, "runtime-recovery.md")
+		expect(t, code, out, 409, "no longer exists; recreate that worktree")
 	})
 	t.Run("running slot process", func(t *testing.T) {
 		e := newEnv(t)

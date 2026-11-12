@@ -131,12 +131,12 @@ func TestRelativeOverridesRejected(t *testing.T) {
 }
 
 func TestReservationsFile(t *testing.T) {
-	home := t.TempDir()
+	home, data := t.TempDir(), t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("HANGAR_DATA_DIR", data)
 	t.Setenv("HANGAR_RESERVATIONS_FILE", "")
-	want := filepath.Join(home, ".local", "share", "fleet-workflow", "runtime-reservations.json")
-	if got, err := ReservationsFile(); err != nil || got != want {
-		t.Errorf("default ReservationsFile() = %q, %v; want %q", got, err, want)
+	if got, err := ReservationsFile(); err != nil || got != filepath.Join(data, "reservations.json") {
+		t.Errorf("default ReservationsFile() = %q, %v; want the data dir", got, err)
 	}
 
 	override := filepath.Join(t.TempDir(), "res.json")

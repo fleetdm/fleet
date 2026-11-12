@@ -97,6 +97,7 @@ func main() {
 		Store:            store,
 		Manager:          agentapi.NewManager(pm),
 		ReservationsPath: resPath,
+		Emit:             func(e string) { emitter.Emit(e, nil) },
 	})
 	if stopSock, err := startAgentSocket(dataDir, agentAPI.Handler()); err != nil {
 		slog.Error("agent API disabled", "err", err)
