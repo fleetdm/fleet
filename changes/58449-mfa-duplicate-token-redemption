@@ -1,0 +1,1 @@
+- Fixed a bug where logging in with an MFA magic link could immediately sign the user out with "Your session expired."

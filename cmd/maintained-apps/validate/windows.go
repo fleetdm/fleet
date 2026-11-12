@@ -175,16 +175,16 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 			if strings.HasPrefix(result.Version, appVersion+".") {
 				return true, "", nil
 			}
-			// Check if expected version starts with found version (handles cases where osquery reports shorter version)
-			// This handles cases where expected is "6.4.0" but osquery reports "6.4"
-			if strings.HasPrefix(appVersion, result.Version+".") {
-				return true, "", nil
-			}
 			// Some installers register a DisplayVersion in a different format
 			// from the package version (.NET SDK 9.0.320 registers 9.3.2026.52328).
 			// The patch policy compares against that DisplayVersion, so accept it.
 			if patchVersion != "" && result.Version == patchVersion {
 				return true, "", nil
+			}
+			// A shorter version ("6.4" for "6.4.0") is not a match: version_compare
+			// sorts it lower, so the patch policy would fail on up-to-date hosts.
+			if strings.HasPrefix(appVersion, result.Version+".") {
+				logger.ErrorContext(ctx, fmt.Sprintf("osquery reports version '%s', a shorter form of '%s', so the patch policy would fail on hosts that have this version. Shorten the version with an enricher in ee/maintained-apps/ingesters/winget/external_refs, or set use_display_version_for_patch if the winget manifest has a DisplayVersion.", result.Version, appVersion))
 			}
 
 			// Google Chrome auto-updates immediately after installation, so the
