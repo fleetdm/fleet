@@ -49,31 +49,6 @@
       </div>
 
       <div purpose="page-section">
-        <div purpose="photo-carousel">
-          <div purpose="carousel-viewport">
-            <div purpose="carousel-track" :class="[ !animate ? 'no-animate' : '' ]" :style="{ transform: 'translateX(calc((var(--slide-w) / 4 + var(--gap)) - ' + position + ' * (var(--slide-w) + var(--gap))))' }" @transitionend="handleTransitionEnd">
-              <% for (let copy = 0; copy < 3; copy++) { %>
-              <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-1-840x560@2x.png">
-              <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-2-840x560@2x.png">
-              <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-3-840x560@2x.png">
-              <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-4-840x560@2x.png">
-              <img alt="Six attendees at JNUC gathered in a circle at night, touching fingertips over a case of drinks" src="/images/workshops-carousel-5-840x560@2x.png">
-              <img alt="Attendees at a Fleet workshop watching a presentation on what's new in GitOps" src="/images/workshops-carousel-6-840x560@2x.png">
-              <% } %>
-            </div>
-          </div>
-          <div purpose="controls-container">
-            <a purpose="carousel-prev" @click="clickCarouselIndicator('previous')">
-              <img alt="Previous" src="/images/icon-chevron-fleet-black-50-10x17@2x.png">
-            </a>
-            <ol purpose="carousel-indicators">
-              <li :class="{ active: activeDot === dotIndex }" @click="clickGoToSlide(dotIndex)" v-for="dotIndex in [0, 1, 2, 3, 4, 5]" :key="dotIndex"></li>
-            </ol>
-            <a purpose="carousel-next" @click="clickCarouselIndicator('next')">
-              <img alt="Next" src="/images/icon-chevron-fleet-black-50-10x17@2x.png">
-            </a>
-          </div>
-        </div>
         <div purpose="details-cards">
           <div purpose="details-card">
             <h3>What to expect</h3>
@@ -98,6 +73,31 @@
               <li>A free <a href="https://github.com" target="_blank" no-icon>GitHub</a> account.</li>
               <li>A free trial account with Claude or a comparable AI tool.</li>
             </ul>
+          </div>
+        </div>
+        <div purpose="photo-carousel">
+          <div purpose="carousel-viewport">
+            <div purpose="carousel-track" :class="[ !animate ? 'no-animate' : '' ]" :style="{ transform: 'translateX(calc((var(--slide-w) / 4 + var(--gap)) - ' + position + ' * (var(--slide-w) + var(--gap))))' }" @transitionend="handleTransitionEnd">
+              <% for (let copy = 0; copy < 3; copy++) { %>
+              <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-1-840x560@2x.png">
+              <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-2-840x560@2x.png">
+              <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-3-840x560@2x.png">
+              <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-4-840x560@2x.png">
+              <img alt="Six attendees at JNUC gathered in a circle at night, touching fingertips over a case of drinks" src="/images/workshops-carousel-5-840x560@2x.png">
+              <img alt="Attendees at a Fleet workshop watching a presentation on what's new in GitOps" src="/images/workshops-carousel-6-840x560@2x.png">
+              <% } %>
+            </div>
+          </div>
+          <div purpose="controls-container">
+            <a purpose="carousel-prev" @click="clickCarouselIndicator('previous')">
+              <img alt="Previous" src="/images/icon-chevron-fleet-black-50-10x17@2x.png">
+            </a>
+            <ol purpose="carousel-indicators">
+              <li :class="{ active: activeDot === dotIndex }" @click="clickGoToSlide(dotIndex)" v-for="dotIndex in [0, 1, 2, 3, 4, 5]" :key="dotIndex"></li>
+            </ol>
+            <a purpose="carousel-next" @click="clickCarouselIndicator('next')">
+              <img alt="Next" src="/images/icon-chevron-fleet-black-50-10x17@2x.png">
+            </a>
           </div>
         </div>
       </div>
