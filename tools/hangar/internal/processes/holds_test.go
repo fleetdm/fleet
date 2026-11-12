@@ -3,6 +3,7 @@ package processes
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -405,5 +406,51 @@ echo $! > "$(dirname "$0")/child.pid"
 	}
 	if syscall.Kill(child, 0) == nil {
 		t.Errorf("compose child %d still alive after DockerComposeDown returned", child)
+	}
+}
+
+func TestComposeFailsClosedWithoutExitWait(t *testing.T) {
+	dir := fakeDocker(t, `sleep 30 &
+echo $! > "$(dirname "$0")/child.pid"
+wait
+`)
+	childFile := filepath.Join(dir, "child.pid")
+	m := New(t.TempDir(), t.TempDir(), &recorder{})
+	// As when kqueue can't be set up, once the CLI has started a child.
+	m.waitExit = func(int) bool {
+		waitForFile(t, childFile)
+		return false
+	}
+	var mu sync.Mutex
+	var kills, afterReap []string
+	m.kill = func(pid int, sig syscall.Signal) error {
+		if pid < 0 && sig != 0 {
+			mu.Lock()
+			kills = append(kills, fmt.Sprintf("%v to group %d", sig, -pid))
+			if !listed(-pid) {
+				afterReap = append(afterReap, kills[len(kills)-1])
+			}
+			mu.Unlock()
+		}
+		return syscall.Kill(pid, sig)
+	}
+
+	_, err := m.DockerComposeRestartAs(dir, "p2", "")
+	if err == nil || !strings.Contains(err.Error(), "could not watch the process") {
+		t.Errorf("restart = %v, want the could-not-watch error", err)
+	}
+	mu.Lock()
+	if len(kills) == 0 || len(afterReap) > 0 {
+		t.Errorf("group kills = %v, after reap = %v; want one before the CLI is reaped", kills, afterReap)
+	}
+	mu.Unlock()
+	b, err := os.ReadFile(childFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	child, _ := strconv.Atoi(strings.TrimSpace(string(b)))
+	t.Cleanup(func() { _ = syscall.Kill(child, syscall.SIGKILL) })
+	if syscall.Kill(child, 0) == nil {
+		t.Errorf("compose child %d outlived runCompose", child)
 	}
 }

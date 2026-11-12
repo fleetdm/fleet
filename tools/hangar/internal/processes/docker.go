@@ -22,14 +22,16 @@ func dockerCmd(args ...string) *exec.Cmd {
 }
 
 // composeTimeout bounds a synchronous compose call so a hung Docker can't
-// block a stop, a job, or quit forever.
-var composeTimeout = time.Minute
+// block a stop, a job, or quit forever. It's generous because a slow Docker
+// VM can take minutes to stop a stack.
+var composeTimeout = 5 * time.Minute
 
 // runCompose runs `docker compose [-p project] rest...` in cwd until it exits,
 // ctx ends, or composeTimeout passes. Either way it then kills the CLI's whole
 // process group (the compose plugin runs as a child of docker) and returns
-// once the group is gone.
-func runCompose(ctx context.Context, cwd, project string, rest ...string) (stdout, stderr string, exitCode *int, err error) {
+// once the group is gone. If the CLI's exit can't be watched, it fails closed:
+// the group is killed at once and the run returns an error.
+func (m *Manager) runCompose(ctx context.Context, cwd, project string, rest ...string) (stdout, stderr string, exitCode *int, err error) {
 	ctx, cancel := context.WithTimeout(ctx, composeTimeout)
 	defer cancel()
 	cmd := dockerCmd(composeArgs(project, rest...)...)
@@ -42,27 +44,35 @@ func runCompose(ctx context.Context, cwd, project string, rest ...string) (stdou
 		return "", "", nil, err
 	}
 	pgid := cmd.Process.Pid
-	exited := make(chan struct{})
-	go func() {
-		waitExit(pgid)
-		close(exited)
-	}()
+	exited := make(chan bool, 1)
+	go func() { exited <- m.waitExit(pgid) }()
+	watched := true
 	select {
-	case <-exited:
+	case watched = <-exited:
 	case <-ctx.Done():
 	}
 	// The CLI is unreaped until cmd.Wait, so its pgid is still ours.
-	signalGroup(pgid, syscall.SIGKILL)
+	m.killGroup(pgid)
 	err = cmd.Wait()
 	waitGroupGone(pgid)
 	if ps := cmd.ProcessState; ps != nil && ps.ExitCode() >= 0 {
 		c := ps.ExitCode()
 		exitCode = &c
 	}
-	if err != nil && ctx.Err() != nil {
+	switch {
+	case !watched:
+		err = fmt.Errorf("docker compose %s: could not watch the process; stopped it", strings.Join(rest, " "))
+	case err != nil && ctx.Err() != nil:
 		err = fmt.Errorf("docker compose %s: %w", strings.Join(rest, " "), ctx.Err())
 	}
 	return out.String(), errOut.String(), exitCode, err
+}
+
+// killGroup SIGKILLs pgid's group, falling back to the bare pid.
+func (m *Manager) killGroup(pgid int) {
+	if err := m.kill(-pgid, syscall.SIGKILL); err != nil {
+		_ = m.kill(pgid, syscall.SIGKILL)
+	}
 }
 
 // composeErr reports a compose run that exited non-zero by its stderr.
@@ -161,7 +171,7 @@ func (m *Manager) DockerComposeRestartAs(cwd, project, owner string) (string, er
 	}
 	defer end()
 
-	stdout, stderr, _, err := runCompose(context.Background(), cwd, project, "restart")
+	stdout, stderr, _, err := m.runCompose(context.Background(), cwd, project, "restart")
 	if err != nil {
 		return "", composeErr(err, stderr)
 	}
@@ -202,7 +212,7 @@ func (m *Manager) DockerComposeDownContext(ctx context.Context, id, cwd, project
 	m.setComposeState(id, "stopping", true, false)
 	m.emitState(id, "stopping", nil, nil)
 
-	stdout, stderr, _, runErr := runCompose(ctx, cwd, project, "down")
+	stdout, stderr, _, runErr := m.runCompose(ctx, cwd, project, "down")
 
 	m.setComposeState(id, "done", false, true)
 	m.emitState(id, "done", nil, nil)
@@ -235,7 +245,7 @@ func (m *Manager) setComposeState(id, state string, userStopped, stamp bool) {
 // dockerComposeDownFor runs compose down for a managed docker row. signalStop
 // has already checked the hold, registered the op, and waited out a running up.
 func (m *Manager) dockerComposeDownFor(id, cwd, project string) error {
-	stdout, stderr, exitCode, runErr := runCompose(context.Background(), cwd, project, "down")
+	stdout, stderr, exitCode, runErr := m.runCompose(context.Background(), cwd, project, "down")
 
 	final := "failed"
 	if runErr == nil {

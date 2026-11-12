@@ -596,7 +596,7 @@ func (m *Manager) ShutdownNow(targets []ComposeTarget) {
 		if tgt.Cwd == "" {
 			continue
 		}
-		_, _, _, _ = runCompose(context.Background(), tgt.Cwd, tgt.Project, "down")
+		_, _, _, _ = m.runCompose(context.Background(), tgt.Cwd, tgt.Project, "down")
 	}
 
 	// Final safety net for anything still alive.
