@@ -4525,7 +4525,7 @@ func testApplyLabelSpecsCollationEqualRename(t *testing.T, ds *Datastore) {
 		}
 	})
 
-	t.Run("global label used by a fleet profile", func(t *testing.T) {
+	t.Run("global label used by a fleet profile and declaration", func(t *testing.T) {
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "collation-profile-team"})
 		require.NoError(t, err)
 
@@ -4541,14 +4541,23 @@ func testApplyLabelSpecsCollationEqualRename(t *testing.T, ds *Datastore) {
 				prof, err := ds.NewMDMAppleConfigProfile(ctx, *cp, nil)
 				require.NoError(t, err)
 
+				decl := declForTest("decl-"+tc.name, "decl-"+tc.name, "", before)
+				decl.TeamID = &team.ID
+				decl, err = ds.NewMDMAppleDeclaration(ctx, decl, nil)
+				require.NoError(t, err)
+
 				require.NoError(t, ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{{Name: to, Query: "select 1"}}))
 
 				after, err := ds.GetMDMAppleConfigProfile(ctx, prof.ProfileUUID)
 				require.NoError(t, err)
-				require.Len(t, after.LabelsIncludeAll, 1)
-				require.Equal(t, to, after.LabelsIncludeAll[0].LabelName)
-				require.Equal(t, before.ID, after.LabelsIncludeAll[0].LabelID)
-				require.False(t, after.LabelsIncludeAll[0].Broken)
+				afterDecl, err := ds.GetMDMAppleDeclaration(ctx, decl.DeclarationUUID)
+				require.NoError(t, err)
+				for _, labels := range [][]fleet.ConfigurationProfileLabel{after.LabelsIncludeAll, afterDecl.LabelsIncludeAll} {
+					require.Len(t, labels, 1)
+					require.Equal(t, to, labels[0].LabelName)
+					require.Equal(t, before.ID, labels[0].LabelID)
+					require.False(t, labels[0].Broken)
+				}
 			})
 		}
 	})
