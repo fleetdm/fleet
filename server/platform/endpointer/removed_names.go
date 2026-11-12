@@ -32,6 +32,10 @@ type removedNames struct {
 // maxRemovedNamesPresize caps how much buffer a request's Content-Length can reserve before any of its body has arrived.
 const maxRemovedNamesPresize = 64 << 10
 
+// maxRemovedNamesScanSize is the largest body the scan buffers and checks, the default request limit. A larger body, which only
+// the batch and spec routes allow, is streamed to the decoder without a scan, so these routes do not hold a whole body in memory.
+const maxRemovedNamesScanSize = 1 << 20
+
 var removedNamesList atomic.Pointer[removedNames]
 
 // SetRemovedNames sets the request names the scan rejects.

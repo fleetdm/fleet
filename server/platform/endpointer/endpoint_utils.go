@@ -699,14 +699,14 @@ func MakeDecoder(
 				}
 			}
 
-			// A body without a size limit (agent uploads) is not buffered here.
+			// A body without a size limit is not buffered here, and one over maxRemovedNamesScanSize is decoded unscanned and streamed.
 			if scanRemovedNames && maxRequestBodySize != -1 && (isBodyDecoder == nil || !isBodyDecoder(v)) {
 				// The Content-Length hint is client-controlled, so it is capped, and a gzipped body's is its compressed size.
 				var data bytes.Buffer
 				if cl := r.ContentLength; cl > 0 && !gzipped {
 					data.Grow(int(min(cl, maxRemovedNamesPresize, maxRequestBodySize)))
 				}
-				_, err := data.ReadFrom(body)
+				n, err := data.ReadFrom(io.LimitReader(body, maxRemovedNamesScanSize+1))
 				if err != nil {
 					if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
 						return nil, platform_http.PayloadTooLargeError{
@@ -717,10 +717,12 @@ func MakeDecoder(
 					}
 					return nil, jsonDecodeErr(err)
 				}
-				if err := RejectRemovedJSONKeys(data.Bytes(), t); err != nil {
-					return nil, err
+				if n <= maxRemovedNamesScanSize {
+					if err := RejectRemovedJSONKeys(data.Bytes(), t); err != nil {
+						return nil, err
+					}
 				}
-				body = &data
+				body = io.MultiReader(&data, body)
 			}
 
 			// Insert the JSON key rewriter into the reader pipeline

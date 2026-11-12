@@ -151,6 +151,10 @@ func TestMakeDecoderRemovedNames(t *testing.T) {
 	requireRejected(t, decode(1<<20, "/api/latest/fleet/device/abc/ping", `{"team_id": 1}`), "")
 	// A body without a size limit is not buffered or scanned.
 	require.NoError(t, decode(-1, "/", `{"team_id": 1}`))
+	// A body over the scan size is decoded without a scan, and still decodes. The route's limit is above the scan size.
+	big := `{"team_id": 1, "x": "` + strings.Repeat("a", maxRemovedNamesScanSize) + `"}`
+	require.NoError(t, decode(2*maxRemovedNamesScanSize, "/", big))
+	requireRejected(t, decode(2*maxRemovedNamesScanSize, "/", `{"team_id": 1, "x": "`+strings.Repeat("a", maxRemovedNamesScanSize-100)+`"}`), "team_id")
 	// Malformed JSON is still reported by the decoder, and an oversize body keeps its error.
 	require.Error(t, decode(1<<20, "/", `{"team_id": `))
 	_, ok := errors.AsType[platform_http.PayloadTooLargeError](decode(8, "/", `{"fleet_id": 1, "x": "0123456789"}`))
