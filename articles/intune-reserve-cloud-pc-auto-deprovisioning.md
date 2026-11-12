@@ -1,10 +1,3 @@
-<meta name="articleTitle" value="Windows 365 Reserve auto-deprovisioning: Know what a Cloud PC held before it disappears">
-<meta name="authorFullName" value="Aube Paul">
-<meta name="authorGitHubUsername" value="robinedev">
-<meta name="category" value="industry news">
-<meta name="publishedOn" value="2026-11-09">
-<meta name="description" value="Intune can now delete idle Windows 365 Reserve Cloud PCs. Learn what the timer removes, what it keeps, and how to inventory each Cloud PC first.">
-
 # Windows 365 Reserve auto-deprovisioning: Know what a Cloud PC held before it disappears
 
 *Intune's new preview setting deletes Reserve Cloud PCs that nobody has connected to for a set number of days. It doesn't keep a record of what those short-lived machines ran before they went away.*
@@ -57,3 +50,10 @@ The timer is a good backstop. It's a poor substitute for knowing what you have. 
 ## Sources
 
 - HTMD, coverage of Intune auto-deprovisioning for idle Windows 365 Reserve Cloud PCs (preview).
+
+<meta name="articleTitle" value="Windows 365 Reserve auto-deprovisioning: Know what a Cloud PC held before it disappears">
+<meta name="authorFullName" value="Aube Paul">
+<meta name="authorGitHubUsername" value="robinedev">
+<meta name="category" value="industry news">
+<meta name="publishedOn" value="2026-11-09">
+<meta name="description" value="Intune can now delete idle Windows 365 Reserve Cloud PCs. Learn what the timer removes, what it keeps, and how to inventory each Cloud PC first.">
