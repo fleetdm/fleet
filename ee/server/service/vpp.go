@@ -2046,7 +2046,20 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		}
 	}
 
-	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromValidatedLabels(validatedLabels)
+	// Wrap iOS / iPadOS plist as a JSON string for the response.
+	if len(updatedAppMeta.Configuration) > 0 {
+		switch updatedAppMeta.Platform {
+		case fleet.IOSPlatform, fleet.IPadOSPlatform:
+			wrapped, err := json.Marshal(string(updatedAppMeta.Configuration))
+			if err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "wrapping configuration for response")
+			}
+			updatedAppMeta.Configuration = wrapped
+		}
+	}
+
+	// Use the stored values (re-read above) so a partial edit still reports the version's labels and configuration.
+	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromSoftwareScopeLabels(updatedAppMeta.LabelsIncludeAny, updatedAppMeta.LabelsExcludeAny, updatedAppMeta.LabelsIncludeAll)
 
 	act := fleet.ActivityEditedAppStoreApp{
 		VPPToken:            actVPPToken,
@@ -2062,7 +2075,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		LabelsIncludeAll:    actLabelsInclAll,
 		SoftwareIconURL:     meta.IconURL,
 		SoftwareDisplayName: updatedAppMeta.DisplayName,
-		Configuration:       payload.Configuration,
+		Configuration:       updatedAppMeta.Configuration,
 	}
 
 	act.VersionName = updatedAppMeta.VersionName
@@ -2071,18 +2084,6 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		if *updatedAppMeta.AutoUpdateEnabled {
 			act.AutoUpdateStartTime = updatedAppMeta.AutoUpdateStartTime
 			act.AutoUpdateEndTime = updatedAppMeta.AutoUpdateEndTime
-		}
-	}
-
-	// Wrap iOS / iPadOS plist as a JSON string for the response.
-	if len(updatedAppMeta.Configuration) > 0 {
-		switch updatedAppMeta.Platform {
-		case fleet.IOSPlatform, fleet.IPadOSPlatform:
-			wrapped, err := json.Marshal(string(updatedAppMeta.Configuration))
-			if err != nil {
-				return nil, nil, ctxerr.Wrap(ctx, err, "wrapping configuration for response")
-			}
-			updatedAppMeta.Configuration = wrapped
 		}
 	}
 
