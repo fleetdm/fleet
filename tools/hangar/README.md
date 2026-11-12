@@ -120,6 +120,55 @@ Bumping the version is what makes an install register as an upgrade: Fleet's sof
 keys off `CFBundleShortVersionString`, so shipping two different builds both claiming `1.0.0`
 leaves hosts reporting the old version.
 
+## Agent API
+
+Coding agents drive a reserved s2 or s3 slot through HTTP/JSON on a Unix socket served by the
+running app. Processes an agent starts show up in the GUI like any other.
+
+- **Socket:** `<data dir>/agent/hangar.sock`, mode `0600` in a `0700` directory. Other uids are
+  rejected. The API stays off when the path exceeds macOS's 104-byte limit.
+- **Data dir:** `HANGAR_DATA_DIR` (absolute) replaces `~/Library/Application Support/com.fleetdm.fleet-hangar`,
+  and logs move to `$HANGAR_DATA_DIR/logs`. A second Hangar on the same data dir exits at startup.
+- **Reservations:** read from `fleet-workflow`'s `runtime-reservations.json`, or from
+  `HANGAR_RESERVATIONS_FILE`. Hangar never writes it.
+
+| Route | Does |
+|---|---|
+| `GET /v1` | Routes, actions with their body fields, the usual flow, and status codes |
+| `GET /v1/slots` | Slots with worktree, ports, compose project, reservation owner, and process states. No env values. |
+| `POST /v1/slots/{id}/actions` | `assign`, `build`, `docker-up`, `prepare-db`, `serve`, `stop`, or `backup`. Body: `action`, `worktree`, and `target` (assign) or `name` (backup). |
+| `GET /v1/jobs/{id}` | Job state, process ids, result, and error |
+| `GET /v1/jobs/{id}/log` | The job's log lines, with bearer tokens and `token=`/`password=` values scrubbed |
+
+```sh
+sock="$HOME/Library/Application Support/com.fleetdm.fleet-hangar/agent/hangar.sock"
+curl -s --unix-socket "$sock" http://hangar/v1        # start here
+curl -s --unix-socket "$sock" http://hangar/v1/slots
+curl -s --unix-socket "$sock" -X POST http://hangar/v1/slots/s2/actions \
+  -d '{"action":"build","worktree":"/path/to/worktree"}'
+```
+
+The usual flow is `fleet-workflow runtime up`, `assign`, then `build`, `docker-up`, `prepare-db`,
+and `serve`, polling each job. Cleanup is `stop`, `assign` back to the reservation's previous
+worktree, then `fleet-workflow runtime release`.
+
+Every mutating call is checked in Hangar:
+
+- **s1 is off limits.** The API refuses slot `s1`, any slot sharing one of its ports, its compose
+  project, its worktree, or the primary checkout.
+- **The caller holds the reservation.** Its worktree, ports, and compose project must match the slot.
+- **Assign needs a quiet slot.** No slot process, perf run, or container may be running. It only
+  targets the reservation's worktree or previous worktree.
+- **One action per slot at a time.** While an action runs, GUI starts, stops, and Docker calls on
+  that slot are refused. A reserved slot's worktree, ports, and compose project can't be changed
+  or removed from the GUI. The slot list shows the reservation and the running action.
+- **Data is kept.** `prepare-db` checks the MySQL volume belongs to the worktree's
+  `fleet-workflow` override and backs up a non-empty database first. `stop` never removes
+  volumes, and `backup` never overwrites a file.
+
+These guards prevent mistakes by cooperating agents. Any process running as the same user can
+still edit `settings.json` or run `docker` directly.
+
 ## Logs
 
 Two different things live in `~/Library/Logs/com.fleetdm.fleet-hangar/`:
