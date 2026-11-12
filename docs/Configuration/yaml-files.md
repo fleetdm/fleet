@@ -914,14 +914,15 @@ App Store apps support `path:` (single file) and `paths:` (glob pattern) referen
 - `platform` is the platform of the app (`darwin`, `ios`, `ipados`, or `android`). If not specified, and `app_store_id` is Apple App Store ID, one app for each of the Apple App Store app's supported platforms is added. For example, adding [Bear](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) (supported on iOS and iPadOS) adds both the iOS and iPadOS apps to your software that's available to install in Fleet.
 
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px, and 100 KB or smaller.. Custom icons will only override the icon for the software title and fleet where they are added.
+- `display_name` is the name displayed in the Fleet UI. It applies to every version of the app. If omitted, Fleet uses the app's name from the App Store or Google Play.
 - `setup_experience` installs the app when hosts enroll (default: `false`). It's defined for the app, not per version. Currently, custom targets (labels) don't apply during setup experience, so first added version will be always installed.
 - `versions` is a list of one or more versions (instances) of the app. Fleet always installs the latest version available in the App Store or Google Play. Each version carries its own settings, which lets you give different groups of hosts a different configuration (e.g. a different VPN configuration per IdP group) without creating a separate fleet.
   - `name` identifies the version in Fleet (e.g. `Production`). It must be unique for the app on the fleet.
-  - `self_service`, `categories`, `display_name`, labels (`labels_include_any`, `labels_include_all`, `labels_exclude_any`), `auto_update_enabled`, `auto_update_window_start`, `auto_update_window_end`, and `configuration` are defined per version. See [self_service, labels, categories, setup_experience, and display_name](#self_service-labels-categories-setup_experience-and-display_name) for the shared fields.
+  - Each version defines its own `self_service`, `categories`, labels (`labels_include_any`, `labels_include_all`, `labels_exclude_any`), `auto_update_enabled`, `auto_update_window_start`, `auto_update_window_end`, and `configuration`. See [self_service, labels, categories, setup_experience, and display_name](#self-service-labels-categories-setup-experience-and-display-name) for the shared fields.
   - Up to 10 versions are supported per app.
   - If a host is in scope for more than one version, Fleet installs the one that was added first. Best practice is to scope every version if you add more than one, to prevent conflicts. A version with no labels is in scope on all hosts in the fleet, so if it's added first it's always the one applied.
 - `configuration.path` is a relative path to the version's managed app configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android.
-  - You can add an empty configuration if you want the same app installed on different hosts with and without a configuration. In that case the file referenced by `path` should only have `<Dict></Dict>` for iOS and iPadOS, or `{managedConfiguration: {}}` for Android.
+  - You can add an empty configuration if you want the same app installed on different hosts with and without a configuration. In that case the file referenced by `path` should only have `<dict></dict>` for iOS and iPadOS, or `{managedConfiguration: {}}` for Android.
   + Android: all fields from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) are supported except `packageName` and `installType`.
   - Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790), [Zoom's iOS managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064102), or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
 - `auto_update_enabled` enables automatic updates for the app (default: `false`). Only supported for iOS and iPadOS App Store (VPP) apps.
@@ -982,19 +983,21 @@ software:
 ```yaml
 - app_store_id: "6443476492"
   platform: ios
-  categories:
-    - "👬 Communication"
   versions:
     - name: Production
+      categories:
+        - "👬 Communication"
       labels_exclude_any:
         - Test
       configuration:
-        path: ../lib/software/ios-cloudflare-one-agent-config-production.xml
+        path: ios-cloudflare-one-agent-config-production.xml
     - name: Test
+      categories:
+        - "👬 Communication"
       labels_include_any:
         - Test
       configuration:
-        path: ../lib/software/ios-cloudflare-one-agent-config-test.xml
+        path: ios-cloudflare-one-agent-config-test.xml
 ```
 
 ### fleet_maintained_apps
