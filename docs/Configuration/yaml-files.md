@@ -490,8 +490,7 @@ controls:
           - Engineering
         activation: ../lib/macos/activations/activation.json
     assets:
-      - path: ../lib/macos/assets/my-asset.json  
-    end_user_local_account_type: "admin"
+      - path: ../lib/macos/assets/my-asset.json
   windows_settings:
     configuration_profiles:
       - paths: ../lib/windows/profiles/*.xml
@@ -506,7 +505,6 @@ controls:
     require_bitlocker_pin: true # Available in Fleet Premium
   linux_settings:
     enable_escrow_disk_encryption_key: true # Available in Fleet Premium
-    enable_managed_local_account: true   
   android_settings:
     configuration_profiles:
       - path: ../lib/android-profile.json
@@ -520,7 +518,10 @@ controls:
     enable_end_user_authentication: true
     apple_enable_release_device_manually: true
     apple_setup_assistant: ../lib/dep-profile.json
-    enable_managed_local_account: true
+    macos_script: ../lib/macos-setup-script.sh
+    macos_managed_local_account_enabled: true
+    macos_end_user_local_account_type: "admin"
+    windows_managed_local_account_enabled: true
   macos_migration: # Available in Fleet Premium
     enable: true
     mode: voluntary
@@ -555,15 +556,25 @@ controls:
 - `deadline_days` specifies the number of days before Windows installs updates (default: `null`)
 - `grace_period_days` specifies the number of days before Windows restarts to install updates (default: `null`)
 
-### apple_settings and windows_settings
+### apple_settings
 
-- `end_user_local_account_type` specifies the end user account type for macOS hosts. Requires `setup_experience.enable_managed_local_account` to be `true`. Only supported on macOS (`apple_settings`). Default: `"admin"`. To force a standard user account on Windows, use the [Autopilot profile](https://fleetdm.com/guides/windows-mdm-setup#force-a-standard-user-account).
-- `enable_managed_local_account` specifies whether to create the managed local account on that platform (default: `false`). Currently Windows only. macOS is [coming soon](https://github.com/fleetdm/fleet/issues/50084).
-- `configuration_profiles` is a list of configuration profiles. Accepts .mobileconfig/.json (macOS/iOS/iPadOS) or .xml (Windows).
-- `name` specifies the display name for the profile. If not specified, the name is derived from the profile file.
-- `description` specifies an optional description for the profile.
+- `configuration_profiles` is a list of macOS, iOS, and iPadOS configuration profiles (.mobileconfig/.json) or declaration profiles (.json). See notes on [referencing and targeting confguration profiles](#referencing-and-targeting-configuration-profiles).
+  - In addition to configuration profiles, you can upload **assets** which are `.json` files containing an Apple asset declaration (`com.apple.asset`). Assets follow the same `path:` / `paths:` syntax as profiles but should be stored in a separate `assets/` folder (e.g. `../lib/macos/assets/my-asset.json`).
+  - `name` specifies the display name for the profile. If not specified, the name is derived from the profile file.
+  - `description` specifies an optional description for the profile.
+- `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS hosts (default: `false`).
+- `enable_escrow_disk_encryption_key` specifies whether Fleet escrows the Filevault recovery key for macOS hosts (default: `false`). When set to `true`, for keys to be escrowed, `enable_disk_encryption` must be set to `true` or Filevault must be enabled by another means(such as a custom Filevault profile, or manually by users).
+
+### windows_settings
+
+- `configuration_profiles` is a list of Windows configuration profiles (.xml). See notes on [referencing and targeting confguration profiles](#referencing-and-targeting-configuration-profiles).
+  - `name` specifies the display name for the profile. If not specified, the name is derived from the profile file.
+  - `description` specifies an optional description for the profile.
+- `enable_disk_encryption` specifies whether or not to enforce disk encryption on Windows hosts (default: `false`).
+- `require_bitlocker_pin` specifies whether or not to require end users on Windows hosts to set a BitLocker PIN. When set, this PIN is required to unlock Windows hosts during startup. `windows_settings.enable_disk_encryption` must be set to `true`. (default: `false`).
 
 ### linux_settings
+
 - `enable_escrow_disk_encryption_key` specifies whether Fleet escrows the disk encryption key for Linux hosts with an encrypted disk (default: false). When set to true, Fleet Desktop prompts the user to enter their current encryption passphrase, generates a new passphrase, adds it as a LUKS keyslot, and securely stores it in Fleet.
 
 > `activation` is a path to a JSON file containing custom activation criteria for declaration (DDM) profiles. Only supported for Apple declaration profiles (.json with DDM format). If not specified, no custom activation is applied.
@@ -622,11 +633,12 @@ The `setup_experience` section lets you control the out-of-the-box [setup experi
 - `lock_end_user_info` specifies whether or not to enable end user to edit the local account Account Name and Full Name in macOS Setup Assistant. (default: `true`)
 - `apple_enable_release_device_manually` when enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. Applies to Apple (macOS, iOS, iPadOS) hosts that automatically enroll via Apple Business (AB).
 - `apple_setup_assistant` is a path to a custom [automatic enrollment (ADE) profile](https://support.apple.com/guide/deployment/automated-device-enrollment-management-dep73069dd57/web) (.json). Applies to macOS and iOS/iPadOS hosts.
+- `macos_script` is the path to a custom setup script to run after the host is first set up. Applies to macOS only.
+- `macos_managed_local_account_enabled` specifies whether to create a hidden managed local admin account (`_fleetadmin`) on macOS hosts during automatic enrollment (ADE). Applies to macOS only (default: `false`).
+- `macos_end_user_local_account_type` specifies the end user's local account type on macOS hosts. Options: `"admin"`, `"standard"`, or `"none"`. `"standard"` and `"none"` require `macos_managed_local_account_enabled` to be `true`. Applies to macOS only (default: `"admin"`). To force a standard user account on Windows, use the [Autopilot profile](https://fleetdm.com/guides/windows-mdm-setup#force-a-standard-user-account).
+- `windows_managed_local_account_enabled` specifies whether to create a hidden managed local admin account (`_fleetadmin`) on Windows hosts. Applies to all Windows hosts with MDM turned on, including hosts enrolled before the setting was turned on (default: `false`).
 
 > To run a script during macOS setup, add a script-only package (.sh file) to `software.packages` with `setup_experience_platform: darwin`. With `setup_experience: true`, a .sh package runs during Linux setup instead. See [software](https://fleetdm.com/docs/configuration/yaml-files#software).
-
-`enable_managed_local_account` and `end_user_local_account_type` at this level are deprecated. 
-Please use the platform-specific `apple_settings.managed_local_account_settings`, `apple_settings.end_user_local_account_type`, or `windows_settings.enable_managed_local_account` instead.
 
 #### Example
 
