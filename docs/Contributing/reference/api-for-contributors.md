@@ -686,7 +686,7 @@ Content-Type: multipart/form-data; boundary=------------------------f02md47480un
 
 ```http
 --------------------------f02md47480und42y
-Content-Disposition: form-data; name="token"; filename="server_token_abm.p7m"
+Content-Disposition: form-data; name="token"; filename="server_token_ab.p7m"
 Content-Type: application/octet-stream
 
 <TOKEN_DATA>
@@ -715,7 +715,7 @@ Content-Type: application/octet-stream
     "ipados_fleet": null,
     "byod_fleet": null
   },
-  "abm_token": {
+  "ab_token": {
     "id": 1,
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
@@ -823,7 +823,7 @@ None.
     "ipados_fleet": 3,
     "byod_fleet": 3
   },
-  "abm_token": {
+  "ab_token": {
     "id": 1,
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
@@ -881,7 +881,7 @@ Fleet uses the default AB token to verify Managed Apple Account sign-in on hosts
     "ipados_fleet": null,
     "byod_fleet": null
   },
-  "abm_token": {
+  "ab_token": {
     "id": 2,
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
@@ -927,7 +927,7 @@ Content-Type: multipart/form-data; boundary=------------------------f02md47480un
 
 ```http
 --------------------------f02md47480und42y
-Content-Disposition: form-data; name="token"; filename="server_token_abm.p7m"
+Content-Disposition: form-data; name="token"; filename="server_token_ab.p7m"
 Content-Type: application/octet-stream
 
 <TOKEN_DATA>
@@ -956,7 +956,7 @@ Content-Type: application/octet-stream
     "ipados_fleet": null,
     "byod_fleet": null
   },
-  "abm_token": {
+  "ab_token": {
     "id": 1,
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
