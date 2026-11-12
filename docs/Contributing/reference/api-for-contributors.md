@@ -1855,7 +1855,8 @@ Fleets can have labels with the same name. If a global policy's label fields (`l
       "team": "No team",
       "fleet": "Unassigned",
       "resolution": "some resolution steps here",
-      "critical": false
+      "critical": false,
+      "webhooks_and_tickets_enabled": true
     },
     {
       “name”: “Is FileVault enabled on macOS devices?”,
@@ -1883,6 +1884,8 @@ Fleets can have labels with the same name. If a global policy's label fields (`l
 ```
 
 The fields `critical`, `script_id`, and `software_title_id` are available in Fleet Premium.
+
+Each policy can have one automation. If a policy in the list has more than one, the request fails. Set `webhooks_and_tickets_enabled` to `true` to send the policy's failing hosts to the webhook, Jira, or Zendesk destination configured for the policy's fleet (or the global destination for "All fleets" policies).
 
 ##### Default response
 
