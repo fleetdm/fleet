@@ -282,8 +282,7 @@ func BadRequestErr(publicMsg string, internalErr error) error {
 }
 
 func UintFromRequest(r *http.Request, name string) (uint64, error) {
-	vars := mux.Vars(r)
-	s, ok := vars[name]
+	s, ok := platform_http.PathVar(r, name)
 	if !ok {
 		return 0, ErrBadRoute
 	}
@@ -295,8 +294,7 @@ func UintFromRequest(r *http.Request, name string) (uint64, error) {
 }
 
 func IntFromRequest(r *http.Request, name string) (int64, error) {
-	vars := mux.Vars(r)
-	s, ok := vars[name]
+	s, ok := platform_http.PathVar(r, name)
 	if !ok {
 		return 0, ErrBadRoute
 	}
@@ -308,8 +306,7 @@ func IntFromRequest(r *http.Request, name string) (int64, error) {
 }
 
 func StringFromRequest(r *http.Request, name string) (string, error) {
-	vars := mux.Vars(r)
-	s, ok := vars[name]
+	s, ok := platform_http.PathVar(r, name)
 	if !ok {
 		return "", ErrBadRoute
 	}

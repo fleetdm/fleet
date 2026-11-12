@@ -1070,7 +1070,6 @@ spec:
   source: chrome_extensions
   extension_for: chrome
   display_name: ""
-  browser: chrome
   versions:
   - id: 0
     version: 0.0.1
@@ -1097,7 +1096,6 @@ spec:
   source: deb_packages
   extension_for: ""
   display_name: ""
-  browser: ""
   versions:
   - id: 0
     version: 0.0.3
@@ -1116,7 +1114,6 @@ spec:
       "source": "chrome_extensions",
       "extension_for": "chrome",
       "display_name": "",
-      "browser": "chrome",
       "hosts_count": 2,
       "icon_url": null,
       "versions_count": 3,
@@ -1155,7 +1152,6 @@ spec:
       "source": "deb_packages",
       "display_name": "",
       "extension_for": "",
-      "browser": "",
       "hosts_count": 0,
       "icon_url": null,
       "versions_count": 1,
@@ -1234,7 +1230,6 @@ spec:
   id: 0
   name: foo
   source: chrome_extensions
-  browser: chrome
   extension_for: chrome
   display_name: ""
   version: 0.0.1
@@ -1251,7 +1246,6 @@ spec:
   source: chrome_extensions
   version: 0.0.2
   extension_id: xyz
-  browser: edge
   extension_for: edge
   display_name: ""
   vulnerabilities: null
@@ -1259,7 +1253,6 @@ spec:
   id: 0
   name: foo
   source: chrome_extensions
-  browser: chrome
   extension_for: chrome
   display_name: ""
   version: 0.0.3
@@ -1270,7 +1263,6 @@ spec:
   last_opened_at: "2022-01-01T00:00:00Z"
   name: bar
   source: deb_packages
-  browser: ""
   extension_for: ""
   display_name: ""
   version: 0.0.3
@@ -1287,7 +1279,6 @@ spec:
       "name": "foo",
       "version": "0.0.1",
       "source": "chrome_extensions",
-	  "browser": "chrome",
 	  "extension_for": "chrome",
 	  "display_name": "",
       "generated_cpe": "somecpe",
@@ -1310,7 +1301,6 @@ spec:
       "version": "0.0.2",
       "source": "chrome_extensions",
       "extension_id": "xyz",
-      "browser": "edge",
 	  "extension_for": "edge",
 	  "display_name": "",
       "generated_cpe": "",
@@ -1321,7 +1311,6 @@ spec:
       "name": "foo",
       "version": "0.0.3",
       "source": "chrome_extensions",
-	  "browser": "chrome",
 	  "extension_for": "chrome",
 	  "display_name": "",
       "generated_cpe": "someothercpewithoutvulns",
@@ -1334,7 +1323,6 @@ spec:
       "bundle_identifier": "bundle",
       "source": "deb_packages",
       "display_name": "",
-      "browser": "",
 	  "extension_for": "",
       "generated_cpe": "",
       "vulnerabilities": null,

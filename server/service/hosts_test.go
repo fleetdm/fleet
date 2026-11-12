@@ -2458,10 +2458,10 @@ func TestSanitizeCSVFormula(t *testing.T) {
 	})
 }
 
-func TestHostsReportFleetAliasesWithoutDeviceMapping(t *testing.T) {
+func TestHostsReportFleetColumnsWithoutDeviceMapping(t *testing.T) {
 	// Hosts without device mapping, as in an export that does not ask for it, still get the fleet columns.
 	resp := hostsReportResponse{
-		Columns: []string{"hostname", "team_name", "fleet_id", "fleet_name"},
+		Columns: []string{"hostname", "fleet_name", "fleet_id"},
 		Hosts:   []*fleet.HostResponse{{Host: &fleet.Host{Hostname: "h1", TeamID: new(uint(7)), TeamName: new("Workstations")}}},
 	}
 	rr := httptest.NewRecorder()
@@ -2469,7 +2469,7 @@ func TestHostsReportFleetAliasesWithoutDeviceMapping(t *testing.T) {
 	require.Equal(t, http.StatusOK, rr.Code)
 	rows, err := csv.NewReader(rr.Body).ReadAll()
 	require.NoError(t, err)
-	require.Equal(t, [][]string{{"hostname", "team_name", "fleet_id", "fleet_name"}, {"h1", "Workstations", "7", "Workstations"}}, rows)
+	require.Equal(t, [][]string{{"hostname", "fleet_name", "fleet_id"}, {"h1", "Workstations", "7"}}, rows)
 }
 
 func TestStreamHosts(t *testing.T) {
@@ -5940,13 +5940,20 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 		{
 			name: "valid team filter",
 			filters: &map[string]interface{}{
-				"team_id": float64(1), // json unmarshals to float64
+				"fleet_id": float64(1), // json unmarshals to float64
 			},
 		},
 		{
-			name: "invalid team_id type",
+			name: "invalid fleet_id type",
 			filters: &map[string]interface{}{
-				"team_id": "invalid",
+				"fleet_id": "invalid",
+			},
+			has400Err: true,
+		},
+		{
+			name: "removed team_id key",
+			filters: &map[string]any{
+				"team_id": float64(1),
 			},
 			has400Err: true,
 		},
@@ -5998,24 +6005,24 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 		{
 			name: "multiple valid filters",
 			filters: &map[string]interface{}{
-				"status":  "new",
-				"team_id": float64(1),
-				"query":   "test",
+				"status":   "new",
+				"fleet_id": float64(1),
+				"query":    "test",
 			},
 		},
 		{
 			name: "mixed valid and invalid filters",
 			filters: &map[string]interface{}{
-				"status":  "new",
-				"team_id": "invalid",
+				"status":   "new",
+				"fleet_id": "invalid",
 			},
 			has400Err: true,
 		},
 		{
 			name: "mixed invalid filters and valid filters (different order)",
 			filters: &map[string]interface{}{
-				"status":  "invalid",
-				"team_id": 1,
+				"status":   "invalid",
+				"fleet_id": 1,
 			},
 			has400Err: true,
 		},
