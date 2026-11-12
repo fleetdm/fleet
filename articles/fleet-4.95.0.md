@@ -29,7 +29,7 @@ Learn how in the [Okta conditional access guide](https://fleetdm.com/guides/okta
 
 GitHub issue: [#53284](https://github.com/fleetdm/fleet/issues/53284)
 
-### Google conditional access for iPhone, iPad, and Android
+### Google conditional access for iOS/iPadOS, and Android
 
 IT admins whose organization uses Google Workspace can now block sign-in from iPhones, iPads, and Android devices that aren't company-owned and enrolled to Fleet. Fleet installs Chrome with a bookmark on each company-owned device. When the end user opens it, Fleet confirms the device is enrolled and company-owned, and the device is marked as managed in Google. Google's Context-Aware Access then blocks devices that aren't.
 
@@ -38,14 +38,6 @@ Fleet saves each host's Google device ID, shows it on **Host details**, and refu
 Learn how in the [Google conditional access guide](https://fleetdm.com/guides/google-conditional-access-integration).
 
 GitHub issue: [#54888](https://github.com/fleetdm/fleet/issues/54888)
-
-### Multiple versions of the same App Store app
-
-IT admins can now add more than one version of the same App Store app to a fleet for iOS, iPadOS, and Android. Each version has its own managed configuration, automatic update window, self-service setting, categories, and labels. For example, scope one Zoom version with a VPN or SSO configuration to your "Production" label, and another to your "Test" label. If a host is in the scope of more than one version, Fleet installs the version that was added first.
-
-Learn more in the [App Store apps guide](https://fleetdm.com/guides/install-app-store-apps#multiple-app-instances).
-
-GitHub issue: [#47904](https://github.com/fleetdm/fleet/issues/47904)
 
 ### Built-in MCP server
 
@@ -75,6 +67,14 @@ Learn more in the [patching end user experience guide](https://fleetdm.com/guide
 
 GitHub issue: [#39176](https://github.com/fleetdm/fleet/issues/39176)
 
+### Multiple versions of the same App Store app
+
+IT admins can now add more than one version of the same App Store app to a fleet for iOS, iPadOS, and Android. Each version has its own managed configuration, automatic update window, self-service setting, categories, and labels. For example, scope one Zoom version with a VPN or SSO configuration to your "Production" label, and another to your "Test" label. If a host is in the scope of more than one version, Fleet installs the version that was added first.
+
+Learn more in the [App Store apps guide](https://fleetdm.com/guides/install-app-store-apps#multiple-app-instances).
+
+GitHub issue: [#47904](https://github.com/fleetdm/fleet/issues/47904)
+
 ### Multiple VPP tokens in one fleet
 
 IT admins can now assign more than one Volume Purchasing Program (VPP) token to a fleet. This helps international organizations that keep all their iPhones and iPads in one fleet. For example, assign both a US and a Japan token to the fleet, and add Japan-only App Store apps from the Japan token. A token assigned to "All fleets" is now available alongside fleet-specific tokens.
@@ -85,21 +85,17 @@ Learn more in the [Apple MDM setup guide](https://fleetdm.com/guides/apple-mdm-s
 
 GitHub issue: [#53835](https://github.com/fleetdm/fleet/issues/53835)
 
-### Deploy certificates from EJBCA to Apple hosts
+### Deploy certificates from EJBCA and Google CAS
 
 IT admins who use [EJBCA](https://www.ejbca.org/) as their certificate authority (CA) can now deploy certificates to macOS, iOS, and iPadOS hosts, so end users can connect to corporate Wi-Fi or VPN. Add EJBCA in **Settings > Integrations > Certificate authorities**, with the API, or in [GitOps](https://fleetdm.com/docs/configuration/yaml-files#ejbca). Then use the `$FLEET_VAR_EJBCA_DATA_<name>` and `$FLEET_VAR_EJBCA_PASSWORD_<name>` variables in a PKCS#12 configuration profile.
 
 Learn how in the [certificates guide](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#ejbca).
 
-GitHub issue: [#30986](https://github.com/fleetdm/fleet/issues/30986)
-
-### Deploy certificates from Google CAS to Linux hosts
-
 IT admins who use Google Cloud's [Certificate Authority Service (CAS)](https://cloud.google.com/certificate-authority-service) can now deploy certificates to Linux hosts. Connect Fleet to Google CAS, then deploy a script-only package that requests a certificate with Fleet's [request certificate API](https://fleetdm.com/docs/rest-api/rest-api#request-certificate). A policy runs the same script to renew the certificate before it expires.
 
 Learn how in the [certificates guide](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#google-cas).
 
-GitHub issue: [#52623](https://github.com/fleetdm/fleet/issues/52623)
+GitHub issues: [#30986](https://github.com/fleetdm/fleet/issues/30986) and [#52623](https://github.com/fleetdm/fleet/issues/52623)
 
 ## Changes
 
