@@ -663,7 +663,6 @@ type SoftwareTitle struct {
 	VersionsCount int               `json:"versions_count"`
 	HostsCount    int               `json:"hosts_count"`
 	Versions      []SoftwareVersion `json:"versions,omitempty"`
-	Browser       string            `json:"browser,omitempty"`
 	ExtensionFor  string            `json:"extension_for,omitempty"`
 	// AITool is omitted by Fleet Free, and stays omitted here rather than reading as false.
 	AITool *bool `json:"ai_tool,omitempty"`

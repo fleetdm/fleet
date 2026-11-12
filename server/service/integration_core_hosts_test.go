@@ -1058,7 +1058,6 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 	assert.Equal(t, "chrome_extensions", sw.Source)
 	assert.Equal(t, "test-extension-id", sw.ExtensionID)
 	assert.Equal(t, "chrome", sw.ExtensionFor)
-	assert.Equal(t, "chrome", sw.Browser) // backward compatibility field
 	assert.Equal(t, "com.google.Chrome", sw.BundleIdentifier)
 
 	// Verify installed_paths is populated and not empty
