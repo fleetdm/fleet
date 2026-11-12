@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/rand"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -182,13 +183,24 @@ func TestAggregatedStatsSkipsDeletedQueries(t *testing.T) {
 	require.Equal(t, []uint{live.ID}, ids)
 }
 
+var deleteQueryStatsBatchSizeMu sync.Mutex
+
+// setDeleteQueryStatsBatchSize holds a lock until the test ends, since MySQL tests run in parallel.
+func setDeleteQueryStatsBatchSize(t *testing.T, size int) {
+	deleteQueryStatsBatchSizeMu.Lock()
+	orig := deleteQueryStatsBatchSize
+	deleteQueryStatsBatchSize = size
+	t.Cleanup(func() {
+		deleteQueryStatsBatchSize = orig
+		deleteQueryStatsBatchSizeMu.Unlock()
+	})
+}
+
 func TestDeleteOrphanedQueryStats(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	ctx := t.Context()
 
-	orig := deleteQueryStatsBatchSize
-	deleteQueryStatsBatchSize = 2
-	t.Cleanup(func() { deleteQueryStatsBatchSize = orig })
+	setDeleteQueryStatsBatchSize(t, 2)
 
 	live := test.NewQuery(t, ds, nil, "live", "select 1", 0, true)
 	deleted := test.NewQuery(t, ds, nil, "deleted", "select 2", 0, true)
