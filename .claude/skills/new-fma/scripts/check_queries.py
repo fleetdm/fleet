@@ -14,7 +14,9 @@ rows, or the patch policy can never flag an outdated host.
     # then on the host: powershell -NoProfile -ExecutionPolicy Bypass -File check.ps1
 
 --app-path constrains every `FROM apps` to that path, so nothing has to be in
-/Applications (an enrolled Mac reports what's there to Fleet).
+/Applications (an enrolled Mac reports what's there to Fleet). A query that pins
+`path` to an install location the --app-path doesn't match is skipped: test it
+with the app installed there.
 """
 import argparse
 import json
@@ -137,6 +139,22 @@ def constrain_apps(sql, paths):
     return "".join(result)
 
 
+PATH_PIN = re.compile(r"\bpath\s*(=|LIKE\b)\s*'((?:[^']|'')*)'", re.I)
+
+
+def path_pin_conflict(sql, app_paths):
+    """Return the first path literal the query pins, if no app path satisfies any of them."""
+    pins = [(op.upper(), lit.replace("''", "'")) for op, lit in PATH_PIN.findall(sql)]
+    for op, lit in pins:
+        if op == "=":
+            rx = re.escape(lit)
+        else:  # SQLite LIKE: % and _ wildcards, ASCII case-insensitive
+            rx = "".join(".*" if c == "%" else "." if c == "_" else re.escape(c) for c in lit)
+        if any(re.fullmatch(rx, p, re.I if op == "LIKE" else 0) for p in app_paths):
+            return None
+    return pins[0][1] if pins else None
+
+
 def run_osquery(osqueryd, sql):
     try:
         p = subprocess.run(
@@ -172,12 +190,19 @@ if (-not $osq) {
 }
 if (-not $osq) { Write-Host 'Neither osqueryi.exe nor fleetd''s osqueryd.exe was found'; Exit 2 }
 function Get-Rows([string]$Sql) {
-    $out = & $osq @osqArgs $Sql 2>&1
-    if ($LASTEXITCODE -ne 0) { return "ERROR: $($out -join ' ')" }
-    $text = $out | Out-String
+    # Split stderr (ErrorRecords under 2>&1) from stdout: a warning in the JSON
+    # makes ConvertFrom-Json fail, which would otherwise read as zero rows.
+    $all = & $osq @osqArgs $Sql 2>&1
+    $code = $LASTEXITCODE
+    $err = @($all | Where-Object { $_ -is [Management.Automation.ErrorRecord] } | ForEach-Object { "$_" }) -join ' '
+    $text = "$($all | Where-Object { $_ -isnot [Management.Automation.ErrorRecord] } | Out-String)".Trim()
+    if ($code -ne 0) { return "ERROR: exit $code $err $text" -replace '\s+', ' ' }
     # An empty result prints "[", blank lines, "]", which ConvertFrom-Json turns into one $null.
     if (($text -replace '\s', '') -eq '[]') { return 0 }
-    return @($text | ConvertFrom-Json | Where-Object { $null -ne $_ }).Count
+    if (-not $text) { return "ERROR: no output $err" }
+    try { $rows = $text | ConvertFrom-Json -ErrorAction Stop }
+    catch { return "ERROR: unparseable output: $text $err" -replace '\s+', ' ' }
+    return @($rows | Where-Object { $null -ne $_ }).Count
 }
 $queries = [ordered]@{}
 """
@@ -224,6 +249,10 @@ def main():
             sys.exit(f"osqueryd not found at {a.osqueryd}; pass --osqueryd or set OSQ (see references/queries.md)")
         for k, sql in checks:
             if a.app_path:
+                pin = path_pin_conflict(sql, a.app_path)
+                if pin:
+                    print(f"  {k:<16} not run: pins path to '{pin}', which --app-path doesn't match; test with the app installed there")
+                    continue
                 sql = constrain_apps(sql, a.app_path)
             print(f"  {k:<16} {run_osquery(a.osqueryd, sql)}")
 

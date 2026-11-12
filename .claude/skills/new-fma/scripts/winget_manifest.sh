@@ -23,7 +23,12 @@ first=$(printf '%s' "${id:0:1}" | tr '[:upper:]' '[:lower:]')
 dir="manifests/$first/${id//.//}"
 repo=repos/microsoft/winget-pkgs
 
-fetch() { gh api "$repo/contents/$1" --jq .content 2>/dev/null | base64 -d; }
+fetch() {
+  local out
+  out=$(gh api "$repo/contents/$1" --jq .content 2>/dev/null | base64 -d 2>/dev/null) && [ -n "$out" ] ||
+    { echo "failed to fetch $1" >&2; return 1; }
+  printf '%s\n' "$out"
+}
 
 # Same filter as the ingester: version folders start with a digit and contain a dot.
 # Others (e.g. Beta/, Portable/) are sibling packages or grouping folders.
@@ -50,19 +55,24 @@ fetch "$dir/$version/$id.installer.yaml"
 
 echo
 locale=en-US
-if ! fetch "$dir/$version/$id.locale.$locale.yaml" >/dev/null; then
-  locale=$(fetch "$dir/$version/$id.yaml" | sed -n 's/^DefaultLocale: *//p' | tr -d '\r')
+if ! locale_yaml=$(fetch "$dir/$version/$id.locale.$locale.yaml" 2>/dev/null); then
+  version_yaml=$(fetch "$dir/$version/$id.yaml")
+  locale=$(printf '%s\n' "$version_yaml" | sed -n 's/^DefaultLocale: *//p' | tr -d '\r')
+  locale_yaml=$(fetch "$dir/$version/$id.locale.$locale.yaml")
 fi
 echo "=== $id $version locale manifest ($locale)"
-fetch "$dir/$version/$id.locale.$locale.yaml" | grep -E '^(PackageLocale|Publisher|PackageName|ShortDescription|Moniker):' || true
+grep -E '^(PackageLocale|Publisher|PackageName|ShortDescription|Moniker):' <<<"$locale_yaml" || true
 
 if [ "$diff" = 1 ]; then
   prev=$(printf '%s\n' "$versions" | sort -Vu | grep -B1 -xF "$version" | head -1)
   if [ -z "$prev" ] || [ "$prev" = "$version" ]; then
     echo "no earlier version to diff against" >&2
   else
+    old=$(fetch "$dir/$prev/$id.installer.yaml")
+    new=$(fetch "$dir/$version/$id.installer.yaml")
     echo
     echo "=== installer manifest diff: $prev -> $version"
-    diff -u <(fetch "$dir/$prev/$id.installer.yaml") <(fetch "$dir/$version/$id.installer.yaml") || true
+    # diff exits 1 when the manifests differ, which is the expected case.
+    diff -u <(printf '%s\n' "$old") <(printf '%s\n' "$new") || [ $? -eq 1 ]
   fi
 fi

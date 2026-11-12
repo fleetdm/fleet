@@ -41,10 +41,9 @@ cleanup() {
     rm -rf "$work"
   fi
 }
-if [ "$keep" = 0 ]; then
-  trap cleanup EXIT
-  trap 'exit 1' HUP INT TERM PIPE
-fi
+# --keep drops this trap only after a full run, so early exits still clean up.
+trap cleanup EXIT
+trap 'exit 1' HUP INT TERM PIPE
 
 if [[ $src == http://* ]]; then
   echo "refusing plain http: $src" >&2; exit 2
@@ -66,6 +65,12 @@ elif [[ $src == https://* ]]; then
     sed -E "s/.*filename\*?=(UTF-8'')?\"?([^\";]+).*/\2/" | xargs -0 basename 2>/dev/null | tr -cd 'A-Za-z0-9._+ -')
   [ -n "$name" ] || name=$(basename "${final%%\?*}" | tr -cd 'A-Za-z0-9._+ -')
   file="$work/${name:-download}"
+  # Before 8.4.0, --max-filesize doesn't stop a download whose size isn't announced.
+  IFS=. read -r cmaj cmin _ <<<"$(curl --version | awk 'NR==1{print $2}')"
+  if [ "${cmaj:-0}" -lt 8 ] || { [ "$cmaj" -eq 8 ] && [ "${cmin:-0}" -lt 4 ]; }; then
+    echo "curl $cmaj.$cmin can't enforce --max-mb on a download without Content-Length; use curl 8.4.0 or later" >&2
+    exit 1
+  fi
   curl -sSL --proto =https --max-filesize $((max_mb * 1024 * 1024)) -o "$file" "$src" || { echo "download failed" >&2; exit 1; }
 else
   file=$src
@@ -75,7 +80,12 @@ fi
 sha=$(shasum -a 256 "$file" | awk '{print $1}')
 echo "SHA-256:       $sha"
 if [ -n "$want_sha" ]; then
-  if [ "$sha" = "$want_sha" ]; then echo "               matches --sha256"; else echo "               DOES NOT MATCH --sha256 $want_sha"; fi
+  if [ "$sha" = "$want_sha" ]; then
+    echo "               matches --sha256"
+  else
+    echo "               DOES NOT MATCH --sha256 $want_sha (rerun without --sha256 to inspect it anyway)"
+    exit 1
+  fi
 fi
 
 magic=$(head -c 4 "$file" | xxd -p)
@@ -109,10 +119,10 @@ show_pkg() {
   pkgutil --expand-full "$pkg" "$out" >/dev/null 2>&1 || { echo "  pkgutil --expand-full failed"; return; }
   grep -ho '<bundle [^>]*>' "$out"/PackageInfo "$out"/*/PackageInfo 2>/dev/null | grep -E 'CFBundleShortVersionString|id=' | head -6 | sed 's/^/  /'
   local s
-  for s in $(find "$out" -path '*Scripts*' -type f \( -name 'pre*' -o -name 'post*' \) 2>/dev/null); do
+  while IFS= read -r -d '' s; do
     echo "  script ${s#"$out"/}:"
     grep -nE 'pkill|killall|kill |osascript|open (-a|-b)|launchctl|rm -rf|/Applications/' "$s" 2>/dev/null | head -8 | sed 's/^/    /'
-  done
+  done < <(find "$out" -path '*Scripts*' -type f \( -name 'pre*' -o -name 'post*' \) -print0 2>/dev/null)
   local app
   while IFS= read -r app; do show_app "$app"; done < <(find "$out" -path '*Payload*' -name '*.app' -type d -prune -maxdepth 6 2>/dev/null)
 }
@@ -147,6 +157,7 @@ case $kind in
 esac
 
 if [ "$keep" = 1 ]; then
+  trap - EXIT
   echo
   echo "Kept: $work"
   echo "Clean up: hdiutil detach \"$mnt\" 2>/dev/null; rm -rf \"$work\""
