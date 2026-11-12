@@ -80,7 +80,7 @@ export const getInstallType = (
 
 // Used in EditSoftwareModal and PackageForm
 export const getTargetType = (
-  softwareInstaller?: ISoftwarePackage | IAppStoreApp
+  softwareInstaller?: ISoftwarePackage | IAppStoreApp | IAppStoreAppVersion
 ) => {
   if (!softwareInstaller) return "All hosts";
 
@@ -93,7 +93,7 @@ export const getTargetType = (
 
 // Used in EditSoftwareModal and PackageForm
 export const getCustomTarget = (
-  softwareInstaller?: ISoftwarePackage | IAppStoreApp
+  softwareInstaller?: ISoftwarePackage | IAppStoreApp | IAppStoreAppVersion
 ) => {
   if (!softwareInstaller) return "labelsIncludeAny";
 
@@ -104,7 +104,7 @@ export const getCustomTarget = (
 
 // Used in EditSoftwareModal and PackageForm
 export const generateSelectedLabels = (
-  softwareInstaller?: ISoftwarePackage | IAppStoreApp
+  softwareInstaller?: ISoftwarePackage | IAppStoreApp | IAppStoreAppVersion
 ) => {
   if (
     !softwareInstaller ||
@@ -286,11 +286,21 @@ export const getAutoUpdatesTooltip = (startTime: string, endTime: string) => {
 export const getAutomaticInstallPoliciesCount = (
   softwareTitle: ISoftwareTitle | IHostSoftware
 ): number => {
-  const { software_package, app_store_app } = softwareTitle;
-  if (software_package) {
-    return software_package.automatic_install_policies?.length || 0;
-  } else if (app_store_app) {
-    return app_store_app.automatic_install_policies?.length || 0;
+  if (softwareTitle.software_package) {
+    return (
+      softwareTitle.software_package.automatic_install_policies?.length || 0
+    );
+  }
+  if (
+    "app_store_apps" in softwareTitle &&
+    softwareTitle.app_store_apps?.length
+  ) {
+    return (
+      softwareTitle.app_store_apps[0].automatic_install_policies?.length || 0
+    );
+  }
+  if ("app_store_app" in softwareTitle && softwareTitle.app_store_app) {
+    return softwareTitle.app_store_app.automatic_install_policies?.length || 0;
   }
   return 0;
 };
