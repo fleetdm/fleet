@@ -15,7 +15,11 @@ import (
 
 // SettingsService exposes settings, repo probing, ngrok parsing, and the
 // sandboxed file helpers. Mirrors the settings/* commands from settings.rs.
-type SettingsService struct{}
+type SettingsService struct {
+	// Store is the only writer of settings.json; main wires it before the
+	// service is registered.
+	Store *settings.Store
+}
 
 // BuildInfo identifies the running build, so whoever has the app open can read
 // off which one it is without going near a terminal.
@@ -26,22 +30,16 @@ func (s *SettingsService) BuildInfo() buildinfo.Info { return buildinfo.Current(
 // Empty means "unknown" — see netinfo.LanIP.
 func (s *SettingsService) LanIP() string { return netinfo.LanIP() }
 
-// GetSettings loads the persisted settings (defaults if none saved yet).
+// GetSettings returns the current settings (defaults if none saved yet).
 func (s *SettingsService) GetSettings() (settings.Settings, error) {
-	dir, err := paths.ConfigDir()
-	if err != nil {
-		return settings.Settings{}, err
-	}
-	return settings.Load(dir)
+	return s.Store.Snapshot(), nil
 }
 
-// SaveSettings persists the given settings.
+// SaveSettings persists the given settings. Reserved slots keep their identity,
+// so the frontend reloads after every save.
 func (s *SettingsService) SaveSettings(in settings.Settings) error {
-	dir, err := paths.ConfigDir()
-	if err != nil {
-		return err
-	}
-	return settings.Save(dir, in)
+	_, err := s.Store.SaveFromGUI(in)
+	return err
 }
 
 // NewServerProfile returns a fresh server profile for the next free slot

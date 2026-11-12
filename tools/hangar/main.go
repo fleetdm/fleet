@@ -15,6 +15,8 @@ import (
 	"github.com/fleetdm/fleet/tools/hangar/internal/buildinfo"
 	"github.com/fleetdm/fleet/tools/hangar/internal/paths"
 	"github.com/fleetdm/fleet/tools/hangar/internal/processes"
+	"github.com/fleetdm/fleet/tools/hangar/internal/reservations"
+	"github.com/fleetdm/fleet/tools/hangar/internal/settings"
 	"github.com/fleetdm/fleet/tools/hangar/internal/shellpath"
 	"github.com/fleetdm/fleet/tools/hangar/internal/traymenu"
 	"github.com/fleetdm/fleet/tools/hangar/services"
@@ -69,6 +71,28 @@ func main() {
 	emitter := &wailsEmitter{}
 	pm := processes.New(logDir, dataDir, emitter)
 
+	resPath, err := paths.ReservationsFile()
+	if err != nil {
+		slog.Error("resolve reservations file", "err", err)
+		os.Exit(1)
+	}
+	store, err := settings.NewStore(dataDir, func(e string) { emitter.Emit(e, nil) }, func() (map[string]bool, error) {
+		res, err := reservations.Read(resPath)
+		if err != nil {
+			return nil, err
+		}
+		ids := make(map[string]bool, len(res))
+		for id := range res {
+			ids[id] = true
+		}
+		return ids, nil
+	})
+	if err != nil {
+		slog.Error("load settings", "err", err)
+		os.Exit(1)
+	}
+	store.SetHeldBy(pm.HeldBy)
+
 	// Fold the managed processes into each heartbeat: when Hangar goes away on
 	// its own, this is what says what was running at the time — and whether
 	// the fleet server someone was mid-test against went with it.
@@ -89,7 +113,7 @@ func main() {
 		Name:        "Fleet Hangar",
 		Description: "Desktop control panel for Fleet contributors",
 		Services: []application.Service{
-			application.NewService(&services.SettingsService{}),
+			application.NewService(&services.SettingsService{Store: store}),
 			application.NewService(services.NewProcessService(pm, func() {
 				// Called after ShutdownNow's teardown: flag the exit as
 				// intentional so the close hook lets the window go, then quit.
