@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.13.15",
+      "version": "3.13.17",
       "queries": {
         "exists": "SELECT 1 WHERE EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Python 3.13.% (ARM64)' AND publisher = 'Python Software Foundation') OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
-        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Python 3.13.% (ARM64)' AND publisher = 'Python Software Foundation' AND version_compare(version, '3.13.15150.0') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
+        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Python 3.13.% (ARM64)' AND publisher = 'Python Software Foundation' AND version_compare(version, '3.13.17150.0') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('python.exe','pythonw.exe') AND LOWER(path) LIKE '%\\python313-arm64\\%');"
       },
-      "installer_url": "https://www.python.org/ftp/python/3.13.15/python-3.13.15-arm64.exe",
+      "installer_url": "https://www.python.org/ftp/python/3.13.17/python-3.13.17-arm64.exe",
       "install_script_ref": "8272e48d",
       "uninstall_script_ref": "9072104d",
-      "sha256": "c252c676087c49e6b94e95a273536b78921c28a5fc9f86d15d25392328247249",
+      "sha256": "3089a1977c32b26f5078e5a7d0285b7a861b8c96250c5dac3b6af59fbe9e9a75",
       "default_categories": [
         "Developer tools"
       ]
