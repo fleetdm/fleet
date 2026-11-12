@@ -12,7 +12,9 @@ parasails.registerComponent('aiToolGraphic', {
   //  ╔═╗╦═╗╔═╗╔═╗╔═╗
   //  ╠═╝╠╦╝║ ║╠═╝╚═╗
   //  ╩  ╩╚═╚═╝╩  ╚═╝
-  props: [],
+  props: [
+    'hideToolSwitcher',// « Shows only the Slack demo, without buttons to switch tools.
+  ],
 
   //  ╦╔╗╔╦╔╦╗╦╔═╗╦    ╔═╗╔╦╗╔═╗╔╦╗╔═╗
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
@@ -110,7 +112,7 @@ parasails.registerComponent('aiToolGraphic', {
   //  ╩ ╩ ╩ ╩ ╩╩═╝
   template: `
   <div purpose="ai-tool-graphic" id="ai-tool-graphic-component">
-    <div purpose="ai-tool-switcher" role="group" aria-label="AI tool">
+    <div purpose="ai-tool-switcher" role="group" aria-label="AI tool" v-if="!hideToolSwitcher">
       <button type="button" purpose="ai-tool-button" :class="{selected: selectedAiTool === 'slack'}" :aria-pressed="selectedAiTool === 'slack' ? 'true' : 'false'" @click="clickSelectAiTool('slack')"><img alt="" src="/images/ai-demo/icon-slack-logo-16x16.svg">Slack</button>
       <button type="button" purpose="ai-tool-button" :class="{selected: selectedAiTool === 'claude'}" :aria-pressed="selectedAiTool === 'claude' ? 'true' : 'false'" @click="clickSelectAiTool('claude')"><img alt="" src="/images/ai-demo/icon-claude-logo-16x16.svg">Claude</button>
       <button type="button" purpose="ai-tool-button" :class="{selected: selectedAiTool === 'cursor'}" :aria-pressed="selectedAiTool === 'cursor' ? 'true' : 'false'" @click="clickSelectAiTool('cursor')"><img alt="" src="/images/ai-demo/icon-cursor-logo-16x16.svg">Cursor</button>

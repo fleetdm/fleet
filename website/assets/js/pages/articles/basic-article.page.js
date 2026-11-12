@@ -162,7 +162,7 @@ parasails.registerPage('basic-article', {
       this.goto('/register');
     },
     handleScrollingInArticle: function () {
-      let rightNavBar = document.querySelector('div[purpose="right-sidebar"]');
+      let rightNavBar = document.querySelector('div[purpose="right-sidebar"], div[purpose="left-sidebar"]');
       let scrollTop = window.pageYOffset;
       let windowHeight = window.innerHeight;
       // Add/remove the 'header-hidden' class to the right sidebar to scroll it upwards with the website's header.

@@ -324,6 +324,8 @@ func TestBundleVersionAppsShortenToShortVersion(t *testing.T) {
 		{slug: "disk-drill/darwin", version: "6.3.2326", expected: "6.3"},
 		{slug: "kdenlive/darwin", version: "26.08.3", expected: "26.08"},
 		{slug: "syncmate/darwin", version: "8.11.604", expected: "8.11"},
+		{slug: "redcine-x-pro/darwin", version: "65.2.1", expected: "65.2"},
+		{slug: "redcine-x-pro/darwin", version: "65.1.3", expected: "65.1"},
 		{slug: "bitrix24/darwin", version: "24.0.37.92", expected: "24.0.37"},
 		{slug: "4k-slideshow-maker/darwin", version: "2.0.1", expected: "2.0"},
 		{slug: "4k-stogram/darwin", version: "4.9.0", expected: "4.9"},
