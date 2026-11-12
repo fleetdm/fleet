@@ -25,7 +25,6 @@ func TestRedisConfigETag(t *testing.T) {
 		testHostGetSetAndValidation,
 		testHostQuarantine,
 		testHostGenerationInvalidation,
-		testLegacyPacksFlag,
 		testLabelScopesState,
 	} {
 		t.Run(test.FunctionName(f), func(t *testing.T) {
@@ -285,44 +284,6 @@ func testHostGenerationInvalidation(t *testing.T, s *Store) {
 	disarmFence(t, s)
 }
 
-func testLegacyPacksFlag(t *testing.T, s *Store) {
-	ctx := context.Background()
-
-	loaderCalls := 0
-	loader := func(v bool, err error) func(context.Context) (bool, error) {
-		return func(context.Context) (bool, error) {
-			loaderCalls++
-			return v, err
-		}
-	}
-
-	// miss → loader runs and the answer is cached
-	present, err := s.LegacyPacksPresent(ctx, loader(false, nil))
-	require.NoError(t, err)
-	require.False(t, present)
-	require.Equal(t, 1, loaderCalls)
-
-	// cached → loader must NOT run again
-	present, err = s.LegacyPacksPresent(ctx, loader(true, nil))
-	require.NoError(t, err)
-	require.False(t, present, "cached answer wins until reset/expiry")
-	require.Equal(t, 1, loaderCalls)
-
-	// reset → loader runs again, new answer cached
-	require.NoError(t, s.ResetLegacyPacksFlag(ctx))
-	present, err = s.LegacyPacksPresent(ctx, loader(true, nil))
-	require.NoError(t, err)
-	require.True(t, present)
-	require.Equal(t, 2, loaderCalls)
-
-	// loader error → reported as present (fail toward bypassing the fast
-	// path) and NOT cached
-	require.NoError(t, s.ResetLegacyPacksFlag(ctx))
-	present, err = s.LegacyPacksPresent(ctx, loader(false, errors.New("db down")))
-	require.Error(t, err)
-	require.True(t, present, "errors must count as present")
-}
-
 func testLabelScopesState(t *testing.T, s *Store) {
 	ctx := context.Background()
 
@@ -417,10 +378,10 @@ func TestGateLoaderLeaderElection(t *testing.T) {
 	ctx := context.Background()
 
 	var loaderCalls atomic.Int64
-	slowLoader := func(context.Context) (bool, error) {
+	slowLoader := func(context.Context) (fleet.ConfigETagLabelScopes, error) {
 		loaderCalls.Add(1)
 		time.Sleep(100 * time.Millisecond) // hold the miss window open
-		return false, nil
+		return fleet.ConfigETagLabelScopes{Global: true}, nil
 	}
 
 	const workers = 50
@@ -428,15 +389,10 @@ func TestGateLoaderLeaderElection(t *testing.T) {
 	var contended, answered, failed atomic.Int64
 	for range workers {
 		wg.Go(func() {
-			present, err := s.LegacyPacksPresent(ctx, slowLoader)
+			_, err := s.LabelScopes(ctx, slowLoader)
 			switch {
 			case errors.Is(err, fleet.ErrConfigETagGateLoading):
-				// losers must read as "present" (bypass direction)
-				if present {
-					contended.Add(1)
-				} else {
-					failed.Add(1)
-				}
+				contended.Add(1)
 			case err != nil:
 				failed.Add(1)
 			default:
@@ -454,32 +410,8 @@ func TestGateLoaderLeaderElection(t *testing.T) {
 
 	// After the window closes, everyone reads the cached answer with no
 	// further loader executions.
-	present, err := s.LegacyPacksPresent(ctx, slowLoader)
+	scopes, err := s.LabelScopes(ctx, slowLoader)
 	require.NoError(t, err)
-	require.False(t, present)
+	require.True(t, scopes.Global)
 	require.Equal(t, int64(1), loaderCalls.Load())
-
-	// Same election protocol for the label-scope gate.
-	var scopeLoads atomic.Int64
-	slowScopes := func(context.Context) (fleet.ConfigETagLabelScopes, error) {
-		scopeLoads.Add(1)
-		time.Sleep(100 * time.Millisecond)
-		return fleet.ConfigETagLabelScopes{Global: true}, nil
-	}
-	var scopeContended, scopeFailed atomic.Int64
-	for range workers {
-		wg.Go(func() {
-			_, err := s.LabelScopes(ctx, slowScopes)
-			switch {
-			case errors.Is(err, fleet.ErrConfigETagGateLoading):
-				scopeContended.Add(1)
-			case err != nil:
-				scopeFailed.Add(1)
-			}
-		})
-	}
-	wg.Wait()
-	require.Equal(t, int64(1), scopeLoads.Load())
-	require.Equal(t, int64(0), scopeFailed.Load(), "no caller may observe a real error")
-	require.Positive(t, scopeContended.Load())
 }
