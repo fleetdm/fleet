@@ -34,7 +34,6 @@ parasails.registerPage('open-by-design', {
   },
   mounted: async function() {
     this.animateTicker('hero-ticker-option');
-    this.animateTicker('bottom-cta-ticker-option');
     $('[data-toggle="tooltip"]').tooltip({
       container: '#open-by-design',
       trigger: 'hover',
