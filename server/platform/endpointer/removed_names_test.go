@@ -24,7 +24,7 @@ func (s *scanSelfDecoding) UnmarshalJSON(b []byte) error { s.Inner = string(b); 
 
 type scanItem struct {
 	Name   string `json:"name"`
-	TeamID *uint  `json:"team_id"` // a surface that has not been renamed yet
+	TeamID *uint  `json:"team_id"` //nolint:apiparamcheck // a surface that has not been renamed yet
 }
 
 type scanRequest struct {
@@ -40,7 +40,7 @@ type scanRequest struct {
 	Raw      json.RawMessage     `json:"raw"`
 	Own      scanSelfDecoding    `json:"own"`
 	Page     int                 `query:"page,optional"`
-	OldKept  *uint               `query:"team_id,optional"` // a surface that has not been renamed yet
+	OldKept  *uint               `query:"team_id,optional"` //nolint:apiparamcheck // a surface that has not been renamed yet
 }
 
 func TestRejectRemovedJSONKeys(t *testing.T) {
