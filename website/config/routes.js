@@ -825,8 +825,8 @@ module.exports.routes = {
     action: 'landing-pages/view-windows-mdm',
     locals: {
       hideHeaderLinks: true,
-      pageTitleForMeta: 'Windows MDM: open source Windows device management at enterprise scale',
-      pageDescriptionForMeta: 'Fleet is open source Windows MDM for modern IT teams. Enroll, configure, and secure Windows 10 and 11 with Microsoft Entra ID, Windows Autopilot, BitLocker, and GitOps. Self-hosted or Fleet-hosted.',
+      pageTitleForMeta: 'Windows MDM: AI-native, open source Windows device management',
+      pageDescriptionForMeta: 'Fleet is AI-native, open source Windows MDM for modern IT teams. Enroll, configure, and secure Windows 10 and 11 with zero touch and no Microsoft license required. Self-hosted or Fleet-hosted.',
     }
   },
 
@@ -844,7 +844,7 @@ module.exports.routes = {
     locals: {
       hideHeaderLinks: true,
       pageTitleForMeta: 'Open source MDM | Self-hosted device management',
-      pageDescriptionForMeta: 'Fleet is open-source MDM for macOS, Windows, Linux, iOS, and Android. Self-hosted endpoint management with every line of code public on GitHub.',
+      pageDescriptionForMeta: 'Fleet is AI-native, open-source MDM for macOS, Windows, Linux, iOS, and Android. Self-hosted device management with every line of code public on GitHub.',
     }
   },
 
