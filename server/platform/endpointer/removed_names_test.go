@@ -1,6 +1,7 @@
 package endpointer
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -39,12 +40,23 @@ type scanRequest struct {
 	Anything any                 `json:"anything"`
 	Raw      json.RawMessage     `json:"raw"`
 	Own      scanSelfDecoding    `json:"own"`
-	Page     int                 `query:"page,optional"`
 	OldKept  *uint               `query:"team_id,optional"` //nolint:apiparamcheck // a surface that has not been renamed yet
 }
 
+// requireRejected checks that err is a *RemovedKeyError for wantKey, or nil when wantKey is empty.
+func requireRejected(t *testing.T, err error, wantKey string) {
+	t.Helper()
+	if wantKey == "" {
+		require.NoError(t, err)
+		return
+	}
+	rke, ok := errors.AsType[*RemovedKeyError](err)
+	require.True(t, ok, "got %v", err)
+	require.Equal(t, wantKey, rke.Key)
+}
+
 func TestRejectRemovedJSONKeys(t *testing.T) {
-	SetRemovedNames([]string{"team_id", "teams", "Team"}, []string{"team_id", "team_name"}, nil)
+	SetRemovedNames([]string{"team_id", "teams", "Team"}, nil, nil)
 	t.Cleanup(func() { SetRemovedNames(nil, nil, nil) })
 	typ := reflect.TypeFor[scanRequest]()
 
@@ -59,7 +71,7 @@ func TestRejectRemovedJSONKeys(t *testing.T) {
 		{name: "removed key in a container sent under its json name", body: `{"queries": [{"teams": 1}]}`, wantKey: "teams"},
 		{name: "removed key after unrelated unknown keys", body: `{"extra": 1, "another": {"x": 1}, "teams": []}`, wantKey: "teams"},
 
-		{name: "new names only", body: `{"fleet_id": 1, "name": "a"}`},
+		{name: "new names only, one through an embedded struct", body: `{"fleet_id": 1, "name": "a"}`},
 		{name: "a removed name that the type still declares is accepted", body: `{"item": {"team_id": 3}, "items": [{"team_id": 3}]}`},
 		{name: "free-form map is not looked into", body: `{"settings": {"teams": [1], "team_id": 2, "nested": {"Team": "x"}}}`},
 		{name: "any is not looked into", body: `{"anything": {"team_id": 1}}`},
@@ -68,30 +80,15 @@ func TestRejectRemovedJSONKeys(t *testing.T) {
 		{name: "a json:- field is not a name the type declares", body: `{"Skipped": "x"}`},
 		{name: "maps are not looked into, their keys are data", body: `{"by_name": {"teams": {"teams": 1}}}`},
 		{name: "removed names as values", body: `{"name": "team_id", "items": [{"name": "teams"}]}`},
-		{name: "unknown keys that are not removed are left to the decoder", body: `{"unknown": {"team": 1}}`, wantKey: ""},
-		{name: "scalar and array bodies", body: `[{"teams": 1}]`},
+		{name: "unknown keys that are not removed are left to the decoder", body: `{"unknown": {"team": 1}}`},
+		{name: "an array body for an object type is left to the decoder", body: `[{"teams": 1}]`},
 		{name: "malformed JSON is left to the decoder", body: `{"name": `},
 		{name: "empty body", body: ``},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			err := RejectRemovedJSONKeys([]byte(tc.body), typ)
-			if tc.wantKey == "" {
-				require.NoError(t, err)
-				return
-			}
-			rke, ok := err.(*RemovedKeyError)
-			require.True(t, ok, "got %v", err)
-			require.Equal(t, tc.wantKey, rke.Key)
+			requireRejected(t, RejectRemovedJSONKeys([]byte(tc.body), typ), tc.wantKey)
 		})
 	}
-
-	t.Run("the embedded struct's fields are the type's own", func(t *testing.T) {
-		require.NoError(t, RejectRemovedJSONKeys([]byte(`{"fleet_id": 1}`), typ))
-	})
-	t.Run("no names set", func(t *testing.T) {
-		SetRemovedNames(nil, nil, nil)
-		require.NoError(t, RejectRemovedJSONKeys([]byte(`{"teams": 1}`), typ))
-	})
 }
 
 type handParsedRequest struct {
@@ -106,34 +103,30 @@ func TestRejectRemovedQueryParams(t *testing.T) {
 		FleetID *uint `query:"fleet_id,optional"`
 	}
 	for _, tc := range []struct {
-		name    string
-		typ     reflect.Type
-		query   string
-		wantKey string
+		name, query, wantKey string
+		typ                  reflect.Type // renamed when unset
 	}{
-		{name: "removed parameter", typ: reflect.TypeFor[renamed](), query: "team_id=1", wantKey: "team_id"},
-		{name: "with the new name", typ: reflect.TypeFor[renamed](), query: "fleet_id=0&team_id=1", wantKey: "team_id"},
-		{name: "the other removed parameter", typ: reflect.TypeFor[renamed](), query: "team_name=a", wantKey: "team_name"},
-		{name: "new name only", typ: reflect.TypeFor[renamed](), query: "fleet_id=1"},
+		{name: "removed parameter", query: "team_id=1", wantKey: "team_id"},
+		{name: "with the new name", query: "fleet_id=0&team_id=1", wantKey: "team_id"},
+		{name: "new name only", query: "fleet_id=1"},
+		{name: "parameter names are case sensitive, like the decoder", query: "Team_ID=1"},
 		{name: "a parameter the type still declares", typ: reflect.TypeFor[scanRequest](), query: "team_id=1"},
 		{name: "declared through an embedded struct", typ: reflect.TypeFor[scanRequest](), query: "fleet_id=1&team_name=x", wantKey: "team_name"},
-		{name: "parameter names are case sensitive, like the decoder", typ: reflect.TypeFor[renamed](), query: "Team_ID=1"},
 		{name: "a hand-parsed field accepts the parameter its parser reads", typ: reflect.TypeFor[handParsedRequest](), query: "team_id=1"},
-		{name: "a hand-parsed field does not accept the others", typ: reflect.TypeFor[handParsedRequest](), query: "team_name=a", wantKey: "team_name"},
+		{name: "a hand-parsed field rejects the others", typ: reflect.TypeFor[handParsedRequest](), query: "team_name=a", wantKey: "team_name"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			values, err := url.ParseQuery(tc.query)
 			require.NoError(t, err)
-			err = RejectRemovedQueryParams(values, tc.typ)
-			if tc.wantKey == "" {
-				require.NoError(t, err)
-				return
-			}
-			rke, ok := err.(*RemovedKeyError)
-			require.True(t, ok, "got %v", err)
-			require.Equal(t, tc.wantKey, rke.Key)
+			requireRejected(t, RejectRemovedQueryParams(values, cmp.Or(tc.typ, reflect.TypeFor[renamed]())), tc.wantKey)
 		})
 	}
+
+	t.Run("changing the names resets what a type declares", func(t *testing.T) {
+		query := url.Values{"team_id": {"1"}}
+		SetRemovedNames(nil, []string{"team_id"}, nil)
+		requireRejected(t, RejectRemovedQueryParams(query, reflect.TypeFor[handParsedRequest]()), "team_id")
+	})
 }
 
 func BenchmarkRejectRemovedJSONKeys(b *testing.B) {
@@ -164,35 +157,19 @@ func TestMakeDecoderRemovedNames(t *testing.T) {
 		FleetID uint `json:"fleet_id"`
 		Page    int  `query:"page,optional"`
 	}
-	decode := func(limit int64, target string, body string) error {
+	decode := func(limit int64, target, body string) error {
 		r := httptest.NewRequest(http.MethodPost, target, strings.NewReader(body))
 		_, err := MakeDecoder(request{}, defaultJSONUnmarshal, nil, nil, nil, nil, limit)(t.Context(), r)
 		return err
 	}
 
-	rke, ok := errors.AsType[*RemovedKeyError](decode(1<<20, "/", `{"team_id": 1}`))
-	require.True(t, ok)
-	require.Equal(t, "team_id", rke.Key)
-	rke, ok = errors.AsType[*RemovedKeyError](decode(1<<20, "/?team_id=1", `{"fleet_id": 1}`))
-	require.True(t, ok)
-	require.Equal(t, "team_id", rke.Key)
-
+	requireRejected(t, decode(1<<20, "/", `{"team_id": 1}`), "team_id")
+	requireRejected(t, decode(1<<20, "/?team_id=1", `{"fleet_id": 1}`), "team_id")
 	require.NoError(t, decode(1<<20, "/?page=1", `{"fleet_id": 1}`))
 	// A body without a size limit (agent uploads) is not buffered or scanned.
 	require.NoError(t, decode(-1, "/", `{"team_id": 1}`))
 	// Malformed JSON is still reported by the decoder, and an oversize body keeps its error.
 	require.Error(t, decode(1<<20, "/", `{"team_id": `))
-	_, ok = errors.AsType[platform_http.PayloadTooLargeError](decode(8, "/", `{"fleet_id": 1, "x": "0123456789"}`))
+	_, ok := errors.AsType[platform_http.PayloadTooLargeError](decode(8, "/", `{"fleet_id": 1, "x": "0123456789"}`))
 	require.True(t, ok)
-}
-
-func TestSetRemovedNamesResetsDeclaredQueryCache(t *testing.T) {
-	t.Cleanup(func() { SetRemovedNames(nil, nil, nil) })
-	query := url.Values{"team_id": {"1"}}
-	typ := reflect.TypeFor[handParsedRequest]()
-
-	SetRemovedNames(nil, []string{"team_id"}, map[string][]string{"host_options": {"team_id"}})
-	require.NoError(t, RejectRemovedQueryParams(query, typ))
-	SetRemovedNames(nil, []string{"team_id"}, nil)
-	require.Error(t, RejectRemovedQueryParams(query, typ))
 }

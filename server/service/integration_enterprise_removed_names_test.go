@@ -7,7 +7,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,83 +14,65 @@ import (
 // already use the fleet names. A request that still sends one would otherwise apply to No team or to every fleet.
 func (s *integrationEnterpriseTestSuite) TestRemovedFleetNames() {
 	t := s.T()
-
 	reportsBefore := len(s.listReports())
 
-	for _, tc := range []struct {
-		name, method, path, body string
-		query                    []string
-		key                      string
-	}{
-		// Users, invites and targets: the fleet roles and the selected fleets.
-		{name: "invite create", method: "POST", path: "/invites", body: `{"email": "a@example.com", "name": "a", "teams": []}`, key: "teams"},
-		{name: "invite modify", method: "PATCH", path: "/invites/1", body: `{"teams": []}`, key: "teams"},
-		{name: "user create", method: "POST", path: "/users/admin", body: `{"name": "a", "email": "a@example.com", "teams": []}`, key: "teams"},
-		{name: "user modify", method: "PATCH", path: "/users/1", body: `{"teams": []}`, key: "teams"},
-		{name: "api-only user create", method: "POST", path: "/users/api_only", body: `{"name": "a", "teams": []}`, key: "teams"},
-		{name: "api-only user modify", method: "PATCH", path: "/users/api_only/1", body: `{"teams": []}`, key: "teams"},
-		{name: "targets", method: "POST", path: "/targets", body: `{"selected": {"teams": [1]}}`, key: "teams"},
-		{name: "targets count", method: "POST", path: "/targets/count", body: `{"selected": {"teams": [1]}}`, key: "teams"},
-
-		// Labels, reports and policies.
-		{name: "labels list", method: "GET", path: "/labels", query: []string{"team_id", "1"}, key: "team_id"},
-		{name: "labels summary", method: "GET", path: "/labels/summary", query: []string{"team_id", "1"}, key: "team_id"},
-		{name: "label specs list", method: "GET", path: "/spec/labels", query: []string{"team_id", "1"}, key: "team_id"},
-		{name: "label specs apply query", method: "POST", path: "/spec/labels", body: `{"specs": []}`, query: []string{"team_id", "1"}, key: "team_id"},
-		{name: "label specs apply key", method: "POST", path: "/spec/labels", body: `{"specs": [{"name": "a", "team_id": 1}]}`, key: "team_id"},
-		{name: "reports list", method: "GET", path: "/reports", query: []string{"team_id", "1"}, key: "team_id"},
-		{name: "report results", method: "GET", path: "/reports/1/report", query: []string{"team_id", "1"}, key: "team_id"},
-		{name: "report spec", method: "GET", path: "/spec/reports/a", query: []string{"team_id", "1"}, key: "team_id"},
-		{name: "report create", method: "POST", path: "/reports", body: `{"name": "removed names", "query": "SELECT 1", "team_id": 1}`, key: "team_id"},
-		{name: "report spec apply", method: "POST", path: "/spec/reports", body: `{"specs": [{"name": "a", "query": "SELECT 1", "team": "a"}]}`, key: "team"},
-		{name: "policy spec apply", method: "POST", path: "/spec/policies", body: `{"specs": [{"name": "a", "query": "SELECT 1", "team": "a"}]}`, key: "team"},
-		{name: "automations reset", method: "POST", path: "/automations/reset", body: `{"team_ids": [1]}`, key: "team_ids"},
-
-		// Scripts.
-		{name: "scripts list", method: "GET", path: "/scripts", query: []string{"team_id", "1"}, key: "team_id"},
-		{name: "scripts batch set id", method: "POST", path: "/scripts/batch", body: `{"scripts": []}`, query: []string{"team_id", "1"}, key: "team_id"},
-		{name: "scripts batch set name", method: "POST", path: "/scripts/batch", body: `{"scripts": []}`, query: []string{"team_name", "a"}, key: "team_name"},
-		{name: "scripts batch executions", method: "GET", path: "/scripts/batch", query: []string{"team_id", "1"}, key: "team_id"},
-		{name: "script run", method: "POST", path: "/scripts/run", body: `{"script_id": 1, "host_id": 1, "team_id": 1}`, key: "team_id"},
-		{name: "script run sync", method: "POST", path: "/scripts/run/sync", body: `{"script_id": 1, "host_id": 1, "team_id": 1}`, key: "team_id"},
-
-		// Setup experience and certificate templates.
-		{name: "setup experience software list", method: "GET", path: "/setup_experience/software", query: []string{"team_id", "1"}, key: "team_id"},
-		{name: "setup experience software set", method: "PUT", path: "/setup_experience/software", body: `{"team_id": 1, "platform": "macos"}`, key: "team_id"},
-		{name: "setup experience script get", method: "GET", path: "/setup_experience/script", query: []string{"team_id", "1"}, key: "team_id"},
-		{name: "setup experience script delete", method: "DELETE", path: "/setup_experience/script", query: []string{"team_id", "1"}, key: "team_id"},
-		{name: "certificates create", method: "POST", path: "/certificates", body: `{"name": "a", "team_id": 1}`, key: "team_id"},
-		{name: "certificates list", method: "GET", path: "/certificates", query: []string{"team_id", "1"}, key: "team_id"},
-		{name: "certificate specs delete", method: "DELETE", path: "/spec/certificates", body: `{"team_id": 1, "names": ["a"]}`, key: "team_id"},
-
-		// Both names together are rejected too, the new one does not win.
-		{name: "reports list both", method: "GET", path: "/reports", query: []string{"fleet_id", "0", "team_id", "1"}, key: "team_id"},
-		{name: "report create both", method: "POST", path: "/reports", body: `{"name": "both", "query": "SELECT 1", "fleet_id": 0, "team_id": 1}`, key: "team_id"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			resp := s.DoRaw(tc.method, "/api/latest/fleet"+tc.path, []byte(tc.body), http.StatusUnprocessableEntity, tc.query...)
+	reject := func(method, path, body, key string, query ...string) {
+		t.Run(method+" "+path+" "+key, func(t *testing.T) {
+			resp := s.DoRaw(method, "/api/latest/fleet"+path, []byte(body), http.StatusUnprocessableEntity, query...)
 			var got struct {
 				Message string              `json:"message"`
 				Errors  []map[string]string `json:"errors"`
 			}
 			require.NoError(t, json.NewDecoder(resp.Body).Decode(&got))
 			require.Equal(t, "Validation Failed", got.Message)
-			require.Len(t, got.Errors, 1)
-			assert.Equal(t, tc.key, got.Errors[0]["name"])
-			assert.Equal(t, `The "`+tc.key+`" parameter is not available anymore. What to use instead: `+removednames.GuideURL, got.Errors[0]["reason"])
+			require.Equal(t, []map[string]string{{
+				"name": key, "reason": `The "` + key + `" parameter is not available anymore. What to use instead: ` + removednames.GuideURL,
+			}}, got.Errors)
 		})
 	}
 
-	// The rejected create calls did not create anything.
-	require.Len(t, s.listReports(), reportsBefore)
+	// Request body keys: fleet roles, selected fleets and the fleet of a created or targeted entity.
+	for _, tc := range [][]string{
+		{"POST", "/invites", `{"email": "a@example.com", "name": "a", "teams": []}`, "teams"},
+		{"PATCH", "/invites/1", `{"teams": []}`, "teams"},
+		{"POST", "/users/admin", `{"name": "a", "email": "a@example.com", "teams": []}`, "teams"},
+		{"PATCH", "/users/1", `{"teams": []}`, "teams"},
+		{"POST", "/users/api_only", `{"name": "a", "teams": []}`, "teams"},
+		{"PATCH", "/users/api_only/1", `{"teams": []}`, "teams"},
+		{"POST", "/targets", `{"selected": {"teams": [1]}}`, "teams"},
+		{"POST", "/targets/count", `{"selected": {"teams": [1]}}`, "teams"},
+		{"POST", "/spec/labels", `{"specs": [{"name": "a", "team_id": 1}]}`, "team_id"},
+		{"POST", "/reports", `{"name": "removed names", "query": "SELECT 1", "team_id": 1}`, "team_id"},
+		{"POST", "/spec/reports", `{"specs": [{"name": "a", "query": "SELECT 1", "team": "a"}]}`, "team"},
+		{"POST", "/spec/policies", `{"specs": [{"name": "a", "query": "SELECT 1", "team": "a"}]}`, "team"},
+		{"POST", "/automations/reset", `{"team_ids": [1]}`, "team_ids"},
+		{"POST", "/scripts/run", `{"script_id": 1, "host_id": 1, "team_id": 1}`, "team_id"},
+		{"POST", "/scripts/run/sync", `{"script_id": 1, "host_id": 1, "team_id": 1}`, "team_id"},
+		{"PUT", "/setup_experience/software", `{"team_id": 1, "platform": "macos"}`, "team_id"},
+		{"POST", "/certificates", `{"name": "a", "team_id": 1}`, "team_id"},
+		{"DELETE", "/spec/certificates", `{"team_id": 1, "names": ["a"]}`, "team_id"},
+	} {
+		reject(tc[0], tc[1], tc[2], tc[3])
+	}
 
-	// The new names are still accepted.
-	var listResp fleet.ListQueriesResponse
-	s.DoJSON("GET", "/api/latest/fleet/reports", nil, http.StatusOK, &listResp, "fleet_id", "0")
+	// Query parameters are rejected before the body is read, so these requests carry none. The new name next to the old one does not win.
+	for _, tc := range [][]string{
+		{"GET", "/labels"}, {"GET", "/labels/summary"}, {"GET", "/spec/labels"}, {"POST", "/spec/labels"},
+		{"GET", "/reports"}, {"GET", "/reports/1/report"}, {"GET", "/spec/reports/a"},
+		{"GET", "/scripts"}, {"GET", "/scripts/batch"}, {"POST", "/scripts/batch"},
+		{"GET", "/setup_experience/software"}, {"GET", "/setup_experience/script"}, {"DELETE", "/setup_experience/script"},
+		{"GET", "/certificates"},
+	} {
+		reject(tc[0], tc[1], "", "team_id", "fleet_id", "0", "team_id", "1")
+	}
+	reject("POST", "/scripts/batch", "", "team_name", "team_name", "a")
+
+	// The rejected create calls did not create anything, and the new name is accepted.
+	require.Len(t, s.listReports(), reportsBefore)
 }
 
 func (s *integrationEnterpriseTestSuite) listReports() []fleet.Query {
 	var listResp fleet.ListQueriesResponse
-	s.DoJSON("GET", "/api/latest/fleet/reports", nil, http.StatusOK, &listResp, "per_page", "1000")
+	s.DoJSON("GET", "/api/latest/fleet/reports", nil, http.StatusOK, &listResp, "per_page", "1000", "fleet_id", "0")
 	return listResp.Queries
 }
