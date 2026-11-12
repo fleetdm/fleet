@@ -8,9 +8,9 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -253,8 +253,8 @@ func (s *integrationMDMTestSuite) TestConfigAndFleetResponsesSentBack() {
 }
 
 // GitOps users can write config, fleets, bootstrap packages and setup
-// assistants but can't read the last two, so they get null for them and can
-// send that null back.
+// assistants but can't read the last two, so responses leave them out. Sending
+// a response back, or null, must keep them.
 func (s *integrationMDMTestSuite) TestConfigAndFleetResponsesSentBackAsGitOps() {
 	t := s.T()
 	ctx := t.Context()
@@ -263,7 +263,8 @@ func (s *integrationMDMTestSuite) TestConfigAndFleetResponsesSentBackAsGitOps() 
 	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{Name: t.Name()}, http.StatusOK, &createResp)
 	tm := createResp.Team
 
-	original := storedAppConfig(t, s.ds).MDM.MacOSSetup
+	// Overwrite mode below also resets settings such as features, so restore the whole config.
+	original := storedAppConfig(t, s.ds).Copy()
 	t.Cleanup(func() {
 		// t.Context() is already canceled when cleanups run.
 		ctx := context.WithoutCancel(t.Context())
@@ -273,11 +274,7 @@ func (s *integrationMDMTestSuite) TestConfigAndFleetResponsesSentBackAsGitOps() 
 		if err := s.ds.DeleteMDMAppleSetupAssistant(ctx, nil); err != nil && !fleet.IsNotFound(err) {
 			require.NoError(t, err)
 		}
-		ac, err := s.ds.AppConfig(ctx)
-		require.NoError(t, err)
-		ac.MDM.MacOSSetup.BootstrapPackage = original.BootstrapPackage
-		ac.MDM.MacOSSetup.MacOSSetupAssistant = original.MacOSSetupAssistant
-		require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
+		require.NoError(t, s.ds.SaveAppConfig(ctx, original))
 	})
 
 	pkg, err := os.ReadFile(filepath.Join("testdata", "bootstrap-packages", "signed.pkg"))
@@ -290,10 +287,10 @@ func (s *integrationMDMTestSuite) TestConfigAndFleetResponsesSentBackAsGitOps() 
 		require.NoError(t, err)
 	}
 
-	applySetup := func(teamID uint, setup any) {
+	applySetup := func(teamID uint, setup any, configQuery ...string) {
 		t.Helper()
 		if teamID == 0 {
-			s.Do("PATCH", "/api/latest/fleet/config", map[string]any{"mdm": map[string]any{"macos_setup": setup}}, http.StatusOK)
+			s.Do("PATCH", "/api/latest/fleet/config", map[string]any{"mdm": map[string]any{"macos_setup": setup}}, http.StatusOK, configQuery...)
 			return
 		}
 		s.Do("POST", "/api/latest/fleet/spec/fleets", map[string]any{"specs": []any{map[string]any{
@@ -340,39 +337,56 @@ func (s *integrationMDMTestSuite) TestConfigAndFleetResponsesSentBackAsGitOps() 
 	require.NoError(t, err)
 	s.setTokenForTest(t, email, test.GoodPassword)
 
-	requireNullSentBack := func(teamID uint, setup map[string]any) {
+	// setupFrom checks that both names of each key are left out, and returns
+	// the object under the deprecated name, which is what older clients send.
+	setupFrom := func(mdm map[string]any) map[string]any {
 		t.Helper()
-		require.Contains(t, setup, "bootstrap_package")
-		require.Nil(t, setup["bootstrap_package"])
-		require.Contains(t, setup, "macos_setup_assistant")
-		require.Nil(t, setup["macos_setup_assistant"])
-		applySetup(teamID, setup)
+		setup, ok := mdm["macos_setup"].(map[string]any)
+		require.True(t, ok)
+		require.NotContains(t, setup, "bootstrap_package")
+		require.NotContains(t, setup, "macos_setup_assistant")
+		renamed, ok := mdm["setup_experience"].(map[string]any)
+		require.True(t, ok)
+		require.NotContains(t, renamed, "macos_bootstrap_package")
+		require.NotContains(t, renamed, "apple_setup_assistant")
+		return setup
+	}
+	requireKept := func(teamID uint, setup map[string]any, configQuery ...string) {
+		t.Helper()
+		applySetup(teamID, setup, configQuery...)
 		requireSaved(teamID, true)
 		stored := recordedSetup(teamID)
 		require.Equal(t, recorded["bootstrap_package"], stored.BootstrapPackage.Value)
 		require.Equal(t, recorded["macos_setup_assistant"], stored.MacOSSetupAssistant.Value)
 	}
+	nulls := map[string]any{"bootstrap_package": nil, "macos_setup_assistant": nil}
 
 	var cfg map[string]any
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &cfg)
-	requireNullSentBack(0, cfg["mdm"].(map[string]any)["macos_setup"].(map[string]any))
+	configSetup := setupFrom(cfg["mdm"].(map[string]any))
+	for _, setup := range []map[string]any{configSetup, nulls} {
+		requireKept(0, setup)
+		requireKept(0, setup, "overwrite", "true")
+	}
 
 	var list map[string]any
 	s.DoJSON("GET", "/api/latest/fleet/fleets", nil, http.StatusOK, &list)
 	var fleetSetup map[string]any
 	for _, f := range list["fleets"].([]any) {
 		if fm := f.(map[string]any); fm["name"] == tm.Name {
-			fleetSetup = fm["mdm"].(map[string]any)["macos_setup"].(map[string]any)
+			fleetSetup = setupFrom(fm["mdm"].(map[string]any))
 		}
 	}
 	require.NotNil(t, fleetSetup)
-	requireNullSentBack(tm.ID, fleetSetup)
+	requireKept(tm.ID, fleetSetup)
+	requireKept(tm.ID, nulls)
 
-	// "" still deletes them.
-	for _, teamID := range []uint{0, tm.ID} {
-		applySetup(teamID, map[string]any{"bootstrap_package": "", "macos_setup_assistant": ""})
-		requireSaved(teamID, false)
-	}
+	// "" still deletes them, including in overwrite mode, which GitOps uses.
+	cleared := map[string]any{"bootstrap_package": "", "macos_setup_assistant": ""}
+	applySetup(0, cleared, "overwrite", "true")
+	requireSaved(0, false)
+	applySetup(tm.ID, cleared)
+	requireSaved(tm.ID, false)
 }
 
 func (s *integrationMDMTestSuite) TestConfigAndFleetResponsesListVisibility() {
@@ -406,89 +420,84 @@ func (s *integrationMDMTestSuite) TestConfigAndFleetResponsesListVisibility() {
 	})
 	s.setVPPTokenForTeam(tm.ID)
 
-	type view struct {
-		AppleProfiles   []fleet.MDMProfileSpec                                    `json:"apple_profiles"`
-		WindowsProfiles optjson.Slice[fleet.MDMProfileSpec]                       `json:"windows_profiles"`
-		AndroidProfiles optjson.Slice[fleet.MDMProfileSpec]                       `json:"android_profiles"`
-		Scripts         optjson.Slice[string]                                     `json:"scripts"`
-		SetupScript     optjson.String                                            `json:"setup_script"`
-		Bootstrap       optjson.String                                            `json:"bootstrap_package"`
-		Assistant       optjson.String                                            `json:"setup_assistant"`
-		VPP             *optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo] `json:"vpp,omitempty"`
+	// Each list's JSON value by its path in a config or fleet response, under
+	// both the current and the deprecated key names. A hidden list has no entry.
+	type view map[string]any
+	listGroup := map[string]string{
+		"custom_settings": "profiles", "configuration_profiles": "profiles",
+		"scripts": "scripts", "script": "scripts", "macos_script": "scripts",
+		"bootstrap_package": "bootstrap", "macos_bootstrap_package": "bootstrap",
+		"macos_setup_assistant": "assistant", "apple_setup_assistant": "assistant",
+		"volume_purchasing_program": "vpp",
 	}
-	configView := func(ac fleet.AppConfig) view {
-		return view{
-			ac.MDM.MacOSSettings.CustomSettings, ac.MDM.WindowsSettings.CustomSettings, ac.MDM.AndroidSettings.CustomSettings,
-			ac.Scripts, ac.MDM.MacOSSetup.Script, ac.MDM.MacOSSetup.BootstrapPackage, ac.MDM.MacOSSetup.MacOSSetupAssistant,
-			&ac.MDM.VolumePurchasingProgram,
-		}
-	}
-	fleetView := func(tc fleet.TeamConfig) view {
-		return view{
-			tc.MDM.MacOSSettings.CustomSettings, tc.MDM.WindowsSettings.CustomSettings, tc.MDM.AndroidSettings.CustomSettings,
-			tc.Scripts, tc.MDM.MacOSSetup.Script, tc.MDM.MacOSSetup.BootstrapPackage, tc.MDM.MacOSSetup.MacOSSetupAssistant,
-			nil,
-		}
-	}
-	// Compared as JSON, where a hidden list is null.
-	requireView := func(t *testing.T, want, got view) {
+	viewOf := func(t *testing.T, obj map[string]any) view {
 		t.Helper()
-		wantJSON, err := json.Marshal(want)
-		require.NoError(t, err)
-		gotJSON, err := json.Marshal(got)
-		require.NoError(t, err)
-		require.JSONEq(t, string(wantJSON), string(gotJSON))
-	}
-
-	type lists struct{ profiles, scripts, bootstrap, assistant, vpp bool }
-	visible := func(v view, can lists) view {
-		if !can.profiles {
-			v.AppleProfiles = nil
-			v.WindowsProfiles = optjson.Slice[fleet.MDMProfileSpec]{Set: true}
-			v.AndroidProfiles = optjson.Slice[fleet.MDMProfileSpec]{Set: true}
+		v := view{}
+		if scripts, ok := obj["scripts"]; ok {
+			v["scripts"] = scripts
 		}
-		if !can.scripts {
-			v.Scripts = optjson.Slice[string]{Set: true}
-			v.SetupScript = optjson.String{Set: true}
+		mdm, ok := obj["mdm"].(map[string]any)
+		require.True(t, ok)
+		if vpp, ok := mdm["volume_purchasing_program"]; ok {
+			v["mdm.volume_purchasing_program"] = vpp
 		}
-		if !can.bootstrap {
-			v.Bootstrap = optjson.String{Set: true}
-		}
-		if !can.assistant {
-			v.Assistant = optjson.String{Set: true}
-		}
-		if !can.vpp && v.VPP != nil {
-			v.VPP = &optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true}
+		for _, parent := range []string{"macos_settings", "apple_settings", "windows_settings", "android_settings", "macos_setup", "setup_experience"} {
+			sub, _ := mdm[parent].(map[string]any)
+			for k, val := range sub {
+				if _, isList := listGroup[k]; isList {
+					v["mdm."+parent+"."+k] = val
+				}
+			}
 		}
 		return v
 	}
-
-	var adminConfig appConfigResponse
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &adminConfig)
-	noFleet := configView(adminConfig.AppConfig)
-	var adminFleet getTeamResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID), nil, http.StatusOK, &adminFleet)
-	inFleet := fleetView(adminFleet.Team.Config)
-	// Admins see every list filled in, so the checks below can't pass on empty lists.
-	for _, v := range []view{noFleet, inFleet} {
-		require.NotEmpty(t, v.AppleProfiles)
-		require.Contains(t, v.Scripts.Value, "visible.sh")
-		require.Equal(t, "setup.sh", v.SetupScript.Value)
-		require.Equal(t, "bootstrap.pkg", v.Bootstrap.Value)
-		require.Equal(t, "assistant", v.Assistant.Value)
+	fleetIn := func(t *testing.T, obj map[string]any) map[string]any {
+		t.Helper()
+		fl, ok := obj["fleet"].(map[string]any)
+		require.True(t, ok)
+		return fl
 	}
-	require.NotEmpty(t, noFleet.VPP.Value)
+
+	type lists map[string]struct{}
+	visible := func(v view, can lists) view {
+		shown := view{}
+		for path, val := range v {
+			if _, ok := can[listGroup[path[strings.LastIndex(path, ".")+1:]]]; ok {
+				shown[path] = val
+			}
+		}
+		return shown
+	}
+
+	var adminConfig map[string]any
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &adminConfig)
+	noFleet := viewOf(t, adminConfig)
+	var adminFleet map[string]any
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID), nil, http.StatusOK, &adminFleet)
+	inFleet := viewOf(t, fleetIn(t, adminFleet))
+	// Admins see every list filled in, under both key names, so the checks
+	// below can't pass on empty or missing lists.
+	require.Len(t, noFleet, 14)
+	require.Len(t, inFleet, 13)
+	for _, v := range []view{noFleet, inFleet} {
+		require.NotEmpty(t, v["mdm.apple_settings.configuration_profiles"])
+		require.Contains(t, v["scripts"], "visible.sh")
+		require.Equal(t, "setup.sh", v["mdm.setup_experience.macos_script"])
+		require.Equal(t, "bootstrap.pkg", v["mdm.setup_experience.macos_bootstrap_package"])
+		require.Equal(t, "assistant", v["mdm.setup_experience.apple_setup_assistant"])
+	}
+	require.NotEmpty(t, noFleet["mdm.volume_purchasing_program"])
 
 	// The lists each role can read on the features' own endpoints, per
 	// policy.rego. Fleet roles get the same on their fleets, and nothing for
 	// "No fleet", which includes VPP assignments.
-	all := lists{profiles: true, scripts: true, bootstrap: true, assistant: true, vpp: true}
+	all := lists{"profiles": {}, "scripts": {}, "bootstrap": {}, "assistant": {}, "vpp": {}}
 	reads := map[string]lists{
-		fleet.RoleObserver:     {scripts: true},
-		fleet.RoleObserverPlus: {scripts: true},
-		fleet.RoleTechnician:   {profiles: true, scripts: true, vpp: true},
+		fleet.RoleObserver:     {"scripts": {}},
+		fleet.RoleObserverPlus: {"scripts": {}},
+		fleet.RoleTechnician:   {"profiles": {}, "scripts": {}, "vpp": {}},
 		fleet.RoleMaintainer:   all,
-		fleet.RoleGitOps:       {profiles: true, vpp: true},
+		fleet.RoleGitOps:       {"profiles": {}, "vpp": {}},
 		fleet.RoleAdmin:        all,
 	}
 	for role, can := range reads {
@@ -513,31 +522,32 @@ func (s *integrationMDMTestSuite) TestConfigAndFleetResponsesListVisibility() {
 				s.setTokenForTest(t, email, test.GoodPassword)
 				canWrite := role == fleet.RoleAdmin || role == fleet.RoleGitOps
 
-				var acResp appConfigResponse
-				s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-				requireView(t, wantConfig, configView(acResp.AppConfig))
+				var cfg map[string]any
+				s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &cfg)
+				require.Equal(t, wantConfig, viewOf(t, cfg))
 				if global && canWrite {
-					acResp = appConfigResponse{}
-					s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{}`), http.StatusOK, &acResp)
-					requireView(t, wantConfig, configView(acResp.AppConfig))
+					cfg = nil
+					s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{}`), http.StatusOK, &cfg)
+					require.Equal(t, wantConfig, viewOf(t, cfg))
 				}
 
-				var listResp listTeamsResponse
-				s.DoJSON("GET", "/api/latest/fleet/fleets", nil, http.StatusOK, &listResp)
-				i := slices.IndexFunc(listResp.Teams, func(lt fleet.Team) bool { return lt.ID == tm.ID })
+				var list map[string]any
+				s.DoJSON("GET", "/api/latest/fleet/fleets", nil, http.StatusOK, &list)
+				fleets, _ := list["fleets"].([]any)
+				i := slices.IndexFunc(fleets, func(f any) bool { return f.(map[string]any)["id"] == float64(tm.ID) })
 				require.GreaterOrEqual(t, i, 0)
-				requireView(t, wantFleet, fleetView(listResp.Teams[i].Config))
+				require.Equal(t, wantFleet, viewOf(t, fleets[i].(map[string]any)))
 
 				// GitOps users can list and write fleets but not read one.
 				if role != fleet.RoleGitOps {
-					var getResp getTeamResponse
+					var getResp map[string]any
 					s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID), nil, http.StatusOK, &getResp)
-					requireView(t, wantFleet, fleetView(getResp.Team.Config))
+					require.Equal(t, wantFleet, viewOf(t, fleetIn(t, getResp)))
 				}
 				if canWrite {
-					var modifyResp teamResponse
+					var modifyResp map[string]any
 					s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID), fleet.TeamPayload{Description: new(email)}, http.StatusOK, &modifyResp)
-					requireView(t, wantFleet, fleetView(modifyResp.Team.Config))
+					require.Equal(t, wantFleet, viewOf(t, fleetIn(t, modifyResp)))
 				}
 			})
 		}

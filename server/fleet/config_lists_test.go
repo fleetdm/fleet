@@ -91,17 +91,30 @@ func TestConfigListsApplyHidden(t *testing.T) {
 	var ac AppConfig
 	l.ApplyToAppConfig(&ac)
 	require.Nil(t, ac.MDM.MacOSSettings.CustomSettings)
-	require.Equal(t, optjson.Slice[MDMProfileSpec]{Set: true}, ac.MDM.WindowsSettings.CustomSettings)
-	require.Equal(t, optjson.Slice[MDMProfileSpec]{Set: true}, ac.MDM.AndroidSettings.CustomSettings)
-	require.Equal(t, optjson.Slice[string]{Set: true}, ac.Scripts)
-	require.Equal(t, optjson.String{Set: true}, ac.MDM.MacOSSetup.Script)
-	require.Equal(t, optjson.String{Set: true}, ac.MDM.MacOSSetup.BootstrapPackage)
-	require.Equal(t, optjson.String{Set: true}, ac.MDM.MacOSSetup.MacOSSetupAssistant)
-	require.Equal(t, optjson.Slice[MDMAppleVolumePurchasingProgramInfo]{Set: true}, ac.MDM.VolumePurchasingProgram)
+	require.Zero(t, ac.MDM.WindowsSettings.CustomSettings)
+	require.Zero(t, ac.MDM.AndroidSettings.CustomSettings)
+	require.Zero(t, ac.Scripts)
+	require.Zero(t, ac.MDM.MacOSSetup.Script)
+	require.Zero(t, ac.MDM.MacOSSetup.BootstrapPackage)
+	require.Zero(t, ac.MDM.MacOSSetup.MacOSSetupAssistant)
+	require.Zero(t, ac.MDM.VolumePurchasingProgram)
 
-	b, err := json.Marshal(ac.MDM.MacOSSetup.BootstrapPackage)
+	// Hidden lists are left out of the JSON, not rendered as null.
+	b, err := json.Marshal(ac)
 	require.NoError(t, err)
-	require.JSONEq(t, `null`, string(b))
+	var got struct {
+		Scripts json.RawMessage `json:"scripts"`
+		MDM     map[string]json.RawMessage
+	}
+	require.NoError(t, json.Unmarshal(b, &got))
+	require.Nil(t, got.Scripts)
+	require.NotContains(t, got.MDM, "volume_purchasing_program")
+	for _, key := range []string{"macos_settings", "windows_settings", "android_settings"} {
+		require.NotContains(t, string(got.MDM[key]), "custom_settings", key)
+	}
+	for _, key := range []string{"bootstrap_package", "macos_setup_assistant", "script"} {
+		require.NotContains(t, string(got.MDM["macos_setup"]), `"`+key+`"`, key)
+	}
 
 	// Each list is hidden on its own.
 	l = filled()

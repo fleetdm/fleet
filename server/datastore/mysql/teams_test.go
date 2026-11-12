@@ -932,7 +932,6 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 				BootstrapPackage:            optjson.SetString("bootstrap"),
 				MacOSSetupAssistant:         optjson.SetString("assistant"),
 				EnableReleaseDeviceManually: optjson.SetBool(false),
-				Script:                      optjson.String{Set: true},
 				Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 				ManualAgentInstall:          optjson.SetBool(true),
 				LockEndUserInfo:             optjson.SetBool(false),

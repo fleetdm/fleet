@@ -146,23 +146,16 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			// because the MacOSSetup was marshalled to JSON to be saved in the DB,
 			// it did get marshalled, and then when unmarshalled it was set (but
 			// null).
-			MacOSSetupAssistant:         optjson.String{Set: true},
-			BootstrapPackage:            optjson.String{Set: true},
 			EnableReleaseDeviceManually: optjson.SetBool(false),
-			Script:                      optjson.String{Set: true},
 			Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 			ManualAgentInstall:          optjson.Bool{Set: true},
 			LockEndUserInfo:             optjson.SetBool(false),
 			EnableManagedLocalAccount:   optjson.SetBool(false),
 			EndUserLocalAccountType:     optjson.SetString("admin"),
 		},
-		// because the WindowsSettings was marshalled to JSON to be saved in the DB,
-		// it did get marshalled, and then when unmarshalled it was set (but
-		// empty).
 		WindowsSettings: defaultExpectedWindowsSettings(),
 		AndroidSettings: fleet.AndroidSettings{
-			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+			Certificates: optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 		},
 	}), team.Config.MDM)
 
@@ -280,10 +273,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant:         optjson.String{Set: true},
-			BootstrapPackage:            optjson.String{Set: true},
 			EnableReleaseDeviceManually: optjson.SetBool(false),
-			Script:                      optjson.String{Set: true},
 			Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 			ManualAgentInstall:          optjson.Bool{Set: true},
 			LockEndUserInfo:             optjson.SetBool(false),
@@ -292,8 +282,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		},
 		WindowsSettings: defaultExpectedWindowsSettings(),
 		AndroidSettings: fleet.AndroidSettings{
-			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+			Certificates: optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 		},
 	}), team.Config.MDM)
 

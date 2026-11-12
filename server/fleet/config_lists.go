@@ -20,9 +20,9 @@ type ConfigLists struct {
 	// VolumePurchasingProgram is a global setting, so it's only set for "No fleet" (0).
 	VolumePurchasingProgram []MDMAppleVolumePurchasingProgramInfo
 
-	// Hidden lists are returned as null: the user can't read them on their own
-	// endpoints, so the config and fleet responses mustn't expose them either.
-	// Set it with Hide.
+	// Hidden lists are left out of the response: the user can't read them on
+	// their own endpoints, so the config and fleet responses mustn't expose them
+	// either. Set it with Hide.
 	Hidden ConfigListsHidden
 }
 
@@ -73,8 +73,8 @@ func (l *ConfigLists) ApplyToAppConfig(ac *AppConfig) {
 		l = NewConfigLists()
 	}
 	l.applyToMDM(&ac.MDM.MacOSSettings, &ac.MDM.WindowsSettings, &ac.MDM.AndroidSettings, &ac.MDM.MacOSSetup)
-	ac.Scripts = sliceOrNull(l.Scripts, l.Hidden.Scripts)
-	ac.MDM.VolumePurchasingProgram = sliceOrNull(l.VolumePurchasingProgram, l.Hidden.VolumePurchasingProgram)
+	ac.Scripts = sliceOrOmitted(l.Scripts, l.Hidden.Scripts)
+	ac.MDM.VolumePurchasingProgram = sliceOrOmitted(l.VolumePurchasingProgram, l.Hidden.VolumePurchasingProgram)
 }
 
 func (l *ConfigLists) ApplyToTeamConfig(tc *TeamConfig) {
@@ -82,7 +82,7 @@ func (l *ConfigLists) ApplyToTeamConfig(tc *TeamConfig) {
 		l = NewConfigLists()
 	}
 	l.applyToMDM(&tc.MDM.MacOSSettings, &tc.MDM.WindowsSettings, &tc.MDM.AndroidSettings, &tc.MDM.MacOSSetup)
-	tc.Scripts = sliceOrNull(l.Scripts, l.Hidden.Scripts)
+	tc.Scripts = sliceOrOmitted(l.Scripts, l.Hidden.Scripts)
 }
 
 func (l *ConfigLists) applyToMDM(mac *MacOSSettings, win *WindowsSettings, android *AndroidSettings, setup *MacOSSetup) {
@@ -90,23 +90,24 @@ func (l *ConfigLists) applyToMDM(mac *MacOSSettings, win *WindowsSettings, andro
 	if !l.Hidden.Profiles {
 		mac.CustomSettings = l.AppleProfiles
 	}
-	win.CustomSettings = sliceOrNull(l.WindowsProfiles, l.Hidden.Profiles)
-	android.CustomSettings = sliceOrNull(l.AndroidProfiles, l.Hidden.Profiles)
-	setup.BootstrapPackage = stringOrNull(l.BootstrapPackage, l.Hidden.BootstrapPackage)
-	setup.MacOSSetupAssistant = stringOrNull(l.SetupAssistant, l.Hidden.SetupAssistant)
-	setup.Script = stringOrNull(l.SetupScript, l.Hidden.Scripts)
+	win.CustomSettings = sliceOrOmitted(l.WindowsProfiles, l.Hidden.Profiles)
+	android.CustomSettings = sliceOrOmitted(l.AndroidProfiles, l.Hidden.Profiles)
+	setup.BootstrapPackage = stringOrOmitted(l.BootstrapPackage, l.Hidden.BootstrapPackage)
+	setup.MacOSSetupAssistant = stringOrOmitted(l.SetupAssistant, l.Hidden.SetupAssistant)
+	setup.Script = stringOrOmitted(l.SetupScript, l.Hidden.Scripts)
 }
 
-func sliceOrNull[T any](s []T, hidden bool) optjson.Slice[T] {
+// The list fields are tagged omitzero, so the zero value leaves the key out.
+func sliceOrOmitted[T any](s []T, hidden bool) optjson.Slice[T] {
 	if hidden {
-		return optjson.Slice[T]{Set: true}
+		return optjson.Slice[T]{}
 	}
 	return optjson.SetSlice(s)
 }
 
-func stringOrNull(s string, hidden bool) optjson.String {
+func stringOrOmitted(s string, hidden bool) optjson.String {
 	if hidden {
-		return optjson.String{Set: true}
+		return optjson.String{}
 	}
 	return optjson.SetString(s)
 }

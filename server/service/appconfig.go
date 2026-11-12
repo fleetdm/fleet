@@ -1050,15 +1050,15 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.WindowsSettings.EnableManagedLocalAccount = oldAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount
 	}
 
-	// GET returns null for these when the role can't read them, so a null sent back must not
-	// delete the saved item. "" still clears it, and that's what GitOps sends.
-	if !applyOpts.Overwrite {
-		if newAppConfig.MDM.MacOSSetup.BootstrapPackage.Set && !newAppConfig.MDM.MacOSSetup.BootstrapPackage.Valid {
-			appConfig.MDM.MacOSSetup.BootstrapPackage = oldAppConfig.MDM.MacOSSetup.BootstrapPackage
-		}
-		if newAppConfig.MDM.MacOSSetup.MacOSSetupAssistant.Set && !newAppConfig.MDM.MacOSSetup.MacOSSetupAssistant.Valid {
-			appConfig.MDM.MacOSSetup.MacOSSetupAssistant = oldAppConfig.MDM.MacOSSetup.MacOSSetupAssistant
-		}
+	// Responses leave these out for roles that can't read them, but a client may still send
+	// null (older responses returned it), and that must not delete the saved item, in
+	// overwrite mode too. "" still clears it, and that's what GitOps sends for an omitted or
+	// empty key.
+	if newAppConfig.MDM.MacOSSetup.BootstrapPackage.Set && !newAppConfig.MDM.MacOSSetup.BootstrapPackage.Valid {
+		appConfig.MDM.MacOSSetup.BootstrapPackage = oldAppConfig.MDM.MacOSSetup.BootstrapPackage
+	}
+	if newAppConfig.MDM.MacOSSetup.MacOSSetupAssistant.Set && !newAppConfig.MDM.MacOSSetup.MacOSSetupAssistant.Valid {
+		appConfig.MDM.MacOSSetup.MacOSSetupAssistant = oldAppConfig.MDM.MacOSSetup.MacOSSetupAssistant
 	}
 
 	if appConfig.MDM.MacOSSetup.ManualAgentInstall.Valid && appConfig.MDM.MacOSSetup.ManualAgentInstall.Value {

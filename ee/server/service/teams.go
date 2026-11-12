@@ -2247,8 +2247,9 @@ func (svc *Service) editTeamFromSpec(
 
 	oldMacOSSetup := team.Config.MDM.MacOSSetup
 	var didUpdateSetupAssistant, didUpdateBootstrapPackage, didUpdateEnableReleaseManually, didUpdateManualAgentInstall, didUpdateEnableManagedLocalAccount, didUpdateEndUserLocalAccountType bool
-	// GET returns null for these when the role can't read them, so a null sent back is ignored
-	// rather than deleting the saved item. "" still clears it, and that's what GitOps sends.
+	// Responses leave these out for roles that can't read them, but a client may still send
+	// null (older responses returned it), so null is ignored rather than deleting the saved
+	// item. "" still clears it, and that's what GitOps sends.
 	if spec.MDM.MacOSSetup.MacOSSetupAssistant.Valid {
 		didUpdateSetupAssistant = oldMacOSSetup.MacOSSetupAssistant.Value != spec.MDM.MacOSSetup.MacOSSetupAssistant.Value
 		team.Config.MDM.MacOSSetup.MacOSSetupAssistant = spec.MDM.MacOSSetup.MacOSSetupAssistant

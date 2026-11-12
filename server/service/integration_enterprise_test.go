@@ -185,7 +185,6 @@ func (s *integrationEnterpriseTestSuite) TearDownTest() {
 // local account toggle force-defaulted to disabled.
 func defaultExpectedWindowsSettings() fleet.WindowsSettings {
 	return fleet.WindowsSettings{
-		CustomSettings:            optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		EnableManagedLocalAccount: optjson.SetBool(false),
 	}
 }
