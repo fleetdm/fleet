@@ -500,8 +500,8 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			macOSManagedLocalAccountUpdated = payload.MDM.MacOSSetup.EnableManagedLocalAccount.Set &&
 				team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value != payload.MDM.MacOSSetup.EnableManagedLocalAccount.Value
 			if macOSManagedLocalAccountUpdated && payload.MDM.MacOSSetup.EnableManagedLocalAccount.Value && !appCfg.MDM.EnabledAndConfigured {
-				return nil, fleet.NewInvalidArgumentError("setup_experience.enable_managed_local_account",
-					`Couldn't update setup_experience.enable_managed_local_account because MDM features aren't turned on in Fleet.`)
+				return nil, fleet.NewInvalidArgumentError("setup_experience.macos_managed_local_account_enabled",
+					`Couldn't update setup_experience.macos_managed_local_account_enabled because MDM features aren't turned on in Fleet.`)
 			}
 
 			// move over values that we just validated, so they get updated, but only if set since this is partial patch.
@@ -513,14 +513,14 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			}
 		}
 
-		if payload.MDM.WindowsSettings != nil && payload.MDM.WindowsSettings.EnableManagedLocalAccount.Valid {
-			newEnabled := payload.MDM.WindowsSettings.EnableManagedLocalAccount
-			windowsManagedLocalAccountUpdated = team.Config.MDM.WindowsSettings.EnableManagedLocalAccount.Value != newEnabled.Value
+		if payload.MDM.MacOSSetup != nil && payload.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Valid {
+			newEnabled := payload.MDM.MacOSSetup.EnableManagedLocalAccountWindows
+			windowsManagedLocalAccountUpdated = team.Config.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value != newEnabled.Value
 			if windowsManagedLocalAccountUpdated && newEnabled.Value && !appCfg.MDM.WindowsEnabledAndConfigured {
-				return nil, fleet.NewInvalidArgumentError("windows_settings.enable_managed_local_account",
-					"Couldn't update windows_settings.enable_managed_local_account because Windows MDM isn't turned on in Fleet.")
+				return nil, fleet.NewInvalidArgumentError("setup_experience.windows_managed_local_account_enabled",
+					"Couldn't update setup_experience.windows_managed_local_account_enabled because Windows MDM isn't turned on in Fleet.")
 			}
-			team.Config.MDM.WindowsSettings.EnableManagedLocalAccount = newEnabled
+			team.Config.MDM.MacOSSetup.EnableManagedLocalAccountWindows = newEnabled
 		}
 	}
 
@@ -800,7 +800,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	}
 	if windowsManagedLocalAccountUpdated {
 		if err := svc.logEnableManagedLocalAccountActivity(
-			ctx, team.Config.MDM.WindowsSettings.EnableManagedLocalAccount.Value, "windows", &team.ID, &team.Name,
+			ctx, team.Config.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value, "windows", &team.ID, &team.Name,
 		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "update windows enable managed local account")
 		}
@@ -1759,6 +1759,9 @@ func (svc *Service) createTeamFromSpec(
 	if !macOSSetup.EndUserLocalAccountType.Valid {
 		macOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
 	}
+	if !macOSSetup.EnableManagedLocalAccountWindows.Valid {
+		macOSSetup.EnableManagedLocalAccountWindows = optjson.SetBool(false)
+	}
 
 	if macOSSetup.MacOSSetupAssistant.Value != "" || macOSSetup.BootstrapPackage.Value != "" ||
 		macOSSetup.EnableReleaseDeviceManually.Value || macOSSetup.ManualAgentInstall.Value ||
@@ -1776,6 +1779,10 @@ func (svc *Service) createTeamFromSpec(
 	if macOSSetup.RequireAllSoftwareWindows && !appCfg.MDM.WindowsEnabledAndConfigured {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.windows_require_all_software",
 			`Couldn't update setup_experience.windows_require_all_software. `+fleet.ErrWindowsMDMNotConfigured.Error()))
+	}
+	if macOSSetup.EnableManagedLocalAccountWindows.Value && !appCfg.MDM.WindowsEnabledAndConfigured {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.windows_managed_local_account_enabled",
+			`Couldn't enable setup_experience.windows_managed_local_account_enabled. `+fleet.ErrWindowsMDMNotConfigured.Error()))
 	}
 
 	// Default the value of "lock_end_user_info" to the value of "enable_end_user_authentication" if not explicitly set in the spec to keep prior
@@ -2244,6 +2251,9 @@ func (svc *Service) editTeamFromSpec(
 	if !team.Config.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
 		team.Config.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
 	}
+	if !team.Config.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Valid {
+		team.Config.MDM.MacOSSetup.EnableManagedLocalAccountWindows = optjson.SetBool(false)
+	}
 
 	oldMacOSSetup := team.Config.MDM.MacOSSetup
 	var didUpdateSetupAssistant, didUpdateBootstrapPackage, didUpdateEnableReleaseManually, didUpdateManualAgentInstall, didUpdateEnableManagedLocalAccount, didUpdateEndUserLocalAccountType bool
@@ -2364,14 +2374,14 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.MDM.WindowsSettings.CustomSettings = spec.MDM.WindowsSettings.CustomSettings
 	}
 	var didUpdateWindowsManagedLocalAccount bool
-	if spec.MDM.WindowsSettings.EnableManagedLocalAccount.Valid {
-		newWindowsManagedLocalAccount := spec.MDM.WindowsSettings.EnableManagedLocalAccount
-		didUpdateWindowsManagedLocalAccount = team.Config.MDM.WindowsSettings.EnableManagedLocalAccount.Value != newWindowsManagedLocalAccount.Value
+	if spec.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Valid {
+		newWindowsManagedLocalAccount := spec.MDM.MacOSSetup.EnableManagedLocalAccountWindows
+		didUpdateWindowsManagedLocalAccount = team.Config.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value != newWindowsManagedLocalAccount.Value
 		if didUpdateWindowsManagedLocalAccount && newWindowsManagedLocalAccount.Value && !windowsEnabledAndConfigured {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("windows_settings.enable_managed_local_account",
-				"Couldn't enable windows_settings.enable_managed_local_account. "+fleet.ErrWindowsMDMNotConfigured.Error()))
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.windows_managed_local_account_enabled",
+				"Couldn't enable setup_experience.windows_managed_local_account_enabled. "+fleet.ErrWindowsMDMNotConfigured.Error()))
 		}
-		team.Config.MDM.WindowsSettings.EnableManagedLocalAccount = newWindowsManagedLocalAccount
+		team.Config.MDM.MacOSSetup.EnableManagedLocalAccountWindows = newWindowsManagedLocalAccount
 	}
 	if spec.MDM.AndroidSettings.CustomSettings.Set {
 		team.Config.MDM.AndroidSettings.CustomSettings = spec.MDM.AndroidSettings.CustomSettings
@@ -2605,7 +2615,7 @@ func (svc *Service) editTeamFromSpec(
 
 	if didUpdateWindowsManagedLocalAccount {
 		if err := svc.logEnableManagedLocalAccountActivity(
-			ctx, team.Config.MDM.WindowsSettings.EnableManagedLocalAccount.Value, "windows", &team.ID, &team.Name,
+			ctx, team.Config.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value, "windows", &team.ID, &team.Name,
 		); err != nil {
 			return err
 		}
@@ -2975,6 +2985,13 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 		}
 	}
 
+	var didUpdateWindowsManagedLocalAccount bool
+	if payload.EnableManagedLocalAccountWindows != nil && tm.Config.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value != *payload.EnableManagedLocalAccountWindows {
+		tm.Config.MDM.MacOSSetup.EnableManagedLocalAccountWindows = optjson.SetBool(*payload.EnableManagedLocalAccountWindows)
+		didUpdateWindowsManagedLocalAccount = true
+		didUpdate = true
+	}
+
 	if didUpdateFromValidation, err := payload.Validate(&tm.Config.MDM.MacOSSetup); err != nil {
 		return err
 	} else if didUpdateFromValidation {
@@ -2992,6 +3009,11 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 		}
 		if didUpdateMacOSManagedLocalAccount {
 			if err := svc.logEnableManagedLocalAccountActivity(ctx, tm.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value, "darwin", &tm.ID, &tm.Name); err != nil {
+				return err
+			}
+		}
+		if didUpdateWindowsManagedLocalAccount {
+			if err := svc.logEnableManagedLocalAccountActivity(ctx, tm.Config.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value, "windows", &tm.ID, &tm.Name); err != nil {
 				return err
 			}
 		}

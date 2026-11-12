@@ -1585,14 +1585,6 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 					windowsSettings[jsonFieldName(windowsSettingsT, "CustomSettings")] = windowsProfiles
 				}
 			}
-			// Emit the managed local account toggle only when it is enabled. Omitting it is lossless because false is
-			// the setting's default: GitOps clears what a YAML file does not define, and a cleared managed local account
-			// setting resolves to false, the same state we would have written out explicitly. Per product guidance
-			// (2026/07/24) we only output what has actually been configured rather than every setting at its default.
-			if cmd.AppConfig.License.IsPremium() && teamMdm != nil && teamMdm.WindowsSettings.EnableManagedLocalAccount.Value {
-				windowsSettings[jsonFieldName(windowsSettingsT, "EnableManagedLocalAccount")] = true
-			}
-
 		}
 		if cmd.AppConfig.MDM.AndroidEnabledAndConfigured && profiles != nil {
 			if len(profiles["android_profiles"].([]map[string]any)) > 0 {
@@ -1702,6 +1694,9 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			linuxSettings[jsonFieldName(linuxSettingsT, "EnableEscrowDiskEncryptionKey")] = cmd.AppConfig.MDM.LinuxSettings.EnableEscrowDiskEncryptionKey.Value
 		}
 
+		// The Windows managed local account setting lives in setup_experience too, so a server with only Windows MDM
+		// still needs the placeholder.
+		needsSetupExperience := teamId != nil && teamMdm != nil && teamMdm.MacOSSetup.EnableManagedLocalAccountWindows.Value
 		if teamId != nil && cmd.AppConfig.MDM.EnabledAndConfigured {
 			// See if the team has macOS bootstrap package configured.
 			bootstrapPackage, err := cmd.Client.GetBootstrapPackageMetadata(*teamId, false)
@@ -1728,16 +1723,17 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			hasEnrollmentProfile := enrollmentProfile != nil
 
 			// If the team has any of these configured, we need to generate the setup_experience section.
-			if hasBootstrapPackage || hasSetupScript || hasEnrollmentProfile ||
+			needsSetupExperience = needsSetupExperience || hasBootstrapPackage || hasSetupScript || hasEnrollmentProfile ||
 				(teamMdm != nil && (teamMdm.MacOSSetup.EnableEndUserAuthentication ||
 					teamMdm.MacOSSetup.EnableManagedLocalAccount.Value ||
-					(teamMdm.MacOSSetup.EndUserLocalAccountType.Valid && teamMdm.MacOSSetup.EndUserLocalAccountType.Value != "admin"))) {
-				result[jsonFieldName(mdmT, "MacOSSetup")] = "TODO: update with your setup_experience configuration"
-				cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
-					Filename: teamName,
-					Note:     "The setup_experience configuration is not supported by this tool yet.  To configure it, please follow the Fleet documentation at https://fleetdm.com/docs/configuration/yaml-files#setup-experience",
-				})
-			}
+					(teamMdm.MacOSSetup.EndUserLocalAccountType.Valid && teamMdm.MacOSSetup.EndUserLocalAccountType.Value != "admin")))
+		}
+		if needsSetupExperience {
+			result[jsonFieldName(mdmT, "MacOSSetup")] = "TODO: update with your setup_experience configuration"
+			cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
+				Filename: teamName,
+				Note:     "The setup_experience configuration is not supported by this tool yet.  To configure it, please follow the Fleet documentation at https://fleetdm.com/docs/configuration/yaml-files#setup-experience",
+			})
 		}
 
 		if len(linuxSettings) > 0 {

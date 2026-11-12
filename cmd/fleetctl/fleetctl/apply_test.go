@@ -324,10 +324,11 @@ spec:
 			UpdateNewHosts: optjson.SetBool(true),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
-			LockEndUserInfo:             optjson.SetBool(false),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			LockEndUserInfo:                  optjson.SetBool(false),
 		},
 	}
 	require.Equal(t, "[+] applied 2 fleets\n", runAppForTest(t, []string{"apply", "-f", filename}))
@@ -336,10 +337,11 @@ spec:
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "AAA"}}, enrolledSecretsCalled[uint(42)])
 	assert.Equal(t, withCreateDefaults(fleet.TeamMDM{
 		MacOSSetup: fleet.MacOSSetup{
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
-			LockEndUserInfo:             optjson.SetBool(false),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			LockEndUserInfo:                  optjson.SetBool(false),
 		},
 	}), teamsByName["team2"].Config.MDM)
 	assert.Equal(t, newMDMSettings, teamsByName["team1"].Config.MDM)
@@ -371,10 +373,11 @@ spec:
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
-			LockEndUserInfo:             optjson.SetBool(false),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			LockEndUserInfo:                  optjson.SetBool(false),
 		},
 	}
 	assert.Equal(t, newMDMSettings, teamsByName["team1"].Config.MDM)
@@ -406,10 +409,11 @@ spec:
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileCfgPath}},
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
-			LockEndUserInfo:             optjson.SetBool(false),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			LockEndUserInfo:                  optjson.SetBool(false),
 		},
 	}
 
@@ -467,10 +471,11 @@ spec:
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileCfgPath}},
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
-			LockEndUserInfo:             optjson.SetBool(false),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			LockEndUserInfo:                  optjson.SetBool(false),
 		},
 	}
 	newAgentOpts = json.RawMessage(`{"config":{"views":{"foo":"qux"}}}`)
@@ -560,10 +565,11 @@ spec:
 			CustomSettings: []fleet.MDMProfileSpec{},
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
-			LockEndUserInfo:             optjson.SetBool(false),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			LockEndUserInfo:                  optjson.SetBool(false),
 		},
 	}
 
@@ -796,17 +802,17 @@ spec:
 
 	newMDMSettings := fleet.MDM{
 		DeprecatedAppleBMDefaultTeam: "team1",
-		WindowsSettings:              fleet.WindowsSettings{EnableManagedLocalAccount: optjson.SetBool(false)},
 		AppleBMTermsExpired:          false,
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2011-02-01"),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
-			LockEndUserInfo:             optjson.SetBool(false),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			LockEndUserInfo:                  optjson.SetBool(false),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.SetInt(5),
@@ -882,17 +888,17 @@ spec:
 
 	newMDMSettings = fleet.MDM{
 		DeprecatedAppleBMDefaultTeam: "team1",
-		WindowsSettings:              fleet.WindowsSettings{EnableManagedLocalAccount: optjson.SetBool(false)},
 		AppleBMTermsExpired:          false,
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2011-02-01"),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
-			LockEndUserInfo:             optjson.SetBool(false),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			LockEndUserInfo:                  optjson.SetBool(false),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.Int{Set: true},
@@ -1610,11 +1616,12 @@ spec:
 	assert.Equal(t, fleet.MDM{
 		EnabledAndConfigured: true,
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant:         optjson.SetString(emptySetupAsst),
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
-			LockEndUserInfo:             optjson.SetBool(false),
+			MacOSSetupAssistant:              optjson.SetString(emptySetupAsst),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			LockEndUserInfo:                  optjson.SetBool(false),
 		},
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
@@ -1627,7 +1634,6 @@ spec:
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
-		WindowsSettings:             fleet.WindowsSettings{EnableManagedLocalAccount: optjson.SetBool(false)},
 		WindowsEnabledAndConfigured: true,
 	}, currentAppConfig.MDM)
 
@@ -1656,12 +1662,13 @@ spec:
 	assert.Equal(t, fleet.MDM{
 		EnabledAndConfigured: true,
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant:         optjson.SetString(emptySetupAsst),
-			BootstrapPackage:            optjson.SetString(bootstrapURL),
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
-			LockEndUserInfo:             optjson.SetBool(false),
+			MacOSSetupAssistant:              optjson.SetString(emptySetupAsst),
+			BootstrapPackage:                 optjson.SetString(bootstrapURL),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			LockEndUserInfo:                  optjson.SetBool(false),
 		},
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
@@ -1674,7 +1681,6 @@ spec:
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
-		WindowsSettings:             fleet.WindowsSettings{EnableManagedLocalAccount: optjson.SetBool(false)},
 		WindowsEnabledAndConfigured: true,
 	}, currentAppConfig.MDM)
 
@@ -1720,10 +1726,11 @@ spec:
 			Deadline:       optjson.SetString("1992-03-01"),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
-			LockEndUserInfo:             optjson.SetBool(false),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			LockEndUserInfo:                  optjson.SetBool(false),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.SetInt(0),
@@ -1769,11 +1776,12 @@ spec:
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant:         optjson.SetString(emptySetupAsst),
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
-			LockEndUserInfo:             optjson.SetBool(false),
+			MacOSSetupAssistant:              optjson.SetString(emptySetupAsst),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			LockEndUserInfo:                  optjson.SetBool(false),
 		},
 	}), savedTeam.Config.MDM)
 
@@ -1809,12 +1817,13 @@ spec:
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant:         optjson.SetString(emptySetupAsst),
-			BootstrapPackage:            optjson.SetString(bootstrapURL),
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
-			LockEndUserInfo:             optjson.SetBool(false),
+			MacOSSetupAssistant:              optjson.SetString(emptySetupAsst),
+			BootstrapPackage:                 optjson.SetString(bootstrapURL),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			LockEndUserInfo:                  optjson.SetBool(false),
 		},
 	}), savedTeam.Config.MDM)
 

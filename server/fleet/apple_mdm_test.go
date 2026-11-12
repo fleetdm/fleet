@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
@@ -1493,4 +1494,35 @@ func rawActivation(declType, identifier string, standardConfigurations ...string
 	act.Identifier = identifier
 	act.Payload.StandardConfigurations = standardConfigurations
 	return act
+}
+
+func TestMDMAppleSetupPayloadValidateManagedLocalAccount(t *testing.T) {
+	stored := func(enabled bool, accountType string) *MacOSSetup {
+		return &MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(enabled), EndUserLocalAccountType: optjson.SetString(accountType)}
+	}
+	for _, tc := range []struct {
+		name    string
+		payload MDMAppleSetupPayload
+		// the stored settings after the caller applied the payload's EnableManagedLocalAccount
+		config  *MacOSSetup
+		wantErr string
+	}{
+		{"turning the account off alone with standard", MDMAppleSetupPayload{EnableManagedLocalAccount: new(false)}, stored(false, "standard"), `"standard"`},
+		{"turning the account off alone with none", MDMAppleSetupPayload{EnableManagedLocalAccount: new(false)}, stored(false, "none"), `"none"`},
+		{"turning the account off alone with admin", MDMAppleSetupPayload{EnableManagedLocalAccount: new(false)}, stored(false, "admin"), ""},
+		{"turning the account off and the type to admin", MDMAppleSetupPayload{EnableManagedLocalAccount: new(false), EndUserLocalAccountType: new("admin")}, stored(false, "none"), ""},
+		{"standard with the account off", MDMAppleSetupPayload{EndUserLocalAccountType: new("standard")}, stored(false, "admin"), `"standard"`},
+		{"standard with the account on", MDMAppleSetupPayload{EndUserLocalAccountType: new("standard")}, stored(true, "admin"), ""},
+		{"unknown type", MDMAppleSetupPayload{EndUserLocalAccountType: new("root")}, stored(true, "admin"), "only"},
+		{"unrelated setting with an already invalid stored pair", MDMAppleSetupPayload{RequireAllSoftware: new(true)}, stored(false, "none"), ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := tc.payload.Validate(tc.config)
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, tc.wantErr)
+		})
+	}
 }

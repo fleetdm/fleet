@@ -1485,20 +1485,20 @@ func TestApplyTeamSpecsCustomSettingsWithoutMDMConfigured(t *testing.T) {
 		spec := &fleet.TeamSpec{
 			Name: teamName,
 			MDM: fleet.TeamSpecMDM{
-				WindowsSettings: fleet.WindowsSettings{
-					EnableManagedLocalAccount: optjson.SetBool(true),
+				MacOSSetup: fleet.MacOSSetup{
+					EnableManagedLocalAccountWindows: optjson.SetBool(true),
 				},
 			},
 		}
 		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplyTeamSpecOptions{})
 		require.NoError(t, err)
-		require.True(t, (*saved).Config.MDM.WindowsSettings.EnableManagedLocalAccount.Value)
+		require.True(t, (*saved).Config.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value)
 
 		// an explicit false disables the managed local account again
-		spec.MDM.WindowsSettings.EnableManagedLocalAccount = optjson.SetBool(false)
+		spec.MDM.MacOSSetup.EnableManagedLocalAccountWindows = optjson.SetBool(false)
 		_, err = svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplyTeamSpecOptions{})
 		require.NoError(t, err)
-		require.False(t, (*saved).Config.MDM.WindowsSettings.EnableManagedLocalAccount.Value)
+		require.False(t, (*saved).Config.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value)
 	})
 
 	t.Run("adds android profile when AppConfig reports Android MDM on (happy path)", func(t *testing.T) {
@@ -1648,8 +1648,8 @@ func TestModifyTeamMDMManagedLocalAccountRequiresMDM(t *testing.T) {
 	}
 
 	windowsPayload := fleet.TeamPayload{MDM: &fleet.TeamPayloadMDM{
-		WindowsSettings: &fleet.TeamPayloadWindowsSettings{
-			EnableManagedLocalAccount: optjson.SetBool(true),
+		MacOSSetup: &fleet.TeamPayloadMacOSSetup{
+			EnableManagedLocalAccountWindows: optjson.SetBool(true),
 		},
 	}}
 
@@ -1658,14 +1658,14 @@ func TestModifyTeamMDMManagedLocalAccountRequiresMDM(t *testing.T) {
 			MacOSSetup: &fleet.TeamPayloadMacOSSetup{EnableManagedLocalAccount: optjson.SetBool(true)},
 		}})
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "setup_experience.enable_managed_local_account")
+		require.Contains(t, err.Error(), "setup_experience.macos_managed_local_account_enabled")
 		require.False(t, ds.SaveTeamFuncInvoked, "team should not have been saved")
 	})
 
 	t.Run("windows enable admin account requires Windows MDM", func(t *testing.T) {
 		_, err := svc.ModifyTeam(ctx, 1, windowsPayload)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "windows_settings.enable_managed_local_account")
+		require.Contains(t, err.Error(), "setup_experience.windows_managed_local_account_enabled")
 		require.False(t, ds.SaveTeamFuncInvoked, "team should not have been saved")
 	})
 
@@ -1673,7 +1673,7 @@ func TestModifyTeamMDMManagedLocalAccountRequiresMDM(t *testing.T) {
 		windowsMDMConfigured = true
 		team, err := svc.ModifyTeam(ctx, 1, windowsPayload)
 		require.NoError(t, err)
-		require.True(t, team.Config.MDM.WindowsSettings.EnableManagedLocalAccount.Value)
+		require.True(t, team.Config.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value)
 		require.False(t, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
 		require.Equal(t, []string{"enabled_managed_local_account:windows"}, activities)
 	})

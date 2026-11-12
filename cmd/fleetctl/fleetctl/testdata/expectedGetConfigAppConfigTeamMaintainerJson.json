@@ -158,9 +158,10 @@
       "setup_experience": {
         "apple_enable_release_device_manually": false,
         "apple_setup_assistant": null,
-        "enable_create_local_admin_account": false,
+        "macos_managed_local_account_enabled": false,
+        "windows_managed_local_account_enabled": false,
         "enable_end_user_authentication": false,
-        "end_user_local_account_type": "admin",
+        "macos_end_user_local_account_type": "admin",
         "lock_end_user_info": false,
         "macos_bootstrap_package": null,
         "macos_enable_bootstrap_package_during_manual_enrollment": false,
@@ -169,15 +170,13 @@
         "macos_script": null,
         "macos_require_all_software": false,
         "windows_require_all_software": false,
-        "software": null,
-        "enable_managed_local_account": false
+        "software": null
       },
       "windows_automatic_enrollment": null,
       "windows_settings": {
         "custom_settings": null,
         "enable_disk_encryption": false,
         "configuration_profiles": null,
-        "enable_managed_local_account": false,
         "require_bitlocker_pin": false
       },
       "linux_settings": {

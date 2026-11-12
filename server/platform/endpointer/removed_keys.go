@@ -59,7 +59,8 @@ var removedKeyRulesCache sync.Map // reflect.Type → []RemovedKeyRule
 //
 //	RequireAllSoftware bool `json:"macos_require_all_software" removedkey:"require_all_software_macos"`
 //
-// Unlike `renameto`, the old name is rejected instead of accepted.
+// Unlike `renameto`, the old name is rejected instead of accepted. A removed key that moved to another object goes on a
+// blank `_ struct{}` field tagged `json:"-"` in the object it was removed from.
 func ExtractRemovedKeyRules(iface any) []RemovedKeyRule {
 	if iface == nil {
 		return nil
@@ -86,7 +87,7 @@ func ExtractRemovedKeyRules(iface any) []RemovedKeyRule {
 		visited[t] = struct{}{}
 		for sf := range t.Fields() {
 			newKey, _, _ := strings.Cut(sf.Tag.Get("json"), ",")
-			if removed := sf.Tag.Get("removedkey"); removed != "" && newKey != "" && newKey != "-" {
+			if removed := sf.Tag.Get("removedkey"); removed != "" && newKey != "" {
 				scope := parseRenameScope(sf.Tag)
 				for oldKey := range strings.SplitSeq(removed, ",") {
 					oldKey = strings.TrimSpace(oldKey)

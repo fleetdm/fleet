@@ -4498,6 +4498,36 @@ software:
 				},
 			},
 			{
+				name: "fleet controls managed local account", file: "workstations.yml",
+				config: fleetFile("  setup_experience:\n    enable_managed_local_account: true\n    Enable_Create_Local_Admin_Account: true\n"+
+					"    end_user_local_account_type: standard\n  windows_settings:\n    enable_managed_local_account: true\n", ""),
+				want: []string{
+					`The "controls.setup_experience.enable_managed_local_account" key is not available anymore.`,
+					`The "controls.setup_experience.enable_create_local_admin_account" key is not available anymore.`,
+					`The "controls.setup_experience.end_user_local_account_type" key is not available anymore.`,
+					`The "controls.windows_settings.enable_managed_local_account" key is not available anymore.`,
+				},
+			},
+			{
+				name: "controls file windows managed local account", file: "workstations.yml",
+				config: fleetFile("  path: ./controls.yml\n", ""),
+				extra:  map[string]string{"controls.yml": "windows_settings:\n  ENABLE_MANAGED_LOCAL_ACCOUNT: true\n"},
+				want:   []string{`The "controls.windows_settings.enable_managed_local_account" key is not available anymore.`},
+			},
+			{
+				name: "fleet settings windows managed local account", file: "workstations.yml",
+				config: fleetFile("", "  mdm:\n    windows_settings:\n      enable_managed_local_account: true\n"),
+				want:   []string{`The "settings.mdm.windows_settings.enable_managed_local_account" key is not available anymore.`},
+			},
+			{
+				name: "org_settings managed local account", file: "default.yml",
+				config: globalFile("    setup_experience:\n      end_user_local_account_type: admin\n    windows_settings:\n      enable_managed_local_account: false\n"),
+				want: []string{
+					`The "org_settings.mdm.setup_experience.end_user_local_account_type" key is not available anymore.`,
+					`The "org_settings.mdm.windows_settings.enable_managed_local_account" key is not available anymore.`,
+				},
+			},
+			{
 				name: "org_settings in another letter case", file: "default.yml",
 				config: globalFile("    ENABLE_RECOVERY_LOCK_PASSWORD: true\n    Windows_Enabled_And_Configured: true\n"),
 				want: []string{

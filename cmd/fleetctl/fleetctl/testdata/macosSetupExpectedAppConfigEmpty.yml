@@ -79,7 +79,6 @@ spec:
       custom_settings: null
       enable_disk_encryption: false
       configuration_profiles: null
-      enable_managed_local_account: false
     linux_settings:
       enable_escrow_disk_encryption_key: false
     android_settings:
@@ -88,10 +87,10 @@ spec:
       certificates: null
     setup_experience:
       macos_bootstrap_package: null
-      enable_create_local_admin_account: false
+      macos_managed_local_account_enabled: false
+      windows_managed_local_account_enabled: false
       enable_end_user_authentication: false
-      enable_managed_local_account: false
-      end_user_local_account_type: "admin"
+      macos_end_user_local_account_type: "admin"
       lock_end_user_info: false
       apple_setup_assistant: null
       macos_manual_agent_install: null

@@ -6652,8 +6652,8 @@ reports:
 		noTeamConfig = `name: Unassigned
 controls:
   setup_experience:
-    enable_create_local_admin_account: true
-    end_user_local_account_type: "admin"
+    macos_managed_local_account_enabled: true
+    macos_end_user_local_account_type: "standard"
 policies:
 software:
 `
@@ -6661,8 +6661,8 @@ software:
 		teamConfig = `
 controls:
   setup_experience:
-    enable_create_local_admin_account: true
-    end_user_local_account_type: "admin"
+    macos_managed_local_account_enabled: true
+    macos_end_user_local_account_type: "none"
 software:
 reports:
 policies:
@@ -6693,13 +6693,25 @@ settings:
 	assert.True(t, appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Valid)
 	assert.True(t, appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
 	assert.True(t, appConfig.MDM.MacOSSetup.EndUserLocalAccountType.Valid)
-	assert.Equal(t, "admin", appConfig.MDM.MacOSSetup.EndUserLocalAccountType.Value)
+	assert.Equal(t, "standard", appConfig.MDM.MacOSSetup.EndUserLocalAccountType.Value)
 
 	team, err := s.DS.TeamByName(ctx, teamName)
 	require.NoError(t, err)
-	assert.True(t, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Valid)
 	assert.True(t, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
-	assert.True(t, team.Config.MDM.MacOSSetup.EndUserLocalAccountType.Valid)
+	assert.Equal(t, "none", team.Config.MDM.MacOSSetup.EndUserLocalAccountType.Value)
+
+	// Omitted keys reset to their defaults.
+	noTeamFile = write("unassigned.yml", "name: Unassigned\ncontrols:\npolicies:\nsoftware:\n")
+	teamFile = write("team.yml", fmt.Sprintf("controls:\nsoftware:\nreports:\npolicies:\nagent_options:\nname: %s\nsettings:\n  secrets: [{\"secret\":\"enroll_secret\"}]\n", teamName))
+	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", noTeamFile, "-f", teamFile}))
+
+	appConfig, err = s.DS.AppConfig(ctx)
+	require.NoError(t, err)
+	assert.False(t, appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
+	assert.Equal(t, "admin", appConfig.MDM.MacOSSetup.EndUserLocalAccountType.Value)
+	team, err = s.DS.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+	assert.False(t, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
 	assert.Equal(t, "admin", team.Config.MDM.MacOSSetup.EndUserLocalAccountType.Value)
 }
 
