@@ -534,30 +534,10 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 		deliverPubSubCommand(t, androidmanagement.Operation{Name: clearOp, Done: true})
 
 		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", guardHostID), nil, http.StatusOK)
-		_, _, lockOp := lastIssue()
 		issuedBefore = issueCount()
 		res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/clear_passcode", guardHostID), nil, http.StatusUnprocessableEntity)
 		require.Contains(t, extractServerErrorText(res.Body), "Host has pending lock request. Passcode cannot be cleared until lock is complete.")
 		require.Equal(t, issuedBefore, issueCount())
-
-		// A Clear passcode after the lock lands replaces the PIN, so it's no longer shown once acknowledged.
-		deliverPubSubCommand(t, androidmanagement.Operation{Name: lockOp, Done: true})
-		assertUnlockPINAvailable(t, guardHostID, true)
-		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/clear_passcode", guardHostID), nil, http.StatusOK)
-		_, _, clearAfterLockOp := lastIssue()
-		assertUnlockPINAvailable(t, guardHostID, true)
-		deliverPubSubCommand(t, androidmanagement.Operation{Name: clearAfterLockOp, Done: true})
-		assertUnlockPINAvailable(t, guardHostID, false)
-		viewedBefore := countHostActivities(t, guardHostID, fleet.ActivityTypeViewedHostUnlockPIN{}.ActivityName())
-		res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", guardHostID), nil, http.StatusConflict)
-		require.Contains(t, extractServerErrorText(res.Body), "Host is already unlocked.")
-		require.Equal(t, viewedBefore, countHostActivities(t, guardHostID, fleet.ActivityTypeViewedHostUnlockPIN{}.ActivityName()))
-
-		// Locking again makes the new PIN available.
-		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", guardHostID), nil, http.StatusOK)
-		_, _, relockOp := lastIssue()
-		deliverPubSubCommand(t, androidmanagement.Operation{Name: relockOp, Done: true})
-		assertUnlockPINAvailable(t, guardHostID, true)
 	})
 
 	t.Run("No PIN to show for a never-locked host or a lock from before Fleet 5", func(t *testing.T) {

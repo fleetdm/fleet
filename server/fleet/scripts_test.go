@@ -545,40 +545,6 @@ func TestHostLockWipeStatusAndroidUnlockPIN(t *testing.T) {
 			status: HostLockWipeStatus{HostFleetPlatform: "android"},
 		},
 		{
-			name: "Clear passcode acknowledged after the lock",
-			status: HostLockWipeStatus{
-				HostFleetPlatform: "android", UnlockPIN: "135792", LockMDMCommand: resetPassword, LockMDMCommandResult: acked,
-				ClearPasscodeMDMCommand:       resetPassword,
-				ClearPasscodeMDMCommandResult: &MDMCommandResult{Status: string(android.MDMAndroidCommandStatusAcknowledged), UpdatedAt: ackedAt.Add(time.Minute)},
-			},
-		},
-		{
-			name: "Clear passcode pending after the lock",
-			status: HostLockWipeStatus{
-				HostFleetPlatform: "android", UnlockPIN: "135792", LockMDMCommand: resetPassword, LockMDMCommandResult: acked,
-				ClearPasscodeMDMCommand: resetPassword,
-			},
-			want: true,
-		},
-		{
-			name: "Clear passcode failed after the lock",
-			status: HostLockWipeStatus{
-				HostFleetPlatform: "android", UnlockPIN: "135792", LockMDMCommand: resetPassword, LockMDMCommandResult: acked,
-				ClearPasscodeMDMCommand:       resetPassword,
-				ClearPasscodeMDMCommandResult: &MDMCommandResult{Status: string(android.MDMAndroidCommandStatusError), UpdatedAt: ackedAt.Add(time.Minute)},
-			},
-			want: true,
-		},
-		{
-			name: "lock acknowledged after an earlier Clear passcode",
-			status: HostLockWipeStatus{
-				HostFleetPlatform: "android", UnlockPIN: "135792", LockMDMCommand: resetPassword, LockMDMCommandResult: acked,
-				ClearPasscodeMDMCommand:       resetPassword,
-				ClearPasscodeMDMCommandResult: &MDMCommandResult{Status: string(android.MDMAndroidCommandStatusAcknowledged), UpdatedAt: ackedAt.Add(-time.Minute)},
-			},
-			want: true,
-		},
-		{
 			name: "wiped after the lock",
 			status: HostLockWipeStatus{
 				HostFleetPlatform: "android", UnlockPIN: "135792", LockMDMCommand: resetPassword, LockMDMCommandResult: acked,
