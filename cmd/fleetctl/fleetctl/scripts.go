@@ -72,15 +72,6 @@ func runScriptCommand() *cli.Command {
 				return err
 			}
 
-			appCfg, err := client.GetAppConfig()
-			if err != nil {
-				return err
-			}
-
-			if appCfg.ServerSettings.ScriptsDisabled {
-				return errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg)
-			}
-
 			async := c.Bool("async")
 			quiet := c.Bool("quiet")
 

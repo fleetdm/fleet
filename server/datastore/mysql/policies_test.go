@@ -319,7 +319,7 @@ func testGlobalPolicyPendingScriptsAndInstalls(t *testing.T, ds *Datastore) {
 		ScriptID:       &script.ID,
 	})
 	require.NoError(t, err)
-	pendingScripts, err := ds.ListPendingHostScriptExecutions(ctx, policy1.ID, false)
+	pendingScripts, err := ds.ListPendingHostScriptExecutions(ctx, policy1.ID)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(pendingScripts))
 
@@ -327,7 +327,7 @@ func testGlobalPolicyPendingScriptsAndInstalls(t *testing.T, ds *Datastore) {
 	_, err = ds.DeleteGlobalPolicies(ctx, []uint{policy1.ID})
 	require.NoError(t, err)
 
-	pendingScripts, err = ds.ListPendingHostScriptExecutions(ctx, policy1.ID, false)
+	pendingScripts, err = ds.ListPendingHostScriptExecutions(ctx, policy1.ID)
 	require.NoError(t, err)
 	require.Equal(t, 0, len(pendingScripts))
 
@@ -1190,7 +1190,7 @@ func testTeamPolicyPendingScriptsAndInstalls(t *testing.T, ds *Datastore) {
 		ScriptID:       &script.ID,
 	})
 	require.NoError(t, err)
-	pendingScripts, err := ds.ListPendingHostScriptExecutions(ctx, policy1.ID, false)
+	pendingScripts, err := ds.ListPendingHostScriptExecutions(ctx, policy1.ID)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(pendingScripts))
 
@@ -1198,7 +1198,7 @@ func testTeamPolicyPendingScriptsAndInstalls(t *testing.T, ds *Datastore) {
 	_, err = ds.DeleteTeamPolicies(ctx, team1.ID, []uint{policy1.ID})
 	require.NoError(t, err)
 
-	pendingScripts, err = ds.ListPendingHostScriptExecutions(ctx, policy1.ID, false)
+	pendingScripts, err = ds.ListPendingHostScriptExecutions(ctx, policy1.ID)
 	require.NoError(t, err)
 	require.Equal(t, 0, len(pendingScripts))
 

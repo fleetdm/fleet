@@ -12,8 +12,8 @@ describe("Dashboard OS table", () => {
           {
             os_version_id: 1,
             hosts_count: 234,
-            name: "Microsoft Windows 11 Enterprise 22H2 10.0.22621",
-            name_only: "Microsoft Windows 11 Enterprise 22H2",
+            name: "Windows 11 Enterprise 22H2 10.0.22621",
+            name_only: "Windows 11 Enterprise 22H2",
             version: "1.2.3",
             platform: "windows",
             kernels: [],
@@ -22,8 +22,8 @@ describe("Dashboard OS table", () => {
           {
             os_version_id: 2,
             hosts_count: 567,
-            name: "Microsoft Windows 11 Pro 22H2 10.0.22621.3880",
-            name_only: "Microsoft Windows 11 Pro 22H2",
+            name: "Windows 11 Pro 22H2 10.0.22621.3880",
+            name_only: "Windows 11 Pro 22H2",
             version: "4.5.6",
             platform: "windows",
             kernels: [],
@@ -63,8 +63,8 @@ describe("Dashboard OS table", () => {
           {
             os_version_id: 1,
             hosts_count: 234,
-            name: "Microsoft Windows 11 Enterprise 22H2 10.0.22621",
-            name_only: "Microsoft Windows 11 Enterprise 22H2",
+            name: "Windows 11 Enterprise 22H2 10.0.22621",
+            name_only: "Windows 11 Enterprise 22H2",
             version: "1.2.3",
             platform: "windows",
             kernels: [],
@@ -78,7 +78,7 @@ describe("Dashboard OS table", () => {
 
     expect(screen.queryByText("Name")).not.toBeInTheDocument();
     expect(
-      screen.queryByText("Microsoft Windows 11 Enterprise 22H2")
+      screen.queryByText("Windows 11 Enterprise 22H2")
     ).not.toBeInTheDocument();
   });
 

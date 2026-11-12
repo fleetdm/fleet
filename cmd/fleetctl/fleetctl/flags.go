@@ -12,7 +12,6 @@ import (
 
 const (
 	apiOnlyFlagName          = "api-only"
-	csvFlagName              = "csv"
 	debugFlagName            = "debug"
 	disableLogTopicsFlagName = "disable-log-topics"
 	emailFlagName            = "email"

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.11.0",
+      "version": "1.12.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.ToWatchList.SimpleComic';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ToWatchList.SimpleComic' AND version_compare(bundle_short_version, '1.11.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ToWatchList.SimpleComic' AND version_compare(bundle_short_version, '1.12.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.ToWatchList.SimpleComic' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/MaddTheSane/Simple-Comic/releases/download/App-Store-1.11.0/Simple.Comic.1.11.0.zip",
+      "installer_url": "https://github.com/MaddTheSane/Simple-Comic/releases/download/App-Store-1.12.0/Simple.Comic.1.12.0.zip",
       "install_script_ref": "fd995b3d",
       "uninstall_script_ref": "31b45e6b",
-      "sha256": "2ed7f3e86f5c8c42e29f78d46183947224514d2ccac48913b6aa80aa8f634ce0",
+      "sha256": "589351a3e5381351841fcda1cc29d85e0ee743c1a1f6142e8d1eba902c001619",
       "default_categories": [
         "Productivity"
       ]

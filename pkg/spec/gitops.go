@@ -608,7 +608,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		if teamOk || settingsOk {
 			multiError = multierror.Append(multiError, errors.New("'org_settings' cannot be used with 'name', 'settings'"))
 		} else {
-			multiError = parseOrgSettings(orgSettingsRaw, result, baseDir, filePath, multiError)
+			multiError = parseOrgSettings(orgSettingsRaw, result, baseDir, filePath, logFn, multiError)
 		}
 	case teamOk:
 		multiError = parseName(teamRaw, result, filePath, multiError)
@@ -754,7 +754,7 @@ const (
 	unassignedTeamName = "Unassigned"
 )
 
-func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, filePath string, multiError *multierror.Error) *multierror.Error {
+func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, filePath string, logFn Logf, multiError *multierror.Error) *multierror.Error {
 	var orgSettingsTop fleet.BaseItem
 	if err := json.Unmarshal(raw, &orgSettingsTop); err != nil {
 		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"org_settings"}, err))
@@ -821,6 +821,27 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 			multiError = validateSSOConfig(result.OrgSettings, multiError)
 			multiError = normalizeMDMSSOConfig(result.OrgSettings, multiError)
 		}
+
+		// Drop the removed scripts_disabled setting before the unknown-key check. Only warn when it's false.
+		serverSettings, _ := result.OrgSettings["server_settings"].(map[string]any)
+		for key, value := range serverSettings {
+			if !strings.EqualFold(key, "scripts_disabled") {
+				continue
+			}
+			removedKeyErr := &ParseRemovedKeyError{Filename: settingsFilePath, Path: "org_settings.server_settings", Field: "scripts_disabled"}
+			if value == false {
+				logFn("[!] %s\n", removedKeyErr.Error())
+			} else {
+				multiError = multierror.Append(multiError, removedKeyErr)
+			}
+			delete(serverSettings, key)
+			var err error
+			raw, err = json.Marshal(result.OrgSettings)
+			if err != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to marshal org settings from %s: %w", settingsFilePath, err))
+			}
+		}
+
 		// Validate unknown keys in org_settings section.
 		multiError = multierror.Append(multiError, validateYAMLKeys(raw, reflect.TypeFor[GitOpsOrgSettings](), settingsFilePath, []string{"org_settings"})...)
 		// TODO: Validate that integrations.(jira|zendesk)[].api_token is not empty or fleet.MaskedPassword

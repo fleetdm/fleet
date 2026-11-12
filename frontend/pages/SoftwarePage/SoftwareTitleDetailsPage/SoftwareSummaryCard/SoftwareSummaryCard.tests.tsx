@@ -638,7 +638,7 @@ describe("Software Summary Card", () => {
       expect(screen.getByText("App Store (VPP)")).toBeInTheDocument();
     });
 
-    it("renders the Play Store pill for an Android Play Store app", () => {
+    it("does not render a Play Store pill for an Android Play Store app", () => {
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
@@ -654,7 +654,7 @@ describe("Software Summary Card", () => {
         />
       );
 
-      expect(screen.getByText("Play Store")).toBeInTheDocument();
+      expect(screen.queryByText("Play Store")).not.toBeInTheDocument();
     });
 
     it("renders the Custom package pill for a non-FMA software package", () => {
