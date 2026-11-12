@@ -1242,6 +1242,211 @@ osascript() {
 	require.Len(t, opened, 13)
 }
 
+// TestPrismScriptsStopPrismWhenItWontQuit runs the Prism scripts against a fake
+// process table. When Prism ignores the AppleScript quit, they send SIGTERM,
+// then SIGKILL, to the console user's Prism and Logger processes, found by
+// bundle ID, relaunch it after an install, and stop before installing or
+// removing anything if it survives or the process lookup fails.
+func TestPrismScriptsStopPrismWhenItWontQuit(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("as root the relaunch goes through /bin/launchctl asuser, which can't be stubbed")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+
+	readScript := func(name string) string {
+		b, err := os.ReadFile(filepath.Join("../../inputs/homebrew/scripts", name))
+		require.NoError(t, err)
+		return string(b)
+	}
+	install := readScript("prism-install.sh")
+	uninstall := readScript("prism-uninstall.sh")
+
+	stopHelpers := regexp.MustCompile(`(?s)\nprism_pids\(\) \{.*?\nstop_prism\(\) \{.*?\n\}\n`)
+	require.NotEmpty(t, stopHelpers.FindString(install))
+	require.Equal(t, stopHelpers.FindString(install), stopHelpers.FindString(uninstall))
+
+	// Everything between the quit and the relaunch changes files, so it's
+	// replaced with a marker.
+	cut := func(script, quitCall, marker, tail string) string {
+		i := strings.Index(script, quitCall)
+		require.Positive(t, i)
+		require.True(t, strings.HasSuffix(script, tail))
+		return script[:i+len(quitCall)] + marker + tail
+	}
+	install = cut(install, "\nquit_and_track_application 'com.GraphPad.Prism' || stop_prism || exit 1\n", "echo 'Installing Prism.'\n", "\nrelaunch_application 'com.GraphPad.Prism'\n")
+	uninstall = cut(uninstall, "\nquit_application 'com.GraphPad.Prism' || stop_prism || exit 1\n", "echo 'Removing Prism.'\n", "")
+
+	type result struct {
+		out, signals, opened string
+		err                  error
+	}
+	// Each process is "<pid> <behavior> <user> <path>". Only a "polite" process
+	// exits on the AppleScript quit. "polite" and "exits" exit on SIGTERM,
+	// "stubborn" only on SIGKILL, and "unkillable" never. psFails is "always" or
+	// "after-signal" to make ps fail.
+	run := func(t *testing.T, script, psFails string, procs ...string) result {
+		dir := t.TempDir()
+		procFile := filepath.Join(dir, "procs")
+		sigFile := filepath.Join(dir, "signals")
+		openFile := filepath.Join(dir, "opened")
+		require.NoError(t, os.WriteFile(procFile, []byte(strings.Join(procs, "\n")+"\n"), 0o600))
+		require.NoError(t, os.WriteFile(sigFile, nil, 0o600))
+		require.NoError(t, os.WriteFile(openFile, nil, 0o600))
+		stubs := `procs=` + shellSingleQuote(procFile) + `
+signals=` + shellSingleQuote(sigFile) + `
+opened=` + shellSingleQuote(openFile) + `
+ps_fails=` + psFails + `
+INSTALLER_PATH=/tmp/fleet-test/InstallPrism11.dmg
+stat() { echo alice; }
+realpath() { echo "$1"; }
+mktemp() { echo /tmp/fleet-test/mount; }
+yes() { :; }
+hdiutil() { :; }
+sudo() { :; }
+scutil() { :; }
+sleep() { SECONDS=$((SECONDS + $1)); }
+open() { echo "$*" >> "$opened"; }
+uid_of() { case "$1" in alice) echo 501 ;; bob) echo 502 ;; *) return 1 ;; esac; }
+id() { [[ "$1" == -u ]] && uid_of "$2"; }
+drop() { awk -v p="$1" '$1 != p' "$procs" > "$procs.new" && command mv "$procs.new" "$procs"; }
+ps() {
+  [[ "$ps_fails" == always || ( "$ps_fails" == after-signal && -s "$signals" ) ]] && return 1
+  local pid behavior user exe
+  while read -r pid behavior user exe; do
+    [[ -n "$pid" ]] && echo "$pid $(uid_of "$user") $exe"
+  done < "$procs"
+}
+osascript() {
+  local pid behavior user exe running=false
+  while read -r pid behavior user exe; do
+    [[ "$user" == alice && "$exe" == "/Applications/Prism 11.app/Contents/MacOS/Prism" ]] || continue
+    running=true
+    [[ "$*" == *" to quit"* && "$behavior" == polite ]] && drop "$pid"
+  done < "$procs"
+  [[ "$*" == *" is running"* ]] && echo "$running"
+  return 0
+}
+defaults() {
+  case "$2" in
+    */Other.app/Contents/Info) echo com.example.Other ;;
+    *) echo com.GraphPad.Prism ;;
+  esac
+}
+kill() {
+  local sig="$1" pid behavior
+  shift
+  for pid in "$@"; do
+    echo "$sig $pid" >> "$signals"
+    behavior=$(awk -v p="$pid" '$1 == p { print $2 }' "$procs")
+    case "$sig $behavior" in
+      "-TERM polite" | "-TERM exits" | "-KILL polite" | "-KILL exits" | "-KILL stubborn") drop "$pid" ;;
+    esac
+  done
+}
+`
+		b, err := exec.Command(bash, "-c", stubs+script).CombinedOutput()
+		sigs, readErr := os.ReadFile(sigFile)
+		require.NoError(t, readErr)
+		opened, readErr := os.ReadFile(openFile)
+		require.NoError(t, readErr)
+		return result{string(b), string(sigs), string(opened), err}
+	}
+	requireExit1 := func(t *testing.T, r result) {
+		var exitErr *exec.ExitError
+		require.ErrorAs(t, r.err, &exitErr, r.out)
+		require.Equal(t, 1, exitErr.ExitCode(), r.out)
+	}
+
+	const app = "/Applications/Prism 11.app/Contents/MacOS/"
+	others := []string{
+		"201 exits bob " + app + "Prism",
+		"202 exits alice " + app + "HelperTool",
+		"203 exits alice /Applications/Other.app/Contents/MacOS/Logger",
+	}
+	withOthers := func(procs ...string) []string { return append(procs, others...) }
+	ignoresQuit := withOthers("101 exits alice "+app+"Prism", "102 exits alice "+app+"Logger")
+	const relaunched = "-b com.GraphPad.Prism\n"
+
+	t.Run("not running", func(t *testing.T) {
+		r := run(t, install, "", others...)
+		require.NoError(t, r.err, r.out)
+		require.Empty(t, r.signals)
+		require.NotContains(t, r.out, "Quitting application")
+		require.Contains(t, r.out, "Installing Prism.")
+		require.Empty(t, r.opened)
+	})
+
+	t.Run("quits when asked", func(t *testing.T) {
+		r := run(t, install, "", withOthers("101 polite alice "+app+"Prism")...)
+		require.NoError(t, r.err, r.out)
+		require.Empty(t, r.signals)
+		require.Contains(t, r.out, "Application 'com.GraphPad.Prism' quit successfully.")
+		require.Contains(t, r.out, "Installing Prism.")
+		require.Equal(t, relaunched, r.opened)
+	})
+
+	t.Run("stopped with SIGTERM and relaunched", func(t *testing.T) {
+		r := run(t, install, "", ignoresQuit...)
+		require.NoError(t, r.err, r.out)
+		require.Equal(t, "-TERM 101\n-TERM 102\n", r.signals)
+		require.Contains(t, r.out, "Prism stopped.")
+		require.Contains(t, r.out, "Installing Prism.")
+		require.Equal(t, relaunched, r.opened)
+	})
+
+	t.Run("forced to quit when it ignores SIGTERM", func(t *testing.T) {
+		r := run(t, install, "", withOthers("101 stubborn alice "+app+"Prism", "102 exits alice "+app+"Logger")...)
+		require.NoError(t, r.err, r.out)
+		require.Equal(t, "-TERM 101\n-TERM 102\n-KILL 101\n", r.signals)
+		require.Contains(t, r.out, "Prism didn't stop; forcing it to quit.")
+		require.Contains(t, r.out, "Installing Prism.")
+		require.Equal(t, relaunched, r.opened)
+	})
+
+	t.Run("install stops when it won't stop", func(t *testing.T) {
+		r := run(t, install, "", withOthers("101 unkillable alice "+app+"Prism")...)
+		requireExit1(t, r)
+		require.Equal(t, "-TERM 101\n-KILL 101\n", r.signals)
+		require.Contains(t, r.out, "Prism did not stop.")
+		require.NotContains(t, r.out, "Installing Prism.")
+		require.Empty(t, r.opened)
+	})
+
+	t.Run("install stops when the process lookup fails", func(t *testing.T) {
+		r := run(t, install, "always", ignoresQuit...)
+		requireExit1(t, r)
+		require.Empty(t, r.signals)
+		require.Contains(t, r.out, "Couldn't check whether Prism is running.")
+		require.NotContains(t, r.out, "Installing Prism.")
+
+		r = run(t, install, "after-signal", ignoresQuit...)
+		requireExit1(t, r)
+		require.Equal(t, "-TERM 101\n-TERM 102\n", r.signals)
+		require.Contains(t, r.out, "Prism did not stop.")
+		require.NotContains(t, r.out, "Installing Prism.")
+		require.Empty(t, r.opened)
+	})
+
+	t.Run("uninstall", func(t *testing.T) {
+		r := run(t, uninstall, "", ignoresQuit...)
+		require.NoError(t, r.err, r.out)
+		require.Equal(t, "-TERM 101\n-TERM 102\n", r.signals)
+		require.Contains(t, r.out, "Removing Prism.")
+
+		for _, tc := range []struct{ psFails, proc string }{{"", "101 unkillable alice " + app + "Prism"}, {"always", ignoresQuit[0]}, {"after-signal", ignoresQuit[0]}} {
+			r = run(t, uninstall, tc.psFails, tc.proc)
+			requireExit1(t, r)
+			require.NotContains(t, r.out, "Removing Prism.")
+		}
+	})
+}
+
 func TestShellDoubleQuoteEscape(t *testing.T) {
 	// Values without shell metacharacters (the common case) must pass through
 	// unchanged so the generated scripts stay byte-identical to before.
