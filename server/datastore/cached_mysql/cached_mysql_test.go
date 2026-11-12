@@ -797,7 +797,6 @@ func TestCachedQueryByName(t *testing.T) {
 	testQuery := &fleet.Query{
 		ID:     1,
 		TeamID: ptr.Uint(1),
-		Packs:  []fleet.Pack{{ID: 2, Name: "a"}},
 	}
 	mockedDS.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
 		return testQuery, nil
@@ -815,7 +814,6 @@ func TestCachedQueryByName(t *testing.T) {
 	testQuery = &fleet.Query{
 		ID:     1,
 		TeamID: ptr.Uint(2),
-		Packs:  []fleet.Pack{{ID: 3, Name: "b"}},
 	}
 
 	// this call gets it from the cache
@@ -826,7 +824,7 @@ func TestCachedQueryByName(t *testing.T) {
 	require.False(t, mockedDS.QueryByNameFuncInvoked)
 
 	// a deep change doesn't alter the stored value
-	query2.Packs[0].Name = "Z"
+	*query2.TeamID = 99
 	require.NotEqual(t, query1, query2)
 
 	time.Sleep(200 * time.Millisecond)

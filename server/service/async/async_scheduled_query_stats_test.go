@@ -12,8 +12,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/test"
 	redigo "github.com/gomodule/redigo/redis"
 	"github.com/jmoiron/sqlx"
@@ -23,33 +25,36 @@ import (
 func testCollectScheduledQueryStats(t *testing.T, ds *mysql.Datastore, pool fleet.RedisPool) {
 	ctx := context.Background()
 
-	// create some scheduled queries
 	user := test.NewUser(t, ds, "user", "user@example.com", true)
-	p1 := test.NewPack(t, ds, "p1")
-	p2 := test.NewPack(t, ds, "p2")
-	p3 := test.NewPack(t, ds, "p3")
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team1Pack := fmt.Sprintf("team-%d", team1.ID)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+	team2Pack := fmt.Sprintf("team-%d", team2.ID)
 
-	q1 := test.NewQuery(t, ds, nil, "q1", "select 1", user.ID, true)
-	q2 := test.NewQuery(t, ds, nil, "q2", "select 2", user.ID, true)
-	q3 := test.NewQuery(t, ds, nil, "q3", "select 3", user.ID, true)
-	q4 := test.NewQuery(t, ds, nil, "q4", "select 4", user.ID, true)
+	gq1 := test.NewQueryWithSchedule(t, ds, nil, "q1", "select 1", user.ID, true, 60, false)
+	gq2 := test.NewQueryWithSchedule(t, ds, nil, "q2", "select 2", user.ID, true, 60, false)
+	// same name as a global report, but in team1
+	tq1 := test.NewQueryWithSchedule(t, ds, &team1.ID, "q1", "select 1", user.ID, true, 60, false)
+	tq3 := test.NewQueryWithSchedule(t, ds, &team1.ID, "q3", "select 3", user.ID, true, 60, false)
+	t2q1 := test.NewQueryWithSchedule(t, ds, &team2.ID, "q1", "select 1", user.ID, true, 60, false)
 
-	sq1 := test.NewScheduledQuery(t, ds, p1.ID, q1.ID, 60, false, false, "sq1")
-	sq2 := test.NewScheduledQuery(t, ds, p2.ID, q2.ID, 60, false, false, "sq2")
-	sq3 := test.NewScheduledQuery(t, ds, p3.ID, q3.ID, 60, false, false, "sq3")
-	sq4 := test.NewScheduledQuery(t, ds, p3.ID, q4.ID, 60, false, false, "sq4") // pack 3 has two scheduled queries
-
-	// create some hosts that will report stats for those scheduled queries
-	hostIDs := createHosts(t, ds, 4, time.Now())
-	t.Logf("real host IDs: %v", hostIDs)
+	hostIDs := createHosts(t, ds, 3, time.Now())
 	hid := func(id int) uint {
 		return hostIDs[id-1]
 	}
+	// hosts 2 and 3 are in team1; stats are recorded with the host's fleet
+	hostTeams := map[uint]*uint{hid(2): &team1.ID, hid(3): &team1.ID}
 
 	type hostSQStats struct {
 		HostID           uint `db:"host_id"`
 		ScheduledQueryID uint `db:"scheduled_query_id"`
 		Executions       int  `db:"executions"`
+	}
+
+	stat := func(name string, execs uint64) []fleet.ScheduledQueryStats {
+		return []fleet.ScheduledQueryStats{{ScheduledQueryName: name, Executions: execs}}
 	}
 
 	// note that cases cannot be run in isolation, each case builds on the
@@ -66,57 +71,59 @@ func testCollectScheduledQueryStats(t *testing.T, ds *mysql.Datastore, pool flee
 			nil,
 		},
 		{
-			"single host, single stat",
+			"single host, single global stat",
 			map[uint][]fleet.PackStats{
 				hid(1): {
-					{PackName: p1.Name, QueryStats: []fleet.ScheduledQueryStats{{ScheduledQueryName: sq1.Name, Executions: 1}}},
+					{PackName: "Global", QueryStats: stat(gq1.Name, 1)},
 				},
 			},
 			[]hostSQStats{
-				{hid(1), sq1.ID, 1},
+				{hid(1), gq1.ID, 1},
 			},
 		},
 		{
-			"multi hosts, multi stats",
+			"multi hosts, global and team stats",
 			map[uint][]fleet.PackStats{
 				hid(2): {
-					{PackName: p1.Name, QueryStats: []fleet.ScheduledQueryStats{{ScheduledQueryName: sq1.Name, Executions: 2}}},
-					{PackName: p2.Name, QueryStats: []fleet.ScheduledQueryStats{{ScheduledQueryName: sq2.Name, Executions: 3}}},
+					{PackName: "Global", QueryStats: stat(gq1.Name, 2)},
+					{PackName: "Global", QueryStats: stat(gq2.Name, 3)},
+					{PackName: team1Pack, QueryStats: stat(tq1.Name, 4)},
 				},
 				hid(3): {
-					{PackName: p2.Name, QueryStats: []fleet.ScheduledQueryStats{{ScheduledQueryName: sq2.Name, Executions: 4}}},
-					{PackName: p3.Name, QueryStats: []fleet.ScheduledQueryStats{{ScheduledQueryName: sq3.Name, Executions: 5}}},
-					{PackName: p3.Name, QueryStats: []fleet.ScheduledQueryStats{{ScheduledQueryName: sq4.Name, Executions: 6}}},
+					{PackName: team1Pack, QueryStats: stat(tq3.Name, 5)},
 				},
 			},
 			[]hostSQStats{
-				{hid(1), sq1.ID, 1},
-				{hid(2), sq1.ID, 2},
-				{hid(2), sq2.ID, 3},
-				{hid(3), sq2.ID, 4},
-				{hid(3), sq3.ID, 5},
-				{hid(3), sq4.ID, 6},
+				{hid(1), gq1.ID, 1},
+				{hid(2), gq1.ID, 2},
+				{hid(2), gq2.ID, 3},
+				{hid(2), tq1.ID, 4},
+				{hid(3), tq3.ID, 5},
 			},
 		},
 		{
-			"update some, create some",
+			"unresolvable stats are skipped",
 			map[uint][]fleet.PackStats{
 				hid(1): {
-					{PackName: p1.Name, QueryStats: []fleet.ScheduledQueryStats{{ScheduledQueryName: sq1.Name, Executions: 7}}},
-					{PackName: p2.Name, QueryStats: []fleet.ScheduledQueryStats{{ScheduledQueryName: sq2.Name, Executions: 8}}},
+					{PackName: "Global", QueryStats: stat(gq1.Name, 6)},
+					{PackName: "Global", QueryStats: stat("deleted-report", 7)},
+					{PackName: "Global", QueryStats: stat(tq3.Name, 8)}, // team report sent as global
+					{PackName: "team-999999", QueryStats: stat(gq1.Name, 9)},
+					{PackName: "team-abc", QueryStats: stat(gq1.Name, 11)},
+					{PackName: "2017 pack", QueryStats: stat("sq4", 10)},
 				},
 				hid(3): {
-					{PackName: p3.Name, QueryStats: []fleet.ScheduledQueryStats{{ScheduledQueryName: sq4.Name, Executions: 9}}},
+					// another fleet's report, with the same name as a report in the
+					// host's fleet
+					{PackName: team2Pack, QueryStats: stat(t2q1.Name, 12)},
 				},
 			},
 			[]hostSQStats{
-				{hid(1), sq1.ID, 7},
-				{hid(1), sq2.ID, 8},
-				{hid(2), sq1.ID, 2},
-				{hid(2), sq2.ID, 3},
-				{hid(3), sq2.ID, 4},
-				{hid(3), sq3.ID, 5},
-				{hid(3), sq4.ID, 9},
+				{hid(1), gq1.ID, 6},
+				{hid(2), gq1.ID, 2},
+				{hid(2), gq2.ID, 3},
+				{hid(2), tq1.ID, 4},
+				{hid(3), tq3.ID, 5},
 			},
 		},
 	}
@@ -126,7 +133,7 @@ func testCollectScheduledQueryStats(t *testing.T, ds *mysql.Datastore, pool flee
 	setupTest := func(t *testing.T, task *Task, data map[uint][]fleet.PackStats) collectorExecStats {
 		var wantStats collectorExecStats
 		for hid, stats := range data {
-			err := task.RecordScheduledQueryStats(ctx, nil, hid, stats, time.Now())
+			err := task.RecordScheduledQueryStats(ctx, hostTeams[hid], hid, stats, time.Now())
 			require.NoError(t, err)
 		}
 		wantStats.Keys = len(data)
@@ -170,6 +177,47 @@ func testCollectScheduledQueryStats(t *testing.T, ds *mysql.Datastore, pool flee
 	}
 }
 
+// Report IDs are resolved on the primary: a report that hasn't reached the
+// replica yet must still get its stats.
+func TestCollectStatsReadsPrimary(t *testing.T) {
+	ds := mysqltest.CreateMySQLDSWithOptions(t, &testing_utils.DatastoreTestOptions{DummyReplica: true})
+	pool := redistest.SetupRedis(t, "scheduled_query_stats_primary", false, false, false)
+	ctx := t.Context()
+
+	report, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:     "q1",
+		Query:    "select 1",
+		Saved:    true,
+		Interval: 60,
+		Logging:  fleet.LoggingSnapshot,
+	})
+	require.NoError(t, err)
+	hostIDs := createHosts(t, ds, 1, time.Now())
+
+	task := NewTask(ds, pool, clock.C, &config.FleetConfig{
+		Osquery: config.OsqueryConfig{
+			EnableAsyncHostProcessing:   "true",
+			AsyncHostInsertBatch:        3,
+			AsyncHostRedisPopCount:      3,
+			AsyncHostRedisScanKeysCount: 10,
+		},
+	})
+	err = task.RecordScheduledQueryStats(ctx, nil, hostIDs[0], []fleet.PackStats{
+		{PackName: "Global", QueryStats: []fleet.ScheduledQueryStats{{ScheduledQueryName: report.Name, Executions: 3}}},
+	}, time.Now())
+	require.NoError(t, err)
+
+	var stats collectorExecStats
+	require.NoError(t, task.collectScheduledQueryStats(ctx, ds, pool, &stats))
+
+	var executions []uint64
+	mysqltest.ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, tx, &executions,
+			`SELECT executions FROM scheduled_query_stats WHERE host_id = ? AND scheduled_query_id = ?`, hostIDs[0], report.ID)
+	})
+	require.Equal(t, []uint64{3}, executions)
+}
+
 func testRecordScheduledQueryStatsSync(t *testing.T, ds *mock.Store, pool fleet.RedisPool) {
 	ctx := context.Background()
 	now := time.Now()
@@ -201,18 +249,29 @@ func testRecordScheduledQueryStatsSync(t *testing.T, ds *mock.Store, pool fleet.
 func testRecordScheduledQueryStatsAsync(t *testing.T, ds *mock.Store, pool fleet.RedisPool) {
 	ctx := context.Background()
 	now := time.Now()
-	host := &fleet.Host{ID: 1}
+	host := &fleet.Host{ID: 1, TeamID: new(uint(7))}
 
 	stats := []fleet.PackStats{
 		{
-			PackName: "p1", QueryStats: []fleet.ScheduledQueryStats{
+			PackName: "Global", QueryStats: []fleet.ScheduledQueryStats{
 				{ScheduledQueryName: "sq1", Executions: 1},
 				{ScheduledQueryName: "sq2", Executions: 2},
 			},
 		},
 		{
-			PackName: "p2", QueryStats: []fleet.ScheduledQueryStats{
+			PackName: "team-7", QueryStats: []fleet.ScheduledQueryStats{
 				{ScheduledQueryName: "sq3", Executions: 3},
+			},
+		},
+		// not queued: another fleet's pack and a 2017 pack
+		{
+			PackName: "team-8", QueryStats: []fleet.ScheduledQueryStats{
+				{ScheduledQueryName: "sq4", Executions: 4},
+			},
+		},
+		{
+			PackName: "p1", QueryStats: []fleet.ScheduledQueryStats{
+				{ScheduledQueryName: "sq5", Executions: 5},
 			},
 		},
 	}
@@ -242,12 +301,12 @@ func testRecordScheduledQueryStatsAsync(t *testing.T, ds *mock.Store, pool fleet
 	for k := range res {
 		keys = append(keys, k)
 	}
-	require.ElementsMatch(t, []string{"p1\x00sq1", "p1\x00sq2", "p2\x00sq3"}, keys)
+	require.ElementsMatch(t, []string{"Global\x00sq1", "Global\x00sq2", "team-7\x00sq3"}, keys)
 	// check that the marshalled value is correct (only need to check one of them)
 	var sqStat fleet.ScheduledQueryStats
-	err = json.Unmarshal([]byte(res["p1\x00sq1"]), &sqStat)
+	err = json.Unmarshal([]byte(res["Global\x00sq1"]), &sqStat)
 	require.NoError(t, err)
-	require.Equal(t, uint64(1), sqStat.Executions, res["p1\x00sq1"])
+	require.Equal(t, uint64(1), sqStat.Executions, res["Global\x00sq1"])
 
 	count, err := redigo.Int(conn.Do("ZCARD", scheduledQueryStatsHostIDsKey))
 	require.NoError(t, err)
@@ -271,7 +330,7 @@ func testRecordScheduledQueryStatsAsync(t *testing.T, ds *mock.Store, pool fleet
 	// recording with pack but empty query stats works and records nothing
 	stats = []fleet.PackStats{
 		{
-			PackName: "p1", QueryStats: []fleet.ScheduledQueryStats{},
+			PackName: "Global", QueryStats: []fleet.ScheduledQueryStats{},
 		},
 	}
 	err = task.RecordScheduledQueryStats(ctx, host.TeamID, host.ID, stats, now)

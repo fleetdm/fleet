@@ -234,10 +234,6 @@ func (ds *Datastore) QueryByName(
 		return nil, ctxerr.Wrap(ctx, err, "selecting query by name")
 	}
 
-	if err := ds.loadPacksForQueries(ctx, []*fleet.Query{&query}); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "loading packs for query")
-	}
-
 	return &query, nil
 }
 
@@ -269,10 +265,7 @@ var queriesByNameBatchSize = 1000
 
 // QueriesByName resolves multiple (team, name) pairs in one or more batched
 // lookups. The returned map is keyed by TeamScopedQueryName.Key() and contains
-// only the pairs that exist. It does NOT populate Query.Packs (callers needing
-// packs must load them separately); the result path that uses this only reads
-// query id/logging fields, and skipping the pack join keeps the lookup a single
-// indexed read per batch.
+// only the pairs that exist.
 func (ds *Datastore) QueriesByName(
 	ctx context.Context,
 	names []fleet.TeamScopedQueryName,
@@ -468,8 +461,6 @@ func (ds *Datastore) NewQuery(
 	if err != nil {
 		return nil, err
 	}
-	query.Packs = []fleet.Pack{}
-
 	return query, nil
 }
 
@@ -792,10 +783,6 @@ func query(ctx context.Context, db sqlx.QueryerContext, id uint) (*fleet.Query, 
 		return nil, ctxerr.Wrap(ctx, err, "selecting query")
 	}
 
-	if err := loadPacksForQueries(ctx, db, []*fleet.Query{query}); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "loading packs for queries")
-	}
-
 	if err := loadLabelsForQueries(ctx, db, []*fleet.Query{query}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "loading labels for query")
 	}
@@ -902,10 +889,6 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 		return nil, 0, 0, nil, ctxerr.Wrap(ctx, err, "get queries count")
 	}
 
-	if err = ds.loadPacksForQueries(ctx, queries); err != nil {
-		return nil, 0, 0, nil, ctxerr.Wrap(ctx, err, "loading packs for queries")
-	}
-
 	if err = ds.loadLabelsForQueries(ctx, queries); err != nil {
 		return nil, 0, 0, nil, ctxerr.Wrap(ctx, err, "loading labels for queries")
 	}
@@ -921,58 +904,6 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 	}
 
 	return queries, counts.Total, counts.Inherited, metadata, nil
-}
-
-// loadPacksForQueries loads the user packs (aka 2017 packs) associated with the provided queries.
-func (ds *Datastore) loadPacksForQueries(ctx context.Context, queries []*fleet.Query) error {
-	return loadPacksForQueries(ctx, ds.reader(ctx), queries)
-}
-
-func loadPacksForQueries(ctx context.Context, db sqlx.QueryerContext, queries []*fleet.Query) error {
-	if len(queries) == 0 {
-		return nil
-	}
-
-	// packs.pack_type is NULL for user created packs (aka 2017 packs).
-	sql := `
-		SELECT p.*, sq.query_name AS query_name
-		FROM packs p
-		JOIN scheduled_queries sq
-			ON p.id = sq.pack_id
-		WHERE query_name IN (?) AND p.pack_type IS NULL
-	`
-
-	// Used to map the results
-	name_queries := map[string]*fleet.Query{}
-	// Used for the IN clause
-	names := []string{}
-	for _, q := range queries {
-		q.Packs = make([]fleet.Pack, 0)
-		names = append(names, q.Name)
-		name_queries[q.Name] = q
-	}
-
-	query, args, err := sqlx.In(sql, names)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building query in load packs for queries")
-	}
-
-	rows := []struct {
-		QueryName string `db:"query_name"`
-		fleet.Pack
-	}{}
-
-	err = sqlx.SelectContext(ctx, db, &rows, query, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "selecting load packs for queries")
-	}
-
-	for _, row := range rows {
-		q := name_queries[row.QueryName]
-		q.Packs = append(q.Packs, row.Pack)
-	}
-
-	return nil
 }
 
 func (ds *Datastore) loadLabelsForQueries(ctx context.Context, queries []*fleet.Query) error {

@@ -34,7 +34,6 @@ func TestQueries(t *testing.T) {
 		{"DeleteMany", testQueriesDeleteMany},
 		{"Save", testQueriesSave},
 		{"List", testQueriesList},
-		{"LoadPacksForQueries", testQueriesLoadPacksForQueries},
 		{"DuplicateNew", testQueriesDuplicateNew},
 		{"ObserverCanRunQuery", testObserverCanRunQuery},
 		{"ListQueriesFiltersByTeamID", testListQueriesFiltersByTeamID},
@@ -727,130 +726,6 @@ func testQueriesList(t *testing.T, ds *Datastore) {
 		}
 	}
 	require.True(t, foundAgg)
-}
-
-func testQueriesLoadPacksForQueries(t *testing.T, ds *Datastore) {
-	zwass := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
-	queries := []*fleet.Query{
-		{Name: "q1", Query: "select * from time", Logging: fleet.LoggingSnapshot},
-		{Name: "q2", Query: "select * from osquery_info", Logging: fleet.LoggingDifferential},
-	}
-	err := ds.ApplyQueries(context.Background(), zwass.ID, queries, nil)
-	require.NoError(t, err)
-
-	specs := []*fleet.PackSpec{
-		{Name: "p1"},
-		{Name: "p2"},
-		{Name: "p3"},
-	}
-	err = ds.ApplyPackSpecs(context.Background(), specs)
-	require.Nil(t, err)
-
-	q0, err := ds.QueryByName(context.Background(), nil, queries[0].Name)
-	require.Nil(t, err)
-	assert.Empty(t, q0.Packs)
-
-	q1, err := ds.QueryByName(context.Background(), nil, queries[1].Name)
-	require.Nil(t, err)
-	assert.Empty(t, q1.Packs)
-
-	specs = []*fleet.PackSpec{
-		{
-			Name: "p2",
-			Queries: []fleet.PackSpecQuery{
-				{
-					Name:      "q0",
-					QueryName: queries[0].Name,
-					Interval:  60,
-				},
-			},
-		},
-	}
-	err = ds.ApplyPackSpecs(context.Background(), specs)
-	require.Nil(t, err)
-
-	q0, err = ds.QueryByName(context.Background(), nil, queries[0].Name)
-	require.Nil(t, err)
-	if assert.Len(t, q0.Packs, 1) {
-		assert.Equal(t, "p2", q0.Packs[0].Name)
-	}
-
-	q1, err = ds.QueryByName(context.Background(), nil, queries[1].Name)
-	require.Nil(t, err)
-	assert.Empty(t, q1.Packs)
-
-	specs = []*fleet.PackSpec{
-		{
-			Name: "p1",
-			Queries: []fleet.PackSpecQuery{
-				{
-					QueryName: queries[1].Name,
-					Interval:  60,
-				},
-			},
-		},
-		{
-			Name: "p3",
-			Queries: []fleet.PackSpecQuery{
-				{
-					QueryName: queries[1].Name,
-					Interval:  60,
-				},
-			},
-		},
-	}
-	err = ds.ApplyPackSpecs(context.Background(), specs)
-	require.Nil(t, err)
-
-	q0, err = ds.QueryByName(context.Background(), nil, queries[0].Name)
-	require.Nil(t, err)
-	if assert.Len(t, q0.Packs, 1) {
-		assert.Equal(t, "p2", q0.Packs[0].Name)
-	}
-
-	q1, err = ds.QueryByName(context.Background(), nil, queries[1].Name)
-	require.Nil(t, err)
-	if assert.Len(t, q1.Packs, 2) {
-		sort.Slice(q1.Packs, func(i, j int) bool { return q1.Packs[i].Name < q1.Packs[j].Name })
-		assert.Equal(t, "p1", q1.Packs[0].Name)
-		assert.Equal(t, "p3", q1.Packs[1].Name)
-	}
-
-	specs = []*fleet.PackSpec{
-		{
-			Name: "p3",
-			Queries: []fleet.PackSpecQuery{
-				{
-					Name:      "q0",
-					QueryName: queries[0].Name,
-					Interval:  60,
-				},
-				{
-					Name:      "q1",
-					QueryName: queries[1].Name,
-					Interval:  60,
-				},
-			},
-		},
-	}
-	err = ds.ApplyPackSpecs(context.Background(), specs)
-	require.Nil(t, err)
-
-	q0, err = ds.QueryByName(context.Background(), nil, queries[0].Name)
-	require.Nil(t, err)
-	if assert.Len(t, q0.Packs, 2) {
-		sort.Slice(q0.Packs, func(i, j int) bool { return q0.Packs[i].Name < q0.Packs[j].Name })
-		assert.Equal(t, "p2", q0.Packs[0].Name)
-		assert.Equal(t, "p3", q0.Packs[1].Name)
-	}
-
-	q1, err = ds.QueryByName(context.Background(), nil, queries[1].Name)
-	require.Nil(t, err)
-	if assert.Len(t, q1.Packs, 2) {
-		sort.Slice(q1.Packs, func(i, j int) bool { return q1.Packs[i].Name < q1.Packs[j].Name })
-		assert.Equal(t, "p1", q1.Packs[0].Name)
-		assert.Equal(t, "p3", q1.Packs[1].Name)
-	}
 }
 
 func testQueriesDuplicateNew(t *testing.T, ds *Datastore) {
