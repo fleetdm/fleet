@@ -69,7 +69,7 @@ Changes to AI features, including model changes and changes to what each feature
 
 If you believe a Fleet AI feature has produced harmful, unsafe, biased, or incorrect output, or has been used in a way that caused harm, tell us. Customers, device users, researchers, and members of the public can all report.
 
-Email security at fleetdm.com with the subject line "AI concern". Include the feature, what happened, when, and any screenshots or examples. Do not send passwords or other secrets.
+Email security@fleetdm.com with the subject line "AI concern". Include the feature, what happened, when, and any screenshots or examples. Do not send passwords or other secrets.
 
 We acknowledge every report within 2 business days, investigate it, and tell you the outcome where we can identify you.
 
