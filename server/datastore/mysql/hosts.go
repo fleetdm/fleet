@@ -214,43 +214,42 @@ func (ds *Datastore) SaveHostPackStats(ctx context.Context, teamID *uint, hostID
 	return saveHostPackStatsDB(ctx, ds.writer(ctx), teamID, hostID, stats)
 }
 
-// scheduledEntry holds a stat row pending ID resolution for the new-format
-// (Global / team-N) scheduled queries.
-type scheduledEntry struct {
-	teamID uint
-	name   string
-	stat   fleet.ScheduledQueryStats
-}
-
-// userPackEntry holds a stat row pending ID resolution for 2017-style packs.
-type userPackEntry struct {
-	packName      string
-	scheduledName string
-	stat          fleet.ScheduledQueryStats
-}
-
 func saveHostPackStatsDB(ctx context.Context, db *sqlx.DB, teamID *uint, hostID uint, stats []fleet.PackStats) error {
-	// NOTE: this implementation must be kept in sync with the async/batch version
-	// in AsyncBatchSaveHostsScheduledQueryStats (in scheduled_queries.go) - that is,
-	// the behaviour per host must be the same.
+	// NOTE: the async/batch version in AsyncBatchSaveHostsScheduledQueryStats
+	// (scheduled_queries.go) still uses per-row subqueries. It is disabled by
+	// default (FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING=false). If it is
+	// enabled at scale and hits the same bottleneck, apply the same batch-
+	// resolve approach there.
 
-	var scheduledEntries []scheduledEntry
-	var userPackEntries []userPackEntry
+	// Collect entries, splitting modern (Global/team-N) from legacy 2017 packs.
+	type scheduledEntry struct {
+		teamIDChar string
+		name       string
+		stat       fleet.ScheduledQueryStats
+	}
+	type userPackEntry struct {
+		packName      string
+		scheduledName string
+		stat          fleet.ScheduledQueryStats
+	}
+
+	var scheduled []scheduledEntry
+	var userPacks []userPackEntry
 
 	for _, pack := range stats {
 		if pack.PackName == "Global" || (teamID != nil && pack.PackName == fmt.Sprintf("team-%d", *teamID)) {
 			for _, query := range pack.QueryStats {
-				teamIDArg := uint(0)
+				tidChar := ""
 				if pack.PackName != "Global" {
-					teamIDArg = *teamID
+					tidChar = fmt.Sprint(*teamID)
 				}
 				if query.WallTimeMs == 0 && query.WallTime != 0 {
 					query.WallTimeMs = query.WallTime * 1000
 				}
-				scheduledEntries = append(scheduledEntries, scheduledEntry{
-					teamID: teamIDArg,
-					name:   query.ScheduledQueryName,
-					stat:   query,
+				scheduled = append(scheduled, scheduledEntry{
+					teamIDChar: tidChar,
+					name:       query.ScheduledQueryName,
+					stat:       query,
 				})
 			}
 		} else {
@@ -258,7 +257,7 @@ func saveHostPackStatsDB(ctx context.Context, db *sqlx.DB, teamID *uint, hostID 
 				if query.WallTimeMs == 0 && query.WallTime != 0 {
 					query.WallTimeMs = query.WallTime * 1000
 				}
-				userPackEntries = append(userPackEntries, userPackEntry{
+				userPacks = append(userPacks, userPackEntry{
 					packName:      query.PackName,
 					scheduledName: query.ScheduledQueryName,
 					stat:          query,
@@ -267,228 +266,149 @@ func saveHostPackStatsDB(ctx context.Context, db *sqlx.DB, teamID *uint, hostID 
 		}
 	}
 
-	if len(scheduledEntries) == 0 && len(userPackEntries) == 0 {
+	if len(scheduled) == 0 && len(userPacks) == 0 {
 		return nil
 	}
 
-	if len(scheduledEntries) > 0 {
-		if err := saveScheduledQueryStatsWithResolvedIDs(ctx, db, hostID, scheduledEntries); err != nil {
-			return err
-		}
-	}
-
-	if len(userPackEntries) > 0 {
-		if err := saveUserPackStatsWithResolvedIDs(ctx, db, hostID, userPackEntries); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// saveScheduledQueryStatsWithResolvedIDs resolves query IDs in a single batch
-// SELECT, then INSERTs stats with literal IDs. This replaces the old approach
-// of embedding one SELECT subquery per row, which at 500 reports caused each
-// INSERT to hold a DB connection for 50ms+ and led to connection pool
-// exhaustion under load (#54969).
-func saveScheduledQueryStatsWithResolvedIDs(ctx context.Context, db *sqlx.DB, hostID uint, entries []scheduledEntry) error {
-	// Collect unique (teamIDChar, name) pairs for batch resolution.
-	// We use team_id_char (the string form: "" for global, "N" for team N) because
-	// the queries table has a unique index on (name, team_id_char) that the resolver
-	// SELECT can use. Using COALESCE(team_id, 0) would force a full table scan.
-	type teamName struct {
-		teamIDChar string
-		name       string
-	}
-	lookups := make([]teamName, 0, len(entries))
-	seen := make(map[teamName]struct{}, len(entries))
-	for _, e := range entries {
-		tidChar := ""
-		if e.teamID != 0 {
-			tidChar = fmt.Sprint(e.teamID)
-		}
-		k := teamName{tidChar, e.name}
-		if _, ok := seen[k]; !ok {
+	// --- Modern scheduled queries: batch-resolve names to IDs ---
+	if len(scheduled) > 0 {
+		// Deduplicate (teamIDChar, name) pairs.
+		type key struct{ tid, name string }
+		seen := make(map[key]struct{}, len(scheduled))
+		placeholders := make([]string, 0, len(scheduled))
+		resolveArgs := make([]any, 0, len(scheduled)*2)
+		for _, e := range scheduled {
+			k := key{e.teamIDChar, e.name}
+			if _, ok := seen[k]; ok {
+				continue
+			}
 			seen[k] = struct{}{}
-			lookups = append(lookups, k)
+			placeholders = append(placeholders, "(?,?)")
+			resolveArgs = append(resolveArgs, e.name, e.teamIDChar)
+		}
+
+		// One SELECT using the idx_name_team_id_unq index (index-only scan).
+		type resolved struct {
+			ID         uint   `db:"id"`
+			Name       string `db:"name"`
+			TeamIDChar string `db:"team_id_char"`
+		}
+		//nolint:gosec // SQL built from constant strings and counted placeholders
+		resolveSQL := `SELECT id, name, team_id_char FROM queries WHERE (name, team_id_char) IN (` + strings.Join(placeholders, ",") + `)`
+		var rows []resolved
+		if err := sqlx.SelectContext(ctx, db, &rows, resolveSQL, resolveArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "resolve query IDs for stats")
+		}
+		idMap := make(map[key]uint, len(rows))
+		for _, r := range rows {
+			idMap[key{r.TeamIDChar, r.Name}] = r.ID
+		}
+
+		// Build INSERT with literal IDs (no per-row subqueries).
+		vals := make([]string, 0, len(scheduled))
+		args := make([]any, 0, len(scheduled)*11)
+		for _, e := range scheduled {
+			qID, ok := idMap[key{e.teamIDChar, e.name}]
+			if !ok {
+				continue // query deleted between config send and stats receive
+			}
+			vals = append(vals, "(?,?,?,?,?,?,?,?,?,?,?)")
+			args = append(args, qID, hostID,
+				e.stat.AverageMemory, e.stat.Denylisted, e.stat.Executions,
+				e.stat.Interval, e.stat.LastExecuted, e.stat.OutputSize,
+				e.stat.SystemTime, e.stat.UserTime, e.stat.WallTimeMs)
+		}
+		if len(vals) > 0 {
+			//nolint:gosec // SQL built from constant strings and counted placeholders
+			insertSQL := `INSERT IGNORE INTO scheduled_query_stats (
+				scheduled_query_id, host_id, average_memory, denylisted,
+				executions, schedule_interval, last_executed, output_size,
+				system_time, user_time, wall_time
+			) VALUES ` + strings.Join(vals, ",") + ` ON DUPLICATE KEY UPDATE
+				average_memory = VALUES(average_memory),
+				denylisted = VALUES(denylisted),
+				executions = VALUES(executions),
+				schedule_interval = VALUES(schedule_interval),
+				last_executed = VALUES(last_executed),
+				output_size = VALUES(output_size),
+				system_time = VALUES(system_time),
+				user_time = VALUES(user_time),
+				wall_time = VALUES(wall_time)`
+			if _, err := db.ExecContext(ctx, insertSQL, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "insert query schedule stats")
+			}
 		}
 	}
 
-	// Batch-resolve using the idx_name_team_id_unq index on (name, team_id_char).
-	placeholders := make([]string, 0, len(lookups))
-	args := make([]any, 0, len(lookups)*2)
-	for _, l := range lookups {
-		placeholders = append(placeholders, "(?,?)")
-		args = append(args, l.name, l.teamIDChar)
-	}
-
-	type resolvedRow struct {
-		ID         uint   `db:"id"`
-		Name       string `db:"name"`
-		TeamIDChar string `db:"team_id_char"`
-	}
-	//nolint:gosec // SQL is built from constant strings and counted placeholders
-	resolveSQL := `SELECT id, name, team_id_char FROM queries WHERE (name, team_id_char) IN (` + strings.Join(placeholders, ",") + `)`
-
-	var resolved []resolvedRow
-	if err := sqlx.SelectContext(ctx, db, &resolved, resolveSQL, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "resolve query IDs for stats")
-	}
-
-	// Build lookup map.
-	idMap := make(map[teamName]uint, len(resolved))
-	for _, r := range resolved {
-		idMap[teamName{r.TeamIDChar, r.Name}] = r.ID
-	}
-
-	// Build INSERT with resolved IDs, skipping entries whose query wasn't found.
-	valueStrings := make([]string, 0, len(entries))
-	insertArgs := make([]any, 0, len(entries)*11)
-	for _, e := range entries {
-		tidChar := ""
-		if e.teamID != 0 {
-			tidChar = fmt.Sprint(e.teamID)
-		}
-		qID, ok := idMap[teamName{tidChar, e.name}]
-		if !ok {
-			continue
-		}
-		valueStrings = append(valueStrings, "(?,?,?,?,?,?,?,?,?,?,?)")
-		insertArgs = append(insertArgs,
-			qID,
-			hostID,
-			e.stat.AverageMemory,
-			e.stat.Denylisted,
-			e.stat.Executions,
-			e.stat.Interval,
-			e.stat.LastExecuted,
-			e.stat.OutputSize,
-			e.stat.SystemTime,
-			e.stat.UserTime,
-			e.stat.WallTimeMs,
-		)
-	}
-
-	if len(valueStrings) == 0 {
-		return nil
-	}
-
-	//nolint:gosec // SQL is built from constant strings and counted placeholders
-	insertSQL := `
-		INSERT IGNORE INTO scheduled_query_stats (
-			scheduled_query_id, host_id, average_memory, denylisted,
-			executions, schedule_interval, last_executed, output_size,
-			system_time, user_time, wall_time
-		) VALUES ` + strings.Join(valueStrings, ",") + ` ON DUPLICATE KEY UPDATE
-			scheduled_query_id = VALUES(scheduled_query_id),
-			host_id = VALUES(host_id),
-			average_memory = VALUES(average_memory),
-			denylisted = VALUES(denylisted),
-			executions = VALUES(executions),
-			schedule_interval = VALUES(schedule_interval),
-			last_executed = VALUES(last_executed),
-			output_size = VALUES(output_size),
-			system_time = VALUES(system_time),
-			user_time = VALUES(user_time),
-			wall_time = VALUES(wall_time)`
-	if _, err := db.ExecContext(ctx, insertSQL, insertArgs...); err != nil {
-		return ctxerr.Wrap(ctx, err, "insert query schedule stats")
-	}
-	return nil
-}
-
-// saveUserPackStatsWithResolvedIDs resolves 2017-pack query IDs in a single
-// batch, then INSERTs with literal IDs.
-func saveUserPackStatsWithResolvedIDs(ctx context.Context, db *sqlx.DB, hostID uint, entries []userPackEntry) error {
-	type packQueryName struct {
-		packName      string
-		scheduledName string
-	}
-	lookups := make([]packQueryName, 0, len(entries))
-	seen := make(map[packQueryName]struct{}, len(entries))
-	for _, e := range entries {
-		k := packQueryName{e.packName, e.scheduledName}
-		if _, ok := seen[k]; !ok {
+	// --- Legacy 2017 packs: batch-resolve names to IDs ---
+	if len(userPacks) > 0 {
+		type key struct{ pack, sched string }
+		seen := make(map[key]struct{}, len(userPacks))
+		placeholders := make([]string, 0, len(userPacks))
+		resolveArgs := make([]any, 0, len(userPacks)*2)
+		for _, e := range userPacks {
+			k := key{e.packName, e.scheduledName}
+			if _, ok := seen[k]; ok {
+				continue
+			}
 			seen[k] = struct{}{}
-			lookups = append(lookups, k)
+			placeholders = append(placeholders, "(?,?)")
+			resolveArgs = append(resolveArgs, e.packName, e.scheduledName)
+		}
+
+		type resolved struct {
+			QueryID       uint   `db:"query_id"`
+			PackName      string `db:"pack_name"`
+			ScheduledName string `db:"scheduled_name"`
+		}
+		//nolint:gosec // SQL built from constant strings and counted placeholders
+		resolveSQL := `SELECT sq.query_id, p.name AS pack_name, sq.name AS scheduled_name
+			FROM scheduled_queries sq JOIN packs p ON sq.pack_id = p.id
+			WHERE p.pack_type IS NULL AND (p.name, sq.name) IN (` + strings.Join(placeholders, ",") + `)`
+		var rows []resolved
+		if err := sqlx.SelectContext(ctx, db, &rows, resolveSQL, resolveArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "resolve user pack query IDs for stats")
+		}
+		idMap := make(map[key]uint, len(rows))
+		for _, r := range rows {
+			idMap[key{r.PackName, r.ScheduledName}] = r.QueryID
+		}
+
+		vals := make([]string, 0, len(userPacks))
+		args := make([]any, 0, len(userPacks)*11)
+		for _, e := range userPacks {
+			qID, ok := idMap[key{e.packName, e.scheduledName}]
+			if !ok {
+				continue
+			}
+			vals = append(vals, "(?,?,?,?,?,?,?,?,?,?,?)")
+			args = append(args, qID, hostID,
+				e.stat.AverageMemory, e.stat.Denylisted, e.stat.Executions,
+				e.stat.Interval, e.stat.LastExecuted, e.stat.OutputSize,
+				e.stat.SystemTime, e.stat.UserTime, e.stat.WallTimeMs)
+		}
+		if len(vals) > 0 {
+			//nolint:gosec // SQL built from constant strings and counted placeholders
+			insertSQL := `INSERT IGNORE INTO scheduled_query_stats (
+				scheduled_query_id, host_id, average_memory, denylisted,
+				executions, schedule_interval, last_executed, output_size,
+				system_time, user_time, wall_time
+			) VALUES ` + strings.Join(vals, ",") + ` ON DUPLICATE KEY UPDATE
+				average_memory = VALUES(average_memory),
+				denylisted = VALUES(denylisted),
+				executions = VALUES(executions),
+				schedule_interval = VALUES(schedule_interval),
+				last_executed = VALUES(last_executed),
+				output_size = VALUES(output_size),
+				system_time = VALUES(system_time),
+				user_time = VALUES(user_time),
+				wall_time = VALUES(wall_time)`
+			if _, err := db.ExecContext(ctx, insertSQL, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "insert pack stats")
+			}
 		}
 	}
 
-	placeholders := make([]string, 0, len(lookups))
-	args := make([]any, 0, len(lookups)*2)
-	for _, l := range lookups {
-		placeholders = append(placeholders, "(?,?)")
-		args = append(args, l.packName, l.scheduledName)
-	}
-
-	type resolvedRow struct {
-		QueryID       uint   `db:"query_id"`
-		PackName      string `db:"pack_name"`
-		ScheduledName string `db:"scheduled_name"`
-	}
-	//nolint:gosec // SQL is built from constant strings and counted placeholders
-	resolveSQL := `SELECT sq.query_id, p.name AS pack_name, sq.name AS scheduled_name
-		FROM scheduled_queries sq JOIN packs p ON sq.pack_id = p.id
-		WHERE p.pack_type IS NULL AND (p.name, sq.name) IN (` + strings.Join(placeholders, ",") + `)`
-
-	var resolved []resolvedRow
-	if err := sqlx.SelectContext(ctx, db, &resolved, resolveSQL, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "resolve user pack query IDs for stats")
-	}
-
-	idMap := make(map[packQueryName]uint, len(resolved))
-	for _, r := range resolved {
-		idMap[packQueryName{r.PackName, r.ScheduledName}] = r.QueryID
-	}
-
-	valueStrings := make([]string, 0, len(entries))
-	insertArgs := make([]any, 0, len(entries)*11)
-	for _, e := range entries {
-		qID, ok := idMap[packQueryName{e.packName, e.scheduledName}]
-		if !ok {
-			continue
-		}
-		valueStrings = append(valueStrings, "(?,?,?,?,?,?,?,?,?,?,?)")
-		insertArgs = append(insertArgs,
-			qID,
-			hostID,
-			e.stat.AverageMemory,
-			e.stat.Denylisted,
-			e.stat.Executions,
-			e.stat.Interval,
-			e.stat.LastExecuted,
-			e.stat.OutputSize,
-			e.stat.SystemTime,
-			e.stat.UserTime,
-			e.stat.WallTimeMs,
-		)
-	}
-
-	if len(valueStrings) == 0 {
-		return nil
-	}
-
-	//nolint:gosec // SQL is built from constant strings and counted placeholders
-	insertSQL := `
-		INSERT IGNORE INTO scheduled_query_stats (
-			scheduled_query_id, host_id, average_memory, denylisted,
-			executions, schedule_interval, last_executed, output_size,
-			system_time, user_time, wall_time
-		) VALUES ` + strings.Join(valueStrings, ",") + ` ON DUPLICATE KEY UPDATE
-			scheduled_query_id = VALUES(scheduled_query_id),
-			host_id = VALUES(host_id),
-			average_memory = VALUES(average_memory),
-			denylisted = VALUES(denylisted),
-			executions = VALUES(executions),
-			schedule_interval = VALUES(schedule_interval),
-			last_executed = VALUES(last_executed),
-			output_size = VALUES(output_size),
-			system_time = VALUES(system_time),
-			user_time = VALUES(user_time),
-			wall_time = VALUES(wall_time)`
-	if _, err := db.ExecContext(ctx, insertSQL, insertArgs...); err != nil {
-		return ctxerr.Wrap(ctx, err, "insert pack stats")
-	}
 	return nil
 }
 
