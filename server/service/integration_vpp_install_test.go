@@ -1540,8 +1540,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 	require.NotNil(t, listSw.SoftwareTitles[0].AppStoreApp)
 	require.Equal(t, "1", listSw.SoftwareTitles[0].AppStoreApp.AppStoreID)
 	require.Equal(t, "NoVersion", listSw.SoftwareTitles[1].Name)
-	require.NotNil(t, listSw.SoftwareTitles[1].SoftwarePackage)
-	require.Equal(t, "no_version.pkg", listSw.SoftwareTitles[1].SoftwarePackage.Name)
+	require.NotEmpty(t, listSw.SoftwareTitles[1].Packages)
+	require.Equal(t, "no_version.pkg", listSw.SoftwareTitles[1].Packages[0].Name)
 
 	// a different team can batch-add the two installers without conflict
 	newTeamResp = teamResponse{}
@@ -1565,11 +1565,11 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 	require.Len(t, listSw.SoftwareTitles, 2)
 	// both are software packages
 	require.Equal(t, "DummyApp", listSw.SoftwareTitles[0].Name)
-	require.NotNil(t, listSw.SoftwareTitles[0].SoftwarePackage)
-	require.Equal(t, "dummy_installer.pkg", listSw.SoftwareTitles[0].SoftwarePackage.Name)
+	require.NotEmpty(t, listSw.SoftwareTitles[0].Packages)
+	require.Equal(t, "dummy_installer.pkg", listSw.SoftwareTitles[0].Packages[0].Name)
 	require.Equal(t, "NoVersion", listSw.SoftwareTitles[1].Name)
-	require.NotNil(t, listSw.SoftwareTitles[1].SoftwarePackage)
-	require.Equal(t, "no_version.pkg", listSw.SoftwareTitles[1].SoftwarePackage.Name)
+	require.NotEmpty(t, listSw.SoftwareTitles[1].Packages)
+	require.Equal(t, "no_version.pkg", listSw.SoftwareTitles[1].Packages[0].Name)
 
 	// a different team can batch-add the two VPP apps without conflict
 	newTeamResp = teamResponse{}
@@ -1768,9 +1768,9 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 		nil, http.StatusOK, &st, "fleet_id", "0")
 
 	require.Equal(t, "ipa_test", st.SoftwareTitle.Name)
-	require.Equal(t, "ipa_test.ipa", st.SoftwareTitle.SoftwarePackage.Name)
-	require.Equal(t, "ios", st.SoftwareTitle.SoftwarePackage.Platform)
-	require.WithinDuration(t, time.Now(), st.SoftwareTitle.SoftwarePackage.UploadedAt, time.Hour)
+	require.Equal(t, "ipa_test.ipa", st.SoftwareTitle.Packages[0].Name)
+	require.Equal(t, "ios", st.SoftwareTitle.Packages[0].Platform)
+	require.WithinDuration(t, time.Now(), st.SoftwareTitle.Packages[0].UploadedAt, time.Hour)
 }
 
 func (s *integrationMDMTestSuite) TestInHouseAppInstallErrorThenUpdatePackage() {

@@ -459,14 +459,16 @@ func (ds *Datastore) processSoftwareTitleResults(
 			title.HashSHA256 = title.InHouseAppStorageID
 
 			title.Packages = []fleet.SoftwarePackageListItem{{
-				InstallerID:        ptr.ValOrZero(title.InHouseAppID),
-				Name:               *title.InHouseAppName,
-				Version:            version,
-				Platform:           platform,
-				SelfService:        title.InHouseAppSelfService,
-				UploadedAt:         ptr.ValOrZero(title.InHouseAppUploadedAt),
-				InstallDuringSetup: title.InHouseAppInstallDuringSetup,
+				InstallerID: ptr.ValOrZero(title.InHouseAppID),
+				Name:        *title.InHouseAppName,
+				Version:     version,
+				Platform:    platform,
+				SelfService: title.InHouseAppSelfService,
+				UploadedAt:  ptr.ValOrZero(title.InHouseAppUploadedAt),
 			}}
+			if opt.ForSetupExperience {
+				title.Packages[0].InstallDuringSetup = title.InHouseAppInstallDuringSetup
+			}
 		}
 
 		// Promote VPP app properties.
@@ -586,8 +588,10 @@ func (ds *Datastore) processSoftwareTitleResults(
 			}
 			for j := range pkgs {
 				pkgs[j].AutomaticInstallPolicies = policiesByInstaller[pkgs[j].InstallerID]
-				// Selecting a title for setup experience selects all of the packages it has at that time.
-				pkgs[j].InstallDuringSetup = softwareList[i].PackageInstallDuringSetup
+				if opt.ForSetupExperience {
+					// Selecting a title for setup experience selects all of the packages it has at that time.
+					pkgs[j].InstallDuringSetup = softwareList[i].PackageInstallDuringSetup
+				}
 			}
 			softwareList[i].Packages = pkgs
 		}

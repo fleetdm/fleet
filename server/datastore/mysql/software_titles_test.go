@@ -1243,7 +1243,7 @@ func testListSoftwareTitlesPackages(t *testing.T, ds *Datastore) {
 		require.Equal(t, policy.ID, customTitle.Packages[0].AutomaticInstallPolicies[0].ID)
 		require.Nil(t, customTitle.Packages[0].FleetMaintainedAppID)
 		require.Nil(t, customTitle.Packages[0].FleetMaintainedVersions)
-		require.Equal(t, new(false), customTitle.Packages[0].InstallDuringSetup)
+		require.Nil(t, customTitle.Packages[0].InstallDuringSetup)
 
 		// read the Fleet-maintained app package, it should have the Fleet-maintained app id
 		maintainedAppTitle := titlesByID[maintainedAppTitleID]
@@ -1267,7 +1267,7 @@ func testListSoftwareTitlesPackages(t *testing.T, ds *Datastore) {
 		require.Equal(t, "3.0", iosInHouseTitle.Packages[0].Version)
 		require.Equal(t, new(true), iosInHouseTitle.Packages[0].SelfService)
 		require.Nil(t, iosInHouseTitle.Packages[0].FleetMaintainedAppID)
-		require.Equal(t, new(false), iosInHouseTitle.Packages[0].InstallDuringSetup)
+		require.Nil(t, iosInHouseTitle.Packages[0].InstallDuringSetup)
 		require.Equal(t, "in-house.ipa", iosInHouseTitle.SoftwarePackage.Name)
 
 		// select the custom package and the Linux script for macOS setup, both should have install_during_setup on macOS

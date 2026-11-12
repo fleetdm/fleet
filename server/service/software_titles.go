@@ -46,9 +46,7 @@ func listSoftwareTitlesEndpoint(ctx context.Context, request interface{}, svc fl
 		}
 		// we dont want to include the InstallDuringSetup field in the response
 		// for software titles list.
-		if sw.SoftwarePackage != nil {
-			sw.SoftwarePackage.InstallDuringSetup = nil
-		} else if sw.AppStoreApp != nil {
+		if sw.AppStoreApp != nil {
 			sw.AppStoreApp.InstallDuringSetup = nil
 		}
 	}
@@ -117,6 +115,10 @@ func (svc *Service) ListSoftwareTitles(
 		for i := range titles {
 			titles[i].AITool = nil
 		}
+	}
+	// Clear the deprecated software_package object from every response except setup experience
+	for i := range titles {
+		titles[i].SoftwarePackage = nil
 	}
 
 	return titles, count, meta, nil
@@ -273,12 +275,10 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 					}
 				}
 
-				// software_package is kept for backwards compatibility and equals the first-added package.
 				software.Packages = make([]fleet.SoftwareInstaller, len(pkgs))
 				for i, pkg := range pkgs {
 					software.Packages[i] = *pkg
 				}
-				software.SoftwarePackage = pkgs[0]
 			}
 		}
 
@@ -357,7 +357,6 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 				}
 				software.Packages = []fleet.SoftwareInstaller{*meta}
 			}
-			software.SoftwarePackage = meta
 		}
 	}
 
@@ -389,12 +388,8 @@ func (svc *Service) filterInstallerDetailsForUser(ctx context.Context, teamID *u
 		installer.Configuration = nil
 	}
 
-	// Packages holds copies while SoftwarePackage is a pointer, so filter both.
 	for i := range title.Packages {
 		filterInstaller(&title.Packages[i])
-	}
-	if title.SoftwarePackage != nil {
-		filterInstaller(title.SoftwarePackage)
 	}
 	if title.AppStoreApp != nil {
 		title.AppStoreApp.Configuration = nil

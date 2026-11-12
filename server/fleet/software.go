@@ -521,8 +521,6 @@ type SoftwareTitle struct {
 	// InHouseAppsCount is 0 or 1, indicating if the software title has
 	// an in house app (.ipa) installer
 	InHouseAppCount int `json:"-" db:"in_house_apps_count"`
-	// SoftwarePackage is kept for backwards compatibility; it holds the first-added package (nil when none).
-	SoftwarePackage *SoftwareInstaller `json:"software_package" db:"-"`
 	// Packages holds every package, first-added first; nil (marshals to null) when none.
 	Packages []SoftwareInstaller `json:"packages" db:"-"`
 	// AppStoreApp holds the first-added App Store app version for backwards compatibility, nil when there is none.
@@ -588,9 +586,8 @@ func (st *SoftwareTitleListResult) MarshalJSON() ([]byte, error) {
 	return json.Marshal((*Alias)(st))
 }
 
-// This type is essentially the same as the above SoftwareTitle type. The only difference is that
-// SoftwarePackage is a string pointer here. This type is for use when listing out SoftwareTitles;
-// the above type is used when fetching them individually.
+// This type is essentially the same as the above SoftwareTitle type. This type is for use when
+// listing out SoftwareTitles; the above type is used when fetching them individually.
 type SoftwareTitleListResult struct {
 	ID uint `json:"id" db:"id"`
 	// Name is the name reported by osquery.
@@ -613,8 +610,8 @@ type SoftwareTitleListResult struct {
 	// was last updated for that software title
 	CountsUpdatedAt *time.Time `json:"-" db:"counts_updated_at"`
 
-	// SoftwarePackage is kept for backwards compatibility; it holds the first-added package (nil when none).
-	SoftwarePackage *SoftwarePackageOrApp `json:"software_package"`
+	// SoftwarePackage holds the first-added package for the setup experience software list, nil when none.
+	SoftwarePackage *SoftwarePackageOrApp `json:"software_package,omitempty"`
 
 	// Packages holds the trimmed per-package info, first-added first; nil (marshals to null) when none.
 	Packages []SoftwarePackageListItem `json:"packages"`

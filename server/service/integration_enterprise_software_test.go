@@ -1150,7 +1150,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	require.NotEmpty(t, resp.SoftwareTitles[0].Packages)
 	// Test that the software titles endpoint returns a SHA256 hash.
 	require.Equal(t, "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628", *resp.SoftwareTitles[0].HashSHA256)
 
@@ -1173,7 +1173,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		"team_id", fmt.Sprintf("%d", team1.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	require.NotEmpty(t, resp.SoftwareTitles[0].Packages)
 
 	// software installer not returned with self-service only (not marked as such)
 	resp = listSoftwareTitlesResponse{}
@@ -1190,9 +1190,9 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp,
 		"self_service", "1", "query", "ruby", "team_id", fmt.Sprint(team1.ID))
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage.SelfService)
-	require.True(t, *resp.SoftwareTitles[0].SoftwarePackage.SelfService)
+	require.NotEmpty(t, resp.SoftwareTitles[0].Packages)
+	require.NotNil(t, resp.SoftwareTitles[0].Packages[0].SelfService)
+	require.True(t, *resp.SoftwareTitles[0].Packages[0].SelfService)
 
 	// "All teams" returns all software regardless of self_service see https://github.com/fleetdm/fleet/issues/26375
 	resp = listSoftwareTitlesResponse{}
@@ -1216,20 +1216,20 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 
 	require.Len(t, resp.SoftwareTitles, 2)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage.SelfService)
-	require.True(t, *resp.SoftwareTitles[0].SoftwarePackage.SelfService)
-	require.NotNil(t, resp.SoftwareTitles[1].SoftwarePackage)
-	require.NotNil(t, resp.SoftwareTitles[1].SoftwarePackage.SelfService)
-	require.True(t, *resp.SoftwareTitles[1].SoftwarePackage.SelfService)
+	require.NotEmpty(t, resp.SoftwareTitles[0].Packages)
+	require.NotNil(t, resp.SoftwareTitles[0].Packages[0].SelfService)
+	require.True(t, *resp.SoftwareTitles[0].Packages[0].SelfService)
+	require.NotEmpty(t, resp.SoftwareTitles[1].Packages)
+	require.NotNil(t, resp.SoftwareTitles[1].Packages[0].SelfService)
+	require.True(t, *resp.SoftwareTitles[1].Packages[0].SelfService)
 
 	emacsPath := fmt.Sprintf("/api/latest/fleet/software/titles/%d", resp.SoftwareTitles[0].ID)
 	respTitle := getSoftwareTitleResponse{}
 	s.DoJSON("GET", emacsPath, listSoftwareTitlesRequest{}, http.StatusOK, &respTitle, "fleet_id", "0")
 
 	require.NotNil(t, respTitle.SoftwareTitle)
-	require.Equal(t, "emacs.deb", respTitle.SoftwareTitle.SoftwarePackage.Name)
-	require.True(t, respTitle.SoftwareTitle.SoftwarePackage.SelfService)
+	require.Equal(t, "emacs.deb", respTitle.SoftwareTitle.Packages[0].Name)
+	require.True(t, respTitle.SoftwareTitle.Packages[0].SelfService)
 
 	darwinSwPayload := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install",
@@ -2639,13 +2639,13 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 
 	var titleResp getSoftwareTitleResponse
 	s.DoJSON("GET", titlePath, nil, http.StatusOK, &titleResp, "team_id", "0")
-	require.ElementsMatch(t, []string{cat1.Name, cat2.Name}, titleResp.SoftwareTitle.SoftwarePackage.Categories)
+	require.ElementsMatch(t, []string{cat1.Name, cat2.Name}, titleResp.SoftwareTitle.Packages[0].Categories)
 
 	// deleting a category cascades the link
 	s.Do("DELETE", fmt.Sprintf("%s/%d", path, cat1.ID), nil, http.StatusNoContent)
 	titleResp = getSoftwareTitleResponse{}
 	s.DoJSON("GET", titlePath, nil, http.StatusOK, &titleResp, "team_id", "0")
-	require.ElementsMatch(t, []string{cat2.Name}, titleResp.SoftwareTitle.SoftwarePackage.Categories)
+	require.ElementsMatch(t, []string{cat2.Name}, titleResp.SoftwareTitle.Packages[0].Categories)
 
 	// deleting a team cascades to its categories
 	var deletableResp teamResponse

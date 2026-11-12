@@ -431,7 +431,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	var getSoftwareTitleResp getSoftwareTitleResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *statusResp.Results.Software[0].SoftwareTitleID), nil, http.StatusOK, &getSoftwareTitleResp, "team_id", fmt.Sprintf("%d", *enrolledHost.TeamID))
 	require.NotNil(t, getSoftwareTitleResp.SoftwareTitle)
-	require.NotNil(t, getSoftwareTitleResp.SoftwareTitle.SoftwarePackage)
+	require.NotEmpty(t, getSoftwareTitleResp.SoftwareTitle.Packages)
 
 	debugPrintActivities := func(activities []*fleet.UpcomingActivity) []string {
 		var res []string
@@ -461,7 +461,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 		"source": "apps",
 		"host_display_name": "%s"
 	}
-	`, enrolledHost.ID, installUUID, getSoftwareTitleResp.SoftwareTitle.Name, getSoftwareTitleResp.SoftwareTitle.SoftwarePackage.Name, enrolledHost.DisplayName())
+	`, enrolledHost.ID, installUUID, getSoftwareTitleResp.SoftwareTitle.Name, getSoftwareTitleResp.SoftwareTitle.Packages[0].Name, enrolledHost.DisplayName())
 	require.Len(t, hostActivitiesResp.Activities, 1, "got activities: %v", debugPrintActivities(hostActivitiesResp.Activities))
 	require.NotNil(t, hostActivitiesResp.Activities[0].Details)
 	require.JSONEq(t, expectedActivityDetail, string(*hostActivitiesResp.Activities[0].Details))
@@ -556,7 +556,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
   "from_setup_experience": true,
   "patch_when_closed": false
 }
-	`, enrolledHost.ID, getHostResp.Host.DisplayName, statusResp.Results.Software[0].Name, getSoftwareTitleResp.SoftwareTitle.SoftwarePackage.Name, getSoftwareTitleResp.SoftwareTitle.SoftwarePackage.StorageID, installUUID)
+	`, enrolledHost.ID, getHostResp.Host.DisplayName, statusResp.Results.Software[0].Name, getSoftwareTitleResp.SoftwareTitle.Packages[0].Name, getSoftwareTitleResp.SoftwareTitle.Packages[0].StorageID, installUUID)
 
 	s.lastActivityMatchesExtended(fleet.ActivityTypeInstalledSoftware{}.ActivityName(), expectedActivityDetail, 0, ptr.Bool(true))
 
@@ -732,8 +732,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithFMAAndVersionRollba
 		"team_id", fmt.Sprint(tm.ID),
 	)
 	require.Len(t, titlesResp.SoftwareTitles, 1)
-	require.Equal(t, "1.0", titlesResp.SoftwareTitles[0].SoftwarePackage.Version)
-	require.Len(t, titlesResp.SoftwareTitles[0].SoftwarePackage.FleetMaintainedVersions, 1)
+	require.Equal(t, "1.0", titlesResp.SoftwareTitles[0].Packages[0].Version)
+	require.Len(t, titlesResp.SoftwareTitles[0].Packages[0].FleetMaintainedVersions, 1)
 
 	// Advance to v2.0 — both v1 and v2 are now cached.
 	fmaState.version = "2.0"
@@ -751,8 +751,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithFMAAndVersionRollba
 		"team_id", fmt.Sprint(tm.ID),
 	)
 	require.Len(t, titlesResp.SoftwareTitles, 1)
-	require.Equal(t, "2.0", titlesResp.SoftwareTitles[0].SoftwarePackage.Version)
-	require.Len(t, titlesResp.SoftwareTitles[0].SoftwarePackage.FleetMaintainedVersions, 2)
+	require.Equal(t, "2.0", titlesResp.SoftwareTitles[0].Packages[0].Version)
+	require.Len(t, titlesResp.SoftwareTitles[0].Packages[0].FleetMaintainedVersions, 2)
 
 	// Roll back to v1.0 by specifying RollbackVersion in the batch request
 	// (simulating a GitOps yaml that pins fleet_maintained_app_version: "1.0").
@@ -771,7 +771,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithFMAAndVersionRollba
 		"team_id", fmt.Sprint(tm.ID),
 	)
 	require.Len(t, titlesResp.SoftwareTitles, 1)
-	require.Equal(t, "1.0", titlesResp.SoftwareTitles[0].SoftwarePackage.Version,
+	require.Equal(t, "1.0", titlesResp.SoftwareTitles[0].Packages[0].Version,
 		"active version must be v1.0 after rollback")
 
 	// -------------------------------------------------------------------------
@@ -905,8 +905,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithFMAAndVersionRollba
 		nil, http.StatusOK, &titleDetail,
 		"team_id", fmt.Sprint(tm.ID))
 	require.NotNil(t, titleDetail.SoftwareTitle)
-	require.NotNil(t, titleDetail.SoftwareTitle.SoftwarePackage)
-	require.Equal(t, "1.0", titleDetail.SoftwareTitle.SoftwarePackage.Version,
+	require.NotEmpty(t, titleDetail.SoftwareTitle.Packages)
+	require.Equal(t, "1.0", titleDetail.SoftwareTitle.Packages[0].Version,
 		"the installed version during setup experience must be the rolled-back v1.0")
 
 	// No MDM command was enqueued just from the /status call (device not released yet).
@@ -934,7 +934,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithFMAAndVersionRollba
 	require.Equal(t, installUUID, activityDetails["install_uuid"])
 	require.Equal(t, "1Password", activityDetails["software_title"])
 	// The package name must come from the v1.0 installer, not v2.0.
-	require.Equal(t, titleDetail.SoftwareTitle.SoftwarePackage.Name, activityDetails["software_package"])
+	require.Equal(t, titleDetail.SoftwareTitle.Packages[0].Name, activityDetails["software_package"])
 
 	// Post a successful install result for the FMA.
 	s.Do("POST", "/api/fleet/orbit/software_install/result",
@@ -992,7 +992,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithFMAAndVersionRollba
   "from_setup_experience": true,
   "patch_when_closed": false
 }
-	`, enrolledHost.ID, getHostResp.Host.DisplayName, titleDetail.SoftwareTitle.SoftwarePackage.Name, titleDetail.SoftwareTitle.SoftwarePackage.StorageID, installUUID)
+	`, enrolledHost.ID, getHostResp.Host.DisplayName, titleDetail.SoftwareTitle.Packages[0].Name, titleDetail.SoftwareTitle.Packages[0].StorageID, installUUID)
 	s.lastActivityMatchesExtended(fleet.ActivityTypeInstalledSoftware{}.ActivityName(), expectedActivityDetail, 0, ptr.Bool(true))
 }
 

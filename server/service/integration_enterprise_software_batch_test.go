@@ -393,8 +393,8 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	require.Equal(t, 1, titlesResp.Count)
 	require.Len(t, titlesResp.SoftwareTitles, 1)
 	// Check that the URL is set to software installers uploaded via batch.
-	require.NotNil(t, titlesResp.SoftwareTitles[0].SoftwarePackage.PackageURL)
-	require.Equal(t, rubyURL, *titlesResp.SoftwareTitles[0].SoftwarePackage.PackageURL)
+	require.NotNil(t, titlesResp.SoftwareTitles[0].Packages[0].PackageURL)
+	require.Equal(t, rubyURL, *titlesResp.SoftwareTitles[0].Packages[0].PackageURL)
 
 	// check that platform is set when the installer is created
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -431,7 +431,6 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	newTitlesResp = listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "team_id",
 		fmt.Sprint(tm.ID))
-	titlesResp.SoftwareTitles[0].SoftwarePackage.SelfService = new(true)
 	titlesResp.SoftwareTitles[0].Packages[0].SelfService = new(true)
 	require.Equal(t, titlesResp, newTitlesResp)
 
@@ -486,7 +485,6 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	require.Nil(t, packages[0].TeamID)
 	newTitlesResp = listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(0)))
-	titlesResp.SoftwareTitles[0].SoftwarePackage.SelfService = new(true)
 	titlesResp.SoftwareTitles[0].Packages[0].SelfService = new(true)
 	require.Equal(t, titlesResp, newTitlesResp)
 
@@ -619,8 +617,8 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 
 	var softwareTitleResponse getSoftwareTitleResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *packages[0].TitleID), nil, http.StatusOK, &softwareTitleResponse, "fleet_id", "0")
-	require.Equal(t, "echo 'Hello world'", softwareTitleResponse.SoftwareTitle.SoftwarePackage.InstallScript)
-	require.Contains(t, softwareTitleResponse.SoftwareTitle.SoftwarePackage.UninstallScript, "LOGGED_IN_USER") // should pass through FMA script
+	require.Equal(t, "echo 'Hello world'", softwareTitleResponse.SoftwareTitle.Packages[0].InstallScript)
+	require.Contains(t, softwareTitleResponse.SoftwareTitle.Packages[0].UninstallScript, "LOGGED_IN_USER") // should pass through FMA script
 
 	// with a team
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
@@ -726,7 +724,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	// Given that the manifest returns "latest", the version should be parsed from the downloaded file.
 	titleResponse := getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", *packages[0].TitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
-	require.Equal(t, "1.0.0", titleResponse.SoftwareTitle.SoftwarePackage.Version)
+	require.Equal(t, "1.0.0", titleResponse.SoftwareTitle.Packages[0].Version)
 
 	meta, err = s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, *packages[0].TitleID, false)
 	require.NoError(t, err)
@@ -829,7 +827,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 	titleResponse := getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titlesResp.SoftwareTitles[0].ID), nil, http.StatusOK, &titleResponse,
 		"team_id", fmt.Sprint(tm.ID))
-	uploadedAt := titleResponse.SoftwareTitle.SoftwarePackage.UploadedAt
+	uploadedAt := titleResponse.SoftwareTitle.Packages[0].UploadedAt
 
 	// create a host that doesn't have fleetd installed
 	h, err := s.ds.NewHost(context.Background(), &fleet.Host{
@@ -892,7 +890,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 	newTitlesResp := listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "team_id",
 		fmt.Sprint(tm.ID))
-	require.True(t, *newTitlesResp.SoftwareTitles[0].SoftwarePackage.SelfService)
+	require.True(t, *newTitlesResp.SoftwareTitles[0].Packages[0].SelfService)
 
 	// Install should still be pending
 	afterSelfServiceHostResp := getHostSoftwareResponse{}
@@ -913,8 +911,8 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 	titleResponse = getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", newTitlesResp.SoftwareTitles[0].ID), nil, http.StatusOK, &titleResponse,
 		"team_id", fmt.Sprint(tm.ID))
-	require.Equal(t, "SELECT * FROM os_version", titleResponse.SoftwareTitle.SoftwarePackage.PreInstallQuery)
-	require.Equal(t, uint(0), titleResponse.SoftwareTitle.SoftwarePackage.Status.PendingInstall)
+	require.Equal(t, "SELECT * FROM os_version", titleResponse.SoftwareTitle.Packages[0].PreInstallQuery)
+	require.Equal(t, uint(0), titleResponse.SoftwareTitle.Packages[0].Status.PendingInstall)
 
 	// install should no longer be pending
 	afterPreinstallHostResp := getHostSoftwareResponse{}
@@ -936,8 +934,8 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 	// ensure install count is updated
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", newTitlesResp.SoftwareTitles[0].ID), nil, http.StatusOK, &titleResponse,
 		"team_id", fmt.Sprint(tm.ID))
-	require.Equal(t, uint(1), titleResponse.SoftwareTitle.SoftwarePackage.Status.Installed)
-	require.Equal(t, uint(0), titleResponse.SoftwareTitle.SoftwarePackage.Status.PendingInstall)
+	require.Equal(t, uint(1), titleResponse.SoftwareTitle.Packages[0].Status.Installed)
+	require.Equal(t, uint(0), titleResponse.SoftwareTitle.Packages[0].Status.PendingInstall)
 
 	// install should show as complete
 	hostResp := getHostSoftwareResponse{}
@@ -959,9 +957,9 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 	// ensure install count is the same, and uploaded_at hasn't changed
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", newTitlesResp.SoftwareTitles[0].ID), nil, http.StatusOK, &titleResponse,
 		"team_id", fmt.Sprint(tm.ID))
-	require.Equal(t, uint(1), titleResponse.SoftwareTitle.SoftwarePackage.Status.Installed)
-	require.Equal(t, uint(0), titleResponse.SoftwareTitle.SoftwarePackage.Status.PendingInstall)
-	require.Equal(t, uploadedAt, titleResponse.SoftwareTitle.SoftwarePackage.UploadedAt)
+	require.Equal(t, uint(1), titleResponse.SoftwareTitle.Packages[0].Status.Installed)
+	require.Equal(t, uint(0), titleResponse.SoftwareTitle.Packages[0].Status.PendingInstall)
+	require.Equal(t, uploadedAt, titleResponse.SoftwareTitle.Packages[0].UploadedAt)
 
 	// install should still show as complete
 	hostResp = getHostSoftwareResponse{}
@@ -981,9 +979,9 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 	// ensure install count is zeroed and uploaded_at HAS changed
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", newTitlesResp.SoftwareTitles[0].ID), nil, http.StatusOK, &titleResponse,
 		"team_id", fmt.Sprint(tm.ID))
-	require.Equal(t, uint(0), titleResponse.SoftwareTitle.SoftwarePackage.Status.Installed)
-	require.Equal(t, uint(0), titleResponse.SoftwareTitle.SoftwarePackage.Status.PendingInstall)
-	require.NotEqual(t, uploadedAt, titleResponse.SoftwareTitle.SoftwarePackage.UploadedAt)
+	require.Equal(t, uint(0), titleResponse.SoftwareTitle.Packages[0].Status.Installed)
+	require.Equal(t, uint(0), titleResponse.SoftwareTitle.Packages[0].Status.PendingInstall)
+	require.NotEqual(t, uploadedAt, titleResponse.SoftwareTitle.Packages[0].UploadedAt)
 
 	// install should be nulled out
 	hostResp = getHostSoftwareResponse{}
@@ -1251,7 +1249,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersCondition
 	titleResp := getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
 		"team_id", fmt.Sprint(tm.ID))
-	firstUploadedAt := titleResp.SoftwareTitle.SoftwarePackage.UploadedAt
+	firstUploadedAt := titleResp.SoftwareTitle.Packages[0].UploadedAt
 
 	mu.Lock()
 	require.Equal(t, 1, requestCount, "expected exactly one HTTP request on first run")
@@ -1270,7 +1268,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersCondition
 	titleResp = getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
 		"team_id", fmt.Sprint(tm.ID))
-	require.Equal(t, firstUploadedAt, titleResp.SoftwareTitle.SoftwarePackage.UploadedAt,
+	require.Equal(t, firstUploadedAt, titleResp.SoftwareTitle.Packages[0].UploadedAt,
 		"uploaded_at must not change on 304 cache hit")
 
 	mu.Lock()
@@ -1310,7 +1308,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersCondition
 	titleResp = getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
 		"team_id", fmt.Sprint(tm.ID))
-	uploadedAtBeforeConditional := titleResp.SoftwareTitle.SoftwarePackage.UploadedAt
+	uploadedAtBeforeConditional := titleResp.SoftwareTitle.Packages[0].UploadedAt
 
 	mu.Lock()
 	countBeforeConditional := requestCount
@@ -1325,7 +1323,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersCondition
 	titleResp = getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
 		"team_id", fmt.Sprint(tm.ID))
-	require.Equal(t, uploadedAtBeforeConditional, titleResp.SoftwareTitle.SoftwarePackage.UploadedAt,
+	require.Equal(t, uploadedAtBeforeConditional, titleResp.SoftwareTitle.Packages[0].UploadedAt,
 		"uploaded_at must not change when ETag from prior always_download run is reused")
 
 	mu.Lock()
@@ -1348,8 +1346,8 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersCondition
 	titleResp = getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
 		"team_id", fmt.Sprint(tm.ID))
-	uploadedAtBeforeContentChange := titleResp.SoftwareTitle.SoftwarePackage.UploadedAt
-	hashBeforeContentChange := titleResp.SoftwareTitle.SoftwarePackage.StorageID
+	uploadedAtBeforeContentChange := titleResp.SoftwareTitle.Packages[0].UploadedAt
+	hashBeforeContentChange := titleResp.SoftwareTitle.Packages[0].StorageID
 
 	s.DoJSON("POST", "/api/latest/fleet/software/batch",
 		batchSetSoftwareInstallersRequest{Software: softwareToInstall},
@@ -1361,7 +1359,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersCondition
 	titleResp = getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
 		"team_id", fmt.Sprint(tm.ID))
-	require.NotEqual(t, uploadedAtBeforeContentChange, titleResp.SoftwareTitle.SoftwarePackage.UploadedAt,
+	require.NotEqual(t, uploadedAtBeforeContentChange, titleResp.SoftwareTitle.Packages[0].UploadedAt,
 		"uploaded_at must advance when bytes are re-downloaded")
 
 	mu.Lock()
@@ -1482,7 +1480,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersWithPolic
 		"team_id", fmt.Sprintf("%d", team1.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	require.NotEmpty(t, resp.SoftwareTitles[0].Packages)
 	rubyDebTitleID := resp.SoftwareTitles[0].ID
 	mtplr := fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team1.ID, policy1Team1.ID), fleet.ModifyTeamPolicyRequest{
@@ -1516,10 +1514,10 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersWithPolic
 		fmt.Sprint(team2.ID))
 	require.Equal(t, 2, titlesResp.Count)
 	require.Len(t, titlesResp.SoftwareTitles, 2)
-	require.NotNil(t, titlesResp.SoftwareTitles[0].SoftwarePackage.PackageURL)
-	require.Equal(t, srv.URL+"/dummy_installer.pkg", *titlesResp.SoftwareTitles[0].SoftwarePackage.PackageURL)
-	require.NotNil(t, titlesResp.SoftwareTitles[1].SoftwarePackage.PackageURL)
-	require.Equal(t, srv.URL+"/ruby.deb", *titlesResp.SoftwareTitles[1].SoftwarePackage.PackageURL)
+	require.NotNil(t, titlesResp.SoftwareTitles[0].Packages[0].PackageURL)
+	require.Equal(t, srv.URL+"/dummy_installer.pkg", *titlesResp.SoftwareTitles[0].Packages[0].PackageURL)
+	require.NotNil(t, titlesResp.SoftwareTitles[1].Packages[0].PackageURL)
+	require.Equal(t, srv.URL+"/ruby.deb", *titlesResp.SoftwareTitles[1].Packages[0].PackageURL)
 
 	// policy2Team2 should still be associated to ruby.deb of team2.
 	policy2Team2, err = s.ds.Policy(ctx, policy2Team2.ID)
@@ -1639,9 +1637,9 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	// check that URL comes back on individual title fetch
 	stResp := getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *packages[0].TitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team1.ID))
-	require.NotNil(t, stResp.SoftwareTitle.SoftwarePackage)
+	require.NotEmpty(t, stResp.SoftwareTitle.Packages)
 	require.Equal(t, "ruby", stResp.SoftwareTitle.Name)
-	require.Equal(t, rubyURL, stResp.SoftwareTitle.SoftwarePackage.URL)
+	require.Equal(t, rubyURL, stResp.SoftwareTitle.Packages[0].URL)
 
 	// create a new team
 	team2, err := s.ds.NewTeam(context.Background(), &fleet.Team{
@@ -1784,11 +1782,11 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	pkgTitleID := packages[2].TitleID
 	require.NotNil(t, pkgTitleID)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *pkgTitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team2.ID))
-	require.NotNil(t, stResp.SoftwareTitle.SoftwarePackage)
+	require.NotEmpty(t, stResp.SoftwareTitle.Packages)
 	require.Equal(t, "DummyApp", stResp.SoftwareTitle.Name)
-	require.Equal(t, pkgURL, stResp.SoftwareTitle.SoftwarePackage.URL)
-	require.Equal(t, softwareToInstall[2].InstallScript, stResp.SoftwareTitle.SoftwarePackage.InstallScript)
-	require.Equal(t, softwareToInstall[2].UninstallScript, stResp.SoftwareTitle.SoftwarePackage.UninstallScript)
+	require.Equal(t, pkgURL, stResp.SoftwareTitle.Packages[0].URL)
+	require.Equal(t, softwareToInstall[2].InstallScript, stResp.SoftwareTitle.Packages[0].InstallScript)
+	require.Equal(t, softwareToInstall[2].UninstallScript, stResp.SoftwareTitle.Packages[0].UninstallScript)
 	require.False(t, hitDebURL)
 	require.False(t, hitExeURL)
 	require.True(t, hitPkgURL)
@@ -1853,11 +1851,11 @@ done
 	pkgTitleID = packages[2].TitleID
 	require.NotNil(t, pkgTitleID)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *pkgTitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team2.ID))
-	require.NotNil(t, stResp.SoftwareTitle.SoftwarePackage)
+	require.NotEmpty(t, stResp.SoftwareTitle.Packages)
 	require.Equal(t, "DummyApp", stResp.SoftwareTitle.Name)
-	require.Equal(t, pkgURL, stResp.SoftwareTitle.SoftwarePackage.URL)
-	require.Equal(t, file.GetInstallScript("pkg"), stResp.SoftwareTitle.SoftwarePackage.InstallScript)
-	require.Equal(t, expectedUninstallScript, stResp.SoftwareTitle.SoftwarePackage.UninstallScript)
+	require.Equal(t, pkgURL, stResp.SoftwareTitle.Packages[0].URL)
+	require.Equal(t, file.GetInstallScript("pkg"), stResp.SoftwareTitle.Packages[0].InstallScript)
+	require.Equal(t, expectedUninstallScript, stResp.SoftwareTitle.Packages[0].UninstallScript)
 
 	// Clean up all installers from the store. We don't care about how many installers are
 	// removed in this test, so just check that the cleanup succeeded.
@@ -2030,13 +2028,13 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 				// check that categories come back on individual title fetch
 				stResp := getSoftwareTitleResponse{}
 				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *p.TitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team1.ID))
-				require.NotNil(t, stResp.SoftwareTitle.SoftwarePackage)
-				if stResp.SoftwareTitle.SoftwarePackage.FleetMaintainedAppID != nil && !tc.categories.Set {
+				require.NotEmpty(t, stResp.SoftwareTitle.Packages)
+				if stResp.SoftwareTitle.Packages[0].FleetMaintainedAppID != nil && !tc.categories.Set {
 					// categories omitted on an FMA → fall back to the manifest default
-					require.ElementsMatch(t, tc.fmaDefaultCategories, stResp.SoftwareTitle.SoftwarePackage.Categories)
+					require.ElementsMatch(t, tc.fmaDefaultCategories, stResp.SoftwareTitle.Packages[0].Categories)
 					continue
 				}
-				require.ElementsMatch(t, wantCategories, stResp.SoftwareTitle.SoftwarePackage.Categories)
+				require.ElementsMatch(t, wantCategories, stResp.SoftwareTitle.Packages[0].Categories)
 			}
 
 			// check that the categories come back on the My device page
@@ -2197,7 +2195,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetInstallersScriptByHash() {
 
 	var titleID uint
 	for _, sw := range listResp.SoftwareTitles {
-		if sw.SoftwarePackage != nil && sw.SoftwarePackage.Name == "script.sh" {
+		if len(sw.Packages) > 0 && sw.Packages[0].Name == "script.sh" {
 			titleID = sw.ID
 			break
 		}

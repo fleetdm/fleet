@@ -119,11 +119,11 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	stResp := getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Equal("RubyUpdate1", stResp.SoftwareTitle.DisplayName)
-	s.Assert().Len(stResp.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies, 1)
+	s.Assert().Len(stResp.SoftwareTitle.Packages[0].AutomaticInstallPolicies, 1)
 
 	// Auto install policy should have the display name
 	var getPolicyResp fleet.GetPolicyByIDResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", stResp.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies[0].ID), fleet.GetPolicyByIDRequest{}, http.StatusOK, &getPolicyResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", stResp.SoftwareTitle.Packages[0].AutomaticInstallPolicies[0].ID), fleet.GetPolicyByIDRequest{}, http.StatusOK, &getPolicyResp)
 	s.Assert().NotNil(getPolicyResp.Policy)
 	s.Assert().Equal("RubyUpdate1", getPolicyResp.Policy.InstallSoftware.DisplayName)
 
@@ -144,7 +144,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	stResp = getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Equal("RubyUpdate1", stResp.SoftwareTitle.DisplayName)
-	s.Assert().Len(stResp.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies, 1)
+	s.Assert().Len(stResp.SoftwareTitle.Packages[0].AutomaticInstallPolicies, 1)
 
 	// set self service to true
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
@@ -200,8 +200,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Empty(stResp.SoftwareTitle.DisplayName)
 	// PATCH semantics, so we shouldn't overwrite self service
-	s.Assert().True(stResp.SoftwareTitle.SoftwarePackage.SelfService)
-	s.ElementsMatch([]string{"🧰 Developer tools", "🌎 Browsers"}, stResp.SoftwareTitle.SoftwarePackage.Categories)
+	s.Assert().True(stResp.SoftwareTitle.Packages[0].SelfService)
+	s.ElementsMatch([]string{"🧰 Developer tools", "🌎 Browsers"}, stResp.SoftwareTitle.Packages[0].Categories)
 
 	// List software titles display name is empty
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID))
@@ -485,8 +485,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Equal("InHouseAppUpdate2", stResp.SoftwareTitle.DisplayName)
 	// PATCH semantics, so we shouldn't overwrite self service or categories
-	s.Assert().True(stResp.SoftwareTitle.SoftwarePackage.SelfService)
-	s.ElementsMatch([]string{"🧰 Developer tools", "🌎 Browsers"}, stResp.SoftwareTitle.SoftwarePackage.Categories)
+	s.Assert().True(stResp.SoftwareTitle.Packages[0].SelfService)
+	s.ElementsMatch([]string{"🧰 Developer tools", "🌎 Browsers"}, stResp.SoftwareTitle.Packages[0].Categories)
 
 	// List software titles has display name
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID))
@@ -495,7 +495,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		if t.ID == titleID {
 			s.Assert().Equal("InHouseAppUpdate2", t.DisplayName)
 			// PATCH semantics, so we shouldn't overwrite self service
-			s.Assert().True(*t.SoftwarePackage.SelfService)
+			s.Assert().True(*t.Packages[0].SelfService)
 		}
 	}
 
@@ -694,8 +694,8 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 		"hash_sha256", hash1)
 	require.Len(t, resp1.SoftwareTitles, 1)
 	require.Equal(t, titleName, resp1.SoftwareTitles[0].Name)
-	require.NotNil(t, resp1.SoftwareTitles[0].SoftwarePackage)
-	require.Equal(t, "dummy_installer.pkg", resp1.SoftwareTitles[0].SoftwarePackage.Name)
+	require.NotEmpty(t, resp1.SoftwareTitles[0].Packages)
+	require.Equal(t, "dummy_installer.pkg", resp1.SoftwareTitles[0].Packages[0].Name)
 
 	// Test 2: Filter by hash_sha256 on team2 - should find Firefox
 	var resp2 listSoftwareTitlesResponse
@@ -719,8 +719,8 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 		"package_name", "dummy_installer.pkg")
 	require.Len(t, resp4.SoftwareTitles, 1)
 	require.Equal(t, titleName, resp4.SoftwareTitles[0].Name)
-	require.NotNil(t, resp4.SoftwareTitles[0].SoftwarePackage)
-	require.Equal(t, "dummy_installer.pkg", resp4.SoftwareTitles[0].SoftwarePackage.Name)
+	require.NotEmpty(t, resp4.SoftwareTitles[0].Packages)
+	require.Equal(t, "dummy_installer.pkg", resp4.SoftwareTitles[0].Packages[0].Name)
 
 	// Test 5: Filter by package_name on team1 - should find Chrome
 	var resp5 listSoftwareTitlesResponse
@@ -1041,8 +1041,8 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 		fmt.Sprint(titleID),
 	)
 	s.Require().NotNil(listResp.SoftwareTitle)
-	s.Require().NotNil(listResp.SoftwareTitle.SoftwarePackage)
-	s.Equal("install", listResp.SoftwareTitle.SoftwarePackage.InstallScript)
+	s.Require().NotEmpty(listResp.SoftwareTitle.Packages)
+	s.Equal("install", listResp.SoftwareTitle.Packages[0].InstallScript)
 
 	currToken := s.token
 	t.Cleanup(func() {
@@ -1086,12 +1086,12 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 
 	// This endpoint serializes the same title struct as the details endpoint, so
 	// it withholds script contents here too. The rest of the package stays.
-	s.Require().NotNil(listResp.SoftwareTitle.SoftwarePackage)
-	s.Empty(listResp.SoftwareTitle.SoftwarePackage.InstallScript)
-	s.Empty(listResp.SoftwareTitle.SoftwarePackage.UninstallScript)
-	s.Empty(listResp.SoftwareTitle.SoftwarePackage.PostInstallScript)
-	s.Empty(listResp.SoftwareTitle.SoftwarePackage.PreInstallQuery)
-	s.Equal("ruby.deb", listResp.SoftwareTitle.SoftwarePackage.Name)
+	s.Require().NotEmpty(listResp.SoftwareTitle.Packages)
+	s.Empty(listResp.SoftwareTitle.Packages[0].InstallScript)
+	s.Empty(listResp.SoftwareTitle.Packages[0].UninstallScript)
+	s.Empty(listResp.SoftwareTitle.Packages[0].PostInstallScript)
+	s.Empty(listResp.SoftwareTitle.Packages[0].PreInstallQuery)
+	s.Equal("ruby.deb", listResp.SoftwareTitle.Packages[0].Name)
 
 	// The software title details endpoint agrees.
 	var titleResp getSoftwareTitleResponse
@@ -1104,9 +1104,9 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 		"team_id",
 		fmt.Sprint(team.ID),
 	)
-	s.Require().NotNil(titleResp.SoftwareTitle.SoftwarePackage)
-	s.Empty(titleResp.SoftwareTitle.SoftwarePackage.InstallScript)
-	s.Equal("ruby.deb", titleResp.SoftwareTitle.SoftwarePackage.Name)
+	s.Require().NotEmpty(titleResp.SoftwareTitle.Packages)
+	s.Empty(titleResp.SoftwareTitle.Packages[0].InstallScript)
+	s.Equal("ruby.deb", titleResp.SoftwareTitle.Packages[0].Name)
 
 	// get the title without a fleet, the request should succeed without a package attached
 	titleResp = getSoftwareTitleResponse{}
@@ -1118,7 +1118,6 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 		&titleResp,
 	)
 	s.Equal(titleID, titleResp.SoftwareTitle.ID)
-	s.Nil(titleResp.SoftwareTitle.SoftwarePackage)
 	s.Empty(titleResp.SoftwareTitle.Packages)
 }
 

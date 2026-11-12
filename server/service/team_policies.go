@@ -1073,13 +1073,13 @@ func (svc *Service) getInstallerOrVPPAppForTitle(ctx context.Context, teamID *ui
 
 		return nil, &softwareTitle.AppStoreApp.VPPAppsTeamsID, nil
 	}
-	if softwareTitle.SoftwarePackage == nil {
+	if len(softwareTitle.Packages) == 0 {
 		return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("Software title with ID %d on team ID %d does not have an associated package", *softwareTitleID, *teamID),
 		})
 	}
 
-	// At this point we assume *softwareTitle.SoftwarePackage.TeamID == *teamID,
+	// At this point we assume *softwareTitle.Packages[0].TeamID == *teamID,
 	// because SoftwareTitleByID above receives the teamID.
-	return ptr.Uint(softwareTitle.SoftwarePackage.InstallerID), nil, nil
+	return new(softwareTitle.Packages[0].InstallerID), nil, nil
 }

@@ -1912,7 +1912,7 @@ func (s *integrationMDMTestSuite) TestStagedUpload() {
 	titleID := getSoftwareTitleID(t, s.ds, "ruby", "deb_packages")
 	var titleResp getSoftwareTitleResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "fleet_id", "0")
-	require.Equal(t, "ruby.deb", titleResp.SoftwareTitle.SoftwarePackage.Name)
+	require.Equal(t, "ruby.deb", titleResp.SoftwareTitle.Packages[0].Name)
 
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "fleet_id", "0")
 

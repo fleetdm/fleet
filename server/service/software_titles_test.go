@@ -381,34 +381,31 @@ func TestSoftwareTitleByIDInstallerDetails(t *testing.T) {
 
 			title, err := svc.SoftwareTitleByID(ctx, 1, new(uint(1)))
 			require.NoError(t, err)
-			require.NotNil(t, title.SoftwarePackage)
 			require.Len(t, title.Packages, 1)
 			require.NotNil(t, title.AppStoreApp)
 
-			// Both the single package and the packages list are serialized.
-			for _, pkg := range []*fleet.SoftwareInstaller{title.SoftwarePackage, &title.Packages[0]} {
-				if tc.canReadInstaller {
-					require.Equal(t, installScript, pkg.InstallScript)
-					require.Equal(t, uninstallScript, pkg.UninstallScript)
-					require.Equal(t, postInstallScript, pkg.PostInstallScript)
-					require.Equal(t, preInstallQuery, pkg.PreInstallQuery)
-					require.NotEmpty(t, pkg.Configuration)
-				} else {
-					require.Empty(t, pkg.InstallScript)
-					require.Empty(t, pkg.UninstallScript)
-					require.Empty(t, pkg.PostInstallScript)
-					require.Empty(t, pkg.PreInstallQuery)
-					require.Empty(t, pkg.Configuration)
-				}
-
-				// Filtering the whole package would be a regression.
-				require.Equal(t, "foo.pkg", pkg.Name)
-				require.Equal(t, "1.0", pkg.Version)
-				require.Equal(t, "darwin", pkg.Platform)
-				require.Equal(t, "abc123", pkg.StorageID)
-				require.True(t, pkg.SelfService)
-				require.NotNil(t, pkg.Status)
+			pkg := &title.Packages[0]
+			if tc.canReadInstaller {
+				require.Equal(t, installScript, pkg.InstallScript)
+				require.Equal(t, uninstallScript, pkg.UninstallScript)
+				require.Equal(t, postInstallScript, pkg.PostInstallScript)
+				require.Equal(t, preInstallQuery, pkg.PreInstallQuery)
+				require.NotEmpty(t, pkg.Configuration)
+			} else {
+				require.Empty(t, pkg.InstallScript)
+				require.Empty(t, pkg.UninstallScript)
+				require.Empty(t, pkg.PostInstallScript)
+				require.Empty(t, pkg.PreInstallQuery)
+				require.Empty(t, pkg.Configuration)
 			}
+
+			// Filtering the whole package would be a regression.
+			require.Equal(t, "foo.pkg", pkg.Name)
+			require.Equal(t, "1.0", pkg.Version)
+			require.Equal(t, "darwin", pkg.Platform)
+			require.Equal(t, "abc123", pkg.StorageID)
+			require.True(t, pkg.SelfService)
+			require.NotNil(t, pkg.Status)
 
 			if tc.canReadInstaller {
 				require.NotEmpty(t, title.AppStoreApp.Configuration)
@@ -422,7 +419,6 @@ func TestSoftwareTitleByIDInstallerDetails(t *testing.T) {
 			noTeamTitle, err := svc.SoftwareTitleByID(ctx, 1, nil)
 			require.NoError(t, err)
 			require.False(t, ds.TeamExistsFuncInvoked)
-			require.Nil(t, noTeamTitle.SoftwarePackage)
 			require.Empty(t, noTeamTitle.Packages)
 			require.Nil(t, noTeamTitle.AppStoreApp)
 
@@ -508,6 +504,70 @@ func TestSoftwareTitleByIDTeamIDZero(t *testing.T) {
 
 	_, err = svc.SoftwareTitleByID(adminCtx, 1, teamIDZero)
 	checkAuthErr(t, false, err)
+}
+
+func TestListSoftwareTitlesOmitSoftwarePackage(t *testing.T) {
+	ds := new(mock.Store)
+	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmf fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+		return []fleet.SoftwareTitleListResult{
+			{
+				ID:              1,
+				Name:            "Custom package",
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "custom.pkg"},
+				Packages:        []fleet.SoftwarePackageListItem{{InstallerID: 10, Name: "custom.pkg"}},
+			},
+			{
+				ID:              2,
+				Name:            "Fleet-maintained app",
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "fma.pkg", FleetMaintainedAppID: new(uint(5))},
+				Packages:        []fleet.SoftwarePackageListItem{{InstallerID: 11, Name: "fma.pkg", FleetMaintainedAppID: new(uint(5))}},
+			},
+			{
+				ID:              3,
+				Name:            "Script package",
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "script.sh"},
+				Packages:        []fleet.SoftwarePackageListItem{{InstallerID: 12, Name: "script.sh"}},
+			},
+			{
+				ID:              4,
+				Name:            "In-house app",
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "app.ipa"},
+				Packages:        []fleet.SoftwarePackageListItem{{InstallerID: 13, Name: "app.ipa"}},
+			},
+			{
+				ID:          5,
+				Name:        "App Store app",
+				AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: "12345"},
+			},
+			{
+				ID:   6,
+				Name: "No package",
+			},
+		}, 6, &fleet.PaginationMetadata{}, nil
+	}
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+
+	// list the software titles, no title should have software_package in its JSON
+	titles, count, _, err := svc.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: new(uint(1))})
+	require.NoError(t, err)
+	require.Equal(t, 6, count)
+	require.Len(t, titles, 6)
+	for _, title := range titles {
+		titleJSON, err := json.Marshal(&title)
+		require.NoError(t, err)
+		var titleFields map[string]json.RawMessage
+		err = json.Unmarshal(titleJSON, &titleFields)
+		require.NoError(t, err)
+		require.NotContains(t, titleFields, "software_package", title.Name)
+		require.Contains(t, titleFields, "packages", title.Name)
+	}
+
+	// check the packages of the custom package and Fleet-maintained app titles, they should be unchanged
+	require.Equal(t, []fleet.SoftwarePackageListItem{{InstallerID: 10, Name: "custom.pkg"}}, titles[0].Packages)
+	require.Equal(t, []fleet.SoftwarePackageListItem{{InstallerID: 11, Name: "fma.pkg", FleetMaintainedAppID: new(uint(5))}}, titles[1].Packages)
 }
 
 func TestSoftwareTitleByIDNilTeamIDExistsElsewhere(t *testing.T) {
