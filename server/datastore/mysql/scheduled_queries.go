@@ -310,12 +310,13 @@ func (ds *Datastore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context,
 		return 0, nil
 	}
 
-	// First pass: collect all unique (teamID, name) and (packName, scheduledName)
+	// First pass: collect all unique (teamIDChar, name) and (packName, scheduledName)
 	// pairs across every host so we can resolve IDs in a single batch query
-	// instead of embedding per-row subqueries.
+	// instead of embedding per-row subqueries. We use team_id_char (string form)
+	// because the queries table has a unique index on (name, team_id_char).
 	type teamName struct {
-		teamID int
-		name   string
+		teamIDChar string
+		name       string
 	}
 	type packQueryName struct {
 		packName      string
@@ -327,43 +328,43 @@ func (ds *Datastore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context,
 	for _, hostStats := range stats {
 		for _, stat := range hostStats {
 			if stat.PackName == "Global" || strings.HasPrefix(stat.PackName, "team-") {
-				var teamID int
+				tidChar := ""
 				statTeamID, err := stat.TeamID()
 				if err != nil {
 					return 0, err
 				}
 				if statTeamID != nil {
-					teamID = *statTeamID
+					tidChar = fmt.Sprint(*statTeamID)
 				}
-				scheduledSeen[teamName{teamID, stat.QueryName}] = struct{}{}
+				scheduledSeen[teamName{tidChar, stat.QueryName}] = struct{}{}
 			} else {
 				userPackSeen[packQueryName{stat.PackName, stat.ScheduledQueryName}] = struct{}{}
 			}
 		}
 	}
 
-	// Batch-resolve scheduled query IDs.
+	// Batch-resolve scheduled query IDs using the idx_name_team_id_unq index.
 	scheduledIDMap := make(map[teamName]uint, len(scheduledSeen))
 	if len(scheduledSeen) > 0 {
 		placeholders := make([]string, 0, len(scheduledSeen))
 		args := make([]any, 0, len(scheduledSeen)*2)
 		for k := range scheduledSeen {
 			placeholders = append(placeholders, "(?,?)")
-			args = append(args, k.name, k.teamID)
+			args = append(args, k.name, k.teamIDChar)
 		}
 		type resolvedRow struct {
-			ID     uint   `db:"id"`
-			Name   string `db:"name"`
-			TeamID int    `db:"team_id_coalesced"`
+			ID         uint   `db:"id"`
+			Name       string `db:"name"`
+			TeamIDChar string `db:"team_id_char"`
 		}
 		//nolint:gosec // SQL is built from constant strings and counted placeholders
-		resolveSQL := `SELECT id, name, COALESCE(team_id, 0) AS team_id_coalesced FROM queries WHERE (name, COALESCE(team_id, 0)) IN (` + strings.Join(placeholders, ",") + `)`
+		resolveSQL := `SELECT id, name, team_id_char FROM queries WHERE (name, team_id_char) IN (` + strings.Join(placeholders, ",") + `)`
 		var resolved []resolvedRow
 		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &resolved, resolveSQL, args...); err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "async resolve query IDs for stats")
 		}
 		for _, r := range resolved {
-			scheduledIDMap[teamName{r.TeamID, r.Name}] = r.ID
+			scheduledIDMap[teamName{r.TeamIDChar, r.Name}] = r.ID
 		}
 	}
 
@@ -453,15 +454,15 @@ func (ds *Datastore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context,
 			var found bool
 
 			if stat.PackName == "Global" || strings.HasPrefix(stat.PackName, "team-") {
-				var teamID int
+				tidChar := ""
 				statTeamID, err := stat.TeamID()
 				if err != nil {
 					return countExecs, err
 				}
 				if statTeamID != nil {
-					teamID = *statTeamID
+					tidChar = fmt.Sprint(*statTeamID)
 				}
-				qID, found = scheduledIDMap[teamName{teamID, stat.QueryName}]
+				qID, found = scheduledIDMap[teamName{tidChar, stat.QueryName}]
 			} else {
 				qID, found = userPackIDMap[packQueryName{stat.PackName, stat.ScheduledQueryName}]
 			}

@@ -292,36 +292,43 @@ func saveHostPackStatsDB(ctx context.Context, db *sqlx.DB, teamID *uint, hostID 
 // INSERT to hold a DB connection for 50ms+ and led to connection pool
 // exhaustion under load (#54969).
 func saveScheduledQueryStatsWithResolvedIDs(ctx context.Context, db *sqlx.DB, hostID uint, entries []scheduledEntry) error {
-	// Collect unique (teamID, name) pairs for batch resolution.
+	// Collect unique (teamIDChar, name) pairs for batch resolution.
+	// We use team_id_char (the string form: "" for global, "N" for team N) because
+	// the queries table has a unique index on (name, team_id_char) that the resolver
+	// SELECT can use. Using COALESCE(team_id, 0) would force a full table scan.
 	type teamName struct {
-		teamID uint
-		name   string
+		teamIDChar string
+		name       string
 	}
 	lookups := make([]teamName, 0, len(entries))
 	seen := make(map[teamName]struct{}, len(entries))
 	for _, e := range entries {
-		k := teamName{e.teamID, e.name}
+		tidChar := ""
+		if e.teamID != 0 {
+			tidChar = fmt.Sprint(e.teamID)
+		}
+		k := teamName{tidChar, e.name}
 		if _, ok := seen[k]; !ok {
 			seen[k] = struct{}{}
 			lookups = append(lookups, k)
 		}
 	}
 
-	// Batch-resolve: SELECT id, name, COALESCE(team_id, 0) FROM queries WHERE (name, COALESCE(team_id, 0)) IN (...)
+	// Batch-resolve using the idx_name_team_id_unq index on (name, team_id_char).
 	placeholders := make([]string, 0, len(lookups))
 	args := make([]any, 0, len(lookups)*2)
 	for _, l := range lookups {
 		placeholders = append(placeholders, "(?,?)")
-		args = append(args, l.name, l.teamID)
+		args = append(args, l.name, l.teamIDChar)
 	}
 
 	type resolvedRow struct {
-		ID     uint   `db:"id"`
-		Name   string `db:"name"`
-		TeamID uint   `db:"team_id_coalesced"`
+		ID         uint   `db:"id"`
+		Name       string `db:"name"`
+		TeamIDChar string `db:"team_id_char"`
 	}
 	//nolint:gosec // SQL is built from constant strings and counted placeholders
-	resolveSQL := `SELECT id, name, COALESCE(team_id, 0) AS team_id_coalesced FROM queries WHERE (name, COALESCE(team_id, 0)) IN (` + strings.Join(placeholders, ",") + `)`
+	resolveSQL := `SELECT id, name, team_id_char FROM queries WHERE (name, team_id_char) IN (` + strings.Join(placeholders, ",") + `)`
 
 	var resolved []resolvedRow
 	if err := sqlx.SelectContext(ctx, db, &resolved, resolveSQL, args...); err != nil {
@@ -331,14 +338,18 @@ func saveScheduledQueryStatsWithResolvedIDs(ctx context.Context, db *sqlx.DB, ho
 	// Build lookup map.
 	idMap := make(map[teamName]uint, len(resolved))
 	for _, r := range resolved {
-		idMap[teamName{r.TeamID, r.Name}] = r.ID
+		idMap[teamName{r.TeamIDChar, r.Name}] = r.ID
 	}
 
 	// Build INSERT with resolved IDs, skipping entries whose query wasn't found.
 	valueStrings := make([]string, 0, len(entries))
 	insertArgs := make([]any, 0, len(entries)*11)
 	for _, e := range entries {
-		qID, ok := idMap[teamName{e.teamID, e.name}]
+		tidChar := ""
+		if e.teamID != 0 {
+			tidChar = fmt.Sprint(e.teamID)
+		}
+		qID, ok := idMap[teamName{tidChar, e.name}]
 		if !ok {
 			continue
 		}
