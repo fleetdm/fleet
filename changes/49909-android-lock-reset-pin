@@ -1,4 +1,4 @@
-- **Breaking change:** Locking an Android host now resets its PIN to a Fleet-generated one that fits the host's password policy and locks the device right away, instead of sending a lock the end user can undo with their own PIN. `POST /api/v1/fleet/hosts/:id/lock?view_pin=true` returns the new PIN for Android hosts.
+- **Breaking change:** Locking an Android host now resets its PIN to a Fleet-generated one that fits the host's password policy and locks the device as soon as it receives the command, instead of sending a lock the end user can undo with their own PIN. `POST /api/v1/fleet/hosts/:id/lock?view_pin=true` returns the new PIN for Android hosts.
 - `POST /api/v1/fleet/hosts/:id/unlock` now supports Android hosts. It returns the unlock PIN and the time the device acknowledged the lock (`locked_at`) without sending a command, and logs a new `viewed_host_unlock_pin` activity.
 - Added `mdm.unlock_pin_available` to Android host details.
 - Android hosts can't be locked while a Clear passcode is pending, and their passcode can't be cleared while a lock is pending.
