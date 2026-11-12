@@ -19,7 +19,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 )
 
 type debugAuthenticationMiddleware struct {
@@ -95,26 +94,26 @@ func jsonHandler(
 
 // MakeDebugHandler creates an HTTP handler for the Fleet debug endpoints.
 func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger *slog.Logger, eh *errorstore.Handler, ds fleet.Datastore, agentWSHub *agentws.Hub) http.Handler {
-	r := mux.NewRouter()
+	r := http.NewServeMux()
 	r.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 	r.HandleFunc("/debug/pprof/profile", pprof.Profile)
 	r.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 	r.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	r.Handle("/debug/errors", eh)
-	r.PathPrefix("/debug/pprof/").HandlerFunc(func(rw http.ResponseWriter, req *http.Request) { pprof.Index(rw, req) })
+	r.HandleFunc("/debug/pprof/", pprof.Index)
 	r.HandleFunc("/debug/migrations", jsonHandler(logger, func(ctx context.Context) (interface{}, error) { return ds.MigrationStatus(ctx) }))
 	r.HandleFunc("/debug/db/locks", jsonHandler(logger, func(ctx context.Context) (interface{}, error) { return ds.DBLocks(ctx) }))
 	r.HandleFunc("/debug/db/innodb-status", jsonHandler(logger, func(ctx context.Context) (interface{}, error) { return ds.InnoDBStatus(ctx) }))
 	r.HandleFunc("/debug/db/process-list", jsonHandler(logger, func(ctx context.Context) (interface{}, error) { return ds.ProcessList(ctx) }))
-	r.HandleFunc("/debug/trace_sampler", jsonHandler(logger, func(ctx context.Context) (any, error) {
+	r.HandleFunc("GET /debug/trace_sampler", jsonHandler(logger, func(ctx context.Context) (any, error) {
 		return ds.GetTraceSamplerSettings(ctx)
-	})).Methods(http.MethodGet)
-	r.HandleFunc("/debug/trace_sampler", patchTraceSamplerHandler(logger, ds)).Methods(http.MethodPatch)
+	}))
+	r.HandleFunc("PATCH /debug/trace_sampler", patchTraceSamplerHandler(logger, ds))
 	// Agent WebSocket transport observability: a point-in-time view of the
 	// connections held by THIS server instance; instance_id lets consumers
 	// behind a load balancer tell instances apart. Read-path counters are
 	// collected only with debug logging enabled (see metrics_enabled).
-	r.HandleFunc("/debug/agentws", jsonHandler(logger, func(ctx context.Context) (any, error) {
+	r.HandleFunc("GET /debug/agentws", jsonHandler(logger, func(ctx context.Context) (any, error) {
 		if agentWSHub == nil {
 			return map[string]any{"enabled": false}, nil
 		}
@@ -138,12 +137,10 @@ func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger *slog
 		}
 
 		return payload, nil
-	})).Methods(http.MethodGet)
+	}))
 
 	mw := &debugAuthenticationMiddleware{
 		service: svc,
 	}
-	r.Use(mw.Middleware)
-
-	return r
+	return mw.Middleware(r)
 }
