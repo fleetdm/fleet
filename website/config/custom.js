@@ -226,8 +226,6 @@ module.exports.custom = {
     '.github/ISSUE_TEMPLATE/fasttrack.md': 'zayhanlon',
   },
 
-  // FUTURE: Support DRIs for other repos (except see other note above about a consolidated way to do it, to reduce these 4-6 config keys into one)
-
 
   //  ███╗   ███╗ █████╗ ██╗███╗   ██╗████████╗ █████╗ ██╗███╗   ██╗███████╗██████╗ ███████╗
   //  ████╗ ████║██╔══██╗██║████╗  ██║╚══██╔══╝██╔══██╗██║████╗  ██║██╔════╝██╔══██╗██╔════╝
