@@ -289,7 +289,7 @@ func RegisterSCIM(
 // scimOTELMiddleware provides OpenTelemetry instrumentation for SCIM endpoints
 // It creates proper span names without exposing sensitive IDs
 func scimOTELMiddleware(next http.Handler, prefix string, cfg config.FleetConfig) http.Handler {
-	if !cfg.OTELEnabled() {
+	if !cfg.Logging.TracingEnabled || cfg.Logging.TracingType != "opentelemetry" {
 		return next
 	}
 
