@@ -6,11 +6,11 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261110211109, Down_20261110211109)
+	MigrationClient.AddMigration(Up_20261112214846, Down_20261112214846)
 }
 
 // The activity_type index keeps the UPDATE selective, and batching would not help because the migration runs in a single transaction.
-func Up_20261110211109(tx *sql.Tx) error {
+func Up_20261112214846(tx *sql.Tx) error {
 	if _, err := tx.Exec(
 		`UPDATE activity_past SET activity_type = 'read_host_recovery_lock_password' WHERE activity_type = 'viewed_host_recovery_lock_password'`,
 	); err != nil {
@@ -19,6 +19,6 @@ func Up_20261110211109(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20261110211109(tx *sql.Tx) error {
+func Down_20261112214846(tx *sql.Tx) error {
 	return nil
 }

@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20261110211109(t *testing.T) {
+func TestUp_20261112214846(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	const details = `{"host_id": 7, "host_display_name": "Anna's MacBook Pro"}`
