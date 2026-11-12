@@ -11,6 +11,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 
+	"github.com/fleetdm/fleet/tools/hangar/internal/agentapi"
 	"github.com/fleetdm/fleet/tools/hangar/internal/applog"
 	"github.com/fleetdm/fleet/tools/hangar/internal/buildinfo"
 	"github.com/fleetdm/fleet/tools/hangar/internal/paths"
@@ -93,6 +94,17 @@ func main() {
 	}
 	store.SetHeldBy(pm.HeldBy)
 
+	agentAPI := agentapi.New(agentapi.Options{
+		Store:            store,
+		Manager:          agentapi.NewManager(pm),
+		ReservationsPath: resPath,
+	})
+	if stopSock, err := startAgentSocket(dataDir, agentAPI.Handler()); err != nil {
+		slog.Error("agent API disabled", "err", err)
+	} else {
+		defer stopSock()
+	}
+
 	// Fold the managed processes into each heartbeat: when Hangar goes away on
 	// its own, this is what says what was running at the time — and whether
 	// the fleet server someone was mid-test against went with it.
@@ -119,7 +131,7 @@ func main() {
 				// intentional so the close hook lets the window go, then quit.
 				intentionalQuit.Store(true)
 				app.Quit()
-			}, nil)),
+			}, agentAPI.Close)),
 			application.NewService(services.NewScepService(pm)),
 			application.NewService(&services.MdmAssetsService{}),
 			application.NewService(services.NewTufService(pm)),
@@ -137,6 +149,17 @@ func main() {
 			application.NewService(&services.PerfConfigService{}),
 			application.NewService(&services.DepsService{}),
 			application.NewService(&services.DialogService{}),
+			application.NewService(&services.AgentService{Usage: func() map[string]services.SlotUsage {
+				out := map[string]services.SlotUsage{}
+				for id, u := range agentAPI.SlotUsage() {
+					su := services.SlotUsage{ReservedBy: u.ReservedBy}
+					if u.Job != nil {
+						su.Job = &services.SlotJob{ID: u.Job.ID, Action: u.Job.Action}
+					}
+					out[id] = su
+				}
+				return out
+			}}),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
