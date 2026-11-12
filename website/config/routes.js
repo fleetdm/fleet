@@ -848,6 +848,15 @@ module.exports.routes = {
     }
   },
 
+  'GET /lp/open-by-design': {
+    action: 'landing-pages/view-open-by-design',
+    locals: {
+      hideHeaderLinks: true,
+      pageTitleForMeta: 'Open MDM + patching + vuln management for every OS',
+      pageDescriptionForMeta: 'Manage, update, and secure all your devices like it\'s the 2020s.',
+    }
+  },
+
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
