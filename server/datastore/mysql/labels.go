@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -42,9 +44,17 @@ func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSp
 	return ds.ApplyLabelSpecsWithAuthor(ctx, specs, nil)
 }
 
-func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
-	if len(names) == 0 {
+func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, labelsToMove []fleet.LabelToMove, user fleet.User) error {
+	if len(labelsToMove) == 0 {
 		return nil
+	}
+	names := make([]string, 0, len(labelsToMove))
+	fromFleetIDs := make(map[string][]uint, len(labelsToMove))
+	for _, l := range labelsToMove {
+		if _, ok := fromFleetIDs[l.Name]; !ok {
+			names = append(names, l.Name)
+		}
+		fromFleetIDs[l.Name] = append(fromFleetIDs[l.Name], ptr.ValOrZero(l.FromFleetID))
 	}
 
 	// Helper function to check if user has a write role on a specific team
@@ -77,12 +87,18 @@ func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, name
 	}
 
 	type existingLabel struct {
-		ID       uint  `db:"id"`
-		AuthorID *uint `db:"author_id"`
-		TeamID   *uint `db:"team_id"`
+		ID       uint   `db:"id"`
+		Name     string `db:"name"`
+		AuthorID *uint  `db:"author_id"`
+		TeamID   *uint  `db:"team_id"`
 	}
 
-	stmt := `SELECT id, author_id, team_id FROM labels WHERE name IN (?) AND label_type != ?`
+	// Fleets can share names, so only labels on the other side of the global/fleet boundary block the apply. A
+	// fleet's own labels and other fleets' labels are left alone.
+	stmt := `SELECT id, name, author_id, team_id FROM labels WHERE name IN (?) AND label_type != ? AND team_id IS NOT NULL`
+	if notOnTeamID != nil {
+		stmt = `SELECT id, name, author_id, team_id FROM labels WHERE name IN (?) AND label_type != ? AND team_id IS NULL`
+	}
 	stmt, args, err := sqlx.In(stmt, names, uint(fleet.LabelTypeBuiltIn))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "build labels query")
@@ -93,12 +109,19 @@ func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, name
 		return ctxerr.Wrap(ctx, err, "query existing labels")
 	}
 
-	errCannotSetAside := ctxerr.New(ctx, "one or more specified labels to set aside do not exist or cannot be set aside")
-	errGlobal := ctxerr.New(ctx, "one or more specified labels to set aside is on the same team as you are trying to modify")
+	// Names with nothing to set aside are skipped rather than rejected, since an earlier apply may already have set
+	// the label aside.
 
-	if len(labels) != len(names) {
-		return errCannotSetAside
+	if notOnTeamID == nil {
+		for _, label := range labels {
+			// A fleet that isn't moving the name keeps its label, and a global label can't share its name.
+			if !slices.Contains(fromFleetIDs[label.Name], ptr.ValOrZero(label.TeamID)) {
+				return ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fleet.LabelNameInUseByFleetsErrMsg})
+			}
+		}
 	}
+
+	errCannotSetAside := ctxerr.New(ctx, "one or more specified labels to set aside do not exist or cannot be set aside")
 
 	// Helper function to check if user has a write role on any team
 	hasWriteRoleAnywhere := func() bool {
@@ -115,10 +138,6 @@ func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, name
 
 	for _, label := range labels {
 		if label.TeamID == nil { // Global label
-			if notOnTeamID == nil { // Disallow moving aside since the label is on the same team
-				return errGlobal
-			}
-
 			if hasGlobalWriteRole() {
 				continue
 			}
@@ -131,11 +150,6 @@ func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, name
 			return errCannotSetAside
 		}
 
-		// Team label
-		if notOnTeamID != nil && *notOnTeamID == *label.TeamID { // label is on the same team we're applying specs for
-			return errCannotSetAside // generic error here because label may not be visible to the user
-		}
-
 		if hasGlobalWriteRole() || hasWriteRoleOnTeam(*label.TeamID) {
 			continue
 		}
@@ -144,18 +158,19 @@ func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, name
 		return errCannotSetAside
 	}
 
-	// Bulk update to rename labels by appending __team_{team_id} (or __team_0 for global labels)
-	updateStmt := `UPDATE labels SET name = CONCAT(name, '__team_', COALESCE(team_id, 0)) WHERE name IN (?)`
-	updateStmt, updateArgs, err := sqlx.In(updateStmt, names)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "build update labels query")
-	}
-
-	if _, err := ds.writer(ctx).ExecContext(ctx, updateStmt, updateArgs...); err != nil {
-		return ctxerr.Wrap(ctx, err, "rename labels to set aside")
-	}
-
-	return nil
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		for _, label := range labels {
+			setAsideName := fleet.SetAsideLabelName(label.Name, label.TeamID)
+			// The unique index only covers the label's own scope.
+			if err := checkLabelNameAcrossScopesTx(ctx, tx, setAsideName, label.TeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "set aside label")
+			}
+			if _, err := tx.ExecContext(ctx, `UPDATE labels SET name = ? WHERE id = ?`, setAsideName, label.ID); err != nil {
+				return ctxerr.Wrap(ctx, err, "rename labels to set aside")
+			}
+		}
+		return nil
+	})
 }
 
 func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) (err error) {
@@ -174,13 +189,14 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 		TeamID    *uint           `db:"team_id"`
 		LabelType fleet.LabelType `db:"label_type"`
 	}
-	existingLabels := make(map[string]existingLabel, len(specs))
-
 	// NOTE: Thie assumes the caller has verified that label specs are all writable by the user, either for authorship
-	// or team affiliation. We'll catch cases where a user is attempting to move the label between teams (which
-	// should've been cleaned up by SetAsideLabels).
+	// or team affiliation. We'll catch cases where a user is attempting to move a label's name between the global level
+	// and a fleet (which should've been cleaned up by SetAsideLabels).
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Built per attempt, so a retry doesn't reuse rows read by the failed one.
+		existingLabels := make(map[labelScopeKey]existingLabel, len(specs))
+
 		// TODO: do we want to allow on duplicate updating label_membership_type
 		// or should that always be immutable?
 		// are we ok depending solely on the caller to ensure that field
@@ -199,27 +215,24 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 			}
 
 			for _, label := range labels {
-				existingLabels[strings.ToLower(label.Name)] = label
+				existingLabels[newLabelScopeKey(label.Name, label.TeamID)] = label
 			}
 
 			for _, spec := range specs {
 				if spec.LabelType == fleet.LabelTypeBuiltIn {
 					return ctxerr.Errorf(ctx, "cannot modify or add built-in label '%s'", spec.Name)
 				}
-				existingLabel, ok := existingLabels[strings.ToLower(spec.Name)]
-				if !ok {
-					continue
-				}
+				globalLabel, hasGlobal := existingLabels[newLabelScopeKey(spec.Name, nil)]
 				// The lookup above and the unique index the upsert keys on both inherit
 				// the case-insensitive collation of labels.name, so even a spec merely
 				// named as a case variant of a built-in resolves to that built-in row.
-				if existingLabel.LabelType == fleet.LabelTypeBuiltIn {
-					return ctxerr.Errorf(ctx, "cannot modify built-in label '%s'", existingLabel.Name)
+				if hasGlobal && globalLabel.LabelType == fleet.LabelTypeBuiltIn {
+					return ctxerr.Errorf(ctx, "cannot modify built-in label '%s'", globalLabel.Name)
 				}
-				if existingLabel.TeamID != nil && spec.TeamID == nil ||
-					existingLabel.TeamID == nil && spec.TeamID != nil ||
-					(existingLabel.TeamID != nil && spec.TeamID != nil && *existingLabel.TeamID != *spec.TeamID) {
-					return ctxerr.New(ctx, "one or more specified labels exists on another team")
+				// Checked in SQL rather than against the rows above: the column's collation also ignores trailing
+				// spaces and accents, which Go map keys can't reproduce.
+				if err := checkLabelNameAcrossScopesTx(ctx, tx, spec.Name, spec.TeamID); err != nil {
+					return err
 				}
 			}
 		}
@@ -266,7 +279,7 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 			}
 
 			// Check if this is an existing label and platform changed -> clean up memberships if needed
-			if existing, ok := existingLabels[strings.ToLower(s.Name)]; ok && existing.Platform != s.Platform {
+			if existing, ok := existingLabels[newLabelScopeKey(s.Name, s.TeamID)]; ok && existing.Platform != s.Platform {
 				// When a label's platform changes, we delete all existing memberships.
 				// This ensures a clean slate - the label's query will be re-evaluated
 				// by Fleet's label execution system, and only hosts matching the new
@@ -292,7 +305,7 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 
 			// For manual labels, we need the label ID to update membership
 			var labelID uint
-			if existing, ok := existingLabels[strings.ToLower(s.Name)]; ok {
+			if existing, ok := existingLabels[newLabelScopeKey(s.Name, s.TeamID)]; ok {
 				// Use the existing label ID
 				labelID = existing.ID
 			} else {
@@ -631,7 +644,7 @@ WHERE l.name = ?`, filter, name)
 		return nil, ctxerr.Wrap(ctx, notFound("Label").WithName(name))
 	}
 	if len(specs) > 1 {
-		return nil, ctxerr.Errorf(ctx, "expected 1 label row, got %d", len(specs))
+		return nil, ctxerr.Wrap(ctx, fleet.NewAmbiguousLabelNameError(name))
 	}
 
 	spec := specs[0]
@@ -685,25 +698,34 @@ func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...f
 		team_id
 	) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ? )
 	`
-	result, err := ds.writer(ctx).ExecContext(
-		ctx,
-		query,
-		label.Name,
-		label.Description,
-		label.Query,
-		label.HostVitalsCriteria,
-		label.Platform,
-		label.LabelType,
-		label.LabelMembershipType,
-		label.AuthorID,
-		label.TeamID,
-	)
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := checkLabelNameAcrossScopesTx(ctx, tx, label.Name, label.TeamID); err != nil {
+			return err
+		}
+		result, err := tx.ExecContext(
+			ctx,
+			query,
+			label.Name,
+			label.Description,
+			label.Query,
+			label.HostVitalsCriteria,
+			label.Platform,
+			label.LabelType,
+			label.LabelMembershipType,
+			label.AuthorID,
+			label.TeamID,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting label")
+		}
+		id, _ := result.LastInsertId()
+		label.ID = uint(id) //nolint:gosec // dismiss G115
+		return nil
+	})
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "inserting label")
+		return nil, err
 	}
 
-	id, _ := result.LastInsertId()
-	label.ID = uint(id) //nolint:gosec // dismiss G115
 	now := time.Now().UTC().Truncate(time.Second)
 	label.CreatedAt = now
 	label.UpdatedAt = now
@@ -716,6 +738,18 @@ func (ds *Datastore) SaveLabel(ctx context.Context, label *fleet.Label, hostIDs 
 		savedHostIDs []uint
 	)
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// The fleet is read from the row, not the argument, so a partial label can't make the check match itself.
+		var teamID *uint
+		if err := sqlx.GetContext(ctx, tx, &teamID, `SELECT team_id FROM labels WHERE id = ?`, label.ID); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return ctxerr.Wrap(ctx, notFound("Label").WithID(label.ID))
+			}
+			return ctxerr.Wrap(ctx, err, "get label fleet")
+		}
+		if err := checkLabelNameAcrossScopesTx(ctx, tx, label.Name, teamID); err != nil {
+			return err
+		}
+
 		if _, err := tx.ExecContext(ctx, `UPDATE labels SET name = ?, description = ? WHERE id = ?`, label.Name, label.Description, label.ID); err != nil {
 			return ctxerr.Wrap(ctx, err, "saving label")
 		}
@@ -747,21 +781,15 @@ func (ds *Datastore) SaveLabel(ctx context.Context, label *fleet.Label, hostIDs 
 }
 
 // DeleteLabel deletes a fleet.Label
-func (ds *Datastore) DeleteLabel(ctx context.Context, name string, filter fleet.TeamFilter) error {
+func (ds *Datastore) DeleteLabel(ctx context.Context, labelID uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		var labelID uint
-
-		query, params, err := applyLabelTeamFilter(`select l.id FROM labels l WHERE l.name = ?`, filter, name)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting label id to delete")
-		}
-
-		err = sqlx.GetContext(ctx, tx, &labelID, query, params...)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				return ctxerr.Wrap(ctx, notFound("Label").WithName(name))
+		var name string
+		// Locked so that of two concurrent deletes of a label, only one succeeds.
+		if err := sqlx.GetContext(ctx, tx, &name, `SELECT name FROM labels WHERE id = ? FOR UPDATE`, labelID); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return ctxerr.Wrap(ctx, notFound("Label").WithID(labelID))
 			}
-			return ctxerr.Wrap(ctx, err, "getting label id to delete")
+			return ctxerr.Wrap(ctx, err, "getting label to delete")
 		}
 		var usedByProfile bool
 		if err := sqlx.GetContext(ctx, tx, &usedByProfile, `
@@ -812,24 +840,6 @@ func deleteLabelsInTx(ctx context.Context, tx sqlx.ExtContext, labelIDs []uint) 
 	}
 
 	return nil
-}
-
-// LabelByName returns a fleet.Label identified by name if one exists and is accessible to the specified user.
-func (ds *Datastore) LabelByName(ctx context.Context, name string, teamFilter fleet.TeamFilter) (*fleet.Label, error) {
-	stmt, params, err := applyLabelTeamFilter("SELECT l.* FROM labels l WHERE l.name = ?", teamFilter, name)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building label select query")
-	}
-
-	var label fleet.Label
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &label, stmt, params...); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("Label").WithName(name))
-		}
-		return nil, ctxerr.Wrap(ctx, err, "selecting label")
-	}
-
-	return &label, nil
 }
 
 // Label returns a fleet.LabelWithTeamName identified by lid if one exists and is accessible to the specified user.
@@ -940,6 +950,66 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 }
 
 var errInaccessibleTeam = errors.New("The team ID you provided refers to a team that either does not exist or you do not have permission to access.")
+
+// labelScopeKey mirrors the labels unique index: names compare case-insensitively within one fleet, or among
+// global labels (fleet 0).
+type labelScopeKey struct {
+	name   string
+	teamID uint
+}
+
+func newLabelScopeKey(name string, teamID *uint) labelScopeKey {
+	return labelScopeKey{name: strings.ToLower(name), teamID: ptr.ValOrZero(teamID)}
+}
+
+// The unique index can't stop a name from being used by both a global label and a fleet label, so this is checked
+// here, locking the name so that a concurrent create on the other side of the boundary waits for this one.
+func checkLabelNameAcrossScopesTx(ctx context.Context, tx sqlx.ExtContext, name string, teamID *uint) error {
+	stmt := `SELECT 1 FROM labels WHERE name = ? AND team_id IS NOT NULL LIMIT 1 FOR UPDATE`
+	msg := fleet.LabelNameInUseByFleetsErrMsg
+	if teamID != nil {
+		stmt = `SELECT 1 FROM labels WHERE name = ? AND team_id IS NULL LIMIT 1 FOR UPDATE`
+		msg = fleet.LabelNameInUseGloballyErrMsg
+	}
+	var found []int
+	if err := sqlx.SelectContext(ctx, tx, &found, stmt, name); err != nil {
+		return ctxerr.Wrap(ctx, err, "check label name across global and fleet labels")
+	}
+	if len(found) > 0 {
+		return ctxerr.Wrap(ctx, &fleet.ConflictError{Message: msg})
+	}
+	return nil
+}
+
+// resolveLabelNamesTx resolves each name to the one label an entity can see under it: global labels plus the fleet's
+// labels, or every label for a global entity (nil fleetID). Names are matched in MySQL, so they compare with the
+// column's collation, which also ignores case, accents, and trailing spaces.
+func resolveLabelNamesTx(ctx context.Context, q sqlx.QueryerContext, names []string, fleetID *uint) (map[string]uint, error) {
+	ids := make(map[string]uint, len(names))
+	for _, name := range names {
+		if _, ok := ids[name]; ok {
+			continue
+		}
+		stmt, args := `SELECT id FROM labels WHERE name = ?`, []any{name}
+		if fleetID != nil {
+			stmt += ` AND (team_id IS NULL OR team_id = ?)`
+			args = append(args, *fleetID)
+		}
+		var matches []uint
+		if err := sqlx.SelectContext(ctx, q, &matches, stmt, args...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "resolve label names")
+		}
+		switch len(matches) {
+		case 0:
+			return nil, ctxerr.Wrap(ctx, notFound("Label").WithName(name))
+		case 1:
+			ids[name] = matches[0]
+		default:
+			return nil, ctxerr.Wrap(ctx, fleet.NewAmbiguousLabelNameError(name))
+		}
+	}
+	return ids, nil
+}
 
 // applyLabelTeamFilter requires the labels table to be aliased as "l" to work
 func applyLabelTeamFilter(query string, filter fleet.TeamFilter, initialParams ...any) (string, []any, error) {
@@ -1359,8 +1429,6 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	softwareStatusJoin := ""
 	// if opt.SoftwareVersionIDFilter != nil {
 	// 	// TODO: Do we currently support filtering by software version ID and label?
-	// } else if opt.SoftwareIDFilter != nil {
-	// 	// TODO: Do we currently support filtering by software version ID and label?
 	// }
 	if opt.SoftwareTitleIDFilter != nil && opt.SoftwareStatusFilter != nil {
 		installerID, vppID, inHouseID, err := ds.installerAvailableForInstallForTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter)
@@ -1658,26 +1726,55 @@ func (ds *Datastore) SearchLabels(ctx context.Context, filter fleet.TeamFilter, 
 }
 
 func (ds *Datastore) LabelIDsByName(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
-	if len(names) == 0 {
-		return map[string]uint{}, nil
-	}
-
-	sql, args, err := applyLabelTeamFilter(`SELECT l.id, l.name FROM labels l WHERE l.name IN (?)`, filter, names)
+	labels, err := ds.labelIDsAndNames(ctx, names, filter)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building query to get label ids by name")
-	}
-
-	var labels []fleet.Label
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, sql, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get label ids by name")
+		return nil, err
 	}
 
 	result := make(map[string]uint, len(labels))
 	for _, label := range labels {
+		if _, ok := result[label.Name]; ok {
+			return nil, ctxerr.Wrap(ctx, fleet.NewAmbiguousLabelNameError(label.Name))
+		}
 		result[label.Name] = label.ID
 	}
 
 	return result, nil
+}
+
+func (ds *Datastore) AllLabelIDsByName(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string][]uint, error) {
+	labels, err := ds.labelIDsAndNames(ctx, names, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[string][]uint, len(labels))
+	for _, label := range labels {
+		result[label.Name] = append(result[label.Name], label.ID)
+	}
+	return result, nil
+}
+
+type labelIDAndName struct {
+	ID   uint   `db:"id"`
+	Name string `db:"name"`
+}
+
+func (ds *Datastore) labelIDsAndNames(ctx context.Context, names []string, filter fleet.TeamFilter) ([]labelIDAndName, error) {
+	if len(names) == 0 {
+		return nil, nil
+	}
+
+	stmt, args, err := applyLabelTeamFilter(`SELECT l.id, l.name FROM labels l WHERE l.name IN (?)`, filter, names)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building query to get label ids by name")
+	}
+
+	var labels []labelIDAndName
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get label ids by name")
+	}
+	return labels, nil
 }
 
 func (ds *Datastore) LabelsByName(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {

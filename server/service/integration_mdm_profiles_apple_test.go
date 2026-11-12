@@ -2354,7 +2354,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 	// A unique command is created for each host when this Fleet variable is used.
 	globalProfilesPlusOne := [][]byte{
 		globalProfiles[0],
-		mobileconfigForTest("N2", "$FLEET_VAR_"+string(fleet.FleetVarHostEndUserEmailIDP)),
+		mobileconfigForTest("N2", "$FLEET_VAR_"+string(fleet.FleetVarHostEndUserIDPUsername)),
 	}
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N1", Contents: globalProfilesPlusOne[0]},
@@ -2409,7 +2409,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 	cmd, err := mdmDevice.Idle()
 	require.NoError(t, err)
 	assert.Equal(t, "InstallProfile", cmd.Command.RequestType)
-	// Verify that the Fleet variable was replaced with the IdP email
+	// Verify that the Fleet variable was replaced with the IdP username, which is the IdP email without a SCIM user
 	type Command struct {
 		Command struct {
 			Payload []byte
@@ -2418,7 +2418,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 	var p Command
 	err = plist.Unmarshal(cmd.Raw, &p)
 	require.NoError(t, err)
-	assert.NotContains(t, string(p.Command.Payload), "$FLEET_VAR_"+fleet.FleetVarHostEndUserEmailIDP)
+	assert.NotContains(t, string(p.Command.Payload), "$FLEET_VAR_"+fleet.FleetVarHostEndUserIDPUsername)
 	assert.Contains(t, string(p.Command.Payload), "idp@example.com")
 
 	// While the host is installing the profile, we delete it.

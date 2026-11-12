@@ -220,10 +220,6 @@ type HostListOptions struct {
 	PolicyIDFilter       *uint
 	PolicyResponseFilter *bool
 
-	// Deprecated: SoftwareIDFilter is deprecated as of Fleet 4.42. It is
-	// maintained for backwards compatibility. Use SoftwareVersionIDFilter
-	// instead.
-	SoftwareIDFilter *uint
 	// SoftwareVersionIDFilter filters the hosts by the software version ID that
 	// they use. This identifies a specific version of a "software title".
 	SoftwareVersionIDFilter *uint
@@ -340,7 +336,6 @@ func (h HostListOptions) Empty() bool {
 		h.TeamFilter == nil &&
 		h.PolicyIDFilter == nil &&
 		h.PolicyResponseFilter == nil &&
-		h.SoftwareIDFilter == nil &&
 		h.SoftwareVersionIDFilter == nil &&
 		h.SoftwareTitleIDFilter == nil &&
 		h.SoftwareStatusFilter == nil &&
@@ -435,12 +430,12 @@ type Host struct {
 	DistributedInterval       uint                `json:"distributed_interval" db:"distributed_interval" csv:"distributed_interval"`
 	ConfigTLSRefresh          uint                `json:"config_tls_refresh" db:"config_tls_refresh" csv:"config_tls_refresh"`
 	LoggerTLSPeriod           uint                `json:"logger_tls_period" db:"logger_tls_period" csv:"logger_tls_period"`
-	TeamID                    *uint               `json:"team_id" renameto:"fleet_id" db:"team_id" csv:"team_id"`
+	TeamID                    *uint               `json:"fleet_id" db:"team_id" csv:"fleet_id"`
 
 	// Loaded via JOIN in DB
 	PackStats []PackStats `json:"pack_stats" csv:"-"`
 	// TeamName is the name of the team, loaded by JOIN to the teams table.
-	TeamName *string `json:"team_name" renameto:"fleet_name" db:"team_name" csv:"team_name"`
+	TeamName *string `json:"fleet_name" db:"team_name" csv:"fleet_name"`
 	// Additional is the additional information from the host
 	// additional_queries. This should be stored in a separate DB table.
 	Additional *json.RawMessage `json:"additional,omitempty" db:"additional" csv:"-"`
@@ -691,8 +686,8 @@ type HostHealth struct {
 	FailingCriticalPoliciesCount *int                           `json:"failing_critical_policies_count,omitempty"` // Fleet Premium Only
 	VulnerableSoftware           []HostHealthVulnerableSoftware `json:"vulnerable_software,omitempty"`
 	FailingPolicies              []*HostHealthFailingPolicy     `json:"failing_policies,omitempty"`
-	Platform                     string                         `json:"-" db:"platform"`                                    // Needed to fetch failing policies. Not returned in HTTP responses.
-	TeamID                       *uint                          `json:"team_id,omitempty" renameto:"fleet_id" db:"team_id"` // Needed to verify that user can access this host's health data. Not returned in HTTP responses.
+	Platform                     string                         `json:"-" db:"platform"`                 // Needed to fetch failing policies. Not returned in HTTP responses.
+	TeamID                       *uint                          `json:"fleet_id,omitempty" db:"team_id"` // Needed to verify that user can access this host's health data. Not returned in HTTP responses.
 }
 
 type HostHealthVulnerableSoftware struct {
@@ -1408,7 +1403,7 @@ const (
 // set of hosts in the database. This structure is returned by the HostService
 // method GetHostSummary
 type HostSummary struct {
-	TeamID              *uint                  `json:"team_id,omitempty" renameto:"fleet_id" db:"-"`
+	TeamID              *uint                  `json:"fleet_id,omitempty" db:"-"`
 	TotalsHostsCount    uint                   `json:"totals_hosts_count" db:"total"`
 	OnlineCount         uint                   `json:"online_count" db:"online"`
 	OfflineCount        uint                   `json:"offline_count" db:"offline"`
@@ -2117,7 +2112,7 @@ type HostMDMCheckinInfo struct {
 	HardwareSerial     string `json:"hardware_serial" db:"hardware_serial"`
 	InstalledFromDEP   bool   `json:"installed_from_dep" db:"installed_from_dep"`
 	DisplayName        string `json:"display_name" db:"display_name"`
-	TeamID             uint   `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID             uint   `json:"fleet_id" db:"team_id"`
 	DEPAssignedToFleet bool   `json:"dep_assigned_to_fleet" db:"dep_assigned_to_fleet"`
 	OsqueryEnrolled    bool   `json:"osquery_enrolled" db:"osquery_enrolled"`
 	// FleetEnrolledCorporate is true while the host is enrolled in Fleet's MDM as a non-personal host.

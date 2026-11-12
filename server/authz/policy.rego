@@ -374,21 +374,21 @@ allow {
 # Allow read for matching team admin/maintainer/technician/observer/observer_plus.
 allow {
 	object.type == "host"
-	team_role(subject, object.team_id) == [admin, maintainer, technician, observer, observer_plus][_]
+	team_role(subject, object.fleet_id) == [admin, maintainer, technician, observer, observer_plus][_]
 	action == read
 }
 
 # Team admins and maintainers can write to hosts of their own team
 allow {
 	object.type == "host"
-	team_role(subject, object.team_id) == [admin, maintainer][_]
+	team_role(subject, object.fleet_id) == [admin, maintainer][_]
 	action == write
 }
 
 # Team admins, maintainers, technicians, and gitops can write labels to hosts of their own team.
 allow {
 	object.type == "host"
-	team_role(subject, object.team_id) == [admin, maintainer, technician, gitops][_]
+	team_role(subject, object.fleet_id) == [admin, maintainer, technician, gitops][_]
 	action == write_host_label
 }
 
@@ -398,21 +398,21 @@ allow {
 # layer authorizes both sides separately.
 allow {
 	object.type == "host"
-	team_role(subject, object.team_id) == [admin, maintainer, technician, gitops][_]
+	team_role(subject, object.fleet_id) == [admin, maintainer, technician, gitops][_]
 	action == transfer_host
 }
 
 # Team admins, maintainers, technicians, and gitops can delete hosts of their own team.
 allow {
 	object.type == "host"
-	team_role(subject, object.team_id) == [admin, maintainer, technician, gitops][_]
+	team_role(subject, object.fleet_id) == [admin, maintainer, technician, gitops][_]
 	action == delete_host
 }
 
 # Team admins and maintainers can cancel activities on a host of their own team.
 allow {
 	object.type == "host"
-	team_role(subject, object.team_id) == [admin, maintainer][_]
+	team_role(subject, object.fleet_id) == [admin, maintainer][_]
 	action == cancel_host_activity
 }
 
@@ -430,7 +430,7 @@ allow {
 # Team admins, maintainers, technicians, observer_plus, and observers can read host health of their own team.
 allow {
   object.type == "host_health"
-  team_role(subject, object.team_id) == [admin, maintainer, technician, observer_plus, observer][_]
+  team_role(subject, object.fleet_id) == [admin, maintainer, technician, observer_plus, observer][_]
   action == read
 }
 

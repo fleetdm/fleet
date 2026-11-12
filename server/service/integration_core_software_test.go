@@ -184,12 +184,6 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	assert.Equal(t, soft1.ID, versionsResp.Software[0].ID)
 	assert.Equal(t, soft1.ExtensionID, versionsResp.Software[0].ExtensionID)
 	assert.Equal(t, soft1.ExtensionFor, versionsResp.Software[0].ExtensionFor)
-	// Browser field should be populated for browser extensions
-	if soft1.Source == "chrome_extensions" || soft1.Source == "firefox_addons" || soft1.Source == "ie_extensions" || soft1.Source == "safari_extensions" {
-		assert.Equal(t, soft1.ExtensionFor, versionsResp.Software[0].Browser)
-	} else {
-		assert.Empty(t, versionsResp.Software[0].Browser)
-	}
 	assert.Len(t, versionsResp.Software[0].Vulnerabilities, 1)
 	require.NotNil(t, versionsResp.CountsUpdatedAt)
 	assert.WithinDuration(t, hostsCountTs, *versionsResp.CountsUpdatedAt, time.Second)
@@ -366,12 +360,6 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 			assert.Equal(t, sw.Version, detailsResp.Software.Version)
 			assert.Equal(t, sw.Source, detailsResp.Software.Source)
 			assert.Equal(t, sw.ExtensionFor, detailsResp.Software.ExtensionFor)
-			// Browser field should be populated for browser extensions
-			if sw.Source == "chrome_extensions" || sw.Source == "firefox_addons" || sw.Source == "ie_extensions" || sw.Source == "safari_extensions" {
-				assert.Equal(t, sw.ExtensionFor, detailsResp.Software.Browser)
-			} else {
-				assert.Empty(t, detailsResp.Software.Browser)
-			}
 			if len(sw.Vulnerabilities) > 0 {
 				assert.Len(t, detailsResp.Software.Vulnerabilities, len(sw.Vulnerabilities))
 				assert.Greater(t, detailsResp.Software.Vulnerabilities[0].CreatedAt, time.Now().Add(-time.Hour)) // asserting a non-zero time
@@ -397,12 +385,6 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 			assert.Equal(t, wantSource, gotSource)
 			wantExtensionFor, gotExtensionFor := want[i].ExtensionFor, resp.Software[i].ExtensionFor
 			assert.Equal(t, wantExtensionFor, gotExtensionFor)
-			// Browser field should be populated for browser extensions
-			if want[i].Source == "chrome_extensions" || want[i].Source == "firefox_addons" || want[i].Source == "ie_extensions" || want[i].Source == "safari_extensions" {
-				assert.Equal(t, want[i].ExtensionFor, resp.Software[i].Browser)
-			} else {
-				assert.Empty(t, resp.Software[i].Browser)
-			}
 		}
 		if ts.IsZero() {
 			assert.Nil(t, resp.CountsUpdatedAt)

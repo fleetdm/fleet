@@ -142,6 +142,9 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 		return false, "", fmt.Errorf("parsing osquery JSON output: %w", err)
 	}
 
+	// An ARM64 build gets the same per-app exceptions as its x64 sibling.
+	catalogName := strings.TrimSuffix(appName, " (ARM64)")
+
 	if len(results) > 0 {
 		for _, result := range results {
 			// Vendor is populated so name/version sanitizers that key off the
@@ -161,7 +164,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 
 			// Sublime Text's Inno Setup installer may not write version to registry properly
 			// If app is found but version is empty, check if it's Sublime Text and skip version check
-			if appName == "Sublime Text" && result.Version == "" {
+			if catalogName == "Sublime Text" && result.Version == "" {
 				logger.InfoContext(ctx, "Sublime Text detected with empty version - skipping version check (installer may not write version to registry)")
 				return true, "", nil
 			}
@@ -175,22 +178,22 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 			if strings.HasPrefix(result.Version, appVersion+".") {
 				return true, "", nil
 			}
-			// Check if expected version starts with found version (handles cases where osquery reports shorter version)
-			// This handles cases where expected is "6.4.0" but osquery reports "6.4"
-			if strings.HasPrefix(appVersion, result.Version+".") {
-				return true, "", nil
-			}
 			// Some installers register a DisplayVersion in a different format
 			// from the package version (.NET SDK 9.0.320 registers 9.3.2026.52328).
 			// The patch policy compares against that DisplayVersion, so accept it.
 			if patchVersion != "" && result.Version == patchVersion {
 				return true, "", nil
 			}
+			// A shorter version ("6.4" for "6.4.0") is not a match: version_compare
+			// sorts it lower, so the patch policy would fail on up-to-date hosts.
+			if strings.HasPrefix(appVersion, result.Version+".") {
+				logger.ErrorContext(ctx, fmt.Sprintf("osquery reports version '%s', a shorter form of '%s', so the patch policy would fail on hosts that have this version. Shorten the version with an enricher in ee/maintained-apps/ingesters/winget/external_refs, or set use_display_version_for_patch if the winget manifest has a DisplayVersion.", result.Version, appVersion))
+			}
 
 			// Google Chrome auto-updates immediately after installation, so the
 			// installed version may be newer than the installer version. If
 			// version didn't match above, fall back to existence-only check.
-			if appName == "Google Chrome" {
+			if catalogName == "Google Chrome" {
 				logger.InfoContext(ctx, "Google Chrome detected - version mismatch but app is installed, skipping version check due to auto-update behavior")
 				return true, "", nil
 			}
@@ -208,7 +211,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 			// manifest's exists/patched queries (publisher = 'Microsoft
 			// Corporation'), so a third-party app that happens to match a name
 			// prefix can't bypass the version check.
-			if appName == "Microsoft Office" &&
+			if catalogName == "Microsoft Office" &&
 				result.Publisher == "Microsoft Corporation" &&
 				(strings.HasPrefix(result.Name, "Microsoft 365 Apps") ||
 					strings.HasPrefix(result.Name, "Microsoft Office")) {

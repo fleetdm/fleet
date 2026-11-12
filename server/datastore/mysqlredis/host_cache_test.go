@@ -26,7 +26,7 @@ import (
 // hostCacheTestCleanupPrefix is the key-prefix passed to redistest.SetupRedis so
 // every run cleans up only keys owned by these tests (redistest requires a
 // prefix to prevent concurrent tests from clobbering each other's keys).
-const hostCacheTestCleanupPrefix = "fleet:hostcache:v1"
+const hostCacheTestCleanupPrefix = "fleet:hostcache:v2"
 
 // hostCacheFamily parameterizes the load-path tests across both cache families (osquery `LoadHostByNodeKey`
 // and orbit `LoadHostByOrbitNodeKey`). Every end-to-end override test runs once per family; field-fidelity is

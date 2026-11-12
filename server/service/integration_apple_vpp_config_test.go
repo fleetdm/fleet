@@ -166,6 +166,20 @@ func (s *integrationMDMTestSuite) TestVPPAppleManagedAppConfiguration() {
 		}, http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(res.Body), "$FLEET_VAR_NDES_SCEP_CHALLENGE")
 
+	// Add and update with the variable Fleet 5 removed → 422 with its migration message.
+	removedVarConfig := asJSONString(`<dict><key>K</key><string>${FLEET_VAR_HOST_END_USER_EMAIL_IDP}</string></dict>`)
+	const removedVarMsg = `The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. What to use instead: `
+	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:        &team.ID,
+		AppStoreID:    ipadOSAdamID,
+		Platform:      fleet.IPadOSPlatform,
+		Configuration: removedVarConfig,
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), removedVarMsg)
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", addResp.TitleID),
+		&updateAppStoreAppRequest{TeamID: &team.ID, Configuration: removedVarConfig}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), removedVarMsg)
+
 	// macOS adam ID — pre-registered as a macOS-only app in the mock VPP server.
 	const macosAdamID = "1"
 
@@ -598,7 +612,7 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 			fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
 			&updateAppStoreAppRequest{
 				TeamID:        &team.ID,
-				Configuration: asJSONString(`<dict><key>Email</key><string>$FLEET_VAR_HOST_END_USER_EMAIL_IDP</string></dict>`),
+				Configuration: asJSONString(`<dict><key>User</key><string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME</string></dict>`),
 			},
 			http.StatusOK, &updateAppStoreAppResponse{})
 
@@ -645,7 +659,7 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 			if act.Type == (fleet.ActivityInstalledAppStoreApp{}).ActivityName() {
 				require.NotNil(t, act.Details)
 				require.Contains(t, string(*act.Details), string(fleet.SoftwareInstallFailed))
-				require.Contains(t, string(*act.Details), "$FLEET_VAR_HOST_END_USER_EMAIL_IDP")
+				require.Contains(t, string(*act.Details), "$FLEET_VAR_HOST_END_USER_IDP_USERNAME")
 				found = true
 				break
 			}

@@ -69,6 +69,7 @@ module.exports = {
       let accessTokenAndApiUrls = await sails.helpers.microsoftProxy.getAccessTokenAndApiUrls.with({
         complianceTenantRecordId: informationAboutThisTenant.id
       }).intercept(async (err)=>{
+        // IMPORTANT: Don't change the below setupError value. The error string is checked by the Fleet UI frontend.
         await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `Error occurred when retrieving API tokens and URLs for a new tenant. Full error: ${require('util').inspect(err, {depth: null})}`});
         sails.log.warn(`When retrieving API tokens and the URLs of API endpoints to provision new Microsoft compliance tenant, the getAccessTokenAndApiUrls helper returned an error. Full error: ${require('util').inspect(err, {depth: 3})}`);
         return {redirect: fleetInstanceUrlToRedirectTo };
@@ -201,7 +202,7 @@ module.exports = {
         }
         createdPolicyId = parsedPoliciesResponse.value[0].Id;
       }
-      // The nil GUID is the default ‘no ID’ value, not a generated policy ID, so don’t try to assign it.”
+      // The nil GUID is the default 'no ID' value, not a generated policy ID, so don't try to assign it.
       if(createdPolicyId === '00000000-0000-0000-0000-000000000000') {
         sails.log.warn(`Microsoft's PartnerCompliancePolicies API returned an all-zero policy ID for tenant ${informationAboutThisTenant.entraTenantId}. Status: ${createPolicyResponse.statusCode}. Response headers: ${require('util').inspect(createPolicyResponse.headers, {depth: 1})}`);
         await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError: `Microsoft's PartnerCompliancePolicies API returned an all-zero compliance policy ID (HTTP ${createPolicyResponse.statusCode}).`});

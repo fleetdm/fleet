@@ -208,18 +208,21 @@ describe("ControlDetailsModal", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("drops the details block for an IdP email error", () => {
+    it("drops the details block for a Fleet 5 removed variable error", () => {
       renderModal({
         control: createMockHostMdmProfile({
           name: "Wi-Fi",
           platform: "darwin",
           operation_type: "install",
           status: "failed",
-          detail: "There is no IdP email for this host.",
+          detail:
+            'The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration',
         }),
       });
 
-      expect(screen.getByText(/Learn more/)).toBeInTheDocument();
+      expect(
+        screen.getByRole("link", { name: /fleet-5-migration/ })
+      ).toBeInTheDocument();
       expect(screen.queryByText("Details:")).not.toBeInTheDocument();
     });
 

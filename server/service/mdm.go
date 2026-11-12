@@ -41,7 +41,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	"github.com/gorilla/mux"
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -2045,7 +2044,7 @@ type updateMDMConfigProfileRequest struct {
 func (updateMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	decoded := updateMDMConfigProfileRequest{}
 
-	profileUUID, ok := mux.Vars(r)["profile_uuid"]
+	profileUUID, ok := platform_http.PathVar(r, "profile_uuid")
 	if !ok || profileUUID == "" {
 		return nil, &fleet.BadRequestError{Message: "profile_uuid is required"}
 	}
@@ -2402,6 +2401,9 @@ func (svc *Service) parseAndValidateAndroidConfigProfile(ctx context.Context, te
 		RawJSON: data,
 	}
 	if err := cp.ValidateUserProvided(license.IsPremium(ctx)); err != nil {
+		if _, ok := errors.AsType[*fleet.RemovedFleetVariableError](err); ok {
+			return nil, "", ctxerr.Wrap(ctx, err, "validate profile")
+		}
 		err := &fleet.BadRequestError{Message: errPrefix + err.Error()}
 		return nil, "", ctxerr.Wrap(ctx, err, "validate profile")
 	}
@@ -2573,13 +2575,13 @@ func (svc *Service) batchValidateProfileLabels(ctx context.Context, teamID *uint
 
 	uniqueNames := server.RemoveDuplicatesFromSlice(labelNames)
 
-	labels, err := svc.ds.LabelIDsByName(ctx, labelNames, fleet.TeamFilter{User: authz.UserFromContext(ctx)})
+	found, err := foundLabelNames(ctx, svc.ds, uniqueNames, teamID, authz.UserFromContext(ctx))
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting label IDs by name")
+		return nil, err
 	}
 
-	if len(labels) != len(uniqueNames) {
-		labelError := fleet.NewMissingLabelError(uniqueNames, labels)
+	if len(found) != len(uniqueNames) {
+		labelError := fleet.NewMissingLabelError(uniqueNames, found)
 		return nil, &fleet.BadRequestError{
 			InternalErr: labelError,
 			Message:     fmt.Sprintf("Couldn't update. Label %q doesn't exist. Please remove the label from the configuration profile.", labelError.MissingLabelName),
@@ -2587,17 +2589,18 @@ func (svc *Service) batchValidateProfileLabels(ctx context.Context, teamID *uint
 	}
 
 	// NOTE(lucas): To not break API error string returned above
-	// AND for code reusability we are a-ok with loading labels again in verifyLabelsToAssociate.
+	// AND for code reusability we are a-ok with loading labels again in loadLabelsToAssociate.
 	// This can definitely be optimized if need be.
-	if err := verifyLabelsToAssociate(ctx, svc.ds, teamID, labelNames, authz.UserFromContext(ctx)); err != nil {
+	scoped, err := loadLabelsToAssociate(ctx, svc.ds, teamID, labelNames, authz.UserFromContext(ctx))
+	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 
 	profLabels := make(map[string]fleet.ConfigurationProfileLabel)
-	for labelName, labelID := range labels {
+	for labelName, label := range scoped {
 		profLabels[labelName] = fleet.ConfigurationProfileLabel{
 			LabelName: labelName,
-			LabelID:   labelID,
+			LabelID:   label.ID,
 		}
 	}
 	return profLabels, nil
@@ -2912,6 +2915,13 @@ func (svc *Service) BatchSetMDMProfiles(
 		for _, p := range profiles {
 			if len(fleet.ContainsPrefixVars(string(p.Contents), fleet.ServerSecretPrefix)) == 0 {
 				profilesWithoutSecrets = append(profilesWithoutSecrets, p)
+				continue
+			}
+			// A removed Fleet variable doesn't depend on the secrets, so the dry run still reports it like a real run does.
+			if isMobileconfigContents(p.Contents) || mdm.GetRawProfilePlatform(p.Contents) == "android" {
+				if err := fleet.FindRemovedFleetVariable(variables.Find(string(p.Contents))...); err != nil {
+					return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", p.Name), err.Error()))
+				}
 			}
 		}
 		profiles = profilesWithoutSecrets

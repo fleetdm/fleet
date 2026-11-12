@@ -119,6 +119,14 @@ func applyPackSpecDB(ctx context.Context, tx sqlx.ExtContext, spec *fleet.PackSp
 		VALUES (?, ?, (SELECT id FROM labels WHERE name = ?))
 	`
 	for _, l := range spec.Targets.Labels {
+		// Fleets can share label names, which would make the subquery below return several rows.
+		var matches int
+		if err := sqlx.GetContext(ctx, tx, &matches, `SELECT COUNT(*) FROM labels WHERE name = ?`, l); err != nil {
+			return ctxerr.Wrap(ctx, err, "count labels for pack target")
+		}
+		if matches > 1 {
+			return ctxerr.Wrap(ctx, fleet.NewAmbiguousLabelNameError(l))
+		}
 		if _, err := tx.ExecContext(ctx, query, packID, fleet.TargetLabel, l); err != nil {
 			return ctxerr.Wrap(ctx, err, "adding label to pack")
 		}

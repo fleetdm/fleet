@@ -30,7 +30,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
-	"github.com/gorilla/mux"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -83,7 +82,7 @@ const (
 // TODO(HCA): Can we come up with a clearer name? This looks like any variables not in this slice is not supported,
 // but that is not the case, digicert, custom scep, hydrant and smallstep are totally supported just in a different way (multiple CA's)
 var fleetVarsSupportedInAppleConfigProfiles = []fleet.FleetVarName{
-	fleet.FleetVarNDESSCEPChallenge, fleet.FleetVarNDESSCEPProxyURL, fleet.FleetVarHostEndUserEmailIDP,
+	fleet.FleetVarNDESSCEPChallenge, fleet.FleetVarNDESSCEPProxyURL,
 	fleet.FleetVarHostHardwareSerial, fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart,
 	fleet.FleetVarHostEndUserIDPGroups, fleet.FleetVarHostEndUserIDPDepartment, fleet.FleetVarHostEndUserIDPFullname,
 	fleet.FleetVarHostEndUserIDPExternalID,
@@ -311,6 +310,9 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 	fleetVars := variables.Find(contents)
 	if len(fleetVars) == 0 {
 		return nil, nil
+	}
+	if err := fleet.FindRemovedFleetVariable(fleetVars...); err != nil {
+		return nil, err
 	}
 
 	// Validate against all valid Fleet variables in configuration profiles
@@ -2460,7 +2462,7 @@ func (mdmAppleAccountEnrollRequest) DecodeRequest(ctx context.Context, r *http.R
 		decoded.EnrollReference = ptr.String(strings.Split(auth, "Bearer ")[1])
 	}
 
-	token := mux.Vars(r)["token"]
+	token, _ := platform_http.PathVar(r, "token")
 	if token != "" {
 		decoded.EnrollmentToken = token
 	}

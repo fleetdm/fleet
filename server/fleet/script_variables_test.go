@@ -37,7 +37,7 @@ func TestValidateFleetVariablesInScript(t *testing.T) {
 	t.Run("unsupported variables on premium", func(t *testing.T) {
 		unsupported := []FleetVarName{
 			"NONEXISTENT",
-			FleetVarHostEndUserEmailIDP,
+			"HOST_END_USER_EMAIL_IDP",
 			FleetVarNDESSCEPProxyURL,
 			FleetVarPSSODeviceRegistrationToken,
 			"CUSTOM_SCEP_CHALLENGE_FOO",

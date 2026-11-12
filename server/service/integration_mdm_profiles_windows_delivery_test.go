@@ -621,7 +621,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 
 		var teamFilter string
 		if teamID != nil {
-			teamFilter = fmt.Sprintf("&team_id=%d", *teamID)
+			teamFilter = fmt.Sprintf("&fleet_id=%d", *teamID)
 		}
 		var gotHostsResp listHostsResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts?os_settings=%s%s", wantStatus, teamFilter), nil, http.StatusOK, &gotHostsResp)

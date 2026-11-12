@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.4.0",
+      "version": "3.5.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.elgato.WaveLink3';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE (bundle_identifier = 'com.elgato.WaveLink3' AND version_compare(bundle_short_version, '3.4.0') < 0) OR (bundle_identifier = 'com.elgato.WaveLink' AND path = '/Applications/Elgato Wave Link.app' AND (SELECT major FROM os_version) >= 15));",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE (bundle_identifier = 'com.elgato.WaveLink3' AND version_compare(bundle_short_version, '3.5.0') < 0) OR (bundle_identifier = 'com.elgato.WaveLink' AND path = '/Applications/Elgato Wave Link.app' AND (SELECT major FROM os_version) >= 15));",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier IN ('com.elgato.WaveLink3', 'com.elgato.WaveLink') AND a.bundle_executable != '');"
       },
-      "installer_url": "https://edge.elgato.com/egc/macos/ewlm/release/ElgatoWaveLink-3.4.0.3281.dmg",
+      "installer_url": "https://edge.elgato.com/egc/macos/ewlm/release/ElgatoWaveLink-3.5.0.3633.dmg",
       "install_script_ref": "aaf8fef5",
       "uninstall_script_ref": "7b13c512",
-      "sha256": "49f15d4a6565885631485b69f0c7f4bbdc8856d11af479a18555d30a1e548a1f",
+      "sha256": "e464493fdbdeb5a7e6cdd68f1d3c6972de3e12241caea1b6ebf1782d30001b85",
       "default_categories": [
         "Productivity"
       ]

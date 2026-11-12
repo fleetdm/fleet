@@ -4,6 +4,5 @@
   "token": "google-gemini",
   "installer_format": "dmg",
   "slug": "google-gemini/darwin",
-  "default_categories": ["Productivity"],
-  "frozen": true
+  "default_categories": ["Productivity"]
 }
