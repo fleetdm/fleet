@@ -617,7 +617,7 @@ module.exports.routes = {
     }
   },
 
-  'GET /linux-management': {
+  'GET /linux': {
     action: 'view-linux-management',
     locals: {
       pageTitleForMeta: 'Linux device management',
@@ -868,7 +868,7 @@ module.exports.routes = {
   // 'GET /docs/using-fleet/learn-how-to-use-fleet': '/docs/using-fleet/fleet-for-beginners',
   // ```
   'GET /jamf-alternative': '/replace-jamf',
-  'GET /linux': '/linux-management',
+  'GET /linux-management': (req, res) => { return res.redirect(301, '/linux' + (req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '')); },
   'GET /customer-stories': '/customers',
   'GET /testimonials': '/customers',
   // 'GET /try': '/get-started',
