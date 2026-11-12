@@ -1,1 +1,0 @@
-- Changed Windows MDM to record a device's SyncML command responses only after the device has authenticated.

@@ -279,7 +279,7 @@ describe("Device User Page", () => {
 
       expect(screen.queryByText(REGULAR_DUP_MATCHER)).toBeNull();
     });
-    it("renders the regular setup experience page if some software failed and require_all_software_macos is not true", async () => {
+    it("renders the regular setup experience page if some software failed and macos_require_all_software is not true", async () => {
       const host = createMockHost() as IHostDevice;
       host.platform = "darwin";
 
@@ -317,7 +317,7 @@ describe("Device User Page", () => {
 
       expect(screen.queryByText(REGULAR_DUP_MATCHER)).toBeNull();
     });
-    it("renders the regular setup experience page if some software failed and require_all_software_macos is true but the device is not on macos", async () => {
+    it("renders the regular setup experience page if some software failed and macos_require_all_software is true but the device is not on macos", async () => {
       const host = createMockHost() as IHostDevice;
       host.platform = "linux";
 
@@ -332,7 +332,7 @@ describe("Device User Page", () => {
             },
             mdm: {
               enabled_and_configured: true,
-              require_all_software_macos: true,
+              macos_require_all_software: true,
               only_allow_apple_business_enrollment: false,
             },
           },
@@ -369,7 +369,7 @@ describe("Device User Page", () => {
 
       expect(screen.queryByText(REGULAR_DUP_MATCHER)).toBeNull();
     });
-    it("renders the setup experience failure page if some software failed and require_all_software_macos is true and the host is a mac", async () => {
+    it("renders the setup experience failure page if some software failed and macos_require_all_software is true and the host is a mac", async () => {
       const host = createMockHost() as IHostDevice;
       host.platform = "darwin";
 
@@ -384,7 +384,7 @@ describe("Device User Page", () => {
             },
             mdm: {
               enabled_and_configured: true,
-              require_all_software_macos: true,
+              macos_require_all_software: true,
               only_allow_apple_business_enrollment: false,
             },
           },
@@ -633,7 +633,7 @@ describe("Device User Page", () => {
         global_config: {
           mdm: {
             enabled_and_configured: true,
-            require_all_software_macos: false,
+            macos_require_all_software: false,
             only_allow_apple_business_enrollment: false,
           },
           features: {
@@ -658,7 +658,7 @@ describe("Device User Page", () => {
         global_config: {
           mdm: {
             enabled_and_configured: true,
-            require_all_software_macos: false,
+            macos_require_all_software: false,
             only_allow_apple_business_enrollment: false,
           },
           features: {
@@ -683,7 +683,7 @@ describe("Device User Page", () => {
         global_config: {
           mdm: {
             enabled_and_configured: false,
-            require_all_software_macos: false,
+            macos_require_all_software: false,
             only_allow_apple_business_enrollment: false,
           },
           features: {
@@ -709,7 +709,7 @@ describe("Device User Page", () => {
         global_config: {
           mdm: {
             enabled_and_configured: true,
-            require_all_software_macos: false,
+            macos_require_all_software: false,
             only_allow_apple_business_enrollment: false,
           },
           features: {
@@ -738,7 +738,7 @@ describe("Device User Page", () => {
       author_email: "test@example.com",
       resolution: "Fix the issue",
       platform: "darwin",
-      team_id: null,
+      fleet_id: null,
       created_at: "2022-01-01T12:00:00Z",
       updated_at: "2022-01-02T12:00:00Z",
       critical: false,

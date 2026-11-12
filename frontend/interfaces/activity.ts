@@ -1,4 +1,5 @@
 import { ILabelSoftwareTitle } from "./label";
+import { IVppTokenSummary } from "./mdm";
 import { IOrgLogoMode } from "./org_logo";
 import { Platform } from "./platform";
 import { IPolicy } from "./policy";
@@ -20,14 +21,14 @@ export enum ActivityType {
   DeletedSavedQuery = "deleted_saved_query",
   DeletedMultipleSavedQuery = "deleted_multiple_saved_query",
   EditedSavedQuery = "edited_saved_query",
-  CreatedTeam = "created_team",
-  DeletedTeam = "deleted_team",
+  CreatedFleet = "created_fleet",
+  DeletedFleet = "deleted_fleet",
   LiveQuery = "live_query",
   AppliedSpecPack = "applied_spec_pack", // fleetctl
   AppliedSpecPolicy = "applied_spec_policy", // fleetctl
   AppliedSpecSavedQuery = "applied_spec_saved_query", // fleetctl
   AppliedSpecSoftware = "applied_spec_software", // fleetctl
-  AppliedSpecTeam = "applied_spec_team", // fleetctl
+  AppliedSpecFleet = "applied_spec_fleet", // fleetctl
   EditedAgentOptions = "edited_agent_options",
   UserAddedBySSO = "user_added_by_sso",
   UserLoggedIn = "user_logged_in",
@@ -38,8 +39,8 @@ export enum ActivityType {
   HostDeleted = "deleted_host",
   UserChangedGlobalRole = "changed_user_global_role",
   UserDeletedGlobalRole = "deleted_user_global_role",
-  UserChangedTeamRole = "changed_user_team_role",
-  UserDeletedTeamRole = "deleted_user_team_role",
+  UserChangedFleetRole = "changed_user_fleet_role",
+  UserDeletedFleetRole = "deleted_user_fleet_role",
   FleetEnrolled = "fleet_enrolled",
   MdmEnrolled = "mdm_enrolled",
   MdmUnenrolled = "mdm_unenrolled",
@@ -52,6 +53,8 @@ export enum ActivityType {
   RetrievedHostMyDeviceURL = "retrieved_host_my_device_url",
   ViewedHostRecoveryLockPassword = "viewed_host_recovery_lock_password",
   SetHostRecoveryLockPassword = "set_host_recovery_lock_password",
+  SetHostGoogleDeviceId = "set_host_google_device_id",
+  DeletedHostGoogleDeviceId = "deleted_host_google_device_id",
   RotatedHostRecoveryLockPassword = "rotated_host_recovery_lock_password",
   RotatedDiskEncryptionKey = "rotated_disk_encryption_key",
   FailedToRotateDiskEncryptionKey = "failed_to_rotate_disk_encryption_key",
@@ -69,6 +72,9 @@ export enum ActivityType {
   AddedDigicert = "added_digicert",
   DeletedDigicert = "deleted_digicert",
   EditedDigicert = "edited_digicert",
+  AddedEJBCA = "added_ejbca",
+  DeletedEJBCA = "deleted_ejbca",
+  EditedEJBCA = "edited_ejbca",
   AddedConditionalAccessMicrosoft = "added_conditional_access_microsoft",
   DeletedConditionalAccessMicrosoft = "deleted_conditional_access_microsoft",
   EditedConditionalAccessMicrosoft = "edited_conditional_access_microsoft",
@@ -95,12 +101,6 @@ export enum ActivityType {
   EditedAndroidProfile = "edited_android_profile",
   EditedAndroidCertificate = "edited_android_certificate",
   ResentCertificate = "resent_certificate",
-  // Deprecated: superseded by EditedDiskEncryptionSettings; kept so
-  // historical activities still render. Was generated for all platforms.
-  EnabledMacDiskEncryption = "enabled_macos_disk_encryption",
-  // Deprecated: superseded by EditedDiskEncryptionSettings; kept so
-  // historical activities still render. Was generated for all platforms.
-  DisabledMacDiskEncryption = "disabled_macos_disk_encryption",
   // Generated once per platform whose disk encryption settings changed.
   EditedDiskEncryptionSettings = "edited_disk_encryption_settings",
   AddedBootstrapPackage = "added_bootstrap_package",
@@ -155,6 +155,9 @@ export enum ActivityType {
   AddedAppStoreApp = "added_app_store_app",
   EditedAppStoreApp = "edited_app_store_app",
   DeletedAppStoreApp = "deleted_app_store_app",
+  AddedSelfServiceCategory = "added_self_service_category",
+  EditedSelfServiceCategory = "edited_self_service_category",
+  DeletedSelfServiceCategory = "deleted_self_service_category",
   InstalledAppStoreApp = "installed_app_store_app",
   EnabledActivityAutomations = "enabled_activity_automations",
   EditedActivityAutomations = "edited_activity_automations",
@@ -232,6 +235,7 @@ export enum ActivityType {
   DeletedCustomHostVital = "deleted_custom_host_vital",
   ReleasedDeviceFromAB = "released_from_ab",
   NotifiedEndUserBeforePatching = "notified_end_user_before_patching",
+  EditedPatchDeadlineSettings = "edited_patch_deadline_settings",
   EnabledAppleBusinessOnlyEnrollment = "enabled_apple_business_only_enrollment",
   DisabledAppleBusinessOnlyEnrollment = "disabled_apple_business_only_enrollment",
   HostEnrollmentRejected = "host_enrollment_rejected",
@@ -243,7 +247,8 @@ export type EnrollmentRejectedReason =
   | "one_time_secret_identifier_mismatch"
   | "shared_secret_for_mdm_managed_host"
   | "host_identity_cert_required"
-  | "end_user_authentication_required";
+  | "end_user_authentication_required"
+  | "uuid_of_another_mdm_host";
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
 export type IHostPastActivityType =
@@ -257,6 +262,8 @@ export type IHostPastActivityType =
   | ActivityType.RetrievedHostMyDeviceURL
   | ActivityType.ViewedHostRecoveryLockPassword
   | ActivityType.SetHostRecoveryLockPassword
+  | ActivityType.SetHostGoogleDeviceId
+  | ActivityType.DeletedHostGoogleDeviceId
   | ActivityType.RotatedHostRecoveryLockPassword
   | ActivityType.RotatedDiskEncryptionKey
   | ActivityType.FailedToRotateDiskEncryptionKey
@@ -349,6 +356,8 @@ export interface INotifySoftwareTitle {
 export interface IActivityDetails {
   /** Useful for passing this data into an activity details modal */
   created_at?: string;
+  /** Snapshot of the VPP token on App Store app activities. Null for Google Play apps. */
+  vpp_token?: Omit<IVppTokenSummary, "org_name"> | null;
   app_store_id?: number;
   bootstrap_package_name?: string;
   batch_execution_id?: string;
@@ -411,12 +420,14 @@ export interface IActivityDetails {
   self_service?: boolean;
   self_service_category_id?: number | null;
   self_service_category_name?: string | null;
-  /** Set on a patch-when-closed skip (the app was open); `status` is then
-   * `failed_install`. */
+  /** Set on any app-open skip (patch-when-closed, notify-before-patching, or
+   * deadline); `status` is then `failed_install`. */
   skipped_install?: boolean;
-  /** Undefined on skips recorded before 4.93, which were all patch-when-closed
-   * because notify before patching did not ship until then. */
+  /** The three skip variants are mutually exclusive. All undefined on legacy
+   * skip rows (pre-4.93 for patch_when_closed; pre-4.94 for the other two). */
   patch_when_closed?: boolean;
+  notify_before_patching?: boolean;
+  patch_deadline?: boolean;
   software_package?: string;
   software_title_id?: number;
   software_title?: string;
@@ -438,9 +449,7 @@ export interface IActivityDetails {
   stats?: ISchedulableQueryStats;
   status?: string;
   targets_count?: number;
-  team_id?: number | null;
-  team_name?: string | null;
-  teams?: ITeamSummary[];
+  fleets?: ITeamSummary[];
   /** Seconds before the patch install (drives "1 hour" vs "5 minutes" copy). */
   time_before?: number;
   triggered_by?: string;
@@ -470,6 +479,7 @@ export interface IActivityDetails {
   custom_host_vital_name?: string;
   domain?: string;
   host_idp_username?: string;
+  google_device_id?: string;
   idp_full_name?: string;
   idp_email?: string;
   replaced_idp_email?: string;
@@ -485,6 +495,10 @@ export interface IActivityDetails {
   fleet_id?: number | null;
   fleet_name?: string | null;
   dataset?: string;
+  /** `edited_patch_deadline_settings` payload — weekday names (lowercase) and
+   * HH:MM 24-hour time in the host's local timezone. */
+  days?: string[];
+  time?: string;
 }
 
 /**
@@ -496,6 +510,7 @@ export interface IActivityDetails {
 export type IActivityDetailsWithActor = IActivityDetails & {
   actor_full_name?: string;
   fleet_initiated?: boolean;
+  activity_created_at?: string;
 };
 
 // maps activity types to their corresponding label to use when filtering activites via the dropdown
@@ -505,17 +520,19 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   added_conditional_access_microsoft: "Added conditional access: Microsoft",
   added_custom_scep_proxy: "Added certificate authority (CA): custom SCEP",
   added_digicert: "Added certificate authority (CA): DigiCert",
+  added_ejbca: "Added certificate authority (CA): EJBCA",
   added_end_user_agreement: "Added end user agreement (EULA)",
   added_microsoft_entra_tenant: "Added Microsoft Entra tenant",
   added_microsoft_entra_client_id: "Added Microsoft Entra client ID",
   added_microsoft_graph_credential: "Added Microsoft Graph credential",
   added_ndes_scep_proxy: "Added certificate authority (CA): NDES",
   added_script: "Added script",
+  added_self_service_category: "Added self-service category",
   added_software: "Added software",
+  applied_spec_fleet: "GitOps: edited fleets",
   applied_spec_pack: "GitOps: edited packs",
   applied_spec_policy: "GitOps: edited policies",
   applied_spec_saved_query: "GitOps: edited reports",
-  applied_spec_team: "GitOps: edited fleets",
   applied_spec_software: "GitOps: edited software",
   canceled_install_app_store_app:
     "Canceled activity: install App Store (VPP) app",
@@ -526,14 +543,14 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   canceled_setup_experience: "Canceled setup experience",
   changed_macos_setup_assistant: "Edited macOS automatic enrollment profile",
   changed_org_logo: "Updated organization logo",
+  changed_user_fleet_role: "Edited user's role: fleet",
   changed_user_global_role: "Edited user's role: global",
-  changed_user_team_role: "Edited user's role: fleet",
   created_declaration_profile: "Added declaration (DDM) profile",
+  created_fleet: "Added fleet",
   created_macos_profile: "Added configuration profile: Apple",
   created_pack: "Created pack",
   created_policy: "Created policy",
   created_saved_query: "Added report",
-  created_team: "Added fleet",
   created_user: "Added user",
   created_windows_profile: "Added configuration profile: Windows",
   deleted_app_store_app: "Deleted App Store app", // Includes VPP and Android Playstore apps
@@ -542,7 +559,9 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   deleted_custom_scep_proxy: "Deleted certificate authority (CA): custom SCEP",
   deleted_declaration_profile: "Deleted declaration (DDM) profile",
   deleted_digicert: "Deleted certificate authority (CA): DigiCert",
+  deleted_ejbca: "Deleted certificate authority (CA): EJBCA",
   deleted_end_user_agreement: "Deleted end user agreement (EULA)",
+  deleted_fleet: "Deleted fleet",
   deleted_macos_profile: "Deleted configuration profile: Apple",
   deleted_macos_setup_assistant: "Deleted macOS automatic enrollment profile",
   deleted_microsoft_entra_tenant: "Deleted Microsoft Entra tenant",
@@ -555,11 +574,11 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   deleted_policy: "Deleted policy",
   deleted_saved_query: "Deleted report",
   deleted_script: "Deleted script",
+  deleted_self_service_category: "Deleted self-service category",
   deleted_software: "Deleted software",
-  deleted_team: "Deleted fleet",
   deleted_user: "Deleted user",
+  deleted_user_fleet_role: "Deleted user's role: fleet",
   deleted_user_global_role: "Deleted user's role: global",
-  deleted_user_team_role: "Deleted user's role: fleet",
   deleted_windows_profile: "Deleted configuration profile: Windows",
   disabled_activity_automations: "Disabled activity automations",
   disabled_android_mdm: "Turned off Android MDM",
@@ -567,7 +586,6 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "Disabled conditional access automations",
   disabled_gitops_exception: "Disabled GitOps exception",
   disabled_gitops_mode: "Disabled GitOps mode",
-  disabled_macos_disk_encryption: "Turned off disk encryption",
   disabled_macos_setup_end_user_auth:
     "Turned off end user authentication (setup experience)",
   disabled_macos_update_new_hosts: "Disabled OS updates for new macOS hosts",
@@ -583,6 +601,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   edited_declaration_profile: "Edited declaration (DDM) profiles",
   edited_digicert: "Edited certificate authority (CA): DigiCert",
   edited_disk_encryption_settings: "Edited disk encryption settings",
+  edited_ejbca: "Edited certificate authority (CA): EJBCA",
   edited_ios_min_version: "OS updates: edited iOS",
   edited_ipados_min_version: "OS updates: edited iPadOS",
   edited_macos_min_version: "OS updates: edited macOS",
@@ -593,6 +612,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   edited_policy: "Edited policy",
   edited_saved_query: "Edited report",
   edited_script: "Edited script",
+  edited_self_service_category: "Edited self-service category",
   edited_software: "Edited software",
   edited_windows_enrollment_default_fleet:
     "Edited enrollment default fleet: Windows",
@@ -604,7 +624,6 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "Enabled conditional access automations",
   enabled_gitops_exception: "Enabled GitOps exception",
   enabled_gitops_mode: "Enabled GitOps mode",
-  enabled_macos_disk_encryption: "Turned on disk encryption",
   enabled_macos_setup_end_user_auth:
     "Turned on end user authentication (setup experience)",
   enabled_macos_update_new_hosts: "Enabled OS updates for new macOS hosts",
@@ -631,6 +650,8 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   retrieved_host_my_device_url: "Retrieved My device URL",
   viewed_host_recovery_lock_password: "Viewed Recovery Lock password",
   set_host_recovery_lock_password: "Set Recovery Lock password",
+  set_host_google_device_id: "Marked as company-owned in Google",
+  deleted_host_google_device_id: "Unmarked as company-owned in Google",
   rotated_host_recovery_lock_password:
     "Triggered Recovery Lock password rotation",
   enabled_recovery_lock_passwords: "Turned on Recovery Lock passwords",
@@ -754,6 +775,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.ReleasedDeviceFromAB]: "Released host from Apple Business",
   [ActivityType.NotifiedEndUserBeforePatching]:
     "Notified end user before patching",
+  [ActivityType.EditedPatchDeadlineSettings]: "Edited patch deadline",
   [ActivityType.EnabledAppleBusinessOnlyEnrollment]:
     "Enabled Apple Business only enrollment",
   [ActivityType.DisabledAppleBusinessOnlyEnrollment]:

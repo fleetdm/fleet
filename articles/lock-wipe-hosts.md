@@ -4,7 +4,7 @@
 
 _Available in Fleet Premium_
 
-In Fleet, you can lock and wipe macOS, Windows, Linux, iOS, iPadOS, and Android hosts remotely when a host might have been lost or stolen, or to remotely prepare a device to be re-deployed to another end user. For macOS, Windows, iOS, and iPadOS, wipe is performed via MDM commands. For Linux, wipe is [script-based](#linux-wipe-behavior).
+In Fleet, you can lock and wipe macOS, Windows, Linux, iOS, iPadOS, and Android hosts remotely when a host might have been lost or stolen, or to remotely prepare a device to be re-deployed to another end user. For macOS, Windows, iOS, and iPadOS, wipe is performed via MDM commands. For Linux, wipe is [script-based](#linux-wipe-behavior). To prepare a Windows host for another end user, you can [reset](#reset-a-host) it.
 
 Restricting wipe for iPhones and iPads to only company-owned iPhones and iPads is coming soon.
 
@@ -111,11 +111,11 @@ Wiping a host silently cancels all of its upcoming activities. No canceled activ
 
 When wiping and re-installing the operating system (OS) on a host, delete the host from Fleet before you re-enroll it. If you re-enroll without deleting, Fleet won't escrow a new disk encryption key.
 
-Wait for the wipe to finish before deleting the host. Deleting a host removes Fleet's record of the commands it has already sent. If you delete while the wipe is still pending, Fleet can't confirm whether it finished.
+Wait for the wipe to finish before deleting the host. Deleting a host removes Fleet's record of the commands it has already sent. If you delete while the wipe is still pending, Fleet can't confirm whether it finished. For Windows and Apple hosts, deleting the host before the wipe runs may hide the "Wipe pending" badge, but Fleet still wipes the host when it checks in over MDM.
 
 If you're gifting a company-owned Apple host, or you want to prevent a host from automatically re-enrolling to Fleet for some other reason, first release the host from Apple Business (AB) and then delete the host in Fleet. Deleting in Fleet doesn't change the assignment in AB, so a host still assigned to Fleet comes back as a **Pending** host.
 
-For Windows hosts, Fleet uses the [doWipeProtected](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#dowipeprotected) command by default. According to Microsoft, this leaves the host [unable to boot](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#:~:text=In%20some%20device%20configurations%2C%20this%20command%20may%20leave%20the%20device%20unable%20to%20boot.). However, it is possible to use the [doWipe command via the API](https://fleetdm.com/docs/rest-api/rest-api#parameters57).
+For Windows hosts, Fleet uses the [doWipeProtected](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#dowipeprotected) command by default. According to Microsoft, this leaves the host [unable to boot](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#:~:text=In%20some%20device%20configurations%2C%20this%20command%20may%20leave%20the%20device%20unable%20to%20boot.). Microsoft recommends doWipeProtected for lost or stolen devices because it keeps trying until the wipe finishes, even if someone turns the host off and on. To repurpose a Windows host for another end user, [reset it](#reset-a-host) instead.
 
 If the wipe command fails (MDM protocol returns 500 in [MDM command results](https://fleetdm.com/docs/rest-api/rest-api#list-mdm-commands)), you can run a [fallback wipe script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/wipe-windows-device.ps1) via Fleet. This script validates and repairs WinRE (the most common cause of wipe failure), suspends BitLocker, and triggers the wipe locally via the WMI-to-CSP bridge, bypassing the MDM command queue.
 
@@ -146,6 +146,23 @@ The script will not cross filesystem boundaries — it uses `--one-file-system` 
 - **Separate partitions or mount points** not covered by the paths listed above (e.g. a dedicated `/data` partition) will not be erased. If your hosts use non-standard disk layouts, the script may leave data intact on those volumes.
 - **Network-mounted paths** are detected and skipped to protect remote storage, but detection relies on `/proc/mounts` being accurate and complete. **Disconnect all network drives before wiping** and confirm there is no network-backed storage accessible on the host at wipe time. If you are unsure, check what is mounted by running `mount` on the host before initiating the wipe.
 - After the script completes, the host will halt and will not reboot into a usable state. Physical access and OS reinstallation will be required to bring the host back into service.
+
+
+## Reset a host
+
+Reset a Windows host to repurpose it for another end user. Reset removes the end user's files and keeps the provisioning packages on the host. The host must have MDM turned on. To wipe a lost or stolen host instead, see [Wipe a host](#wipe-a-host).
+
+If you set up the host with a [provisioning package that installs Fleet's agent](https://fleetdm.com/guides/preinstall-fleets-agent-on-windows-with-a-provisioning-package), Windows reapplies the package after the reset, and the host comes back with Fleet's agent installed. Reset works without a provisioning package, but Fleet's agent isn't reinstalled.
+
+1. Navigate to the **Hosts** page by clicking the "Hosts" tab in the main navigation header. Find the Windows host you want to reset.
+2. Click the host to open the **Host details** page.
+3. Click the **Actions** dropdown, then click **Reset**.
+4. Confirm that you want to reset the host in the dialog. The host is marked with a "Reset pending" badge.
+
+> **Note:** Unlike wipe, reset can be interrupted. If someone turns off the host while it resets, Windows can roll back the reset, and the host keeps its files.
+
+Deleting the host before the reset runs may hide the "Reset pending" badge, but Fleet still resets the host when it checks in over MDM.
+
 
 ## Unlock a host
 
@@ -206,6 +223,8 @@ Lock on Windows and Linux, and wipe on Linux run as scripts, not MDM commands. Y
 
 Wipe on Windows and lock, wipe, and clear passcode on Android aren't cancelable.
 
+If a Windows host re-enrolls in MDM before it receives a pending lock or wipe, Fleet cancels the lock or wipe.
+
 ### Cancel from the UI
 
 1. Navigate to the **Hosts** page and open the host's **Host details** page.
@@ -231,7 +250,7 @@ Returns 204 No Content on success. The command_uuid can be obtained from the [Li
 
 ## Lock and wipe using `fleetctl`
 
-You can lock, unlock, and wipe hosts using Fleet's command-line tool `fleetctl`:
+You can lock, unlock, wipe, and reset hosts using Fleet's command-line tool `fleetctl`:
 
 ```shell
 fleetctl mdm lock --host $HOST_IDENTIFIER
@@ -245,6 +264,10 @@ fleetctl mdm unlock --host $HOST_IDENTIFIER
 fleetctl mdm wipe --host $HOST_IDENTIFIER
 ```
 
+```shell
+fleetctl mdm reset --host $HOST_IDENTIFIER
+```
+
 `$HOST_IDENTIFIER` can be any of the host identifiers: hostname, UUID, or serial number.
 
 Add the `--help` flag to any command to learn more about how to use it.
@@ -252,6 +275,8 @@ Add the `--help` flag to any command to learn more about how to use it.
 For macOS hosts, the `mdm unlock` command will return the six-digit PIN, which must be typed into the device in order to finish unlocking it.
 
 For Linux hosts, running `fleetctl mdm wipe` triggers the same script-based wipe as the UI action. Read the [Linux wipe behavior](#linux-wipe-behavior) section above before using this command on production hosts.
+
+`fleetctl mdm reset` works on Windows hosts only.
 
 *For Windows and Linux hosts, a script will run as part of the lock and unlock actions. Details for each script can be found in GitHub for [Windows](https://github.com/fleetdm/fleet/tree/main/ee/server/service/embedded_scripts/windows_lock.ps1) and [Linux](https://github.com/fleetdm/fleet/tree/main/ee/server/service/embedded_scripts/linux_lock.sh) hosts.
 

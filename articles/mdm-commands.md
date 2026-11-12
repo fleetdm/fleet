@@ -225,11 +225,25 @@ To verify the MDM command result with the Fleet API, use a command that conforms
 
 > The `?command_uuid=` parameter appended to the URL is populated with the same `CommandUUID` string that was used to populate the `CommandUUID` key / value in the base64-encoded `.plist` in Step 1.
 
+### Command history retention
+
+Fleet deletes old MDM command history on a schedule, so check results before they're removed. Once a command is deleted, it no longer appears in the host's MDM command history or in `fleetctl get mdm-commands`, and Fleet no longer returns its results.
+
+For Apple (macOS, iOS, iPadOS) hosts, Fleet deletes a command after the host responds, or after it's superseded and will never be sent:
+
+- Commands Fleet sends automatically on a recurring schedule, like refetches and `DeclarativeManagement` syncs, are deleted after 24 hours by default.
+- Profile and app installs, and inventory commands you run yourself, like `DeviceInformation` or `InstalledApplicationList`, are deleted after 30 days by default.
+- Fleet keeps commands that a host's status depends on, like `DeviceLock` and `EraseDevice`, and any command type not covered above, like `RestartDevice`.
+
+To change these windows, see [`mdm.apple_command_cleanup_short_retention`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-command-cleanup-short-retention) and [`mdm.apple_command_cleanup_standard_retention`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-command-cleanup-standard-retention).
+
+For Windows hosts, Fleet deletes command history after 30 days by default. To change this, see [`mdm.windows_command_retention`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-windows-command-retention).
+
 ## Troubleshooting
 
-You can view a list of the 1000 most recent MDM commands executed in Fleet by running:
+You can view a list of the 1000 most recent MDM commands executed for a host by running:
 
-`fleetctl get mdm-commands`
+`fleetctl get mdm-commands --host=<insert-hostname-uuid-or-serial>`
 
 The output will be sorted by the "most recent first" column and will include timestamp, targeted hostname, command type, execution status and command ID values.
 
@@ -242,7 +256,7 @@ You can also get this list of MDM commands from the Fleet API with something lik
 --request GET \
 --header 'Accept: application/json' \
 --header "Authorization: Bearer $fleet_key" \
-"$fleet_url/api/v1/fleet/commands/results"
+"$fleet_url/api/v1/fleet/commands?host_identifier=<insert-hostname-uuid-or-serial>"
 ```
 
 <meta name="category" value="guides">

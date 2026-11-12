@@ -2,14 +2,14 @@ import React from "react";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
-import { ITokenTeam } from "interfaces/mdm";
-import { getTeamDisplayName } from "interfaces/team";
+import { ITokenFleet } from "interfaces/mdm";
+import { getFleetDisplayName } from "interfaces/team";
 
 const baseClass = "teams-cell";
 
 const NUM_TEAMS_IN_TOOLTIP = 3;
 
-const generateCell = (teams: ITokenTeam[] | null) => {
+const generateCell = (teams: ITokenFleet[] | null) => {
   if (!teams) {
     return <TextCell value="---" grey />;
   }
@@ -22,7 +22,7 @@ const generateCell = (teams: ITokenTeam[] | null) => {
   let italicize = true;
   if (teams.length === 1) {
     italicize = false;
-    text = getTeamDisplayName(teams[0]);
+    text = getFleetDisplayName(teams[0]);
   } else {
     text = `${teams.length} fleets`;
   }
@@ -30,12 +30,12 @@ const generateCell = (teams: ITokenTeam[] | null) => {
   return <TextCell value={text} italic={italicize} />;
 };
 
-const condenseTeams = (teams: ITokenTeam[]) => {
+const condenseTeams = (teams: ITokenFleet[]) => {
   const condensed =
     (teams?.length &&
       teams
         .slice(-NUM_TEAMS_IN_TOOLTIP)
-        .map((team) => getTeamDisplayName(team))
+        .map((team) => getFleetDisplayName(team))
         .reverse()) ||
     [];
 
@@ -45,7 +45,7 @@ const condenseTeams = (teams: ITokenTeam[]) => {
 };
 
 interface ITeamsCellProps {
-  teams: ITokenTeam[] | null;
+  teams: ITokenFleet[] | null;
 }
 
 const TeamsCell = ({ teams }: ITeamsCellProps) => {
@@ -58,7 +58,7 @@ const TeamsCell = ({ teams }: ITeamsCellProps) => {
   }
 
   if (teams.length === 1) {
-    return <TextCell value={getTeamDisplayName(teams[0])} />;
+    return <TextCell value={getFleetDisplayName(teams[0])} />;
   }
 
   const cell = generateCell(teams);

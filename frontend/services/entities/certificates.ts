@@ -3,6 +3,7 @@ import {
   ICertificateAuthority,
   ICertificatesCustomSCEP,
   ICertificatesDigicert,
+  ICertificatesEJBCA,
   ICertificatesHydrant,
   ICertificatesNDES,
   ICertificatesSmallstep,
@@ -38,6 +39,7 @@ export type IAddCertAuthorityFormData =
   | { hydrant: ICertificatesHydrant }
   | { smallstep: ICertificatesSmallstep }
   | { custom_est_proxy: ICertificatesCustomEST }
+  | { ejbca: ICertificatesEJBCA }
   | { google_cas: ICertificatesGoogleCAS };
 
 export type IEditCertAuthorityFormData =
@@ -47,6 +49,7 @@ export type IEditCertAuthorityFormData =
   | { hydrant: Partial<ICertificatesHydrant> }
   | { smallstep: Partial<ICertificatesSmallstep> }
   | { custom_est_proxy: Partial<ICertificatesCustomEST> }
+  | { ejbca: Partial<ICertificatesEJBCA> }
   | { google_cas: Partial<ICertificatesGoogleCAS> };
 
 interface IGetCertsParams extends PaginationParams {

@@ -48,18 +48,19 @@ spec:
     apple_bm_enabled_and_configured: false
     apple_bm_terms_expired: false
     enabled_and_configured: true
-    windows_enabled_and_configured: false
+    windows_mdm_enabled: false
     enable_disk_encryption: false
     name_template: null
-    enable_recovery_lock_password: false
+    macos_recovery_lock_password_enabled: false
     windows_require_bitlocker_pin: false
-    windows_migration_enabled: false
+    windows_mdm_migration_enabled: false
     enable_turn_on_windows_mdm_manually: false
     windows_entra_tenant_ids: null
     windows_entra_client_ids: null
     microsoft_graph_credential_invalid: false
     apple_require_hardware_attestation: false
     only_allow_apple_business_enrollment: false
+    enable_profile_validation: false
     macos_migration:
       enable: false
       mode: ""
@@ -93,8 +94,10 @@ spec:
       lock_end_user_info: false
       macos_setup_assistant: null
       manual_agent_install: null
-      require_all_software_macos: false
-      require_all_software_windows: false
+      macos_enable_bootstrap_package_during_manual_enrollment: false
+      macos_enable_bootstrap_package_during_migration: false
+      macos_require_all_software: false
+      windows_require_all_software: false
       enable_release_device_manually: false
       script: null
       software: null
@@ -106,8 +109,10 @@ spec:
       lock_end_user_info: false
       apple_setup_assistant: null
       macos_manual_agent_install: null
-      require_all_software_macos: false
-      require_all_software_windows: false
+      macos_enable_bootstrap_package_during_manual_enrollment: false
+      macos_enable_bootstrap_package_during_migration: false
+      macos_require_all_software: false
+      windows_require_all_software: false
       apple_enable_release_device_manually: false
       macos_script: null
       software: null
@@ -153,8 +158,8 @@ spec:
     report_cap: 0
     discard_reports_data: false
     server_url: https://example.org
-    scripts_disabled: false
     ai_features_disabled: false
+    mcp_disabled: false
   smtp_settings:
     authentication_method: ""
     authentication_type: ""

@@ -115,7 +115,7 @@ Create a service account user to access the Fleet API. The service account user 
 # Global admin
 fleetctl user create --name 'API User' --email 'api@example.com' --password 'temp@pass123' --api-only --global-role 'admin'
 
-# Service account with the GitOps role on Fleet with ID 4 (Fleet Premium only)
+# Service account with the GitOps role on Fleet with ID 4 (fleet-level roles require Fleet Premium)
 fleetctl user create --name 'API User' --email 'api@example.com' --password 'temp@pass123' --api-only --fleet 4:gitops
 ```
 

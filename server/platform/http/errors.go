@@ -344,6 +344,34 @@ func (e *AuthRequiredError) IsClientError() bool {
 	return true
 }
 
+// AuthUnavailableError is returned when a server-side failure, such as an
+// unreachable database, stops Fleet from checking the credentials.
+type AuthUnavailableError struct {
+	internal string
+
+	ErrorWithUUID
+}
+
+// NewAuthUnavailableError creates a new AuthUnavailableError.
+func NewAuthUnavailableError(internal string) *AuthUnavailableError {
+	return &AuthUnavailableError{internal: internal}
+}
+
+// Error implements the error interface.
+func (e *AuthUnavailableError) Error() string {
+	return GenericErrorMessage
+}
+
+// Internal implements ErrWithInternal.
+func (e *AuthUnavailableError) Internal() string {
+	return e.internal
+}
+
+// StatusCode implements kithttp.StatusCoder.
+func (e *AuthUnavailableError) StatusCode() int {
+	return http.StatusInternalServerError
+}
+
 // DeviceSSORequiredError is returned by device endpoints when
 // fleet_desktop.sso_enabled is on and the request carries no valid device SSO
 // session. It answers 401 like an invalid device token does, but its encoded

@@ -7,11 +7,14 @@ import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
 import { ILabelSummary } from "interfaces/label";
+import { formatVppTokenLabel } from "interfaces/mdm";
+import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 import PATHS from "router/paths";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
@@ -28,7 +31,11 @@ import { getPathWithQueryParams } from "utilities/url";
 import SoftwareVppForm from "../../../components/forms/SoftwareVppForm";
 import { ISoftwareVppFormData } from "../../../components/forms/SoftwareVppForm/SoftwareVppForm";
 
-import { getErrorMessage, teamHasVPPToken } from "./helpers";
+import {
+  getErrorMessage,
+  getFleetVppTokens,
+  isVppTokenExpired,
+} from "./helpers";
 
 const baseClass = "software-app-store-vpp";
 //
@@ -61,22 +68,67 @@ const EnableVppMessage = ({
 interface IAddTeamToVppMessage {
   onEditVpp: () => void;
   isGlobalAdmin?: boolean;
+  /** Named-team display name, or null when useTeamIdParam hasn't resolved yet.
+   * Ignored when `isNoTeam` is true. */
+  currentTeamName: string | null;
+  isNoTeam: boolean;
 }
 
 const AddTeamToVppMessage = ({
   onEditVpp,
   isGlobalAdmin,
-}: IAddTeamToVppMessage) => (
+  currentTeamName,
+  isNoTeam,
+}: IAddTeamToVppMessage) => {
+  let header: string;
+  let subject: string;
+  if (isNoTeam) {
+    header = "Unassigned hosts aren't in Volume Purchasing Program (VPP)";
+    subject = "unassigned hosts";
+  } else if (currentTeamName) {
+    header = `${currentTeamName} fleet isn't added to Volume Purchasing Program (VPP)`;
+    subject = `${currentTeamName} fleet`;
+  } else {
+    header = "This fleet isn't added to Volume Purchasing Program (VPP)";
+    subject = "this fleet";
+  }
+
+  return (
+    <EmptyState
+      variant="list"
+      header={header}
+      info={
+        isGlobalAdmin
+          ? `To add App Store apps, first add ${subject} to VPP.`
+          : `To add App Store apps, ask your admin to add ${subject} to VPP.`
+      }
+      primaryButton={
+        isGlobalAdmin ? (
+          <Button onClick={onEditVpp}>Edit VPP</Button>
+        ) : undefined
+      }
+    />
+  );
+};
+
+interface IVppTokenExpiredMessage {
+  onRenew: () => void;
+  isGlobalAdmin?: boolean;
+}
+
+const VppTokenExpiredMessage = ({
+  onRenew,
+  isGlobalAdmin,
+}: IVppTokenExpiredMessage) => (
   <EmptyState
-    variant="list"
-    header="This fleet isn't added to Volume Purchasing Program (VPP)"
+    header="Token expired"
     info={
       isGlobalAdmin
-        ? "To add App Store apps, first add this fleet to VPP."
-        : "To add App Store apps, ask your admin to add this fleet to VPP."
+        ? "To add apps from this token you must renew it first."
+        : "To add apps from this token, ask your admin to renew it."
     }
     primaryButton={
-      isGlobalAdmin ? <Button onClick={onEditVpp}>Edit VPP</Button> : undefined
+      isGlobalAdmin ? <Button onClick={onRenew}>Renew</Button> : undefined
     }
   />
 );
@@ -102,11 +154,13 @@ const NoVppAppsMessage = () => (
 
 interface ISoftwareAppStoreProps {
   currentTeamId: number;
+  currentTeamName?: string;
   router: InjectedRouter;
 }
 
 const SoftwareAppStoreVpp = ({
   currentTeamId,
+  currentTeamName,
   router,
 }: ISoftwareAppStoreProps) => {
   const {
@@ -157,18 +211,26 @@ const SoftwareAppStoreVpp = ({
   );
 
   const noVppTokenUploaded = !vppInfo || !vppInfo.vpp_tokens.length;
-  const hasVppToken = teamHasVPPToken(currentTeamId, vppInfo?.vpp_tokens);
+  const fleetTokens = getFleetVppTokens(currentTeamId, vppInfo?.vpp_tokens);
+  const [selectedTokenId, setSelectedTokenId] = useState<number>();
+  const selectedToken =
+    fleetTokens.find((t) => t.id === selectedTokenId) ?? fleetTokens[0];
+  const vppTokenId = selectedToken?.id;
+  const isSelectedTokenExpired = isVppTokenExpired(selectedToken);
 
   const {
     data: vppApps,
     isLoading: isLoadingVppApps,
     error: errorVppApps,
   } = useQuery(
-    ["vppSoftware", currentTeamId],
-    () => mdmAppleAPI.getVppApps(currentTeamId),
+    ["vppSoftware", currentTeamId, vppTokenId],
+    () => mdmAppleAPI.getVppApps(currentTeamId, vppTokenId),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: hasVppToken && !!isMacMdmEnabledAndConfigured,
+      enabled:
+        !!vppTokenId &&
+        !isSelectedTokenExpired &&
+        !!isMacMdmEnabledAndConfigured,
       staleTime: 30000,
       select: (res) => res.app_store_apps,
     }
@@ -197,7 +259,10 @@ const SoftwareAppStoreVpp = ({
     try {
       const {
         software_title_id: softwareVppTitleId,
-      } = await softwareAPI.addAppStoreApp(currentTeamId, formData);
+      } = await softwareAPI.addAppStoreApp(currentTeamId, {
+        ...formData,
+        vppTokenId,
+      });
 
       notify.success(
         <>
@@ -245,11 +310,11 @@ const SoftwareAppStoreVpp = ({
       );
     }
 
-    if (isLoadingVppInfo || isLoadingVppApps || isLoadingLabels) {
+    if (isLoadingVppInfo || isLoadingLabels) {
       return <Spinner />;
     }
 
-    if (errorVppInfo || errorVppApps || isErrorLabels) {
+    if (errorVppInfo || isErrorLabels) {
       return <DataError verticalPaddingSize="pad-xxxlarge" />;
     }
 
@@ -262,21 +327,48 @@ const SoftwareAppStoreVpp = ({
       );
     }
 
-    if (!hasVppToken) {
+    if (!fleetTokens.length) {
       return (
         <AddTeamToVppMessage
           onEditVpp={() => router.push(PATHS.ADMIN_INTEGRATIONS_VPP)}
           isGlobalAdmin={isGlobalAdmin}
+          currentTeamName={currentTeamName ?? null}
+          isNoTeam={currentTeamId === APP_CONTEXT_NO_TEAM_ID}
         />
       );
     }
 
-    if (!vppApps) {
-      return <NoVppAppsMessage />;
-    }
-    return (
-      <div className={`${baseClass}__content`}>
+    // The token dropdown stays above the list so a token that is loading,
+    // errored, or empty doesn't strand the user on it.
+    const renderApps = () => {
+      if (isSelectedTokenExpired) {
+        return (
+          <>
+            <VppTokenExpiredMessage
+              onRenew={() => router.push(PATHS.ADMIN_INTEGRATIONS_VPP)}
+              isGlobalAdmin={isGlobalAdmin}
+            />
+            <div className={`${baseClass}__action-buttons`}>
+              <Button disabled>Add software</Button>
+              <Button onClick={goBackToSoftwareLibrary} variant="secondary">
+                Cancel
+              </Button>
+            </div>
+          </>
+        );
+      }
+      if (isLoadingVppApps) {
+        return <Spinner />;
+      }
+      if (errorVppApps) {
+        return <DataError verticalPaddingSize="pad-xxxlarge" />;
+      }
+      if (!vppApps) {
+        return <NoVppAppsMessage />;
+      }
+      return (
         <SoftwareVppForm
+          key={vppTokenId}
           labels={labels || []}
           onSubmit={onAddSoftware}
           onCancel={goBackToSoftwareLibrary}
@@ -284,6 +376,28 @@ const SoftwareAppStoreVpp = ({
           isLoading={isLoading}
           vppApps={vppApps}
         />
+      );
+    };
+
+    return (
+      <div className={`${baseClass}__content`}>
+        {fleetTokens.length > 1 && (
+          <DropdownWrapper
+            ariaLabel="Select VPP token"
+            name="vpp-token"
+            label="VPP token"
+            onChange={(token) =>
+              token && setSelectedTokenId(Number(token.value))
+            }
+            value={vppTokenId?.toString()}
+            options={fleetTokens.map((t) => ({
+              label: formatVppTokenLabel(t),
+              value: t.id.toString(),
+              helpText: t.org_name,
+            }))}
+          />
+        )}
+        {renderApps()}
         {showPreviewEndUserExperience && (
           <CategoriesEndUserExperienceModal
             onCancel={onClickPreviewEndUserExperience}

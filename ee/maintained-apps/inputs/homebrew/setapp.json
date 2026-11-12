@@ -1,6 +1,6 @@
 {
   "name": "Setapp",
-  "unique_identifier": "com.setapp.DesktopClient.SetappAgent",
+  "unique_identifier": "com.setapp.DesktopClient",
   "token": "setapp",
   "installer_format": "zip",
   "slug": "setapp/darwin",

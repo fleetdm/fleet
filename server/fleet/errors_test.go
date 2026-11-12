@@ -81,3 +81,16 @@ func TestFleetdErrors(t *testing.T) {
 		`{"error_source":"orbit","error_source_version":"1.1.1","error_timestamp":"1969-06-19T21:44:05Z","error_message":"test message","error_additional_info":{"foo":"bar"},"vital":false}`,
 		logBuf.String())
 }
+
+func TestParamRequiredDeprecationError(t *testing.T) {
+	err := NewParamRequiredDeprecationError("host_identifier")
+	require.Equal(t, `The "host_identifier" parameter is now required. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration`, err.Error())
+
+	// Encoded as a bad request (400) and logged as a client error.
+	var asError error = err
+	_, isBadRequest := asError.(interface{ BadRequestError() []map[string]string })
+	require.True(t, isBadRequest)
+	clientErr, ok := asError.(interface{ IsClientError() bool })
+	require.True(t, ok)
+	require.True(t, clientErr.IsClientError())
+}

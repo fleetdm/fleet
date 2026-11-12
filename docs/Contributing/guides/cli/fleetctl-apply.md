@@ -81,7 +81,7 @@ spec:
 ```
 
 Labels can also be manually managed. When defining a manual label, reference hosts
-by hostname:
+by `hardware_serial`, `uuid`, or `id`:
 
 ```yaml
 apiVersion: v1
@@ -90,9 +90,9 @@ spec:
   name: Manually Managed Example
   label_membership_type: manual
   hosts:
-    - hostname1
-    - hostname2
-    - hostname3
+    - "C02XK1Z2JG5J"
+    - "12345678-90ab-cdef-1234-567890abcdef"
+    - "42"
 ```
 
 ## Enroll secrets
@@ -119,7 +119,7 @@ Deploying a new enroll secret cannot be done centrally from Fleet.
 ### Multiple enroll secrets
 
 Fleet allows the abiility to maintain multiple enroll secrets. Some organizations have internal goals  around rotating secrets. Having multiple secrets allows some of them to work at the same time the rotation is happening.
-Another reason you might want to use multiple enroll secrets is to use a certain [fleet enroll secret](#fleet-enroll-secrets) to auto-enroll hosts into a specific [fleet](https://fleetdm.com/docs/using-fleet/teams) (Fleet Premium).
+Another reason you might want to use multiple enroll secrets is to use a certain [fleet enroll secret](#fleet-enroll-secrets) to auto-enroll hosts into a specific [fleet](https://fleetdm.com/guides/fleets) (Fleet Premium).
 
 ### Rotating enroll secrets
 
@@ -193,7 +193,7 @@ spec:
         apple_enable_release_device_manually: false
         apple_setup_assistant: ""
         macos_manual_agent_install: false
-        require_all_software_macos: false
+        macos_require_all_software: false
         script: ""
         software: []
       macos_updates:
@@ -492,7 +492,6 @@ spec:
       enable_vulnerabilities_webhook: false
       host_batch_size: 0
   mdm:
-    apple_bm_default_fleet: ""
     windows_enabled_and_configured: false
     macos_updates:
       minimum_version: ""
@@ -514,7 +513,7 @@ spec:
 
 ### Settings
 
-For possible options, see the parameter for the parameters of the [Modify configuration API endpoint](../REST%20API/rest-api.md#modify-configuration).
+For possible options, see the parameter for the parameters of the [Modify configuration API endpoint](../../../API/rest-api.md#modify-configuration).
 
 Each section's key must be one level below the `spec` key, indented with spaces (not `<tab>` characters) as required by the YAML format.
 

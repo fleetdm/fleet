@@ -5,6 +5,7 @@ import { IconNames } from "components/icons";
 
 import { ICommandResult } from "./command";
 import { ILabelSoftwareTitle } from "./label";
+import { IVppTokenSummary } from "./mdm";
 import { HOST_APPLE_PLATFORMS, isLinuxLike, Platform } from "./platform";
 import vulnerabilityInterface from "./vulnerability";
 
@@ -16,15 +17,6 @@ export default PropTypes.shape({
   id: PropTypes.number,
   vulnerabilities: PropTypes.arrayOf(vulnerabilityInterface),
 });
-
-export interface ISoftwareResponse {
-  counts_updated_at: string;
-  software: ISoftware[];
-}
-
-export interface ISoftwareCountResponse {
-  count: number;
-}
 
 export interface IGetSoftwareByIdResponse {
   software: ISoftware;
@@ -76,6 +68,7 @@ export interface ISoftwarePatchPolicy {
   patch_when_closed: boolean;
   continuous_automations_enabled: boolean;
   notify_before_patching?: boolean;
+  patch_deadline?: boolean;
 }
 
 export type SoftwareInstallPolicyType = "dynamic" | "patch";
@@ -199,6 +192,9 @@ export interface IAppStoreApp {
   /** iOS/iPadOS: XML plist string. Android: parsed JSON object (BE sends
    * json.RawMessage which Axios auto-parses). */
   configuration?: string | Record<string, unknown>;
+  /** The token the app was added from on this fleet. Null for Google Play
+   * apps and when the title isn't fetched for a fleet. */
+  vpp_token?: IVppTokenSummary | null;
 }
 
 /** One App Store app version on a software title. iOS/iPadOS/Android titles
@@ -914,7 +910,7 @@ export const SCRIPT_PACKAGE_SOURCES = [
 
 /** Mirrors `fleet.MaxPackagesPerTitle` in `server/fleet/software_installer.go`.
  * The backend rejects the upload past this cap with the `SoftwarePackageLimitMessage`
- * conflict error — the UI uses this constant to disable "+ Add package" and
+ * conflict error — the UI uses this constant to disable "+ Add version" and
  * surface a matching tooltip before the user hits the API. Keep in sync if
  * the backend limit changes. */
 export const MAX_PACKAGES_PER_TITLE = 10;
@@ -1458,17 +1454,17 @@ export const INSTALL_STATUS_ICONS: Record<
   EnhancedSoftwareInstallUninstallStatus | "pending" | "failed",
   IconNames
 > = {
-  pending: "pending-outline",
-  pending_install: "pending-outline",
-  installed: "success-outline",
-  uninstalled: "success-outline",
-  failed: "error-outline",
-  failed_install: "error-outline",
-  pending_uninstall: "pending-outline",
-  failed_uninstall: "error-outline",
-  ran_script: "success-outline", // Script-only software
-  failed_script: "error-outline", // Script-only software
-  pending_script: "pending-outline", // Script-only software
+  pending: "pending",
+  pending_install: "pending",
+  installed: "success",
+  uninstalled: "success",
+  failed: "error",
+  failed_install: "error",
+  pending_uninstall: "pending",
+  failed_uninstall: "error",
+  ran_script: "success", // Script-only software
+  failed_script: "error", // Script-only software
+  pending_script: "pending", // Script-only software
 } as const;
 
 type IHostSoftwarePackageWithLastInstall = IHostSoftwarePackage & {
@@ -1519,7 +1515,10 @@ export type FleetMaintainedAppPlatform = Extract<
 >;
 
 export interface ICombinedFMA {
+  /** Raw name, used to match the app's icon */
   name: string;
+  /** Name shown in the table, without a platform suffix like " for macOS" */
+  displayName: string;
   macos: Omit<IFleetMaintainedApp, "name"> | null;
   windows: Omit<IFleetMaintainedApp, "name"> | null;
 }

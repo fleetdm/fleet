@@ -1,6 +1,6 @@
 {
   "name": "Pastebot",
-  "unique_identifier": "com.tapbots.Pastebot2Mac",
+  "unique_identifier": "com.tapbots.Pastebot3Mac",
   "token": "pastebot",
   "installer_format": "dmg",
   "slug": "pastebot/darwin",

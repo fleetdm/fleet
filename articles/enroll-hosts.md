@@ -23,6 +23,9 @@ To manually enroll macOS, Windows, or Linux hosts, generate Fleet's agent (fleet
 3. Copy the command to generate fleetd and run the command with [fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli) installed.
 
 4. Install fleetd on your host(s) to enroll it to Fleet.
+   > On macOS, if a host is enrolled through ADE, or manually enrolled by installing an MDM enrollment profile, the fleetd agent is automatically deployed via an MDM command.
+
+If you're trying to enroll a NixOS Linux host, follow [these instructions](#enroll-nixos-hosts) instead. 
 
 #### Mobile devices
 
@@ -63,6 +66,8 @@ The `--type` flag is used to specify the fleetd installer type.
 A `--fleet-url` (Fleet instance URL) and `--enroll-secret` (Fleet enroll secret) must be specified in order to communicate with Fleet instance.
 
 To generate fleetd for an Arm Linux or Windows host, use the `--arch=arm64` flag.
+
+`fleetctl` names the package after the platform and architecture, like `fleet-macos.pkg`, `fleet-windows-amd64.msi`, or `fleet-linux-arm64.deb`. If you're logged in to `fleetctl` and the enroll secret belongs to a fleet, `fleetctl` adds the fleet's name, like `fleet-macos-workstations.pkg`. To choose the file name yourself, use the `--outfile` flag.
 
 #### Example
 
@@ -199,7 +204,11 @@ Deleting a host doesn't unenroll it, so most hosts come back:
 
 > Google doesn't document when Android hosts send status reports. In testing, deleted Android hosts came back anywhere from less than an hour to several hours later, always within 24 hours.
 
-If [one-time enroll secrets](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets) are enabled, deleting a macOS host that has MDM turned on also deletes its one-time enroll secret, so the host can't re-enroll on its own:
+If [Windows one-time enroll secrets](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-windows-one-time-enroll-secrets) are enabled, a deleted Windows host that has MDM turned on re-enrolls at its next MDM check-in, in the fleet it was in. If that fleet was deleted, it goes to the [default fleet](https://fleetdm.com/guides/windows-mdm-setup#set-a-default-fleet-for-new-hosts), or "Unassigned" if none is set.
+
+With one-time enroll secrets enabled, a re-imaged Windows device, or one disconnected from MDM, can't enroll with a fleetd package built with a global or fleet-level enroll secret, even after you delete its host. To re-enroll it, turn on MDM again with Windows Autopilot, Microsoft Entra, or **Settings > Accounts > Access work or school**. Or delete its host, wait for `mdm.windows_enrollment_retention` (30 days by default), and then install the package.
+
+If [macOS one-time enroll secrets](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets) are enabled, deleting a macOS host that has MDM turned on also deletes its one-time enroll secret. What happens next depends on how the host was enrolled:
 
 - AB hosts show up as **Pending**. To re-enroll, wipe the host or run `sudo profiles renew -type enrollment`.
 - Other Macs don't show up. To re-enroll, reinstall fleetd.
@@ -225,6 +234,7 @@ For a DEP host with a spent secret, wipe the host and re-run the DEP install.
 
 - [One-time enroll secrets](#one-time-enroll-secrets)
 - [Switch a workstation's operating system](#switch-a-workstations-operating-system)
+- [Enroll NixOS hosts](#enroll-nixos-hosts)
 - [Supported osquery versions](#supported-osquery-versions)
 - [Best practice for dual-boot workstations or VMs with duplicate hardware identifiers](#best-practice-for-dual-boot-workstations-or-vms-with-duplicate-hardware-identifiers)
 - [Fleet agent (fleetd) components](#fleetd-components)
@@ -261,6 +271,63 @@ Because each secret is single-use, a host whose secret was spent can't re-enroll
 ### Switch a workstation's operating system
 
 If an end user wants to switch their workstation's operating system (e.g., Windows to Linux), delete the host from Fleet before they switch. Then, re-enroll the host.
+
+### Enroll NixOS hosts
+
+Fleet's agent (fleetd) is installed via the [NixOS module](https://github.com/NixOS/nixpkgs/blob/master/nixos/modules/services/monitoring/orbit.nix) instead of a package generated via `fleetctl package`. The module uses osquery and Fleet Desktop from nixpkgs instead of Fleet's update server.
+
+A Fleet-maintained Nix flake for fleetd is coming soon. Learn more in the [story](https://github.com/fleetdm/fleet/issues/54457).
+
+Prerequisites:
+
+- NixOS with the `services.orbit` module. It's on `nixos-unstable`. NixOS 26.05 doesn't include it, so import the module from an unstable nixpkgs.
+- The enroll secret for the fleet the host should join, stored in a file outside the Nix store (for example, with [sops-nix](https://github.com/Mic92/sops-nix) or [agenix](https://github.com/ryantm/agenix)). Files in `/nix/store` are world-readable.
+
+To enroll a NixOS host:
+
+1. In Fleet, go to **Hosts > Add hosts > Linux** and copy the enroll secret.
+2. Save the enroll secret on the host, for example to `/etc/fleet/enroll-secret` with `600` permissions.
+3. Add the following to the host's NixOS configuration. Replace the Fleet URL and enroll secret path with yours.
+
+   ```nix
+   { lib, ... }:
+   {
+     # fleet-orbit and fleet-desktop are licensed under MIT and the Fleet EE license, which nixpkgs marks as unfree.
+     nixpkgs.config.allowUnfreePredicate = pkg:
+       builtins.elem (lib.getName pkg) [ "fleet-orbit" "fleet-desktop" ];
+
+     services.orbit = {
+       enable = true;
+       fleetUrl = "https://fleet.example.com";
+       enrollSecretPath = "/etc/fleet/enroll-secret";
+       enableScripts = true;
+       desktop.enable = true;
+     };
+   }
+   ```
+
+4. Run `sudo nixos-rebuild switch`. The host appears in Fleet within a minute.
+
+fleetd 1.63.0 is the first version that supports NixOS. To check which `fleet-orbit` version your nixpkgs packages, run one of the following on the host:
+
+- Flakes: `nix eval --raw /etc/nixos#nixosConfigurations.<hostname>.pkgs.fleet-orbit.version` (replace `/etc/nixos` with your flake's path)
+- Channels: `nix-instantiate --eval -E '(import <nixpkgs> {}).fleet-orbit.version'`
+
+If the version is older than 1.63.0, override it with an overlay that builds the `orbit-v1.63.0` tag of the [fleetdm/fleet](https://github.com/fleetdm/fleet) repository, with `patches = [ ]` and `buildGoModule = buildGo127Module`. Apply the same Go override and vendor hash to `fleet-desktop`, which builds from the same source.
+
+On GNOME, install and enable the AppIndicator extension (`gnomeExtensions.appindicator`) to see the Fleet Desktop icon. KDE Plasma shows it without extra setup.
+
+On NixOS, fleetd doesn't update itself. To upgrade fleetd, osquery, or Fleet Desktop, update your nixpkgs input and run `nixos-rebuild switch`.
+
+The following features aren't supported on NixOS hosts:
+
+- Installing or uninstalling software from Fleet. Add packages to the NixOS configuration instead. Learn more in the [NixOS manual](https://nixos.org/manual/nixos/stable/#sec-package-management).
+- Updating fleetd, osquery, or Fleet Desktop from Fleet (including [update channels](#specifying-update-channels)).
+- Fleet-delivered osquery extensions.
+
+Disk encryption key escrow for NixOS is coming soon. Learn more in the [story](https://github.com/fleetdm/fleet/issues/54422).
+
+Software inventory, scripts, reports, policies, and Fleet Desktop work the same as on other Linux hosts. Vulnerability detection uses NVD only, so a CVE that nixpkgs patched without changing the package version may still be reported.
 
 ### Supported osquery versions
 
