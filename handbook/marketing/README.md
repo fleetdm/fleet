@@ -175,9 +175,9 @@ Once events have been settled for the upcoming quarter, Fleet does not make chan
 3. After the meeting, the Content Specialist will communicate the settled events by moving all settled events to the "All 🎪 Official (planned & settled events)" tab of the 🎪 Events spreadsheet (confidential doc) and removing any proposed that were not prioritized.
 -->
 
-### GitOps workshops
+### Certification workshops
 
-Fleet's in-person GitOps workshops give people a hands-on way to try Fleet and earn a certification. They also bring local contacts from active deals into the room and give Fleet net new exposure.
+Fleet's in-person certification workshops give people a hands-on way to try Fleet and earn a certification. They also bring local contacts from active deals into the room and give Fleet net new exposure.
 
 > DRIs:
 >
