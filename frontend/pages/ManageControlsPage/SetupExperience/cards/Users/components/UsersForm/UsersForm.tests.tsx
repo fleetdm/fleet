@@ -2,8 +2,8 @@ import { screen } from "@testing-library/react";
 import React from "react";
 import { QueryClient } from "react-query";
 
+import { notify } from "components/ToastNotification";
 import { EndUserLocalAccountType } from "interfaces/mdm";
-import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import configAPI from "services/entities/config";
 import mdmAPI from "services/entities/mdm";
 import teamsAPI from "services/entities/teams";
@@ -151,8 +151,8 @@ describe("UsersForm", () => {
         fleet_id: 0,
         enable_end_user_authentication: false,
         lock_end_user_info: false,
-        enable_managed_local_account: false,
-        end_user_local_account_type: EndUserLocalAccountType.ADMIN,
+        macos_managed_local_account_enabled: false,
+        macos_end_user_local_account_type: EndUserLocalAccountType.ADMIN,
       });
     });
   });
@@ -201,9 +201,13 @@ describe("UsersForm", () => {
       jest.restoreAllMocks();
     });
 
-    const windowsPayload = (enabled: boolean) => ({
-      mdm: {
-        windows_settings: { enable_managed_local_account: enabled },
+    const renderWithOnlyWindowsMdm = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isMacMdmEnabledAndConfigured: false,
+          isWindowsMdmEnabledAndConfigured: true,
+        },
       },
     });
 
@@ -215,15 +219,16 @@ describe("UsersForm", () => {
       team: jest.spyOn(teamsAPI, "updateConfig").mockResolvedValue({} as never),
     });
 
-    // No team saves through the config API, a fleet through the team API. The untouched-toggle row also pins that the
-    // value is sent on every save, not only when it changed.
+    // Both platforms go in one setup experience request, never through the
+    // config or fleet APIs. The untouched-toggle row also pins that the value
+    // is sent on every save, not only when it changed.
     it.each([
-      { target: "no team", currentTeamId: 0, turnOn: false, enabled: false },
-      { target: "no team", currentTeamId: 0, turnOn: true, enabled: true },
-      { target: "a fleet", currentTeamId: 7, turnOn: true, enabled: true },
+      { target: "unassigned", currentTeamId: 0, turnOn: false },
+      { target: "unassigned", currentTeamId: 0, turnOn: true },
+      { target: "a fleet", currentTeamId: 7, turnOn: true },
     ])(
-      "saves the windows toggle as $enabled for $target",
-      async ({ currentTeamId, turnOn, enabled }) => {
+      "saves both platforms in one request for $target (turn on: $turnOn)",
+      async ({ currentTeamId, turnOn }) => {
         const spies = spyOnSaveCalls();
         const { user } = renderWithWindowsMdmEnabled(
           <UsersForm {...defaultProps} currentTeamId={currentTeamId} />
@@ -236,46 +241,52 @@ describe("UsersForm", () => {
         }
         await user.click(screen.getByRole("button", { name: "Save" }));
 
-        expect(spies.setup).toHaveBeenCalled();
-        // Asserting the unused API was NOT called
-        if (currentTeamId === APP_CONTEXT_NO_TEAM_ID) {
-          expect(spies.config).toHaveBeenCalledWith(windowsPayload(enabled));
-          expect(spies.team).not.toHaveBeenCalled();
-        } else {
-          expect(spies.team).toHaveBeenCalledWith(
-            windowsPayload(enabled),
-            currentTeamId
-          );
-          expect(spies.config).not.toHaveBeenCalled();
-        }
-      }
-    );
-
-    // Windows MDM off means the tab is never rendered, so there is nothing the user could have changed. Both branches
-    // are covered because each would otherwise send through a different API.
-    it.each([
-      { target: "no team", currentTeamId: 0 },
-      { target: "a fleet", currentTeamId: 7 },
-    ])(
-      "skips the windows PATCH for $target when windows mdm is not configured",
-      async ({ currentTeamId }) => {
-        const spies = spyOnSaveCalls();
-        const { user } = render(
-          <UsersForm {...defaultProps} currentTeamId={currentTeamId} />
-        );
-        await user.click(screen.getByRole("button", { name: "Save" }));
-
-        // The rest of the form still saves; only the Windows call is skipped.
-        expect(spies.setup).toHaveBeenCalled();
+        expect(spies.setup).toHaveBeenCalledTimes(1);
+        expect(spies.setup).toHaveBeenCalledWith({
+          fleet_id: currentTeamId,
+          enable_end_user_authentication: false,
+          lock_end_user_info: false,
+          macos_managed_local_account_enabled: false,
+          macos_end_user_local_account_type: EndUserLocalAccountType.ADMIN,
+          windows_managed_local_account_enabled: turnOn,
+        });
         expect(spies.config).not.toHaveBeenCalled();
         expect(spies.team).not.toHaveBeenCalled();
       }
     );
 
-    // Several other cards read the app config and the fleet from these same cache keys, so a save has to drop them.
-    // The fleet key is only invalidated when there is a fleet: no-team has no such query to begin with.
+    it("sends only the Windows setting when Apple MDM is off", async () => {
+      const spies = spyOnSaveCalls();
+      const { user } = renderWithOnlyWindowsMdm(
+        <UsersForm {...defaultProps} defaultEnableManagedLocalAccountWindows />
+      );
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(spies.setup).toHaveBeenCalledWith({
+        fleet_id: 0,
+        enable_end_user_authentication: false,
+        windows_managed_local_account_enabled: true,
+      });
+    });
+
+    it("leaves out the Windows setting when Windows MDM is off", async () => {
+      const spies = spyOnSaveCalls();
+      const { user } = renderWithMdmEnabled(
+        <UsersForm {...defaultProps} currentTeamId={7} />
+      );
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(spies.setup).toHaveBeenCalledTimes(1);
+      expect(spies.setup.mock.calls[0][0]).not.toHaveProperty(
+        "windows_managed_local_account_enabled"
+      );
+    });
+
+    // Several other cards read the app config and the fleet from these same
+    // cache keys, so a save has to drop them. The fleet key is only
+    // invalidated when there is a fleet: unassigned has no such query.
     it.each([
-      { target: "no team", currentTeamId: 0, expectsTeamKey: false },
+      { target: "unassigned", currentTeamId: 0, expectsTeamKey: false },
       { target: "a fleet", currentTeamId: 7, expectsTeamKey: true },
     ])(
       "invalidates the cached config for $target after saving",
@@ -299,5 +310,24 @@ describe("UsersForm", () => {
         }
       }
     );
+
+    it("shows the error message when the save fails", async () => {
+      const err = new Error("missing or invalid license");
+      jest
+        .spyOn(mdmAPI, "updateSetupExperienceSettings")
+        .mockRejectedValue(err);
+      const notifyError = jest.spyOn(notify, "error");
+      const { user } = renderWithWindowsMdmEnabled(
+        <UsersForm {...defaultProps} />
+      );
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(notifyError).toHaveBeenCalledWith(
+        "Couldn't update settings. Please try again.",
+        {
+          response: err,
+        }
+      );
+    });
   });
 });
