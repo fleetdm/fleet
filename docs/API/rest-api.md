@@ -1985,10 +1985,8 @@ None.
     "api_key": "********",
     "models": {
       "low": "claude-haiku-5-5",
-      "medium": "claude-opus-5-5",
       "high": "claude-opus-5-5"
-    },
-    "thinking_enabled": true
+    }
   },
   "webhook_settings": {
     "host_status_webhook": {
@@ -2685,9 +2683,7 @@ _Available in Fleet Premium._
 | provider              | string  | The AI provider used by the AI profile builder. Valid values: `anthropic` and `openai`. When empty, Fleet uses its built-in AI. |
 | api_key               | string  | **Required.** The provider's API key. |
 | models.low            | string  | Model ID used for description, name, and Android profile generation. |
-| models.medium         | string  | Model ID used for Windows and macOS `.mobileconfig` profile generation. |
 | models.high           | string  | Model ID used for pre-profile generation checks and macOS DDM profile generation. |
-| thinking_enabled      | boolean | Whether to turn on thinking for the `high` model. Only supported when `provider` is `anthropic`. (Default: `false`) |
 
 <br/>
 
@@ -2700,10 +2696,8 @@ _Available in Fleet Premium._
     "api_key": "sk-ant-...",
     "models": {
       "low": "claude-haiku-5-5",
-      "medium": "claude-opus-5-5",
       "high": "claude-opus-5-5"
-    },
-    "thinking_enabled": true
+    }
   }
 }
 ```
