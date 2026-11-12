@@ -21,33 +21,33 @@ spec:
       name_template: null
       windows_require_bitlocker_pin: null
       apple_settings:
-        configuration_profiles: null
+        configuration_profiles: []
         enable_disk_encryption: false
         enable_escrow_disk_encryption_key: false
       windows_settings:
         require_bitlocker_pin: false
-        configuration_profiles: null
+        configuration_profiles: []
         enable_disk_encryption: false
         enable_managed_local_account: false
       linux_settings:
         enable_escrow_disk_encryption_key: false
       android_settings:
-        configuration_profiles: null
+        configuration_profiles: []
         certificates: null
       setup_experience:
-        macos_bootstrap_package: %s
+        macos_bootstrap_package: "%s"
         enable_create_local_admin_account: false
         enable_end_user_authentication: false
         end_user_local_account_type: "admin"
         lock_end_user_info: false
-        apple_setup_assistant: %s
+        apple_setup_assistant: "%s"
         macos_manual_agent_install: null
         apple_enable_release_device_manually: false
         macos_enable_bootstrap_package_during_manual_enrollment: false
         macos_enable_bootstrap_package_during_migration: false
         macos_require_all_software: false
         windows_require_all_software: false
-        macos_script: null
+        macos_script: ""
         software: null
       macos_updates:
         deadline: null
@@ -67,7 +67,7 @@ spec:
       windows_updates:
         deadline_days: null
         grace_period_days: null
-    scripts: null
+    scripts: []
     secrets: null
     webhook_settings:
       host_status_webhook: null
@@ -97,28 +97,28 @@ spec:
       name_template: null
       windows_require_bitlocker_pin: null
       apple_settings:
-        configuration_profiles: null
+        configuration_profiles: []
         enable_disk_encryption: false
         enable_escrow_disk_encryption_key: false
       windows_settings:
         require_bitlocker_pin: false
-        configuration_profiles: null
+        configuration_profiles: []
         enable_disk_encryption: false
         enable_managed_local_account: false
       linux_settings:
         enable_escrow_disk_encryption_key: false
       android_settings:
-        configuration_profiles: null
+        configuration_profiles: []
         certificates: null
       setup_experience:
-        macos_bootstrap_package: %s
-        apple_setup_assistant: %s
+        macos_bootstrap_package: "%s"
+        apple_setup_assistant: "%s"
         macos_manual_agent_install: null
         enable_create_local_admin_account: false
         end_user_local_account_type: "admin"
         apple_enable_release_device_manually: false
         lock_end_user_info: false
-        macos_script: null
+        macos_script: ""
         software: null
       macos_updates:
         deadline: null
@@ -135,7 +135,7 @@ spec:
       windows_updates:
         deadline_days: null
         grace_period_days: null
-    scripts: null
+    scripts: []
     secrets: null
     webhook_settings:
       host_status_webhook: null

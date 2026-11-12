@@ -981,10 +981,23 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	// must go too, otherwise the next test's config PATCH fails validation with
 	// "token with organization name X doesn't exist"
 	appCfg.MDM.AppleBusinessManager = optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{}
+	// The config response lists what's saved in each feature's own table, so
+	// keep the stored values of those fields: they drive validation and
+	// cleanup on later config changes.
+	stored, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appCfg.MDM.MacOSSettings.CustomSettings = stored.MDM.MacOSSettings.CustomSettings
+	appCfg.MDM.WindowsSettings.CustomSettings = stored.MDM.WindowsSettings.CustomSettings
+	appCfg.MDM.AndroidSettings.CustomSettings = stored.MDM.AndroidSettings.CustomSettings
+	appCfg.MDM.MacOSSetup.BootstrapPackage = stored.MDM.MacOSSetup.BootstrapPackage
+	appCfg.MDM.MacOSSetup.MacOSSetupAssistant = stored.MDM.MacOSSetup.MacOSSetupAssistant
+	appCfg.MDM.MacOSSetup.Script = stored.MDM.MacOSSetup.Script
+	appCfg.MDM.VolumePurchasingProgram = stored.MDM.VolumePurchasingProgram
+	appCfg.Scripts = stored.Scripts
 
 	// ensure the server URL is constant
 	appCfg.ServerSettings.ServerURL = s.server.URL
-	err := s.ds.SaveAppConfig(ctx, &appCfg.AppConfig)
+	err = s.ds.SaveAppConfig(ctx, &appCfg.AppConfig)
 	require.NoError(t, err)
 
 	s.withServer.commonTearDownTest(t)

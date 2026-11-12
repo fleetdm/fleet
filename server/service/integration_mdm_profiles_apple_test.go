@@ -1070,12 +1070,12 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
 			}
 		}
   }`), http.StatusOK, &acResp)
-	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", LabelsIncludeAll: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.MacOSSettings.CustomSettings)
+	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", LabelsIncludeAll: []string{"baz"}}, {Path: "bar"}}, storedAppConfig(t, s.ds).MDM.MacOSSettings.CustomSettings)
 
-	// check that they are returned by a GET /config
+	// GET /config lists the saved profiles, not the stored YAML paths
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", LabelsIncludeAll: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.MacOSSettings.CustomSettings)
+	assert.NotContains(t, acResp.MDM.MacOSSettings.CustomSettings, fleet.MDMProfileSpec{Path: "bar"})
 
 	// set the windows custom settings fields with included/excluded labels
 	acResp = appConfigResponse{}
@@ -1090,14 +1090,14 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
 			}
 		}
   }`), http.StatusOK, &acResp)
-	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", LabelsIncludeAll: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.MacOSSettings.CustomSettings)
-	assert.Equal(t, optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo", LabelsExcludeAny: []string{"x", "y"}}, {Path: "bar", LabelsIncludeAll: []string{"a", "b"}}, {Path: "baz", LabelsIncludeAll: []string{"c"}}}), acResp.MDM.WindowsSettings.CustomSettings)
+	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", LabelsIncludeAll: []string{"baz"}}, {Path: "bar"}}, storedAppConfig(t, s.ds).MDM.MacOSSettings.CustomSettings)
+	assert.Equal(t, optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo", LabelsExcludeAny: []string{"x", "y"}}, {Path: "bar", LabelsIncludeAll: []string{"a", "b"}}, {Path: "baz", LabelsIncludeAll: []string{"c"}}}), storedAppConfig(t, s.ds).MDM.WindowsSettings.CustomSettings)
 
-	// check that they are returned by a GET /config
+	// GET /config lists the saved profiles, not the stored YAML paths
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", LabelsIncludeAll: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.MacOSSettings.CustomSettings)
-	assert.Equal(t, optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo", LabelsExcludeAny: []string{"x", "y"}}, {Path: "bar", LabelsIncludeAll: []string{"a", "b"}}, {Path: "baz", LabelsIncludeAll: []string{"c"}}}), acResp.MDM.WindowsSettings.CustomSettings)
+	assert.NotContains(t, acResp.MDM.MacOSSettings.CustomSettings, fleet.MDMProfileSpec{Path: "bar"})
+	assert.NotContains(t, acResp.MDM.WindowsSettings.CustomSettings.Value, fleet.MDMProfileSpec{Path: "bar", LabelsIncludeAll: []string{"a", "b"}})
 
 	// patch without specifying the windows/macos custom settings fields and an unrelated
 	// field, should not remove them
@@ -1105,8 +1105,8 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "enable_disk_encryption": true }
   }`), http.StatusOK, &acResp)
-	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", LabelsIncludeAll: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.MacOSSettings.CustomSettings)
-	assert.Equal(t, optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo", LabelsExcludeAny: []string{"x", "y"}}, {Path: "bar", LabelsIncludeAll: []string{"a", "b"}}, {Path: "baz", LabelsIncludeAll: []string{"c"}}}), acResp.MDM.WindowsSettings.CustomSettings)
+	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", LabelsIncludeAll: []string{"baz"}}, {Path: "bar"}}, storedAppConfig(t, s.ds).MDM.MacOSSettings.CustomSettings)
+	assert.Equal(t, optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo", LabelsExcludeAny: []string{"x", "y"}}, {Path: "bar", LabelsIncludeAll: []string{"a", "b"}}, {Path: "baz", LabelsIncludeAll: []string{"c"}}}), storedAppConfig(t, s.ds).MDM.WindowsSettings.CustomSettings)
 
 	// patch with explicitly empty macos/windows custom settings fields, would remove
 	// them but this is a dry-run
@@ -1117,8 +1117,8 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
 			"windows_settings": { "custom_settings": null }
 		}
   }`), http.StatusOK, &acResp, "dry_run", "true")
-	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", LabelsIncludeAll: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.MacOSSettings.CustomSettings)
-	assert.Equal(t, optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo", LabelsExcludeAny: []string{"x", "y"}}, {Path: "bar", LabelsIncludeAll: []string{"a", "b"}}, {Path: "baz", LabelsIncludeAll: []string{"c"}}}), acResp.MDM.WindowsSettings.CustomSettings)
+	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", LabelsIncludeAll: []string{"baz"}}, {Path: "bar"}}, storedAppConfig(t, s.ds).MDM.MacOSSettings.CustomSettings)
+	assert.Equal(t, optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo", LabelsExcludeAny: []string{"x", "y"}}, {Path: "bar", LabelsIncludeAll: []string{"a", "b"}}, {Path: "baz", LabelsIncludeAll: []string{"c"}}}), storedAppConfig(t, s.ds).MDM.WindowsSettings.CustomSettings)
 
 	// patch with explicitly empty macos custom settings fields, removes them
 	acResp = appConfigResponse{}
@@ -1128,8 +1128,8 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
 			"windows_settings": { "custom_settings": null }
 		}
   }`), http.StatusOK, &acResp)
-	assert.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)
-	assert.Equal(t, optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}}, acResp.MDM.WindowsSettings.CustomSettings)
+	assert.Empty(t, storedAppConfig(t, s.ds).MDM.MacOSSettings.CustomSettings)
+	assert.Equal(t, optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}}, storedAppConfig(t, s.ds).MDM.WindowsSettings.CustomSettings)
 
 	// combining two include modes returns an error; combining include + exclude is valid
 	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -1240,7 +1240,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	require.Equal(t, []fleet.MDMProfileSpec{
 		{Path: "foo", LabelsIncludeAll: []string{"a", "b"}},
 		{Path: "bar", LabelsExcludeAny: []string{"c"}},
-	}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
+	}, storedTeamConfig(t, s.ds, team.ID).MDM.MacOSSettings.CustomSettings)
 
 	// apply with invalid macos settings subfield should fail
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
@@ -1278,7 +1278,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	require.Equal(t, []fleet.MDMProfileSpec{
 		{Path: "foo", LabelsIncludeAll: []string{"a", "b"}},
 		{Path: "bar", LabelsExcludeAny: []string{"c"}},
-	}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
+	}, storedTeamConfig(t, s.ds, team.ID).MDM.MacOSSettings.CustomSettings)
 
 	// apply with explicitly empty custom macos settings would clear the existing
 	// settings, but dry-run
@@ -1294,7 +1294,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	require.Equal(t, []fleet.MDMProfileSpec{
 		{Path: "foo", LabelsIncludeAll: []string{"a", "b"}},
 		{Path: "bar", LabelsExcludeAny: []string{"c"}},
-	}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
+	}, storedTeamConfig(t, s.ds, team.ID).MDM.MacOSSettings.CustomSettings)
 
 	// apply with explicitly empty custom macos settings clears the existing settings
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
@@ -1306,7 +1306,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Equal(t, []fleet.MDMProfileSpec{}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
+	require.Equal(t, []fleet.MDMProfileSpec{}, storedTeamConfig(t, s.ds, team.ID).MDM.MacOSSettings.CustomSettings)
 
 	// apply with invalid mix of labels fails
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{

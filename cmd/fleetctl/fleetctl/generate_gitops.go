@@ -1410,22 +1410,7 @@ func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interf
 		if err != nil {
 			return nil, err
 		}
-		var vppConfig []fleet.MDMAppleVolumePurchasingProgramInfo
-		for _, token := range vppTokens {
-			teamNames := make([]string, 0, len(token.Teams))
-			for _, team := range token.Teams {
-				teamNames = append(teamNames, team.Name)
-			}
-			// Write "All fleets" for a token assigned to all fleets, it has no fleet names to list
-			if token.Teams != nil && len(token.Teams) == 0 {
-				teamNames = []string{fleet.DisplayNameAllTeams}
-			}
-			vppConfig = append(vppConfig, fleet.MDMAppleVolumePurchasingProgramInfo{
-				Location: token.Location,
-				Teams:    teamNames,
-			})
-		}
-		result[jsonFieldName(t, "VolumePurchasingProgram")] = vppConfig
+		result[jsonFieldName(t, "VolumePurchasingProgram")] = fleet.VolumePurchasingProgramFromTokens(vppTokens)
 
 		var eulaPath string
 		if cmd.AppConfig.MDM.EnabledAndConfigured {

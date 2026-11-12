@@ -1652,6 +1652,8 @@ type GetHostMDMWindowsProfilesFunc func(ctx context.Context, hostUUID string) ([
 
 type ListMDMConfigProfilesFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error)
 
+type ConfigListsByTeamIDsFunc func(ctx context.Context, teamIDs []uint) (map[uint]*fleet.ConfigLists, error)
+
 type ResendHostMDMProfileFunc func(ctx context.Context, hostUUID string, profileUUID string) error
 
 type SetMDMWindowsHostProfileFailedOrRetryFunc func(ctx context.Context, hostUUID string, profileUUID string, detail string, onlyIfVerifying bool) (changed bool, retried bool, err error)
@@ -5080,6 +5082,9 @@ type DataStore struct {
 
 	ListMDMConfigProfilesFunc        ListMDMConfigProfilesFunc
 	ListMDMConfigProfilesFuncInvoked bool
+
+	ConfigListsByTeamIDsFunc        ConfigListsByTeamIDsFunc
+	ConfigListsByTeamIDsFuncInvoked bool
 
 	ResendHostMDMProfileFunc        ResendHostMDMProfileFunc
 	ResendHostMDMProfileFuncInvoked bool
@@ -12259,6 +12264,13 @@ func (s *DataStore) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt
 	s.ListMDMConfigProfilesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListMDMConfigProfilesFunc(ctx, teamID, opt)
+}
+
+func (s *DataStore) ConfigListsByTeamIDs(ctx context.Context, teamIDs []uint) (map[uint]*fleet.ConfigLists, error) {
+	s.mu.Lock()
+	s.ConfigListsByTeamIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConfigListsByTeamIDsFunc(ctx, teamIDs)
 }
 
 func (s *DataStore) ResendHostMDMProfile(ctx context.Context, hostUUID string, profileUUID string) error {

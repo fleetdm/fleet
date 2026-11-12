@@ -67,6 +67,17 @@ func withCreateDefaults(m fleet.TeamMDM) fleet.TeamMDM {
 	return m
 }
 
+// Config and fleet responses always include the lists, empty when nothing's saved.
+func withEmptyResponseLists(m fleet.TeamMDM) fleet.TeamMDM {
+	m.MacOSSettings.CustomSettings = []fleet.MDMProfileSpec{}
+	m.WindowsSettings.CustomSettings = optjson.SetSlice([]fleet.MDMProfileSpec{})
+	m.AndroidSettings.CustomSettings = optjson.SetSlice([]fleet.MDMProfileSpec{})
+	m.MacOSSetup.BootstrapPackage = optjson.SetString(m.MacOSSetup.BootstrapPackage.Value)
+	m.MacOSSetup.MacOSSetupAssistant = optjson.SetString(m.MacOSSetup.MacOSSetupAssistant.Value)
+	m.MacOSSetup.Script = optjson.SetString(m.MacOSSetup.Script.Value)
+	return m
+}
+
 func TestIntegrationsEnterprise(t *testing.T) {
 	testingSuite := new(integrationEnterpriseTestSuite)
 	testingSuite.withServer.s = &testingSuite.Suite

@@ -86,6 +86,14 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 		require.True(t, acResp.AppConfig.MDM.AppleBMEnabledAndConfigured)
 		require.Equal(t, mdmEnabled, acResp.AppConfig.MDM.EnabledAndConfigured)
 		require.Equal(t, winEnabled, acResp.AppConfig.MDM.WindowsEnabledAndConfigured)
+
+		// These subtests check which YAML values get stored; responses list what's
+		// saved in each feature's own table instead.
+		stored := storedAppConfig(t, s.ds)
+		acResp.MDM.MacOSSettings.CustomSettings = stored.MDM.MacOSSettings.CustomSettings
+		acResp.MDM.WindowsSettings.CustomSettings = stored.MDM.WindowsSettings.CustomSettings
+		acResp.MDM.MacOSSetup.BootstrapPackage = stored.MDM.MacOSSetup.BootstrapPackage
+		acResp.MDM.MacOSSetup.MacOSSetupAssistant = stored.MDM.MacOSSetup.MacOSSetupAssistant
 		return acResp
 	}
 

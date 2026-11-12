@@ -607,6 +607,10 @@ type Service interface {
 	NewAppConfig(ctx context.Context, p AppConfig) (info *AppConfig, err error)
 	// AppConfigObfuscated returns the global application config with obfuscated credentials.
 	AppConfigObfuscated(ctx context.Context) (info *AppConfig, err error)
+	// ConfigListsByTeamIDs returns the lists for each fleet ID (0 is "No fleet")
+	// that config and fleet responses include. It doesn't authorize: callers
+	// must have already authorized the config or fleet the lists are added to.
+	ConfigListsByTeamIDs(ctx context.Context, teamIDs []uint) (map[uint]*ConfigLists, error)
 	ModifyAppConfig(ctx context.Context, p []byte, applyOpts ApplySpecOptions) (info *AppConfig, err error)
 	SandboxEnabled() bool
 	// MaxInstallerSizeBytes returns the configured maximum size for software installer uploads.

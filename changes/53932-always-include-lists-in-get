@@ -1,0 +1,1 @@
+- Get configuration, Get fleet, List fleets, and the other endpoints that return a config or fleet now list the configuration profiles, scripts, setup experience assets, and VPP token assignments saved in Fleet, whether they were added via YAML, the UI, or the API.

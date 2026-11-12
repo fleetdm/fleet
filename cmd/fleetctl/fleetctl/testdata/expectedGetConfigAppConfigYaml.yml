@@ -47,7 +47,7 @@ spec:
       oauth_idp_token_url: null
       oauth_idp_client_id: null
       oauth_idp_client_secret: null
-    volume_purchasing_program: null
+    volume_purchasing_program: []
     windows_mdm_enabled: false
     enable_disk_encryption: false
     name_template: null
@@ -84,15 +84,15 @@ spec:
       deadline_days: 7
       grace_period_days: 3
     apple_settings:
-      configuration_profiles:
+      configuration_profiles: []
       enable_disk_encryption: false
       enable_escrow_disk_encryption_key: false
     macos_settings:
-      custom_settings:
+      custom_settings: []
       enable_disk_encryption: false
       enable_escrow_disk_encryption_key: false
     macos_setup:
-      bootstrap_package:
+      bootstrap_package: ""
       enable_end_user_authentication: false
       enable_managed_local_account: false
       enable_release_device_manually: false
@@ -100,47 +100,47 @@ spec:
       lock_end_user_info: false
       macos_enable_bootstrap_package_during_manual_enrollment: false
       macos_enable_bootstrap_package_during_migration: false
-      macos_setup_assistant:
+      macos_setup_assistant: ""
       manual_agent_install:
       macos_require_all_software: false
       windows_require_all_software: false
-      script:
+      script: ""
       software:
     setup_experience:
-      macos_bootstrap_package:
+      macos_bootstrap_package: ""
       enable_create_local_admin_account: false
       enable_end_user_authentication: false
       apple_enable_release_device_manually: false
       end_user_local_account_type: admin
       lock_end_user_info: false
-      apple_setup_assistant:
+      apple_setup_assistant: ""
       macos_enable_bootstrap_package_during_manual_enrollment: false
       macos_enable_bootstrap_package_during_migration: false
       macos_manual_agent_install:
       macos_require_all_software: false
       windows_require_all_software: false
-      macos_script:
+      macos_script: ""
       software:
     windows_automatic_enrollment: null
     windows_settings:
       require_bitlocker_pin: false
-      custom_settings: null
+      custom_settings: []
       enable_disk_encryption: false
-      configuration_profiles: null
+      configuration_profiles: []
       enable_managed_local_account: false
     linux_settings:
       enable_escrow_disk_encryption_key: false
     android_settings:
       certificates: null
-      custom_settings: null
-      configuration_profiles: null
+      custom_settings: []
+      configuration_profiles: []
     end_user_authentication:
       idp_name: ""
       issuer_uri: ""
       metadata: ""
       metadata_url: ""
       entity_id: ""
-  scripts: null
+  scripts: []
   org_info:
     org_logo_url: ""
     org_logo_url_light_background: ""

@@ -2294,6 +2294,16 @@ func TestApplyMacosSetup(t *testing.T) {
 			}
 			return nil, &notFoundError{}
 		}
+		ds.ConfigListsByTeamIDsFunc = func(ctx context.Context, teamIDs []uint) (map[uint]*fleet.ConfigLists, error) {
+			lists := make(map[uint]*fleet.ConfigLists, len(teamIDs))
+			for _, id := range teamIDs {
+				lists[id] = fleet.NewConfigLists()
+				if asst, ok := asstsByTeam[id]; ok {
+					lists[id].SetupAssistant = asst.Name
+				}
+			}
+			return lists, nil
+		}
 		ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
 			return nil
 		}
@@ -2553,7 +2563,7 @@ spec:
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedAppConfigSet.yml"))
 		require.NoError(t, err)
-		expectedAppCfgSet := fmt.Sprintf(string(b), "", emptyMacosSetup, "", emptyMacosSetup)
+		expectedAppCfgSet := fmt.Sprintf(string(b), "", filepath.Base(emptyMacosSetup), "", filepath.Base(emptyMacosSetup))
 		expectedAppCfgSetReleaseEnabled := strings.ReplaceAll(expectedAppCfgSet, `enable_release_device_manually: false`, `enable_release_device_manually: true`)
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1Empty.yml"))
@@ -2572,7 +2582,7 @@ spec:
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1And2Set.yml"))
 		require.NoError(t, err)
-		expectedTm1And2Set := fmt.Sprintf(string(b), "", emptyMacosSetup, "", emptyMacosSetup)
+		expectedTm1And2Set := fmt.Sprintf(string(b), "", filepath.Base(emptyMacosSetup), "", filepath.Base(emptyMacosSetup))
 
 		// get without setup assistant set
 		assert.YAMLEq(t, expectedEmptyAppCfg, runAppForTest(t, []string{"get", "config", "--yaml"}))

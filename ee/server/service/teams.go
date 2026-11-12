@@ -1802,6 +1802,9 @@ func (svc *Service) createTeamFromSpec(
 	macOSSettings.EnableDiskEncryption = optjson.SetBool(macOSSettings.EnableDiskEncryption.Value)
 	macOSSettings.EnableEscrowDiskEncryptionKey = optjson.SetBool(macOSSettings.EnableEscrowDiskEncryptionKey.Value)
 	windowsSettings := spec.MDM.WindowsSettings
+	windowsSettings.CustomSettings = fleet.WithoutEchoedProfileSpecsOpt(windowsSettings.CustomSettings, optjson.Slice[fleet.MDMProfileSpec]{})
+	androidSettings := spec.MDM.AndroidSettings
+	androidSettings.CustomSettings = fleet.WithoutEchoedProfileSpecsOpt(androidSettings.CustomSettings, optjson.Slice[fleet.MDMProfileSpec]{})
 	if spec.MDM.EnableDiskEncryption.Valid {
 		windowsSettings.EnableDiskEncryption = spec.MDM.EnableDiskEncryption
 	}
@@ -1933,7 +1936,7 @@ func (svc *Service) createTeamFromSpec(
 				MacOSSettings:              macOSSettings,
 				MacOSSetup:                 macOSSetup,
 				WindowsSettings:            windowsSettings,
-				AndroidSettings:            spec.MDM.AndroidSettings,
+				AndroidSettings:            androidSettings,
 				LinuxSettings:              linuxSettings,
 				HostNameTemplate:           nameTemplate,
 			},
@@ -2358,7 +2361,7 @@ func (svc *Service) editTeamFromSpec(
 	// the configured flag, and gating it here can spuriously reject team
 	// edits when the cached AppConfig lags behind a recent enable.
 	if spec.MDM.WindowsSettings.CustomSettings.Set {
-		team.Config.MDM.WindowsSettings.CustomSettings = spec.MDM.WindowsSettings.CustomSettings
+		team.Config.MDM.WindowsSettings.CustomSettings = fleet.WithoutEchoedProfileSpecsOpt(spec.MDM.WindowsSettings.CustomSettings, team.Config.MDM.WindowsSettings.CustomSettings)
 	}
 	var didUpdateWindowsManagedLocalAccount bool
 	if spec.MDM.WindowsSettings.EnableManagedLocalAccount.Valid {
@@ -2371,7 +2374,7 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.MDM.WindowsSettings.EnableManagedLocalAccount = newWindowsManagedLocalAccount
 	}
 	if spec.MDM.AndroidSettings.CustomSettings.Set {
-		team.Config.MDM.AndroidSettings.CustomSettings = spec.MDM.AndroidSettings.CustomSettings
+		team.Config.MDM.AndroidSettings.CustomSettings = fleet.WithoutEchoedProfileSpecsOpt(spec.MDM.AndroidSettings.CustomSettings, team.Config.MDM.AndroidSettings.CustomSettings)
 	}
 
 	if spec.Scripts.Set {
@@ -2696,6 +2699,7 @@ func (svc *Service) applyTeamMacOSSettings(ctx context.Context, spec *fleet.Team
 	if err != nil {
 		return nil, fleet.NewUserMessageError(err, http.StatusBadRequest)
 	}
+	applyUpon.CustomSettings = fleet.WithoutEchoedProfileSpecs(applyUpon.CustomSettings, oldCustomSettings)
 
 	appCfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
