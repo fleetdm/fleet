@@ -14,6 +14,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
@@ -127,7 +128,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, updatedPayload)
 	assert.Equal(t, `The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. `+
-		`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`, updatedPayload.Detail)
+		`What to use instead: `+removednames.GuideURL, updatedPayload.Detail)
 	assert.Empty(t, targets)
 
 	ndesPassword := "test-password"

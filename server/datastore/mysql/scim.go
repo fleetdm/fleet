@@ -10,7 +10,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/doug-martin/goqu/v9"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
@@ -1769,10 +1768,9 @@ func hostIDsWithoutScimUser(ctx context.Context, tx sqlx.ExtContext, hostIDs []u
 	if len(hostIDs) == 0 {
 		return nil, nil
 	}
-	stmt, args, err := dialect.From(goqu.I("host_scim_user")).Select("host_id").Distinct().
-		Where(goqu.C("host_id").In(hostIDs)).Prepared(true).ToSQL()
+	stmt, args, err := sqlx.In(`SELECT DISTINCT host_id FROM host_scim_user WHERE host_id IN (?)`, hostIDs)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "build select hosts with a scim user")
+		return nil, ctxerr.Wrap(ctx, err, "prepare select hosts with a scim user")
 	}
 	var linked []uint
 	if err := sqlx.SelectContext(ctx, tx, &linked, stmt, args...); err != nil {

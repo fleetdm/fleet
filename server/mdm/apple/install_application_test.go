@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/stretchr/testify/require"
 	"howett.net/plist"
@@ -266,7 +267,7 @@ func TestSubstituteFleetVarsInAppConfig(t *testing.T) {
 		got, err := SubstituteFleetVarsInAppConfig(ctx, emptyDS, cfg, host)
 		require.ErrorIs(t, err, ErrUnresolvableAppConfigVar)
 		require.EqualError(t, err, `The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. `+
-			`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`)
+			`What to use instead: `+removednames.GuideURL)
 		require.Nil(t, got)
 	})
 

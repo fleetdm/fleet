@@ -38,6 +38,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/certissue"
 	"github.com/fleetdm/fleet/v4/ee/server/service/ejbca/ejbcatest"
 	svc_scep "github.com/fleetdm/fleet/v4/ee/server/service/scep"
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
@@ -1349,7 +1350,7 @@ func (s *integrationMDMTestSuite) TestRemovedFleetVariableSavedBeforeUpgrade() {
 	t.Cleanup(digiCertServer.server.Close)
 
 	const removedVarMsg = `The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. ` +
-		`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+		`What to use instead: ` + removednames.GuideURL
 
 	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setupPusher(s, t, mdmDevice)

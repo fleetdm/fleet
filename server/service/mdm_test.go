@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -4301,7 +4302,7 @@ func TestNewMDMAndroidConfigProfileRemovedFleetVariable(t *testing.T) {
 	removedErr, ok := errors.AsType[*fleet.RemovedFleetVariableError](err)
 	require.True(t, ok, err)
 	require.Equal(t, `The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. `+
-		`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`, removedErr.Error())
+		`What to use instead: `+removednames.GuideURL, removedErr.Error())
 	require.False(t, ds.NewMDMAndroidConfigProfileFuncInvoked)
 }
 

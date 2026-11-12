@@ -13,6 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/ejbca/ejbcatest"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -89,7 +90,7 @@ func newEJBCATestEnv(t *testing.T, stored *fleet.CertificateAuthority) *ejbcaTes
 }
 
 const removedEmailIDPVarMsg = `The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. What to use instead: ` +
-	`https://fleetdm.com/learn-more-about/fleet-5-migration`
+	removednames.GuideURL
 
 func validEJBCA(p12 string) fleet.EJBCA {
 	return fleet.EJBCA{

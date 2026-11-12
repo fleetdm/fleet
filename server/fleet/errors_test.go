@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -97,7 +98,7 @@ func TestParamRequiredDeprecationError(t *testing.T) {
 
 func TestRemovedFleetVariable(t *testing.T) {
 	const removedMsg = `The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. ` +
-		`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+		`What to use instead: ` + removednames.GuideURL
 
 	require.NoError(t, FindRemovedFleetVariable())
 	require.NoError(t, FindRemovedFleetVariable("HOST_UUID", "NOT_A_VARIABLE", "HOST_END_USER_EMAIL_IDP_X"))
