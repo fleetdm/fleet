@@ -1,9 +1,10 @@
 package tables
 
 // Fleet4Migrations are the table migrations of Fleet 4.95.0, whose schema the
-// Fleet 5 baseline matches. A 4.95.x database must have all of them applied.
-// Migrations added in 4.95.x patches are numbered after the baseline and ship
-// as regular Fleet 5 migrations, so they don't belong here.
+// Fleet 5 baseline matches. A 4.95.0 or later database must have all of them
+// applied. Migrations added in later Fleet 4 releases (4.95.x patches, 4.96,
+// etc.) are numbered after the baseline and ship as regular Fleet 5
+// migrations, so they don't belong here.
 var Fleet4Migrations = []int64{
 	20161118193812, 20161118211713, 20161118212436, 20161118212515, 20161118212528, 20161118212538,
 	20161118212549, 20161118212557, 20161118212604, 20161118212613, 20161118212621, 20161118212630,
@@ -122,12 +123,12 @@ var Fleet4Migrations = []int64{
 	20261029151238, 20261030104609, 20261102034125, 20261102134247, 20261102134303, 20261102142138,
 }
 
-// Fleet4OptionalMigrations may also be recorded on a 4.95.x database: a
+// Fleet4OptionalMigrations may also be recorded on a 4.95.0 or later database: a
 // migration released in 4.4.0 under a timestamp that 4.4.1 changed.
 var Fleet4OptionalMigrations = []int64{20210924114500}
 
-// fleet4DataMigrations are the data migrations every 4.95.x database has
-// applied, recorded in migration_status_data.
+// fleet4DataMigrations are the data migrations every 4.95.0 or later database
+// has applied, recorded in migration_status_data.
 var fleet4DataMigrations = []int64{
 	20161229171615, 20170223171234, 20170301093653, 20170314151620, 20181119180000,
 	20210330130314, 20210806135609, 20210819120215, 20230525175650,
