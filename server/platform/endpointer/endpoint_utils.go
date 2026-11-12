@@ -662,6 +662,10 @@ func MakeDecoder(
 	}
 
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
+		if err := RejectRemovedQueryParams(r.URL.Query(), t); err != nil {
+			return nil, err
+		}
+
 		v := reflect.New(t)
 		nilBody := false
 		var rewriter *JSONKeyRewriteReader
@@ -690,6 +694,24 @@ func MakeDecoder(
 				} else {
 					body = gzr
 				}
+			}
+
+			if isBodyDecoder == nil || !isBodyDecoder(v) {
+				data, err := io.ReadAll(body)
+				if err != nil {
+					if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+						return nil, platform_http.PayloadTooLargeError{
+							ContentLength:  r.Header.Get("Content-Length"),
+							MaxRequestSize: maxRequestBodySize,
+							Gzipped:        gzipped,
+						}
+					}
+					return nil, jsonDecodeErr(err)
+				}
+				if err := RejectRemovedJSONKeys(data, t); err != nil {
+					return nil, err
+				}
+				body = bytes.NewReader(data)
 			}
 
 			// Insert the JSON key rewriter into the reader pipeline

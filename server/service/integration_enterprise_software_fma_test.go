@@ -1000,7 +1000,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	var batchResp batchSetSoftwareInstallersResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/batch",
 		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new(slug), SelfService: true}}, TeamName: team.Name},
-		http.StatusAccepted, &batchResp, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+		http.StatusAccepted, &batchResp, "team_name", team.Name)
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchResp.RequestUUID)
 
 	title := activeTitle(team.ID)
@@ -1091,7 +1091,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{
 			{Slug: new(slug), SelfService: true, InstallScript: customInstall, UninstallScript: customUninstall},
 		}, TeamName: team.Name},
-		http.StatusAccepted, &batchRespE, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+		http.StatusAccepted, &batchRespE, "team_name", team.Name)
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchRespE.RequestUUID)
 
 	gotInstall, gotUninstall := activeScripts(team.ID, titleID)
@@ -1120,7 +1120,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{
 			{Slug: new(slug), SelfService: true},
 		}, TeamName: team.Name},
-		http.StatusAccepted, &batchRespF, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+		http.StatusAccepted, &batchRespF, "team_name", team.Name)
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchRespF.RequestUUID)
 	editedInstall, editedUninstall = activeScriptEditedFlags(team.ID, titleID)
 	require.False(t, editedInstall)
@@ -1279,7 +1279,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCronTimeBudget() {
 	var batchResp batchSetSoftwareInstallersResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/batch",
 		batchSetSoftwareInstallersRequest{Software: software, TeamName: team.Name},
-		http.StatusAccepted, &batchResp, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+		http.StatusAccepted, &batchResp, "team_name", team.Name)
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchResp.RequestUUID)
 	require.Equal(t, []string{"1.0", "1.0", "1.0", "1.0"}, activeVersions(team.ID))
 
@@ -1443,7 +1443,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: software, TeamName: team.Name},
 			http.StatusAccepted, &resp,
-			"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+			"team_name", team.Name,
 		)
 		return waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
 	}
@@ -1632,7 +1632,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 			},
 			TeamName: team.Name,
 		},
-		http.StatusAccepted, &evictedVersionBatchResponse, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+		http.StatusAccepted, &evictedVersionBatchResponse, "team_name", team.Name)
 	evictedVersionMessage := waitBatchSetSoftwareInstallersFailed(t, &s.withServer, team.Name, evictedVersionBatchResponse.RequestUUID)
 	require.Contains(t, evictedVersionMessage, "specified version is not available")
 
@@ -2785,7 +2785,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: team.Name},
 			http.StatusAccepted, &resp,
-			"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+			"team_name", team.Name,
 		)
 		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
 
@@ -2871,7 +2871,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: team.Name},
 			http.StatusAccepted, &resp,
-			"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+			"team_name", team.Name,
 		)
 		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
 
@@ -2898,7 +2898,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 				{Slug: new("zoom/windows"), SelfService: true, RollbackVersion: "1.0"},
 			}, TeamName: team.Name},
 			http.StatusAccepted, &resp,
-			"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+			"team_name", team.Name,
 		)
 		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
 
@@ -2929,7 +2929,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: team.Name},
 			http.StatusAccepted, &resp,
-			"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+			"team_name", team.Name,
 		)
 		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
 
@@ -2968,7 +2968,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}, {Slug: new("1password/darwin")}}, TeamName: team2.Name},
 			http.StatusAccepted, &resp,
-			"team_name", team2.Name, "team_id", fmt.Sprint(team2.ID),
+			"team_name", team2.Name,
 		)
 		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team2.Name, resp.RequestUUID)
 
@@ -3012,7 +3012,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}, {Slug: new("1password/darwin")}}, TeamName: team2.Name},
 			http.StatusAccepted, &resp,
-			"team_name", team2.Name, "team_id", fmt.Sprint(team2.ID),
+			"team_name", team2.Name,
 		)
 		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team2.Name, resp.RequestUUID)
 
@@ -3033,7 +3033,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 				{Slug: new("1password/darwin"), SelfService: true, RollbackVersion: "1.0"},
 			}, TeamName: team2.Name},
 			http.StatusAccepted, &resp,
-			"team_name", team2.Name, "team_id", fmt.Sprint(team2.ID),
+			"team_name", team2.Name,
 		)
 		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team2.Name, resp.RequestUUID)
 
@@ -3193,7 +3193,7 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: teamName},
 			http.StatusAccepted, &resp,
-			"team_name", teamName, "team_id", "0",
+			"team_name", teamName,
 		)
 		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, resp.RequestUUID)
 
@@ -3208,7 +3208,7 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows"), RollbackVersion: "^1"}}, TeamName: teamName},
 			http.StatusAccepted, &resp,
-			"team_name", teamName, "team_id", "0",
+			"team_name", teamName,
 		)
 		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, resp.RequestUUID)
 
@@ -3226,7 +3226,7 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows"), RollbackVersion: "^1"}}, TeamName: teamName},
 			http.StatusAccepted, &resp,
-			"team_name", teamName, "team_id", "0",
+			"team_name", teamName,
 		)
 		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, resp.RequestUUID)
 
@@ -3246,7 +3246,7 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows"), RollbackVersion: "1.0"}}, TeamName: teamName},
 			http.StatusAccepted, &resp,
-			"team_name", teamName, "team_id", "0",
+			"team_name", teamName,
 		)
 		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, resp.RequestUUID)
 
@@ -3257,7 +3257,7 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows"), RollbackVersion: "^1"}}, TeamName: teamName},
 			http.StatusAccepted, &resp,
-			"team_name", teamName, "team_id", "0",
+			"team_name", teamName,
 		)
 		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, resp.RequestUUID)
 
@@ -3271,7 +3271,7 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows"), RollbackVersion: "^1"}}, TeamName: teamName},
 			http.StatusAccepted, &resp,
-			"team_name", teamName, "team_id", "0",
+			"team_name", teamName,
 		)
 		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, resp.RequestUUID)
 
@@ -3301,7 +3301,7 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("1password/darwin"), RollbackVersion: "^1"}}, TeamName: teamName},
 			http.StatusAccepted, &resp,
-			"team_name", teamName, "team_id", "0",
+			"team_name", teamName,
 		)
 		message := waitBatchSetSoftwareInstallersFailed(t, &s.withServer, teamName, resp.RequestUUID)
 		require.Contains(t, message, "specified major version is not available")

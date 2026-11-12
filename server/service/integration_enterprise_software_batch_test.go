@@ -2077,7 +2077,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersLowercase
 	s.DoJSON("POST", "/api/latest/fleet/software/batch",
 		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: team.Name},
 		http.StatusAccepted, &resp,
-		"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+		"team_name", team.Name,
 	)
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
 
@@ -2122,7 +2122,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersUnsetsObs
 	s.DoJSON("POST", "/api/latest/fleet/software/batch",
 		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: team.Name},
 		http.StatusAccepted, &resp,
-		"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+		"team_name", team.Name,
 	)
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
 
@@ -2133,7 +2133,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersUnsetsObs
 			{Slug: new("1password/darwin")},
 		}, TeamName: team.Name},
 		http.StatusAccepted, &resp,
-		"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+		"team_name", team.Name,
 	)
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
 
@@ -2162,7 +2162,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersUnsetsObs
 	s.DoJSON("POST", "/api/latest/fleet/software/batch",
 		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: team.Name},
 		http.StatusAccepted, &resp,
-		"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+		"team_name", team.Name,
 	)
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
 

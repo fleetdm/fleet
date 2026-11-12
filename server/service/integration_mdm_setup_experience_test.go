@@ -685,7 +685,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithFMAAndVersionRollba
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: software, TeamName: tm.Name},
 			http.StatusAccepted, &resp,
-			"team_name", tm.Name, "team_id", fmt.Sprint(tm.ID),
+			"team_name", tm.Name,
 		)
 		return waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, resp.RequestUUID)
 	}
