@@ -70,7 +70,7 @@ If your account doesn't have billing set up, OpenAI might not let you create or 
 
 5. Select **Save**.
 
-> OpenAI’s models page also lists image, video, and audio models, and models meant for ChatGPT. These won’t work with Fleet. Use a text model, such as a GPT-5 model.
+> OpenAI’s models page also lists image, video, and audio models, and models meant for ChatGPT. These won’t work with Fleet. Use a text model, such as a GPT-6 model.
 
 Fleet checks your model IDs when you save. If a model isn't found, the field is shown in red with an error.
 
@@ -85,8 +85,8 @@ Fleet uses a different model depending on how complex the request is:
 
 Fleet sends the matching effort level to your provider with each request. Models that don't support effort are used without it. These models support effort:
 
-- **Anthropic**: Claude Fable 5.x, Claude Opus 4.5 and later, Claude Sonnet 4.6 and later, and Claude Haiku 5.5.
-- **OpenAI**: Reasoning models, including the GPT-5 family and o-series models.
+- **Anthropic**: Most current models. See [Anthropic's effort docs](https://platform.claude.com/docs/en/build-with-claude/effort) for supported models.
+- **OpenAI**: Reasoning models. See [OpenAI's reasoning guide](https://developers.openai.com/api/docs/guides/reasoning) for supported models.
 
 ## GitOps
 
