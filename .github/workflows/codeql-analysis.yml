@@ -20,6 +20,7 @@ defaults:
 permissions: {}
 
 jobs:
+  # Check which files have changed and determine the languages to analyze
   check-changes:
     runs-on: ubuntu-latest
     permissions:
@@ -39,7 +40,6 @@ jobs:
         persist-credentials: false
         fetch-depth: 1
 
-    # Check which files have changed and determine the languages to analyze
     - name: Check changed files
       id: changes
       env:
