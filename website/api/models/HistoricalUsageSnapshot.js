@@ -76,6 +76,9 @@ module.exports = {
     idpGoogleWorkspaceConfigured: {required: true, type: 'boolean'},
     certificateAuthorityConfigured: {required: true, type: 'boolean'},
     numPoliciesAutomationEnabledSoftware: {required: true, type: 'number'},
+    numAppleAiGeneratedProfiles: {required: true, type: 'number', description: 'The cumulative number of Apple configuration profiles generated with AI on this Fleet deployment.'},
+    numWindowsAiGeneratedProfiles: {required: true, type: 'number', description: 'The cumulative number of Windows configuration profiles generated with AI on this Fleet deployment.'},
+    numAndroidAiGeneratedProfiles: {required: true, type: 'number', description: 'The cumulative number of Android configuration profiles generated with AI on this Fleet deployment.'},
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
     //  ╚═╝╩ ╩╚═╝╚═╝═╩╝╚═╝
