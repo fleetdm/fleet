@@ -27917,37 +27917,37 @@
       },
       {
         "name": "sync_push_notifications",
-        "description": "Whether push notifications are enabled to trigger immediate syncs",
+        "description": "Status of the push notifications that trigger immediate syncs (e.g. `Disabled`, `Disconnected`, `NPS Push Service`)",
         "required": false,
         "type": "text"
       },
       {
         "name": "sync_execution_rules_hash",
-        "description": "Hash of the currently applied file access ruleset",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "sync_full_sync_interval_seconds",
-        "description": "The full sync interval in seconds",
-        "required": false,
-        "type": "integer"
-      },
-      {
-        "name": "sync_push_notifications_full_sync_interval_seconds",
-        "description": "The push notifications full sync interval in seconds",
-        "required": false,
-        "type": "integer"
-      },
-      {
-        "name": "sync_file_access_rules_hash",
         "description": "Hash of the currently applied execution ruleset",
         "required": false,
         "type": "text"
       },
       {
+        "name": "sync_full_sync_interval_seconds",
+        "description": "How often Santa runs a full sync, in seconds",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "sync_push_notifications_full_sync_interval_seconds",
+        "description": "How often Santa runs a full sync when push notifications are configured, in seconds. 0 when push notifications aren't configured.",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "sync_file_access_rules_hash",
+        "description": "Hash of the currently applied file access ruleset",
+        "required": false,
+        "type": "text"
+      },
+      {
         "name": "sync_push_server",
-        "description": "The push server address",
+        "description": "Hostname of the push server Santa is connected to. Set only when `sync_push_notifications` is `NPS Push Service`; otherwise `null`.",
         "required": false,
         "type": "text"
       },
