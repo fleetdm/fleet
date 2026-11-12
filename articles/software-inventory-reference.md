@@ -1,8 +1,4 @@
-# Software inventory reference
-
-Software inventory in Fleet collects the apps, operating systems, browser extensions, packages, IDE extensions, plugins, and binaries installed on your hosts. [Vulnerability (CVE) processing](https://fleetdm.com/guides/vulnerability-processing#coverage) runs against this inventory, so software that isn't collected here can't be checked for vulnerabilities.
-
-Each software type below lists its `source`, and browser and IDE extensions also list `extension_for` (the browser or IDE the extension belongs to). Use these values to filter software in [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#list-software).
+# Software inventory
 
 ## Apps
 
@@ -101,6 +97,7 @@ Fleet treats Linux as a first-class platform, not an afterthought. It's open sou
 | Fedora Atomic desktops (Silverblue, Kinoite, and others) | ❌ |
 | Ubuntu Core | ❌ |
 | IGEL OS | ❌ |
+| Sailfish OS (Jolla Phone) | ❌ |
 | Any other distribution | ❌ |
 
 - Fedora, Rocky Linux, AlmaLinux, and Oracle Linux report as RHEL because they ship `/etc/redhat-release`. Fleet shows them under RHEL on the **Software** > **OS** page.
@@ -112,6 +109,7 @@ Fleet treats Linux as a first-class platform, not an afterthought. It's open sou
 - SteamOS also has a read-only OS, and Fleet's agent package can't be installed on it.
 - Ubuntu Core runs snaps only. Fleet's agent isn't packaged as a snap, so Ubuntu Core hosts can't enroll.
 - [IGEL OS](https://www.igel.com/secure-endpoint-os/) uses an immutable root filesystem, and software is delivered as IGEL apps through IGEL's App Portal. Fleet's agent isn't available as an IGEL app, so IGEL OS isn't supported.
+- [Sailfish OS](https://sailfishos.org/), used on the [Jolla Phone](https://commerce.jolla.com/products/jolla-phone-october-2026), reports its platform as `sailfishos`, which Fleet doesn't recognize. Fleet has no MDM support for Sailfish OS, and Android apps that run through Jolla AppSupport aren't collected.
 
 ## Browser extensions
 
@@ -248,5 +246,5 @@ Fleet refreshes software inventory on the same schedule as other host details. T
 <meta name="authorGitHubUsername" value="karmine05">
 <meta name="authorFullName" value="Dhruv Majumdar">
 <meta name="publishedOn" value="2026-09-11">
-<meta name="articleTitle" value="Software inventory reference">
-<meta name="description" value="Find out how Fleet collects software inventory and what software it covers on each platform.">
+<meta name="articleTitle" value="Software inventory">
+<meta name="description" value="Fleet collects the apps, operating systems, browser extensions, packages, IDE extensions, plugins, and binaries installed on your hosts.">

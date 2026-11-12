@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"iter"
+	"maps"
 	"net/http"
 	"reflect"
 	"regexp"
@@ -271,13 +272,10 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 	req := request.(*listHostsRequest)
 
 	var software *fleet.Software
-	if req.Opts.SoftwareVersionIDFilter != nil || req.Opts.SoftwareIDFilter != nil {
+	if req.Opts.SoftwareVersionIDFilter != nil {
 		var err error
 
 		id := req.Opts.SoftwareVersionIDFilter
-		if id == nil {
-			id = req.Opts.SoftwareIDFilter
-		}
 
 		sw, err := svc.SoftwareByID(ctx, *id, req.Opts.TeamFilter, false)
 		switch {
@@ -444,15 +442,16 @@ func sanitizeNonPremiumHostListOptions(isPremium bool, opt *fleet.HostListOption
 	opt.DEPAssignProfileResponseFilter = nil
 }
 
-// suppressAndroidBYODWipeStatus hides the transient wipe status for Android BYOD (personal) hosts. Unenrolling such a
-// host fires a work-profile-only AMAPI WIPE under the hood (see UnenrollAndroidHost), which writes wipe_ref and would
-// otherwise surface as a pending wipe. The admin clicked Unenroll, not Wipe.
+// suppressAndroidBYODWipeStatus reports the transient wipe status for Android BYOD (personal) hosts as a pending
+// unenroll. Unenrolling such a host fires a work-profile-only AMAPI WIPE under the hood (see UnenrollAndroidHost), which
+// writes wipe_ref and would otherwise surface as a pending wipe. The admin clicked Unenroll, not Wipe, but the UI still
+// needs to know something is pending so it can hide the actions that conflict with it.
 func suppressAndroidBYODWipeStatus(host *fleet.Host) {
 	if host.FleetPlatform() == "android" &&
 		host.MDM.EnrollmentStatus != nil && fleet.IsPersonalEnrollmentStatus(*host.MDM.EnrollmentStatus) &&
 		host.MDM.PendingAction != nil && *host.MDM.PendingAction == string(fleet.PendingActionWipe) {
 		host.MDM.DeviceStatus = new(string(fleet.DeviceStatusUnlocked))
-		host.MDM.PendingAction = new(string(fleet.PendingActionNone))
+		host.MDM.PendingAction = new(string(fleet.PendingActionUnenroll))
 	}
 }
 
@@ -487,7 +486,11 @@ func (svc *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) 
 	// Create an iterator to return one host at a time, hydrated with extra details as needed.
 	hostIterator := func() iter.Seq2[*fleet.Host, error] {
 		return func(yield func(*fleet.Host, error) bool) {
-			for _, host := range hosts {
+			for _, pageHost := range hosts {
+				// Hydrate software on a copy instead of slice elements
+				// to allow memory to be freed at the end of each iteration ...
+				hostCopy := *pageHost
+				host := &hostCopy
 
 				if !opt.DisableIssues && !premiumLicense {
 					host.HostIssues.CriticalVulnerabilitiesCount = nil
@@ -908,8 +911,8 @@ func (svc *Service) SearchHosts(ctx context.Context, matchQuery string, queryID 
 /////////////////////////////////////////////////////////////////////////////////
 
 type getHostRequest struct {
-	ID              uint `url:"id"`
-	ExcludeSoftware bool `query:"exclude_software,optional"`
+	Identifier      string `url:"id"`
+	ExcludeSoftware bool   `query:"exclude_software,optional"`
 }
 
 type getHostResponse struct {
@@ -926,7 +929,7 @@ func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 		IncludePolicies:  true, // intentionally true to preserve existing behavior,
 		ExcludeSoftware:  req.ExcludeSoftware,
 	}
-	host, err := svc.GetHost(ctx, req.ID, opts)
+	host, err := svc.GetHostByIDOrIdentifier(ctx, req.Identifier, opts)
 	if err != nil {
 		return getHostResponse{Err: err}, nil
 	}
@@ -1101,14 +1104,6 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *
 		return nil, err
 	}
 
-	linuxCount := uint(0)
-	for _, p := range hostSummary.Platforms {
-		if fleet.IsLinux(p.Platform) {
-			linuxCount += p.HostsCount
-		}
-	}
-	hostSummary.AllLinuxCount = linuxCount
-
 	labelsSummary, err := svc.ds.LabelsSummary(ctx, fleet.TeamFilter{})
 	if err != nil {
 		return nil, err
@@ -1131,78 +1126,31 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *
 // Get Host By Identifier
 ////////////////////////////////////////////////////////////////////////////////
 
-type hostByIdentifierRequest struct {
-	Identifier      string `url:"identifier"`
-	ExcludeSoftware bool   `query:"exclude_software,optional"`
-}
-
-type hostIDOnly struct {
-	ID uint `json:"id"`
-}
-
-type hostIDOnlyResponse struct {
-	Host hostIDOnly `json:"host"`
-	Err  error      `json:"error,omitempty"`
-}
-
-func (r hostIDOnlyResponse) Error() error { return r.Err }
-
-func hostByIdentifierEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*hostByIdentifierRequest)
-	opts := fleet.HostDetailOptions{
-		IncludeCVEScores: false,
-		IncludePolicies:  true, // intentionally true to preserve existing behavior
-		ExcludeSoftware:  req.ExcludeSoftware,
-	}
-	host, err := svc.HostByIdentifier(ctx, req.Identifier, opts)
-	if err != nil {
-		return getHostResponse{Err: err}, nil
-	}
-
-	if host.IDOnly {
-		return hostIDOnlyResponse{Host: hostIDOnly{ID: host.ID}}, nil
-	}
-
-	resp, err := hostDetailResponseForHost(ctx, svc, host)
-	if err != nil {
-		return getHostResponse{Err: err}, nil
-	}
-
-	return getHostResponse{
-		Host: resp,
-	}, nil
-}
-
-func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
-	// Coarse gate before the host's team is known. selective_list admits GitOps,
-	// which the team-scoped check below then limits to the host's id.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
+// GetHostByIDOrIdentifier returns the host matching a value that is either a host id or another host identifier. The id takes
+// priority, then the order documented on Datastore.HostByIdentifier. A host matched by id that the caller can't read is a denial.
+func (svc *Service) GetHostByIDOrIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
+	// Authorize before the lookup so a caller who can't list hosts can't probe which identifiers exist. GetHost checks team access.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
 
-	host, err := svc.ds.HostByIdentifier(ctx, identifier)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get host by identifier")
-	}
-
-	// Authorize again with team loaded now that we have team_id
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
-		// GitOps has no host read access, but it is granted selective_read here so
-		// the deprecated Puppet module can resolve a host identifier to a host id
-		// before pre-assigning profiles. Such a caller gets that id and nothing
-		// else: host details are read data it isn't entitled to.
-		if selectiveErr := svc.authz.Authorize(ctx, host, fleet.ActionSelectiveRead); selectiveErr != nil {
-			return nil, selectiveErr
+	var host *fleet.HostLite
+	if id, parseErr := strconv.ParseUint(identifier, 10, 0); parseErr == nil {
+		var err error
+		host, err = svc.ds.HostLiteByID(ctx, uint(id))
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "get host by id")
 		}
-		return &fleet.HostDetail{Host: fleet.Host{ID: host.ID}, IDOnly: true}, nil
+	}
+	if host == nil {
+		var err error
+		host, err = svc.ds.HostLiteByIdentifier(ctx, identifier)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host by identifier")
+		}
 	}
 
-	hostDetails, err := svc.getHostDetails(ctx, host, opts)
-	if err != nil {
-		return nil, err
-	}
-
-	return hostDetails, nil
+	return svc.GetHost(ctx, host.ID, opts)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1362,7 +1310,7 @@ func (r addHostsToTeamResponse) Error() error { return r.Err }
 
 func addHostsToTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*addHostsToTeamRequest)
-	err := svc.AddHostsToTeam(ctx, req.TeamID, req.HostIDs, false)
+	err := svc.AddHostsToTeam(ctx, req.TeamID, req.HostIDs)
 	if err != nil {
 		return addHostsToTeamResponse{Err: err}, nil
 	}
@@ -1398,7 +1346,7 @@ func (svc *Service) authorizeHostSourceTeams(ctx context.Context, hosts []*fleet
 	return nil
 }
 
-func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error {
+func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error {
 	// Authorize transfer access to the destination team.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionTransferHost); err != nil {
 		return err
@@ -1453,12 +1401,15 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		if err := svc.ds.UpdateTeamIDOnAndroidDevices(ctx, uuids, teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "sync android_devices team_id on transfer")
 		}
+		// Flag the Fleet agent for resend, so the Android app reconciler will send it with the new fleet's enroll secret
+		err = svc.ds.SetHostAndroidSoftwareInstallsNeedsResend(ctx, slices.Collect(maps.Values(androidUUIDs)), nil, new(svc.config.MDM.AndroidAgent.Package))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "flag android agent for resend after transfer")
+		}
 	}
 
-	if !skipBulkPending {
-		if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
-			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
-		}
+	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 	serials, err := svc.ds.ListMDMAppleDEPSerialsInHostIDs(ctx, hostIDs)
 	if err != nil {
@@ -1629,6 +1580,11 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, fi
 		}
 		if err := svc.ds.UpdateTeamIDOnAndroidDevices(ctx, uuids, teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "sync android_devices team_id on transfer")
+		}
+		// Flag the Fleet agent for resend, so the Android app reconciler will send it with the new fleet's enroll secret
+		err = svc.ds.SetHostAndroidSoftwareInstallsNeedsResend(ctx, slices.Collect(maps.Values(androidUUIDs)), nil, new(svc.config.MDM.AndroidAgent.Package))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "flag android agent for resend after transfer")
 		}
 	}
 
@@ -2306,6 +2262,14 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		return nil, ctxerr.Wrap(ctx, err, "get os update for host details")
 	}
 
+	var patchDeadlineAt *time.Time
+	if host.Platform == "darwin" {
+		patchDeadlineAt, err = svc.ds.GetHostPatchDeadlineAt(ctx, host.ID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host patch deadline")
+		}
+	}
+
 	// LastMDMCheckedInAt lives on Host so it's also available to the list-hosts
 	// loader; the details service overwrites the (potentially nil) value from
 	// the list-load with the fresh nano_enrollments read done above.
@@ -2325,6 +2289,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		GoogleDeviceID:                googleDeviceID,
 		OSUpdateMinimumVersion:        osUpdateMinVersion,
 		OSUpdateDeadline:              osUpdateDeadline,
+		PatchDeadlineAt:               patchDeadlineAt,
 	}, nil
 }
 
@@ -3653,6 +3618,9 @@ func (r hostsReportResponse) Error() error { return r.Err }
 func (r hostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	// post-process the Device Mappings for CSV rendering
 	for _, h := range r.Hosts {
+		// Add the aliased fields for team_id and team_name.
+		h.FleetID = h.TeamID
+		h.FleetName = h.TeamName
 		if h.DeviceMapping != nil {
 			// return the list of emails, comma-separated, as part of that single CSV field
 			var dms []struct {
@@ -3672,9 +3640,6 @@ func (r hostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWr
 				sb.WriteString(dm.Email)
 			}
 			h.CSVDeviceMapping = sb.String()
-			// Add the aliased fields for team_id and team_name.
-			h.FleetID = h.TeamID
-			h.FleetName = h.TeamName
 		}
 	}
 
@@ -3922,6 +3887,9 @@ func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	if err != nil {
 		return &osVersionsResponse{Err: err}, nil
 	}
+	for i := range osVersions.OSVersions {
+		osVersions.OSVersions[i].UseAPINames()
+	}
 
 	return &osVersionsResponse{
 		CountsUpdatedAt: &osVersions.CountsUpdatedAt,
@@ -4123,9 +4091,11 @@ func (svc *Service) OSVersions(
 	}, count, meta, nil
 }
 
-var numericVersionPattern = regexp.MustCompile(`^\d+(\.\d+)*$`)
-var windowsFeatureUpdatePattern = regexp.MustCompile(`^(\d{2})H([12])$`)
-var ubuntuLTSSuffixPattern = regexp.MustCompile(`(?i)\s+LTS$`)
+var (
+	numericVersionPattern       = regexp.MustCompile(`^\d+(\.\d+)*$`)
+	windowsFeatureUpdatePattern = regexp.MustCompile(`^(\d{2})H([12])$`)
+	ubuntuLTSSuffixPattern      = regexp.MustCompile(`(?i)\s+LTS$`)
+)
 
 // versionSegments returns the segments used to order a version string, and
 // whether it could be parsed. Handles dot-separated numeric versions (e.g.
@@ -4278,6 +4248,7 @@ func getOSVersionEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	if osVersion == nil {
 		osVersion = &fleet.OSVersion{}
 	}
+	osVersion.UseAPINames()
 
 	return getOSVersionResponse{CountsUpdatedAt: updateTime, OSVersion: osVersion}, nil
 }

@@ -2338,6 +2338,53 @@ func TestMDMAppleExecuteReconcileBatchCancelOnlyRemoval(t *testing.T) {
 	})
 }
 
+func TestMDMAppleExecuteReconcileBatchRemovesUnsentInstall(t *testing.T) {
+	const hostUUID = "uuid-A"
+
+	row := func(status *fleet.MDMDeliveryStatus, cmdUUID string) *fleet.MDMAppleProfilePayload {
+		return &fleet.MDMAppleProfilePayload{
+			ProfileUUID: "aDeletedProfileUUID", ProfileIdentifier: "com.example.wifi", ProfileName: "Wi-Fi",
+			HostUUID: hostUUID, Scope: fleet.PayloadScopeSystem, Checksum: []byte("aaaa"),
+			OperationType: fleet.MDMOperationTypeInstall, Status: status, CommandUUID: cmdUUID,
+		}
+	}
+
+	t.Run("install not sent (e.g. resend): RemoveProfile sent, error tolerated", func(t *testing.T) {
+		res := runReconcileBatchCapturing(t, nil, nil, []*fleet.MDMAppleProfilePayload{row(nil, "")})
+		require.NoError(t, res.err)
+
+		require.Equal(t, []string{"RemoveProfile"}, res.enqueued)
+		require.Empty(t, res.deletedCmds)
+		require.Empty(t, res.cleanedUp)
+		require.Len(t, res.upserted, 1)
+		require.Equal(t, fleet.MDMOperationTypeRemove, res.upserted[0].OperationType)
+		require.True(t, res.upserted[0].IgnoreError)
+	})
+
+	t.Run("install failed without verification: RemoveProfile sent, row kept", func(t *testing.T) {
+		res := runReconcileBatchCapturing(t, nil, nil, []*fleet.MDMAppleProfilePayload{row(&fleet.MDMDeliveryFailed, "install-cmd")})
+		require.NoError(t, res.err)
+
+		require.Equal(t, []string{"RemoveProfile"}, res.enqueued)
+		require.Empty(t, res.cleanedUp)
+		require.Len(t, res.upserted, 1)
+		require.Equal(t, fleet.MDMOperationTypeRemove, res.upserted[0].OperationType)
+		require.True(t, res.upserted[0].IgnoreError)
+	})
+
+	t.Run("install pending: queued command deleted and RemoveProfile sent", func(t *testing.T) {
+		res := runReconcileBatchCapturing(t, nil, nil, []*fleet.MDMAppleProfilePayload{row(&fleet.MDMDeliveryPending, "install-cmd")})
+		require.NoError(t, res.err)
+
+		require.Equal(t, []string{hostUUID}, res.deletedCmds["install-cmd"])
+		require.Empty(t, res.cleanedUp, "the row must be converted in place to keep has_acme_payload")
+		require.Equal(t, []string{"RemoveProfile"}, res.enqueued)
+		require.Len(t, res.upserted, 1)
+		require.Equal(t, fleet.MDMOperationTypeRemove, res.upserted[0].OperationType)
+		require.True(t, res.upserted[0].IgnoreError)
+	})
+}
+
 // A profile re-added with a different PayloadScope lands on the other channel, so
 // the queued removal on the original channel still has to be delivered: the two are
 // separate installs with separate enrollment IDs.

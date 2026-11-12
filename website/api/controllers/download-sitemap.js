@@ -78,11 +78,13 @@ module.exports = {
       '/omarchy',
       '/capex-savings',
       '/security-and-control',
-      '/linux-management',
+      '/linux',
       '/europe',
       '/pharma',
+      '/aviation',
       '/windows',
       '/apple',
+      '/cybersecurity',
       // Other stuff:
       // > Note: /handbook overview page is already included amongst the markdown pages
       // > Note: Same for /docs
@@ -108,6 +110,7 @@ module.exports = {
       '/lp/apple-mdm',
       '/lp/on-premise',
       '/lp/open-source',
+      '/lp/open-by-design',
       '/lp/windows-mdm',
       '/lp/android-mdm',
       // FUTURE: Do something smarter to get hand-coded HTML pages from routes.js, like how rebuild-cloud-sdk works, to avoid this manual duplication.

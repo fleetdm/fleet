@@ -1,0 +1,18 @@
+.software-library-settings-page {
+  @include vertical-page-layout;
+  align-items: flex-start;
+
+  &__fleet-row {
+    align-self: stretch;
+  }
+
+  &__premium-card {
+    align-self: stretch;
+    display: flex;
+    justify-content: center;
+  }
+
+  &__side-nav {
+    align-self: stretch;
+  }
+}

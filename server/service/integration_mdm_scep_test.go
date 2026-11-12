@@ -76,7 +76,7 @@ func (s *integrationMDMTestSuite) runSCEPProxyTestWithOptionalSuffix(suffix stri
 		mobileconfigForTest("N2", "Bad1"),
 	}
 	// add global profile
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest(globalProfiles), http.StatusNoContent)
 
 	// Create a host and then enroll to MDM.
 	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
@@ -374,7 +374,7 @@ func (s *integrationMDMTestSuite) runSmallstepSCEPProxyTestWithOptionalSuffix(su
 		mobileconfigForTest("N2", "Bad1"),
 	}
 	// add global profile
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest(globalProfiles), http.StatusNoContent)
 
 	// Create a host and then enroll to MDM.
 	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)

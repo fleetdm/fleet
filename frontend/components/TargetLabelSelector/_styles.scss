@@ -18,6 +18,10 @@
     }
   }
 
+  &__description--error {
+    color: $core-vibrant-red;
+  }
+
   &__checkboxes {
     display: flex;
     // 210px shows about 4.5 rows so the last row is half-visible, hinting
@@ -30,6 +34,10 @@
 
     .loading-spinner {
       margin: 69.5px auto;
+    }
+
+    &--error {
+      border-color: $core-vibrant-red;
     }
   }
 
@@ -119,6 +127,11 @@
     &--description {
       font-size: $xx-small;
       margin-top: -$pad-xsmall;
+    }
+
+    &--error {
+      color: $core-vibrant-red !important;
+      font-size: $xx-small;
     }
 
     .button {

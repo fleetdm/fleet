@@ -25,7 +25,6 @@ type InHouseAppPayload struct {
 	Filename        string
 	BundleID        string
 	StorageID       string
-	Platform        string
 	ValidatedLabels *LabelIdentsWithScope
 	CategoryIDs     []uint
 	Version         string

@@ -21,6 +21,22 @@ import VppInstallDetailsModal, {
 } from "./VppInstallDetailsModal";
 
 describe("getStatusMessage helper function", () => {
+  it("on activity feed, shows the activity's timestamp instead of the command's", () => {
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    render(
+      getStatusMessage({
+        displayStatus: "installed",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: true,
+        appName: "Logic Pro",
+        hostDisplayName: "Marko's MacBook Pro",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
+        activityCreatedAt: fiveMinutesAgo,
+      })
+    );
+    expect(screen.getByText(/5 minutes ago/)).toBeInTheDocument();
+  });
+
   it("shows NotNow message when isStatusNotNow is true", () => {
     render(
       getStatusMessage({

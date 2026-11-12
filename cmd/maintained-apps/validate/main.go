@@ -150,7 +150,7 @@ func run(cfg *Config) error {
 		ac.Slug = app.Slug
 		ac.UniqueIdentifier = app.UniqueIdentifier
 		ac.ExistsQuery = maintainedApp.AutomaticInstallQuery
-		ac.PatchVersion = patchedQueryVersion(maintainedApp.PatchQuery)
+		ac.PatchedQuery = maintainedApp.PatchQuery
 		// default version to maintained app version
 		ac.Version = maintainedApp.Version
 		ac.InstallScript = maintainedApp.InstallScript
@@ -242,7 +242,7 @@ func run(cfg *Config) error {
 			warnApp()
 		}
 
-		existance, existsQueryNoRowsReason, err := appExists(ctx, appLogger, ac.Name, ac.UniqueIdentifier, ac.Version, ac.PatchVersion, ac.AppPath, ac.ExistsQuery)
+		existance, existsQueryNoRowsReason, err := appExists(ctx, appLogger, ac.Name, ac.UniqueIdentifier, ac.Version, ac.PatchedQuery, ac.AppPath, ac.ExistsQuery)
 		if err != nil {
 			appLogger.ErrorContext(ctx, fmt.Sprintf("Error checking if app exists: %v", err))
 			appWithError = append(appWithError, ac.Name)
@@ -258,7 +258,7 @@ func run(cfg *Config) error {
 
 		// A Gatekeeper rejection fails the app, but the remaining checks still run
 		// so the app is uninstalled and its other problems are reported too.
-		gatekeeperErr := assessGatekeeper(ctx, appLogger, ac.UniqueIdentifier)
+		gatekeeperErr := assessGatekeeper(ctx, appLogger, ac.UniqueIdentifier, ac.ExistsQuery)
 		if gatekeeperErr != nil {
 			appLogger.ErrorContext(ctx, gatekeeperErr.Error())
 		}
@@ -427,7 +427,9 @@ func appFromJson(manifest *maintained_apps.FMAManifestFile) (fleet.MaintainedApp
 }
 
 func DownloadMaintainedApp(cfg *Config, app fleet.MaintainedApp) (*fleet.TempFileReader, string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	// Match Fleet's own limit: large installers from slow CDNs (WeChat's ~550 MB
+	// DMG) can take longer than a few minutes on a runner.
+	ctx, cancel := context.WithTimeout(context.Background(), mdm_maintained_apps.InstallerTimeout)
 	defer cancel()
 
 	cfg.logger.InfoContext(ctx, "Downloading...")
@@ -563,6 +565,18 @@ var programsExistsQueryRegex = regexp.MustCompile(`(?is)^\s*SELECT\s+1\s+FROM\s+
 // "SELECT 1 FROM programs WHERE ...", or "" for any other shape.
 func programsExistsWhereClause(existsQuery string) string {
 	m := programsExistsQueryRegex.FindStringSubmatch(existsQuery)
+	if m == nil {
+		return ""
+	}
+	return m[1]
+}
+
+var appsExistsQueryRegex = regexp.MustCompile(`(?is)^\s*SELECT\s+1\s+FROM\s+apps\s+WHERE\s+(.+?);?\s*$`)
+
+// appsExistsWhereClause returns the WHERE clause of an exists query shaped
+// "SELECT 1 FROM apps WHERE ...", or "" for any other shape.
+func appsExistsWhereClause(existsQuery string) string {
+	m := appsExistsQueryRegex.FindStringSubmatch(existsQuery)
 	if m == nil {
 		return ""
 	}

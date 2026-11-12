@@ -33,6 +33,7 @@ var (
 	CantTurnOffMDMForWindowsHostsMessage         = "Can't turn off MDM for Windows hosts."
 	CantTurnOffMDMAlreadyTurnedOffMessage        = "Couldn't turn off MDM. This host already has MDM turned off."
 	CantTurnOffMDMForPersonalHostsMessage        = "Couldn't turn off MDM. This command isn't available for personal hosts."
+	CantUnenrollPendingUnenrollMessage           = "Couldn't unenroll. This host already has a pending unenroll. It will unenroll when it comes online."
 	CantWipePersonalHostsMessage                 = "Couldn't wipe. This command isn't available for personal hosts."
 	CantLockPersonalHostsMessage                 = "Couldn't lock. This command isn't available for personal hosts."
 	CantClearPasscodePersonalHostsMessage        = "Unlock token is not available for this device. Unable to issue ClearPasscode command."
@@ -65,6 +66,8 @@ var (
 	ConfigProfileLabelScopingPremiumCauseMsg     = "Scoping configuration profiles with labels"
 	DDMCustomActivationPremiumCauseMsg           = "Custom activations for declaration (DDM) profiles"
 )
+
+const Fleet5MigrationGuide = "https://fleetdm.com/learn-more-about/fleet-5-migration"
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP
 // status code.
@@ -179,6 +182,31 @@ func (e *InvalidArgumentError) Invalid() []map[string]string {
 // BadRequestError is an alias for platform_http.BadRequestError.
 type BadRequestError = platform_http.BadRequestError
 
+// ParamRequiredDeprecationError is a bad request for a parameter that Fleet 5 made required, so that every
+// such change returns the same message and migration link.
+type ParamRequiredDeprecationError struct {
+	Param string
+}
+
+// NewParamRequiredDeprecationError returns a ParamRequiredDeprecationError for the named parameter.
+func NewParamRequiredDeprecationError(param string) *ParamRequiredDeprecationError {
+	return &ParamRequiredDeprecationError{Param: param}
+}
+
+func (e *ParamRequiredDeprecationError) Error() string {
+	return fmt.Sprintf(`The %q parameter is now required. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration`, e.Param)
+}
+
+// GitOpsMDMCommandErrorMessage is returned to GitOps users, who can't run MDM commands since Fleet 5.
+const GitOpsMDMCommandErrorMessage = "Users with the GitOps role can no longer run MDM commands. What to use instead: " +
+	Fleet5MigrationGuide
+
+// BadRequestError makes the error encoder return a 400.
+func (e *ParamRequiredDeprecationError) BadRequestError() []map[string]string { return nil }
+
+// IsClientError implements ErrWithIsClientError.
+func (e *ParamRequiredDeprecationError) IsClientError() bool { return true }
+
 // AuthFailedError is an alias for platform_http.AuthFailedError.
 type AuthFailedError = platform_http.AuthFailedError
 
@@ -190,6 +218,12 @@ type AuthRequiredError = platform_http.AuthRequiredError
 
 // NewAuthRequiredError is an alias for platform_http.NewAuthRequiredError.
 var NewAuthRequiredError = platform_http.NewAuthRequiredError
+
+// AuthUnavailableError is an alias for platform_http.AuthUnavailableError.
+type AuthUnavailableError = platform_http.AuthUnavailableError
+
+// NewAuthUnavailableError is an alias for platform_http.NewAuthUnavailableError.
+var NewAuthUnavailableError = platform_http.NewAuthUnavailableError
 
 // DeviceSSORequiredError is an alias for platform_http.DeviceSSORequiredError.
 type DeviceSSORequiredError = platform_http.DeviceSSORequiredError
@@ -550,19 +584,18 @@ const (
 	TargetedHostsDontExistErrMsg = "One or more targeted hosts don't exist. Make sure you provide a valid hostname, UUID, or serial number. Learn more about host identifiers: https://fleetdm.com/learn-more-about/host-identifiers"
 
 	// Scripts
-	RunScriptInvalidTypeErrMsg             = "File type not supported. Only .sh (Shell), .py (Python), and .ps1 (PowerShell) file types are allowed."
-	RunScriptHostOfflineErrMsg             = "Script can't run on offline host."
-	RunScriptForbiddenErrMsg               = "You don't have the right permissions in Fleet to run the script."
-	RunScriptAlreadyRunningErrMsg          = "A script is already running on this host. Please wait about 5 minutes to let it finish."
-	RunScriptHostTimeoutErrMsg             = "Fleet didn't hear back from the host in under 5 minutes (timeout for live scripts). Fleet doesn't know if the script ran because it didn't receive the result. Go to Fleet and check Host details > Activities to see script results."
-	RunScriptScriptsDisabledGloballyErrMsg = "Running scripts is disabled in organization settings."
-	RunScriptDisabledErrMsg                = "Scripts are disabled for this host. To run scripts, deploy the fleetd agent with scripts enabled."
-	RunScriptsOrbitDisabledErrMsg          = "Couldn't run script. To run a script, deploy the fleetd agent with --enable-scripts."
-	RunScriptAsyncScriptEnqueuedMsg        = "Script is running or will run when the host comes online."
-	RunScriptSavedMaxLenErrMsg             = "Script is too large. It's limited to 500,000 characters (approximately 10,000 lines)."
-	RunScripUnsavedMaxLenErrMsg            = "Script is too large. It's limited to 10,000 characters (approximately 125 lines)."
-	RunScriptGatewayTimeoutErrMsg          = "Gateway timeout. Fleet didn't hear back from the host and doesn't know if the script ran. Please make sure your load balancer timeout isn't shorter than the Fleet server timeout."
-	RunScriptFleetVarsFailedErrMsg         = "Fleet couldn't resolve variables in this script. See the script output for details."
+	RunScriptInvalidTypeErrMsg      = "File type not supported. Only .sh (Shell), .py (Python), and .ps1 (PowerShell) file types are allowed."
+	RunScriptHostOfflineErrMsg      = "Script can't run on offline host."
+	RunScriptForbiddenErrMsg        = "You don't have the right permissions in Fleet to run the script."
+	RunScriptAlreadyRunningErrMsg   = "A script is already running on this host. Please wait about 5 minutes to let it finish."
+	RunScriptHostTimeoutErrMsg      = "Fleet didn't hear back from the host in under 5 minutes (timeout for live scripts). Fleet doesn't know if the script ran because it didn't receive the result. Go to Fleet and check Host details > Activities to see script results."
+	RunScriptDisabledErrMsg         = "Scripts are disabled for this host. To run scripts, deploy the fleetd agent with scripts enabled."
+	RunScriptsOrbitDisabledErrMsg   = "Couldn't run script. To run a script, deploy the fleetd agent with --enable-scripts."
+	RunScriptAsyncScriptEnqueuedMsg = "Script is running or will run when the host comes online."
+	RunScriptSavedMaxLenErrMsg      = "Script is too large. It's limited to 500,000 characters (approximately 10,000 lines)."
+	RunScripUnsavedMaxLenErrMsg     = "Script is too large. It's limited to 10,000 characters (approximately 125 lines)."
+	RunScriptGatewayTimeoutErrMsg   = "Gateway timeout. Fleet didn't hear back from the host and doesn't know if the script ran. Please make sure your load balancer timeout isn't shorter than the Fleet server timeout."
+	RunScriptFleetVarsFailedErrMsg  = "Fleet couldn't resolve variables in this script. See the script output for details."
 
 	// Software
 	InstallSoftwarePersonalAppleDeviceErrMsg = "Couldn't install. Currently, software install isn't supported on personal (BYOD) iOS and iPadOS hosts."
@@ -743,4 +776,16 @@ func (e *AutomaticEnrollmentRefusedError) IsClientError() bool { return true }
 
 const AdminOnlyEnrollmentForbiddenErrMsg = "Manual enrollment is not available because only Apple Business enrollment is allowed for this organization."
 
-const ManualEnrollmentStaticChallengeDisabledErrMsg = "Manual enrollment profile is not available because the static SCEP challenge is disabled for this Fleet server."
+// This is a unique deprecation notice only used very few places, where a default was changed and thereby blocked, therefore not part of the pkg/removednames
+type NotAllowedByDefaultDeprecationError struct {
+	Method   string
+	Endpoint string
+}
+
+func (e *NotAllowedByDefaultDeprecationError) Error() string {
+	return fmt.Sprintf(`The "%s %s" endpoint is not available anymore by default. What to use instead: %s`, e.Method, e.Endpoint, Fleet5MigrationGuide)
+}
+
+func (e *NotAllowedByDefaultDeprecationError) StatusCode() int { return http.StatusGone }
+
+func (e *NotAllowedByDefaultDeprecationError) IsClientError() bool { return true }

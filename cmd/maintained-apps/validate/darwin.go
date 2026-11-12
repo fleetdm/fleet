@@ -5,11 +5,13 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -64,44 +66,98 @@ func removeAppQuarantine(appPath string) (bool, error) {
 
 // assessGatekeeper returns an error when Gatekeeper would refuse to launch the
 // installed app, e.g. it's unsigned, unnotarized, or its signature is broken.
-// It assesses the bundles the exists query matches (every macOS exists query
-// matches on the bundle identifier). The new /Applications entry can't be
-// used: it can be a companion app, or missing when the app installs elsewhere.
-func assessGatekeeper(ctx context.Context, appLogger *slog.Logger, bundleIdentifier string) error {
-	if err := validateSqlInput(bundleIdentifier); err != nil {
-		return fmt.Errorf("Invalid character found in bundle identifier: '%w'. Not assessing Gatekeeper...", err)
+// It assesses the bundles the exists query matches, falling back to the bundle
+// identifier for other query shapes. The bundle identifier alone can miss: the
+// generator never updates it in apps.json, and ChatGPT's exists query also
+// matches com.openai.codex. The new /Applications entry can't be used: it can
+// be a companion app, or missing when the app installs elsewhere.
+func assessGatekeeper(ctx context.Context, appLogger *slog.Logger, bundleIdentifier, existsQuery string) error {
+	// The WHERE clause comes from the manifest, so it isn't run through
+	// validateSqlInput.
+	var query string
+	if clause := appsExistsWhereClause(existsQuery); clause != "" {
+		query = "SELECT path FROM apps WHERE " + clause + ";"
+	} else {
+		if err := validateSqlInput(bundleIdentifier); err != nil {
+			return fmt.Errorf("Invalid character found in bundle identifier: '%w'. Not assessing Gatekeeper...", err)
+		}
+		query = fmt.Sprintf("SELECT path FROM apps WHERE bundle_identifier = '%s';", bundleIdentifier)
 	}
 
+	// An app's own updater can replace the bundle right after install (OneDrive's
+	// StandaloneUpdater when the cask lags Microsoft's channel), so a bundle that
+	// vanished or is half-written is looked up and assessed again instead of
+	// failing the app. Until the new bundle is registered, the lookup can also
+	// come back empty.
+	var err error
+	vanished := false
+	for attempt := 1; ; attempt++ {
+		vanished, err = assessGatekeeperOnce(ctx, appLogger, query, vanished)
+		if !vanished || attempt == gatekeeperAttempts {
+			return err
+		}
+		appLogger.InfoContext(ctx, fmt.Sprintf("App bundle was replaced during the Gatekeeper assessment, retrying: %v", err))
+		time.Sleep(gatekeeperRetryDelay)
+	}
+}
+
+var (
+	gatekeeperAttempts   = 6
+	gatekeeperRetryDelay = 15 * time.Second
+	runSpctl             = func(ctx context.Context, path string) ([]byte, error) {
+		return exec.CommandContext(ctx, "spctl", "--assess", "--type", "execute", "-v", path).CombinedOutput()
+	}
+	// spctl's messages for a bundle that was removed, or whose executable isn't
+	// written yet.
+	bundleReplacedMessages = []string{"No such file or directory", "cannot find code object on disk"}
+)
+
+func assessGatekeeperOnce(ctx context.Context, appLogger *slog.Logger, query string, replacing bool) (vanished bool, err error) {
 	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	output, err := runOsqueryi(execTimeout, fmt.Sprintf("SELECT path FROM apps WHERE bundle_identifier = '%s';", bundleIdentifier))
+	output, err := runOsqueryi(execTimeout, query)
 	if err != nil {
-		return fmt.Errorf("finding app bundles for Gatekeeper assessment: %w", err)
+		return false, fmt.Errorf("finding app bundles for Gatekeeper assessment: %w", err)
 	}
 	var bundles []struct {
 		Path string `json:"path"`
 	}
 	if err := json.Unmarshal(output, &bundles); err != nil {
-		return fmt.Errorf("parsing app bundles %q: %w", output, err)
+		return false, fmt.Errorf("parsing app bundles %q: %w", output, err)
 	}
 	if len(bundles) == 0 {
-		return fmt.Errorf("Gatekeeper assessment found no app with bundle identifier '%s'", bundleIdentifier)
+		return replacing, fmt.Errorf("Gatekeeper assessment found no app: %s", query)
 	}
 
-	var rejected []string
+	paths := make([]string, 0, len(bundles))
 	for _, bundle := range bundles {
-		output, err := exec.CommandContext(ctx, "spctl", "--assess", "--type", "execute", "-v", bundle.Path).CombinedOutput()
+		paths = append(paths, bundle.Path)
+	}
+	var rejected []string
+	for _, path := range paths {
+		// A helper that shares the app's bundle identifier (Syncovery's
+		// Contents/MacOS/BackgroundScheduler.app) is covered by the app's own seal
+		// and never launched through Gatekeeper.
+		if slices.ContainsFunc(paths, func(outer string) bool {
+			return strings.HasPrefix(path, strings.TrimSuffix(outer, "/")+"/")
+		}) {
+			continue
+		}
+		output, err := runSpctl(ctx, path)
 		status := strings.ReplaceAll(strings.TrimSpace(string(output)), "\n", ", ")
 		if err != nil {
+			if slices.ContainsFunc(bundleReplacedMessages, func(msg string) bool { return strings.Contains(status, msg) }) {
+				vanished = true
+			}
 			rejected = append(rejected, fmt.Sprintf("%s (%v)", status, err))
 			continue
 		}
 		appLogger.InfoContext(ctx, fmt.Sprintf("Gatekeeper assessment: %s", status))
 	}
 	if len(rejected) > 0 {
-		return fmt.Errorf("Gatekeeper rejected: %s", strings.Join(rejected, "; "))
+		return vanished, fmt.Errorf("Gatekeeper rejected: %s", strings.Join(rejected, "; "))
 	}
-	return nil
+	return false, nil
 }
 
 func forceLaunchServicesRefresh(appPath string) error {
@@ -179,7 +235,8 @@ func checkVersionMatch(expectedVersion, foundVersion, foundBundledVersion string
 	}
 
 	// Check if expected version starts with found version (handles cases where osquery reports shorter version)
-	// This handles cases where expected is "2025.2.1.8" but osquery reports "2025.2"
+	// This handles cases where expected is "2025.2.1.8" but osquery reports "2025.2". appExists
+	// only accepts this when the patched query passes, since version_compare sorts it lower.
 	if strings.HasPrefix(expectedVersion, foundVersion+".") {
 		return true
 	}
@@ -197,10 +254,42 @@ func checkVersionMatch(expectedVersion, foundVersion, foundBundledVersion string
 	return false
 }
 
-// appExists reports whether the app is installed at the expected version. The
-// second value is always empty because the app is always found in apps, the
-// table the exists query reads.
-func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdentifier, appVersion, _, appPath, _ string) (bool, string, error) {
+// patchedQueryPasses runs the manifest's patched query, which Fleet runs on
+// hosts as the patch policy, and reports whether it returned rows.
+func patchedQueryPasses(ctx context.Context, patchedQuery string) (bool, error) {
+	if strings.TrimSpace(patchedQuery) == "" {
+		return false, errors.New("manifest has no patched query")
+	}
+
+	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	output, err := runOsqueryi(execTimeout, patchedQuery)
+	if err != nil {
+		return false, fmt.Errorf("executing patched query: %w", err)
+	}
+	var rows []json.RawMessage
+	if err := json.Unmarshal(output, &rows); err != nil {
+		return false, fmt.Errorf("parsing patched query output %q: %w", output, err)
+	}
+	return len(rows) > 0, nil
+}
+
+// patchedQueryFailure explains a patched query that fails right after the
+// expected version was installed, and names the fix.
+func patchedQueryFailure(expectedVersion, foundVersion, foundBundledVersion string) string {
+	if foundVersion != "" && strings.HasPrefix(expectedVersion, foundVersion+".") {
+		return fmt.Sprintf("osquery reports bundle_short_version '%s', a shorter form of '%s', so the patch policy would fail on hosts that have this version. Shorten the version with a transformer in ee/maintained-apps/ingesters/homebrew/external_refs, or compare bundle_version in a per-token patched query in ee/maintained-apps/ingesters/homebrew/ingester.go if it carries the full version.", foundVersion, expectedVersion)
+	}
+	return fmt.Sprintf("the patched query returns no rows with version '%s' installed (bundle_short_version '%s', bundle_version '%s'), so the patch policy would fail on hosts that have this version. Transform the version to match bundle_short_version in ee/maintained-apps/ingesters/homebrew/external_refs, or compare the column that carries it in a per-token patched query in ee/maintained-apps/ingesters/homebrew/ingester.go.", expectedVersion, foundVersion, foundBundledVersion)
+}
+
+// appExists reports whether the app is installed at the expected version. When
+// only a looser match than bundle_short_version is found, the manifest's patched
+// query must also pass, or it returns an error that names the fix. The second
+// value is always empty because the app is always found in apps, the table the
+// exists query reads.
+func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdentifier, appVersion, patchedQuery, appPath, _ string) (bool, string, error) {
 	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
@@ -229,8 +318,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 	if appPath != "" {
 		query += fmt.Sprintf(" OR path LIKE '%%%s%%'", appPath)
 	}
-	cmd := exec.CommandContext(execTimeout, "osqueryi", "--json", query)
-	output, err := cmd.Output()
+	output, err := runOsqueryi(execTimeout, query)
 	if err != nil {
 		return false, "", fmt.Errorf("executing osquery command: %w", err)
 	}
@@ -246,8 +334,16 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 		return false, "", fmt.Errorf("parsing osquery JSON output: %w", err)
 	}
 
+	type looseMatch struct {
+		shortVersion   string
+		bundledVersion string
+	}
+	var loose *looseMatch
 	if len(results) > 0 {
 		for _, result := range results {
+			// The patched query compares the column as osquery reports it, before
+			// MutateSoftwareOnIngestion rewrites the version (R, Raspberry Pi Imager).
+			shortVersion := result.Version
 			software := &fleet.Software{
 				Name:             result.Name,
 				Version:          result.Version,
@@ -344,12 +440,31 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 
 			// Check various version matching strategies
 			if checkVersionMatch(appVersion, result.Version, result.BundledVersion) {
-				return true, "", nil
+				if shortVersion == appVersion {
+					return true, "", nil
+				}
+				// A later row may still match exactly, so keep looking.
+				if loose == nil {
+					loose = &looseMatch{shortVersion: shortVersion, bundledVersion: result.BundledVersion}
+				}
 			}
 		}
 	}
 
-	return false, "", nil
+	if loose == nil {
+		return false, "", nil
+	}
+	// The default patched query compares bundle_short_version, so a match on
+	// anything else (bundle_version, a concatenation, a shorter version) can hide
+	// a patch policy that fails on hosts with this version installed.
+	passes, err := patchedQueryPasses(ctx, patchedQuery)
+	if err != nil {
+		return false, "", err
+	}
+	if !passes {
+		return false, "", errors.New(patchedQueryFailure(appVersion, loose.shortVersion, loose.bundledVersion))
+	}
+	return true, "", nil
 }
 
 func executeScript(cfg *Config, scriptContents string) (string, error) {
