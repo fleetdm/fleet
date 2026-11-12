@@ -21,7 +21,7 @@ Fleet 4.95.0 is now available. See the complete [changelog](https://github.com/f
 
 ### Okta conditional access for Windows
 
-IT admins can now use Okta conditional access on Windows hosts. End users on hosts that fail a conditional access policy are blocked from signing in to Okta apps until they fix the issue.
+IT admins can now use Okta conditional access on Windows hosts. End users on hosts that fail a conditional access policy are blocked from signing in to Okta apps until they fix the issue. Okta conditional access for Linux is [coming soon](https://github.com/fleetdm/fleet/issues/53286).
 
 Learn how in the [Okta conditional access guide](https://fleetdm.com/guides/okta-conditional-access-integration#windows).
 
@@ -29,7 +29,7 @@ GitHub issue: [#53284](https://github.com/fleetdm/fleet/issues/53284)
 
 ### Google conditional access for iOS/iPadOS, and Android
 
-IT admins whose organization uses Google Workspace can now block sign-in from iPhones, iPads, and Android devices that aren't company-owned and enrolled to Fleet. Fleet installs Chrome with a bookmark on each company-owned device. When the end user opens it, Fleet confirms the device is enrolled and company-owned, and the device is marked as managed in Google. Google's [Context-Aware Access](https://knowledge.workspace.google.com/admin/security/about-context-aware-access) then blocks devices that aren't.
+IT admins whose organization uses Google Workspace can now block sign-in from iPhones, iPads, and Android devices that aren't company-owned and enrolled to Fleet. Fleet installs Chrome with a bookmark on each company-owned device. When the end user opens it, Fleet confirms the device is enrolled and company-owned, and the device is marked as managed in Google. Google's [Context-Aware Access](https://knowledge.workspace.google.com/admin/security/about-context-aware-access) then blocks devices that aren't. Marking devices as managed in Google without the bookmark is [coming soon](https://github.com/fleetdm/fleet/issues/56195).
 
 Learn how in the [Google conditional access guide](https://fleetdm.com/guides/google-conditional-access-integration).
 
@@ -47,13 +47,15 @@ GitHub issue: [#44448](https://github.com/fleetdm/fleet/issues/44448)
 
 Fleet now shows the AI tools installed on all your hosts. On the **Software** page, **Host details**, and **My device**, open **Filters** and turn on **AI tools**. Fleet adds three software types for AI tools it didn't collect before: **MCP server**, **AI skill**, and **AI CLI tool**. AI apps and extensions that Fleet already collects, like the ChatGPT app or the GitHub Copilot VS Code extension, keep their type and are marked as AI tools. In the API, use the `ai_tool` filter on [list software](https://fleetdm.com/docs/rest-api/rest-api#list-software).
 
+Versions and vulnerabilities for MCP servers are [coming soon](https://github.com/fleetdm/fleet/issues/54548). Seeing a host's AI sessions on **Host details** is also [coming soon](https://github.com/fleetdm/fleet/issues/51825).
+
 See what Fleet collects for each kind of AI tool in the [software inventory reference](https://fleetdm.com/guides/software-inventory-reference#ai-tools).
 
 GitHub issue: [#51599](https://github.com/fleetdm/fleet/issues/51599)
 
 ### Patch deadline for macOS apps
 
-IT admins can now patch macOS Fleet-maintained apps on a schedule that matches their organization's patching rules (SLAs). Choose **Force patch: Deadline** on a patch policy, then set the deadline's days and time for each fleet in **Software > Library > Settings**. Deadlines use each host's local time. The default is Tuesday at 5pm end user local time.
+IT admins can now patch macOS Fleet-maintained apps on a schedule that matches their organization's patching rules (SLAs). Choose **Force patch: Deadline** on a patch policy, then set the deadline's days and time for each fleet in **Software > Library > Settings**. Deadlines use each host's local time. The default is Tuesday at 5pm end user local time. Patch deadlines for Windows apps are [coming soon](https://github.com/fleetdm/fleet/issues/48756).
 
 If the app is closed when the policy fails, Fleet patches it right away. If it's open, Fleet Desktop notifies the end user 1 hour before the deadline and again 5 minutes before, then closes and updates the app. Apps waiting on the same deadline show up together in one notification.
 
