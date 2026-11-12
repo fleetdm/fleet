@@ -1,14 +1,20 @@
 package fleet
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"encoding/xml"
+	"errors"
 	"fmt"
+	"io"
+	"regexp"
 	"slices"
+	"strconv"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/variables"
-	"howett.net/plist"
+	"github.com/micromdm/plist"
 )
 
 type VPPAppID struct {
@@ -381,20 +387,27 @@ func ValidateAppleAppConfiguration(config []byte) error {
 		return nil
 	}
 
-	var root map[string]any
-	format, err := plist.Unmarshal(config, &root)
-	if err != nil {
-		return NewInvalidArgumentError("configuration", fmt.Sprintf("invalid plist: %s", err))
-	}
 	// Apple's MDM InstallApplication only accepts XML plist for the
 	// Configuration dict; reject binary, OpenStep and GNUStep formats up front
 	// so admins don't get surprised when devices reject the install.
-	if format != plist.XMLFormat {
+	trimmed := bytes.TrimLeft(config, xmlWhitespace)
+	switch {
+	case bytes.HasPrefix(trimmed, []byte("\xEF\xBB\xBF")):
+		return NewInvalidArgumentError("configuration", "invalid plist: remove the UTF-8 byte order mark")
+	case len(trimmed) == 0 || trimmed[0] != '<':
 		return NewInvalidArgumentError("configuration", "configuration must be an XML plist")
 	}
 
-	// Raw-bytes scan catches structural bypasses (duplicate keys, trailing
-	// siblings) invisible to the decoded tree. The decoded-tree walk below
+	if err := checkAppleAppConfigXML(config); err != nil {
+		return NewInvalidArgumentError("configuration", fmt.Sprintf("invalid plist: %s", err))
+	}
+	var root map[string]any
+	if err := plist.Unmarshal(config, &root); err != nil {
+		return NewInvalidArgumentError("configuration", fmt.Sprintf("invalid plist: %s", err))
+	}
+
+	// Raw-bytes scan catches a variable in a value that a duplicate key
+	// overwrites, which the decoded tree drops. The decoded-tree walk below
 	// catches XML-entity-encoded tokens the regex won't match.
 	for _, name := range variables.Find(string(config)) {
 		if !slices.Contains(FleetVarsSupportedInAppleAppConfig, FleetVarName(name)) {
@@ -403,6 +416,302 @@ func ValidateAppleAppConfiguration(config []byte) error {
 	}
 	if name, ok := findUnsupportedFleetVar(root); ok {
 		return NewInvalidArgumentError("configuration", fmt.Sprintf("unsupported variable $FLEET_VAR_%s", name))
+	}
+	return nil
+}
+
+// Not bytes.TrimSpace, which also trims Unicode spaces such as NBSP that a
+// device parses as text.
+const xmlWhitespace = " \t\r\n"
+
+type plistElemKind int
+
+const (
+	plistContainer plistElemKind = iota + 1
+	plistText
+	plistEmpty
+)
+
+var plistElemKinds = map[string]plistElemKind{
+	"plist":   plistContainer,
+	"dict":    plistContainer,
+	"array":   plistContainer,
+	"key":     plistText,
+	"string":  plistText,
+	"integer": plistText,
+	"real":    plistText,
+	"date":    plistText,
+	"data":    plistText,
+	"true":    plistEmpty,
+	"false":   plistEmpty,
+}
+
+// Value syntax of CoreFoundation's XML plist parser, which devices use and
+// which is stricter than micromdm/plist: it reads <integer>, <date> and <data>
+// as written, without decoding references or CDATA, and no number may end in
+// whitespace.
+var plistValueSyntax = map[string]struct {
+	re      *regexp.Regexp
+	decoded bool
+}{
+	"integer": {re: regexp.MustCompile(`^[ \t\r\n]*[+-]?[ \t\r\n]*(?:0[xX][0-9A-Fa-f]+|[0-9]+)$`)},
+	"real": {
+		re:      regexp.MustCompile(`^(?:[ \t\r\n]*[+-]?(?:[0-9]+\.?[0-9]*|\.[0-9]+)(?:[eE][+-]?[0-9]+)?|(?i:nan|[+-]?inf(?:inity)?))$`),
+		decoded: true,
+	},
+	"date": {re: regexp.MustCompile(`^-?[0-9]+-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$`)},
+	"data": {re: regexp.MustCompile(`^[A-Za-z0-9+/= \t\r\n]*$`)},
+}
+
+// CoreFoundation reads only these references: a numeric one with a lowercase
+// x, at most 8 digits, and not half of a UTF-16 surrogate pair, which Go's
+// decoder turns into U+FFFD.
+var plistCharRef = regexp.MustCompile(`&(?:lt|gt|amp|apos|quot|#([0-9]{1,8})|#x([0-9A-Fa-f]{1,8}));`)
+
+// unreadableCharRef returns the offset in raw of the first reference
+// CoreFoundation can't read, or -1.
+func unreadableCharRef(raw []byte) int {
+	next := 0
+	for _, m := range plistCharRef.FindAllSubmatchIndex(raw, -1) {
+		if i := bytes.IndexByte(raw[next:m[0]], '&'); i >= 0 {
+			return next + i
+		}
+		next = m[1]
+		digits, base := m[2:4], 10
+		if m[4] >= 0 {
+			digits, base = m[4:6], 16
+		}
+		if digits[0] >= 0 {
+			n, err := strconv.ParseUint(string(raw[digits[0]:digits[1]]), base, 32)
+			if err != nil || (n >= 0xD800 && n <= 0xDFFF) {
+				return m[0]
+			}
+		}
+	}
+	if i := bytes.IndexByte(raw[next:], '&'); i >= 0 {
+		return next + i
+	}
+	return -1
+}
+
+// The command nests the configuration 3 levels deep, and CoreFoundation on
+// iOS stops at 128.
+const maxAppConfigDepth = 100
+
+type plistFrame struct {
+	name           string
+	kind           plistElemKind
+	parent         *plistFrame
+	line           int
+	depth          int
+	selfClosing    bool
+	keyWaiting     bool
+	pendingKey     string
+	pendingKeyLine int
+	values         int
+	text           []byte
+}
+
+func quotePlistValue(b []byte) string {
+	const maxLen = 64
+	if len(b) > maxLen {
+		return fmt.Sprintf("%q...", b[:maxLen])
+	}
+	return fmt.Sprintf("%q", b)
+}
+
+// checkAppleAppConfigXML rejects plists that micromdm/plist accepts but that
+// produce an InstallApplication command devices can't parse, such as sibling
+// roots, stray end tags, keys without values and values CoreFoundation can't
+// read. A command the device can't parse blocks its MDM command queue.
+func checkAppleAppConfigXML(config []byte) error {
+	dec := xml.NewDecoder(bytes.NewReader(config))
+	failAt := func(line int, format string, args ...any) error {
+		return fmt.Errorf("line %d: %s", line, fmt.Sprintf(format, args...))
+	}
+	fail := func(format string, args ...any) error {
+		line, _ := dec.InputPos()
+		return failAt(line, format, args...)
+	}
+
+	var (
+		top           *plistFrame
+		rootName      string
+		rootClosed    bool
+		seenToken     bool
+		seenComment   bool
+		seenDirective bool
+	)
+	for {
+		start := dec.InputOffset()
+		startLine, _ := dec.InputPos()
+		tok, err := dec.Token()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		// Text between elements is checked as written: stripPlistWrapper in
+		// server/mdm/apple matches the wrapper by raw bytes, and CoreFoundation
+		// expects a tag, not a reference or CDATA, between elements.
+		raw := config[start:dec.InputOffset()]
+
+		switch t := tok.(type) {
+		case xml.StartElement:
+			name := t.Name.Local
+			if t.Name.Space != "" {
+				return fail("element <%s> must not have a namespace", name)
+			}
+			kind, ok := plistElemKinds[name]
+			if !ok {
+				return fail("unknown element <%s>", name)
+			}
+			// CoreFoundation ends every tag at its first '>', and the wrapper
+			// stripping ends <plist> there too.
+			if bytes.IndexByte(raw, '>') < len(raw)-1 {
+				return fail("the <%s> start tag must not contain '>' in an attribute value", name)
+			}
+			if top == nil {
+				switch {
+				case rootClosed:
+					return fail("<%s> is not allowed after the root element", name)
+				case name != "plist" && name != "dict":
+					return fail("root element must be <plist> or <dict>, got <%s>", name)
+				case name == "plist" && seenComment:
+					return fail("comments are not allowed before <plist> or after </plist>")
+				}
+			} else {
+				switch {
+				case top.kind != plistContainer, name == "plist", name == "key" && top.name != "dict":
+					return fail("<%s> is not allowed inside <%s>", name, top.name)
+				case top.name == "dict" && name == "key":
+					if top.keyWaiting {
+						return failAt(top.pendingKeyLine, "key %q has no value", top.pendingKey)
+					}
+					top.keyWaiting = true
+				case top.name == "dict":
+					if !top.keyWaiting {
+						return fail("<%s> has no key", name)
+					}
+					top.keyWaiting = false
+				case top.name == "plist":
+					if top.values > 0 {
+						return fail("<plist> must contain exactly one value")
+					}
+					top.values++
+				}
+			}
+			line, _ := dec.InputPos()
+			depth := 0
+			if top != nil {
+				depth = top.depth + 1
+			} else if name == "dict" {
+				depth = 1
+			}
+			if depth > maxAppConfigDepth {
+				return fail("nesting deeper than %d levels is not allowed", maxAppConfigDepth)
+			}
+			top = &plistFrame{name: name, kind: kind, parent: top, line: line, depth: depth, selfClosing: bytes.HasSuffix(raw, []byte("/>"))}
+
+		case xml.EndElement:
+			if top == nil {
+				// Unreachable: the decoder rejects an end tag with no open element.
+				return fail("unexpected end element </%s>", t.Name.Local)
+			}
+			closed := top
+			top = top.parent
+			if syntax, ok := plistValueSyntax[closed.name]; ok {
+				switch {
+				case closed.name == "data" && closed.selfClosing:
+					return failAt(closed.line, "write an empty <data> as <data></data>")
+				case !syntax.re.Match(closed.text):
+					return failAt(closed.line, "<%s> value %s is not valid", closed.name, quotePlistValue(closed.text))
+				}
+			}
+			switch closed.name {
+			case "dict":
+				if closed.keyWaiting {
+					return failAt(closed.pendingKeyLine, "key %q has no value", closed.pendingKey)
+				}
+			case "plist":
+				if closed.values == 0 {
+					return fail("<plist> must contain exactly one value")
+				}
+				if top == nil && string(raw) != "</plist>" {
+					return fail("write the end tag as </plist>")
+				}
+			case "key":
+				if top != nil {
+					top.pendingKey = string(closed.text)
+					top.pendingKeyLine = closed.line
+				}
+			}
+			if top == nil {
+				rootClosed = true
+				rootName = closed.name
+			}
+
+		case xml.CharData:
+			lineAt := func(i int) int { return startLine + bytes.Count(raw[:i], []byte("\n")) }
+			firstText := len(raw) - len(bytes.TrimLeft(raw, xmlWhitespace))
+			badRef := -1
+			if !bytes.HasPrefix(raw, []byte("<![CDATA[")) {
+				badRef = unreadableCharRef(raw)
+			}
+			switch {
+			case top == nil:
+				if firstText < len(raw) {
+					return failAt(lineAt(firstText), "unexpected text outside the root element")
+				}
+				continue
+			case top.kind == plistEmpty:
+				return failAt(startLine, "<%s> must be empty", top.name)
+			case top.kind == plistContainer:
+				if firstText < len(raw) {
+					return failAt(lineAt(firstText), "unexpected text inside <%s>", top.name)
+				}
+			case badRef >= 0:
+				return failAt(lineAt(badRef), "<%s> has a character reference devices can't read", top.name)
+			case top.name == "string":
+			case top.name == "key", plistValueSyntax[top.name].decoded:
+				top.text = append(top.text, t...)
+			default:
+				top.text = append(top.text, raw...)
+			}
+
+		case xml.Comment:
+			switch {
+			case top != nil && top.kind != plistContainer:
+				return fail("comments are not allowed inside <%s>", top.name)
+			case top == nil && rootClosed && rootName == "plist":
+				return fail("comments are not allowed before <plist> or after </plist>")
+			}
+			seenComment = true
+
+		case xml.ProcInst:
+			switch {
+			case t.Target != "xml":
+				return fail("processing instruction <?%s?> is not allowed", t.Target)
+			case seenToken:
+				return fail("the XML declaration must come first")
+			}
+
+		case xml.Directive:
+			body := bytes.TrimSuffix(bytes.TrimPrefix(raw, []byte("<!")), []byte(">"))
+			switch {
+			case top == nil && !rootClosed && seenComment:
+				return fail("comments are not allowed before <!DOCTYPE>")
+			case top != nil || rootClosed || seenDirective ||
+				!bytes.HasPrefix(body, []byte("DOCTYPE")) || bytes.ContainsAny(body, "<>"):
+				return fail("only a plain <!DOCTYPE plist ...> declaration is allowed before the root element")
+			}
+			seenDirective = true
+		}
+		seenToken = true
+	}
+	if !rootClosed {
+		return fail("missing root element")
 	}
 	return nil
 }
