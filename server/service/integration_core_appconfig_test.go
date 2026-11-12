@@ -2107,7 +2107,7 @@ func (s *integrationTestSuite) TestRemovedOrgLogoConfigKeys() {
 	require.NotContains(t, raw.OrgInfo, "org_logo_url_light_background")
 
 	host := createOrbitEnrolledHost(t, "darwin", t.Name(), s.ds)
-	token := "removed_org_logo_keys_token"
+	token := "removed_org_logo_keys_token" //nolint:gosec // G101: test value, not a real credential
 	createDeviceTokenForHost(t, s.ds, host.ID, token)
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
 	var deviceResp map[string]any

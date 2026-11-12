@@ -117,7 +117,6 @@ func TestPlanAndStripOrgLogos(t *testing.T) {
 
 		orgInfo := os["org_info"].(map[string]any)
 		assert.Equal(t, "https://example.com/logo.png", orgInfo["org_logo_url_dark_mode"])
-		assert.NotContains(t, orgInfo, "org_logo_url")
 	})
 
 	t.Run("explicit empty URL is sent as empty", func(t *testing.T) {

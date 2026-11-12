@@ -75,6 +75,7 @@ func TestCreateAppConfig(t *testing.T) {
 		_, err := svc.NewAppConfig(ctx, tt.configPayload)
 		require.Nil(t, err)
 
+		require.NotNil(t, result)
 		payload := tt.configPayload
 		assert.Equal(t, payload.OrgInfo.OrgLogoURLDarkMode, result.OrgInfo.OrgLogoURLDarkMode)
 		assert.Equal(t, payload.OrgInfo.OrgName, result.OrgInfo.OrgName)
