@@ -1,1 +1,1 @@
-- BREAKING: Removed the deprecated `software_package` object from `GET /software/titles`, `GET /software/titles/:id`, and the `software_title` object on `GET /hosts?software_title_id=`. Use `packages` instead.
+- **Breaking change:** Removed the deprecated `software_package` object from `GET /software/titles`, `GET /software/titles/:id`, and the `software_title` object on `GET /hosts?software_title_id=`. Use `packages` instead.
