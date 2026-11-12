@@ -79,13 +79,6 @@
       "description": "4K YouTube to MP3 is a tool to turn YouTube links into MP3 files."
     },
     {
-      "name": "7-zip (ARM64)",
-      "slug": "7-zip-arm64/windows",
-      "platform": "windows",
-      "unique_identifier": "7-Zip",
-      "description": "7-zip (ARM64) is the native ARM64 build of 7-Zip, a file archiver."
-    },
-    {
       "name": "7-zip",
       "slug": "7-zip/windows",
       "platform": "windows",
