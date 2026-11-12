@@ -1563,6 +1563,13 @@
       "description": "ChatGPT Desktop is OpenAI's official ChatGPT desktop app for macOS, providing seamless access to AI-powered conversations and assistance."
     },
     {
+      "name": "ChatGPT Desktop",
+      "slug": "chatgpt/windows",
+      "platform": "windows",
+      "unique_identifier": "ChatGPT",
+      "description": "ChatGPT Desktop is OpenAI's official desktop app for ChatGPT and Codex on Windows, providing AI-powered conversations, coding help, and assistance."
+    },
+    {
       "name": "ChatWise",
       "slug": "chatwise/darwin",
       "platform": "darwin",
