@@ -50,17 +50,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	// From here on everything — including whatever the Go runtime prints on
-	// its way out if this process dies unexpectedly — lands in hangar.log.
-	session := applog.Setup(logDir)
-	slog.Info("starting Fleet Hangar", "bundleID", paths.BundleID, "logDir", logDir, "dataDir", dataDir)
+	session, unlock, err := bootstrap(logDir, dataDir, applog.Setup, processes.CleanOrphansFromPriorRun)
+	if err != nil {
+		slog.Error("data dir is in use; is another Hangar running?", "dataDir", dataDir, "err", err)
+		os.Exit(1)
+	}
+	// Deferred so the lock file stays reachable; its finalizer would close
+	// the fd and drop the lock.
+	defer unlock()
 
-	// Warm the login-shell PATH (so the first spawn doesn't pay the probe
-	// latency; shellpath.Command then resolves tools against it) and reap any
-	// orphans a prior crashed session left behind, before the tray/commands
-	// come up.
+	// Warm the login-shell PATH so the first spawn doesn't pay the probe
+	// latency; shellpath.Command then resolves tools against it.
 	shellpath.Warm()
-	processes.CleanOrphansFromPriorRun(dataDir)
 
 	// intentionalQuit gates hide-to-tray (window close) vs a real quit.
 	var intentionalQuit atomic.Bool
@@ -185,4 +186,21 @@ func main() {
 	}
 	// Reached only if the event loop stops without AppKit terminating us.
 	session.Close("event loop returned")
+}
+
+// bootstrap takes the data-dir lock before anything writes state, so a second
+// Hangar on the same dir exits without rotating the first one's log or reaping
+// its children. It then sets up the app log and reaps orphans a prior crashed
+// session left behind.
+func bootstrap(logDir, dataDir string, setupLog func(logDir string) *applog.Session, reap func(dataDir string)) (*applog.Session, func(), error) {
+	unlock, err := paths.LockDataDir(dataDir)
+	if err != nil {
+		return nil, nil, err
+	}
+	// From here on everything — including whatever the Go runtime prints on
+	// its way out if this process dies unexpectedly — lands in hangar.log.
+	session := setupLog(logDir)
+	slog.Info("starting Fleet Hangar", "bundleID", paths.BundleID, "logDir", logDir, "dataDir", dataDir)
+	reap(dataDir)
+	return session, unlock, nil
 }
