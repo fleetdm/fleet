@@ -2723,16 +2723,15 @@ This activity contains the following fields:
 
 ## AI and MCP
 
-- [added_custom_ai_provider](#added-custom-ai-provider)
+- [changed_ai_provider](#changed-ai-provider)
 - [edited_custom_ai_provider](#edited-custom-ai-provider)
-- [disabled_custom_ai_provider](#disabled-custom-ai-provider)
 
-### added_custom_ai_provider
+### changed_ai_provider
 
-Generated when a custom AI provider is configured for the AI profile builder.
+Generated when the AI provider used for Fleet's AI features is changed, including switching between Fleet's built-in AI and a custom AI provider.
 
 This activity contains the following fields:
-- "provider": The AI provider. Either `"anthropic"` or `"openai"`.
+- "provider": The new AI provider. Either `"fleet"`, `"anthropic"`, or `"openai"`.
 
 #### Example
 
@@ -2744,31 +2743,16 @@ This activity contains the following fields:
 
 ### edited_custom_ai_provider
 
-Generated when custom AI provider settings are edited, including switching between providers.
+Generated when custom AI provider settings, such as the API key or models, are edited.
 
 This activity contains the following fields:
-- "provider": The AI provider after the edit. Either `"anthropic"` or `"openai"`.
+- "provider": The custom AI provider. Either `"anthropic"` or `"openai"`.
 
 #### Example
 
 ```json
 {
   "provider": "openai"
-}
-```
-
-### disabled_custom_ai_provider
-
-Generated when the custom AI provider is turned off and Fleet uses its built-in AI.
-
-This activity contains the following fields:
-- "provider": The AI provider that was turned off. Either `"anthropic"` or `"openai"`.
-
-#### Example
-
-```json
-{
-  "provider": "anthropic"
 }
 ```
 
