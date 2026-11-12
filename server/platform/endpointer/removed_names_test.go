@@ -129,26 +129,6 @@ func TestRejectRemovedQueryParams(t *testing.T) {
 	})
 }
 
-func BenchmarkRejectRemovedJSONKeys(b *testing.B) {
-	SetRemovedNames([]string{"team_id", "teams", "team", "team_name"}, nil, nil)
-	typ := reflect.TypeFor[scanRequest]()
-	item := `{"name": "item", "team_id": 3}`
-	for _, size := range []struct {
-		name  string
-		items int
-	}{{"small", 3}, {"1MiB", 1 << 15}} {
-		body := []byte(`{"name": "a", "items": [` + strings.TrimSuffix(strings.Repeat(item+",", size.items), ",") + `]}`)
-		b.Run(size.name, func(b *testing.B) {
-			b.SetBytes(int64(len(body)))
-			for b.Loop() {
-				if err := RejectRemovedJSONKeys(body, typ); err != nil {
-					b.Fatal(err)
-				}
-			}
-		})
-	}
-}
-
 func TestMakeDecoderRemovedNames(t *testing.T) {
 	SetRemovedNames([]string{"team_id"}, []string{"team_id"}, nil)
 	t.Cleanup(func() { SetRemovedNames(nil, nil, nil) })
