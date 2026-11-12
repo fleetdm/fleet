@@ -8,6 +8,7 @@
 // across the port to Wails so callers were untouched — hence it long outlived
 // the name `tauri.ts`.)
 import {
+  AgentService,
   SettingsService,
   ProcessService,
   GitService,
@@ -25,6 +26,8 @@ import {
   TufService,
 } from "../../bindings/github.com/fleetdm/fleet/tools/hangar/services";
 
+import { createSettingsSync } from "./settingsSync";
+
 import type * as buildinfoM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/buildinfo/models";
 import type * as settingsM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/settings/models";
 import type * as processesM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/processes/models";
@@ -39,6 +42,7 @@ import type * as traymenuM from "../../bindings/github.com/fleetdm/fleet/tools/h
 import type * as troubleshootM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/troubleshoot/models";
 import type * as scepM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/scep/models";
 import type * as mdmassetsM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/mdmassets/models";
+import type * as agentM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/services/models";
 import type * as tufM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/tuf/models";
 
 // cast narrows a binding's $CancellablePromise<GeneratedModel> to the alias
@@ -123,6 +127,7 @@ export type MdmAssetsExportResult = mdmassetsM.ExportResult;
 export type MdmAssetsFile = mdmassetsM.AssetFile;
 
 export type TufConfig = settingsM.TufConfig;
+export type SlotUsage = agentM.SlotUsage;
 export type TufServerStatus = tufM.ServerStatus;
 
 export type DepCheck = depsM.DepCheck;
@@ -168,6 +173,10 @@ export const DEFAULT_FLEET_SERVE_CONFIG: FleetServeConfig = {
   env: [],
 };
 
+export const settingsSync = createSettingsSync<Settings>(() =>
+  api.getSettings(),
+);
+
 export const api = {
   buildInfo: () => cast<BuildInfo>(SettingsService.BuildInfo()),
   // The host's LAN address, for anywhere we show something another device has
@@ -175,8 +184,10 @@ export const api = {
   // than holding on to it.
   lanIp: () => cast<string>(SettingsService.LanIP()),
   getSettings: () => cast<Settings>(SettingsService.GetSettings()),
+  // Saves, then asks the app to reload settings from the store, which may have
+  // kept a reserved slot's identity.
   saveSettings: (settings: Settings) =>
-    SettingsService.SaveSettings(settings as never),
+    settingsSync.afterSave(() => SettingsService.SaveSettings(settings as never)),
   probeFleetRepo: (path?: string) =>
     cast<RepoProbe[]>(SettingsService.ProbeFleetRepo(path ?? "")),
   detectFleetConfig: (repo: string) =>
@@ -268,6 +279,8 @@ export const api = {
   mdmAssetsReadFile: (path: string) =>
     cast<string>(MdmAssetsService.MdmAssetsReadFile(path)),
 
+  // Slot reservation and agent-job state, keyed by slot id.
+  slotUsage: () => cast<Record<string, SlotUsage>>(AgentService.SlotUsage()),
   // Local TUF server + fleetd package generation (tools/tuf/test).
   tufServerStatus: () => cast<TufServerStatus>(TufService.TufServerStatus()),
   tufStartBuild: (cfg: TufConfig) => TufService.TufStartBuild(cfg as never),

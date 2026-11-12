@@ -1,6 +1,8 @@
 import type { Settings } from "../lib/ipc";
 import { serverColorVar } from "../lib/servers";
 import type { ServerHealth } from "../lib/useSystemHealth";
+import { useSlotUsage } from "../lib/useSlotUsage";
+import { SlotBadges } from "./SlotBadges";
 
 /// Top-bar control for switching between local Fleet servers and seeing each
 /// one's status at a glance. One pill per server: a single status dot (green
@@ -22,6 +24,7 @@ export function ServerSwitcher({
   dimmed?: boolean;
 }) {
   const activeId = settings.active_server_id;
+  const slotUsage = useSlotUsage();
   return (
     <div
       title={
@@ -95,6 +98,7 @@ export function ServerSwitcher({
                   unconfigured
                 </span>
               )}
+              <SlotBadges usage={slotUsage[s.id]} />
             </button>
           );
         })}
