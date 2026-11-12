@@ -94,46 +94,11 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 
 	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now().UTC()))
 
-	var resp listSoftwareResponse
-	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &resp)
-	require.NotNil(t, resp)
-
-	var fooPayload, barPayload, airPayload fleet.Software
-	for _, s := range resp.Software {
-		switch s.Name {
-		case "foo":
-			fooPayload = s
-		case "bar":
-			barPayload = s
-		case "air":
-			airPayload = s
-		default:
-			require.Failf(t, "unrecognized software %s", s.Name)
-
-		}
-	}
-
-	require.Empty(t, fooPayload.Vulnerabilities)
-	require.Len(t, barPayload.Vulnerabilities, 1)
-	require.Equal(t, "cve-123", barPayload.Vulnerabilities[0].CVE)
-	require.NotNil(t, barPayload.Vulnerabilities[0].CVSSScore, new(new(5.4)))
-	require.NotNil(t, barPayload.Vulnerabilities[0].EPSSProbability, new(new(0.5)))
-	require.NotNil(t, barPayload.Vulnerabilities[0].CISAKnownExploit, new(new(true)))
-	require.Equal(t, barPayload.Vulnerabilities[0].CVEPublished, new(new(now)))
-	require.Equal(t, barPayload.Vulnerabilities[0].Description, new(new("a long description of the cve")))
-	require.Equal(t, barPayload.Vulnerabilities[0].ResolvedInVersion, new(new("1.2.3")))
-
-	require.Equal(t, "go1.26.1", airPayload.Release)
-	require.Empty(t, airPayload.ExtensionID, "the Go module path must not reach the API")
-	require.Equal(t, "fooextensionid", fooPayload.ExtensionID, "other sources keep their extension id")
-
 	var respVersions listSoftwareVersionsResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &respVersions)
-	require.NotNil(t, resp)
+	require.NotNil(t, respVersions)
 
-	// Reset so a payload missing from this response can't be satisfied by the value the
-	// software-list loop above left behind.
-	fooPayload, barPayload, airPayload = fleet.Software{}, fleet.Software{}, fleet.Software{}
+	var fooPayload, barPayload, airPayload fleet.Software
 	for _, s := range respVersions.Software {
 		switch s.Name {
 		case "foo":
@@ -1539,18 +1504,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 				// Get a global software version
 				var getSoftwareResp getSoftwareResponse
 				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", softwareBar.Versions[0].ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
-
-				// Get a global software vesion using the deprecated endpoint
-				getSoftwareResp = getSoftwareResponse{}
-				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", softwareBar.Versions[0].ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
-
-				// Get a count of software vesions using the deprecated endpoint
-				var countSoftwareResp countSoftwareResponse
-				s.DoJSON("GET", "/api/latest/fleet/software/count", getSoftwareRequest{}, http.StatusForbidden, &countSoftwareResp)
-
-				// List all software versions using the deprecated endpoint
-				var softwareListResp listSoftwareResponse
-				s.DoJSON("GET", "/api/latest/fleet/software", listSoftwareRequest{}, http.StatusForbidden, &softwareListResp)
 			} else {
 				// List all software titles
 				var listSoftwareTitlesResp listSoftwareTitlesResponse
@@ -1571,20 +1524,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 				// Get a global software version
 				var getSoftwareResp getSoftwareResponse
 				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", softwareBar.Versions[0].ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
-
-				// Get a global software vesion using the deprecated endpoint
-				getSoftwareResp = getSoftwareResponse{}
-				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", softwareBar.Versions[0].ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
-
-				// Get a global count of software vesions using the deprecated endpoint
-				var countSoftwareResp countSoftwareResponse
-				s.DoJSON("GET", "/api/latest/fleet/software/count", countSoftwareRequest{}, http.StatusOK, &countSoftwareResp)
-				require.Equal(t, 3, countSoftwareResp.Count)
-
-				// List all software versions using the deprecated endpoint
-				var softwareListResp listSoftwareResponse
-				s.DoJSON("GET", "/api/latest/fleet/software", listSoftwareRequest{}, http.StatusOK, &softwareListResp)
-				require.Equal(t, 3, countSoftwareResp.Count)
 			}
 
 			if tc.shouldFailTeamRead {
@@ -1605,18 +1544,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 				// Get a team software version
 				var getSoftwareResp getSoftwareResponse
 				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", teamFooVersion.ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
-
-				// Get a team software vesion using the deprecated endpoint
-				getSoftwareResp = getSoftwareResponse{}
-				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", teamFooVersion.ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
-
-				// Get a count of team software vesions using the deprecated endpoint
-				var countSoftwareResp countSoftwareResponse
-				s.DoJSON("GET", "/api/latest/fleet/software/count", getSoftwareRequest{}, http.StatusForbidden, &countSoftwareResp)
-
-				// List all software versions using the deprecated endpoint for a team
-				var softwareListResp listSoftwareResponse
-				s.DoJSON("GET", "/api/latest/fleet/software", listSoftwareRequest{}, http.StatusForbidden, &softwareListResp)
 			} else {
 				// List all software titles for a team
 				var listSoftwareTitlesResp listSoftwareTitlesResponse
@@ -1637,20 +1564,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 				// Get a team software version
 				var getSoftwareResp getSoftwareResponse
 				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", teamFooVersion.ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
-
-				// Get a team software vesion using the deprecated endpoint
-				getSoftwareResp = getSoftwareResponse{}
-				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", teamFooVersion.ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
-
-				// Get a team count of software vesions using the deprecated endpoint
-				var countSoftwareResp countSoftwareResponse
-				s.DoJSON("GET", "/api/latest/fleet/software/count", countSoftwareRequest{TeamID: &team1.ID}, http.StatusOK, &countSoftwareResp)
-				require.Equal(t, 1, countSoftwareResp.Count)
-
-				// List all software versions using the deprecated endpoint for a team
-				var softwareListResp listSoftwareResponse
-				s.DoJSON("GET", "/api/latest/fleet/software", listSoftwareRequest{TeamID: &team1.ID}, http.StatusOK, &softwareListResp)
-				require.Equal(t, 1, countSoftwareResp.Count)
 			}
 		})
 	}
@@ -1856,12 +1769,12 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	var labelResp fleet.CreateLabelResponse
 	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{
 		Name:  "label1",
-		Hosts: []string{host.Hostname}}, http.StatusOK, &labelResp)
+		Hosts: []string{host.UUID}}, http.StatusOK, &labelResp)
 	require.NotZero(t, labelResp.Label.ID)
 
 	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{
 		Name:  "label2",
-		Hosts: []string{host.Hostname}}, http.StatusOK, &labelResp)
+		Hosts: []string{host.UUID}}, http.StatusOK, &labelResp)
 	require.NotZero(t, labelResp.Label.ID)
 
 	// Set to "exclude any". Installer should be missing from the response for both host details and
@@ -2385,7 +2298,7 @@ func (s *integrationEnterpriseTestSuite) TestVPPAppsWithoutMDM() {
 
 	// Create team and add host to team
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{orbitHost.ID}, TeamID: &team.ID}, http.StatusOK)
@@ -2480,7 +2393,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftwareWithLabelScoping() 
 	var labelResp fleet.CreateLabelResponse
 	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{
 		Name:  "label1",
-		Hosts: []string{host.Hostname}}, http.StatusOK, &labelResp)
+		Hosts: []string{host.UUID}}, http.StatusOK, &labelResp)
 	require.NotZero(t, labelResp.Label.ID)
 	lbl1 := labelResp.Label
 
@@ -2575,7 +2488,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 		AutoUpdateEndTime:   new("04:00"),
 	}, http.StatusOK, &titlesResp)
 
-	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1", "auto_update_enabled":true, "auto_update_window_end":"04:00", "auto_update_window_start":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), tok), 0)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1", "auto_update_enabled":true, "auto_update_window_end":"04:00", "auto_update_window_start":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), tok), 0)
 
 	// Get the software title again.
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppApp.TitleID), nil, http.StatusOK, &titlesResp, "team_id", fmt.Sprintf("%d", teamID))
@@ -2592,7 +2505,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 		DisplayName: new("New Display Name"),
 	}, http.StatusOK, &titlesResp)
 
-	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1",  "auto_update_enabled":true, "auto_update_window_end":"04:00", "auto_update_window_start":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"New Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), tok), 0)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1",  "auto_update_enabled":true, "auto_update_window_end":"04:00", "auto_update_window_start":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"New Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), tok), 0)
 
 	// Disable the auto-update config
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", vppApp.TitleID), updateAppStoreAppRequest{
@@ -2600,7 +2513,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 		AutoUpdateEnabled: new(false),
 	}, http.StatusOK, &titlesResp)
 
-	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"New Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), tok), 0)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"New Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), tok), 0)
 
 	// Do an update without auto-update fields to check that it still includes the auto-update values.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", vppApp.TitleID), updateAppStoreAppRequest{
@@ -2608,7 +2521,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 		DisplayName: new("Updated Display Name"),
 	}, http.StatusOK, &titlesResp)
 
-	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"Updated Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), tok), 0)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"Updated Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), tok), 0)
 }
 
 func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
@@ -2624,7 +2537,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 	require.Equal(t, uint(0), addResp.SelfServiceCategory.TeamID)
 	catID := addResp.SelfServiceCategory.ID
 	s.lastActivityMatches(fleet.ActivityTypeAddedSelfServiceCategory{}.ActivityName(),
-		`{"self_service_category_name":"💼 Engineering","team_id":0,"team_name":null,"fleet_id":0,"fleet_name":null}`, 0)
+		`{"self_service_category_name":"💼 Engineering","fleet_id":0,"fleet_name":null}`, 0)
 
 	// list includes new category
 	var listResp getSelfServiceCategoriesResponse
@@ -2641,7 +2554,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 	require.Equal(t, catID, patchResp.SelfServiceCategory.ID)
 	require.Equal(t, "💼 Engineering tools", patchResp.SelfServiceCategory.Name)
 	editActID := s.lastActivityMatches(fleet.ActivityTypeEditedSelfServiceCategory{}.ActivityName(),
-		`{"self_service_category_name":"💼 Engineering tools","team_id":0,"team_name":null,"fleet_id":0,"fleet_name":null}`, 0)
+		`{"self_service_category_name":"💼 Engineering tools","fleet_id":0,"fleet_name":null}`, 0)
 
 	// patch with the same name is a no-op — no new activity emitted
 	s.DoJSON("PATCH", fmt.Sprintf("%s/%d", path, catID), map[string]any{"name": "💼 Engineering tools"}, http.StatusOK, &patchResp)
@@ -2651,7 +2564,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 	// delete + activity
 	s.Do("DELETE", fmt.Sprintf("%s/%d", path, catID), nil, http.StatusNoContent)
 	s.lastActivityMatches(fleet.ActivityTypeDeletedSelfServiceCategory{}.ActivityName(),
-		`{"self_service_category_name":"💼 Engineering tools","team_id":0,"team_name":null,"fleet_id":0,"fleet_name":null}`, 0)
+		`{"self_service_category_name":"💼 Engineering tools","fleet_id":0,"fleet_name":null}`, 0)
 
 	// post without name returns 422
 	s.Do("POST", path, map[string]any{"fleet_id": 0}, http.StatusUnprocessableEntity)
@@ -2680,7 +2593,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 
 	// duplicate across fleets allowed
 	var teamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: "SelfServiceCategoryCrossFleet"}, http.StatusOK, &teamResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{Name: "SelfServiceCategoryCrossFleet"}, http.StatusOK, &teamResp)
 	t.Cleanup(func() { require.NoError(t, s.ds.DeleteTeam(context.Background(), teamResp.Team.ID)) })
 
 	var cf0, cf1 addSelfServiceCategoriesResponse
@@ -2688,7 +2601,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 	s.DoJSON("POST", path, map[string]any{"fleet_id": teamResp.Team.ID, "name": "CrossFleet"}, http.StatusOK, &cf1)
 	require.NotEqual(t, cf0.SelfServiceCategory.ID, cf1.SelfServiceCategory.ID)
 	s.lastActivityMatches(fleet.ActivityTypeAddedSelfServiceCategory{}.ActivityName(),
-		fmt.Sprintf(`{"self_service_category_name":"CrossFleet","team_id":%d,"team_name":%q,"fleet_id":%d,"fleet_name":%q}`, teamResp.Team.ID, teamResp.Team.Name, teamResp.Team.ID, teamResp.Team.Name), 0)
+		fmt.Sprintf(`{"self_service_category_name":"CrossFleet","fleet_id":%d,"fleet_name":%q}`, teamResp.Team.ID, teamResp.Team.Name), 0)
 
 	// list scoped to the new fleet returns its seeded defaults plus the added category
 	s.DoJSON("GET", path, nil, http.StatusOK, &listResp, "fleet_id", fmt.Sprint(teamResp.Team.ID))
@@ -2736,7 +2649,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 
 	// deleting a team cascades to its categories
 	var deletableResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: "SelfServiceCategoryDeleteScope"}, http.StatusOK, &deletableResp)
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{Name: "SelfServiceCategoryDeleteScope"}, http.StatusOK, &deletableResp)
 	seeded, err := s.ds.ListSoftwareCategories(ctx, deletableResp.Team.ID)
 	require.NoError(t, err)
 	require.Len(t, seeded, len(fleet.DefaultSelfServiceCategoryNames))
@@ -2804,10 +2717,10 @@ func (s *integrationEnterpriseTestSuite) TestPatchDeadlineSettings() {
 	patch(tm.ID, []string{"wednesday"}, "18:30")
 	require.Equal(t, activitiesBefore+1, countActivities())
 	s.lastActivityMatches(activityName,
-		fmt.Sprintf(`{"team_id": %d, "fleet_id": %d, "team_name": %q, "fleet_name": %q, "days": ["wednesday"], "time": "18:30"}`, tm.ID, tm.ID, tm.Name, tm.Name), 0)
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "days": ["wednesday"], "time": "18:30"}`, tm.ID, tm.Name), 0)
 	patch(0, []string{"sunday", "saturday"}, "06:05")
 	lastActivityID := s.lastActivityMatches(activityName,
-		`{"team_id": null, "fleet_id": null, "team_name": null, "fleet_name": null, "days": ["saturday", "sunday"], "time": "06:05"}`, 0)
+		`{"fleet_id": null, "fleet_name": null, "days": ["saturday", "sunday"], "time": "06:05"}`, 0)
 
 	// no activity for a PATCH with the stored values, even in a different spelling
 	patch(0, []string{"sunday", "saturday"}, "6:05")
@@ -3134,9 +3047,6 @@ func (s *integrationEnterpriseTestSuite) TestAIToolFilter() {
 	listVersions := func(params ...string) (map[string]bool, int) {
 		var resp listSoftwareVersionsResponse
 		s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &resp, append(params, "query", "aitool")...)
-		var countResp countSoftwareResponse
-		s.DoJSON("GET", "/api/latest/fleet/software/count", nil, http.StatusOK, &countResp, append(params, "query", "aitool")...)
-		require.Equal(t, resp.Count, countResp.Count)
 		got := make(map[string]bool, len(resp.Software))
 		for _, sw := range resp.Software {
 			got[sw.Name] = flag(sw.Name, sw.AITool)
@@ -3241,7 +3151,7 @@ func (s *integrationEnterpriseTestSuite) TestAIToolFilter() {
 		return s.Do("GET", path, nil, http.StatusOK, params...)
 	}
 	require.Equal(t, teamHostAITool, aiToolByName(t, get(fmt.Sprintf("/api/latest/fleet/hosts/%d", teamHost.ID)), "host", "software"))
-	require.Equal(t, teamHostAITool, aiToolByName(t, get("/api/latest/fleet/hosts/identifier/"+teamHost.UUID), "host", "software"))
+	require.Equal(t, teamHostAITool, aiToolByName(t, get("/api/latest/fleet/hosts/"+teamHost.UUID), "host", "software"))
 	require.Equal(t, teamHostAITool, aiToolByName(t,
 		s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK), "host", "software"))
 	var hostsResp listHostsResponse

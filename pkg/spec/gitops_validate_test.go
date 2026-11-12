@@ -1,11 +1,13 @@
 package spec
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"reflect"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/hashicorp/go-multierror"
 	"github.com/stretchr/testify/assert"
@@ -69,19 +71,9 @@ func TestKnownJSONKeys(t *testing.T) {
 	})
 
 	t.Run("renameto alias accepted", func(t *testing.T) {
-		// PolicySpec has `json:"team" renameto:"fleet"` — both should be known
-		keys := knownJSONKeys(reflect.TypeFor[fleet.PolicySpec]())
-		assert.Contains(t, keys, "team")
-		assert.Contains(t, keys, "fleet")
-
-		// LabelSpec has `json:"team_id" renameto:"fleet_id"`
-		keys = knownJSONKeys(reflect.TypeFor[fleet.LabelSpec]())
-		assert.Contains(t, keys, "team_id")
-		assert.Contains(t, keys, "fleet_id")
-
 		// MDM has `json:"apple_business_manager" renameto:"apple_business,inline"`
 		// — the registered alias must drop the ",inline" option.
-		keys = knownJSONKeys(reflect.TypeFor[fleet.MDM]())
+		keys := knownJSONKeys(reflect.TypeFor[fleet.MDM]())
 		assert.Contains(t, keys, "apple_business_manager")
 		assert.Contains(t, keys, "apple_business")
 		assert.NotContains(t, keys, "apple_business,inline")
@@ -134,6 +126,42 @@ func TestValidateUnknownKeys(t *testing.T) {
 		}
 		errs := validateUnknownKeys(data, reflect.TypeFor[fleet.QuerySpec](), []string{"reports"}, "test.yml")
 		assert.Len(t, errs, 2)
+	})
+
+	t.Run("removed key reported with its full path and survives allowed unknown keys", func(t *testing.T) {
+		type inner struct {
+			RequireAll bool `json:"macos_require_all_software" removedkey:"require_all_software_macos"`
+		}
+		type outer struct {
+			Setup inner `json:"macos_setup" renameto:"setup_experience"`
+		}
+		// keyed by the deprecated parent name, as the GitOps parser hands it over;
+		// the path uses the current name
+		data := map[string]any{"macos_setup": map[string]any{
+			"require_all_software_macos": true,
+			"require_all_software_maco":  true,
+		}}
+		errs := validateUnknownKeys(data, reflect.TypeFor[outer](), []string{"controls"}, "default.yml")
+		require.Len(t, errs, 2)
+
+		var removedErr *ParseRemovedKeyError
+		var unknownErr *ParseUnknownKeyError
+		for _, err := range errs {
+			if !errors.As(err, &removedErr) {
+				require.ErrorAs(t, err, &unknownErr)
+			}
+		}
+		require.NotNil(t, removedErr)
+		assert.Equal(t, `in "default.yml": The "controls.setup_experience.require_all_software_macos" key is not available anymore. `+
+			`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`, removedErr.Error())
+		require.NotNil(t, unknownErr)
+		assert.Empty(t, unknownErr.Suggestion, "the removed key is never suggested")
+
+		result := filterWarnings(multierror.Append(nil, errs...), func(string, ...any) {}, reflect.TypeFor[*ParseUnknownKeyError]())
+		var resultMulti *multierror.Error
+		require.ErrorAs(t, result, &resultMulti)
+		require.Len(t, resultMulti.Errors, 1)
+		require.ErrorAs(t, resultMulti.Errors[0], &removedErr)
 	})
 
 	t.Run("api_key_json keys are not validated", func(t *testing.T) {
@@ -200,7 +228,8 @@ func TestValidateUnknownKeys(t *testing.T) {
 		errs := validateUnknownKeys(data, reflect.TypeFor[GitOpsControls](), []string{"controls"}, "test.yml")
 		require.Len(t, errs, 1)
 		assert.Contains(t, errs[0].Error(), "bad_nested_field")
-		assert.Contains(t, errs[0].Error(), "controls.macos_setup")
+		// reported under the current name, not the deprecated macos_setup the parser rewrote it to
+		assert.Contains(t, errs[0].Error(), "controls.setup_experience.bad_nested_field")
 	})
 
 	t.Run("slice validation", func(t *testing.T) {
@@ -481,4 +510,44 @@ func TestFilterWarnings(t *testing.T) {
 		assert.Contains(t, result.Error(), "kept error")
 		assert.NotContains(t, result.Error(), "bad")
 	})
+}
+
+// A removed YAML key's error message comes from pkg/removednames, so every removedkey tag reachable from a GitOps file
+// needs an entry there, at the path the validator reports.
+func TestRemovedKeysRegistered(t *testing.T) {
+	t.Parallel()
+
+	found := 0
+	// Types on the current path only, so a type reached by several paths is checked under each of them.
+	onPath := map[reflect.Type]bool{}
+	var walk func(typ reflect.Type, path string)
+	walk = func(typ reflect.Type, path string) {
+		for typ.Kind() == reflect.Pointer || typ.Kind() == reflect.Slice {
+			typ = typ.Elem()
+		}
+		if typ.Kind() != reflect.Struct || onPath[typ] {
+			return
+		}
+		onPath[typ] = true
+		defer delete(onPath, typ)
+		for name, fi := range knownJSONKeys(typ) {
+			if fi.removed {
+				found++
+				_, ok := removednames.Find(removednames.KindYAMLKey, path+"."+name, "")
+				assert.True(t, ok, "%s.%s has no entry in pkg/removednames", path, name)
+				continue
+			}
+			if pathName := cmp.Or(fi.pathName, name); name == pathName {
+				child := fi.typ
+				if override, ok := anyFieldTypes[typ][name]; ok {
+					child = override
+				}
+				walk(child, path+"."+pathName)
+			}
+		}
+	}
+	walk(reflect.TypeFor[GitOpsControls](), "controls")
+	walk(reflect.TypeFor[GitOpsOrgSettings](), "org_settings")
+	walk(reflect.TypeFor[GitOpsFleetSettings](), "settings")
+	assert.Positive(t, found)
 }

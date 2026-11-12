@@ -1,6 +1,6 @@
 {
   "name": "Museeks",
-  "unique_identifier": "com.electron.museeks",
+  "unique_identifier": "io.museeks.app",
   "token": "museeks",
   "installer_format": "dmg",
   "slug": "museeks/darwin",

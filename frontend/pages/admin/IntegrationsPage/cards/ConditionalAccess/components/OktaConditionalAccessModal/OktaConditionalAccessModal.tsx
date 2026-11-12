@@ -13,9 +13,12 @@ import { AppContext } from "context/app";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { IConfig, isOktaConditionalAccessConfigured } from "interfaces/config";
+import { getErrorReason } from "interfaces/errors";
 import conditionalAccessAPI from "services/entities/conditional_access";
 import configAPI from "services/entities/config";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+
+import { getConditionalAccessErrorMessage } from "../../helpers";
 
 const baseClass = "okta-conditional-access-modal";
 
@@ -34,7 +37,20 @@ interface IFormData {
   [OKTA_CERTIFICATE]: string;
 }
 
-const validate = (data: IFormData): IFormErrors => {
+// The request uses responseType "blob", so a JSON error body arrives as a Blob.
+const getBlobErrorReason = async (e: unknown): Promise<string> => {
+  const data = (e as { data?: unknown } | undefined)?.data;
+  if (data instanceof Blob) {
+    try {
+      return getErrorReason({ data: JSON.parse(await data.text()) });
+    } catch {
+      return "";
+    }
+  }
+  return getErrorReason(e);
+};
+
+export const validate = (data: IFormData): IFormErrors => {
   const errors: IFormErrors = {};
 
   if (!data[OKTA_IDP_ID].trim()) {
@@ -52,7 +68,10 @@ const validate = (data: IFormData): IFormErrors => {
       OKTA_ACS_URL
     ] = `Assertion consumer service URL must be ${MAX_URL_LENGTH} characters or fewer`;
   } else if (
-    !isValidURL({ url: data[OKTA_ACS_URL], protocols: ["http", "https"] })
+    !isValidURL({
+      url: data[OKTA_ACS_URL].trim(),
+      protocols: ["http", "https"],
+    })
   ) {
     errors[OKTA_ACS_URL] = "Enter a valid URL with http or https scheme";
   }
@@ -70,7 +89,7 @@ const validate = (data: IFormData): IFormErrors => {
   } else if (data[OKTA_CERTIFICATE].length > MAX_CERT_LENGTH) {
     errors[
       OKTA_CERTIFICATE
-    ] = `Certificate must be ${MAX_CERT_LENGTH} characters or fewer`;
+    ] = `Upload only the Okta certificate (${MAX_CERT_LENGTH} characters or fewer)`;
   }
 
   return errors;
@@ -132,7 +151,13 @@ const OktaConditionalAccessModal = ({
       downloadLink.remove();
       URL.revokeObjectURL(url);
     } catch (e: unknown) {
-      notify.error("Failed to download signing certificate.", { response: e });
+      notify.error(
+        getConditionalAccessErrorMessage(
+          "download",
+          await getBlobErrorReason(e)
+        ),
+        { response: e }
+      );
     } finally {
       setIsDownloadingCert(false);
     }
@@ -241,12 +266,14 @@ const OktaConditionalAccessModal = ({
 
         {/* IdP Signature Certificate Section */}
         <div className={`${baseClass}__certificate-section`}>
-          <TooltipWrapper
-            tipContent="Upload this certificate in Okta when creating the Fleet IdP."
-            underline
-          >
-            Identity provider (IdP) signature certificate
-          </TooltipWrapper>
+          <div className="form-field__label">
+            <TooltipWrapper
+              tipContent="Upload this certificate in Okta when creating the Fleet IdP."
+              underline
+            >
+              Identity provider (IdP) signature certificate
+            </TooltipWrapper>
+          </div>
           <Button
             variant="secondary"
             onClick={onDownloadSigningCert}
@@ -258,13 +285,6 @@ const OktaConditionalAccessModal = ({
             <span>Download certificate</span>
           </Button>
         </div>
-
-        {/* Help text */}
-        <p className={`${baseClass}__field-instructions`}>
-          You can find the following fields in Okta after creating an IdP in{" "}
-          <strong>Security</strong> &gt; <strong>Identity Providers</strong>{" "}
-          &gt; <strong>SAML 2.0 IdP</strong>.
-        </p>
 
         <div
           className={`form ${
@@ -303,7 +323,7 @@ const OktaConditionalAccessModal = ({
           />
           <FileUploader
             graphicName="file-pem"
-            title="Okta certificate"
+            label="Okta certificate"
             message={
               <>
                 Upload the certificate provided by Okta during the{" "}
@@ -311,6 +331,7 @@ const OktaConditionalAccessModal = ({
               </>
             }
             internalError={getError(OKTA_CERTIFICATE)}
+            errorInLabel
             onFileUpload={onSelectFile}
             buttonType="secondary"
             buttonMessage="Upload"

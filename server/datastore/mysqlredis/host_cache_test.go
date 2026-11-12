@@ -631,6 +631,8 @@ func hostFieldsGen() *rapid.Generator[*fleet.Host] {
 			Platform:                    rapid.String().Draw(t, "platform"),
 			OsqueryVersion:              rapid.String().Draw(t, "osquery_version"),
 			OSVersion:                   rapid.String().Draw(t, "os_version"),
+			OSName:                      rapid.String().Draw(t, "os_name"),
+			OSVersionOnly:               rapid.String().Draw(t, "os_version_only"),
 			Build:                       rapid.String().Draw(t, "build"),
 			PlatformLike:                rapid.String().Draw(t, "platform_like"),
 			CodeName:                    rapid.String().Draw(t, "code_name"),
@@ -719,6 +721,18 @@ func TestPBT_HostCacheEnvelopeRoundTrip(t *testing.T) {
 		require.Equal(t, orig.OsqueryHostID, got.OsqueryHostID, "OsqueryHostID shadow field")
 		require.Equal(t, orig.HasHostIdentityCert, got.HasHostIdentityCert, "HasHostIdentityCert shadow field")
 	})
+}
+
+// TestHostCacheEnvelopeDecodesOlderEntries checks that an entry cached by a server from before Host.OSVersion
+// left the API, which wrote the combined OS string under os_version, still decodes into OSVersion.
+func TestHostCacheEnvelopeDecodesOlderEntries(t *testing.T) {
+	envelope := new(hostCacheEnvelope)
+	require.NoError(t, json.Unmarshal([]byte(`{"id":7,"os_version":"macOS 15.2","node_key":"nk"}`), envelope))
+	got := envelope.toHost()
+	assert.Equal(t, uint(7), got.ID)
+	assert.Equal(t, "macOS 15.2", got.OSVersion)
+	assert.Empty(t, got.OSVersionOnly)
+	assert.Equal(t, new("nk"), got.NodeKey)
 }
 
 // TestPBT_JitteredHostCacheTTLBounds asserts the jitter bounds across the

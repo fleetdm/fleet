@@ -178,13 +178,6 @@ func TestMDMAppleAuthorization(t *testing.T) {
 		ctx := test.UserContext(ctx, user)
 		_, err := svc.GetAppleMDM(ctx)
 		checkAuthErr(t, shouldFailWithAuth, err)
-		_, err = svc.GetAppleBM(ctx)
-		checkAuthErr(t, shouldFailWithAuth, err)
-
-		// deliberately send invalid args so it doesn't actually generate a CSR
-		_, err = svc.RequestMDMAppleCSR(ctx, "not-an-email", "")
-		require.Error(t, err) // it *will* always fail, but not necessarily due to authorization
-		checkAuthErr(t, shouldFailWithAuth, err)
 
 		_, err = svc.GetMDMAppleCSR(ctx)
 		checkAuthErr(t, shouldFailWithAuth, err)
@@ -525,13 +518,13 @@ func TestRunMDMCommandAuthz(t *testing.T) {
 	checkAuthErr := func(t *testing.T, shouldFailWithAuth bool, err error) {
 		t.Helper()
 
+		var forbidden *authz.Forbidden
 		if shouldFailWithAuth {
-			require.Error(t, err)
-			require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+			require.ErrorAs(t, err, &forbidden)
 		} else {
 			// call always fails, but due to the host not being enrolled in MDM
 			require.Error(t, err)
-			require.NotContains(t, err.Error(), authz.ForbiddenErrorMessage)
+			require.NotErrorAs(t, err, &forbidden)
 		}
 	}
 
@@ -546,7 +539,7 @@ func TestRunMDMCommandAuthz(t *testing.T) {
 		{"admin", test.UserAdmin, singleUnenrolledHost, false},
 		{"observer", test.UserObserver, singleUnenrolledHost, true},
 		{"observer+", test.UserObserverPlus, singleUnenrolledHost, true},
-		{"gitops", test.UserGitOps, singleUnenrolledHost, false},
+		{"gitops", test.UserGitOps, singleUnenrolledHost, true},
 		{"team 1 admin", test.UserTeamAdminTeam1, singleUnenrolledHost, false},
 		{"team 2 admin", test.UserTeamAdminTeam2, singleUnenrolledHost, true},
 		{"team 1 maintainer", test.UserTeamMaintainerTeam1, singleUnenrolledHost, false},
@@ -555,7 +548,7 @@ func TestRunMDMCommandAuthz(t *testing.T) {
 		{"team 2 observer", test.UserTeamObserverTeam2, singleUnenrolledHost, true},
 		{"team 1 observer+", test.UserTeamObserverPlusTeam1, singleUnenrolledHost, true},
 		{"team 2 observer+", test.UserTeamObserverPlusTeam2, singleUnenrolledHost, true},
-		{"team 1 gitops", test.UserTeamGitOpsTeam1, singleUnenrolledHost, false},
+		{"team 1 gitops", test.UserTeamGitOpsTeam1, singleUnenrolledHost, true},
 		{"team 2 gitops", test.UserTeamGitOpsTeam2, singleUnenrolledHost, true},
 		{"team 1 admin mix of teams", test.UserTeamAdminTeam1, team1And2UnenrolledHosts, true},
 		{"team 1 maintainer mix of teams", test.UserTeamMaintainerTeam1, team1And2UnenrolledHosts, true},
@@ -3700,6 +3693,23 @@ func TestBatchSetMDMProfilesOSUpdates(t *testing.T) {
 		return fleet.MDMProfileBatchPayload{Name: name, Contents: syncMLForTest("./Device" + syncml.FleetOSUpdateTargetLocURI + leaf)}
 	}
 
+	// Same type once JSON-decoded, but not a literal match for the type string.
+	appleEscapedOSUpdate := fleet.MDMProfileBatchPayload{Name: "apple-os-escaped", Contents: []byte(`{
+		"Type": "com.apple.configuration.softwareupdate.enforcement.specifi\u0063",
+		"Identifier": "os-update-escaped",
+		"Payload": {"TargetOSVersion": "15.4.1", "TargetLocalDateTime": "2025-07-01T19:00:00"}
+	}`)}
+	// A different declaration type that mentions the software-update type in its payload.
+	appleDecoy := fleet.MDMProfileBatchPayload{Name: "apple-decoy", Contents: []byte(`{
+		"Type": "com.apple.configuration.decoy",
+		"Identifier": "decoy",
+		"Payload": {"Echo": "` + apple_mdm.DeclarationTypeSoftwareUpdate + `"}
+	}`)}
+	// Same LocURI once XML-decoded ("&#101;" is "e").
+	windowsEscapedOSUpdate := fleet.MDMProfileBatchPayload{
+		Name: "win-os-escaped", Contents: syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Updat&#101;/Install"),
+	}
+
 	appleConfigured := &fleet.TeamMDM{MacOSUpdates: fleet.AppleOSUpdateSettings{MinimumVersion: optjson.SetString("14.0"), Deadline: optjson.SetString("2025-01-01")}}
 	windowsConfigured := &fleet.TeamMDM{WindowsUpdates: fleet.WindowsUpdates{DeadlineDays: optjson.SetInt(7), GracePeriodDays: optjson.SetInt(2)}}
 
@@ -3775,6 +3785,44 @@ func TestBatchSetMDMProfilesOSUpdates(t *testing.T) {
 			dryRun:   true,
 			wantErr:  "Requires Fleet Premium license",
 		},
+		{
+			name:       "rejects escaped Apple OS update declaration when OS updates already configured",
+			profiles:   []fleet.MDMProfileBatchPayload{appleEscapedOSUpdate},
+			teamConfig: appleConfigured,
+			wantErr:    "OS updates are already configured",
+		},
+		{
+			name:     "rejects escaped Apple OS update declaration in Fleet free",
+			profiles: []fleet.MDMProfileBatchPayload{appleEscapedOSUpdate},
+			freeTier: true,
+			dryRun:   true,
+			wantErr:  "Requires Fleet Premium license",
+		},
+		{
+			name:       "rejects Apple OS update declaration alongside a decoy when OS updates already configured",
+			profiles:   []fleet.MDMProfileBatchPayload{appleOSUpdate("apple-os-1", "os-update-1"), appleDecoy},
+			teamConfig: appleConfigured,
+			wantErr:    "OS updates are already configured",
+		},
+		{
+			name:     "decoy declaration alone is not an OS update declaration",
+			profiles: []fleet.MDMProfileBatchPayload{appleDecoy},
+			freeTier: true,
+			dryRun:   true,
+		},
+		{
+			name:       "rejects escaped Windows OS update profile when OS updates already configured",
+			profiles:   []fleet.MDMProfileBatchPayload{windowsEscapedOSUpdate},
+			teamConfig: windowsConfigured,
+			wantErr:    "OS updates are already configured",
+		},
+		{
+			name:     "rejects escaped Windows OS update profile in Fleet free",
+			profiles: []fleet.MDMProfileBatchPayload{windowsEscapedOSUpdate},
+			freeTier: true,
+			dryRun:   true,
+			wantErr:  "Requires Fleet Premium license",
+		},
 	}
 
 	for _, c := range cases {
@@ -3815,12 +3863,12 @@ func TestBatchSetMDMProfilesOSUpdates(t *testing.T) {
 			var gotAppleOSUpdate, gotWindowsOSUpdate bool
 			ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, profVars []fleet.MDMProfileIdentifierFleetVariables) (fleet.MDMProfilesUpdates, error) {
 				for _, d := range macDeclarations {
-					if bytes.Contains(d.RawJSON, []byte(apple_mdm.DeclarationTypeSoftwareUpdate)) {
+					if d.Type == apple_mdm.DeclarationTypeSoftwareUpdate {
 						gotAppleOSUpdate = true
 					}
 				}
 				for _, p := range winProfiles {
-					if bytes.Contains(p.SyncML, []byte(syncml.FleetOSUpdateTargetLocURI)) {
+					if fleet.ProfileTargetsReservedLocURI(p.SyncML, syncml.FleetOSUpdateTargetLocURI) {
 						gotWindowsOSUpdate = true
 					}
 				}

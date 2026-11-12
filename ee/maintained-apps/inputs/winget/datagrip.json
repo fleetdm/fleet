@@ -3,6 +3,7 @@
   "slug": "datagrip/windows",
   "package_identifier": "JetBrains.DataGrip",
   "unique_identifier": "DataGrip",
+  "open_process_names": ["datagrip.exe", "datagrip64.exe"],
   "fuzzy_match_name": true,
   "use_display_version_for_patch": true,
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/datagrip_install.ps1",

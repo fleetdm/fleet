@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "0.78.3",
+      "version": "1.0.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Grok Bot %' AND publisher = 'SpaceXAI';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Grok Bot %' AND publisher = 'SpaceXAI' AND version_compare(version, '0.78.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Grok Bot %' AND publisher = 'SpaceXAI' AND version_compare(version, '1.0.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'grok bot.exe');"
       },
-      "installer_url": "https://downloads.cursor.com/grokbot/stable/win32-x64/0.78.3/Grok_Bot_0.78.3_Setup.exe",
+      "installer_url": "https://downloads.cursor.com/grokbot/stable/win32-x64/1.0.1/Grok_Bot_1.0.1_Setup.exe",
       "install_script_ref": "4a5c4fa7",
       "uninstall_script_ref": "63910ced",
-      "sha256": "4331edab1325f5d802caf2d2ad8a14471558481e50b6354af465d25beff052ac",
+      "sha256": "8433bf7a740731e22590b5b1b646dae9105c04dd5e5f399f6fac38dde352fdcb",
       "default_categories": [
         "Productivity"
       ]

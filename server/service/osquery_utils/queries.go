@@ -24,7 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
-	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/contexts/preservedsources"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
@@ -273,14 +273,21 @@ var hostDetailQueries = map[string]DetailQuery{
 		// revision would make every fixed build in a security bulletin compare as newer
 		// than the host, reporting every CVE in it.
 		//
-		// display_version is not available in some versions of Windows (Server 2019). By
-		// including it using a JOIN it can return no rows and the query will still succeed.
+		// The DisplayVersion registry value was introduced in Windows 10 20H2. Older releases still in
+		// support (Windows 10 LTSC 2019 and LTSB 2016, Windows Server 2019 and 2016) only have ReleaseId,
+		// so it is the fallback. ReleaseId is frozen at "2009" from 20H2 onward, so it must not be preferred.
+		// Both are joined in so that a missing value returns no rows and the query still succeeds.
 		Description: "Reads the update build revision (UBR) from `os_version.revision`, which requires osquery 5.12.1 or later. Windows Server 2012 and 2012 R2 have no UBR and fall back to the `kernel_info` version.",
 		Query: `
 		WITH display_version_table AS (
 			SELECT data as display_version
 			FROM registry
 			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+		),
+		release_id_table AS (
+			SELECT data AS release_id
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\ReleaseId'
 		),
 		installation_type_table AS (
 			SELECT data AS installation_type
@@ -289,7 +296,7 @@ var hostDetailQueries = map[string]DetailQuery{
 		)
 		SELECT
 			os.name,
-			COALESCE(d.display_version, '') AS display_version,
+			COALESCE(NULLIF(d.display_version, ''), r.release_id, '') AS display_version,
 			CASE WHEN CAST(os.revision AS INTEGER) > 0 THEN os.version || '.' || os.revision ELSE k.version END AS version,
 			COALESCE(it.installation_type, '') AS installation_type
 		FROM
@@ -297,6 +304,8 @@ var hostDetailQueries = map[string]DetailQuery{
 			kernel_info k
 		LEFT JOIN
 			display_version_table d
+		LEFT JOIN
+			release_id_table r
 		LEFT JOIN
 			installation_type_table it`,
 		Platforms: []string{"windows"},
@@ -766,15 +775,18 @@ var extraDetailQueries = map[string]DetailQuery{
 		// `os_version_windows` detail queries above. See os_version_windows for why the
 		// UBR comes from os_version.revision and why it is cast before being compared.
 		//
-		// DisplayVersion doesn't exist on all versions of Windows (Server 2019). To prevent
-		// the query from failing in those cases, we join the values in when they exist,
-		// alternatively the column is just empty.
+		// See os_version_windows for why display_version falls back to ReleaseId.
 		Description: "Reads the update build revision (UBR) from `os_version.revision`, which requires osquery 5.12.1 or later. Windows Server 2012 and 2012 R2 have no UBR and fall back to the `kernel_info` version.",
 		Query: `
 		WITH display_version_table AS (
 			SELECT data as display_version
 			FROM registry
 			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+		),
+		release_id_table AS (
+			SELECT data AS release_id
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\ReleaseId'
 		),
 		installation_type_table AS (
 			SELECT data AS installation_type
@@ -787,13 +799,15 @@ var extraDetailQueries = map[string]DetailQuery{
 			os.arch,
 			k.version as kernel_version,
 			CASE WHEN CAST(os.revision AS INTEGER) > 0 THEN os.version || '.' || os.revision ELSE k.version END AS version,
-			COALESCE(d.display_version, '') AS display_version,
+			COALESCE(NULLIF(d.display_version, ''), r.release_id, '') AS display_version,
 			COALESCE(it.installation_type, '') AS installation_type
 		FROM
 			os_version os,
 			kernel_info k
 		LEFT JOIN
 			display_version_table d
+		LEFT JOIN
+			release_id_table r
 		LEFT JOIN
 			installation_type_table it`,
 		Platforms:        []string{"windows"},
@@ -1061,16 +1075,6 @@ const usersQueryStr = `WITH cached_groups AS (select * from groups)
 
 func withCachedUsers(query string) string {
 	return fmt.Sprintf(query, usersQueryStr)
-}
-
-// macOSEntraIDDetails holds the query and ingestion function for macOS for Microsoft "Conditional access" feature.
-var macOSEntraIDDetails = DetailQuery{
-	// The query ingests Entra's Device ID and User Principal Name of the account
-	// that logged in to the device (using Company Portal.app with the Platform SSO extension).
-	Query:            "SELECT * FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM';",
-	Discovery:        discoveryTable("app_sso_platform"),
-	Platforms:        []string{"darwin"},
-	DirectIngestFunc: directIngestEntraIDDetails,
 }
 
 // entraDeviceCertIssuerLike matches the issuer of the certificate Windows stores for
@@ -2304,36 +2308,9 @@ func directIngestOSUnixLike(ctx context.Context, logger *slog.Logger, host *flee
 	if len(rows) != 1 {
 		return ctxerr.Errorf(ctx, "directIngestOSUnixLike invalid number of rows: %d", len(rows))
 	}
-	name := rows[0]["name"]
-	// forceRollingVersion is set for Arch-based distributions that report their
-	// own release number but must still be recorded as "rolling". See the
-	// Omarchy case below for why the version cannot be derived in that case.
-	var forceRollingVersion bool
-	switch {
-	case strings.HasPrefix(name, "Arch Linux"):
-		name = strings.TrimSuffix(name, " ARM")
-	case name == "CachyOS Linux":
-		// CachyOS is an Arch-based rolling-release distribution; aggregate it
-		// onto the "Arch Linux" operating system row in the OS inventory. It
-		// reports BUILD_ID=rolling, so parseOSVersion already derives "rolling".
-		name = "Arch Linux"
-	case name == "Omarchy":
-		// Omarchy is also an Arch-based rolling-release distribution, but unlike
-		// CachyOS it reports a real release number in both VERSION_ID and
-		// BUILD_ID (e.g. "4.0.0"). parseOSVersion would therefore derive
-		// "4.0.0" and produce an "Arch Linux 4.0.0" row, a version that does not
-		// exist upstream and that does not merge with the "Arch Linux rolling"
-		// row these hosts occupied before Omarchy started shipping its own
-		// os-release ID.
-		//
-		// Pin the version explicitly rather than rewriting the ingested build
-		// value, so parseOSVersion still sees exactly what the host reported.
-		// Note this only affects the OS inventory: the separate os_version
-		// detail query keeps recording the true build on the host, which
-		// continues to display as "Omarchy 4.0.0" on the host details page.
-		name = "Arch Linux"
-		forceRollingVersion = true
-	}
+	// Some Arch-based distributions are recorded as "Arch Linux" in the OS inventory. The host keeps its own name and
+	// version in hosts.os_version (the os_version detail query), which the host API returns.
+	name, forceRollingVersion := fleet.InventoryOSName(rows[0]["name"])
 	version := rows[0]["version"]
 	major := rows[0]["major"]
 	minor := rows[0]["minor"]
@@ -2484,6 +2461,11 @@ func directIngestEntraIDDetails(
 		// Device maybe hasn't logged in to Entra ID yet.
 		return nil
 	}
+	// Results are matched to detail queries by name only, and macOS hosts must prove their device ID
+	// with an Entra-signed token instead.
+	if host.Platform != "windows" {
+		return ctxerr.New(ctx, "Entra ID device_id is only accepted from Windows hosts")
+	}
 	row := rows[0]
 
 	deviceID := row["device_id"]
@@ -2491,14 +2473,8 @@ func directIngestEntraIDDetails(
 		return ctxerr.New(ctx, "empty Entra ID device_id")
 	}
 
-	// userPrincipalName can be empty on macOS workstations with e.g. two accounts:
-	// One logged in to Entra and the other one not logged in. While the second one is
-	// logged in, it would report the same Device ID but empty user principal name.
-	//
-	// userPrincipalName is empty on Windows devices.
-	userPrincipalName := row["user_principal_name"]
-
-	if err := ds.CreateHostConditionalAccessStatus(ctx, host.ID, deviceID, userPrincipalName); err != nil {
+	// The user principal name isn't reported on Windows.
+	if _, err := ds.CreateHostConditionalAccessStatus(ctx, host.ID, deviceID, "", false); err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to create host conditional access status")
 	}
 	return nil
@@ -2726,7 +2702,8 @@ func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.
 		}
 	}
 
-	result, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	result, err := ds.UpdateHostSoftware(ctx, host.ID, software,
+		fleet.PreserveSoftwareSources(preservedsources.FromContext(ctx)...))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "update host software")
 	}
@@ -3356,12 +3333,18 @@ func directIngestMDMMac(ctx context.Context, logger *slog.Logger, host *fleet.Ho
 	// Fleet bakes byod=1 into the enrollment profile's ServerURL for personal
 	// (BYOD) enrollments (apple_mdm.AddPersonalEnrollmentToFleetURL). osquery
 	// reports that ServerURL here, so we read the flag back the same way we read
-	// the enroll reference above. Without this, the detail-query ingest would
-	// overwrite the personal enrollment type set by the Apple Authenticate flow.
-	// Must be read before RawQuery is cleared below.
+	// the enroll reference above, but only to keep the personal type the Apple
+	// Authenticate flow set, since the host reports the URL. Must be read before
+	// RawQuery is cleared below.
 	personalType := fleet.PersonalEnrollmentTypeNone
 	if mdmSolutionName == fleet.WellKnownMDMFleet && serverURL.Query().Get(apple_mdm.FleetPersonalEnrollmentKey) == "1" {
-		personalType = fleet.PersonalEnrollmentTypeManualProfile
+		hostMDM, err := ds.GetHostMDM(ctx, host.ID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "getting host mdm for personal enrollment")
+		}
+		if hostMDM != nil && hostMDM.PersonalEnrollmentType == fleet.PersonalEnrollmentTypeManualProfile {
+			personalType = fleet.PersonalEnrollmentTypeManualProfile
+		}
 	}
 
 	// strip any query parameters from the URL
@@ -3753,6 +3736,7 @@ func buildConfigProfilesMacOSQuery(ctx context.Context, logger *slog.Logger, hos
 	}
 
 	if username != "" {
+		// SQLite has no backslash escapes, so Go's %q can't quote this device-reported name.
 		query += fmt.Sprintf(`
 			UNION
 
@@ -3763,8 +3747,8 @@ func buildConfigProfilesMacOSQuery(ctx context.Context, logger *slog.Logger, hos
 			FROM
 				macos_user_profiles
 			WHERE
-				username = %q AND
-				type = "Configuration"`, username)
+				username = '%s' AND
+				type = "Configuration"`, strings.ReplaceAll(username, "'", "''"))
 	}
 	return query, true
 }
@@ -4454,7 +4438,6 @@ func GetDetailQueries(
 	}
 
 	if integrations.ConditionalAccessMicrosoft {
-		generatedMap["conditional_access_microsoft_device_id"] = macOSEntraIDDetails
 		generatedMap["conditional_access_microsoft_device_id_windows"] = windowsEntraIDDetails
 	}
 
@@ -4475,28 +4458,6 @@ func GetDetailQueries(
 			}
 		}(fleetConfig.Server.PrivateKey))
 		generatedMap["luks_verify"] = luksVerifyQuery
-	}
-
-	if features != nil {
-		var unknownQueries []string
-
-		for name, override := range features.DetailQueryOverrides {
-			query, ok := generatedMap[name]
-			if !ok {
-				unknownQueries = append(unknownQueries, name)
-				continue
-			}
-			if override == nil || *override == "" {
-				delete(generatedMap, name)
-			} else {
-				query.Query = *override
-				generatedMap[name] = query
-			}
-		}
-
-		if len(unknownQueries) > 0 {
-			logging.WithErr(ctx, ctxerr.New(ctx, fmt.Sprintf("detail_query_overrides: unknown queries: %s", strings.Join(unknownQueries, ","))))
-		}
 	}
 
 	return generatedMap

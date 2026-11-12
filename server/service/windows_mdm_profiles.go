@@ -698,7 +698,7 @@ func additionalCustomSCEPValidationForWindowsProfiles(contents string, customSCE
 			if errors.Is(err, io.EOF) {
 				break
 			}
-			return fmt.Errorf("The payload isn't valid XML: %w", err)
+			return &fleet.BadRequestError{Message: fmt.Sprintf("The payload isn't valid XML: %s", err)}
 		}
 		if cmdMsg == nil {
 			break
@@ -714,11 +714,11 @@ func additionalCustomSCEPValidationForWindowsProfiles(contents string, customSCE
 			if strings.HasSuffix(target, fleet.WindowsSCEPSubjectNameSuffix) {
 				// SubjectName item found, check that it contains the expected renewal ID variable
 				if cmd.Data == nil {
-					return errors.New("SubjectName item is missing data")
+					return &fleet.BadRequestError{Message: "SubjectName item is missing data"}
 				}
 
 				if err := validateSubjectNameRenewalID(cmd.Data.Content); err != nil {
-					return err
+					return &fleet.BadRequestError{Message: err.Error()}
 				}
 			}
 		}

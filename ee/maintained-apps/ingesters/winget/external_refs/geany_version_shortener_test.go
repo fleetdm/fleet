@@ -15,12 +15,12 @@ func TestGeanyVersionShortener(t *testing.T) {
 		want    string
 		wantErr string
 	}{
-		{name: "zero patch part", version: "2.1.0", want: "2.1"},
-		{name: "major release", version: "2.0.0", want: "2.0"},
-		{name: "non-zero patch part", version: "1.37.1", want: "1.37.1"},
+		{name: "zero patch tag", version: "2.1.0", want: "2.1"},
+		{name: "major bump keeps .0 minor", version: "3.0.0", want: "3.0"},
+		{name: "non-zero patch kept", version: "1.37.1", want: "1.37.1"},
 		{name: "already major.minor", version: "1.38", want: "1.38"},
-		{name: "4-part version", version: "2.1.0.0", wantErr: "2 or 3 parts"},
 		{name: "single part", version: "2", wantErr: "2 or 3 parts"},
+		{name: "four parts", version: "2.1.0.0", wantErr: "2 or 3 parts"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

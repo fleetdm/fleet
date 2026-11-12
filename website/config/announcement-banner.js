@@ -12,17 +12,18 @@ module.exports.announcementBanner = {
   // Set to false to hide the banner everywhere.
   enabled: true,
 
-  text: 'Join the Fleet Virtual Summit on November 10',
-  // Optional shorter text for phones, so the label leaves room for the glass around it.
-  textForSmallScreens: 'Virtual Summit · Nov 10',
-  href: '/announcements/fleet-virtual-summit-2026',
+  // The banner shown to everyone (in the shape `{ text, textForSmallScreens, href }`).
+  // Set to null to show no banner to visitors outside Europe.
+  // > Optional `textForSmallScreens` is a shorter label for phones, so the text leaves room for the glass around it.
+  forEveryone: null,
 
   // Shown instead to visitors in Europe (based on Cloudflare's cf-ipcountry header).
-  // Set to null to show the default banner to everyone.
+  // Set to null to show nothing to visitors in Europe (unless `forEveryone` is set).
   // > To preview locally, add ?simulateCountry=DE to the URL.
   forVisitorsInEurope: {
-    text: 'Keep your device data in Europe',
-    href: '/europe',
+    text: 'Fleet is now ISO 27001 certified',
+    textForSmallScreens: 'ISO 27001 certified',
+    href: '/announcements/fleet-accelerates-european-expansion',
   },
 
   // Pages that never show the banner. A trailing `/*` also matches every page below that path.

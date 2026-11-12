@@ -131,6 +131,7 @@ The only exceptions are:
   - _vulnerabilities:_ [`fleetdm/vulnerabilities`](https://github.com/fleetdm/vulnerabilities)
   - _nvd:_ [`fleetdm/nvd`](https://github.com/fleetdm/nvd)
 4. **Terraform modules:** Since Terraform clones the entire repo once per tagged version of a module, we maintain a separate repo for Terraform modules at [fleetdm/fleet-terraform](https://github.com/fleetdm/fleet-terraform) to expedite deployments using `terraform init`.
+5. **Customer-specific post-sale work:** Repositories whose names begin with the prefix `customer-` are for a specific purpose: tracking post-sale activation, services, and other post-sale work that is specific to a given customer.
 
 Besides the exceptions above, Fleet does not use any other repositories.  Other GitHub repositories in `fleetdm` should be archived and made private.
 
@@ -517,6 +518,11 @@ A: Those personal blocks (childcare, etc.) are fine and necessary.  The advice i
 A: You're better off booking 30-minute blocks instead.  Calendly is configured to start at clean :00 or :30 for a better prospect experience, so a 15-minute block creates unusable gaps.
 
 The underlying principle is simple: we optimize for the people on the other side of the calendar.  Limited or fragmented availability creates friction that hurts the prospect and customer experience.
+
+
+## Why do we use either Keynote or PDFs for presentations and collateral?
+
+Google Slides doesn't export PDFs properly sometimes, and it also has bad defaults around including skipped slides. Instead, at Fleet we use Keynote for all [public-facing slide decks and customer materials](/handbook/company/go-to-market-operations#slide-decks) (customers, prospects, investors, any time the audience is outside the company). [Prebuilt PDFs from the Fleet design team](/handbook/company/go-to-market-operations#slide-decks) can also be used.
 
 
 #### Stubs

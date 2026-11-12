@@ -41,11 +41,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/micromdm/plist"
@@ -66,6 +68,176 @@ func (s *integrationMDMTestSuite) TestUserAuthenticate() {
 
 	err = mdmDevice.UserAuthenticate()
 	require.ErrorContains(t, err, "410 Gone")
+}
+
+func (s *integrationMDMTestSuite) TestAppleMDMSharedPushTopic() {
+	t := s.T()
+	ctx := t.Context()
+
+	topic, err := assets.APNSTopic(ctx, s.ds)
+	require.NoError(t, err)
+
+	enrollInfo := mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.scepChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	}
+	devices := []*mdmtest.TestAppleMDMClient{
+		mdmtest.NewTestMDMClientAppleDirect(enrollInfo, "MacBookPro16,1", mdmtest.WithPushTopic(topic)),
+		mdmtest.NewTestMDMClientAppleDirect(enrollInfo, "iPhone14,6", mdmtest.WithPushTopic(topic)),
+	}
+	var deviceIDs []string
+	for _, d := range devices {
+		require.NoError(t, d.Enroll())
+		deviceIDs = append(deviceIDs, d.UUID)
+
+		var stored string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &stored, "SELECT topic FROM nano_enrollments WHERE id = ?", d.UUID)
+		})
+		require.Equal(t, topic, stored)
+	}
+
+	var (
+		pushedMu     sync.Mutex
+		pushedTopics []string
+	)
+	origPush := s.pushProvider.PushFunc
+	t.Cleanup(func() { s.pushProvider.PushFunc = origPush })
+	s.pushProvider.PushFunc = func(ctx context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
+		pushedMu.Lock()
+		defer pushedMu.Unlock()
+		for _, p := range pushes {
+			pushedTopics = append(pushedTopics, p.Topic)
+		}
+		return mockSuccessfulPush(ctx, pushes)
+	}
+
+	cmdUUID := uuid.NewString()
+	require.NoError(t, s.mdmCommander.CertificateList(ctx, deviceIDs, cmdUUID))
+	require.Equal(t, []string{topic, topic}, pushedTopics)
+
+	for _, d := range devices {
+		cmd, err := d.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		require.Equal(t, cmdUUID, cmd.CommandUUID)
+	}
+}
+
+func (s *integrationMDMTestSuite) TestPersonalEnrollmentFlagFromDevice() {
+	t := s.T()
+	ctx := t.Context()
+
+	enrollMac := func(mdmURL string) (*fleet.Host, *mdmtest.TestAppleMDMClient) {
+		device := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
+			SCEPChallenge: s.scepChallenge,
+			SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+			MDMURL:        mdmURL,
+		}, "MacBookPro16,1")
+		require.NoError(t, device.Enroll())
+		host, err := s.ds.HostByIdentifier(ctx, device.UUID)
+		require.NoError(t, err)
+		return host, device
+	}
+	isPersonal := func(host *fleet.Host) bool {
+		hostMDM, err := s.ds.GetHostMDM(ctx, host.ID)
+		require.NoError(t, err)
+		return hostMDM.IsPersonalEnrollment
+	}
+
+	t.Run("a company-owned host stays company-owned", func(t *testing.T) {
+		host, device := enrollMac(s.server.URL + apple_mdm.MDMPath)
+		require.False(t, isPersonal(host))
+
+		// The device repeats Authenticate and TokenUpdate, with its own identity, to the URL a personal profile has.
+		device.EnrollInfo.MDMURL = s.server.URL + apple_mdm.MDMPath + "?" + apple_mdm.FleetPersonalEnrollmentKey + "=1"
+		require.NoError(t, device.Authenticate())
+		require.NoError(t, device.TokenUpdate(false))
+
+		require.False(t, isPersonal(host))
+		var permissions int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &permissions, `SELECT access_rights FROM host_mdm_apple_enrollment_permissions WHERE host_uuid = ?`, host.UUID)
+		})
+		require.Equal(t, apple_mdm.MDMAccessRightAll, permissions)
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusOK)
+	})
+
+	t.Run("a new host enrolls as personal", func(t *testing.T) {
+		host, _ := enrollMac(s.server.URL + apple_mdm.MDMPath + "?" + apple_mdm.FleetPersonalEnrollmentKey + "=1")
+		require.True(t, isPersonal(host))
+	})
+
+	secret := "personal-flag-ota-secret"
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: secret}}},
+	}, http.StatusOK, &applyEnrollSecretSpecResponse{})
+	enrollOTA := func(device *mdmtest.TestAppleMDMClient) *fleet.Host {
+		require.NoError(t, device.Enroll())
+		host, err := s.ds.HostByIdentifier(ctx, device.UUID)
+		require.NoError(t, err)
+		return host
+	}
+
+	t.Run("a new host enrolls as personal over the air", func(t *testing.T) {
+		host := enrollOTA(mdmtest.NewTestMDMClientAppleOTA(s.server.URL, secret, "MacBookPro16,1", mdmtest.WithOTAPersonal()))
+		require.True(t, isPersonal(host))
+	})
+
+	t.Run("a company-owned host stays company-owned over the air", func(t *testing.T) {
+		corporate := mdmtest.NewTestMDMClientAppleOTA(s.server.URL, secret, "MacBookPro16,1")
+		host := enrollOTA(corporate)
+		require.False(t, isPersonal(host))
+
+		personal := mdmtest.NewTestMDMClientAppleOTA(s.server.URL, secret, "MacBookPro16,1", mdmtest.WithOTAPersonal())
+		personal.UUID, personal.SerialNumber = corporate.UUID, corporate.SerialNumber
+		host = enrollOTA(personal)
+		require.False(t, isPersonal(host))
+	})
+}
+
+func (s *integrationMDMTestSuite) TestDeviceChannelIDCannotTakeUserChannelID() {
+	t := s.T()
+	ctx := t.Context()
+	enrollInfo := mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.scepChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	}
+
+	victim := mdmtest.NewTestMDMClientAppleDirect(enrollInfo, "MacBookPro16,1")
+	require.NoError(t, victim.Enroll())
+	require.NoError(t, victim.UserEnroll())
+	userChannelID := victim.UUID + ":" + victim.UserUUID
+
+	type enrollment struct {
+		Type     string `db:"type"`
+		TokenHex string `db:"token_hex"`
+	}
+	readUserChannel := func() enrollment {
+		var e enrollment
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &e, `SELECT type, token_hex FROM nano_enrollments WHERE id = ?`, userChannelID)
+		})
+		return e
+	}
+	before := readUserChannel()
+	require.Equal(t, "User", before.Type)
+
+	// A device claims the user channel's ID as its UDID.
+	device := mdmtest.NewTestMDMClientAppleDirect(enrollInfo, "MacBookPro16,1")
+	device.UUID = userChannelID
+	require.ErrorContains(t, device.Enroll(), "400")
+
+	require.Equal(t, before, readUserChannel())
+	for _, table := range []string{"nano_devices", "nano_cert_auth_associations"} {
+		var n int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, `SELECT COUNT(*) FROM `+table+` WHERE id = ?`, userChannelID)
+		})
+		require.Zero(t, n, table)
+	}
 }
 
 func (s *integrationMDMTestSuite) TestGetBootstrapToken() {
@@ -187,7 +359,7 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	require.NotZero(t, mdmResp.RenewDate)
 
 	var countTokensResp countABMTokensResponse
-	s.DoJSON("GET", "/api/latest/fleet/abm_tokens/count", nil, http.StatusOK, &countTokensResp)
+	s.DoJSON("GET", "/api/latest/fleet/ab_tokens/count", nil, http.StatusOK, &countTokensResp)
 	assert.Equal(t, 0, countTokensResp.Count)
 
 	// set up multiple ABM tokens with different org names
@@ -197,7 +369,7 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	s.enableABM(tmOrgName)
 
 	var tokensResp listABMTokensResponse
-	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &tokensResp)
+	s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &tokensResp)
 
 	// for t.Name()
 	tok := s.getABMTokenByName(defaultOrgName, tokensResp.Tokens)
@@ -221,7 +393,7 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	require.Equal(t, fleet.TeamNameNoTeam, tok.IOSTeam.Name)
 	require.Equal(t, fleet.TeamNameNoTeam, tok.IPadOSTeam.Name)
 
-	s.DoJSON("GET", "/api/latest/fleet/abm_tokens/count", nil, http.StatusOK, &countTokensResp)
+	s.DoJSON("GET", "/api/latest/fleet/ab_tokens/count", nil, http.StatusOK, &countTokensResp)
 	assert.Equal(t, 2, countTokensResp.Count)
 
 	// create a new team
@@ -252,7 +424,7 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 
 	// try again, this time we get team assignments in the response
 	tokensResp = listABMTokensResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &tokensResp)
+	s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &tokensResp)
 
 	tok = s.getABMTokenByName(tmOrgName, tokensResp.Tokens)
 	require.NotNil(t, tok)
@@ -273,7 +445,7 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 		}`), http.StatusOK, &acResp)
 
 	tokensResp = listABMTokensResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &tokensResp)
+	s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &tokensResp)
 	tok = s.getABMTokenByName(tmOrgName, tokensResp.Tokens)
 	require.NotNil(t, tok)
 	require.False(t, tok.TermsExpired)
@@ -308,11 +480,11 @@ func (s *integrationMDMTestSuite) TestABMTeamPersistsOnConfigChange() {
 	require.NoError(t, err)
 
 	tokensResp := listABMTokensResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &tokensResp)
+	s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &tokensResp)
 	tok := s.getABMTokenByName(t.Name(), tokensResp.Tokens)
 	require.NotNil(t, tok)
 
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/abm_tokens/%d/teams", tok.ID), json.RawMessage(fmt.Sprintf(`{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/ab_tokens/%d/fleets", tok.ID), json.RawMessage(fmt.Sprintf(`{
     "ios_team_id": %d
 	}`, team.ID)), http.StatusOK, &updateABMTokenTeamsResponse{})
 
@@ -320,7 +492,7 @@ func (s *integrationMDMTestSuite) TestABMTeamPersistsOnConfigChange() {
     "org_info": {"org_name": "New name"}
 	}`), http.StatusOK, &appConfigResponse{})
 
-	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &tokensResp)
+	s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &tokensResp)
 
 	require.Len(t, tokensResp.Tokens, 1)
 	assert.Equal(t, team.Name, tokensResp.Tokens[0].IOSTeam.Name)
@@ -543,7 +715,7 @@ func (s *integrationMDMTestSuite) TestABMExpiredToken() {
 	err := fleetSyncer.RunAssigner(ctx)
 	require.ErrorContains(t, err, "T_C_NOT_SIGNED")
 	var tokensResp listABMTokensResponse
-	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &tokensResp)
+	s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &tokensResp)
 	tok := s.getABMTokenByName(t.Name(), tokensResp.Tokens)
 	require.NotNil(t, tok)
 	require.True(t, tok.TermsExpired)
@@ -555,7 +727,7 @@ func (s *integrationMDMTestSuite) TestABMExpiredToken() {
 	err = fleetSyncer.RunAssigner(ctx)
 	require.NoError(t, err)
 	tokensResp = listABMTokensResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &tokensResp)
+	s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &tokensResp)
 	tok = s.getABMTokenByName(t.Name(), tokensResp.Tokens)
 	require.NotNil(t, tok)
 	require.False(t, tok.TermsExpired)
@@ -568,7 +740,7 @@ func (s *integrationMDMTestSuite) TestABMExpiredToken() {
 	err = fleetSyncer.RunAssigner(ctx)
 	require.ErrorContains(t, err, "DEP auth error")
 	tokensResp = listABMTokensResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &tokensResp)
+	s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &tokensResp)
 	tok = s.getABMTokenByName(t.Name(), tokensResp.Tokens)
 	require.NotNil(t, tok)
 	require.False(t, tok.TermsExpired)
@@ -751,49 +923,6 @@ func (s *integrationMDMTestSuite) TestDeviceMultipleAuthMessages() {
 	s.Require().Len(listHostsRes.Hosts, 1)
 }
 
-func (s *integrationMDMTestSuite) TestAppleMDMCSRRequest() {
-	t := s.T()
-
-	var errResp validationErrResp
-	// missing arguments
-	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{}, http.StatusUnprocessableEntity, &errResp)
-	require.Len(t, errResp.Errors, 1)
-	require.Equal(t, "email_address", errResp.Errors[0].Name)
-
-	// invalid email address
-	errResp = validationErrResp{}
-	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "abc", Organization: "def"}, http.StatusUnprocessableEntity, &errResp)
-	require.Len(t, errResp.Errors, 1)
-	require.Equal(t, "email_address", errResp.Errors[0].Name)
-
-	// missing organization
-	errResp = validationErrResp{}
-	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: ""}, http.StatusUnprocessableEntity, &errResp)
-	require.Len(t, errResp.Errors, 1)
-	require.Equal(t, "organization", errResp.Errors[0].Name)
-
-	// fleetdm CSR request failed
-	s.FailNextCSRRequestWith(http.StatusBadRequest)
-	errResp = validationErrResp{}
-	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@gmail.com", Organization: "test"}, http.StatusUnprocessableEntity, &errResp)
-	require.Len(t, errResp.Errors, 1)
-	require.Contains(t, errResp.Errors[0].Reason, "CSR request failed. Email domain '@gmail.com' is not permitted for APNS certificate signing. Please use a corporate or organization email address.")
-
-	s.FailNextCSRRequestWith(http.StatusInternalServerError)
-	errResp = validationErrResp{}
-	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: "test"}, http.StatusBadGateway, &errResp)
-	require.Len(t, errResp.Errors, 1)
-	require.Contains(t, errResp.Errors[0].Reason, "FleetDM CSR request failed")
-
-	var reqCSRResp requestMDMAppleCSRResponse
-	// fleetdm CSR request succeeds
-	s.SucceedNextCSRRequest()
-	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: "test"}, http.StatusOK, &reqCSRResp)
-	require.Contains(t, string(reqCSRResp.APNsKey), "-----BEGIN RSA PRIVATE KEY-----\n")
-	require.Contains(t, string(reqCSRResp.SCEPCert), "-----BEGIN CERTIFICATE-----\n")
-	require.Contains(t, string(reqCSRResp.SCEPKey), "-----BEGIN RSA PRIVATE KEY-----\n")
-}
-
 func (s *integrationMDMTestSuite) TestGetMDMCSR() {
 	t := s.T()
 	ctx := context.Background()
@@ -882,11 +1011,11 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 	h := listHostsRes.Hosts[0]
 
 	// assign profiles to the host
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest([][]byte{
 		mobileconfigForTest("N1", "I1"),
 		mobileconfigForTest("N2", "I2"),
 		mobileconfigForTest("N3", "I3"),
-	}}, http.StatusNoContent)
+	}), http.StatusNoContent)
 
 	// trigger a sync and verify that there are profiles assigned to the host
 	s.awaitTriggerProfileSchedule(t)
@@ -1086,7 +1215,7 @@ func (s *integrationMDMTestSuite) TestFleetdConfiguration() {
 		Name:    tm.Name,
 		Secrets: &[]fleet.EnrollSecret{{Secret: t.Name() + "team-secret"}},
 	}}}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
 
 	// a new fleetd configuration profile for that team is created
 	s.awaitTriggerProfileSchedule(t)
@@ -1208,19 +1337,15 @@ func (s *integrationMDMTestSuite) TestABMAssetManagement() {
 	require.NoError(t, abmResp.Err)
 	require.NotEmpty(t, abmResp.PublicKey)
 
-	// the deprecated abm_public_key path still resolves to the same endpoint
-	var deprecatedResp generateABMKeyPairResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/abm_public_key", nil, http.StatusOK, &deprecatedResp)
-	require.NoError(t, deprecatedResp.Err)
-	require.NotEmpty(t, deprecatedResp.PublicKey)
+	s.Do("GET", "/api/latest/fleet/mdm/apple/abm_public_key", nil, http.StatusGone)
 
 	var tokensResp listABMTokensResponse
-	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &tokensResp)
+	s.DoJSON("GET", "/api/latest/fleet/ab_tokens", nil, http.StatusOK, &tokensResp)
 	tok := s.getABMTokenByName(t.Name(), tokensResp.Tokens)
 	require.NotNil(t, tok)
 
 	// disable ABM
-	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/abm_tokens/%d", tok.ID), nil, http.StatusNoContent)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/ab_tokens/%d", tok.ID), nil, http.StatusNoContent)
 	tok, err := s.ds.GetABMTokenByOrgName(ctx, t.Name())
 	var nfe fleet.NotFoundError
 	require.ErrorAs(t, err, &nfe)
@@ -1905,6 +2030,52 @@ func (s *integrationMDMTestSuite) TestAppleEnrollmentProfilesCarryBoundSCEPChall
 	})
 }
 
+func (s *integrationMDMTestSuite) TestADUETokenUpdateLinksCertificateIdPAccount() {
+	t := s.T()
+	ctx := context.Background()
+
+	newAccount := func(name string) (*fleet.MDMIdPAccount, string) {
+		account := &fleet.MDMIdPAccount{UUID: uuid.NewString(), Username: name, Email: name + "@example.com"}
+		require.NoError(t, s.ds.InsertMDMIdPAccount(ctx, account))
+		token, err := s.ds.InsertADUEEnrollmentChallenge(ctx, nil, account.UUID, time.Hour)
+		require.NoError(t, err)
+		return account, token
+	}
+	requireLinked := func(device *mdmtest.TestAppleMDMClient, want *fleet.MDMIdPAccount) {
+		linked, err := s.ds.GetMDMIdPAccountByHostUUID(ctx, device.EnrollmentID())
+		require.NoError(t, err)
+		host, err := s.ds.HostByIdentifier(ctx, device.EnrollmentID())
+		require.NoError(t, err)
+		managedAppleID, err := s.ds.GetHostManagedAppleID(ctx, host.ID)
+		require.NoError(t, err)
+		if want == nil {
+			require.Nil(t, linked)
+			require.Empty(t, managedAppleID)
+			return
+		}
+		require.NotNil(t, linked)
+		require.Equal(t, want.UUID, linked.UUID)
+		require.Equal(t, want.Email, managedAppleID)
+	}
+
+	// the other user's challenge is already used by their own enrollment
+	otherAccount, otherToken := newAccount("adue-other")
+	otherDevice := mdmtest.NewTestMDMClientAppleAccountDrivenUserEnrollment(s.server.URL, "iPhone14,5", otherToken)
+	require.NoError(t, otherDevice.Enroll())
+	requireLinked(otherDevice, otherAccount)
+
+	// this device's certificate is issued for its own account, then its first TokenUpdate sends the other challenge
+	ownAccount, ownToken := newAccount("adue-own")
+	device := mdmtest.NewTestMDMClientAppleAccountDrivenUserEnrollment(s.server.URL, "iPhone14,5", ownToken)
+	require.NoError(t, device.FetchAccountDrivenEnrollmentProfile())
+	require.NoError(t, device.SCEPEnroll())
+	require.NoError(t, device.Authenticate())
+	device.SetAuthorizationBearerToken(otherToken)
+	require.NoError(t, device.TokenUpdate(true))
+	requireLinked(device, ownAccount)
+	requireLinked(otherDevice, otherAccount)
+}
+
 func (s *integrationMDMTestSuite) TestOTAProfile() {
 	t := s.T()
 	ctx := context.Background()
@@ -1985,6 +2156,52 @@ func (s *integrationMDMTestSuite) TestOTAProfile() {
 		})
 		s.Do("GET", "/api/latest/fleet/enrollment_profiles/ota", &getOTAProfileRequest{}, http.StatusForbidden, "enroll_secret", globalEnrollSec)
 	})
+}
+
+// A Mac assigned to Fleet in Apple Business can still be enrolled by hand. How it enrolled, not the assignment, decides
+// whether the enrollment is reported and handled as automatic.
+func (s *integrationMDMTestSuite) TestManualEnrollmentOfAppleBusinessAssignedMac() {
+	t := s.T()
+	ctx := t.Context()
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   new(uuid.NewString()),
+		NodeKey:         new(uuid.NewString()),
+		Hostname:        "ab-assigned-manual.local",
+		Platform:        "darwin",
+		HardwareModel:   "MacBookPro16,1",
+		UUID:            strings.ToUpper(uuid.NewString()),
+		HardwareSerial:  mdmtest.RandSerialNumber(),
+	})
+	require.NoError(t, err)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO host_dep_assignments (host_id, hardware_serial) VALUES (?, ?)`, host.ID, host.HardwareSerial)
+		return err
+	})
+
+	desktopToken := uuid.NewString()
+	require.NoError(t, s.ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, desktopToken))
+	mdmDevice := mdmtest.NewTestMDMClientAppleDesktopManual(s.server.URL, desktopToken)
+	mdmDevice.UUID, mdmDevice.SerialNumber = host.UUID, host.HardwareSerial
+	// Reenroll doesn't report AwaitingConfiguration, which a manual enrollment never does.
+	require.NoError(t, mdmDevice.Reenroll())
+
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(), fmt.Sprintf(
+		`{"host_id": %d, "host_serial": %q, "enrollment_id": null, "host_display_name": %q, "installed_from_dep": false, "mdm_platform": "apple", "platform": "darwin"}`,
+		host.ID, host.HardwareSerial, host.Hostname,
+	), 0)
+
+	var tasks []string
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &tasks,
+			`SELECT JSON_UNQUOTE(JSON_EXTRACT(args, '$.task')) FROM jobs WHERE name = 'apple_mdm' AND JSON_UNQUOTE(JSON_EXTRACT(args, '$.host_uuid')) = ?`,
+			host.UUID)
+	})
+	require.Equal(t, []string{string(worker.AppleMDMPostManualEnrollmentTask)}, tasks)
 }
 
 // A host's identity is tied to the device enrolled under its UUID. A check-in from another enrollment that reports

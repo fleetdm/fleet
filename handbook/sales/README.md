@@ -9,6 +9,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 |:--------------------------------------|:------------------------------------------------------------------------------------------|
 | SVP of Global Sales                   | [Chaz MacLaughlin](https://www.linkedin.com/in/chazmaclaughlin/) _([@chazmac6](https://github.com/chazmac6))_
 | Head of Strategic Growth               | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
+| Director of Sales & Channel, EMEA     | [Damon Sabrkesh](https://www.linkedin.com/in/damon-sabrkesh/) _([@Nine9one](https://github.com/Nine9one))_
 | Channel Manager, North America        | [Eric Comeau](https://www.linkedin.com/in/escomeau/) _([@escomeau](https://github.com/escomeau))_ <br> [Suzy Beck](https://www.linkedin.com/in/suzy-beck/) _([@SuzyBeck](https://github.com/suzybeck))_
 | Account Executive (AE)                | <sup><sub> _See [🚂 Go-To-Market operations](https://fleetdm.com/handbook/company/go-to-market-operations#current-gtm-motions)_
 | Solutions Consultant (SC)             | <sup><sub> _See [🚂 Go-To-Market operations](https://fleetdm.com/handbook/company/go-to-market-operations#current-gtm-motions)_
@@ -225,7 +226,7 @@ _*NDAs*_
 
 _*MSAs, DPAs, and reseller agreements*_
 
-- Email these to outside counsel and cc deal desk, CFO, and SVP Sales.
+- Email these to outside counsel and cc Deal Desk.
 - Once outside counsel returns a draft, deal desk or CFO will review and approve it is ready to be sent back to the customer or reseller.
 - When all negotiations are concluded and terms are agreed upon, Nate will make sure the document is clean and ready for signature.
 - Final drafts will be indicated in the naming convention, using "YYYY-MM-DD [Customer Name] FINAL" to indicate the document is ready to be sent for signature.  

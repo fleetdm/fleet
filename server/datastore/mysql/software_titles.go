@@ -558,11 +558,14 @@ func (ds *Datastore) processSoftwareTitleResults(
 		// always carry a non-nil InstallerID; VPP-backed policies do not
 		// (they're already attached above via softwareList[i].AppStoreApp).
 		policiesByInstaller := make(map[uint][]fleet.AutomaticInstallPolicy)
+		policiesByVersionID := make(map[uint][]fleet.AutomaticInstallPolicy)
 		for _, p := range policies {
-			if p.InstallerID == nil {
-				continue
+			if p.InstallerID != nil {
+				policiesByInstaller[*p.InstallerID] = append(policiesByInstaller[*p.InstallerID], p)
 			}
-			policiesByInstaller[*p.InstallerID] = append(policiesByInstaller[*p.InstallerID], p)
+			if p.VPPAppsTeamsID != nil {
+				policiesByVersionID[*p.VPPAppsTeamsID] = append(policiesByVersionID[*p.VPPAppsTeamsID], p)
+			}
 		}
 		for titleID, pkgs := range packagesByTitle {
 			i, ok := titleIndex[titleID]
@@ -573,6 +576,33 @@ func (ds *Datastore) processSoftwareTitleResults(
 				pkgs[j].AutomaticInstallPolicies = policiesByInstaller[pkgs[j].InstallerID]
 			}
 			softwareList[i].Packages = pkgs
+		}
+
+		var appStoreAppTitleIDs []uint
+		for _, title := range softwareList {
+			if title.AppStoreApp != nil {
+				appStoreAppTitleIDs = append(appStoreAppTitleIDs, title.ID)
+			}
+		}
+		appStoreApps, err := ds.getAppStoreAppVersionsForTitles(ctx, opt.TeamID, appStoreAppTitleIDs)
+		if err != nil {
+			return nil, 0, nil, ctxerr.Wrap(ctx, err, "get app store apps for software titles")
+		}
+		for _, appStoreApp := range appStoreApps {
+			title := softwareList[titleIndex[appStoreApp.TitleID]]
+			listItem := fleet.AppStoreAppListItem{
+				ID:                       appStoreApp.VPPAppsTeamsID,
+				Name:                     appStoreApp.VersionName,
+				AppStoreID:               appStoreApp.AdamID,
+				Platform:                 appStoreApp.Platform,
+				Version:                  appStoreApp.LatestVersion,
+				SelfService:              appStoreApp.SelfService,
+				AutomaticInstallPolicies: policiesByVersionID[appStoreApp.VPPAppsTeamsID],
+			}
+			if opt.ForSetupExperience {
+				listItem.InstallDuringSetup = appStoreApp.InstallDuringSetup
+			}
+			title.AppStoreApps = append(title.AppStoreApps, listItem)
 		}
 	}
 
@@ -1564,44 +1594,6 @@ func (ds *Datastore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time
 		}
 		return nil
 	})
-}
-
-func (ds *Datastore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error {
-	// Validate schedule if enabled.
-	if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled {
-		schedule := fleet.SoftwareAutoUpdateSchedule{
-			SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
-				AutoUpdateEnabled:   config.AutoUpdateEnabled,
-				AutoUpdateStartTime: config.AutoUpdateStartTime,
-				AutoUpdateEndTime:   config.AutoUpdateEndTime,
-			},
-		}
-		if err := schedule.WindowIsValid(); err != nil {
-			return ctxerr.Wrap(ctx, err, "validating auto-update schedule")
-		}
-	}
-	var startTime, endTime string
-	if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled && config.AutoUpdateStartTime != nil {
-		startTime = *config.AutoUpdateStartTime
-	}
-	if config.AutoUpdateEnabled != nil && *config.AutoUpdateEnabled && config.AutoUpdateEndTime != nil {
-		endTime = *config.AutoUpdateEndTime
-	}
-
-	stmt := `
-UPDATE vpp_apps_teams vat
-JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
-SET
-	vat.update_schedule_enabled = ?,
-	vat.start_time = IF(? = '', vat.start_time, ?),
-	vat.end_time = IF(? = '', vat.end_time, ?)
-WHERE va.title_id = ? AND vat.global_or_team_id = ?
-`
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, config.AutoUpdateEnabled, startTime, startTime, endTime, endTime, titleID, teamID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "updating software title auto update config")
-	}
-	return nil
 }
 
 func (ds *Datastore) ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {

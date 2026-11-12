@@ -10,6 +10,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 | VP of IT Strategy                 | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_
 | Content Specialist | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([@irenareedy](https://github.com/irenareedy))_
 | IT Support Administrator             | [Andrea Pepper](https://www.linkedin.com/in/lppepper/) _([@lppepper2](https://github.com/lppepper2))_ 
+| Windows Technical Marketing Engineer | [Deelan Sabido](https://www.linkedin.com/in/deelansabido/) _([@d-sabido](https://github.com/d-sabido))_
 
 
 

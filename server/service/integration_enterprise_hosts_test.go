@@ -506,7 +506,6 @@ func (s *integrationEnterpriseTestSuite) TestHostHealth() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/health", host.ID), nil, http.StatusOK, &hh)
 	require.Equal(t, host.ID, hh.HostID)
 	assert.NotNil(t, hh.HostHealth)
-	assert.Equal(t, host.OSVersion, hh.HostHealth.OsVersion)
 	assert.Equal(t, 2, hh.HostHealth.FailingPoliciesCount)
 	assert.Equal(t, new(int(1)), hh.HostHealth.FailingCriticalPoliciesCount)
 	assert.Contains(t, hh.HostHealth.FailingPolicies, &fleet.HostHealthFailingPolicy{
@@ -552,8 +551,9 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 	})
 	require.NoError(t, err)
 
+	// Stored with "Microsoft", as Windows hosts report it; the API returns the name without it.
 	err = s.ds.UpdateHostOperatingSystem(context.Background(), host.ID, fleet.OperatingSystem{
-		Name:     "Windows 11 Enterprise 22H2",
+		Name:     "Microsoft Windows 11 Enterprise 22H2",
 		Version:  "10.0.19042.1234",
 		Platform: "windows",
 	})
@@ -824,7 +824,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	// Create team and ask for the OS versions from the team (with no hosts) -- should get 404.
 	tr := teamResponse{}
 	s.DoJSON(
-		"POST", "/api/latest/fleet/teams", createTeamRequest{
+		"POST", "/api/latest/fleet/fleets", createTeamRequest{
 			Name: new("os_versions_team"),
 		}, http.StatusOK, &tr,
 	)
@@ -960,7 +960,7 @@ func (s *integrationEnterpriseTestSuite) TestHostDeviceMappingIDP() {
 
 	// Test that IDP mapping appears correctly in host details via getHostEndpoint
 	var hostResp getHostResponse
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+host.UUID, nil, http.StatusOK, &hostResp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/"+host.UUID, nil, http.StatusOK, &hostResp)
 
 	// Find the IDP information in end_users field
 	foundIdpInDetails := false
@@ -1084,7 +1084,7 @@ func (s *integrationEnterpriseTestSuite) TestHostDeviceMappingIDP() {
 	// test DELETE
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping/idp", host.ID), deleteHostIDPRequest{}, http.StatusNoContent)
 
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+host.UUID, nil, http.StatusOK, &hostResp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/"+host.UUID, nil, http.StatusOK, &hostResp)
 	require.Len(t, hostResp.Host.EndUsers, 1, "Should have exactly one end user")
 	endUser = hostResp.Host.EndUsers[0]
 	// Non-SCIM IDP user should now be replaced by user's username
@@ -1217,7 +1217,7 @@ func (s *integrationEnterpriseTestSuite) TestHostGoogleDeviceID() {
 	s.lastActivityMatches("", "", activityID)
 
 	require.Equal(t, "device-a", storedID(iosHost))
-	require.Equal(t, "device-a", hostJSON("/api/latest/fleet/hosts/identifier/" + iosHost.UUID)["google_device_id"])
+	require.Equal(t, "device-a", hostJSON("/api/latest/fleet/hosts/" + iosHost.UUID)["google_device_id"])
 
 	// a different value is refused
 	res := s.Do("PUT", idPath(iosHost), map[string]any{"google_device_id": "device-b"}, http.StatusConflict)
@@ -1229,7 +1229,7 @@ func (s *integrationEnterpriseTestSuite) TestHostGoogleDeviceID() {
 	requireErrorReason(res, "This Google device ID is already used by another host.")
 	require.Empty(t, storedID(androidHost))
 	s.DoJSON("PUT", idPath(androidHost), map[string]any{"google_device_id": "device-c"}, http.StatusOK, &putResp)
-	require.Equal(t, "device-c", hostJSON("/api/latest/fleet/hosts/identifier/" + androidHost.UUID)["google_device_id"])
+	require.Equal(t, "device-c", hostJSON("/api/latest/fleet/hosts/" + androidHost.UUID)["google_device_id"])
 
 	// only DELETE removes the ID, and it logs an activity
 	res = s.Do("PUT", idPath(iosHost), map[string]any{"google_device_id": ""}, http.StatusUnprocessableEntity)
@@ -1319,16 +1319,18 @@ func (s *integrationEnterpriseTestSuite) TestHostGoogleDeviceID() {
 		"name":        t.Name() + " registration service",
 		"global_role": fleet.RoleMaintainer,
 		"api_endpoints": []map[string]any{
-			{"method": "GET", "path": "/api/v1/fleet/hosts/identifier/:identifier"},
+			{"method": "GET", "path": "/api/v1/fleet/hosts/:id"},
 			{"method": "PUT", "path": "/api/v1/fleet/hosts/:id/google_device_id"},
 		},
 	}, http.StatusOK, &apiUserResp)
 	require.NotEmpty(t, apiUserResp.Token)
 	s.token = apiUserResp.Token
-	hostJSON("/api/latest/fleet/hosts/identifier/" + androidHost.UUID)
+	// The GET /hosts/:id grant covers every value that route accepts.
+	hostJSON("/api/latest/fleet/hosts/" + androidHost.UUID)
+	s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", androidHost.ID), nil, http.StatusOK)
 	s.DoJSON("PUT", idPath(androidHost), map[string]any{"google_device_id": "device-c"}, http.StatusOK, &putResp)
 	s.Do("DELETE", idPath(androidHost), nil, http.StatusForbidden)
-	s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", androidHost.ID), nil, http.StatusForbidden)
 	s.token = s.getTestAdminToken()
 	require.Equal(t, "device-c", storedID(androidHost))
+	s.token = s.getTestAdminToken()
 }

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "8.5.0",
+      "version": "8.5.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'AOMEI Backupper' AND publisher = 'AOMEI International Network Limited.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'AOMEI Backupper' AND publisher = 'AOMEI International Network Limited.' AND version_compare(version, '8.5.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'AOMEI Backupper' AND publisher = 'AOMEI International Network Limited.' AND version_compare(version, '8.5.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'aomei backupper standard.exe');"
       },
-      "installer_url": "https://www2.aomeisoftware.com/download/adb/AOMEIBackupperStd.exe",
+      "installer_url": "https://www.aomeiget.com/download/adb/AOMEIBackupperStd.exe",
       "install_script_ref": "03d967ed",
       "uninstall_script_ref": "e92f2668",
-      "sha256": "4ec9445146641a8f5a5f48dd484372f1ee8cc8f19d4f15e41086d0dd6bc0621f",
+      "sha256": "660208acbd0d566823ae0628e9430d903a98d1f322dfdc90f54c2c62d8e49466",
       "default_categories": [
         "Utilities"
       ]

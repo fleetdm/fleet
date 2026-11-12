@@ -6,10 +6,10 @@
           <div purpose="page-hero-content">
             <div purpose="page-hero-headings">
               <h4>Windows Device Management</h4>
-              <h1>Open source Windows MDM for modern IT teams</h1>
+              <h1>AI-native Windows MDM for modern IT teams</h1>
             </div>
             <div purpose="page-hero-text">
-              <p>Enroll, configure, and secure Windows 10 and 11 at enterprise scale. Manage Windows alongside macOS, Linux, iOS, iPadOS, Android, and ChromeOS in one place.</p>
+              <p>Enroll, configure, and secure Windows 10 and 11 at enterprise scale. Say what you need done, approve the change, and Fleet handles the rest. Zero touch, with no Microsoft license required.</p>
             </div>
             <div purpose="button-row">
               <a purpose="cta-button" class="btn btn-primary" href="/contact?talkToUs">Get a demo</a>
@@ -34,7 +34,7 @@
       <div purpose="landing-page-section">
         <div purpose="section-heading">
           <h2>What is Windows MDM?</h2>
-          <p>Windows mobile device management (MDM) is the software and protocols IT teams use to enroll, configure, secure, and report on Windows 10 and Windows 11 endpoints at scale. A Windows MDM platform applies configuration through <a href="/guides/creating-windows-csps">Windows Configuration Service Providers (CSPs)</a>, enforces disk encryption with BitLocker, distributes software and OS updates, and reports back on device posture. Fleet is an open source Windows MDM that does this across Windows, macOS, Linux, iOS, iPadOS, Android, and ChromeOS from a single platform, with policies version-controlled in Git instead of clicked through a console.</p>
+          <p>Windows mobile device management (MDM) is the software and protocols IT teams use to enroll, configure, secure, and report on Windows 10 and Windows 11 devices at scale. A Windows MDM platform applies configuration through <a href="/guides/creating-windows-csps">Windows Configuration Service Providers (CSPs)</a>, enforces disk encryption with BitLocker, distributes software and OS updates, and reports back on device posture. Fleet is an <a href="/windows">AI-native, open source Windows MDM</a> that does this across Windows, macOS, Linux, iOS, iPadOS, Android, and ChromeOS from a single platform. AI drafts each change, and your team approves it before it touches a device.</p>
         </div>
       </div>
 
@@ -49,17 +49,41 @@
             <p>Single-platform tools force IT to run separate consoles for Macs, Linux, and mobile, with separate inventories.</p>
           </div>
           <div purpose="feature-item">
-            <h5>ClickOps and config drift</h5>
-            <p>Changes happen in a GUI with no version history. One bad policy silently rolls out, and rollback is a ticket, not a revert.</p>
+            <h5>Slow, risky changes</h5>
+            <p>Changes happen by hand in a console, with no review and no history. One bad policy rolls out silently, and rolling back is a ticket, not an undo.</p>
           </div>
           <div purpose="feature-item">
             <h5>Cached, stale visibility</h5>
-            <p>Periodic check-ins miss the real-time posture security teams and auditors need to see across every endpoint.</p>
+            <p>Periodic check-ins miss the real-time posture security teams and auditors need to see across every device.</p>
           </div>
           <div purpose="feature-item">
-            <h5>Cloud-only lock-in</h5>
-            <p>Proprietary, vendor-hosted platforms keep your device data outside your network, with limited export and steep renewals.</p>
+            <h5>Paying to set up a laptop</h5>
+            <p>Autopilot requires Microsoft Entra ID P1 for every user, even if your company already chose Okta or Google for identity.</p>
           </div>
+        </div>
+      </div>
+
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h2>Zero touch, $0</h2>
+          <p>Ship new Windows PCs straight to employees. No Autopilot, no Entra ID, and no Intune. Fleet supports Autopilot and Entra if you want them, but zero touch with Fleet needs no Microsoft license.</p>
+        </div>
+        <div purpose="feature-row">
+          <div purpose="feature-item">
+            <h5>Forward the order email</h5>
+            <p>Fleet gives you an order email. Forward it to Dell, Lenovo, or HP with your next hardware order.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>They install Fleet before the PC ships</h5>
+            <p>Your hardware provider installs Fleet at the factory, so every new PC arrives already managed by Fleet. Foldables, Copilot+ PCs, and Arm laptops included.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Your employee opens the lid</h5>
+            <p>The PC enrolls the first time it’s online. Fleet installs software, applies settings, and turns on BitLocker. Nobody in IT touches it.</p>
+          </div>
+        </div>
+        <div purpose="section-heading">
+          <p>Proven in production on thousands of Windows PCs. Moving off Intune? For qualifying teams, Fleet covers your hardware provider’s one-time setup fee for new PCs. <a href="/articles/autopilot-without-autopilot">See how it works</a>.</p>
         </div>
       </div>
 
@@ -70,10 +94,10 @@
           </div>
           <div purpose="feature-text">
             <h3>Manage Windows with the visibility and control modern IT teams need</h3>
-            <p>Fleet is <a href="/lp/open-source">open source</a> Windows device management built on the <a href="/guides/windows-mdm-setup">Windows MDM protocol</a> and osquery. Enroll, configure, encrypt, and patch every Windows endpoint in your fleet without giving up transparency or cross-platform support.</p>
+            <p>Fleet is <a href="/lp/open-source">open source</a>, AI-native Windows device management built on the <a href="/guides/windows-mdm-setup">Windows MDM protocol</a> and osquery. Enroll, configure, encrypt, and patch every Windows device without giving up transparency or cross-platform support.</p>
             <div purpose="checklist">
-              <p>Zero-touch enrollment with <a href="/guides/windows-mdm-setup#step-2-connect-fleet-to-microsoft-entra-id">Microsoft Entra ID</a> and Windows Autopilot.</p>
-              <p>Enforce BitLocker, configuration profiles, and OS settings from version-controlled YAML.</p>
+              <p>Zero touch, $0. Your <a href="/guides/windows-mdm-setup#zero-touch-enrollment-with-an-oem-service">hardware provider installs Fleet</a> before each PC ships. No Autopilot, Entra ID P1, or Intune required.</p>
+              <p>Enforce BitLocker, configuration profiles, and OS settings with prompts like “Disable camera in Firefox.”</p>
               <p>Patch Windows, install Fleet-maintained apps, and run remediation scripts on demand.</p>
               <p>Continuously evaluate CIS Benchmarks for Windows and surface vulnerabilities in real time.</p>
             </div>
@@ -103,16 +127,16 @@
       <div purpose="landing-page-section">
         <div purpose="section-heading">
           <h2>Built for Windows-first and mixed-fleet teams</h2>
-          <p>Whether you manage 500 Windows laptops or 50,000, Fleet gives Windows admins the depth Microsoft endpoints require and the cross-platform reach the rest of the business needs.</p>
+          <p>Whether you manage 500 Windows laptops or 50,000, Fleet gives Windows admins the depth Windows devices require and the cross-platform reach the rest of the business needs.</p>
         </div>
         <div purpose="feature-row">
           <div purpose="feature-item">
-            <h5>Microsoft Entra ID integration</h5>
-            <p>Connect Fleet to <a href="/guides/windows-mdm-setup#step-2-connect-fleet-to-microsoft-entra-id">Entra ID</a> so end users self-enroll the first time they sign in. IdP identities map to hosts automatically.</p>
+            <h5>Zero touch, $0</h5>
+            <p>Your hardware provider installs Fleet before each PC ships, so devices arrive ready and enroll the first time they’re online. No Autopilot, Entra ID P1, or Intune required.</p>
           </div>
           <div purpose="feature-item">
-            <h5>Windows Autopilot support</h5>
-            <p>Layer Fleet onto Autopilot for zero-touch provisioning. Devices arrive ready, with profiles and apps applied during setup.</p>
+            <h5>Microsoft Entra ID and Autopilot support</h5>
+            <p>Prefer Entra ID? Connect Fleet to <a href="/guides/windows-mdm-setup#step-2-connect-fleet-to-microsoft-entra-id">Entra ID</a> so end users self-enroll the first time they sign in, or layer Fleet onto Autopilot. Both need a per-user Entra ID P1 license. IdP identities map to hosts automatically.</p>
           </div>
           <div purpose="feature-item">
             <h5>BitLocker disk encryption</h5>
@@ -120,7 +144,7 @@
           </div>
           <div purpose="feature-item">
             <h5>Windows OS settings and CSPs</h5>
-            <p>Apply OS settings and configuration profiles through <a href="/guides/creating-windows-csps">Windows Configuration Service Providers</a>. Author them once, review them in Git.</p>
+            <p>Apply OS settings and configuration profiles through <a href="/guides/creating-windows-csps">Windows Configuration Service Providers</a>. Describe the setting you want, and AI drafts the CSP for your review.</p>
           </div>
           <div purpose="feature-item">
             <h5>Software and patching</h5>
@@ -148,17 +172,17 @@
       <div purpose="landing-page-section">
         <div purpose="feature-with-image">
           <div purpose="feature-text">
-            <h3>GitOps and AI-ready Windows device management</h3>
-            <p>Every Fleet configuration is a file. Store your Windows OS settings, BitLocker policies, scripts, and software in your own Git repository. Review device changes the way you review code, ship them through CI, and roll back with a single revert. Walk through it live at a <a href="/gitops-workshop">GitOps workshop</a>.</p>
+            <h3>Get AI working for you</h3>
+            <p>Fleet works natively with your team’s AI tools, like Copilot, Claude, or any AI harness. Say what you need done. AI proposes the change, and a person on your team approves it before it touches a device. Practice it live at a <a href="/gitops-workshop">free workshop</a> and get certified.</p>
             <div purpose="checklist">
-              <p>Version-controlled OS settings, configuration profiles, and policies in YAML.</p>
-              <p>Peer-review device changes in pull requests before they reach production.</p>
-              <p>Manage Windows and macOS profiles in the same commit, in the same repo.</p>
-              <p>Generate Fleet config with any LLM, from ChatGPT and Claude to private models.</p>
+              <p>Configure Windows and third-party apps with prompts like “Disable camera in Firefox.”</p>
+              <p>Ask your PCs what’s patched and what’s compliant, and get answers in seconds.</p>
+              <p>Review every change before it ships, and undo any mistake.</p>
+              <p>Change Windows and Mac settings together, in one request.</p>
             </div>
           </div>
-          <div purpose="feature-image">
-            <img alt="A diagram showing Fleet's GitOps workflow for Windows MDM configuration profiles." src="/images/articles/fleet-windows-mdm-launch-gitops-flow-800x640@2x.png">
+          <div purpose="feature-demo">
+            <teams-chat-graphic></teams-chat-graphic>
           </div>
         </div>
       </div>
@@ -166,12 +190,12 @@
       <div purpose="landing-page-section">
         <div purpose="section-heading">
           <h2>How Fleet is different from Intune and other Windows MDMs</h2>
-          <p>Microsoft Intune covers Windows. Fleet covers Windows the same way, then adds the things Intune structurally can’t: version-controlled configuration, live osquery data, real cross-platform parity, and an open source codebase you can run on your own infrastructure.</p>
+          <p>Microsoft Intune covers Windows. Fleet covers Windows the same way, then adds the things Intune structurally can’t: AI-native changes with human review, zero touch without a Microsoft license, live osquery data, real cross-platform parity, and an open source codebase you can run on your own infrastructure.</p>
         </div>
         <div purpose="feature-row">
           <div purpose="feature-item">
-            <h5>GitOps for every change</h5>
-            <p>Windows MDM policies, BitLocker settings, and Windows Update deadlines live in YAML, reviewed via pull request before any device sees a change.</p>
+            <h5>AI with a human in the loop</h5>
+            <p>Ask for a change to Windows policies, BitLocker settings, or Windows Update deadlines. AI drafts it, and your team reviews it before any device sees it.</p>
           </div>
           <div purpose="feature-item">
             <h5>Live osquery, not cached check-ins</h5>
@@ -179,15 +203,15 @@
           </div>
           <div purpose="feature-item">
             <h5>Same depth across macOS and Linux</h5>
-            <p>Manage Windows, <a href="/lp/apple-mdm">Macs</a>, and <a href="/linux-management">Linux servers</a> with the same API, the same policies, and the same dashboard. No second tool for the other half of your fleet.</p>
+            <p>Manage <a href="/windows">Windows</a>, <a href="/apple">Macs</a>, and <a href="/linux">Linux servers</a> with the same API, the same policies, and the same dashboard. No second tool for the other half of your fleet.</p>
           </div>
           <div purpose="feature-item">
             <h5>Open source and self-hostable</h5>
             <p><a href="/lp/open-source">Fleet is MIT-licensed</a>. Audit the code, run it in your own VPC, or use Fleet Cloud with 100% feature parity. No Microsoft cloud dependency.</p>
           </div>
           <div purpose="feature-item">
-            <h5>One API for every endpoint</h5>
-            <p>Every feature in the Fleet UI is available over the REST API. Integrate Windows posture with Okta, Jira, Slack, Snowflake, and your SIEM.</p>
+            <h5>Remote lock for Windows</h5>
+            <p>Unlike Intune, Fleet lets you lock Windows 10 and 11 devices to cut off access fast when someone leaves or during a security incident.</p>
           </div>
           <div purpose="feature-item">
             <h5>Scope transparency for end users</h5>
@@ -209,7 +233,7 @@
                   <span class="fa fa-angle-down"></span>
                 </p>
                 <p purpose="faq-answer" id="win-faq__body1" class="collapse" aria-labelledby="win-faq__header1">
-                  Windows mobile device management (MDM) is the software and protocols IT teams use to enroll, configure, secure, and report on Windows 10 and Windows 11 endpoints at scale. A Windows MDM platform applies settings through Windows Configuration Service Providers (CSPs), enforces disk encryption with BitLocker, distributes software and OS updates, and reports back on device posture. Fleet does this across Windows, macOS, Linux, iOS, iPadOS, Android, and ChromeOS from a single open source platform.
+                  Windows mobile device management (MDM) is the software and protocols IT teams use to enroll, configure, secure, and report on Windows 10 and Windows 11 devices at scale. A Windows MDM platform applies settings through Windows Configuration Service Providers (CSPs), enforces disk encryption with BitLocker, distributes software and OS updates, and reports back on device posture. Fleet does this across Windows, macOS, Linux, iOS, iPadOS, Android, and ChromeOS from a single open source platform.
                 </p>
               </div>
               <div purpose="accordion-item">
@@ -218,7 +242,7 @@
                   <span class="fa fa-angle-down"></span>
                 </p>
                 <p purpose="faq-answer" id="win-faq__body2" class="collapse" aria-labelledby="win-faq__header2">
-                  Yes. Fleet covers the core Windows MDM workload that Intune handles: device enrollment, configuration profiles, BitLocker disk encryption, Windows Update enforcement, software deployment, and compliance reporting. Fleet adds GitOps-based change control, live osquery data instead of cached check-ins, an open source codebase you can self-host, and the same depth of management for macOS, Linux, iOS, iPadOS, Android, and ChromeOS. Teams typically migrate from Intune to consolidate onto a single cross-platform tool. See the <a href="/guides/windows-mdm-setup#automatic-windows-mdm-migration">Windows MDM migration guide</a> for the process.
+                  Yes. Fleet covers the core Windows MDM workload that Intune handles: device enrollment, configuration profiles, BitLocker disk encryption, Windows Update enforcement, software deployment, and compliance reporting. Fleet adds AI-native changes with human review, zero touch without a Microsoft license, live osquery data instead of cached check-ins, an open source codebase you can self-host, and the same depth of management for macOS, Linux, iOS, iPadOS, Android, and ChromeOS. Teams typically migrate from Intune to consolidate onto a single cross-platform tool. See the <a href="/guides/windows-mdm-setup#automatic-windows-mdm-migration">Windows MDM migration guide</a> for the process.
                 </p>
               </div>
               <div purpose="accordion-item">
@@ -227,7 +251,7 @@
                   <span class="fa fa-angle-down"></span>
                 </p>
                 <p purpose="faq-answer" id="win-faq__body3" class="collapse" aria-labelledby="win-faq__header3">
-                  Yes. Fleet manages <a href="/lp/apple-mdm">macOS</a>, <a href="/linux-management">Linux</a>, Windows, iOS, iPadOS, Android, and ChromeOS from a single console, with the same API, the same GitOps workflow, and the same policy engine. Windows configuration profiles and macOS configuration profiles can live in the same Git repository and be deployed in the same commit.
+                  Yes. Fleet manages <a href="/apple">macOS</a>, <a href="/linux">Linux</a>, Windows, iOS, iPadOS, Android, and ChromeOS from a single console, with the same API, the same AI-native workflow, and the same policy engine. You can change Windows and macOS settings together, in one request.
                 </p>
               </div>
               <div purpose="accordion-item">
@@ -245,7 +269,25 @@
                   <span class="fa fa-angle-down"></span>
                 </p>
                 <p purpose="faq-answer" id="win-faq__body5" class="collapse" aria-labelledby="win-faq__header5">
-                  Fleet supports both manual enrollment and automatic (zero-touch) enrollment for Windows. For zero-touch, connect Fleet to Microsoft Entra ID so new devices self-enroll the first time the end user signs in. Fleet also layers cleanly onto Windows Autopilot. The full setup process is documented in the <a href="/guides/windows-mdm-setup">Windows MDM setup guide</a>.
+                  Fleet supports both manual enrollment and automatic (zero-touch) enrollment for Windows. For zero touch, Fleet gives you an order email. Forward it to Dell, Lenovo, or HP, and they install Fleet before the PC ships. No Autopilot, Entra ID P1, or Intune is required for that path. Alternatively, connect Fleet to Microsoft Entra ID so new devices self-enroll the first time the end user signs in, or use Windows Autopilot. Both of those alternatives require a per-user Entra ID P1 license. The full setup process is documented in the <a href="/guides/windows-mdm-setup">Windows MDM setup guide</a>.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="win-faq__header9" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#win-faq__body9" aria-controls="win-faq__body9">
+                  Do I need Autopilot to use Fleet?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="win-faq__body9" class="collapse" aria-labelledby="win-faq__header9">
+                  No. Autopilot requires Microsoft Entra ID, and with Fleet, zero-touch setup is simpler. Forward the order email from Fleet to Dell, Lenovo, or HP, and every new PC arrives already managed by Fleet. Customers run thousands of PCs with Fleet and no Autopilot. If you already have Entra and want to keep it, Fleet fully supports Autopilot too. See <a href="/articles/autopilot-without-autopilot">Autopilot without Autopilot</a>.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="win-faq__header10" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#win-faq__body10" aria-controls="win-faq__body10">
+                  What Microsoft license does zero-touch setup need?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="win-faq__body10" class="collapse" aria-labelledby="win-faq__header10">
+                  None. Just forward the email from Fleet to Dell, Lenovo, or HP. You only need Microsoft Entra ID P1 if you choose Entra automatic enrollment or Autopilot.
                 </p>
               </div>
               <div purpose="accordion-item">
@@ -254,7 +296,7 @@
                   <span class="fa fa-angle-down"></span>
                 </p>
                 <p purpose="faq-answer" id="win-faq__body6" class="collapse" aria-labelledby="win-faq__header6">
-                  Fleet enforces BitLocker disk encryption on Windows endpoints, escrows the recovery keys, and reports encryption status across the fleet. Recovery keys are retrievable through the Fleet UI or REST API, and BitLocker state is visible alongside every other device attribute on the host details page.
+                  Fleet enforces BitLocker disk encryption on Windows devices, escrows the recovery keys, and reports encryption status across the fleet. Recovery keys are retrievable through the Fleet UI or REST API, and BitLocker state is visible alongside every other device attribute on the host details page.
                 </p>
               </div>
               <div purpose="accordion-item">
@@ -291,7 +333,7 @@
               "name": "What is Windows MDM?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "Windows mobile device management (MDM) is the software and protocols IT teams use to enroll, configure, secure, and report on Windows 10 and Windows 11 endpoints at scale. A Windows MDM platform applies settings through Windows Configuration Service Providers (CSPs), enforces disk encryption with BitLocker, distributes software and OS updates, and reports back on device posture. Fleet does this across Windows, macOS, Linux, iOS, iPadOS, Android, and ChromeOS from a single open source platform."
+                "text": "Windows mobile device management (MDM) is the software and protocols IT teams use to enroll, configure, secure, and report on Windows 10 and Windows 11 devices at scale. A Windows MDM platform applies settings through Windows Configuration Service Providers (CSPs), enforces disk encryption with BitLocker, distributes software and OS updates, and reports back on device posture. Fleet does this across Windows, macOS, Linux, iOS, iPadOS, Android, and ChromeOS from a single open source platform."
               }
             },
             {
@@ -299,7 +341,7 @@
               "name": "Does Fleet replace Microsoft Intune?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "Yes. Fleet covers the core Windows MDM workload that Intune handles: device enrollment, configuration profiles, BitLocker disk encryption, Windows Update enforcement, software deployment, and compliance reporting. Fleet adds GitOps-based change control, live osquery data instead of cached check-ins, an open source codebase you can self-host, and the same depth of management for macOS, Linux, iOS, iPadOS, Android, and ChromeOS. Teams typically migrate from Intune to consolidate onto a single cross-platform tool."
+                "text": "Yes. Fleet covers the core Windows MDM workload that Intune handles: device enrollment, configuration profiles, BitLocker disk encryption, Windows Update enforcement, software deployment, and compliance reporting. Fleet adds AI-native changes with human review, zero touch without a Microsoft license, live osquery data instead of cached check-ins, an open source codebase you can self-host, and the same depth of management for macOS, Linux, iOS, iPadOS, Android, and ChromeOS. Teams typically migrate from Intune to consolidate onto a single cross-platform tool."
               }
             },
             {
@@ -307,7 +349,7 @@
               "name": "Can Fleet manage Windows and macOS together?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "Yes. Fleet manages macOS, Linux, Windows, iOS, iPadOS, Android, and ChromeOS from a single console, with the same API, the same GitOps workflow, and the same policy engine. Windows configuration profiles and macOS configuration profiles can live in the same Git repository and be deployed in the same commit."
+                "text": "Yes. Fleet manages macOS, Linux, Windows, iOS, iPadOS, Android, and ChromeOS from a single console, with the same API, the same AI-native workflow, and the same policy engine. You can change Windows and macOS settings together, in one request."
               }
             },
             {
@@ -323,7 +365,23 @@
               "name": "How does Fleet enroll Windows devices?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "Fleet supports both manual enrollment and automatic (zero-touch) enrollment for Windows. For zero-touch, connect Fleet to Microsoft Entra ID so new devices self-enroll the first time the end user signs in. Fleet also layers cleanly onto Windows Autopilot."
+                "text": "Fleet supports both manual enrollment and automatic (zero-touch) enrollment for Windows. For zero touch, Fleet gives you an order email. Forward it to Dell, Lenovo, or HP, and they install Fleet before the PC ships. No Autopilot, Entra ID P1, or Intune is required for that path. Alternatively, connect Fleet to Microsoft Entra ID so new devices self-enroll the first time the end user signs in, or use Windows Autopilot. Both of those alternatives require a per-user Entra ID P1 license."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Do I need Autopilot to use Fleet?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "No. Autopilot requires Microsoft Entra ID, and with Fleet, zero-touch setup is simpler. Forward the order email from Fleet to Dell, Lenovo, or HP, and every new PC arrives already managed by Fleet. Customers run thousands of PCs with Fleet and no Autopilot. If you already have Entra and want to keep it, Fleet fully supports Autopilot too."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What Microsoft license does zero-touch setup need?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "None. Just forward the email from Fleet to Dell, Lenovo, or HP. You only need Microsoft Entra ID P1 if you choose Entra automatic enrollment or Autopilot."
               }
             },
             {
@@ -331,7 +389,7 @@
               "name": "How does Fleet handle BitLocker on Windows?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "Fleet enforces BitLocker disk encryption on Windows endpoints, escrows the recovery keys, and reports encryption status across the fleet. Recovery keys are retrievable through the Fleet UI or REST API, and BitLocker state is visible alongside every other device attribute on the host details page."
+                "text": "Fleet enforces BitLocker disk encryption on Windows devices, escrows the recovery keys, and reports encryption status across the fleet. Recovery keys are retrievable through the Fleet UI or REST API, and BitLocker state is visible alongside every other device attribute on the host details page."
               }
             },
             {
@@ -378,7 +436,7 @@
             <p>Every feature in the Fleet UI is available over the REST API. Integrate with Okta, Jira, Slack, Snowflake, and your SIEM.</p>
           </div>
           <div purpose="feature-item">
-            <h5>Smooth migration from Intune</h5>
+            <h5>Move off Intune without a wipe</h5>
             <p>Bring Windows hosts over without losing user state. Follow our <a href="/guides/windows-mdm-setup#automatic-windows-mdm-migration">Windows MDM migration guide</a>, or get free migration support for qualifying teams.</p>
           </div>
           <div purpose="feature-item">
@@ -401,7 +459,7 @@
     <div purpose="page-container" class="container">
       <div purpose="bottom-cta" class="text-center">
         <h4>Windows Device Management</h4>
-        <h2>Modern, open source MDM for every Windows device</h2>
+        <h2>AI-native, open source MDM for every Windows device</h2>
       </div>
     </div>
   </div>
