@@ -110,6 +110,7 @@ module.exports = {
       '/lp/apple-mdm',
       '/lp/on-premise',
       '/lp/open-source',
+      '/lp/open-by-design',
       '/lp/windows-mdm',
       '/lp/android-mdm',
       // FUTURE: Do something smarter to get hand-coded HTML pages from routes.js, like how rebuild-cloud-sdk works, to avoid this manual duplication.
