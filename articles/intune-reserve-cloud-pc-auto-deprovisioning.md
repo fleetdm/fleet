@@ -1,39 +1,39 @@
-<meta name="articleTitle" value="Windows 365 Reserve Cloud PCs now expire on a timer, but a timer isn't an access review">
+<meta name="articleTitle" value="Windows 365 Reserve auto-deprovisioning: Know what a Cloud PC held before it disappears">
 <meta name="authorFullName" value="Aube Paul">
 <meta name="authorGitHubUsername" value="robinedev">
 <meta name="category" value="industry news">
 <meta name="publishedOn" value="2026-11-09">
-<meta name="description" value="Intune can now remove idle Windows 365 Reserve Cloud PCs after set days. Here is what that timer covers and what IT still has to check on each host.">
+<meta name="description" value="Intune can now delete idle Windows 365 Reserve Cloud PCs. Learn what the timer removes, what it keeps, and how to inventory each Cloud PC first.">
 
-# Windows 365 Reserve Cloud PCs now expire on a timer, but a timer isn't an access review
+# Windows 365 Reserve auto-deprovisioning: Know what a Cloud PC held before it disappears
 
-*Intune's new preview setting deletes idle Reserve Cloud PCs for you. It doesn't tell you what those machines could reach before they went away.*
+*Intune's new preview setting deletes Reserve Cloud PCs that nobody has connected to for a set number of days. It doesn't keep a record of what those short-lived machines ran before they went away.*
 
 ## Key takeaways
 
-- **Idle Cloud PCs get cleaned up without a ticket.** A new Intune preview setting removes Windows 365 Reserve Cloud PCs that go unused past a number of days you choose, which cuts license cost and the number of desktops nobody is watching.
-- **A deletion timer only acts on inactivity.** It doesn't know which idle machines hold local admin accounts, cached credentials, or software that should have been patched, so the days before the timer fires still count as exposure.
-- **Reserve machines are easy to forget.** They exist for the day a primary device fails, so they tend to sit unused and unreviewed, which is the profile of a host with stale access.
-- **Shortening the window shrinks the risk, with a tradeoff.** A tighter idle limit leaves fewer forgotten desktops but raises the chance of deleting one someone needs, so the number is a decision, not a default.
+- **Idle Cloud PCs get cleaned up without a ticket.** A new Intune preview setting removes Windows 365 Reserve Cloud PCs that go unused past a number of days you choose, so they stop spending the 10 days of Reserve access each user gets per year.
+- **A deletion timer only acts on inactivity.** It doesn't look at what a Cloud PC ran or who signed in to it, and deprovisioning deletes the Cloud PC with all of its non-backed-up data, so that history goes with it.
+- **Reserve Cloud PCs are short-lived by design.** IT provisions one when a user's device is lost, broken, or caught up in an outage, and each user gets at most 10 days a year, so many of these hosts exist for only a few days.
+- **A shorter window saves more days, with a tradeoff.** A tighter idle limit returns unused access days sooner but raises the chance of deleting a Cloud PC that still holds someone's unsaved work, so choose the number deliberately.
 - **Inventory is what makes the timer trustworthy.** If you can list accounts, software, and settings on every Windows host, physical or virtual, you can check what the timer is about to remove and what it will leave behind.
 
 <a purpose="cta-button" href="https://fleetdm.com/contact">Talk to us about Windows visibility</a>
 
 Microsoft is adding an auto-deprovisioning setting for Windows 365 Reserve Cloud PCs in Intune. It's in preview, and it removes a Reserve Cloud PC once it has gone unused for a set number of days.
 
-That's a sensible default for a category of machine built to wait. The open question is what a deletion timer does and doesn't cover, because "idle" and "safe" are different properties.
+That's a sensible setting for machines that only exist to cover a gap. The open question is what a deletion timer does and doesn't cover, because "idle" and "safe" are different properties.
 
 ## What the setting does
 
-Reserve Cloud PCs are meant as a fallback when a user's primary device is lost, broken, or unavailable. Most of them never get used, which means they sit provisioned, licensed, and assigned to a person. According to the preview, an admin can now set a number of days, and Intune removes any Reserve Cloud PC that has gone unused for that long.
+Reserve Cloud PCs are meant as a fallback when a user's primary device is lost, broken, or unavailable. IT provisions one only when it's needed, and from that moment the user's 10 days of access keep counting until the Cloud PC is deprovisioned, whether anyone connects or not.
 
-The direct payoff is cost and tidiness. An unused virtual desktop still bills, and it still has a user attached to it. Removing it on a schedule closes that gap without anyone remembering to do it.
+The direct payoff is that idle Cloud PCs stop spending access days. Once the user's laptop is back, a forgotten Reserve Cloud PC burns days the user may need for the next incident, and removing it on a schedule closes that gap without anyone remembering to do it. Any days left over stay with the user for the next time IT provisions one.
 
 ## What a timer can't see
 
-The setting acts on one signal: the machine hasn't been used. It doesn't evaluate what is on the machine during the idle window. A Reserve Cloud PC that was imaged months ago can carry local accounts, installed software, and configuration that drifted from your current baseline, and all of it is reachable until the day the timer runs out.
+The setting acts on one signal: nobody has connected to the machine. It doesn't evaluate what is on the machine or what happened on it. A Reserve Cloud PC used during an outage or a security incident can hold local files, user profiles, and logs that someone may need later, and deprovisioning deletes all of it, with no snapshot or grace period when an admin or user does it.
 
-Treat the idle window as exposure time. If you set it to a long period to avoid deleting machines people need, you've also chosen how long an unreviewed desktop can stay on your network.
+Treat the deletion as the end of the record. If you want to know later which software a Reserve Cloud PC ran or who signed in to it, that information has to be collected somewhere else before the timer fires.
 
 ## Picking the window deliberately
 
@@ -41,7 +41,7 @@ There is no universally right number of days. A short window favors hygiene and 
 
 ## Checking what the timer leaves behind
 
-This is where a cross-platform inventory helps. If Fleet's agent runs on your Windows hosts, including virtual ones, you can build a report of local accounts, installed software, and OS version, then compare Reserve Cloud PCs against the rest of your fleet. That gives you a list of idle machines that also look out of policy, which is a better place to start than a day count alone.
+This is where a cross-platform inventory helps. If Fleet's agent runs on your Windows hosts, including virtual ones, you can build a report of local accounts, installed software, and OS version, then compare Reserve Cloud PCs against the rest of your fleet. Fleet keeps a host's last reported data after the host stops checking in, so that record is still there after Intune deletes the Cloud PC.
 
 Whether Fleet's agent is deployed on a given Cloud PC depends on how you provision them, so confirm that before you rely on the data. A host that never reports in is its own finding.
 
