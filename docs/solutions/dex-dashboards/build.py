@@ -2116,7 +2116,7 @@ OVERVIEW_DAYS = 30
 OVERVIEW_FIELDS = {
     "lifecycle": ("refresh", "battery", "investigate", "old", "scored"),
     "software": ("seats", "idle"),
-    "patch": ("app_installs", "app_current", "os_installs", "os_current", "updates"),
+    "patch": ("app_installs", "app_current", "os_installs", "os_patched", "updates"),
     "ai": ("reported", "ai", "act", "high", "med", "u_s"),
     "connectivity": ("computers", "fresh24", "stale7", "weak", "persistent"),
     "analytics": ("computers", "all_fresh", "disk_known", "disk_on", "agent_current", "failing"),

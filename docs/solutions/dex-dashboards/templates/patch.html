@@ -148,7 +148,8 @@ const verLabel = (t, v) => {
   const name = t.key.startsWith("os:Windows") && t.line_names ? t.line_names[lineOf(t, v)] : null;
   return name ? `${name} (${v.split(".").slice(2).join(".")})` : v;
 };
-// Days before the patched count was recorded would read as 0%, so that line starts here.
+// The OS line starts the first day the patched count was recorded. Before then, OS versions were
+// measured against the newest one the fleet ran, which doesn't compare.
 const PATCHED_SINCE = ((DATA.trend || []).find(([, byKey]) => Object.values(byKey).some((c) => "os_patched" in c)) || [])[0];
 const SOURCES = { Apple: "Apple, via SOFA", Microsoft: "Microsoft Security Update Guide", "Fleet-maintained apps": "Patch policy" };
 const lagTone = (d, target = SLA) => (d <= target / 2 ? "good" : d <= target ? "info" : d <= target * 2 ? "warn" : "bad");
@@ -280,13 +281,12 @@ function render() {
   const queueTrend = DATA.queued_report && inPlatform("macos") ? [{ title: "Macs with a macOS update waiting", series: [
     { label: "Queued", color: "var(--info)", value: (r) => (r.date >= DATA.queued_since ? r.os_queued : null) },
     { label: `Waiting ${STUCK}+ days`, color: "var(--warn)", value: (r) => (r.date >= DATA.queued_since ? r.os_queued_stuck : null) }],
-    note: `Macs with a macOS update queued to install on its own, and how many have waited ${STUCK} days or more.` }] : [];
-  renderTrend(["app_installs", "app_current", "os_installs", "os_current", "os_patched", "updates", "os_queued", "os_queued_stuck"], [
-    { title: "Installs on the newest version", yFmt: fmt.pct, yMax: 100, series: [
+    note: `Macs with a macOS update queued to install on its own, and how many have waited ${STUCK} days or more. Tracked since ${fmt.date(DATA.queued_since)}.` }] : [];
+  renderTrend(["app_installs", "app_current", "os_installs", "os_patched", "updates", "os_queued", "os_queued_stuck"], [
+    { title: "Installs up to date", yFmt: fmt.pct, yMax: 100, series: [
       { label: "Apps", color: "var(--info)", value: (r) => pct(r.app_current, r.app_installs) },
-      { label: "OS", color: "var(--warn)", value: (r) => pct(r.os_current, r.os_installs) },
-      { label: "OS patched for its release", color: "var(--good)", value: (r) => (PATCHED_SINCE && r.date >= PATCHED_SINCE ? pct(r.os_patched, r.os_installs) : null) }],
-      note: `Apps and OS versions on ${DATA.min_installs} or more computers, measured against the newest version on that day (for Windows, the newest build for the release each computer runs). It drops when a new release ships and climbs as computers update.` },
+      { label: "OS", color: "var(--warn)", value: (r) => (PATCHED_SINCE && r.date >= PATCHED_SINCE ? pct(r.os_patched, r.os_installs) : null) }],
+      note: `Apps: installs on the newest version. OS: computers with the latest update for the release they run, even when a newer release is out. Both count versions on ${DATA.min_installs} or more computers, drop when a new version ships, and climb as computers update.${PATCHED_SINCE && DATA.trend[0][0] < PATCHED_SINCE ? ` OS starts ${fmt.date(PATCHED_SINCE)}, the first day it was measured this way.` : ""}` },
     { title: "Updates applied per day", kind: "bar", series: [{ label: "Updates", color: "var(--good)", value: (r) => r.updates }],
       note: "Computers seen moving to a newer version, counted on the day Fleet first reports it." },
     ...queueTrend,
