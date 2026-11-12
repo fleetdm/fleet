@@ -25,6 +25,8 @@ At Fleet, we understand that transparency isn’t just a buzzword—it's a cruci
 
 _Using the AI autofill feature to create a new policy in Fleet. May 2024._
 
+To learn what data this feature sends, how to turn it off, and how to report a concern, see [AI in Fleet](https://fleetdm.com/guides/ai-in-fleet).
+
 
 ## What's sent to the LLM
 

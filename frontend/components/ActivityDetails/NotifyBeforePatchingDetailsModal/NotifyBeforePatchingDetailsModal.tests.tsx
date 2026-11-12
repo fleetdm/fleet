@@ -311,6 +311,7 @@ describe("NotifyBeforePatchingDetailsModal", () => {
 
     const appsRow = await screen.findByText("Apps");
     const appsSection = appsRow.parentElement;
+    expect(appsSection).toHaveClass("data-set--multiline");
     expect(appsSection?.textContent).toContain("1Password");
     expect(appsSection?.textContent).toContain("Slack");
     expect(appsSection?.textContent).toContain("Docker Desktop");
@@ -350,14 +351,12 @@ describe("NotifyBeforePatchingDetailsModal", () => {
   it("shows a green success icon on success and a red error icon on failure", async () => {
     useScriptResultHandler({ exit_code: 0 });
     const { unmount } = renderModal({ status: "success" });
-    expect(
-      await screen.findByTestId("success-outline-icon")
-    ).toBeInTheDocument();
+    expect(await screen.findByTestId("success-icon")).toBeInTheDocument();
     unmount();
 
     useScriptResultHandler({ exit_code: 41 });
     renderModal({ status: "failed" });
-    expect(await screen.findByTestId("error-outline-icon")).toBeInTheDocument();
+    expect(await screen.findByTestId("error-icon")).toBeInTheDocument();
   });
 
   it("does not show the Details reveal when no script ran (dispatcher deferral)", async () => {
@@ -377,7 +376,7 @@ describe("NotifyBeforePatchingDetailsModal", () => {
     useScriptResultHandler({ exit_code: 0 });
     renderModal({ status: "failed" });
 
-    expect(await screen.findByTestId("error-outline-icon")).toBeInTheDocument();
+    expect(await screen.findByTestId("error-icon")).toBeInTheDocument();
     expect(
       screen.queryByText(/If the host is offline when the patch is forced/)
     ).not.toBeInTheDocument();

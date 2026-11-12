@@ -33,6 +33,7 @@ var (
 	CantTurnOffMDMForWindowsHostsMessage         = "Can't turn off MDM for Windows hosts."
 	CantTurnOffMDMAlreadyTurnedOffMessage        = "Couldn't turn off MDM. This host already has MDM turned off."
 	CantTurnOffMDMForPersonalHostsMessage        = "Couldn't turn off MDM. This command isn't available for personal hosts."
+	CantUnenrollPendingUnenrollMessage           = "Couldn't unenroll. This host already has a pending unenroll. It will unenroll when it comes online."
 	CantWipePersonalHostsMessage                 = "Couldn't wipe. This command isn't available for personal hosts."
 	CantLockPersonalHostsMessage                 = "Couldn't lock. This command isn't available for personal hosts."
 	CantClearPasscodePersonalHostsMessage        = "Unlock token is not available for this device. Unable to issue ClearPasscode command."
@@ -57,7 +58,7 @@ var (
 	SoftwareAlreadyHasVPPAppMessage              = "%s already has an Apple App Store (VPP) on the %s fleet."
 	SoftwareAlreadyHasFleetMaintainedAppMessage  = "%s already has a Fleet-maintained app on the %s fleet."
 	SoftwareAlreadyHasPackageMessage             = "%s already has a software package on the %s fleet."
-	SoftwarePackageLimitMessage                  = "%s already has %d packages. Before adding, delete one you no longer use."
+	SoftwarePackageLimitMessage                  = "%s already has %d versions. Before adding, delete one you no longer use."
 	SoftwareSelfServiceCategoriesConflictMessage = "Couldn't add software (%q). self_service and categories can be specified either in the fleet-level file or in the package YAML file."
 	SoftwareSetupExperienceFleetLevelOnlyMessage = "Couldn't add software (%q). setup_experience can be specified only in the fleet-level file."
 	SoftwareLabelsPackageLevelOnlyMessage        = "Couldn't add software (%q). Labels can be specified only in the package-level file when adding multiple packages of the same software."
@@ -65,6 +66,8 @@ var (
 	ConfigProfileLabelScopingPremiumCauseMsg     = "Scoping configuration profiles with labels"
 	DDMCustomActivationPremiumCauseMsg           = "Custom activations for declaration (DDM) profiles"
 )
+
+const Fleet5MigrationGuide = "https://fleetdm.com/learn-more-about/fleet-5-migration"
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP
 // status code.
@@ -179,6 +182,31 @@ func (e *InvalidArgumentError) Invalid() []map[string]string {
 // BadRequestError is an alias for platform_http.BadRequestError.
 type BadRequestError = platform_http.BadRequestError
 
+// ParamRequiredDeprecationError is a bad request for a parameter that Fleet 5 made required, so that every
+// such change returns the same message and migration link.
+type ParamRequiredDeprecationError struct {
+	Param string
+}
+
+// NewParamRequiredDeprecationError returns a ParamRequiredDeprecationError for the named parameter.
+func NewParamRequiredDeprecationError(param string) *ParamRequiredDeprecationError {
+	return &ParamRequiredDeprecationError{Param: param}
+}
+
+func (e *ParamRequiredDeprecationError) Error() string {
+	return fmt.Sprintf(`The %q parameter is now required. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration`, e.Param)
+}
+
+// GitOpsMDMCommandErrorMessage is returned to GitOps users, who can't run MDM commands since Fleet 5.
+const GitOpsMDMCommandErrorMessage = "Users with the GitOps role can no longer run MDM commands. What to use instead: " +
+	Fleet5MigrationGuide
+
+// BadRequestError makes the error encoder return a 400.
+func (e *ParamRequiredDeprecationError) BadRequestError() []map[string]string { return nil }
+
+// IsClientError implements ErrWithIsClientError.
+func (e *ParamRequiredDeprecationError) IsClientError() bool { return true }
+
 // AuthFailedError is an alias for platform_http.AuthFailedError.
 type AuthFailedError = platform_http.AuthFailedError
 
@@ -190,6 +218,12 @@ type AuthRequiredError = platform_http.AuthRequiredError
 
 // NewAuthRequiredError is an alias for platform_http.NewAuthRequiredError.
 var NewAuthRequiredError = platform_http.NewAuthRequiredError
+
+// AuthUnavailableError is an alias for platform_http.AuthUnavailableError.
+type AuthUnavailableError = platform_http.AuthUnavailableError
+
+// NewAuthUnavailableError is an alias for platform_http.NewAuthUnavailableError.
+var NewAuthUnavailableError = platform_http.NewAuthUnavailableError
 
 // DeviceSSORequiredError is an alias for platform_http.DeviceSSORequiredError.
 type DeviceSSORequiredError = platform_http.DeviceSSORequiredError
@@ -550,19 +584,18 @@ const (
 	TargetedHostsDontExistErrMsg = "One or more targeted hosts don't exist. Make sure you provide a valid hostname, UUID, or serial number. Learn more about host identifiers: https://fleetdm.com/learn-more-about/host-identifiers"
 
 	// Scripts
-	RunScriptInvalidTypeErrMsg             = "File type not supported. Only .sh (Shell), .py (Python), and .ps1 (PowerShell) file types are allowed."
-	RunScriptHostOfflineErrMsg             = "Script can't run on offline host."
-	RunScriptForbiddenErrMsg               = "You don't have the right permissions in Fleet to run the script."
-	RunScriptAlreadyRunningErrMsg          = "A script is already running on this host. Please wait about 5 minutes to let it finish."
-	RunScriptHostTimeoutErrMsg             = "Fleet didn't hear back from the host in under 5 minutes (timeout for live scripts). Fleet doesn't know if the script ran because it didn't receive the result. Go to Fleet and check Host details > Activities to see script results."
-	RunScriptScriptsDisabledGloballyErrMsg = "Running scripts is disabled in organization settings."
-	RunScriptDisabledErrMsg                = "Scripts are disabled for this host. To run scripts, deploy the fleetd agent with scripts enabled."
-	RunScriptsOrbitDisabledErrMsg          = "Couldn't run script. To run a script, deploy the fleetd agent with --enable-scripts."
-	RunScriptAsyncScriptEnqueuedMsg        = "Script is running or will run when the host comes online."
-	RunScriptSavedMaxLenErrMsg             = "Script is too large. It's limited to 500,000 characters (approximately 10,000 lines)."
-	RunScripUnsavedMaxLenErrMsg            = "Script is too large. It's limited to 10,000 characters (approximately 125 lines)."
-	RunScriptGatewayTimeoutErrMsg          = "Gateway timeout. Fleet didn't hear back from the host and doesn't know if the script ran. Please make sure your load balancer timeout isn't shorter than the Fleet server timeout."
-	RunScriptFleetVarsFailedErrMsg         = "Fleet couldn't resolve variables in this script. See the script output for details."
+	RunScriptInvalidTypeErrMsg      = "File type not supported. Only .sh (Shell), .py (Python), and .ps1 (PowerShell) file types are allowed."
+	RunScriptHostOfflineErrMsg      = "Script can't run on offline host."
+	RunScriptForbiddenErrMsg        = "You don't have the right permissions in Fleet to run the script."
+	RunScriptAlreadyRunningErrMsg   = "A script is already running on this host. Please wait about 5 minutes to let it finish."
+	RunScriptHostTimeoutErrMsg      = "Fleet didn't hear back from the host in under 5 minutes (timeout for live scripts). Fleet doesn't know if the script ran because it didn't receive the result. Go to Fleet and check Host details > Activities to see script results."
+	RunScriptDisabledErrMsg         = "Scripts are disabled for this host. To run scripts, deploy the fleetd agent with scripts enabled."
+	RunScriptsOrbitDisabledErrMsg   = "Couldn't run script. To run a script, deploy the fleetd agent with --enable-scripts."
+	RunScriptAsyncScriptEnqueuedMsg = "Script is running or will run when the host comes online."
+	RunScriptSavedMaxLenErrMsg      = "Script is too large. It's limited to 500,000 characters (approximately 10,000 lines)."
+	RunScripUnsavedMaxLenErrMsg     = "Script is too large. It's limited to 10,000 characters (approximately 125 lines)."
+	RunScriptGatewayTimeoutErrMsg   = "Gateway timeout. Fleet didn't hear back from the host and doesn't know if the script ran. Please make sure your load balancer timeout isn't shorter than the Fleet server timeout."
+	RunScriptFleetVarsFailedErrMsg  = "Fleet couldn't resolve variables in this script. See the script output for details."
 
 	// Software
 	InstallSoftwarePersonalAppleDeviceErrMsg = "Couldn't install. Currently, software install isn't supported on personal (BYOD) iOS and iPadOS hosts."
@@ -595,8 +628,9 @@ const (
 
 // Error message variables
 var (
-	NDESSCEPVariablesMissingErrMsg         = fmt.Sprintf("SCEP profile for NDES certificate authority requires: $FLEET_VAR_%s, $FLEET_VAR_%s, and $FLEET_VAR_%s variables.", FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarCertificateRenewalID)
-	SCEPRenewalIDWithoutURLChallengeErrMsg = "Variable \"$FLEET_VAR_" + string(FleetVarCertificateRenewalID) + "\" can't be used if variables for SCEP URL and Challenge are not specified."
+	NDESSCEPVariablesMissingErrMsg              = fmt.Sprintf("SCEP profile for NDES certificate authority requires: $FLEET_VAR_%s, $FLEET_VAR_%s, and $FLEET_VAR_%s variables.", FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarCertificateRenewalID)
+	SCEPRenewalIDWithoutURLChallengeErrMsg      = "Variable \"$FLEET_VAR_" + string(FleetVarCertificateRenewalID) + "\" can't be used if variables for SCEP URL and Challenge are not specified."
+	ConditionalAccessSCEPVariablesMissingErrMsg = fmt.Sprintf("SCEP profile for conditional access requires: $FLEET_VAR_%s and $FLEET_VAR_%s variables.", FleetVarConditionalAccessSCEPURL, FleetVarCertificateRenewalID)
 )
 
 const (
@@ -618,6 +652,23 @@ func (e ConflictError) Error() string {
 func (e ConflictError) StatusCode() int {
 	return http.StatusConflict
 }
+
+// HostGoogleDeviceIDConflictError is returned when a host is already bound to a different Google device ID.
+type HostGoogleDeviceIDConflictError struct {
+	StoredID string
+}
+
+func (e *HostGoogleDeviceIDConflictError) Error() string {
+	return "This host already has a different Google device ID."
+}
+
+func (e *HostGoogleDeviceIDConflictError) Invalid() []map[string]string {
+	return []map[string]string{{"name": "google_device_id", "reason": e.Error()}}
+}
+
+func (e *HostGoogleDeviceIDConflictError) Status() int { return http.StatusConflict }
+
+func (e *HostGoogleDeviceIDConflictError) IsClientError() bool { return true }
 
 // EJBCANameInUseError is returned when a certificate authority name would be shared by an EJBCA certificate authority and another
 // certificate authority. The name of an EJBCA CA has to be unique among all the CAs.
@@ -706,6 +757,35 @@ func (e *ABOnlyEnrollmentForbiddenError) Internal() string {
 	return ""
 }
 
+// AutomaticEnrollmentRefusedError is returned when the Apple automatic enrollment profile request is refused. Setup
+// Assistant treats a 401 there as a request for a username and password, so it's a 403, and the reason is only logged.
+type AutomaticEnrollmentRefusedError struct {
+	ErrorWithUUID
+	Reason string
+}
+
+func (e *AutomaticEnrollmentRefusedError) Error() string {
+	return "This device can't enroll right now. Please contact your IT administrator."
+}
+
+func (e *AutomaticEnrollmentRefusedError) StatusCode() int { return http.StatusForbidden }
+
+func (e *AutomaticEnrollmentRefusedError) Internal() string { return e.Reason }
+
+func (e *AutomaticEnrollmentRefusedError) IsClientError() bool { return true }
+
 const AdminOnlyEnrollmentForbiddenErrMsg = "Manual enrollment is not available because only Apple Business enrollment is allowed for this organization."
 
-const ManualEnrollmentStaticChallengeDisabledErrMsg = "Manual enrollment profile is not available because the static SCEP challenge is disabled for this Fleet server."
+// This is a unique deprecation notice only used very few places, where a default was changed and thereby blocked, therefore not part of the pkg/removednames
+type NotAllowedByDefaultDeprecationError struct {
+	Method   string
+	Endpoint string
+}
+
+func (e *NotAllowedByDefaultDeprecationError) Error() string {
+	return fmt.Sprintf(`The "%s %s" endpoint is not available anymore by default. What to use instead: %s`, e.Method, e.Endpoint, Fleet5MigrationGuide)
+}
+
+func (e *NotAllowedByDefaultDeprecationError) StatusCode() int { return http.StatusGone }
+
+func (e *NotAllowedByDefaultDeprecationError) IsClientError() bool { return true }

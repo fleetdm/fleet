@@ -109,46 +109,46 @@ An alphanumeric secret for the Simple Certificate Enrollment Protocol (SCEP). De
     apple_scep_challenge: scepchallenge
   ```
 
-### mdm.apple_bm_server_token_bytes
+### mdm.apple_business_server_token_bytes
 
 This is the content of the Apple Business encrypted server token downloaded from Apple Business.
 
 - Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_BM_SERVER_TOKEN_BYTES`
+- Environment variable: `FLEET_MDM_APPLE_BUSINESS_SERVER_TOKEN_BYTES`
 - Config file format:
   ```yaml
   mdm:
-    apple_bm_server_token_bytes: |
+    apple_business_server_token_bytes: |
       Content-Type: application/pkcs7-mime; name="smime.p7m"; smime-type=enveloped-data
       Content-Transfer-Encoding: base64
       ... rest of content ...
   ```
 
-### mdm.apple_bm_cert_bytes
+### mdm.apple_business_cert_bytes
 
-This is the content of the Apple Business certificate. The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`.
+This is the content of the Apple Business certificate. The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-ab`.
 
 - Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_BM_CERT_BYTES`
+- Environment variable: `FLEET_MDM_APPLE_BUSINESS_CERT_BYTES`
 - Config file format:
   ```yaml
   mdm:
-    apple_bm_cert_bytes: |
+    apple_business_cert_bytes: |
       -----BEGIN CERTIFICATE-----
       ... PEM-encoded content ...
       -----END CERTIFICATE-----
   ```
 
-### mdm.apple_bm_key_bytes
+### mdm.apple_business_key_bytes
 
-This is the content of the PEM-encoded private key for the Apple Business. It's typically generated via `fleetctl generate mdm-apple-bm`.
+This is the content of the PEM-encoded private key for the Apple Business. It's typically generated via `fleetctl generate mdm-ab`.
 
 - Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_BM_KEY_BYTES`
+- Environment variable: `FLEET_MDM_APPLE_BUSINESS_KEY_BYTES`
 - Config file format:
   ```yaml
   mdm:
-    apple_bm_key_bytes: |
+    apple_business_key_bytes: |
       -----BEGIN RSA PRIVATE KEY-----
       ... PEM-encoded content ...
       -----END RSA PRIVATE KEY-----

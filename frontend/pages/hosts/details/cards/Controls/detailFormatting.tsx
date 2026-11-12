@@ -14,6 +14,9 @@ import { IHostMdmProfileWithAddedStatus } from "./OSSettingsTableConfig";
  * CSR mean nothing and there is nothing the reader can act on. Each known reason is restated in
  * plain language; anything unrecognized falls through to the reported text so a new failure is
  * never swallowed. The app's own wording stays in the details block either way.
+ *
+ * Fleet Android app versions after 1.6.0 report these in plain language themselves, which none of
+ * these prefixes match. This only exists for hosts still on 1.6.0 or earlier.
  */
 const ANDROID_CERTIFICATE_ERRORS: [prefix: string, message: string][] = [
   [

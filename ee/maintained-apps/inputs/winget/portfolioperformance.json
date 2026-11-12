@@ -3,6 +3,7 @@
   "slug": "portfolioperformance/windows",
   "package_identifier": "buchen.portfolio",
   "unique_identifier": "Portfolio Performance",
+  "open_process_names": ["portfolioperformance.exe"],
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "user",

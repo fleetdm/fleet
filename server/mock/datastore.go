@@ -40,6 +40,15 @@ func (m *Store) LoadHostByOrbitNodeKey(ctx context.Context, orbitNodeKey string)
 	return nil, &mockNotFoundError{}
 }
 
+// RefreshMDMWindowsProfilesStatusRollup is a no-op unless a test mocks it: the Windows profile reconciler calls it on every window with
+// work, and most of its tests do not care about the rollup.
+func (m *Store) RefreshMDMWindowsProfilesStatusRollup(ctx context.Context, hostUUIDs []string) error {
+	if m.RefreshMDMWindowsProfilesStatusRollupFunc != nil {
+		return m.DataStore.RefreshMDMWindowsProfilesStatusRollup(ctx, hostUUIDs)
+	}
+	return nil
+}
+
 type mockNotFoundError struct{}
 
 func (e *mockNotFoundError) Error() string    { return "not found" }
@@ -51,7 +60,6 @@ func (m *Store) GetCurrentTime(ctx context.Context) (time.Time, error) {
 
 func (m *Store) Drop() error                             { return nil }
 func (m *Store) MigrateTables(ctx context.Context) error { return nil }
-func (m *Store) MigrateData(ctx context.Context) error   { return nil }
 func (m *Store) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus, error) {
 	return &fleet.MigrationStatus{}, nil
 }

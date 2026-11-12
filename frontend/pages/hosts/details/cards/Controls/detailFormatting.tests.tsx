@@ -207,6 +207,19 @@ describe("getDetailGuidance for android certificates", () => {
       getDetailGuidance(failedCert("Unexpected error during enrollment: null"))
     ).toBeNull();
   });
+
+  it.each([
+    "Couldn't reach the certificate authority. Failed to communicate with SCEP server",
+    "The certificate authority didn't issue the certificate. Check your certificate authority configuration. challenge rejected",
+    "Couldn't process the certificate. bad chain",
+    "Couldn't generate a private key for the certificate on the host. keystore error",
+    "Couldn't create the certificate signing request (CSR). bad subject",
+    "The certificate's configuration isn't valid. missing subject name",
+    'Couldn\'t install the "BeyondCorp" certificate on the host.',
+    "Something went wrong while getting the certificate. null",
+  ])("leaves %j from newer app versions to stand alone", (detail) => {
+    expect(getDetailGuidance(failedCert(detail))).toBeNull();
+  });
 });
 
 describe("getDetailText", () => {

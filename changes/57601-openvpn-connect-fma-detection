@@ -1,0 +1,1 @@
+* Fixed the OpenVPN Connect Windows Fleet-maintained app never being detected as installed (and its patch policy always passing). The app's name in the installed programs list is exactly "OpenVPN Connect", but the detection queries required a trailing space after the name.

@@ -12,8 +12,8 @@ github.com/fleetdm/fleet/v4/server/fleet/ServerSettings	EnableAnalytics	bool
 github.com/fleetdm/fleet/v4/server/fleet/ServerSettings	DebugHostIDs	[]uint
 github.com/fleetdm/fleet/v4/server/fleet/ServerSettings	DeferredSaveHost	bool
 github.com/fleetdm/fleet/v4/server/fleet/ServerSettings	QueryReportsDisabled	bool
-github.com/fleetdm/fleet/v4/server/fleet/ServerSettings	ScriptsDisabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/ServerSettings	AIFeaturesDisabled	bool
+github.com/fleetdm/fleet/v4/server/fleet/ServerSettings	MCPDisabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/ServerSettings	QueryReportCap	int
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	SMTPSettings	*fleet.SMTPSettings
 github.com/fleetdm/fleet/v4/server/fleet/SMTPSettings	SMTPEnabled	bool
@@ -40,7 +40,6 @@ github.com/fleetdm/fleet/v4/server/fleet/AppConfig	Features	fleet.Features
 github.com/fleetdm/fleet/v4/server/fleet/Features	EnableHostUsers	bool
 github.com/fleetdm/fleet/v4/server/fleet/Features	EnableSoftwareInventory	bool
 github.com/fleetdm/fleet/v4/server/fleet/Features	AdditionalQueries	*jsontext.Value
-github.com/fleetdm/fleet/v4/server/fleet/Features	DetailQueryOverrides	map[string]*string
 github.com/fleetdm/fleet/v4/server/fleet/Features	HistoricalData	fleet.HistoricalDataSettings
 github.com/fleetdm/fleet/v4/server/fleet/HistoricalDataSettings	Uptime	bool
 github.com/fleetdm/fleet/v4/server/fleet/HistoricalDataSettings	Vulnerabilities	bool
@@ -192,6 +191,8 @@ github.com/fleetdm/fleet/v4/server/fleet/MacOSSetupSoftware	PackagePath	string
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	ManualAgentInstall	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	RequireAllSoftware	bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	RequireAllSoftwareWindows	bool
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	MacOSEnableBootstrapPackageDuringManualEnrollment	bool
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	MacOSEnableBootstrapPackageDuringMigration	bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EnableManagedLocalAccount	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EndUserLocalAccountType	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/MDM	MacOSMigration	fleet.MacOSMigration
@@ -204,6 +205,7 @@ github.com/fleetdm/fleet/v4/server/fleet/MDM	EndUserAuthentication	fleet.MDMEndU
 github.com/fleetdm/fleet/v4/server/fleet/MDMEndUserAuthentication	SSOProviderSettings	fleet.SSOProviderSettings
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleRequireHardwareAttestation	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	OnlyAllowAppleBusinessEnrollment	bool
+github.com/fleetdm/fleet/v4/server/fleet/MDM	EnableProfileValidation	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsEntraTenantIDs	optjson.Slice[string]
 github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsEntraClientIDs	optjson.Slice[string]
 github.com/fleetdm/fleet/v4/server/fleet/MDM	MicrosoftGraphCredentialInvalid	bool

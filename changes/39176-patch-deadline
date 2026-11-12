@@ -1,0 +1,3 @@
+- Added a "Deadline" option for macOS Fleet-maintained app patch policies. When the app is open, Fleet Desktop tells the end user 1 hour before the deadline and again 5 minutes before, then closes and updates the app. Requires Fleet Desktop 1.5.0.
+- Added patch deadline settings (days and time) per fleet and for "Unassigned" in Software > Library > Settings, the API, and GitOps. Deadlines use each host's local time. The default is Tuesday at 17:00.
+- Fleet now collects the host's timezone on macOS, Linux, and Windows and shows it on the host details page.

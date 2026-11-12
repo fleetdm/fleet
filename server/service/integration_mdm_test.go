@@ -139,13 +139,26 @@ type integrationMDMTestSuite struct {
 
 // appleVPPConfigSrvConf is used to configure the mock server that mocks Apple's VPP endpoints.
 type appleVPPConfigSrvConf struct {
-	Assets        []vpp.Asset
-	SerialNumbers []string
-	Location      string
+	Assets []vpp.Asset
+	// AssetsByBearer overrides Assets for requests whose Authorization header
+	// is "Bearer <key>". The bearer Fleet sends is the uploaded token file's
+	// base64 content.
+	AssetsByBearer map[string][]vpp.Asset
+	SerialNumbers  []string
+	Location       string
 	// Disassociations records every /assets/disassociate request the mock
 	// server received, in order. Used by tests that assert Fleet released a
 	// previously-reserved VPP seat (e.g. on install failure or cancel).
 	Disassociations []vpp.DisassociateAssetsRequest
+	// AuthCalls records the path and Authorization header of every
+	// /assets/associate and /assets/disassociate request, in order. Used by
+	// tests that assert which VPP token an operation used.
+	AuthCalls []appleVPPAuthCall
+}
+
+type appleVPPAuthCall struct {
+	Path          string
+	Authorization string
 }
 
 var defaultVPPAssetList = []vpp.Asset{
@@ -167,6 +180,8 @@ var defaultVPPAssetList = []vpp.Asset{
 }
 
 const defaultFakeJWTKeyID = "fleetdefaultkeyid"
+
+const vppVerifyTimeout = 10 * time.Minute
 
 // requireTrackedRefetchCommands asserts the host's tracking rows cover exactly
 // the given refetch command types, each recording the full prefixed UUID of
@@ -207,7 +222,8 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	config.SetTestMDMConfig(s.T(), &fleetCfg, testCertPEM, testKeyPEM, "../../server/service/testdata")
 	fleetCfg.Osquery.EnrollCooldown = 0
 	fleetCfg.Server.VPPVerifyRequestDelay = 0 * time.Second // Remove the delay to speed up tests
-	fleetCfg.Server.VPPVerifyTimeout = fleet.DefaultVPPInstallVerifyTimeout
+	fleetCfg.Server.VPPVerifyTimeout = vppVerifyTimeout
+	fleetCfg.MDM.AppleSCEPStaticChallengeEnabled = true // Enable static challenge for SCEP in integration tests
 
 	mdmStorage, err := s.ds.NewMDMAppleMDMStorage()
 	require.NoError(s.T(), err)
@@ -218,6 +234,8 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	require.NoError(s.T(), err)
 	scepStorage, err := s.ds.NewSCEPDepot()
 	require.NoError(s.T(), err)
+	conditionalAccessSCEPStorage, err := s.ds.NewConditionalAccessSCEPDepot(slog.New(slog.DiscardHandler), &fleetCfg)
+	s.Require().NoError(err)
 
 	pushLog := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
@@ -243,6 +261,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	androidMockClient.SetAuthenticationSecretFunc = func(secret string) error {
 		return nil
 	}
+	androidMockClient.InitDeviceLookupMocks()
 	androidSvc, err := android_service.NewServiceWithClient(wlog, s.ds, androidMockClient, "test-private-key", s.ds,
 		func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 			return s.fleetSvc.NewActivity(ctx, user, activity)
@@ -348,6 +367,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		MDMStorage:             mdmStorage,
 		DEPStorage:             depStorage,
 		SCEPStorage:            scepStorage,
+		ConditionalAccess:      &ConditionalAccess{SCEPStorage: conditionalAccessSCEPStorage},
 		MDMPusher:              mdmPushService,
 		Pool:                   s.redisPool,
 		Rs:                     pubsub.NewInmemQueryResults(),
@@ -511,7 +531,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 							err := android_service.ReconcileProfilesWithClient(ctx, ds, logger, "", androidMockClient, config.AndroidAgentConfig{
 								Package:       "com.fleetdm.agent",
 								SigningSHA256: "abc123def456",
-							}, 0)
+							}, 0, nil)
 							require.NoError(s.T(), err)
 							return err
 						}),
@@ -527,7 +547,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
 						schedule.WithLogger(logger),
 						schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
-							return apple_mdm.IOSiPadOSRefetch(ctx, ds, mdmCommander, logger, s.fleetSvc.NewActivity)
+							return apple_mdm.IOSiPadOSRefetch(ctx, ds, mdmCommander, logger, s.fleetSvc.NewActivity, 1000)
 						}),
 					)
 					return refetcherSchedule, nil
@@ -629,10 +649,20 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	}
 
 	s.appleVPPConfigSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assetsForRequest := func() []vpp.Asset {
+			if assets, ok := s.appleVPPConfigSrvConfig.AssetsByBearer[strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")]; ok {
+				return assets
+			}
+			return s.appleVPPConfigSrvConfig.Assets
+		}
+
 		// Handle /assets/disassociate — must come before the /associate
 		// catch-all below (HasSuffix prevents the substring "associate" from
 		// swallowing this case). Records every call so tests can assert Fleet
 		// released a reserved seat.
+		if strings.HasSuffix(r.URL.Path, "/disassociate") || strings.HasSuffix(r.URL.Path, "/associate") {
+			s.appleVPPConfigSrvConfig.AuthCalls = append(s.appleVPPConfigSrvConfig.AuthCalls, appleVPPAuthCall{Path: r.URL.Path, Authorization: r.Header.Get("Authorization")})
+		}
 		if strings.HasSuffix(r.URL.Path, "/disassociate") {
 			var req vpp.DisassociateAssetsRequest
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -684,7 +714,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 			var badAssets []vpp.Asset
 			for _, reqAsset := range associations.Assets {
 				var found bool
-				for _, goodAsset := range s.appleVPPConfigSrvConfig.Assets {
+				for _, goodAsset := range assetsForRequest() {
 					if reqAsset == goodAsset {
 						found = true
 					}
@@ -747,9 +777,9 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 			var assets []vpp.Asset
 			switch adamID {
 			case "":
-				assets = s.appleVPPConfigSrvConfig.Assets
+				assets = assetsForRequest()
 			default:
-				for _, a := range s.appleVPPConfigSrvConfig.Assets {
+				for _, a := range assetsForRequest() {
 					if a.AdamID == adamID {
 						assets = []vpp.Asset{a}
 					}
@@ -1088,6 +1118,7 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	require.NoError(t, err)
 
 	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked = false
+	s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked = false
 	s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked = false
 	s.androidAPIClient.EnterprisesDevicesPatchFuncInvoked = false
 }
@@ -1719,7 +1750,7 @@ func (s *integrationMDMTestSuite) assertWindowsConfigProfilesByName(teamID *uint
 }
 
 // generates the body and headers part of a multipart request ready to be
-// used via s.DoRawWithHeaders to POST /api/_version_/fleet/mdm/apple/profiles.
+// used via s.DoRawWithHeaders to POST /api/_version_/fleet/configuration_profiles.
 func generateNewProfileMultipartRequest(t *testing.T,
 	fileName string, fileContent []byte, token string, extraFields map[string][]string,
 ) (*bytes.Buffer, map[string]string) {
@@ -2301,7 +2332,7 @@ func (s *integrationMDMTestSuite) newSecurityTokenMsg(encodedBinToken string, de
 	return requestBytes, nil
 }
 
-func (s *integrationMDMTestSuite) checkMDMProfilesSummaries(t *testing.T, teamID *uint, expectedSummary fleet.MDMProfilesSummary, expectedAppleSummary *fleet.MDMProfilesSummary) {
+func (s *integrationMDMTestSuite) checkMDMProfilesSummaries(t *testing.T, teamID *uint, expectedSummary fleet.MDMProfilesSummary) {
 	// The Windows profiles summary reads the maintained host_mdm_windows_profiles_status rollup. Some tests simulate device reports
 	// by writing host_mdm_windows_profiles directly, bypassing the write paths that maintain the rollup, so reconcile it before
 	// reading.
@@ -2310,15 +2341,6 @@ func (s *integrationMDMTestSuite) checkMDMProfilesSummaries(t *testing.T, teamID
 	var queryParams []string
 	if teamID != nil {
 		queryParams = append(queryParams, "team_id", fmt.Sprintf("%d", *teamID))
-	}
-
-	if expectedAppleSummary != nil {
-		var apple getMDMAppleProfilesSummaryResponse
-		s.DoJSON("GET", "/api/v1/fleet/mdm/apple/profiles/summary", getMDMAppleProfilesSummaryRequest{}, http.StatusOK, &apple, queryParams...)
-		require.Equal(t, expectedSummary.Failed, apple.Failed, "failed summary count doesn't match")
-		require.Equal(t, expectedSummary.Pending, apple.Pending, "pending summary count doesn't match")
-		require.Equal(t, expectedSummary.Verifying, apple.Verifying, "verifying summary count doesn't match")
-		require.Equal(t, expectedSummary.Verified, apple.Verified, "verified summary count doesn't match")
 	}
 
 	var combined getMDMProfilesSummaryResponse
@@ -2508,7 +2530,7 @@ func (s *integrationMDMTestSuite) uploadABMToken(encryptedToken []byte, expected
 		"Authorization": fmt.Sprintf("Bearer %s", s.token),
 	}
 
-	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/abm_tokens", b.Bytes(), expectedStatus, headers)
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/ab_tokens", b.Bytes(), expectedStatus, headers)
 	if wantErr != "" {
 		errMsg := extractServerErrorText(res.Body)
 		assert.Contains(t, errMsg, wantErr)

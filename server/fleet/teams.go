@@ -70,7 +70,7 @@ type TeamPayload struct {
 // `features` shape so admins can use the same JSON path on both endpoints.
 //
 // Only the sub-fields defined here take effect; the broader Features
-// fields (enable_host_users, additional_queries, detail_query_overrides)
+// fields (enable_host_users, additional_queries)
 // remain settable per-fleet only via the `/spec/fleets` GitOps path.
 type TeamPayloadFeatures struct {
 	// EnableSoftwareInventory uses optjson.Bool so a key omitted from a
@@ -94,7 +94,7 @@ type HistoricalDataPayload struct {
 // so the fields are pointers to structs.
 type TeamPayloadMDM struct {
 	EnableDiskEncryption       optjson.Bool `json:"enable_disk_encryption"`
-	EnableRecoveryLockPassword optjson.Bool `json:"enable_recovery_lock_password"`
+	EnableRecoveryLockPassword optjson.Bool `json:"macos_recovery_lock_password_enabled" removedkey:"enable_recovery_lock_password" renamescope:"mdm"`
 	// RequireBitLockerPIN indicates whether BitLocker PIN is required for Windows devices
 	// in order for Fleet to consider them compliant.
 	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
@@ -442,6 +442,7 @@ type TeamSpecAppStoreApp struct {
 	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
 	Icon               TeamSpecSoftwareAsset `json:"icon"`
 	Platform           string                `json:"platform"`
+	Location           string                `json:"location,omitempty"`
 	DisplayName        string                `json:"display_name,omitempty"`
 	Configuration      TeamSpecSoftwareAsset `json:"configuration"`
 	// Auto-update fields for VPP apps
@@ -502,7 +503,7 @@ func (spec TeamSpecAppStoreApp) ListVersions() []TeamSpecAppStoreAppVersion {
 
 type TeamMDM struct {
 	EnableDiskEncryption       bool                  `json:"enable_disk_encryption"`
-	EnableRecoveryLockPassword bool                  `json:"enable_recovery_lock_password"`
+	EnableRecoveryLockPassword bool                  `json:"macos_recovery_lock_password_enabled" removedkey:"enable_recovery_lock_password" renamescope:"mdm"`
 	RequireBitLockerPIN        bool                  `json:"windows_require_bitlocker_pin"`
 	MacOSUpdates               AppleOSUpdateSettings `json:"macos_updates"`
 	IOSUpdates                 AppleOSUpdateSettings `json:"ios_updates"`
@@ -655,7 +656,7 @@ func (t *TeamMDM) Copy() *TeamMDM {
 
 type TeamSpecMDM struct {
 	EnableDiskEncryption       optjson.Bool `json:"enable_disk_encryption"`
-	EnableRecoveryLockPassword optjson.Bool `json:"enable_recovery_lock_password"`
+	EnableRecoveryLockPassword optjson.Bool `json:"macos_recovery_lock_password_enabled" removedkey:"enable_recovery_lock_password" renamescope:"mdm"`
 	// RequireBitLockerPIN indicates whether BitLocker PIN is required for Windows devices
 	// in order for Fleet to consider them compliant.
 	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
@@ -819,7 +820,6 @@ var globalRoles = map[string]struct{}{
 var premiumGlobalRoles = map[string]struct{}{
 	RoleTechnician:   {},
 	RoleObserverPlus: {},
-	RoleGitOps:       {},
 }
 
 // ValidGlobalRole returns whether the role provided is valid for a global user.
@@ -984,8 +984,10 @@ type TeamSpecIntegrations struct {
 
 // TeamSpecsDryRunAssumptions holds the assumptions that are made when applying team specs in dry-run mode.
 type TeamSpecsDryRunAssumptions struct {
+	// Keeps the Fleet 4 name: only fleetctl's GitOps dry run sends it, and it is never stored or returned.
 	WindowsEnabledAndConfigured optjson.Bool `json:"windows_enabled_and_configured,omitempty"`
 	AndroidEnabledAndConfigured optjson.Bool `json:"android_enabled_and_configured,omitempty"`
+	EnableProfileValidation     optjson.Bool `json:"enable_profile_validation,omitzero"`
 }
 
 // TeamSpecFromTeam returns a TeamSpec constructed from the given Team.

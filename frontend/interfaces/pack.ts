@@ -17,7 +17,7 @@ export default PropTypes.shape({
   total_host_count: PropTypes.number,
   host_ids: PropTypes.arrayOf(PropTypes.number),
   label_ids: PropTypes.arrayOf(PropTypes.number),
-  team_ids: PropTypes.arrayOf(PropTypes.number),
+  fleet_ids: PropTypes.arrayOf(PropTypes.number),
 });
 
 export interface IStoredPacksResponse {
@@ -43,7 +43,7 @@ export interface IPack {
   labels: ILabel[];
   label_ids: number[];
   teams: ITeam[];
-  team_ids: number[];
+  fleet_ids: number[];
 }
 
 export interface IUpdatePack {

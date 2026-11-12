@@ -40,6 +40,26 @@ You can require IdP authentication during automatic enrollment (ADE) for Apple (
 
 > If your organization uses Okta, create a dedicated [app sign-in policy](https://help.okta.com/oie/en-us/content/topics/identity-engine/policies/about-app-sign-on-policies.htm) on this SAML app that disallows FastPass. During automatic enrollment (ADE), Fleet end-user authentication runs before Okta Verify is installed, but Okta still offers **Use Okta FastPass**. **Open Okta Verify** then does nothing. If Okta Verify is already present (for example, during an MDM migration), the FastPass pop-up can appear behind **Retrieving enrollment profile**, preventing the user from completing FastPass and causing enrollment to get stuck.
 
+## Rejected automatic enrollments
+
+When **Require IdP authentication** is turned on for a fleet, Fleet only accepts automatic enrollments (ADE) where the end user signs in with your IdP. Fleet rejects enrollments that present the fleet's static enrollment token instead.
+
+The static enrollment token is the token in the automatic enrollment (ADE) profile URL that Fleet uses for fleets without Require IdP authentication. When IdP authentication is required, the end user instead gets a one-time enrollment URL after signing in with your IdP. Hosts that are already enrolled aren't affected.
+
+This can happen when:
+
+- A device was assigned to a different fleet in Apple Business (AB), downloaded that fleet's static enrollment URL, and was then transferred to a fleet with **Require IdP authentication** turned on.
+- **Require IdP authentication** was turned on after the device already downloaded the static enrollment URL.
+
+When Fleet rejects an enrollment, the activity feed shows "Fleet rejected an automatic enrollment for {host} because IdP authentication is required." On the host's **Activity** card, select **Show details** to see an explanation of the rejection. Repeated rejections within 12 hours don't create additional activity.
+
+### Reactivate the device
+
+The device has to go through IdP sign-in to enroll:
+
+- **Mac:** Erase the Mac and go through Setup Assistant again. The IdP sign-in page appears at Remote Management. On a Mac that's already set up, running `sudo profiles renew -type enrollment` may also re-trigger automatic enrollment.
+- **iPhone or iPad:** Restore the device in DFU mode, then go through Setup Assistant again.
+
 ## End user account type
 
 During setup, the end user's local account is created as either an **admin** or **standard** account. The account type determines what the end user can do on their device.
@@ -71,7 +91,7 @@ Each operating system assigns a default account type when a user account is crea
 
 ### Controlling account type with Fleet
 
-Fleet's `end_user_local_account_type` setting lets you enforce either `admin`, `standard`, or `none` as the account type for the end user's local account on macOS hosts that automatically enroll via Apple Business (AB). Learn how to enforce standard accounts on Windows hosts in the [Windows MDM guide](https://fleetdm.com/guides/windows-mdm-setup#force-a-standard-user-account).
+Fleet's `macos_end_user_local_account_type` setting lets you enforce either `admin`, `standard`, or `none` as the account type for the end user's local account on macOS hosts that automatically enroll via Apple Business (AB). Learn how to enforce standard accounts on Windows hosts in the [Windows MDM guide](https://fleetdm.com/guides/windows-mdm-setup#force-a-standard-user-account).
 
 How to enforce account types on macOS hosts:
 
@@ -79,12 +99,13 @@ How to enforce account types on macOS hosts:
 
 2. Under the managed local account options, choose **Admin**, **Standard**, or **Skip (no account)** for the end user account type.
 
-To configure via GitOps, set the `end_user_local_account_type` field under `mdm.macos_setup` in your YAML configuration:
+To configure via GitOps, set `macos_end_user_local_account_type` under `controls.setup_experience`. It requires `macos_managed_local_account_enabled` to be `true`:
 
 ```yaml
-mdm:
-  macos_setup:
-    end_user_local_account_type: "standard"
+controls:
+  setup_experience:
+    macos_managed_local_account_enabled: true
+    macos_end_user_local_account_type: "standard"
 ```
 
 Valid values are `"admin"`, `"standard"`, and `"none"`. When set to `"standard"`, Fleet creates the end user's local account as a standard (non-admin) account during macOS setup, regardless of the OS default. When set to `"none"`, Fleet skips creating the end user's local account during macOS setup, leaving the device with only the managed local admin account provisioned by Fleet.
@@ -99,13 +120,13 @@ Fleet can create a hidden admin account (`_fleetadmin`) with a unique password o
 
 > The managed local account is only created during automatic enrollment (ADE). It is not created during [MDM migration](https://fleetdm.com/guides/mdm-migration). Wipe and re-enroll the Mac to get the account.
 
-This feature is available for macOS hosts that automatically enroll via Apple Business (AB) and Windows hosts that automatically enroll via Azure AD. Manually enrolled hosts are not supported.
+This feature is available for macOS hosts that automatically enroll via Apple Business (AB). Manually enrolled Macs are not supported. For Windows, see the [Windows and Linux setup experience guide](https://fleetdm.com/guides/windows-linux-setup-experience#managed-local-account-windows).
 
 To enable managed local accounts:
 
-1. In Fleet, head to **Controls > Setup experience > Users** and select the platform (macOS or Windows), then choose **Managed > Create hidden admin**. Alternatively, you can enable this using [Fleet's REST API](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience) or [GitOps workflow](https://fleetdm.com/docs/configuration/yaml-files).
+1. In Fleet, head to **Controls > Setup experience > Users**, select the **macOS** tab, then choose **Create hidden admin**. Alternatively, use `macos_managed_local_account_enabled` in [Fleet's REST API](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience) or [GitOps](https://fleetdm.com/docs/configuration/yaml-files#setup-experience).
 
-2. Wipe and re-enroll any existing hosts that should receive the account. Hosts enrolled before the feature is turned on won't receive a managed account until they go through the setup experience again.
+2. Wipe and re-enroll any existing Macs that should receive the account. Macs enrolled before the feature is turned on won't receive a managed account until they go through the setup experience again.
 
 To view the password for a host's managed account, head to **Host details > Actions > Show managed account**. The password is unique per host and stored securely in Fleet.
 
@@ -147,11 +168,12 @@ Fleet supports configuring Platform SSO (PSSO) for macOS hosts with the option t
 
 Fleet also supports using the Fleet Desktop app's built-in PSSO extension to achieve initial account provisioning during setup and password sync with any OAuth ROPG IdP for use cases where a native IdP PSSO integration is unavailable or is not configured. See [Deploying Apple Account Provisioning with Fleet](https://fleetdm.com/guides/deploying-apple-account-provisioning-with-fleet).
 
-## End user license agreement (EULA)
+## End user agreement (EULA)
 
-To require a EULA, in Fleet, head to **Settings > Integrations > MDM > End user license agreement (EULA)** or use the [Fleet API](https://fleetdm.com/docs/rest-api/rest-api#upload-an-eula-file).
+To require an end user agreement, in Fleet, head to **Settings > Integrations > MDM > End user license agreement (EULA)** or use the [Fleet API](/docs/rest-api/rest-api#create-eula). Setup experiences between macOS and Windows differ, which is why you need to upload different file types for each platform.
 
-Currently, the EULA is only displayed for macOS hosts that automatically enroll via Apple Business (AB).
+- **macOS**: Upload a PDF. The end user license agreement (EULA) is displayed for macOS hosts that automatically enroll via Apple Business (AB). Use the [Fleet API](/docs/rest-api/rest-api#create-eula) to upload, view, or delete it.
+- **Windows**: Upload a markdown file (512 KB max, HTML is limited to tables and text styles). The terms and conditions are displayed for Windows hosts that enroll via Microsoft Entra. Use the [Fleet API](/docs/rest-api/rest-api#create-eula) to upload, view, or delete it. If no custom terms are uploaded, Fleet uses a default terms of service page.
 
 ## Bootstrap package
 
@@ -292,14 +314,60 @@ End users won't continue through setup experience unless they press Command (⌘
 
 App Store (VPP) apps are installed by Apple. Fleet sends an [InstallApplication](https://developer.apple.com/documentation/devicemanagement/install-application-command) MDM command, and the device downloads and installs the app from the App Store. As a result, VPP installs during setup depend on Apple's services and the device's connection to the App Store while it's still in Setup Assistant.
 
-Because Apple performs the install, things outside Fleet's control, such as an App Store or Apple Business outage, `InstallApplication` throttling, an expired VPP token, or too few licenses, can cause installs to fail or hang for every host at once. Fleet retries automatically (up to 4 attempts, waiting 10 minutes each time to verify), but retries won’t help while Apple itself is unavailable, and until an install finishes, the end user waits at the Setup Assistant screen.
+Because Apple performs the install, things outside Fleet's control, such as an App Store or Apple Business outage, `InstallApplication` throttling, an expired VPP token, or too few licenses for a paid app, can cause installs to fail or hang for every host at once. Fleet retries automatically (up to 4 attempts, waiting 10 minutes each time to verify), but retries won’t help while Apple itself is unavailable, and until an install finishes, the end user waits at the Setup Assistant screen.
 
 To reduce these risks:
 
 - Only add apps that end users need before their first login. Deliver everything else after enrollment using [automatic install](https://fleetdm.com/guides/automatic-software-install-in-fleet), which runs in the background and doesn't hold the device in Setup Assistant.
 - Keep the setup experience software list short. Each item extends setup time.
-- Before a large rollout, confirm your VPP token is valid and you have enough available licenses for the apps you're installing.
+- Before a large rollout, confirm your VPP token is valid. For paid apps, also confirm you have enough available licenses. Free apps don't need this check.
 - If available, choose Fleet-maintained app over App Store (VPP) app for better control
+
+### Python (.py) packages on macOS
+
+A new Mac doesn't include a Python interpreter. Python comes with Apple's Command Line Tools (CLT). Without CLT, `.py` packages in setup experience fail with an `xcode-select: error: No developer tools were found` error.
+
+To run `.py` packages during setup experience, install CLT first:
+
+1. Save the script below as a `.sh` file and [add it as a custom package](https://fleetdm.com/guides/deploy-software-packages).
+2. Give the package a name that sorts before your `.py` packages, for example "1. Install Python". Fleet installs setup experience software alphabetically, by display name or by title if there's no display name.
+3. Add both the `.sh` package and your `.py` packages to setup experience.
+
+```sh
+#!/bin/sh
+# Installs Command Line Tools without a GUI session, so /usr/bin/python3 works for .py packages.
+# Same mechanism as Homebrew's installer: the in-progress flag makes softwareupdate offer Command Line Tools.
+
+if /usr/bin/xcode-select -p >/dev/null 2>&1 && [ -x /Library/Developer/CommandLineTools/usr/bin/python3 ]; then
+  echo "Command Line Tools already installed"
+  exit 0
+fi
+
+flag=/tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+/usr/bin/touch "$flag"
+trap '/bin/rm -f "$flag"' EXIT
+
+label=$(/usr/sbin/softwareupdate -l 2>/dev/null |
+  /usr/bin/grep -B 1 -E 'Command Line Tools' |
+  /usr/bin/awk -F'*' '/^ *\*/ {print $2}' |
+  /usr/bin/sed -e 's/^ *Label: //' -e 's/^ *//' |
+  /usr/bin/sort -V |
+  /usr/bin/tail -n1)
+
+if [ -z "$label" ]; then
+  echo "softwareupdate did not offer Command Line Tools"
+  exit 1
+fi
+
+echo "Installing $label"
+/usr/sbin/softwareupdate -i "$label" --verbose || exit 1
+/usr/bin/xcode-select --switch /Library/Developer/CommandLineTools || exit 1
+/Library/Developer/CommandLineTools/usr/bin/python3 --version || exit 1
+```
+
+CLT is about a 520 MB download and takes a few minutes to install, so expect setup to take longer. Use a package, not the setup experience [script](#run-script), because the script runs after all software is installed.
+
+On macOS 27, CLT includes Python 3.9.6. `.py` packages that need a newer Python version will still fail.
 
 ### Host stuck during setup experience
 

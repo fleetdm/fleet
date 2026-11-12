@@ -37,7 +37,7 @@ Microsoft has gone through several generations of update enforcement, and you'll
 
 | Policy | Range | Default |
 | --- | --- | --- |
-| `ConfigureDeadlineForQualityUpdates` | 0-30 days | 7 |
+| `ConfigureDeadlineForQualityUpdates` | 0-30 days | 1 |
 | `ConfigureDeadlineForFeatureUpdates` | 0-30 days | 2 |
 | `ConfigureDeadlineGracePeriod` | 0-7 days | 2 |
 | `ConfigureDeadlineGracePeriodForFeatureUpdates` | 0-7 days | 7 |

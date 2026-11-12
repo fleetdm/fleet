@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.7.1",
+      "version": "1.7.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Airtable' AND publisher = 'Airtable';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Airtable' AND publisher = 'Airtable' AND version_compare(version, '1.7.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Airtable' AND publisher = 'Airtable' AND version_compare(version, '1.7.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'airtable.exe');"
       },
-      "installer_url": "https://static.airtable.com/download/win/AirtableSetup1.7.1.exe",
+      "installer_url": "https://static.airtable.com/download/win/AirtableSetup1.7.3.exe",
       "install_script_ref": "88b045df",
       "uninstall_script_ref": "f17c5f9f",
-      "sha256": "58478963b22895ba09be5788718d4cfbaf3bf504cd001fbd3d0765ccba518d2a",
+      "sha256": "640e7bb09b9347f2a8bba5a07a29c1d9a73081d1061799ea11df50fb4a3dfc39",
       "default_categories": [
         "Developer tools"
       ]

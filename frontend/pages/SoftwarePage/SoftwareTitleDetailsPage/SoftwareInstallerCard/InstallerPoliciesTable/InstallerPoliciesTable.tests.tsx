@@ -32,9 +32,9 @@ describe("InstallerPoliciesTable", () => {
       <InstallerPoliciesTable teamId={42} policies={policies} />
     );
 
-    expect(screen.getByTestId("refresh-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("install-auto-icon")).toBeInTheDocument();
 
-    await user.hover(screen.getByTestId("refresh-icon"));
+    await user.hover(screen.getByTestId("install-auto-icon"));
     expect(
       await screen.findByText(
         "Software will be automatically installed when hosts fail this policy."

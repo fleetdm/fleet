@@ -1,1 +1,0 @@
-- Fixed Android hosts that re-enroll into a different fleet still offering the previous fleet's self-service apps in the managed Google Play Store.
