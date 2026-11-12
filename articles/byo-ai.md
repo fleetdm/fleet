@@ -66,7 +66,7 @@ If your account doesn't have billing set up, OpenAI might not let you create or 
 
 3. Enter your API key.
 
-4. Enter a model ID for each complexity level, like claude-opus-5-5. Use the model ID, not the model’s display name. Find current model IDs on the [Anthropic models page](https://platform.claude.com/docs/en/models/overview) or the [OpenAI models page](https://developers.openai.com/api/docs/models/all).
+4. Enter a model ID for each task level, like claude-opus-5-5. Use the **model ID**, not the model’s display name. Find current model IDs on the [Anthropic models page](https://platform.claude.com/docs/en/models/overview) or the [OpenAI models page](https://developers.openai.com/api/docs/models).
 
 5. Select **Save**.
 
@@ -76,7 +76,7 @@ Fleet checks your model IDs when you save. If a model isn't found, the field is 
 
 After you save, the API key is hidden. To change it, enter a new key.
 
-## Complexity
+## Models
 
 Fleet uses a different model depending on how complex the request is:
 
