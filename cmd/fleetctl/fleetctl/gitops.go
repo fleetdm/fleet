@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"net/http"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/text/unicode/norm"
 )
@@ -323,7 +325,10 @@ func gitopsCommand() *cli.Command {
 					appConfig.GitOpsConfig.Exceptions.Labels,
 					func(name string) (string, bool, error) {
 						label, err := fleetClient.GetLabel(name)
-						if service.IsNotFoundErr(err) {
+						// A conflict means several fleets have a label by this name, so the lookup can't tell
+						// whether one of them is this fleet's. The deletes at the end of the run catch a rename then.
+						var sce kithttp.StatusCoder
+						if service.IsNotFoundErr(err) || (errors.As(err, &sce) && sce.StatusCode() == http.StatusConflict) {
 							return "", false, nil
 						}
 						if err != nil {
@@ -525,12 +530,35 @@ func gitopsCommand() *cli.Command {
 
 				// Delete labels at the end of the run to avoid issues with resource contention. Deleting by ID also finds a
 				// label that was renamed (set aside) during the run because its name moved to or from the global level.
-				if !flDryRun {
-					for _, l := range labelChangesSummary.LabelsToRemove {
-						allPostOps = append(allPostOps, func() error {
-							return fleetClient.DeleteLabelByID(l.ID)
-						})
-					}
+				if teamID := teamIDLookup[teamName]; !flDryRun && teamID != nil && len(labelChangesSummary.LabelsToRemove) > 0 {
+					toRemove, specs := labelChangesSummary.LabelsToRemove, config.Labels
+					allPostOps = append(allPostOps, func() error {
+						// When the name lookup couldn't match a renamed label, applying the file still renamed it in
+						// place if the names are equal under the server's collation, so it now has a name from the file.
+						desired := make(map[string]struct{}, len(specs))
+						for _, s := range specs {
+							desired[s.Name] = struct{}{}
+						}
+						current, err := fleetClient.GetLabels(*teamID)
+						if err != nil {
+							return fmt.Errorf("getting labels to delete for %q: %w", teamName, err)
+						}
+						renamed := make(map[uint]struct{})
+						for _, l := range current {
+							if _, ok := desired[l.Name]; ok {
+								renamed[l.ID] = struct{}{}
+							}
+						}
+						for _, l := range toRemove {
+							if _, ok := renamed[l.ID]; ok {
+								continue
+							}
+							if err := fleetClient.DeleteLabelByID(l.ID); err != nil {
+								return err
+							}
+						}
+						return nil
+					})
 				}
 
 				// Special handling for tokens is required because they link to teams (by

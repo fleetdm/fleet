@@ -4564,28 +4564,35 @@ func testApplyLabelSpecsCollationEqualRename(t *testing.T, ds *Datastore) {
 				from, to := "X"+tc.from, "X"+tc.to
 				newLabel := func(teamID uint) *fleet.Label {
 					l, err := ds.NewLabel(ctx, &fleet.Label{
-						Name: from, Query: "select 1", TeamID: &teamID, LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+						Name: from, Query: "select 1", Platform: "darwin", TeamID: &teamID, LabelMembershipType: fleet.LabelMembershipTypeDynamic,
 					})
 					require.NoError(t, err)
+					require.NoError(t, ds.RecordLabelQueryExecutions(ctx, h1, map[uint]*bool{l.ID: new(true)}, time.Now(), false))
 					return l
 				}
 				labelA, labelB := newLabel(teamA.ID), newLabel(teamB.ID)
 
+				// The platform change clears the renamed label's members, so it shows which fleet's row the rename paired with.
 				require.NoError(t, ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{{
-					Name: to, Query: "select 2", TeamID: &teamA.ID, LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+					Name: to, Query: "select 2", Platform: "windows", TeamID: &teamA.ID, LabelMembershipType: fleet.LabelMembershipTypeDynamic,
 				}}))
 
 				for _, want := range []struct {
-					id          uint
-					name, query string
+					id                    uint
+					name, query, platform string
+					hostIDs               []uint
 				}{
-					{labelA.ID, to, "select 2"},
-					{labelB.ID, from, "select 1"},
+					{labelA.ID, to, "select 2", "windows", nil},
+					{labelB.ID, from, "select 1", "darwin", []uint{h1.ID}},
 				} {
 					got, _, err := ds.Label(ctx, want.id, teamFilter)
 					require.NoError(t, err)
 					require.Equal(t, want.name, got.Name)
 					require.Equal(t, want.query, got.Query)
+					require.Equal(t, want.platform, got.Platform)
+					hostIDs, err := ds.LabelMembershipHostIDs(ctx, want.id)
+					require.NoError(t, err)
+					require.ElementsMatch(t, want.hostIDs, hostIDs)
 				}
 			})
 		}

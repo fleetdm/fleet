@@ -4179,6 +4179,97 @@ labels:
 	}, edited)
 }
 
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsLabelNameSharedByOtherFleets() {
+	t := s.T()
+	ctx := t.Context()
+
+	user := s.createGitOpsUser(t)
+	fleetCfg := s.createFleetctlConfig(t, user)
+
+	suffix := uuid.NewString()
+	sharedName, oldName := "Shared "+suffix, "Old "+suffix
+	newTeam := func(name string) *fleet.Team {
+		team, err := s.DS.NewTeam(ctx, &fleet.Team{Name: name})
+		require.NoError(t, err)
+		return team
+	}
+	team := newTeam("Fleet " + suffix)
+	var otherLabelIDs []uint
+	for _, other := range []*fleet.Team{newTeam("Other A " + suffix), newTeam("Other B " + suffix)} {
+		l, err := s.DS.NewLabel(ctx, &fleet.Label{
+			Name: sharedName, Query: "SELECT 1", TeamID: &other.ID, LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		})
+		require.NoError(t, err)
+		otherLabelIDs = append(otherLabelIDs, l.ID)
+	}
+
+	teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	write := func(label string) {
+		require.NoError(t, os.WriteFile(teamFile.Name(), fmt.Appendf(nil, `
+controls:
+software:
+policies:
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+reports:
+labels:
+  - name: %s
+    label_membership_type: dynamic
+    query: SELECT 2
+`, team.Name, label), 0o644))
+	}
+	run := func(extraArgs ...string) string {
+		return fleetctltest.RunAppForTest(t, append([]string{"gitops", "--config", fleetCfg.Name(), "-f", teamFile.Name()}, extraArgs...))
+	}
+	teamLabels := func() map[string]uint {
+		specs, err := s.DS.GetLabelSpecs(ctx, fleet.TeamFilter{User: test.UserAdmin, TeamID: &team.ID})
+		require.NoError(t, err)
+		ids := map[string]uint{}
+		for _, l := range specs {
+			if l.TeamID != nil && *l.TeamID == team.ID {
+				ids[l.Name] = l.ID
+			}
+		}
+		return ids
+	}
+	requireOtherLabelsKept := func() {
+		for _, id := range otherLabelIDs {
+			l, _, err := s.DS.Label(ctx, id, fleet.TeamFilter{User: test.UserAdmin})
+			require.NoError(t, err)
+			require.Equal(t, sharedName, l.Name)
+		}
+	}
+
+	write(oldName)
+	s.assertRealRunOutput(t, run())
+	oldID := teamLabels()[oldName]
+	require.NotZero(t, oldID)
+
+	// The name now matches labels on two other fleets, so looking it up by name alone is ambiguous.
+	write(sharedName)
+	dryRun := run("--dry-run")
+	s.assertDryRunOutput(t, dryRun)
+	require.Contains(t, dryRun, fmt.Sprintf("[-] would've deleted label '%s'", oldName))
+
+	s.assertRealRunOutput(t, run())
+	got := teamLabels()
+	require.Len(t, got, 1)
+	sharedID := got[sharedName]
+	require.NotZero(t, sharedID)
+	require.NotEqual(t, oldID, sharedID)
+	requireOtherLabelsKept()
+
+	// A case-only rename of the shared name is just as ambiguous, and must keep the label.
+	upper := strings.ToUpper(sharedName)
+	write(upper)
+	s.assertRealRunOutput(t, run())
+	require.Equal(t, map[string]uint{upper: sharedID}, teamLabels())
+	requireOtherLabelsKept()
+}
+
 func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsAccentOnlyRenameKeepsLabelsAndReports() {
 	t := s.T()
 	ctx := t.Context()
