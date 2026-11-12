@@ -17,6 +17,7 @@ import (
 	"unicode"
 
 	"github.com/doug-martin/goqu/v9"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/pkg/download"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -641,7 +642,7 @@ func CPEFromSoftware(ctx context.Context, logger *slog.Logger, db *sqlx.DB, soft
 	// fleetd's Windows Installed apps entry, once fleetd renames it (fleet.CapabilityFleetAgentNames).
 	// The name alone matches the Fleet server's CPE, and other apps are also called "Fleet", so the
 	// publisher decides.
-	if software.Source == "programs" && software.Name == "Fleet" && software.Vendor == "Fleet Device Management (fleetdm.com)" {
+	if software.Source == "programs" && software.Name == constant.AgentDisplayName && software.Vendor == constant.AgentPublisher {
 		return "", nil
 	}
 

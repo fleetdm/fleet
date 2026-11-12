@@ -163,7 +163,7 @@ func createVersionInfo(vParts []string, iconPath string, manifestPath string, ri
 		},
 		StringFileInfo: goversioninfo.StringFileInfo{
 			Comments:         ri.comments,
-			CompanyName:      "Fleet Device Management (fleetdm.com)",
+			CompanyName:      constant.AgentPublisher,
 			FileDescription:  ri.fileDescription,
 			FileVersion:      version,
 			InternalName:     "",

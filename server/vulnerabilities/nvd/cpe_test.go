@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -88,7 +89,7 @@ func TestCPEFromSoftware(t *testing.T) {
 
 	// fleetd's renamed Installed apps entry gets no CPE; another app called "Fleet" still does.
 	cpe, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{
-		Name: "Fleet", Version: "1.64.0", Vendor: "Fleet Device Management (fleetdm.com)", Source: "programs",
+		Name: "Fleet", Version: "1.64.0", Vendor: constant.AgentPublisher, Source: "programs",
 	}, nil, reCache)
 	require.NoError(t, err)
 	require.Empty(t, cpe)

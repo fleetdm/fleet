@@ -416,7 +416,7 @@ func createVersionInfo(vParts []string, manifestPath string) (*goversioninfo.Ver
 		},
 		StringFileInfo: goversioninfo.StringFileInfo{
 			Comments:         "Fleet osquery",
-			CompanyName:      "Fleet Device Management (fleetdm.com)",
+			CompanyName:      constant.AgentPublisher,
 			FileDescription:  "Fleet osquery installer",
 			FileVersion:      version,
 			InternalName:     "",

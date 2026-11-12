@@ -3,6 +3,7 @@ package update
 import (
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -11,13 +12,13 @@ func TestIsFleetdUninstallEntry(t *testing.T) {
 		displayName, publisher string
 		want                   bool
 	}{
-		{"Fleet", fleetdPublisher, true},
-		{"Fleet osquery", fleetdPublisher, true},
+		{"Fleet", constant.AgentPublisher, true},
+		{"Fleet osquery", constant.AgentPublisher, true},
 		{"Fleet osquery", "", true},
 		{"Fleet", "JetBrains s.r.o.", false},
 		{"Fleet", "", false},
-		{"fleet", fleetdPublisher, false},
-		{"Fleet Desktop", fleetdPublisher, false},
+		{"fleet", constant.AgentPublisher, false},
+		{"Fleet Desktop", constant.AgentPublisher, false},
 		{"osquery", "osquery", false},
 	} {
 		assert.Equal(t, tc.want, isFleetdUninstallEntry(tc.displayName, tc.publisher), "%q by %q", tc.displayName, tc.publisher)

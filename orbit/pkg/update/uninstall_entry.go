@@ -7,12 +7,8 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 )
 
-const (
-	// fleetdInstallerName is the product name of fleetd's MSI, which Installed apps shows until fleetd renames its entry.
-	fleetdInstallerName = "Fleet osquery"
-	// fleetdPublisher is the Manufacturer of fleetd's MSI, which Installed apps shows as the publisher.
-	fleetdPublisher = "Fleet Device Management (fleetdm.com)"
-)
+// fleetdInstallerName is the product name of fleetd's MSI, which Installed apps shows until fleetd renames its entry.
+const fleetdInstallerName = "Fleet osquery"
 
 // isFleetdUninstallEntry returns whether a Windows Installed apps entry is fleetd's. Other apps are called "Fleet" too,
 // so the name fleetd renames its entry to also needs Fleet's publisher. The installer's name is matched alone, as it
@@ -22,7 +18,7 @@ func isFleetdUninstallEntry(displayName, publisher string) bool {
 	case fleetdInstallerName:
 		return true
 	case constant.AgentDisplayName:
-		return publisher == fleetdPublisher
+		return publisher == constant.AgentPublisher
 	default:
 		return false
 	}

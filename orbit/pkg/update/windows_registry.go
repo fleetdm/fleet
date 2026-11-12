@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"golang.org/x/sys/windows/registry"
 )
 
@@ -58,7 +59,7 @@ func renameUninstallFleetdRegistryEntry(name string) error {
 	if current, _, err := key.GetStringValue("DisplayName"); err == nil && current == name {
 		return nil
 	}
-	if publisher, _, _ := key.GetStringValue("Publisher"); publisher != fleetdPublisher {
+	if publisher, _, _ := key.GetStringValue("Publisher"); publisher != constant.AgentPublisher {
 		return fmt.Errorf(`not renaming '%v\%v': publisher is %q`, HKEY_LOCAL_MACHINE_PATH, uninstallFleetdRegRelPath, publisher)
 	}
 	if err := key.SetStringValue("DisplayName", name); err != nil {
