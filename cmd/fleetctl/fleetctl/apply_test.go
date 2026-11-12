@@ -2906,6 +2906,28 @@ spec:
 		mockStore.Unlock()
 	})
 
+	t.Run("removed key rejected before bootstrap package upload", func(t *testing.T) {
+		pkgName := "signed.pkg"
+		srv, _ := testing_utils.ServeMDMBootstrapPackage(t, filepath.Join("../../../server/service/testdata/bootstrap-packages", pkgName),
+			pkgName)
+		ds := setupServer(t, true)
+
+		spec := `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    setup_experience:
+      macos_bootstrap_package: %s
+      manual_agent_install: true
+`
+		tmpFilename := writeTmpYml(t, fmt.Sprintf(spec, srv.URL))
+
+		runAppCheckErr(t, []string{"apply", "-f", tmpFilename}, `"manual_agent_install" parameter is not available anymore`)
+		assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
+		assert.False(t, ds.SaveAppConfigFuncInvoked)
+	})
+
 	t.Run("replace bootstrap package", func(t *testing.T) {
 		pkgName := "signed.pkg"
 		pkgBytes, err := os.ReadFile(filepath.Join("../../../server/service/testdata/bootstrap-packages", pkgName))
@@ -4039,7 +4061,7 @@ spec:
   mdm:
     enable_recovery_lock_password: true
 `,
-			wantErr: `422 Validation Failed: The "enable_recovery_lock_password" parameter is not available anymore. ` +
+			wantErr: `The "enable_recovery_lock_password" parameter is not available anymore. ` +
 				`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
 		},
 		{
@@ -4055,7 +4077,7 @@ spec:
         require_all_software_windows: true
 `,
 			flags: []string{"--force"},
-			wantErr: `422 Validation Failed: The "require_all_software_windows" parameter is not available anymore. ` +
+			wantErr: `The "require_all_software_windows" parameter is not available anymore. ` +
 				`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
 		},
 		{
@@ -4302,7 +4324,7 @@ spec:
   mdm:
     windows_migration_enabled: true
 `,
-			wantErr: `422 Validation Failed: The "windows_migration_enabled" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+			wantErr: `The "windows_migration_enabled" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
 		},
 		{
 			desc: "app config removed windows mdm enabled key",
@@ -4313,7 +4335,7 @@ spec:
   mdm:
     windows_enabled_and_configured: true
 `,
-			wantErr: `422 Validation Failed: The "windows_enabled_and_configured" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+			wantErr: `The "windows_enabled_and_configured" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
 		},
 		{
 			desc: "activities_webhook empty destination_url",

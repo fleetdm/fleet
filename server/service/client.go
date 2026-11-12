@@ -617,6 +617,10 @@ func (c *Client) ApplyGroup(
 		}
 	}
 
+	if err := checkRemovedSpecKeys(specs); err != nil {
+		return nil, nil, nil, nil, err
+	}
+
 	// specs.Queries must be applied before specs.Packs because packs reference queries.
 	if len(specs.Queries) > 0 {
 		if opts.DryRun {
@@ -1621,6 +1625,35 @@ func getAppStoreAppConfig(platform, path string) (json.RawMessage, error) {
 	}
 
 	return nil, nil
+}
+
+// checkRemovedSpecKeys runs the server's removed-key check on the config and fleet specs. The server would reject them
+// too, but only after ApplyGroup has already uploaded bootstrap packages and applied earlier specs.
+func checkRemovedSpecKeys(specs *spec.Group) error {
+	if specs.AppConfig != nil {
+		data, err := json.Marshal(specs.AppConfig)
+		if err != nil {
+			return fmt.Errorf("marshal app config: %w", err)
+		}
+		if data, err = endpointer.RewriteOldToNewKeys(data, endpointer.ExtractAliasRules(fleet.AppConfig{})); err != nil {
+			return err
+		}
+		if err := endpointer.CheckRemovedKeys(data, endpointer.ExtractRemovedKeyRules(fleet.AppConfig{})); err != nil {
+			return err
+		}
+	}
+	aliasRules := endpointer.ExtractAliasRules(fleet.TeamSpec{})
+	removedRules := endpointer.ExtractRemovedKeyRules(fleet.TeamSpec{})
+	for _, tm := range specs.Teams {
+		data, err := endpointer.RewriteOldToNewKeys(tm, aliasRules)
+		if err != nil {
+			return err
+		}
+		if err := endpointer.CheckRemovedKeys(data, removedRules); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func extractAppCfgMacOSSetup(appCfg any) *fleet.MacOSSetup {
