@@ -860,6 +860,8 @@
     margin-right: auto;
     margin-top: 32px;
     margin-bottom: 32px;
+    // Clears the sticky header (and the announcement banner, when shown) when linked to as /#newsletter.
+    scroll-margin-top: ~'calc(81px + var(--announcement-banner-height, 0px) + 24px)';
     border-radius: 8px;
     border: 1px solid #E2E4EA;
     background: #F9FAFC;
