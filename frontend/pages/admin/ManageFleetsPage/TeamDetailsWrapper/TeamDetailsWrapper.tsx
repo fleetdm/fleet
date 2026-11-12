@@ -27,7 +27,6 @@ import teamsAPI, {
   ITeamFormData,
 } from "services/entities/teams";
 import usersAPI, { IGetMeResponse } from "services/entities/users";
-import formatErrorResponse from "utilities/format_error_response";
 import sortUtils from "utilities/sort";
 
 import AddHostsModal from "../../../../components/AddHostsModal";
@@ -36,6 +35,7 @@ import EnrollSecretModal from "../../../../components/EnrollSecrets/EnrollSecret
 import SecretEditorModal from "../../../../components/EnrollSecrets/SecretEditorModal";
 import DeleteFleetModal from "../components/DeleteFleetModal";
 import RenameFleetModal from "../components/RenameFleetModal";
+import { getFleetNameError } from "../helpers";
 
 const baseClass = "team-details";
 
@@ -342,24 +342,14 @@ const TeamDetailsWrapper = ({
         refetchMe();
         toggleRenameFleetModal();
       } catch (response) {
-        console.error(response);
-        const errorObject = formatErrorResponse(response);
-        if (errorObject.base.includes("Duplicate")) {
-          setBackendValidators({
-            name: `A fleet with this name already exists`,
-          });
-        } else if (errorObject.base.includes("all teams")) {
-          setBackendValidators({
-            name: `"All fleets" is a reserved fleet name. Please try another name.`,
-          });
-        } else if (errorObject.base.includes("no team")) {
-          setBackendValidators({
-            name: `"Unassigned" is a reserved fleet name. Please try another name.`,
-          });
+        const nameError = getFleetNameError(response, updatedAttrs.name);
+        if (nameError) {
+          setBackendValidators({ name: nameError });
         } else {
-          notify.error("Could not create fleet. Please try again.", {
-            response,
-          });
+          notify.error(
+            `Could not rename ${currentTeamDetails.name}. Please try again.`,
+            { response }
+          );
         }
       } finally {
         setIsUpdatingTeams(false);

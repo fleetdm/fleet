@@ -1,10 +1,11 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import React from "react";
 
 import createMockConfig from "__mocks__/configMock";
 import { createMockTeamSummary } from "__mocks__/teamMock";
 import createMockUser from "__mocks__/userMock";
+import { notify } from "components/ToastNotification";
 import { IGitOpsExceptions } from "interfaces/config";
 import mockServer from "test/mock-server";
 import {
@@ -21,6 +22,15 @@ jest.mock("components/BackButton", () => ({
   default: ({ text }: { text: string }) => (
     <button type="button">{text}</button>
   ),
+}));
+
+jest.mock("components/ToastNotification", () => ({
+  notify: {
+    success: jest.fn(),
+    error: jest.fn(),
+    batch: jest.fn(),
+    dismiss: jest.fn(),
+  },
 }));
 
 const TEAM = { id: 1, name: "Fleet 1", description: "", host_count: 0 };
@@ -124,5 +134,133 @@ describe("TeamDetailsWrapper", () => {
     expect(await button("Manage enroll secrets")).toBeEnabled();
     expect(await button("Rename fleet")).toBeEnabled();
     expect(await button("Delete fleet")).toBeEnabled();
+  });
+
+  describe("renaming the fleet", () => {
+    const invalidNameResponse = (reason: string) =>
+      HttpResponse.json(
+        { message: "Validation Failed", errors: [{ name: "name", reason }] },
+        { status: 422 }
+      );
+
+    const submitRename = async (name: string) => {
+      const { user } = renderPage(false);
+      await user.click(await button("Rename fleet"));
+      const nameInput = screen.getByLabelText("Fleet name");
+      await user.clear(nameInput);
+      await user.type(nameInput, name);
+      await user.click(screen.getByRole("button", { name: "Save" }));
+    };
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it("shows the conflict error under the name field on a 409, with no toast", async () => {
+      mockServer.use(
+        http.patch(baseUrl("/fleets/1"), () =>
+          HttpResponse.json(
+            {
+              message: "Conflict",
+              errors: [
+                {
+                  name: "base",
+                  reason:
+                    'A fleet named "Workstations" already exists. Choose a fleet name distinct from other fleets.',
+                },
+              ],
+            },
+            { status: 409 }
+          )
+        )
+      );
+
+      await submitRename("work-stations");
+
+      expect(
+        await screen.findByText(
+          "Choose a fleet name distinct from other fleets."
+        )
+      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+      expect(notify.error).not.toHaveBeenCalled();
+    });
+
+    it("shows the letter-or-number error under the name field", async () => {
+      mockServer.use(
+        http.patch(baseUrl("/fleets/1"), () =>
+          invalidNameResponse("must include at least one letter or number")
+        )
+      );
+
+      await submitRename("---");
+
+      expect(
+        await screen.findByText(
+          "Fleet name must include at least one letter or number."
+        )
+      ).toBeInTheDocument();
+      expect(notify.error).not.toHaveBeenCalled();
+    });
+
+    it.each(["Unassigned", "All fleets"])(
+      "shows the reserved-name error under the name field for %s",
+      async (name) => {
+        mockServer.use(
+          http.patch(baseUrl("/fleets/1"), () =>
+            invalidNameResponse(`"${name}" is a reserved fleet name`)
+          )
+        );
+
+        await submitRename(name);
+
+        expect(
+          await screen.findByText(
+            `"${name}" is a reserved fleet name. Please try another name.`
+          )
+        ).toBeInTheDocument();
+        expect(notify.error).not.toHaveBeenCalled();
+      }
+    );
+
+    it("sends a rename to a variant of the fleet's own name", async () => {
+      const patchSpy = jest.fn();
+      mockServer.use(
+        http.patch(baseUrl("/fleets/1"), async ({ request }) => {
+          patchSpy(await request.json());
+          return HttpResponse.json({ fleet: { ...TEAM, name: "FLEET-1" } });
+        })
+      );
+
+      await submitRename("FLEET-1");
+
+      await waitFor(() => {
+        expect(notify.success).toHaveBeenCalledWith(
+          "Successfully updated fleet name to FLEET-1"
+        );
+      });
+      expect(patchSpy).toHaveBeenCalledWith({ name: "FLEET-1" });
+    });
+
+    it("names the fleet in the toast for other errors", async () => {
+      mockServer.use(
+        http.patch(baseUrl("/fleets/1"), () =>
+          HttpResponse.json(
+            { message: "error", errors: [{ name: "base", reason: "boom" }] },
+            { status: 500 }
+          )
+        )
+      );
+
+      await submitRename("Servers");
+
+      await waitFor(() => {
+        expect(notify.error).toHaveBeenCalledWith(
+          "Could not rename Fleet 1. Please try again.",
+          expect.anything()
+        );
+      });
+      expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    });
   });
 });
