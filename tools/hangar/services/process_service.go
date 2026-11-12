@@ -5,14 +5,16 @@ import "github.com/fleetdm/fleet/tools/hangar/internal/processes"
 // ProcessService exposes the process/log/docker engine to the frontend.
 // Mirrors the process commands from processes.rs.
 type ProcessService struct {
-	pm     *processes.Manager
-	onQuit func()
+	pm             *processes.Manager
+	onQuit         func()
+	beforeShutdown func()
 }
 
-// NewProcessService wires the service to the manager and a quit callback
-// (which performs the app teardown + exit after ShutdownNow).
-func NewProcessService(pm *processes.Manager, onQuit func()) *ProcessService {
-	return &ProcessService{pm: pm, onQuit: onQuit}
+// NewProcessService wires the service to the manager, a quit callback (which
+// performs the app teardown + exit after ShutdownNow), and an optional hook
+// that runs before the manager's teardown.
+func NewProcessService(pm *processes.Manager, onQuit func(), beforeShutdown func()) *ProcessService {
+	return &ProcessService{pm: pm, onQuit: onQuit, beforeShutdown: beforeShutdown}
 }
 
 func (s *ProcessService) ListProcesses() []processes.ProcInfo { return s.pm.ListProcesses() }
@@ -30,6 +32,9 @@ func (s *ProcessService) ForgetProcess(id string) error  { return s.pm.Forget(id
 // ShutdownNow stops all managed processes + every server's docker stack, then
 // triggers app exit. targets is one (cwd, project) per configured server.
 func (s *ProcessService) ShutdownNow(targets []processes.ComposeTarget) error {
+	if s.beforeShutdown != nil {
+		s.beforeShutdown()
+	}
 	s.pm.ShutdownNow(targets)
 	if s.onQuit != nil {
 		s.onQuit()
@@ -44,7 +49,7 @@ func (s *ProcessService) DockerComposeDown(id, cwd, project string) (string, err
 	return s.pm.DockerComposeDown(id, cwd, project)
 }
 func (s *ProcessService) DockerComposeRestart(cwd, project string) (string, error) {
-	return processes.DockerComposeRestart(cwd, project)
+	return s.pm.DockerComposeRestartAs(cwd, project, "")
 }
 
 func (s *ProcessService) ServeTCPCheck(host string, port uint16) bool {

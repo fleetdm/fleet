@@ -2,10 +2,14 @@ package processes
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os/exec"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/fleetdm/fleet/tools/hangar/internal/shellpath"
 )
@@ -15,6 +19,59 @@ import (
 // Finder-launched app's bare PATH).
 func dockerCmd(args ...string) *exec.Cmd {
 	return shellpath.Command("docker", args...)
+}
+
+// composeTimeout bounds a synchronous compose call so a hung Docker can't
+// block a stop, a job, or quit forever.
+var composeTimeout = time.Minute
+
+// runCompose runs `docker compose [-p project] rest...` in cwd until it exits,
+// ctx ends, or composeTimeout passes. Either way it then kills the CLI's whole
+// process group (the compose plugin runs as a child of docker) and returns
+// once the group is gone.
+func runCompose(ctx context.Context, cwd, project string, rest ...string) (stdout, stderr string, exitCode *int, err error) {
+	ctx, cancel := context.WithTimeout(ctx, composeTimeout)
+	defer cancel()
+	cmd := dockerCmd(composeArgs(project, rest...)...)
+	cmd.Dir = cwd
+	var out, errOut bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &out, &errOut
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.WaitDelay = time.Second // pipes held by something outside the group
+	if err := cmd.Start(); err != nil {
+		return "", "", nil, err
+	}
+	pgid := cmd.Process.Pid
+	exited := make(chan struct{})
+	go func() {
+		waitExit(pgid)
+		close(exited)
+	}()
+	select {
+	case <-exited:
+	case <-ctx.Done():
+	}
+	// The CLI is unreaped until cmd.Wait, so its pgid is still ours.
+	signalGroup(pgid, syscall.SIGKILL)
+	err = cmd.Wait()
+	waitGroupGone(pgid)
+	if ps := cmd.ProcessState; ps != nil && ps.ExitCode() >= 0 {
+		c := ps.ExitCode()
+		exitCode = &c
+	}
+	if err != nil && ctx.Err() != nil {
+		err = fmt.Errorf("docker compose %s: %w", strings.Join(rest, " "), ctx.Err())
+	}
+	return out.String(), errOut.String(), exitCode, err
+}
+
+// composeErr reports a compose run that exited non-zero by its stderr.
+func composeErr(err error, stderr string) error {
+	var ee *exec.ExitError
+	if errors.As(err, &ee) {
+		return errors.New(stderr)
+	}
+	return err
 }
 
 // composeArgs prefixes a `compose [-p project] <rest...>` argv. An empty
@@ -94,20 +151,21 @@ func DockerComposeStatus(cwd, project string) (DockerStatus, error) {
 	return DockerStatus{Running: running, Containers: containers}, nil
 }
 
-// DockerComposeRestart runs `docker compose [-p project] restart` in cwd.
-func DockerComposeRestart(cwd, project string) (string, error) {
-	cmd := dockerCmd(composeArgs(project, "restart")...)
-	cmd.Dir = cwd
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	if err := cmd.Run(); err != nil {
-		var ee *exec.ExitError
-		if errors.As(err, &ee) {
-			return "", errors.New(stderr.String())
-		}
+// DockerComposeRestartAs runs `docker compose [-p project] restart` in cwd,
+// tracked as an in-flight op on project. A held project refuses anyone but
+// its holder.
+func (m *Manager) DockerComposeRestartAs(cwd, project, owner string) (string, error) {
+	end, err := m.beginDockerOp(project, owner)
+	if err != nil {
 		return "", err
 	}
-	return stdout.String(), nil
+	defer end()
+
+	stdout, stderr, _, err := runCompose(context.Background(), cwd, project, "restart")
+	if err != nil {
+		return "", composeErr(err, stderr)
+	}
+	return stdout, nil
 }
 
 // dockerComposeProcID is the legacy single-server compose row id, kept as the
@@ -120,29 +178,39 @@ const dockerComposeProcID = "docker-compose-up"
 // `<serverID>:docker-compose-up` process id; an empty id targets the legacy
 // default row.
 func (m *Manager) DockerComposeDown(id, cwd, project string) (string, error) {
+	return m.DockerComposeDownAs(id, cwd, project, "")
+}
+
+// DockerComposeDownAs is DockerComposeDown on behalf of owner, tracked as an
+// in-flight op on project. A held project refuses anyone but its holder.
+func (m *Manager) DockerComposeDownAs(id, cwd, project, owner string) (string, error) {
+	return m.DockerComposeDownContext(context.Background(), id, cwd, project, owner)
+}
+
+// DockerComposeDownContext is DockerComposeDownAs that also ends when ctx
+// does, killing the compose CLI.
+func (m *Manager) DockerComposeDownContext(ctx context.Context, id, cwd, project, owner string) (string, error) {
 	if id == "" {
 		id = dockerComposeProcID
 	}
+	end, err := m.beginDockerOp(project, owner)
+	if err != nil {
+		return "", err
+	}
+	defer end()
+
 	m.setComposeState(id, "stopping", true, false)
 	m.emitState(id, "stopping", nil, nil)
 
-	cmd := dockerCmd(composeArgs(project, "down")...)
-	cmd.Dir = cwd
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	runErr := cmd.Run()
+	stdout, stderr, _, runErr := runCompose(ctx, cwd, project, "down")
 
 	m.setComposeState(id, "done", false, true)
 	m.emitState(id, "done", nil, nil)
 
 	if runErr != nil {
-		var ee *exec.ExitError
-		if errors.As(runErr, &ee) {
-			return "", errors.New(stderr.String())
-		}
-		return "", runErr
+		return "", composeErr(runErr, stderr)
 	}
-	return stdout.String(), nil
+	return stdout, nil
 }
 
 // setComposeState mutates the given compose row if present. When stamp is
@@ -164,44 +232,22 @@ func (m *Manager) setComposeState(id, state string, userStopped, stamp bool) {
 	}
 }
 
-// dockerComposeDownFor tears down compose for a managed docker process id
-// (called from signalStop). `up -d` usually exits before the user quits, so
-// the row is often "done" already — running down here is idempotent.
-func (m *Manager) dockerComposeDownFor(id string) error {
-	m.stateMu.Lock()
-	var cwd, project string
-	if info := m.procs[id]; info != nil {
-		cwd = info.Cwd
-	}
-	if a, ok := m.lastArgs[id]; ok {
-		project = composeProjectFromArgs(a.Args)
-	}
-	m.stateMu.Unlock()
-	if cwd == "" {
-		return nil
-	}
-
-	cmd := dockerCmd(composeArgs(project, "down")...)
-	cmd.Dir = cwd
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	runErr := cmd.Run()
-	success := runErr == nil
-	var exitCode *int
-	if cmd.ProcessState != nil {
-		c := cmd.ProcessState.ExitCode()
-		if c >= 0 {
-			exitCode = &c
-		}
-	}
+// dockerComposeDownFor runs compose down for a managed docker row. signalStop
+// has already checked the hold, registered the op, and waited out a running up.
+func (m *Manager) dockerComposeDownFor(id, cwd, project string) error {
+	stdout, stderr, exitCode, runErr := runCompose(context.Background(), cwd, project, "down")
 
 	final := "failed"
-	if success {
+	if runErr == nil {
 		final = "done"
 	}
 	m.stateMu.Lock()
+	if _, respawned := m.live[id]; respawned {
+		m.stateMu.Unlock()
+		return nil
+	}
 	if info := m.procs[id]; info != nil {
-		for _, line := range append(splitLines(stdout.String()), splitLines(stderr.String())...) {
+		for _, line := range append(splitLines(stdout), splitLines(stderr)...) {
 			info.RecentLog = append(info.RecentLog, line)
 		}
 		if len(info.RecentLog) > logTailCap {
@@ -213,10 +259,8 @@ func (m *Manager) dockerComposeDownFor(id string) error {
 		info.EndedAtMS = &ended
 		info.WasUserStopped = true
 	}
-	delete(m.pids, id)
 	m.stateMu.Unlock()
 	m.emitState(id, final, exitCode, nil)
-	m.finishLifecycle(id)
 	return nil
 }
 

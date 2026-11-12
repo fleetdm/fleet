@@ -95,7 +95,7 @@ func main() {
 				// intentional so the close hook lets the window go, then quit.
 				intentionalQuit.Store(true)
 				app.Quit()
-			})),
+			}, nil)),
 			application.NewService(services.NewScepService(pm)),
 			application.NewService(&services.MdmAssetsService{}),
 			application.NewService(services.NewTufService(pm)),
