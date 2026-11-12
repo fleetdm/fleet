@@ -383,17 +383,18 @@ Fleet 4 doesn't support `POST /hosts/:id/reset`, so you can't switch to it early
 
 GitHub issue: [#55003](https://github.com/fleetdm/fleet/issues/55003)
 
-### YAML-only lists removed from configuration responses
+### Configuration responses list saved settings by name
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `mdm.apple_settings.configuration_profiles`, `mdm.windows_settings.configuration_profiles`, `mdm.setup_experience`, `mdm.volume_purchasing_program`, and `scripts` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration) and [Get fleet](https://fleetdm.com/docs/rest-api/rest-api#get-fleet) | Removed. Use each feature's list endpoint, for example [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-configuration-profiles). |
+| `mdm.apple_settings.configuration_profiles`, `mdm.windows_settings.configuration_profiles`, `mdm.android_settings.configuration_profiles`, `macos_bootstrap_package`, `apple_setup_assistant`, and `macos_script` under `mdm.setup_experience`, `mdm.volume_purchasing_program`, and `scripts` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration), [Get fleet](https://fleetdm.com/docs/rest-api/rest-api#get-fleet), and [List fleets](https://fleetdm.com/docs/rest-api/rest-api#list-fleets) only list what was applied with YAML, as file paths or URLs | They list everything saved in Fleet, including what was added in the UI or API, by name. Profiles don't have `path`. A list is left out for users who can't view that feature on its own endpoint. |
 
 #### What to do
 
-Change these before you upgrade.
+After you upgrade, update scripts and integrations that read these keys:
 
-These lists only included settings applied with YAML, so call the list endpoint for each feature instead.
+- Read names instead of file paths or URLs.
+- Handle a missing key. For example, observers don't get configuration profiles, and fleet-level users don't get the "No fleet" lists in Get configuration.
 
 GitHub issue: [#53932](https://github.com/fleetdm/fleet/issues/53932)
 
@@ -1054,6 +1055,18 @@ GitHub issue: [#53894](https://github.com/fleetdm/fleet/issues/53894)
 Update scripts that read these keys from `fleetctl get config` or `fleetctl get fleets` output.
 
 GitHub issue: [#50084](https://github.com/fleetdm/fleet/issues/50084)
+
+### get config and get fleets print saved settings by name
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `fleetctl get config` and `fleetctl get fleets` print the configuration profiles, scripts, setup experience, and VPP settings applied with YAML, as file paths or URLs | They print everything saved in Fleet by name. Profiles don't have `path`. |
+
+#### What to do
+
+Update scripts that read these keys from `fleetctl get config` or `fleetctl get fleets` output. See [Configuration responses list saved settings by name](#configuration-responses-list-saved-settings-by-name).
+
+GitHub issue: [#53932](https://github.com/fleetdm/fleet/issues/53932)
 
 ### get software output changed
 
