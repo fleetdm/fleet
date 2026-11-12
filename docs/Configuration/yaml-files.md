@@ -973,11 +973,9 @@ The `ai_provider` section lets you use your own AI provider for the [AI profile 
 
 - `provider` is the AI provider. Valid values: `anthropic` and `openai` (default: `""`).
 - `api_key` is the provider's API key. Required for `anthropic` and `openai`.
-- `models` specifies the model ID used for each effort level. Fleet sends the matching effort level with each request. Models that don't support effort are used without it.
+- `models` specifies the model ID used for complexity level of each task. Fleet sends the matching complexity level with each request. Models that don't support effort are used without it.
   - `low` is used for description, name, and Android profile generation (default: `""`).
-  - `medium` is used for Windows and macOS `.mobileconfig` profile generation (default: `""`).
   - `high` is used for pre-profile generation checks and macOS DDM profile generation (default: `""`).
-- `thinking_enabled` turns on thinking for the `high` model. Only supported when `provider` is `anthropic` (default: `false`).
 
 Can only be configured for "All fleets" (`org_settings`).
 
@@ -990,9 +988,7 @@ org_settings:
     api_key: $AI_PROVIDER_API_KEY
     models:
       low: claude-haiku-5-5
-      medium: claude-opus-5-5
       high: claude-opus-5-5
-    thinking_enabled: true
 ```
 
 ### features
