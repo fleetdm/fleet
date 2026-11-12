@@ -78,7 +78,7 @@ module.exports = {
       '/omarchy',
       '/capex-savings',
       '/security-and-control',
-      '/linux-management',
+      '/linux',
       '/europe',
       '/pharma',
       '/aviation',
