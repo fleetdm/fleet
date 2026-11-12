@@ -487,21 +487,10 @@ func (s *integrationTestSuite) TestLabels() {
 		// delete a non-existing label by id
 		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", lbl2.ID+1), nil, http.StatusNotFound, &delIDResp)
 
-		// delete a label by name
-		var delResp fleet.DeleteLabelResponse
-		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(lbl2.Name)), nil, http.StatusOK, &delResp)
-
-		// delete a non-existing label by name
-		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(lbl2.Name)), nil, http.StatusNotFound, &delResp)
-
-		// delete a built-in label by name (case-insensitive)
-		for n := range builtinsMap {
-			for _, variant := range []string{n, strings.ToLower(n), strings.ToUpper(n)} {
-				res = s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(variant)), nil, http.StatusUnprocessableEntity)
-				errMsg = extractServerErrorText(res.Body)
-				require.Contains(t, errMsg, "cannot delete built-in label")
-			}
-		}
+		// labels can only be deleted by ID
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(lbl2.Name)), nil, http.StatusGone)
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", lbl2.ID), nil, http.StatusOK, &delIDResp)
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", lbl2.ID), nil, http.StatusNotFound, &delIDResp)
 		listResp = fleet.ListLabelsResponse{}
 		s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp)
 		var remainingBuiltIns int
@@ -515,8 +504,7 @@ func (s *integrationTestSuite) TestLabels() {
 		// delete a manual label by id
 		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", manualLbl1.ID), nil, http.StatusOK, &delIDResp)
 
-		// delete a manual label by name
-		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(manualLbl2.Name)), nil, http.StatusOK, &delResp)
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", manualLbl2.ID), nil, http.StatusOK, &delIDResp)
 
 		// list labels, only the built-ins remain
 		s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(builtInsCount+1))
@@ -554,9 +542,6 @@ func (s *integrationTestSuite) TestLabels() {
 		for name := range builtinsMap {
 			id, ok := idsByName[name]
 			require.True(t, ok)
-
-			// attempt to delete by name
-			s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(name)), nil, http.StatusUnprocessableEntity, &delResp)
 
 			// attempt to delete by id
 			s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", id), nil, http.StatusUnprocessableEntity, &delIDResp)

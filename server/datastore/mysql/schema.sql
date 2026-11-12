@@ -1957,7 +1957,7 @@ CREATE TABLE `labels` (
   `criteria` json DEFAULT NULL,
   `team_id` int unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_label_unique_name` (`name`),
+  UNIQUE KEY `idx_label_unique_name_team` (`name`,(coalesce(`team_id`,0))),
   KEY `author_id` (`author_id`),
   KEY `team_id` (`team_id`),
   FULLTEXT KEY `labels_search` (`name`),

@@ -303,8 +303,8 @@ func (d *Datastore) DeleteScheduledQuery(ctx context.Context, id uint) error {
 // rare admin action, so the deployment-wide invalidation costs nothing; the
 // label-scope mode state is reset too, since the last label-scoped report of
 // a scope may just have become unscoped.
-func (d *Datastore) DeleteLabel(ctx context.Context, name string, filter fleet.TeamFilter) error {
-	if err := d.Datastore.DeleteLabel(ctx, name, filter); err != nil {
+func (d *Datastore) DeleteLabel(ctx context.Context, id uint) error {
+	if err := d.Datastore.DeleteLabel(ctx, id); err != nil {
 		return err
 	}
 	d.invalidateAndResetLabelScopes(ctx, "DeleteLabel")
