@@ -22,6 +22,7 @@ import {
   getDefaultAutoUpdateFromVersions,
   getDisplayedSoftwareName,
   routeVersionNameError,
+  rewriteVariableErrorReason,
   getSoftwareListName,
 } from "./helpers";
 
@@ -357,6 +358,27 @@ describe("getDefaultAutoUpdateFromVersions", () => {
   });
 });
 
+describe("rewriteVariableErrorReason", () => {
+  it("links the guide in a Fleet 5 removed variable error", () => {
+    render(
+      <div>
+        {rewriteVariableErrorReason(
+          'The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration'
+        )}
+      </div>
+    );
+
+    expect(
+      screen.getByText(
+        /Couldn't edit\. The "\$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable/
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /fleet-5-migration/ })
+    ).toBeInTheDocument();
+  });
+});
+
 describe("routeVersionNameError", () => {
   const setServerErrors = jest.fn();
   const notifyError = notify.error as jest.Mock;
@@ -404,8 +426,7 @@ describe("routeVersionNameError", () => {
           errors: [
             {
               name: "base",
-              reason:
-                "Unsupported variable $FLEET_VAR_HOST_END_USER_EMAIL_IDP_USERNAME",
+              reason: "Unsupported variable $FLEET_VAR_NOT_A_USERNAME",
             },
           ],
         },
@@ -420,7 +441,7 @@ describe("routeVersionNameError", () => {
 
     expect(setServerErrors).not.toHaveBeenCalled();
     expect(notifyError).toHaveBeenCalledWith(
-      "Unsupported variable $FLEET_VAR_HOST_END_USER_EMAIL_IDP_USERNAME",
+      "Unsupported variable $FLEET_VAR_NOT_A_USERNAME",
       {
         response: err,
       }

@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -16,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	queries "github.com/fleetdm/fleet/v4/server/service/osquery_utils"
+	"golang.org/x/sys/windows/registry"
 )
 
 var preInstalled = []string{
@@ -25,7 +27,38 @@ var preInstalled = []string{
 	"microsoft-edge/windows",
 }
 
-func postApplicationInstall(_ context.Context, _ *slog.Logger, _ string) error {
+// After an install that needs a restart (e.g. one that replaced the in-use
+// VC++ runtime), Burn writes a volatile "<bundle key>.RebootRequired" key and
+// refuses to touch that bundle again (exit 3010, nothing changed) until the
+// restart clears it. The runner can't restart before the uninstall check, so
+// clear the markers in its place.
+func postApplicationInstall(ctx context.Context, appLogger *slog.Logger, _ string) error {
+	for _, uninstallKey := range []string{
+		`SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall`,
+		`SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall`,
+	} {
+		k, err := registry.OpenKey(registry.LOCAL_MACHINE, uninstallKey, registry.ENUMERATE_SUB_KEYS)
+		if errors.Is(err, registry.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("opening %s: %w", uninstallKey, err)
+		}
+		names, err := k.ReadSubKeyNames(-1)
+		k.Close()
+		if err != nil {
+			return fmt.Errorf("listing %s: %w", uninstallKey, err)
+		}
+		for _, name := range names {
+			if !strings.HasSuffix(name, ".RebootRequired") {
+				continue
+			}
+			if err := registry.DeleteKey(registry.LOCAL_MACHINE, uninstallKey+`\`+name); err != nil {
+				return fmt.Errorf("deleting Burn restart marker %s: %w", name, err)
+			}
+			appLogger.InfoContext(ctx, fmt.Sprintf("Cleared Burn restart marker %s to stand in for a restart", name))
+		}
+	}
 	return nil
 }
 
@@ -145,16 +178,16 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 			if strings.HasPrefix(result.Version, appVersion+".") {
 				return true, "", nil
 			}
-			// Check if expected version starts with found version (handles cases where osquery reports shorter version)
-			// This handles cases where expected is "6.4.0" but osquery reports "6.4"
-			if strings.HasPrefix(appVersion, result.Version+".") {
-				return true, "", nil
-			}
 			// Some installers register a DisplayVersion in a different format
 			// from the package version (.NET SDK 9.0.320 registers 9.3.2026.52328).
 			// The patch policy compares against that DisplayVersion, so accept it.
 			if patchVersion != "" && result.Version == patchVersion {
 				return true, "", nil
+			}
+			// A shorter version ("6.4" for "6.4.0") is not a match: version_compare
+			// sorts it lower, so the patch policy would fail on up-to-date hosts.
+			if strings.HasPrefix(appVersion, result.Version+".") {
+				logger.ErrorContext(ctx, fmt.Sprintf("osquery reports version '%s', a shorter form of '%s', so the patch policy would fail on hosts that have this version. Shorten the version with an enricher in ee/maintained-apps/ingesters/winget/external_refs, or set use_display_version_for_patch if the winget manifest has a DisplayVersion.", result.Version, appVersion))
 			}
 
 			// Google Chrome auto-updates immediately after installation, so the

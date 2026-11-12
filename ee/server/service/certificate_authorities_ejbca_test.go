@@ -13,6 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/ejbca/ejbcatest"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -88,6 +89,9 @@ func newEJBCATestEnv(t *testing.T, stored *fleet.CertificateAuthority) *ejbcaTes
 	return env
 }
 
+const removedEmailIDPVarMsg = `The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. What to use instead: ` +
+	removednames.GuideURL
+
 func validEJBCA(p12 string) fleet.EJBCA {
 	return fleet.EJBCA{
 		Name:                          "EJBCA_WIFI",
@@ -97,9 +101,9 @@ func validEJBCA(p12 string) fleet.EJBCA {
 		CertificateAuthorityName:      "ManagementCA",
 		CertificateProfileName:        "fleetCertProfile",
 		EndEntityProfileName:          "fleetEEProfile",
-		CertificateCommonName:         "$FLEET_VAR_HOST_END_USER_EMAIL_IDP",
+		CertificateCommonName:         "$FLEET_VAR_HOST_END_USER_IDP_USERNAME",
 		UsernameTemplate:              "$FLEET_VAR_HOST_HARDWARE_SERIAL",
-		CertificateUserPrincipalNames: []string{"$FLEET_VAR_HOST_END_USER_EMAIL_IDP"},
+		CertificateUserPrincipalNames: []string{"$FLEET_VAR_HOST_END_USER_IDP_USERNAME"},
 		TrustCABundlePEM:              "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----",
 	}
 }
@@ -163,6 +167,21 @@ func TestValidateEJBCAFields(t *testing.T) {
 			name:    "unsupported variable in the UPN",
 			modify:  func(p *fleet.EJBCA) { p.CertificateUserPrincipalNames = []string{"$FLEET_VAR_NDES_SCEP_CHALLENGE"} },
 			wantErr: "FLEET_VAR_NDES_SCEP_CHALLENGE is not allowed in CA User Principal Name",
+		},
+		{
+			name:    "removed variable in the common name",
+			modify:  func(p *fleet.EJBCA) { p.CertificateCommonName = "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" },
+			wantErr: removedEmailIDPVarMsg,
+		},
+		{
+			name:    "removed variable in the username template",
+			modify:  func(p *fleet.EJBCA) { p.UsernameTemplate = "${FLEET_VAR_HOST_END_USER_EMAIL_IDP}" },
+			wantErr: removedEmailIDPVarMsg,
+		},
+		{
+			name:    "removed variable in the UPN",
+			modify:  func(p *fleet.EJBCA) { p.CertificateUserPrincipalNames = []string{"$FLEET_VAR_HOST_END_USER_EMAIL_IDP"} },
+			wantErr: removedEmailIDPVarMsg,
 		},
 	}
 	for _, tt := range tests {
@@ -382,13 +401,13 @@ func TestUpdateEJBCACertificateAuthority(t *testing.T) {
 		{
 			name: "templates only don't need the connection",
 			update: fleet.EJBCAUpdatePayload{
-				CertificateCommonName:         new("$FLEET_VAR_HOST_END_USER_EMAIL_IDP"),
+				CertificateCommonName:         new("$FLEET_VAR_HOST_END_USER_IDP_USERNAME"),
 				UsernameTemplate:              new("$FLEET_VAR_HOST_UUID"),
-				CertificateUserPrincipalNames: &[]string{"$FLEET_VAR_HOST_END_USER_EMAIL_IDP"},
+				CertificateUserPrincipalNames: &[]string{"$FLEET_VAR_HOST_END_USER_IDP_USERNAME"},
 				EndEntityProfileName:          new("otherEEProfile"),
 			},
 			checkUpdated: func(t *testing.T, ca *fleet.CertificateAuthority) {
-				assert.Equal(t, "$FLEET_VAR_HOST_END_USER_EMAIL_IDP", *ca.CertificateCommonName)
+				assert.Equal(t, "$FLEET_VAR_HOST_END_USER_IDP_USERNAME", *ca.CertificateCommonName)
 				assert.Equal(t, "$FLEET_VAR_HOST_UUID", *ca.EJBCAUsernameTemplate)
 				assert.Equal(t, "otherEEProfile", *ca.EJBCAEndEntityProfileName)
 				assert.Nil(t, ca.MTLSCertPEM)

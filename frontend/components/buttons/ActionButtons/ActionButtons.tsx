@@ -5,7 +5,6 @@ import { ButtonVariant } from "components/buttons/Button/Button";
 // @ts-ignore
 import DropdownButton from "components/buttons/DropdownButton";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import Icon from "components/Icon/Icon";
 import { IconNames } from "components/icons";
 
 // TODO - there are two `IActionButtonProps` in the codebase, one specifically used in
@@ -93,8 +92,10 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
             showCaret={false}
             options={secondaryActions}
             variant="secondary"
+            icon="more"
+            iconPosition="right"
           >
-            More options <Icon name="more" />
+            More options
           </DropdownButton>
         </div>
       </div>

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.104.5",
+      "version": "1.104.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.tailscale.ipn.macsys';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.tailscale.ipn.macsys' AND version_compare(bundle_short_version, '1.104.5') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.tailscale.ipn.macsys' AND version_compare(bundle_short_version, '1.104.6') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'io.tailscale.ipn.macsys' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://pkgs.tailscale.com/stable/Tailscale-1.104.5-macos.pkg",
+      "installer_url": "https://pkgs.tailscale.com/stable/Tailscale-1.104.6-macos.pkg",
       "install_script_ref": "1b2a44a0",
       "uninstall_script_ref": "81bbe537",
-      "sha256": "f1a2afb589dc16487cff9f23c59d0021a1a4dcf8476d2637ab493c628422b810",
+      "sha256": "6933e28302e5692a4be78da1a2e178445eb6e9d5539197647e64f187d5682c53",
       "default_categories": [
         "Productivity"
       ]

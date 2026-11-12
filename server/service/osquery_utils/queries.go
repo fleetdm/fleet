@@ -1206,7 +1206,7 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'npm_packages' AS source,
   '' AS vendor,
   0 AS last_opened_at,
@@ -2308,36 +2308,9 @@ func directIngestOSUnixLike(ctx context.Context, logger *slog.Logger, host *flee
 	if len(rows) != 1 {
 		return ctxerr.Errorf(ctx, "directIngestOSUnixLike invalid number of rows: %d", len(rows))
 	}
-	name := rows[0]["name"]
-	// forceRollingVersion is set for Arch-based distributions that report their
-	// own release number but must still be recorded as "rolling". See the
-	// Omarchy case below for why the version cannot be derived in that case.
-	var forceRollingVersion bool
-	switch {
-	case strings.HasPrefix(name, "Arch Linux"):
-		name = strings.TrimSuffix(name, " ARM")
-	case name == "CachyOS Linux":
-		// CachyOS is an Arch-based rolling-release distribution; aggregate it
-		// onto the "Arch Linux" operating system row in the OS inventory. It
-		// reports BUILD_ID=rolling, so parseOSVersion already derives "rolling".
-		name = "Arch Linux"
-	case name == "Omarchy":
-		// Omarchy is also an Arch-based rolling-release distribution, but unlike
-		// CachyOS it reports a real release number in both VERSION_ID and
-		// BUILD_ID (e.g. "4.0.0"). parseOSVersion would therefore derive
-		// "4.0.0" and produce an "Arch Linux 4.0.0" row, a version that does not
-		// exist upstream and that does not merge with the "Arch Linux rolling"
-		// row these hosts occupied before Omarchy started shipping its own
-		// os-release ID.
-		//
-		// Pin the version explicitly rather than rewriting the ingested build
-		// value, so parseOSVersion still sees exactly what the host reported.
-		// Note this only affects the OS inventory: the separate os_version
-		// detail query keeps recording the true build on the host, which
-		// continues to display as "Omarchy 4.0.0" on the host details page.
-		name = "Arch Linux"
-		forceRollingVersion = true
-	}
+	// Some Arch-based distributions are recorded as "Arch Linux" in the OS inventory. The host keeps its own name and
+	// version in hosts.os_version (the os_version detail query), which the host API returns.
+	name, forceRollingVersion := fleet.InventoryOSName(rows[0]["name"])
 	version := rows[0]["version"]
 	major := rows[0]["major"]
 	minor := rows[0]["minor"]

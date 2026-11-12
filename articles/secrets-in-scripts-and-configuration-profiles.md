@@ -10,6 +10,8 @@ Scripts and configuration profiles can also use any of Fleet's [built-in variabl
 
 Custom variables use the same value for all hosts. To use unique per-host values, use [custom host vitals](https://fleetdm.com/guides/custom-host-vitals) (`$FLEET_HOST_VITAL_*`) instead.
 
+Custom variables are global. Anyone who can add or edit scripts, software, or configuration profiles in a fleet, including fleet-level admins, maintainers, and GitOps users, can use any custom variable and read its value on that fleet's hosts. If you store something sensitive in a variable (e.g. an API token), make sure you're comfortable with those users having access to it.
+
 ## Add variables
 
 A variable can be used in a script or configuration profile by specifying a variable in the format `$FLEET_SECRET_MYNAME` or `${FLEET_SECRET_MYNAME}`. When the script or profile is sent to the host, Fleet will replace the variable with the variable's value. The prefix `FLEET_SECRET_` is required to indicate that this is a variable, and Fleet reserves this prefix for variables.
@@ -21,8 +23,6 @@ For macOS and Linux scripts, if a variable doesn't have the `$FLEET_SECRET_` pre
 To add or delete a variable in the UI, go to `Controls` > `Variables` and click `+ Add custom variable`:
 
 ![Add variable](../website/assets/images/articles/controls-add-variable-337x209@2x.png)
-
-Variables are global, meaning they can be used in scripts, configuration profiles, and host name templates across all fleets.
 
 ### GitOps
 

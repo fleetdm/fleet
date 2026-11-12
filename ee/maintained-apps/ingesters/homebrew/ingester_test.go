@@ -88,7 +88,7 @@ func TestIngestValidations(t *testing.T) {
 				Version: "1.0",
 			}
 
-		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "logitech-g-hub", "wezterm", "swiftdialog", "teleport-suite", "syncovery", "r-app", "qgis", "qgis@ltr", "kicad", "mindmanager", "elgato-wave-link", "chatgpt", "xquartz", "tableau", "tableau-prep", "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "jasp", "malwarebytes", "macvim-app", "syncmate", "google-earth-pro", "disk-drill", "enpass", "gog-galaxy", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
+		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "logitech-g-hub", "wezterm", "swiftdialog", "teleport-suite", "fluidvoice", "syncovery", "r-app", "qgis", "qgis@ltr", "kicad", "mindmanager", "elgato-wave-link", "chatgpt", "xquartz", "tableau", "tableau-prep", "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "jasp", "malwarebytes", "macvim-app", "syncmate", "google-earth-pro", "disk-drill", "enpass", "gog-galaxy", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
 			cask = brewCask{
 				Token:   appToken,
 				Name:    []string{appToken},
@@ -213,6 +213,7 @@ func TestIngestValidations(t *testing.T) {
 		{"", inputApp{Token: "wezterm", UniqueIdentifier: "com.github.wez.wezterm", InstallerFormat: "zip", Name: "WezTerm", Slug: "wezterm/darwin"}},
 		{"", inputApp{Token: "swiftdialog", UniqueIdentifier: "au.csiro.dialog", InstallerFormat: "pkg", Name: "swiftDialog", Slug: "swiftdialog/darwin"}},
 		{"", inputApp{Token: "teleport-suite", UniqueIdentifier: "com.gravitational.teleport.tsh", InstallerFormat: "pkg", Name: "Teleport Suite", Slug: "teleport-suite/darwin"}},
+		{"", inputApp{Token: "fluidvoice", UniqueIdentifier: "com.FluidApp.app", InstallerFormat: "dmg", Name: "FluidVoice", Slug: "fluidvoice/darwin"}},
 		{"", inputApp{Token: "syncovery", UniqueIdentifier: "com.company.Syncovery", InstallerFormat: "dmg", Name: "Syncovery", Slug: "syncovery/darwin"}},
 		{"", inputApp{Token: "r-app", UniqueIdentifier: "org.R-project.R", InstallerFormat: "pkg", Name: "R for macOS", Slug: "r/darwin"}},
 		{"", inputApp{Token: "qgis", UniqueIdentifier: "org.qgis.qgis3", InstallerFormat: "dmg", Name: "QGIS", Slug: "qgis/darwin"}},
@@ -295,6 +296,12 @@ func TestIngestValidations(t *testing.T) {
 				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.gravitational.teleport.tsh';", out.Queries.Exists)
 				require.Equal(t,
 					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.gravitational.teleport.tsh' AND path NOT LIKE '%/.tsh/bin/%' AND version_compare(bundle_short_version, '1.0') < 0);",
+					out.Queries.Patched,
+				)
+			case "fluidvoice":
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.FluidApp.app';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.FluidApp.app' AND path NOT LIKE '%/Library/Application Support/Fluid/RollbackBackups/%' AND version_compare(bundle_short_version, '1.0') < 0);",
 					out.Queries.Patched,
 				)
 			case "syncovery":
@@ -809,6 +816,55 @@ func TestWeChatPatchedQueryBuild(t *testing.T) {
 		})
 		require.NoError(t, err, "caskVersion %q", c.caskVersion)
 		require.Equal(t, c.want, out.Queries.Patched, "caskVersion %q", c.caskVersion)
+	}
+}
+
+// TestBundleVersionPatchedQueryUsesCaskVersion verifies that the bundle_version
+// patched query keeps the full cask version when a shortener cuts the manifest
+// version down to bundle_short_version.
+func TestBundleVersionPatchedQueryUsesCaskVersion(t *testing.T) {
+	cases := []struct {
+		token       string
+		bundleID    string
+		caskVersion string
+		wantVersion string
+		wantPatched string
+	}{
+		{"sigmaos", "com.sigmaos.sigmaos.macos", "1.19.0.4", "1.19.0", "1.19.0.4"},
+		{"malwarebytes", "com.malwarebytes.mbam.frontend.application", "5.29.2.4310", "5.29.2", "5.29.2.4310"},
+		{"plex-media-server", "com.plexapp.plexmediaserver", "1.43.5.11079,b3b13e506", "1.43.5", "1.43.5.11079"},
+		{"axure-rp", "com.axure.AxureRP11", "11.0.0.4150", "11.0.0.4150", "11.0.0.4150"},
+		{"redcine-x-pro", "com.red.RedCineX", "65.2.1", "65.2", "65.2.1"},
+	}
+	tempDir := t.TempDir()
+	i := &brewIngester{logger: slog.New(slog.DiscardHandler)}
+	for _, c := range cases {
+		t.Run(c.token, func(t *testing.T) {
+			caskJSON, err := json.Marshal(brewCask{
+				Token:   c.token,
+				Name:    []string{c.token},
+				URL:     "https://example.com/app.dmg",
+				Version: c.caskVersion,
+			})
+			require.NoError(t, err)
+			caskPath := path.Join(tempDir, c.token+".json")
+			require.NoError(t, os.WriteFile(caskPath, caskJSON, 0o644))
+
+			out, err := i.ingestOne(t.Context(), inputApp{
+				Token:            c.token,
+				Slug:             c.token + "/darwin",
+				UniqueIdentifier: c.bundleID,
+				InstallerFormat:  "dmg",
+				Name:             c.token,
+				CaskPath:         caskPath,
+			})
+			require.NoError(t, err)
+			require.Equal(t, c.wantVersion, out.Version)
+			require.Equal(t, fmt.Sprintf(
+				"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
+				c.bundleID, c.wantPatched,
+			), out.Queries.Patched)
+		})
 	}
 }
 

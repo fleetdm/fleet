@@ -1077,19 +1077,9 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	appConf, err := s.ds.AppConfig(context.Background())
 	s.Require().NoError(err)
 	appConf.Features.EnableSoftwareInventory = true
-	appConf.ServerSettings.ScriptsDisabled = true // shouldn't stop installs/uninstalls
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	s.Require().NoError(err)
 	time.Sleep(2 * time.Second) // Wait for the app config cache to clear
-
-	t.Cleanup(func() {
-		acr := appConfigResponse{}
-		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"server_settings": {
-			"scripts_disabled": false
-		}
-	}`), http.StatusOK, &acr)
-	})
 
 	var createTeamResp teamResponse
 	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{
@@ -1399,8 +1389,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	require.Contains(t, extractServerErrorText(r.Body), "Missing software_title_id")
 	r = s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "software_status", "installed", "team_id", "1", "software_title_id", "1", "software_version_id", "1")
 	require.Contains(t, extractServerErrorText(r.Body), "Invalid parameters. The combination of software_version_id and software_title_id is not allowed.")
-	r = s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "software_status", "installed", "team_id", "1", "software_title_id", "1", "software_id", "1")
-	require.Contains(t, extractServerErrorText(r.Body), "Invalid parameters. The combination of software_id and software_title_id is not allowed.")
 
 	// Test: software_title_id DNE and software_status is valid (should return 0 hosts, 0 count)
 	nonExistentTitleID := uint(999999) // unlikely to exist
@@ -1646,10 +1634,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	assert.EqualValues(t, 1, *scriptResultResp.ExitCode)
 	assert.Equal(t, "not ok", scriptResultResp.Output)
 	assert.Less(t, beforeUninstall, scriptResultResp.CreatedAt)
-
-	appConf.ServerSettings.ScriptsDisabled = false // set back to normal
-	err = s.ds.SaveAppConfig(context.Background(), appConf)
-	s.Require().NoError(err)
 }
 
 func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall() {
