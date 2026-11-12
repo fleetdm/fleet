@@ -3950,7 +3950,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
 		var found bool
 		var titleID uint
 		for _, sw := range listResp.SoftwareTitles {
-			if len(sw.Packages) > 0 && sw.Packages[0].Name =="test-script.sh" {
+			if len(sw.Packages) > 0 && sw.Packages[0].Name == "test-script.sh" {
 				found = true
 				titleID = sw.ID
 				break
@@ -3996,7 +3996,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
 		var found bool
 		var titleID uint
 		for _, sw := range listResp.SoftwareTitles {
-			if len(sw.Packages) > 0 && sw.Packages[0].Name =="test-script.ps1" {
+			if len(sw.Packages) > 0 && sw.Packages[0].Name == "test-script.ps1" {
 				found = true
 				titleID = sw.ID
 				break
@@ -4042,7 +4042,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
 		var found bool
 		var titleID uint
 		for _, sw := range listResp.SoftwareTitles {
-			if len(sw.Packages) > 0 && sw.Packages[0].Name =="test-script.py" {
+			if len(sw.Packages) > 0 && sw.Packages[0].Name == "test-script.py" {
 				found = true
 				titleID = sw.ID
 				break
@@ -4729,7 +4729,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageFleetVariables() {
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listResp, "team_id", "0", "available_for_install", "true")
 	var titleID uint
 	for _, sw := range listResp.SoftwareTitles {
-		if len(sw.Packages) > 0 && sw.Packages[0].Name =="vars-pkg.sh" {
+		if len(sw.Packages) > 0 && sw.Packages[0].Name == "vars-pkg.sh" {
 			titleID = sw.ID
 		}
 	}

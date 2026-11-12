@@ -119,7 +119,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	stResp := getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Equal("RubyUpdate1", stResp.SoftwareTitle.DisplayName)
-	s.Assert().Len(stResp.SoftwareTitle.Packages[0].AutomaticInstallPolicies, 1)
+	s.Len(stResp.SoftwareTitle.Packages[0].AutomaticInstallPolicies, 1)
 
 	// Auto install policy should have the display name
 	var getPolicyResp fleet.GetPolicyByIDResponse
@@ -144,7 +144,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	stResp = getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Equal("RubyUpdate1", stResp.SoftwareTitle.DisplayName)
-	s.Assert().Len(stResp.SoftwareTitle.Packages[0].AutomaticInstallPolicies, 1)
+	s.Len(stResp.SoftwareTitle.Packages[0].AutomaticInstallPolicies, 1)
 
 	// set self service to true
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
@@ -200,7 +200,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Empty(stResp.SoftwareTitle.DisplayName)
 	// PATCH semantics, so we shouldn't overwrite self service
-	s.Assert().True(stResp.SoftwareTitle.Packages[0].SelfService)
+	s.True(stResp.SoftwareTitle.Packages[0].SelfService)
 	s.ElementsMatch([]string{"🧰 Developer tools", "🌎 Browsers"}, stResp.SoftwareTitle.Packages[0].Categories)
 
 	// List software titles display name is empty
@@ -485,7 +485,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Equal("InHouseAppUpdate2", stResp.SoftwareTitle.DisplayName)
 	// PATCH semantics, so we shouldn't overwrite self service or categories
-	s.Assert().True(stResp.SoftwareTitle.Packages[0].SelfService)
+	s.True(stResp.SoftwareTitle.Packages[0].SelfService)
 	s.ElementsMatch([]string{"🧰 Developer tools", "🌎 Browsers"}, stResp.SoftwareTitle.Packages[0].Categories)
 
 	// List software titles has display name
@@ -495,7 +495,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		if t.ID == titleID {
 			s.Assert().Equal("InHouseAppUpdate2", t.DisplayName)
 			// PATCH semantics, so we shouldn't overwrite self service
-			s.Assert().True(*t.Packages[0].SelfService)
+			s.True(*t.Packages[0].SelfService)
 		}
 	}
 
