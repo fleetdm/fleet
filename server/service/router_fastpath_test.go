@@ -503,18 +503,18 @@ func TestFastPathSpanNamesFeedTheTracingTierRegistry(t *testing.T) {
 			wantSpan: "POST /api/osquery/distributed/write", wantTier: tracing.TierHighVolume,
 		},
 		{
-			name: "versioned route keeps the unexpanded template", method: "GET", path: "/api/latest/fleet/config",
-			wantSpan: "GET /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/config", wantTier: tracing.TierStandard,
+			name: "versioned route is named with the _version_ placeholder", method: "GET", path: "/api/latest/fleet/config",
+			wantSpan: "GET /api/_version_/fleet/config", wantTier: tracing.TierStandard,
 		},
 		{
-			name: "path variable stays in the span name", method: "GET", path: "/api/latest/fleet/hosts/1",
-			wantSpan: "GET /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/{id}", wantTier: tracing.TierStandard,
+			name: "path variable drops its regex constraint", method: "GET", path: "/api/latest/fleet/hosts/1",
+			wantSpan: "GET /api/_version_/fleet/hosts/{id}", wantTier: tracing.TierStandard,
 		},
 		{
 			name:     "token variable stays unexpanded on the fast path",
 			method:   "HEAD",
 			path:     "/api/latest/fleet/device/6f36ab2c-1a40-4c3f-9f8e-1b3c2d4e5f60/ping",
-			wantSpan: "HEAD /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/device/{token}/ping",
+			wantSpan: "HEAD /api/_version_/fleet/device/{token}/ping",
 			wantTier: tracing.TierHighVolume,
 		},
 		{
@@ -522,8 +522,17 @@ func TestFastPathSpanNamesFeedTheTracingTierRegistry(t *testing.T) {
 			name:     "route served by gorilla is named by otelmux the same way",
 			method:   "GET",
 			path:     "/api/latest/fleet/hosts/a%2Cb",
-			wantSpan: "GET /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/{id}",
+			wantSpan: "GET /api/_version_/fleet/hosts/{id}",
 			wantTier: tracing.TierStandard,
+		},
+		{
+			name: "constrained variable drops its regex on the fast path", method: "PATCH", path: "/api/latest/fleet/fleets/1/secrets",
+			wantSpan: "PATCH /api/_version_/fleet/fleets/{fleet_id}/secrets", wantTier: tracing.TierAlways,
+		},
+		{
+			// %31 is "1", but the non-canonical encoding leaves RawPath set, which sends the request to gorilla.
+			name: "constrained variable drops its regex on gorilla", method: "PATCH", path: "/api/latest/fleet/fleets/%31/secrets",
+			wantSpan: "PATCH /api/_version_/fleet/fleets/{fleet_id}/secrets", wantTier: tracing.TierAlways,
 		},
 	}
 
@@ -540,13 +549,15 @@ func TestFastPathSpanNamesFeedTheTracingTierRegistry(t *testing.T) {
 					matched = span
 				}
 			}
-			require.NotNilf(t, matched, "span name must stay %q; got %v", c.wantSpan, names)
+			require.NotNilf(t, matched, "span name must be %q; got %v", c.wantSpan, names)
 			// Both spellings of the route have to agree, or a reader correlating a trace to the route keyed server metrics
 			// has two routes for one request.
 			require.Equal(t, []string{strings.TrimPrefix(c.wantSpan, c.method+" ")}, spanRoutes(matched))
 
 			tier, found := registry.Lookup(c.wantSpan)
-			require.Truef(t, found, "%q must resolve in the tier registry, otherwise it samples at 100%%", c.wantSpan)
+			if c.wantTier != tracing.TierAlways {
+				require.Truef(t, found, "%q must resolve in the tier registry, otherwise it samples at 100%%", c.wantSpan)
+			}
 			require.Equal(t, c.wantTier, tier)
 		})
 	}

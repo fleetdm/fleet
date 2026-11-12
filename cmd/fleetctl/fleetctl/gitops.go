@@ -1365,7 +1365,7 @@ func warnSetupAssistantsWithoutABMTokens(fleetClient setupAssistantABMChecker, f
 		// token. On lookup errors stay silent rather than risk a false warning.
 		hasABMHost := false
 		for _, status := range []fleet.MDMEnrollStatus{fleet.MDMEnrollStatusPending, fleet.MDMEnrollStatusAutomatic} {
-			count, err := fleetClient.CountHosts(fmt.Sprintf("team_id=%d&mdm_enrollment_status=%s", teamID, status))
+			count, err := fleetClient.CountHosts(fmt.Sprintf("fleet_id=%d&mdm_enrollment_status=%s", teamID, status))
 			if err != nil || count > 0 {
 				hasABMHost = true
 				break

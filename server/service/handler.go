@@ -40,6 +40,7 @@ import (
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/platform/middleware/ratelimit"
+	"github.com/fleetdm/fleet/v4/server/platform/tracing"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
@@ -54,7 +55,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/throttled/throttled/v2"
-	"go.elastic.co/apm/module/apmgorilla/v2"
 	otmiddleware "go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 )
 
@@ -180,23 +180,17 @@ func MakeHandler(
 
 	r := mux.NewRouter()
 
-	fastPathEnabled := true
-	if config.Logging.TracingEnabled {
-		if config.OTELEnabled() {
-			r.Use(otmiddleware.Middleware(
-				"service",
-				otmiddleware.WithSpanNameFormatter(func(route string, r *http.Request) string {
-					// Use the guideline for span names: {method} {target}
-					// See https://opentelemetry.io/docs/specs/semconv/http/http-spans/
-					return r.Method + " " + route
-				}),
-			))
-		} else {
-			// Elastic APM instrumentation is gorilla-specific and names spans from the matched mux route, so the fast path
-			// cannot be installed alongside it.
-			apmgorilla.Instrument(r)
-			fastPathEnabled = false
-		}
+	if config.OTELEnabled() {
+		// otelmux takes the route from r.Pattern when it is set, so this runs first to give it the readable template.
+		r.Use(cleanRoutePattern)
+		r.Use(otmiddleware.Middleware(
+			"service",
+			otmiddleware.WithSpanNameFormatter(func(route string, r *http.Request) string {
+				// Use the guideline for span names: {method} {target}
+				// See https://opentelemetry.io/docs/specs/semconv/http/http-spans/
+				return r.Method + " " + route
+			}),
+		))
 	}
 
 	// Route-agnostic middleware is collected because it is needed by both the fastpath stdlib router and gorilla.
@@ -243,10 +237,20 @@ func MakeHandler(
 	endpointer.RegisterRemovedPaths(r, apiVersions, logger, removedPaths())
 	addMetrics(r)
 
-	if !fastPathEnabled {
-		return r, nil
-	}
 	return newFastPathHandler(r, middlewares, config)
+}
+
+// cleanRoutePattern sets r.Pattern to the matched gorilla route template without its regex syntax, so spans read
+// "GET /api/_version_/fleet/hosts/{id}" instead of "GET /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/{id:[0-9]+}".
+func cleanRoutePattern(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if route := mux.CurrentRoute(r); route != nil {
+			if tpl, err := route.GetPathTemplate(); err == nil {
+				r.Pattern = tracing.CleanRouteTemplate(tpl)
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // PrometheusMetricsHandler wraps the provided handler with prometheus metrics

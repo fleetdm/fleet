@@ -455,8 +455,8 @@ type LoggingConfig struct {
 	DisableBanner        bool          `yaml:"disable_banner"`
 	ErrorRetentionPeriod time.Duration `yaml:"error_retention_period"`
 	TracingEnabled       bool          `yaml:"tracing_enabled"`
-	// TracingType can be set to TracingTypeElasticAPM to send traces to Elastic APM.
-	// By default (empty or any other value), traces are sent to OpenTelemetry (OTEL).
+	// TracingType selects the tracing backend. OpenTelemetry (OTEL) is the only one supported. The removed "elasticapm" value
+	// disables tracing at startup.
 	TracingType string `yaml:"tracing_type"`
 	// OtelLogsEnabled enables exporting logs to an OpenTelemetry collector.
 	// When enabled, logs are sent to both stderr and the OTLP endpoint.
@@ -1084,7 +1084,7 @@ type FleetConfig struct {
 }
 
 func (f FleetConfig) OTELEnabled() bool {
-	return f.Logging.TracingEnabled && f.Logging.TracingType != "elasticapm"
+	return f.Logging.TracingEnabled
 }
 
 type PartnershipsConfig struct {
@@ -2048,7 +2048,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("logging.tracing_enabled", false,
 		"Enable Tracing, further configured via standard env variables")
 	man.addConfigString("logging.tracing_type", "",
-		"Select the kind of tracing, defaults to OpenTelemetry, can also be elasticapm")
+		"Select the kind of tracing, only OpenTelemetry is supported")
 	man.addConfigBool("logging.otel_logs_enabled", false,
 		"Enable exporting logs to an OpenTelemetry collector (requires tracing_enabled)")
 	man.addConfigString("logging.enable_topics", "",
