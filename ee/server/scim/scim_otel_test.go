@@ -118,11 +118,10 @@ func TestSCIMOTELMiddleware(t *testing.T) {
 			sr := tracetest.NewSpanRecorder()
 			tp := trace.NewTracerProvider(trace.WithSpanProcessor(sr))
 
-			// Create test configuration with OTEL enabled
+			// tracing_type is left unset, as in the documented configuration.
 			cfg := config.FleetConfig{
 				Logging: config.LoggingConfig{
 					TracingEnabled: true,
-					TracingType:    "opentelemetry",
 				},
 			}
 

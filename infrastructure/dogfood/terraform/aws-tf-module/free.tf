@@ -3,17 +3,12 @@ locals {
   extra_environment_variables_free = {
     FLEET_LOGGING_DEBUG                        = "true"
     FLEET_LOGGING_JSON                         = "true"
-    FLEET_LOGGING_TRACING_ENABLED              = "true"
-    FLEET_LOGGING_TRACING_TYPE                 = "elasticapm"
     FLEET_MYSQL_MAX_OPEN_CONNS                 = "25"
     FLEET_MYSQL_CONN_MAX_LIFETIME              = "14400"
     FLEET_MYSQL_READ_REPLICA_CONN_MAX_LIFETIME = "14400"
     FLEET_VULNERABILITIES_DATABASES_PATH       = "/home/fleet"
     FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING = "false"
-    # ELASTIC_APM_SERVER_URL                     = var.elastic_url
-    # ELASTIC_APM_SECRET_TOKEN                   = var.elastic_token
-    # ELASTIC_APM_SERVICE_NAME                   = "dogfood-free"
-    FLEET_SERVER_GZIP_RESPONSES = "true"
+    FLEET_SERVER_GZIP_RESPONSES                = "true"
 
 
     # Load TLS Certificate for RDS Authentication
