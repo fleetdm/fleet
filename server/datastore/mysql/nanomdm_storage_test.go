@@ -36,6 +36,7 @@ func TestNanoMDMStorage(t *testing.T) {
 		{"TestIsPushCertStale", testIsPushCertStale},
 		{"TestStorePushCert", testStorePushCert},
 		{"TestDisable", testNanoDisable},
+		{"TestRetrieveNextCommand", testRetrieveNextCommand},
 	}
 
 	for _, c := range cases {
@@ -746,4 +747,116 @@ func testNanoDisable(t *testing.T, ds *Datastore) {
 
 	// A user-channel request is rejected.
 	require.Error(t, ns.Disable(&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: userID, ParentID: host.UUID}}))
+}
+
+func testRetrieveNextCommand(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	ns, err := ds.NewMDMAppleMDMStorage()
+	require.NoError(t, err)
+
+	newEnrolledHost := func(hostUUID string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "next-cmd-" + hostUUID,
+			OsqueryHostID: new("next-cmd-osquery-" + hostUUID),
+			NodeKey:       new("next-cmd-nodekey-" + hostUUID),
+			UUID:          hostUUID,
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, h, false)
+		return h
+	}
+	otherHost := newEnrolledHost(uuid.NewString())
+
+	enqueue := func(cmdUUID string, subtype mdm.CommandSubtype, ids ...string) {
+		cmd := &mdm.CommandWithSubtype{Subtype: subtype}
+		cmd.CommandUUID = cmdUUID
+		cmd.Command.Command.RequestType = "InstallProfile"
+		cmd.Raw = []byte("<?xml " + cmdUUID)
+		_, err := ns.EnqueueCommand(ctx, ids, cmd)
+		require.NoError(t, err)
+	}
+	report := func(id, cmdUUID, status string) {
+		err := ns.StoreCommandReport(
+			&mdm.Request{EnrollID: &mdm.EnrollID{ID: id}, Context: ctx},
+			&mdm.CommandResults{CommandUUID: cmdUUID, Status: status, Raw: []byte("<?xml")},
+		)
+		require.NoError(t, err)
+	}
+	updateQueued := func(id, cmdUUID, set string, args ...any) {
+		args = append(args, id, cmdUUID)
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`UPDATE nano_enrollment_queue SET `+set+` WHERE id = ? AND command_uuid = ?`, args...)
+		require.NoError(t, err)
+	}
+	next := func(id string, skipNotNow bool) *mdm.CommandWithSubtype {
+		cmd, err := ns.RetrieveNextCommand(&mdm.Request{EnrollID: &mdm.EnrollID{ID: id}, Context: ctx}, skipNotNow)
+		require.NoError(t, err)
+		return cmd
+	}
+	requireNext := func(id string, skipNotNow bool, wantCmdUUID string) {
+		t.Helper()
+		cmd := next(id, skipNotNow)
+		require.NotNil(t, cmd)
+		require.Equal(t, wantCmdUUID, cmd.CommandUUID)
+	}
+
+	// UUID enrollment IDs are inlined in the query, any other ID is passed as an argument.
+	for name, id := range map[string]string{
+		"uuid id":     uuid.NewString(),
+		"non-uuid id": "00008110-0012083A1190201E",
+	} {
+		t.Run(name, func(t *testing.T) {
+			newEnrolledHost(id)
+			cmdUUID := func(n int) string { return fmt.Sprintf("%s-cmd-%d", id, n) }
+			base := time.Now().Add(-time.Hour).UTC().Truncate(time.Second)
+
+			require.Nil(t, next(id, false))
+			require.Nil(t, next(id, true))
+
+			// Enqueued newest first, so the order returned can only come from created_at.
+			enqueue(cmdUUID(3), mdm.CommandSubtypeNone, id)
+			enqueue(cmdUUID(2), mdm.CommandSubtypeNone, id)
+			enqueue(cmdUUID(1), mdm.CommandSubtypeProfileWithSecrets, id, otherHost.UUID)
+			for n := 1; n <= 3; n++ {
+				updateQueued(id, cmdUUID(n), "created_at = ?", base.Add(time.Duration(n)*time.Minute))
+			}
+
+			cmd := next(id, false)
+			require.NotNil(t, cmd)
+			require.Equal(t, cmdUUID(1), cmd.CommandUUID)
+			require.Equal(t, "InstallProfile", cmd.Command.Command.RequestType)
+			require.Equal(t, "<?xml "+cmdUUID(1), string(cmd.Raw))
+			require.Equal(t, mdm.CommandSubtypeProfileWithSecrets, cmd.Subtype)
+
+			// A result from another enrollment does not complete the command for this one.
+			report(otherHost.UUID, cmdUUID(1), "Acknowledged")
+			requireNext(id, false, cmdUUID(1))
+
+			report(id, cmdUUID(1), "Acknowledged")
+			requireNext(id, false, cmdUUID(2))
+			report(id, cmdUUID(2), "Error")
+			requireNext(id, false, cmdUUID(3))
+
+			report(id, cmdUUID(3), "NotNow")
+			requireNext(id, false, cmdUUID(3))
+			require.Nil(t, next(id, true))
+
+			enqueue(cmdUUID(4), mdm.CommandSubtypeNone, id)
+			updateQueued(id, cmdUUID(4), "created_at = ?", base.Add(4*time.Minute))
+			requireNext(id, false, cmdUUID(3))
+			requireNext(id, true, cmdUUID(4))
+
+			updateQueued(id, cmdUUID(4), "priority = 1")
+			requireNext(id, false, cmdUUID(4))
+
+			updateQueued(id, cmdUUID(4), "active = 0")
+			requireNext(id, false, cmdUUID(3))
+			require.Nil(t, next(id, true))
+
+			report(id, cmdUUID(3), "Acknowledged")
+			require.Nil(t, next(id, false))
+			require.Nil(t, next(id, true))
+		})
+	}
 }
