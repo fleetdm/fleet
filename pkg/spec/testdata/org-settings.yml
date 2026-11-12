@@ -6,7 +6,6 @@ server_settings:
   live_reporting_disabled: false
   report_cap: 2000
   discard_reports_data: false
-  scripts_disabled: false
   server_url: https://fleet.example.com
 org_info:
   contact_url: https://fleetdm.com/company/contact

@@ -197,7 +197,6 @@ spec:
     report_cap: 0
     discard_reports_data: false
     server_url: ""
-    scripts_disabled: false
     ai_features_disabled: false
     mcp_disabled: false
   smtp_settings:

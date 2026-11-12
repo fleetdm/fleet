@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -16,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	queries "github.com/fleetdm/fleet/v4/server/service/osquery_utils"
+	"golang.org/x/sys/windows/registry"
 )
 
 var preInstalled = []string{
@@ -25,7 +27,38 @@ var preInstalled = []string{
 	"microsoft-edge/windows",
 }
 
-func postApplicationInstall(_ context.Context, _ *slog.Logger, _ string) error {
+// After an install that needs a restart (e.g. one that replaced the in-use
+// VC++ runtime), Burn writes a volatile "<bundle key>.RebootRequired" key and
+// refuses to touch that bundle again (exit 3010, nothing changed) until the
+// restart clears it. The runner can't restart before the uninstall check, so
+// clear the markers in its place.
+func postApplicationInstall(ctx context.Context, appLogger *slog.Logger, _ string) error {
+	for _, uninstallKey := range []string{
+		`SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall`,
+		`SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall`,
+	} {
+		k, err := registry.OpenKey(registry.LOCAL_MACHINE, uninstallKey, registry.ENUMERATE_SUB_KEYS)
+		if errors.Is(err, registry.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("opening %s: %w", uninstallKey, err)
+		}
+		names, err := k.ReadSubKeyNames(-1)
+		k.Close()
+		if err != nil {
+			return fmt.Errorf("listing %s: %w", uninstallKey, err)
+		}
+		for _, name := range names {
+			if !strings.HasSuffix(name, ".RebootRequired") {
+				continue
+			}
+			if err := registry.DeleteKey(registry.LOCAL_MACHINE, uninstallKey+`\`+name); err != nil {
+				return fmt.Errorf("deleting Burn restart marker %s: %w", name, err)
+			}
+			appLogger.InfoContext(ctx, fmt.Sprintf("Cleared Burn restart marker %s to stand in for a restart", name))
+		}
+	}
 	return nil
 }
 

@@ -795,12 +795,6 @@ type Service interface {
 	CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) error
 
 	// /////////////////////////////////////////////////////////////////////////////
-	// UserRolesService
-
-	// ApplyUserRolesSpecs applies a list of user global and team role changes
-	ApplyUserRolesSpecs(ctx context.Context, specs UsersRoleSpec) error
-
-	// /////////////////////////////////////////////////////////////////////////////
 	// Certificate Templates
 
 	CreateCertificateTemplate(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string, subjectAlternativeName string) (*CertificateTemplateResponse, error)

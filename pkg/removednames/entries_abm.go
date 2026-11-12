@@ -26,4 +26,12 @@ var abmEntries = []Entry{
 	yamlEntry("org_settings.mdm.apple_business_manager", "org_settings.mdm.apple_business"),
 	yamlEntry("org_settings.mdm.apple_bm_enabled_and_configured", "org_settings.mdm.apple_business_enabled_and_configured"),
 	yamlEntry("org_settings.mdm.apple_bm_terms_expired", "org_settings.mdm.apple_business_terms_expired"),
+
+	// server config
+	serverConfigEntry("mdm.apple_bm_server_token", "mdm.apple_business_server_token"),
+	serverConfigEntry("mdm.apple_bm_server_token_bytes", "mdm.apple_business_server_token_bytes"),
+	serverConfigEntry("mdm.apple_bm_cert", "mdm.apple_business_cert"),
+	serverConfigEntry("mdm.apple_bm_cert_bytes", "mdm.apple_business_cert_bytes"),
+	serverConfigEntry("mdm.apple_bm_key", "mdm.apple_business_key"),
+	serverConfigEntry("mdm.apple_bm_key_bytes", "mdm.apple_business_key_bytes"),
 }

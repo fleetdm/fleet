@@ -341,6 +341,7 @@ func TestCustomInstallScriptsStopWhenAppWontQuit(t *testing.T) {
 		"expressvpn-install.sh":     "vpn-installer.sh kills the app's processes before replacing it",
 		"harmony-sase-install.sh":   "the pkg force-quits the app",
 		"logitune-install.sh":       "the pkg's preinstall force-kills the app",
+		"mozilla-vpn-install.sh":    "only once the installer has timed out, after the payload is in place",
 		"qgis-ltr-install.sh":       "quit_app_at_path force-kills the app if it won't close",
 	}
 	quitCall := regexp.MustCompile(`^\s*quit_\w+(\s|$)`)
@@ -466,7 +467,8 @@ osascript() {
 // fake process table. They signal only the GUI, never the browsers' native
 // messaging hosts (same executable) or the daemon, force-quit a GUI that
 // ignores SIGTERM, and stop before installing or removing anything if it
-// survives that.
+// survives that. An installer that doesn't return gets the GUI it opened
+// quit, then is stopped.
 func TestMozillaVPNScriptsStopOnlyTheGUI(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("requires bash")
@@ -496,8 +498,10 @@ func TestMozillaVPNScriptsStopOnlyTheGUI(t *testing.T) {
 	uninstall = uninstall[:i+len(quitCall)] + "echo 'Removing Mozilla VPN.'\n"
 
 	// Each process is "<pid> <behavior> <args>". It exits on SIGTERM ("exits"),
-	// only on SIGKILL ("stubborn"), or never ("unkillable").
-	run := func(t *testing.T, script string, procs ...string) (out, signals string, err error) {
+	// only on SIGKILL ("stubborn"), or never ("unkillable"). installerMode is
+	// "returns", "opens-gui" (opens pid 301, which exits on SIGTERM, and doesn't
+	// return until it's gone), or "hangs".
+	run := func(t *testing.T, script, installerMode string, procs ...string) (out, signals string, err error) {
 		dir := t.TempDir()
 		procFile := filepath.Join(dir, "procs")
 		sigFile := filepath.Join(dir, "signals")
@@ -505,16 +509,38 @@ func TestMozillaVPNScriptsStopOnlyTheGUI(t *testing.T) {
 		require.NoError(t, os.WriteFile(sigFile, nil, 0o600))
 		stubs := `procs=` + shellSingleQuote(procFile) + `
 signals=` + shellSingleQuote(sigFile) + `
+installer_mode=` + installerMode + `
 INSTALLER_PATH=/tmp/fleet-test/MozillaVPN.pkg
-sleep() { :; }
+# Not "command sleep": bash 3.2 execs it in place of the backgrounded installer.
+sleep() { /bin/sleep 0.01; }
 scutil() { :; }
 sudo() { echo "sudo $*"; }
-installer() { echo "installer $*"; }
+# The waits are bounded, so a script that never stops the installer fails the
+# test instead of hanging it.
+installer() {
+  echo "installer $*"
+  case "$installer_mode" in
+    opens-gui)
+      echo "301 exits /Applications/Mozilla VPN.app/Contents/MacOS/Mozilla VPN" >> "$procs"
+      for _ in {1..3000}; do
+        grep -q '^301 ' "$procs" || return 0
+        /bin/sleep 0.01
+      done ;;
+    hangs)
+      for _ in {1..3000}; do /bin/sleep 0.01; done ;;
+  esac
+}
 ps() { grep . "$procs" | cut -d' ' -f1,3-; }
 kill() {
   local sig="$1" pid behavior
   shift
   for pid in "$@"; do
+    # Real processes, such as the backgrounded installer.
+    if ! grep -q "^$pid " "$procs"; then
+      command kill "$sig" "$pid" || return
+      [[ "$sig" == -0 ]] || echo "$sig installer" >> "$signals"
+      continue
+    fi
     echo "$sig $pid" >> "$signals"
     behavior=$(awk -v p="$pid" '$1 == p { print $2 }' "$procs")
     case "$sig $behavior" in
@@ -543,7 +569,7 @@ kill() {
 	}
 
 	t.Run("not running", func(t *testing.T) {
-		out, signals, err := run(t, install, others...)
+		out, signals, err := run(t, install, "returns", others...)
 		require.NoError(t, err, out)
 		require.Empty(t, signals)
 		require.NotContains(t, out, "Quitting Mozilla VPN")
@@ -552,7 +578,7 @@ kill() {
 
 	t.Run("quits on SIGTERM", func(t *testing.T) {
 		procs := append([]string{"101 exits " + exe, "102 exits " + exe + " ui --updated"}, others...)
-		out, signals, err := run(t, install, procs...)
+		out, signals, err := run(t, install, "returns", procs...)
 		require.NoError(t, err, out)
 		require.Equal(t, "-TERM 101\n-TERM 102\n", signals)
 		require.Contains(t, out, "Mozilla VPN quit successfully.")
@@ -560,7 +586,7 @@ kill() {
 	})
 
 	t.Run("force-quit after SIGTERM", func(t *testing.T) {
-		out, signals, err := run(t, install, append([]string{"101 stubborn " + exe}, others...)...)
+		out, signals, err := run(t, install, "returns", append([]string{"101 stubborn " + exe}, others...)...)
 		require.NoError(t, err, out)
 		require.Equal(t, "-TERM 101\n-KILL 101\n", signals)
 		require.Contains(t, out, "Mozilla VPN didn't quit; forcing it to quit.")
@@ -568,19 +594,39 @@ kill() {
 	})
 
 	t.Run("install stops when the GUI survives", func(t *testing.T) {
-		out, signals, err := run(t, install, "101 unkillable "+exe)
+		out, signals, err := run(t, install, "returns", "101 unkillable "+exe)
 		requireExit1(t, err, out)
 		require.Equal(t, "-TERM 101\n-KILL 101\n", signals)
 		require.Contains(t, out, "Mozilla VPN did not quit.")
 		require.NotContains(t, out, "installer")
 	})
 
+	// Shorter deadlines, since each fake second is a real sleep.
+	quickInstall := strings.NewReplacer("wait_for_installer 300", "wait_for_installer 20", "wait_for_installer 60", "wait_for_installer 5").Replace(install)
+	require.NotEqual(t, install, quickInstall)
+
+	t.Run("installer waits on the GUI it opened", func(t *testing.T) {
+		out, signals, err := run(t, quickInstall, "opens-gui", others...)
+		require.NoError(t, err, out)
+		require.Equal(t, "-TERM 301\n", signals)
+		require.Contains(t, out, "The installer hasn't finished after 5 minutes.")
+		require.Contains(t, out, "Mozilla VPN quit successfully.")
+		require.NotContains(t, out, "Stopping it.")
+	})
+
+	t.Run("installer never returns", func(t *testing.T) {
+		out, signals, err := run(t, quickInstall, "hangs", others...)
+		requireExit1(t, err, out)
+		require.Equal(t, "-TERM installer\n", signals)
+		require.Contains(t, out, "The installer is still running. Stopping it.")
+	})
+
 	t.Run("uninstall", func(t *testing.T) {
-		out, _, err := run(t, uninstall, "101 unkillable "+exe)
+		out, _, err := run(t, uninstall, "returns", "101 unkillable "+exe)
 		requireExit1(t, err, out)
 		require.NotContains(t, out, "Removing Mozilla VPN.")
 
-		out, signals, err := run(t, uninstall, append([]string{"101 exits " + exe}, others...)...)
+		out, signals, err := run(t, uninstall, "returns", append([]string{"101 exits " + exe}, others...)...)
 		require.NoError(t, err, out)
 		require.Equal(t, "-TERM 101\n", signals)
 		require.Contains(t, out, "Removing Mozilla VPN.")
@@ -1106,6 +1152,94 @@ kill() {
 			require.NotContains(t, r.out, "Removing WezTerm.")
 		}
 	})
+}
+
+// TestAffinityInstallRelaunchesByPath runs the Affinity install script with
+// osascript and open stubbed out. Opening Affinity by bundle ID right after
+// it's replaced fails, so the script opens the new copy by path, retries every
+// 10 seconds for up to 2 minutes, and logs open's error. A relaunch that keeps
+// failing doesn't fail the install.
+func TestAffinityInstallRelaunchesByPath(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("as root the relaunch goes through /bin/launchctl asuser, which can't be stubbed")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+	b, err := os.ReadFile("../../inputs/homebrew/scripts/affinity-install.sh")
+	require.NoError(t, err)
+
+	// open fails its first openFailures calls. running is whether Affinity is
+	// open before the install; it quits on the first quit event.
+	run := func(t *testing.T, running bool, openFailures int) (string, []string) {
+		dir := t.TempDir()
+		openFile := filepath.Join(dir, "opened")
+		stubs := `running=` + strconv.FormatBool(running) + `
+open_failures=` + strconv.Itoa(openFailures) + `
+opened=` + shellSingleQuote(openFile) + `
+quits=` + shellSingleQuote(filepath.Join(dir, "quits")) + `
+stat() { echo alice; }
+realpath() { echo /tmp/fleet-test/installer; }
+ditto() { :; }
+sleep() { SECONDS=$((SECONDS + $1)); }
+sudo() { echo "sudo $*"; }
+ps() { :; }
+open() {
+  echo "$*" >> "$opened"
+  if (( $(grep -c . "$opened") <= open_failures )); then
+    echo "LSOpenURLsWithRole() failed with error -10810." >&2
+    return 1
+  fi
+}
+osascript() {
+  case "$4" in
+    *" to quit") echo quit >> "$quits" ;;
+    *" is running") if [[ "$running" == true && ! -e "$quits" ]]; then echo true; else echo false; fi ;;
+  esac
+}
+`
+		out, err := exec.Command(bash, "-c", stubs+string(b)).CombinedOutput()
+		require.NoError(t, err, string(out))
+		opened, err := os.ReadFile(openFile)
+		if !os.IsNotExist(err) {
+			require.NoError(t, err)
+		}
+		return string(out), strings.Fields(string(opened))
+	}
+	const (
+		appPath = "/Applications/Affinity.app"
+		success = "Application 'com.canva.affinity' relaunched successfully."
+		failure = "Failed to relaunch application 'com.canva.affinity'."
+	)
+
+	out, opened := run(t, false, 0)
+	require.Contains(t, out, "sudo cp -R")
+	require.NotContains(t, out, "Relaunching application")
+	require.Empty(t, opened)
+
+	out, opened = run(t, true, 0)
+	require.Contains(t, out, "Application 'com.canva.affinity' quit successfully.")
+	require.Less(t, strings.Index(out, "sudo cp -R"), strings.Index(out, success))
+	require.Equal(t, []string{appPath}, opened)
+
+	out, opened = run(t, true, 2)
+	require.Contains(t, out, "Attempt 1 to relaunch application 'com.canva.affinity' failed (exit 1): LSOpenURLsWithRole() failed with error -10810.")
+	require.Contains(t, out, "Attempt 2 to relaunch application 'com.canva.affinity' failed")
+	require.Contains(t, out, success)
+	require.NotContains(t, out, failure)
+	require.Equal(t, []string{appPath, appPath, appPath}, opened)
+
+	// sleep advances SECONDS, so the last attempt starts at the 120-second
+	// deadline: 13 attempts in all.
+	out, opened = run(t, true, 100)
+	require.Contains(t, out, "Attempt 13 to relaunch application 'com.canva.affinity' failed")
+	require.Contains(t, out, failure)
+	require.NotContains(t, out, success)
+	require.Len(t, opened, 13)
 }
 
 func TestShellDoubleQuoteEscape(t *testing.T) {

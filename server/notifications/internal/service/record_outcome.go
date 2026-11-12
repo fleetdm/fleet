@@ -42,9 +42,9 @@ func notificationOutcomeForExitCode(exitCode int64) (reason string, retryIn *tim
 	case 70:
 		return api.EndUserNotificationReasonInternalError, &shortRetry
 
-	// fleetd has its own scripts-disabled setting, which Fleet's bypass doesn't
-	// reach, and Fleet couldn't build the notification's URL. Neither clears up on
-	// its own. Values mirror server/fleet, which this context can't import.
+	// fleetd has scripts disabled, or Fleet couldn't build the notification's URL.
+	// Neither clears up on its own. Values mirror server/fleet, which this context
+	// can't import.
 	case -2:
 		return api.EndUserNotificationReasonScriptsDisabled, &longRetry
 	case -5:
