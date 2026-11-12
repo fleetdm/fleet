@@ -1,0 +1,8 @@
+- name: macOS update scheduled overnight
+  query: SELECT 1 FROM os_version WHERE major < 15 OR NOT EXISTS (SELECT 1 FROM plist r WHERE r.path = '/Library/Preferences/com.apple.SoftwareUpdate.plist' AND r.key = 'RecommendedUpdates' AND r.subkey = 'Product Key' AND r.value LIKE 'MSU_UPDATE_%_minor' AND r.value NOT IN (SELECT value FROM plist WHERE path = '/Library/Preferences/com.apple.SoftwareUpdate.plist' AND key = 'AutoInstallProductKeys'));
+  critical: false
+  description: Checks that the latest macOS update for this Mac's current major version is scheduled to install overnight. Fleet never schedules an upgrade to a new major version.
+  resolution: "Fleet schedules the update automatically when this policy fails. For it to install overnight, unlock your Mac once with your password (not Touch ID) after the update downloads, then leave it on, plugged in, and locked. To update now, go to  > System Settings > General > Software Update."
+  platform: darwin
+  run_script:
+    path: ../scripts/queue-macos-minor-update.sh

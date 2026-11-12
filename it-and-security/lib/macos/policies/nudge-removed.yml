@@ -1,0 +1,8 @@
+- name: Nudge removed
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM file WHERE path IN ('/Applications/Utilities/Nudge.app', '/Library/LaunchAgents/com.github.macadmins.Nudge.plist', '/private/var/fleet/nudge-assets'));
+  critical: false
+  description: Fleet no longer uses Nudge for macOS update reminders, so it's removed from Macs.
+  resolution: "Fleet runs a script that removes Nudge when this policy fails. If it still fails after a refetch, drop a note in #help-it."
+  platform: darwin
+  run_script:
+    path: ../scripts/uninstall-nudge.sh
