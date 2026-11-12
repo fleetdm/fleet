@@ -368,7 +368,6 @@
     border-radius: 12px;
     background: #FFF;
     border: 1px solid @core-fleet-black-10;
-    border-top: 4px solid @core-fleet-black-25;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     &:hover {
       transform: translateY(-2px);
@@ -390,14 +389,6 @@
     p {
       .body-m();
     }
-    &[track='apple'] { border-top-color: @core-fleet-black; }
-    &[track='windows'] { border-top-color: #0078D4; }
-    &[track='linux'] { border-top-color: #F5B400; }
-    &[track='gitops'] { border-top-color: #6A67FE; }
-    &[track='ai'] {
-      border-top-color: transparent;
-      background: linear-gradient(#FFF, #FFF) padding-box, linear-gradient(90deg, @core-vibrant-green, @brand) border-box;
-    }
   }
   [purpose='track-meta'] {
     display: flex;
@@ -411,7 +402,7 @@
     gap: 24px;
     padding: 24px 28px;
     border-radius: 16px;
-    background: linear-gradient(120deg, @core-fleet-black 0%, #2B3570 100%);
+    background: linear-gradient(120deg, @core-vibrant-green 0%, @brand 100%);
     color: #FFF;
     position: relative;
     overflow: hidden;
@@ -431,7 +422,7 @@
     }
     p {
       .body-m();
-      color: fade(#FFF, 75%);
+      color: #FFF;
     }
   }
   [purpose='capstone-badge'] {
@@ -443,7 +434,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0px 0px 0px 6px fade(#FFF, 15%);
     img {
       width: 32px;
       height: 32px;
@@ -455,17 +445,21 @@
     gap: 4px;
     flex: 1;
   }
+  // Spaced rather than overlapped, since the two white GitOps circles would merge without a border.
   [purpose='capstone-prereqs'] {
     display: flex;
     flex-shrink: 0;
+    gap: 6px;
     img {
       width: 32px;
       height: 32px;
-      padding: 5px;
+      padding: 4px;
       border-radius: 50%;
       background: #FFF;
-      border: 2px solid @core-fleet-black;
-      margin-left: -8px;
+      &[purpose='platform-logo'] {
+        padding: 0px;
+        background: none;
+      }
     }
   }
   [purpose='optional-divider'] {
@@ -634,80 +628,98 @@
   }
 
   // Upcoming workshops
-  [purpose='schedule-toolbar'] {
+  [purpose='schedule-heading'] {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
     justify-content: space-between;
+    align-items: flex-end;
     gap: 16px;
-    margin-bottom: -16px;
-  }
-  [purpose='filter-chips'] {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  [purpose='filter-chip'] {
-    .btn-reset();
-    .body-m();
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 14px;
-    border-radius: 100px;
-    border: 1px solid @core-fleet-black-10;
-    background: #FFF;
-    color: @core-fleet-black;
-    cursor: pointer;
-    img {
-      width: 16px;
-      height: 16px;
-    }
-    span {
-      color: @core-fleet-black-50;
-      font-size: 12px;
-    }
-    &:hover {
-      border-color: @core-fleet-black-25;
-    }
-    &.selected {
-      background: @core-fleet-black;
-      border-color: @core-fleet-black;
-      color: #FFF;
-      span {
-        color: fade(#FFF, 60%);
-      }
-      img {
-        background: #FFF;
-        border-radius: 50%;
-        padding: 1px;
-      }
-    }
   }
   [purpose='city-search'] {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 14px;
-    border-radius: 100px;
-    border: 1px solid @core-fleet-black-10;
-    background: #FFF;
-    min-width: 240px;
+    position: relative;
+    width: 100%;
+    max-width: 280px;
     img {
+      position: absolute;
+      top: 12px;
+      left: 14px;
       width: 16px;
       height: 16px;
+      opacity: 0.6;
     }
     input {
-      .body-m();
-      border: none;
-      outline: none;
       width: 100%;
+      height: 40px;
+      padding: 8px 16px 8px 40px;
+      border: 1px solid @core-fleet-black-25;
+      border-radius: 8px;
+      font-size: 14px;
       color: @core-fleet-black;
-      background: transparent;
+      background: #FFF;
+      &::placeholder {
+        color: @core-fleet-black-50;
+      }
+      &:focus {
+        outline: none;
+        border-color: @core-fleet-black-50;
+        box-shadow: 0px 0px 0px 3px @core-fleet-black-5;
+      }
     }
-    &:focus-within {
-      border-color: @core-vibrant-green;
+  }
+  [purpose='schedule-body'] {
+    display: flex;
+    align-items: flex-start;
+    gap: 48px;
+  }
+  // The top padding lines the first filter up with the first month's label.
+  [purpose='type-nav'] {
+    flex-shrink: 0;
+    width: 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-top: 8px;
+  }
+  [purpose='type-filter'] {
+    .btn-reset();
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 150%;
+    text-align: left;
+    color: @core-fleet-black-75;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    span {
+      font-weight: @normal;
+      color: @core-fleet-black-50;
     }
+    &:hover {
+      background: @core-fleet-black-5;
+      color: @core-fleet-black;
+    }
+    &.selected {
+      background: @core-fleet-black-5;
+      color: @core-fleet-black;
+      font-weight: @bold;
+    }
+    // .btn-reset() removes the focus outline.
+    &:focus-visible {
+      outline: 2px solid @core-fleet-black;
+      outline-offset: 2px;
+    }
+  }
+  [purpose='schedule-results'] {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    flex-grow: 1;
+    min-width: 0;
   }
   [purpose='schedule'] {
     display: flex;
@@ -717,7 +729,6 @@
   [purpose='schedule-month'] {
     display: flex;
     flex-direction: column;
-    border-top: 1px solid @core-fleet-black-10;
   }
   [purpose='month-label'] {
     font-family: @kicker-font;
@@ -767,7 +778,7 @@
       text-transform: uppercase;
       letter-spacing: 0.5px;
       color: #FFF;
-      background: @core-vibrant-green;
+      background: @core-fleet-black;
       padding: 2px 0px;
     }
     [purpose='event-day'] {
@@ -804,15 +815,20 @@
     img {
       width: 22px;
       height: 22px;
-      padding: 3px;
       border-radius: 50%;
-      background: #FFF;
     }
     &[track='apple'] { background: @apple-tint; }
     &[track='windows'] { background: @windows-tint; }
     &[track='linux'] { background: @linux-tint; }
     &[track='gitops'] { background: @gitops-tint; }
-    &[track='ai'] { background: @ai-tint; }
+    &[track='ai'] {
+      background: @ai-tint;
+      // The platform logos are their own circles; the GitOps logo needs one.
+      img {
+        padding: 3px;
+        background: #FFF;
+      }
+    }
   }
   [purpose='event-link'] {
     .body-m();
@@ -833,7 +849,6 @@
   [purpose='show-more'] {
     display: flex;
     justify-content: center;
-    margin-top: -16px;
   }
   [purpose='show-more-button'] {
     .btn-reset();
@@ -966,6 +981,22 @@
         display: none;
       }
     }
+    [purpose='schedule-body'] {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 24px;
+    }
+    // A single scrolling row keeps the filters from pushing the schedule off screen.
+    [purpose='type-nav'] {
+      width: auto;
+      flex-direction: row;
+      overflow-x: auto;
+      margin: 0px -@page-padding-tablet;
+      padding: 0px @page-padding-tablet 4px;
+    }
+    [purpose='type-filter'] {
+      width: auto;
+    }
   }
 
   @media (max-width: 767px) {
@@ -976,15 +1007,11 @@
       flex-direction: column;
       align-items: flex-start;
     }
-    [purpose='capstone-prereqs'] {
-      padding-left: 8px;
-    }
     [purpose='carousel-track'] {
       --gap: 4px;
     }
-    [purpose='schedule-toolbar'] {
-      flex-direction: column;
-      align-items: stretch;
+    [purpose='city-search'] {
+      max-width: none;
     }
     [purpose='event-row'] {
       grid-template-columns: 56px minmax(0, 1fr);
@@ -1013,6 +1040,18 @@
     }
     [purpose='hero-buttons'] {
       gap: 16px;
+    }
+    [purpose='type-nav'] {
+      margin: 0px -@page-padding-mobile;
+      padding: 0px @page-padding-mobile 4px;
+    }
+    [purpose='request-banner'] {
+      padding: 24px;
+      [purpose='cta-button'] {
+        width: 100%;
+        padding: 12px 16px;
+        white-space: normal;
+      }
     }
   }
 }

@@ -12,10 +12,10 @@ parasails.registerPage('workshops', {
     workshopsPerPage: 12,
     numberOfWorkshopsShown: 12,
     iconByType: {
-      'Apple administrator workshop': '/images/logo-apple-36x36@2x.png',
-      'Windows administrator workshop': '/images/logo-windows-36x36@2x.png',
-      'Linux administrator workshop': '/images/logo-linux-36x36@2x.png',
-      'GitOps workshop': '/images/icon-ai-sparkles-32x32.svg',
+      'Apple administrator workshop': '/images/logo-apple-circle-32x32.svg',
+      'Windows administrator workshop': '/images/logo-windows-circle-32x32.svg',
+      'Linux administrator workshop': '/images/logo-linux-circle-32x32.svg',
+      'GitOps workshop': '/images/icon-gitops-green-32x32.svg',
     },
     trackByType: {
       'Apple administrator workshop': 'apple',
