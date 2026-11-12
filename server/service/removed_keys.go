@@ -8,8 +8,8 @@ import (
 func init() {
 	endpointer.SetRemovedKeyMessage(removedKeyMessage)
 	endpointer.SetDeletedKeyRules(deletedKeyRules())
-	// The host and user list parsers read team_id by hand, where no tag declares it; each leaves this list once it stops.
 	endpointer.SetRemovedNames(requestNames(removednames.KindJSONKey), requestNames(removednames.KindQueryParam),
+		// The host and user list parsers read team_id by hand, where no tag declares it.
 		map[string][]string{"host_options": {"team_id"}, "user_options": {"team_id"}})
 }
 

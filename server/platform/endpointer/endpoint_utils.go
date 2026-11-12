@@ -662,8 +662,10 @@ func MakeDecoder(
 	}
 
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
-		if err := RejectRemovedQueryParams(r.URL.Query(), t); err != nil {
-			return nil, err
+		if r.URL.RawQuery != "" {
+			if err := RejectRemovedQueryParams(r.URL.Query(), t); err != nil {
+				return nil, err
+			}
 		}
 
 		v := reflect.New(t)
@@ -698,7 +700,12 @@ func MakeDecoder(
 
 			// A body without a size limit (agent uploads) is not buffered here.
 			if maxRequestBodySize != -1 && (isBodyDecoder == nil || !isBodyDecoder(v)) {
-				data, err := io.ReadAll(body)
+				// The Content-Length hint is client-controlled, so it is capped, and a gzipped body's is its compressed size.
+				var data bytes.Buffer
+				if cl := r.ContentLength; cl > 0 && !gzipped {
+					data.Grow(int(min(cl, maxRemovedNamesPresize, maxRequestBodySize)))
+				}
+				_, err := data.ReadFrom(body)
 				if err != nil {
 					if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
 						return nil, platform_http.PayloadTooLargeError{
@@ -709,10 +716,10 @@ func MakeDecoder(
 					}
 					return nil, jsonDecodeErr(err)
 				}
-				if err := RejectRemovedJSONKeys(data, t); err != nil {
+				if err := RejectRemovedJSONKeys(data.Bytes(), t); err != nil {
 					return nil, err
 				}
-				body = bytes.NewReader(data)
+				body = &data
 			}
 
 			// Insert the JSON key rewriter into the reader pipeline

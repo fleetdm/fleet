@@ -2,11 +2,15 @@ package endpointer
 
 import (
 	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"reflect"
 	"strings"
 	"testing"
 
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/stretchr/testify/require"
 )
 
@@ -51,7 +55,6 @@ func TestRejectRemovedJSONKeys(t *testing.T) {
 		{name: "case does not matter, the message keeps the sent spelling", body: `{"TEAM_ID": 1}`, wantKey: "TEAM_ID"},
 		{name: "old and new name together", body: `{"fleet_id": 1, "team_id": 1}`, wantKey: "team_id"},
 		{name: "removed key in a nested struct, declared name next to it", body: `{"items": [{"name": "a", "teams": 1}]}`, wantKey: "teams"},
-		{name: "removed key inside a map of structs", body: `{"by_name": {"team_id": {"teams": 1}}}`, wantKey: "teams"},
 		{name: "removed key in a container sent under its renameto name", body: `{"reports": [{"teams": 1}]}`, wantKey: "teams"},
 		{name: "removed key in a container sent under its json name", body: `{"queries": [{"teams": 1}]}`, wantKey: "teams"},
 		{name: "removed key after unrelated unknown keys", body: `{"extra": 1, "another": {"x": 1}, "teams": []}`, wantKey: "teams"},
@@ -63,7 +66,7 @@ func TestRejectRemovedJSONKeys(t *testing.T) {
 		{name: "raw JSON is not looked into", body: `{"raw": {"team_id": 1}}`},
 		{name: "a type that decodes itself is not looked into", body: `{"own": {"team_id": 1}}`},
 		{name: "a json:- field is not a name the type declares", body: `{"Skipped": "x"}`},
-		{name: "map keys are data, not field names", body: `{"by_name": {"teams": {"name": "x"}}}`},
+		{name: "maps are not looked into, their keys are data", body: `{"by_name": {"teams": {"teams": 1}}}`},
 		{name: "removed names as values", body: `{"name": "team_id", "items": [{"name": "teams"}]}`},
 		{name: "unknown keys that are not removed are left to the decoder", body: `{"unknown": {"team": 1}}`, wantKey: ""},
 		{name: "scalar and array bodies", body: `[{"teams": 1}]`},
@@ -151,4 +154,45 @@ func BenchmarkRejectRemovedJSONKeys(b *testing.B) {
 			}
 		})
 	}
+}
+
+func TestMakeDecoderRemovedNames(t *testing.T) {
+	SetRemovedNames([]string{"team_id"}, []string{"team_id"}, nil)
+	t.Cleanup(func() { SetRemovedNames(nil, nil, nil) })
+
+	type request struct {
+		FleetID uint `json:"fleet_id"`
+		Page    int  `query:"page,optional"`
+	}
+	decode := func(limit int64, target string, body string) error {
+		r := httptest.NewRequest(http.MethodPost, target, strings.NewReader(body))
+		_, err := MakeDecoder(request{}, defaultJSONUnmarshal, nil, nil, nil, nil, limit)(t.Context(), r)
+		return err
+	}
+
+	rke, ok := errors.AsType[*RemovedKeyError](decode(1<<20, "/", `{"team_id": 1}`))
+	require.True(t, ok)
+	require.Equal(t, "team_id", rke.Key)
+	rke, ok = errors.AsType[*RemovedKeyError](decode(1<<20, "/?team_id=1", `{"fleet_id": 1}`))
+	require.True(t, ok)
+	require.Equal(t, "team_id", rke.Key)
+
+	require.NoError(t, decode(1<<20, "/?page=1", `{"fleet_id": 1}`))
+	// A body without a size limit (agent uploads) is not buffered or scanned.
+	require.NoError(t, decode(-1, "/", `{"team_id": 1}`))
+	// Malformed JSON is still reported by the decoder, and an oversize body keeps its error.
+	require.Error(t, decode(1<<20, "/", `{"team_id": `))
+	_, ok = errors.AsType[platform_http.PayloadTooLargeError](decode(8, "/", `{"fleet_id": 1, "x": "0123456789"}`))
+	require.True(t, ok)
+}
+
+func TestSetRemovedNamesResetsDeclaredQueryCache(t *testing.T) {
+	t.Cleanup(func() { SetRemovedNames(nil, nil, nil) })
+	query := url.Values{"team_id": {"1"}}
+	typ := reflect.TypeFor[handParsedRequest]()
+
+	SetRemovedNames(nil, []string{"team_id"}, map[string][]string{"host_options": {"team_id"}})
+	require.NoError(t, RejectRemovedQueryParams(query, typ))
+	SetRemovedNames(nil, []string{"team_id"}, nil)
+	require.Error(t, RejectRemovedQueryParams(query, typ))
 }

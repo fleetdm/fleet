@@ -2,10 +2,8 @@ package endpointer
 
 import (
 	"bytes"
-	"encoding"
-	"encoding/json"
 	"encoding/json/jsontext"
-	jsonv2 "encoding/json/v2"
+	"encoding/json/v2"
 	"errors"
 	"net/url"
 	"reflect"
@@ -14,9 +12,9 @@ import (
 	"sync/atomic"
 )
 
-// The removed names scan rejects a request that sends a name Fleet 5 removed or renamed, such as team_id, instead of silently
-// ignoring it. It is driven by one list of names (SetRemovedNames) and by the Go type the request decodes into: a name is only
-// rejected where that type has no field of that name. That gives the scan three properties without any per-field tags:
+// The removed names scan rejects a request that sends a name Fleet 5 removed or renamed, such as team_id. It is driven by one
+// list of names (SetRemovedNames) and by the Go type the request decodes into: a name is only rejected where that type has no
+// field of that name. That gives the scan three properties without any per-field tags:
 //   - a type that still declares the old name (a surface not renamed yet) keeps accepting it, so surfaces switch over one by one;
 //   - free-form JSON (maps, any, json.RawMessage, types with their own UnmarshalJSON) is never looked into, so a profile or agent
 //     option that happens to contain "team" is not rejected;
@@ -29,12 +27,12 @@ type removedNames struct {
 	handParsed map[string][]string
 }
 
+// maxRemovedNamesPresize caps how much buffer a request's Content-Length can reserve before any of its body has arrived.
+const maxRemovedNamesPresize = 64 << 10
+
 var removedNamesList atomic.Pointer[removedNames]
 
-// SetRemovedNames sets the request names the scan rejects. The platform layer has no list of its own: the service sets it from
-// pkg/removednames, as it does for the removed key message. A request type with a field tagged `url:"<key of handParsed>"` also
-// accepts the listed parameters, since its parser reads them in code where the scan cannot see; each one drops out of that map as
-// its parser stops reading the removed name.
+// SetRemovedNames sets the request names the scan rejects.
 func SetRemovedNames(jsonKeys, queryParams []string, handParsed map[string][]string) {
 	names := &removedNames{
 		jsonKeys:    make(map[string]struct{}, len(jsonKeys)),
@@ -48,6 +46,7 @@ func SetRemovedNames(jsonKeys, queryParams []string, handParsed map[string][]str
 		names.queryParams[p] = struct{}{}
 	}
 	removedNamesList.Store(names)
+	queryNamesCache.Clear() // the declared names include the hand-parsed ones
 }
 
 // RejectRemovedJSONKeys returns a *RemovedKeyError if the JSON document data uses a removed name as the key of a field its
@@ -69,16 +68,11 @@ func scanValue(dec *jsontext.Decoder, t reflect.Type, removed map[string]struct{
 	t = indirectType(t)
 	switch dec.PeekKind() {
 	case '{':
-		if !opaque {
-			switch t.Kind() {
-			case reflect.Struct:
-				return scanObject(dec, jsonFields(t), removed)
-			case reflect.Map:
-				return scanMap(dec, t.Elem(), removed)
-			}
+		if !opaque && t.Kind() == reflect.Struct {
+			return scanObject(dec, jsonFields(t), removed)
 		}
 	case '[':
-		if !opaque && (t.Kind() == reflect.Slice || t.Kind() == reflect.Array) {
+		if !opaque && t.Kind() == reflect.Slice {
 			return scanArray(dec, t.Elem(), removed)
 		}
 	}
@@ -110,23 +104,6 @@ func scanObject(dec *jsontext.Decoder, fields map[string]reflect.Type, removed m
 	return err
 }
 
-// scanMap looks into the values of a map, whose keys are data and not field names.
-func scanMap(dec *jsontext.Decoder, elem reflect.Type, removed map[string]struct{}) error {
-	if _, err := dec.ReadToken(); err != nil { // {
-		return err
-	}
-	for dec.PeekKind() != '}' {
-		if _, err := dec.ReadToken(); err != nil { // the key
-			return err
-		}
-		if err := scanValue(dec, elem, removed); err != nil {
-			return err
-		}
-	}
-	_, err := dec.ReadToken() // }
-	return err
-}
-
 func scanArray(dec *jsontext.Decoder, elem reflect.Type, removed map[string]struct{}) error {
 	if _, err := dec.ReadToken(); err != nil { // [
 		return err
@@ -141,25 +118,13 @@ func scanArray(dec *jsontext.Decoder, elem reflect.Type, removed map[string]stru
 }
 
 var (
-	unmarshalerTypes = []reflect.Type{
-		reflect.TypeFor[json.Unmarshaler](),
-		reflect.TypeFor[jsonv2.UnmarshalerFrom](),
-		reflect.TypeFor[encoding.TextUnmarshaler](),
-	}
+	unmarshalerType = reflect.TypeFor[json.Unmarshaler]()
 	jsonFieldsCache sync.Map // reflect.Type → map[string]reflect.Type
 )
 
 // isOpaque reports whether t decodes itself, so its members are not struct fields the scan can see.
 func isOpaque(t reflect.Type) bool {
-	for t.Kind() == reflect.Ptr {
-		t = t.Elem()
-	}
-	for _, u := range unmarshalerTypes {
-		if t.Implements(u) || reflect.PointerTo(t).Implements(u) {
-			return true
-		}
-	}
-	return false
+	return reflect.PointerTo(indirectType(t)).Implements(unmarshalerType)
 }
 
 func indirectType(t reflect.Type) reflect.Type {
@@ -203,7 +168,7 @@ func jsonFields(t reflect.Type) map[string]reflect.Type {
 			}
 			// The scan runs before the rewriter, so a field can arrive under its renameto name too.
 			for _, n := range []string{name, sf.Tag.Get("renameto")} {
-				if _, dup := fields[strings.ToLower(n)]; n != "" && !dup {
+				if n != "" {
 					fields[strings.ToLower(n)] = sf.Type
 				}
 			}
@@ -241,27 +206,24 @@ func declaredQueryNames(t reflect.Type, handParsed map[string][]string) map[stri
 		return cached.(map[string]struct{})
 	}
 	declared := make(map[string]struct{})
-	visited := make(map[reflect.Type]struct{})
-	var walk func(t reflect.Type)
-	walk = func(t reflect.Type) {
-		if _, ok := visited[t]; ok {
-			return
-		}
-		visited[t] = struct{}{}
-		for sf := range t.Fields() {
-			if tag, ok := sf.Tag.Lookup("query"); ok {
-				name, _, _ := strings.Cut(tag, ",")
-				declared[name] = struct{}{}
-			}
-			for _, param := range handParsed[sf.Tag.Get("url")] {
-				declared[param] = struct{}{}
-			}
-			if ft := indirectType(sf.Type); ft.Kind() == reflect.Struct && sf.Anonymous {
-				walk(ft)
-			}
-		}
-	}
-	walk(indirectType(t))
+	collectQueryNames(t, handParsed, declared)
 	queryNamesCache.Store(t, declared)
 	return declared
+}
+
+// collectQueryNames follows embedded structs by value only, like the decoder's allFields.
+func collectQueryNames(t reflect.Type, handParsed map[string][]string, declared map[string]struct{}) {
+	for sf := range t.Fields() {
+		if tag, ok := sf.Tag.Lookup("query"); ok {
+			name, _, _ := strings.Cut(tag, ",")
+			declared[name] = struct{}{}
+		}
+		urlName, _, _ := strings.Cut(sf.Tag.Get("url"), ",")
+		for _, param := range handParsed[urlName] {
+			declared[param] = struct{}{}
+		}
+		if sf.Anonymous && sf.Type.Kind() == reflect.Struct {
+			collectQueryNames(sf.Type, handParsed, declared)
+		}
+	}
 }
