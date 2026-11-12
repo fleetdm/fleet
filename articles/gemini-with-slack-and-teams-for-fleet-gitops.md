@@ -1,8 +1,13 @@
 # Set up Gemini with Slack and Microsoft Teams for Fleet GitOps
 
-Once your Fleet configuration lives in a GitOps repository, most changes are a pull request away. This guide connects Google's Gemini to your repository, so anyone on your IT team can turn a Slack or Teams message into a GitHub issue, mention `@gemini-cli`, and get a pull request back. Gemini plans the change, waits for a person to approve the plan, and then writes it. Your CI runs a dry run, a person reviews it, and merging it deploys it. You'll also connect Gemini to Fleet's MCP server, so it can look up hosts, policies, and software in Fleet while it works.
+Once your Fleet configuration lives in a GitOps repository, most changes are a pull request away. This guide connects Google's Gemini to your repository, so anyone on your IT team can turn a Slack or Teams message into a GitHub issue, mention `@gemini-cli`, and get a pull request back. Gemini plans the change, waits for a person to approve the plan, and then writes it. Your CI runs a dry run, a person reviews it, and merging it deploys it.
 
-This guide picks up where Fleet's GitOps level 1 certification leaves off: a repository created with `fleetctl new`, on GitHub, with CI applying it to Fleet. Google doesn't have a Gemini agent you can mention in Slack or Teams that changes code yet. The Gemini Enterprise app for Slack answers search questions only. So this guide uses Google's [`run-gemini-cli`](https://github.com/google-github-actions/run-gemini-cli) GitHub Action and the GitHub app for Slack and Teams to get requests from chat into GitHub.
+This guide has two parts:
+
+- [Fleet's MCP server](#connect-gemini-to-fleets-mcp-server): ask Gemini questions about your hosts, policies, and software, for example "Which fleets don't have a policy that checks FileVault is on?"
+- [GitOps repository setup](#add-the-fleet-gitops-skill-to-your-repository): make changes to Fleet from chat. This part needs a Fleet GitOps repository on GitHub, created with `fleetctl new`, with CI applying it to Fleet.
+
+Google doesn't have a Gemini agent you can mention in Slack or Teams that changes code yet. The Gemini Enterprise app for Slack answers search questions only. So this guide uses Google's [`run-gemini-cli`](https://github.com/google-github-actions/run-gemini-cli) GitHub Action and the GitHub app for Slack and Teams to get requests from chat into GitHub.
 
 ## Prerequisites
 
@@ -100,7 +105,7 @@ curl -o .github/workflows/gemini-plan-execute.yml $base/gemini-assistant/gemini-
 
 ## Connect Gemini to Fleet's MCP server
 
-Fleet Premium 4.95 and later include a built-in MCP server at `/api/v1/fleet/mcp`. Connect it so Gemini can check what's already in Fleet before it plans a change, for example which fleets already have a FileVault policy.
+Fleet Premium 4.95 and later include a built-in MCP server at `/api/v1/fleet/mcp`. Connect it so you can ask Gemini questions about your hosts, policies, and software. Gemini also uses it to check what's already in Fleet before it plans a change.
 
 ### Create an API-only user
 

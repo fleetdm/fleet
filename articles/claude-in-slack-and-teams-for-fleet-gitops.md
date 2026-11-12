@@ -1,8 +1,13 @@
 # Set up Claude in Slack and Microsoft Teams for Fleet GitOps
 
-Once your Fleet configuration lives in a GitOps repository, most changes are a pull request away. This guide connects Claude to Slack, so anyone on your IT team can mention `@Claude` in a channel, describe a change, and get a pull request back. Claude writes the change and checks it with the `fleet-gitops` skill. Your CI runs a dry run, a person reviews it, and merging it deploys it. You'll also connect Claude to Fleet's MCP server, so it can look up hosts, policies, and software in Fleet while it works.
+Once your Fleet configuration lives in a GitOps repository, most changes are a pull request away. This guide connects Claude to Slack, so anyone on your IT team can mention `@Claude` in a channel, describe a change, and get a pull request back. Claude writes the change and checks it with the `fleet-gitops` skill. Your CI runs a dry run, a person reviews it, and merging it deploys it.
 
-This guide picks up where Fleet's GitOps level 1 certification leaves off: a repository created with `fleetctl new`, on GitHub, with CI applying it to Fleet. Claude Tag, Anthropic's Claude app for Slack, is in public beta, so labels and steps may change. Claude Tag isn't available in Microsoft Teams yet. If your team works in Teams, the Microsoft Teams section below covers what works today.
+This guide has two parts:
+
+- [Fleet's MCP server](#connect-claude-to-fleets-mcp-server): ask Claude questions about your hosts, policies, and software, for example "Which fleets don't have a policy that checks FileVault is on?"
+- [GitOps repository setup](#add-the-fleet-gitops-skill-to-your-repository): make changes to Fleet from chat. This part needs a Fleet GitOps repository on GitHub, created with `fleetctl new`, with CI applying it to Fleet.
+
+Claude Tag, Anthropic's Claude app for Slack, is in public beta, so labels and steps may change. Claude Tag isn't available in Microsoft Teams yet. If your team works in Teams, the Microsoft Teams section below covers what works today.
 
 ## Prerequisites
 
@@ -98,7 +103,7 @@ Read the latest message in the IT requests channel in Teams and make that change
 
 ## Connect Claude to Fleet's MCP server
 
-Fleet Premium 4.95 and later include a built-in MCP server at `/api/v1/fleet/mcp`. Connect it so Claude can check what's already in Fleet before it writes a change, for example which fleets already have a FileVault policy.
+Fleet Premium 4.95 and later include a built-in MCP server at `/api/v1/fleet/mcp`. Connect it so you can ask Claude questions about your hosts, policies, and software. Claude also uses it to check what's already in Fleet before it writes a change.
 
 ### Create an API-only user
 

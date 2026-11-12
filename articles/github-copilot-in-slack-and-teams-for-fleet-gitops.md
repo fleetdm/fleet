@@ -1,8 +1,11 @@
 # Set up GitHub Copilot in Slack and Microsoft Teams for Fleet GitOps
 
-Once your Fleet configuration lives in a GitOps repository, most changes are a pull request away. This guide connects GitHub Copilot to Slack and Microsoft Teams, so anyone on your IT team can mention `@GitHub` in a channel, describe a change, and get a pull request back. Copilot cloud agent writes the change and checks it with the `fleet-gitops` skill. Your CI runs a dry run, a person reviews it, and merging it deploys it. You'll also connect Copilot to Fleet's MCP server, so it can look up hosts, policies, and software in Fleet while it works.
+Once your Fleet configuration lives in a GitOps repository, most changes are a pull request away. This guide connects GitHub Copilot to Slack and Microsoft Teams, so anyone on your IT team can mention `@GitHub` in a channel, describe a change, and get a pull request back. Copilot cloud agent writes the change and checks it with the `fleet-gitops` skill. Your CI runs a dry run, a person reviews it, and merging it deploys it.
 
-This guide picks up where Fleet's GitOps level 1 certification leaves off: a repository created with `fleetctl new`, on GitHub, with CI applying it to Fleet.
+This guide has two parts:
+
+- [Fleet's MCP server](#connect-copilot-to-fleets-mcp-server): ask Copilot questions about your hosts, policies, and software, for example "Which fleets don't have a policy that checks FileVault is on?"
+- [GitOps repository setup](#add-the-fleet-gitops-skill-to-your-repository): make changes to Fleet from chat. This part needs a Fleet GitOps repository on GitHub, created with `fleetctl new`, with CI applying it to Fleet.
 
 ## Prerequisites
 
@@ -82,7 +85,7 @@ Choose your GitOps repository.
 
 ## Connect Copilot to Fleet's MCP server
 
-Fleet Premium 4.95 and later include a built-in MCP server at `/api/v1/fleet/mcp`. Connect it so Copilot can check what's already in Fleet before it writes a change, for example which fleets already have a FileVault policy.
+Fleet Premium 4.95 and later include a built-in MCP server at `/api/v1/fleet/mcp`. Connect it so you can ask Copilot questions about your hosts, policies, and software. Copilot also uses it to check what's already in Fleet before it writes a change.
 
 ### Create an API-only user
 

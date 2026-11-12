@@ -1,6 +1,11 @@
 # Connect your AI tool to Fleet
 
-Fleet lets your AI tool look up hosts, policies, and software in Fleet, so you can ask questions about your fleet in plain English. Fleet has a setup guide for Claude, Codex, GitHub Copilot, and Gemini. Each one also connects the tool to Slack or Microsoft Teams and to your GitOps repository, so your team can ask for a change in chat and get a pull request back. Pick the guide for the AI tool your organization already uses.
+Fleet has a setup guide for Claude, Codex, GitHub Copilot, and Gemini. Each guide has two parts:
+
+- Fleet's MCP server: ask your AI tool questions about your hosts, policies, and software in plain English.
+- GitOps repository setup: connect the AI tool to Slack or Microsoft Teams and to your GitOps repository, so your team can ask for a change in chat and get a pull request back.
+
+Pick the guide for the AI tool your organization already uses.
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 32px 0px;">
 <a href="https://fleetdm.com/guides/claude-in-slack-and-teams-for-fleet-gitops" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 1px solid #E2E4EA; border-radius: 8px; color: #192147; font-weight: 700; text-decoration: none;"><img src="../website/assets/images/icon-claude-ai-28x28@2x.png" alt="" style="width: 28px; height: 28px; padding: 0; margin: 0;">Claude</a>
@@ -34,13 +39,16 @@ Not sure which one fits? Start here:
 
 ## What every guide sets up
 
-Each guide follows the same five steps, so switching tools later means redoing only the tool-specific ones:
+Every guide sets up the same two parts, so switching tools later means redoing only the tool-specific steps.
+
+To ask questions about your hosts, each guide connects the AI tool to Fleet's MCP server with an Observer+ API-only user.
+
+To make changes, each guide sets up your GitOps repository:
 
 1. Add `AGENTS.md` and the `fleet-gitops` skill to your repository, so the AI tool checks its work against Fleet's GitOps format.
 2. Protect your default branch, so a person approves every merge and a failed dry run blocks it.
 3. Connect the AI tool to GitHub, and to Slack or Microsoft Teams.
-4. Connect it to Fleet's MCP server with an Observer+ API-only user.
-5. Make your first change and verify it in Fleet.
+4. Make your first change and verify it in Fleet.
 
 > **Warning:** Never give an AI tool your GitOps `FLEET_API_TOKEN`. That token can apply changes to Fleet. Each guide creates a separate API-only user with the Observer+ role, which can run live reports but can't change anything.
 

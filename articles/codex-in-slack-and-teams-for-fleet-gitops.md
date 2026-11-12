@@ -1,8 +1,13 @@
 # Set up Codex in Slack and Microsoft Teams for Fleet GitOps
 
-Once your Fleet configuration lives in a GitOps repository, most changes are a pull request away. This guide connects OpenAI's Codex to Slack and Microsoft Teams, so anyone on your IT team can mention `@ChatGPT` in a channel, describe a change, and get a pull request back. Codex writes the change in Codex Cloud and checks it with the `fleet-gitops` skill. Your CI runs a dry run, a person reviews it, and merging it deploys it. You'll also connect Codex to Fleet's MCP server, so it can look up hosts, policies, and software in Fleet.
+Once your Fleet configuration lives in a GitOps repository, most changes are a pull request away. This guide connects OpenAI's Codex to Slack and Microsoft Teams, so anyone on your IT team can mention `@ChatGPT` in a channel, describe a change, and get a pull request back. Codex writes the change in Codex Cloud and checks it with the `fleet-gitops` skill. Your CI runs a dry run, a person reviews it, and merging it deploys it.
 
-This guide picks up where Fleet's GitOps level 1 certification leaves off: a repository created with `fleetctl new`, on GitHub, with CI applying it to Fleet. In September 2026, OpenAI introduced `@ChatGPT` for Slack and Teams, which can hand repository work to Codex Cloud. If your team used `@Codex` in Slack, start new requests with `@ChatGPT`.
+This guide has two parts:
+
+- [Fleet's MCP server](#connect-codex-to-fleets-mcp-server): ask Codex questions about your hosts, policies, and software, for example "Which fleets don't have a policy that checks FileVault is on?"
+- [GitOps repository setup](#add-the-fleet-gitops-skill-to-your-repository): make changes to Fleet from chat. This part needs a Fleet GitOps repository on GitHub, created with `fleetctl new`, with CI applying it to Fleet.
+
+In September 2026, OpenAI introduced `@ChatGPT` for Slack and Teams, which can hand repository work to Codex Cloud. If your team used `@Codex` in Slack, start new requests with `@ChatGPT`.
 
 ## Prerequisites
 
@@ -76,7 +81,7 @@ A merge to your default branch is a deploy: the **Apply latest configuration to 
 
 ## Connect Codex to Fleet's MCP server
 
-Fleet Premium 4.95 and later include a built-in MCP server at `/api/v1/fleet/mcp`.
+Fleet Premium 4.95 and later include a built-in MCP server at `/api/v1/fleet/mcp`. Connect it so you can ask Codex questions about your hosts, policies, and software.
 
 OpenAI documents MCP support for the ChatGPT desktop app, Codex CLI, and IDE extension, not for Codex Cloud tasks like the ones `@ChatGPT` starts from Slack and Teams. ChatGPT's custom MCP plugins support OAuth or no authentication, and can't send an API token. So connect Fleet's MCP server where your admins review and refine changes: the ChatGPT desktop app, Codex CLI, or IDE extension.
 
