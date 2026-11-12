@@ -11,14 +11,13 @@ Fleet 4.95.0 is now available. See the complete [changelog](https://github.com/f
 ## Highlights
 
 - [Okta conditional access for Windows](#okta-conditional-access-for-windows)
-- [Google conditional access for iPhone, iPad, and Android](#google-conditional-access-for-iphone-ipad-and-android)
-- [Multiple versions of the same App Store app](#multiple-versions-of-the-same-app-store-app)
+- [Google conditional access for iOS/iPadOS, and Android](#google-conditional-access-for-ios-ipados-and-android)
 - [Built-in MCP server](#built-in-mcp-server)
 - [AI tools in software inventory](#ai-tools-in-software-inventory)
 - [Patch deadline for macOS apps](#patch-deadline-for-macos-apps)
+- [Multiple versions of the same App Store app](#multiple-versions-of-the-same-app-store-app)
 - [Multiple VPP tokens in one fleet](#multiple-vpp-tokens-in-one-fleet)
-- [Deploy certificates from EJBCA to Apple hosts](#deploy-certificates-from-ejbca-to-apple-hosts)
-- [Deploy certificates from Google CAS to Linux hosts](#deploy-certificates-from-google-cas-to-linux-hosts)
+- [Deploy certificates from EJBCA and Google CAS](#deploy-certificates-from-ejbca-and-google-cas)
 
 ### Okta conditional access for Windows
 
