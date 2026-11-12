@@ -338,7 +338,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(noTeamDevices) - 1)}, summaryResp.MDMAppleBootstrapPackageSummary) //nolint:gosec // dismiss G115
 
 	var lhr listHostsResponse
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &lhr, "team_id", "0", "bootstrap_package", "pending")
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &lhr, "fleet_id", "0", "bootstrap_package", "pending")
 	require.Len(t, lhr.Hosts, len(noTeamDevices)-1)
 
 	// set the default bm assignment to `team`
@@ -472,7 +472,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 
 		listHostsPath := fmt.Sprintf("/api/latest/fleet/hosts?bootstrap_package=%s", status)
 		if teamID != nil {
-			listHostsPath += fmt.Sprintf("&team_id=%d", *teamID)
+			listHostsPath += fmt.Sprintf("&fleet_id=%d", *teamID)
 		}
 		var listHostsResp listHostsResponse
 		s.DoJSON("GET", listHostsPath, nil, http.StatusOK, &listHostsResp)
@@ -497,7 +497,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 
 		countPath := fmt.Sprintf("/api/latest/fleet/hosts/count?bootstrap_package=%s", status)
 		if teamID != nil {
-			countPath += fmt.Sprintf("&team_id=%d", *teamID)
+			countPath += fmt.Sprintf("&fleet_id=%d", *teamID)
 		}
 		var countResp countHostsResponse
 		s.DoJSON("GET", countPath, nil, http.StatusOK, &countResp)
@@ -639,7 +639,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageManualEnrollment() {
 	require.Equal(t, fleet.MDMBootstrapPackageInstalled, hostResp.Host.MDM.MacOSSetup.BootstrapPackageStatus)
 
 	var listResp listHostsResponse
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "team_id", fmt.Sprint(team.ID), "bootstrap_package", "installed")
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "fleet_id", fmt.Sprint(team.ID), "bootstrap_package", "installed")
 	require.Len(t, listResp.Hosts, 1)
 	require.Equal(t, host.ID, listResp.Hosts[0].ID)
 
