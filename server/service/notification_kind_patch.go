@@ -192,8 +192,12 @@ func (svc *Service) createPatchNotificationForEndUser(ctx context.Context, host 
 		return nil
 	}
 
+	// Orbit authenticates the host from a replica or the host cache, either of which can still show the fleet
+	// it just left, so use the fleet read with the result.
+	hostTeamID := ptr.ValOrZero(install.HostTeamID)
+
 	// an install queued before a transfer can still skip after it
-	if install.InstallerGlobalOrTeamID != nil && *install.InstallerGlobalOrTeamID != ptr.ValOrZero(host.TeamID) {
+	if install.InstallerGlobalOrTeamID != nil && *install.InstallerGlobalOrTeamID != hostTeamID {
 		svc.logger.InfoContext(ctx, "not notifying about a skipped patch whose installer is outside the host's fleet",
 			"host_id", host.ID, "install_uuid", install.InstallUUID, "software_installer_id", ptr.ValOrZero(install.SoftwareInstallerID))
 		return nil
@@ -212,7 +216,7 @@ func (svc *Service) createPatchNotificationForEndUser(ctx context.Context, host 
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "load host timezone")
 		}
-		settings, err := svc.ds.GetPatchDeadlineSettings(ctx, ptr.ValOrZero(host.TeamID))
+		settings, err := svc.ds.GetPatchDeadlineSettings(ctx, hostTeamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get patch deadline settings")
 		}

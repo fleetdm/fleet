@@ -519,6 +519,8 @@ type HostSoftwareInstallerResult struct {
 	SoftwareInstallerID *uint `json:"-" db:"software_installer_id"`
 	// InstallerGlobalOrTeamID is the fleet the installer belongs to, 0 for no fleet, or nil if the installer was deleted.
 	InstallerGlobalOrTeamID *uint `json:"-" db:"installer_global_or_team_id"`
+	// HostTeamID is the host's fleet when the result was read, or nil for no fleet or a deleted host.
+	HostTeamID *uint `json:"-" db:"host_team_id"`
 	// SoftwarePackage is the name of the software installer package.
 	SoftwarePackage string `json:"software_package" db:"software_package"`
 	// HashSHA256 is the SHA256 hash of the software installer package. It is

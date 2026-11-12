@@ -2366,7 +2366,8 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 	// do not create a "past" activity if the status is not terminal or if the activity
 	// was canceled.
 	if status := result.Status(); status != fleet.SoftwareInstallPending && !installWasCanceled {
-		// Force read from primary to avoid replication lag issues where attempt_number might be NULL
+		// Force read from primary to avoid replication lag issues where attempt_number might be NULL, and so the
+		// host fleet read with the result reflects a transfer that just committed.
 		ctx = ctxdb.RequirePrimary(ctx, true)
 		hsi, err := svc.ds.GetSoftwareInstallResults(ctx, result.InstallUUID)
 		if err != nil {
