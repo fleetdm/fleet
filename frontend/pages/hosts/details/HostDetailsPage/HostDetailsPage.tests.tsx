@@ -684,7 +684,7 @@ describe("HostDetailsPage - invalid host id", () => {
     jest.resetAllMocks();
   });
 
-  it.each(["abc", "0"])(
+  it.each(["abc", "0", "1abc", "1.5"])(
     "shows the not found page for /hosts/%s",
     async (id) => {
       stubQueries(createMockHost());
