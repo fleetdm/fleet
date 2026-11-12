@@ -20,8 +20,7 @@ on:
     - cron: "35 3 * * *"
   workflow_dispatch:
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
@@ -34,6 +33,8 @@ defaults:
 jobs:
   fuzz:
     name: ${{ matrix.package }}
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     timeout-minutes: 180
     strategy:
