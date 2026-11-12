@@ -9,7 +9,10 @@ import { IMdmProfile, ProfilePlatform } from "interfaces/mdm";
 import { generateSecretErrMsg } from "pages/SoftwarePage/helpers";
 import { listNamesFromSelectedLabels } from "services/entities/labels";
 import { isDDMProfile } from "services/entities/mdm";
-import { generateGenericLearnMoreErrMsg } from "utilities/helpers";
+import {
+  formatFleet5RemovalMessage,
+  generateGenericLearnMoreErrMsg,
+} from "utilities/helpers";
 
 export interface IParseFileResult {
   name: string;
@@ -427,6 +430,15 @@ export const getErrorMessage = (
     return action === "edit"
       ? "Couldn't edit profile. OS updates are already configured. Remove the OS updates settings first."
       : apiReason;
+  }
+
+  const fleet5Removal = formatFleet5RemovalMessage(apiReason);
+  if (fleet5Removal) {
+    return (
+      <>
+        {couldnt} {fleet5Removal}
+      </>
+    );
   }
 
   if (apiReason.includes("Secret variable")) {

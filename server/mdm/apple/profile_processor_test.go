@@ -14,6 +14,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
@@ -115,6 +116,19 @@ func TestPreprocessProfileContents(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, updatedPayload)
 	assert.Contains(t, updatedPayload.Detail, "FLEET_VAR_BOZO")
+	assert.Empty(t, targets)
+
+	// A profile saved before the upgrade that still uses a removed variable
+	profileContents = map[string]mobileconfig.Mobileconfig{
+		"p1": []byte("${FLEET_VAR_HOST_END_USER_EMAIL_IDP}"),
+	}
+	updatedPayload = nil
+	populateTargets()
+	err = preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, noEJBCAService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, nil)
+	require.NoError(t, err)
+	require.NotNil(t, updatedPayload)
+	assert.Equal(t, `The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. `+
+		`What to use instead: `+removednames.GuideURL, updatedPayload.Detail)
 	assert.Empty(t, targets)
 
 	ndesPassword := "test-password"
@@ -273,41 +287,6 @@ func TestPreprocessProfileContents(t *testing.T) {
 		assert.Equal(t, expectedURL, string(profileContents[profUUID]))
 	}
 
-	// No IdP email found
-	ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
-		return nil, nil
-	}
-	profileContents = map[string]mobileconfig.Mobileconfig{
-		"p1": []byte("$FLEET_VAR_" + fleet.FleetVarHostEndUserEmailIDP),
-	}
-	updatedProfile = nil
-	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, noEJBCAService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
-	require.NoError(t, err)
-	require.NotNil(t, updatedProfile)
-	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarHostEndUserEmailIDP)
-	assert.Contains(t, updatedProfile.Detail, "no IdP email")
-	assert.Empty(t, targets)
-
-	// IdP email found
-	email := "user@example.com"
-	ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
-		return []string{email}, nil
-	}
-	updatedProfile = nil
-	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, noEJBCAService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
-	require.NoError(t, err)
-	assert.Nil(t, updatedProfile)
-	require.NotEmpty(t, targets)
-	assert.Len(t, targets, 1)
-	for profUUID, target := range targets {
-		assert.NotEqual(t, profUUID, "p1") // new temporary UUID generated for specific host
-		assert.NotEqual(t, cmdUUID, target.CmdUUID)
-		assert.Equal(t, []string{hostUUID}, target.EnrollmentIDs)
-		assert.Equal(t, email, string(profileContents[profUUID]))
-	}
-
 	// Hardware serial
 	ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, _ fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
 		assert.Equal(t, []string{hostUUID}, uuids)
@@ -357,7 +336,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	groupedCAs.NDESSCEP = nil
 	profileContents = map[string]mobileconfig.Mobileconfig{
 		"p1": []byte("$FLEET_VAR_" + fleet.FleetVarNDESSCEPProxyURL),
-		"p2": []byte("$FLEET_VAR_" + fleet.FleetVarHostEndUserEmailIDP),
+		"p2": []byte("$FLEET_VAR_" + fleet.FleetVarHostUUID),
 		"p3": []byte("no variables"),
 	}
 	addProfileToInstall := func(hostUUID, profileUUID, profileIdentifier string) {
@@ -416,7 +395,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 		} else {
 			assert.NotEqual(t, cmdUUID, target.CmdUUID)
 		}
-		assert.Contains(t, []string{email, "no variables"}, string(profileContents[profUUID]))
+		assert.Contains(t, []string{hostUUID, "host-3", "no variables"}, string(profileContents[profUUID]))
 	}
 }
 
@@ -596,7 +575,6 @@ func TestReplaceFleetVarInDigiCertItem(t *testing.T) {
 		item     string
 		expected string
 	}{
-		{fleet.FleetVarHostEndUserEmailIDP.WithBraces(), "o'brien@example.com"},
 		{fleet.FleetVarHostHardwareSerial.WithBraces(), "serial"},
 		{fleet.FleetVarHostUUID.WithBraces(), "host"},
 		{fleet.FleetVarHostPlatform.WithBraces(), "macos"},
@@ -622,9 +600,6 @@ func TestReplaceFleetVarInDigiCertItem(t *testing.T) {
 	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 		return &fleet.ScimUser{UserName: "user@example.com"}, nil
 	}
-	ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
-		return nil, nil
-	}
 	var failureDetail string
 	ds.UpdateOrDeleteHostMDMAppleProfileFunc = func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
 		failureDetail = profile.Detail
@@ -635,7 +610,9 @@ func TestReplaceFleetVarInDigiCertItem(t *testing.T) {
 		detail   string
 	}{
 		{fleet.FleetVarHostEndUserIDPDepartment, "Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT."},
-		{fleet.FleetVarHostEndUserEmailIDP, "Fleet couldn't populate $FLEET_VAR_HOST_END_USER_EMAIL_IDP."},
+		// A CA saved before the upgrade fails instead of sending the variable to the CA as literal text.
+		{"HOST_END_USER_EMAIL_IDP", `The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore.`},
+		{"BOZO", "Unknown Fleet variable $FLEET_VAR_BOZO."},
 	}
 	for _, ca := range []struct{ name, hint string }{{"DigiCert", digiCertVarHint}, {"EJBCA", ejbcaVarHint}} {
 		for _, tt := range failures {
@@ -1320,8 +1297,6 @@ func TestPreprocessProfileContentsEJBCA(t *testing.T) {
 		ds.ListHostsLiteByUUIDsFunc = func(_ context.Context, _ fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
 			return []*fleet.Host{hostsByUUID[uuids[0]]}, nil
 		}
-		// No host has an IdP email, which is what the test of a variable that can't be filled in needs.
-		ds.GetHostEmailsFunc = func(context.Context, string, string) ([]string, error) { return nil, nil }
 		ds.BulkUpsertMDMAppleHostProfilesFunc = func(context.Context, []*fleet.MDMAppleBulkUpsertHostProfilePayload) error { return nil }
 		ds.BulkUpsertMDMManagedCertificatesFunc = func(_ context.Context, payload []*fleet.MDMManagedCertificate) error {
 			res.managed = append(res.managed, payload...)
@@ -1451,14 +1426,14 @@ func TestPreprocessProfileContentsEJBCA(t *testing.T) {
 		}, res.failures)
 	})
 
-	t.Run("a variable that can't be filled in says it is in the CA", func(t *testing.T) {
+	t.Run("a removed variable saved in the CA fails the profile without asking EJBCA", func(t *testing.T) {
 		ca := ejbcaCA("myCA")
-		ca.CertificateCommonName = fleet.FleetVarHostEndUserEmailIDP.WithPrefix()
+		ca.CertificateCommonName = "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
 		res := run(t, premium(), profileFor("myCA"), []fleet.EJBCA{ca}, opts{})
 		assert.Empty(t, res.enrolls)
 		require.Len(t, res.failures, 2)
 		for _, detail := range res.failures {
-			assert.Contains(t, detail, "There is no IdP email for this host")
+			assert.Contains(t, detail, `The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore.`)
 			assert.Contains(t, detail, "EJBCA certificate authority")
 		}
 	})

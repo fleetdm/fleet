@@ -2402,6 +2402,9 @@ func (svc *Service) parseAndValidateAndroidConfigProfile(ctx context.Context, te
 		RawJSON: data,
 	}
 	if err := cp.ValidateUserProvided(license.IsPremium(ctx)); err != nil {
+		if _, ok := errors.AsType[*fleet.RemovedFleetVariableError](err); ok {
+			return nil, "", ctxerr.Wrap(ctx, err, "validate profile")
+		}
 		err := &fleet.BadRequestError{Message: errPrefix + err.Error()}
 		return nil, "", ctxerr.Wrap(ctx, err, "validate profile")
 	}
@@ -2913,6 +2916,13 @@ func (svc *Service) BatchSetMDMProfiles(
 		for _, p := range profiles {
 			if len(fleet.ContainsPrefixVars(string(p.Contents), fleet.ServerSecretPrefix)) == 0 {
 				profilesWithoutSecrets = append(profilesWithoutSecrets, p)
+				continue
+			}
+			// A removed Fleet variable doesn't depend on the secrets, so the dry run still reports it like a real run does.
+			if isMobileconfigContents(p.Contents) || mdm.GetRawProfilePlatform(p.Contents) == "android" {
+				if err := fleet.FindRemovedFleetVariable(variables.Find(string(p.Contents))...); err != nil {
+					return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", p.Name), err.Error()))
+				}
 			}
 		}
 		profiles = profilesWithoutSecrets
