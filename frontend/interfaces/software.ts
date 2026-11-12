@@ -45,6 +45,9 @@ export interface ISoftware {
   icon_url: string | null; // Only available on team view if an admin uploaded an icon to a team's software
   /** Fleet marked this software as an AI tool (Premium; always false on Free). */
   ai_tool?: boolean;
+  /** ID of the associated software title. Omitted by the API when the title
+   * has not been reconciled yet. */
+  title_id?: number;
 }
 
 export type IVulnerabilitySoftware = Omit<
@@ -345,6 +348,9 @@ export interface ISoftwareVersion {
   ai_tool?: boolean;
   /** @deprecated Use extension_for instead */
   browser?: string;
+  /** ID of the associated software title. Omitted by the API when the title
+   * has not been reconciled yet. */
+  title_id?: number;
 }
 
 export type SoftwareTypePlatform =

@@ -6,6 +6,7 @@ software/os/:id > Top section
 
 import classnames from "classnames";
 import React from "react";
+import { Link } from "react-router";
 
 import ActionsDropdown from "components/ActionsDropdown";
 import Button from "components/buttons/Button";
@@ -116,6 +117,12 @@ const baseClass = "software-details-summary";
 interface ISoftwareDetailsSummaryProps {
   /** Name displayed in UI */
   displayName: string;
+  /** When set, the title heading links to this path (e.g. the associated
+   * software title's details page). */
+  titlePath?: string;
+  /** Rendered after the (possibly linked) display name as plain heading text,
+   * e.g. ", 1.5.2" on the version details page. */
+  displayNameSuffix?: string;
   /** Name is keyed for fallback icon  */
   name?: string;
   type?: string;
@@ -167,6 +174,8 @@ interface ISoftwareDetailsSummaryProps {
 
 const SoftwareDetailsSummary = ({
   displayName,
+  titlePath,
+  displayNameSuffix,
   type,
   hostCount,
   countsUpdatedAt,
@@ -250,6 +259,31 @@ const SoftwareDetailsSummary = ({
     );
   };
 
+  const renderTitle = () => {
+    // Plain text inside the link: tooltip wrappers create overflow-hidden
+    // boxes that swallow the anchor's hover underline.
+    const linkedTitle = titlePath ? (
+      <Link
+        to={titlePath}
+        className={`${baseClass}__title-link`}
+        title={displayName}
+      >
+        {displayName}
+      </Link>
+    ) : (
+      <TooltipTruncatedText value={displayName} />
+    );
+    if (!displayNameSuffix) {
+      return linkedTitle;
+    }
+    return (
+      <span className={`${baseClass}__title-with-suffix`}>
+        {linkedTitle}
+        {displayNameSuffix}
+      </span>
+    );
+  };
+
   const renderGitOpsIdDataSet = (title: string, value?: string, url?: string) =>
     !!value && (
       <DataSet
@@ -301,7 +335,7 @@ const SoftwareDetailsSummary = ({
                 <TooltipWrapperArchLinuxRolling />
               </>
             ) : (
-              <TooltipTruncatedText value={displayName} />
+              renderTitle()
             )}
           </h1>
           {canManageSoftware && (

@@ -204,6 +204,8 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 		require.NotNil(t, hostResp.Host.Software[index].AITool)
 		require.False(t, *hostResp.Host.Software[index].AITool)
 		hostResp.Host.Software[index].AITool = nil
+		require.NotNil(t, hostResp.Host.Software[index].TitleID)
+		hostResp.Host.Software[index].TitleID = nil
 	}
 	assert.ElementsMatch(t, expectedSoftware, hostResp.Host.Software)
 
@@ -259,6 +261,8 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 		require.NotNil(t, hostResp.Host.Software[index].AITool)
 		require.False(t, *hostResp.Host.Software[index].AITool)
 		hostResp.Host.Software[index].AITool = nil
+		require.NotNil(t, hostResp.Host.Software[index].TitleID)
+		hostResp.Host.Software[index].TitleID = nil
 	}
 	assert.ElementsMatch(t, expectedSoftware, hostResp.Host.Software)
 
@@ -327,6 +331,8 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 		require.NotNil(t, hostResp.Host.Software[index].AITool)
 		require.False(t, *hostResp.Host.Software[index].AITool)
 		hostResp.Host.Software[index].AITool = nil
+		require.NotNil(t, hostResp.Host.Software[index].TitleID)
+		hostResp.Host.Software[index].TitleID = nil
 	}
 	assert.ElementsMatch(t, expectedSoftware, hostResp.Host.Software)
 

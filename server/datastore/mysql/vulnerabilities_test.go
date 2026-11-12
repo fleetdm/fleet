@@ -1314,6 +1314,12 @@ func testOSVersionsByCVE(t *testing.T, ds *Datastore) {
 func testSoftwareByCVE(t *testing.T, ds *Datastore) {
 	seedVulnerabilities(t, ds)
 
+	var chromeTitleID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &chromeTitleID,
+			`SELECT id FROM software_titles WHERE name = 'Chrome' AND source = 'programs'`)
+	})
+
 	// global
 	software, _, err := ds.SoftwareByCVE(context.Background(), "CVE-2020-1234", nil)
 	require.NoError(t, err)
@@ -1323,6 +1329,7 @@ func testSoftwareByCVE(t *testing.T, ds *Datastore) {
 		Name:              "Chrome",
 		Version:           "1.0.0",
 		Source:            "programs",
+		TitleID:           &chromeTitleID,
 		HostsCount:        6,
 		GenerateCPE:       "cpe:2.3:a:google:chrome:1.0.0:*:*:*:*:*:*:*:*",
 		ResolvedInVersion: ptr.String("1.0.0"),
