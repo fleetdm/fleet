@@ -9,8 +9,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 |:--------------------------------------|:------------------------------------------------------------------------------------------------------------------------|
 | SVP of Customer Success                | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
 | VP of Security Solutions              | [Dhruv Majumdar](https://www.linkedin.com/in/neondhruv/) _([@karmine05](https://github.com/karmine05))_
-| Infrastructure Engineer               | [Robert Fairburn](https://www.linkedin.com/in/robert-fairburn/) _([@rfairburn](https://github.com/rfairburn))_
-| Infrastructure Engineer               | [Fevzi Sahinler]() _([@fsahinler](https://github.com/fsahinler))_
+| Infrastructure Engineer               | [Robert Fairburn](https://www.linkedin.com/in/robert-fairburn/) _([@rfairburn](https://github.com/rfairburn))_ <br> [Fevzi Sahinler]() _([@fsahinler](https://github.com/fsahinler))_ <br> [Trai Compton](https://www.linkedin.com/in/trailynne/) _([@TraiLynne](https://github.com/trailynne))_
 | Technical Evangelist                  | [Zach Wasserman](https://www.linkedin.com/in/zacharywasserman/) _([@zwass](https://github.com/zwass))_
 | Manager of Customer Support and Solutions Architecture | [Dale Ribeiro](https://www.linkedin.com/in/daleribeiro/) _([@ddribeiro](https://github.com/ddribeiro))_
 | Customer Solutions Architect (CSA)    | [Jake Stenger](https://www.linkedin.com/in/jakestenger) _([@jakestenger](https://github.com/jakestenger))_ <br> [Adam Baali](https://uk.linkedin.com/in/adambaali) _([@AdamBaali](https://github.com/AdamBaali))_ <br> [Kitzy](https://linkedin.com/in/kitzy) _([@kitzy](https://github.com/kitzy))_ <br> [Jonathan Porter](https://linkedin.com/in/jp-cpe) _([@jp-cpe](https://github.com/jp-cpe))_
@@ -43,9 +42,9 @@ If you are working on issues that need follow-up while you're out, assign them t
 1. Applications for open roles at Fleet come through the "Contact us" form.
 2. The contact form generates a new ticket in Unthread. 
 3. Within 4 business hours, the assigned CSE sends an email from their Gmail account to the applicant using the suggested response template under "Applying for open position" [in this internal file](https://docs.google.com/spreadsheets/d/1-wsYunAfr-BQZMBYizY4TMavi3X071D5KZ3mCYX4Uqs/edit?gid=695748028#gid=695748028). Remember that contact form messages cannot be replied to in Unthread. 
-5. CC the Interim Head of People on all job application emails.
-6. Remember to include the title of the position being applied for, as is requested in the response template.
-7. Add a closure note or include copy of your response as an internal note in the unthread ticket, and close the ticket.
+4. CC the Head of People on all job application emails.
+5. Remember to include the title of the position being applied for, as is requested in the response template.
+6. Add a closure note or include copy of your response as an internal note in the unthread ticket, and close the ticket.
 
 
 ### Assign a customer codename

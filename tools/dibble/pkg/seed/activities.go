@@ -269,8 +269,6 @@ var activityTemplatesByCategory = map[string][]fleet.ActivityDetails{
 		fleet.ActivityTypeEditedWindowsUpdates{},
 		fleet.ActivityTypeEditedIOSMinVersion{},
 		fleet.ActivityTypeEditedIPadOSMinVersion{},
-		fleet.ActivityTypeEnabledMacosDiskEncryption{},
-		fleet.ActivityTypeDisabledMacosDiskEncryption{},
 		// one per platform: the activity is emitted per changed platform, so
 		// seeding all three shows what the feed actually looks like
 		fleet.ActivityTypeEditedDiskEncryptionSettings{Platform: "macos"},

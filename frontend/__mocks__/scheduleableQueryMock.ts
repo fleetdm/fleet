@@ -9,7 +9,7 @@ const DEFAULT_SCHEDULABLE_QUERY_MOCK: ISchedulableQuery = {
   name: "Test Query",
   description: "A test query",
   query: "SELECT * FROM users",
-  team_id: null,
+  fleet_id: null,
   interval: 43200, // Every 12 hours
   platform: "darwin,windows,linux",
   min_osquery_version: "",

@@ -399,6 +399,7 @@ import FleetDesktop from "./png/FleetDesktop.png";
 import Flexoptix from "./png/Flexoptix.png";
 import Flexwhere from "./png/Flexwhere.png";
 import Fluid from "./png/Fluid.png";
+import FluidVoice from "./png/FluidVoice.png";
 import FluxApp from "./png/FluxApp.png";
 import Flycut from "./png/Flycut.png";
 import FocusriteControl2 from "./png/FocusriteControl2.png";
@@ -923,7 +924,6 @@ import Sidenotes from "./png/Sidenotes.png";
 import Sigmaos from "./png/Sigmaos.png";
 import Signal from "./png/Signal.png";
 import SimpleComic from "./png/SimpleComic.png";
-import Sirimote from "./png/Sirimote.png";
 import Sketch from "./png/Sketch.png";
 import Slab from "./png/Slab.png";
 import Slicer from "./png/Slicer.png";
@@ -1570,6 +1570,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "flexoptix app": Flexoptix,
   flexwhere: Flexwhere,
   fluid: Fluid,
+  fluidvoice: FluidVoice,
   flycut: Flycut,
   "focusrite control 2": FocusriteControl2,
   folx: Folx,
@@ -2115,7 +2116,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   sigmaos: Sigmaos,
   signal: Signal,
   "simple comic": SimpleComic,
-  sirimote: Sirimote,
   sketch: Sketch,
   slab: Slab,
   slack: Slack,

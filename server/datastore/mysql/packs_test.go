@@ -31,6 +31,7 @@ func TestPacks(t *testing.T) {
 		{"ApplySpecMissingName", testPacksApplySpecMissingName},
 		{"ListForHost", testPacksListForHost},
 		{"ApplySpecFailsOnTargetIDNull", testPacksApplySpecFailsOnTargetIDNull},
+		{"ApplySpecSharedLabelName", testPacksApplySpecSharedLabelName},
 		{"ApplyStatsNotLocking", testPacksApplyStatsNotLocking},
 		{"ApplyStatsNotLockingTryTwo", testPacksApplyStatsNotLockingTryTwo},
 		{"ListForHostIncludesOnlyUserPacks", testListForHostIncludesOnlyUserPacks},
@@ -449,6 +450,20 @@ func testPacksApplySpecFailsOnTargetIDNull(t *testing.T, ds *Datastore) {
 	// Should error due to unkown label target id
 	err := ds.ApplyPackSpecs(context.Background(), specs)
 	require.Error(t, err)
+}
+
+func testPacksApplySpecSharedLabelName(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	for _, name := range []string{"pack_fleet_one", "pack_fleet_two"} {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: name})
+		require.NoError(t, err)
+		require.NoError(t, ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{{Name: "shared", Query: "SELECT 1", TeamID: &team.ID}}))
+	}
+
+	err := ds.ApplyPackSpecs(ctx, []*fleet.PackSpec{{Name: "test_pack", Targets: fleet.PackSpecTargets{Labels: []string{"shared"}}}})
+	var conflictErr *fleet.ConflictError
+	require.ErrorAs(t, err, &conflictErr)
+	require.ErrorContains(t, err, `More than one fleet has a label named "shared".`)
 }
 
 func randomPackStatsForHost(packID uint, packName string, packType string, scheduledQueries []*fleet.ScheduledQuery, amount int) []fleet.PackStats {

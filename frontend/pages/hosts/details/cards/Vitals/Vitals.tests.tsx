@@ -1186,7 +1186,8 @@ describe("Custom host vitals", () => {
     it("shows the required version and deadline", async () => {
       const mockHost = createMockHost({
         platform: "darwin",
-        os_version: "macOS 26.5",
+        os_name: "macOS",
+        os_version: "26.5",
       });
 
       const { user } = renderWithRequirement(
@@ -1214,7 +1215,8 @@ describe("Custom host vitals", () => {
     it("shows Pending while the target is still being resolved", async () => {
       const mockHost = createMockHost({
         platform: "darwin",
-        os_version: "macOS 26.5",
+        os_name: "macOS",
+        os_version: "26.5",
       });
 
       const { user } = renderWithRequirement(
@@ -1238,13 +1240,41 @@ describe("Custom host vitals", () => {
     it("renders no tooltip when there's no requirement", () => {
       const mockHost = createMockHost({
         platform: "darwin",
-        os_version: "macOS 26.5",
+        os_name: "macOS",
+        os_version: "26.5",
       });
 
       renderWithRequirement(<Vitals vitalsData={mockHost} />);
 
       expect(screen.getByText("macOS 26.5")).toBeVisible();
       expect(screen.queryByText(/Minimum version required/i)).toBeNull();
+    });
+  });
+
+  describe("Operating system", () => {
+    it.each([
+      [
+        "a Windows host",
+        "Windows 11 Pro 24H2",
+        "10.0.26100.1742",
+        "Windows 11 Pro 24H2 10.0.26100.1742",
+      ],
+      ["the empty value before the host reports it", "", "", "---"],
+    ])("shows %s", (_label, osName, osVersion, expected) => {
+      const mockHost = createMockHost({
+        platform: "windows",
+        os_name: osName,
+        os_version: osVersion,
+      });
+
+      render(
+        <Vitals
+          vitalsData={normalizeEmptyValues(pick(mockHost, HOST_VITALS_DATA))}
+        />
+      );
+
+      const osDataSet = screen.getByText("Operating system").parentElement;
+      expect(osDataSet).toHaveTextContent(`Operating system${expected}`);
     });
   });
 });
@@ -1278,7 +1308,8 @@ describe("Android vitals", () => {
     createMockHost({
       platform: "android",
       mdm: companyOwnedMdm(),
-      os_version: "Android 16 (2026-05-01)",
+      os_name: "Android",
+      os_version: "16 (2026-05-01)",
       adb_enabled: true,
       passcode_protected: true,
       play_protect_enabled: true,
@@ -1678,7 +1709,7 @@ describe("Android vitals", () => {
     // The server folds it into os_version, and it has its own vital now, so
     // showing it here would just repeat it.
     const { container } = renderAndroidCard(
-      createMockAndroidHost({ os_version: "Android 16 (2026-01-01)" })
+      createMockAndroidHost({ os_version: "16 (2026-01-01)" })
     );
 
     expect(getVitalValue(container, "Operating system")).toBe("Android 16");
@@ -1686,7 +1717,7 @@ describe("Android vitals", () => {
 
   it("leaves an Android version that reports no patch level alone", () => {
     const { container } = renderAndroidCard(
-      createMockAndroidHost({ os_version: "Android 16" })
+      createMockAndroidHost({ os_version: "16" })
     );
 
     expect(getVitalValue(container, "Operating system")).toBe("Android 16");
@@ -1695,7 +1726,8 @@ describe("Android vitals", () => {
   it("does not strip a parenthetical from a non-Android OS version", () => {
     const mockHost = createMockHost({
       platform: "darwin",
-      os_version: "macOS 26.5 (25F74)",
+      os_name: "macOS",
+      os_version: "26.5 (25F74)",
     });
 
     const { container } = renderAndroidCard(mockHost);

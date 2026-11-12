@@ -59,7 +59,7 @@ const DiskEncryptionStatusFilter = ({
         options={DISK_ENCRYPTION_STATUS_OPTIONS}
         searchable={false}
         onChange={onChange}
-        iconName="filter-alt"
+        iconName="filter"
       />
     </div>
   );

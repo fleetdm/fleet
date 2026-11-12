@@ -645,21 +645,19 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	s.DoJSON("GET", "/api/latest/fleet/labels", fleet.ListLabelsRequest{}, http.StatusOK, &fleet.ListLabelsResponse{})
 
 	// Attempt to delete a label, should allow.
-	s.DoJSON("DELETE", "/api/latest/fleet/labels/foo2", fleet.DeleteLabelRequest{}, http.StatusOK, &fleet.DeleteLabelResponse{})
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", clr.Label.ID), nil, http.StatusOK, &fleet.DeleteLabelByIDResponse{})
 
 	// Attempt to list all software, should allow.
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareRequest{}, http.StatusOK, &listSoftwareVersionsResponse{})
-	var lsr listSoftwareResponse
-	s.DoJSON("GET", "/api/latest/fleet/software", listSoftwareRequest{}, http.StatusOK, &lsr, "team_id", fmt.Sprint(t1.ID))
+	var lsr listSoftwareVersionsResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareRequest{}, http.StatusOK, &lsr, "team_id", fmt.Sprint(t1.ID))
 	require.Len(t, lsr.Software, 1)
-	s.DoJSON("GET", "/api/latest/fleet/software/count", countSoftwareRequest{}, http.StatusOK, &countSoftwareResponse{})
 	var lstr listSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &lstr, "team_id", fmt.Sprint(t1.ID))
 	require.Len(t, lstr.SoftwareTitles, 2)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", lstr.SoftwareTitles[0].ID), getSoftwareTitleRequest{}, http.StatusOK, &getSoftwareTitleResponse{}, "team_id", fmt.Sprint(t1.ID))
 
 	// Attempt to list a software, should allow.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", lsr.Software[0].ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResponse{})
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", lsr.Software[0].ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResponse{})
 
 	// Attempt to read app config, only global admins get SMTP settings.
@@ -1006,7 +1004,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", team1MacOSHost.ID, mcUUID), nil, http.StatusAccepted)
 
 	// Attempt to list scripts, should allow.
-	s.DoJSON("GET", "/api/latest/fleet/scripts", fleet.ListScriptsRequest{}, http.StatusOK, &fleet.ListScriptsResponse{}, "team_id", fmt.Sprint(t1.ID))
+	s.DoJSON("GET", "/api/latest/fleet/scripts", fleet.ListScriptsRequest{}, http.StatusOK, &fleet.ListScriptsResponse{}, "fleet_id", fmt.Sprint(t1.ID))
 	// Attempt to get a script, should allow.
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", scriptNoTeam.ID), fleet.GetScriptRequest{}, http.StatusOK, &fleet.GetScriptResponse{})
 	// Attempt to run script on a host, should allow.
@@ -1392,7 +1390,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", globalHost.ID, mcUUID2), nil, http.StatusForbidden)
 
 	// Attempt to list scripts on t1, should allow.
-	s.DoJSON("GET", "/api/latest/fleet/scripts", fleet.ListScriptsRequest{}, http.StatusOK, &fleet.ListScriptsResponse{}, "team_id", fmt.Sprint(t1.ID))
+	s.DoJSON("GET", "/api/latest/fleet/scripts", fleet.ListScriptsRequest{}, http.StatusOK, &fleet.ListScriptsResponse{}, "fleet_id", fmt.Sprint(t1.ID))
 	// Attempt to list scripts on "No team", should fail.
 	s.DoJSON("GET", "/api/latest/fleet/scripts", fleet.ListScriptsRequest{}, http.StatusForbidden, &fleet.ListScriptsResponse{})
 	// Attempt to get a script, should allow.

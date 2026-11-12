@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "6.3.2326",
+      "version": "6.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.cleverfiles.DiskDrill';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.cleverfiles.DiskDrill' AND version_compare(bundle_version, '6.3.2326') < 0);",

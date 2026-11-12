@@ -7,7 +7,8 @@
         AND sha256 = 'acd98e64795781b2058f07b18475e0ecee2a0fe2b42a49e2f9e37d0d6bf66ce6');
   critical: false
   description: Checks that Fleet's brand font, Inter, is installed for all users.
-  resolution: "Fleet installs Inter automatically when this policy fails. If you are still failing after Refetch completes, drop a note in #help-it."
+  resolution: "No action needed from you. Fleet installs Inter automatically when this policy fails. If it keeps failing, IT reviews the script output in the host's activity."
+  hidden: true
   platform: linux
   calendar_events_enabled: false
   run_script:
@@ -28,7 +29,8 @@
           AND data = 'Inter-Italic-VariableFont_opsz,wght.ttf');
   critical: false
   description: Checks that Fleet's brand font, Inter, is installed for all users.
-  resolution: "Fleet installs Inter automatically when this policy fails. If you are still failing after Refetch completes, drop a note in #help-it. Apps that were open during the install see the font after you sign out and back in."
+  resolution: "No action needed from you. Fleet installs Inter automatically when this policy fails. If it keeps failing, IT reviews the script output in the host's activity. Apps that were open during the install see the font after you sign out and back in."
+  hidden: true
   platform: windows
   calendar_events_enabled: false
   run_script:

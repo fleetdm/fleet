@@ -165,7 +165,7 @@ type DeletePackByIDFunc func(ctx context.Context, id uint) (err error)
 
 type ListPacksForHostFunc func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error)
 
-type ApplyLabelSpecsFunc func(ctx context.Context, specs []*fleet.LabelSpec, teamID *uint, namesToMove []string) error
+type ApplyLabelSpecsFunc func(ctx context.Context, specs []*fleet.LabelSpec, teamID *uint, labelsToMove []fleet.LabelToMove) error
 
 type GetLabelSpecsFunc func(ctx context.Context, teamID *uint) ([]*fleet.LabelSpec, error)
 
@@ -180,8 +180,6 @@ type ListLabelsFunc func(ctx context.Context, opt fleet.ListOptions, teamID *uin
 type LabelsSummaryFunc func(ctx context.Context, teamID *uint) (labels []*fleet.LabelSummary, err error)
 
 type GetLabelFunc func(ctx context.Context, id uint) (label *fleet.LabelWithTeamName, hostIDs []uint, err error)
-
-type DeleteLabelFunc func(ctx context.Context, name string) (err error)
 
 type DeleteLabelByIDFunc func(ctx context.Context, id uint) (err error)
 
@@ -440,8 +438,6 @@ type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.
 type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error)
 
 type CancelHostUpcomingActivityFunc func(ctx context.Context, hostID uint, executionID string) error
-
-type ApplyUserRolesSpecsFunc func(ctx context.Context, specs fleet.UsersRoleSpec) error
 
 type CreateCertificateTemplateFunc func(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string, subjectAlternativeName string) (*fleet.CertificateTemplateResponse, error)
 
@@ -1272,9 +1268,6 @@ type Service struct {
 	GetLabelFunc        GetLabelFunc
 	GetLabelFuncInvoked bool
 
-	DeleteLabelFunc        DeleteLabelFunc
-	DeleteLabelFuncInvoked bool
-
 	DeleteLabelByIDFunc        DeleteLabelByIDFunc
 	DeleteLabelByIDFuncInvoked bool
 
@@ -1661,9 +1654,6 @@ type Service struct {
 
 	CancelHostUpcomingActivityFunc        CancelHostUpcomingActivityFunc
 	CancelHostUpcomingActivityFuncInvoked bool
-
-	ApplyUserRolesSpecsFunc        ApplyUserRolesSpecsFunc
-	ApplyUserRolesSpecsFuncInvoked bool
 
 	CreateCertificateTemplateFunc        CreateCertificateTemplateFunc
 	CreateCertificateTemplateFuncInvoked bool
@@ -3054,11 +3044,11 @@ func (s *Service) ListPacksForHost(ctx context.Context, hid uint) (packs []*flee
 	return s.ListPacksForHostFunc(ctx, hid)
 }
 
-func (s *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec, teamID *uint, namesToMove []string) error {
+func (s *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec, teamID *uint, labelsToMove []fleet.LabelToMove) error {
 	s.mu.Lock()
 	s.ApplyLabelSpecsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ApplyLabelSpecsFunc(ctx, specs, teamID, namesToMove)
+	return s.ApplyLabelSpecsFunc(ctx, specs, teamID, labelsToMove)
 }
 
 func (s *Service) GetLabelSpecs(ctx context.Context, teamID *uint) ([]*fleet.LabelSpec, error) {
@@ -3108,13 +3098,6 @@ func (s *Service) GetLabel(ctx context.Context, id uint) (label *fleet.LabelWith
 	s.GetLabelFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetLabelFunc(ctx, id)
-}
-
-func (s *Service) DeleteLabel(ctx context.Context, name string) (err error) {
-	s.mu.Lock()
-	s.DeleteLabelFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteLabelFunc(ctx, name)
 }
 
 func (s *Service) DeleteLabelByID(ctx context.Context, id uint) (err error) {
@@ -4018,13 +4001,6 @@ func (s *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint, e
 	s.CancelHostUpcomingActivityFuncInvoked = true
 	s.mu.Unlock()
 	return s.CancelHostUpcomingActivityFunc(ctx, hostID, executionID)
-}
-
-func (s *Service) ApplyUserRolesSpecs(ctx context.Context, specs fleet.UsersRoleSpec) error {
-	s.mu.Lock()
-	s.ApplyUserRolesSpecsFuncInvoked = true
-	s.mu.Unlock()
-	return s.ApplyUserRolesSpecsFunc(ctx, specs)
 }
 
 func (s *Service) CreateCertificateTemplate(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string, subjectAlternativeName string) (*fleet.CertificateTemplateResponse, error) {

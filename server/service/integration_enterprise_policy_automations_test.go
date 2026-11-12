@@ -2567,7 +2567,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 		},
 	), http.StatusOK, &distributedResp)
 
-	host3PendingScripts, err := s.ds.ListPendingHostScriptExecutions(ctx, host3Team2.ID, false)
+	host3PendingScripts, err := s.ds.ListPendingHostScriptExecutions(ctx, host3Team2.ID)
 	require.NoError(t, err)
 	require.Len(t, host3PendingScripts, 1)
 	host3executionID := host3PendingScripts[0].ExecutionID
@@ -2596,7 +2596,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 			policy1Team1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
-	hostPendingScripts, err := s.ds.ListPendingHostScriptExecutions(ctx, hostVanillaOsquery5Team1.ID, false)
+	hostPendingScripts, err := s.ds.ListPendingHostScriptExecutions(ctx, hostVanillaOsquery5Team1.ID)
 	require.NoError(t, err)
 	require.Empty(t, hostPendingScripts)
 
@@ -2695,7 +2695,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptRetries() {
 		), http.StatusOK, &distributedResp)
 	}
 	getPendingScript := func() *fleet.HostScriptResult {
-		scripts, err := s.ds.ListPendingHostScriptExecutions(ctx, host.ID, false)
+		scripts, err := s.ds.ListPendingHostScriptExecutions(ctx, host.ID)
 		require.NoError(t, err)
 		if len(scripts) == 0 {
 			return nil
@@ -3129,7 +3129,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousScripts(
 	bothFail := map[uint]*bool{continuousPolicy.ID: new(false), transitionPolicy.ID: new(false)}
 	bothPass := map[uint]*bool{continuousPolicy.ID: new(true), transitionPolicy.ID: new(true)}
 	completePendingScripts := func() int {
-		pending, err := s.ds.ListPendingHostScriptExecutions(ctx, host.ID, false)
+		pending, err := s.ds.ListPendingHostScriptExecutions(ctx, host.ID)
 		require.NoError(t, err)
 		for _, hs := range pending {
 			var orbitPostScriptResp fleet.OrbitPostScriptResultResponse
@@ -3279,7 +3279,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousScriptRe
 		t.Helper()
 		var pending *fleet.HostScriptResult
 		require.EventuallyWithT(t, func(t *assert.CollectT) {
-			scripts, err := s.ds.ListPendingHostScriptExecutions(ctx, host.ID, false)
+			scripts, err := s.ds.ListPendingHostScriptExecutions(ctx, host.ID)
 			assert.NoError(t, err)
 			assert.NotEmpty(t, scripts)
 			if len(scripts) > 0 {
