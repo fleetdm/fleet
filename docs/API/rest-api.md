@@ -18158,8 +18158,7 @@ Removes the specified users' roles on the fleet. Users that aren't on the fleet 
 | Name             | Type    | In   | Description                                  |
 |------------------|---------|------|----------------------------------------------|
 | id               | integer | path | **Required.** The fleet's ID.                 |
-| users            | array   | body | Array of users to remove.                    |
-| &nbsp;&nbsp;id   | integer | body | The ID of the user.                          |
+| users            | array   | body | Array of users to remove. Each item is an object with the user's `id`.  |
 
 #### Example
 
