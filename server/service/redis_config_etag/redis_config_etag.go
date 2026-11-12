@@ -40,16 +40,17 @@ const (
 	// the stale-write poisoning described in the package docs comes back.
 	DefaultFenceTTL = 3 * time.Minute
 
-	// DefaultETagTTL is the backstop TTL on SHARED ETag records. The
-	// generation/fence mechanism is the correctness mechanism and would
-	// suffice alone if invalidation-hook coverage (see
-	// server/datastore/etag_invalidate) were provably complete forever. The
-	// TTL converts any MISSED hook — or an out-of-band DB edit, a restore
-	// from backup, a future mutation added without a hook — from a
-	// permanently poisoned ETag into a bounded delay, at the cost of one full
-	// config build per (team, platform) per TTL. It may be lengthened as
-	// confidence grows. NEVER remove it.
-	DefaultETagTTL = 1 * time.Hour
+	// Shared ETag record TTLs are JITTERED between these bounds (~50-70m,
+	// centered on one hour) so the backstop never expires all (scope, platform)
+	// records at once when they were created around the same time (e.g., during
+	// initial fleet check-in). The generation/fence mechanism is the correctness
+	// mechanism; the TTL converts any MISSED invalidation hook — or an
+	// out-of-band DB edit, a restore from backup, a future mutation added
+	// without a hook — from a permanently poisoned ETag into a bounded delay,
+	// at the cost of one full config build per (scope, platform) per TTL. The
+	// bounds may be lengthened as confidence grows. NEVER remove them.
+	DefaultETagMinTTL = 50 * time.Minute
+	DefaultETagMaxTTL = 70 * time.Minute
 
 	// Host record TTLs are JITTERED between these bounds (~50-70m, centered
 	// on one hour) so the backstop never expires a whole fleet's records at
@@ -129,7 +130,8 @@ type Store struct {
 	pool           fleet.RedisPool
 	logger         *slog.Logger
 	fenceTTL       time.Duration
-	etagTTL        time.Duration
+	etagMinTTL     time.Duration
+	etagMaxTTL     time.Duration
 	hostETagMinTTL time.Duration
 	hostETagMaxTTL time.Duration
 	quarantineTTL  time.Duration
@@ -153,7 +155,8 @@ func New(pool fleet.RedisPool, logger *slog.Logger) *Store {
 		pool:           pool,
 		logger:         logger,
 		fenceTTL:       DefaultFenceTTL,
-		etagTTL:        DefaultETagTTL,
+		etagMinTTL:     DefaultETagMinTTL,
+		etagMaxTTL:     DefaultETagMaxTTL,
 		hostETagMinTTL: DefaultHostETagMinTTL,
 		hostETagMaxTTL: DefaultHostETagMaxTTL,
 		quarantineTTL:  DefaultHostQuarantineTTL,
@@ -176,6 +179,17 @@ func (s *Store) hostETagKey(hostID uint) string {
 
 func (s *Store) hostQuarantineKey(hostID uint) string {
 	return fmt.Sprintf("%s%s:%d", s.testPrefix, hostQuarantineKeyPrefix, hostID)
+}
+
+// etagTTLSeconds returns a jittered TTL in [etagMinTTL, etagMaxTTL] so the
+// backstop never expires all shared (scope, platform) records at once.
+func (s *Store) etagTTLSeconds() int {
+	minSec := int(s.etagMinTTL.Seconds())
+	maxSec := int(s.etagMaxTTL.Seconds())
+	if maxSec <= minSec {
+		return minSec
+	}
+	return minSec + rand.IntN(maxSec-minSec+1) //nolint:gosec // TTL jitter doesn't need cryptographic randomness
 }
 
 // hostETagTTLSeconds returns a jittered TTL in [hostETagMinTTL, hostETagMaxTTL] so
@@ -268,7 +282,7 @@ func (s *Store) SetIfNoFence(ctx context.Context, scope, platform, etag string) 
 
 	res, err := redigo.Int64(conn.Do("EVAL", setIfNoFenceScript, 3,
 		s.fenceKey(), s.genKey(), s.etagKey(scope, platform),
-		etag, int(s.etagTTL.Seconds())))
+		etag, s.etagTTLSeconds()))
 	if err != nil {
 		metricPublish.WithLabelValues("error").Inc()
 		return false, ctxerr.Wrap(ctx, err, "redis config etag set")

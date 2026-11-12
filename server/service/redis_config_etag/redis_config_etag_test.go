@@ -51,7 +51,8 @@ func newStoreForTest(t testing.TB, pool fleet.RedisPool) *Store {
 		pool:           pool,
 		logger:         slog.New(slog.NewTextHandler(io.Discard, nil)),
 		fenceTTL:       DefaultFenceTTL,
-		etagTTL:        DefaultETagTTL,
+		etagMinTTL:     DefaultETagMinTTL,
+		etagMaxTTL:     DefaultETagMaxTTL,
 		hostETagMinTTL: DefaultHostETagMinTTL,
 		hostETagMaxTTL: DefaultHostETagMaxTTL,
 		quarantineTTL:  DefaultHostQuarantineTTL,
@@ -391,8 +392,10 @@ func TestTTLDerivations(t *testing.T) {
 	// packConfigCache TTL (1m) + max relevant cached_mysql TTL (1m) + slack (1m).
 	// See the DefaultFenceTTL comment before touching this.
 	require.Equal(t, 3*time.Minute, DefaultFenceTTL)
-	require.GreaterOrEqual(t, DefaultETagTTL, 10*DefaultFenceTTL,
-		"shared backstop TTL should dwarf the fence window; see DefaultETagTTL docs before changing")
+	require.GreaterOrEqual(t, DefaultETagMinTTL, 10*DefaultFenceTTL,
+		"shared backstop min TTL should dwarf the fence window; see DefaultETagMinTTL docs before changing")
+	require.Less(t, DefaultETagMinTTL, DefaultETagMaxTTL,
+		"shared record TTLs must be jittered")
 	// The quarantine is derived from replica lag + in-flight duration —
 	// deliberately NOT the fence's 180s (see DefaultHostQuarantineTTL docs).
 	require.Equal(t, 30*time.Second, DefaultHostQuarantineTTL)

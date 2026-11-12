@@ -783,7 +783,7 @@ func TestFenceTTLOutlivesInMemoryCaches(t *testing.T) {
 
 	// The backstop TTLs exist to bound a missed invalidation, so they must
 	// outlive the window in which publication is suppressed.
-	assert.Greater(t, redis_config_etag.DefaultETagTTL, redis_config_etag.DefaultFenceTTL,
+	assert.Greater(t, redis_config_etag.DefaultETagMinTTL, redis_config_etag.DefaultFenceTTL,
 		"a shared record must outlive the fence, or the cache can never warm")
 	assert.Greater(t, redis_config_etag.DefaultHostETagMinTTL, redis_config_etag.DefaultFenceTTL,
 		"a per-host record must outlive the fence")
