@@ -696,7 +696,8 @@ func MakeDecoder(
 				}
 			}
 
-			if isBodyDecoder == nil || !isBodyDecoder(v) {
+			// A body without a size limit (agent uploads) is not buffered here.
+			if maxRequestBodySize != -1 && (isBodyDecoder == nil || !isBodyDecoder(v)) {
 				data, err := io.ReadAll(body)
 				if err != nil {
 					if _, ok := errors.AsType[*http.MaxBytesError](err); ok {

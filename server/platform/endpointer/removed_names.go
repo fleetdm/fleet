@@ -25,24 +25,21 @@ import (
 type removedNames struct {
 	jsonKeys    map[string]struct{} // lower case, JSON member names match case-insensitively
 	queryParams map[string]struct{} // exact, query parameter names are case-sensitive
-	// handParsed holds the `url` tag values whose parsers read query parameters by name in code, where no tag declares them.
-	handParsed map[string]struct{}
+	// handParsed maps a `url` tag value to the query parameters its parser reads by name in code, where no tag declares them.
+	handParsed map[string][]string
 }
 
 var removedNamesList atomic.Pointer[removedNames]
 
 // SetRemovedNames sets the request names the scan rejects. The platform layer has no list of its own: the service sets it from
-// pkg/removednames, as it does for the removed key message. A request type with a field tagged `url:"<one of handParsedURLTags>"` is
-// left out of the query check, since its parser reads parameters the scan cannot see; each one drops out of that list as its
-// parser stops reading the removed name.
-func SetRemovedNames(jsonKeys, queryParams, handParsedURLTags []string) {
+// pkg/removednames, as it does for the removed key message. A request type with a field tagged `url:"<key of handParsed>"` also
+// accepts the listed parameters, since its parser reads them in code where the scan cannot see; each one drops out of that map as
+// its parser stops reading the removed name.
+func SetRemovedNames(jsonKeys, queryParams []string, handParsed map[string][]string) {
 	names := &removedNames{
 		jsonKeys:    make(map[string]struct{}, len(jsonKeys)),
 		queryParams: make(map[string]struct{}, len(queryParams)),
-		handParsed:  make(map[string]struct{}, len(handParsedURLTags)),
-	}
-	for _, tag := range handParsedURLTags {
-		names.handParsed[tag] = struct{}{}
+		handParsed:  handParsed,
 	}
 	for _, k := range jsonKeys {
 		names.jsonKeys[strings.ToLower(k)] = struct{}{}
@@ -204,8 +201,11 @@ func jsonFields(t reflect.Type) map[string]reflect.Type {
 			if name == "" {
 				name = sf.Name
 			}
-			if _, dup := fields[strings.ToLower(name)]; !dup {
-				fields[strings.ToLower(name)] = sf.Type
+			// The scan runs before the rewriter, so a field can arrive under its renameto name too.
+			for _, n := range []string{name, sf.Tag.Get("renameto")} {
+				if _, dup := fields[strings.ToLower(n)]; n != "" && !dup {
+					fields[strings.ToLower(n)] = sf.Type
+				}
 			}
 		}
 	}
@@ -223,10 +223,7 @@ func RejectRemovedQueryParams(query url.Values, t reflect.Type) error {
 	if names == nil || len(names.queryParams) == 0 || len(query) == 0 {
 		return nil
 	}
-	declared, handParsed := declaredQueryNames(t, names.handParsed)
-	if handParsed {
-		return nil
-	}
+	declared := declaredQueryNames(t, names.handParsed)
 	for param := range query {
 		if _, isRemoved := names.queryParams[param]; !isRemoved {
 			continue
@@ -238,18 +235,12 @@ func RejectRemovedQueryParams(query url.Values, t reflect.Type) error {
 	return nil
 }
 
-type queryNames struct {
-	declared   map[string]struct{}
-	handParsed bool
-}
-
-// declaredQueryNames returns the parameters t declares in `query` tags, and whether t has a hand-parsed field.
-func declaredQueryNames(t reflect.Type, handParsed map[string]struct{}) (map[string]struct{}, bool) {
+// declaredQueryNames returns the parameters t declares in `query` tags, plus those its hand-parsed fields read.
+func declaredQueryNames(t reflect.Type, handParsed map[string][]string) map[string]struct{} {
 	if cached, ok := queryNamesCache.Load(t); ok {
-		n := cached.(queryNames)
-		return n.declared, n.handParsed
+		return cached.(map[string]struct{})
 	}
-	n := queryNames{declared: make(map[string]struct{})}
+	declared := make(map[string]struct{})
 	visited := make(map[reflect.Type]struct{})
 	var walk func(t reflect.Type)
 	walk = func(t reflect.Type) {
@@ -260,10 +251,10 @@ func declaredQueryNames(t reflect.Type, handParsed map[string]struct{}) (map[str
 		for sf := range t.Fields() {
 			if tag, ok := sf.Tag.Lookup("query"); ok {
 				name, _, _ := strings.Cut(tag, ",")
-				n.declared[name] = struct{}{}
+				declared[name] = struct{}{}
 			}
-			if _, ok := handParsed[sf.Tag.Get("url")]; ok {
-				n.handParsed = true
+			for _, param := range handParsed[sf.Tag.Get("url")] {
+				declared[param] = struct{}{}
 			}
 			if ft := indirectType(sf.Type); ft.Kind() == reflect.Struct && sf.Anonymous {
 				walk(ft)
@@ -271,6 +262,6 @@ func declaredQueryNames(t reflect.Type, handParsed map[string]struct{}) (map[str
 		}
 	}
 	walk(indirectType(t))
-	queryNamesCache.Store(t, n)
-	return n.declared, n.handParsed
+	queryNamesCache.Store(t, declared)
+	return declared
 }

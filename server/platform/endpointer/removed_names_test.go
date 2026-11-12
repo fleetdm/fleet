@@ -29,6 +29,7 @@ type scanRequest struct {
 	Skipped  string              `json:"-"`
 	Item     *scanItem           `json:"item"`
 	Items    []scanItem          `json:"items"`
+	Renamed  []scanItem          `json:"queries" renameto:"reports"`
 	ByName   map[string]scanItem `json:"by_name"`
 	Settings map[string]any      `json:"settings"`
 	Anything any                 `json:"anything"`
@@ -51,6 +52,8 @@ func TestRejectRemovedJSONKeys(t *testing.T) {
 		{name: "old and new name together", body: `{"fleet_id": 1, "team_id": 1}`, wantKey: "team_id"},
 		{name: "removed key in a nested struct, declared name next to it", body: `{"items": [{"name": "a", "teams": 1}]}`, wantKey: "teams"},
 		{name: "removed key inside a map of structs", body: `{"by_name": {"team_id": {"teams": 1}}}`, wantKey: "teams"},
+		{name: "removed key in a container sent under its renameto name", body: `{"reports": [{"teams": 1}]}`, wantKey: "teams"},
+		{name: "removed key in a container sent under its json name", body: `{"queries": [{"teams": 1}]}`, wantKey: "teams"},
 		{name: "removed key after unrelated unknown keys", body: `{"extra": 1, "another": {"x": 1}, "teams": []}`, wantKey: "teams"},
 
 		{name: "new names only", body: `{"fleet_id": 1, "name": "a"}`},
@@ -93,7 +96,7 @@ type handParsedRequest struct {
 }
 
 func TestRejectRemovedQueryParams(t *testing.T) {
-	SetRemovedNames(nil, []string{"team_id", "team_name"}, []string{"host_options"})
+	SetRemovedNames(nil, []string{"team_id", "team_name"}, map[string][]string{"host_options": {"team_id"}})
 	t.Cleanup(func() { SetRemovedNames(nil, nil, nil) })
 
 	type renamed struct {
@@ -112,7 +115,8 @@ func TestRejectRemovedQueryParams(t *testing.T) {
 		{name: "a parameter the type still declares", typ: reflect.TypeFor[scanRequest](), query: "team_id=1"},
 		{name: "declared through an embedded struct", typ: reflect.TypeFor[scanRequest](), query: "fleet_id=1&team_name=x", wantKey: "team_name"},
 		{name: "parameter names are case sensitive, like the decoder", typ: reflect.TypeFor[renamed](), query: "Team_ID=1"},
-		{name: "a type with a hand-parsed field is left to its parser", typ: reflect.TypeFor[handParsedRequest](), query: "team_id=1"},
+		{name: "a hand-parsed field accepts the parameter its parser reads", typ: reflect.TypeFor[handParsedRequest](), query: "team_id=1"},
+		{name: "a hand-parsed field does not accept the others", typ: reflect.TypeFor[handParsedRequest](), query: "team_name=a", wantKey: "team_name"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			values, err := url.ParseQuery(tc.query)

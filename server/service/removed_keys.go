@@ -10,7 +10,7 @@ func init() {
 	endpointer.SetDeletedKeyRules(deletedKeyRules())
 	// The host and user list parsers read team_id by hand, where no tag declares it; each leaves this list once it stops.
 	endpointer.SetRemovedNames(requestNames(removednames.KindJSONKey), requestNames(removednames.KindQueryParam),
-		[]string{"host_options", "user_options"})
+		map[string][]string{"host_options": {"team_id"}, "user_options": {"team_id"}})
 }
 
 // requestNames lists the removed names of a kind that a request can no longer send.
