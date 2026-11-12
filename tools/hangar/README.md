@@ -129,14 +129,15 @@ running app. Processes an agent starts show up in the GUI like any other.
   rejected. The API stays off when the path exceeds macOS's 104-byte limit.
 - **Data dir:** `HANGAR_DATA_DIR` (absolute) replaces `~/Library/Application Support/com.fleetdm.fleet-hangar`,
   and logs move to `$HANGAR_DATA_DIR/logs`. A second Hangar on the same data dir exits at startup.
-- **Reservations:** read from `fleet-workflow`'s `runtime-reservations.json`, or from
-  `HANGAR_RESERVATIONS_FILE`. Hangar never writes it.
+- **Reservations:** `reserve` and `release` record them in `<data dir>/reservations.json`, under
+  an exclusive lock on `reservations.lock` beside it. `HANGAR_RESERVATIONS_FILE` (absolute) moves
+  the file.
 
 | Route | Does |
 |---|---|
 | `GET /v1` | Routes, actions with their body fields, the usual flow, and status codes |
 | `GET /v1/slots` | Slots with worktree, ports, compose project, reservation owner, and process states. No env values. |
-| `POST /v1/slots/{id}/actions` | `assign`, `build`, `docker-up`, `prepare-db`, `serve`, `stop`, or `backup`. Body: `action`, `worktree`, and `target` (assign) or `name` (backup). |
+| `POST /v1/slots/{id}/actions` | `reserve`, `assign`, `build`, `docker-up`, `prepare-db`, `serve`, `stop`, `backup`, or `release`. Body: `action`, `worktree`, and `target` (assign) or `name` (backup). |
 | `GET /v1/jobs/{id}` | Job state, process ids, result, and error |
 | `GET /v1/jobs/{id}/log` | The job's log lines, with bearer tokens and `token=`/`password=` values scrubbed |
 
@@ -148,23 +149,26 @@ curl -s --unix-socket "$sock" -X POST http://hangar/v1/slots/s2/actions \
   -d '{"action":"build","worktree":"/path/to/worktree"}'
 ```
 
-The usual flow is `fleet-workflow runtime up`, `assign`, then `build`, `docker-up`, `prepare-db`,
-and `serve`, polling each job. Cleanup is `stop`, `assign` back to the reservation's previous
-worktree, then `fleet-workflow runtime release`.
+The usual flow is `reserve`, `assign`, then `build`, `docker-up`, `prepare-db`, and `serve`,
+polling each job. Cleanup is `stop`, `assign` back to the reservation's previous worktree, then
+`release`.
 
 Every mutating call is checked in Hangar:
 
 - **s1 is off limits.** The API refuses slot `s1`, any slot sharing one of its ports, its compose
-  project, its worktree, or the primary checkout.
-- **The caller holds the reservation.** Its worktree, ports, and compose project must match the slot.
-- **Assign needs a quiet slot.** No slot process, perf run, or container may be running. It only
-  targets the reservation's worktree or previous worktree.
+  project, its worktree, or its repo's primary checkout.
+- **The caller holds the reservation.** `reserve` refuses a slot another worktree holds. Every other
+  action needs the caller's reservation, with ports and compose project matching the slot.
+- **Assign and release need a quiet slot.** No slot process, perf run, or container may be running.
+  Assign only targets the reservation's worktree or previous worktree. Release needs the slot
+  assigned back to the previous worktree.
 - **One action per slot at a time.** While an action runs, GUI starts, stops, and Docker calls on
   that slot are refused. A reserved slot's worktree, ports, and compose project can't be changed
   or removed from the GUI. The slot list shows the reservation and the running action.
-- **Data is kept.** `prepare-db` checks the MySQL volume belongs to the worktree's
-  `fleet-workflow` override and backs up a non-empty database first. `stop` never removes
-  volumes, and `backup` never overwrites a file.
+- **Data is kept.** `prepare-db` backs up a non-empty database first. When the worktree has a
+  `docker-compose.override.yml`, `prepare-db` and `serve` also check that MySQL uses a volume it
+  names; without one, the slot uses its compose project's volume, as in the GUI. `stop` never
+  removes volumes, and `backup` never overwrites a file.
 
 These guards prevent mistakes by cooperating agents. Any process running as the same user can
 still edit `settings.json` or run `docker` directly.
