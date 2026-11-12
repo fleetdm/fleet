@@ -210,7 +210,7 @@
   task: "Follow up after GitOps workshops"
   startedOn: "2026-10-19"
   frequency: "Weekly"
-  description: "For each workshop held this week, send every attendee's certification, create their NFR environment, and encourage them to post about it. Publish the results to the workshop dashboard."
+  description: "For each workshop held this week, send every attendee's certification, create their NFR license, and encourage them to post about it."
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#gitops-workshops"
   dri: "ds0x"
 -
