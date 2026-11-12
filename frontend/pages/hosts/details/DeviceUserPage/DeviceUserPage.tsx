@@ -419,17 +419,13 @@ const DeviceUserPage = ({
   const {
     host,
     license,
-    org_logo_url: orgLogoUrl = "",
-    org_logo_url_light_background: orgLogoUrlLightBackground = "",
     org_logo_url_dark_mode: orgLogoUrlDarkMode = "",
     org_logo_url_light_mode: orgLogoUrlLightMode = "",
     org_contact_url: orgContactURL = "",
     global_config: globalConfig = null as IDeviceGlobalConfig | null,
     self_service: hasSelfService = false,
   } = dupDetails || {};
-  const darkLogoURL = orgLogoUrlDarkMode || orgLogoUrl;
-  const lightLogoURL = orgLogoUrlLightMode || orgLogoUrlLightBackground;
-  const orgLogoURL = darkMode ? darkLogoURL : lightLogoURL;
+  const orgLogoURL = darkMode ? orgLogoUrlDarkMode : orgLogoUrlLightMode;
   const isPremiumTier = license?.tier === "premium";
   const diskEncryptionSetting = host?.mdm.os_settings?.disk_encryption;
   const needsBitLockerPIN =

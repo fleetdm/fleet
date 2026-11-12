@@ -127,8 +127,8 @@ org_settings:
     server_url: $FLEET_SERVER_URL
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: ${ORG_NAME}
   secrets:
 `,
@@ -356,8 +356,8 @@ org_settings:
     server_url: https://fleet.example.com
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: GitOps Test
   secrets:
 queries:
@@ -571,8 +571,8 @@ org_settings:
     server_url: $FLEET_SERVER_URL
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: ${ORG_NAME}
   secrets:
 software:
@@ -836,8 +836,8 @@ org_settings:
     server_url: %s
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: %s
   secrets:
     - secret: globalSecret
@@ -893,8 +893,8 @@ org_settings:
     server_url: %s
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: %s
   secrets:
     - secret: globalSecret
@@ -3185,8 +3185,8 @@ org_settings:
     server_url: $FLEET_SERVER_URL
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: ${ORG_NAME}
   mdm:
     volume_purchasing_program:
@@ -3486,8 +3486,8 @@ org_settings:
     server_url: %s
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: %s
   secrets:
     - secret: globalSecret
@@ -3817,8 +3817,8 @@ org_settings:
     server_url: %s
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: %s
   secrets:
     - secret: globalSecret
@@ -3842,8 +3842,8 @@ org_settings:
     server_url: %s
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: %s
   secrets:
     - secret: globalSecret
@@ -3870,8 +3870,8 @@ org_settings:
     server_url: %s
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: %s
   secrets:
     - secret: globalSecret
@@ -5458,8 +5458,8 @@ org_settings:
     server_url: %s
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: GitOps Test
   secrets:
     - secret: globalSecret
@@ -5722,8 +5722,8 @@ org_settings:
     server_url: %s
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: %s
   secrets:
     - secret: globalSecret
@@ -5819,8 +5819,8 @@ org_settings:
     server_url: %s
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: %s
   secrets:
     - secret: globalSecret
@@ -5871,8 +5871,8 @@ org_settings:
     server_url: %s
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: %s
   secrets:
     - secret: globalSecret
@@ -8699,8 +8699,8 @@ org_settings:
     server_url: %s
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: %s
   secrets:
 software:
@@ -8806,8 +8806,8 @@ org_settings:
     server_url: %s
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: %s
   secrets:
 software:
@@ -9155,8 +9155,8 @@ org_settings:
     server_url: https://fleet.example.com
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: GitOps Test
   secrets:
 queries:
@@ -9200,8 +9200,8 @@ org_settings:
     server_url: https://fleet.example.com
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: GitOps Test
   secrets:
 queries:
@@ -9245,8 +9245,8 @@ org_settings:
     server_url: https://fleet.example.com
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: GitOps Test
   secrets:
 policies:
@@ -9291,8 +9291,8 @@ org_settings:
     server_url: https://fleet.example.com
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: GitOps Test
   secrets:
 policies:
@@ -9673,8 +9673,8 @@ org_settings:
     server_url: https://fleet.example.com
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: Test Org
   secrets:
     - secret: globalSecret
@@ -10181,8 +10181,8 @@ org_settings:
     server_url: %s
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: %s
   secrets:
     - secret: globalSecret
@@ -10236,8 +10236,8 @@ org_settings:
     server_url: https://fleet.example.com
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: Test
   secrets:
     - secret: globalSecret

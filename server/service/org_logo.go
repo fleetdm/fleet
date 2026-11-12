@@ -252,7 +252,7 @@ func (svc *Service) DeleteOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) e
 	var modesWithBlob []fleet.OrgLogoMode
 	for _, m := range modes {
 		if getOrgLogoURL(&ac.OrgInfo, m) != "" {
-			clearOrgLogoURL(&ac.OrgInfo, m)
+			setOrgLogoURL(&ac.OrgInfo, m, "")
 			clearedURL = true
 		}
 		exists, err := svc.orgLogoStore.Exists(ctx, m)
@@ -295,34 +295,24 @@ func (svc *Service) DeleteOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) e
 	return nil
 }
 
-// getOrgLogoURL returns the URL for the given mode, preferring the new
-// mode-aware field and falling back to the deprecated alias.
+// getOrgLogoURL returns the URL for the given mode.
 func getOrgLogoURL(o *fleet.OrgInfo, mode fleet.OrgLogoMode) string {
 	switch mode {
 	case fleet.OrgLogoModeLight:
-		if o.OrgLogoURLLightMode != "" {
-			return o.OrgLogoURLLightMode
-		}
-		return o.OrgLogoURLLightBackground
+		return o.OrgLogoURLLightMode
 	case fleet.OrgLogoModeDark:
-		if o.OrgLogoURLDarkMode != "" {
-			return o.OrgLogoURLDarkMode
-		}
-		return o.OrgLogoURL
+		return o.OrgLogoURLDarkMode
 	}
 	return ""
 }
 
-// clearOrgLogoURL zeroes both the new and deprecated URL fields for the
-// given mode so NormalizeLogoFields can't restore the value from the alias.
-func clearOrgLogoURL(o *fleet.OrgInfo, mode fleet.OrgLogoMode) {
+// setOrgLogoURL sets the URL for the given mode.
+func setOrgLogoURL(o *fleet.OrgInfo, mode fleet.OrgLogoMode, url string) {
 	switch mode {
 	case fleet.OrgLogoModeLight:
-		o.OrgLogoURLLightMode = ""
-		o.OrgLogoURLLightBackground = ""
+		o.OrgLogoURLLightMode = url
 	case fleet.OrgLogoModeDark:
-		o.OrgLogoURLDarkMode = ""
-		o.OrgLogoURL = ""
+		o.OrgLogoURLDarkMode = url
 	}
 }
 
@@ -365,8 +355,7 @@ func orgLogoServingURL(mode fleet.OrgLogoMode) string {
 }
 
 // updateOrgLogoURLs sets (uploaded=true) or clears (uploaded=false) the
-// AppConfig URL fields for the given modes. The dual-write between the
-// new and deprecated fields is handled by NormalizeLogoFields.
+// AppConfig URL fields for the given modes.
 func (svc *Service) updateOrgLogoURLs(ctx context.Context, modes []fleet.OrgLogoMode, uploaded bool) error {
 	// Bypass the AppConfig cache so this read-modify-write picks up any
 	// concurrent writes to other fields (e.g. a settings PATCH that
@@ -382,14 +371,7 @@ func (svc *Service) updateOrgLogoURLs(ctx context.Context, modes []fleet.OrgLogo
 		if uploaded {
 			url = orgLogoServingURL(m)
 		}
-		switch m {
-		case fleet.OrgLogoModeLight:
-			ac.OrgInfo.OrgLogoURLLightMode = url
-			ac.OrgInfo.OrgLogoURLLightBackground = url
-		case fleet.OrgLogoModeDark:
-			ac.OrgInfo.OrgLogoURLDarkMode = url
-			ac.OrgInfo.OrgLogoURL = url
-		}
+		setOrgLogoURL(&ac.OrgInfo, m, url)
 	}
 	if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
 		return ctxerr.Wrap(ctx, err, "saving app config after logo update")

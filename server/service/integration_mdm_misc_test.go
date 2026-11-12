@@ -48,8 +48,8 @@ func (s *integrationMDMTestSuite) TestOrgLogo() {
 	var acResp appConfigResponse
 	s.DoJSON("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
 		"org_info": {
-			"org_logo_url": "http://test-image.com",
-			"org_logo_url_light_background": "http://test-image-light.com"
+			"org_logo_url_dark_mode": "http://test-image.com",
+			"org_logo_url_light_mode": "http://test-image-light.com"
 		}
 	}`), http.StatusOK, &acResp)
 
@@ -64,8 +64,8 @@ func (s *integrationMDMTestSuite) TestOrgLogo() {
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
 	require.NoError(t, res.Body.Close())
 	require.NoError(t, getDesktopResp.Err)
-	require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)                               //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
-	require.Equal(t, acResp.OrgInfo.OrgLogoURLLightBackground, getDesktopResp.Config.OrgInfo.OrgLogoURLLightBackground) //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
+	require.Equal(t, "http://test-image.com", getDesktopResp.Config.OrgInfo.OrgLogoURLDarkMode)
+	require.Equal(t, "http://test-image-light.com", getDesktopResp.Config.OrgInfo.OrgLogoURLLightMode)
 }
 
 func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {

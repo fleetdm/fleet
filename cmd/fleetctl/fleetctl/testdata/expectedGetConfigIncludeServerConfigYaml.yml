@@ -182,8 +182,6 @@ spec:
       plugin: filesystem
   max_software_package_size: 537919488
   org_info:
-    org_logo_url: ""
-    org_logo_url_light_background: ""
     org_logo_url_dark_mode: ""
     org_logo_url_light_mode: ""
     org_name: ""

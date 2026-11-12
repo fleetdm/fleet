@@ -22,6 +22,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -1947,8 +1948,6 @@ func (s *integrationTestSuite) TestOrgLogoUpload() {
 	s.DoJSON("GET", "/api/v1/fleet/config", nil, http.StatusOK, &acResp)
 	require.Contains(t, acResp.OrgInfo.OrgLogoURLLightMode, "/api/latest/fleet/logo")
 	require.Contains(t, acResp.OrgInfo.OrgLogoURLLightMode, "mode=light")
-	// Deprecated key is in sync.
-	require.Equal(t, acResp.OrgInfo.OrgLogoURLLightMode, acResp.OrgInfo.OrgLogoURLLightBackground) //nolint:staticcheck // intentionally asserts the deprecated field stays in sync with its replacement
 
 	res := s.DoRawNoAuth("GET", "/api/latest/fleet/logo?mode=light", nil, http.StatusOK)
 	gotBody, err := io.ReadAll(res.Body)
@@ -1988,7 +1987,6 @@ func (s *integrationTestSuite) TestOrgLogoUpload() {
 
 	s.DoJSON("GET", "/api/v1/fleet/config", nil, http.StatusOK, &acResp)
 	require.Empty(t, acResp.OrgInfo.OrgLogoURLLightMode)
-	require.Empty(t, acResp.OrgInfo.OrgLogoURLLightBackground) //nolint:staticcheck // intentionally asserts the deprecated field stays in sync with its replacement
 	require.Contains(t, acResp.OrgInfo.OrgLogoURLDarkMode, "/api/latest/fleet/logo")
 
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/logo?mode=light", nil, http.StatusNotFound)
@@ -2001,9 +1999,7 @@ func (s *integrationTestSuite) TestOrgLogoUpload() {
 	// 7. DELETE on an external URL (no blob) clears the URL field.
 	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
 		"org_info": {
-			"org_logo_url": "https://placehold.co/100",
 			"org_logo_url_dark_mode": "https://placehold.co/100",
-			"org_logo_url_light_background": "https://placehold.co/200",
 			"org_logo_url_light_mode": "https://placehold.co/200"
 		}
 	}`), http.StatusOK)
@@ -2011,9 +2007,7 @@ func (s *integrationTestSuite) TestOrgLogoUpload() {
 	s.Do("DELETE", "/api/v1/fleet/logo", nil, http.StatusOK, "mode", "dark")
 	s.DoJSON("GET", "/api/v1/fleet/config", nil, http.StatusOK, &acResp)
 	require.Empty(t, acResp.OrgInfo.OrgLogoURLDarkMode)
-	require.Empty(t, acResp.OrgInfo.OrgLogoURL) //nolint:staticcheck // intentionally asserts the deprecated field stays in sync with its replacement
 	require.Equal(t, "https://placehold.co/200", acResp.OrgInfo.OrgLogoURLLightMode)
-	require.Equal(t, "https://placehold.co/200", acResp.OrgInfo.OrgLogoURLLightBackground) //nolint:staticcheck // intentionally asserts the deprecated field stays in sync with its replacement
 
 	// 8. PATCH transitioning a Fleet-hosted URL to an external URL must
 	// preserve the external URL and delete the previously-stored blob.
@@ -2024,13 +2018,11 @@ func (s *integrationTestSuite) TestOrgLogoUpload() {
 
 	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
 		"org_info": {
-			"org_logo_url_light_mode": "https://placehold.co/300",
-			"org_logo_url_light_background": "https://placehold.co/300"
+			"org_logo_url_light_mode": "https://placehold.co/300"
 		}
 	}`), http.StatusOK)
 	s.DoJSON("GET", "/api/v1/fleet/config", nil, http.StatusOK, &acResp)
 	require.Equal(t, "https://placehold.co/300", acResp.OrgInfo.OrgLogoURLLightMode)
-	require.Equal(t, "https://placehold.co/300", acResp.OrgInfo.OrgLogoURLLightBackground) //nolint:staticcheck // intentionally asserts the deprecated field stays in sync with its replacement
 
 	// The orphan blob is actually gone: GET /logo?mode=light returns 404.
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/logo?mode=light", nil, http.StatusNotFound)
@@ -2053,4 +2045,76 @@ func (s *integrationTestSuite) TestOrgLogoUpload() {
 		}
 	}
 	assert.True(t, sawAutoCleanupActivity, "auto-cleanup must emit a deleted_org_logo activity for the affected mode")
+}
+
+func (s *integrationTestSuite) TestRemovedOrgLogoConfigKeys() {
+	t := s.T()
+
+	const darkURL = "https://example.com/dark.png"
+	const lightURL = "https://example.com/light.png"
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(
+		`{"org_info": {"org_logo_url_dark_mode": %q, "org_logo_url_light_mode": %q}}`, darkURL, lightURL)), http.StatusOK)
+	t.Cleanup(func() {
+		s.Do("PATCH", "/api/latest/fleet/config",
+			json.RawMessage(`{"org_info": {"org_logo_url_dark_mode": "", "org_logo_url_light_mode": ""}}`), http.StatusOK)
+	})
+
+	removedMsg := func(key string) string {
+		return `The "` + key + `" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+	}
+	for _, tc := range []struct {
+		name, path, body, want string
+	}{
+		{"dark", "/api/latest/fleet/config", `{"org_info": {"org_logo_url": "https://example.com/new.png"}}`, removedMsg("org_logo_url")},
+		{
+			"light", "/api/latest/fleet/config", `{"org_info": {"org_logo_url_light_background": "https://example.com/new.png"}}`,
+			removedMsg("org_logo_url_light_background"),
+		},
+		{
+			"old and new together", "/api/latest/fleet/config",
+			`{"org_info": {"org_logo_url_dark_mode": "https://example.com/new.png", "org_logo_url": "https://example.com/new.png"}}`,
+			removedMsg("org_logo_url"),
+		},
+		{"empty value", "/api/latest/fleet/config", `{"org_info": {"org_logo_url": ""}}`, removedMsg("org_logo_url")},
+		{"dry run", "/api/latest/fleet/config?dry_run=true", `{"org_info": {"org_logo_url": "https://example.com/new.png"}}`, removedMsg("org_logo_url")},
+		{
+			"differently cased", "/api/latest/fleet/config", `{"Org_Info": {"Org_Logo_URL": "https://example.com/new.png"}}`,
+			removedMsg("Org_Logo_URL"),
+		},
+		{
+			"with another setting", "/api/latest/fleet/config",
+			`{"org_info": {"org_name": "set by a rejected request", "org_logo_url_light_background": "https://example.com/new.png"}}`,
+			removedMsg("org_logo_url_light_background"),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			res := s.DoRaw("PATCH", tc.path, []byte(tc.body), http.StatusUnprocessableEntity)
+			require.Contains(t, extractServerErrorText(res.Body), tc.want)
+		})
+	}
+
+	// nothing was saved by the rejected requests, and responses only use the new keys
+	res := s.DoRaw("GET", "/api/latest/fleet/config", nil, http.StatusOK)
+	var raw struct {
+		OrgInfo map[string]any `json:"org_info"`
+	}
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&raw))
+	require.NoError(t, res.Body.Close())
+	require.Equal(t, darkURL, raw.OrgInfo["org_logo_url_dark_mode"])
+	require.Equal(t, lightURL, raw.OrgInfo["org_logo_url_light_mode"])
+	require.NotEqual(t, "set by a rejected request", raw.OrgInfo["org_name"])
+	require.NotContains(t, raw.OrgInfo, "org_logo_url")
+	require.NotContains(t, raw.OrgInfo, "org_logo_url_light_background")
+
+	host := createOrbitEnrolledHost(t, "darwin", t.Name(), s.ds)
+	token := "removed_org_logo_keys_token"
+	createDeviceTokenForHost(t, s.ds, host.ID, token)
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+	var deviceResp map[string]any
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&deviceResp))
+	require.NoError(t, res.Body.Close())
+	require.Equal(t, darkURL, deviceResp["org_logo_url_dark_mode"])
+	require.Equal(t, lightURL, deviceResp["org_logo_url_light_mode"])
+	require.NotContains(t, deviceResp, "org_logo_url")
+	require.NotContains(t, deviceResp, "org_logo_url_light_background")
 }

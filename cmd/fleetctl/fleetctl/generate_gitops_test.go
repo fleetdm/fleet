@@ -3838,9 +3838,7 @@ func TestGenerateGitopsExportOrgLogos(t *testing.T) {
 		assert.Equal(t, "./lib/org_logo/dark.png", orgInfo["org_logo_path_dark_mode"])
 		_, hasDarkURL := orgInfo["org_logo_url_dark_mode"]
 		assert.False(t, hasDarkURL, "Fleet-hosted dark URL should be removed in favor of the path key")
-		// The deprecated alias is also cleared so aliasRules can't resurrect the URL.
-		_, hasOldDark := orgInfo["org_logo_url"]
-		assert.False(t, hasOldDark)
+		assert.NotContains(t, orgInfo, "org_logo_url")
 
 		// Bytes were queued for the on-disk export.
 		assert.Equal(t, string(pngBody), cmd.FilesToWrite["lib/org_logo/dark.png"])

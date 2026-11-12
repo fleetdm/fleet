@@ -2422,7 +2422,7 @@ func TestEnrichedAppConfig(t *testing.T) {
       {
         "org_info": {
           "org_name": "Fleet for osquery",
-          "org_logo_url": ""
+          "org_logo_url_dark_mode": ""
         },
         "server_settings": {
           "server_url": "https://localhost:8412",

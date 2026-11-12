@@ -49,7 +49,7 @@ func TestGetDeviceHostEndpointScrubbing(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			OrgInfo: fleet.OrgInfo{
-				OrgLogoURL: "http://example.com/logo.png",
+				OrgLogoURLDarkMode: "http://example.com/logo.png",
 			},
 		}, nil
 	}
@@ -162,7 +162,7 @@ func TestGetDeviceHostEndpointScrubbing(t *testing.T) {
 	assert.Equal(t, "", deviceResp.Host.DisplayName)
 
 	// Verify other fields are present
-	assert.Equal(t, "http://example.com/logo.png", deviceResp.OrgLogoURL)
+	assert.Equal(t, "http://example.com/logo.png", deviceResp.OrgLogoURLDarkMode)
 }
 
 func TestGetDeviceHostEndpointNoScrubbingForMacOS(t *testing.T) {
@@ -208,7 +208,7 @@ func TestGetDeviceHostEndpointNoScrubbingForMacOS(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			OrgInfo: fleet.OrgInfo{
-				OrgLogoURL: "http://example.com/logo.png",
+				OrgLogoURLDarkMode: "http://example.com/logo.png",
 			},
 		}, nil
 	}
@@ -369,7 +369,7 @@ func TestGetDeviceHostEndpointConditionalAccessBypass(t *testing.T) {
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return &fleet.AppConfig{
 					OrgInfo: fleet.OrgInfo{
-						OrgLogoURL: "http://example.com/logo.png",
+						OrgLogoURLDarkMode: "http://example.com/logo.png",
 					},
 					ConditionalAccess: tc.conditionalAccessConfig,
 				}, nil
