@@ -32,11 +32,11 @@ fetch() {
 
 # Same filter as the ingester: version folders start with a digit and contain a dot.
 # Others (e.g. Beta/, Portable/) are sibling packages or grouping folders.
-versions=$(gh api "$repo/contents/$dir" --jq '.[] | select(.type == "dir") | .name | select(test("^[0-9].*[.]"))' | sort -V) || {
-  echo "no folder at $dir: check the identifier's casing, or list manifests/$first/<Publisher>" >&2
-  exit 1
-}
-if [ -z "$versions" ]; then
+# A deleted or moved package's folder 404s, but its history still explains why.
+if ! versions=$(gh api "$repo/contents/$dir" --jq '.[] | select(.type == "dir") | .name | select(test("^[0-9].*[.]"))' 2>/dev/null | sort -V); then
+  echo "no folder at $dir: the package was deleted or moved (see the commits below), or the identifier's casing is wrong (list manifests/$first/<Publisher>)" >&2
+  versions=""
+elif [ -z "$versions" ]; then
   echo "$dir has no version folders: the package was deleted or moved (see the commits below)" >&2
 else
   echo "Newest versions in $dir:"
@@ -44,8 +44,9 @@ else
 fi
 
 echo "Recent commits to $dir:"
-gh api "$repo/commits?path=$dir&per_page=6" \
-  --jq '.[] | "  " + .commit.committer.date[0:10] + "  " + (.commit.message | split("\n")[0])'
+commits=$(gh api "$repo/commits?path=$dir&per_page=6" \
+  --jq '.[] | "  " + .commit.committer.date[0:10] + "  " + (.commit.message | split("\n")[0])')
+printf '%s\n' "${commits:-  (none: nothing has ever lived at this path)}"
 [ -z "$versions" ] && exit 1
 
 [ -n "$version" ] || version=$(printf '%s\n' "$versions" | tail -1)

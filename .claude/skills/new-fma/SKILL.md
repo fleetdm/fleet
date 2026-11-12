@@ -173,7 +173,7 @@ PR validation (`test-fma-*-pr-only.yml`) installs each **changed** output on a G
 - Finds the app with a loose search (macOS: `bundle_identifier LIKE '%<id>%'` or a name match; Windows: `name LIKE` on the catalog name and `unique_identifier`, or the exists clause) and checks its version loosely. Its `Found app:` log lines show what osquery really saw.
 - On macOS, when the found `bundle_short_version` isn't exactly the manifest version, runs the **patched** query and fails if it returns no rows.
 - On macOS, runs Gatekeeper (`spctl --assess`) on every `apps` row matching the exists clause, and fails on a rejection or on no rows.
-- Runs the shipped **exists** query and fails with `exists query returned no rows with the app installed`.
+- Runs the shipped **exists** query and fails with `exists query returned no rows with the app installed`. Two Windows exceptions only warn (`Exists query returned no rows: app was …`) and still pass: an app found only as a provisioned AppX package, and Codex CLI found only as a portable binary.
 - Runs the uninstall script and checks the app is gone.
 
 It doesn't prove:
@@ -184,7 +184,7 @@ It doesn't prove:
 - Upgrades over an existing install, same-version reinstalls, or an app that's running.
 - Anything about frozen apps, or apps whose output didn't change: they aren't validated.
 
-A green run means the installer downloaded, installed, registered under the exists query, and uninstalled on a clean runner. The rest is yours to prove.
+A green run means the installer downloaded, installed, registered under the exists query, and uninstalled on a clean runner. An app listed in `Some apps were validated with warnings` may not have matched its exists query at all; read its warnings. The rest is yours to prove.
 
 ## Field semantics
 

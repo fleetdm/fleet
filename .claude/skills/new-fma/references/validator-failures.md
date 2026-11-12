@@ -84,7 +84,7 @@ Before you change anything:
 4. **"Install never finishes"** on Windows: look for a hidden dialog first ([windows-scripts.md](windows-scripts.md#installers-that-never-exit)), and check whether the host is ARM64. Don't reach for a longer timeout or a validator cap until you've ruled one out.
 5. Read the issue's claims as hypotheses. "Fails when the app is open" turned out to be "every same-version reinstall" (JetBrains); "publisher mismatch" turned out to be a versioned DisplayName (Vernier).
 
-Evidence without a VM: since the exists check landed, a nightly PR's validate log that contains `All checks passed for app: <Name>`, from a run whose `headSha` includes the fix, shows the shipped exists query matched on a real install.
+Evidence without a VM: since the exists check landed, a nightly PR's validate log that contains `All checks passed for app: <Name>`, from a run whose `headSha` includes the fix, shows the shipped exists query matched on a real install, unless that app also logged `Exists query returned no rows` (a warning for provisioned-only AppX packages and Codex CLI, not a failure).
 
 ## Revert and freeze
 
@@ -132,9 +132,11 @@ If the cask or manifest still lists the old hash for the same version, the vendo
 
 - **Renamed, same app**: change `token` only. Keep `slug`, the input filename, `name`, and `frozen` (`worksheet-crafter` → `worksheetcrafter`).
 - **Renamed and rebranded with a new bundle id**: a token swap would ship a dead exists query. If no customers depend on the old slug, create a new FMA under the new name and remove the old one (Windsurf → Devin Desktop, Swifty → Rowel: `git mv` the input, output, and website icon; drop the old `apps.json` entry). If customers do, keep the slug and migrate the queries and scripts ([queries.md](queries.md#rebrands-renamed-ids-and-side-by-side-installs)). Removing a slug from `apps.json` makes servers clear that FMA.
-- **Removed, or the cask went binary-only or stale**: remove the FMA, or, if a stopgap is needed while that's decided, revert and freeze. Don't recreate the cask in `inputs/homebrew/custom-tap/`: that directory is for Fleet's internal use, not a fallback for casks Homebrew dropped.
+- **Removed** (the API 404s): remove the FMA. Freezing doesn't help, since ingest still fetches the cask.
+- **Went binary-only or stale** (the cask still resolves): remove the FMA, or, if a stopgap is needed while that's decided, revert and freeze.
+- In either case, don't recreate the cask in `inputs/homebrew/custom-tap/`: that directory is for Fleet's internal use, not a fallback for casks Homebrew dropped.
 
-**Removing an FMA** touches: the input, the output (and its directory if no platform is left), the `apps.json` entry (nothing prunes it), custom scripts only that app uses, and, if no other platform of the app remains, the frontend icon (`icons/png/<Name>.png` or `.tsx`, plus its import and map entries in `icons/index.ts`) and `website/assets/images/app-icon-<token>-60x60@2x.png`. Leave `tools/software/fma-script-hashes/` alone. In the PR body, say what customers will see: servers drop the slug on their next catalog sync (`ClearRemovedFleetMaintainedApps`); installers fleets already added stay, as custom packages; and GitOps files that still reference the slug fail until it's removed from them.
+**Removing an FMA** touches: the input, the output (and its directory if no platform is left), the `apps.json` entry (nothing prunes it), custom scripts only that app uses, and, if no other platform of the app remains, `website/assets/images/app-icon-<token>-60x60@2x.png` (the catalog's icon, by slug). Keep the frontend icon in `icons/index.ts`: it matches software by name across all inventory, so hosts that still have the app keep showing it. Leave `tools/software/fma-script-hashes/` alone. In the PR body, say what customers will see: servers drop the slug on their next catalog sync (`ClearRemovedFleetMaintainedApps`); installers fleets already added stay, as custom packages; and GitOps files that still reference the slug fail until it's removed from them.
 
 ## Winget manifest changed underneath the input
 
@@ -194,7 +196,7 @@ Rerun only after you've shown the failure is transient: `gh run rerun <run-id> -
 Human-authored PRs over 100 changed files can't be auto-approved. Split them into PRs with **disjoint file sets** (the only guarantee against conflicts between the parts):
 - Keep each input with its output, so `frozen: true` lands with the output the validator would otherwise check. `apps.json` and the icons `index.ts` travel with whichever part adds or removes apps.
 - Size parts by the script-diff comment, not file count, if you want "Check Script Diff" to pass.
-- Merge main into the source branch first (`git merge-tree --write-tree origin/main <branch>`), so a split doesn't revert something main changed after the nightly ran.
+- Merge main into the source branch first (check it out, then `git merge origin/main`), so a split doesn't revert something main changed after the nightly ran. `git merge-tree --write-tree` only previews conflicts; it doesn't update the branch.
 - Tests that read every output (`TestOutputInstallScriptsStopWhenExtractionFails`) fail on whichever part carries the generator and test until the other parts are on main. Put generator, test, custom scripts, and version bumps in the last part, mark it "merge last", and prove the order by testing that part alone (fails) and all parts together (passes).
 - The repository rejects a push of many refs at once (GH013); push one branch per `git push`.
 
@@ -206,4 +208,4 @@ Use this to change a frozen app, or to swap a script without pulling an upstream
 - Custom-script outputs embed `inputs/*/scripts/<file>` verbatim. Check first that the output's current ref text matches the old input script.
 - Re-encode the way the generator does: Go `json.Encoder` with `SetEscapeHTML(false)`, two-space indent, trailing newline, field order as in `FMAManifestFile`. Python's `json` escapes `<`, `>`, `&`, and non-ASCII (`—` becomes `—`) and churns the file unless you pass `ensure_ascii=False` and handle the rest, so prove that an untouched round trip is byte-identical before writing anything. A throwaway `go run` helper in the worktree that imports `maintained_apps.FMAManifestFile` and `GetScriptRef` is the safest route; delete it before committing.
 - For a patched-query or version pin, edit the `version` field and the `version_compare` literal together.
-- To check a hand edit, run the generator on one non-frozen app with the same change and compare. Then `git checkout` every file it touched, because it can also rewrite `apps.json` and other slugs (`--slug` is a substring match). Never reset with `git checkout HEAD -- ee/maintained-apps`: that also reverts uncommitted source edits there. Reset only `inputs/` and `outputs/`.
+- To check a hand edit, run the generator on one non-frozen app with the same change and compare. Then restore each file it touched that you didn't mean to change, by path (`git checkout -- <file>`), because it can also rewrite `apps.json` and other slugs (`--slug` is a substring match); undo the throwaway input change the same way. Never reset a whole directory (`ee/maintained-apps`, `inputs/`, `outputs/`): that also reverts your uncommitted input JSON, custom scripts, and hand-edited outputs.

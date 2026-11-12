@@ -51,7 +51,7 @@ If you can't confirm a field from one of the sources below, don't derive it from
 - GitHub code search returns nothing for `microsoft/winget-pkgs`, even for packages that exist, so a zero result proves nothing. The script reads the contents API. To find a publisher folder, list `manifests/<letter>` and grep; its casing isn't the brand's (`manifests/n/Nvidia`).
 - The **locale** `Publisher` is what the generator puts in the exists query unless you set `program_publisher`, and it's often a person's name, a parent company, an old name, or truncated.
 - `AppsAndFeaturesEntries` (`DisplayName`, `Publisher`, `DisplayVersion`, `UpgradeCode`) is the best offline source for an exe's registry identity, but most manifests don't have it. For a Burn bundle it may describe the inner MSI rather than the bundle (Okta Verify).
-- Some packages have no `en-US` locale (Araxis Merge: `en-GB`); the ingester falls back to the version manifest's `DefaultLocale`.
+- Some packages have no `en-US` locale (Araxis Merge: `en-GB`). `winget_manifest.sh` falls back to the version manifest's `DefaultLocale`, but the ingester reads only `<id>.locale.en-US.yaml` and fails ingest without it, so such a package can't ship without an ingester change.
 - `PackageFamilyName` for MSIX can sit at the top level, where the ingester doesn't read it; then `$PACKAGE_ID` stays literal and the uninstall script has to hardcode the PFN.
 - Manifests change in place and get deleted; see [validator-failures.md](validator-failures.md#winget-manifest-changed-underneath-the-input).
 
