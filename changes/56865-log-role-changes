@@ -1,1 +1,1 @@
-- Fixed role changes made with a `user_roles` spec (`fleetctl apply`) and from **Settings > Fleets > Users** not appearing in the activity feed.
+- Fixed adding, changing and removing users in **Settings > Fleets > Users** not appearing in the activity feed.

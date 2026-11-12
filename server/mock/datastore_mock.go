@@ -86,7 +86,7 @@ type UserOrDeletedUserByIDFunc func(ctx context.Context, id uint) (*fleet.User, 
 
 type SaveUserFunc func(ctx context.Context, user *fleet.User) error
 
-type SaveUsersFunc func(ctx context.Context, users []*fleet.User) (map[uint]fleet.User, error)
+type SaveUsersFunc func(ctx context.Context, users []*fleet.User) error
 
 type DeleteUserFunc func(ctx context.Context, id uint) error
 
@@ -6785,7 +6785,7 @@ func (s *DataStore) SaveUser(ctx context.Context, user *fleet.User) error {
 	return s.SaveUserFunc(ctx, user)
 }
 
-func (s *DataStore) SaveUsers(ctx context.Context, users []*fleet.User) (map[uint]fleet.User, error) {
+func (s *DataStore) SaveUsers(ctx context.Context, users []*fleet.User) error {
 	s.mu.Lock()
 	s.SaveUsersFuncInvoked = true
 	s.mu.Unlock()

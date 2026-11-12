@@ -84,9 +84,7 @@ type Datastore interface {
 	UserByID(ctx context.Context, id uint) (*User, error)
 	UserOrDeletedUserByID(ctx context.Context, id uint) (*User, error)
 	SaveUser(ctx context.Context, user *User) error
-	// SaveUsers saves the users in one transaction and returns each user's identity and roles from before the save, by
-	// ID, read under a lock on each user.
-	SaveUsers(ctx context.Context, users []*User) (map[uint]User, error)
+	SaveUsers(ctx context.Context, users []*User) error
 	// DeleteUser permanently deletes the user identified by the provided ID.
 	DeleteUser(ctx context.Context, id uint) error
 	// DeleteUserIfNotLastAdmin atomically checks that the user being deleted

@@ -281,19 +281,8 @@ func (ds *Datastore) SaveUser(ctx context.Context, user *fleet.User) error {
 	})
 }
 
-func (ds *Datastore) SaveUsers(ctx context.Context, users []*fleet.User) (map[uint]fleet.User, error) {
-	ids := make([]uint, 0, len(users))
-	for _, user := range users {
-		ids = append(ids, user.ID)
-	}
-
-	var previous map[uint]fleet.User
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		var err error
-		previous, err = lockUserRolesDB(ctx, tx, ids)
-		if err != nil {
-			return err
-		}
+func (ds *Datastore) SaveUsers(ctx context.Context, users []*fleet.User) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		for _, user := range users {
 			if err := saveUserDB(ctx, tx, user); err != nil {
 				return err
@@ -301,10 +290,6 @@ func (ds *Datastore) SaveUsers(ctx context.Context, users []*fleet.User) (map[ui
 		}
 		return nil
 	})
-	if err != nil {
-		return nil, err
-	}
-	return previous, nil
 }
 
 // lockUserRolesDB locks the users and returns their identity and current roles. Writers that take this lock, including

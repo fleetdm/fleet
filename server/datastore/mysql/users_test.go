@@ -16,7 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/sync/errgroup"
 )
 
 func TestUsers(t *testing.T) {
@@ -30,7 +29,6 @@ func TestUsers(t *testing.T) {
 		{"ByID", testUsersByID},
 		{"Delete", testUsersDelete},
 		{"Save", testUsersSave},
-		{"SaveUsersPreviousRoles", testUsersSaveUsersPreviousRoles},
 		{"Has", testUsersHas},
 		{"NewInitialUser", testUsersNewInitialUser},
 		{"List", testUsersList},
@@ -482,8 +480,7 @@ func testUsersSaveMany(t *testing.T, ds *Datastore) {
 	u2.Email += "m"
 	u3.Email += "m"
 
-	_, err := ds.SaveUsers(t.Context(), []*fleet.User{u1, u2, u3})
-	require.NoError(t, err)
+	require.NoError(t, ds.SaveUsers(context.Background(), []*fleet.User{u1, u2, u3}))
 
 	gotU1, err := ds.UserByID(context.Background(), u1.ID)
 	require.NoError(t, err)
@@ -496,56 +493,4 @@ func testUsersSaveMany(t *testing.T, ds *Datastore) {
 	gotU3, err := ds.UserByID(context.Background(), u3.ID)
 	require.NoError(t, err)
 	assert.True(t, strings.HasSuffix(gotU3.Email, "fleet.com"))
-}
-
-func testUsersSaveUsersPreviousRoles(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
-	require.NoError(t, err)
-	user := test.NewUser(t, ds, t.Name(), t.Name()+"@example.com", true)
-	user.GlobalRole = nil
-	user.Teams = []fleet.UserTeam{{Team: *team, Role: fleet.RoleObserver}}
-	_, err = ds.SaveUsers(ctx, []*fleet.User{user})
-	require.NoError(t, err)
-
-	previous, err := ds.SaveUsers(ctx, []*fleet.User{user})
-	require.NoError(t, err)
-	require.Contains(t, previous, user.ID)
-	assert.Equal(t, user.Name, previous[user.ID].Name)
-	assert.Equal(t, user.Email, previous[user.ID].Email)
-	assert.Nil(t, previous[user.ID].GlobalRole)
-	require.Len(t, previous[user.ID].Teams, 1)
-	assert.Equal(t, team.ID, previous[user.ID].Teams[0].ID)
-	assert.Equal(t, team.Name, previous[user.ID].Teams[0].Name)
-	assert.Equal(t, fleet.RoleObserver, previous[user.ID].Teams[0].Role)
-
-	// Whichever save runs second must see the first one's role.
-	for range 25 {
-		first, err := ds.UserByID(ctx, user.ID)
-		require.NoError(t, err)
-		first.Teams = nil
-		first.GlobalRole = new(fleet.RoleObserver)
-		_, err = ds.SaveUsers(ctx, []*fleet.User{first})
-		require.NoError(t, err)
-
-		roles := []string{fleet.RoleAdmin, fleet.RoleMaintainer}
-		seen := make([]string, len(roles))
-		var g errgroup.Group
-		for i, role := range roles {
-			save, err := ds.UserByID(ctx, user.ID)
-			require.NoError(t, err)
-			save.GlobalRole = &role
-			g.Go(func() error {
-				previous, err := ds.SaveUsers(ctx, []*fleet.User{save})
-				if err != nil {
-					return err
-				}
-				seen[i] = *previous[save.ID].GlobalRole
-				return nil
-			})
-		}
-		require.NoError(t, g.Wait())
-		assert.Contains(t, seen, fleet.RoleObserver)
-		assert.False(t, seen[0] == fleet.RoleObserver && seen[1] == fleet.RoleObserver, "both saves read the role before either saved: %v", seen)
-	}
 }
