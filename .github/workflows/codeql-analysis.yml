@@ -5,14 +5,7 @@ on:
   push:
     branches: [ main ]
   pull_request:
-    # The branches below must be a subset of the branches above
-    branches: [ main ]
-    paths:
-      - '**.go'
-      - '**.js'
-      - '**.jsx'
-      - '**.ts'
-      - '**.tsx'
+    branches: [main]
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -24,25 +17,15 @@ defaults:
     # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
     shell: bash
 
-permissions:
-    contents: read
+permissions: {}
 
 jobs:
-  analyze:
-    name: Analyze
-    runs-on: ubuntu-8core
+  check-changes:
+    runs-on: ubuntu-latest
     permissions:
-      actions: read
       contents: read
-      security-events: write
-
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [ 'go', 'javascript' ]
-        # CodeQL supports [ 'cpp', 'csharp', 'go', 'java', 'javascript', 'python' ]
-        # Learn more:
-        # https://docs.github.com/en/free-pro-team@latest/github/finding-security-vulnerabilities-and-errors-in-your-code/configuring-code-scanning#changing-the-languages-that-are-analyzed
+    outputs:
+      languages: ${{ steps.changes.outputs.languages }}
 
     steps:
     - name: Harden Runner
@@ -54,18 +37,94 @@ jobs:
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false
-    
+        fetch-depth: 1
+
+    # Check which files have changed and determine the languages to analyze
+    - name: Check changed files
+      id: changes
+      env:
+        BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        EVENT_NAME: ${{ github.event_name }}
+      run: |
+        GO_CHANGED=false
+        JS_CHANGED=false
+        if [[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ && ! "$BASE_SHA" =~ ^0+$ ]] &&
+           ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+          if ! git fetch --no-tags --depth=1 origin "$BASE_SHA"; then
+            echo "::warning::Could not fetch the base commit."
+          fi
+        fi
+        if [[ ! "$BASE_SHA" =~ ^[0-9a-f]{40}$ || "$BASE_SHA" =~ ^0+$ ]] ||
+           ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+          echo "::notice::Base commit is unavailable; analyzing both languages."
+          GO_CHANGED=true
+          JS_CHANGED=true
+        else
+          git diff --no-renames --name-only -z "$BASE_SHA" HEAD > "$RUNNER_TEMP/codeql-changed-files"
+          while IFS= read -r -d '' file; do
+            case "$file" in
+              *.go) GO_CHANGED=true ;;
+              *.js|*.jsx|*.ts|*.tsx) JS_CHANGED=true ;;
+            esac
+          done < "$RUNNER_TEMP/codeql-changed-files"
+        fi
+
+        languages=""
+        if [[ "$GO_CHANGED" == true ]]; then languages='"go"'; fi
+        if [[ "$JS_CHANGED" == true ]]; then languages="${languages:+$languages,}"'"javascript"'; fi
+        if [[ -z "$languages" && "$EVENT_NAME" == pull_request ]]; then languages='""'; fi
+        echo "languages=[$languages]" >> "$GITHUB_OUTPUT"
+
+  # Analyze the changed languages with CodeQL.
+  # If no changed languages, analyze a single file to satisfy OpenSSF Scorecard for Pull Requests.
+  # For pushes, Scorecard does not complain about no analysis running if no code changed.
+  analyze:
+    name: Analyze
+    needs: check-changes
+    if: needs.check-changes.outputs.languages != '[]'
+    # No need to use a bigger runner when doing the single file analysis.
+    runs-on: ${{ matrix.language == '' && 'ubuntu-latest' || 'ubuntu-8core' }}
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ${{ fromJSON(needs.check-changes.outputs.languages) }}
+
+    steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      with:
+        egress-policy: audit
+
+    - name: Checkout repository
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
     - name: Set up Go
+      if: matrix.language == 'go'
       uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
       with:
         go-version-file: 'go.mod'
 
-    # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@f6e388ebf0efc915c6c5b165b019ee61a6746a38
+      if: matrix.language != ''
+      uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
       with:
         languages: ${{ matrix.language }}
         config-file: .github/workflows/config/codeql.yml
 
+    - name: Initialize CodeQL for a single file
+      if: matrix.language == ''
+      uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+      with:
+        languages: javascript
+        config: |
+          paths:
+            - postcss.config.js
+
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@f6e388ebf0efc915c6c5b165b019ee61a6746a38
+      uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
