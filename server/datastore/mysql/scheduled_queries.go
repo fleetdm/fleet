@@ -306,102 +306,21 @@ func (ds *Datastore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context,
 	// in SaveHostPackStats (in hosts.go) - that is, the behaviour per host must
 	// be the same.
 
-	if len(stats) == 0 {
-		return 0, nil
-	}
-
-	// First pass: collect all unique (teamIDChar, name) and (packName, scheduledName)
-	// pairs across every host so we can resolve IDs in a single batch query
-	// instead of embedding per-row subqueries. We use team_id_char (string form)
-	// because the queries table has a unique index on (name, team_id_char).
-	type teamName struct {
-		teamIDChar string
-		name       string
-	}
-	type packQueryName struct {
-		packName      string
-		scheduledName string
-	}
-	scheduledSeen := make(map[teamName]struct{})
-	userPackSeen := make(map[packQueryName]struct{})
-
-	for _, hostStats := range stats {
-		for _, stat := range hostStats {
-			if stat.PackName == "Global" || strings.HasPrefix(stat.PackName, "team-") {
-				tidChar := ""
-				statTeamID, err := stat.TeamID()
-				if err != nil {
-					return 0, err
-				}
-				if statTeamID != nil {
-					tidChar = fmt.Sprint(*statTeamID)
-				}
-				scheduledSeen[teamName{tidChar, stat.QueryName}] = struct{}{}
-			} else {
-				userPackSeen[packQueryName{stat.PackName, stat.ScheduledQueryName}] = struct{}{}
-			}
-		}
-	}
-
-	// Batch-resolve scheduled query IDs using the idx_name_team_id_unq index.
-	scheduledIDMap := make(map[teamName]uint, len(scheduledSeen))
-	if len(scheduledSeen) > 0 {
-		placeholders := make([]string, 0, len(scheduledSeen))
-		args := make([]any, 0, len(scheduledSeen)*2)
-		for k := range scheduledSeen {
-			placeholders = append(placeholders, "(?,?)")
-			args = append(args, k.name, k.teamIDChar)
-		}
-		type resolvedRow struct {
-			ID         uint   `db:"id"`
-			Name       string `db:"name"`
-			TeamIDChar string `db:"team_id_char"`
-		}
-		//nolint:gosec // SQL is built from constant strings and counted placeholders
-		resolveSQL := `SELECT id, name, team_id_char FROM queries WHERE (name, team_id_char) IN (` + strings.Join(placeholders, ",") + `)`
-		var resolved []resolvedRow
-		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &resolved, resolveSQL, args...); err != nil {
-			return 0, ctxerr.Wrap(ctx, err, "async resolve query IDs for stats")
-		}
-		for _, r := range resolved {
-			scheduledIDMap[teamName{r.TeamIDChar, r.Name}] = r.ID
-		}
-	}
-
-	// Batch-resolve user pack query IDs.
-	userPackIDMap := make(map[packQueryName]uint, len(userPackSeen))
-	if len(userPackSeen) > 0 {
-		placeholders := make([]string, 0, len(userPackSeen))
-		args := make([]any, 0, len(userPackSeen)*2)
-		for k := range userPackSeen {
-			placeholders = append(placeholders, "(?,?)")
-			args = append(args, k.packName, k.scheduledName)
-		}
-		type resolvedRow struct {
-			QueryID       uint   `db:"query_id"`
-			PackName      string `db:"pack_name"`
-			ScheduledName string `db:"scheduled_name"`
-		}
-		//nolint:gosec // SQL is built from constant strings and counted placeholders
-		resolveSQL := `SELECT sq.query_id, p.name AS pack_name, sq.name AS scheduled_name
-			FROM scheduled_queries sq JOIN packs p ON sq.pack_id = p.id
-			WHERE p.pack_type IS NULL AND (p.name, sq.name) IN (` + strings.Join(placeholders, ",") + `)`
-		var resolved []resolvedRow
-		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &resolved, resolveSQL, args...); err != nil {
-			return 0, ctxerr.Wrap(ctx, err, "async resolve user pack query IDs for stats")
-		}
-		for _, r := range resolved {
-			userPackIDMap[packQueryName{r.PackName, r.ScheduledName}] = r.QueryID
-		}
-	}
-
-	// Second pass: build INSERT batches using resolved IDs.
-	const insertStmtTpl = `
+	stmt := `
 		INSERT IGNORE INTO scheduled_query_stats (
-			scheduled_query_id, host_id, average_memory, denylisted,
-			executions, schedule_interval, last_executed, output_size,
-			system_time, user_time, wall_time
-		) VALUES %s ON DUPLICATE KEY UPDATE
+			scheduled_query_id,
+			host_id,
+			average_memory,
+			denylisted,
+			executions,
+			schedule_interval,
+			last_executed,
+			output_size,
+			system_time,
+			user_time,
+			wall_time
+		)
+		VALUES %s ON DUPLICATE KEY UPDATE
 			scheduled_query_id = VALUES(scheduled_query_id),
 			host_id = VALUES(host_id),
 			average_memory = VALUES(average_memory),
@@ -412,8 +331,8 @@ func (ds *Datastore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context,
 			output_size = VALUES(output_size),
 			system_time = VALUES(system_time),
 			user_time = VALUES(user_time),
-			wall_time = VALUES(wall_time)`
-
+			wall_time = VALUES(wall_time);
+	`
 	var countExecs int
 
 	// inserting sorted by host id (the first key in the PK) apparently helps
@@ -427,76 +346,146 @@ func (ds *Datastore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context,
 	})
 
 	var batchCount int
-	valueStrings := make([]string, 0, batchSize)
-	insertArgs := make([]any, 0, batchSize*11)
 
-	flushBatch := func() error {
-		if len(valueStrings) == 0 {
-			return nil
-		}
-		//nolint:gosec // SQL is built from constant strings and counted placeholders
-		stmt := fmt.Sprintf(insertStmtTpl, strings.Join(valueStrings, ","))
-		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, insertArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert batch of scheduled query stats")
-		}
-		countExecs++
-		valueStrings = valueStrings[:0]
-		insertArgs = insertArgs[:0]
-		batchCount = 0
-		return nil
-	}
+	var (
+		userPacksArgs              []interface{}
+		userPacksQueryCount        = 0
+		scheduledQueriesArgs       []interface{}
+		scheduledQueriesQueryCount = 0
+	)
 
 	for _, hostID := range hostIDs {
 		hostStats := stats[hostID]
 
 		for _, stat := range hostStats {
-			var qID uint
-			var found bool
-
+			// Stats for 'new' query structure
 			if stat.PackName == "Global" || strings.HasPrefix(stat.PackName, "team-") {
-				tidChar := ""
+				scheduledQueriesQueryCount++
+
+				// Get the team id embedded in the pack name
+				var teamID int
 				statTeamID, err := stat.TeamID()
 				if err != nil {
-					return countExecs, err
+					return 0, err
 				}
 				if statTeamID != nil {
-					tidChar = fmt.Sprint(*statTeamID)
+					teamID = *statTeamID
 				}
-				qID, found = scheduledIDMap[teamName{tidChar, stat.QueryName}]
-			} else {
-				qID, found = userPackIDMap[packQueryName{stat.PackName, stat.ScheduledQueryName}]
-			}
 
-			if !found {
-				continue
-			}
+				scheduledQueriesArgs = append(scheduledQueriesArgs,
+					teamID,
+					stat.QueryName,
+					hostID,
+					stat.AverageMemory,
+					stat.Denylisted,
+					stat.Executions,
+					stat.Interval,
+					stat.LastExecuted,
+					stat.OutputSize,
+					stat.SystemTime,
+					stat.UserTime,
+					stat.WallTimeMs,
+				)
+			} else { // stats for a 2017 pack
+				userPacksQueryCount++
 
-			valueStrings = append(valueStrings, "(?,?,?,?,?,?,?,?,?,?,?)")
-			insertArgs = append(insertArgs,
-				qID,
-				hostID,
-				stat.AverageMemory,
-				stat.Denylisted,
-				stat.Executions,
-				stat.Interval,
-				stat.LastExecuted,
-				stat.OutputSize,
-				stat.SystemTime,
-				stat.UserTime,
-				stat.WallTimeMs,
-			)
+				userPacksArgs = append(userPacksArgs,
+					stat.PackName,
+					stat.ScheduledQueryName,
+					hostID,
+					stat.AverageMemory,
+					stat.Denylisted,
+					stat.Executions,
+					stat.Interval,
+					stat.LastExecuted,
+					stat.OutputSize,
+					stat.SystemTime,
+					stat.UserTime,
+					stat.WallTimeMs,
+				)
+			}
 
 			batchCount++
 			if batchCount >= batchSize {
-				if err := flushBatch(); err != nil {
-					return countExecs, err
+				var values []string
+				batchArgs := make([]interface{}, 0, scheduledQueriesQueryCount+userPacksQueryCount)
+
+				if scheduledQueriesQueryCount > 0 {
+					values = append(values,
+						strings.TrimSuffix(
+							strings.Repeat(
+								"((SELECT q.id FROM queries q WHERE COALESCE(q.team_id, 0) = ? AND q.name = ?),?,?,?,?,?,?,?,?,?,?),",
+								scheduledQueriesQueryCount,
+							),
+							",",
+						),
+					)
+					batchArgs = append(batchArgs, scheduledQueriesArgs...)
 				}
+				if userPacksQueryCount > 0 {
+					values = append(values,
+						strings.TrimSuffix(
+							strings.Repeat(
+								"((SELECT sq.query_id FROM scheduled_queries sq JOIN packs p ON (sq.pack_id = p.id) WHERE p.pack_type IS NULL AND p.name = ? AND sq.name = ?),?,?,?,?,?,?,?,?,?,?),",
+								userPacksQueryCount,
+							),
+							",",
+						),
+					)
+					batchArgs = append(batchArgs, userPacksArgs...)
+				}
+				stmt := fmt.Sprintf(stmt, strings.Join(values, ","))
+
+				if _, err := ds.writer(ctx).ExecContext(ctx, stmt, batchArgs...); err != nil {
+					return countExecs, ctxerr.Wrap(ctx, err, "insert batch of scheduled query stats")
+				}
+
+				countExecs++
+
+				scheduledQueriesArgs = scheduledQueriesArgs[:0]
+				userPacksArgs = userPacksArgs[:0]
+
+				batchCount = 0
+				scheduledQueriesQueryCount = 0
+				userPacksQueryCount = 0
 			}
 		}
 	}
 
-	if err := flushBatch(); err != nil {
-		return countExecs, err
+	if batchCount > 0 {
+		var values []string
+		batchArgs := make([]interface{}, 0, scheduledQueriesQueryCount+userPacksQueryCount)
+
+		if scheduledQueriesQueryCount > 0 {
+			values = append(values,
+				strings.TrimSuffix(
+					strings.Repeat(
+						"((SELECT q.id FROM queries q WHERE COALESCE(q.team_id, 0) = ? AND q.name = ?),?,?,?,?,?,?,?,?,?,?),",
+						scheduledQueriesQueryCount,
+					),
+					",",
+				),
+			)
+			batchArgs = append(batchArgs, scheduledQueriesArgs...)
+		}
+		if userPacksQueryCount > 0 {
+			values = append(values,
+				strings.TrimSuffix(
+					strings.Repeat(
+						"((SELECT sq.query_id FROM scheduled_queries sq JOIN packs p ON (sq.pack_id = p.id) WHERE p.pack_type IS NULL AND p.name = ? AND sq.name = ?),?,?,?,?,?,?,?,?,?,?),",
+						userPacksQueryCount,
+					),
+					",",
+				),
+			)
+			batchArgs = append(batchArgs, userPacksArgs...)
+		}
+		stmt := fmt.Sprintf(stmt, strings.Join(values, ","))
+
+		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, batchArgs...); err != nil {
+			return countExecs, ctxerr.Wrap(ctx, err, "insert batch of scheduled query stats")
+		}
+		countExecs++
 	}
 
 	return countExecs, nil
