@@ -374,10 +374,11 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 	switch input.Token {
 	case "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "jasp",
 		"bitrix24", "chrome-remote-desktop-host", "crossover", "kdenlive", "malwarebytes", "plex-media-server", "sigmaos",
-		"axure-rp", "gotomeeting", "macvim-app", "syncmate", "google-earth-pro", "disk-drill":
+		"axure-rp", "gotomeeting", "macvim-app", "syncmate", "google-earth-pro", "disk-drill", "redcine-x-pro":
 		// CFBundleVersion carries the full cask version, but CFBundleShortVersionString
 		// drops part of it ("26.3" for cask "26.3.5", "0.99" for JASP's "0.99.0.0",
-		// "5.28.4" for Malwarebytes' "5.28.4.4244", "6.3" for Disk Drill's "6.3.2326"),
+		// "5.28.4" for Malwarebytes' "5.28.4.4244", "6.3" for Disk Drill's "6.3.2326",
+		// "65.2" for REDCINE-X PRO's "65.2.1"),
 		// which version_compare sorts below the cask version even for x.y.0 releases.
 		// Axure RP has no short version, and GoToMeeting's and MacVim's is a marketing
 		// version the cask doesn't track. Compare against caskVersion: a shortener in
