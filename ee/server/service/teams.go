@@ -1853,8 +1853,8 @@ func (svc *Service) createTeamFromSpec(
 		return nil, ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 	}
 	fleet.ValidateMDMProfileSpecs(invalid, "macos", macOSSettings.CustomSettings)
-	fleet.ValidateMDMProfileSpecs(invalid, "windows", spec.MDM.WindowsSettings.CustomSettings.Value)
-	fleet.ValidateMDMProfileSpecs(invalid, "android", spec.MDM.AndroidSettings.CustomSettings.Value)
+	fleet.ValidateMDMProfileSpecs(invalid, "windows", windowsSettings.CustomSettings.Value)
+	fleet.ValidateMDMProfileSpecs(invalid, "android", androidSettings.CustomSettings.Value)
 
 	var hostExpirySettings fleet.HostExpirySettings
 	if spec.HostExpirySettings != nil {
@@ -2247,11 +2247,13 @@ func (svc *Service) editTeamFromSpec(
 
 	oldMacOSSetup := team.Config.MDM.MacOSSetup
 	var didUpdateSetupAssistant, didUpdateBootstrapPackage, didUpdateEnableReleaseManually, didUpdateManualAgentInstall, didUpdateEnableManagedLocalAccount, didUpdateEndUserLocalAccountType bool
-	if spec.MDM.MacOSSetup.MacOSSetupAssistant.Set {
+	// GET returns null for these when the role can't read them, so a null sent back is ignored
+	// rather than deleting the saved item. "" still clears it, and that's what GitOps sends.
+	if spec.MDM.MacOSSetup.MacOSSetupAssistant.Valid {
 		didUpdateSetupAssistant = oldMacOSSetup.MacOSSetupAssistant.Value != spec.MDM.MacOSSetup.MacOSSetupAssistant.Value
 		team.Config.MDM.MacOSSetup.MacOSSetupAssistant = spec.MDM.MacOSSetup.MacOSSetupAssistant
 	}
-	if spec.MDM.MacOSSetup.BootstrapPackage.Set {
+	if spec.MDM.MacOSSetup.BootstrapPackage.Valid {
 		didUpdateBootstrapPackage = oldMacOSSetup.BootstrapPackage.Value != spec.MDM.MacOSSetup.BootstrapPackage.Value
 		team.Config.MDM.MacOSSetup.BootstrapPackage = spec.MDM.MacOSSetup.BootstrapPackage
 	}
@@ -2557,7 +2559,7 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	// if the macos setup assistant was cleared, remove it for that team
-	if spec.MDM.MacOSSetup.MacOSSetupAssistant.Set &&
+	if spec.MDM.MacOSSetup.MacOSSetupAssistant.Valid &&
 		spec.MDM.MacOSSetup.MacOSSetupAssistant.Value == "" &&
 		oldMacOSSetup.MacOSSetupAssistant.Value != "" {
 		if err := svc.DeleteMDMAppleSetupAssistant(ctx, &team.ID); err != nil {
@@ -2566,7 +2568,7 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	// if the bootstrap package was cleared, remove it for that team
-	if spec.MDM.MacOSSetup.BootstrapPackage.Set &&
+	if spec.MDM.MacOSSetup.BootstrapPackage.Valid &&
 		spec.MDM.MacOSSetup.BootstrapPackage.Value == "" &&
 		oldMacOSSetup.BootstrapPackage.Value != "" {
 		if err := svc.DeleteMDMAppleBootstrapPackage(ctx, &team.ID, opts.DryRun); err != nil {

@@ -73,15 +73,20 @@ func TestConfigListsApply(t *testing.T) {
 }
 
 func TestConfigListsApplyHidden(t *testing.T) {
-	l := NewConfigLists()
-	l.AppleProfiles = []MDMProfileSpec{{Name: "Wi-Fi"}}
-	l.WindowsProfiles = []MDMProfileSpec{{Name: "Firewall"}}
-	l.Scripts = []string{"hello.sh"}
-	l.SetupScript = "setup.sh"
-	l.BootstrapPackage = "bootstrap.pkg"
-	l.SetupAssistant = "assistant.json"
-	l.VolumePurchasingProgram = []MDMAppleVolumePurchasingProgramInfo{{Location: "loc", Teams: []string{"Engineering"}}}
-	l.Hidden = ConfigListsHidden{Profiles: true, Scripts: true, BootstrapPackage: true, SetupAssistant: true, VolumePurchasingProgram: true}
+	filled := func() *ConfigLists {
+		l := NewConfigLists()
+		l.AppleProfiles = []MDMProfileSpec{{Name: "Wi-Fi"}}
+		l.WindowsProfiles = []MDMProfileSpec{{Name: "Firewall"}}
+		l.Scripts = []string{"hello.sh"}
+		l.SetupScript = "setup.sh"
+		l.BootstrapPackage = "bootstrap.pkg"
+		l.SetupAssistant = "assistant.json"
+		l.VolumePurchasingProgram = []MDMAppleVolumePurchasingProgramInfo{{Location: "loc", Teams: []string{"Engineering"}}}
+		return l
+	}
+	l := filled()
+	l.Hide(ConfigListsHidden{Profiles: true, Scripts: true, BootstrapPackage: true, SetupAssistant: true, VolumePurchasingProgram: true})
+	require.Equal(t, ConfigLists{Hidden: l.Hidden}, *l)
 
 	var ac AppConfig
 	l.ApplyToAppConfig(&ac)
@@ -99,7 +104,10 @@ func TestConfigListsApplyHidden(t *testing.T) {
 	require.JSONEq(t, `null`, string(b))
 
 	// Each list is hidden on its own.
-	l.Hidden = ConfigListsHidden{Profiles: true}
+	l = filled()
+	l.Hide(ConfigListsHidden{Profiles: true})
+	require.Nil(t, l.AppleProfiles)
+	require.Equal(t, []string{"hello.sh"}, l.Scripts)
 	var tc TeamConfig
 	l.ApplyToTeamConfig(&tc)
 	require.Nil(t, tc.MDM.MacOSSettings.CustomSettings)

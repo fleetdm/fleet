@@ -27,13 +27,14 @@ func (svc *Service) ConfigListsByTeamIDs(ctx context.Context, teamIDs []uint) (m
 	var anyFleet *fleet.ConfigListsHidden
 	for id, l := range lists {
 		if globalUser && id != 0 && anyFleet != nil {
-			l.Hidden = *anyFleet
+			l.Hide(*anyFleet)
 			continue
 		}
-		l.Hidden = svc.hiddenConfigLists(ctx, id)
+		hidden := svc.hiddenConfigLists(ctx, id)
 		if globalUser && id != 0 {
-			anyFleet = &l.Hidden
+			anyFleet = &hidden
 		}
+		l.Hide(hidden)
 	}
 	return lists, nil
 }

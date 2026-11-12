@@ -9,6 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -90,7 +91,7 @@ func TestConfigListsByTeamIDs(t *testing.T) {
 	_, err = ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{TeamID: &tm2.ID, Name: "tm2-assistant.json", Profile: json.RawMessage("{}")})
 	require.NoError(t, err)
 
-	newVPPToken := func(location string, teamIDs []uint) {
+	newVPPToken := func(location string, teamIDs []uint) uint {
 		data, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "org "+location, location)
 		require.NoError(t, err)
 		tok, err := ds.InsertVPPToken(ctx, data)
@@ -99,9 +100,10 @@ func TestConfigListsByTeamIDs(t *testing.T) {
 			_, err = ds.UpdateVPPTokenTeams(ctx, tok.ID, teamIDs)
 			require.NoError(t, err)
 		}
+		return tok.ID
 	}
-	newVPPToken("specific", []uint{tm2.ID, 0, tm1.ID})
-	newVPPToken("unassigned", nil)
+	specificToken := newVPPToken("specific", []uint{tm2.ID, 0, tm1.ID})
+	unassignedToken := newVPPToken("unassigned", nil)
 
 	lists, err := ds.ConfigListsByTeamIDs(ctx, []uint{0, tm1.ID, tm2.ID, tmEmpty.ID})
 	require.NoError(t, err)
@@ -137,6 +139,34 @@ func TestConfigListsByTeamIDs(t *testing.T) {
 
 	require.Equal(t, fleet.NewConfigLists(), lists[tmEmpty.ID])
 
+	// The reserved-profile filters and the label mapping repeat
+	// ListMDMConfigProfiles', so the two must list the same profiles.
+	labelNames := func(labels []fleet.ConfigurationProfileLabel) []string {
+		var names []string
+		for _, l := range labels {
+			names = append(names, l.LabelName)
+		}
+		return names
+	}
+	for _, teamID := range []uint{0, tm1.ID, tm2.ID, tmEmpty.ID} {
+		profiles, _, err := ds.ListMDMConfigProfiles(ctx, ptr.UintOrNilIfZero(teamID), fleet.ListOptions{})
+		require.NoError(t, err)
+		byPlatform := map[string][]fleet.MDMProfileSpec{}
+		for _, p := range profiles {
+			byPlatform[p.Platform] = append(byPlatform[p.Platform], fleet.MDMProfileSpec{
+				Name:             p.Name,
+				LabelsIncludeAll: labelNames(p.LabelsIncludeAll),
+				LabelsIncludeAny: labelNames(p.LabelsIncludeAny),
+				LabelsExcludeAny: labelNames(p.LabelsExcludeAny),
+			})
+		}
+		got := lists[teamID]
+		require.NotNil(t, got)
+		require.ElementsMatch(t, byPlatform["darwin"], got.AppleProfiles, "fleet %d", teamID)
+		require.ElementsMatch(t, byPlatform["windows"], got.WindowsProfiles, "fleet %d", teamID)
+		require.ElementsMatch(t, byPlatform["android"], got.AndroidProfiles, "fleet %d", teamID)
+	}
+
 	lists, err = ds.ConfigListsByTeamIDs(ctx, []uint{tm1.ID})
 	require.NoError(t, err)
 	require.Equal(t, map[uint]*fleet.ConfigLists{tm1.ID: tm1Lists}, lists)
@@ -146,8 +176,8 @@ func TestConfigListsByTeamIDs(t *testing.T) {
 	require.Empty(t, lists)
 
 	// A token assigned to all fleets lists "All fleets", which is what GitOps accepts.
-	_, err = ds.writer(ctx).ExecContext(ctx, `DELETE FROM vpp_tokens`)
-	require.NoError(t, err)
+	require.NoError(t, ds.DeleteVPPToken(ctx, specificToken))
+	require.NoError(t, ds.DeleteVPPToken(ctx, unassignedToken))
 	newVPPToken("all", []uint{})
 	lists, err = ds.ConfigListsByTeamIDs(ctx, []uint{0})
 	require.NoError(t, err)

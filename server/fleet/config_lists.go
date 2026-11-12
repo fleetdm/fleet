@@ -22,6 +22,7 @@ type ConfigLists struct {
 
 	// Hidden lists are returned as null: the user can't read them on their own
 	// endpoints, so the config and fleet responses mustn't expose them either.
+	// Set it with Hide.
 	Hidden ConfigListsHidden
 }
 
@@ -43,6 +44,27 @@ func NewConfigLists() *ConfigLists {
 		Scripts:         []string{},
 
 		VolumePurchasingProgram: []MDMAppleVolumePurchasingProgramInfo{},
+	}
+}
+
+// Hide also empties the hidden lists, so a caller that ignores Hidden can't
+// expose them.
+func (l *ConfigLists) Hide(h ConfigListsHidden) {
+	l.Hidden = h
+	if h.Profiles {
+		l.AppleProfiles, l.WindowsProfiles, l.AndroidProfiles = nil, nil, nil
+	}
+	if h.Scripts {
+		l.Scripts, l.SetupScript = nil, ""
+	}
+	if h.BootstrapPackage {
+		l.BootstrapPackage = ""
+	}
+	if h.SetupAssistant {
+		l.SetupAssistant = ""
+	}
+	if h.VolumePurchasingProgram {
+		l.VolumePurchasingProgram = nil
 	}
 }
 

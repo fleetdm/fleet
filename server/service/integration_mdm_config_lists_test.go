@@ -103,6 +103,22 @@ func (s *integrationMDMTestSuite) TestConfigAndFleetResponsesListSavedItems() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID), fleet.TeamPayload{Description: new("updated")}, http.StatusOK, &modifyResp)
 	requireTeamLists(t, modifyResp.Team)
 
+	modifyResp = teamResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/agent_options", tm.ID),
+		json.RawMessage(`{"config": {"options": {"aws_debug": true}}}`), http.StatusOK, &modifyResp)
+	requireTeamLists(t, modifyResp.Team)
+
+	member := &fleet.User{Name: t.Name(), Email: "lists-saved-member@example.com", Teams: []fleet.UserTeam{{Team: *tm, Role: fleet.RoleObserver}}}
+	require.NoError(t, member.SetPassword(test.GoodPassword, 10, 10))
+	member, err = s.ds.NewUser(ctx, member)
+	require.NoError(t, err)
+	usersReq := modifyTeamUsersRequest{Users: []fleet.TeamUser{{ID: member.ID, Role: fleet.RoleMaintainer}}}
+	for _, method := range []string{"PATCH", "DELETE"} {
+		modifyResp = teamResponse{}
+		s.DoJSON(method, fmt.Sprintf("/api/latest/fleet/fleets/%d/users", tm.ID), usersReq, http.StatusOK, &modifyResp)
+		requireTeamLists(t, modifyResp.Team)
+	}
+
 	// The stored YAML values are left untouched.
 	stored := storedTeamConfig(t, s.ds, tm.ID)
 	require.Equal(t, []string{"stale.sh"}, stored.Scripts.Value)
@@ -118,7 +134,7 @@ func (s *integrationMDMTestSuite) TestConfigAndFleetResponsesListSavedItems() {
 	originalScripts := storedAppConfig(t, s.ds).Scripts
 	t.Cleanup(func() {
 		// t.Context() is already canceled when cleanups run.
-		ctx := context.Background()
+		ctx := context.WithoutCancel(t.Context())
 		ac, err := s.ds.AppConfig(ctx)
 		require.NoError(t, err)
 		ac.Scripts = originalScripts
@@ -147,9 +163,24 @@ func (s *integrationMDMTestSuite) TestConfigAndFleetResponsesSentBack() {
 	tm := createResp.Team
 
 	recordedGlobal := []fleet.MDMProfileSpec{{Path: "lib/a.mobileconfig"}}
+	recordedGlobalWindows := []fleet.MDMProfileSpec{{Path: "lib/a.xml"}}
+	recordedGlobalAndroid := []fleet.MDMProfileSpec{{Path: "lib/a.json"}}
 	recordedTeam := []fleet.MDMProfileSpec{{Path: "lib/b.mobileconfig"}}
+	original := storedAppConfig(t, s.ds).MDM
+	t.Cleanup(func() {
+		// t.Context() is already canceled when cleanups run.
+		ctx := context.WithoutCancel(t.Context())
+		ac, err := s.ds.AppConfig(ctx)
+		require.NoError(t, err)
+		ac.MDM.MacOSSettings.CustomSettings = original.MacOSSettings.CustomSettings
+		ac.MDM.WindowsSettings.CustomSettings = original.WindowsSettings.CustomSettings
+		ac.MDM.AndroidSettings.CustomSettings = original.AndroidSettings.CustomSettings
+		require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
+	})
 	s.Do("PATCH", "/api/latest/fleet/config", map[string]any{"mdm": map[string]any{
-		"macos_settings": map[string]any{"custom_settings": recordedGlobal},
+		"macos_settings":   map[string]any{"custom_settings": recordedGlobal},
+		"windows_settings": map[string]any{"custom_settings": recordedGlobalWindows},
+		"android_settings": map[string]any{"custom_settings": recordedGlobalAndroid},
 	}}, http.StatusOK)
 	s.Do("POST", "/api/latest/fleet/spec/fleets", map[string]any{"specs": []any{map[string]any{
 		"name": tm.Name,
@@ -165,10 +196,19 @@ func (s *integrationMDMTestSuite) TestConfigAndFleetResponsesSentBack() {
 		body, headers := generateNewProfileMultipartRequest(t, fmt.Sprintf("p%d.mobileconfig", i), mobileconfigForTest(name, name), s.token, fields)
 		s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
 	}
+	for i := range 2 {
+		body, headers := generateNewProfileMultipartRequest(t, fmt.Sprintf("w%d.xml", i),
+			syncMLForTest(fmt.Sprintf("./Device/Vendor/MSFT/Policy/Config/SentBack%d", i)), s.token, nil)
+		s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
+		_, err := s.ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{Name: fmt.Sprintf("Android %d", i), RawJSON: []byte(`{}`)}, nil)
+		require.NoError(t, err)
+	}
 
 	var acResp appConfigResponse
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.Len(t, acResp.MDM.MacOSSettings.CustomSettings, 2)
+	require.Len(t, acResp.MDM.WindowsSettings.CustomSettings.Value, 2)
+	require.Len(t, acResp.MDM.AndroidSettings.CustomSettings.Value, 2)
 	var getResp getTeamResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID), nil, http.StatusOK, &getResp)
 	require.Len(t, getResp.Team.Config.MDM.MacOSSettings.CustomSettings, 2)
@@ -182,8 +222,12 @@ func (s *integrationMDMTestSuite) TestConfigAndFleetResponsesSentBack() {
 	s.Do("PATCH", "/api/latest/fleet/config", map[string]any{"mdm": map[string]any{
 		"apple_settings":   map[string]any{"configuration_profiles": acResp.MDM.MacOSSettings.CustomSettings},
 		"windows_settings": map[string]any{"configuration_profiles": acResp.MDM.WindowsSettings.CustomSettings.Value},
+		"android_settings": map[string]any{"configuration_profiles": acResp.MDM.AndroidSettings.CustomSettings.Value},
 	}}, http.StatusOK)
-	require.Equal(t, recordedGlobal, storedAppConfig(t, s.ds).MDM.MacOSSettings.CustomSettings)
+	stored := storedAppConfig(t, s.ds).MDM
+	require.Equal(t, recordedGlobal, stored.MacOSSettings.CustomSettings)
+	require.Equal(t, recordedGlobalWindows, stored.WindowsSettings.CustomSettings.Value)
+	require.Equal(t, recordedGlobalAndroid, stored.AndroidSettings.CustomSettings.Value)
 
 	s.Do("POST", "/api/latest/fleet/spec/fleets", map[string]any{"specs": []any{map[string]any{
 		"name": tm.Name,
@@ -192,6 +236,143 @@ func (s *integrationMDMTestSuite) TestConfigAndFleetResponsesSentBack() {
 		}},
 	}}}, http.StatusOK)
 	require.Equal(t, recordedTeam, storedTeamConfig(t, s.ds, tm.ID).MDM.MacOSSettings.CustomSettings)
+
+	// Validation rewrites the deprecated "labels" key, so it must run on the
+	// entries that are kept, not on the spec's originals.
+	newName := t.Name() + " new"
+	s.Do("POST", "/api/latest/fleet/spec/fleets", map[string]any{"specs": []any{map[string]any{
+		"name": newName,
+		"mdm": map[string]any{"windows_settings": map[string]any{"custom_settings": []map[string]any{
+			{"name": "echoed"}, {"path": "lib/w.xml", "labels": []string{"lbl"}},
+		}}},
+	}}}, http.StatusOK)
+	newTm, err := s.ds.TeamByName(ctx, newName)
+	require.NoError(t, err)
+	require.Equal(t, []fleet.MDMProfileSpec{{Path: "lib/w.xml", LabelsIncludeAll: []string{"lbl"}}},
+		storedTeamConfig(t, s.ds, newTm.ID).MDM.WindowsSettings.CustomSettings.Value)
+}
+
+// GitOps users can write config, fleets, bootstrap packages and setup
+// assistants but can't read the last two, so they get null for them and can
+// send that null back.
+func (s *integrationMDMTestSuite) TestConfigAndFleetResponsesSentBackAsGitOps() {
+	t := s.T()
+	ctx := t.Context()
+
+	var createResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{Name: t.Name()}, http.StatusOK, &createResp)
+	tm := createResp.Team
+
+	original := storedAppConfig(t, s.ds).MDM.MacOSSetup
+	t.Cleanup(func() {
+		// t.Context() is already canceled when cleanups run.
+		ctx := context.WithoutCancel(t.Context())
+		if err := s.ds.DeleteMDMAppleBootstrapPackage(ctx, 0); err != nil && !fleet.IsNotFound(err) {
+			require.NoError(t, err)
+		}
+		if err := s.ds.DeleteMDMAppleSetupAssistant(ctx, nil); err != nil && !fleet.IsNotFound(err) {
+			require.NoError(t, err)
+		}
+		ac, err := s.ds.AppConfig(ctx)
+		require.NoError(t, err)
+		ac.MDM.MacOSSetup.BootstrapPackage = original.BootstrapPackage
+		ac.MDM.MacOSSetup.MacOSSetupAssistant = original.MacOSSetupAssistant
+		require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
+	})
+
+	pkg, err := os.ReadFile(filepath.Join("testdata", "bootstrap-packages", "signed.pkg"))
+	require.NoError(t, err)
+	for _, teamID := range []uint{0, tm.ID} {
+		s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: pkg, Name: "bootstrap.pkg", TeamID: teamID}, http.StatusOK, "", false)
+		_, err = s.ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{
+			TeamID: ptr.UintOrNilIfZero(teamID), Name: "assistant.json", Profile: json.RawMessage(`{"x": 1}`),
+		})
+		require.NoError(t, err)
+	}
+
+	applySetup := func(teamID uint, setup any) {
+		t.Helper()
+		if teamID == 0 {
+			s.Do("PATCH", "/api/latest/fleet/config", map[string]any{"mdm": map[string]any{"macos_setup": setup}}, http.StatusOK)
+			return
+		}
+		s.Do("POST", "/api/latest/fleet/spec/fleets", map[string]any{"specs": []any{map[string]any{
+			"name": tm.Name,
+			"mdm":  map[string]any{"macos_setup": setup},
+		}}}, http.StatusOK)
+	}
+	recordedSetup := func(teamID uint) fleet.MacOSSetup {
+		if teamID == 0 {
+			return storedAppConfig(t, s.ds).MDM.MacOSSetup
+		}
+		return storedTeamConfig(t, s.ds, teamID).MDM.MacOSSetup
+	}
+	requireSaved := func(teamID uint, want bool) {
+		t.Helper()
+		_, err := s.ds.GetMDMAppleBootstrapPackageMeta(ctx, teamID)
+		if want {
+			require.NoError(t, err, "bootstrap package, fleet %d", teamID)
+		} else {
+			require.True(t, fleet.IsNotFound(err), "bootstrap package, fleet %d: %v", teamID, err)
+		}
+		_, err = s.ds.GetMDMAppleSetupAssistant(ctx, ptr.UintOrNilIfZero(teamID))
+		if want {
+			require.NoError(t, err, "setup assistant, fleet %d", teamID)
+		} else {
+			require.True(t, fleet.IsNotFound(err), "setup assistant, fleet %d: %v", teamID, err)
+		}
+	}
+
+	// What a GitOps run records in the config.
+	recorded := map[string]any{
+		"bootstrap_package":     "https://example.com/bootstrap.pkg",
+		"macos_setup_assistant": "lib/assistant.json",
+	}
+	for _, teamID := range []uint{0, tm.ID} {
+		applySetup(teamID, recorded)
+		requireSaved(teamID, true)
+	}
+
+	email := "lists-sent-back-gitops@example.com"
+	u := &fleet.User{Name: email, Email: email, GlobalRole: new(fleet.RoleGitOps)}
+	require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(ctx, u)
+	require.NoError(t, err)
+	s.setTokenForTest(t, email, test.GoodPassword)
+
+	requireNullSentBack := func(teamID uint, setup map[string]any) {
+		t.Helper()
+		require.Contains(t, setup, "bootstrap_package")
+		require.Nil(t, setup["bootstrap_package"])
+		require.Contains(t, setup, "macos_setup_assistant")
+		require.Nil(t, setup["macos_setup_assistant"])
+		applySetup(teamID, setup)
+		requireSaved(teamID, true)
+		stored := recordedSetup(teamID)
+		require.Equal(t, recorded["bootstrap_package"], stored.BootstrapPackage.Value)
+		require.Equal(t, recorded["macos_setup_assistant"], stored.MacOSSetupAssistant.Value)
+	}
+
+	var cfg map[string]any
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &cfg)
+	requireNullSentBack(0, cfg["mdm"].(map[string]any)["macos_setup"].(map[string]any))
+
+	var list map[string]any
+	s.DoJSON("GET", "/api/latest/fleet/fleets", nil, http.StatusOK, &list)
+	var fleetSetup map[string]any
+	for _, f := range list["fleets"].([]any) {
+		if fm := f.(map[string]any); fm["name"] == tm.Name {
+			fleetSetup = fm["mdm"].(map[string]any)["macos_setup"].(map[string]any)
+		}
+	}
+	require.NotNil(t, fleetSetup)
+	requireNullSentBack(tm.ID, fleetSetup)
+
+	// "" still deletes them.
+	for _, teamID := range []uint{0, tm.ID} {
+		applySetup(teamID, map[string]any{"bootstrap_package": "", "macos_setup_assistant": ""})
+		requireSaved(teamID, false)
+	}
 }
 
 func (s *integrationMDMTestSuite) TestConfigAndFleetResponsesListVisibility() {
@@ -219,7 +400,7 @@ func (s *integrationMDMTestSuite) TestConfigAndFleetResponsesListVisibility() {
 	}
 	t.Cleanup(func() {
 		// t.Context() is already canceled when cleanups run.
-		ctx := context.Background()
+		ctx := context.WithoutCancel(t.Context())
 		require.NoError(t, s.ds.DeleteSetupExperienceScript(ctx, nil))
 		require.NoError(t, s.ds.DeleteMDMAppleSetupAssistant(ctx, nil))
 	})

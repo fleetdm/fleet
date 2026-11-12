@@ -2622,7 +2622,7 @@ spec:
 		assert.YAMLEq(t, expectedTm1And2Set, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
 
 		// clear with dry-run, appconfig
-		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", ""))
+		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, `""`, `""`))
 		ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked = false
 		ds.SaveAppConfigFuncInvoked = false
 		assert.Equal(t, "[+] would've applied fleet config\n", runAppForTest(t, []string{"apply", "--dry-run", "-f", name}))
@@ -2631,7 +2631,7 @@ spec:
 		assert.False(t, ds.SaveAppConfigFuncInvoked)
 
 		// clear with dry-run, teams
-		name = writeTmpYml(t, fmt.Sprintf(team1And2Spec, "", "", "", ""))
+		name = writeTmpYml(t, fmt.Sprintf(team1And2Spec, `""`, `""`, `""`, `""`))
 		ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked = false
 		ds.SaveTeamFuncInvoked = false
 		assert.Equal(t, "[+] would've applied 2 fleets\n", runAppForTest(t, []string{"apply", "--dry-run", "-f", name}))
@@ -2658,7 +2658,7 @@ spec:
 		assert.YAMLEq(t, expectedTm1And2Set, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
 
 		// clear appconfig for real
-		name = writeTmpYml(t, fmt.Sprintf(appConfigEnableReleaseSpec, "", "", "false"))
+		name = writeTmpYml(t, fmt.Sprintf(appConfigEnableReleaseSpec, `""`, `""`, "false"))
 		ds.SaveAppConfigFuncInvoked = false
 		assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
@@ -2666,7 +2666,7 @@ spec:
 		assert.True(t, ds.SaveAppConfigFuncInvoked)
 
 		// clear teams for real
-		name = writeTmpYml(t, fmt.Sprintf(team1And2Spec, "", "", "", ""))
+		name = writeTmpYml(t, fmt.Sprintf(team1And2Spec, `""`, `""`, `""`, `""`))
 		ds.SaveTeamFuncInvoked = false
 		assert.Equal(t, "[+] applied 2 fleets\n", runAppForTest(t, []string{"apply", "-f", name}))
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
@@ -2948,8 +2948,18 @@ spec:
 		ds.DeleteMDMAppleBootstrapPackageFuncInvoked = false
 		ds.SaveAppConfigFuncInvoked = false
 
-		// empty server url should delete the package
+		// an empty key is null, which keeps the package like an omitted key does
 		tmpFilename = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", ""))
+		assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", tmpFilename}))
+		assert.False(t, ds.DeleteMDMAppleBootstrapPackageFuncInvoked)
+		assert.True(t, ds.SaveAppConfigFuncInvoked)
+		mockStore.Lock()
+		assert.Equal(t, srv.URL, mockStore.appConfig.MDM.MacOSSetup.BootstrapPackage.Value)
+		mockStore.Unlock()
+		ds.SaveAppConfigFuncInvoked = false
+
+		// "" deletes the package
+		tmpFilename = writeTmpYml(t, fmt.Sprintf(appConfigSpec, `""`, `""`))
 		assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", tmpFilename}))
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.True(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
