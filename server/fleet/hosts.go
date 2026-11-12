@@ -220,10 +220,6 @@ type HostListOptions struct {
 	PolicyIDFilter       *uint
 	PolicyResponseFilter *bool
 
-	// Deprecated: SoftwareIDFilter is deprecated as of Fleet 4.42. It is
-	// maintained for backwards compatibility. Use SoftwareVersionIDFilter
-	// instead.
-	SoftwareIDFilter *uint
 	// SoftwareVersionIDFilter filters the hosts by the software version ID that
 	// they use. This identifies a specific version of a "software title".
 	SoftwareVersionIDFilter *uint
@@ -340,7 +336,6 @@ func (h HostListOptions) Empty() bool {
 		h.TeamFilter == nil &&
 		h.PolicyIDFilter == nil &&
 		h.PolicyResponseFilter == nil &&
-		h.SoftwareIDFilter == nil &&
 		h.SoftwareVersionIDFilter == nil &&
 		h.SoftwareTitleIDFilter == nil &&
 		h.SoftwareStatusFilter == nil &&
@@ -402,7 +397,9 @@ type Host struct {
 	OrbitVersion   *string       `json:"orbit_version" db:"orbit_version" csv:"orbit_version"`
 	DesktopVersion *string       `json:"fleet_desktop_version" db:"fleet_desktop_version" csv:"fleet_desktop_version"`
 	ScriptsEnabled *bool         `json:"scripts_enabled" db:"scripts_enabled" csv:"scripts_enabled"`
-	OSVersion      string        `json:"os_version" db:"os_version" csv:"os_version"`
+	OSVersion      string        `json:"-" db:"os_version" csv:"-"`                        // display string, e.g. "macOS 15.2"; not in the API
+	OSName         string        `json:"os_name" db:"os_name" csv:"os_name"`               // operating_systems.name, what the os_name filter matches
+	OSVersionOnly  string        `json:"os_version" db:"os_version_only" csv:"os_version"` // operating_systems.version, what os_version matches
 	Build          string        `json:"build" csv:"build"`
 	PlatformLike   string        `json:"platform_like" db:"platform_like" csv:"platform_like"`
 	CodeName       string        `json:"code_name" db:"code_name" csv:"code_name"`
@@ -682,6 +679,7 @@ type HostOrbitInfo struct {
 // the same name, see the comments/docs for the Host field above.
 type HostHealth struct {
 	UpdatedAt                    time.Time                      `json:"updated_at,omitempty" db:"updated_at"`
+	OSName                       string                         `json:"os_name,omitempty" db:"os_name"`
 	OsVersion                    string                         `json:"os_version,omitempty" db:"os_version"`
 	DiskEncryptionEnabled        *bool                          `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled"`
 	FailingPoliciesCount         int                            `json:"failing_policies_count"`
@@ -1377,9 +1375,6 @@ type HostDetail struct {
 
 	// PatchDeadlineAt is when Fleet next forces a patch deadline install on this host, or nil.
 	PatchDeadlineAt *time.Time `json:"patch_deadline_at"`
-
-	// IDOnly marks a result where the caller was allowed to resolve the host but not to read it, so only ID is populated.
-	IDOnly bool `json:"-"`
 }
 
 type HostEndUser struct {
@@ -2088,6 +2083,13 @@ type OSVersion struct {
 	// NOTE: The aggregate os_versions endpoint should not return this field.
 	// Uses a pointer to distinguish between nil (omit field) and empty slice (show as []).
 	Kernels *[]*Kernel `json:"kernels,omitempty"`
+}
+
+// UseAPINames switches Name and NameOnly to the form API responses show (see APIOSName). Only call it on a value that is
+// about to be written to a response: the stored names are the keys for OS vulnerability lookups.
+func (o *OSVersion) UseAPINames() {
+	o.Name = APIOSName(o.Name)
+	o.NameOnly = APIOSName(o.NameOnly)
 }
 
 type HostDetailOptions struct {

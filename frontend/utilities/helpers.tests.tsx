@@ -2,7 +2,7 @@ import type { IRegistrationFormData } from "interfaces/registration_form_data";
 import { getPastDate, getFutureDate } from "test/test-utils";
 
 import helpers, {
-  removeOSPrefix,
+  getHostOSDisplayName,
   compareVersions,
   willExpireWithinXDays,
   humanLastSeen,
@@ -11,11 +11,23 @@ import helpers, {
 } from "./helpers";
 
 describe("helpers utilities", () => {
-  describe("removeOSPrefix function", () => {
-    it("properly removes Apple prefix from a host's operating system version", () => {
-      expect(removeOSPrefix("macOS 14.1.2")).toEqual("14.1.2");
-      expect(removeOSPrefix("iOS 18.0")).toEqual("18.0");
-      expect(removeOSPrefix("iPadOS 17.5.1")).toEqual("17.5.1");
+  describe("getHostOSDisplayName function", () => {
+    it.each([
+      ["macOS", "14.1.2", "macOS 14.1.2"],
+      ["iPadOS", "17.5.1", "iPadOS 17.5.1"],
+      ["Ubuntu", "24.04.5 LTS", "Ubuntu 24.04.5 LTS"],
+      ["Android", "16 (2026-05-01)", "Android 16 (2026-05-01)"],
+      [
+        "Windows Server 2022 Datacenter 21H2 (Server Core)",
+        "10.0.20348.1850",
+        "Windows Server 2022 Datacenter 21H2 (Server Core) 10.0.20348.1850",
+      ],
+      ["Omarchy", "4.0.0", "Omarchy 4.0.0"],
+      ["", "", ""],
+      [undefined, undefined, ""],
+      ["---", "---", ""],
+    ])("joins %p and %p into %p", (osName, osVersion, expected) => {
+      expect(getHostOSDisplayName(osName, osVersion)).toEqual(expected);
     });
   });
 

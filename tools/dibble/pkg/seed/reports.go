@@ -53,7 +53,7 @@ func Reports(c Client, log Logger, theme themes.Theme, teams []Team, count int) 
 			"description": n.Desc,
 			"query":       exampleSQL[0],
 			"interval":    0,
-			"team_id":     teamID,
+			"fleet_id":    teamID,
 		}
 		err := c.Post("/api/latest/fleet/reports", body, nil)
 		switch {

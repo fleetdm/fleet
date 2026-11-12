@@ -23,6 +23,7 @@ import (
 	"golang.org/x/net/http2/h2c"
 
 	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
@@ -248,11 +249,12 @@ func (s ServerConfig) ValidateURLPrefix(initFatal func(err error, msg string)) {
 
 // AuthConfig defines configs related to user or host authorization
 type AuthConfig struct {
-	BcryptCost                  int           `yaml:"bcrypt_cost"`
-	SaltKeySize                 int           `yaml:"salt_key_size"`
-	SsoSessionValidityPeriod    time.Duration `yaml:"sso_session_validity_period"`
-	RequireHTTPMessageSignature bool          `yaml:"require_http_message_signature"`
-	SSORateLimitPerMinute       int           `yaml:"sso_rate_limit_per_minute"`
+	BcryptCost                           int           `yaml:"bcrypt_cost"`
+	SaltKeySize                          int           `yaml:"salt_key_size"`
+	SsoSessionValidityPeriod             time.Duration `yaml:"sso_session_validity_period"`
+	RequireHTTPMessageSignature          bool          `yaml:"require_http_message_signature"`
+	SSORateLimitPerMinute                int           `yaml:"sso_rate_limit_per_minute"`
+	RequireHostIdentityRenewalKeyBinding bool          `yaml:"require_host_identity_renewal_key_binding"`
 }
 
 // AppConfig defines configs related to HTTP
@@ -1224,12 +1226,12 @@ type MDMConfig struct {
 	appleSCEPPEMCert []byte
 	appleSCEPPEMKey  []byte
 
-	AppleBMServerToken      string `yaml:"apple_bm_server_token"`
-	AppleBMServerTokenBytes string `yaml:"apple_bm_server_token_bytes"`
-	AppleBMCert             string `yaml:"apple_bm_cert"`
-	AppleBMCertBytes        string `yaml:"apple_bm_cert_bytes"`
-	AppleBMKey              string `yaml:"apple_bm_key"`
-	AppleBMKeyBytes         string `yaml:"apple_bm_key_bytes"`
+	AppleBMServerToken      string `yaml:"apple_business_server_token"`
+	AppleBMServerTokenBytes string `yaml:"apple_business_server_token_bytes"`
+	AppleBMCert             string `yaml:"apple_business_cert"`
+	AppleBMCertBytes        string `yaml:"apple_business_cert_bytes"`
+	AppleBMKey              string `yaml:"apple_business_key"`
+	AppleBMKeyBytes         string `yaml:"apple_business_key_bytes"`
 
 	// the following fields hold the PEM-encoded bytes for the certificate
 	// and private key set the first time AppleBM is called
@@ -1947,6 +1949,8 @@ func (man Manager) addConfigs() {
 		"Timeout from SSO start to SSO callback")
 	man.addConfigBool("auth.require_http_message_signature", false,
 		"Require HTTP message signatures for fleetd requests (Premium feature)")
+	man.addConfigBool("auth.require_host_identity_renewal_key_binding", false,
+		"Reject host identity certificate renewals from fleetd that doesn't sign over the new key (Premium feature)")
 	man.addConfigInt("auth.sso_rate_limit_per_minute", 0,
 		"Number of allowed requests per minute to the SSO callback and Fleet Desktop device SSO endpoints (each in its own bucket; defaults to the login rate limit value)")
 
@@ -2326,12 +2330,12 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.apple_scep_cert_bytes", "", "Apple SCEP PEM-encoded certificate bytes")
 	man.addConfigString("mdm.apple_scep_key", "", "Apple SCEP PEM-encoded private key path")
 	man.addConfigString("mdm.apple_scep_key_bytes", "", "Apple SCEP PEM-encoded private key bytes")
-	man.addConfigString("mdm.apple_bm_server_token", "", "Apple Business encrypted server token path (.p7m file)")
-	man.addConfigString("mdm.apple_bm_server_token_bytes", "", "Apple Business encrypted server token bytes")
-	man.addConfigString("mdm.apple_bm_cert", "", "Apple Business PEM-encoded certificate path")
-	man.addConfigString("mdm.apple_bm_cert_bytes", "", "Apple Business PEM-encoded certificate bytes")
-	man.addConfigString("mdm.apple_bm_key", "", "Apple Business PEM-encoded private key path")
-	man.addConfigString("mdm.apple_bm_key_bytes", "", "Apple Business PEM-encoded private key bytes")
+	man.addConfigString("mdm.apple_business_server_token", "", "Apple Business encrypted server token path (.p7m file)")
+	man.addConfigString("mdm.apple_business_server_token_bytes", "", "Apple Business encrypted server token bytes")
+	man.addConfigString("mdm.apple_business_cert", "", "Apple Business PEM-encoded certificate path")
+	man.addConfigString("mdm.apple_business_cert_bytes", "", "Apple Business PEM-encoded certificate bytes")
+	man.addConfigString("mdm.apple_business_key", "", "Apple Business PEM-encoded private key path")
+	man.addConfigString("mdm.apple_business_key_bytes", "", "Apple Business PEM-encoded private key bytes")
 	man.addConfigBool("mdm.apple_enable", false, "Enable MDM Apple functionality")
 	man.addConfigBool("mdm.apple_machineinfo_verify", true, "Verify the signature on Apple's x-apple-aspen-deviceinfo (MachineInfo) blob during enrollment")
 	man.addConfigInt("mdm.apple_scep_signer_validity_days", 365, "Days signed client certificates will be valid")
@@ -2430,6 +2434,11 @@ func (man Manager) addConfigs() {
 		"Notify connected agents of osquery config changes so they can poll it less often (requires websocket.transport_enabled)")
 	man.addConfigDuration("websocket.osquery_config_poll_interval", 10*time.Minute,
 		"Fallback osquery config poll interval of connected agents, when websocket.osquery_config_enabled is set")
+
+	for _, e := range removednames.Filter(removednames.KindConfigKey, 0) {
+		man.addConfigString(e.Old, "", "Removed in Fleet 5") // need to register it to see the --flag format come through and show the Fleet 5 message.
+		man.hideConfig(e.Old)
+	}
 }
 
 func (man Manager) hideConfig(name string) {
@@ -2439,10 +2448,32 @@ func (man Manager) hideConfig(name string) {
 	}
 }
 
+// removedConfigMessage names the removed key the way it was set: as a flag, an environment variable, or a config file key. Viper
+// doesn't say which source set a key, so this checks them in viper's precedence order.
+func (man Manager) removedConfigMessage(e removednames.Entry) string {
+	kind, convert := removednames.KindYAMLKey, func(s string) string { return s }
+	if f := man.command.PersistentFlags().Lookup(flagNameFromConfigKey(e.Old)); f != nil && f.Changed {
+		kind, convert = removednames.KindFlag, flagNameFromConfigKey
+	} else if _, ok := os.LookupEnv(envNameFromConfigKey(e.Old)); ok {
+		kind, convert = removednames.KindEnvVar, envNameFromConfigKey
+	}
+	newName := e.New
+	if newName != "" {
+		newName = convert(newName)
+	}
+	return removednames.Entry{Kind: kind, Old: convert(e.Old), New: newName, Format: removednames.ReplacedFormat{}}.Message()
+}
+
 // LoadConfig will load the config variables into a fully initialized
 // FleetConfig struct
-func (man Manager) LoadConfig() FleetConfig {
+func (man Manager) LoadConfig() (FleetConfig, error) {
 	man.loadConfigFile()
+
+	for _, removedKey := range removednames.Filter(removednames.KindConfigKey, 0) {
+		if man.IsSet(removedKey.Old) {
+			return FleetConfig{}, errors.New(man.removedConfigMessage(removedKey))
+		}
+	}
 
 	loadMysqlConfig := func(prefix string) MysqlConfig {
 		return MysqlConfig{
@@ -2536,11 +2567,12 @@ func (man Manager) LoadConfig() FleetConfig {
 			EndpointRequestSizeOverrides:     man.getConfigEndpointRequestSizeOverrides(),
 		},
 		Auth: AuthConfig{
-			BcryptCost:                  man.getConfigInt("auth.bcrypt_cost"),
-			SaltKeySize:                 man.getConfigInt("auth.salt_key_size"),
-			SsoSessionValidityPeriod:    man.getConfigDuration("auth.sso_session_validity_period"),
-			RequireHTTPMessageSignature: man.getConfigBool("auth.require_http_message_signature"),
-			SSORateLimitPerMinute:       man.getConfigInt("auth.sso_rate_limit_per_minute"),
+			BcryptCost:                           man.getConfigInt("auth.bcrypt_cost"),
+			SaltKeySize:                          man.getConfigInt("auth.salt_key_size"),
+			SsoSessionValidityPeriod:             man.getConfigDuration("auth.sso_session_validity_period"),
+			RequireHTTPMessageSignature:          man.getConfigBool("auth.require_http_message_signature"),
+			SSORateLimitPerMinute:                man.getConfigInt("auth.sso_rate_limit_per_minute"),
+			RequireHostIdentityRenewalKeyBinding: man.getConfigBool("auth.require_host_identity_renewal_key_binding"),
 		},
 		App: AppConfig{
 			TokenKeySize:              man.getConfigInt("app.token_key_size"),
@@ -2750,12 +2782,12 @@ func (man Manager) LoadConfig() FleetConfig {
 			AppleSCEPCertBytes:                man.getConfigString("mdm.apple_scep_cert_bytes"),
 			AppleSCEPKey:                      man.getConfigString("mdm.apple_scep_key"),
 			AppleSCEPKeyBytes:                 man.getConfigString("mdm.apple_scep_key_bytes"),
-			AppleBMServerToken:                man.getConfigString("mdm.apple_bm_server_token"),
-			AppleBMServerTokenBytes:           man.getConfigString("mdm.apple_bm_server_token_bytes"),
-			AppleBMCert:                       man.getConfigString("mdm.apple_bm_cert"),
-			AppleBMCertBytes:                  man.getConfigString("mdm.apple_bm_cert_bytes"),
-			AppleBMKey:                        man.getConfigString("mdm.apple_bm_key"),
-			AppleBMKeyBytes:                   man.getConfigString("mdm.apple_bm_key_bytes"),
+			AppleBMServerToken:                man.getConfigString("mdm.apple_business_server_token"),
+			AppleBMServerTokenBytes:           man.getConfigString("mdm.apple_business_server_token_bytes"),
+			AppleBMCert:                       man.getConfigString("mdm.apple_business_cert"),
+			AppleBMCertBytes:                  man.getConfigString("mdm.apple_business_cert_bytes"),
+			AppleBMKey:                        man.getConfigString("mdm.apple_business_key"),
+			AppleBMKeyBytes:                   man.getConfigString("mdm.apple_business_key_bytes"),
 			AppleEnable:                       man.getConfigBool("mdm.apple_enable"),
 			AppleMachineInfoVerify:            man.getConfigBool("mdm.apple_machineinfo_verify"),
 			AppleSCEPSignerValidityDays:       man.getConfigInt("mdm.apple_scep_signer_validity_days"),
@@ -2834,7 +2866,7 @@ func (man Manager) LoadConfig() FleetConfig {
 		cfg.Osquery.AsyncConfigForTask(task)
 	}
 
-	return cfg
+	return cfg, nil
 }
 
 func (man Manager) loadS3Config() S3Config {

@@ -113,6 +113,12 @@ func (s *integrationMDMTestSuite) TestBootstrapPackage() {
 	require.NoError(t, err)
 	require.Equal(t, signedPkg, respBytes)
 
+	// hosts that were sent the old URL before an upgrade can still download the package
+	resp = s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/mdm/bootstrap?token=%s", metadataResp.MDMAppleBootstrapPackage.Token), nil, http.StatusOK)
+	respBytes, err = io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Equal(t, signedPkg, respBytes)
+
 	// missing package
 	metadataResp = bootstrapPackageMetadataResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/bootstrap/1/metadata", nil, http.StatusNotFound, &metadataResp)
@@ -444,7 +450,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		require.Nil(t, hostResp.Host.MDM.MacOSSetup.Result)
 
 		var hostByIdentifierResp getHostResponse
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", hostUUID), nil, http.StatusOK, &hostByIdentifierResp)
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", hostUUID), nil, http.StatusOK, &hostByIdentifierResp)
 		require.NotNil(t, hostByIdentifierResp.Host)
 		require.NotNil(t, hostByIdentifierResp.Host.MDM.MacOSSetup)
 		require.Equal(t, expectedStatus, hostByIdentifierResp.Host.MDM.MacOSSetup.BootstrapPackageStatus)

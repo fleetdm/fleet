@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -12,7 +13,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_logging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -177,6 +180,8 @@ func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, 
 		return ctxerr.Wrap(ctx, err, "create setup experience script")
 	}
 
+	logSetupExperienceScriptDeprecation(ctx)
+
 	if !changed {
 		return nil
 	}
@@ -194,6 +199,14 @@ func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, 
 	}
 
 	return nil
+}
+
+// logSetupExperienceScriptDeprecation adds the deprecation warning to the request log entry.
+func logSetupExperienceScriptDeprecation(ctx context.Context) {
+	if platform_logging.TopicEnabled(platform_logging.DeprecatedFieldTopic) {
+		logging.WithLevel(ctx, slog.LevelWarn)
+		logging.WithExtras(ctx, "deprecation_warning", "The setup experience script is deprecated. Use a script-only package instead.")
+	}
 }
 
 func (svc *Service) DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error {
@@ -223,6 +236,7 @@ func (svc *Service) DeleteSetupExperienceScript(ctx context.Context, teamID *uin
 	if err := svc.ds.DeleteSetupExperienceScript(ctx, teamID); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete setup experience script")
 	}
+	logSetupExperienceScriptDeprecation(ctx)
 
 	if err := svc.NewActivity(
 		ctx,

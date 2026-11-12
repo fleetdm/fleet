@@ -1,0 +1,1 @@
+- Fixed chart data cleanup repeatedly failing with MySQL lock wait timeouts on deployments where thousands of vulnerabilities change in the same hour.

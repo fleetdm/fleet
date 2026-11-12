@@ -187,7 +187,10 @@ func networkBlockingModeFor(devModeEnabled bool, serverConfig configpkg.ServerCo
 
 // runServeCmd is a named function so that NilAway can analyze it for nil-safety.
 func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, devLicense, devExpiredLicense bool) {
-	config := configManager.LoadConfig()
+	config, err := configManager.LoadConfig()
+	if err != nil {
+		initFatal(err, "loading config")
+	}
 
 	if dev_mode.IsEnabled {
 		applyDevFlags(&config)

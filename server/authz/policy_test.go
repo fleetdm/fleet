@@ -26,7 +26,6 @@ const (
 	run                = fleet.ActionRun
 	runNew             = fleet.ActionRunNew
 	changePwd          = fleet.ActionChangePassword
-	selectiveRead      = fleet.ActionSelectiveRead
 	selectiveList      = fleet.ActionSelectiveList
 	cancelHostActivity = fleet.ActionCancelHostActivity
 	transferHost       = fleet.ActionTransferHost
@@ -1062,19 +1061,16 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: nil, object: host, action: write, allow: false},
 		{user: nil, object: host, action: list, allow: false},
 		{user: nil, object: host, action: selectiveList, allow: false},
-		{user: nil, object: host, action: selectiveRead, allow: false},
 		{user: nil, object: host, action: cancelHostActivity, allow: false},
 		{user: nil, object: host, action: transferHost, allow: false},
 		{user: nil, object: host, action: deleteHost, allow: false},
 		{user: nil, object: hostTeam1, action: read, allow: false},
 		{user: nil, object: hostTeam1, action: write, allow: false},
-		{user: nil, object: hostTeam1, action: selectiveRead, allow: false},
 		{user: nil, object: hostTeam1, action: cancelHostActivity, allow: false},
 		{user: nil, object: hostTeam1, action: transferHost, allow: false},
 		{user: nil, object: hostTeam1, action: deleteHost, allow: false},
 		{user: nil, object: hostTeam2, action: read, allow: false},
 		{user: nil, object: hostTeam2, action: write, allow: false},
-		{user: nil, object: hostTeam2, action: selectiveRead, allow: false},
 		{user: nil, object: hostTeam2, action: cancelHostActivity, allow: false},
 		{user: nil, object: hostTeam2, action: transferHost, allow: false},
 		{user: nil, object: hostTeam2, action: deleteHost, allow: false},
@@ -1084,19 +1080,16 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: test.UserNoRoles, object: host, action: write, allow: false},
 		{user: test.UserNoRoles, object: host, action: list, allow: false},
 		{user: test.UserNoRoles, object: host, action: selectiveList, allow: false},
-		{user: test.UserNoRoles, object: host, action: selectiveRead, allow: false},
 		{user: test.UserNoRoles, object: host, action: cancelHostActivity, allow: false},
 		{user: test.UserNoRoles, object: host, action: transferHost, allow: false},
 		{user: test.UserNoRoles, object: host, action: deleteHost, allow: false},
 		{user: test.UserNoRoles, object: hostTeam1, action: read, allow: false},
 		{user: test.UserNoRoles, object: hostTeam1, action: write, allow: false},
-		{user: test.UserNoRoles, object: hostTeam1, action: selectiveRead, allow: false},
 		{user: test.UserNoRoles, object: hostTeam1, action: cancelHostActivity, allow: false},
 		{user: test.UserNoRoles, object: hostTeam1, action: transferHost, allow: false},
 		{user: test.UserNoRoles, object: hostTeam1, action: deleteHost, allow: false},
 		{user: test.UserNoRoles, object: hostTeam2, action: read, allow: false},
 		{user: test.UserNoRoles, object: hostTeam2, action: write, allow: false},
-		{user: test.UserNoRoles, object: hostTeam2, action: selectiveRead, allow: false},
 		{user: test.UserNoRoles, object: hostTeam2, action: cancelHostActivity, allow: false},
 		{user: test.UserNoRoles, object: hostTeam2, action: transferHost, allow: false},
 		{user: test.UserNoRoles, object: hostTeam2, action: deleteHost, allow: false},
@@ -1106,18 +1099,15 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: test.UserObserver, object: host, action: write, allow: false},
 		{user: test.UserObserver, object: host, action: list, allow: true},
 		{user: test.UserObserver, object: host, action: selectiveList, allow: true},
-		{user: test.UserObserver, object: host, action: selectiveRead, allow: true},
 		{user: test.UserObserver, object: host, action: cancelHostActivity, allow: false},
 		{user: test.UserObserver, object: host, action: transferHost, allow: false},
 		{user: test.UserObserver, object: host, action: deleteHost, allow: false},
 		{user: test.UserObserver, object: hostTeam1, action: read, allow: true},
-		{user: test.UserObserver, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: test.UserObserver, object: hostTeam1, action: write, allow: false},
 		{user: test.UserObserver, object: hostTeam1, action: cancelHostActivity, allow: false},
 		{user: test.UserObserver, object: hostTeam1, action: transferHost, allow: false},
 		{user: test.UserObserver, object: hostTeam1, action: deleteHost, allow: false},
 		{user: test.UserObserver, object: hostTeam2, action: read, allow: true},
-		{user: test.UserObserver, object: hostTeam2, action: selectiveRead, allow: true},
 		{user: test.UserObserver, object: hostTeam2, action: write, allow: false},
 		{user: test.UserObserver, object: hostTeam2, action: cancelHostActivity, allow: false},
 		{user: test.UserObserver, object: hostTeam2, action: transferHost, allow: false},
@@ -1128,18 +1118,15 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: test.UserObserverPlus, object: host, action: write, allow: false},
 		{user: test.UserObserverPlus, object: host, action: list, allow: true},
 		{user: test.UserObserverPlus, object: host, action: selectiveList, allow: true},
-		{user: test.UserObserverPlus, object: host, action: selectiveRead, allow: true},
 		{user: test.UserObserverPlus, object: host, action: cancelHostActivity, allow: false},
 		{user: test.UserObserverPlus, object: host, action: transferHost, allow: false},
 		{user: test.UserObserverPlus, object: host, action: deleteHost, allow: false},
 		{user: test.UserObserverPlus, object: hostTeam1, action: read, allow: true},
-		{user: test.UserObserverPlus, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: test.UserObserverPlus, object: hostTeam1, action: write, allow: false},
 		{user: test.UserObserverPlus, object: hostTeam1, action: cancelHostActivity, allow: false},
 		{user: test.UserObserverPlus, object: hostTeam1, action: transferHost, allow: false},
 		{user: test.UserObserverPlus, object: hostTeam1, action: deleteHost, allow: false},
 		{user: test.UserObserverPlus, object: hostTeam2, action: read, allow: true},
-		{user: test.UserObserverPlus, object: hostTeam2, action: selectiveRead, allow: true},
 		{user: test.UserObserverPlus, object: hostTeam2, action: write, allow: false},
 		{user: test.UserObserverPlus, object: hostTeam2, action: cancelHostActivity, allow: false},
 		{user: test.UserObserverPlus, object: hostTeam2, action: transferHost, allow: false},
@@ -1150,18 +1137,15 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: test.UserTechnician, object: host, action: write, allow: false},
 		{user: test.UserTechnician, object: host, action: list, allow: true},
 		{user: test.UserTechnician, object: host, action: selectiveList, allow: true},
-		{user: test.UserTechnician, object: host, action: selectiveRead, allow: true},
 		{user: test.UserTechnician, object: host, action: cancelHostActivity, allow: false},
 		{user: test.UserTechnician, object: host, action: transferHost, allow: true},
 		{user: test.UserTechnician, object: host, action: deleteHost, allow: true},
 		{user: test.UserTechnician, object: hostTeam1, action: read, allow: true},
-		{user: test.UserTechnician, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: test.UserTechnician, object: hostTeam1, action: write, allow: false},
 		{user: test.UserTechnician, object: hostTeam1, action: cancelHostActivity, allow: false},
 		{user: test.UserTechnician, object: hostTeam1, action: transferHost, allow: true},
 		{user: test.UserTechnician, object: hostTeam1, action: deleteHost, allow: true},
 		{user: test.UserTechnician, object: hostTeam2, action: read, allow: true},
-		{user: test.UserTechnician, object: hostTeam2, action: selectiveRead, allow: true},
 		{user: test.UserTechnician, object: hostTeam2, action: write, allow: false},
 		{user: test.UserTechnician, object: hostTeam2, action: cancelHostActivity, allow: false},
 		{user: test.UserTechnician, object: hostTeam2, action: transferHost, allow: true},
@@ -1169,7 +1153,6 @@ func TestAuthorizeHost(t *testing.T) {
 
 		// Global admin can read/write all
 		{user: test.UserAdmin, object: host, action: read, allow: true},
-		{user: test.UserAdmin, object: host, action: selectiveRead, allow: true},
 		{user: test.UserAdmin, object: host, action: write, allow: true},
 		{user: test.UserAdmin, object: host, action: list, allow: true},
 		{user: test.UserAdmin, object: host, action: selectiveList, allow: true},
@@ -1177,13 +1160,11 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: test.UserAdmin, object: host, action: transferHost, allow: true},
 		{user: test.UserAdmin, object: host, action: deleteHost, allow: true},
 		{user: test.UserAdmin, object: hostTeam1, action: read, allow: true},
-		{user: test.UserAdmin, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: test.UserAdmin, object: hostTeam1, action: write, allow: true},
 		{user: test.UserAdmin, object: hostTeam1, action: cancelHostActivity, allow: true},
 		{user: test.UserAdmin, object: hostTeam1, action: transferHost, allow: true},
 		{user: test.UserAdmin, object: hostTeam1, action: deleteHost, allow: true},
 		{user: test.UserAdmin, object: hostTeam2, action: read, allow: true},
-		{user: test.UserAdmin, object: hostTeam2, action: selectiveRead, allow: true},
 		{user: test.UserAdmin, object: hostTeam2, action: write, allow: true},
 		{user: test.UserAdmin, object: hostTeam2, action: cancelHostActivity, allow: true},
 		{user: test.UserAdmin, object: hostTeam2, action: transferHost, allow: true},
@@ -1191,7 +1172,6 @@ func TestAuthorizeHost(t *testing.T) {
 
 		// Global maintainer can read/write all
 		{user: test.UserMaintainer, object: host, action: read, allow: true},
-		{user: test.UserMaintainer, object: host, action: selectiveRead, allow: true},
 		{user: test.UserMaintainer, object: host, action: write, allow: true},
 		{user: test.UserMaintainer, object: host, action: list, allow: true},
 		{user: test.UserMaintainer, object: host, action: selectiveList, allow: true},
@@ -1199,13 +1179,11 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: test.UserMaintainer, object: host, action: transferHost, allow: true},
 		{user: test.UserMaintainer, object: host, action: deleteHost, allow: true},
 		{user: test.UserMaintainer, object: hostTeam1, action: read, allow: true},
-		{user: test.UserMaintainer, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: test.UserMaintainer, object: hostTeam1, action: write, allow: true},
 		{user: test.UserMaintainer, object: hostTeam1, action: cancelHostActivity, allow: true},
 		{user: test.UserMaintainer, object: hostTeam1, action: transferHost, allow: true},
 		{user: test.UserMaintainer, object: hostTeam1, action: deleteHost, allow: true},
 		{user: test.UserMaintainer, object: hostTeam2, action: read, allow: true},
-		{user: test.UserMaintainer, object: hostTeam2, action: selectiveRead, allow: true},
 		{user: test.UserMaintainer, object: hostTeam2, action: write, allow: true},
 		{user: test.UserMaintainer, object: hostTeam2, action: cancelHostActivity, allow: true},
 		{user: test.UserMaintainer, object: hostTeam2, action: transferHost, allow: true},
@@ -1214,7 +1192,6 @@ func TestAuthorizeHost(t *testing.T) {
 		// Global GitOps can write and selectively read all.
 		{user: test.UserGitOps, object: host, action: read, allow: false},
 		{user: test.UserGitOps, object: host, action: write, allow: true},
-		{user: test.UserGitOps, object: host, action: selectiveRead, allow: true},
 		{user: test.UserGitOps, object: host, action: list, allow: false},
 		{user: test.UserGitOps, object: host, action: selectiveList, allow: true},
 		{user: test.UserGitOps, object: host, action: cancelHostActivity, allow: false},
@@ -1222,20 +1199,17 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: test.UserGitOps, object: host, action: deleteHost, allow: true},
 		{user: test.UserGitOps, object: hostTeam1, action: read, allow: false},
 		{user: test.UserGitOps, object: hostTeam1, action: write, allow: true},
-		{user: test.UserGitOps, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: test.UserGitOps, object: hostTeam1, action: cancelHostActivity, allow: false},
 		{user: test.UserGitOps, object: hostTeam1, action: transferHost, allow: true},
 		{user: test.UserGitOps, object: hostTeam1, action: deleteHost, allow: true},
 		{user: test.UserGitOps, object: hostTeam2, action: read, allow: false},
 		{user: test.UserGitOps, object: hostTeam2, action: write, allow: true},
-		{user: test.UserGitOps, object: hostTeam2, action: selectiveRead, allow: true},
 		{user: test.UserGitOps, object: hostTeam2, action: cancelHostActivity, allow: false},
 		{user: test.UserGitOps, object: hostTeam2, action: transferHost, allow: true},
 		{user: test.UserGitOps, object: hostTeam2, action: deleteHost, allow: true},
 
 		// Team observer can read only on appropriate team
 		{user: teamObserver, object: host, action: read, allow: false},
-		{user: teamObserver, object: host, action: selectiveRead, allow: false},
 		{user: teamObserver, object: host, action: write, allow: false},
 		{user: teamObserver, object: host, action: list, allow: true},
 		{user: teamObserver, object: host, action: selectiveList, allow: true},
@@ -1243,13 +1217,11 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: teamObserver, object: host, action: transferHost, allow: false},
 		{user: teamObserver, object: host, action: deleteHost, allow: false},
 		{user: teamObserver, object: hostTeam1, action: read, allow: true},
-		{user: teamObserver, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: teamObserver, object: hostTeam1, action: write, allow: false},
 		{user: teamObserver, object: hostTeam1, action: cancelHostActivity, allow: false},
 		{user: teamObserver, object: hostTeam1, action: transferHost, allow: false},
 		{user: teamObserver, object: hostTeam1, action: deleteHost, allow: false},
 		{user: teamObserver, object: hostTeam2, action: read, allow: false},
-		{user: teamObserver, object: hostTeam2, action: selectiveRead, allow: false},
 		{user: teamObserver, object: hostTeam2, action: write, allow: false},
 		{user: teamObserver, object: hostTeam2, action: cancelHostActivity, allow: false},
 		{user: teamObserver, object: hostTeam2, action: transferHost, allow: false},
@@ -1257,7 +1229,6 @@ func TestAuthorizeHost(t *testing.T) {
 
 		// Team observer+ can read only on appropriate team
 		{user: teamObserverPlus, object: host, action: read, allow: false},
-		{user: teamObserverPlus, object: host, action: selectiveRead, allow: false},
 		{user: teamObserverPlus, object: host, action: write, allow: false},
 		{user: teamObserverPlus, object: host, action: list, allow: true},
 		{user: teamObserverPlus, object: host, action: selectiveList, allow: true},
@@ -1265,13 +1236,11 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: teamObserverPlus, object: host, action: transferHost, allow: false},
 		{user: teamObserverPlus, object: host, action: deleteHost, allow: false},
 		{user: teamObserverPlus, object: hostTeam1, action: read, allow: true},
-		{user: teamObserverPlus, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: teamObserverPlus, object: hostTeam1, action: write, allow: false},
 		{user: teamObserverPlus, object: hostTeam1, action: cancelHostActivity, allow: false},
 		{user: teamObserverPlus, object: hostTeam1, action: transferHost, allow: false},
 		{user: teamObserverPlus, object: hostTeam1, action: deleteHost, allow: false},
 		{user: teamObserverPlus, object: hostTeam2, action: read, allow: false},
-		{user: teamObserverPlus, object: hostTeam2, action: selectiveRead, allow: false},
 		{user: teamObserverPlus, object: hostTeam2, action: write, allow: false},
 		{user: teamObserverPlus, object: hostTeam2, action: cancelHostActivity, allow: false},
 		{user: teamObserverPlus, object: hostTeam2, action: transferHost, allow: false},
@@ -1279,7 +1248,6 @@ func TestAuthorizeHost(t *testing.T) {
 
 		// Team maintainer can read/write only on appropriate team
 		{user: teamMaintainer, object: host, action: read, allow: false},
-		{user: teamMaintainer, object: host, action: selectiveRead, allow: false},
 		{user: teamMaintainer, object: host, action: write, allow: false},
 		{user: teamMaintainer, object: host, action: list, allow: true},
 		{user: teamMaintainer, object: host, action: selectiveList, allow: true},
@@ -1287,7 +1255,6 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: teamMaintainer, object: host, action: transferHost, allow: false},
 		{user: teamMaintainer, object: host, action: deleteHost, allow: false},
 		{user: teamMaintainer, object: hostTeam1, action: read, allow: true},
-		{user: teamMaintainer, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: teamMaintainer, object: hostTeam1, action: write, allow: true},
 		{user: teamMaintainer, object: hostTeam1, action: cancelHostActivity, allow: true},
 		{user: teamMaintainer, object: hostTeam1, action: transferHost, allow: true},
@@ -1300,7 +1267,6 @@ func TestAuthorizeHost(t *testing.T) {
 
 		// Team admin can read/write only on appropriate team
 		{user: teamAdmin, object: host, action: read, allow: false},
-		{user: teamAdmin, object: host, action: selectiveRead, allow: false},
 		{user: teamAdmin, object: host, action: write, allow: false},
 		{user: teamAdmin, object: host, action: list, allow: true},
 		{user: teamAdmin, object: host, action: selectiveList, allow: true},
@@ -1321,28 +1287,24 @@ func TestAuthorizeHost(t *testing.T) {
 		// Team GitOps can cannot read hosts, but it can write and selectively read them.
 		{user: teamGitOps, object: host, action: read, allow: false},
 		{user: teamGitOps, object: host, action: write, allow: false},
-		{user: teamGitOps, object: host, action: selectiveRead, allow: false},
 		{user: teamGitOps, object: host, action: cancelHostActivity, allow: false},
 		{user: teamGitOps, object: host, action: transferHost, allow: false},
 		{user: teamGitOps, object: host, action: deleteHost, allow: false},
 		{user: teamGitOps, object: hostTeam1, action: read, allow: false},
 		{user: teamGitOps, object: hostTeam1, action: list, allow: false},
 		{user: teamGitOps, object: hostTeam1, action: selectiveList, allow: true},
-		{user: teamGitOps, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: teamGitOps, object: hostTeam1, action: write, allow: false},
 		{user: teamGitOps, object: hostTeam1, action: cancelHostActivity, allow: false},
 		{user: teamGitOps, object: hostTeam1, action: transferHost, allow: true},
 		{user: teamGitOps, object: hostTeam1, action: deleteHost, allow: true},
 		{user: teamGitOps, object: hostTeam2, action: read, allow: false},
 		{user: teamGitOps, object: hostTeam2, action: write, allow: false},
-		{user: teamGitOps, object: hostTeam2, action: selectiveRead, allow: false},
 		{user: teamGitOps, object: hostTeam2, action: cancelHostActivity, allow: false},
 		{user: teamGitOps, object: hostTeam2, action: transferHost, allow: false},
 		{user: teamGitOps, object: hostTeam2, action: deleteHost, allow: false},
 
 		// Team technician can transfer hosts of their own team only.
 		{user: teamTechnician, object: host, action: read, allow: false},
-		{user: teamTechnician, object: host, action: selectiveRead, allow: false},
 		{user: teamTechnician, object: host, action: write, allow: false},
 		{user: teamTechnician, object: host, action: list, allow: true},
 		{user: teamTechnician, object: host, action: selectiveList, allow: true},
@@ -1350,13 +1312,11 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: teamTechnician, object: host, action: transferHost, allow: false},
 		{user: teamTechnician, object: host, action: deleteHost, allow: false},
 		{user: teamTechnician, object: hostTeam1, action: read, allow: true},
-		{user: teamTechnician, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: teamTechnician, object: hostTeam1, action: write, allow: false},
 		{user: teamTechnician, object: hostTeam1, action: cancelHostActivity, allow: false},
 		{user: teamTechnician, object: hostTeam1, action: transferHost, allow: true},
 		{user: teamTechnician, object: hostTeam1, action: deleteHost, allow: true},
 		{user: teamTechnician, object: hostTeam2, action: read, allow: false},
-		{user: teamTechnician, object: hostTeam2, action: selectiveRead, allow: false},
 		{user: teamTechnician, object: hostTeam2, action: write, allow: false},
 		{user: teamTechnician, object: hostTeam2, action: cancelHostActivity, allow: false},
 		{user: teamTechnician, object: hostTeam2, action: transferHost, allow: false},
@@ -2726,7 +2686,7 @@ func TestAuthorizeMDMAppleManualEnrollmentProfile(t *testing.T) {
 func TestAuthorizeAppleBM(t *testing.T) {
 	t.Parallel()
 
-	abm := &fleet.AppleBM{}
+	abm := &fleet.ABMToken{}
 	runTestCases(t, []authTestCase{
 		{user: nil, object: abm, action: list, allow: false},
 		{user: test.UserNoRoles, object: abm, action: list, allow: false},
@@ -2984,9 +2944,9 @@ func TestAuthorizeMDMCommand(t *testing.T) {
 		{user: test.UserTechnician, object: team1Command, action: write, allow: false},
 		{user: test.UserTechnician, object: team1Command, action: read, allow: true},
 
-		{user: test.UserGitOps, object: globalCommand, action: write, allow: true},
+		{user: test.UserGitOps, object: globalCommand, action: write, allow: false},
 		{user: test.UserGitOps, object: globalCommand, action: read, allow: false},
-		{user: test.UserGitOps, object: team1Command, action: write, allow: true},
+		{user: test.UserGitOps, object: team1Command, action: write, allow: false},
 		{user: test.UserGitOps, object: team1Command, action: read, allow: false},
 
 		{user: test.UserTeamAdminTeam1, object: globalCommand, action: write, allow: false},
@@ -3031,7 +2991,7 @@ func TestAuthorizeMDMCommand(t *testing.T) {
 
 		{user: test.UserTeamGitOpsTeam1, object: globalCommand, action: write, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: globalCommand, action: read, allow: false},
-		{user: test.UserTeamGitOpsTeam1, object: team1Command, action: write, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: team1Command, action: write, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: team1Command, action: read, allow: false},
 
 		{user: test.UserTeamGitOpsTeam2, object: globalCommand, action: write, allow: false},
@@ -3635,6 +3595,8 @@ func TestAuthorizeCustomHostVitals(t *testing.T) {
 	t.Parallel()
 
 	customHostVital := &fleet.CustomHostVital{}
+	hostVitalValueTeam1 := &fleet.HostCustomHostVitalValue{TeamID: new(uint(1))}
+	hostVitalValueNoTeam := &fleet.HostCustomHostVitalValue{}
 	runTestCases(t, []authTestCase{
 		{user: nil, object: customHostVital, action: read, allow: false},
 
@@ -3671,6 +3633,14 @@ func TestAuthorizeCustomHostVitals(t *testing.T) {
 		{user: test.UserTeamObserverTeam1, object: customHostVital, action: write, allow: false},
 		{user: test.UserTeamTechnicianTeam1, object: customHostVital, action: read, allow: true},
 		{user: test.UserTeamTechnicianTeam1, object: customHostVital, action: write, allow: false},
+
+		// Setting a host's value is scoped by the host's fleet.
+		{user: test.UserAdmin, object: hostVitalValueTeam1, action: write, allow: true},
+		{user: test.UserTeamAdminTeam1, object: hostVitalValueTeam1, action: write, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: hostVitalValueTeam1, action: write, allow: true},
+		{user: test.UserTeamTechnicianTeam1, object: hostVitalValueTeam1, action: write, allow: false},
+		{user: test.UserTeamAdminTeam2, object: hostVitalValueTeam1, action: write, allow: false},
+		{user: test.UserTeamAdminTeam1, object: hostVitalValueNoTeam, action: write, allow: false},
 	})
 }
 

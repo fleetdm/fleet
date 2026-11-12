@@ -67,7 +67,7 @@ Most organizations handle these challenges on macOS and Windows by using platfor
 
 The market for device management solutions focused on macOS and Windows is enormous. Organizations spend billions of dollars every year to secure these computers. An entire universe of solutions exists, ranging from patch management, device management, remote control, endpoint protection and more. The focus was on Windows and macOS because that’s what was demanded. Now, buyers are demanding more.
 
-The market for enterprise Linux management tools has historically been small. This has meant a lack of options. Fleet is a modern, multi-platform device management solution based on open-source technology that provides [full management coverage for Linux devices](https://fleetdm.com/linux-management). In 2026, it’s time to get serious about managing Linux. Contact [Fleet](https://fleetdm.com/contact) today to learn more. 
+The market for enterprise Linux management tools has historically been small. This has meant a lack of options. Fleet is a modern, multi-platform device management solution based on open-source technology that provides [full management coverage for Linux devices](https://fleetdm.com/linux). In 2026, it’s time to get serious about managing Linux. Contact [Fleet](https://fleetdm.com/contact) today to learn more. 
 
 The [next article](https://fleetdm.com/articles/automated-provisioning-for-linux-desktop-in-the-enterprise) in this series will cover the value proposition and importance of automating Linux endpoint provisioning. 
 

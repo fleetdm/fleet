@@ -78,7 +78,6 @@
     ],
     "deferred_save_host": false,
     "query_reports_disabled": false,
-    "scripts_disabled": false,
     "ai_features_disabled": false,
     "mcp_disabled": false,
     "query_report_cap": 1
@@ -274,7 +273,7 @@
       "mode": "voluntary",
       "webhook_url": "https://some-macos-migration-webhook-url.com"
     },
-    "windows_migration_enabled": true,
+    "windows_mdm_migration_enabled": true,
     "enable_turn_on_windows_mdm_manually": false,
     "windows_entra_tenant_ids": [
       "5b84b6dd-d257-415e-b8b4-0240666ba4d4",
@@ -292,7 +291,7 @@
       "metadata_url": "http://some-mdm-metadata-url.com",
       "idp_name": "some-other-idp-name"
     },
-    "windows_enabled_and_configured": true,
+    "windows_mdm_enabled": true,
     "name_template": "No team Mac $FLEET_VAR_HOST_UUID",
     "windows_settings": {
       "custom_settings": [],
