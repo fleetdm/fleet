@@ -1,0 +1,1 @@
+- Added a link to the `fleetctl trigger` guide in the `--name` flag help text.
