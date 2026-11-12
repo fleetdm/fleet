@@ -87,10 +87,15 @@ export const addGravatarUrlToResource = (resource: any): any => {
   };
 };
 
-/** Removes Apple OS Prefix from host.os_version. */
-export const removeOSPrefix = (version: string): string => {
-  return version.replace(/^(macOS |iOS |iPadOS )/i, "");
-};
+/** A host's operating system as the UI shows it, e.g. "macOS 15.2". Unknown parts (empty, or normalized to the
+ * empty-cell value) are left out. */
+export const getHostOSDisplayName = (
+  osName?: string,
+  osVersion?: string
+): string =>
+  [osName, osVersion]
+    .filter((part) => part && part !== DEFAULT_EMPTY_CELL_VALUE)
+    .join(" ");
 
 /** Returns 1 if first version is newer, -1 if first version is older, and 0 if equal  */
 export const compareVersions = (version1: string, version2: string) => {
@@ -1054,7 +1059,7 @@ export const generateGenericLearnMoreErrMsg = (errMsg: string) => {
 
 export default {
   addGravatarUrlToResource,
-  removeOSPrefix,
+  getHostOSDisplayName,
   compareVersions,
   formatLabelResponse,
   formatFloatAsPercentage,

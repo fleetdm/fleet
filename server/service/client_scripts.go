@@ -66,13 +66,6 @@ func (c *Client) runHostScript(verb, path string, hostID uint, scriptContents []
 			return nil, fmt.Errorf("decoding %s %s response: %w, body: %s", verb, path, err, b)
 		}
 	case http.StatusForbidden:
-		errMsg, err := extractServerErrMsg(verb, path, res)
-		if err != nil {
-			return nil, err
-		}
-		if strings.Contains(errMsg, fleet.RunScriptScriptsDisabledGloballyErrMsg) {
-			return nil, errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg)
-		}
 		return nil, errors.New(fleet.RunScriptForbiddenErrMsg)
 	// It's possible we get a GatewayTimeout error message from nginx or another
 	// proxy server, so we want to return a more helpful error message in that

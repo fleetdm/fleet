@@ -3,6 +3,7 @@
   "slug": "spotify/windows",
   "package_identifier": "Spotify.Spotify",
   "unique_identifier": "Spotify",
+  "open_process_names": ["spotify.exe", "spotifywebhelper.exe"],
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/spotify_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/spotify_uninstall.ps1",
   "installer_arch": "x64",

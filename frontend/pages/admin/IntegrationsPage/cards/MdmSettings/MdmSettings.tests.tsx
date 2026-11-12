@@ -62,7 +62,7 @@ describe("MdmSettings end user agreement section", () => {
     renderPage({
       enabled_and_configured: false,
       apple_bm_enabled_and_configured: false,
-      windows_enabled_and_configured: true,
+      windows_mdm_enabled: true,
       android_enabled_and_configured: false,
     });
 
@@ -76,7 +76,7 @@ describe("MdmSettings end user agreement section", () => {
     renderPage({
       enabled_and_configured: true,
       apple_bm_enabled_and_configured: true,
-      windows_enabled_and_configured: false,
+      windows_mdm_enabled: false,
     });
 
     expect(await screen.findByText(SECTION_TITLE)).toBeInTheDocument();
@@ -86,7 +86,7 @@ describe("MdmSettings end user agreement section", () => {
     renderPage({
       enabled_and_configured: true,
       apple_bm_enabled_and_configured: false,
-      windows_enabled_and_configured: false,
+      windows_mdm_enabled: false,
       android_enabled_and_configured: true,
     });
 
@@ -101,7 +101,7 @@ describe("MdmSettings end user agreement section", () => {
       {
         enabled_and_configured: false,
         apple_bm_enabled_and_configured: false,
-        windows_enabled_and_configured: true,
+        windows_mdm_enabled: true,
       },
       false
     );
@@ -121,7 +121,7 @@ describe("MdmSettings end user agreement section", () => {
     const { user } = renderPage({
       enabled_and_configured: false,
       apple_bm_enabled_and_configured: false,
-      windows_enabled_and_configured: true,
+      windows_mdm_enabled: true,
     });
 
     expect(await screen.findByText("terms.md")).toBeInTheDocument();

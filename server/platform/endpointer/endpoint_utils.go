@@ -55,6 +55,25 @@ type fieldPair struct {
 	V  reflect.Value
 }
 
+// expectsJSONBody reports whether a request field makes the JSON body (and its
+// cross-site Content-Type check) required. A field tagged only `json:"-"` is
+// server-internal state shielded from the body, not a request input, so it
+// must not force GET requests to carry one. `json:"-"` combined with a url or
+// query tag keeps counting, since some requests rely on it for the
+// Content-Type check.
+func expectsJSONBody(sf reflect.StructField) bool {
+	jsonTag, ok := sf.Tag.Lookup("json")
+	if !ok {
+		return false
+	}
+	if jsonTag != "-" {
+		return true
+	}
+	_, hasURL := sf.Tag.Lookup("url")
+	_, hasQuery := sf.Tag.Lookup("query")
+	return hasURL || hasQuery
+}
+
 // allFields returns all the fields for a struct, including the ones from embedded structs
 func allFields(ifv reflect.Value) []fieldPair {
 	if ifv.Kind() == reflect.Ptr {
@@ -580,6 +599,7 @@ func MakeDecoder(
 ) kithttp.DecodeRequestFunc {
 	// Infer alias rules from `renameto` struct tags on the request type.
 	aliasRules := ExtractAliasRules(iface)
+	removedRules := ExtractRemovedKeyRules(iface)
 	if iface == nil {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
 			return nil, nil
@@ -674,9 +694,9 @@ func MakeDecoder(
 
 			// Insert the JSON key rewriter into the reader pipeline
 			// (after gzip decompression, before JSON decoding) to rename
-			// deprecated field names and detect alias conflicts.
-			if len(aliasRules) > 0 {
-				rewriter = NewJSONKeyRewriteReader(body, aliasRules)
+			// deprecated field names, detect alias conflicts and reject removed keys.
+			if len(aliasRules) > 0 || len(removedRules) > 0 {
+				rewriter = NewJSONKeyRewriteReader(body, aliasRules, removedRules...)
 				//nolint:errcheck // nothing to do on .Close() error.
 				defer rewriter.Close()
 				body = rewriter
@@ -686,6 +706,9 @@ func MakeDecoder(
 				req := v.Interface()
 				err := jsonUnmarshal(body, req)
 				if err != nil {
+					if rke, ok := errors.AsType[*RemovedKeyError](err); ok {
+						return nil, rke
+					}
 					// Check for alias conflict errors from the rewriter.
 					var ace *AliasConflictError
 					if errors.As(err, &ace) {
@@ -739,7 +762,7 @@ func MakeDecoder(
 
 			}
 
-			_, jsonExpected := fp.Sf.Tag.Lookup("json")
+			jsonExpected := expectsJSONBody(fp.Sf)
 			if jsonExpected && nilBody {
 				return nil, &platform_http.BadRequestError{Message: "Expected JSON Body"}
 			}
@@ -759,6 +782,9 @@ func MakeDecoder(
 		if isBodyDecoder != nil && isBodyDecoder(v) {
 			err := decodeBody(ctx, r, v, body)
 			if err != nil {
+				if rke, ok := errors.AsType[*RemovedKeyError](err); ok {
+					return nil, rke
+				}
 				// Check for alias conflict errors from the rewriter.
 				var ace *AliasConflictError
 				if errors.As(err, &ace) {

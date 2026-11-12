@@ -10,7 +10,7 @@ apple_settings:
     path: ../lib/some_team/profiles/team-macos-mobileconfig-profile.mobileconfig
   enable_disk_encryption: true
   enable_escrow_disk_encryption_key: true
-enable_recovery_lock_password: false
+macos_recovery_lock_password_enabled: false
 ios_updates:
   deadline: "2021-12-31"
   deadline_days:

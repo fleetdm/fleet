@@ -1302,11 +1302,6 @@ describe("Host Actions Dropdown", () => {
           app: {
             isGlobalAdmin: true,
             currentUser: createMockUser(),
-            config: {
-              server_settings: {
-                scripts_disabled: false, // scriptsGloballyDisabled = false
-              },
-            },
           },
         },
       });
@@ -1334,11 +1329,6 @@ describe("Host Actions Dropdown", () => {
           app: {
             isGlobalAdmin: true,
             currentUser: createMockUser(),
-            config: {
-              server_settings: {
-                scripts_disabled: false,
-              },
-            },
           },
         },
       });
@@ -1366,11 +1356,6 @@ describe("Host Actions Dropdown", () => {
           app: {
             isGlobalAdmin: true,
             currentUser: createMockUser(),
-            config: {
-              server_settings: {
-                scripts_disabled: false,
-              },
-            },
           },
         },
       });
@@ -1398,11 +1383,6 @@ describe("Host Actions Dropdown", () => {
           app: {
             isGlobalAdmin: true,
             currentUser: createMockUser(),
-            config: {
-              server_settings: {
-                scripts_disabled: false,
-              },
-            },
           },
         },
       });
@@ -1449,11 +1429,6 @@ describe("Host Actions Dropdown", () => {
           app: {
             isGlobalAdmin: true,
             currentUser: createMockUser(),
-            config: {
-              server_settings: {
-                scripts_disabled: false,
-              },
-            },
           },
         },
       });
@@ -1482,49 +1457,6 @@ describe("Host Actions Dropdown", () => {
       expect(
         screen.getByText(/fleetd agent with --enable-scripts/i)
       ).toBeInTheDocument();
-    });
-
-    it("renders the Run script action as disabled when scripts are disabled globally", async () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isGlobalAdmin: true,
-            currentUser: createMockUser(),
-            config: {
-              server_settings: {
-                scripts_disabled: true, // scriptsGloballyDisabled = true
-              },
-            },
-          },
-        },
-      });
-
-      const { user } = render(
-        <HostActionsDropdown
-          hostTeamId={null}
-          onSelect={noop}
-          hostStatus="online"
-          isConnectedToFleetMdm
-          hostPlatform="darwin"
-          hostMdmEnrollmentStatus={null}
-          hostMdmDeviceStatus="unlocked"
-          hostScriptsEnabled
-        />
-      );
-
-      await user.click(screen.getByText("Actions"));
-
-      await waitFor(() => {
-        waitFor(() => {
-          user.hover(screen.getByText("Run script"));
-        });
-
-        expect(
-          screen.getByText(
-            /Running scripts is disabled in organization settings./i
-          )
-        ).toBeInTheDocument();
-      });
     });
 
     it("does not render the Run script action for ChromeOS", async () => {

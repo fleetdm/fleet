@@ -565,7 +565,6 @@ const routes = (
                   <Route path="users" component={LazyAdminManageUsersPage} />
                 </Route>
                 <Route component={PremiumRoutes}>
-                  <Redirect from="teams" to="fleets" />
                   <Route path="fleets" component={LazyAdminManageFleetsPage} />
                 </Route>
               </Route>
@@ -620,19 +619,12 @@ const routes = (
               </Route>
             </Route>
 
-            <Redirect from="teams" to="fleets" />
-            <Redirect from="teams/users" to="fleets/users" />
-            <Redirect from="teams/options" to="fleets/options" />
-            <Redirect from="teams/settings" to="fleets/settings" />
             <Route path="fleets" component={LazyTeamDetailsWrapper}>
               <Redirect from="members" to="users" />
               <Route path="users" component={LazyUsersPage} />
               <Route path="options" component={LazyAgentOptionsPage} />
               <Route path="settings" component={LazyTeamSettings} />
             </Route>
-            <Redirect from="teams/:team_id" to="fleets" />
-            <Redirect from="teams/:team_id/users" to="fleets" />
-            <Redirect from="teams/:team_id/options" to="fleets" />
           </Route>
           <Route path="labels">
             <IndexRedirect to="manage" />

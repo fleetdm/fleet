@@ -2522,7 +2522,7 @@ func testSoftwareTitleHostCount(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 
-	_, err = ds.applyChangesForNewSoftwareDB(ctx, host1.ID, []fleet.Software{*updateSw})
+	_, err = ds.applyChangesForNewSoftwareDB(ctx, host1.ID, []fleet.Software{*updateSw}, fleet.UpdateHostSoftwareOptions{})
 	require.NoError(t, err)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
