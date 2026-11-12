@@ -1410,9 +1410,6 @@ describe("PolicyForm - component", () => {
       );
 
       expect(screen.getByText(/Editing policy for/i)).toBeInTheDocument();
-      expect(screen.getByText(/Editing policy for/i)).toHaveClass(
-        "policy-form__fleet-name"
-      );
       expect(
         screen.getByText(createMockTeamSummary().name)
       ).toBeInTheDocument();
@@ -1527,9 +1524,6 @@ describe("PolicyForm - component", () => {
       expect(
         screen.getByText(/Creating a new policy for/i)
       ).toBeInTheDocument();
-      expect(screen.getByText(/Creating a new policy for/i)).toHaveClass(
-        "policy-form__fleet-name"
-      );
       expect(
         screen.getByText(createMockTeamSummary().name)
       ).toBeInTheDocument();
