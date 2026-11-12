@@ -282,15 +282,12 @@ func (e *GoogleConditionalAccessDeviceUserConflictError) Error() string {
 	return "This Google device user is already registered to another host."
 }
 
-// GoogleConditionalAccessDeviceStatus is the Google sign-in state of an iOS or iPadOS
-// host, as the Self-service web clip reads it on open.
+// GoogleConditionalAccessDeviceStatus is what the Self-service web clip of an iOS or
+// iPadOS host reads on open.
 type GoogleConditionalAccessDeviceStatus struct {
-	Enabled      bool `json:"enabled"`
-	Eligible     bool `json:"eligible"`
-	Registered   bool `json:"registered"`
-	Managed      bool `json:"managed"`
-	RetryBlocked bool `json:"retry_blocked"`
-	// SignInURL is set for hosts that should sign in.
+	// SignInURL is fleetdm.com's sign-in page, set when the host should sign in to Google
+	// now. It is empty for a host that is registered, isn't eligible, or started too many
+	// sign-ins without finishing one.
 	SignInURL string `json:"sign_in_url,omitempty"`
 }
 

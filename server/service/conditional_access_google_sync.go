@@ -367,22 +367,41 @@ func (s *GoogleConditionalAccessSyncer) migrateBookmarkHost(ctx context.Context,
 		s.logger.DebugContext(ctx, "list google device users of bookmark-era host", "host_uuid", h.HostUUID, "err", err)
 		return nil
 	}
-	err = s.ds.RecordGoogleConditionalAccessRegistration(ctx, h.HostUUID, run.settings.CustomerID, names)
-	if conflict, ok := errors.AsType[*fleet.GoogleConditionalAccessDeviceUserConflictError](err); ok {
-		s.logger.WarnContext(ctx, "bookmark-era google device user registered to another host",
-			"host_uuid", h.HostUUID, "device_user_name", conflict.Name)
+	recorded, err := s.recordNames(ctx, run, h.HostUUID, names)
+	if err != nil {
+		return err
+	}
+	if !recorded {
 		skip()
 		return nil
 	}
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "record bookmark-era google registration")
+	return s.markNames(ctx, run, h.HostUUID, names)
+}
+
+// recordNames stores the names the cron found for a host. It reports false, and stores
+// nothing, when one of them is stored on another host.
+func (s *GoogleConditionalAccessSyncer) recordNames(ctx context.Context, run *googleSyncRun, hostUUID string, names []string) (bool, error) {
+	err := s.ds.RecordGoogleConditionalAccessRegistration(ctx, hostUUID, run.settings.CustomerID, names)
+	if conflict, ok := errors.AsType[*fleet.GoogleConditionalAccessDeviceUserConflictError](err); ok {
+		s.logger.WarnContext(ctx, "google device user registered to another host",
+			"host_uuid", hostUUID, "device_user_name", conflict.Name)
+		return false, nil
 	}
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "record google registration")
+	}
+	return true, nil
+}
+
+// markNames marks the names just stored on a host. A failed mark stays pending with its
+// error and is retried by a later run.
+func (s *GoogleConditionalAccessSyncer) markNames(ctx context.Context, run *googleSyncRun, hostUUID string, names []string) error {
 	for _, name := range names {
-		if _, err := markGoogleDeviceUser(ctx, s.ds, run.ci, name, h.HostUUID); err != nil {
+		if _, err := markGoogleDeviceUser(ctx, s.ds, run.ci, name, hostUUID); err != nil {
 			if conditional_access_google.IsAuthError(err) {
 				return err
 			}
-			s.logger.WarnContext(ctx, "mark bookmark-era google device user", "device_user_name", name, "err", err)
+			s.logger.WarnContext(ctx, "mark google device user", "host_uuid", hostUUID, "device_user_name", name, "err", err)
 		}
 	}
 	return nil
@@ -440,26 +459,15 @@ func (s *GoogleConditionalAccessSyncer) resolveAndroidHost(ctx context.Context, 
 		return countAttempt()
 	}
 
-	err = s.ds.RecordGoogleConditionalAccessRegistration(ctx, h.HostUUID, customerID, names)
-	if conflict, ok := errors.AsType[*fleet.GoogleConditionalAccessDeviceUserConflictError](err); ok {
-		s.logger.WarnContext(ctx, "android host's google device user registered to another host",
-			"host_uuid", h.HostUUID, "device_user_name", conflict.Name)
+	recorded, err := s.recordNames(ctx, run, h.HostUUID, names)
+	if err != nil {
+		return err
+	}
+	if !recorded {
 		return countAttempt()
 	}
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "record android google registration")
-	}
 	s.logAndroidRegistration(ctx, h, customerID)
-
-	for _, name := range names {
-		if _, err := markGoogleDeviceUser(ctx, s.ds, run.ci, name, h.HostUUID); err != nil {
-			if conditional_access_google.IsAuthError(err) {
-				return err
-			}
-			s.logger.WarnContext(ctx, "mark android host's google device user", "device_user_name", name, "err", err)
-		}
-	}
-	return nil
+	return s.markNames(ctx, run, h.HostUUID, names)
 }
 
 // logAndroidRegistration logs the activity of a registration. A failure doesn't stop the

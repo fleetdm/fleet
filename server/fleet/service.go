@@ -1734,7 +1734,7 @@ type Service interface {
 	// integration off and deletes the key. Nothing is unmarked in Google, and the device
 	// rows are kept for a re-add for the same customer.
 	DeleteGoogleConditionalAccess(ctx context.Context) error
-	// GetGoogleConditionalAccessDeviceStatus returns the Google sign-in state of the
+	// GetGoogleConditionalAccessDeviceStatus returns the Google sign-in URL of the
 	// authenticated host, counting an attempt when it hands out a sign-in.
 	GetGoogleConditionalAccessDeviceStatus(ctx context.Context, host *Host) (*GoogleConditionalAccessDeviceStatus, error)
 	// GoogleConditionalAccessSignInRequired reports whether the Self-service web clip of

@@ -1259,7 +1259,8 @@ func (s *integrationEnterpriseTestSuite) TestHostGoogleDeviceID() {
 	require.Equal(t, []string{"devices/device-a/deviceUsers/1 " + iosHost.UUID, "devices/device-a/deviceUsers/2 " + iosHost.UUID},
 		g.client.devCalls().managed)
 	// the host reads as registered, so opening Self-service starts no sign-in
-	require.Equal(t, fleet.GoogleConditionalAccessDeviceStatus{Enabled: true, Eligible: true, Registered: true, Managed: true}, g.iosStatus(iosHost))
+	require.Empty(t, g.iosStatus(iosHost).SignInURL)
+	require.True(t, g.managed(iosHost))
 
 	// repeating the same value is idempotent and doesn't log another activity
 	putResp = putHostGoogleDeviceIDResponse{}

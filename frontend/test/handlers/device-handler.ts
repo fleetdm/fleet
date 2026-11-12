@@ -153,11 +153,6 @@ export const googleConditionalAccessHandler = (
 ) =>
   http.get(baseUrl("/device/:token/conditional_access/google"), () =>
     HttpResponse.json<IGetDeviceGoogleConditionalAccessResponse>({
-      enabled: false,
-      eligible: false,
-      registered: false,
-      managed: false,
-      retry_blocked: false,
       ...overrides,
     })
   );
