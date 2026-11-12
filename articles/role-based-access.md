@@ -110,7 +110,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Edit [OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                                 |          |            |            | ✅         | ✅    | ✅      |
 | View all [OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                             |          |            | ✅         | ✅         | ✅    | ✅      |
 | Edit [setup experience](https://fleetdm.com/guides/setup-experience)\*                                                                     |          |            |            | ✅         | ✅    | ✅      |
-| Add and edit identity provider for IdP authentication, end user license agreement (EULA), and end user migration workflow\*           |          |            |            |            | ✅    |         |
+| Add and edit identity provider for IdP authentication, end user license agreement (EULA), and end user migration workflow\*                |          |            |            |            | ✅    |         |
 | Add and edit certificate authorities (CA)\*                                                                                                |          |            |            |            | ✅    | ✅      |
 | View certificate authorities (CA)\*                                                                                                        |          |            |            | ✅         | ✅    | ✅      |
 | View certificate authority secrets (CA)\*                                                                                                  |          |            |            |            | ✅    | ✅      |
@@ -130,6 +130,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Create, edit, and delete custom host vitals                                                                                                |          |            |            | ✅         | ✅    | ✅      |
 | Set custom host vital values on hosts                                                                                                      |          |            |            | ✅         | ✅    |         |
 | Clear iOS/iPadOS passcodes from hosts                                                                                                      |          |            |✅          | ✅         | ✅    |         |
+| Manage AI provider settings                                                                                                                |          |            |            |            | ✅    | ✅      |
 
 \* Applies only to Fleet Premium
 

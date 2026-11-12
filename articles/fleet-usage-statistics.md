@@ -49,6 +49,7 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "numHostsNotResponding": 9,
   "numHostsFleetDesktopEnabled": 999,
   "aiFeaturesDisabled": true,
+  "aiProviderName": "fleet",
   "maintenanceWindowsEnabled": true,
   "maintenanceWindowsConfigured": true,
   "resultLogDestination": "firehose",

@@ -1980,6 +1980,14 @@ None.
     "gitops_mode_enabled": false,
     "repository_url": ""
   },
+  "ai_provider": {
+    "provider": "anthropic",
+    "api_key": "********",
+    "models": {
+      "low": "claude-haiku-5-5",
+      "high": "claude-opus-5-5"
+    }
+  },
   "webhook_settings": {
     "host_status_webhook": {
       "enable_host_status_webhook": true,
@@ -2108,7 +2116,7 @@ Modifies the Fleet's configuration with the supplied information.
 | agent_options            | objects | body  | The agent_options spec that is applied to all hosts.  |
 | fleet_desktop            | object  | body  | See [fleet_desktop](#fleet-desktop).                                                                                                 |
 | webhook_settings         | object  | body  | See [webhook_settings](#webhook-settings).                                                                                           |
-| integrations             | object  | body  | See [integrations](#integrations).                                                                                           |
+| integrations             | object  | body  | See [integrations](#integrations).                                                                                                   |
 | gitops                   | object  | body  | See [gitops](#gitops).                                                                                                               |
 | mdm                      | object  | body  | See [mdm](#mdm).                                                                                                                     |
 | conditional_access       | object  | body  | See [conditional_access](#conditional-access).    |
@@ -2117,6 +2125,7 @@ Modifies the Fleet's configuration with the supplied information.
 | yara_rules               | array   | body  | A list of YARA rule files to add.                                                                                                    |
 | force                    | boolean | query | Whether to force-apply the agent options even if there are validation errors.                                                        |
 | dry_run                  | boolean | query | Whether to validate the configuration and return any validation errors **without** applying changes.                                 |
+| ai_provider              | object  | body  | See [ai_provider](#ai-provider).                                                                                                     |
 
 
 #### Example
@@ -2663,6 +2672,32 @@ _Available in Fleet Premium._
   "gitops": {
     "gitops_mode_enabled": true,
     "repository_url": "https://github.com/exampleorg/it-and-security"
+  }
+}
+```
+
+#### ai_provider
+
+| Name                  | Type    | Description   |
+| --------------------- | ------- | -------------------------------------------------------------------------------- |
+| provider              | string  | The AI provider used by the AI profile builder. Valid values: `anthropic` and `openai`. When empty, Fleet uses its built-in AI. |
+| api_key               | string  | **Required.** The provider's API key. |
+| models.low            | string  | Model ID used for description, name, and Android profile generation. |
+| models.high           | string  | Model ID used for pre-profile generation checks and macOS DDM profile generation. |
+
+<br/>
+
+##### Example request body
+
+```json
+{
+  "ai_provider": {
+    "provider": "anthropic",
+    "api_key": "sk-ant-...",
+    "models": {
+      "low": "claude-haiku-5-5",
+      "high": "claude-opus-5-5"
+    }
   }
 }
 ```

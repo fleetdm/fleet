@@ -986,6 +986,30 @@ A `path:`/`paths:` file can define more than one app, so related apps can be gro
 
 Currently, managing users and ticket destinations (Jira and Zendesk) are only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api).
 
+### ai_provider
+
+The `ai_provider` section lets you use your own AI provider for the [AI profile builder](https://fleetdm.com/guides/custom-os-settings#use-your-own-ai-provider). When no provider is configured, Fleet uses its built-in AI. When a provider is configured, Fleet only uses that provider.
+
+- `provider` is the AI provider. Valid values: `anthropic` and `openai` (default: `""`).
+- `api_key` is the provider's API key. Required for `anthropic` and `openai`.
+- `models` specifies the model ID used for complexity level of each task. Fleet sends the matching complexity level with each request. Models that don't support effort are used without it.
+  - `low` is used for description, name, and Android profile generation (default: `""`).
+  - `high` is used for pre-profile generation checks and macOS DDM profile generation (default: `""`).
+
+Can only be configured for "All fleets" (`org_settings`).
+
+#### Example
+
+```yaml
+org_settings:
+  ai_provider:
+    provider: anthropic
+    api_key: $AI_PROVIDER_API_KEY
+    models:
+      low: claude-haiku-5-5
+      high: claude-opus-5-5
+```
+
 ### features
 
 The `features` section of the configuration YAML lets you turn on/off Fleet features.

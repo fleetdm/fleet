@@ -2721,6 +2721,41 @@ This activity contains the following fields:
 }
 ```
 
+## AI and MCP
+
+- [changed_ai_provider](#changed-ai-provider)
+- [edited_custom_ai_provider](#edited-custom-ai-provider)
+
+### changed_ai_provider
+
+Generated when the AI provider used for Fleet's AI features is changed, including switching between Fleet's built-in AI and a custom AI provider.
+
+This activity contains the following fields:
+- "provider": The new AI provider. Either `"fleet"`, `"anthropic"`, or `"openai"`.
+
+#### Example
+
+```json
+{
+  "provider": "anthropic"
+}
+```
+
+### edited_custom_ai_provider
+
+Generated when custom AI provider settings, such as the API key or models, are edited.
+
+This activity contains the following fields:
+- "provider": The custom AI provider. Either `"anthropic"` or `"openai"`.
+
+#### Example
+
+```json
+{
+  "provider": "openai"
+}
+```
+
 ## SCIM
 
 - [scim_user_deprovision_skipped](#scim-user-deprovision-skipped)
