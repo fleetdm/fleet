@@ -7,7 +7,7 @@
 #
 # Components checked:
 #   - com.fleetdm.orbit   (LaunchDaemon, runs orbit as root)
-#   - Fleet               (process: /opt/orbit/bin/orbit/Fleet)
+#   - Fleet (orbit)       (process: /opt/orbit/bin/orbit/Fleet or /opt/orbit/bin/orbit/orbit)
 #   - osqueryd            (process: spawned and managed by orbit, runs from an
 #                          app bundle under /opt/orbit/bin/osqueryd/macos-app/)
 #   - fleet-desktop       (process: optional, only present if packaged with
@@ -16,7 +16,7 @@
 # Sources:
 #   - LaunchDaemon:        /Library/LaunchDaemons/com.fleetdm.orbit.plist
 #                          (Label com.fleetdm.orbit, ProgramArguments
-#                          /opt/orbit/bin/orbit/Fleet)
+#                          /opt/orbit/bin/orbit/Fleet or /opt/orbit/bin/orbit/orbit)
 #   - Install root:        /opt/orbit (orbit/CHANGELOG.md — installer paths)
 #   - Orbit symlink:       /usr/local/bin/orbit
 #   - Enroll secret:       /opt/orbit/secret.txt (ORBIT_ENROLL_SECRET_PATH).
@@ -30,7 +30,7 @@
 #                              /var/log/orbit/orbit.stderr.log (set in the LaunchDaemon plist)
 #                            - osquery filesystem logger: /opt/orbit/osquery_log
 #                            - fleet-desktop: $HOME/Library/Logs/Fleet/fleet-desktop.log (per user)
-#   - Profile dumps:       /opt/orbit/profiles (pkill -USR1 Fleet)
+#   - Profile dumps:       /opt/orbit/profiles (pkill -USR1 Fleet, or pkill -USR1 orbit)
 #
 # Also collects a lookback window (default 72h, override with LOOKBACK_HOURS env
 # var) of system events — reboots, installer activity, launchd job failures,
@@ -133,8 +133,8 @@ check_process() {
   fi
 }
 
-# Fleet binary path is /opt/orbit/bin/orbit/Fleet, runs as root
-check_process "Fleet"    "${ORBIT_ROOT}/bin/orbit/Fleet"
+# Fleet binary path is /opt/orbit/bin/orbit/Fleet or /opt/orbit/bin/orbit/orbit, runs as root
+check_process "Fleet (orbit)" "${ORBIT_ROOT}/bin/orbit/(Fleet|orbit)"
 
 # osqueryd runs from an app bundle orbit manages under bin/osqueryd/macos-app/
 check_process "osqueryd" "osqueryd"
@@ -165,7 +165,11 @@ check_file() {
   fi
 }
 
-check_file "Fleet binary"     "${ORBIT_ROOT}/bin/orbit/Fleet"
+fleet_bin=""
+for p in "${ORBIT_ROOT}/bin/orbit/Fleet" "${ORBIT_ROOT}/bin/orbit/orbit"; do
+  if [[ -e "${p}" ]]; then fleet_bin="${p}"; break; fi
+done
+check_file "Fleet binary"     "${fleet_bin:-${ORBIT_ROOT}/bin/orbit/Fleet}"
 check_file "orbit symlink"    "/usr/local/bin/orbit"
 check_file "osquery pidfile"  "${ORBIT_ROOT}/osquery.pid"
 
