@@ -421,6 +421,51 @@ func TestS1Guards(t *testing.T) {
 	})
 }
 
+// Only s1's own worktree and its repo's primary checkout are off limits; a
+// standalone clone is its own primary checkout and stays usable.
+func TestS1RepoGuards(t *testing.T) {
+	setup := func(t *testing.T, prev func(e *env) string) *env {
+		e := newEnv(t)
+		clone := filepath.Join(filepath.Dir(e.task), "clone")
+		if err := os.Mkdir(clone, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		e.api.opts.PrimaryCheckout = func(dir string) (string, error) {
+			if _, err := os.Stat(dir); err != nil {
+				return "", err
+			}
+			if samePath(dir, clone) {
+				return clone, nil
+			}
+			return e.primary, nil
+		}
+		if prev == nil {
+			prev = func(*env) string { return clone }
+		}
+		e.writeRes(fmt.Sprintf(`{"slots": {"s2": {"worktree": %q, "previous_worktree": %q, "ports": %s, "compose_project": "hangar-test-s2"}}}`,
+			e.task, prev(e), portsJSON(s2Ports())))
+		e.assignTask()
+		return e
+	}
+	t.Run("standalone clone restores", func(t *testing.T) {
+		e := setup(t, nil)
+		clone := filepath.Join(filepath.Dir(e.task), "clone")
+		if code, out := e.act("s2", map[string]any{"action": "assign", "target": clone}); code != 200 {
+			t.Fatalf("restore: %d %v", code, out)
+		}
+	})
+	t.Run("s1 worktree refused", func(t *testing.T) {
+		e := setup(t, func(e *env) string { return e.s1Worktr })
+		code, out := e.act("s2", map[string]any{"action": "assign", "target": e.s1Worktr})
+		expect(t, code, out, 403, "s1's worktree")
+	})
+	t.Run("s1 primary checkout refused", func(t *testing.T) {
+		e := setup(t, func(e *env) string { return e.primary })
+		code, out := e.act("s2", map[string]any{"action": "assign", "target": e.primary})
+		expect(t, code, out, 403, "primary checkout")
+	})
+}
+
 func TestReservationGuards(t *testing.T) {
 	t.Run("worktree mismatch", func(t *testing.T) {
 		e := newEnv(t)
@@ -453,6 +498,15 @@ func TestReservationGuards(t *testing.T) {
 }
 
 func TestAssign(t *testing.T) {
+	t.Run("saves the reservation's spelling", func(t *testing.T) {
+		e := newEnv(t)
+		if code, out := e.act("s2", map[string]any{"action": "assign", "target": e.task + "/"}); code != 200 {
+			t.Fatalf("assign: %d %v", code, out)
+		}
+		if s2, _ := findSlot(e.store.Snapshot(), "s2"); *s2.WorktreePath != e.task {
+			t.Fatalf("worktree = %q, want %q", *s2.WorktreePath, e.task)
+		}
+	})
 	t.Run("to the task and back", func(t *testing.T) {
 		e := newEnv(t)
 		if err := os.WriteFile(filepath.Join(e.task, "fleet.yml"), nil, 0o600); err != nil {
@@ -595,8 +649,16 @@ func TestJobAdmission(t *testing.T) {
 		}
 		code, out := e.act("s2", map[string]any{"action": "backup", "name": "mine"})
 		expect(t, code, out, 409, "already exists")
-		code, out = e.act("s2", map[string]any{"action": "backup", "name": "a/b"})
+		code, out = e.act("s2", map[string]any{"action": "backup", "name": "bad;name"})
 		expect(t, code, out, 400, "may only contain")
+	})
+	t.Run("backup name with a path", func(t *testing.T) {
+		e := newEnv(t)
+		e.assignTask()
+		for _, name := range []string{"a/b", "a..b", `a\b`} {
+			code, out := e.act("s2", map[string]any{"action": "backup", "name": name})
+			expect(t, code, out, 400, "plain file name")
+		}
 	})
 	t.Run("stop replaces every slot process", func(t *testing.T) {
 		e := newEnv(t)

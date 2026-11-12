@@ -277,7 +277,7 @@ func (a *API) assign(ctx context.Context, slotID string, req actionRequest) (set
 	if err != nil {
 		return settings.ServerProfile{}, err
 	}
-	if err := a.checkTarget(a.opts.Store.Snapshot(), adm, target); err != nil {
+	if target, err = a.checkTarget(a.opts.Store.Snapshot(), adm, target); err != nil {
 		return settings.ServerProfile{}, err
 	}
 
@@ -336,6 +336,10 @@ func (a *API) startJob(slotID string, req actionRequest) (*job, error) {
 	}
 	var backupName string
 	if req.Action == slots.ActionBackup {
+		// CheckBackupNameInDir also refuses these; CodeQL only recognizes this form as a path sanitizer.
+		if strings.Contains(req.Name, "..") || strings.ContainsAny(req.Name, `/\`) || filepath.Base(req.Name) != req.Name {
+			return nil, refuse(http.StatusBadRequest, "backup name must be a plain file name, without path separators or \"..\"")
+		}
 		c, err := db.CheckBackupNameInDir(dir, req.Name)
 		if err != nil {
 			return nil, refuse(http.StatusBadRequest, "%v", err)

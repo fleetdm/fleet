@@ -74,7 +74,7 @@ func (a *API) check(slotID, worktree string, assigned bool, createdAt string) (a
 
 // checkS1 refuses anything s1 uses: its ports and the canonical defaults
 // (any single one), its compose project or the default "fleet", and its
-// worktree or the primary checkout of each path.
+// worktree or its repo's primary checkout. Each path must be a git worktree.
 func (a *API) checkS1(snap settings.Settings, slot settings.ServerProfile, worktrees ...string) error {
 	s1, hasS1 := findSlot(snap, "s1")
 	taken := portList(settings.DefaultPortsForIndex(0))
@@ -91,40 +91,56 @@ func (a *API) checkS1(snap settings.Settings, slot settings.ServerProfile, workt
 	if slot.ComposeProject == "" || slot.ComposeProject == "fleet" || (hasS1 && slot.ComposeProject == s1.ComposeProject) {
 		return refuse(http.StatusForbidden, "%s compose project %q collides with s1", slot.ID, slot.ComposeProject)
 	}
+	var s1Worktree, s1Primary string
+	if hasS1 && s1.WorktreePath != nil {
+		s1Worktree = *s1.WorktreePath
+		p, err := a.opts.PrimaryCheckout(s1Worktree)
+		if err != nil {
+			return refuse(http.StatusForbidden, "finding s1's primary checkout: %v", err)
+		}
+		s1Primary = p
+	}
 	for _, wt := range worktrees {
-		if hasS1 && s1.WorktreePath != nil && samePath(wt, *s1.WorktreePath) {
+		if s1Worktree != "" && samePath(wt, s1Worktree) {
 			return refuse(http.StatusForbidden, "%s is s1's worktree", wt)
 		}
-		primary, err := a.opts.PrimaryCheckout(wt)
-		if err != nil {
+		if _, err := a.opts.PrimaryCheckout(wt); err != nil {
 			return refuse(http.StatusForbidden, "%s isn't a git worktree: %v", wt, err)
 		}
-		if samePath(wt, primary) {
-			return refuse(http.StatusForbidden, "%s is the primary checkout", wt)
+		if s1Primary != "" && samePath(wt, s1Primary) {
+			return refuse(http.StatusForbidden, "%s is s1's primary checkout", wt)
 		}
 	}
 	return nil
 }
 
-// checkTarget validates an assign target against the reservation. nil
-// restores "no worktree", allowed only when the slot had none before.
-func (a *API) checkTarget(snap settings.Settings, adm admitted, target *string) error {
+// checkTarget validates an assign target against the reservation and returns
+// the reservation's own path for it, so the caller's spelling never reaches
+// the filesystem or settings. nil restores "no worktree", allowed only when
+// the slot had none before.
+func (a *API) checkTarget(snap settings.Settings, adm admitted, target *string) (*string, error) {
 	res := adm.res
+	var canon string
 	switch {
 	case target == nil:
 		if res.PreviousWorktree != nil {
-			return refuse(http.StatusForbidden, "target null is allowed only when previous_worktree is null; it's %s", *res.PreviousWorktree)
+			return nil, refuse(http.StatusForbidden, "target null is allowed only when previous_worktree is null; it's %s", *res.PreviousWorktree)
 		}
-		return nil
+		return nil, nil
 	case samePath(*target, res.Worktree):
+		canon = res.Worktree
 	case res.PreviousWorktree != nil && samePath(*target, *res.PreviousWorktree):
-		if _, err := os.Stat(*target); errors.Is(err, fs.ErrNotExist) {
-			return refuse(http.StatusConflict, "previous_worktree %s no longer exists; recover with the helper's adoption in %s", *target, recoveryDoc)
+		canon = *res.PreviousWorktree
+		if _, err := os.Stat(canon); errors.Is(err, fs.ErrNotExist) {
+			return nil, refuse(http.StatusConflict, "previous_worktree %s no longer exists; recover with the helper's adoption in %s", canon, recoveryDoc)
 		}
 	default:
-		return refuse(http.StatusForbidden, "target must be the reservation's worktree or previous_worktree")
+		return nil, refuse(http.StatusForbidden, "target must be the reservation's worktree or previous_worktree")
 	}
-	return a.checkS1(snap, adm.slot, *target)
+	if err := a.checkS1(snap, adm.slot, canon); err != nil {
+		return nil, err
+	}
+	return &canon, nil
 }
 
 // quiet refuses an assign while the slot's containers run. Hold already
